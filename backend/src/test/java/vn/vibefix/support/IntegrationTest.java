@@ -11,17 +11,22 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
+import vn.vibefix.notification.internal.RecordingMailSender;
+import vn.vibefix.notification.internal.TestMailConfiguration;
+
 /**
  * Base class for tests that boot the whole application (Conventions, Testing): the {@code dev}
  * profile against Testcontainers PostgreSQL 18.6, the application connected as the runtime role
  * and Flyway as the migration role, a {@link MutableClock}, and a database restored from its
  * template before every test. No sandbox worker runs, so its health indicator is off
  * ({@code SandboxRoundTripIT} covers it), and the pollers are off: tests run their work directly.
+ * Email goes to the {@link RecordingMailSender}, never to SMTP, and the operation type
+ * {@value ScriptedOperationHandler#TYPE} answers what a test scripts.
  */
 @SpringBootTest(properties = { "management.health.sandbox.enabled=false", "vibefix.scheduling.enabled=false" })
 @AutoConfigureMockMvc
 @ActiveProfiles("dev")
-@Import(TestClockConfiguration.class)
+@Import({ TestClockConfiguration.class, TestMailConfiguration.class, TestOperationsConfiguration.class })
 public abstract class IntegrationTest {
 
 	protected static final PostgresTestDatabase database = PostgresTestDatabase.instance();
@@ -31,6 +36,12 @@ public abstract class IntegrationTest {
 
 	@Autowired
 	protected MutableClock clock;
+
+	@Autowired
+	protected RecordingMailSender mail;
+
+	@Autowired
+	protected ScriptedOperationHandler scriptedOperations;
 
 	@DynamicPropertySource
 	static void databaseProperties(DynamicPropertyRegistry registry) {
@@ -42,6 +53,8 @@ public abstract class IntegrationTest {
 	void resetDatabaseAndClock() {
 		database.resetFromTemplate(this.dataSource);
 		this.clock.reset();
+		this.mail.reset();
+		this.scriptedOperations.reset();
 	}
 
 }

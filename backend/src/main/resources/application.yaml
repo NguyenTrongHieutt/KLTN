@@ -110,6 +110,40 @@ vibefix:
     purge-after: 30d
     processed-retention: 90d
     maintenance-interval: 1m
+  # AD-6: the seed operation policy. The pollers claim due operations every poll-interval; each lane
+  # runs at most concurrency attempts at once, each leased for its timeout.
+  operations:
+    poll-interval: 30s
+    lanes:
+      github-long:
+        concurrency: 1
+        timeout: 15m
+      github-short:
+        concurrency: 4
+        timeout: 30s
+      scan:
+        concurrency: 2
+        timeout: 10m
+      email:
+        concurrency: 2
+        # Longer than a slow SMTP exchange (a 10 s connect, then several replies of up to 30 s each),
+        # so a lease never expires while a message is still being handed over.
+        timeout: 3m
+      vnpay:
+        concurrency: 2
+        timeout: 30s
+  # AD-27, AD-34: email over SMTP. The username and password are the secret files smtp-username and
+  # smtp-password (AD-22); the provider (Resend or Brevo) is chosen at deployment.
+  email:
+    from: "vibefix <no-reply@vibefix.vn>"
+    # Emails per UTC day: Resend's free tier, the lower of the two providers'.
+    daily-budget: 100
+    alert-percent: 80
+    smtp:
+      port: 587
+      starttls: true
+      connect-timeout: 10s
+      timeout: 30s
   # AD-32: the sandbox worker that runs untrusted content (same image, profile sandbox).
   sandbox:
     url: http://sandbox:8080

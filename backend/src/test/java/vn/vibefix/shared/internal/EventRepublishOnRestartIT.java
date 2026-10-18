@@ -46,8 +46,9 @@ class EventRepublishOnRestartIT {
 		ProbeListener.reset(0);
 		try (ConfigurableApplicationContext second = start(db, true)) {
 			await().atMost(WAIT).until(() -> "COMPLETED".equals(status(db)));
-			assertThat(scheduledMethods(second)).as("the maintenance poller runs when scheduling is on")
-				.contains(EventPublicationScheduler.class.getName() + ".maintain");
+			assertThat(scheduledMethods(second)).as("the pollers run when scheduling is on")
+				.contains(EventPublicationScheduler.class.getName() + ".maintain",
+						"vn.vibefix.operations.internal.OperationScheduler.poll");
 		}
 
 		assertThat(ProbeListener.applied.get()).isOne();

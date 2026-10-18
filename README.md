@@ -130,7 +130,8 @@ VIBEFIX_SECRETS_DIR=../deploy/secrets/ ./mvnw spring-boot:run -Dspring-boot.run.
 
 ## Conventions enforced by the build
 
-- `ModularityTests`, `ModuleLayersTest`: module boundaries and the AD-3 layer table.
+- `ModularityTests`, `ModuleLayersTest`: module boundaries and the AD-3 layer table; inside L1 only
+  `audit` ← `operations` ← `notification` (each may call those before it).
 - `ClockRuleTest`: business time only from the injected `Clock` (calls and method references).
 - `MigrationConventionsTest`: migration folder, name, schema ownership (names must be qualified
   with the module's schema), and immutability against `main` (set
@@ -151,6 +152,12 @@ VIBEFIX_SECRETS_DIR=../deploy/secrets/ ./mvnw spring-boot:run -Dspring-boot.run.
   Administrator read grants down (AD-20).
 - `EventPublicationIT`, `EventRepublishOnRestartIT`: event publications are republished at start,
   resubmitted after 5 minutes, stalled after 5 attempts, replay-safe, and purged after 30 days (AD-9).
+- `ExternalOperationsIT`: External Operations are recorded in the caller's transaction, joined by
+  key, claimed under a lease, retried 30 s doubling for 8 attempts, read back when ambiguous, and
+  completed with their audit entry and event; their payload never changes (AD-6).
+- `EmailIT`, `EmailTemplateTest`, `SmtpMailSenderIT`: email goes out at least once through the
+  email lane, by priority class and within the daily budget, from templates that escape every value,
+  and the real SMTP adapter delivers it to a Mailpit container (AD-21, AD-27, AD-34).
 - `npm run lint`: no raw HTML (`dangerouslySetInnerHTML`, `innerHTML`, `insertAdjacentHTML`,
   `document.write`), no `fetch`, `XMLHttpRequest`, `EventSource`, `WebSocket`, `sendBeacon` or
   `openapi-fetch` outside `src/lib`, and a self-test that these bans still fire. Then the

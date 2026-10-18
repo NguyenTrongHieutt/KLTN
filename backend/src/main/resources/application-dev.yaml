@@ -11,3 +11,11 @@ vibefix:
   github:
     # AD-25: the dev GitHub organization; the prod profile refuses to start with it.
     organization: vibefix-dev
+  email:
+    # The dev stack's Mailpit (deploy/compose.yaml sets VIBEFIX_EMAIL_SMTP_HOST=mailpit); its web view
+    # is http://127.0.0.1:8025. It needs no credentials and no TLS.
+    link-base-url: http://localhost:5173
+    smtp:
+      host: localhost
+      port: 1025
+      starttls: false

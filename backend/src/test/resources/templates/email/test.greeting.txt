@@ -1,0 +1,7 @@
+subject: Chào {name}, mã vibefix của bạn là {code}
+link: /viec-can-lam
+---
+Xin chào {name},
+
+Mã xác minh vibefix của bạn là {code}. Mã hết hạn sau 10 phút.
+Nếu bạn không yêu cầu mã này, hãy bỏ qua email.

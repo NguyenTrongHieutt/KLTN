@@ -29,10 +29,10 @@ import org.springframework.stereotype.Component;
 @Component
 class SecretSourceGuard implements InitializingBean {
 
-	/** Every secret property of the platform; later stories add theirs (GitHub App keys, SMTP, VNPay). */
+	/** Every secret property of the platform; later stories add theirs (GitHub App keys, VNPay). */
 	static final Set<String> SECRET_PROPERTIES = Set.of("spring.datasource.password",
 			"spring.datasource.hikari.password", "spring.flyway.password", "db-app-password", "db-migrator-password",
-			"github-oauth-client-secret");
+			"github-oauth-client-secret", "smtp-password");
 
 	/**
 	 * Secrets that come in numbered versions, matched against the property names of the process
