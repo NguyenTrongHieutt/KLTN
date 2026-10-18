@@ -1,8 +1,9 @@
-# vibefix, local development stack: three services, each published on localhost only.
+# vibefix, local development stack: four services, each published on localhost only.
 #
 #   postgres  PostgreSQL 18                                  127.0.0.1:5432
 #   backend   vibefix-app (Spring Boot, profile dev)         127.0.0.1:8080
 #   frontend  Vite dev server on frontend/ (hot reload)      127.0.0.1:5173, /api proxied to backend
+#   mailpit   catches every email the backend sends          127.0.0.1:8025 (web), 127.0.0.1:1025 (SMTP)
 #
 # Until the application works in this dev environment, the stack leaves out the production shape
 # (Caddy edge, sandbox and checker workers, egress proxy; AD-26, AD-32) and CI runs no gates. Both
@@ -51,6 +52,8 @@ services:
       VIBEFIX_DB_HOST: postgres
       # No sandbox worker runs in this stack, so its health check would report DOWN.
       MANAGEMENT_HEALTH_SANDBOX_ENABLED: "false"
+      # AD-27: email goes to Mailpit; nothing leaves the machine.
+      VIBEFIX_EMAIL_SMTP_HOST: mailpit
     secrets:
       - db-app-password
       - db-migrator-password
@@ -64,6 +67,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      # Email waits and retries while Mailpit is down, so the backend does not wait for it.
+      mailpit:
+        condition: service_started
     healthcheck:
       # Bash's /dev/tcp, because the JRE image has neither curl nor wget.
       test:
@@ -114,6 +120,24 @@ services:
       retries: 5
       start_period: 300s
       start_interval: 3s
+    restart: unless-stopped
+
+  # The dev stand-in for the SMTP provider (Resend or Brevo in production, AD-27): it accepts every
+  # message and shows it at http://127.0.0.1:8025. Messages live only as long as the container.
+  mailpit:
+    image: axllent/mailpit:v1.31.3@sha256:ed9b00c609e77e99c79b93f1178255ebc271868920f2c69a8d166bd5634ed10d
+    environment:
+      TZ: UTC
+    ports:
+      - "127.0.0.1:8025:8025"
+      - "127.0.0.1:1025:1025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+      start_interval: 2s
     restart: unless-stopped
 
 volumes:

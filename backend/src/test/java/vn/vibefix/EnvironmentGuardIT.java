@@ -194,16 +194,38 @@ class EnvironmentGuardIT {
 	@Test
 	void prodRefusesToStartWithoutTheSignInOAuthApp() throws Exception {
 		String db = database.createScratchDatabase();
+		List<String> args = new ArrayList<>(List.of(database.applicationArguments(db)));
+		args.addAll(EMAIL);
 
-		assertThatThrownBy(() -> run(new ArrayList<>(List.of(database.applicationArguments(db))), "prod")).rootCause()
+		assertThatThrownBy(() -> run(args, "prod")).rootCause()
 			.hasMessageContaining("github-oauth-client-id")
 			.hasMessageContaining("refusing to start");
 	}
 
+	@Test
+	void prodRefusesToStartWithoutAnSmtpServer() throws Exception {
+		String db = database.createScratchDatabase();
+		List<String> args = new ArrayList<>(List.of(database.applicationArguments(db)));
+		args.addAll(OAUTH);
+
+		assertThatThrownBy(() -> run(args, "prod")).rootCause()
+			.hasMessageContaining("vibefix.email.smtp.host")
+			.hasMessageContaining("refusing to start");
+	}
+
+	/** AD-25: production needs the sign-in OAuth App ... */
+	private static final List<String> OAUTH = List.of("--github-oauth-client-id=test-client",
+			"--github-oauth-client-secret=test-secret");
+
+	/** ... and an SMTP server with the platform address its links use (AD-27). */
+	private static final List<String> EMAIL = List.of("--vibefix.email.smtp.host=localhost",
+			"--vibefix.email.link-base-url=https://vibefix.vn");
+
 	private static ConfigurableApplicationContext start(String db, String profiles, String... extraArgs) {
 		List<String> args = new ArrayList<>(List.of(database.applicationArguments(db)));
-		// AD-25: production needs the sign-in OAuth App; these scenarios are about the environment.
-		args.addAll(List.of("--github-oauth-client-id=test-client", "--github-oauth-client-secret=test-secret"));
+		// These scenarios are about the environment, so production gets what it needs besides.
+		args.addAll(OAUTH);
+		args.addAll(EMAIL);
 		args.addAll(List.of(extraArgs));
 		return run(args, profiles);
 	}

@@ -1,15 +1,16 @@
 # deploy
 
-The local development stack of vibefix: three services, each published on localhost only.
+The local development stack of vibefix: four services, each published on localhost only.
 
 | Service | Address | What it is |
 |---|---|---|
 | `frontend` | <http://localhost:5173> | Vite dev server on `frontend/` (Node 24), hot reload; `/api` is proxied to `backend` |
 | `backend` | <http://localhost:8080> | Spring Boot, profile `dev`; Swagger UI at `/swagger-ui/index.html`, health at `/actuator/health` |
 | `postgres` | `localhost:5432` | PostgreSQL 18, database `vibefix`, volume `pgdata` |
+| `mailpit` | <http://localhost:8025> | Catches every email the backend sends (SMTP on `localhost:1025`); nothing leaves the machine |
 
 ```text
-compose.yaml          the three services
+compose.yaml          the four services
 postgres/initdb/      creates the roles and the database on an empty volume
 dev-secrets.sh        creates the local secret files in deploy/secrets/ (ignored by git)
 later/                the production shape and CI, parked until the dev environment works (below)
@@ -30,7 +31,7 @@ The first start takes a few minutes (Maven build, `npm ci`). Then:
 - Backend changes need a rebuild: `docker compose -f deploy/compose.yaml up -d --build backend`.
 - After `package-lock.json` changes, restart the frontend: `docker compose -f deploy/compose.yaml restart frontend`
   (it runs `npm ci` again only then).
-- Logs: `docker compose -f deploy/compose.yaml logs -f backend` (or `frontend`, `postgres`).
+- Logs: `docker compose -f deploy/compose.yaml logs -f backend` (or `frontend`, `postgres`, `mailpit`).
 
 Stop with `docker compose -f deploy/compose.yaml down`; add `--volumes` to delete the database and
 the frontend's `node_modules` volume.
@@ -77,6 +78,20 @@ The app asks only for `read:user` and `user:email` (FR-1). vibefix keeps the tok
 only, encrypted with `secrets/identity-token-key-1`, which `dev-secrets.sh` creates; deleting that
 key makes every kept token unreadable. To try a locked account, set it in the database:
 `UPDATE identity.account SET locked_at = now(), lock_reason = '...' WHERE github_login = '...'`.
+
+## Email locally
+
+The backend sends email as External Operations over SMTP (AD-6, AD-27). On this stack the SMTP
+server is Mailpit: open <http://localhost:8025> to read every message, with its text and HTML parts.
+The email lane polls every 30 seconds, so a message appears within about half a minute. While
+Mailpit is down, emails wait and retry (30 s, doubling, 8 attempts). A backend run outside Compose
+uses `localhost:1025`, the same Mailpit.
+
+In production the server is the provider chosen at deployment (Resend or Brevo): set
+`vibefix.email.smtp.host`, `port` and `vibefix.email.link-base-url`, and put the credentials in the
+secret files `smtp-username` and `smtp-password`. The `prod` profile refuses to start without a host.
+The daily budget is `vibefix.email.daily-budget` (100, Resend's free tier); past it, email waits
+for the next UTC day, and the send that crosses 80% records the `notification.email_budget_80` alert.
 
 ## Parked for later (`later/`)
 

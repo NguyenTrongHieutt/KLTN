@@ -27,6 +27,13 @@ class ModuleLayersTest {
 			entry("work", 7), entry("chat", 7), entry("delivery", 8), entry("reputation", 9), entry("dispute", 10),
 			entry("admin", 11));
 
+	/**
+	 * The order inside L1, which AD-3 leaves open: each module listed may depend on the ones before
+	 * it. {@code operations} writes audit entries at completion (AD-6, AD-8), and {@code notification}
+	 * sends email as External Operations (AD-27). Other L1 modules may not depend on each other.
+	 */
+	static final List<String> L1_ORDER = List.of("audit", "operations", "notification");
+
 	@Test
 	void everyModuleIsInTheLayerTable() {
 		List<String> modules = ApplicationModules.of(VibefixApplication.class)
@@ -61,17 +68,33 @@ class ModuleLayersTest {
 		assertThat(violations("job", new String[] { "unknown" })).hasSize(1);
 	}
 
+	@Test
+	void insideL1OnlyTheListedOrderIsAllowed() {
+		assertThat(violations("operations", new String[] { "shared", "audit" })).isEmpty();
+		assertThat(violations("notification", new String[] { "shared", "audit", "operations" })).isEmpty();
+		assertThat(violations("audit", new String[] { "operations" })).hasSize(1);
+		assertThat(violations("operations", new String[] { "notification" })).hasSize(1);
+		assertThat(violations("files", new String[] { "audit" })).hasSize(1);
+		assertThat(violations("notification", new String[] { "timers" })).hasSize(1);
+	}
+
 	static List<String> violations(String module, String[] allowedDependencies) {
 		int layer = LAYERS.getOrDefault(module, -1);
 		List<String> violations = new ArrayList<>();
 		for (String dependency : allowedDependencies) {
 			String target = dependency.split("::", 2)[0];
 			Integer targetLayer = LAYERS.get(target);
-			if (targetLayer == null || targetLayer >= layer) {
+			if (targetLayer == null || (targetLayer >= layer && !earlierInL1(target, module))) {
 				violations.add(module + " (L" + layer + ") may not depend on " + dependency + " (L" + targetLayer + ")");
 			}
 		}
 		return violations;
+	}
+
+	private static boolean earlierInL1(String target, String module) {
+		int targetIndex = L1_ORDER.indexOf(target);
+		int moduleIndex = L1_ORDER.indexOf(module);
+		return targetIndex >= 0 && moduleIndex >= 0 && targetIndex < moduleIndex;
 	}
 
 	private static ApplicationModule declarationOf(String basePackage) {
