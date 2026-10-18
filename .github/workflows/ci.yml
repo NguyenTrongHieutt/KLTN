@@ -1,0 +1,155 @@
+# CI gates (spine: CI gates; NFR-2, SM-5, SG-33). Every push and pull request runs the build, every
+# test suite with Modulith verification, the codebase secret scan and the OWASP ZAP baseline against
+# a temporary Compose stack. Images are published to GHCR only from main, and only when every gate
+# passed. Third-party actions and images are pinned by commit SHA or digest; the only credential is
+# the workflow's own GITHUB_TOKEN, used by the publish job alone.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  backend:
+    name: Backend build, tests, Modulith
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      # Full history: MigrationConventionsTest compares migrations with origin/main.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+      - name: Build and run every test suite (unit, Modulith, integration on Testcontainers)
+        run: ./mvnw -B verify
+      # OpenApiExportIT rewrites frontend/src/api/openapi.json when it was stale.
+      - name: Committed files are up to date
+        run: git diff --exit-code
+
+  frontend:
+    name: Frontend lint and build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+
+  secrets:
+    name: Secret scan (gitleaks, full history)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: gitleaks
+        run: |
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE:/repo:ro" \
+            -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=safe.directory -e GIT_CONFIG_VALUE_0='*' \
+            ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f \
+            git /repo --redact --verbose
+
+  zap:
+    name: Stack smoke test and OWASP ZAP baseline
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Create throwaway secret files
+        run: bash deploy/dev-secrets.sh
+      - name: Start the stack
+        run: docker compose -f deploy/compose.yaml up -d --build --wait --wait-timeout 600
+      - name: Smoke test
+        run: bash deploy/smoke.sh
+      - name: ZAP baseline
+        run: |
+          work="$RUNNER_TEMP/zap"
+          mkdir -p "$work"
+          cp deploy/zap/rules.tsv "$work/"
+          # ZAP runs as uid 1000 and writes its working files next to the rules.
+          chmod -R a+rwX "$work"
+          docker run --rm --network vibefix_edge -v "$work:/zap/wrk:rw" \
+            ghcr.io/zaproxy/zaproxy:2.17.0@sha256:5ccfff9a411743ab2615136a2edd7416bec9ce41572fa94e935df38c14adb2b6 \
+            zap-baseline.py -t http://caddy -c rules.tsv -r zap-report.html
+      - name: Stack logs
+        if: failure()
+        run: docker compose -f deploy/compose.yaml logs --no-color
+      - name: Stop the stack
+        if: always()
+        run: docker compose -f deploy/compose.yaml down --volumes --remove-orphans
+
+  publish:
+    name: Publish images to GHCR
+    needs: [backend, frontend, secrets, zap]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # GHCR image names must be lowercase; the account name is not.
+      - name: Image names
+        id: names
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          echo "app=ghcr.io/$owner/vibefix-app:$GITHUB_SHA" >>"$GITHUB_OUTPUT"
+          echo "web=ghcr.io/$owner/vibefix-web:$GITHUB_SHA" >>"$GITHUB_OUTPUT"
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: vibefix-app
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: backend
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.names.outputs.app }}
+          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+      - name: vibefix-web
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: deploy/caddy/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.names.outputs.web }}
+          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}

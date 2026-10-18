@@ -25,7 +25,10 @@ import vn.vibefix.support.PostgresTestDatabase;
 /**
  * AD-25: the application starts only when the {@code platform.environment} row equals the active
  * profile, and it checks before any migration runs (or, with Flyway off, before the context is
- * ready). AD-22: database passwords come from secret files. Each scenario gets its own database.
+ * ready). SG-36: {@code prod} refuses the dev seed location and the dev GitHub organization before
+ * migrating. AD-22: database passwords come from secret files, and a secret given as a JVM system
+ * property refuses the start ({@code SecretSourceGuardTest} covers environment variables). Each
+ * scenario gets its own database.
  */
 class EnvironmentGuardIT {
 
@@ -82,7 +85,8 @@ class EnvironmentGuardIT {
 	}
 
 	static Stream<String> profilesWithoutExactlyOneEnvironment() {
-		return Stream.of("", "sandbox", "dev,prod");
+		// "sandbox" is not here: under it the worker starts instead of the application (SandboxRoundTripIT).
+		return Stream.of("", "local", "dev,prod");
 	}
 
 	@Test
@@ -134,6 +138,47 @@ class EnvironmentGuardIT {
 		try (ConfigurableApplicationContext ignored = run(args, "dev")) {
 			assertThat(environmentRows(db)).containsExactly("dev");
 		}
+	}
+
+	@Test
+	void prodRefusesTheDevSeedLocationBeforeMigrating() throws Exception {
+		String db = database.createScratchDatabase();
+
+		assertThatThrownBy(() -> start(db, "prod", "--spring.flyway.locations=classpath:db/migration,classpath:db/seed/dev"))
+			.rootCause()
+			.hasMessageContaining("dev seed location")
+			.hasMessageContaining("db/seed/dev");
+		assertThat(tableExists(db, "platform.flyway_schema_history")).isFalse();
+		assertThat(tableExists(db, "platform.environment")).isFalse();
+	}
+
+	@Test
+	void prodRefusesTheDevGitHubOrganizationBeforeMigrating() throws Exception {
+		String db = database.createScratchDatabase();
+
+		assertThatThrownBy(() -> start(db, "prod", "--vibefix.github.organization=vibefix-dev")).rootCause()
+			.hasMessageContaining("dev GitHub organization");
+		assertThat(tableExists(db, "platform.flyway_schema_history")).isFalse();
+
+		// Also with Flyway off, where the guard checks once all singletons exist.
+		assertThatThrownBy(() -> start(db, "prod", "--spring.flyway.enabled=false",
+				"--vibefix.github.organization=Vibefix-Dev"))
+			.hasMessageContaining("dev GitHub organization");
+	}
+
+	@Test
+	void secretGivenAsASystemPropertyIsRefusedBeforeMigrating() throws Exception {
+		String db = database.createScratchDatabase();
+		System.setProperty("db-app-password", database.appPassword());
+		try {
+			assertThatThrownBy(() -> start(db, "dev")).rootCause()
+				.hasMessageContaining("db-app-password is set in a JVM system property")
+				.hasMessageNotContaining(database.appPassword());
+		}
+		finally {
+			System.clearProperty("db-app-password");
+		}
+		assertThat(tableExists(db, "platform.flyway_schema_history")).isFalse();
 	}
 
 	private static ConfigurableApplicationContext start(String db, String profiles, String... extraArgs) {

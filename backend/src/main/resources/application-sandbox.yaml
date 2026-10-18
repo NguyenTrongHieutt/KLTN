@@ -1,0 +1,15 @@
+# AD-32: the sandbox worker (shared.internal.sandbox.SandboxWorkerConfiguration). It has no database
+# and no secrets: the datasource, Flyway and JPA settings of application.yaml are never bound here.
+
+# The worker serves POST /internal/sandbox/jobs and health only, never an API document.
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+management:
+  endpoint:
+    health:
+      # The worker has no components worth listing; its container healthcheck reads liveness.
+      show-components: never

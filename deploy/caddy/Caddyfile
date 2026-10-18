@@ -1,0 +1,52 @@
+# vibefix-web (AD-26): one origin for the SPA, the API and webhooks.
+#
+# - /api/* and /webhooks/* go to app:8080, which sets the API's security headers itself.
+# - Everything else is the SPA from /srv, with the security headers of AD-21.
+# - /actuator, /v3 and /swagger-ui are never proxied: those paths only ever reach the SPA.
+#
+# VIBEFIX_SITE_ADDRESS is :80 (plain HTTP) for the local stack and CI. In production it is the
+# domain name, and Caddy obtains the certificate and serves HTTPS.
+{
+	admin off
+	persist_config off
+}
+
+{$VIBEFIX_SITE_ADDRESS::80} {
+	# AD-34: request bodies are capped at 15 MB at the edge; larger ones get 413. A body that
+	# declares its length is refused before anything reaches app (which may answer before reading
+	# it); any other body is cut off at 15 MB while it is read.
+	request_body {
+		max_size 15MB
+	}
+	@oversized expression `{http.request.header.Content-Length} != "" && int({http.request.header.Content-Length}) > 15000000`
+
+	header -Server
+
+	handle @oversized {
+		respond 413 {
+			close
+		}
+	}
+
+	@backend path /api/* /webhooks/*
+	handle @backend {
+		reverse_proxy app:8080
+	}
+
+	handle {
+		# AD-21: the same values Spring sets on API responses (shared.internal.SecurityHeadersFilter).
+		header {
+			Content-Security-Policy "default-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+			Strict-Transport-Security "max-age=31536000; includeSubDomains"
+			Referrer-Policy "strict-origin-when-cross-origin"
+			Permissions-Policy "camera=(), geolocation=(), microphone=(), payment=(), usb=()"
+			X-Content-Type-Options "nosniff"
+			Cross-Origin-Opener-Policy "same-origin"
+			Cross-Origin-Embedder-Policy "require-corp"
+			Cross-Origin-Resource-Policy "same-origin"
+		}
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

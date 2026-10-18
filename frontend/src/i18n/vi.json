@@ -18,7 +18,6 @@
     "STALE": "Thông tin đã thay đổi trong lúc bạn xem.",
     "JOB_BUSY": "Đợi {operation} xong rồi thử lại.",
     "GUARD_FAILED": "Chưa thể {action}: {reason}.",
-    "RATE_LIMITED": "Bạn thao tác hơi nhanh. Hãy thử lại sau {time}.",
-    "AI_UNAVAILABLE": "Cố vấn AI tạm thời không phản hồi."
+    "RATE_LIMITED": "Bạn thao tác hơi nhanh. Hãy thử lại sau {time}."
   }
 }

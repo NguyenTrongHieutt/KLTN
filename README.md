@@ -7,7 +7,7 @@ README covers only how to build and run the code.
 ## Layout
 
 ```text
-backend/    Maven, Spring Boot 4.1, Java 25, Spring Modulith; profiles dev, prod (sandbox, cli later)
+backend/    Maven, Spring Boot 4.1, Java 25, Spring Modulith; profiles dev, prod, sandbox (cli later)
   src/main/java/vn/vibefix/{module}/            public API of a module
   src/main/java/vn/vibefix/{module}/internal/   everything else
   src/main/resources/db/migration/{module}/     Flyway, V{yyyyMMddHHmm}__{module}_{description}.sql
@@ -16,11 +16,13 @@ frontend/   Vite, React 19, TypeScript, TanStack Query
   src/lib/        the only code that talks HTTP (apiClient)
   src/features/   one folder per backend module
   src/i18n/       vi.json, the only source of UI text
+deploy/     Docker Compose stack (caddy, app, sandbox, egress, postgres), smoke test, ZAP rules
+.github/    CI gates: build and tests, secret scan, ZAP baseline; image publication from main
 ```
 
 ## Requirements
 
-- JDK 25 (the spine pins Eclipse Temurin 25.0.4.1; CI arrives with Story 1.2)
+- JDK 25 (the spine pins Eclipse Temurin 25.0.4.1, which CI and the images use)
 - Docker, for Testcontainers PostgreSQL 18.6
 - Node.js 24 (see `frontend/.nvmrc`)
 
@@ -45,26 +47,42 @@ runtime role `vibefix_app`, Flyway as the migration role `vibefix_migrator`, the
 `MutableClock`, and the database is recreated from a template before each test (never by deleting
 rows).
 
+## Running the stack
+
+The whole platform runs locally as a Docker Compose stack shaped like production; see
+[deploy/README.md](deploy/README.md):
+
+```sh
+bash deploy/dev-secrets.sh
+docker compose -f deploy/compose.yaml up -d --build --wait
+bash deploy/smoke.sh                 # then open http://localhost:8000
+```
+
 ## Running the backend
 
 The application needs exactly one of the profiles `dev` or `prod`, and refuses to start if the
-`platform.environment` row of its database names the other one. It reads database passwords only
-from secret files (one file per property name, `db-app-password` and `db-migrator-password`) in
-`VIBEFIX_SECRETS_DIR` (default `/run/secrets/`). The database host and port come from
+`platform.environment` row of its database names the other one. `prod` also refuses the dev seed
+location (`db/seed`) and the dev GitHub organization. It reads database passwords only from secret
+files (one file per property name, `db-app-password` and `db-migrator-password`) in
+`VIBEFIX_SECRETS_DIR` (default `/run/secrets/`), and refuses to start when one of them is set as an
+environment variable or a JVM system property. The database host and port come from
 `VIBEFIX_DB_HOST` and `VIBEFIX_DB_PORT` (default `localhost:5432`, database `vibefix`). The
 application runs in UTC (`main` sets the default time zone; tests and `./mvnw spring-boot:run`
-also pass `-Duser.timezone=UTC`).
+also pass `-Duser.timezone=UTC`). Logs are JSON lines (Elastic Common Schema) with a
+`correlationId` per request, which responses return in `X-Correlation-Id`. Actuator exposes only
+`/actuator/health` (with `liveness`, `readiness` and the `sandbox` round trip).
 
-Story 1.2's Docker Compose stack will provide the database and secrets. Until then a local run
-needs, on a PostgreSQL 18 you start yourself:
+The profile `sandbox` starts the sandbox worker instead of the application: no database, and only
+the job handlers (`POST /internal/sandbox/jobs`). The application reaches it at
+`vibefix.sandbox.url` (default `http://sandbox:8080`).
 
-- the roles from `backend/src/test/resources/db/init-roles.sql`, each given a password;
-- a database `vibefix` owned by `vibefix_migrator`;
-- the two passwords in `secrets/db-app-password` and `secrets/db-migrator-password` (ignored by git).
+To run the backend outside Docker, start a PostgreSQL 18 yourself with the roles from
+`backend/src/test/resources/db/init-roles.sql` (each given a password) and a database `vibefix`
+owned by `vibefix_migrator`, and put the two passwords in `deploy/secrets/` (ignored by git):
 
 ```sh
 cd backend
-VIBEFIX_SECRETS_DIR=../secrets/ ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
+VIBEFIX_SECRETS_DIR=../deploy/secrets/ ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
 ## Conventions enforced by the build
@@ -74,7 +92,10 @@ VIBEFIX_SECRETS_DIR=../secrets/ ./mvnw spring-boot:run -Dspring-boot.run.profile
 - `MigrationConventionsTest`: migration folder, name, schema ownership (names must be qualified
   with the module's schema), and immutability against `main` (set
   `-Dvibefix.migrations.base-ref=...` when `main` is not available locally).
-- `EnvironmentGuardIT`: the environment guard (AD-25) and secret-file passwords (AD-22).
+- `EnvironmentGuardIT`, `SecretSourceGuardTest`: the environment guard (AD-25), the prod refusal of
+  dev seed data and the dev organization (SG-36), and secrets from files only (AD-22).
+- `SandboxRoundTripIT`: the sandbox worker's job channel and its isolation report (AD-32).
+- `ApplicationBootIT`: security headers, correlation IDs, Actuator limited to health, the dev seed.
 - `npm run lint`: no raw HTML (`dangerouslySetInnerHTML`, `innerHTML`, `insertAdjacentHTML`,
   `document.write`), no `fetch`, `XMLHttpRequest`, `EventSource`, `WebSocket`, `sendBeacon` or
   `openapi-fetch` outside `src/lib`, and a self-test that these bans still fire.

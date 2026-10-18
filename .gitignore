@@ -8,3 +8,7 @@ secrets/
 .env
 .env.*
 !.env.example
+
+# OWASP ZAP writes its plan and reports next to deploy/zap/rules.tsv.
+deploy/zap/*
+!deploy/zap/rules.tsv

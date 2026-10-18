@@ -11,3 +11,8 @@ springdoc:
     enabled: false
   swagger-ui:
     enabled: false
+
+vibefix:
+  github:
+    # AD-25: the production GitHub organization. Configuring vibefix-dev here refuses the start (SG-36).
+    organization: vibefix-platform

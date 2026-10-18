@@ -21,3 +21,10 @@ trim_trailing_whitespace = false
 
 [*.{cmd,bat}]
 end_of_line = crlf
+
+# Caddy's own formatter (caddy fmt) indents with tabs.
+[Caddyfile]
+indent_style = tab
+
+[*.sh]
+indent_style = tab

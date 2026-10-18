@@ -1,6 +1,9 @@
 spring:
   application:
     name: vibefix-app
+  main:
+    # Conventions, Logging: standard output carries JSON log lines only.
+    banner-mode: off
   config:
     # AD-22: credentials are mounted secret files, one file per property name
     # (db-app-password, db-migrator-password). Nothing secret lives in this file.
@@ -50,3 +53,33 @@ springdoc:
   # Stable key order keeps the committed frontend/src/api/openapi.json diff-free.
   writer-with-order-by-keys: true
   default-produces-media-type: application/json
+
+# Conventions, Logging: one JSON object per line (Elastic Common Schema). Every line written while a
+# request is handled carries its correlationId (shared.internal.CorrelationIdFilter). Log no tokens,
+# secrets or personal data, and never request headers.
+logging:
+  structured:
+    format:
+      console: ecs
+
+# AD-22: Actuator exposes only health. Liveness and readiness are /actuator/health/{liveness,readiness};
+# components (db, sandbox, ...) show their status only, never details.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+      discovery:
+        enabled: false
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+      show-components: always
+
+vibefix:
+  # AD-32: the sandbox worker that runs untrusted content (same image, profile sandbox).
+  sandbox:
+    url: http://sandbox:8080
+    timeout: 30s

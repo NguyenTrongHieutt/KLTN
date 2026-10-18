@@ -2,5 +2,12 @@
 # and the application refuses to start against a database stamped for another environment.
 spring:
   flyway:
+    # SG-36: dev seed data lives only in db/seed/dev, which only this profile adds; prod refuses it.
+    locations: classpath:db/migration,classpath:db/seed/dev
     placeholders:
       environment: dev
+
+vibefix:
+  github:
+    # AD-25: the dev GitHub organization; the prod profile refuses to start with it.
+    organization: vibefix-dev
