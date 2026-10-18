@@ -8,9 +8,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import jakarta.validation.Valid;
@@ -19,14 +21,19 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.web.ErrorResponseException;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -37,16 +44,23 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 
 /**
  * AD-23: every error is RFC 9457 Problem Details with a {@code code} from {@link ErrorCode}, plus
  * {@code reason} when given; 5xx has no code, and no English {@code detail} reaches the client.
+ * Conventions, Logging: a 5xx carries the request's {@code correlationId}, and its error is logged
+ * as one JSON line under the same ID, without request headers.
  */
 @WebMvcTest(controllers = ProblemDetailsAdviceTest.ProbeController.class)
 @Import(ProblemDetailsAdviceTest.ProbeController.class)
+@ExtendWith(OutputCaptureExtension.class)
 class ProblemDetailsAdviceTest {
+
+	private static final JsonMapper json = JsonMapper.builder().build();
 
 	@Autowired
 	private MockMvc mvc;
@@ -63,8 +77,7 @@ class ProblemDetailsAdviceTest {
 	}
 
 	@ParameterizedTest
-	@CsvSource({ "STALE, 409", "JOB_BUSY, 409", "GUARD_FAILED, 422", "AI_CONSENT_REQUIRED, 403",
-			"RATE_LIMITED, 429", "AI_UNAVAILABLE, 503" })
+	@CsvSource({ "STALE, 409", "JOB_BUSY, 409", "GUARD_FAILED, 422", "RATE_LIMITED, 429", "CONFLICT, 409" })
 	void codedErrorUsesTheStatusOfItsCode(ErrorCode code, int expectedStatus) throws Exception {
 		this.mvc.perform(get("/api/v1/probe/coded/{code}", code))
 			.andExpect(status().is(expectedStatus))
@@ -146,10 +159,46 @@ class ProblemDetailsAdviceTest {
 	}
 
 	@Test
-	void springServerErrorsCarryNoCode() throws Exception {
-		this.mvc.perform(get("/api/v1/probe/status/{status}", 503))
+	void unexpectedErrorCarriesTheCorrelationIdAndIsLoggedAsOneJsonLine(CapturedOutput output) throws Exception {
+		String credential = "Bearer probe-credential-" + Long.toHexString(Double.doubleToLongBits(Math.E));
+		MvcResult result = this.mvc
+			.perform(get("/api/v1/probe/boom").header(HttpHeaders.AUTHORIZATION, credential)
+				.header(HttpHeaders.COOKIE, "SESSION=probe-session"))
+			.andExpect(status().isInternalServerError())
+			.andExpect(header().exists(CorrelationIdFilter.HEADER))
+			.andReturn();
+		String correlationId = result.getResponse().getHeader(CorrelationIdFilter.HEADER);
+		JsonNode body = json.readTree(result.getResponse().getContentAsString(StandardCharsets.UTF_8));
+
+		assertThat(body.path(ProblemDetailsAdvice.CORRELATION_ID).asString()).isEqualTo(correlationId);
+		List<String> lines = output.getOut().lines().filter(line -> line.contains(correlationId)).toList();
+		assertThat(lines).singleElement().satisfies(line -> {
+			JsonNode logged = json.readTree(line);
+			assertThat(logged.path(CorrelationIdFilter.MDC_KEY).asString()).isEqualTo(correlationId);
+			assertThat(logged.at("/log/level").asString()).isEqualTo("ERROR");
+			assertThat(logged.at("/error/type").asString()).isEqualTo(IllegalStateException.class.getName());
+		});
+		assertThat(output.getAll()).doesNotContain(credential).doesNotContain("probe-credential")
+			.doesNotContain("probe-session");
+	}
+
+	@Test
+	void springServerErrorsCarryNoCodeButTheCorrelationId() throws Exception {
+		MvcResult result = this.mvc.perform(get("/api/v1/probe/status/{status}", 503))
 			.andExpect(status().isServiceUnavailable())
-			.andExpect(jsonPath("$.code").doesNotExist());
+			.andExpect(jsonPath("$.code").doesNotExist())
+			.andReturn();
+
+		assertThat(json.readTree(result.getResponse().getContentAsString(StandardCharsets.UTF_8))
+			.path(ProblemDetailsAdvice.CORRELATION_ID)
+			.asString()).isEqualTo(result.getResponse().getHeader(CorrelationIdFilter.HEADER)).isNotBlank();
+	}
+
+	@Test
+	void clientErrorsCarryNoCorrelationIdInTheBody() throws Exception {
+		this.mvc.perform(get("/api/v1/probe/missing"))
+			.andExpect(header().exists(CorrelationIdFilter.HEADER))
+			.andExpect(jsonPath("$.correlationId").doesNotExist());
 	}
 
 	@Test
@@ -170,6 +219,14 @@ class ProblemDetailsAdviceTest {
 	}
 
 	@Test
+	void theCodesAreExactlyThoseOfAd23() {
+		// The AI codes were removed with every AI feature on 2026-10-18 (sprint change proposal §5.11).
+		assertThat(ErrorCode.values()).extracting(Enum::name)
+			.containsExactlyInAnyOrder("VALIDATION", "NOT_FOUND", "FORBIDDEN", "STALE", "JOB_BUSY", "GUARD_FAILED",
+					"RATE_LIMITED", "CONFLICT");
+	}
+
+	@Test
 	void everyCodeHasTheStatusOfTheDesign() {
 		assertThat(ErrorCode.VALIDATION.status()).isEqualTo(400);
 		assertThat(ErrorCode.NOT_FOUND.status()).isEqualTo(404);
@@ -178,8 +235,6 @@ class ProblemDetailsAdviceTest {
 		assertThat(ErrorCode.JOB_BUSY.status()).isEqualTo(409);
 		assertThat(ErrorCode.CONFLICT.status()).isEqualTo(409);
 		assertThat(ErrorCode.GUARD_FAILED.status()).isEqualTo(422);
-		assertThat(ErrorCode.AI_CONSENT_REQUIRED.status()).isEqualTo(403);
-		assertThat(ErrorCode.AI_UNAVAILABLE.status()).isEqualTo(503);
 		assertThat(ErrorCode.RATE_LIMITED.status()).isEqualTo(429);
 		assertThat(ErrorCode.forStatus(415)).contains(ErrorCode.VALIDATION);
 		assertThat(ErrorCode.forStatus(405)).contains(ErrorCode.VALIDATION);

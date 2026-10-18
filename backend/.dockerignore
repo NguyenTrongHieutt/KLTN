@@ -1,0 +1,9 @@
+# The image is built from pom.xml, the Maven wrapper and src/ only (backend/Dockerfile).
+target/
+.mvn/wrapper/maven-wrapper.jar
+.idea/
+.vscode/
+*.iml
+HELP.md
+Dockerfile
+.dockerignore

@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.context.MessageSourceResolvable;
 import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.http.HttpHeaders;
@@ -39,7 +40,9 @@ import vn.vibefix.shared.ErrorCode;
  * <li>An exception annotated with {@code @ResponseStatus}: that status and its code.</li>
  * <li>Anything else: 500 without a code.</li>
  * </ul>
- * Spring's English {@code detail} text is removed: the backend returns codes, never sentences.
+ * Every 5xx also carries {@code correlationId}, the request's ID from {@link CorrelationIdFilter},
+ * which the logged error carries too, so the SPA can show it as a reference. Spring's English
+ * {@code detail} text is removed: the backend returns codes, never sentences.
  */
 @RestControllerAdvice
 class ProblemDetailsAdvice extends ResponseEntityExceptionHandler {
@@ -49,6 +52,8 @@ class ProblemDetailsAdvice extends ResponseEntityExceptionHandler {
 	static final String REASON = "reason";
 
 	static final String ERRORS = "errors";
+
+	static final String CORRELATION_ID = "correlationId";
 
 	private static final Logger log = LoggerFactory.getLogger(ProblemDetailsAdvice.class);
 
@@ -61,6 +66,7 @@ class ProblemDetailsAdvice extends ResponseEntityExceptionHandler {
 		ProblemDetail body = ProblemDetail.forStatus(ex.code().status());
 		body.setProperty(CODE, ex.code().name());
 		ex.reason().ifPresent(reason -> body.setProperty(REASON, reason));
+		addCorrelationId(body, ex.code().status());
 		return ResponseEntity.status(ex.code().status()).body(body);
 	}
 
@@ -82,6 +88,7 @@ class ProblemDetailsAdvice extends ResponseEntityExceptionHandler {
 		}
 		ProblemDetail body = ProblemDetail.forStatus(status);
 		ErrorCode.forStatus(status.value()).ifPresent(code -> body.setProperty(CODE, code.name()));
+		addCorrelationId(body, status.value());
 		return ResponseEntity.status(status).body(body);
 	}
 
@@ -130,8 +137,17 @@ class ProblemDetailsAdvice extends ResponseEntityExceptionHandler {
 		if (body instanceof ProblemDetail problem) {
 			problem.setDetail(null);
 			ErrorCode.forStatus(statusCode.value()).ifPresent(code -> problem.setProperty(CODE, code.name()));
+			addCorrelationId(problem, statusCode.value());
 		}
 		return super.createResponseEntity(body, headers, statusCode, request);
+	}
+
+	/** A server error carries the request's correlation ID, so a user can quote it (Conventions, Logging). */
+	private static void addCorrelationId(ProblemDetail body, int status) {
+		String correlationId = MDC.get(CorrelationIdFilter.MDC_KEY);
+		if (status >= 500 && correlationId != null) {
+			body.setProperty(CORRELATION_ID, correlationId);
+		}
 	}
 
 	private static List<FieldViolation> violations(Errors result, @Nullable String parameter) {

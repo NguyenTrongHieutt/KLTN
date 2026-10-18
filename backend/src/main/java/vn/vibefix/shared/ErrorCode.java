@@ -16,8 +16,6 @@ public enum ErrorCode {
 	JOB_BUSY(409),
 	GUARD_FAILED(422),
 	RATE_LIMITED(429),
-	AI_CONSENT_REQUIRED(403),
-	AI_UNAVAILABLE(503),
 	CONFLICT(409);
 
 	private final int status;

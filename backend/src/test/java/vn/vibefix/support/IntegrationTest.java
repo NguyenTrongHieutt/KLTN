@@ -15,9 +15,10 @@ import org.springframework.test.context.DynamicPropertySource;
  * Base class for tests that boot the whole application (Conventions, Testing): the {@code dev}
  * profile against Testcontainers PostgreSQL 18.6, the application connected as the runtime role
  * and Flyway as the migration role, a {@link MutableClock}, and a database restored from its
- * template before every test.
+ * template before every test. No sandbox worker runs, so its health indicator is off
+ * ({@code SandboxRoundTripIT} covers it).
  */
-@SpringBootTest
+@SpringBootTest(properties = "management.health.sandbox.enabled=false")
 @AutoConfigureMockMvc
 @ActiveProfiles("dev")
 @Import(TestClockConfiguration.class)

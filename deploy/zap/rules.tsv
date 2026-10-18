@@ -1,0 +1,5 @@
+# OWASP ZAP baseline rules (zap-baseline.py -c rules.tsv). Format: rule id, TAB, IGNORE|INFO|WARN|FAIL,
+# TAB, (reason). Every alert not listed counts as WARN, and any WARN fails CI. Only informational
+# alerts whose finding is intended are ignored here; real findings are fixed instead.
+10049	IGNORE	(Storable and Cacheable Content: informational. The SPA's index, bundle, favicon and its fallback pages are public static files meant to be cached; API responses are not cached by Caddy and carry no personal data yet.)
+10109	IGNORE	(Modern Web Application: informational. It only says the site is a JavaScript single-page app, which it is by design (AD-23); it reports no weakness.)

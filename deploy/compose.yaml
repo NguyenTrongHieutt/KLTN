@@ -1,0 +1,199 @@
+# vibefix, local and CI stack (AD-26, AD-32), shaped like production:
+#
+#   caddy    SPA, and /api + /webhooks proxied to app; the only published port (127.0.0.1:8000)
+#   app      vibefix-app, profile dev
+#   sandbox  the same image, profile sandbox: no secrets, no database, read-only, limited
+#   egress   squid, the sandbox's only way out (CONNECT 443 to GitHub only)
+#   postgres PostgreSQL 18, never published, volume at /var/lib/postgresql
+#
+# Networks: edge (caddy, app), data (app, postgres; internal), jobs (app, sandbox, egress; internal),
+# outbound (egress). Secrets are files under deploy/secrets/ (deploy/dev-secrets.sh), mounted at
+# /run/secrets/, never environment variables (AD-22). Every container runs in UTC, and none mounts
+# the Docker socket.
+#
+#   bash deploy/dev-secrets.sh
+#   docker compose -f deploy/compose.yaml up -d --build --wait
+#   bash deploy/smoke.sh
+name: vibefix
+
+x-app-image: &app-image
+  build:
+    context: ../backend
+  image: vibefix-app:local
+
+# Bash's /dev/tcp, because the JRE image has neither curl nor wget.
+x-java-healthcheck: &java-healthcheck
+  test:
+    - CMD
+    - bash
+    - -c
+    - >-
+      exec 3<>/dev/tcp/127.0.0.1/8080
+      && printf 'GET /actuator/health/readiness HTTP/1.0\r\nHost: localhost\r\n\r\n' >&3
+      && grep -q '"status":"UP"' <&3
+  interval: 10s
+  timeout: 5s
+  retries: 5
+  start_period: 90s
+  start_interval: 2s
+
+services:
+  postgres:
+    image: postgres:18.6@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
+    environment:
+      TZ: UTC
+      PGTZ: UTC
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD_FILE: /run/secrets/db-superuser-password
+    secrets:
+      - db-superuser-password
+      - db-app-password
+      - db-migrator-password
+    volumes:
+      - pgdata:/var/lib/postgresql
+      - ./postgres/initdb:/docker-entrypoint-initdb.d:ro
+    networks:
+      - data
+    healthcheck:
+      # Only the final server listens on TCP; the one that runs the init scripts does not.
+      test: ["CMD", "pg_isready", "--host=127.0.0.1", "--username=postgres", "--dbname=vibefix"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+      start_interval: 2s
+    restart: unless-stopped
+
+  app:
+    <<: *app-image
+    environment:
+      TZ: UTC
+      SPRING_PROFILES_ACTIVE: dev
+      VIBEFIX_DB_HOST: postgres
+    secrets:
+      - db-app-password
+      - db-migrator-password
+    networks:
+      - edge
+      - data
+      - jobs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      sandbox:
+        condition: service_healthy
+    healthcheck: *java-healthcheck
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped
+
+  sandbox:
+    <<: *app-image
+    environment:
+      TZ: UTC
+      SPRING_PROFILES_ACTIVE: sandbox
+      # The JVM reaches github.com only through egress; app and local addresses stay direct.
+      JAVA_TOOL_OPTIONS: >-
+        -XX:MaxRAMPercentage=70
+        -Dhttps.proxyHost=egress -Dhttps.proxyPort=3128
+        -Dhttp.proxyHost=egress -Dhttp.proxyPort=3128
+        -Dhttp.nonProxyHosts=localhost|127.*|[::1]|app|sandbox
+    # No secrets and no database settings (AD-32).
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    mem_limit: 768m
+    memswap_limit: 768m
+    cpus: 1.0
+    pids_limit: 256
+    networks:
+      - jobs
+    depends_on:
+      egress:
+        condition: service_healthy
+    healthcheck:
+      <<: *java-healthcheck
+      test:
+        - CMD
+        - bash
+        - -c
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/8080
+          && printf 'GET /actuator/health/liveness HTTP/1.0\r\nHost: localhost\r\n\r\n' >&3
+          && grep -q '"status":"UP"' <&3
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped
+
+  egress:
+    image: ubuntu/squid:6.13-25.04_beta@sha256:3de2e64f0ca6efdac3e98557607dc0f23050037f3885016d5d5bfcf9950501b8
+    environment:
+      TZ: UTC
+    volumes:
+      - ./egress/squid.conf:/etc/squid/squid.conf:ro
+    networks:
+      - jobs
+      - outbound
+    healthcheck:
+      # Asks the running squid process itself, so the healthcheck adds nothing to the access log.
+      test: ["CMD", "squid", "-k", "check"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+      start_interval: 2s
+    restart: unless-stopped
+
+  caddy:
+    build:
+      context: ..
+      dockerfile: deploy/caddy/Dockerfile
+    image: vibefix-web:local
+    environment:
+      TZ: UTC
+      VIBEFIX_SITE_ADDRESS: ":80"
+    ports:
+      - "127.0.0.1:8000:80"
+    networks:
+      - edge
+    depends_on:
+      app:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+      start_interval: 2s
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+networks:
+  edge: {}
+  data:
+    internal: true
+  jobs:
+    internal: true
+  outbound: {}
+
+volumes:
+  pgdata: {}
+
+secrets:
+  db-superuser-password:
+    file: ./secrets/db-superuser-password
+  db-app-password:
+    file: ./secrets/db-app-password
+  db-migrator-password:
+    file: ./secrets/db-migrator-password

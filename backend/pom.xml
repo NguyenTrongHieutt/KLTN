@@ -37,6 +37,11 @@
 		<argLine>-Duser.timezone=UTC</argLine>
 	</properties>
 	<dependencies>
+		<!-- AD-22: Actuator exposes only health (liveness, readiness, the sandbox round trip). -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-data-jpa</artifactId>
