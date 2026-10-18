@@ -4,6 +4,11 @@
 # The jar is the same for every platform, so it is built once on the build machine's platform.
 FROM --platform=$BUILDPLATFORM eclipse-temurin:25.0.4.1_1-jdk-noble@sha256:ba0f0e1a33864105e1d454e88105c617ab40f71062db1f306bf58be32a3f8e5e AS build
 WORKDIR /workspace
+# The wrapper checks the Maven zip against distributionSha256Sum, but without unzip it downloads the
+# tar.gz instead, whose checksum differs. The JDK image has no unzip, so the build stage installs it.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends unzip \
+    && rm -rf /var/lib/apt/lists/*
 COPY .mvn/ .mvn/
 COPY mvnw pom.xml ./
 RUN --mount=type=cache,target=/root/.m2 ./mvnw -B -q dependency:go-offline
