@@ -19,6 +19,443 @@
     "STALE": "Thông tin đã thay đổi trong lúc bạn xem.",
     "JOB_BUSY": "Đợi {operation} xong rồi thử lại.",
     "GUARD_FAILED": "Chưa thể {action}: {reason}.",
-    "RATE_LIMITED": "Bạn thao tác hơi nhanh. Hãy thử lại sau {time}."
+    "RATE_LIMITED": "Bạn thao tác hơi nhanh. Hãy thử lại sau {time}.",
+    "UNAUTHENTICATED": "Phiên đăng nhập đã hết.",
+    "CONFLICT": "Không thể làm việc này vì dữ liệu đã thay đổi."
+  },
+  "shell": {
+    "title": "{screen} · vibefix",
+    "skipToContent": "Bỏ qua đến nội dung chính",
+    "home": "Trang chính vibefix",
+    "signIn": "Đăng nhập",
+    "footerNav": "Liên kết cuối trang",
+    "privacy": "Quyền riêng tư",
+    "copyright": "© 2026 vibefix · đồ án tốt nghiệp"
+  },
+  "screen": {
+    "public": {
+      "landing": {
+        "title": "Giới thiệu",
+        "heading": "Hoàn thiện ứng dụng bạn đã làm bằng AI",
+        "lead": "vibefix kết nối bạn với {mentor} có kinh nghiệm, đã được vibefix duyệt. Người hướng dẫn cùng nhóm sinh viên IT của họ sửa lỗi, thêm tính năng và bàn giao từng phần để bạn tự kiểm tra.",
+        "promisesHeading": "Bạn luôn nắm được việc gì đang diễn ra",
+        "promisePay": "Bạn thanh toán trước từng {milestone}. vibefix giữ tiền cho đến khi bạn {accept}.",
+        "promiseDecide": "Không thay đổi nào vào dự án của bạn khi chưa có quyết định của bạn.",
+        "promiseNext": "Mỗi bước đều nói rõ việc tiếp theo là gì và ai đang cần làm.",
+        "stagesHeading": "Bảy bước của một công việc",
+        "stages": {
+          "1": "Đăng sản phẩm và nhu cầu",
+          "2": "Đánh giá và xác định phạm vi",
+          "3": "Chọn người và thỏa thuận",
+          "4": "Lập kế hoạch",
+          "5": "Làm và theo dõi",
+          "6": "Bàn giao và nghiệm thu",
+          "7": "Kết thúc"
+        },
+        "stageNumber": "Bước {n}",
+        "noticesHeading": "Trước khi bắt đầu",
+        "testMoneyTitle": "Tiền trên vibefix hiện là tiền thử nghiệm",
+        "testMoneyBody": "Mọi thanh toán dùng {vnpayTest}, không trừ tiền thật.",
+        "publicCodeTitle": "Dự án của bạn phải {public} trên {github}",
+        "publicCodeBody": "Ai cũng xem được mã nguồn của dự án. vibefix hiện chỉ nhận dự án công khai.",
+        "rolesHeading": "Bạn đến vibefix để làm gì?",
+        "roleCustomer": "Tôi có sản phẩm cần hoàn thiện",
+        "roleCustomerBody": "Đăng sản phẩm và nhận hỗ trợ từ một người hướng dẫn.",
+        "roleMentor": "Tôi là người hướng dẫn",
+        "roleMentorBody": "Nhận công việc và dẫn dắt nhóm sinh viên của bạn.",
+        "roleStudent": "Tôi là sinh viên IT",
+        "roleStudentBody": "Vào nhóm của một người hướng dẫn và làm dự án thật."
+      },
+      "privacy": {
+        "title": "Quyền riêng tư",
+        "heading": "Quyền riêng tư",
+        "lead": "Bản hiện hành của thông báo bạn đồng ý khi dùng vibefix."
+      }
+    },
+    "shared": {
+      "notFound": {
+        "title": "Không tìm thấy",
+        "heading": "Không tìm thấy nội dung này.",
+        "detail": "Có thể nó đã bị xóa hoặc bạn không có quyền xem.",
+        "home": "Về trang chính"
+      }
+    }
+  },
+  "notice": {
+    "privacy": {
+      "version": "2.0",
+      "versionLine": "Thông báo quyền riêng tư · phiên bản {version}",
+      "effective": "Áp dụng từ 18/10/2026. Phiên bản 1.0 có phần về AI; vibefix đã bỏ AI nên phần đó không còn.",
+      "collectedHeading": "vibefix thu thập gì",
+      "collected": {
+        "identity": "Danh tính {github}: tên tài khoản, ảnh đại diện, email công khai.",
+        "profile": "Thông tin hồ sơ bạn nhập: tên hiển thị, email liên hệ, số điện thoại (không bắt buộc).",
+        "student": "Với sinh viên: email trường hoặc ảnh thẻ sinh viên để xác minh.",
+        "mentor": "Với người hướng dẫn: hồ sơ ứng tuyển, liên kết LinkedIn và tài liệu kèm theo để quản trị viên duyệt.",
+        "jobs": "Nội dung công việc: tin công việc, trò chuyện, tài liệu, tệp đính kèm."
+      },
+      "purposeHeading": "Để làm gì",
+      "purpose": "Đăng nhập, liên lạc về công việc, xác minh sinh viên, duyệt người hướng dẫn, giữ và chuyển tiền thử nghiệm, phân xử tranh chấp.",
+      "retentionHeading": "Giữ trong bao lâu",
+      "retention": "Đến khi bạn yêu cầu xóa tài khoản. Ảnh thẻ sinh viên và tài liệu của người hướng dẫn tự xóa 30 ngày sau khi có quyết định. Một số bản ghi giao dịch và nhật ký hệ thống được giữ lại theo quy định.",
+      "rightsHeading": "Quyền của bạn",
+      "rights": "Xem, tải về và yêu cầu xóa dữ liệu của bạn trong mục \"Dữ liệu của tôi\".",
+      "changes": "Khi thông báo thay đổi, phiên bản mới có số mới và bạn được hỏi lại trước khi tiếp tục."
+    }
+  },
+  "term": {
+    "customer": {
+      "label": "Khách hàng"
+    },
+    "mentor": {
+      "label": "Người hướng dẫn",
+      "hint": "Người có kinh nghiệm được vibefix duyệt. Họ nhận công việc, trao đổi với bạn, giao việc cho sinh viên trong nhóm và duyệt từng phần trước khi bàn giao."
+    },
+    "student": {
+      "label": "Sinh viên"
+    },
+    "team": {
+      "label": "Nhóm"
+    },
+    "crew": {
+      "label": "Nhóm thực hiện",
+      "hint": "Các sinh viên trong nhóm của người hướng dẫn được giao làm công việc này. Bạn chỉ thấy tên tài khoản GitHub của họ để cấp quyền khi cần."
+    },
+    "crewTerms": {
+      "label": "Điều khoản nhóm thực hiện"
+    },
+    "assignee": {
+      "label": "Người thực hiện",
+      "hint": "Người hướng dẫn bạn đã chọn, cùng nhóm thực hiện của họ."
+    },
+    "administrator": {
+      "label": "Quản trị viên",
+      "hint": "Nhân viên vibefix: duyệt người hướng dẫn, xác minh sinh viên và phân xử tranh chấp."
+    },
+    "system": {
+      "label": "Hệ thống"
+    },
+    "product": {
+      "label": "Sản phẩm",
+      "hint": "Ứng dụng bạn đã làm bằng công cụ AI và đăng ký trên vibefix."
+    },
+    "sourceRepository": {
+      "label": "dự án gốc",
+      "labelTeam": "Source Repository (kho gốc)",
+      "hint": "Nơi lưu mã nguồn ứng dụng của bạn trên GitHub. Lovable và các công cụ AI tự cập nhật vào đây."
+    },
+    "secretScan": {
+      "label": "Kiểm tra khóa bí mật",
+      "hint": "vibefix tự tìm trong toàn bộ lịch sử mã những mật khẩu và khóa truy cập bị lộ. Không dùng AI."
+    },
+    "personalDataCheck": {
+      "label": "Kiểm tra dữ liệu cá nhân",
+      "hint": "vibefix tự tìm số điện thoại, email, số CCCD của người dùng bị lưu trong mã. Không dùng AI."
+    },
+    "finding": {
+      "label": "Vấn đề phát hiện",
+      "hint": "Một khóa bí mật hoặc dữ liệu cá nhân mà lần kiểm tra tìm thấy."
+    },
+    "intakeFinding": {
+      "label": "Vấn đề cần xử lý trước khi sửa mã",
+      "hint": "Phải xử lý xong trước khi bắt đầu công việc sửa mã. Công việc đánh giá vẫn đặt được."
+    },
+    "codeJob": {
+      "label": "Công việc sửa mã",
+      "hint": "Mọi loại công việc trừ Đánh giá: nhóm của người hướng dẫn thay đổi mã của bạn."
+    },
+    "intermediaryRepository": {
+      "label": "Kho trung gian",
+      "hint": "Bản sao dự án do vibefix quản lý. Chỉ hệ thống được ghi vào, và mã chỉ vào đây sau khi bạn nghiệm thu."
+    },
+    "workingRepository": {
+      "label": "kho làm việc",
+      "labelTeam": "Working Repository",
+      "hint": "Nơi người hướng dẫn và nhóm thực hiện đẩy mã trong lúc làm. Không ảnh hưởng dự án gốc của bạn."
+    },
+    "handoverCommit": {
+      "label": "commit bàn giao"
+    },
+    "sensitiveChange": {
+      "label": "Thay đổi cần lưu ý",
+      "hint": "Tệp có thể chạy chương trình trên máy chủ hoặc dịch vụ của bạn, ví dụ danh sách thư viện hoặc tập lệnh cài đặt."
+    },
+    "finalMerge": {
+      "label": "Hợp nhất vào dự án của bạn",
+      "hint": "Bước cuối: vibefix đưa toàn bộ mã đã nghiệm thu vào dự án gốc của bạn, sau khi bạn cho phép.",
+      "labelShort": "hợp nhất cuối"
+    },
+    "finalMergeAuthorization": {
+      "label": "Cho phép hợp nhất",
+      "hint": "Bạn cài ứng dụng hợp nhất của vibefix trên GitHub cho đúng một dự án này. Quyền được gỡ ngay khi xong."
+    },
+    "zipFallback": {
+      "label": "Tải mã về (tệp ZIP)",
+      "hint": "Khi không hợp nhất được, bạn tải toàn bộ mã đã hoàn thiện về máy dưới dạng một tệp nén."
+    },
+    "driftWarning": {
+      "label": "Cảnh báo dự án gốc thay đổi",
+      "hint": "Dự án gốc vừa thay đổi trong lúc nhóm đang làm. Việc hợp nhất cuối có thể thất bại."
+    },
+    "freezeCommitment": {
+      "label": "Cam kết không sửa dự án gốc",
+      "hint": "Bạn hứa không thay đổi dự án gốc, kể cả việc Lovable tự đồng bộ, từ lúc bắt đầu đến khi hợp nhất xong."
+    },
+    "externalAccess": {
+      "label": "Quyền truy cập ngoài GitHub",
+      "hint": "Quyền bạn cấp cho người hướng dẫn và nhóm thực hiện vào dịch vụ khác như Supabase hoặc máy chủ, ghi rõ trong thỏa thuận."
+    },
+    "revocationChecklist": {
+      "label": "Danh sách thu hồi quyền",
+      "hint": "Danh sách để bạn gỡ quyền hoặc đổi khóa ở từng dịch vụ khi công việc kết thúc."
+    },
+    "stage": {
+      "label": "Bước"
+    },
+    "jobType": {
+      "label": "Loại công việc"
+    },
+    "skill": {
+      "label": "Kỹ năng",
+      "hint": "Công nghệ hoặc việc chuyên môn mà người hướng dẫn và nhóm làm được, ví dụ React hay Supabase. Chọn từ danh sách của vibefix."
+    },
+    "skillCategory": {
+      "label": "Nhóm kỹ năng",
+      "hint": "Nhóm các kỹ năng gần nhau, ví dụ Giao diện web hay Bảo mật và kiểm thử."
+    },
+    "skillSuggestion": {
+      "label": "Đề xuất kỹ năng"
+    },
+    "job": {
+      "label": "Công việc"
+    },
+    "jobPost": {
+      "label": "Tin công việc",
+      "hint": "Công việc đang mở để người hướng dẫn đã được duyệt xem và ứng tuyển."
+    },
+    "assessmentJob": {
+      "label": "Công việc đánh giá",
+      "hint": "Nhóm của người hướng dẫn đọc mã và dùng thử ứng dụng, rồi viết báo cáo dễ hiểu về lỗi và những gì còn thiếu."
+    },
+    "assessmentReport": {
+      "label": "Báo cáo đánh giá"
+    },
+    "application": {
+      "label": "Đơn ứng tuyển"
+    },
+    "invitationToApply": {
+      "label": "Lời mời ứng tuyển",
+      "hint": "Bạn mời một người hướng dẫn xem công việc. Họ tự quyết định có ứng tuyển hay không. Lời mời không chọn ai và hết hiệu lực khi công việc không còn nhận ứng tuyển."
+    },
+    "agreement": {
+      "label": "Thỏa thuận",
+      "hint": "Bản ghi bạn và người hướng dẫn cùng xác nhận: làm gì, tiêu chí nghiệm thu, các giai đoạn và giá. Chỉ thay đổi được qua yêu cầu thay đổi."
+    },
+    "acceptanceCriterion": {
+      "label": "Tiêu chí nghiệm thu",
+      "hint": "Một điều kiện cụ thể mà bạn tự kiểm tra được, kèm các bước kiểm tra.",
+      "labelSteps": "Cách kiểm tra"
+    },
+    "milestone": {
+      "label": "Giai đoạn",
+      "hint": "Một phần công việc có hạn, giá và tiêu chí riêng. Bạn thanh toán trước, nghiệm thu sau."
+    },
+    "heldMilestone": {
+      "label": "Giai đoạn đang giữ tiền",
+      "hint": "Bạn đã thanh toán; vibefix giữ tiền đến khi bạn nghiệm thu hoặc tiền được hoàn lại."
+    },
+    "acceptedWork": {
+      "label": "Phần việc đã nghiệm thu"
+    },
+    "nda": {
+      "label": "Cam kết bảo mật (NDA)",
+      "hint": "Người hướng dẫn và từng thành viên nhóm thực hiện cam kết giữ kín thông tin kinh doanh bạn chia sẻ. Không áp dụng cho mã nguồn vì mã là công khai."
+    },
+    "changeRequest": {
+      "label": "Yêu cầu thay đổi",
+      "hint": "Đề nghị đổi phạm vi, hạn, giá hoặc giai đoạn. Chỉ có hiệu lực khi bạn và người hướng dẫn đồng ý."
+    },
+    "revisionRound": {
+      "label": "Lượt yêu cầu sửa",
+      "hint": "Mỗi lần bạn yêu cầu sửa một bàn giao là dùng một lượt. Mặc định 2 lượt mỗi giai đoạn."
+    },
+    "workItem": {
+      "label": "Hạng mục"
+    },
+    "board": {
+      "label": "Bảng công việc"
+    },
+    "reviewGate": {
+      "label": "Bước duyệt"
+    },
+    "selfCheckChecklist": {
+      "label": "Danh sách tự kiểm"
+    },
+    "attachment": {
+      "label": "Tệp đính kèm"
+    },
+    "workItemNote": {
+      "label": "Ghi chú"
+    },
+    "documentationSpace": {
+      "label": "Tài liệu"
+    },
+    "page": {
+      "label": "Trang tài liệu"
+    },
+    "jobChat": {
+      "label": "Trò chuyện",
+      "labelCustomer": "Trò chuyện với người hướng dẫn",
+      "labelTeam": "Trò chuyện với khách hàng"
+    },
+    "crewChat": {
+      "label": "Trao đổi nhóm"
+    },
+    "milestoneHandover": {
+      "label": "Bàn giao",
+      "hint": "Người hướng dẫn gửi phần việc của một giai đoạn để bạn kiểm tra và nghiệm thu."
+    },
+    "deliveryReport": {
+      "label": "Báo cáo bàn giao"
+    },
+    "previewLink": {
+      "label": "Bản xem thử",
+      "hint": "Bản chạy thử do người hướng dẫn hoặc nhóm đưa lên mạng để bạn dùng thử thay đổi. Trang này nằm ngoài vibefix."
+    },
+    "screenRecordingLink": {
+      "label": "Video quay màn hình",
+      "hint": "Video quay lại thao tác khi không thể làm bản xem thử."
+    },
+    "accept": {
+      "label": "Nghiệm thu",
+      "hint": "Xác nhận phần việc đạt yêu cầu. Khi đó mã được đưa vào kho trung gian và tiền được chuyển cho người hướng dẫn và nhóm."
+    },
+    "autoAcceptance": {
+      "label": "Tự động nghiệm thu",
+      "hint": "Nếu bạn không nghiệm thu hay yêu cầu sửa trong {days} ngày sau khi bàn giao, hệ thống tự nghiệm thu và chuyển tiền cho người hướng dẫn và nhóm."
+    },
+    "paymentOrder": {
+      "label": "Lệnh thanh toán"
+    },
+    "release": {
+      "label": "Chuyển tiền cho người hướng dẫn và nhóm",
+      "labelTeam": "Tiền đã về số dư"
+    },
+    "refund": {
+      "label": "Hoàn tiền",
+      "hint": "Hoàn tiền mô phỏng: chỉ được ghi trên vibefix vì môi trường thử của VNPay chưa hỗ trợ hoàn tiền.",
+      "labelLedgerOnly": "Hoàn tiền mô phỏng"
+    },
+    "balance": {
+      "label": "Số dư thử nghiệm"
+    },
+    "rating": {
+      "label": "Chấm sao",
+      "hint": "Bạn và người hướng dẫn chấm sao cho nhau sau khi công việc kết thúc. Bạn chỉ thấy điểm khi cả hai đã chấm hoặc hết hạn."
+    },
+    "ratingWindow": {
+      "label": "Thời hạn chấm sao"
+    },
+    "privateFeedback": {
+      "label": "Đánh giá kín"
+    },
+    "portfolioEntry": {
+      "label": "Mục hồ sơ năng lực",
+      "hint": "Bản ghi công việc trên hồ sơ công khai của người hướng dẫn, do hệ thống tạo từ dữ liệu thật."
+    },
+    "dispute": {
+      "label": "Tranh chấp",
+      "hint": "Nhờ quản trị viên phân xử giữa bạn và người hướng dẫn, dựa trên bằng chứng. Trong lúc chờ, tiền và mọi thời hạn được tạm dừng."
+    },
+    "evidencePackage": {
+      "label": "Hồ sơ bằng chứng"
+    },
+    "teamIssue": {
+      "label": "Khiếu nại nội bộ"
+    },
+    "teamEvidencePackage": {
+      "label": "Hồ sơ bằng chứng nội bộ"
+    },
+    "abuseReport": {
+      "label": "Báo cáo vi phạm"
+    },
+    "recommendation": {
+      "label": "Đề xuất"
+    },
+    "auditLog": {
+      "label": "Nhật ký hệ thống"
+    },
+    "github": {
+      "label": "GitHub",
+      "hint": "Dịch vụ lưu mã nguồn. Bạn dùng tài khoản GitHub để đăng nhập vibefix."
+    },
+    "khoMa": {
+      "label": "kho mã",
+      "hint": "Nơi lưu toàn bộ mã nguồn và lịch sử thay đổi của một ứng dụng."
+    },
+    "congKhai": {
+      "label": "công khai",
+      "hint": "Ai cũng xem được mã nguồn. vibefix hiện chỉ nhận dự án công khai."
+    },
+    "quyenQuanTri": {
+      "label": "quyền quản trị",
+      "hint": "Quyền cao nhất trên một kho mã GitHub. Chủ kho luôn có quyền này."
+    },
+    "doiKhoa": {
+      "label": "đổi khóa",
+      "hint": "Tạo khóa mới và vô hiệu khóa cũ, để khóa đã lộ không còn tác dụng."
+    },
+    "coSoDuLieu": {
+      "label": "cơ sở dữ liệu",
+      "hint": "Nơi ứng dụng lưu dữ liệu như đơn hàng, khách hàng."
+    },
+    "tepCapNhatCoSoDuLieu": {
+      "label": "tệp cập nhật cơ sở dữ liệu",
+      "hint": "Tệp mô tả thay đổi cấu trúc dữ liệu, được giao trong kho mã để bạn kiểm soát."
+    },
+    "thuVien": {
+      "label": "thư viện",
+      "hint": "Phần mềm có sẵn mà ứng dụng của bạn dùng lại."
+    },
+    "moiTruongThu": {
+      "label": "môi trường thử",
+      "hint": "Bản sao hệ thống dùng để thử, không có khách hàng thật."
+    },
+    "heThongThat": {
+      "label": "hệ thống thật",
+      "hint": "Hệ thống mà khách hàng của bạn đang dùng hằng ngày."
+    },
+    "dongBoTuDong": {
+      "label": "đồng bộ tự động",
+      "hint": "Lovable hoặc công cụ tương tự tự đẩy thay đổi lên GitHub mỗi khi bạn sửa ứng dụng."
+    },
+    "vnpayThuNghiem": {
+      "label": "VNPay thử nghiệm",
+      "hint": "Môi trường thử của VNPay: không trừ tiền thật."
+    },
+    "lanLuuThayDoi": {
+      "label": "lần lưu thay đổi",
+      "hint": "Mỗi lần mã được lưu lên GitHub. Mã số ngắn giúp tìm lại đúng thay đổi đó."
+    },
+    "xacThucHaiLop": {
+      "label": "xác thực hai lớp",
+      "hint": "Bước bảo vệ thêm khi đăng nhập GitHub, ngoài mật khẩu. Người hướng dẫn và nhóm phải bật để được ghi mã."
+    },
+    "quyenGhi": {
+      "label": "quyền ghi",
+      "hint": "Quyền đẩy mã lên kho làm việc. Người hướng dẫn và nhóm chỉ có quyền này khi công việc đang thực hiện."
+    },
+    "khoaBiMat": {
+      "label": "khóa bí mật",
+      "hint": "Chuỗi ký tự cho phép ứng dụng dùng một dịch vụ như Supabase. Ai có khóa thì dùng được dịch vụ đó.",
+      "labelAlt": "khóa API"
+    },
+    "tenTaiKhoanGithub": {
+      "label": "tên tài khoản GitHub",
+      "hint": "Tên dùng để cấp quyền cho người hướng dẫn và nhóm trên GitHub hoặc dịch vụ khác. Không phải cách để liên lạc."
+    },
+    "fundMilestone": {
+      "label": "Thanh toán giai đoạn"
+    }
   }
 }

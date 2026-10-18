@@ -1,16 +1,229 @@
-/* Placeholder until the design system lands (Story 1.4). */
+/*
+ * The DESIGN.md brand layer on Tailwind CSS 4 (UX-DR3, UX-DR4). Every color role is a variable on
+ * :root, redefined under .dark on <html>; components use the roles (bg-primary, text-muted-foreground),
+ * never hex. Generated from the DESIGN.md frontmatter; edit DESIGN.md first, then these values.
+ */
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "./theme/fonts.css";
+
+@custom-variant dark (&:is(.dark *));
+
 :root {
-  color-scheme: light dark;
-  font-family: system-ui, sans-serif;
-  line-height: 1.5;
+  --background: #F5F8FC;
+  --foreground: #0F1B2D;
+  --card: #FFFFFF;
+  --card-foreground: #0F1B2D;
+  --popover: #FFFFFF;
+  --popover-foreground: #0F1B2D;
+  --primary: #0B5CAD;
+  --primary-foreground: #FFFFFF;
+  --primary-soft: #E3EEFA;
+  --primary-border: #BCD3F0;
+  --secondary: #EEF3F9;
+  --secondary-foreground: #0F1B2D;
+  --muted: #EEF3F9;
+  --muted-foreground: #4A5B72;
+  --accent: #E3EEFA;
+  --accent-foreground: #0F1B2D;
+  --destructive: #B42318;
+  --destructive-foreground: #FFFFFF;
+  --destructive-soft: #FDE8E6;
+  --border: #D6DFEA;
+  --border-strong: #B7C5D8;
+  --input: #7A8BA3;
+  --ring: #0B5CAD;
+  --success: #157347;
+  --success-foreground: #FFFFFF;
+  --success-soft: #E3F4EA;
+  --warning: #9A5B00;
+  --warning-foreground: #FFFFFF;
+  --warning-soft: #FFF3DC;
+  --info: #0B5CAD;
+  --info-soft: #E3EEFA;
+  --test-mode: #8A4B00;
+  --test-mode-soft: #FFF1C2;
+  --ai: #5B3DB5;
+  --ai-soft: #F1ECFD;
 }
 
-body {
-  margin: 0;
+.dark {
+  --background: #0C1420;
+  --foreground: #E7EEF8;
+  --card: #142033;
+  --card-foreground: #E7EEF8;
+  --popover: #142033;
+  --popover-foreground: #E7EEF8;
+  --primary: #6EA8F2;
+  --primary-foreground: #071A30;
+  --primary-soft: #17304F;
+  --primary-border: #29507F;
+  --secondary: #1B2A40;
+  --secondary-foreground: #E7EEF8;
+  --muted: #1B2A40;
+  --muted-foreground: #A3B3C9;
+  --accent: #17304F;
+  --accent-foreground: #E7EEF8;
+  --destructive: #F28B82;
+  --destructive-foreground: #2A0906;
+  --destructive-soft: #3A1512;
+  --border: #2A3A52;
+  --border-strong: #3B4E6B;
+  --input: #6B7F9C;
+  --ring: #6EA8F2;
+  --success: #5CCB8F;
+  --success-foreground: #06210F;
+  --success-soft: #123325;
+  --warning: #F0B35B;
+  --warning-foreground: #2A1A00;
+  --warning-soft: #3A2A0A;
+  --info: #6EA8F2;
+  --info-soft: #17304F;
+  --test-mode: #F5C76A;
+  --test-mode-soft: #3A2A0A;
+  --ai: #B9A4FF;
+  --ai-soft: #251C45;
 }
 
-main {
-  max-width: 40rem;
-  margin: 0 auto;
-  padding: 1rem;
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-border: var(--primary-border);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-soft: var(--destructive-soft);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-soft: var(--warning-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-test-mode: var(--test-mode);
+  --color-test-mode-soft: var(--test-mode-soft);
+  --color-ai: var(--ai);
+  --color-ai-soft: var(--ai-soft);
+}
+
+/* DESIGN.md Shapes: set directly, never derived from shadcn's single --radius. */
+@theme inline {
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --font-sans: 'Be Vietnam Pro', system-ui, sans-serif;
+  --font-heading: 'Be Vietnam Pro', system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/*
+ * DESIGN.md Layout & Spacing: Tailwind's 4-px scale stays; these are the named layout tokens
+ * (px-gutter-mobile, h-header-height, max-w-reading-max, ...).
+ */
+@theme {
+  --spacing-gutter-mobile: 16px;
+  --spacing-gutter-desktop: 24px;
+  --spacing-section-gap: 32px;
+  --spacing-header-height: 56px;
+  --spacing-tab-bar-height: 64px;
+  --spacing-strip-min-height: 48px;
+  --spacing-tap-min: 44px;
+  --spacing-control-compact: 36px;
+  --container-content-max: 1120px;
+  --container-reading-max: 720px;
+
+  /*
+   * DESIGN.md Typography: the ramp, in rem so text follows the reader's font-size setting (WCAG
+   * 1.4.4); at the default 16 px the sizes are DESIGN.md's px values. Line heights are generous for
+   * stacked Vietnamese diacritics.
+   */
+  --text-display: 2rem;
+  --text-display--line-height: 1.25;
+  --text-display--letter-spacing: -0.01em;
+  --text-display--font-weight: 700;
+  --text-display-mobile: 1.625rem;
+  --text-display-mobile--line-height: 1.3;
+  --text-display-mobile--font-weight: 700;
+  --text-h1: 1.5rem;
+  --text-h1--line-height: 1.35;
+  --text-h1--font-weight: 700;
+  --text-h2: 1.25rem;
+  --text-h2--line-height: 1.4;
+  --text-h2--font-weight: 600;
+  --text-h3: 1.0625rem;
+  --text-h3--line-height: 1.45;
+  --text-h3--font-weight: 600;
+  --text-body: 1rem;
+  --text-body--line-height: 1.6;
+  --text-body-sm: 0.875rem;
+  --text-body-sm--line-height: 1.55;
+  --text-label: 0.875rem;
+  --text-label--line-height: 1.45;
+  --text-label--font-weight: 500;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.5;
+  --text-tag: 0.6875rem;
+  --text-tag--line-height: 1.4;
+  --text-tag--letter-spacing: 0.04em;
+  --text-tag--font-weight: 700;
+  --text-mono: 0.8125rem;
+  --text-mono--line-height: 1.5;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    @apply font-sans;
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-background text-body text-foreground;
+    margin: 0;
+    overflow-wrap: break-word;
+  }
+
+  /* Accessibility Floor: focus is always visible, a 2 px ring offset by 2 px. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  /* Accessibility Floor: reduced motion stops animations and long transitions. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
