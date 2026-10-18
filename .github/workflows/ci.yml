@@ -37,9 +37,10 @@ jobs:
           cache: maven
       - name: Build and run every test suite (unit, Modulith, integration on Testcontainers)
         run: ./mvnw -B verify
-      # OpenApiExportIT rewrites frontend/src/api/openapi.json when it was stale.
+      # OpenApiExportIT rewrites frontend/src/api/openapi.json when it was stale; no build output may
+      # be left untracked either.
       - name: Committed files are up to date
-        run: git diff --exit-code
+        run: test -z "$(git status --porcelain)" || { git status; git diff; exit 1; }
 
   frontend:
     name: Frontend lint and build
@@ -92,6 +93,8 @@ jobs:
         run: docker compose -f deploy/compose.yaml up -d --build --wait --wait-timeout 600
       - name: Smoke test
         run: bash deploy/smoke.sh
+      # Two baselines: the SPA from its root, and the API from an API response, which the SPA's
+      # spider would never reach.
       - name: ZAP baseline
         run: |
           work="$RUNNER_TEMP/zap"
@@ -99,9 +102,17 @@ jobs:
           cp deploy/zap/rules.tsv "$work/"
           # ZAP runs as uid 1000 and writes its working files next to the rules.
           chmod -R a+rwX "$work"
-          docker run --rm --network vibefix_edge -v "$work:/zap/wrk:rw" \
-            ghcr.io/zaproxy/zaproxy:2.17.0@sha256:5ccfff9a411743ab2615136a2edd7416bec9ce41572fa94e935df38c14adb2b6 \
+          zap=ghcr.io/zaproxy/zaproxy:2.17.0@sha256:5ccfff9a411743ab2615136a2edd7416bec9ce41572fa94e935df38c14adb2b6
+          docker run --rm --network vibefix_edge -v "$work:/zap/wrk:rw" "$zap" \
             zap-baseline.py -t http://caddy -c rules.tsv -r zap-report.html
+          docker run --rm --network vibefix_edge -v "$work:/zap/wrk:rw" "$zap" \
+            zap-baseline.py -t http://caddy/api/v1/environment -c rules.tsv -r zap-api-report.html
+      - name: ZAP reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: zap-report
+          path: ${{ runner.temp }}/zap
       - name: Stack logs
         if: failure()
         run: docker compose -f deploy/compose.yaml logs --no-color
@@ -109,9 +120,22 @@ jobs:
         if: always()
         run: docker compose -f deploy/compose.yaml down --volumes --remove-orphans
 
+  workflow-lint:
+    name: Workflow lint (actionlint)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: actionlint (with shellcheck on every run block)
+        run: |
+          docker run --rm -v "$GITHUB_WORKSPACE:/repo:ro" -w /repo \
+            rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 -color
+
   publish:
     name: Publish images to GHCR
-    needs: [backend, frontend, secrets, zap]
+    needs: [backend, frontend, secrets, zap, workflow-lint]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -137,6 +161,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: vibefix-app
+        id: app
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: backend
@@ -145,6 +170,7 @@ jobs:
           tags: ${{ steps.names.outputs.app }}
           labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
       - name: vibefix-web
+        id: web
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
@@ -153,3 +179,19 @@ jobs:
           push: true
           tags: ${{ steps.names.outputs.web }}
           labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+      # AD-26: the host deploys by digest; the run's summary records which ones this commit produced.
+      - name: Record the published digests
+        env:
+          APP_IMAGE: ${{ steps.names.outputs.app }}
+          APP_DIGEST: ${{ steps.app.outputs.digest }}
+          WEB_IMAGE: ${{ steps.names.outputs.web }}
+          WEB_DIGEST: ${{ steps.web.outputs.digest }}
+        run: |
+          {
+            echo "### Published images"
+            echo
+            echo "| Image | Digest |"
+            echo "|---|---|"
+            echo "| \`$APP_IMAGE\` | \`$APP_DIGEST\` |"
+            echo "| \`$WEB_IMAGE\` | \`$WEB_DIGEST\` |"
+          } >>"$GITHUB_STEP_SUMMARY"

@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
@@ -57,7 +58,7 @@ class HttpSandboxJobs implements SandboxJobs {
 				.body(new SandboxJobRequest(type, input))
 				.retrieve()
 				.body(SandboxJobResult.class);
-			if (result == null || result.output() == null) {
+			if (result == null || result.output() == null || result.output().isNull()) {
 				throw new SandboxJobException(type, "the sandbox answered without a result", null);
 			}
 			return result;
@@ -65,8 +66,11 @@ class HttpSandboxJobs implements SandboxJobs {
 		catch (RestClientResponseException ex) {
 			throw new SandboxJobException(type, "the sandbox answered " + ex.getStatusCode().value(), ex);
 		}
-		catch (RestClientException ex) {
+		catch (ResourceAccessException ex) {
 			throw new SandboxJobException(type, "the sandbox could not be reached in time", ex);
+		}
+		catch (RestClientException ex) {
+			throw new SandboxJobException(type, "the sandbox answered an unreadable result", ex);
 		}
 	}
 

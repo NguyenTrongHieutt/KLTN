@@ -13,8 +13,9 @@ import vn.vibefix.shared.SandboxJobs;
 
 /**
  * {@code /actuator/health/sandbox} (AD-32): sends a {@code HEALTH} job with a fresh nonce. UP only
- * when the nonce comes back and the sandbox reports no secret files and no datasource; an
- * unreachable sandbox, or one that is not isolated, is DOWN. Details are never shown.
+ * when the job comes back with that nonce, zero secret files and {@code datasourceConfigured}
+ * {@code false}; anything else, or an unreachable sandbox, is DOWN. Details are never shown. It
+ * checks nothing else about isolation: deploy/smoke.sh asserts the network, mounts and limits.
  * <p>
  * Disabled with {@code management.health.sandbox.enabled=false} (integration tests run no sandbox).
  */

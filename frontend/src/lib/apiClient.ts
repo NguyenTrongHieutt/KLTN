@@ -13,6 +13,8 @@ export interface Problem {
   code?: string
   reason?: string
   errors?: { field: string; code: string }[]
+  /** Only on a 5xx: the request's correlation ID, which the SPA shows as a reference. */
+  correlationId?: string
 }
 
 export class ApiError extends Error {

@@ -16,7 +16,9 @@ import org.springframework.stereotype.Component;
  * AD-22: platform credentials are mounted secret files, never environment variables (nor JVM system
  * properties, which are as visible in the process listing). This guard refuses to start when a
  * known secret property is set in either place, in any spelling Spring would bind (for example
- * {@code SPRING_DATASOURCE_PASSWORD} or {@code DB_APP_PASSWORD}).
+ * {@code SPRING_DATASOURCE_PASSWORD} or {@code DB_APP_PASSWORD}), or inside
+ * {@code SPRING_APPLICATION_JSON}, which Boot reads from an environment variable or a system
+ * property into its own property source.
  * <p>
  * {@link EnvironmentGuard} depends on it, so the check has run before Flyway connects. The error
  * names the property and its source, never the value.
@@ -25,8 +27,11 @@ import org.springframework.stereotype.Component;
 class SecretSourceGuard implements InitializingBean {
 
 	/** Every secret property of the platform; later stories add theirs (GitHub App keys, SMTP, VNPay). */
-	static final Set<String> SECRET_PROPERTIES = Set.of("spring.datasource.password", "spring.flyway.password",
-			"db-app-password", "db-migrator-password");
+	static final Set<String> SECRET_PROPERTIES = Set.of("spring.datasource.password",
+			"spring.datasource.hikari.password", "spring.flyway.password", "db-app-password", "db-migrator-password");
+
+	/** The property source Boot builds from {@code SPRING_APPLICATION_JSON} / {@code spring.application.json}. */
+	static final String APPLICATION_JSON_SOURCE = "spring.application.json";
 
 	private final ConfigurableEnvironment environment;
 
@@ -66,6 +71,9 @@ class SecretSourceGuard implements InitializingBean {
 		}
 		if (StandardEnvironment.SYSTEM_PROPERTIES_PROPERTY_SOURCE_NAME.equals(source.getName())) {
 			return "a JVM system property";
+		}
+		if (APPLICATION_JSON_SOURCE.equals(source.getName())) {
+			return "the SPRING_APPLICATION_JSON environment variable or system property";
 		}
 		return null;
 	}

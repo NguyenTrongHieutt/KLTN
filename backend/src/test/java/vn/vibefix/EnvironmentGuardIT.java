@@ -153,6 +153,16 @@ class EnvironmentGuardIT {
 	}
 
 	@Test
+	void prodRefusesAParentOfTheDevSeedLocationBeforeMigrating() throws Exception {
+		String db = database.createScratchDatabase();
+
+		// Flyway scans classpath:db recursively, so it would find db/seed/dev too.
+		assertThatThrownBy(() -> start(db, "prod", "--spring.flyway.locations=classpath:db")).rootCause()
+			.hasMessageContaining("dev seed location classpath:db");
+		assertThat(tableExists(db, "platform.flyway_schema_history")).isFalse();
+	}
+
+	@Test
 	void prodRefusesTheDevGitHubOrganizationBeforeMigrating() throws Exception {
 		String db = database.createScratchDatabase();
 
