@@ -109,13 +109,21 @@ class EventPublicationIT extends IntegrationTest {
 		assertThat(ProbeListener.attempts.get()).as("a stalled publication is never resubmitted").isEqualTo(5);
 	}
 
+	/**
+	 * A replay is the same publication delivered again after its effect committed, for example when
+	 * the application stopped before the registry marked it completed.
+	 */
 	@Test
 	void aReplayOfTheSameEventChangesNothing() {
-		ProbeEvent event = new ProbeEvent(UUID.randomUUID(), "twice");
-		publish(event);
-		publish(event);
+		publish(new ProbeEvent(UUID.randomUUID(), "twice"));
+		awaitStatus("COMPLETED", 1);
+		this.jdbc.sql("UPDATE platform.event_publication SET completion_date = NULL, status = 'FAILED'").update();
 
-		await().atMost(WAIT).until(() -> ProbeListener.attempts.get() == 2 && countCompleted() == 2);
+		this.clock.advance(Duration.ofMinutes(5));
+		this.maintenance.resubmitDue();
+
+		awaitStatus("COMPLETED", 2);
+		assertThat(ProbeListener.attempts.get()).isEqualTo(2);
 		assertThat(ProbeListener.applied.get()).isOne();
 	}
 
@@ -172,12 +180,6 @@ class EventPublicationIT extends IntegrationTest {
 			.param("type", ProbeEvent.class.getName())
 			.query()
 			.singleRow();
-	}
-
-	private long countCompleted() {
-		return this.jdbc.sql("SELECT count(*) FROM platform.event_publication WHERE status = 'COMPLETED'")
-			.query(Long.class)
-			.single();
 	}
 
 	private UUID completedPublication(Instant completedAt) {
