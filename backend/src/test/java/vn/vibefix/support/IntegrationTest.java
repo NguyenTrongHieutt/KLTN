@@ -5,11 +5,8 @@ import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
-import org.springframework.context.annotation.Primary;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -23,7 +20,7 @@ import org.springframework.test.context.DynamicPropertySource;
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("dev")
-@Import(IntegrationTest.TestClockConfiguration.class)
+@Import(TestClockConfiguration.class)
 public abstract class IntegrationTest {
 
 	protected static final PostgresTestDatabase database = PostgresTestDatabase.instance();
@@ -43,17 +40,6 @@ public abstract class IntegrationTest {
 	void resetDatabaseAndClock() {
 		database.resetFromTemplate(this.dataSource);
 		this.clock.reset();
-	}
-
-	@TestConfiguration(proxyBeanMethods = false)
-	static class TestClockConfiguration {
-
-		@Bean
-		@Primary
-		MutableClock mutableClock() {
-			return new MutableClock(MutableClock.DEFAULT_INSTANT);
-		}
-
 	}
 
 }

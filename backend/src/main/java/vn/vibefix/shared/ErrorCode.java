@@ -35,10 +35,11 @@ public enum ErrorCode {
 	 * The code for an error Spring raised itself (no {@link ApiException}), derived from its
 	 * status: 403 {@code FORBIDDEN}, 404 {@code NOT_FOUND}, 409 {@code CONFLICT}, 429
 	 * {@code RATE_LIMITED}, and every other 4xx (400, 405, 406, 413, 415, ...) {@code VALIDATION}.
-	 * Server errors (5xx) carry no code.
+	 * 401 and server errors (5xx) carry no code.
 	 */
 	public static Optional<ErrorCode> forStatus(int status) {
-		if (status < 400 || status >= 500) {
+		// 401 has no code either: the SPA treats it by status as an expired or missing session.
+		if (status < 400 || status >= 500 || status == 401) {
 			return Optional.empty();
 		}
 		return Optional.of(switch (status) {

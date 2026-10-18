@@ -11,6 +11,14 @@
     "loading": "Đang tải…"
   },
   "error": {
-    "unexpected": "Đã có lỗi. Hãy thử lại sau ít phút."
+    "unexpected": "Đã có lỗi. Hãy thử lại sau ít phút.",
+    "VALIDATION": "Hãy kiểm tra lại {n} mục được đánh dấu.",
+    "NOT_FOUND": "Không tìm thấy nội dung này.",
+    "FORBIDDEN": "Bạn không thể làm việc này.",
+    "STALE": "Thông tin đã thay đổi trong lúc bạn xem.",
+    "JOB_BUSY": "Đợi {operation} xong rồi thử lại.",
+    "GUARD_FAILED": "Chưa thể {action}: {reason}.",
+    "RATE_LIMITED": "Bạn thao tác hơi nhanh. Hãy thử lại sau {time}.",
+    "AI_UNAVAILABLE": "Cố vấn AI tạm thời không phản hồi."
   }
 }

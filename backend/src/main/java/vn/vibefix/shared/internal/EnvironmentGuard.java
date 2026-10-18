@@ -4,7 +4,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
+import javax.sql.DataSource;
+
 import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.configuration.Configuration;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.boot.flyway.autoconfigure.FlywayMigrationStrategy;
 import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -17,15 +22,17 @@ import org.springframework.stereotype.Component;
  * <ol>
  * <li>Exactly one of the profiles {@code dev} and {@code prod} must be active, and the Flyway
  * placeholder {@code environment} must name it.</li>
- * <li>Before migrating: unless the database is fresh (no {@code platform.environment} table yet),
- * its single row must equal the profile.</li>
+ * <li>Before migrating: unless the database is fresh (neither {@code platform.environment} nor a
+ * Flyway history yet), its single row must equal the profile.</li>
  * <li>After migrating (the first migration stamps the row from the placeholder): the row must exist
  * and equal the profile.</li>
  * </ol>
- * The checks read through Flyway's own connection, which uses the migration role.
+ * These checks read through Flyway's own connection, which uses the migration role. When Flyway
+ * does not run ({@code spring.flyway.enabled=false}), the row is checked through the application
+ * {@link DataSource} once all singletons exist, before the web server starts.
  */
 @Component
-class EnvironmentGuard implements FlywayMigrationStrategy {
+class EnvironmentGuard implements FlywayMigrationStrategy, SmartInitializingSingleton {
 
 	static final Set<String> ENVIRONMENTS = Set.of("dev", "prod");
 
@@ -33,22 +40,45 @@ class EnvironmentGuard implements FlywayMigrationStrategy {
 
 	private final Environment springEnvironment;
 
-	EnvironmentGuard(Environment springEnvironment) {
+	private final ObjectProvider<DataSource> dataSources;
+
+	private volatile boolean checkedByMigration;
+
+	EnvironmentGuard(Environment springEnvironment, ObjectProvider<DataSource> dataSources) {
 		this.springEnvironment = springEnvironment;
+		this.dataSources = dataSources;
 	}
 
 	@Override
 	public void migrate(Flyway flyway) {
 		String expected = activeEnvironment();
-		String placeholder = flyway.getConfiguration().getPlaceholders().get(PLACEHOLDER);
+		Configuration configuration = flyway.getConfiguration();
+		String placeholder = configuration.getPlaceholders().get(PLACEHOLDER);
 		if (!expected.equals(placeholder)) {
 			throw new IllegalStateException("Flyway placeholder '" + PLACEHOLDER + "' is '" + placeholder
 					+ "' but the active environment profile is '" + expected + "'");
 		}
-		JdbcTemplate jdbc = new JdbcTemplate(flyway.getConfiguration().getDataSource());
+		JdbcTemplate jdbc = new JdbcTemplate(configuration.getDataSource());
+		if (!isStamped(jdbc) && exists(jdbc, configuration.getDefaultSchema() + "." + configuration.getTable())) {
+			throw new IllegalStateException("The database has a Flyway history but no platform.environment row;"
+					+ " refusing to migrate a database of unknown environment");
+		}
 		check(jdbc, expected, false);
 		flyway.migrate();
 		check(jdbc, expected, true);
+		this.checkedByMigration = true;
+	}
+
+	@Override
+	public void afterSingletonsInstantiated() {
+		if (this.checkedByMigration) {
+			return;
+		}
+		DataSource dataSource = this.dataSources.getIfAvailable();
+		if (dataSource == null) {
+			return; // No database in this process, so there is nothing to mix up.
+		}
+		check(new JdbcTemplate(dataSource), activeEnvironment(), true);
 	}
 
 	String activeEnvironment() {
@@ -61,11 +91,14 @@ class EnvironmentGuard implements FlywayMigrationStrategy {
 		return environments.getFirst();
 	}
 
-	private static void check(JdbcTemplate jdbc, String expected, boolean afterMigration) {
-		Boolean stamped = jdbc.queryForObject("SELECT to_regclass('platform.environment') IS NOT NULL", Boolean.class);
-		if (!Boolean.TRUE.equals(stamped)) {
-			if (afterMigration) {
-				throw new IllegalStateException("platform.environment is missing after migration");
+	/**
+	 * @param requireStamp whether a missing {@code platform.environment} table refuses the start; it
+	 * is allowed only before the first migration of a fresh database
+	 */
+	private static void check(JdbcTemplate jdbc, String expected, boolean requireStamp) {
+		if (!isStamped(jdbc)) {
+			if (requireStamp) {
+				throw new IllegalStateException("platform.environment is missing; refusing to start");
 			}
 			return; // A fresh database: the first migration stamps it.
 		}
@@ -74,6 +107,15 @@ class EnvironmentGuard implements FlywayMigrationStrategy {
 			throw new IllegalStateException("The database belongs to environment " + rows
 					+ " but the active environment profile is '" + expected + "'; refusing to start");
 		}
+	}
+
+	private static boolean isStamped(JdbcTemplate jdbc) {
+		return exists(jdbc, "platform.environment");
+	}
+
+	private static boolean exists(JdbcTemplate jdbc, String qualifiedTable) {
+		return Boolean.TRUE.equals(jdbc.queryForObject("SELECT to_regclass(?) IS NOT NULL", Boolean.class,
+				qualifiedTable));
 	}
 
 }

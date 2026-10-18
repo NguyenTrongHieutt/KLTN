@@ -86,6 +86,23 @@ public final class PostgresTestDatabase {
 				"--spring.flyway.password=" + this.migratorPassword };
 	}
 
+	/**
+	 * Like {@link #applicationArguments} but without passwords, so the application must read them
+	 * from its secret files ({@code db-app-password}, {@code db-migrator-password}).
+	 */
+	public String[] applicationArgumentsWithoutPasswords(String database) {
+		return new String[] { "--spring.datasource.url=" + jdbcUrl(database), "--spring.datasource.username=" + APP,
+				"--spring.flyway.user=" + MIGRATOR };
+	}
+
+	public String appPassword() {
+		return this.appPassword;
+	}
+
+	public String migratorPassword() {
+		return this.migratorPassword;
+	}
+
 	public String jdbcUrl(String database) {
 		return "jdbc:postgresql://" + this.container.getHost() + ":" + this.container.getMappedPort(5432) + "/"
 				+ database;
