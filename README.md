@@ -88,6 +88,16 @@ git branch -d feature/1-3-audit-and-authorization
 
 A pull request on GitHub, merged there, works as well.
 
+No secret scan runs until CI is back (Epic 18). To check the history yourself before a merge, run
+gitleaks from the repository root (Git Bash; exit code 0 means nothing was found):
+
+```sh
+MSYS_NO_PATHCONV=1 docker run --rm -v "$PWD:/repo:ro" \
+  -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=safe.directory -e GIT_CONFIG_VALUE_0='*' \
+  ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f \
+  git /repo --redact
+```
+
 ## Running the backend
 
 The application needs exactly one of the profiles `dev` or `prod`, and refuses to start if the

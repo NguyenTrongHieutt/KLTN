@@ -75,6 +75,9 @@ later/root.dockerignore the repository root's .dockerignore, for the vibefix-web
 ```
 
 These files still name their old paths (`deploy/caddy`, `deploy/egress`, `deploy/smoke.sh`); they
-work again once moved back. The sandbox worker (AD-32) has to come back before the first story that
-runs a job in it: Story 1.13 (student card images are re-encoded in the sandbox), then Story 2.3
-(repository scans). Bring CI back before production (Story 13-1) at the latest.
+work again once moved back. They return in Epic 18, after checkpoint 1 and before the production
+host (Story 13.1): CI in Story 18.1, `sandbox` and `egress` in 18.2, `checker` in 18.3, and the
+Caddy edge with the ZAP baseline in 18.4. Until then, work the architecture puts in the sandbox
+(image re-encoding, repository scans, Git pushes, ZIPs, preview checks) runs in-process through
+`SandboxJobs` on this stack; the `prod` profile refuses that mode. Use test repositories and files
+only.
