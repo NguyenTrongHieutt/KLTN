@@ -83,6 +83,44 @@ class MigrationConventionsTest {
 	}
 
 	@Test
+	void rejectsUnqualifiedNamesThatWouldResolveToPlatform() {
+		List<String> statements = List.of("INSERT INTO environment (name) VALUES ('dev');",
+				"UPDATE event_publication SET status = 'x';", "DELETE FROM account;",
+				"ALTER TABLE IF EXISTS account ADD COLUMN x INT;", "DROP TABLE IF EXISTS account;", "TRUNCATE account;",
+				"CREATE INDEX account_x_idx ON account (x);",
+				"CREATE TRIGGER no_update BEFORE UPDATE ON account FOR EACH ROW EXECUTE FUNCTION identity.f();",
+				"CREATE TRIGGER no_update BEFORE UPDATE ON identity.account FOR EACH ROW EXECUTE FUNCTION f();",
+				"GRANT SELECT ON account TO vibefix_app;",
+				"CREATE TABLE identity.b (a UUID REFERENCES account (id));", "COMMENT ON TABLE account IS 'x';");
+		for (String statement : statements) {
+			assertThat(check(Map.of("identity/V202611010900__identity_x.sql", statement))).as(statement)
+				.singleElement()
+				.asString()
+				.contains("unqualified name");
+		}
+	}
+
+	@Test
+	void acceptsQualifiedNamesAndKeywordsAfterTheStatementWords() {
+		assertThat(check(Map.of("identity/V202611010900__identity_accounts.sql", """
+				CREATE TABLE identity.account (id UUID PRIMARY KEY,
+				    parent UUID REFERENCES identity.account (id) ON UPDATE CASCADE ON DELETE CASCADE);
+				INSERT INTO identity.account (id) VALUES ('00000000-0000-0000-0000-000000000000');
+				UPDATE ONLY identity.account SET parent = NULL;
+				DELETE FROM identity.account;
+				ALTER TABLE identity.account ADD COLUMN note TEXT;
+				CREATE UNIQUE INDEX account_note_idx ON identity.account (note);
+				CREATE TRIGGER account_frozen BEFORE UPDATE OR DELETE ON identity.account
+				    FOR EACH ROW EXECUTE FUNCTION identity.reject_change();
+				GRANT SELECT, INSERT, UPDATE, DELETE ON identity.account TO ${runtime_role};
+				GRANT UPDATE ON identity.account TO ${runtime_role};
+				GRANT USAGE ON SCHEMA identity TO ${runtime_role};
+				COMMENT ON COLUMN identity.account.note IS 'free text';
+				DROP INDEX IF EXISTS identity.account_note_idx;
+				"""))).isEmpty();
+	}
+
+	@Test
 	void ignoresSchemaNamesInCommentsAndLiterals() {
 		assertThat(check(Map.of("identity/V202611010900__identity_accounts.sql", """
 				-- Mirrors audit.entry, see platform.environment
@@ -184,7 +222,7 @@ class MigrationConventionsTest {
 		new TreeMap<>(base).forEach((path, sql) -> {
 			String now = current.get(path);
 			if (now == null) {
-				violations.add(path + ": deleted, but it is on main");
+				violations.add(path + ": on main but missing here; rebase onto main (or it was deleted)");
 			}
 			else if (!normalize(now).equals(normalize(sql))) {
 				violations.add(path + ": edited, but it is on main; add a new migration instead");
@@ -235,7 +273,54 @@ class MigrationConventionsTest {
 						+ "; create it as " + own + "." + created.group(2));
 			}
 		}
+		for (Map.Entry<String, Pattern> reference : UNQUALIFIED_REFERENCES.entrySet()) {
+			Matcher matcher = reference.getValue().matcher(code);
+			while (matcher.find()) {
+				String name = matcher.group("name");
+				if (matcher.group("dot") == null && !NOT_NAMES.contains(name.toUpperCase())) {
+					violations.add(path + ": unqualified name " + name + " after " + reference.getKey()
+							+ " resolves through search_path (Flyway's default schema platform); write " + own + "."
+							+ name);
+				}
+			}
+		}
 		return violations;
+	}
+
+	private static final String NAME = "(?<name>\"?[a-z_][a-z0-9_]*\"?)(?<dot>\\s*\\.)?";
+
+	/**
+	 * Statements whose object name, left unqualified, would resolve to Flyway's default schema
+	 * ({@code platform}) instead of the module's own.
+	 */
+	private static final Map<String, Pattern> UNQUALIFIED_REFERENCES = references();
+
+	/** Keywords the reference patterns can capture where an object name may follow (ON UPDATE CASCADE). */
+	private static final Set<String> NOT_NAMES = Set.of("ON", "OR", "OF", "SET", "CASCADE", "RESTRICT", "NO", "SCHEMA",
+			"ALL", "DATABASE", "ONLY", "TABLE", "NOWAIT", "SKIP", "AND", "TO", "FROM");
+
+	private static Map<String, Pattern> references() {
+		Map<String, String> sources = new java.util.LinkedHashMap<>();
+		sources.put("INSERT INTO", "\\bINSERT\\s+INTO\\s+" + NAME);
+		sources.put("UPDATE", "\\bUPDATE\\s+(?:ONLY\\s+)?" + NAME);
+		sources.put("DELETE FROM", "\\bDELETE\\s+FROM\\s+(?:ONLY\\s+)?" + NAME);
+		sources.put("ALTER", "\\bALTER\\s+(?:TABLE|VIEW|MATERIALIZED\\s+VIEW|SEQUENCE|INDEX|TYPE|DOMAIN|FUNCTION|PROCEDURE)"
+				+ "\\s+(?:IF\\s+EXISTS\\s+)?(?:ONLY\\s+)?" + NAME);
+		sources.put("DROP", "\\bDROP\\s+(?:TABLE|VIEW|MATERIALIZED\\s+VIEW|SEQUENCE|INDEX|TYPE|DOMAIN|FUNCTION|PROCEDURE)"
+				+ "\\s+(?:CONCURRENTLY\\s+)?(?:IF\\s+EXISTS\\s+)?" + NAME);
+		sources.put("TRUNCATE", "\\bTRUNCATE\\s+(?:TABLE\\s+)?(?:ONLY\\s+)?" + NAME);
+		sources.put("CREATE INDEX ... ON", "\\bCREATE\\s+(?:UNIQUE\\s+)?INDEX\\s+(?:CONCURRENTLY\\s+)?"
+				+ "(?:IF\\s+NOT\\s+EXISTS\\s+)?(?:\"?[a-z_][a-z0-9_]*\"?\\s+)?ON\\s+(?:ONLY\\s+)?" + NAME);
+		sources.put("CREATE TRIGGER ... ON", "\\bCREATE\\s+(?:OR\\s+REPLACE\\s+)?(?:CONSTRAINT\\s+)?TRIGGER\\s+[^;]*?\\bON\\s+"
+				+ NAME);
+		sources.put("EXECUTE FUNCTION", "\\bEXECUTE\\s+(?:FUNCTION|PROCEDURE)\\s+" + NAME);
+		sources.put("GRANT/REVOKE ... ON", "\\b(?:GRANT|REVOKE)\\s+[^;]*?\\bON\\s+(?:TABLE\\s+|SEQUENCE\\s+|FUNCTION\\s+)?"
+				+ NAME);
+		sources.put("REFERENCES", "\\bREFERENCES\\s+" + NAME);
+		sources.put("COMMENT ON", "\\bCOMMENT\\s+ON\\s+(?:TABLE|COLUMN|VIEW|INDEX|SEQUENCE|TYPE|FUNCTION)\\s+" + NAME);
+		Map<String, Pattern> patterns = new java.util.LinkedHashMap<>();
+		sources.forEach((label, regex) -> patterns.put(label, Pattern.compile(regex, Pattern.CASE_INSENSITIVE)));
+		return patterns;
 	}
 
 	private static boolean isForeign(String schema, String own) {
@@ -312,16 +397,24 @@ class MigrationConventionsTest {
 		List<String> command = new ArrayList<>(List.of("git", "-C", repositoryRoot().toString()));
 		command.addAll(List.of(args));
 		try {
-			Process process = new ProcessBuilder(command).redirectErrorStream(!mayFail).start();
-			String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-			int exit = process.waitFor();
-			if (exit != 0) {
-				if (mayFail) {
-					return null;
+			// stderr goes to its own file: a warning must never be parsed as output.
+			Path stderr = Files.createTempFile("git-stderr", ".txt");
+			try {
+				Process process = new ProcessBuilder(command).redirectError(stderr.toFile()).start();
+				String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+				int exit = process.waitFor();
+				if (exit != 0) {
+					if (mayFail) {
+						return null;
+					}
+					throw new AssertionError("git " + String.join(" ", args) + " failed (" + exit + "): "
+							+ Files.readString(stderr, StandardCharsets.UTF_8));
 				}
-				throw new AssertionError("git " + String.join(" ", args) + " failed (" + exit + "): " + output);
+				return output;
 			}
-			return output;
+			finally {
+				Files.deleteIfExists(stderr);
+			}
 		}
 		catch (IOException ex) {
 			throw new AssertionError("git is required to compare migrations with main", ex);

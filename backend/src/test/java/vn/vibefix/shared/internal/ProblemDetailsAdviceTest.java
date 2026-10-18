@@ -34,6 +34,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import vn.vibefix.shared.ApiException;
@@ -152,6 +153,23 @@ class ProblemDetailsAdviceTest {
 	}
 
 	@Test
+	void unauthorizedCarriesNoCode() throws Exception {
+		this.mvc.perform(get("/api/v1/probe/status/{status}", 401))
+			.andExpect(status().isUnauthorized())
+			.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+			.andExpect(jsonPath("$.code").doesNotExist());
+	}
+
+	@Test
+	void responseStatusAnnotationKeepsItsStatusAndCode() throws Exception {
+		this.mvc.perform(get("/api/v1/probe/annotated"))
+			.andExpect(status().isConflict())
+			.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+			.andExpect(jsonPath("$.code").value("CONFLICT"))
+			.andExpect(jsonPath("$.detail").doesNotExist());
+	}
+
+	@Test
 	void everyCodeHasTheStatusOfTheDesign() {
 		assertThat(ErrorCode.VALIDATION.status()).isEqualTo(400);
 		assertThat(ErrorCode.NOT_FOUND.status()).isEqualTo(404);
@@ -166,7 +184,13 @@ class ProblemDetailsAdviceTest {
 		assertThat(ErrorCode.forStatus(415)).contains(ErrorCode.VALIDATION);
 		assertThat(ErrorCode.forStatus(405)).contains(ErrorCode.VALIDATION);
 		assertThat(ErrorCode.forStatus(500)).isEmpty();
+		assertThat(ErrorCode.forStatus(401)).isEmpty();
 		assertThat(ErrorCode.forStatus(200)).isEmpty();
+	}
+
+	@ResponseStatus(HttpStatus.CONFLICT)
+	static class ProbeConflictException extends RuntimeException {
+
 	}
 
 	enum ProbeReason {
@@ -209,6 +233,11 @@ class ProblemDetailsAdviceTest {
 		@GetMapping("/boom")
 		void boom() {
 			throw new IllegalStateException("secret internal detail");
+		}
+
+		@GetMapping("/annotated")
+		void annotated() {
+			throw new ProbeConflictException();
 		}
 
 	}

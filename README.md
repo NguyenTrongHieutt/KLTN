@@ -20,7 +20,7 @@ frontend/   Vite, React 19, TypeScript, TanStack Query
 
 ## Requirements
 
-- JDK 25 (CI uses Eclipse Temurin 25.0.4.1)
+- JDK 25 (the spine pins Eclipse Temurin 25.0.4.1; CI arrives with Story 1.2)
 - Docker, for Testcontainers PostgreSQL 18.6
 - Node.js 24 (see `frontend/.nvmrc`)
 
@@ -28,14 +28,17 @@ Keep the checkout on a path without diacritics: the JVM cannot load classes from
 
 ## Build and test
 
+From the repository root:
+
 ```sh
-cd backend && ./mvnw -B verify      # unit tests, module checks, integration tests on PostgreSQL
-cd frontend && npm ci && npm run lint && npm run build
+(cd backend && ./mvnw -B verify)    # unit tests, module checks, integration tests on PostgreSQL
+(cd frontend && npm ci && npm run lint && npm run build)
 ```
 
-`./mvnw verify` also rewrites `frontend/src/api/openapi.json` from the running application. Commit
-it with the backend change; `npm run build` (and `npm run dev`) regenerate `src/api/schema.d.ts`
-from it.
+`./mvnw verify` regenerates `frontend/src/api/openapi.json` from the running application, and
+`OpenApiExportIT` fails when the committed file was stale: commit the regenerated file and run
+again. `npm run build` (and `npm run dev`) regenerate `src/api/schema.d.ts` from it. Record
+components are `required` in the document unless annotated `@Nullable`.
 
 Integration tests extend `vn.vibefix.support.IntegrationTest`: the application connects as the
 runtime role `vibefix_app`, Flyway as the migration role `vibefix_migrator`, the clock is a
@@ -48,21 +51,30 @@ The application needs exactly one of the profiles `dev` or `prod`, and refuses t
 `platform.environment` row of its database names the other one. It reads database passwords only
 from secret files (one file per property name, `db-app-password` and `db-migrator-password`) in
 `VIBEFIX_SECRETS_DIR` (default `/run/secrets/`). The database host and port come from
-`VIBEFIX_DB_HOST` and `VIBEFIX_DB_PORT` (default `localhost:5432`, database `vibefix`). The JVM
-must run in UTC (`-Duser.timezone=UTC`; `./mvnw spring-boot:run` sets it).
+`VIBEFIX_DB_HOST` and `VIBEFIX_DB_PORT` (default `localhost:5432`, database `vibefix`). The
+application runs in UTC (`main` sets the default time zone; tests and `./mvnw spring-boot:run`
+also pass `-Duser.timezone=UTC`).
+
+Story 1.2's Docker Compose stack will provide the database and secrets. Until then a local run
+needs, on a PostgreSQL 18 you start yourself:
+
+- the roles from `backend/src/test/resources/db/init-roles.sql`, each given a password;
+- a database `vibefix` owned by `vibefix_migrator`;
+- the two passwords in `secrets/db-app-password` and `secrets/db-migrator-password` (ignored by git).
 
 ```sh
 cd backend
 VIBEFIX_SECRETS_DIR=../secrets/ ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
-The local Docker Compose stack arrives with Story 1.2.
-
 ## Conventions enforced by the build
 
 - `ModularityTests`, `ModuleLayersTest`: module boundaries and the AD-3 layer table.
-- `ClockRuleTest`: business time only from the injected `Clock`.
-- `MigrationConventionsTest`: migration folder, name, schema ownership, and immutability against
-  `main` (set `-Dvibefix.migrations.base-ref=...` when `main` is not available locally).
-- `npm run lint`: no `dangerouslySetInnerHTML`, no `fetch` or `openapi-fetch` outside `src/lib`,
-  and a self-test that these bans still fire.
+- `ClockRuleTest`: business time only from the injected `Clock` (calls and method references).
+- `MigrationConventionsTest`: migration folder, name, schema ownership (names must be qualified
+  with the module's schema), and immutability against `main` (set
+  `-Dvibefix.migrations.base-ref=...` when `main` is not available locally).
+- `EnvironmentGuardIT`: the environment guard (AD-25) and secret-file passwords (AD-22).
+- `npm run lint`: no raw HTML (`dangerouslySetInnerHTML`, `innerHTML`, `insertAdjacentHTML`,
+  `document.write`), no `fetch`, `XMLHttpRequest`, `EventSource`, `WebSocket`, `sendBeacon` or
+  `openapi-fetch` outside `src/lib`, and a self-test that these bans still fire.

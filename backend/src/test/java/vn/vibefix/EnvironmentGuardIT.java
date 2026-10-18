@@ -3,6 +3,8 @@ package vn.vibefix;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -12,6 +14,7 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.boot.builder.SpringApplicationBuilder;
@@ -21,7 +24,8 @@ import vn.vibefix.support.PostgresTestDatabase;
 
 /**
  * AD-25: the application starts only when the {@code platform.environment} row equals the active
- * profile, and it checks before any migration runs. Each scenario gets its own database.
+ * profile, and it checks before any migration runs (or, with Flyway off, before the context is
+ * ready). AD-22: database passwords come from secret files. Each scenario gets its own database.
  */
 class EnvironmentGuardIT {
 
@@ -81,12 +85,69 @@ class EnvironmentGuardIT {
 		return Stream.of("", "sandbox", "dev,prod");
 	}
 
-	private static ConfigurableApplicationContext start(String db, String profiles) {
+	@Test
+	void placeholderThatDiffersFromTheProfileIsRefusedBeforeMigrating() throws Exception {
+		String db = database.createScratchDatabase();
+
+		assertThatThrownBy(() -> start(db, "dev", "--spring.flyway.placeholders.environment=prod")).rootCause()
+			.hasMessageContaining("placeholder 'environment' is 'prod'");
+		assertThat(tableExists(db, "platform.flyway_schema_history")).isFalse();
+		assertThat(tableExists(db, "platform.environment")).isFalse();
+	}
+
+	@Test
+	void databaseWithHistoryButNoEnvironmentRowIsRefusedBeforeMigrating() throws Exception {
+		String db = database.createScratchDatabase();
+		try (Connection connection = database.migratorConnection(db);
+				Statement statement = connection.createStatement()) {
+			statement.execute("CREATE SCHEMA platform");
+			statement.execute("CREATE TABLE platform.flyway_schema_history (installed_rank INT PRIMARY KEY)");
+		}
+
+		assertThatThrownBy(() -> start(db, "dev")).rootCause().hasMessageContaining("Flyway history");
+		assertThat(tableExists(db, "platform.environment")).isFalse();
+	}
+
+	@Test
+	void environmentIsCheckedEvenWhenFlywayIsDisabled() throws Exception {
+		String db = database.createScratchDatabase();
+		try (ConfigurableApplicationContext ignored = start(db, "prod")) {
+			assertThat(environmentRows(db)).containsExactly("prod");
+		}
+
+		// Thrown unwrapped from afterSingletonsInstantiated, before the context is ready.
+		assertThatThrownBy(() -> start(db, "dev", "--spring.flyway.enabled=false"))
+			.hasMessageContaining("[prod]")
+			.hasMessageContaining("'dev'");
+		assertThatThrownBy(() -> start(database.createScratchDatabase(), "dev", "--spring.flyway.enabled=false"))
+			.hasMessageContaining("platform.environment is missing");
+	}
+
+	@Test
+	void passwordsAreReadFromSecretFiles(@TempDir Path secrets) throws Exception {
+		Files.writeString(secrets.resolve("db-app-password"), database.appPassword());
+		Files.writeString(secrets.resolve("db-migrator-password"), database.migratorPassword());
+		String db = database.createScratchDatabase();
+		List<String> args = new ArrayList<>(List.of(database.applicationArgumentsWithoutPasswords(db)));
+		args.add("--VIBEFIX_SECRETS_DIR=" + secrets.toAbsolutePath().toString().replace('\\', '/') + "/");
+
+		try (ConfigurableApplicationContext ignored = run(args, "dev")) {
+			assertThat(environmentRows(db)).containsExactly("dev");
+		}
+	}
+
+	private static ConfigurableApplicationContext start(String db, String profiles, String... extraArgs) {
 		List<String> args = new ArrayList<>(List.of(database.applicationArguments(db)));
-		args.add("--spring.profiles.active=" + profiles);
-		args.add("--spring.main.web-application-type=none");
-		args.add("--spring.main.banner-mode=off");
-		return new SpringApplicationBuilder(VibefixApplication.class).run(args.toArray(String[]::new));
+		args.addAll(List.of(extraArgs));
+		return run(args, profiles);
+	}
+
+	private static ConfigurableApplicationContext run(List<String> args, String profiles) {
+		List<String> all = new ArrayList<>(args);
+		all.add("--spring.profiles.active=" + profiles);
+		all.add("--spring.main.web-application-type=none");
+		all.add("--spring.main.banner-mode=off");
+		return new SpringApplicationBuilder(VibefixApplication.class).run(all.toArray(String[]::new));
 	}
 
 	private static List<String> environmentRows(String db) throws SQLException {

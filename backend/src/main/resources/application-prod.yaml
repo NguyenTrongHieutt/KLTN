@@ -4,3 +4,10 @@ spring:
   flyway:
     placeholders:
       environment: prod
+
+# AD-21: the API document and Swagger UI are not served in production.
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

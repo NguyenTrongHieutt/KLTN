@@ -7,3 +7,4 @@ Thumbs.db
 secrets/
 .env
 .env.*
+!.env.example

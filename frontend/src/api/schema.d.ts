@@ -25,7 +25,7 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         EnvironmentResponse: {
-            name?: string;
+            name: string;
         };
     };
     responses: never;

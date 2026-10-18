@@ -27,15 +27,19 @@ export class ApiError extends Error {
   }
 }
 
-/** Resolves to the response data, or rejects with an {@link ApiError} carrying the Problem Details. */
+/**
+ * Resolves to the response data, or rejects with an {@link ApiError} carrying the Problem Details.
+ * A successful response without a body (204, or an empty 200 from a command) resolves to
+ * `undefined`, which the operation's type then says.
+ */
 export async function unwrap<T>(
   request: Promise<{ data?: T; error?: unknown; response: Response }>,
 ): Promise<T> {
   const { data, error, response } = await request
-  if (!response.ok || data === undefined) {
+  if (!response.ok) {
     throw new ApiError(response.status, isProblem(error) ? error : {})
   }
-  return data
+  return data as T
 }
 
 function isProblem(value: unknown): value is Problem {

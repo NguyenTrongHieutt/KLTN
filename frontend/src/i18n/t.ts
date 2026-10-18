@@ -4,7 +4,7 @@ type Leaves<T, Prefix extends string = ''> = {
   [K in keyof T & string]: T[K] extends string ? `${Prefix}${K}` : Leaves<T[K], `${Prefix}${K}.`>
 }[keyof T & string]
 
-/** A dotted path to a string in `vi.json`, for example `error.code.NOT_FOUND`. */
+/** A dotted path to a string in `vi.json`, for example `error.NOT_FOUND`. */
 export type MessageKey = Leaves<typeof vi>
 
 /**

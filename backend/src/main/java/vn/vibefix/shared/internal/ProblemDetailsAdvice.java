@@ -3,10 +3,13 @@ package vn.vibefix.shared.internal;
 import java.util.ArrayList;
 import java.util.List;
 
+import jakarta.servlet.http.HttpServletResponse;
+
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.MessageSourceResolvable;
+import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -17,6 +20,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.validation.method.ParameterErrors;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
@@ -32,6 +36,7 @@ import vn.vibefix.shared.ErrorCode;
  * <li>Spring's own exceptions: {@code code} from the status ({@link ErrorCode#forStatus}).</li>
  * <li>Bean validation: {@code VALIDATION} plus {@code errors: [{field, code}]}, where the code is
  * the constraint name (for example {@code NotBlank}).</li>
+ * <li>An exception annotated with {@code @ResponseStatus}: that status and its code.</li>
  * <li>Anything else: 500 without a code.</li>
  * </ul>
  * Spring's English {@code detail} text is removed: the backend returns codes, never sentences.
@@ -59,11 +64,35 @@ class ProblemDetailsAdvice extends ResponseEntityExceptionHandler {
 		return ResponseEntity.status(ex.code().status()).body(body);
 	}
 
+	/**
+	 * Everything else. An exception annotated with {@link ResponseStatus} keeps its status (and the
+	 * code of that status); anything after the response was committed, such as a client that went
+	 * away, is only logged.
+	 */
 	@ExceptionHandler(Exception.class)
-	ResponseEntity<ProblemDetail> handleUnexpected(Exception ex) {
-		log.error("Unhandled exception", ex);
-		HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR;
-		return ResponseEntity.status(status).body(ProblemDetail.forStatus(status));
+	@Nullable ResponseEntity<ProblemDetail> handleUnexpected(Exception ex, HttpServletResponse response) {
+		if (response.isCommitted()) {
+			log.debug("Exception after the response was committed", ex);
+			return null;
+		}
+		ResponseStatus declared = AnnotatedElementUtils.findMergedAnnotation(ex.getClass(), ResponseStatus.class);
+		HttpStatus status = declared == null ? HttpStatus.INTERNAL_SERVER_ERROR : declared.code();
+		if (status.is5xxServerError()) {
+			log.error("Unhandled exception", ex);
+		}
+		ProblemDetail body = ProblemDetail.forStatus(status);
+		ErrorCode.forStatus(status.value()).ifPresent(code -> body.setProperty(CODE, code.name()));
+		return ResponseEntity.status(status).body(body);
+	}
+
+	/** Logs the server errors Spring raises itself (for example an unwritable response body). */
+	@Override
+	protected @Nullable ResponseEntity<Object> handleExceptionInternal(Exception ex, @Nullable Object body,
+			HttpHeaders headers, HttpStatusCode statusCode, WebRequest request) {
+		if (statusCode.is5xxServerError()) {
+			log.error("Server error " + statusCode.value(), ex);
+		}
+		return super.handleExceptionInternal(ex, body, headers, statusCode, request);
 	}
 
 	@Override
@@ -88,7 +117,10 @@ class ProblemDetailsAdvice extends ResponseEntityExceptionHandler {
 			}
 		});
 		ProblemDetail body = ex.getBody();
-		body.setProperty(ERRORS, violations);
+		// Return-value validation fails with 500: its field names are internals, so they stay out.
+		if (status.is4xxClientError()) {
+			body.setProperty(ERRORS, violations);
+		}
 		return handleExceptionInternal(ex, body, headers, status, request);
 	}
 
