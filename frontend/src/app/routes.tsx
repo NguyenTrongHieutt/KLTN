@@ -1,25 +1,36 @@
 import { Navigate, type RouteObject } from 'react-router'
-import { TodoStub } from '@/features/home/TodoStub'
 import { SignInPage } from '@/features/identity/SignInPage'
 import { StartPage } from '@/features/identity/StartPage'
-import { MentorProfileStub } from '@/features/mentor/MentorProfileStub'
 import { LandingPage } from '@/features/public/LandingPage'
 import { PrivacyPage } from '@/features/public/PrivacyPage'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
-import { AppLayout } from './AppLayout'
 import { PublicLayout } from './PublicLayout'
 
 /**
  * The route table (EXPERIENCE.md Surfaces). Routes use Vietnamese slugs without diacritics; a
- * surface that is not built yet has no route, so its path shows the not-found screen.
+ * surface that is not built yet has no route, so its path shows the not-found screen. The signed-in
+ * shell and its screens load as their own chunk, so a public visit downloads only what it shows
+ * (NFR-14).
  */
 export const routes: RouteObject[] = [
   {
     // Signed-in surfaces: the guard sends anyone else to PUB-2 or PUB-3.
-    element: <AppLayout />,
+    lazy: async () => ({ Component: (await import('./AppLayout')).AppLayout }),
     children: [
-      { path: 'viec-can-lam', element: <TodoStub /> },
-      { path: 'ho-so', element: <MentorProfileStub /> },
+      {
+        path: 'viec-can-lam',
+        lazy: async () => ({ Component: (await import('@/features/notification/TodoListPage')).TodoListPage }),
+      },
+      {
+        path: 'thong-bao',
+        lazy: async () => ({
+          Component: (await import('@/features/notification/NotificationsPage')).NotificationsPage,
+        }),
+      },
+      {
+        path: 'ho-so',
+        lazy: async () => ({ Component: (await import('@/features/identity/ProfileStub')).ProfileStub }),
+      },
     ],
   },
   {

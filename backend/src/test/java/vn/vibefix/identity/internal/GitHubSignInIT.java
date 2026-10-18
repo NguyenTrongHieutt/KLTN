@@ -56,6 +56,7 @@ class GitHubSignInIT extends IntegrationTest {
 		registry.add("vibefix.github.oauth.authorization-uri", () -> github.baseUrl() + "/login/oauth/authorize");
 		registry.add("vibefix.github.oauth.token-uri", () -> github.baseUrl() + "/login/oauth/access_token");
 		registry.add("vibefix.github.oauth.user-info-uri", () -> github.baseUrl() + "/user");
+		registry.add("vibefix.github.oauth.user-emails-uri", () -> github.baseUrl() + "/user/emails");
 	}
 
 	@BeforeEach
@@ -137,6 +138,47 @@ class GitHubSignInIT extends IntegrationTest {
 				+ " FROM identity.account ORDER BY github_login").query(String.class).list())
 			.containsExactly("hung MENTOR PENDING", "minh STUDENT -");
 		assertThat(this.jdbc.sql("SELECT count(*) FROM identity.customer_token").query(Long.class).single()).isZero();
+	}
+
+	@Test
+	void notificationsGoToThePrimaryVerifiedEmailReadAtEverySignIn() throws Exception {
+		github.signsInAs(4242, "lan");
+		signIn();
+		signUp("CUSTOMER", "2.0");
+		assertThat(githubEmail()).isEqualTo("lan@example.test");
+
+		this.browser = new Browser(this.mvc);
+		github.signsInAs(4242, "lan-nguyen");
+		signIn();
+		assertThat(githubEmail()).as("refreshed at sign-in").isEqualTo("lan-nguyen@example.test");
+
+		this.browser = new Browser(this.mvc);
+		github.emailsAnswer(503);
+		assertThat(signIn()).as("GitHub not answering does not stop the sign-in").isEqualTo("/viec-can-lam");
+		assertThat(githubEmail()).as("the address on file stays").isEqualTo("lan-nguyen@example.test");
+	}
+
+	@Test
+	void aNewMentorOrStudentStartsWithTheirSignUpToDo() throws Exception {
+		github.signsInAs(5001, "hung");
+		signIn();
+		signUp("MENTOR", "2.0");
+		this.browser = new Browser(this.mvc);
+		github.signsInAs(5002, "minh");
+		signIn();
+		signUp("STUDENT", "2.0");
+		this.browser = new Browser(this.mvc);
+		github.signsInAs(5003, "lan");
+		signIn();
+		signUp("CUSTOMER", "2.0");
+
+		assertThat(this.jdbc.sql("""
+				SELECT account.github_login || ' ' || todo.todo_key || ' ' || todo.tier || ' ' || todo.link
+				FROM notification.todo todo JOIN identity.account account ON account.id = todo.account_id
+				WHERE todo.subject_id = todo.account_id AND todo.closed_at IS NULL
+				ORDER BY account.github_login
+				""").query(String.class).list())
+			.containsExactly("hung identity.complete_mentor_application 1 /ho-so", "minh identity.verify_student 3 /ho-so");
 	}
 
 	@Test
@@ -332,6 +374,10 @@ class GitHubSignInIT extends IntegrationTest {
 
 	private JsonNode session() throws Exception {
 		return JSON.readTree(this.browser.perform(get("/api/v1/session")).getResponse().getContentAsString());
+	}
+
+	private String githubEmail() {
+		return this.jdbc.sql("SELECT github_email FROM identity.account").query(String.class).single();
 	}
 
 	private long countAccounts() {

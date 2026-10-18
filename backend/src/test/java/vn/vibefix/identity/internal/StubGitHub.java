@@ -29,6 +29,10 @@ public final class StubGitHub implements AutoCloseable {
 
 	private volatile String userJson = "{}";
 
+	private volatile String emailsJson = "[]";
+
+	private volatile int emailsStatus = 200;
+
 	private StubGitHub() {
 		try {
 			this.server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
@@ -38,6 +42,7 @@ public final class StubGitHub implements AutoCloseable {
 		}
 		this.server.createContext("/login/oauth/access_token", this::token);
 		this.server.createContext("/user", this::user);
+		this.server.createContext("/user/emails", this::emails);
 		this.server.start();
 	}
 
@@ -49,10 +54,22 @@ public final class StubGitHub implements AutoCloseable {
 		return "http://127.0.0.1:" + this.server.getAddress().getPort();
 	}
 
-	/** The user GitHub answers next: numeric ID, login, avatar. */
+	/**
+	 * The user GitHub answers next: numeric ID, login, avatar, and as email addresses an unverified
+	 * one, a verified secondary one, and the primary verified {@code {login}@example.test}.
+	 */
 	public void signsInAs(long id, String login) {
 		this.userJson = "{\"id\":" + id + ",\"login\":\"" + login + "\",\"avatar_url\":\"https://avatars.example/u/" + id
 				+ "\",\"email\":\"" + login + "@example.test\"}";
+		this.emailsJson = "[{\"email\":\"" + login + "@unverified.test\",\"primary\":false,\"verified\":false},"
+				+ "{\"email\":\"" + login + "@school.test\",\"primary\":false,\"verified\":true},"
+				+ "{\"email\":\"" + login + "@example.test\",\"primary\":true,\"verified\":true}]";
+		this.emailsStatus = 200;
+	}
+
+	/** GitHub's email addresses answer {@code status} for the next sign-ins. */
+	public void emailsAnswer(int status) {
+		this.emailsStatus = status;
 	}
 
 	/** The last access token issued. */
@@ -79,6 +96,21 @@ public final class StubGitHub implements AutoCloseable {
 			return;
 		}
 		respond(exchange, this.userJson);
+	}
+
+	private void emails(HttpExchange exchange) throws IOException {
+		String authorization = exchange.getRequestHeaders().getFirst("Authorization");
+		if (authorization == null || !authorization.startsWith("Bearer gho_stub_")) {
+			exchange.sendResponseHeaders(401, -1);
+			exchange.close();
+			return;
+		}
+		if (this.emailsStatus != 200) {
+			exchange.sendResponseHeaders(this.emailsStatus, -1);
+			exchange.close();
+			return;
+		}
+		respond(exchange, this.emailsJson);
 	}
 
 	private static void respond(HttpExchange exchange, String json) throws IOException {

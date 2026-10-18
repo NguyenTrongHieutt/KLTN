@@ -66,6 +66,23 @@ class Accounts {
 			.update();
 	}
 
+	/** The GitHub primary verified email, where notifications are emailed (FR-48). */
+	void recordGitHubEmail(UUID id, String email) {
+		this.jdbc.sql("UPDATE identity.account SET github_email = :email WHERE id = :id")
+			.param("id", id)
+			.param("email", email)
+			.update();
+	}
+
+	/** Where the account's notifications go; none once it is erased or while no address is known. */
+	Optional<String> notificationAddress(UUID id) {
+		return this.jdbc.sql("SELECT github_email FROM identity.account WHERE id = :id AND erased_at IS NULL")
+			.param("id", id)
+			.query((row, number) -> Optional.ofNullable(row.getString("github_email")))
+			.optional()
+			.flatMap(address -> address);
+	}
+
 	void insertAcknowledgment(UUID id, UUID accountId, String notice, String noticeVersion, Instant at) {
 		this.jdbc.sql("""
 				INSERT INTO identity.acknowledgment (id, account_id, notice, notice_version, acknowledged_at)

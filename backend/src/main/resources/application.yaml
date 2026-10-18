@@ -102,6 +102,8 @@ vibefix:
       authorization-uri: https://github.com/login/oauth/authorize
       token-uri: https://github.com/login/oauth/access_token
       user-info-uri: https://api.github.com/user
+      # FR-48: the primary verified email, where notifications are emailed (scope user:email).
+      user-emails-uri: https://api.github.com/user/emails
   # AD-9: shared.internal.EventPublicationMaintenance resubmits, stalls and purges publications.
   events:
     resubmit-after: 5m

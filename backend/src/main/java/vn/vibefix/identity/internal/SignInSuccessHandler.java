@@ -45,6 +45,8 @@ class SignInSuccessHandler implements AuthenticationSuccessHandler {
 		String avatar = (String) user.getAttributes().get("avatar_url");
 		String token = (String) request.getAttribute(TokenCapturingUserService.TOKEN_ATTRIBUTE);
 		request.removeAttribute(TokenCapturingUserService.TOKEN_ATTRIBUTE);
+		String email = (String) request.getAttribute(TokenCapturingUserService.EMAIL_ATTRIBUTE);
+		request.removeAttribute(TokenCapturingUserService.EMAIL_ATTRIBUTE);
 
 		HttpSession session = request.getSession();
 		SignInSession.clear(session);
@@ -52,7 +54,7 @@ class SignInSuccessHandler implements AuthenticationSuccessHandler {
 		session.removeAttribute(SignInSession.RETURN_TO);
 
 		SecurityContext context = SecurityContextHolder.createEmptyContext();
-		String target = switch (this.signIns.signIn(githubUserId, login, avatar, token)) {
+		String target = switch (this.signIns.signIn(githubUserId, login, avatar, email, token)) {
 			case SignIns.Outcome.SignedIn signedIn -> {
 				context.setAuthentication(new AccountAuthentication(signedIn.account().id(), signedIn.account().role()));
 				yield returnTo != null ? returnTo : SignIns.landingPath(signedIn.account());
