@@ -1,63 +1,17 @@
-# vibefix, local and CI stack (AD-26, AD-32), shaped like production:
+# vibefix, local development stack: three services, each published on localhost only.
 #
-#   caddy    SPA, and /api + /webhooks proxied to app; the only published port (127.0.0.1:8000)
-#   app      vibefix-app, profile dev
-#   sandbox  the same image, profile sandbox: no secrets, no database, read-only, limited
-#   checker  the same image and profile, serving only the job types it lists (outbound URL checks)
-#   egress   squid (deploy/egress), the only way out for sandbox (GitHub only, port 3128) and
-#            checker (public hosts only, port 3129); CONNECT 443 and nothing else
-#   postgres PostgreSQL 18, never published, volume at /var/lib/postgresql
+#   postgres  PostgreSQL 18                                  127.0.0.1:5432
+#   backend   vibefix-app (Spring Boot, profile dev)         127.0.0.1:8080
+#   frontend  Vite dev server on frontend/ (hot reload)      127.0.0.1:5173, /api proxied to backend
 #
-# Networks: edge (caddy, app), data (app, postgres; internal), jobs (app, sandbox, egress; internal),
-# checks (app, checker, egress; internal), outbound (egress). sandbox and checker never share a
-# network, and egress admits each one only from its fixed address (deploy/egress/squid.conf).
-# Secrets are files under deploy/secrets/ (deploy/dev-secrets.sh), mounted at /run/secrets/, never
-# environment variables (AD-22). Every container runs in UTC, and none mounts the Docker socket.
+# Until the application works in this dev environment, the stack leaves out the production shape
+# (Caddy edge, sandbox and checker workers, egress proxy; AD-26, AD-32) and CI runs no gates. Both
+# are in git history at commit 4c64ceb; deferred-work.md says when to bring them back.
+# Secrets are still files under deploy/secrets/ (AD-22): run deploy/dev-secrets.sh once.
 #
 #   bash deploy/dev-secrets.sh
 #   docker compose -f deploy/compose.yaml up -d --build --wait
-#   bash deploy/smoke.sh
 name: vibefix
-
-# AD-26: every container's log is rotated by Docker (json-file, at most 5 x 10 MB).
-x-logging: &logging
-  driver: json-file
-  options:
-    max-size: "10m"
-    max-file: "5"
-
-x-app-image: &app-image
-  build:
-    context: ../backend
-  image: vibefix-app:local
-
-# Bash's /dev/tcp, because the JRE image has neither curl nor wget.
-x-java-healthcheck: &java-healthcheck
-  test:
-    - CMD
-    - bash
-    - -c
-    - >-
-      exec 3<>/dev/tcp/127.0.0.1/8080
-      && printf 'GET /actuator/health/readiness HTTP/1.0\r\nHost: localhost\r\n\r\n' >&3
-      && grep -q '"status":"UP"' <&3
-  interval: 10s
-  timeout: 5s
-  retries: 5
-  start_period: 90s
-  start_interval: 2s
-
-# The sandbox workers (sandbox, checker) have no readiness group worth waiting for: liveness only.
-x-worker-healthcheck: &worker-healthcheck
-  <<: *java-healthcheck
-  test:
-    - CMD
-    - bash
-    - -c
-    - >-
-      exec 3<>/dev/tcp/127.0.0.1/8080
-      && printf 'GET /actuator/health/liveness HTTP/1.0\r\nHost: localhost\r\n\r\n' >&3
-      && grep -q '"status":"UP"' <&3
 
 services:
   postgres:
@@ -72,11 +26,11 @@ services:
       - db-superuser-password
       - db-app-password
       - db-migrator-password
+    ports:
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql
       - ./postgres/initdb:/docker-entrypoint-initdb.d:ro
-    networks:
-      - data
     healthcheck:
       # Only the final server listens on TCP; the one that runs the init scripts does not.
       test: ["CMD", "pg_isready", "--host=127.0.0.1", "--username=postgres", "--dbname=vibefix"]
@@ -85,205 +39,81 @@ services:
       retries: 5
       start_period: 60s
       start_interval: 2s
-    logging: *logging
     restart: unless-stopped
 
-  app:
-    <<: *app-image
+  backend:
+    build:
+      context: ../backend
+    image: vibefix-app:local
     environment:
       TZ: UTC
       SPRING_PROFILES_ACTIVE: dev
       VIBEFIX_DB_HOST: postgres
+      # No sandbox worker runs in this stack, so its health check would report DOWN.
+      MANAGEMENT_HEALTH_SANDBOX_ENABLED: "false"
     secrets:
       - db-app-password
       - db-migrator-password
-    networks:
-      - edge
-      - data
-      - jobs
-      - checks
+    ports:
+      - "127.0.0.1:8080:8080"
     depends_on:
       postgres:
         condition: service_healthy
-      sandbox:
-        condition: service_healthy
-    healthcheck: *java-healthcheck
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    logging: *logging
-    restart: unless-stopped
-
-  sandbox:
-    <<: *app-image
-    environment:
-      TZ: UTC
-      SPRING_PROFILES_ACTIVE: sandbox
-    # The JVM reaches github.com only through egress; app and local addresses stay direct. These
-    # options are on the command line rather than in JAVA_TOOL_OPTIONS, which would make the JVM
-    # print a line that is not JSON. Half the memory limit is heap: the tmpfs counts against it too.
-    entrypoint:
-      - java
-      - -XX:MaxRAMPercentage=50
-      - -Dhttps.proxyHost=egress
-      - -Dhttps.proxyPort=3128
-      - -Dhttp.proxyHost=egress
-      - -Dhttp.proxyPort=3128
-      - -Dhttp.nonProxyHosts=localhost|127.*|[::1]|app|sandbox
-      - -jar
-      - /app/vibefix-app.jar
-    # No secrets and no database settings (AD-32).
-    read_only: true
-    tmpfs:
-      - /tmp:size=256m,mode=1777
-    mem_limit: 1024m
-    memswap_limit: 1024m
-    cpus: 1.0
-    pids_limit: 256
-    networks:
-      jobs:
-        # egress's sandbox listener admits only this address (deploy/egress/squid.conf).
-        ipv4_address: 172.16.238.10
-    depends_on:
-      egress:
-        condition: service_healthy
-    healthcheck: *worker-healthcheck
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    logging: *logging
-    restart: unless-stopped
-
-  # AD-32: outbound URL checks (preview liveness, AD-35). It receives no repository content, uploads
-  # or tokens, and reaches public hosts only through its own egress listener. The worker serves only
-  # the job types listed in vibefix.sandbox.worker.job-types: HEALTH (the channel's probe) until the
-  # outbound-check handler exists.
-  checker:
-    <<: *app-image
-    environment:
-      TZ: UTC
-      SPRING_PROFILES_ACTIVE: sandbox
-    entrypoint:
-      - java
-      - -XX:MaxRAMPercentage=50
-      - -Dhttps.proxyHost=egress
-      - -Dhttps.proxyPort=3129
-      - -Dhttp.proxyHost=egress
-      - -Dhttp.proxyPort=3129
-      - -Dhttp.nonProxyHosts=localhost|127.*|[::1]|app|checker
-      - -Dvibefix.sandbox.worker.job-types=HEALTH
-      - -jar
-      - /app/vibefix-app.jar
-    # No secrets and no database settings (AD-32).
-    read_only: true
-    tmpfs:
-      - /tmp:size=64m,mode=1777
-    mem_limit: 512m
-    memswap_limit: 512m
-    cpus: 0.5
-    pids_limit: 128
-    networks:
-      checks:
-        # egress's checker listener admits only this address (deploy/egress/squid.conf).
-        ipv4_address: 172.16.239.10
-    depends_on:
-      egress:
-        condition: service_healthy
-    healthcheck: *worker-healthcheck
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    logging: *logging
-    restart: unless-stopped
-
-  egress:
-    build:
-      context: ./egress
-    image: vibefix-egress:local
-    environment:
-      TZ: UTC
-    # Squid runs as the proxy user (uid and gid 13 in Ubuntu; deploy/egress/Dockerfile) and writes
-    # only its PID file and core dumps; logs go to the container's output.
-    read_only: true
-    tmpfs:
-      - /run/squid:size=1m,uid=13,gid=13,mode=0755
-      - /var/spool/squid:size=16m,uid=13,gid=13,mode=0755
-    networks:
-      - jobs
-      - checks
-      - outbound
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
     healthcheck:
-      # Asks the running squid process itself, so the healthcheck adds nothing to the access log.
-      test: ["CMD", "squid", "-k", "check"]
+      # Bash's /dev/tcp, because the JRE image has neither curl nor wget.
+      test:
+        - CMD
+        - bash
+        - -c
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/8080
+          && printf 'GET /actuator/health/readiness HTTP/1.0\r\nHost: localhost\r\n\r\n' >&3
+          && grep -q '"status":"UP"' <&3
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 30s
+      start_period: 90s
       start_interval: 2s
-    logging: *logging
     restart: unless-stopped
 
-  caddy:
-    build:
-      context: ..
-      dockerfile: deploy/caddy/Dockerfile
-    image: vibefix-web:local
+  frontend:
+    image: node:24.22.0-bookworm-slim@sha256:a5f4366e834695d5f363b920c104953a535d3a9864d1bdf74566a0ebe01daee5
+    working_dir: /frontend
+    init: true
     environment:
       TZ: UTC
-      VIBEFIX_SITE_ADDRESS: ":80"
+      VIBEFIX_API_URL: http://backend:8080
+      # Docker Desktop does not pass file change events from a Windows folder into the container.
+      VIBEFIX_WATCH_POLLING: "true"
+    # The sources are mounted from the host; node_modules lives in its own volume, because the
+    # host's copy holds Windows binaries. npm ci runs only when package-lock.json has changed.
+    command:
+      - sh
+      - -ec
+      - |
+        lock="$$(sha256sum package-lock.json)"
+        if [ "$$(cat node_modules/.package-lock.sha256 2>/dev/null)" != "$$lock" ]; then
+          npm ci --no-audit --no-fund
+          echo "$$lock" >node_modules/.package-lock.sha256
+        fi
+        exec npm run dev -- --host 0.0.0.0 --port 5173 --strictPort
+    volumes:
+      - ../frontend:/frontend
+      - frontend-node-modules:/frontend/node_modules
     ports:
-      - "127.0.0.1:8000:80"
-    networks:
-      - edge
-    depends_on:
-      app:
-        condition: service_healthy
+      - "127.0.0.1:5173:5173"
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1/"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5173/').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 30s
-      start_interval: 2s
-    cap_drop:
-      - ALL
-    cap_add:
-      - NET_BIND_SERVICE
-    security_opt:
-      - no-new-privileges:true
-    logging: *logging
+      start_period: 300s
+      start_interval: 3s
     restart: unless-stopped
-
-networks:
-  edge: {}
-  data:
-    internal: true
-  # Fixed subnets, because egress admits sandbox and checker by address. 172.16.0.0/16 lies outside
-  # Docker's default address pools (172.17-172.31, 192.168). Other containers get addresses from the
-  # upper half only, so the fixed .10 addresses are never handed out to them.
-  jobs:
-    internal: true
-    ipam:
-      config:
-        - subnet: 172.16.238.0/24
-          ip_range: 172.16.238.128/25
-  checks:
-    internal: true
-    ipam:
-      config:
-        - subnet: 172.16.239.0/24
-          ip_range: 172.16.239.128/25
-  outbound: {}
 
 volumes:
   pgdata: {}
+  frontend-node-modules: {}
 
 secrets:
   db-superuser-password:

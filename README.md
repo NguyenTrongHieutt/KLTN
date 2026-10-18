@@ -16,13 +16,14 @@ frontend/   Vite, React 19, TypeScript, TanStack Query
   src/lib/        the only code that talks HTTP (apiClient)
   src/features/   one folder per backend module
   src/i18n/       vi.json, the only source of UI text
-deploy/     Docker Compose stack (caddy, app, sandbox, egress, postgres), smoke test, ZAP rules
-.github/    CI gates: build and tests, secret scan, ZAP baseline; image publication from main
+deploy/     local Docker Compose stack (frontend, backend, postgres); later/ parks the production
+            shape and the CI workflow until the dev environment works
+.github/    Dependabot only; no CI runs for now
 ```
 
 ## Requirements
 
-- JDK 25 (the spine pins Eclipse Temurin 25.0.4.1, which CI and the images use)
+- JDK 25 (the spine pins Eclipse Temurin 25.0.4.1, which the backend image uses)
 - Docker, for Testcontainers PostgreSQL 18.6
 - Node.js 24 (see `frontend/.nvmrc`)
 
@@ -49,14 +50,43 @@ rows).
 
 ## Running the stack
 
-The whole platform runs locally as a Docker Compose stack shaped like production; see
-[deploy/README.md](deploy/README.md):
+The platform runs locally as three Docker Compose services, each on a localhost port: the frontend
+at <http://localhost:5173> (Vite, hot reload), the backend at <http://localhost:8080> (Swagger UI
+at `/swagger-ui/index.html`) and PostgreSQL at `localhost:5432`. See
+[deploy/README.md](deploy/README.md) for the database users and the parked production shape:
 
 ```sh
 bash deploy/dev-secrets.sh
 docker compose -f deploy/compose.yaml up -d --build --wait
-bash deploy/smoke.sh                 # then open http://localhost:8000
 ```
+
+## Branches and merging
+
+No CI runs for now, so nothing checks a branch before it reaches `main`. Work on a branch, never
+on `main` itself, and name it `<type>/<short-description>`, in lowercase words joined by hyphens:
+
+| Type | For | Example |
+|---|---|---|
+| `feature/` | a story or another new capability; stories start with their number | `feature/1-3-audit-and-authorization` |
+| `fix/` | a bug fix | `fix/environment-guard-message` |
+| `chore/` | build, Docker, dependencies, tooling | `chore/simplify-local-stack` |
+| `docs/` | documentation only | `docs/deploy-readme` |
+| `refactor/` | a code change that keeps behaviour | `refactor/sandbox-job-client` |
+| `test/` | tests only | `test/migration-conventions` |
+
+Commit messages follow Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`,
+`test:`, `build:`), as the history already does. Before merging, run the build and tests above
+(what CI used to run), then merge with a merge commit, push, and delete the branch:
+
+```sh
+git switch main
+git pull
+git merge --no-ff feature/1-3-audit-and-authorization
+git push origin main
+git branch -d feature/1-3-audit-and-authorization
+```
+
+A pull request on GitHub, merged there, works as well.
 
 ## Running the backend
 
