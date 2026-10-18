@@ -9,6 +9,7 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -31,9 +32,14 @@ import vn.vibefix.shared.internal.CorrelationIdFilter;
  * the worker ({@code @Profile("sandbox")}, imported by {@link SandboxWorkerConfiguration}), never in
  * the application.
  * <p>
+ * Every handler is served unless {@value #JOB_TYPES_PROPERTY} lists the job types this worker may
+ * run: the {@code checker} container lists only what outbound checks need, so a job meant for the
+ * sandbox never runs where public hosts are reachable. A listed type without a handler, or a list
+ * that is set but names no type, refuses the start: a blanked list must never mean "everything".
+ * <p>
  * Log lines carry the correlation ID of the application request that sent the job, when it sent a
- * well-formed one. A missing type or invalid input answers 400 {@code VALIDATION}, an unknown type
- * 404 {@code NOT_FOUND}, and a failed job (or one that returned no output) 500.
+ * well-formed one. A missing type or invalid input answers 400 {@code VALIDATION}, an unknown or
+ * unlisted type 404 {@code NOT_FOUND}, and a failed job (or one that returned no output) 500.
  */
 @RestController
 @Profile(SandboxWorkerConfiguration.PROFILE)
@@ -41,11 +47,14 @@ class SandboxJobController {
 
 	static final String PATH = "/internal/sandbox/jobs";
 
+	static final String JOB_TYPES_PROPERTY = "vibefix.sandbox.worker.job-types";
+
 	private static final Logger log = LoggerFactory.getLogger(SandboxJobController.class);
 
 	private final Map<String, SandboxJobHandler> handlers;
 
-	SandboxJobController(List<SandboxJobHandler> handlers) {
+	SandboxJobController(List<SandboxJobHandler> handlers,
+			@Value("${" + JOB_TYPES_PROPERTY + ":#{null}}") @Nullable List<String> jobTypes) {
 		Map<String, SandboxJobHandler> byType = new HashMap<>();
 		for (SandboxJobHandler handler : handlers) {
 			SandboxJobHandler previous = byType.putIfAbsent(handler.type(), handler);
@@ -54,7 +63,28 @@ class SandboxJobController {
 						+ previous.getClass().getName() + " and " + handler.getClass().getName());
 			}
 		}
-		this.handlers = Map.copyOf(byType);
+		this.handlers = Map.copyOf(jobTypes == null ? byType : listedOnly(byType, jobTypes));
+	}
+
+	private static Map<String, SandboxJobHandler> listedOnly(Map<String, SandboxJobHandler> byType,
+			List<String> jobTypes) {
+		Map<String, SandboxJobHandler> listed = new HashMap<>();
+		for (String jobType : jobTypes) {
+			String type = jobType.strip();
+			if (type.isEmpty()) {
+				continue;
+			}
+			SandboxJobHandler handler = byType.get(type);
+			if (handler == null) {
+				throw new IllegalStateException(
+						JOB_TYPES_PROPERTY + " lists " + type + ", which no sandbox job handler runs; refusing to start");
+			}
+			listed.put(type, handler);
+		}
+		if (listed.isEmpty()) {
+			throw new IllegalStateException(JOB_TYPES_PROPERTY + " is set but lists no job type; refusing to start");
+		}
+		return listed;
 	}
 
 	@PostMapping(PATH)

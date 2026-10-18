@@ -4,9 +4,10 @@ import tools.jackson.databind.JsonNode;
 
 /**
  * The job channel to the sandbox (AD-32). Untrusted content (clones, scans, ZIP builds, image
- * re-encoding, outbound URL checks) is handled by the {@code sandbox} service, which runs the same
- * image under the profile {@code sandbox} with no platform secrets and no database. A module sends a
- * job by type and waits for the output of the {@link SandboxJobHandler} that runs it there.
+ * re-encoding) is handled by the {@code sandbox} service, which runs the same image under the
+ * profile {@code sandbox} with no platform secrets and no database. A module sends a job by type and
+ * waits for the output of the {@link SandboxJobHandler} that runs it there. Outbound URL checks run
+ * in the {@code checker} service instead: the same worker, serving only the job types it lists.
  */
 public interface SandboxJobs {
 

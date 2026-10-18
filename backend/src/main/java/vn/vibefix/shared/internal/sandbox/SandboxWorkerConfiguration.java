@@ -28,9 +28,11 @@ import vn.vibefix.shared.SandboxJobHandler;
  * <p>
  * It loads no database, Flyway, JPA or event publication registry, and none of the application's
  * beans: its component scan includes only {@link SandboxJobHandler} implementations, which the
- * worker serves at {@code POST} {@value SandboxJobController#PATH}. The container runs it with no
- * secrets, a read-only root filesystem, resource limits, and a network that reaches only
- * {@code app} and, through the egress proxy, github.com (deploy/compose.yaml). It refuses to start
+ * worker serves at {@code POST} {@value SandboxJobController#PATH}. Two containers run it with no
+ * secrets, a read-only root filesystem and resource limits (deploy/compose.yaml): {@code sandbox},
+ * whose network reaches only {@code app} and, through the egress proxy, GitHub; and {@code checker},
+ * which serves only the job types listed in {@value SandboxJobController#JOB_TYPES_PROPERTY} and
+ * reaches only {@code app} and, through its own egress listener, public hosts. It refuses to start
  * when {@code dev} or {@code prod} is active too: that combination would silently run the worker
  * in place of the application.
  * <p>

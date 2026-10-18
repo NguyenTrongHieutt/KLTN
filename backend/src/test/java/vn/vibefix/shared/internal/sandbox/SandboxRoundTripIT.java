@@ -12,6 +12,7 @@ import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -163,6 +164,34 @@ class SandboxRoundTripIT {
 	}
 
 	@Test
+	void workerWithAJobTypeListServesTheListedTypes() {
+		try (ConfigurableApplicationContext checker = startWorker(emptySecrets,
+				"--" + SandboxJobController.JOB_TYPES_PROPERTY + "=" + HealthJobHandler.TYPE)) {
+			HttpSandboxJobs checkerJobs = new HttpSandboxJobs(urlOf(checker), Duration.ofSeconds(10));
+
+			assertThat(checkerJobs.run(HealthJobHandler.TYPE, nonce("listed")).output().path(HealthJobHandler.NONCE)
+				.asString()).isEqualTo("listed");
+			assertThatThrownBy(() -> checkerJobs.run("NO_SUCH_JOB", nonce("x"))).isInstanceOf(SandboxJobException.class)
+				.hasMessageContaining("404");
+		}
+	}
+
+	@Test
+	void workerRefusesToStartWhenItListsAJobTypeWithoutAHandler() {
+		assertThatThrownBy(() -> startWorker(emptySecrets,
+				"--" + SandboxJobController.JOB_TYPES_PROPERTY + "=" + HealthJobHandler.TYPE + ",URL_CHECK"))
+			.rootCause()
+			.hasMessageContaining("URL_CHECK");
+	}
+
+	@Test
+	void workerRefusesToStartWhenItsJobTypeListIsSetButEmpty() {
+		assertThatThrownBy(() -> startWorker(emptySecrets, "--" + SandboxJobController.JOB_TYPES_PROPERTY + "="))
+			.rootCause()
+			.hasMessageContaining("lists no job type");
+	}
+
+	@Test
 	void slowSandboxFailsTheJobAfterTheTimeout() throws Exception {
 		// A socket that accepts connections (through its backlog) but never answers.
 		try (ServerSocket silent = new ServerSocket(0)) {
@@ -203,10 +232,13 @@ class SandboxRoundTripIT {
 		}
 	}
 
-	private static ConfigurableApplicationContext startWorker(Path secrets) {
+	private static ConfigurableApplicationContext startWorker(Path secrets, String... args) {
+		List<String> allArgs = new ArrayList<>(List.of("--server.port=0",
+				"--VIBEFIX_SECRETS_DIR=" + secrets.toAbsolutePath().toString().replace('\\', '/') + "/"));
+		allArgs.addAll(List.of(args));
 		return new SpringApplicationBuilder(VibefixApplication.class, SandboxWorkerConfiguration.class)
 			.profiles(SandboxWorkerConfiguration.PROFILE)
-			.run("--server.port=0", "--VIBEFIX_SECRETS_DIR=" + secrets.toAbsolutePath().toString().replace('\\', '/') + "/");
+			.run(allArgs.toArray(String[]::new));
 	}
 
 	private static List<String> refusalLines(String output) {
