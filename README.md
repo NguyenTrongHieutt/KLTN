@@ -17,8 +17,8 @@ frontend/   Vite, React 19, TypeScript, TanStack Query
   src/features/   one folder per backend module
   src/i18n/       vi.json, the only source of UI text
 deploy/     local Docker Compose stack (frontend, backend, postgres); later/ parks the production
-            shape and the CI workflow until the dev environment works
-.github/    Dependabot only; no CI runs for now
+            shape and the CI workflow until the dev environment works (no .github/ for now: no CI,
+            no Dependabot; both return in Epic 18)
 ```
 
 ## Requirements
