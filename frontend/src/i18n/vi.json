@@ -38,7 +38,9 @@
     "mainNav": "Điều hướng chính",
     "tabNav": "Điều hướng nhanh",
     "accountMenu": "Tài khoản của {login}",
-    "signOut": "Đăng xuất"
+    "signOut": "Đăng xuất",
+    "profile": "Hồ sơ",
+    "theme": "Giao diện"
   },
   "screen": {
     "public": {
@@ -176,8 +178,42 @@
       "profile": {
         "title": "Hồ sơ và xác minh",
         "heading": "Hồ sơ và xác minh",
-        "lead": "Xác minh là sinh viên để vào nhóm của một người hướng dẫn.",
-        "next": "Bạn sẽ cập nhật hồ sơ và xác minh bằng email trường hoặc thẻ sinh viên tại đây."
+        "next": "Phần xác minh là sinh viên bằng email trường hoặc thẻ sinh viên sẽ có ở đây.",
+        "github": "Tên người dùng GitHub",
+        "githubHelper": "Lấy từ lần đăng nhập; không đổi được sang tài khoản khác.",
+        "realName": "Họ và tên",
+        "school": "Trường",
+        "year": "Năm học",
+        "yearNone": "Chưa chọn",
+        "yearN": "Năm {n}",
+        "showNameAndSchool": "Hiện họ tên và trường trên hồ sơ công khai",
+        "showHelper": "Mặc định ẩn. Khi ẩn, người khác chỉ thấy tên người dùng GitHub của bạn.",
+        "linkedin": "LinkedIn (không bắt buộc)",
+        "linkedinHelper": "Ví dụ: https://www.linkedin.com/in/ten-cua-ban",
+        "repositories": "Kho mã muốn giới thiệu",
+        "repositoriesHelper": "Tối đa 5 kho mã công khai trên GitHub, dạng chủ-sở-hữu/tên-kho. vibefix chỉ hiện đường dẫn, không đọc mã.",
+        "repositoryN": "Kho mã {n}",
+        "removeRepository": "Bỏ kho mã {n}",
+        "addRepository": "Thêm kho mã",
+        "saved": "Đã lưu hồ sơ."
+      }
+    },
+    "customer": {
+      "profile": {
+        "title": "Hồ sơ",
+        "heading": "Hồ sơ của bạn",
+        "kind": "Bạn là",
+        "individual": "Cá nhân",
+        "business": "Doanh nghiệp",
+        "displayName": "Tên hiển thị",
+        "contactEmail": "Email liên hệ",
+        "contactHelper": "vibefix gửi thông báo đến địa chỉ này. Chỉ người hướng dẫn của công việc đang chạy và quản trị viên thấy nó.",
+        "phone": "Số điện thoại (không bắt buộc)",
+        "phoneHelper": "Ví dụ: +84 912 345 678",
+        "save": "Lưu hồ sơ",
+        "saving": "Đang lưu…",
+        "saved": "Đã lưu hồ sơ.",
+        "savedAt": "Đã lưu lúc {time}"
       }
     }
   },
@@ -572,5 +608,20 @@
       "complete_mentor_application": "Hoàn thành hồ sơ người hướng dẫn",
       "verify_student": "Xác minh là sinh viên để vào nhóm của người hướng dẫn"
     }
+  },
+  "theme": {
+    "light": "Sáng",
+    "dark": "Tối",
+    "system": "Theo hệ thống"
+  },
+  "toast": {
+    "close": "Đóng thông báo"
+  },
+  "form": {
+    "required": "Hãy điền mục này.",
+    "email": "Địa chỉ email chưa đúng.",
+    "format": "Mục này chưa đúng dạng.",
+    "tooLong": "Mục này quá dài.",
+    "range": "Giá trị nằm ngoài khoảng cho phép."
   }
 }

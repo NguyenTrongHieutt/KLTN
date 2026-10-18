@@ -17,11 +17,13 @@ import vn.vibefix.shared.Role;
 import vn.vibefix.support.MutableClock;
 
 /**
- * Seeds a notification and a to-do of one account, {@code {notificationId}}, with the canaries
- * {@code NOTIFICATION_PARAM} and {@code TODO_PARAM} as their parameters, and realizes that account
- * as {@link MatrixCaller#SUBJECT} (AD-20): only it may read them.
+ * Realizes {@link MatrixCaller#SUBJECT} (AD-20): one Customer account that is the subject of every
+ * record the matrix reads as its own. It has a notification ({@code {notificationId}}) and a to-do
+ * with the canaries {@code NOTIFICATION_PARAM} and {@code TODO_PARAM} as their parameters, and a
+ * profile ({@code {customerId}}) whose contact email is the canary {@code CONTACT_EMAIL}. A later
+ * subject kind seeds its records for this same account, because one fixture realizes each caller.
  */
-public class NotificationFixture implements MatrixFixture {
+public class SubjectFixture implements MatrixFixture {
 
 	private final JdbcClient jdbc;
 
@@ -29,13 +31,13 @@ public class NotificationFixture implements MatrixFixture {
 
 	private UUID subject;
 
-	public NotificationFixture(JdbcClient jdbc) {
+	public SubjectFixture(JdbcClient jdbc) {
 		this.jdbc = jdbc;
 	}
 
 	@Override
 	public void seed(MatrixWorld world) {
-		this.subject = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null, null);
+		this.subject = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
 		UUID notification = UUID.randomUUID();
 		Timestamp now = Timestamp.from(MutableClock.DEFAULT_INSTANT);
 		this.jdbc.sql("""
@@ -59,7 +61,16 @@ public class NotificationFixture implements MatrixFixture {
 			.param("canary", this.canaries.get("TODO_PARAM").value())
 			.param("now", now)
 			.update();
+		this.jdbc.sql("""
+				INSERT INTO identity.customer_profile (account_id, kind, display_name, contact_email, updated_at)
+				VALUES (:account, 'INDIVIDUAL', 'Chủ sản phẩm', :canary, :now)
+				""")
+			.param("account", this.subject)
+			.param("canary", this.canaries.get("CONTACT_EMAIL").value())
+			.param("now", now)
+			.update();
 		world.put("notificationId", notification);
+		world.put("customerId", this.subject);
 	}
 
 	@Override
@@ -68,7 +79,7 @@ public class NotificationFixture implements MatrixFixture {
 			return Optional.empty();
 		}
 		return Optional.of(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
-			.authentication(IdentityTestSupport.authentication(this.subject, Role.STUDENT)));
+			.authentication(IdentityTestSupport.authentication(this.subject, Role.CUSTOMER)));
 	}
 
 }

@@ -4,6 +4,38 @@
  */
 
 export interface paths {
+    "/api/v1/account/theme": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["theme"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers/{customerId}/contact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["contact"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/environment": {
         parameters: {
             query?: never;
@@ -78,6 +110,54 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["read"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["profile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profile/customer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["saveCustomer"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profile/student": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["saveStudent"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -159,6 +239,23 @@ export interface components {
             mentorApprovalStatus?: "PENDING" | "APPROVED" | "REJECTED" | "REVOKED";
             /** @enum {string} */
             role: "CUSTOMER" | "MENTOR" | "STUDENT" | "ADMINISTRATOR";
+            /** @enum {string} */
+            theme: "LIGHT" | "DARK" | "SYSTEM";
+        };
+        CustomerProfile: {
+            contactEmail: string;
+            displayName: string;
+            /** @enum {string} */
+            kind: "INDIVIDUAL" | "BUSINESS";
+            phone?: string;
+        };
+        CustomerProfileRequest: {
+            /** Format: email */
+            contactEmail: string;
+            displayName: string;
+            /** @enum {string} */
+            kind: "INDIVIDUAL" | "BUSINESS";
+            phone?: string;
         };
         EnvironmentResponse: {
             name: string;
@@ -185,6 +282,13 @@ export interface components {
             /** Format: int64 */
             total: number;
         };
+        ProfileView: {
+            customer?: components["schemas"]["CustomerProfile"];
+            githubLogin?: string;
+            /** @enum {string} */
+            role: "CUSTOMER" | "MENTOR" | "STUDENT" | "ADMINISTRATOR";
+            student?: components["schemas"]["StudentProfile"];
+        };
         SessionView: {
             account?: components["schemas"]["AccountView"];
             githubAvatarUrl?: string;
@@ -199,6 +303,28 @@ export interface components {
             privacyNoticeVersion: string;
             /** @enum {string} */
             role: "CUSTOMER" | "MENTOR" | "STUDENT";
+        };
+        StudentProfile: {
+            linkedinUrl?: string;
+            realName?: string;
+            repositories: string[];
+            school?: string;
+            showNameAndSchool: boolean;
+            /** Format: int32 */
+            yearOfStudy?: number;
+        };
+        StudentProfileRequest: {
+            linkedinUrl?: string;
+            realName?: string;
+            repositories: string[];
+            school?: string;
+            showNameAndSchool: boolean;
+            /** Format: int32 */
+            yearOfStudy?: number;
+        };
+        ThemeRequest: {
+            /** @enum {string} */
+            theme: "LIGHT" | "DARK" | "SYSTEM";
         };
         TodoItem: {
             /** Format: date-time */
@@ -236,6 +362,50 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    theme: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ThemeRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    contact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerProfile"];
+                };
+            };
+        };
+    };
     environment: {
         parameters: {
             query?: never;
@@ -331,6 +501,70 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileView"];
+                };
+            };
+        };
+    };
+    saveCustomer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerProfileRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    saveStudent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StudentProfileRequest"];
+            };
+        };
         responses: {
             /** @description No Content */
             204: {

@@ -30,15 +30,20 @@ class IdentityPersonalData implements PersonalDataParticipant {
 
 	private final Clock clock;
 
-	IdentityPersonalData(JdbcClient jdbc, Accounts accounts, Clock clock) {
+	private final Profiles profiles;
+
+	IdentityPersonalData(JdbcClient jdbc, Accounts accounts, Clock clock, Profiles profiles) {
 		this.jdbc = jdbc;
 		this.accounts = accounts;
 		this.clock = clock;
+		this.profiles = profiles;
 	}
 
 	@Override
 	public Set<String> tables() {
-		return Set.of("identity.account", "identity.acknowledgment", "identity.customer_token");
+		return Set.of("identity.account", "identity.acknowledgment", "identity.customer_token",
+				"identity.customer_profile", "identity.student_profile", "identity.showcase_repository",
+				"identity.contact_grant");
 	}
 
 	@Override
@@ -60,6 +65,9 @@ class IdentityPersonalData implements PersonalDataParticipant {
 					""").param("id", accountId).query((rs, n) -> Map.of("notice", rs.getString("notice"), "version",
 					rs.getString("notice_version"), "at", rs.getTimestamp("acknowledged_at").toInstant().toString()))
 				.list());
+			this.profiles.customer(accountId).ifPresent(profile -> data.put("customerProfile", profile));
+			this.profiles.student(accountId).ifPresent(profile -> data.put("studentProfile", profile));
+			data.put("theme", this.profiles.theme(accountId).name());
 			return new PersonalDataSection("identity", data);
 		});
 	}
@@ -67,6 +75,13 @@ class IdentityPersonalData implements PersonalDataParticipant {
 	@Override
 	public void eraseAccount(UUID accountId) {
 		this.jdbc.sql("DELETE FROM identity.customer_token WHERE account_id = :id").param("id", accountId).update();
+		for (String table : new String[] { "identity.customer_profile", "identity.student_profile",
+				"identity.showcase_repository" }) {
+			this.jdbc.sql("DELETE FROM " + table + " WHERE account_id = :id").param("id", accountId).update();
+		}
+		this.jdbc.sql("""
+				DELETE FROM identity.contact_grant WHERE customer_account_id = :id OR mentor_account_id = :id
+				""").param("id", accountId).update();
 		this.jdbc.sql("""
 				UPDATE identity.account
 				SET github_user_id = NULL, github_login = NULL, github_avatar_url = NULL, github_email = NULL, erased_at = :at
