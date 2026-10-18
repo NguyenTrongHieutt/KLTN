@@ -20,7 +20,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * returns in {@value #HEADER}, and 5xx Problem Details carry as {@code correlationId} so a user can
  * quote it. An ID sent by the client is ignored: it would let anyone forge log correlations.
  * <p>
- * The filter runs first, and again on the error dispatch with the same ID.
+ * The filter runs first, and again on the async and error dispatches with the same ID.
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
@@ -45,6 +45,11 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
 		finally {
 			MDC.remove(MDC_KEY);
 		}
+	}
+
+	@Override
+	protected boolean shouldNotFilterAsyncDispatch() {
+		return false;
 	}
 
 	@Override

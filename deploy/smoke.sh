@@ -98,7 +98,7 @@ for service in app sandbox; do
 done
 
 echo "== SPA headers (Caddy)"
-spa="$(curl_on edge -sS -D - -o /dev/null http://caddy/)"
+spa="$(curl_on edge -sS -D - -o /dev/null http://caddy/ || true)"
 spa_headers="$(headers_of "$spa")"
 check "GET / is 200" grep -qE '^HTTP/[0-9.]+ 200' <<<"$spa_headers"
 check "SPA: Content-Security-Policy" has_header "$spa_headers" Content-Security-Policy "$CSP"
@@ -112,7 +112,7 @@ check "SPA deep link falls back to index.html" \
 	grep -qE '^HTTP/[0-9.]+ 200' <<<"$(curl_on edge -sS -D - -o /dev/null http://caddy/jobs/123)"
 
 echo "== API headers (Spring, through Caddy)"
-api="$(curl_on edge -sS -D - http://caddy/api/v1/environment)"
+api="$(curl_on edge -sS -D - http://caddy/api/v1/environment || true)"
 api_headers="$(headers_of "$api")"
 api_body="$(tr -d '\r' <<<"$api" | sed '1,/^$/d')"
 check "GET /api/v1/environment is 200" grep -qE '^HTTP/[0-9.]+ 200' <<<"$api_headers"
@@ -169,22 +169,27 @@ github="$(curl_on jobs -sS -o /dev/null -w '%{http_connect} %{http_code}' --max-
 check "github.com through egress is allowed (CONNECT/HTTP: $github)" grep -qE '^200 [23][0-9][0-9]$' <<<"$github"
 example="$(curl_on jobs -sS -o /dev/null -w '%{http_connect}' --max-time 30 -x http://egress:3128 https://example.com/ 2>/dev/null || true)"
 check "example.com through egress is refused (CONNECT: $example)" test "$example" = 403
-check "example.com direct is unreachable" \
-	not quietly curl_on jobs -sS -o /dev/null --max-time 10 https://example.com/
+# curl itself must fail to resolve (6), connect (7) or finish in time (28); a docker failure does not count.
+direct=0
+quietly curl_on jobs -sS -o /dev/null --max-time 10 https://example.com/ || direct=$?
+check "example.com direct is unreachable (curl exit $direct)" grep -qxE '6|7|28' <<<"$direct"
 
 echo "== A secret from an environment variable refuses the start (AD-22)"
-if compose run --rm --no-deps -e SPRING_DATASOURCE_PASSWORD=from-the-environment app >"$tmp/refused.log" 2>&1; then
-	refused=no
-else
-	refused=yes
-fi
-check "app with SPRING_DATASOURCE_PASSWORD exits with an error" test "$refused" = yes
+run_exit=0
+timeout 180 docker compose -f compose.yaml run --rm --no-deps -e SPRING_DATASOURCE_PASSWORD=from-the-environment app \
+	>"$tmp/refused.log" 2>&1 || run_exit=$?
+# 124: timeout stopped it, so the application did not refuse to start.
+check "app with SPRING_DATASOURCE_PASSWORD exits with an error within 180 s (exit $run_exit)" \
+	grep -qvxE '0|124' <<<"$run_exit"
 check "the refusal names the property" grep -q "spring.datasource.password is set in an environment variable" "$tmp/refused.log"
 check "the refusal never shows the value" not grep -q from-the-environment "$tmp/refused.log"
 
 echo "== Logs: JSON lines, no secret values"
-compose logs --no-color --no-log-prefix app >"$tmp/app.log"
-check "every app log line is a JSON object" only_json_lines "$tmp/app.log"
+for service in app sandbox; do
+	compose logs --no-color --no-log-prefix "$service" >"$tmp/$service.log"
+	check "$service has logged something" test -s "$tmp/$service.log"
+	check "every $service log line is a JSON object" only_json_lines "$tmp/$service.log"
+done
 compose logs --no-color --no-log-prefix >"$tmp/all.log"
 for name in db-superuser-password db-app-password db-migrator-password; do
 	check "no log contains the value of $name" not grep -qF -- "$(cat "secrets/$name")" "$tmp/all.log"

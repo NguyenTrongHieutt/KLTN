@@ -78,11 +78,14 @@ the job handlers (`POST /internal/sandbox/jobs`). The application reaches it at
 
 To run the backend outside Docker, start a PostgreSQL 18 yourself with the roles from
 `backend/src/test/resources/db/init-roles.sql` (each given a password) and a database `vibefix`
-owned by `vibefix_migrator`, and put the two passwords in `deploy/secrets/` (ignored by git):
+owned by `vibefix_migrator`, and put the two passwords in `deploy/secrets/` (ignored by git). No
+sandbox worker runs outside Compose, so pass `--management.health.sandbox.enabled=false`, or
+`/actuator/health` reports DOWN:
 
 ```sh
 cd backend
-VIBEFIX_SECRETS_DIR=../deploy/secrets/ ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
+VIBEFIX_SECRETS_DIR=../deploy/secrets/ ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev \
+  -Dspring-boot.run.arguments=--management.health.sandbox.enabled=false
 ```
 
 ## Conventions enforced by the build

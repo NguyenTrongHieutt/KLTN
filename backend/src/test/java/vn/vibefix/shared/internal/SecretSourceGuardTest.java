@@ -4,11 +4,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.support.SpringApplicationJsonEnvironmentPostProcessor;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.StandardEnvironment;
 import org.springframework.core.env.SystemEnvironmentPropertySource;
@@ -23,8 +27,8 @@ class SecretSourceGuardTest {
 	private static final String VALUE = "do-not-print-me";
 
 	@ParameterizedTest
-	@ValueSource(strings = { "SPRING_DATASOURCE_PASSWORD", "SPRING_FLYWAY_PASSWORD", "DB_APP_PASSWORD",
-			"DB_MIGRATOR_PASSWORD", "db_app_password", "spring.datasource.password" })
+	@ValueSource(strings = { "SPRING_DATASOURCE_PASSWORD", "SPRING_DATASOURCE_HIKARI_PASSWORD", "SPRING_FLYWAY_PASSWORD",
+			"DB_APP_PASSWORD", "DB_MIGRATOR_PASSWORD", "db_app_password", "spring.datasource.password" })
 	void secretInAnEnvironmentVariableIsRefused(String variable) {
 		StandardEnvironment environment = environmentWith(Map.of(variable, VALUE), Map.of());
 
@@ -43,6 +47,35 @@ class SecretSourceGuardTest {
 		assertThatThrownBy(() -> new SecretSourceGuard(environment).afterPropertiesSet())
 			.isInstanceOf(IllegalStateException.class)
 			.hasMessageContaining(property + " is set in a JVM system property");
+	}
+
+	@ParameterizedTest
+	@CsvSource(delimiter = '|', value = { "spring.datasource.password | {\"spring\":{\"datasource\":{\"password\":\"%s\"}}}",
+			"spring.datasource.hikari.password | {\"spring.datasource.hikari.password\":\"%s\"}",
+			"db-migrator-password | {\"db-migrator-password\":\"%s\"}" })
+	void secretInSpringApplicationJsonIsRefused(String property, String json) {
+		String document = json.formatted(VALUE);
+		StandardEnvironment fromVariable = withApplicationJson(
+				environmentWith(Map.of("SPRING_APPLICATION_JSON", document), Map.of()));
+		StandardEnvironment fromProperty = withApplicationJson(
+				environmentWith(Map.of(), Map.of("spring.application.json", document)));
+
+		for (StandardEnvironment environment : List.of(fromVariable, fromProperty)) {
+			assertThatThrownBy(() -> new SecretSourceGuard(environment).afterPropertiesSet())
+				.isInstanceOf(IllegalStateException.class)
+				.hasMessageContaining(
+						property + " is set in the SPRING_APPLICATION_JSON environment variable or system property")
+				.hasMessageNotContaining(VALUE);
+		}
+	}
+
+	@Test
+	void springApplicationJsonWithoutSecretsIsAccepted() {
+		StandardEnvironment environment = withApplicationJson(
+				environmentWith(Map.of("SPRING_APPLICATION_JSON", "{\"spring.application.name\":\"vibefix-app\"}"), Map.of()));
+
+		assertThat(environment.getProperty("spring.application.name")).isEqualTo("vibefix-app");
+		assertThatNoException().isThrownBy(() -> new SecretSourceGuard(environment).afterPropertiesSet());
 	}
 
 	@Test
@@ -67,6 +100,12 @@ class SecretSourceGuardTest {
 				"spring.datasource.password is set in an environment variable",
 				"db-migrator-password is set in an environment variable",
 				"spring.flyway.password is set in a JVM system property");
+	}
+
+	/** Runs Boot's own SPRING_APPLICATION_JSON post-processor, which adds the JSON property source. */
+	private static StandardEnvironment withApplicationJson(StandardEnvironment environment) {
+		new SpringApplicationJsonEnvironmentPostProcessor().postProcessEnvironment(environment, new SpringApplication());
+		return environment;
 	}
 
 	/** An environment whose real process sources are replaced by the given maps. */

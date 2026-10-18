@@ -33,8 +33,9 @@ import org.springframework.stereotype.Component;
  * does not run ({@code spring.flyway.enabled=false}), the row is checked through the application
  * {@link DataSource} once all singletons exist, before the web server starts.
  * <p>
- * SG-36: under {@code prod}, the guard also refuses, before migrating, a Flyway location under
- * {@code db/seed} (dev seed data) and the dev GitHub organization {@value #DEV_ORGANIZATION}. It
+ * SG-36: under {@code prod}, the guard also refuses, before migrating, a Flyway location that would
+ * load dev seed data ({@code db/seed}, anything under it, or a parent such as {@code db}, which
+ * Flyway scans recursively) and the dev GitHub organization {@value #DEV_ORGANIZATION}. It
  * depends on {@link SecretSourceGuard}, so secrets have been checked (AD-22) before Flyway connects.
  */
 @Component
@@ -114,12 +115,21 @@ class EnvironmentGuard implements FlywayMigrationStrategy, SmartInitializingSing
 					+ ORGANIZATION_PROPERTY + "=" + DEV_ORGANIZATION + "); refusing to start");
 		}
 		for (Location location : locations) {
-			String descriptor = String.valueOf(location.getDescriptor()).replace('\\', '/');
-			if (descriptor.contains(SEED_LOCATION)) {
+			if (reachesSeedData(location.getPath())) {
 				throw new IllegalStateException("The prod profile is configured with the dev seed location "
-						+ descriptor + "; refusing to start before any migration runs");
+						+ location.getDescriptor() + "; refusing to start before any migration runs");
 			}
 		}
+	}
+
+	/**
+	 * Whether Flyway, which scans a location recursively, would find {@value #SEED_LOCATION} through
+	 * this location path: the seed folder itself, a folder inside it, or one of its parents.
+	 */
+	static boolean reachesSeedData(String locationPath) {
+		String path = locationPath.replace('\\', '/').replaceAll("^/+|/+$", "");
+		return path.isEmpty() || (SEED_LOCATION + "/").startsWith(path + "/")
+				|| ("/" + path + "/").contains("/" + SEED_LOCATION + "/");
 	}
 
 	String activeEnvironment() {

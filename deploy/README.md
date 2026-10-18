@@ -21,12 +21,14 @@ and as `sandbox` (profile `sandbox`, which starts only the sandbox worker).
 |---|---|---|
 | `caddy` | `edge` | the only published port: `127.0.0.1:8000` |
 | `app` | `edge`, `data`, `jobs` | uid 10001; reads two secret files; JSON logs |
-| `sandbox` | `jobs` | uid 10001; no secrets, no database, read-only root, 256 MB `/tmp`, 768 MB, 1 CPU, 256 processes |
-| `egress` | `jobs`, `outbound` | squid; the only way from `jobs` to the internet, and only to GitHub |
+| `sandbox` | `jobs` | uid 10001; no secrets, no database, read-only root, 256 MB `/tmp`; 1 GB memory (heap at most half, since the tmpfs counts against the limit), 1 CPU, 256 processes; JVM proxy options on its command line; JSON logs |
+| `egress` | `jobs`, `outbound` | squid (Ubuntu 24.04 LTS image); the only way from `jobs` to the internet, and only to GitHub |
 | `postgres` | `data` | never published; volume `pgdata` at `/var/lib/postgresql` |
 
 `data` and `jobs` are internal networks: nothing on them reaches the internet directly. Every
-container runs with `TZ=UTC`, and none mounts the Docker socket.
+container runs with `TZ=UTC`, none mounts the Docker socket, and Docker rotates every container's
+log (`json-file`, at most 5 files of 10 MB). Dependabot (`.github/dependabot.yml`) proposes updates
+of the pinned images, actions and packages every week.
 
 ## Running locally
 
@@ -58,6 +60,13 @@ MSYS_NO_PATHCONV=1 docker run --rm --network vibefix_edge -v "$PWD/deploy/zap:/z
 ZAP runs as uid 1000 and writes its plan (`zap.yaml`, ignored by git) next to the rules, so on
 Linux the directory must be writable for that user; CI copies `rules.tsv` to a temporary directory
 instead.
+
+## Production host (later)
+
+This stack is the local and CI shape. The production deployment (AD-26) arrives with the
+deployment work and adds what a public host needs: HTTPS, with `VIBEFIX_SITE_ADDRESS` set to the
+domain, port 443 published and a `caddy_data` volume for the certificates; and a firewall rule
+that blocks the instance metadata address (169.254.169.254) for every container.
 
 ## Secret files
 
@@ -94,11 +103,12 @@ credential in the history.
 
 | Job | Gate |
 |---|---|
-| `backend` | `./mvnw -B verify` (unit tests, Modulith verification, integration tests on Testcontainers), then `git diff --exit-code` (a stale `openapi.json` fails) |
+| `backend` | `./mvnw -B verify` (unit tests, Modulith verification, integration tests on Testcontainers), then a clean `git status` (a stale `openapi.json` or any untracked output fails) |
 | `frontend` | `npm ci`, `npm run lint`, `npm run build` |
 | `secrets` | gitleaks over the whole git history |
-| `zap` | this stack with throwaway secrets, `smoke.sh`, then the ZAP baseline against `http://caddy` |
-| `publish` | only on a push to `main`, only after all four passed: `ghcr.io/<owner>/vibefix-app` and `vibefix-web`, tagged with the commit SHA, for `linux/amd64` and `linux/arm64` |
+| `zap` | this stack with throwaway secrets, `smoke.sh`, then two ZAP baselines: the SPA (`http://caddy`) and the API (`http://caddy/api/v1/environment`); the HTML reports are kept as the `zap-report` artifact |
+| `workflow-lint` | actionlint (with shellcheck) on the workflows |
+| `publish` | only on a push to `main`, only after all five passed: `ghcr.io/<owner>/vibefix-app` and `vibefix-web`, tagged with the commit SHA, for `linux/amd64` and `linux/arm64`; the run summary records both digests |
 
 Actions are pinned by commit SHA and images by digest. CI holds no production secret; the only
 credential is the workflow's `GITHUB_TOKEN`, which only `publish` may use to write packages.
@@ -116,8 +126,8 @@ In the repository on GitHub: **Settings > Rules > Rulesets > New ruleset > New b
      turn on **Require conversation resolution before merging**)
    - **Require status checks to pass**, with **Require branches to be up to date before merging**,
      adding the checks `Backend build, tests, Modulith`, `Frontend lint and build`,
-     `Secret scan (gitleaks, full history)` and `Stack smoke test and OWASP ZAP baseline`
-     (they appear in the list after CI has run once).
+     `Secret scan (gitleaks, full history)`, `Stack smoke test and OWASP ZAP baseline` and
+     `Workflow lint (actionlint)` (they appear in the list after CI has run once).
 4. Leave the bypass list empty, then **Create**.
 
 Also, under **Settings > Actions > General**: **Workflow permissions: Read repository contents and

@@ -1,0 +1,26 @@
+# Weekly update proposals for every pin: actions (by commit SHA), base images (by tag and digest),
+# Compose images, Maven and npm. Each arrives as a pull request that must pass the CI gates.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directories:
+      - /backend
+      - /deploy/caddy
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker-compose
+    directory: /deploy
+    schedule:
+      interval: weekly
+  - package-ecosystem: maven
+    directory: /backend
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly

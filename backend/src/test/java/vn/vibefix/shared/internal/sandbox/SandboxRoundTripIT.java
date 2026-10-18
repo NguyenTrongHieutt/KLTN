@@ -2,12 +2,17 @@ package vn.vibefix.shared.internal.sandbox;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 import java.net.ServerSocket;
 import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.List;
 import java.util.UUID;
 
 import javax.sql.DataSource;
@@ -18,25 +23,36 @@ import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.slf4j.MDC;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.health.contributor.Status;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.ConfigurableApplicationContext;
 
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 import vn.vibefix.VibefixApplication;
 import vn.vibefix.shared.SandboxJobException;
 import vn.vibefix.shared.SandboxJobHandler;
 import vn.vibefix.shared.SandboxJobResult;
+import vn.vibefix.shared.internal.CorrelationIdFilter;
 
 /**
  * AD-32: the job channel. Starts the sandbox worker exactly as {@code main} does (both sources,
  * profile {@code sandbox}) on a random port, then sends {@code HEALTH} jobs through the
  * application's {@link HttpSandboxJobs} and {@link SandboxHealthIndicator}.
  */
+@ExtendWith(OutputCaptureExtension.class)
 class SandboxRoundTripIT {
+
+	private static final JsonMapper json = JsonMapper.builder().build();
 
 	@TempDir
 	static Path emptySecrets;
@@ -53,7 +69,9 @@ class SandboxRoundTripIT {
 
 	@AfterAll
 	static void stopWorker() {
-		worker.close();
+		if (worker != null) {
+			worker.close();
+		}
 	}
 
 	@Test
@@ -97,6 +115,65 @@ class SandboxRoundTripIT {
 		assertThatThrownBy(() -> jobs.run(HealthJobHandler.TYPE, JsonNodeFactory.instance.objectNode()))
 			.isInstanceOf(SandboxJobException.class)
 			.hasMessageContaining("400");
+		assertThatThrownBy(() -> jobs.run(" ", nonce("x"))).isInstanceOf(SandboxJobException.class)
+			.hasMessageContaining("400");
+	}
+
+	@Test
+	void workerLogsUnderTheCorrelationIdOfTheApplicationRequest(CapturedOutput output) {
+		String correlationId = UUID.randomUUID().toString();
+		MDC.put(CorrelationIdFilter.MDC_KEY, correlationId);
+		try {
+			// An empty input makes the worker log a warning before it answers 400.
+			assertThatThrownBy(() -> jobs.run(HealthJobHandler.TYPE, JsonNodeFactory.instance.objectNode()))
+				.isInstanceOf(SandboxJobException.class);
+		}
+		finally {
+			MDC.remove(CorrelationIdFilter.MDC_KEY);
+		}
+
+		assertThat(refusalLines(output.getOut())).singleElement()
+			.satisfies(line -> assertThat(json.readTree(line).path(CorrelationIdFilter.MDC_KEY).asString())
+				.isEqualTo(correlationId));
+	}
+
+	@Test
+	void workerReplacesACorrelationIdThatIsNotAUuid(CapturedOutput output) throws Exception {
+		HttpRequest request = HttpRequest.newBuilder(urlOf(worker).resolve(SandboxJobController.PATH))
+			.header("Content-Type", "application/json")
+			.header(CorrelationIdFilter.HEADER, "not-a-uuid")
+			.POST(HttpRequest.BodyPublishers.ofString("{\"type\":\"HEALTH\",\"input\":{}}"))
+			.build();
+		try (HttpClient client = HttpClient.newHttpClient()) {
+			assertThat(client.send(request, HttpResponse.BodyHandlers.discarding()).statusCode()).isEqualTo(400);
+		}
+
+		assertThat(refusalLines(output.getOut())).singleElement().satisfies(line -> {
+			String logged = json.readTree(line).path(CorrelationIdFilter.MDC_KEY).asString();
+			assertThat(UUID.fromString(logged).toString()).isEqualTo(logged).isNotEqualTo("not-a-uuid");
+		});
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "dev", "prod" })
+	void workerRefusesToRunBesideAnEnvironmentProfile(String environment) {
+		assertThatThrownBy(() -> new SpringApplicationBuilder(VibefixApplication.class, SandboxWorkerConfiguration.class)
+			.profiles(SandboxWorkerConfiguration.PROFILE, environment)
+			.run("--server.port=0")).rootCause().hasMessageContaining("cannot be combined with dev or prod");
+	}
+
+	@Test
+	void slowSandboxFailsTheJobAfterTheTimeout() throws Exception {
+		// A socket that accepts connections (through its backlog) but never answers.
+		try (ServerSocket silent = new ServerSocket(0)) {
+			HttpSandboxJobs slow = new HttpSandboxJobs(URI.create("http://localhost:" + silent.getLocalPort()),
+					Duration.ofMillis(500));
+
+			assertTimeoutPreemptively(Duration.ofSeconds(5),
+					() -> assertThatThrownBy(() -> slow.run(HealthJobHandler.TYPE, nonce("x")))
+						.isInstanceOf(SandboxJobException.class)
+						.hasMessageContaining("could not be reached in time"));
+		}
 	}
 
 	@Test
@@ -130,6 +207,10 @@ class SandboxRoundTripIT {
 		return new SpringApplicationBuilder(VibefixApplication.class, SandboxWorkerConfiguration.class)
 			.profiles(SandboxWorkerConfiguration.PROFILE)
 			.run("--server.port=0", "--VIBEFIX_SECRETS_DIR=" + secrets.toAbsolutePath().toString().replace('\\', '/') + "/");
+	}
+
+	private static List<String> refusalLines(String output) {
+		return output.lines().filter(line -> line.contains("refused its input")).toList();
 	}
 
 	private static URI urlOf(ConfigurableApplicationContext context) {

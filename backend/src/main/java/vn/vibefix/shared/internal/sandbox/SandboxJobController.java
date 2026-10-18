@@ -32,8 +32,8 @@ import vn.vibefix.shared.internal.CorrelationIdFilter;
  * the application.
  * <p>
  * Log lines carry the correlation ID of the application request that sent the job, when it sent a
- * well-formed one. Unknown types answer 404 {@code NOT_FOUND}, invalid input 400
- * {@code VALIDATION}, and a failed job 500.
+ * well-formed one. A missing type or invalid input answers 400 {@code VALIDATION}, an unknown type
+ * 404 {@code NOT_FOUND}, and a failed job (or one that returned no output) 500.
  */
 @RestController
 @Profile(SandboxWorkerConfiguration.PROFILE)
@@ -62,14 +62,22 @@ class SandboxJobController {
 			@RequestHeader(name = CorrelationIdFilter.HEADER, required = false) @Nullable String correlationId) {
 		MDC.put(CorrelationIdFilter.MDC_KEY, correlationIdOrNew(correlationId));
 		try {
-			SandboxJobHandler handler = request.type() == null ? null : this.handlers.get(request.type());
+			if (request.type() == null || request.type().isBlank()) {
+				return problem(HttpStatus.BAD_REQUEST, ErrorCode.VALIDATION);
+			}
+			SandboxJobHandler handler = this.handlers.get(request.type());
 			if (handler == null) {
 				return problem(HttpStatus.NOT_FOUND, ErrorCode.NOT_FOUND);
 			}
 			JsonNode input = request.input() == null || request.input().isNull() ? JsonNodeFactory.instance.objectNode()
 					: request.input();
 			try {
-				return ResponseEntity.ok(new SandboxJobResult(request.type(), handler.handle(input)));
+				JsonNode output = handler.handle(input);
+				if (output == null) {
+					log.error("Sandbox job {} returned no output", request.type());
+					return problem(HttpStatus.INTERNAL_SERVER_ERROR, null);
+				}
+				return ResponseEntity.ok(new SandboxJobResult(request.type(), output));
 			}
 			catch (IllegalArgumentException ex) {
 				log.warn("Sandbox job {} refused its input: {}", request.type(), ex.getMessage());
