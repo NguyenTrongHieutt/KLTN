@@ -1,0 +1,9 @@
+# Operating systems and editors
+.DS_Store
+Thumbs.db
+.idea/
+
+# Local secret files and environment overrides never enter the repository (AD-22).
+secrets/
+.env
+.env.*

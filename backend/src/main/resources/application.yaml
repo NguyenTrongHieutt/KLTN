@@ -1,0 +1,52 @@
+spring:
+  application:
+    name: vibefix-app
+  config:
+    # AD-22: credentials are mounted secret files, one file per property name
+    # (db-app-password, db-migrator-password). Nothing secret lives in this file.
+    import: optional:configtree:${VIBEFIX_SECRETS_DIR:/run/secrets/}
+  datasource:
+    # The application connects as the runtime role, which has DML only.
+    url: jdbc:postgresql://${VIBEFIX_DB_HOST:localhost}:${VIBEFIX_DB_PORT:5432}/vibefix
+    username: vibefix_app
+    password: ${db-app-password}
+  flyway:
+    # Migrations run as the migration role, which owns every schema (Conventions, Migrations).
+    user: vibefix_migrator
+    password: ${db-migrator-password}
+    # Flyway history and framework tables live in schema platform (AD-2).
+    schemas: platform
+    default-schema: platform
+    create-schemas: true
+    locations: classpath:db/migration
+    out-of-order: false
+    validate-migration-naming: true
+    placeholders:
+      # Brackets keep the underscore in the map key.
+      "[runtime_role]": ${spring.datasource.username}
+      # "environment" is set by the dev and prod profiles (AD-25).
+  sql:
+    init:
+      mode: never
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      "[hibernate.jdbc.time_zone]": UTC
+  modulith:
+    events:
+      jdbc:
+        # The table is created by Flyway (db/migration/platform), never by the framework.
+        schema: platform
+        schema-initialization:
+          enabled: false
+  data:
+    web:
+      pageable:
+        max-page-size: 100
+
+springdoc:
+  # Stable key order keeps the committed frontend/src/api/openapi.json diff-free.
+  writer-with-order-by-keys: true
+  default-produces-media-type: application/json
