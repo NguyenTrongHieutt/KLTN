@@ -1,26 +1,44 @@
 # Weekly update proposals for every pin: actions (by commit SHA), base images (by tag and digest),
 # Compose images, Maven and npm. Each arrives as a pull request that must pass the CI gates.
+# Major versions are ignored: the architecture spine pins the stack's major versions (Java 25 LTS,
+# Node 24 LTS, TypeScript 5.x and the rest), so a major upgrade is an architecture decision.
+# Pull requests are not merged as-is; the author applies accepted updates in their own commits.
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: docker
     directories:
       - /backend
       - /deploy/caddy
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: docker-compose
     directory: /deploy
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: maven
     directory: /backend
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: npm
     directory: /frontend
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]

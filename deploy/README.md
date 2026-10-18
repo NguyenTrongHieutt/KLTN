@@ -27,8 +27,9 @@ and as `sandbox` (profile `sandbox`, which starts only the sandbox worker).
 
 `data` and `jobs` are internal networks: nothing on them reaches the internet directly. Every
 container runs with `TZ=UTC`, none mounts the Docker socket, and Docker rotates every container's
-log (`json-file`, at most 5 files of 10 MB). Dependabot (`.github/dependabot.yml`) proposes updates
-of the pinned images, actions and packages every week.
+log (`json-file`, at most 5 files of 10 MB). Dependabot (`.github/dependabot.yml`) proposes minor and
+patch updates of the pinned images, actions and packages every week; major versions follow the
+architecture spine and are ignored.
 
 ## Running locally
 
