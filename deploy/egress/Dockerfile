@@ -1,7 +1,7 @@
 # egress (AD-26): Squid from Ubuntu 24.04's main archive, which Canonical keeps patching. The base is
 # pinned by digest; Squid comes from noble-security at build time, so CI rebuilds this image every
 # week without the layer cache to pick up fixes (.github/workflows/ci.yml).
-FROM ubuntu:24.04@sha256:68ee22004a9109b44973313b02ff7b1de250f1de0f5ecb628d73f579aaff33ac
+FROM ubuntu:24.10@sha256:cdf755952ed117f6126ff4e65810bf93767d4c38f5c7185b50ec1f1078b464cc
 
 RUN apt-get update \
 	&& apt-get install -y --no-install-recommends squid \
