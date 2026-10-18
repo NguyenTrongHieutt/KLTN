@@ -46,8 +46,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
+import vn.vibefix.shared.Access;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
+import vn.vibefix.shared.Gate;
 
 /**
  * AD-23: every error is RFC 9457 Problem Details with a {@code code} from {@link ErrorCode}, plus
@@ -260,6 +262,7 @@ class ProblemDetailsAdviceTest {
 	/** Endpoints that fail on purpose. Nested in a test class, so only this slice registers it. */
 	@RestController
 	@RequestMapping("/api/v1/probe")
+	@Access(Gate.PUBLIC)
 	static class ProbeController {
 
 		@GetMapping("/missing")
