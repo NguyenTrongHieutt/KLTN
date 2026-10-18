@@ -11,7 +11,7 @@ import { NextActionStrip } from '@/features/notification/NextActionStrip'
 import { NotificationBell } from '@/features/notification/NotificationBell'
 import { t } from '@/i18n/t'
 import { cn } from '@/lib/utils'
-import { applyTheme } from '@/theme/accountTheme'
+import { applyTheme, DEFAULT_THEME } from '@/theme/accountTheme'
 import { MAIN_ID } from './PublicLayout'
 import { roleNavigation } from './roleNavigation'
 import { RequireSignedIn } from './RequireSignedIn'
@@ -46,13 +46,13 @@ function SignedInShell() {
   const todos = useTodos()
   const unread = useUnreadCount(bell)
   const { offline } = usePollHealth()
-  // The account's theme while signed in; the system's again after signing out (UX-DR5).
+  // The account's theme while signed in; light again after signing out (UX-DR5).
   useEffect(() => {
     if (!theme) {
       return undefined
     }
     applyTheme(theme)
-    return () => applyTheme('SYSTEM')
+    return () => applyTheme(DEFAULT_THEME)
   }, [theme])
   if (!current) {
     return null
