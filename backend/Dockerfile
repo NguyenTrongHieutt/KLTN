@@ -2,7 +2,7 @@
 # Base images are pinned by tag and digest. Build context: backend/.
 
 # The jar is the same for every platform, so it is built once on the build machine's platform.
-FROM --platform=$BUILDPLATFORM eclipse-temurin:25.0.4.1_1-jdk-noble@sha256:ba0f0e1a33864105e1d454e88105c617ab40f71062db1f306bf58be32a3f8e5e AS build
+FROM --platform=$BUILDPLATFORM eclipse-temurin:26.0.2_10-jdk-noble@sha256:abe71c9b7140affd9a80d6ed313c428e3393d4d18c235823b1745670d4702053 AS build
 WORKDIR /workspace
 COPY .mvn/ .mvn/
 COPY mvnw pom.xml ./
@@ -11,7 +11,7 @@ COPY src/ src/
 RUN --mount=type=cache,target=/root/.m2 ./mvnw -B -DskipTests package \
     && cp target/vibefix-app-*.jar /workspace/vibefix-app.jar
 
-FROM eclipse-temurin:25.0.4.1_1-jre-noble@sha256:3f2223fe04b750aa5a8179e29b5c9a1ddf7665fc9bb08bfe11ad01d143bc13a5
+FROM eclipse-temurin:26.0.2_10-jre-noble@sha256:0140636ef128fa014041fa12dae3a9de53b6a6c6f055271f4e6a7417ea34012c
 # Conventions, Time: containers run in UTC. The application never runs as root.
 ENV TZ=UTC
 RUN groupadd --system --gid 10001 vibefix \
