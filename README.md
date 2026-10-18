@@ -139,6 +139,23 @@ VIBEFIX_SECRETS_DIR=../deploy/secrets/ ./mvnw spring-boot:run -Dspring-boot.run.
   dev seed data and the dev organization (SG-36), and secrets from files only (AD-22).
 - `SandboxRoundTripIT`: the sandbox worker's job channel and its isolation report (AD-32).
 - `ApplicationBootIT`: security headers, correlation IDs, Actuator limited to health, the dev seed.
+- `AuditLogIT`, `AuditAppendOnlySourceTest`: the Audit Log is written in the caller's transaction
+  and never changed: triggers, insert-and-select grants, and no purge in the sources (AD-8).
+- `AuthorizationMatrixIT`, `MatrixCoverageIT`, `AuthorizationHarnessIT`: every `/api` and
+  `/webhooks` handler declares its `@Access` gate and has rows in
+  `src/test/resources/authz/matrix.csv`; every row runs, and no canary of `authz/canaries.csv`
+  reaches a caller it is hidden from (AD-20). Add callers and seeded objects as fixtures in
+  `vn.vibefix.authz.fixtures`.
+- `PersonalDataCoverageIT`: every table that can hold personal data has a
+  `PersonalDataParticipant` (AD-24). `AdminReadGrantCallersTest`: only `dispute` and `admin` push
+  Administrator read grants down (AD-20).
+- `EventPublicationIT`, `EventRepublishOnRestartIT`: event publications are republished at start,
+  resubmitted after 5 minutes, stalled after 5 attempts, replay-safe, and purged after 30 days (AD-9).
 - `npm run lint`: no raw HTML (`dangerouslySetInnerHTML`, `innerHTML`, `insertAdjacentHTML`,
   `document.write`), no `fetch`, `XMLHttpRequest`, `EventSource`, `WebSocket`, `sendBeacon` or
-  `openapi-fetch` outside `src/lib`, and a self-test that these bans still fire.
+  `openapi-fetch` outside `src/lib`, and a self-test that these bans still fire. Then the
+  plain-term check: Customer-facing text in `vi.json` uses no technical word that the Plain-Term
+  List (`term.*`, audiences in `term-audience.json`) does not list (NFR-12).
+- `npm run build`: the type check, the Vitest suite (`npm test`), the Vite build, and the
+  static-style check: no bundled code creates a `<style>` element or a style sheet at run time,
+  which the CSP would block (UX-DR2). Base UI's Select and ScrollArea do, so they are not used.
