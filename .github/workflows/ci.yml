@@ -3,17 +3,26 @@
 # a temporary Compose stack. Images are published to GHCR only from main, and only when every gate
 # passed. Third-party actions and images are pinned by commit SHA or digest; the only credential is
 # the workflow's own GITHUB_TOKEN, used by the publish job alone.
+#
+# Every week the same gates run on main with the images built without the layer cache, and the egress
+# image is published again: its base is pinned by digest, but Squid comes from Ubuntu's security
+# pocket at build time, so only a fresh build picks up its fixes (AD-26).
 name: CI
 
 on:
   push:
   pull_request:
+  schedule:
+    - cron: "23 3 * * 1"
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+# Per event as well: a push to main must never leave the weekly run pending, where a later push
+# would cancel it.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -89,6 +98,9 @@ jobs:
           persist-credentials: false
       - name: Create throwaway secret files
         run: bash deploy/dev-secrets.sh
+      - name: Rebuild every image without the layer cache (weekly)
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: docker compose -f deploy/compose.yaml build --pull --no-cache
       - name: Start the stack
         run: docker compose -f deploy/compose.yaml up -d --build --wait --wait-timeout 600
       - name: Smoke test
@@ -136,9 +148,13 @@ jobs:
   publish:
     name: Publish images to GHCR
     needs: [backend, frontend, secrets, zap, workflow-lint]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # A push to main publishes every image. The weekly run (or a manual one) on main publishes only
+    # egress, rebuilt without the cache; the app and web images of a commit never change.
+    if: >-
+      github.ref == 'refs/heads/main'
+      && contains(fromJSON('["push", "schedule", "workflow_dispatch"]'), github.event_name)
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 60
     permissions:
       contents: read
       packages: write
@@ -146,13 +162,19 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      # GHCR image names must be lowercase; the account name is not.
+      # GHCR image names must be lowercase; the account name is not. A rebuilt egress image gets its
+      # own tag, so the commit's tag keeps pointing at the image that commit first published.
       - name: Image names
         id: names
         run: |
           owner="${GITHUB_REPOSITORY_OWNER,,}"
           echo "app=ghcr.io/$owner/vibefix-app:$GITHUB_SHA" >>"$GITHUB_OUTPUT"
           echo "web=ghcr.io/$owner/vibefix-web:$GITHUB_SHA" >>"$GITHUB_OUTPUT"
+          if [[ $GITHUB_EVENT_NAME == push ]]; then
+            echo "egress=ghcr.io/$owner/vibefix-egress:$GITHUB_SHA" >>"$GITHUB_OUTPUT"
+          else
+            echo "egress=ghcr.io/$owner/vibefix-egress:$GITHUB_SHA-rebuild-$(date -u +%Y%m%d%H%M)" >>"$GITHUB_OUTPUT"
+          fi
       - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
@@ -162,6 +184,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: vibefix-app
         id: app
+        if: github.event_name == 'push'
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: backend
@@ -171,6 +194,7 @@ jobs:
           labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
       - name: vibefix-web
         id: web
+        if: github.event_name == 'push'
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
@@ -179,19 +203,53 @@ jobs:
           push: true
           tags: ${{ steps.names.outputs.web }}
           labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-      # AD-26: the host deploys by digest; the run's summary records which ones this commit produced.
+      - name: vibefix-egress
+        id: egress
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: deploy/egress
+          platforms: linux/amd64,linux/arm64
+          pull: true
+          no-cache: ${{ github.event_name != 'push' }}
+          push: true
+          tags: ${{ steps.names.outputs.egress }}
+          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+      # Runs the published image on both architectures (arm64 through QEMU): the Squid package each
+      # one carries, which a security notice can be checked against.
+      - name: Squid in the published egress image
+        id: squid
+        env:
+          EGRESS_IMAGE: ${{ steps.names.outputs.egress }}
+          EGRESS_DIGEST: ${{ steps.egress.outputs.digest }}
+        run: |
+          for platform in linux/amd64 linux/arm64; do
+            version="$(docker run --rm --platform "$platform" --entrypoint dpkg-query \
+              "${EGRESS_IMAGE%:*}@$EGRESS_DIGEST" -W squid | cut -f2)"
+            echo "$platform: squid $version"
+            echo "${platform#linux/}=$version" >>"$GITHUB_OUTPUT"
+          done
+      # AD-26: the host deploys by digest; the run's summary records which ones this run produced.
       - name: Record the published digests
         env:
           APP_IMAGE: ${{ steps.names.outputs.app }}
           APP_DIGEST: ${{ steps.app.outputs.digest }}
           WEB_IMAGE: ${{ steps.names.outputs.web }}
           WEB_DIGEST: ${{ steps.web.outputs.digest }}
+          EGRESS_IMAGE: ${{ steps.names.outputs.egress }}
+          EGRESS_DIGEST: ${{ steps.egress.outputs.digest }}
+          SQUID_AMD64: ${{ steps.squid.outputs.amd64 }}
+          SQUID_ARM64: ${{ steps.squid.outputs.arm64 }}
         run: |
           {
             echo "### Published images"
             echo
             echo "| Image | Digest |"
             echo "|---|---|"
-            echo "| \`$APP_IMAGE\` | \`$APP_DIGEST\` |"
-            echo "| \`$WEB_IMAGE\` | \`$WEB_DIGEST\` |"
+            if [[ -n $APP_DIGEST ]]; then
+              echo "| \`$APP_IMAGE\` | \`$APP_DIGEST\` |"
+              echo "| \`$WEB_IMAGE\` | \`$WEB_DIGEST\` |"
+            fi
+            echo "| \`$EGRESS_IMAGE\` | \`$EGRESS_DIGEST\` |"
+            echo
+            echo "Squid in egress: $SQUID_AMD64 (amd64), $SQUID_ARM64 (arm64)"
           } >>"$GITHUB_STEP_SUMMARY"

@@ -16,6 +16,7 @@ updates:
     directories:
       - /backend
       - /deploy/caddy
+      - /deploy/egress
     schedule:
       interval: weekly
     ignore:
