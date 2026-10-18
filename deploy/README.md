@@ -46,13 +46,18 @@ Stop the stack with `docker compose -f deploy/compose.yaml down`; add `--volumes
 database. On Windows, Git Bash rewrites arguments that look like paths: set `MSYS_NO_PATHCONV=1`
 for a `docker run -v ...` typed by hand (`smoke.sh` sets it itself).
 
-The OWASP ZAP baseline that CI runs, against the running stack:
+The OWASP ZAP baseline that CI runs, against the running stack (exit code 0 means no alert beyond
+the ones `zap/rules.tsv` ignores):
 
 ```sh
 MSYS_NO_PATHCONV=1 docker run --rm --network vibefix_edge -v "$PWD/deploy/zap:/zap/wrk:rw" \
   ghcr.io/zaproxy/zaproxy:2.17.0@sha256:5ccfff9a411743ab2615136a2edd7416bec9ce41572fa94e935df38c14adb2b6 \
   zap-baseline.py -t http://caddy -c rules.tsv
 ```
+
+ZAP runs as uid 1000 and writes its plan (`zap.yaml`, ignored by git) next to the rules, so on
+Linux the directory must be writable for that user; CI copies `rules.tsv` to a temporary directory
+instead.
 
 ## Secret files
 
