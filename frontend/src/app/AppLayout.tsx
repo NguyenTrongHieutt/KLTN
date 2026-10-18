@@ -1,14 +1,17 @@
-import { Menu } from '@base-ui/react/menu'
-import { Link, NavLink, Outlet, useNavigate } from 'react-router'
+import { useEffect } from 'react'
+import { Link, NavLink, Outlet } from 'react-router'
+import { Toaster } from '@/components/Toaster'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { landingPath, type Session } from '@/features/identity/api'
 import { SessionExpiredDialog } from '@/features/identity/SessionExpiredDialog'
-import { useSession, useSignOut } from '@/features/identity/useSession'
+import { AccountMenu } from '@/features/identity/AccountMenu'
+import { useSession } from '@/features/identity/useSession'
 import { useTodos, useUnreadCount } from '@/features/notification/hooks'
 import { NextActionStrip } from '@/features/notification/NextActionStrip'
 import { NotificationBell } from '@/features/notification/NotificationBell'
 import { t } from '@/i18n/t'
 import { cn } from '@/lib/utils'
+import { applyTheme } from '@/theme/accountTheme'
 import { MAIN_ID } from './PublicLayout'
 import { roleNavigation } from './roleNavigation'
 import { RequireSignedIn } from './RequireSignedIn'
@@ -18,8 +21,7 @@ import { usePollHealth } from './usePollHealth'
 /**
  * The shell of a signed-in Customer, Mentor, or Student (UX-DR10 to UX-DR14): the role's
  * destinations as top-bar links from 768 px and as a bottom tab bar with counts on phones, the bell,
- * the avatar menu with "Đăng xuất", the next-action strip, and the offline line. The avatar is
- * initials: the CSP loads no image from GitHub.
+ * the avatar menu, the next-action strip, the offline line, and the toasts.
  */
 export function AppLayout() {
   return (
@@ -38,24 +40,31 @@ function hasBell(session: Session | undefined): boolean {
 function SignedInShell() {
   useFocusHeadingOnNavigate(MAIN_ID)
   const session = useSession()
-  const signOut = useSignOut()
-  const navigate = useNavigate()
   const current = session.data
+  const theme = current?.account?.theme
   const bell = hasBell(current)
   const todos = useTodos()
   const unread = useUnreadCount(bell)
   const { offline } = usePollHealth()
+  // The account's theme while signed in; the system's again after signing out (UX-DR5).
+  useEffect(() => {
+    if (!theme) {
+      return undefined
+    }
+    applyTheme(theme)
+    return () => applyTheme('SYSTEM')
+  }, [theme])
   if (!current) {
     return null
   }
   const destinations = roleNavigation(current)
-  const login = current.githubLogin ?? ''
   const counts: Record<string, number> = {
     '/viec-can-lam': todos.data?.total ?? 0,
     '/thong-bao': unread.data ?? 0,
   }
 
   return (
+    <Toaster>
     <div className="flex min-h-dvh flex-col">
       <a
         href={`#${MAIN_ID}`}
@@ -92,31 +101,7 @@ function SignedInShell() {
           </nav>
           <span className="grow" />
           {bell && <NotificationBell offline={offline} />}
-          <Menu.Root>
-            <Menu.Trigger
-              aria-label={t('shell.accountMenu', { login })}
-              className="flex size-10 items-center justify-center rounded-full bg-primary-soft text-label font-bold text-primary"
-            >
-              {initials(login)}
-            </Menu.Trigger>
-            <Menu.Portal>
-              <Menu.Positioner align="end" sideOffset={6} className="z-50">
-                <Menu.Popup className="min-w-44 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md">
-                  <Menu.Item
-                    disabled={offline}
-                    className="flex min-h-tap-min cursor-pointer items-center rounded-md px-3 text-body-sm data-disabled:cursor-not-allowed data-disabled:opacity-50 data-highlighted:bg-muted"
-                    onClick={() =>
-                      signOut.mutate(undefined, {
-                        onSuccess: () => navigate('/', { replace: true }),
-                      })
-                    }
-                  >
-                    {t('shell.signOut')}
-                  </Menu.Item>
-                </Menu.Popup>
-              </Menu.Positioner>
-            </Menu.Portal>
-          </Menu.Root>
+          <AccountMenu session={current} offline={offline} />
         </div>
       </header>
       {offline && (
@@ -163,9 +148,7 @@ function SignedInShell() {
       </nav>
       <SessionExpiredDialog />
     </div>
+    </Toaster>
   )
 }
 
-function initials(login: string): string {
-  return login.replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase() || '?'
-}

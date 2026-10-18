@@ -5,9 +5,10 @@ import { createBrowserRouter, RouterProvider } from 'react-router'
 import './index.css'
 import { createQueryClient } from './app/queryClient'
 import { routes } from './app/routes'
-import { applySystemTheme } from './theme/systemTheme'
+import { applyTheme } from './theme/accountTheme'
 
-applySystemTheme()
+// Before sign-in the theme follows the system; a signed-in account's choice takes over (UX-DR5).
+applyTheme('SYSTEM')
 
 const queryClient = createQueryClient()
 const router = createBrowserRouter(routes)

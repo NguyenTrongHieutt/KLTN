@@ -51,7 +51,11 @@ class IdentityPersonalDataIT extends IntegrationTest implements PersonalDataPart
 				SELECT count(*) FROM identity.account
 				WHERE id = :id AND (github_user_id IS NOT NULL OR github_email IS NOT NULL)
 				""").param("id", accountId).query(Long.class).single() > 0
-				|| this.accounts.customerToken(accountId).isPresent();
+				|| this.accounts.customerToken(accountId).isPresent()
+				|| this.jdbc.sql("SELECT count(*) FROM identity.customer_profile WHERE account_id = :id")
+					.param("id", accountId)
+					.query(Long.class)
+					.single() > 0;
 	}
 
 	@Test
@@ -64,7 +68,10 @@ class IdentityPersonalDataIT extends IntegrationTest implements PersonalDataPart
 		assertThat(section.data()).containsEntry("role", "CUSTOMER")
 			.containsEntry("githubLogin", "lan-subject")
 			.containsEntry("githubEmail", "lan-subject@example.test");
-		assertThat(section.data().toString()).contains("PRIVACY").contains("2.0").doesNotContain("ciphertext");
+		assertThat(section.data().toString()).contains("PRIVACY")
+			.contains("2.0")
+			.contains("lan-subject@contact.test")
+			.doesNotContain("ciphertext");
 	}
 
 	@Test
@@ -92,6 +99,10 @@ class IdentityPersonalDataIT extends IntegrationTest implements PersonalDataPart
 				""").param("id", id).param("githubId", githubId).param("login", login).param("now", now).update();
 		this.accounts.insertAcknowledgment(UUID.randomUUID(), id, "PRIVACY", "2.0", this.clock.instant());
 		this.accounts.storeCustomerToken(id, this.cipher.seal("gho_" + login, id.toString()), this.clock.instant());
+		this.jdbc.sql("""
+				INSERT INTO identity.customer_profile (account_id, kind, display_name, contact_email, updated_at)
+				VALUES (:id, 'INDIVIDUAL', :login, :login || '@contact.test', :now)
+				""").param("id", id).param("login", login).param("now", now).update();
 		assertThat(Role.valueOf("CUSTOMER")).isEqualTo(Role.CUSTOMER);
 	}
 

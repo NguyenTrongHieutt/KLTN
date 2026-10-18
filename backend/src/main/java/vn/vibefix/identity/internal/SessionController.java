@@ -69,8 +69,11 @@ class SessionController {
 			String privacyNoticeVersion) {
 	}
 
-	/** @param mentorApprovalStatus set exactly for Mentors */
-	record AccountView(UUID id, Role role, @Nullable MentorApprovalStatus mentorApprovalStatus) {
+	/**
+	 * @param mentorApprovalStatus set exactly for Mentors
+	 * @param theme the account's Theme toggle choice (UX-DR5)
+	 */
+	record AccountView(UUID id, Role role, @Nullable MentorApprovalStatus mentorApprovalStatus, Profiles.Theme theme) {
 	}
 
 	/**
@@ -90,8 +93,11 @@ class SessionController {
 
 	private final IdentityProperties properties;
 
+	private final Profiles profiles;
+
 	SessionController(CurrentCaller callers, Accounts accounts, SignIns signIns, SecurityContextRepository contexts,
-			IdentityProperties properties) {
+			IdentityProperties properties, Profiles profiles) {
+		this.profiles = profiles;
 		this.callers = callers;
 		this.accounts = accounts;
 		this.signIns = signIns;
@@ -158,7 +164,9 @@ class SessionController {
 
 	private SessionView signedIn(Account account) {
 		return new SessionView(SessionStatus.SIGNED_IN,
-				new AccountView(account.id(), account.role(), account.mentorApprovalStatus()), account.githubLogin(),
+				new AccountView(account.id(), account.role(), account.mentorApprovalStatus(),
+						this.profiles.theme(account.id())),
+				account.githubLogin(),
 				account.githubAvatarUrl(), null, null, version());
 	}
 

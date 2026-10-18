@@ -167,6 +167,10 @@ VIBEFIX_SECRETS_DIR=../deploy/secrets/ ./mvnw spring-boot:run -Dspring-boot.run.
   `openapi-fetch` outside `src/lib`, and a self-test that these bans still fire. Then the
   plain-term check: Customer-facing text in `vi.json` uses no technical word that the Plain-Term
   List (`term.*`, audiences in `term-audience.json`) does not list (NFR-12).
+- `ProfilesIT`: profiles belong to their owner, and a Customer's contact details are readable only by
+  the Customer, Administrators, and a Mentor holding a grant (FR-3, AD-20).
+- `xss.test.tsx` (Vitest): the planted-payload suite. Every user-written field renders as inert
+  text in every view that shows it; a story that adds such a field adds it here (SG-30).
 - `npm run build`: the type check, the Vitest suite (`npm test`), the Vite build, and the
   static-style check: no bundled code creates a `<style>` element or a style sheet at run time,
   which the CSP would block (UX-DR2). Base UI's Select and ScrollArea do, so they are not used.

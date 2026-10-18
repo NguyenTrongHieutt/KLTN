@@ -4,7 +4,7 @@
  * re-reads the account, so a lock takes effect at once. The kept Customer token is encrypted
  * (AD-22), and the module answers for its personal data (AD-24).
  * <p>
- * Public API: {@link vn.vibefix.identity.MentorApprovalStatus}. Sign-in, sessions, and the HTTP
+ * Public API: {@link vn.vibefix.identity.MentorApprovalStatus} and {@link vn.vibefix.identity.ContactVisibility}. Sign-in, sessions, and the HTTP
  * endpoints are wiring in {@code identity.internal}.
  */
 @ApplicationModule(allowedDependencies = { "shared", "audit", "notification" })

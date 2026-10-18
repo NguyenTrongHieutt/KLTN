@@ -55,11 +55,14 @@ describe('route guards (AD-19, FR-74)', () => {
     expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Hồ sơ người hướng dẫn'])
   })
 
-  it('shows MEN-5 to Mentors only', async () => {
-    fakeBackend(signedIn('CUSTOMER'))
+  it('shows each role its own profile on /ho-so', async () => {
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/profile': () => json({ role: 'CUSTOMER', githubLogin: 'octo-cat', customer: null, student: null }),
+    })
     renderAt('/ho-so')
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Không tìm thấy nội dung này.' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Hồ sơ của bạn' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Hồ sơ người hướng dẫn' })).not.toBeInTheDocument()
   })
 
   it('sends a signed-in account away from PUB-2 and PUB-3 to where it lands', async () => {

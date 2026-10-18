@@ -66,3 +66,33 @@ POST /api/v1/notifications/read-all,MENTOR,mentor=PENDING,,204
 POST /api/v1/notifications/read-all,STUDENT,,,204
 POST /api/v1/notifications/read-all,ADMINISTRATOR,,,204
 POST /api/v1/notifications/read-all,SUBJECT,,,204
+
+# Profiles and the theme (identity): signed in, each account its own; the wrong role finds no profile.
+GET /api/v1/profile,ANONYMOUS,,,401
+GET /api/v1/profile,CUSTOMER,,,200
+GET /api/v1/profile,MENTOR,mentor=PENDING,,200
+GET /api/v1/profile,STUDENT,,,200
+GET /api/v1/profile,ADMINISTRATOR,,,200
+GET /api/v1/profile,SUBJECT,,,200
+PUT /api/v1/profile/customer,ANONYMOUS,,profile-customer.json,401
+PUT /api/v1/profile/customer,CUSTOMER,,profile-customer.json,204
+PUT /api/v1/profile/customer,MENTOR,,profile-customer.json,404 NOT_FOUND
+PUT /api/v1/profile/customer,STUDENT,,profile-customer.json,404 NOT_FOUND
+PUT /api/v1/profile/customer,ADMINISTRATOR,,profile-customer.json,404 NOT_FOUND
+PUT /api/v1/profile/student,ANONYMOUS,,profile-student.json,401
+PUT /api/v1/profile/student,STUDENT,,profile-student.json,204
+PUT /api/v1/profile/student,CUSTOMER,,profile-student.json,404 NOT_FOUND
+PUT /api/v1/profile/student,MENTOR,,profile-student.json,404 NOT_FOUND
+PUT /api/v1/profile/student,ADMINISTRATOR,,profile-student.json,404 NOT_FOUND
+PUT /api/v1/account/theme,ANONYMOUS,,account-theme.json,401
+PUT /api/v1/account/theme,CUSTOMER,,account-theme.json,204
+PUT /api/v1/account/theme,MENTOR,mentor=PENDING,account-theme.json,204
+PUT /api/v1/account/theme,STUDENT,,account-theme.json,204
+PUT /api/v1/account/theme,ADMINISTRATOR,,account-theme.json,204
+# A Customer's contact: the Customer (SUBJECT) and Administrators; a Mentor only under a grant (FR-3).
+GET /api/v1/customers/{customerId}/contact,ANONYMOUS,,,401
+GET /api/v1/customers/{customerId}/contact,SUBJECT,,,200
+GET /api/v1/customers/{customerId}/contact,ADMINISTRATOR,,,200
+GET /api/v1/customers/{customerId}/contact,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/customers/{customerId}/contact,MENTOR,,,404 NOT_FOUND
+GET /api/v1/customers/{customerId}/contact,STUDENT,,,404 NOT_FOUND

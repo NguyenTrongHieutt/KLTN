@@ -9,6 +9,54 @@
     "description" : "Generated server url"
   } ],
   "paths" : {
+    "/api/v1/account/theme" : {
+      "put" : {
+        "operationId" : "theme",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ThemeRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "account-controller" ]
+      }
+    },
+    "/api/v1/customers/{customerId}/contact" : {
+      "get" : {
+        "operationId" : "contact",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "customerId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CustomerProfile"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "contact-controller" ]
+      }
+    },
     "/api/v1/environment" : {
       "get" : {
         "operationId" : "environment",
@@ -126,6 +174,66 @@
         "tags" : [ "notification-controller" ]
       }
     },
+    "/api/v1/profile" : {
+      "get" : {
+        "operationId" : "profile",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProfileView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "profile-controller" ]
+      }
+    },
+    "/api/v1/profile/customer" : {
+      "put" : {
+        "operationId" : "saveCustomer",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CustomerProfileRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "profile-controller" ]
+      }
+    },
+    "/api/v1/profile/student" : {
+      "put" : {
+        "operationId" : "saveStudent",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/StudentProfileRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "profile-controller" ]
+      }
+    },
     "/api/v1/session" : {
       "get" : {
         "operationId" : "session",
@@ -227,9 +335,57 @@
           "role" : {
             "type" : "string",
             "enum" : [ "CUSTOMER", "MENTOR", "STUDENT", "ADMINISTRATOR" ]
+          },
+          "theme" : {
+            "type" : "string",
+            "enum" : [ "LIGHT", "DARK", "SYSTEM" ]
           }
         },
-        "required" : [ "id", "role" ]
+        "required" : [ "id", "role", "theme" ]
+      },
+      "CustomerProfile" : {
+        "type" : "object",
+        "properties" : {
+          "contactEmail" : {
+            "type" : "string"
+          },
+          "displayName" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "INDIVIDUAL", "BUSINESS" ]
+          },
+          "phone" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "contactEmail", "displayName", "kind" ]
+      },
+      "CustomerProfileRequest" : {
+        "type" : "object",
+        "properties" : {
+          "contactEmail" : {
+            "type" : "string",
+            "format" : "email",
+            "maxLength" : 254,
+            "minLength" : 0
+          },
+          "displayName" : {
+            "type" : "string",
+            "maxLength" : 100,
+            "minLength" : 0
+          },
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "INDIVIDUAL", "BUSINESS" ]
+          },
+          "phone" : {
+            "type" : "string",
+            "pattern" : "^\\+?(?:[0-9] ?){7,14}[0-9]$"
+          }
+        },
+        "required" : [ "contactEmail", "displayName", "kind" ]
       },
       "EnvironmentResponse" : {
         "type" : "object",
@@ -296,6 +452,25 @@
         },
         "required" : [ "items", "page", "size", "total" ]
       },
+      "ProfileView" : {
+        "type" : "object",
+        "properties" : {
+          "customer" : {
+            "$ref" : "#/components/schemas/CustomerProfile"
+          },
+          "githubLogin" : {
+            "type" : "string"
+          },
+          "role" : {
+            "type" : "string",
+            "enum" : [ "CUSTOMER", "MENTOR", "STUDENT", "ADMINISTRATOR" ]
+          },
+          "student" : {
+            "$ref" : "#/components/schemas/StudentProfile"
+          }
+        },
+        "required" : [ "role" ]
+      },
       "SessionView" : {
         "type" : "object",
         "properties" : {
@@ -337,6 +512,83 @@
           }
         },
         "required" : [ "privacyNoticeVersion", "role" ]
+      },
+      "StudentProfile" : {
+        "type" : "object",
+        "properties" : {
+          "linkedinUrl" : {
+            "type" : "string"
+          },
+          "realName" : {
+            "type" : "string"
+          },
+          "repositories" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "school" : {
+            "type" : "string"
+          },
+          "showNameAndSchool" : {
+            "type" : "boolean"
+          },
+          "yearOfStudy" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "repositories", "showNameAndSchool" ]
+      },
+      "StudentProfileRequest" : {
+        "type" : "object",
+        "properties" : {
+          "linkedinUrl" : {
+            "type" : "string",
+            "pattern" : "^https://www\\.linkedin\\.com/in/[A-Za-z0-9_%-]{3,100}/?$"
+          },
+          "realName" : {
+            "type" : "string",
+            "maxLength" : 100,
+            "minLength" : 0
+          },
+          "repositories" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "minLength" : 1,
+              "pattern" : "^(?:https://github\\.com/)?[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9._-]{1,100}?(?:\\.git)?/?$"
+            },
+            "maxItems" : 5,
+            "minItems" : 0
+          },
+          "school" : {
+            "type" : "string",
+            "maxLength" : 150,
+            "minLength" : 0
+          },
+          "showNameAndSchool" : {
+            "type" : "boolean"
+          },
+          "yearOfStudy" : {
+            "type" : "integer",
+            "format" : "int32",
+            "maximum" : 8,
+            "minimum" : 1
+          }
+        },
+        "required" : [ "repositories", "showNameAndSchool" ]
+      },
+      "ThemeRequest" : {
+        "type" : "object",
+        "properties" : {
+          "theme" : {
+            "type" : "string",
+            "enum" : [ "LIGHT", "DARK", "SYSTEM" ]
+          }
+        },
+        "required" : [ "theme" ]
       },
       "TodoItem" : {
         "type" : "object",
