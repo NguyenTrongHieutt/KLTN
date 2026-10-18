@@ -1,0 +1,16 @@
+{
+  "app": {
+    "name": "vibefix"
+  },
+  "environment": {
+    "label": "Môi trường",
+    "dev": "Phát triển",
+    "prod": "Chính thức"
+  },
+  "state": {
+    "loading": "Đang tải…"
+  },
+  "error": {
+    "unexpected": "Đã có lỗi. Hãy thử lại sau ít phút."
+  }
+}

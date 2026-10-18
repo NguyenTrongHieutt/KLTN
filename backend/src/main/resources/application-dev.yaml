@@ -1,0 +1,6 @@
+# AD-25: the dev environment. The first migration stamps platform.environment with this value,
+# and the application refuses to start against a database stamped for another environment.
+spring:
+  flyway:
+    placeholders:
+      environment: dev
