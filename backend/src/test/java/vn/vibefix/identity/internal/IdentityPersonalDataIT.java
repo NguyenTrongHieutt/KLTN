@@ -48,7 +48,8 @@ class IdentityPersonalDataIT extends IntegrationTest implements PersonalDataPart
 	@Override
 	public boolean holdsErasableDataOf(UUID accountId) {
 		return this.jdbc.sql("""
-				SELECT count(*) FROM identity.account WHERE id = :id AND github_user_id IS NOT NULL
+				SELECT count(*) FROM identity.account
+				WHERE id = :id AND (github_user_id IS NOT NULL OR github_email IS NOT NULL)
 				""").param("id", accountId).query(Long.class).single() > 0
 				|| this.accounts.customerToken(accountId).isPresent();
 	}
@@ -60,7 +61,9 @@ class IdentityPersonalDataIT extends IntegrationTest implements PersonalDataPart
 		PersonalDataSection section = this.participant.export(SUBJECT).orElseThrow();
 
 		assertThat(section.module()).isEqualTo("identity");
-		assertThat(section.data()).containsEntry("role", "CUSTOMER").containsEntry("githubLogin", "lan-subject");
+		assertThat(section.data()).containsEntry("role", "CUSTOMER")
+			.containsEntry("githubLogin", "lan-subject")
+			.containsEntry("githubEmail", "lan-subject@example.test");
 		assertThat(section.data().toString()).contains("PRIVACY").contains("2.0").doesNotContain("ciphertext");
 	}
 
@@ -84,8 +87,8 @@ class IdentityPersonalDataIT extends IntegrationTest implements PersonalDataPart
 	private void seed(UUID id, long githubId, String login) {
 		Timestamp now = Timestamp.from(this.clock.instant());
 		this.jdbc.sql("""
-				INSERT INTO identity.account (id, github_user_id, github_login, role, created_at)
-				VALUES (:id, :githubId, :login, 'CUSTOMER', :now)
+				INSERT INTO identity.account (id, github_user_id, github_login, github_email, role, created_at)
+				VALUES (:id, :githubId, :login, :login || '@example.test', 'CUSTOMER', :now)
 				""").param("id", id).param("githubId", githubId).param("login", login).param("now", now).update();
 		this.accounts.insertAcknowledgment(UUID.randomUUID(), id, "PRIVACY", "2.0", this.clock.instant());
 		this.accounts.storeCustomerToken(id, this.cipher.seal("gho_" + login, id.toString()), this.clock.instant());

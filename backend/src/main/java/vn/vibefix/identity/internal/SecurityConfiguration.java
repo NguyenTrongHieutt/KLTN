@@ -86,7 +86,7 @@ class SecurityConfiguration {
 					.clientRegistrationRepository(new InMemoryClientRegistrationRepository(registration))
 					.authorizedClientService(new NoStoreAuthorizedClients.Service())
 					.authorizedClientRepository(new NoStoreAuthorizedClients.Repository())
-					.userInfoEndpoint(userInfo -> userInfo.userService(new TokenCapturingUserService()))
+					.userInfoEndpoint(userInfo -> userInfo.userService(new TokenCapturingUserService(gitHub.userEmailsUri())))
 					.successHandler(new SignInSuccessHandler(signIns, contexts))
 					.failureHandler((request, response, ex) -> {
 						// The OAuth error code only (for example invalid_state_parameter), never a token.

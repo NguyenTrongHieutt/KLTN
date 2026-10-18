@@ -28,7 +28,10 @@ class GitHubSignIn {
 
 	private final @Nullable ClientRegistration registration;
 
+	private final @Nullable String userEmailsUri;
+
 	GitHubSignIn(Environment environment) {
+		this.userEmailsUri = environment.getProperty("vibefix.github.oauth.user-emails-uri");
 		String clientId = environment.getProperty(CLIENT_ID, "").strip();
 		String clientSecret = environment.getProperty(CLIENT_SECRET, "").strip();
 		if (clientId.isEmpty() || clientSecret.isEmpty()) {
@@ -52,6 +55,11 @@ class GitHubSignIn {
 			.userNameAttributeName("id")
 			.clientName("GitHub")
 			.build();
+	}
+
+	/** Where the signed-in user's email addresses are read (scope {@code user:email}). */
+	@Nullable String userEmailsUri() {
+		return this.userEmailsUri;
 	}
 
 	/** The registration, or empty when this environment has no sign-in OAuth App yet. */

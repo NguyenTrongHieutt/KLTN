@@ -31,7 +31,8 @@ export function json(body: unknown, status = 200): Response {
 
 /**
  * Replaces `fetch` with a backend that answers `GET /api/v1/session` with `session` and any other
- * `METHOD /path` from `handlers`; an unknown request answers 404. Returns the requests it saw.
+ * `METHOD /path` from `handlers`; the to-dos and notifications are empty unless a handler answers
+ * them, and an unknown request answers 404. Returns the requests it saw.
  */
 export function fakeBackend(session: Session, handlers: Record<string, Handler> = {}): Request[] {
   const seen: Request[] = []
@@ -48,6 +49,16 @@ export function fakeBackend(session: Session, handlers: Record<string, Handler> 
       }
       if (key === 'GET /api/v1/environment') {
         return json({ name: 'dev' })
+      }
+      // A signed-in account with nothing to do and nothing new, unless the test says otherwise.
+      if (key === 'GET /api/v1/todos') {
+        return json({ items: [], total: 0 })
+      }
+      if (key === 'GET /api/v1/notifications/unread-count') {
+        return json({ count: 0 })
+      }
+      if (key === 'GET /api/v1/notifications') {
+        return json({ items: [], page: 0, size: 20, total: 0 })
       }
       return json({ status: 404, code: 'NOT_FOUND' }, 404)
     }),

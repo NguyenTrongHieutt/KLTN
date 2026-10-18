@@ -104,14 +104,26 @@ final class EmailTemplate {
 	}
 
 	/**
-	 * The message for {@code values}.
+	 * The message for {@code values}, linking where the template says.
 	 * @param linkBaseUrl the platform's address, before a {@code link:} path
 	 */
 	RenderedEmail render(Map<String, String> values, String linkBaseUrl) {
+		return render(values, linkBaseUrl, null);
+	}
+
+	/**
+	 * The message for {@code values}.
+	 * @param link a platform path to link to in place of the template's {@code link:}, or {@code null}
+	 */
+	RenderedEmail render(Map<String, String> values, String linkBaseUrl, @Nullable String link) {
 		requireValues(values);
+		if (link != null && !PATH.matcher(link).matches()) {
+			throw new IllegalArgumentException("An email links to a platform path, not '" + link + "'");
+		}
 		String subject = fill(this.subject, values).replace('\n', ' ');
 		String body = fill(this.body, values);
-		String url = this.link == null ? null : stripTrailingSlash(linkBaseUrl) + this.link;
+		String path = link != null ? link : this.link;
+		String url = path == null ? null : stripTrailingSlash(linkBaseUrl) + path;
 
 		StringBuilder text = new StringBuilder(body);
 		if (url != null) {

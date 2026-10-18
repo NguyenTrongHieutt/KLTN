@@ -30,6 +30,8 @@ class EmailOperationHandler implements OperationHandler {
 
 	static final String PARAMETERS = "parameters";
 
+	static final String LINK = "link";
+
 	private static final Logger log = LoggerFactory.getLogger(EmailOperationHandler.class);
 
 	private final EmailTemplates templates;
@@ -72,7 +74,9 @@ class EmailOperationHandler implements OperationHandler {
 		Map<String, String> values = strings(personal.get(PARAMETERS));
 		RenderedEmail email;
 		try {
-			email = template.get().render(values, this.properties.linkBaseUrl() == null ? "" : this.properties.linkBaseUrl());
+			Object link = run.payload().get(LINK);
+			email = template.get().render(values, this.properties.linkBaseUrl() == null ? "" : this.properties.linkBaseUrl(),
+					link == null ? null : String.valueOf(link));
 		}
 		catch (IllegalArgumentException ex) {
 			return new Outcome.Aborted("TEMPLATE_VALUE_MISSING");

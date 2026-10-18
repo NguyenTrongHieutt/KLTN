@@ -52,6 +52,7 @@ class IdentityPersonalData implements PersonalDataParticipant {
 			if (account.githubUserId() != null) {
 				data.put("githubUserId", account.githubUserId());
 			}
+			this.accounts.notificationAddress(accountId).ifPresent(email -> data.put("githubEmail", email));
 			data.put("createdAt", account.createdAt().toString());
 			data.put("acknowledgments", this.jdbc.sql("""
 					SELECT notice, notice_version, acknowledged_at FROM identity.acknowledgment
@@ -68,7 +69,7 @@ class IdentityPersonalData implements PersonalDataParticipant {
 		this.jdbc.sql("DELETE FROM identity.customer_token WHERE account_id = :id").param("id", accountId).update();
 		this.jdbc.sql("""
 				UPDATE identity.account
-				SET github_user_id = NULL, github_login = NULL, github_avatar_url = NULL, erased_at = :at
+				SET github_user_id = NULL, github_login = NULL, github_avatar_url = NULL, github_email = NULL, erased_at = :at
 				WHERE id = :id
 				""").param("id", accountId).param("at", Timestamp.from(this.clock.instant())).update();
 	}

@@ -158,6 +158,10 @@ VIBEFIX_SECRETS_DIR=../deploy/secrets/ ./mvnw spring-boot:run -Dspring-boot.run.
 - `EmailIT`, `EmailTemplateTest`, `SmtpMailSenderIT`: email goes out at least once through the
   email lane, by priority class and within the daily budget, from templates that escape every value,
   and the real SMTP adapter delivers it to a Mailpit container (AD-21, AD-27, AD-34).
+- `NotificationsIT`, `TodosIT`, `NotificationCatalogTest`: a notification reaches only the audience
+  classes its type allows, confirmed through the recipient lookups; to-dos keep their order; and
+  every type and to-do key in the registry has its `vi.json` text and email template, with exactly
+  its declared parameters (AD-20, AD-27).
 - `npm run lint`: no raw HTML (`dangerouslySetInnerHTML`, `innerHTML`, `insertAdjacentHTML`,
   `document.write`), no `fetch`, `XMLHttpRequest`, `EventSource`, `WebSocket`, `sendBeacon` or
   `openapi-fetch` outside `src/lib`, and a self-test that these bans still fire. Then the

@@ -1,5 +1,6 @@
 package vn.vibefix.notification.internal;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import jakarta.mail.internet.AddressException;
@@ -36,8 +37,16 @@ class OperationEmails implements Emails {
 	public void send(EmailRequest request) {
 		this.templates.require(request.type()).requireValues(request.parameters());
 		String to = address(request.to());
-		this.operations.request(new OperationRequest(EmailOperationHandler.TYPE, request.causingRecordId(),
-				Map.of(EmailOperationHandler.TEMPLATE, request.type(), "class", request.emailClass().name()),
+		Map<String, Object> payload = new HashMap<>();
+		payload.put(EmailOperationHandler.TEMPLATE, request.type());
+		payload.put("class", request.emailClass().name());
+		if (request.link() != null) {
+			if (!NotificationRegistry.LINK.matcher(request.link()).matches()) {
+				throw new IllegalArgumentException("An email links to a platform path, not '" + request.link() + "'");
+			}
+			payload.put(EmailOperationHandler.LINK, request.link());
+		}
+		this.operations.request(new OperationRequest(EmailOperationHandler.TYPE, request.causingRecordId(), payload,
 				Map.of(EmailOperationHandler.TO, to, EmailOperationHandler.PARAMETERS, request.parameters()),
 				request.recipientAccountId(), request.emailClass().priority()));
 	}

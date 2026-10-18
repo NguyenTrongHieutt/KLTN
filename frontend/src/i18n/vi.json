@@ -9,7 +9,9 @@
   },
   "state": {
     "loading": "Đang tải…",
-    "retry": "Thử lại"
+    "retry": "Thử lại",
+    "stillLoading": "Vẫn đang tải…",
+    "offline": "Mất kết nối · đang thử lại"
   },
   "error": {
     "unexpected": "Đã có lỗi. Hãy thử lại sau ít phút.",
@@ -132,13 +134,30 @@
       "todo": {
         "title": "Việc cần làm",
         "heading": "Việc cần làm",
-        "empty": "Bạn không có việc nào cần làm."
+        "empty": "Bạn không có việc nào cần làm.",
+        "listLabel": "Việc cần làm của bạn",
+        "more": "và {n} việc khác",
+        "open": "Làm ngay",
+        "deadline": "Hạn {date}",
+        "stripLabel": "Việc cần làm tiếp theo"
       },
       "sessionExpired": {
         "title": "Phiên đăng nhập đã hết",
         "body": "Nội dung bạn đang nhập vẫn được giữ. Đăng nhập lại để tiếp tục đúng chỗ này.",
         "signIn": "Đăng nhập lại",
         "close": "Đóng"
+      },
+      "notifications": {
+        "title": "Thông báo",
+        "heading": "Thông báo",
+        "markAllRead": "Đánh dấu đã đọc tất cả",
+        "empty": "Chưa có thông báo nào.",
+        "more": "Xem thêm",
+        "unread": "Chưa đọc",
+        "bell": "Thông báo",
+        "bellUnread": "Thông báo, {count} chưa đọc",
+        "latest": "Thông báo mới",
+        "seeAll": "Xem tất cả thông báo"
       }
     },
     "mentor": {
@@ -151,6 +170,14 @@
         "statusRejected": "Bị từ chối",
         "statusRevoked": "Đã bị thu hồi",
         "next": "Bạn sẽ điền và gửi hồ sơ người hướng dẫn tại đây để quản trị viên duyệt."
+      }
+    },
+    "student": {
+      "profile": {
+        "title": "Hồ sơ và xác minh",
+        "heading": "Hồ sơ và xác minh",
+        "lead": "Xác minh là sinh viên để vào nhóm của một người hướng dẫn.",
+        "next": "Bạn sẽ cập nhật hồ sơ và xác minh bằng email trường hoặc thẻ sinh viên tại đây."
       }
     }
   },
@@ -539,5 +566,11 @@
     "findWork": "Tìm việc",
     "team": "Nhóm",
     "mentorProfile": "Hồ sơ người hướng dẫn"
+  },
+  "todo": {
+    "identity": {
+      "complete_mentor_application": "Hoàn thành hồ sơ người hướng dẫn",
+      "verify_student": "Xác minh là sinh viên để vào nhóm của người hướng dẫn"
+    }
   }
 }

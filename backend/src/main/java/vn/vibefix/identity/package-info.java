@@ -7,7 +7,7 @@
  * Public API: {@link vn.vibefix.identity.MentorApprovalStatus}. Sign-in, sessions, and the HTTP
  * endpoints are wiring in {@code identity.internal}.
  */
-@ApplicationModule(allowedDependencies = { "shared", "audit" })
+@ApplicationModule(allowedDependencies = { "shared", "audit", "notification" })
 package vn.vibefix.identity;
 
 import org.springframework.modulith.ApplicationModule;

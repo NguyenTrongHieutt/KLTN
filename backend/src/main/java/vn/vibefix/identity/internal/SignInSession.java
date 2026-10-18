@@ -32,8 +32,13 @@ final class SignInSession {
 	private SignInSession() {
 	}
 
+	/**
+	 * A first sign-in waiting for its role (PUB-3).
+	 * @param githubEmail the primary verified email GitHub gave, where notifications will go
+	 * @param token the sign-in token, sealed to the GitHub account
+	 */
 	record PendingSignUp(long githubUserId, String githubLogin, @Nullable String githubAvatarUrl,
-			TokenCipher.@Nullable Sealed token) implements Serializable {
+			@Nullable String githubEmail, TokenCipher.@Nullable Sealed token) implements Serializable {
 
 		/** The associated data that binds the pending token to this GitHub account. */
 		static String tokenAssociatedData(long githubUserId) {

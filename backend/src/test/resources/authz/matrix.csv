@@ -30,3 +30,39 @@ POST /api/v1/session/sign-out,CUSTOMER,,,204
 POST /api/v1/session/sign-out,MENTOR,mentor=REVOKED,,204
 POST /api/v1/session/sign-out,STUDENT,,,204
 POST /api/v1/session/sign-out,ADMINISTRATOR,,,204
+
+# Notifications and to-dos (notification): signed in; each account reads and marks only its own
+# (AD-20). SUBJECT is the recipient of the seeded notification and to-do; everyone else gets 404 on it.
+GET /api/v1/notifications,ANONYMOUS,,,401
+GET /api/v1/notifications,CUSTOMER,,,200
+GET /api/v1/notifications,MENTOR,mentor=PENDING,,200
+GET /api/v1/notifications,STUDENT,,,200
+GET /api/v1/notifications,ADMINISTRATOR,,,200
+GET /api/v1/notifications,SUBJECT,,,200
+GET /api/v1/notifications,CUSTOMER,locked=true,,401
+GET /api/v1/notifications/unread-count,ANONYMOUS,,,401
+GET /api/v1/notifications/unread-count,CUSTOMER,,,200
+GET /api/v1/notifications/unread-count,MENTOR,mentor=PENDING,,200
+GET /api/v1/notifications/unread-count,STUDENT,,,200
+GET /api/v1/notifications/unread-count,ADMINISTRATOR,,,200
+GET /api/v1/notifications/unread-count,SUBJECT,,,200
+GET /api/v1/notifications/unread-count,CUSTOMER,locked=true,,401
+GET /api/v1/todos,ANONYMOUS,,,401
+GET /api/v1/todos,CUSTOMER,,,200
+GET /api/v1/todos,MENTOR,mentor=PENDING,,200
+GET /api/v1/todos,STUDENT,,,200
+GET /api/v1/todos,ADMINISTRATOR,,,200
+GET /api/v1/todos,SUBJECT,,,200
+GET /api/v1/todos,CUSTOMER,locked=true,,401
+POST /api/v1/notifications/{notificationId}/read,ANONYMOUS,,,401
+POST /api/v1/notifications/{notificationId}/read,CUSTOMER,,,404 NOT_FOUND
+POST /api/v1/notifications/{notificationId}/read,MENTOR,,,404 NOT_FOUND
+POST /api/v1/notifications/{notificationId}/read,STUDENT,,,404 NOT_FOUND
+POST /api/v1/notifications/{notificationId}/read,ADMINISTRATOR,,,404 NOT_FOUND
+POST /api/v1/notifications/{notificationId}/read,SUBJECT,,,204
+POST /api/v1/notifications/read-all,ANONYMOUS,,,401
+POST /api/v1/notifications/read-all,CUSTOMER,,,204
+POST /api/v1/notifications/read-all,MENTOR,mentor=PENDING,,204
+POST /api/v1/notifications/read-all,STUDENT,,,204
+POST /api/v1/notifications/read-all,ADMINISTRATOR,,,204
+POST /api/v1/notifications/read-all,SUBJECT,,,204
