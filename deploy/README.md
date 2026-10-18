@@ -4,32 +4,56 @@ The Docker Compose stack of vibefix (AD-26, AD-32) and its checks. The same file
 a laptop and in CI (`.github/workflows/ci.yml`).
 
 ```text
-compose.yaml              the stack: caddy, app, sandbox, egress, postgres
+compose.yaml              the stack: caddy, app, sandbox, checker, egress, postgres
 caddy/Dockerfile          image vibefix-web: the SPA built with Node, served by Caddy
 caddy/Caddyfile           one origin: SPA + /api and /webhooks proxied to app; headers, 15 MB cap
 postgres/initdb/          creates the roles and the database on an empty volume
-egress/squid.conf         the sandbox's egress proxy: CONNECT 443 to GitHub only
+egress/Dockerfile         image vibefix-egress: Squid from Ubuntu 24.04 (pinned by digest), non-root
+egress/squid.conf         two listeners: sandbox to GitHub only (3128), checker to public hosts (3129)
 dev-secrets.sh            creates the local secret files in deploy/secrets/ (ignored by git)
 smoke.sh                  asserts the stack's behaviour (Story 1.2's I/O matrix)
 zap/rules.tsv             OWASP ZAP baseline: the alerts ignored, each with its reason
 ```
 
-The application image `vibefix-app` (`backend/Dockerfile`) runs twice: as `app` (profile `dev`)
-and as `sandbox` (profile `sandbox`, which starts only the sandbox worker).
+The application image `vibefix-app` (`backend/Dockerfile`) runs three times: as `app` (profile
+`dev`), and as `sandbox` and `checker` (profile `sandbox`, which starts only the sandbox worker).
+`checker` runs outbound URL checks (AD-32, AD-35) and serves only the job types listed in
+`vibefix.sandbox.worker.job-types`, set on its command line: for now `HEALTH`, the job channel's
+probe, until the outbound-check handler exists.
 
 | Service | Networks | Notes |
 |---|---|---|
 | `caddy` | `edge` | the only published port: `127.0.0.1:8000` |
-| `app` | `edge`, `data`, `jobs` | uid 10001; reads two secret files; JSON logs |
-| `sandbox` | `jobs` | uid 10001; no secrets, no database, read-only root, 256 MB `/tmp`; 1 GB memory (heap at most half, since the tmpfs counts against the limit), 1 CPU, 256 processes; JVM proxy options on its command line; JSON logs |
-| `egress` | `jobs`, `outbound` | squid (Ubuntu 24.04 LTS image); the only way from `jobs` to the internet, and only to GitHub |
+| `app` | `edge`, `data`, `jobs`, `checks` | uid 10001; reads two secret files; JSON logs |
+| `sandbox` | `jobs` (172.16.238.10) | uid 10001; no secrets, no database, read-only root, 256 MB `/tmp`; 1 GB memory (heap at most half, since the tmpfs counts against the limit), 1 CPU, 256 processes; JVM proxy options (egress:3128) on its command line; JSON logs |
+| `checker` | `checks` (172.16.239.10) | as `sandbox`, with 64 MB `/tmp`, 512 MB memory, half a CPU, 128 processes; proxy egress:3129; only the listed job types |
+| `egress` | `jobs`, `checks`, `outbound` | Squid from Ubuntu 24.04 (`egress/Dockerfile`), user `proxy`, read-only root; the only way from `jobs` and `checks` to the internet; logs to its output |
 | `postgres` | `data` | never published; volume `pgdata` at `/var/lib/postgresql` |
 
-`data` and `jobs` are internal networks: nothing on them reaches the internet directly. Every
-container runs with `TZ=UTC`, none mounts the Docker socket, and Docker rotates every container's
-log (`json-file`, at most 5 files of 10 MB). Dependabot (`.github/dependabot.yml`) proposes minor and
+`data`, `jobs` and `checks` are internal networks: nothing on them reaches the internet directly.
+`sandbox` and `checker` never share a network, so neither can call the other. Every container runs
+with `TZ=UTC`, none mounts the Docker socket, and Docker rotates every container's log
+(`json-file`, at most 5 files of 10 MB). Dependabot (`.github/dependabot.yml`) proposes minor and
 patch updates of the pinned images, actions and packages every week; major versions follow the
 architecture spine and are ignored.
+
+### Egress
+
+`egress` opens HTTPS tunnels (`CONNECT` to port 443) and refuses everything else with 403. Each
+listener admits a single client address, fixed in `compose.yaml` (the `jobs` and `checks` subnets
+lie in 172.16.0.0/16, outside Docker's default address pools):
+
+- **3128, `sandbox` only:** github.com, githubusercontent.com and their subdomains.
+- **3129, `checker` only:** any host, after Squid has resolved the name itself and refused it if any
+  address is private, loopback, link-local (including the 169.254.169.254 metadata address), shared
+  (100.64.0.0/10) or otherwise not public. Squid then connects to the address it checked.
+
+The base image is pinned by digest, but Squid is installed from Ubuntu's security pocket at build
+time. CI therefore rebuilds every image without the layer cache once a week (Monday 03:23 UTC, or by
+hand with "Run workflow"), runs every gate on the result, and publishes the rebuilt egress image as
+`vibefix-egress:<commit>-rebuild-<UTC time>` for `linux/amd64` and `linux/arm64`. The run's summary
+lists its digest and the Squid version on each architecture. A push to `main` publishes
+`vibefix-egress:<commit>` with the other images.
 
 ## Running locally
 

@@ -3,13 +3,16 @@
 #   caddy    SPA, and /api + /webhooks proxied to app; the only published port (127.0.0.1:8000)
 #   app      vibefix-app, profile dev
 #   sandbox  the same image, profile sandbox: no secrets, no database, read-only, limited
-#   egress   squid, the sandbox's only way out (CONNECT 443 to GitHub only)
+#   checker  the same image and profile, serving only the job types it lists (outbound URL checks)
+#   egress   squid (deploy/egress), the only way out for sandbox (GitHub only, port 3128) and
+#            checker (public hosts only, port 3129); CONNECT 443 and nothing else
 #   postgres PostgreSQL 18, never published, volume at /var/lib/postgresql
 #
 # Networks: edge (caddy, app), data (app, postgres; internal), jobs (app, sandbox, egress; internal),
-# outbound (egress). Secrets are files under deploy/secrets/ (deploy/dev-secrets.sh), mounted at
-# /run/secrets/, never environment variables (AD-22). Every container runs in UTC, and none mounts
-# the Docker socket.
+# checks (app, checker, egress; internal), outbound (egress). sandbox and checker never share a
+# network, and egress admits each one only from its fixed address (deploy/egress/squid.conf).
+# Secrets are files under deploy/secrets/ (deploy/dev-secrets.sh), mounted at /run/secrets/, never
+# environment variables (AD-22). Every container runs in UTC, and none mounts the Docker socket.
 #
 #   bash deploy/dev-secrets.sh
 #   docker compose -f deploy/compose.yaml up -d --build --wait
@@ -43,6 +46,18 @@ x-java-healthcheck: &java-healthcheck
   retries: 5
   start_period: 90s
   start_interval: 2s
+
+# The sandbox workers (sandbox, checker) have no readiness group worth waiting for: liveness only.
+x-worker-healthcheck: &worker-healthcheck
+  <<: *java-healthcheck
+  test:
+    - CMD
+    - bash
+    - -c
+    - >-
+      exec 3<>/dev/tcp/127.0.0.1/8080
+      && printf 'GET /actuator/health/liveness HTTP/1.0\r\nHost: localhost\r\n\r\n' >&3
+      && grep -q '"status":"UP"' <&3
 
 services:
   postgres:
@@ -86,6 +101,7 @@ services:
       - edge
       - data
       - jobs
+      - checks
     depends_on:
       postgres:
         condition: service_healthy
@@ -126,20 +142,56 @@ services:
     cpus: 1.0
     pids_limit: 256
     networks:
-      - jobs
+      jobs:
+        # egress's sandbox listener admits only this address (deploy/egress/squid.conf).
+        ipv4_address: 172.16.238.10
     depends_on:
       egress:
         condition: service_healthy
-    healthcheck:
-      <<: *java-healthcheck
-      test:
-        - CMD
-        - bash
-        - -c
-        - >-
-          exec 3<>/dev/tcp/127.0.0.1/8080
-          && printf 'GET /actuator/health/liveness HTTP/1.0\r\nHost: localhost\r\n\r\n' >&3
-          && grep -q '"status":"UP"' <&3
+    healthcheck: *worker-healthcheck
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging: *logging
+    restart: unless-stopped
+
+  # AD-32: outbound URL checks (preview liveness, AD-35). It receives no repository content, uploads
+  # or tokens, and reaches public hosts only through its own egress listener. The worker serves only
+  # the job types listed in vibefix.sandbox.worker.job-types: HEALTH (the channel's probe) until the
+  # outbound-check handler exists.
+  checker:
+    <<: *app-image
+    environment:
+      TZ: UTC
+      SPRING_PROFILES_ACTIVE: sandbox
+    entrypoint:
+      - java
+      - -XX:MaxRAMPercentage=50
+      - -Dhttps.proxyHost=egress
+      - -Dhttps.proxyPort=3129
+      - -Dhttp.proxyHost=egress
+      - -Dhttp.proxyPort=3129
+      - -Dhttp.nonProxyHosts=localhost|127.*|[::1]|app|checker
+      - -Dvibefix.sandbox.worker.job-types=HEALTH
+      - -jar
+      - /app/vibefix-app.jar
+    # No secrets and no database settings (AD-32).
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    mem_limit: 512m
+    memswap_limit: 512m
+    cpus: 0.5
+    pids_limit: 128
+    networks:
+      checks:
+        # egress's checker listener admits only this address (deploy/egress/squid.conf).
+        ipv4_address: 172.16.239.10
+    depends_on:
+      egress:
+        condition: service_healthy
+    healthcheck: *worker-healthcheck
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -148,14 +200,25 @@ services:
     restart: unless-stopped
 
   egress:
-    image: ubuntu/squid:6.6-24.04_beta@sha256:6a097f68bae708cedbabd6188d68c7e2e7a38cedd05a176e1cc0ba29e3bbe029
+    build:
+      context: ./egress
+    image: vibefix-egress:local
     environment:
       TZ: UTC
-    volumes:
-      - ./egress/squid.conf:/etc/squid/squid.conf:ro
+    # Squid runs as the proxy user (uid and gid 13 in Ubuntu; deploy/egress/Dockerfile) and writes
+    # only its PID file and core dumps; logs go to the container's output.
+    read_only: true
+    tmpfs:
+      - /run/squid:size=1m,uid=13,gid=13,mode=0755
+      - /var/spool/squid:size=16m,uid=13,gid=13,mode=0755
     networks:
       - jobs
+      - checks
       - outbound
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     healthcheck:
       # Asks the running squid process itself, so the healthcheck adds nothing to the access log.
       test: ["CMD", "squid", "-k", "check"]
@@ -202,8 +265,21 @@ networks:
   edge: {}
   data:
     internal: true
+  # Fixed subnets, because egress admits sandbox and checker by address. 172.16.0.0/16 lies outside
+  # Docker's default address pools (172.17-172.31, 192.168). Other containers get addresses from the
+  # upper half only, so the fixed .10 addresses are never handed out to them.
   jobs:
     internal: true
+    ipam:
+      config:
+        - subnet: 172.16.238.0/24
+          ip_range: 172.16.238.128/25
+  checks:
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.16.239.0/24
+          ip_range: 172.16.239.128/25
   outbound: {}
 
 volumes:

@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # Asserts the stack rows of Story 1.2's I/O matrix against the running stack (deploy/compose.yaml):
 # health and published ports, the SPA's and the API's security headers, the 15 MB body cap, the
-# paths Caddy never proxies, the sandbox round trip, isolation and egress, UTC and no Docker socket
-# everywhere, a secret from an environment variable refused, and JSON logs without secrets.
+# paths Caddy never proxies, the sandbox and checker round trips and isolation, both egress
+# listeners (AD-26, AD-32), UTC and no Docker socket everywhere, a secret from an environment
+# variable refused, and JSON logs without secrets.
 #
 # Requests run in the pinned curl image on the stack's own networks, exactly where the services see
-# them. Run from anywhere:  bash deploy/smoke.sh
+# them. Egress admits sandbox and checker by address, so their egress requests run inside their own
+# network namespaces. Run from anywhere:  bash deploy/smoke.sh
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
@@ -19,7 +21,7 @@ readonly HSTS="max-age=31536000; includeSubDomains"
 readonly REFERRER="strict-origin-when-cross-origin"
 readonly PERMISSIONS="camera=(), geolocation=(), microphone=(), payment=(), usb=()"
 readonly UUID_RE='[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
-readonly SERVICES="app caddy egress postgres sandbox"
+readonly SERVICES="app caddy checker egress postgres sandbox"
 
 failures=0
 tmp="$(mktemp -d)"
@@ -55,6 +57,25 @@ curl_on() {
 	docker run --rm --network "${PROJECT}_${network}" "$CURL_IMAGE" "$@"
 }
 container_of() { compose ps --quiet "$1"; }
+# curl_as SERVICE ARGS...: curl inside SERVICE's network namespace, so requests leave from its address.
+curl_as() {
+	local service=$1
+	shift
+	docker run --rm --network "container:$(container_of "$service")" "$CURL_IMAGE" "$@"
+}
+# tunnel SERVICE PORT URL: the CONNECT status and HTTP status of URL fetched from SERVICE's
+# address through the egress listener on PORT ("000" where there was none).
+tunnel() {
+	curl_as "$1" -sS -o /dev/null -w '%{http_connect} %{http_code}' --max-time 30 -x "http://egress:$2" "$3" \
+		2>/dev/null || true
+}
+# unreachable SERVICE URL: curl in SERVICE's namespace fails to resolve (6), connect (7) or finish
+# in time (28); a docker failure does not count.
+unreachable() {
+	local exit_code=0
+	quietly curl_as "$1" -sS -o /dev/null --max-time 10 "$2" || exit_code=$?
+	grep -qxE '6|7|28' <<<"$exit_code"
+}
 # Header block of a response, without carriage returns.
 headers_of() { tr -d '\r' <<<"$1" | sed -n '1,/^$/p'; }
 # has_header HEADERS NAME VALUE: the header NAME (any case) has exactly VALUE.
@@ -86,14 +107,14 @@ done)"
 check "only caddy publishes a port, at 127.0.0.1:8000 (got: ${published//$'\n'/; })" \
 	test "$published" = "caddy 127.0.0.1:8000->80/tcp"
 
-echo "== Every container: TZ=UTC, no Docker socket; app and sandbox run as uid 10001"
+echo "== Every container: TZ=UTC, no Docker socket; app, sandbox and checker run as uid 10001"
 for service in $SERVICES; do
 	id="$(container_of "$service")"
 	check "$service has TZ=UTC" grep -qx 'TZ=UTC' <<<"$(docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$id")"
 	check "$service mounts no Docker socket" \
 		not grep -q docker.sock <<<"$(docker inspect --format '{{range .Mounts}}{{.Source}} {{.Destination}}{{println}}{{end}}' "$id")"
 done
-for service in app sandbox; do
+for service in app sandbox checker; do
 	check "$service runs as 10001:10001" test "$(docker inspect --format '{{.Config.User}}' "$(container_of "$service")")" = "10001:10001"
 done
 
@@ -140,39 +161,87 @@ for path in /actuator/health /actuator/env /v3/api-docs /swagger-ui/index.html; 
 		is_spa_page "$headers"
 done
 
-echo "== Sandbox round trip"
+echo "== Sandbox and checker round trips"
 sandbox_health="$(curl_on edge -sS http://app:8080/actuator/health/sandbox || true)"
 check "app /actuator/health/sandbox is UP (got $sandbox_health)" test "$sandbox_health" = '{"status":"UP"}'
-nonce="smoke-$RANDOM-$RANDOM"
-job="$(curl_on jobs -sS -X POST -H 'Content-Type: application/json' \
-	-d "{\"type\":\"HEALTH\",\"input\":{\"nonce\":\"$nonce\"}}" http://sandbox:8080/internal/sandbox/jobs || true)"
-check "HEALTH job echoes the nonce ($job)" grep -qF "\"nonce\":\"$nonce\"" <<<"$job"
-check "HEALTH job sees no secret files" grep -qF '"secretFiles":0' <<<"$job"
-check "HEALTH job sees no datasource" grep -qF '"datasourceConfigured":false' <<<"$job"
+# The workers' job endpoint, on the network each one shares with app.
+for worker in sandbox:jobs checker:checks; do
+	service="${worker%%:*}"
+	nonce="smoke-$RANDOM-$RANDOM"
+	job="$(curl_on "${worker#*:}" -sS -X POST -H 'Content-Type: application/json' \
+		-d "{\"type\":\"HEALTH\",\"input\":{\"nonce\":\"$nonce\"}}" "http://$service:8080/internal/sandbox/jobs" || true)"
+	check "$service: HEALTH job echoes the nonce ($job)" grep -qF "\"nonce\":\"$nonce\"" <<<"$job"
+	check "$service: HEALTH job sees no secret files" grep -qF '"secretFiles":0' <<<"$job"
+	check "$service: HEALTH job sees no datasource" grep -qF '"datasourceConfigured":false' <<<"$job"
+done
+check "checker lists the job types it serves (vibefix.sandbox.worker.job-types=HEALTH)" \
+	grep -qx -- '-Dvibefix.sandbox.worker.job-types=HEALTH' \
+	<<<"$(docker inspect --format '{{range .Config.Entrypoint}}{{println .}}{{end}}' "$(container_of checker)")"
 
-echo "== Sandbox isolation"
-sandbox_id="$(container_of sandbox)"
-check "sandbox root filesystem is read-only" test "$(docker inspect --format '{{.HostConfig.ReadonlyRootfs}}' "$sandbox_id")" = true
-read -r memory nano_cpus pids <<<"$(docker inspect --format \
-	'{{.HostConfig.Memory}} {{.HostConfig.NanoCpus}} {{.HostConfig.PidsLimit}}' "$sandbox_id")"
-check "sandbox has memory, CPU and process limits ($memory bytes, $nano_cpus nano-CPUs, $pids processes)" \
-	positive "${memory:-0}" "${nano_cpus:-0}" "${pids:-0}"
-check "sandbox /tmp is a size-capped tmpfs" grep -q 'size=' <<<"$(docker inspect --format '{{index .HostConfig.Tmpfs "/tmp"}}' "$sandbox_id")"
-check "sandbox mounts nothing (no secrets)" test -z "$(docker inspect --format '{{range .Mounts}}{{.Destination}} {{end}}' "$sandbox_id")"
-check "sandbox is only on the jobs network" \
-	test "$(docker inspect --format '{{range $name, $_ := .NetworkSettings.Networks}}{{$name}} {{end}}' "$sandbox_id")" = "${PROJECT}_jobs "
-check "sandbox environment holds no database settings or secrets" \
-	not grep -qiE "PASSWORD|SECRET|DATASOURCE|VIBEFIX_DB" <<<"$(docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$sandbox_id")"
+echo "== Sandbox and checker isolation"
+for worker in sandbox:jobs checker:checks; do
+	service="${worker%%:*}"
+	id="$(container_of "$service")"
+	check "$service root filesystem is read-only" test "$(docker inspect --format '{{.HostConfig.ReadonlyRootfs}}' "$id")" = true
+	read -r memory nano_cpus pids <<<"$(docker inspect --format \
+		'{{.HostConfig.Memory}} {{.HostConfig.NanoCpus}} {{.HostConfig.PidsLimit}}' "$id")"
+	check "$service has memory, CPU and process limits ($memory bytes, $nano_cpus nano-CPUs, $pids processes)" \
+		positive "${memory:-0}" "${nano_cpus:-0}" "${pids:-0}"
+	check "$service /tmp is a size-capped tmpfs" grep -q 'size=' <<<"$(docker inspect --format '{{index .HostConfig.Tmpfs "/tmp"}}' "$id")"
+	check "$service mounts nothing (no secrets)" test -z "$(docker inspect --format '{{range .Mounts}}{{.Destination}} {{end}}' "$id")"
+	check "$service is only on the ${worker#*:} network" \
+		test "$(docker inspect --format '{{range $name, $_ := .NetworkSettings.Networks}}{{$name}} {{end}}' "$id")" = "${PROJECT}_${worker#*:} "
+	check "$service environment holds no database settings or secrets" \
+		not grep -qiE "PASSWORD|SECRET|DATASOURCE|VIBEFIX_DB" <<<"$(docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$id")"
+	check "$service cannot reach example.com directly" unreachable "$service" https://example.com/
+done
+check "sandbox cannot reach checker by name" unreachable sandbox http://checker:8080/actuator/health/liveness
+check "sandbox cannot reach checker's address" unreachable sandbox http://172.16.239.10:8080/actuator/health/liveness
+check "checker cannot reach sandbox's address" unreachable checker http://172.16.238.10:8080/actuator/health/liveness
 
-echo "== Sandbox egress (from the jobs network)"
-github="$(curl_on jobs -sS -o /dev/null -w '%{http_connect} %{http_code}' --max-time 30 -x http://egress:3128 https://github.com/ || true)"
-check "github.com through egress is allowed (CONNECT/HTTP: $github)" grep -qE '^200 [23][0-9][0-9]$' <<<"$github"
-example="$(curl_on jobs -sS -o /dev/null -w '%{http_connect}' --max-time 30 -x http://egress:3128 https://example.com/ 2>/dev/null || true)"
-check "example.com through egress is refused (CONNECT: $example)" test "$example" = 403
-# curl itself must fail to resolve (6), connect (7) or finish in time (28); a docker failure does not count.
-direct=0
-quietly curl_on jobs -sS -o /dev/null --max-time 10 https://example.com/ || direct=$?
-check "example.com direct is unreachable (curl exit $direct)" grep -qxE '6|7|28' <<<"$direct"
+echo "== Egress, sandbox listener (3128): GitHub only, from the sandbox's address only"
+result="$(tunnel sandbox 3128 https://github.com/)"
+check "sandbox: github.com is allowed (CONNECT/HTTP: $result)" grep -qE '^200 [23][0-9][0-9]$' <<<"$result"
+result="$(tunnel sandbox 3128 https://api.github.com/)"
+check "sandbox: api.github.com is allowed (CONNECT/HTTP: $result)" grep -qE '^200 [2-4][0-9][0-9]$' <<<"$result"
+for url in https://example.com/ https://github.io/ http://github.com/; do
+	result="$(tunnel sandbox 3128 "$url")"
+	check "sandbox: $url is refused (CONNECT/HTTP: $result)" grep -qE '^(403 000|000 403)$' <<<"$result"
+done
+result="$(tunnel sandbox 3129 https://example.com/)"
+check "sandbox: the checker listener refuses it (CONNECT/HTTP: $result)" test "$result" = "403 000"
+result="$(curl_on jobs -sS -o /dev/null -w '%{http_connect}' --max-time 30 -x http://egress:3128 https://github.com/ \
+	2>/dev/null || true)"
+check "another address on the jobs network is refused even for github.com (CONNECT: $result)" test "$result" = 403
+
+echo "== Egress, checker listener (3129): public hosts only, from the checker's address only"
+result="$(tunnel checker 3129 https://example.com/)"
+check "checker: example.com is allowed (CONNECT/HTTP: $result)" grep -qE '^200 [23][0-9][0-9]$' <<<"$result"
+# Loopback, private, shared (100.64.0.0/10), link-local and metadata addresses, the same written as
+# IPv4-mapped IPv6 or a decimal number, and the stack services egress can resolve, by name: their
+# addresses are private.
+for url in https://127.0.0.1/ https://10.0.0.1/ https://192.168.1.1/ https://100.64.0.1/ https://169.254.169.254/ \
+	"https://[::1]/" "https://[::ffff:169.254.169.254]/" https://2130706433/ \
+	https://localhost/ https://app/ https://sandbox/ https://egress/; do
+	result="$(tunnel checker 3129 "$url")"
+	check "checker: $url is refused (CONNECT/HTTP: $result)" test "$result" = "403 000"
+done
+result="$(tunnel checker 3129 http://example.com/)"
+check "checker: plain HTTP is refused (CONNECT/HTTP: $result)" test "$result" = "000 403"
+result="$(tunnel checker 3128 https://github.com/)"
+check "checker: the sandbox listener refuses it (CONNECT/HTTP: $result)" test "$result" = "403 000"
+
+echo "== Egress image: Ubuntu's Squid, unprivileged, read-only, logging to its output"
+egress_id="$(container_of egress)"
+squid_version="$(docker exec "$egress_id" dpkg-query -W -f '${Version}' squid 2>/dev/null || true)"
+check "egress runs Ubuntu's squid package ($squid_version)" grep -qE 'ubuntu' <<<"$squid_version"
+check "egress runs as the proxy user" test "$(docker inspect --format '{{.Config.User}}' "$egress_id")" = proxy
+check "egress root filesystem is read-only" test "$(docker inspect --format '{{.HostConfig.ReadonlyRootfs}}' "$egress_id")" = true
+compose logs --no-color --no-log-prefix egress >"$tmp/egress.log"
+check "egress logs the allowed sandbox tunnel to its output" \
+	grep -qE ' 172\.16\.238\.10 TCP_TUNNEL/200 [0-9]+ CONNECT github\.com:443 ' "$tmp/egress.log"
+check "egress logs the refused checker tunnel to its output" \
+	grep -qE ' 172\.16\.239\.10 TCP_DENIED/403 [0-9]+ CONNECT 169\.254\.169\.254:443 ' "$tmp/egress.log"
 
 echo "== A secret from an environment variable refuses the start (AD-22)"
 run_exit=0
@@ -185,7 +254,7 @@ check "the refusal names the property" grep -q "spring.datasource.password is se
 check "the refusal never shows the value" not grep -q from-the-environment "$tmp/refused.log"
 
 echo "== Logs: JSON lines, no secret values"
-for service in app sandbox; do
+for service in app sandbox checker; do
 	compose logs --no-color --no-log-prefix "$service" >"$tmp/$service.log"
 	check "$service has logged something" test -s "$tmp/$service.log"
 	check "every $service log line is a JSON object" only_json_lines "$tmp/$service.log"
