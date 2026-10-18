@@ -137,9 +137,9 @@ class AuthorizationHarnessIT extends IntegrationTest {
 
 	@Test
 	void aSubjectStateNoFixtureUnderstandsFailsTheRow() {
-		assertThatThrownBy(() -> run("GET /api/v1/fixture/public,CUSTOMER,locked=true,,200"))
+		assertThatThrownBy(() -> run("GET /api/v1/fixture/public,CUSTOMER,nobody-knows=true,,200"))
 			.isInstanceOf(AssertionError.class)
-			.hasMessageContaining("does not understand subject_state [locked]");
+			.hasMessageContaining("does not understand subject_state [nobody-knows]");
 	}
 
 	@Test

@@ -28,7 +28,8 @@ class SecretSourceGuardTest {
 
 	@ParameterizedTest
 	@ValueSource(strings = { "SPRING_DATASOURCE_PASSWORD", "SPRING_DATASOURCE_HIKARI_PASSWORD", "SPRING_FLYWAY_PASSWORD",
-			"DB_APP_PASSWORD", "DB_MIGRATOR_PASSWORD", "db_app_password", "spring.datasource.password" })
+			"DB_APP_PASSWORD", "DB_MIGRATOR_PASSWORD", "db_app_password", "spring.datasource.password",
+			"GITHUB_OAUTH_CLIENT_SECRET", "IDENTITY_TOKEN_KEY_1", "IDENTITY_TOKEN_KEY_12", "identity-token-key-2" })
 	void secretInAnEnvironmentVariableIsRefused(String variable) {
 		StandardEnvironment environment = environmentWith(Map.of(variable, VALUE), Map.of());
 
@@ -40,7 +41,7 @@ class SecretSourceGuardTest {
 
 	@ParameterizedTest
 	@ValueSource(strings = { "db-app-password", "db-migrator-password", "spring.datasource.password",
-			"spring.flyway.password" })
+			"spring.flyway.password", "github-oauth-client-secret", "identity-token-key-1" })
 	void secretInASystemPropertyIsRefused(String property) {
 		StandardEnvironment environment = environmentWith(Map.of(), Map.of(property, ""));
 

@@ -1,5 +1,6 @@
 package vn.vibefix.authz;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request;
 
 import java.io.IOException;
@@ -15,6 +16,7 @@ import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.type.filter.AssignableTypeFilter;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.web.servlet.MockMvc;
@@ -69,6 +71,10 @@ public final class MatrixRowRunner {
 		this.fixtures.forEach(fixture -> fixture.seed(world));
 		MockHttpServletRequestBuilder request = request(row.method(), world.expand(row.path()))
 			.with(realize(row, world));
+		if (row.method() != HttpMethod.GET) {
+			// A command carries the CSRF token as the SPA sends it (AD-19); without it Spring refuses.
+			request.with(csrf());
+		}
 		if (row.body() != null) {
 			request.contentType(MediaType.APPLICATION_JSON).content(world.expand(body(row.body())));
 		}

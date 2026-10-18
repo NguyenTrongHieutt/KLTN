@@ -39,6 +39,9 @@ public final class PostgresTestDatabase {
 
 	static final String TEMPLATE = "vibefix_template";
 
+	/** The token key of test applications (AD-22): random per JVM, like the database passwords. */
+	public static final String TEST_TOKEN_KEY = (UUID.randomUUID().toString() + UUID.randomUUID()).replace("-", "");
+
 	private static final AtomicInteger scratchDatabases = new AtomicInteger();
 
 	private final PostgreSQLContainer container;
@@ -83,7 +86,7 @@ public final class PostgresTestDatabase {
 	public String[] applicationArguments(String database) {
 		return new String[] { "--spring.datasource.url=" + jdbcUrl(database), "--spring.datasource.username=" + APP,
 				"--spring.datasource.password=" + this.appPassword, "--spring.flyway.user=" + MIGRATOR,
-				"--spring.flyway.password=" + this.migratorPassword };
+				"--spring.flyway.password=" + this.migratorPassword, "--identity-token-key-1=" + TEST_TOKEN_KEY };
 	}
 
 	/**
@@ -92,7 +95,7 @@ public final class PostgresTestDatabase {
 	 */
 	public String[] applicationArgumentsWithoutPasswords(String database) {
 		return new String[] { "--spring.datasource.url=" + jdbcUrl(database), "--spring.datasource.username=" + APP,
-				"--spring.flyway.user=" + MIGRATOR };
+				"--spring.flyway.user=" + MIGRATOR, "--identity-token-key-1=" + TEST_TOKEN_KEY };
 	}
 
 	public String appPassword() {

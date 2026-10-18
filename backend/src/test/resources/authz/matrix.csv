@@ -10,3 +10,23 @@ GET /api/v1/environment,CUSTOMER,,,200
 GET /api/v1/environment,MENTOR,,,200
 GET /api/v1/environment,STUDENT,,,200
 GET /api/v1/environment,ADMINISTRATOR,,,200
+
+# The session (identity): public, because each answer is about the caller's own session.
+GET /api/v1/session,ANONYMOUS,,,200
+GET /api/v1/session,CUSTOMER,,,200
+GET /api/v1/session,MENTOR,mentor=PENDING,,200
+GET /api/v1/session,STUDENT,,,200
+GET /api/v1/session,ADMINISTRATOR,,,200
+GET /api/v1/session,CUSTOMER,locked=true,,200
+# Sign-up needs a pending first sign-in in the session; a signed-in account has its role already.
+POST /api/v1/session/sign-up,ANONYMOUS,,session-sign-up.json,404 NOT_FOUND
+POST /api/v1/session/sign-up,CUSTOMER,,session-sign-up.json,409 CONFLICT
+POST /api/v1/session/sign-up,MENTOR,mentor=PENDING,session-sign-up.json,409 CONFLICT
+POST /api/v1/session/sign-up,STUDENT,,session-sign-up.json,409 CONFLICT
+POST /api/v1/session/sign-up,ADMINISTRATOR,,session-sign-up.json,409 CONFLICT
+POST /api/v1/session/sign-up,CUSTOMER,locked=true,session-sign-up.json,404 NOT_FOUND
+POST /api/v1/session/sign-out,ANONYMOUS,,,204
+POST /api/v1/session/sign-out,CUSTOMER,,,204
+POST /api/v1/session/sign-out,MENTOR,mentor=REVOKED,,204
+POST /api/v1/session/sign-out,STUDENT,,,204
+POST /api/v1/session/sign-out,ADMINISTRATOR,,,204

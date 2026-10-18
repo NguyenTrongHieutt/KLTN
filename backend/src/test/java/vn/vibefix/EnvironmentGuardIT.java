@@ -191,8 +191,19 @@ class EnvironmentGuardIT {
 		assertThat(tableExists(db, "platform.flyway_schema_history")).isFalse();
 	}
 
+	@Test
+	void prodRefusesToStartWithoutTheSignInOAuthApp() throws Exception {
+		String db = database.createScratchDatabase();
+
+		assertThatThrownBy(() -> run(new ArrayList<>(List.of(database.applicationArguments(db))), "prod")).rootCause()
+			.hasMessageContaining("github-oauth-client-id")
+			.hasMessageContaining("refusing to start");
+	}
+
 	private static ConfigurableApplicationContext start(String db, String profiles, String... extraArgs) {
 		List<String> args = new ArrayList<>(List.of(database.applicationArguments(db)));
+		// AD-25: production needs the sign-in OAuth App; these scenarios are about the environment.
+		args.addAll(List.of("--github-oauth-client-id=test-client", "--github-oauth-client-secret=test-secret"));
 		args.addAll(List.of(extraArgs));
 		return run(args, profiles);
 	}

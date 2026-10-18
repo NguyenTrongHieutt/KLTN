@@ -28,8 +28,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -58,7 +63,7 @@ import vn.vibefix.shared.Gate;
  * as one JSON line under the same ID, without request headers.
  */
 @WebMvcTest(controllers = ProblemDetailsAdviceTest.ProbeController.class)
-@Import(ProblemDetailsAdviceTest.ProbeController.class)
+@Import({ ProblemDetailsAdviceTest.ProbeController.class, ProblemDetailsAdviceTest.PermitAllSecurity.class })
 @ExtendWith(OutputCaptureExtension.class)
 class ProblemDetailsAdviceTest {
 
@@ -260,6 +265,22 @@ class ProblemDetailsAdviceTest {
 	}
 
 	/** Endpoints that fail on purpose. Nested in a test class, so only this slice registers it. */
+	/**
+	 * The slice gets Boot's default security, which would ask for a sign-in on every probe. These
+	 * tests are about the advice alone, so every request is let through without CSRF.
+	 */
+	@TestConfiguration(proxyBeanMethods = false)
+	static class PermitAllSecurity {
+
+		@Bean
+		SecurityFilterChain permitAll(HttpSecurity http) throws Exception {
+			return http.authorizeHttpRequests(requests -> requests.anyRequest().permitAll())
+				.csrf(AbstractHttpConfigurer::disable)
+				.build();
+		}
+
+	}
+
 	@RestController
 	@RequestMapping("/api/v1/probe")
 	@Access(Gate.PUBLIC)

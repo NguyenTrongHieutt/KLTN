@@ -20,12 +20,83 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["session"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/session/sign-out": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["signOut"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/session/sign-up": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["signUp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AccountView: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            mentorApprovalStatus?: "PENDING" | "APPROVED" | "REJECTED" | "REVOKED";
+            /** @enum {string} */
+            role: "CUSTOMER" | "MENTOR" | "STUDENT" | "ADMINISTRATOR";
+        };
         EnvironmentResponse: {
             name: string;
+        };
+        SessionView: {
+            account?: components["schemas"]["AccountView"];
+            githubAvatarUrl?: string;
+            githubLogin?: string;
+            lockReason?: string;
+            privacyNoticeVersion: string;
+            /** @enum {string} */
+            status: "ANONYMOUS" | "SIGNING_UP" | "LOCKED" | "SIGNED_IN";
+            supportEmail?: string;
+        };
+        SignUpRequest: {
+            privacyNoticeVersion: string;
+            /** @enum {string} */
+            role: "CUSTOMER" | "MENTOR" | "STUDENT";
         };
     };
     responses: never;
@@ -52,6 +123,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EnvironmentResponse"];
+                };
+            };
+        };
+    };
+    session: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionView"];
+                };
+            };
+        };
+    };
+    signOut: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    signUp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignUpRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionView"];
                 };
             };
         };

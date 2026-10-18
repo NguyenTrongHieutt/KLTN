@@ -26,10 +26,85 @@
         },
         "tags" : [ "environment-controller" ]
       }
+    },
+    "/api/v1/session" : {
+      "get" : {
+        "operationId" : "session",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SessionView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "session-controller" ]
+      }
+    },
+    "/api/v1/session/sign-out" : {
+      "post" : {
+        "operationId" : "signOut",
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "session-controller" ]
+      }
+    },
+    "/api/v1/session/sign-up" : {
+      "post" : {
+        "operationId" : "signUp",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SignUpRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SessionView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "session-controller" ]
+      }
     }
   },
   "components" : {
     "schemas" : {
+      "AccountView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "mentorApprovalStatus" : {
+            "type" : "string",
+            "enum" : [ "PENDING", "APPROVED", "REJECTED", "REVOKED" ]
+          },
+          "role" : {
+            "type" : "string",
+            "enum" : [ "CUSTOMER", "MENTOR", "STUDENT", "ADMINISTRATOR" ]
+          }
+        },
+        "required" : [ "id", "role" ]
+      },
       "EnvironmentResponse" : {
         "type" : "object",
         "properties" : {
@@ -38,6 +113,48 @@
           }
         },
         "required" : [ "name" ]
+      },
+      "SessionView" : {
+        "type" : "object",
+        "properties" : {
+          "account" : {
+            "$ref" : "#/components/schemas/AccountView"
+          },
+          "githubAvatarUrl" : {
+            "type" : "string"
+          },
+          "githubLogin" : {
+            "type" : "string"
+          },
+          "lockReason" : {
+            "type" : "string"
+          },
+          "privacyNoticeVersion" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "ANONYMOUS", "SIGNING_UP", "LOCKED", "SIGNED_IN" ]
+          },
+          "supportEmail" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "privacyNoticeVersion", "status" ]
+      },
+      "SignUpRequest" : {
+        "type" : "object",
+        "properties" : {
+          "privacyNoticeVersion" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "role" : {
+            "type" : "string",
+            "enum" : [ "CUSTOMER", "MENTOR", "STUDENT" ]
+          }
+        },
+        "required" : [ "privacyNoticeVersion", "role" ]
       }
     }
   }

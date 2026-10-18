@@ -8,7 +8,8 @@
     "prod": "Chính thức"
   },
   "state": {
-    "loading": "Đang tải…"
+    "loading": "Đang tải…",
+    "retry": "Thử lại"
   },
   "error": {
     "unexpected": "Đã có lỗi. Hãy thử lại sau ít phút.",
@@ -30,7 +31,12 @@
     "signIn": "Đăng nhập",
     "footerNav": "Liên kết cuối trang",
     "privacy": "Quyền riêng tư",
-    "copyright": "© 2026 vibefix · đồ án tốt nghiệp"
+    "copyright": "© 2026 vibefix · đồ án tốt nghiệp",
+    "goToApp": "Vào trang của bạn",
+    "mainNav": "Điều hướng chính",
+    "tabNav": "Điều hướng nhanh",
+    "accountMenu": "Tài khoản của {login}",
+    "signOut": "Đăng xuất"
   },
   "screen": {
     "public": {
@@ -70,6 +76,50 @@
         "title": "Quyền riêng tư",
         "heading": "Quyền riêng tư",
         "lead": "Bản hiện hành của thông báo bạn đồng ý khi dùng vibefix."
+      },
+      "signIn": {
+        "title": "Đăng nhập",
+        "heading": "Đăng nhập vibefix",
+        "lead": "Dùng tài khoản {github} của bạn. vibefix không đọc mật khẩu GitHub.",
+        "button": "Đăng nhập với GitHub",
+        "firstTime": "Lần đầu dùng vibefix?",
+        "firstTimeBody": "Sau khi đăng nhập, bạn chọn mình là khách hàng, người hướng dẫn hay sinh viên. Mỗi tài khoản GitHub chỉ có một vai trò.",
+        "privacy": "Bằng việc tiếp tục, bạn đồng ý với {link}.",
+        "privacyLink": "thông báo quyền riêng tư",
+        "failed": "Chưa đăng nhập được. Hãy thử lại.",
+        "notConfigured": "Đăng nhập GitHub chưa được thiết lập trên máy chủ này.",
+        "lockedTitle": "Tài khoản của bạn đã bị khóa",
+        "lockedReason": "Lý do: {reason}",
+        "lockedContact": "Liên hệ {email} nếu bạn cần trao đổi."
+      },
+      "start": {
+        "title": "Bắt đầu",
+        "heading": "Chào bạn, hãy chọn cách bạn dùng vibefix",
+        "lead": "Mỗi tài khoản GitHub chỉ có một vai trò. Bạn không thể đổi sau khi chọn.",
+        "signedInAs": "Đăng nhập với GitHub: {login}",
+        "roleLegend": "Vai trò của bạn",
+        "customer": "Khách hàng",
+        "customerBody": "Tôi có ứng dụng làm bằng công cụ AI và cần người sửa, hoàn thiện.",
+        "mentor": "Người hướng dẫn",
+        "mentorBody": "Tôi có kinh nghiệm làm phần mềm, muốn nhận việc và hướng dẫn một nhóm sinh viên. Cần quản trị viên duyệt hồ sơ.",
+        "student": "Sinh viên",
+        "studentBody": "Tôi là sinh viên công nghệ thông tin, muốn làm việc thật trong nhóm của một người hướng dẫn. Cần xác minh trước khi vào nhóm.",
+        "permanent": "Vai trò gắn cố định với tài khoản {login}. Muốn dùng vai trò khác, bạn cần một tài khoản GitHub khác.",
+        "noticeHeading": "Thông báo về dữ liệu cá nhân",
+        "noticeVersion": "Phiên bản {version} · 18/10/2026",
+        "noticeCollectedTitle": "vibefix thu thập gì",
+        "noticeCollected": "Danh tính GitHub, email, thông tin hồ sơ bạn nhập, ảnh thẻ sinh viên nếu bạn xác minh bằng thẻ, và hồ sơ cùng tài liệu nếu bạn ứng tuyển làm người hướng dẫn.",
+        "noticePurposeTitle": "Để làm gì",
+        "noticePurpose": "Đăng nhập, liên lạc về công việc, xác minh sinh viên, duyệt người hướng dẫn và giải quyết tranh chấp.",
+        "noticeRetentionTitle": "Giữ trong bao lâu",
+        "noticeRetention": "Đến khi bạn xóa tài khoản, trừ dữ liệu giao dịch phải giữ theo quy định. Ảnh thẻ và tài liệu của người hướng dẫn tự xóa 30 ngày sau khi có quyết định.",
+        "noticeRightsTitle": "Quyền của bạn",
+        "noticeRights": "Xem, tải về và yêu cầu xóa dữ liệu tại \"Dữ liệu của tôi\".",
+        "noticeFull": "Đọc toàn văn thông báo quyền riêng tư",
+        "accept": "Tôi đã đọc và đồng ý với thông báo về dữ liệu cá nhân (phiên bản {version}).",
+        "signOut": "Đăng xuất",
+        "continue": "Tiếp tục",
+        "saving": "Đang lưu…"
       }
     },
     "shared": {
@@ -78,6 +128,29 @@
         "heading": "Không tìm thấy nội dung này.",
         "detail": "Có thể nó đã bị xóa hoặc bạn không có quyền xem.",
         "home": "Về trang chính"
+      },
+      "todo": {
+        "title": "Việc cần làm",
+        "heading": "Việc cần làm",
+        "empty": "Bạn không có việc nào cần làm."
+      },
+      "sessionExpired": {
+        "title": "Phiên đăng nhập đã hết",
+        "body": "Nội dung bạn đang nhập vẫn được giữ. Đăng nhập lại để tiếp tục đúng chỗ này.",
+        "signIn": "Đăng nhập lại",
+        "close": "Đóng"
+      }
+    },
+    "mentor": {
+      "profile": {
+        "title": "Hồ sơ người hướng dẫn",
+        "heading": "Hồ sơ người hướng dẫn",
+        "lead": "Quản trị viên duyệt hồ sơ này trước khi bạn nhận việc và lập nhóm.",
+        "statusPending": "Đang chờ duyệt",
+        "statusApproved": "Đã duyệt",
+        "statusRejected": "Bị từ chối",
+        "statusRevoked": "Đã bị thu hồi",
+        "next": "Bạn sẽ điền và gửi hồ sơ người hướng dẫn tại đây để quản trị viên duyệt."
       }
     }
   },
@@ -457,5 +530,14 @@
     "fundMilestone": {
       "label": "Thanh toán giai đoạn"
     }
+  },
+  "nav": {
+    "todo": "Việc cần làm",
+    "products": "Sản phẩm",
+    "jobs": "Công việc",
+    "notifications": "Thông báo",
+    "findWork": "Tìm việc",
+    "team": "Nhóm",
+    "mentorProfile": "Hồ sơ người hướng dẫn"
   }
 }

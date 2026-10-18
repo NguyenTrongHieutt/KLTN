@@ -5,7 +5,36 @@ import type { paths } from '../api/schema'
  * The only way the SPA talks to the backend (AD-23): the client generated from the backend's
  * OpenAPI document. ESLint bans `fetch` and `openapi-fetch` everywhere else.
  */
-export const apiClient = createClient<paths>({ baseUrl: '' })
+export const apiClient = createClient<paths>({
+  // The page's own origin (AD-26), spelled out: a `Request` outside a browser needs an absolute URL.
+  baseUrl: window.location.origin,
+  // Looked up on each call rather than kept from start-up, so tests can stand in for the backend.
+  fetch: (request) => globalThis.fetch(request),
+})
+
+const SAFE_METHODS = ['GET', 'HEAD', 'OPTIONS']
+
+/**
+ * CSRF is cookie-to-header (AD-19): the backend sets the `XSRF-TOKEN` cookie, and every command
+ * sends it back in `X-XSRF-TOKEN`.
+ */
+apiClient.use({
+  onRequest({ request }) {
+    if (!SAFE_METHODS.includes(request.method)) {
+      const token = readCookie('XSRF-TOKEN')
+      if (token) {
+        request.headers.set('X-XSRF-TOKEN', token)
+      }
+    }
+    return request
+  },
+})
+
+export function readCookie(name: string): string | undefined {
+  const prefix = `${name}=`
+  const cookie = document.cookie.split('; ').find((entry) => entry.startsWith(prefix))
+  return cookie === undefined ? undefined : decodeURIComponent(cookie.slice(prefix.length))
+}
 
 /** The RFC 9457 Problem Details body of an error response; the SPA maps `code` and `reason` to Vietnamese. */
 export interface Problem {

@@ -1,12 +1,15 @@
 package vn.vibefix.shared.internal;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.core.env.ConfigurableEnvironment;
+import org.springframework.core.env.EnumerablePropertySource;
 import org.springframework.core.env.PropertySource;
 import org.springframework.core.env.StandardEnvironment;
 import org.springframework.core.env.SystemEnvironmentPropertySource;
@@ -28,7 +31,15 @@ class SecretSourceGuard implements InitializingBean {
 
 	/** Every secret property of the platform; later stories add theirs (GitHub App keys, SMTP, VNPay). */
 	static final Set<String> SECRET_PROPERTIES = Set.of("spring.datasource.password",
-			"spring.datasource.hikari.password", "spring.flyway.password", "db-app-password", "db-migrator-password");
+			"spring.datasource.hikari.password", "spring.flyway.password", "db-app-password", "db-migrator-password",
+			"github-oauth-client-secret");
+
+	/**
+	 * Secrets that come in numbered versions, matched against the property names of the process
+	 * sources in any spelling Spring would bind ({@code identity-token-key-2}, {@code IDENTITY_TOKEN_KEY_2}).
+	 */
+	static final List<Pattern> SECRET_PATTERNS = List.of(
+			Pattern.compile("identity[-_.]token[-_.]key[-_.]\\d+", Pattern.CASE_INSENSITIVE));
 
 	/** The property source Boot builds from {@code SPRING_APPLICATION_JSON} / {@code spring.application.json}. */
 	static final String APPLICATION_JSON_SOURCE = "spring.application.json";
@@ -61,6 +72,12 @@ class SecretSourceGuard implements InitializingBean {
 				.sorted()
 				.filter(source::containsProperty)
 				.forEach(name -> violations.add(name + " is set in " + kind));
+			if (source instanceof EnumerablePropertySource<?> enumerable) {
+				Arrays.stream(enumerable.getPropertyNames())
+					.filter(name -> SECRET_PATTERNS.stream().anyMatch(pattern -> pattern.matcher(name).matches()))
+					.sorted()
+					.forEach(name -> violations.add(name + " is set in " + kind));
+			}
 		}
 		return violations;
 	}

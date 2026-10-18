@@ -2,12 +2,21 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryRouter, RouterProvider } from 'react-router'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { anonymous, fakeBackend } from '@/test/fakeBackend'
 import { routes } from './routes'
 
 vi.mock('@/features/shared/useEnvironment', () => ({
   useEnvironment: () => ({ data: { name: 'dev' }, isPending: false, isError: false }),
 }))
+
+beforeEach(() => {
+  fakeBackend(anonymous)
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -94,7 +103,7 @@ describe('public routes (UX-DR65, UX-DR70, UX-DR26)', () => {
   })
 
   it('injects no style element at run time on any route', async () => {
-    for (const path of ['/', '/quyen-rieng-tu', '/khong-co']) {
+    for (const path of ['/', '/dang-nhap', '/quyen-rieng-tu', '/khong-co']) {
       renderAt(path)
       await screen.findAllByRole('heading', { level: 1 })
       for (const button of screen.queryAllByRole('button')) {
