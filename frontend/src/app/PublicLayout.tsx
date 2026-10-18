@@ -1,5 +1,7 @@
 import { Link, Outlet } from 'react-router'
 import { buttonVariants } from '@/components/ui/button-variants'
+import { landingPath } from '@/features/identity/api'
+import { useSession } from '@/features/identity/useSession'
 import { useEnvironment } from '@/features/shared/useEnvironment'
 import { t } from '@/i18n/t'
 import { cn } from '@/lib/utils'
@@ -9,11 +11,18 @@ export const MAIN_ID = 'noi-dung-chinh'
 
 /**
  * The frame of every public screen (Accessibility Floor): the skip link, then the header, main,
- * and footer landmarks. Signed-in shells with role navigation arrive with sign-in.
+ * and footer landmarks. A signed-in visitor sees "Vào trang của bạn" instead of "Đăng nhập".
  */
 export function PublicLayout() {
   useFocusHeadingOnNavigate(MAIN_ID)
   const environment = useEnvironment()
+  const session = useSession()
+  const signedInPath =
+    session.data?.status === 'SIGNED_IN'
+      ? landingPath(session.data)
+      : session.data?.status === 'SIGNING_UP'
+        ? '/bat-dau'
+        : undefined
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -33,9 +42,15 @@ export function PublicLayout() {
             {t('app.name')}
           </Link>
           <span className="grow" />
-          <Link to="/dang-nhap" className={buttonVariants({ variant: 'secondary', size: 'compact' })}>
-            {t('shell.signIn')}
-          </Link>
+          {signedInPath ? (
+            <Link to={signedInPath} className={buttonVariants({ variant: 'secondary', size: 'compact' })}>
+              {t('shell.goToApp')}
+            </Link>
+          ) : (
+            <Link to="/dang-nhap" className={buttonVariants({ variant: 'secondary', size: 'compact' })}>
+              {t('shell.signIn')}
+            </Link>
+          )}
         </div>
       </header>
       <main id={MAIN_ID} tabIndex={-1} className="grow focus:outline-none">

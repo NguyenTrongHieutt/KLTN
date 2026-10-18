@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Creates the secret files of the local and CI stack (AD-22) in deploy/secrets/, which git ignores.
-# Each is a random password with no trailing newline. Existing files are kept (and made readable
+# Each is a random value with no trailing newline: the database passwords, and the token key (32
+# bytes in hexadecimal). Existing files are kept (and made readable
 # again), because the PostgreSQL volume already holds their values; pass --force to replace them
 # (then also remove the volume: docker compose -f deploy/compose.yaml down -v).
 #
@@ -22,7 +23,7 @@ umask 077
 mkdir -p "$secrets_dir"
 chmod 700 "$secrets_dir"
 
-for name in db-superuser-password db-app-password db-migrator-password; do
+for name in db-superuser-password db-app-password db-migrator-password identity-token-key-1; do
 	file="$secrets_dir/$name"
 	if [[ -s "$file" && "$force" == false ]]; then
 		chmod 444 "$file"
@@ -39,4 +40,20 @@ for name in db-superuser-password db-app-password db-migrator-password; do
 	printf '%s' "$value" >"$file"
 	chmod 444 "$file"
 	echo "created $name"
+done
+
+# The dev sign-in OAuth App's client ID and secret (AD-10). They cannot be generated: register the
+# app on GitHub (deploy/README.md, "Đăng nhập GitHub trên máy") and paste its values into these
+# files. Until then they are empty, and PUB-2 says sign-in is not set up. Existing files are kept,
+# even with --force.
+for name in github-oauth-client-id github-oauth-client-secret; do
+	file="$secrets_dir/$name"
+	if [[ -e "$file" ]]; then
+		chmod 444 "$file"
+		echo "kept    $name"
+		continue
+	fi
+	: >"$file"
+	chmod 444 "$file"
+	echo "created $name (empty: paste the OAuth App's value)"
 done

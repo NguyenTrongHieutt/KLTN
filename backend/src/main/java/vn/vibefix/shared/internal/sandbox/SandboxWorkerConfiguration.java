@@ -51,7 +51,18 @@ import vn.vibefix.shared.SandboxJobHandler;
 		// runtime dependencies, so named rather than referenced.
 		excludeName = { "org.springframework.modulith.events.jdbc.JdbcEventPublicationAutoConfiguration",
 				"org.springframework.modulith.events.config.EventPublicationAutoConfiguration",
-				"org.springframework.modulith.runtime.autoconfigure.SpringModulithRuntimeAutoConfiguration" })
+				"org.springframework.modulith.runtime.autoconfigure.SpringModulithRuntimeAutoConfiguration",
+				// Sign-in, sessions and CSRF belong to the application (AD-19); the worker has no users, and
+				// the internal network is its only way in (AD-32).
+				"org.springframework.boot.security.autoconfigure.SecurityAutoConfiguration",
+				"org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration",
+				"org.springframework.boot.security.autoconfigure.web.servlet.SecurityFilterAutoConfiguration",
+				"org.springframework.boot.security.autoconfigure.web.servlet.ServletWebSecurityAutoConfiguration",
+				"org.springframework.boot.security.autoconfigure.actuate.web.servlet.ManagementWebSecurityAutoConfiguration",
+				"org.springframework.boot.security.oauth2.client.autoconfigure.OAuth2ClientAutoConfiguration",
+				"org.springframework.boot.security.oauth2.client.autoconfigure.servlet.OAuth2ClientWebSecurityAutoConfiguration",
+				"org.springframework.boot.session.autoconfigure.SessionAutoConfiguration",
+				"org.springframework.boot.session.jdbc.autoconfigure.JdbcSessionAutoConfiguration" })
 @ComponentScan(basePackages = "vn.vibefix", useDefaultFilters = false,
 		includeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = SandboxJobHandler.class))
 @Import(SandboxJobController.class)

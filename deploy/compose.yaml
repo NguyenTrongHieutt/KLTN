@@ -54,6 +54,11 @@ services:
     secrets:
       - db-app-password
       - db-migrator-password
+      # AD-22: the key that seals the kept Customer sign-in tokens.
+      - identity-token-key-1
+      # AD-10: the dev sign-in OAuth App; empty files until it is registered (deploy/README.md).
+      - github-oauth-client-id
+      - github-oauth-client-secret
     ports:
       - "127.0.0.1:8080:8080"
     depends_on:
@@ -122,3 +127,9 @@ secrets:
     file: ./secrets/db-app-password
   db-migrator-password:
     file: ./secrets/db-migrator-password
+  identity-token-key-1:
+    file: ./secrets/identity-token-key-1
+  github-oauth-client-id:
+    file: ./secrets/github-oauth-client-id
+  github-oauth-client-secret:
+    file: ./secrets/github-oauth-client-secret

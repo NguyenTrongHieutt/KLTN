@@ -22,7 +22,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * keep other origins from embedding or opening these responses; the OWASP ZAP baseline in CI asks
  * for them. Everything the SPA loads is same-origin, which they require.
  * <p>
- * Story 1.5 may replace this filter with Spring Security's header writers.
+ * Spring Security's own header writers are off (identity's security configuration), so these are
+ * the only security headers and none is sent twice.
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 1)
@@ -43,6 +44,10 @@ class SecurityHeadersFilter extends OncePerRequestFilter {
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
 			throws ServletException, IOException {
 		HEADERS.forEach(response::setHeader);
+		if (request.getRequestURI().startsWith("/api/")) {
+			// API answers may hold personal data; no browser or proxy cache keeps them.
+			response.setHeader("Cache-Control", "no-store");
+		}
 		chain.doFilter(request, response);
 	}
 

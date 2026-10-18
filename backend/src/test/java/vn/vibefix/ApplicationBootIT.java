@@ -3,6 +3,7 @@ package vn.vibefix;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.matchesPattern;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -99,6 +100,13 @@ class ApplicationBootIT extends IntegrationTest {
 	}
 
 	@Test
+	void withoutTheDevOAuthAppTheSignInButtonReturnsToSignInSayingItIsNotSetUp() throws Exception {
+		this.mvc.perform(get("/oauth2/authorization/github").param("quay-lai", "/viec-can-lam"))
+			.andExpect(status().isFound())
+			.andExpect(header().string("Location", "/dang-nhap?loi=chua-thiet-lap"));
+	}
+
+	@Test
 	void unmappedRouteIsANotFoundProblem() throws Exception {
 		this.mvc.perform(get("/api/v1/nope"))
 			.andExpect(status().isNotFound())
@@ -147,7 +155,8 @@ class ApplicationBootIT extends IntegrationTest {
 			.andExpect(header().string("Cross-Origin-Opener-Policy", "same-origin"))
 			.andExpect(header().string("Cross-Origin-Embedder-Policy", "require-corp"))
 			.andExpect(header().string("Cross-Origin-Resource-Policy", "same-origin"))
-			.andExpect(header().string("X-Correlation-Id", matchesPattern(UUID_PATTERN)));
+			.andExpect(header().string("X-Correlation-Id", matchesPattern(UUID_PATTERN)))
+			.andExpect(header().string("Cache-Control", "no-store"));
 	}
 
 	@Test
@@ -198,7 +207,7 @@ class ApplicationBootIT extends IntegrationTest {
 	void sandboxWorkerIsNotPartOfTheApplication() throws Exception {
 		assertThat(this.context.getBeansOfType(SandboxJobHandler.class)).isEmpty();
 		this.mvc
-			.perform(post("/internal/sandbox/jobs").contentType(MediaType.APPLICATION_JSON)
+			.perform(post("/internal/sandbox/jobs").with(csrf()).contentType(MediaType.APPLICATION_JSON)
 				.content("{\"type\":\"HEALTH\",\"input\":{\"nonce\":\"x\"}}"))
 			.andExpect(status().isNotFound());
 	}

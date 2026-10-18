@@ -58,6 +58,26 @@ random values and keeps existing ones, because the database volume already holds
 replaces them, after which the volume must be deleted too (`down --volumes`). Never commit a secret
 file: `secrets/` is in `.gitignore`.
 
+## Signing in with GitHub locally
+
+Sign-in uses a GitHub OAuth App of the dev environment (AD-10, AD-25). Until it exists, the two
+files `secrets/github-oauth-client-id` and `secrets/github-oauth-client-secret` stay empty, and the
+"Đăng nhập với GitHub" button on http://localhost:5173/dang-nhap answers that sign-in is not set up.
+
+1. On GitHub, under the `vibefix-dev` organization's Settings › Developer settings › OAuth Apps (or
+   your own account's, while that organization does not exist yet), choose New OAuth App:
+   - Homepage URL: `http://localhost:5173`
+   - Authorization callback URL: `http://localhost:5173/login/oauth2/code/github`
+2. Copy the Client ID into `secrets/github-oauth-client-id`, then generate a client secret and copy
+   it into `secrets/github-oauth-client-secret`. Write each value without a trailing newline (the
+   files are read-only: `chmod 644` them first, and `chmod 444` after).
+3. Restart the backend: `docker compose -f deploy/compose.yaml up -d --force-recreate backend`.
+
+The app asks only for `read:user` and `user:email` (FR-1). vibefix keeps the token of a Customer
+only, encrypted with `secrets/identity-token-key-1`, which `dev-secrets.sh` creates; deleting that
+key makes every kept token unreadable. To try a locked account, set it in the database:
+`UPDATE identity.account SET locked_at = now(), lock_reason = '...' WHERE github_login = '...'`.
+
 ## Parked for later (`later/`)
 
 Until the application works in this dev environment, the stack leaves out the production shape and

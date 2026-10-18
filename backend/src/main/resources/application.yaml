@@ -50,6 +50,13 @@ spring:
     web:
       pageable:
         max-page-size: 100
+  # AD-19: sessions live in PostgreSQL (schema platform, created by Flyway, never by the framework);
+  # the cookie is identity.internal.SecurityConfiguration#cookieSerializer.
+  session:
+    timeout: 8h
+    jdbc:
+      table-name: platform.SPRING_SESSION
+      initialize-schema: never
 
 springdoc:
   # Stable key order keeps the committed frontend/src/api/openapi.json diff-free.
@@ -81,6 +88,20 @@ management:
       show-components: always
 
 vibefix:
+  identity:
+    # AD-22: the identity-token-key-{n} secret file that seals new tokens; raise it to rotate.
+    token-key-version: 1
+    # N-10's current version; the SPA shows the same one (frontend/src/i18n/vi.json notice.privacy.version).
+    privacy-notice-version: "2.0"
+    support-email: hotro@vibefix.vn
+    # AD-34: sign-in attempts per client address and minute.
+    sign-in-limit-per-minute: 20
+  github:
+    # AD-10: the sign-in OAuth App's endpoints; its client ID and secret are secret files.
+    oauth:
+      authorization-uri: https://github.com/login/oauth/authorize
+      token-uri: https://github.com/login/oauth/access_token
+      user-info-uri: https://api.github.com/user
   # AD-9: shared.internal.EventPublicationMaintenance resubmits, stalls and purges publications.
   events:
     resubmit-after: 5m
