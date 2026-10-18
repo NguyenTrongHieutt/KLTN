@@ -127,7 +127,7 @@ class Profiles implements ContactVisibility {
 			.query(String.class)
 			.optional()
 			.map(Theme::valueOf)
-			.orElse(Theme.SYSTEM);
+			.orElse(Theme.LIGHT);
 	}
 
 	void saveTheme(UUID accountId, Theme theme) {

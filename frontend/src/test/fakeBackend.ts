@@ -17,7 +17,7 @@ export function signedIn(
     account: {
       id: '00000000-0000-7000-8000-000000000001',
       role,
-      theme: 'SYSTEM',
+      theme: 'LIGHT',
       ...(role === 'MENTOR' ? { mentorApprovalStatus: mentorApprovalStatus ?? 'APPROVED' } : {}),
     },
   }

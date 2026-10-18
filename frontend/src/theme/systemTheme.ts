@@ -1,9 +1,8 @@
 const DARK = '(prefers-color-scheme: dark)'
 
 /**
- * Before sign-in the theme follows the system (UX-DR5): `.dark` on `<html>` while the system asks
- * for dark, updated live. Returns a function that stops following it, for when an account's own
- * choice from the Theme toggle takes over.
+ * "Theo hệ thống" (UX-DR5): `.dark` on `<html>` while the system asks for dark, updated live.
+ * Returns a function that stops following it, for when the account chooses another theme.
  */
 export function applySystemTheme(win: Window = window): () => void {
   const query = win.matchMedia(DARK)

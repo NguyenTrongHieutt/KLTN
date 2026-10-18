@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
 import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
-import { applyTheme } from '@/theme/accountTheme'
+import { applyTheme, DEFAULT_THEME } from '@/theme/accountTheme'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -23,7 +23,7 @@ const customerProfile = (customer: Record<string, unknown> | null = null) => () 
 
 afterEach(() => {
   vi.unstubAllGlobals()
-  applyTheme('SYSTEM')
+  applyTheme(DEFAULT_THEME)
 })
 
 describe('CUS-11 (FR-3, UX-DR44, UX-DR43)', () => {
@@ -152,7 +152,7 @@ describe('the Theme toggle (UX-DR5)', () => {
     renderAt('/viec-can-lam')
 
     await user.click(await screen.findByRole('button', { name: 'Tài khoản của octo-cat' }))
-    expect(await screen.findByRole('menuitemradio', { name: 'Theo hệ thống' })).toHaveAttribute('aria-checked', 'true')
+    expect(await screen.findByRole('menuitemradio', { name: 'Sáng' })).toHaveAttribute('aria-checked', 'true')
     await user.click(screen.getByRole('menuitemradio', { name: 'Tối' }))
 
     expect(document.documentElement).toHaveClass('dark')

@@ -120,10 +120,10 @@ class ProfilesIT extends IntegrationTest {
 	}
 
 	@Test
-	void theThemeIsSavedToTheAccountAndDefaultsToTheSystem() throws Exception {
+	void theThemeIsSavedToTheAccountAndDefaultsToLight() throws Exception {
 		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
 		this.mvc.perform(get("/api/v1/session").with(as(lan, Role.CUSTOMER)))
-			.andExpect(jsonPath("$.account.theme").value("SYSTEM"));
+			.andExpect(jsonPath("$.account.theme").value("LIGHT"));
 
 		this.mvc.perform(put("/api/v1/account/theme").with(as(lan, Role.CUSTOMER)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)

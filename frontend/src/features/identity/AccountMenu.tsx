@@ -2,7 +2,7 @@ import { Menu } from '@base-ui/react/menu'
 import { Check } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { t, type MessageKey } from '@/i18n/t'
-import { applyTheme, type ThemeChoice } from '@/theme/accountTheme'
+import { applyTheme, DEFAULT_THEME, type ThemeChoice } from '@/theme/accountTheme'
 import type { Session } from './api'
 import { useSaveTheme } from './profileApi'
 import { useSignOut } from './useSession'
@@ -27,7 +27,7 @@ export function AccountMenu({ session, offline }: { session: Session; offline: b
   const saveTheme = useSaveTheme()
   const login = session.githubLogin ?? ''
   const role = session.account?.role
-  const theme = session.account?.theme ?? 'SYSTEM'
+  const theme = session.account?.theme ?? DEFAULT_THEME
 
   function chooseTheme(choice: ThemeChoice) {
     applyTheme(choice)
