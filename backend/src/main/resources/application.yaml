@@ -39,6 +39,8 @@ spring:
       "[hibernate.jdbc.time_zone]": UTC
   modulith:
     events:
+      # AD-9: publications left incomplete (failed, or cut off by a stop) are delivered again at start.
+      republish-outstanding-events-on-restart: true
       jdbc:
         # The table is created by Flyway (db/migration/platform), never by the framework.
         schema: platform
@@ -79,6 +81,14 @@ management:
       show-components: always
 
 vibefix:
+  # AD-9: shared.internal.EventPublicationMaintenance resubmits, stalls and purges publications.
+  events:
+    resubmit-after: 5m
+    # Attempts, the first delivery included; then the publication waits in the Administrator queue.
+    max-attempts: 5
+    purge-after: 30d
+    processed-retention: 90d
+    maintenance-interval: 1m
   # AD-32: the sandbox worker that runs untrusted content (same image, profile sandbox).
   sandbox:
     url: http://sandbox:8080

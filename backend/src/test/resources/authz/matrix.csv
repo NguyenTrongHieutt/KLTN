@@ -1,0 +1,12 @@
+# The authorization matrix (AD-20, NFR-1, SM-5). AuthorizationMatrixIT runs every row, and
+# MatrixCoverageIT fails the build when an /api or /webhooks endpoint has no row or a row names an
+# endpoint that does not exist. Format: see vn.vibefix.authz.MatrixRow; callers: MatrixCaller.
+# Every row also runs the canary scan (authz/canaries.csv) for its caller.
+endpoint,caller,subject_state,body,expect
+
+# Which environment this is (shared): public.
+GET /api/v1/environment,ANONYMOUS,,,200
+GET /api/v1/environment,CUSTOMER,,,200
+GET /api/v1/environment,MENTOR,,,200
+GET /api/v1/environment,STUDENT,,,200
+GET /api/v1/environment,ADMINISTRATOR,,,200

@@ -5,12 +5,16 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import vn.vibefix.shared.Access;
+import vn.vibefix.shared.Gate;
+
 /**
  * {@code GET /api/v1/environment}: which environment this deployment is ({@code dev} or
  * {@code prod}), read from {@code platform.environment} through the runtime role.
  */
 @RestController
 @RequestMapping("/api/v1/environment")
+@Access(Gate.PUBLIC)
 class EnvironmentController {
 
 	private final JdbcClient jdbc;
