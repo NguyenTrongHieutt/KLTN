@@ -110,7 +110,7 @@ class NotificationsIT extends IntegrationTest {
 		assertThatThrownBy(() -> inTransaction(() -> this.notifications.send(new NotificationRequest("test.job_update",
 				UUID.randomUUID(), List.of(new Recipient(lan, Audience.CUSTOMER)), Map.of(), "/viec-can-lam",
 				UUID.randomUUID(), null))))
-			.as("no lookup confirms CUSTOMER before job exists")
+			.as("nobody is the CUSTOMER of a Job that does not exist")
 			.isInstanceOf(IllegalArgumentException.class)
 			.hasMessageContaining("not confirmed as CUSTOMER");
 		assertThatThrownBy(() -> send("test.subject_info", UUID.randomUUID(), List.of(new Recipient(lan, Audience.SUBJECT)),

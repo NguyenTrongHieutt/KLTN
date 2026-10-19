@@ -99,3 +99,24 @@ export function useRemoveScreenshot(jobId: string) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [...JOBS_QUERY_KEY, 'detail', jobId] }),
   })
 }
+
+function useTransition(path: '/api/v1/jobs/{jobId}/publish' | '/api/v1/jobs/{jobId}/withdraw') {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (jobId: string) => unwrap(apiClient.POST(path, { params: { path: { jobId } } })),
+    onSuccess: (job) => {
+      queryClient.setQueryData([...JOBS_QUERY_KEY, 'detail', job.id], job)
+      return queryClient.invalidateQueries({ queryKey: [...JOBS_QUERY_KEY, 'list'] })
+    },
+  })
+}
+
+/** CUS-6 "Đăng tin", after N-3: J1 makes the Draft an Open Job Post (FR-9). */
+export function usePublishJob() {
+  return useTransition('/api/v1/jobs/{jobId}/publish')
+}
+
+/** JOB-1 "Rút tin": J2 returns the Open Job Post to Draft (FR-9). */
+export function useWithdrawJob() {
+  return useTransition('/api/v1/jobs/{jobId}/withdraw')
+}

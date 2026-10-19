@@ -219,3 +219,154 @@ describe('CUS-6, drafting a Job (FR-9)', () => {
     expect(document.querySelector('img[src="x"]')).toBeNull()
   })
 })
+
+const complete = {
+  ...draft,
+  expected: 'Khách trả tiền cọc khi đặt bàn.',
+  appUsers: 'Khách đặt bàn trên điện thoại.',
+  version: 0,
+  openedAt: null,
+  lapsesAt: null,
+}
+
+const openJob = {
+  ...complete,
+  state: 'OPEN',
+  version: 1,
+  openedAt: '2026-10-16T03:00:00Z',
+  lapsesAt: '2026-10-30T03:00:00Z',
+}
+
+const call = (request: Request) => `${request.method} ${new URL(request.url, 'http://localhost').pathname}`
+
+describe('Publishing a Job Post and JOB-1 (FR-9, J1, J2)', () => {
+  it('saves the Draft, shows N-3, publishes it, and lands on JOB-1', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    let published = false
+    const seen = fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/jobs/j1': () => json(published ? openJob : complete),
+      'GET /api/v1/products/p1': () => json(product()),
+      'GET /api/v1/catalog': catalog,
+      'PUT /api/v1/jobs/j1': () => json(complete),
+      'POST /api/v1/jobs/j1/publish': () => {
+        published = true
+        return json(openJob)
+      },
+    })
+    renderAt('/cong-viec/j1/sua')
+
+    await user.click(await screen.findByRole('button', { name: 'Đăng tin' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Đăng tin công việc?' })
+    expect(within(dialog).getByText(/Mọi người hướng dẫn đã được duyệt đều đọc được tin này/)).toBeInTheDocument()
+    expect(seen.some((request) => request.method === 'POST')).toBe(false)
+    await user.click(within(dialog).getByRole('button', { name: 'Đăng tin' }))
+
+    expect(await screen.findByRole('heading', { level: 1, name: complete.title })).toBeInTheDocument()
+    expect(screen.getByText('Đang tìm người hướng dẫn')).toBeInTheDocument()
+    const calls = seen.map(call)
+    expect(calls.indexOf('PUT /api/v1/jobs/j1')).toBeGreaterThanOrEqual(0)
+    expect(calls.indexOf('POST /api/v1/jobs/j1/publish')).toBeGreaterThan(calls.indexOf('PUT /api/v1/jobs/j1'))
+  })
+
+  it('names the unanswered questions before N-3', { timeout: 15_000 }, async () => {
+    const user = userEvent.setup()
+    const seen = fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/jobs/j1': () => json(draft),
+      'GET /api/v1/products/p1': () => json(product()),
+      'GET /api/v1/catalog': catalog,
+    })
+    renderAt('/cong-viec/j1/sua')
+
+    await user.click(await screen.findByRole('button', { name: 'Đăng tin' }))
+
+    expect(
+      await screen.findByText('Để đăng tin, hãy trả lời: Bạn muốn nó hoạt động thế nào, Ai dùng ứng dụng này.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(seen.some((request) => request.method !== 'GET')).toBe(false)
+  })
+
+  it('says how many security problems block a Code Job', { timeout: 15_000 }, async () => {
+    const user = userEvent.setup()
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/jobs/j1': () => json(complete),
+      'GET /api/v1/products/p1': () => json(product()),
+      'GET /api/v1/catalog': catalog,
+      'PUT /api/v1/jobs/j1': () => json(complete),
+      'POST /api/v1/jobs/j1/publish': () =>
+        json({ status: 422, code: 'GUARD_FAILED', reason: 'INTAKE_FINDING_OPEN', count: 2 }, 422),
+    })
+    renderAt('/cong-viec/j1/sua')
+
+    await user.click(await screen.findByRole('button', { name: 'Đăng tin' }))
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Đăng tin' }))
+
+    expect((await screen.findAllByText('Chưa thể đăng tin: còn 2 vấn đề bảo mật chưa xử lý.')).length).toBeGreaterThan(0)
+    expect(screen.getByRole('heading', { level: 1, name: 'Sửa công việc' })).toBeInTheDocument()
+  })
+
+  it('shows the Open Job on JOB-1 with what happens next, and withdraws it', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    let withdrawn = false
+    const seen = fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/jobs/j1': () => json(withdrawn ? { ...complete, version: 2 } : openJob),
+      'GET /api/v1/products/p1': () => json(product()),
+      'GET /api/v1/catalog': catalog,
+      'POST /api/v1/jobs/j1/withdraw': () => {
+        withdrawn = true
+        return json({ ...complete, version: 2 })
+      },
+    })
+    renderAt('/cong-viec/j1')
+
+    expect(await screen.findByRole('heading', { level: 1, name: openJob.title })).toBeInTheDocument()
+    expect(screen.getByText('Đang tìm người hướng dẫn')).toBeInTheDocument()
+    expect(screen.getByText('Sổ đặt bàn Quán Mây · Tính năng mới')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Tổng quan' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('heading', { level: 2, name: 'Chưa có đơn ứng tuyển' })).toBeInTheDocument()
+    expect(screen.getByText('Tin hết hạn 30/10')).toBeInTheDocument()
+    expect(screen.getByText('Người hướng dẫn ứng tuyển')).toBeInTheDocument()
+    expect(screen.getByText('Bạn chọn người hướng dẫn')).toBeInTheDocument()
+    expect(screen.getByText('Họ ký cam kết bảo mật và chọn nhóm thực hiện')).toBeInTheDocument()
+    expect(screen.getByText('Nếu bạn chưa chọn ai trước 30/10, tin tự hết hạn và trở về bản nháp.')).toBeInTheDocument()
+    const post = screen.getByRole('region', { name: 'Tin công việc' })
+    expect(within(post).getByText(openJob.expected)).toBeInTheDocument()
+    expect(within(post).getByText('React')).toBeInTheDocument()
+    expect(within(post).getByText(/Ngân sách: 2–5 triệu ₫/)).toBeInTheDocument()
+    expect(within(post).getByText(/đăng 16\/10/)).toBeInTheDocument()
+    expect(screen.getByText(/Mã của sản phẩm nằm trong kho mã công khai/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Sổ đặt bàn Quán Mây' })).toHaveAttribute('href', '/san-pham/p1')
+
+    await user.click(screen.getByRole('button', { name: 'Rút tin' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Rút tin này?' })
+    await user.click(within(dialog).getByRole('button', { name: 'Rút tin' }))
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Sửa công việc' })).toBeInTheDocument()
+    expect(seen.map(call)).toContain('POST /api/v1/jobs/j1/withdraw')
+  })
+
+  it('opens a Draft in CUS-6', { timeout: 15_000 }, async () => {
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/jobs/j1': () => json(complete),
+      'GET /api/v1/products/p1': () => json(product()),
+      'GET /api/v1/catalog': catalog,
+    })
+    const router = renderAt('/cong-viec/j1')
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Sửa công việc' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/cong-viec/j1/sua')
+  })
+
+  it('keeps planted payloads on JOB-1 as text (SG-30)', { timeout: 15_000 }, async () => {
+    const payload = PAYLOADS[0]
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/jobs/j1': () =>
+        json({ ...openJob, title: payload, productName: payload, problem: payload, expected: payload, appUsers: payload, doneCheck: payload }),
+      'GET /api/v1/products/p1': () => json({ ...product(), name: payload }),
+    })
+    renderAt('/cong-viec/j1')
+
+    expect((await screen.findAllByText(payload)).length).toBeGreaterThan(0)
+    expect(document.querySelector('img[src="x"]')).toBeNull()
+  })
+})

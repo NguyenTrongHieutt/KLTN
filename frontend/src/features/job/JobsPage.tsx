@@ -10,6 +10,7 @@ import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t, type MessageKey } from '@/i18n/t'
 import { formatDayMonth } from '@/lib/dates'
 import { useJobs, type JobState, type JobSummary } from './jobApi'
+import { JobStateBadge } from './JobStateBadge'
 
 type Group = 'Decide' | 'Active' | 'Open' | 'Draft' | 'Ended'
 
@@ -26,14 +27,6 @@ const GROUP_OF: Record<JobState, Group> = {
   CLOSING: 'Active',
   CLOSED: 'Ended',
   CANCELLED: 'Ended',
-}
-
-const BADGE: Record<Group, string> = {
-  Decide: 'bg-warning-soft text-warning',
-  Active: 'bg-primary-soft text-primary',
-  Open: 'bg-primary-soft text-primary',
-  Draft: 'bg-muted text-foreground',
-  Ended: 'bg-muted text-foreground',
 }
 
 /**
@@ -105,9 +98,7 @@ function JobGroup({ group, jobs }: { group: Group; jobs: JobSummary[] }) {
                       .join(' · ')}
                   </span>
                 </span>
-                <span className={`rounded-full px-2 py-0.5 text-caption font-semibold ${BADGE[group]}`}>
-                  {t(`screen.job.state${job.state}` as MessageKey)}
-                </span>
+                <JobStateBadge state={job.state} />
               </Link>
             </li>
           ))}

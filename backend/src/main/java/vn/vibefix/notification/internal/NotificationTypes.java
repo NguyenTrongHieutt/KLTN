@@ -112,13 +112,18 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType SCANNING_FINDING_OPENED = new NotificationType("scanning.finding_opened",
 			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("type", "product"));
 
+	/** An Open Job Post's selection period lapsed and it returned to Draft (FR-9): the Customer. */
+	static final NotificationType JOB_POST_LAPSED = new NotificationType("job.job_post_lapsed",
+			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
+
 	@Override
 	public List<NotificationType> notificationTypes() {
 		return List.of(SCHOOL_EMAIL_CODE, VERIFICATION_EXPIRING, VERIFICATION_EXPIRED, ADMIN_SIGN_IN_LOCKED,
 				ADMINISTRATOR_CREATED, ADMINISTRATOR_ENROLMENT, STUDENT_CARD_APPROVED, STUDENT_CARD_REJECTED,
 				MENTOR_APPLICATION_RECEIVED, MENTOR_APPROVED, MENTOR_REJECTED, TEAM_INVITATION_RECEIVED,
 				TEAM_INVITATION_ANSWERED, TEAM_JOIN_REQUEST_RECEIVED, TEAM_JOIN_REQUEST_ANSWERED, TEAM_RELEASED,
-				TEAM_MEMBER_LEFT, TEAM_MEMBER_REMOVED, SCANNING_INTAKE_SCAN_CLEAN, SCANNING_FINDING_OPENED);
+				TEAM_MEMBER_LEFT, TEAM_MEMBER_REMOVED, SCANNING_INTAKE_SCAN_CLEAN, SCANNING_FINDING_OPENED,
+				JOB_POST_LAPSED);
 	}
 
 	@Override

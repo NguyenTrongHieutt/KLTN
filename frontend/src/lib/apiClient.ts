@@ -54,6 +54,10 @@ export interface Problem {
   correlationId?: string
   /** A wrong step-up code: how many tries are left before sign-in locks (SG-10). */
   attemptsLeft?: number
+  /** `INTAKE_FINDING_OPEN`: how many Intake Findings are still open (FR-8). */
+  count?: number
+  /** `JOB_INCOMPLETE`: the answers publishing still needs (FR-9). */
+  missing?: string[]
 }
 
 export class ApiError extends Error {

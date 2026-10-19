@@ -1082,13 +1082,21 @@
       "editedOn": "sửa lần cuối {date}",
       "stateDRAFT": "Bản nháp",
       "stateOPEN": "Đang tìm người hướng dẫn",
-      "stateSELECTING": "Đang chọn người hướng dẫn",
-      "stateAGREEMENT": "Đang thỏa thuận",
-      "stateSTARTING": "Đang chuẩn bị",
+      "stateSELECTING": "Chờ người hướng dẫn ký cam kết bảo mật",
+      "stateAGREEMENT": "Đang thống nhất thỏa thuận",
+      "stateSTARTING": "Đang chuẩn bị kho mã",
       "stateACTIVE": "Đang thực hiện",
       "stateCLOSING": "Đang kết thúc",
       "stateCLOSED": "Đã hoàn thành",
       "stateCANCELLED": "Đã hủy",
+      "mentorStateOPEN": "Đang nhận ứng tuyển",
+      "mentorStateSELECTING": "Chờ bạn ký cam kết bảo mật",
+      "mentorStateAGREEMENT": "Đang soạn thỏa thuận · chọn nhóm thực hiện",
+      "mentorStateSTARTING": "Đang chuẩn bị kho mã",
+      "mentorStateACTIVE": "Đang thực hiện",
+      "mentorStateCLOSING": "Đang kết thúc",
+      "mentorStateCLOSED": "Đã hoàn thành",
+      "mentorStateCANCELLED": "Đã hủy",
       "form": {
         "newTitle": "Đăng công việc",
         "editTitle": "Sửa công việc",
@@ -1134,7 +1142,61 @@
         "save": "Lưu nháp",
         "saving": "Đang lưu…",
         "saved": "Đã lưu nháp.",
-        "titleRequired": "Hãy đặt tên cho công việc."
+        "titleRequired": "Hãy đặt tên cho công việc.",
+        "publish": "Đăng tin",
+        "publishing": "Đang đăng…",
+        "publishTitle": "Đăng tin công việc?",
+        "publishBack": "Quay lại",
+        "publishMissing": "Để đăng tin, hãy trả lời: {fields}.",
+        "publishFindings": "Chưa thể đăng tin: còn {n} vấn đề bảo mật chưa xử lý.",
+        "missingProblem": "Điều gì đang chưa đúng",
+        "missingExpected": "Bạn muốn nó hoạt động thế nào",
+        "missingAppUsers": "Ai dùng ứng dụng này",
+        "missingJobTypes": "Loại công việc",
+        "missingBudget": "Ngân sách dự kiến",
+        "missingDeadline": "Mong muốn xong trước",
+        "published": "Đã đăng tin.",
+        "publishAction": "đăng tin"
+      },
+      "detail": {
+        "breadcrumb": "Công việc",
+        "lapsesChip": "Tin hết hạn {date}",
+        "applicationsTitle": "Chưa có đơn ứng tuyển",
+        "applicationsBody": "Tin của bạn đang hiện với người hướng dẫn đã được vibefix duyệt.",
+        "nextTitle": "Điều gì xảy ra tiếp theo",
+        "nextApply": "Người hướng dẫn ứng tuyển",
+        "nextApplyBody": "Họ đọc tin, xem mã công khai rồi gửi giá, thời gian và cách làm.",
+        "nextChoose": "Bạn chọn người hướng dẫn",
+        "nextChooseBody": "Bạn so sánh các đơn và chọn một người.",
+        "nextSign": "Họ ký cam kết bảo mật và chọn nhóm thực hiện",
+        "nextSignBody": "Sau khi ký, hai bên trao đổi trong Trò chuyện và soạn thỏa thuận.",
+        "lapseNote": "Nếu bạn chưa chọn ai trước {date}, tin tự hết hạn và trở về bản nháp.",
+        "postTitle": "Tin công việc",
+        "problem": "Điều gì đang chưa đúng?",
+        "expected": "Bạn muốn nó hoạt động thế nào?",
+        "appUsers": "Ai dùng ứng dụng này?",
+        "doneCheck": "Làm sao bạn biết việc đã xong?",
+        "skills": "Kỹ năng cần có:",
+        "budget": "Ngân sách: {budget}",
+        "test": "THỬ NGHIỆM",
+        "deadline": "Mong muốn xong trước {date}",
+        "openedOn": "đăng {date}",
+        "publicCode": "Mã của sản phẩm nằm trong kho mã công khai, nên người hướng dẫn đọc được mã trước khi ứng tuyển. Đừng để khóa bí mật hay dữ liệu khách hàng trong kho mã.",
+        "upcoming": "Hạn sắp tới",
+        "lapses": "Tin hết hạn",
+        "product": "Sản phẩm",
+        "productFindings": "Còn {n} vấn đề cần xử lý",
+        "productFindingsAssessment": "Còn {n} vấn đề cần xử lý · không ảnh hưởng công việc đánh giá",
+        "tabs": "Công việc",
+        "overview": "Tổng quan",
+        "withdraw": "Rút tin",
+        "withdrawTitle": "Rút tin này?",
+        "withdrawBody": "Tin trở về bản nháp và người hướng dẫn không thấy tin nữa. Bạn có thể sửa rồi đăng lại.",
+        "withdrawConfirm": "Rút tin",
+        "withdrawCancel": "Giữ tin",
+        "withdrawing": "Đang rút…",
+        "withdrawn": "Đã rút tin. Tin đã trở về bản nháp.",
+        "notYet": "Trang này của công việc sẽ có khi công việc đến bước tiếp theo."
       }
     }
   },
@@ -1653,6 +1715,11 @@
       "finding_opened": {
         "title": "Phát hiện {type} trong {product}"
       }
+    },
+    "job": {
+      "job_post_lapsed": {
+        "title": "Tin {job} đã hết hạn và trở về bản nháp"
+      }
     }
   },
   "reason": {
@@ -1719,7 +1786,11 @@
       "ASSESSMENT_ALONE": "Công việc đánh giá không đi cùng loại công việc khác.",
       "OPEN_FINDINGS": "Sản phẩm còn vấn đề cần xử lý, nên lúc này chỉ đặt được công việc đánh giá.",
       "JOB_NOT_DRAFT": "Công việc này đã được đăng, không sửa ở đây được nữa.",
-      "JOB_FILE_QUOTA": "Ảnh chụp màn hình của một công việc tối đa 200 MB."
+      "JOB_FILE_QUOTA": "Ảnh chụp màn hình của một công việc tối đa 200 MB.",
+      "JOB_INCOMPLETE": "còn câu hỏi chưa trả lời, hoặc chưa chọn loại công việc, ngân sách hay ngày mong muốn xong sau hôm nay",
+      "INTAKE_FINDING_OPEN": "còn vấn đề bảo mật chưa xử lý",
+      "STATE_CHANGED": "công việc vừa đổi trạng thái",
+      "JOB_FROZEN": "công việc đang tạm dừng vì có tranh chấp"
     }
   }
 }
