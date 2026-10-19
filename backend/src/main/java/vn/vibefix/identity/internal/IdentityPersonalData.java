@@ -2,6 +2,7 @@ package vn.vibefix.identity.internal;
 
 import java.sql.Timestamp;
 import java.time.Clock;
+import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,8 +19,9 @@ import vn.vibefix.shared.PersonalDataSection;
 
 /**
  * {@code identity}'s part in exports and erasure (AD-24). An erased account keeps its row, so the
- * records that name it still resolve, but loses its GitHub identity, its avatar, and its kept token;
- * its acknowledgments stay as the proof of what it agreed to.
+ * records that name it still resolve, but loses its GitHub identity, its avatar, its kept token,
+ * its profiles, its school email codes, and its verification (so its school address no longer counts
+ * as used); its acknowledgments stay as the proof of what it agreed to.
  */
 @Component
 class IdentityPersonalData implements PersonalDataParticipant {
@@ -43,7 +45,7 @@ class IdentityPersonalData implements PersonalDataParticipant {
 	public Set<String> tables() {
 		return Set.of("identity.account", "identity.acknowledgment", "identity.customer_token",
 				"identity.customer_profile", "identity.student_profile", "identity.showcase_repository",
-				"identity.contact_grant");
+				"identity.contact_grant", "identity.school_email_code", "identity.student_verification");
 	}
 
 	@Override
@@ -68,6 +70,25 @@ class IdentityPersonalData implements PersonalDataParticipant {
 			this.profiles.customer(accountId).ifPresent(profile -> data.put("customerProfile", profile));
 			this.profiles.student(accountId).ifPresent(profile -> data.put("studentProfile", profile));
 			data.put("theme", this.profiles.theme(accountId).name());
+			this.jdbc.sql("""
+					SELECT method, school_email, verified_at, valid_until FROM identity.student_verification
+					WHERE account_id = :id
+					""").param("id", accountId).query((rs, n) -> {
+				Map<String, Object> verification = new LinkedHashMap<>();
+				verification.put("method", rs.getString("method"));
+				verification.put("schoolEmail", rs.getString("school_email"));
+				verification.put("verifiedAt", rs.getTimestamp("verified_at").toInstant().toString());
+				verification.put("validUntil", rs.getObject("valid_until", LocalDate.class).toString());
+				return verification;
+			}).optional().ifPresent(verification -> data.put("studentVerification", verification));
+			// The addresses and times of the codes, never the codes: only their hashes are kept.
+			List<Map<String, String>> codes = this.jdbc.sql("""
+					SELECT email, sent_at FROM identity.school_email_code WHERE account_id = :id ORDER BY sent_at
+					""").param("id", accountId).query((rs, n) -> Map.of("email", rs.getString("email"), "sentAt",
+					rs.getTimestamp("sent_at").toInstant().toString())).list();
+			if (!codes.isEmpty()) {
+				data.put("schoolEmailCodes", codes);
+			}
 			return new PersonalDataSection("identity", data);
 		});
 	}
@@ -76,7 +97,7 @@ class IdentityPersonalData implements PersonalDataParticipant {
 	public void eraseAccount(UUID accountId) {
 		this.jdbc.sql("DELETE FROM identity.customer_token WHERE account_id = :id").param("id", accountId).update();
 		for (String table : new String[] { "identity.customer_profile", "identity.student_profile",
-				"identity.showcase_repository" }) {
+				"identity.showcase_repository", "identity.school_email_code", "identity.student_verification" }) {
 			this.jdbc.sql("DELETE FROM " + table + " WHERE account_id = :id").param("id", accountId).update();
 		}
 		this.jdbc.sql("""

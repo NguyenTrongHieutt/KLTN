@@ -20,6 +20,34 @@ function fields(instant: string): Record<string, string> {
   return values
 }
 
+const dated = new Intl.DateTimeFormat('vi-VN', {
+  timeZone: 'Asia/Ho_Chi_Minh',
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+})
+
+/** "09:41". */
+export function formatTime(instant: string): string {
+  const { hour, minute } = fields(instant)
+  return `${hour}:${minute}`
+}
+
+/** "01/10/2026": the day of an instant, in Vietnam. */
+export function formatDate(instant: string): string {
+  const values: Record<string, string> = {}
+  for (const part of dated.formatToParts(new Date(instant))) {
+    values[part.type] = part.value
+  }
+  return `${values.day}/${values.month}/${values.year}`
+}
+
+/** "30/09/2027": a calendar date the server sends as `YYYY-MM-DD`, with no time zone to apply. */
+export function formatCalendarDate(date: string): string {
+  const [year, month, day] = date.split('-')
+  return `${day}/${month}/${year}`
+}
+
 /** "23/10". */
 export function formatDayMonth(instant: string): string {
   const { day, month } = fields(instant)

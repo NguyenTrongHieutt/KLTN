@@ -49,12 +49,15 @@ export interface Problem {
 export class ApiError extends Error {
   readonly status: number
   readonly problem: Problem
+  /** `RATE_LIMITED`'s `Retry-After`, in seconds (AD-34). */
+  readonly retryAfter?: number
 
-  constructor(status: number, problem: Problem) {
+  constructor(status: number, problem: Problem, retryAfter?: number) {
     super(`API error ${status}${problem.code ? ` ${problem.code}` : ''}`)
     this.name = 'ApiError'
     this.status = status
     this.problem = problem
+    this.retryAfter = retryAfter
   }
 }
 
@@ -68,7 +71,12 @@ export async function unwrap<T>(
 ): Promise<T> {
   const { data, error, response } = await request
   if (!response.ok) {
-    throw new ApiError(response.status, isProblem(error) ? error : {})
+    const retryAfter = Number(response.headers.get('Retry-After'))
+    throw new ApiError(
+      response.status,
+      isProblem(error) ? error : {},
+      Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined,
+    )
   }
   return data as T
 }

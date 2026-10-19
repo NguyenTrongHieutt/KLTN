@@ -29,11 +29,13 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
+import vn.vibefix.shared.RateLimitedException;
 
 /**
  * Turns every error into RFC 9457 Problem Details (AD-23).
  * <ul>
- * <li>{@link ApiException}: its code's status, {@code code}, and {@code reason} when given.</li>
+ * <li>{@link ApiException}: its code's status, {@code code}, and {@code reason} when given; a
+ * {@link RateLimitedException} adds {@code Retry-After} (AD-34).</li>
  * <li>Spring's own exceptions: {@code code} from the status ({@link ErrorCode#forStatus}).</li>
  * <li>Bean validation: {@code VALIDATION} plus {@code errors: [{field, code}]}, where the code is
  * the constraint name (for example {@code NotBlank}).</li>
@@ -67,7 +69,11 @@ class ProblemDetailsAdvice extends ResponseEntityExceptionHandler {
 		body.setProperty(CODE, ex.code().name());
 		ex.reason().ifPresent(reason -> body.setProperty(REASON, reason));
 		addCorrelationId(body, ex.code().status());
-		return ResponseEntity.status(ex.code().status()).body(body);
+		ResponseEntity.BodyBuilder response = ResponseEntity.status(ex.code().status());
+		if (ex instanceof RateLimitedException limited) {
+			response.header(HttpHeaders.RETRY_AFTER, Long.toString(limited.retryAfterSeconds()));
+		}
+		return response.body(body);
 	}
 
 	/**

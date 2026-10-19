@@ -4,6 +4,7 @@
  * Public API:
  * <ul>
  * <li>Errors and lists (AD-23): {@link vn.vibefix.shared.ErrorCode}, {@link vn.vibefix.shared.ApiException},
+ * {@link vn.vibefix.shared.RateLimitedException} (AD-34),
  * {@link vn.vibefix.shared.PageResponse}; money: {@link vn.vibefix.shared.Money}; IDs:
  * {@link vn.vibefix.shared.IdGenerator}.</li>
  * <li>Authorization (AD-20): the caller ({@link vn.vibefix.shared.Caller},

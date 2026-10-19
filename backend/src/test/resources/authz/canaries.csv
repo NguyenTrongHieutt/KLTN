@@ -21,3 +21,4 @@ TEAM_ISSUE_ID,01923c4f-5a6b-7c8d-9e0f-1a2b3c4d5e6f,JOB_MENTOR,the ID of a Team I
 NOTIFICATION_PARAM,canary-notification-5e1a3b,SUBJECT,a parameter of another account's notification (SUBJECT is its recipient)
 TODO_PARAM,canary-todo-9a4c27,SUBJECT,a parameter of another account's to-do (SUBJECT is its recipient)
 CONTACT_EMAIL,canary.contact.4d8e@example.test,SUBJECT ADMINISTRATOR,a Customer's contact email (SUBJECT is that Customer)
+SCHOOL_EMAIL,canary.school.7b2d@truong.test,ADMINISTRATOR,another Student's verified school email

@@ -16,6 +16,7 @@ import { formatDayMonthTime } from '@/lib/dates'
 import { fieldMessage, serverFieldErrors, zodFieldErrors } from '@/lib/formErrors'
 import { problemMessage } from '@/lib/problemMessage'
 import { useProfile, useSaveStudentProfile, type Profile } from './profileApi'
+import { StudentVerificationCard } from './StudentVerificationCard'
 
 /** The repositories a Student shows, at most 5 (FR-4). */
 export const MAX_REPOSITORIES = 5
@@ -46,10 +47,10 @@ const LABELS: Record<Field, string> = {
 }
 
 /**
- * STU-5 (`/ho-so`), the profile part (FR-4, FR-51): real name, school, year of study, LinkedIn, the
+ * STU-5 (`/ho-so`), "Hồ sơ và xác minh": the profile part (FR-4, FR-51): real name, school, year of study, LinkedIn, the
  * public-name choice (hidden by default), and up to 5 showcased repositories, shown as links only;
- * their code is never fetched. The GitHub username comes from sign-in. Verification arrives with
- * Stories 1.9 and 1.13.
+ * their code is never fetched. The GitHub username comes from sign-in. The verification card comes
+ * first (FR-5, Story 1.9); the student-card path arrives with Story 1.13.
  */
 export function StudentProfilePage() {
   usePageTitle(t('screen.student.profile.title'))
@@ -58,19 +59,27 @@ export function StudentProfilePage() {
   return (
     <div className="mx-auto flex max-w-reading-max flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
       <PageHeading>{t('screen.student.profile.heading')}</PageHeading>
-      <p className="rounded-lg border border-border bg-card p-4 text-body-sm">{t('screen.student.profile.next')}</p>
-      <RegionState
-        query={profile}
-        skeleton={
-          <div className="flex flex-col gap-4">
-            {[0, 1, 2, 3].map((row) => (
-              <Skeleton key={row} className="h-16 w-full" />
-            ))}
-          </div>
-        }
+      <StudentVerificationCard />
+      <section
+        aria-labelledby="profile-heading"
+        className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 md:p-6"
       >
-        {profile.data && <StudentForm profile={profile.data} />}
-      </RegionState>
+        <h2 id="profile-heading" className="text-h2">
+          {t('screen.student.profile.section')}
+        </h2>
+        <RegionState
+          query={profile}
+          skeleton={
+            <div className="flex flex-col gap-4">
+              {[0, 1, 2, 3].map((row) => (
+                <Skeleton key={row} className="h-16 w-full" />
+              ))}
+            </div>
+          }
+        >
+          {profile.data && <StudentForm profile={profile.data} />}
+        </RegionState>
+      </section>
     </div>
   )
 }
