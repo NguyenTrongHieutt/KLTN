@@ -7,6 +7,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -57,7 +58,8 @@ class TeamViews {
 			List<String> skills, boolean available, int teamSize) {
 	}
 
-	record TeamMemberRow(UUID membershipId, TeamStudentView student, Instant joinedAt) {
+	/** @param onCrew on a running Crew: they can neither leave nor be removed (AD-37) */
+	record TeamMemberRow(UUID membershipId, TeamStudentView student, Instant joinedAt, boolean onCrew) {
 	}
 
 	/** An invitation or join request on MEN-6, with its Student. */
@@ -97,8 +99,9 @@ class TeamViews {
 	record TeamListedMember(String name, @Nullable String school, boolean you) {
 	}
 
+	/** @param onCrew the Student is on a running Crew, so they cannot leave yet (AD-37) */
 	record StudentTeamMembership(TeamMentorView mentor, Status status, Instant joinedAt, int size,
-			List<TeamListedMember> listed) {
+			List<TeamListedMember> listed, boolean onCrew) {
 	}
 
 	/** STU-6. */
@@ -172,6 +175,7 @@ class TeamViews {
 		List<Member> members = this.store.members(teamId);
 		List<Request> joinRequests = this.store.pendingOfTeam(teamId, Kind.JOIN_REQUEST);
 		List<Request> invitations = this.store.pendingOfTeam(teamId, Kind.INVITATION);
+		Set<UUID> onCrew = this.store.reservedAmong(members.stream().map(Member::membershipId).toList());
 		Map<UUID, StudentCard> cards = studentCards(concat(members.stream().map(Member::studentId).toList(),
 				joinRequests.stream().map(Request::studentId).toList(), invitations.stream().map(Request::studentId).toList()));
 		return Optional.of(new MentorTeamView(team.get().status(), members.size(), Teams.SIZE_LIMIT,
@@ -179,7 +183,8 @@ class TeamViews {
 				members.stream()
 					.filter(member -> cards.containsKey(member.studentId()))
 					.map(member -> new TeamMemberRow(member.membershipId(),
-							TeamStudentView.of(cards.get(member.studentId())), member.joinedAt()))
+							TeamStudentView.of(cards.get(member.studentId())), member.joinedAt(),
+							onCrew.contains(member.membershipId())))
 					.toList(),
 				studentRows(joinRequests, cards), studentRows(invitations, cards)));
 	}
@@ -246,7 +251,7 @@ class TeamViews {
 					}
 				}
 				return new StudentTeamMembership(found, this.store.byId(member.teamId()).status(), member.joinedAt(),
-						members.size(), listed);
+						members.size(), listed, this.store.reserved(member.membershipId()));
 			});
 		}).orElse(null);
 		List<Request> pending = this.store.pendingOfStudent(studentId);

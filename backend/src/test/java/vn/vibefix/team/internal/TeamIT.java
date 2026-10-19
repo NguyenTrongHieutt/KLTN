@@ -293,6 +293,8 @@ class TeamIT extends IntegrationTest {
 		assertThat(statuses).containsOnlyOnce(200).hasSize(2).allMatch(code -> code == 200 || code == 422 || code == 409);
 		assertThat(this.jdbc.sql("SELECT count(*) FROM team.membership WHERE student_account_id = :id AND left_at IS NULL")
 			.param("id", this.minh).query(Long.class).single()).isOne();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM team.team_request WHERE student_account_id = :id AND status = 'PENDING'")
+			.param("id", this.minh).query(Long.class).single()).as("the loser's request is cancelled").isZero();
 	}
 
 	@Test
@@ -332,8 +334,8 @@ class TeamIT extends IntegrationTest {
 		await().atMost(Duration.ofSeconds(10)).until(() -> this.store.sizeOf(this.hung) == 0 && settled());
 		assertThat(this.store.byMentor(this.hung).orElseThrow().status()).isEqualTo(TeamStore.Status.CLOSED);
 		assertThat(requestStatus(pending)).isEqualTo("CANCELLED");
-		assertThat(notificationParam(this.minh, TeamLifecycle.RELEASED, "mentor")).isEqualTo("Đỗ Mạnh Hùng");
-		assertThat(notificationParam(vy, TeamLifecycle.RELEASED, "mentor")).isEqualTo("Đỗ Mạnh Hùng");
+		assertThat(notificationParam(this.minh, TeamMemberships.RELEASED, "mentor")).isEqualTo("Đỗ Mạnh Hùng");
+		assertThat(notificationParam(vy, TeamMemberships.RELEASED, "mentor")).isEqualTo("Đỗ Mạnh Hùng");
 		joinRequest(tung, this.hung).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("TEAM_CLOSED"));
 		this.mvc.perform(get("/api/v1/mentors/" + TeamTestSupport.login(this.jdbc, this.hung)))
 			.andExpect(jsonPath("$.available").value(false));

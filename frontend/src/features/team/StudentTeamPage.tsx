@@ -15,6 +15,7 @@ import { ConfirmDialog } from './ConfirmDialog'
 import { MentorProfileContent } from './MentorProfileContent'
 import {
   useAnswerInvitation,
+  useLeaveTeam,
   useMentorSearch,
   usePublicMentor,
   useStudentTeam,
@@ -28,7 +29,7 @@ import { TeamSearchBar } from './TeamSearchBar'
 /**
  * STU-6 (`/nhom`, FR-6, FR-14, AD-36, AD-37), the Student's Team: in no Team, the invitations to
  * answer, the Mentor search with PUB-5 in a Sheet, and the join requests sent; in a Team, the
- * Mentor and the listed members. "Rời nhóm" is Story 1.19's.
+ * Mentor, the listed members, and "Rời nhóm", disabled while on a running Crew.
  */
 export function StudentTeamPage() {
   const team = useStudentTeam()
@@ -105,7 +106,54 @@ function InTeam({ team }: { team: StudentTeam }) {
           .
         </p>
       </section>
+      <LeaveTeam mentor={mentor.displayName} onCrew={membership.onCrew} />
     </>
+  )
+}
+
+function LeaveTeam({ mentor, onCrew }: { mentor: string; onCrew: boolean }) {
+  const [confirming, setConfirming] = useState(false)
+  const leave = useLeaveTeam()
+  const toasts = useToasts()
+  return (
+    <section aria-labelledby="leave-heading" className="flex flex-col items-start gap-2 rounded-lg border border-border bg-card p-5">
+      <h2 id="leave-heading" className="text-h3">
+        {t('screen.team.student.leaveHeading')}
+      </h2>
+      <p id="leave-hint" className="text-body-sm text-muted-foreground">
+        {onCrew ? t('screen.team.student.onCrew') : t('screen.team.student.leaveHint')}
+      </p>
+      <Button
+        variant="secondary"
+        className="border-destructive text-destructive"
+        aria-describedby="leave-hint"
+        disabled={onCrew}
+        onClick={() => setConfirming(true)}
+      >
+        {t('screen.team.student.leave')}
+      </Button>
+      <ConfirmDialog
+        open={confirming}
+        title={t('screen.team.student.leaveTitle', { mentor })}
+        body={t('screen.team.student.leaveBody', { mentor })}
+        confirmLabel={t('screen.team.student.leave')}
+        destructive
+        pending={leave.isPending}
+        onClose={() => setConfirming(false)}
+        onConfirm={() =>
+          leave.mutate(undefined, {
+            onSuccess: () => {
+              setConfirming(false)
+              toasts.success(t('screen.team.student.leftToast', { mentor }))
+            },
+            onError: (error) => {
+              setConfirming(false)
+              toasts.error(problemMessage(error, { module: 'team' }).text)
+            },
+          })
+        }
+      />
+    </section>
   )
 }
 

@@ -268,6 +268,13 @@
         "invitations": "Lời mời đang chờ",
         "invitationMeta": "Mời {date} · hết hạn {lapse} nếu chưa trả lời",
         "waiting": "Đang chờ trả lời",
+        "colActions": "Thao tác",
+        "remove": "Xóa khỏi nhóm",
+        "removeOf": "Xóa {name} khỏi nhóm",
+        "removeTitle": "Xóa {name} khỏi nhóm?",
+        "removeBody": "{name} nhận thông báo và có thể vào nhóm của người hướng dẫn khác.",
+        "removedToast": "Đã xóa {name} khỏi nhóm.",
+        "onCrew": "{names} đang làm một công việc; chưa thể rời nhóm cho đến khi công việc kết thúc.",
         "acceptTitle": "Nhận {name} vào nhóm?",
         "acceptBody": "{name} sẽ ở trong nhóm của bạn, và bạn có thể chọn họ vào nhóm thực hiện của từng công việc. Nhóm sẽ có {n}/10 sinh viên.",
         "declineTitle": "Từ chối yêu cầu của {name}?",
@@ -327,6 +334,13 @@
         "you": "{name} (bạn)",
         "showNameHint": "Bạn chọn hiện hay ẩn tên mình trong",
         "profileLink": "Hồ sơ và xác minh",
+        "leaveHeading": "Rời nhóm",
+        "leaveHint": "Sau khi rời, bạn có thể xin vào nhóm của người hướng dẫn khác.",
+        "leave": "Rời nhóm",
+        "leaveTitle": "Rời nhóm của {mentor}?",
+        "leaveBody": "{mentor} nhận thông báo. Sau khi rời, bạn có thể xin vào nhóm của người hướng dẫn khác.",
+        "leftToast": "Bạn đã rời nhóm của {mentor}.",
+        "onCrew": "Bạn đang làm một công việc; chưa thể rời nhóm cho đến khi công việc kết thúc.",
         "closedTeam": "Nhóm của {mentor} tạm ngừng nhận thành viên.",
         "acceptTitle": "Vào nhóm của {mentor}?",
         "acceptBody": "Bạn chỉ ở một nhóm tại một thời điểm. Các lời mời và yêu cầu khác của bạn sẽ được hủy.",
@@ -1190,6 +1204,12 @@
       },
       "released": {
         "title": "Nhóm của {mentor} đã ngừng hoạt động. Bạn có thể tìm người hướng dẫn khác."
+      },
+      "member_left": {
+        "title": "{name} đã rời nhóm"
+      },
+      "member_removed": {
+        "title": "Bạn không còn ở trong nhóm của {mentor}"
       }
     }
   },
@@ -1225,7 +1245,9 @@
       "REQUEST_PENDING": "Đang có một lời mời hoặc yêu cầu vào nhóm chờ trả lời.",
       "TEAM_INVITE_LIMIT": "Bạn đã gửi đủ 20 lời mời hôm nay. Hãy mời tiếp vào ngày mai.",
       "JOIN_REQUEST_LIMIT": "Bạn đã gửi đủ 5 yêu cầu hôm nay. Hãy gửi tiếp vào ngày mai.",
-      "REQUEST_CLOSED": "Lời mời hoặc yêu cầu này đã được trả lời hoặc đã hết hạn."
+      "REQUEST_CLOSED": "Lời mời hoặc yêu cầu này đã được trả lời hoặc đã hết hạn.",
+      "STUDENT_ON_CREW": "Sinh viên đang làm một công việc; chưa thể rời nhóm cho đến khi công việc kết thúc.",
+      "NOT_IN_TEAM": "Sinh viên không ở trong nhóm của bạn."
     },
     "catalog": {
       "SKILL_INACTIVE": "Kỹ năng này đã ngừng dùng nên không thêm mới được.",

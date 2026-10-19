@@ -13,6 +13,7 @@ import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -36,7 +37,8 @@ import vn.vibefix.team.internal.TeamViews.TeamMentorSearchView;
 
 /**
  * STU-6 (FR-6, FR-14, AD-36, AD-37), for the Student: their Team or their invitations and join
- * requests, the Mentor search for verified Students, and the answers. Any other role finds nothing.
+ * requests, the Mentor search for verified Students, the answers, and leaving. Any other role finds
+ * nothing.
  */
 @RestController
 @RequestMapping("/api/v1/team")
@@ -58,14 +60,17 @@ class StudentTeamController {
 
 	private final TeamRequests requests;
 
+	private final TeamMemberships memberships;
+
 	private final StudentVerification verification;
 
 	private final CurrentCaller callers;
 
-	StudentTeamController(TeamViews views, TeamRequests requests, StudentVerification verification,
-			CurrentCaller callers) {
+	StudentTeamController(TeamViews views, TeamRequests requests, TeamMemberships memberships,
+			StudentVerification verification, CurrentCaller callers) {
 		this.views = views;
 		this.requests = requests;
+		this.memberships = memberships;
 		this.verification = verification;
 		this.callers = callers;
 	}
@@ -97,7 +102,14 @@ class StudentTeamController {
 	/** "Đồng ý". */
 	@PostMapping("/invitations/{invitationId}/accept")
 	StudentTeamRequestView accept(@PathVariable UUID invitationId) {
-		return StudentTeamRequestView.of(this.requests.accept(student(), invitationId, Kind.INVITATION));
+		return StudentTeamRequestView.of(this.requests.acceptOrCancel(this.requests, student(), invitationId, Kind.INVITATION));
+	}
+
+	/** "Rời nhóm". */
+	@DeleteMapping("/membership")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	void leave() {
+		this.memberships.leave(student());
 	}
 
 	/** "Từ chối". */

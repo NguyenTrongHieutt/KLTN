@@ -17,11 +17,13 @@ import { ConfirmDialog } from './ConfirmDialog'
 import {
   useAnswerJoinRequest,
   useInviteStudent,
+  useRemoveMember,
   useMentorTeam,
   useStudentByLogin,
   useStudentSearch,
   useTeamStudentProfile,
   type MentorTeam,
+  type TeamMember,
   type TeamStudent,
   type TeamStudentRequest,
   type TeamStudentResult,
@@ -32,8 +34,9 @@ import { TeamSearchBar } from './TeamSearchBar'
 /**
  * MEN-6 (`/nhom`, FR-6, AD-37), the Mentor's Team: the size "{n}/10", join requests to accept or
  * decline, the members, the pending invitations, and "Mời sinh viên", which opens the invite Sheet.
- * A closed Team (the Mentor revoked or locked) shows why and no actions. "Xóa khỏi nhóm" is Story
- * 1.19's, and "Đang làm: {Job}" comes with the Crews.
+ * "Xóa khỏi nhóm" goes through the Confirmation dialog and is disabled while the Student is on a
+ * running Crew. A closed Team (the Mentor revoked or locked) shows why and no invitations. "Đang làm:
+ * {Job}" comes with the Crews.
  */
 export function MentorTeamPage() {
   const team = useMentorTeam()
@@ -129,6 +132,9 @@ function TeamBody({ team, onView, onInvite }: { team: MentorTeam; onView: (id: s
                   <th scope="col" className="px-4 py-2 font-semibold">
                     {t('screen.team.mentor.colStatus')}
                   </th>
+                  <th scope="col" className="px-4 py-2 font-semibold">
+                    <span className="sr-only">{t('screen.team.mentor.colActions')}</span>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -148,11 +154,24 @@ function TeamBody({ team, onView, onInvite }: { team: MentorTeam; onView: (id: s
                     <td className="px-4 py-2">
                       <MemberStatus student={member.student} />
                     </td>
+                    <td className="px-4 py-2 text-right">
+                      <RemoveMember member={member} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+        )}
+        {team.members.some((member) => member.onCrew) && (
+          <p className="text-caption text-muted-foreground">
+            {t('screen.team.mentor.onCrew', {
+              names: team.members
+                .filter((member) => member.onCrew)
+                .map((member) => studentName(member.student))
+                .join(', '),
+            })}
+          </p>
         )}
       </section>
       {team.invitations.length > 0 && (
@@ -179,6 +198,48 @@ function TeamBody({ team, onView, onInvite }: { team: MentorTeam; onView: (id: s
           </ul>
         </section>
       )}
+    </>
+  )
+}
+
+function RemoveMember({ member }: { member: TeamMember }) {
+  const [confirming, setConfirming] = useState(false)
+  const remove = useRemoveMember()
+  const toasts = useToasts()
+  const name = studentName(member.student)
+  return (
+    <>
+      <Button
+        variant="ghost"
+        size="compact"
+        className="text-destructive"
+        aria-label={t('screen.team.mentor.removeOf', { name })}
+        disabled={member.onCrew}
+        onClick={() => setConfirming(true)}
+      >
+        {t('screen.team.mentor.remove')}
+      </Button>
+      <ConfirmDialog
+        open={confirming}
+        title={t('screen.team.mentor.removeTitle', { name })}
+        body={t('screen.team.mentor.removeBody', { name })}
+        confirmLabel={t('screen.team.mentor.remove')}
+        destructive
+        pending={remove.isPending}
+        onClose={() => setConfirming(false)}
+        onConfirm={() =>
+          remove.mutate(member.membershipId, {
+            onSuccess: () => {
+              setConfirming(false)
+              toasts.success(t('screen.team.mentor.removedToast', { name }))
+            },
+            onError: (error) => {
+              setConfirming(false)
+              toasts.error(problemMessage(error, { module: 'team' }).text)
+            },
+          })
+        }
+      />
     </>
   )
 }

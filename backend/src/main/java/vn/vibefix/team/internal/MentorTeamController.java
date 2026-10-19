@@ -13,6 +13,7 @@ import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -38,8 +39,8 @@ import vn.vibefix.team.internal.TeamViews.TeamStudentSearchView;
 /**
  * MEN-6 and the invite-to-Team Sheet (FR-6, FR-14, AD-36, AD-37), for the Mentor. Inviting,
  * searching, reading PUB-4, and accepting join requests are new-work commands that require an
- * approved Mentor; reading the Team and declining need only an unlocked account (AD-19). Any other
- * role finds nothing.
+ * approved Mentor; reading the Team, declining, and removing a Student need only an unlocked account
+ * (AD-19). Any other role finds nothing.
  */
 @RestController
 @RequestMapping("/api/v1/mentor/team")
@@ -62,13 +63,17 @@ class MentorTeamController {
 
 	private final TeamRequests requests;
 
+	private final TeamMemberships memberships;
+
 	private final MentorGate mentorGate;
 
 	private final CurrentCaller callers;
 
-	MentorTeamController(TeamViews views, TeamRequests requests, MentorGate mentorGate, CurrentCaller callers) {
+	MentorTeamController(TeamViews views, TeamRequests requests, TeamMemberships memberships, MentorGate mentorGate,
+			CurrentCaller callers) {
 		this.views = views;
 		this.requests = requests;
+		this.memberships = memberships;
 		this.mentorGate = mentorGate;
 		this.callers = callers;
 	}
@@ -113,7 +118,14 @@ class MentorTeamController {
 	/** "Nhận vào nhóm". */
 	@PostMapping("/join-requests/{joinRequestId}/accept")
 	TeamRequestView accept(@PathVariable UUID joinRequestId) {
-		return TeamRequestView.of(this.requests.accept(mentor(), joinRequestId, Kind.JOIN_REQUEST));
+		return TeamRequestView.of(this.requests.acceptOrCancel(this.requests, mentor(), joinRequestId, Kind.JOIN_REQUEST));
+	}
+
+	/** "Xóa khỏi nhóm": needs only an unlocked account, so a revoked Mentor can still let Students go. */
+	@DeleteMapping("/members/{membershipId}")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	void remove(@PathVariable UUID membershipId) {
+		this.memberships.remove(mentor(), membershipId);
 	}
 
 	/** "Từ chối". */

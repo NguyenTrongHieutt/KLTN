@@ -5,6 +5,7 @@ import { apiClient, unwrap } from '@/lib/apiClient'
 
 export type MentorTeam = components['schemas']['MentorTeamView']
 export type TeamStudent = components['schemas']['TeamStudentView']
+export type TeamMember = components['schemas']['TeamMemberRow']
 export type TeamStudentRequest = components['schemas']['TeamStudentRequestRow']
 export type TeamStudentSearch = components['schemas']['TeamStudentSearchView']
 export type TeamStudentResult = components['schemas']['TeamStudentResult']
@@ -131,6 +132,18 @@ export function useAnswerJoinRequest() {
           apiClient.POST('/api/v1/mentor/team/join-requests/{joinRequestId}/decline', { params: { path: { joinRequestId } } }),
         ),
   )
+}
+
+/** "Xóa khỏi nhóm". */
+export function useRemoveMember() {
+  return useTeamCommand((membershipId: string) =>
+    unwrap(apiClient.DELETE('/api/v1/mentor/team/members/{membershipId}', { params: { path: { membershipId } } })),
+  )
+}
+
+/** "Rời nhóm". */
+export function useLeaveTeam() {
+  return useTeamCommand(() => unwrap(apiClient.DELETE('/api/v1/team/membership')))
 }
 
 /** "Xin vào nhóm". */

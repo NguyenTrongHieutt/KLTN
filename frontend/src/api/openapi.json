@@ -661,6 +661,26 @@
         "tags" : [ "mentor-team-controller" ]
       }
     },
+    "/api/v1/mentor/team/members/{membershipId}" : {
+      "delete" : {
+        "operationId" : "remove",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "membershipId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "mentor-team-controller" ]
+      }
+    },
     "/api/v1/mentor/team/students" : {
       "get" : {
         "operationId" : "students",
@@ -1192,6 +1212,17 @@
               }
             },
             "description" : "Created"
+          }
+        },
+        "tags" : [ "student-team-controller" ]
+      }
+    },
+    "/api/v1/team/membership" : {
+      "delete" : {
+        "operationId" : "leave",
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
           }
         },
         "tags" : [ "student-team-controller" ]
@@ -2598,6 +2629,9 @@
           "mentor" : {
             "$ref" : "#/components/schemas/TeamMentorView"
           },
+          "onCrew" : {
+            "type" : "boolean"
+          },
           "size" : {
             "type" : "integer",
             "format" : "int32"
@@ -2607,7 +2641,7 @@
             "enum" : [ "OPEN", "CLOSED" ]
           }
         },
-        "required" : [ "joinedAt", "listed", "mentor", "size", "status" ]
+        "required" : [ "joinedAt", "listed", "mentor", "onCrew", "size", "status" ]
       },
       "StudentTeamRequestView" : {
         "type" : "object",
@@ -2705,11 +2739,14 @@
             "type" : "string",
             "format" : "uuid"
           },
+          "onCrew" : {
+            "type" : "boolean"
+          },
           "student" : {
             "$ref" : "#/components/schemas/TeamStudentView"
           }
         },
-        "required" : [ "joinedAt", "membershipId", "student" ]
+        "required" : [ "joinedAt", "membershipId", "onCrew", "student" ]
       },
       "TeamMentorRequestRow" : {
         "type" : "object",

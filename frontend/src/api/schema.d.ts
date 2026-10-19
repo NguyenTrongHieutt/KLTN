@@ -324,6 +324,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/mentor/team/members/{membershipId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["remove"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/mentor/team/students": {
         parameters: {
             query?: never;
@@ -639,6 +655,22 @@ export interface paths {
         put?: never;
         post: operations["requestToJoin"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/team/membership": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["leave"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1157,6 +1189,7 @@ export interface components {
             joinedAt: string;
             listed: components["schemas"]["TeamListedMember"][];
             mentor: components["schemas"]["TeamMentorView"];
+            onCrew: boolean;
             /** Format: int32 */
             size: number;
             /** @enum {string} */
@@ -1198,6 +1231,7 @@ export interface components {
             joinedAt: string;
             /** Format: uuid */
             membershipId: string;
+            onCrew: boolean;
             student: components["schemas"]["TeamStudentView"];
         };
         TeamMentorRequestRow: {
@@ -1868,6 +1902,26 @@ export interface operations {
             };
         };
     };
+    remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                membershipId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     students: {
         parameters: {
             query?: {
@@ -2327,6 +2381,24 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["StudentTeamRequestView"];
                 };
+            };
+        };
+    };
+    leave: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
