@@ -116,6 +116,7 @@ describe('STU-5, the profile part (FR-4, FR-51)', () => {
       yearOfStudy: 3,
       showNameAndSchool: false,
       repositories: ['minh/shop-app'],
+      skillIds: [],
     })
   })
 
@@ -127,7 +128,7 @@ describe('STU-5, the profile part (FR-4, FR-51)', () => {
           role: 'STUDENT',
           githubLogin: 'minh-dev',
           customer: null,
-          student: { showNameAndSchool: true, repositories: ['a/1', 'a/2', 'a/3', 'a/4'] },
+          student: { showNameAndSchool: true, repositories: ['a/1', 'a/2', 'a/3', 'a/4'], skills: [] },
         }),
     })
     renderAt('/ho-so')

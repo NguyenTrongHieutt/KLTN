@@ -160,6 +160,17 @@
         "bellUnread": "Thông báo, {count} chưa đọc",
         "latest": "Thông báo mới",
         "seeAll": "Xem tất cả thông báo"
+      },
+      "skillPicker": {
+        "placeholder": "Tìm kỹ năng, ví dụ: React",
+        "chosen": "Kỹ năng đã chọn",
+        "remove": "Bỏ {skill}",
+        "retired": "(ngừng dùng)",
+        "chipHint": "Nhấn Backspace hoặc Delete để bỏ.",
+        "inputHint": "Đã chọn {n} kỹ năng. Từ đầu ô, nhấn mũi tên trái để đến kỹ năng đã chọn.",
+        "limit": "Tối đa {n} kỹ năng",
+        "noMatch": "Không có kỹ năng “{q}” trong danh sách.",
+        "loading": "Đang tải danh sách kỹ năng…"
       }
     },
     "mentor": {
@@ -187,6 +198,8 @@
         "yearN": "Năm {n}",
         "showNameAndSchool": "Hiện họ tên và trường trên hồ sơ công khai",
         "showHelper": "Mặc định ẩn. Khi ẩn, người khác chỉ thấy tên người dùng GitHub của bạn.",
+        "skills": "Kỹ năng",
+        "skillsHelper": "Chọn từ danh sách của vibefix, tối đa 20. Người hướng dẫn tìm bạn theo những kỹ năng này.",
         "linkedin": "LinkedIn (không bắt buộc)",
         "linkedinHelper": "Ví dụ: https://www.linkedin.com/in/ten-cua-ban",
         "repositories": "Kho mã muốn giới thiệu",
@@ -901,6 +914,10 @@
       "FILE_TYPE_NOT_ALLOWED": "Chỉ nhận ảnh, PDF, tệp văn bản và tệp nén. Không nhận SVG hoặc HTML.",
       "UPLOAD_QUOTA": "Bạn đã tải lên quá nhiều tệp trong một giờ. Hãy thử lại sau.",
       "IMAGE_TOO_LARGE": "Ảnh lớn hơn 40 megapixel. Hãy chụp hoặc lưu ảnh nhỏ hơn."
+    },
+    "catalog": {
+      "SKILL_INACTIVE": "Kỹ năng này đã ngừng dùng nên không thêm mới được.",
+      "SKILL_LIMIT": "Tối đa {n} kỹ năng."
     }
   }
 }

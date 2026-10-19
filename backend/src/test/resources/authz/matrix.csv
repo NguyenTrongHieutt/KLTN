@@ -130,6 +130,13 @@ PUT /api/v1/account/theme,CUSTOMER,,account-theme.json,204
 PUT /api/v1/account/theme,MENTOR,mentor=PENDING,account-theme.json,204
 PUT /api/v1/account/theme,STUDENT,,account-theme.json,204
 PUT /api/v1/account/theme,ADMINISTRATOR,,account-theme.json,204
+# The Skill catalog (catalog, AD-38): every signed-in role reads it; nobody writes it yet.
+GET /api/v1/catalog,ANONYMOUS,,,401
+GET /api/v1/catalog,CUSTOMER,,,200
+GET /api/v1/catalog,MENTOR,mentor=PENDING,,200
+GET /api/v1/catalog,STUDENT,,,200
+GET /api/v1/catalog,ADMINISTRATOR,,,200
+GET /api/v1/catalog,SUBJECT,,,200
 # Student verification (identity, FR-5): a Student's own; any other role, and SUBJECT (a Customer),
 # finds none. The confirm row's Student has no code waiting, so it finds none either.
 GET /api/v1/verification,ANONYMOUS,,,401

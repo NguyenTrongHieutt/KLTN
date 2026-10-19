@@ -96,7 +96,7 @@ class ProfilesIT extends IntegrationTest {
 			.content("""
 					{"realName":"Trần Minh","school":"ĐH Bách khoa","yearOfStudy":3,
 					 "linkedinUrl":"https://www.linkedin.com/in/tran-minh","showNameAndSchool":false,
-					 "repositories":["https://github.com/minh/shop-app","Minh/Shop-App.git","minh/blog"]}
+					 "repositories":["https://github.com/minh/shop-app","Minh/Shop-App.git","minh/blog"],"skillIds":[]}
 					"""))
 			.andExpect(status().isNoContent());
 
@@ -116,7 +116,7 @@ class ProfilesIT extends IntegrationTest {
 				"[\"https://evil.example/a/b\"]", "[\"a/b/c\"]" }) {
 			this.mvc.perform(put("/api/v1/profile/student").with(as(minh, Role.STUDENT)).with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
-				.content("{\"showNameAndSchool\":true,\"repositories\":" + repositories + "}"))
+				.content("{\"showNameAndSchool\":true,\"skillIds\":[],\"repositories\":" + repositories + "}"))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.code").value("VALIDATION"));
 		}

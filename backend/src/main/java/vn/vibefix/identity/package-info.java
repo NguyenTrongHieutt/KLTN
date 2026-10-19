@@ -12,7 +12,7 @@
  * {@link vn.vibefix.identity.Administrators}. Sign-in, sessions, and the HTTP endpoints are
  * wiring in {@code identity.internal}.
  */
-@ApplicationModule(allowedDependencies = { "shared", "audit", "files", "settings", "timers", "notification" })
+@ApplicationModule(allowedDependencies = { "shared", "audit", "files", "settings", "catalog", "timers", "notification" })
 package vn.vibefix.identity;
 
 import org.springframework.modulith.ApplicationModule;

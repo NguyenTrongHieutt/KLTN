@@ -302,6 +302,32 @@
         "tags" : [ "student-cards-controller" ]
       }
     },
+    "/api/v1/catalog" : {
+      "get" : {
+        "operationId" : "catalog",
+        "parameters" : [ {
+          "in" : "header",
+          "name" : "If-None-Match",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CatalogView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "catalog-controller" ]
+      }
+    },
     "/api/v1/customers/{customerId}/contact" : {
       "get" : {
         "operationId" : "contact",
@@ -861,6 +887,53 @@
         },
         "required" : [ "school", "studentNumber" ]
       },
+      "CatalogCategory" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "skills" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/CatalogSkill"
+            }
+          }
+        },
+        "required" : [ "id", "name", "skills" ]
+      },
+      "CatalogSkill" : {
+        "type" : "object",
+        "properties" : {
+          "hint" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "hint", "id", "name" ]
+      },
+      "CatalogView" : {
+        "type" : "object",
+        "properties" : {
+          "categories" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/CatalogCategory"
+            }
+          }
+        },
+        "required" : [ "categories" ]
+      },
       "CodeRequest" : {
         "type" : "object",
         "properties" : {
@@ -1114,6 +1187,22 @@
         },
         "required" : [ "attemptsLeft", "email", "expired", "expiresAt", "sentAt" ]
       },
+      "ProfileSkill" : {
+        "type" : "object",
+        "properties" : {
+          "active" : {
+            "type" : "boolean"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "active", "id", "name" ]
+      },
       "ProfileView" : {
         "type" : "object",
         "properties" : {
@@ -1128,7 +1217,7 @@
             "enum" : [ "CUSTOMER", "MENTOR", "STUDENT", "ADMINISTRATOR" ]
           },
           "student" : {
-            "$ref" : "#/components/schemas/StudentProfile"
+            "$ref" : "#/components/schemas/StudentProfileView"
           }
         },
         "required" : [ "role" ]
@@ -1288,34 +1377,6 @@
         },
         "required" : [ "fileName", "status", "uploadedAt" ]
       },
-      "StudentProfile" : {
-        "type" : "object",
-        "properties" : {
-          "linkedinUrl" : {
-            "type" : "string"
-          },
-          "realName" : {
-            "type" : "string"
-          },
-          "repositories" : {
-            "type" : "array",
-            "items" : {
-              "type" : "string"
-            }
-          },
-          "school" : {
-            "type" : "string"
-          },
-          "showNameAndSchool" : {
-            "type" : "boolean"
-          },
-          "yearOfStudy" : {
-            "type" : "integer",
-            "format" : "int32"
-          }
-        },
-        "required" : [ "repositories", "showNameAndSchool" ]
-      },
       "StudentProfileRequest" : {
         "type" : "object",
         "properties" : {
@@ -1346,6 +1407,15 @@
           "showNameAndSchool" : {
             "type" : "boolean"
           },
+          "skillIds" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            },
+            "maxItems" : 100,
+            "minItems" : 0
+          },
           "yearOfStudy" : {
             "type" : "integer",
             "format" : "int32",
@@ -1353,7 +1423,41 @@
             "minimum" : 1
           }
         },
-        "required" : [ "repositories", "showNameAndSchool" ]
+        "required" : [ "repositories", "showNameAndSchool", "skillIds" ]
+      },
+      "StudentProfileView" : {
+        "type" : "object",
+        "properties" : {
+          "linkedinUrl" : {
+            "type" : "string"
+          },
+          "realName" : {
+            "type" : "string"
+          },
+          "repositories" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "school" : {
+            "type" : "string"
+          },
+          "showNameAndSchool" : {
+            "type" : "boolean"
+          },
+          "skills" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ProfileSkill"
+            }
+          },
+          "yearOfStudy" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "repositories", "showNameAndSchool", "skills" ]
       },
       "ThemeRequest" : {
         "type" : "object",
