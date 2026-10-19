@@ -31,7 +31,7 @@ class ProductPersonalData implements PersonalDataParticipant {
 
 	@Override
 	public Set<String> tables() {
-		return Set.of("product.product");
+		return Set.of("product.product", "product.repository_replacement");
 	}
 
 	@Override

@@ -45,6 +45,17 @@ public interface Scans {
 	 */
 	Finding confirmRotation(UUID productId, UUID findingId, UUID accountId);
 
+	/** A scan run, for a requester following its own. */
+	Optional<ScanSummary> run(UUID scanRunId);
+
+	/**
+	 * The Product switched to the clean repository {@code scanRunId} scanned (FR-65): every open
+	 * personal-data Finding is resolved as {@code CLEAN_REPOSITORY}, each audited with
+	 * {@code accountId} and its to-do closed, and the run becomes the Product's latest scan. Runs in
+	 * the caller's transaction.
+	 */
+	void resolveByCleanRepository(UUID productId, UUID accountId, UUID scanRunId);
+
 	/**
 	 * Replaces the Finding's resolvers in the caller's transaction (AD-18, AD-3): Epic 7 pushes down
 	 * the Mentor, the Crew, or the Customer for push and handover Findings.

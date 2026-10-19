@@ -59,6 +59,25 @@ export function useFinding(productId: string | undefined, findingId: string | un
       ),
     enabled: productId !== undefined && findingId !== undefined,
     retry: false,
+    refetchInterval: (query) => {
+      const clean = query.state.data?.cleanRepository
+      return clean?.status === 'PENDING' && scanActive(clean.scan) ? SCAN_POLL_MS : false
+    },
+  })
+}
+
+/** CUS-5 "Đăng ký kho mã sạch": the clean repository's link, checked and then scanned in full. */
+export function useRequestCleanRepository(productId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (url: string) =>
+      unwrap(
+        apiClient.POST('/api/v1/products/{productId}/clean-repository', {
+          params: { path: { productId } },
+          body: { url },
+        }),
+      ),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: PRODUCTS_QUERY_KEY }),
   })
 }
 

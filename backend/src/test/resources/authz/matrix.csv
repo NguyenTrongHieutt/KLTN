@@ -311,6 +311,12 @@ POST /api/v1/products/{productId}/findings/{findingId}/rotation,CUSTOMER,,,404 N
 POST /api/v1/products/{productId}/findings/{findingId}/rotation,MENTOR,,,404 NOT_FOUND
 POST /api/v1/products/{productId}/findings/{findingId}/rotation,STUDENT,,,404 NOT_FOUND
 POST /api/v1/products/{productId}/findings/{findingId}/rotation,ADMINISTRATOR,,,404 NOT_FOUND
+POST /api/v1/products/{productId}/clean-repository,ANONYMOUS,,product-clean-repository.json,401
+POST /api/v1/products/{productId}/clean-repository,OWNER,,product-clean-repository.json,422 GUARD_FAILED NO_PERSONAL_DATA_FINDING
+POST /api/v1/products/{productId}/clean-repository,CUSTOMER,,product-clean-repository.json,404 NOT_FOUND
+POST /api/v1/products/{productId}/clean-repository,MENTOR,,product-clean-repository.json,404 NOT_FOUND
+POST /api/v1/products/{productId}/clean-repository,STUDENT,,product-clean-repository.json,404 NOT_FOUND
+POST /api/v1/products/{productId}/clean-repository,ADMINISTRATOR,,product-clean-repository.json,404 NOT_FOUND
 # Student verification (identity, FR-5): a Student's own; any other role, and SUBJECT (a Customer),
 # finds none. The confirm row's Student has no code waiting, so it finds none either.
 GET /api/v1/verification,ANONYMOUS,,,401

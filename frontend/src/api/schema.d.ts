@@ -500,6 +500,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/products/{productId}/clean-repository": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["requestCleanRepository"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/products/{productId}/findings": {
         parameters: {
             query?: never;
@@ -932,6 +948,22 @@ export interface components {
         CatalogView: {
             categories: components["schemas"]["CatalogCategory"][];
         };
+        CleanRepositoryRequest: {
+            url: string;
+        };
+        CleanRepositoryView: {
+            /** Format: date-time */
+            decidedAt?: string;
+            /** Format: uuid */
+            id: string;
+            reason?: string;
+            repositoryFullName: string;
+            /** Format: date-time */
+            requestedAt: string;
+            scan?: components["schemas"]["ScanView"];
+            /** @enum {string} */
+            status: "PENDING" | "ACCEPTED" | "REJECTED" | "SUPERSEDED";
+        };
         CodeRequest: {
             code: string;
         };
@@ -975,6 +1007,7 @@ export interface components {
         };
         FindingDetailView: {
             canResolve: boolean;
+            cleanRepository?: components["schemas"]["CleanRepositoryView"];
             finding: components["schemas"]["FindingView"];
             productName: string;
             tools: ("LOVABLE" | "BOLT" | "REPLIT" | "V0" | "BASE44" | "CURSOR" | "CLAUDE_CODE" | "CODEX" | "OTHER")[];
@@ -994,7 +1027,7 @@ export interface components {
             matchCount?: number;
             path: string;
             /** @enum {string} */
-            resolution?: "ROTATED";
+            resolution?: "ROTATED" | "CLEAN_REPOSITORY";
             /** Format: date-time */
             resolvedAt?: string;
             ruleId: string;
@@ -2362,6 +2395,32 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProductView"];
+                };
+            };
+        };
+    };
+    requestCleanRepository: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                productId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CleanRepositoryRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CleanRepositoryView"];
                 };
             };
         };

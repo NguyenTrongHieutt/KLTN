@@ -3,6 +3,7 @@ package vn.vibefix.scanning.internal;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -82,6 +83,29 @@ class FindingResolutions {
 		this.auditLog.record(AuditEntry.of(AuditActor.user(accountId), "scanning.finding_rotated",
 				AuditObject.of("scanning.finding", findingId)));
 		this.todos.closeAll(RESOLVE_INTAKE_FINDING, findingId);
+	}
+
+	/**
+	 * The Source Repository was replaced by a clean one (FR-65): every open personal-data Finding of
+	 * the Product is resolved, audited, and its to-do closed.
+	 */
+	@Transactional(propagation = Propagation.MANDATORY)
+	void clearPersonalData(UUID productId, UUID accountId) {
+		List<UUID> findings = this.jdbc.sql("""
+				SELECT id FROM scanning.finding
+				WHERE product_id = :product AND category = 'PERSONAL_DATA' AND status = 'OPEN' ORDER BY id FOR UPDATE
+				""").param("product", productId).query(UUID.class).list();
+		Instant now = this.clock.instant();
+		for (UUID finding : findings) {
+			this.jdbc.sql("""
+					UPDATE scanning.finding SET status = 'RESOLVED', resolution = 'CLEAN_REPOSITORY',
+					    resolved_by_account_id = :account, resolved_at = :now
+					WHERE id = :id
+					""").param("id", finding).param("account", accountId).param("now", Timestamp.from(now)).update();
+			this.auditLog.record(AuditEntry.of(AuditActor.user(accountId), "scanning.finding_cleared",
+					AuditObject.of("scanning.finding", finding)));
+			this.todos.closeAll(RESOLVE_INTAKE_FINDING, finding);
+		}
 	}
 
 	@Transactional(propagation = Propagation.MANDATORY)
