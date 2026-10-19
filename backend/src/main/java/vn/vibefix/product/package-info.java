@@ -6,10 +6,10 @@
  * scan from {@code scanning} in its own transaction, and CUS-2 and CUS-4 show the scan and its
  * Findings. A Customer deletes a Product no Job pins; every participant deletes its data for it.
  * <p>
- * Public API: {@link vn.vibefix.product.ProductPins} (Job pins, Epic 3) and
- * {@link vn.vibefix.product.ProductDeleted}. The HTTP endpoints are wiring in {@code product.internal}.
+ * Public API: {@link vn.vibefix.product.ProductDirectory}, {@link vn.vibefix.product.ProductPins} (Job
+ * pins, Epic 3), and {@link vn.vibefix.product.ProductDeleted}. The HTTP endpoints are wiring in {@code product.internal}.
  */
-@ApplicationModule(allowedDependencies = { "shared", "audit", "identity", "github", "scanning" })
+@ApplicationModule(allowedDependencies = { "shared", "audit", "catalog", "identity", "github", "scanning" })
 package vn.vibefix.product;
 
 import org.springframework.modulith.ApplicationModule;

@@ -1,7 +1,10 @@
 package vn.vibefix.github.internal;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.stereotype.Component;
@@ -47,6 +50,21 @@ class GitHubRepositoriesClient implements GitHubRepositories {
 				body.path("html_url").asString(""), body.path("owner").path("id").asLong(),
 				body.path("owner").path("type").asString(""), publicRepository, body.path("size").asLong(), parent, branch,
 				admin.isBoolean() ? admin.booleanValue() : null, submodules, lfs));
+	}
+
+	@Override
+	public List<String> languages(String bearer, String owner, String name) {
+		GitHubHttp.Answer answer = this.http.send("GET", "/repos/" + owner + "/" + name + "/languages", bearer, null);
+		if (answer.status() == 404) {
+			return List.of();
+		}
+		if (answer.status() != 200) {
+			throw new GitHubException(answer.status(), "GitHub refused the languages read: HTTP " + answer.status());
+		}
+		List<Map.Entry<String, Long>> counted = new ArrayList<>();
+		answer.body().properties().forEach(entry -> counted.add(Map.entry(entry.getKey(), entry.getValue().asLong())));
+		counted.sort(Map.Entry.<String, Long>comparingByValue().reversed());
+		return counted.stream().map(Map.Entry::getKey).toList();
 	}
 
 	private boolean exists(String path, String bearer) {

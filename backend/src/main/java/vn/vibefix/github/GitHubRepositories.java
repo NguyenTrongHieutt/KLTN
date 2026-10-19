@@ -1,5 +1,6 @@
 package vn.vibefix.github;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.jspecify.annotations.Nullable;
@@ -31,5 +32,13 @@ public interface GitHubRepositories {
 	 * @throws GitHubException for any other refusal, or when GitHub cannot be reached
 	 */
 	Optional<RepositoryMetadata> read(String bearer, String owner, String name);
+
+	/**
+	 * The repository's languages as GitHub counts them, most bytes first: metadata only, no file is
+	 * read (FR-9, SG-8).
+	 * @return empty when GitHub answers 404
+	 * @throws GitHubException for any other refusal, or when GitHub cannot be reached
+	 */
+	List<String> languages(String bearer, String owner, String name);
 
 }

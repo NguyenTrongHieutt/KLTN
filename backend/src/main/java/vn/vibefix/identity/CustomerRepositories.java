@@ -1,5 +1,6 @@
 package vn.vibefix.identity;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -24,5 +25,12 @@ public interface CustomerRepositories {
 	 * @throws vn.vibefix.github.GitHubException when GitHub refuses or cannot be reached
 	 */
 	CustomerView read(UUID customerId, String owner, String name);
+
+	/**
+	 * The repository's GitHub languages, read with the Customer's token (FR-9, metadata only).
+	 * @throws vn.vibefix.shared.ApiException {@code NOT_FOUND} as for {@link #read}
+	 * @throws vn.vibefix.github.GitHubException when GitHub refuses or cannot be reached
+	 */
+	List<String> languages(UUID customerId, String owner, String name);
 
 }

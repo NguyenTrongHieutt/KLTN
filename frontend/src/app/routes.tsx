@@ -43,6 +43,18 @@ export const routes: RouteObject[] = [
         path: 'san-pham/:productId',
         lazy: async () => ({ Component: (await import('@/features/product/ProductPage')).ProductPage }),
       },
+      {
+        path: 'san-pham/:productId/cong-viec-moi',
+        lazy: async () => ({ Component: (await import('@/features/job/JobFormPage')).JobFormPage }),
+      },
+      {
+        path: 'cong-viec',
+        lazy: async () => ({ Component: (await import('@/features/job/JobsPage')).JobsPage }),
+      },
+      {
+        path: 'cong-viec/:jobId/sua',
+        lazy: async () => ({ Component: (await import('@/features/job/JobFormPage')).JobFormPage }),
+      },
     ],
   },
   {

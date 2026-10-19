@@ -1,0 +1,221 @@
+import { render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { createMemoryRouter, RouterProvider } from 'react-router'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { createQueryClient } from '@/app/queryClient'
+import { routes } from '@/app/routes'
+import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { PAYLOADS } from '@/test/payloads'
+
+function renderAt(path: string) {
+  const router = createMemoryRouter(routes, { initialEntries: [path] })
+  render(
+    <QueryClientProvider client={createQueryClient()}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  )
+  return router
+}
+
+const product = (openFindings = 0) => ({
+  id: 'p1',
+  name: 'Sổ đặt bàn Quán Mây',
+  description: 'Đặt bàn cho quán.',
+  tools: ['LOVABLE'],
+  repositoryFullName: 'lan/so-dat-ban',
+  repositoryUrl: 'https://github.com/lan/so-dat-ban',
+  repositoryOwnerType: 'User',
+  createdAt: '2026-10-16T03:00:00Z',
+  scanState: openFindings > 0 ? 'FINDINGS' : 'CLEAN',
+  scan: { id: 's1', purpose: 'INTAKE', status: 'SUCCEEDED', requestedAt: '2026-10-16T03:00:00Z', unscannedCount: 0, unscanned: [] },
+  openFindings,
+  jobs: 0,
+})
+
+const catalog = () =>
+  json({
+    categories: [
+      {
+        id: 'c1',
+        name: 'Giao diện web',
+        skills: [
+          { id: 'react', name: 'React', hint: 'Thư viện dựng giao diện web.' },
+          { id: 'supabase', name: 'Supabase', hint: 'Dịch vụ lưu dữ liệu và đăng nhập.' },
+          { id: 'vnpay', name: 'VNPay', hint: 'Cổng thanh toán online.' },
+        ],
+      },
+    ],
+  })
+
+const draft = {
+  id: 'j1',
+  productId: 'p1',
+  productName: 'Sổ đặt bàn Quán Mây',
+  state: 'DRAFT',
+  title: 'Thêm thanh toán online khi đặt bàn',
+  problem: 'Khách đặt rồi không đến.',
+  jobTypes: ['NEW_FEATURE'],
+  skills: [{ id: 'react', name: 'React', active: true }],
+  budget: 'FROM_2M_TO_5M',
+  deadline: '2026-11-15',
+  screenshots: [],
+  createdAt: '2026-10-16T03:00:00Z',
+  updatedAt: '2026-10-16T03:00:00Z',
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
+
+describe('CUS-7, the Jobs (UX-DR66)', () => {
+  it('shows the empty state with the way to post from a Product', { timeout: 15_000 }, async () => {
+    fakeBackend(signedIn('CUSTOMER'), { 'GET /api/v1/jobs': () => json([]) })
+    renderAt('/cong-viec')
+
+    expect(await screen.findByText('Bạn chưa có công việc nào.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Đăng công việc từ một sản phẩm' })).toHaveAttribute('href', '/san-pham')
+  })
+
+  it('groups the Jobs and links a Draft to its form', async () => {
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/jobs': () =>
+        json([{ id: 'j1', productId: 'p1', productName: 'Sổ đặt bàn Quán Mây', state: 'DRAFT', title: draft.title, jobTypes: ['NEW_FEATURE'], updatedAt: '2026-10-16T03:00:00Z' }]),
+    })
+    renderAt('/cong-viec')
+
+    const drafts = await screen.findByRole('region', { name: /Bản nháp/ })
+    expect(within(drafts).getByRole('link', { name: /Thêm thanh toán online khi đặt bàn/ })).toHaveAttribute('href', '/cong-viec/j1/sua')
+    expect(within(drafts).getByText(/Sổ đặt bàn Quán Mây · Tính năng mới · sửa lần cuối 16\/10/)).toBeInTheDocument()
+    for (const heading of ['Cần bạn quyết định', 'Đang thực hiện', 'Đang tìm người hướng dẫn', 'Đã kết thúc']) {
+      expect(screen.getByRole('heading', { level: 2, name: new RegExp(heading) })).toBeInTheDocument()
+    }
+  })
+})
+
+describe('CUS-6, drafting a Job (FR-9)', () => {
+  it('asks the guided questions with examples, pre-selects the suggested Skills, and saves a Draft', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    let saved: Record<string, unknown> | undefined
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/products/p1': () => json(product()),
+      'GET /api/v1/products/p1/skill-suggestions': () =>
+        json([
+          { id: 'react', name: 'React', hint: 'Thư viện dựng giao diện web.' },
+          { id: 'supabase', name: 'Supabase', hint: 'Dịch vụ lưu dữ liệu và đăng nhập.' },
+        ]),
+      'GET /api/v1/catalog': catalog,
+      'POST /api/v1/jobs': async (request) => {
+        saved = await request.json()
+        return json({ id: 'j1' }, 201)
+      },
+      'GET /api/v1/jobs/j1': () => json(draft),
+    })
+    renderAt('/san-pham/p1/cong-viec-moi')
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Đăng công việc' })).toBeInTheDocument()
+    for (const label of ['Điều gì đang chưa đúng?', 'Bạn muốn nó hoạt động thế nào?', 'Ai dùng ứng dụng này?']) {
+      expect(screen.getByLabelText(label)).toBeInTheDocument()
+    }
+    expect(screen.getByText('Ví dụ: "Khách đặt bánh nhưng đơn không hiện trong danh sách."')).toBeInTheDocument()
+    expect(screen.getByText(/vibefix đoán từ mã nguồn và công cụ AI bạn dùng/)).toBeInTheDocument()
+    expect(screen.getByText('2/10 kỹ năng. Mỗi kỹ năng có một câu giải thích ngắn.')).toBeInTheDocument()
+    expect(screen.getByText(/Mọi người hướng dẫn đã được duyệt đều đọc được tin này/)).toBeInTheDocument()
+    expect(screen.getByText('Lưu nháp để thêm ảnh chụp màn hình.')).toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('Tên công việc'), 'Thêm thanh toán online khi đặt bàn')
+    await user.type(screen.getByLabelText('Điều gì đang chưa đúng?'), 'Khách đặt rồi không đến.')
+    await user.click(screen.getByRole('checkbox', { name: /Chưa rõ — đánh giá trước/ }))
+    expect(screen.getByRole('checkbox', { name: /Sửa lỗi/ })).toBeDisabled()
+    await user.selectOptions(screen.getByLabelText('Ngân sách dự kiến'), '2–5 triệu ₫')
+    await user.click(screen.getByRole('button', { name: 'Lưu nháp' }))
+
+    await waitFor(() =>
+      expect(saved).toMatchObject({
+        productId: 'p1',
+        title: 'Thêm thanh toán online khi đặt bàn',
+        problem: 'Khách đặt rồi không đến.',
+        jobTypes: ['ASSESSMENT'],
+        skillIds: ['react', 'supabase'],
+        budget: 'FROM_2M_TO_5M',
+      }),
+    )
+    expect(await screen.findByRole('heading', { level: 1, name: 'Sửa công việc' })).toBeInTheDocument()
+  })
+
+  it('needs a title before saving', { timeout: 15_000 }, async () => {
+    const user = userEvent.setup()
+    const seen = fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/products/p1': () => json(product()),
+      'GET /api/v1/products/p1/skill-suggestions': () => json([]),
+      'GET /api/v1/catalog': catalog,
+    })
+    renderAt('/san-pham/p1/cong-viec-moi')
+
+    await user.click(await screen.findByRole('button', { name: 'Lưu nháp' }))
+
+    expect(await screen.findByText('Hãy đặt tên cho công việc.')).toBeInTheDocument()
+    expect(screen.getByLabelText('Tên công việc')).toHaveAttribute('aria-invalid', 'true')
+    expect(seen.some((request) => request.method === 'POST')).toBe(false)
+  })
+
+  it('disables every Code Job Type while the Product has open Findings', { timeout: 15_000 }, async () => {
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/products/p1': () => json(product(1)),
+      'GET /api/v1/products/p1/skill-suggestions': () => json([]),
+      'GET /api/v1/catalog': catalog,
+    })
+    renderAt('/san-pham/p1/cong-viec-moi')
+
+    expect(await screen.findByText('Còn 1 vấn đề cần xử lý · bạn vẫn đặt được công việc đánh giá')).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: /Tính năng mới/ })).toBeDisabled()
+    expect(screen.getByRole('checkbox', { name: /^Đánh giá/ })).toBeEnabled()
+    expect(screen.getByRole('link', { name: 'Xử lý vấn đề' })).toHaveAttribute('href', '/san-pham/p1')
+  })
+
+  it('uploads screenshots to a saved Draft and repeats the personal-data reminder', { timeout: 15_000 }, async () => {
+    const user = userEvent.setup()
+    let uploaded = false
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/jobs/j1': () =>
+        json(uploaded ? { ...draft, screenshots: [{ fileId: 'f1', fileName: 'trang-dat-ban.png', sizeBytes: 430_000, addedAt: draft.updatedAt, url: '/api/v1/files/f1' }] } : draft),
+      'GET /api/v1/products/p1': () => json(product()),
+      'GET /api/v1/catalog': catalog,
+      'POST /api/v1/jobs/j1/screenshots': () => {
+        uploaded = true
+        return json({ fileId: 'f1', fileName: 'trang-dat-ban.png', sizeBytes: 430_000, addedAt: draft.updatedAt, url: '/api/v1/files/f1' }, 201)
+      },
+    })
+    renderAt('/cong-viec/j1/sua')
+
+    expect(await screen.findByText('Hãy che tên, số điện thoại và thông tin cá nhân của khách hàng bạn trước khi tải ảnh lên.')).toBeInTheDocument()
+    expect(screen.getByLabelText('Tên công việc')).toHaveValue(draft.title)
+    await user.upload(screen.getByLabelText('Ảnh chụp màn hình (không bắt buộc)'), new File(['png'], 'trang-dat-ban.png', { type: 'image/png' }))
+
+    expect(await screen.findByRole('link', { name: /trang-dat-ban.png · 420 KB/ })).toHaveAttribute('href', '/api/v1/files/f1')
+    expect(screen.getByRole('button', { name: 'Xóa trang-dat-ban.png' })).toBeInTheDocument()
+  })
+
+  it('finds nothing for another role', async () => {
+    fakeBackend(signedIn('MENTOR'))
+    renderAt('/cong-viec')
+
+    expect(await screen.findByText('Không tìm thấy nội dung này.')).toBeInTheDocument()
+  })
+
+  it('keeps planted payloads in every Job text field as text (SG-30)', { timeout: 15_000 }, async () => {
+    const payload = PAYLOADS[0]
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/jobs': () =>
+        json([{ id: 'j1', productId: 'p1', productName: payload, state: 'DRAFT', title: payload, jobTypes: [], updatedAt: draft.updatedAt }]),
+      'GET /api/v1/jobs/j1': () =>
+        json({ ...draft, title: payload, problem: payload, expected: payload, appUsers: payload, doneCheck: payload }),
+      'GET /api/v1/products/p1': () => json({ ...product(), name: payload }),
+      'GET /api/v1/catalog': catalog,
+    })
+    renderAt('/cong-viec')
+
+    expect(await screen.findByText(payload)).toBeInTheDocument()
+    expect(document.querySelector('img[src="x"]')).toBeNull()
+  })
+})
