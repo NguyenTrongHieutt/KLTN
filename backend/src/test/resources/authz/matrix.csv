@@ -269,6 +269,21 @@ GET /api/v1/mentors/{username},CUSTOMER,,,200
 GET /api/v1/mentors/{username},MENTOR,,,200
 GET /api/v1/mentors/{username},STUDENT,,,200
 GET /api/v1/mentors/{username},ADMINISTRATOR,,,200
+GET /api/v1/mentors/{username}/reputation,ANONYMOUS,,,200
+GET /api/v1/mentors/{username}/reputation,CUSTOMER,,,200
+GET /api/v1/mentors/{username}/reputation,MENTOR,,,200
+GET /api/v1/mentors/{username}/reputation,STUDENT,,,200
+GET /api/v1/mentors/{username}/reputation,ADMINISTRATOR,,,200
+GET /api/v1/students/{studentLogin},ANONYMOUS,,,200
+GET /api/v1/students/{studentLogin},CUSTOMER,,,200
+GET /api/v1/students/{studentLogin},MENTOR,,,200
+GET /api/v1/students/{studentLogin},STUDENT,,,200
+GET /api/v1/students/{studentLogin},ADMINISTRATOR,,,200
+GET /api/v1/students/{studentLogin}/reputation,ANONYMOUS,,,200
+GET /api/v1/students/{studentLogin}/reputation,CUSTOMER,,,200
+GET /api/v1/students/{studentLogin}/reputation,MENTOR,,,200
+GET /api/v1/students/{studentLogin}/reputation,STUDENT,,,200
+GET /api/v1/students/{studentLogin}/reputation,ADMINISTRATOR,,,200
 # Products (product, FR-7, AD-20): only Customers list, check, and register; only the owning Customer
 # and Administrators read a Product. The matrix Customer has no kept sign-in token, so its
 # repository reads find nothing.

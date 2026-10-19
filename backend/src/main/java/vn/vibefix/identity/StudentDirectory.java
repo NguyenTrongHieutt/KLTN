@@ -1,5 +1,6 @@
 package vn.vibefix.identity;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
@@ -11,9 +12,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 /**
- * Students' public profile fields (FR-51, AD-36), for approved Mentors' screens only: never contact
- * details, and the name and school only while the Student chooses to show them. Customers never
- * reach this API's callers.
+ * Students' public profile fields (FR-51, AD-36): never contact details, and the name and school
+ * only while the Student chooses to show them. Search serves approved Mentors' screens; the public
+ * profile (PUB-4) is for anyone, and no Customer screen links to it.
  */
 public interface StudentDirectory {
 
@@ -49,5 +50,23 @@ public interface StudentDirectory {
 
 	/** The cards of these Students, verified or not, in the order of {@code ids}; unknown IDs are left out. */
 	List<StudentCard> cards(Collection<UUID> ids);
+
+	/**
+	 * A Student's public profile (PUB-4, FR-51): the card and the Skills by Skill Category.
+	 * @param memberSince when the account was created
+	 */
+	record StudentProfile(StudentCard card, Instant memberSince, List<SkillGroup> skillGroups) {
+
+		public StudentProfile {
+			skillGroups = List.copyOf(skillGroups);
+		}
+
+	}
+
+	/**
+	 * The public profile of the Student with this GitHub username, ignoring letter case, verified or
+	 * not, while the account is unlocked and not erased (PUB-4, FR-51).
+	 */
+	Optional<StudentProfile> profileByLogin(String githubLogin);
 
 }

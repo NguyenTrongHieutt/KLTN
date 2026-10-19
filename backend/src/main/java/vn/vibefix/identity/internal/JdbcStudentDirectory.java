@@ -3,7 +3,9 @@ package vn.vibefix.identity.internal;
 import java.sql.Array;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -129,6 +131,26 @@ class JdbcStudentDirectory implements StudentDirectory {
 			}
 		}
 		return ordered;
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public Optional<StudentProfile> profileByLogin(String githubLogin) {
+		Optional<Row> found = this.jdbc.sql("SELECT " + COLUMNS + FROM
+				+ "WHERE a.role = 'STUDENT' AND a.locked_at IS NULL AND a.erased_at IS NULL"
+				+ " AND lower(a.github_login) = lower(:login)")
+			.param("login", githubLogin.strip())
+			.query(JdbcStudentDirectory::row)
+			.optional();
+		return found.map(row -> {
+			Instant since = this.jdbc.sql("SELECT created_at FROM identity.account WHERE id = :id")
+				.param("id", row.id())
+				.query(Timestamp.class)
+				.single()
+				.toInstant();
+			return new StudentProfile(named(List.of(row)).getFirst(), since,
+					SkillGroups.of(this.catalog, this.catalog.byIds(row.skillIds())));
+		});
 	}
 
 	private List<StudentCard> named(List<Row> rows) {

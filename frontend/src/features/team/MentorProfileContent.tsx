@@ -5,13 +5,14 @@ import { Button } from '@/components/ui/button'
 import { t } from '@/i18n/t'
 import { formatDayMonth } from '@/lib/dates'
 import { problemMessage } from '@/lib/problemMessage'
-import { useRequestToJoin, type PublicMentor } from './teamApi'
+import { PortfolioSection, RatingLine } from './ReputationParts'
+import { useMentorReputation, useRequestToJoin, type PublicMentor } from './teamApi'
 import { formatMonth, initials } from './teamText'
 
 /**
  * PUB-5's content (FR-51, UX-DR65), on its page and in STU-6's Sheet: the display name, the
- * experience, the years, the Skills by Skill Category, the Team with its listed Students, and for a
- * signed-in Student the join request. Portfolio Entries and Ratings arrive with Story 3.5.
+ * experience, the years, the Customers' visible Ratings or "Mới", the Skills by Skill Category, the
+ * Team with its listed Students, the Portfolio Entries, and for a signed-in Student the join request.
  */
 export function MentorProfileContent({
   mentor,
@@ -23,6 +24,7 @@ export function MentorProfileContent({
   /** On PUB-5's own page the name is the page's heading; in a Sheet, the Sheet's title names it. */
   onPage?: boolean
 }) {
+  const reputation = useMentorReputation(mentor.githubLogin ?? undefined)
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-wrap items-start gap-4">
@@ -46,6 +48,14 @@ export function MentorProfileContent({
             {mentor.githubLogin && <> · @{mentor.githubLogin}</>}
           </p>
           <p className="text-label">{t('screen.team.profile.teamSize', { n: mentor.teamSize })}</p>
+          {reputation.data && (
+            <RatingLine
+              average={reputation.data.average}
+              count={reputation.data.count}
+              from="customers"
+              newcomer={reputation.data.newcomer}
+            />
+          )}
         </div>
       </section>
       <p className="text-body-sm break-words whitespace-pre-line">{mentor.experience}</p>
@@ -98,6 +108,7 @@ export function MentorProfileContent({
           </ul>
         )}
       </section>
+      <PortfolioSection entries={reputation.data?.portfolio ?? []} headingId="mentor-portfolio-heading" />
     </div>
   )
 }

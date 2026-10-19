@@ -1,5 +1,6 @@
 import { Info } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
+import { Link } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
 import { inputClass } from '@/components/formField-props'
 import { RegionState } from '@/components/RegionState'
@@ -607,6 +608,14 @@ function StudentSheet({ studentId, onClose }: { studentId?: string; onClose: () 
                   : t('screen.team.mentor.studentNoTeam')}
               </p>
             </section>
+            {student.githubLogin && (
+              <Link
+                to={`/sv/${student.githubLogin}`}
+                className="w-fit text-body-sm text-primary underline-offset-4 hover:underline"
+              >
+                {t('screen.team.mentor.publicProfile')}
+              </Link>
+            )}
             <p className="text-caption text-muted-foreground">{t('screen.team.mentor.publicNote')}</p>
             {student.verifiedUntil && !student.verified && (
               <p className="text-caption text-warning">

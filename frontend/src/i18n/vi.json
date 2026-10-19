@@ -308,7 +308,8 @@
         "studentNoTeam": "Chưa ở nhóm nào.",
         "studentSkills": "Kỹ năng",
         "studentTeamHeading": "Nhóm",
-        "publicNote": "Hồ sơ công khai không hiển thị email, số điện thoại hay số dư của sinh viên."
+        "publicNote": "Hồ sơ công khai không hiển thị email, số điện thoại hay số dư của sinh viên.",
+        "publicProfile": "Xem hồ sơ công khai"
       },
       "student": {
         "heading": "Nhóm của tôi",
@@ -350,6 +351,19 @@
         "joinedToast": "Bạn đã vào nhóm của {mentor}.",
         "declinedToast": "Đã từ chối lời mời của {mentor}."
       },
+      "publicStudent": {
+        "title": "Hồ sơ của {name}",
+        "verified": "Đã xác minh sinh viên",
+        "unverified": "Chưa xác minh",
+        "github": "@{login} trên GitHub",
+        "year": "năm {n}",
+        "ratings": "Chấm sao từ người hướng dẫn",
+        "team": "Nhóm",
+        "teamOf": "Nhóm của {mentor}",
+        "teamSize": "{n} sinh viên",
+        "noTeam": "Chưa ở trong nhóm nào.",
+        "privacy": "Hồ sơ công khai không hiển thị email, số điện thoại hay số dư của sinh viên."
+      },
       "profile": {
         "approved": "Người hướng dẫn đã được duyệt",
         "meta": "{years} năm kinh nghiệm làm phần mềm · tham gia vibefix từ {month}",
@@ -374,6 +388,17 @@
         "requestsLeft": "Còn {n} yêu cầu hôm nay",
         "openFull": "Mở hồ sơ đầy đủ",
         "title": "{name} · Người hướng dẫn"
+      },
+      "reputation": {
+        "average": "{average} sao",
+        "fromCustomers": "({n} lượt từ khách hàng)",
+        "fromMentors": "({n} lượt từ người hướng dẫn)",
+        "new": "Mới",
+        "none": "Chưa có lượt chấm sao",
+        "portfolio": "Hồ sơ năng lực",
+        "portfolioNote": "Do hệ thống tạo từ công việc thật trên vibefix.",
+        "portfolioEmpty": "Chưa có công việc nào hoàn thành trên vibefix.",
+        "milestones": "{n} giai đoạn"
       }
     },
     "student": {
