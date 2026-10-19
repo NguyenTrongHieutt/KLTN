@@ -31,17 +31,19 @@ import vn.vibefix.scanning.internal.HistoryScanner.UnscannedFile;
 import vn.vibefix.shared.SandboxJobHandler;
 
 /**
- * {@value #TYPE} (AD-18, AD-32, SG-14): clones a public repository and scans its whole history with
- * {@link ScanRules}. The clone is bare, into a temporary directory deleted afterwards, with the
- * object checker on (so {@code ..}, {@code .git} and other unsafe names are refused) and no
- * submodules; JGit runs no hooks, filters, or LFS, and nothing is checked out. The fetch is cancelled
- * past {@link ScanLimits#transferBytes()} or the timeout. No AI is involved and nothing leaves the
- * sandbox but this job's output, which never holds a credential: each one is masked and hashed.
+ * {@value #TYPE} (AD-18, AD-32, SG-14, FR-65): clones a public repository and scans its whole history
+ * with {@link ScanRules}, credentials and personal data in one walk. The clone is bare, into a
+ * temporary directory deleted afterwards, with the object checker on (so {@code ..}, {@code .git} and
+ * other unsafe names are refused) and no submodules; JGit runs no hooks, filters, or LFS, and nothing
+ * is checked out. The fetch is cancelled past {@link ScanLimits#transferBytes()} or the timeout. No AI
+ * is involved and nothing leaves the sandbox but this job's output, which never holds a credential or
+ * a personal value: each one is masked, and only hashes identify them.
  * <p>
  * Input: {@code repository} ({@code owner/name}), cloned from {@code vibefix.github.git-url}, and
  * {@code limits} ({@link ScanLimits}). Output: {@code commits}, {@code scannedBlobs},
- * {@code unscannedCount}, {@code unscanned} (path, size), {@code stopped} (a cap's code, or none), and
- * {@code found} (rule, type, path, commit, date, masked value, hash); or {@code refused}:
+ * {@code unscannedCount}, {@code unscanned} (path, size, reason), {@code stopped} (a cap's code, or
+ * none), and {@code found} (category, rule, type, path, commit, date, masked value or samples, hash,
+ * and for personal data its kinds and lines); or {@code refused}:
  * {@value #TRANSFER_LIMIT}, {@value HistoryScanner#TIMEOUT}, or {@value #UNSAFE_REPOSITORY}. Like
  * every handler, a plain class that only the sandbox worker (or the in-process stand-in) creates.
  */
@@ -92,8 +94,7 @@ final class SecretScanJobHandler implements SandboxJobHandler {
 		try {
 			CappedMonitor monitor = new CappedMonitor(directory, limits.transferBytes(), deadline);
 			try (Git git = clone(this.gitUrl + "/" + repository.stringValue() + ".git", directory, limits, monitor)) {
-				Report report = new HistoryScanner(new SecretMatcher(this.rules)).scan(git.getRepository(), limits,
-						deadline);
+				Report report = new HistoryScanner(this.rules).scan(git.getRepository(), limits, deadline);
 				return output(report);
 			}
 			catch (GitAPIException | RuntimeException ex) {
@@ -155,15 +156,23 @@ final class SecretScanJobHandler implements SandboxJobHandler {
 		output.put("unscannedCount", report.unscannedCount());
 		ArrayNode unscanned = output.putArray("unscanned");
 		for (UnscannedFile file : report.unscanned()) {
-			unscanned.addObject().put("path", file.path()).put("sizeBytes", file.sizeBytes());
+			unscanned.addObject().put("path", file.path()).put("sizeBytes", file.sizeBytes()).put("reason", file.reason());
 		}
 		if (report.stopped() != null) {
 			output.put("stopped", report.stopped());
 		}
 		ArrayNode found = output.putArray("found");
 		for (Found one : report.found()) {
-			found.addObject()
-				.put("ruleId", one.ruleId())
+			ObjectNode match = found.addObject();
+			if (one.personalData()) {
+				match.put("category", "PERSONAL_DATA").put("lines", one.lines());
+				ArrayNode kinds = match.putArray("kinds");
+				one.kinds().forEach(kind -> kinds.add(kind.name()));
+			}
+			else {
+				match.put("category", "CREDENTIAL");
+			}
+			match.put("ruleId", one.ruleId())
 				.put("type", one.type())
 				.put("path", one.path())
 				.put("commit", one.commit())

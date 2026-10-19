@@ -18,10 +18,11 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
 
 /**
  * {@code scanning/rules.yaml} compiled with RE2/J (AD-18, SG-13): its version, the placeholder values
- * that are never credentials, and the rules in their order. Loading fails on any rule that does not
- * compile, lacks its capturing group, or repeats an ID, so a broken rule set never scans.
+ * that are never credentials, the credential rules in their order, and the Personal-Data Check
+ * (FR-65). Loading fails on any pattern that does not compile, a rule that lacks its capturing group
+ * or repeats an ID, or a missing threshold, so a broken rule set never scans.
  */
-record ScanRules(int version, Pattern placeholders, List<Rule> rules) {
+record ScanRules(int version, Pattern placeholders, List<Rule> rules, PersonalData personalData) {
 
 	static final String RESOURCE = "scanning/rules.yaml";
 
@@ -44,6 +45,36 @@ record ScanRules(int version, Pattern placeholders, List<Rule> rules) {
 
 		boolean mayMatch(String lowerCaseText) {
 			return this.keywords.isEmpty() || this.keywords.stream().anyMatch(lowerCaseText::contains);
+		}
+
+	}
+
+	/** The kinds of personal data a Finding names, in the order its type lists them. */
+	enum PersonalKind {
+		CITIZEN_ID, EMAIL, PHONE, DATA_COLUMNS
+	}
+
+	/**
+	 * The Personal-Data Check (FR-65, addendum §B6); see {@code rules.yaml} for each field.
+	 * @param labels the Customer's word for each kind but {@code DATA_COLUMNS}, then {@code suffix} and
+	 * {@code dataFile}
+	 */
+	record PersonalData(int phones, int emails, int dataFileValues, Pattern phone, Pattern email,
+			Pattern ignoredEmails, Pattern citizenIdInContext, Pattern citizenId, Pattern dataFiles, Pattern columns,
+			Pattern citizenIdColumns, Pattern exemptFiles, Pattern notExtracted, Map<String, String> labels) {
+
+		/** The type a personal-data Finding shows, for example "Email và số điện thoại khách hàng". */
+		String label(Set<PersonalKind> kinds) {
+			List<String> words = java.util.stream.Stream.of(PersonalKind.CITIZEN_ID, PersonalKind.EMAIL, PersonalKind.PHONE)
+				.filter(kinds::contains)
+				.map(kind -> this.labels.get(kind.name()))
+				.toList();
+			if (words.isEmpty()) {
+				return this.labels.get("dataFile");
+			}
+			String joined = words.size() == 1 ? words.getFirst()
+					: String.join(", ", words.subList(0, words.size() - 1)) + " và " + words.getLast();
+			return Character.toUpperCase(joined.charAt(0)) + joined.substring(1) + " " + this.labels.get("suffix");
 		}
 
 	}
@@ -99,7 +130,34 @@ record ScanRules(int version, Pattern placeholders, List<Rule> rules) {
 			return new Rule(id, text(rule, "type", true), pattern, words, paths == null ? null : compile(id, paths),
 					exclude == null ? null : compile(id, exclude), check);
 		}).toList();
-		return new ScanRules(version, placeholders, rules);
+		return new ScanRules(version, placeholders, rules, personalData(root.get("personalData")));
+	}
+
+	private static PersonalData personalData(Object section) {
+		if (!(section instanceof Map<?, ?> data) || !(data.get("thresholds") instanceof Map<?, ?> thresholds)
+				|| !(data.get("labels") instanceof Map<?, ?> labels)) {
+			throw new IllegalStateException(RESOURCE + " needs personalData with thresholds and labels");
+		}
+		Map<String, String> words = new java.util.HashMap<>();
+		for (String key : List.of("CITIZEN_ID", "EMAIL", "PHONE", "suffix", "dataFile")) {
+			words.put(key, text(labels, key, true));
+		}
+		return new PersonalData(threshold(thresholds, "phones"), threshold(thresholds, "emails"),
+				threshold(thresholds, "dataFileValues"), pattern(data, "phone"), pattern(data, "email"),
+				pattern(data, "ignoredEmails"), pattern(data, "citizenIdInContext"), pattern(data, "citizenId"),
+				pattern(data, "dataFiles"), pattern(data, "columns"), pattern(data, "citizenIdColumns"),
+				pattern(data, "exemptFiles"), pattern(data, "notExtracted"), Map.copyOf(words));
+	}
+
+	private static int threshold(Map<?, ?> thresholds, String key) {
+		if (!(thresholds.get(key) instanceof Integer value) || value < 1) {
+			throw new IllegalStateException(RESOURCE + " needs a positive personalData threshold " + key);
+		}
+		return value;
+	}
+
+	private static Pattern pattern(Map<?, ?> data, String key) {
+		return compile("personalData." + key, text(data, key, true));
 	}
 
 	private static @Nullable String text(Map<?, ?> map, String key, boolean required) {

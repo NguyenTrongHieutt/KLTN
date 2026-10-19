@@ -11,10 +11,43 @@
 #
 # Rules run in order and a file's text is claimed once: a later rule never reports a value an earlier
 # rule already found, so specific providers come first and the generic rules last.
-version: 1
+version: 2
 source: >-
   Written for vibefix from each provider's published credential format (2026-10-19). Not copied from
   gitleaks: its MIT-licensed rules can be merged in later with their licence notice and source commit.
+# FR-65, addendum §B6: the Personal-Data Check, run on every text file the Secret Scan reads, in the
+# same scan run. A file is a hit with a citizen ID in context, with `phones` or `emails` distinct
+# values, or, for a data file, with a personal-data column holding `dataFileValues` personal values.
+# The thresholds are placeholders until OQ5 settles them (before the first real Job). One Finding per
+# file; its type is composed from the kinds found, and only masked samples leave the scan.
+personalData:
+  thresholds:
+    phones: 10
+    emails: 10
+    dataFileValues: 2
+  # Vietnamese mobile (0[35789] + 8 digits) and landline (02 + 9 digits) numbers, 0 or +84 first.
+  phone: '(?:\+84|\b0)[ .-]?(?:[35789](?:[ .-]?[0-9]){8}|2(?:[ .-]?[0-9]){9})\b'
+  email: '\b([A-Za-z0-9._%+-]{1,64})@([A-Za-z0-9-]{1,63}(?:\.[A-Za-z0-9-]{1,63})*\.[A-Za-z]{2,24})\b'
+  ignoredEmails: '(?i)(?:@(?:[a-z0-9-]+\.)*(?:example\.(?:com|org|net)|test|localhost|invalid|local)$|@users\.noreply\.github\.com$|^no-?reply@)'
+  # A 12-digit CCCD or 9-digit CMND after a citizen-ID word on the same line.
+  citizenIdInContext: '(?i)(?:cccd|cmnd|căn cước|can cuoc|chứng minh|chung minh|citizen[_ -]?id|national[_ -]?id|id[_ -]?card|so[_ -]?cccd|so[_ -]?cmnd)[^0-9\n]{0,40}\b(0[0-9]{11}|[0-9]{9})\b'
+  # The same numbers anywhere in a data file with a citizen-ID column.
+  citizenId: '\b(0[0-9]{11}|[0-9]{9})\b'
+  dataFiles: '(?i)\.(?:sql|csv|tsv|json)$'
+  # Column or key names (whole name, optional prefix such as customer_) of personal data.
+  columns: '(?i)^(?:[a-z0-9]+[_ ])*(?:phone|phone[_ ]?number|phone[_ ]?no|mobile|tel|telephone|sdt|so[_ ]?dien[_ ]?thoai|dien[_ ]?thoai|e[_-]?mail|email[_ ]?address|address|dia[_ ]?chi|cccd|cmnd|citizen[_ ]?id|national[_ ]?id|id[_ ]?card)$'
+  citizenIdColumns: '(?i)^(?:[a-z0-9]+[_ ])*(?:cccd|cmnd|citizen[_ ]?id|national[_ ]?id|id[_ ]?card)$'
+  # Dependency manifests and lockfiles name maintainers, never end users.
+  exemptFiles: '(?:^|/)(?:package\.json|package-lock\.json|npm-shrinkwrap\.json|yarn\.lock|pnpm-lock\.yaml|composer\.json|composer\.lock|Gemfile\.lock|poetry\.lock|Cargo\.lock)$'
+  # Spreadsheets and databases: their extraction is a separate pipeline step, off (FR-65 Tier 3).
+  notExtracted: '(?i)\.(?:xlsx|xls|ods|sqlite|sqlite3|db)$'
+  # The type the Customer reads: the kinds found, in this order, then the suffix.
+  labels:
+    CITIZEN_ID: số căn cước
+    EMAIL: email
+    PHONE: số điện thoại
+    suffix: khách hàng
+    dataFile: Tệp dữ liệu khách hàng
 # Values that are placeholders, never credentials.
 placeholders: '(?i)^(?:x+|\*+|\.+|0+|-+|password|passw0rd|pass|secret|changeme|change_me|change-me|example|sample|dummy|test|testing|none|null|undefined|your[-_a-z0-9]*|my[-_a-z0-9]*(?:password|secret|key|token)|<[^>]*>|\[[^\]]*\]|\{[^}]*\}|\$\{[^}]*\}|\$[A-Za-z_][A-Za-z0-9_]*|%[^%]*%|process\.env\.[A-Za-z0-9_]+|import\.meta\.env\.[A-Za-z0-9_]+)$'
 rules:

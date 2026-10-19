@@ -89,6 +89,48 @@ class SecretScanJobTest {
 	}
 
 	@Test
+	void theSm7RepositoryHasEveryPlantedPersonalDataFileDetectedAndSpreadsheetsListed() {
+		Map<String, Map.Entry<String, Set<ScanRules.PersonalKind>>> planted = PlantedPersonalData.all();
+		List<String> paths = new ArrayList<>(planted.keySet());
+		try (Git git = TestRepositories.create(this.root, "sm7/personal")) {
+			Instant time = Instant.parse("2026-09-01T03:00:00Z");
+			Map<String, String> first = new LinkedHashMap<>();
+			paths.subList(0, 3).forEach(path -> first.put(path, planted.get(path).getKey()));
+			first.put("README.md", "Liên hệ 0912345678 hoặc lan@shopgom.vn\n");
+			first.put("exports/khach-hang.xlsx", "PK not really a spreadsheet\n");
+			TestRepositories.commit(git, time, first, Set.of());
+			Map<String, String> second = new LinkedHashMap<>();
+			paths.subList(3, paths.size()).forEach(path -> second.put(path, planted.get(path).getKey()));
+			TestRepositories.commit(git, time.plusSeconds(60), second, Set.of());
+			// Removed from the code, still in the history.
+			TestRepositories.commit(git, time.plusSeconds(120), Map.of(), Set.of(paths.get(0), paths.get(4)));
+		}
+
+		JsonNode output = scan("sm7/personal", ScanLimits.DEFAULT);
+
+		Map<String, JsonNode> found = new HashMap<>();
+		output.path("found").forEach(match -> {
+			assertThat(match.path("category").stringValue()).isEqualTo("PERSONAL_DATA");
+			found.put(match.path("path").stringValue(), match);
+		});
+		assertThat(found.keySet()).as("100%% of the planted personal data").containsExactlyInAnyOrderElementsOf(paths);
+		for (String path : paths) {
+			Set<String> kinds = new java.util.HashSet<>();
+			found.get(path).path("kinds").forEach(kind -> kinds.add(kind.stringValue()));
+			assertThat(kinds).as(path)
+				.containsExactlyInAnyOrderElementsOf(planted.get(path).getValue().stream().map(Enum::name).toList());
+			assertThat(found.get(path).path("masked").stringValue()).as(path).contains("•");
+		}
+		String text = output.toString();
+		assertThat(text).doesNotContain(PlantedPersonalData.phone(0)).doesNotContain("khach.hang0@gmail.com")
+			.doesNotContain("079203001234").doesNotContain("123456789");
+		assertThat(output.path("unscanned")).singleElement().satisfies(file -> {
+			assertThat(file.path("path").stringValue()).isEqualTo("exports/khach-hang.xlsx");
+			assertThat(file.path("reason").stringValue()).isEqualTo(HistoryScanner.NOT_EXTRACTED);
+		});
+	}
+
+	@Test
 	void symbolicLinksAreReadAsTheirTargetTextAndNeverFollowed() {
 		try (Git git = TestRepositories.create(this.root, "sm7/links")) {
 			TestRepositories.rawCommit(git.getRepository(), Map.of("environ", Map.entry(FileMode.SYMLINK, "/proc/self/environ"),

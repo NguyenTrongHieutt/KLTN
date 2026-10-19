@@ -49,6 +49,7 @@ function scanOf(status: 'PENDING' | 'RUNNING' | 'RETRYING' | 'SUCCEEDED' | 'FAIL
 
 const finding = {
   id: 'f1',
+  category: 'CREDENTIAL',
   type: 'Khóa dịch vụ Supabase',
   path: '.env',
   commit: 'a3f91c2' + '0'.repeat(33),
@@ -257,8 +258,39 @@ describe('CUS-4, a Product (FR-7)', () => {
     renderAt('/san-pham/p1')
 
     expect(await screen.findByText('Không phát hiện vấn đề nào ở lần kiểm tra gần nhất.')).toBeInTheDocument()
+    const checks = screen.getByRole('region', { name: 'Kết quả từng loại kiểm tra' })
+    expect(within(checks).getByText('Không phát hiện khóa bí mật')).toBeInTheDocument()
+    expect(within(checks).getByText('Không phát hiện dữ liệu cá nhân')).toBeInTheDocument()
     expect(screen.getByText('Kiểm tra tự động, không dùng AI, và không thể phát hiện mọi thứ.')).toBeInTheDocument()
     expect(screen.getByText('Không phát hiện vấn đề')).toBeInTheDocument()
+  })
+
+  it('shows a personal-data Finding by file, with its lines and masked samples (FR-65)', async () => {
+    const personal = {
+      ...finding,
+      id: 'f2',
+      category: 'PERSONAL_DATA',
+      type: 'Email và số điện thoại khách hàng',
+      path: 'seed/customers.json',
+      commit: 'a71c0e4' + '0'.repeat(33),
+      maskedPreview: 'ng••••@gmail.com · 09•• ••• •12',
+      matchCount: 48,
+    }
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/products/p1': () => json({ ...withFindings, openFindings: 2 }),
+      'GET /api/v1/products/p1/findings': () => json([finding, personal]),
+    })
+    renderAt('/san-pham/p1')
+
+    const list = await screen.findByRole('list', { name: 'Vấn đề cần xử lý' })
+    const card = within(list).getByRole('heading', { level: 3, name: 'Email và số điện thoại khách hàng' }).closest('li')
+    expect(card).not.toBeNull()
+    expect(within(card as HTMLElement).getByText('seed/customers.json')).toBeInTheDocument()
+    expect(within(card as HTMLElement).getByText(/48 dòng/)).toBeInTheDocument()
+    expect(within(card as HTMLElement).getByText('Ví dụ đã che:')).toBeInTheDocument()
+    expect(within(card as HTMLElement).getByText('ng••••@gmail.com · 09•• ••• •12')).toBeInTheDocument()
+    const checks = screen.getByRole('region', { name: 'Kết quả từng loại kiểm tra' })
+    expect(within(checks).getAllByText('1 vấn đề')).toHaveLength(2)
   })
 
   it('says a scan that did not finish will be tried again, and lists the files too large to check', async () => {
@@ -269,7 +301,10 @@ describe('CUS-4, a Product (FR-7)', () => {
           scanState: 'NOT_FINISHED',
           scan: scanOf('FAILED', {
             unscannedCount: 4,
-            unscanned: [{ path: 'public/video/gioi-thieu.mp4', sizeBytes: 32 * 1024 * 1024 }],
+            unscanned: [
+              { path: 'public/video/gioi-thieu.mp4', sizeBytes: 32 * 1024 * 1024, reason: 'TOO_LARGE' },
+              { path: 'exports/khach-hang.xlsx', sizeBytes: 350 * 1024, reason: 'NOT_EXTRACTED' },
+            ],
           }),
         }),
     })
@@ -279,7 +314,8 @@ describe('CUS-4, a Product (FR-7)', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Tệp chưa kiểm tra được' })).toBeInTheDocument()
     expect(screen.getByText('public/video/gioi-thieu.mp4')).toBeInTheDocument()
     expect(screen.getByText('32 MB · lớn hơn giới hạn kiểm tra')).toBeInTheDocument()
-    expect(screen.getByText('Và 3 tệp khác lớn hơn giới hạn kiểm tra.')).toBeInTheDocument()
+    expect(screen.getByText('350 KB · chưa đọc được loại tệp này')).toBeInTheDocument()
+    expect(screen.getByText('Và 2 tệp khác chưa kiểm tra được.')).toBeInTheDocument()
   })
 
   it('shows the not-found screen for a Product that is not the Customer\'s', async () => {

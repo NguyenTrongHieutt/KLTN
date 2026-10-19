@@ -942,6 +942,8 @@ export interface components {
             name: string;
         };
         FindingView: {
+            /** @enum {string} */
+            category: "CREDENTIAL" | "PERSONAL_DATA";
             commit: string;
             /** Format: date-time */
             committedAt: string;
@@ -950,6 +952,8 @@ export interface components {
             /** Format: uuid */
             id: string;
             maskedPreview: string;
+            /** Format: int32 */
+            matchCount?: number;
             path: string;
             /** @enum {string} */
             status: "OPEN";
@@ -1514,6 +1518,7 @@ export interface components {
         };
         UnscannedFile: {
             path: string;
+            reason: string;
             /** Format: int64 */
             sizeBytes: number;
         };

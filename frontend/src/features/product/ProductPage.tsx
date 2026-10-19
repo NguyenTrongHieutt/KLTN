@@ -4,6 +4,7 @@ import { PageHeading } from '@/app/PageHeading'
 import { usePageTitle } from '@/app/usePageTitle'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
+import { TermHint } from '@/components/TermHint'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t, type MessageKey } from '@/i18n/t'
@@ -16,10 +17,11 @@ import { domainOf } from './productText'
 import { ScanStateBadge } from './ScanStateBadge'
 
 /**
- * CUS-4 (`/san-pham/{productId}`, FR-7, FR-8): the Product, its scan, its open Findings, its Source
- * Repository, and its information. While the scan waits or runs the page polls every 5 s under the
- * Busy banner (UX-DR21); a scan that did not finish says vibefix tries again. Each Finding shows its
- * type, file, commit, date, and masked value only. The scan history, re-scan, and resolving a
+ * CUS-4 (`/san-pham/{productId}`, FR-7, FR-8, FR-65): the Product, its scan, its open Findings, its
+ * Source Repository, and its information. While the scan waits or runs the page polls every 5 s under
+ * the Busy banner (UX-DR21); a scan that did not finish says vibefix tries again. A completed scan
+ * shows the result of the Secret Scan and the Personal-Data Check. Each Finding shows its type, file,
+ * commit, date, and masked values only. The scan history, re-scan, and resolving a
  * Finding (Stories 2.5 to 2.7), Jobs (Epic 3), and deletion (Story 2.8) come with their stories.
  */
 export function ProductPage() {
@@ -145,6 +147,7 @@ function FindingsSection({ product, scan }: { product: Product; scan: Scan }) {
       <h2 id="findings-heading" className="text-h2">
         {t('screen.product.detail.findingsHeading')}
       </h2>
+      {scan.status === 'SUCCEEDED' && <CheckSummary findings={product.openFindings > 0 ? findings.data : []} />}
       {product.openFindings > 0 ? (
         <>
           <div role="alert" className="flex gap-3 rounded-md border-l-4 border-destructive bg-destructive-soft p-4">
@@ -175,8 +178,40 @@ function FindingsSection({ product, scan }: { product: Product; scan: Scan }) {
   )
 }
 
-/** One Finding (UX-DR31): the plain type, where it was found, and the masked value, with no reveal or copy. */
+/** The Secret Scan and the Personal-Data Check, each clean or with its open Findings counted. */
+function CheckSummary({ findings }: { findings: Finding[] | undefined }) {
+  if (findings === undefined) {
+    return null
+  }
+  const secrets = findings.filter((finding) => finding.category === 'CREDENTIAL').length
+  const personal = findings.filter((finding) => finding.category === 'PERSONAL_DATA').length
+  return (
+    <section aria-label={t('screen.product.detail.checksLabel')} className="rounded-lg border border-border bg-card p-4">
+      <dl className="grid gap-2 text-body-sm sm:grid-cols-[max-content_1fr]">
+        <dt className="font-semibold">
+          <TermHint term="secretScan" />
+        </dt>
+        <dd className={secrets > 0 ? 'text-destructive' : 'text-success'}>
+          {secrets > 0 ? t('screen.product.detail.checkIssues', { n: secrets }) : t('screen.product.detail.checkSecretsClean')}
+        </dd>
+        <dt className="font-semibold">
+          <TermHint term="personalDataCheck" />
+        </dt>
+        <dd className={personal > 0 ? 'text-destructive' : 'text-success'}>
+          {personal > 0 ? t('screen.product.detail.checkIssues', { n: personal }) : t('screen.product.detail.checkPersonalClean')}
+        </dd>
+      </dl>
+    </section>
+  )
+}
+
+/**
+ * One Finding (UX-DR31): the plain type, where it was found, and the masked value, with no reveal or
+ * copy; for personal data (FR-65), the lines holding it and two masked samples.
+ */
 function FindingCard({ finding }: { finding: Finding }) {
+  const personal = finding.category === 'PERSONAL_DATA'
+
   return (
     <li className="flex flex-col gap-2 rounded-lg border border-l-4 border-border border-l-destructive bg-card p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -189,10 +224,13 @@ function FindingCard({ finding }: { finding: Finding }) {
         {t('screen.product.detail.findingFile')} <span className="font-mono break-all text-foreground">{finding.path}</span> ·{' '}
         {t('screen.product.detail.findingCommit')} <span className="font-mono text-foreground">{finding.commit.slice(0, 7)}</span>{' '}
         · {formatDate(finding.committedAt)}
+        {personal && finding.matchCount !== undefined && <> · {t('screen.product.detail.findingLines', { n: finding.matchCount })}</>}
       </p>
       <p className="text-body-sm">
-        <span className="text-muted-foreground">{t('screen.product.detail.findingMasked')}</span>{' '}
-        <span className="font-mono select-none">{finding.maskedPreview}</span>
+        <span className="text-muted-foreground">
+          {t(personal ? 'screen.product.detail.findingSamples' : 'screen.product.detail.findingMasked')}
+        </span>{' '}
+        <span className="font-mono break-all select-none">{finding.maskedPreview}</span>
       </p>
     </li>
   )
@@ -210,7 +248,9 @@ function UnscannedFiles({ scan }: { scan: Scan }) {
           <li key={file.path} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
             <span className="font-mono break-all">{file.path}</span>
             <span className="text-caption text-muted-foreground">
-              {t('screen.product.detail.unscannedSize', { size: formatSize(file.sizeBytes) })}
+              {t(file.reason === 'NOT_EXTRACTED' ? 'screen.product.detail.unscannedNotExtracted' : 'screen.product.detail.unscannedSize', {
+                size: formatSize(file.sizeBytes),
+              })}
             </span>
           </li>
         ))}

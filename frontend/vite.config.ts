@@ -35,5 +35,7 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
+    // One jsdom worker per core overloads a many-core machine and times out the typing tests.
+    maxWorkers: 6,
   },
 })

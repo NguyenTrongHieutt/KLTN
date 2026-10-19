@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 
 import org.eclipse.jgit.lib.Constants;
@@ -24,24 +25,40 @@ import org.eclipse.jgit.treewalk.TreeWalk;
 import org.eclipse.jgit.treewalk.filter.TreeFilter;
 import org.jspecify.annotations.Nullable;
 
+import vn.vibefix.scanning.internal.PersonalDataMatcher.Hit;
+import vn.vibefix.scanning.internal.ScanRules.PersonalKind;
 import vn.vibefix.scanning.internal.SecretMatcher.Match;
 
 /**
  * Walks every commit reachable from every ref of a bare repository, oldest first, and scans each
- * file version once (AD-18, AD-32). Nothing is ever checked out: a file is read as a blob, a symbolic
- * link as the text of its target, which is never followed; submodule entries are skipped. A blob
- * larger than {@link ScanLimits#blobBytes()} is listed, not read; a binary blob (a NUL byte in its
- * first 8 000 bytes) is skipped. The other caps stop the walk and say which one was reached.
+ * file version once for credentials and personal data, in the same run (AD-18, AD-32, FR-65).
+ * Nothing is ever checked out: a file is read as a blob, a symbolic link as the text of its target,
+ * which is never followed; submodule entries are skipped. A blob larger than
+ * {@link ScanLimits#blobBytes()}, and a spreadsheet or database file whose extraction is off, is
+ * listed, not read; a binary blob (a NUL byte in its first 8 000 bytes) is skipped. The other caps
+ * stop the walk and say which one was reached.
  */
 final class HistoryScanner {
 
-	/** A file the scan did not read because of its size. */
-	record UnscannedFile(String path, long sizeBytes) {
+	/**
+	 * A file the scan did not read.
+	 * @param reason {@value #TOO_LARGE} or {@value #NOT_EXTRACTED}
+	 */
+	record UnscannedFile(String path, long sizeBytes, String reason) {
 	}
 
-	/** A credential at the first commit the walk met it in. */
+	/**
+	 * A credential, or a file of personal data, at the first commit the walk met it in.
+	 * @param kinds the personal data found, empty for a credential
+	 * @param lines the lines holding personal data, 0 for a credential
+	 */
 	record Found(String ruleId, String type, String path, String commit, Instant committedAt, String masked,
-			String hash) {
+			String hash, Set<PersonalKind> kinds, int lines) {
+
+		boolean personalData() {
+			return !this.kinds.isEmpty();
+		}
+
 	}
 
 	/**
@@ -65,6 +82,12 @@ final class HistoryScanner {
 	/** A tree entry whose path could escape a checkout; the object checker refuses these at clone. */
 	static final String UNSAFE_PATH = "UNSAFE_PATH";
 
+	/** Larger than the size limit. */
+	static final String TOO_LARGE = "TOO_LARGE";
+
+	/** A spreadsheet or database file: its extraction is a separate step, off (FR-65 Tier 3). */
+	static final String NOT_EXTRACTED = "NOT_EXTRACTED";
+
 	/** The unscanned files listed by path; the rest are counted. */
 	static final int LISTED_UNSCANNED = 50;
 
@@ -75,8 +98,14 @@ final class HistoryScanner {
 
 	private final SecretMatcher matcher;
 
-	HistoryScanner(SecretMatcher matcher) {
-		this.matcher = matcher;
+	private final PersonalDataMatcher personalData;
+
+	private final java.util.function.Predicate<String> notExtracted;
+
+	HistoryScanner(ScanRules rules) {
+		this.matcher = new SecretMatcher(rules);
+		this.personalData = new PersonalDataMatcher(rules.personalData());
+		this.notExtracted = path -> rules.personalData().notExtracted().matcher(path).find();
 	}
 
 	Report scan(Repository repository, ScanLimits limits, long deadlineNanos) throws IOException {
@@ -135,9 +164,10 @@ final class HistoryScanner {
 						}
 						ObjectLoader loader = reader.open(blob, Constants.OBJ_BLOB);
 						long size = loader.getSize();
-						if (size > limits.blobBytes()) {
+						boolean notRead = mode != FileMode.SYMLINK && this.notExtracted.test(path);
+						if (notRead || size > limits.blobBytes()) {
 							if (unscannedCount++ < LISTED_UNSCANNED) {
-								unscanned.add(new UnscannedFile(path, size));
+								unscanned.add(new UnscannedFile(path, size, notRead ? NOT_EXTRACTED : TOO_LARGE));
 							}
 							continue;
 						}
@@ -160,10 +190,19 @@ final class HistoryScanner {
 							continue;
 						}
 						String text = pieces(new String(bytes, StandardCharsets.UTF_8), limits.lineLength());
+						List<Found> here = new ArrayList<>();
+						Instant when = commit.getAuthorIdent().getWhenAsInstant();
 						for (Match match : this.matcher.find(path, text)) {
-							if (hashes.add(match.hash())) {
-								found.add(new Found(match.ruleId(), match.type(), path, commit.name(),
-										commit.getAuthorIdent().getWhenAsInstant(), match.masked(), match.hash()));
+							here.add(new Found(match.ruleId(), match.type(), path, commit.name(), when, match.masked(),
+									match.hash(), Set.of(), 0));
+						}
+						Optional<Hit> personal = mode == FileMode.SYMLINK ? Optional.empty()
+								: this.personalData.find(path, text);
+						personal.ifPresent(hit -> here.add(new Found(PersonalDataMatcher.RULE_ID, "", path, commit.name(),
+								when, String.join(" · ", hit.samples()), hit.hash(), hit.kinds(), hit.lines())));
+						for (Found one : here) {
+							if (hashes.add(one.hash())) {
+								found.add(one);
 								if (found.size() >= MAX_FOUND) {
 									stopped = MATCH_LIMIT;
 									break commits;

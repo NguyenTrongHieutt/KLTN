@@ -28,6 +28,7 @@ import vn.vibefix.product.internal.Products.Product;
 import vn.vibefix.product.internal.Products.Registration;
 import vn.vibefix.product.internal.Products.Tool;
 import vn.vibefix.scanning.Finding;
+import vn.vibefix.scanning.FindingCategory;
 import vn.vibefix.scanning.FindingStatus;
 import vn.vibefix.scanning.ScanStatus;
 import vn.vibefix.scanning.ScanSummary;
@@ -124,13 +125,18 @@ class ProductController {
 
 	}
 
-	/** A Finding as CUS-4 lists it (FR-8): the masked preview only, never the credential. */
-	record FindingView(UUID id, String type, String path, String commit, Instant committedAt, String maskedPreview,
-			FindingStatus status, Instant createdAt) {
+	/**
+	 * A Finding as CUS-4 lists it (FR-8, FR-65): the masked preview only, never the value; for
+	 * personal data, up to two masked samples and the lines holding personal values.
+	 */
+	record FindingView(UUID id, FindingCategory category, String type, String path, String commit,
+			Instant committedAt, String maskedPreview, @Nullable Integer matchCount, FindingStatus status,
+			Instant createdAt) {
 
 		static FindingView of(Finding finding) {
-			return new FindingView(finding.id(), finding.type(), finding.path(), finding.commit(), finding.committedAt(),
-					finding.maskedPreview(), finding.status(), finding.createdAt());
+			return new FindingView(finding.id(), finding.category(), finding.type(), finding.path(), finding.commit(),
+					finding.committedAt(), finding.maskedPreview(), finding.matchCount(), finding.status(),
+					finding.createdAt());
 		}
 
 	}

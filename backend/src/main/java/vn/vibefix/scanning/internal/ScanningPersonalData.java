@@ -49,10 +49,11 @@ class ScanningPersonalData implements PersonalDataParticipant {
 				scan.put("finishedAt", rs.getTimestamp("finished_at").toInstant().toString());
 			}
 			scan.put("findings", this.jdbc.sql("""
-					SELECT rule_type, file_path, commit_sha, masked_preview, status, created_at
+					SELECT category, rule_type, file_path, commit_sha, masked_preview, status, created_at
 					FROM scanning.finding WHERE scan_run_id = :run ORDER BY created_at, id
 					""").param("run", rs.getObject("id", UUID.class)).query((f, m) -> {
 				Map<String, Object> finding = new LinkedHashMap<>();
+				finding.put("category", f.getString("category"));
 				finding.put("type", f.getString("rule_type"));
 				finding.put("file", f.getString("file_path"));
 				finding.put("commit", f.getString("commit_sha"));

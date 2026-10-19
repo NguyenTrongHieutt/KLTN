@@ -861,12 +861,19 @@
         "findingFile": "Tệp",
         "findingCommit": "lần lưu",
         "findingMasked": "Giá trị đã che:",
+        "findingSamples": "Ví dụ đã che:",
+        "findingLines": "{n} dòng",
         "findingOpen": "Chưa xử lý",
         "clean": "Không phát hiện vấn đề nào ở lần kiểm tra gần nhất.",
         "unscannedHeading": "Tệp chưa kiểm tra được",
         "unscannedSize": "{size} · lớn hơn giới hạn kiểm tra",
-        "unscannedMore": "Và {n} tệp khác lớn hơn giới hạn kiểm tra.",
-        "unscannedHint": "Tệp lớn hơn giới hạn được ghi là \"chưa kiểm tra được\". Nếu tệp có thể chứa dữ liệu khách hàng, hãy xóa nó khỏi dự án gốc.",
+        "unscannedNotExtracted": "{size} · chưa đọc được loại tệp này",
+        "unscannedMore": "Và {n} tệp khác chưa kiểm tra được.",
+        "unscannedHint": "Tệp lớn hơn giới hạn, bảng tính và tệp cơ sở dữ liệu được ghi là \"chưa kiểm tra được\". Nếu tệp có thể chứa dữ liệu khách hàng, hãy xóa nó khỏi dự án gốc.",
+        "checksLabel": "Kết quả từng loại kiểm tra",
+        "checkSecretsClean": "Không phát hiện khóa bí mật",
+        "checkPersonalClean": "Không phát hiện dữ liệu cá nhân",
+        "checkIssues": "{n} vấn đề",
         "limits": "Kiểm tra tự động, không dùng AI, và không thể phát hiện mọi thứ."
       }
     }
