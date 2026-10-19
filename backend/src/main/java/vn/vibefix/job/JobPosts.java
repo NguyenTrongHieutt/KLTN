@@ -1,6 +1,8 @@
 package vn.vibefix.job;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -17,9 +19,32 @@ public interface JobPosts {
 	 * @param lapsesAt when the Job Post lapses, while Open
 	 * @param codeJob a Code Job: its Job Types are not Assessment alone (FR-8)
 	 * @param mentorId the Mentor J3 recorded, while there is one
+	 * @param jobTypes the Job Types' names, for example {@code BUG_FIX}
+	 * @param skillIds the Skills the Job Post asks for, in its order
 	 */
 	record JobPostState(UUID jobId, UUID customerId, UUID productId, String title, String state, boolean open,
-			boolean hidden, @Nullable Instant lapsesAt, boolean codeJob, @Nullable UUID mentorId) {
+			boolean hidden, @Nullable Instant lapsesAt, boolean codeJob, @Nullable UUID mentorId, List<String> jobTypes,
+			List<UUID> skillIds) {
+
+		public JobPostState {
+			jobTypes = List.copyOf(jobTypes);
+			skillIds = List.copyOf(skillIds);
+		}
+
+	}
+
+	/**
+	 * An Open Job Post that is not hidden, as Recommendations rank it (AD-17).
+	 * @param budget the budget range's name, if any
+	 */
+	record OpenPost(UUID jobId, UUID customerId, UUID productId, String title, List<String> jobTypes,
+			List<UUID> skillIds, @Nullable String budget, @Nullable LocalDate deadline, Instant openedAt) {
+
+		public OpenPost {
+			jobTypes = List.copyOf(jobTypes);
+			skillIds = List.copyOf(skillIds);
+		}
+
 	}
 
 	/** Any Job by ID, whatever its state; empty for no such Job. */
@@ -33,5 +58,8 @@ public interface JobPosts {
 	 * empty for a Draft, a hidden Job Post, or a Job past Open.
 	 */
 	Optional<UUID> openCustomer(UUID jobId);
+
+	/** Every Open Job Post that is not hidden, newest first, in one read (AD-17, SG-40). */
+	List<OpenPost> openPosts();
 
 }

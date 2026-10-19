@@ -1,6 +1,7 @@
 package vn.vibefix.team.internal;
 
 import java.time.Clock;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -80,6 +81,11 @@ class TeamMemberships implements Teams {
 	@Override
 	public List<UUID> members(UUID mentorId) {
 		return this.store.studentsOf(mentorId);
+	}
+
+	@Override
+	public Map<UUID, List<UUID>> membersOf(Collection<UUID> mentorIds) {
+		return this.store.studentsOf(mentorIds);
 	}
 
 	@Override

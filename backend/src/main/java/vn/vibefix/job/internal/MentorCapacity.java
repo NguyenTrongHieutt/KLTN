@@ -1,7 +1,13 @@
 package vn.vibefix.job.internal;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -90,6 +96,67 @@ class MentorCapacity implements MentorWork {
 	@Override
 	public int activeJobLimit() {
 		return this.settings.value(Rule.MENTOR_ACTIVE_JOB_LIMIT);
+	}
+
+	@Override
+	public Map<UUID, Integer> activeJobCounts(Collection<UUID> mentorIds) {
+		Map<UUID, Integer> counts = new HashMap<>();
+		mentorIds.forEach(id -> counts.put(id, 0));
+		if (mentorIds.isEmpty()) {
+			return counts;
+		}
+		this.jdbc.sql("""
+				SELECT mentor_account_id, count(*) AS n FROM job.job WHERE mentor_account_id IN (:mentors)
+				  AND state IN ('SELECTING', 'AGREEMENT', 'STARTING', 'ACTIVE', 'CLOSING')
+				GROUP BY mentor_account_id
+				""").param("mentors", List.copyOf(mentorIds)).query(rs -> {
+			counts.put(rs.getObject("mentor_account_id", UUID.class), rs.getInt("n"));
+		});
+		return counts;
+	}
+
+	@Override
+	public Set<UUID> withFreeStudents(Collection<UUID> mentorIds) {
+		Map<UUID, List<UUID>> members = this.teams.membersOf(mentorIds);
+		Set<UUID> free = new HashSet<>(freeStudents(members.values().stream().flatMap(List::stream).toList()));
+		Set<UUID> mentors = new LinkedHashSet<>();
+		members.forEach((mentor, students) -> {
+			if (students.stream().anyMatch(free::contains)) {
+				mentors.add(mentor);
+			}
+		});
+		return mentors;
+	}
+
+	/** Closed Jobs only: J9 closes a Job with Accepted work (FR-14); no Job reaches it before Epic 9. */
+	@Override
+	public Map<UUID, Map<String, Integer>> workHistory(Collection<UUID> mentorIds) {
+		Map<UUID, Map<String, Integer>> history = new HashMap<>();
+		if (mentorIds.isEmpty()) {
+			return history;
+		}
+		this.jdbc.sql("""
+				SELECT mentor_account_id, type, count(DISTINCT customer_account_id) AS n
+				FROM job.job, unnest(job_types) AS type
+				WHERE mentor_account_id IN (:mentors) AND state = 'CLOSED'
+				GROUP BY mentor_account_id, type
+				""").param("mentors", List.copyOf(mentorIds)).query(rs -> {
+			history.computeIfAbsent(rs.getObject("mentor_account_id", UUID.class), id -> new HashMap<>())
+				.put(rs.getString("type"), rs.getInt("n"));
+		});
+		return history;
+	}
+
+	@Override
+	public Set<UUID> experiencedIn(Collection<String> jobTypes) {
+		if (jobTypes.isEmpty()) {
+			return Set.of();
+		}
+		return new LinkedHashSet<>(this.jdbc.sql("""
+				SELECT DISTINCT mentor_account_id FROM job.job
+				WHERE state = 'CLOSED' AND mentor_account_id IS NOT NULL AND job_types && CAST(:types AS TEXT[])
+				ORDER BY mentor_account_id
+				""").param("types", jobTypes.toArray(String[]::new)).query(UUID.class).list());
 	}
 
 	private List<UUID> freeStudents(List<UUID> members) {

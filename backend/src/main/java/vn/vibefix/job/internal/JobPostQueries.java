@@ -6,6 +6,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import vn.vibefix.job.JobPosts;
 import vn.vibefix.job.JobPosts.JobPostState;
+import vn.vibefix.job.JobPosts.OpenPost;
 import vn.vibefix.job.internal.Jobs.Job;
 import vn.vibefix.shared.KeywordQuery;
 
@@ -112,7 +114,22 @@ class JobPostQueries implements JobPosts {
 			.query(Jobs::job)
 			.optional()
 			.map(job -> new JobPostState(job.id(), job.customerId(), job.productId(), job.title(), job.state().name(),
-					job.state() == JobState.OPEN, job.hiddenAt() != null, job.lapsesAt(), job.code(), job.mentorId()));
+					job.state() == JobState.OPEN, job.hiddenAt() != null, job.lapsesAt(), job.code(), job.mentorId(),
+					job.jobTypes().stream().map(Enum::name).toList(), job.skillIds()));
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<OpenPost> openPosts() {
+		return this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE " + VISIBLE + " ORDER BY opened_at DESC, id")
+			.query(Jobs::job)
+			.list()
+			.stream()
+			.map(job -> new OpenPost(job.id(), job.customerId(), job.productId(), job.title(),
+					job.jobTypes().stream().map(Enum::name).toList(), job.skillIds(),
+					job.budget() == null ? null : job.budget().name(), job.deadline(),
+					Objects.requireNonNull(job.openedAt())))
+			.toList();
 	}
 
 	@Override

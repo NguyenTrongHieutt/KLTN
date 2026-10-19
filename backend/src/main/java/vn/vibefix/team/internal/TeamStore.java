@@ -4,8 +4,11 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -74,6 +77,22 @@ class TeamStore {
 				SELECT m.student_account_id FROM team.membership m JOIN team.team t ON t.id = m.team_id
 				WHERE t.mentor_account_id = :mentor AND m.left_at IS NULL ORDER BY m.student_account_id
 				""").param("mentor", mentorId).query(UUID.class).list();
+	}
+
+	/** The members of each Mentor's Team, in one query; a Mentor without one maps to an empty list. */
+	Map<UUID, List<UUID>> studentsOf(Collection<UUID> mentorIds) {
+		Map<UUID, List<UUID>> members = new LinkedHashMap<>();
+		mentorIds.forEach(id -> members.put(id, new ArrayList<>()));
+		if (mentorIds.isEmpty()) {
+			return members;
+		}
+		this.jdbc.sql("""
+				SELECT t.mentor_account_id, m.student_account_id FROM team.membership m JOIN team.team t ON t.id = m.team_id
+				WHERE t.mentor_account_id IN (:mentors) AND m.left_at IS NULL ORDER BY m.student_account_id
+				""").param("mentors", List.copyOf(mentorIds)).query(rs -> {
+			members.get(rs.getObject("mentor_account_id", UUID.class)).add(rs.getObject("student_account_id", UUID.class));
+		});
+		return members;
 	}
 
 	Optional<Team> byMentor(UUID mentorId) {
