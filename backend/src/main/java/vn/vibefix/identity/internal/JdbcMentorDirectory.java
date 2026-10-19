@@ -72,8 +72,9 @@ class JdbcMentorDirectory implements MentorDirectory {
 			where.append(" AND m.skill_ids && CAST(:skills AS UUID[])");
 			params.put("skills", JdbcStudentDirectory.uuidArray(skillIds));
 		}
-		String order = keyword.map(found -> found.rank("m.search_vector") + " DESC, ").orElse("")
-				+ "m.display_name, a.id";
+		// FR-14: a keyword orders by relevance alone, then the account ID; the Skill filter alone by name.
+		String order = keyword.map(found -> found.rank("m.search_vector") + " DESC, a.id")
+			.orElse("m.display_name, a.id");
 		List<Row> rows = this.jdbc.sql("SELECT " + COLUMNS + where + " ORDER BY " + order + " LIMIT :size OFFSET :offset")
 			.params(params)
 			.param("size", pageable.getPageSize())

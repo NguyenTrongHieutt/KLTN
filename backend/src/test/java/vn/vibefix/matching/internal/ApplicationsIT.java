@@ -106,6 +106,8 @@ class ApplicationsIT extends IntegrationTest {
 	void aMentorWithAFreeStudentAppliesAndTheCustomerIsToldOnce() throws Exception {
 		UUID hung = mentorWithFreeStudent("Đỗ Mạnh Hùng");
 		UUID ha = mentorWithFreeStudent("Phạm Thu Hà");
+		this.mvc.perform(post("/api/v1/jobs/" + this.job + "/invitations").with(as(this.lan, Role.CUSTOMER)).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON).content("{\"mentorId\":\"" + hung + "\"}")).andExpect(status().isCreated());
 
 		apply(hung, this.job, true).andExpect(status().isCreated())
 			.andExpect(jsonPath("$.status").value("SUBMITTED"))
@@ -124,7 +126,15 @@ class ApplicationsIT extends IntegrationTest {
 			.andExpect(jsonPath("$.length()").value(2))
 			.andExpect(jsonPath("$[1].mentor.displayName").value("Đỗ Mạnh Hùng"))
 			.andExpect(jsonPath("$[1].mentor.teamSize").value(1))
-			.andExpect(jsonPath("$[1].approach").value("Tái hiện lỗi rồi sửa và thêm kiểm thử."));
+			.andExpect(jsonPath("$[1].approach").value("Tái hiện lỗi rồi sửa và thêm kiểm thử."))
+			.andExpect(jsonPath("$[1].invited").value(true))
+			.andExpect(jsonPath("$[0].invited").value(false));
+		assertThat(this.jdbc.sql("SELECT status FROM matching.invitation WHERE job_id = :job AND mentor_account_id = :hung")
+			.param("job", this.job).param("hung", hung).query(String.class).single())
+			.as("the invited Mentor's Application answers the invitation").isEqualTo("APPLIED");
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM notification.todo WHERE todo_key = 'matching.answer_invitation_to_apply' AND closed_at IS NULL
+				""").query(Long.class).single()).isZero();
 		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
 		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/applications").with(as(other, Role.CUSTOMER)))
 			.andExpect(status().isNotFound());

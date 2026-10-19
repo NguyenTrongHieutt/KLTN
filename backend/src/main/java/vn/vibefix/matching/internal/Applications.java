@@ -50,7 +50,8 @@ import vn.vibefix.timers.Deadlines;
  * and an approach. Refused, in this order, for a hidden or closed Job Post, a second Application, the
  * daily limit, no free Student, the Job limit, a person-link signal shared with the Customer (which
  * alerts every Administrator), or a contribution to the Source Repository. The Customer is told of the
- * first Application and keeps a to-do with the open count until J2 or J3.
+ * first Application and keeps a to-do with the open count until J2 or J3. An invited Mentor's
+ * Application answers their invitation.
  */
 @Component
 class Applications {
@@ -121,6 +122,8 @@ class Applications {
 
 	private final Deadlines deadlines;
 
+	private final Invitations invitations;
+
 	private final AuditLog auditLog;
 
 	private final IdGenerator ids;
@@ -129,8 +132,8 @@ class Applications {
 
 	Applications(JdbcClient jdbc, JobPosts posts, MentorWork work, PersonSignals signals,
 			CustomerRepositories repositories, ProductDirectory products, MentorDirectory mentors,
-			Notifications notifications, Todos todos, ConflictAlerts alerts, Deadlines deadlines, AuditLog auditLog,
-			IdGenerator ids, Clock clock) {
+			Notifications notifications, Todos todos, ConflictAlerts alerts, Deadlines deadlines,
+			Invitations invitations, AuditLog auditLog, IdGenerator ids, Clock clock) {
 		this.jdbc = jdbc;
 		this.posts = posts;
 		this.work = work;
@@ -142,6 +145,7 @@ class Applications {
 		this.todos = todos;
 		this.alerts = alerts;
 		this.deadlines = deadlines;
+		this.invitations = invitations;
 		this.auditLog = auditLog;
 		this.ids = ids;
 		this.clock = clock;
@@ -210,6 +214,7 @@ class Applications {
 			.update();
 		this.auditLog.record(AuditEntry.of(AuditActor.user(mentorId), "matching.application_submitted",
 				AuditObject.of("matching.application", id)).forJob(jobId));
+		this.invitations.markApplied(jobId, mentorId);
 		int open = openCount(jobId);
 		if (open == 1) {
 			this.notifications.send(new NotificationRequest(RECEIVED, id,

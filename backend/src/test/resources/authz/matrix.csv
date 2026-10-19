@@ -558,3 +558,34 @@ GET /api/v1/products/{productId}/skill-suggestions,CUSTOMER,,,404 NOT_FOUND
 GET /api/v1/products/{productId}/skill-suggestions,MENTOR,,,404 NOT_FOUND
 GET /api/v1/products/{productId}/skill-suggestions,STUDENT,,,404 NOT_FOUND
 GET /api/v1/products/{productId}/skill-suggestions,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/mentors,ANONYMOUS,,,401
+GET /api/v1/jobs/{jobId}/mentors,OWNER,,,200
+GET /api/v1/jobs/{jobId}/mentors,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/mentors,MENTOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/mentors,STUDENT,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/mentors,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/invitations,ANONYMOUS,,,401
+GET /api/v1/jobs/{jobId}/invitations,OWNER,,,200
+GET /api/v1/jobs/{jobId}/invitations,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/invitations,MENTOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/invitations,STUDENT,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/invitations,ADMINISTRATOR,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/invitations,ANONYMOUS,,invitation.json,401
+POST /api/v1/jobs/{jobId}/invitations,OWNER,,invitation.json,422 GUARD_FAILED JOB_POST_NOT_OPEN
+POST /api/v1/jobs/{jobId}/invitations,CUSTOMER,,invitation.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/invitations,MENTOR,,invitation.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/invitations,STUDENT,,invitation.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/invitations,ADMINISTRATOR,,invitation.json,404 NOT_FOUND
+GET /api/v1/mentor/job-posts/{postId}/invitation,ANONYMOUS,,,401,requireActiveAccount
+GET /api/v1/mentor/job-posts/{postId}/invitation,MENTOR,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/job-posts/{postId}/invitation,MENTOR,mentor=PENDING,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/job-posts/{postId}/invitation,OWNER,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/job-posts/{postId}/invitation,CUSTOMER,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/job-posts/{postId}/invitation,STUDENT,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/job-posts/{postId}/invitation,ADMINISTRATOR,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/reputation/mentor-summaries,ANONYMOUS,,,401
+GET /api/v1/reputation/mentor-summaries,OWNER,,,200
+GET /api/v1/reputation/mentor-summaries,CUSTOMER,,,200
+GET /api/v1/reputation/mentor-summaries,MENTOR,,,200
+GET /api/v1/reputation/mentor-summaries,STUDENT,,,200
+GET /api/v1/reputation/mentor-summaries,ADMINISTRATOR,,,200

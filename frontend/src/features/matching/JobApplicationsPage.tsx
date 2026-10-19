@@ -183,7 +183,12 @@ function ApplicationCard({
   return (
     <li className={cn('flex flex-col gap-2 rounded-lg border bg-card p-4', compared ? 'border-primary' : 'border-border')}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <span className="text-label font-semibold break-words">{mentor.displayName}</span>
+        <span className="flex flex-wrap items-center gap-2">
+          <span className="text-label font-semibold break-words">{mentor.displayName}</span>
+          {application.invited && (
+            <span className="rounded-full bg-muted px-2 py-0.5 text-caption">{t('screen.matching.invitedChip')}</span>
+          )}
+        </span>
         <span className="text-caption text-muted-foreground">
           {t('screen.matching.list.sent', { date: formatDayMonth(application.submittedAt) })}
         </span>

@@ -45,7 +45,8 @@ public interface MentorDirectory {
 
 	/**
 	 * Approved, unlocked Mentors whose public fields match {@code query} and who hold one of
-	 * {@code skillIds}, best match first (AD-36).
+	 * {@code skillIds}: by relevance, then account ID, never by Rating (AD-36, FR-14); by name without
+	 * a keyword.
 	 * @param query the keyword; blank for the Skill filter alone
 	 * @param skillIds the Skill filter; empty for none
 	 */

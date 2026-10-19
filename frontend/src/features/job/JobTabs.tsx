@@ -3,8 +3,9 @@ import { t } from '@/i18n/t'
 import { cn } from '@/lib/utils'
 
 /**
- * The Customer's Job tabs (UX-DR17) as routes: "Tổng quan" always, and "Đơn ứng tuyển ({n})" while
- * the Job Post takes Applications. Later tabs join with their stories.
+ * The Customer's Job tabs (UX-DR17) as routes: "Tổng quan" always, and "Đơn ứng tuyển ({n})" with
+ * "Tìm người hướng dẫn" while the Job Post takes Applications (UX-DR66). Later tabs join with their
+ * stories.
  */
 export function JobTabs({
   jobId,
@@ -12,7 +13,7 @@ export function JobTabs({
   applications,
 }: {
   jobId: string
-  current: 'overview' | 'applications'
+  current: 'overview' | 'applications' | 'find'
   /** The open Applications, when the tab is shown. */
   applications?: number
 }) {
@@ -20,7 +21,10 @@ export function JobTabs({
     { key: 'overview', to: `/cong-viec/${jobId}`, label: t('screen.job.detail.overview') },
     ...(applications === undefined
       ? []
-      : [{ key: 'applications', to: `/cong-viec/${jobId}/ung-tuyen`, label: t('screen.matching.tab', { n: applications }) }]),
+      : [
+          { key: 'applications', to: `/cong-viec/${jobId}/ung-tuyen`, label: t('screen.matching.tab', { n: applications }) },
+          { key: 'find', to: `/cong-viec/${jobId}/tim-nguoi`, label: t('screen.matching.find.tab') },
+        ]),
   ]
   return (
     <nav aria-label={t('screen.job.detail.tabs')} className="flex gap-4 border-b border-border">

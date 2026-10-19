@@ -1,9 +1,10 @@
-import { FileText } from 'lucide-react'
+import { FileText, Info } from 'lucide-react'
 import { Link, useParams } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
 import { usePageTitle } from '@/app/usePageTitle'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
+import { buttonVariants } from '@/components/ui/button-variants'
 import { useSession } from '@/features/identity/useSession'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t, type MessageKey } from '@/i18n/t'
@@ -11,6 +12,7 @@ import { formatCalendarDayMonth, formatDayMonth } from '@/lib/dates'
 import { formatSize } from '@/lib/fileSize'
 import { isNotFound } from '@/lib/problemMessage'
 import { ApplyPanel } from '@/features/matching/ApplyPanel'
+import { useMentorInvitation, type MentorInvitation } from '@/features/matching/invitationApi'
 import { CapacityBanners } from './CapacityBanners'
 import { JobStateBadge } from './JobStateBadge'
 import { useCustomerRating, useJobPost, useMentorCapacity, type JobPost, type MentorCapacity } from './jobPostApi'
@@ -19,29 +21,55 @@ import { useCustomerRating, useJobPost, useMentorCapacity, type JobPost, type Me
  * MEN-3 Chi tiết tin công việc (`/tim-viec/{jobId}`, FR-12, FR-13) for approved Mentors: the Job
  * Post's answers, Job Types, Skills with their plain hints, deadline, budget, and screenshots; the
  * Customer's Rating summary, never their name or contact details; the Product; the Team's free
- * Students; the FR-13 banners; and "Ứng tuyển" (Story 3.6).
+ * Students; the FR-13 banners; and "Ứng tuyển" (Story 3.6). A Customer's invitation shows as a
+ * note, and once it lapsed its card replaces the not-found screen (FR-14, UX-DR27).
  */
 export function JobPostPage() {
   const { postId } = useParams()
   const post = useJobPost(postId)
+  const invitation = useMentorInvitation(postId)
   const account = useSession().data?.account
-  usePageTitle(post.data?.title ?? t('screen.jobPost.title'))
-  if (
-    (account && (account.role !== 'MENTOR' || account.mentorApprovalStatus !== 'APPROVED')) ||
-    (post.isError && isNotFound(post.error))
-  ) {
+  usePageTitle(post.data?.title ?? invitation.data?.jobTitle ?? t('screen.jobPost.title'))
+  if (account && (account.role !== 'MENTOR' || account.mentorApprovalStatus !== 'APPROVED')) {
     return <NotFoundScreen />
+  }
+  if (post.isError && isNotFound(post.error)) {
+    if (invitation.isPending) {
+      return <Skeleton className="m-6 h-48" />
+    }
+    return invitation.data?.status === 'LAPSED' ? <LapsedInvitation invitation={invitation.data} /> : <NotFoundScreen />
   }
   return (
     <div className="mx-auto flex max-w-[1120px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
       <RegionState query={post} skeleton={<Skeleton className="h-96 w-full" />}>
-        {post.data && <Post post={post.data} />}
+        {post.data && <Post post={post.data} invitation={invitation.data ?? undefined} />}
       </RegionState>
     </div>
   )
 }
 
-function Post({ post }: { post: JobPost }) {
+/** "Lời mời này đã hết hiệu lực…" with "Tìm việc khác" (MEN-3, FR-14). */
+function LapsedInvitation({ invitation }: { invitation: MentorInvitation }) {
+  return (
+    <div className="mx-auto flex max-w-[1120px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+      <nav aria-label={t('screen.jobPost.detail.breadcrumb')} className="text-caption text-muted-foreground">
+        <Link to="/tim-viec" className="text-primary underline-offset-4 hover:underline">
+          {t('screen.jobPost.detail.breadcrumb')}
+        </Link>{' '}
+        / <span className="break-words">{invitation.jobTitle}</span>
+      </nav>
+      <div role="status" className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card px-6 py-14 text-center">
+        <PageHeading className="text-h3">{t('screen.jobPost.invitation.lapsedTitle')}</PageHeading>
+        <p className="text-body-sm text-muted-foreground">{t('screen.jobPost.invitation.lapsedBody')}</p>
+        <Link to="/tim-viec" className={buttonVariants()}>
+          {t('screen.jobPost.invitation.findOther')}
+        </Link>
+      </div>
+    </div>
+  )
+}
+
+function Post({ post, invitation }: { post: JobPost; invitation: MentorInvitation | undefined }) {
   const capacity = useMentorCapacity()
   const types = post.jobTypes.map((type) => t(`term.jobType${type}.label` as MessageKey)).join(', ')
   const meta = [
@@ -71,6 +99,12 @@ function Post({ post }: { post: JobPost }) {
         </div>
         <p className="text-caption text-muted-foreground break-words">{meta.join(' · ')}</p>
       </div>
+      {invitation?.status === 'OPEN' && (
+        <div role="note" className="flex gap-3 rounded-md border-l-4 border-primary bg-primary-soft p-4 text-body-sm">
+          <Info aria-hidden="true" className="size-5 shrink-0 text-primary" />
+          <p className="break-words">{t('screen.jobPost.invitation.note', { customer: invitation.customer })}</p>
+        </div>
+      )}
       <CapacityBanners capacity={capacity.data} />
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="flex min-w-0 flex-col gap-6">
