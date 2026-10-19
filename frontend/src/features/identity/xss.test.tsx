@@ -5,19 +5,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
 import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { PAYLOADS } from '@/test/payloads'
 
 /**
  * The planted-payload suite (SG-30, NFR-3, AD-21): XSS strings saved in every user-written profile
  * field render as inert text in every view that shows them. Later epics add their fields and views.
  */
-export const PAYLOADS = [
-  '<img src=x onerror=alert(1)>',
-  '<script>alert(1)</script>',
-  '"><svg onload=alert(1)>',
-  'javascript:alert(1)',
-  "'-alert(1)-'",
-  '<a href="javascript:alert(1)">bấm</a>',
-]
 
 function renderAt(path: string) {
   render(

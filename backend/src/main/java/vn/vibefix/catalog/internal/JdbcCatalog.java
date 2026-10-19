@@ -54,6 +54,24 @@ class JdbcCatalog implements Catalog {
 	}
 
 	@Override
+	public List<Skill> suggest(Collection<String> languages, Collection<String> tools) {
+		if (languages.isEmpty() && tools.isEmpty()) {
+			return List.of();
+		}
+		return this.jdbc.sql("""
+				SELECT s.id, s.category_id, s.name, s.hint, s.active
+				FROM catalog.skill s JOIN catalog.skill_category c ON c.id = s.category_id
+				WHERE s.active AND c.active
+				  AND (s.match_languages && CAST(:languages AS TEXT[]) OR s.match_tools && CAST(:tools AS TEXT[]))
+				ORDER BY c.display_order, s.display_order, s.id
+				""")
+			.param("languages", languages.toArray(String[]::new))
+			.param("tools", tools.toArray(String[]::new))
+			.query((rs, n) -> skill(rs))
+			.list();
+	}
+
+	@Override
 	public List<Skill> byIds(Collection<UUID> ids) {
 		if (ids.isEmpty()) {
 			return List.of();

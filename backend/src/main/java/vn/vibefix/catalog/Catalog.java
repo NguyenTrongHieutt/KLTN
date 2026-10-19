@@ -14,6 +14,12 @@ public interface Catalog {
 	List<Skill> byIds(Collection<UUID> ids);
 
 	/**
+	 * The active Skills whose match keys fit {@code languages} (GitHub language names) or {@code tools}
+	 * (AI tool names of FR-7), in display order (FR-9, FR-72).
+	 */
+	List<Skill> suggest(Collection<String> languages, Collection<String> tools);
+
+	/**
 	 * Checks Skills a holder is adding: each must exist and be active.
 	 * @throws vn.vibefix.shared.ApiException {@code VALIDATION} with reason {@code SKILL_INACTIVE}
 	 */

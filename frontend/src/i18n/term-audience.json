@@ -93,5 +93,13 @@
   "quyenGhi": "C",
   "khoaBiMat": "C",
   "tenTaiKhoanGithub": "C",
-  "fundMilestone": "C M S A"
+  "fundMilestone": "C M S A",
+  "jobTypeASSESSMENT": "C M S A",
+  "jobTypeBUG_FIX": "C M S A",
+  "jobTypeNEW_FEATURE": "C M S A",
+  "jobTypeMODIFICATION": "C M S A",
+  "jobTypeIMPROVEMENT": "C M S A",
+  "jobTypeSECURITY_TESTING": "C M S A",
+  "jobTypeDEPLOYMENT_OPERATIONS": "C M S A",
+  "jobTypeDOCUMENTATION": "C M S A"
 }

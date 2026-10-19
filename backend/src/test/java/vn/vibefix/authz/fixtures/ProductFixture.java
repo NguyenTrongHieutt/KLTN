@@ -20,9 +20,11 @@ import vn.vibefix.shared.Role;
 import vn.vibefix.support.MutableClock;
 
 /**
- * Products (FR-7, FR-8, AD-20): a Customer's registered Product ({@code {productId}}), whose Customer
- * the matrix calls {@link MatrixCaller#OWNER}, with one open credential Finding of its intake scan
- * ({@code {findingId}}) that the owner resolves. Only the owner and Administrators read them.
+ * Products and their Jobs (FR-7, FR-8, FR-9, AD-20): a Customer's registered Product
+ * ({@code {productId}}), whose Customer the matrix calls {@link MatrixCaller#OWNER}, with one open
+ * credential Finding of its intake scan ({@code {findingId}}) that the owner resolves, and one Draft
+ * Job ({@code {jobId}}) holding a screenshot ({@code {screenshotId}}). Only the owner and
+ * Administrators read the Product; only the owner reads the Job.
  */
 public class ProductFixture implements MatrixFixture {
 
@@ -75,6 +77,18 @@ public class ProductFixture implements MatrixFixture {
 			.param("a", this.owner)
 			.update();
 		world.put("findingId", finding);
+		UUID job = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO job.job (id, product_id, customer_account_id, state, title, job_types, created_at, updated_at)
+				VALUES (:id, :product, :owner, 'DRAFT', 'Việc ma trận', ARRAY['ASSESSMENT'], :now, :now)
+				""").param("id", job).param("product", product).param("owner", this.owner).param("now", now).update();
+		world.put("jobId", job);
+		UUID screenshot = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO job.job_screenshot (job_id, file_id, file_name, size_bytes, added_at)
+				VALUES (:job, :file, 'man-hinh.png', 100, :now)
+				""").param("job", job).param("file", screenshot).param("now", now).update();
+		world.put("screenshotId", screenshot);
 	}
 
 	@Override

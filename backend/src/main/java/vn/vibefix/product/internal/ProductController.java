@@ -171,6 +171,10 @@ class ProductController {
 	record FalsePositiveRequest(@NotBlank @Size(max = 500) String reason) {
 	}
 
+	/** A Skill CUS-6 pre-selects, with its plain hint (UX-DR75). */
+	record SuggestedSkillView(UUID id, String name, String hint) {
+	}
+
 	private final Products products;
 
 	private final RepositoryChecks checks;
@@ -181,15 +185,18 @@ class ProductController {
 
 	private final Rescans rescans;
 
+	private final SkillSuggestions skillSuggestions;
+
 	private final CurrentCaller callers;
 
 	ProductController(Products products, RepositoryChecks checks, Scans scans, CleanRepositories cleanRepositories,
-			Rescans rescans, CurrentCaller callers) {
+			Rescans rescans, SkillSuggestions skillSuggestions, CurrentCaller callers) {
 		this.products = products;
 		this.checks = checks;
 		this.scans = scans;
 		this.cleanRepositories = cleanRepositories;
 		this.rescans = rescans;
+		this.skillSuggestions = skillSuggestions;
 		this.callers = callers;
 	}
 
@@ -239,6 +246,15 @@ class ProductController {
 	List<FindingView> findings(@PathVariable UUID productId) {
 		readable(productId);
 		return this.scans.findings(productId).stream().map(FindingView::of).toList();
+	}
+
+	/** CUS-6 "Kỹ năng cần có": the Skills suggested from the repository's languages and the AI tools. */
+	@GetMapping("/{productId}/skill-suggestions")
+	List<SuggestedSkillView> skillSuggestions(@PathVariable UUID productId) {
+		return this.skillSuggestions.suggest(customer(), productId)
+			.stream()
+			.map(skill -> new SuggestedSkillView(skill.id(), skill.name(), skill.hint()))
+			.toList();
 	}
 
 	/** CUS-4 "Lịch sử kiểm tra": every scan run, newest first, for the Customer or an Administrator. */

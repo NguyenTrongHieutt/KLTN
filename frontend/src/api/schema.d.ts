@@ -29,7 +29,7 @@ export interface paths {
         };
         get: operations["administrators"];
         put?: never;
-        post: operations["create"];
+        post: operations["create_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -255,6 +255,70 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["jobs"];
+        put?: never;
+        post: operations["create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/jobs/{jobId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["job"];
+        put: operations["update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/jobs/{jobId}/screenshots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["addScreenshot"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/jobs/{jobId}/screenshots/{screenshotId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["removeScreenshot"];
         options?: never;
         head?: never;
         patch?: never;
@@ -590,6 +654,22 @@ export interface paths {
         get: operations["scans"];
         put?: never;
         post: operations["rescan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/products/{productId}/skill-suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["skillSuggestions"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1071,6 +1151,63 @@ export interface components {
             status: "OPEN" | "RESOLVED" | "FALSE_POSITIVE";
             type: string;
         };
+        JobCreatedView: {
+            /** Format: uuid */
+            id: string;
+        };
+        JobDraftRequest: {
+            appUsers?: string;
+            /** @enum {string} */
+            budget?: "UNDER_2M" | "FROM_2M_TO_5M" | "FROM_5M_TO_10M" | "OVER_10M";
+            /** Format: date */
+            deadline?: string;
+            doneCheck?: string;
+            expected?: string;
+            jobTypes: ("ASSESSMENT" | "BUG_FIX" | "NEW_FEATURE" | "MODIFICATION" | "IMPROVEMENT" | "SECURITY_TESTING" | "DEPLOYMENT_OPERATIONS" | "DOCUMENTATION")[];
+            problem?: string;
+            /** Format: uuid */
+            productId?: string;
+            skillIds: string[];
+            title: string;
+        };
+        JobSummaryView: {
+            /** Format: uuid */
+            id: string;
+            jobTypes: ("ASSESSMENT" | "BUG_FIX" | "NEW_FEATURE" | "MODIFICATION" | "IMPROVEMENT" | "SECURITY_TESTING" | "DEPLOYMENT_OPERATIONS" | "DOCUMENTATION")[];
+            /** Format: uuid */
+            productId: string;
+            productName: string;
+            /** @enum {string} */
+            state: "DRAFT" | "OPEN" | "SELECTING" | "AGREEMENT" | "STARTING" | "ACTIVE" | "CLOSING" | "CLOSED" | "CANCELLED";
+            title: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        JobView: {
+            appUsers?: string;
+            /** @enum {string} */
+            budget?: "UNDER_2M" | "FROM_2M_TO_5M" | "FROM_5M_TO_10M" | "OVER_10M";
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date */
+            deadline?: string;
+            doneCheck?: string;
+            expected?: string;
+            /** Format: uuid */
+            id: string;
+            jobTypes: ("ASSESSMENT" | "BUG_FIX" | "NEW_FEATURE" | "MODIFICATION" | "IMPROVEMENT" | "SECURITY_TESTING" | "DEPLOYMENT_OPERATIONS" | "DOCUMENTATION")[];
+            problem?: string;
+            /** Format: uuid */
+            productId: string;
+            productName: string;
+            screenshots: components["schemas"]["ScreenshotView"][];
+            skills: components["schemas"]["SkillView"][];
+            /** @enum {string} */
+            state: "DRAFT" | "OPEN" | "SELECTING" | "AGREEMENT" | "STARTING" | "ACTIVE" | "CLOSING" | "CLOSED" | "CANCELLED";
+            title: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
         MentorApplicationDetail: {
             /** Format: uuid */
             accountId: string;
@@ -1379,6 +1516,16 @@ export interface components {
             /** Format: email */
             email: string;
         };
+        ScreenshotView: {
+            /** Format: date-time */
+            addedAt: string;
+            /** Format: uuid */
+            fileId: string;
+            fileName: string;
+            /** Format: int64 */
+            sizeBytes: number;
+            url: string;
+        };
         SessionView: {
             account?: components["schemas"]["AccountView"];
             administrator?: components["schemas"]["AdministratorView"];
@@ -1394,6 +1541,12 @@ export interface components {
             privacyNoticeVersion: string;
             /** @enum {string} */
             role: "CUSTOMER" | "MENTOR" | "STUDENT";
+        };
+        SkillView: {
+            active: boolean;
+            /** Format: uuid */
+            id: string;
+            name: string;
         };
         StudentCardRow: {
             /** Format: date-time */
@@ -1472,6 +1625,12 @@ export interface components {
             requestsLeft: number;
             team?: components["schemas"]["StudentTeamMembership"];
             verified: boolean;
+        };
+        SuggestedSkillView: {
+            hint: string;
+            /** Format: uuid */
+            id: string;
+            name: string;
         };
         TeamInvitationRequest: {
             /** Format: uuid */
@@ -1700,7 +1859,7 @@ export interface operations {
             };
         };
     };
-    create: {
+    create_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -2077,6 +2236,148 @@ export interface operations {
                 content: {
                     "application/json": string;
                 };
+            };
+        };
+    };
+    jobs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobSummaryView"][];
+                };
+            };
+        };
+    };
+    create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JobDraftRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobCreatedView"];
+                };
+            };
+        };
+    };
+    job: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobView"];
+                };
+            };
+        };
+    };
+    update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JobDraftRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobView"];
+                };
+            };
+        };
+    };
+    addScreenshot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScreenshotView"];
+                };
+            };
+        };
+    };
+    removeScreenshot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+                screenshotId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -2618,6 +2919,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ScanView"];
+                };
+            };
+        };
+    };
+    skillSuggestions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                productId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuggestedSkillView"][];
                 };
             };
         };

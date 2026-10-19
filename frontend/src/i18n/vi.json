@@ -1036,6 +1036,8 @@
         "deleteGithub": "Dự án gốc trên GitHub không bị ảnh hưởng.",
         "deleteBack": "Quay lại",
         "deleted": "Đã xóa {product}.",
+        "postJob": "Đăng công việc",
+        "postJobWait": "Đăng công việc khi kiểm tra xong.",
         "rescan": "Kiểm tra lại",
         "rescanBusy": "Đợi lần kiểm tra này xong rồi mới kiểm tra lại được.",
         "rescanStarted": "vibefix đang kiểm tra lại sản phẩm này.",
@@ -1063,6 +1065,76 @@
         "checkPersonalClean": "Không phát hiện dữ liệu cá nhân",
         "checkIssues": "{n} vấn đề",
         "limits": "Kiểm tra tự động, không dùng AI, và không thể phát hiện mọi thứ."
+      }
+    },
+    "job": {
+      "title": "Công việc",
+      "heading": "Công việc",
+      "empty": "Bạn chưa có công việc nào.",
+      "emptyCta": "Đăng công việc từ một sản phẩm",
+      "groupDecide": "Cần bạn quyết định",
+      "groupActive": "Đang thực hiện",
+      "groupOpen": "Đang tìm người hướng dẫn",
+      "groupDraft": "Bản nháp",
+      "groupEnded": "Đã kết thúc",
+      "groupCount": "· {n}",
+      "groupEmpty": "Không có công việc nào.",
+      "editedOn": "sửa lần cuối {date}",
+      "stateDRAFT": "Bản nháp",
+      "stateOPEN": "Đang tìm người hướng dẫn",
+      "stateSELECTING": "Đang chọn người hướng dẫn",
+      "stateAGREEMENT": "Đang thỏa thuận",
+      "stateSTARTING": "Đang chuẩn bị",
+      "stateACTIVE": "Đang thực hiện",
+      "stateCLOSING": "Đang kết thúc",
+      "stateCLOSED": "Đã hoàn thành",
+      "stateCANCELLED": "Đã hủy",
+      "form": {
+        "newTitle": "Đăng công việc",
+        "editTitle": "Sửa công việc",
+        "lead": "Trả lời vài câu hỏi bằng lời của bạn. Người hướng dẫn đã được vibefix duyệt sẽ đọc tin này để ứng tuyển.",
+        "breadcrumbProducts": "Sản phẩm",
+        "breadcrumbJobs": "Công việc",
+        "titleLabel": "Tên công việc",
+        "titleExample": "Ví dụ: \"Thêm thanh toán online khi đặt bàn\"",
+        "problemLabel": "Điều gì đang chưa đúng?",
+        "problemExample": "Ví dụ: \"Khách đặt bánh nhưng đơn không hiện trong danh sách.\"",
+        "expectedLabel": "Bạn muốn nó hoạt động thế nào?",
+        "expectedExample": "Ví dụ: \"Mỗi đơn khách đặt hiện ngay trong danh sách đơn của tôi, kèm số điện thoại khách.\"",
+        "appUsersLabel": "Ai dùng ứng dụng này?",
+        "appUsersExample": "Ví dụ: \"Khách mua bánh trên điện thoại, còn tôi xem đơn trên máy tính.\"",
+        "doneCheckLabel": "Làm sao bạn biết việc đã xong? (không bắt buộc)",
+        "doneCheckExample": "Ví dụ: \"Tôi đặt thử một bàn, trả tiền bằng VNPay thử nghiệm và nhận được email.\"",
+        "jobTypes": "Loại công việc",
+        "notSure": "Chưa rõ — đánh giá trước",
+        "notSureHint": "vibefix đặt công việc đánh giá: nhóm đọc mã, dùng thử ứng dụng rồi viết báo cáo, sau đó bạn mới đặt việc sửa.",
+        "openFindings": "Còn {n} vấn đề cần xử lý · bạn vẫn đặt được công việc đánh giá",
+        "openFindingsBody": "Các loại công việc sửa mã mở khi bạn xử lý các vấn đề vibefix phát hiện.",
+        "openFindingsLink": "Xử lý vấn đề",
+        "skillsLabel": "Kỹ năng cần có (không bắt buộc)",
+        "skillsHint": "vibefix đoán từ mã nguồn và công cụ AI bạn dùng. Bỏ những kỹ năng không đúng, hoặc để trống nếu bạn không chắc.",
+        "skillsCount": "{n}/10 kỹ năng. Mỗi kỹ năng có một câu giải thích ngắn.",
+        "budgetLabel": "Ngân sách dự kiến",
+        "budgetNone": "Chọn khoảng ngân sách",
+        "budgetUNDER_2M": "Dưới 2 triệu ₫",
+        "budgetFROM_2M_TO_5M": "2–5 triệu ₫",
+        "budgetFROM_5M_TO_10M": "5–10 triệu ₫",
+        "budgetOVER_10M": "Trên 10 triệu ₫",
+        "budgetNote": "Tiền thử nghiệm, không phải tiền thật.",
+        "deadlineLabel": "Mong muốn xong trước",
+        "screenshotsLabel": "Ảnh chụp màn hình (không bắt buộc)",
+        "choose": "Chọn ảnh",
+        "fileRule": "Ảnh hoặc PDF, tối đa 10 MB mỗi tệp",
+        "personalData": "Hãy che tên, số điện thoại và thông tin cá nhân của khách hàng bạn trước khi tải ảnh lên.",
+        "saveFirst": "Lưu nháp để thêm ảnh chụp màn hình.",
+        "remove": "Xóa",
+        "removeFile": "Xóa {name}",
+        "uploading": "Đang tải lên…",
+        "confidentiality": "Mọi người hướng dẫn đã được duyệt đều đọc được tin này. Đừng ghi thông tin kinh doanh bí mật ở đây; hãy trao đổi trong Trò chuyện sau khi người hướng dẫn ký cam kết bảo mật.",
+        "save": "Lưu nháp",
+        "saving": "Đang lưu…",
+        "saved": "Đã lưu nháp.",
+        "titleRequired": "Hãy đặt tên cho công việc."
       }
     }
   },
@@ -1448,6 +1520,38 @@
     },
     "fundMilestone": {
       "label": "Thanh toán giai đoạn"
+    },
+    "jobTypeASSESSMENT": {
+      "label": "Đánh giá",
+      "hint": "Nhóm của người hướng dẫn đọc mã và dùng thử ứng dụng, rồi viết báo cáo dễ hiểu về lỗi và những gì còn thiếu."
+    },
+    "jobTypeBUG_FIX": {
+      "label": "Sửa lỗi",
+      "hint": "Sửa những chỗ ứng dụng đang chạy sai hoặc báo lỗi."
+    },
+    "jobTypeNEW_FEATURE": {
+      "label": "Tính năng mới",
+      "hint": "Thêm một việc ứng dụng chưa làm được, ví dụ thanh toán online."
+    },
+    "jobTypeMODIFICATION": {
+      "label": "Chỉnh sửa",
+      "hint": "Đổi cách một phần đang có hoạt động hoặc hiển thị."
+    },
+    "jobTypeIMPROVEMENT": {
+      "label": "Cải thiện",
+      "hint": "Làm ứng dụng nhanh hơn, dễ dùng hơn, hoặc gọn gàng hơn mà không thêm việc mới."
+    },
+    "jobTypeSECURITY_TESTING": {
+      "label": "Bảo mật và kiểm thử",
+      "hint": "Chặn những chỗ người lạ có thể xem hoặc sửa dữ liệu, và thử ứng dụng kỹ trước khi khách dùng."
+    },
+    "jobTypeDEPLOYMENT_OPERATIONS": {
+      "label": "Triển khai, vận hành và bảo trì",
+      "hint": "Đưa ứng dụng lên mạng, giữ nó chạy ổn định và sửa khi có sự cố."
+    },
+    "jobTypeDOCUMENTATION": {
+      "label": "Tài liệu",
+      "hint": "Viết hướng dẫn dùng hoặc ghi chép về ứng dụng để bạn và người khác hiểu."
     }
   },
   "nav": {
@@ -1610,6 +1714,12 @@
       "GITHUB_UNAVAILABLE": "Chưa đọc được kho mã từ GitHub. Hãy thử lại sau ít phút.",
       "NOTICE_REQUIRED": "Hãy đánh dấu đủ 3 lưu ý trước khi bắt đầu.",
       "PRODUCT_LIMIT": "Bạn đã đăng ký đủ 5 sản phẩm hôm nay. Hãy đăng ký tiếp vào ngày mai."
+    },
+    "job": {
+      "ASSESSMENT_ALONE": "Công việc đánh giá không đi cùng loại công việc khác.",
+      "OPEN_FINDINGS": "Sản phẩm còn vấn đề cần xử lý, nên lúc này chỉ đặt được công việc đánh giá.",
+      "JOB_NOT_DRAFT": "Công việc này đã được đăng, không sửa ở đây được nữa.",
+      "JOB_FILE_QUOTA": "Ảnh chụp màn hình của một công việc tối đa 200 MB."
     }
   }
 }

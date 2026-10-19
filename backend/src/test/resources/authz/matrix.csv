@@ -395,3 +395,45 @@ GET /api/v1/customers/{customerId}/contact,ADMINISTRATOR,,,200
 GET /api/v1/customers/{customerId}/contact,CUSTOMER,,,404 NOT_FOUND
 GET /api/v1/customers/{customerId}/contact,MENTOR,,,404 NOT_FOUND
 GET /api/v1/customers/{customerId}/contact,STUDENT,,,404 NOT_FOUND
+GET /api/v1/jobs,ANONYMOUS,,,401
+GET /api/v1/jobs,CUSTOMER,,,200
+GET /api/v1/jobs,OWNER,,,200
+GET /api/v1/jobs,MENTOR,,,404 NOT_FOUND
+GET /api/v1/jobs,STUDENT,,,404 NOT_FOUND
+GET /api/v1/jobs,ADMINISTRATOR,,,404 NOT_FOUND
+POST /api/v1/jobs,ANONYMOUS,,job-draft.json,401
+POST /api/v1/jobs,OWNER,,job-draft.json,201
+POST /api/v1/jobs,CUSTOMER,,job-draft.json,404 NOT_FOUND
+POST /api/v1/jobs,MENTOR,,job-draft.json,404 NOT_FOUND
+POST /api/v1/jobs,STUDENT,,job-draft.json,404 NOT_FOUND
+POST /api/v1/jobs,ADMINISTRATOR,,job-draft.json,404 NOT_FOUND
+GET /api/v1/jobs/{jobId},ANONYMOUS,,,401
+GET /api/v1/jobs/{jobId},OWNER,,,200
+GET /api/v1/jobs/{jobId},CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId},MENTOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId},STUDENT,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId},ADMINISTRATOR,,,404 NOT_FOUND
+PUT /api/v1/jobs/{jobId},ANONYMOUS,,job-draft.json,401
+PUT /api/v1/jobs/{jobId},OWNER,,job-draft.json,200
+PUT /api/v1/jobs/{jobId},CUSTOMER,,job-draft.json,404 NOT_FOUND
+PUT /api/v1/jobs/{jobId},MENTOR,,job-draft.json,404 NOT_FOUND
+PUT /api/v1/jobs/{jobId},STUDENT,,job-draft.json,404 NOT_FOUND
+PUT /api/v1/jobs/{jobId},ADMINISTRATOR,,job-draft.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/screenshots,ANONYMOUS,,student-card.png,401
+POST /api/v1/jobs/{jobId}/screenshots,OWNER,,student-card.png,201
+POST /api/v1/jobs/{jobId}/screenshots,CUSTOMER,,student-card.png,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/screenshots,MENTOR,,student-card.png,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/screenshots,STUDENT,,student-card.png,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/screenshots,ADMINISTRATOR,,student-card.png,404 NOT_FOUND
+DELETE /api/v1/jobs/{jobId}/screenshots/{screenshotId},ANONYMOUS,,,401
+DELETE /api/v1/jobs/{jobId}/screenshots/{screenshotId},OWNER,,,204
+DELETE /api/v1/jobs/{jobId}/screenshots/{screenshotId},CUSTOMER,,,404 NOT_FOUND
+DELETE /api/v1/jobs/{jobId}/screenshots/{screenshotId},MENTOR,,,404 NOT_FOUND
+DELETE /api/v1/jobs/{jobId}/screenshots/{screenshotId},STUDENT,,,404 NOT_FOUND
+DELETE /api/v1/jobs/{jobId}/screenshots/{screenshotId},ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/products/{productId}/skill-suggestions,ANONYMOUS,,,401
+GET /api/v1/products/{productId}/skill-suggestions,OWNER,,,200
+GET /api/v1/products/{productId}/skill-suggestions,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/products/{productId}/skill-suggestions,MENTOR,,,404 NOT_FOUND
+GET /api/v1/products/{productId}/skill-suggestions,STUDENT,,,404 NOT_FOUND
+GET /api/v1/products/{productId}/skill-suggestions,ADMINISTRATOR,,,404 NOT_FOUND

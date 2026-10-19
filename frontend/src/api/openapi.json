@@ -51,7 +51,7 @@
         "tags" : [ "administrators-controller" ]
       },
       "post" : {
-        "operationId" : "create",
+        "operationId" : "create_1",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -559,6 +559,186 @@
           }
         },
         "tags" : [ "file-controller" ]
+      }
+    },
+    "/api/v1/jobs" : {
+      "get" : {
+        "operationId" : "jobs",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/JobSummaryView"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "job-controller" ]
+      },
+      "post" : {
+        "operationId" : "create",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/JobDraftRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/JobCreatedView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "job-controller" ]
+      }
+    },
+    "/api/v1/jobs/{jobId}" : {
+      "get" : {
+        "operationId" : "job",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/JobView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "job-controller" ]
+      },
+      "put" : {
+        "operationId" : "update",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/JobDraftRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/JobView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "job-controller" ]
+      }
+    },
+    "/api/v1/jobs/{jobId}/screenshots" : {
+      "post" : {
+        "operationId" : "addScreenshot",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "multipart/form-data" : {
+              "schema" : {
+                "type" : "object",
+                "properties" : {
+                  "file" : {
+                    "type" : "string",
+                    "format" : "binary"
+                  }
+                },
+                "required" : [ "file" ]
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ScreenshotView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "job-controller" ]
+      }
+    },
+    "/api/v1/jobs/{jobId}/screenshots/{screenshotId}" : {
+      "delete" : {
+        "operationId" : "removeScreenshot",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "path",
+          "name" : "screenshotId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "job-controller" ]
       }
     },
     "/api/v1/mentor/team" : {
@@ -1263,6 +1443,36 @@
               }
             },
             "description" : "Accepted"
+          }
+        },
+        "tags" : [ "product-controller" ]
+      }
+    },
+    "/api/v1/products/{productId}/skill-suggestions" : {
+      "get" : {
+        "operationId" : "skillSuggestions",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/SuggestedSkillView"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
           }
         },
         "tags" : [ "product-controller" ]
@@ -2230,6 +2440,180 @@
         },
         "required" : [ "category", "commit", "committedAt", "createdAt", "id", "maskedPreview", "path", "ruleId", "status", "type" ]
       },
+      "JobCreatedView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "id" ]
+      },
+      "JobDraftRequest" : {
+        "type" : "object",
+        "properties" : {
+          "appUsers" : {
+            "type" : "string",
+            "maxLength" : 1000,
+            "minLength" : 0
+          },
+          "budget" : {
+            "type" : "string",
+            "enum" : [ "UNDER_2M", "FROM_2M_TO_5M", "FROM_5M_TO_10M", "OVER_10M" ]
+          },
+          "deadline" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "doneCheck" : {
+            "type" : "string",
+            "maxLength" : 1000,
+            "minLength" : 0
+          },
+          "expected" : {
+            "type" : "string",
+            "maxLength" : 2000,
+            "minLength" : 0
+          },
+          "jobTypes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "enum" : [ "ASSESSMENT", "BUG_FIX", "NEW_FEATURE", "MODIFICATION", "IMPROVEMENT", "SECURITY_TESTING", "DEPLOYMENT_OPERATIONS", "DOCUMENTATION" ]
+            },
+            "uniqueItems" : true
+          },
+          "problem" : {
+            "type" : "string",
+            "maxLength" : 2000,
+            "minLength" : 0
+          },
+          "productId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "skillIds" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          },
+          "title" : {
+            "type" : "string",
+            "maxLength" : 120,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "jobTypes", "skillIds", "title" ]
+      },
+      "JobSummaryView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "jobTypes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "enum" : [ "ASSESSMENT", "BUG_FIX", "NEW_FEATURE", "MODIFICATION", "IMPROVEMENT", "SECURITY_TESTING", "DEPLOYMENT_OPERATIONS", "DOCUMENTATION" ]
+            }
+          },
+          "productId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "productName" : {
+            "type" : "string"
+          },
+          "state" : {
+            "type" : "string",
+            "enum" : [ "DRAFT", "OPEN", "SELECTING", "AGREEMENT", "STARTING", "ACTIVE", "CLOSING", "CLOSED", "CANCELLED" ]
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "id", "jobTypes", "productId", "productName", "state", "title", "updatedAt" ]
+      },
+      "JobView" : {
+        "type" : "object",
+        "properties" : {
+          "appUsers" : {
+            "type" : "string"
+          },
+          "budget" : {
+            "type" : "string",
+            "enum" : [ "UNDER_2M", "FROM_2M_TO_5M", "FROM_5M_TO_10M", "OVER_10M" ]
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "deadline" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "doneCheck" : {
+            "type" : "string"
+          },
+          "expected" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "jobTypes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "enum" : [ "ASSESSMENT", "BUG_FIX", "NEW_FEATURE", "MODIFICATION", "IMPROVEMENT", "SECURITY_TESTING", "DEPLOYMENT_OPERATIONS", "DOCUMENTATION" ]
+            }
+          },
+          "problem" : {
+            "type" : "string"
+          },
+          "productId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "productName" : {
+            "type" : "string"
+          },
+          "screenshots" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ScreenshotView"
+            }
+          },
+          "skills" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SkillView"
+            }
+          },
+          "state" : {
+            "type" : "string",
+            "enum" : [ "DRAFT", "OPEN", "SELECTING", "AGREEMENT", "STARTING", "ACTIVE", "CLOSING", "CLOSED", "CANCELLED" ]
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "createdAt", "id", "jobTypes", "productId", "productName", "screenshots", "skills", "state", "title", "updatedAt" ]
+      },
       "MentorApplicationDetail" : {
         "type" : "object",
         "properties" : {
@@ -3096,6 +3480,30 @@
         },
         "required" : [ "email" ]
       },
+      "ScreenshotView" : {
+        "type" : "object",
+        "properties" : {
+          "addedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "fileId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "fileName" : {
+            "type" : "string"
+          },
+          "sizeBytes" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "url" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "addedAt", "fileId", "fileName", "sizeBytes", "url" ]
+      },
       "SessionView" : {
         "type" : "object",
         "properties" : {
@@ -3140,6 +3548,22 @@
           }
         },
         "required" : [ "privacyNoticeVersion", "role" ]
+      },
+      "SkillView" : {
+        "type" : "object",
+        "properties" : {
+          "active" : {
+            "type" : "boolean"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "active", "id", "name" ]
       },
       "StudentCardRow" : {
         "type" : "object",
@@ -3375,6 +3799,22 @@
           }
         },
         "required" : [ "invitations", "joinRequests", "requestsLeft", "verified" ]
+      },
+      "SuggestedSkillView" : {
+        "type" : "object",
+        "properties" : {
+          "hint" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "hint", "id", "name" ]
       },
       "TeamInvitationRequest" : {
         "type" : "object",

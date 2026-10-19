@@ -82,6 +82,7 @@ function ProductDetail({ product }: { product: Product }) {
             <span className="sr-only">{t('screen.product.newTab')}</span>
           </a>
           {scan && <RescanButton product={product} scan={scan} />}
+          <PostJobLink product={product} />
         </div>
       </div>
       {scan ? <ScanStatus scan={scan} /> : <AwaitingScan />}
@@ -157,6 +158,28 @@ function ScanStatus({ scan }: { scan: Scan }) {
     )
   }
   return null
+}
+
+/** CUS-6's entry: open once the intake scan has finished (FR-9; Code Job Types wait for the Findings). */
+function PostJobLink({ product }: { product: Product }) {
+  const ready = product.scan?.status === 'SUCCEEDED' || (product.scan !== undefined && product.openFindings > 0)
+  if (!ready) {
+    return (
+      <div className="flex flex-col gap-1">
+        <Button type="button" disabled aria-describedby="post-job-wait">
+          {t('screen.product.detail.postJob')}
+        </Button>
+        <p id="post-job-wait" className="max-w-[220px] text-caption text-muted-foreground">
+          {t('screen.product.detail.postJobWait')}
+        </p>
+      </div>
+    )
+  }
+  return (
+    <Link to={`/san-pham/${product.id}/cong-viec-moi`} className={buttonVariants()}>
+      {t('screen.product.detail.postJob')}
+    </Link>
+  )
 }
 
 /** "Kiểm tra lại": disabled while a scan waits or runs; the day's limit reads when it can be used again. */
