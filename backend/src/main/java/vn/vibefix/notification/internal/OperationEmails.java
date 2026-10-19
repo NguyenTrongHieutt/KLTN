@@ -40,15 +40,18 @@ class OperationEmails implements Emails {
 		Map<String, Object> payload = new HashMap<>();
 		payload.put(EmailOperationHandler.TEMPLATE, request.type());
 		payload.put("class", request.emailClass().name());
+		Map<String, Object> personal = new HashMap<>();
+		personal.put(EmailOperationHandler.TO, to);
+		personal.put(EmailOperationHandler.PARAMETERS, request.parameters());
 		if (request.link() != null) {
 			if (!NotificationRegistry.LINK.matcher(request.link()).matches()) {
 				throw new IllegalArgumentException("An email links to a platform path, not '" + request.link() + "'");
 			}
-			payload.put(EmailOperationHandler.LINK, request.link());
+			// A link with a secret in it is purged with the address; any other stays with the payload.
+			(request.privateLink() ? personal : payload).put(EmailOperationHandler.LINK, request.link());
 		}
 		this.operations.request(new OperationRequest(EmailOperationHandler.TYPE, request.causingRecordId(), payload,
-				Map.of(EmailOperationHandler.TO, to, EmailOperationHandler.PARAMETERS, request.parameters()),
-				request.recipientAccountId(), request.emailClass().priority()));
+				personal, request.recipientAccountId(), request.emailClass().priority()));
 	}
 
 	/** One plain address, as RFC 822 strictly allows it; never a display name or a list. */

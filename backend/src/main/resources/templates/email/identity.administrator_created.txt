@@ -1,0 +1,7 @@
+subject: Quản trị viên mới được tạo: {email}
+link: /quan-tri/quan-tri-vien
+---
+Xin chào,
+
+Một tài khoản quản trị viên mới vừa được tạo cho {email}. Người đó sẽ đặt mật khẩu và ứng dụng xác thực qua đường dẫn trong email của họ.
+Nếu bạn không biết về việc này, hãy kiểm tra nhật ký hệ thống ngay.

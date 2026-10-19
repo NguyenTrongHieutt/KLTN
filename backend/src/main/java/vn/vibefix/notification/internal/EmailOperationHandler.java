@@ -74,7 +74,7 @@ class EmailOperationHandler implements OperationHandler {
 		Map<String, String> values = strings(personal.get(PARAMETERS));
 		RenderedEmail email;
 		try {
-			Object link = run.payload().get(LINK);
+			Object link = run.payload().containsKey(LINK) ? run.payload().get(LINK) : personal.get(LINK);
 			email = template.get().render(values, this.properties.linkBaseUrl() == null ? "" : this.properties.linkBaseUrl(),
 					link == null ? null : String.valueOf(link));
 		}

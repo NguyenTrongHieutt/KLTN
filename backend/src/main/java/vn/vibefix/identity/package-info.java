@@ -6,8 +6,8 @@
  * status with a school email code on the {@code settings} allowlist, and {@code timers} reminds them
  * before it expires and ends it on 30 September (FR-5).
  * <p>
- * Public API: {@link vn.vibefix.identity.MentorApprovalStatus}, {@link vn.vibefix.identity.ContactVisibility}
- * and {@link vn.vibefix.identity.StudentVerification}. Sign-in, sessions, and the HTTP endpoints are
+ * Public API: {@link vn.vibefix.identity.MentorApprovalStatus}, {@link vn.vibefix.identity.ContactVisibility},
+ * {@link vn.vibefix.identity.StudentVerification} and {@link vn.vibefix.identity.Administrators}. Sign-in, sessions, and the HTTP endpoints are
  * wiring in {@code identity.internal}.
  */
 @ApplicationModule(allowedDependencies = { "shared", "audit", "settings", "timers", "notification" })

@@ -47,7 +47,16 @@ export const routes: RouteObject[] = [
         index: true,
         lazy: async () => ({ Component: (await import('@/features/admin/AdminOverviewPage')).AdminOverviewPage }),
       },
+      {
+        path: 'quan-tri-vien',
+        lazy: async () => ({ Component: (await import('@/features/admin/AdministratorsPage')).AdministratorsPage }),
+      },
     ],
+  },
+  {
+    // A new Administrator's enrolment link (FR-2), emailed; outside the shell, for a visitor not signed in.
+    path: 'quan-tri/kich-hoat/:token',
+    lazy: async () => ({ Component: (await import('@/features/admin/EnrolmentPage')).EnrolmentPage }),
   },
   {
     element: <PublicLayout />,

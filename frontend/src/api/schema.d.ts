@@ -20,6 +20,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/administrators": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["administrators"];
+        put?: never;
+        post: operations["create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/enrolment/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["enrolment"];
+        put?: never;
+        post: operations["enrol"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/overview": {
         parameters: {
             query?: never;
@@ -344,6 +376,20 @@ export interface components {
             email: string;
             password: string;
         };
+        AdministratorListItem: {
+            /** Format: date-time */
+            createdAt: string;
+            displayName: string;
+            email: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            lockedUntil?: string;
+            /** Format: date-time */
+            signedInAt?: string;
+            status: string;
+            you: boolean;
+        };
         AdministratorView: {
             /** Format: date-time */
             absoluteExpiresAt: string;
@@ -354,6 +400,16 @@ export interface components {
         };
         CodeRequest: {
             code: string;
+        };
+        CreateAdministratorRequest: {
+            displayName: string;
+            /** Format: email */
+            email: string;
+            stepUpCode: string;
+        };
+        CreatedView: {
+            /** Format: uuid */
+            id: string;
         };
         CustomerProfile: {
             contactEmail: string;
@@ -369,6 +425,16 @@ export interface components {
             /** @enum {string} */
             kind: "INDIVIDUAL" | "BUSINESS";
             phone?: string;
+        };
+        EnrolmentRequest: {
+            code: string;
+            password: string;
+        };
+        EnrolmentView: {
+            displayName: string;
+            email: string;
+            otpauthUri: string;
+            secret: string;
         };
         EnvironmentResponse: {
             name: string;
@@ -387,6 +453,8 @@ export interface components {
             type: string;
         };
         OverviewView: {
+            /** Format: int64 */
+            activeAdministrators: number;
             failedOperations: components["schemas"]["Queue"];
             stalledEvents: components["schemas"]["Queue"];
         };
@@ -521,6 +589,96 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ThemeRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    administrators: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdministratorListItem"][];
+                };
+            };
+        };
+    };
+    create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAdministratorRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedView"];
+                };
+            };
+        };
+    };
+    enrolment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrolmentView"];
+                };
+            };
+        };
+    };
+    enrol: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnrolmentRequest"];
             };
         };
         responses: {

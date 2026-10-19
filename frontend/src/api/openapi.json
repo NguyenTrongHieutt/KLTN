@@ -30,6 +30,106 @@
         "tags" : [ "account-controller" ]
       }
     },
+    "/api/v1/admin/administrators" : {
+      "get" : {
+        "operationId" : "administrators",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/AdministratorListItem"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "administrators-controller" ]
+      },
+      "post" : {
+        "operationId" : "create",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateAdministratorRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CreatedView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "administrators-controller" ]
+      }
+    },
+    "/api/v1/admin/enrolment/{token}" : {
+      "get" : {
+        "operationId" : "enrolment",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "token",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/EnrolmentView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-enrolment-controller" ]
+      },
+      "post" : {
+        "operationId" : "enrol",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "token",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/EnrolmentRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "admin-enrolment-controller" ]
+      }
+    },
     "/api/v1/admin/overview" : {
       "get" : {
         "operationId" : "overview",
@@ -496,6 +596,40 @@
         },
         "required" : [ "code", "email", "password" ]
       },
+      "AdministratorListItem" : {
+        "type" : "object",
+        "properties" : {
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "displayName" : {
+            "type" : "string"
+          },
+          "email" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "lockedUntil" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "signedInAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "you" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "createdAt", "displayName", "email", "id", "status", "you" ]
+      },
       "AdministratorView" : {
         "type" : "object",
         "properties" : {
@@ -526,6 +660,38 @@
           }
         },
         "required" : [ "code" ]
+      },
+      "CreateAdministratorRequest" : {
+        "type" : "object",
+        "properties" : {
+          "displayName" : {
+            "type" : "string",
+            "maxLength" : 100,
+            "minLength" : 0
+          },
+          "email" : {
+            "type" : "string",
+            "format" : "email",
+            "maxLength" : 254,
+            "minLength" : 0
+          },
+          "stepUpCode" : {
+            "type" : "string",
+            "minLength" : 1,
+            "pattern" : "^[0-9]{6}$"
+          }
+        },
+        "required" : [ "displayName", "email", "stepUpCode" ]
+      },
+      "CreatedView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "id" ]
       },
       "CustomerProfile" : {
         "type" : "object",
@@ -571,6 +737,40 @@
         },
         "required" : [ "contactEmail", "displayName", "kind" ]
       },
+      "EnrolmentRequest" : {
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "type" : "string",
+            "minLength" : 1,
+            "pattern" : "^[0-9]{6}$"
+          },
+          "password" : {
+            "type" : "string",
+            "maxLength" : 200,
+            "minLength" : 12
+          }
+        },
+        "required" : [ "code", "password" ]
+      },
+      "EnrolmentView" : {
+        "type" : "object",
+        "properties" : {
+          "displayName" : {
+            "type" : "string"
+          },
+          "email" : {
+            "type" : "string"
+          },
+          "otpauthUri" : {
+            "type" : "string"
+          },
+          "secret" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "displayName", "email", "otpauthUri", "secret" ]
+      },
       "EnvironmentResponse" : {
         "type" : "object",
         "properties" : {
@@ -615,6 +815,10 @@
       "OverviewView" : {
         "type" : "object",
         "properties" : {
+          "activeAdministrators" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
           "failedOperations" : {
             "$ref" : "#/components/schemas/Queue"
           },
@@ -622,7 +826,7 @@
             "$ref" : "#/components/schemas/Queue"
           }
         },
-        "required" : [ "failedOperations", "stalledEvents" ]
+        "required" : [ "activeAdministrators", "failedOperations", "stalledEvents" ]
       },
       "PageResponseNotificationItem" : {
         "type" : "object",

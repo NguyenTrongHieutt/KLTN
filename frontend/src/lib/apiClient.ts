@@ -44,6 +44,8 @@ export interface Problem {
   errors?: { field: string; code: string }[]
   /** Only on a 5xx: the request's correlation ID, which the SPA shows as a reference. */
   correlationId?: string
+  /** A wrong step-up code: how many tries are left before sign-in locks (SG-10). */
+  attemptsLeft?: number
 }
 
 export class ApiError extends Error {

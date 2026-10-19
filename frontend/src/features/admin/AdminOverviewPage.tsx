@@ -1,7 +1,10 @@
+import { TriangleAlert } from 'lucide-react'
+import { Link } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
 import { usePageTitle } from '@/app/usePageTitle'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
+import { buttonVariants } from '@/components/ui/button-variants'
 import type { NotificationItem } from '@/features/notification/api'
 import { notificationTitle } from '@/features/notification/texts'
 import { t, type MessageKey } from '@/i18n/t'
@@ -12,13 +15,15 @@ import { useAdminAlerts, useAdminOverview } from './adminApi'
 /** The alert badge of a notification type; anything not listed reads "Thông tin". */
 const CATEGORY: Record<string, { label: MessageKey; tone: string }> = {
   'identity.admin_sign_in_locked': { label: 'screen.admin.overview.security', tone: 'bg-destructive-soft text-destructive' },
+  'identity.administrator_created': { label: 'screen.admin.overview.security', tone: 'bg-destructive-soft text-destructive' },
 }
 
 const INFO = { label: 'screen.admin.overview.info' as MessageKey, tone: 'bg-muted text-muted-foreground' }
 
 /**
  * ADM-1 (`/quan-tri`, UX-DR13, UX-DR69): the queues that exist so far with their oldest item, and
- * the alert list, both refreshed every 60 s. Later stories add their queue tiles.
+ * the alert list, both refreshed every 60 s; a warning while only one Administrator can act (SG-10).
+ * Later stories add their queue tiles.
  */
 export function AdminOverviewPage() {
   usePageTitle(t('screen.admin.overview.title'))
@@ -37,6 +42,15 @@ export function AdminOverviewPage() {
           </p>
         )}
       </div>
+      {overview.data?.activeAdministrators === 1 && (
+        <div role="status" className="flex flex-wrap items-center gap-3 rounded-md border-l-4 border-warning bg-warning-soft p-4">
+          <TriangleAlert aria-hidden="true" className="size-5 shrink-0 text-warning" />
+          <p className="min-w-0 grow text-body-sm">{t('screen.admin.overview.onlyOne')}</p>
+          <Link to="/quan-tri/quan-tri-vien" className={buttonVariants({ variant: 'secondary', size: 'compact' })}>
+            {t('screen.admin.overview.onlyOneAction')}
+          </Link>
+        </div>
+      )}
       <RegionState query={overview} skeleton={<Skeleton className="h-24 w-full max-w-xs" />}>
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label={t('screen.admin.overview.heading')}>
           {failed && (

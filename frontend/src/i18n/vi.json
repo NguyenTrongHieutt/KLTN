@@ -273,7 +273,8 @@
         "signOut": "Đăng xuất"
       },
       "nav": {
-        "overview": "Tổng quan"
+        "overview": "Tổng quan",
+        "administrators": "Quản trị viên"
       },
       "overview": {
         "title": "Tổng quan",
@@ -287,7 +288,9 @@
         "stalledEvents": "{n} sự kiện chưa gửi được sau 5 lần thử",
         "security": "Bảo mật",
         "system": "Hệ thống",
-        "info": "Thông tin"
+        "info": "Thông tin",
+        "onlyOne": "Chỉ có một quản trị viên. Khôi phục tài khoản chỉ do quản trị viên khác làm; hãy tạo quản trị viên thứ hai trước công việc thật đầu tiên.",
+        "onlyOneAction": "Tạo quản trị viên"
       },
       "idle": {
         "title": "Phiên làm việc sắp hết",
@@ -296,6 +299,67 @@
         "continue": "Tiếp tục phiên",
         "signOut": "Đăng xuất",
         "close": "Đóng"
+      },
+      "administrators": {
+        "title": "Quản trị viên",
+        "heading": "Quản trị viên",
+        "name": "Quản trị viên",
+        "email": "Email",
+        "twoFactor": "Xác thực 2 lớp",
+        "lastSignIn": "Đăng nhập gần nhất",
+        "you": "{name} (bạn)",
+        "active": "Đã bật",
+        "enrolling": "Chưa thiết lập",
+        "expired": "Hết hạn",
+        "lockedUntil": "Tạm khóa đến {time}",
+        "neverSignedIn": "Chưa đăng nhập",
+        "formHeading": "Tạo quản trị viên",
+        "displayName": "Họ tên",
+        "displayNamePlaceholder": "Ví dụ: Trần Minh Châu",
+        "workEmail": "Email công việc",
+        "workEmailHelper": "Người mới nhận email để đặt mật khẩu và thiết lập xác thực hai lớp.",
+        "notice": "Mọi quản trị viên sẽ nhận cảnh báo khi có quản trị viên mới. Cần nhập mã xác thực 6 số để tạo.",
+        "create": "Tạo quản trị viên",
+        "confirmTitle": "Tạo quản trị viên",
+        "confirmName": "Tên hiển thị",
+        "confirmEmailHelper": "Người này nhận email đặt mật khẩu và thiết lập ứng dụng xác thực trong 24 giờ.",
+        "whatHappens": "Điều sẽ xảy ra",
+        "happens1": "Mọi quản trị viên hiện có nhận cảnh báo về tài khoản mới.",
+        "happens2": "Bạn cần xác thực lại bằng mã trong ứng dụng xác thực trước khi tạo.",
+        "happens3": "Việc tạo được ghi vào nhật ký hệ thống.",
+        "cancel": "Hủy",
+        "continue": "Tiếp tục",
+        "close": "Đóng",
+        "listLabel": "Danh sách quản trị viên",
+        "createdToast": "Đã tạo quản trị viên {email}. Người đó nhận email để thiết lập tài khoản.",
+        "createdOn": "Tạo ngày"
+      },
+      "stepUp": {
+        "title": "Xác thực lại",
+        "body": "Nhập mã 6 số trong ứng dụng xác thực của bạn để tiếp tục. Mã chỉ dùng được một lần.",
+        "code": "Mã xác thực",
+        "back": "Quay lại",
+        "confirm": "Xác nhận",
+        "confirming": "Đang xác nhận…",
+        "attemptsLeft": "Mã chưa đúng. Bạn còn {n} lần thử."
+      },
+      "enrolment": {
+        "title": "Thiết lập tài khoản quản trị",
+        "heading": "Thiết lập tài khoản quản trị",
+        "lead": "Tài khoản quản trị của {name} ({email}). Đặt mật khẩu và thêm vibefix vào ứng dụng xác thực trên điện thoại.",
+        "step1": "1. Thêm vào ứng dụng xác thực",
+        "step1Body": "Trong Google Authenticator, Microsoft Authenticator hoặc 1Password, chọn thêm tài khoản bằng khóa thiết lập và nhập khóa dưới đây. Trên điện thoại, bạn có thể mở thẳng đường dẫn.",
+        "secret": "Khóa thiết lập",
+        "openApp": "Mở trong ứng dụng xác thực",
+        "step2": "2. Đặt mật khẩu và xác nhận",
+        "password": "Mật khẩu",
+        "passwordHelper": "Ít nhất 12 ký tự.",
+        "passwordAgain": "Nhập lại mật khẩu",
+        "mismatch": "Hai mật khẩu chưa giống nhau.",
+        "code": "Mã 6 số trong ứng dụng",
+        "submit": "Hoàn tất",
+        "submitting": "Đang thiết lập…",
+        "notFound": "Đường dẫn này không còn dùng được: đã dùng rồi hoặc đã quá 24 giờ. Hãy nhờ một quản trị viên tạo lại."
       }
     }
   },
@@ -719,6 +783,12 @@
       },
       "admin_sign_in_locked": {
         "title": "Đăng nhập quản trị bị tạm khóa 15 phút: {email} (5 lần thử sai)"
+      },
+      "administrator_created": {
+        "title": "Quản trị viên mới được tạo: {email}"
+      },
+      "administrator_enrolment": {
+        "title": "{by} đã tạo tài khoản quản trị vibefix cho bạn"
       }
     }
   },
@@ -730,7 +800,10 @@
       "CODE_EXPIRED": "Mã đã hết hạn. Hãy gửi mã mới.",
       "TOO_MANY_ATTEMPTS": "Bạn đã thử quá 5 lần. Hãy gửi mã mới.",
       "ADMIN_SIGN_IN_FAILED": "Email, mật khẩu hoặc mã xác thực chưa đúng.",
-      "ADMIN_SIGN_IN_LOCKED": "Tạm khóa đăng nhập 15 phút."
+      "ADMIN_SIGN_IN_LOCKED": "Tạm khóa đăng nhập 15 phút.",
+      "STEP_UP_FAILED": "Mã chưa đúng.",
+      "ADMINISTRATOR_EMAIL_IN_USE": "Email này đã thuộc về một quản trị viên.",
+      "ENROLMENT_CODE_WRONG": "Mã chưa đúng. Hãy nhập mã mới nhất trong ứng dụng xác thực."
     }
   }
 }

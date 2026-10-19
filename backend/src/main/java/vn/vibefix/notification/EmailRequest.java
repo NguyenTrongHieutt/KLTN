@@ -17,14 +17,28 @@ import org.jspecify.annotations.Nullable;
  * @param parameters the template's {@code {name}} values; user and GitHub text is escaped (AD-21)
  * @param link the platform path the message links to, in place of its template's {@code link:};
  * {@code null} keeps the template's
+ * @param privateLink whether the link carries a secret (a single-use token): it is then kept with the
+ * address and purged once the email completes, never in the operation's permanent payload (AD-24)
  */
 public record EmailRequest(String type, UUID causingRecordId, UUID recipientAccountId, String to,
-		EmailClass emailClass, Map<String, String> parameters, @Nullable String link) {
+		EmailClass emailClass, Map<String, String> parameters, @Nullable String link, boolean privateLink) {
 
 	/** A message that links where its template says. */
 	public EmailRequest(String type, UUID causingRecordId, UUID recipientAccountId, String to, EmailClass emailClass,
 			Map<String, String> parameters) {
-		this(type, causingRecordId, recipientAccountId, to, emailClass, parameters, null);
+		this(type, causingRecordId, recipientAccountId, to, emailClass, parameters, null, false);
+	}
+
+	/** A message whose link is not secret. */
+	public EmailRequest(String type, UUID causingRecordId, UUID recipientAccountId, String to, EmailClass emailClass,
+			Map<String, String> parameters, @Nullable String link) {
+		this(type, causingRecordId, recipientAccountId, to, emailClass, parameters, link, false);
+	}
+
+	/** A message whose link carries a secret, such as an enrolment token. */
+	public static EmailRequest withPrivateLink(String type, UUID causingRecordId, UUID recipientAccountId, String to,
+			EmailClass emailClass, Map<String, String> parameters, String link) {
+		return new EmailRequest(type, causingRecordId, recipientAccountId, to, emailClass, parameters, link, true);
 	}
 
 	public EmailRequest {

@@ -60,6 +60,28 @@ class AdministratorCredentials {
 			.optional();
 	}
 
+	Optional<Credential> findByAccount(UUID accountId) {
+		return this.jdbc.sql("SELECT * FROM identity.administrator_credential WHERE account_id = :id")
+			.param("id", accountId)
+			.query((rs, n) -> new Credential(rs.getObject("account_id", UUID.class), rs.getString("email"),
+					rs.getString("display_name"), rs.getString("password_hash"),
+					new TokenCipher.Sealed(rs.getInt("totp_key_version"), rs.getBytes("totp_nonce"),
+							rs.getBytes("totp_ciphertext"))))
+			.optional();
+	}
+
+	/**
+	 * Whether an Administrator has this email, or an enrolment for it is still open: an email names
+	 * one Administrator. An enrolment that lapsed unfinished does not count; creating it again renews it.
+	 */
+	boolean emailInUse(String email, Instant now) {
+		return this.jdbc.sql("""
+				SELECT (SELECT count(*) FROM identity.administrator_credential WHERE email = :email)
+				     + (SELECT count(*) FROM identity.administrator_enrolment
+				        WHERE email = :email AND completed_at IS NULL AND expires_at > :now)
+				""").param("email", email).param("now", Timestamp.from(now)).query(Long.class).single() > 0;
+	}
+
 	/** An Administrator as people see them: the sign-in email and the display name. */
 	record Identity(String email, String displayName) {
 	}
