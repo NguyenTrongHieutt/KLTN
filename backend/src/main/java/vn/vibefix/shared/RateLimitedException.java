@@ -3,6 +3,8 @@ package vn.vibefix.shared;
 import java.time.Duration;
 import java.util.Objects;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * A request refused by an abuse limit (AD-34): {@code 429 RATE_LIMITED} with {@code Retry-After},
  * in whole seconds rounded up and at least 1.
@@ -12,7 +14,12 @@ public class RateLimitedException extends ApiException {
 	private final Duration retryAfter;
 
 	public RateLimitedException(Duration retryAfter) {
-		super(ErrorCode.RATE_LIMITED);
+		this(retryAfter, null);
+	}
+
+	/** @param reason the module's reason, for a limit the SPA explains in its own words */
+	public RateLimitedException(Duration retryAfter, @Nullable Enum<?> reason) {
+		super(ErrorCode.RATE_LIMITED, reason);
 		this.retryAfter = Objects.requireNonNull(retryAfter, "retryAfter");
 	}
 

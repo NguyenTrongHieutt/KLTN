@@ -1,5 +1,7 @@
 package vn.vibefix.identity.internal;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.util.UUID;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -63,10 +65,19 @@ class SessionController {
 	 * @param lockReason why sign-in was refused, for {@code LOCKED}
 	 * @param supportEmail whom a locked account may write to, for {@code LOCKED}
 	 * @param privacyNoticeVersion the current version of the personal-data notice (N-10)
+	 * @param administrator an Administrator's name and session limits, exactly for Administrators
 	 */
 	record SessionView(SessionStatus status, @Nullable AccountView account, @Nullable String githubLogin,
 			@Nullable String githubAvatarUrl, @Nullable String lockReason, @Nullable String supportEmail,
-			String privacyNoticeVersion) {
+			String privacyNoticeVersion, @Nullable AdministratorView administrator) {
+	}
+
+	/**
+	 * An Administrator session (SG-10).
+	 * @param idleExpiresAt when it ends without a command or "Tiếp tục phiên"
+	 * @param absoluteExpiresAt when it ends at the latest, 8 hours after sign-in
+	 */
+	record AdministratorView(String email, String displayName, Instant idleExpiresAt, Instant absoluteExpiresAt) {
 	}
 
 	/**
@@ -95,8 +106,14 @@ class SessionController {
 
 	private final Profiles profiles;
 
+	private final AdministratorCredentials administrators;
+
+	private final Clock clock;
+
 	SessionController(CurrentCaller callers, Accounts accounts, SignIns signIns, SecurityContextRepository contexts,
-			IdentityProperties properties, Profiles profiles) {
+			IdentityProperties properties, Profiles profiles, AdministratorCredentials administrators, Clock clock) {
+		this.administrators = administrators;
+		this.clock = clock;
 		this.profiles = profiles;
 		this.callers = callers;
 		this.accounts = accounts;
@@ -109,18 +126,18 @@ class SessionController {
 	SessionView session(HttpServletRequest request) {
 		Caller caller = this.callers.get();
 		if (!caller.isAnonymous()) {
-			return signedIn(this.accounts.findById(caller.requireAccountId()).orElseThrow());
+			return signedIn(this.accounts.findById(caller.requireAccountId()).orElseThrow(), request);
 		}
 		HttpSession session = request.getSession(false);
 		if (session != null && session.getAttribute(SignInSession.LOCKED) instanceof SignInSession.Locked locked) {
 			return new SessionView(SessionStatus.LOCKED, null, null, null, locked.reason(),
-					this.properties.supportEmail(), version());
+					this.properties.supportEmail(), version(), null);
 		}
 		if (session != null && session.getAttribute(SignInSession.PENDING_SIGN_UP) instanceof PendingSignUp pending) {
 			return new SessionView(SessionStatus.SIGNING_UP, null, pending.githubLogin(), pending.githubAvatarUrl(), null,
-					null, version());
+					null, version(), null);
 		}
-		return new SessionView(SessionStatus.ANONYMOUS, null, null, null, null, null, version());
+		return new SessionView(SessionStatus.ANONYMOUS, null, null, null, null, null, version(), null);
 	}
 
 	/**
@@ -148,7 +165,17 @@ class SessionController {
 		context.setAuthentication(new AccountAuthentication(account.id(), account.role()));
 		SecurityContextHolder.setContext(context);
 		this.contexts.saveContext(context, request, response);
-		return ResponseEntity.status(HttpStatus.CREATED).body(signedIn(account));
+		return ResponseEntity.status(HttpStatus.CREATED).body(signedIn(account, request));
+	}
+
+	/**
+	 * "Tiếp tục phiên", and the SPA's throttled ping after real input: a command, so it extends an
+	 * Administrator session (the caller filter records it); for anyone else it changes nothing.
+	 */
+	@PostMapping("/activity")
+	@Access(Gate.SIGNED_IN)
+	SessionView activity(HttpServletRequest request) {
+		return signedIn(this.accounts.findById(this.callers.get().requireAccountId()).orElseThrow(), request);
 	}
 
 	/** "Đăng xuất": ends the server session, signed in or not. */
@@ -162,12 +189,23 @@ class SessionController {
 		return ResponseEntity.noContent().build();
 	}
 
-	private SessionView signedIn(Account account) {
+	private SessionView signedIn(Account account, HttpServletRequest request) {
 		return new SessionView(SessionStatus.SIGNED_IN,
 				new AccountView(account.id(), account.role(), account.mentorApprovalStatus(),
 						this.profiles.theme(account.id())),
 				account.githubLogin(),
-				account.githubAvatarUrl(), null, null, version());
+				account.githubAvatarUrl(), null, null, version(), administrator(account, request));
+	}
+
+	private @Nullable AdministratorView administrator(Account account, HttpServletRequest request) {
+		if (account.role() != Role.ADMINISTRATOR) {
+			return null;
+		}
+		AdminSessions.Expiry expiry = AdminSessions.current(request.getSession(false), this.clock.instant());
+		return this.administrators.identity(account.id())
+			.filter(found -> expiry != null)
+			.map(found -> new AdministratorView(found.email(), found.displayName(), expiry.idle(), expiry.absolute()))
+			.orElse(null);
 	}
 
 	private String version() {

@@ -30,6 +30,45 @@
         "tags" : [ "account-controller" ]
       }
     },
+    "/api/v1/admin/overview" : {
+      "get" : {
+        "operationId" : "overview",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OverviewView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-overview-controller" ]
+      }
+    },
+    "/api/v1/admin/sign-in" : {
+      "post" : {
+        "operationId" : "signIn",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AdminSignInRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "admin-sign-in-controller" ]
+      }
+    },
     "/api/v1/customers/{customerId}/contact" : {
       "get" : {
         "operationId" : "contact",
@@ -252,6 +291,24 @@
         "tags" : [ "session-controller" ]
       }
     },
+    "/api/v1/session/activity" : {
+      "post" : {
+        "operationId" : "activity",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SessionView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "session-controller" ]
+      }
+    },
     "/api/v1/session/sign-out" : {
       "post" : {
         "operationId" : "signOut",
@@ -417,6 +474,48 @@
         },
         "required" : [ "id", "role", "theme" ]
       },
+      "AdminSignInRequest" : {
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "type" : "string",
+            "minLength" : 1,
+            "pattern" : "^[0-9]{6}$"
+          },
+          "email" : {
+            "type" : "string",
+            "format" : "email",
+            "maxLength" : 254,
+            "minLength" : 0
+          },
+          "password" : {
+            "type" : "string",
+            "maxLength" : 200,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "code", "email", "password" ]
+      },
+      "AdministratorView" : {
+        "type" : "object",
+        "properties" : {
+          "absoluteExpiresAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "displayName" : {
+            "type" : "string"
+          },
+          "email" : {
+            "type" : "string"
+          },
+          "idleExpiresAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "absoluteExpiresAt", "displayName", "email", "idleExpiresAt" ]
+      },
       "CodeRequest" : {
         "type" : "object",
         "properties" : {
@@ -513,6 +612,18 @@
         },
         "required" : [ "createdAt", "icon", "id", "link", "params", "read", "type" ]
       },
+      "OverviewView" : {
+        "type" : "object",
+        "properties" : {
+          "failedOperations" : {
+            "$ref" : "#/components/schemas/Queue"
+          },
+          "stalledEvents" : {
+            "$ref" : "#/components/schemas/Queue"
+          }
+        },
+        "required" : [ "failedOperations", "stalledEvents" ]
+      },
       "PageResponseNotificationItem" : {
         "type" : "object",
         "properties" : {
@@ -580,6 +691,20 @@
         },
         "required" : [ "role" ]
       },
+      "Queue" : {
+        "type" : "object",
+        "properties" : {
+          "count" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "oldestAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "count" ]
+      },
       "SchoolEmailRequest" : {
         "type" : "object",
         "properties" : {
@@ -597,6 +722,9 @@
         "properties" : {
           "account" : {
             "$ref" : "#/components/schemas/AccountView"
+          },
+          "administrator" : {
+            "$ref" : "#/components/schemas/AdministratorView"
           },
           "githubAvatarUrl" : {
             "type" : "string"

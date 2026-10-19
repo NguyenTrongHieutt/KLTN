@@ -34,6 +34,10 @@ export function RequireSignedIn({ children }: { children: ReactNode }) {
     return <Navigate to="/dang-nhap" replace state={{ returnTo: location.pathname + location.search }} />
   }
   const landing = landingPath(current)
+  // Administrators work in the Admin shell only.
+  if (landing === '/quan-tri') {
+    return <Navigate to="/quan-tri" replace />
+  }
   if (landing === '/ho-so' && location.pathname !== '/ho-so') {
     return <Navigate to="/ho-so" replace />
   }

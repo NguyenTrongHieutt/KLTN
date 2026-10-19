@@ -249,6 +249,54 @@
         "saved": "Đã lưu hồ sơ.",
         "savedAt": "Đã lưu lúc {time}"
       }
+    },
+    "admin": {
+      "badge": "Quản trị",
+      "signIn": {
+        "title": "Đăng nhập quản trị",
+        "heading": "Đăng nhập quản trị",
+        "lead": "Chỉ dành cho nhân viên vibefix. Mỗi lần đăng nhập đều được ghi vào nhật ký hệ thống.",
+        "email": "Email",
+        "password": "Mật khẩu",
+        "code": "Mã xác thực 6 số",
+        "codeHelper": "Mở ứng dụng xác thực trên điện thoại. Mã đổi sau mỗi 30 giây.",
+        "submit": "Đăng nhập",
+        "submitting": "Đang đăng nhập…",
+        "lockedTitle": "Tạm khóa đăng nhập 15 phút",
+        "lockedBody": "Đã có 5 lần thử sai trong 15 phút. Các quản trị viên khác đã được báo."
+      },
+      "shell": {
+        "navLabel": "Quản trị",
+        "openMenu": "Mở menu quản trị",
+        "closeMenu": "Đóng menu",
+        "account": "Tài khoản của {name}",
+        "signOut": "Đăng xuất"
+      },
+      "nav": {
+        "overview": "Tổng quan"
+      },
+      "overview": {
+        "title": "Tổng quan",
+        "heading": "Tổng quan",
+        "updatedAt": "Cập nhật lúc {time}",
+        "failedOperations": "Thao tác lỗi",
+        "oldest": "Cũ nhất: {date}",
+        "empty": "Không có",
+        "alerts": "Cảnh báo",
+        "noAlerts": "Chưa có cảnh báo nào.",
+        "stalledEvents": "{n} sự kiện chưa gửi được sau 5 lần thử",
+        "security": "Bảo mật",
+        "system": "Hệ thống",
+        "info": "Thông tin"
+      },
+      "idle": {
+        "title": "Phiên làm việc sắp hết",
+        "body": "Bạn không thao tác trong 28 phút. Phiên quản trị sẽ tự đăng xuất sau 2 phút. Việc tự làm mới danh sách không giữ phiên.",
+        "absoluteBody": "Phiên quản trị đã gần đủ 8 giờ và sẽ kết thúc sau 2 phút. Hãy lưu việc đang làm rồi đăng nhập lại.",
+        "continue": "Tiếp tục phiên",
+        "signOut": "Đăng xuất",
+        "close": "Đóng"
+      }
     }
   },
   "notice": {
@@ -668,6 +716,9 @@
       },
       "verification_expired": {
         "title": "Xác minh sinh viên đã hết hạn"
+      },
+      "admin_sign_in_locked": {
+        "title": "Đăng nhập quản trị bị tạm khóa 15 phút: {email} (5 lần thử sai)"
       }
     }
   },
@@ -677,7 +728,9 @@
       "ALREADY_USED_FOR_VERIFICATION": "Email hoặc thẻ sinh viên này đã xác minh cho tài khoản khác.",
       "WRONG_CODE": "Mã chưa đúng.",
       "CODE_EXPIRED": "Mã đã hết hạn. Hãy gửi mã mới.",
-      "TOO_MANY_ATTEMPTS": "Bạn đã thử quá 5 lần. Hãy gửi mã mới."
+      "TOO_MANY_ATTEMPTS": "Bạn đã thử quá 5 lần. Hãy gửi mã mới.",
+      "ADMIN_SIGN_IN_FAILED": "Email, mật khẩu hoặc mã xác thực chưa đúng.",
+      "ADMIN_SIGN_IN_LOCKED": "Tạm khóa đăng nhập 15 phút."
     }
   }
 }

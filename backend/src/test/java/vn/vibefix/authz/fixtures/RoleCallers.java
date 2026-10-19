@@ -1,7 +1,5 @@
 package vn.vibefix.authz.fixtures;
 
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
-
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -9,6 +7,8 @@ import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.session.Session;
+import org.springframework.session.SessionRepository;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import vn.vibefix.authz.MatrixCaller;
@@ -18,6 +18,7 @@ import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.Role;
+import vn.vibefix.support.MutableClock;
 
 /**
  * The anonymous caller and one unrelated account per role, each a real account signed in through
@@ -33,8 +34,11 @@ public class RoleCallers implements MatrixFixture {
 
 	private final JdbcClient jdbc;
 
-	public RoleCallers(JdbcClient jdbc) {
+	private final SessionRepository<? extends Session> sessions;
+
+	public RoleCallers(JdbcClient jdbc, SessionRepository<? extends Session> sessions) {
 		this.jdbc = jdbc;
+		this.sessions = sessions;
 	}
 
 	@Override
@@ -66,14 +70,14 @@ public class RoleCallers implements MatrixFixture {
 			throw new AssertionError("Only a Mentor has an approval status");
 		}
 		String lockReason = "true".equals(state.get("locked")) ? "matrix: locked" : null;
-		return Optional.of(signedIn(this.jdbc, role, mentor, lockReason));
+		return Optional.of(signedIn(this.jdbc, this.sessions, role, mentor, lockReason));
 	}
 
 	/** A request from a new account with {@code role}, signed in through the session. */
-	public static RequestPostProcessor signedIn(JdbcClient jdbc, Role role, @Nullable MentorApprovalStatus mentor,
-			@Nullable String lockReason) {
+	public static RequestPostProcessor signedIn(JdbcClient jdbc, SessionRepository<? extends Session> sessions, Role role,
+			@Nullable MentorApprovalStatus mentor, @Nullable String lockReason) {
 		UUID id = IdentityTestSupport.insertAccount(jdbc, role, mentor, lockReason);
-		return authentication(IdentityTestSupport.authentication(id, role));
+		return IdentityTestSupport.signedIn(sessions, id, role, MutableClock.DEFAULT_INSTANT);
 	}
 
 	/**

@@ -8,6 +8,8 @@ export const POLLING = {
   /** To-dos (strip, CUS-1, MEN-1, STU-1) and the unread notification count. */
   todos: 60_000,
   unreadCount: 60_000,
+  /** ADM-1's queue counts and alert list (UX-DR69). */
+  adminOverview: 60_000,
 } as const
 
 export const MAX_BACKOFF_MS = 5 * 60_000

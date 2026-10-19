@@ -1,0 +1,12 @@
+# AD-19: the bootstrap CLI, run with dev or prod (for example --spring.profiles.active=dev,cli). It
+# serves no web requests, runs no pollers, and republishes no events: it does its one command and
+# exits (VibefixApplication).
+spring:
+  main:
+    web-application-type: none
+  modulith:
+    events:
+      republish-outstanding-events-on-restart: false
+vibefix:
+  scheduling:
+    enabled: false

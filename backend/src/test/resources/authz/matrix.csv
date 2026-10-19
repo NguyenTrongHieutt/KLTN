@@ -25,6 +25,27 @@ POST /api/v1/session/sign-up,MENTOR,mentor=PENDING,session-sign-up.json,409 CONF
 POST /api/v1/session/sign-up,STUDENT,,session-sign-up.json,409 CONFLICT
 POST /api/v1/session/sign-up,ADMINISTRATOR,,session-sign-up.json,409 CONFLICT
 POST /api/v1/session/sign-up,CUSTOMER,locked=true,session-sign-up.json,404 NOT_FOUND
+# FR-2: no public sign-up path produces an Administrator; the role is not one a person may choose.
+POST /api/v1/session/sign-up,ANONYMOUS,,session-sign-up-administrator.json,400 VALIDATION
+# SG-10: activity extends an Administrator session; for other accounts it changes nothing.
+POST /api/v1/session/activity,ANONYMOUS,,,401
+POST /api/v1/session/activity,CUSTOMER,,,200
+POST /api/v1/session/activity,MENTOR,mentor=PENDING,,200
+POST /api/v1/session/activity,STUDENT,,,200
+POST /api/v1/session/activity,ADMINISTRATOR,,,200
+# PUB-6 (FR-2, AD-19): the Administrator sign-in, for anonymous callers only; a wrong one says nothing more.
+POST /api/v1/admin/sign-in,ANONYMOUS,,admin-sign-in.json,422 GUARD_FAILED
+POST /api/v1/admin/sign-in,CUSTOMER,,admin-sign-in.json,409 CONFLICT
+POST /api/v1/admin/sign-in,MENTOR,mentor=PENDING,admin-sign-in.json,409 CONFLICT
+POST /api/v1/admin/sign-in,STUDENT,,admin-sign-in.json,409 CONFLICT
+POST /api/v1/admin/sign-in,ADMINISTRATOR,,admin-sign-in.json,409 CONFLICT
+# ADM-1's queue counts (admin): Administrators only; everyone else finds nothing.
+GET /api/v1/admin/overview,ANONYMOUS,,,401
+GET /api/v1/admin/overview,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/admin/overview,MENTOR,,,404 NOT_FOUND
+GET /api/v1/admin/overview,STUDENT,,,404 NOT_FOUND
+GET /api/v1/admin/overview,SUBJECT,,,404 NOT_FOUND
+GET /api/v1/admin/overview,ADMINISTRATOR,,,200
 POST /api/v1/session/sign-out,ANONYMOUS,,,204
 POST /api/v1/session/sign-out,CUSTOMER,,,204
 POST /api/v1/session/sign-out,MENTOR,mentor=REVOKED,,204

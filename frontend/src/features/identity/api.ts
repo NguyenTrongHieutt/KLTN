@@ -27,9 +27,15 @@ export function signInUrl(returnTo?: string): string {
   return returnTo ? `/oauth2/authorization/github?quay-lai=${encodeURIComponent(returnTo)}` : '/oauth2/authorization/github'
 }
 
-/** Where a signed-in account lands: a Mentor waiting for approval sees only MEN-5 (FR-74). */
+/**
+ * Where a signed-in account lands: an Administrator in the Admin shell, a Mentor waiting for
+ * approval on MEN-5 only (FR-74), everyone else on the to-do list.
+ */
 export function landingPath(session: Session): string {
   const account = session.account
+  if (account?.role === 'ADMINISTRATOR') {
+    return '/quan-tri'
+  }
   if (account?.role === 'MENTOR' && account.mentorApprovalStatus !== 'APPROVED') {
     return '/ho-so'
   }

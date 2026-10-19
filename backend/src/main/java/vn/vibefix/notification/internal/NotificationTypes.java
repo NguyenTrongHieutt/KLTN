@@ -39,9 +39,13 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType VERIFICATION_EXPIRED = new NotificationType("identity.verification_expired",
 			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of());
 
+	/** 5 failed Administrator sign-ins locked an Administrator's email (AD-34): every other Administrator. */
+	static final NotificationType ADMIN_SIGN_IN_LOCKED = new NotificationType("identity.admin_sign_in_locked",
+			Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("email"));
+
 	@Override
 	public List<NotificationType> notificationTypes() {
-		return List.of(SCHOOL_EMAIL_CODE, VERIFICATION_EXPIRING, VERIFICATION_EXPIRED);
+		return List.of(SCHOOL_EMAIL_CODE, VERIFICATION_EXPIRING, VERIFICATION_EXPIRED, ADMIN_SIGN_IN_LOCKED);
 	}
 
 	@Override

@@ -15,7 +15,7 @@ import vn.vibefix.notification.RecipientLookup;
 /**
  * {@code identity}'s answers to {@code notification} (AD-3 recipient lookup): who is an
  * Administrator, and where an account's notifications are emailed (its GitHub primary verified
- * email, FR-48), or a Customer's contact email once it is saved (FR-3).
+ * email, FR-48), a Customer's contact email once it is saved (FR-3), or an Administrator's sign-in email.
  */
 @Component
 class IdentityRecipients implements RecipientLookup, RecipientAddresses {
@@ -26,10 +26,13 @@ class IdentityRecipients implements RecipientLookup, RecipientAddresses {
 
 	private final Profiles profiles;
 
-	IdentityRecipients(JdbcClient jdbc, Accounts accounts, Profiles profiles) {
+	private final AdministratorCredentials administrators;
+
+	IdentityRecipients(JdbcClient jdbc, Accounts accounts, Profiles profiles, AdministratorCredentials administrators) {
 		this.jdbc = jdbc;
 		this.accounts = accounts;
 		this.profiles = profiles;
+		this.administrators = administrators;
 	}
 
 	@Override
@@ -49,12 +52,16 @@ class IdentityRecipients implements RecipientLookup, RecipientAddresses {
 				""").param("id", accountId).query(Long.class).single() > 0;
 	}
 
-	/** A Customer's contact email once saved (FR-3), otherwise the GitHub primary verified email. */
+	/**
+	 * A Customer's contact email once saved (FR-3), an Administrator's sign-in email, otherwise the
+	 * GitHub primary verified email.
+	 */
 	@Override
 	public Optional<String> emailAddress(UUID accountId) {
-		// An erasure deletes the profile and clears the GitHub email, so an erased account has neither.
+		// An erasure deletes the profile, the credential, and the GitHub email, so an erased account has none.
 		return this.profiles.customer(accountId)
 			.map(Profiles.CustomerProfile::contactEmail)
+			.or(() -> this.administrators.identity(accountId).map(AdministratorCredentials.Identity::email))
 			.or(() -> this.accounts.notificationAddress(accountId));
 	}
 
