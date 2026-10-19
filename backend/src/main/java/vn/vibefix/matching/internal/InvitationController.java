@@ -1,7 +1,6 @@
 package vn.vibefix.matching.internal;
 
 import java.time.Instant;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -25,8 +24,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import vn.vibefix.catalog.Catalog;
-import vn.vibefix.catalog.Skill;
-import vn.vibefix.catalog.SkillCategory;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
 import vn.vibefix.identity.MentorGate;
@@ -139,13 +136,12 @@ class InvitationController {
 		if (page < 0) {
 			throw new ApiException(ErrorCode.VALIDATION);
 		}
-		Set<UUID> skillIds = skillFilter(skills == null ? List.of() : skills,
-				categories == null ? List.of() : categories);
-		boolean filtered = (skills != null && !skills.isEmpty()) || (categories != null && !categories.isEmpty());
-		if (q.isBlank() || (filtered && skillIds.isEmpty())) {
+		Set<UUID> skillIds = SkillFilter.resolve(this.catalog, skills, categories);
+		if (q.isBlank() || (skillIds != null && skillIds.isEmpty())) {
 			return new MentorSearchView(List.of(), page, PAGE_SIZE, 0);
 		}
-		Page<MentorCard> found = this.mentors.search(q, skillIds, PageRequest.of(page, PAGE_SIZE));
+		Page<MentorCard> found = this.mentors.search(q, skillIds == null ? Set.of() : skillIds,
+				PageRequest.of(page, PAGE_SIZE));
 		Map<UUID, Relation> relations = this.invitations.relations(jobId,
 				found.getContent().stream().map(MentorCard::accountId).toList());
 		List<MentorResultView> items = found.getContent()
@@ -192,20 +188,6 @@ class InvitationController {
 		return this.invitations.forMentor(mentor, postId)
 			.map(MentorInvitationView::of)
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-	}
-
-	/** The active chosen Skills and every active Skill of the chosen Categories. */
-	private Set<UUID> skillFilter(List<UUID> skills, List<UUID> categories) {
-		Set<UUID> ids = new LinkedHashSet<>();
-		this.catalog.byIds(skills).stream().filter(Skill::active).forEach(skill -> ids.add(skill.id()));
-		if (!categories.isEmpty()) {
-			for (SkillCategory category : this.catalog.active()) {
-				if (categories.contains(category.id())) {
-					category.skills().forEach(skill -> ids.add(skill.id()));
-				}
-			}
-		}
-		return ids;
 	}
 
 	/** The Job's Customer calling; anyone else finds nothing. */

@@ -372,6 +372,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/jobs/{jobId}/recommendations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["forJobPost"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jobs/{jobId}/screenshots": {
         parameters: {
             query?: never;
@@ -622,6 +638,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["sign"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mentor/recommendations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["forMentor"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1677,6 +1709,11 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
         };
+        JobTypeMatchView: {
+            /** Format: int32 */
+            count: number;
+            jobType: string;
+        };
         JobView: {
             appUsers?: string;
             /** @enum {string} */
@@ -2105,6 +2142,34 @@ export interface components {
             /** Format: int32 */
             count: number;
         };
+        RecommendedMentorView: {
+            /** Format: uuid */
+            accountId: string;
+            displayName: string;
+            githubLogin?: string;
+            /** @enum {string} */
+            relation: "NONE" | "INVITED" | "APPLIED";
+            signals: components["schemas"]["SignalsView"];
+            skills: string[];
+            /** Format: int32 */
+            teamSize: number;
+            /** Format: int32 */
+            yearsOfExperience: number;
+        };
+        RecommendedPostView: {
+            budget?: string;
+            /** Format: date */
+            deadline?: string;
+            /** Format: uuid */
+            id: string;
+            invited: boolean;
+            jobTypes: string[];
+            /** Format: date-time */
+            openedAt: string;
+            productName: string;
+            signals: components["schemas"]["SignalsView"];
+            title: string;
+        };
         RejectMentorRequest: {
             reason: string;
             stepUpCode: string;
@@ -2192,6 +2257,11 @@ export interface components {
             privacyNoticeVersion: string;
             /** @enum {string} */
             role: "CUSTOMER" | "MENTOR" | "STUDENT";
+        };
+        SignalsView: {
+            jobTypeMatches: components["schemas"]["JobTypeMatchView"][];
+            newcomer: boolean;
+            sharedSkills: string[];
         };
         SkillView: {
             active: boolean;
@@ -3134,6 +3204,31 @@ export interface operations {
             };
         };
     };
+    forJobPost: {
+        parameters: {
+            query?: {
+                skill?: string[];
+                category?: string[];
+            };
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecommendedMentorView"][];
+                };
+            };
+        };
+    };
     addScreenshot: {
         parameters: {
             query?: never;
@@ -3501,6 +3596,29 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    forMentor: {
+        parameters: {
+            query?: {
+                skill?: string[];
+                category?: string[];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecommendedPostView"][];
+                };
             };
         };
     };

@@ -17,6 +17,8 @@ import { ApiError } from '@/lib/apiClient'
 import { formatCalendarDayMonth, formatDayMonth } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 import { isLive, useMyApplications } from '@/features/matching/applicationApi'
+import { useJobPostRecommendations, type RecommendedPost } from '@/features/matching/recommendationApi'
+import { SignalChips } from '@/features/matching/SignalChips'
 import { CapacityBanners } from './CapacityBanners'
 import { BUDGETS, JOB_TYPES, type Budget, type JobType } from './jobApi'
 import {
@@ -97,6 +99,10 @@ function JobPostList() {
   const posts = useJobPosts(filter)
   const last = useLastJobPosts()
   const capacity = useMentorCapacity()
+  const recommendations = useJobPostRecommendations(
+    { skills: filter.skills, categories: filter.categories },
+    filter.q === undefined,
+  )
   const update = (next: Partial<JobPostFilter>) => setParams(writeFilter({ ...filter, page: 0, ...next }), { replace: true })
   // Searching too fast keeps the earlier results on screen (UX-DR27).
   const limited = posts.error instanceof ApiError && posts.error.status === 429 ? posts.error : undefined
@@ -123,6 +129,9 @@ function JobPostList() {
         search={(q) => update({ q })}
       />
       <Filters filter={filter} update={update} />
+      {filter.q === undefined && recommendations.data && recommendations.data.length > 0 && (
+        <Recommended posts={recommendations.data} />
+      )}
       {limited && last.data ? (
         results(last.data)
       ) : (
@@ -341,6 +350,54 @@ function Filters({ filter, update }: { filter: JobPostFilter; update: (next: Par
         {t('screen.jobPost.filtersHint')}
       </p>
     </div>
+  )
+}
+
+/**
+ * "Đề xuất cho bạn" (FR-14, AD-17, UX-DR47): Job Posts not yet applied to, by shared Skills, then
+ * Job Types from the Mentor's work history, then newest; shown only without a keyword. A Customer's
+ * invitation reads "Bạn được mời".
+ */
+function Recommended({ posts }: { posts: RecommendedPost[] }) {
+  return (
+    <section aria-labelledby="recommended-posts" className="flex flex-col gap-3">
+      <h2 id="recommended-posts" className="text-h2">
+        {t('screen.jobPost.recommend.title')}
+      </h2>
+      <ul className="grid gap-3 md:grid-cols-2">
+        {posts.map((post) => {
+          const types = post.jobTypes.map((type) => t(`term.jobType${type}.label` as MessageKey)).join(', ')
+          return (
+            <li key={post.id}>
+              <Link
+                to={`/tim-viec/${post.id}`}
+                className="flex h-full flex-col gap-2 rounded-lg border border-border bg-card p-4 text-inherit no-underline hover:bg-muted/50"
+              >
+                <span className="flex flex-wrap items-start justify-between gap-2">
+                  <span className="text-h3 break-words">{post.title}</span>
+                  {post.invited && (
+                    <span className="rounded-full bg-warning-soft px-2 py-0.5 text-caption font-semibold text-warning">
+                      {t('screen.jobPost.recommend.invited')}
+                    </span>
+                  )}
+                </span>
+                <span className="text-caption text-muted-foreground break-words">
+                  {post.budget
+                    ? t('screen.jobPost.meta', {
+                        product: post.productName,
+                        types,
+                        budget: t(`screen.job.form.budget${post.budget}` as MessageKey),
+                        date: formatDayMonth(post.openedAt),
+                      })
+                    : t('screen.jobPost.metaNoBudget', { product: post.productName, types, date: formatDayMonth(post.openedAt) })}
+                </span>
+                <SignalChips signals={post.signals} />
+              </Link>
+            </li>
+          )
+        })}
+      </ul>
+    </section>
   )
 }
 

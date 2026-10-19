@@ -1298,6 +1298,10 @@
         "lapsedTitle": "Lời mời này đã hết hiệu lực vì công việc không còn nhận ứng tuyển.",
         "lapsedBody": "Khách hàng đã chọn người hướng dẫn khác hoặc tin đã đóng.",
         "findOther": "Tìm việc khác"
+      },
+      "recommend": {
+        "title": "Đề xuất cho bạn",
+        "invited": "Bạn được mời"
       }
     },
     "matching": {
@@ -1427,7 +1431,13 @@
         "sent": "Đã gửi lời mời đến {name}. Họ tự quyết định có ứng tuyển hay không.",
         "inviteAction": "mời ứng tuyển",
         "sheetRole": "Người hướng dẫn · {years} năm kinh nghiệm",
-        "noContact": "vibefix không hiện cách liên lạc. Bạn trao đổi với người hướng dẫn sau khi chọn và họ ký cam kết bảo mật."
+        "noContact": "vibefix không hiện cách liên lạc. Bạn trao đổi với người hướng dẫn sau khi chọn và họ ký cam kết bảo mật.",
+        "recommendations": "Đề xuất cho công việc này"
+      },
+      "signals": {
+        "skills": "Hợp với {skills}",
+        "history": "Đã làm {n} công việc {type}",
+        "newcomer": "Mới"
       }
     },
     "nda": {

@@ -125,6 +125,42 @@ class JdbcMentorDirectory implements MentorDirectory {
 		return ordered;
 	}
 
+	@Override
+	@Transactional(readOnly = true)
+	public List<MentorSkills> holdingAny(Collection<UUID> skillIds, int limit) {
+		if (skillIds.isEmpty()) {
+			return List.of();
+		}
+		return this.jdbc.sql("SELECT a.id, m.skill_ids " + FROM + """
+				 AND a.mentor_approval_status = 'APPROVED' AND a.locked_at IS NULL
+				  AND m.skill_ids && CAST(:skills AS UUID[])
+				ORDER BY cardinality(ARRAY(SELECT unnest(m.skill_ids) INTERSECT SELECT unnest(CAST(:skills AS UUID[])))) DESC,
+				  a.id
+				LIMIT :limit
+				""")
+			.param("skills", JdbcStudentDirectory.uuidArray(skillIds))
+			.param("limit", limit)
+			.query((rs, n) -> new MentorSkills(rs.getObject("id", UUID.class),
+					JdbcStudentDirectory.uuids(rs.getArray("skill_ids"))))
+			.list();
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public Map<UUID, List<UUID>> skillIdsOf(Collection<UUID> mentorIds) {
+		Map<UUID, List<UUID>> skills = new HashMap<>();
+		if (mentorIds.isEmpty()) {
+			return skills;
+		}
+		this.jdbc.sql("SELECT a.id, m.skill_ids " + FROM
+				+ " AND a.mentor_approval_status = 'APPROVED' AND a.locked_at IS NULL AND a.id IN (:ids)")
+			.param("ids", List.copyOf(mentorIds))
+			.query(rs -> {
+				skills.put(rs.getObject("id", UUID.class), JdbcStudentDirectory.uuids(rs.getArray("skill_ids")));
+			});
+		return skills;
+	}
+
 	private Map<UUID, String> names(List<Row> rows) {
 		Map<UUID, String> names = new HashMap<>();
 		for (Skill skill : this.catalog.byIds(rows.stream().flatMap(row -> row.skillIds().stream()).distinct().toList())) {

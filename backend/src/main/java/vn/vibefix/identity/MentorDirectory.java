@@ -3,6 +3,7 @@ package vn.vibefix.identity;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -60,5 +61,23 @@ public interface MentorDirectory {
 
 	/** The cards of these Mentors, in the order of {@code ids}; unknown IDs are left out. */
 	List<MentorCard> cards(Collection<UUID> ids);
+
+	/** An approved, unlocked Mentor's Skills by ID, in their order (AD-38). */
+	record MentorSkills(UUID accountId, List<UUID> skillIds) {
+
+		public MentorSkills {
+			skillIds = List.copyOf(skillIds);
+		}
+
+	}
+
+	/**
+	 * Recommendations' pool (AD-17): approved, unlocked Mentors holding any of {@code skillIds}, the
+	 * most shared Skills first, then account ID; at most {@code limit}.
+	 */
+	List<MentorSkills> holdingAny(Collection<UUID> skillIds, int limit);
+
+	/** The Skills of these Mentors while approved and unlocked; any other ID is left out. */
+	Map<UUID, List<UUID>> skillIdsOf(Collection<UUID> mentorIds);
 
 }

@@ -121,11 +121,12 @@ describe('CUS-8 "Tìm người hướng dẫn" (FR-14)', () => {
     expect(screen.queryAllByRole('dialog').every((dialog) => dialog.dataset.type === 'success')).toBe(true)
   })
 
-  it('reads "Chưa có đề xuất…" before a keyword and searches nothing', { timeout: 15_000 }, async () => {
+  it('reads "Chưa có đề xuất…" with no Recommendation, focuses the Search bar, and searches nothing', { timeout: 15_000 }, async () => {
     const seen = fakeBackend(signedIn('CUSTOMER'), {
       'GET /api/v1/jobs/j1': () => json(openJob),
       'GET /api/v1/jobs/j1/applications': () => json([]),
       'GET /api/v1/jobs/j1/invitations': () => json(quota(10)),
+      'GET /api/v1/jobs/j1/recommendations': () => json([]),
     })
     renderAt('/cong-viec/j1/tim-nguoi')
 
@@ -134,6 +135,7 @@ describe('CUS-8 "Tìm người hướng dẫn" (FR-14)', () => {
     ).toBeInTheDocument()
     expect(screen.getByText('Tìm người hướng dẫn theo kỹ năng hoặc tên. Gõ có dấu hoặc không dấu đều được.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Tìm' })).toBeDisabled()
+    await waitFor(() => expect(screen.getByRole('searchbox', { name: 'Tìm người hướng dẫn' })).toHaveFocus())
     expect(seen.some((request) => request.url.includes('/mentors'))).toBe(false)
   })
 

@@ -9,9 +9,11 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
@@ -219,6 +221,14 @@ class Invitations {
 			.param("job", jobId)
 			.query(UUID.class)
 			.list();
+	}
+
+	/** The Jobs whose Customer invited this Mentor and still waits: MEN-2's "Bạn được mời". */
+	@Transactional(readOnly = true)
+	Set<UUID> openFor(UUID mentorId) {
+		return new HashSet<>(this.jdbc.sql("""
+				SELECT job_id FROM matching.invitation WHERE mentor_account_id = :mentor AND status = 'OPEN'
+				""").param("mentor", mentorId).query(UUID.class).list());
 	}
 
 	/**

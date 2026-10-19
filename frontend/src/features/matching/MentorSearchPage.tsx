@@ -1,5 +1,5 @@
 import { Check, Clock, Search, Send, Users, X } from 'lucide-react'
-import { useId, useState, type FormEvent } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent, type RefObject } from 'react'
 import { Link, Navigate, useParams, useSearchParams } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
 import { usePageTitle } from '@/app/usePageTitle'
@@ -35,6 +35,8 @@ import {
   type MentorResult,
   type MentorSummary,
 } from './invitationApi'
+import { useMentorRecommendations, type RecommendedMentor } from './recommendationApi'
+import { SignalChips } from './SignalChips'
 
 /** The keyword and Skill filter in the URL, as on MEN-2 (UX-DR72, UX-DR75). */
 const PARAMS = { q: 'q', skills: 'ky-nang', categories: 'nhom-ky-nang', page: 'trang' }
@@ -67,7 +69,8 @@ function writeFilter(filter: MentorFilter): URLSearchParams {
  * CUS-8 "Tìm người hướng dẫn" (`/cong-viec/{jobId}/tim-nguoi`, FR-14, UX-DR47–49, UX-DR66): the Job's
  * Customer searches approved Mentors by keyword and Skills, ordered by relevance alone, sees each
  * one's Team size and Rating or "Mới", opens PUB-5 in a Sheet, and invites them within the day's
- * counters. The tab exists only while the Job is Open; afterwards the route goes to "Đơn ứng tuyển".
+ * counters. Without a keyword, "Đề xuất cho công việc này" shows AD-17's Recommendations. The tab
+ * exists only while the Job is Open; afterwards the route goes to "Đơn ứng tuyển".
  */
 export function MentorSearchPage() {
   const { jobId } = useParams()
@@ -95,14 +98,29 @@ function FindMentors({ job }: { job: Job }) {
   const applications = useJobApplications(job.id)
   const invitations = useInvitations(job.id)
   const search = useMentorSearch(job.id, filter)
+  const recommendations = useMentorRecommendations(
+    job.id,
+    { skills: filter.skills, categories: filter.categories },
+    filter.q === undefined,
+  )
   const [profileId, setProfileId] = useState<string>()
   const ids = useId()
+  const searchInput = useRef<HTMLInputElement>(null)
   const update = (next: Partial<MentorFilter>) => setParams(writeFilter({ ...filter, page: 0, ...next }))
   const items = search.data?.items ?? []
-  const summaries = useMentorSummaries(items.map((item) => item.accountId))
+  const recommended = recommendations.data ?? []
+  const shown: MentorResult[] = filter.q === undefined ? recommended : items
+  const summaries = useMentorSummaries(shown.map((item) => item.accountId))
   const byId = new Map((summaries.data ?? []).map((summary) => [summary.accountId, summary]))
   const quota = invitations.data
-  const profile = items.find((item) => item.accountId === profileId)
+  const profile = shown.find((item) => item.accountId === profileId)
+  const noRecommendation = filter.q === undefined && recommendations.data?.length === 0
+  // With nothing to suggest, the Search bar is where to start (UX-DR27).
+  useEffect(() => {
+    if (noRecommendation) {
+      searchInput.current?.focus()
+    }
+  }, [noRecommendation])
   return (
     <>
       <div className="flex flex-col gap-3">
@@ -119,7 +137,7 @@ function FindMentors({ job }: { job: Job }) {
         <JobTabs jobId={job.id} current="find" applications={applications.data?.length ?? 0} />
       </div>
       <QuotaLine quota={quota} />
-      <SearchBar key={filter.q ?? ''} keyword={filter.q} search={(q) => update({ q })} />
+      <SearchBar key={filter.q ?? ''} keyword={filter.q} search={(q) => update({ q })} inputRef={searchInput} />
       <div className="flex max-w-[560px] flex-col gap-1">
         <label htmlFor={`${ids}-skills`} className="text-caption">
           {t('screen.matching.find.skills')}
@@ -137,9 +155,31 @@ function FindMentors({ job }: { job: Job }) {
         </span>
       </div>
       {filter.q === undefined ? (
-        <div className="rounded-lg border border-border bg-card p-8 text-center text-body-sm text-muted-foreground">
-          {t('screen.matching.find.noRecommendation')}
-        </div>
+        <RegionState query={recommendations} skeleton={<Skeleton className="h-48 w-full" />}>
+          {noRecommendation ? (
+            <div className="rounded-lg border border-border bg-card p-8 text-center text-body-sm text-muted-foreground">
+              {t('screen.matching.find.noRecommendation')}
+            </div>
+          ) : (
+            <section aria-labelledby={`${ids}-recommended`} className="flex flex-col gap-3">
+              <h2 id={`${ids}-recommended`} className="text-h2">
+                {t('screen.matching.find.recommendations')}
+              </h2>
+              <ul className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                {recommended.map((mentor) => (
+                  <RecommendationCard
+                    key={mentor.accountId}
+                    job={job}
+                    mentor={mentor}
+                    rating={ratingText(byId.get(mentor.accountId), false)}
+                    limited={!!quota?.limit}
+                    onProfile={() => setProfileId(mentor.accountId)}
+                  />
+                ))}
+              </ul>
+            </section>
+          )}
+        </RegionState>
       ) : (
         <RegionState query={search} skeleton={<Skeleton className="h-48 w-full" />}>
           {search.data && (
@@ -162,7 +202,7 @@ function FindMentors({ job }: { job: Job }) {
                       key={mentor.accountId}
                       job={job}
                       mentor={mentor}
-                      summary={byId.get(mentor.accountId)}
+                      rating={ratingText(byId.get(mentor.accountId), true)}
                       limited={!!quota?.limit}
                       onProfile={() => setProfileId(mentor.accountId)}
                     />
@@ -219,7 +259,15 @@ function QuotaLine({ quota }: { quota: Invitations | undefined }) {
 }
 
 /** The Search bar (EXPERIENCE.md): Enter or "Tìm" runs it, typing alone never does (Telex, VNI). */
-function SearchBar({ keyword, search }: { keyword: string | undefined; search: (q: string | undefined) => void }) {
+function SearchBar({
+  keyword,
+  search,
+  inputRef,
+}: {
+  keyword: string | undefined
+  search: (q: string | undefined) => void
+  inputRef: RefObject<HTMLInputElement | null>
+}) {
   const ids = useId()
   const [input, setInput] = useState(keyword ?? '')
   const submit = (event: FormEvent) => {
@@ -238,6 +286,7 @@ function SearchBar({ keyword, search }: { keyword: string | undefined; search: (
         <div className="relative min-w-0 grow">
           <Search aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2 text-muted-foreground" />
           <input
+            ref={inputRef}
             id={`${ids}-q`}
             type="search"
             maxLength={MAX_KEYWORD}
@@ -265,44 +314,59 @@ function SearchBar({ keyword, search }: { keyword: string | undefined; search: (
   )
 }
 
-/** A Profile result card (UX-DR48): no contact details, and the Rating never changes the order. */
-function MentorCard({
-  job,
-  mentor,
-  summary,
-  limited,
-  onProfile,
-}: {
-  job: Job
-  mentor: MentorResult
-  summary: MentorSummary | undefined
-  limited: boolean
-  onProfile: () => void
-}) {
-  const rating =
-    summary && summary.count > 0 && summary.average != null
-      ? t('screen.matching.find.rating', {
-          average: summary.average.toLocaleString('vi-VN', { maximumFractionDigits: 1 }),
-          count: summary.count,
-        })
-      : summary?.newcomer
-        ? t('screen.matching.find.newcomer')
-        : undefined
+/** The initials, the name, and "{years} năm kinh nghiệm · {n} sinh viên" (UX-DR48). */
+function MentorHeading({ mentor }: { mentor: MentorResult }) {
   return (
-    <li className="flex flex-wrap items-start gap-3 rounded-lg border border-border bg-card p-4">
+    <>
       <span
         aria-hidden="true"
         className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary-soft text-label font-semibold text-primary"
       >
         {initials(mentor.displayName)}
       </span>
-      <div className="flex min-w-[220px] grow flex-col gap-1.5">
+      <div className="flex min-w-0 flex-col gap-0.5">
         <p className="text-label font-semibold break-words">{mentor.displayName}</p>
         <p className="flex flex-wrap items-center gap-1.5 text-caption text-muted-foreground">
           {t('screen.matching.find.years', { years: mentor.yearsOfExperience })} ·
           <Users aria-hidden="true" className="size-4" />
           {t('screen.matching.find.students', { n: mentor.teamSize })}
         </p>
+      </div>
+    </>
+  )
+}
+
+function ProfileLink({ mentor, onProfile }: { mentor: MentorResult; onProfile: () => void }) {
+  if (!mentor.githubLogin) {
+    return <span />
+  }
+  return (
+    <button type="button" onClick={onProfile} className="w-fit text-body-sm text-primary underline-offset-4 hover:underline">
+      {t('screen.matching.find.profile')}
+    </button>
+  )
+}
+
+/** A Profile result card (UX-DR48): no contact details, and the Rating never changes the order. */
+function MentorCard({
+  job,
+  mentor,
+  rating,
+  limited,
+  onProfile,
+}: {
+  job: Job
+  mentor: MentorResult
+  rating: string | undefined
+  limited: boolean
+  onProfile: () => void
+}) {
+  return (
+    <li className="flex flex-wrap items-start gap-3 rounded-lg border border-border bg-card p-4">
+      <div className="flex min-w-[220px] grow flex-col gap-1.5">
+        <div className="flex items-start gap-3">
+          <MentorHeading mentor={mentor} />
+        </div>
         {(mentor.skills.length > 0 || rating) && (
           <ul className="flex flex-wrap gap-1.5">
             {mentor.skills.map((skill) => (
@@ -313,15 +377,53 @@ function MentorCard({
             {rating && <li className="rounded-full bg-primary-soft px-2 py-0.5 text-caption font-semibold text-primary">{rating}</li>}
           </ul>
         )}
-        {mentor.githubLogin && (
-          <button type="button" onClick={onProfile} className="w-fit text-body-sm text-primary underline-offset-4 hover:underline">
-            {t('screen.matching.find.profile')}
-          </button>
-        )}
+        <ProfileLink mentor={mentor} onProfile={onProfile} />
       </div>
       <InviteButton job={job} mentor={mentor} limited={limited} />
     </li>
   )
+}
+
+/** A Recommendation card (AD-17, UX-DR48): its signals, the Rating chip, "Xem hồ sơ", and Invite. */
+function RecommendationCard({
+  job,
+  mentor,
+  rating,
+  limited,
+  onProfile,
+}: {
+  job: Job
+  mentor: RecommendedMentor
+  rating: string | undefined
+  limited: boolean
+  onProfile: () => void
+}) {
+  return (
+    <li className="flex flex-col gap-2.5 rounded-lg border border-border bg-card p-4">
+      <div className="flex items-start gap-3">
+        <MentorHeading mentor={mentor} />
+      </div>
+      <SignalChips
+        signals={mentor.signals}
+        extra={rating && <li className="rounded-full bg-muted px-2 py-0.5 text-caption">{rating}</li>}
+      />
+      <div className="mt-auto flex flex-wrap items-center justify-between gap-2">
+        <ProfileLink mentor={mentor} onProfile={onProfile} />
+        <InviteButton job={job} mentor={mentor} limited={limited} />
+      </div>
+    </li>
+  )
+}
+
+/** "{average} sao ({count} lượt)", or "Mới" when asked and nothing counts; Ratings never reorder anything. */
+function ratingText(summary: MentorSummary | undefined, withNewcomer: boolean): string | undefined {
+  if (summary && summary.count > 0 && summary.average != null) {
+    return t('screen.matching.find.rating', {
+      average: summary.average.toLocaleString('vi-VN', { maximumFractionDigits: 1 }),
+      count: summary.count,
+    })
+  }
+  return withNewcomer && summary?.newcomer ? t('screen.matching.find.newcomer') : undefined
 }
 
 /**

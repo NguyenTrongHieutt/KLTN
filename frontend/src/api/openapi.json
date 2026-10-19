@@ -902,6 +902,58 @@
         "tags" : [ "job-controller" ]
       }
     },
+    "/api/v1/jobs/{jobId}/recommendations" : {
+      "get" : {
+        "operationId" : "forJobPost",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "query",
+          "name" : "skill",
+          "required" : false,
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        }, {
+          "in" : "query",
+          "name" : "category",
+          "required" : false,
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/RecommendedMentorView"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "recommendation-controller" ]
+      }
+    },
     "/api/v1/jobs/{jobId}/screenshots" : {
       "post" : {
         "operationId" : "addScreenshot",
@@ -1414,6 +1466,50 @@
           }
         },
         "tags" : [ "application-controller" ]
+      }
+    },
+    "/api/v1/mentor/recommendations" : {
+      "get" : {
+        "operationId" : "forMentor",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "skill",
+          "required" : false,
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        }, {
+          "in" : "query",
+          "name" : "category",
+          "required" : false,
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/RecommendedPostView"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "recommendation-controller" ]
       }
     },
     "/api/v1/mentor/team" : {
@@ -3668,6 +3764,19 @@
         },
         "required" : [ "id", "jobTypes", "productId", "productName", "state", "title", "updatedAt" ]
       },
+      "JobTypeMatchView" : {
+        "type" : "object",
+        "properties" : {
+          "count" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "jobType" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "count", "jobType" ]
+      },
       "JobView" : {
         "type" : "object",
         "properties" : {
@@ -4846,6 +4955,82 @@
         },
         "required" : [ "count" ]
       },
+      "RecommendedMentorView" : {
+        "type" : "object",
+        "properties" : {
+          "accountId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "displayName" : {
+            "type" : "string"
+          },
+          "githubLogin" : {
+            "type" : "string"
+          },
+          "relation" : {
+            "type" : "string",
+            "enum" : [ "NONE", "INVITED", "APPLIED" ]
+          },
+          "signals" : {
+            "$ref" : "#/components/schemas/SignalsView"
+          },
+          "skills" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "teamSize" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "yearsOfExperience" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "accountId", "displayName", "relation", "signals", "skills", "teamSize", "yearsOfExperience" ]
+      },
+      "RecommendedPostView" : {
+        "type" : "object",
+        "properties" : {
+          "budget" : {
+            "type" : "string"
+          },
+          "deadline" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "invited" : {
+            "type" : "boolean"
+          },
+          "jobTypes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "openedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "productName" : {
+            "type" : "string"
+          },
+          "signals" : {
+            "$ref" : "#/components/schemas/SignalsView"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "invited", "jobTypes", "openedAt", "productName", "signals", "title" ]
+      },
       "RejectMentorRequest" : {
         "type" : "object",
         "properties" : {
@@ -5083,6 +5268,27 @@
           }
         },
         "required" : [ "privacyNoticeVersion", "role" ]
+      },
+      "SignalsView" : {
+        "type" : "object",
+        "properties" : {
+          "jobTypeMatches" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/JobTypeMatchView"
+            }
+          },
+          "newcomer" : {
+            "type" : "boolean"
+          },
+          "sharedSkills" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "jobTypeMatches", "newcomer", "sharedSkills" ]
       },
       "SkillView" : {
         "type" : "object",

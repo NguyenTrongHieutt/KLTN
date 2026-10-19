@@ -589,3 +589,16 @@ GET /api/v1/reputation/mentor-summaries,CUSTOMER,,,200
 GET /api/v1/reputation/mentor-summaries,MENTOR,,,200
 GET /api/v1/reputation/mentor-summaries,STUDENT,,,200
 GET /api/v1/reputation/mentor-summaries,ADMINISTRATOR,,,200
+GET /api/v1/jobs/{jobId}/recommendations,ANONYMOUS,,,401
+GET /api/v1/jobs/{jobId}/recommendations,OWNER,,,200
+GET /api/v1/jobs/{jobId}/recommendations,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/recommendations,MENTOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/recommendations,STUDENT,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/recommendations,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/mentor/recommendations,ANONYMOUS,,,401,requireApprovedMentor
+GET /api/v1/mentor/recommendations,MENTOR,,,200,requireApprovedMentor
+GET /api/v1/mentor/recommendations,MENTOR,mentor=PENDING,,403 FORBIDDEN MENTOR_NOT_APPROVED,requireApprovedMentor
+GET /api/v1/mentor/recommendations,OWNER,,,404 NOT_FOUND,requireApprovedMentor
+GET /api/v1/mentor/recommendations,CUSTOMER,,,404 NOT_FOUND,requireApprovedMentor
+GET /api/v1/mentor/recommendations,STUDENT,,,404 NOT_FOUND,requireApprovedMentor
+GET /api/v1/mentor/recommendations,ADMINISTRATOR,,,404 NOT_FOUND,requireApprovedMentor

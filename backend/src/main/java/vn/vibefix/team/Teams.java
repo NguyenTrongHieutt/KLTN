@@ -1,6 +1,8 @@
 package vn.vibefix.team;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -23,6 +25,12 @@ public interface Teams {
 	 * the free ones among them (FR-13, AD-33).
 	 */
 	List<UUID> members(UUID mentorId);
+
+	/**
+	 * {@link #members} for a page of Mentors in one read (SG-40): every Mentor asked for is a key, with
+	 * an empty list without a Team. Recommendations count free Students with it (AD-17).
+	 */
+	Map<UUID, List<UUID>> membersOf(Collection<UUID> mentorIds);
 
 	/**
 	 * Checks that the Student is in the Mentor's Team and reserves them for the Crew row, in the
