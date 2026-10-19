@@ -1,0 +1,7 @@
+subject: Nhóm của {mentor} đã ngừng hoạt động. Bạn có thể tìm người hướng dẫn khác.
+link: /nhom
+---
+Xin chào,
+
+Nhóm của {mentor} đã ngừng hoạt động, nên bạn không còn ở trong nhóm này.
+Bạn có thể tìm một người hướng dẫn khác ở trang Nhóm và xin vào nhóm của họ.

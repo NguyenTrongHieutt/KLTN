@@ -1,0 +1,7 @@
+subject: {mentor} đã {answer}
+link: /nhom
+---
+Xin chào,
+
+{mentor} đã {answer}.
+Xem chi tiết ở trang Nhóm. Nếu chưa ở nhóm nào, bạn có thể tìm một người hướng dẫn khác và xin vào nhóm.

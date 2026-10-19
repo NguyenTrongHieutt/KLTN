@@ -15,7 +15,7 @@ const products: Destination = { label: 'nav.products', to: '/san-pham', icon: Pa
 const jobs: Destination = { label: 'nav.jobs', to: '/cong-viec', icon: BriefcaseBusiness, built: false }
 const notifications: Destination = { label: 'nav.notifications', to: '/thong-bao', icon: Bell, built: true }
 const findWork: Destination = { label: 'nav.findWork', to: '/tim-viec', icon: Search, built: false }
-const team: Destination = { label: 'nav.team', to: '/nhom', icon: Users, built: false }
+const team: Destination = { label: 'nav.team', to: '/nhom', icon: Users, built: true }
 const mentorProfile: Destination = { label: 'nav.mentorProfile', to: '/ho-so', icon: UserRound, built: true }
 
 /**

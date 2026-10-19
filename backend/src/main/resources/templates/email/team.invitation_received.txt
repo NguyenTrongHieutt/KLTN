@@ -1,0 +1,7 @@
+subject: {mentor} mời bạn vào nhóm
+link: /nhom
+---
+Xin chào,
+
+{mentor}, người hướng dẫn trên vibefix, mời bạn vào nhóm của mình. Người hướng dẫn chọn sinh viên trong nhóm vào nhóm thực hiện của từng công việc.
+Hãy trả lời ở trang Nhóm trong 14 ngày. Sau đó, lời mời tự hết hạn.

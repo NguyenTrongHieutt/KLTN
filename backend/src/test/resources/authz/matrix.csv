@@ -178,6 +178,81 @@ POST /api/v1/admin/mentor-applications/{applicantId}/reject,CUSTOMER,,admin-ment
 POST /api/v1/admin/mentor-applications/{applicantId}/reject,MENTOR,mentor=PENDING,admin-mentor-reject.json,404 NOT_FOUND
 POST /api/v1/admin/mentor-applications/{applicantId}/reject,STUDENT,,admin-mentor-reject.json,404 NOT_FOUND
 POST /api/v1/admin/mentor-applications/{applicantId}/reject,ADMINISTRATOR,,admin-mentor-reject.json,404 NOT_FOUND
+# MEN-6 (team, FR-6, FR-14, AD-36, AD-37): only the Mentor reads their Team, searches Students,
+# invites, and answers join requests; another Mentor finds nobody else's requests, and every other
+# role finds nothing. A member's hidden name is a canary.
+GET /api/v1/mentor/team,ANONYMOUS,,,401,requireActiveAccount
+GET /api/v1/mentor/team,MENTOR,,,200,requireActiveAccount
+GET /api/v1/mentor/team,MENTOR,mentor=PENDING,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/team,TEAM_MENTOR,,,200,requireActiveAccount
+GET /api/v1/mentor/team,CUSTOMER,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/team,STUDENT,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/team,ADMINISTRATOR,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/team/students,ANONYMOUS,,,401,requireApprovedMentor
+GET /api/v1/mentor/team/students,MENTOR,,,200,requireApprovedMentor
+GET /api/v1/mentor/team/students,MENTOR,mentor=PENDING,,403 FORBIDDEN MENTOR_NOT_APPROVED,requireApprovedMentor
+GET /api/v1/mentor/team/students,CUSTOMER,,,404 NOT_FOUND,requireApprovedMentor
+GET /api/v1/mentor/team/students,STUDENT,,,404 NOT_FOUND,requireApprovedMentor
+GET /api/v1/mentor/team/students,ADMINISTRATOR,,,404 NOT_FOUND,requireApprovedMentor
+GET /api/v1/mentor/team/students/{studentId},ANONYMOUS,,,401,requireApprovedMentor
+GET /api/v1/mentor/team/students/{studentId},MENTOR,,,200,requireApprovedMentor
+GET /api/v1/mentor/team/students/{studentId},MENTOR,mentor=PENDING,,403 FORBIDDEN MENTOR_NOT_APPROVED,requireApprovedMentor
+GET /api/v1/mentor/team/students/{studentId},CUSTOMER,,,404 NOT_FOUND,requireApprovedMentor
+GET /api/v1/mentor/team/students/{studentId},STUDENT,,,404 NOT_FOUND,requireApprovedMentor
+GET /api/v1/mentor/team/students/{studentId},ADMINISTRATOR,,,404 NOT_FOUND,requireApprovedMentor
+POST /api/v1/mentor/team/invitations,ANONYMOUS,,team-invitation.json,401,requireApprovedMentor
+POST /api/v1/mentor/team/invitations,MENTOR,,team-invitation.json,201,requireApprovedMentor
+POST /api/v1/mentor/team/invitations,MENTOR,mentor=PENDING,team-invitation.json,403 FORBIDDEN MENTOR_NOT_APPROVED,requireApprovedMentor
+POST /api/v1/mentor/team/invitations,CUSTOMER,,team-invitation.json,404 NOT_FOUND,requireApprovedMentor
+POST /api/v1/mentor/team/invitations,STUDENT,,team-invitation.json,404 NOT_FOUND,requireApprovedMentor
+POST /api/v1/mentor/team/invitations,ADMINISTRATOR,,team-invitation.json,404 NOT_FOUND,requireApprovedMentor
+POST /api/v1/mentor/team/join-requests/{joinRequestId}/accept,ANONYMOUS,,,401,requireApprovedMentor
+POST /api/v1/mentor/team/join-requests/{joinRequestId}/accept,MENTOR,,,404 NOT_FOUND,requireApprovedMentor
+POST /api/v1/mentor/team/join-requests/{joinRequestId}/accept,MENTOR,mentor=PENDING,,404 NOT_FOUND,requireApprovedMentor
+POST /api/v1/mentor/team/join-requests/{joinRequestId}/accept,TEAM_MENTOR,,,200,requireApprovedMentor
+POST /api/v1/mentor/team/join-requests/{joinRequestId}/accept,CUSTOMER,,,404 NOT_FOUND,requireApprovedMentor
+POST /api/v1/mentor/team/join-requests/{joinRequestId}/accept,STUDENT,,,404 NOT_FOUND,requireApprovedMentor
+POST /api/v1/mentor/team/join-requests/{joinRequestId}/accept,ADMINISTRATOR,,,404 NOT_FOUND,requireApprovedMentor
+POST /api/v1/mentor/team/join-requests/{joinRequestId}/decline,ANONYMOUS,,,401,requireActiveAccount
+POST /api/v1/mentor/team/join-requests/{joinRequestId}/decline,MENTOR,,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/team/join-requests/{joinRequestId}/decline,MENTOR,mentor=PENDING,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/team/join-requests/{joinRequestId}/decline,TEAM_MENTOR,,,200,requireActiveAccount
+POST /api/v1/mentor/team/join-requests/{joinRequestId}/decline,CUSTOMER,,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/team/join-requests/{joinRequestId}/decline,STUDENT,,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/team/join-requests/{joinRequestId}/decline,ADMINISTRATOR,,,404 NOT_FOUND,requireActiveAccount
+# STU-6 (team, FR-6, AD-36): only Students; the matrix Student is unverified, so they may neither
+# search Mentors nor ask to join, and another Student's invitation is not theirs to answer.
+GET /api/v1/team,ANONYMOUS,,,401
+GET /api/v1/team,STUDENT,,,200
+GET /api/v1/team,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/team,MENTOR,,,404 NOT_FOUND
+GET /api/v1/team,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/team/mentors,ANONYMOUS,,,401
+GET /api/v1/team/mentors,STUDENT,,,403 FORBIDDEN MEMBER_NOT_VERIFIED
+GET /api/v1/team/mentors,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/team/mentors,MENTOR,,,404 NOT_FOUND
+GET /api/v1/team/mentors,ADMINISTRATOR,,,404 NOT_FOUND
+POST /api/v1/team/join-requests,ANONYMOUS,,team-join-request.json,401
+POST /api/v1/team/join-requests,STUDENT,,team-join-request.json,422 GUARD_FAILED MEMBER_NOT_VERIFIED
+POST /api/v1/team/join-requests,CUSTOMER,,team-join-request.json,404 NOT_FOUND
+POST /api/v1/team/join-requests,MENTOR,,team-join-request.json,404 NOT_FOUND
+POST /api/v1/team/join-requests,ADMINISTRATOR,,team-join-request.json,404 NOT_FOUND
+POST /api/v1/team/invitations/{invitationId}/accept,ANONYMOUS,,,401
+POST /api/v1/team/invitations/{invitationId}/accept,STUDENT,,,404 NOT_FOUND
+POST /api/v1/team/invitations/{invitationId}/accept,CUSTOMER,,,404 NOT_FOUND
+POST /api/v1/team/invitations/{invitationId}/accept,MENTOR,,,404 NOT_FOUND
+POST /api/v1/team/invitations/{invitationId}/accept,ADMINISTRATOR,,,404 NOT_FOUND
+POST /api/v1/team/invitations/{invitationId}/decline,ANONYMOUS,,,401
+POST /api/v1/team/invitations/{invitationId}/decline,STUDENT,,,404 NOT_FOUND
+POST /api/v1/team/invitations/{invitationId}/decline,CUSTOMER,,,404 NOT_FOUND
+POST /api/v1/team/invitations/{invitationId}/decline,MENTOR,,,404 NOT_FOUND
+POST /api/v1/team/invitations/{invitationId}/decline,ADMINISTRATOR,,,404 NOT_FOUND
+# PUB-5 (team, FR-51): a Mentor's public profile, for anyone; hidden member names never show.
+GET /api/v1/mentors/{username},ANONYMOUS,,,200
+GET /api/v1/mentors/{username},CUSTOMER,,,200
+GET /api/v1/mentors/{username},MENTOR,,,200
+GET /api/v1/mentors/{username},STUDENT,,,200
+GET /api/v1/mentors/{username},ADMINISTRATOR,,,200
 # Student verification (identity, FR-5): a Student's own; any other role, and SUBJECT (a Customer),
 # finds none. The confirm row's Student has no code waiting, so it finds none either.
 GET /api/v1/verification,ANONYMOUS,,,401

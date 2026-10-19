@@ -71,11 +71,33 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType MENTOR_REJECTED = new NotificationType("identity.mentor_rejected",
 			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("reason"));
 
+	/** A Mentor invited a Student into their Team (FR-6): the Student, by email too. */
+	static final NotificationType TEAM_INVITATION_RECEIVED = new NotificationType("team.invitation_received",
+			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "users", Set.of("mentor"));
+
+	/** The invited Student accepted, declined, or let the invitation lapse: the Mentor, in-app. */
+	static final NotificationType TEAM_INVITATION_ANSWERED = new NotificationType("team.invitation_answered",
+			Set.of(Audience.SUBJECT), Channel.IN_APP, EmailClass.TRANSACTIONAL, "users", Set.of("name", "answer"));
+
+	/** A Student asked to join the Mentor's Team (FR-6): the Mentor, by email too. */
+	static final NotificationType TEAM_JOIN_REQUEST_RECEIVED = new NotificationType("team.join_request_received",
+			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "users", Set.of("name"));
+
+	/** The Mentor accepted, declined, or let the join request lapse: the Student, by email too. */
+	static final NotificationType TEAM_JOIN_REQUEST_ANSWERED = new NotificationType("team.join_request_answered",
+			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "users",
+			Set.of("mentor", "answer"));
+
+	/** The Mentor is gone, so the Team released the Student (FR-6, AD-37). */
+	static final NotificationType TEAM_RELEASED = new NotificationType("team.released", Set.of(Audience.SUBJECT),
+			Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("mentor"));
+
 	@Override
 	public List<NotificationType> notificationTypes() {
 		return List.of(SCHOOL_EMAIL_CODE, VERIFICATION_EXPIRING, VERIFICATION_EXPIRED, ADMIN_SIGN_IN_LOCKED,
 				ADMINISTRATOR_CREATED, ADMINISTRATOR_ENROLMENT, STUDENT_CARD_APPROVED, STUDENT_CARD_REJECTED,
-				MENTOR_APPLICATION_RECEIVED, MENTOR_APPROVED, MENTOR_REJECTED);
+				MENTOR_APPLICATION_RECEIVED, MENTOR_APPROVED, MENTOR_REJECTED, TEAM_INVITATION_RECEIVED,
+				TEAM_INVITATION_ANSWERED, TEAM_JOIN_REQUEST_RECEIVED, TEAM_JOIN_REQUEST_ANSWERED, TEAM_RELEASED);
 	}
 
 	@Override
