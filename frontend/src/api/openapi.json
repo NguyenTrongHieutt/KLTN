@@ -670,6 +670,41 @@
         "tags" : [ "job-controller" ]
       }
     },
+    "/api/v1/jobs/{jobId}/agreement" : {
+      "get" : {
+        "operationId" : "customer",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "query",
+          "name" : "version",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AgreementVersionView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "agreement-controller" ]
+      }
+    },
     "/api/v1/jobs/{jobId}/applications" : {
       "get" : {
         "operationId" : "ofJob",
@@ -1584,6 +1619,105 @@
           }
         },
         "tags" : [ "mentor-job-controller" ]
+      }
+    },
+    "/api/v1/mentor/jobs/{jobId}/agreement" : {
+      "get" : {
+        "operationId" : "draft",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AgreementDraftView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "agreement-controller" ]
+      },
+      "put" : {
+        "operationId" : "save_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SaveRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AgreementDraftView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "agreement-controller" ]
+      }
+    },
+    "/api/v1/mentor/jobs/{jobId}/agreement/share" : {
+      "post" : {
+        "operationId" : "share",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ShareRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AgreementDraftView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "agreement-controller" ]
       }
     },
     "/api/v1/mentor/jobs/{jobId}/decline" : {
@@ -3162,6 +3296,64 @@
         },
         "required" : [ "absoluteExpiresAt", "displayName", "email", "idleExpiresAt" ]
       },
+      "AgreementDraftView" : {
+        "type" : "object",
+        "properties" : {
+          "content" : {
+            "$ref" : "#/components/schemas/Content"
+          },
+          "problems" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Problem"
+            }
+          },
+          "quote" : {
+            "$ref" : "#/components/schemas/QuoteView"
+          },
+          "revision" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "state" : {
+            "type" : "string",
+            "enum" : [ "DRAFT", "OPEN", "SELECTING", "AGREEMENT", "STARTING", "ACTIVE", "CLOSING", "CLOSED", "CANCELLED" ]
+          },
+          "versions" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/VersionSummary"
+            }
+          }
+        },
+        "required" : [ "content", "problems", "revision", "state", "versions" ]
+      },
+      "AgreementVersionView" : {
+        "type" : "object",
+        "properties" : {
+          "content" : {
+            "$ref" : "#/components/schemas/Content"
+          },
+          "quote" : {
+            "$ref" : "#/components/schemas/QuoteView"
+          },
+          "sharedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "versionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "versions" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/VersionSummary"
+            }
+          }
+        },
+        "required" : [ "content", "sharedAt", "versionNo", "versions" ]
+      },
       "ApplicantView" : {
         "type" : "object",
         "properties" : {
@@ -3441,6 +3633,43 @@
         },
         "required" : [ "code" ]
       },
+      "Content" : {
+        "type" : "object",
+        "properties" : {
+          "assessment" : {
+            "type" : "boolean"
+          },
+          "codeJob" : {
+            "type" : "boolean"
+          },
+          "externalAccess" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ExternalAccess"
+            }
+          },
+          "milestones" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Milestone"
+            }
+          },
+          "priceVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "scope" : {
+            "type" : "string"
+          },
+          "skills" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SkillName"
+            }
+          }
+        },
+        "required" : [ "assessment", "codeJob", "externalAccess", "milestones", "scope", "skills" ]
+      },
       "CreateAdministratorRequest" : {
         "type" : "object",
         "properties" : {
@@ -3472,6 +3701,42 @@
           }
         },
         "required" : [ "id" ]
+      },
+      "Criterion" : {
+        "type" : "object",
+        "properties" : {
+          "checkSteps" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "statement" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "checkSteps", "id", "statement" ]
+      },
+      "CriterionRequest" : {
+        "type" : "object",
+        "properties" : {
+          "checkSteps" : {
+            "type" : "string",
+            "maxLength" : 2000,
+            "minLength" : 0
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "statement" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "checkSteps", "id", "statement" ]
       },
       "CustomerProfile" : {
         "type" : "object",
@@ -3569,6 +3834,58 @@
           }
         },
         "required" : [ "name" ]
+      },
+      "ExternalAccess" : {
+        "type" : "object",
+        "properties" : {
+          "accessLevel" : {
+            "type" : "string",
+            "enum" : [ "READ", "WRITE", "ADMIN" ]
+          },
+          "environment" : {
+            "type" : "string",
+            "enum" : [ "NON_PRODUCTION", "PRODUCTION" ]
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "purpose" : {
+            "type" : "string"
+          },
+          "system" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "accessLevel", "environment", "id", "purpose", "system" ]
+      },
+      "ExternalAccessRequest" : {
+        "type" : "object",
+        "properties" : {
+          "accessLevel" : {
+            "type" : "string",
+            "enum" : [ "READ", "WRITE", "ADMIN" ]
+          },
+          "environment" : {
+            "type" : "string",
+            "enum" : [ "NON_PRODUCTION", "PRODUCTION" ]
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "purpose" : {
+            "type" : "string",
+            "maxLength" : 300,
+            "minLength" : 0
+          },
+          "system" : {
+            "type" : "string",
+            "maxLength" : 120,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "accessLevel", "environment", "id", "purpose", "system" ]
       },
       "FalsePositiveRequest" : {
         "type" : "object",
@@ -3991,6 +4308,9 @@
       "JobView" : {
         "type" : "object",
         "properties" : {
+          "agreementShared" : {
+            "type" : "boolean"
+          },
           "appUsers" : {
             "type" : "string"
           },
@@ -4083,7 +4403,7 @@
             "format" : "int64"
           }
         },
-        "required" : [ "canCancelSelection", "createdAt", "id", "jobTypes", "productId", "productName", "screenshots", "skills", "state", "title", "updatedAt", "version" ]
+        "required" : [ "agreementShared", "canCancelSelection", "createdAt", "id", "jobTypes", "productId", "productName", "screenshots", "skills", "state", "title", "updatedAt", "version" ]
       },
       "MentorApplicationDetail" : {
         "type" : "object",
@@ -4657,6 +4977,76 @@
         },
         "required" : [ "author", "body", "id", "maskedCredentials", "maskedPersonal", "mine", "sentAt" ]
       },
+      "Milestone" : {
+        "type" : "object",
+        "properties" : {
+          "criteria" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Criterion"
+            }
+          },
+          "dueOn" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "priceVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "revisionRounds" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "criteria", "id", "revisionRounds", "title" ]
+      },
+      "MilestoneRequest" : {
+        "type" : "object",
+        "properties" : {
+          "criteria" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/CriterionRequest"
+            },
+            "maxItems" : 30,
+            "minItems" : 0
+          },
+          "dueOn" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "priceVnd" : {
+            "type" : "integer",
+            "format" : "int64",
+            "maximum" : 1000000000,
+            "minimum" : 1000
+          },
+          "revisionRounds" : {
+            "type" : "integer",
+            "format" : "int32",
+            "maximum" : 10,
+            "minimum" : 0
+          },
+          "title" : {
+            "type" : "string",
+            "maxLength" : 120,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "criteria", "id", "revisionRounds", "title" ]
+      },
       "NdaRequest" : {
         "type" : "object",
         "properties" : {
@@ -4866,6 +5256,28 @@
           }
         },
         "required" : [ "closedAt", "jobTypes", "milestones", "title" ]
+      },
+      "Problem" : {
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "type" : "string",
+            "enum" : [ "SCOPE_MISSING", "PRICE_MISSING", "MILESTONE_MISSING", "MILESTONE_INCOMPLETE", "MILESTONE_WITHOUT_CRITERION", "CRITERION_WITHOUT_STEPS", "PRICE_SUM_MISMATCH", "EXTERNAL_ACCESS_INCOMPLETE" ]
+          },
+          "criterionId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "externalAccessId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "milestoneId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "code" ]
       },
       "ProductCreatedView" : {
         "type" : "object",
@@ -5202,6 +5614,20 @@
         },
         "required" : [ "left" ]
       },
+      "QuoteView" : {
+        "type" : "object",
+        "properties" : {
+          "priceVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "timelineDays" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "priceVnd", "timelineDays" ]
+      },
       "RatingSummaryView" : {
         "type" : "object",
         "properties" : {
@@ -5357,6 +5783,52 @@
           }
         },
         "required" : [ "defaultBranch", "fullName", "githubId", "htmlUrl", "ownerType", "sizeKb" ]
+      },
+      "SaveRequest" : {
+        "type" : "object",
+        "properties" : {
+          "externalAccess" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ExternalAccessRequest"
+            },
+            "maxItems" : 20,
+            "minItems" : 0
+          },
+          "milestones" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/MilestoneRequest"
+            },
+            "maxItems" : 20,
+            "minItems" : 0
+          },
+          "priceVnd" : {
+            "type" : "integer",
+            "format" : "int64",
+            "maximum" : 1000000000,
+            "minimum" : 1000
+          },
+          "revision" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "scope" : {
+            "type" : "string",
+            "maxLength" : 4000,
+            "minLength" : 0
+          },
+          "skillIds" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            },
+            "maxItems" : 10,
+            "minItems" : 0
+          }
+        },
+        "required" : [ "externalAccess", "milestones", "revision", "scope", "skillIds" ]
       },
       "SavedView" : {
         "type" : "object",
@@ -5530,6 +6002,16 @@
         },
         "required" : [ "privacyNoticeVersion", "status" ]
       },
+      "ShareRequest" : {
+        "type" : "object",
+        "properties" : {
+          "revision" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "revision" ]
+      },
       "SignUpRequest" : {
         "type" : "object",
         "properties" : {
@@ -5564,6 +6046,19 @@
           }
         },
         "required" : [ "jobTypeMatches", "newcomer", "sharedSkills" ]
+      },
+      "SkillName" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "name" ]
       },
       "SkillView" : {
         "type" : "object",
@@ -6294,6 +6789,20 @@
           }
         },
         "required" : [ "renewalOpen", "status" ]
+      },
+      "VersionSummary" : {
+        "type" : "object",
+        "properties" : {
+          "sharedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "versionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "sharedAt", "versionNo" ]
       }
     }
   }

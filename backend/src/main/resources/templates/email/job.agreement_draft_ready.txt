@@ -1,0 +1,6 @@
+subject: Người hướng dẫn đã gửi bản nháp thỏa thuận cho {job}
+---
+Xin chào,
+
+Người hướng dẫn đã gửi bản nháp thỏa thuận cho công việc {job}.
+Hãy mở vibefix để xem phạm vi, các giai đoạn, giá và cách kiểm tra từng tiêu chí.

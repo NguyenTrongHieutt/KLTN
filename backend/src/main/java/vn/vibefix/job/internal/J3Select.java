@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
 import vn.vibefix.job.JobSelection;
+import vn.vibefix.job.JobSelection.SelectedQuote;
 import vn.vibefix.job.MentorWork;
 import vn.vibefix.job.internal.JobLifecycle.Applying;
 import vn.vibefix.job.internal.Jobs.Job;
@@ -83,6 +84,9 @@ class J3Select implements JobLifecycle.Step {
 		applying.set("mentor_account_id", mentor(applying));
 		applying.set("selected_application_id", application);
 		applying.set("selected_at", applying.now());
+		SelectedQuote quote = (SelectedQuote) applying.input("quote");
+		applying.set("quote_price_vnd", quote.priceVnd());
+		applying.set("quote_timeline_days", quote.timelineDays());
 		this.pins.pinForJob(applying.job().productId(), applying.job().id());
 		applying.fact("mentorId", mentor(applying).toString());
 		applying.fact("applicationId", application.toString());

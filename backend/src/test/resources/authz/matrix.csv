@@ -632,3 +632,30 @@ POST /api/v1/jobs/{jobId}/chat/read,CUSTOMER,,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/chat/read,MENTOR,,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/chat/read,STUDENT,,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/chat/read,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/mentor/jobs/{jobId}/agreement,ANONYMOUS,,,401,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/agreement,MENTOR,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/agreement,MENTOR,mentor=PENDING,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/agreement,OWNER,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/agreement,CUSTOMER,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/agreement,STUDENT,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/agreement,ADMINISTRATOR,,,404 NOT_FOUND,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/agreement,ANONYMOUS,,agreement.json,401,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/agreement,MENTOR,,agreement.json,404 NOT_FOUND,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/agreement,MENTOR,mentor=PENDING,agreement.json,404 NOT_FOUND,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/agreement,OWNER,,agreement.json,404 NOT_FOUND,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/agreement,CUSTOMER,,agreement.json,404 NOT_FOUND,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/agreement,STUDENT,,agreement.json,404 NOT_FOUND,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/agreement,ADMINISTRATOR,,agreement.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/agreement/share,ANONYMOUS,,agreement-share.json,401,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/agreement/share,MENTOR,,agreement-share.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/agreement/share,MENTOR,mentor=PENDING,agreement-share.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/agreement/share,OWNER,,agreement-share.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/agreement/share,CUSTOMER,,agreement-share.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/agreement/share,STUDENT,,agreement-share.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/agreement/share,ADMINISTRATOR,,agreement-share.json,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/jobs/{jobId}/agreement,ANONYMOUS,,,401
+GET /api/v1/jobs/{jobId}/agreement,OWNER,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/agreement,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/agreement,MENTOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/agreement,STUDENT,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/agreement,ADMINISTRATOR,,,404 NOT_FOUND

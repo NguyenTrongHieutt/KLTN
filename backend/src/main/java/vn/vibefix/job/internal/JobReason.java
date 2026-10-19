@@ -37,6 +37,9 @@ enum JobReason {
 	MENTOR_NO_FREE_STUDENT,
 
 	/** J5: the Customer cancels the selection before the FR-15 signature period ends. */
-	NDA_PERIOD_RUNNING
+	NDA_PERIOD_RUNNING,
+
+	/** The Agreement draft is not complete enough to share; {@code problems} lists why (FR-16). */
+	AGREEMENT_INCOMPLETE
 
 }

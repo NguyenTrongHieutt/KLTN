@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import vn.vibefix.job.JobSelection;
+import vn.vibefix.job.JobSelection.SelectedQuote;
 import vn.vibefix.job.internal.JobLifecycle.Actor;
 
 /** {@link JobSelection} through {@link JobLifecycle}, the only code that changes a Job's state. */
@@ -22,9 +23,10 @@ class JobSelections implements JobSelection {
 
 	@Override
 	@Transactional
-	public long select(UUID jobId, UUID customerId, UUID mentorId, UUID applicationId, long expectedVersion) {
+	public long select(UUID jobId, UUID customerId, UUID mentorId, UUID applicationId, SelectedQuote quote,
+			long expectedVersion) {
 		return this.lifecycle.apply(Transition.J3, jobId, Actor.user(customerId), Trigger.USER, expectedVersion,
-				Map.of("mentorId", mentorId, "applicationId", applicationId)).version();
+				Map.of("mentorId", mentorId, "applicationId", applicationId, "quote", quote)).version();
 	}
 
 	@Override

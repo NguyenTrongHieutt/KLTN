@@ -1506,6 +1506,79 @@
         "edit": "Sửa lại",
         "send": "Vẫn gửi"
       }
+    },
+    "agreement": {
+      "tab": "Thỏa thuận",
+      "title": "Thỏa thuận · {job}",
+      "quote": "Báo giá trong đơn ứng tuyển: {price} · {days} ngày",
+      "scope": "Phạm vi",
+      "scopeHelp": "Viết bằng lời cho khách hàng không rành kỹ thuật: làm gì và không làm gì.",
+      "codeStatement": "Các thay đổi về cơ sở dữ liệu và cấu hình được bàn giao dưới dạng tệp trong kho mã (ví dụ tệp chuyển đổi dữ liệu và ghi chú cài đặt), để đi qua bước bàn giao của từng giai đoạn.",
+      "price": "Giá thỏa thuận",
+      "priceHelp": "đồng, gồm phần của bạn và của nhóm thực hiện",
+      "skills": "Kỹ năng",
+      "milestones": "Các giai đoạn",
+      "milestone": "Giai đoạn {n}",
+      "milestoneTitle": "Tên giai đoạn",
+      "milestonePrice": "Giá",
+      "milestoneDue": "Hạn",
+      "rounds": "Lượt yêu cầu sửa",
+      "addMilestone": "Thêm giai đoạn",
+      "removeMilestone": "Bỏ giai đoạn {n}",
+      "criterion": "Tiêu chí {n}",
+      "steps": "Cách kiểm tra",
+      "stepsHelp": "Ghi từng bước để khách hàng tự kiểm tra, ví dụ: 1. Mở bản xem thử. 2. Bấm Đặt bàn.",
+      "addCriterion": "Thêm tiêu chí",
+      "removeCriterion": "Bỏ tiêu chí {n}",
+      "technical": "Tiêu chí này chỉ có thuật ngữ kỹ thuật. Hãy viết lại để khách hàng tự kiểm tra được, ví dụ: Hai khách đặt cùng bàn, cùng giờ thì người thứ hai được báo.",
+      "total": "Tổng: {total}",
+      "matchesQuote": "khớp báo giá",
+      "differsQuote": "khác báo giá",
+      "matchesPrice": "khớp giá thỏa thuận",
+      "differsPrice": "chưa khớp giá thỏa thuận",
+      "externalAccess": "Quyền truy cập ngoài GitHub",
+      "system": "Hệ thống",
+      "purpose": "Để làm gì",
+      "environment": "Môi trường",
+      "envNON_PRODUCTION": "Môi trường thử",
+      "envPRODUCTION": "Hệ thống thật",
+      "access": "Mức quyền",
+      "accessREAD": "Chỉ xem",
+      "accessWRITE": "Đọc và ghi",
+      "accessADMIN": "Toàn quyền",
+      "addAccess": "Thêm quyền truy cập",
+      "removeAccess": "Bỏ quyền truy cập {n}",
+      "noAccess": "Không cần quyền truy cập ngoài GitHub.",
+      "codeRightsTitle": "Quyền đối với mã",
+      "codeRights": "Quyền đối với mã của một giai đoạn thuộc về khách hàng khi giai đoạn đó được nghiệm thu. Người hướng dẫn và nhóm được mô tả công việc trong hồ sơ năng lực, không kèm mã.",
+      "assessmentNote": "Công việc đánh giá có một giai đoạn với các tiêu chí theo mẫu Báo cáo đánh giá. Bạn chỉ cần nhập giá và hạn.",
+      "save": "Lưu bản nháp",
+      "saved": "Đã lưu bản nháp.",
+      "share": "Gửi cho khách hàng",
+      "shared": "Đã gửi bản nháp {n} cho khách hàng.",
+      "summary": "Hãy kiểm tra lại {n} mục trước khi gửi:",
+      "problem": {
+        "SCOPE_MISSING": "Chưa có phạm vi.",
+        "PRICE_MISSING": "Chưa có giá thỏa thuận.",
+        "MILESTONE_MISSING": "Cần ít nhất một giai đoạn.",
+        "MILESTONE_INCOMPLETE": "Giai đoạn {n} chưa có đủ tên, giá và hạn.",
+        "MILESTONE_WITHOUT_CRITERION": "Giai đoạn {n} chưa có tiêu chí.",
+        "CRITERION_WITHOUT_STEPS": "Tiêu chí {c} của Giai đoạn {n} chưa có nội dung hoặc cách kiểm tra.",
+        "PRICE_SUM_MISMATCH": "Tổng giá các giai đoạn chưa bằng giá thỏa thuận.",
+        "EXTERNAL_ACCESS_INCOMPLETE": "Quyền truy cập {n} chưa có hệ thống hoặc mục đích."
+      },
+      "lastShared": "Đã gửi bản nháp {n} lúc {time}",
+      "notShared": "Chưa gửi cho khách hàng.",
+      "version": "Phiên bản",
+      "versionOption": "Bản nháp {n} · {date}",
+      "sentBy": "Người hướng dẫn gửi bản nháp {n} lúc {time}",
+      "criteriaTitle": "Tiêu chí nghiệm thu",
+      "stepsCount": "{n} bước kiểm tra",
+      "roundsCount": "{n} lượt yêu cầu sửa",
+      "due": "Hạn: {date}",
+      "priceLine": "Giá: {price}",
+      "next": "Người hướng dẫn có thể còn chỉnh sửa. Bạn được báo mỗi khi có bản nháp mới.",
+      "stale": "Bản nháp vừa thay đổi ở nơi khác. Hãy tải lại trang rồi sửa tiếp."
     }
   },
   "notice": {
@@ -1945,6 +2018,10 @@
       "choose_assignee": "Chọn người hướng dẫn ({n} đơn ứng tuyển)",
       "sign_nda": "Ký cam kết bảo mật cho {job}",
       "answer_invitation_to_apply": "Xem lời mời ứng tuyển cho {job}"
+    },
+    "job": {
+      "draft_agreement": "Soạn thỏa thuận cho {job}",
+      "review_agreement": "Xem thỏa thuận cho {job}"
     }
   },
   "theme": {
@@ -2038,6 +2115,9 @@
       },
       "selection_declined": {
         "title": "{mentor} đã từ chối. Bạn có thể chọn người hướng dẫn khác."
+      },
+      "agreement_draft_ready": {
+        "title": "Người hướng dẫn đã gửi bản nháp thỏa thuận cho {job}"
       }
     },
     "matching": {
@@ -2144,7 +2224,8 @@
       "MENTOR_NOT_AVAILABLE": "người hướng dẫn này hiện không nhận việc",
       "MENTOR_AT_JOB_LIMIT": "người hướng dẫn này đang nhận đủ số công việc tối đa",
       "MENTOR_NO_FREE_STUDENT": "nhóm của người hướng dẫn này hiện không có sinh viên rảnh",
-      "NDA_PERIOD_RUNNING": "người hướng dẫn vẫn còn thời gian ký cam kết bảo mật"
+      "NDA_PERIOD_RUNNING": "người hướng dẫn vẫn còn thời gian ký cam kết bảo mật",
+      "AGREEMENT_INCOMPLETE": "bản nháp chưa đủ để gửi"
     },
     "matching": {
       "JOB_POST_NOT_OPEN": "công việc không còn nhận ứng tuyển",

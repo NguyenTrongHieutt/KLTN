@@ -14,15 +14,21 @@ public interface JobSelection {
 	/** The FR-15 signature period: the selected Mentor signs the NDA within it. */
 	Duration NDA_PERIOD = Duration.ofDays(3);
 
+	/** The selected Application's quote, which the Agreement draft starts from and is compared with (FR-16). */
+	record SelectedQuote(long priceVnd, int timelineDays) {
+	}
+
 	/**
 	 * Applies J3 to the Customer's Open Job.
+	 * @param quote the selected Application's price and timeline
 	 * @param expectedVersion the Job version the Customer's screen loaded
 	 * @return the Job's version after J3
 	 * @throws vn.vibefix.shared.ApiException {@code NOT_FOUND} for another Customer's Job; {@code STALE}
 	 * for another version or a Job no longer Open; {@code GUARD_FAILED} with {@code MENTOR_NOT_AVAILABLE},
 	 * {@code MENTOR_AT_JOB_LIMIT}, or {@code MENTOR_NO_FREE_STUDENT}
 	 */
-	long select(UUID jobId, UUID customerId, UUID mentorId, UUID applicationId, long expectedVersion);
+	long select(UUID jobId, UUID customerId, UUID mentorId, UUID applicationId, SelectedQuote quote,
+			long expectedVersion);
 
 	/**
 	 * Applies J4 once {@code matching} recorded the selected Mentor's NDA signature.

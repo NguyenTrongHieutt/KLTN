@@ -15,15 +15,19 @@ import vn.vibefix.shared.ErrorCode;
  * J4 (FR-15): the selected Mentor signed the NDA, which {@code matching} recorded and vouches for, and
  * the Job enters Agreement. The facts carry the signature's version and time; {@code matching} closes
  * the held Applications and {@code chat} opens the Job Chat. In the same transaction the Mentor, and
- * never a Crew member, may read the Customer's contact details for this Job (FR-3, AD-3).
+ * never a Crew member, may read the Customer's contact details for this Job (FR-3, AD-3), the
+ * Agreement deadline is set 14 days on (FR-40), and the draft starts with the Mentor's to-do (FR-16).
  */
 @Component
 class J4Confirm implements JobLifecycle.Step {
 
 	private final ContactVisibility contacts;
 
-	J4Confirm(ContactVisibility contacts) {
+	private final Agreements agreements;
+
+	J4Confirm(ContactVisibility contacts, Agreements agreements) {
 		this.contacts = contacts;
+		this.agreements = agreements;
 	}
 
 	@Override
@@ -44,12 +48,14 @@ class J4Confirm implements JobLifecycle.Step {
 		applying.fact("mentorId", String.valueOf(applying.job().mentorId()));
 		applying.fact("ndaVersion", (String) applying.input("ndaVersion"));
 		applying.fact("signedAt", ((Instant) applying.input("signedAt")).toString());
+		applying.set("agreement_due_at", applying.now().plus(Agreements.AGREEMENT_PERIOD));
 	}
 
 	@Override
 	public void afterWrite(Applying applying) {
 		Job job = applying.job();
 		this.contacts.grant(job.customerId(), Objects.requireNonNull(job.mentorId()), job.id());
+		this.agreements.start(job, applying.now().plus(Agreements.AGREEMENT_PERIOD));
 	}
 
 }
