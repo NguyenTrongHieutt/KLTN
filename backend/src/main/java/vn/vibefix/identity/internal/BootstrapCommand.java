@@ -61,13 +61,19 @@ class BootstrapCommand implements ApplicationRunner, ExitCodeGenerator {
 
 	@Override
 	public void run(ApplicationArguments args) {
+		String command = this.environment.getProperty("vibefix.cli.command");
+		if (SpikeS1Command.COMMAND.equals(command)) {
+			// Another command's run (Story 1.14); it answers for itself.
+			this.exitCode = 0;
+			return;
+		}
 		List<String> emails = args.getOptionValues("email");
 		List<String> names = args.getOptionValues("name");
-		if (!COMMAND.equals(this.environment.getProperty("vibefix.cli.command")) || emails == null
-				|| emails.size() != 1 || names == null || names.size() != 1) {
+		if (!COMMAND.equals(command) || emails == null || emails.size() != 1 || names == null || names.size() != 1) {
 			this.err.println("Usage: --spring.profiles.active=dev,cli --vibefix.cli.command=" + COMMAND
 					+ " --email=<address> --name=<display name>; the password comes from the console or "
-					+ PASSWORD_VARIABLE);
+					+ PASSWORD_VARIABLE + ". Also: --vibefix.cli.command=" + SpikeS1Command.COMMAND
+					+ " --github-login=<Customer> --repo=<owner/name> (dev only).");
 			this.exitCode = 2;
 			return;
 		}
