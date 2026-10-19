@@ -16,11 +16,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import vn.vibefix.job.JobPosts;
 import vn.vibefix.job.internal.Jobs.Job;
+import vn.vibefix.shared.KeywordQuery;
 
 /**
- * Open Job Posts as approved Mentors browse them (FR-12, AD-38): Open and not hidden, newest first,
- * 20 a page, narrowed by Job Type, Skills, budget range, and deadline. Every filter given applies at
- * once.
+ * Open Job Posts as approved Mentors browse them (FR-12, AD-38): Open and not hidden, 20 a page,
+ * narrowed by Job Type, Skills, budget range, and deadline, every filter given at once. Without a
+ * keyword they come newest first; with one, by text relevance and then ID only (SG-43), so a
+ * Customer's Rating never changes the order.
  */
 @Component
 class JobPostQueries implements JobPosts {
@@ -34,9 +36,10 @@ class JobPostQueries implements JobPosts {
 	 * @param skillIds the Skills to match any of, or {@code null} without a Skill filter; an empty set
 	 * matches nothing
 	 * @param dueBy the last deadline kept
+	 * @param keyword the keyword search on {@code search_vector}, or {@code null} without one
 	 */
 	record Filter(Collection<JobType> types, @Nullable Collection<UUID> skillIds, Collection<Budget> budgets,
-			@Nullable LocalDate dueBy) {
+			@Nullable LocalDate dueBy, @Nullable KeywordQuery keyword) {
 	}
 
 	record Page(List<Job> items, int page, long total) {
@@ -71,6 +74,12 @@ class JobPostQueries implements JobPosts {
 			where.append(" AND deadline <= :dueBy");
 			params.put("dueBy", Date.valueOf(filter.dueBy()));
 		}
+		KeywordQuery keyword = filter.keyword();
+		if (keyword != null) {
+			where.append(" AND ").append(keyword.condition());
+			params.putAll(keyword.params());
+		}
+		String order = keyword == null ? "opened_at DESC, id" : keyword.rank("search_vector") + " DESC, id";
 		long total = this.jdbc.sql("SELECT count(*) FROM job.job WHERE " + where)
 			.params(params)
 			.query(Long.class)
@@ -78,7 +87,7 @@ class JobPostQueries implements JobPosts {
 		params.put("limit", PAGE_SIZE);
 		params.put("offset", (long) page * PAGE_SIZE);
 		List<Job> items = this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE " + where
-				+ " ORDER BY opened_at DESC, id LIMIT :limit OFFSET :offset")
+				+ " ORDER BY " + order + " LIMIT :limit OFFSET :offset")
 			.params(params)
 			.query(Jobs::job)
 			.list();

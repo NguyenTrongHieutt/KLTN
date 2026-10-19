@@ -38,6 +38,7 @@ import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
+import vn.vibefix.shared.KeywordQuery;
 import vn.vibefix.shared.PageResponse;
 import vn.vibefix.shared.Role;
 
@@ -83,12 +84,15 @@ class JobPostController {
 
 	private final MentorGate mentors;
 
+	private final SearchWindow searches;
+
 	private final CurrentCaller callers;
 
 	private final Clock clock;
 
 	JobPostController(JobPostQueries posts, Jobs jobs, MentorCapacity capacity, Catalog catalog,
-			ProductDirectory products, Scans scans, MentorGate mentors, CurrentCaller callers, Clock clock) {
+			ProductDirectory products, Scans scans, MentorGate mentors, SearchWindow searches, CurrentCaller callers,
+			Clock clock) {
 		this.posts = posts;
 		this.jobs = jobs;
 		this.capacity = capacity;
@@ -96,28 +100,36 @@ class JobPostController {
 		this.products = products;
 		this.scans = scans;
 		this.mentors = mentors;
+		this.searches = searches;
 		this.callers = callers;
 		this.clock = clock;
 	}
 
 	/**
-	 * MEN-2: 20 Job Posts a page, newest first. Each filter given applies at once; the Skill filter
-	 * matches any of the active chosen Skills and the active Skills of the chosen Categories (AD-38).
+	 * MEN-2: 20 Job Posts a page, newest first, or by relevance to a keyword. Each filter given applies
+	 * at once; the Skill filter matches any of the active chosen Skills and the active Skills of the
+	 * chosen Categories (AD-38). A keyword counts toward the search limit (AD-34).
+	 * @param q the keyword, accents and letter case ignored (AD-36)
 	 * @param within keeps Job Posts due by today plus this many days, in Vietnam
 	 */
 	@GetMapping("/job-posts")
-	PageResponse<JobPostSummaryView> list(@RequestParam(name = "type", required = false) @Nullable List<JobType> types,
+	PageResponse<JobPostSummaryView> list(@RequestParam(required = false) @Nullable String q,
+			@RequestParam(name = "type", required = false) @Nullable List<JobType> types,
 			@RequestParam(name = "skill", required = false) @Nullable List<UUID> skills,
 			@RequestParam(name = "category", required = false) @Nullable List<UUID> categories,
 			@RequestParam(name = "budget", required = false) @Nullable List<Budget> budgets,
 			@RequestParam(required = false) @Nullable Integer within, @RequestParam(defaultValue = "0") int page) {
-		approvedMentor();
+		UUID mentor = approvedMentor();
 		if (page < 0 || (within != null && (within < 1 || within > 366))) {
 			throw new ApiException(ErrorCode.VALIDATION);
 		}
+		KeywordQuery keyword = q == null ? null : KeywordQuery.of(q, "search_vector").orElse(null);
+		if (keyword != null) {
+			this.searches.record(mentor);
+		}
 		LocalDate dueBy = within == null ? null : LocalDate.now(this.clock.withZone(J1Publish.VIETNAM)).plusDays(within);
 		Filter filter = new Filter(orEmpty(types), skillFilter(orEmpty(skills), orEmpty(categories)), orEmpty(budgets),
-				dueBy);
+				dueBy, keyword);
 		Page found = this.posts.list(filter, page);
 		Map<UUID, String> names = new HashMap<>();
 		List<JobPostSummaryView> items = found.items()

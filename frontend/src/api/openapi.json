@@ -818,6 +818,13 @@
         "operationId" : "list",
         "parameters" : [ {
           "in" : "query",
+          "name" : "q",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
           "name" : "type",
           "required" : false,
           "schema" : {

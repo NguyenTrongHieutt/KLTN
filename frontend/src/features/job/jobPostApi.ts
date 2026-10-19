@@ -1,6 +1,6 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { keepPreviousData, skipToken, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { components } from '@/api/schema'
-import { apiClient, unwrap } from '@/lib/apiClient'
+import { ApiError, apiClient, unwrap } from '@/lib/apiClient'
 import type { Budget, JobType } from './jobApi'
 
 export type JobPostSummary = components['schemas']['JobPostSummaryView']
@@ -8,8 +8,10 @@ export type JobPost = components['schemas']['JobPostView']
 export type MentorCapacity = components['schemas']['CapacityView']
 export type CapacityReason = MentorCapacity['reasons'][number]
 
-/** MEN-2's filters, as the URL keeps them (FR-12). */
+/** MEN-2's keyword and filters, as the URL keeps them (FR-12). */
 export interface JobPostFilter {
+  /** The keyword; results then rank by relevance (AD-36). */
+  q?: string
   type?: JobType
   skills: string[]
   categories: string[]
@@ -22,15 +24,23 @@ export interface JobPostFilter {
 
 const KEY = ['job-post'] as const
 
-/** MEN-2: 20 Open Job Posts a page, newest first; the previous page stays while the next loads. */
+/** The last page MEN-2 received, which stays on screen when searching too fast (UX-DR27). */
+const LAST_KEY = [...KEY, 'last'] as const
+
+/**
+ * MEN-2: 20 Open Job Posts a page, newest first or by relevance; the previous page stays while the
+ * next loads. A refusal (a 4xx, such as `RATE_LIMITED`) is not retried.
+ */
 export function useJobPosts(filter: JobPostFilter) {
+  const queryClient = useQueryClient()
   return useQuery({
     queryKey: [...KEY, 'list', filter],
-    queryFn: () =>
-      unwrap(
+    queryFn: async () => {
+      const page = await unwrap(
         apiClient.GET('/api/v1/mentor/job-posts', {
           params: {
             query: {
+              q: filter.q,
               type: filter.type ? [filter.type] : undefined,
               skill: filter.skills.length > 0 ? filter.skills : undefined,
               category: filter.categories.length > 0 ? filter.categories : undefined,
@@ -40,9 +50,18 @@ export function useJobPosts(filter: JobPostFilter) {
             },
           },
         }),
-      ),
+      )
+      queryClient.setQueryData(LAST_KEY, page)
+      return page
+    },
     placeholderData: keepPreviousData,
+    retry: (failures, error) => !(error instanceof ApiError && error.status < 500) && failures < 3,
   })
+}
+
+/** The last page MEN-2 received, read from the cache only. */
+export function useLastJobPosts() {
+  return useQuery<components['schemas']['PageResponseJobPostSummaryView']>({ queryKey: LAST_KEY, queryFn: skipToken })
 }
 
 /** MEN-3: one Open Job Post. */

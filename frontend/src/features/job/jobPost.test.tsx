@@ -242,3 +242,77 @@ describe('MEN-3, one Job Post (FR-12)', () => {
     expect(document.querySelector('img[src="x"]')).toBeNull()
   })
 })
+
+const keywordOf = (request: Request) => new URL(request.url, 'http://localhost').searchParams.get('q')
+
+describe('MEN-2, searching by keyword (FR-12, UX-DR47)', () => {
+  it('searches only on Enter, keeps the keyword in the URL, and clears it', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    const seen = fakeBackend(signedIn('MENTOR'), {
+      'GET /api/v1/mentor/job-posts': (request) =>
+        page(keywordOf(request) ? [{ ...summary, title: 'Sửa trang bán hàng' }] : [summary, { ...summary, id: 'j2' }]),
+      'GET /api/v1/mentor/capacity': () => capacity(),
+      'GET /api/v1/catalog': catalog,
+    })
+    const router = renderAt('/tim-viec')
+
+    const input = await screen.findByLabelText('Tìm tin công việc')
+    expect(input).toHaveAttribute('maxLength', '100')
+    expect(screen.getByText('Gõ có dấu hoặc không dấu đều được, ví dụ: ban hang.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Tìm' })).toBeDisabled()
+    await user.type(input, 'ban hang')
+    expect(seen.some((request) => keywordOf(request) !== null)).toBe(false)
+    await user.keyboard('{Enter}')
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Kết quả cho “ban hang” (1)' })).toBeInTheDocument()
+    expect(screen.getByText('Xếp theo mức độ khớp với từ khóa. Điểm chấm sao không làm thay đổi thứ tự.')).toBeInTheDocument()
+    expect(new URLSearchParams(router.state.location.search).get('q')).toBe('ban hang')
+    expect(screen.queryByRole('heading', { name: /Tất cả tin công việc/ })).toBeNull()
+
+    await user.click(screen.getByRole('button', { name: 'Xóa từ khóa' }))
+    expect(await screen.findByRole('heading', { level: 2, name: /Tất cả tin công việc/ })).toBeInTheDocument()
+    expect(router.state.location.search).toBe('')
+    expect(screen.getByLabelText('Tìm tin công việc')).toHaveValue('')
+  })
+
+  it('says nothing matched the keyword and clears only the filters', { timeout: 15_000 }, async () => {
+    const user = userEvent.setup()
+    fakeBackend(signedIn('MENTOR'), {
+      'GET /api/v1/mentor/job-posts': () => page([]),
+      'GET /api/v1/mentor/capacity': () => capacity(),
+      'GET /api/v1/catalog': catalog,
+    })
+    const router = renderAt('/tim-viec?q=ban+hang+zalo&loai=BUG_FIX')
+
+    expect(await screen.findByText('Không tìm thấy công việc nào khớp với “ban hang zalo”.')).toBeInTheDocument()
+    expect(screen.getByText('Hãy thử từ khóa ngắn hơn hoặc bỏ bớt bộ lọc.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Bỏ bộ lọc' }))
+
+    await waitFor(() => expect(router.state.location.search).toBe('?q=ban+hang+zalo'))
+    expect(screen.queryByRole('button', { name: 'Bỏ bộ lọc' })).toBeNull()
+  })
+
+  it('keeps the earlier results and says how long to wait when searching too fast', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    fakeBackend(signedIn('MENTOR'), {
+      'GET /api/v1/mentor/job-posts': (request) =>
+        keywordOf(request) === 'zalo'
+          ? new Response(JSON.stringify({ status: 429, code: 'RATE_LIMITED' }), {
+              status: 429,
+              headers: { 'Content-Type': 'application/problem+json', 'Retry-After': '42' },
+            })
+          : page([summary]),
+      'GET /api/v1/mentor/capacity': () => capacity(),
+      'GET /api/v1/catalog': catalog,
+    })
+    renderAt('/tim-viec')
+
+    expect(await screen.findByRole('link', { name: /Sửa lỗi mất đơn hàng/ })).toBeInTheDocument()
+    await user.type(screen.getByLabelText('Tìm tin công việc'), 'zalo')
+    await user.click(screen.getByRole('button', { name: 'Tìm' }))
+
+    expect(await screen.findByText('Bạn đang tìm hơi nhanh. Hãy đợi 42 giây rồi tìm lại.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Sửa lỗi mất đơn hàng/ })).toBeInTheDocument()
+    expect(screen.queryByText('Gõ có dấu hoặc không dấu đều được, ví dụ: ban hang.')).toBeNull()
+  })
+})
