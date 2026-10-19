@@ -13,6 +13,7 @@ import { useSession, useSignOut } from '@/features/identity/useSession'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t } from '@/i18n/t'
 import { cn } from '@/lib/utils'
+import { useAdminOverview } from './adminApi'
 import { ADMIN_DESTINATIONS } from './adminNavigation'
 import { AdminSessionWatcher } from './AdminSessionWatcher'
 
@@ -103,6 +104,7 @@ function AdminShell({ session }: { session: Session }) {
 }
 
 function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
+  const overview = useAdminOverview()
   return (
     <nav aria-label={t('screen.admin.shell.navLabel')} className="flex flex-col gap-0.5 px-3 py-4">
       <p className="flex items-center gap-2 px-3 pb-4">
@@ -124,9 +126,23 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         >
           <destination.icon aria-hidden="true" className="size-4" />
           {t(destination.label)}
+          {destination.count && <QueueCount count={overview.data?.[destination.count]?.count} />}
         </NavLink>
       ))}
     </nav>
+  )
+}
+
+/** A queue's waiting count beside its sidebar label, while there is one (UX-DR13). */
+function QueueCount({ count }: { count?: number }) {
+  if (!count) {
+    return null
+  }
+  return (
+    <span className="ml-auto rounded-full bg-destructive px-2 text-caption font-semibold text-destructive-foreground">
+      <span aria-hidden="true">{count}</span>
+      <span className="sr-only">{t('screen.admin.nav.pendingCount', { n: count })}</span>
+    </span>
   )
 }
 

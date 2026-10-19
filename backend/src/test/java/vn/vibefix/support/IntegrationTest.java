@@ -23,7 +23,8 @@ import vn.vibefix.notification.internal.TestMailConfiguration;
  * Email goes to the {@link RecordingMailSender}, never to SMTP, and the operation type
  * {@value ScriptedOperationHandler#TYPE} answers what a test scripts.
  */
-@SpringBootTest(properties = { "management.health.sandbox.enabled=false", "vibefix.scheduling.enabled=false" })
+@SpringBootTest(properties = { "management.health.sandbox.enabled=false", "vibefix.scheduling.enabled=false",
+		"vibefix.files.root=target/test-files" })
 @AutoConfigureMockMvc
 @ActiveProfiles("dev")
 @Import({ TestClockConfiguration.class, TestMailConfiguration.class, TestOperationsConfiguration.class })

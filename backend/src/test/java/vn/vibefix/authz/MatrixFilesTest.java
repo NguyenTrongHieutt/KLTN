@@ -58,7 +58,8 @@ class MatrixFilesTest {
 
 		assertThat(canaries.all()).extracting(Canaries.Canary::name)
 			.containsExactlyInAnyOrder("CREW_SHARE", "CREW_EMAIL", "CREW_LINKEDIN", "WORK_ITEM_NOTE", "ATTACHMENT",
-					"CREW_CHAT", "TEAM_ISSUE_ID", "NOTIFICATION_PARAM", "TODO_PARAM", "CONTACT_EMAIL", "SCHOOL_EMAIL");
+					"CREW_CHAT", "TEAM_ISSUE_ID", "NOTIFICATION_PARAM", "TODO_PARAM", "CONTACT_EMAIL", "SCHOOL_EMAIL",
+					"STUDENT_CARD_FILE");
 		Set<MatrixCaller> neverSee = EnumSet.of(MatrixCaller.ANONYMOUS, MatrixCaller.CUSTOMER, MatrixCaller.OWNER,
 				MatrixCaller.MENTOR, MatrixCaller.STUDENT, MatrixCaller.TEAM_MENTOR, MatrixCaller.TEAM_MEMBER);
 		assertThat(canaries.all()).allSatisfy(canary -> assertThat(canary.visibleTo()).doesNotContainAnyElementsOf(neverSee));
@@ -74,7 +75,7 @@ class MatrixFilesTest {
 		}
 		assertThat(canaries.hiddenFrom(MatrixCaller.CREW_ACTIVE)).extracting(Canaries.Canary::name)
 			.containsExactlyInAnyOrder("CREW_SHARE", "CREW_EMAIL", "CREW_LINKEDIN", "TEAM_ISSUE_ID", "NOTIFICATION_PARAM",
-					"TODO_PARAM", "CONTACT_EMAIL", "SCHOOL_EMAIL");
+					"TODO_PARAM", "CONTACT_EMAIL", "SCHOOL_EMAIL", "STUDENT_CARD_FILE");
 		assertThat(canaries.hiddenFrom(MatrixCaller.ADMINISTRATOR)).extracting(Canaries.Canary::name)
 			.containsExactlyInAnyOrder("CREW_SHARE", "WORK_ITEM_NOTE", "ATTACHMENT", "CREW_CHAT", "TEAM_ISSUE_ID",
 					"NOTIFICATION_PARAM", "TODO_PARAM");

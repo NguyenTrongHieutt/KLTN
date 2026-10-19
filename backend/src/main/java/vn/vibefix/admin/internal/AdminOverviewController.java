@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import vn.vibefix.identity.Administrators;
+import vn.vibefix.identity.StudentCardQueue;
 import vn.vibefix.operations.FailedOperations;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.Gate;
@@ -37,8 +38,9 @@ class AdminOverviewController {
 	 * @param failedOperations External Operations that failed for good (FR-64, "Thao tác lỗi")
 	 * @param stalledEvents event publications that stopped after 5 attempts (AD-9)
 	 * @param activeAdministrators Administrators who can sign in; at 1, ADM-1 warns (SG-10)
+	 * @param studentCards student cards waiting for a decision (FR-5, ADM-3)
 	 */
-	record OverviewView(Queue failedOperations, Queue stalledEvents, long activeAdministrators) {
+	record OverviewView(Queue failedOperations, Queue stalledEvents, long activeAdministrators, Queue studentCards) {
 	}
 
 	private final FailedOperations failedOperations;
@@ -47,18 +49,26 @@ class AdminOverviewController {
 
 	private final Administrators administrators;
 
+	private final StudentCardQueue studentCards;
+
 	AdminOverviewController(FailedOperations failedOperations, StalledEventPublications stalledEvents,
-			Administrators administrators) {
+			Administrators administrators, StudentCardQueue studentCards) {
 		this.failedOperations = failedOperations;
 		this.stalledEvents = stalledEvents;
 		this.administrators = administrators;
+		this.studentCards = studentCards;
 	}
 
 	@GetMapping
 	OverviewView overview() {
 		return new OverviewView(Queue.of(this.failedOperations.findAll(), FailedOperations.FailedOperation::failedAt),
 				Queue.of(this.stalledEvents.findAll(), StalledEventPublications.StalledPublication::stalledAt),
-				this.administrators.activeCount());
+				this.administrators.activeCount(), studentCards());
+	}
+
+	private Queue studentCards() {
+		StudentCardQueue.Pending pending = this.studentCards.pending();
+		return new Queue(Math.toIntExact(pending.count()), pending.oldestUploadedAt());
 	}
 
 }

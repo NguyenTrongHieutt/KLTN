@@ -221,7 +221,27 @@
         "expiredTitle": "Xác minh đã hết hạn ngày {date}",
         "expiredBody": "Công việc đang làm vẫn tiếp tục và bạn vẫn ở trong nhóm của mình. Bạn chưa được chọn vào nhóm thực hiện mới cho đến khi gia hạn.",
         "renew": "Gia hạn",
-        "renewalOpen": "Xác minh hết hạn ngày {date}. Gia hạn để tiếp tục được chọn vào nhóm thực hiện."
+        "renewalOpen": "Xác minh hết hạn ngày {date}. Gia hạn để tiếp tục được chọn vào nhóm thực hiện.",
+        "methods": "Cách xác minh",
+        "tabEmail": "Email trường",
+        "tabCard": "Thẻ sinh viên",
+        "cardHeading": "Tải thẻ sinh viên lên",
+        "cardChoose": "Chọn ảnh thẻ",
+        "cardChooseAnother": "Tải lên thẻ khác",
+        "cardCaption": "Ảnh hoặc PDF, tối đa 10 MB. Chỉ quản trị viên xem được; tự xóa 30 ngày sau khi có quyết định.",
+        "cardUploading": "Đang tải lên…",
+        "cardProgress": "Đang tải thẻ lên",
+        "cardUploaded": "Đã tải thẻ sinh viên lên.",
+        "cardPendingBadge": "Đang chờ duyệt",
+        "cardPending": "Thẻ sinh viên đang chờ quản trị viên duyệt.",
+        "cardPendingFile": "Đã tải lên {name} lúc {time}.",
+        "cardRejectedBadge": "Bị từ chối",
+        "cardRejectedTitle": "Thẻ sinh viên bị từ chối: {reason}",
+        "cardRejectedBody": "Hãy chụp lại thẻ ở nơi đủ sáng, thấy rõ tên, trường và hạn thẻ, rồi tải lên lần nữa.",
+        "cardUseEmail": "Bạn cũng có thể xác minh bằng email trường nếu trường có trong danh sách.",
+        "cardUseEmailAction": "Dùng email trường",
+        "verifiedByCard": "Xác minh bằng thẻ sinh viên ngày {date}. Bạn có thể vào nhóm của một người hướng dẫn và được chọn vào nhóm thực hiện.",
+        "expiredUntilCard": "Đã xác minh bằng thẻ sinh viên đến {date}."
       },
       "banner": {
         "title": "Xác minh là sinh viên để vào nhóm của một người hướng dẫn",
@@ -274,7 +294,9 @@
       },
       "nav": {
         "overview": "Tổng quan",
-        "administrators": "Quản trị viên"
+        "administrators": "Quản trị viên",
+        "studentCards": "Thẻ sinh viên",
+        "pendingCount": "{n} đang chờ"
       },
       "overview": {
         "title": "Tổng quan",
@@ -290,7 +312,8 @@
         "system": "Hệ thống",
         "info": "Thông tin",
         "onlyOne": "Chỉ có một quản trị viên. Khôi phục tài khoản chỉ do quản trị viên khác làm; hãy tạo quản trị viên thứ hai trước công việc thật đầu tiên.",
-        "onlyOneAction": "Tạo quản trị viên"
+        "onlyOneAction": "Tạo quản trị viên",
+        "studentCards": "Thẻ sinh viên chờ duyệt"
       },
       "idle": {
         "title": "Phiên làm việc sắp hết",
@@ -360,6 +383,68 @@
         "submit": "Hoàn tất",
         "submitting": "Đang thiết lập…",
         "notFound": "Đường dẫn này không còn dùng được: đã dùng rồi hoặc đã quá 24 giờ. Hãy nhờ một quản trị viên tạo lại."
+      },
+      "studentCards": {
+        "title": "Thẻ sinh viên",
+        "heading": "Thẻ sinh viên",
+        "lead": "Duyệt thẻ để xác minh sinh viên. Mỗi lần mở thẻ được ghi vào nhật ký hệ thống.",
+        "filter": "Lọc theo trạng thái",
+        "PENDING": "Đang chờ",
+        "APPROVED": "Đã duyệt",
+        "REJECTED": "Bị từ chối",
+        "listLabel": "Danh sách thẻ sinh viên",
+        "student": "Sinh viên",
+        "school": "Trường (theo hồ sơ)",
+        "uploadedAt": "Tải lên lúc",
+        "decidedAt": "Quyết định lúc",
+        "file": "Tệp",
+        "status": "Trạng thái",
+        "actions": "Thao tác",
+        "sortOldest": "Tải lên lúc, cũ nhất trước. Bấm để xếp mới nhất trước.",
+        "sortNewest": "Tải lên lúc, mới nhất trước. Bấm để xếp cũ nhất trước.",
+        "sortBy": "Tải lên lúc. Bấm để xếp cũ nhất trước.",
+        "rowActions": "Thao tác cho thẻ của {name}",
+        "view": "Xem thẻ",
+        "approve": "Duyệt",
+        "reject": "Từ chối",
+        "emptyPENDING": "Không có thẻ nào đang chờ.",
+        "emptyAPPROVED": "Chưa có thẻ nào được duyệt.",
+        "emptyREJECTED": "Chưa có thẻ nào bị từ chối.",
+        "pagination": "Phân trang",
+        "page": "Trang {page}/{pages}",
+        "previous": "Trang trước",
+        "next": "Trang sau",
+        "fileDeleted": "Đã xóa tệp",
+        "image": "Ảnh",
+        "pdf": "PDF",
+        "recorded": "Mã số {number} · {school}",
+        "viewTitle": "Thẻ sinh viên của {name}",
+        "viewAudited": "Lần mở này được ghi vào nhật ký hệ thống.",
+        "imageAlt": "Ảnh thẻ sinh viên của {name}",
+        "downloadPdf": "Tải tệp PDF",
+        "studentNumber": "Mã số sinh viên",
+        "schoolField": "Trường",
+        "schoolHelper": "Lấy từ hồ sơ của sinh viên; sửa nếu thẻ ghi khác.",
+        "approveSubmit": "Duyệt thẻ",
+        "approving": "Đang duyệt…",
+        "approvedToast": "Đã duyệt thẻ của {name}.",
+        "rejectTitle": "Từ chối thẻ của {name}?",
+        "reasonLabel": "Lý do (sinh viên sẽ đọc)",
+        "reasonBlurry": "Ảnh mờ, không đọc được",
+        "reasonExpired": "Thẻ đã hết hạn",
+        "reasonMissing": "Không thấy rõ tên, trường hoặc hạn thẻ",
+        "reasonNotCard": "Đây không phải thẻ sinh viên",
+        "reasonOther": "Khác",
+        "reasonOtherLabel": "Lý do khác",
+        "whatHappens": "Điều sẽ xảy ra",
+        "happens1": "{name} nhận email kèm lý do và có thể tải lên thẻ khác ngay.",
+        "happens2": "Ảnh thẻ tự xóa 30 ngày sau quyết định.",
+        "happens3": "Quyết định được ghi vào nhật ký hệ thống.",
+        "back": "Quay lại",
+        "rejectSubmit": "Từ chối",
+        "rejecting": "Đang từ chối…",
+        "rejectedToast": "Đã từ chối thẻ của {name}.",
+        "close": "Đóng"
       }
     }
   },
@@ -789,6 +874,12 @@
       },
       "administrator_enrolment": {
         "title": "{by} đã tạo tài khoản quản trị vibefix cho bạn"
+      },
+      "student_card_approved": {
+        "title": "Thẻ sinh viên đã được duyệt"
+      },
+      "student_card_rejected": {
+        "title": "Thẻ sinh viên chưa được duyệt: {reason}"
       }
     }
   },
@@ -804,6 +895,12 @@
       "STEP_UP_FAILED": "Mã chưa đúng.",
       "ADMINISTRATOR_EMAIL_IN_USE": "Email này đã thuộc về một quản trị viên.",
       "ENROLMENT_CODE_WRONG": "Mã chưa đúng. Hãy nhập mã mới nhất trong ứng dụng xác thực."
+    },
+    "files": {
+      "FILE_TOO_LARGE": "Tệp lớn hơn 10 MB.",
+      "FILE_TYPE_NOT_ALLOWED": "Chỉ nhận ảnh, PDF, tệp văn bản và tệp nén. Không nhận SVG hoặc HTML.",
+      "UPLOAD_QUOTA": "Bạn đã tải lên quá nhiều tệp trong một giờ. Hãy thử lại sau.",
+      "IMAGE_TOO_LARGE": "Ảnh lớn hơn 40 megapixel. Hãy chụp hoặc lưu ảnh nhỏ hơn."
     }
   }
 }

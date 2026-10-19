@@ -4,6 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.net.ServerSocket;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -13,9 +16,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
 
+import javax.imageio.ImageIO;
 import javax.sql.DataSource;
 
 import jakarta.persistence.EntityManagerFactory;
@@ -103,9 +108,29 @@ class SandboxRoundTripIT {
 		assertThat(worker.getBeanNamesForType(HttpSandboxJobs.class)).isEmpty();
 		assertThat(worker.containsBean("environmentGuard")).isFalse();
 		assertThat(worker.containsBean("environmentController")).isFalse();
-		assertThat(worker.getBeansOfType(SandboxJobHandler.class).values())
-			.hasOnlyElementsOfType(HealthJobHandler.class)
-			.hasSize(1);
+		// HEALTH, and files' image re-encoding (AD-21); a test handler on the classpath would show here.
+		assertThat(worker.getBeansOfType(SandboxJobHandler.class).values()).extracting(SandboxJobHandler::type)
+			.containsExactlyInAnyOrder(HealthJobHandler.TYPE, "IMAGE_REENCODE");
+	}
+
+	@Test
+	void workerReencodesAnImage() throws Exception {
+		BufferedImage image = new BufferedImage(4, 3, BufferedImage.TYPE_INT_RGB);
+		ByteArrayOutputStream png = new ByteArrayOutputStream();
+		ImageIO.write(image, "png", png);
+
+		JsonNode output = jobs
+			.run("IMAGE_REENCODE",
+					JsonNodeFactory.instance.objectNode()
+						.put("content", Base64.getEncoder().encodeToString(png.toByteArray()))
+						.put("format", "png"))
+			.output();
+
+		assertThat(output.path("mediaType").asString()).isEqualTo("image/png");
+		byte[] reencoded = Base64.getDecoder().decode(output.path("content").asString());
+		BufferedImage read = ImageIO.read(new ByteArrayInputStream(reencoded));
+		assertThat(read.getWidth()).isEqualTo(4);
+		assertThat(read.getHeight()).isEqualTo(3);
 	}
 
 	@Test

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { components } from '@/api/schema'
 import { NOTIFICATION_QUERY_KEY } from '@/features/notification/api'
-import { apiClient, unwrap } from '@/lib/apiClient'
+import { apiClient, formBody, unwrap } from '@/lib/apiClient'
 
 export type Verification = components['schemas']['VerificationView']
 
@@ -39,5 +39,21 @@ export function useConfirmSchoolEmailCode() {
       return queryClient.invalidateQueries({ queryKey: NOTIFICATION_QUERY_KEY })
     },
     onError: () => queryClient.invalidateQueries({ queryKey: VERIFICATION_QUERY_KEY }),
+  })
+}
+
+/**
+ * "Chọn ảnh thẻ" and "Tải lên thẻ khác": the student card, as a multipart upload (FR-5, AD-21); the
+ * answer is the view with the card pending.
+ */
+export function useUploadStudentCard() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (file: File) => {
+      const form = new FormData()
+      form.append('file', file)
+      return unwrap(apiClient.POST('/api/v1/verification/student-card', { body: formBody(form) }))
+    },
+    onSuccess: (view) => queryClient.setQueryData(VERIFICATION_QUERY_KEY, view),
   })
 }

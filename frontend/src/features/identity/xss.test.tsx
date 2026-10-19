@@ -107,7 +107,7 @@ describe.each(PAYLOADS)('the payload %s', (payload) => {
     })
     renderAt('/ho-so')
 
-    expect(await screen.findByLabelText('Email trường')).toHaveValue(email)
+    expect(await screen.findByRole('textbox', { name: 'Email trường' })).toHaveValue(email)
     expectInert()
   })
 

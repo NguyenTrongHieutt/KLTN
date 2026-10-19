@@ -50,6 +50,11 @@ spring:
     web:
       pageable:
         max-page-size: 100
+  servlet:
+    multipart:
+      # AD-21: an upload is at most 10 MB (files checks the exact size); the request has room for its form.
+      max-file-size: 10MB
+      max-request-size: 11MB
   # AD-19: sessions live in PostgreSQL (schema platform, created by Flyway, never by the framework);
   # the cookie is identity.internal.SecurityConfiguration#cookieSerializer.
   session:
@@ -57,6 +62,11 @@ spring:
     jdbc:
       table-name: platform.SPRING_SESSION
       initialize-schema: never
+
+# A slightly larger upload is still read to its end, so its FILE_TOO_LARGE answer reaches the client.
+server:
+  tomcat:
+    max-swallow-size: 16MB
 
 springdoc:
   # Stable key order keeps the committed frontend/src/api/openapi.json diff-free.
@@ -154,3 +164,8 @@ vibefix:
   sandbox:
     url: http://sandbox:8080
     timeout: 30s
+  # AD-21, AD-34: stored files. The files volume is its own mount, with its own quota.
+  files:
+    root: /var/lib/vibefix/files
+    max-size: 10MB
+    uploads-per-hour: 30

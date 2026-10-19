@@ -1,3 +1,4 @@
+import { Tabs } from '@base-ui/react/tabs'
 import { TriangleAlert } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { z } from 'zod'
@@ -18,6 +19,7 @@ import {
   useVerification,
   type Verification,
 } from './verificationApi'
+import { StudentCardUpload } from './StudentCardUpload'
 import { identityReason, verificationMessage } from './verificationMessages'
 
 const email = z.string().trim().min(1, 'required').max(254, 'tooLong').pipe(z.email('email'))
@@ -30,20 +32,40 @@ const BADGE: Record<Verification['status'], { label: MessageKey; tone: string }>
   EXPIRED: { label: 'screen.student.verification.expired', tone: 'bg-warning-soft text-warning' },
 }
 
+/** While the Student is not verified, a card waiting or rejected names the status instead. */
+const CARD_BADGE: Partial<Record<NonNullable<Verification['studentCard']>['status'], { label: MessageKey; tone: string }>> = {
+  PENDING: { label: 'screen.student.verification.cardPendingBadge', tone: 'bg-primary-soft text-primary' },
+  REJECTED: { label: 'screen.student.verification.cardRejectedBadge', tone: 'bg-destructive-soft text-destructive' },
+}
+
+function badgeOf(verification: Verification) {
+  const card = verification.studentCard && CARD_BADGE[verification.studentCard.status]
+  return verification.status !== 'VERIFIED' && card ? card : BADGE[verification.status]
+}
+
 /**
  * STU-5's "Xác minh sinh viên" card (FR-5, UX-DR19): the status badge, then either the verified
- * line, with the code form again once renewal opens 14 days before the expiry, or the school email
- * code; an expired verification adds the alert above it (UX-DR27). The student-card path is Story
- * 1.13's, so only the copy names it.
+ * line, with the two ways again once renewal opens 14 days before the expiry, or the two ways: the
+ * school email code and the student card, as tabs. An expired verification adds the alert above it
+ * (UX-DR27); a card waiting or rejected opens on its tab.
  */
 export function StudentVerificationCard() {
   const verification = useVerification()
-  const status = verification.data?.status
   const data = verification.data
+  const badge = data && badgeOf(data)
+  // The tab the Student chose; until then, the card's tab while a card waits or was rejected.
+  const [chosen, setChosen] = useState<Way>()
+  const way: Way = chosen ?? (data?.studentCard ? 'card' : 'email')
+
+  function renew() {
+    setChosen('email')
+    // After the email tab has rendered; focusing scrolls the field into view as well.
+    window.setTimeout(() => document.getElementById('schoolEmail')?.focus())
+  }
 
   return (
     <>
-      {data?.status === 'EXPIRED' && data.verifiedUntil && <ExpiredAlert verifiedUntil={data.verifiedUntil} />}
+      {data?.status === 'EXPIRED' && data.verifiedUntil && <ExpiredAlert verifiedUntil={data.verifiedUntil} onRenew={renew} />}
       <section
         aria-labelledby="verification-heading"
         className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 md:p-6"
@@ -52,10 +74,8 @@ export function StudentVerificationCard() {
           <h2 id="verification-heading" className="text-h2">
             {t('screen.student.verification.heading')}
           </h2>
-          {status && (
-            <span className={cn('inline-flex rounded-full px-3 py-1 text-label', BADGE[status].tone)}>
-              {t(BADGE[status].label)}
-            </span>
+          {badge && (
+            <span className={cn('inline-flex rounded-full px-3 py-1 text-label', badge.tone)}>{t(badge.label)}</span>
           )}
         </div>
         <RegionState query={verification} skeleton={<Skeleton className="h-28 w-full" />}>
@@ -68,12 +88,12 @@ export function StudentVerificationCard() {
                     <p className="rounded-md border-l-4 border-warning bg-warning-soft p-3 text-body-sm">
                       {t('screen.student.verification.renewalOpen', { date: formatCalendarDate(data.verifiedUntil) })}
                     </p>
-                    <SchoolEmailCode verification={data} />
+                    <Ways verification={data} way={way} onWay={setChosen} />
                   </>
                 )}
               </>
             ) : (
-              <SchoolEmailCode verification={data} />
+              <Ways verification={data} way={way} onWay={setChosen} />
             ))}
         </RegionState>
       </section>
@@ -85,11 +105,7 @@ export function StudentVerificationCard() {
  * STU-5's alert once the verification expired (FR-5, UX-DR27): what still works, and "Gia hạn",
  * which takes the keyboard to the school email field.
  */
-function ExpiredAlert({ verifiedUntil }: { verifiedUntil: string }) {
-  function renew() {
-    // Focusing scrolls the field into view as well.
-    document.getElementById('schoolEmail')?.focus()
-  }
+function ExpiredAlert({ verifiedUntil, onRenew }: { verifiedUntil: string; onRenew: () => void }) {
   return (
     <div role="status" className="flex flex-wrap items-center gap-3 rounded-md border-l-4 border-warning bg-warning-soft p-4">
       <TriangleAlert aria-hidden="true" className="size-6 shrink-0 text-warning" />
@@ -99,15 +115,42 @@ function ExpiredAlert({ verifiedUntil }: { verifiedUntil: string }) {
         </p>
         <p className="text-body-sm">{t('screen.student.verification.expiredBody')}</p>
       </div>
-      <Button type="button" size="compact" onClick={renew}>
+      <Button type="button" size="compact" onClick={onRenew}>
         {t('screen.student.verification.renew')}
       </Button>
     </div>
   )
 }
 
+type Way = 'email' | 'card'
+
+/** The two ways to verify, as tabs ("Cách xác minh"); a card waiting or rejected opens its tab. */
+function Ways({ verification, way, onWay }: { verification: Verification; way: Way; onWay: (way: Way) => void }) {
+  const tabClass =
+    'min-h-control-compact border-b-2 border-transparent px-3 text-label text-muted-foreground data-active:border-primary data-active:text-foreground focus-visible:outline-2 focus-visible:outline-ring'
+  return (
+    <Tabs.Root value={way} onValueChange={(next) => onWay(next as Way)} className="flex flex-col gap-4">
+      <Tabs.List aria-label={t('screen.student.verification.methods')} className="flex gap-2 border-b border-border">
+        <Tabs.Tab value="email" className={tabClass}>
+          {t('screen.student.verification.tabEmail')}
+        </Tabs.Tab>
+        <Tabs.Tab value="card" className={tabClass}>
+          {t('screen.student.verification.tabCard')}
+        </Tabs.Tab>
+      </Tabs.List>
+      <Tabs.Panel value="email">
+        <SchoolEmailCode verification={verification} />
+      </Tabs.Panel>
+      <Tabs.Panel value="card">
+        <StudentCardUpload verification={verification} onUseEmail={() => onWay('email')} />
+      </Tabs.Panel>
+    </Tabs.Root>
+  )
+}
+
 function Verified({ verification }: { verification: Verification }) {
   const domain = verification.schoolEmail?.slice(verification.schoolEmail.indexOf('@')) ?? ''
+  const byCard = verification.method === 'STUDENT_CARD'
   return (
     <div className="flex flex-col gap-1">
       {verification.verifiedUntil && (
@@ -117,7 +160,9 @@ function Verified({ verification }: { verification: Verification }) {
       )}
       {verification.verifiedAt && (
         <p className="text-body-sm text-muted-foreground">
-          {t('screen.student.verification.verifiedBy', { domain, date: formatDate(verification.verifiedAt) })}
+          {byCard
+            ? t('screen.student.verification.verifiedByCard', { date: formatDate(verification.verifiedAt) })
+            : t('screen.student.verification.verifiedBy', { domain, date: formatDate(verification.verifiedAt) })}
         </p>
       )}
     </div>
@@ -188,10 +233,12 @@ function SchoolEmailCode({ verification }: { verification: Verification }) {
     <div className="flex flex-col gap-4">
       {verification.status === 'EXPIRED' && verification.verifiedUntil && (
         <p className="text-body-sm">
-          {t('screen.student.verification.expiredUntil', {
-            email: verification.schoolEmail ?? '',
-            date: formatCalendarDate(verification.verifiedUntil),
-          })}
+          {verification.method === 'STUDENT_CARD'
+            ? t('screen.student.verification.expiredUntilCard', { date: formatCalendarDate(verification.verifiedUntil) })
+            : t('screen.student.verification.expiredUntil', {
+                email: verification.schoolEmail ?? '',
+                date: formatCalendarDate(verification.verifiedUntil),
+              })}
         </p>
       )}
       {verification.status !== 'VERIFIED' && (

@@ -1,6 +1,7 @@
 package vn.vibefix.authz;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request;
 
 import java.io.IOException;
@@ -19,8 +20,9 @@ import org.springframework.core.type.filter.AssignableTypeFilter;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.test.web.servlet.request.AbstractMockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.util.ClassUtils;
 
@@ -69,13 +71,17 @@ public final class MatrixRowRunner {
 	public void run(MatrixRow row) throws Exception {
 		MatrixWorld world = new MatrixWorld();
 		this.fixtures.forEach(fixture -> fixture.seed(world));
-		MockHttpServletRequestBuilder request = request(row.method(), world.expand(row.path()))
+		boolean upload = row.body() != null && !row.body().endsWith(".json");
+		AbstractMockHttpServletRequestBuilder<?> request = (upload
+				? multipart(row.method(), world.expand(row.path()))
+					.file(new MockMultipartFile("file", row.body(), "application/octet-stream", bytes(row.body())))
+				: request(row.method(), world.expand(row.path())))
 			.with(realize(row, world));
 		if (row.method() != HttpMethod.GET) {
 			// A command carries the CSRF token as the SPA sends it (AD-19); without it Spring refuses.
 			request.with(csrf());
 		}
-		if (row.body() != null) {
+		if (row.body() != null && !upload) {
 			request.contentType(MediaType.APPLICATION_JSON).content(world.expand(body(row.body())));
 		}
 		MockHttpServletResponse response = this.mvc.perform(request).andReturn().getResponse();
@@ -152,11 +158,15 @@ public final class MatrixRowRunner {
 	}
 
 	private static String body(String name) {
+		return new String(bytes(name), StandardCharsets.UTF_8);
+	}
+
+	private static byte[] bytes(String name) {
 		try (InputStream in = MatrixRowRunner.class.getClassLoader().getResourceAsStream(BODIES + name)) {
 			if (in == null) {
 				throw new AssertionError("No request body " + BODIES + name);
 			}
-			return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+			return in.readAllBytes();
 		}
 		catch (IOException ex) {
 			throw new UncheckedIOException(ex);

@@ -54,6 +54,8 @@ services:
       MANAGEMENT_HEALTH_SANDBOX_ENABLED: "false"
       # AD-27: email goes to Mailpit; nothing leaves the machine.
       VIBEFIX_EMAIL_SMTP_HOST: mailpit
+      # AD-21: the files volume below.
+      VIBEFIX_FILES_ROOT: /var/lib/vibefix/files
     secrets:
       - db-app-password
       - db-migrator-password
@@ -62,6 +64,9 @@ services:
       # AD-10: the dev sign-in OAuth App; empty files until it is registered (deploy/README.md).
       - github-oauth-client-id
       - github-oauth-client-secret
+    volumes:
+      # AD-21: stored files live on their own volume, never in PostgreSQL.
+      - files:/var/lib/vibefix/files
     ports:
       - "127.0.0.1:8080:8080"
     depends_on:
@@ -142,6 +147,7 @@ services:
 
 volumes:
   pgdata: {}
+  files: {}
   frontend-node-modules: {}
 
 secrets:

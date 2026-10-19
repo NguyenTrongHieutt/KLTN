@@ -64,7 +64,7 @@ describe('STU-5 school email code (FR-5, UX-DR19, UX-DR70)', () => {
 
     const card = (await screen.findByRole('heading', { name: 'Xác minh sinh viên' })).closest('section')!
     expect(await within(card).findByText('Chưa xác minh')).toBeInTheDocument()
-    await user.type(within(card).getByLabelText('Email trường'), 'minh@sis.hust.edu.vn')
+    await user.type(within(card).getByRole('textbox', { name: 'Email trường' }), 'minh@sis.hust.edu.vn')
     await user.click(within(card).getByRole('button', { name: 'Gửi mã' }))
 
     const codeField = await within(card).findByLabelText('Mã 6 số trong email')
@@ -87,7 +87,7 @@ describe('STU-5 school email code (FR-5, UX-DR19, UX-DR70)', () => {
     renderAt('/ho-so')
 
     await user.type(await screen.findByLabelText('Mã 6 số trong email'), '123456')
-    await user.type(screen.getByLabelText('Email trường'), '{Enter}')
+    await user.type(screen.getByRole('textbox', { name: 'Email trường' }), '{Enter}')
 
     await waitFor(() => expect(seen.some((request) => request.url.endsWith('/school-email'))).toBe(true))
     expect(seen.some((request) => request.url.endsWith('/confirm'))).toBe(false)
@@ -101,7 +101,7 @@ describe('STU-5 school email code (FR-5, UX-DR19, UX-DR70)', () => {
     })
     renderAt('/ho-so')
 
-    const field = await screen.findByLabelText('Email trường')
+    const field = await screen.findByRole('textbox', { name: 'Email trường' })
     await user.type(field, 'khoa@gmail.com')
     await user.click(screen.getByRole('button', { name: 'Gửi mã' }))
 
@@ -116,7 +116,7 @@ describe('STU-5 school email code (FR-5, UX-DR19, UX-DR70)', () => {
     const seen = fakeBackend(signedIn('STUDENT'), { 'GET /api/v1/profile': profile })
     renderAt('/ho-so')
 
-    await user.type(await screen.findByLabelText('Email trường'), 'not-an-email')
+    await user.type(await screen.findByRole('textbox', { name: 'Email trường' }), 'not-an-email')
     await user.click(screen.getByRole('button', { name: 'Gửi mã' }))
 
     expect(await screen.findByText('Địa chỉ email chưa đúng.')).toBeInTheDocument()
@@ -132,7 +132,7 @@ describe('STU-5 school email code (FR-5, UX-DR19, UX-DR70)', () => {
     })
     renderAt('/ho-so')
 
-    await user.type(await screen.findByLabelText('Email trường'), 'minh@sis.hust.edu.vn')
+    await user.type(await screen.findByRole('textbox', { name: 'Email trường' }), 'minh@sis.hust.edu.vn')
     await user.click(screen.getByRole('button', { name: 'Gửi mã' }))
 
     expect(await screen.findByText(/^Bạn thao tác hơi nhanh\. Hãy thử lại sau \d{2}:\d{2} \d{2}\/\d{2}\.$/)).toBeInTheDocument()
@@ -201,7 +201,7 @@ describe('STU-5 school email code (FR-5, UX-DR19, UX-DR70)', () => {
     const card = screen.getByRole('heading', { name: 'Xác minh sinh viên' }).closest('section')!
     expect(within(card).getByText('Đã xác minh')).toBeInTheDocument()
     expect(within(card).getByText(/email trường @sis\.hust\.edu\.vn ngày 19\/10\/2026/)).toBeInTheDocument()
-    expect(within(card).queryByLabelText('Email trường')).not.toBeInTheDocument()
+    expect(within(card).queryByRole('textbox', { name: 'Email trường' })).not.toBeInTheDocument()
     const request = seen.find((entry) => entry.url.endsWith('/confirm'))!
     expect(await request.clone().json()).toEqual({ code: '482107' })
   })
@@ -229,7 +229,7 @@ describe('STU-5 renewal and expiry (FR-5, UX-DR27)', () => {
     const card = screen.getByRole('heading', { name: 'Xác minh sinh viên' }).closest('section')!
     expect(within(card).getByText('Hết hạn')).toBeInTheDocument()
     expect(within(card).getByText('Đã xác minh bằng email trường minh.tq@vnu.edu.vn đến 30/09/2026.')).toBeInTheDocument()
-    const field = within(card).getByLabelText('Email trường')
+    const field = within(card).getByRole('textbox', { name: 'Email trường' })
     expect(field).toHaveValue('minh.tq@vnu.edu.vn')
 
     await user.click(screen.getByRole('button', { name: 'Gia hạn' }))
@@ -247,7 +247,7 @@ describe('STU-5 renewal and expiry (FR-5, UX-DR27)', () => {
     expect(
       screen.getByText('Xác minh hết hạn ngày 30/09/2027. Gia hạn để tiếp tục được chọn vào nhóm thực hiện.'),
     ).toBeInTheDocument()
-    expect(screen.getByLabelText('Email trường')).toHaveValue('minh@sis.hust.edu.vn')
+    expect(screen.getByRole('textbox', { name: 'Email trường' })).toHaveValue('minh@sis.hust.edu.vn')
     expect(screen.getByRole('button', { name: 'Gửi mã' })).toBeEnabled()
   })
 
@@ -259,7 +259,7 @@ describe('STU-5 renewal and expiry (FR-5, UX-DR27)', () => {
     renderAt('/ho-so')
 
     expect(await screen.findByText('Đã xác minh đến 30/09/2027.')).toBeInTheDocument()
-    expect(screen.queryByLabelText('Email trường')).not.toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: 'Email trường' })).not.toBeInTheDocument()
   })
 })
 

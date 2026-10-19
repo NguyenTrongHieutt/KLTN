@@ -22,3 +22,4 @@ NOTIFICATION_PARAM,canary-notification-5e1a3b,SUBJECT,a parameter of another acc
 TODO_PARAM,canary-todo-9a4c27,SUBJECT,a parameter of another account's to-do (SUBJECT is its recipient)
 CONTACT_EMAIL,canary.contact.4d8e@example.test,SUBJECT ADMINISTRATOR,a Customer's contact email (SUBJECT is that Customer)
 SCHOOL_EMAIL,canary.school.7b2d@truong.test,ADMINISTRATOR,another Student's verified school email
+STUDENT_CARD_FILE,canary-student-card-3f9a1c.pdf,ADMINISTRATOR,the file name of another Student's student card
