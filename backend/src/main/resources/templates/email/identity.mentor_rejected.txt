@@ -1,0 +1,8 @@
+subject: Hồ sơ người hướng dẫn chưa được duyệt: {reason}
+link: /ho-so
+---
+Xin chào,
+
+Quản trị viên vibefix chưa duyệt hồ sơ người hướng dẫn của bạn. Lý do: {reason}
+Bạn có thể sửa và gửi lại hồ sơ ở trang Hồ sơ sau 30 ngày; ngày cụ thể có ở trang đó.
+Tài liệu bạn đính kèm sẽ tự xóa sau 30 ngày.

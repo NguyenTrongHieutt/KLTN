@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { components } from '@/api/schema'
 import { POLLED, POLLING, pollEvery } from '@/config/polling'
 import { SESSION_QUERY_KEY } from '@/features/identity/api'
@@ -18,6 +18,23 @@ export type Enrolment = components['schemas']['EnrolmentView']
 export type StudentCardRow = components['schemas']['StudentCardRow']
 
 export type StudentCardStatus = StudentCardRow['status']
+
+export type MentorApplicationRow = components['schemas']['MentorApplicationRow']
+
+export type MentorApplicationDetail = components['schemas']['MentorApplicationDetail']
+
+export type MentorApplicationMatch = components['schemas']['MentorApplicationMatch']
+
+export type MentorApplicationStatus = MentorApplicationRow['status']
+
+/** ADM-13's query: the status chip, the page, and its size, from the URL (UX-DR46). */
+export interface MentorApplicationQuery {
+  status: MentorApplicationStatus
+  page: number
+  size: number
+}
+
+export const MENTOR_APPLICATIONS_QUERY_KEY = ['admin', 'mentor-applications'] as const
 
 /** ADM-3's query: the status chip, the page, its size, and the sort, all from the URL (UX-DR46). */
 export interface StudentCardQuery {
@@ -128,6 +145,78 @@ export function useStudentCards(query: StudentCardQuery) {
         }),
       ),
     placeholderData: (previous) => previous,
+  })
+}
+
+/** ADM-13's page of submitted applications by status (FR-74): pending oldest first, decided newest first. */
+export function useMentorApplications(query: MentorApplicationQuery) {
+  return useQuery({
+    queryKey: [...MENTOR_APPLICATIONS_QUERY_KEY, 'list', query],
+    queryFn: () =>
+      unwrap(
+        apiClient.GET('/api/v1/admin/mentor-applications', {
+          params: { query: { status: query.status, page: query.page, size: query.size } },
+        }),
+      ),
+    placeholderData: (previous) => previous,
+  })
+}
+
+/** How many applications each status chip holds: one-row pages, for their totals. */
+export function useMentorApplicationCounts() {
+  const statuses: MentorApplicationStatus[] = ['PENDING', 'APPROVED', 'REJECTED']
+  return useQueries({
+    queries: statuses.map((status) => ({
+      queryKey: [...MENTOR_APPLICATIONS_QUERY_KEY, 'count', status],
+      queryFn: () =>
+        unwrap(apiClient.GET('/api/v1/admin/mentor-applications', { params: { query: { status, page: 0, size: 1 } } })),
+    })),
+    combine: (results) =>
+      Object.fromEntries(statuses.map((status, index) => [status, results[index]?.data?.total])) as Record<
+        MentorApplicationStatus,
+        number | undefined
+      >,
+  })
+}
+
+/** One application with the accounts that may be the same person (AD-19). */
+export function useMentorApplication(applicantId: string | undefined) {
+  return useQuery({
+    queryKey: [...MENTOR_APPLICATIONS_QUERY_KEY, 'detail', applicantId],
+    queryFn: () =>
+      unwrap(
+        apiClient.GET('/api/v1/admin/mentor-applications/{applicantId}', {
+          params: { path: { applicantId: applicantId ?? '' } },
+        }),
+      ),
+    enabled: applicantId !== undefined,
+    retry: false,
+  })
+}
+
+/** "Duyệt hồ sơ" or "Từ chối hồ sơ" after the step-up: the queue, the detail, and ADM-1 refresh. */
+export function useMentorDecision() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ applicantId, reason, stepUpCode }: { applicantId: string; reason?: string; stepUpCode: string }) =>
+      reason === undefined
+        ? unwrap(
+            apiClient.POST('/api/v1/admin/mentor-applications/{applicantId}/approve', {
+              params: { path: { applicantId } },
+              body: { stepUpCode },
+            }),
+          )
+        : unwrap(
+            apiClient.POST('/api/v1/admin/mentor-applications/{applicantId}/reject', {
+              params: { path: { applicantId } },
+              body: { reason, stepUpCode },
+            }),
+          ),
+    onSettled: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: MENTOR_APPLICATIONS_QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: OVERVIEW_QUERY_KEY }),
+      ]),
   })
 }
 

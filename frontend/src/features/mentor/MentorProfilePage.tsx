@@ -1,4 +1,4 @@
-import { Clock, FileText, Info } from 'lucide-react'
+import { CircleAlert, CircleCheck, Clock, FileText, Info } from 'lucide-react'
 import { useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
 import { z } from 'zod'
@@ -26,7 +26,8 @@ import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t, type MessageKey } from '@/i18n/t'
 import vi from '@/i18n/vi.json'
 import { ApiError } from '@/lib/apiClient'
-import { formatDayMonth } from '@/lib/dates'
+import { formatDate, formatDayMonth } from '@/lib/dates'
+import { formatSize } from '@/lib/fileSize'
 import { fieldMessage, serverFieldErrors, zodFieldErrors } from '@/lib/formErrors'
 import { problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
@@ -60,10 +61,15 @@ const LABELS: Record<Field, string> = {
 
 const PRIVACY_VERSION = (vi as { notice: { privacy: { version: string } } }).notice.privacy.version
 
-/** A size as MEN-5 shows it: "1,2 MB" or "350 KB". */
-function formatSize(bytes: number): string {
-  const number = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 1 })
-  return bytes >= 1024 * 1024 ? `${number.format(bytes / 1024 / 1024)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`
+/** "17/11" from the server's `YYYY-MM-DD`. */
+function dayMonthOf(date: string): string {
+  const [, month, day] = date.split('-')
+  return `${day}/${month}`
+}
+
+/** While a rejection's 30-day wait runs, the application cannot change (FR-74). */
+function waiting(mentor: MentorProfile): boolean {
+  return mentor.approvalStatus === 'REJECTED' && !!mentor.reapplyAfter && Date.parse(mentor.reapplyAfter) > Date.now()
 }
 
 /** Which field a server refusal belongs to, in its own words. */
@@ -89,7 +95,9 @@ function refusalOf(error: unknown): { field: Field; message: string } | undefine
  * MEN-5 (`/ho-so`), the Mentor application and profile (FR-74, UX-DR78): the only screen of a Mentor
  * not yet approved. Before the first submission it ends with the personal-data notice to accept,
  * N-22, and "Gửi hồ sơ"; afterwards it reads "Đang chờ duyệt" and keeps every field editable with
- * "Lưu thay đổi". The document is read by Administrators only; the Mentor sees its name.
+ * "Lưu thay đổi". Once approved it reads "Đã duyệt" and stays editable; once rejected it shows the
+ * reason, and the fields and "Gửi lại hồ sơ" stay disabled until the 30-day wait ends. The document
+ * is read by Administrators only; the Mentor sees its name.
  */
 export function MentorProfilePage() {
   const session = useSession()
@@ -104,7 +112,6 @@ function MentorProfileScreen() {
   usePageTitle(t('screen.mentor.profile.title'))
   const profile = useProfile()
   const mentor = profile.data?.mentor
-  const submitted = !!mentor?.submittedAt
 
   return (
     <div className="mx-auto flex max-w-[760px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
@@ -113,45 +120,86 @@ function MentorProfileScreen() {
           <PageHeading>{t('screen.mentor.profile.heading')}</PageHeading>
           <p className="text-body-sm text-muted-foreground">{t('screen.mentor.profile.lead')}</p>
         </div>
-        {mentor && (
-          <span
-            className={cn(
-              'rounded-full px-3 py-1 text-label',
-              submitted ? 'bg-primary-soft text-primary' : 'bg-muted text-muted-foreground',
-            )}
-          >
-            {submitted ? t('screen.mentor.profile.statusPending') : t('screen.mentor.profile.statusDraft')}
-          </span>
-        )}
+        {mentor && <StatusBadge mentor={mentor} />}
       </div>
-      {mentor?.submittedAt && (
-        <div role="status" className="flex gap-3 rounded-md border-l-4 border-primary bg-primary-soft p-4">
-          <Clock aria-hidden="true" className="size-5 shrink-0 text-primary" />
-          <div className="flex flex-col gap-0.5">
-            <p className="text-label font-semibold">{t('screen.mentor.profile.pendingTitle')}</p>
-            <p className="text-body-sm">{t('screen.mentor.profile.pendingBody', { date: formatDayMonth(mentor.submittedAt) })}</p>
-          </div>
-        </div>
+      {mentor && <StatusBlock mentor={mentor} />}
+      {mentor?.approvalStatus !== 'APPROVED' && (
+        <section className="flex flex-col gap-2 rounded-lg bg-muted p-4" aria-labelledby="criteria-heading">
+          <h2 id="criteria-heading" className="text-label font-semibold">
+            {t('screen.mentor.profile.criteriaHeading')}
+          </h2>
+          <ul className="flex list-disc flex-col gap-1 pl-5 text-body-sm">
+            <li>{t('screen.mentor.profile.criteria1')}</li>
+            <li>{t('screen.mentor.profile.criteria2')}</li>
+            <li>{t('screen.mentor.profile.criteria3')}</li>
+          </ul>
+        </section>
       )}
-      <section className="flex flex-col gap-2 rounded-lg bg-muted p-4" aria-labelledby="criteria-heading">
-        <h2 id="criteria-heading" className="text-label font-semibold">
-          {t('screen.mentor.profile.criteriaHeading')}
-        </h2>
-        <ul className="flex list-disc flex-col gap-1 pl-5 text-body-sm">
-          <li>{t('screen.mentor.profile.criteria1')}</li>
-          <li>{t('screen.mentor.profile.criteria2')}</li>
-          <li>{t('screen.mentor.profile.criteria3')}</li>
-        </ul>
-      </section>
       <RegionState query={profile} skeleton={<Skeleton className="h-96 w-full" />}>
-        {mentor && <ApplicationForm key={mentor.submittedAt ?? 'draft'} mentor={mentor} />}
+        {mentor && (
+          <ApplicationForm key={`${mentor.approvalStatus}-${mentor.submittedAt ?? 'draft'}`} mentor={mentor} />
+        )}
       </RegionState>
     </div>
   )
 }
 
+function StatusBadge({ mentor }: { mentor: MentorProfile }) {
+  const [label, tone]: [MessageKey, string] =
+    mentor.approvalStatus === 'APPROVED'
+      ? ['screen.mentor.profile.statusApproved', 'bg-success-soft text-success']
+      : mentor.approvalStatus === 'REJECTED'
+        ? ['screen.mentor.profile.statusRejected', 'bg-destructive-soft text-destructive']
+        : mentor.submittedAt
+          ? ['screen.mentor.profile.statusPending', 'bg-primary-soft text-primary']
+          : ['screen.mentor.profile.statusDraft', 'bg-muted text-muted-foreground']
+  return <span className={cn('rounded-full px-3 py-1 text-label', tone)}>{t(label)}</span>
+}
+
+/** Where the application stands: waiting, approved on a day, or rejected with its reason and wait. */
+function StatusBlock({ mentor }: { mentor: MentorProfile }) {
+  if (mentor.approvalStatus === 'APPROVED') {
+    return mentor.decidedAt ? (
+      <div role="status" className="flex gap-3 rounded-md border-l-4 border-success bg-success-soft p-4">
+        <CircleCheck aria-hidden="true" className="size-5 shrink-0 text-success" />
+        <p className="text-body-sm">{t('screen.mentor.profile.approvedBody', { date: formatDate(mentor.decidedAt) })}</p>
+      </div>
+    ) : null
+  }
+  if (mentor.approvalStatus === 'REJECTED') {
+    return (
+      <div role="status" className="flex gap-3 rounded-md border-l-4 border-destructive bg-destructive-soft p-4">
+        <CircleAlert aria-hidden="true" className="size-5 shrink-0 text-destructive" />
+        <div className="flex min-w-0 flex-col gap-0.5">
+          {mentor.rejectionReason && (
+            <p className="text-label font-semibold break-words">
+              {t('screen.mentor.profile.rejectedTitle', { reason: mentor.rejectionReason })}
+            </p>
+          )}
+          <p className="text-body-sm">
+            {waiting(mentor) && mentor.reapplyAfter
+              ? t('screen.mentor.profile.reapplyFrom', { date: formatDayMonth(mentor.reapplyAfter) })
+              : t('screen.mentor.profile.reapplyOpen')}
+          </p>
+        </div>
+      </div>
+    )
+  }
+  return mentor.submittedAt ? (
+    <div role="status" className="flex gap-3 rounded-md border-l-4 border-primary bg-primary-soft p-4">
+      <Clock aria-hidden="true" className="size-5 shrink-0 text-primary" />
+      <div className="flex flex-col gap-0.5">
+        <p className="text-label font-semibold">{t('screen.mentor.profile.pendingTitle')}</p>
+        <p className="text-body-sm">{t('screen.mentor.profile.pendingBody', { date: formatDayMonth(mentor.submittedAt) })}</p>
+      </div>
+    </div>
+  ) : null
+}
+
 function ApplicationForm({ mentor }: { mentor: MentorProfile }) {
   const submitted = !!mentor.submittedAt
+  const rejected = mentor.approvalStatus === 'REJECTED'
+  const locked = waiting(mentor)
   const [values, setValues] = useState<Values>({
     displayName: mentor.displayName ?? '',
     experience: mentor.experience ?? '',
@@ -213,6 +261,11 @@ function ApplicationForm({ mentor }: { mentor: MentorProfile }) {
           toasts.success(answer.submitted ? t('screen.mentor.profile.submitted') : t('screen.mentor.profile.saved'))
         },
         onError: (error) => {
+          if (error instanceof ApiError && error.problem.reason === 'MENTOR_REAPPLY_TOO_SOON') {
+            const { date } = error.problem as { date?: string }
+            toasts.error(t('reason.identity.MENTOR_REAPPLY_TOO_SOON', { date: date ? dayMonthOf(date) : '' }))
+            return
+          }
           const refusal = refusalOf(error)
           const fields = refusal ? { [refusal.field]: refusal.message } : serverFieldErrors(error)
           setErrors(fields)
@@ -231,91 +284,93 @@ function ApplicationForm({ mentor }: { mentor: MentorProfile }) {
     <form noValidate onSubmit={submit} className="flex flex-col gap-5">
       {summary && listed.length > 0 && <ErrorSummary errors={listed} />}
       <p className="text-caption text-muted-foreground">{t('screen.mentor.profile.required')}</p>
-      <FormField id="displayName" label={LABELS.displayName} error={errors.displayName}>
-        <input
-          {...fieldProps('displayName', errors.displayName)}
-          className={inputClass}
-          maxLength={100}
-          autoComplete="name"
-          value={values.displayName}
-          onChange={(event) => setValues({ ...values, displayName: event.target.value })}
-          onBlur={() => validate('displayName')}
-        />
-      </FormField>
-      <FormField
-        id="experience"
-        label={LABELS.experience}
-        helper={t('screen.mentor.profile.experienceHelper')}
-        error={errors.experience}
-      >
-        <textarea
-          {...fieldProps('experience', errors.experience, t('screen.mentor.profile.experienceHelper'))}
-          className={cn(inputClass, 'min-h-32')}
-          maxLength={4000}
-          value={values.experience}
-          onChange={(event) => setValues({ ...values, experience: event.target.value })}
-          onBlur={() => validate('experience')}
-        />
-      </FormField>
-      <div className="grid gap-5 md:grid-cols-2">
-        <FormField id="yearsOfExperience" label={LABELS.yearsOfExperience} error={errors.yearsOfExperience}>
+      <fieldset disabled={locked} className="flex min-w-0 flex-col gap-5">
+        <FormField id="displayName" label={LABELS.displayName} error={errors.displayName}>
           <input
-            {...fieldProps('yearsOfExperience', errors.yearsOfExperience)}
+            {...fieldProps('displayName', errors.displayName)}
             className={inputClass}
-            inputMode="numeric"
-            maxLength={2}
-            value={values.yearsOfExperience}
-            onChange={(event) => setValues({ ...values, yearsOfExperience: event.target.value.replace(/[^0-9]/g, '') })}
-            onBlur={() => validate('yearsOfExperience')}
+            maxLength={100}
+            autoComplete="name"
+            value={values.displayName}
+            onChange={(event) => setValues({ ...values, displayName: event.target.value })}
+            onBlur={() => validate('displayName')}
           />
         </FormField>
         <FormField
-          id="linkedinUrl"
-          label={LABELS.linkedinUrl}
-          helper={t('screen.mentor.profile.linkedinHelper')}
-          error={errors.linkedinUrl}
+          id="experience"
+          label={LABELS.experience}
+          helper={t('screen.mentor.profile.experienceHelper')}
+          error={errors.experience}
         >
-          <input
-            {...fieldProps('linkedinUrl', errors.linkedinUrl, t('screen.mentor.profile.linkedinHelper'))}
-            type="url"
-            className={inputClass}
-            value={values.linkedinUrl}
-            onChange={(event) => setValues({ ...values, linkedinUrl: event.target.value })}
-            onBlur={() => validate('linkedinUrl')}
+          <textarea
+            {...fieldProps('experience', errors.experience, t('screen.mentor.profile.experienceHelper'))}
+            className={cn(inputClass, 'min-h-32')}
+            maxLength={4000}
+            value={values.experience}
+            onChange={(event) => setValues({ ...values, experience: event.target.value })}
+            onBlur={() => validate('experience')}
           />
         </FormField>
-      </div>
-      <FormField id="skillIds" label={LABELS.skillIds} helper={t('screen.mentor.profile.skillsHelper')} error={errors.skillIds}>
-        <SkillPicker
-          id="skillIds"
-          value={values.skillIds}
-          onChange={(skillIds) => setValues((current) => ({ ...current, skillIds }))}
-          known={mentor.skills}
-          max={MAX_SKILLS}
-          invalid={!!errors.skillIds}
-          describedBy={['skillIds-helper', errors.skillIds ? 'skillIds-error' : null].filter(Boolean).join(' ')}
-        />
-        <p className="text-caption text-muted-foreground">
-          {t('screen.mentor.profile.skillsCount', { n: values.skillIds.length })}
-        </p>
-      </FormField>
-      <FormField
-        id="otherLink"
-        label={LABELS.otherLink}
-        helper={t('screen.mentor.profile.otherLinkHelper')}
-        error={errors.otherLink}
-      >
-        <input
-          {...fieldProps('otherLink', errors.otherLink, t('screen.mentor.profile.otherLinkHelper'))}
-          type="url"
-          className={inputClass}
-          maxLength={300}
-          value={values.otherLink}
-          onChange={(event) => setValues({ ...values, otherLink: event.target.value })}
-          onBlur={() => validate('otherLink')}
-        />
-      </FormField>
-      <MentorDocument document={mentor.document} />
+        <div className="grid gap-5 md:grid-cols-2">
+          <FormField id="yearsOfExperience" label={LABELS.yearsOfExperience} error={errors.yearsOfExperience}>
+            <input
+              {...fieldProps('yearsOfExperience', errors.yearsOfExperience)}
+              className={inputClass}
+              inputMode="numeric"
+              maxLength={2}
+              value={values.yearsOfExperience}
+              onChange={(event) => setValues({ ...values, yearsOfExperience: event.target.value.replace(/[^0-9]/g, '') })}
+              onBlur={() => validate('yearsOfExperience')}
+            />
+          </FormField>
+          <FormField
+            id="linkedinUrl"
+            label={LABELS.linkedinUrl}
+            helper={t('screen.mentor.profile.linkedinHelper')}
+            error={errors.linkedinUrl}
+          >
+            <input
+              {...fieldProps('linkedinUrl', errors.linkedinUrl, t('screen.mentor.profile.linkedinHelper'))}
+              type="url"
+              className={inputClass}
+              value={values.linkedinUrl}
+              onChange={(event) => setValues({ ...values, linkedinUrl: event.target.value })}
+              onBlur={() => validate('linkedinUrl')}
+            />
+          </FormField>
+        </div>
+        <FormField id="skillIds" label={LABELS.skillIds} helper={t('screen.mentor.profile.skillsHelper')} error={errors.skillIds}>
+          <SkillPicker
+            id="skillIds"
+            value={values.skillIds}
+            onChange={(skillIds) => setValues((current) => ({ ...current, skillIds }))}
+            known={mentor.skills}
+            max={MAX_SKILLS}
+            invalid={!!errors.skillIds}
+            describedBy={['skillIds-helper', errors.skillIds ? 'skillIds-error' : null].filter(Boolean).join(' ')}
+          />
+          <p className="text-caption text-muted-foreground">
+            {t('screen.mentor.profile.skillsCount', { n: values.skillIds.length })}
+          </p>
+        </FormField>
+        <FormField
+          id="otherLink"
+          label={LABELS.otherLink}
+          helper={t('screen.mentor.profile.otherLinkHelper')}
+          error={errors.otherLink}
+        >
+          <input
+            {...fieldProps('otherLink', errors.otherLink, t('screen.mentor.profile.otherLinkHelper'))}
+            type="url"
+            className={inputClass}
+            maxLength={300}
+            value={values.otherLink}
+            onChange={(event) => setValues({ ...values, otherLink: event.target.value })}
+            onBlur={() => validate('otherLink')}
+          />
+        </FormField>
+        <MentorDocument document={mentor.document} disabled={locked} />
+      </fieldset>
       {!submitted && (
         <>
           <section aria-labelledby="privacy-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4">
@@ -352,21 +407,34 @@ function ApplicationForm({ mentor }: { mentor: MentorProfile }) {
           </p>
         </>
       )}
-      <Button type="submit" className="self-start" disabled={save.isPending || offline}>
-        {submitted
-          ? save.isPending
-            ? t('screen.mentor.profile.saving')
-            : t('screen.mentor.profile.save')
-          : save.isPending
-            ? t('screen.mentor.profile.submitting')
-            : t('screen.mentor.profile.submit')}
-      </Button>
+      <div className="flex flex-wrap items-center gap-3">
+        <Button
+          type="submit"
+          disabled={save.isPending || offline || locked}
+          aria-describedby={locked ? 'reapply-line' : undefined}
+        >
+          {save.isPending
+            ? submitted && !rejected
+              ? t('screen.mentor.profile.saving')
+              : t('screen.mentor.profile.submitting')
+            : rejected
+              ? t('screen.mentor.profile.resubmit')
+              : submitted
+                ? t('screen.mentor.profile.save')
+                : t('screen.mentor.profile.submit')}
+        </Button>
+        {locked && mentor.reapplyAfter && (
+          <p id="reapply-line" className="text-caption text-muted-foreground">
+            {t('screen.mentor.profile.reapplyFrom', { date: formatDayMonth(mentor.reapplyAfter) })}
+          </p>
+        )}
+      </div>
     </form>
   )
 }
 
 /** "Tài liệu kèm theo": the attached CV or certificate by name and size, or the button to choose one. */
-function MentorDocument({ document }: { document?: MentorProfile['document'] }) {
+function MentorDocument({ document, disabled }: { document?: MentorProfile['document']; disabled: boolean }) {
   const upload = useUploadMentorDocument()
   const remove = useDeleteMentorDocument()
   const toasts = useToasts()
@@ -417,7 +485,7 @@ function MentorDocument({ document }: { document?: MentorProfile['document'] }) 
             variant="ghost"
             size="compact"
             aria-label={t('screen.mentor.profile.documentRemoveLabel', { name: document.name })}
-            disabled={remove.isPending || offline}
+            disabled={remove.isPending || offline || disabled}
             onClick={() =>
               remove.mutate(undefined, { onSuccess: () => toasts.success(t('screen.mentor.profile.documentRemoved')) })
             }
@@ -431,7 +499,7 @@ function MentorDocument({ document }: { document?: MentorProfile['document'] }) 
             type="button"
             variant="secondary"
             size="compact"
-            disabled={upload.isPending || offline}
+            disabled={upload.isPending || offline || disabled}
             onClick={() => input.current?.click()}
           >
             {upload.isPending ? t('screen.mentor.profile.documentUploading') : t('screen.mentor.profile.documentChoose')}

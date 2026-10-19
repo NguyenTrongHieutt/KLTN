@@ -70,7 +70,10 @@ export function AdminOverviewPage() {
             </Link>
           )}
           {applications && (
-            <div className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4">
+            <Link
+              to="/quan-tri/nguoi-huong-dan"
+              className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 hover:border-primary"
+            >
               <p className="text-caption text-muted-foreground">{t('screen.admin.overview.mentorApplications')}</p>
               <p className="text-h1">{applications.count}</p>
               <p className="text-caption text-muted-foreground">
@@ -78,7 +81,7 @@ export function AdminOverviewPage() {
                   ? t('screen.admin.overview.oldest', { date: formatDayMonth(applications.oldestAt) })
                   : t('screen.admin.overview.empty')}
               </p>
-            </div>
+            </Link>
           )}
           {failed && (
             <div className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4">

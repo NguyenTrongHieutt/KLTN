@@ -130,6 +130,166 @@
         "tags" : [ "admin-enrolment-controller" ]
       }
     },
+    "/api/v1/admin/mentor-applications" : {
+      "get" : {
+        "operationId" : "applications",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "default" : "PENDING",
+            "enum" : [ "PENDING", "APPROVED", "REJECTED", "REVOKED" ]
+          }
+        }, {
+          "description" : "Zero-based page index (0..N)",
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "default" : 0,
+            "minimum" : 0
+          }
+        }, {
+          "description" : "The size of the page to be returned",
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "default" : 20,
+            "minimum" : 1
+          }
+        }, {
+          "description" : "Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.",
+          "in" : "query",
+          "name" : "sort",
+          "required" : false,
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponseMentorApplicationRow"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "mentor-decisions-controller" ]
+      }
+    },
+    "/api/v1/admin/mentor-applications/{applicantId}" : {
+      "get" : {
+        "operationId" : "application",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "applicantId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MentorApplicationDetail"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "mentor-decisions-controller" ]
+      }
+    },
+    "/api/v1/admin/mentor-applications/{applicantId}/approve" : {
+      "post" : {
+        "operationId" : "approve_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "applicantId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ApproveMentorRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MentorApplicationRow"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "mentor-decisions-controller" ]
+      }
+    },
+    "/api/v1/admin/mentor-applications/{applicantId}/reject" : {
+      "post" : {
+        "operationId" : "reject_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "applicantId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RejectMentorRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MentorApplicationRow"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "mentor-decisions-controller" ]
+      }
+    },
     "/api/v1/admin/overview" : {
       "get" : {
         "operationId" : "overview",
@@ -942,6 +1102,17 @@
         },
         "required" : [ "absoluteExpiresAt", "displayName", "email", "idleExpiresAt" ]
       },
+      "ApproveMentorRequest" : {
+        "type" : "object",
+        "properties" : {
+          "stepUpCode" : {
+            "type" : "string",
+            "minLength" : 1,
+            "pattern" : "^[0-9]{6}$"
+          }
+        },
+        "required" : [ "stepUpCode" ]
+      },
       "ApproveRequest" : {
         "type" : "object",
         "properties" : {
@@ -1135,6 +1306,121 @@
         },
         "required" : [ "name" ]
       },
+      "MentorApplicationDetail" : {
+        "type" : "object",
+        "properties" : {
+          "accountId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "decidedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "displayName" : {
+            "type" : "string"
+          },
+          "document" : {
+            "$ref" : "#/components/schemas/MentorApplicationDocument"
+          },
+          "experience" : {
+            "type" : "string"
+          },
+          "githubLogin" : {
+            "type" : "string"
+          },
+          "linkedinUrl" : {
+            "type" : "string"
+          },
+          "matches" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/MentorApplicationMatch"
+            }
+          },
+          "otherLink" : {
+            "type" : "string"
+          },
+          "privacyNoticeVersion" : {
+            "type" : "string"
+          },
+          "rejectionReason" : {
+            "type" : "string"
+          },
+          "skills" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/MentorApplicationSkill"
+            }
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "PENDING", "APPROVED", "REJECTED", "REVOKED" ]
+          },
+          "submittedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "yearsOfExperience" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "accountId", "matches", "skills", "status" ]
+      },
+      "MentorApplicationDocument" : {
+        "type" : "object",
+        "properties" : {
+          "fileUrl" : {
+            "type" : "string"
+          },
+          "mediaType" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "fileUrl", "mediaType", "name", "size" ]
+      },
+      "MentorApplicationMatch" : {
+        "type" : "object",
+        "properties" : {
+          "accountId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "erased" : {
+            "type" : "boolean"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "locked" : {
+            "type" : "boolean"
+          },
+          "mentorStatus" : {
+            "type" : "string",
+            "enum" : [ "PENDING", "APPROVED", "REJECTED", "REVOKED" ]
+          },
+          "role" : {
+            "type" : "string"
+          },
+          "verifiedUntil" : {
+            "type" : "string",
+            "format" : "date"
+          }
+        },
+        "required" : [ "accountId", "createdAt", "erased", "kind", "locked", "role" ]
+      },
       "MentorApplicationRequest" : {
         "type" : "object",
         "properties" : {
@@ -1180,6 +1466,58 @@
         },
         "required" : [ "displayName", "experience", "linkedinUrl", "skillIds", "yearsOfExperience" ]
       },
+      "MentorApplicationRow" : {
+        "type" : "object",
+        "properties" : {
+          "accountId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "decidedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "displayName" : {
+            "type" : "string"
+          },
+          "githubLogin" : {
+            "type" : "string"
+          },
+          "matches" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "PENDING", "APPROVED", "REJECTED", "REVOKED" ]
+          },
+          "submittedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "yearsOfExperience" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "accountId", "matches", "status" ]
+      },
+      "MentorApplicationSkill" : {
+        "type" : "object",
+        "properties" : {
+          "active" : {
+            "type" : "boolean"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "active", "id", "name" ]
+      },
       "MentorDocumentView" : {
         "type" : "object",
         "properties" : {
@@ -1203,6 +1541,10 @@
             "type" : "string",
             "enum" : [ "PENDING", "APPROVED", "REJECTED", "REVOKED" ]
           },
+          "decidedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
           "displayName" : {
             "type" : "string"
           },
@@ -1216,6 +1558,13 @@
             "type" : "string"
           },
           "otherLink" : {
+            "type" : "string"
+          },
+          "reapplyAfter" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "rejectionReason" : {
             "type" : "string"
           },
           "skills" : {
@@ -1288,6 +1637,30 @@
           }
         },
         "required" : [ "activeAdministrators", "failedOperations", "mentorApplications", "stalledEvents", "studentCards" ]
+      },
+      "PageResponseMentorApplicationRow" : {
+        "type" : "object",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/MentorApplicationRow"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "total" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "items", "page", "size", "total" ]
       },
       "PageResponseNotificationItem" : {
         "type" : "object",
@@ -1412,6 +1785,22 @@
           }
         },
         "required" : [ "count" ]
+      },
+      "RejectMentorRequest" : {
+        "type" : "object",
+        "properties" : {
+          "reason" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0
+          },
+          "stepUpCode" : {
+            "type" : "string",
+            "minLength" : 1,
+            "pattern" : "^[0-9]{6}$"
+          }
+        },
+        "required" : [ "reason", "stepUpCode" ]
       },
       "RejectRequest" : {
         "type" : "object",

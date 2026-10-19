@@ -57,7 +57,7 @@ class IdentityPersonalData implements PersonalDataParticipant {
 				"identity.customer_profile", "identity.student_profile", "identity.showcase_repository",
 				"identity.contact_grant", "identity.school_email_code", "identity.student_verification",
 				"identity.student_card", "identity.administrator_credential", "identity.administrator_enrolment",
-				"identity.person_signal", "identity.mentor_application");
+				"identity.person_signal", "identity.mentor_application", "identity.mentor_decision");
 	}
 
 	@Override
@@ -139,6 +139,23 @@ class IdentityPersonalData implements PersonalDataParticipant {
 				application.put("submittedAt", submitted == null ? null : submitted.toInstant().toString());
 				return application;
 			}).optional().ifPresent(application -> data.put("mentorApplication", application));
+			// The decisions on it, with the reasons the applicant read; not which Administrator decided.
+			List<Map<String, Object>> decisions = this.jdbc.sql("""
+					SELECT decision, reason, reapply_after, decided_at FROM identity.mentor_decision
+					WHERE account_id = :id ORDER BY decided_at
+					""").param("id", accountId).query((rs, n) -> {
+				Map<String, Object> decision = new LinkedHashMap<>();
+				decision.put("decision", rs.getString("decision"));
+				decision.put("decidedAt", rs.getTimestamp("decided_at").toInstant().toString());
+				if (rs.getString("reason") != null) {
+					decision.put("reason", rs.getString("reason"));
+					decision.put("reapplyAfter", rs.getTimestamp("reapply_after").toInstant().toString());
+				}
+				return decision;
+			}).list();
+			if (!decisions.isEmpty()) {
+				data.put("mentorDecisions", decisions);
+			}
 			// Person-link signals by where they came from, never their HMACs (AD-19).
 			List<Map<String, String>> signals = this.jdbc.sql("""
 					SELECT DISTINCT source, recorded_at FROM identity.person_signal
@@ -176,7 +193,7 @@ class IdentityPersonalData implements PersonalDataParticipant {
 		for (String table : new String[] { "identity.customer_profile", "identity.student_profile",
 				"identity.showcase_repository", "identity.school_email_code", "identity.student_verification",
 				"identity.student_card", "identity.administrator_credential", "identity.administrator_enrolment",
-				"identity.mentor_application" }) {
+				"identity.mentor_application", "identity.mentor_decision" }) {
 			this.jdbc.sql("DELETE FROM " + table + " WHERE account_id = :id").param("id", accountId).update();
 		}
 		this.jdbc.sql("""
