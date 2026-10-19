@@ -1043,6 +1043,76 @@
         "tags" : [ "product-controller" ]
       }
     },
+    "/api/v1/products/{productId}/findings/{findingId}" : {
+      "get" : {
+        "operationId" : "finding",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "path",
+          "name" : "findingId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FindingDetailView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "product-controller" ]
+      }
+    },
+    "/api/v1/products/{productId}/findings/{findingId}/rotation" : {
+      "post" : {
+        "operationId" : "confirmRotation",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "path",
+          "name" : "findingId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FindingView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "product-controller" ]
+      }
+    },
     "/api/v1/profile" : {
       "get" : {
         "operationId" : "profile",
@@ -1871,6 +1941,28 @@
         },
         "required" : [ "name" ]
       },
+      "FindingDetailView" : {
+        "type" : "object",
+        "properties" : {
+          "canResolve" : {
+            "type" : "boolean"
+          },
+          "finding" : {
+            "$ref" : "#/components/schemas/FindingView"
+          },
+          "productName" : {
+            "type" : "string"
+          },
+          "tools" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "enum" : [ "LOVABLE", "BOLT", "REPLIT", "V0", "BASE44", "CURSOR", "CLAUDE_CODE", "CODEX", "OTHER" ]
+            }
+          }
+        },
+        "required" : [ "canResolve", "finding", "productName", "tools" ]
+      },
       "FindingView" : {
         "type" : "object",
         "properties" : {
@@ -1903,15 +1995,26 @@
           "path" : {
             "type" : "string"
           },
+          "resolution" : {
+            "type" : "string",
+            "enum" : [ "ROTATED" ]
+          },
+          "resolvedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "ruleId" : {
+            "type" : "string"
+          },
           "status" : {
             "type" : "string",
-            "enum" : [ "OPEN" ]
+            "enum" : [ "OPEN", "RESOLVED" ]
           },
           "type" : {
             "type" : "string"
           }
         },
-        "required" : [ "category", "commit", "committedAt", "createdAt", "id", "maskedPreview", "path", "status", "type" ]
+        "required" : [ "category", "commit", "committedAt", "createdAt", "id", "maskedPreview", "path", "ruleId", "status", "type" ]
       },
       "MentorApplicationDetail" : {
         "type" : "object",

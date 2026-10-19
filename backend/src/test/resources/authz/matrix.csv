@@ -299,6 +299,18 @@ GET /api/v1/products/{productId}/findings,CUSTOMER,,,404 NOT_FOUND
 GET /api/v1/products/{productId}/findings,MENTOR,,,404 NOT_FOUND
 GET /api/v1/products/{productId}/findings,STUDENT,,,404 NOT_FOUND
 GET /api/v1/products/{productId}/findings,ADMINISTRATOR,,,200
+GET /api/v1/products/{productId}/findings/{findingId},ANONYMOUS,,,401
+GET /api/v1/products/{productId}/findings/{findingId},OWNER,,,200
+GET /api/v1/products/{productId}/findings/{findingId},CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/products/{productId}/findings/{findingId},MENTOR,,,404 NOT_FOUND
+GET /api/v1/products/{productId}/findings/{findingId},STUDENT,,,404 NOT_FOUND
+GET /api/v1/products/{productId}/findings/{findingId},ADMINISTRATOR,,,200
+POST /api/v1/products/{productId}/findings/{findingId}/rotation,ANONYMOUS,,,401
+POST /api/v1/products/{productId}/findings/{findingId}/rotation,OWNER,,,200
+POST /api/v1/products/{productId}/findings/{findingId}/rotation,CUSTOMER,,,404 NOT_FOUND
+POST /api/v1/products/{productId}/findings/{findingId}/rotation,MENTOR,,,404 NOT_FOUND
+POST /api/v1/products/{productId}/findings/{findingId}/rotation,STUDENT,,,404 NOT_FOUND
+POST /api/v1/products/{productId}/findings/{findingId}/rotation,ADMINISTRATOR,,,404 NOT_FOUND
 # Student verification (identity, FR-5): a Student's own; any other role, and SUBJECT (a Customer),
 # finds none. The confirm row's Student has no code waiting, so it finds none either.
 GET /api/v1/verification,ANONYMOUS,,,401

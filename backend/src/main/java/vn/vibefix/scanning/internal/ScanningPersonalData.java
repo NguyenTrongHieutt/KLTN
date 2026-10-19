@@ -30,7 +30,7 @@ class ScanningPersonalData implements PersonalDataParticipant {
 
 	@Override
 	public Set<String> tables() {
-		return Set.of("scanning.scan_run", "scanning.finding");
+		return Set.of("scanning.scan_run", "scanning.finding", "scanning.finding_resolver");
 	}
 
 	@Override
@@ -71,6 +71,11 @@ class ScanningPersonalData implements PersonalDataParticipant {
 	@Override
 	public void eraseAccount(UUID accountId) {
 		this.jdbc.sql("DELETE FROM scanning.scan_run WHERE customer_account_id = :id").param("id", accountId).update();
+		// Resolvers and resolutions of other people's Findings (Epic 7) keep the Finding, not the person.
+		this.jdbc.sql("DELETE FROM scanning.finding_resolver WHERE account_id = :id").param("id", accountId).update();
+		this.jdbc.sql("UPDATE scanning.finding SET resolved_by_account_id = NULL WHERE resolved_by_account_id = :id")
+			.param("id", accountId)
+			.update();
 	}
 
 	@Override

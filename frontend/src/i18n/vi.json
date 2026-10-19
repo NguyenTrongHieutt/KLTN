@@ -839,6 +839,129 @@
         "CODEX": "Codex làm việc trên kho mã GitHub của bạn. Hãy kiểm tra kho mã đó đang ở chế độ Public.",
         "OTHER": "vibefix cần mã nguồn trên một kho mã GitHub công khai. Đưa mã của bạn lên GitHub ở chế độ Public rồi quay lại."
       },
+      "finding": {
+        "title": "Vấn đề phát hiện",
+        "back": "Quay lại {product}",
+        "heading": "Vấn đề phát hiện",
+        "open": "Chưa xử lý",
+        "resolved": "Đã xử lý",
+        "leadCredential": "vibefix tìm thấy một khóa bí mật trong lịch sử mã của bạn.",
+        "leadPersonal": "vibefix tìm thấy dữ liệu cá nhân của khách hàng bạn trong lịch sử mã.",
+        "whyTitle": "Vì sao cần xử lý",
+        "whyCredential": "Dự án gốc là công khai, nên ai cũng có thể lấy khóa này để đọc hoặc sửa dữ liệu khách hàng của bạn. Xóa tệp không đủ, vì khóa vẫn nằm trong lịch sử.",
+        "whyPersonal": "Dự án gốc là công khai, nên ai cũng đọc được tên, email và số điện thoại này. Xóa tệp không đủ, vì dữ liệu vẫn nằm trong lịch sử mã.",
+        "howCredential": "Cách xử lý: đổi khóa",
+        "howPersonal": "Cách xử lý: đăng ký kho mã sạch",
+        "stepOpenPage": "Mở trang quản lý khóa của {provider}:",
+        "stepOpenLink": "Mở trang khóa API của {provider}",
+        "stepPaste": "Trong {tool}, dán khóa mới vào phần cài đặt bí mật, không dán vào mã.",
+        "stepReturn": "Quay lại đây và bấm \"Tôi đã đổi khóa\".",
+        "anyTool": "công cụ của bạn",
+        "personalSteps": {
+          "remove": "Xóa tệp {path} trong {tool}, hoặc thay bằng dữ liệu giả.",
+          "newRepository": "Tạo một kho mã mới trên GitHub và cho {tool} đồng bộ tới đó. Kho mã mới không mang lịch sử cũ.",
+          "register": "Đăng ký kho mã sạch thay cho dự án gốc. vibefix kiểm tra lại từ đầu.",
+          "oldRepository": "Xóa hoặc chuyển kho mã cũ về riêng tư."
+        },
+        "rotate": "Tôi đã đổi khóa",
+        "keptCredential": "vibefix không lưu giá trị khóa, chỉ hiện vài ký tự đầu và cuối để bạn nhận ra.",
+        "keptPersonal": "vibefix không lưu dữ liệu tìm thấy, chỉ hiện vài ký tự để bạn nhận ra.",
+        "rotatedAt": "Bạn đã xác nhận đổi khóa lúc {time}.",
+        "rotatedToast": "Đã đánh dấu đã xử lý.",
+        "confirmTitle": "Xác nhận bạn đã đổi khóa?",
+        "confirmWhat": "Điều sẽ xảy ra",
+        "confirmResolved": "Vấn đề được đánh dấu đã xử lý và ghi vào nhật ký hệ thống.",
+        "confirmHistory": "Khóa cũ vẫn nằm trong lịch sử mã, nhưng không còn dùng được.",
+        "confirmJobs": "Bạn có thể đặt công việc sửa mã cho sản phẩm này.",
+        "confirmBack": "Quay lại",
+        "close": "Đóng",
+        "guidance": {
+          "github": {
+            "provider": "GitHub",
+            "step": "Xóa mã cũ, rồi tạo mã mới nếu bạn vẫn cần dùng."
+          },
+          "supabase": {
+            "provider": "Supabase",
+            "step": "Bấm \"Tạo khóa mới\", rồi vô hiệu khóa cũ."
+          },
+          "supabaseJwt": {
+            "provider": "Supabase",
+            "step": "Tạo khóa ký mới. Người dùng của bạn sẽ phải đăng nhập lại."
+          },
+          "googleKey": {
+            "provider": "Google Cloud",
+            "step": "Tạo khóa API mới, rồi xóa khóa cũ."
+          },
+          "googleServiceAccount": {
+            "provider": "Google Cloud",
+            "step": "Mở tài khoản dịch vụ, tạo khóa mới, rồi xóa khóa cũ."
+          },
+          "aws": {
+            "provider": "AWS",
+            "step": "Tạo khóa truy cập mới, rồi vô hiệu và xóa khóa cũ."
+          },
+          "stripe": {
+            "provider": "Stripe",
+            "step": "Bấm \"Roll key\" cạnh khóa này để đổi khóa; khóa cũ hết tác dụng."
+          },
+          "vnpay": {
+            "provider": "VNPay",
+            "step": "Liên hệ VNPay để được cấp mã bí mật mới cho cửa hàng của bạn."
+          },
+          "momo": {
+            "provider": "MoMo",
+            "step": "Liên hệ MoMo để được cấp khóa bí mật mới cho cửa hàng của bạn."
+          },
+          "zalopay": {
+            "provider": "ZaloPay",
+            "step": "Liên hệ ZaloPay để được cấp khóa mới cho cửa hàng của bạn."
+          },
+          "openai": {
+            "provider": "OpenAI",
+            "step": "Tạo khóa mới, rồi xóa khóa cũ."
+          },
+          "anthropic": {
+            "provider": "Anthropic",
+            "step": "Tạo khóa mới, rồi xóa khóa cũ."
+          },
+          "sendgrid": {
+            "provider": "SendGrid",
+            "step": "Tạo khóa mới, rồi xóa khóa cũ."
+          },
+          "resend": {
+            "provider": "Resend",
+            "step": "Tạo khóa mới, rồi xóa khóa cũ."
+          },
+          "twilio": {
+            "provider": "Twilio",
+            "step": "Tạo khóa mới rồi xóa khóa cũ; với mã xác thực tài khoản, chọn đổi mã."
+          },
+          "vercel": {
+            "provider": "Vercel",
+            "step": "Xóa mã cũ, rồi tạo mã mới nếu bạn vẫn cần dùng."
+          },
+          "netlify": {
+            "provider": "Netlify",
+            "step": "Xóa mã cũ, rồi tạo mã mới nếu bạn vẫn cần dùng."
+          },
+          "database": {
+            "where": "Mở trang quản lý cơ sở dữ liệu nơi bạn thuê, ví dụ Supabase.",
+            "step": "Đặt mật khẩu mới cho cơ sở dữ liệu."
+          },
+          "privateKey": {
+            "where": "Tìm nơi đang dùng khóa riêng tư này: máy chủ, GitHub, hoặc dịch vụ triển khai.",
+            "step": "Tạo cặp khóa mới, thay khóa cũ ở những nơi đó, rồi xóa khóa cũ."
+          },
+          "jwtSecret": {
+            "where": "Tìm nơi máy chủ của bạn đọc chuỗi bí mật này.",
+            "step": "Tạo chuỗi bí mật mới. Người dùng của bạn sẽ phải đăng nhập lại."
+          },
+          "envSecret": {
+            "where": "Tìm dịch vụ đã cấp giá trị này.",
+            "step": "Đổi giá trị ở dịch vụ đó, rồi vô hiệu giá trị cũ."
+          }
+        }
+      },
       "detail": {
         "breadcrumb": "Sản phẩm",
         "openSource": "Mở dự án gốc",
@@ -864,6 +987,7 @@
         "findingSamples": "Ví dụ đã che:",
         "findingLines": "{n} dòng",
         "findingOpen": "Chưa xử lý",
+        "findingHowTo": "Xem cách xử lý",
         "clean": "Không phát hiện vấn đề nào ở lần kiểm tra gần nhất.",
         "unscannedHeading": "Tệp chưa kiểm tra được",
         "unscannedSize": "{size} · lớn hơn giới hạn kiểm tra",
@@ -1275,6 +1399,9 @@
     "identity": {
       "complete_mentor_application": "Hoàn thành hồ sơ người hướng dẫn",
       "verify_student": "Xác minh là sinh viên để vào nhóm của người hướng dẫn"
+    },
+    "scanning": {
+      "resolve_intake_finding": "Xử lý vấn đề bảo mật ở {product}"
     }
   },
   "theme": {
@@ -1399,6 +1526,10 @@
     "catalog": {
       "SKILL_INACTIVE": "Kỹ năng này đã ngừng dùng nên không thêm mới được.",
       "SKILL_LIMIT": "Tối đa {n} kỹ năng."
+    },
+    "scanning": {
+      "FINDING_CLOSED": "Vấn đề này đã được xử lý.",
+      "NOT_A_CREDENTIAL": "Vấn đề này là dữ liệu cá nhân, không phải khóa bí mật. Hãy làm theo hướng dẫn đăng ký kho mã sạch."
     },
     "product": {
       "NOT_GITHUB": "Đường dẫn này không phải kho mã GitHub.",

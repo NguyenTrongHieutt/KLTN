@@ -24,6 +24,10 @@ class NotificationTypes implements NotificationCatalog {
 	static final TodoType COMPLETE_MENTOR_APPLICATION = new TodoType("identity.complete_mentor_application",
 			Set.of(Audience.SUBJECT), 1, Set.of());
 
+	/** An Intake Finding to resolve (FR-8, FR-65): its Customer, until it is resolved or marked a false positive. */
+	static final TodoType SCANNING_RESOLVE_INTAKE_FINDING = new TodoType("scanning.resolve_intake_finding",
+			Set.of(Audience.SUBJECT), 2, Set.of("product"));
+
 	/** An unverified Student; opened at sign-up as a Student or when verification expires (FR-5). */
 	static final TodoType VERIFY_STUDENT = new TodoType("identity.verify_student", Set.of(Audience.SUBJECT), 3, Set.of());
 
@@ -119,7 +123,7 @@ class NotificationTypes implements NotificationCatalog {
 
 	@Override
 	public List<TodoType> todoTypes() {
-		return List.of(COMPLETE_MENTOR_APPLICATION, VERIFY_STUDENT);
+		return List.of(COMPLETE_MENTOR_APPLICATION, VERIFY_STUDENT, SCANNING_RESOLVE_INTAKE_FINDING);
 	}
 
 }
