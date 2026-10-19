@@ -5,24 +5,36 @@ import { usePageTitle } from '@/app/usePageTitle'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { TermHint } from '@/components/TermHint'
+import { useToasts } from '@/components/toasts'
+import { Button } from '@/components/ui/button'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t, type MessageKey } from '@/i18n/t'
-import { formatDate } from '@/lib/dates'
+import { ApiError } from '@/lib/apiClient'
+import { formatDate, formatDayMonth, formatDayMonthTime } from '@/lib/dates'
 import { formatSize } from '@/lib/fileSize'
-import { isNotFound } from '@/lib/problemMessage'
+import { isNotFound, problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
-import { useFindings, useProduct, type Finding, type Product, type Scan } from './productApi'
+import {
+  scanActive,
+  useFindings,
+  useProduct,
+  useRescan,
+  useScanHistory,
+  type Finding,
+  type Product,
+  type Scan,
+} from './productApi'
 import { domainOf } from './productText'
 import { ScanStateBadge } from './ScanStateBadge'
 
 /**
- * CUS-4 (`/san-pham/{productId}`, FR-7, FR-8, FR-65): the Product, its scan, its open Findings, its
- * Source Repository, and its information. While the scan waits or runs the page polls every 5 s under
- * the Busy banner (UX-DR21); a scan that did not finish says vibefix tries again. A completed scan
- * shows the result of the Secret Scan and the Personal-Data Check. Each Finding shows its type, file,
- * commit, date, and masked values only. The scan history, re-scan, and resolving a
- * Finding (Stories 2.5 to 2.7), Jobs (Epic 3), and deletion (Story 2.8) come with their stories.
+ * CUS-4 (`/san-pham/{productId}`, FR-7, FR-8, FR-65): the Product, its scan, its Findings with their
+ * states, the scan history, its Source Repository, and its information. While the scan waits or runs
+ * the page polls every 5 s under the Busy banner (UX-DR21); a scan that did not finish says vibefix
+ * tries again; "Kiểm tra lại" runs both scans again, 5 times a day. A completed scan shows the result of
+ * the Secret Scan and the Personal-Data Check. Each Finding shows its type, file, commit, date, and
+ * masked values only. Jobs (Epic 3) and deletion (Story 2.8) come with their stories.
  */
 export function ProductPage() {
   const { productId } = useParams()
@@ -55,22 +67,26 @@ function ProductDetail({ product }: { product: Product }) {
           <PageHeading className="break-words">{product.name}</PageHeading>
           <ScanStateBadge product={product} />
         </div>
-        <a
-          href={product.repositoryUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={cn(buttonVariants({ variant: 'secondary' }), 'gap-1.5')}
-        >
-          <ExternalLink aria-hidden="true" className="size-4" />
-          {t('screen.product.detail.openSource')}
-          <span className="text-caption text-muted-foreground">{t('screen.product.domain', { domain: 'github.com' })}</span>
-          <span className="sr-only">{t('screen.product.newTab')}</span>
-        </a>
+        <div className="flex flex-wrap items-start gap-3">
+          <a
+            href={product.repositoryUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(buttonVariants({ variant: 'secondary' }), 'gap-1.5')}
+          >
+            <ExternalLink aria-hidden="true" className="size-4" />
+            {t('screen.product.detail.openSource')}
+            <span className="text-caption text-muted-foreground">{t('screen.product.domain', { domain: 'github.com' })}</span>
+            <span className="sr-only">{t('screen.product.newTab')}</span>
+          </a>
+          {scan && <RescanButton product={product} scan={scan} />}
+        </div>
       </div>
       {scan ? <ScanStatus scan={scan} /> : <AwaitingScan />}
       <p className="text-body-sm break-words">{product.description}</p>
       {scan && <FindingsSection product={product} scan={scan} />}
       {scan && scan.unscannedCount > 0 && <UnscannedFiles scan={scan} />}
+      {scan && <ScanHistory product={product} />}
       <section aria-labelledby="product-info-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5">
         <h2 id="product-info-heading" className="text-h3">
           {t('screen.product.detail.info')}
@@ -140,38 +156,81 @@ function ScanStatus({ scan }: { scan: Scan }) {
   return null
 }
 
+/** "Kiểm tra lại": disabled while a scan waits or runs; the day's limit reads when it can be used again. */
+function RescanButton({ product, scan }: { product: Product; scan: Scan }) {
+  const rescan = useRescan(product.id)
+  const toasts = useToasts()
+  const busy = scanActive(scan)
+  const start = () =>
+    rescan.mutate(undefined, {
+      onSuccess: () => toasts.success(t('screen.product.detail.rescanStarted')),
+      onError: (error) => toasts.error(rescanRefusal(error)),
+    })
+  return (
+    <div className="flex flex-col gap-1">
+      <Button
+        type="button"
+        variant="secondary"
+        onClick={start}
+        disabled={busy || rescan.isPending}
+        aria-describedby={busy ? 'rescan-busy' : undefined}
+      >
+        {t('screen.product.detail.rescan')}
+      </Button>
+      {busy && (
+        <p id="rescan-busy" className="max-w-[220px] text-caption text-muted-foreground">
+          {t('screen.product.detail.rescanBusy')}
+        </p>
+      )}
+    </div>
+  )
+}
+
+function rescanRefusal(error: unknown): string {
+  if (error instanceof ApiError && error.problem.reason === 'SCAN_LIMIT') {
+    const at = new Date(Date.now() + (error.retryAfter ?? 0) * 1000).toISOString()
+    return t('reason.product.SCAN_LIMIT', { time: formatDayMonthTime(at) })
+  }
+  return problemMessage(error, { module: 'product' }).text
+}
+
 function FindingsSection({ product, scan }: { product: Product; scan: Scan }) {
   const findings = useFindings(product)
+  const all = findings.data ?? []
   return (
     <section aria-labelledby="findings-heading" className="flex flex-col gap-3">
       <h2 id="findings-heading" className="text-h2">
         {t('screen.product.detail.findingsHeading')}
       </h2>
-      {scan.status === 'SUCCEEDED' && <CheckSummary findings={product.openFindings > 0 ? findings.data : []} />}
-      {product.openFindings > 0 ? (
-        <>
-          <div role="alert" className="flex gap-3 rounded-md border-l-4 border-destructive bg-destructive-soft p-4">
-            <TriangleAlert aria-hidden="true" className="size-5 shrink-0 text-destructive" />
-            <div className="flex flex-col gap-0.5">
-              <p className="text-label font-semibold">{t('screen.product.detail.findingsOpen', { n: product.openFindings })}</p>
-              <p className="text-body-sm">{t('screen.product.detail.findingsOpenBody')}</p>
-            </div>
+      {scan.status === 'SUCCEEDED' && (
+        <CheckSummary findings={findings.data?.filter((finding) => finding.status === 'OPEN')} />
+      )}
+      {product.openFindings > 0 && (
+        <div role="alert" className="flex gap-3 rounded-md border-l-4 border-destructive bg-destructive-soft p-4">
+          <TriangleAlert aria-hidden="true" className="size-5 shrink-0 text-destructive" />
+          <div className="flex flex-col gap-0.5">
+            <p className="text-label font-semibold">{t('screen.product.detail.findingsOpen', { n: product.openFindings })}</p>
+            <p className="text-body-sm">{t('screen.product.detail.findingsOpenBody')}</p>
           </div>
-          <RegionState query={findings} skeleton={<Skeleton className="h-32 w-full" />}>
-            <ul aria-label={t('screen.product.detail.findingsList')} className="flex flex-col gap-3">
-              {(findings.data ?? []).map((finding) => (
-                <FindingCard key={finding.id} productId={product.id} finding={finding} />
-              ))}
-            </ul>
-          </RegionState>
-        </>
-      ) : scan.status === 'SUCCEEDED' ? (
+        </div>
+      )}
+      {product.openFindings === 0 && scan.status === 'SUCCEEDED' && (
         <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-4">
           <CircleCheck aria-hidden="true" className="size-5 shrink-0 text-success" />
           <p className="text-body-sm">{t('screen.product.detail.clean')}</p>
         </div>
-      ) : (
+      )}
+      {product.openFindings === 0 && scan.status !== 'SUCCEEDED' && all.length === 0 && (
         <p className="text-body-sm text-muted-foreground">{t('screen.product.detail.findingsPending')}</p>
+      )}
+      {(product.openFindings > 0 || all.length > 0) && (
+        <RegionState query={findings} skeleton={<Skeleton className="h-32 w-full" />}>
+          <ul aria-label={t('screen.product.detail.findingsList')} className="flex flex-col gap-3">
+            {all.map((finding) => (
+              <FindingCard key={finding.id} productId={product.id} finding={finding} />
+            ))}
+          </ul>
+        </RegionState>
       )}
       <p className="text-caption text-muted-foreground">{t('screen.product.detail.limits')}</p>
     </section>
@@ -211,14 +270,29 @@ function CheckSummary({ findings }: { findings: Finding[] | undefined }) {
  */
 function FindingCard({ productId, finding }: { productId: string; finding: Finding }) {
   const personal = finding.category === 'PERSONAL_DATA'
-
+  const open = finding.status === 'OPEN'
+  const badge =
+    finding.status === 'OPEN'
+      ? { text: t('screen.product.detail.findingOpen'), tone: 'bg-destructive-soft text-destructive' }
+      : finding.status === 'RESOLVED'
+        ? {
+            text: t('screen.product.detail.findingResolved', { date: formatDayMonth(finding.resolvedAt ?? finding.createdAt) }),
+            tone: 'bg-success-soft text-success',
+          }
+        : {
+            text: t(personal ? 'screen.product.detail.findingFalsePersonal' : 'screen.product.detail.findingFalseCredential'),
+            tone: 'bg-muted text-foreground',
+          }
   return (
-    <li className="flex flex-col gap-2 rounded-lg border border-l-4 border-border border-l-destructive bg-card p-4">
+    <li
+      className={cn(
+        'flex flex-col gap-2 rounded-lg border border-l-4 border-border bg-card p-4',
+        open ? 'border-l-destructive' : finding.status === 'RESOLVED' ? 'border-l-success' : 'border-l-border',
+      )}
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-h3 break-words">{finding.type}</h3>
-        <span className="rounded-full bg-destructive-soft px-2 py-0.5 text-caption font-semibold text-destructive">
-          {t('screen.product.detail.findingOpen')}
-        </span>
+        <span className={cn('rounded-full px-2 py-0.5 text-caption font-semibold', badge.tone)}>{badge.text}</span>
       </div>
       <p className="text-body-sm text-muted-foreground">
         {t('screen.product.detail.findingFile')} <span className="font-mono break-all text-foreground">{finding.path}</span> ·{' '}
@@ -236,10 +310,70 @@ function FindingCard({ productId, finding }: { productId: string; finding: Findi
         to={`/san-pham/${productId}/van-de/${finding.id}`}
         className="w-fit text-label font-semibold text-primary underline-offset-4 hover:underline"
       >
-        {t('screen.product.detail.findingHowTo')}
+        {t(open ? 'screen.product.detail.findingHowTo' : 'screen.product.detail.findingDetails')}
       </Link>
     </li>
   )
+}
+
+/** CUS-4 "Lịch sử kiểm tra": each run's time, checks, result, and why it ran. */
+function ScanHistory({ product }: { product: Product }) {
+  const history = useScanHistory(product)
+  return (
+    <section aria-labelledby="history-heading" className="flex flex-col gap-3">
+      <h2 id="history-heading" className="text-h2">
+        {t('screen.product.detail.historyHeading')}
+      </h2>
+      <RegionState query={history} skeleton={<Skeleton className="h-24 w-full" />}>
+        <div className="overflow-x-auto rounded-lg border border-border bg-card">
+          <table className="w-full text-left text-body-sm">
+            <thead className="border-b border-border text-caption text-muted-foreground">
+              <tr>
+                <th scope="col" className="px-4 py-2 font-semibold">
+                  {t('screen.product.detail.historyDate')}
+                </th>
+                <th scope="col" className="px-4 py-2 font-semibold">
+                  {t('screen.product.detail.historyChecks')}
+                </th>
+                <th scope="col" className="px-4 py-2 font-semibold">
+                  {t('screen.product.detail.historyResult')}
+                </th>
+                <th scope="col" className="px-4 py-2 font-semibold">
+                  {t('screen.product.detail.historyNote')}
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {(history.data ?? []).map((run) => (
+                <tr key={run.id}>
+                  <td className="px-4 py-2 whitespace-nowrap">{formatDayMonthTime(run.requestedAt)}</td>
+                  <td className="px-4 py-2">{t('screen.product.detail.historyBoth')}</td>
+                  <td className="px-4 py-2">
+                    <RunResult run={run} />
+                  </td>
+                  <td className="px-4 py-2 text-muted-foreground">
+                    {t(`screen.product.detail.purpose${run.purpose}` as MessageKey)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </RegionState>
+    </section>
+  )
+}
+
+function RunResult({ run }: { run: Scan }) {
+  const [text, tone] =
+    run.status === 'PENDING' || run.status === 'RUNNING'
+      ? [t('screen.product.detail.resultRunning'), 'bg-primary-soft text-primary']
+      : run.status === 'SUCCEEDED'
+        ? (run.found ?? 0) > 0
+          ? [t('screen.product.detail.resultFound', { n: run.found ?? 0 }), 'bg-destructive-soft text-destructive']
+          : [t('screen.product.detail.resultClean'), 'bg-success-soft text-success']
+        : [t('screen.product.detail.resultNotFinished'), 'bg-warning-soft text-warning']
+  return <span className={cn('rounded-full px-2 py-0.5 text-caption font-semibold whitespace-nowrap', tone)}>{text}</span>
 }
 
 function UnscannedFiles({ scan }: { scan: Scan }) {

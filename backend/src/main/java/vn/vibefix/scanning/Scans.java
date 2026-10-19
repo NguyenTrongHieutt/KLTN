@@ -1,5 +1,6 @@
 package vn.vibefix.scanning;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +28,15 @@ public interface Scans {
 	/** The Product's open Findings, newest commit first. */
 	List<Finding> openFindings(UUID productId);
 
+	/** Every Finding of the Product: open ones first, then the closed ones, most recently closed first. */
+	List<Finding> findings(UUID productId);
+
+	/** The Product's scan runs, newest first, without clean-repository candidates it did not adopt. */
+	List<ScanSummary> history(UUID productId);
+
+	/** How many runs of {@code purposes} the Product requested since {@code since}, for daily limits. */
+	int requestedSince(UUID productId, Instant since, Set<ScanPurpose> purposes);
+
 	/** How many Findings of each of {@code productIds} are open; a Product without any is left out. */
 	Map<UUID, Integer> openFindingCounts(Collection<UUID> productIds);
 
@@ -44,6 +54,14 @@ public interface Scans {
 	 * NOT_A_CREDENTIAL} for personal data
 	 */
 	Finding confirmRotation(UUID productId, UUID findingId, UUID accountId);
+
+	/**
+	 * A resolver marks the Finding as not real (FR-8, FR-65, CUS-5): the reason, the resolver, and the
+	 * time are kept, the Audit Log records it, and the resolve to-do closes.
+	 * @throws vn.vibefix.shared.ApiException {@code NOT_FOUND} for another Product's Finding or a caller
+	 * who is not a resolver; {@code CONFLICT FINDING_CLOSED} once closed
+	 */
+	Finding markFalsePositive(UUID productId, UUID findingId, UUID accountId, String reason);
 
 	/** A scan run, for a requester following its own. */
 	Optional<ScanSummary> run(UUID scanRunId);

@@ -164,6 +164,47 @@ const cleanOf = (status: string, scanStatus: string, extra: object = {}) => ({
   ...extra,
 })
 
+describe('CUS-5, a false positive (FR-8, FR-65)', () => {
+  it('requires a written reason, then shows the mark with it', { timeout: 15_000 }, async () => {
+    const user = userEvent.setup()
+    let marked: unknown
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/products/p1/findings/f1': () =>
+        json(
+          detail(
+            marked
+              ? {
+                  ...credential,
+                  status: 'FALSE_POSITIVE',
+                  resolution: 'FALSE_POSITIVE',
+                  resolvedAt: '2026-10-19T09:30:00Z',
+                  resolutionReason: 'Khóa của dự án thử đã xóa',
+                }
+              : credential,
+          ),
+        ),
+      'POST /api/v1/products/p1/findings/f1/false-positive': async (request) => {
+        marked = await request.json()
+        return json({ ...credential, status: 'FALSE_POSITIVE' })
+      },
+    })
+    renderAt(PATH)
+
+    await user.click(await screen.findByRole('button', { name: 'Không phải khóa thật' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Đây không phải khóa thật?' })
+    expect(within(dialog).getByText('Quản trị viên vibefix có thể xem lại lý do và mở lại vấn đề.')).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Xác nhận không phải khóa thật' }))
+    expect(within(dialog).getByText('Hãy viết lý do.')).toBeInTheDocument()
+    expect(marked).toBeUndefined()
+    await user.type(within(dialog).getByLabelText('Lý do (bắt buộc)'), 'Khóa của dự án thử đã xóa')
+    await user.click(within(dialog).getByRole('button', { name: 'Xác nhận không phải khóa thật' }))
+
+    await waitFor(() => expect(marked).toEqual({ reason: 'Khóa của dự án thử đã xóa' }))
+    expect(await screen.findByText(/Bạn đã đánh dấu lúc .*: Khóa của dự án thử đã xóa/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Tôi đã đổi khóa' })).not.toBeInTheDocument()
+  })
+})
+
 describe('CUS-5, a personal-data Finding (FR-65)', () => {
   it('shows the file, its lines, the masked samples, and the clean-repository steps', async () => {
     fakeBackend(signedIn('CUSTOMER'), { 'GET /api/v1/products/p1/findings/f1': () => json(detail(personal)) })

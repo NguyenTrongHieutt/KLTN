@@ -5,6 +5,7 @@ import static org.awaitility.Awaitility.await;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -28,6 +29,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.session.Session;
 import org.springframework.session.SessionRepository;
@@ -288,6 +290,85 @@ class IntakeScanIT extends IntegrationTest {
 
 		assertThat(this.scans.mayResolve(finding, this.lan)).isFalse();
 		assertThat(this.scans.mayResolve(finding, mentor)).isTrue();
+	}
+
+	@Test
+	void aFalsePositiveKeepsItsReasonAndARescanNeverReopensIt() throws Exception {
+		Planted stripe = PLANTED.get("stripe-secret-key");
+		repository("lan/sample-key", Map.of(stripe.path(), stripe.text()));
+		UUID product = product("lan/sample-key");
+		requestScan(product, "lan/sample-key");
+		this.worker.runDue(Lane.SCAN);
+		UUID finding = findingOf(product, "CREDENTIAL");
+		String path = "/api/v1/products/" + product + "/findings/" + finding + "/false-positive";
+
+		this.mvc.perform(post(path).with(as(this.lan, Role.CUSTOMER)).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("{\"reason\":\"  \"}")).andExpect(status().isBadRequest());
+		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		this.mvc.perform(post(path).with(as(other, Role.CUSTOMER)).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("{\"reason\":\"Khóa mẫu\"}")).andExpect(status().isNotFound());
+		this.mvc.perform(post(path).with(as(this.lan, Role.CUSTOMER)).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("{\"reason\":\"Khóa mẫu trong tài liệu, dự án đã xóa từ tháng 8.\"}"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.status").value("FALSE_POSITIVE"))
+			.andExpect(jsonPath("$.resolutionReason").value("Khóa mẫu trong tài liệu, dự án đã xóa từ tháng 8."));
+		this.mvc.perform(post(path).with(as(this.lan, Role.CUSTOMER)).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("{\"reason\":\"Lần nữa\"}")).andExpect(status().isConflict());
+		assertThat(this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE action = 'scanning.finding_marked_false_positive'")
+			.query(Long.class).single()).isOne();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM notification.todo WHERE subject_id = :f AND closed_at IS NULL")
+			.param("f", finding).query(Long.class).single()).isZero();
+
+		this.clock.advance(Duration.ofMinutes(1));
+		this.mvc.perform(post("/api/v1/products/" + product + "/scans").with(as(this.lan, Role.CUSTOMER)).with(csrf()))
+			.andExpect(status().isAccepted())
+			.andExpect(jsonPath("$.purpose").value("RESCAN"))
+			.andExpect(jsonPath("$.status").value("PENDING"));
+		this.mvc.perform(post("/api/v1/products/" + product + "/scans").with(as(this.lan, Role.CUSTOMER)).with(csrf()))
+			.andExpect(status().isConflict())
+			.andExpect(jsonPath("$.reason").value("SCAN_IN_PROGRESS"));
+		this.worker.runDue(Lane.SCAN);
+
+		assertThat(this.jdbc.sql("SELECT count(*) FROM scanning.finding WHERE product_id = :p").param("p", product)
+			.query(Long.class).single()).as("the fingerprint keeps the false positive closed").isOne();
+		this.mvc.perform(get("/api/v1/products/" + product + "/findings").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.length()").value(1))
+			.andExpect(jsonPath("$[0].status").value("FALSE_POSITIVE"));
+		this.mvc.perform(get("/api/v1/products/" + product + "/scans").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.length()").value(2))
+			.andExpect(jsonPath("$[0].purpose").value("RESCAN"))
+			.andExpect(jsonPath("$[0].status").value("SUCCEEDED"))
+			.andExpect(jsonPath("$[0].found").value(1))
+			.andExpect(jsonPath("$[1].purpose").value("INTAKE"));
+		this.mvc.perform(get("/api/v1/products/" + product).with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.openFindings").value(0))
+			.andExpect(jsonPath("$.scanState").value("CLEAN"));
+	}
+
+	@Test
+	void aProductIsRescannedAtMostFiveTimesAVietnamDay() throws Exception {
+		repository("lan/often", Map.of("README.md", "# Thường xuyên\n"));
+		UUID product = product("lan/often");
+		requestScan(product, "lan/often");
+		this.worker.runDue(Lane.SCAN);
+		for (int i = 0; i < 5; i++) {
+			this.clock.advance(Duration.ofMinutes(1));
+			this.mvc.perform(post("/api/v1/products/" + product + "/scans").with(as(this.lan, Role.CUSTOMER)).with(csrf()))
+				.andExpect(status().isAccepted());
+			this.worker.runDue(Lane.SCAN);
+		}
+
+		this.mvc.perform(post("/api/v1/products/" + product + "/scans").with(as(this.lan, Role.CUSTOMER)).with(csrf()))
+			.andExpect(status().isTooManyRequests())
+			.andExpect(jsonPath("$.reason").value("SCAN_LIMIT"))
+			.andExpect(header().exists("Retry-After"));
+		this.clock.advance(Duration.ofDays(1));
+		this.mvc.perform(post("/api/v1/products/" + product + "/scans").with(as(this.lan, Role.CUSTOMER)).with(csrf()))
+			.andExpect(status().isAccepted());
 	}
 
 	@Test

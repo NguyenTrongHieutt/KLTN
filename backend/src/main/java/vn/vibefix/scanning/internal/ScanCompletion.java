@@ -153,12 +153,11 @@ class ScanCompletion {
 				.update();
 			if (inserted == 1) {
 				opened.add(new Opened(id, type));
-				if (run.purpose() == ScanPurpose.INTAKE || run.purpose() == ScanPurpose.CLEAN_REPOSITORY) {
-					this.resolutions.addResolver(id, run.customerId());
-					this.todos.open(new TodoRequest(FindingResolutions.RESOLVE_INTAKE_FINDING, run.customerId(),
-							Audience.SUBJECT, id, Map.of("product", run.productName()),
-							"/san-pham/" + run.productId() + "/van-de/" + id, null, null));
-				}
+				// Every purpose so far scans the Customer's own repository: they resolve its Findings.
+				this.resolutions.addResolver(id, run.customerId());
+				this.todos.open(new TodoRequest(FindingResolutions.RESOLVE_INTAKE_FINDING, run.customerId(),
+						Audience.SUBJECT, id, Map.of("product", run.productName()),
+						"/san-pham/" + run.productId() + "/van-de/" + id, null, null));
 			}
 		}
 		boolean complete = stopped == null;

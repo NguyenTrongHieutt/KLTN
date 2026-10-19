@@ -228,7 +228,8 @@ describe('CUS-4, a Product (FR-7)', () => {
     let reads = 0
     fakeBackend(signedIn('CUSTOMER'), {
       'GET /api/v1/products/p1': () => json(++reads === 1 ? product : withFindings),
-      'GET /api/v1/products/p1/findings': () => json([finding]),
+      'GET /api/v1/products/p1/findings': () => json(reads === 1 ? [] : [finding]),
+      'GET /api/v1/products/p1/scans': () => json([reads === 1 ? scanOf('PENDING', { purpose: 'INTAKE' }) : scanOf('SUCCEEDED', { purpose: 'INTAKE', found: 1 })]),
     })
     renderAt('/san-pham/p1')
 
@@ -240,7 +241,7 @@ describe('CUS-4, a Product (FR-7)', () => {
 
     const list = await screen.findByRole('list', { name: 'Vấn đề cần xử lý' })
     expect(reads).toBe(2)
-    expect(screen.getByRole('alert')).toHaveTextContent('Còn 1 vấn đề cần xử lý trước khi sửa mã.')
+    expect(screen.getByText('Còn 1 vấn đề cần xử lý trước khi sửa mã.')).toBeInTheDocument()
     expect(within(list).getByRole('heading', { level: 3, name: 'Khóa dịch vụ Supabase' })).toBeInTheDocument()
     expect(within(list).getByText('.env')).toBeInTheDocument()
     expect(within(list).getByText('a3f91c2')).toBeInTheDocument()
@@ -254,11 +255,13 @@ describe('CUS-4, a Product (FR-7)', () => {
   it('says a clean scan found nothing and what the check cannot promise', async () => {
     fakeBackend(signedIn('CUSTOMER'), {
       'GET /api/v1/products/p1': () => json({ ...product, scanState: 'CLEAN', scan: scanOf('SUCCEEDED') }),
+      'GET /api/v1/products/p1/findings': () => json([]),
+      'GET /api/v1/products/p1/scans': () => json([]),
     })
     renderAt('/san-pham/p1')
 
     expect(await screen.findByText('Không phát hiện vấn đề nào ở lần kiểm tra gần nhất.')).toBeInTheDocument()
-    const checks = screen.getByRole('region', { name: 'Kết quả từng loại kiểm tra' })
+    const checks = await screen.findByRole('region', { name: 'Kết quả từng loại kiểm tra' })
     expect(within(checks).getByText('Không phát hiện khóa bí mật')).toBeInTheDocument()
     expect(within(checks).getByText('Không phát hiện dữ liệu cá nhân')).toBeInTheDocument()
     expect(screen.getByText('Kiểm tra tự động, không dùng AI, và không thể phát hiện mọi thứ.')).toBeInTheDocument()
@@ -291,6 +294,60 @@ describe('CUS-4, a Product (FR-7)', () => {
     expect(within(card as HTMLElement).getByText('ng••••@gmail.com · 09•• ••• •12')).toBeInTheDocument()
     const checks = screen.getByRole('region', { name: 'Kết quả từng loại kiểm tra' })
     expect(within(checks).getAllByText('1 vấn đề')).toHaveLength(2)
+  })
+
+  it('lists every Finding with its state and the scan history with each run', async () => {
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/products/p1': () => json(withFindings),
+      'GET /api/v1/products/p1/findings': () =>
+        json([
+          finding,
+          { ...finding, id: 'f2', type: 'Khóa bí mật Stripe', status: 'RESOLVED', resolution: 'ROTATED', resolvedAt: '2026-10-12T03:00:00Z' },
+          { ...finding, id: 'f3', type: 'Khóa API Google', status: 'FALSE_POSITIVE', resolution: 'FALSE_POSITIVE', resolvedAt: '2026-10-13T03:00:00Z', resolutionReason: 'Khóa mẫu' },
+        ]),
+      'GET /api/v1/products/p1/scans': () =>
+        json([
+          { ...scanOf('SUCCEEDED', { found: 1 }), id: 's2', purpose: 'RESCAN', requestedAt: '2026-10-14T02:12:00Z' },
+          { ...scanOf('SUCCEEDED', { found: 0 }), id: 's1', purpose: 'INTAKE', requestedAt: '2026-10-10T09:40:00Z' },
+        ]),
+    })
+    renderAt('/san-pham/p1')
+
+    const list = await screen.findByRole('list', { name: 'Vấn đề cần xử lý' })
+    expect(within(list).getByText('Chưa xử lý')).toBeInTheDocument()
+    expect(within(list).getByText('Đã xử lý 12/10')).toBeInTheDocument()
+    expect(within(list).getByText('Không phải khóa thật')).toBeInTheDocument()
+    expect(within(list).getAllByRole('link', { name: 'Xem chi tiết' })).toHaveLength(2)
+    const history = await screen.findByRole('table')
+    expect(within(history).getByText('Kiểm tra lại theo yêu cầu')).toBeInTheDocument()
+    expect(within(history).getByText('Lần đầu đăng ký')).toBeInTheDocument()
+    expect(within(history).getByText('1 vấn đề')).toBeInTheDocument()
+    expect(within(history).getByText('Không có vấn đề')).toBeInTheDocument()
+  })
+
+  it('runs both scans again on "Kiểm tra lại" and says when the day\'s limit frees up', { timeout: 15_000 }, async () => {
+    const user = userEvent.setup()
+    let rescans = 0
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/products/p1': () => json({ ...product, scanState: 'CLEAN', scan: scanOf('SUCCEEDED') }),
+      'GET /api/v1/products/p1/findings': () => json([]),
+      'GET /api/v1/products/p1/scans': () => json([]),
+      'POST /api/v1/products/p1/scans': () => {
+        rescans++
+        return rescans === 1
+          ? json(scanOf('PENDING', { purpose: 'RESCAN' }), 202)
+          : new Response(JSON.stringify({ status: 429, code: 'RATE_LIMITED', reason: 'SCAN_LIMIT' }), {
+              status: 429,
+              headers: { 'Content-Type': 'application/problem+json', 'Retry-After': '3600' },
+            })
+      },
+    })
+    renderAt('/san-pham/p1')
+
+    await user.click(await screen.findByRole('button', { name: 'Kiểm tra lại' }))
+    expect(await screen.findAllByText('vibefix đang kiểm tra lại sản phẩm này.')).not.toHaveLength(0)
+    await user.click(screen.getByRole('button', { name: 'Kiểm tra lại' }))
+    expect(await screen.findAllByText(/Mỗi sản phẩm được kiểm tra lại tối đa 5 lần mỗi ngày/)).not.toHaveLength(0)
   })
 
   it('says a scan that did not finish will be tried again, and lists the files too large to check', async () => {

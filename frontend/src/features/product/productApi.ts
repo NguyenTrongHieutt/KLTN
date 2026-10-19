@@ -37,13 +37,48 @@ export function useProduct(productId: string | undefined) {
   })
 }
 
-/** CUS-4 "Vấn đề phát hiện": the open Findings, read again whenever their count changes. */
+/** CUS-4 "Vấn đề phát hiện": every Finding with its state, read again whenever the scan or the count changes. */
 export function useFindings(product: Product) {
   return useQuery({
-    queryKey: [...PRODUCTS_QUERY_KEY, 'findings', product.id, product.openFindings, product.scan?.id],
+    queryKey: [...PRODUCTS_QUERY_KEY, 'findings', product.id, product.openFindings, product.scan?.id, product.scan?.status],
     queryFn: () =>
       unwrap(apiClient.GET('/api/v1/products/{productId}/findings', { params: { path: { productId: product.id } } })),
-    enabled: product.openFindings > 0,
+    enabled: product.scan !== undefined,
+  })
+}
+
+/** CUS-4 "Lịch sử kiểm tra": every scan run, newest first. */
+export function useScanHistory(product: Product) {
+  return useQuery({
+    queryKey: [...PRODUCTS_QUERY_KEY, 'scans', product.id, product.scan?.id, product.scan?.status],
+    queryFn: () =>
+      unwrap(apiClient.GET('/api/v1/products/{productId}/scans', { params: { path: { productId: product.id } } })),
+    enabled: product.scan !== undefined,
+  })
+}
+
+/** CUS-4 "Kiểm tra lại": both scans again, at most 5 a day. */
+export function useRescan(productId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () =>
+      unwrap(apiClient.POST('/api/v1/products/{productId}/scans', { params: { path: { productId } } })),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: PRODUCTS_QUERY_KEY }),
+  })
+}
+
+/** CUS-5 "Không phải khóa thật" / "Không phải dữ liệu thật", with the required reason. */
+export function useMarkFalsePositive(productId: string, findingId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (reason: string) =>
+      unwrap(
+        apiClient.POST('/api/v1/products/{productId}/findings/{findingId}/false-positive', {
+          params: { path: { productId, findingId } },
+          body: { reason },
+        }),
+      ),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: PRODUCTS_QUERY_KEY }),
   })
 }
 
