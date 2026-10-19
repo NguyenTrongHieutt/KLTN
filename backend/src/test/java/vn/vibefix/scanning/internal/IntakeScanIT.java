@@ -138,7 +138,7 @@ class IntakeScanIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("""
 				SELECT status || ' ' || found_count || ' ' || new_findings || ' ' || unscanned_count || ' ' || rules_version
 				FROM scanning.scan_run WHERE id = :id
-				""").param("id", run).query(String.class).single()).isEqualTo("SUCCEEDED 3 3 1 1");
+				""").param("id", run).query(String.class).single()).isEqualTo("SUCCEEDED 3 3 1 2");
 		assertThat(this.jdbc.sql("""
 				SELECT rule_id || ' ' || masked_preview || ' ' || file_path FROM scanning.finding WHERE product_id = :p
 				ORDER BY rule_id
@@ -184,6 +184,35 @@ class IntakeScanIT extends IntegrationTest {
 		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
 		this.mvc.perform(get("/api/v1/products/" + product + "/findings").with(as(other, Role.CUSTOMER)))
 			.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void personalDataIsFoundInTheSameRunAndShownMaskedPerFile() throws Exception {
+		repository("lan/customers", Map.of("seed/customers.json", PlantedPersonalData.customersJson(12),
+				"exports/khach-hang.xlsx", "PK not really a spreadsheet\n", "README.md", "Gọi 0912345678\n"));
+		UUID product = product("lan/customers");
+
+		UUID run = requestScan(product, "lan/customers");
+		this.worker.runDue(Lane.SCAN);
+
+		assertThat(runStatus(run)).isEqualTo("SUCCEEDED");
+		assertThat(this.jdbc.sql("""
+				SELECT category || ' ' || rule_type || ' ' || match_count || ' ' || masked_preview
+				FROM scanning.finding WHERE product_id = :p
+				""").param("p", product).query(String.class).single())
+			.isEqualTo("PERSONAL_DATA Email và số điện thoại khách hàng 12 kh••••@gmail.com · 09•• ••• •00");
+		assertNoRawValueStored(PlantedPersonalData.phone(0), "khach.hang0@gmail.com", "khach.hang11@gmail.com");
+		assertThat(this.jdbc.sql("""
+				SELECT params->>'type' FROM notification.notification WHERE type = 'scanning.finding_opened'
+				""").query(String.class).single()).isEqualTo("Email và số điện thoại khách hàng");
+		this.mvc.perform(get("/api/v1/products/" + product).with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.scanState").value("FINDINGS"))
+			.andExpect(jsonPath("$.scan.unscanned[0].path").value("exports/khach-hang.xlsx"))
+			.andExpect(jsonPath("$.scan.unscanned[0].reason").value("NOT_EXTRACTED"));
+		this.mvc.perform(get("/api/v1/products/" + product + "/findings").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$[0].category").value("PERSONAL_DATA"))
+			.andExpect(jsonPath("$[0].matchCount").value(12))
+			.andExpect(jsonPath("$[0].path").value("seed/customers.json"));
 	}
 
 	@Test

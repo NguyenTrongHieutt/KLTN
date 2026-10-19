@@ -23,6 +23,7 @@ import tools.jackson.databind.json.JsonMapper;
 import vn.vibefix.operations.ExternalOperations;
 import vn.vibefix.operations.OperationRequest;
 import vn.vibefix.scanning.Finding;
+import vn.vibefix.scanning.FindingCategory;
 import vn.vibefix.scanning.FindingStatus;
 import vn.vibefix.scanning.ScanPurpose;
 import vn.vibefix.scanning.ScanStatus;
@@ -50,7 +51,8 @@ class JdbcScans implements Scans {
 			""";
 
 	private static final String FINDING_COLUMNS = """
-			id, rule_id, rule_type, file_path, commit_sha, committed_at, masked_preview, status, created_at
+			id, category, rule_id, rule_type, file_path, commit_sha, committed_at, masked_preview, match_count, status,
+			created_at
 			""";
 
 	private final JdbcClient jdbc;
@@ -160,15 +162,19 @@ class JdbcScans implements Scans {
 	static List<UnscannedFile> unscanned(String json) {
 		List<UnscannedFile> files = new ArrayList<>();
 		for (JsonNode file : JSON.readTree(json)) {
-			files.add(new UnscannedFile(file.path("path").stringValue(), file.path("sizeBytes").longValue()));
+			String reason = file.path("reason").isString() ? file.path("reason").stringValue() : HistoryScanner.TOO_LARGE;
+			files.add(new UnscannedFile(file.path("path").stringValue(), file.path("sizeBytes").longValue(), reason));
 		}
 		return files;
 	}
 
 	private static Finding finding(ResultSet rs, int n) throws SQLException {
-		return new Finding(rs.getObject("id", UUID.class), rs.getString("rule_id"), rs.getString("rule_type"),
-				rs.getString("file_path"), rs.getString("commit_sha"), instant(rs, "committed_at"),
-				rs.getString("masked_preview"), FindingStatus.valueOf(rs.getString("status")), instant(rs, "created_at"));
+		int matches = rs.getInt("match_count");
+		Integer matchCount = rs.wasNull() ? null : matches;
+		return new Finding(rs.getObject("id", UUID.class), FindingCategory.valueOf(rs.getString("category")),
+				rs.getString("rule_id"), rs.getString("rule_type"), rs.getString("file_path"), rs.getString("commit_sha"),
+				instant(rs, "committed_at"), rs.getString("masked_preview"), matchCount,
+				FindingStatus.valueOf(rs.getString("status")), instant(rs, "created_at"));
 	}
 
 	private static Instant instant(ResultSet rs, String column) throws SQLException {

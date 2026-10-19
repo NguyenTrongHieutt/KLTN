@@ -1874,6 +1874,10 @@
       "FindingView" : {
         "type" : "object",
         "properties" : {
+          "category" : {
+            "type" : "string",
+            "enum" : [ "CREDENTIAL", "PERSONAL_DATA" ]
+          },
           "commit" : {
             "type" : "string"
           },
@@ -1892,6 +1896,10 @@
           "maskedPreview" : {
             "type" : "string"
           },
+          "matchCount" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
           "path" : {
             "type" : "string"
           },
@@ -1903,7 +1911,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "commit", "committedAt", "createdAt", "id", "maskedPreview", "path", "status", "type" ]
+        "required" : [ "category", "commit", "committedAt", "createdAt", "id", "maskedPreview", "path", "status", "type" ]
       },
       "MentorApplicationDetail" : {
         "type" : "object",
@@ -3448,12 +3456,15 @@
           "path" : {
             "type" : "string"
           },
+          "reason" : {
+            "type" : "string"
+          },
           "sizeBytes" : {
             "type" : "integer",
             "format" : "int64"
           }
         },
-        "required" : [ "path", "sizeBytes" ]
+        "required" : [ "path", "reason", "sizeBytes" ]
       },
       "VerificationView" : {
         "type" : "object",

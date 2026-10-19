@@ -4,8 +4,10 @@ import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -26,6 +28,7 @@ import vn.vibefix.notification.Notifications;
 import vn.vibefix.notification.Recipient;
 import vn.vibefix.scanning.ScanCompleted;
 import vn.vibefix.scanning.ScanPurpose;
+import vn.vibefix.scanning.internal.ScanRules.PersonalKind;
 import vn.vibefix.scanning.internal.ScanRules.Rule;
 import vn.vibefix.scanning.internal.ScanRuns.Run;
 import vn.vibefix.shared.IdGenerator;
@@ -36,8 +39,8 @@ import vn.vibefix.shared.IdGenerator;
  * about each new Finding and, for a clean intake scan, about that. A complete run then publishes
  * {@link ScanCompleted}; a run a cap stopped keeps its Findings and fails.
  * <p>
- * The job's output is checked, not trusted: a rule ID this platform does not know is dropped, and the
- * type the Customer reads comes from this platform's own rules.
+ * The job's output is checked, not trusted: a rule ID or a personal-data kind this platform does not
+ * know is dropped, and the type the Customer reads comes from this platform's own rules.
  */
 @Component
 class ScanCompletion {
@@ -101,21 +104,24 @@ class ScanCompletion {
 		List<Opened> opened = new ArrayList<>();
 		int found = 0;
 		for (JsonNode match : output.path("found")) {
-			String type = this.types.get(match.path("ruleId").stringValue());
+			boolean personal = "PERSONAL_DATA".equals(match.path("category").stringValue());
+			String type = personal ? personalType(match) : this.types.get(match.path("ruleId").stringValue());
 			if (type == null) {
-				log.warn("Scan run {} reported a rule this platform does not know; dropped", run.id());
+				log.warn("Scan run {} reported a rule or kind this platform does not know; dropped", run.id());
 				continue;
 			}
 			found++;
 			UUID id = this.ids.newId();
 			int inserted = this.jdbc.sql("""
-					INSERT INTO scanning.finding (id, product_id, scan_run_id, rule_id, rule_type, file_path, commit_sha,
-					    committed_at, masked_preview, fingerprint, status, created_at)
-					VALUES (:id, :product, :run, :rule, :type, :path, :commit, :committedAt, :masked, :fingerprint, 'OPEN',
-					    :now)
+					INSERT INTO scanning.finding (id, product_id, scan_run_id, category, rule_id, rule_type, file_path,
+					    commit_sha, committed_at, masked_preview, match_count, fingerprint, status, created_at)
+					VALUES (:id, :product, :run, :category, :rule, :type, :path, :commit, :committedAt, :masked, :matches,
+					    :fingerprint, 'OPEN', :now)
 					ON CONFLICT (product_id, fingerprint) DO NOTHING
 					""")
 				.param("id", id)
+				.param("category", personal ? "PERSONAL_DATA" : "CREDENTIAL")
+				.param("matches", personal ? Math.max(1, match.path("lines").intValue()) : null)
 				.param("product", run.productId())
 				.param("run", run.id())
 				.param("rule", match.path("ruleId").stringValue())
@@ -168,7 +174,24 @@ class ScanCompletion {
 		return true;
 	}
 
-	/** The listed unscanned files, path and size only, at most {@value HistoryScanner#LISTED_UNSCANNED}. */
+	/** A personal-data Finding's type from its kinds, or {@code null} when it names none this platform knows. */
+	private @Nullable String personalType(JsonNode match) {
+		if (!PersonalDataMatcher.RULE_ID.equals(match.path("ruleId").stringValue())) {
+			return null;
+		}
+		Set<PersonalKind> kinds = EnumSet.noneOf(PersonalKind.class);
+		for (JsonNode kind : match.path("kinds")) {
+			try {
+				kinds.add(PersonalKind.valueOf(kind.stringValue()));
+			}
+			catch (IllegalArgumentException | NullPointerException ex) {
+				return null;
+			}
+		}
+		return kinds.isEmpty() ? null : this.rules.personalData().label(kinds);
+	}
+
+	/** The listed unscanned files: path, size, and reason, at most {@value HistoryScanner#LISTED_UNSCANNED}. */
 	private static String unscanned(JsonNode files) {
 		ArrayNode kept = JsonNodeFactory.instance.arrayNode();
 		for (JsonNode file : files) {
@@ -176,8 +199,12 @@ class ScanCompletion {
 				break;
 			}
 			if (file.path("path").isString() && file.path("sizeBytes").isIntegralNumber()) {
-				kept.addObject().put("path", file.path("path").stringValue()).put("sizeBytes",
-						file.path("sizeBytes").longValue());
+				String reason = HistoryScanner.NOT_EXTRACTED.equals(file.path("reason").stringValue())
+						? HistoryScanner.NOT_EXTRACTED : HistoryScanner.TOO_LARGE;
+				kept.addObject()
+					.put("path", file.path("path").stringValue())
+					.put("sizeBytes", file.path("sizeBytes").longValue())
+					.put("reason", reason);
 			}
 		}
 		return kept.toString();
