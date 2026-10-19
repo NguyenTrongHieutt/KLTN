@@ -18,6 +18,7 @@ import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
@@ -28,6 +29,7 @@ import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
 import vn.vibefix.github.GitHubRepositories.RepositoryMetadata;
+import vn.vibefix.product.ProductDeleted;
 import vn.vibefix.scanning.ScanPurpose;
 import vn.vibefix.scanning.ScanTarget;
 import vn.vibefix.scanning.Scans;
@@ -35,12 +37,13 @@ import vn.vibefix.scanning.ShaRange;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.IdGenerator;
+import vn.vibefix.shared.PersonalData;
 import vn.vibefix.shared.RateLimitedException;
 
 /**
  * A Customer's Products (FR-7): registration after every repository check and the three
  * acknowledgments, at most 5 a day (AD-34), which requests the intake scan in the same transaction
- * (FR-8, AD-18); the list; and one Product's detail.
+ * (FR-8, AD-18); the list; one Product's detail; and its deletion while no Job pins it (AD-24).
  */
 @Component
 class Products {
@@ -103,17 +106,23 @@ class Products {
 
 	private final Scans scans;
 
+	private final PersonalData personalData;
+
+	private final ApplicationEventPublisher events;
+
 	private final IdGenerator ids;
 
 	private final Clock clock;
 
 	Products(JdbcClient jdbc, RepositoryChecks checks, ProductProperties properties, AuditLog auditLog, Scans scans,
-			IdGenerator ids, Clock clock) {
+			PersonalData personalData, ApplicationEventPublisher events, IdGenerator ids, Clock clock) {
 		this.jdbc = jdbc;
 		this.checks = checks;
 		this.properties = properties;
 		this.auditLog = auditLog;
 		this.scans = scans;
+		this.personalData = personalData;
+		this.events = events;
 		this.ids = ids;
 		this.clock = clock;
 	}
@@ -174,6 +183,36 @@ class Products {
 		this.scans.requestScan(new ScanTarget(id, customerId, registration.name().strip(), repository.fullName(),
 				repository.id()), ShaRange.wholeHistory(), ScanPurpose.INTAKE);
 		return id;
+	}
+
+	/**
+	 * Deletes the Customer's Product (FR-7, AD-24): audited, every participant's data for it deleted,
+	 * and {@link ProductDeleted} published, in one transaction; the repository ID is free again.
+	 * @throws ApiException {@code NOT_FOUND} for a Product that is not the Customer's;
+	 * {@code GUARD_FAILED PRODUCT_HAS_ACTIVE_JOB} while a Job pins it
+	 */
+	@Transactional
+	void delete(UUID customerId, UUID productId) {
+		this.jdbc.sql("""
+				SELECT id FROM product.product
+				WHERE id = :id AND customer_account_id = :customer AND deleted_at IS NULL FOR UPDATE
+				""")
+			.param("id", productId)
+			.param("customer", customerId)
+			.query(UUID.class)
+			.optional()
+			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		boolean pinned = this.jdbc.sql("SELECT EXISTS (SELECT 1 FROM product.job_pin WHERE product_id = :id)")
+			.param("id", productId)
+			.query(Boolean.class)
+			.single();
+		if (pinned) {
+			throw new ApiException(ErrorCode.GUARD_FAILED, ProductReason.PRODUCT_HAS_ACTIVE_JOB);
+		}
+		this.auditLog.record(AuditEntry.of(AuditActor.user(customerId), "product.deleted",
+				AuditObject.of("product.product", productId)));
+		this.personalData.deleteProduct(productId);
+		this.events.publishEvent(new ProductDeleted(this.ids.newId(), productId, customerId));
 	}
 
 	/** The Customer's live Products, newest first. */

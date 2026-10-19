@@ -25,6 +25,7 @@ import {
   type Product,
   type Scan,
 } from './productApi'
+import { DeleteProduct } from './DeleteProduct'
 import { domainOf } from './productText'
 import { ScanStateBadge } from './ScanStateBadge'
 
@@ -34,7 +35,8 @@ import { ScanStateBadge } from './ScanStateBadge'
  * the page polls every 5 s under the Busy banner (UX-DR21); a scan that did not finish says vibefix
  * tries again; "Kiểm tra lại" runs both scans again, 5 times a day. A completed scan shows the result of
  * the Secret Scan and the Personal-Data Check. Each Finding shows its type, file, commit, date, and
- * masked values only. Jobs (Epic 3) and deletion (Story 2.8) come with their stories.
+ * masked values only. "Xóa sản phẩm" deletes it after a destructive Confirmation dialog; Jobs
+ * arrive with Epic 3.
  */
 export function ProductPage() {
   const { productId } = useParams()
@@ -115,6 +117,7 @@ function ProductDetail({ product }: { product: Product }) {
           <dd>{formatDate(product.createdAt)}</dd>
         </dl>
       </section>
+      <DeleteProduct product={product} />
     </>
   )
 }

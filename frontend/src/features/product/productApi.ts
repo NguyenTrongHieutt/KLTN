@@ -130,6 +130,17 @@ export function useConfirmRotation(productId: string, findingId: string) {
   })
 }
 
+/** CUS-4 "Xóa sản phẩm", after the destructive Confirmation dialog. */
+export function useDeleteProduct(productId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () =>
+      unwrap(apiClient.DELETE('/api/v1/products/{productId}', { params: { path: { productId } } })),
+    onSuccess: () => queryClient.removeQueries({ queryKey: [...PRODUCTS_QUERY_KEY, 'detail', productId] }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: [...PRODUCTS_QUERY_KEY, 'list'] }),
+  })
+}
+
 /** CUS-3 step 2: every repository check, read with the Customer's own GitHub sign-in. */
 export function useRepositoryCheck() {
   return useMutation({

@@ -3,6 +3,7 @@ package vn.vibefix.scanning.internal;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -87,6 +88,9 @@ class IntakeScanIT extends IntegrationTest {
 
 	@Autowired
 	private ScanningPersonalData personalData;
+
+	@Autowired
+	private vn.vibefix.product.ProductPins pins;
 
 	@Autowired
 	private ApplicationEvents events;
@@ -290,6 +294,45 @@ class IntakeScanIT extends IntegrationTest {
 
 		assertThat(this.scans.mayResolve(finding, this.lan)).isFalse();
 		assertThat(this.scans.mayResolve(finding, mentor)).isTrue();
+	}
+
+	@Test
+	void deletingAnUnpinnedProductRemovesItsScansAndFreesItsRepository() throws Exception {
+		Planted stripe = PLANTED.get("stripe-secret-key");
+		repository("lan/delete-me", Map.of(stripe.path(), stripe.text()));
+		UUID product = product("lan/delete-me");
+		requestScan(product, "lan/delete-me");
+		this.worker.runDue(Lane.SCAN);
+		UUID finding = findingOf(product, "CREDENTIAL");
+		long githubId = this.jdbc.sql("SELECT repository_github_id FROM product.product WHERE id = :p")
+			.param("p", product).query(Long.class).single();
+		UUID job = UUID.randomUUID();
+		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.pins.pinForJob(product, job));
+
+		this.mvc.perform(delete("/api/v1/products/" + product).with(as(this.lan, Role.CUSTOMER)).with(csrf()))
+			.andExpect(status().is(422))
+			.andExpect(jsonPath("$.reason").value("PRODUCT_HAS_ACTIVE_JOB"));
+		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		this.mvc.perform(delete("/api/v1/products/" + product).with(as(other, Role.CUSTOMER)).with(csrf()))
+			.andExpect(status().isNotFound());
+		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.pins.releaseForJob(product, job));
+
+		this.mvc.perform(delete("/api/v1/products/" + product).with(as(this.lan, Role.CUSTOMER)).with(csrf()))
+			.andExpect(status().isNoContent());
+
+		assertThat(this.jdbc.sql("""
+				SELECT (SELECT count(*) FROM product.product WHERE id = :p) + (SELECT count(*) FROM scanning.scan_run WHERE product_id = :p)
+				     + (SELECT count(*) FROM scanning.finding WHERE product_id = :p)
+				     + (SELECT count(*) FROM notification.todo WHERE subject_id = :f AND closed_at IS NULL)
+				""").param("p", product).param("f", finding).query(Long.class).single()).isZero();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE action = 'product.deleted'")
+			.query(Long.class).single()).isOne();
+		assertThat(this.events.stream(vn.vibefix.product.ProductDeleted.class)).singleElement()
+			.satisfies(deleted -> assertThat(deleted.productId()).isEqualTo(product));
+		UUID again = product("lan/delete-me");
+		this.jdbc.sql("UPDATE product.product SET repository_github_id = :g WHERE id = :p")
+			.param("g", githubId).param("p", again).update();
+		this.mvc.perform(get("/api/v1/products/" + product).with(as(this.lan, Role.CUSTOMER))).andExpect(status().isNotFound());
 	}
 
 	@Test

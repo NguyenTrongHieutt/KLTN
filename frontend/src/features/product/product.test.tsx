@@ -80,7 +80,8 @@ afterEach(() => {
 })
 
 describe('CUS-2, the Products (FR-7)', () => {
-  it('shows the empty state with the way to register', async () => {
+  // The first test of the file also pays for loading the lazy routes.
+  it('shows the empty state with the way to register', { timeout: 15_000 }, async () => {
     fakeBackend(signedIn('CUSTOMER'), { 'GET /api/v1/products': () => json([]) })
     renderAt('/san-pham')
 
@@ -348,6 +349,54 @@ describe('CUS-4, a Product (FR-7)', () => {
     expect(await screen.findAllByText('vibefix đang kiểm tra lại sản phẩm này.')).not.toHaveLength(0)
     await user.click(screen.getByRole('button', { name: 'Kiểm tra lại' }))
     expect(await screen.findAllByText(/Mỗi sản phẩm được kiểm tra lại tối đa 5 lần mỗi ngày/)).not.toHaveLength(0)
+  })
+
+  it('deletes the Product after the destructive dialog lists what goes, then shows CUS-2', { timeout: 15_000 }, async () => {
+    const user = userEvent.setup()
+    let deleted = false
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/products/p1': () => json({ ...product, scanState: 'CLEAN', scan: scanOf('SUCCEEDED') }),
+      'GET /api/v1/products/p1/findings': () => json([]),
+      'GET /api/v1/products/p1/scans': () => json([]),
+      'GET /api/v1/products': () => json([]),
+      'DELETE /api/v1/products/p1': () => {
+        deleted = true
+        return new Response(null, { status: 204 })
+      },
+    })
+    renderAt('/san-pham/p1')
+
+    await user.click(await screen.findByRole('button', { name: 'Xóa sản phẩm' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Xóa Shop Gốm Bát Tràng?' })
+    expect(within(dialog).getByText('Kết quả kiểm tra và các vấn đề phát hiện')).toBeInTheDocument()
+    expect(within(dialog).getByText('Dự án gốc trên GitHub không bị ảnh hưởng.')).toBeInTheDocument()
+    expect(deleted).toBe(false)
+    await user.click(within(dialog).getByRole('button', { name: 'Xóa sản phẩm' }))
+
+    await waitFor(() => expect(deleted).toBe(true))
+    expect(await screen.findByText('Chưa có sản phẩm nào.')).toBeInTheDocument()
+    expect(await screen.findAllByText('Đã xóa Shop Gốm Bát Tràng.')).not.toHaveLength(0)
+  })
+
+  it('says a Product a running Job uses cannot be deleted', { timeout: 15_000 }, async () => {
+    const user = userEvent.setup()
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/products/p1': () => json({ ...product, scanState: 'CLEAN', scan: scanOf('SUCCEEDED') }),
+      'GET /api/v1/products/p1/findings': () => json([]),
+      'GET /api/v1/products/p1/scans': () => json([]),
+      'DELETE /api/v1/products/p1': () =>
+        new Response(JSON.stringify({ status: 422, code: 'GUARD_FAILED', reason: 'PRODUCT_HAS_ACTIVE_JOB' }), {
+          status: 422,
+          headers: { 'Content-Type': 'application/problem+json' },
+        }),
+    })
+    renderAt('/san-pham/p1')
+
+    await user.click(await screen.findByRole('button', { name: 'Xóa sản phẩm' }))
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Xóa sản phẩm' }))
+
+    expect(await screen.findAllByText('Không thể xóa sản phẩm khi còn công việc đang thực hiện.')).not.toHaveLength(0)
+    expect(screen.getByRole('heading', { level: 1, name: 'Shop Gốm Bát Tràng' })).toBeInTheDocument()
   })
 
   it('says a scan that did not finish will be tried again, and lists the files too large to check', async () => {

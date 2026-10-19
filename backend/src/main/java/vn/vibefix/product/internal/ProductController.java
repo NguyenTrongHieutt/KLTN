@@ -15,6 +15,7 @@ import jakarta.validation.constraints.Size;
 
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -224,6 +225,13 @@ class ProductController {
 		Product product = readable(productId);
 		return ProductView.of(product, this.scans.latest(productId).orElse(null),
 				this.scans.openFindingCounts(List.of(productId)).getOrDefault(productId, 0));
+	}
+
+	/** CUS-4 "Xóa sản phẩm", after the destructive Confirmation dialog: the Product's Customer only. */
+	@DeleteMapping("/{productId}")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	void delete(@PathVariable UUID productId) {
+		this.products.delete(customer(), productId);
 	}
 
 	/** CUS-4 "Vấn đề phát hiện": every Finding with its state, open first, for the Customer or an Administrator. */
