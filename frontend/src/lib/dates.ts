@@ -48,6 +48,12 @@ export function formatCalendarDate(date: string): string {
   return `${day}/${month}/${year}`
 }
 
+/** "20/11": the day and month of a calendar date the server sends as `YYYY-MM-DD`. */
+export function formatCalendarDayMonth(date: string): string {
+  const [, month, day] = date.split('-')
+  return `${day}/${month}`
+}
+
 /** "23/10". */
 export function formatDayMonth(instant: string): string {
   const { day, month } = fields(instant)

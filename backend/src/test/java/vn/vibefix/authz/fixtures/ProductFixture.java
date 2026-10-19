@@ -23,8 +23,9 @@ import vn.vibefix.support.MutableClock;
  * Products and their Jobs (FR-7, FR-8, FR-9, AD-20): a Customer's registered Product
  * ({@code {productId}}), whose Customer the matrix calls {@link MatrixCaller#OWNER}, with one open
  * credential Finding of its intake scan ({@code {findingId}}) that the owner resolves, and one Draft
- * Job ({@code {jobId}}) holding a screenshot ({@code {screenshotId}}). Only the owner and
- * Administrators read the Product; only the owner reads the Job.
+ * Job ({@code {jobId}}) holding a screenshot ({@code {screenshotId}}), and one Open Job Post
+ * ({@code {postId}}). Only the owner and Administrators read the Product; only the owner reads the
+ * Draft, and approved Mentors read the Job Post.
  */
 public class ProductFixture implements MatrixFixture {
 
@@ -89,6 +90,20 @@ public class ProductFixture implements MatrixFixture {
 				VALUES (:job, :file, 'man-hinh.png', 100, :now)
 				""").param("job", job).param("file", screenshot).param("now", now).update();
 		world.put("screenshotId", screenshot);
+		UUID post = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO job.job (id, product_id, customer_account_id, state, title, problem, expected, app_users,
+				    job_types, budget, deadline, rules, selection_days, opened_at, lapses_at, version, created_at, updated_at)
+				VALUES (:id, :product, :owner, 'OPEN', 'Tin ma trận', 'Lỗi', 'Đúng', 'Khách', ARRAY['BUG_FIX'], 'UNDER_2M',
+				    DATE '2026-12-01', '{}'::jsonb, 14, :now, :lapses, 1, :now, :now)
+				""")
+			.param("id", post)
+			.param("product", product)
+			.param("owner", this.owner)
+			.param("now", now)
+			.param("lapses", Timestamp.from(MutableClock.DEFAULT_INSTANT.plus(java.time.Duration.ofDays(14))))
+			.update();
+		world.put("postId", post);
 	}
 
 	@Override

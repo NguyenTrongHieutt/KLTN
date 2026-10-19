@@ -69,6 +69,13 @@ class TeamStore {
 				""").param("mentor", mentorId).query(Integer.class).single();
 	}
 
+	List<UUID> studentsOf(UUID mentorId) {
+		return this.jdbc.sql("""
+				SELECT m.student_account_id FROM team.membership m JOIN team.team t ON t.id = m.team_id
+				WHERE t.mentor_account_id = :mentor AND m.left_at IS NULL ORDER BY m.student_account_id
+				""").param("mentor", mentorId).query(UUID.class).list();
+	}
+
 	Optional<Team> byMentor(UUID mentorId) {
 		return this.jdbc.sql("SELECT id, mentor_account_id, status, created_at FROM team.team WHERE mentor_account_id = :mentor")
 			.param("mentor", mentorId)

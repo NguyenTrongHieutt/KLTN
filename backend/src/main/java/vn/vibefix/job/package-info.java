@@ -5,12 +5,15 @@
  * withdrawn or when its selection period lapses (J2). One transition table holds J1 to J10 and M1 to
  * M8, and {@code JobLifecycle} is the only code that changes a state.
  * <p>
- * Public API: {@link vn.vibefix.job.JobTransitioned}. The HTTP endpoints, the transition steps, the
- * selection lapse, the recipient lookup, the Skill-name listener, and the screenshot read policy are
- * wiring in {@code job.internal}.
+ * Approved Mentors browse Open Job Posts that are not hidden (FR-12) and see whether they can take
+ * new work (FR-13, AD-33).
+ * <p>
+ * Public API: {@link vn.vibefix.job.JobTransitioned} and {@link vn.vibefix.job.JobPosts}. The HTTP
+ * endpoints, the transition steps, the selection lapse, the recipient lookup, the Skill-name
+ * listener, and the screenshot read policy are wiring in {@code job.internal}.
  */
 @ApplicationModule(allowedDependencies = { "shared", "audit", "catalog", "files", "identity", "notification",
-		"settings", "timers", "scanning", "product" })
+		"settings", "timers", "team", "scanning", "product" })
 package vn.vibefix.job;
 
 import org.springframework.modulith.ApplicationModule;

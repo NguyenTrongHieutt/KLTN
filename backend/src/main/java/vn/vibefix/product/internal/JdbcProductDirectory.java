@@ -21,7 +21,7 @@ class JdbcProductDirectory implements ProductDirectory {
 	public Optional<ProductInfo> find(UUID productId) {
 		return this.products.find(productId)
 			.map(product -> new ProductInfo(product.id(), product.customerId(), product.name(),
-					product.tools().stream().map(Enum::name).toList(), product.repositoryFullName()));
+					product.description(), product.tools().stream().map(Enum::name).toList(), product.repositoryFullName()));
 	}
 
 }
