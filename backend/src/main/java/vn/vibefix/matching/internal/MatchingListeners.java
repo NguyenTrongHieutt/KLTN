@@ -16,7 +16,8 @@ import vn.vibefix.shared.Role;
 
 /**
  * What other modules' facts end (AD-5, AD-9, replay-safe through {@link ProcessedEvents}): J2 closes a
- * Job's open Applications and J3 puts the others on hold (§4.0), and a locked or revoked Mentor's
+ * Job's open Applications and J3 puts the others on hold (§4.0), both lapse its open invitations
+ * (FR-14), and a locked or revoked Mentor's
  * not-yet-selected Applications are withdrawn (FR-13, AD-19).
  */
 @Component
@@ -24,10 +25,13 @@ class MatchingListeners {
 
 	private final Applications applications;
 
+	private final Invitations invitations;
+
 	private final ProcessedEvents processedEvents;
 
-	MatchingListeners(Applications applications, ProcessedEvents processedEvents) {
+	MatchingListeners(Applications applications, Invitations invitations, ProcessedEvents processedEvents) {
 		this.applications = applications;
+		this.invitations = invitations;
 		this.processedEvents = processedEvents;
 	}
 
@@ -37,6 +41,9 @@ class MatchingListeners {
 		if (!handled
 				|| !this.processedEvents.markProcessed("matching.MatchingListeners.onJobTransitioned", event.eventId())) {
 			return;
+		}
+		if ("J2".equals(event.transition()) || "J3".equals(event.transition())) {
+			this.invitations.lapseForJob(event.jobId());
 		}
 		if ("J3".equals(event.transition())) {
 			this.applications.applySelection(event.jobId(), UUID.fromString(event.facts().get("applicationId")),

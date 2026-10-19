@@ -1292,7 +1292,13 @@
       "resultsNote": "Xếp theo mức độ khớp với từ khóa. Điểm chấm sao không làm thay đổi thứ tự.",
       "noMatchKeyword": "Không tìm thấy công việc nào khớp với “{q}”.",
       "noMatchKeywordBody": "Hãy thử từ khóa ngắn hơn hoặc bỏ bớt bộ lọc.",
-      "tooFast": "Bạn đang tìm hơi nhanh. Hãy đợi {seconds} giây rồi tìm lại."
+      "tooFast": "Bạn đang tìm hơi nhanh. Hãy đợi {seconds} giây rồi tìm lại.",
+      "invitation": {
+        "note": "{customer} đã mời bạn ứng tuyển công việc này. Bạn tự quyết định; lời mời không giữ chỗ cho bạn.",
+        "lapsedTitle": "Lời mời này đã hết hiệu lực vì công việc không còn nhận ứng tuyển.",
+        "lapsedBody": "Khách hàng đã chọn người hướng dẫn khác hoặc tin đã đóng.",
+        "findOther": "Tìm việc khác"
+      }
     },
     "matching": {
       "test": "THỬ NGHIỆM",
@@ -1391,6 +1397,37 @@
         "cancelBody": "Người hướng dẫn chưa ký cam kết bảo mật trong 3 ngày. Công việc quay lại nhận ứng tuyển và các đơn đang tạm giữ được xem xét tiếp.",
         "cancelBack": "Quay lại",
         "cancelled": "Đã hủy lựa chọn. Công việc quay lại nhận ứng tuyển."
+      },
+      "invitedChip": "Đã mời",
+      "find": {
+        "tab": "Tìm người hướng dẫn",
+        "title": "Tìm người hướng dẫn · {job}",
+        "quota": "Còn {n} lời mời hôm nay cho công việc này. Lời mời không chọn ai; người hướng dẫn tự quyết định có ứng tuyển hay không.",
+        "quotaShort": "Còn {n} lời mời hôm nay cho công việc này",
+        "limitJobPost": "Hôm nay bạn đã gửi đủ 10 lời mời cho công việc này. Bạn có thể mời tiếp sau 00:00. Bạn vẫn tìm và xem hồ sơ được.",
+        "limitDaily": "Hôm nay bạn đã gửi đủ 30 lời mời. Bạn có thể mời tiếp sau 00:00. Bạn vẫn tìm và xem hồ sơ được.",
+        "searchLabel": "Tìm người hướng dẫn",
+        "searchPlaceholder": "Ví dụ: supabase, bảo mật",
+        "searchHelper": "Tìm người hướng dẫn theo kỹ năng hoặc tên. Gõ có dấu hoặc không dấu đều được.",
+        "skills": "Kỹ năng",
+        "skillsHint": "Bộ lọc áp dụng cho cả đề xuất và kết quả tìm.",
+        "results": "Kết quả cho “{q}” ({n})",
+        "order": "Xếp theo mức độ khớp với từ khóa. Điểm chấm sao không làm thay đổi thứ tự.",
+        "empty": "Không tìm thấy người hướng dẫn nào cho “{q}”.",
+        "emptyHint": "Hãy thử từ khóa khác hoặc bỏ bớt kỹ năng.",
+        "noRecommendation": "Chưa có đề xuất cho công việc này. Hãy tìm theo kỹ năng, ví dụ: React hoặc Supabase.",
+        "years": "{years} năm kinh nghiệm",
+        "students": "{n} sinh viên",
+        "rating": "{average} sao ({count} lượt)",
+        "newcomer": "Mới",
+        "profile": "Xem hồ sơ",
+        "invite": "Mời ứng tuyển",
+        "invited": "Đã mời",
+        "applied": "Đã ứng tuyển",
+        "sent": "Đã gửi lời mời đến {name}. Họ tự quyết định có ứng tuyển hay không.",
+        "inviteAction": "mời ứng tuyển",
+        "sheetRole": "Người hướng dẫn · {years} năm kinh nghiệm",
+        "noContact": "vibefix không hiện cách liên lạc. Bạn trao đổi với người hướng dẫn sau khi chọn và họ ký cam kết bảo mật."
       }
     },
     "nda": {
@@ -1859,7 +1896,8 @@
     },
     "matching": {
       "choose_assignee": "Chọn người hướng dẫn ({n} đơn ứng tuyển)",
-      "sign_nda": "Ký cam kết bảo mật cho {job}"
+      "sign_nda": "Ký cam kết bảo mật cho {job}",
+      "answer_invitation_to_apply": "Xem lời mời ứng tuyển cho {job}"
     }
   },
   "theme": {
@@ -1976,6 +2014,9 @@
       },
       "nda_overdue": {
         "title": "Người hướng dẫn chưa ký cam kết bảo mật cho {job}. Bạn có thể chọn lại."
+      },
+      "invited_to_apply": {
+        "title": "{customer} đã mời bạn ứng tuyển {job}"
       }
     }
   },
@@ -2065,7 +2106,12 @@
       "PUBLIC_CODE_NOT_ACKNOWLEDGED": "Hãy đánh dấu ô xác nhận về kho mã công khai.",
       "NOT_WITHDRAWABLE": "Đơn này không rút được nữa.",
       "NDA_VERSION_OUTDATED": "Cam kết bảo mật vừa có phiên bản mới. Hãy tải lại trang rồi ký lại.",
-      "COMMIT_EMAIL_NOT_ACKNOWLEDGED": "Hãy đánh dấu \"Tôi đã hiểu\" trước khi ký."
+      "COMMIT_EMAIL_NOT_ACKNOWLEDGED": "Hãy đánh dấu \"Tôi đã hiểu\" trước khi ký.",
+      "INVITEE_NOT_AVAILABLE": "người hướng dẫn này hiện không nhận lời mời",
+      "ALREADY_INVITED": "Bạn đã mời người hướng dẫn này cho công việc này.",
+      "INVITEE_ALREADY_APPLIED": "Người hướng dẫn này đã ứng tuyển công việc này.",
+      "INVITE_LIMIT_JOB_POST": "Hôm nay bạn đã gửi đủ 10 lời mời cho công việc này. Bạn có thể mời tiếp sau 00:00.",
+      "INVITE_LIMIT_DAILY": "Hôm nay bạn đã gửi đủ 30 lời mời. Bạn có thể mời tiếp sau 00:00."
     }
   }
 }

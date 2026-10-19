@@ -324,6 +324,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/jobs/{jobId}/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["invitations"];
+        put?: never;
+        post: operations["invite_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/jobs/{jobId}/mentors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["search"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jobs/{jobId}/publish": {
         parameters: {
             query?: never;
@@ -411,7 +443,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["mine"];
+        get: operations["mine_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -508,6 +540,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["customerRating"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mentor/job-posts/{postId}/invitation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["mine"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1028,6 +1076,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reputation/mentor-summaries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["summaries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/session": {
         parameters: {
             query?: never;
@@ -1506,10 +1570,22 @@ export interface components {
             status: "OPEN" | "RESOLVED" | "FALSE_POSITIVE";
             type: string;
         };
+        InvitationsView: {
+            invitations: components["schemas"]["SentInvitationView"][];
+            /** Format: int32 */
+            left: number;
+            /** @enum {string} */
+            limit?: "JOB_POST_NOT_OPEN" | "JOB_POST_HIDDEN" | "ALREADY_APPLIED" | "NO_FREE_STUDENT" | "MENTOR_JOB_LIMIT" | "CONFLICT_OF_INTEREST" | "APPLICANT_IS_CONTRIBUTOR" | "CONTRIBUTORS_UNKNOWN" | "PUBLIC_CODE_NOT_ACKNOWLEDGED" | "NOT_WITHDRAWABLE" | "NDA_VERSION_OUTDATED" | "COMMIT_EMAIL_NOT_ACKNOWLEDGED" | "INVITEE_NOT_AVAILABLE" | "ALREADY_INVITED" | "INVITEE_ALREADY_APPLIED" | "INVITE_LIMIT_JOB_POST" | "INVITE_LIMIT_DAILY";
+        };
+        InviteRequest: {
+            /** Format: uuid */
+            mentorId: string;
+        };
         JobApplicationView: {
             approach: string;
             /** Format: uuid */
             id: string;
+            invited: boolean;
             mentor: components["schemas"]["ApplicantView"];
             /** Format: int64 */
             priceVnd: number;
@@ -1719,6 +1795,16 @@ export interface components {
             /** Format: int64 */
             size: number;
         };
+        MentorInvitationView: {
+            customer: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            invitedAt: string;
+            jobTitle: string;
+            /** @enum {string} */
+            status: "OPEN" | "APPLIED" | "LAPSED";
+        };
         MentorJobSummaryView: {
             /** Format: uuid */
             id: string;
@@ -1775,6 +1861,36 @@ export interface components {
             count: number;
             newcomer: boolean;
             portfolio: components["schemas"]["PortfolioEntry"][];
+        };
+        MentorResultView: {
+            /** Format: uuid */
+            accountId: string;
+            displayName: string;
+            githubLogin?: string;
+            /** @enum {string} */
+            relation: "NONE" | "INVITED" | "APPLIED";
+            skills: string[];
+            /** Format: int32 */
+            teamSize: number;
+            /** Format: int32 */
+            yearsOfExperience: number;
+        };
+        MentorSearchView: {
+            items: components["schemas"]["MentorResultView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            total: number;
+        };
+        MentorSummaryView: {
+            /** Format: uuid */
+            accountId: string;
+            average?: number;
+            /** Format: int32 */
+            count: number;
+            newcomer: boolean;
         };
         MentorTeamView: {
             invitations: components["schemas"]["TeamStudentRequestRow"][];
@@ -1978,6 +2094,12 @@ export interface components {
             /** Format: date-time */
             oldestAt?: string;
         };
+        QuotaView: {
+            /** Format: int32 */
+            left: number;
+            /** @enum {string} */
+            limit?: "JOB_POST_NOT_OPEN" | "JOB_POST_HIDDEN" | "ALREADY_APPLIED" | "NO_FREE_STUDENT" | "MENTOR_JOB_LIMIT" | "CONFLICT_OF_INTEREST" | "APPLICANT_IS_CONTRIBUTOR" | "CONTRIBUTORS_UNKNOWN" | "PUBLIC_CODE_NOT_ACKNOWLEDGED" | "NOT_WITHDRAWABLE" | "NDA_VERSION_OUTDATED" | "COMMIT_EMAIL_NOT_ACKNOWLEDGED" | "INVITEE_NOT_AVAILABLE" | "ALREADY_INVITED" | "INVITEE_ALREADY_APPLIED" | "INVITE_LIMIT_JOB_POST" | "INVITE_LIMIT_DAILY";
+        };
         RatingSummaryView: {
             average?: number;
             /** Format: int32 */
@@ -2045,6 +2167,15 @@ export interface components {
         SelectedView: {
             /** Format: int64 */
             version: number;
+        };
+        SentInvitationView: {
+            displayName: string;
+            /** Format: date-time */
+            invitedAt: string;
+            /** Format: uuid */
+            mentorId: string;
+            /** @enum {string} */
+            status: "OPEN" | "APPLIED" | "LAPSED";
         };
         SessionView: {
             account?: components["schemas"]["AccountView"];
@@ -2906,6 +3037,81 @@ export interface operations {
             };
         };
     };
+    invitations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationsView"];
+                };
+            };
+        };
+    };
+    invite_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InviteRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuotaView"];
+                };
+            };
+        };
+    };
+    search: {
+        parameters: {
+            query?: {
+                q?: string;
+                skill?: string[];
+                category?: string[];
+                page?: number;
+            };
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MentorSearchView"];
+                };
+            };
+        };
+    };
     publish: {
         parameters: {
             query?: never;
@@ -3026,7 +3232,7 @@ export interface operations {
             };
         };
     };
-    mine: {
+    mine_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -3182,6 +3388,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RatingSummaryView"];
+                };
+            };
+        };
+    };
+    mine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                postId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MentorInvitationView"];
                 };
             };
         };
@@ -3992,6 +4220,28 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    summaries: {
+        parameters: {
+            query?: {
+                id?: string[];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MentorSummaryView"][];
+                };
             };
         };
     };

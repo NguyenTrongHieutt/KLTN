@@ -6,6 +6,7 @@ import { usePageTitle } from '@/app/usePageTitle'
 import { inputClass } from '@/components/formField-props'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
+import { Pager } from '@/components/Pager'
 import { SkillPicker } from '@/components/SkillPicker'
 import { categoryValue, splitSkillPickerValue } from '@/components/skillPickerValue'
 import { Button } from '@/components/ui/button'
@@ -386,37 +387,5 @@ function PostItem({ post, applied }: { post: JobPostSummary; applied: boolean })
         )}
       </Link>
     </li>
-  )
-}
-
-/** "Trước", the pages around the current one, and "Sau". */
-function Pager({ page, pages, go }: { page: number; pages: number; go: (page: number) => void }) {
-  if (pages <= 1) {
-    return null
-  }
-  const from = Math.max(0, Math.min(page - 2, pages - 5))
-  const shown = Array.from({ length: Math.min(5, pages) }, (_, index) => from + index)
-  return (
-    <nav aria-label={t('screen.jobPost.pages')} className="flex flex-wrap justify-center gap-1">
-      <Button type="button" variant="secondary" disabled={page === 0} onClick={() => go(page - 1)}>
-        {t('screen.jobPost.previous')}
-      </Button>
-      {shown.map((number) => (
-        <Button
-          key={number}
-          type="button"
-          variant={number === page ? 'primary' : 'ghost'}
-          aria-current={number === page ? 'page' : undefined}
-          aria-label={t('screen.jobPost.page', { n: number + 1 })}
-          className={cn(number === page && 'pointer-events-none')}
-          onClick={() => go(number)}
-        >
-          {number + 1}
-        </Button>
-      ))}
-      <Button type="button" variant="secondary" disabled={page >= pages - 1} onClick={() => go(page + 1)}>
-        {t('screen.jobPost.next')}
-      </Button>
-    </nav>
   )
 }

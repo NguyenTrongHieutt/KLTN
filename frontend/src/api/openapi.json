@@ -745,6 +745,136 @@
         "tags" : [ "application-controller" ]
       }
     },
+    "/api/v1/jobs/{jobId}/invitations" : {
+      "get" : {
+        "operationId" : "invitations",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InvitationsView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "invitation-controller" ]
+      },
+      "post" : {
+        "operationId" : "invite_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/InviteRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/QuotaView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "invitation-controller" ]
+      }
+    },
+    "/api/v1/jobs/{jobId}/mentors" : {
+      "get" : {
+        "operationId" : "search",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "query",
+          "name" : "q",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "default" : "",
+            "maxLength" : 200,
+            "minLength" : 0
+          }
+        }, {
+          "in" : "query",
+          "name" : "skill",
+          "required" : false,
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        }, {
+          "in" : "query",
+          "name" : "category",
+          "required" : false,
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        }, {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 0
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MentorSearchView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "invitation-controller" ]
+      }
+    },
     "/api/v1/jobs/{jobId}/publish" : {
       "post" : {
         "operationId" : "publish",
@@ -909,7 +1039,7 @@
     },
     "/api/v1/mentor/applications" : {
       "get" : {
-        "operationId" : "mine",
+        "operationId" : "mine_1",
         "responses" : {
           "200" : {
             "content" : {
@@ -1149,6 +1279,33 @@
           }
         },
         "tags" : [ "customer-rating-controller" ]
+      }
+    },
+    "/api/v1/mentor/job-posts/{postId}/invitation" : {
+      "get" : {
+        "operationId" : "mine",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "postId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MentorInvitationView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "invitation-controller" ]
       }
     },
     "/api/v1/mentor/jobs" : {
@@ -2151,6 +2308,39 @@
           }
         },
         "tags" : [ "profile-controller" ]
+      }
+    },
+    "/api/v1/reputation/mentor-summaries" : {
+      "get" : {
+        "operationId" : "summaries",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "id",
+          "required" : false,
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/MentorSummaryView"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "mentor-summary-controller" ]
       }
     },
     "/api/v1/session" : {
@@ -3165,6 +3355,36 @@
         },
         "required" : [ "category", "commit", "committedAt", "createdAt", "id", "maskedPreview", "path", "ruleId", "status", "type" ]
       },
+      "InvitationsView" : {
+        "type" : "object",
+        "properties" : {
+          "invitations" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SentInvitationView"
+            }
+          },
+          "left" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "limit" : {
+            "type" : "string",
+            "enum" : [ "JOB_POST_NOT_OPEN", "JOB_POST_HIDDEN", "ALREADY_APPLIED", "NO_FREE_STUDENT", "MENTOR_JOB_LIMIT", "CONFLICT_OF_INTEREST", "APPLICANT_IS_CONTRIBUTOR", "CONTRIBUTORS_UNKNOWN", "PUBLIC_CODE_NOT_ACKNOWLEDGED", "NOT_WITHDRAWABLE", "NDA_VERSION_OUTDATED", "COMMIT_EMAIL_NOT_ACKNOWLEDGED", "INVITEE_NOT_AVAILABLE", "ALREADY_INVITED", "INVITEE_ALREADY_APPLIED", "INVITE_LIMIT_JOB_POST", "INVITE_LIMIT_DAILY" ]
+          }
+        },
+        "required" : [ "invitations", "left" ]
+      },
+      "InviteRequest" : {
+        "type" : "object",
+        "properties" : {
+          "mentorId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "mentorId" ]
+      },
       "JobApplicationView" : {
         "type" : "object",
         "properties" : {
@@ -3174,6 +3394,9 @@
           "id" : {
             "type" : "string",
             "format" : "uuid"
+          },
+          "invited" : {
+            "type" : "boolean"
           },
           "mentor" : {
             "$ref" : "#/components/schemas/ApplicantView"
@@ -3195,7 +3418,7 @@
             "format" : "int32"
           }
         },
-        "required" : [ "approach", "id", "mentor", "priceVnd", "status", "submittedAt", "timelineDays" ]
+        "required" : [ "approach", "id", "invited", "mentor", "priceVnd", "status", "submittedAt", "timelineDays" ]
       },
       "JobCreatedView" : {
         "type" : "object",
@@ -3770,6 +3993,30 @@
         },
         "required" : [ "mediaType", "name", "size" ]
       },
+      "MentorInvitationView" : {
+        "type" : "object",
+        "properties" : {
+          "customer" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "invitedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "jobTitle" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "OPEN", "APPLIED", "LAPSED" ]
+          }
+        },
+        "required" : [ "customer", "id", "invitedAt", "jobTitle", "status" ]
+      },
       "MentorJobSummaryView" : {
         "type" : "object",
         "properties" : {
@@ -3922,6 +4169,84 @@
           }
         },
         "required" : [ "count", "newcomer", "portfolio" ]
+      },
+      "MentorResultView" : {
+        "type" : "object",
+        "properties" : {
+          "accountId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "displayName" : {
+            "type" : "string"
+          },
+          "githubLogin" : {
+            "type" : "string"
+          },
+          "relation" : {
+            "type" : "string",
+            "enum" : [ "NONE", "INVITED", "APPLIED" ]
+          },
+          "skills" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "teamSize" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "yearsOfExperience" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "accountId", "displayName", "relation", "skills", "teamSize", "yearsOfExperience" ]
+      },
+      "MentorSearchView" : {
+        "type" : "object",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/MentorResultView"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "total" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "items", "page", "size", "total" ]
+      },
+      "MentorSummaryView" : {
+        "type" : "object",
+        "properties" : {
+          "accountId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "average" : {
+            "type" : "number"
+          },
+          "count" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "newcomer" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "accountId", "count", "newcomer" ]
       },
       "MentorTeamView" : {
         "type" : "object",
@@ -4494,6 +4819,20 @@
         },
         "required" : [ "count" ]
       },
+      "QuotaView" : {
+        "type" : "object",
+        "properties" : {
+          "left" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "limit" : {
+            "type" : "string",
+            "enum" : [ "JOB_POST_NOT_OPEN", "JOB_POST_HIDDEN", "ALREADY_APPLIED", "NO_FREE_STUDENT", "MENTOR_JOB_LIMIT", "CONFLICT_OF_INTEREST", "APPLICANT_IS_CONTRIBUTOR", "CONTRIBUTORS_UNKNOWN", "PUBLIC_CODE_NOT_ACKNOWLEDGED", "NOT_WITHDRAWABLE", "NDA_VERSION_OUTDATED", "COMMIT_EMAIL_NOT_ACKNOWLEDGED", "INVITEE_NOT_AVAILABLE", "ALREADY_INVITED", "INVITEE_ALREADY_APPLIED", "INVITE_LIMIT_JOB_POST", "INVITE_LIMIT_DAILY" ]
+          }
+        },
+        "required" : [ "left" ]
+      },
       "RatingSummaryView" : {
         "type" : "object",
         "properties" : {
@@ -4678,6 +5017,27 @@
           }
         },
         "required" : [ "version" ]
+      },
+      "SentInvitationView" : {
+        "type" : "object",
+        "properties" : {
+          "displayName" : {
+            "type" : "string"
+          },
+          "invitedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "mentorId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "OPEN", "APPLIED", "LAPSED" ]
+          }
+        },
+        "required" : [ "displayName", "invitedAt", "mentorId", "status" ]
       },
       "SessionView" : {
         "type" : "object",

@@ -36,6 +36,10 @@ class NotificationTypes implements NotificationCatalog {
 	/** The selected Mentor signs the NDA within the FR-15 period (UX-DR15). */
 	static final TodoType MATCHING_SIGN_NDA = new TodoType("matching.sign_nda", Set.of(Audience.MENTOR), 2, Set.of("job"));
 
+	/** A Customer invited this Mentor to apply (FR-14): until they apply or the Job leaves Open. */
+	static final TodoType MATCHING_ANSWER_INVITATION_TO_APPLY = new TodoType("matching.answer_invitation_to_apply",
+			Set.of(Audience.SUBJECT), 3, Set.of("job"));
+
 	static final TodoType VERIFY_STUDENT = new TodoType("identity.verify_student", Set.of(Audience.SUBJECT), 3, Set.of());
 
 	/** The school email code (FR-5): email only, to the address being verified, ahead of reminders (AD-34). */
@@ -161,6 +165,11 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType MATCHING_NDA_OVERDUE = new NotificationType("matching.nda_overdue",
 			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("job"));
 
+	/** A Customer invited this Mentor to apply to their Job Post (FR-14, UX-DR16). */
+	static final NotificationType MATCHING_INVITED_TO_APPLY = new NotificationType("matching.invited_to_apply",
+			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "mail",
+			Set.of("customer", "job"));
+
 	@Override
 	public List<NotificationType> notificationTypes() {
 		return List.of(SCHOOL_EMAIL_CODE, VERIFICATION_EXPIRING, VERIFICATION_EXPIRED, ADMIN_SIGN_IN_LOCKED,
@@ -170,13 +179,14 @@ class NotificationTypes implements NotificationCatalog {
 				TEAM_MEMBER_LEFT, TEAM_MEMBER_REMOVED, SCANNING_INTAKE_SCAN_CLEAN, SCANNING_FINDING_OPENED,
 				JOB_POST_LAPSED, MATCHING_APPLICATION_RECEIVED, MATCHING_APPLICATION_AUTO_WITHDRAWN,
 				MATCHING_CONFLICT_OF_INTEREST_REFUSED, JOB_ASSIGNEE_SELECTED, MATCHING_APPLICATIONS_ON_HOLD,
-				JOB_SELECTION_DECLINED, MATCHING_APPLICATIONS_CLOSED, MATCHING_APPLICATIONS_REOPENED, MATCHING_NDA_OVERDUE);
+				JOB_SELECTION_DECLINED, MATCHING_APPLICATIONS_CLOSED, MATCHING_APPLICATIONS_REOPENED, MATCHING_NDA_OVERDUE,
+				MATCHING_INVITED_TO_APPLY);
 	}
 
 	@Override
 	public List<TodoType> todoTypes() {
 		return List.of(COMPLETE_MENTOR_APPLICATION, VERIFY_STUDENT, SCANNING_RESOLVE_INTAKE_FINDING,
-				MATCHING_CHOOSE_ASSIGNEE, MATCHING_SIGN_NDA);
+				MATCHING_CHOOSE_ASSIGNEE, MATCHING_SIGN_NDA, MATCHING_ANSWER_INVITATION_TO_APPLY);
 	}
 
 }

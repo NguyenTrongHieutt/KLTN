@@ -1,6 +1,11 @@
 package vn.vibefix.reputation.internal;
 
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.stereotype.Component;
@@ -23,6 +28,13 @@ class VisibleRatings implements Reputation {
 	}
 
 	@Override
+	public Map<UUID, RatingSummary> visibleSummaries(Collection<UUID> accountIds) {
+		Map<UUID, RatingSummary> summaries = new LinkedHashMap<>();
+		accountIds.forEach(id -> summaries.put(id, RatingSummary.NONE));
+		return summaries;
+	}
+
+	@Override
 	public List<PortfolioEntry> portfolio(UUID accountId) {
 		return List.of();
 	}
@@ -30,6 +42,11 @@ class VisibleRatings implements Reputation {
 	@Override
 	public boolean newcomer(UUID mentorId) {
 		return portfolio(mentorId).isEmpty();
+	}
+
+	@Override
+	public Set<UUID> newcomers(Collection<UUID> mentorIds) {
+		return new LinkedHashSet<>(mentorIds);
 	}
 
 }

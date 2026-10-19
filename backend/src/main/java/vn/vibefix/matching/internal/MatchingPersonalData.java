@@ -16,9 +16,10 @@ import vn.vibefix.shared.PersonalDataSection;
 
 /**
  * {@code matching}'s part in exports, erasure, and Product deletion (AD-24): a Mentor exports their
- * own Applications; erasing a Mentor or a Customer deletes the Applications they made or received,
- * and deleting a Product deletes those to its Jobs. A selected Application will block erasure once
- * selection exists (Story 3.7).
+ * own Applications and NDA signatures, and both sides export the invitations to apply they sent or
+ * received; erasing a Mentor or a Customer deletes the Applications and invitations they made or
+ * received, and deleting a Product deletes those to its Jobs. A running Job blocks erasure through
+ * {@code job}.
  */
 @Component
 class MatchingPersonalData implements PersonalDataParticipant {
@@ -31,7 +32,7 @@ class MatchingPersonalData implements PersonalDataParticipant {
 
 	@Override
 	public Set<String> tables() {
-		return Set.of("matching.application", "matching.nda_signature");
+		return Set.of("matching.application", "matching.nda_signature", "matching.invitation");
 	}
 
 	@Override
@@ -61,16 +62,33 @@ class MatchingPersonalData implements PersonalDataParticipant {
 			signature.put("signedAt", rs.getTimestamp("signed_at").toInstant().toString());
 			return signature;
 		}).list();
-		if (applications.isEmpty() && signatures.isEmpty()) {
+		List<Map<String, Object>> invitations = this.jdbc.sql("""
+				SELECT job_id, status, invited_at, ended_at, customer_account_id = :id AS sent
+				FROM matching.invitation WHERE customer_account_id = :id OR mentor_account_id = :id
+				ORDER BY invited_at, id
+				""").param("id", accountId).query((rs, n) -> {
+			Map<String, Object> invitation = new LinkedHashMap<>();
+			invitation.put("jobId", rs.getObject("job_id", UUID.class).toString());
+			invitation.put("direction", rs.getBoolean("sent") ? "SENT" : "RECEIVED");
+			invitation.put("status", rs.getString("status"));
+			invitation.put("invitedAt", rs.getTimestamp("invited_at").toInstant().toString());
+			invitation.put("endedAt", rs.getTimestamp("ended_at") == null ? null
+					: rs.getTimestamp("ended_at").toInstant().toString());
+			return invitation;
+		}).list();
+		if (applications.isEmpty() && signatures.isEmpty() && invitations.isEmpty()) {
 			return Optional.empty();
 		}
 		return Optional.of(new PersonalDataSection("matching",
-				Map.of("applications", applications, "ndaSignatures", signatures)));
+				Map.of("applications", applications, "ndaSignatures", signatures, "invitations", invitations)));
 	}
 
 	@Override
 	public void eraseAccount(UUID accountId) {
 		this.jdbc.sql("DELETE FROM matching.nda_signature WHERE account_id = :id").param("id", accountId).update();
+		this.jdbc.sql("DELETE FROM matching.invitation WHERE mentor_account_id = :id OR customer_account_id = :id")
+			.param("id", accountId)
+			.update();
 		this.jdbc.sql("DELETE FROM matching.application WHERE mentor_account_id = :id OR customer_account_id = :id")
 			.param("id", accountId)
 			.update();
@@ -83,6 +101,7 @@ class MatchingPersonalData implements PersonalDataParticipant {
 				    (SELECT job_id FROM matching.application WHERE product_id = :id)
 				""").param("id", productId).update();
 		this.jdbc.sql("DELETE FROM matching.application WHERE product_id = :id").param("id", productId).update();
+		this.jdbc.sql("DELETE FROM matching.invitation WHERE product_id = :id").param("id", productId).update();
 	}
 
 	@Override

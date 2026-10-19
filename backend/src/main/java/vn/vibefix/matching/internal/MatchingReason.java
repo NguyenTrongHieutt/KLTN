@@ -37,6 +37,21 @@ enum MatchingReason {
 	NDA_VERSION_OUTDATED,
 
 	/** A Code Job's Mentor signs only after acknowledging N-23 (FR-18). */
-	COMMIT_EMAIL_NOT_ACKNOWLEDGED
+	COMMIT_EMAIL_NOT_ACKNOWLEDGED,
+
+	/** The invited Mentor cannot take new work; never says why (FR-14, SG-41). */
+	INVITEE_NOT_AVAILABLE,
+
+	/** One invitation per Mentor and Job Post (FR-14). */
+	ALREADY_INVITED,
+
+	/** The Mentor already applied to this Job (FR-14). */
+	INVITEE_ALREADY_APPLIED,
+
+	/** 10 invitations for this Job Post today (FR-14, AD-34). */
+	INVITE_LIMIT_JOB_POST,
+
+	/** 30 invitations by this Customer today (FR-14, AD-34). */
+	INVITE_LIMIT_DAILY
 
 }

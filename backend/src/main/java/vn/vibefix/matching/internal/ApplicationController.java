@@ -2,8 +2,10 @@ package vn.vibefix.matching.internal;
 
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
@@ -75,9 +77,12 @@ class ApplicationController {
 	record NdaRequest(@NotBlank String ndaVersion, boolean commitEmailNoticeAcknowledged) {
 	}
 
-	/** One Application to the Customer's Job. */
+	/**
+	 * One Application to the Customer's Job.
+	 * @param invited the Customer invited this Mentor: a chip that changes neither order nor choice (UX-DR50)
+	 */
 	record JobApplicationView(UUID id, Status status, long priceVnd, int timelineDays, String approach,
-			Instant submittedAt, ApplicantView mentor) {
+			Instant submittedAt, ApplicantView mentor, boolean invited) {
 	}
 
 	private final Applications applications;
@@ -94,10 +99,13 @@ class ApplicationController {
 
 	private final NdaSignatures signatures;
 
+	private final Invitations invitations;
+
 	private final CurrentCaller callers;
 
 	ApplicationController(Applications applications, JobPosts posts, MentorDirectory mentors, Teams teams,
-			MentorGate gate, JobSelection selection, NdaSignatures signatures, CurrentCaller callers) {
+			MentorGate gate, JobSelection selection, NdaSignatures signatures, Invitations invitations,
+			CurrentCaller callers) {
 		this.applications = applications;
 		this.posts = posts;
 		this.mentors = mentors;
@@ -105,6 +113,7 @@ class ApplicationController {
 		this.gate = gate;
 		this.selection = selection;
 		this.signatures = signatures;
+		this.invitations = invitations;
 		this.callers = callers;
 	}
 
@@ -142,6 +151,7 @@ class ApplicationController {
 	List<JobApplicationView> ofJob(@PathVariable UUID jobId) {
 		customerOf(jobId);
 		List<Application> open = this.applications.openOfJob(jobId);
+		Set<UUID> invited = new HashSet<>(this.invitations.invitedMentors(jobId));
 		Map<UUID, MentorCard> cards = new HashMap<>();
 		this.mentors.cards(open.stream().map(Application::mentorId).toList())
 			.forEach(card -> cards.put(card.accountId(), card));
@@ -151,7 +161,8 @@ class ApplicationController {
 					card == null ? null : card.githubLogin(), card == null ? 0 : card.yearsOfExperience(),
 					this.teams.sizeOf(application.mentorId()));
 			return new JobApplicationView(application.id(), application.status(), application.priceVnd(),
-					application.timelineDays(), application.approach(), application.submittedAt(), mentor);
+					application.timelineDays(), application.approach(), application.submittedAt(), mentor,
+					invited.contains(application.mentorId()));
 		}).toList();
 	}
 
