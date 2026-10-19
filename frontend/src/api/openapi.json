@@ -1013,6 +1013,36 @@
         "tags" : [ "product-controller" ]
       }
     },
+    "/api/v1/products/{productId}/findings" : {
+      "get" : {
+        "operationId" : "findings",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/FindingView"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "product-controller" ]
+      }
+    },
     "/api/v1/profile" : {
       "get" : {
         "operationId" : "profile",
@@ -1841,6 +1871,40 @@
         },
         "required" : [ "name" ]
       },
+      "FindingView" : {
+        "type" : "object",
+        "properties" : {
+          "commit" : {
+            "type" : "string"
+          },
+          "committedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "maskedPreview" : {
+            "type" : "string"
+          },
+          "path" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "OPEN" ]
+          },
+          "type" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "commit", "committedAt", "createdAt", "id", "maskedPreview", "path", "status", "type" ]
+      },
       "MentorApplicationDetail" : {
         "type" : "object",
         "properties" : {
@@ -2404,9 +2468,12 @@
           "repositoryUrl" : {
             "type" : "string"
           },
+          "scan" : {
+            "$ref" : "#/components/schemas/ScanView"
+          },
           "scanState" : {
             "type" : "string",
-            "enum" : [ "AWAITING_SCAN" ]
+            "enum" : [ "AWAITING_SCAN", "SCANNING", "NOT_FINISHED", "FINDINGS", "CLEAN" ]
           },
           "tools" : {
             "type" : "array",
@@ -2651,6 +2718,42 @@
           }
         },
         "required" : [ "submitted" ]
+      },
+      "ScanView" : {
+        "type" : "object",
+        "properties" : {
+          "finishedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "found" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "requestedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "PENDING", "RUNNING", "RETRYING", "SUCCEEDED", "FAILED" ]
+          },
+          "unscanned" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/UnscannedFile"
+            }
+          },
+          "unscannedCount" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "id", "requestedAt", "status", "unscanned", "unscannedCount" ]
       },
       "SchoolEmailRequest" : {
         "type" : "object",
@@ -3338,6 +3441,19 @@
           }
         },
         "required" : [ "count" ]
+      },
+      "UnscannedFile" : {
+        "type" : "object",
+        "properties" : {
+          "path" : {
+            "type" : "string"
+          },
+          "sizeBytes" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "path", "sizeBytes" ]
       },
       "VerificationView" : {
         "type" : "object",

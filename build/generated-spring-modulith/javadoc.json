@@ -1,1 +1,1 @@
-[{"name":"vn.vibefix.authz.fixtures.ProductFixture","comment":"Products (FR-7, AD-20): a Customer's registered Product ({@code {productId}}), whose Customer the matrix calls {@link MatrixCaller#OWNER}. Only the owner and Administrators read its detail."}]
+[{"name":"vn.vibefix.scanning.internal.ScanLimits","comment":"The caps of one history scan (AD-32, SG-14, Seed limits), sent with each job so the sandbox never reads them from the platform. Each has a ceiling the job enforces whatever it is sent."}]

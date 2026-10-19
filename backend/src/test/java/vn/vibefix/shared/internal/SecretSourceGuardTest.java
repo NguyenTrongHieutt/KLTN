@@ -41,7 +41,8 @@ class SecretSourceGuardTest {
 
 	@ParameterizedTest
 	@ValueSource(strings = { "db-app-password", "db-migrator-password", "spring.datasource.password",
-			"spring.flyway.password", "github-oauth-client-secret", "identity-token-key-1", "identity-person-signal-key-1" })
+			"spring.flyway.password", "github-oauth-client-secret", "identity-token-key-1", "identity-person-signal-key-1",
+			"scanning-fingerprint-key" })
 	void secretInASystemPropertyIsRefused(String property) {
 		StandardEnvironment environment = environmentWith(Map.of(), Map.of(property, ""));
 

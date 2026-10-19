@@ -1,0 +1,178 @@
+package vn.vibefix.scanning.internal;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.Clock;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+import vn.vibefix.operations.ExternalOperations;
+import vn.vibefix.operations.OperationRequest;
+import vn.vibefix.scanning.Finding;
+import vn.vibefix.scanning.FindingStatus;
+import vn.vibefix.scanning.ScanPurpose;
+import vn.vibefix.scanning.ScanStatus;
+import vn.vibefix.scanning.ScanSummary;
+import vn.vibefix.scanning.ScanSummary.UnscannedFile;
+import vn.vibefix.scanning.ScanTarget;
+import vn.vibefix.scanning.Scans;
+import vn.vibefix.scanning.ShaRange;
+import vn.vibefix.shared.IdGenerator;
+
+/** {@link Scans} on the {@code scanning} schema. */
+@Component
+class JdbcScans implements Scans {
+
+	/** The External Operation that runs one scan run, keyed by the run's ID. */
+	static final String OPERATION_TYPE = "scanning.scan";
+
+	/** AD-6 seed lanes: push scans (0, Epic 7) go before intake scans. */
+	static final int INTAKE_PRIORITY = 1;
+
+	static final JsonMapper JSON = JsonMapper.builder().build();
+
+	private static final String SUMMARY_COLUMNS = """
+			id, product_id, purpose, status, requested_at, finished_at, found_count, unscanned_count, unscanned::text
+			""";
+
+	private static final String FINDING_COLUMNS = """
+			id, rule_id, rule_type, file_path, commit_sha, committed_at, masked_preview, status, created_at
+			""";
+
+	private final JdbcClient jdbc;
+
+	private final ExternalOperations operations;
+
+	private final IdGenerator ids;
+
+	private final Clock clock;
+
+	JdbcScans(JdbcClient jdbc, ExternalOperations operations, IdGenerator ids, Clock clock) {
+		this.jdbc = jdbc;
+		this.operations = operations;
+		this.ids = ids;
+		this.clock = clock;
+	}
+
+	@Override
+	@Transactional(propagation = Propagation.MANDATORY)
+	public UUID requestScan(ScanTarget target, ShaRange shaRange, ScanPurpose purpose) {
+		if (!shaRange.isWholeHistory()) {
+			throw new UnsupportedOperationException("Range scans arrive with the push scan (Epic 7)");
+		}
+		UUID id = this.ids.newId();
+		this.jdbc.sql("""
+				INSERT INTO scanning.scan_run (id, product_id, customer_account_id, product_name, repository_full_name,
+				    repository_github_id, purpose, base_sha, head_sha, status, requested_at)
+				VALUES (:id, :product, :customer, :name, :repository, :githubId, :purpose, :base, :head, 'PENDING', :now)
+				""")
+			.param("id", id)
+			.param("product", target.productId())
+			.param("customer", target.customerId())
+			.param("name", target.productName())
+			.param("repository", target.repositoryFullName())
+			.param("githubId", target.repositoryGithubId())
+			.param("purpose", purpose.name())
+			.param("base", shaRange.base())
+			.param("head", shaRange.head())
+			.param("now", Timestamp.from(this.clock.instant()))
+			.update();
+		this.operations.request(new OperationRequest(OPERATION_TYPE, id, Map.of("scanRunId", id.toString()), null, null,
+				INTAKE_PRIORITY));
+		return id;
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public Optional<ScanSummary> latest(UUID productId) {
+		return this.jdbc.sql("SELECT " + SUMMARY_COLUMNS + """
+				 FROM scanning.scan_run WHERE product_id = :product ORDER BY requested_at DESC, id DESC LIMIT 1
+				""").param("product", productId).query(JdbcScans::summary).optional();
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public Map<UUID, ScanSummary> latest(Collection<UUID> productIds) {
+		if (productIds.isEmpty()) {
+			return Map.of();
+		}
+		Map<UUID, ScanSummary> latest = new LinkedHashMap<>();
+		this.jdbc.sql("SELECT DISTINCT ON (product_id) " + SUMMARY_COLUMNS + """
+				 FROM scanning.scan_run WHERE product_id IN (:products)
+				ORDER BY product_id, requested_at DESC, id DESC
+				""").param("products", List.copyOf(productIds)).query((rs, n) -> {
+			latest.put(rs.getObject("product_id", UUID.class), summary(rs, n));
+			return null;
+		}).list();
+		return latest;
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<Finding> openFindings(UUID productId) {
+		return this.jdbc.sql("SELECT " + FINDING_COLUMNS + """
+				 FROM scanning.finding WHERE product_id = :product AND status = 'OPEN'
+				ORDER BY committed_at DESC, id
+				""").param("product", productId).query(JdbcScans::finding).list();
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public Map<UUID, Integer> openFindingCounts(Collection<UUID> productIds) {
+		if (productIds.isEmpty()) {
+			return Map.of();
+		}
+		Map<UUID, Integer> counts = new LinkedHashMap<>();
+		this.jdbc.sql("""
+				SELECT product_id, count(*) AS open FROM scanning.finding
+				WHERE product_id IN (:products) AND status = 'OPEN' GROUP BY product_id
+				""").param("products", List.copyOf(productIds)).query((rs, n) -> {
+			counts.put(rs.getObject("product_id", UUID.class), rs.getInt("open"));
+			return null;
+		}).list();
+		return counts;
+	}
+
+	private static ScanSummary summary(ResultSet rs, int n) throws SQLException {
+		Timestamp finished = rs.getTimestamp("finished_at");
+		int found = rs.getInt("found_count");
+		Integer foundCount = rs.wasNull() ? null : found;
+		return new ScanSummary(rs.getObject("id", UUID.class), ScanPurpose.valueOf(rs.getString("purpose")),
+				ScanStatus.valueOf(rs.getString("status")), rs.getTimestamp("requested_at").toInstant(),
+				finished == null ? null : finished.toInstant(), foundCount, rs.getInt("unscanned_count"),
+				unscanned(rs.getString("unscanned")));
+	}
+
+	static List<UnscannedFile> unscanned(String json) {
+		List<UnscannedFile> files = new ArrayList<>();
+		for (JsonNode file : JSON.readTree(json)) {
+			files.add(new UnscannedFile(file.path("path").stringValue(), file.path("sizeBytes").longValue()));
+		}
+		return files;
+	}
+
+	private static Finding finding(ResultSet rs, int n) throws SQLException {
+		return new Finding(rs.getObject("id", UUID.class), rs.getString("rule_id"), rs.getString("rule_type"),
+				rs.getString("file_path"), rs.getString("commit_sha"), instant(rs, "committed_at"),
+				rs.getString("masked_preview"), FindingStatus.valueOf(rs.getString("status")), instant(rs, "created_at"));
+	}
+
+	private static Instant instant(ResultSet rs, String column) throws SQLException {
+		return rs.getTimestamp(column).toInstant();
+	}
+
+}

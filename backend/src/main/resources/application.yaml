@@ -152,7 +152,8 @@ vibefix:
         timeout: 30s
       scan:
         concurrency: 2
-        timeout: 10m
+        # The scan job stops itself after 10 minutes (Seed limits); the lease covers recording it too.
+        timeout: 12m
       email:
         concurrency: 2
         # Longer than a slow SMTP exchange (a 10 s connect, then several replies of up to 30 s each),

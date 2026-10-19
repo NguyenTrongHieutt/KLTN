@@ -1,0 +1,8 @@
+subject: Phát hiện {type} trong {product}
+link: /san-pham
+---
+Xin chào,
+
+Lần kiểm tra lịch sử mã của {product} vừa phát hiện {type} bị lộ trong mã nguồn công khai.
+Hãy mở sản phẩm trên vibefix để xem tệp và lần lưu có vấn đề, rồi đổi khóa đó ngay.
+vibefix không lưu khóa của bạn, chỉ lưu một phần đã che.

@@ -1,0 +1,142 @@
+# AD-18, SG-13: the rules of the Secret Scan, owned and versioned by scanning (FR-8). One file for
+# every scan purpose; raising `version` marks the Findings a later rule set produces. Every pattern is
+# RE2/J syntax (linear time, no look-around, repetition counts up to 1000) and holds exactly one
+# capturing group: the credential itself, which is masked and fingerprinted, never stored.
+#
+# Per rule: `id` (stable, stored with each Finding), `type` (the plain Vietnamese name the Customer
+# reads), `keywords` (lower-case; the rule runs only on a file containing one, none means always),
+# `paths` (only files whose path matches), `exclude` (a match containing this is not a credential),
+# and `check` (a test of the value itself: `jwt-service-role` decodes a JWT and keeps only Supabase's
+# service_role, so the public anon key is never flagged).
+#
+# Rules run in order and a file's text is claimed once: a later rule never reports a value an earlier
+# rule already found, so specific providers come first and the generic rules last.
+version: 1
+source: >-
+  Written for vibefix from each provider's published credential format (2026-10-19). Not copied from
+  gitleaks: its MIT-licensed rules can be merged in later with their licence notice and source commit.
+# Values that are placeholders, never credentials.
+placeholders: '(?i)^(?:x+|\*+|\.+|0+|-+|password|passw0rd|pass|secret|changeme|change_me|change-me|example|sample|dummy|test|testing|none|null|undefined|your[-_a-z0-9]*|my[-_a-z0-9]*(?:password|secret|key|token)|<[^>]*>|\[[^\]]*\]|\{[^}]*\}|\$\{[^}]*\}|\$[A-Za-z_][A-Za-z0-9_]*|%[^%]*%|process\.env\.[A-Za-z0-9_]+|import\.meta\.env\.[A-Za-z0-9_]+)$'
+rules:
+  - id: github-pat
+    type: Mã truy cập GitHub
+    keywords: [ghp_]
+    pattern: '\b(ghp_[A-Za-z0-9]{36})\b'
+  - id: github-fine-grained-pat
+    type: Mã truy cập GitHub
+    keywords: [github_pat_]
+    pattern: '\b(github_pat_[A-Za-z0-9_]{82})\b'
+  - id: github-oauth
+    type: Mã đăng nhập GitHub
+    keywords: [gho_]
+    pattern: '\b(gho_[A-Za-z0-9]{36})\b'
+  - id: github-app-token
+    type: Mã ứng dụng GitHub
+    keywords: [ghu_, ghs_]
+    pattern: '\b((?:ghu|ghs)_[A-Za-z0-9]{36})\b'
+  - id: github-refresh-token
+    type: Mã làm mới GitHub
+    keywords: [ghr_]
+    pattern: '\b(ghr_[A-Za-z0-9]{36,76})\b'
+  - id: gcp-service-account
+    type: Tệp khóa tài khoản dịch vụ Google
+    keywords: [service_account]
+    pattern: '"type"\s*:\s*"service_account"[\s\S]{0,1000}?"private_key"\s*:\s*"(-----BEGIN[A-Z ]{0,30}PRIVATE KEY-----[^"]{40,}?-----END[A-Z ]{0,30}PRIVATE KEY-----(?:\\n)?)"'
+  - id: private-key
+    type: Khóa riêng tư
+    keywords: [private key]
+    pattern: '(-----BEGIN[A-Z0-9 ]{0,40}PRIVATE KEY(?: BLOCK)?-----[\s\S]{40,}?-----END[A-Z0-9 ]{0,40}PRIVATE KEY(?: BLOCK)?-----)'
+  - id: supabase-service-role-key
+    type: Khóa dịch vụ Supabase
+    keywords: [eyj]
+    pattern: '\b(eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{20,})'
+    check: jwt-service-role
+  - id: supabase-secret-key
+    type: Khóa dịch vụ Supabase
+    keywords: [sb_secret_]
+    pattern: '\b(sb_secret_[A-Za-z0-9_-]{20,})'
+  - id: supabase-jwt-secret
+    type: Khóa ký JWT của Supabase
+    keywords: [supabase]
+    pattern: '(?i)supabase[_.-]?jwt[_.-]?secret["'']?\s*[:=]\s*["'']?([A-Za-z0-9+/=_-]{32,})'
+  - id: gcp-api-key
+    type: Khóa API Google
+    keywords: [aiza]
+    pattern: '\b(AIza[0-9A-Za-z_-]{35})'
+  - id: aws-access-key-id
+    type: Mã khóa truy cập AWS
+    keywords: [akia, asia, abia, acca]
+    pattern: '\b((?:AKIA|ASIA|ABIA|ACCA)[A-Z0-9]{16})\b'
+  - id: aws-secret-access-key
+    type: Khóa bí mật AWS
+    keywords: [aws]
+    pattern: '(?i)aws[_.-]?secret[_.-]?access[_.-]?key["'']?\s*[:=]\s*["'']?([A-Za-z0-9/+]{40})'
+  - id: stripe-secret-key
+    type: Khóa bí mật Stripe
+    keywords: [sk_live_, sk_test_]
+    pattern: '\b(sk_(?:live|test)_[0-9A-Za-z]{24,247})\b'
+  - id: stripe-restricted-key
+    type: Khóa hạn chế Stripe
+    keywords: [rk_live_, rk_test_]
+    pattern: '\b(rk_(?:live|test)_[0-9A-Za-z]{24,247})\b'
+  - id: vnpay-hash-secret
+    type: Khóa bí mật VNPay
+    keywords: [hashsecret, hash_secret, hash-secret, hash.secret]
+    pattern: '(?i)vnp(?:ay)?[_.-]?hash[_.-]?secret["'']?\s*[:=]\s*["'']?([A-Za-z0-9]{16,64})'
+  - id: momo-secret-key
+    type: Khóa bí mật MoMo
+    keywords: [momo]
+    pattern: '(?i)(?:momo[_.-]?)?secret[_.-]?key["'']?\s*[:=]\s*["'']?([A-Za-z0-9]{32})\b'
+  - id: zalopay-key
+    type: Khóa ZaloPay
+    keywords: [zalo]
+    pattern: '(?i)(?:zalo(?:pay)?[_.-]?)?key[12]["'']?\s*[:=]\s*["'']?([A-Za-z0-9]{32})\b'
+  - id: openai-api-key
+    type: Khóa API OpenAI
+    keywords: [t3blbkfj]
+    pattern: '\b(sk-(?:proj-|svcacct-|admin-)?[A-Za-z0-9_-]{20,}T3BlbkFJ[A-Za-z0-9_-]{20,})'
+  - id: anthropic-api-key
+    type: Khóa API Anthropic
+    keywords: [sk-ant-]
+    pattern: '\b(sk-ant-(?:api|admin)[0-9]{2}-[A-Za-z0-9_-]{80,120})'
+  - id: sendgrid-api-token
+    type: Khóa API SendGrid
+    keywords: [sg.]
+    pattern: '\b(SG\.[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43})'
+  - id: resend-api-key
+    type: Khóa API Resend
+    keywords: [re_]
+    pattern: '\b(re_[A-Za-z0-9]{6,12}_[A-Za-z0-9]{20,32})\b'
+  - id: twilio-api-key
+    type: Khóa API Twilio
+    keywords: [twilio]
+    pattern: '\b(SK[0-9a-fA-F]{32})\b'
+  - id: twilio-auth-token
+    type: Mã xác thực Twilio
+    keywords: [twilio]
+    pattern: '(?i)twilio[_.-]?auth[_.-]?token["'']?\s*[:=]\s*["'']?([0-9a-f]{32})\b'
+  - id: vercel-token
+    type: Mã truy cập Vercel
+    keywords: [vercel]
+    pattern: '(?i)vercel[_.-]?(?:api[_.-]?|access[_.-]?|auth[_.-]?)?token["'']?\s*[:=]\s*["'']?([A-Za-z0-9]{24})\b'
+  - id: netlify-access-token
+    type: Mã truy cập Netlify
+    keywords: [nfp_]
+    pattern: '\b(nfp_[A-Za-z0-9]{36,40})\b'
+  - id: netlify-token
+    type: Mã truy cập Netlify
+    keywords: [netlify]
+    pattern: '(?i)netlify[_.-]?(?:auth[_.-]?|access[_.-]?|api[_.-]?)?token["'']?\s*[:=]\s*["'']?([A-Za-z0-9_-]{40,46})'
+  - id: database-connection-string
+    type: Mật khẩu cơ sở dữ liệu
+    keywords: [postgres, mysql, mariadb, mongodb]
+    pattern: '\b(?:postgres(?:ql)?|mysql|mariadb|mongodb(?:\+srv)?)://[^\s:/@"'']{1,100}:([^\s@"'']{3,200})@[^\s/"'']{1,255}'
+    exclude: '@(?:localhost|127\.0\.0\.1|0\.0\.0\.0|host\.docker\.internal)(?:[:/]|$)'
+  - id: jwt-signing-secret
+    type: Khóa ký JWT
+    keywords: [secret, signing]
+    pattern: '(?i)\b(?:jwt|token|session|auth)[_.-]?(?:secret|signing[_.-]?key)["'']?\s*[:=]\s*["'']?([A-Za-z0-9+/=_.!@#$%^&*-]{16,200})'
+  - id: dotenv-secret
+    type: Khóa bí mật trong tệp .env
+    paths: '(?:^|/)\.env(?:\.[A-Za-z0-9_.-]+)?$'
+    pattern: '(?im)^[ \t]*(?:export[ \t]+)?[A-Z0-9_]*(?:SECRET|PASSWORD|PASSWD|PRIVATE_KEY|API_KEY|ACCESS_KEY|AUTH_TOKEN|_TOKEN)[A-Z0-9_]*[ \t]*=[ \t]*["'']?([^\s"''#]{8,})'

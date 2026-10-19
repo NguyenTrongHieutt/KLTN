@@ -28,6 +28,10 @@ import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
 import vn.vibefix.github.GitHubRepositories.RepositoryMetadata;
+import vn.vibefix.scanning.ScanPurpose;
+import vn.vibefix.scanning.ScanTarget;
+import vn.vibefix.scanning.Scans;
+import vn.vibefix.scanning.ShaRange;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.IdGenerator;
@@ -35,7 +39,8 @@ import vn.vibefix.shared.RateLimitedException;
 
 /**
  * A Customer's Products (FR-7): registration after every repository check and the three
- * acknowledgments, at most 5 a day (AD-34); the list; and one Product's detail.
+ * acknowledgments, at most 5 a day (AD-34), which requests the intake scan in the same transaction
+ * (FR-8, AD-18); the list; and one Product's detail.
  */
 @Component
 class Products {
@@ -45,11 +50,6 @@ class Products {
 	/** The AI tools CUS-3 step 1 offers (FR-7, OQ7). */
 	enum Tool {
 		LOVABLE, BOLT, REPLIT, V0, BASE44, CURSOR, CLAUDE_CODE, CODEX, OTHER
-	}
-
-	/** The scan state; every Product waits for its first scan until Story 2.3. */
-	enum ScanState {
-		AWAITING_SCAN
 	}
 
 	/**
@@ -79,8 +79,7 @@ class Products {
 
 	record Product(UUID id, UUID customerId, String name, String description, @Nullable String demoUrl, List<Tool> tools,
 			long repositoryId, String repositoryFullName, String repositoryOwnerType, String defaultBranch,
-			@Nullable String forkParent, String noticeVersion, Instant acknowledgedAt, Instant createdAt,
-			ScanState scanState) {
+			@Nullable String forkParent, String noticeVersion, Instant acknowledgedAt, Instant createdAt) {
 	}
 
 	private static final String COLUMNS = """
@@ -97,16 +96,19 @@ class Products {
 
 	private final AuditLog auditLog;
 
+	private final Scans scans;
+
 	private final IdGenerator ids;
 
 	private final Clock clock;
 
-	Products(JdbcClient jdbc, RepositoryChecks checks, ProductProperties properties, AuditLog auditLog, IdGenerator ids,
-			Clock clock) {
+	Products(JdbcClient jdbc, RepositoryChecks checks, ProductProperties properties, AuditLog auditLog, Scans scans,
+			IdGenerator ids, Clock clock) {
 		this.jdbc = jdbc;
 		this.checks = checks;
 		this.properties = properties;
 		this.auditLog = auditLog;
+		this.scans = scans;
 		this.ids = ids;
 		this.clock = clock;
 	}
@@ -164,6 +166,8 @@ class Products {
 		}
 		this.auditLog.record(AuditEntry.of(AuditActor.user(customerId), "product.registered",
 				AuditObject.of("product.product", id)));
+		this.scans.requestScan(new ScanTarget(id, customerId, registration.name().strip(), repository.fullName(),
+				repository.id()), ShaRange.wholeHistory(), ScanPurpose.INTAKE);
 		return id;
 	}
 
@@ -192,8 +196,7 @@ class Products {
 				Arrays.stream((String[]) tools.getArray()).map(Tool::valueOf).toList(), rs.getLong("repository_github_id"),
 				rs.getString("repository_full_name"), rs.getString("repository_owner_type"),
 				rs.getString("repository_default_branch"), rs.getString("repository_fork_parent"),
-				rs.getString("copy_permission_version"), acknowledged.toInstant(), rs.getTimestamp("created_at").toInstant(),
-				ScanState.AWAITING_SCAN);
+				rs.getString("copy_permission_version"), acknowledged.toInstant(), rs.getTimestamp("created_at").toInstant());
 	}
 
 }

@@ -149,9 +149,16 @@ class ProductRegistrationIT extends IntegrationTest {
 				""").param("id", id).query(Boolean.class).single()).isTrue();
 		assertThat(this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE action = 'product.registered'")
 			.query(Long.class).single()).isOne();
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM scanning.scan_run r JOIN operations.external_operation o
+				    ON o.operation_key = 'scanning.scan:' || r.id
+				WHERE r.product_id = :id AND r.status = 'PENDING' AND r.purpose = 'INTAKE'
+				    AND r.repository_full_name = 'lan-nguyen/shop-gom' AND o.lane = 'SCAN'
+				""").param("id", id).query(Long.class).single()).as("the intake scan, requested with the Product").isOne();
 		this.mvc.perform(get("/api/v1/products").with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(jsonPath("$[0].name").value("Shop Gốm Bát Tràng"))
-			.andExpect(jsonPath("$[0].scanState").value("AWAITING_SCAN"))
+			.andExpect(jsonPath("$[0].scanState").value("SCANNING"))
+			.andExpect(jsonPath("$[0].scan.status").value("PENDING"))
 			.andExpect(jsonPath("$[0].repositoryUrl").value("https://github.com/lan-nguyen/shop-gom"));
 		this.mvc.perform(get("/api/v1/products/" + id).with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(status().isOk())
@@ -181,6 +188,7 @@ class ProductRegistrationIT extends IntegrationTest {
 			.andExpect(jsonPath("$.reason").value("NOTICE_REQUIRED"));
 		register("https://github.com/lan-nguyen/shop-gom", "0.9").andExpect(jsonPath("$.reason").value("NOTICE_REQUIRED"));
 		assertThat(this.jdbc.sql("SELECT count(*) FROM product.product").query(Long.class).single()).isZero();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM scanning.scan_run").query(Long.class).single()).isZero();
 	}
 
 	@Test

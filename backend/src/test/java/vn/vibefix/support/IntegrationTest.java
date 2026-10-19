@@ -52,6 +52,7 @@ public abstract class IntegrationTest {
 		database.registerProperties(registry);
 		registry.add("identity-token-key-1", () -> PostgresTestDatabase.TEST_TOKEN_KEY);
 		registry.add("identity-person-signal-key-1", () -> PostgresTestDatabase.TEST_SIGNAL_KEY);
+		registry.add("scanning-fingerprint-key", () -> PostgresTestDatabase.TEST_FINGERPRINT_KEY);
 	}
 
 	@BeforeEach
