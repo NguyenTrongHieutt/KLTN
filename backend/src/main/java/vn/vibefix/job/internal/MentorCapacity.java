@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
 import vn.vibefix.identity.StudentDirectory;
@@ -41,10 +42,13 @@ class MentorCapacity implements MentorWork {
 
 	private final Settings settings;
 
-	MentorCapacity(Teams teams, StudentDirectory students, Settings settings) {
+	private final JdbcClient jdbc;
+
+	MentorCapacity(Teams teams, StudentDirectory students, Settings settings, JdbcClient jdbc) {
 		this.teams = teams;
 		this.students = students;
 		this.settings = settings;
+		this.jdbc = jdbc;
 	}
 
 	Capacity of(UUID mentorId) {
@@ -73,11 +77,14 @@ class MentorCapacity implements MentorWork {
 
 	/**
 	 * {@code job.activeJobCount} (AD-33): the Jobs in Selecting, Agreement, Starting, Active, or
-	 * Closing whose Mentor is the account. A Job has a Mentor from J3 on (Story 3.7), so there are none yet.
+	 * Closing whose Mentor is the account, recorded at J3.
 	 */
 	@Override
 	public int activeJobCount(UUID mentorId) {
-		return 0;
+		return this.jdbc.sql("""
+				SELECT count(*) FROM job.job WHERE mentor_account_id = :mentor
+				  AND state IN ('SELECTING', 'AGREEMENT', 'STARTING', 'ACTIVE', 'CLOSING')
+				""").param("mentor", mentorId).query(Integer.class).single();
 	}
 
 	@Override

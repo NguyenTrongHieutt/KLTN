@@ -78,6 +78,10 @@ class JobLifecycle {
 		/** The transition's columns and effects (Deadlines, notifications), written in the apply's transaction. */
 		void apply(Applying applying);
 
+		/** Effects that need the written row, such as notifying the Mentor J3 recorded. */
+		default void afterWrite(Applying applying) {
+		}
+
 	}
 
 	/** A transition being applied to a locked Job, as its {@link Step} sees it. */
@@ -103,13 +107,26 @@ class JobLifecycle {
 
 		private final Map<String, String> facts = new LinkedHashMap<>();
 
-		private Applying(Transition transition, Job job, Actor actor, Trigger trigger, UUID transitionId, Instant now) {
+		private final Map<String, Object> input;
+
+		private Applying(Transition transition, Job job, Actor actor, Trigger trigger, UUID transitionId, Instant now,
+				Map<String, Object> input) {
 			this.transition = transition;
 			this.job = job;
 			this.actor = actor;
 			this.trigger = trigger;
 			this.transitionId = transitionId;
 			this.now = now;
+			this.input = Map.copyOf(input);
+		}
+
+		/** What the command brought, for example J3's Mentor and Application. */
+		Object input(String key) {
+			Object value = this.input.get(key);
+			if (value == null) {
+				throw new IllegalArgumentException(this.transition + " needs the input " + key);
+			}
+			return value;
 		}
 
 		Transition transition() {
@@ -222,7 +239,20 @@ class JobLifecycle {
 	 */
 	@Transactional
 	Applied apply(Transition transition, UUID jobId, Actor actor, Trigger trigger) {
-		return run(transition, jobId, actor, trigger, null);
+		return run(transition, jobId, actor, trigger, null, Map.of());
+	}
+
+	/**
+	 * Applies {@code transition} to the Job as a person's decision: the screen sends the version it
+	 * loaded, and a Job that moved on since answers {@code STALE} (AD-23).
+	 * @param input what the transition's step needs from the command
+	 * @throws ApiException as {@link #apply(Transition, UUID, Actor, Trigger)}, and {@code STALE
+	 * STATE_CHANGED} for another version
+	 */
+	@Transactional
+	Applied apply(Transition transition, UUID jobId, Actor actor, Trigger trigger, long expectedVersion,
+			Map<String, Object> input) {
+		return run(transition, jobId, actor, trigger, expectedVersion, input);
 	}
 
 	/**
@@ -235,14 +265,15 @@ class JobLifecycle {
 	@Transactional
 	Optional<Applied> tryApply(Transition transition, UUID jobId, Actor actor, Trigger trigger, long expectedVersion) {
 		try {
-			return Optional.of(run(transition, jobId, actor, trigger, expectedVersion));
+			return Optional.of(run(transition, jobId, actor, trigger, expectedVersion, Map.of()));
 		}
 		catch (ApiException refused) {
 			return Optional.empty();
 		}
 	}
 
-	private Applied run(Transition transition, UUID jobId, Actor actor, Trigger trigger, @Nullable Long expectedVersion) {
+	private Applied run(Transition transition, UUID jobId, Actor actor, Trigger trigger, @Nullable Long expectedVersion,
+			Map<String, Object> input) {
 		Step step = this.steps.get(transition);
 		if (step == null) {
 			throw new IllegalStateException(transition + " has no command yet");
@@ -263,10 +294,11 @@ class JobLifecycle {
 		if (transition.frozenBlocks() && job.frozenAt() != null) {
 			throw new ApiException(ErrorCode.CONFLICT, JobReason.JOB_FROZEN);
 		}
-		Applying applying = new Applying(transition, job, actor, trigger, this.ids.newId(), this.clock.instant());
+		Applying applying = new Applying(transition, job, actor, trigger, this.ids.newId(), this.clock.instant(), input);
 		step.check(applying);
 		step.apply(applying);
 		write(applying);
+		step.afterWrite(applying);
 		this.auditLog.record(AuditEntry.of(actor.audit(), transition.auditAction(), AuditObject.of("job.job", jobId))
 			.forJob(jobId));
 		this.events.publishEvent(new JobTransitioned(this.ids.newId(), applying.transitionId(), jobId, transition.name(),

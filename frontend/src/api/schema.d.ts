@@ -308,6 +308,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/jobs/{jobId}/applications/{applicationId}/select": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["select"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jobs/{jobId}/publish": {
         parameters: {
             query?: never;
@@ -1439,6 +1455,10 @@ export interface components {
             skillIds: string[];
             title: string;
         };
+        JobMentorView: {
+            displayName: string;
+            githubLogin?: string;
+        };
         JobPostSkillView: {
             hint: string;
             /** Format: uuid */
@@ -1512,6 +1532,9 @@ export interface components {
             jobTypes: ("ASSESSMENT" | "BUG_FIX" | "NEW_FEATURE" | "MODIFICATION" | "IMPROVEMENT" | "SECURITY_TESTING" | "DEPLOYMENT_OPERATIONS" | "DOCUMENTATION")[];
             /** Format: date-time */
             lapsesAt?: string;
+            mentor?: components["schemas"]["JobMentorView"];
+            /** Format: date-time */
+            ndaDueAt?: string;
             /** Format: date-time */
             openedAt?: string;
             problem?: string;
@@ -1519,6 +1542,8 @@ export interface components {
             productId: string;
             productName: string;
             screenshots: components["schemas"]["ScreenshotView"][];
+            /** Format: date-time */
+            selectedAt?: string;
             skills: components["schemas"]["SkillView"][];
             /** @enum {string} */
             state: "DRAFT" | "OPEN" | "SELECTING" | "AGREEMENT" | "STARTING" | "ACTIVE" | "CLOSING" | "CLOSED" | "CANCELLED";
@@ -1892,6 +1917,14 @@ export interface components {
             /** Format: int64 */
             sizeBytes: number;
             url: string;
+        };
+        SelectRequest: {
+            /** Format: int64 */
+            version: number;
+        };
+        SelectedView: {
+            /** Format: int64 */
+            version: number;
         };
         SessionView: {
             account?: components["schemas"]["AccountView"];
@@ -2722,6 +2755,33 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobApplicationView"][];
+                };
+            };
+        };
+    };
+    select: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+                applicationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SelectRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SelectedView"];
                 };
             };
         };

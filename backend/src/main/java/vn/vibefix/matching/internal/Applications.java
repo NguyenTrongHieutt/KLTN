@@ -65,6 +65,10 @@ class Applications {
 
 	static final String CHOOSE_ASSIGNEE = "matching.choose_assignee";
 
+	static final String ON_HOLD = "matching.applications_on_hold";
+
+	static final String SIGN_NDA = "matching.sign_nda";
+
 	static final ZoneId VIETNAM = ZoneId.of("Asia/Ho_Chi_Minh");
 
 	enum Status {
@@ -283,6 +287,37 @@ class Applications {
 		}
 	}
 
+	/**
+	 * J3's consequence for Applications (§4.0, AD-5): the selected one is {@code SELECTED}, the other
+	 * submitted ones go {@code ON_HOLD} and their Mentors are told, the Customer's to-do closes, and the
+	 * selected Mentor's NDA to-do opens with the FR-15 deadline.
+	 */
+	@Transactional
+	void applySelection(UUID jobId, UUID selectedApplicationId, UUID mentorId, Instant ndaDueAt) {
+		this.jdbc.sql("UPDATE matching.application SET status = 'SELECTED' WHERE id = :id AND job_id = :job")
+			.param("id", selectedApplicationId)
+			.param("job", jobId)
+			.update();
+		List<Application> held = this.jdbc.sql("SELECT " + COLUMNS + """
+				 FROM matching.application WHERE job_id = :job AND status = 'SUBMITTED' AND id <> :selected
+				ORDER BY submitted_at, id FOR UPDATE
+				""").param("job", jobId).param("selected", selectedApplicationId).query(Applications::application).list();
+		String title = this.posts.post(jobId).map(JobPostState::title).orElse("");
+		for (Application application : held) {
+			this.jdbc.sql("UPDATE matching.application SET status = 'ON_HOLD' WHERE id = :id")
+				.param("id", application.id())
+				.update();
+			this.notifications.send(new NotificationRequest(ON_HOLD, application.id(),
+					List.of(new Recipient(application.mentorId(), Audience.SUBJECT)), Map.of("job", title), "/cong-viec",
+					null, application.id()));
+		}
+		this.todos.closeAll(CHOOSE_ASSIGNEE, jobId);
+		this.todos.open(new TodoRequest(SIGN_NDA, mentorId, Audience.MENTOR, jobId, Map.of("job", title),
+				"/cong-viec/" + jobId, ndaDueAt, jobId));
+		this.auditLog.record(AuditEntry.of(AuditActor.system(), "matching.applications_held",
+				AuditObject.of("matching.application", selectedApplicationId)).forJob(jobId));
+	}
+
 	/** The Mentor's Applications, newest first (MEN-4, MEN-3). */
 	@Transactional(readOnly = true)
 	List<Application> ofMentor(UUID mentorId) {
@@ -291,6 +326,16 @@ class Applications {
 			.param("mentor", mentorId)
 			.query(Applications::application)
 			.list();
+	}
+
+	/** One Application of the Job, whatever its status. */
+	@Transactional(readOnly = true)
+	Optional<Application> ofJob(UUID jobId, UUID applicationId) {
+		return this.jdbc.sql("SELECT " + COLUMNS + " FROM matching.application WHERE id = :id AND job_id = :job")
+			.param("id", applicationId)
+			.param("job", jobId)
+			.query(Applications::application)
+			.optional();
 	}
 
 	/** The Job's submitted, held, and selected Applications, newest first (CUS-8). */

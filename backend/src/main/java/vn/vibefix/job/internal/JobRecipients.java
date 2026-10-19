@@ -12,7 +12,7 @@ import vn.vibefix.notification.RecipientLookup;
 
 /**
  * {@code job}'s answer to {@code notification} (AD-3 recipient lookup, AD-20): who the Customer of a
- * Job is. The Mentor and Crew classes join once Jobs have them (Stories 3.5 and 4.x).
+ * Job is, and who its Mentor is from J3 on. The Crew classes join with the Crew (Epic 4).
  */
 @Component
 class JobRecipients implements RecipientLookup {
@@ -25,15 +25,16 @@ class JobRecipients implements RecipientLookup {
 
 	@Override
 	public Set<Audience> audiences() {
-		return Set.of(Audience.CUSTOMER);
+		return Set.of(Audience.CUSTOMER, Audience.MENTOR);
 	}
 
 	@Override
 	public boolean holds(UUID accountId, Audience audience, @Nullable UUID jobId) {
-		if (audience != Audience.CUSTOMER || jobId == null) {
+		if (jobId == null || (audience != Audience.CUSTOMER && audience != Audience.MENTOR)) {
 			return false;
 		}
-		return this.jdbc.sql("SELECT EXISTS (SELECT 1 FROM job.job WHERE id = :job AND customer_account_id = :account)")
+		String column = audience == Audience.CUSTOMER ? "customer_account_id" : "mentor_account_id";
+		return this.jdbc.sql("SELECT EXISTS (SELECT 1 FROM job.job WHERE id = :job AND " + column + " = :account)")
 			.param("job", jobId)
 			.param("account", accountId)
 			.query(Boolean.class)

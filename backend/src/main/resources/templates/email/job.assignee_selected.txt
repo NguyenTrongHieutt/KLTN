@@ -1,0 +1,6 @@
+subject: Bạn được chọn cho {job}. Hãy ký cam kết bảo mật.
+---
+Xin chào,
+
+Khách hàng đã chọn bạn hướng dẫn công việc {job}.
+Hãy mở vibefix và ký cam kết bảo mật trong 3 ngày. Sau đó bạn trao đổi với khách hàng và chọn nhóm thực hiện.

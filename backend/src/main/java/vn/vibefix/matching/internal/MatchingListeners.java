@@ -1,5 +1,8 @@
 package vn.vibefix.matching.internal;
 
+import java.time.Instant;
+import java.util.UUID;
+
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
 
@@ -11,9 +14,9 @@ import vn.vibefix.shared.ProcessedEvents;
 import vn.vibefix.shared.Role;
 
 /**
- * What other modules' facts end (AD-9, replay-safe through {@link ProcessedEvents}): J2 closes a Job's
- * open Applications (§4.0), and a locked or revoked Mentor's not-yet-selected Applications are
- * withdrawn (FR-13, AD-19).
+ * What other modules' facts end (AD-5, AD-9, replay-safe through {@link ProcessedEvents}): J2 closes a
+ * Job's open Applications and J3 puts the others on hold (§4.0), and a locked or revoked Mentor's
+ * not-yet-selected Applications are withdrawn (FR-13, AD-19).
  */
 @Component
 class MatchingListeners {
@@ -29,8 +32,14 @@ class MatchingListeners {
 
 	@ApplicationModuleListener
 	void onJobTransitioned(JobTransitioned event) {
-		if (!"J2".equals(event.transition())
+		boolean handled = "J2".equals(event.transition()) || "J3".equals(event.transition());
+		if (!handled
 				|| !this.processedEvents.markProcessed("matching.MatchingListeners.onJobTransitioned", event.eventId())) {
+			return;
+		}
+		if ("J3".equals(event.transition())) {
+			this.applications.applySelection(event.jobId(), UUID.fromString(event.facts().get("applicationId")),
+					UUID.fromString(event.facts().get("mentorId")), Instant.parse(event.facts().get("ndaDueAt")));
 			return;
 		}
 		this.applications.closeForJob(event.jobId(),

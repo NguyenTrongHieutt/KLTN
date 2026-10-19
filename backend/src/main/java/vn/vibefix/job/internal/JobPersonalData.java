@@ -16,9 +16,9 @@ import vn.vibefix.shared.PersonalDataParticipant;
 import vn.vibefix.shared.PersonalDataSection;
 
 /**
- * {@code job}'s part in exports, erasure, and Product deletion (AD-24): the Customer's Jobs, which are
- * Drafts until Story 3.2. Erasure and Product deletion delete the Jobs and their screenshot files;
- * running Jobs will block erasure once the lifecycle exists.
+ * {@code job}'s part in exports, erasure, and Product deletion (AD-24): the Customer's Jobs. Erasure
+ * and Product deletion delete the Jobs and their screenshot files; a Job from J3 to Closing blocks the
+ * erasure of its Customer and its Mentor.
  */
 @Component
 class JobPersonalData implements PersonalDataParticipant {
@@ -79,9 +79,19 @@ class JobPersonalData implements PersonalDataParticipant {
 		this.jdbc.sql("DELETE FROM job.job WHERE %s = :id".formatted(column)).param("id", id).update();
 	}
 
+	/** A Job from J3 to Closing keeps its Customer and its Mentor from being erased (AD-24). */
 	@Override
 	public List<ErasureBlocker> erasureBlockers(UUID accountId) {
-		return List.of();
+		return this.jdbc.sql("""
+				SELECT id FROM job.job WHERE (customer_account_id = :id OR mentor_account_id = :id)
+				  AND state IN ('SELECTING', 'AGREEMENT', 'STARTING', 'ACTIVE', 'CLOSING') ORDER BY id
+				""")
+			.param("id", accountId)
+			.query(UUID.class)
+			.list()
+			.stream()
+			.map(job -> new ErasureBlocker("job", "JOB_RUNNING", job))
+			.toList();
 	}
 
 }

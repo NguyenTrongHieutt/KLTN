@@ -700,6 +700,51 @@
         "tags" : [ "application-controller" ]
       }
     },
+    "/api/v1/jobs/{jobId}/applications/{applicationId}/select" : {
+      "post" : {
+        "operationId" : "select",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "path",
+          "name" : "applicationId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SelectRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SelectedView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "application-controller" ]
+      }
+    },
     "/api/v1/jobs/{jobId}/publish" : {
       "post" : {
         "operationId" : "publish",
@@ -3065,6 +3110,18 @@
         },
         "required" : [ "jobTypes", "skillIds", "title" ]
       },
+      "JobMentorView" : {
+        "type" : "object",
+        "properties" : {
+          "displayName" : {
+            "type" : "string"
+          },
+          "githubLogin" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "displayName" ]
+      },
       "JobPostSkillView" : {
         "type" : "object",
         "properties" : {
@@ -3272,6 +3329,13 @@
             "type" : "string",
             "format" : "date-time"
           },
+          "mentor" : {
+            "$ref" : "#/components/schemas/JobMentorView"
+          },
+          "ndaDueAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
           "openedAt" : {
             "type" : "string",
             "format" : "date-time"
@@ -3291,6 +3355,10 @@
             "items" : {
               "$ref" : "#/components/schemas/ScreenshotView"
             }
+          },
+          "selectedAt" : {
+            "type" : "string",
+            "format" : "date-time"
           },
           "skills" : {
             "type" : "array",
@@ -4338,6 +4406,26 @@
           }
         },
         "required" : [ "addedAt", "fileId", "fileName", "sizeBytes", "url" ]
+      },
+      "SelectRequest" : {
+        "type" : "object",
+        "properties" : {
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "version" ]
+      },
+      "SelectedView" : {
+        "type" : "object",
+        "properties" : {
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "version" ]
       },
       "SessionView" : {
         "type" : "object",
