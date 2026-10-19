@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 
 import vn.vibefix.identity.StudentDirectory;
 import vn.vibefix.identity.StudentDirectory.StudentCard;
+import vn.vibefix.job.MentorWork;
 import vn.vibefix.settings.Rule;
 import vn.vibefix.settings.Settings;
 import vn.vibefix.team.Teams;
@@ -18,7 +19,7 @@ import vn.vibefix.team.Teams;
  * reasons; the Application (Story 3.6) and J3 refuse with them.
  */
 @Component
-class MentorCapacity {
+class MentorCapacity implements MentorWork {
 
 	/** Why a Mentor cannot apply now (FR-13). */
 	enum Reason {
@@ -50,7 +51,7 @@ class MentorCapacity {
 		List<UUID> members = this.teams.members(mentorId);
 		int free = freeStudents(members).size();
 		int active = activeJobCount(mentorId);
-		int limit = this.settings.value(Rule.MENTOR_ACTIVE_JOB_LIMIT);
+		int limit = activeJobLimit();
 		List<Reason> reasons = new ArrayList<>();
 		if (free == 0) {
 			reasons.add(Reason.NO_FREE_STUDENT);
@@ -65,7 +66,8 @@ class MentorCapacity {
 	 * {@code job.freeStudents} (AD-33): the verified, unlocked members of the Mentor's Team on no
 	 * running Crew. No Crew row exists before the Agreement (Epic 4), so every such member is free.
 	 */
-	List<UUID> freeStudents(UUID mentorId) {
+	@Override
+	public List<UUID> freeStudents(UUID mentorId) {
 		return freeStudents(this.teams.members(mentorId));
 	}
 
@@ -73,8 +75,14 @@ class MentorCapacity {
 	 * {@code job.activeJobCount} (AD-33): the Jobs in Selecting, Agreement, Starting, Active, or
 	 * Closing whose Mentor is the account. A Job has a Mentor from J3 on (Story 3.7), so there are none yet.
 	 */
-	int activeJobCount(UUID mentorId) {
+	@Override
+	public int activeJobCount(UUID mentorId) {
 		return 0;
+	}
+
+	@Override
+	public int activeJobLimit() {
+		return this.settings.value(Rule.MENTOR_ACTIVE_JOB_LIMIT);
 	}
 
 	private List<UUID> freeStudents(List<UUID> members) {

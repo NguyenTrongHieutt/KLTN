@@ -1,0 +1,7 @@
+subject: Một đơn ứng tuyển bị từ chối vì có thể là cùng một người
+link: /quan-tri
+---
+Xin chào,
+
+vibefix vừa từ chối một đơn ứng tuyển vì người hướng dẫn và khách hàng có chung dấu hiệu nhận diện (email đã xác minh hoặc LinkedIn).
+Người ứng tuyển không được biết lý do cụ thể. Hãy mở trang quản trị để xem xét.

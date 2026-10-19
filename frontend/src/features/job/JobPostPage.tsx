@@ -10,6 +10,7 @@ import { t, type MessageKey } from '@/i18n/t'
 import { formatCalendarDayMonth, formatDayMonth } from '@/lib/dates'
 import { formatSize } from '@/lib/fileSize'
 import { isNotFound } from '@/lib/problemMessage'
+import { ApplyPanel } from '@/features/matching/ApplyPanel'
 import { CapacityBanners } from './CapacityBanners'
 import { JobStateBadge } from './JobStateBadge'
 import { useCustomerRating, useJobPost, useMentorCapacity, type JobPost, type MentorCapacity } from './jobPostApi'
@@ -18,7 +19,7 @@ import { useCustomerRating, useJobPost, useMentorCapacity, type JobPost, type Me
  * MEN-3 Chi tiết tin công việc (`/tim-viec/{jobId}`, FR-12, FR-13) for approved Mentors: the Job
  * Post's answers, Job Types, Skills with their plain hints, deadline, budget, and screenshots; the
  * Customer's Rating summary, never their name or contact details; the Product; the Team's free
- * Students; and the FR-13 banners. Applying arrives with Story 3.6.
+ * Students; the FR-13 banners; and "Ứng tuyển" (Story 3.6).
  */
 export function JobPostPage() {
   const { postId } = useParams()
@@ -72,6 +73,7 @@ function Post({ post }: { post: JobPost }) {
       </div>
       <CapacityBanners capacity={capacity.data} />
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="flex min-w-0 flex-col gap-6">
         <section aria-label={post.title} className="flex min-w-0 flex-col gap-4 rounded-lg border border-border bg-card p-5">
           {answers.map(
             ([field, answer]) =>
@@ -116,6 +118,12 @@ function Post({ post }: { post: JobPost }) {
             </div>
           )}
         </section>
+        <ApplyPanel
+          postId={post.id}
+          teamSize={capacity.data?.teamSize ?? 0}
+          blocked={(capacity.data?.reasons.length ?? 0) > 0}
+        />
+        </div>
         <aside className="flex flex-col gap-4">
           <CustomerCard postId={post.id} />
           <section aria-labelledby="post-product" className="flex flex-col gap-1.5 rounded-lg border border-border bg-card p-4 text-body-sm">

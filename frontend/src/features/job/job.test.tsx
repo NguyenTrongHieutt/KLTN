@@ -197,7 +197,7 @@ describe('CUS-6, drafting a Job (FR-9)', () => {
   })
 
   it('finds nothing for another role', async () => {
-    fakeBackend(signedIn('MENTOR'))
+    fakeBackend(signedIn('STUDENT'))
     renderAt('/cong-viec')
 
     expect(await screen.findByText('Không tìm thấy nội dung này.')).toBeInTheDocument()

@@ -292,6 +292,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/jobs/{jobId}/applications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ofJob"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jobs/{jobId}/publish": {
         parameters: {
             query?: never;
@@ -349,6 +365,38 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        post: operations["withdraw_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mentor/applications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["mine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mentor/applications/{applicationId}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
         post: operations["withdraw"];
         delete?: never;
         options?: never;
@@ -398,6 +446,22 @@ export interface paths {
         get: operations["post"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mentor/job-posts/{postId}/applications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["apply"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1182,6 +1246,42 @@ export interface components {
             /** Format: date-time */
             idleExpiresAt: string;
         };
+        ApplicantView: {
+            displayName: string;
+            githubLogin?: string;
+            /** Format: int32 */
+            teamSize: number;
+            /** Format: int32 */
+            yearsOfExperience: number;
+        };
+        ApplicationView: {
+            approach: string;
+            /** @enum {string} */
+            endReason?: "WITHDRAWN" | "MENTOR_UNAVAILABLE" | "JOB_WITHDRAWN" | "JOB_LAPSED";
+            /** Format: date-time */
+            endedAt?: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            jobId: string;
+            jobTitle: string;
+            /** Format: int64 */
+            priceVnd: number;
+            /** @enum {string} */
+            status: "SUBMITTED" | "ON_HOLD" | "SELECTED" | "CLOSED" | "WITHDRAWN";
+            /** Format: date-time */
+            submittedAt: string;
+            /** Format: int32 */
+            timelineDays: number;
+        };
+        ApplyRequest: {
+            approach: string;
+            /** Format: int64 */
+            priceVnd: number;
+            publicCodeAcknowledged: boolean;
+            /** Format: int32 */
+            timelineDays: number;
+        };
         ApproveMentorRequest: {
             stepUpCode: string;
         };
@@ -1305,6 +1405,20 @@ export interface components {
             /** @enum {string} */
             status: "OPEN" | "RESOLVED" | "FALSE_POSITIVE";
             type: string;
+        };
+        JobApplicationView: {
+            approach: string;
+            /** Format: uuid */
+            id: string;
+            mentor: components["schemas"]["ApplicantView"];
+            /** Format: int64 */
+            priceVnd: number;
+            /** @enum {string} */
+            status: "SUBMITTED" | "ON_HOLD" | "SELECTED" | "CLOSED" | "WITHDRAWN";
+            /** Format: date-time */
+            submittedAt: string;
+            /** Format: int32 */
+            timelineDays: number;
         };
         JobCreatedView: {
             /** Format: uuid */
@@ -2590,6 +2704,28 @@ export interface operations {
             };
         };
     };
+    ofJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobApplicationView"][];
+                };
+            };
+        };
+    };
     publish: {
         parameters: {
             query?: never;
@@ -2662,7 +2798,7 @@ export interface operations {
             };
         };
     };
-    withdraw: {
+    withdraw_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -2680,6 +2816,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobView"];
+                };
+            };
+        };
+    };
+    mine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationView"][];
+                };
+            };
+        };
+    };
+    withdraw: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                applicationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationView"];
                 };
             };
         };
@@ -2750,6 +2928,32 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobPostView"];
+                };
+            };
+        };
+    };
+    apply: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                postId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApplyRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationView"];
                 };
             };
         };

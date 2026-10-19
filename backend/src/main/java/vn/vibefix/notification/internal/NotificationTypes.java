@@ -29,6 +29,10 @@ class NotificationTypes implements NotificationCatalog {
 			Set.of(Audience.SUBJECT), 2, Set.of("product"));
 
 	/** An unverified Student; opened at sign-up as a Student or when verification expires (FR-5). */
+	/** The Customer's Job has open Applications to choose from (FR-15, UX-DR15). */
+	static final TodoType MATCHING_CHOOSE_ASSIGNEE = new TodoType("matching.choose_assignee", Set.of(Audience.CUSTOMER),
+			1, Set.of("n"));
+
 	static final TodoType VERIFY_STUDENT = new TodoType("identity.verify_student", Set.of(Audience.SUBJECT), 3, Set.of());
 
 	/** The school email code (FR-5): email only, to the address being verified, ahead of reminders (AD-34). */
@@ -116,6 +120,20 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType JOB_POST_LAPSED = new NotificationType("job.job_post_lapsed",
 			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
 
+	/** The first Application to the Customer's Job Post (FR-13). */
+	static final NotificationType MATCHING_APPLICATION_RECEIVED = new NotificationType("matching.application_received",
+			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "users", Set.of("job"));
+
+	/** A locked or revoked Mentor's Application was withdrawn by the System (FR-13, AD-19). */
+	static final NotificationType MATCHING_APPLICATION_AUTO_WITHDRAWN = new NotificationType(
+			"matching.application_auto_withdrawn", Set.of(Audience.CUSTOMER), Channel.IN_APP, EmailClass.TRANSACTIONAL,
+			"alert", Set.of("mentor", "job"));
+
+	/** An Application refused for a shared person-link signal (FR-13, AD-19): every Administrator. */
+	static final NotificationType MATCHING_CONFLICT_OF_INTEREST_REFUSED = new NotificationType(
+			"matching.conflict_of_interest_refused", Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL,
+			EmailClass.TRANSACTIONAL, "alert", Set.of());
+
 	@Override
 	public List<NotificationType> notificationTypes() {
 		return List.of(SCHOOL_EMAIL_CODE, VERIFICATION_EXPIRING, VERIFICATION_EXPIRED, ADMIN_SIGN_IN_LOCKED,
@@ -123,12 +141,14 @@ class NotificationTypes implements NotificationCatalog {
 				MENTOR_APPLICATION_RECEIVED, MENTOR_APPROVED, MENTOR_REJECTED, TEAM_INVITATION_RECEIVED,
 				TEAM_INVITATION_ANSWERED, TEAM_JOIN_REQUEST_RECEIVED, TEAM_JOIN_REQUEST_ANSWERED, TEAM_RELEASED,
 				TEAM_MEMBER_LEFT, TEAM_MEMBER_REMOVED, SCANNING_INTAKE_SCAN_CLEAN, SCANNING_FINDING_OPENED,
-				JOB_POST_LAPSED);
+				JOB_POST_LAPSED, MATCHING_APPLICATION_RECEIVED, MATCHING_APPLICATION_AUTO_WITHDRAWN,
+				MATCHING_CONFLICT_OF_INTEREST_REFUSED);
 	}
 
 	@Override
 	public List<TodoType> todoTypes() {
-		return List.of(COMPLETE_MENTOR_APPLICATION, VERIFY_STUDENT, SCANNING_RESOLVE_INTAKE_FINDING);
+		return List.of(COMPLETE_MENTOR_APPLICATION, VERIFY_STUDENT, SCANNING_RESOLVE_INTAKE_FINDING,
+				MATCHING_CHOOSE_ASSIGNEE);
 	}
 
 }

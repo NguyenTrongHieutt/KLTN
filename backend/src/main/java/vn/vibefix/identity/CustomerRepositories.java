@@ -33,4 +33,12 @@ public interface CustomerRepositories {
 	 */
 	List<String> languages(UUID customerId, String owner, String name);
 
+	/**
+	 * Whether {@code accountId}'s GitHub account is among the repository's contributors, read with the
+	 * Customer's token (FR-13, metadata only): an Applicant who worked on the code may not apply.
+	 * @throws vn.vibefix.shared.ApiException {@code NOT_FOUND} as for {@link #read}
+	 * @throws vn.vibefix.github.GitHubException when GitHub refuses or cannot be reached
+	 */
+	boolean hasContributor(UUID customerId, String owner, String name, UUID accountId);
+
 }

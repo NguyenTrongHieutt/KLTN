@@ -14,7 +14,9 @@ import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t, type MessageKey } from '@/i18n/t'
 import { formatCalendarDate, formatDayMonth } from '@/lib/dates'
 import { isNotFound, problemMessage } from '@/lib/problemMessage'
+import { useJobApplications } from '@/features/matching/applicationApi'
 import { useJob, useWithdrawJob, type Job } from './jobApi'
+import { JobTabs } from './JobTabs'
 import { JobStateBadge } from './JobStateBadge'
 
 /**
@@ -44,6 +46,7 @@ export function JobPage() {
 }
 
 function Overview({ job }: { job: Job }) {
+  const applications = useJobApplications(job.state === 'OPEN' ? job.id : undefined).data ?? []
   const types = job.jobTypes.map((type) => t(`term.jobType${type}.label` as MessageKey)).join(', ')
   const open = job.state === 'OPEN' && job.lapsesAt != null
   return (
@@ -67,20 +70,12 @@ function Overview({ job }: { job: Job }) {
           </div>
           {job.state === 'OPEN' && <Withdraw job={job} />}
         </div>
-        <nav aria-label={t('screen.job.detail.tabs')} className="flex gap-4 border-b border-border">
-          <Link
-            to={`/cong-viec/${job.id}`}
-            aria-current="page"
-            className="-mb-px border-b-2 border-primary px-1 pb-2 text-label font-semibold text-primary no-underline"
-          >
-            {t('screen.job.detail.overview')}
-          </Link>
-        </nav>
+        <JobTabs jobId={job.id} current="overview" applications={job.state === 'OPEN' ? applications.length : undefined} />
       </div>
       {open && job.lapsesAt ? (
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
           <div className="flex min-w-0 flex-col gap-6">
-            <NextSteps lapsesAt={job.lapsesAt} />
+            <NextSteps lapsesAt={job.lapsesAt} jobId={job.id} applications={applications.length} />
             <JobPost job={job} />
             <div role="note" className="flex gap-3 rounded-md border-l-4 border-warning bg-warning-soft p-4">
               <TriangleAlert aria-hidden="true" className="size-5 shrink-0 text-warning" />
@@ -106,7 +101,7 @@ function LapseChip({ lapsesAt }: { lapsesAt: string }) {
 }
 
 /** "Chưa có đơn ứng tuyển" and the three steps of "Điều gì xảy ra tiếp theo" (UX-DR68). */
-function NextSteps({ lapsesAt }: { lapsesAt: string }) {
+function NextSteps({ lapsesAt, jobId, applications }: { lapsesAt: string; jobId: string; applications: number }) {
   const steps = [
     ['nextApply', 'nextApplyBody'],
     ['nextChoose', 'nextChooseBody'],
@@ -116,11 +111,19 @@ function NextSteps({ lapsesAt }: { lapsesAt: string }) {
     <section aria-labelledby="job-applications" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 id="job-applications" className="text-h2">
-          {t('screen.job.detail.applicationsTitle')}
+          {applications > 0
+            ? t('screen.matching.overviewCount', { n: applications })
+            : t('screen.job.detail.applicationsTitle')}
         </h2>
         <LapseChip lapsesAt={lapsesAt} />
       </div>
-      <p className="text-body-sm text-muted-foreground">{t('screen.job.detail.applicationsBody')}</p>
+      {applications > 0 ? (
+        <Link to={`/cong-viec/${jobId}/ung-tuyen`} className="w-fit text-body-sm text-primary underline-offset-4 hover:underline">
+          {t('screen.matching.overviewOpen')}
+        </Link>
+      ) : (
+        <p className="text-body-sm text-muted-foreground">{t('screen.job.detail.applicationsBody')}</p>
+      )}
       <h3 className="text-h3">{t('screen.job.detail.nextTitle')}</h3>
       <ol className="flex flex-col gap-3">
         {steps.map(([title, body], index) => (

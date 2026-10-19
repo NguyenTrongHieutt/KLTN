@@ -1,0 +1,6 @@
+subject: Có đơn ứng tuyển mới cho {job}
+---
+Xin chào,
+
+Một người hướng dẫn đã ứng tuyển tin {job} của bạn, kèm giá, thời gian và cách làm.
+Hãy mở vibefix để xem đơn ứng tuyển. Bạn có thể chờ thêm đơn rồi so sánh trước khi chọn.

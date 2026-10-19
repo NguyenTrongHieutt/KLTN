@@ -1293,6 +1293,66 @@
       "noMatchKeyword": "Không tìm thấy công việc nào khớp với “{q}”.",
       "noMatchKeywordBody": "Hãy thử từ khóa ngắn hơn hoặc bỏ bớt bộ lọc.",
       "tooFast": "Bạn đang tìm hơi nhanh. Hãy đợi {seconds} giây rồi tìm lại."
+    },
+    "matching": {
+      "test": "THỬ NGHIỆM",
+      "days": "{n} ngày",
+      "tab": "Đơn ứng tuyển ({n})",
+      "appliedBadge": "Đã ứng tuyển",
+      "overviewCount": "{n} đơn ứng tuyển",
+      "overviewOpen": "Xem các đơn ứng tuyển",
+      "apply": {
+        "heading": "Ứng tuyển",
+        "lead": "Khách hàng sẽ thấy giá, thời gian, cách làm, số sinh viên trong nhóm của bạn ({n}) và điểm chấm sao của bạn. Bạn chọn nhóm thực hiện sau khi được chọn và ký cam kết bảo mật.",
+        "price": "Giá đề xuất",
+        "priceHint": "gồm phần của bạn và của nhóm thực hiện",
+        "priceInvalid": "Hãy nhập giá từ 1.000 ₫ đến 1.000.000.000 ₫.",
+        "days": "Thời gian làm (ngày)",
+        "daysInvalid": "Hãy nhập từ 1 đến 365 ngày.",
+        "approach": "Cách bạn sẽ làm",
+        "approachHint": "Viết bằng lời cho khách hàng không rành kỹ thuật. Không dán mã.",
+        "approachRequired": "Hãy viết cách bạn sẽ làm.",
+        "n5": "Tôi hiểu mã tôi và nhóm làm sẽ nằm trong kho mã công khai trước khi được nghiệm thu. Mỗi giai đoạn được khách hàng thanh toán trước khi bắt đầu.",
+        "acknowledgeRequired": "Hãy đánh dấu ô xác nhận trước khi ứng tuyển.",
+        "submit": "Ứng tuyển",
+        "sending": "Đang gửi…",
+        "sent": "Đã gửi đơn ứng tuyển.",
+        "tooMany": "Hôm nay bạn đã gửi đủ 20 đơn ứng tuyển. Bạn có thể ứng tuyển tiếp sau {time}."
+      },
+      "applied": {
+        "title": "Bạn đã ứng tuyển công việc này",
+        "endedWITHDRAWN": "Đơn của bạn đã được rút",
+        "endedCLOSED": "Đơn của bạn đã đóng",
+        "withdraw": "Rút đơn",
+        "withdrawTitle": "Rút đơn ứng tuyển này?",
+        "withdrawBody": "Khách hàng sẽ không thấy đơn của bạn nữa, và bạn không ứng tuyển lại công việc này được.",
+        "keep": "Giữ đơn",
+        "withdrawn": "Đã rút đơn ứng tuyển."
+      },
+      "list": {
+        "title": "Đơn ứng tuyển · {job}",
+        "sent": "gửi {date}",
+        "mentor": "{years} năm kinh nghiệm · nhóm {n} sinh viên",
+        "note": "Bạn có thể chờ thêm đơn rồi so sánh trước khi chọn. Người hướng dẫn chỉ thấy đơn của chính họ."
+      },
+      "mentor": {
+        "jobs": "Công việc của bạn",
+        "noJobs": "Bạn chưa nhận công việc nào. Công việc khách hàng chọn bạn sẽ hiện ở đây.",
+        "noApplications": "Bạn chưa ứng tuyển công việc nào.",
+        "findWork": "Tìm việc",
+        "group_waiting": "Đơn đang chờ",
+        "group_held": "Đơn tạm giữ",
+        "group_ended": "Đơn đã đóng",
+        "status_SUBMITTED": "Đang chờ khách hàng",
+        "status_ON_HOLD": "Tạm giữ",
+        "status_SELECTED": "Được chọn",
+        "status_CLOSED": "Đã đóng",
+        "status_WITHDRAWN": "Đã rút",
+        "end_WITHDRAWN": "Bạn đã rút",
+        "end_MENTOR_UNAVAILABLE": "Hệ thống đã rút",
+        "end_JOB_WITHDRAWN": "Khách hàng đã rút tin",
+        "end_JOB_LAPSED": "Tin đã hết hạn"
+      }
     }
   },
   "notice": {
@@ -1727,6 +1787,9 @@
     },
     "scanning": {
       "resolve_intake_finding": "Xử lý vấn đề bảo mật ở {product}"
+    },
+    "matching": {
+      "choose_assignee": "Chọn người hướng dẫn ({n} đơn ứng tuyển)"
     }
   },
   "theme": {
@@ -1815,6 +1878,17 @@
       "job_post_lapsed": {
         "title": "Tin {job} đã hết hạn và trở về bản nháp"
       }
+    },
+    "matching": {
+      "application_received": {
+        "title": "Có đơn ứng tuyển mới cho {job}"
+      },
+      "application_auto_withdrawn": {
+        "title": "Đơn ứng tuyển của {mentor} cho {job} đã được rút vì người hướng dẫn này hiện không nhận việc"
+      },
+      "conflict_of_interest_refused": {
+        "title": "Một đơn ứng tuyển bị từ chối vì có thể là cùng một người"
+      }
     }
   },
   "reason": {
@@ -1886,6 +1960,18 @@
       "INTAKE_FINDING_OPEN": "còn vấn đề bảo mật chưa xử lý",
       "STATE_CHANGED": "công việc vừa đổi trạng thái",
       "JOB_FROZEN": "công việc đang tạm dừng vì có tranh chấp"
+    },
+    "matching": {
+      "JOB_POST_NOT_OPEN": "công việc không còn nhận ứng tuyển",
+      "JOB_POST_HIDDEN": "tin công việc đang bị ẩn",
+      "ALREADY_APPLIED": "Bạn đã có đơn ứng tuyển cho công việc này.",
+      "NO_FREE_STUDENT": "Nhóm của bạn chưa có sinh viên rảnh, nên chưa ứng tuyển được.",
+      "MENTOR_JOB_LIMIT": "Bạn đang nhận đủ số công việc tối đa. Hãy hoàn thành bớt rồi ứng tuyển tiếp.",
+      "CONFLICT_OF_INTEREST": "Bạn không thể ứng tuyển công việc này.",
+      "APPLICANT_IS_CONTRIBUTOR": "Bạn đã từng đóng góp vào dự án gốc này nên không thể ứng tuyển.",
+      "CONTRIBUTORS_UNKNOWN": "vibefix chưa kiểm tra được kho mã của khách hàng. Hãy thử lại sau ít phút.",
+      "PUBLIC_CODE_NOT_ACKNOWLEDGED": "Hãy đánh dấu ô xác nhận về kho mã công khai.",
+      "NOT_WITHDRAWABLE": "Đơn này không rút được nữa."
     }
   }
 }
