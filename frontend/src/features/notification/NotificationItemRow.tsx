@@ -1,4 +1,4 @@
-import { Bell, BriefcaseBusiness, CircleCheck, Info, Mail, TriangleAlert, type LucideIcon } from 'lucide-react'
+import { Bell, BriefcaseBusiness, CircleCheck, Info, Mail, TriangleAlert, Users, type LucideIcon } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { t } from '@/i18n/t'
 import { formatDayMonthTime } from '@/lib/dates'
@@ -15,6 +15,7 @@ const ICONS: Record<string, LucideIcon> = {
   alert: TriangleAlert,
   briefcase: BriefcaseBusiness,
   check: CircleCheck,
+  users: Users,
 }
 
 /**

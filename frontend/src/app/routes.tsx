@@ -31,6 +31,10 @@ export const routes: RouteObject[] = [
         path: 'ho-so',
         lazy: async () => ({ Component: (await import('@/features/identity/ProfileStub')).ProfileStub }),
       },
+      {
+        path: 'nhom',
+        lazy: async () => ({ Component: (await import('@/features/team/TeamPage')).TeamPage }),
+      },
     ],
   },
   {
@@ -75,6 +79,11 @@ export const routes: RouteObject[] = [
       { path: 'dang-nhap', element: <SignInPage /> },
       { path: 'bat-dau', element: <StartPage /> },
       { path: 'quyen-rieng-tu', element: <PrivacyPage /> },
+      {
+        // PUB-5, for anyone: a signed-in visitor keeps the public header with "Vào trang của bạn".
+        path: 'mentor/:username',
+        lazy: async () => ({ Component: (await import('@/features/team/MentorPublicPage')).MentorPublicPage }),
+      },
       // The AI notice was removed with the AI (2026-10-18); its address now shows the privacy notice.
       { path: 'ai', element: <Navigate to="/quyen-rieng-tu" replace /> },
       { path: '*', element: <NotFoundScreen /> },

@@ -561,6 +561,237 @@
         "tags" : [ "file-controller" ]
       }
     },
+    "/api/v1/mentor/team" : {
+      "get" : {
+        "operationId" : "team_1",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MentorTeamView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "mentor-team-controller" ]
+      }
+    },
+    "/api/v1/mentor/team/invitations" : {
+      "post" : {
+        "operationId" : "invite",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/TeamInvitationRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamRequestView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "mentor-team-controller" ]
+      }
+    },
+    "/api/v1/mentor/team/join-requests/{joinRequestId}/accept" : {
+      "post" : {
+        "operationId" : "accept_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "joinRequestId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamRequestView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "mentor-team-controller" ]
+      }
+    },
+    "/api/v1/mentor/team/join-requests/{joinRequestId}/decline" : {
+      "post" : {
+        "operationId" : "decline_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "joinRequestId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamRequestView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "mentor-team-controller" ]
+      }
+    },
+    "/api/v1/mentor/team/students" : {
+      "get" : {
+        "operationId" : "students",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "q",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "default" : "",
+            "maxLength" : 200,
+            "minLength" : 0
+          }
+        }, {
+          "in" : "query",
+          "name" : "skills",
+          "required" : false,
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        }, {
+          "in" : "query",
+          "name" : "login",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "Zero-based page index (0..N)",
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "default" : 0,
+            "minimum" : 0
+          }
+        }, {
+          "description" : "The size of the page to be returned",
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "default" : 20,
+            "minimum" : 1
+          }
+        }, {
+          "description" : "Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.",
+          "in" : "query",
+          "name" : "sort",
+          "required" : false,
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamStudentSearchView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "mentor-team-controller" ]
+      }
+    },
+    "/api/v1/mentor/team/students/{studentId}" : {
+      "get" : {
+        "operationId" : "student",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "studentId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamStudentProfileView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "mentor-team-controller" ]
+      }
+    },
+    "/api/v1/mentors/{username}" : {
+      "get" : {
+        "operationId" : "mentor",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "username",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PublicMentorView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "public-mentor-controller" ]
+      }
+    },
     "/api/v1/notifications" : {
       "get" : {
         "operationId" : "notifications",
@@ -864,6 +1095,177 @@
           }
         },
         "tags" : [ "session-controller" ]
+      }
+    },
+    "/api/v1/team" : {
+      "get" : {
+        "operationId" : "team",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StudentTeamView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "student-team-controller" ]
+      }
+    },
+    "/api/v1/team/invitations/{invitationId}/accept" : {
+      "post" : {
+        "operationId" : "accept",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "invitationId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StudentTeamRequestView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "student-team-controller" ]
+      }
+    },
+    "/api/v1/team/invitations/{invitationId}/decline" : {
+      "post" : {
+        "operationId" : "decline",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "invitationId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StudentTeamRequestView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "student-team-controller" ]
+      }
+    },
+    "/api/v1/team/join-requests" : {
+      "post" : {
+        "operationId" : "requestToJoin",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/TeamJoinRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StudentTeamRequestView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "student-team-controller" ]
+      }
+    },
+    "/api/v1/team/mentors" : {
+      "get" : {
+        "operationId" : "mentors",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "q",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "default" : "",
+            "maxLength" : 200,
+            "minLength" : 0
+          }
+        }, {
+          "in" : "query",
+          "name" : "skills",
+          "required" : false,
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        }, {
+          "description" : "Zero-based page index (0..N)",
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "default" : 0,
+            "minimum" : 0
+          }
+        }, {
+          "description" : "The size of the page to be returned",
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "default" : 20,
+            "minimum" : 1
+          }
+        }, {
+          "description" : "Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.",
+          "in" : "query",
+          "name" : "sort",
+          "required" : false,
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamMentorSearchView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "student-team-controller" ]
       }
     },
     "/api/v1/todos" : {
@@ -1584,6 +1986,46 @@
         },
         "required" : [ "approvalStatus", "skills" ]
       },
+      "MentorTeamView" : {
+        "type" : "object",
+        "properties" : {
+          "invitations" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/TeamStudentRequestRow"
+            }
+          },
+          "invitesLeft" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "joinRequests" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/TeamStudentRequestRow"
+            }
+          },
+          "members" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/TeamMemberRow"
+            }
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "sizeLimit" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "OPEN", "CLOSED" ]
+          }
+        },
+        "required" : [ "invitations", "invitesLeft", "joinRequests", "members", "size", "sizeLimit", "status" ]
+      },
       "NotificationItem" : {
         "type" : "object",
         "properties" : {
@@ -1771,6 +2213,112 @@
           }
         },
         "required" : [ "role" ]
+      },
+      "PublicMentorView" : {
+        "type" : "object",
+        "properties" : {
+          "accountId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "available" : {
+            "type" : "boolean"
+          },
+          "displayName" : {
+            "type" : "string"
+          },
+          "experience" : {
+            "type" : "string"
+          },
+          "githubLogin" : {
+            "type" : "string"
+          },
+          "listedMembers" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/PublicTeamMember"
+            }
+          },
+          "memberSince" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "sizeLimit" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "skillGroups" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/PublicSkillGroup"
+            }
+          },
+          "teamSize" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "viewer" : {
+            "$ref" : "#/components/schemas/PublicMentorViewer"
+          },
+          "yearsOfExperience" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "accountId", "available", "displayName", "experience", "listedMembers", "memberSince", "sizeLimit", "skillGroups", "teamSize", "yearsOfExperience" ]
+      },
+      "PublicMentorViewer" : {
+        "type" : "object",
+        "properties" : {
+          "inTeam" : {
+            "type" : "boolean"
+          },
+          "pending" : {
+            "$ref" : "#/components/schemas/TeamPendingRequest"
+          },
+          "relation" : {
+            "type" : "string",
+            "enum" : [ "NONE", "INVITED", "REQUESTED", "MEMBER" ]
+          },
+          "requestsLeft" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "verified" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "inTeam", "relation", "requestsLeft", "verified" ]
+      },
+      "PublicSkillGroup" : {
+        "type" : "object",
+        "properties" : {
+          "category" : {
+            "type" : "string"
+          },
+          "skills" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "skills" ]
+      },
+      "PublicTeamMember" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "school" : {
+            "type" : "string"
+          },
+          "verified" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "name", "verified" ]
       },
       "Queue" : {
         "type" : "object",
@@ -2033,6 +2581,398 @@
           }
         },
         "required" : [ "repositories", "showNameAndSchool", "skills" ]
+      },
+      "StudentTeamMembership" : {
+        "type" : "object",
+        "properties" : {
+          "joinedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "listed" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/TeamListedMember"
+            }
+          },
+          "mentor" : {
+            "$ref" : "#/components/schemas/TeamMentorView"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "OPEN", "CLOSED" ]
+          }
+        },
+        "required" : [ "joinedAt", "listed", "mentor", "size", "status" ]
+      },
+      "StudentTeamRequestView" : {
+        "type" : "object",
+        "properties" : {
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "INVITATION", "JOIN_REQUEST" ]
+          },
+          "lapsesAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "createdAt", "id", "kind", "lapsesAt" ]
+      },
+      "StudentTeamView" : {
+        "type" : "object",
+        "properties" : {
+          "invitations" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/TeamMentorRequestRow"
+            }
+          },
+          "joinRequests" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/TeamMentorRequestRow"
+            }
+          },
+          "requestsLeft" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "team" : {
+            "$ref" : "#/components/schemas/StudentTeamMembership"
+          },
+          "verified" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "invitations", "joinRequests", "requestsLeft", "verified" ]
+      },
+      "TeamInvitationRequest" : {
+        "type" : "object",
+        "properties" : {
+          "studentId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "studentId" ]
+      },
+      "TeamJoinRequest" : {
+        "type" : "object",
+        "properties" : {
+          "mentorId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "mentorId" ]
+      },
+      "TeamListedMember" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "school" : {
+            "type" : "string"
+          },
+          "you" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "name", "you" ]
+      },
+      "TeamMemberRow" : {
+        "type" : "object",
+        "properties" : {
+          "joinedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "membershipId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "student" : {
+            "$ref" : "#/components/schemas/TeamStudentView"
+          }
+        },
+        "required" : [ "joinedAt", "membershipId", "student" ]
+      },
+      "TeamMentorRequestRow" : {
+        "type" : "object",
+        "properties" : {
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "lapsesAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "mentor" : {
+            "$ref" : "#/components/schemas/TeamMentorView"
+          }
+        },
+        "required" : [ "createdAt", "id", "lapsesAt", "mentor" ]
+      },
+      "TeamMentorResult" : {
+        "type" : "object",
+        "properties" : {
+          "mentor" : {
+            "$ref" : "#/components/schemas/TeamMentorView"
+          },
+          "relation" : {
+            "type" : "string",
+            "enum" : [ "NONE", "INVITED", "REQUESTED", "MEMBER" ]
+          },
+          "teamFull" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "mentor", "relation", "teamFull" ]
+      },
+      "TeamMentorSearchView" : {
+        "type" : "object",
+        "properties" : {
+          "inTeam" : {
+            "type" : "boolean"
+          },
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/TeamMentorResult"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "requestsLeft" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "total" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "inTeam", "items", "page", "requestsLeft", "size", "total" ]
+      },
+      "TeamMentorView" : {
+        "type" : "object",
+        "properties" : {
+          "accountId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "available" : {
+            "type" : "boolean"
+          },
+          "displayName" : {
+            "type" : "string"
+          },
+          "githubLogin" : {
+            "type" : "string"
+          },
+          "skills" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "teamSize" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "yearsOfExperience" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "accountId", "available", "displayName", "skills", "teamSize", "yearsOfExperience" ]
+      },
+      "TeamPendingRequest" : {
+        "type" : "object",
+        "properties" : {
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "INVITATION", "JOIN_REQUEST" ]
+          },
+          "lapsesAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "createdAt", "id", "kind", "lapsesAt" ]
+      },
+      "TeamRequestView" : {
+        "type" : "object",
+        "properties" : {
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "INVITATION", "JOIN_REQUEST" ]
+          },
+          "lapsesAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "createdAt", "id", "kind", "lapsesAt" ]
+      },
+      "TeamStudentProfileView" : {
+        "type" : "object",
+        "properties" : {
+          "relation" : {
+            "type" : "string",
+            "enum" : [ "NONE", "INVITED", "REQUESTED", "MEMBER", "OTHER_TEAM" ]
+          },
+          "student" : {
+            "$ref" : "#/components/schemas/TeamStudentView"
+          },
+          "teamMentor" : {
+            "$ref" : "#/components/schemas/TeamMentorView"
+          }
+        },
+        "required" : [ "relation", "student" ]
+      },
+      "TeamStudentRequestRow" : {
+        "type" : "object",
+        "properties" : {
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "lapsesAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "student" : {
+            "$ref" : "#/components/schemas/TeamStudentView"
+          }
+        },
+        "required" : [ "createdAt", "id", "lapsesAt", "student" ]
+      },
+      "TeamStudentResult" : {
+        "type" : "object",
+        "properties" : {
+          "relation" : {
+            "type" : "string",
+            "enum" : [ "NONE", "INVITED", "REQUESTED", "MEMBER", "OTHER_TEAM" ]
+          },
+          "student" : {
+            "$ref" : "#/components/schemas/TeamStudentView"
+          }
+        },
+        "required" : [ "relation", "student" ]
+      },
+      "TeamStudentSearchView" : {
+        "type" : "object",
+        "properties" : {
+          "invitesLeft" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/TeamStudentResult"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "teamSize" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "total" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "invitesLeft", "items", "page", "size", "teamSize", "total" ]
+      },
+      "TeamStudentView" : {
+        "type" : "object",
+        "properties" : {
+          "accountId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "githubLogin" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "school" : {
+            "type" : "string"
+          },
+          "skills" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "verified" : {
+            "type" : "boolean"
+          },
+          "verifiedUntil" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "yearOfStudy" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "accountId", "skills", "verified" ]
       },
       "ThemeRequest" : {
         "type" : "object",

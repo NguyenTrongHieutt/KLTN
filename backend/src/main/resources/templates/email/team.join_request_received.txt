@@ -1,0 +1,7 @@
+subject: {name} xin vào nhóm của bạn
+link: /nhom
+---
+Xin chào,
+
+{name}, sinh viên đã xác minh trên vibefix, xin vào nhóm của bạn.
+Hãy xem hồ sơ và trả lời ở trang Nhóm trong 14 ngày. Sau đó, yêu cầu tự hết hạn.

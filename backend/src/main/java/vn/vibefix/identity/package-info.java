@@ -11,7 +11,9 @@
  * {@link vn.vibefix.identity.StudentVerification}, {@link vn.vibefix.identity.StudentCardQueue},
  * {@link vn.vibefix.identity.MentorGate}, {@link vn.vibefix.identity.PersonSignals} with
  * {@link vn.vibefix.identity.PersonSignalMatched}, {@link vn.vibefix.identity.MentorApplicationQueue},
- * {@link vn.vibefix.identity.MentorApproved} and
+ * {@link vn.vibefix.identity.MentorApproved}, {@link vn.vibefix.identity.MentorApprovalRevoked},
+ * {@link vn.vibefix.identity.AccountLocked}, the public profile searches
+ * {@link vn.vibefix.identity.StudentDirectory} and {@link vn.vibefix.identity.MentorDirectory}, and
  * {@link vn.vibefix.identity.Administrators}. Sign-in, sessions, and the HTTP endpoints are
  * wiring in {@code identity.internal}.
  */

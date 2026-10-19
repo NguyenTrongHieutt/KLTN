@@ -23,3 +23,4 @@ TODO_PARAM,canary-todo-9a4c27,SUBJECT,a parameter of another account's to-do (SU
 CONTACT_EMAIL,canary.contact.4d8e@example.test,SUBJECT ADMINISTRATOR,a Customer's contact email (SUBJECT is that Customer)
 SCHOOL_EMAIL,canary.school.7b2d@truong.test,ADMINISTRATOR,another Student's verified school email
 STUDENT_CARD_FILE,canary-student-card-3f9a1c.pdf,ADMINISTRATOR,the file name of another Student's student card
+STUDENT_HIDDEN_NAME,Canary Ten An 6e2f,ADMINISTRATOR,the real name of a Team member who chose to hide it (FR-51)

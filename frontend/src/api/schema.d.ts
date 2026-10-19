@@ -260,6 +260,118 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/mentor/team": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["team_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mentor/team/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["invite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mentor/team/join-requests/{joinRequestId}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["accept_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mentor/team/join-requests/{joinRequestId}/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["decline_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mentor/team/students": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["students"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mentor/team/students/{studentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["student"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mentors/{username}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["mentor"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/notifications": {
         parameters: {
             query?: never;
@@ -462,6 +574,86 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["signUp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/team": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["team"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/team/invitations/{invitationId}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["accept"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/team/invitations/{invitationId}/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["decline"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/team/join-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["requestToJoin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/team/mentors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["mentors"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -753,6 +945,19 @@ export interface components {
             /** Format: int32 */
             yearsOfExperience?: number;
         };
+        MentorTeamView: {
+            invitations: components["schemas"]["TeamStudentRequestRow"][];
+            /** Format: int32 */
+            invitesLeft: number;
+            joinRequests: components["schemas"]["TeamStudentRequestRow"][];
+            members: components["schemas"]["TeamMemberRow"][];
+            /** Format: int32 */
+            size: number;
+            /** Format: int32 */
+            sizeLimit: number;
+            /** @enum {string} */
+            status: "OPEN" | "CLOSED";
+        };
         NotificationItem: {
             /** Format: date-time */
             createdAt: string;
@@ -824,6 +1029,43 @@ export interface components {
             /** @enum {string} */
             role: "CUSTOMER" | "MENTOR" | "STUDENT" | "ADMINISTRATOR";
             student?: components["schemas"]["StudentProfileView"];
+        };
+        PublicMentorView: {
+            /** Format: uuid */
+            accountId: string;
+            available: boolean;
+            displayName: string;
+            experience: string;
+            githubLogin?: string;
+            listedMembers: components["schemas"]["PublicTeamMember"][];
+            /** Format: date-time */
+            memberSince: string;
+            /** Format: int32 */
+            sizeLimit: number;
+            skillGroups: components["schemas"]["PublicSkillGroup"][];
+            /** Format: int32 */
+            teamSize: number;
+            viewer?: components["schemas"]["PublicMentorViewer"];
+            /** Format: int32 */
+            yearsOfExperience: number;
+        };
+        PublicMentorViewer: {
+            inTeam: boolean;
+            pending?: components["schemas"]["TeamPendingRequest"];
+            /** @enum {string} */
+            relation: "NONE" | "INVITED" | "REQUESTED" | "MEMBER";
+            /** Format: int32 */
+            requestsLeft: number;
+            verified: boolean;
+        };
+        PublicSkillGroup: {
+            category?: string;
+            skills: string[];
+        };
+        PublicTeamMember: {
+            name: string;
+            school?: string;
+            verified: boolean;
         };
         Queue: {
             /** Format: int32 */
@@ -907,6 +1149,159 @@ export interface components {
             school?: string;
             showNameAndSchool: boolean;
             skills: components["schemas"]["ProfileSkill"][];
+            /** Format: int32 */
+            yearOfStudy?: number;
+        };
+        StudentTeamMembership: {
+            /** Format: date-time */
+            joinedAt: string;
+            listed: components["schemas"]["TeamListedMember"][];
+            mentor: components["schemas"]["TeamMentorView"];
+            /** Format: int32 */
+            size: number;
+            /** @enum {string} */
+            status: "OPEN" | "CLOSED";
+        };
+        StudentTeamRequestView: {
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "INVITATION" | "JOIN_REQUEST";
+            /** Format: date-time */
+            lapsesAt: string;
+        };
+        StudentTeamView: {
+            invitations: components["schemas"]["TeamMentorRequestRow"][];
+            joinRequests: components["schemas"]["TeamMentorRequestRow"][];
+            /** Format: int32 */
+            requestsLeft: number;
+            team?: components["schemas"]["StudentTeamMembership"];
+            verified: boolean;
+        };
+        TeamInvitationRequest: {
+            /** Format: uuid */
+            studentId: string;
+        };
+        TeamJoinRequest: {
+            /** Format: uuid */
+            mentorId: string;
+        };
+        TeamListedMember: {
+            name: string;
+            school?: string;
+            you: boolean;
+        };
+        TeamMemberRow: {
+            /** Format: date-time */
+            joinedAt: string;
+            /** Format: uuid */
+            membershipId: string;
+            student: components["schemas"]["TeamStudentView"];
+        };
+        TeamMentorRequestRow: {
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            lapsesAt: string;
+            mentor: components["schemas"]["TeamMentorView"];
+        };
+        TeamMentorResult: {
+            mentor: components["schemas"]["TeamMentorView"];
+            /** @enum {string} */
+            relation: "NONE" | "INVITED" | "REQUESTED" | "MEMBER";
+            teamFull: boolean;
+        };
+        TeamMentorSearchView: {
+            inTeam: boolean;
+            items: components["schemas"]["TeamMentorResult"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            requestsLeft: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            total: number;
+        };
+        TeamMentorView: {
+            /** Format: uuid */
+            accountId: string;
+            available: boolean;
+            displayName: string;
+            githubLogin?: string;
+            skills: string[];
+            /** Format: int32 */
+            teamSize: number;
+            /** Format: int32 */
+            yearsOfExperience: number;
+        };
+        TeamPendingRequest: {
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "INVITATION" | "JOIN_REQUEST";
+            /** Format: date-time */
+            lapsesAt: string;
+        };
+        TeamRequestView: {
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "INVITATION" | "JOIN_REQUEST";
+            /** Format: date-time */
+            lapsesAt: string;
+        };
+        TeamStudentProfileView: {
+            /** @enum {string} */
+            relation: "NONE" | "INVITED" | "REQUESTED" | "MEMBER" | "OTHER_TEAM";
+            student: components["schemas"]["TeamStudentView"];
+            teamMentor?: components["schemas"]["TeamMentorView"];
+        };
+        TeamStudentRequestRow: {
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            lapsesAt: string;
+            student: components["schemas"]["TeamStudentView"];
+        };
+        TeamStudentResult: {
+            /** @enum {string} */
+            relation: "NONE" | "INVITED" | "REQUESTED" | "MEMBER" | "OTHER_TEAM";
+            student: components["schemas"]["TeamStudentView"];
+        };
+        TeamStudentSearchView: {
+            /** Format: int32 */
+            invitesLeft: number;
+            items: components["schemas"]["TeamStudentResult"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int32 */
+            teamSize: number;
+            /** Format: int64 */
+            total: number;
+        };
+        TeamStudentView: {
+            /** Format: uuid */
+            accountId: string;
+            githubLogin?: string;
+            name?: string;
+            school?: string;
+            skills: string[];
+            verified: boolean;
+            /** Format: date */
+            verifiedUntil?: string;
             /** Format: int32 */
             yearOfStudy?: number;
         };
@@ -1385,6 +1780,168 @@ export interface operations {
             };
         };
     };
+    team_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MentorTeamView"];
+                };
+            };
+        };
+    };
+    invite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeamInvitationRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamRequestView"];
+                };
+            };
+        };
+    };
+    accept_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                joinRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamRequestView"];
+                };
+            };
+        };
+    };
+    decline_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                joinRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamRequestView"];
+                };
+            };
+        };
+    };
+    students: {
+        parameters: {
+            query?: {
+                q?: string;
+                skills?: string[];
+                login?: string;
+                /** @description Zero-based page index (0..N) */
+                page?: number;
+                /** @description The size of the page to be returned */
+                size?: number;
+                /** @description Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported. */
+                sort?: string[];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamStudentSearchView"];
+                };
+            };
+        };
+    };
+    student: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                studentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamStudentProfileView"];
+                };
+            };
+        };
+    };
+    mentor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                username: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicMentorView"];
+                };
+            };
+        };
+    };
     notifications: {
         parameters: {
             query?: {
@@ -1681,6 +2238,123 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SessionView"];
+                };
+            };
+        };
+    };
+    team: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentTeamView"];
+                };
+            };
+        };
+    };
+    accept: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invitationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentTeamRequestView"];
+                };
+            };
+        };
+    };
+    decline: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invitationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentTeamRequestView"];
+                };
+            };
+        };
+    };
+    requestToJoin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeamJoinRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentTeamRequestView"];
+                };
+            };
+        };
+    };
+    mentors: {
+        parameters: {
+            query?: {
+                q?: string;
+                skills?: string[];
+                /** @description Zero-based page index (0..N) */
+                page?: number;
+                /** @description The size of the page to be returned */
+                size?: number;
+                /** @description Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported. */
+                sort?: string[];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamMentorSearchView"];
                 };
             };
         };
