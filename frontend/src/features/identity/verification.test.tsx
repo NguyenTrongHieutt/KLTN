@@ -207,7 +207,75 @@ describe('STU-5 school email code (FR-5, UX-DR19, UX-DR70)', () => {
   })
 })
 
+describe('STU-5 renewal and expiry (FR-5, UX-DR27)', () => {
+  const expired = {
+    status: 'EXPIRED',
+    verifiedUntil: '2026-09-30',
+    verifiedAt: '2025-10-01T02:00:00Z',
+    schoolEmail: 'minh.tq@vnu.edu.vn',
+    renewalOpen: false,
+  }
+
+  it('says the verification expired, what still works, and renews from the school email field', async () => {
+    const user = userEvent.setup()
+    fakeBackend(signedIn('STUDENT'), {
+      'GET /api/v1/profile': profile,
+      'GET /api/v1/verification': () => json(expired),
+    })
+    renderAt('/ho-so')
+
+    expect(await screen.findByText('Xác minh đã hết hạn ngày 30/09')).toBeInTheDocument()
+    expect(screen.getByText(/Công việc đang làm vẫn tiếp tục/)).toBeInTheDocument()
+    const card = screen.getByRole('heading', { name: 'Xác minh sinh viên' }).closest('section')!
+    expect(within(card).getByText('Hết hạn')).toBeInTheDocument()
+    expect(within(card).getByText('Đã xác minh bằng email trường minh.tq@vnu.edu.vn đến 30/09/2026.')).toBeInTheDocument()
+    const field = within(card).getByLabelText('Email trường')
+    expect(field).toHaveValue('minh.tq@vnu.edu.vn')
+
+    await user.click(screen.getByRole('button', { name: 'Gia hạn' }))
+    expect(field).toHaveFocus()
+  })
+
+  it('offers renewal in the last 14 days, while still verified', async () => {
+    fakeBackend(signedIn('STUDENT'), {
+      'GET /api/v1/profile': profile,
+      'GET /api/v1/verification': () => json({ ...verified, renewalOpen: true }),
+    })
+    renderAt('/ho-so')
+
+    expect(await screen.findByText('Đã xác minh đến 30/09/2027.')).toBeInTheDocument()
+    expect(
+      screen.getByText('Xác minh hết hạn ngày 30/09/2027. Gia hạn để tiếp tục được chọn vào nhóm thực hiện.'),
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText('Email trường')).toHaveValue('minh@sis.hust.edu.vn')
+    expect(screen.getByRole('button', { name: 'Gửi mã' })).toBeEnabled()
+  })
+
+  it('shows no code form to a verified Student before renewal opens', async () => {
+    fakeBackend(signedIn('STUDENT'), {
+      'GET /api/v1/profile': profile,
+      'GET /api/v1/verification': () => json({ ...verified, renewalOpen: false }),
+    })
+    renderAt('/ho-so')
+
+    expect(await screen.findByText('Đã xác minh đến 30/09/2027.')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Email trường')).not.toBeInTheDocument()
+  })
+})
+
 describe('STU-1 verification banner (UX-DR27)', () => {
+  it('says an expired verification needs renewing, linking to STU-5', async () => {
+    fakeBackend(signedIn('STUDENT'), {
+      'GET /api/v1/verification': () =>
+        json({ status: 'EXPIRED', verifiedUntil: '2026-09-30', schoolEmail: 'minh.tq@vnu.edu.vn', renewalOpen: false }),
+    })
+    renderAt('/viec-can-lam')
+
+    expect(await screen.findByText('Xác minh đã hết hạn ngày 30/09')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Gia hạn' })).toHaveAttribute('href', '/ho-so')
+    expect(screen.queryByText('Xác minh là sinh viên để vào nhóm của một người hướng dẫn')).not.toBeInTheDocument()
+  })
+
   it('asks an unverified Student to verify, linking to STU-5', async () => {
     fakeBackend(signedIn('STUDENT'))
     renderAt('/viec-can-lam')

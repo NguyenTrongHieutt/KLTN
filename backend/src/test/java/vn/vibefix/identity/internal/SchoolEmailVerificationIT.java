@@ -303,9 +303,11 @@ class SchoolEmailVerificationIT extends IntegrationTest {
 		view(this.student).andExpect(jsonPath("$.pendingCode.email").value(MINH));
 	}
 
+	/** Story 1.10 counts the last 14 days (from 17 September) for the next school year, as renewal does. */
 	@Test
-	void theLastValidDayIsTheFirstThirtiethOfSeptemberAfterToday() {
-		assertThat(StudentVerifications.validUntil(LocalDate.of(2026, 9, 29))).isEqualTo(LocalDate.of(2026, 9, 30));
+	void theLastValidDayIsTheNextThirtiethOfSeptember() {
+		assertThat(StudentVerifications.validUntil(LocalDate.of(2026, 9, 16))).isEqualTo(LocalDate.of(2026, 9, 30));
+		assertThat(StudentVerifications.validUntil(LocalDate.of(2026, 9, 29))).isEqualTo(LocalDate.of(2027, 9, 30));
 		assertThat(StudentVerifications.validUntil(LocalDate.of(2026, 9, 30))).isEqualTo(LocalDate.of(2027, 9, 30));
 		assertThat(StudentVerifications.validUntil(LocalDate.of(2026, 10, 19))).isEqualTo(LocalDate.of(2027, 9, 30));
 		assertThat(StudentVerifications.validUntil(LocalDate.of(2027, 1, 5))).isEqualTo(LocalDate.of(2027, 9, 30));

@@ -31,9 +31,17 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType SCHOOL_EMAIL_CODE = new NotificationType("identity.school_email_code",
 			Set.of(Audience.SUBJECT), Channel.EMAIL_ONLY, EmailClass.ONE_TIME_CODE, "mail", Set.of("code"));
 
+	/** 14 days before a Student's verification expires (FR-5, UX-DR16): a reminder, with the last valid day. */
+	static final NotificationType VERIFICATION_EXPIRING = new NotificationType("identity.verification_expiring",
+			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.REMINDER, "info", Set.of("date"));
+
+	/** A Student's verification expired on 30 September (FR-5): they renew to be picked for Crews again. */
+	static final NotificationType VERIFICATION_EXPIRED = new NotificationType("identity.verification_expired",
+			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of());
+
 	@Override
 	public List<NotificationType> notificationTypes() {
-		return List.of(SCHOOL_EMAIL_CODE);
+		return List.of(SCHOOL_EMAIL_CODE, VERIFICATION_EXPIRING, VERIFICATION_EXPIRED);
 	}
 
 	@Override

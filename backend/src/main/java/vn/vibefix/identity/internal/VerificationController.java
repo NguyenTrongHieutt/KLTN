@@ -43,10 +43,11 @@ class VerificationController {
 	 * @param status {@code VERIFIED} until the end of {@code verifiedUntil}, then {@code EXPIRED}
 	 * @param verifiedUntil the last valid day, a 30 September
 	 * @param schoolEmail the address that verified the account
-	 * @param pendingCode the code waiting for its entry, while the account is not verified
+	 * @param pendingCode the code waiting for its entry, while the account is not verified or renews
+	 * @param renewalOpen the verification is within 14 days of its expiry, so a code renews it
 	 */
 	record VerificationView(Status status, @Nullable LocalDate verifiedUntil, @Nullable Instant verifiedAt,
-			@Nullable String schoolEmail, @Nullable PendingCodeView pendingCode) {
+			@Nullable String schoolEmail, @Nullable PendingCodeView pendingCode, boolean renewalOpen) {
 
 		static VerificationView of(View view) {
 			var verification = view.verification();
@@ -55,7 +56,8 @@ class VerificationController {
 					verification == null ? null : verification.verifiedAt(),
 					verification == null ? null : verification.schoolEmail(),
 					pending == null ? null : new PendingCodeView(pending.email(), pending.sentAt(), pending.expiresAt(),
-							pending.attemptsLeft(), pending.expired()));
+							pending.attemptsLeft(), pending.expired()),
+					view.renewalOpen());
 		}
 
 	}

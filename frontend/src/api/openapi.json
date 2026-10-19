@@ -784,6 +784,9 @@
           "pendingCode" : {
             "$ref" : "#/components/schemas/PendingCodeView"
           },
+          "renewalOpen" : {
+            "type" : "boolean"
+          },
           "schoolEmail" : {
             "type" : "string"
           },
@@ -800,7 +803,7 @@
             "format" : "date"
           }
         },
-        "required" : [ "status" ]
+        "required" : [ "renewalOpen", "status" ]
       }
     }
   }
