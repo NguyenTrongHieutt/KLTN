@@ -3,7 +3,7 @@ import { useRef, useState, type DragEvent } from 'react'
 import { usePollHealth } from '@/app/usePollHealth'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
-import { precheckUpload, STUDENT_CARD, uploadMessage } from '@/features/files/uploadRules'
+import { precheckUpload, IMAGE_OR_PDF, uploadMessage } from '@/features/files/uploadRules'
 import { t } from '@/i18n/t'
 import { formatDayMonthTime } from '@/lib/dates'
 import { useUploadStudentCard, type Verification } from './verificationApi'
@@ -26,7 +26,7 @@ export function StudentCardUpload({ verification, onUseEmail }: { verification: 
     if (!file) {
       return
     }
-    const refusal = precheckUpload(file, STUDENT_CARD)
+    const refusal = precheckUpload(file, IMAGE_OR_PDF)
     if (refusal) {
       setError(refusal)
       return
@@ -85,7 +85,7 @@ export function StudentCardUpload({ verification, onUseEmail }: { verification: 
           ref={input}
           type="file"
           hidden
-          accept={STUDENT_CARD.types.join(',')}
+          accept={IMAGE_OR_PDF.types.join(',')}
           onChange={(event) => {
             choose(event.target.files?.[0])
             event.target.value = ''

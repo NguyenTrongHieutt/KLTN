@@ -2,6 +2,7 @@ package vn.vibefix.identity.internal;
 
 import java.sql.Timestamp;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -12,10 +13,12 @@ import java.util.UUID;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import vn.vibefix.shared.ErasureBlocker;
 import vn.vibefix.shared.PersonalDataParticipant;
 import vn.vibefix.shared.PersonalDataSection;
+import vn.vibefix.timers.Deadlines;
 
 /**
  * {@code identity}'s part in exports and erasure (AD-24). An erased account keeps its row, so the
@@ -28,6 +31,8 @@ class IdentityPersonalData implements PersonalDataParticipant {
 
 	private final JdbcClient jdbc;
 
+	private final Deadlines deadlines;
+
 	private final Accounts accounts;
 
 	private final Clock clock;
@@ -37,7 +42,8 @@ class IdentityPersonalData implements PersonalDataParticipant {
 	private final AdministratorCredentials administrators;
 
 	IdentityPersonalData(JdbcClient jdbc, Accounts accounts, Clock clock, Profiles profiles,
-			AdministratorCredentials administrators) {
+			AdministratorCredentials administrators, Deadlines deadlines) {
+		this.deadlines = deadlines;
 		this.administrators = administrators;
 		this.jdbc = jdbc;
 		this.accounts = accounts;
@@ -50,7 +56,8 @@ class IdentityPersonalData implements PersonalDataParticipant {
 		return Set.of("identity.account", "identity.acknowledgment", "identity.customer_token",
 				"identity.customer_profile", "identity.student_profile", "identity.showcase_repository",
 				"identity.contact_grant", "identity.school_email_code", "identity.student_verification",
-				"identity.student_card", "identity.administrator_credential", "identity.administrator_enrolment");
+				"identity.student_card", "identity.administrator_credential", "identity.administrator_enrolment",
+				"identity.person_signal", "identity.mentor_application");
 	}
 
 	@Override
@@ -114,6 +121,33 @@ class IdentityPersonalData implements PersonalDataParticipant {
 			if (!cards.isEmpty()) {
 				data.put("studentCards", cards);
 			}
+			// The Mentor application as its applicant filled it in, with the document's name.
+			this.jdbc.sql("""
+					SELECT display_name, experience, years_of_experience, skill_names, linkedin_url, other_link,
+					       document_name, submitted_at
+					FROM identity.mentor_application WHERE account_id = :id
+					""").param("id", accountId).query((rs, n) -> {
+				Map<String, Object> application = new LinkedHashMap<>();
+				application.put("displayName", rs.getString("display_name"));
+				application.put("experience", rs.getString("experience"));
+				application.put("yearsOfExperience", rs.getObject("years_of_experience"));
+				application.put("skills", rs.getString("skill_names"));
+				application.put("linkedinUrl", rs.getString("linkedin_url"));
+				application.put("otherLink", rs.getString("other_link"));
+				application.put("document", rs.getString("document_name"));
+				Timestamp submitted = rs.getTimestamp("submitted_at");
+				application.put("submittedAt", submitted == null ? null : submitted.toInstant().toString());
+				return application;
+			}).optional().ifPresent(application -> data.put("mentorApplication", application));
+			// Person-link signals by where they came from, never their HMACs (AD-19).
+			List<Map<String, String>> signals = this.jdbc.sql("""
+					SELECT DISTINCT source, recorded_at FROM identity.person_signal
+					WHERE account_id = :id ORDER BY recorded_at, source
+					""").param("id", accountId).query((rs, n) -> Map.of("source", rs.getString("source"), "recordedAt",
+					rs.getTimestamp("recorded_at").toInstant().toString())).list();
+			if (!signals.isEmpty()) {
+				data.put("personSignals", signals);
+			}
 			// The addresses and times of the codes, never the codes: only their hashes are kept.
 			List<Map<String, String>> codes = this.jdbc.sql("""
 					SELECT email, sent_at FROM identity.school_email_code WHERE account_id = :id ORDER BY sent_at
@@ -134,22 +168,28 @@ class IdentityPersonalData implements PersonalDataParticipant {
 		});
 	}
 
+	/** Joins the deletion transaction; the purge Deadline it schedules needs one. */
 	@Override
+	@Transactional
 	public void eraseAccount(UUID accountId) {
 		this.jdbc.sql("DELETE FROM identity.customer_token WHERE account_id = :id").param("id", accountId).update();
 		for (String table : new String[] { "identity.customer_profile", "identity.student_profile",
 				"identity.showcase_repository", "identity.school_email_code", "identity.student_verification",
-				"identity.student_card", "identity.administrator_credential", "identity.administrator_enrolment" }) {
+				"identity.student_card", "identity.administrator_credential", "identity.administrator_enrolment",
+				"identity.mentor_application" }) {
 			this.jdbc.sql("DELETE FROM " + table + " WHERE account_id = :id").param("id", accountId).update();
 		}
 		this.jdbc.sql("""
 				DELETE FROM identity.contact_grant WHERE customer_account_id = :id OR mentor_account_id = :id
 				""").param("id", accountId).update();
+		Instant erasedAt = this.clock.instant();
 		this.jdbc.sql("""
 				UPDATE identity.account
 				SET github_user_id = NULL, github_login = NULL, github_avatar_url = NULL, github_email = NULL, erased_at = :at
 				WHERE id = :id
-				""").param("id", accountId).param("at", Timestamp.from(this.clock.instant())).update();
+				""").param("id", accountId).param("at", Timestamp.from(erasedAt)).update();
+		// The person-link signals outlive the account (AD-19, AD-24): deleted 24 months from now.
+		this.deadlines.schedule(PersonSignalPurge.after(accountId, erasedAt));
 	}
 
 	@Override

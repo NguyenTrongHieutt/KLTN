@@ -59,10 +59,15 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType STUDENT_CARD_REJECTED = new NotificationType("identity.student_card_rejected",
 			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("reason"));
 
+	/** A Mentor submitted an application (FR-74): every Administrator, in-app. */
+	static final NotificationType MENTOR_APPLICATION_RECEIVED = new NotificationType("identity.mentor_application_received",
+			Set.of(Audience.ADMIN), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of());
+
 	@Override
 	public List<NotificationType> notificationTypes() {
 		return List.of(SCHOOL_EMAIL_CODE, VERIFICATION_EXPIRING, VERIFICATION_EXPIRED, ADMIN_SIGN_IN_LOCKED,
-				ADMINISTRATOR_CREATED, ADMINISTRATOR_ENROLMENT, STUDENT_CARD_APPROVED, STUDENT_CARD_REJECTED);
+				ADMINISTRATOR_CREATED, ADMINISTRATOR_ENROLMENT, STUDENT_CARD_APPROVED, STUDENT_CARD_REJECTED,
+				MENTOR_APPLICATION_RECEIVED);
 	}
 
 	@Override

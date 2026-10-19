@@ -101,6 +101,9 @@ vibefix:
   identity:
     # AD-22: the identity-token-key-{n} secret file that seals new tokens; raise it to rotate.
     token-key-version: 1
+    # AD-19, AD-22: the identity-person-signal-key-{n} secret file new person-link signals are
+    # computed under; earlier versions stay live for lookups until their files are removed.
+    person-signal-key-version: 1
     # N-10's current version; the SPA shows the same one (frontend/src/i18n/vi.json notice.privacy.version).
     privacy-notice-version: "2.0"
     support-email: hotro@vibefix.vn

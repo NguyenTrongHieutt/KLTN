@@ -3,6 +3,7 @@ package vn.vibefix.identity.internal;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Map;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -64,7 +65,11 @@ class SignIns {
 
 	private final Todos todos;
 
-	SignIns(Accounts accounts, TokenCipher cipher, AuditLog auditLog, IdGenerator ids, Clock clock, Todos todos) {
+	private final JdbcPersonSignals signals;
+
+	SignIns(Accounts accounts, TokenCipher cipher, AuditLog auditLog, IdGenerator ids, Clock clock, Todos todos,
+			JdbcPersonSignals signals) {
+		this.signals = signals;
 		this.accounts = accounts;
 		this.todos = todos;
 		this.cipher = cipher;
@@ -77,16 +82,17 @@ class SignIns {
 	 * Completes a GitHub sign-in for the user GitHub returned.
 	 * @param githubEmail the primary verified email GitHub gave, or {@code null} when it gave none or
 	 * did not answer: the address on file then stays
+	 * @param verifiedEmails every verified email GitHub gave, each a person-link signal (AD-19)
 	 */
 	@Transactional
 	Outcome signIn(long githubUserId, String githubLogin, @Nullable String githubAvatarUrl, @Nullable String githubEmail,
-			@Nullable String token) {
+			List<String> verifiedEmails, @Nullable String token) {
 		Optional<Account> existing = this.accounts.findByGitHubUserId(githubUserId);
 		if (existing.isEmpty()) {
 			TokenCipher.Sealed sealed = token == null ? null
 					: this.cipher.seal(token, PendingSignUp.tokenAssociatedData(githubUserId));
 			return new Outcome.NeedsRole(
-					new PendingSignUp(githubUserId, githubLogin, githubAvatarUrl, githubEmail, sealed));
+					new PendingSignUp(githubUserId, githubLogin, githubAvatarUrl, githubEmail, verifiedEmails, sealed));
 		}
 		Account account = existing.get();
 		if (account.isLocked()) {
@@ -97,6 +103,7 @@ class SignIns {
 		if (githubEmail != null) {
 			this.accounts.recordGitHubEmail(account.id(), githubEmail);
 		}
+		verifiedEmails.forEach(email -> this.signals.record(account.id(), JdbcPersonSignals.Source.GITHUB_EMAIL, email));
 		if (account.role() == Role.CUSTOMER && token != null) {
 			this.accounts.storeCustomerToken(account.id(), this.cipher.seal(token, account.id().toString()), now);
 		}
@@ -128,6 +135,8 @@ class SignIns {
 		if (pending.githubEmail() != null) {
 			this.accounts.recordGitHubEmail(account.id(), pending.githubEmail());
 		}
+		pending.verifiedEmails()
+			.forEach(email -> this.signals.record(account.id(), JdbcPersonSignals.Source.GITHUB_EMAIL, email));
 		openSignUpTodos(account);
 		UUID acknowledgment = this.ids.newId();
 		this.accounts.insertAcknowledgment(acknowledgment, account.id(), PRIVACY_NOTICE, privacyNoticeVersion, now);

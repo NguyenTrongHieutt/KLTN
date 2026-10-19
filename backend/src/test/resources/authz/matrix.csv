@@ -2,7 +2,7 @@
 # MatrixCoverageIT fails the build when an /api or /webhooks endpoint has no row or a row names an
 # endpoint that does not exist. Format: see vn.vibefix.authz.MatrixRow; callers: MatrixCaller.
 # Every row also runs the canary scan (authz/canaries.csv) for its caller.
-endpoint,caller,subject_state,body,expect
+endpoint,caller,subject_state,body,expect,check
 
 # Which environment this is (shared): public.
 GET /api/v1/environment,ANONYMOUS,,,200
@@ -137,6 +137,23 @@ GET /api/v1/catalog,MENTOR,mentor=PENDING,,200
 GET /api/v1/catalog,STUDENT,,,200
 GET /api/v1/catalog,ADMINISTRATOR,,,200
 GET /api/v1/catalog,SUBJECT,,,200
+# MEN-5 (identity, FR-74): every Mentor saves its own application and document, whatever its approval
+# status; any other role finds nothing. Another Mentor's LinkedIn link is a canary.
+PUT /api/v1/profile/mentor,ANONYMOUS,,profile-mentor.json,401
+PUT /api/v1/profile/mentor,MENTOR,mentor=PENDING,profile-mentor.json,200
+PUT /api/v1/profile/mentor,CUSTOMER,,profile-mentor.json,404 NOT_FOUND
+PUT /api/v1/profile/mentor,STUDENT,,profile-mentor.json,404 NOT_FOUND
+PUT /api/v1/profile/mentor,ADMINISTRATOR,,profile-mentor.json,404 NOT_FOUND
+POST /api/v1/profile/mentor/document,ANONYMOUS,,student-card.png,401
+POST /api/v1/profile/mentor/document,MENTOR,mentor=PENDING,student-card.png,201
+POST /api/v1/profile/mentor/document,CUSTOMER,,student-card.png,404 NOT_FOUND
+POST /api/v1/profile/mentor/document,STUDENT,,student-card.png,404 NOT_FOUND
+POST /api/v1/profile/mentor/document,ADMINISTRATOR,,student-card.png,404 NOT_FOUND
+DELETE /api/v1/profile/mentor/document,ANONYMOUS,,,401
+DELETE /api/v1/profile/mentor/document,MENTOR,mentor=PENDING,,204
+DELETE /api/v1/profile/mentor/document,CUSTOMER,,,404 NOT_FOUND
+DELETE /api/v1/profile/mentor/document,STUDENT,,,404 NOT_FOUND
+DELETE /api/v1/profile/mentor/document,ADMINISTRATOR,,,404 NOT_FOUND
 # Student verification (identity, FR-5): a Student's own; any other role, and SUBJECT (a Customer),
 # finds none. The confirm row's Student has no code waiting, so it finds none either.
 GET /api/v1/verification,ANONYMOUS,,,401

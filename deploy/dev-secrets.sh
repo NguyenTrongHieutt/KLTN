@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Creates the secret files of the local and CI stack (AD-22) in deploy/secrets/, which git ignores.
-# Each is a random value with no trailing newline: the database passwords, and the token key (32
-# bytes in hexadecimal). Existing files are kept (and made readable
+# Each is a random value with no trailing newline: the database passwords, the token key, and the
+# person-link signal key (32 bytes in hexadecimal each). Existing files are kept (and made readable
 # again), because the PostgreSQL volume already holds their values; pass --force to replace them
 # (then also remove the volume: docker compose -f deploy/compose.yaml down -v).
 #
@@ -23,7 +23,7 @@ umask 077
 mkdir -p "$secrets_dir"
 chmod 700 "$secrets_dir"
 
-for name in db-superuser-password db-app-password db-migrator-password identity-token-key-1; do
+for name in db-superuser-password db-app-password db-migrator-password identity-token-key-1 identity-person-signal-key-1; do
 	file="$secrets_dir/$name"
 	if [[ -s "$file" && "$force" == false ]]; then
 		chmod 444 "$file"

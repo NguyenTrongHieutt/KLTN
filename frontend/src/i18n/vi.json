@@ -182,7 +182,47 @@
         "statusApproved": "Đã duyệt",
         "statusRejected": "Bị từ chối",
         "statusRevoked": "Đã bị thu hồi",
-        "next": "Bạn sẽ điền và gửi hồ sơ người hướng dẫn tại đây để quản trị viên duyệt."
+        "statusDraft": "Chưa gửi",
+        "pendingTitle": "Hồ sơ đang chờ quản trị viên duyệt. Bạn sẽ nhận email khi có kết quả.",
+        "pendingBody": "Gửi {date}. Bạn vẫn sửa được hồ sơ trong lúc chờ.",
+        "criteriaHeading": "Điều kiện để được duyệt",
+        "criteria1": "Ít nhất 2 năm kinh nghiệm làm phần mềm chuyên nghiệp",
+        "criteria2": "Có liên kết LinkedIn của chính bạn",
+        "criteria3": "Hiện không phải là sinh viên đang theo học",
+        "required": "Các trường có dấu * là bắt buộc",
+        "displayName": "Tên hiển thị *",
+        "experience": "Mô tả kinh nghiệm *",
+        "experienceHelper": "Bạn đã làm sản phẩm gì, đã hướng dẫn ai. Khách hàng và sinh viên đọc phần này trên hồ sơ công khai.",
+        "years": "Số năm kinh nghiệm *",
+        "linkedin": "Liên kết LinkedIn *",
+        "linkedinHelper": "Mỗi liên kết LinkedIn chỉ dùng cho một hồ sơ người hướng dẫn.",
+        "skills": "Kỹ năng *",
+        "skillsHelper": "Chọn từ danh sách của vibefix, tối đa 20 kỹ năng. Gõ có dấu hay không dấu đều được.",
+        "skillsCount": "{n}/20 kỹ năng",
+        "otherLink": "Liên kết khác (không bắt buộc)",
+        "otherLinkHelper": "GitHub, blog hoặc sản phẩm bạn đã làm. Chỉ nhận liên kết https.",
+        "document": "Tài liệu kèm theo (không bắt buộc)",
+        "documentCaption": "Chỉ quản trị viên xem được; tự xóa 30 ngày sau khi có quyết định.",
+        "documentChoose": "Chọn tài liệu",
+        "documentHint": "Ảnh hoặc PDF, tối đa 10 MB, ví dụ CV hoặc chứng chỉ.",
+        "documentLine": "{name} · {size}",
+        "documentRemove": "Xóa",
+        "documentRemoveLabel": "Xóa tài liệu {name}",
+        "documentUploading": "Đang tải lên…",
+        "documentUploaded": "Đã tải tài liệu lên.",
+        "documentRemoved": "Đã xóa tài liệu.",
+        "privacyAccept": "Tôi đã đọc và đồng ý với thông báo quyền riêng tư.",
+        "privacySummary": "vibefix lưu tài khoản GitHub, email, các trường trong hồ sơ này và tài liệu bạn tải lên để quản trị viên xét duyệt. Tài liệu bị xóa 30 ngày sau khi có quyết định. Bạn xem, tải về hoặc yêu cầu xóa dữ liệu trong \"Dữ liệu của tôi\".",
+        "privacyRead": "Đọc toàn văn",
+        "n22": "Quản trị viên sẽ xem hồ sơ và trả lời trong vài ngày. Trước khi được duyệt, bạn chưa thể nhận việc hay mời sinh viên. Tài liệu đính kèm chỉ quản trị viên xem và bị xóa 30 ngày sau khi có quyết định.",
+        "submit": "Gửi hồ sơ",
+        "submitting": "Đang gửi…",
+        "save": "Lưu thay đổi",
+        "saving": "Đang lưu…",
+        "submitted": "Đã gửi hồ sơ. Quản trị viên sẽ xem trong vài ngày.",
+        "saved": "Đã lưu hồ sơ.",
+        "privacyRequired": "Hãy đồng ý với thông báo quyền riêng tư.",
+        "skillsRequired": "Hãy chọn ít nhất một kỹ năng."
       }
     },
     "student": {
@@ -326,7 +366,8 @@
         "info": "Thông tin",
         "onlyOne": "Chỉ có một quản trị viên. Khôi phục tài khoản chỉ do quản trị viên khác làm; hãy tạo quản trị viên thứ hai trước công việc thật đầu tiên.",
         "onlyOneAction": "Tạo quản trị viên",
-        "studentCards": "Thẻ sinh viên chờ duyệt"
+        "studentCards": "Thẻ sinh viên chờ duyệt",
+        "mentorApplications": "Hồ sơ người hướng dẫn chờ duyệt"
       },
       "idle": {
         "title": "Phiên làm việc sắp hết",
@@ -893,6 +934,9 @@
       },
       "student_card_rejected": {
         "title": "Thẻ sinh viên chưa được duyệt: {reason}"
+      },
+      "mentor_application_received": {
+        "title": "Có hồ sơ người hướng dẫn mới cần duyệt"
       }
     }
   },
@@ -907,7 +951,11 @@
       "ADMIN_SIGN_IN_LOCKED": "Tạm khóa đăng nhập 15 phút.",
       "STEP_UP_FAILED": "Mã chưa đúng.",
       "ADMINISTRATOR_EMAIL_IN_USE": "Email này đã thuộc về một quản trị viên.",
-      "ENROLMENT_CODE_WRONG": "Mã chưa đúng. Hãy nhập mã mới nhất trong ứng dụng xác thực."
+      "ENROLMENT_CODE_WRONG": "Mã chưa đúng. Hãy nhập mã mới nhất trong ứng dụng xác thực.",
+      "MENTOR_NOT_APPROVED": "Hồ sơ người hướng dẫn của bạn chưa được duyệt.",
+      "ACCOUNT_LOCKED": "Tài khoản của bạn đang bị khóa.",
+      "MENTOR_LINKEDIN_IN_USE": "Liên kết LinkedIn này đã được dùng cho một hồ sơ người hướng dẫn khác.",
+      "PRIVACY_NOTICE_REQUIRED": "Hãy đọc và đồng ý với thông báo quyền riêng tư trước khi gửi hồ sơ."
     },
     "files": {
       "FILE_TOO_LARGE": "Tệp lớn hơn 10 MB.",

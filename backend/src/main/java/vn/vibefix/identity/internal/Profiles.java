@@ -65,10 +65,13 @@ class Profiles implements ContactVisibility {
 
 	private final Clock clock;
 
-	Profiles(JdbcClient jdbc, Catalog catalog, Clock clock) {
+	private final JdbcPersonSignals signals;
+
+	Profiles(JdbcClient jdbc, Catalog catalog, Clock clock, JdbcPersonSignals signals) {
 		this.jdbc = jdbc;
 		this.catalog = catalog;
 		this.clock = clock;
+		this.signals = signals;
 	}
 
 	Optional<CustomerProfile> customer(UUID accountId) {
@@ -146,6 +149,9 @@ class Profiles implements ContactVisibility {
 			.param("names", skillNames(skillIds))
 			.param("now", now())
 			.update();
+		if (profile.linkedinUrl() != null) {
+			this.signals.record(accountId, JdbcPersonSignals.Source.LINKEDIN, profile.linkedinUrl());
+		}
 		this.jdbc.sql("DELETE FROM identity.showcase_repository WHERE account_id = :id").param("id", accountId).update();
 		for (int position = 0; position < profile.repositories().size(); position++) {
 			String[] parts = profile.repositories().get(position).split("/", 2);

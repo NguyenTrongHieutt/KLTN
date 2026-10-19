@@ -12,8 +12,8 @@ export interface UploadRule {
   extensions: RegExp
 }
 
-/** A student card (FR-5): an image the server can re-encode, or a PDF. */
-export const STUDENT_CARD: UploadRule = {
+/** A student card (FR-5) or a Mentor's document (FR-74): an image the server can re-encode, or a PDF. */
+export const IMAGE_OR_PDF: UploadRule = {
   types: ['image/jpeg', 'image/png', 'image/gif', 'image/bmp', 'application/pdf'],
   extensions: /\.(jpe?g|png|gif|bmp|pdf)$/i,
 }

@@ -35,7 +35,7 @@ import vn.vibefix.support.IntegrationTest;
 @ExtendWith(OutputCaptureExtension.class)
 class AuthorizationHarnessIT extends IntegrationTest {
 
-	private static final String HEADER = "endpoint,caller,subject_state,body,expect\n";
+	private static final String HEADER = "endpoint,caller,subject_state,body,expect,check\n";
 
 	@Autowired
 	private MockMvc mvc;

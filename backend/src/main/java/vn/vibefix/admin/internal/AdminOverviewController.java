@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import vn.vibefix.identity.Administrators;
+import vn.vibefix.identity.MentorApplicationQueue;
 import vn.vibefix.identity.StudentCardQueue;
 import vn.vibefix.operations.FailedOperations;
 import vn.vibefix.shared.Access;
@@ -39,8 +40,10 @@ class AdminOverviewController {
 	 * @param stalledEvents event publications that stopped after 5 attempts (AD-9)
 	 * @param activeAdministrators Administrators who can sign in; at 1, ADM-1 warns (SG-10)
 	 * @param studentCards student cards waiting for a decision (FR-5, ADM-3)
+	 * @param mentorApplications Mentor applications waiting for a decision (FR-74, ADM-13)
 	 */
-	record OverviewView(Queue failedOperations, Queue stalledEvents, long activeAdministrators, Queue studentCards) {
+	record OverviewView(Queue failedOperations, Queue stalledEvents, long activeAdministrators, Queue studentCards,
+			Queue mentorApplications) {
 	}
 
 	private final FailedOperations failedOperations;
@@ -51,19 +54,27 @@ class AdminOverviewController {
 
 	private final StudentCardQueue studentCards;
 
+	private final MentorApplicationQueue mentorApplications;
+
 	AdminOverviewController(FailedOperations failedOperations, StalledEventPublications stalledEvents,
-			Administrators administrators, StudentCardQueue studentCards) {
+			Administrators administrators, StudentCardQueue studentCards, MentorApplicationQueue mentorApplications) {
 		this.failedOperations = failedOperations;
 		this.stalledEvents = stalledEvents;
 		this.administrators = administrators;
 		this.studentCards = studentCards;
+		this.mentorApplications = mentorApplications;
 	}
 
 	@GetMapping
 	OverviewView overview() {
 		return new OverviewView(Queue.of(this.failedOperations.findAll(), FailedOperations.FailedOperation::failedAt),
 				Queue.of(this.stalledEvents.findAll(), StalledEventPublications.StalledPublication::stalledAt),
-				this.administrators.activeCount(), studentCards());
+				this.administrators.activeCount(), studentCards(), mentorApplications());
+	}
+
+	private Queue mentorApplications() {
+		MentorApplicationQueue.Pending pending = this.mentorApplications.pending();
+		return new Queue(Math.toIntExact(pending.count()), pending.oldestSubmittedAt());
 	}
 
 	private Queue studentCards() {
