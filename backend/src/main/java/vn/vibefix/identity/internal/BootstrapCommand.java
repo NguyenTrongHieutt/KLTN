@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Supplier;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +31,11 @@ import org.springframework.stereotype.Component;
 class BootstrapCommand implements ApplicationRunner, ExitCodeGenerator {
 
 	static final String COMMAND = "create-first-administrator";
+
+	/** Story 2.1's probe, in {@code github.internal}; named here so this command lets it run. */
+	static final String SPIKE_S4 = "spike-s4";
+
+	private static final Set<String> OTHER_COMMANDS = Set.of(SpikeS1Command.COMMAND, SPIKE_S4);
 
 	static final String PASSWORD_VARIABLE = "VIBEFIX_ADMIN_PASSWORD";
 
@@ -62,8 +68,8 @@ class BootstrapCommand implements ApplicationRunner, ExitCodeGenerator {
 	@Override
 	public void run(ApplicationArguments args) {
 		String command = this.environment.getProperty("vibefix.cli.command");
-		if (SpikeS1Command.COMMAND.equals(command)) {
-			// Another command's run (Story 1.14); it answers for itself.
+		if (command != null && OTHER_COMMANDS.contains(command)) {
+			// Another command's run (Stories 1.14 and 2.1); it answers for itself.
 			this.exitCode = 0;
 			return;
 		}
@@ -73,7 +79,8 @@ class BootstrapCommand implements ApplicationRunner, ExitCodeGenerator {
 			this.err.println("Usage: --spring.profiles.active=dev,cli --vibefix.cli.command=" + COMMAND
 					+ " --email=<address> --name=<display name>; the password comes from the console or "
 					+ PASSWORD_VARIABLE + ". Also: --vibefix.cli.command=" + SpikeS1Command.COMMAND
-					+ " --github-login=<Customer> --repo=<owner/name> (dev only).");
+					+ " --github-login=<Customer> --repo=<owner/name>, and " + SPIKE_S4
+					+ " (deploy/README.md, \"Spike S4\"), dev only.");
 			this.exitCode = 2;
 			return;
 		}

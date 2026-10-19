@@ -112,6 +112,10 @@ vibefix:
   github:
     # GitHub's REST API (AD-10, AD-13); Story 1.14's spike-s1 probe reads repositories from it.
     api-url: https://api.github.com
+    # Where repositories are cloned from and pushed to (AD-11). The Apps' IDs and key files
+    # (vibefix.github.platform-app.*, merge-app.*) are set where a story needs them; see
+    # deploy/README.md "Spike S4".
+    git-url: https://github.com
     # AD-10: the sign-in OAuth App's endpoints; its client ID and secret are secret files.
     oauth:
       authorization-uri: https://github.com/login/oauth/authorize
