@@ -9,9 +9,11 @@ import { FormField } from '@/components/FormField'
 import { fieldProps, inputClass } from '@/components/formField-props'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
+import { SkillPicker } from '@/components/SkillPicker'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
-import { t } from '@/i18n/t'
+import { t, type MessageKey } from '@/i18n/t'
+import { ApiError } from '@/lib/apiClient'
 import { formatDayMonthTime } from '@/lib/dates'
 import { fieldMessage, serverFieldErrors, zodFieldErrors } from '@/lib/formErrors'
 import { problemMessage } from '@/lib/problemMessage'
@@ -20,6 +22,9 @@ import { StudentVerificationCard } from './StudentVerificationCard'
 
 /** The repositories a Student shows, at most 5 (FR-4). */
 export const MAX_REPOSITORIES = 5
+
+/** The Skills a Student keeps, at most 20 (FR-4, AD-38). */
+export const MAX_SKILLS = 20
 
 const REPOSITORY = /^(?:https:\/\/github\.com\/)?[A-Za-z0-9][A-Za-z0-9-]{0,38}\/[A-Za-z0-9._-]{1,100}?(?:\.git)?\/?$/
 
@@ -33,24 +38,38 @@ const schema = z.object({
     .regex(/^(?:https:\/\/www\.linkedin\.com\/in\/[A-Za-z0-9_%-]{3,100}\/?)?$/, 'format'),
   showNameAndSchool: z.boolean(),
   repositories: z.array(z.string().trim().regex(REPOSITORY, 'format')).max(MAX_REPOSITORIES, 'tooLong'),
+  skillIds: z.array(z.string()).max(MAX_SKILLS, 'tooLong'),
 })
 
 type Values = z.input<typeof schema>
 
-type Field = 'realName' | 'school' | 'linkedinUrl' | 'repositories'
+type Field = 'realName' | 'school' | 'linkedinUrl' | 'skillIds' | 'repositories'
 
 const LABELS: Record<Field, string> = {
   realName: t('screen.student.profile.realName'),
   school: t('screen.student.profile.school'),
   linkedinUrl: t('screen.student.profile.linkedin'),
+  skillIds: t('screen.student.profile.skills'),
   repositories: t('screen.student.profile.repositories'),
 }
 
+/** A `catalog` refusal of the chosen Skills, in its own words. */
+function skillRefusal(error: unknown): string | undefined {
+  if (!(error instanceof ApiError)) {
+    return undefined
+  }
+  const { reason, limit } = error.problem as { reason?: string; limit?: number }
+  return reason === 'SKILL_INACTIVE' || reason === 'SKILL_LIMIT'
+    ? t(`reason.catalog.${reason}` as MessageKey, { n: limit ?? MAX_SKILLS })
+    : undefined
+}
+
 /**
- * STU-5 (`/ho-so`), "Hồ sơ và xác minh": the profile part (FR-4, FR-51): real name, school, year of study, LinkedIn, the
- * public-name choice (hidden by default), and up to 5 showcased repositories, shown as links only;
- * their code is never fetched. The GitHub username comes from sign-in. The verification card comes
- * first (FR-5, Story 1.9); the student-card path arrives with Story 1.13.
+ * STU-5 (`/ho-so`), "Hồ sơ và xác minh": the profile part (FR-4, FR-51): real name, school, year of
+ * study, LinkedIn, the public-name choice (hidden by default), up to 20 Skills from the catalog's
+ * Skill picker (AD-38), and up to 5 showcased repositories, shown as links only; their code is never
+ * fetched. The GitHub username comes from sign-in. The verification card, with the school email and
+ * the student card, comes first (FR-5).
  */
 export function StudentProfilePage() {
   usePageTitle(t('screen.student.profile.title'))
@@ -93,6 +112,7 @@ function StudentForm({ profile }: { profile: Profile }) {
     linkedinUrl: saved?.linkedinUrl ?? '',
     showNameAndSchool: saved?.showNameAndSchool ?? false,
     repositories: saved?.repositories ?? [],
+    skillIds: saved?.skills.map((skill) => skill.id) ?? [],
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [summary, setSummary] = useState(false)
@@ -101,7 +121,7 @@ function StudentForm({ profile }: { profile: Profile }) {
   const toasts = useToasts()
   const { offline } = usePollHealth()
 
-  function validate(field: Exclude<Field, 'repositories'>) {
+  function validate(field: Exclude<Field, 'repositories' | 'skillIds'>) {
     const result = schema.shape[field].safeParse(values[field])
     setErrors((current) => {
       const next = { ...current }
@@ -138,6 +158,7 @@ function StudentForm({ profile }: { profile: Profile }) {
         linkedinUrl: data.linkedinUrl || undefined,
         showNameAndSchool: data.showNameAndSchool,
         repositories: data.repositories.filter((repository) => repository !== ''),
+        skillIds: data.skillIds,
       },
       {
         onSuccess: () => {
@@ -147,10 +168,11 @@ function StudentForm({ profile }: { profile: Profile }) {
           toasts.success(t('screen.student.profile.saved'))
         },
         onError: (error) => {
-          const fields = serverFieldErrors(error)
+          const skills = skillRefusal(error)
+          const fields = skills ? { skillIds: skills } : serverFieldErrors(error)
           setErrors(fields)
           setSummary(Object.keys(fields).length > 0)
-          toasts.error(problemMessage(error).text)
+          toasts.error(skills ?? problemMessage(error).text)
         },
       },
     )
@@ -229,6 +251,22 @@ function StudentForm({ profile }: { profile: Profile }) {
           value={values.linkedinUrl}
           onChange={(event) => setValues({ ...values, linkedinUrl: event.target.value })}
           onBlur={() => validate('linkedinUrl')}
+        />
+      </FormField>
+      <FormField
+        id="skillIds"
+        label={LABELS.skillIds}
+        helper={t('screen.student.profile.skillsHelper')}
+        error={errors.skillIds}
+      >
+        <SkillPicker
+          id="skillIds"
+          value={values.skillIds}
+          onChange={(skillIds) => setValues((current) => ({ ...current, skillIds }))}
+          known={saved?.skills}
+          max={MAX_SKILLS}
+          invalid={!!errors.skillIds}
+          describedBy={['skillIds-helper', errors.skillIds ? 'skillIds-error' : null].filter(Boolean).join(' ')}
         />
       </FormField>
       <fieldset id="repositories" tabIndex={-1} className="flex flex-col gap-2 focus:outline-none">

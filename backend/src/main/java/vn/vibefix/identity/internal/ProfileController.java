@@ -54,7 +54,16 @@ class ProfileController {
 	 * @param student the Student's profile, once saved
 	 */
 	record ProfileView(Role role, @Nullable String githubLogin, @Nullable CustomerProfile customer,
-			@Nullable StudentProfile student) {
+			@Nullable StudentProfileView student) {
+	}
+
+	/** @param skills the chosen Skills with their current names, in the Student's order (FR-4, AD-38) */
+	record StudentProfileView(@Nullable String realName, @Nullable String school, @Nullable Integer yearOfStudy,
+			@Nullable String linkedinUrl, boolean showNameAndSchool, List<String> repositories, List<ProfileSkill> skills) {
+	}
+
+	/** @param active {@code false} for a Skill the catalog retired: it stays, but cannot be added again */
+	record ProfileSkill(UUID id, String name, boolean active) {
 	}
 
 	record CustomerProfileRequest(@NotNull CustomerKind kind, @NotBlank @Size(max = 100) String displayName,
@@ -66,7 +75,8 @@ class ProfileController {
 			@Nullable @Min(1) @Max(8) Integer yearOfStudy,
 			@Nullable @Pattern(regexp = "^https://www\\.linkedin\\.com/in/[A-Za-z0-9_%-]{3,100}/?$") String linkedinUrl,
 			@NotNull Boolean showNameAndSchool,
-			@NotNull @Size(max = 5) List<@NotBlank @Pattern(regexp = REPOSITORY) String> repositories) {
+			@NotNull @Size(max = 5) List<@NotBlank @Pattern(regexp = REPOSITORY) String> repositories,
+			@NotNull @Size(max = 100) List<@NotNull UUID> skillIds) {
 	}
 
 	private final Profiles profiles;
@@ -88,7 +98,16 @@ class ProfileController {
 		Role role = current.role();
 		String login = this.accounts.findById(id).map(Account::githubLogin).orElse(null);
 		return new ProfileView(role, login, role == Role.CUSTOMER ? this.profiles.customer(id).orElse(null) : null,
-				role == Role.STUDENT ? this.profiles.student(id).orElse(null) : null);
+				role == Role.STUDENT ? this.profiles.student(id).map(this::view).orElse(null) : null);
+	}
+
+	private StudentProfileView view(StudentProfile profile) {
+		List<ProfileSkill> skills = this.profiles.skills(profile.skillIds())
+			.stream()
+			.map(skill -> new ProfileSkill(skill.id(), skill.name(), skill.active()))
+			.toList();
+		return new StudentProfileView(profile.realName(), profile.school(), profile.yearOfStudy(), profile.linkedinUrl(),
+				profile.showNameAndSchool(), profile.repositories(), skills);
 	}
 
 	@PutMapping("/customer")
@@ -105,7 +124,7 @@ class ProfileController {
 		UUID id = requireRole(Role.STUDENT);
 		this.profiles.saveStudent(id, new StudentProfile(blankToNull(request.realName()), blankToNull(request.school()),
 				request.yearOfStudy(), blankToNull(request.linkedinUrl()), request.showNameAndSchool(),
-				repositories(request.repositories())));
+				repositories(request.repositories()), request.skillIds()));
 	}
 
 	private UUID requireRole(Role role) {

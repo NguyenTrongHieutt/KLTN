@@ -73,7 +73,11 @@ class IdentityPersonalData implements PersonalDataParticipant {
 					rs.getString("notice_version"), "at", rs.getTimestamp("acknowledged_at").toInstant().toString()))
 				.list());
 			this.profiles.customer(accountId).ifPresent(profile -> data.put("customerProfile", profile));
-			this.profiles.student(accountId).ifPresent(profile -> data.put("studentProfile", profile));
+			this.profiles.student(accountId).ifPresent(profile -> {
+				data.put("studentProfile", profile);
+				// The Skills by name, as the Student chose them; the IDs alone mean nothing to a person.
+				data.put("studentSkills", this.profiles.skills(profile.skillIds()).stream().map(skill -> skill.name()).toList());
+			});
 			data.put("theme", this.profiles.theme(accountId).name());
 			this.jdbc.sql("""
 					SELECT method, school_email, verified_at, valid_until FROM identity.student_verification

@@ -80,6 +80,7 @@ describe.each(PAYLOADS)('the payload %s', (payload) => {
             linkedinUrl: payload,
             showNameAndSchool: true,
             repositories: [payload, `owner/${payload}`],
+            skills: [{ id: 'retired-skill', name: payload, active: false }],
           },
         }),
     })

@@ -70,7 +70,7 @@ class MigrationConventionsTest {
 		assertThat(check(Map.of("identity/V202611010900__identity_accounts.sql", """
 				CREATE TABLE identity.account (id UUID PRIMARY KEY);
 				INSERT INTO platform.environment (name) VALUES ('dev');
-				"""))).singleElement().asString().contains("platform");
+				"""))).hasSize(2).allSatisfy(violation -> assertThat(violation).contains("platform"));
 		assertThat(check(Map.of("identity/V202611010900__identity_grants.sql", """
 				GRANT USAGE ON SCHEMA audit TO vibefix_app;
 				"""))).singleElement().asString().contains("audit");
@@ -80,6 +80,37 @@ class MigrationConventionsTest {
 		assertThat(check(Map.of("identity/V202611010900__identity_unqualified.sql", """
 				CREATE TABLE account (id UUID PRIMARY KEY);
 				"""))).singleElement().asString().contains("unqualified");
+	}
+
+	@Test
+	void allowsReadingTheSharedTextFunctionsOnly() {
+		assertThat(check(Map.of("catalog/V202611010900__catalog_skills.sql", """
+				CREATE TABLE catalog.skill (id UUID PRIMARY KEY, name TEXT NOT NULL);
+				CREATE UNIQUE INDEX skill_name_idx ON catalog.skill (platform.vi_normalize(name));
+				CREATE INDEX skill_plain_idx ON catalog.skill (platform.unaccent(name));
+				ALTER TABLE catalog.skill ADD COLUMN search TSVECTOR
+				    GENERATED ALWAYS AS (to_tsvector('platform.vi_search', name)) STORED;
+				"""))).isEmpty();
+		assertThat(check(Map.of("catalog/V202611010900__catalog_other.sql", """
+				CREATE INDEX skill_x_idx ON catalog.skill (platform.vi_other(name));
+				"""))).singleElement().asString().contains("platform");
+	}
+
+	@Test
+	void rejectsCreatingAlteringGrantingOrWritingPlatformObjectsFromAModule() {
+		for (String statement : List.of("CREATE FUNCTION platform.vi_normalize(value TEXT) RETURNS TEXT RETURN value;",
+				"CREATE OR REPLACE FUNCTION platform.vi_normalize(value TEXT) RETURNS TEXT RETURN value;",
+				"ALTER FUNCTION platform.vi_normalize(TEXT) OWNER TO someone;",
+				"DROP FUNCTION platform.unaccent(TEXT);",
+				"GRANT EXECUTE ON FUNCTION platform.vi_normalize(TEXT) TO ${runtime_role};",
+				"COMMENT ON FUNCTION platform.vi_normalize IS 'x';",
+				"ALTER TEXT SEARCH CONFIGURATION platform.vi_search ADD MAPPING FOR word WITH simple;",
+				"CREATE TEXT SEARCH CONFIGURATION platform.vi_search (COPY = simple);")) {
+			assertThat(check(Map.of("catalog/V202611010900__catalog_x.sql", statement))).as(statement).isNotEmpty();
+		}
+		assertThat(check(Map.of("platform/V202611010900__platform_text.sql", """
+				CREATE FUNCTION platform.vi_normalize(value TEXT) RETURNS TEXT RETURN value;
+				"""))).isEmpty();
 	}
 
 	@Test
@@ -241,14 +272,18 @@ class MigrationConventionsTest {
 		String code = stripCommentsAndLiterals(sql);
 		List<String> violations = new ArrayList<>();
 		Set<String> named = new TreeSet<>();
-		Matcher qualified = Pattern.compile("(?<![\\w$.\"])\"?([a-z_][a-z0-9_]*)\"?\\s*\\.\\s*[\"a-z_*]",
+		Matcher qualified = Pattern.compile("(?<![\\w$.\"])\"?([a-z_][a-z0-9_]*)\"?\\s*\\.\\s*\"?([a-z_][a-z0-9_]*|\\*)",
 				Pattern.CASE_INSENSITIVE)
 			.matcher(code);
 		while (qualified.find()) {
 			String schema = qualified.group(1).toLowerCase();
-			if (isForeign(schema, own)) {
+			boolean platformRead = schema.equals("platform") && PLATFORM_READS.contains(qualified.group(2).toLowerCase());
+			if (isForeign(schema, own) && !platformRead) {
 				named.add(schema);
 			}
+		}
+		if (!own.equals("platform")) {
+			violations.addAll(platformWrites(path, code));
 		}
 		Matcher schemaClause = Pattern
 			.compile("\\bSCHEMA\\s+(?:IF\\s+(?:NOT\\s+)?EXISTS\\s+)?\"?([a-z_][a-z0-9_]*)\"?", Pattern.CASE_INSENSITIVE)
@@ -321,6 +356,44 @@ class MigrationConventionsTest {
 		Map<String, Pattern> patterns = new java.util.LinkedHashMap<>();
 		sources.forEach((label, regex) -> patterns.put(label, Pattern.compile(regex, Pattern.CASE_INSENSITIVE)));
 		return patterns;
+	}
+
+	/**
+	 * The shared text functions and configuration a module migration may reference, read-only
+	 * (Conventions, Migrations; AD-36, AD-38): for example a unique index on
+	 * {@code platform.vi_normalize(name)}. Every other {@code platform.} name stays foreign.
+	 */
+	static final Set<String> PLATFORM_READS = Set.of("vi_search", "vi_normalize", "unaccent");
+
+	/**
+	 * A module migration never creates, alters, drops, grants on, comments on, or writes a
+	 * {@code platform} object, the allowlisted ones included.
+	 */
+	private static List<String> platformWrites(String path, String code) {
+		List<String> violations = new ArrayList<>();
+		Matcher created = Pattern.compile(
+				"\\bCREATE\\s+(?:OR\\s+REPLACE\\s+)?(?:UNIQUE\\s+)?(?:UNLOGGED\\s+)?(?:TABLE|VIEW|MATERIALIZED\\s+VIEW|SEQUENCE|TYPE|DOMAIN|FUNCTION|PROCEDURE|INDEX|TRIGGER|TEXT\\s+SEARCH\\s+\\w+)\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?\"?platform\"?\\s*\\.",
+				Pattern.CASE_INSENSITIVE)
+			.matcher(code);
+		if (created.find()) {
+			violations.add(path + ": creates a platform object; only platform migrations do");
+		}
+		for (Map.Entry<String, Pattern> reference : UNQUALIFIED_REFERENCES.entrySet()) {
+			if (reference.getKey().equals("REFERENCES") || reference.getKey().equals("EXECUTE FUNCTION")) {
+				continue;
+			}
+			Matcher matcher = reference.getValue().matcher(code);
+			while (matcher.find()) {
+				if (matcher.group("dot") != null && matcher.group("name").replace("\"", "").equalsIgnoreCase("platform")) {
+					violations.add(path + ": " + reference.getKey() + " on a platform object; only platform migrations do");
+				}
+			}
+		}
+		if (Pattern.compile("\\b(?:ALTER|DROP)\\s+TEXT\\s+SEARCH\\s+\\w+\\s+(?:IF\\s+EXISTS\\s+)?\"?platform\"?\\s*\\.",
+				Pattern.CASE_INSENSITIVE).matcher(code).find()) {
+			violations.add(path + ": changes a platform text search object; only platform migrations do");
+		}
+		return violations;
 	}
 
 	private static boolean isForeign(String schema, String own) {

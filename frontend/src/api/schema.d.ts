@@ -132,6 +132,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["catalog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/customers/{customerId}/contact": {
         parameters: {
             query?: never;
@@ -482,6 +498,21 @@ export interface components {
             school: string;
             studentNumber: string;
         };
+        CatalogCategory: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            skills: components["schemas"]["CatalogSkill"][];
+        };
+        CatalogSkill: {
+            hint: string;
+            /** Format: uuid */
+            id: string;
+            name: string;
+        };
+        CatalogView: {
+            categories: components["schemas"]["CatalogCategory"][];
+        };
         CodeRequest: {
             code: string;
         };
@@ -571,12 +602,18 @@ export interface components {
             /** Format: date-time */
             sentAt: string;
         };
+        ProfileSkill: {
+            active: boolean;
+            /** Format: uuid */
+            id: string;
+            name: string;
+        };
         ProfileView: {
             customer?: components["schemas"]["CustomerProfile"];
             githubLogin?: string;
             /** @enum {string} */
             role: "CUSTOMER" | "MENTOR" | "STUDENT" | "ADMINISTRATOR";
-            student?: components["schemas"]["StudentProfile"];
+            student?: components["schemas"]["StudentProfileView"];
         };
         Queue: {
             /** Format: int32 */
@@ -636,21 +673,23 @@ export interface components {
             /** Format: date-time */
             uploadedAt: string;
         };
-        StudentProfile: {
-            linkedinUrl?: string;
-            realName?: string;
-            repositories: string[];
-            school?: string;
-            showNameAndSchool: boolean;
-            /** Format: int32 */
-            yearOfStudy?: number;
-        };
         StudentProfileRequest: {
             linkedinUrl?: string;
             realName?: string;
             repositories: string[];
             school?: string;
             showNameAndSchool: boolean;
+            skillIds: string[];
+            /** Format: int32 */
+            yearOfStudy?: number;
+        };
+        StudentProfileView: {
+            linkedinUrl?: string;
+            realName?: string;
+            repositories: string[];
+            school?: string;
+            showNameAndSchool: boolean;
+            skills: components["schemas"]["ProfileSkill"][];
             /** Format: int32 */
             yearOfStudy?: number;
         };
@@ -937,6 +976,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StudentCardRow"];
+                };
+            };
+        };
+    };
+    catalog: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-None-Match"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogView"];
                 };
             };
         };
