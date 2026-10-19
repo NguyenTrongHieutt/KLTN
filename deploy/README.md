@@ -134,6 +134,61 @@ registered ("Signing in with GitHub locally" above).
    `ORG_REPO_UNSUPPORTED`. A result that contradicts AD-10 or AD-13 goes to `bmad-architecture`
    before Epic 2's registration story starts.
 
+## Spike S4: the Platform App runs the repository mechanism
+
+Story 2.1 asks whether the Platform App can do everything AD-10 and AD-11 rely on: copy a public
+repository that has `.github/workflows/` into the organization, fork it several times there, push a
+`handover/*` branch, invite a collaborator with read and raise them to write, read the
+organization's settings, and protect the default branch with a ruleset (S4, SG-17, SG-21). Only the
+author can run it, on GitHub, as an owner of `vibefix-dev`.
+
+1. **Register the dev Platform App** (Settings → Developer settings → GitHub Apps, owned by
+   `vibefix-dev`), with AD-10's permissions and nothing more:
+   - repository: Administration, Contents, Pull requests, and Workflows **write**; Metadata **read**;
+   - organization: Administration and Members **read**;
+   - events: `push`, `pull_request`, `repository`, `member`, `membership`, `organization`,
+     `repository_ruleset`, `meta`.
+
+   Generate a private key and save it, unopened by anything else, as
+   `deploy/secrets/github-platform-app-key.pem` (the folder is ignored by git). Install the App on
+   `vibefix-dev` with **Only select repositories**, and note the App ID and the installation ID
+   (the number at the end of the installation's settings URL).
+2. **Pick a public source repository** that has at least one file in `.github/workflows/`, for
+   example one of your own.
+3. **Run the probe.** It mints one installation token per check, narrowed to that check's
+   repository and permissions, revokes it after, and never prints it. `--collaborator` is a second
+   GitHub account of yours that is a member of `vibefix-dev` but not an owner.
+
+   ```sh
+   docker compose -f deploy/compose.yaml run --rm --no-deps -e SPRING_PROFILES_ACTIVE=dev,cli -v ./deploy/secrets/github-platform-app-key.pem:/run/secrets/github-platform-app-key:ro backend --vibefix.cli.command=spike-s4 --vibefix.github.platform-app.id=<App ID> --vibefix.github.platform-app.installation-id=<installation ID> --vibefix.github.platform-app.key-file=/run/secrets/github-platform-app-key --source=<owner/name> --collaborator=<second account> --forks=3
+   ```
+
+   Each check prints `OK`, `FAIL`, or `SKIPPED` with GitHub's status. The created repositories
+   (`s4-…-intermediary` and its `-working-n` forks) stay for you to inspect; nothing is deleted.
+4. **Check the ruleset against a member.** Accept the invitation as the second account, create a
+   fine-grained personal access token for it with Contents write on the Intermediary Repository, save it
+   as `deploy/secrets/s4-member-token`, and run the member checks. This token is the probe's input
+   for this check only; the platform itself never uses a personal access token (AD-10).
+
+   ```sh
+   docker compose -f deploy/compose.yaml run --rm --no-deps -e SPRING_PROFILES_ACTIVE=dev,cli -v ./deploy/secrets/github-platform-app-key.pem:/run/secrets/github-platform-app-key:ro -v ./deploy/secrets/s4-member-token:/run/secrets/s4-member-token:ro backend --vibefix.cli.command=spike-s4 --vibefix.github.platform-app.id=<App ID> --vibefix.github.platform-app.installation-id=<installation ID> --vibefix.github.platform-app.key-file=/run/secrets/github-platform-app-key --intermediary=<s4-…-intermediary> --member-token-file=/run/secrets/s4-member-token
+   ```
+
+   Every attempt (direct push, force push, deletion, `handover/*` push) should read `refused`.
+5. **Repeat with "All repositories"**: change the installation's repository access, run step 3
+   again with another `--prefix`, and note whether any result changed (SG-21).
+6. **Check the registrations** (SG-20): register the dev Merge App too (Contents and Pull requests
+   write, Metadata read, no events), then run the tagged suite. It fails if either App's permissions
+   or events differ from AD-10's list.
+
+   ```sh
+   VIBEFIX_DEV_PLATFORM_APP_ID=<id> VIBEFIX_DEV_PLATFORM_APP_KEY_FILE=../deploy/secrets/github-platform-app-key.pem VIBEFIX_DEV_MERGE_APP_ID=<id> VIBEFIX_DEV_MERGE_APP_KEY_FILE=../deploy/secrets/github-merge-app-key.pem ./mvnw -B test -Pvibefix-dev
+   ```
+
+7. **Record the outcome** of every check, and of the "All repositories" run, in the spine's memlog.
+   An operation that fails goes to `bmad-architecture` before Epic 7, because AD-10 and AD-11
+   depend on it; then tell Amelia, who records it and closes Story 2.1.
+
 ## Email locally
 
 The backend sends email as External Operations over SMTP (AD-6, AD-27). On this stack the SMTP

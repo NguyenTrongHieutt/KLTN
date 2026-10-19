@@ -34,6 +34,9 @@
 		<tika.version>4.1.0</tika.version>
 		<archunit.version>1.5.1</archunit.version>
 		<bouncycastle.version>1.86</bouncycastle.version>
+		<jgit.version>7.3.0.202506031305-r</jgit.version>
+		<!-- SG-20: the vibefix-dev suite talks to the real dev GitHub Apps; `-Pvibefix-dev` runs it alone. -->
+		<excluded.groups>vibefix-dev</excluded.groups>
 		<java-otp.version>0.4.0</java-otp.version>
 		<!-- Everything runs in UTC (Conventions, Time); tests use the same JVM time zone as the containers. -->
 		<argLine>-Duser.timezone=UTC</argLine>
@@ -63,6 +66,12 @@
 		</dependency>
 		<!-- AD-19: Administrator passwords are Argon2 hashes (Spring Security's encoder needs BouncyCastle),
 		     and the second factor is TOTP (RFC 6238). -->
+		<!-- AD-11: repository copies and, later, the Final Merge's trial merge, without a git binary. -->
+		<dependency>
+			<groupId>org.eclipse.jgit</groupId>
+			<artifactId>org.eclipse.jgit</artifactId>
+			<version>${jgit.version}</version>
+		</dependency>
 		<dependency>
 			<groupId>org.bouncycastle</groupId>
 			<artifactId>bcprov-jdk18on</artifactId>
@@ -212,6 +221,13 @@
 					<jvmArguments>-Duser.timezone=UTC</jvmArguments>
 				</configuration>
 			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<excludedGroups>${excluded.groups}</excludedGroups>
+				</configuration>
+			</plugin>
 			<!-- *IT classes boot the application against Testcontainers PostgreSQL during `verify`. -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -219,5 +235,16 @@
 			</plugin>
 		</plugins>
 	</build>
+
+	<profiles>
+		<!-- `./mvnw -B test -Pvibefix-dev`: only the suite that reads the dev GitHub Apps' registrations. -->
+		<profile>
+			<id>vibefix-dev</id>
+			<properties>
+				<excluded.groups>none</excluded.groups>
+				<groups>vibefix-dev</groups>
+			</properties>
+		</profile>
+	</profiles>
 
 </project>
