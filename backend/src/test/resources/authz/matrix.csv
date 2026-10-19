@@ -293,6 +293,12 @@ GET /api/v1/products/{productId},CUSTOMER,,,404 NOT_FOUND
 GET /api/v1/products/{productId},MENTOR,,,404 NOT_FOUND
 GET /api/v1/products/{productId},STUDENT,,,404 NOT_FOUND
 GET /api/v1/products/{productId},ADMINISTRATOR,,,200
+DELETE /api/v1/products/{productId},ANONYMOUS,,,401
+DELETE /api/v1/products/{productId},OWNER,,,204
+DELETE /api/v1/products/{productId},CUSTOMER,,,404 NOT_FOUND
+DELETE /api/v1/products/{productId},MENTOR,,,404 NOT_FOUND
+DELETE /api/v1/products/{productId},STUDENT,,,404 NOT_FOUND
+DELETE /api/v1/products/{productId},ADMINISTRATOR,,,404 NOT_FOUND
 GET /api/v1/products/{productId}/findings,ANONYMOUS,,,401
 GET /api/v1/products/{productId}/findings,OWNER,,,200
 GET /api/v1/products/{productId}/findings,CUSTOMER,,,404 NOT_FOUND

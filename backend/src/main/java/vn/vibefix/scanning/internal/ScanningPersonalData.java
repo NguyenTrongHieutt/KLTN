@@ -10,6 +10,8 @@ import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
+import vn.vibefix.notification.Todos;
+
 import vn.vibefix.shared.ErasureBlocker;
 import vn.vibefix.shared.PersonalDataParticipant;
 import vn.vibefix.shared.PersonalDataSection;
@@ -24,8 +26,11 @@ class ScanningPersonalData implements PersonalDataParticipant {
 
 	private final JdbcClient jdbc;
 
-	ScanningPersonalData(JdbcClient jdbc) {
+	private final Todos todos;
+
+	ScanningPersonalData(JdbcClient jdbc, Todos todos) {
 		this.jdbc = jdbc;
+		this.todos = todos;
 	}
 
 	@Override
@@ -80,6 +85,11 @@ class ScanningPersonalData implements PersonalDataParticipant {
 
 	@Override
 	public void deleteProduct(UUID productId) {
+		this.jdbc.sql("SELECT id FROM scanning.finding WHERE product_id = :id")
+			.param("id", productId)
+			.query(UUID.class)
+			.list()
+			.forEach(finding -> this.todos.closeAll(FindingResolutions.RESOLVE_INTAKE_FINDING, finding));
 		this.jdbc.sql("DELETE FROM scanning.finding WHERE product_id = :id").param("id", productId).update();
 		this.jdbc.sql("DELETE FROM scanning.scan_run WHERE product_id = :id").param("id", productId).update();
 	}

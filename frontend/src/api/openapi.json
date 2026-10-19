@@ -987,6 +987,24 @@
       }
     },
     "/api/v1/products/{productId}" : {
+      "delete" : {
+        "operationId" : "delete",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "product-controller" ]
+      },
       "get" : {
         "operationId" : "product",
         "parameters" : [ {

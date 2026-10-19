@@ -27,6 +27,9 @@ enum ProductReason {
 	/** GitHub could not be read just now. */
 	GITHUB_UNAVAILABLE,
 
+	/** A Job in Selecting to Closing pins the Product (FR-7, AD-3). */
+	PRODUCT_HAS_ACTIVE_JOB,
+
 	/** A scan of the Product is still waiting, running, or retrying. */
 	SCAN_IN_PROGRESS,
 

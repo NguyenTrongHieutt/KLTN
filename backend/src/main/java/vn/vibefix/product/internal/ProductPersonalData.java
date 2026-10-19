@@ -31,7 +31,7 @@ class ProductPersonalData implements PersonalDataParticipant {
 
 	@Override
 	public Set<String> tables() {
-		return Set.of("product.product", "product.repository_replacement");
+		return Set.of("product.product", "product.repository_replacement", "product.job_pin");
 	}
 
 	@Override
@@ -64,8 +64,10 @@ class ProductPersonalData implements PersonalDataParticipant {
 		this.jdbc.sql("DELETE FROM product.product WHERE customer_account_id = :id").param("id", accountId).update();
 	}
 
+	/** The Product row goes, and with it its replacements and pins; its repository ID is free again. */
 	@Override
 	public void deleteProduct(UUID productId) {
+		this.jdbc.sql("DELETE FROM product.product WHERE id = :id").param("id", productId).update();
 	}
 
 	@Override
