@@ -243,6 +243,15 @@ class JobLifecycle {
 	}
 
 	/**
+	 * Applies {@code transition} with what its step needs from the command, at whatever version the Job
+	 * has, for a fact another module vouches for (J4's signature).
+	 */
+	@Transactional
+	Applied apply(Transition transition, UUID jobId, Actor actor, Trigger trigger, Map<String, Object> input) {
+		return run(transition, jobId, actor, trigger, null, input);
+	}
+
+	/**
 	 * Applies {@code transition} to the Job as a person's decision: the screen sends the version it
 	 * loaded, and a Job that moved on since answers {@code STALE} (AD-23).
 	 * @param input what the transition's step needs from the command

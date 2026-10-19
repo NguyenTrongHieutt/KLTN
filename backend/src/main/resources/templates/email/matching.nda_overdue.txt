@@ -1,0 +1,6 @@
+subject: Người hướng dẫn chưa ký cam kết bảo mật cho {job}. Bạn có thể chọn lại.
+---
+Xin chào,
+
+Đã hết 3 ngày mà người hướng dẫn bạn chọn cho {job} chưa ký cam kết bảo mật.
+Bạn có thể hủy lựa chọn trên vibefix để chọn lại từ các đơn đang tạm giữ.

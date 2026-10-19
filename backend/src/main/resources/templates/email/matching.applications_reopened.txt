@@ -1,0 +1,7 @@
+subject: Công việc {job} mở lại, đơn của bạn được xem xét tiếp
+link: /cong-viec
+---
+Xin chào,
+
+Công việc {job} đã mở lại vì người được chọn trước không ký cam kết bảo mật.
+Đơn ứng tuyển của bạn đang được khách hàng xem xét tiếp.

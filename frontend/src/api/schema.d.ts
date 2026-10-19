@@ -372,6 +372,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/jobs/{jobId}/selection/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cancelSelection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jobs/{jobId}/withdraw": {
         parameters: {
             query?: never;
@@ -494,6 +510,70 @@ export interface paths {
         get: operations["customerRating"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mentor/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["jobs_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mentor/jobs/{jobId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["job_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mentor/jobs/{jobId}/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["decline_2"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mentor/jobs/{jobId}/nda": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["sign"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1273,7 +1353,7 @@ export interface components {
         ApplicationView: {
             approach: string;
             /** @enum {string} */
-            endReason?: "WITHDRAWN" | "MENTOR_UNAVAILABLE" | "JOB_WITHDRAWN" | "JOB_LAPSED";
+            endReason?: "WITHDRAWN" | "MENTOR_UNAVAILABLE" | "JOB_WITHDRAWN" | "JOB_LAPSED" | "NOT_SELECTED" | "DECLINED" | "NOT_SIGNED";
             /** Format: date-time */
             endedAt?: string;
             /** Format: uuid */
@@ -1374,6 +1454,10 @@ export interface components {
             /** @enum {string} */
             kind: "INDIVIDUAL" | "BUSINESS";
             phone?: string;
+        };
+        DecisionRequest: {
+            /** Format: int64 */
+            version: number;
         };
         EnrolmentRequest: {
             code: string;
@@ -1521,6 +1605,7 @@ export interface components {
             appUsers?: string;
             /** @enum {string} */
             budget?: "UNDER_2M" | "FROM_2M_TO_5M" | "FROM_5M_TO_10M" | "OVER_10M";
+            canCancelSelection: boolean;
             /** Format: date-time */
             createdAt: string;
             /** Format: date */
@@ -1634,6 +1719,37 @@ export interface components {
             /** Format: int64 */
             size: number;
         };
+        MentorJobSummaryView: {
+            /** Format: uuid */
+            id: string;
+            productName: string;
+            /** Format: date-time */
+            selectedAt: string;
+            /** @enum {string} */
+            state: "DRAFT" | "OPEN" | "SELECTING" | "AGREEMENT" | "STARTING" | "ACTIVE" | "CLOSING" | "CLOSED" | "CANCELLED";
+            title: string;
+        };
+        MentorJobView: {
+            appUsers?: string;
+            codeJob: boolean;
+            commitEmailNoticeAcknowledged: boolean;
+            doneCheck?: string;
+            expected?: string;
+            /** Format: uuid */
+            id: string;
+            jobTypes: ("ASSESSMENT" | "BUG_FIX" | "NEW_FEATURE" | "MODIFICATION" | "IMPROVEMENT" | "SECURITY_TESTING" | "DEPLOYMENT_OPERATIONS" | "DOCUMENTATION")[];
+            /** Format: date-time */
+            ndaDueAt?: string;
+            problem?: string;
+            productName: string;
+            /** Format: date-time */
+            selectedAt: string;
+            /** @enum {string} */
+            state: "DRAFT" | "OPEN" | "SELECTING" | "AGREEMENT" | "STARTING" | "ACTIVE" | "CLOSING" | "CLOSED" | "CANCELLED";
+            title: string;
+            /** Format: int64 */
+            version: number;
+        };
         MentorProfileView: {
             /** @enum {string} */
             approvalStatus: "PENDING" | "APPROVED" | "REJECTED" | "REVOKED";
@@ -1672,6 +1788,10 @@ export interface components {
             sizeLimit: number;
             /** @enum {string} */
             status: "OPEN" | "CLOSED";
+        };
+        NdaRequest: {
+            commitEmailNoticeAcknowledged: boolean;
+            ndaVersion: string;
         };
         NotificationItem: {
             /** Format: date-time */
@@ -2858,6 +2978,32 @@ export interface operations {
             };
         };
     };
+    cancelSelection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobView"];
+                };
+            };
+        };
+    };
     withdraw_1: {
         parameters: {
             query?: never;
@@ -3037,6 +3183,96 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["RatingSummaryView"];
                 };
+            };
+        };
+    };
+    jobs_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MentorJobSummaryView"][];
+                };
+            };
+        };
+    };
+    job_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MentorJobView"];
+                };
+            };
+        };
+    };
+    decline_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    sign: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NdaRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

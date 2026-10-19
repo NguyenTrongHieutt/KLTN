@@ -1383,8 +1383,45 @@
       "selecting": {
         "title": "Đang chờ {mentor} ký cam kết bảo mật",
         "body": "{mentor} cần ký cam kết bảo mật trước {date}. Sau đó hai bên trao đổi trong Trò chuyện và soạn thỏa thuận.",
-        "profile": "Xem hồ sơ người hướng dẫn"
+        "profile": "Xem hồ sơ người hướng dẫn",
+        "ifNot": "Nếu người hướng dẫn từ chối hoặc không ký kịp, công việc quay lại nhận đơn và bạn chọn lại từ các đơn đang tạm giữ.",
+        "held": "Đơn đang tạm giữ",
+        "cancel": "Hủy lựa chọn",
+        "cancelTitle": "Hủy lựa chọn này?",
+        "cancelBody": "Người hướng dẫn chưa ký cam kết bảo mật trong 3 ngày. Công việc quay lại nhận ứng tuyển và các đơn đang tạm giữ được xem xét tiếp.",
+        "cancelBack": "Quay lại",
+        "cancelled": "Đã hủy lựa chọn. Công việc quay lại nhận ứng tuyển."
       }
+    },
+    "nda": {
+      "version": "1.0",
+      "meta": "{product} · {types} · khách hàng đã chọn đơn ứng tuyển của bạn ngày {date}",
+      "title": "Cam kết bảo mật (NDA) · phiên bản {version}",
+      "n14": "Cam kết này bảo vệ thông tin kinh doanh khách hàng chia sẻ trong Trò chuyện, Trao đổi nhóm và tài liệu (dữ liệu, khóa truy cập, tệp). Mã nguồn là công khai nên không thuộc phạm vi này.",
+      "textLabel": "Toàn văn cam kết bảo mật",
+      "article1": "Điều 1. Thông tin được bảo vệ",
+      "article2": "Điều 2. Trách nhiệm với nhóm thực hiện",
+      "pending": "[VĂN BẢN CAM KẾT BẢO MẬT · CHỜ DUYỆT PHÁP LÝ (OQ5)]",
+      "n23": "Mỗi commit bạn đẩy lên kho mã công khai đều hiện tên và email của bạn, ai cũng đọc được, kể cả khách hàng. Hãy dùng email ẩn của GitHub trước khi commit.",
+      "n23Link": "Dùng email ẩn của GitHub",
+      "understood": "Tôi đã hiểu",
+      "decline": "Từ chối",
+      "sign": "Ký cam kết",
+      "why": "Hạn ký {date}. Từ chối đưa công việc về trạng thái nhận ứng tuyển; khách hàng chọn lại.",
+      "whyNotice": "Đánh dấu \"Tôi đã hiểu\" để ký. Thông báo này chỉ hỏi một lần cho mỗi phiên bản. Hạn ký {date}.",
+      "signed": "Đã ký cam kết bảo mật.",
+      "declined": "Đã từ chối. Công việc quay lại nhận ứng tuyển.",
+      "declineTitle": "Từ chối công việc này?",
+      "declineBody": "Công việc quay lại nhận ứng tuyển và khách hàng chọn lại từ các đơn đang tạm giữ. Bạn không ứng tuyển lại công việc này được.",
+      "declineBack": "Quay lại",
+      "afterTitle": "Sau khi bạn ký",
+      "afterChat": "Trò chuyện với khách hàng mở ra.",
+      "afterAgreement": "Bạn soạn thỏa thuận và gửi cho khách hàng.",
+      "afterCrew": "Bạn chọn nhóm thực hiện; từng sinh viên tự ký cam kết và xác nhận phần của mình.",
+      "customerSeesTitle": "Khách hàng thấy",
+      "customerSees": "\"Chờ người hướng dẫn ký cam kết bảo mật\" cho đến khi bạn ký hoặc hết hạn.",
+      "signedTitle": "Bạn đã ký cam kết bảo mật",
+      "signedBody": "Trò chuyện, thỏa thuận và nhóm thực hiện đến ở bước tiếp theo."
     }
   },
   "notice": {
@@ -1913,6 +1950,9 @@
       },
       "assignee_selected": {
         "title": "Bạn được chọn cho {job}. Hãy ký cam kết bảo mật."
+      },
+      "selection_declined": {
+        "title": "{mentor} đã từ chối. Bạn có thể chọn người hướng dẫn khác."
       }
     },
     "matching": {
@@ -1927,6 +1967,15 @@
       },
       "applications_on_hold": {
         "title": "Đơn ứng tuyển của bạn cho {job} đang chờ: khách hàng đã chọn người khác"
+      },
+      "applications_closed": {
+        "title": "Đơn ứng tuyển cho {job} đã đóng"
+      },
+      "applications_reopened": {
+        "title": "Công việc {job} mở lại, đơn của bạn được xem xét tiếp"
+      },
+      "nda_overdue": {
+        "title": "Người hướng dẫn chưa ký cam kết bảo mật cho {job}. Bạn có thể chọn lại."
       }
     }
   },
@@ -2001,7 +2050,8 @@
       "JOB_FROZEN": "công việc đang tạm dừng vì có tranh chấp",
       "MENTOR_NOT_AVAILABLE": "người hướng dẫn này hiện không nhận việc",
       "MENTOR_AT_JOB_LIMIT": "người hướng dẫn này đang nhận đủ số công việc tối đa",
-      "MENTOR_NO_FREE_STUDENT": "nhóm của người hướng dẫn này hiện không có sinh viên rảnh"
+      "MENTOR_NO_FREE_STUDENT": "nhóm của người hướng dẫn này hiện không có sinh viên rảnh",
+      "NDA_PERIOD_RUNNING": "người hướng dẫn vẫn còn thời gian ký cam kết bảo mật"
     },
     "matching": {
       "JOB_POST_NOT_OPEN": "công việc không còn nhận ứng tuyển",
@@ -2013,7 +2063,9 @@
       "APPLICANT_IS_CONTRIBUTOR": "Bạn đã từng đóng góp vào dự án gốc này nên không thể ứng tuyển.",
       "CONTRIBUTORS_UNKNOWN": "vibefix chưa kiểm tra được kho mã của khách hàng. Hãy thử lại sau ít phút.",
       "PUBLIC_CODE_NOT_ACKNOWLEDGED": "Hãy đánh dấu ô xác nhận về kho mã công khai.",
-      "NOT_WITHDRAWABLE": "Đơn này không rút được nữa."
+      "NOT_WITHDRAWABLE": "Đơn này không rút được nữa.",
+      "NDA_VERSION_OUTDATED": "Cam kết bảo mật vừa có phiên bản mới. Hãy tải lại trang rồi ký lại.",
+      "COMMIT_EMAIL_NOT_ACKNOWLEDGED": "Hãy đánh dấu \"Tôi đã hiểu\" trước khi ký."
     }
   }
 }

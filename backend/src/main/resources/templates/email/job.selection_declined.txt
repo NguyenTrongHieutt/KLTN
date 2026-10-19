@@ -1,0 +1,6 @@
+subject: {mentor} đã từ chối. Bạn có thể chọn người hướng dẫn khác.
+---
+Xin chào,
+
+{mentor} đã từ chối lời chọn của bạn, nên công việc của bạn nhận ứng tuyển trở lại.
+Các đơn đang tạm giữ được xem xét tiếp. Hãy mở vibefix để chọn người hướng dẫn khác.

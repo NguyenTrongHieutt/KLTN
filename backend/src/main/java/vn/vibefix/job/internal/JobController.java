@@ -2,6 +2,7 @@ package vn.vibefix.job.internal;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.HashMap;
@@ -99,7 +100,12 @@ class JobController {
 			@Nullable String expected, @Nullable String appUsers, @Nullable String doneCheck, List<JobType> jobTypes,
 			List<SkillView> skills, @Nullable Budget budget, @Nullable LocalDate deadline, List<ScreenshotView> screenshots,
 			Instant createdAt, Instant updatedAt, long version, @Nullable Instant openedAt, @Nullable Instant lapsesAt,
-			@Nullable JobMentorView mentor, @Nullable Instant selectedAt, @Nullable Instant ndaDueAt) {
+			@Nullable JobMentorView mentor, @Nullable Instant selectedAt, @Nullable Instant ndaDueAt,
+			boolean canCancelSelection) {
+	}
+
+	/** A decision at the Job version the screen loaded (AD-23). */
+	record DecisionRequest(@NotNull Long version) {
 	}
 
 	/** One Job as CUS-7 lists it. */
@@ -117,13 +123,16 @@ class JobController {
 
 	private final CurrentCaller callers;
 
+	private final Clock clock;
+
 	JobController(Jobs jobs, JobLifecycle lifecycle, ProductDirectory products, MentorDirectory mentors,
-			CurrentCaller callers) {
+			CurrentCaller callers, Clock clock) {
 		this.jobs = jobs;
 		this.lifecycle = lifecycle;
 		this.products = products;
 		this.mentors = mentors;
 		this.callers = callers;
+		this.clock = clock;
 	}
 
 	/** CUS-7: the Customer's Jobs, most recently changed first. */
@@ -172,6 +181,18 @@ class JobController {
 		return transition(jobId, Transition.J2);
 	}
 
+	/**
+	 * JOB-1 "Hủy lựa chọn" (FR-15): once the signature period passed without a signature, J5 returns
+	 * the Job to Open at the version the screen loaded.
+	 */
+	@PostMapping("/{jobId}/selection/cancel")
+	JobView cancelSelection(@PathVariable UUID jobId, @Valid @RequestBody DecisionRequest body) {
+		UUID customer = customer();
+		this.jobs.find(customer, jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		this.lifecycle.apply(Transition.J5, jobId, Actor.user(customer), Trigger.USER, body.version(), Map.of());
+		return view(this.jobs.find(customer, jobId).orElseThrow());
+	}
+
 	private JobView transition(UUID jobId, Transition transition) {
 		UUID customer = customer();
 		this.jobs.find(customer, jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
@@ -212,7 +233,9 @@ class JobController {
 				job.title(), job.problem(), job.expected(), job.appUsers(), job.doneCheck(), job.jobTypes(), skills,
 				job.budget(), job.deadline(), this.jobs.screenshots(job.id()).stream().map(ScreenshotView::of).toList(),
 				job.createdAt(), job.updatedAt(), job.version(), job.openedAt(), job.lapsesAt(), mentor(job),
-				job.selectedAt(), job.selectedAt() == null ? null : job.selectedAt().plus(JobSelection.NDA_PERIOD));
+				job.selectedAt(), job.selectedAt() == null ? null : job.selectedAt().plus(JobSelection.NDA_PERIOD),
+				job.state() == JobState.SELECTING && job.selectedAt() != null
+						&& !this.clock.instant().isBefore(job.selectedAt().plus(JobSelection.NDA_PERIOD)));
 	}
 
 	private @Nullable JobMentorView mentor(Job job) {

@@ -81,12 +81,12 @@ class TransitionTableTest {
 	}
 
 	@Test
-	void theFreezeRefusesM1ToM7AndOnlyJ1ToJ3HaveCommands() {
+	void theFreezeRefusesM1ToM7AndOnlyJ1ToJ5HaveCommands() {
 		assertThat(EnumSet.allOf(Transition.class).stream().filter(Transition::frozenBlocks))
 			.containsExactly(Transition.M1, Transition.M2, Transition.M3, Transition.M4, Transition.M5, Transition.M6,
 					Transition.M7);
 		assertThat(EnumSet.allOf(Transition.class).stream().filter(Transition::reachable))
-			.containsExactly(Transition.J1, Transition.J2, Transition.J3);
+			.containsExactly(Transition.J1, Transition.J2, Transition.J3, Transition.J4, Transition.J5);
 	}
 
 	@Test

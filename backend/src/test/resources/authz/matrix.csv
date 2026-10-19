@@ -518,6 +518,40 @@ POST /api/v1/jobs/{jobId}/applications/{applicationId}/select,CUSTOMER,,select.j
 POST /api/v1/jobs/{jobId}/applications/{applicationId}/select,MENTOR,,select.json,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/applications/{applicationId}/select,STUDENT,,select.json,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/applications/{applicationId}/select,ADMINISTRATOR,,select.json,404 NOT_FOUND
+GET /api/v1/mentor/jobs,ANONYMOUS,,,401,requireActiveAccount
+GET /api/v1/mentor/jobs,MENTOR,,,200,requireActiveAccount
+GET /api/v1/mentor/jobs,MENTOR,mentor=PENDING,,200,requireActiveAccount
+GET /api/v1/mentor/jobs,OWNER,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs,CUSTOMER,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs,STUDENT,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs,ADMINISTRATOR,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId},ANONYMOUS,,,401,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId},MENTOR,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId},MENTOR,mentor=PENDING,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId},OWNER,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId},CUSTOMER,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId},STUDENT,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId},ADMINISTRATOR,,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/decline,ANONYMOUS,,decision.json,401,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/decline,MENTOR,,decision.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/decline,MENTOR,mentor=PENDING,decision.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/decline,OWNER,,decision.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/decline,CUSTOMER,,decision.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/decline,STUDENT,,decision.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/decline,ADMINISTRATOR,,decision.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/nda,ANONYMOUS,,nda.json,401,requireApprovedMentor
+POST /api/v1/mentor/jobs/{jobId}/nda,MENTOR,,nda.json,404 NOT_FOUND,requireApprovedMentor
+POST /api/v1/mentor/jobs/{jobId}/nda,MENTOR,mentor=PENDING,nda.json,403 FORBIDDEN MENTOR_NOT_APPROVED,requireApprovedMentor
+POST /api/v1/mentor/jobs/{jobId}/nda,OWNER,,nda.json,404 NOT_FOUND,requireApprovedMentor
+POST /api/v1/mentor/jobs/{jobId}/nda,CUSTOMER,,nda.json,404 NOT_FOUND,requireApprovedMentor
+POST /api/v1/mentor/jobs/{jobId}/nda,STUDENT,,nda.json,404 NOT_FOUND,requireApprovedMentor
+POST /api/v1/mentor/jobs/{jobId}/nda,ADMINISTRATOR,,nda.json,404 NOT_FOUND,requireApprovedMentor
+POST /api/v1/jobs/{jobId}/selection/cancel,ANONYMOUS,,decision.json,401
+POST /api/v1/jobs/{jobId}/selection/cancel,OWNER,,decision.json,409 STALE
+POST /api/v1/jobs/{jobId}/selection/cancel,CUSTOMER,,decision.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/selection/cancel,MENTOR,,decision.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/selection/cancel,STUDENT,,decision.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/selection/cancel,ADMINISTRATOR,,decision.json,404 NOT_FOUND
 GET /api/v1/products/{productId}/skill-suggestions,ANONYMOUS,,,401
 GET /api/v1/products/{productId}/skill-suggestions,OWNER,,,200
 GET /api/v1/products/{productId}/skill-suggestions,CUSTOMER,,,404 NOT_FOUND

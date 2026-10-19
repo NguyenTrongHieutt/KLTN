@@ -1,6 +1,7 @@
 package vn.vibefix.matching.internal;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.modulith.events.ApplicationModuleListener;
@@ -32,7 +33,7 @@ class MatchingListeners {
 
 	@ApplicationModuleListener
 	void onJobTransitioned(JobTransitioned event) {
-		boolean handled = "J2".equals(event.transition()) || "J3".equals(event.transition());
+		boolean handled = List.of("J2", "J3", "J4", "J5").contains(event.transition());
 		if (!handled
 				|| !this.processedEvents.markProcessed("matching.MatchingListeners.onJobTransitioned", event.eventId())) {
 			return;
@@ -40,6 +41,15 @@ class MatchingListeners {
 		if ("J3".equals(event.transition())) {
 			this.applications.applySelection(event.jobId(), UUID.fromString(event.facts().get("applicationId")),
 					UUID.fromString(event.facts().get("mentorId")), Instant.parse(event.facts().get("ndaDueAt")));
+			return;
+		}
+		if ("J4".equals(event.transition())) {
+			this.applications.closeHeld(event.jobId());
+			return;
+		}
+		if ("J5".equals(event.transition())) {
+			this.applications.reopen(event.jobId(), UUID.fromString(event.facts().get("applicationId")),
+					"DECLINED".equals(event.facts().get("reason")) ? EndReason.DECLINED : EndReason.NOT_SIGNED);
 			return;
 		}
 		this.applications.closeForJob(event.jobId(),

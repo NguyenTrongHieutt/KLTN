@@ -49,13 +49,15 @@ enum Transition {
 			List.of(new Guard("FR-15", "The selected Mentor signed the NDA")),
 			List.of(new Effect("matching", "Applications on hold close"), new Effect("chat", "Job Chat opens"),
 					new Effect("job", "Drafting and Crew selection start (FR-16, FR-75)")),
-			false, false),
+			false, true),
 
 	J5(Machine.JOB, job(JobState.SELECTING), job(JobState.OPEN), Set.of(USER),
 			"The selected Mentor declines, or the Customer cancels the selection after the FR-15 signature period",
 			List.of(), List.of(new Effect("matching", "Applications on hold reopen"),
-					new Effect("timers", "The FR-9 selection period of J2 restarts")),
-			false, false),
+					new Effect("timers", "The FR-9 selection period of J2 restarts"),
+					new Effect("product", "The Product pin is released (AD-30)"),
+					new Effect("notification", "A decline tells the Customer (job.selection_declined)")),
+			false, true),
 
 	J6(Machine.JOB, job(JobState.AGREEMENT), job(JobState.STARTING), Set.of(SYSTEM),
 			"Milestone 1 becomes Funded (FR-41)",

@@ -111,8 +111,8 @@ class JobPostQueries implements JobPosts {
 			.param("id", jobId)
 			.query(Jobs::job)
 			.optional()
-			.map(job -> new JobPostState(job.id(), job.customerId(), job.productId(), job.title(),
-					job.state() == JobState.OPEN, job.hiddenAt() != null, job.lapsesAt()));
+			.map(job -> new JobPostState(job.id(), job.customerId(), job.productId(), job.title(), job.state().name(),
+					job.state() == JobState.OPEN, job.hiddenAt() != null, job.lapsesAt(), job.code(), job.mentorId()));
 	}
 
 	@Override

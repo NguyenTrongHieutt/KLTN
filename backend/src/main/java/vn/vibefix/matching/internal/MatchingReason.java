@@ -31,6 +31,12 @@ enum MatchingReason {
 	PUBLIC_CODE_NOT_ACKNOWLEDGED,
 
 	/** Only a submitted or held Application is withdrawn (FR-13). */
-	NOT_WITHDRAWABLE
+	NOT_WITHDRAWABLE,
+
+	/** The NDA was signed against a text version that is no longer current (FR-15). */
+	NDA_VERSION_OUTDATED,
+
+	/** A Code Job's Mentor signs only after acknowledging N-23 (FR-18). */
+	COMMIT_EMAIL_NOT_ACKNOWLEDGED
 
 }

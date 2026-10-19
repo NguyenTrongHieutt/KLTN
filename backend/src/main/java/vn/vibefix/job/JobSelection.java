@@ -1,6 +1,7 @@
 package vn.vibefix.job;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -22,5 +23,12 @@ public interface JobSelection {
 	 * {@code MENTOR_AT_JOB_LIMIT}, or {@code MENTOR_NO_FREE_STUDENT}
 	 */
 	long select(UUID jobId, UUID customerId, UUID mentorId, UUID applicationId, long expectedVersion);
+
+	/**
+	 * Applies J4 once {@code matching} recorded the selected Mentor's NDA signature.
+	 * @throws vn.vibefix.shared.ApiException {@code NOT_FOUND} for anyone but the Job's Mentor;
+	 * {@code STALE} for a Job no longer Selecting
+	 */
+	void confirm(UUID jobId, UUID mentorId, String ndaVersion, Instant signedAt);
 
 }

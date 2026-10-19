@@ -34,6 +34,9 @@ enum JobReason {
 	MENTOR_AT_JOB_LIMIT,
 
 	/** J3: no verified, unlocked Student of the Mentor's Team is free (FR-13). */
-	MENTOR_NO_FREE_STUDENT
+	MENTOR_NO_FREE_STUDENT,
+
+	/** J5: the Customer cancels the selection before the FR-15 signature period ends. */
+	NDA_PERIOD_RUNNING
 
 }
