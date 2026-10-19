@@ -6,6 +6,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
@@ -146,16 +147,19 @@ class MentorApplications implements MentorApplicationQueue {
 	/**
 	 * Saves the application; the first save submits it.
 	 * @param acceptedNoticeVersion the personal-data notice version the Mentor accepted on MEN-5
-	 * @return whether this save was the submission
+	 * @return whether this save was the submission, or a rejected Mentor's resubmission
 	 * @throws ApiException {@code VALIDATION} with {@code PRIVACY_NOTICE_REQUIRED}, {@code SKILL_INACTIVE}, or
-	 * {@code SKILL_LIMIT}; {@code GUARD_FAILED} with {@code MENTOR_LINKEDIN_IN_USE}
+	 * {@code SKILL_LIMIT}; {@code GUARD_FAILED} with {@code MENTOR_LINKEDIN_IN_USE}, or with
+	 * {@code MENTOR_REAPPLY_TOO_SOON} and the detail {@code date} before a rejection's 30-day wait ends
 	 */
 	@Transactional
 	boolean save(UUID accountId, Fields fields, @Nullable String acceptedNoticeVersion) {
 		lockAccount(accountId);
 		Optional<Application> existing = find(accountId);
-		boolean submitting = existing.map(Application::submittedAt).isEmpty();
-		if (submitting && !this.properties.privacyNoticeVersion().equals(acceptedNoticeVersion)) {
+		boolean resubmitting = requireReapplyOpen(accountId);
+		boolean submitting = resubmitting || existing.map(Application::submittedAt).isEmpty();
+		boolean needsNotice = existing.map(Application::submittedAt).isEmpty();
+		if (needsNotice && !this.properties.privacyNoticeVersion().equals(acceptedNoticeVersion)) {
 			throw new ApiException(ErrorCode.VALIDATION, IdentityReason.PRIVACY_NOTICE_REQUIRED);
 		}
 		List<UUID> skillIds = List.copyOf(new LinkedHashSet<>(fields.skillIds()));
@@ -183,7 +187,9 @@ class MentorApplications implements MentorApplicationQueue {
 					    privacy_notice_version = COALESCE(identity.mentor_application.privacy_notice_version,
 					                                      EXCLUDED.privacy_notice_version),
 					    n22_version = COALESCE(identity.mentor_application.n22_version, EXCLUDED.n22_version),
-					    submitted_at = COALESCE(identity.mentor_application.submitted_at, EXCLUDED.submitted_at),
+					    submitted_at = CASE WHEN :resubmit THEN EXCLUDED.submitted_at
+					                        ELSE COALESCE(identity.mentor_application.submitted_at, EXCLUDED.submitted_at) END,
+					    decision_id = CASE WHEN :resubmit THEN NULL ELSE identity.mentor_application.decision_id END,
 					    updated_at = EXCLUDED.updated_at
 					""")
 				.param("account", accountId)
@@ -199,14 +205,20 @@ class MentorApplications implements MentorApplicationQueue {
 				.param("notice", this.properties.privacyNoticeVersion())
 				.param("n22", N22_VERSION)
 				.param("now", Timestamp.from(now))
+				.param("resubmit", resubmitting)
 				.update();
 		}
 		catch (DuplicateKeyException ex) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, IdentityReason.MENTOR_LINKEDIN_IN_USE);
 		}
 		this.signals.record(accountId, JdbcPersonSignals.Source.LINKEDIN, fields.linkedinUrl());
+		if (resubmitting) {
+			this.jdbc.sql("UPDATE identity.account SET mentor_approval_status = 'PENDING' WHERE id = :id")
+				.param("id", accountId)
+				.update();
+		}
 		if (submitting) {
-			submitted(accountId, now);
+			submitted(accountId, now, needsNotice);
 		}
 		else {
 			this.auditLog.record(AuditEntry.of(AuditActor.user(accountId), "identity.mentor_application_updated",
@@ -221,10 +233,14 @@ class MentorApplications implements MentorApplicationQueue {
 				Set.of(FileKind.IMAGE, FileKind.PDF)));
 	}
 
-	/** Stores the document in place of the earlier one, which is deleted. */
+	/**
+	 * Stores the document in place of the earlier one, which is deleted.
+	 * @throws ApiException {@code GUARD_FAILED} with {@code MENTOR_REAPPLY_TOO_SOON} during a rejection's wait
+	 */
 	@Transactional
 	Document storeDocument(UUID accountId, PreparedFile file) {
 		lockAccount(accountId);
+		requireReapplyOpen(accountId);
 		Optional<Document> earlier = find(accountId).map(Application::document);
 		StoredFile stored = this.files.store(file);
 		Instant now = this.clock.instant();
@@ -249,10 +265,14 @@ class MentorApplications implements MentorApplicationQueue {
 		return new Document(stored.id(), stored.fileName(), stored.mediaType(), stored.size());
 	}
 
-	/** Removes the document; removing none changes nothing. */
+	/**
+	 * Removes the document; removing none changes nothing.
+	 * @throws ApiException {@code GUARD_FAILED} with {@code MENTOR_REAPPLY_TOO_SOON} during a rejection's wait
+	 */
 	@Transactional
 	void deleteDocument(UUID accountId) {
 		lockAccount(accountId);
+		requireReapplyOpen(accountId);
 		Optional<Document> document = find(accountId).map(Application::document);
 		if (document.isEmpty()) {
 			return;
@@ -267,9 +287,11 @@ class MentorApplications implements MentorApplicationQueue {
 				AuditObject.of("identity.account", accountId)));
 	}
 
-	private void submitted(UUID accountId, Instant now) {
-		this.accounts.insertAcknowledgment(this.ids.newId(), accountId, SignIns.PRIVACY_NOTICE,
-				this.properties.privacyNoticeVersion(), now);
+	private void submitted(UUID accountId, Instant now, boolean noticeAccepted) {
+		if (noticeAccepted) {
+			this.accounts.insertAcknowledgment(this.ids.newId(), accountId, SignIns.PRIVACY_NOTICE,
+					this.properties.privacyNoticeVersion(), now);
+		}
 		this.todos.close(SignIns.COMPLETE_MENTOR_APPLICATION, accountId, accountId);
 		List<Recipient> administrators = this.jdbc.sql("""
 				SELECT a.id FROM identity.account a JOIN identity.administrator_credential c ON c.account_id = a.id
@@ -277,10 +299,34 @@ class MentorApplications implements MentorApplicationQueue {
 				""").query(UUID.class).list().stream().map(id -> new Recipient(id, Audience.ADMIN)).toList();
 		if (!administrators.isEmpty()) {
 			this.notifications.send(new NotificationRequest(RECEIVED_NOTIFICATION, this.ids.newId(), administrators,
-					Map.of(), "/quan-tri", null, null));
+					Map.of(), "/quan-tri/nguoi-huong-dan/" + accountId, null, null));
 		}
 		this.auditLog.record(AuditEntry.of(AuditActor.user(accountId), "identity.mentor_application_submitted",
 				AuditObject.of("identity.account", accountId)));
+	}
+
+	/**
+	 * Whether this save resubmits a rejected application: a rejected Mentor may save only once the
+	 * 30-day wait of the latest rejection is over (FR-74).
+	 */
+	private boolean requireReapplyOpen(UUID accountId) {
+		String status = this.jdbc.sql("SELECT mentor_approval_status FROM identity.account WHERE id = :id")
+			.param("id", accountId)
+			.query(String.class)
+			.optional()
+			.orElse(null);
+		if (!"REJECTED".equals(status)) {
+			return false;
+		}
+		Optional<Instant> reapplyAfter = this.jdbc.sql("""
+				SELECT reapply_after FROM identity.mentor_decision WHERE account_id = :id
+				ORDER BY decided_at DESC LIMIT 1
+				""").param("id", accountId).query(Timestamp.class).optional().map(Timestamp::toInstant);
+		if (reapplyAfter.isPresent() && this.clock.instant().isBefore(reapplyAfter.get())) {
+			throw new ApiException(ErrorCode.GUARD_FAILED, IdentityReason.MENTOR_REAPPLY_TOO_SOON,
+					Map.of("date", LocalDate.ofInstant(reapplyAfter.get(), StudentVerifications.VIETNAM).toString()));
+		}
+		return true;
 	}
 
 	/** The LinkedIn profile is free unless another live application reserves it, under any live key. */

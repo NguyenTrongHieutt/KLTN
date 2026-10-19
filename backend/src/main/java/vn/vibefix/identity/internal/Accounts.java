@@ -83,10 +83,12 @@ class Accounts {
 			.flatMap(address -> address);
 	}
 
+	/** Records that the account accepted the notice's version; a version accepted before keeps its first time. */
 	void insertAcknowledgment(UUID id, UUID accountId, String notice, String noticeVersion, Instant at) {
 		this.jdbc.sql("""
 				INSERT INTO identity.acknowledgment (id, account_id, notice, notice_version, acknowledged_at)
 				VALUES (:id, :accountId, :notice, :version, :at)
+				ON CONFLICT (account_id, notice, notice_version) DO NOTHING
 				""")
 			.param("id", id)
 			.param("accountId", accountId)

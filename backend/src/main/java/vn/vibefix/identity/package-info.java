@@ -10,7 +10,8 @@
  * Public API: {@link vn.vibefix.identity.MentorApprovalStatus}, {@link vn.vibefix.identity.ContactVisibility},
  * {@link vn.vibefix.identity.StudentVerification}, {@link vn.vibefix.identity.StudentCardQueue},
  * {@link vn.vibefix.identity.MentorGate}, {@link vn.vibefix.identity.PersonSignals} with
- * {@link vn.vibefix.identity.PersonSignalMatched}, {@link vn.vibefix.identity.MentorApplicationQueue} and
+ * {@link vn.vibefix.identity.PersonSignalMatched}, {@link vn.vibefix.identity.MentorApplicationQueue},
+ * {@link vn.vibefix.identity.MentorApproved} and
  * {@link vn.vibefix.identity.Administrators}. Sign-in, sessions, and the HTTP endpoints are
  * wiring in {@code identity.internal}.
  */

@@ -146,6 +146,86 @@ describe('MEN-5, the Mentor application (FR-74, UX-DR78)', () => {
     expect(seen.filter((request) => request.method === 'POST')).toHaveLength(0)
   })
 
+  it('shows an approved application as approved and editable, without the criteria', async () => {
+    fakeBackend(signedIn('MENTOR', 'APPROVED'), {
+      'GET /api/v1/profile': profile({ ...submitted, approvalStatus: 'APPROVED', decidedAt: '2026-06-12T03:00:00Z' }),
+      'GET /api/v1/catalog': catalog,
+    })
+    renderAt('/ho-so')
+
+    expect(await screen.findByText('Duyệt ngày 12/06/2026. Thay đổi kỹ năng và mô tả hiện ngay trên hồ sơ công khai.')).toBeInTheDocument()
+    expect(screen.getByText('Đã duyệt')).toBeInTheDocument()
+    expect(screen.queryByText('Điều kiện để được duyệt')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Lưu thay đổi' })).toBeEnabled()
+    expect(screen.getByLabelText('Tên hiển thị *')).toBeEnabled()
+  })
+
+  it('shows a rejection with its reason and keeps the application locked until the wait ends', async () => {
+    const reapplyAfter = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString()
+    const day = new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit' }).format(new Date(reapplyAfter))
+    fakeBackend(signedIn('MENTOR', 'REJECTED'), {
+      'GET /api/v1/profile': profile({
+        ...submitted,
+        approvalStatus: 'REJECTED',
+        decidedAt: '2026-10-18T03:00:00Z',
+        rejectionReason: 'Chưa có thông tin kinh nghiệm cụ thể.',
+        reapplyAfter,
+      }),
+      'GET /api/v1/catalog': catalog,
+    })
+    renderAt('/ho-so')
+
+    expect(await screen.findByText('Bị từ chối: Chưa có thông tin kinh nghiệm cụ thể.')).toBeInTheDocument()
+    expect(screen.getAllByText(new RegExp(`Bạn có thể gửi lại hồ sơ từ ngày ${day}/\\d{2}\\.`))).toHaveLength(2)
+    expect(screen.getByText('Bị từ chối')).toBeInTheDocument()
+    expect(screen.getByText('Điều kiện để được duyệt')).toBeInTheDocument()
+    expect(screen.getByLabelText('Tên hiển thị *')).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Gửi lại hồ sơ' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Xóa tài liệu chung-chi.pdf' })).toBeDisabled()
+  })
+
+  it('lets a rejected Mentor resubmit once the wait is over', { timeout: 15_000 }, async () => {
+    const user = userEvent.setup()
+    let body: Record<string, unknown> | undefined
+    fakeBackend(signedIn('MENTOR', 'REJECTED'), {
+      'GET /api/v1/profile': profile({
+        ...submitted,
+        approvalStatus: 'REJECTED',
+        decidedAt: '2026-09-01T03:00:00Z',
+        rejectionReason: 'Chưa có thông tin kinh nghiệm cụ thể.',
+        reapplyAfter: '2026-10-01T03:00:00Z',
+      }),
+      'GET /api/v1/catalog': catalog,
+      'PUT /api/v1/profile/mentor': async (request) => {
+        body = await request.json()
+        return json({ submitted: true })
+      },
+    })
+    renderAt('/ho-so')
+
+    expect(await screen.findByText('Bạn đã có thể sửa và gửi lại hồ sơ.')).toBeInTheDocument()
+    expect(screen.getByLabelText('Tên hiển thị *')).toBeEnabled()
+    await user.click(screen.getByRole('button', { name: 'Gửi lại hồ sơ' }))
+
+    await waitFor(() => expect(body).toMatchObject({ displayName: 'Đỗ Mạnh Hùng' }))
+    expect(body).not.toHaveProperty('privacyNoticeVersion')
+  })
+
+  it('says from which day a rejected Mentor may submit again when the server refuses', { timeout: 15_000 }, async () => {
+    const user = userEvent.setup()
+    fakeBackend(signedIn('MENTOR', 'REJECTED'), {
+      'GET /api/v1/profile': profile({ ...submitted, approvalStatus: 'REJECTED', reapplyAfter: '2026-10-01T03:00:00Z' }),
+      'GET /api/v1/catalog': catalog,
+      'PUT /api/v1/profile/mentor': () =>
+        refusal(422, { code: 'GUARD_FAILED', reason: 'MENTOR_REAPPLY_TOO_SOON', date: '2026-11-17' }),
+    })
+    renderAt('/ho-so')
+
+    await user.click(await screen.findByRole('button', { name: 'Gửi lại hồ sơ' }))
+
+    expect(await screen.findAllByText('Bạn có thể gửi lại hồ sơ từ ngày 17/11.')).not.toHaveLength(0)
+  })
+
   it('keeps planted payloads as text', async () => {
     const payload = '<img src=x onerror=alert(1)>'
     fakeBackend(signedIn('MENTOR', 'PENDING'), {

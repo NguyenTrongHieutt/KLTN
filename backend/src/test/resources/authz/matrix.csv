@@ -154,6 +154,30 @@ DELETE /api/v1/profile/mentor/document,MENTOR,mentor=PENDING,,204
 DELETE /api/v1/profile/mentor/document,CUSTOMER,,,404 NOT_FOUND
 DELETE /api/v1/profile/mentor/document,STUDENT,,,404 NOT_FOUND
 DELETE /api/v1/profile/mentor/document,ADMINISTRATOR,,,404 NOT_FOUND
+# ADM-13 (identity, FR-74, AD-19): only Administrators list, read, and decide Mentor applications;
+# every other caller finds none. The matrix Administrator has no authenticator, so a decision's
+# step-up finds no credential to check.
+GET /api/v1/admin/mentor-applications,ANONYMOUS,,,401
+GET /api/v1/admin/mentor-applications,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/admin/mentor-applications,MENTOR,mentor=PENDING,,404 NOT_FOUND
+GET /api/v1/admin/mentor-applications,STUDENT,,,404 NOT_FOUND
+GET /api/v1/admin/mentor-applications,SUBJECT,,,404 NOT_FOUND
+GET /api/v1/admin/mentor-applications,ADMINISTRATOR,,,200
+GET /api/v1/admin/mentor-applications/{applicantId},ANONYMOUS,,,401
+GET /api/v1/admin/mentor-applications/{applicantId},CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/admin/mentor-applications/{applicantId},MENTOR,mentor=PENDING,,404 NOT_FOUND
+GET /api/v1/admin/mentor-applications/{applicantId},STUDENT,,,404 NOT_FOUND
+GET /api/v1/admin/mentor-applications/{applicantId},ADMINISTRATOR,,,200
+POST /api/v1/admin/mentor-applications/{applicantId}/approve,ANONYMOUS,,admin-mentor-approve.json,401
+POST /api/v1/admin/mentor-applications/{applicantId}/approve,CUSTOMER,,admin-mentor-approve.json,404 NOT_FOUND
+POST /api/v1/admin/mentor-applications/{applicantId}/approve,MENTOR,mentor=PENDING,admin-mentor-approve.json,404 NOT_FOUND
+POST /api/v1/admin/mentor-applications/{applicantId}/approve,STUDENT,,admin-mentor-approve.json,404 NOT_FOUND
+POST /api/v1/admin/mentor-applications/{applicantId}/approve,ADMINISTRATOR,,admin-mentor-approve.json,404 NOT_FOUND
+POST /api/v1/admin/mentor-applications/{applicantId}/reject,ANONYMOUS,,admin-mentor-reject.json,401
+POST /api/v1/admin/mentor-applications/{applicantId}/reject,CUSTOMER,,admin-mentor-reject.json,404 NOT_FOUND
+POST /api/v1/admin/mentor-applications/{applicantId}/reject,MENTOR,mentor=PENDING,admin-mentor-reject.json,404 NOT_FOUND
+POST /api/v1/admin/mentor-applications/{applicantId}/reject,STUDENT,,admin-mentor-reject.json,404 NOT_FOUND
+POST /api/v1/admin/mentor-applications/{applicantId}/reject,ADMINISTRATOR,,admin-mentor-reject.json,404 NOT_FOUND
 # Student verification (identity, FR-5): a Student's own; any other role, and SUBJECT (a Customer),
 # finds none. The confirm row's Student has no code waiting, so it finds none either.
 GET /api/v1/verification,ANONYMOUS,,,401

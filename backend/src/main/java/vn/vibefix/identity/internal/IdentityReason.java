@@ -46,6 +46,9 @@ enum IdentityReason {
 	MENTOR_LINKEDIN_IN_USE,
 
 	/** The first submission of a Mentor application without the current personal-data notice accepted. */
-	PRIVACY_NOTICE_REQUIRED
+	PRIVACY_NOTICE_REQUIRED,
+
+	/** A rejected Mentor saves before the 30-day wait ends; the answer's {@code date} says when it does. */
+	MENTOR_REAPPLY_TOO_SOON
 
 }

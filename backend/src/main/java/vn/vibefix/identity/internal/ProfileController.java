@@ -65,11 +65,15 @@ class ProfileController {
 	 * @param approvalStatus {@code PENDING} until an Administrator decides (FR-74)
 	 * @param submittedAt absent until the first save, which submits it
 	 * @param document the attached document's name, type, and size; only Administrators read it
+	 * @param decidedAt once decided, when the latest decision was made
+	 * @param rejectionReason while {@code REJECTED}, the reason the Administrator gave
+	 * @param reapplyAfter while {@code REJECTED}, from when the Mentor may submit again
 	 */
 	record MentorProfileView(MentorApprovalStatus approvalStatus, @Nullable String displayName,
 			@Nullable String experience, @Nullable Integer yearsOfExperience, List<ProfileSkill> skills,
 			@Nullable String linkedinUrl, @Nullable String otherLink,
-			MentorProfileController.@Nullable MentorDocumentView document, @Nullable Instant submittedAt) {
+			MentorProfileController.@Nullable MentorDocumentView document, @Nullable Instant submittedAt,
+			@Nullable Instant decidedAt, @Nullable String rejectionReason, @Nullable Instant reapplyAfter) {
 	}
 
 	/** @param skills the chosen Skills with their current names, in the Student's order (FR-4, AD-38) */
@@ -100,12 +104,16 @@ class ProfileController {
 
 	private final MentorApplications mentorApplications;
 
+	private final MentorDecisions mentorDecisions;
+
 	private final CurrentCaller caller;
 
-	ProfileController(Profiles profiles, Accounts accounts, MentorApplications mentorApplications, CurrentCaller caller) {
+	ProfileController(Profiles profiles, Accounts accounts, MentorApplications mentorApplications,
+			MentorDecisions mentorDecisions, CurrentCaller caller) {
 		this.profiles = profiles;
 		this.accounts = accounts;
 		this.mentorApplications = mentorApplications;
+		this.mentorDecisions = mentorDecisions;
 		this.caller = caller;
 	}
 
@@ -129,14 +137,20 @@ class ProfileController {
 			.stream()
 			.map(skill -> new ProfileSkill(skill.id(), skill.name(), skill.active()))
 			.toList();
+		Optional<MentorDecisions.Decision> decision = status == MentorApprovalStatus.PENDING ? Optional.empty()
+				: this.mentorDecisions.latest(id);
+		Instant decidedAt = decision.map(MentorDecisions.Decision::decidedAt).orElse(null);
+		String reason = decision.map(MentorDecisions.Decision::reason).orElse(null);
+		Instant reapplyAfter = decision.map(MentorDecisions.Decision::reapplyAfter).orElse(null);
 		return application
 			.map(found -> new MentorProfileView(status, found.displayName(), found.experience(), found.yearsOfExperience(),
 					skills, found.linkedinUrl(), found.otherLink(),
 					found.document() == null ? null
 							: new MentorProfileController.MentorDocumentView(found.document().name(),
 									found.document().mediaType(), found.document().size()),
-					found.submittedAt()))
-			.orElse(new MentorProfileView(status, null, null, null, List.of(), null, null, null, null));
+					found.submittedAt(), decidedAt, reason, reapplyAfter))
+			.orElse(new MentorProfileView(status, null, null, null, List.of(), null, null, null, null, decidedAt, reason,
+					reapplyAfter));
 	}
 
 	private StudentProfileView view(StudentProfile profile) {

@@ -52,6 +52,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/mentor-applications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["applications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/mentor-applications/{applicantId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["application"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/mentor-applications/{applicantId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["approve_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/mentor-applications/{applicantId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["reject_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/overview": {
         parameters: {
             query?: never;
@@ -526,6 +590,9 @@ export interface components {
             /** Format: date-time */
             idleExpiresAt: string;
         };
+        ApproveMentorRequest: {
+            stepUpCode: string;
+        };
         ApproveRequest: {
             school: string;
             studentNumber: string;
@@ -586,6 +653,49 @@ export interface components {
         EnvironmentResponse: {
             name: string;
         };
+        MentorApplicationDetail: {
+            /** Format: uuid */
+            accountId: string;
+            /** Format: date-time */
+            decidedAt?: string;
+            displayName?: string;
+            document?: components["schemas"]["MentorApplicationDocument"];
+            experience?: string;
+            githubLogin?: string;
+            linkedinUrl?: string;
+            matches: components["schemas"]["MentorApplicationMatch"][];
+            otherLink?: string;
+            privacyNoticeVersion?: string;
+            rejectionReason?: string;
+            skills: components["schemas"]["MentorApplicationSkill"][];
+            /** @enum {string} */
+            status: "PENDING" | "APPROVED" | "REJECTED" | "REVOKED";
+            /** Format: date-time */
+            submittedAt?: string;
+            /** Format: int32 */
+            yearsOfExperience?: number;
+        };
+        MentorApplicationDocument: {
+            fileUrl: string;
+            mediaType: string;
+            name: string;
+            /** Format: int64 */
+            size: number;
+        };
+        MentorApplicationMatch: {
+            /** Format: uuid */
+            accountId: string;
+            /** Format: date-time */
+            createdAt: string;
+            erased: boolean;
+            kind: string;
+            locked: boolean;
+            /** @enum {string} */
+            mentorStatus?: "PENDING" | "APPROVED" | "REJECTED" | "REVOKED";
+            role: string;
+            /** Format: date */
+            verifiedUntil?: string;
+        };
         MentorApplicationRequest: {
             displayName: string;
             experience: string;
@@ -596,6 +706,28 @@ export interface components {
             /** Format: int32 */
             yearsOfExperience: number;
         };
+        MentorApplicationRow: {
+            /** Format: uuid */
+            accountId: string;
+            /** Format: date-time */
+            decidedAt?: string;
+            displayName?: string;
+            githubLogin?: string;
+            /** Format: int64 */
+            matches: number;
+            /** @enum {string} */
+            status: "PENDING" | "APPROVED" | "REJECTED" | "REVOKED";
+            /** Format: date-time */
+            submittedAt?: string;
+            /** Format: int32 */
+            yearsOfExperience?: number;
+        };
+        MentorApplicationSkill: {
+            active: boolean;
+            /** Format: uuid */
+            id: string;
+            name: string;
+        };
         MentorDocumentView: {
             mediaType: string;
             name: string;
@@ -605,11 +737,16 @@ export interface components {
         MentorProfileView: {
             /** @enum {string} */
             approvalStatus: "PENDING" | "APPROVED" | "REJECTED" | "REVOKED";
+            /** Format: date-time */
+            decidedAt?: string;
             displayName?: string;
             document?: components["schemas"]["MentorDocumentView"];
             experience?: string;
             linkedinUrl?: string;
             otherLink?: string;
+            /** Format: date-time */
+            reapplyAfter?: string;
+            rejectionReason?: string;
             skills: components["schemas"]["ProfileSkill"][];
             /** Format: date-time */
             submittedAt?: string;
@@ -636,6 +773,15 @@ export interface components {
             mentorApplications: components["schemas"]["Queue"];
             stalledEvents: components["schemas"]["Queue"];
             studentCards: components["schemas"]["Queue"];
+        };
+        PageResponseMentorApplicationRow: {
+            items: components["schemas"]["MentorApplicationRow"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            total: number;
         };
         PageResponseNotificationItem: {
             items: components["schemas"]["NotificationItem"][];
@@ -684,6 +830,10 @@ export interface components {
             count: number;
             /** Format: date-time */
             oldestAt?: string;
+        };
+        RejectMentorRequest: {
+            reason: string;
+            stepUpCode: string;
         };
         RejectRequest: {
             reason: string;
@@ -922,6 +1072,108 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    applications: {
+        parameters: {
+            query?: {
+                status?: "PENDING" | "APPROVED" | "REJECTED" | "REVOKED";
+                /** @description Zero-based page index (0..N) */
+                page?: number;
+                /** @description The size of the page to be returned */
+                size?: number;
+                /** @description Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported. */
+                sort?: string[];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageResponseMentorApplicationRow"];
+                };
+            };
+        };
+    };
+    application: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                applicantId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MentorApplicationDetail"];
+                };
+            };
+        };
+    };
+    approve_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                applicantId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApproveMentorRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MentorApplicationRow"];
+                };
+            };
+        };
+    };
+    reject_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                applicantId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectMentorRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MentorApplicationRow"];
+                };
             };
         };
     };
