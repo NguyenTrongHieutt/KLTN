@@ -15,6 +15,20 @@ export type CreateAdministrator = components['schemas']['CreateAdministratorRequ
 
 export type Enrolment = components['schemas']['EnrolmentView']
 
+export type StudentCardRow = components['schemas']['StudentCardRow']
+
+export type StudentCardStatus = StudentCardRow['status']
+
+/** ADM-3's query: the status chip, the page, its size, and the sort, all from the URL (UX-DR46). */
+export interface StudentCardQuery {
+  status: StudentCardStatus
+  page: number
+  size: number
+  sort: string
+}
+
+export const STUDENT_CARDS_QUERY_KEY = ['admin', 'student-cards'] as const
+
 export const ADMINISTRATORS_QUERY_KEY = ['admin', 'administrators'] as const
 
 export const OVERVIEW_QUERY_KEY = ['admin', 'overview'] as const
@@ -101,4 +115,45 @@ export function useCompleteEnrolment(token: string) {
       unwrap(apiClient.POST('/api/v1/admin/enrolment/{token}', { params: { path: { token } }, body })),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY }),
   })
+}
+
+/** ADM-3's page of student cards (FR-5): server paging, 20 rows by default (UX-DR46). */
+export function useStudentCards(query: StudentCardQuery) {
+  return useQuery({
+    queryKey: [...STUDENT_CARDS_QUERY_KEY, query],
+    queryFn: () =>
+      unwrap(
+        apiClient.GET('/api/v1/admin/student-cards', {
+          params: { query: { status: query.status, page: query.page, size: query.size, sort: [query.sort] } },
+        }),
+      ),
+    placeholderData: (previous) => previous,
+  })
+}
+
+/** A decision on a card: the queue and the ADM-1 counts, which the sidebar shows, refresh. */
+function useCardDecision<T>(decide: (cardId: string, body: T) => Promise<StudentCardRow>) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ cardId, body }: { cardId: string; body: T }) => decide(cardId, body),
+    onSettled: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: STUDENT_CARDS_QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: OVERVIEW_QUERY_KEY }),
+      ]),
+  })
+}
+
+/** "Duyệt thẻ": records the card's student number and school, and verifies its Student. */
+export function useApproveStudentCard() {
+  return useCardDecision((cardId: string, body: { studentNumber: string; school: string }) =>
+    unwrap(apiClient.POST('/api/v1/admin/student-cards/{cardId}/approve', { params: { path: { cardId } }, body })),
+  )
+}
+
+/** "Từ chối": the Student reads the reason and may upload another card. */
+export function useRejectStudentCard() {
+  return useCardDecision((cardId: string, body: { reason: string }) =>
+    unwrap(apiClient.POST('/api/v1/admin/student-cards/{cardId}/reject', { params: { path: { cardId } }, body })),
+  )
 }

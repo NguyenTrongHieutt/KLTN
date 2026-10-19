@@ -148,6 +148,35 @@ POST /api/v1/verification/school-email/confirm,STUDENT,,verification-code.json,4
 POST /api/v1/verification/school-email/confirm,CUSTOMER,,verification-code.json,404 NOT_FOUND
 POST /api/v1/verification/school-email/confirm,MENTOR,,verification-code.json,404 NOT_FOUND
 POST /api/v1/verification/school-email/confirm,ADMINISTRATOR,,verification-code.json,404 NOT_FOUND
+# Student cards (identity and files, FR-5, AD-20): a Student uploads their own; only Administrators
+# list, decide, and read cards, and every other caller finds none. The card's file name is a canary.
+POST /api/v1/verification/student-card,ANONYMOUS,,student-card.png,401
+POST /api/v1/verification/student-card,STUDENT,,student-card.png,201
+POST /api/v1/verification/student-card,CUSTOMER,,student-card.png,404 NOT_FOUND
+POST /api/v1/verification/student-card,MENTOR,mentor=PENDING,student-card.png,404 NOT_FOUND
+POST /api/v1/verification/student-card,ADMINISTRATOR,,student-card.png,404 NOT_FOUND
+GET /api/v1/admin/student-cards,ANONYMOUS,,,401
+GET /api/v1/admin/student-cards,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/admin/student-cards,MENTOR,,,404 NOT_FOUND
+GET /api/v1/admin/student-cards,STUDENT,,,404 NOT_FOUND
+GET /api/v1/admin/student-cards,SUBJECT,,,404 NOT_FOUND
+GET /api/v1/admin/student-cards,ADMINISTRATOR,,,200
+POST /api/v1/admin/student-cards/{cardId}/approve,ANONYMOUS,,admin-student-card-approve.json,401
+POST /api/v1/admin/student-cards/{cardId}/approve,CUSTOMER,,admin-student-card-approve.json,404 NOT_FOUND
+POST /api/v1/admin/student-cards/{cardId}/approve,MENTOR,,admin-student-card-approve.json,404 NOT_FOUND
+POST /api/v1/admin/student-cards/{cardId}/approve,STUDENT,,admin-student-card-approve.json,404 NOT_FOUND
+POST /api/v1/admin/student-cards/{cardId}/approve,ADMINISTRATOR,,admin-student-card-approve.json,200
+POST /api/v1/admin/student-cards/{cardId}/reject,ANONYMOUS,,admin-student-card-reject.json,401
+POST /api/v1/admin/student-cards/{cardId}/reject,CUSTOMER,,admin-student-card-reject.json,404 NOT_FOUND
+POST /api/v1/admin/student-cards/{cardId}/reject,MENTOR,,admin-student-card-reject.json,404 NOT_FOUND
+POST /api/v1/admin/student-cards/{cardId}/reject,STUDENT,,admin-student-card-reject.json,404 NOT_FOUND
+POST /api/v1/admin/student-cards/{cardId}/reject,ADMINISTRATOR,,admin-student-card-reject.json,200
+GET /api/v1/files/{fileId},ANONYMOUS,,,401
+GET /api/v1/files/{fileId},CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/files/{fileId},MENTOR,,,404 NOT_FOUND
+GET /api/v1/files/{fileId},STUDENT,,,404 NOT_FOUND
+GET /api/v1/files/{fileId},SUBJECT,,,404 NOT_FOUND
+GET /api/v1/files/{fileId},ADMINISTRATOR,,,200
 # A Customer's contact: the Customer (SUBJECT) and Administrators; a Mentor only under a grant (FR-3).
 GET /api/v1/customers/{customerId}/contact,ANONYMOUS,,,401
 GET /api/v1/customers/{customerId}/contact,SUBJECT,,,200

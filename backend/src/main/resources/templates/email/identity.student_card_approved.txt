@@ -1,0 +1,8 @@
+subject: Thẻ sinh viên đã được duyệt
+link: /ho-so
+---
+Xin chào,
+
+Quản trị viên vibefix đã duyệt thẻ sinh viên của bạn. Bạn đã được xác minh là sinh viên; hạn xác minh có ở trang Hồ sơ và xác minh.
+Giờ bạn có thể vào nhóm của một người hướng dẫn và được chọn vào nhóm thực hiện.
+Ảnh thẻ sẽ tự xóa sau 30 ngày.

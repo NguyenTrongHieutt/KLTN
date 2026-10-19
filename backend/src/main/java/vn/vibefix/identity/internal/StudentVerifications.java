@@ -242,7 +242,8 @@ class StudentVerifications implements StudentVerification {
 				INSERT INTO identity.student_verification (account_id, method, school_email, verified_at, valid_until)
 				VALUES (:account, 'SCHOOL_EMAIL', :email, :now, :until)
 				ON CONFLICT (account_id) DO UPDATE
-				SET method = 'SCHOOL_EMAIL', school_email = :email, verified_at = :now, valid_until = :until
+				SET method = 'SCHOOL_EMAIL', school_email = :email, card_key = NULL, student_card_id = NULL,
+				    verified_at = :now, valid_until = :until
 				""")
 			.param("account", accountId)
 			.param("email", row.email())
@@ -254,6 +255,54 @@ class StudentVerifications implements StudentVerification {
 				AuditObject.of("identity.account", accountId), AuditObject.of("identity.school_email_code", row.id())));
 		this.todos.close(SignIns.VERIFY_STUDENT, accountId, accountId);
 		return new Confirmation.Verified(view(accountId));
+	}
+
+	/**
+	 * Verifies the account by an approved student card (FR-5), as a correct code does: until the next
+	 * 30 September, with the reminder and the expiry, and the {@code identity.verify_student} to-do
+	 * closed. A school email the account used before stops counting as used. The caller holds the
+	 * account's lock and the card key's ({@link #cardKeyUsedByAnotherAccount}).
+	 */
+	void verifyByCard(UUID accountId, String cardKey, UUID cardId, Instant now) {
+		LocalDate validUntil = validUntil(LocalDate.ofInstant(now, VIETNAM));
+		Instant verifiedAt = now.truncatedTo(ChronoUnit.MICROS);
+		this.jdbc.sql("""
+				INSERT INTO identity.student_verification
+				    (account_id, method, card_key, student_card_id, verified_at, valid_until)
+				VALUES (:account, 'STUDENT_CARD', :key, :card, :now, :until)
+				ON CONFLICT (account_id) DO UPDATE
+				SET method = 'STUDENT_CARD', school_email = NULL, card_key = :key, student_card_id = :card,
+				    verified_at = :now, valid_until = :until
+				""")
+			.param("account", accountId)
+			.param("key", cardKey)
+			.param("card", cardId)
+			.param("now", Timestamp.from(verifiedAt))
+			.param("until", validUntil)
+			.update();
+		this.deadlines.schedule(accountId, verifiedAt, validUntil, now);
+		this.todos.close(SignIns.VERIFY_STUDENT, accountId, accountId);
+	}
+
+	/** Whether {@code cardKey} verifies another account; holds the key's lock until commit. */
+	boolean cardKeyUsedByAnotherAccount(String cardKey, UUID accountId) {
+		this.jdbc.sql("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))")
+			.param("key", "identity.student_card:" + cardKey)
+			.query((rs, n) -> 1)
+			.single();
+		return this.jdbc.sql("""
+				SELECT count(*) FROM identity.student_verification WHERE card_key = :key AND account_id <> :account
+				""").param("key", cardKey).param("account", accountId).query(Long.class).single() > 0;
+	}
+
+	/** Whether the account may verify now: it is not verified, or its renewal is open. */
+	boolean mayVerify(UUID accountId) {
+		return !verifiedWithoutRenewal(accountId);
+	}
+
+	/** When the account's current verification began, if it has one. */
+	Optional<Instant> verifiedAt(UUID accountId) {
+		return verification(accountId).map(Verification::verifiedAt);
 	}
 
 	/**

@@ -169,6 +169,139 @@
         "tags" : [ "admin-sign-in-controller" ]
       }
     },
+    "/api/v1/admin/student-cards" : {
+      "get" : {
+        "operationId" : "cards",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "default" : "PENDING",
+            "enum" : [ "PENDING", "APPROVED", "REJECTED" ]
+          }
+        }, {
+          "description" : "Zero-based page index (0..N)",
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "default" : 0,
+            "minimum" : 0
+          }
+        }, {
+          "description" : "The size of the page to be returned",
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "default" : 20,
+            "minimum" : 1
+          }
+        }, {
+          "description" : "Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.",
+          "in" : "query",
+          "name" : "sort",
+          "required" : false,
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponseStudentCardRow"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "student-cards-controller" ]
+      }
+    },
+    "/api/v1/admin/student-cards/{cardId}/approve" : {
+      "post" : {
+        "operationId" : "approve",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "cardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ApproveRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StudentCardRow"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "student-cards-controller" ]
+      }
+    },
+    "/api/v1/admin/student-cards/{cardId}/reject" : {
+      "post" : {
+        "operationId" : "reject",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "cardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RejectRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StudentCardRow"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "student-cards-controller" ]
+      }
+    },
     "/api/v1/customers/{customerId}/contact" : {
       "get" : {
         "operationId" : "contact",
@@ -212,6 +345,34 @@
           }
         },
         "tags" : [ "environment-controller" ]
+      }
+    },
+    "/api/v1/files/{fileId}" : {
+      "get" : {
+        "operationId" : "download",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "fileId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "string",
+                  "format" : "binary"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "file-controller" ]
       }
     },
     "/api/v1/notifications" : {
@@ -548,6 +709,40 @@
         },
         "tags" : [ "verification-controller" ]
       }
+    },
+    "/api/v1/verification/student-card" : {
+      "post" : {
+        "operationId" : "uploadCard",
+        "requestBody" : {
+          "content" : {
+            "multipart/form-data" : {
+              "schema" : {
+                "type" : "object",
+                "properties" : {
+                  "file" : {
+                    "type" : "string",
+                    "format" : "binary"
+                  }
+                },
+                "required" : [ "file" ]
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/VerificationView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "verification-controller" ]
+      }
     }
   },
   "components" : {
@@ -649,6 +844,22 @@
           }
         },
         "required" : [ "absoluteExpiresAt", "displayName", "email", "idleExpiresAt" ]
+      },
+      "ApproveRequest" : {
+        "type" : "object",
+        "properties" : {
+          "school" : {
+            "type" : "string",
+            "maxLength" : 200,
+            "minLength" : 0
+          },
+          "studentNumber" : {
+            "type" : "string",
+            "maxLength" : 30,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "school", "studentNumber" ]
       },
       "CodeRequest" : {
         "type" : "object",
@@ -824,9 +1035,12 @@
           },
           "stalledEvents" : {
             "$ref" : "#/components/schemas/Queue"
+          },
+          "studentCards" : {
+            "$ref" : "#/components/schemas/Queue"
           }
         },
-        "required" : [ "activeAdministrators", "failedOperations", "stalledEvents" ]
+        "required" : [ "activeAdministrators", "failedOperations", "stalledEvents", "studentCards" ]
       },
       "PageResponseNotificationItem" : {
         "type" : "object",
@@ -835,6 +1049,30 @@
             "type" : "array",
             "items" : {
               "$ref" : "#/components/schemas/NotificationItem"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "total" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "items", "page", "size", "total" ]
+      },
+      "PageResponseStudentCardRow" : {
+        "type" : "object",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/StudentCardRow"
             }
           },
           "page" : {
@@ -909,6 +1147,17 @@
         },
         "required" : [ "count" ]
       },
+      "RejectRequest" : {
+        "type" : "object",
+        "properties" : {
+          "reason" : {
+            "type" : "string",
+            "maxLength" : 300,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "reason" ]
+      },
       "SchoolEmailRequest" : {
         "type" : "object",
         "properties" : {
@@ -965,6 +1214,79 @@
           }
         },
         "required" : [ "privacyNoticeVersion", "role" ]
+      },
+      "StudentCardRow" : {
+        "type" : "object",
+        "properties" : {
+          "decidedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "fileName" : {
+            "type" : "string"
+          },
+          "fileUrl" : {
+            "type" : "string"
+          },
+          "githubLogin" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "mediaType" : {
+            "type" : "string"
+          },
+          "profileSchool" : {
+            "type" : "string"
+          },
+          "realName" : {
+            "type" : "string"
+          },
+          "rejectionReason" : {
+            "type" : "string"
+          },
+          "school" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "PENDING", "APPROVED", "REJECTED" ]
+          },
+          "studentNumber" : {
+            "type" : "string"
+          },
+          "uploadedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "fileName", "id", "mediaType", "status", "uploadedAt" ]
+      },
+      "StudentCardView" : {
+        "type" : "object",
+        "properties" : {
+          "decidedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "fileName" : {
+            "type" : "string"
+          },
+          "rejectionReason" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "PENDING", "APPROVED", "REJECTED" ]
+          },
+          "uploadedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "fileName", "status", "uploadedAt" ]
       },
       "StudentProfile" : {
         "type" : "object",
@@ -1113,6 +1435,9 @@
       "VerificationView" : {
         "type" : "object",
         "properties" : {
+          "method" : {
+            "type" : "string"
+          },
           "pendingCode" : {
             "$ref" : "#/components/schemas/PendingCodeView"
           },
@@ -1125,6 +1450,9 @@
           "status" : {
             "type" : "string",
             "enum" : [ "UNVERIFIED", "VERIFIED", "EXPIRED" ]
+          },
+          "studentCard" : {
+            "$ref" : "#/components/schemas/StudentCardView"
           },
           "verifiedAt" : {
             "type" : "string",

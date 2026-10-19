@@ -31,6 +31,7 @@ export function AdminOverviewPage() {
   const alerts = useAdminAlerts()
   const failed = overview.data?.failedOperations
   const stalled = overview.data?.stalledEvents
+  const cards = overview.data?.studentCards
 
   return (
     <div className="flex flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
@@ -53,6 +54,20 @@ export function AdminOverviewPage() {
       )}
       <RegionState query={overview} skeleton={<Skeleton className="h-24 w-full max-w-xs" />}>
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label={t('screen.admin.overview.heading')}>
+          {cards && (
+            <Link
+              to="/quan-tri/the-sinh-vien"
+              className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 hover:border-primary"
+            >
+              <p className="text-caption text-muted-foreground">{t('screen.admin.overview.studentCards')}</p>
+              <p className="text-h1">{cards.count}</p>
+              <p className="text-caption text-muted-foreground">
+                {cards.oldestAt
+                  ? t('screen.admin.overview.oldest', { date: formatDayMonth(cards.oldestAt) })
+                  : t('screen.admin.overview.empty')}
+              </p>
+            </Link>
+          )}
           {failed && (
             <div className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4">
               <p className="text-caption text-muted-foreground">{t('screen.admin.overview.failedOperations')}</p>

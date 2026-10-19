@@ -50,7 +50,7 @@ class IdentityPersonalData implements PersonalDataParticipant {
 		return Set.of("identity.account", "identity.acknowledgment", "identity.customer_token",
 				"identity.customer_profile", "identity.student_profile", "identity.showcase_repository",
 				"identity.contact_grant", "identity.school_email_code", "identity.student_verification",
-				"identity.administrator_credential", "identity.administrator_enrolment");
+				"identity.student_card", "identity.administrator_credential", "identity.administrator_enrolment");
 	}
 
 	@Override
@@ -86,6 +86,30 @@ class IdentityPersonalData implements PersonalDataParticipant {
 				verification.put("validUntil", rs.getObject("valid_until", LocalDate.class).toString());
 				return verification;
 			}).optional().ifPresent(verification -> data.put("studentVerification", verification));
+			// The cards' decisions and what the Administrator recorded; the files are files' to export.
+			List<Map<String, Object>> cards = this.jdbc.sql("""
+					SELECT status, file_name, uploaded_at, decided_at, student_number, school, rejection_reason
+					FROM identity.student_card WHERE account_id = :id ORDER BY uploaded_at
+					""").param("id", accountId).query((rs, n) -> {
+				Map<String, Object> card = new LinkedHashMap<>();
+				card.put("status", rs.getString("status"));
+				card.put("fileName", rs.getString("file_name"));
+				card.put("uploadedAt", rs.getTimestamp("uploaded_at").toInstant().toString());
+				if (rs.getTimestamp("decided_at") != null) {
+					card.put("decidedAt", rs.getTimestamp("decided_at").toInstant().toString());
+				}
+				if (rs.getString("student_number") != null) {
+					card.put("studentNumber", rs.getString("student_number"));
+					card.put("school", rs.getString("school"));
+				}
+				if (rs.getString("rejection_reason") != null) {
+					card.put("rejectionReason", rs.getString("rejection_reason"));
+				}
+				return card;
+			}).list();
+			if (!cards.isEmpty()) {
+				data.put("studentCards", cards);
+			}
 			// The addresses and times of the codes, never the codes: only their hashes are kept.
 			List<Map<String, String>> codes = this.jdbc.sql("""
 					SELECT email, sent_at FROM identity.school_email_code WHERE account_id = :id ORDER BY sent_at
@@ -111,7 +135,7 @@ class IdentityPersonalData implements PersonalDataParticipant {
 		this.jdbc.sql("DELETE FROM identity.customer_token WHERE account_id = :id").param("id", accountId).update();
 		for (String table : new String[] { "identity.customer_profile", "identity.student_profile",
 				"identity.showcase_repository", "identity.school_email_code", "identity.student_verification",
-				"identity.administrator_credential", "identity.administrator_enrolment" }) {
+				"identity.student_card", "identity.administrator_credential", "identity.administrator_enrolment" }) {
 			this.jdbc.sql("DELETE FROM " + table + " WHERE account_id = :id").param("id", accountId).update();
 		}
 		this.jdbc.sql("""

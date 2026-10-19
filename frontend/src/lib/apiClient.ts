@@ -30,6 +30,14 @@ apiClient.use({
   },
 })
 
+/**
+ * A multipart body for an upload: the generated types call a file part a string, while the browser
+ * sends the `FormData` with its own boundary (openapi-fetch leaves the Content-Type to it).
+ */
+export function formBody<T>(form: FormData): T {
+  return form as unknown as T
+}
+
 export function readCookie(name: string): string | undefined {
   const prefix = `${name}=`
   const cookie = document.cookie.split('; ').find((entry) => entry.startsWith(prefix))

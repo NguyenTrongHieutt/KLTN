@@ -19,8 +19,10 @@ RUN --mount=type=cache,target=/root/.m2 ./mvnw -B -DskipTests package \
 FROM eclipse-temurin:25.0.4.1_1-jre-noble@sha256:3f2223fe04b750aa5a8179e29b5c9a1ddf7665fc9bb08bfe11ad01d143bc13a5
 # Conventions, Time: containers run in UTC. The application never runs as root.
 ENV TZ=UTC
+# AD-21: the files volume's mount point belongs to the app user, so a new named volume does too.
 RUN groupadd --system --gid 10001 vibefix \
-    && useradd --system --uid 10001 --gid vibefix --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin vibefix
+    && useradd --system --uid 10001 --gid vibefix --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin vibefix \
+    && install -d -o 10001 -g 10001 -m 0700 /var/lib/vibefix/files
 WORKDIR /app
 COPY --from=build --chown=root:root --chmod=0444 /workspace/vibefix-app.jar /app/vibefix-app.jar
 USER 10001:10001

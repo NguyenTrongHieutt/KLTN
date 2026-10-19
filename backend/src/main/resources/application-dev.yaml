@@ -19,3 +19,10 @@ vibefix:
       host: localhost
       port: 1025
       starttls: false
+  sandbox:
+    # Dev-first rule: no sandbox worker runs on the dev stack until Story 18.2, so jobs run inside the
+    # application (shared.internal.sandbox.InProcessSandboxJobs); prod refuses this.
+    in-process: true
+  files:
+    # deploy/compose.yaml mounts the files volume here; a run outside Docker uses a temporary folder.
+    root: ${VIBEFIX_FILES_ROOT:${java.io.tmpdir}/vibefix-files}

@@ -27,7 +27,8 @@ import org.springframework.http.HttpMethod;
  * {@code locked=true;mentor=PENDING}); the fixture that realizes the caller must understand every
  * key.</li>
  * <li>{@code body}: the name of a JSON file under {@code authz/bodies/}, with the same
- * {@code {name}} placeholders.</li>
+ * {@code {name}} placeholders; any other file there (for example {@code student-card.png}) is sent
+ * as the multipart part {@code file}, byte for byte.</li>
  * <li>{@code expect}: an {@link Expectation}.</li>
  * </ul>
  */
