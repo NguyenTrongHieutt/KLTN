@@ -109,6 +109,10 @@ vibefix:
     support-email: hotro@vibefix.vn
     # AD-34: sign-in attempts per client address and minute.
     sign-in-limit-per-minute: 20
+  # FR-7, AD-34: CUS-3's acknowledgments (N-1, N-1b, N-2) and the daily registration limit.
+  product:
+    notice-version: "1.0"
+    per-day: 5
   github:
     # GitHub's REST API (AD-10, AD-13); Story 1.14's spike-s1 probe reads repositories from it.
     api-url: https://api.github.com

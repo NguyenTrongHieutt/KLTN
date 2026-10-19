@@ -4,7 +4,8 @@
  * {@code repository_ids} and by the permissions that operation needs, and revoked after use. There is
  * no machine account and no personal access token. The key files are secrets (AD-22).
  * <p>
- * Public API: {@link vn.vibefix.github.GitHubApps}. Story 2.1's {@code spike-s4} probe is wiring in
+ * Public API: {@link vn.vibefix.github.GitHubApps} and {@link vn.vibefix.github.GitHubRepositories}
+ * (read-only metadata with a caller's credential). Story 2.1's {@code spike-s4} probe is wiring in
  * {@code github.internal}.
  */
 @ApplicationModule(allowedDependencies = { "shared" })

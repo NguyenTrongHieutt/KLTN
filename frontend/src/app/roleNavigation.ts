@@ -11,7 +11,7 @@ export interface Destination {
 }
 
 const todo: Destination = { label: 'nav.todo', to: '/viec-can-lam', icon: ListChecks, built: true }
-const products: Destination = { label: 'nav.products', to: '/san-pham', icon: Package, built: false }
+const products: Destination = { label: 'nav.products', to: '/san-pham', icon: Package, built: true }
 const jobs: Destination = { label: 'nav.jobs', to: '/cong-viec', icon: BriefcaseBusiness, built: false }
 const notifications: Destination = { label: 'nav.notifications', to: '/thong-bao', icon: Bell, built: true }
 const findWork: Destination = { label: 'nav.findWork', to: '/tim-viec', icon: Search, built: false }

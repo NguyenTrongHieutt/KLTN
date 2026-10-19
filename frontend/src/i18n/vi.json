@@ -744,6 +744,109 @@
         "rejectedToast": "Đã từ chối thẻ của {name}.",
         "close": "Đóng"
       }
+    },
+    "product": {
+      "title": "Sản phẩm",
+      "heading": "Sản phẩm",
+      "lead": "Ứng dụng bạn đã làm bằng công cụ AI và đăng ký trên vibefix.",
+      "register": "Đăng ký sản phẩm",
+      "empty": "Chưa có sản phẩm nào.",
+      "emptyHint": "Đăng ký ứng dụng bạn đã làm bằng công cụ AI để vibefix kiểm tra và tìm người hướng dẫn.",
+      "listLabel": "Sản phẩm của bạn",
+      "stateAWAITING_SCAN": "Chờ kiểm tra",
+      "source": "Dự án gốc: {name}",
+      "registeredOn": "Đăng ký {date}",
+      "noJobs": "Chưa có công việc",
+      "domain": "({domain})",
+      "newTab": "(mở trong thẻ mới)",
+      "wizard": {
+        "title": "Đăng ký sản phẩm",
+        "close": "Đóng",
+        "step": "Bước {n}/4",
+        "progress": "Tiến độ đăng ký",
+        "back": "Quay lại",
+        "next": "Tiếp tục",
+        "nextSteps": "Các bước tiếp theo",
+        "step1Heading": "Sản phẩm của bạn làm bằng công cụ nào?",
+        "step1Lead": "Chọn công cụ AI bạn đã dùng. vibefix hướng dẫn đưa mã lên GitHub cho đúng công cụ đó.",
+        "toolsLabel": "Công cụ bạn đã dùng",
+        "toolsRequired": "Hãy chọn ít nhất một công cụ.",
+        "helpHeading": "Đưa mã từ {tool} lên GitHub",
+        "helpLead": "vibefix làm việc với kho mã GitHub công khai mà công cụ của bạn đồng bộ tới.",
+        "helpLink": "Mở hướng dẫn của {tool}",
+        "step1Next": "Bước 2: gắn kho mã GitHub · Bước 3: tên, mô tả và bản chạy thử · Bước 4: xác nhận các lưu ý, rồi vibefix bắt đầu kiểm tra.",
+        "step2Heading": "Gắn dự án gốc trên GitHub",
+        "step2Lead": "Dán đường dẫn kho mã mà công cụ của bạn đang đồng bộ. vibefix kiểm tra ngay khi bạn dán.",
+        "urlLabel": "Đường dẫn kho mã trên GitHub",
+        "urlHelper": "Ví dụ: https://github.com/ten-cua-ban/ten-du-an",
+        "check": "Kiểm tra",
+        "checking": "Đang kiểm tra…",
+        "resultHeading": "Kết quả kiểm tra",
+        "checkFound": "Tìm thấy kho mã",
+        "checkPublic": "Kho mã công khai",
+        "checkAdmin": "Bạn có quyền quản trị kho mã này",
+        "checkNotLinked": "Chưa được đăng ký cho sản phẩm khác",
+        "checkContent": "Không dùng Git LFS hay submodule",
+        "checkSize": "Dung lượng dưới giới hạn 250 MB",
+        "checkSizePassed": "Dung lượng {size}, dưới giới hạn 250 MB",
+        "notChecked": "chưa kiểm tra",
+        "forkAlert": "Kho mã này được sao từ {parent}",
+        "forkBody": "Không sao cả. vibefix chỉ làm việc với bản của bạn.",
+        "makePublic": "Trên GitHub, mở Settings của kho mã, kéo xuống \"Danger Zone\" và chọn \"Change visibility\" thành Public, rồi dán lại đường dẫn.",
+        "makePublicLink": "Xem cách làm",
+        "continueWhenPassed": "Tiếp tục khi mọi mục kiểm tra đều đạt.",
+        "step2Next": "Bước 3: tên, mô tả và đường dẫn bản chạy thử · Bước 4: xác nhận các lưu ý, rồi vibefix bắt đầu kiểm tra khóa bí mật.",
+        "step3Heading": "Giới thiệu sản phẩm",
+        "step3Lead": "Những thông tin này hiện trong tin công việc bạn đăng sau này.",
+        "name": "Tên sản phẩm",
+        "description": "Mô tả ngắn",
+        "descriptionHelper": "Sản phẩm làm gì và ai dùng. Người hướng dẫn đọc mô tả này trong tin công việc.",
+        "demo": "Đường dẫn bản chạy thử (không bắt buộc)",
+        "demoHelper": "Chỉ nhận đường dẫn bắt đầu bằng https. Người hướng dẫn mở đường dẫn này để xem ứng dụng đang chạy.",
+        "demoWarning": "Trang này nằm ngoài vibefix ({domain}). Đừng nhập mật khẩu GitHub hoặc vibefix ở đó.",
+        "step4Heading": "Xác nhận các lưu ý",
+        "step4Lead": "Đọc và đánh dấu từng mục. vibefix lưu phiên bản của lưu ý cùng sản phẩm.",
+        "afterHeading": "Sau khi bấm \"Bắt đầu kiểm tra\"",
+        "afterBody": "vibefix sẽ đọc toàn bộ lịch sử mã để tìm khóa bí mật và dữ liệu cá nhân của khách hàng bạn.",
+        "tickAll": "Đánh dấu đủ 3 mục để bắt đầu.",
+        "submit": "Bắt đầu kiểm tra",
+        "submitting": "Đang đăng ký…",
+        "registered": "Đã đăng ký {name}."
+      },
+      "tools": {
+        "LOVABLE": "Lovable",
+        "BOLT": "Bolt",
+        "REPLIT": "Replit",
+        "V0": "v0",
+        "BASE44": "Base44",
+        "CURSOR": "Cursor",
+        "CLAUDE_CODE": "Claude Code",
+        "CODEX": "Codex",
+        "OTHER": "Công cụ khác"
+      },
+      "toolHelp": {
+        "LOVABLE": "Trong Lovable, mở dự án, chọn GitHub rồi Connect to GitHub để tạo kho mã. Lovable tự đồng bộ mã mỗi lần bạn sửa. Hãy đặt kho mã ở chế độ Public.",
+        "BOLT": "Trong Bolt, bấm biểu tượng GitHub, kết nối tài khoản và tạo kho mã mới. Hãy đặt kho mã ở chế độ Public.",
+        "REPLIT": "Trong Replit, mở công cụ Git, kết nối GitHub và đẩy mã lên một kho mã mới ở chế độ Public.",
+        "V0": "Trong v0, dùng nút GitHub của dự án để tạo kho mã và đồng bộ mã. Hãy đặt kho mã ở chế độ Public.",
+        "BASE44": "vibefix chưa nhận mã trực tiếp từ Base44. Nếu bạn xuất được mã lên một kho mã GitHub công khai, hãy dán đường dẫn đó ở bước 2.",
+        "CURSOR": "Cursor làm việc với mã trên máy bạn. Dùng Git trong Cursor để đẩy mã lên một kho mã GitHub ở chế độ Public.",
+        "CLAUDE_CODE": "Claude Code làm việc trong thư mục mã của bạn. Đẩy mã lên một kho mã GitHub ở chế độ Public bằng Git.",
+        "CODEX": "Codex làm việc trên kho mã GitHub của bạn. Hãy kiểm tra kho mã đó đang ở chế độ Public.",
+        "OTHER": "vibefix cần mã nguồn trên một kho mã GitHub công khai. Đưa mã của bạn lên GitHub ở chế độ Public rồi quay lại."
+      },
+      "detail": {
+        "breadcrumb": "Sản phẩm",
+        "openSource": "Mở dự án gốc",
+        "awaitingTitle": "Chờ kiểm tra",
+        "awaitingBody": "vibefix sẽ kiểm tra lịch sử mã của sản phẩm này để tìm khóa bí mật và dữ liệu cá nhân trước khi mở các loại công việc sửa mã.",
+        "info": "Thông tin",
+        "madeWith": "Làm bằng:",
+        "demo": "Bản chạy:",
+        "registered": "Đăng ký:",
+        "forkOf": "Sao từ:",
+        "noDemo": "Chưa có"
+      }
     }
   },
   "notice": {
@@ -766,6 +869,13 @@
       "rightsHeading": "Quyền của bạn",
       "rights": "Xem, tải về và yêu cầu xóa dữ liệu của bạn trong mục \"Dữ liệu của tôi\".",
       "changes": "Khi thông báo thay đổi, phiên bản mới có số mới và bạn được hỏi lại trước khi tiếp tục."
+    },
+    "product": {
+      "version": "1.0",
+      "versionLine": "Lưu ý khi đăng ký sản phẩm · phiên bản {version} · 19/10/2026",
+      "public": "Tôi hiểu dự án gốc của tôi là công khai, và mọi kho mã vibefix tạo từ nó cũng công khai: ai cũng xem được mã.",
+      "copy": "Tôi là chủ sở hữu mã nguồn này hoặc có quyền cho phép người khác dùng nó. Chỉ để thực hiện các công việc tôi đặt cho sản phẩm này, tôi cho phép vibefix: sao chép dự án gốc vào kho mã của vibefix trên GitHub, để người hướng dẫn tôi chọn và nhóm thực hiện của họ chỉnh sửa bản sao, lưu một bản nén mã cuối cùng, và đưa mã vào dự án gốc chỉ khi tôi cho phép. Quyền này không chuyển quyền sở hữu mã và kết thúc khi vibefix xóa các bản sao.",
+      "detection": "Tôi hiểu việc kiểm tra khóa bí mật và dữ liệu cá nhân không thể phát hiện mọi thứ."
     }
   },
   "term": {
@@ -1252,6 +1362,18 @@
     "catalog": {
       "SKILL_INACTIVE": "Kỹ năng này đã ngừng dùng nên không thêm mới được.",
       "SKILL_LIMIT": "Tối đa {n} kỹ năng."
+    },
+    "product": {
+      "NOT_GITHUB": "Đường dẫn này không phải kho mã GitHub.",
+      "REPO_NOT_FOUND": "Không tìm thấy kho mã này trên GitHub. Hãy kiểm tra đường dẫn; nếu kho mã đang riêng tư, hãy chuyển nó sang công khai.",
+      "REPO_PRIVATE": "Kho mã đang ở chế độ riêng tư. vibefix hiện chỉ nhận kho mã công khai.",
+      "NO_ADMIN_PERMISSION": "Tài khoản GitHub của bạn không có quyền quản trị kho mã này, nên không thể đăng ký.",
+      "REPO_ALREADY_LINKED": "Kho mã này đã được đăng ký cho một sản phẩm khác.",
+      "REPO_UNSUPPORTED_CONTENT": "Kho mã dùng Git LFS hoặc submodule (cách lưu tệp lớn hoặc kho mã con), vibefix chưa hỗ trợ.",
+      "REPO_TOO_LARGE": "Kho mã lớn hơn giới hạn 250 MB.",
+      "GITHUB_UNAVAILABLE": "Chưa đọc được kho mã từ GitHub. Hãy thử lại sau ít phút.",
+      "NOTICE_REQUIRED": "Hãy đánh dấu đủ 3 lưu ý trước khi bắt đầu.",
+      "PRODUCT_LIMIT": "Bạn đã đăng ký đủ 5 sản phẩm hôm nay. Hãy đăng ký tiếp vào ngày mai."
     }
   }
 }
