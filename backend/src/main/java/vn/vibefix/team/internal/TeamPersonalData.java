@@ -32,7 +32,7 @@ class TeamPersonalData implements PersonalDataParticipant {
 
 	@Override
 	public Set<String> tables() {
-		return Set.of("team.team", "team.membership", "team.team_request");
+		return Set.of("team.team", "team.membership", "team.team_request", "team.crew_reservation");
 	}
 
 	@Override
@@ -76,6 +76,11 @@ class TeamPersonalData implements PersonalDataParticipant {
 	public void eraseAccount(UUID accountId) {
 		this.jdbc.sql("DELETE FROM team.team_request WHERE student_account_id = :id OR team_id IN "
 				+ "(SELECT id FROM team.team WHERE mentor_account_id = :id)").param("id", accountId).update();
+		// A reservation outlives no membership; job refuses an erasure while a Crew row is unreleased.
+		this.jdbc.sql("""
+				DELETE FROM team.crew_reservation WHERE membership_id IN (SELECT id FROM team.membership
+				    WHERE student_account_id = :id OR team_id IN (SELECT id FROM team.team WHERE mentor_account_id = :id))
+				""").param("id", accountId).update();
 		this.jdbc.sql("DELETE FROM team.membership WHERE student_account_id = :id OR team_id IN "
 				+ "(SELECT id FROM team.team WHERE mentor_account_id = :id)").param("id", accountId).update();
 		this.jdbc.sql("DELETE FROM team.team WHERE mentor_account_id = :id").param("id", accountId).update();

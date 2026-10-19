@@ -1,0 +1,7 @@
+subject: Bạn không còn ở trong nhóm của {mentor}
+link: /nhom
+---
+Xin chào,
+
+{mentor} đã xóa bạn khỏi nhóm trên vibefix.
+Bạn có thể tìm một người hướng dẫn khác ở trang Nhóm và xin vào nhóm của họ.

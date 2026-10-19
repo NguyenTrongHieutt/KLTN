@@ -3,8 +3,8 @@ package vn.vibefix.team;
 import java.util.UUID;
 
 /**
- * What other modules may show about Teams (AD-37). It decides nothing: a Crew's eligibility comes
- * from the reservation API of Story 1.19, never from these reads.
+ * What other modules may know of Teams (AD-37). {@code job} decides a Crew member's eligibility with
+ * {@link #reserveForCrew} alone; {@link #isMember} and {@link #sizeOf} serve display only.
  */
 public interface Teams {
 
@@ -16,5 +16,21 @@ public interface Teams {
 
 	/** How many Students are in the Mentor's Team now; 0 without a Team. */
 	int sizeOf(UUID mentorId);
+
+	/**
+	 * Checks that the Student is in the Mentor's Team and reserves them for the Crew row, in the
+	 * caller's transaction: it locks the Student's active membership first, so a leave, a removal, or
+	 * a release running at once either ends it before (and this refuses) or waits and is refused.
+	 * Reserving a Crew row again changes nothing.
+	 * @throws vn.vibefix.shared.ApiException {@code GUARD_FAILED NOT_IN_TEAM} when the Student is in no
+	 * Team or in another Mentor's
+	 */
+	void reserveForCrew(UUID crewRowId, UUID mentorId, UUID studentId, UUID jobId);
+
+	/**
+	 * Ends the Crew row's reservation, in the caller's transaction. A Student whose Mentor is gone, or
+	 * who is locked, leaves the Team once their last reservation ends.
+	 */
+	void releaseCrew(UUID crewRowId);
 
 }

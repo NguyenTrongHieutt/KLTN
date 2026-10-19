@@ -25,6 +25,12 @@ enum TeamReason {
 	JOIN_REQUEST_LIMIT,
 
 	/** The invitation or join request was answered, lapsed, or cancelled. */
-	REQUEST_CLOSED
+	REQUEST_CLOSED,
+
+	/** The Student is on a running Crew, so they can neither leave nor be removed (AD-37). */
+	STUDENT_ON_CREW,
+
+	/** The Student is in no Team, or in another Mentor's (AD-37). */
+	NOT_IN_TEAM
 
 }

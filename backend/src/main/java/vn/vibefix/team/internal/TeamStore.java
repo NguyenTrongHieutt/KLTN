@@ -4,8 +4,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
@@ -13,14 +15,13 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
 import vn.vibefix.shared.IdGenerator;
-import vn.vibefix.team.Teams;
 
 /**
  * The {@code team} tables. Lock order (AD-37): the Team row, then membership rows in ascending
- * Student ID, then request rows.
+ * Student ID, then request rows; a membership row is locked before its reservations are read.
  */
 @Component
-class TeamStore implements Teams {
+class TeamStore {
 
 	enum Status {
 		OPEN, CLOSED
@@ -57,13 +58,11 @@ class TeamStore implements Teams {
 		this.ids = ids;
 	}
 
-	@Override
-	public boolean isMember(UUID mentorId, UUID studentId) {
+	boolean isMember(UUID mentorId, UUID studentId) {
 		return activeMembership(studentId).filter(member -> member.mentorId().equals(mentorId)).isPresent();
 	}
 
-	@Override
-	public int sizeOf(UUID mentorId) {
+	int sizeOf(UUID mentorId) {
 		return this.jdbc.sql("""
 				SELECT count(*) FROM team.membership m JOIN team.team t ON t.id = m.team_id
 				WHERE t.mentor_account_id = :mentor AND m.left_at IS NULL
@@ -139,6 +138,65 @@ class TeamStore implements Teams {
 				FROM team.membership m JOIN team.team t ON t.id = m.team_id
 				WHERE m.student_account_id = :student AND m.left_at IS NULL FOR UPDATE OF m
 				""").param("student", studentId).query(TeamStore::member).optional();
+	}
+
+	/** An active membership of the Team by its ID, without a lock. */
+	Optional<Member> activeMember(UUID teamId, UUID membershipId) {
+		return this.jdbc.sql("""
+				SELECT m.id, m.team_id, t.mentor_account_id, m.student_account_id, m.joined_at
+				FROM team.membership m JOIN team.team t ON t.id = m.team_id
+				WHERE m.id = :id AND m.team_id = :team AND m.left_at IS NULL
+				""").param("id", membershipId).param("team", teamId).query(TeamStore::member).optional();
+	}
+
+	/** The membership a Crew row reserves, active or not. */
+	Optional<UUID> reservedMembership(UUID crewRowId) {
+		return this.jdbc.sql("SELECT membership_id FROM team.crew_reservation WHERE crew_row_id = :id")
+			.param("id", crewRowId)
+			.query(UUID.class)
+			.optional();
+	}
+
+	Optional<Member> membershipById(UUID membershipId) {
+		return this.jdbc.sql("""
+				SELECT m.id, m.team_id, t.mentor_account_id, m.student_account_id, m.joined_at
+				FROM team.membership m JOIN team.team t ON t.id = m.team_id
+				WHERE m.id = :id AND m.left_at IS NULL
+				""").param("id", membershipId).query(TeamStore::member).optional();
+	}
+
+	void reserve(UUID crewRowId, UUID membershipId, UUID jobId, Instant now) {
+		this.jdbc.sql("""
+				INSERT INTO team.crew_reservation (crew_row_id, membership_id, job_id, reserved_at)
+				VALUES (:crew, :membership, :job, :now) ON CONFLICT (crew_row_id) DO NOTHING
+				""")
+			.param("crew", crewRowId)
+			.param("membership", membershipId)
+			.param("job", jobId)
+			.param("now", Timestamp.from(now))
+			.update();
+	}
+
+	void unreserve(UUID crewRowId) {
+		this.jdbc.sql("DELETE FROM team.crew_reservation WHERE crew_row_id = :id").param("id", crewRowId).update();
+	}
+
+	/** Whether the membership has a Crew reservation; read under the membership's lock. */
+	boolean reserved(UUID membershipId) {
+		return this.jdbc.sql("SELECT EXISTS (SELECT 1 FROM team.crew_reservation WHERE membership_id = :id)")
+			.param("id", membershipId)
+			.query(Boolean.class)
+			.single();
+	}
+
+	/** Which of these memberships have a Crew reservation, for display. */
+	Set<UUID> reservedAmong(Collection<UUID> membershipIds) {
+		if (membershipIds.isEmpty()) {
+			return Set.of();
+		}
+		return Set.copyOf(this.jdbc.sql("""
+				SELECT DISTINCT membership_id FROM team.crew_reservation WHERE membership_id IN (:ids)
+				""").param("ids", List.copyOf(membershipIds)).query(UUID.class).list());
 	}
 
 	void insertMembership(UUID teamId, UUID studentId, Instant now) {

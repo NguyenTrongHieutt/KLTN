@@ -253,6 +253,28 @@ class TeamRequests {
 		return request;
 	}
 
+	/**
+	 * Accepts as {@link #accept} does; when the Student turned out to be in a Team already, the
+	 * request can never be accepted, so it is cancelled once the refusal rolled back.
+	 */
+	Request acceptOrCancel(TeamRequests self, UUID answerer, UUID requestId, Kind kind) {
+		try {
+			return self.accept(answerer, requestId, kind);
+		}
+		catch (ApiException ex) {
+			if (ex.reason().filter(TeamReason.STUDENT_IN_TEAM.name()::equals).isPresent()) {
+				self.cancelStale(requestId);
+			}
+			throw ex;
+		}
+	}
+
+	/** Cancels a pending request whose Student joined another Team; no one is notified. */
+	@Transactional
+	void cancelStale(UUID requestId) {
+		this.store.answer(requestId, RequestStatus.CANCELLED, this.clock.instant());
+	}
+
 	/** The 14 days passed without an answer: whoever sent it hears so. {@code false} once answered. */
 	@Transactional
 	boolean lapse(UUID requestId) {

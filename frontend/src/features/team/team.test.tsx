@@ -157,6 +157,33 @@ describe('MEN-6, the Mentor\'s Team (FR-6, AD-37)', () => {
     expect(await within(sheet).findByText('Không tìm thấy sinh viên nào với tên người dùng này.')).toBeInTheDocument()
   })
 
+  it('removes a member after the confirmation, and not one on a Crew', { timeout: 15_000 }, async () => {
+    const user = userEvent.setup()
+    const seen = fakeBackend(signedIn('MENTOR', 'APPROVED'), {
+      'GET /api/v1/mentor/team': () =>
+        json({
+          ...emptyTeam,
+          size: 2,
+          members: [
+            { membershipId: 'ms1', student: student(), joinedAt: '2026-10-01T03:00:00Z', onCrew: false },
+            { membershipId: 'ms2', student: student({ accountId: 's2', name: 'Lê Thảo Vy', githubLogin: 'vy-le' }), joinedAt: '2026-10-01T03:00:00Z', onCrew: true },
+          ],
+        }),
+      'DELETE /api/v1/mentor/team/members/ms1': () => new Response(null, { status: 204 }),
+    })
+    renderAt('/nhom')
+
+    expect(await screen.findByRole('button', { name: 'Xóa Lê Thảo Vy khỏi nhóm' })).toBeDisabled()
+    expect(screen.getByText('Lê Thảo Vy đang làm một công việc; chưa thể rời nhóm cho đến khi công việc kết thúc.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Xóa Trần Quang Minh khỏi nhóm' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Xóa Trần Quang Minh khỏi nhóm?' })
+    await user.click(within(dialog).getByRole('button', { name: 'Xóa khỏi nhóm' }))
+
+    await waitFor(() =>
+      expect(seen.some((request) => request.method === 'DELETE' && request.url.endsWith('/members/ms1'))).toBe(true),
+    )
+  })
+
   it('shows a closed Team without actions', async () => {
     fakeBackend(signedIn('MENTOR', 'APPROVED'), { 'GET /api/v1/mentor/team': () => json({ ...emptyTeam, status: 'CLOSED' }) })
     renderAt('/nhom')
@@ -229,6 +256,49 @@ describe('STU-6, the Student\'s Team (FR-6, AD-36)', () => {
 
     expect(await screen.findByText('Xác minh là sinh viên để vào nhóm của một người hướng dẫn.')).toBeInTheDocument()
     expect(screen.queryByLabelText('Từ khóa')).not.toBeInTheDocument()
+  })
+
+  it('leaves the Team after the confirmation, and not while on a Crew', { timeout: 15_000 }, async () => {
+    const user = userEvent.setup()
+    let left = false
+    const membership = (onCrew: boolean) => ({
+      verified: true,
+      team: { mentor: hung, status: 'OPEN', joinedAt: '2026-06-20T03:00:00Z', size: 1, listed: [], onCrew },
+      invitations: [],
+      joinRequests: [],
+      requestsLeft: 5,
+    })
+    fakeBackend(signedIn('STUDENT'), {
+      'GET /api/v1/team': () => json(membership(false)),
+      'DELETE /api/v1/team/membership': () => {
+        left = true
+        return new Response(null, { status: 204 })
+      },
+    })
+    renderAt('/nhom')
+
+    expect(await screen.findByText('Sau khi rời, bạn có thể xin vào nhóm của người hướng dẫn khác.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Rời nhóm' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Rời nhóm của Đỗ Mạnh Hùng?' })
+    await user.click(within(dialog).getByRole('button', { name: 'Rời nhóm' }))
+    await waitFor(() => expect(left).toBe(true))
+  })
+
+  it('keeps a Student on a Crew in the Team', async () => {
+    fakeBackend(signedIn('STUDENT'), {
+      'GET /api/v1/team': () =>
+        json({
+          verified: true,
+          team: { mentor: hung, status: 'OPEN', joinedAt: '2026-06-20T03:00:00Z', size: 1, listed: [], onCrew: true },
+          invitations: [],
+          joinRequests: [],
+          requestsLeft: 5,
+        }),
+    })
+    renderAt('/nhom')
+
+    expect(await screen.findByText('Bạn đang làm một công việc; chưa thể rời nhóm cho đến khi công việc kết thúc.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Rời nhóm' })).toBeDisabled()
   })
 
   it('shows the Mentor and the listed members once in a Team', async () => {

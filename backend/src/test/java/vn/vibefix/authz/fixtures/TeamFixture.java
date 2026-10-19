@@ -29,7 +29,7 @@ import vn.vibefix.team.internal.TeamTestSupport;
  * member who hides their name, the canary {@code STUDENT_HIDDEN_NAME} ({@code {studentId}}), a
  * pending join request ({@code {joinRequestId}}), a pending invitation ({@code {invitationId}}), and a
  * verified Student in no Team ({@code {freeStudentId}}). It realizes {@link MatrixCaller#TEAM_MENTOR} as
- * that Team's Mentor.
+ * that Team's Mentor and {@link MatrixCaller#TEAM_MEMBER} as the member ({@code {membershipId}}).
  */
 public class TeamFixture implements MatrixFixture {
 
@@ -42,6 +42,8 @@ public class TeamFixture implements MatrixFixture {
 	private final Canaries canaries = Canaries.load();
 
 	private UUID mentor;
+
+	private UUID member;
 
 	public TeamFixture(JdbcClient jdbc, SessionRepository<? extends Session> sessions) {
 		this.jdbc = jdbc;
@@ -62,9 +64,11 @@ public class TeamFixture implements MatrixFixture {
 			.update();
 		UUID member = TeamTestSupport.student(this.jdbc, this.canaries.get("STUDENT_HIDDEN_NAME").value(), false,
 				List.of(TeamTestSupport.REACT), "React", VERIFIED_UNTIL);
+		UUID membership = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO team.membership (id, team_id, student_account_id, joined_at) VALUES (:id, :team, :student, :now)
-				""").param("id", UUID.randomUUID()).param("team", team).param("student", member).param("now", now).update();
+				""").param("id", membership).param("team", team).param("student", member).param("now", now).update();
+		this.member = member;
 		UUID requesting = TeamTestSupport.student(this.jdbc, "Sinh viên xin vào", true, List.of(TeamTestSupport.REACT),
 				"React", VERIFIED_UNTIL);
 		UUID invited = TeamTestSupport.student(this.jdbc, "Sinh viên được mời", true, List.of(TeamTestSupport.REACT),
@@ -93,6 +97,7 @@ public class TeamFixture implements MatrixFixture {
 		world.put("joinRequestId", joinRequest);
 		world.put("invitationId", invitation);
 		world.put("freeStudentId", free);
+		world.put("membershipId", membership);
 	}
 
 	@Override
@@ -102,11 +107,13 @@ public class TeamFixture implements MatrixFixture {
 
 	@Override
 	public Optional<RequestPostProcessor> realize(MatrixCaller caller, Map<String, String> state, MatrixWorld world) {
-		if (caller != MatrixCaller.TEAM_MENTOR) {
-			return Optional.empty();
-		}
-		return Optional.of(IdentityTestSupport.signedIn(this.sessions, this.mentor, Role.MENTOR,
-				MutableClock.DEFAULT_INSTANT));
+		return switch (caller) {
+			case TEAM_MENTOR -> Optional.of(IdentityTestSupport.signedIn(this.sessions, this.mentor, Role.MENTOR,
+					MutableClock.DEFAULT_INSTANT));
+			case TEAM_MEMBER -> Optional.of(IdentityTestSupport.signedIn(this.sessions, this.member, Role.STUDENT,
+					MutableClock.DEFAULT_INSTANT));
+			default -> Optional.empty();
+		};
 	}
 
 }
