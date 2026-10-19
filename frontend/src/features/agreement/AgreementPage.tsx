@@ -1,4 +1,4 @@
-import { Plus, Trash2, TriangleAlert } from 'lucide-react'
+import { Plus, Trash2, TriangleAlert, Users } from 'lucide-react'
 import { useId, useState, type ReactNode } from 'react'
 import { Navigate, useParams } from 'react-router'
 import { usePageTitle } from '@/app/usePageTitle'
@@ -9,6 +9,8 @@ import { SkillPicker } from '@/components/SkillPicker'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
 import { hasChat, useJobChat } from '@/features/chat/chatApi'
+import { useCrewPanel } from '@/features/crew/crewApi'
+import { CrewHeaderLine, CrewSection } from '@/features/crew/CrewPanel'
 import { useSession } from '@/features/identity/useSession'
 import { useJob, type Job } from '@/features/job/jobApi'
 import { JobHeader } from '@/features/job/JobHeader'
@@ -42,9 +44,10 @@ import {
 } from './agreementChecks'
 
 /**
- * JOB-6 "Thỏa thuận" (`/cong-viec/{jobId}/thoa-thuan`, FR-16, AD-29, UX-DR34): the Mentor drafts the
- * Agreement and shares it; the Customer reads the shared versions. Comments, reordering, and approval
- * come with Story 4.4.
+ * JOB-6 "Thỏa thuận" (`/cong-viec/{jobId}/thoa-thuan`, FR-16, FR-75, AD-29, UX-DR34, UX-DR60): the
+ * Mentor drafts the Agreement and shares it, and picks the Crew with its shares below the editor; the
+ * Customer reads the shared versions and the Crew's GitHub usernames. Comments, reordering, and
+ * approval come with Story 4.4.
  */
 export function AgreementPage() {
   const { jobId } = useParams()
@@ -70,6 +73,7 @@ function TestTag() {
 function MentorAgreement({ jobId }: { jobId: string }) {
   const job = useMentorJob(jobId)
   const draft = useMentorAgreement(jobId)
+  const crew = useCrewPanel(jobId)
   usePageTitle(job.data ? t('screen.agreement.title', { job: job.data.title }) : t('screen.job.title'))
   if (job.isError && isNotFound(job.error)) {
     return <NotFoundScreen />
@@ -81,13 +85,22 @@ function MentorAgreement({ jobId }: { jobId: string }) {
     <Frame>
       <RegionState query={job} skeleton={<Skeleton className="h-24 w-full" />}>
         {job.data && (
-          <JobHeader title={job.data.title} state={job.data.state} meta={mentorMeta(job.data)} audience="mentor">
+          <JobHeader
+            title={job.data.title}
+            state={job.data.state}
+            meta={mentorMeta(job.data)}
+            audience="mentor"
+            status={crew.data && <CrewHeaderLine panel={crew.data} />}
+          >
             <MentorJobTabs jobId={job.data.id} state={job.data.state} current="agreement" />
           </JobHeader>
         )}
       </RegionState>
       <RegionState query={draft} skeleton={<Skeleton className="h-96 w-full" />}>
         {draft.data && <Editor key={draft.data.revision} jobId={jobId} draft={draft.data} />}
+      </RegionState>
+      <RegionState query={crew} skeleton={<Skeleton className="h-64 w-full" />}>
+        {crew.data && <CrewSection key={crew.data.crewVersion} jobId={jobId} panel={crew.data} />}
       </RegionState>
     </Frame>
   )
@@ -595,12 +608,36 @@ function CustomerAgreement({ jobId }: { jobId: string }) {
                 })}
               </p>
             </div>
+            <CrewLine crew={agreement.data.crew} confirmed={agreement.data.crewConfirmed} />
             <AgreementContentView content={agreement.data.content} quotePrice={agreement.data.quote?.priceVnd} />
             <p className="text-body-sm text-muted-foreground">{t('screen.agreement.next')}</p>
           </div>
         )}
       </RegionState>
     </Frame>
+  )
+}
+
+/**
+ * "Nhóm thực hiện" for the Customer (FR-75, R-1 L4): the GitHub usernames of the Crew only, never a
+ * share, with "Chờ nhóm thực hiện xác nhận" until FR-17's Crew condition holds.
+ */
+function CrewLine({ crew, confirmed }: { crew: string[]; confirmed: boolean }) {
+  return (
+    <section className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-4 text-body-sm">
+      <Users aria-hidden="true" className="size-4 text-primary" />
+      <span className="font-semibold">{t('screen.crew.customer.title')}:</span>
+      {crew.length > 0 ? (
+        <span className="font-mono break-words">{crew.join(' · ')}</span>
+      ) : (
+        <span className="text-muted-foreground">{t('screen.crew.customer.none')}</span>
+      )}
+      {!confirmed && (
+        <span className="rounded-full bg-warning-soft px-2 py-0.5 text-caption font-semibold text-warning">
+          {t('screen.crew.customer.waiting')}
+        </span>
+      )}
+    </section>
   )
 }
 

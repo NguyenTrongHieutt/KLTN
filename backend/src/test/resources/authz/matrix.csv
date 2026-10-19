@@ -659,3 +659,49 @@ GET /api/v1/jobs/{jobId}/agreement,CUSTOMER,,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/agreement,MENTOR,,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/agreement,STUDENT,,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/agreement,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/mentor/jobs/{jobId}/crew,ANONYMOUS,,,401,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/crew,MENTOR,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/crew,MENTOR,mentor=PENDING,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/crew,OWNER,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/crew,CUSTOMER,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/crew,STUDENT,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/crew,ADMINISTRATOR,,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew,ANONYMOUS,,crew-add.json,401,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew,MENTOR,,crew-add.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew,MENTOR,mentor=PENDING,crew-add.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew,OWNER,,crew-add.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew,CUSTOMER,,crew-add.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew,STUDENT,,crew-add.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew,ADMINISTRATOR,,crew-add.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew/{crewRowId}/remove,ANONYMOUS,,crew-remove.json,401,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew/{crewRowId}/remove,MENTOR,,crew-remove.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew/{crewRowId}/remove,MENTOR,mentor=PENDING,crew-remove.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew/{crewRowId}/remove,OWNER,,crew-remove.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew/{crewRowId}/remove,CUSTOMER,,crew-remove.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew/{crewRowId}/remove,STUDENT,,crew-remove.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew/{crewRowId}/remove,ADMINISTRATOR,,crew-remove.json,404 NOT_FOUND,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/crew/terms,ANONYMOUS,,crew-terms.json,401,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/crew/terms,MENTOR,,crew-terms.json,404 NOT_FOUND,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/crew/terms,MENTOR,mentor=PENDING,crew-terms.json,404 NOT_FOUND,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/crew/terms,OWNER,,crew-terms.json,404 NOT_FOUND,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/crew/terms,CUSTOMER,,crew-terms.json,404 NOT_FOUND,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/crew/terms,STUDENT,,crew-terms.json,404 NOT_FOUND,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/crew/terms,ADMINISTRATOR,,crew-terms.json,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/crew/assignments,ANONYMOUS,,,401
+GET /api/v1/crew/assignments,STUDENT,,,200
+GET /api/v1/crew/assignments,OWNER,,,404 NOT_FOUND
+GET /api/v1/crew/assignments,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/crew/assignments,MENTOR,,,404 NOT_FOUND
+GET /api/v1/crew/assignments,ADMINISTRATOR,,,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/confirm,ANONYMOUS,,crew-confirm.json,401
+POST /api/v1/crew/jobs/{jobId}/confirm,STUDENT,,crew-confirm.json,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/confirm,OWNER,,crew-confirm.json,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/confirm,CUSTOMER,,crew-confirm.json,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/confirm,MENTOR,,crew-confirm.json,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/confirm,ADMINISTRATOR,,crew-confirm.json,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/decline,ANONYMOUS,,crew-decline.json,401
+POST /api/v1/crew/jobs/{jobId}/decline,STUDENT,,crew-decline.json,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/decline,OWNER,,crew-decline.json,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/decline,CUSTOMER,,crew-decline.json,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/decline,MENTOR,,crew-decline.json,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/decline,ADMINISTRATOR,,crew-decline.json,404 NOT_FOUND

@@ -212,6 +212,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/crew/assignments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["crewAssignments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/crew/jobs/{jobId}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["confirmCrewTerms"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/crew/jobs/{jobId}/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["declineCrewTerms"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/customers/{customerId}/contact": {
         parameters: {
             query?: never;
@@ -718,6 +766,54 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["share"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mentor/jobs/{jobId}/crew": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["crewPanel"];
+        put?: never;
+        post: operations["addCrewMember"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mentor/jobs/{jobId}/crew/terms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["saveCrewTerms"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mentor/jobs/{jobId}/crew/{crewRowId}/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["removeCrewMember"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1562,6 +1658,8 @@ export interface components {
         };
         AgreementVersionView: {
             content: components["schemas"]["Content"];
+            crew: string[];
+            crewConfirmed: boolean;
             quote?: components["schemas"]["QuoteView"];
             /** Format: date-time */
             sharedAt: string;
@@ -1689,6 +1787,128 @@ export interface components {
         CreatedView: {
             /** Format: uuid */
             id: string;
+        };
+        CrewAddRequest: {
+            /** Format: int64 */
+            crewVersion: number;
+            /** Format: uuid */
+            studentId: string;
+        };
+        CrewAssignmentMilestoneView: {
+            /** Format: date */
+            dueOn?: string;
+            /** Format: int64 */
+            priceVnd?: number;
+            title: string;
+            /** Format: int64 */
+            yourPartVnd?: number;
+        };
+        CrewAssignmentView: {
+            codeJob: boolean;
+            commitEmailNoticeAcknowledged: boolean;
+            /** Format: uuid */
+            jobId: string;
+            mentorName: string;
+            milestones: components["schemas"]["CrewAssignmentMilestoneView"][];
+            productName: string;
+            scope: string;
+            /** Format: int32 */
+            sharePercent?: number;
+            signed: boolean;
+            status: string;
+            title: string;
+            /** Format: int32 */
+            versionNo: number;
+            /** Format: date-time */
+            versionSentAt?: string;
+        };
+        CrewCandidateView: {
+            githubLogin?: string;
+            name: string;
+            onCrewJob?: string;
+            /** @enum {string} */
+            state: "FREE" | "IN_CREW" | "ON_CREW" | "NOT_VERIFIED";
+            /** Format: uuid */
+            studentId: string;
+        };
+        CrewConfirmRequest: {
+            commitEmailNoticeAcknowledged: boolean;
+            /** Format: int32 */
+            crewTermsVersionNo: number;
+            ndaVersion: string;
+            publicCodeAcknowledged: boolean;
+        };
+        CrewDeclineRequest: {
+            /** Format: int32 */
+            crewTermsVersionNo: number;
+        };
+        CrewMentorView: {
+            /** Format: uuid */
+            accountId: string;
+            displayName: string;
+            githubLogin?: string;
+            /** Format: int32 */
+            percent?: number;
+        };
+        CrewMilestoneView: {
+            /** Format: int64 */
+            priceVnd?: number;
+            title: string;
+        };
+        CrewPanelView: {
+            /** Format: int32 */
+            capPercent: number;
+            /** Format: int32 */
+            confirmedCount: number;
+            crewConfirmed: boolean;
+            /** Format: int64 */
+            crewVersion: number;
+            largeCrews: boolean;
+            latest?: components["schemas"]["CrewTermsView"];
+            locked: boolean;
+            mentor: components["schemas"]["CrewMentorView"];
+            milestones: components["schemas"]["CrewMilestoneView"][];
+            rows: components["schemas"]["CrewRowView"][];
+            team: components["schemas"]["CrewCandidateView"][];
+            /** Format: int32 */
+            total: number;
+        };
+        CrewRemoveRequest: {
+            /** Format: int64 */
+            crewVersion: number;
+        };
+        CrewRowView: {
+            confirmedLatest: boolean;
+            githubLogin?: string;
+            name: string;
+            /** Format: int32 */
+            percent?: number;
+            releasedReason?: string;
+            /** Format: uuid */
+            rowId: string;
+            /** Format: date-time */
+            signedAt?: string;
+            status: string;
+            /** Format: uuid */
+            studentId: string;
+        };
+        CrewShareRequest: {
+            /** Format: uuid */
+            accountId: string;
+            /** Format: int32 */
+            percent: number;
+        };
+        CrewTermsRequest: {
+            /** Format: int64 */
+            crewVersion: number;
+            shares: components["schemas"]["CrewShareRequest"][];
+        };
+        CrewTermsView: {
+            /** Format: date-time */
+            createdAt: string;
+            status: string;
+            /** Format: int32 */
+            versionNo: number;
         };
         Criterion: {
             checkSteps: string;
@@ -3177,6 +3397,74 @@ export interface operations {
             };
         };
     };
+    crewAssignments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrewAssignmentView"][];
+                };
+            };
+        };
+    };
+    confirmCrewTerms: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CrewConfirmRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    declineCrewTerms: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CrewDeclineRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     contact: {
         parameters: {
             query?: never;
@@ -4044,6 +4332,107 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AgreementDraftView"];
+                };
+            };
+        };
+    };
+    crewPanel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrewPanelView"];
+                };
+            };
+        };
+    };
+    addCrewMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CrewAddRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrewPanelView"];
+                };
+            };
+        };
+    };
+    saveCrewTerms: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CrewTermsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrewPanelView"];
+                };
+            };
+        };
+    };
+    removeCrewMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+                crewRowId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CrewRemoveRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrewPanelView"];
                 };
             };
         };

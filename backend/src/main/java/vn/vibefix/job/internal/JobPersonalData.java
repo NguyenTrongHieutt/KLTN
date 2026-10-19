@@ -35,7 +35,8 @@ class JobPersonalData implements PersonalDataParticipant {
 	@Override
 	public Set<String> tables() {
 		return Set.of("job.job", "job.job_screenshot", "job.agreement_draft", "job.milestone", "job.acceptance_criterion",
-				"job.external_access", "job.agreement_version");
+				"job.external_access", "job.agreement_version", "job.crew_row", "job.crew_terms_version", "job.crew_terms_share",
+				"job.crew_terms_confirmation");
 	}
 
 	@Override
@@ -78,7 +79,8 @@ class JobPersonalData implements PersonalDataParticipant {
 				SELECT s.file_id FROM job.job_screenshot s JOIN job.job j ON j.id = s.job_id WHERE j.%s = :id
 				""".formatted(column)).param("id", id).query(UUID.class).list().forEach(this.files::delete);
 		for (String table : List.of("job.acceptance_criterion", "job.milestone", "job.external_access",
-				"job.agreement_version", "job.agreement_draft")) {
+				"job.agreement_version", "job.agreement_draft", "job.crew_terms_confirmation", "job.crew_terms_share",
+				"job.crew_terms_version", "job.crew_row")) {
 			this.jdbc.sql("DELETE FROM %s WHERE job_id IN (SELECT id FROM job.job WHERE %s = :id)".formatted(table, column))
 				.param("id", id)
 				.update();
@@ -86,11 +88,12 @@ class JobPersonalData implements PersonalDataParticipant {
 		this.jdbc.sql("DELETE FROM job.job WHERE %s = :id".formatted(column)).param("id", id).update();
 	}
 
-	/** A Job from J3 to Closing keeps its Customer and its Mentor from being erased (AD-24). */
+	/** A Job from J3 to Closing keeps its Customer, its Mentor, and its running Crew from being erased (AD-24). */
 	@Override
 	public List<ErasureBlocker> erasureBlockers(UUID accountId) {
 		return this.jdbc.sql("""
-				SELECT id FROM job.job WHERE (customer_account_id = :id OR mentor_account_id = :id)
+				SELECT id FROM job.job WHERE (customer_account_id = :id OR mentor_account_id = :id
+				    OR id IN (SELECT job_id FROM job.crew_row WHERE student_account_id = :id AND status <> 'RELEASED'))
 				  AND state IN ('SELECTING', 'AGREEMENT', 'STARTING', 'ACTIVE', 'CLOSING') ORDER BY id
 				""")
 			.param("id", accountId)

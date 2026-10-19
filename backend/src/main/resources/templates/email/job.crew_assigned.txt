@@ -1,0 +1,6 @@
+subject: Bạn được phân công vào nhóm thực hiện {job}
+---
+Xin chào,
+
+Người hướng dẫn đã chọn bạn vào nhóm thực hiện công việc {job}.
+Hãy mở vibefix để xem phạm vi, phần chia của bạn, ký cam kết bảo mật và xác nhận, hoặc từ chối.

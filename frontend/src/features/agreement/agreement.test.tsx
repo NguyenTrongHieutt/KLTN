@@ -58,10 +58,25 @@ const draft = (overrides: object = {}, content: object = {}) => ({
   ...overrides,
 })
 
+const emptyCrew = {
+  crewVersion: 0,
+  capPercent: 40,
+  largeCrews: false,
+  locked: false,
+  crewConfirmed: false,
+  confirmedCount: 0,
+  total: 0,
+  mentor: { accountId: '00000000-0000-7000-8000-000000000001', displayName: 'Đỗ Mạnh Hùng', githubLogin: 'hungdm' },
+  rows: [],
+  team: [],
+  milestones: [],
+}
+
 const mentorBackend = (agreement: object, extra: Record<string, (request: Request) => Response | Promise<Response>> = {}) =>
   fakeBackend(signedIn('MENTOR'), {
     'GET /api/v1/mentor/jobs/j1': () => json(mentorJob),
     'GET /api/v1/mentor/jobs/j1/agreement': () => json(agreement),
+    'GET /api/v1/mentor/jobs/j1/crew': () => json(emptyCrew),
     'GET /api/v1/jobs/j1/chat': () => json({ chatId: 'c1', unread: false }),
     'GET /api/v1/catalog': () => json({ categories: [] }),
     ...extra,
@@ -167,6 +182,8 @@ describe('JOB-6 for the Customer: read the shared draft (FR-16)', () => {
       { versionNo: 2, sharedAt: '2026-10-20T09:20:00Z' },
     ],
     quote: { priceVnd: 800000, timelineDays: 7 },
+    crew: ['minhtq'],
+    crewConfirmed: false,
     content: {
       scope: 'Sửa lỗi hai khách đặt trùng bàn.',
       priceVnd: 800000,
@@ -193,6 +210,9 @@ describe('JOB-6 for the Customer: read the shared draft (FR-16)', () => {
     expect(screen.getByText('· 3 bước kiểm tra')).toBeInTheDocument()
     expect(screen.getByText('khớp báo giá')).toBeInTheDocument()
     expect(screen.getByText('Môi trường thử')).toBeInTheDocument()
+    expect(screen.getByText('minhtq')).toBeInTheDocument()
+    expect(screen.getByText('Chờ nhóm thực hiện xác nhận')).toBeInTheDocument()
+    expect(screen.queryByText(/%/)).toBeNull()
     expect(screen.queryByRole('button', { name: 'Gửi cho khách hàng' })).toBeNull()
 
     await user.selectOptions(screen.getByRole('combobox', { name: 'Phiên bản' }), '1')

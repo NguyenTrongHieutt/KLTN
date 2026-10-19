@@ -25,9 +25,12 @@ class J4Confirm implements JobLifecycle.Step {
 
 	private final Agreements agreements;
 
-	J4Confirm(ContactVisibility contacts, Agreements agreements) {
+	private final CrewService crews;
+
+	J4Confirm(ContactVisibility contacts, Agreements agreements, CrewService crews) {
 		this.contacts = contacts;
 		this.agreements = agreements;
+		this.crews = crews;
 	}
 
 	@Override
@@ -56,6 +59,7 @@ class J4Confirm implements JobLifecycle.Step {
 		Job job = applying.job();
 		this.contacts.grant(job.customerId(), Objects.requireNonNull(job.mentorId()), job.id());
 		this.agreements.start(job, applying.now().plus(Agreements.AGREEMENT_PERIOD));
+		this.crews.start(job, applying.now().plus(Agreements.AGREEMENT_PERIOD));
 	}
 
 }

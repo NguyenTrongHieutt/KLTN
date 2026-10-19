@@ -1,5 +1,5 @@
 import { Dialog } from '@base-ui/react/dialog'
-import { ExternalLink, TriangleAlert, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
@@ -16,12 +16,8 @@ import { formatDayMonth } from '@/lib/dates'
 import { isNotFound, problemMessage } from '@/lib/problemMessage'
 import { MentorJobTabs } from './MentorJobTabs'
 import { useDeclineSelection, useMentorJob, useSignNda, type MentorJob } from './mentorJobApi'
-
-/** The NDA text's version, which the signature records; the legal wording waits for OQ5. */
-const NDA_VERSION = t('screen.nda.version')
-
-const COMMIT_EMAIL_HELP =
-  'https://docs.github.com/en/account-and-profile/setting-up-and-managing-your-personal-account-on-github/managing-email-preferences/setting-your-commit-email-address'
+import { NDA_VERSION } from './nda'
+import { CommitEmailNotice, NdaText } from './NdaText'
 
 /**
  * JOB-1 for the Job's Mentor (FR-15, UX-DR52): while Selecting, the NDA panel with N-14, the NDA text
@@ -115,34 +111,8 @@ function NdaPanel({ job }: { job: MentorJob }) {
       <h2 id="nda-heading" className="text-h2">
         {t('screen.nda.title', { version: NDA_VERSION })}
       </h2>
-      <p className="text-body-sm">{t('screen.nda.n14')}</p>
-      <div
-        tabIndex={0}
-        role="region"
-        aria-label={t('screen.nda.textLabel')}
-        className="max-h-48 overflow-auto rounded-md border border-border bg-background p-4 text-body-sm"
-      >
-        <p className="font-semibold">{t('screen.nda.article1')}</p>
-        <p>{t('screen.nda.pending')}</p>
-        <p className="mt-2 font-semibold">{t('screen.nda.article2')}</p>
-        <p>{t('screen.nda.pending')}</p>
-      </div>
-      {needsNotice && (
-        <div role="note" className="flex gap-3 rounded-md border-l-4 border-warning bg-warning-soft p-4">
-          <TriangleAlert aria-hidden="true" className="size-5 shrink-0 text-warning" />
-          <div className="flex flex-col gap-1.5 text-body-sm">
-            <p>{t('screen.nda.n23')}</p>
-            <a href={COMMIT_EMAIL_HELP} target="_blank" rel="noopener noreferrer" className="flex w-fit items-center gap-1 text-primary underline-offset-4 hover:underline">
-              {t('screen.nda.n23Link')}
-              <ExternalLink aria-hidden="true" className="size-4" />
-            </a>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" checked={understood} onChange={(event) => setUnderstood(event.target.checked)} />
-              {t('screen.nda.understood')}
-            </label>
-          </div>
-        </div>
-      )}
+      <NdaText />
+      {needsNotice && <CommitEmailNotice understood={understood} onChange={setUnderstood} />}
       <div className="flex flex-wrap justify-between gap-3">
         <Button type="button" variant="secondary" onClick={() => setDeclining(true)}>
           {t('screen.nda.decline')}
