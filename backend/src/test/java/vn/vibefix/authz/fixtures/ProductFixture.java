@@ -20,8 +20,9 @@ import vn.vibefix.shared.Role;
 import vn.vibefix.support.MutableClock;
 
 /**
- * Products (FR-7, AD-20): a Customer's registered Product ({@code {productId}}), whose Customer the
- * matrix calls {@link MatrixCaller#OWNER}. Only the owner and Administrators read its detail.
+ * Products (FR-7, FR-8, AD-20): a Customer's registered Product ({@code {productId}}), whose Customer
+ * the matrix calls {@link MatrixCaller#OWNER}, with one open credential Finding of its intake scan
+ * ({@code {findingId}}) that the owner resolves. Only the owner and Administrators read them.
  */
 public class ProductFixture implements MatrixFixture {
 
@@ -54,6 +55,26 @@ public class ProductFixture implements MatrixFixture {
 			.param("now", now)
 			.update();
 		world.put("productId", product);
+		UUID run = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO scanning.scan_run (id, product_id, customer_account_id, product_name, repository_full_name,
+				    repository_github_id, purpose, status, rules_version, found_count, new_findings, requested_at,
+				    finished_at)
+				VALUES (:id, :product, :owner, 'Sản phẩm ma trận', 'matrix/product', 1, 'INTAKE', 'SUCCEEDED', 2, 1, 1,
+				    :now, :now)
+				""").param("id", run).param("product", product).param("owner", this.owner).param("now", now).update();
+		UUID finding = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO scanning.finding (id, product_id, scan_run_id, category, rule_id, rule_type, file_path,
+				    commit_sha, committed_at, masked_preview, fingerprint, status, created_at)
+				VALUES (:id, :product, :run, 'CREDENTIAL', 'stripe-secret-key', 'Khóa bí mật Stripe', 'server/pay.js',
+				    repeat('a', 40), :now, 'sk_l••••••••Q7mZ', repeat('b', 64), 'OPEN', :now)
+				""").param("id", finding).param("product", product).param("run", run).param("now", now).update();
+		this.jdbc.sql("INSERT INTO scanning.finding_resolver (finding_id, account_id) VALUES (:f, :a)")
+			.param("f", finding)
+			.param("a", this.owner)
+			.update();
+		world.put("findingId", finding);
 	}
 
 	@Override

@@ -160,7 +160,7 @@ function FindingsSection({ product, scan }: { product: Product; scan: Scan }) {
           <RegionState query={findings} skeleton={<Skeleton className="h-32 w-full" />}>
             <ul aria-label={t('screen.product.detail.findingsList')} className="flex flex-col gap-3">
               {(findings.data ?? []).map((finding) => (
-                <FindingCard key={finding.id} finding={finding} />
+                <FindingCard key={finding.id} productId={product.id} finding={finding} />
               ))}
             </ul>
           </RegionState>
@@ -209,7 +209,7 @@ function CheckSummary({ findings }: { findings: Finding[] | undefined }) {
  * One Finding (UX-DR31): the plain type, where it was found, and the masked value, with no reveal or
  * copy; for personal data (FR-65), the lines holding it and two masked samples.
  */
-function FindingCard({ finding }: { finding: Finding }) {
+function FindingCard({ productId, finding }: { productId: string; finding: Finding }) {
   const personal = finding.category === 'PERSONAL_DATA'
 
   return (
@@ -232,6 +232,12 @@ function FindingCard({ finding }: { finding: Finding }) {
         </span>{' '}
         <span className="font-mono break-all select-none">{finding.maskedPreview}</span>
       </p>
+      <Link
+        to={`/san-pham/${productId}/van-de/${finding.id}`}
+        className="w-fit text-label font-semibold text-primary underline-offset-4 hover:underline"
+      >
+        {t('screen.product.detail.findingHowTo')}
+      </Link>
     </li>
   )
 }

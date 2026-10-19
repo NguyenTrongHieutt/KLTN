@@ -10,9 +10,10 @@ import org.jspecify.annotations.Nullable;
  * rule, its plain type, the file and the first commit the scan met it in, and a masked preview (for
  * personal data, up to two masked samples). The values themselves are never kept.
  * @param matchCount for personal data, the lines holding a personal value
+ * @param resolution how it was resolved, once {@link FindingStatus#RESOLVED}
  */
 public record Finding(UUID id, FindingCategory category, String ruleId, String type, String path, String commit,
 		Instant committedAt, String maskedPreview, @Nullable Integer matchCount, FindingStatus status,
-		Instant createdAt) {
+		Instant createdAt, @Nullable FindingResolution resolution, @Nullable Instant resolvedAt) {
 
 }

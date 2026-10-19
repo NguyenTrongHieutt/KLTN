@@ -26,6 +26,8 @@ import vn.vibefix.notification.Audience;
 import vn.vibefix.notification.NotificationRequest;
 import vn.vibefix.notification.Notifications;
 import vn.vibefix.notification.Recipient;
+import vn.vibefix.notification.TodoRequest;
+import vn.vibefix.notification.Todos;
 import vn.vibefix.scanning.ScanCompleted;
 import vn.vibefix.scanning.ScanPurpose;
 import vn.vibefix.scanning.internal.ScanRules.PersonalKind;
@@ -36,7 +38,8 @@ import vn.vibefix.shared.IdGenerator;
 /**
  * Records what a scan job found, in one transaction (AD-18): each credential becomes a Finding unless
  * its fingerprint is already one of the Product's, the run gets its counts, and the Customer hears
- * about each new Finding and, for a clean intake scan, about that. A complete run then publishes
+ * about each new Finding and, for a clean intake scan, about that. Each new Intake Finding gets the
+ * Customer as its resolver and opens their resolve to-do (UX-DR15). A complete run then publishes
  * {@link ScanCompleted}; a run a cap stopped keeps its Findings and fails.
  * <p>
  * The job's output is checked, not trusted: a rule ID or a personal-data kind this platform does not
@@ -60,6 +63,10 @@ class ScanCompletion {
 
 	private final Notifications notifications;
 
+	private final Todos todos;
+
+	private final FindingResolutions resolutions;
+
 	private final ApplicationEventPublisher events;
 
 	private final IdGenerator ids;
@@ -72,11 +79,13 @@ class ScanCompletion {
 		.stream()
 		.collect(Collectors.toUnmodifiableMap(Rule::id, Rule::type));
 
-	ScanCompletion(JdbcClient jdbc, FingerprintKey key, Notifications notifications, ApplicationEventPublisher events,
-			IdGenerator ids, Clock clock) {
+	ScanCompletion(JdbcClient jdbc, FingerprintKey key, Notifications notifications, Todos todos,
+			FindingResolutions resolutions, ApplicationEventPublisher events, IdGenerator ids, Clock clock) {
 		this.jdbc = jdbc;
 		this.key = key;
 		this.notifications = notifications;
+		this.todos = todos;
+		this.resolutions = resolutions;
 		this.events = events;
 		this.ids = ids;
 		this.clock = clock;
@@ -135,6 +144,12 @@ class ScanCompletion {
 				.update();
 			if (inserted == 1) {
 				opened.add(new Opened(id, type));
+				if (run.purpose() == ScanPurpose.INTAKE) {
+					this.resolutions.addResolver(id, run.customerId());
+					this.todos.open(new TodoRequest(FindingResolutions.RESOLVE_INTAKE_FINDING, run.customerId(),
+							Audience.SUBJECT, id, Map.of("product", run.productName()),
+							"/san-pham/" + run.productId() + "/van-de/" + id, null, null));
+				}
 			}
 		}
 		boolean complete = stopped == null;

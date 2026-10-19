@@ -62,6 +62,27 @@ export const routes: RouteObject[] = [
     ],
   },
   {
+    // CUS-5, a focused task route (UX-DR8) that "Đóng" leaves for its Product.
+    path: 'san-pham/:productId/van-de/:findingId',
+    lazy: async () => {
+      const [{ FocusedLayout }, { t }] = await Promise.all([import('./FocusedLayout'), import('@/i18n/t')])
+      return {
+        element: (
+          <FocusedLayout
+            title={t('screen.product.finding.title')}
+            closeTo={(params) => `/san-pham/${params.productId ?? ''}`}
+          />
+        ),
+      }
+    },
+    children: [
+      {
+        index: true,
+        lazy: async () => ({ Component: (await import('@/features/product/FindingPage')).FindingPage }),
+      },
+    ],
+  },
+  {
     // PUB-6, linked from no public page (FR-2); its own header, outside the public layout.
     path: 'quan-tri/dang-nhap',
     lazy: async () => ({ Component: (await import('@/features/admin/AdminSignInPage')).AdminSignInPage }),

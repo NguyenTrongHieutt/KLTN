@@ -2,7 +2,9 @@ package vn.vibefix.scanning.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -216,6 +218,79 @@ class IntakeScanIT extends IntegrationTest {
 	}
 
 	@Test
+	void theCustomerConfirmsARotationOnCus5AndOnlyThatFindingCloses() throws Exception {
+		Planted stripe = PLANTED.get("stripe-secret-key");
+		repository("lan/rotate", Map.of(stripe.path(), stripe.text(), "seed/customers.json",
+				PlantedPersonalData.customersJson(12)));
+		UUID product = product("lan/rotate");
+		requestScan(product, "lan/rotate");
+		this.worker.runDue(Lane.SCAN);
+		UUID credential = findingOf(product, "CREDENTIAL");
+		UUID personal = findingOf(product, "PERSONAL_DATA");
+
+		assertThat(this.jdbc.sql("""
+				SELECT link FROM notification.todo
+				WHERE account_id = :lan AND todo_key = 'scanning.resolve_intake_finding' AND closed_at IS NULL ORDER BY link
+				""").param("lan", this.lan).query(String.class).list()).containsExactlyInAnyOrder(
+				"/san-pham/" + product + "/van-de/" + credential, "/san-pham/" + product + "/van-de/" + personal);
+		String path = "/api/v1/products/" + product + "/findings/" + credential;
+		this.mvc.perform(get(path).with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.canResolve").value(true))
+			.andExpect(jsonPath("$.productName").value("Shop Gốm Bát Tràng"))
+			.andExpect(jsonPath("$.tools[0]").value("LOVABLE"))
+			.andExpect(jsonPath("$.finding.ruleId").value("stripe-secret-key"))
+			.andExpect(jsonPath("$.finding.status").value("OPEN"));
+		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null, null);
+		this.mvc.perform(get(path).with(as(admin, Role.ADMINISTRATOR))).andExpect(jsonPath("$.canResolve").value(false));
+		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		this.mvc.perform(get(path).with(as(other, Role.CUSTOMER))).andExpect(status().isNotFound());
+		this.mvc.perform(post(path + "/rotation").with(as(other, Role.CUSTOMER)).with(csrf()))
+			.andExpect(status().isNotFound());
+		this.mvc.perform(post("/api/v1/products/" + product + "/findings/" + personal + "/rotation")
+			.with(as(this.lan, Role.CUSTOMER)).with(csrf()))
+			.andExpect(status().is(422))
+			.andExpect(jsonPath("$.reason").value("NOT_A_CREDENTIAL"));
+
+		this.mvc.perform(post(path + "/rotation").with(as(this.lan, Role.CUSTOMER)).with(csrf()))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.status").value("RESOLVED"))
+			.andExpect(jsonPath("$.resolution").value("ROTATED"));
+		this.mvc.perform(post(path + "/rotation").with(as(this.lan, Role.CUSTOMER)).with(csrf()))
+			.andExpect(status().isConflict())
+			.andExpect(jsonPath("$.reason").value("FINDING_CLOSED"));
+
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM audit.audit_entry e JOIN audit.audit_entry_object o ON o.entry_id = e.id
+				WHERE e.action = 'scanning.finding_rotated' AND o.object_id = :f
+				""").param("f", credential).query(Long.class).single()).isOne();
+		assertThat(this.jdbc.sql("""
+				SELECT subject_id FROM notification.todo
+				WHERE todo_key = 'scanning.resolve_intake_finding' AND closed_at IS NULL
+				""").query(UUID.class).list()).containsExactly(personal);
+		this.mvc.perform(get("/api/v1/products/" + product).with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.openFindings").value(1));
+	}
+
+	@Test
+	void setResolversReplacesWhoMayResolveAFinding() {
+		Planted stripe = PLANTED.get("stripe-secret-key");
+		repository("lan/resolvers", Map.of(stripe.path(), stripe.text()));
+		UUID product = product("lan/resolvers");
+		requestScan(product, "lan/resolvers");
+		this.worker.runDue(Lane.SCAN);
+		UUID finding = findingOf(product, "CREDENTIAL");
+		UUID mentor = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null, null);
+		assertThat(this.scans.mayResolve(finding, this.lan)).isTrue();
+
+		new TransactionTemplate(this.transactions).executeWithoutResult(
+				status -> this.scans.setResolvers(finding, Set.of(mentor)));
+
+		assertThat(this.scans.mayResolve(finding, this.lan)).isFalse();
+		assertThat(this.scans.mayResolve(finding, mentor)).isTrue();
+	}
+
+	@Test
 	void aRepeatedCredentialOpensNoSecondFindingAndACleanRepositorySaysSo() {
 		Planted stripe = PLANTED.get("stripe-secret-key");
 		repository("lan/repeat", Map.of(stripe.path(), stripe.text(), "copy/" + stripe.path(), "// again\n" + stripe.text()));
@@ -304,6 +379,14 @@ class IntakeScanIT extends IntegrationTest {
 		for (String value : values) {
 			assertThat(rows).allSatisfy(row -> assertThat(row).doesNotContain(value));
 		}
+	}
+
+	private UUID findingOf(UUID product, String category) {
+		return this.jdbc.sql("SELECT id FROM scanning.finding WHERE product_id = :p AND category = :c")
+			.param("p", product)
+			.param("c", category)
+			.query(UUID.class)
+			.single();
 	}
 
 	private long notifications(String type) {

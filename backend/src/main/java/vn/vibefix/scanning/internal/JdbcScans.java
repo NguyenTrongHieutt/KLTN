@@ -11,6 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -24,6 +25,7 @@ import vn.vibefix.operations.ExternalOperations;
 import vn.vibefix.operations.OperationRequest;
 import vn.vibefix.scanning.Finding;
 import vn.vibefix.scanning.FindingCategory;
+import vn.vibefix.scanning.FindingResolution;
 import vn.vibefix.scanning.FindingStatus;
 import vn.vibefix.scanning.ScanPurpose;
 import vn.vibefix.scanning.ScanStatus;
@@ -52,20 +54,24 @@ class JdbcScans implements Scans {
 
 	private static final String FINDING_COLUMNS = """
 			id, category, rule_id, rule_type, file_path, commit_sha, committed_at, masked_preview, match_count, status,
-			created_at
+			created_at, resolution, resolved_at
 			""";
 
 	private final JdbcClient jdbc;
 
 	private final ExternalOperations operations;
 
+	private final FindingResolutions resolutions;
+
 	private final IdGenerator ids;
 
 	private final Clock clock;
 
-	JdbcScans(JdbcClient jdbc, ExternalOperations operations, IdGenerator ids, Clock clock) {
+	JdbcScans(JdbcClient jdbc, ExternalOperations operations, FindingResolutions resolutions, IdGenerator ids,
+			Clock clock) {
 		this.jdbc = jdbc;
 		this.operations = operations;
+		this.resolutions = resolutions;
 		this.ids = ids;
 		this.clock = clock;
 	}
@@ -149,6 +155,35 @@ class JdbcScans implements Scans {
 		return counts;
 	}
 
+	@Override
+	@Transactional(readOnly = true)
+	public Optional<Finding> finding(UUID productId, UUID findingId) {
+		return this.jdbc.sql("SELECT " + FINDING_COLUMNS + " FROM scanning.finding WHERE id = :id AND product_id = :product")
+			.param("id", findingId)
+			.param("product", productId)
+			.query(JdbcScans::finding)
+			.optional();
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public boolean mayResolve(UUID findingId, UUID accountId) {
+		return this.resolutions.mayResolve(findingId, accountId);
+	}
+
+	@Override
+	@Transactional
+	public Finding confirmRotation(UUID productId, UUID findingId, UUID accountId) {
+		this.resolutions.confirmRotation(productId, findingId, accountId);
+		return finding(productId, findingId).orElseThrow();
+	}
+
+	@Override
+	@Transactional(propagation = Propagation.MANDATORY)
+	public void setResolvers(UUID findingId, Set<UUID> accountIds) {
+		this.resolutions.setResolvers(findingId, accountIds);
+	}
+
 	private static ScanSummary summary(ResultSet rs, int n) throws SQLException {
 		Timestamp finished = rs.getTimestamp("finished_at");
 		int found = rs.getInt("found_count");
@@ -174,7 +209,9 @@ class JdbcScans implements Scans {
 		return new Finding(rs.getObject("id", UUID.class), FindingCategory.valueOf(rs.getString("category")),
 				rs.getString("rule_id"), rs.getString("rule_type"), rs.getString("file_path"), rs.getString("commit_sha"),
 				instant(rs, "committed_at"), rs.getString("masked_preview"), matchCount,
-				FindingStatus.valueOf(rs.getString("status")), instant(rs, "created_at"));
+				FindingStatus.valueOf(rs.getString("status")), instant(rs, "created_at"),
+				rs.getString("resolution") == null ? null : FindingResolution.valueOf(rs.getString("resolution")),
+				rs.getTimestamp("resolved_at") == null ? null : instant(rs, "resolved_at"));
 	}
 
 	private static Instant instant(ResultSet rs, String column) throws SQLException {

@@ -516,6 +516,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/products/{productId}/findings/{findingId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["finding"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/products/{productId}/findings/{findingId}/rotation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["confirmRotation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profile": {
         parameters: {
             query?: never;
@@ -941,6 +973,12 @@ export interface components {
         EnvironmentResponse: {
             name: string;
         };
+        FindingDetailView: {
+            canResolve: boolean;
+            finding: components["schemas"]["FindingView"];
+            productName: string;
+            tools: ("LOVABLE" | "BOLT" | "REPLIT" | "V0" | "BASE44" | "CURSOR" | "CLAUDE_CODE" | "CODEX" | "OTHER")[];
+        };
         FindingView: {
             /** @enum {string} */
             category: "CREDENTIAL" | "PERSONAL_DATA";
@@ -956,7 +994,12 @@ export interface components {
             matchCount?: number;
             path: string;
             /** @enum {string} */
-            status: "OPEN";
+            resolution?: "ROTATED";
+            /** Format: date-time */
+            resolvedAt?: string;
+            ruleId: string;
+            /** @enum {string} */
+            status: "OPEN" | "RESOLVED";
             type: string;
         };
         MentorApplicationDetail: {
@@ -2341,6 +2384,52 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FindingView"][];
+                };
+            };
+        };
+    };
+    finding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                productId: string;
+                findingId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FindingDetailView"];
+                };
+            };
+        };
+    };
+    confirmRotation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                productId: string;
+                findingId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FindingView"];
                 };
             };
         };

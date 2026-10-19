@@ -5,6 +5,7 @@ import { apiClient, unwrap } from '@/lib/apiClient'
 export type Product = components['schemas']['ProductView']
 export type Scan = components['schemas']['ScanView']
 export type Finding = components['schemas']['FindingView']
+export type FindingDetail = components['schemas']['FindingDetailView']
 export type RepositoryCheck = components['schemas']['RepositoryCheckView']
 export type ProductRegistration = components['schemas']['ProductRegistrationRequest']
 export type Tool = ProductRegistration['tools'][number]
@@ -43,6 +44,35 @@ export function useFindings(product: Product) {
     queryFn: () =>
       unwrap(apiClient.GET('/api/v1/products/{productId}/findings', { params: { path: { productId: product.id } } })),
     enabled: product.openFindings > 0,
+  })
+}
+
+/** CUS-5: one Finding, with its Product's name and tools and whether the caller may resolve it. */
+export function useFinding(productId: string | undefined, findingId: string | undefined) {
+  return useQuery({
+    queryKey: [...PRODUCTS_QUERY_KEY, 'finding', productId, findingId],
+    queryFn: () =>
+      unwrap(
+        apiClient.GET('/api/v1/products/{productId}/findings/{findingId}', {
+          params: { path: { productId: productId ?? '', findingId: findingId ?? '' } },
+        }),
+      ),
+    enabled: productId !== undefined && findingId !== undefined,
+    retry: false,
+  })
+}
+
+/** CUS-5 "Tôi đã đổi khóa", after the Confirmation dialog. */
+export function useConfirmRotation(productId: string, findingId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () =>
+      unwrap(
+        apiClient.POST('/api/v1/products/{productId}/findings/{findingId}/rotation', {
+          params: { path: { productId, findingId } },
+        }),
+      ),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: PRODUCTS_QUERY_KEY }),
   })
 }
 

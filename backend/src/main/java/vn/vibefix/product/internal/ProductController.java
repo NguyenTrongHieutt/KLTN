@@ -29,6 +29,7 @@ import vn.vibefix.product.internal.Products.Registration;
 import vn.vibefix.product.internal.Products.Tool;
 import vn.vibefix.scanning.Finding;
 import vn.vibefix.scanning.FindingCategory;
+import vn.vibefix.scanning.FindingResolution;
 import vn.vibefix.scanning.FindingStatus;
 import vn.vibefix.scanning.ScanStatus;
 import vn.vibefix.scanning.ScanSummary;
@@ -43,9 +44,10 @@ import vn.vibefix.shared.Gate;
 import vn.vibefix.shared.Role;
 
 /**
- * CUS-2, CUS-3, and CUS-4 (FR-7, FR-8, AD-13): a Customer's Products with their scan state, the
- * registration wizard's live repository check and its submission, and one Product's detail and open
- * Findings, which only its Customer and Administrators read (AD-20). Any other caller finds nothing.
+ * CUS-2 to CUS-5 (FR-7, FR-8, AD-13): a Customer's Products with their scan state, the registration
+ * wizard's live repository check and its submission, one Product's detail and open Findings, and one
+ * Finding, which only its Customer and Administrators read (AD-20); only a Finding's resolvers confirm
+ * its rotation. Any other caller finds nothing.
  */
 @RestController
 @RequestMapping("/api/v1/products")
@@ -129,16 +131,23 @@ class ProductController {
 	 * A Finding as CUS-4 lists it (FR-8, FR-65): the masked preview only, never the value; for
 	 * personal data, up to two masked samples and the lines holding personal values.
 	 */
-	record FindingView(UUID id, FindingCategory category, String type, String path, String commit,
+	record FindingView(UUID id, FindingCategory category, String ruleId, String type, String path, String commit,
 			Instant committedAt, String maskedPreview, @Nullable Integer matchCount, FindingStatus status,
-			Instant createdAt) {
+			Instant createdAt, @Nullable FindingResolution resolution, @Nullable Instant resolvedAt) {
 
 		static FindingView of(Finding finding) {
-			return new FindingView(finding.id(), finding.category(), finding.type(), finding.path(), finding.commit(),
-					finding.committedAt(), finding.maskedPreview(), finding.matchCount(), finding.status(),
-					finding.createdAt());
+			return new FindingView(finding.id(), finding.category(), finding.ruleId(), finding.type(), finding.path(),
+					finding.commit(), finding.committedAt(), finding.maskedPreview(), finding.matchCount(),
+					finding.status(), finding.createdAt(), finding.resolution(), finding.resolvedAt());
 		}
 
+	}
+
+	/**
+	 * CUS-5: one Finding, its Product's name and AI tools (for the guidance), and whether the caller
+	 * may resolve it.
+	 */
+	record FindingDetailView(FindingView finding, String productName, List<Tool> tools, boolean canResolve) {
 	}
 
 	private final Products products;
@@ -195,6 +204,22 @@ class ProductController {
 	List<FindingView> findings(@PathVariable UUID productId) {
 		readable(productId);
 		return this.scans.openFindings(productId).stream().map(FindingView::of).toList();
+	}
+
+	/** CUS-5: the Product's Customer, or an Administrator, who never resolves it. */
+	@GetMapping("/{productId}/findings/{findingId}")
+	FindingDetailView finding(@PathVariable UUID productId, @PathVariable UUID findingId) {
+		Product product = readable(productId);
+		Finding finding = this.scans.finding(productId, findingId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		Caller caller = this.callers.get();
+		boolean canResolve = caller.hasRole(Role.CUSTOMER) && this.scans.mayResolve(findingId, caller.requireAccountId());
+		return new FindingDetailView(FindingView.of(finding), product.name(), product.tools(), canResolve);
+	}
+
+	/** CUS-5 "Tôi đã đổi khóa", after the Confirmation dialog: only a resolver of an open credential Finding. */
+	@PostMapping("/{productId}/findings/{findingId}/rotation")
+	FindingView confirmRotation(@PathVariable UUID productId, @PathVariable UUID findingId) {
+		return FindingView.of(this.scans.confirmRotation(productId, findingId, customer()));
 	}
 
 	private Product readable(UUID productId) {
