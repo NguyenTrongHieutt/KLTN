@@ -1,3 +1,4 @@
+import { TriangleAlert } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { z } from 'zod'
 import { usePollHealth } from '@/app/usePollHealth'
@@ -31,36 +32,77 @@ const BADGE: Record<Verification['status'], { label: MessageKey; tone: string }>
 
 /**
  * STU-5's "Xác minh sinh viên" card (FR-5, UX-DR19): the status badge, then either the verified
- * line or the school email code. The student-card path is Story 1.13's, so only the copy names it.
+ * line, with the code form again once renewal opens 14 days before the expiry, or the school email
+ * code; an expired verification adds the alert above it (UX-DR27). The student-card path is Story
+ * 1.13's, so only the copy names it.
  */
 export function StudentVerificationCard() {
   const verification = useVerification()
   const status = verification.data?.status
+  const data = verification.data
 
   return (
-    <section
-      aria-labelledby="verification-heading"
-      className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 md:p-6"
-    >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id="verification-heading" className="text-h2">
-          {t('screen.student.verification.heading')}
-        </h2>
-        {status && (
-          <span className={cn('inline-flex rounded-full px-3 py-1 text-label', BADGE[status].tone)}>
-            {t(BADGE[status].label)}
-          </span>
-        )}
+    <>
+      {data?.status === 'EXPIRED' && data.verifiedUntil && <ExpiredAlert verifiedUntil={data.verifiedUntil} />}
+      <section
+        aria-labelledby="verification-heading"
+        className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 md:p-6"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 id="verification-heading" className="text-h2">
+            {t('screen.student.verification.heading')}
+          </h2>
+          {status && (
+            <span className={cn('inline-flex rounded-full px-3 py-1 text-label', BADGE[status].tone)}>
+              {t(BADGE[status].label)}
+            </span>
+          )}
+        </div>
+        <RegionState query={verification} skeleton={<Skeleton className="h-28 w-full" />}>
+          {data &&
+            (data.status === 'VERIFIED' ? (
+              <>
+                <Verified verification={data} />
+                {data.renewalOpen && data.verifiedUntil && (
+                  <>
+                    <p className="rounded-md border-l-4 border-warning bg-warning-soft p-3 text-body-sm">
+                      {t('screen.student.verification.renewalOpen', { date: formatCalendarDate(data.verifiedUntil) })}
+                    </p>
+                    <SchoolEmailCode verification={data} />
+                  </>
+                )}
+              </>
+            ) : (
+              <SchoolEmailCode verification={data} />
+            ))}
+        </RegionState>
+      </section>
+    </>
+  )
+}
+
+/**
+ * STU-5's alert once the verification expired (FR-5, UX-DR27): what still works, and "Gia hạn",
+ * which takes the keyboard to the school email field.
+ */
+function ExpiredAlert({ verifiedUntil }: { verifiedUntil: string }) {
+  function renew() {
+    // Focusing scrolls the field into view as well.
+    document.getElementById('schoolEmail')?.focus()
+  }
+  return (
+    <div role="status" className="flex flex-wrap items-center gap-3 rounded-md border-l-4 border-warning bg-warning-soft p-4">
+      <TriangleAlert aria-hidden="true" className="size-6 shrink-0 text-warning" />
+      <div className="flex min-w-0 grow flex-col gap-0.5">
+        <p className="text-label font-semibold">
+          {t('screen.student.verification.expiredTitle', { date: formatCalendarDate(verifiedUntil).slice(0, 5) })}
+        </p>
+        <p className="text-body-sm">{t('screen.student.verification.expiredBody')}</p>
       </div>
-      <RegionState query={verification} skeleton={<Skeleton className="h-28 w-full" />}>
-        {verification.data &&
-          (verification.data.status === 'VERIFIED' ? (
-            <Verified verification={verification.data} />
-          ) : (
-            <SchoolEmailCode verification={verification.data} />
-          ))}
-      </RegionState>
-    </section>
+      <Button type="button" size="compact" onClick={renew}>
+        {t('screen.student.verification.renew')}
+      </Button>
+    </div>
   )
 }
 
@@ -146,10 +188,15 @@ function SchoolEmailCode({ verification }: { verification: Verification }) {
     <div className="flex flex-col gap-4">
       {verification.status === 'EXPIRED' && verification.verifiedUntil && (
         <p className="text-body-sm">
-          {t('screen.student.verification.expiredUntil', { date: formatCalendarDate(verification.verifiedUntil) })}
+          {t('screen.student.verification.expiredUntil', {
+            email: verification.schoolEmail ?? '',
+            date: formatCalendarDate(verification.verifiedUntil),
+          })}
         </p>
       )}
-      <p className="text-body-sm text-muted-foreground">{t('screen.student.verification.intro')}</p>
+      {verification.status !== 'VERIFIED' && (
+        <p className="text-body-sm text-muted-foreground">{t('screen.student.verification.intro')}</p>
+      )}
       <form noValidate onSubmit={pending ? confirmCode : sendCode} className="flex flex-col gap-4">
         <div className="grid gap-4 md:grid-cols-2">
           <FormField

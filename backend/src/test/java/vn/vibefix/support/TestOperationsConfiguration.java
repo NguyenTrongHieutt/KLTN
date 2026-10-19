@@ -16,6 +16,16 @@ public class TestOperationsConfiguration {
 	}
 
 	@Bean
+	ScriptedDeadlineHandler pausableDeadlineHandler() {
+		return new ScriptedDeadlineHandler(ScriptedDeadlineHandler.PAUSABLE);
+	}
+
+	@Bean
+	ScriptedDeadlineHandler plainDeadlineHandler() {
+		return new ScriptedDeadlineHandler(ScriptedDeadlineHandler.PLAIN);
+	}
+
+	@Bean
 	TestNotificationCatalog testNotificationCatalog() {
 		return new TestNotificationCatalog();
 	}

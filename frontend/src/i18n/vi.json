@@ -215,14 +215,21 @@
         "attemptsLeft": "Mã chưa đúng. Bạn còn {n} lần thử.",
         "verifiedUntil": "Đã xác minh đến {date}.",
         "verifiedBy": "Xác minh bằng email trường {domain} ngày {date}. Bạn có thể vào nhóm của một người hướng dẫn và được chọn vào nhóm thực hiện.",
-        "expiredUntil": "Xác minh đã hết hạn ngày {date}.",
+        "expiredUntil": "Đã xác minh bằng email trường {email} đến {date}.",
         "done": "Đã xác minh là sinh viên.",
-        "codeSent": "Đã gửi mã đến {email}."
+        "codeSent": "Đã gửi mã đến {email}.",
+        "expiredTitle": "Xác minh đã hết hạn ngày {date}",
+        "expiredBody": "Công việc đang làm vẫn tiếp tục và bạn vẫn ở trong nhóm của mình. Bạn chưa được chọn vào nhóm thực hiện mới cho đến khi gia hạn.",
+        "renew": "Gia hạn",
+        "renewalOpen": "Xác minh hết hạn ngày {date}. Gia hạn để tiếp tục được chọn vào nhóm thực hiện."
       },
       "banner": {
         "title": "Xác minh là sinh viên để vào nhóm của một người hướng dẫn",
         "body": "Dùng email trường hoặc tải thẻ sinh viên lên. Thường xong trong vài phút với email trường.",
-        "action": "Xác minh ngay"
+        "action": "Xác minh ngay",
+        "expiredTitle": "Xác minh đã hết hạn ngày {date}",
+        "expiredBody": "Công việc đang làm vẫn tiếp tục. Gia hạn để được chọn vào nhóm thực hiện mới.",
+        "renew": "Gia hạn"
       }
     },
     "customer": {
@@ -655,6 +662,12 @@
     "identity": {
       "school_email_code": {
         "title": "Mã xác minh vibefix của bạn: {code} (hết hạn sau 10 phút)"
+      },
+      "verification_expiring": {
+        "title": "Xác minh sinh viên hết hạn ngày {date}"
+      },
+      "verification_expired": {
+        "title": "Xác minh sinh viên đã hết hạn"
       }
     }
   },

@@ -12,6 +12,7 @@ import java.time.LocalDate;
 import java.time.MonthDay;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
@@ -44,7 +45,8 @@ import vn.vibefix.settings.Settings;
  * 10 minutes, with 5 attempts; it is kept only as a hash, and a new send replaces the pending one.
  * Sends are limited to 3 per account per rolling hour and 10 per address per UTC day, both counted
  * in PostgreSQL. A correct code verifies the account until the next 30 September, records the audit
- * entry, and closes the {@code identity.verify_student} to-do.
+ * entry, closes the {@code identity.verify_student} to-do, and schedules the reminder and the expiry
+ * ({@link VerificationDeadlines}). From 14 days before the expiry, a verified Student may renew.
  * <p>
  * Every command locks the account row first, so one account's sends and attempts run one at a time;
  * a transaction-scoped advisory lock on the address makes "verifies at most one account" hold across
@@ -83,7 +85,9 @@ class StudentVerifications implements StudentVerification {
 	record PendingCode(String email, Instant sentAt, Instant expiresAt, int attemptsLeft, boolean expired) {
 	}
 
-	record View(Status status, @Nullable Verification verification, @Nullable PendingCode pendingCode) {
+	/** @param renewalOpen a current verification within 14 days of its expiry, which may be renewed */
+	record View(Status status, @Nullable Verification verification, @Nullable PendingCode pendingCode,
+			boolean renewalOpen) {
 	}
 
 	/** How a code entry ended. The attempt counts even when the entry is refused. */
@@ -114,10 +118,13 @@ class StudentVerifications implements StudentVerification {
 
 	private final Clock clock;
 
+	private final VerificationDeadlines deadlines;
+
 	private final SecureRandom random = new SecureRandom();
 
 	StudentVerifications(JdbcClient jdbc, Settings settings, Emails emails, Todos todos, AuditLog auditLog,
-			IdGenerator ids, Clock clock) {
+			IdGenerator ids, Clock clock, VerificationDeadlines deadlines) {
+		this.deadlines = deadlines;
 		this.jdbc = jdbc;
 		this.settings = settings;
 		this.emails = emails;
@@ -138,13 +145,15 @@ class StudentVerifications implements StudentVerification {
 		Optional<Verification> verification = verification(accountId);
 		Status status = verification.map(found -> current(found) ? Status.VERIFIED : Status.EXPIRED)
 			.orElse(Status.UNVERIFIED);
-		PendingCode pending = status == Status.VERIFIED ? null : pending(accountId).map(this::pendingView).orElse(null);
-		return new View(status, verification.orElse(null), pending);
+		boolean renewalOpen = verification.filter(this::renewalOpen).isPresent();
+		PendingCode pending = status == Status.VERIFIED && !renewalOpen ? null
+				: pending(accountId).map(this::pendingView).orElse(null);
+		return new View(status, verification.orElse(null), pending, renewalOpen);
 	}
 
 	/**
 	 * Emails a new code to {@code address}, replacing the pending one.
-	 * @throws ApiException {@code CONFLICT} when the account is verified, or with
+	 * @throws ApiException {@code CONFLICT} when the account is verified and renewal is not open yet, or with
 	 * {@code ALREADY_USED_FOR_VERIFICATION}; {@code GUARD_FAILED} with {@code EMAIL_DOMAIN_NOT_ALLOWED}
 	 * @throws RateLimitedException past either send limit
 	 */
@@ -152,7 +161,7 @@ class StudentVerifications implements StudentVerification {
 	View send(UUID accountId, String address) {
 		String email = normalize(address);
 		lockAccount(accountId);
-		if (isVerified(accountId)) {
+		if (verifiedWithoutRenewal(accountId)) {
 			throw new ApiException(ErrorCode.CONFLICT);
 		}
 		if (!this.settings.allowsSchoolEmail(email)) {
@@ -193,7 +202,7 @@ class StudentVerifications implements StudentVerification {
 	@Transactional
 	Confirmation confirm(UUID accountId, String code) {
 		lockAccount(accountId);
-		if (isVerified(accountId)) {
+		if (verifiedWithoutRenewal(accountId)) {
 			return refused(new ApiException(ErrorCode.CONFLICT));
 		}
 		Optional<CodeRow> pending = pending(accountId);
@@ -227,6 +236,8 @@ class StudentVerifications implements StudentVerification {
 			return refused(new ApiException(ErrorCode.CONFLICT, IdentityReason.ALREADY_USED_FOR_VERIFICATION));
 		}
 		LocalDate validUntil = validUntil(LocalDate.ofInstant(now, VIETNAM));
+		// PostgreSQL keeps microseconds; the Deadlines' generation must read back the same instant.
+		Instant verifiedAt = now.truncatedTo(ChronoUnit.MICROS);
 		this.jdbc.sql("""
 				INSERT INTO identity.student_verification (account_id, method, school_email, verified_at, valid_until)
 				VALUES (:account, 'SCHOOL_EMAIL', :email, :now, :until)
@@ -235,19 +246,28 @@ class StudentVerifications implements StudentVerification {
 				""")
 			.param("account", accountId)
 			.param("email", row.email())
-			.param("now", Timestamp.from(now))
+			.param("now", Timestamp.from(verifiedAt))
 			.param("until", validUntil)
 			.update();
+		this.deadlines.schedule(accountId, verifiedAt, validUntil, now);
 		this.auditLog.record(AuditEntry.of(AuditActor.user(accountId), "identity.student_verified",
 				AuditObject.of("identity.account", accountId), AuditObject.of("identity.school_email_code", row.id())));
 		this.todos.close(SignIns.VERIFY_STUDENT, accountId, accountId);
 		return new Confirmation.Verified(view(accountId));
 	}
 
-	/** The first 30 September after {@code today}: a school year's last day (FR-5). */
+	/**
+	 * A school year's last day (FR-5): this year's 30 September, or next year's from 17 September on,
+	 * when renewal is open, so a verification in the last 14 days counts for the next school year.
+	 */
 	static LocalDate validUntil(LocalDate today) {
 		LocalDate thisYear = RENEWAL.atYear(today.getYear());
-		return today.isBefore(thisYear) ? thisYear : RENEWAL.atYear(today.getYear() + 1);
+		return today.isBefore(renewalOpens(thisYear)) ? thisYear : RENEWAL.atYear(today.getYear() + 1);
+	}
+
+	/** The first day a verification valid through {@code validUntil} may be renewed: 14 days before it expires. */
+	static LocalDate renewalOpens(LocalDate validUntil) {
+		return validUntil.plusDays(1).minusDays(VerificationDeadlines.LEAD.toDays());
 	}
 
 	/** An address as stored and compared: without surrounding spaces, in lower case. */
@@ -257,6 +277,15 @@ class StudentVerifications implements StudentVerification {
 
 	private boolean current(Verification verification) {
 		return !LocalDate.ofInstant(this.clock.instant(), VIETNAM).isAfter(verification.validUntil());
+	}
+
+	private boolean renewalOpen(Verification verification) {
+		return current(verification)
+				&& !LocalDate.ofInstant(this.clock.instant(), VIETNAM).isBefore(renewalOpens(verification.validUntil()));
+	}
+
+	private boolean verifiedWithoutRenewal(UUID accountId) {
+		return verification(accountId).filter(found -> current(found) && !renewalOpen(found)).isPresent();
 	}
 
 	private Optional<Verification> verification(UUID accountId) {

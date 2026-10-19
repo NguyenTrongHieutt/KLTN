@@ -112,6 +112,10 @@ vibefix:
     purge-after: 30d
     processed-retention: 90d
     maintenance-interval: 1m
+  timers:
+    # AD-7: due Deadlines are claimed every 30 s, at most this many per poll.
+    poll-interval: 30s
+    batch-size: 100
   # AD-6: the seed operation policy. The pollers claim due operations every poll-interval; each lane
   # runs at most concurrency attempts at once, each leased for its timeout.
   operations:

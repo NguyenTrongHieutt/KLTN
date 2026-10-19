@@ -420,6 +420,7 @@ export interface components {
         };
         VerificationView: {
             pendingCode?: components["schemas"]["PendingCodeView"];
+            renewalOpen: boolean;
             schoolEmail?: string;
             /** @enum {string} */
             status: "UNVERIFIED" | "VERIFIED" | "EXPIRED";

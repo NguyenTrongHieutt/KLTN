@@ -43,6 +43,9 @@ public abstract class IntegrationTest {
 	@Autowired
 	protected ScriptedOperationHandler scriptedOperations;
 
+	@Autowired
+	private java.util.List<ScriptedDeadlineHandler> scriptedDeadlines;
+
 	@DynamicPropertySource
 	static void databaseProperties(DynamicPropertyRegistry registry) {
 		database.registerProperties(registry);
@@ -55,6 +58,7 @@ public abstract class IntegrationTest {
 		this.clock.reset();
 		this.mail.reset();
 		this.scriptedOperations.reset();
+		this.scriptedDeadlines.forEach(ScriptedDeadlineHandler::reset);
 	}
 
 }
