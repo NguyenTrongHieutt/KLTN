@@ -41,4 +41,15 @@ public interface GitHubRepositories {
 	 */
 	List<String> languages(String bearer, String owner, String name);
 
+	/**
+	 * The GitHub numeric IDs of the repository's contributors (FR-13, metadata only), at most
+	 * {@value #MAX_CONTRIBUTOR_PAGES} pages of 100; anonymous commits have no ID and are left out.
+	 * An empty repository has none.
+	 * @throws GitHubException when GitHub refuses or cannot be reached
+	 */
+	List<Long> contributorIds(String bearer, String owner, String name);
+
+	/** How many pages of contributors {@link #contributorIds} reads. */
+	int MAX_CONTRIBUTOR_PAGES = 5;
+
 }

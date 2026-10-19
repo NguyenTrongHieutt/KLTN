@@ -486,6 +486,32 @@ GET /api/v1/mentor/job-posts/{postId}/customer-rating,OWNER,,,404 NOT_FOUND,requ
 GET /api/v1/mentor/job-posts/{postId}/customer-rating,CUSTOMER,,,404 NOT_FOUND,requireApprovedMentor
 GET /api/v1/mentor/job-posts/{postId}/customer-rating,STUDENT,,,404 NOT_FOUND,requireApprovedMentor
 GET /api/v1/mentor/job-posts/{postId}/customer-rating,ADMINISTRATOR,,,404 NOT_FOUND,requireApprovedMentor
+POST /api/v1/mentor/job-posts/{postId}/applications,ANONYMOUS,,application.json,401,requireApprovedMentor
+POST /api/v1/mentor/job-posts/{postId}/applications,MENTOR,,application.json,422 GUARD_FAILED,requireApprovedMentor
+POST /api/v1/mentor/job-posts/{postId}/applications,MENTOR,mentor=PENDING,application.json,403 FORBIDDEN MENTOR_NOT_APPROVED,requireApprovedMentor
+POST /api/v1/mentor/job-posts/{postId}/applications,OWNER,,application.json,404 NOT_FOUND,requireApprovedMentor
+POST /api/v1/mentor/job-posts/{postId}/applications,CUSTOMER,,application.json,404 NOT_FOUND,requireApprovedMentor
+POST /api/v1/mentor/job-posts/{postId}/applications,STUDENT,,application.json,404 NOT_FOUND,requireApprovedMentor
+POST /api/v1/mentor/job-posts/{postId}/applications,ADMINISTRATOR,,application.json,404 NOT_FOUND,requireApprovedMentor
+GET /api/v1/mentor/applications,ANONYMOUS,,,401,requireActiveAccount
+GET /api/v1/mentor/applications,MENTOR,,,200,requireActiveAccount
+GET /api/v1/mentor/applications,MENTOR,mentor=PENDING,,200,requireActiveAccount
+GET /api/v1/mentor/applications,OWNER,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/applications,CUSTOMER,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/applications,STUDENT,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/applications,ADMINISTRATOR,,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/applications/{applicationId}/withdraw,ANONYMOUS,,,401,requireActiveAccount
+POST /api/v1/mentor/applications/{applicationId}/withdraw,MENTOR,,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/applications/{applicationId}/withdraw,OWNER,,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/applications/{applicationId}/withdraw,CUSTOMER,,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/applications/{applicationId}/withdraw,STUDENT,,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/applications/{applicationId}/withdraw,ADMINISTRATOR,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/jobs/{jobId}/applications,ANONYMOUS,,,401
+GET /api/v1/jobs/{jobId}/applications,OWNER,,,200
+GET /api/v1/jobs/{jobId}/applications,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/applications,MENTOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/applications,STUDENT,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/applications,ADMINISTRATOR,,,404 NOT_FOUND
 GET /api/v1/products/{productId}/skill-suggestions,ANONYMOUS,,,401
 GET /api/v1/products/{productId}/skill-suggestions,OWNER,,,200
 GET /api/v1/products/{productId}/skill-suggestions,CUSTOMER,,,404 NOT_FOUND

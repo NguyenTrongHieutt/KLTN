@@ -67,6 +67,32 @@ class GitHubRepositoriesClient implements GitHubRepositories {
 		return counted.stream().map(Map.Entry::getKey).toList();
 	}
 
+	@Override
+	public List<Long> contributorIds(String bearer, String owner, String name) {
+		List<Long> ids = new ArrayList<>();
+		for (int page = 1; page <= MAX_CONTRIBUTOR_PAGES; page++) {
+			GitHubHttp.Answer answer = this.http.send("GET",
+					"/repos/" + owner + "/" + name + "/contributors?per_page=100&page=" + page, bearer, null);
+			if (answer.status() == 204 || answer.status() == 404) {
+				break;
+			}
+			if (answer.status() != 200) {
+				throw new GitHubException(answer.status(), "GitHub refused the contributors read: HTTP " + answer.status());
+			}
+			int count = 0;
+			for (JsonNode contributor : answer.body()) {
+				count++;
+				if (contributor.path("id").isNumber()) {
+					ids.add(contributor.path("id").asLong());
+				}
+			}
+			if (count < 100) {
+				break;
+			}
+		}
+		return ids;
+	}
+
 	private boolean exists(String path, String bearer) {
 		GitHubHttp.Answer answer = this.http.send("GET", path, bearer, null);
 		if (answer.status() == 200) {

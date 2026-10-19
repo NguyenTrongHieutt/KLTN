@@ -15,6 +15,7 @@ import { t, type MessageKey } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
 import { formatCalendarDayMonth, formatDayMonth } from '@/lib/dates'
 import { cn } from '@/lib/utils'
+import { isLive, useMyApplications } from '@/features/matching/applicationApi'
 import { CapacityBanners } from './CapacityBanners'
 import { BUDGETS, JOB_TYPES, type Budget, type JobType } from './jobApi'
 import {
@@ -204,6 +205,8 @@ function Results({
   clearAll: () => void
   go: (page: number) => void
 }) {
+  const mine = useMyApplications()
+  const applied = new Set((mine.data ?? []).filter(isLive).map((application) => application.jobId))
   if (data.total === 0) {
     if (filter.q) {
       return (
@@ -252,7 +255,7 @@ function Results({
       )}
       <ul className="flex flex-col divide-y divide-border rounded-lg border border-border bg-card">
         {data.items.map((post) => (
-          <PostItem key={post.id} post={post} />
+          <PostItem key={post.id} post={post} applied={applied.has(post.id)} />
         ))}
       </ul>
       <Pager page={data.page} pages={Math.ceil(data.total / data.size)} go={go} />
@@ -340,7 +343,7 @@ function Filters({ filter, update }: { filter: JobPostFilter; update: (next: Par
   )
 }
 
-function PostItem({ post }: { post: JobPostSummary }) {
+function PostItem({ post, applied }: { post: JobPostSummary; applied: boolean }) {
   const types = post.jobTypes.map((type) => t(`term.jobType${type}.label` as MessageKey)).join(', ')
   return (
     <li>
@@ -370,10 +373,16 @@ function PostItem({ post }: { post: JobPostSummary }) {
             </span>
           )}
         </span>
-        {post.deadline && (
-          <span className="rounded-full bg-muted px-2 py-0.5 text-caption">
-            {t('screen.jobPost.due', { date: formatCalendarDayMonth(post.deadline) })}
+        {applied ? (
+          <span className="rounded-full bg-success-soft px-2 py-0.5 text-caption font-semibold text-success">
+            {t('screen.matching.appliedBadge')}
           </span>
+        ) : (
+          post.deadline && (
+            <span className="rounded-full bg-muted px-2 py-0.5 text-caption">
+              {t('screen.jobPost.due', { date: formatCalendarDayMonth(post.deadline) })}
+            </span>
+          )
         )}
       </Link>
     </li>

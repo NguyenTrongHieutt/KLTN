@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import vn.vibefix.job.JobPosts;
+import vn.vibefix.job.JobPosts.JobPostState;
 import vn.vibefix.job.internal.Jobs.Job;
 import vn.vibefix.shared.KeywordQuery;
 
@@ -100,6 +101,26 @@ class JobPostQueries implements JobPosts {
 		return this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id AND " + VISIBLE)
 			.param("id", jobId)
 			.query(Jobs::job)
+			.optional();
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public Optional<JobPostState> post(UUID jobId) {
+		return this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id")
+			.param("id", jobId)
+			.query(Jobs::job)
+			.optional()
+			.map(job -> new JobPostState(job.id(), job.customerId(), job.productId(), job.title(),
+					job.state() == JobState.OPEN, job.hiddenAt() != null, job.lapsesAt()));
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public Optional<UUID> customerOf(UUID jobId) {
+		return this.jdbc.sql("SELECT customer_account_id FROM job.job WHERE id = :id")
+			.param("id", jobId)
+			.query(UUID.class)
 			.optional();
 	}
 

@@ -6,6 +6,7 @@ import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { useSession } from '@/features/identity/useSession'
+import { MentorJobsPage } from '@/features/matching/MentorJobsPage'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t, type MessageKey } from '@/i18n/t'
 import { formatDayMonth } from '@/lib/dates'
@@ -32,12 +33,15 @@ const GROUP_OF: Record<JobState, Group> = {
 /**
  * CUS-7 (`/cong-viec`, FR-9, UX-DR66): the Customer's Jobs grouped as Cần bạn quyết định · Đang thực
  * hiện · Đang tìm người hướng dẫn · Bản nháp · Đã kết thúc; with none, the way to post one from a
- * Product.
+ * Product. An approved Mentor's `/cong-viec` is MEN-4.
  */
 export function JobsPage() {
   usePageTitle(t('screen.job.title'))
-  const role = useSession().data?.account?.role
-  if (role !== undefined && role !== 'CUSTOMER') {
+  const account = useSession().data?.account
+  if (account?.role === 'MENTOR' && account.mentorApprovalStatus === 'APPROVED') {
+    return <MentorJobsPage />
+  }
+  if (account !== undefined && account.role !== 'CUSTOMER') {
     return <NotFoundScreen />
   }
   return <JobList />

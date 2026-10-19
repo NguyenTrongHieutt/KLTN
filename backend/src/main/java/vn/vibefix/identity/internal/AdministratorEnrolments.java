@@ -123,6 +123,14 @@ class AdministratorEnrolments implements Administrators {
 				""").query(Long.class).single();
 	}
 
+	@Override
+	public List<UUID> activeIds() {
+		return this.jdbc.sql("""
+				SELECT a.id FROM identity.account a JOIN identity.administrator_credential c ON c.account_id = a.id
+				WHERE a.role = 'ADMINISTRATOR' AND a.locked_at IS NULL AND a.erased_at IS NULL ORDER BY a.id
+				""").query(UUID.class).list();
+	}
+
 	/** ADM-11's list, oldest first. */
 	@Transactional(readOnly = true)
 	List<AdministratorRow> list() {

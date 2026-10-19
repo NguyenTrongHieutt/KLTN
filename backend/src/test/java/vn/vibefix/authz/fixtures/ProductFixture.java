@@ -24,8 +24,9 @@ import vn.vibefix.support.MutableClock;
  * ({@code {productId}}), whose Customer the matrix calls {@link MatrixCaller#OWNER}, with one open
  * credential Finding of its intake scan ({@code {findingId}}) that the owner resolves, and one Draft
  * Job ({@code {jobId}}) holding a screenshot ({@code {screenshotId}}), and one Open Job Post
- * ({@code {postId}}). Only the owner and Administrators read the Product; only the owner reads the
- * Draft, and approved Mentors read the Job Post.
+ * ({@code {postId}}) with another Mentor's Application ({@code {applicationId}}). Only the owner and
+ * Administrators read the Product; only the owner reads the Draft and the Applications, and approved
+ * Mentors read the Job Post.
  */
 public class ProductFixture implements MatrixFixture {
 
@@ -104,6 +105,21 @@ public class ProductFixture implements MatrixFixture {
 			.param("lapses", Timestamp.from(MutableClock.DEFAULT_INSTANT.plus(java.time.Duration.ofDays(14))))
 			.update();
 		world.put("postId", post);
+		UUID applicant = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null, null);
+		UUID application = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO matching.application (id, job_id, product_id, customer_account_id, mentor_account_id, status,
+				    price_vnd, timeline_days, approach, public_code_notice_version, submitted_at)
+				VALUES (:id, :job, :product, :owner, :mentor, 'SUBMITTED', 800000, 7, 'Cách làm', '1.0', :now)
+				""")
+			.param("id", application)
+			.param("job", post)
+			.param("product", product)
+			.param("owner", this.owner)
+			.param("mentor", applicant)
+			.param("now", now)
+			.update();
+		world.put("applicationId", application);
 	}
 
 	@Override

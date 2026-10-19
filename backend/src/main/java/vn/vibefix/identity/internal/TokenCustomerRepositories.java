@@ -42,6 +42,16 @@ class TokenCustomerRepositories implements CustomerRepositories {
 		return this.repositories.languages(token(customerId), owner, name);
 	}
 
+	@Override
+	public boolean hasContributor(UUID customerId, String owner, String name, UUID accountId) {
+		customer(customerId);
+		Long githubId = this.accounts.findById(accountId).map(Account::githubUserId).orElse(null);
+		if (githubId == null) {
+			return false;
+		}
+		return this.repositories.contributorIds(token(customerId), owner, name).contains(githubId);
+	}
+
 	private Account customer(UUID customerId) {
 		return this.accounts.findById(customerId)
 			.filter(found -> found.role() == Role.CUSTOMER && found.githubUserId() != null && !found.isLocked()

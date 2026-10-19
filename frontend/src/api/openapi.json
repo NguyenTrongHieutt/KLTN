@@ -670,6 +670,36 @@
         "tags" : [ "job-controller" ]
       }
     },
+    "/api/v1/jobs/{jobId}/applications" : {
+      "get" : {
+        "operationId" : "ofJob",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/JobApplicationView"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "application-controller" ]
+      }
+    },
     "/api/v1/jobs/{jobId}/publish" : {
       "post" : {
         "operationId" : "publish",
@@ -770,7 +800,7 @@
     },
     "/api/v1/jobs/{jobId}/withdraw" : {
       "post" : {
-        "operationId" : "withdraw",
+        "operationId" : "withdraw_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "jobId",
@@ -793,6 +823,54 @@
           }
         },
         "tags" : [ "job-controller" ]
+      }
+    },
+    "/api/v1/mentor/applications" : {
+      "get" : {
+        "operationId" : "mine",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/ApplicationView"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "application-controller" ]
+      }
+    },
+    "/api/v1/mentor/applications/{applicationId}/withdraw" : {
+      "post" : {
+        "operationId" : "withdraw",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "applicationId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApplicationView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "application-controller" ]
       }
     },
     "/api/v1/mentor/capacity" : {
@@ -925,6 +1003,43 @@
           }
         },
         "tags" : [ "job-post-controller" ]
+      }
+    },
+    "/api/v1/mentor/job-posts/{postId}/applications" : {
+      "post" : {
+        "operationId" : "apply",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "postId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ApplyRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApplicationView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "application-controller" ]
       }
     },
     "/api/v1/mentor/job-posts/{postId}/customer-rating" : {
@@ -2393,6 +2508,96 @@
         },
         "required" : [ "absoluteExpiresAt", "displayName", "email", "idleExpiresAt" ]
       },
+      "ApplicantView" : {
+        "type" : "object",
+        "properties" : {
+          "displayName" : {
+            "type" : "string"
+          },
+          "githubLogin" : {
+            "type" : "string"
+          },
+          "teamSize" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "yearsOfExperience" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "displayName", "teamSize", "yearsOfExperience" ]
+      },
+      "ApplicationView" : {
+        "type" : "object",
+        "properties" : {
+          "approach" : {
+            "type" : "string"
+          },
+          "endReason" : {
+            "type" : "string",
+            "enum" : [ "WITHDRAWN", "MENTOR_UNAVAILABLE", "JOB_WITHDRAWN", "JOB_LAPSED" ]
+          },
+          "endedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "jobTitle" : {
+            "type" : "string"
+          },
+          "priceVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "SUBMITTED", "ON_HOLD", "SELECTED", "CLOSED", "WITHDRAWN" ]
+          },
+          "submittedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "timelineDays" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "approach", "id", "jobId", "jobTitle", "priceVnd", "status", "submittedAt", "timelineDays" ]
+      },
+      "ApplyRequest" : {
+        "type" : "object",
+        "properties" : {
+          "approach" : {
+            "type" : "string",
+            "maxLength" : 2000,
+            "minLength" : 0
+          },
+          "priceVnd" : {
+            "type" : "integer",
+            "format" : "int64",
+            "maximum" : 1000000000,
+            "minimum" : 1000
+          },
+          "publicCodeAcknowledged" : {
+            "type" : "boolean"
+          },
+          "timelineDays" : {
+            "type" : "integer",
+            "format" : "int32",
+            "maximum" : 365,
+            "minimum" : 1
+          }
+        },
+        "required" : [ "approach", "priceVnd", "publicCodeAcknowledged", "timelineDays" ]
+      },
       "ApproveMentorRequest" : {
         "type" : "object",
         "properties" : {
@@ -2759,6 +2964,38 @@
           }
         },
         "required" : [ "category", "commit", "committedAt", "createdAt", "id", "maskedPreview", "path", "ruleId", "status", "type" ]
+      },
+      "JobApplicationView" : {
+        "type" : "object",
+        "properties" : {
+          "approach" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "mentor" : {
+            "$ref" : "#/components/schemas/ApplicantView"
+          },
+          "priceVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "SUBMITTED", "ON_HOLD", "SELECTED", "CLOSED", "WITHDRAWN" ]
+          },
+          "submittedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "timelineDays" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "approach", "id", "mentor", "priceVnd", "status", "submittedAt", "timelineDays" ]
       },
       "JobCreatedView" : {
         "type" : "object",
