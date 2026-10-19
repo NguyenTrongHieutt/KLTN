@@ -7,7 +7,9 @@
  * Customer. Each Finding has resolvers (the Customer for an Intake Finding), a resolve to-do, and an
  * audited resolution. No AI is involved and no repository content leaves the platform.
  * <p>
- * Public API: {@link vn.vibefix.scanning.Scans} and its records. The operation, the sandbox job, and
+ * The same rules check chat text before it is sent ({@link vn.vibefix.scanning.SensitiveText}, FR-47).
+ * <p>
+ * Public API: {@link vn.vibefix.scanning.Scans} and its records, and {@link vn.vibefix.scanning.SensitiveText}. The operation, the sandbox job, and
  * the stores are wiring in {@code scanning.internal}.
  */
 @ApplicationModule(allowedDependencies = { "shared", "audit", "operations", "notification" })

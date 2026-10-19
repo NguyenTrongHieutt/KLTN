@@ -14,6 +14,7 @@ import { t, type MessageKey } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
 import { formatDayMonth } from '@/lib/dates'
 import { isNotFound, problemMessage } from '@/lib/problemMessage'
+import { MentorJobTabs } from './MentorJobTabs'
 import { useDeclineSelection, useMentorJob, useSignNda, type MentorJob } from './mentorJobApi'
 
 /** The NDA text's version, which the signature records; the legal wording waits for OQ5. */
@@ -60,11 +61,7 @@ function Overview({ job }: { job: MentorJob }) {
         <p className="text-caption text-muted-foreground break-words">
           {t('screen.nda.meta', { product: job.productName, types, date: formatDayMonth(job.selectedAt) })}
         </p>
-        <nav aria-label={t('screen.job.detail.tabs')} className="flex gap-4 border-b border-border">
-          <span aria-current="page" className="-mb-px border-b-2 border-primary px-1 pb-2 text-label font-semibold text-primary">
-            {t('screen.job.detail.overview')}
-          </span>
-        </nav>
+        <MentorJobTabs jobId={job.id} state={job.state} current="overview" />
       </div>
       {job.state === 'SELECTING' ? (
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">

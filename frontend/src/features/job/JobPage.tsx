@@ -14,6 +14,7 @@ import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t, type MessageKey } from '@/i18n/t'
 import { formatCalendarDate, formatDayMonth } from '@/lib/dates'
 import { isNotFound, problemMessage } from '@/lib/problemMessage'
+import { hasChat, useJobChat } from '@/features/chat/chatApi'
 import { useJobApplications } from '@/features/matching/applicationApi'
 import { MentorJobPage } from '@/features/matching/MentorJobPage'
 import { useCancelSelection } from '@/features/matching/mentorJobApi'
@@ -61,6 +62,7 @@ function CustomerJobPage({ jobId }: { jobId: string | undefined }) {
 
 function Overview({ job }: { job: Job }) {
   const applications = useJobApplications(job.state === 'OPEN' || job.state === 'SELECTING' ? job.id : undefined).data ?? []
+  const chat = useJobChat(hasChat(job.state) ? job.id : undefined)
   const types = job.jobTypes.map((type) => t(`term.jobType${type}.label` as MessageKey)).join(', ')
   const open = job.state === 'OPEN' && job.lapsesAt != null
   return (
@@ -84,7 +86,12 @@ function Overview({ job }: { job: Job }) {
           </div>
           {job.state === 'OPEN' && <Withdraw job={job} />}
         </div>
-        <JobTabs jobId={job.id} current="overview" applications={job.state === 'OPEN' ? applications.length : undefined} />
+        <JobTabs
+          jobId={job.id}
+          current="overview"
+          applications={job.state === 'OPEN' ? applications.length : undefined}
+          chat={hasChat(job.state) ? { unread: chat.data?.unread ?? false } : undefined}
+        />
       </div>
       {job.state === 'SELECTING' && job.mentor && job.ndaDueAt ? (
         <section aria-labelledby="job-selecting" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5">

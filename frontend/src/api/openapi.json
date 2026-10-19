@@ -745,6 +745,184 @@
         "tags" : [ "application-controller" ]
       }
     },
+    "/api/v1/jobs/{jobId}/chat" : {
+      "get" : {
+        "operationId" : "chat",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChatView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "job-chat-controller" ]
+      }
+    },
+    "/api/v1/jobs/{jobId}/chat/attachments" : {
+      "post" : {
+        "operationId" : "attach",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "query",
+          "name" : "body",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "default" : "",
+            "maxLength" : 4000,
+            "minLength" : 0
+          }
+        }, {
+          "in" : "query",
+          "name" : "sensitive",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "enum" : [ "CHECK", "MASK", "SEND" ]
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "multipart/form-data" : {
+              "schema" : {
+                "type" : "object",
+                "properties" : {
+                  "file" : {
+                    "type" : "string",
+                    "format" : "binary"
+                  }
+                },
+                "required" : [ "file" ]
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MessageView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "job-chat-controller" ]
+      }
+    },
+    "/api/v1/jobs/{jobId}/chat/messages" : {
+      "get" : {
+        "operationId" : "messages",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "query",
+          "name" : "before",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MessagePageView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "job-chat-controller" ]
+      },
+      "post" : {
+        "operationId" : "send",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SendRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MessageView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "job-chat-controller" ]
+      }
+    },
+    "/api/v1/jobs/{jobId}/chat/read" : {
+      "post" : {
+        "operationId" : "read_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "job-chat-controller" ]
+      }
+    },
     "/api/v1/jobs/{jobId}/invitations" : {
       "get" : {
         "operationId" : "invitations",
@@ -3101,6 +3279,26 @@
         },
         "required" : [ "school", "studentNumber" ]
       },
+      "AttachmentView" : {
+        "type" : "object",
+        "properties" : {
+          "fileId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "mediaType" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "fileId", "mediaType", "name", "size" ]
+      },
       "CapacityView" : {
         "type" : "object",
         "properties" : {
@@ -3176,6 +3374,19 @@
           }
         },
         "required" : [ "categories" ]
+      },
+      "ChatView" : {
+        "type" : "object",
+        "properties" : {
+          "chatId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "unread" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "chatId", "unread" ]
       },
       "CleanRepositoryRequest" : {
         "type" : "object",
@@ -4397,6 +4608,55 @@
         },
         "required" : [ "invitations", "invitesLeft", "joinRequests", "members", "size", "sizeLimit", "status" ]
       },
+      "MessagePageView" : {
+        "type" : "object",
+        "properties" : {
+          "hasOlder" : {
+            "type" : "boolean"
+          },
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/MessageView"
+            }
+          }
+        },
+        "required" : [ "hasOlder", "items" ]
+      },
+      "MessageView" : {
+        "type" : "object",
+        "properties" : {
+          "attachment" : {
+            "$ref" : "#/components/schemas/AttachmentView"
+          },
+          "author" : {
+            "type" : "string"
+          },
+          "body" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "maskedCredentials" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "maskedPersonal" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "mine" : {
+            "type" : "boolean"
+          },
+          "sentAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "author", "body", "id", "maskedCredentials", "maskedPersonal", "mine", "sentAt" ]
+      },
       "NdaRequest" : {
         "type" : "object",
         "properties" : {
@@ -5202,6 +5462,21 @@
           }
         },
         "required" : [ "version" ]
+      },
+      "SendRequest" : {
+        "type" : "object",
+        "properties" : {
+          "body" : {
+            "type" : "string",
+            "maxLength" : 4000,
+            "minLength" : 0
+          },
+          "sensitive" : {
+            "type" : "string",
+            "enum" : [ "CHECK", "MASK", "SEND" ]
+          }
+        },
+        "required" : [ "body" ]
       },
       "SentInvitationView" : {
         "type" : "object",

@@ -324,6 +324,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/jobs/{jobId}/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["chat"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/jobs/{jobId}/chat/attachments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["attach"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/jobs/{jobId}/chat/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["messages"];
+        put?: never;
+        post: operations["send"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/jobs/{jobId}/chat/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["read_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jobs/{jobId}/invitations": {
         parameters: {
             query?: never;
@@ -1481,6 +1545,14 @@ export interface components {
             school: string;
             studentNumber: string;
         };
+        AttachmentView: {
+            /** Format: uuid */
+            fileId: string;
+            mediaType: string;
+            name: string;
+            /** Format: int64 */
+            size: number;
+        };
         CapacityView: {
             /** Format: int32 */
             activeJobs: number;
@@ -1506,6 +1578,11 @@ export interface components {
         };
         CatalogView: {
             categories: components["schemas"]["CatalogCategory"][];
+        };
+        ChatView: {
+            /** Format: uuid */
+            chatId: string;
+            unread: boolean;
         };
         CleanRepositoryRequest: {
             url: string;
@@ -1942,6 +2019,24 @@ export interface components {
             /** @enum {string} */
             status: "OPEN" | "CLOSED";
         };
+        MessagePageView: {
+            hasOlder: boolean;
+            items: components["schemas"]["MessageView"][];
+        };
+        MessageView: {
+            attachment?: components["schemas"]["AttachmentView"];
+            author: string;
+            body: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: int32 */
+            maskedCredentials: number;
+            /** Format: int32 */
+            maskedPersonal: number;
+            mine: boolean;
+            /** Format: date-time */
+            sentAt: string;
+        };
         NdaRequest: {
             commitEmailNoticeAcknowledged: boolean;
             ndaVersion: string;
@@ -2232,6 +2327,11 @@ export interface components {
         SelectedView: {
             /** Format: int64 */
             version: number;
+        };
+        SendRequest: {
+            body: string;
+            /** @enum {string} */
+            sensitive?: "CHECK" | "MASK" | "SEND";
         };
         SentInvitationView: {
             displayName: string;
@@ -3104,6 +3204,130 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["SelectedView"];
                 };
+            };
+        };
+    };
+    chat: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatView"];
+                };
+            };
+        };
+    };
+    attach: {
+        parameters: {
+            query?: {
+                body?: string;
+                sensitive?: "CHECK" | "MASK" | "SEND";
+            };
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageView"];
+                };
+            };
+        };
+    };
+    messages: {
+        parameters: {
+            query?: {
+                before?: string;
+            };
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessagePageView"];
+                };
+            };
+        };
+    };
+    send: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageView"];
+                };
+            };
+        };
+    };
+    read_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

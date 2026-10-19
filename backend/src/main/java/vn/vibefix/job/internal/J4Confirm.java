@@ -1,20 +1,30 @@
 package vn.vibefix.job.internal;
 
 import java.time.Instant;
+import java.util.Objects;
 
 import org.springframework.stereotype.Component;
 
+import vn.vibefix.identity.ContactVisibility;
 import vn.vibefix.job.internal.JobLifecycle.Applying;
+import vn.vibefix.job.internal.Jobs.Job;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 
 /**
  * J4 (FR-15): the selected Mentor signed the NDA, which {@code matching} recorded and vouches for, and
  * the Job enters Agreement. The facts carry the signature's version and time; {@code matching} closes
- * the held Applications, and Job Chat, drafting, and the Crew arrive with Epic 4.
+ * the held Applications and {@code chat} opens the Job Chat. In the same transaction the Mentor, and
+ * never a Crew member, may read the Customer's contact details for this Job (FR-3, AD-3).
  */
 @Component
 class J4Confirm implements JobLifecycle.Step {
+
+	private final ContactVisibility contacts;
+
+	J4Confirm(ContactVisibility contacts) {
+		this.contacts = contacts;
+	}
 
 	@Override
 	public Transition transition() {
@@ -34,6 +44,12 @@ class J4Confirm implements JobLifecycle.Step {
 		applying.fact("mentorId", String.valueOf(applying.job().mentorId()));
 		applying.fact("ndaVersion", (String) applying.input("ndaVersion"));
 		applying.fact("signedAt", ((Instant) applying.input("signedAt")).toString());
+	}
+
+	@Override
+	public void afterWrite(Applying applying) {
+		Job job = applying.job();
+		this.contacts.grant(job.customerId(), Objects.requireNonNull(job.mentorId()), job.id());
 	}
 
 }
