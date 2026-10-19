@@ -45,12 +45,15 @@ describe('route guards (AD-19, FR-74)', () => {
   })
 
   it('keeps a Mentor that is not approved on MEN-5, with no other destination', async () => {
-    fakeBackend(signedIn('MENTOR', 'PENDING'))
+    fakeBackend(signedIn('MENTOR', 'PENDING'), {
+      'GET /api/v1/profile': () =>
+        json({ role: 'MENTOR', githubLogin: 'hung-dev', mentor: { approvalStatus: 'PENDING', skills: [] } }),
+    })
     const router = renderAt('/viec-can-lam')
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Hồ sơ người hướng dẫn' })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/ho-so')
-    expect(screen.getByText('Đang chờ duyệt')).toBeInTheDocument()
+    expect(await screen.findByText('Chưa gửi')).toBeInTheDocument()
     const nav = screen.getByRole('navigation', { name: 'Điều hướng chính' })
     expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Hồ sơ người hướng dẫn'])
   })

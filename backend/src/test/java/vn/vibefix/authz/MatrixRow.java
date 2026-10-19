@@ -17,7 +17,7 @@ import org.springframework.http.HttpMethod;
  * One row of {@code src/test/resources/authz/matrix.csv} (AD-20): an endpoint, a caller, the
  * caller's state, an optional request body, and the expected answer.
  * <p>
- * The file has the header {@code endpoint,caller,subject_state,body,expect}; lines starting with
+ * The file has the header {@code endpoint,caller,subject_state,body,expect,check}; lines starting with
  * {@code #} and blank lines are ignored. Fields hold no commas.
  * <ul>
  * <li>{@code endpoint}: {@code METHOD /path}, where {@code {name}} is a path variable a fixture
@@ -30,14 +30,25 @@ import org.springframework.http.HttpMethod;
  * {@code {name}} placeholders; any other file there (for example {@code student-card.png}) is sent
  * as the multipart part {@code file}, byte for byte.</li>
  * <li>{@code expect}: an {@link Expectation}.</li>
+ * <li>{@code check} (optional): the Mentor gate the endpoint applies (AD-19), {@value #APPROVED_MENTOR} for
+ * new-work commands or {@value #ACTIVE_ACCOUNT} for Job commands. Every row of an endpoint under
+ * {@value #MENTOR_PATH} names one, and no other row does, so a Mentor endpoint cannot be added
+ * without deciding which.</li>
  * </ul>
  */
 public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map<String, String> state,
-		@Nullable String body, Expectation expect) {
+		@Nullable String body, Expectation expect, @Nullable String check) {
 
 	public static final String RESOURCE = "authz/matrix.csv";
 
-	static final List<String> HEADER = List.of("endpoint", "caller", "subject_state", "body", "expect");
+	static final List<String> HEADER = List.of("endpoint", "caller", "subject_state", "body", "expect", "check");
+
+	static final String APPROVED_MENTOR = "requireApprovedMentor";
+
+	static final String ACTIVE_ACCOUNT = "requireActiveAccount";
+
+	/** Where the Mentor's own endpoints live, each behind one of the two checks. */
+	static final String MENTOR_PATH = "/api/v1/mentor/";
 
 	private static final Set<HttpMethod> METHODS = Set.of(HttpMethod.GET, HttpMethod.POST, HttpMethod.PUT,
 			HttpMethod.PATCH, HttpMethod.DELETE);
@@ -46,6 +57,16 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 		state = Map.copyOf(state);
 		if (!path.startsWith("/")) {
 			throw new IllegalArgumentException("A path starts with '/': " + path);
+		}
+		if (check != null && !check.equals(APPROVED_MENTOR) && !check.equals(ACTIVE_ACCOUNT)) {
+			throw new IllegalArgumentException("check is " + APPROVED_MENTOR + " or " + ACTIVE_ACCOUNT + ", not " + check);
+		}
+		if (path.startsWith(MENTOR_PATH) && check == null) {
+			throw new IllegalArgumentException("a Mentor endpoint names its check, " + APPROVED_MENTOR + " or "
+					+ ACTIVE_ACCOUNT + " (AD-19): " + path);
+		}
+		if (!path.startsWith(MENTOR_PATH) && check != null) {
+			throw new IllegalArgumentException("only a Mentor endpoint under " + MENTOR_PATH + " names a check: " + path);
 		}
 	}
 
@@ -105,8 +126,9 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 	}
 
 	private static MatrixRow row(List<String> fields) {
-		if (fields.size() != HEADER.size()) {
-			throw new IllegalArgumentException("expected " + HEADER.size() + " fields, found " + fields.size());
+		if (fields.size() != HEADER.size() && fields.size() != HEADER.size() - 1) {
+			throw new IllegalArgumentException("expected " + (HEADER.size() - 1) + " or " + HEADER.size()
+					+ " fields, found " + fields.size());
 		}
 		String[] endpoint = fields.get(0).split("\\s+", 2);
 		if (endpoint.length != 2) {
@@ -117,7 +139,8 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 			throw new IllegalArgumentException("unsupported method " + method);
 		}
 		return new MatrixRow(method, endpoint[1], MatrixCaller.valueOf(fields.get(1)), state(fields.get(2)),
-				fields.get(3).isEmpty() ? null : fields.get(3), Expectation.parse(fields.get(4)));
+				fields.get(3).isEmpty() ? null : fields.get(3), Expectation.parse(fields.get(4)),
+				fields.size() < HEADER.size() || fields.get(5).isEmpty() ? null : fields.get(5));
 	}
 
 	private static Map<String, String> state(String text) {

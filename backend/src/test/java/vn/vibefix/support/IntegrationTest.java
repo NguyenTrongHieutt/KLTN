@@ -51,6 +51,7 @@ public abstract class IntegrationTest {
 	static void databaseProperties(DynamicPropertyRegistry registry) {
 		database.registerProperties(registry);
 		registry.add("identity-token-key-1", () -> PostgresTestDatabase.TEST_TOKEN_KEY);
+		registry.add("identity-person-signal-key-1", () -> PostgresTestDatabase.TEST_SIGNAL_KEY);
 	}
 
 	@BeforeEach

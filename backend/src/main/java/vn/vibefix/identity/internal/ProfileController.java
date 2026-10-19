@@ -1,6 +1,8 @@
 package vn.vibefix.identity.internal;
 
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Optional;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.Profiles.CustomerKind;
 import vn.vibefix.identity.internal.Profiles.CustomerProfile;
 import vn.vibefix.identity.internal.Profiles.StudentProfile;
@@ -54,7 +57,19 @@ class ProfileController {
 	 * @param student the Student's profile, once saved
 	 */
 	record ProfileView(Role role, @Nullable String githubLogin, @Nullable CustomerProfile customer,
-			@Nullable StudentProfileView student) {
+			@Nullable StudentProfileView student, @Nullable MentorProfileView mentor) {
+	}
+
+	/**
+	 * MEN-5: the Mentor application as saved, and where it stands.
+	 * @param approvalStatus {@code PENDING} until an Administrator decides (FR-74)
+	 * @param submittedAt absent until the first save, which submits it
+	 * @param document the attached document's name, type, and size; only Administrators read it
+	 */
+	record MentorProfileView(MentorApprovalStatus approvalStatus, @Nullable String displayName,
+			@Nullable String experience, @Nullable Integer yearsOfExperience, List<ProfileSkill> skills,
+			@Nullable String linkedinUrl, @Nullable String otherLink,
+			MentorProfileController.@Nullable MentorDocumentView document, @Nullable Instant submittedAt) {
 	}
 
 	/** @param skills the chosen Skills with their current names, in the Student's order (FR-4, AD-38) */
@@ -83,11 +98,14 @@ class ProfileController {
 
 	private final Accounts accounts;
 
+	private final MentorApplications mentorApplications;
+
 	private final CurrentCaller caller;
 
-	ProfileController(Profiles profiles, Accounts accounts, CurrentCaller caller) {
+	ProfileController(Profiles profiles, Accounts accounts, MentorApplications mentorApplications, CurrentCaller caller) {
 		this.profiles = profiles;
 		this.accounts = accounts;
+		this.mentorApplications = mentorApplications;
 		this.caller = caller;
 	}
 
@@ -96,9 +114,29 @@ class ProfileController {
 		Caller current = this.caller.get();
 		UUID id = current.requireAccountId();
 		Role role = current.role();
-		String login = this.accounts.findById(id).map(Account::githubLogin).orElse(null);
+		Optional<Account> account = this.accounts.findById(id);
+		String login = account.map(Account::githubLogin).orElse(null);
 		return new ProfileView(role, login, role == Role.CUSTOMER ? this.profiles.customer(id).orElse(null) : null,
-				role == Role.STUDENT ? this.profiles.student(id).map(this::view).orElse(null) : null);
+				role == Role.STUDENT ? this.profiles.student(id).map(this::view).orElse(null) : null,
+				role == Role.MENTOR ? mentorView(id, account.map(Account::mentorApprovalStatus)
+					.orElse(MentorApprovalStatus.PENDING)) : null);
+	}
+
+	private MentorProfileView mentorView(UUID id, MentorApprovalStatus status) {
+		Optional<MentorApplications.Application> application = this.mentorApplications.find(id);
+		List<ProfileSkill> skills = this.mentorApplications
+			.skills(application.map(MentorApplications.Application::skillIds).orElse(List.of()))
+			.stream()
+			.map(skill -> new ProfileSkill(skill.id(), skill.name(), skill.active()))
+			.toList();
+		return application
+			.map(found -> new MentorProfileView(status, found.displayName(), found.experience(), found.yearsOfExperience(),
+					skills, found.linkedinUrl(), found.otherLink(),
+					found.document() == null ? null
+							: new MentorProfileController.MentorDocumentView(found.document().name(),
+									found.document().mediaType(), found.document().size()),
+					found.submittedAt()))
+			.orElse(new MentorProfileView(status, null, null, null, List.of(), null, null, null, null));
 	}
 
 	private StudentProfileView view(StudentProfile profile) {

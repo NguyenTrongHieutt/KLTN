@@ -122,9 +122,12 @@ class StudentVerifications implements StudentVerification {
 
 	private final SecureRandom random = new SecureRandom();
 
+	private final JdbcPersonSignals signals;
+
 	StudentVerifications(JdbcClient jdbc, Settings settings, Emails emails, Todos todos, AuditLog auditLog,
-			IdGenerator ids, Clock clock, VerificationDeadlines deadlines) {
+			IdGenerator ids, Clock clock, VerificationDeadlines deadlines, JdbcPersonSignals signals) {
 		this.deadlines = deadlines;
+		this.signals = signals;
 		this.jdbc = jdbc;
 		this.settings = settings;
 		this.emails = emails;
@@ -254,6 +257,7 @@ class StudentVerifications implements StudentVerification {
 		this.auditLog.record(AuditEntry.of(AuditActor.user(accountId), "identity.student_verified",
 				AuditObject.of("identity.account", accountId), AuditObject.of("identity.school_email_code", row.id())));
 		this.todos.close(SignIns.VERIFY_STUDENT, accountId, accountId);
+		this.signals.record(accountId, JdbcPersonSignals.Source.SCHOOL_EMAIL, row.email());
 		return new Confirmation.Verified(view(accountId));
 	}
 

@@ -1,6 +1,7 @@
 package vn.vibefix.identity.internal;
 
 import java.io.IOException;
+import java.util.List;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -47,6 +48,9 @@ class SignInSuccessHandler implements AuthenticationSuccessHandler {
 		request.removeAttribute(TokenCapturingUserService.TOKEN_ATTRIBUTE);
 		String email = (String) request.getAttribute(TokenCapturingUserService.EMAIL_ATTRIBUTE);
 		request.removeAttribute(TokenCapturingUserService.EMAIL_ATTRIBUTE);
+		@SuppressWarnings("unchecked")
+		List<String> verifiedEmails = (List<String>) request.getAttribute(TokenCapturingUserService.VERIFIED_EMAILS_ATTRIBUTE);
+		request.removeAttribute(TokenCapturingUserService.VERIFIED_EMAILS_ATTRIBUTE);
 
 		HttpSession session = request.getSession();
 		SignInSession.clear(session);
@@ -54,7 +58,8 @@ class SignInSuccessHandler implements AuthenticationSuccessHandler {
 		session.removeAttribute(SignInSession.RETURN_TO);
 
 		SecurityContext context = SecurityContextHolder.createEmptyContext();
-		String target = switch (this.signIns.signIn(githubUserId, login, avatar, email, token)) {
+		String target = switch (this.signIns.signIn(githubUserId, login, avatar, email,
+				verifiedEmails == null ? List.of() : verifiedEmails, token)) {
 			case SignIns.Outcome.SignedIn signedIn -> {
 				context.setAuthentication(new AccountAuthentication(signedIn.account().id(), signedIn.account().role()));
 				yield returnTo != null ? returnTo : SignIns.landingPath(signedIn.account());

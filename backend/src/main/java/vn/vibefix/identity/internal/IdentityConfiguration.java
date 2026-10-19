@@ -23,4 +23,9 @@ class IdentityConfiguration {
 		return new TokenCipher(environment, properties.tokenKeyVersion());
 	}
 
+	@Bean
+	PersonSignalKeys personSignalKeys(Environment environment, IdentityProperties properties) {
+		return new PersonSignalKeys(environment, properties.personSignalKeyVersion());
+	}
+
 }

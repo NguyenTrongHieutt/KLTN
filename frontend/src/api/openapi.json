@@ -539,6 +539,77 @@
         "tags" : [ "profile-controller" ]
       }
     },
+    "/api/v1/profile/mentor" : {
+      "put" : {
+        "operationId" : "save",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/MentorApplicationRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SavedView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "mentor-profile-controller" ]
+      }
+    },
+    "/api/v1/profile/mentor/document" : {
+      "delete" : {
+        "operationId" : "deleteDocument",
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "mentor-profile-controller" ]
+      },
+      "post" : {
+        "operationId" : "uploadDocument",
+        "requestBody" : {
+          "content" : {
+            "multipart/form-data" : {
+              "schema" : {
+                "type" : "object",
+                "properties" : {
+                  "file" : {
+                    "type" : "string",
+                    "format" : "binary"
+                  }
+                },
+                "required" : [ "file" ]
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MentorDocumentView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "mentor-profile-controller" ]
+      }
+    },
     "/api/v1/profile/student" : {
       "put" : {
         "operationId" : "saveStudent",
@@ -1064,6 +1135,106 @@
         },
         "required" : [ "name" ]
       },
+      "MentorApplicationRequest" : {
+        "type" : "object",
+        "properties" : {
+          "displayName" : {
+            "type" : "string",
+            "maxLength" : 100,
+            "minLength" : 0
+          },
+          "experience" : {
+            "type" : "string",
+            "maxLength" : 4000,
+            "minLength" : 0
+          },
+          "linkedinUrl" : {
+            "type" : "string",
+            "minLength" : 1,
+            "pattern" : "^https://www\\.linkedin\\.com/in/[A-Za-z0-9_%-]{3,100}/?$"
+          },
+          "otherLink" : {
+            "type" : "string",
+            "maxLength" : 300,
+            "minLength" : 0,
+            "pattern" : "^https://[^\\s]+$"
+          },
+          "privacyNoticeVersion" : {
+            "type" : "string"
+          },
+          "skillIds" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            },
+            "maxItems" : 100,
+            "minItems" : 1
+          },
+          "yearsOfExperience" : {
+            "type" : "integer",
+            "format" : "int32",
+            "maximum" : 60,
+            "minimum" : 0
+          }
+        },
+        "required" : [ "displayName", "experience", "linkedinUrl", "skillIds", "yearsOfExperience" ]
+      },
+      "MentorDocumentView" : {
+        "type" : "object",
+        "properties" : {
+          "mediaType" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "mediaType", "name", "size" ]
+      },
+      "MentorProfileView" : {
+        "type" : "object",
+        "properties" : {
+          "approvalStatus" : {
+            "type" : "string",
+            "enum" : [ "PENDING", "APPROVED", "REJECTED", "REVOKED" ]
+          },
+          "displayName" : {
+            "type" : "string"
+          },
+          "document" : {
+            "$ref" : "#/components/schemas/MentorDocumentView"
+          },
+          "experience" : {
+            "type" : "string"
+          },
+          "linkedinUrl" : {
+            "type" : "string"
+          },
+          "otherLink" : {
+            "type" : "string"
+          },
+          "skills" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ProfileSkill"
+            }
+          },
+          "submittedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "yearsOfExperience" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "approvalStatus", "skills" ]
+      },
       "NotificationItem" : {
         "type" : "object",
         "properties" : {
@@ -1106,6 +1277,9 @@
           "failedOperations" : {
             "$ref" : "#/components/schemas/Queue"
           },
+          "mentorApplications" : {
+            "$ref" : "#/components/schemas/Queue"
+          },
           "stalledEvents" : {
             "$ref" : "#/components/schemas/Queue"
           },
@@ -1113,7 +1287,7 @@
             "$ref" : "#/components/schemas/Queue"
           }
         },
-        "required" : [ "activeAdministrators", "failedOperations", "stalledEvents", "studentCards" ]
+        "required" : [ "activeAdministrators", "failedOperations", "mentorApplications", "stalledEvents", "studentCards" ]
       },
       "PageResponseNotificationItem" : {
         "type" : "object",
@@ -1212,6 +1386,9 @@
           "githubLogin" : {
             "type" : "string"
           },
+          "mentor" : {
+            "$ref" : "#/components/schemas/MentorProfileView"
+          },
           "role" : {
             "type" : "string",
             "enum" : [ "CUSTOMER", "MENTOR", "STUDENT", "ADMINISTRATOR" ]
@@ -1246,6 +1423,15 @@
           }
         },
         "required" : [ "reason" ]
+      },
+      "SavedView" : {
+        "type" : "object",
+        "properties" : {
+          "submitted" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "submitted" ]
       },
       "SchoolEmailRequest" : {
         "type" : "object",

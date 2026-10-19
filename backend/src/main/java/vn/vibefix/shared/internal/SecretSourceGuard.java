@@ -36,10 +36,12 @@ class SecretSourceGuard implements InitializingBean {
 
 	/**
 	 * Secrets that come in numbered versions, matched against the property names of the process
-	 * sources in any spelling Spring would bind ({@code identity-token-key-2}, {@code IDENTITY_TOKEN_KEY_2}).
+	 * sources in any spelling Spring would bind ({@code identity-token-key-2}, {@code IDENTITY_TOKEN_KEY_2}):
+	 * the token keys and the person-link signal keys (AD-19).
 	 */
 	static final List<Pattern> SECRET_PATTERNS = List.of(
-			Pattern.compile("identity[-_.]token[-_.]key[-_.]\\d+", Pattern.CASE_INSENSITIVE));
+			Pattern.compile("identity[-_.]token[-_.]key[-_.]\\d+", Pattern.CASE_INSENSITIVE),
+			Pattern.compile("identity[-_.]person[-_.]signal[-_.]key[-_.]\\d+", Pattern.CASE_INSENSITIVE));
 
 	/** The property source Boot builds from {@code SPRING_APPLICATION_JSON} / {@code spring.application.json}. */
 	static final String APPLICATION_JSON_SOURCE = "spring.application.json";

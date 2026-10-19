@@ -32,6 +32,7 @@ export function AdminOverviewPage() {
   const failed = overview.data?.failedOperations
   const stalled = overview.data?.stalledEvents
   const cards = overview.data?.studentCards
+  const applications = overview.data?.mentorApplications
 
   return (
     <div className="flex flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
@@ -67,6 +68,17 @@ export function AdminOverviewPage() {
                   : t('screen.admin.overview.empty')}
               </p>
             </Link>
+          )}
+          {applications && (
+            <div className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4">
+              <p className="text-caption text-muted-foreground">{t('screen.admin.overview.mentorApplications')}</p>
+              <p className="text-h1">{applications.count}</p>
+              <p className="text-caption text-muted-foreground">
+                {applications.oldestAt
+                  ? t('screen.admin.overview.oldest', { date: formatDayMonth(applications.oldestAt) })
+                  : t('screen.admin.overview.empty')}
+              </p>
+            </div>
           )}
           {failed && (
             <div className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4">

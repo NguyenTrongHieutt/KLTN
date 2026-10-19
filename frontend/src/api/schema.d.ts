@@ -292,6 +292,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/profile/mentor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["save"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profile/mentor/document": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["uploadDocument"];
+        delete: operations["deleteDocument"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profile/student": {
         parameters: {
             query?: never;
@@ -554,6 +586,36 @@ export interface components {
         EnvironmentResponse: {
             name: string;
         };
+        MentorApplicationRequest: {
+            displayName: string;
+            experience: string;
+            linkedinUrl: string;
+            otherLink?: string;
+            privacyNoticeVersion?: string;
+            skillIds: string[];
+            /** Format: int32 */
+            yearsOfExperience: number;
+        };
+        MentorDocumentView: {
+            mediaType: string;
+            name: string;
+            /** Format: int64 */
+            size: number;
+        };
+        MentorProfileView: {
+            /** @enum {string} */
+            approvalStatus: "PENDING" | "APPROVED" | "REJECTED" | "REVOKED";
+            displayName?: string;
+            document?: components["schemas"]["MentorDocumentView"];
+            experience?: string;
+            linkedinUrl?: string;
+            otherLink?: string;
+            skills: components["schemas"]["ProfileSkill"][];
+            /** Format: date-time */
+            submittedAt?: string;
+            /** Format: int32 */
+            yearsOfExperience?: number;
+        };
         NotificationItem: {
             /** Format: date-time */
             createdAt: string;
@@ -571,6 +633,7 @@ export interface components {
             /** Format: int64 */
             activeAdministrators: number;
             failedOperations: components["schemas"]["Queue"];
+            mentorApplications: components["schemas"]["Queue"];
             stalledEvents: components["schemas"]["Queue"];
             studentCards: components["schemas"]["Queue"];
         };
@@ -611,6 +674,7 @@ export interface components {
         ProfileView: {
             customer?: components["schemas"]["CustomerProfile"];
             githubLogin?: string;
+            mentor?: components["schemas"]["MentorProfileView"];
             /** @enum {string} */
             role: "CUSTOMER" | "MENTOR" | "STUDENT" | "ADMINISTRATOR";
             student?: components["schemas"]["StudentProfileView"];
@@ -623,6 +687,9 @@ export interface components {
         };
         RejectRequest: {
             reason: string;
+        };
+        SavedView: {
+            submitted: boolean;
         };
         SchoolEmailRequest: {
             /** Format: email */
@@ -1183,6 +1250,75 @@ export interface operations {
                 "application/json": components["schemas"]["CustomerProfileRequest"];
             };
         };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    save: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MentorApplicationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedView"];
+                };
+            };
+        };
+    };
+    uploadDocument: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MentorDocumentView"];
+                };
+            };
+        };
+    };
+    deleteDocument: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description No Content */
             204: {

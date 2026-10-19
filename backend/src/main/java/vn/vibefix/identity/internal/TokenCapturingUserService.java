@@ -26,9 +26,10 @@ import org.springframework.web.context.request.RequestContextHolder;
  * request attribute: it never enters the principal, so it never reaches the session, and no
  * authorized-client store keeps it (SG-9).
  * <p>
- * With the same token it reads the user's primary verified email through the {@code user:email}
- * scope: where notifications are emailed (FR-48, AD-27). When GitHub does not answer, the sign-in
- * goes on and the address on file stays.
+ * With the same token it reads the user's email addresses through the {@code user:email} scope: the
+ * primary verified one is where notifications are emailed (FR-48, AD-27), and every verified one is a
+ * person-link signal (AD-19). When GitHub does not answer, the sign-in goes on and the address on
+ * file stays.
  */
 class TokenCapturingUserService implements OAuth2UserService<OAuth2UserRequest, OAuth2User> {
 
@@ -36,6 +37,9 @@ class TokenCapturingUserService implements OAuth2UserService<OAuth2UserRequest, 
 
 	/** The primary verified email, present only when GitHub answered and has one. */
 	static final String EMAIL_ATTRIBUTE = TokenCapturingUserService.class.getName() + ".email";
+
+	/** Every verified email, an empty list when GitHub did not answer. */
+	static final String VERIFIED_EMAILS_ATTRIBUTE = TokenCapturingUserService.class.getName() + ".verifiedEmails";
 
 	private static final Logger log = LoggerFactory.getLogger(TokenCapturingUserService.class);
 
@@ -68,15 +72,36 @@ class TokenCapturingUserService implements OAuth2UserService<OAuth2UserRequest, 
 		if (attributes != null) {
 			String token = request.getAccessToken().getTokenValue();
 			attributes.setAttribute(TOKEN_ATTRIBUTE, token, RequestAttributes.SCOPE_REQUEST);
-			primaryVerifiedEmail(token)
+			List<Map<String, Object>> emails = emails(token);
+			primaryVerifiedEmail(emails)
 				.ifPresent(email -> attributes.setAttribute(EMAIL_ATTRIBUTE, email, RequestAttributes.SCOPE_REQUEST));
+			attributes.setAttribute(VERIFIED_EMAILS_ATTRIBUTE, verifiedEmails(emails), RequestAttributes.SCOPE_REQUEST);
 		}
 		return user;
 	}
 
-	private Optional<String> primaryVerifiedEmail(String token) {
+	private static Optional<String> primaryVerifiedEmail(List<Map<String, Object>> emails) {
+		return emails.stream()
+			.filter(email -> Boolean.TRUE.equals(email.get("primary")) && Boolean.TRUE.equals(email.get("verified")))
+			.map(email -> email.get("email"))
+			.filter(String.class::isInstance)
+			.map(String.class::cast)
+			.findFirst();
+	}
+
+	private static List<String> verifiedEmails(List<Map<String, Object>> emails) {
+		return emails.stream()
+			.filter(email -> Boolean.TRUE.equals(email.get("verified")))
+			.map(email -> email.get("email"))
+			.filter(String.class::isInstance)
+			.map(String.class::cast)
+			.distinct()
+			.toList();
+	}
+
+	private List<Map<String, Object>> emails(String token) {
 		if (this.userEmailsUri == null || this.userEmailsUri.isBlank()) {
-			return Optional.empty();
+			return List.of();
 		}
 		try {
 			List<Map<String, Object>> emails = this.http.get()
@@ -85,20 +110,12 @@ class TokenCapturingUserService implements OAuth2UserService<OAuth2UserRequest, 
 				.header(HttpHeaders.ACCEPT, "application/vnd.github+json")
 				.retrieve()
 				.body(EMAILS);
-			if (emails == null) {
-				return Optional.empty();
-			}
-			return emails.stream()
-				.filter(email -> Boolean.TRUE.equals(email.get("primary")) && Boolean.TRUE.equals(email.get("verified")))
-				.map(email -> email.get("email"))
-				.filter(String.class::isInstance)
-				.map(String.class::cast)
-				.findFirst();
+			return emails == null ? List.of() : emails;
 		}
 		catch (RestClientException ex) {
 			// The exception class only: a message could hold the address.
 			log.warn("Could not read the GitHub email addresses: {}", ex.getClass().getSimpleName());
-			return Optional.empty();
+			return List.of();
 		}
 	}
 

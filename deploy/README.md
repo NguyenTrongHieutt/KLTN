@@ -59,6 +59,10 @@ random values and keeps existing ones, because the database volume already holds
 replaces them, after which the volume must be deleted too (`down --volumes`). Never commit a secret
 file: `secrets/` is in `.gitignore`.
 
+After pulling a change that adds a secret (Story 1.16 added `identity-person-signal-key-1`, the key
+of the person-link signals), run `deploy/dev-secrets.sh` again: it creates only the missing files,
+and the backend refuses to start without them.
+
 ## Signing in with GitHub locally
 
 Sign-in uses a GitHub OAuth App of the dev environment (AD-10, AD-25). Until it exists, the two

@@ -34,6 +34,18 @@ enum IdentityReason {
 	ADMINISTRATOR_EMAIL_IN_USE,
 
 	/** The enrolment's code does not match the secret it showed. */
-	ENROLMENT_CODE_WRONG
+	ENROLMENT_CODE_WRONG,
+
+	/** A new-work command from a Mentor who is not {@code APPROVED} (FR-74, AD-19). */
+	MENTOR_NOT_APPROVED,
+
+	/** A command from a locked or erased account (FR-59, AD-19). */
+	ACCOUNT_LOCKED,
+
+	/** The LinkedIn profile is on another live Mentor application (AD-19). */
+	MENTOR_LINKEDIN_IN_USE,
+
+	/** The first submission of a Mentor application without the current personal-data notice accepted. */
+	PRIVACY_NOTICE_REQUIRED
 
 }

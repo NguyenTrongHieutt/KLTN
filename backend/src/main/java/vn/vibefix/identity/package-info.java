@@ -8,7 +8,9 @@
  * before it expires and ends it on 30 September (FR-5).
  * <p>
  * Public API: {@link vn.vibefix.identity.MentorApprovalStatus}, {@link vn.vibefix.identity.ContactVisibility},
- * {@link vn.vibefix.identity.StudentVerification}, {@link vn.vibefix.identity.StudentCardQueue} and
+ * {@link vn.vibefix.identity.StudentVerification}, {@link vn.vibefix.identity.StudentCardQueue},
+ * {@link vn.vibefix.identity.MentorGate}, {@link vn.vibefix.identity.PersonSignals} with
+ * {@link vn.vibefix.identity.PersonSignalMatched}, {@link vn.vibefix.identity.MentorApplicationQueue} and
  * {@link vn.vibefix.identity.Administrators}. Sign-in, sessions, and the HTTP endpoints are
  * wiring in {@code identity.internal}.
  */

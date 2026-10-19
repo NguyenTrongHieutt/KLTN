@@ -14,7 +14,7 @@ import org.springframework.http.HttpMethod;
 /** The matrix and canary files parse strictly, so a malformed row never silently tests nothing. */
 class MatrixFilesTest {
 
-	private static final String HEADER = "endpoint,caller,subject_state,body,expect\n";
+	private static final String HEADER = "endpoint,caller,subject_state,body,expect,check\n";
 
 	@Test
 	void parsesAFullRow() {
@@ -44,6 +44,23 @@ class MatrixFilesTest {
 		}
 		assertThatThrownBy(() -> MatrixRow.parse("GET /api/v1/x,ANONYMOUS,,,200\n"))
 			.hasMessageContaining("header");
+	}
+
+	@Test
+	void aMentorEndpointNamesItsCheckAndNoOtherDoes() {
+		assertThat(MatrixRow.parse(HEADER + "GET /api/v1/mentor/job-posts,MENTOR,mentor=APPROVED,,200,requireApprovedMentor")
+			.getFirst()
+			.check()).isEqualTo("requireApprovedMentor");
+		assertThat(MatrixRow.parse(HEADER + "POST /api/v1/mentor/jobs/{jobId}/rating,MENTOR,,,204,requireActiveAccount")
+			.getFirst()
+			.check()).isEqualTo("requireActiveAccount");
+		assertThat(MatrixRow.parse(HEADER + "GET /api/v1/profile,MENTOR,,,200").getFirst().check()).isNull();
+		for (String line : new String[] { "GET /api/v1/mentor/job-posts,MENTOR,,,200",
+				"GET /api/v1/mentor/job-posts,MENTOR,,,200,",
+				"GET /api/v1/mentor/job-posts,MENTOR,,,200,requireNothing",
+				"GET /api/v1/profile,MENTOR,,,200,requireApprovedMentor" }) {
+			assertThatThrownBy(() -> MatrixRow.parse(HEADER + line)).as(line).isInstanceOf(IllegalArgumentException.class);
+		}
 	}
 
 	@Test
