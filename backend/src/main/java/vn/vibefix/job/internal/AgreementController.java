@@ -83,9 +83,13 @@ class AgreementController {
 			List<VersionSummary> versions, JobState state) {
 	}
 
-	/** A shared version as the Customer reads it. */
+	/**
+	 * A shared version as the Customer reads it.
+	 * @param crew the GitHub usernames of the Crew rows that are not released: never a share (FR-75)
+	 * @param crewConfirmed FR-17's Crew condition holds; until then the Crew line reads as waiting
+	 */
 	record AgreementVersionView(int versionNo, Instant sharedAt, Content content,
-			List<VersionSummary> versions, @Nullable QuoteView quote) {
+			List<VersionSummary> versions, @Nullable QuoteView quote, List<String> crew, boolean crewConfirmed) {
 	}
 
 	private final Agreements agreements;
@@ -98,7 +102,11 @@ class AgreementController {
 
 	private final JdbcClient jdbc;
 
-	AgreementController(Agreements agreements, Jobs jobs, MentorGate gate, CurrentCaller callers, JdbcClient jdbc) {
+	private final CrewService crews;
+
+	AgreementController(Agreements agreements, Jobs jobs, MentorGate gate, CurrentCaller callers, JdbcClient jdbc,
+			CrewService crews) {
+		this.crews = crews;
 		this.agreements = agreements;
 		this.jobs = jobs;
 		this.gate = gate;
@@ -146,8 +154,14 @@ class AgreementController {
 		}
 		Job job = this.jobs.find(caller.requireAccountId(), jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		Version shared = this.agreements.version(job.id(), version).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		List<UUID> running = this.crews.rows(job.id()).stream().filter(row -> !row.released()).map(CrewService.Row::studentId).toList();
+		List<String> usernames = running.stream()
+			.map(this.crews.cards(running)::get)
+			.filter(card -> card != null && card.githubLogin() != null)
+			.map(card -> card.githubLogin())
+			.toList();
 		return new AgreementVersionView(shared.versionNo(), shared.sharedAt(), shared.content(),
-				this.agreements.versions(job.id()), quote(job.id()));
+				this.agreements.versions(job.id()), quote(job.id()), usernames, this.crews.crewConfirmed(job.id()));
 	}
 
 	private AgreementDraftView view(Job job, Draft draft) {

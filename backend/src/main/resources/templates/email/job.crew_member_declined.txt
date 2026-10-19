@@ -1,0 +1,6 @@
+subject: {student} đã từ chối tham gia {job}
+---
+Xin chào,
+
+{student} đã từ chối tham gia nhóm thực hiện công việc {job}.
+Hãy mở vibefix để chọn sinh viên khác và lưu lại phần chia.

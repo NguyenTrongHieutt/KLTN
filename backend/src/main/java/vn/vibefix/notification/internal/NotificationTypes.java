@@ -44,6 +44,13 @@ class NotificationTypes implements NotificationCatalog {
 	static final TodoType JOB_REVIEW_AGREEMENT = new TodoType("job.review_agreement", Set.of(Audience.CUSTOMER), 1,
 			Set.of("job"));
 
+	/** J4 (FR-75): the Mentor picks the Crew, until FR-17's Crew condition holds. */
+	static final TodoType JOB_PICK_CREW = new TodoType("job.pick_crew", Set.of(Audience.MENTOR), 2, Set.of("job"));
+
+	/** An assigned Crew member signs the NDA and confirms the latest Crew Terms version (FR-75). */
+	static final TodoType JOB_CONFIRM_CREW_TERMS = new TodoType("job.confirm_crew_terms", Set.of(Audience.CREW_ASSIGNED), 1,
+			Set.of("job"));
+
 	/** A Customer invited this Mentor to apply (FR-14): until they apply or the Job leaves Open. */
 	static final TodoType MATCHING_ANSWER_INVITATION_TO_APPLY = new TodoType("matching.answer_invitation_to_apply",
 			Set.of(Audience.SUBJECT), 3, Set.of("job"));
@@ -182,6 +189,38 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType JOB_AGREEMENT_DRAFT_READY = new NotificationType("job.agreement_draft_ready",
 			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
 
+	/** The Mentor added this Student to the Crew (FR-75). */
+	static final NotificationType JOB_CREW_ASSIGNED = new NotificationType("job.crew_assigned", Set.of(Audience.CREW_ASSIGNED),
+			Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
+
+	/** A Crew member signed the NDA and confirmed their share (FR-75): the Mentor. */
+	static final NotificationType JOB_CREW_MEMBER_CONFIRMED = new NotificationType("job.crew_member_confirmed",
+			Set.of(Audience.MENTOR), Channel.IN_APP, EmailClass.TRANSACTIONAL, "check", Set.of("job", "student"));
+
+	/** A Crew member declined (FR-75): the Mentor picks someone else. */
+	static final NotificationType JOB_CREW_MEMBER_DECLINED = new NotificationType("job.crew_member_declined",
+			Set.of(Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("job", "student"));
+
+	/** The Mentor removed this Student from the Crew before the Job started (FR-75). */
+	static final NotificationType JOB_CREW_MEMBER_REMOVED = new NotificationType("job.crew_member_removed",
+			Set.of(Audience.SUBJECT), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
+
+	/** The Mentor saved new Crew Terms: every Crew member confirms again (FR-75, N-20). */
+	static final NotificationType JOB_CREW_TERMS_CHANGED = new NotificationType("job.crew_terms_changed",
+			Set.of(Audience.CREW_ASSIGNED), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
+
+	/** FR-17's Crew condition holds: the Mentor may confirm the Agreement. */
+	static final NotificationType JOB_CREW_CONFIRMED = new NotificationType("job.crew_confirmed", Set.of(Audience.MENTOR),
+			Channel.IN_APP, EmailClass.TRANSACTIONAL, "check", Set.of("job"));
+
+	/** A Crew addition refused for a shared person-link signal (AD-19): every Administrator. */
+	static final NotificationType JOB_CONFLICT_OF_INTEREST_REFUSED = new NotificationType("job.conflict_of_interest_refused",
+			Set.of(Audience.ADMIN), Channel.IN_APP, EmailClass.TRANSACTIONAL, "alert", Set.of());
+
+	/** Two participants of a running Job newly share a person-link signal (AD-19): every Administrator. */
+	static final NotificationType JOB_PERSON_LINK_ALERT = new NotificationType("job.person_link_alert", Set.of(Audience.ADMIN),
+			Channel.IN_APP, EmailClass.TRANSACTIONAL, "alert", Set.of("job", "first", "second"));
+
 	/** J4 opened the Job Chat (FR-46): the Customer and the Mentor, in-app only. */
 	static final NotificationType CHAT_CHAT_OPENED = new NotificationType("chat.chat_opened",
 			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
@@ -196,14 +235,16 @@ class NotificationTypes implements NotificationCatalog {
 				JOB_POST_LAPSED, MATCHING_APPLICATION_RECEIVED, MATCHING_APPLICATION_AUTO_WITHDRAWN,
 				MATCHING_CONFLICT_OF_INTEREST_REFUSED, JOB_ASSIGNEE_SELECTED, MATCHING_APPLICATIONS_ON_HOLD,
 				JOB_SELECTION_DECLINED, MATCHING_APPLICATIONS_CLOSED, MATCHING_APPLICATIONS_REOPENED, MATCHING_NDA_OVERDUE,
-				MATCHING_INVITED_TO_APPLY, CHAT_CHAT_OPENED, JOB_AGREEMENT_DRAFT_READY);
+				MATCHING_INVITED_TO_APPLY, CHAT_CHAT_OPENED, JOB_AGREEMENT_DRAFT_READY, JOB_CREW_ASSIGNED,
+				JOB_CREW_MEMBER_CONFIRMED, JOB_CREW_MEMBER_DECLINED, JOB_CREW_MEMBER_REMOVED, JOB_CREW_TERMS_CHANGED,
+				JOB_CREW_CONFIRMED, JOB_CONFLICT_OF_INTEREST_REFUSED, JOB_PERSON_LINK_ALERT);
 	}
 
 	@Override
 	public List<TodoType> todoTypes() {
 		return List.of(COMPLETE_MENTOR_APPLICATION, VERIFY_STUDENT, SCANNING_RESOLVE_INTAKE_FINDING,
 				MATCHING_CHOOSE_ASSIGNEE, MATCHING_SIGN_NDA, MATCHING_ANSWER_INVITATION_TO_APPLY, JOB_DRAFT_AGREEMENT,
-				JOB_REVIEW_AGREEMENT);
+				JOB_REVIEW_AGREEMENT, JOB_PICK_CREW, JOB_CONFIRM_CREW_TERMS);
 	}
 
 }

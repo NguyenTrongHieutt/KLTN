@@ -488,6 +488,87 @@
         "tags" : [ "catalog-controller" ]
       }
     },
+    "/api/v1/crew/assignments" : {
+      "get" : {
+        "operationId" : "crewAssignments",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/CrewAssignmentView"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "crew-controller" ]
+      }
+    },
+    "/api/v1/crew/jobs/{jobId}/confirm" : {
+      "post" : {
+        "operationId" : "confirmCrewTerms",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CrewConfirmRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "crew-nda-controller" ]
+      }
+    },
+    "/api/v1/crew/jobs/{jobId}/decline" : {
+      "post" : {
+        "operationId" : "declineCrewTerms",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CrewDeclineRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "crew-nda-controller" ]
+      }
+    },
     "/api/v1/customers/{customerId}/contact" : {
       "get" : {
         "operationId" : "contact",
@@ -1718,6 +1799,150 @@
           }
         },
         "tags" : [ "agreement-controller" ]
+      }
+    },
+    "/api/v1/mentor/jobs/{jobId}/crew" : {
+      "get" : {
+        "operationId" : "crewPanel",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CrewPanelView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "crew-controller" ]
+      },
+      "post" : {
+        "operationId" : "addCrewMember",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CrewAddRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CrewPanelView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "crew-controller" ]
+      }
+    },
+    "/api/v1/mentor/jobs/{jobId}/crew/terms" : {
+      "put" : {
+        "operationId" : "saveCrewTerms",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CrewTermsRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CrewPanelView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "crew-controller" ]
+      }
+    },
+    "/api/v1/mentor/jobs/{jobId}/crew/{crewRowId}/remove" : {
+      "post" : {
+        "operationId" : "removeCrewMember",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "path",
+          "name" : "crewRowId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CrewRemoveRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CrewPanelView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "crew-controller" ]
       }
     },
     "/api/v1/mentor/jobs/{jobId}/decline" : {
@@ -3334,6 +3559,15 @@
           "content" : {
             "$ref" : "#/components/schemas/Content"
           },
+          "crew" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "crewConfirmed" : {
+            "type" : "boolean"
+          },
           "quote" : {
             "$ref" : "#/components/schemas/QuoteView"
           },
@@ -3352,7 +3586,7 @@
             }
           }
         },
-        "required" : [ "content", "sharedAt", "versionNo", "versions" ]
+        "required" : [ "content", "crew", "crewConfirmed", "sharedAt", "versionNo", "versions" ]
       },
       "ApplicantView" : {
         "type" : "object",
@@ -3701,6 +3935,332 @@
           }
         },
         "required" : [ "id" ]
+      },
+      "CrewAddRequest" : {
+        "type" : "object",
+        "properties" : {
+          "crewVersion" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "studentId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "crewVersion", "studentId" ]
+      },
+      "CrewAssignmentMilestoneView" : {
+        "type" : "object",
+        "properties" : {
+          "dueOn" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "priceVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "yourPartVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "title" ]
+      },
+      "CrewAssignmentView" : {
+        "type" : "object",
+        "properties" : {
+          "codeJob" : {
+            "type" : "boolean"
+          },
+          "commitEmailNoticeAcknowledged" : {
+            "type" : "boolean"
+          },
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "mentorName" : {
+            "type" : "string"
+          },
+          "milestones" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/CrewAssignmentMilestoneView"
+            }
+          },
+          "productName" : {
+            "type" : "string"
+          },
+          "scope" : {
+            "type" : "string"
+          },
+          "sharePercent" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "signed" : {
+            "type" : "boolean"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "versionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "versionSentAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "codeJob", "commitEmailNoticeAcknowledged", "jobId", "mentorName", "milestones", "productName", "scope", "signed", "status", "title", "versionNo" ]
+      },
+      "CrewCandidateView" : {
+        "type" : "object",
+        "properties" : {
+          "githubLogin" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "onCrewJob" : {
+            "type" : "string"
+          },
+          "state" : {
+            "type" : "string",
+            "enum" : [ "FREE", "IN_CREW", "ON_CREW", "NOT_VERIFIED" ]
+          },
+          "studentId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "name", "state", "studentId" ]
+      },
+      "CrewConfirmRequest" : {
+        "type" : "object",
+        "properties" : {
+          "commitEmailNoticeAcknowledged" : {
+            "type" : "boolean"
+          },
+          "crewTermsVersionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "ndaVersion" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "publicCodeAcknowledged" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "commitEmailNoticeAcknowledged", "crewTermsVersionNo", "ndaVersion", "publicCodeAcknowledged" ]
+      },
+      "CrewDeclineRequest" : {
+        "type" : "object",
+        "properties" : {
+          "crewTermsVersionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "crewTermsVersionNo" ]
+      },
+      "CrewMentorView" : {
+        "type" : "object",
+        "properties" : {
+          "accountId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "displayName" : {
+            "type" : "string"
+          },
+          "githubLogin" : {
+            "type" : "string"
+          },
+          "percent" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "accountId", "displayName" ]
+      },
+      "CrewMilestoneView" : {
+        "type" : "object",
+        "properties" : {
+          "priceVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "title" ]
+      },
+      "CrewPanelView" : {
+        "type" : "object",
+        "properties" : {
+          "capPercent" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "confirmedCount" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "crewConfirmed" : {
+            "type" : "boolean"
+          },
+          "crewVersion" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "largeCrews" : {
+            "type" : "boolean"
+          },
+          "latest" : {
+            "$ref" : "#/components/schemas/CrewTermsView"
+          },
+          "locked" : {
+            "type" : "boolean"
+          },
+          "mentor" : {
+            "$ref" : "#/components/schemas/CrewMentorView"
+          },
+          "milestones" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/CrewMilestoneView"
+            }
+          },
+          "rows" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/CrewRowView"
+            }
+          },
+          "team" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/CrewCandidateView"
+            }
+          },
+          "total" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "capPercent", "confirmedCount", "crewConfirmed", "crewVersion", "largeCrews", "locked", "mentor", "milestones", "rows", "team", "total" ]
+      },
+      "CrewRemoveRequest" : {
+        "type" : "object",
+        "properties" : {
+          "crewVersion" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "crewVersion" ]
+      },
+      "CrewRowView" : {
+        "type" : "object",
+        "properties" : {
+          "confirmedLatest" : {
+            "type" : "boolean"
+          },
+          "githubLogin" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "percent" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "releasedReason" : {
+            "type" : "string"
+          },
+          "rowId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "signedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "studentId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "confirmedLatest", "name", "rowId", "status", "studentId" ]
+      },
+      "CrewShareRequest" : {
+        "type" : "object",
+        "properties" : {
+          "accountId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "percent" : {
+            "type" : "integer",
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 0
+          }
+        },
+        "required" : [ "accountId", "percent" ]
+      },
+      "CrewTermsRequest" : {
+        "type" : "object",
+        "properties" : {
+          "crewVersion" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "shares" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/CrewShareRequest"
+            },
+            "maxItems" : 11,
+            "minItems" : 2
+          }
+        },
+        "required" : [ "crewVersion", "shares" ]
+      },
+      "CrewTermsView" : {
+        "type" : "object",
+        "properties" : {
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "versionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "createdAt", "status", "versionNo" ]
       },
       "Criterion" : {
         "type" : "object",

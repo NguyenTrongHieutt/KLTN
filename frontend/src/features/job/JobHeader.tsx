@@ -5,18 +5,23 @@ import { t } from '@/i18n/t'
 import type { Job } from './jobApi'
 import { JobStateBadge } from './JobStateBadge'
 
-/** A Job screen's top (UX-DR17): the breadcrumb, the title with its state, the meta line, and the tabs. */
+/**
+ * A Job screen's top (UX-DR17): the breadcrumb, the title with its state, the meta line, an optional
+ * status line such as the Crew's confirmations, and the tabs.
+ */
 export function JobHeader({
   title,
   state,
   meta,
   audience,
+  status,
   children,
 }: {
   title: string
   state: string
   meta: string
   audience?: 'mentor'
+  status?: ReactNode
   children: ReactNode
 }) {
   return (
@@ -33,6 +38,7 @@ export function JobHeader({
           <JobStateBadge state={state as Job['state']} audience={audience} />
         </div>
         <p className="text-caption text-muted-foreground break-words">{meta}</p>
+        {status}
       </div>
       {children}
     </div>

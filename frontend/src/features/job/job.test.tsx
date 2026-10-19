@@ -196,11 +196,12 @@ describe('CUS-6, drafting a Job (FR-9)', () => {
     expect(screen.getByRole('button', { name: 'Xóa trang-dat-ban.png' })).toBeInTheDocument()
   })
 
-  it('finds nothing for another role', async () => {
-    fakeBackend(signedIn('STUDENT'))
+  it("shows a Student's own Jobs (STU-4) instead of CUS-7", async () => {
+    fakeBackend(signedIn('STUDENT'), { 'GET /api/v1/crew/assignments': () => json([]) })
     renderAt('/cong-viec')
 
-    expect(await screen.findByText('Không tìm thấy nội dung này.')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Công việc của tôi' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Đăng công việc/ })).toBeNull()
   })
 
   it('keeps planted payloads in every Job text field as text (SG-30)', { timeout: 15_000 }, async () => {

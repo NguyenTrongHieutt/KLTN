@@ -74,7 +74,7 @@ class MentorCapacity implements MentorWork {
 
 	/**
 	 * {@code job.freeStudents} (AD-33): the verified, unlocked members of the Mentor's Team on no
-	 * running Crew. No Crew row exists before the Agreement (Epic 4), so every such member is free.
+	 * running Crew.
 	 */
 	@Override
 	public List<UUID> freeStudents(UUID mentorId) {
@@ -159,10 +159,19 @@ class MentorCapacity implements MentorWork {
 				""").param("types", jobTypes.toArray(String[]::new)).query(UUID.class).list());
 	}
 
+	/** Verified, unlocked members on no running Crew: no row of theirs is other than {@code RELEASED} (AD-33). */
 	private List<UUID> freeStudents(List<UUID> members) {
+		if (members.isEmpty()) {
+			return List.of();
+		}
+		Set<UUID> onCrew = new HashSet<>(this.jdbc.sql(
+				"SELECT student_account_id FROM job.crew_row WHERE student_account_id IN (:ids) AND status <> 'RELEASED'")
+			.param("ids", members)
+			.query(UUID.class)
+			.list());
 		return this.students.cards(members)
 			.stream()
-			.filter(card -> card.verified() && card.available())
+			.filter(card -> card.verified() && card.available() && !onCrew.contains(card.accountId()))
 			.map(StudentCard::accountId)
 			.toList();
 	}

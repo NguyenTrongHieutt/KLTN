@@ -40,6 +40,36 @@ enum JobReason {
 	NDA_PERIOD_RUNNING,
 
 	/** The Agreement draft is not complete enough to share; {@code problems} lists why (FR-16). */
-	AGREEMENT_INCOMPLETE
+	AGREEMENT_INCOMPLETE,
+
+	/** The Mentor confirmed the Agreement: the Crew stays as it is until J6 or J10 (FR-17, AD-41). */
+	CREW_LOCKED,
+
+	/** After J6 a member leaves only through a Crew change, a lock, or the Job's end (AD-41). */
+	CREW_CHANGE_REQUIRED,
+
+	/** With large Crews off, a Job has one Crew row that is not released (AD-30). */
+	CREW_LIMIT,
+
+	/** Only a verified Student joins a Crew (FR-5, FR-75). */
+	STUDENT_NOT_VERIFIED,
+
+	/** The Student is on another running Crew (FR-75, AD-33). */
+	STUDENT_ON_CREW,
+
+	/** The Student shares a person-link signal with the Mentor or the Customer; never says which (AD-19). */
+	CONFLICT_OF_INTEREST,
+
+	/** The Student contributed to the Source Repository (FR-75). */
+	APPLICANT_IS_CONTRIBUTOR,
+
+	/** GitHub could not say who contributed, so the addition waits (fails closed). */
+	CONTRIBUTORS_UNKNOWN,
+
+	/** Shares: whole percentages summing to 100, each Crew member above 0, the Mentor within the cap (FR-75). */
+	SHARES_INVALID,
+
+	/** The Student is not a party of the version, or the Crew is not confirmed yet (FR-17, AD-41). */
+	CREW_NOT_CONFIRMED
 
 }

@@ -1579,6 +1579,125 @@
       "priceLine": "Giá: {price}",
       "next": "Người hướng dẫn có thể còn chỉnh sửa. Bạn được báo mỗi khi có bản nháp mới.",
       "stale": "Bản nháp vừa thay đổi ở nơi khác. Hãy tải lại trang rồi sửa tiếp."
+    },
+    "crew": {
+      "panel": {
+        "title": "Nhóm thực hiện",
+        "caption": "Điều khoản nhóm thực hiện · phiên bản {n} · phần chia tính trên số tiền mỗi giai đoạn được nghiệm thu",
+        "captionNone": "Chưa gửi phiên bản điều khoản nào · phần chia tính trên số tiền mỗi giai đoạn được nghiệm thu",
+        "add": "Thêm sinh viên",
+        "addAction": "thêm sinh viên",
+        "removeAction": "bỏ sinh viên khỏi nhóm",
+        "saveAction": "lưu phần chia",
+        "n20": "Khách hàng chỉ thấy tên tài khoản GitHub của nhóm thực hiện, không thấy tỷ lệ chia tiền. Mỗi sinh viên phải tự xác nhận phần của mình; sửa tỷ lệ sẽ xóa các xác nhận cũ.",
+        "locked": "Nhóm thực hiện đã chốt theo thỏa thuận. Không thể thay đổi cho đến khi công việc bắt đầu.",
+        "member": "Thành viên",
+        "share": "Phần chia",
+        "status": "Trạng thái",
+        "actions": "Thao tác",
+        "you": "{name} (bạn)",
+        "mentorRole": "Người hướng dẫn",
+        "mentorLine": "Người hướng dẫn · {login}",
+        "shareLabel": "Phần của {name}, phần trăm",
+        "cap": "Tối đa {cap}% cho người hướng dẫn",
+        "remove": "Bỏ khỏi nhóm",
+        "removeNamed": "Bỏ {name} khỏi nhóm",
+        "empty": "Chưa có sinh viên nào trong nhóm thực hiện. Chọn \"Thêm sinh viên\" để chọn từ nhóm của bạn.",
+        "sum": "Tổng: {n}%",
+        "sumBad": "Tổng: {n}% · cần bằng 100%",
+        "save": "Lưu và gửi cho nhóm xác nhận",
+        "saveNote": "Lưu sẽ tạo phiên bản mới và gửi cho từng sinh viên ký cam kết bảo mật và xác nhận phần của mình.",
+        "example": "Ví dụ Giai đoạn {n}",
+        "notWhole": "Hãy nhập số nguyên từ 0 đến 100.",
+        "studentZero": "Mỗi sinh viên phải lớn hơn 0%.",
+        "mentorOver": "Tối đa {cap}% cho người hướng dẫn.",
+        "saved": "Đã lưu phiên bản {n} và gửi cho nhóm xác nhận.",
+        "added": "Đã thêm {name} vào nhóm thực hiện.",
+        "removed": "Đã bỏ {name} khỏi nhóm thực hiện.",
+        "limit": "Hiện mỗi công việc chỉ có một sinh viên trong nhóm thực hiện.",
+        "pickLabel": "Sinh viên trong nhóm của bạn",
+        "pickCount": "Nhóm của bạn · {n} sinh viên",
+        "pickEmpty": "Nhóm của bạn chưa có sinh viên nào. Mời sinh viên ở trang Nhóm.",
+        "free": "Đang rảnh",
+        "onCrew": "Đang làm {job}",
+        "onCrewOther": "Đang làm một công việc khác",
+        "notVerified": "Chưa xác minh",
+        "inCrew": "Đã trong nhóm thực hiện",
+        "addNamed": "Thêm {name}",
+        "pickAdd": "Thêm",
+        "confirmTitle": "Lưu phần chia mới?",
+        "confirmBody": "Các xác nhận cũ sẽ bị xóa. Mỗi sinh viên phải ký và xác nhận lại phiên bản mới.",
+        "confirmBack": "Quay lại",
+        "confirmSave": "Lưu và gửi",
+        "state": {
+          "ASSIGNED": "Đã phân công · chưa xác nhận",
+          "ACTIVE": "Đang tham gia · đã xác nhận phiên bản {n}",
+          "ACTIVE_EARLIER": "Đang tham gia",
+          "INACTIVE": "Tạm ngừng",
+          "RELEASED": "Đã rời"
+        },
+        "released": {
+          "DECLINED": "Đã rời · đã từ chối tham gia",
+          "REMOVED": "Đã rời · đã bỏ khỏi nhóm",
+          "JOB_ENDED": "Đã rời · công việc đã kết thúc"
+        },
+        "notSigned": "Chưa ký cam kết",
+        "signed": "Đã ký cam kết {date}",
+        "headerLine": "Nhóm thực hiện: {confirmed}/{total} đã xác nhận",
+        "seesTitle": "Khách hàng thấy gì",
+        "sees": "Dưới \"Nhóm thực hiện\" trong thỏa thuận, khách hàng chỉ thấy tên tài khoản GitHub:",
+        "seesNobody": "chưa có ai",
+        "seesNote": "Không có tên, hồ sơ hay tỷ lệ chia. Cho đến khi cả nhóm xác nhận, khách hàng thấy thêm \"Chờ nhóm thực hiện xác nhận\".",
+        "rulesTitle": "Quy tắc phần chia",
+        "ruleWhole": "Số nguyên, cộng lại bằng 100%",
+        "ruleStudent": "Mỗi sinh viên lớn hơn 0%",
+        "ruleCap": "Tối đa {cap}% cho người hướng dẫn",
+        "ruleRemainder": "Phần lẻ dưới 1 đồng thuộc về người hướng dẫn"
+      },
+      "customer": {
+        "title": "Nhóm thực hiện",
+        "waiting": "Chờ nhóm thực hiện xác nhận",
+        "none": "Người hướng dẫn chưa chọn nhóm thực hiện."
+      },
+      "student": {
+        "title": "Công việc của tôi",
+        "noTeam": "Bạn chưa ở nhóm nào. Hãy tìm một người hướng dẫn và xin vào nhóm.",
+        "noTeamBody": "Người hướng dẫn chọn sinh viên trong nhóm của mình vào nhóm thực hiện từng công việc.",
+        "findMentor": "Tìm người hướng dẫn",
+        "empty": "Bạn chưa có công việc nào.",
+        "emptyBody": "Khi người hướng dẫn chọn bạn vào nhóm thực hiện, phân công sẽ hiện ở đây.",
+        "kicker": "Phân công nhóm thực hiện · {product}",
+        "waitingBadge": "Chờ bạn ký và xác nhận",
+        "mentor": "Người hướng dẫn: {name}",
+        "scope": "Phạm vi",
+        "milestone": "Giai đoạn",
+        "due": "Hạn",
+        "price": "Giá",
+        "yourPart": "Phần của bạn",
+        "milestoneRow": "{n} · {title}",
+        "share": "Phần của bạn: {share}% số tiền mỗi giai đoạn được nghiệm thu",
+        "version": "Điều khoản nhóm thực hiện · phiên bản {n} · người hướng dẫn gửi {date}. Bạn được chuyển tiền khi khách hàng nghiệm thu từng giai đoạn.",
+        "noTerms": "Người hướng dẫn chưa gửi phần chia. Bạn ký và xác nhận được khi có phiên bản điều khoản đầu tiên.",
+        "n19": "Ký cam kết bảo mật và xác nhận để tham gia. Bạn chỉ làm một công việc tại một thời điểm và không rời nhóm được cho đến khi công việc kết thúc.",
+        "ndaSigned": "Bạn đã ký cam kết bảo mật cho công việc này; lần này chỉ cần xác nhận phần chia mới.",
+        "changedTitle": "Phần chia đã thay đổi",
+        "changedBody": "Người hướng dẫn đã sửa điều khoản nhóm thực hiện lên phiên bản {n}. Hãy xem lại phần của bạn rồi xác nhận lại. Xác nhận trước đó không còn hiệu lực.",
+        "decline": "Từ chối",
+        "confirm": "Ký và xác nhận",
+        "declineNote": "Từ chối sẽ đưa bạn ra khỏi nhóm thực hiện của công việc này; người hướng dẫn được báo để chọn người khác. Bạn vẫn ở trong nhóm của người hướng dẫn.",
+        "why": "Đánh dấu ô xác nhận phía trên để ký.",
+        "whyNotice": "Đánh dấu ô xác nhận và \"Tôi đã hiểu\" để ký. Thông báo về email commit chỉ hỏi một lần.",
+        "confirmed": "Đã ký và xác nhận phần chia.",
+        "stale": "Phần chia đã thay đổi. Hãy xem lại phiên bản mới rồi xác nhận.",
+        "declineTitle": "Từ chối tham gia công việc này?",
+        "declineBack": "Quay lại",
+        "declined": "Đã từ chối. Người hướng dẫn được báo để chọn người khác.",
+        "activeTitle": "Đang tham gia",
+        "activeMeta": "{product} · Người hướng dẫn: {mentor}",
+        "activeShare": "Phần của bạn: {share}% · điều khoản phiên bản {n}",
+        "activeBadge": "Đã xác nhận",
+        "inactiveBadge": "Tạm ngừng"
+      }
     }
   },
   "notice": {
@@ -2021,7 +2140,9 @@
     },
     "job": {
       "draft_agreement": "Soạn thỏa thuận cho {job}",
-      "review_agreement": "Xem thỏa thuận cho {job}"
+      "review_agreement": "Xem thỏa thuận cho {job}",
+      "pick_crew": "Chọn nhóm thực hiện cho {job}",
+      "confirm_crew_terms": "Ký cam kết và xác nhận phần chia cho {job}"
     }
   },
   "theme": {
@@ -2118,6 +2239,30 @@
       },
       "agreement_draft_ready": {
         "title": "Người hướng dẫn đã gửi bản nháp thỏa thuận cho {job}"
+      },
+      "crew_assigned": {
+        "title": "Bạn được phân công vào nhóm thực hiện {job}"
+      },
+      "crew_member_confirmed": {
+        "title": "{student} đã ký cam kết và xác nhận phần chia cho {job}"
+      },
+      "crew_member_declined": {
+        "title": "{student} đã từ chối tham gia {job}"
+      },
+      "crew_member_removed": {
+        "title": "Bạn không còn trong nhóm thực hiện {job}"
+      },
+      "crew_terms_changed": {
+        "title": "Phần chia của {job} đã thay đổi. Hãy xác nhận lại."
+      },
+      "crew_confirmed": {
+        "title": "Nhóm thực hiện {job} đã xác nhận đủ"
+      },
+      "conflict_of_interest_refused": {
+        "title": "Một lượt thêm vào nhóm thực hiện bị từ chối vì có thể là cùng một người"
+      },
+      "person_link_alert": {
+        "title": "Hai người trong {job} có thể là cùng một người ({first}, {second})"
       }
     },
     "matching": {
@@ -2225,7 +2370,18 @@
       "MENTOR_AT_JOB_LIMIT": "người hướng dẫn này đang nhận đủ số công việc tối đa",
       "MENTOR_NO_FREE_STUDENT": "nhóm của người hướng dẫn này hiện không có sinh viên rảnh",
       "NDA_PERIOD_RUNNING": "người hướng dẫn vẫn còn thời gian ký cam kết bảo mật",
-      "AGREEMENT_INCOMPLETE": "bản nháp chưa đủ để gửi"
+      "AGREEMENT_INCOMPLETE": "bản nháp chưa đủ để gửi",
+      "CREW_LOCKED": "nhóm thực hiện đã chốt theo thỏa thuận",
+      "CREW_CHANGE_REQUIRED": "công việc đã bắt đầu, chỉ đổi nhóm được qua yêu cầu đổi nhóm",
+      "CREW_LIMIT": "mỗi công việc hiện chỉ có một sinh viên trong nhóm thực hiện",
+      "STUDENT_NOT_VERIFIED": "sinh viên chưa xác minh",
+      "STUDENT_ON_CREW": "sinh viên đang làm một công việc khác",
+      "NOT_IN_TEAM": "sinh viên không còn trong nhóm của bạn",
+      "CONFLICT_OF_INTEREST": "không thể thêm sinh viên này vào công việc này",
+      "APPLICANT_IS_CONTRIBUTOR": "sinh viên đã từng đóng góp vào dự án gốc này",
+      "CONTRIBUTORS_UNKNOWN": "vibefix chưa kiểm tra được kho mã của khách hàng, hãy thử lại sau ít phút",
+      "SHARES_INVALID": "Tỷ lệ chia phải là số nguyên, cộng lại bằng 100, mỗi sinh viên lớn hơn 0, và phần của người hướng dẫn không quá mức tối đa.",
+      "CREW_NOT_CONFIRMED": "nhóm thực hiện chưa xác nhận đủ"
     },
     "matching": {
       "JOB_POST_NOT_OPEN": "công việc không còn nhận ứng tuyển",
