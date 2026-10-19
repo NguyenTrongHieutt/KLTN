@@ -39,20 +39,24 @@ export function JobTabRow({ tabs, current }: { tabs: JobTab[]; current: string }
 /**
  * The Customer's Job tabs (UX-DR17) as routes: "Tổng quan" always; "Đơn ứng tuyển ({n})" with
  * "Tìm người hướng dẫn" while the Job Post takes Applications (UX-DR66); "Trò chuyện" from Agreement
- * on, with the unread dot. Later tabs join with their stories.
+ * on, with the unread dot; "Thỏa thuận" once the Mentor shared a draft. Later tabs join with their
+ * stories.
  */
 export function JobTabs({
   jobId,
   current,
   applications,
   chat,
+  agreement = false,
 }: {
   jobId: string
-  current: 'overview' | 'applications' | 'find' | 'chat'
+  current: 'overview' | 'applications' | 'find' | 'chat' | 'agreement'
   /** The open Applications, when the tab is shown. */
   applications?: number
   /** The Job Chat, when the Job has one: whether the Mentor wrote since the Customer last read. */
   chat?: { unread: boolean }
+  /** Whether the Mentor shared an Agreement draft (FR-16). */
+  agreement?: boolean
 }) {
   const tabs: JobTab[] = [
     { key: 'overview', to: `/cong-viec/${jobId}`, label: t('screen.job.detail.overview') },
@@ -65,6 +69,7 @@ export function JobTabs({
     ...(chat === undefined
       ? []
       : [{ key: 'chat', to: `/cong-viec/${jobId}/tro-chuyen`, label: t('screen.chat.tab'), dot: chat.unread }]),
+    ...(agreement ? [{ key: 'agreement', to: `/cong-viec/${jobId}/thoa-thuan`, label: t('screen.agreement.tab') }] : []),
   ]
   return <JobTabRow tabs={tabs} current={current} />
 }

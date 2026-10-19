@@ -29,6 +29,7 @@ import vn.vibefix.identity.MentorGate;
 import vn.vibefix.job.JobPosts;
 import vn.vibefix.job.JobPosts.JobPostState;
 import vn.vibefix.job.JobSelection;
+import vn.vibefix.job.JobSelection.SelectedQuote;
 import vn.vibefix.matching.internal.Applications.Application;
 import vn.vibefix.matching.internal.Applications.EndReason;
 import vn.vibefix.matching.internal.Applications.Quote;
@@ -180,7 +181,8 @@ class ApplicationController {
 			throw new ApiException(ErrorCode.STALE);
 		}
 		return new SelectedView(
-				this.selection.select(jobId, customer, application.mentorId(), applicationId, body.version()));
+				this.selection.select(jobId, customer, application.mentorId(), applicationId,
+						new SelectedQuote(application.priceVnd(), application.timelineDays()), body.version()));
 	}
 
 	/**

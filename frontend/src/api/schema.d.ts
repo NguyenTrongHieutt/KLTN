@@ -292,6 +292,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/jobs/{jobId}/agreement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["customer"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jobs/{jobId}/applications": {
         parameters: {
             query?: never;
@@ -670,6 +686,38 @@ export interface paths {
         get: operations["job_1"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mentor/jobs/{jobId}/agreement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["draft"];
+        put: operations["save_1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mentor/jobs/{jobId}/agreement/share": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["share"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1502,6 +1550,25 @@ export interface components {
             /** Format: date-time */
             idleExpiresAt: string;
         };
+        AgreementDraftView: {
+            content: components["schemas"]["Content"];
+            problems: components["schemas"]["Problem"][];
+            quote?: components["schemas"]["QuoteView"];
+            /** Format: int32 */
+            revision: number;
+            /** @enum {string} */
+            state: "DRAFT" | "OPEN" | "SELECTING" | "AGREEMENT" | "STARTING" | "ACTIVE" | "CLOSING" | "CLOSED" | "CANCELLED";
+            versions: components["schemas"]["VersionSummary"][];
+        };
+        AgreementVersionView: {
+            content: components["schemas"]["Content"];
+            quote?: components["schemas"]["QuoteView"];
+            /** Format: date-time */
+            sharedAt: string;
+            /** Format: int32 */
+            versionNo: number;
+            versions: components["schemas"]["VersionSummary"][];
+        };
         ApplicantView: {
             displayName: string;
             githubLogin?: string;
@@ -1603,6 +1670,16 @@ export interface components {
         CodeRequest: {
             code: string;
         };
+        Content: {
+            assessment: boolean;
+            codeJob: boolean;
+            externalAccess: components["schemas"]["ExternalAccess"][];
+            milestones: components["schemas"]["Milestone"][];
+            /** Format: int64 */
+            priceVnd?: number;
+            scope: string;
+            skills: components["schemas"]["SkillName"][];
+        };
         CreateAdministratorRequest: {
             displayName: string;
             /** Format: email */
@@ -1612,6 +1689,18 @@ export interface components {
         CreatedView: {
             /** Format: uuid */
             id: string;
+        };
+        Criterion: {
+            checkSteps: string;
+            /** Format: uuid */
+            id: string;
+            statement: string;
+        };
+        CriterionRequest: {
+            checkSteps: string;
+            /** Format: uuid */
+            id: string;
+            statement: string;
         };
         CustomerProfile: {
             contactEmail: string;
@@ -1644,6 +1733,26 @@ export interface components {
         };
         EnvironmentResponse: {
             name: string;
+        };
+        ExternalAccess: {
+            /** @enum {string} */
+            accessLevel: "READ" | "WRITE" | "ADMIN";
+            /** @enum {string} */
+            environment: "NON_PRODUCTION" | "PRODUCTION";
+            /** Format: uuid */
+            id: string;
+            purpose: string;
+            system: string;
+        };
+        ExternalAccessRequest: {
+            /** @enum {string} */
+            accessLevel: "READ" | "WRITE" | "ADMIN";
+            /** @enum {string} */
+            environment: "NON_PRODUCTION" | "PRODUCTION";
+            /** Format: uuid */
+            id: string;
+            purpose: string;
+            system: string;
         };
         FalsePositiveRequest: {
             reason: string;
@@ -1792,6 +1901,7 @@ export interface components {
             jobType: string;
         };
         JobView: {
+            agreementShared: boolean;
             appUsers?: string;
             /** @enum {string} */
             budget?: "UNDER_2M" | "FROM_2M_TO_5M" | "FROM_5M_TO_10M" | "OVER_10M";
@@ -2037,6 +2147,30 @@ export interface components {
             /** Format: date-time */
             sentAt: string;
         };
+        Milestone: {
+            criteria: components["schemas"]["Criterion"][];
+            /** Format: date */
+            dueOn?: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: int64 */
+            priceVnd?: number;
+            /** Format: int32 */
+            revisionRounds: number;
+            title: string;
+        };
+        MilestoneRequest: {
+            criteria: components["schemas"]["CriterionRequest"][];
+            /** Format: date */
+            dueOn?: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: int64 */
+            priceVnd?: number;
+            /** Format: int32 */
+            revisionRounds: number;
+            title: string;
+        };
         NdaRequest: {
             commitEmailNoticeAcknowledged: boolean;
             ndaVersion: string;
@@ -2115,6 +2249,16 @@ export interface components {
             /** Format: int32 */
             milestones: number;
             title: string;
+        };
+        Problem: {
+            /** @enum {string} */
+            code: "SCOPE_MISSING" | "PRICE_MISSING" | "MILESTONE_MISSING" | "MILESTONE_INCOMPLETE" | "MILESTONE_WITHOUT_CRITERION" | "CRITERION_WITHOUT_STEPS" | "PRICE_SUM_MISMATCH" | "EXTERNAL_ACCESS_INCOMPLETE";
+            /** Format: uuid */
+            criterionId?: string;
+            /** Format: uuid */
+            externalAccessId?: string;
+            /** Format: uuid */
+            milestoneId?: string;
         };
         ProductCreatedView: {
             /** Format: uuid */
@@ -2232,6 +2376,12 @@ export interface components {
             /** @enum {string} */
             limit?: "JOB_POST_NOT_OPEN" | "JOB_POST_HIDDEN" | "ALREADY_APPLIED" | "NO_FREE_STUDENT" | "MENTOR_JOB_LIMIT" | "CONFLICT_OF_INTEREST" | "APPLICANT_IS_CONTRIBUTOR" | "CONTRIBUTORS_UNKNOWN" | "PUBLIC_CODE_NOT_ACKNOWLEDGED" | "NOT_WITHDRAWABLE" | "NDA_VERSION_OUTDATED" | "COMMIT_EMAIL_NOT_ACKNOWLEDGED" | "INVITEE_NOT_AVAILABLE" | "ALREADY_INVITED" | "INVITEE_ALREADY_APPLIED" | "INVITE_LIMIT_JOB_POST" | "INVITE_LIMIT_DAILY";
         };
+        QuoteView: {
+            /** Format: int64 */
+            priceVnd: number;
+            /** Format: int32 */
+            timelineDays: number;
+        };
         RatingSummaryView: {
             average?: number;
             /** Format: int32 */
@@ -2285,6 +2435,16 @@ export interface components {
             ownerType: string;
             /** Format: int64 */
             sizeKb: number;
+        };
+        SaveRequest: {
+            externalAccess: components["schemas"]["ExternalAccessRequest"][];
+            milestones: components["schemas"]["MilestoneRequest"][];
+            /** Format: int64 */
+            priceVnd?: number;
+            /** Format: int32 */
+            revision: number;
+            scope: string;
+            skillIds: string[];
         };
         SavedView: {
             submitted: boolean;
@@ -2353,6 +2513,10 @@ export interface components {
             status: "ANONYMOUS" | "SIGNING_UP" | "LOCKED" | "SIGNED_IN";
             supportEmail?: string;
         };
+        ShareRequest: {
+            /** Format: int32 */
+            revision: number;
+        };
         SignUpRequest: {
             privacyNoticeVersion: string;
             /** @enum {string} */
@@ -2362,6 +2526,11 @@ export interface components {
             jobTypeMatches: components["schemas"]["JobTypeMatchView"][];
             newcomer: boolean;
             sharedSkills: string[];
+        };
+        SkillName: {
+            /** Format: uuid */
+            id: string;
+            name: string;
         };
         SkillView: {
             active: boolean;
@@ -2634,6 +2803,12 @@ export interface components {
             verifiedAt?: string;
             /** Format: date */
             verifiedUntil?: string;
+        };
+        VersionSummary: {
+            /** Format: date-time */
+            sharedAt: string;
+            /** Format: int32 */
+            versionNo: number;
         };
     };
     responses: never;
@@ -3154,6 +3329,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobView"];
+                };
+            };
+        };
+    };
+    customer: {
+        parameters: {
+            query?: {
+                version?: number;
+            };
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgreementVersionView"];
                 };
             };
         };
@@ -3771,6 +3970,80 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MentorJobView"];
+                };
+            };
+        };
+    };
+    draft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgreementDraftView"];
+                };
+            };
+        };
+    };
+    save_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgreementDraftView"];
+                };
+            };
+        };
+    };
+    share: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShareRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgreementDraftView"];
                 };
             };
         };

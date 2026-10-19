@@ -34,7 +34,8 @@ class JobPersonalData implements PersonalDataParticipant {
 
 	@Override
 	public Set<String> tables() {
-		return Set.of("job.job", "job.job_screenshot");
+		return Set.of("job.job", "job.job_screenshot", "job.agreement_draft", "job.milestone", "job.acceptance_criterion",
+				"job.external_access", "job.agreement_version");
 	}
 
 	@Override
@@ -76,6 +77,12 @@ class JobPersonalData implements PersonalDataParticipant {
 		this.jdbc.sql("""
 				SELECT s.file_id FROM job.job_screenshot s JOIN job.job j ON j.id = s.job_id WHERE j.%s = :id
 				""".formatted(column)).param("id", id).query(UUID.class).list().forEach(this.files::delete);
+		for (String table : List.of("job.acceptance_criterion", "job.milestone", "job.external_access",
+				"job.agreement_version", "job.agreement_draft")) {
+			this.jdbc.sql("DELETE FROM %s WHERE job_id IN (SELECT id FROM job.job WHERE %s = :id)".formatted(table, column))
+				.param("id", id)
+				.update();
+		}
 		this.jdbc.sql("DELETE FROM job.job WHERE %s = :id".formatted(column)).param("id", id).update();
 	}
 

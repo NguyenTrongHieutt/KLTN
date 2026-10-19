@@ -1,0 +1,39 @@
+# FR-10: the Assessment Report template. An Assessment Job's Agreement has exactly this one Milestone,
+# and its Acceptance Criteria are these sections; the Mentor drafts only the price and the due date.
+# The "what is missing" section is the checklist of typical AI-code flaws, each marked checked, found,
+# or not applicable. Plain Vietnamese for the Customer (UX-DR8).
+version: 1
+milestone: Báo cáo đánh giá
+criteria:
+  - statement: Báo cáo mô tả hiện trạng ứng dụng bằng lời dễ hiểu
+    steps: |-
+      1. Mở trang Báo cáo đánh giá trong mục Tài liệu.
+      2. Đọc phần "Hiện trạng": ứng dụng làm được gì, chạy ở đâu, dùng những dịch vụ nào.
+      3. Kiểm tra mỗi ý đều viết bằng lời bạn hiểu được, không chỉ có thuật ngữ.
+  - statement: Báo cáo liệt kê các lỗi tìm thấy, mỗi lỗi có cách tái hiện
+    steps: |-
+      1. Mở phần "Các lỗi tìm thấy".
+      2. Với mỗi lỗi, xem có mô tả bạn sẽ thấy gì và các bước để thấy lại lỗi đó.
+      3. Thử lại ít nhất một lỗi theo các bước được ghi.
+  - statement: Báo cáo đánh dấu từng mục trong danh sách những gì còn thiếu
+    steps: |-
+      1. Mở phần "Những gì còn thiếu".
+      2. Kiểm tra đủ chín mục, mỗi mục được đánh dấu là đã kiểm tra, có vấn đề, hoặc không áp dụng:
+         kiểm soát truy cập và phân quyền; chèn mã độc vào dữ liệu nhập và vào trang; khóa bí mật bị lộ;
+         dữ liệu cá nhân và rủi ro theo luật bảo vệ dữ liệu cá nhân; xử lý lỗi; kiểm thử; tốc độ khi nhiều
+         người dùng; sao lưu và khôi phục; triển khai và vận hành.
+      3. Với mục có vấn đề, xem có giải thích vì sao.
+  - statement: Báo cáo nêu các vấn đề còn mở từ lần kiểm tra khóa bí mật và dữ liệu cá nhân
+    steps: |-
+      1. Mở phần "Vấn đề còn mở từ kiểm tra".
+      2. So với danh sách vấn đề của sản phẩm trên vibefix: mỗi vấn đề còn mở đều được nhắc tới.
+      3. Kiểm tra mỗi vấn đề có cách xử lý đề nghị.
+  - statement: Báo cáo có danh sách đề xuất xếp theo thứ tự ưu tiên
+    steps: |-
+      1. Mở phần "Đề xuất".
+      2. Kiểm tra các đề xuất được đánh số theo mức ưu tiên, việc quan trọng nhất ở đầu.
+      3. Với mỗi đề xuất, xem có lý do và ước lượng công sức.
+  - statement: Báo cáo giải thích các thuật ngữ kỹ thuật đã dùng
+    steps: |-
+      1. Mở phần "Giải thích thuật ngữ".
+      2. Chọn hai thuật ngữ trong báo cáo và tìm lời giải thích của chúng ở phần này.

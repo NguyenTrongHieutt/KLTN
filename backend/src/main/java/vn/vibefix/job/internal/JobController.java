@@ -101,7 +101,7 @@ class JobController {
 			List<SkillView> skills, @Nullable Budget budget, @Nullable LocalDate deadline, List<ScreenshotView> screenshots,
 			Instant createdAt, Instant updatedAt, long version, @Nullable Instant openedAt, @Nullable Instant lapsesAt,
 			@Nullable JobMentorView mentor, @Nullable Instant selectedAt, @Nullable Instant ndaDueAt,
-			boolean canCancelSelection) {
+			boolean canCancelSelection, boolean agreementShared) {
 	}
 
 	/** A decision at the Job version the screen loaded (AD-23). */
@@ -121,13 +121,16 @@ class JobController {
 
 	private final MentorDirectory mentors;
 
+	private final Agreements agreements;
+
 	private final CurrentCaller callers;
 
 	private final Clock clock;
 
 	JobController(Jobs jobs, JobLifecycle lifecycle, ProductDirectory products, MentorDirectory mentors,
-			CurrentCaller callers, Clock clock) {
+			Agreements agreements, CurrentCaller callers, Clock clock) {
 		this.jobs = jobs;
+		this.agreements = agreements;
 		this.lifecycle = lifecycle;
 		this.products = products;
 		this.mentors = mentors;
@@ -235,7 +238,8 @@ class JobController {
 				job.createdAt(), job.updatedAt(), job.version(), job.openedAt(), job.lapsesAt(), mentor(job),
 				job.selectedAt(), job.selectedAt() == null ? null : job.selectedAt().plus(JobSelection.NDA_PERIOD),
 				job.state() == JobState.SELECTING && job.selectedAt() != null
-						&& !this.clock.instant().isBefore(job.selectedAt().plus(JobSelection.NDA_PERIOD)));
+						&& !this.clock.instant().isBefore(job.selectedAt().plus(JobSelection.NDA_PERIOD)),
+				this.agreements.shared(job.id()));
 	}
 
 	private @Nullable JobMentorView mentor(Job job) {

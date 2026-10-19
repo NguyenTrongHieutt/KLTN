@@ -36,6 +36,14 @@ class NotificationTypes implements NotificationCatalog {
 	/** The selected Mentor signs the NDA within the FR-15 period (UX-DR15). */
 	static final TodoType MATCHING_SIGN_NDA = new TodoType("matching.sign_nda", Set.of(Audience.MENTOR), 2, Set.of("job"));
 
+	/** J4 started the Agreement draft (FR-16): the Mentor, due at the Agreement deadline. */
+	static final TodoType JOB_DRAFT_AGREEMENT = new TodoType("job.draft_agreement", Set.of(Audience.MENTOR), 2,
+			Set.of("job"));
+
+	/** The Mentor shared a draft (FR-16): the Customer reviews it, due at the Agreement deadline. */
+	static final TodoType JOB_REVIEW_AGREEMENT = new TodoType("job.review_agreement", Set.of(Audience.CUSTOMER), 1,
+			Set.of("job"));
+
 	/** A Customer invited this Mentor to apply (FR-14): until they apply or the Job leaves Open. */
 	static final TodoType MATCHING_ANSWER_INVITATION_TO_APPLY = new TodoType("matching.answer_invitation_to_apply",
 			Set.of(Audience.SUBJECT), 3, Set.of("job"));
@@ -170,6 +178,10 @@ class NotificationTypes implements NotificationCatalog {
 			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "mail",
 			Set.of("customer", "job"));
 
+	/** The Mentor shared an Agreement draft (FR-16): the Customer. */
+	static final NotificationType JOB_AGREEMENT_DRAFT_READY = new NotificationType("job.agreement_draft_ready",
+			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
+
 	/** J4 opened the Job Chat (FR-46): the Customer and the Mentor, in-app only. */
 	static final NotificationType CHAT_CHAT_OPENED = new NotificationType("chat.chat_opened",
 			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
@@ -184,13 +196,14 @@ class NotificationTypes implements NotificationCatalog {
 				JOB_POST_LAPSED, MATCHING_APPLICATION_RECEIVED, MATCHING_APPLICATION_AUTO_WITHDRAWN,
 				MATCHING_CONFLICT_OF_INTEREST_REFUSED, JOB_ASSIGNEE_SELECTED, MATCHING_APPLICATIONS_ON_HOLD,
 				JOB_SELECTION_DECLINED, MATCHING_APPLICATIONS_CLOSED, MATCHING_APPLICATIONS_REOPENED, MATCHING_NDA_OVERDUE,
-				MATCHING_INVITED_TO_APPLY, CHAT_CHAT_OPENED);
+				MATCHING_INVITED_TO_APPLY, CHAT_CHAT_OPENED, JOB_AGREEMENT_DRAFT_READY);
 	}
 
 	@Override
 	public List<TodoType> todoTypes() {
 		return List.of(COMPLETE_MENTOR_APPLICATION, VERIFY_STUDENT, SCANNING_RESOLVE_INTAKE_FINDING,
-				MATCHING_CHOOSE_ASSIGNEE, MATCHING_SIGN_NDA, MATCHING_ANSWER_INVITATION_TO_APPLY);
+				MATCHING_CHOOSE_ASSIGNEE, MATCHING_SIGN_NDA, MATCHING_ANSWER_INVITATION_TO_APPLY, JOB_DRAFT_AGREEMENT,
+				JOB_REVIEW_AGREEMENT);
 	}
 
 }
