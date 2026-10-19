@@ -5,7 +5,9 @@ import { Skeleton } from '@/components/Skeleton'
 import { t, type MessageKey } from '@/i18n/t'
 import { formatDayMonth } from '@/lib/dates'
 import { formatVnd } from '@/lib/money'
+import { JobStateBadge } from '@/features/job/JobStateBadge'
 import { useMyApplications, type Application, type ApplicationStatus } from './applicationApi'
+import { useMentorJobs } from './mentorJobApi'
 
 type Group = 'waiting' | 'held' | 'ended'
 
@@ -23,7 +25,9 @@ const GROUP_OF: Record<ApplicationStatus, Group> = {
  */
 export function MentorJobsPage() {
   const applications = useMyApplications()
+  const jobs = useMentorJobs()
   const items = applications.data ?? []
+  const mine = jobs.data ?? []
   return (
     <div className="mx-auto flex max-w-[880px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
       <PageHeading>{t('screen.job.heading')}</PageHeading>
@@ -31,7 +35,26 @@ export function MentorJobsPage() {
         <h2 id="mentor-jobs" className="text-h2">
           {t('screen.matching.mentor.jobs')}
         </h2>
-        <p className="text-body-sm text-muted-foreground">{t('screen.matching.mentor.noJobs')}</p>
+        {mine.length === 0 ? (
+          <p className="text-body-sm text-muted-foreground">{t('screen.matching.mentor.noJobs')}</p>
+        ) : (
+          <ul className="flex flex-col divide-y divide-border rounded-lg border border-border bg-card">
+            {mine.map((job) => (
+              <li key={job.id}>
+                <Link
+                  to={`/cong-viec/${job.id}`}
+                  className="flex flex-wrap items-center gap-3 px-4 py-3 text-inherit no-underline hover:bg-muted/50"
+                >
+                  <span className="flex min-w-60 grow flex-col gap-0.5">
+                    <span className="text-label font-semibold break-words">{job.title}</span>
+                    <span className="text-caption text-muted-foreground break-words">{job.productName}</span>
+                  </span>
+                  <JobStateBadge state={job.state} audience="mentor" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
       <RegionState query={applications} skeleton={<Skeleton className="h-48 w-full" />}>
         {items.length === 0 ? (

@@ -34,7 +34,13 @@ export function JobStateBadge({
   className?: string
 }) {
   return (
-    <span className={cn('w-fit rounded-full px-2 py-0.5 text-caption font-semibold', TONE_CLASSES[TONES[state]], className)}>
+    <span
+      className={cn(
+        'w-fit rounded-full px-2 py-0.5 text-caption font-semibold',
+        TONE_CLASSES[audience === 'mentor' && state === 'SELECTING' ? 'waiting' : TONES[state]],
+        className,
+      )}
+    >
       {jobStateText(state, audience)}
     </span>
   )

@@ -71,6 +71,10 @@ class ApplicationController {
 	record SelectedView(long version) {
 	}
 
+	/** The NDA panel's "Ký cam kết": the text version shown and, for a Code Job, N-23 ticked. */
+	record NdaRequest(@NotBlank String ndaVersion, boolean commitEmailNoticeAcknowledged) {
+	}
+
 	/** One Application to the Customer's Job. */
 	record JobApplicationView(UUID id, Status status, long priceVnd, int timelineDays, String approach,
 			Instant submittedAt, ApplicantView mentor) {
@@ -88,16 +92,19 @@ class ApplicationController {
 
 	private final JobSelection selection;
 
+	private final NdaSignatures signatures;
+
 	private final CurrentCaller callers;
 
 	ApplicationController(Applications applications, JobPosts posts, MentorDirectory mentors, Teams teams,
-			MentorGate gate, JobSelection selection, CurrentCaller callers) {
+			MentorGate gate, JobSelection selection, NdaSignatures signatures, CurrentCaller callers) {
 		this.applications = applications;
 		this.posts = posts;
 		this.mentors = mentors;
 		this.teams = teams;
 		this.gate = gate;
 		this.selection = selection;
+		this.signatures = signatures;
 		this.callers = callers;
 	}
 
@@ -163,6 +170,18 @@ class ApplicationController {
 		}
 		return new SelectedView(
 				this.selection.select(jobId, customer, application.mentorId(), applicationId, body.version()));
+	}
+
+	/**
+	 * JOB-1's NDA panel "Ký cam kết" (FR-15, AD-19 new-work command): the signature and J4, in one
+	 * transaction.
+	 */
+	@PostMapping("/api/v1/mentor/jobs/{jobId}/nda")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	void sign(@PathVariable UUID jobId, @Valid @RequestBody NdaRequest body) {
+		UUID mentor = mentor();
+		this.gate.requireApprovedMentor(mentor);
+		this.signatures.sign(mentor, jobId, body.ndaVersion(), body.commitEmailNoticeAcknowledged());
 	}
 
 	/** The Job's Customer calling; anyone else finds nothing. */

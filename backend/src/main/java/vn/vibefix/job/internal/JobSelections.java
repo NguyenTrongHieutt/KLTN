@@ -1,5 +1,6 @@
 package vn.vibefix.job.internal;
 
+import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
@@ -24,6 +25,13 @@ class JobSelections implements JobSelection {
 	public long select(UUID jobId, UUID customerId, UUID mentorId, UUID applicationId, long expectedVersion) {
 		return this.lifecycle.apply(Transition.J3, jobId, Actor.user(customerId), Trigger.USER, expectedVersion,
 				Map.of("mentorId", mentorId, "applicationId", applicationId)).version();
+	}
+
+	@Override
+	@Transactional
+	public void confirm(UUID jobId, UUID mentorId, String ndaVersion, Instant signedAt) {
+		this.lifecycle.apply(Transition.J4, jobId, Actor.user(mentorId), Trigger.USER,
+				Map.of("ndaVersion", ndaVersion, "signedAt", signedAt));
 	}
 
 }

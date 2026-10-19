@@ -11,12 +11,15 @@ public interface JobPosts {
 
 	/**
 	 * A Job as {@code matching} decides on Applications to it.
+	 * @param state the Job state's name, for example {@code SELECTING}
 	 * @param open in the Open state
 	 * @param hidden hidden by an Administrator (FR-60)
 	 * @param lapsesAt when the Job Post lapses, while Open
+	 * @param codeJob a Code Job: its Job Types are not Assessment alone (FR-8)
+	 * @param mentorId the Mentor J3 recorded, while there is one
 	 */
-	record JobPostState(UUID jobId, UUID customerId, UUID productId, String title, boolean open, boolean hidden,
-			@Nullable Instant lapsesAt) {
+	record JobPostState(UUID jobId, UUID customerId, UUID productId, String title, String state, boolean open,
+			boolean hidden, @Nullable Instant lapsesAt, boolean codeJob, @Nullable UUID mentorId) {
 	}
 
 	/** Any Job by ID, whatever its state; empty for no such Job. */

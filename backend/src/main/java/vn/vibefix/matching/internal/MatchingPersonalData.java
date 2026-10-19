@@ -31,7 +31,7 @@ class MatchingPersonalData implements PersonalDataParticipant {
 
 	@Override
 	public Set<String> tables() {
-		return Set.of("matching.application");
+		return Set.of("matching.application", "matching.nda_signature");
 	}
 
 	@Override
@@ -52,12 +52,25 @@ class MatchingPersonalData implements PersonalDataParticipant {
 			application.put("endReason", rs.getString("end_reason"));
 			return application;
 		}).list();
-		return applications.isEmpty() ? Optional.empty()
-				: Optional.of(new PersonalDataSection("matching", Map.of("applications", applications)));
+		List<Map<String, Object>> signatures = this.jdbc.sql("""
+				SELECT job_id, nda_version, signed_at FROM matching.nda_signature WHERE account_id = :id ORDER BY signed_at
+				""").param("id", accountId).query((rs, n) -> {
+			Map<String, Object> signature = new LinkedHashMap<>();
+			signature.put("jobId", rs.getObject("job_id", UUID.class).toString());
+			signature.put("ndaVersion", rs.getString("nda_version"));
+			signature.put("signedAt", rs.getTimestamp("signed_at").toInstant().toString());
+			return signature;
+		}).list();
+		if (applications.isEmpty() && signatures.isEmpty()) {
+			return Optional.empty();
+		}
+		return Optional.of(new PersonalDataSection("matching",
+				Map.of("applications", applications, "ndaSignatures", signatures)));
 	}
 
 	@Override
 	public void eraseAccount(UUID accountId) {
+		this.jdbc.sql("DELETE FROM matching.nda_signature WHERE account_id = :id").param("id", accountId).update();
 		this.jdbc.sql("DELETE FROM matching.application WHERE mentor_account_id = :id OR customer_account_id = :id")
 			.param("id", accountId)
 			.update();
@@ -65,6 +78,10 @@ class MatchingPersonalData implements PersonalDataParticipant {
 
 	@Override
 	public void deleteProduct(UUID productId) {
+		this.jdbc.sql("""
+				DELETE FROM matching.nda_signature WHERE job_id IN
+				    (SELECT job_id FROM matching.application WHERE product_id = :id)
+				""").param("id", productId).update();
 		this.jdbc.sql("DELETE FROM matching.application WHERE product_id = :id").param("id", productId).update();
 	}
 

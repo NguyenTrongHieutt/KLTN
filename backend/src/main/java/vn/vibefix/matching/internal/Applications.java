@@ -42,6 +42,8 @@ import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.IdGenerator;
 import vn.vibefix.shared.RateLimitedException;
+import vn.vibefix.timers.DeadlineRequest;
+import vn.vibefix.timers.Deadlines;
 
 /**
  * Mentors' Applications (FR-13): one per Mentor and Job, with a price in whole VND, a timeline in days,
@@ -69,6 +71,10 @@ class Applications {
 
 	static final String SIGN_NDA = "matching.sign_nda";
 
+	static final String CLOSED_NOTICE = "matching.applications_closed";
+
+	static final String REOPENED_NOTICE = "matching.applications_reopened";
+
 	static final ZoneId VIETNAM = ZoneId.of("Asia/Ho_Chi_Minh");
 
 	enum Status {
@@ -76,7 +82,7 @@ class Applications {
 	}
 
 	enum EndReason {
-		WITHDRAWN, MENTOR_UNAVAILABLE, JOB_WITHDRAWN, JOB_LAPSED
+		WITHDRAWN, MENTOR_UNAVAILABLE, JOB_WITHDRAWN, JOB_LAPSED, NOT_SELECTED, DECLINED, NOT_SIGNED
 	}
 
 	/** What the Mentor offers. */
@@ -113,6 +119,8 @@ class Applications {
 
 	private final ConflictAlerts alerts;
 
+	private final Deadlines deadlines;
+
 	private final AuditLog auditLog;
 
 	private final IdGenerator ids;
@@ -121,8 +129,8 @@ class Applications {
 
 	Applications(JdbcClient jdbc, JobPosts posts, MentorWork work, PersonSignals signals,
 			CustomerRepositories repositories, ProductDirectory products, MentorDirectory mentors,
-			Notifications notifications, Todos todos, ConflictAlerts alerts, AuditLog auditLog, IdGenerator ids,
-			Clock clock) {
+			Notifications notifications, Todos todos, ConflictAlerts alerts, Deadlines deadlines, AuditLog auditLog,
+			IdGenerator ids, Clock clock) {
 		this.jdbc = jdbc;
 		this.posts = posts;
 		this.work = work;
@@ -133,6 +141,7 @@ class Applications {
 		this.notifications = notifications;
 		this.todos = todos;
 		this.alerts = alerts;
+		this.deadlines = deadlines;
 		this.auditLog = auditLog;
 		this.ids = ids;
 		this.clock = clock;
@@ -314,8 +323,59 @@ class Applications {
 		this.todos.closeAll(CHOOSE_ASSIGNEE, jobId);
 		this.todos.open(new TodoRequest(SIGN_NDA, mentorId, Audience.MENTOR, jobId, Map.of("job", title),
 				"/cong-viec/" + jobId, ndaDueAt, jobId));
+		this.deadlines.schedule(new DeadlineRequest(NdaDue.KEY, selectedApplicationId,
+				selectedApplicationId.toString(), jobId, ndaDueAt));
 		this.auditLog.record(AuditEntry.of(AuditActor.system(), "matching.applications_held",
 				AuditObject.of("matching.application", selectedApplicationId)).forJob(jobId));
+	}
+
+	/** J4 (§4.0): the held Applications close, their Mentors are told, and the NDA to-do closes. */
+	@Transactional
+	void closeHeld(UUID jobId) {
+		List<Application> held = this.jdbc.sql("SELECT " + COLUMNS + """
+				 FROM matching.application WHERE job_id = :job AND status = 'ON_HOLD' ORDER BY submitted_at, id FOR UPDATE
+				""").param("job", jobId).query(Applications::application).list();
+		String title = this.posts.post(jobId).map(JobPostState::title).orElse("");
+		for (Application application : held) {
+			end(application.id(), Status.CLOSED, EndReason.NOT_SELECTED);
+			this.notifications.send(new NotificationRequest(CLOSED_NOTICE, application.id(),
+					List.of(new Recipient(application.mentorId(), Audience.SUBJECT)), Map.of("job", title), "/cong-viec",
+					null, application.id()));
+		}
+		this.todos.closeAll(SIGN_NDA, jobId);
+	}
+
+	/**
+	 * J5 (§4.0): the selected Application closes as declined or not signed, the held ones reopen and
+	 * their Mentors are told, the NDA to-do closes, and the Customer's choice to-do opens again.
+	 */
+	@Transactional
+	void reopen(UUID jobId, UUID selectedApplicationId, EndReason reason) {
+		end(selectedApplicationId, Status.CLOSED, reason);
+		List<Application> held = this.jdbc.sql("SELECT " + COLUMNS + """
+				 FROM matching.application WHERE job_id = :job AND status = 'ON_HOLD' ORDER BY submitted_at, id FOR UPDATE
+				""").param("job", jobId).query(Applications::application).list();
+		Optional<JobPostState> post = this.posts.post(jobId);
+		String title = post.map(JobPostState::title).orElse("");
+		for (Application application : held) {
+			this.jdbc.sql("UPDATE matching.application SET status = 'SUBMITTED' WHERE id = :id")
+				.param("id", application.id())
+				.update();
+			this.notifications.send(new NotificationRequest(REOPENED_NOTICE, application.id(),
+					List.of(new Recipient(application.mentorId(), Audience.SUBJECT)), Map.of("job", title),
+					"/tim-viec/" + jobId, null, application.id()));
+		}
+		this.todos.closeAll(SIGN_NDA, jobId);
+		post.ifPresent(found -> refreshTodo(found, openCount(jobId)));
+	}
+
+	/** Whether the Application is still the selected one: the NDA's Deadline then reminds the Customer. */
+	@Transactional(readOnly = true)
+	Optional<Application> byId(UUID applicationId) {
+		return this.jdbc.sql("SELECT " + COLUMNS + " FROM matching.application WHERE id = :id")
+			.param("id", applicationId)
+			.query(Applications::application)
+			.optional();
 	}
 
 	/** The Mentor's Applications, newest first (MEN-4, MEN-3). */

@@ -15,22 +15,36 @@ import { t, type MessageKey } from '@/i18n/t'
 import { formatCalendarDate, formatDayMonth } from '@/lib/dates'
 import { isNotFound, problemMessage } from '@/lib/problemMessage'
 import { useJobApplications } from '@/features/matching/applicationApi'
+import { MentorJobPage } from '@/features/matching/MentorJobPage'
+import { useCancelSelection } from '@/features/matching/mentorJobApi'
+import { formatVnd } from '@/lib/money'
 import { useJob, useWithdrawJob, type Job } from './jobApi'
 import { JobTabs } from './JobTabs'
 import { JobStateBadge } from './JobStateBadge'
 
 /**
- * JOB-1 Tổng quan (`/cong-viec/{jobId}`, UX-DR17, UX-DR19, UX-DR68) for the Customer. While the Job is
- * Open: the Job header, what happens next, the Job Post as Mentors read it, the reminder that the code
- * is public, the lapse date, and "Rút tin" (J2). A Draft opens CUS-6; the later states' overview
- * comes with their stories.
+ * JOB-1 Tổng quan (`/cong-viec/{jobId}`, UX-DR17, UX-DR19, UX-DR68). The Customer's: while Open, the
+ * Job header, what happens next, the Job Post as Mentors read it, the reminder that the code is
+ * public, the lapse date, and "Rút tin" (J2); while Selecting, the chosen Mentor, the held
+ * Applications, and "Hủy lựa chọn" once the signature period passed (J5). A Draft opens CUS-6. The
+ * Job's Mentor gets their own JOB-1.
  */
 export function JobPage() {
   const { jobId } = useParams()
+  const account = useSession().data?.account
+  if (account?.role === 'MENTOR' && jobId) {
+    return <MentorJobPage jobId={jobId} />
+  }
+  if (account !== undefined && account.role !== 'CUSTOMER') {
+    return <NotFoundScreen />
+  }
+  return <CustomerJobPage jobId={jobId} />
+}
+
+function CustomerJobPage({ jobId }: { jobId: string | undefined }) {
   const job = useJob(jobId)
-  const role = useSession().data?.account?.role
   usePageTitle(job.data?.title ?? t('screen.job.title'))
-  if ((role !== undefined && role !== 'CUSTOMER') || (job.isError && isNotFound(job.error))) {
+  if (job.isError && isNotFound(job.error)) {
     return <NotFoundScreen />
   }
   if (job.data?.state === 'DRAFT') {
@@ -46,7 +60,7 @@ export function JobPage() {
 }
 
 function Overview({ job }: { job: Job }) {
-  const applications = useJobApplications(job.state === 'OPEN' ? job.id : undefined).data ?? []
+  const applications = useJobApplications(job.state === 'OPEN' || job.state === 'SELECTING' ? job.id : undefined).data ?? []
   const types = job.jobTypes.map((type) => t(`term.jobType${type}.label` as MessageKey)).join(', ')
   const open = job.state === 'OPEN' && job.lapsesAt != null
   return (
@@ -85,6 +99,26 @@ function Overview({ job }: { job: Job }) {
               {t('screen.matching.selecting.profile')}
             </Link>
           )}
+          <p className="text-body-sm text-muted-foreground">{t('screen.matching.selecting.ifNot')}</p>
+          {applications.some((application) => application.status === 'ON_HOLD') && (
+            <div className="flex flex-col gap-1.5">
+              <h3 className="text-h3">{t('screen.matching.selecting.held')}</h3>
+              <ul className="flex flex-col divide-y divide-border rounded-md border border-border">
+                {applications
+                  .filter((application) => application.status === 'ON_HOLD')
+                  .map((application) => (
+                    <li key={application.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-body-sm">
+                      <span className="break-words">{application.mentor.displayName}</span>
+                      <span className="text-caption text-muted-foreground">
+                        {formatVnd(application.priceVnd)} {t('screen.matching.test')} ·{' '}
+                        {t('screen.matching.days', { n: application.timelineDays })}
+                      </span>
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          )}
+          {job.canCancelSelection && <CancelSelection job={job} />}
         </section>
       ) : open && job.lapsesAt ? (
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
@@ -289,6 +323,54 @@ function Withdraw({ job }: { job: Job }) {
               <Dialog.Close render={<Button variant="secondary" />}>{t('screen.job.detail.withdrawCancel')}</Dialog.Close>
               <Button type="button" onClick={confirm} disabled={withdraw.isPending}>
                 {t(withdraw.isPending ? 'screen.job.detail.withdrawing' : 'screen.job.detail.withdrawConfirm')}
+              </Button>
+            </div>
+          </Dialog.Popup>
+        </Dialog.Portal>
+      </Dialog.Root>
+    </>
+  )
+}
+
+/** "Hủy lựa chọn" (FR-15): once the signature period passed, J5 returns the Job to Open. */
+function CancelSelection({ job }: { job: Job }) {
+  const [open, setOpen] = useState(false)
+  const cancel = useCancelSelection(job.id)
+  const toasts = useToasts()
+  const confirm = () =>
+    cancel.mutate(job.version, {
+      onSuccess: () => {
+        setOpen(false)
+        toasts.success(t('screen.matching.selecting.cancelled'))
+      },
+      onError: (error) => {
+        setOpen(false)
+        toasts.error(problemMessage(error, { module: 'job' }).text)
+      },
+    })
+  return (
+    <>
+      <Button type="button" variant="secondary" className="w-fit" onClick={() => setOpen(true)}>
+        {t('screen.matching.selecting.cancel')}
+      </Button>
+      <Dialog.Root open={open} onOpenChange={setOpen}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="fixed inset-0 z-40 bg-foreground/50" />
+          <Dialog.Popup className="fixed top-24 left-1/2 z-50 flex w-[min(520px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
+            <div className="flex items-start justify-between gap-3">
+              <Dialog.Title className="text-h2">{t('screen.matching.selecting.cancelTitle')}</Dialog.Title>
+              <Dialog.Close
+                aria-label={t('screen.product.finding.close')}
+                className="rounded-md p-1 text-muted-foreground hover:bg-muted"
+              >
+                <X aria-hidden="true" className="size-5" />
+              </Dialog.Close>
+            </div>
+            <Dialog.Description className="text-body-sm">{t('screen.matching.selecting.cancelBody')}</Dialog.Description>
+            <div className="flex flex-wrap justify-between gap-3">
+              <Dialog.Close render={<Button variant="secondary" />}>{t('screen.matching.selecting.cancelBack')}</Dialog.Close>
+              <Button type="button" onClick={confirm} disabled={cancel.isPending}>
+                {t('screen.matching.selecting.cancel')}
               </Button>
             </div>
           </Dialog.Popup>

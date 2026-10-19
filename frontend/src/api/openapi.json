@@ -843,6 +843,43 @@
         "tags" : [ "job-controller" ]
       }
     },
+    "/api/v1/jobs/{jobId}/selection/cancel" : {
+      "post" : {
+        "operationId" : "cancelSelection",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DecisionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/JobView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "job-controller" ]
+      }
+    },
     "/api/v1/jobs/{jobId}/withdraw" : {
       "post" : {
         "operationId" : "withdraw_1",
@@ -1112,6 +1149,114 @@
           }
         },
         "tags" : [ "customer-rating-controller" ]
+      }
+    },
+    "/api/v1/mentor/jobs" : {
+      "get" : {
+        "operationId" : "jobs_1",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/MentorJobSummaryView"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "mentor-job-controller" ]
+      }
+    },
+    "/api/v1/mentor/jobs/{jobId}" : {
+      "get" : {
+        "operationId" : "job_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MentorJobView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "mentor-job-controller" ]
+      }
+    },
+    "/api/v1/mentor/jobs/{jobId}/decline" : {
+      "post" : {
+        "operationId" : "decline_2",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DecisionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "mentor-job-controller" ]
+      }
+    },
+    "/api/v1/mentor/jobs/{jobId}/nda" : {
+      "post" : {
+        "operationId" : "sign",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/NdaRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "application-controller" ]
       }
     },
     "/api/v1/mentor/team" : {
@@ -2581,7 +2726,7 @@
           },
           "endReason" : {
             "type" : "string",
-            "enum" : [ "WITHDRAWN", "MENTOR_UNAVAILABLE", "JOB_WITHDRAWN", "JOB_LAPSED" ]
+            "enum" : [ "WITHDRAWN", "MENTOR_UNAVAILABLE", "JOB_WITHDRAWN", "JOB_LAPSED", "NOT_SELECTED", "DECLINED", "NOT_SIGNED" ]
           },
           "endedAt" : {
             "type" : "string",
@@ -2874,6 +3019,16 @@
           }
         },
         "required" : [ "contactEmail", "displayName", "kind" ]
+      },
+      "DecisionRequest" : {
+        "type" : "object",
+        "properties" : {
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "version" ]
       },
       "EnrolmentRequest" : {
         "type" : "object",
@@ -3300,6 +3455,9 @@
             "type" : "string",
             "enum" : [ "UNDER_2M", "FROM_2M_TO_5M", "FROM_5M_TO_10M", "OVER_10M" ]
           },
+          "canCancelSelection" : {
+            "type" : "boolean"
+          },
           "createdAt" : {
             "type" : "string",
             "format" : "date-time"
@@ -3382,7 +3540,7 @@
             "format" : "int64"
           }
         },
-        "required" : [ "createdAt", "id", "jobTypes", "productId", "productName", "screenshots", "skills", "state", "title", "updatedAt", "version" ]
+        "required" : [ "canCancelSelection", "createdAt", "id", "jobTypes", "productId", "productName", "screenshots", "skills", "state", "title", "updatedAt", "version" ]
       },
       "MentorApplicationDetail" : {
         "type" : "object",
@@ -3612,6 +3770,87 @@
         },
         "required" : [ "mediaType", "name", "size" ]
       },
+      "MentorJobSummaryView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "productName" : {
+            "type" : "string"
+          },
+          "selectedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "state" : {
+            "type" : "string",
+            "enum" : [ "DRAFT", "OPEN", "SELECTING", "AGREEMENT", "STARTING", "ACTIVE", "CLOSING", "CLOSED", "CANCELLED" ]
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "productName", "selectedAt", "state", "title" ]
+      },
+      "MentorJobView" : {
+        "type" : "object",
+        "properties" : {
+          "appUsers" : {
+            "type" : "string"
+          },
+          "codeJob" : {
+            "type" : "boolean"
+          },
+          "commitEmailNoticeAcknowledged" : {
+            "type" : "boolean"
+          },
+          "doneCheck" : {
+            "type" : "string"
+          },
+          "expected" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "jobTypes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "enum" : [ "ASSESSMENT", "BUG_FIX", "NEW_FEATURE", "MODIFICATION", "IMPROVEMENT", "SECURITY_TESTING", "DEPLOYMENT_OPERATIONS", "DOCUMENTATION" ]
+            }
+          },
+          "ndaDueAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "problem" : {
+            "type" : "string"
+          },
+          "productName" : {
+            "type" : "string"
+          },
+          "selectedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "state" : {
+            "type" : "string",
+            "enum" : [ "DRAFT", "OPEN", "SELECTING", "AGREEMENT", "STARTING", "ACTIVE", "CLOSING", "CLOSED", "CANCELLED" ]
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "codeJob", "commitEmailNoticeAcknowledged", "id", "jobTypes", "productName", "selectedAt", "state", "title", "version" ]
+      },
       "MentorProfileView" : {
         "type" : "object",
         "properties" : {
@@ -3723,6 +3962,19 @@
           }
         },
         "required" : [ "invitations", "invitesLeft", "joinRequests", "members", "size", "sizeLimit", "status" ]
+      },
+      "NdaRequest" : {
+        "type" : "object",
+        "properties" : {
+          "commitEmailNoticeAcknowledged" : {
+            "type" : "boolean"
+          },
+          "ndaVersion" : {
+            "type" : "string",
+            "minLength" : 1
+          }
+        },
+        "required" : [ "commitEmailNoticeAcknowledged", "ndaVersion" ]
       },
       "NotificationItem" : {
         "type" : "object",

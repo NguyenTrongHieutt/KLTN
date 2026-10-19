@@ -145,6 +145,22 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType MATCHING_APPLICATIONS_ON_HOLD = new NotificationType("matching.applications_on_hold",
 			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
 
+	/** J5 by the selected Mentor's decline (FR-15): the Customer. */
+	static final NotificationType JOB_SELECTION_DECLINED = new NotificationType("job.selection_declined",
+			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("mentor"));
+
+	/** J4: the Applications on hold close (FR-15). */
+	static final NotificationType MATCHING_APPLICATIONS_CLOSED = new NotificationType("matching.applications_closed",
+			Set.of(Audience.SUBJECT), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
+
+	/** J5: the Applications on hold are considered again (FR-15). */
+	static final NotificationType MATCHING_APPLICATIONS_REOPENED = new NotificationType("matching.applications_reopened",
+			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
+
+	/** The FR-15 signature period passed without a signature: the Customer may choose again. */
+	static final NotificationType MATCHING_NDA_OVERDUE = new NotificationType("matching.nda_overdue",
+			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("job"));
+
 	@Override
 	public List<NotificationType> notificationTypes() {
 		return List.of(SCHOOL_EMAIL_CODE, VERIFICATION_EXPIRING, VERIFICATION_EXPIRED, ADMIN_SIGN_IN_LOCKED,
@@ -153,7 +169,8 @@ class NotificationTypes implements NotificationCatalog {
 				TEAM_INVITATION_ANSWERED, TEAM_JOIN_REQUEST_RECEIVED, TEAM_JOIN_REQUEST_ANSWERED, TEAM_RELEASED,
 				TEAM_MEMBER_LEFT, TEAM_MEMBER_REMOVED, SCANNING_INTAKE_SCAN_CLEAN, SCANNING_FINDING_OPENED,
 				JOB_POST_LAPSED, MATCHING_APPLICATION_RECEIVED, MATCHING_APPLICATION_AUTO_WITHDRAWN,
-				MATCHING_CONFLICT_OF_INTEREST_REFUSED, JOB_ASSIGNEE_SELECTED, MATCHING_APPLICATIONS_ON_HOLD);
+				MATCHING_CONFLICT_OF_INTEREST_REFUSED, JOB_ASSIGNEE_SELECTED, MATCHING_APPLICATIONS_ON_HOLD,
+				JOB_SELECTION_DECLINED, MATCHING_APPLICATIONS_CLOSED, MATCHING_APPLICATIONS_REOPENED, MATCHING_NDA_OVERDUE);
 	}
 
 	@Override

@@ -8,8 +8,8 @@
  * No public API yet; the HTTP endpoints, the listeners, and the personal-data participant are wiring
  * in {@code matching.internal}.
  */
-@ApplicationModule(allowedDependencies = { "shared", "audit", "github", "identity", "notification", "team", "product",
-		"job" })
+@ApplicationModule(allowedDependencies = { "shared", "audit", "github", "timers", "identity", "notification", "team",
+		"product", "job" })
 package vn.vibefix.matching;
 
 import org.springframework.modulith.ApplicationModule;
