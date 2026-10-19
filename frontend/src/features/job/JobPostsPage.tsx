@@ -1,5 +1,5 @@
-import { Search } from 'lucide-react'
-import { useId } from 'react'
+import { Search, X } from 'lucide-react'
+import { useId, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
 import { usePageTitle } from '@/app/usePageTitle'
@@ -12,22 +12,42 @@ import { Button } from '@/components/ui/button'
 import { useSession } from '@/features/identity/useSession'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t, type MessageKey } from '@/i18n/t'
+import { ApiError } from '@/lib/apiClient'
 import { formatCalendarDayMonth, formatDayMonth } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 import { CapacityBanners } from './CapacityBanners'
 import { BUDGETS, JOB_TYPES, type Budget, type JobType } from './jobApi'
-import { useJobPosts, useMentorCapacity, type JobPostFilter, type JobPostSummary } from './jobPostApi'
+import {
+  useJobPosts,
+  useLastJobPosts,
+  useMentorCapacity,
+  type JobPostFilter,
+  type JobPostSummary,
+} from './jobPostApi'
 
-/** MEN-2's filters in the URL (UX-DR72): shareable, and kept by the browser's back button. */
-const PARAMS = { type: 'loai', skills: 'ky-nang', categories: 'nhom-ky-nang', budget: 'ngan-sach', within: 'han', page: 'trang' }
+/** MEN-2's keyword and filters in the URL (UX-DR47, UX-DR72): shareable, and kept by the back button. */
+const PARAMS = {
+  q: 'q',
+  type: 'loai',
+  skills: 'ky-nang',
+  categories: 'nhom-ky-nang',
+  budget: 'ngan-sach',
+  within: 'han',
+  page: 'trang',
+}
+
+/** The Search bar's limit (EXPERIENCE.md, Search bar). */
+const MAX_KEYWORD = 100
 
 function readFilter(params: URLSearchParams): JobPostFilter {
   const list = (key: string) => (params.get(key) ?? '').split(',').filter((value) => value !== '')
+  const q = (params.get(PARAMS.q) ?? '').trim().slice(0, MAX_KEYWORD)
   const type = params.get(PARAMS.type)
   const budget = params.get(PARAMS.budget)
   const within = params.get(PARAMS.within)
   const page = Number.parseInt(params.get(PARAMS.page) ?? '1', 10)
   return {
+    q: q === '' ? undefined : q,
     type: JOB_TYPES.includes(type as JobType) ? (type as JobType) : undefined,
     skills: list(PARAMS.skills),
     categories: list(PARAMS.categories),
@@ -39,6 +59,7 @@ function readFilter(params: URLSearchParams): JobPostFilter {
 
 function writeFilter(filter: JobPostFilter): URLSearchParams {
   const params = new URLSearchParams()
+  if (filter.q) params.set(PARAMS.q, filter.q)
   if (filter.type) params.set(PARAMS.type, filter.type)
   if (filter.skills.length > 0) params.set(PARAMS.skills, filter.skills.join(','))
   if (filter.categories.length > 0) params.set(PARAMS.categories, filter.categories.join(','))
@@ -48,14 +69,16 @@ function writeFilter(filter: JobPostFilter): URLSearchParams {
   return params
 }
 
+/** Whether a filter other than the keyword is set. */
 function filtered(filter: JobPostFilter): boolean {
   return !!(filter.type || filter.skills.length > 0 || filter.categories.length > 0 || filter.budget || filter.within)
 }
 
 /**
- * MEN-2 Tìm việc (`/tim-viec`, FR-12, UX-DR72, UX-DR78) for approved Mentors: Open Job Posts, 20 a
- * page, newest first, with Job Type, Skill (Skills or whole Categories), budget, and deadline filters
- * that apply at once and live in the URL, and the FR-13 banners.
+ * MEN-2 Tìm việc (`/tim-viec`, FR-12, UX-DR47, UX-DR72, UX-DR78) for approved Mentors: Open Job
+ * Posts, 20 a page, newest first, or by relevance to a keyword that only Enter or "Tìm" runs; Job
+ * Type, Skill (Skills or whole Categories), budget, and deadline filters that apply at once; all of
+ * it in the URL; and the FR-13 banners.
  */
 export function JobPostsPage() {
   usePageTitle(t('screen.jobPost.title'))
@@ -70,9 +93,20 @@ function JobPostList() {
   const [params, setParams] = useSearchParams()
   const filter = readFilter(params)
   const posts = useJobPosts(filter)
+  const last = useLastJobPosts()
   const capacity = useMentorCapacity()
   const update = (next: Partial<JobPostFilter>) => setParams(writeFilter({ ...filter, page: 0, ...next }), { replace: true })
-  const data = posts.data
+  // Searching too fast keeps the earlier results on screen (UX-DR27).
+  const limited = posts.error instanceof ApiError && posts.error.status === 429 ? posts.error : undefined
+  const results = (data: NonNullable<typeof posts.data>) => (
+    <Results
+      data={data}
+      filter={filter}
+      clearFilters={() => update({ type: undefined, skills: [], categories: [], budget: undefined, within: undefined })}
+      clearAll={() => setParams(new URLSearchParams(), { replace: true })}
+      go={(page) => setParams(writeFilter({ ...filter, page }))}
+    />
+  )
   return (
     <div className="mx-auto flex max-w-[1000px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
       <div className="flex flex-col gap-1">
@@ -80,40 +114,149 @@ function JobPostList() {
         <p className="text-body-sm text-muted-foreground">{t('screen.jobPost.lead')}</p>
       </div>
       <CapacityBanners capacity={capacity.data} />
+      <SearchBar
+        key={filter.q ?? ''}
+        keyword={filter.q}
+        retryAfter={limited ? (limited.retryAfter ?? 60) : undefined}
+        search={(q) => update({ q })}
+      />
       <Filters filter={filter} update={update} />
-      <RegionState query={posts} skeleton={<Skeleton className="h-64 w-full" />}>
-        {data &&
-          (data.total === 0 ? (
-            filtered(filter) ? (
-              <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card p-10 text-center">
-                <p className="text-label font-semibold">{t('screen.jobPost.noMatch')}</p>
-                <p className="text-body-sm text-muted-foreground">{t('screen.jobPost.noMatchBody')}</p>
-                <Button type="button" variant="secondary" onClick={() => setParams(new URLSearchParams(), { replace: true })}>
-                  {t('screen.jobPost.clearFilters')}
-                </Button>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card p-12 text-center">
-                <Search aria-hidden="true" className="size-10 text-muted-foreground" />
-                <p className="text-label">{t('screen.jobPost.empty')}</p>
-              </div>
-            )
-          ) : (
-            <section aria-labelledby="job-posts" className="flex flex-col gap-3">
-              <h2 id="job-posts" className="text-h2">
-                {t('screen.jobPost.listHeading')}{' '}
-                <span className="font-normal text-muted-foreground">{t('screen.jobPost.count', { n: data.total })}</span>
-              </h2>
-              <ul className="flex flex-col divide-y divide-border rounded-lg border border-border bg-card">
-                {data.items.map((post) => (
-                  <PostItem key={post.id} post={post} />
-                ))}
-              </ul>
-              <Pager page={data.page} pages={Math.ceil(data.total / data.size)} go={(page) => setParams(writeFilter({ ...filter, page }))} />
-            </section>
-          ))}
-      </RegionState>
+      {limited && last.data ? (
+        results(last.data)
+      ) : (
+        <RegionState query={posts} skeleton={<Skeleton className="h-64 w-full" />}>
+          {posts.data && results(posts.data)}
+        </RegionState>
+      )}
     </div>
+  )
+}
+
+/**
+ * The Search bar (UX-DR47): only Enter or "Tìm" runs it, "Tìm" waits for a keyword, input stops at
+ * 100 characters, and "Xóa từ khóa" returns to the default view. Searching too fast replaces the
+ * helper with the wait from `Retry-After`.
+ */
+function SearchBar({
+  keyword,
+  retryAfter,
+  search,
+}: {
+  keyword: string | undefined
+  retryAfter: number | undefined
+  search: (q: string | undefined) => void
+}) {
+  const ids = useId()
+  const [input, setInput] = useState(keyword ?? '')
+  const submit = (event: FormEvent) => {
+    event.preventDefault()
+    const q = input.trim()
+    if (q !== '') {
+      search(q)
+    }
+  }
+  return (
+    <form role="search" onSubmit={submit} className="flex flex-col gap-1.5">
+      <label htmlFor={`${ids}-q`} className="text-label font-semibold">
+        {t('screen.jobPost.searchLabel')}
+      </label>
+      <div className="flex gap-2">
+        <div className="relative min-w-0 grow">
+          <Search aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2 text-muted-foreground" />
+          <input
+            id={`${ids}-q`}
+            type="search"
+            maxLength={MAX_KEYWORD}
+            value={input}
+            onChange={(event) => setInput(event.target.value)}
+            placeholder={t('screen.jobPost.searchPlaceholder')}
+            aria-describedby={`${ids}-help`}
+            className={cn(inputClass, 'pl-10')}
+          />
+        </div>
+        <Button type="submit" disabled={input.trim() === ''}>
+          {t('screen.jobPost.searchButton')}
+        </Button>
+        {keyword && (
+          <Button type="button" variant="secondary" onClick={() => search(undefined)}>
+            <X aria-hidden="true" className="size-4" />
+            {t('screen.jobPost.clearKeyword')}
+          </Button>
+        )}
+      </div>
+      <p id={`${ids}-help`} className={cn('text-caption', retryAfter ? 'text-warning' : 'text-muted-foreground')}>
+        {retryAfter ? t('screen.jobPost.tooFast', { seconds: retryAfter }) : t('screen.jobPost.searchHelper')}
+      </p>
+    </form>
+  )
+}
+
+function Results({
+  data,
+  filter,
+  clearFilters,
+  clearAll,
+  go,
+}: {
+  data: { items: JobPostSummary[]; page: number; size: number; total: number }
+  filter: JobPostFilter
+  clearFilters: () => void
+  clearAll: () => void
+  go: (page: number) => void
+}) {
+  if (data.total === 0) {
+    if (filter.q) {
+      return (
+        <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card p-10 text-center">
+          <p aria-live="polite" className="text-label font-semibold break-words">
+            {t('screen.jobPost.noMatchKeyword', { q: filter.q })}
+          </p>
+          <p className="text-body-sm text-muted-foreground">{t('screen.jobPost.noMatchKeywordBody')}</p>
+          {filtered(filter) && (
+            <Button type="button" variant="secondary" onClick={clearFilters}>
+              {t('screen.jobPost.clearFilters')}
+            </Button>
+          )}
+        </div>
+      )
+    }
+    return filtered(filter) ? (
+      <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card p-10 text-center">
+        <p className="text-label font-semibold">{t('screen.jobPost.noMatch')}</p>
+        <p className="text-body-sm text-muted-foreground">{t('screen.jobPost.noMatchBody')}</p>
+        <Button type="button" variant="secondary" onClick={clearAll}>
+          {t('screen.jobPost.clearFilters')}
+        </Button>
+      </div>
+    ) : (
+      <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card p-12 text-center">
+        <Search aria-hidden="true" className="size-10 text-muted-foreground" />
+        <p className="text-label">{t('screen.jobPost.empty')}</p>
+      </div>
+    )
+  }
+  return (
+    <section aria-labelledby="job-posts" className="flex flex-col gap-3">
+      {filter.q ? (
+        <div className="flex flex-col gap-0.5">
+          <h2 id="job-posts" aria-live="polite" className="text-h2 break-words">
+            {t('screen.jobPost.resultsHeading', { q: filter.q, n: data.total })}
+          </h2>
+          <p className="text-caption text-muted-foreground">{t('screen.jobPost.resultsNote')}</p>
+        </div>
+      ) : (
+        <h2 id="job-posts" className="text-h2">
+          {t('screen.jobPost.listHeading')}{' '}
+          <span className="font-normal text-muted-foreground">{t('screen.jobPost.count', { n: data.total })}</span>
+        </h2>
+      )}
+      <ul className="flex flex-col divide-y divide-border rounded-lg border border-border bg-card">
+        {data.items.map((post) => (
+          <PostItem key={post.id} post={post} />
+        ))}
+      </ul>
+      <Pager page={data.page} pages={Math.ceil(data.total / data.size)} go={go} />
+    </section>
   )
 }
 

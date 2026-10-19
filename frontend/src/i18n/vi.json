@@ -1257,7 +1257,17 @@
         "teamFree": "{n} sinh viên · {k} đang rảnh",
         "teamNoneFree": "{n} sinh viên · không ai đang rảnh",
         "viewTeam": "Xem nhóm"
-      }
+      },
+      "searchLabel": "Tìm tin công việc",
+      "searchPlaceholder": "Ví dụ: ban hang, supabase, đăng nhập",
+      "searchHelper": "Gõ có dấu hoặc không dấu đều được, ví dụ: ban hang.",
+      "searchButton": "Tìm",
+      "clearKeyword": "Xóa từ khóa",
+      "resultsHeading": "Kết quả cho “{q}” ({n})",
+      "resultsNote": "Xếp theo mức độ khớp với từ khóa. Điểm chấm sao không làm thay đổi thứ tự.",
+      "noMatchKeyword": "Không tìm thấy công việc nào khớp với “{q}”.",
+      "noMatchKeywordBody": "Hãy thử từ khóa ngắn hơn hoặc bỏ bớt bộ lọc.",
+      "tooFast": "Bạn đang tìm hơi nhanh. Hãy đợi {seconds} giây rồi tìm lại."
     }
   },
   "notice": {

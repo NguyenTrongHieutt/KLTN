@@ -26,6 +26,7 @@ import vn.vibefix.catalog.Catalog;
 import vn.vibefix.catalog.Skill;
 import vn.vibefix.catalog.SkillCategory;
 import vn.vibefix.identity.MentorDirectory;
+import vn.vibefix.shared.KeywordQuery;
 
 /**
  * Mentors' public fields from their submitted applications (FR-51, AD-36). Search finds approved,

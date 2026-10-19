@@ -27,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 import vn.vibefix.catalog.Catalog;
 import vn.vibefix.catalog.Skill;
 import vn.vibefix.identity.StudentDirectory;
+import vn.vibefix.shared.KeywordQuery;
 
 /**
  * Students' public fields from their profiles (FR-51, AD-36). Search and the username lookup find
