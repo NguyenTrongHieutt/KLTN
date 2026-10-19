@@ -60,7 +60,8 @@ replaces them, after which the volume must be deleted too (`down --volumes`). Ne
 file: `secrets/` is in `.gitignore`.
 
 After pulling a change that adds a secret (Story 1.16 added `identity-person-signal-key-1`, the key
-of the person-link signals), run `deploy/dev-secrets.sh` again: it creates only the missing files,
+of the person-link signals; Story 2.3 added `scanning-fingerprint-key`, the key of the Finding
+fingerprints), run `deploy/dev-secrets.sh` again: it creates only the missing files,
 and the backend refuses to start without them.
 
 ## Signing in with GitHub locally

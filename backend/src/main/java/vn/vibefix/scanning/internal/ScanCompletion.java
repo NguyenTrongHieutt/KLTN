@@ -1,0 +1,186 @@
+package vn.vibefix.scanning.internal;
+
+import java.sql.Timestamp;
+import java.time.Clock;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.JsonNodeFactory;
+import vn.vibefix.notification.Audience;
+import vn.vibefix.notification.NotificationRequest;
+import vn.vibefix.notification.Notifications;
+import vn.vibefix.notification.Recipient;
+import vn.vibefix.scanning.ScanCompleted;
+import vn.vibefix.scanning.ScanPurpose;
+import vn.vibefix.scanning.internal.ScanRules.Rule;
+import vn.vibefix.scanning.internal.ScanRuns.Run;
+import vn.vibefix.shared.IdGenerator;
+
+/**
+ * Records what a scan job found, in one transaction (AD-18): each credential becomes a Finding unless
+ * its fingerprint is already one of the Product's, the run gets its counts, and the Customer hears
+ * about each new Finding and, for a clean intake scan, about that. A complete run then publishes
+ * {@link ScanCompleted}; a run a cap stopped keeps its Findings and fails.
+ * <p>
+ * The job's output is checked, not trusted: a rule ID this platform does not know is dropped, and the
+ * type the Customer reads comes from this platform's own rules.
+ */
+@Component
+class ScanCompletion {
+
+	/** New Findings announced per run; CUS-4 lists every one (AD-34: the daily email budget). */
+	static final int NOTIFIED_FINDINGS = 10;
+
+	static final String INTAKE_SCAN_CLEAN = "scanning.intake_scan_clean";
+
+	static final String FINDING_OPENED = "scanning.finding_opened";
+
+	private static final Logger log = LoggerFactory.getLogger(ScanCompletion.class);
+
+	private final JdbcClient jdbc;
+
+	private final FingerprintKey key;
+
+	private final Notifications notifications;
+
+	private final ApplicationEventPublisher events;
+
+	private final IdGenerator ids;
+
+	private final Clock clock;
+
+	private final ScanRules rules = ScanRules.load();
+
+	private final Map<String, String> types = this.rules.rules()
+		.stream()
+		.collect(Collectors.toUnmodifiableMap(Rule::id, Rule::type));
+
+	ScanCompletion(JdbcClient jdbc, FingerprintKey key, Notifications notifications, ApplicationEventPublisher events,
+			IdGenerator ids, Clock clock) {
+		this.jdbc = jdbc;
+		this.key = key;
+		this.notifications = notifications;
+		this.events = events;
+		this.ids = ids;
+		this.clock = clock;
+	}
+
+	private record Opened(UUID id, String type) {
+	}
+
+	/**
+	 * Records {@code output}.
+	 * @param stopped the cap that stopped the walk, or {@code null} for a complete scan
+	 * @return whether this call recorded it; {@code false} when the run had succeeded already
+	 */
+	@Transactional
+	boolean record(Run run, JsonNode output, @Nullable String stopped) {
+		String status = this.jdbc.sql("SELECT status FROM scanning.scan_run WHERE id = :id FOR UPDATE")
+			.param("id", run.id())
+			.query(String.class)
+			.optional()
+			.orElse("SUCCEEDED");
+		if ("SUCCEEDED".equals(status)) {
+			return false;
+		}
+		Instant now = this.clock.instant();
+		List<Opened> opened = new ArrayList<>();
+		int found = 0;
+		for (JsonNode match : output.path("found")) {
+			String type = this.types.get(match.path("ruleId").stringValue());
+			if (type == null) {
+				log.warn("Scan run {} reported a rule this platform does not know; dropped", run.id());
+				continue;
+			}
+			found++;
+			UUID id = this.ids.newId();
+			int inserted = this.jdbc.sql("""
+					INSERT INTO scanning.finding (id, product_id, scan_run_id, rule_id, rule_type, file_path, commit_sha,
+					    committed_at, masked_preview, fingerprint, status, created_at)
+					VALUES (:id, :product, :run, :rule, :type, :path, :commit, :committedAt, :masked, :fingerprint, 'OPEN',
+					    :now)
+					ON CONFLICT (product_id, fingerprint) DO NOTHING
+					""")
+				.param("id", id)
+				.param("product", run.productId())
+				.param("run", run.id())
+				.param("rule", match.path("ruleId").stringValue())
+				.param("type", type)
+				.param("path", match.path("path").stringValue())
+				.param("commit", match.path("commit").stringValue())
+				.param("committedAt", Timestamp.from(Instant.parse(match.path("committedAt").stringValue())))
+				.param("masked", match.path("masked").stringValue())
+				.param("fingerprint", this.key.fingerprint(match.path("hash").stringValue()))
+				.param("now", Timestamp.from(now))
+				.update();
+			if (inserted == 1) {
+				opened.add(new Opened(id, type));
+			}
+		}
+		boolean complete = stopped == null;
+		this.jdbc.sql("""
+				UPDATE scanning.scan_run
+				SET status = :status, rules_version = :version, commits = :commits, scanned_files = :scanned,
+				    unscanned_count = :unscannedCount, unscanned = CAST(:unscanned AS JSONB), found_count = :found,
+				    new_findings = :opened, stopped = :stopped, error_code = :stopped, finished_at = :now
+				WHERE id = :id
+				""")
+			.param("id", run.id())
+			.param("status", complete ? "SUCCEEDED" : "FAILED")
+			.param("version", this.rules.version())
+			.param("commits", Math.max(0, output.path("commits").intValue()))
+			.param("scanned", Math.max(0, output.path("scannedBlobs").intValue()))
+			.param("unscannedCount", Math.max(0, output.path("unscannedCount").intValue()))
+			.param("unscanned", unscanned(output.path("unscanned")))
+			.param("found", found)
+			.param("opened", opened.size())
+			.param("stopped", stopped)
+			.param("now", Timestamp.from(now))
+			.update();
+		Recipient customer = new Recipient(run.customerId(), Audience.SUBJECT);
+		String link = "/san-pham/" + run.productId();
+		opened.stream()
+			.limit(NOTIFIED_FINDINGS)
+			.forEach(finding -> this.notifications.send(new NotificationRequest(FINDING_OPENED, finding.id(),
+					List.of(customer), Map.of("type", finding.type(), "product", run.productName()), link, null,
+					run.productId())));
+		if (complete) {
+			if (found == 0 && run.purpose() == ScanPurpose.INTAKE) {
+				this.notifications.send(new NotificationRequest(INTAKE_SCAN_CLEAN, run.id(), List.of(customer),
+						Map.of("product", run.productName()), link, null, run.productId()));
+			}
+			this.events.publishEvent(new ScanCompleted(this.ids.newId(), run.id(), run.productId(), found == 0));
+		}
+		return true;
+	}
+
+	/** The listed unscanned files, path and size only, at most {@value HistoryScanner#LISTED_UNSCANNED}. */
+	private static String unscanned(JsonNode files) {
+		ArrayNode kept = JsonNodeFactory.instance.arrayNode();
+		for (JsonNode file : files) {
+			if (kept.size() >= HistoryScanner.LISTED_UNSCANNED) {
+				break;
+			}
+			if (file.path("path").isString() && file.path("sizeBytes").isIntegralNumber()) {
+				kept.addObject().put("path", file.path("path").stringValue()).put("sizeBytes",
+						file.path("sizeBytes").longValue());
+			}
+		}
+		return kept.toString();
+	}
+
+}

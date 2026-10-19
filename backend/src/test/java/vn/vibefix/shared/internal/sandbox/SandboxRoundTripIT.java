@@ -108,9 +108,10 @@ class SandboxRoundTripIT {
 		assertThat(worker.getBeanNamesForType(HttpSandboxJobs.class)).isEmpty();
 		assertThat(worker.containsBean("environmentGuard")).isFalse();
 		assertThat(worker.containsBean("environmentController")).isFalse();
-		// HEALTH, and files' image re-encoding (AD-21); a test handler on the classpath would show here.
+		// HEALTH, files' image re-encoding (AD-21), and scanning's history scan (AD-18); a test handler
+		// on the classpath would show here.
 		assertThat(worker.getBeansOfType(SandboxJobHandler.class).values()).extracting(SandboxJobHandler::type)
-			.containsExactlyInAnyOrder(HealthJobHandler.TYPE, "IMAGE_REENCODE");
+			.containsExactlyInAnyOrder(HealthJobHandler.TYPE, "IMAGE_REENCODE", "SECRET_SCAN");
 	}
 
 	@Test

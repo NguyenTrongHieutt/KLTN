@@ -500,6 +500,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/products/{productId}/findings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["findings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profile": {
         parameters: {
             query?: never;
@@ -925,6 +941,20 @@ export interface components {
         EnvironmentResponse: {
             name: string;
         };
+        FindingView: {
+            commit: string;
+            /** Format: date-time */
+            committedAt: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            id: string;
+            maskedPreview: string;
+            path: string;
+            /** @enum {string} */
+            status: "OPEN";
+            type: string;
+        };
         MentorApplicationDetail: {
             /** Format: uuid */
             accountId: string;
@@ -1126,8 +1156,9 @@ export interface components {
             repositoryFullName: string;
             repositoryOwnerType: string;
             repositoryUrl: string;
+            scan?: components["schemas"]["ScanView"];
             /** @enum {string} */
-            scanState: "AWAITING_SCAN";
+            scanState: "AWAITING_SCAN" | "SCANNING" | "NOT_FINISHED" | "FINDINGS" | "CLEAN";
             tools: ("LOVABLE" | "BOLT" | "REPLIT" | "V0" | "BASE44" | "CURSOR" | "CLAUDE_CODE" | "CODEX" | "OTHER")[];
         };
         ProfileSkill: {
@@ -1210,6 +1241,21 @@ export interface components {
         };
         SavedView: {
             submitted: boolean;
+        };
+        ScanView: {
+            /** Format: date-time */
+            finishedAt?: string;
+            /** Format: int32 */
+            found?: number;
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            requestedAt: string;
+            /** @enum {string} */
+            status: "PENDING" | "RUNNING" | "RETRYING" | "SUCCEEDED" | "FAILED";
+            unscanned: components["schemas"]["UnscannedFile"][];
+            /** Format: int32 */
+            unscannedCount: number;
         };
         SchoolEmailRequest: {
             /** Format: email */
@@ -1465,6 +1511,11 @@ export interface components {
         UnreadCount: {
             /** Format: int64 */
             count: number;
+        };
+        UnscannedFile: {
+            path: string;
+            /** Format: int64 */
+            sizeBytes: number;
         };
         VerificationView: {
             method?: string;
@@ -2263,6 +2314,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProductView"];
+                };
+            };
+        };
+    };
+    findings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                productId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FindingView"][];
                 };
             };
         };

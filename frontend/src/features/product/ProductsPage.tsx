@@ -7,14 +7,15 @@ import { Skeleton } from '@/components/Skeleton'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { useSession } from '@/features/identity/useSession'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
-import { t, type MessageKey } from '@/i18n/t'
+import { t } from '@/i18n/t'
 import { formatDayMonth } from '@/lib/dates'
 import { useProducts, type Product } from './productApi'
+import { ScanStateBadge } from './ScanStateBadge'
 
 /**
- * CUS-2 (`/san-pham`, FR-7, UX-DR66): the Customer's Products, each with its scan state, its Source
- * Repository, and its Jobs; with none, the empty state and "Đăng ký sản phẩm". Findings and Job counts
- * come with Stories 2.3 and 3.1.
+ * CUS-2 (`/san-pham`, FR-7, FR-8, UX-DR66): the Customer's Products, each with its scan state and
+ * open Findings, its Source Repository, and its Jobs; with none, the empty state and "Đăng ký sản
+ * phẩm". Job counts come with Story 3.1.
  */
 export function ProductsPage() {
   usePageTitle(t('screen.product.title'))
@@ -70,9 +71,7 @@ function ProductCard({ product }: { product: Product }) {
         <Link to={`/san-pham/${product.id}`} className="text-h3 break-words text-primary underline-offset-4 hover:underline">
           {product.name}
         </Link>
-        <span className="rounded-full bg-muted px-2 py-0.5 text-caption font-semibold">
-          {t(`screen.product.state${product.scanState}` as MessageKey)}
-        </span>
+        <ScanStateBadge product={product} />
       </div>
       <p className="text-body-sm break-words text-muted-foreground">{product.description}</p>
       <p className="text-caption text-muted-foreground">

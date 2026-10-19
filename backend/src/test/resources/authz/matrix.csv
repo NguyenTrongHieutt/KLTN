@@ -293,6 +293,12 @@ GET /api/v1/products/{productId},CUSTOMER,,,404 NOT_FOUND
 GET /api/v1/products/{productId},MENTOR,,,404 NOT_FOUND
 GET /api/v1/products/{productId},STUDENT,,,404 NOT_FOUND
 GET /api/v1/products/{productId},ADMINISTRATOR,,,200
+GET /api/v1/products/{productId}/findings,ANONYMOUS,,,401
+GET /api/v1/products/{productId}/findings,OWNER,,,200
+GET /api/v1/products/{productId}/findings,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/products/{productId}/findings,MENTOR,,,404 NOT_FOUND
+GET /api/v1/products/{productId}/findings,STUDENT,,,404 NOT_FOUND
+GET /api/v1/products/{productId}/findings,ADMINISTRATOR,,,200
 # Student verification (identity, FR-5): a Student's own; any other role, and SUBJECT (a Customer),
 # finds none. The confirm row's Student has no code waiting, so it finds none either.
 GET /api/v1/verification,ANONYMOUS,,,401

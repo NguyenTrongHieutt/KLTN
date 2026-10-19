@@ -23,7 +23,7 @@ umask 077
 mkdir -p "$secrets_dir"
 chmod 700 "$secrets_dir"
 
-for name in db-superuser-password db-app-password db-migrator-password identity-token-key-1 identity-person-signal-key-1; do
+for name in db-superuser-password db-app-password db-migrator-password identity-token-key-1 identity-person-signal-key-1 scanning-fingerprint-key; do
 	file="$secrets_dir/$name"
 	if [[ -s "$file" && "$force" == false ]]; then
 		chmod 444 "$file"

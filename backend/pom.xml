@@ -38,6 +38,7 @@
 		<!-- SG-20: the vibefix-dev suite talks to the real dev GitHub Apps; `-Pvibefix-dev` runs it alone. -->
 		<excluded.groups>vibefix-dev</excluded.groups>
 		<java-otp.version>0.4.0</java-otp.version>
+		<re2j.version>1.8</re2j.version>
 		<!-- Everything runs in UTC (Conventions, Time); tests use the same JVM time zone as the containers. -->
 		<argLine>-Duser.timezone=UTC</argLine>
 	</properties>
@@ -71,6 +72,12 @@
 			<groupId>org.eclipse.jgit</groupId>
 			<artifactId>org.eclipse.jgit</artifactId>
 			<version>${jgit.version}</version>
+		</dependency>
+		<!-- AD-18, SG-13: scan rules run on RE2/J, whose matching time is linear in the input. -->
+		<dependency>
+			<groupId>com.google.re2j</groupId>
+			<artifactId>re2j</artifactId>
+			<version>${re2j.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.bouncycastle</groupId>

@@ -63,6 +63,8 @@ services:
       - identity-token-key-1
       # AD-19, AD-22: the key of the person-link signals.
       - identity-person-signal-key-1
+      # AD-18, AD-22: the key of the Finding fingerprints.
+      - scanning-fingerprint-key
       # AD-10: the dev sign-in OAuth App; empty files until it is registered (deploy/README.md).
       - github-oauth-client-id
       - github-oauth-client-secret
@@ -163,6 +165,8 @@ secrets:
     file: ./secrets/identity-token-key-1
   identity-person-signal-key-1:
     file: ./secrets/identity-person-signal-key-1
+  scanning-fingerprint-key:
+    file: ./secrets/scanning-fingerprint-key
   github-oauth-client-id:
     file: ./secrets/github-oauth-client-id
   github-oauth-client-secret:

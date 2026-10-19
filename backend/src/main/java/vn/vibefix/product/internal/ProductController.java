@@ -2,6 +2,7 @@ package vn.vibefix.product.internal;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -25,8 +26,13 @@ import org.springframework.web.bind.annotation.RestController;
 import vn.vibefix.github.GitHubRepositories.RepositoryMetadata;
 import vn.vibefix.product.internal.Products.Product;
 import vn.vibefix.product.internal.Products.Registration;
-import vn.vibefix.product.internal.Products.ScanState;
 import vn.vibefix.product.internal.Products.Tool;
+import vn.vibefix.scanning.Finding;
+import vn.vibefix.scanning.FindingStatus;
+import vn.vibefix.scanning.ScanStatus;
+import vn.vibefix.scanning.ScanSummary;
+import vn.vibefix.scanning.ScanSummary.UnscannedFile;
+import vn.vibefix.scanning.Scans;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.Caller;
@@ -36,9 +42,9 @@ import vn.vibefix.shared.Gate;
 import vn.vibefix.shared.Role;
 
 /**
- * CUS-2, CUS-3, and CUS-4 (FR-7, AD-13): a Customer's Products, the registration wizard's live
- * repository check and its submission, and one Product's detail, which only its Customer and
- * Administrators read (AD-20). Any other caller finds nothing.
+ * CUS-2, CUS-3, and CUS-4 (FR-7, FR-8, AD-13): a Customer's Products with their scan state, the
+ * registration wizard's live repository check and its submission, and one Product's detail and open
+ * Findings, which only its Customer and Administrators read (AD-20). Any other caller finds nothing.
  */
 @RestController
 @RequestMapping("/api/v1/products")
@@ -70,15 +76,61 @@ class ProductController {
 	record ProductCreatedView(UUID id) {
 	}
 
+	/**
+	 * The Product's state on CUS-2 and CUS-4: no scan yet, a scan running, a scan that did not
+	 * finish, open Findings, or clean.
+	 */
+	enum ScanState {
+
+		AWAITING_SCAN, SCANNING, NOT_FINISHED, FINDINGS, CLEAN;
+
+		static ScanState of(@Nullable ScanSummary latest, int openFindings) {
+			if (latest == null) {
+				return AWAITING_SCAN;
+			}
+			if (latest.status().inProgress()) {
+				return SCANNING;
+			}
+			if (openFindings > 0) {
+				return FINDINGS;
+			}
+			return latest.status() == ScanStatus.SUCCEEDED ? CLEAN : NOT_FINISHED;
+		}
+
+	}
+
+	/** The latest scan run (UX-DR21: CUS-4 polls every 5 s while it is pending or running). */
+	record ScanView(UUID id, ScanStatus status, Instant requestedAt, @Nullable Instant finishedAt,
+			@Nullable Integer found, int unscannedCount, List<UnscannedFile> unscanned) {
+
+		static @Nullable ScanView of(@Nullable ScanSummary scan) {
+			return scan == null ? null : new ScanView(scan.id(), scan.status(), scan.requestedAt(), scan.finishedAt(),
+					scan.found(), scan.unscannedCount(), scan.unscanned());
+		}
+
+	}
+
 	/** One Product as CUS-2 and CUS-4 show it. */
 	record ProductView(UUID id, String name, String description, @Nullable String demoUrl, List<Tool> tools,
 			String repositoryFullName, String repositoryUrl, String repositoryOwnerType, @Nullable String forkParent,
-			Instant createdAt, ScanState scanState, int openFindings, int jobs) {
+			Instant createdAt, ScanState scanState, @Nullable ScanView scan, int openFindings, int jobs) {
 
-		static ProductView of(Product product) {
+		static ProductView of(Product product, @Nullable ScanSummary scan, int openFindings) {
 			return new ProductView(product.id(), product.name(), product.description(), product.demoUrl(), product.tools(),
 					product.repositoryFullName(), "https://github.com/" + product.repositoryFullName(),
-					product.repositoryOwnerType(), product.forkParent(), product.createdAt(), product.scanState(), 0, 0);
+					product.repositoryOwnerType(), product.forkParent(), product.createdAt(),
+					ScanState.of(scan, openFindings), ScanView.of(scan), openFindings, 0);
+		}
+
+	}
+
+	/** A Finding as CUS-4 lists it (FR-8): the masked preview only, never the credential. */
+	record FindingView(UUID id, String type, String path, String commit, Instant committedAt, String maskedPreview,
+			FindingStatus status, Instant createdAt) {
+
+		static FindingView of(Finding finding) {
+			return new FindingView(finding.id(), finding.type(), finding.path(), finding.commit(), finding.committedAt(),
+					finding.maskedPreview(), finding.status(), finding.createdAt());
 		}
 
 	}
@@ -87,17 +139,26 @@ class ProductController {
 
 	private final RepositoryChecks checks;
 
+	private final Scans scans;
+
 	private final CurrentCaller callers;
 
-	ProductController(Products products, RepositoryChecks checks, CurrentCaller callers) {
+	ProductController(Products products, RepositoryChecks checks, Scans scans, CurrentCaller callers) {
 		this.products = products;
 		this.checks = checks;
+		this.scans = scans;
 		this.callers = callers;
 	}
 
 	@GetMapping
 	List<ProductView> products() {
-		return this.products.list(customer()).stream().map(ProductView::of).toList();
+		List<Product> products = this.products.list(customer());
+		List<UUID> ids = products.stream().map(Product::id).toList();
+		Map<UUID, ScanSummary> latest = this.scans.latest(ids);
+		Map<UUID, Integer> open = this.scans.openFindingCounts(ids);
+		return products.stream()
+			.map(product -> ProductView.of(product, latest.get(product.id()), open.getOrDefault(product.id(), 0)))
+			.toList();
 	}
 
 	/** CUS-3 step 2: every repository check, read with the Customer's own GitHub sign-in. */
@@ -118,11 +179,23 @@ class ProductController {
 	/** CUS-4: the Product's Customer, or an Administrator. */
 	@GetMapping("/{productId}")
 	ProductView product(@PathVariable UUID productId) {
+		Product product = readable(productId);
+		return ProductView.of(product, this.scans.latest(productId).orElse(null),
+				this.scans.openFindingCounts(List.of(productId)).getOrDefault(productId, 0));
+	}
+
+	/** CUS-4 "Vấn đề phát hiện": the open Findings, for the Product's Customer or an Administrator. */
+	@GetMapping("/{productId}/findings")
+	List<FindingView> findings(@PathVariable UUID productId) {
+		readable(productId);
+		return this.scans.openFindings(productId).stream().map(FindingView::of).toList();
+	}
+
+	private Product readable(UUID productId) {
 		Caller caller = this.callers.get();
 		return this.products.find(productId)
 			.filter(found -> caller.hasRole(Role.ADMINISTRATOR)
 					|| caller.hasRole(Role.CUSTOMER) && found.customerId().equals(caller.requireAccountId()))
-			.map(ProductView::of)
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 	}
 

@@ -45,6 +45,9 @@ public final class PostgresTestDatabase {
 	/** The person-link signal key of every test context (AD-19), 32 random bytes in hexadecimal. */
 	public static final String TEST_SIGNAL_KEY = (UUID.randomUUID().toString() + UUID.randomUUID()).replace("-", "");
 
+	/** The Finding fingerprint key every test application uses, 32 bytes in hexadecimal. */
+	public static final String TEST_FINGERPRINT_KEY = (UUID.randomUUID().toString() + UUID.randomUUID()).replace("-", "");
+
 	private static final AtomicInteger scratchDatabases = new AtomicInteger();
 
 	private final PostgreSQLContainer container;
@@ -90,7 +93,8 @@ public final class PostgresTestDatabase {
 		return new String[] { "--spring.datasource.url=" + jdbcUrl(database), "--spring.datasource.username=" + APP,
 				"--spring.datasource.password=" + this.appPassword, "--spring.flyway.user=" + MIGRATOR,
 				"--spring.flyway.password=" + this.migratorPassword, "--identity-token-key-1=" + TEST_TOKEN_KEY,
-				"--identity-person-signal-key-1=" + TEST_SIGNAL_KEY };
+				"--identity-person-signal-key-1=" + TEST_SIGNAL_KEY,
+				"--scanning-fingerprint-key=" + TEST_FINGERPRINT_KEY };
 	}
 
 	/**
@@ -100,7 +104,8 @@ public final class PostgresTestDatabase {
 	public String[] applicationArgumentsWithoutPasswords(String database) {
 		return new String[] { "--spring.datasource.url=" + jdbcUrl(database), "--spring.datasource.username=" + APP,
 				"--spring.flyway.user=" + MIGRATOR, "--identity-token-key-1=" + TEST_TOKEN_KEY,
-				"--identity-person-signal-key-1=" + TEST_SIGNAL_KEY };
+				"--identity-person-signal-key-1=" + TEST_SIGNAL_KEY,
+				"--scanning-fingerprint-key=" + TEST_FINGERPRINT_KEY };
 	}
 
 	public String appPassword() {

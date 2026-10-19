@@ -754,6 +754,10 @@
       "emptyHint": "Đăng ký ứng dụng bạn đã làm bằng công cụ AI để vibefix kiểm tra và tìm người hướng dẫn.",
       "listLabel": "Sản phẩm của bạn",
       "stateAWAITING_SCAN": "Chờ kiểm tra",
+      "stateSCANNING": "Đang kiểm tra",
+      "stateNOT_FINISHED": "Chưa kiểm tra xong",
+      "stateFINDINGS": "Còn {n} vấn đề cần xử lý",
+      "stateCLEAN": "Không phát hiện vấn đề",
       "source": "Dự án gốc: {name}",
       "registeredOn": "Đăng ký {date}",
       "noJobs": "Chưa có công việc",
@@ -845,7 +849,25 @@
         "demo": "Bản chạy:",
         "registered": "Đăng ký:",
         "forkOf": "Sao từ:",
-        "noDemo": "Chưa có"
+        "noDemo": "Chưa có",
+        "scanBusy": "Đang kiểm tra lịch sử mã… thường mất vài phút. Bạn có thể rời trang; vibefix sẽ báo khi xong.",
+        "scanNotFinished": "Chưa kiểm tra xong. vibefix sẽ thử lại; bạn chưa cần làm gì.",
+        "scanNotFinishedBody": "Công việc sửa mã chưa bắt đầu được cho đến khi kiểm tra xong.",
+        "findingsHeading": "Vấn đề phát hiện",
+        "findingsPending": "Kết quả hiện ở đây khi kiểm tra xong.",
+        "findingsOpen": "Còn {n} vấn đề cần xử lý trước khi sửa mã.",
+        "findingsOpenBody": "Bạn vẫn đặt được công việc đánh giá; báo cáo sẽ liệt kê vấn đề này.",
+        "findingsList": "Vấn đề cần xử lý",
+        "findingFile": "Tệp",
+        "findingCommit": "lần lưu",
+        "findingMasked": "Giá trị đã che:",
+        "findingOpen": "Chưa xử lý",
+        "clean": "Không phát hiện vấn đề nào ở lần kiểm tra gần nhất.",
+        "unscannedHeading": "Tệp chưa kiểm tra được",
+        "unscannedSize": "{size} · lớn hơn giới hạn kiểm tra",
+        "unscannedMore": "Và {n} tệp khác lớn hơn giới hạn kiểm tra.",
+        "unscannedHint": "Tệp lớn hơn giới hạn được ghi là \"chưa kiểm tra được\". Nếu tệp có thể chứa dữ liệu khách hàng, hãy xóa nó khỏi dự án gốc.",
+        "limits": "Kiểm tra tự động, không dùng AI, và không thể phát hiện mọi thứ."
       }
     }
   },
@@ -1321,6 +1343,14 @@
       "member_removed": {
         "title": "Bạn không còn ở trong nhóm của {mentor}"
       }
+    },
+    "scanning": {
+      "intake_scan_clean": {
+        "title": "Kiểm tra {product} xong: không phát hiện vấn đề"
+      },
+      "finding_opened": {
+        "title": "Phát hiện {type} trong {product}"
+      }
     }
   },
   "reason": {
@@ -1369,7 +1399,7 @@
       "REPO_PRIVATE": "Kho mã đang ở chế độ riêng tư. vibefix hiện chỉ nhận kho mã công khai.",
       "NO_ADMIN_PERMISSION": "Tài khoản GitHub của bạn không có quyền quản trị kho mã này, nên không thể đăng ký.",
       "REPO_ALREADY_LINKED": "Kho mã này đã được đăng ký cho một sản phẩm khác.",
-      "REPO_UNSUPPORTED_CONTENT": "Kho mã dùng Git LFS hoặc submodule (cách lưu tệp lớn hoặc kho mã con), vibefix chưa hỗ trợ.",
+      "REPO_UNSUPPORTED_CONTENT": "Kho mã lưu tệp lớn ở nơi khác hoặc chứa kho mã con, vibefix chưa hỗ trợ.",
       "REPO_TOO_LARGE": "Kho mã lớn hơn giới hạn 250 MB.",
       "GITHUB_UNAVAILABLE": "Chưa đọc được kho mã từ GitHub. Hãy thử lại sau ít phút.",
       "NOTICE_REQUIRED": "Hãy đánh dấu đủ 3 lưu ý trước khi bắt đầu.",
