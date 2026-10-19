@@ -21,6 +21,8 @@ import vn.vibefix.support.PersonalDataParticipantContract;
  */
 class IdentityPersonalDataIT extends IntegrationTest implements PersonalDataParticipantContract {
 
+	private static final String CODE_HASH = "c0de".repeat(16);
+
 	@Autowired
 	private IdentityPersonalData participant;
 
@@ -52,10 +54,11 @@ class IdentityPersonalDataIT extends IntegrationTest implements PersonalDataPart
 				WHERE id = :id AND (github_user_id IS NOT NULL OR github_email IS NOT NULL)
 				""").param("id", accountId).query(Long.class).single() > 0
 				|| this.accounts.customerToken(accountId).isPresent()
-				|| this.jdbc.sql("SELECT count(*) FROM identity.customer_profile WHERE account_id = :id")
-					.param("id", accountId)
-					.query(Long.class)
-					.single() > 0;
+				|| this.jdbc.sql("""
+						SELECT (SELECT count(*) FROM identity.customer_profile WHERE account_id = :id)
+						     + (SELECT count(*) FROM identity.school_email_code WHERE account_id = :id)
+						     + (SELECT count(*) FROM identity.student_verification WHERE account_id = :id)
+						""").param("id", accountId).query(Long.class).single() > 0;
 	}
 
 	@Test
@@ -71,7 +74,10 @@ class IdentityPersonalDataIT extends IntegrationTest implements PersonalDataPart
 		assertThat(section.data().toString()).contains("PRIVACY")
 			.contains("2.0")
 			.contains("lan-subject@contact.test")
-			.doesNotContain("ciphertext");
+			.contains("lan-subject@hust.edu.vn")
+			.contains("lan-subject@sis.hust.edu.vn")
+			.doesNotContain("ciphertext")
+			.doesNotContain(CODE_HASH);
 	}
 
 	@Test
@@ -102,6 +108,20 @@ class IdentityPersonalDataIT extends IntegrationTest implements PersonalDataPart
 		this.jdbc.sql("""
 				INSERT INTO identity.customer_profile (account_id, kind, display_name, contact_email, updated_at)
 				VALUES (:id, 'INDIVIDUAL', :login, :login || '@contact.test', :now)
+				""").param("id", id).param("login", login).param("now", now).update();
+		this.jdbc.sql("""
+				INSERT INTO identity.school_email_code (id, account_id, email, code_hash, sent_at, expires_at)
+				VALUES (:code, :id, :login || '@sis.hust.edu.vn', :hash, :now, :now)
+				""")
+			.param("code", UUID.randomUUID())
+			.param("id", id)
+			.param("login", login)
+			.param("hash", CODE_HASH)
+			.param("now", now)
+			.update();
+		this.jdbc.sql("""
+				INSERT INTO identity.student_verification (account_id, method, school_email, verified_at, valid_until)
+				VALUES (:id, 'SCHOOL_EMAIL', :login || '@hust.edu.vn', :now, DATE '2026-09-30')
 				""").param("id", id).param("login", login).param("now", now).update();
 		assertThat(Role.valueOf("CUSTOMER")).isEqualTo(Role.CUSTOMER);
 	}

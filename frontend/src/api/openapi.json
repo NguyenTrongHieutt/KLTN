@@ -317,6 +317,80 @@
         },
         "tags" : [ "todo-controller" ]
       }
+    },
+    "/api/v1/verification" : {
+      "get" : {
+        "operationId" : "verification",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/VerificationView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "verification-controller" ]
+      }
+    },
+    "/api/v1/verification/school-email" : {
+      "post" : {
+        "operationId" : "sendCode",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SchoolEmailRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "202" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/VerificationView"
+                }
+              }
+            },
+            "description" : "Accepted"
+          }
+        },
+        "tags" : [ "verification-controller" ]
+      }
+    },
+    "/api/v1/verification/school-email/confirm" : {
+      "post" : {
+        "operationId" : "confirm",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CodeRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/VerificationView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "verification-controller" ]
+      }
     }
   },
   "components" : {
@@ -342,6 +416,17 @@
           }
         },
         "required" : [ "id", "role", "theme" ]
+      },
+      "CodeRequest" : {
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "type" : "string",
+            "minLength" : 1,
+            "pattern" : "^[0-9]{6}$"
+          }
+        },
+        "required" : [ "code" ]
       },
       "CustomerProfile" : {
         "type" : "object",
@@ -452,6 +537,30 @@
         },
         "required" : [ "items", "page", "size", "total" ]
       },
+      "PendingCodeView" : {
+        "type" : "object",
+        "properties" : {
+          "attemptsLeft" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "email" : {
+            "type" : "string"
+          },
+          "expired" : {
+            "type" : "boolean"
+          },
+          "expiresAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "sentAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "attemptsLeft", "email", "expired", "expiresAt", "sentAt" ]
+      },
       "ProfileView" : {
         "type" : "object",
         "properties" : {
@@ -470,6 +579,18 @@
           }
         },
         "required" : [ "role" ]
+      },
+      "SchoolEmailRequest" : {
+        "type" : "object",
+        "properties" : {
+          "email" : {
+            "type" : "string",
+            "format" : "email",
+            "maxLength" : 254,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "email" ]
       },
       "SessionView" : {
         "type" : "object",
@@ -656,6 +777,30 @@
           }
         },
         "required" : [ "count" ]
+      },
+      "VerificationView" : {
+        "type" : "object",
+        "properties" : {
+          "pendingCode" : {
+            "$ref" : "#/components/schemas/PendingCodeView"
+          },
+          "schoolEmail" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "UNVERIFIED", "VERIFIED", "EXPIRED" ]
+          },
+          "verifiedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "verifiedUntil" : {
+            "type" : "string",
+            "format" : "date"
+          }
+        },
+        "required" : [ "status" ]
       }
     }
   }

@@ -178,7 +178,6 @@
       "profile": {
         "title": "Hồ sơ và xác minh",
         "heading": "Hồ sơ và xác minh",
-        "next": "Phần xác minh là sinh viên bằng email trường hoặc thẻ sinh viên sẽ có ở đây.",
         "github": "Tên người dùng GitHub",
         "githubHelper": "Lấy từ lần đăng nhập; không đổi được sang tài khoản khác.",
         "realName": "Họ và tên",
@@ -195,7 +194,35 @@
         "repositoryN": "Kho mã {n}",
         "removeRepository": "Bỏ kho mã {n}",
         "addRepository": "Thêm kho mã",
-        "saved": "Đã lưu hồ sơ."
+        "saved": "Đã lưu hồ sơ.",
+        "section": "Hồ sơ"
+      },
+      "verification": {
+        "heading": "Xác minh sinh viên",
+        "unverified": "Chưa xác minh",
+        "verified": "Đã xác minh",
+        "expired": "Hết hạn",
+        "intro": "Chọn một cách. Email trường nhanh nhất; nếu trường bạn không có trong danh sách, bạn có thể tải thẻ sinh viên lên.",
+        "email": "Email trường",
+        "emailHelper": "vibefix gửi mã 6 số đến email này.",
+        "send": "Gửi mã",
+        "sending": "Đang gửi…",
+        "sentAt": "Đã gửi mã đến email này lúc {time}.",
+        "code": "Mã 6 số trong email",
+        "confirm": "Xác minh",
+        "confirming": "Đang xác minh…",
+        "resend": "Gửi mã mới",
+        "attemptsLeft": "Mã chưa đúng. Bạn còn {n} lần thử.",
+        "verifiedUntil": "Đã xác minh đến {date}.",
+        "verifiedBy": "Xác minh bằng email trường {domain} ngày {date}. Bạn có thể vào nhóm của một người hướng dẫn và được chọn vào nhóm thực hiện.",
+        "expiredUntil": "Xác minh đã hết hạn ngày {date}.",
+        "done": "Đã xác minh là sinh viên.",
+        "codeSent": "Đã gửi mã đến {email}."
+      },
+      "banner": {
+        "title": "Xác minh là sinh viên để vào nhóm của một người hướng dẫn",
+        "body": "Dùng email trường hoặc tải thẻ sinh viên lên. Thường xong trong vài phút với email trường.",
+        "action": "Xác minh ngay"
       }
     },
     "customer": {
@@ -623,5 +650,21 @@
     "format": "Mục này chưa đúng dạng.",
     "tooLong": "Mục này quá dài.",
     "range": "Giá trị nằm ngoài khoảng cho phép."
+  },
+  "notification": {
+    "identity": {
+      "school_email_code": {
+        "title": "Mã xác minh vibefix của bạn: {code} (hết hạn sau 10 phút)"
+      }
+    }
+  },
+  "reason": {
+    "identity": {
+      "EMAIL_DOMAIN_NOT_ALLOWED": "Email này không thuộc trường trong danh sách. Bạn có thể tải thẻ sinh viên lên.",
+      "ALREADY_USED_FOR_VERIFICATION": "Email hoặc thẻ sinh viên này đã xác minh cho tài khoản khác.",
+      "WRONG_CODE": "Mã chưa đúng.",
+      "CODE_EXPIRED": "Mã đã hết hạn. Hãy gửi mã mới.",
+      "TOO_MANY_ATTEMPTS": "Bạn đã thử quá 5 lần. Hãy gửi mã mới."
+    }
   }
 }

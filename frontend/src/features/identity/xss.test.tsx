@@ -94,4 +94,32 @@ describe.each(PAYLOADS)('the payload %s', (payload) => {
     }
     expectInert()
   })
+
+  it('stays text in the STU-5 school email while a code waits', async () => {
+    const email = `${payload}@sis.hust.edu.vn`
+    fakeBackend(signedIn('STUDENT'), {
+      'GET /api/v1/profile': () => json({ role: 'STUDENT', githubLogin: 'minh-dev', customer: null, student: null }),
+      'GET /api/v1/verification': () =>
+        json({
+          status: 'UNVERIFIED',
+          pendingCode: { email, sentAt: '2026-10-19T02:41:00Z', expiresAt: '2026-10-19T02:51:00Z', attemptsLeft: 5, expired: false },
+        }),
+    })
+    renderAt('/ho-so')
+
+    expect(await screen.findByLabelText('Email trường')).toHaveValue(email)
+    expectInert()
+  })
+
+  it('stays text in the STU-5 verified line', async () => {
+    fakeBackend(signedIn('STUDENT'), {
+      'GET /api/v1/profile': () => json({ role: 'STUDENT', githubLogin: 'minh-dev', customer: null, student: null }),
+      'GET /api/v1/verification': () =>
+        json({ status: 'VERIFIED', verifiedUntil: '2027-09-30', verifiedAt: '2026-10-19T02:45:00Z', schoolEmail: `x@${payload}` }),
+    })
+    renderAt('/ho-so')
+
+    expect(await screen.findByText((text) => text.includes(`@${payload}`))).toBeInTheDocument()
+    expectInert()
+  })
 })

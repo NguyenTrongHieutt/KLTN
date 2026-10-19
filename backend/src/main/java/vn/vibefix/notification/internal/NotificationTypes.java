@@ -6,6 +6,8 @@ import java.util.Set;
 import org.springframework.stereotype.Component;
 
 import vn.vibefix.notification.Audience;
+import vn.vibefix.notification.Channel;
+import vn.vibefix.notification.EmailClass;
 import vn.vibefix.notification.NotificationCatalog;
 import vn.vibefix.notification.NotificationType;
 import vn.vibefix.notification.TodoType;
@@ -25,9 +27,13 @@ class NotificationTypes implements NotificationCatalog {
 	/** An unverified Student; opened at sign-up as a Student or when verification expires (FR-5). */
 	static final TodoType VERIFY_STUDENT = new TodoType("identity.verify_student", Set.of(Audience.SUBJECT), 3, Set.of());
 
+	/** The school email code (FR-5): email only, to the address being verified, ahead of reminders (AD-34). */
+	static final NotificationType SCHOOL_EMAIL_CODE = new NotificationType("identity.school_email_code",
+			Set.of(Audience.SUBJECT), Channel.EMAIL_ONLY, EmailClass.ONE_TIME_CODE, "mail", Set.of("code"));
+
 	@Override
 	public List<NotificationType> notificationTypes() {
-		return List.of();
+		return List.of(SCHOOL_EMAIL_CODE);
 	}
 
 	@Override

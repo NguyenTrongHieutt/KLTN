@@ -228,6 +228,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/verification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["verification"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/verification/school-email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["sendCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/verification/school-email/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["confirm"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -241,6 +289,9 @@ export interface components {
             role: "CUSTOMER" | "MENTOR" | "STUDENT" | "ADMINISTRATOR";
             /** @enum {string} */
             theme: "LIGHT" | "DARK" | "SYSTEM";
+        };
+        CodeRequest: {
+            code: string;
         };
         CustomerProfile: {
             contactEmail: string;
@@ -282,12 +333,26 @@ export interface components {
             /** Format: int64 */
             total: number;
         };
+        PendingCodeView: {
+            /** Format: int32 */
+            attemptsLeft: number;
+            email: string;
+            expired: boolean;
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: date-time */
+            sentAt: string;
+        };
         ProfileView: {
             customer?: components["schemas"]["CustomerProfile"];
             githubLogin?: string;
             /** @enum {string} */
             role: "CUSTOMER" | "MENTOR" | "STUDENT" | "ADMINISTRATOR";
             student?: components["schemas"]["StudentProfile"];
+        };
+        SchoolEmailRequest: {
+            /** Format: email */
+            email: string;
         };
         SessionView: {
             account?: components["schemas"]["AccountView"];
@@ -352,6 +417,16 @@ export interface components {
         UnreadCount: {
             /** Format: int64 */
             count: number;
+        };
+        VerificationView: {
+            pendingCode?: components["schemas"]["PendingCodeView"];
+            schoolEmail?: string;
+            /** @enum {string} */
+            status: "UNVERIFIED" | "VERIFIED" | "EXPIRED";
+            /** Format: date-time */
+            verifiedAt?: string;
+            /** Format: date */
+            verifiedUntil?: string;
         };
     };
     responses: never;
@@ -655,6 +730,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TodoList"];
+                };
+            };
+        };
+    };
+    verification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerificationView"];
+                };
+            };
+        };
+    };
+    sendCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SchoolEmailRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerificationView"];
+                };
+            };
+        };
+    };
+    confirm: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CodeRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerificationView"];
                 };
             };
         };
