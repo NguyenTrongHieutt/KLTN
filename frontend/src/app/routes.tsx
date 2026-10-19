@@ -35,6 +35,30 @@ export const routes: RouteObject[] = [
         path: 'nhom',
         lazy: async () => ({ Component: (await import('@/features/team/TeamPage')).TeamPage }),
       },
+      {
+        path: 'san-pham',
+        lazy: async () => ({ Component: (await import('@/features/product/ProductsPage')).ProductsPage }),
+      },
+      {
+        path: 'san-pham/:productId',
+        lazy: async () => ({ Component: (await import('@/features/product/ProductPage')).ProductPage }),
+      },
+    ],
+  },
+  {
+    // CUS-3, a focused task route (UX-DR8): signed in, without the navigation.
+    path: 'san-pham/moi',
+    lazy: async () => {
+      const [{ FocusedLayout }, { t }] = await Promise.all([import('./FocusedLayout'), import('@/i18n/t')])
+      return { element: <FocusedLayout title={t('screen.product.wizard.title')} closeTo="/san-pham" /> }
+    },
+    children: [
+      {
+        index: true,
+        lazy: async () => ({
+          Component: (await import('@/features/product/RegisterProductPage')).RegisterProductPage,
+        }),
+      },
     ],
   },
   {

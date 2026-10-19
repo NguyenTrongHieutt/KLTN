@@ -911,6 +911,108 @@
         "tags" : [ "notification-controller" ]
       }
     },
+    "/api/v1/products" : {
+      "get" : {
+        "operationId" : "products",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/ProductView"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "product-controller" ]
+      },
+      "post" : {
+        "operationId" : "register",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ProductRegistrationRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductCreatedView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "product-controller" ]
+      }
+    },
+    "/api/v1/products/repository-check" : {
+      "post" : {
+        "operationId" : "check",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RepositoryCheckRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RepositoryCheckView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "product-controller" ]
+      }
+    },
+    "/api/v1/products/{productId}" : {
+      "get" : {
+        "operationId" : "product",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "product-controller" ]
+      }
+    },
     "/api/v1/profile" : {
       "get" : {
         "operationId" : "profile",
@@ -2207,6 +2309,115 @@
         },
         "required" : [ "attemptsLeft", "email", "expired", "expiresAt", "sentAt" ]
       },
+      "ProductCreatedView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "id" ]
+      },
+      "ProductRegistrationRequest" : {
+        "type" : "object",
+        "properties" : {
+          "copyPermissionVersion" : {
+            "type" : "string"
+          },
+          "demoUrl" : {
+            "type" : "string",
+            "maxLength" : 300,
+            "minLength" : 0,
+            "pattern" : "^https://\\S+$"
+          },
+          "description" : {
+            "type" : "string",
+            "maxLength" : 1000,
+            "minLength" : 0
+          },
+          "detectionNoticeVersion" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string",
+            "maxLength" : 80,
+            "minLength" : 0
+          },
+          "publicNoticeVersion" : {
+            "type" : "string"
+          },
+          "repositoryUrl" : {
+            "type" : "string",
+            "maxLength" : 300,
+            "minLength" : 0
+          },
+          "tools" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "enum" : [ "LOVABLE", "BOLT", "REPLIT", "V0", "BASE44", "CURSOR", "CLAUDE_CODE", "CODEX", "OTHER" ]
+            },
+            "minItems" : 1,
+            "uniqueItems" : true
+          }
+        },
+        "required" : [ "description", "name", "repositoryUrl", "tools" ]
+      },
+      "ProductView" : {
+        "type" : "object",
+        "properties" : {
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "demoUrl" : {
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "forkParent" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "jobs" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "openFindings" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "repositoryFullName" : {
+            "type" : "string"
+          },
+          "repositoryOwnerType" : {
+            "type" : "string"
+          },
+          "repositoryUrl" : {
+            "type" : "string"
+          },
+          "scanState" : {
+            "type" : "string",
+            "enum" : [ "AWAITING_SCAN" ]
+          },
+          "tools" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "enum" : [ "LOVABLE", "BOLT", "REPLIT", "V0", "BASE44", "CURSOR", "CLAUDE_CODE", "CODEX", "OTHER" ]
+            }
+          }
+        },
+        "required" : [ "createdAt", "description", "id", "jobs", "name", "openFindings", "repositoryFullName", "repositoryOwnerType", "repositoryUrl", "scanState", "tools" ]
+      },
       "ProfileSkill" : {
         "type" : "object",
         "properties" : {
@@ -2391,6 +2602,46 @@
           }
         },
         "required" : [ "reason" ]
+      },
+      "RepositoryCheckRequest" : {
+        "type" : "object",
+        "properties" : {
+          "url" : {
+            "type" : "string",
+            "maxLength" : 300,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "url" ]
+      },
+      "RepositoryCheckView" : {
+        "type" : "object",
+        "properties" : {
+          "defaultBranch" : {
+            "type" : "string"
+          },
+          "forkParent" : {
+            "type" : "string"
+          },
+          "fullName" : {
+            "type" : "string"
+          },
+          "githubId" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "htmlUrl" : {
+            "type" : "string"
+          },
+          "ownerType" : {
+            "type" : "string"
+          },
+          "sizeKb" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "defaultBranch", "fullName", "githubId", "htmlUrl", "ownerType", "sizeKb" ]
       },
       "SavedView" : {
         "type" : "object",

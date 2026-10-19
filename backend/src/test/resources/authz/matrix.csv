@@ -269,6 +269,30 @@ GET /api/v1/mentors/{username},CUSTOMER,,,200
 GET /api/v1/mentors/{username},MENTOR,,,200
 GET /api/v1/mentors/{username},STUDENT,,,200
 GET /api/v1/mentors/{username},ADMINISTRATOR,,,200
+# Products (product, FR-7, AD-20): only Customers list, check, and register; only the owning Customer
+# and Administrators read a Product. The matrix Customer has no kept sign-in token, so its
+# repository reads find nothing.
+GET /api/v1/products,ANONYMOUS,,,401
+GET /api/v1/products,CUSTOMER,,,200
+GET /api/v1/products,MENTOR,,,404 NOT_FOUND
+GET /api/v1/products,STUDENT,,,404 NOT_FOUND
+GET /api/v1/products,ADMINISTRATOR,,,404 NOT_FOUND
+POST /api/v1/products/repository-check,ANONYMOUS,,product-repository-check.json,401
+POST /api/v1/products/repository-check,CUSTOMER,,product-repository-check.json,404 NOT_FOUND
+POST /api/v1/products/repository-check,MENTOR,,product-repository-check.json,404 NOT_FOUND
+POST /api/v1/products/repository-check,STUDENT,,product-repository-check.json,404 NOT_FOUND
+POST /api/v1/products/repository-check,ADMINISTRATOR,,product-repository-check.json,404 NOT_FOUND
+POST /api/v1/products,ANONYMOUS,,product-registration.json,401
+POST /api/v1/products,CUSTOMER,,product-registration.json,404 NOT_FOUND
+POST /api/v1/products,MENTOR,,product-registration.json,404 NOT_FOUND
+POST /api/v1/products,STUDENT,,product-registration.json,404 NOT_FOUND
+POST /api/v1/products,ADMINISTRATOR,,product-registration.json,404 NOT_FOUND
+GET /api/v1/products/{productId},ANONYMOUS,,,401
+GET /api/v1/products/{productId},OWNER,,,200
+GET /api/v1/products/{productId},CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/products/{productId},MENTOR,,,404 NOT_FOUND
+GET /api/v1/products/{productId},STUDENT,,,404 NOT_FOUND
+GET /api/v1/products/{productId},ADMINISTRATOR,,,200
 # Student verification (identity, FR-5): a Student's own; any other role, and SUBJECT (a Customer),
 # finds none. The confirm row's Student has no code waiting, so it finds none either.
 GET /api/v1/verification,ANONYMOUS,,,401

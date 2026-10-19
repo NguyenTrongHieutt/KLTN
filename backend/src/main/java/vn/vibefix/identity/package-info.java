@@ -13,11 +13,13 @@
  * {@link vn.vibefix.identity.PersonSignalMatched}, {@link vn.vibefix.identity.MentorApplicationQueue},
  * {@link vn.vibefix.identity.MentorApproved}, {@link vn.vibefix.identity.MentorApprovalRevoked},
  * {@link vn.vibefix.identity.AccountLocked}, the public profile searches
- * {@link vn.vibefix.identity.StudentDirectory} and {@link vn.vibefix.identity.MentorDirectory}, and
+ * {@link vn.vibefix.identity.StudentDirectory} and {@link vn.vibefix.identity.MentorDirectory},
+ * {@link vn.vibefix.identity.CustomerRepositories} (repositories read with a Customer's kept token), and
  * {@link vn.vibefix.identity.Administrators}. Sign-in, sessions, and the HTTP endpoints are
  * wiring in {@code identity.internal}.
  */
-@ApplicationModule(allowedDependencies = { "shared", "audit", "files", "settings", "catalog", "timers", "notification" })
+@ApplicationModule(allowedDependencies = { "shared", "audit", "files", "settings", "catalog", "github", "timers",
+		"notification" })
 package vn.vibefix.identity;
 
 import org.springframework.modulith.ApplicationModule;

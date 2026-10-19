@@ -452,6 +452,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["products"];
+        put?: never;
+        post: operations["register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/products/repository-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["check"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/products/{productId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["product"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profile": {
         parameters: {
             query?: never;
@@ -1048,6 +1096,40 @@ export interface components {
             /** Format: date-time */
             sentAt: string;
         };
+        ProductCreatedView: {
+            /** Format: uuid */
+            id: string;
+        };
+        ProductRegistrationRequest: {
+            copyPermissionVersion?: string;
+            demoUrl?: string;
+            description: string;
+            detectionNoticeVersion?: string;
+            name: string;
+            publicNoticeVersion?: string;
+            repositoryUrl: string;
+            tools: ("LOVABLE" | "BOLT" | "REPLIT" | "V0" | "BASE44" | "CURSOR" | "CLAUDE_CODE" | "CODEX" | "OTHER")[];
+        };
+        ProductView: {
+            /** Format: date-time */
+            createdAt: string;
+            demoUrl?: string;
+            description: string;
+            forkParent?: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: int32 */
+            jobs: number;
+            name: string;
+            /** Format: int32 */
+            openFindings: number;
+            repositoryFullName: string;
+            repositoryOwnerType: string;
+            repositoryUrl: string;
+            /** @enum {string} */
+            scanState: "AWAITING_SCAN";
+            tools: ("LOVABLE" | "BOLT" | "REPLIT" | "V0" | "BASE44" | "CURSOR" | "CLAUDE_CODE" | "CODEX" | "OTHER")[];
+        };
         ProfileSkill: {
             active: boolean;
             /** Format: uuid */
@@ -1111,6 +1193,20 @@ export interface components {
         };
         RejectRequest: {
             reason: string;
+        };
+        RepositoryCheckRequest: {
+            url: string;
+        };
+        RepositoryCheckView: {
+            defaultBranch: string;
+            forkParent?: string;
+            fullName: string;
+            /** Format: int64 */
+            githubId: number;
+            htmlUrl: string;
+            ownerType: string;
+            /** Format: int64 */
+            sizeKb: number;
         };
         SavedView: {
             submitted: boolean;
@@ -2078,6 +2174,96 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    products: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductView"][];
+                };
+            };
+        };
+    };
+    register: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductRegistrationRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductCreatedView"];
+                };
+            };
+        };
+    };
+    check: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RepositoryCheckRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepositoryCheckView"];
+                };
+            };
+        };
+    };
+    product: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                productId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductView"];
+                };
             };
         };
     };
