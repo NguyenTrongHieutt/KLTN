@@ -1,11 +1,24 @@
 package vn.vibefix.identity.internal;
 
+import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
+import java.time.Instant;
+import java.util.Arrays;
+import java.util.Base64;
 import java.util.UUID;
+
+import jakarta.servlet.http.Cookie;
 
 import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.session.Session;
+import org.springframework.session.SessionRepository;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.shared.Role;
@@ -50,6 +63,36 @@ public final class IdentityTestSupport {
 			.param("now", now)
 			.update();
 		return id;
+	}
+
+	/**
+	 * A request signed in as the account. An Administrator's is a real stored session (Spring Session
+	 * JDBC) with the times {@code CallerFilter} requires (SG-10), as if signed in at
+	 * {@code signedInAt} and active since; it is sent with its cookie, as a browser sends it.
+	 */
+	@SuppressWarnings("unchecked")
+	public static RequestPostProcessor signedIn(SessionRepository<? extends Session> repository, UUID accountId,
+			Role role, Instant signedInAt) {
+		if (role != Role.ADMINISTRATOR) {
+			return SecurityMockMvcRequestPostProcessors.authentication(authentication(accountId, role));
+		}
+		SessionRepository<Session> sessions = (SessionRepository<Session>) repository;
+		Session session = sessions.createSession();
+		SecurityContext context = SecurityContextHolder.createEmptyContext();
+		context.setAuthentication(authentication(accountId, role));
+		session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, context);
+		session.setAttribute(AdminSessions.SIGNED_IN_AT, signedInAt.toEpochMilli());
+		session.setAttribute(AdminSessions.ACTIVE_AT, signedInAt.toEpochMilli());
+		sessions.save(session);
+		Cookie cookie = new Cookie(SecurityConfiguration.SESSION_COOKIE,
+				Base64.getEncoder().encodeToString(session.getId().getBytes(StandardCharsets.UTF_8)));
+		return request -> {
+			Cookie[] existing = request.getCookies() == null ? new Cookie[0] : request.getCookies();
+			Cookie[] all = Arrays.copyOf(existing, existing.length + 1);
+			all[existing.length] = cookie;
+			request.setCookies(all);
+			return request;
+		};
 	}
 
 	/** The authentication a signed-in session holds for the account. */

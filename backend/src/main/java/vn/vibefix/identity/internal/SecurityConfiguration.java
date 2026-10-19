@@ -74,7 +74,7 @@ class SecurityConfiguration {
 						HttpStatus.UNAUTHORIZED, null))
 				.accessDeniedHandler((request, response, ex) -> SecurityProblems.write(request, response,
 						HttpStatus.FORBIDDEN, ErrorCode.FORBIDDEN)))
-			.addFilterAfter(new CallerFilter(accounts), SecurityContextHolderFilter.class)
+			.addFilterAfter(new CallerFilter(accounts, clock), SecurityContextHolderFilter.class)
 			.addFilterAfter(new CsrfCookieFilter(), CsrfFilter.class)
 			.addFilterBefore(new SignInRateLimiter(clock, properties.signInLimitPerMinute()),
 					OAuth2AuthorizationRequestRedirectFilter.class)

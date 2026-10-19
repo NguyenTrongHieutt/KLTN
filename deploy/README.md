@@ -79,6 +79,26 @@ only, encrypted with `secrets/identity-token-key-1`, which `dev-secrets.sh` crea
 key makes every kept token unreadable. To try a locked account, set it in the database:
 `UPDATE identity.account SET locked_at = now(), lock_reason = '...' WHERE github_login = '...'`.
 
+## The first Administrator
+
+Administrators sign in on `/quan-tri/dang-nhap` with an email, a password, and a code from an
+authenticator app (FR-2, AD-19); no page links there. Create the first one with the bootstrap CLI,
+which runs the backend image under the `cli` profile (no web server, no pollers) and refuses once
+any Administrator exists:
+
+```sh
+docker compose -f deploy/compose.yaml run --rm --no-deps -e SPRING_PROFILES_ACTIVE=dev,cli backend   --vibefix.cli.command=create-first-administrator --email=ten@vibefix.test --name="Tên của bạn"
+```
+
+It asks for the password twice (12 characters or more), then prints the TOTP secret and its
+`otpauth://` URI once: add it to an authenticator app (Google Authenticator, Microsoft
+Authenticator, 1Password) right away, because it is never shown again. Without a terminal, pass
+`--password-file=<path inside the container>` or the `VIBEFIX_ADMIN_PASSWORD` variable instead.
+
+Five wrong sign-ins within 15 minutes lock that email for 15 minutes and alert the other
+Administrators. An Administrator session ends after 30 minutes without a command, or 8 hours after
+sign-in; ADM-1's automatic refresh does not keep it open.
+
 ## Email locally
 
 The backend sends email as External Operations over SMTP (AD-6, AD-27). On this stack the SMTP

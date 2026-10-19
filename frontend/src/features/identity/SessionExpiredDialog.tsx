@@ -10,7 +10,8 @@ import { sessionExpiry } from './sessionExpiry'
 
 /**
  * "Phiên đăng nhập đã hết" (UX-DR26, frame CHUNG-het-phien): shown when a command answers 401. The
- * screen behind it keeps its input; "Đăng nhập lại" goes through GitHub and back to this route.
+ * screen behind it keeps its input; "Đăng nhập lại" goes through GitHub and back to this route, or to
+ * PUB-6 from the Admin shell.
  */
 export function SessionExpiredDialog() {
   const open = useSyncExternalStore(sessionExpiry.subscribe, sessionExpiry.isExpired, () => false)
@@ -38,7 +39,14 @@ export function SessionExpiredDialog() {
           </div>
           <Dialog.Description className="text-body-sm">{t('screen.shared.sessionExpired.body')}</Dialog.Description>
           <div className="flex justify-end">
-            <a href={signInUrl(location.pathname + location.search)} className={buttonVariants()}>
+            <a
+              href={
+                location.pathname.startsWith('/quan-tri')
+                  ? '/quan-tri/dang-nhap'
+                  : signInUrl(location.pathname + location.search)
+              }
+              className={buttonVariants()}
+            >
               {t('screen.shared.sessionExpired.signIn')}
             </a>
           </div>

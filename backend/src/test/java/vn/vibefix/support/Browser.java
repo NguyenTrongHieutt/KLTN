@@ -15,6 +15,11 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  * {@code VIBEFIX_SESSION} and the {@code XSRF-TOKEN} CSRF cookie) and sends them back. A command sends
  * the CSRF token in {@code X-XSRF-TOKEN}, as the SPA does. Each browser comes from its own client
  * address, so tests never share a sign-in rate-limit window.
+ * <p>
+ * Use it in a test class with its own application context (a {@code @DynamicPropertySource} of its
+ * own, as {@code GitHubSignInIT} and {@code AdminSignInIT} have): Spring Security's {@code csrf()}
+ * test helper, which other suites use, swaps the shared CSRF filter's cookie repository for a
+ * session-based one for the rest of a context's life, and the cookie never comes.
  */
 public final class Browser {
 

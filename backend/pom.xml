@@ -33,6 +33,8 @@
 		<springdoc.version>3.1.1</springdoc.version>
 		<tika.version>4.1.0</tika.version>
 		<archunit.version>1.5.1</archunit.version>
+		<bouncycastle.version>1.86</bouncycastle.version>
+		<java-otp.version>0.4.0</java-otp.version>
 		<!-- Everything runs in UTC (Conventions, Time); tests use the same JVM time zone as the containers. -->
 		<argLine>-Duser.timezone=UTC</argLine>
 	</properties>
@@ -58,6 +60,18 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-session-jdbc</artifactId>
+		</dependency>
+		<!-- AD-19: Administrator passwords are Argon2 hashes (Spring Security's encoder needs BouncyCastle),
+		     and the second factor is TOTP (RFC 6238). -->
+		<dependency>
+			<groupId>org.bouncycastle</groupId>
+			<artifactId>bcprov-jdk18on</artifactId>
+			<version>${bouncycastle.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.eatthepath</groupId>
+			<artifactId>java-otp</artifactId>
+			<version>${java-otp.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

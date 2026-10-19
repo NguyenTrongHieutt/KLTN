@@ -34,6 +34,22 @@ export const routes: RouteObject[] = [
     ],
   },
   {
+    // PUB-6, linked from no public page (FR-2); its own header, outside the public layout.
+    path: 'quan-tri/dang-nhap',
+    lazy: async () => ({ Component: (await import('@/features/admin/AdminSignInPage')).AdminSignInPage }),
+  },
+  {
+    // The Admin shell (UX-DR13): its guard sends anyone not signed in to PUB-6.
+    path: 'quan-tri',
+    lazy: async () => ({ Component: (await import('@/features/admin/AdminLayout')).AdminLayout }),
+    children: [
+      {
+        index: true,
+        lazy: async () => ({ Component: (await import('@/features/admin/AdminOverviewPage')).AdminOverviewPage }),
+      },
+    ],
+  },
+  {
     element: <PublicLayout />,
     children: [
       { index: true, element: <LandingPage /> },

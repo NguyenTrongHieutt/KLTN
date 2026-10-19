@@ -42,6 +42,9 @@ class ProfilesIT extends IntegrationTest {
 	@Autowired
 	private RecipientAddresses addresses;
 
+	@Autowired
+	private org.springframework.session.SessionRepository<? extends org.springframework.session.Session> sessions;
+
 	@Test
 	void aCustomerSavesAndReadsTheirProfile() throws Exception {
 		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
@@ -148,7 +151,8 @@ class ProfilesIT extends IntegrationTest {
 		this.mvc.perform(get(contact).with(as(lan, Role.CUSTOMER)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.contactEmail").value("lan@tiembanh.vn"));
-		this.mvc.perform(get(contact).with(as(admin, Role.ADMINISTRATOR))).andExpect(status().isOk());
+		this.mvc.perform(get(contact).with(IdentityTestSupport.signedIn(this.sessions, admin, Role.ADMINISTRATOR, this.clock.instant())))
+			.andExpect(status().isOk());
 		this.mvc.perform(get(contact).with(as(other, Role.CUSTOMER))).andExpect(status().isNotFound());
 		this.mvc.perform(get(contact).with(as(student, Role.STUDENT))).andExpect(status().isNotFound());
 		this.mvc.perform(get(contact).with(as(mentor, Role.MENTOR))).andExpect(status().isNotFound());

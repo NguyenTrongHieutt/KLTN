@@ -1,0 +1,7 @@
+subject: Đăng nhập quản trị bị tạm khóa 15 phút: {email} (5 lần thử sai)
+link: /quan-tri
+---
+Xin chào,
+
+Có 5 lần đăng nhập quản trị sai cho {email} trong 15 phút, nên tài khoản này tạm khóa đăng nhập 15 phút.
+Nếu đó không phải người dùng của tài khoản này, hãy kiểm tra nhật ký hệ thống và báo cho họ.

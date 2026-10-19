@@ -19,6 +19,12 @@ enum IdentityReason {
 	CODE_EXPIRED,
 
 	/** The code has had its 5 attempts. */
-	TOO_MANY_ATTEMPTS
+	TOO_MANY_ATTEMPTS,
+
+	/** An Administrator sign-in whose email, password, or TOTP code is wrong; never which one. */
+	ADMIN_SIGN_IN_FAILED,
+
+	/** 5 failed Administrator sign-ins within 15 minutes lock that email for 15 minutes (AD-34). */
+	ADMIN_SIGN_IN_LOCKED
 
 }

@@ -34,7 +34,11 @@ class IdentityPersonalData implements PersonalDataParticipant {
 
 	private final Profiles profiles;
 
-	IdentityPersonalData(JdbcClient jdbc, Accounts accounts, Clock clock, Profiles profiles) {
+	private final AdministratorCredentials administrators;
+
+	IdentityPersonalData(JdbcClient jdbc, Accounts accounts, Clock clock, Profiles profiles,
+			AdministratorCredentials administrators) {
+		this.administrators = administrators;
 		this.jdbc = jdbc;
 		this.accounts = accounts;
 		this.clock = clock;
@@ -45,7 +49,8 @@ class IdentityPersonalData implements PersonalDataParticipant {
 	public Set<String> tables() {
 		return Set.of("identity.account", "identity.acknowledgment", "identity.customer_token",
 				"identity.customer_profile", "identity.student_profile", "identity.showcase_repository",
-				"identity.contact_grant", "identity.school_email_code", "identity.student_verification");
+				"identity.contact_grant", "identity.school_email_code", "identity.student_verification",
+				"identity.administrator_credential");
 	}
 
 	@Override
@@ -89,6 +94,9 @@ class IdentityPersonalData implements PersonalDataParticipant {
 			if (!codes.isEmpty()) {
 				data.put("schoolEmailCodes", codes);
 			}
+			// An Administrator's email and name; never the password hash or the TOTP secret.
+			this.administrators.identity(accountId).ifPresent(found -> data.put("administrator",
+					Map.of("email", found.email(), "displayName", found.displayName())));
 			return new PersonalDataSection("identity", data);
 		});
 	}
@@ -97,7 +105,8 @@ class IdentityPersonalData implements PersonalDataParticipant {
 	public void eraseAccount(UUID accountId) {
 		this.jdbc.sql("DELETE FROM identity.customer_token WHERE account_id = :id").param("id", accountId).update();
 		for (String table : new String[] { "identity.customer_profile", "identity.student_profile",
-				"identity.showcase_repository", "identity.school_email_code", "identity.student_verification" }) {
+				"identity.showcase_repository", "identity.school_email_code", "identity.student_verification",
+				"identity.administrator_credential" }) {
 			this.jdbc.sql("DELETE FROM " + table + " WHERE account_id = :id").param("id", accountId).update();
 		}
 		this.jdbc.sql("""
