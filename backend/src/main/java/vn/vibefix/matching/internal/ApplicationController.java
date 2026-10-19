@@ -26,6 +26,7 @@ import vn.vibefix.identity.MentorDirectory.MentorCard;
 import vn.vibefix.identity.MentorGate;
 import vn.vibefix.job.JobPosts;
 import vn.vibefix.job.JobPosts.JobPostState;
+import vn.vibefix.job.JobSelection;
 import vn.vibefix.matching.internal.Applications.Application;
 import vn.vibefix.matching.internal.Applications.EndReason;
 import vn.vibefix.matching.internal.Applications.Quote;
@@ -40,9 +41,9 @@ import vn.vibefix.shared.Role;
 import vn.vibefix.team.Teams;
 
 /**
- * Applications (FR-13, AD-20): an approved Mentor applies from MEN-3 (AD-19 new-work command) and
- * lists or withdraws their own (MEN-4); the Job's Customer reads the open ones on CUS-8. Nobody else
- * finds them.
+ * Applications (FR-13, FR-15, AD-20): an approved Mentor applies from MEN-3 (AD-19 new-work command)
+ * and lists or withdraws their own (MEN-4); the Job's Customer reads the open ones on CUS-8 and selects
+ * one (J3). Nobody else finds them.
  */
 @RestController
 @Access(Gate.SIGNED_IN)
@@ -63,6 +64,13 @@ class ApplicationController {
 	record ApplicantView(String displayName, @Nullable String githubLogin, int yearsOfExperience, int teamSize) {
 	}
 
+	/** CUS-8 "Chọn": the Job version the screen loaded (AD-23). */
+	record SelectRequest(@NotNull Long version) {
+	}
+
+	record SelectedView(long version) {
+	}
+
 	/** One Application to the Customer's Job. */
 	record JobApplicationView(UUID id, Status status, long priceVnd, int timelineDays, String approach,
 			Instant submittedAt, ApplicantView mentor) {
@@ -78,15 +86,18 @@ class ApplicationController {
 
 	private final MentorGate gate;
 
+	private final JobSelection selection;
+
 	private final CurrentCaller callers;
 
 	ApplicationController(Applications applications, JobPosts posts, MentorDirectory mentors, Teams teams,
-			MentorGate gate, CurrentCaller callers) {
+			MentorGate gate, JobSelection selection, CurrentCaller callers) {
 		this.applications = applications;
 		this.posts = posts;
 		this.mentors = mentors;
 		this.teams = teams;
 		this.gate = gate;
+		this.selection = selection;
 		this.callers = callers;
 	}
 
@@ -122,11 +133,7 @@ class ApplicationController {
 	/** CUS-8 "Đơn ứng tuyển": the open Applications to the Customer's Job. */
 	@GetMapping("/api/v1/jobs/{jobId}/applications")
 	List<JobApplicationView> ofJob(@PathVariable UUID jobId) {
-		Caller caller = this.callers.get();
-		if (!caller.hasRole(Role.CUSTOMER)
-				|| !this.posts.customerOf(jobId).map(caller.requireAccountId()::equals).orElse(false)) {
-			throw new ApiException(ErrorCode.NOT_FOUND);
-		}
+		customerOf(jobId);
 		List<Application> open = this.applications.openOfJob(jobId);
 		Map<UUID, MentorCard> cards = new HashMap<>();
 		this.mentors.cards(open.stream().map(Application::mentorId).toList())
@@ -139,6 +146,33 @@ class ApplicationController {
 			return new JobApplicationView(application.id(), application.status(), application.priceVnd(),
 					application.timelineDays(), application.approach(), application.submittedAt(), mentor);
 		}).toList();
+	}
+
+	/**
+	 * CUS-8 "Chọn" (FR-15): J3 for a submitted Application of the Customer's Job, at the version the
+	 * screen loaded; a newer Job answers {@code STALE} and nothing changes.
+	 */
+	@PostMapping("/api/v1/jobs/{jobId}/applications/{applicationId}/select")
+	SelectedView select(@PathVariable UUID jobId, @PathVariable UUID applicationId,
+			@Valid @RequestBody SelectRequest body) {
+		UUID customer = customerOf(jobId);
+		Application application = this.applications.ofJob(jobId, applicationId)
+			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		if (application.status() != Status.SUBMITTED) {
+			throw new ApiException(ErrorCode.STALE);
+		}
+		return new SelectedView(
+				this.selection.select(jobId, customer, application.mentorId(), applicationId, body.version()));
+	}
+
+	/** The Job's Customer calling; anyone else finds nothing. */
+	private UUID customerOf(UUID jobId) {
+		Caller caller = this.callers.get();
+		if (!caller.hasRole(Role.CUSTOMER)
+				|| !this.posts.customerOf(jobId).map(caller.requireAccountId()::equals).orElse(false)) {
+			throw new ApiException(ErrorCode.NOT_FOUND);
+		}
+		return caller.requireAccountId();
 	}
 
 	private ApplicationView view(Application application, Map<UUID, String> titles) {

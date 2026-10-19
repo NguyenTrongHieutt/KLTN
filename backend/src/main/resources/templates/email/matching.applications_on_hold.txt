@@ -1,0 +1,7 @@
+subject: Đơn ứng tuyển của bạn cho {job} đang chờ: khách hàng đã chọn người khác
+link: /cong-viec
+---
+Xin chào,
+
+Khách hàng đã chọn một người hướng dẫn khác cho {job}, nên đơn của bạn đang được tạm giữ.
+Nếu người được chọn từ chối hoặc không ký cam kết bảo mật kịp, khách hàng có thể chọn lại từ các đơn đang chờ.

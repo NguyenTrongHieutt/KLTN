@@ -33,6 +33,9 @@ class NotificationTypes implements NotificationCatalog {
 	static final TodoType MATCHING_CHOOSE_ASSIGNEE = new TodoType("matching.choose_assignee", Set.of(Audience.CUSTOMER),
 			1, Set.of("n"));
 
+	/** The selected Mentor signs the NDA within the FR-15 period (UX-DR15). */
+	static final TodoType MATCHING_SIGN_NDA = new TodoType("matching.sign_nda", Set.of(Audience.MENTOR), 2, Set.of("job"));
+
 	static final TodoType VERIFY_STUDENT = new TodoType("identity.verify_student", Set.of(Audience.SUBJECT), 3, Set.of());
 
 	/** The school email code (FR-5): email only, to the address being verified, ahead of reminders (AD-34). */
@@ -134,6 +137,14 @@ class NotificationTypes implements NotificationCatalog {
 			"matching.conflict_of_interest_refused", Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL,
 			EmailClass.TRANSACTIONAL, "alert", Set.of());
 
+	/** J3 chose this Mentor (FR-15). */
+	static final NotificationType JOB_ASSIGNEE_SELECTED = new NotificationType("job.assignee_selected",
+			Set.of(Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "check", Set.of("job"));
+
+	/** J3 chose another Mentor: this Application waits (FR-15). */
+	static final NotificationType MATCHING_APPLICATIONS_ON_HOLD = new NotificationType("matching.applications_on_hold",
+			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
+
 	@Override
 	public List<NotificationType> notificationTypes() {
 		return List.of(SCHOOL_EMAIL_CODE, VERIFICATION_EXPIRING, VERIFICATION_EXPIRED, ADMIN_SIGN_IN_LOCKED,
@@ -142,13 +153,13 @@ class NotificationTypes implements NotificationCatalog {
 				TEAM_INVITATION_ANSWERED, TEAM_JOIN_REQUEST_RECEIVED, TEAM_JOIN_REQUEST_ANSWERED, TEAM_RELEASED,
 				TEAM_MEMBER_LEFT, TEAM_MEMBER_REMOVED, SCANNING_INTAKE_SCAN_CLEAN, SCANNING_FINDING_OPENED,
 				JOB_POST_LAPSED, MATCHING_APPLICATION_RECEIVED, MATCHING_APPLICATION_AUTO_WITHDRAWN,
-				MATCHING_CONFLICT_OF_INTEREST_REFUSED);
+				MATCHING_CONFLICT_OF_INTEREST_REFUSED, JOB_ASSIGNEE_SELECTED, MATCHING_APPLICATIONS_ON_HOLD);
 	}
 
 	@Override
 	public List<TodoType> todoTypes() {
 		return List.of(COMPLETE_MENTOR_APPLICATION, VERIFY_STUDENT, SCANNING_RESOLVE_INTAKE_FINDING,
-				MATCHING_CHOOSE_ASSIGNEE);
+				MATCHING_CHOOSE_ASSIGNEE, MATCHING_SIGN_NDA);
 	}
 
 }

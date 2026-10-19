@@ -68,6 +68,51 @@ const openJob = {
   lapsesAt: '2026-10-29T03:00:00Z',
 }
 
+const hungApplication = {
+  id: 'a1',
+  status: 'SUBMITTED',
+  priceVnd: 3_500_000,
+  timelineDays: 7,
+  approach: 'Tái hiện lỗi, sửa và thêm kiểm thử.',
+  submittedAt: '2026-10-16T03:00:00Z',
+  mentor: { displayName: 'Đỗ Mạnh Hùng', githubLogin: 'hungdm', yearsOfExperience: 8, teamSize: 6 },
+}
+
+const haApplication = {
+  id: 'a2',
+  status: 'SUBMITTED',
+  priceVnd: 2_800_000,
+  timelineDays: 10,
+  approach: 'Tập trung vào lộ dữ liệu khách hàng.',
+  submittedAt: '2026-10-16T04:00:00Z',
+  mentor: { displayName: 'Phạm Thu Hà', githubLogin: 'hatp', yearsOfExperience: 6, teamSize: 1 },
+}
+
+const publicHung = {
+  accountId: 'm1',
+  githubLogin: 'hungdm',
+  displayName: 'Đỗ Mạnh Hùng',
+  experience: 'Kỹ sư phần mềm.',
+  yearsOfExperience: 8,
+  memberSince: '2026-06-01T03:00:00Z',
+  skillGroups: [],
+  available: true,
+  teamSize: 6,
+  sizeLimit: 10,
+  listedMembers: [],
+}
+
+const selectingJob = {
+  ...openJob,
+  state: 'SELECTING',
+  version: 2,
+  openedAt: undefined,
+  lapsesAt: undefined,
+  mentor: { displayName: 'Đỗ Mạnh Hùng', githubLogin: 'hungdm' },
+  selectedAt: '2026-10-18T03:00:00Z',
+  ndaDueAt: '2026-10-21T03:00:00Z',
+}
+
 afterEach(() => {
   vi.unstubAllGlobals()
 })
@@ -173,29 +218,92 @@ describe('MEN-4 and CUS-8 (UX-DR78, UX-DR66)', () => {
     expect(screen.getByText(/Bạn chưa nhận công việc nào/)).toBeInTheDocument()
   })
 
-  it('shows the Customer the Applications with each Mentor linked to PUB-5', { timeout: 15_000 }, async () => {
+  it('shows each Application with its Rating summary and opens the profile in a Sheet', { timeout: 15_000 }, async () => {
+    const user = userEvent.setup()
     fakeBackend(signedIn('CUSTOMER'), {
       'GET /api/v1/jobs/j1': () => json(openJob),
-      'GET /api/v1/jobs/j1/applications': () =>
-        json([
-          {
-            id: 'a1',
-            status: 'SUBMITTED',
-            priceVnd: 3_500_000,
-            timelineDays: 7,
-            approach: 'Tái hiện lỗi, sửa và thêm kiểm thử.',
-            submittedAt: '2026-10-16T03:00:00Z',
-            mentor: { displayName: 'Đỗ Mạnh Hùng', githubLogin: 'hungdm', yearsOfExperience: 8, teamSize: 6 },
-          },
-        ]),
+      'GET /api/v1/jobs/j1/applications': () => json([hungApplication, haApplication]),
+      'GET /api/v1/mentors/hungdm/reputation': () => json({ average: 4.8, count: 6, newcomer: false, portfolio: [] }),
+      'GET /api/v1/mentors/hatp/reputation': () => json({ count: 0, newcomer: true, portfolio: [] }),
+      'GET /api/v1/mentors/hungdm': () => json(publicHung),
     })
     renderAt('/cong-viec/j1/ung-tuyen')
 
-    expect(await screen.findByRole('link', { name: 'Đỗ Mạnh Hùng' })).toHaveAttribute('href', '/mentor/hungdm')
-    expect(screen.getByRole('link', { name: 'Đơn ứng tuyển (1)' })).toHaveAttribute('aria-current', 'page')
-    expect(screen.getByText('8 năm kinh nghiệm · nhóm 6 sinh viên')).toBeInTheDocument()
+    expect(await screen.findByText('Đỗ Mạnh Hùng')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Đơn ứng tuyển (2)' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByText(/8 năm kinh nghiệm · nhóm 6 sinh viên/)).toBeInTheDocument()
     expect(screen.getByText('3.500.000 ₫')).toBeInTheDocument()
-    expect(screen.getByText('7 ngày', { exact: false })).toBeInTheDocument()
+    expect(await screen.findByText('4,8 sao')).toBeInTheDocument()
+    expect(await screen.findByText('Mới')).toBeInTheDocument()
+    expect(screen.getAllByText('0 mục hồ sơ năng lực').length).toBe(2)
+
+    await user.click(screen.getAllByRole('button', { name: 'Xem hồ sơ' })[0])
+    const sheet = await screen.findByRole('dialog')
+    expect(await within(sheet).findByText('Kỹ sư phần mềm.')).toBeInTheDocument()
+  })
+
+  it('pins up to three Applications in "So sánh"', { timeout: 15_000 }, async () => {
+    const user = userEvent.setup()
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/jobs/j1': () => json(openJob),
+      'GET /api/v1/jobs/j1/applications': () => json([hungApplication, haApplication]),
+    })
+    renderAt('/cong-viec/j1/ung-tuyen')
+
+    await user.click((await screen.findAllByRole('checkbox', { name: 'So sánh' }))[0])
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Đang so sánh (1)' })).toBeInTheDocument()
+    expect(screen.getByText('Đang so sánh 1 đơn')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: 'Tất cả đơn ứng tuyển (2)' })).toBeInTheDocument()
+  })
+
+  it('selects after the Confirmation dialog with the loaded version and lands on JOB-1', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    let sent: unknown
+    let selected = false
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/jobs/j1': () => json(selected ? selectingJob : openJob),
+      'GET /api/v1/jobs/j1/applications': () => json([hungApplication, haApplication]),
+      'POST /api/v1/jobs/j1/applications/a1/select': async (request) => {
+        sent = await request.json()
+        selected = true
+        return json({ version: 2 })
+      },
+    })
+    renderAt('/cong-viec/j1/ung-tuyen')
+
+    await user.click((await screen.findAllByRole('button', { name: 'Chọn' }))[0])
+    const dialog = await screen.findByRole('dialog', { name: 'Chọn Đỗ Mạnh Hùng?' })
+    expect(within(dialog).getByText(/Đỗ Mạnh Hùng có 3 ngày để ký cam kết bảo mật/)).toBeInTheDocument()
+    expect(within(dialog).getByText(/1 đơn còn lại chuyển sang tạm giữ/)).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Chọn Đỗ Mạnh Hùng' }))
+
+    await waitFor(() => expect(sent).toEqual({ version: 1 }))
+    expect(await screen.findByRole('heading', { level: 2, name: 'Đang chờ Đỗ Mạnh Hùng ký cam kết bảo mật' })).toBeInTheDocument()
+    expect(screen.getByText('Chờ người hướng dẫn ký cam kết bảo mật')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Đơn ứng tuyển/ })).toBeNull()
+  })
+
+  it('shows the Stale dialog for a Job that moved on, and never re-sends', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    let sends = 0
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/jobs/j1': () => json(openJob),
+      'GET /api/v1/jobs/j1/applications': () => json([hungApplication]),
+      'POST /api/v1/jobs/j1/applications/a1/select': () => {
+        sends += 1
+        return json({ status: 409, code: 'STALE', reason: 'STATE_CHANGED' }, 409)
+      },
+    })
+    renderAt('/cong-viec/j1/ung-tuyen')
+
+    await user.click(await screen.findByRole('button', { name: 'Chọn' }))
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Chọn Đỗ Mạnh Hùng' }))
+
+    const stale = await screen.findByRole('dialog', { name: 'Thông tin đã thay đổi trong lúc bạn xem.' })
+    expect(within(stale).getByText(/Quyết định của bạn chưa được gửi/)).toBeInTheDocument()
+    await user.click(within(stale).getByRole('button', { name: 'Tải lại và xem' }))
+    expect(sends).toBe(1)
   })
 
   it('counts the Applications on JOB-1', { timeout: 15_000 }, async () => {

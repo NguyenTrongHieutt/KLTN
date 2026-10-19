@@ -72,7 +72,21 @@ function Overview({ job }: { job: Job }) {
         </div>
         <JobTabs jobId={job.id} current="overview" applications={job.state === 'OPEN' ? applications.length : undefined} />
       </div>
-      {open && job.lapsesAt ? (
+      {job.state === 'SELECTING' && job.mentor && job.ndaDueAt ? (
+        <section aria-labelledby="job-selecting" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5">
+          <h2 id="job-selecting" className="text-h2">
+            {t('screen.matching.selecting.title', { mentor: job.mentor.displayName })}
+          </h2>
+          <p className="text-body-sm">
+            {t('screen.matching.selecting.body', { mentor: job.mentor.displayName, date: formatDayMonth(job.ndaDueAt) })}
+          </p>
+          {job.mentor.githubLogin && (
+            <Link to={`/mentor/${job.mentor.githubLogin}`} className="w-fit text-body-sm text-primary underline-offset-4 hover:underline">
+              {t('screen.matching.selecting.profile')}
+            </Link>
+          )}
+        </section>
+      ) : open && job.lapsesAt ? (
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
           <div className="flex min-w-0 flex-col gap-6">
             <NextSteps lapsesAt={job.lapsesAt} jobId={job.id} applications={applications.length} />

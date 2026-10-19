@@ -1352,6 +1352,38 @@
         "end_MENTOR_UNAVAILABLE": "Hệ thống đã rút",
         "end_JOB_WITHDRAWN": "Khách hàng đã rút tin",
         "end_JOB_LAPSED": "Tin đã hết hạn"
+      },
+      "compare": {
+        "lead": "So sánh giá, thời gian, cách làm và số sinh viên trong nhóm của từng người hướng dẫn.",
+        "heading": "Đang so sánh ({n})",
+        "summary": "Đang so sánh {n} đơn",
+        "all": "Tất cả đơn ứng tuyển ({n})",
+        "toggle": "So sánh",
+        "profile": "Xem hồ sơ",
+        "portfolio": "{n} mục hồ sơ năng lực",
+        "note": "Khi bạn chọn, các đơn khác chuyển sang chờ. Người hướng dẫn được chọn cần ký cam kết bảo mật trong 3 ngày; nếu không, bạn có thể chọn lại. Bạn trao đổi với người hướng dẫn; họ tự chọn sinh viên trong nhóm để làm."
+      },
+      "choose": {
+        "button": "Chọn",
+        "title": "Chọn {mentor}?",
+        "what": "Điều sẽ xảy ra",
+        "nda": "{mentor} có 3 ngày để ký cam kết bảo mật. Trong lúc chờ, công việc ở trạng thái Chờ người hướng dẫn ký cam kết bảo mật.",
+        "hold": "{n} đơn còn lại chuyển sang tạm giữ. Nếu người được chọn từ chối hoặc không ký kịp, bạn chọn lại từ các đơn này.",
+        "closed": "Tin công việc ngừng nhận đơn mới.",
+        "money": "Chưa có tiền nào được trừ. Bạn chỉ thanh toán sau khi hai bên xác nhận thỏa thuận.",
+        "back": "Quay lại",
+        "confirm": "Chọn {mentor}",
+        "done": "Đã chọn {mentor}.",
+        "action": "chọn người hướng dẫn này"
+      },
+      "stale": {
+        "body": "Quyết định của bạn chưa được gửi. Hãy tải lại để xem tình trạng mới rồi quyết định lại.",
+        "reload": "Tải lại và xem"
+      },
+      "selecting": {
+        "title": "Đang chờ {mentor} ký cam kết bảo mật",
+        "body": "{mentor} cần ký cam kết bảo mật trước {date}. Sau đó hai bên trao đổi trong Trò chuyện và soạn thỏa thuận.",
+        "profile": "Xem hồ sơ người hướng dẫn"
       }
     }
   },
@@ -1789,7 +1821,8 @@
       "resolve_intake_finding": "Xử lý vấn đề bảo mật ở {product}"
     },
     "matching": {
-      "choose_assignee": "Chọn người hướng dẫn ({n} đơn ứng tuyển)"
+      "choose_assignee": "Chọn người hướng dẫn ({n} đơn ứng tuyển)",
+      "sign_nda": "Ký cam kết bảo mật cho {job}"
     }
   },
   "theme": {
@@ -1877,6 +1910,9 @@
     "job": {
       "job_post_lapsed": {
         "title": "Tin {job} đã hết hạn và trở về bản nháp"
+      },
+      "assignee_selected": {
+        "title": "Bạn được chọn cho {job}. Hãy ký cam kết bảo mật."
       }
     },
     "matching": {
@@ -1888,6 +1924,9 @@
       },
       "conflict_of_interest_refused": {
         "title": "Một đơn ứng tuyển bị từ chối vì có thể là cùng một người"
+      },
+      "applications_on_hold": {
+        "title": "Đơn ứng tuyển của bạn cho {job} đang chờ: khách hàng đã chọn người khác"
       }
     }
   },
@@ -1959,7 +1998,10 @@
       "JOB_INCOMPLETE": "còn câu hỏi chưa trả lời, hoặc chưa chọn loại công việc, ngân sách hay ngày mong muốn xong sau hôm nay",
       "INTAKE_FINDING_OPEN": "còn vấn đề bảo mật chưa xử lý",
       "STATE_CHANGED": "công việc vừa đổi trạng thái",
-      "JOB_FROZEN": "công việc đang tạm dừng vì có tranh chấp"
+      "JOB_FROZEN": "công việc đang tạm dừng vì có tranh chấp",
+      "MENTOR_NOT_AVAILABLE": "người hướng dẫn này hiện không nhận việc",
+      "MENTOR_AT_JOB_LIMIT": "người hướng dẫn này đang nhận đủ số công việc tối đa",
+      "MENTOR_NO_FREE_STUDENT": "nhóm của người hướng dẫn này hiện không có sinh viên rảnh"
     },
     "matching": {
       "JOB_POST_NOT_OPEN": "công việc không còn nhận ứng tuyển",

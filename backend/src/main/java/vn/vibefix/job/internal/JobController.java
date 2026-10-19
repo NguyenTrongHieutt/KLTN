@@ -31,6 +31,8 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import vn.vibefix.files.PreparedFile;
+import vn.vibefix.identity.MentorDirectory;
+import vn.vibefix.job.JobSelection;
 import vn.vibefix.job.internal.JobLifecycle.Actor;
 import vn.vibefix.job.internal.Jobs.Draft;
 import vn.vibefix.job.internal.Jobs.Job;
@@ -85,11 +87,19 @@ class JobController {
 
 	}
 
-	/** One Job as CUS-6 edits it and JOB-1 shows it; an Open Job Post has its opening and lapse times. */
+	/** The Job's Mentor from J3 on, as the Customer sees them. */
+	record JobMentorView(String displayName, @Nullable String githubLogin) {
+	}
+
+	/**
+	 * One Job as CUS-6 edits it and JOB-1 shows it; an Open Job Post has its opening and lapse times,
+	 * and from J3 on the Job has its Mentor and the NDA's due time (FR-15).
+	 */
 	record JobView(UUID id, UUID productId, String productName, JobState state, String title, @Nullable String problem,
 			@Nullable String expected, @Nullable String appUsers, @Nullable String doneCheck, List<JobType> jobTypes,
 			List<SkillView> skills, @Nullable Budget budget, @Nullable LocalDate deadline, List<ScreenshotView> screenshots,
-			Instant createdAt, Instant updatedAt, long version, @Nullable Instant openedAt, @Nullable Instant lapsesAt) {
+			Instant createdAt, Instant updatedAt, long version, @Nullable Instant openedAt, @Nullable Instant lapsesAt,
+			@Nullable JobMentorView mentor, @Nullable Instant selectedAt, @Nullable Instant ndaDueAt) {
 	}
 
 	/** One Job as CUS-7 lists it. */
@@ -103,12 +113,16 @@ class JobController {
 
 	private final ProductDirectory products;
 
+	private final MentorDirectory mentors;
+
 	private final CurrentCaller callers;
 
-	JobController(Jobs jobs, JobLifecycle lifecycle, ProductDirectory products, CurrentCaller callers) {
+	JobController(Jobs jobs, JobLifecycle lifecycle, ProductDirectory products, MentorDirectory mentors,
+			CurrentCaller callers) {
 		this.jobs = jobs;
 		this.lifecycle = lifecycle;
 		this.products = products;
+		this.mentors = mentors;
 		this.callers = callers;
 	}
 
@@ -197,7 +211,19 @@ class JobController {
 		return new JobView(job.id(), job.productId(), productName(new HashMap<>(), job.productId()), job.state(),
 				job.title(), job.problem(), job.expected(), job.appUsers(), job.doneCheck(), job.jobTypes(), skills,
 				job.budget(), job.deadline(), this.jobs.screenshots(job.id()).stream().map(ScreenshotView::of).toList(),
-				job.createdAt(), job.updatedAt(), job.version(), job.openedAt(), job.lapsesAt());
+				job.createdAt(), job.updatedAt(), job.version(), job.openedAt(), job.lapsesAt(), mentor(job),
+				job.selectedAt(), job.selectedAt() == null ? null : job.selectedAt().plus(JobSelection.NDA_PERIOD));
+	}
+
+	private @Nullable JobMentorView mentor(Job job) {
+		if (job.mentorId() == null) {
+			return null;
+		}
+		return this.mentors.cards(List.of(job.mentorId()))
+			.stream()
+			.findFirst()
+			.map(card -> new JobMentorView(card.displayName(), card.githubLogin()))
+			.orElse(null);
 	}
 
 	private String productName(Map<UUID, String> names, UUID productId) {

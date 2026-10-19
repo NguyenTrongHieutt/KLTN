@@ -72,7 +72,8 @@ class Jobs {
 			@Nullable String expected, @Nullable String appUsers, @Nullable String doneCheck, List<JobType> jobTypes,
 			List<UUID> skillIds, List<String> skillNames, @Nullable Budget budget, @Nullable LocalDate deadline,
 			Instant createdAt, Instant updatedAt, long version, @Nullable Instant openedAt, @Nullable Instant lapsesAt,
-			@Nullable Instant frozenAt, @Nullable Integer agreementVersionNo, @Nullable Instant hiddenAt) {
+			@Nullable Instant frozenAt, @Nullable Integer agreementVersionNo, @Nullable Instant hiddenAt,
+			@Nullable UUID mentorId, @Nullable UUID selectedApplicationId, @Nullable Instant selectedAt) {
 
 		/** A Code Job: one whose Job Types are not Assessment alone (FR-8). */
 		boolean code() {
@@ -84,7 +85,7 @@ class Jobs {
 	static final String COLUMNS = """
 			id, product_id, customer_account_id, state, title, problem, expected, app_users, done_check, job_types,
 			skill_ids, skill_names, budget, deadline, created_at, updated_at, version, opened_at, lapses_at, frozen_at,
-			agreement_version_no, hidden_at
+			agreement_version_no, hidden_at, mentor_account_id, selected_application_id, selected_at
 			""";
 
 	private final JdbcClient jdbc;
@@ -345,7 +346,9 @@ class Jobs {
 				deadline == null ? null : deadline.toLocalDate(), rs.getTimestamp("created_at").toInstant(),
 				rs.getTimestamp("updated_at").toInstant(), rs.getLong("version"), instant(rs.getTimestamp("opened_at")),
 				instant(rs.getTimestamp("lapses_at")), instant(rs.getTimestamp("frozen_at")),
-				rs.getObject("agreement_version_no", Integer.class), instant(rs.getTimestamp("hidden_at")));
+				rs.getObject("agreement_version_no", Integer.class), instant(rs.getTimestamp("hidden_at")),
+				rs.getObject("mentor_account_id", UUID.class), rs.getObject("selected_application_id", UUID.class),
+				instant(rs.getTimestamp("selected_at")));
 	}
 
 	private static @Nullable Instant instant(@Nullable Timestamp timestamp) {

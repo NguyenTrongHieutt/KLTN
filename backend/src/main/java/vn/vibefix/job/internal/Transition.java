@@ -39,7 +39,10 @@ enum Transition {
 			"The Customer selects an Application (FR-15)",
 			List.of(new Guard("FR-74", "The Mentor is still approved"),
 					new Guard("FR-13", "The Mentor is below the active-Job limit")),
-			List.of(new Effect("matching", "Other Applications are put on hold")), false, false),
+			List.of(new Effect("matching", "Other Applications are put on hold"),
+					new Effect("product", "The Product is pinned while the Job runs (AD-30)"),
+					new Effect("notification", "The selected Mentor is told (job.assignee_selected)")),
+			false, true),
 
 	J4(Machine.JOB, job(JobState.SELECTING), job(JobState.AGREEMENT), Set.of(USER),
 			"The selected Mentor has signed the NDA (FR-15)",

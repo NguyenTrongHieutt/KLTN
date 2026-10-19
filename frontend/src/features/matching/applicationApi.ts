@@ -38,6 +38,28 @@ export function useApply(postId: string) {
   })
 }
 
+/**
+ * CUS-8 "Chọn" (FR-15): J3 at the Job version the screen loaded; a 409 `STALE` means the Job moved on
+ * and nothing changed (AD-23).
+ */
+export function useSelectApplication(jobId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ applicationId, version }: { applicationId: string; version: number }) =>
+      unwrap(
+        apiClient.POST('/api/v1/jobs/{jobId}/applications/{applicationId}/select', {
+          params: { path: { jobId, applicationId } },
+          body: { version },
+        }),
+      ),
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: KEY }),
+        queryClient.invalidateQueries({ queryKey: ['job'] }),
+      ]),
+  })
+}
+
 /** "Rút đơn" before selection (FR-13). */
 export function useWithdrawApplication() {
   const queryClient = useQueryClient()
