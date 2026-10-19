@@ -78,6 +78,11 @@ class TeamMemberships implements Teams {
 	}
 
 	@Override
+	public List<UUID> members(UUID mentorId) {
+		return this.store.studentsOf(mentorId);
+	}
+
+	@Override
 	@Transactional(propagation = Propagation.MANDATORY)
 	public void reserveForCrew(UUID crewRowId, UUID mentorId, UUID studentId, UUID jobId) {
 		Member member = this.store.lockMembership(studentId)

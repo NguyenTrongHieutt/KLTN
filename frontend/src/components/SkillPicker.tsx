@@ -5,6 +5,7 @@ import { useCatalog } from '@/features/catalog/catalogApi'
 import { t } from '@/i18n/t'
 import { cn } from '@/lib/utils'
 import { viNormalize } from '@/lib/viNormalize'
+import { categoryValue } from './skillPickerValue'
 
 /** A Skill as the picker shows it; `retired` for one the catalog no longer offers (AD-38). */
 export interface SkillOption {
@@ -25,7 +26,8 @@ interface SkillGroup {
  * (`viNormalize`), so accents and letter case do not matter; while an IME composes a letter (Telex,
  * VNI) the filter waits for `compositionend`. Chosen Skills are removable tokens, and a Skill the
  * catalog retired keeps its token until removed. At `max`, the other options are disabled.
- * `showHints` is for Customer screens (NFR-12).
+ * `showHints` is for Customer screens (NFR-12). `wholeCategories` heads each group with "Cả nhóm
+ * {category}", a value `categoryValue(id)` for filters that take whole Skill Categories (FR-72).
  */
 export function SkillPicker({
   id,
@@ -36,6 +38,7 @@ export function SkillPicker({
   showHints = false,
   describedBy,
   invalid,
+  wholeCategories = false,
 }: {
   id: string
   /** The chosen Skill IDs, in order. */
@@ -47,6 +50,7 @@ export function SkillPicker({
   showHints?: boolean
   describedBy?: string
   invalid?: boolean
+  wholeCategories?: boolean
 }) {
   const catalog = useCatalog()
   const [input, setInput] = useState('')
@@ -57,9 +61,20 @@ export function SkillPicker({
     () =>
       (catalog.data?.categories ?? []).map((category) => ({
         value: category.name,
-        items: category.skills.map((skill) => ({ id: skill.id, name: skill.name, hint: skill.hint })),
+        items: [
+          ...(wholeCategories
+            ? [
+                {
+                  id: categoryValue(category.id),
+                  name: t('screen.shared.skillPicker.wholeCategory', { category: category.name }),
+                  hint: '',
+                },
+              ]
+            : []),
+          ...category.skills.map((skill) => ({ id: skill.id, name: skill.name, hint: skill.hint })),
+        ],
       })),
-    [catalog.data],
+    [catalog.data, wholeCategories],
   )
 
   const byId = useMemo(() => {

@@ -795,6 +795,158 @@
         "tags" : [ "job-controller" ]
       }
     },
+    "/api/v1/mentor/capacity" : {
+      "get" : {
+        "operationId" : "capacity",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CapacityView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "job-post-controller" ]
+      }
+    },
+    "/api/v1/mentor/job-posts" : {
+      "get" : {
+        "operationId" : "list",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "type",
+          "required" : false,
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "enum" : [ "ASSESSMENT", "BUG_FIX", "NEW_FEATURE", "MODIFICATION", "IMPROVEMENT", "SECURITY_TESTING", "DEPLOYMENT_OPERATIONS", "DOCUMENTATION" ]
+            }
+          }
+        }, {
+          "in" : "query",
+          "name" : "skill",
+          "required" : false,
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        }, {
+          "in" : "query",
+          "name" : "category",
+          "required" : false,
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        }, {
+          "in" : "query",
+          "name" : "budget",
+          "required" : false,
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "enum" : [ "UNDER_2M", "FROM_2M_TO_5M", "FROM_5M_TO_10M", "OVER_10M" ]
+            }
+          }
+        }, {
+          "in" : "query",
+          "name" : "within",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 0
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponseJobPostSummaryView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "job-post-controller" ]
+      }
+    },
+    "/api/v1/mentor/job-posts/{postId}" : {
+      "get" : {
+        "operationId" : "post",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "postId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/JobPostView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "job-post-controller" ]
+      }
+    },
+    "/api/v1/mentor/job-posts/{postId}/customer-rating" : {
+      "get" : {
+        "operationId" : "customerRating",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "postId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RatingSummaryView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "customer-rating-controller" ]
+      }
+    },
     "/api/v1/mentor/team" : {
       "get" : {
         "operationId" : "team_1",
@@ -2183,6 +2335,35 @@
         },
         "required" : [ "school", "studentNumber" ]
       },
+      "CapacityView" : {
+        "type" : "object",
+        "properties" : {
+          "activeJobs" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "freeStudents" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "jobLimit" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "reasons" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "enum" : [ "NO_FREE_STUDENT", "MENTOR_JOB_LIMIT" ]
+            }
+          },
+          "teamSize" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "activeJobs", "freeStudents", "jobLimit", "reasons", "teamSize" ]
+      },
       "CatalogCategory" : {
         "type" : "object",
         "properties" : {
@@ -2561,6 +2742,139 @@
           }
         },
         "required" : [ "jobTypes", "skillIds", "title" ]
+      },
+      "JobPostSkillView" : {
+        "type" : "object",
+        "properties" : {
+          "hint" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "hint", "id", "name" ]
+      },
+      "JobPostSummaryView" : {
+        "type" : "object",
+        "properties" : {
+          "budget" : {
+            "type" : "string",
+            "enum" : [ "UNDER_2M", "FROM_2M_TO_5M", "FROM_5M_TO_10M", "OVER_10M" ]
+          },
+          "deadline" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "jobTypes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "enum" : [ "ASSESSMENT", "BUG_FIX", "NEW_FEATURE", "MODIFICATION", "IMPROVEMENT", "SECURITY_TESTING", "DEPLOYMENT_OPERATIONS", "DOCUMENTATION" ]
+            }
+          },
+          "openedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "productName" : {
+            "type" : "string"
+          },
+          "skills" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "jobTypes", "openedAt", "productName", "skills", "title" ]
+      },
+      "JobPostView" : {
+        "type" : "object",
+        "properties" : {
+          "appUsers" : {
+            "type" : "string"
+          },
+          "budget" : {
+            "type" : "string",
+            "enum" : [ "UNDER_2M", "FROM_2M_TO_5M", "FROM_5M_TO_10M", "OVER_10M" ]
+          },
+          "deadline" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "doneCheck" : {
+            "type" : "string"
+          },
+          "expected" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "jobTypes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "enum" : [ "ASSESSMENT", "BUG_FIX", "NEW_FEATURE", "MODIFICATION", "IMPROVEMENT", "SECURITY_TESTING", "DEPLOYMENT_OPERATIONS", "DOCUMENTATION" ]
+            }
+          },
+          "lapsesAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "openedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "problem" : {
+            "type" : "string"
+          },
+          "productDescription" : {
+            "type" : "string"
+          },
+          "productName" : {
+            "type" : "string"
+          },
+          "productOpenFindings" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "productTools" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "screenshots" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ScreenshotView"
+            }
+          },
+          "skills" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/JobPostSkillView"
+            }
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "jobTypes", "lapsesAt", "openedAt", "productDescription", "productName", "productOpenFindings", "productTools", "screenshots", "skills", "title" ]
       },
       "JobSummaryView" : {
         "type" : "object",
@@ -3052,6 +3366,30 @@
         },
         "required" : [ "activeAdministrators", "failedOperations", "mentorApplications", "stalledEvents", "studentCards" ]
       },
+      "PageResponseJobPostSummaryView" : {
+        "type" : "object",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/JobPostSummaryView"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "total" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "items", "page", "size", "total" ]
+      },
       "PageResponseMentorApplicationRow" : {
         "type" : "object",
         "properties" : {
@@ -3414,6 +3752,19 @@
           "oldestAt" : {
             "type" : "string",
             "format" : "date-time"
+          }
+        },
+        "required" : [ "count" ]
+      },
+      "RatingSummaryView" : {
+        "type" : "object",
+        "properties" : {
+          "average" : {
+            "type" : "number"
+          },
+          "count" : {
+            "type" : "integer",
+            "format" : "int32"
           }
         },
         "required" : [ "count" ]

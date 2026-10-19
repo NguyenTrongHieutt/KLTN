@@ -1,5 +1,6 @@
 package vn.vibefix.team;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -16,6 +17,12 @@ public interface Teams {
 
 	/** How many Students are in the Mentor's Team now; 0 without a Team. */
 	int sizeOf(UUID mentorId);
+
+	/**
+	 * The Students in the Mentor's Team now, by account ID; empty without a Team. {@code job} counts
+	 * the free ones among them (FR-13, AD-33).
+	 */
+	List<UUID> members(UUID mentorId);
 
 	/**
 	 * Checks that the Student is in the Mentor's Team and reserves them for the Crew row, in the

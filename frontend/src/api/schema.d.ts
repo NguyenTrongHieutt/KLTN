@@ -356,6 +356,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/mentor/capacity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["capacity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mentor/job-posts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mentor/job-posts/{postId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["post"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mentor/job-posts/{postId}/customer-rating": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["customerRating"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/mentor/team": {
         parameters: {
             query?: never;
@@ -1077,6 +1141,17 @@ export interface components {
             school: string;
             studentNumber: string;
         };
+        CapacityView: {
+            /** Format: int32 */
+            activeJobs: number;
+            /** Format: int32 */
+            freeStudents: number;
+            /** Format: int32 */
+            jobLimit: number;
+            reasons: ("NO_FREE_STUDENT" | "MENTOR_JOB_LIMIT")[];
+            /** Format: int32 */
+            teamSize: number;
+        };
         CatalogCategory: {
             /** Format: uuid */
             id: string;
@@ -1200,6 +1275,51 @@ export interface components {
             /** Format: uuid */
             productId?: string;
             skillIds: string[];
+            title: string;
+        };
+        JobPostSkillView: {
+            hint: string;
+            /** Format: uuid */
+            id: string;
+            name: string;
+        };
+        JobPostSummaryView: {
+            /** @enum {string} */
+            budget?: "UNDER_2M" | "FROM_2M_TO_5M" | "FROM_5M_TO_10M" | "OVER_10M";
+            /** Format: date */
+            deadline?: string;
+            /** Format: uuid */
+            id: string;
+            jobTypes: ("ASSESSMENT" | "BUG_FIX" | "NEW_FEATURE" | "MODIFICATION" | "IMPROVEMENT" | "SECURITY_TESTING" | "DEPLOYMENT_OPERATIONS" | "DOCUMENTATION")[];
+            /** Format: date-time */
+            openedAt: string;
+            productName: string;
+            skills: string[];
+            title: string;
+        };
+        JobPostView: {
+            appUsers?: string;
+            /** @enum {string} */
+            budget?: "UNDER_2M" | "FROM_2M_TO_5M" | "FROM_5M_TO_10M" | "OVER_10M";
+            /** Format: date */
+            deadline?: string;
+            doneCheck?: string;
+            expected?: string;
+            /** Format: uuid */
+            id: string;
+            jobTypes: ("ASSESSMENT" | "BUG_FIX" | "NEW_FEATURE" | "MODIFICATION" | "IMPROVEMENT" | "SECURITY_TESTING" | "DEPLOYMENT_OPERATIONS" | "DOCUMENTATION")[];
+            /** Format: date-time */
+            lapsesAt: string;
+            /** Format: date-time */
+            openedAt: string;
+            problem?: string;
+            productDescription: string;
+            productName: string;
+            /** Format: int32 */
+            productOpenFindings: number;
+            productTools: string[];
+            screenshots: components["schemas"]["ScreenshotView"][];
+            skills: components["schemas"]["JobPostSkillView"][];
             title: string;
         };
         JobSummaryView: {
@@ -1380,6 +1500,15 @@ export interface components {
             stalledEvents: components["schemas"]["Queue"];
             studentCards: components["schemas"]["Queue"];
         };
+        PageResponseJobPostSummaryView: {
+            items: components["schemas"]["JobPostSummaryView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            total: number;
+        };
         PageResponseMentorApplicationRow: {
             items: components["schemas"]["MentorApplicationRow"][];
             /** Format: int32 */
@@ -1508,6 +1637,11 @@ export interface components {
             count: number;
             /** Format: date-time */
             oldestAt?: string;
+        };
+        RatingSummaryView: {
+            average?: number;
+            /** Format: int32 */
+            count: number;
         };
         RejectMentorRequest: {
             reason: string;
@@ -2459,6 +2593,97 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobView"];
+                };
+            };
+        };
+    };
+    capacity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CapacityView"];
+                };
+            };
+        };
+    };
+    list: {
+        parameters: {
+            query?: {
+                type?: ("ASSESSMENT" | "BUG_FIX" | "NEW_FEATURE" | "MODIFICATION" | "IMPROVEMENT" | "SECURITY_TESTING" | "DEPLOYMENT_OPERATIONS" | "DOCUMENTATION")[];
+                skill?: string[];
+                category?: string[];
+                budget?: ("UNDER_2M" | "FROM_2M_TO_5M" | "FROM_5M_TO_10M" | "OVER_10M")[];
+                within?: number;
+                page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageResponseJobPostSummaryView"];
+                };
+            };
+        };
+    };
+    post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                postId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobPostView"];
+                };
+            };
+        };
+    };
+    customerRating: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                postId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RatingSummaryView"];
                 };
             };
         };
