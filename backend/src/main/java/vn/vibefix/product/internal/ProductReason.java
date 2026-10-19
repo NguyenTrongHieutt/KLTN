@@ -27,6 +27,9 @@ enum ProductReason {
 	/** GitHub could not be read just now. */
 	GITHUB_UNAVAILABLE,
 
+	/** A clean repository replaces only a Source Repository with an open personal-data Finding (FR-65). */
+	NO_PERSONAL_DATA_FINDING,
+
 	/** An acknowledgment is missing or of another notice version (FR-7). */
 	NOTICE_REQUIRED,
 

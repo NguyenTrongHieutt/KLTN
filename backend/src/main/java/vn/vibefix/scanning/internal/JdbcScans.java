@@ -108,7 +108,8 @@ class JdbcScans implements Scans {
 	@Transactional(readOnly = true)
 	public Optional<ScanSummary> latest(UUID productId) {
 		return this.jdbc.sql("SELECT " + SUMMARY_COLUMNS + """
-				 FROM scanning.scan_run WHERE product_id = :product ORDER BY requested_at DESC, id DESC LIMIT 1
+				 FROM scanning.scan_run WHERE product_id = :product AND (purpose <> 'CLEAN_REPOSITORY' OR adopted)
+				ORDER BY requested_at DESC, id DESC LIMIT 1
 				""").param("product", productId).query(JdbcScans::summary).optional();
 	}
 
@@ -120,7 +121,8 @@ class JdbcScans implements Scans {
 		}
 		Map<UUID, ScanSummary> latest = new LinkedHashMap<>();
 		this.jdbc.sql("SELECT DISTINCT ON (product_id) " + SUMMARY_COLUMNS + """
-				 FROM scanning.scan_run WHERE product_id IN (:products)
+				 FROM scanning.scan_run
+				WHERE product_id IN (:products) AND (purpose <> 'CLEAN_REPOSITORY' OR adopted)
 				ORDER BY product_id, requested_at DESC, id DESC
 				""").param("products", List.copyOf(productIds)).query((rs, n) -> {
 			latest.put(rs.getObject("product_id", UUID.class), summary(rs, n));
@@ -176,6 +178,25 @@ class JdbcScans implements Scans {
 	public Finding confirmRotation(UUID productId, UUID findingId, UUID accountId) {
 		this.resolutions.confirmRotation(productId, findingId, accountId);
 		return finding(productId, findingId).orElseThrow();
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public Optional<ScanSummary> run(UUID scanRunId) {
+		return this.jdbc.sql("SELECT " + SUMMARY_COLUMNS + " FROM scanning.scan_run WHERE id = :id")
+			.param("id", scanRunId)
+			.query(JdbcScans::summary)
+			.optional();
+	}
+
+	@Override
+	@Transactional(propagation = Propagation.MANDATORY)
+	public void resolveByCleanRepository(UUID productId, UUID accountId, UUID scanRunId) {
+		this.resolutions.clearPersonalData(productId, accountId);
+		this.jdbc.sql("UPDATE scanning.scan_run SET adopted = true WHERE id = :id AND product_id = :product")
+			.param("id", scanRunId)
+			.param("product", productId)
+			.update();
 	}
 
 	@Override

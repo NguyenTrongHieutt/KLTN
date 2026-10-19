@@ -39,8 +39,9 @@ import vn.vibefix.shared.IdGenerator;
  * Records what a scan job found, in one transaction (AD-18): each credential becomes a Finding unless
  * its fingerprint is already one of the Product's, the run gets its counts, and the Customer hears
  * about each new Finding and, for a clean intake scan, about that. Each new Intake Finding gets the
- * Customer as its resolver and opens their resolve to-do (UX-DR15). A complete run then publishes
- * {@link ScanCompleted}; a run a cap stopped keeps its Findings and fails.
+ * Customer as its resolver and opens their resolve to-do (UX-DR15). A clean-repository candidate
+ * with any personal data stores no Finding at all (FR-65): the Product keeps its repository. A
+ * complete run then publishes {@link ScanCompleted}; a run a cap stopped keeps its Findings and fails.
  * <p>
  * The job's output is checked, not trusted: a rule ID or a personal-data kind this platform does not
  * know is dropped, and the type the Customer reads comes from this platform's own rules.
@@ -112,6 +113,11 @@ class ScanCompletion {
 		Instant now = this.clock.instant();
 		List<Opened> opened = new ArrayList<>();
 		int found = 0;
+		boolean personalDataFound = false;
+		for (JsonNode match : output.path("found")) {
+			personalDataFound |= "PERSONAL_DATA".equals(match.path("category").stringValue());
+		}
+		boolean keep = !(personalDataFound && run.purpose() == ScanPurpose.CLEAN_REPOSITORY);
 		for (JsonNode match : output.path("found")) {
 			boolean personal = "PERSONAL_DATA".equals(match.path("category").stringValue());
 			String type = personal ? personalType(match) : this.types.get(match.path("ruleId").stringValue());
@@ -120,6 +126,9 @@ class ScanCompletion {
 				continue;
 			}
 			found++;
+			if (!keep) {
+				continue;
+			}
 			UUID id = this.ids.newId();
 			int inserted = this.jdbc.sql("""
 					INSERT INTO scanning.finding (id, product_id, scan_run_id, category, rule_id, rule_type, file_path,
@@ -144,7 +153,7 @@ class ScanCompletion {
 				.update();
 			if (inserted == 1) {
 				opened.add(new Opened(id, type));
-				if (run.purpose() == ScanPurpose.INTAKE) {
+				if (run.purpose() == ScanPurpose.INTAKE || run.purpose() == ScanPurpose.CLEAN_REPOSITORY) {
 					this.resolutions.addResolver(id, run.customerId());
 					this.todos.open(new TodoRequest(FindingResolutions.RESOLVE_INTAKE_FINDING, run.customerId(),
 							Audience.SUBJECT, id, Map.of("product", run.productName()),
@@ -184,7 +193,8 @@ class ScanCompletion {
 				this.notifications.send(new NotificationRequest(INTAKE_SCAN_CLEAN, run.id(), List.of(customer),
 						Map.of("product", run.productName()), link, null, run.productId()));
 			}
-			this.events.publishEvent(new ScanCompleted(this.ids.newId(), run.id(), run.productId(), found == 0));
+			this.events.publishEvent(
+					new ScanCompleted(this.ids.newId(), run.id(), run.productId(), found == 0, personalDataFound));
 		}
 		return true;
 	}

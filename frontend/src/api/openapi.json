@@ -1013,6 +1013,43 @@
         "tags" : [ "product-controller" ]
       }
     },
+    "/api/v1/products/{productId}/clean-repository" : {
+      "post" : {
+        "operationId" : "requestCleanRepository",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CleanRepositoryRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "202" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CleanRepositoryView"
+                }
+              }
+            },
+            "description" : "Accepted"
+          }
+        },
+        "tags" : [ "product-controller" ]
+      }
+    },
     "/api/v1/products/{productId}/findings" : {
       "get" : {
         "operationId" : "findings",
@@ -1811,6 +1848,48 @@
         },
         "required" : [ "categories" ]
       },
+      "CleanRepositoryRequest" : {
+        "type" : "object",
+        "properties" : {
+          "url" : {
+            "type" : "string",
+            "maxLength" : 300,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "url" ]
+      },
+      "CleanRepositoryView" : {
+        "type" : "object",
+        "properties" : {
+          "decidedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "repositoryFullName" : {
+            "type" : "string"
+          },
+          "requestedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "scan" : {
+            "$ref" : "#/components/schemas/ScanView"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "PENDING", "ACCEPTED", "REJECTED", "SUPERSEDED" ]
+          }
+        },
+        "required" : [ "id", "repositoryFullName", "requestedAt", "status" ]
+      },
       "CodeRequest" : {
         "type" : "object",
         "properties" : {
@@ -1947,6 +2026,9 @@
           "canResolve" : {
             "type" : "boolean"
           },
+          "cleanRepository" : {
+            "$ref" : "#/components/schemas/CleanRepositoryView"
+          },
           "finding" : {
             "$ref" : "#/components/schemas/FindingView"
           },
@@ -1997,7 +2079,7 @@
           },
           "resolution" : {
             "type" : "string",
-            "enum" : [ "ROTATED" ]
+            "enum" : [ "ROTATED", "CLEAN_REPOSITORY" ]
           },
           "resolvedAt" : {
             "type" : "string",

@@ -145,22 +145,28 @@ describe('CUS-5, a credential Finding (FR-8, UX-DR30, UX-DR31)', () => {
   })
 })
 
+const personal = {
+  ...credential,
+  category: 'PERSONAL_DATA',
+  ruleId: 'personal-data',
+  type: 'Email và số điện thoại khách hàng',
+  path: 'seed/customers.json',
+  maskedPreview: 'ng••••@gmail.com · 09•• ••• •12',
+  matchCount: 48,
+}
+
+const cleanOf = (status: string, scanStatus: string, extra: object = {}) => ({
+  id: 'r1',
+  repositoryFullName: 'lan-nguyen/shop-gom-sach',
+  status,
+  requestedAt: '2026-10-19T09:00:00Z',
+  scan: { id: 's2', status: scanStatus, requestedAt: '2026-10-19T09:00:00Z', unscannedCount: 0, unscanned: [] },
+  ...extra,
+})
+
 describe('CUS-5, a personal-data Finding (FR-65)', () => {
   it('shows the file, its lines, the masked samples, and the clean-repository steps', async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
-      'GET /api/v1/products/p1/findings/f1': () =>
-        json(
-          detail({
-            ...credential,
-            category: 'PERSONAL_DATA',
-            ruleId: 'personal-data',
-            type: 'Email và số điện thoại khách hàng',
-            path: 'seed/customers.json',
-            maskedPreview: 'ng••••@gmail.com · 09•• ••• •12',
-            matchCount: 48,
-          }),
-        ),
-    })
+    fakeBackend(signedIn('CUSTOMER'), { 'GET /api/v1/products/p1/findings/f1': () => json(detail(personal)) })
     renderAt(PATH)
 
     const card = await screen.findByRole('article', { name: 'Email và số điện thoại khách hàng' })
@@ -168,6 +174,79 @@ describe('CUS-5, a personal-data Finding (FR-65)', () => {
     expect(within(card).getByText(/48 dòng/)).toBeInTheDocument()
     expect(within(card).getByText('ng••••@gmail.com · 09•• ••• •12')).toBeInTheDocument()
     expect(within(card).getByText('Xóa tệp seed/customers.json trong Lovable, hoặc thay bằng dữ liệu giả.')).toBeInTheDocument()
-    expect(within(card).queryByRole('button')).not.toBeInTheDocument()
+    expect(within(card).getByRole('button', { name: 'Đăng ký kho mã sạch' })).toBeInTheDocument()
+    expect(within(card).queryByRole('button', { name: 'Tôi đã đổi khóa' })).not.toBeInTheDocument()
+  })
+
+  it('takes the clean repository link and shows its scan running', { timeout: 15_000 }, async () => {
+    const user = userEvent.setup()
+    let offered: unknown
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/products/p1/findings/f1': () =>
+        json({ ...detail(personal), cleanRepository: offered ? cleanOf('PENDING', 'RUNNING') : undefined }),
+      'POST /api/v1/products/p1/clean-repository': async (request) => {
+        offered = await request.json()
+        return json(cleanOf('PENDING', 'PENDING'), 202)
+      },
+    })
+    renderAt(PATH)
+
+    await user.click(await screen.findByRole('button', { name: 'Đăng ký kho mã sạch' }))
+    await user.type(screen.getByLabelText('Đường dẫn kho mã sạch trên GitHub'), 'https://github.com/lan-nguyen/shop-gom-sach')
+    await user.click(screen.getByRole('button', { name: 'Kiểm tra và đăng ký' }))
+
+    await waitFor(() => expect(offered).toEqual({ url: 'https://github.com/lan-nguyen/shop-gom-sach' }))
+    expect(await screen.findByText(/Đang kiểm tra kho mã sạch lan-nguyen\/shop-gom-sach/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Đăng ký kho mã sạch' })).not.toBeInTheDocument()
+  })
+
+  it('shows a refused link with its reason and keeps the input', { timeout: 15_000 }, async () => {
+    const user = userEvent.setup()
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/products/p1/findings/f1': () => json(detail(personal)),
+      'POST /api/v1/products/p1/clean-repository': () =>
+        new Response(JSON.stringify({ status: 422, code: 'GUARD_FAILED', reason: 'REPO_PRIVATE' }), {
+          status: 422,
+          headers: { 'Content-Type': 'application/problem+json' },
+        }),
+    })
+    renderAt(PATH)
+
+    await user.click(await screen.findByRole('button', { name: 'Đăng ký kho mã sạch' }))
+    const field = screen.getByLabelText('Đường dẫn kho mã sạch trên GitHub')
+    await user.type(field, 'https://github.com/lan-nguyen/secret')
+    await user.click(screen.getByRole('button', { name: 'Kiểm tra và đăng ký' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Kho mã đang ở chế độ riêng tư.')
+    expect(field).toHaveValue('https://github.com/lan-nguyen/secret')
+    expect(field).toHaveAttribute('aria-invalid', 'true')
+  })
+
+  it('says a candidate that still held personal data changed nothing', async () => {
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/products/p1/findings/f1': () =>
+        json({ ...detail(personal), cleanRepository: cleanOf('REJECTED', 'SUCCEEDED', { reason: 'PERSONAL_DATA_FOUND' }) }),
+    })
+    renderAt(PATH)
+
+    expect(
+      await screen.findByText('Kho mã lan-nguyen/shop-gom-sach vẫn còn dữ liệu cá nhân, nên dự án gốc chưa đổi.'),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Đăng ký kho mã sạch' })).toBeInTheDocument()
+  })
+
+  it('shows the Finding resolved once the clean repository replaced the source', async () => {
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/products/p1/findings/f1': () =>
+        json({
+          ...detail({ ...personal, status: 'RESOLVED', resolution: 'CLEAN_REPOSITORY', resolvedAt: '2026-10-19T09:05:00Z' }),
+          cleanRepository: cleanOf('ACCEPTED', 'SUCCEEDED', { decidedAt: '2026-10-19T09:05:00Z' }),
+        }),
+    })
+    renderAt(PATH)
+
+    expect(await screen.findByText('Đã thay dự án gốc bằng kho mã sạch lan-nguyen/shop-gom-sach.')).toBeInTheDocument()
+    expect(screen.getByText('Đã xử lý')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Đăng ký kho mã sạch' })).not.toBeInTheDocument()
   })
 })

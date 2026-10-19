@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import vn.vibefix.github.GitHubRepositories.RepositoryMetadata;
+import vn.vibefix.product.internal.CleanRepositories.Replacement;
 import vn.vibefix.product.internal.Products.Product;
 import vn.vibefix.product.internal.Products.Registration;
 import vn.vibefix.product.internal.Products.Tool;
@@ -144,10 +145,23 @@ class ProductController {
 	}
 
 	/**
-	 * CUS-5: one Finding, its Product's name and AI tools (for the guidance), and whether the caller
-	 * may resolve it.
+	 * CUS-5's clean repository (FR-65): the Product's latest replacement and its scan, which the page
+	 * polls while it waits or runs.
+	 * @param reason why it was refused: {@code PERSONAL_DATA_FOUND} or {@code REPO_ALREADY_LINKED}
 	 */
-	record FindingDetailView(FindingView finding, String productName, List<Tool> tools, boolean canResolve) {
+	record CleanRepositoryView(UUID id, String repositoryFullName, CleanRepositories.Status status,
+			@Nullable String reason, Instant requestedAt, @Nullable Instant decidedAt, @Nullable ScanView scan) {
+	}
+
+	/**
+	 * CUS-5: one Finding, its Product's name and AI tools (for the guidance), whether the caller may
+	 * resolve it, and the Product's latest clean repository.
+	 */
+	record FindingDetailView(FindingView finding, String productName, List<Tool> tools, boolean canResolve,
+			@Nullable CleanRepositoryView cleanRepository) {
+	}
+
+	record CleanRepositoryRequest(@NotBlank @Size(max = 300) String url) {
 	}
 
 	private final Products products;
@@ -156,12 +170,16 @@ class ProductController {
 
 	private final Scans scans;
 
+	private final CleanRepositories cleanRepositories;
+
 	private final CurrentCaller callers;
 
-	ProductController(Products products, RepositoryChecks checks, Scans scans, CurrentCaller callers) {
+	ProductController(Products products, RepositoryChecks checks, Scans scans, CleanRepositories cleanRepositories,
+			CurrentCaller callers) {
 		this.products = products;
 		this.checks = checks;
 		this.scans = scans;
+		this.cleanRepositories = cleanRepositories;
 		this.callers = callers;
 	}
 
@@ -213,7 +231,22 @@ class ProductController {
 		Finding finding = this.scans.finding(productId, findingId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		Caller caller = this.callers.get();
 		boolean canResolve = caller.hasRole(Role.CUSTOMER) && this.scans.mayResolve(findingId, caller.requireAccountId());
-		return new FindingDetailView(FindingView.of(finding), product.name(), product.tools(), canResolve);
+		return new FindingDetailView(FindingView.of(finding), product.name(), product.tools(), canResolve,
+				this.cleanRepositories.latest(productId).map(this::cleanRepositoryView).orElse(null));
+	}
+
+	/** CUS-5 "Đăng ký kho mã sạch": the Product's Customer only, while a personal-data Finding is open. */
+	@PostMapping("/{productId}/clean-repository")
+	@ResponseStatus(HttpStatus.ACCEPTED)
+	CleanRepositoryView requestCleanRepository(@PathVariable UUID productId,
+			@Valid @RequestBody CleanRepositoryRequest body) {
+		return cleanRepositoryView(this.cleanRepositories.request(customer(), productId, body.url()));
+	}
+
+	private CleanRepositoryView cleanRepositoryView(Replacement replacement) {
+		return new CleanRepositoryView(replacement.id(), replacement.repositoryFullName(), replacement.status(),
+				replacement.reason(), replacement.requestedAt(), replacement.decidedAt(),
+				ScanView.of(this.scans.run(replacement.scanRunId()).orElse(null)));
 	}
 
 	/** CUS-5 "Tôi đã đổi khóa", after the Confirmation dialog: only a resolver of an open credential Finding. */

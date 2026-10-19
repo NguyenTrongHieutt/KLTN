@@ -14,6 +14,7 @@ import { t, type MessageKey } from '@/i18n/t'
 import { formatDate, formatDayMonthTime } from '@/lib/dates'
 import { isNotFound, problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
+import { CleanRepositoryGuide } from './CleanRepositoryGuide'
 import { guidanceGroup, KEY_PAGES } from './guidance'
 import { useConfirmRotation, useFinding, type FindingDetail, type Tool } from './productApi'
 import { domainOf } from './productText'
@@ -23,7 +24,7 @@ import { domainOf } from './productText'
  * route: the Finding card with its plain type, file, commit, date, and masked value (no reveal, no
  * copy), why it matters, and numbered guidance. For a credential the guidance links the provider's
  * key page and ends with "Tôi đã đổi khóa", which the Confirmation dialog confirms; the card's bar
- * then turns green. Personal data shows the clean-repository steps, whose action comes with Story 2.6.
+ * then turns green. Personal data shows the clean-repository steps and "Đăng ký kho mã sạch" (FR-65).
  */
 export function FindingPage() {
   const { productId, findingId } = useParams()
@@ -107,7 +108,9 @@ function FindingDetailView({ productId, detail }: { productId: string; detail: F
         {resolved && finding.resolvedAt && (
           <p role="status" className="flex items-center gap-2 text-body-sm text-success">
             <CircleCheck aria-hidden="true" className="size-4 shrink-0" />
-            {t('screen.product.finding.rotatedAt', { time: formatDayMonthTime(finding.resolvedAt) })}
+            {finding.resolution === 'CLEAN_REPOSITORY'
+              ? t('screen.product.finding.clean.accepted', { name: detail.cleanRepository?.repositoryFullName ?? '' })
+              : t('screen.product.finding.rotatedAt', { time: formatDayMonthTime(finding.resolvedAt) })}
           </p>
         )}
         {!resolved && (personal ? <PersonalSteps path={finding.path} tool={tool} /> : <RotationSteps ruleId={finding.ruleId} tool={tool} />)}
@@ -115,6 +118,12 @@ function FindingDetailView({ productId, detail }: { productId: string; detail: F
           <>
             <hr className="border-border" />
             <ConfirmRotation productId={productId} findingId={finding.id} />
+          </>
+        )}
+        {!resolved && personal && detail.canResolve && (
+          <>
+            <hr className="border-border" />
+            <CleanRepositoryGuide productId={productId} clean={detail.cleanRepository} />
           </>
         )}
         <p className="text-caption text-muted-foreground">

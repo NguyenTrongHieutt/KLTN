@@ -4,6 +4,9 @@ package vn.vibefix.scanning;
 public enum FindingResolution {
 
 	/** The resolver confirmed the credential was rotated ("Tôi đã đổi khóa"). */
-	ROTATED
+	ROTATED,
+
+	/** The Source Repository was replaced by a clean one without personal data (FR-65). */
+	CLEAN_REPOSITORY
 
 }

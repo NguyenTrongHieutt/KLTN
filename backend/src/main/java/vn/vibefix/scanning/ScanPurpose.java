@@ -4,6 +4,12 @@ package vn.vibefix.scanning;
 public enum ScanPurpose {
 
 	/** The whole history of a newly registered Product (FR-8). */
-	INTAKE
+	INTAKE,
+
+	/**
+	 * A clean repository offered in place of the Source Repository (FR-65): its Findings count only
+	 * when it holds no personal data, and its run is the Product's only once adopted.
+	 */
+	CLEAN_REPOSITORY
 
 }
