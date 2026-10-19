@@ -23,6 +23,7 @@ import vn.vibefix.identity.MentorDirectory.MentorCard;
 import vn.vibefix.identity.MentorDirectory.MentorProfile;
 import vn.vibefix.identity.StudentDirectory;
 import vn.vibefix.identity.StudentDirectory.StudentCard;
+import vn.vibefix.identity.StudentDirectory.StudentProfile;
 import vn.vibefix.identity.StudentVerification;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
@@ -142,6 +143,19 @@ class TeamViews {
 	record PublicMentorView(UUID accountId, @Nullable String githubLogin, String displayName, String experience,
 			int yearsOfExperience, Instant memberSince, List<PublicSkillGroup> skillGroups, boolean available,
 			int teamSize, int sizeLimit, List<PublicTeamMember> listedMembers, @Nullable PublicMentorViewer viewer) {
+	}
+
+	/** The Team a Student is in, as PUB-4 shows it. */
+	record PublicStudentTeam(String mentorDisplayName, @Nullable String mentorLogin, int size) {
+	}
+
+	/**
+	 * PUB-4: the name, school, and year only while the Student shows them; never contact details.
+	 * @param team the Team they are in now, if any
+	 */
+	record PublicStudentView(@Nullable String githubLogin, @Nullable String name, @Nullable String school,
+			@Nullable Integer yearOfStudy, boolean verified, Instant memberSince, List<PublicSkillGroup> skillGroups,
+			@Nullable PublicStudentTeam team) {
 	}
 
 	private final TeamStore store;
@@ -304,6 +318,25 @@ class TeamViews {
 				card.yearsOfExperience(), profile.memberSince(),
 				profile.skillGroups().stream().map(group -> new PublicSkillGroup(group.category(), group.skills())).toList(),
 				card.available() && open, members.size(), Teams.SIZE_LIMIT, listed, viewer);
+	}
+
+	/** PUB-4, for anyone (FR-51): a Student who is locked or erased has no public profile. */
+	@Transactional(readOnly = true)
+	PublicStudentView publicStudent(String login) {
+		StudentProfile profile = this.students.profileByLogin(login)
+			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		StudentCard card = profile.card();
+		PublicStudentTeam team = this.store.activeMembership(card.accountId())
+			.flatMap(member -> this.mentors.cards(List.of(member.mentorId()))
+				.stream()
+				.findFirst()
+				.map(mentor -> new PublicStudentTeam(mentor.displayName(), mentor.githubLogin(),
+						this.store.sizeOf(member.mentorId()))))
+			.orElse(null);
+		return new PublicStudentView(card.githubLogin(), card.name(), card.school(), card.yearOfStudy(), card.verified(),
+				profile.memberSince(),
+				profile.skillGroups().stream().map(group -> new PublicSkillGroup(group.category(), group.skills())).toList(),
+				team);
 	}
 
 	private StudentRelation relation(Optional<Team> team, UUID studentId) {

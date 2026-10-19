@@ -30,15 +30,6 @@ public interface MentorDirectory {
 
 	}
 
-	/** One Skill Category with the Mentor's Skills in it, in the catalog's order; a retired Category has no name. */
-	record SkillGroup(@Nullable String category, List<String> skills) {
-
-		public SkillGroup {
-			skills = List.copyOf(skills);
-		}
-
-	}
-
 	/**
 	 * PUB-5's profile of a Mentor who was approved.
 	 * @param memberSince when the account was created

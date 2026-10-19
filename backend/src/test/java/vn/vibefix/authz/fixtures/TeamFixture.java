@@ -94,6 +94,7 @@ public class TeamFixture implements MatrixFixture {
 		world.put("teamMentorId", this.mentor);
 		world.put("username", TeamTestSupport.login(this.jdbc, this.mentor));
 		world.put("studentId", member);
+		world.put("studentLogin", TeamTestSupport.login(this.jdbc, member));
 		world.put("joinRequestId", joinRequest);
 		world.put("invitationId", invitation);
 		world.put("freeStudentId", free);

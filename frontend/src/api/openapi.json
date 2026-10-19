@@ -1154,7 +1154,7 @@
     },
     "/api/v1/mentor/team/students/{studentId}" : {
       "get" : {
-        "operationId" : "student",
+        "operationId" : "student_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "studentId",
@@ -1203,6 +1203,32 @@
           }
         },
         "tags" : [ "public-mentor-controller" ]
+      }
+    },
+    "/api/v1/mentors/{username}/reputation" : {
+      "get" : {
+        "operationId" : "mentor_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "username",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MentorReputationView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "public-reputation-controller" ]
       }
     },
     "/api/v1/notifications" : {
@@ -1895,6 +1921,58 @@
           }
         },
         "tags" : [ "session-controller" ]
+      }
+    },
+    "/api/v1/students/{studentLogin}" : {
+      "get" : {
+        "operationId" : "student",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "studentLogin",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PublicStudentView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "public-student-controller" ]
+      }
+    },
+    "/api/v1/students/{studentLogin}/reputation" : {
+      "get" : {
+        "operationId" : "student_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "studentLogin",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StudentReputationView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "public-reputation-controller" ]
       }
     },
     "/api/v1/team" : {
@@ -3279,6 +3357,28 @@
         },
         "required" : [ "approvalStatus", "skills" ]
       },
+      "MentorReputationView" : {
+        "type" : "object",
+        "properties" : {
+          "average" : {
+            "type" : "number"
+          },
+          "count" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "newcomer" : {
+            "type" : "boolean"
+          },
+          "portfolio" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/PortfolioEntry"
+            }
+          }
+        },
+        "required" : [ "count", "newcomer", "portfolio" ]
+      },
       "MentorTeamView" : {
         "type" : "object",
         "properties" : {
@@ -3492,6 +3592,29 @@
           }
         },
         "required" : [ "attemptsLeft", "email", "expired", "expiresAt", "sentAt" ]
+      },
+      "PortfolioEntry" : {
+        "type" : "object",
+        "properties" : {
+          "closedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "jobTypes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "milestones" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "closedAt", "jobTypes", "milestones", "title" ]
       },
       "ProductCreatedView" : {
         "type" : "object",
@@ -3733,6 +3856,57 @@
           }
         },
         "required" : [ "skills" ]
+      },
+      "PublicStudentTeam" : {
+        "type" : "object",
+        "properties" : {
+          "mentorDisplayName" : {
+            "type" : "string"
+          },
+          "mentorLogin" : {
+            "type" : "string"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "mentorDisplayName", "size" ]
+      },
+      "PublicStudentView" : {
+        "type" : "object",
+        "properties" : {
+          "githubLogin" : {
+            "type" : "string"
+          },
+          "memberSince" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "school" : {
+            "type" : "string"
+          },
+          "skillGroups" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/PublicSkillGroup"
+            }
+          },
+          "team" : {
+            "$ref" : "#/components/schemas/PublicStudentTeam"
+          },
+          "verified" : {
+            "type" : "boolean"
+          },
+          "yearOfStudy" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "memberSince", "skillGroups", "verified" ]
       },
       "PublicTeamMember" : {
         "type" : "object",
@@ -4143,6 +4317,25 @@
           }
         },
         "required" : [ "repositories", "showNameAndSchool", "skills" ]
+      },
+      "StudentReputationView" : {
+        "type" : "object",
+        "properties" : {
+          "average" : {
+            "type" : "number"
+          },
+          "count" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "portfolio" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/PortfolioEntry"
+            }
+          }
+        },
+        "required" : [ "count", "portfolio" ]
       },
       "StudentTeamMembership" : {
         "type" : "object",

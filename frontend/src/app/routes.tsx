@@ -153,6 +153,11 @@ export const routes: RouteObject[] = [
         path: 'mentor/:username',
         lazy: async () => ({ Component: (await import('@/features/team/MentorPublicPage')).MentorPublicPage }),
       },
+      {
+        // PUB-4, for anyone; linked from MEN-6 and Portfolio links, never from a Customer screen.
+        path: 'sv/:username',
+        lazy: async () => ({ Component: (await import('@/features/team/StudentPublicPage')).StudentPublicPage }),
+      },
       // The AI notice was removed with the AI (2026-10-18); its address now shows the privacy notice.
       { path: 'ai', element: <Navigate to="/quyen-rieng-tu" replace /> },
       { path: '*', element: <NotFoundScreen /> },
