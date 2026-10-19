@@ -107,6 +107,8 @@ vibefix:
     # AD-34: sign-in attempts per client address and minute.
     sign-in-limit-per-minute: 20
   github:
+    # GitHub's REST API (AD-10, AD-13); Story 1.14's spike-s1 probe reads repositories from it.
+    api-url: https://api.github.com
     # AD-10: the sign-in OAuth App's endpoints; its client ID and secret are secret files.
     oauth:
       authorization-uri: https://github.com/login/oauth/authorize

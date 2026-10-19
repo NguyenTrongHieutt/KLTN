@@ -5,7 +5,7 @@ The local development stack of vibefix: four services, each published on localho
 | Service | Address | What it is |
 |---|---|---|
 | `frontend` | <http://localhost:5173> | Vite dev server on `frontend/` (Node 24), hot reload; `/api` is proxied to `backend` |
-| `backend` | <http://localhost:8080> | Spring Boot, profile `dev`; Swagger UI at `/swagger-ui/index.html`, health at `/actuator/health` |
+| `backend` | <http://localhost:8080> | Spring Boot, profile `dev`; Swagger UI at `/swagger-ui/index.html`, health at `/actuator/health`; uploads on the volume `files` |
 | `postgres` | `localhost:5432` | PostgreSQL 18, database `vibefix`, volume `pgdata` |
 | `mailpit` | <http://localhost:8025> | Catches every email the backend sends (SMTP on `localhost:1025`); nothing leaves the machine |
 
@@ -98,6 +98,37 @@ Authenticator, 1Password) right away, because it is never shown again. Without a
 Five wrong sign-ins within 15 minutes lock that email for 15 minutes and alert the other
 Administrators. An Administrator session ends after 30 minutes without a command, or 8 hours after
 sign-in; ADM-1's automatic refresh does not keep it open.
+
+## Spike S1: the admin check for organization-owned repositories
+
+Story 1.14 asks whether a Customer's stored sign-in token sees `permissions.admin` on a repository
+owned by an organization (AD-13, S1). Only the author can run it, on GitHub, with the dev OAuth App
+registered ("Signing in with GitHub locally" above).
+
+1. In `vibefix-dev`, create four public test repositories:
+   - one owned by your own GitHub user (`<you>/s1-user`);
+   - `vibefix-dev/s1-open`, with the organization's OAuth app access restrictions **off**;
+   - `vibefix-dev/s1-restricted`, the same check after you turn restrictions **on** (Settings →
+     Third-party access → OAuth application policy), without approving the dev OAuth App;
+   - `vibefix-dev/s1-member-admin`, where a second GitHub account that is **not** an organization
+     owner has the admin role on that repository only.
+2. Sign in on http://localhost:5173 as a Customer with each account whose token you want to test,
+   so its token is stored.
+3. Run the probe for each Customer. It reads the repositories with that stored token and prints
+   the owner type, the HTTP status, and `permissions.admin`; it never prints the token.
+
+   ```sh
+   docker compose -f deploy/compose.yaml run --rm --no-deps -e SPRING_PROFILES_ACTIVE=dev,cli backend   --vibefix.cli.command=spike-s1 --github-login=<Customer> --repo=<you>/s1-user --repo=vibefix-dev/s1-open --repo=vibefix-dev/s1-member-admin
+   ```
+
+   Turn the restrictions on, then run it again with `--repo=vibefix-dev/s1-restricted`.
+4. As the non-owner repository admin, try to install the dev Merge App on `s1-member-admin` only,
+   and note whether GitHub allows it or asks an organization owner (SG-21). The Merge App is
+   registered in Epic 2; if it does not exist yet, record that this check waits for it.
+5. Record the results, and the decision they lead to, in the spine's memlog: accept
+   organization-owned repositories through the AD-13 path, or refuse them with
+   `ORG_REPO_UNSUPPORTED`. A result that contradicts AD-10 or AD-13 goes to `bmad-architecture`
+   before Epic 2's registration story starts.
 
 ## Email locally
 
