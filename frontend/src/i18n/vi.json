@@ -1469,6 +1469,43 @@
       "customerSees": "\"Chờ người hướng dẫn ký cam kết bảo mật\" cho đến khi bạn ký hoặc hết hạn.",
       "signedTitle": "Bạn đã ký cam kết bảo mật",
       "signedBody": "Trò chuyện, thỏa thuận và nhóm thực hiện đến ở bước tiếp theo."
+    },
+    "chat": {
+      "tab": "Trò chuyện",
+      "unread": "có tin mới",
+      "title": "Trò chuyện · {job}",
+      "withMentor": "Trò chuyện với người hướng dẫn",
+      "withCustomer": "Trò chuyện với khách hàng",
+      "onlyMentor": "Chỉ bạn và người hướng dẫn",
+      "onlyCustomer": "Chỉ bạn và khách hàng",
+      "older": "Xem tin cũ hơn",
+      "today": "Hôm nay",
+      "yesterday": "Hôm qua",
+      "you": "Bạn",
+      "meta": "{name} · {time}",
+      "maskedCredentials": "Đã che {n} khóa bí mật trước khi gửi",
+      "maskedPersonal": "Đã che {n} thông tin khách hàng trước khi gửi",
+      "empty": "Chưa có tin nhắn. Hãy chào hỏi và trao đổi về kế hoạch.",
+      "attach": "Đính kèm tệp",
+      "message": "Tin nhắn",
+      "placeholderMentor": "Nhắn cho người hướng dẫn…",
+      "placeholderCustomer": "Nhắn cho khách hàng…",
+      "send": "Gửi",
+      "hintDesktop": "Enter để gửi, Shift + Enter để xuống dòng.",
+      "hintTouch": "Bấm nút Gửi để gửi tin nhắn.",
+      "fileTooLarge": "Tệp lớn hơn 10 MB nên không gửi được.",
+      "fileType": "Chỉ gửi được ảnh, tệp PDF hoặc tệp văn bản.",
+      "removeFile": "Bỏ tệp {name}",
+      "warning": {
+        "titleCredential": "Tin nhắn có thể chứa khóa bí mật",
+        "titlePersonal": "Tin nhắn có thể chứa dữ liệu khách hàng",
+        "found": "vibefix tìm thấy:",
+        "bodyCredential": "Ai đọc được tin nhắn này đều có thể dùng khóa. Hãy che trước khi gửi.",
+        "bodyPersonal": "Đây là thông tin của khách hàng của bạn. Hãy che trước khi gửi.",
+        "mask": "Che và gửi",
+        "edit": "Sửa lại",
+        "send": "Vẫn gửi"
+      }
     }
   },
   "notice": {
@@ -2028,6 +2065,11 @@
       "invited_to_apply": {
         "title": "{customer} đã mời bạn ứng tuyển {job}"
       }
+    },
+    "chat": {
+      "chat_opened": {
+        "title": "Trò chuyện cho {job} đã mở"
+      }
     }
   },
   "reason": {
@@ -2122,6 +2164,10 @@
       "INVITEE_ALREADY_APPLIED": "Người hướng dẫn này đã ứng tuyển công việc này.",
       "INVITE_LIMIT_JOB_POST": "Hôm nay bạn đã gửi đủ 10 lời mời cho công việc này. Bạn có thể mời tiếp sau 00:00.",
       "INVITE_LIMIT_DAILY": "Hôm nay bạn đã gửi đủ 30 lời mời. Bạn có thể mời tiếp sau 00:00."
+    },
+    "chat": {
+      "SENSITIVE_CONTENT": "Tin nhắn có thể chứa khóa bí mật hoặc dữ liệu khách hàng.",
+      "MESSAGE_EMPTY": "Hãy nhập tin nhắn hoặc đính kèm một tệp."
     }
   }
 }

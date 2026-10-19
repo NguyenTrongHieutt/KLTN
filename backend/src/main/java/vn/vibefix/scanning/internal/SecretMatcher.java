@@ -38,10 +38,18 @@ final class SecretMatcher {
 		this.rules = rules;
 	}
 
+	/** A credential and where its value sits in the text, so a chat message can mask it there (FR-47). */
+	record Located(Match match, int start, int end) {
+	}
+
 	List<Match> find(String path, String text) {
+		return locate(path, text).stream().map(Located::match).toList();
+	}
+
+	List<Located> locate(String path, String text) {
 		String lowerCase = text.toLowerCase(Locale.ROOT);
 		List<int[]> claimed = new ArrayList<>();
-		List<Match> matches = new ArrayList<>();
+		List<Located> matches = new ArrayList<>();
 		for (Rule rule : this.rules.rules()) {
 			if (!rule.appliesTo(path) || !rule.mayMatch(lowerCase)) {
 				continue;
@@ -58,7 +66,7 @@ final class SecretMatcher {
 					continue;
 				}
 				claimed.add(new int[] { start, end });
-				matches.add(new Match(rule.id(), rule.type(), mask(value), hash(rule.id(), value)));
+				matches.add(new Located(new Match(rule.id(), rule.type(), mask(value), hash(rule.id(), value)), start, end));
 			}
 		}
 		return matches;

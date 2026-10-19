@@ -170,6 +170,10 @@ class NotificationTypes implements NotificationCatalog {
 			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "mail",
 			Set.of("customer", "job"));
 
+	/** J4 opened the Job Chat (FR-46): the Customer and the Mentor, in-app only. */
+	static final NotificationType CHAT_CHAT_OPENED = new NotificationType("chat.chat_opened",
+			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
+
 	@Override
 	public List<NotificationType> notificationTypes() {
 		return List.of(SCHOOL_EMAIL_CODE, VERIFICATION_EXPIRING, VERIFICATION_EXPIRED, ADMIN_SIGN_IN_LOCKED,
@@ -180,7 +184,7 @@ class NotificationTypes implements NotificationCatalog {
 				JOB_POST_LAPSED, MATCHING_APPLICATION_RECEIVED, MATCHING_APPLICATION_AUTO_WITHDRAWN,
 				MATCHING_CONFLICT_OF_INTEREST_REFUSED, JOB_ASSIGNEE_SELECTED, MATCHING_APPLICATIONS_ON_HOLD,
 				JOB_SELECTION_DECLINED, MATCHING_APPLICATIONS_CLOSED, MATCHING_APPLICATIONS_REOPENED, MATCHING_NDA_OVERDUE,
-				MATCHING_INVITED_TO_APPLY);
+				MATCHING_INVITED_TO_APPLY, CHAT_CHAT_OPENED);
 	}
 
 	@Override

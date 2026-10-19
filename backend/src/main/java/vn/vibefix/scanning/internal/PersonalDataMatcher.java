@@ -1,6 +1,7 @@
 package vn.vibefix.scanning.internal;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -110,6 +111,42 @@ final class PersonalDataMatcher {
 			return Optional.empty();
 		}
 		return Optional.of(new Hit(kinds, Math.max(lines, 1), List.copyOf(samples), SecretMatcher.hash(RULE_ID, path)));
+	}
+
+	/** One personal value in a text and its mask (FR-47). */
+	record Span(int start, int end, String masked) {
+	}
+
+	/**
+	 * Every email (but the ignored ones), phone number, and citizen ID in context in {@code text}, with
+	 * its mask, in text order; a chat message masks them all once {@link #find} reports a hit.
+	 */
+	List<Span> spans(String text) {
+		List<Span> spans = new ArrayList<>();
+		Matcher email = this.rules.email().matcher(text);
+		while (email.find()) {
+			if (!this.rules.ignoredEmails().matcher(email.group().toLowerCase(Locale.ROOT)).find()) {
+				spans.add(new Span(email.start(), email.end(), maskEmail(email.group(1), email.group(2))));
+			}
+		}
+		Matcher phone = this.rules.phone().matcher(text);
+		while (phone.find()) {
+			spans.add(new Span(phone.start(), phone.end(), maskPhone(normalize(phone.group()))));
+		}
+		Matcher id = this.rules.citizenIdInContext().matcher(text);
+		while (id.find()) {
+			spans.add(new Span(id.start(1), id.end(1), maskId(id.group(1))));
+		}
+		spans.sort(Comparator.comparingInt(Span::start));
+		List<Span> kept = new ArrayList<>();
+		int end = -1;
+		for (Span span : spans) {
+			if (span.start() >= end) {
+				kept.add(span);
+				end = span.end();
+			}
+		}
+		return kept;
 	}
 
 	/** Whether the data file names a personal-data column, a citizen-ID one, and holds rows. */

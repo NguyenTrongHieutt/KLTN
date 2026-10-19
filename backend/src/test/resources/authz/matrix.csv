@@ -602,3 +602,33 @@ GET /api/v1/mentor/recommendations,OWNER,,,404 NOT_FOUND,requireApprovedMentor
 GET /api/v1/mentor/recommendations,CUSTOMER,,,404 NOT_FOUND,requireApprovedMentor
 GET /api/v1/mentor/recommendations,STUDENT,,,404 NOT_FOUND,requireApprovedMentor
 GET /api/v1/mentor/recommendations,ADMINISTRATOR,,,404 NOT_FOUND,requireApprovedMentor
+GET /api/v1/jobs/{jobId}/chat,ANONYMOUS,,,401
+GET /api/v1/jobs/{jobId}/chat,OWNER,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/chat,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/chat,MENTOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/chat,STUDENT,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/chat,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/chat/messages,ANONYMOUS,,,401
+GET /api/v1/jobs/{jobId}/chat/messages,OWNER,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/chat/messages,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/chat/messages,MENTOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/chat/messages,STUDENT,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/chat/messages,ADMINISTRATOR,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/chat/messages,ANONYMOUS,,chat-message.json,401
+POST /api/v1/jobs/{jobId}/chat/messages,OWNER,,chat-message.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/chat/messages,CUSTOMER,,chat-message.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/chat/messages,MENTOR,,chat-message.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/chat/messages,STUDENT,,chat-message.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/chat/messages,ADMINISTRATOR,,chat-message.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/chat/attachments,ANONYMOUS,,student-card.png,401
+POST /api/v1/jobs/{jobId}/chat/attachments,OWNER,,student-card.png,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/chat/attachments,CUSTOMER,,student-card.png,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/chat/attachments,MENTOR,,student-card.png,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/chat/attachments,STUDENT,,student-card.png,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/chat/attachments,ADMINISTRATOR,,student-card.png,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/chat/read,ANONYMOUS,,,401
+POST /api/v1/jobs/{jobId}/chat/read,OWNER,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/chat/read,CUSTOMER,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/chat/read,MENTOR,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/chat/read,STUDENT,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/chat/read,ADMINISTRATOR,,,404 NOT_FOUND

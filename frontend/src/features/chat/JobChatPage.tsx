@@ -1,0 +1,128 @@
+import type { ReactNode } from 'react'
+import { Link, Navigate, useParams } from 'react-router'
+import { PageHeading } from '@/app/PageHeading'
+import { usePageTitle } from '@/app/usePageTitle'
+import { RegionState } from '@/components/RegionState'
+import { Skeleton } from '@/components/Skeleton'
+import { useSession } from '@/features/identity/useSession'
+import { useJob, type Job } from '@/features/job/jobApi'
+import { JobStateBadge } from '@/features/job/JobStateBadge'
+import { JobTabs } from '@/features/job/JobTabs'
+import { MentorJobTabs } from '@/features/matching/MentorJobTabs'
+import { useMentorJob, type MentorJob } from '@/features/matching/mentorJobApi'
+import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
+import { t, type MessageKey } from '@/i18n/t'
+import { isNotFound } from '@/lib/problemMessage'
+import { ChatPanel } from './ChatPanel'
+import { hasChat } from './chatApi'
+
+/**
+ * JOB-4 "Trò chuyện" (`/cong-viec/{jobId}/tro-chuyen`, FR-46, UX-DR17): the Job Chat for its Customer
+ * and its Mentor, from Agreement on; anyone else sees the not-found screen, and a Job without a Chat
+ * goes back to its overview.
+ */
+export function JobChatPage() {
+  const { jobId } = useParams()
+  const account = useSession().data?.account
+  if (!jobId || (account !== undefined && account.role !== 'CUSTOMER' && account.role !== 'MENTOR')) {
+    return <NotFoundScreen />
+  }
+  return account?.role === 'MENTOR' ? <MentorChat jobId={jobId} /> : <CustomerChat jobId={jobId} />
+}
+
+function CustomerChat({ jobId }: { jobId: string }) {
+  const job = useJob(jobId)
+  usePageTitle(job.data ? t('screen.chat.title', { job: job.data.title }) : t('screen.job.title'))
+  if (job.isError && isNotFound(job.error)) {
+    return <NotFoundScreen />
+  }
+  if (job.data && !hasChat(job.data.state)) {
+    return <Navigate to={`/cong-viec/${job.data.id}`} replace />
+  }
+  return (
+    <Frame>
+      <RegionState query={job} skeleton={<Skeleton className="h-96 w-full" />}>
+        {job.data && <CustomerHeader job={job.data} />}
+      </RegionState>
+      <ChatPanel jobId={jobId} side="customer" />
+    </Frame>
+  )
+}
+
+function CustomerHeader({ job }: { job: Job }) {
+  const types = job.jobTypes.map((type) => t(`term.jobType${type}.label` as MessageKey)).join(', ')
+  return (
+    <Header title={job.title} state={job.state} meta={[job.productName, types, job.mentor?.displayName].filter(Boolean).join(' · ')}>
+      <JobTabs jobId={job.id} current="chat" chat={{ unread: false }} />
+    </Header>
+  )
+}
+
+function MentorChat({ jobId }: { jobId: string }) {
+  const job = useMentorJob(jobId)
+  usePageTitle(job.data ? t('screen.chat.title', { job: job.data.title }) : t('screen.job.title'))
+  if (job.isError && isNotFound(job.error)) {
+    return <NotFoundScreen />
+  }
+  if (job.data && !hasChat(job.data.state)) {
+    return <Navigate to={`/cong-viec/${job.data.id}`} replace />
+  }
+  return (
+    <Frame>
+      <RegionState query={job} skeleton={<Skeleton className="h-96 w-full" />}>
+        {job.data && <MentorHeader job={job.data} />}
+      </RegionState>
+      <ChatPanel jobId={jobId} side="mentor" />
+    </Frame>
+  )
+}
+
+function MentorHeader({ job }: { job: MentorJob }) {
+  const types = job.jobTypes.map((type) => t(`term.jobType${type}.label` as MessageKey)).join(', ')
+  return (
+    <Header title={job.title} state={job.state} meta={`${job.productName} · ${types}`} audience="mentor">
+      <MentorJobTabs jobId={job.id} state={job.state} current="chat" />
+    </Header>
+  )
+}
+
+function Frame({ children }: { children: ReactNode }) {
+  return (
+    <div className="mx-auto flex max-w-[1120px] flex-col gap-5 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+      {children}
+    </div>
+  )
+}
+
+function Header({
+  title,
+  state,
+  meta,
+  audience,
+  children,
+}: {
+  title: string
+  state: string
+  meta: string
+  audience?: 'mentor'
+  children: ReactNode
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      <nav aria-label={t('screen.job.detail.breadcrumb')} className="text-caption text-muted-foreground">
+        <Link to="/cong-viec" className="text-primary underline-offset-4 hover:underline">
+          {t('screen.job.detail.breadcrumb')}
+        </Link>{' '}
+        / <span className="break-words">{title}</span>
+      </nav>
+      <div className="flex flex-col gap-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <PageHeading>{title}</PageHeading>
+          <JobStateBadge state={state as Job['state']} audience={audience} />
+        </div>
+        <p className="text-caption text-muted-foreground break-words">{meta}</p>
+      </div>
+      {children}
+    </div>
+  )
+}
