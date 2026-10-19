@@ -15,6 +15,7 @@ import { formatDate, formatDayMonthTime } from '@/lib/dates'
 import { isNotFound, problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { CleanRepositoryGuide } from './CleanRepositoryGuide'
+import { FalsePositiveDialog } from './FalsePositiveDialog'
 import { guidanceGroup, KEY_PAGES } from './guidance'
 import { useConfirmRotation, useFinding, type FindingDetail, type Tool } from './productApi'
 import { domainOf } from './productText'
@@ -46,7 +47,8 @@ export function FindingPage() {
 function FindingDetailView({ productId, detail }: { productId: string; detail: FindingDetail }) {
   const finding = detail.finding
   const personal = finding.category === 'PERSONAL_DATA'
-  const resolved = finding.status === 'RESOLVED'
+  const resolved = finding.status !== 'OPEN'
+  const falsePositive = finding.status === 'FALSE_POSITIVE'
   const tool = toolName(detail.tools)
   return (
     <>
@@ -63,10 +65,16 @@ function FindingDetailView({ productId, detail }: { productId: string; detail: F
           <span
             className={cn(
               'rounded-full px-2 py-0.5 text-caption font-semibold',
-              resolved ? 'bg-success-soft text-success' : 'bg-destructive-soft text-destructive',
+              falsePositive
+                ? 'bg-muted text-foreground'
+                : resolved
+                  ? 'bg-success-soft text-success'
+                  : 'bg-destructive-soft text-destructive',
             )}
           >
-            {t(resolved ? 'screen.product.finding.resolved' : 'screen.product.finding.open')}
+            {falsePositive
+              ? t(personal ? 'screen.product.finding.falsePersonal' : 'screen.product.finding.falseCredential')
+              : t(resolved ? 'screen.product.finding.resolved' : 'screen.product.finding.open')}
           </span>
         </div>
         <p className="text-body-sm text-muted-foreground">
@@ -88,7 +96,7 @@ function FindingDetailView({ productId, detail }: { productId: string; detail: F
         aria-labelledby="finding-type"
         className={cn(
           'flex flex-col gap-4 rounded-lg border border-l-4 border-border bg-card p-5',
-          resolved ? 'border-l-success' : 'border-l-destructive',
+          falsePositive ? 'border-l-border' : resolved ? 'border-l-success' : 'border-l-destructive',
         )}
       >
         <div className="flex flex-col gap-1">
@@ -105,7 +113,15 @@ function FindingDetailView({ productId, detail }: { productId: string; detail: F
           </p>
         </div>
         <p className="font-mono text-body break-all select-none">{finding.maskedPreview}</p>
-        {resolved && finding.resolvedAt && (
+        {falsePositive && finding.resolvedAt && (
+          <p role="status" className="text-body-sm break-words">
+            {t('screen.product.finding.fpMarked', {
+              time: formatDayMonthTime(finding.resolvedAt),
+              reason: finding.resolutionReason ?? '',
+            })}
+          </p>
+        )}
+        {resolved && !falsePositive && finding.resolvedAt && (
           <p role="status" className="flex items-center gap-2 text-body-sm text-success">
             <CircleCheck aria-hidden="true" className="size-4 shrink-0" />
             {finding.resolution === 'CLEAN_REPOSITORY'
@@ -117,13 +133,19 @@ function FindingDetailView({ productId, detail }: { productId: string; detail: F
         {!resolved && !personal && detail.canResolve && (
           <>
             <hr className="border-border" />
-            <ConfirmRotation productId={productId} findingId={finding.id} />
+            <div className="flex flex-wrap gap-3">
+              <ConfirmRotation productId={productId} findingId={finding.id} />
+              <FalsePositiveDialog productId={productId} findingId={finding.id} personal={false} />
+            </div>
           </>
         )}
         {!resolved && personal && detail.canResolve && (
           <>
             <hr className="border-border" />
             <CleanRepositoryGuide productId={productId} clean={detail.cleanRepository} />
+            <div className="flex flex-wrap gap-3">
+              <FalsePositiveDialog productId={productId} findingId={finding.id} personal />
+            </div>
           </>
         )}
         <p className="text-caption text-muted-foreground">
@@ -210,11 +232,9 @@ function ConfirmRotation({ productId, findingId }: { productId: string; findingI
     })
   return (
     <>
-      <div className="flex flex-wrap gap-3">
-        <Button type="button" onClick={() => setOpen(true)}>
-          {t('screen.product.finding.rotate')}
-        </Button>
-      </div>
+      <Button type="button" onClick={() => setOpen(true)}>
+        {t('screen.product.finding.rotate')}
+      </Button>
       <Dialog.Root open={open} onOpenChange={setOpen}>
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 z-40 bg-foreground/50" />

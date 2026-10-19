@@ -7,6 +7,9 @@ public enum FindingStatus {
 	OPEN,
 
 	/** Resolved by one of its resolvers ("Đã xử lý"). */
-	RESOLVED
+	RESOLVED,
+
+	/** Marked not real by a resolver, with a reason; listed, and reviewable by Administrators (FR-64). */
+	FALSE_POSITIVE
 
 }

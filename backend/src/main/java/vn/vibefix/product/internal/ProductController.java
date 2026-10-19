@@ -32,6 +32,7 @@ import vn.vibefix.scanning.Finding;
 import vn.vibefix.scanning.FindingCategory;
 import vn.vibefix.scanning.FindingResolution;
 import vn.vibefix.scanning.FindingStatus;
+import vn.vibefix.scanning.ScanPurpose;
 import vn.vibefix.scanning.ScanStatus;
 import vn.vibefix.scanning.ScanSummary;
 import vn.vibefix.scanning.ScanSummary.UnscannedFile;
@@ -103,13 +104,13 @@ class ProductController {
 
 	}
 
-	/** The latest scan run (UX-DR21: CUS-4 polls every 5 s while it is pending or running). */
-	record ScanView(UUID id, ScanStatus status, Instant requestedAt, @Nullable Instant finishedAt,
+	/** A scan run (UX-DR21: CUS-4 polls every 5 s while the latest is pending or running). */
+	record ScanView(UUID id, ScanPurpose purpose, ScanStatus status, Instant requestedAt, @Nullable Instant finishedAt,
 			@Nullable Integer found, int unscannedCount, List<UnscannedFile> unscanned) {
 
 		static @Nullable ScanView of(@Nullable ScanSummary scan) {
-			return scan == null ? null : new ScanView(scan.id(), scan.status(), scan.requestedAt(), scan.finishedAt(),
-					scan.found(), scan.unscannedCount(), scan.unscanned());
+			return scan == null ? null : new ScanView(scan.id(), scan.purpose(), scan.status(), scan.requestedAt(),
+					scan.finishedAt(), scan.found(), scan.unscannedCount(), scan.unscanned());
 		}
 
 	}
@@ -134,12 +135,14 @@ class ProductController {
 	 */
 	record FindingView(UUID id, FindingCategory category, String ruleId, String type, String path, String commit,
 			Instant committedAt, String maskedPreview, @Nullable Integer matchCount, FindingStatus status,
-			Instant createdAt, @Nullable FindingResolution resolution, @Nullable Instant resolvedAt) {
+			Instant createdAt, @Nullable FindingResolution resolution, @Nullable Instant resolvedAt,
+			@Nullable String resolutionReason) {
 
 		static FindingView of(Finding finding) {
 			return new FindingView(finding.id(), finding.category(), finding.ruleId(), finding.type(), finding.path(),
 					finding.commit(), finding.committedAt(), finding.maskedPreview(), finding.matchCount(),
-					finding.status(), finding.createdAt(), finding.resolution(), finding.resolvedAt());
+					finding.status(), finding.createdAt(), finding.resolution(), finding.resolvedAt(),
+					finding.resolutionReason());
 		}
 
 	}
@@ -164,6 +167,9 @@ class ProductController {
 	record CleanRepositoryRequest(@NotBlank @Size(max = 300) String url) {
 	}
 
+	record FalsePositiveRequest(@NotBlank @Size(max = 500) String reason) {
+	}
+
 	private final Products products;
 
 	private final RepositoryChecks checks;
@@ -172,14 +178,17 @@ class ProductController {
 
 	private final CleanRepositories cleanRepositories;
 
+	private final Rescans rescans;
+
 	private final CurrentCaller callers;
 
 	ProductController(Products products, RepositoryChecks checks, Scans scans, CleanRepositories cleanRepositories,
-			CurrentCaller callers) {
+			Rescans rescans, CurrentCaller callers) {
 		this.products = products;
 		this.checks = checks;
 		this.scans = scans;
 		this.cleanRepositories = cleanRepositories;
+		this.rescans = rescans;
 		this.callers = callers;
 	}
 
@@ -217,11 +226,26 @@ class ProductController {
 				this.scans.openFindingCounts(List.of(productId)).getOrDefault(productId, 0));
 	}
 
-	/** CUS-4 "Vấn đề phát hiện": the open Findings, for the Product's Customer or an Administrator. */
+	/** CUS-4 "Vấn đề phát hiện": every Finding with its state, open first, for the Customer or an Administrator. */
 	@GetMapping("/{productId}/findings")
 	List<FindingView> findings(@PathVariable UUID productId) {
 		readable(productId);
-		return this.scans.openFindings(productId).stream().map(FindingView::of).toList();
+		return this.scans.findings(productId).stream().map(FindingView::of).toList();
+	}
+
+	/** CUS-4 "Lịch sử kiểm tra": every scan run, newest first, for the Customer or an Administrator. */
+	@GetMapping("/{productId}/scans")
+	List<ScanView> scans(@PathVariable UUID productId) {
+		readable(productId);
+		return this.scans.history(productId).stream().map(ScanView::of).toList();
+	}
+
+	/** CUS-4 "Kiểm tra lại": the Product's Customer only, 5 a day. */
+	@PostMapping("/{productId}/scans")
+	@ResponseStatus(HttpStatus.ACCEPTED)
+	ScanView rescan(@PathVariable UUID productId) {
+		UUID run = this.rescans.request(customer(), productId);
+		return ScanView.of(this.scans.run(run).orElseThrow());
 	}
 
 	/** CUS-5: the Product's Customer, or an Administrator, who never resolves it. */
@@ -233,6 +257,13 @@ class ProductController {
 		boolean canResolve = caller.hasRole(Role.CUSTOMER) && this.scans.mayResolve(findingId, caller.requireAccountId());
 		return new FindingDetailView(FindingView.of(finding), product.name(), product.tools(), canResolve,
 				this.cleanRepositories.latest(productId).map(this::cleanRepositoryView).orElse(null));
+	}
+
+	/** CUS-5 "Không phải khóa thật" / "Không phải dữ liệu thật": only a resolver, with a written reason. */
+	@PostMapping("/{productId}/findings/{findingId}/false-positive")
+	FindingView markFalsePositive(@PathVariable UUID productId, @PathVariable UUID findingId,
+			@Valid @RequestBody FalsePositiveRequest body) {
+		return FindingView.of(this.scans.markFalsePositive(productId, findingId, customer(), body.reason()));
 	}
 
 	/** CUS-5 "Đăng ký kho mã sạch": the Product's Customer only, while a personal-data Finding is open. */

@@ -7,6 +7,9 @@ public enum FindingResolution {
 	ROTATED,
 
 	/** The Source Repository was replaced by a clean one without personal data (FR-65). */
-	CLEAN_REPOSITORY
+	CLEAN_REPOSITORY,
+
+	/** The resolver says the match is not a real credential or not real data, with a reason. */
+	FALSE_POSITIVE
 
 }

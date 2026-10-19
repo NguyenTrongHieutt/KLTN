@@ -56,9 +56,11 @@ class Products {
 	 * {@code vibefix.product.*}.
 	 * @param noticeVersion the version of N-1, N-1b, and N-2 a registration must acknowledge
 	 * @param perDay registrations a Customer may make per Vietnam day (AD-34 seed limit)
+	 * @param rescansPerDay on-demand scans per Product per Vietnam day: re-scans and clean-repository
+	 * candidates (FR-8 seed limit)
 	 */
 	@ConfigurationProperties("vibefix.product")
-	record ProductProperties(String noticeVersion, int perDay) {
+	record ProductProperties(String noticeVersion, int perDay, int rescansPerDay) {
 
 		ProductProperties {
 			if (noticeVersion == null || noticeVersion.isBlank()) {
@@ -66,6 +68,9 @@ class Products {
 			}
 			if (perDay < 1) {
 				perDay = 5;
+			}
+			if (rescansPerDay < 1) {
+				rescansPerDay = 5;
 			}
 		}
 

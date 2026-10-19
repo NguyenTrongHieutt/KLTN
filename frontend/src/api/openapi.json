@@ -1115,6 +1115,51 @@
         "tags" : [ "product-controller" ]
       }
     },
+    "/api/v1/products/{productId}/findings/{findingId}/false-positive" : {
+      "post" : {
+        "operationId" : "markFalsePositive",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "path",
+          "name" : "findingId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/FalsePositiveRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FindingView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "product-controller" ]
+      }
+    },
     "/api/v1/products/{productId}/findings/{findingId}/rotation" : {
       "post" : {
         "operationId" : "confirmRotation",
@@ -1145,6 +1190,61 @@
               }
             },
             "description" : "OK"
+          }
+        },
+        "tags" : [ "product-controller" ]
+      }
+    },
+    "/api/v1/products/{productId}/scans" : {
+      "get" : {
+        "operationId" : "scans",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/ScanView"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "product-controller" ]
+      },
+      "post" : {
+        "operationId" : "rescan",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "202" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ScanView"
+                }
+              }
+            },
+            "description" : "Accepted"
           }
         },
         "tags" : [ "product-controller" ]
@@ -2020,6 +2120,17 @@
         },
         "required" : [ "name" ]
       },
+      "FalsePositiveRequest" : {
+        "type" : "object",
+        "properties" : {
+          "reason" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "reason" ]
+      },
       "FindingDetailView" : {
         "type" : "object",
         "properties" : {
@@ -2079,7 +2190,10 @@
           },
           "resolution" : {
             "type" : "string",
-            "enum" : [ "ROTATED", "CLEAN_REPOSITORY" ]
+            "enum" : [ "ROTATED", "CLEAN_REPOSITORY", "FALSE_POSITIVE" ]
+          },
+          "resolutionReason" : {
+            "type" : "string"
           },
           "resolvedAt" : {
             "type" : "string",
@@ -2090,7 +2204,7 @@
           },
           "status" : {
             "type" : "string",
-            "enum" : [ "OPEN", "RESOLVED" ]
+            "enum" : [ "OPEN", "RESOLVED", "FALSE_POSITIVE" ]
           },
           "type" : {
             "type" : "string"
@@ -2927,6 +3041,10 @@
             "type" : "string",
             "format" : "uuid"
           },
+          "purpose" : {
+            "type" : "string",
+            "enum" : [ "INTAKE", "CLEAN_REPOSITORY", "RESCAN" ]
+          },
           "requestedAt" : {
             "type" : "string",
             "format" : "date-time"
@@ -2946,7 +3064,7 @@
             "format" : "int32"
           }
         },
-        "required" : [ "id", "requestedAt", "status", "unscanned", "unscannedCount" ]
+        "required" : [ "id", "purpose", "requestedAt", "status", "unscanned", "unscannedCount" ]
       },
       "SchoolEmailRequest" : {
         "type" : "object",

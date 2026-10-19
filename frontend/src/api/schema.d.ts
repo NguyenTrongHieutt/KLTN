@@ -548,6 +548,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/products/{productId}/findings/{findingId}/false-positive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["markFalsePositive"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/products/{productId}/findings/{findingId}/rotation": {
         parameters: {
             query?: never;
@@ -558,6 +574,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["confirmRotation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/products/{productId}/scans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["scans"];
+        put?: never;
+        post: operations["rescan"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1005,6 +1037,9 @@ export interface components {
         EnvironmentResponse: {
             name: string;
         };
+        FalsePositiveRequest: {
+            reason: string;
+        };
         FindingDetailView: {
             canResolve: boolean;
             cleanRepository?: components["schemas"]["CleanRepositoryView"];
@@ -1027,12 +1062,13 @@ export interface components {
             matchCount?: number;
             path: string;
             /** @enum {string} */
-            resolution?: "ROTATED" | "CLEAN_REPOSITORY";
+            resolution?: "ROTATED" | "CLEAN_REPOSITORY" | "FALSE_POSITIVE";
+            resolutionReason?: string;
             /** Format: date-time */
             resolvedAt?: string;
             ruleId: string;
             /** @enum {string} */
-            status: "OPEN" | "RESOLVED";
+            status: "OPEN" | "RESOLVED" | "FALSE_POSITIVE";
             type: string;
         };
         MentorApplicationDetail: {
@@ -1329,6 +1365,8 @@ export interface components {
             found?: number;
             /** Format: uuid */
             id: string;
+            /** @enum {string} */
+            purpose: "INTAKE" | "CLEAN_REPOSITORY" | "RESCAN";
             /** Format: date-time */
             requestedAt: string;
             /** @enum {string} */
@@ -2470,6 +2508,33 @@ export interface operations {
             };
         };
     };
+    markFalsePositive: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                productId: string;
+                findingId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FalsePositiveRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FindingView"];
+                };
+            };
+        };
+    };
     confirmRotation: {
         parameters: {
             query?: never;
@@ -2489,6 +2554,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FindingView"];
+                };
+            };
+        };
+    };
+    scans: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                productId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScanView"][];
+                };
+            };
+        };
+    };
+    rescan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                productId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScanView"];
                 };
             };
         };

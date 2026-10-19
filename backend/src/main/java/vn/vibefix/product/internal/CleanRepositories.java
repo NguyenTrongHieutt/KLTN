@@ -62,18 +62,21 @@ class CleanRepositories {
 
 	private final Scans scans;
 
+	private final Rescans rescans;
+
 	private final AuditLog auditLog;
 
 	private final IdGenerator ids;
 
 	private final Clock clock;
 
-	CleanRepositories(JdbcClient jdbc, Products products, RepositoryChecks checks, Scans scans, AuditLog auditLog,
-			IdGenerator ids, Clock clock) {
+	CleanRepositories(JdbcClient jdbc, Products products, RepositoryChecks checks, Scans scans, Rescans rescans,
+			AuditLog auditLog, IdGenerator ids, Clock clock) {
 		this.jdbc = jdbc;
 		this.products = products;
 		this.checks = checks;
 		this.scans = scans;
+		this.rescans = rescans;
 		this.auditLog = auditLog;
 		this.ids = ids;
 		this.clock = clock;
@@ -82,8 +85,9 @@ class CleanRepositories {
 	/**
 	 * Records the Customer's clean repository and requests its scan.
 	 * @throws ApiException {@code NOT_FOUND} for a Product that is not the Customer's;
-	 * {@code GUARD_FAILED NO_PERSONAL_DATA_FINDING} without an open personal-data Finding; any CUS-3
-	 * check's {@code GUARD_FAILED}
+	 * {@code GUARD_FAILED NO_PERSONAL_DATA_FINDING} without an open personal-data Finding;
+	 * {@code RATE_LIMITED SCAN_LIMIT} past the day's on-demand scans; any CUS-3 check's
+	 * {@code GUARD_FAILED}
 	 */
 	@Transactional
 	Replacement request(UUID customerId, UUID productId, String url) {
@@ -96,6 +100,7 @@ class CleanRepositories {
 		if (!personalData) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, ProductReason.NO_PERSONAL_DATA_FINDING);
 		}
+		this.rescans.requireAllowance(productId);
 		RepositoryMetadata repository = this.checks.check(customerId, url);
 		Instant now = this.clock.instant();
 		this.jdbc.sql("""

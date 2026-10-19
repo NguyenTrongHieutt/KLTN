@@ -54,7 +54,7 @@ class JdbcScans implements Scans {
 
 	private static final String FINDING_COLUMNS = """
 			id, category, rule_id, rule_type, file_path, commit_sha, committed_at, masked_preview, match_count, status,
-			created_at, resolution, resolved_at
+			created_at, resolution, resolved_at, resolution_reason
 			""";
 
 	private final JdbcClient jdbc;
@@ -138,6 +138,48 @@ class JdbcScans implements Scans {
 				 FROM scanning.finding WHERE product_id = :product AND status = 'OPEN'
 				ORDER BY committed_at DESC, id
 				""").param("product", productId).query(JdbcScans::finding).list();
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<Finding> findings(UUID productId) {
+		return this.jdbc.sql("SELECT " + FINDING_COLUMNS + """
+				 FROM scanning.finding WHERE product_id = :product
+				ORDER BY (status = 'OPEN') DESC, coalesce(resolved_at, created_at) DESC, committed_at DESC, id
+				""").param("product", productId).query(JdbcScans::finding).list();
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<ScanSummary> history(UUID productId) {
+		return this.jdbc.sql("SELECT " + SUMMARY_COLUMNS + """
+				 FROM scanning.scan_run WHERE product_id = :product AND (purpose <> 'CLEAN_REPOSITORY' OR adopted)
+				ORDER BY requested_at DESC, id DESC
+				""").param("product", productId).query(JdbcScans::summary).list();
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public int requestedSince(UUID productId, Instant since, Set<ScanPurpose> purposes) {
+		if (purposes.isEmpty()) {
+			return 0;
+		}
+		return this.jdbc.sql("""
+				SELECT count(*) FROM scanning.scan_run
+				WHERE product_id = :product AND requested_at >= :since AND purpose IN (:purposes)
+				""")
+			.param("product", productId)
+			.param("since", Timestamp.from(since))
+			.param("purposes", purposes.stream().map(Enum::name).toList())
+			.query(Integer.class)
+			.single();
+	}
+
+	@Override
+	@Transactional
+	public Finding markFalsePositive(UUID productId, UUID findingId, UUID accountId, String reason) {
+		this.resolutions.markFalsePositive(productId, findingId, accountId, reason.strip());
+		return finding(productId, findingId).orElseThrow();
 	}
 
 	@Override
@@ -232,7 +274,8 @@ class JdbcScans implements Scans {
 				instant(rs, "committed_at"), rs.getString("masked_preview"), matchCount,
 				FindingStatus.valueOf(rs.getString("status")), instant(rs, "created_at"),
 				rs.getString("resolution") == null ? null : FindingResolution.valueOf(rs.getString("resolution")),
-				rs.getTimestamp("resolved_at") == null ? null : instant(rs, "resolved_at"));
+				rs.getTimestamp("resolved_at") == null ? null : instant(rs, "resolved_at"),
+				rs.getString("resolution_reason"));
 	}
 
 	private static Instant instant(ResultSet rs, String column) throws SQLException {

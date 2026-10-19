@@ -113,6 +113,8 @@ vibefix:
   product:
     notice-version: "1.0"
     per-day: 5
+    # FR-8 seed limit: re-scans and clean-repository candidates per Product per Vietnam day.
+    rescans-per-day: 5
   github:
     # GitHub's REST API (AD-10, AD-13); Story 1.14's spike-s1 probe reads repositories from it.
     api-url: https://api.github.com

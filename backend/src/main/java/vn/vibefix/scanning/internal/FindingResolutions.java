@@ -55,10 +55,11 @@ class FindingResolutions {
 			.single() > 0;
 	}
 
-	@Transactional
-	void confirmRotation(UUID productId, UUID findingId, UUID accountId) {
-		record Row(String category, String status) {
-		}
+	private record Row(String category, String status) {
+	}
+
+	/** The open Finding a resolver acts on, locked. */
+	private Row lockOpen(UUID productId, UUID findingId, UUID accountId) {
 		Row row = this.jdbc.sql("""
 				SELECT category, status FROM scanning.finding WHERE id = :id AND product_id = :product FOR UPDATE
 				""")
@@ -71,6 +72,30 @@ class FindingResolutions {
 		if (!"OPEN".equals(row.status())) {
 			throw new ApiException(ErrorCode.CONFLICT, ScanningReason.FINDING_CLOSED);
 		}
+		return row;
+	}
+
+	@Transactional
+	void markFalsePositive(UUID productId, UUID findingId, UUID accountId, String reason) {
+		lockOpen(productId, findingId, accountId);
+		this.jdbc.sql("""
+				UPDATE scanning.finding SET status = 'FALSE_POSITIVE', resolution = 'FALSE_POSITIVE',
+				    resolution_reason = :reason, resolved_by_account_id = :account, resolved_at = :now
+				WHERE id = :id
+				""")
+			.param("id", findingId)
+			.param("reason", reason)
+			.param("account", accountId)
+			.param("now", Timestamp.from(this.clock.instant()))
+			.update();
+		this.auditLog.record(AuditEntry.of(AuditActor.user(accountId), "scanning.finding_marked_false_positive",
+				AuditObject.of("scanning.finding", findingId)));
+		this.todos.closeAll(RESOLVE_INTAKE_FINDING, findingId);
+	}
+
+	@Transactional
+	void confirmRotation(UUID productId, UUID findingId, UUID accountId) {
+		Row row = lockOpen(productId, findingId, accountId);
 		if (!"CREDENTIAL".equals(row.category())) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, ScanningReason.NOT_A_CREDENTIAL);
 		}

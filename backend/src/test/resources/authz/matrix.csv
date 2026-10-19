@@ -317,6 +317,24 @@ POST /api/v1/products/{productId}/clean-repository,CUSTOMER,,product-clean-repos
 POST /api/v1/products/{productId}/clean-repository,MENTOR,,product-clean-repository.json,404 NOT_FOUND
 POST /api/v1/products/{productId}/clean-repository,STUDENT,,product-clean-repository.json,404 NOT_FOUND
 POST /api/v1/products/{productId}/clean-repository,ADMINISTRATOR,,product-clean-repository.json,404 NOT_FOUND
+GET /api/v1/products/{productId}/scans,ANONYMOUS,,,401
+GET /api/v1/products/{productId}/scans,OWNER,,,200
+GET /api/v1/products/{productId}/scans,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/products/{productId}/scans,MENTOR,,,404 NOT_FOUND
+GET /api/v1/products/{productId}/scans,STUDENT,,,404 NOT_FOUND
+GET /api/v1/products/{productId}/scans,ADMINISTRATOR,,,200
+POST /api/v1/products/{productId}/scans,ANONYMOUS,,,401
+POST /api/v1/products/{productId}/scans,OWNER,,,202
+POST /api/v1/products/{productId}/scans,CUSTOMER,,,404 NOT_FOUND
+POST /api/v1/products/{productId}/scans,MENTOR,,,404 NOT_FOUND
+POST /api/v1/products/{productId}/scans,STUDENT,,,404 NOT_FOUND
+POST /api/v1/products/{productId}/scans,ADMINISTRATOR,,,404 NOT_FOUND
+POST /api/v1/products/{productId}/findings/{findingId}/false-positive,ANONYMOUS,,product-false-positive.json,401
+POST /api/v1/products/{productId}/findings/{findingId}/false-positive,OWNER,,product-false-positive.json,200
+POST /api/v1/products/{productId}/findings/{findingId}/false-positive,CUSTOMER,,product-false-positive.json,404 NOT_FOUND
+POST /api/v1/products/{productId}/findings/{findingId}/false-positive,MENTOR,,product-false-positive.json,404 NOT_FOUND
+POST /api/v1/products/{productId}/findings/{findingId}/false-positive,STUDENT,,product-false-positive.json,404 NOT_FOUND
+POST /api/v1/products/{productId}/findings/{findingId}/false-positive,ADMINISTRATOR,,product-false-positive.json,404 NOT_FOUND
 # Student verification (identity, FR-5): a Student's own; any other role, and SUBJECT (a Customer),
 # finds none. The confirm row's Student has no code waiting, so it finds none either.
 GET /api/v1/verification,ANONYMOUS,,,401
