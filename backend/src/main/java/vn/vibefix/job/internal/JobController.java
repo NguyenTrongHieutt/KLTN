@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import vn.vibefix.files.PreparedFile;
+import vn.vibefix.job.internal.JobLifecycle.Actor;
 import vn.vibefix.job.internal.Jobs.Draft;
 import vn.vibefix.job.internal.Jobs.Job;
 import vn.vibefix.job.internal.Jobs.Screenshot;
@@ -45,9 +46,10 @@ import vn.vibefix.shared.Gate;
 import vn.vibefix.shared.Role;
 
 /**
- * CUS-6 and CUS-7 (FR-9, AD-20): a Customer's Draft Jobs with their guided answers, Job Types,
- * Skills, budget range, deadline, and screenshots. Only the Job's Customer reads or edits one; any
- * other caller finds nothing.
+ * CUS-6, CUS-7, and JOB-1 (FR-9, AD-20): a Customer's Jobs with their guided answers, Job Types,
+ * Skills, budget range, deadline, and screenshots, published (J1) and withdrawn (J2) through
+ * {@link JobLifecycle}. Only the Job's Customer reads, edits, or moves one; any other caller finds
+ * nothing.
  */
 @RestController
 @RequestMapping("/api/v1/jobs")
@@ -83,11 +85,11 @@ class JobController {
 
 	}
 
-	/** One Job as CUS-6 edits it. */
+	/** One Job as CUS-6 edits it and JOB-1 shows it; an Open Job Post has its opening and lapse times. */
 	record JobView(UUID id, UUID productId, String productName, JobState state, String title, @Nullable String problem,
 			@Nullable String expected, @Nullable String appUsers, @Nullable String doneCheck, List<JobType> jobTypes,
 			List<SkillView> skills, @Nullable Budget budget, @Nullable LocalDate deadline, List<ScreenshotView> screenshots,
-			Instant createdAt, Instant updatedAt) {
+			Instant createdAt, Instant updatedAt, long version, @Nullable Instant openedAt, @Nullable Instant lapsesAt) {
 	}
 
 	/** One Job as CUS-7 lists it. */
@@ -97,12 +99,15 @@ class JobController {
 
 	private final Jobs jobs;
 
+	private final JobLifecycle lifecycle;
+
 	private final ProductDirectory products;
 
 	private final CurrentCaller callers;
 
-	JobController(Jobs jobs, ProductDirectory products, CurrentCaller callers) {
+	JobController(Jobs jobs, JobLifecycle lifecycle, ProductDirectory products, CurrentCaller callers) {
 		this.jobs = jobs;
+		this.lifecycle = lifecycle;
 		this.products = products;
 		this.callers = callers;
 	}
@@ -141,6 +146,25 @@ class JobController {
 		return view(this.jobs.find(customer, jobId).orElseThrow());
 	}
 
+	/** CUS-6 "Đăng tin", after N-3: J1 makes the Draft an Open Job Post (FR-9). */
+	@PostMapping("/{jobId}/publish")
+	JobView publish(@PathVariable UUID jobId) {
+		return transition(jobId, Transition.J1);
+	}
+
+	/** JOB-1 "Rút tin": J2 returns the Open Job Post to Draft (FR-9). */
+	@PostMapping("/{jobId}/withdraw")
+	JobView withdraw(@PathVariable UUID jobId) {
+		return transition(jobId, Transition.J2);
+	}
+
+	private JobView transition(UUID jobId, Transition transition) {
+		UUID customer = customer();
+		this.jobs.find(customer, jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		this.lifecycle.apply(transition, jobId, Actor.user(customer), Trigger.USER);
+		return view(this.jobs.find(customer, jobId).orElseThrow());
+	}
+
 	/** CUS-6 screenshots: an image or a PDF of at most 10 MB, within 200 MB per Job (FR-9, NFR-3). */
 	@PostMapping(path = "/{jobId}/screenshots", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	@ResponseStatus(HttpStatus.CREATED)
@@ -173,7 +197,7 @@ class JobController {
 		return new JobView(job.id(), job.productId(), productName(new HashMap<>(), job.productId()), job.state(),
 				job.title(), job.problem(), job.expected(), job.appUsers(), job.doneCheck(), job.jobTypes(), skills,
 				job.budget(), job.deadline(), this.jobs.screenshots(job.id()).stream().map(ScreenshotView::of).toList(),
-				job.createdAt(), job.updatedAt());
+				job.createdAt(), job.updatedAt(), job.version(), job.openedAt(), job.lapsesAt());
 	}
 
 	private String productName(Map<UUID, String> names, UUID productId) {

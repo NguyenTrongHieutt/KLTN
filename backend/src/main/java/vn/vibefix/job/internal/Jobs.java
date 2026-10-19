@@ -71,12 +71,20 @@ class Jobs {
 	record Job(UUID id, UUID productId, UUID customerId, JobState state, String title, @Nullable String problem,
 			@Nullable String expected, @Nullable String appUsers, @Nullable String doneCheck, List<JobType> jobTypes,
 			List<UUID> skillIds, List<String> skillNames, @Nullable Budget budget, @Nullable LocalDate deadline,
-			Instant createdAt, Instant updatedAt) {
+			Instant createdAt, Instant updatedAt, long version, @Nullable Instant openedAt, @Nullable Instant lapsesAt,
+			@Nullable Instant frozenAt, @Nullable Integer agreementVersionNo) {
+
+		/** A Code Job: one whose Job Types are not Assessment alone (FR-8). */
+		boolean code() {
+			return this.jobTypes.stream().anyMatch(JobType::code);
+		}
+
 	}
 
 	private static final String COLUMNS = """
 			id, product_id, customer_account_id, state, title, problem, expected, app_users, done_check, job_types,
-			skill_ids, skill_names, budget, deadline, created_at, updated_at
+			skill_ids, skill_names, budget, deadline, created_at, updated_at, version, opened_at, lapses_at, frozen_at,
+			agreement_version_no
 			""";
 
 	private final JdbcClient jdbc;
@@ -302,6 +310,14 @@ class Jobs {
 				""").param("file", fileId).param("account", accountId).query(Boolean.class).single();
 	}
 
+	/** Locks the Job row for a transition (AD-4: the Job row comes first in the lock order). */
+	Optional<Job> lock(UUID jobId) {
+		return this.jdbc.sql("SELECT " + COLUMNS + " FROM job.job WHERE id = :id FOR UPDATE")
+			.param("id", jobId)
+			.query(Jobs::job)
+			.optional();
+	}
+
 	private Job lockDraft(UUID customerId, UUID jobId) {
 		Job job = this.jdbc.sql("SELECT " + COLUMNS + " FROM job.job WHERE id = :id AND customer_account_id = :customer"
 				+ " FOR UPDATE")
@@ -327,7 +343,13 @@ class Jobs {
 				Arrays.stream((Object[]) rs.getArray("skill_ids").getArray()).map(UUID.class::cast).toList(),
 				Arrays.asList(strings(rs.getArray("skill_names"))), budget == null ? null : Budget.valueOf(budget),
 				deadline == null ? null : deadline.toLocalDate(), rs.getTimestamp("created_at").toInstant(),
-				rs.getTimestamp("updated_at").toInstant());
+				rs.getTimestamp("updated_at").toInstant(), rs.getLong("version"), instant(rs.getTimestamp("opened_at")),
+				instant(rs.getTimestamp("lapses_at")), instant(rs.getTimestamp("frozen_at")),
+				rs.getObject("agreement_version_no", Integer.class));
+	}
+
+	private static @Nullable Instant instant(@Nullable Timestamp timestamp) {
+		return timestamp == null ? null : timestamp.toInstant();
 	}
 
 	private static String[] strings(Array array) throws SQLException {

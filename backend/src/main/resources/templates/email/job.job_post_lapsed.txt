@@ -1,0 +1,6 @@
+subject: Tin {job} đã hết hạn và trở về bản nháp
+---
+Xin chào,
+
+Tin {job} đã đăng 14 ngày mà bạn chưa chọn người hướng dẫn nào, nên tin đã tự hết hạn và trở về bản nháp.
+Bạn có thể sửa nội dung rồi đăng tin lần nữa trên vibefix.

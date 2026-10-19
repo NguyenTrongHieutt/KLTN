@@ -1,4 +1,5 @@
-import { FileText, Info, TriangleAlert } from 'lucide-react'
+import { Dialog } from '@base-ui/react/dialog'
+import { FileText, Info, TriangleAlert, X } from 'lucide-react'
 import { useId, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
@@ -14,6 +15,7 @@ import { useSession } from '@/features/identity/useSession'
 import { useProduct, type Product } from '@/features/product/productApi'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t, type MessageKey } from '@/i18n/t'
+import { ApiError } from '@/lib/apiClient'
 import { formatSize } from '@/lib/fileSize'
 import { isNotFound, problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
@@ -22,13 +24,34 @@ import {
   JOB_TYPES,
   useAddScreenshot,
   useJob,
+  usePublishJob,
   useRemoveScreenshot,
   useSaveJob,
   useSkillSuggestions,
   type Budget,
   type Job,
+  type JobDraft,
   type JobType,
 } from './jobApi'
+
+/** The answers publishing needs besides the title, in the order CUS-6 asks them (FR-9). */
+const REQUIRED = ['problem', 'expected', 'appUsers', 'jobTypes', 'budget', 'deadline'] as const
+
+type Required = (typeof REQUIRED)[number]
+
+function missingAnswers(values: FormValues): Required[] {
+  return REQUIRED.filter((field) => {
+    const value = values[field]
+    return Array.isArray(value) ? value.length === 0 : value.trim() === ''
+  })
+}
+
+function missingText(fields: string[]): string {
+  const labels = fields
+    .filter((field): field is Required => (REQUIRED as readonly string[]).includes(field))
+    .map((field) => t(`screen.job.form.missing${field.charAt(0).toUpperCase()}${field.slice(1)}` as MessageKey))
+  return t('screen.job.form.publishMissing', { fields: labels.join(', ') })
+}
 
 /** The values CUS-6 edits, before they are sent. */
 interface FormValues {
@@ -47,7 +70,8 @@ interface FormValues {
  * CUS-6 (`/san-pham/{productId}/cong-viec-moi`, `/cong-viec/{jobId}/sua`, FR-9, UX-DR66): the guided
  * questions with their examples, the Job Types or "Chưa rõ — đánh giá trước", the Skills suggested
  * from the repository and the AI tools, the budget range, the deadline, and screenshots. While the
- * Product has an open Finding only the Assessment can be chosen. "Lưu nháp" keeps a Draft.
+ * Product has an open Finding only the Assessment can be chosen. "Lưu nháp" keeps a Draft; "Đăng tin"
+ * saves it, shows N-3, and publishes it as a Job Post (J1), landing on JOB-1.
  */
 export function JobFormPage() {
   const { productId, jobId } = useParams()
@@ -136,7 +160,10 @@ function JobForm({
 }) {
   const [values, setValues] = useState(initial)
   const [titleMissing, setTitleMissing] = useState(false)
+  const [missing, setMissing] = useState<string[]>([])
+  const [confirming, setConfirming] = useState(false)
   const save = useSaveJob(job?.id)
+  const publish = usePublishJob()
   const toasts = useToasts()
   const navigate = useNavigate()
   const ids = useId()
@@ -152,6 +179,59 @@ function JobForm({
       set('jobTypes', type === 'ASSESSMENT' ? ['ASSESSMENT'] : [...values.jobTypes.filter((other) => other !== 'ASSESSMENT'), type])
     }
   }
+  const body = (): JobDraft => ({
+    productId: product.id,
+    title: values.title.trim(),
+    problem: values.problem,
+    expected: values.expected,
+    appUsers: values.appUsers,
+    doneCheck: values.doneCheck,
+    jobTypes: values.jobTypes,
+    skillIds: values.skillIds,
+    budget: values.budget === '' ? undefined : values.budget,
+    deadline: values.deadline === '' ? undefined : values.deadline,
+  })
+  // "Đăng tin": every answer first, then N-3 (FR-9, UX-DR8).
+  const startPublish = () => {
+    if (values.title.trim() === '') {
+      setTitleMissing(true)
+      return
+    }
+    const unanswered = missingAnswers(values)
+    setMissing(unanswered)
+    if (unanswered.length === 0) {
+      setConfirming(true)
+    }
+  }
+  const confirmPublish = async () => {
+    let id: string
+    try {
+      id = await save.mutateAsync(body())
+    } catch (error) {
+      setConfirming(false)
+      toasts.error(problemMessage(error, { module: 'job' }).text)
+      return
+    }
+    try {
+      await publish.mutateAsync(id)
+      setConfirming(false)
+      toasts.success(t('screen.job.form.published'))
+      void navigate(`/cong-viec/${id}`)
+    } catch (error) {
+      setConfirming(false)
+      const problem = error instanceof ApiError ? error.problem : undefined
+      if (problem?.reason === 'INTAKE_FINDING_OPEN') {
+        toasts.error(t('screen.job.form.publishFindings', { n: problem.count ?? findings }))
+      } else if (problem?.reason === 'JOB_INCOMPLETE') {
+        setMissing(problem.missing ?? [])
+      } else {
+        toasts.error(problemMessage(error, { module: 'job', action: t('screen.job.form.publishAction') }).text)
+      }
+      if (!job) {
+        void navigate(`/cong-viec/${id}/sua`, { replace: true })
+      }
+    }
+  }
   const submit = (event: FormEvent) => {
     event.preventDefault()
     if (values.title.trim() === '') {
@@ -159,18 +239,7 @@ function JobForm({
       return
     }
     save.mutate(
-      {
-        productId: product.id,
-        title: values.title.trim(),
-        problem: values.problem,
-        expected: values.expected,
-        appUsers: values.appUsers,
-        doneCheck: values.doneCheck,
-        jobTypes: values.jobTypes,
-        skillIds: values.skillIds,
-        budget: values.budget === '' ? undefined : values.budget,
-        deadline: values.deadline === '' ? undefined : values.deadline,
-      },
+      body(),
       {
         onSuccess: (id) => {
           toasts.success(t('screen.job.form.saved'))
@@ -352,12 +421,43 @@ function JobForm({
           <p className="text-body-sm">{t('screen.job.form.confidentiality')}</p>
         </div>
 
+        {missing.length > 0 && (
+          <p role="alert" className="text-body-sm text-destructive">
+            {missingText(missing)}
+          </p>
+        )}
         <div className="flex flex-wrap justify-between gap-3">
           <Button type="submit" variant="secondary" disabled={save.isPending}>
             {t(save.isPending ? 'screen.job.form.saving' : 'screen.job.form.save')}
           </Button>
+          <Button type="button" onClick={startPublish} disabled={save.isPending || publish.isPending}>
+            {t('screen.job.form.publish')}
+          </Button>
         </div>
       </form>
+      <Dialog.Root open={confirming} onOpenChange={setConfirming}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="fixed inset-0 z-40 bg-foreground/50" />
+          <Dialog.Popup className="fixed top-24 left-1/2 z-50 flex w-[min(520px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg border-t-4 border-warning bg-popover p-6 text-popover-foreground shadow-md">
+            <div className="flex items-start justify-between gap-3">
+              <Dialog.Title className="text-h2">{t('screen.job.form.publishTitle')}</Dialog.Title>
+              <Dialog.Close
+                aria-label={t('screen.product.finding.close')}
+                className="rounded-md p-1 text-muted-foreground hover:bg-muted"
+              >
+                <X aria-hidden="true" className="size-5" />
+              </Dialog.Close>
+            </div>
+            <Dialog.Description className="text-body-sm">{t('screen.job.form.confidentiality')}</Dialog.Description>
+            <div className="flex flex-wrap justify-between gap-3">
+              <Dialog.Close render={<Button variant="secondary" />}>{t('screen.job.form.publishBack')}</Dialog.Close>
+              <Button type="button" onClick={() => void confirmPublish()} disabled={save.isPending || publish.isPending}>
+                {t(save.isPending || publish.isPending ? 'screen.job.form.publishing' : 'screen.job.form.publish')}
+              </Button>
+            </div>
+          </Dialog.Popup>
+        </Dialog.Portal>
+      </Dialog.Root>
     </>
   )
 }

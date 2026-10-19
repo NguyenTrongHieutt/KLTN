@@ -670,6 +670,33 @@
         "tags" : [ "job-controller" ]
       }
     },
+    "/api/v1/jobs/{jobId}/publish" : {
+      "post" : {
+        "operationId" : "publish",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/JobView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "job-controller" ]
+      }
+    },
     "/api/v1/jobs/{jobId}/screenshots" : {
       "post" : {
         "operationId" : "addScreenshot",
@@ -736,6 +763,33 @@
         "responses" : {
           "204" : {
             "description" : "No Content"
+          }
+        },
+        "tags" : [ "job-controller" ]
+      }
+    },
+    "/api/v1/jobs/{jobId}/withdraw" : {
+      "post" : {
+        "operationId" : "withdraw",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/JobView"
+                }
+              }
+            },
+            "description" : "OK"
           }
         },
         "tags" : [ "job-controller" ]
@@ -2578,6 +2632,14 @@
               "enum" : [ "ASSESSMENT", "BUG_FIX", "NEW_FEATURE", "MODIFICATION", "IMPROVEMENT", "SECURITY_TESTING", "DEPLOYMENT_OPERATIONS", "DOCUMENTATION" ]
             }
           },
+          "lapsesAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "openedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
           "problem" : {
             "type" : "string"
           },
@@ -2610,9 +2672,13 @@
           "updatedAt" : {
             "type" : "string",
             "format" : "date-time"
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
           }
         },
-        "required" : [ "createdAt", "id", "jobTypes", "productId", "productName", "screenshots", "skills", "state", "title", "updatedAt" ]
+        "required" : [ "createdAt", "id", "jobTypes", "productId", "productName", "screenshots", "skills", "state", "title", "updatedAt", "version" ]
       },
       "MentorApplicationDetail" : {
         "type" : "object",

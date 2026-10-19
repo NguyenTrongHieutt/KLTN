@@ -431,6 +431,18 @@ DELETE /api/v1/jobs/{jobId}/screenshots/{screenshotId},CUSTOMER,,,404 NOT_FOUND
 DELETE /api/v1/jobs/{jobId}/screenshots/{screenshotId},MENTOR,,,404 NOT_FOUND
 DELETE /api/v1/jobs/{jobId}/screenshots/{screenshotId},STUDENT,,,404 NOT_FOUND
 DELETE /api/v1/jobs/{jobId}/screenshots/{screenshotId},ADMINISTRATOR,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/publish,ANONYMOUS,,,401
+POST /api/v1/jobs/{jobId}/publish,OWNER,,,422 GUARD_FAILED
+POST /api/v1/jobs/{jobId}/publish,CUSTOMER,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/publish,MENTOR,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/publish,STUDENT,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/publish,ADMINISTRATOR,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/withdraw,ANONYMOUS,,,401
+POST /api/v1/jobs/{jobId}/withdraw,OWNER,,,409 STALE
+POST /api/v1/jobs/{jobId}/withdraw,CUSTOMER,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/withdraw,MENTOR,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/withdraw,STUDENT,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/withdraw,ADMINISTRATOR,,,404 NOT_FOUND
 GET /api/v1/products/{productId}/skill-suggestions,ANONYMOUS,,,401
 GET /api/v1/products/{productId}/skill-suggestions,OWNER,,,200
 GET /api/v1/products/{productId}/skill-suggestions,CUSTOMER,,,404 NOT_FOUND

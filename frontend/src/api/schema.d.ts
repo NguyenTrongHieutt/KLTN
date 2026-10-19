@@ -292,6 +292,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/jobs/{jobId}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["publish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jobs/{jobId}/screenshots": {
         parameters: {
             query?: never;
@@ -319,6 +335,22 @@ export interface paths {
         put?: never;
         post?: never;
         delete: operations["removeScreenshot"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/jobs/{jobId}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["withdraw"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1196,6 +1228,10 @@ export interface components {
             /** Format: uuid */
             id: string;
             jobTypes: ("ASSESSMENT" | "BUG_FIX" | "NEW_FEATURE" | "MODIFICATION" | "IMPROVEMENT" | "SECURITY_TESTING" | "DEPLOYMENT_OPERATIONS" | "DOCUMENTATION")[];
+            /** Format: date-time */
+            lapsesAt?: string;
+            /** Format: date-time */
+            openedAt?: string;
             problem?: string;
             /** Format: uuid */
             productId: string;
@@ -1207,6 +1243,8 @@ export interface components {
             title: string;
             /** Format: date-time */
             updatedAt: string;
+            /** Format: int64 */
+            version: number;
         };
         MentorApplicationDetail: {
             /** Format: uuid */
@@ -2331,6 +2369,28 @@ export interface operations {
             };
         };
     };
+    publish: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobView"];
+                };
+            };
+        };
+    };
     addScreenshot: {
         parameters: {
             query?: never;
@@ -2378,6 +2438,28 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    withdraw: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobView"];
+                };
             };
         };
     };
