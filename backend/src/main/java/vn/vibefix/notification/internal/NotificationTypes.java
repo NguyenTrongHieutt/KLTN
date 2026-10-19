@@ -43,9 +43,18 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType ADMIN_SIGN_IN_LOCKED = new NotificationType("identity.admin_sign_in_locked",
 			Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("email"));
 
+	/** An Administrator account was created (FR-2, SG-10): every Administrator, on ADM-1 and by email. */
+	static final NotificationType ADMINISTRATOR_CREATED = new NotificationType("identity.administrator_created",
+			Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("email"));
+
+	/** The new Administrator's enrolment link (FR-2): email only, to the new account's address. */
+	static final NotificationType ADMINISTRATOR_ENROLMENT = new NotificationType("identity.administrator_enrolment",
+			Set.of(Audience.SUBJECT), Channel.EMAIL_ONLY, EmailClass.TRANSACTIONAL, "mail", Set.of("by"));
+
 	@Override
 	public List<NotificationType> notificationTypes() {
-		return List.of(SCHOOL_EMAIL_CODE, VERIFICATION_EXPIRING, VERIFICATION_EXPIRED, ADMIN_SIGN_IN_LOCKED);
+		return List.of(SCHOOL_EMAIL_CODE, VERIFICATION_EXPIRING, VERIFICATION_EXPIRED, ADMIN_SIGN_IN_LOCKED,
+				ADMINISTRATOR_CREATED, ADMINISTRATOR_ENROLMENT);
 	}
 
 	@Override

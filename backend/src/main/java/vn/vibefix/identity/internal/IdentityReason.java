@@ -25,6 +25,15 @@ enum IdentityReason {
 	ADMIN_SIGN_IN_FAILED,
 
 	/** 5 failed Administrator sign-ins within 15 minutes lock that email for 15 minutes (AD-34). */
-	ADMIN_SIGN_IN_LOCKED
+	ADMIN_SIGN_IN_LOCKED,
+
+	/** A wrong step-up code (SG-10); the answer says how many attempts are left. */
+	STEP_UP_FAILED,
+
+	/** The email is an Administrator's, or an open enrolment's (FR-2). */
+	ADMINISTRATOR_EMAIL_IN_USE,
+
+	/** The enrolment's code does not match the secret it showed. */
+	ENROLMENT_CODE_WRONG
 
 }

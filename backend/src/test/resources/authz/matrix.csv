@@ -39,6 +39,26 @@ POST /api/v1/admin/sign-in,CUSTOMER,,admin-sign-in.json,409 CONFLICT
 POST /api/v1/admin/sign-in,MENTOR,mentor=PENDING,admin-sign-in.json,409 CONFLICT
 POST /api/v1/admin/sign-in,STUDENT,,admin-sign-in.json,409 CONFLICT
 POST /api/v1/admin/sign-in,ADMINISTRATOR,,admin-sign-in.json,409 CONFLICT
+# ADM-11 (identity, FR-2, SG-10): Administrators only. The matrix Administrator has no TOTP
+# credential, so its step-up finds nothing and creating one answers NOT_FOUND.
+GET /api/v1/admin/administrators,ANONYMOUS,,,401
+GET /api/v1/admin/administrators,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/admin/administrators,MENTOR,,,404 NOT_FOUND
+GET /api/v1/admin/administrators,STUDENT,,,404 NOT_FOUND
+GET /api/v1/admin/administrators,SUBJECT,,,404 NOT_FOUND
+GET /api/v1/admin/administrators,ADMINISTRATOR,,,200
+POST /api/v1/admin/administrators,ANONYMOUS,,admin-create-administrator.json,401
+POST /api/v1/admin/administrators,CUSTOMER,,admin-create-administrator.json,404 NOT_FOUND
+POST /api/v1/admin/administrators,MENTOR,,admin-create-administrator.json,404 NOT_FOUND
+POST /api/v1/admin/administrators,STUDENT,,admin-create-administrator.json,404 NOT_FOUND
+POST /api/v1/admin/administrators,ADMINISTRATOR,,admin-create-administrator.json,404 NOT_FOUND
+# The enrolment link (FR-2): anonymous only; an unknown token finds nothing.
+GET /api/v1/admin/enrolment/{token},ANONYMOUS,,,404 NOT_FOUND
+GET /api/v1/admin/enrolment/{token},CUSTOMER,,,409 CONFLICT
+GET /api/v1/admin/enrolment/{token},ADMINISTRATOR,,,409 CONFLICT
+POST /api/v1/admin/enrolment/{token},ANONYMOUS,,admin-enrolment.json,404 NOT_FOUND
+POST /api/v1/admin/enrolment/{token},CUSTOMER,,admin-enrolment.json,409 CONFLICT
+POST /api/v1/admin/enrolment/{token},ADMINISTRATOR,,admin-enrolment.json,409 CONFLICT
 # ADM-1's queue counts (admin): Administrators only; everyone else finds nothing.
 GET /api/v1/admin/overview,ANONYMOUS,,,401
 GET /api/v1/admin/overview,CUSTOMER,,,404 NOT_FOUND

@@ -50,7 +50,7 @@ class IdentityPersonalData implements PersonalDataParticipant {
 		return Set.of("identity.account", "identity.acknowledgment", "identity.customer_token",
 				"identity.customer_profile", "identity.student_profile", "identity.showcase_repository",
 				"identity.contact_grant", "identity.school_email_code", "identity.student_verification",
-				"identity.administrator_credential");
+				"identity.administrator_credential", "identity.administrator_enrolment");
 	}
 
 	@Override
@@ -97,6 +97,11 @@ class IdentityPersonalData implements PersonalDataParticipant {
 			// An Administrator's email and name; never the password hash or the TOTP secret.
 			this.administrators.identity(accountId).ifPresent(found -> data.put("administrator",
 					Map.of("email", found.email(), "displayName", found.displayName())));
+			this.jdbc.sql("""
+					SELECT email, display_name FROM identity.administrator_enrolment
+					WHERE account_id = :id AND completed_at IS NULL
+					""").param("id", accountId).query((rs, n) -> Map.of("email", rs.getString("email"), "displayName",
+					rs.getString("display_name"))).optional().ifPresent(found -> data.put("administratorEnrolment", found));
 			return new PersonalDataSection("identity", data);
 		});
 	}
@@ -106,7 +111,7 @@ class IdentityPersonalData implements PersonalDataParticipant {
 		this.jdbc.sql("DELETE FROM identity.customer_token WHERE account_id = :id").param("id", accountId).update();
 		for (String table : new String[] { "identity.customer_profile", "identity.student_profile",
 				"identity.showcase_repository", "identity.school_email_code", "identity.student_verification",
-				"identity.administrator_credential" }) {
+				"identity.administrator_credential", "identity.administrator_enrolment" }) {
 			this.jdbc.sql("DELETE FROM " + table + " WHERE account_id = :id").param("id", accountId).update();
 		}
 		this.jdbc.sql("""

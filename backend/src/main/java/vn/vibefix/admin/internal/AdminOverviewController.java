@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import vn.vibefix.identity.Administrators;
 import vn.vibefix.operations.FailedOperations;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.Gate;
@@ -35,23 +36,29 @@ class AdminOverviewController {
 	/**
 	 * @param failedOperations External Operations that failed for good (FR-64, "Thao tác lỗi")
 	 * @param stalledEvents event publications that stopped after 5 attempts (AD-9)
+	 * @param activeAdministrators Administrators who can sign in; at 1, ADM-1 warns (SG-10)
 	 */
-	record OverviewView(Queue failedOperations, Queue stalledEvents) {
+	record OverviewView(Queue failedOperations, Queue stalledEvents, long activeAdministrators) {
 	}
 
 	private final FailedOperations failedOperations;
 
 	private final StalledEventPublications stalledEvents;
 
-	AdminOverviewController(FailedOperations failedOperations, StalledEventPublications stalledEvents) {
+	private final Administrators administrators;
+
+	AdminOverviewController(FailedOperations failedOperations, StalledEventPublications stalledEvents,
+			Administrators administrators) {
 		this.failedOperations = failedOperations;
 		this.stalledEvents = stalledEvents;
+		this.administrators = administrators;
 	}
 
 	@GetMapping
 	OverviewView overview() {
 		return new OverviewView(Queue.of(this.failedOperations.findAll(), FailedOperations.FailedOperation::failedAt),
-				Queue.of(this.stalledEvents.findAll(), StalledEventPublications.StalledPublication::stalledAt));
+				Queue.of(this.stalledEvents.findAll(), StalledEventPublications.StalledPublication::stalledAt),
+				this.administrators.activeCount());
 	}
 
 }

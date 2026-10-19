@@ -9,6 +9,14 @@ export type AdminSignIn = components['schemas']['AdminSignInRequest']
 
 export type Overview = components['schemas']['OverviewView']
 
+export type AdministratorRow = components['schemas']['AdministratorListItem']
+
+export type CreateAdministrator = components['schemas']['CreateAdministratorRequest']
+
+export type Enrolment = components['schemas']['EnrolmentView']
+
+export const ADMINISTRATORS_QUERY_KEY = ['admin', 'administrators'] as const
+
 export const OVERVIEW_QUERY_KEY = ['admin', 'overview'] as const
 
 /** PUB-6: signs an Administrator in; the session then says who, with its limits (SG-10). */
@@ -51,5 +59,46 @@ export function useSessionActivity() {
   return useMutation({
     mutationFn: () => unwrap(apiClient.POST('/api/v1/session/activity')),
     onSuccess: (session) => queryClient.setQueryData(SESSION_QUERY_KEY, session),
+  })
+}
+
+/** ADM-11's list (FR-2). */
+export function useAdministrators() {
+  return useQuery({
+    queryKey: ADMINISTRATORS_QUERY_KEY,
+    queryFn: () => unwrap(apiClient.GET('/api/v1/admin/administrators')),
+  })
+}
+
+/** Creates an Administrator after the step-up (SG-10); the list and ADM-1 refresh. */
+export function useCreateAdministrator() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: CreateAdministrator) => unwrap(apiClient.POST('/api/v1/admin/administrators', { body })),
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ADMINISTRATORS_QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: OVERVIEW_QUERY_KEY }),
+      ]),
+  })
+}
+
+/** The enrolment link: the account and its authenticator secret (FR-2). */
+export function useEnrolment(token: string) {
+  return useQuery({
+    queryKey: ['admin', 'enrolment', token],
+    queryFn: () => unwrap(apiClient.GET('/api/v1/admin/enrolment/{token}', { params: { path: { token } } })),
+    retry: false,
+    staleTime: Infinity,
+  })
+}
+
+/** Sets the password and enrols the app; the new Administrator is then signed in. */
+export function useCompleteEnrolment(token: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { password: string; code: string }) =>
+      unwrap(apiClient.POST('/api/v1/admin/enrolment/{token}', { params: { path: { token } }, body })),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY }),
   })
 }

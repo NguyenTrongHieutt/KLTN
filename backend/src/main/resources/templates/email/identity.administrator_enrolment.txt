@@ -1,0 +1,9 @@
+subject: {by} đã tạo tài khoản quản trị vibefix cho bạn
+link: /quan-tri
+---
+Xin chào,
+
+{by} đã tạo tài khoản quản trị vibefix cho bạn. Hãy mở đường dẫn bên dưới để đặt mật khẩu và thiết lập ứng dụng xác thực trên điện thoại.
+Đường dẫn chỉ dùng được một lần và hết hạn sau 24 giờ.
+
+Nếu bạn không mong đợi email này, hãy bỏ qua nó.
