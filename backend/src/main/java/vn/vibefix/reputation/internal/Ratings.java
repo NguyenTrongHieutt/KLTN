@@ -330,7 +330,8 @@ class Ratings {
 		return this.mentors.cards(List.of(mentorId)).stream().findFirst().map(MentorCard::displayName).orElse("");
 	}
 
-	private Window openWindow(UUID jobId) {
+	/** @throws ApiException {@code GUARD_FAILED RATING_WINDOW_NOT_OPEN} or {@code RATING_WINDOW_CLOSED} */
+	Window openWindow(UUID jobId) {
 		Window window = window(jobId)
 			.orElseThrow(() -> new ApiException(ErrorCode.GUARD_FAILED, ReputationReason.RATING_WINDOW_NOT_OPEN));
 		if (!window.open(this.clock.instant())) {

@@ -381,6 +381,24 @@ class NotificationTypes implements NotificationCatalog {
 			Set.of(Audience.CUSTOMER, Audience.MENTOR, Audience.CREW_EVER_ACTIVE), Channel.IN_APP, EmailClass.TRANSACTIONAL,
 			"check", Set.of("job"));
 
+	/** FR-50: the Mentor drafted the Portfolio summary; the Customer approves, edits, or declines it. */
+	static final NotificationType REPUTATION_PORTFOLIO_SUMMARY_AWAITING_APPROVAL = new NotificationType(
+			"reputation.portfolio_summary_awaiting_approval", Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL,
+			EmailClass.TRANSACTIONAL, "briefcase", Set.of("job", "date"));
+
+	/** FR-50, FR-66: the person's Portfolio Entry is public after their data-deletion confirmation. */
+	static final NotificationType REPUTATION_PORTFOLIO_ENTRY_PUBLISHED = new NotificationType(
+			"reputation.portfolio_entry_published", Set.of(Audience.MENTOR, Audience.CREW_EVER_ACTIVE), Channel.IN_APP,
+			EmailClass.TRANSACTIONAL, "check", Set.of("job"));
+
+	/** The Portfolio summary waits for the Mentor's draft (FR-50): until drafted or the window ends. */
+	static final TodoType REPUTATION_DRAFT_PORTFOLIO_SUMMARY = new TodoType("reputation.draft_portfolio_summary",
+			Set.of(Audience.MENTOR), 3, Set.of("job"));
+
+	/** The drafted summary waits for the Customer (FR-50): until decided or the window ends. */
+	static final TodoType REPUTATION_APPROVE_PORTFOLIO_SUMMARY = new TodoType("reputation.approve_portfolio_summary",
+			Set.of(Audience.CUSTOMER), 3, Set.of("job"));
+
 	/** The Rating Window is open (FR-49): until the person rated everyone they rate, or the window ends. */
 	static final TodoType REPUTATION_RATE = new TodoType("reputation.rate", Set.of(Audience.CUSTOMER, Audience.MENTOR), 3,
 			Set.of("party"));
@@ -419,6 +437,7 @@ class NotificationTypes implements NotificationCatalog {
 				JOB_CLOSURE_PROPOSED, JOB_CLOSURE_DECLINED, JOB_JOB_CLOSING, JOB_JOB_CLOSED,
 				REPO_DATA_DELETION_CONFIRMATION_PENDING, REPUTATION_RATING_WINDOW_OPENED,
 				REPUTATION_PRIVATE_FEEDBACK_INVITED, REPUTATION_RATINGS_PUBLISHED,
+				REPUTATION_PORTFOLIO_SUMMARY_AWAITING_APPROVAL, REPUTATION_PORTFOLIO_ENTRY_PUBLISHED,
 				JOB_JOB_STARTING,
 				PAYMENT_REFUND_REQUESTED, PAYMENT_REFUND_CONFIRMED, WORK_WORK_ITEM_ASSIGNED,
 				WORK_REVIEW_REQUESTED, WORK_WORK_ITEM_APPROVED, WORK_WORK_ITEM_RETURNED);
@@ -431,7 +450,7 @@ class NotificationTypes implements NotificationCatalog {
 				JOB_REVIEW_AGREEMENT, JOB_PICK_CREW, JOB_CONFIRM_CREW_TERMS, JOB_REVISE_AGREEMENT, JOB_CONFIRM_AGREEMENT_MENTOR,
 				PAYMENT_FUND_MILESTONE, WORK_REVIEW_WORK_ITEM, WORK_FIX_RETURNED_ITEM, DELIVERY_HAND_OVER,
 				DELIVERY_REVIEW_HANDOVER, JOB_ANSWER_CLOSURE, REPO_CONFIRM_DATA_DELETION, REPUTATION_RATE,
-				REPUTATION_GIVE_PRIVATE_FEEDBACK);
+				REPUTATION_GIVE_PRIVATE_FEEDBACK, REPUTATION_DRAFT_PORTFOLIO_SUMMARY, REPUTATION_APPROVE_PORTFOLIO_SUMMARY);
 	}
 
 }

@@ -218,7 +218,7 @@
     },
     "/api/v1/admin/mentor-applications/{applicantId}/approve" : {
       "post" : {
-        "operationId" : "approve_1",
+        "operationId" : "approve_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "applicantId",
@@ -390,7 +390,7 @@
     },
     "/api/v1/admin/student-cards/{cardId}/approve" : {
       "post" : {
-        "operationId" : "approve",
+        "operationId" : "approve_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "cardId",
@@ -581,7 +581,7 @@
     },
     "/api/v1/boards/{boardId}/closure/decline" : {
       "post" : {
-        "operationId" : "decline_3",
+        "operationId" : "decline_4",
         "parameters" : [ {
           "in" : "path",
           "name" : "boardId",
@@ -835,6 +835,134 @@
           }
         },
         "tags" : [ "page-controller" ]
+      }
+    },
+    "/api/v1/boards/{boardId}/portfolio" : {
+      "get" : {
+        "operationId" : "portfolio",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PortfolioView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "portfolio-controller" ]
+      }
+    },
+    "/api/v1/boards/{boardId}/portfolio/summary" : {
+      "post" : {
+        "operationId" : "draft_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SummaryRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PortfolioView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "portfolio-controller" ]
+      }
+    },
+    "/api/v1/boards/{boardId}/portfolio/summary/approve" : {
+      "post" : {
+        "operationId" : "approve",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ApprovalRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PortfolioView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "portfolio-controller" ]
+      }
+    },
+    "/api/v1/boards/{boardId}/portfolio/summary/decline" : {
+      "post" : {
+        "operationId" : "decline_3",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PortfolioView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "portfolio-controller" ]
       }
     },
     "/api/v1/boards/{boardId}/private-feedback" : {
@@ -5617,6 +5745,20 @@
         },
         "required" : [ "approach", "priceVnd", "publicCodeAcknowledged", "timelineDays" ]
       },
+      "ApprovalRequest" : {
+        "type" : "object",
+        "properties" : {
+          "showProductName" : {
+            "type" : "boolean"
+          },
+          "text" : {
+            "type" : "string",
+            "maxLength" : 600,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "showProductName", "text" ]
+      },
       "ApproveMentorRequest" : {
         "type" : "object",
         "properties" : {
@@ -6911,6 +7053,50 @@
           }
         },
         "required" : [ "displayName", "email", "otpauthUri", "secret" ]
+      },
+      "EntryView" : {
+        "type" : "object",
+        "properties" : {
+          "jobTypes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "milestones" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "milestonesHandedOver" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "publishedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "reviewsWritten" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "role" : {
+            "type" : "string"
+          },
+          "skills" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "workItemsApproved" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "jobTypes", "milestones", "role", "skills", "title" ]
       },
       "EnvironmentResponse" : {
         "type" : "object",
@@ -9609,11 +9795,80 @@
             "type" : "integer",
             "format" : "int32"
           },
+          "milestonesHandedOver" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "productName" : {
+            "type" : "string"
+          },
+          "rating" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "reviewsWritten" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "role" : {
+            "type" : "string"
+          },
+          "skills" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "summary" : {
+            "type" : "string"
+          },
           "title" : {
+            "type" : "string"
+          },
+          "workItemsApproved" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "closedAt", "jobTypes", "milestones", "role", "skills", "title" ]
+      },
+      "PortfolioView" : {
+        "type" : "object",
+        "properties" : {
+          "audience" : {
+            "type" : "string"
+          },
+          "decideBy" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "exists" : {
+            "type" : "boolean"
+          },
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "mine" : {
+            "$ref" : "#/components/schemas/EntryView"
+          },
+          "open" : {
+            "type" : "boolean"
+          },
+          "productName" : {
+            "type" : "string"
+          },
+          "showProductName" : {
+            "type" : "boolean"
+          },
+          "summaryStatus" : {
+            "type" : "string"
+          },
+          "summaryText" : {
             "type" : "string"
           }
         },
-        "required" : [ "closedAt", "jobTypes", "milestones", "title" ]
+        "required" : [ "audience", "exists", "jobId", "open" ]
       },
       "PrivateFeedbackRequest" : {
         "type" : "object",
@@ -10969,6 +11224,17 @@
           }
         },
         "required" : [ "hint", "id", "name" ]
+      },
+      "SummaryRequest" : {
+        "type" : "object",
+        "properties" : {
+          "text" : {
+            "type" : "string",
+            "maxLength" : 600,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "text" ]
       },
       "TeamInvitationRequest" : {
         "type" : "object",

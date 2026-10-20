@@ -8,6 +8,7 @@ import { ClosureSection } from '@/features/job/closure/ClosureSection'
 import { milestoneStateText, milestoneTone } from '@/features/job/jobStateText'
 import { useTodos } from '@/features/notification/hooks'
 import { todoText } from '@/features/notification/texts'
+import { JobPortfolioSection } from '@/features/reputation/JobPortfolioSection'
 import { RatingSection } from '@/features/reputation/RatingSection'
 import { t, type MessageKey } from '@/i18n/t'
 import { formatCalendarDayMonth } from '@/lib/dates'
@@ -63,6 +64,7 @@ function Content({ jobId, audience, progress }: { jobId: string; audience: Progr
         <JobNextAction jobId={jobId} />
         <ClosureSection jobId={jobId} />
         {progress.state === 'CLOSED' && <RatingSection jobId={jobId} />}
+        {progress.state === 'CLOSED' && <JobPortfolioSection jobId={jobId} />}
         <section aria-labelledby="progress-milestones" className="flex flex-col gap-3">
           <h2 id="progress-milestones" className="text-h2">
             {t('screen.progress.milestones')}

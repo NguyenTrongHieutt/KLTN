@@ -27,8 +27,6 @@ import vn.vibefix.identity.CustomerNames;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.StudentDirectory;
 import vn.vibefix.identity.StudentDirectory.StudentCard;
-import vn.vibefix.job.JobPosts;
-import vn.vibefix.job.JobPosts.JobPostState;
 import vn.vibefix.reputation.internal.Ratings.Kind;
 import vn.vibefix.reputation.internal.Ratings.Rating;
 import vn.vibefix.reputation.internal.Ratings.Viewer;
@@ -36,11 +34,9 @@ import vn.vibefix.reputation.internal.Ratings.ViewerRole;
 import vn.vibefix.reputation.internal.Ratings.Window;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.ApiException;
-import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.shared.Role;
 
 /**
  * JOB-1's Ratings and private feedback (FR-49, FR-78, AD-20, UX-DR27, UX-DR51, UX-DR82), under
@@ -81,7 +77,7 @@ class RatingController {
 
 	private final Ratings ratings;
 
-	private final JobPosts posts;
+	private final JobViewers viewers;
 
 	private final CustomerNames customers;
 
@@ -93,10 +89,10 @@ class RatingController {
 
 	private final Clock clock;
 
-	RatingController(Ratings ratings, JobPosts posts, CustomerNames customers, MentorDirectory mentors,
+	RatingController(Ratings ratings, JobViewers viewers, CustomerNames customers, MentorDirectory mentors,
 			StudentDirectory students, CurrentCaller callers, Clock clock) {
 		this.ratings = ratings;
-		this.posts = posts;
+		this.viewers = viewers;
 		this.customers = customers;
 		this.mentors = mentors;
 		this.students = students;
@@ -106,14 +102,14 @@ class RatingController {
 
 	@GetMapping("/api/v1/boards/{boardId}/ratings")
 	RatingsView ratings(@PathVariable("boardId") UUID jobId) {
-		return view(viewer(jobId, this.callers.get()));
+		return view(this.viewers.viewer(jobId, this.callers.get()));
 	}
 
 	/** One Rating (FR-49), read-only once sent. */
 	@PostMapping("/api/v1/boards/{boardId}/ratings")
 	@ResponseStatus(HttpStatus.CREATED)
 	RatingsView rate(@PathVariable("boardId") UUID jobId, @Valid @RequestBody RatingRequest body) {
-		Viewer viewer = viewer(jobId, this.callers.get());
+		Viewer viewer = this.viewers.viewer(jobId, this.callers.get());
 		this.ratings.rate(viewer, body.rateeId(), body.stars(), body.comment());
 		return view(viewer);
 	}
@@ -122,32 +118,11 @@ class RatingController {
 	@PostMapping("/api/v1/boards/{boardId}/private-feedback")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void giveFeedback(@PathVariable("boardId") UUID jobId, @Valid @RequestBody PrivateFeedbackRequest body) {
-		Viewer viewer = viewer(jobId, this.callers.get());
+		Viewer viewer = this.viewers.viewer(jobId, this.callers.get());
 		if (viewer.role() != ViewerRole.CREW) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		this.ratings.giveFeedback(viewer, body.stars(), body.comment());
-	}
-
-	/** The Customer, the Mentor (revoked or not), or a Crew member who was ever active. */
-	private Viewer viewer(UUID jobId, Caller caller) {
-		JobPostState post = this.posts.post(jobId).filter(found -> found.mentorId() != null)
-			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		UUID account = caller.accountId();
-		boolean ended = List.of("ACTIVE", "CLOSING", "CLOSED", "CANCELLED").contains(post.state());
-		if (account == null || !ended) {
-			throw new ApiException(ErrorCode.NOT_FOUND);
-		}
-		if (caller.hasRole(Role.CUSTOMER) && account.equals(post.customerId())) {
-			return new Viewer(jobId, account, ViewerRole.CUSTOMER);
-		}
-		if (caller.hasRole(Role.MENTOR) && account.equals(post.mentorId())) {
-			return new Viewer(jobId, account, ViewerRole.MENTOR);
-		}
-		if (caller.hasRole(Role.STUDENT) && this.ratings.crew(jobId).contains(account)) {
-			return new Viewer(jobId, account, ViewerRole.CREW);
-		}
-		throw new ApiException(ErrorCode.NOT_FOUND);
 	}
 
 	private RatingsView view(Viewer viewer) {

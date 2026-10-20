@@ -127,7 +127,21 @@ describe('PUB-5, Ratings and Portfolio Entries (FR-51, FR-14)', () => {
           average: 4.8,
           count: 6,
           newcomer: false,
-          portfolio: [{ title: 'Chỉnh giao diện điện thoại', jobTypes: ['MODIFICATION'], closedAt: '2026-08-20T03:00:00Z', milestones: 1 }],
+          portfolio: [
+            {
+              title: 'Chỉnh giao diện điện thoại',
+              role: 'MENTOR',
+              jobTypes: ['MODIFICATION'],
+              skills: ['React'],
+              closedAt: '2026-08-20T03:00:00Z',
+              milestones: 1,
+              milestonesHandedOver: 1,
+              reviewsWritten: 3,
+              rating: 5,
+              summary: 'Sửa giao diện cho điện thoại nhỏ.',
+              productName: 'Sổ đặt bàn Quán Mây',
+            },
+          ],
         }),
     })
     renderAt('/mentor/hungdm')
@@ -137,6 +151,12 @@ describe('PUB-5, Ratings and Portfolio Entries (FR-51, FR-14)', () => {
     expect(screen.queryByText('Mới')).toBeNull()
     expect(screen.getByText('Chỉnh giao diện điện thoại')).toBeInTheDocument()
     expect(screen.getByText('Chỉnh sửa · 08/2026 · 1 giai đoạn')).toBeInTheDocument()
+    const card = within(screen.getByText('Chỉnh giao diện điện thoại').closest('li')!)
+    expect(card.getByText('1 giai đoạn đã bàn giao · 3 lượt duyệt việc')).toBeInTheDocument()
+    expect(card.getByText('5 sao')).toBeInTheDocument()
+    expect(card.getByText('Sửa giao diện cho điện thoại nhỏ.')).toBeInTheDocument()
+    expect(card.getByText('Sổ đặt bàn Quán Mây')).toBeInTheDocument()
+    expect(card.getByText('React')).toBeInTheDocument()
   })
 
   it('says a revoked or locked Mentor takes no work now', async () => {

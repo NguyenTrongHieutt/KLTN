@@ -1,0 +1,5 @@
+subject: Hãy duyệt tóm tắt hồ sơ năng lực của {job} trước {date}
+---
+Xin chào,
+
+Người hướng dẫn đã viết tóm tắt cho hồ sơ năng lực từ công việc {job}. Hãy duyệt, sửa, hoặc từ chối trên vibefix trước {date}, và chọn có cho hiện tên sản phẩm hay không. Nếu bạn không trả lời, hồ sơ năng lực sẽ không có tóm tắt.
