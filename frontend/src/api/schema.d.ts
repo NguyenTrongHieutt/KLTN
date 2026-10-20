@@ -372,6 +372,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/statistics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["statistics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/student-cards": {
         parameters: {
             query?: never;
@@ -5515,6 +5531,18 @@ export interface components {
             /** Format: date-time */
             stalledAt: string;
         };
+        StatisticGroupView: {
+            counts: components["schemas"]["StatisticView"][];
+            group: string;
+        };
+        StatisticView: {
+            key: string;
+            /** Format: int64 */
+            value: number;
+        };
+        StatisticsView: {
+            groups: components["schemas"]["StatisticGroupView"][];
+        };
         StudentCardRow: {
             /** Format: date-time */
             decidedAt?: string;
@@ -6541,6 +6569,26 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    statistics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatisticsView"];
+                };
             };
         };
     };

@@ -790,6 +790,24 @@
         "tags" : [ "admin-sign-in-controller" ]
       }
     },
+    "/api/v1/admin/statistics" : {
+      "get" : {
+        "operationId" : "statistics",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StatisticsView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-statistics-controller" ]
+      }
+    },
     "/api/v1/admin/student-cards" : {
       "get" : {
         "operationId" : "cards",
@@ -13634,6 +13652,46 @@
           }
         },
         "required" : [ "attempts", "eventType", "id", "listenerId", "stalledAt" ]
+      },
+      "StatisticGroupView" : {
+        "type" : "object",
+        "properties" : {
+          "counts" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/StatisticView"
+            }
+          },
+          "group" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "counts", "group" ]
+      },
+      "StatisticView" : {
+        "type" : "object",
+        "properties" : {
+          "key" : {
+            "type" : "string"
+          },
+          "value" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "key", "value" ]
+      },
+      "StatisticsView" : {
+        "type" : "object",
+        "properties" : {
+          "groups" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/StatisticGroupView"
+            }
+          }
+        },
+        "required" : [ "groups" ]
       },
       "StudentCardRow" : {
         "type" : "object",
