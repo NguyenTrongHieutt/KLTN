@@ -1,4 +1,4 @@
-import { Plus, Trash2, TriangleAlert, Users } from 'lucide-react'
+import { Plus, Trash2, TriangleAlert } from 'lucide-react'
 import { useId, useState, type ReactNode } from 'react'
 import { Navigate, useParams } from 'react-router'
 import { usePageTitle } from '@/app/usePageTitle'
@@ -8,46 +8,33 @@ import { Skeleton } from '@/components/Skeleton'
 import { SkillPicker } from '@/components/SkillPicker'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
-import { hasChat, useJobChat } from '@/features/chat/chatApi'
+import { hasChat } from '@/features/chat/chatApi'
 import { useCrewPanel } from '@/features/crew/crewApi'
 import { CrewHeaderLine, CrewSection } from '@/features/crew/CrewPanel'
 import { useSession } from '@/features/identity/useSession'
-import { useJob, type Job } from '@/features/job/jobApi'
 import { JobHeader } from '@/features/job/JobHeader'
-import { customerMeta, mentorMeta } from '@/features/job/jobMeta'
-import { JobTabs } from '@/features/job/JobTabs'
+import { mentorMeta } from '@/features/job/jobMeta'
 import { MentorJobTabs } from '@/features/matching/MentorJobTabs'
 import { useMentorJob } from '@/features/matching/mentorJobApi'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t, type MessageKey } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
-import { formatCalendarDate, formatDayMonth, formatDayMonthTime } from '@/lib/dates'
+import { formatDayMonthTime } from '@/lib/dates'
 import { formatVnd, groupDigits } from '@/lib/money'
 import { isNotFound, problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
-import {
-  useCustomerAgreement,
-  useMentorAgreement,
-  useSaveAgreement,
-  useShareAgreement,
-  type AgreementContent,
-  type AgreementDraft,
-} from './agreementApi'
-import {
-  digits,
-  problemsOf,
-  stepCount,
-  technicalOnly,
-  type DraftAccess,
-  type DraftMilestone,
-  type DraftProblem,
-} from './agreementChecks'
+import { CodeRights, TestTag } from './AgreementContent'
+import { useMentorAgreement, useSaveAgreement, useShareAgreement, type AgreementContent, type AgreementDraft } from './agreementApi'
+import { digits, problemsOf, technicalOnly, type DraftAccess, type DraftMilestone, type DraftProblem } from './agreementChecks'
+import { CustomerAgreement } from './CustomerAgreement'
+import { ConfirmCard, ConfirmedView, CustomerFeedback } from './MentorReview'
+import { inOrder } from './reviewTargets'
 
 /**
- * JOB-6 "Thỏa thuận" (`/cong-viec/{jobId}/thoa-thuan`, FR-16, FR-75, AD-29, UX-DR34, UX-DR60): the
- * Mentor drafts the Agreement and shares it, and picks the Crew with its shares below the editor; the
- * Customer reads the shared versions and the Crew's GitHub usernames. Comments, reordering, and
- * approval come with Story 4.4.
+ * JOB-6 "Thỏa thuận" (`/cong-viec/{jobId}/thoa-thuan`, FR-16, FR-17, FR-75, AD-29, UX-DR34, UX-DR60):
+ * the Mentor drafts and shares the Agreement with the Customer's comments in view, picks the Crew
+ * below the editor, and confirms once the Customer approved and the Crew confirmed; the Customer
+ * reviews the shared versions (`CustomerAgreement`).
  */
 export function AgreementPage() {
   const { jobId } = useParams()
@@ -64,10 +51,6 @@ function Frame({ children }: { children: ReactNode }) {
       {children}
     </div>
   )
-}
-
-function TestTag() {
-  return <span className="rounded bg-warning-soft px-1 text-caption font-semibold text-warning">{t('screen.matching.test')}</span>
 }
 
 function MentorAgreement({ jobId }: { jobId: string }) {
@@ -97,11 +80,19 @@ function MentorAgreement({ jobId }: { jobId: string }) {
         )}
       </RegionState>
       <RegionState query={draft} skeleton={<Skeleton className="h-96 w-full" />}>
-        {draft.data && <Editor key={draft.data.revision} jobId={jobId} draft={draft.data} />}
+        {draft.data &&
+          (draft.data.confirmed ? (
+            <ConfirmedView confirmed={draft.data.confirmed} />
+          ) : (
+            <Editor key={draft.data.revision} jobId={jobId} draft={draft.data} />
+          ))}
       </RegionState>
       <RegionState query={crew} skeleton={<Skeleton className="h-64 w-full" />}>
         {crew.data && <CrewSection key={crew.data.crewVersion} jobId={jobId} panel={crew.data} />}
       </RegionState>
+      {job.data && draft.data && crew.data && !draft.data.confirmed && (
+        <ConfirmCard job={job.data} draft={draft.data} panel={crew.data} />
+      )}
     </Frame>
   )
 }
@@ -185,6 +176,14 @@ function Editor({ jobId, draft }: { jobId: string; draft: AgreementDraft }) {
 
   return (
     <div className="flex w-full max-w-[860px] flex-col gap-5 self-center">
+      <CustomerFeedback
+        review={draft.review}
+        content={content}
+        onApplyOrder={(order) => {
+          touch(setMilestones)(inOrder(milestones, order))
+          toasts.success(t('screen.agreement.review.orderApplied'))
+        }}
+      />
       <div className="flex flex-wrap items-center justify-between gap-2 text-body-sm text-muted-foreground">
         <span>
           {last
@@ -544,15 +543,6 @@ function AccessEditor({ access, onChange }: { access: DraftAccess[]; onChange: (
   )
 }
 
-function CodeRights() {
-  return (
-    <section className="flex flex-col gap-1 rounded-lg bg-muted p-4">
-      <p className="text-label font-semibold">{t('screen.agreement.codeRightsTitle')}</p>
-      <p className="text-body-sm">{t('screen.agreement.codeRights')}</p>
-    </section>
-  )
-}
-
 function ProblemSummary({ problems }: { problems: DraftProblem[] }) {
   return (
     <div role="alert" className="flex gap-3 rounded-md border-l-4 border-destructive bg-destructive-soft p-4 text-body-sm">
@@ -571,201 +561,5 @@ function ProblemSummary({ problems }: { problems: DraftProblem[] }) {
         </ul>
       </div>
     </div>
-  )
-}
-
-function CustomerAgreement({ jobId }: { jobId: string }) {
-  const job = useJob(jobId)
-  const [version, setVersion] = useState<number>()
-  const agreement = useCustomerAgreement(jobId, version)
-  usePageTitle(job.data ? t('screen.agreement.title', { job: job.data.title }) : t('screen.job.title'))
-  if (job.isError && isNotFound(job.error)) {
-    return <NotFoundScreen />
-  }
-  if (job.data && !job.data.agreementShared) {
-    return <Navigate to={`/cong-viec/${job.data.id}`} replace />
-  }
-  return (
-    <Frame>
-      <RegionState query={job} skeleton={<Skeleton className="h-24 w-full" />}>
-        {job.data && <CustomerHeader job={job.data} />}
-      </RegionState>
-      <RegionState query={agreement} skeleton={<Skeleton className="h-96 w-full" />}>
-        {agreement.data && (
-          <div className="flex w-full max-w-[820px] flex-col gap-5 self-center">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              {agreement.data.versions.length > 1 && (
-                <VersionPicker
-                  versions={agreement.data.versions}
-                  value={agreement.data.versionNo}
-                  onChange={setVersion}
-                />
-              )}
-              <p className="text-body-sm text-muted-foreground">
-                {t('screen.agreement.sentBy', {
-                  n: agreement.data.versionNo,
-                  time: formatDayMonthTime(agreement.data.sharedAt),
-                })}
-              </p>
-            </div>
-            <CrewLine crew={agreement.data.crew} confirmed={agreement.data.crewConfirmed} />
-            <AgreementContentView content={agreement.data.content} quotePrice={agreement.data.quote?.priceVnd} />
-            <p className="text-body-sm text-muted-foreground">{t('screen.agreement.next')}</p>
-          </div>
-        )}
-      </RegionState>
-    </Frame>
-  )
-}
-
-/**
- * "Nhóm thực hiện" for the Customer (FR-75, R-1 L4): the GitHub usernames of the Crew only, never a
- * share, with "Chờ nhóm thực hiện xác nhận" until FR-17's Crew condition holds.
- */
-function CrewLine({ crew, confirmed }: { crew: string[]; confirmed: boolean }) {
-  return (
-    <section className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-4 text-body-sm">
-      <Users aria-hidden="true" className="size-4 text-primary" />
-      <span className="font-semibold">{t('screen.crew.customer.title')}:</span>
-      {crew.length > 0 ? (
-        <span className="font-mono break-words">{crew.join(' · ')}</span>
-      ) : (
-        <span className="text-muted-foreground">{t('screen.crew.customer.none')}</span>
-      )}
-      {!confirmed && (
-        <span className="rounded-full bg-warning-soft px-2 py-0.5 text-caption font-semibold text-warning">
-          {t('screen.crew.customer.waiting')}
-        </span>
-      )}
-    </section>
-  )
-}
-
-function CustomerHeader({ job }: { job: Job }) {
-  const chat = useJobChat(hasChat(job.state) ? job.id : undefined)
-  return (
-    <JobHeader title={job.title} state={job.state} meta={customerMeta(job)}>
-      <JobTabs
-        jobId={job.id}
-        current="agreement"
-        chat={hasChat(job.state) ? { unread: chat.data?.unread ?? false } : undefined}
-        agreement
-      />
-    </JobHeader>
-  )
-}
-
-function VersionPicker({
-  versions,
-  value,
-  onChange,
-}: {
-  versions: { versionNo: number; sharedAt: string }[]
-  value: number
-  onChange: (version: number) => void
-}) {
-  const ids = useId()
-  return (
-    <div className="flex flex-col gap-1">
-      <label htmlFor={`${ids}-version`} className="text-label">
-        {t('screen.agreement.version')}
-      </label>
-      <select id={`${ids}-version`} value={value} onChange={(event) => onChange(Number(event.target.value))} className={inputClass}>
-        {[...versions].reverse().map((version) => (
-          <option key={version.versionNo} value={version.versionNo}>
-            {t('screen.agreement.versionOption', { n: version.versionNo, date: formatDayMonth(version.sharedAt) })}
-          </option>
-        ))}
-      </select>
-    </div>
-  )
-}
-
-/** A shared version, read-only: scope, Milestones with their criteria, External Access, code rights. */
-function AgreementContentView({ content, quotePrice }: { content: AgreementContent; quotePrice?: number }) {
-  const total = content.milestones.reduce((sum, milestone) => sum + (milestone.priceVnd ?? 0), 0)
-  return (
-    <>
-      {!content.assessment && (
-        <section className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5">
-          <h2 className="text-h2">{t('screen.agreement.scope')}</h2>
-          <p className="text-body-sm break-words whitespace-pre-line">{content.scope}</p>
-          {content.codeJob && <p className="text-body-sm text-muted-foreground">{t('screen.agreement.codeStatement')}</p>}
-          {content.skills.length > 0 && (
-            <ul className="flex flex-wrap gap-1.5">
-              {content.skills.map((skill) => (
-                <li key={skill.id} className="rounded-full bg-muted px-2 py-0.5 text-caption">
-                  {skill.name}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      )}
-      <section className="flex flex-col gap-3">
-        <h2 className="text-h2">{t('screen.agreement.milestones')}</h2>
-        {content.milestones.map((milestone, m) => (
-          <article key={milestone.id} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5">
-            <h3 className="text-h3 break-words">
-              {t('screen.agreement.milestone', { n: m + 1 })} · {milestone.title}
-            </h3>
-            <p className="flex flex-wrap gap-4 text-body-sm">
-              {milestone.priceVnd != null && (
-                <span>
-                  {t('screen.agreement.priceLine', { price: formatVnd(milestone.priceVnd) })} <TestTag />
-                </span>
-              )}
-              {milestone.dueOn && <span>{t('screen.agreement.due', { date: formatCalendarDate(milestone.dueOn) })}</span>}
-            </p>
-            <p className="text-caption text-muted-foreground">{t('screen.agreement.roundsCount', { n: milestone.revisionRounds })}</p>
-            <p className="text-label font-semibold">{t('screen.agreement.criteriaTitle')}</p>
-            <ol className="flex list-decimal flex-col gap-1 pl-5 text-body-sm">
-              {milestone.criteria.map((criterion) => (
-                <li key={criterion.id} className="break-words">
-                  {criterion.statement}{' '}
-                  <span className="text-caption text-muted-foreground">
-                    · {t('screen.agreement.stepsCount', { n: stepCount(criterion.checkSteps) })}
-                  </span>
-                </li>
-              ))}
-            </ol>
-          </article>
-        ))}
-        <p className="text-body-sm">
-          {t('screen.agreement.total', { total: formatVnd(total) })} <TestTag />
-          {quotePrice !== undefined && (
-            <>
-              {' · '}
-              <span className={cn(total !== quotePrice && 'font-semibold text-warning')}>
-                {t(total === quotePrice ? 'screen.agreement.matchesQuote' : 'screen.agreement.differsQuote')}
-              </span>
-            </>
-          )}
-        </p>
-      </section>
-      {content.externalAccess.length > 0 && (
-        <section className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5">
-          <h2 className="text-h2">{t('screen.agreement.externalAccess')}</h2>
-          <ul className="flex flex-col gap-2 text-body-sm">
-            {content.externalAccess.map((entry) => (
-              <li key={entry.id} className="flex flex-wrap items-center justify-between gap-2">
-                <span className="break-words">
-                  {entry.system} · {entry.purpose}
-                </span>
-                <span
-                  className={cn(
-                    'rounded-full px-2 py-0.5 text-caption font-semibold',
-                    entry.environment === 'PRODUCTION' ? 'bg-destructive-soft text-destructive' : 'bg-muted',
-                  )}
-                >
-                  {t(`screen.agreement.env${entry.environment}` as MessageKey)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-      <CodeRights />
-    </>
   )
 }

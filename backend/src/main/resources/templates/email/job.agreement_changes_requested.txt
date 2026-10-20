@@ -1,0 +1,6 @@
+subject: Khách hàng góp ý thỏa thuận {job}
+---
+Xin chào,
+
+Khách hàng đã góp ý bản nháp thỏa thuận của công việc {job}.
+Hãy mở vibefix để xem góp ý, sửa bản nháp và gửi lại cho khách hàng.

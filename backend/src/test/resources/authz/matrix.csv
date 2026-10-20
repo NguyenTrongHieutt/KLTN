@@ -705,3 +705,35 @@ POST /api/v1/crew/jobs/{jobId}/decline,OWNER,,crew-decline.json,404 NOT_FOUND
 POST /api/v1/crew/jobs/{jobId}/decline,CUSTOMER,,crew-decline.json,404 NOT_FOUND
 POST /api/v1/crew/jobs/{jobId}/decline,MENTOR,,crew-decline.json,404 NOT_FOUND
 POST /api/v1/crew/jobs/{jobId}/decline,ADMINISTRATOR,,crew-decline.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/agreement/comments,ANONYMOUS,,agreement-comment.json,401
+POST /api/v1/jobs/{jobId}/agreement/comments,OWNER,,agreement-comment.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/agreement/comments,CUSTOMER,,agreement-comment.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/agreement/comments,MENTOR,,agreement-comment.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/agreement/comments,STUDENT,,agreement-comment.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/agreement/comments,ADMINISTRATOR,,agreement-comment.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/agreement/changes,ANONYMOUS,,agreement-changes.json,401
+POST /api/v1/jobs/{jobId}/agreement/changes,OWNER,,agreement-changes.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/agreement/changes,CUSTOMER,,agreement-changes.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/agreement/changes,MENTOR,,agreement-changes.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/agreement/changes,STUDENT,,agreement-changes.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/agreement/changes,ADMINISTRATOR,,agreement-changes.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/agreement/approve,ANONYMOUS,,agreement-approve.json,401
+POST /api/v1/jobs/{jobId}/agreement/approve,OWNER,,agreement-approve.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/agreement/approve,CUSTOMER,,agreement-approve.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/agreement/approve,MENTOR,,agreement-approve.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/agreement/approve,STUDENT,,agreement-approve.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/agreement/approve,ADMINISTRATOR,,agreement-approve.json,404 NOT_FOUND
+POST /api/v1/mentor/jobs/{jobId}/agreement/confirm,ANONYMOUS,,agreement-confirm.json,401,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/agreement/confirm,MENTOR,,agreement-confirm.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/agreement/confirm,MENTOR,mentor=PENDING,agreement-confirm.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/agreement/confirm,OWNER,,agreement-confirm.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/agreement/confirm,CUSTOMER,,agreement-confirm.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/agreement/confirm,STUDENT,,agreement-confirm.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/agreement/confirm,ADMINISTRATOR,,agreement-confirm.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew/reconfirm,ANONYMOUS,,crew-remove.json,401,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew/reconfirm,MENTOR,,crew-remove.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew/reconfirm,MENTOR,mentor=PENDING,crew-remove.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew/reconfirm,OWNER,,crew-remove.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew/reconfirm,CUSTOMER,,crew-remove.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew/reconfirm,STUDENT,,crew-remove.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew/reconfirm,ADMINISTRATOR,,crew-remove.json,404 NOT_FOUND,requireActiveAccount

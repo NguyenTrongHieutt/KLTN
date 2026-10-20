@@ -786,6 +786,103 @@
         "tags" : [ "agreement-controller" ]
       }
     },
+    "/api/v1/jobs/{jobId}/agreement/approve" : {
+      "post" : {
+        "operationId" : "approveAgreement",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AgreementApproveRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "agreement-controller" ]
+      }
+    },
+    "/api/v1/jobs/{jobId}/agreement/changes" : {
+      "post" : {
+        "operationId" : "requestAgreementChanges",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AgreementChangesRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "agreement-controller" ]
+      }
+    },
+    "/api/v1/jobs/{jobId}/agreement/comments" : {
+      "post" : {
+        "operationId" : "commentOnAgreement",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AgreementCommentRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AgreementCommentView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "agreement-controller" ]
+      }
+    },
     "/api/v1/jobs/{jobId}/applications" : {
       "get" : {
         "operationId" : "ofJob",
@@ -1764,6 +1861,43 @@
         "tags" : [ "agreement-controller" ]
       }
     },
+    "/api/v1/mentor/jobs/{jobId}/agreement/confirm" : {
+      "post" : {
+        "operationId" : "confirmAgreement",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AgreementConfirmRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AgreementDraftView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "agreement-controller" ]
+      }
+    },
     "/api/v1/mentor/jobs/{jobId}/agreement/share" : {
       "post" : {
         "operationId" : "share",
@@ -1843,6 +1977,43 @@
             "application/json" : {
               "schema" : {
                 "$ref" : "#/components/schemas/CrewAddRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CrewPanelView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "crew-controller" ]
+      }
+    },
+    "/api/v1/mentor/jobs/{jobId}/crew/reconfirm" : {
+      "post" : {
+        "operationId" : "reconfirmCrew",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CrewReconfirmRequest"
               }
             }
           },
@@ -3521,9 +3692,156 @@
         },
         "required" : [ "absoluteExpiresAt", "displayName", "email", "idleExpiresAt" ]
       },
+      "AgreementApproveRequest" : {
+        "type" : "object",
+        "properties" : {
+          "freezeCommitment" : {
+            "type" : "boolean"
+          },
+          "liveAccessIds" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            },
+            "maxItems" : 20,
+            "minItems" : 0
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "versionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "freezeCommitment", "liveAccessIds", "version", "versionNo" ]
+      },
+      "AgreementChangeRequestView" : {
+        "type" : "object",
+        "properties" : {
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "milestoneOrder" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          },
+          "note" : {
+            "type" : "string"
+          },
+          "versionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "createdAt", "note", "versionNo" ]
+      },
+      "AgreementChangesRequest" : {
+        "type" : "object",
+        "properties" : {
+          "milestoneOrder" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            },
+            "maxItems" : 20,
+            "minItems" : 0
+          },
+          "note" : {
+            "type" : "string",
+            "maxLength" : 2000,
+            "minLength" : 0
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "versionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "note", "version", "versionNo" ]
+      },
+      "AgreementCommentRequest" : {
+        "type" : "object",
+        "properties" : {
+          "body" : {
+            "type" : "string",
+            "maxLength" : 1000,
+            "minLength" : 0
+          },
+          "targetId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "targetKind" : {
+            "type" : "string",
+            "enum" : [ "SCOPE", "MILESTONE", "CRITERION", "EXTERNAL_ACCESS" ]
+          },
+          "versionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "body", "targetKind", "versionNo" ]
+      },
+      "AgreementCommentView" : {
+        "type" : "object",
+        "properties" : {
+          "body" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "targetId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "targetKind" : {
+            "type" : "string",
+            "enum" : [ "SCOPE", "MILESTONE", "CRITERION", "EXTERNAL_ACCESS" ]
+          },
+          "versionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "body", "createdAt", "id", "targetKind", "versionNo" ]
+      },
+      "AgreementConfirmRequest" : {
+        "type" : "object",
+        "properties" : {
+          "crewVersion" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "crewVersion", "version" ]
+      },
       "AgreementDraftView" : {
         "type" : "object",
         "properties" : {
+          "confirmed" : {
+            "$ref" : "#/components/schemas/ConfirmedAgreementView"
+          },
           "content" : {
             "$ref" : "#/components/schemas/Content"
           },
@@ -3535,6 +3853,9 @@
           },
           "quote" : {
             "$ref" : "#/components/schemas/QuoteView"
+          },
+          "review" : {
+            "$ref" : "#/components/schemas/AgreementReviewView"
           },
           "revision" : {
             "type" : "integer",
@@ -3551,11 +3872,57 @@
             }
           }
         },
-        "required" : [ "content", "problems", "revision", "state", "versions" ]
+        "required" : [ "content", "problems", "review", "revision", "state", "versions" ]
+      },
+      "AgreementReviewView" : {
+        "type" : "object",
+        "properties" : {
+          "approvedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "changeRequest" : {
+            "$ref" : "#/components/schemas/AgreementChangeRequestView"
+          },
+          "comments" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/AgreementCommentView"
+            }
+          },
+          "draftMatchesShared" : {
+            "type" : "boolean"
+          },
+          "latestVersionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "comments", "draftMatchesShared" ]
       },
       "AgreementVersionView" : {
         "type" : "object",
         "properties" : {
+          "agreementStartedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "approvedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "changeRequested" : {
+            "type" : "boolean"
+          },
+          "comments" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/AgreementCommentView"
+            }
+          },
+          "confirmed" : {
+            "$ref" : "#/components/schemas/ConfirmedAgreementView"
+          },
           "content" : {
             "$ref" : "#/components/schemas/Content"
           },
@@ -3567,6 +3934,10 @@
           },
           "crewConfirmed" : {
             "type" : "boolean"
+          },
+          "latestVersionNo" : {
+            "type" : "integer",
+            "format" : "int32"
           },
           "quote" : {
             "$ref" : "#/components/schemas/QuoteView"
@@ -3586,7 +3957,7 @@
             }
           }
         },
-        "required" : [ "content", "crew", "crewConfirmed", "sharedAt", "versionNo", "versions" ]
+        "required" : [ "changeRequested", "comments", "content", "crew", "crewConfirmed", "latestVersionNo", "sharedAt", "versionNo", "versions" ]
       },
       "ApplicantView" : {
         "type" : "object",
@@ -3867,6 +4238,47 @@
         },
         "required" : [ "code" ]
       },
+      "ConfirmedAgreementView" : {
+        "type" : "object",
+        "properties" : {
+          "approvedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "confirmedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "content" : {
+            "$ref" : "#/components/schemas/Content"
+          },
+          "crew" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "draftVersionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "freezeCommitted" : {
+            "type" : "boolean"
+          },
+          "liveAccessIds" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          },
+          "versionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "approvedAt", "confirmedAt", "content", "crew", "draftVersionNo", "freezeCommitted", "liveAccessIds", "versionNo" ]
+      },
       "Content" : {
         "type" : "object",
         "properties" : {
@@ -4145,6 +4557,9 @@
               "$ref" : "#/components/schemas/CrewMilestoneView"
             }
           },
+          "reconfirmOwed" : {
+            "type" : "boolean"
+          },
           "rows" : {
             "type" : "array",
             "items" : {
@@ -4162,7 +4577,17 @@
             "format" : "int32"
           }
         },
-        "required" : [ "capPercent", "confirmedCount", "crewConfirmed", "crewVersion", "largeCrews", "locked", "mentor", "milestones", "rows", "team", "total" ]
+        "required" : [ "capPercent", "confirmedCount", "crewConfirmed", "crewVersion", "largeCrews", "locked", "mentor", "milestones", "reconfirmOwed", "rows", "team", "total" ]
+      },
+      "CrewReconfirmRequest" : {
+        "type" : "object",
+        "properties" : {
+          "crewVersion" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "crewVersion" ]
       },
       "CrewRemoveRequest" : {
         "type" : "object",

@@ -35,6 +35,7 @@ const mentorJob = {
 const draft = {
   revision: 1,
   state: 'AGREEMENT',
+  review: { comments: [], draftMatchesShared: false },
   versions: [],
   problems: [],
   content: {
@@ -79,6 +80,7 @@ const panel = (overrides: object = {}) => ({
   rows: [minh()],
   team: [{ studentId: 's-minh', name: 'Trần Quang Minh', githubLogin: 'minhtq', state: 'IN_CREW' }],
   milestones: [{ title: 'Sửa lỗi trùng giờ đặt bàn', priceVnd: 2000000 }],
+  reconfirmOwed: false,
   ...overrides,
 })
 

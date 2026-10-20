@@ -12,6 +12,7 @@ import { problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import {
   useAddCrewMember,
+  useReconfirmCrew,
   useRemoveCrewMember,
   useSaveCrewTerms,
   type CrewCandidate,
@@ -50,7 +51,10 @@ export function CrewHeaderLine({ panel }: { panel: Panel }) {
 }
 
 /** The line's AD-41 state: "Đã phân công · chưa xác nhận", "Đang tham gia · …", "Tạm ngừng", or "Đã rời · …". */
-function stateText(row: CrewRow, latest: number | undefined): string {
+function stateText(row: CrewRow, latest: number | undefined, owed: boolean): string {
+  if (row.status === 'INACTIVE' && owed) {
+    return t('screen.crew.panel.state.INACTIVE_OWED')
+  }
   if (row.status === 'RELEASED') {
     return row.releasedReason
       ? t(`screen.crew.panel.released.${row.releasedReason}` as MessageKey)
@@ -83,6 +87,7 @@ export function CrewSection({ jobId, panel }: { jobId: string; panel: Panel }) {
   const add = useAddCrewMember(jobId)
   const remove = useRemoveCrewMember(jobId)
   const save = useSaveCrewTerms(jobId)
+  const reconfirm = useReconfirmCrew(jobId)
   const running = panel.rows.filter((row) => row.status !== 'RELEASED')
   const [mentorShare, setMentorShare] = useState(panel.mentor.percent == null ? '' : String(panel.mentor.percent))
   const [shares, setShares] = useState<Record<string, string>>(() =>
@@ -90,7 +95,7 @@ export function CrewSection({ jobId, panel }: { jobId: string; panel: Panel }) {
   )
   const [picking, setPicking] = useState(false)
   const [confirming, setConfirming] = useState(false)
-  const pending = add.isPending || remove.isPending || save.isPending
+  const pending = add.isPending || remove.isPending || save.isPending || reconfirm.isPending
   const locked = panel.locked
   const atLimit = !panel.largeCrews && running.length >= 1
   const latestNo = panel.latest?.versionNo
@@ -202,6 +207,32 @@ export function CrewSection({ jobId, panel }: { jobId: string; panel: Panel }) {
           )}
         </div>
 
+        {panel.reconfirmOwed && (
+          <div role="alert" className="flex flex-col gap-3 rounded-md border-l-4 border-warning bg-warning-soft p-4 text-body-sm">
+            <div className="flex gap-3">
+              <TriangleAlert aria-hidden="true" className="size-5 shrink-0 text-warning" />
+              <div className="flex flex-col gap-0.5">
+                <p className="font-semibold">{t('screen.crew.panel.reconfirmTitle')}</p>
+                <p>{t('screen.crew.panel.reconfirmBody')}</p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              size="compact"
+              className="self-start"
+              disabled={!panel.crewConfirmed || pending}
+              onClick={() =>
+                reconfirm.mutate(panel.crewVersion, {
+                  onSuccess: () => toasts.success(t('screen.crew.panel.reconfirmed')),
+                  onError: (error) => failed(error, t('screen.crew.panel.reconfirmAction')),
+                })
+              }
+            >
+              {t('screen.crew.panel.reconfirm')}
+            </Button>
+          </div>
+        )}
+
         {locked ? (
           <div role="note" className="flex gap-3 rounded-md border-l-4 border-primary bg-primary-soft p-4 text-body-sm">
             <Lock aria-hidden="true" className="size-5 shrink-0 text-primary" />
@@ -302,7 +333,7 @@ export function CrewSection({ jobId, panel }: { jobId: string; panel: Panel }) {
                     <td className="py-3 pr-3">
                       <span className="flex flex-col items-start gap-1">
                         <span className={cn('rounded-full px-2 py-0.5 text-caption font-semibold', STATE_TONE[row.status])}>
-                          {stateText(row, latestNo)}
+                          {stateText(row, latestNo, panel.reconfirmOwed)}
                         </span>
                         {!released && (
                           <span className="text-caption text-muted-foreground">

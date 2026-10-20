@@ -57,6 +57,13 @@ export function useSaveCrewTerms(jobId: string) {
   )
 }
 
+/** "Xác nhận lại nhóm thực hiện" after a lock owed it (R-1 H1). */
+export function useReconfirmCrew(jobId: string) {
+  return usePanelCommand(jobId, (crewVersion: number) =>
+    unwrap(apiClient.POST('/api/v1/mentor/jobs/{jobId}/crew/reconfirm', { params: { path: { jobId } }, body: { crewVersion } })),
+  )
+}
+
 /** STU-4: the Student's Crew assignments, their own share only (AD-41). */
 export function useCrewAssignments() {
   return useQuery({ queryKey: ASSIGNMENTS_KEY, queryFn: () => unwrap(apiClient.GET('/api/v1/crew/assignments')) })
