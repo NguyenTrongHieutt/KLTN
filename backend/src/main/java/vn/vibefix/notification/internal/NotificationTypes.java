@@ -292,6 +292,27 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType WORK_WORK_ITEM_ASSIGNED = new NotificationType("work.work_item_assigned",
 			Set.of(Audience.CREW_ACTIVE), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of("mentor", "key"));
 
+	/** A Work Item was submitted (FR-25): the Mentor, in-app. */
+	static final NotificationType WORK_REVIEW_REQUESTED = new NotificationType("work.review_requested",
+			Set.of(Audience.MENTOR), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of("name", "key"));
+
+	/** The Mentor approved a Work Item (FR-25): the assignee, in-app. */
+	static final NotificationType WORK_WORK_ITEM_APPROVED = new NotificationType("work.work_item_approved",
+			Set.of(Audience.CREW_ACTIVE), Channel.IN_APP, EmailClass.TRANSACTIONAL, "check", Set.of("key"));
+
+	/** The Mentor returned a Work Item (FR-25): the assignee, in-app and by email. */
+	static final NotificationType WORK_WORK_ITEM_RETURNED = new NotificationType("work.work_item_returned",
+			Set.of(Audience.CREW_ACTIVE), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
+			Set.of("key", "reason"));
+
+	/** A Work Item waits for the Mentor's review (FR-25): until it is approved or returned. */
+	static final TodoType WORK_REVIEW_WORK_ITEM = new TodoType("work.review_work_item", Set.of(Audience.MENTOR), 2,
+			Set.of("key", "title"));
+
+	/** A returned Work Item waits for its assignee (FR-25): until it is submitted again. */
+	static final TodoType WORK_FIX_RETURNED_ITEM = new TodoType("work.fix_returned_item", Set.of(Audience.CREW_ACTIVE), 2,
+			Set.of("key"));
+
 	@Override
 	public List<NotificationType> notificationTypes() {
 		return List.of(SCHOOL_EMAIL_CODE, VERIFICATION_EXPIRING, VERIFICATION_EXPIRED, ADMIN_SIGN_IN_LOCKED,
@@ -307,7 +328,8 @@ class NotificationTypes implements NotificationCatalog {
 				JOB_CREW_CONFIRMED, JOB_CONFLICT_OF_INTEREST_REFUSED, JOB_PERSON_LINK_ALERT, JOB_AGREEMENT_CHANGES_REQUESTED,
 				JOB_AGREEMENT_AWAITING_CONFIRMATION, JOB_AGREEMENT_CONFIRMED, JOB_MILESTONE_AWAITING_FUNDING, JOB_CREW_RECONFIRM_NEEDED,
 				PAYMENT_PAYMENT_RECEIVED, PAYMENT_PAYMENT_FAILED, PAYMENT_UNKNOWN_PAYMENT, JOB_MILESTONE_FUNDED, JOB_JOB_STARTING,
-				PAYMENT_REFUND_REQUESTED, PAYMENT_REFUND_CONFIRMED, WORK_WORK_ITEM_ASSIGNED);
+				PAYMENT_REFUND_REQUESTED, PAYMENT_REFUND_CONFIRMED, WORK_WORK_ITEM_ASSIGNED,
+				WORK_REVIEW_REQUESTED, WORK_WORK_ITEM_APPROVED, WORK_WORK_ITEM_RETURNED);
 	}
 
 	@Override
@@ -315,7 +337,7 @@ class NotificationTypes implements NotificationCatalog {
 		return List.of(COMPLETE_MENTOR_APPLICATION, VERIFY_STUDENT, SCANNING_RESOLVE_INTAKE_FINDING,
 				MATCHING_CHOOSE_ASSIGNEE, MATCHING_SIGN_NDA, MATCHING_ANSWER_INVITATION_TO_APPLY, JOB_DRAFT_AGREEMENT,
 				JOB_REVIEW_AGREEMENT, JOB_PICK_CREW, JOB_CONFIRM_CREW_TERMS, JOB_REVISE_AGREEMENT, JOB_CONFIRM_AGREEMENT_MENTOR,
-				PAYMENT_FUND_MILESTONE);
+				PAYMENT_FUND_MILESTONE, WORK_REVIEW_WORK_ITEM, WORK_FIX_RETURNED_ITEM);
 	}
 
 }

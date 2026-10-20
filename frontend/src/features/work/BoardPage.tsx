@@ -17,6 +17,7 @@ import { t, type MessageKey } from '@/i18n/t'
 import { isNotFound } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { MoveMenu } from './MoveMenu'
+import { ReviewDialog, SubmitDialog } from './ReviewDialogs'
 import { hasBoard, STATUSES, TYPES, useBoard, type Board, type WorkItemCard } from './workApi'
 import { WorkItemSheet } from './WorkItemSheet'
 
@@ -118,6 +119,8 @@ function Columns({ board, jobId }: { board: Board; jobId: string }) {
   const [sheet, setSheet] = useState<{ open: boolean; workItemId?: string }>({ open: false })
   const [filters, setFilters] = useState<Filters>({ milestone: '', assignee: '', type: '', mine: false })
   const [column, setColumn] = useState<(typeof STATUSES)[number]>(board.mentor ? 'IN_REVIEW' : 'IN_PROGRESS')
+  const [review, setReview] = useState<{ item: WorkItemCard; action: 'submit' | 'approve' | 'return' }>()
+  const onReview = (item: WorkItemCard, action: 'submit' | 'approve' | 'return') => setReview({ item, action })
   const people = new Map(
     board.items.flatMap((item) => (item.assignee ? [[item.assignee.accountId, item.assignee.name] as const] : [])),
   )
@@ -223,6 +226,7 @@ function Columns({ board, jobId }: { board: Board; jobId: string }) {
                       jobId={jobId}
                       milestoneNumber={item.milestoneId ? milestones.get(item.milestoneId)?.number : undefined}
                       onOpen={() => setSheet({ open: true, workItemId: item.id })}
+                      onReview={onReview}
                     />
                   ))}
                 </ul>
@@ -236,7 +240,12 @@ function Columns({ board, jobId }: { board: Board; jobId: string }) {
         workItemId={sheet.workItemId}
         open={sheet.open}
         onClose={() => setSheet({ open: false })}
+        onReview={onReview}
       />
+      {review?.action === 'submit' && <SubmitDialog item={review.item} jobId={jobId} onClose={() => setReview(undefined)} />}
+      {review && review.action !== 'submit' && (
+        <ReviewDialog item={review.item} jobId={jobId} onClose={() => setReview(undefined)} />
+      )}
     </div>
   )
 }
@@ -284,12 +293,14 @@ function Card({
   jobId,
   milestoneNumber,
   onOpen,
+  onReview,
 }: {
   item: WorkItemCard
   board: Board
   jobId: string
   milestoneNumber: number | undefined
   onOpen: () => void
+  onReview: (item: WorkItemCard, action: 'submit' | 'approve' | 'return') => void
 }) {
   const mentor = board.mentor
   const toasts = useToasts()
@@ -326,6 +337,15 @@ function Card({
       >
         {item.title}
       </button>
+      {item.returnedReason && (
+        <p className="flex flex-col gap-0.5 rounded-md bg-destructive-soft px-2 py-1.5 text-caption">
+          <span className="font-semibold text-destructive">{t('screen.board.returned')}</span>
+          <span className="break-words">{item.returnedReason}</span>
+        </p>
+      )}
+      {item.status === 'IN_REVIEW' && !mentor && item.assignee?.accountId === board.viewerId && (
+        <p className="text-caption text-muted-foreground">{t('screen.board.awaitingReview')}</p>
+      )}
       {(item.priority || item.estimateHours != null || item.checklistTotal > 0) && (
         <div className="flex flex-wrap items-center gap-3 text-caption text-muted-foreground">
           {item.priority && <Priority priority={item.priority as keyof typeof PRIORITY_ICON} />}
@@ -368,7 +388,7 @@ function Card({
         )}
       </div>
       <div className="flex justify-end">
-        <MoveMenu board={board} item={item} jobId={jobId} />
+        <MoveMenu board={board} item={item} jobId={jobId} onReview={onReview} />
       </div>
     </li>
   )

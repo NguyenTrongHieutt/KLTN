@@ -2022,7 +2022,11 @@
         "sensitiveTitle": "Nội dung có thể chứa khóa bí mật hoặc dữ liệu khách hàng",
         "sensitiveBody": "Ai xem được bảng công việc đều đọc được nội dung này. Hãy che trước khi lưu.",
         "mask": "Che và lưu",
-        "staleBody": "Việc này vừa được sửa ở nơi khác nên thay đổi của bạn chưa được lưu. Hãy tải lại để xem bản mới rồi sửa lại."
+        "staleBody": "Việc này vừa được sửa ở nơi khác nên thay đổi của bạn chưa được lưu. Hãy tải lại để xem bản mới rồi sửa lại.",
+        "historySUBMITTED": "{actor} gửi duyệt",
+        "historyAPPROVED": "{actor} duyệt",
+        "historyRETURNED": "{actor} trả lại",
+        "historyMOVED": "{actor} chuyển cột"
       },
       "filters": "Lọc bảng công việc",
       "columns": "Cột đang xem",
@@ -2032,7 +2036,35 @@
       "move": {
         "trigger": "Chuyển sang…",
         "label": "Chuyển {key} sang…",
-        "notHeld": "Giai đoạn này chưa được thanh toán."
+        "notHeld": "Giai đoạn này chưa được thanh toán.",
+        "submit": "Gửi duyệt",
+        "approve": "Duyệt",
+        "return": "Trả lại"
+      },
+      "returned": "Bị trả lại",
+      "awaitingReview": "Chờ người hướng dẫn duyệt",
+      "submit": {
+        "title": "Gửi duyệt {key}",
+        "selfCheck": "Tự kiểm tra",
+        "meetsCriteria": "Đạt tiêu chí",
+        "tested": "Đã kiểm thử",
+        "docsUpdated": "Đã cập nhật tài liệu",
+        "noSecrets": "Không lưu khóa bí mật trong mã",
+        "note": "Ghi chú cho người hướng dẫn (không bắt buộc)",
+        "send": "Gửi duyệt",
+        "mask": "Che và gửi",
+        "sent": "Đã gửi duyệt {key}"
+      },
+      "review": {
+        "title": "Duyệt {key}",
+        "answers": "{name} tự kiểm lúc {time}",
+        "note": "Ghi chú",
+        "comment": "Nhận xét của bạn",
+        "yes": "có",
+        "no": "không",
+        "cancel": "Hủy",
+        "approved": "Đã duyệt {key}",
+        "returned": "Đã trả lại {key}"
       }
     }
   },
@@ -2484,6 +2516,10 @@
     },
     "payment": {
       "fund_milestone": "Thanh toán Giai đoạn {n}: {amount} THỬ NGHIỆM"
+    },
+    "work": {
+      "review_work_item": "Duyệt {key}: {title}",
+      "fix_returned_item": "Sửa {key} theo nhận xét của người hướng dẫn"
     }
   },
   "theme": {
@@ -2678,6 +2714,15 @@
     "work": {
       "work_item_assigned": {
         "title": "{mentor} giao cho bạn {key}"
+      },
+      "review_requested": {
+        "title": "{name} gửi duyệt {key}"
+      },
+      "work_item_approved": {
+        "title": "{key} đã được duyệt"
+      },
+      "work_item_returned": {
+        "title": "{key} bị trả lại: {reason}"
       }
     }
   },
@@ -2807,7 +2852,7 @@
       "PAYMENT_NOT_CONFIGURED": "môi trường này chưa kết nối VNPay thử nghiệm"
     },
     "work": {
-      "MENTOR_ONLY": "Chỉ người hướng dẫn giao việc và đặt ưu tiên.",
+      "MENTOR_ONLY": "Chỉ người hướng dẫn làm được việc này.",
       "NOT_CREW_MEMBER": "Người này không còn làm trong nhóm thực hiện của công việc.",
       "SEEDED_FIELD_FIXED": "Loại và giai đoạn của Story từ tiêu chí nghiệm thu không đổi được.",
       "MILESTONE_UNKNOWN": "Giai đoạn này không có trong thỏa thuận.",
@@ -2815,7 +2860,9 @@
       "SENSITIVE_CONTENT": "Nội dung có thể chứa khóa bí mật hoặc dữ liệu khách hàng.",
       "NOT_ASSIGNEE": "Chỉ người được giao và người hướng dẫn chuyển được việc này.",
       "MILESTONE_NOT_HELD": "Giai đoạn này chưa được thanh toán.",
-      "MOVE_NOT_ALLOWED": "Không chuyển việc sang cột này được."
+      "MOVE_NOT_ALLOWED": "Không chuyển việc sang cột này được.",
+      "SELF_CHECK_INCOMPLETE": "Hãy đánh dấu đủ bốn mục tự kiểm trước khi gửi duyệt.",
+      "REVIEW_COMMENT_REQUIRED": "Hãy viết nhận xét trước khi duyệt hoặc trả lại."
     }
   }
 }

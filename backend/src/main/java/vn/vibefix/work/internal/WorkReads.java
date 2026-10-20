@@ -46,9 +46,16 @@ import vn.vibefix.work.internal.WorkAccess.Window;
 @Component
 class WorkReads {
 
-	/** One history entry; {@code changes} maps each field to its {@code from} and {@code to}. */
+	/** Review entries: "Bị trả lại" follows the latest of them (AD-39). */
+	static final Set<String> REVIEW_ACTIONS = Set.of("SUBMITTED", "APPROVED", "RETURNED");
+
+	/**
+	 * One history entry; {@code changes} maps each field to its {@code from} and {@code to}.
+	 * @param comment a submission's note or a review's comment
+	 * @param selfCheck a submission's Self-check answers
+	 */
 	record Entry(UUID id, UUID itemId, @Nullable UUID actor, String action, JsonNode changes, @Nullable UUID assignedTo,
-			Instant at) {
+			@Nullable String comment, @Nullable JsonNode selfCheck, Instant at) {
 	}
 
 	private final Boards boards;
@@ -110,11 +117,27 @@ class WorkReads {
 		};
 	}
 
+	/** Each Work Item's latest review entry the viewer sees, for "Bị trả lại" on the cards. */
+	@Transactional(readOnly = true)
+	Map<UUID, Entry> latestReviews(BoardViewer viewer) {
+		Instant cutoff = viewer.kind() == Kind.FORMER ? cutoff(viewer) : null;
+		Map<UUID, Entry> latest = new HashMap<>();
+		history(viewer.board().jobId()).forEach((item, entries) -> {
+			for (Entry entry : entries) {
+				if (REVIEW_ACTIONS.contains(entry.action()) && (cutoff == null || !entry.at().isAfter(cutoff))) {
+					latest.put(item, entry);
+				}
+			}
+		});
+		return latest;
+	}
+
 	/** The Work Item's history the viewer sees, oldest first. */
 	@Transactional(readOnly = true)
 	List<Entry> historyOf(BoardViewer viewer, UUID itemId) {
 		List<Entry> entries = this.jdbc.sql("""
-				SELECT id, work_item_id, actor_account_id, action, changes::text AS changes, assigned_to, at
+				SELECT id, work_item_id, actor_account_id, action, changes::text AS changes, assigned_to, comment,
+				       self_check::text AS self_check, at
 				FROM work.work_item_history WHERE work_item_id = :item ORDER BY seq
 				""").param("item", itemId).query((rs, n) -> entry(rs)).list();
 		if (viewer.kind() != Kind.FORMER) {
@@ -148,7 +171,8 @@ class WorkReads {
 	private Map<UUID, List<Entry>> history(UUID jobId) {
 		Map<UUID, List<Entry>> byItem = new HashMap<>();
 		this.jdbc.sql("""
-				SELECT id, work_item_id, actor_account_id, action, changes::text AS changes, assigned_to, at
+				SELECT id, work_item_id, actor_account_id, action, changes::text AS changes, assigned_to, comment,
+				       self_check::text AS self_check, at
 				FROM work.work_item_history WHERE job_id = :job ORDER BY seq
 				""").param("job", jobId).query((rs, n) -> entry(rs)).list()
 			.forEach(entry -> byItem.computeIfAbsent(entry.itemId(), id -> new ArrayList<>()).add(entry));
@@ -224,9 +248,11 @@ class WorkReads {
 	}
 
 	private static Entry entry(ResultSet rs) throws SQLException {
+		String selfCheck = rs.getString("self_check");
 		return new Entry(rs.getObject("id", UUID.class), rs.getObject("work_item_id", UUID.class),
 				rs.getObject("actor_account_id", UUID.class), rs.getString("action"),
 				Boards.JSON.readTree(rs.getString("changes")), rs.getObject("assigned_to", UUID.class),
+				rs.getString("comment"), selfCheck == null ? null : Boards.JSON.readTree(selfCheck),
 				rs.getTimestamp("at").toInstant());
 	}
 

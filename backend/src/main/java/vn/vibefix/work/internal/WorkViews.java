@@ -14,6 +14,7 @@ import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
+import tools.jackson.databind.JsonNode;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
 import vn.vibefix.identity.StudentDirectory;
@@ -61,11 +62,24 @@ class WorkViews {
 	 * @param key {@code {JOBCODE}-{n}}, for commit messages
 	 * @param seeded seeded from a criterion: the criterion link, type, and Milestone are read-only
 	 * @param checklistDone how many checklist lines are done
+	 * @param returnedReason the Mentor's reason while the latest review entry is a return ("Bị trả lại")
 	 */
 	record WorkItemCardView(UUID id, String key, String type, String title, String description, String status,
 			@Nullable UUID milestoneId, @Nullable CriterionLinkView criterion, boolean seeded, @Nullable PersonView assignee,
 			@Nullable String priority, @Nullable BigDecimal estimateHours, int checklistDone, int checklistTotal,
-			long version) {
+			@Nullable String returnedReason, long version) {
+	}
+
+	/** The four Self-check answers of a submission (AD-39). */
+	record SelfCheckView(boolean meetsCriteria, boolean tested, boolean docsUpdated, boolean noSecrets) {
+	}
+
+	/**
+	 * A submission, approval, or return.
+	 * @param comment the submission's note or the review's comment
+	 * @param selfCheck a submission's answers
+	 */
+	record ReviewView(String action, String by, @Nullable String comment, @Nullable SelfCheckView selfCheck, Instant at) {
 	}
 
 	/**
@@ -85,14 +99,18 @@ class WorkViews {
 	 * @param actor who saved it; empty for vibefix (a seeded Story)
 	 * @param fields the fields the save changed
 	 * @param assignedTo the person it assigned, when it did
+	 * @param comment a submission's note or a review's comment
 	 */
 	record HistoryEntryView(UUID id, String actor, String action, List<String> fields, @Nullable String assignedTo,
-			Instant at) {
+			@Nullable String comment, Instant at) {
 	}
 
-	/** One Work Item with its checklist and history, oldest entry first. */
+	/**
+	 * One Work Item with its checklist and history, oldest entry first.
+	 * @param review the latest submission, approval, or return, for the Review dialog and the badge
+	 */
 	record WorkItemDetailView(WorkItemCardView item, List<ChecklistLineView> checklist, @Nullable String createdBy,
-			Instant createdAt, boolean readOnly, List<HistoryEntryView> history) {
+			Instant createdAt, boolean readOnly, @Nullable ReviewView review, List<HistoryEntryView> history) {
 	}
 
 	private final AgreementCriteria criteria;
@@ -114,7 +132,7 @@ class WorkViews {
 		this.students = students;
 	}
 
-	BoardView board(BoardViewer viewer, List<Item> items) {
+	BoardView board(BoardViewer viewer, List<Item> items, Map<UUID, Entry> latestReviews) {
 		CriteriaInForce inForce = this.criteria.inForce(viewer.board().jobId()).orElse(null);
 		Map<UUID, CriterionInForce> criteria = criteria(inForce);
 		Set<UUID> heldIds = this.held.heldOf(viewer.board().jobId());
@@ -134,7 +152,8 @@ class WorkViews {
 		List<PersonView> crew = crewIds.stream().map(id -> new PersonView(id, names.getOrDefault(id, ""))).toList();
 		return new BoardView(viewer.board().jobId(), viewer.title(), viewer.board().code(), viewer.accountId(),
 				viewer.mentor(),
-				!viewer.writes(), milestones, crew, items.stream().map(item -> card(item, criteria, names)).toList());
+				!viewer.writes(), milestones, crew,
+				items.stream().map(item -> card(item, criteria, names, latestReviews.get(item.id()))).toList());
 	}
 
 	WorkItemDetailView detail(BoardViewer viewer, Item item, List<Entry> history) {
@@ -156,17 +175,25 @@ class WorkViews {
 		}
 		Map<UUID, String> names = names(viewer, people);
 		List<HistoryEntryView> entries = new ArrayList<>();
+		Entry latestReview = null;
 		for (Entry entry : history) {
 			List<String> fields = new ArrayList<>();
 			entry.changes().properties().forEach(change -> fields.add(change.getKey()));
 			entries.add(new HistoryEntryView(entry.id(), entry.actor() == null ? "" : names.getOrDefault(entry.actor(), ""),
 					entry.action(), fields, entry.assignedTo() == null ? null : names.getOrDefault(entry.assignedTo(), ""),
-					entry.at()));
+					entry.comment(), entry.at()));
+			if (WorkReads.REVIEW_ACTIONS.contains(entry.action())) {
+				latestReview = entry;
+			}
 		}
-		return new WorkItemDetailView(card(item, criteria, names),
+		ReviewView review = latestReview == null ? null
+				: new ReviewView(latestReview.action(),
+						latestReview.actor() == null ? "" : names.getOrDefault(latestReview.actor(), ""), latestReview.comment(),
+						selfCheck(latestReview.selfCheck()), latestReview.at());
+		return new WorkItemDetailView(card(item, criteria, names, latestReview),
 				item.checklist().stream().map(line -> new ChecklistLineView(line.text(), line.done())).toList(),
 				item.createdBy() == null ? null : names.getOrDefault(item.createdBy(), ""), item.createdAt(), !viewer.writes(),
-				entries);
+				review, entries);
 	}
 
 	private static Map<UUID, CriterionInForce> criteria(@Nullable CriteriaInForce inForce) {
@@ -190,7 +217,15 @@ class WorkViews {
 		return names;
 	}
 
-	private static WorkItemCardView card(Item item, Map<UUID, CriterionInForce> criteria, Map<UUID, String> names) {
+	private static @Nullable SelfCheckView selfCheck(@Nullable JsonNode answers) {
+		return answers == null ? null
+				: new SelfCheckView(answers.path("meetsCriteria").asBoolean(), answers.path("tested").asBoolean(),
+						answers.path("docsUpdated").asBoolean(), answers.path("noSecrets").asBoolean());
+	}
+
+	private static WorkItemCardView card(Item item, Map<UUID, CriterionInForce> criteria, Map<UUID, String> names,
+			@Nullable Entry latestReview) {
+		String returned = latestReview != null && "RETURNED".equals(latestReview.action()) ? latestReview.comment() : null;
 		CriterionInForce criterion = item.criterionId() == null ? null : criteria.get(item.criterionId());
 		int done = (int) item.checklist().stream().filter(ChecklistLine::done).count();
 		return new WorkItemCardView(item.id(), item.key().toString(), item.type().name(), item.title(), item.description(),
@@ -200,7 +235,7 @@ class WorkViews {
 				item.seeded(),
 				item.assigneeId() == null ? null : new PersonView(item.assigneeId(), names.getOrDefault(item.assigneeId(), "")),
 				item.priority() == null ? null : item.priority().name(), item.estimateHours(), done, item.checklist().size(),
-				item.version());
+				returned, item.version());
 	}
 
 }

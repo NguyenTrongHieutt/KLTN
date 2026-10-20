@@ -168,10 +168,21 @@ class Boards {
 	 */
 	UUID history(UUID itemId, UUID jobId, @Nullable UUID actor, String action, Map<String, Object> changes,
 			@Nullable UUID assignedTo) {
+		return history(itemId, jobId, actor, action, changes, assignedTo, null, null);
+	}
+
+	/**
+	 * Appends a history entry with a review's note or comment and Self-check answers (FR-25).
+	 * @return the entry's ID
+	 */
+	UUID history(UUID itemId, UUID jobId, @Nullable UUID actor, String action, Map<String, Object> changes,
+			@Nullable UUID assignedTo, @Nullable String comment, @Nullable Map<String, Boolean> selfCheck) {
 		UUID id = this.ids.newId();
 		this.jdbc.sql("""
-				INSERT INTO work.work_item_history (id, work_item_id, job_id, actor_account_id, action, changes, assigned_to, at)
-				VALUES (:id, :item, :job, :actor, :action, CAST(:changes AS JSONB), :assigned, :now)
+				INSERT INTO work.work_item_history (id, work_item_id, job_id, actor_account_id, action, changes, assigned_to,
+				    comment, self_check, at)
+				VALUES (:id, :item, :job, :actor, :action, CAST(:changes AS JSONB), :assigned, :comment,
+				    CAST(:selfCheck AS JSONB), :now)
 				""")
 			.param("id", id)
 			.param("item", itemId)
@@ -180,6 +191,8 @@ class Boards {
 			.param("action", action)
 			.param("changes", JSON.writeValueAsString(changes))
 			.param("assigned", assignedTo)
+			.param("comment", comment)
+			.param("selfCheck", selfCheck == null ? null : JSON.writeValueAsString(selfCheck))
 			.param("now", Timestamp.from(this.clock.instant()))
 			.update();
 		return id;

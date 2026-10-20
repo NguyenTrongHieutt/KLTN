@@ -28,9 +28,6 @@ import vn.vibefix.notification.Audience;
 import vn.vibefix.notification.NotificationRequest;
 import vn.vibefix.notification.Notifications;
 import vn.vibefix.notification.Recipient;
-import vn.vibefix.scanning.SensitiveText;
-import vn.vibefix.scanning.SensitiveText.Match;
-import vn.vibefix.scanning.SensitiveText.Result;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.IdGenerator;
@@ -41,6 +38,8 @@ import vn.vibefix.work.internal.Boards.Priority;
 import vn.vibefix.work.internal.Boards.Status;
 import vn.vibefix.work.internal.Boards.Type;
 import vn.vibefix.work.internal.WorkAccess.BoardViewer;
+import vn.vibefix.work.internal.WorkTextCheck.MatchView;
+import vn.vibefix.work.internal.WorkTextCheck.Resolution;
 
 /**
  * Creating and editing Work Items (FR-23, FR-47, AD-23, AD-33, AD-39): every save carries the fields
@@ -54,11 +53,6 @@ class WorkItems {
 
 	static final String ASSIGNED = "work.work_item_assigned";
 
-	/** What the writer chose after the FR-47 warning: check first, or store the masked text. */
-	enum Resolution {
-		CHECK, MASK
-	}
-
 	/** The fields of one save. */
 	record Draft(Type type, String title, String description, List<ChecklistLine> checklist, UUID milestoneId,
 			@Nullable Priority priority, @Nullable BigDecimal estimateHours, @Nullable UUID assigneeId) {
@@ -67,10 +61,6 @@ class WorkItems {
 			checklist = List.copyOf(checklist);
 		}
 
-	}
-
-	/** One masked match, as the warning dialog lists it. */
-	record MatchView(SensitiveText.Kind kind, String type, String masked) {
 	}
 
 	private final Boards boards;
@@ -85,7 +75,7 @@ class WorkItems {
 
 	private final MentorDirectory mentors;
 
-	private final SensitiveText check;
+	private final WorkTextCheck check;
 
 	private final Notifications notifications;
 
@@ -96,7 +86,7 @@ class WorkItems {
 	private final Clock clock;
 
 	WorkItems(Boards boards, JdbcClient jdbc, AgreementCriteria criteria, Crews crews, StudentDirectory students,
-			MentorDirectory mentors, SensitiveText check, Notifications notifications, HeldMilestones held, IdGenerator ids,
+			MentorDirectory mentors, WorkTextCheck check, Notifications notifications, HeldMilestones held, IdGenerator ids,
 			Clock clock) {
 		this.boards = boards;
 		this.jdbc = jdbc;
@@ -270,34 +260,18 @@ class WorkItems {
 	/** The draft after FR-47: refused with the matches under {@code CHECK}, masked under {@code MASK}. */
 	private Draft checked(Draft draft, Resolution resolution) {
 		List<MatchView> matches = new ArrayList<>();
-		String title = masked(draft.title(), matches);
-		String description = masked(draft.description(), matches);
+		String title = this.check.masked(draft.title(), matches);
+		String description = this.check.masked(draft.description(), matches);
 		List<ChecklistLine> checklist = new ArrayList<>();
 		for (ChecklistLine line : draft.checklist()) {
-			checklist.add(new ChecklistLine(masked(line.text(), matches), line.done()));
+			checklist.add(new ChecklistLine(this.check.masked(line.text(), matches), line.done()));
 		}
 		if (matches.isEmpty()) {
 			return draft;
 		}
-		if (resolution == Resolution.CHECK) {
-			throw new ApiException(ErrorCode.GUARD_FAILED, WorkReason.SENSITIVE_CONTENT, Map.of("matches", matches));
-		}
+		WorkTextCheck.requireResolved(matches, resolution);
 		return new Draft(draft.type(), title, description, checklist, draft.milestoneId(), draft.priority(),
 				draft.estimateHours(), draft.assigneeId());
-	}
-
-	private String masked(String text, List<MatchView> matches) {
-		if (text.isEmpty()) {
-			return text;
-		}
-		Result result = this.check.check(text);
-		if (!result.found()) {
-			return text;
-		}
-		for (Match match : result.matches()) {
-			matches.add(new MatchView(match.kind(), match.type(), match.masked()));
-		}
-		return result.maskedText();
 	}
 
 	/** Each field the save changes, with its old and new value, for the history (AD-39). */

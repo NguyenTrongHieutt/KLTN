@@ -13,6 +13,7 @@ import { ApiError } from '@/lib/apiClient'
 import { formatDayMonthTime } from '@/lib/dates'
 import { problemMessage } from '@/lib/problemMessage'
 import { MoveMenu } from './MoveMenu'
+import type { WorkItemCard } from './workApi'
 import {
   PRIORITIES,
   TYPES,
@@ -41,12 +42,14 @@ export function WorkItemSheet({
   workItemId,
   open,
   onClose,
+  onReview,
 }: {
   board: Board
   /** The Work Item to show; none for "Thêm việc". */
   workItemId: string | undefined
   open: boolean
   onClose: () => void
+  onReview: (item: WorkItemCard, action: 'submit' | 'approve' | 'return') => void
 }) {
   const detail = useWorkItem(open ? workItemId : undefined)
   const title = workItemId ? (detail.data?.item.key ?? t('screen.board.item.title')) : t('screen.board.item.new')
@@ -61,11 +64,12 @@ export function WorkItemSheet({
               detail={detail.data}
               onSaved={() => undefined}
               onStale={() => void detail.refetch()}
+              onReview={onReview}
             />
           )}
         </RegionState>
       ) : (
-        <Editor board={board} onSaved={onClose} onStale={onClose} />
+        <Editor board={board} onSaved={onClose} onStale={onClose} onReview={onReview} />
       )}
     </Sheet>
   )
@@ -81,11 +85,13 @@ function Editor({
   detail,
   onSaved,
   onStale,
+  onReview,
 }: {
   board: Board
   detail?: WorkItemDetail
   onSaved: () => void
   onStale: () => void
+  onReview: (item: WorkItemCard, action: 'submit' | 'approve' | 'return') => void
 }) {
   const ids = useId()
   const toasts = useToasts()
@@ -159,7 +165,7 @@ function Editor({
           <span className="text-body-sm text-muted-foreground">
             {t(`screen.board.status.${card.status}` as MessageKey)}
           </span>
-          <MoveMenu board={board} item={card} jobId={board.boardId} />
+          <MoveMenu board={board} item={card} jobId={board.boardId} onReview={onReview} />
         </div>
       )}
       {seeded && item?.criterion && (
@@ -380,6 +386,10 @@ function History({ detail }: { detail: WorkItemDetail }) {
           let text: string
           if (entry.action === 'SEEDED') {
             text = t('screen.board.item.historySeeded')
+          } else if (entry.action === 'SUBMITTED' || entry.action === 'APPROVED' || entry.action === 'RETURNED') {
+            text = t(`screen.board.item.history${entry.action}` as MessageKey, { actor: entry.actor })
+          } else if (entry.action === 'MOVED') {
+            text = t('screen.board.item.historyMOVED', { actor: entry.actor })
           } else if (entry.action === 'CREATED') {
             text = t('screen.board.item.historyCreated', { actor: entry.actor })
           } else if (entry.assignedTo) {
@@ -388,9 +398,14 @@ function History({ detail }: { detail: WorkItemDetail }) {
             text = t('screen.board.item.historyUpdated', { actor: entry.actor, fields })
           }
           return (
-            <li key={entry.id} className="flex flex-wrap justify-between gap-2">
-              <span className="break-words">{text}</span>
-              <span className="text-caption text-muted-foreground">{formatDayMonthTime(entry.at)}</span>
+            <li key={entry.id} className="flex flex-col gap-0.5">
+              <span className="flex flex-wrap justify-between gap-2">
+                <span className="break-words">{text}</span>
+                <span className="text-caption text-muted-foreground">{formatDayMonthTime(entry.at)}</span>
+              </span>
+              {entry.comment && (
+                <span className="text-caption break-words whitespace-pre-wrap text-muted-foreground">{entry.comment}</span>
+              )}
             </li>
           )
         })}

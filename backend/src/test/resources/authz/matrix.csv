@@ -780,6 +780,34 @@ POST /api/v1/work-items/{workItemId}/move,CREW_FORMER,,work-item-move.json,404 N
 POST /api/v1/work-items/{workItemId}/move,ADMIN_TEAM_ISSUE_GRANT,,work-item-move.json,404 NOT_FOUND
 POST /api/v1/work-items/{workItemId}/move,JOB_MENTOR,,work-item-move.json,422 GUARD_FAILED MILESTONE_NOT_HELD
 POST /api/v1/work-items/{workItemId}/move,CREW_ACTIVE,,work-item-move.json,403 FORBIDDEN NOT_ASSIGNEE
+POST /api/v1/work-items/{workItemId}/submit,ANONYMOUS,,work-item-submit.json,401
+POST /api/v1/work-items/{workItemId}/submit,OWNER,,work-item-submit.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/submit,CUSTOMER,,work-item-submit.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/submit,MENTOR,,work-item-submit.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/submit,STUDENT,,work-item-submit.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/submit,ADMINISTRATOR,,work-item-submit.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/submit,TEAM_MENTOR,,work-item-submit.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/submit,TEAM_MEMBER,,work-item-submit.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/submit,CREW_ASSIGNED,,work-item-submit.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/submit,CREW_INACTIVE,,work-item-submit.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/submit,CREW_FORMER,,work-item-submit.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/submit,ADMIN_TEAM_ISSUE_GRANT,,work-item-submit.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/submit,JOB_MENTOR,,work-item-submit.json,403 FORBIDDEN NOT_ASSIGNEE
+POST /api/v1/work-items/{workItemId}/submit,CREW_ACTIVE,,work-item-submit.json,403 FORBIDDEN NOT_ASSIGNEE
+POST /api/v1/work-items/{workItemId}/review,ANONYMOUS,,work-item-review.json,401
+POST /api/v1/work-items/{workItemId}/review,OWNER,,work-item-review.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/review,CUSTOMER,,work-item-review.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/review,MENTOR,,work-item-review.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/review,STUDENT,,work-item-review.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/review,ADMINISTRATOR,,work-item-review.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/review,TEAM_MENTOR,,work-item-review.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/review,TEAM_MEMBER,,work-item-review.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/review,CREW_ASSIGNED,,work-item-review.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/review,CREW_INACTIVE,,work-item-review.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/review,CREW_FORMER,,work-item-review.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/review,ADMIN_TEAM_ISSUE_GRANT,,work-item-review.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/review,JOB_MENTOR,,work-item-review.json,422 GUARD_FAILED MOVE_NOT_ALLOWED
+POST /api/v1/work-items/{workItemId}/review,CREW_ACTIVE,,work-item-review.json,403 FORBIDDEN MENTOR_ONLY
 GET /api/v1/mentor/jobs/{jobId}/agreement,ANONYMOUS,,,401,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/agreement,MENTOR,,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/agreement,MENTOR,mentor=PENDING,,404 NOT_FOUND,requireActiveAccount

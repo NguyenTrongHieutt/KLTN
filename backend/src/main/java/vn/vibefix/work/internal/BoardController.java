@@ -30,9 +30,11 @@ import vn.vibefix.work.internal.Boards.Item;
 import vn.vibefix.work.internal.Boards.Priority;
 import vn.vibefix.work.internal.Boards.Status;
 import vn.vibefix.work.internal.Boards.Type;
+import vn.vibefix.work.internal.Reviews.Decision;
+import vn.vibefix.work.internal.Reviews.SelfCheck;
 import vn.vibefix.work.internal.WorkAccess.BoardViewer;
 import vn.vibefix.work.internal.WorkItems.Draft;
-import vn.vibefix.work.internal.WorkItems.Resolution;
+import vn.vibefix.work.internal.WorkTextCheck.Resolution;
 import vn.vibefix.work.internal.WorkViews.BoardView;
 import vn.vibefix.work.internal.WorkViews.WorkItemDetailView;
 
@@ -83,6 +85,23 @@ class BoardController {
 	record MoveRequest(@NotNull Status to, @NotNull Long version) {
 	}
 
+	/** The four Self-check answers; each must be {@code true} (AD-39). */
+	record SelfCheckRequest(boolean meetsCriteria, boolean tested, boolean docsUpdated, boolean noSecrets) {
+	}
+
+	/**
+	 * "Gửi duyệt" on {@code version}.
+	 * @param note optional, FR-47 checked
+	 */
+	record SubmitRequest(@NotNull Long version, @NotNull @Valid SelfCheckRequest selfCheck,
+			@Nullable @Size(max = 4000) String note, @Nullable Resolution sensitive) {
+	}
+
+	/** "Duyệt" or "Trả lại" on {@code version}, with the Mentor's comment (FR-47 checked). */
+	record ReviewRequest(@NotNull Long version, @NotNull Decision decision, @Nullable @Size(max = 4000) String comment,
+			@Nullable Resolution sensitive) {
+	}
+
 	private final Boards boards;
 
 	private final WorkAccess access;
@@ -91,16 +110,19 @@ class BoardController {
 
 	private final WorkItems items;
 
+	private final Reviews reviews;
+
 	private final WorkViews views;
 
 	private final CurrentCaller callers;
 
-	BoardController(Boards boards, WorkAccess access, WorkReads reads, WorkItems items, WorkViews views,
+	BoardController(Boards boards, WorkAccess access, WorkReads reads, WorkItems items, Reviews reviews, WorkViews views,
 			CurrentCaller callers) {
 		this.boards = boards;
 		this.access = access;
 		this.reads = reads;
 		this.items = items;
+		this.reviews = reviews;
 		this.views = views;
 		this.callers = callers;
 	}
@@ -109,7 +131,7 @@ class BoardController {
 	@GetMapping("/api/v1/boards/{boardId}/work-items")
 	BoardView workItems(@PathVariable UUID boardId) {
 		BoardViewer viewer = this.access.reader(boardId, this.callers.get());
-		return this.views.board(viewer, this.reads.items(viewer));
+		return this.views.board(viewer, this.reads.items(viewer), this.reads.latestReviews(viewer));
 	}
 
 	/** "Thêm việc": a new Work Item, keyed after the Board's last (FR-23). */
@@ -149,6 +171,32 @@ class BoardController {
 		BoardViewer writer = this.access.writer(item.jobId(), this.callers.get());
 		Item moved = this.items.move(writer, workItemId, body.version(), body.to());
 		return this.views.detail(writer, moved, this.reads.historyOf(writer, moved.id()));
+	}
+
+	/** "Gửi duyệt": the assignee submits with the Self-check Checklist (FR-25, AD-39). */
+	@PostMapping("/api/v1/work-items/{workItemId}/submit")
+	WorkItemDetailView submitWorkItem(@PathVariable UUID workItemId, @Valid @RequestBody SubmitRequest body) {
+		Item item = this.boards.item(workItemId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		BoardViewer writer = this.access.writer(item.jobId(), this.callers.get());
+		SelfCheckRequest answers = body.selfCheck();
+		Item submitted = this.reviews.submit(writer, workItemId, body.version(),
+				new SelfCheck(answers.meetsCriteria(), answers.tested(), answers.docsUpdated(), answers.noSecrets()),
+				body.note() == null ? "" : body.note().strip(), resolution(body.sensitive()));
+		return this.views.detail(writer, submitted, this.reads.historyOf(writer, submitted.id()));
+	}
+
+	/** "Duyệt" or "Trả lại": the Mentor's review with a comment (FR-25, AD-39). */
+	@PostMapping("/api/v1/work-items/{workItemId}/review")
+	WorkItemDetailView reviewWorkItem(@PathVariable UUID workItemId, @Valid @RequestBody ReviewRequest body) {
+		Item item = this.boards.item(workItemId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		BoardViewer writer = this.access.writer(item.jobId(), this.callers.get());
+		Item reviewed = this.reviews.review(writer, workItemId, body.version(), body.decision(),
+				body.comment() == null ? "" : body.comment(), resolution(body.sensitive()));
+		return this.views.detail(writer, reviewed, this.reads.historyOf(writer, reviewed.id()));
+	}
+
+	private static Resolution resolution(@Nullable Resolution resolution) {
+		return resolution == null ? Resolution.CHECK : resolution;
 	}
 
 }

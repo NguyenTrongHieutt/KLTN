@@ -1,0 +1,9 @@
+subject: {key} bị trả lại: {reason}
+---
+Xin chào,
+
+Người hướng dẫn đã trả lại {key} với nhận xét:
+
+{reason}
+
+Hãy sửa theo nhận xét rồi gửi duyệt lại trên Bảng công việc.

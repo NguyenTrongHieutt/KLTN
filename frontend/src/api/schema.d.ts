@@ -1908,6 +1908,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/work-items/{workItemId}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["reviewWorkItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/work-items/{workItemId}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["submitWorkItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/webhooks/vnpay/ipn": {
         parameters: {
             query?: never;
@@ -2549,6 +2581,7 @@ export interface components {
             assignedTo?: string;
             /** Format: date-time */
             at: string;
+            comment?: string;
             fields: string[];
             /** Format: uuid */
             id: string;
@@ -3361,6 +3394,23 @@ export interface components {
             /** Format: int64 */
             sizeKb: number;
         };
+        ReviewRequest: {
+            comment?: string;
+            /** @enum {string} */
+            decision: "APPROVE" | "RETURN";
+            /** @enum {string} */
+            sensitive?: "CHECK" | "MASK";
+            /** Format: int64 */
+            version: number;
+        };
+        ReviewView: {
+            action: string;
+            /** Format: date-time */
+            at: string;
+            by: string;
+            comment?: string;
+            selfCheck?: components["schemas"]["SelfCheckView"];
+        };
         SaveRequest: {
             externalAccess: components["schemas"]["ExternalAccessRequest"][];
             milestones: components["schemas"]["MilestoneRequest"][];
@@ -3412,6 +3462,18 @@ export interface components {
         SelectedView: {
             /** Format: int64 */
             version: number;
+        };
+        SelfCheckRequest: {
+            docsUpdated: boolean;
+            meetsCriteria: boolean;
+            noSecrets: boolean;
+            tested: boolean;
+        };
+        SelfCheckView: {
+            docsUpdated: boolean;
+            meetsCriteria: boolean;
+            noSecrets: boolean;
+            tested: boolean;
         };
         SendRequest: {
             body: string;
@@ -3546,6 +3608,14 @@ export interface components {
             requestsLeft: number;
             team?: components["schemas"]["StudentTeamMembership"];
             verified: boolean;
+        };
+        SubmitRequest: {
+            note?: string;
+            selfCheck: components["schemas"]["SelfCheckRequest"];
+            /** @enum {string} */
+            sensitive?: "CHECK" | "MASK";
+            /** Format: int64 */
+            version: number;
         };
         SuggestedSkillView: {
             hint: string;
@@ -3758,6 +3828,7 @@ export interface components {
             /** Format: uuid */
             milestoneId?: string;
             priority?: string;
+            returnedReason?: string;
             seeded: boolean;
             status: string;
             title: string;
@@ -3773,6 +3844,7 @@ export interface components {
             history: components["schemas"]["HistoryEntryView"][];
             item: components["schemas"]["WorkItemCardView"];
             readOnly: boolean;
+            review?: components["schemas"]["ReviewView"];
         };
         WorkItemRequest: {
             /** Format: uuid */
@@ -6900,6 +6972,58 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["MoveRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkItemDetailView"];
+                };
+            };
+        };
+    };
+    reviewWorkItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workItemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkItemDetailView"];
+                };
+            };
+        };
+    };
+    submitWorkItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workItemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubmitRequest"];
             };
         };
         responses: {

@@ -132,6 +132,8 @@ class CrewChatIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/crew-chat").with(as(vy, Role.STUDENT)))
 			.andExpect(jsonPath("$.unread").value(true))
 			.andExpect(jsonPath("$.readOnly").value(false));
+		// Messages sent in the same instant have no fixed order; a reply comes later.
+		this.clock.advance(Duration.ofSeconds(1));
 		sendCrew(vy, Role.STUDENT, "Em chào anh").andExpect(status().isCreated())
 			.andExpect(jsonPath("$.author").value("Trần Thảo Vy"));
 		this.mvc.perform(get("/api/v1/crew-chats/" + this.crewChat + "/messages").with(as(this.hung, Role.MENTOR)))
