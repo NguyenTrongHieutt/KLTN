@@ -42,8 +42,14 @@ class DisputeController {
 			@Nullable UUID milestoneId, Instant openedAt) {
 	}
 
+	/** The latest decision, totals only (AD-20). */
+	record DecidedDisputeView(UUID id, String nextState, String reasoning, @Nullable Long releaseVnd,
+			@Nullable Long refundVnd, Instant decidedAt) {
+	}
+
 	/** @param canOpen the viewer may open one now */
-	record JobDisputeView(UUID jobId, String audience, boolean canOpen, @Nullable OpenDisputeView open) {
+	record JobDisputeView(UUID jobId, String audience, boolean canOpen, @Nullable OpenDisputeView open,
+			@Nullable DecidedDisputeView decided) {
 	}
 
 	record OpenDisputeRequest(@NotBlank @Size(max = 2000) String reason) {
@@ -54,14 +60,17 @@ class DisputeController {
 
 	private final Disputes disputes;
 
+	private final DisputeDecisions decisions;
+
 	private final JobPosts posts;
 
 	private final Crews crews;
 
 	private final CurrentCaller callers;
 
-	DisputeController(Disputes disputes, JobPosts posts, Crews crews, CurrentCaller callers) {
+	DisputeController(Disputes disputes, DisputeDecisions decisions, JobPosts posts, Crews crews, CurrentCaller callers) {
 		this.disputes = disputes;
+		this.decisions = decisions;
 		this.posts = posts;
 		this.crews = crews;
 		this.callers = callers;
@@ -108,9 +117,16 @@ class DisputeController {
 	private JobDisputeView view(Viewer viewer) {
 		Dispute open = this.disputes.open(viewer.job().jobId()).orElse(null);
 		boolean canOpen = viewer.side() != null && open == null && Disputes.DISPUTABLE.contains(viewer.job().state());
+		DecidedDisputeView decided = open != null ? null
+				: this.disputes.latestDecided(viewer.job().jobId())
+					.flatMap(dispute -> this.decisions.decision(dispute.id()))
+					.map(decision -> new DecidedDisputeView(decision.disputeId(), decision.nextState(), decision.reasoning(),
+							decision.releaseVnd(), decision.refundVnd(), decision.decidedAt()))
+					.orElse(null);
 		return new JobDisputeView(viewer.job().jobId(), viewer.side() == null ? "CREW" : viewer.side().name(), canOpen,
 				open == null ? null : new OpenDisputeView(open.id(), open.openedBy().name(), open.openedBy() == viewer.side(),
-						open.reason(), open.concern(), open.milestoneId(), open.openedAt()));
+						open.reason(), open.concern(), open.milestoneId(), open.openedAt()),
+				decided);
 	}
 
 }

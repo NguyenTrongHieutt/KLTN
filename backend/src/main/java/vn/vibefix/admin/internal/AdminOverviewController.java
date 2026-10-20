@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import vn.vibefix.dispute.DisputeQueue;
 import vn.vibefix.identity.Administrators;
 import vn.vibefix.identity.MentorApplicationQueue;
 import vn.vibefix.identity.StudentCardQueue;
@@ -41,9 +42,10 @@ class AdminOverviewController {
 	 * @param activeAdministrators Administrators who can sign in; at 1, ADM-1 warns (SG-10)
 	 * @param studentCards student cards waiting for a decision (FR-5, ADM-3)
 	 * @param mentorApplications Mentor applications waiting for a decision (FR-74, ADM-13)
+	 * @param disputes Disputes awaiting a decision (FR-54, ADM-4)
 	 */
 	record OverviewView(Queue failedOperations, Queue stalledEvents, long activeAdministrators, Queue studentCards,
-			Queue mentorApplications) {
+			Queue mentorApplications, Queue disputes) {
 	}
 
 	private final FailedOperations failedOperations;
@@ -56,8 +58,12 @@ class AdminOverviewController {
 
 	private final MentorApplicationQueue mentorApplications;
 
+	private final DisputeQueue disputes;
+
 	AdminOverviewController(FailedOperations failedOperations, StalledEventPublications stalledEvents,
-			Administrators administrators, StudentCardQueue studentCards, MentorApplicationQueue mentorApplications) {
+			Administrators administrators, StudentCardQueue studentCards, MentorApplicationQueue mentorApplications,
+			DisputeQueue disputes) {
+		this.disputes = disputes;
 		this.failedOperations = failedOperations;
 		this.stalledEvents = stalledEvents;
 		this.administrators = administrators;
@@ -69,7 +75,8 @@ class AdminOverviewController {
 	OverviewView overview() {
 		return new OverviewView(Queue.of(this.failedOperations.findAll(), FailedOperations.FailedOperation::failedAt),
 				Queue.of(this.stalledEvents.findAll(), StalledEventPublications.StalledPublication::stalledAt),
-				this.administrators.activeCount(), studentCards(), mentorApplications());
+				this.administrators.activeCount(), studentCards(), mentorApplications(),
+				Queue.of(this.disputes.awaiting(), DisputeQueue.Waiting::openedAt));
 	}
 
 	private Queue mentorApplications() {

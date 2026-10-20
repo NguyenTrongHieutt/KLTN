@@ -77,6 +77,145 @@
         "tags" : [ "administrators-controller" ]
       }
     },
+    "/api/v1/admin/disputes" : {
+      "get" : {
+        "operationId" : "disputes",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/AdminDisputeRow"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-dispute-controller" ]
+      }
+    },
+    "/api/v1/admin/disputes/{disputeId}" : {
+      "get" : {
+        "operationId" : "dispute_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "disputeId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminDisputeDetail"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-dispute-controller" ]
+      }
+    },
+    "/api/v1/admin/disputes/{disputeId}/decision" : {
+      "post" : {
+        "operationId" : "decide",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "disputeId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DisputeDecisionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminDisputeDetail"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-dispute-controller" ]
+      }
+    },
+    "/api/v1/admin/disputes/{disputeId}/retry" : {
+      "post" : {
+        "operationId" : "retry",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "disputeId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminDisputeDetail"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-dispute-controller" ]
+      }
+    },
+    "/api/v1/admin/disputes/{disputeId}/take" : {
+      "post" : {
+        "operationId" : "take",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "disputeId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminDisputeDetail"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-dispute-controller" ]
+      }
+    },
     "/api/v1/admin/enrolment/{token}" : {
       "get" : {
         "operationId" : "enrolment",
@@ -5971,6 +6110,93 @@
         },
         "required" : [ "id", "role", "theme" ]
       },
+      "AdminDisputeDetail" : {
+        "type" : "object",
+        "properties" : {
+          "assigned" : {
+            "type" : "boolean"
+          },
+          "assignedToMe" : {
+            "type" : "boolean"
+          },
+          "concern" : {
+            "type" : "string"
+          },
+          "decision" : {
+            "$ref" : "#/components/schemas/DecisionView"
+          },
+          "execution" : {
+            "$ref" : "#/components/schemas/ExecutionView"
+          },
+          "held" : {
+            "$ref" : "#/components/schemas/HeldMilestoneView"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "jobTitle" : {
+            "type" : "string"
+          },
+          "openedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "openedBy" : {
+            "type" : "string"
+          },
+          "plannedRemains" : {
+            "type" : "boolean"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "assigned", "assignedToMe", "concern", "id", "jobId", "jobTitle", "openedAt", "openedBy", "plannedRemains", "reason", "status" ]
+      },
+      "AdminDisputeRow" : {
+        "type" : "object",
+        "properties" : {
+          "assigned" : {
+            "type" : "boolean"
+          },
+          "assignedToMe" : {
+            "type" : "boolean"
+          },
+          "executionStatus" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "jobTitle" : {
+            "type" : "string"
+          },
+          "openedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "openedBy" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "assigned", "assignedToMe", "id", "jobId", "jobTitle", "openedAt", "openedBy", "status" ]
+      },
       "AdminSignInRequest" : {
         "type" : "object",
         "properties" : {
@@ -7935,6 +8161,34 @@
         },
         "required" : [ "ended", "jobId", "parties" ]
       },
+      "DecidedDisputeView" : {
+        "type" : "object",
+        "properties" : {
+          "decidedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "nextState" : {
+            "type" : "string"
+          },
+          "reasoning" : {
+            "type" : "string"
+          },
+          "refundVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "releaseVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "decidedAt", "id", "nextState", "reasoning" ]
+      },
       "DecisionRequest" : {
         "type" : "object",
         "properties" : {
@@ -7944,6 +8198,30 @@
           }
         },
         "required" : [ "version" ]
+      },
+      "DecisionView" : {
+        "type" : "object",
+        "properties" : {
+          "decidedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "nextState" : {
+            "type" : "string"
+          },
+          "reasoning" : {
+            "type" : "string"
+          },
+          "refundVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "releaseVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "decidedAt", "nextState", "reasoning" ]
       },
       "DeliveryReportView" : {
         "type" : "object",
@@ -8032,6 +8310,36 @@
         },
         "required" : [ "assessment", "audience", "auto", "checkBy", "checks", "createdAt", "criteria", "id", "itemNotes", "jobId", "jobTitle", "mentorName", "milestoneTitle", "number", "round", "roundsLeft", "status", "version" ]
       },
+      "DisputeDecisionRequest" : {
+        "type" : "object",
+        "properties" : {
+          "nextState" : {
+            "type" : "string",
+            "enum" : [ "CONTINUE", "END", "CANCEL" ]
+          },
+          "reasoning" : {
+            "type" : "string",
+            "maxLength" : 4000,
+            "minLength" : 0
+          },
+          "refundVnd" : {
+            "type" : "integer",
+            "format" : "int64",
+            "minimum" : 0
+          },
+          "releaseVnd" : {
+            "type" : "integer",
+            "format" : "int64",
+            "minimum" : 0
+          },
+          "stepUpCode" : {
+            "type" : "string",
+            "minLength" : 1,
+            "pattern" : "^[0-9]{6}$"
+          }
+        },
+        "required" : [ "nextState", "reasoning", "stepUpCode" ]
+      },
       "EnrolmentRequest" : {
         "type" : "object",
         "properties" : {
@@ -8118,6 +8426,22 @@
           }
         },
         "required" : [ "name" ]
+      },
+      "ExecutionView" : {
+        "type" : "object",
+        "properties" : {
+          "failure" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "step" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "status", "step" ]
       },
       "ExternalAccess" : {
         "type" : "object",
@@ -8839,6 +9163,27 @@
         },
         "required" : [ "approved", "id", "key", "status", "title" ]
       },
+      "HeldMilestoneView" : {
+        "type" : "object",
+        "properties" : {
+          "milestoneId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "releasableVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "milestoneId", "number", "releasableVnd", "title" ]
+      },
       "HistoryEntryView" : {
         "type" : "object",
         "properties" : {
@@ -9058,6 +9403,9 @@
           },
           "canOpen" : {
             "type" : "boolean"
+          },
+          "decided" : {
+            "$ref" : "#/components/schemas/DecidedDisputeView"
           },
           "jobId" : {
             "type" : "string",
@@ -10514,6 +10862,9 @@
             "type" : "integer",
             "format" : "int64"
           },
+          "disputes" : {
+            "$ref" : "#/components/schemas/Queue"
+          },
           "failedOperations" : {
             "$ref" : "#/components/schemas/Queue"
           },
@@ -10527,7 +10878,7 @@
             "$ref" : "#/components/schemas/Queue"
           }
         },
-        "required" : [ "activeAdministrators", "failedOperations", "mentorApplications", "stalledEvents", "studentCards" ]
+        "required" : [ "activeAdministrators", "disputes", "failedOperations", "mentorApplications", "stalledEvents", "studentCards" ]
       },
       "PageLinkView" : {
         "type" : "object",

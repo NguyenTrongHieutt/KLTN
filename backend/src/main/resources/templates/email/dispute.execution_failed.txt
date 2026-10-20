@@ -1,0 +1,5 @@
+subject: Bước {step} của một quyết định tranh chấp không chạy được
+---
+Xin chào,
+
+Bước {step} trong việc thực hiện một quyết định tranh chấp không chạy được. Công việc vẫn đang tạm dừng. Hãy mở trang tranh chấp trên vibefix để xem lỗi và thử lại.

@@ -29,7 +29,7 @@ class DisputePersonalData implements PersonalDataParticipant {
 
 	@Override
 	public Set<String> tables() {
-		return Set.of("dispute.dispute");
+		return Set.of("dispute.dispute", "dispute.decision", "dispute.execution");
 	}
 
 	@Override
@@ -53,10 +53,17 @@ class DisputePersonalData implements PersonalDataParticipant {
 		this.jdbc.sql("UPDATE dispute.dispute SET opener_account_id = NULL WHERE opener_account_id = :id")
 			.param("id", accountId)
 			.update();
+		this.jdbc.sql("UPDATE dispute.decision SET admin_account_id = NULL WHERE admin_account_id = :id")
+			.param("id", accountId)
+			.update();
 	}
 
 	@Override
 	public void deleteProduct(UUID productId) {
+		for (String table : List.of("dispute.execution", "dispute.decision")) {
+			this.jdbc.sql("DELETE FROM %s WHERE dispute_id IN (SELECT id FROM dispute.dispute WHERE product_id = :id)"
+				.formatted(table)).param("id", productId).update();
+		}
 		this.jdbc.sql("DELETE FROM dispute.dispute WHERE product_id = :id").param("id", productId).update();
 	}
 

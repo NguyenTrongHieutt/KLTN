@@ -36,6 +36,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/disputes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["disputes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/disputes/{disputeId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["dispute_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/disputes/{disputeId}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["decide"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/disputes/{disputeId}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["retry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/disputes/{disputeId}/take": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["take"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/enrolment/{token}": {
         parameters: {
             query?: never;
@@ -2674,6 +2754,39 @@ export interface components {
             /** @enum {string} */
             theme: "LIGHT" | "DARK" | "SYSTEM";
         };
+        AdminDisputeDetail: {
+            assigned: boolean;
+            assignedToMe: boolean;
+            concern: string;
+            decision?: components["schemas"]["DecisionView"];
+            execution?: components["schemas"]["ExecutionView"];
+            held?: components["schemas"]["HeldMilestoneView"];
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            jobId: string;
+            jobTitle: string;
+            /** Format: date-time */
+            openedAt: string;
+            openedBy: string;
+            plannedRemains: boolean;
+            reason: string;
+            status: string;
+        };
+        AdminDisputeRow: {
+            assigned: boolean;
+            assignedToMe: boolean;
+            executionStatus?: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            jobId: string;
+            jobTitle: string;
+            /** Format: date-time */
+            openedAt: string;
+            openedBy: string;
+            status: string;
+        };
         AdminSignInRequest: {
             code: string;
             /** Format: email */
@@ -3379,9 +3492,31 @@ export interface components {
             mine?: components["schemas"]["DataDeletionItemView"][];
             parties: components["schemas"]["DataDeletionPartyView"][];
         };
+        DecidedDisputeView: {
+            /** Format: date-time */
+            decidedAt: string;
+            /** Format: uuid */
+            id: string;
+            nextState: string;
+            reasoning: string;
+            /** Format: int64 */
+            refundVnd?: number;
+            /** Format: int64 */
+            releaseVnd?: number;
+        };
         DecisionRequest: {
             /** Format: int64 */
             version: number;
+        };
+        DecisionView: {
+            /** Format: date-time */
+            decidedAt: string;
+            nextState: string;
+            reasoning: string;
+            /** Format: int64 */
+            refundVnd?: number;
+            /** Format: int64 */
+            releaseVnd?: number;
         };
         DeliveryReportView: {
             assessment: boolean;
@@ -3415,6 +3550,16 @@ export interface components {
             /** Format: int64 */
             version: number;
         };
+        DisputeDecisionRequest: {
+            /** @enum {string} */
+            nextState: "CONTINUE" | "END" | "CANCEL";
+            reasoning: string;
+            /** Format: int64 */
+            refundVnd?: number;
+            /** Format: int64 */
+            releaseVnd?: number;
+            stepUpCode: string;
+        };
         EnrolmentRequest: {
             code: string;
             password: string;
@@ -3443,6 +3588,12 @@ export interface components {
         };
         EnvironmentResponse: {
             name: string;
+        };
+        ExecutionView: {
+            failure?: string;
+            status: string;
+            /** Format: int32 */
+            step: number;
         };
         ExternalAccess: {
             /** @enum {string} */
@@ -3693,6 +3844,15 @@ export interface components {
             status: string;
             title: string;
         };
+        HeldMilestoneView: {
+            /** Format: uuid */
+            milestoneId: string;
+            /** Format: int32 */
+            number: number;
+            /** Format: int64 */
+            releasableVnd: number;
+            title: string;
+        };
         HistoryEntryView: {
             action: string;
             actor: string;
@@ -3775,6 +3935,7 @@ export interface components {
         JobDisputeView: {
             audience: string;
             canOpen: boolean;
+            decided?: components["schemas"]["DecidedDisputeView"];
             /** Format: uuid */
             jobId: string;
             open?: components["schemas"]["OpenDisputeView"];
@@ -4299,6 +4460,7 @@ export interface components {
         OverviewView: {
             /** Format: int64 */
             activeAdministrators: number;
+            disputes: components["schemas"]["Queue"];
             failedOperations: components["schemas"]["Queue"];
             mentorApplications: components["schemas"]["Queue"];
             stalledEvents: components["schemas"]["Queue"];
@@ -5353,6 +5515,118 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CreatedView"];
+                };
+            };
+        };
+    };
+    disputes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDisputeRow"][];
+                };
+            };
+        };
+    };
+    dispute_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                disputeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDisputeDetail"];
+                };
+            };
+        };
+    };
+    decide: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                disputeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DisputeDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDisputeDetail"];
+                };
+            };
+        };
+    };
+    retry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                disputeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDisputeDetail"];
+                };
+            };
+        };
+    };
+    take: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                disputeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDisputeDetail"];
                 };
             };
         };

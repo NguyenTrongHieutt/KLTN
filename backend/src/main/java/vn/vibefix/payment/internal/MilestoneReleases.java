@@ -49,8 +49,11 @@ class MilestoneReleases implements Releases {
 
 	private final Clock clock;
 
+	private final CancelledRefunds refunds;
+
 	MilestoneReleases(JdbcClient jdbc, JdbcLedger ledger, Crews crews, MilestoneFunding funding, Notifications notifications,
-			IdGenerator ids, Clock clock) {
+			IdGenerator ids, Clock clock, CancelledRefunds refunds) {
+		this.refunds = refunds;
 		this.jdbc = jdbc;
 		this.ledger = ledger;
 		this.crews = crews;
@@ -63,20 +66,49 @@ class MilestoneReleases implements Releases {
 	@Override
 	@Transactional
 	public List<Part> release(UUID jobId, UUID milestoneId, UUID causeId) {
-		UUID account = this.jdbc.sql("SELECT milestone_id FROM payment.ledger_account WHERE milestone_id = :id FOR UPDATE")
+		UUID account = lockAccount(milestoneId);
+		long releasable = this.ledger.releasable(account);
+		if (releasable <= 0) {
+			throw new IllegalStateException("The Milestone " + milestoneId + " has nothing to release");
+		}
+		return split(jobId, milestoneId, causeId, releasable);
+	}
+
+	@Override
+	@Transactional
+	public List<Part> settle(UUID jobId, UUID milestoneId, UUID causeId, long releaseVnd, long refundVnd) {
+		UUID account = lockAccount(milestoneId);
+		long releasable = this.ledger.releasable(account);
+		if (releaseVnd < 0 || refundVnd < 0 || releaseVnd + refundVnd != releasable) {
+			throw new IllegalStateException("The settlement of " + milestoneId + " does not sum to " + releasable);
+		}
+		List<Part> parts = releaseVnd > 0 ? split(jobId, milestoneId, causeId, releaseVnd) : List.of();
+		long refunded = this.refunds.refund(milestoneId, refundVnd, Refunds.Reason.DISPUTE_DECISION)
+			.stream()
+			.mapToLong(refund -> refund.amountVnd())
+			.sum();
+		if (refunded != refundVnd || this.ledger.releasable(account) != 0) {
+			throw new IllegalStateException("The settlement of " + milestoneId + " could not refund " + refundVnd);
+		}
+		return parts;
+	}
+
+	private UUID lockAccount(UUID milestoneId) {
+		return this.jdbc.sql("SELECT milestone_id FROM payment.ledger_account WHERE milestone_id = :id FOR UPDATE")
 			.param("id", milestoneId)
 			.query(UUID.class)
 			.optional()
 			.orElseThrow(() -> new IllegalStateException("The Milestone " + milestoneId + " has no ledger account"));
+	}
+
+	/** {@code amount} split by the pinned Crew Terms, one RELEASE per party, each payee told. */
+	private List<Part> split(UUID jobId, UUID milestoneId, UUID causeId, long amount) {
 		ReleaseTerms terms = this.crews.releaseTermsOf(milestoneId)
 			.orElseThrow(() -> new IllegalStateException("The Milestone " + milestoneId + " has no pinned Crew Terms"));
 		FundingJob job = this.funding.byId(jobId)
 			.orElseThrow(() -> new IllegalStateException("The Job " + jobId + " has no confirmed Agreement"));
 		UUID mentor = Objects.requireNonNull(job.mentorId(), "the Job's Mentor");
-		long releasable = this.ledger.releasable(account);
-		if (releasable <= 0) {
-			throw new IllegalStateException("The Milestone " + milestoneId + " has nothing to release");
-		}
+		long releasable = amount;
 		Map<UUID, Long> split = CrewSplit.split(releasable, terms.shares(), mentor);
 		if (split.values().stream().mapToLong(Long::longValue).sum() != releasable) {
 			throw new IllegalStateException("The release of " + milestoneId + " does not sum to " + releasable);
