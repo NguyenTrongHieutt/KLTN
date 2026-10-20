@@ -1,4 +1,4 @@
-import { ShieldAlert } from 'lucide-react'
+import { ExternalLink, ShieldAlert } from 'lucide-react'
 import { Link } from 'react-router'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
@@ -20,7 +20,8 @@ export type ProgressAudience = 'customer' | 'mentor' | 'crew'
  * Milestone's card with its status text, price, progress bar, and due date; the Job's most urgent to-do;
  * the customer-visible Pages; and a side column with the next due date, the people, and the Product.
  * The Mentor also sees the Crew with each member's open Work Items; a Crew member sees their own and
- * N-12. The Customer never sees a Work Item. It polls every 30 s.
+ * N-12. On an Assessment Job the Mentor and the Crew get the public Source Repository they read and N-12
+ * (FR-10, UX-DR8). The Customer never sees a Work Item. It polls every 30 s.
  */
 export function ProgressOverview({ jobId, audience }: { jobId: string; audience: ProgressAudience }) {
   const progress = useJobProgress(jobId)
@@ -39,11 +40,23 @@ function Content({ jobId, audience, progress }: { jobId: string; audience: Progr
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
       <div className="flex min-w-0 flex-col gap-6">
-        {audience === 'crew' && (
+        {(audience === 'crew' || (audience === 'mentor' && progress.assessment)) && (
           <p role="note" className="flex gap-2 rounded-md border-l-4 border-warning bg-warning-soft p-3 text-body-sm">
             <ShieldAlert aria-hidden="true" className="size-5 shrink-0 text-warning" />
             {t('screen.docs.n12')}
           </p>
+        )}
+        {audience !== 'customer' && progress.sourceRepositoryUrl?.startsWith('https://github.com/') && (
+          <a
+            href={progress.sourceRepositoryUrl}
+            target="_blank"
+            rel="noopener noreferrer nofollow"
+            className="flex w-fit items-center gap-2 text-body-sm text-primary underline-offset-4 hover:underline"
+          >
+            <ExternalLink aria-hidden="true" className="size-4" />
+            {t('screen.progress.sourceRepository')}
+            <span className="sr-only"> ({t('screen.board.attachments.external')})</span>
+          </a>
         )}
         <JobNextAction jobId={jobId} />
         <section aria-labelledby="progress-milestones" className="flex flex-col gap-3">

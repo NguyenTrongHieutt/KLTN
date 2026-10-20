@@ -2912,6 +2912,7 @@ export interface components {
             title: string;
         };
         JobProgressView: {
+            assessment: boolean;
             audience: string;
             /** Format: uuid */
             boardId: string;
@@ -2921,6 +2922,7 @@ export interface components {
             mine: components["schemas"]["OpenItemView"][];
             pages: components["schemas"]["PageLinkView"][];
             productName: string;
+            sourceRepositoryUrl?: string;
             state: string;
             title: string;
         };

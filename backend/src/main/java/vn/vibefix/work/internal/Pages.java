@@ -23,6 +23,7 @@ import vn.vibefix.audit.AuditActor;
 import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
+import vn.vibefix.scanning.Scans;
 import vn.vibefix.shared.AdminReadScope;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
@@ -78,18 +79,21 @@ class Pages {
 
 	private final PageTemplates templates;
 
+	private final Scans scans;
+
 	private final AuditLog auditLog;
 
 	private final IdGenerator ids;
 
 	private final Clock clock;
 
-	Pages(JdbcClient jdbc, Boards boards, WorkTextCheck check, PageTemplates templates, AuditLog auditLog, IdGenerator ids,
-			Clock clock) {
+	Pages(JdbcClient jdbc, Boards boards, WorkTextCheck check, PageTemplates templates, Scans scans, AuditLog auditLog,
+			IdGenerator ids, Clock clock) {
 		this.jdbc = jdbc;
 		this.boards = boards;
 		this.check = check;
 		this.templates = templates;
+		this.scans = scans;
 		this.auditLog = auditLog;
 		this.ids = ids;
 		this.clock = clock;
@@ -98,8 +102,9 @@ class Pages {
 	// ---- Commands --------------------------------------------------------------------------
 
 	/**
-	 * A new Page, from {@code template} when one is named: a blank body takes its skeleton. The Assessment
-	 * Report is offered only on an Assessment Job, once, and starts customer-visible (FR-10, FR-31).
+	 * A new Page, from {@code template} when one is named: a blank body takes its skeleton, and the
+	 * Assessment Report's lists the Product's open Findings (FR-8). The Assessment Report is offered only
+	 * on an Assessment Job, once, and starts customer-visible (FR-10, FR-31).
 	 */
 	@Transactional
 	Page create(BoardViewer writer, String title, String body, @Nullable UUID parentId, @Nullable Template template,
@@ -115,7 +120,11 @@ class Pages {
 				throw new ApiException(ErrorCode.CONFLICT, WorkReason.REPORT_EXISTS);
 			}
 		}
-		String start = template != null && body.isBlank() ? this.templates.skeleton(template).body() : body;
+		String start = body;
+		if (template != null && body.isBlank()) {
+			start = template.report() ? this.templates.report(this.scans.openFindings(writer.board().productId()))
+					: this.templates.skeleton(template).body();
+		}
 		Text text = checked(title, start, resolution);
 		UUID id = this.ids.newId();
 		Timestamp now = Timestamp.from(this.clock.instant());
