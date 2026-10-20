@@ -79,8 +79,27 @@ class Decisions {
 		List<Check> kept = known(handover, checks, Resolution.MASK);
 		Decided decided = this.jobs.accept(handover.jobId(), handover.milestoneId(), customer.accountId(), version, handoverId);
 		this.releases.release(handover.jobId(), handover.milestoneId(), decided.transitionId());
-		decide(handover, customer, "ACCEPTED", kept);
+		decide(handover, customer.accountId(), customer.job().customerId(), "ACCEPTED", kept, false);
 		return this.handovers.find(handoverId).orElseThrow();
+	}
+
+	/**
+	 * Auto-acceptance (FR-35): M5 by the System with exactly an acceptance's effects, the split release
+	 * included, in the Deadline's transaction. Runs only for a handover still waiting.
+	 * @return whether it applied; nothing is written when M5 refused
+	 */
+	@Transactional
+	boolean acceptAutomatically(Handover handover, UUID customerId) {
+		if (!"SUBMITTED".equals(handover.status())) {
+			return false;
+		}
+		Decided decided = this.jobs.autoAccept(handover.jobId(), handover.milestoneId(), handover.id()).orElse(null);
+		if (decided == null) {
+			return false;
+		}
+		this.releases.release(handover.jobId(), handover.milestoneId(), decided.transitionId());
+		decide(handover, null, customerId, "ACCEPTED", List.of(), true);
+		return true;
 	}
 
 	/**
@@ -98,7 +117,7 @@ class Decisions {
 			throw new ApiException(ErrorCode.VALIDATION, DeliveryReason.REVISION_CRITERIA_MISSING);
 		}
 		this.jobs.requestRevision(handover.jobId(), handover.milestoneId(), customer.accountId(), version, handoverId, named);
-		decide(handover, customer, "REVISION_REQUESTED", kept);
+		decide(handover, customer.accountId(), customer.job().customerId(), "REVISION_REQUESTED", kept, false);
 		return this.handovers.find(handoverId).orElseThrow();
 	}
 
@@ -159,15 +178,17 @@ class Decisions {
 		return result.maskedText();
 	}
 
-	private void decide(Handover handover, Viewer customer, String status, List<Check> checks) {
+	private void decide(Handover handover, @Nullable UUID decider, UUID customerId, String status, List<Check> checks,
+			boolean auto) {
 		int decided = this.jdbc.sql("""
-				UPDATE delivery.handover SET status = :status, decided_at = :now, decided_by = :by
+				UPDATE delivery.handover SET status = :status, decided_at = :now, decided_by = :by, auto = :auto
 				WHERE id = :id AND status = 'SUBMITTED'
 				""")
 			.param("id", handover.id())
 			.param("status", status)
 			.param("now", Timestamp.from(this.clock.instant()))
-			.param("by", customer.accountId())
+			.param("by", decider)
+			.param("auto", auto)
 			.update();
 		if (decided != 1) {
 			throw new ApiException(ErrorCode.CONFLICT, DeliveryReason.HANDOVER_DECIDED);
@@ -182,7 +203,7 @@ class Decisions {
 				.param("comment", mark.comment())
 				.update();
 		}
-		this.todos.close(Handovers.REVIEW_HANDOVER, customer.accountId(), handover.id());
+		this.todos.close(Handovers.REVIEW_HANDOVER, customerId, handover.id());
 	}
 
 }

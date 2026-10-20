@@ -2217,9 +2217,10 @@
       "itemMeta": "Lần bàn giao thứ {round} · {date}",
       "status": {
         "SUBMITTED": "Chờ khách nghiệm thu",
-        "customer": "Chờ bạn nghiệm thu · trước {date}",
+        "customer": "Chờ bạn nghiệm thu · tự nghiệm thu {date}",
         "ACCEPTED": "Đã nghiệm thu",
-        "REVISION_REQUESTED": "Đã yêu cầu sửa"
+        "REVISION_REQUESTED": "Đã yêu cầu sửa",
+        "auto": "Đã tự nghiệm thu"
       },
       "report": {
         "title": "Báo cáo bàn giao · Giai đoạn {n} · {title}",
@@ -2742,7 +2743,7 @@
     },
     "delivery": {
       "hand_over": "Bàn giao Giai đoạn {n}",
-      "review_handover": "Nghiệm thu Giai đoạn {n}"
+      "review_handover": "Nghiệm thu Giai đoạn {n} · tự nghiệm thu {date}"
     }
   },
   "theme": {
@@ -2886,10 +2887,10 @@
         "title": "Đang chuẩn bị kho mã cho {job}"
       },
       "milestone_submitted": {
-        "title": "Người hướng dẫn {mentor} đã bàn giao Giai đoạn {n}. Hãy kiểm tra trước {date}."
+        "title": "Người hướng dẫn {mentor} đã bàn giao Giai đoạn {n}. Hãy kiểm tra trước ngày tự nghiệm thu {date}."
       },
       "milestone_accepted": {
-        "title": "Giai đoạn {n} của {job} đã được nghiệm thu"
+        "title": "Giai đoạn {n} của {job} đã được {how}"
       },
       "revision_requested": {
         "title": "Khách hàng yêu cầu sửa Giai đoạn {n}: {count} tiêu chí · còn {rounds} lượt"
@@ -2958,6 +2959,11 @@
       },
       "work_item_returned": {
         "title": "{key} bị trả lại: {reason}"
+      }
+    },
+    "delivery": {
+      "acceptance_reminder": {
+        "title": "Còn {n} ngày: hệ thống sẽ tự nghiệm thu Giai đoạn {m} ngày {date}"
       }
     }
   },

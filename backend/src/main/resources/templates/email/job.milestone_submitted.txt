@@ -1,5 +1,5 @@
-subject: Người hướng dẫn {mentor} đã bàn giao Giai đoạn {n}. Hãy kiểm tra trước {date}.
+subject: Người hướng dẫn {mentor} đã bàn giao Giai đoạn {n}. Hãy kiểm tra trước ngày tự nghiệm thu {date}.
 ---
 Xin chào,
 
-Người hướng dẫn {mentor} đã bàn giao Giai đoạn {n}. Hãy mở báo cáo bàn giao, kiểm tra từng tiêu chí, rồi nghiệm thu hoặc yêu cầu sửa trước {date}.
+Người hướng dẫn {mentor} đã bàn giao Giai đoạn {n}. Hãy mở báo cáo bàn giao, kiểm tra từng tiêu chí, rồi nghiệm thu hoặc yêu cầu sửa. Nếu bạn chưa quyết định, hệ thống sẽ tự nghiệm thu ngày {date}.

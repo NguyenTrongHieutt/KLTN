@@ -5,6 +5,8 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -35,6 +37,8 @@ import vn.vibefix.scanning.SensitiveText.Result;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.IdGenerator;
+import vn.vibefix.timers.DeadlineRequest;
+import vn.vibefix.timers.Deadlines;
 import vn.vibefix.work.MilestoneWork;
 import vn.vibefix.work.MilestoneWork.ItemState;
 import vn.vibefix.work.MilestoneWork.ReportVersion;
@@ -76,9 +80,10 @@ class Handovers {
 	record ItemNote(UUID workItemId, String note) {
 	}
 
+	/** @param auto accepted by Auto-acceptance (FR-35) */
 	record Handover(UUID id, UUID jobId, UUID productId, UUID milestoneId, int number, String milestoneTitle, int round,
 			@Nullable UUID mentorId, String status, long jobVersion, @Nullable UUID reportPageId,
-			@Nullable Integer reportVersionNo, Instant checkBy, Instant createdAt, @Nullable Instant decidedAt) {
+			@Nullable Integer reportVersionNo, Instant checkBy, Instant createdAt, @Nullable Instant decidedAt, boolean auto) {
 	}
 
 	record Criterion(UUID criterionId, int number, String statement, String checkSteps, boolean met, String note) {
@@ -97,7 +102,7 @@ class Handovers {
 
 	private static final String COLUMNS = """
 			id, job_id, product_id, milestone_id, milestone_number, milestone_title, round, mentor_account_id, status,
-			job_version, report_page_id, report_version_no, check_by, created_at, decided_at
+			job_version, report_page_id, report_version_no, check_by, created_at, decided_at, auto
 			""";
 
 	private final JdbcClient jdbc;
@@ -114,12 +119,14 @@ class Handovers {
 
 	private final Todos todos;
 
+	private final Deadlines deadlines;
+
 	private final IdGenerator ids;
 
 	private final Clock clock;
 
 	Handovers(JdbcClient jdbc, MilestoneHandovers jobs, AgreementCriteria criteria, MilestoneStates states,
-			MilestoneWork work, SensitiveText check, Todos todos, IdGenerator ids, Clock clock) {
+			MilestoneWork work, SensitiveText check, Todos todos, Deadlines deadlines, IdGenerator ids, Clock clock) {
 		this.jdbc = jdbc;
 		this.jobs = jobs;
 		this.criteria = criteria;
@@ -127,6 +134,7 @@ class Handovers {
 		this.work = work;
 		this.check = check;
 		this.todos = todos;
+		this.deadlines = deadlines;
 		this.ids = ids;
 		this.clock = clock;
 	}
@@ -268,9 +276,17 @@ class Handovers {
 		}
 		this.todos.close(HAND_OVER, mentor.accountId(), milestoneId);
 		this.todos.open(new TodoRequest(REVIEW_HANDOVER, mentor.job().customerId(), Audience.CUSTOMER, id,
-				Map.of("n", String.valueOf(milestone.number())), "/cong-viec/" + jobId + "/ban-giao/" + id,
-				submitted.checkBy(), jobId));
+				Map.of("n", String.valueOf(milestone.number()), "date", dayMonth(submitted.checkBy())),
+				"/cong-viec/" + jobId + "/ban-giao/" + id, submitted.checkBy(), jobId));
+		this.deadlines.schedule(new DeadlineRequest(AutoAcceptance.KEY, id, id.toString(), jobId, submitted.checkBy()));
+		this.deadlines.schedule(new DeadlineRequest(AcceptanceReminder.KEY, id, "1", jobId, submitted.firstReminderAt()));
+		this.deadlines.schedule(new DeadlineRequest(AcceptanceReminder.KEY, id, "2", jobId, submitted.secondReminderAt()));
 		return find(id).orElseThrow();
+	}
+
+	/** {@code dd/MM} in Vietnam time, as the screens and the strip show a date. */
+	static String dayMonth(Instant at) {
+		return DateTimeFormatter.ofPattern("dd/MM").format(at.atZone(ZoneId.of("Asia/Ho_Chi_Minh")));
 	}
 
 	/** The Job's handovers, oldest first. */
@@ -365,7 +381,7 @@ class Handovers {
 				rs.getObject("mentor_account_id", UUID.class), rs.getString("status"), rs.getLong("job_version"),
 				rs.getObject("report_page_id", UUID.class), reportVersion,
 				Objects.requireNonNull(rs.getTimestamp("check_by")).toInstant(), rs.getTimestamp("created_at").toInstant(),
-				decided == null ? null : decided.toInstant());
+				decided == null ? null : decided.toInstant(), rs.getBoolean("auto"));
 	}
 
 }

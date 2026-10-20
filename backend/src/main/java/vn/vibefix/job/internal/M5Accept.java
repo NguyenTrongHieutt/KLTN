@@ -8,6 +8,10 @@ import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
+import vn.vibefix.audit.AuditActor;
+import vn.vibefix.audit.AuditEntry;
+import vn.vibefix.audit.AuditLog;
+import vn.vibefix.audit.AuditObject;
 import vn.vibefix.job.internal.JobLifecycle.Applying;
 import vn.vibefix.job.internal.Jobs.Job;
 import vn.vibefix.notification.Audience;
@@ -32,12 +36,17 @@ class M5Accept implements JobLifecycle.Step {
 
 	private final M1Fund numbers;
 
+	static final String AUTO_ACCEPTED = "job.milestone_auto_accepted";
+
 	private final Notifications notifications;
 
-	M5Accept(JdbcClient jdbc, M1Fund numbers, Notifications notifications) {
+	private final AuditLog auditLog;
+
+	M5Accept(JdbcClient jdbc, M1Fund numbers, Notifications notifications, AuditLog auditLog) {
 		this.jdbc = jdbc;
 		this.numbers = numbers;
 		this.notifications = notifications;
+		this.auditLog = auditLog;
 	}
 
 	@Override
@@ -73,10 +82,16 @@ class M5Accept implements JobLifecycle.Step {
 	@Override
 	public void afterWrite(Applying applying) {
 		Job job = applying.job();
+		boolean auto = applying.trigger() == Trigger.AUTO;
+		if (auto) {
+			this.auditLog.record(AuditEntry.of(AuditActor.system(), AUTO_ACCEPTED,
+					AuditObject.of("job.milestone", applying.milestoneId())).forJob(job.id()));
+		}
 		this.notifications.send(new NotificationRequest(ACCEPTED, applying.transitionId(),
 				List.of(new Recipient(job.customerId(), Audience.CUSTOMER),
 						new Recipient(Objects.requireNonNull(job.mentorId()), Audience.MENTOR)),
-				Map.of("n", String.valueOf(this.numbers.number(job.id(), applying.milestoneId())), "job", job.title()),
+				Map.of("n", String.valueOf(this.numbers.number(job.id(), applying.milestoneId())), "job", job.title(), "how",
+						auto ? "tự nghiệm thu" : "nghiệm thu"),
 				"/cong-viec/" + job.id() + "/ban-giao/" + applying.input("handoverId"), job.id(), null));
 	}
 

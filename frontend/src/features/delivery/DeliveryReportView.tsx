@@ -28,9 +28,11 @@ export function DeliveryReportView({ report }: { report: DeliveryReport }) {
           {t('screen.handover.report.meta', { mentor: report.mentorName, date: formatDate(report.createdAt), round: report.round })}
         </p>
         <p className="w-fit rounded-full bg-primary-soft px-2 py-0.5 text-caption font-semibold text-primary">
-          {customer && report.status === 'SUBMITTED'
-            ? t('screen.handover.status.customer', { date: formatDayMonth(report.checkBy) })
-            : t(`screen.handover.status.${report.status}` as MessageKey)}
+          {report.auto
+            ? t('screen.handover.status.auto')
+            : customer && report.status === 'SUBMITTED'
+              ? t('screen.handover.status.customer', { date: formatDayMonth(report.checkBy) })
+              : t(`screen.handover.status.${report.status}` as MessageKey)}
         </p>
       </header>
       {report.decision && (

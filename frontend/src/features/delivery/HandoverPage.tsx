@@ -169,9 +169,11 @@ function HandoverListPanel({ list, jobId, current }: { list: HandoverList; jobId
                 {t('screen.handover.itemMeta', { round: handover.round, date: formatDate(handover.createdAt) })}
               </span>
               <span className="text-caption">
-                {list.audience === 'CUSTOMER' && handover.status === 'SUBMITTED'
-                  ? t('screen.handover.status.customer', { date: formatDayMonth(handover.checkBy) })
-                  : t(`screen.handover.status.${handover.status}` as MessageKey)}
+                {handover.auto
+                  ? t('screen.handover.status.auto')
+                  : list.audience === 'CUSTOMER' && handover.status === 'SUBMITTED'
+                    ? t('screen.handover.status.customer', { date: formatDayMonth(handover.checkBy) })
+                    : t(`screen.handover.status.${handover.status}` as MessageKey)}
               </span>
             </Link>
           </li>
