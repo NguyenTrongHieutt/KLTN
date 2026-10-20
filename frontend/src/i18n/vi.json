@@ -2230,7 +2230,8 @@
         "reconfirmBody": "Một thành viên bị khóa sau khi thỏa thuận được xác nhận. Hãy bỏ thành viên đó, thêm người khác nếu cần và lưu phần chia, rồi xác nhận lại nhóm trước khi khách hàng thanh toán.",
         "reconfirm": "Xác nhận lại nhóm thực hiện",
         "reconfirmed": "Đã xác nhận lại nhóm thực hiện.",
-        "reconfirmAction": "xác nhận lại nhóm thực hiện"
+        "reconfirmAction": "xác nhận lại nhóm thực hiện",
+        "limitLarge": "Nhóm thực hiện đã đủ {n} sinh viên."
       },
       "customer": {
         "title": "Nhóm thực hiện",
@@ -3891,7 +3892,7 @@
       "AGREEMENT_INCOMPLETE": "bản nháp chưa đủ để gửi",
       "CREW_LOCKED": "nhóm thực hiện đã chốt theo thỏa thuận",
       "CREW_CHANGE_REQUIRED": "công việc đã bắt đầu, chỉ đổi nhóm được qua yêu cầu đổi nhóm",
-      "CREW_LIMIT": "mỗi công việc hiện chỉ có một sinh viên trong nhóm thực hiện",
+      "CREW_LIMIT": "nhóm thực hiện đã đủ số sinh viên cho phép",
       "STUDENT_NOT_VERIFIED": "sinh viên chưa xác minh",
       "STUDENT_ON_CREW": "sinh viên đang làm một công việc khác",
       "NOT_IN_TEAM": "sinh viên không còn trong nhóm của bạn",
