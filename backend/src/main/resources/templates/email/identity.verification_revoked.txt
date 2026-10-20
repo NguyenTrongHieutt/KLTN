@@ -1,0 +1,7 @@
+subject: Xác minh sinh viên đã bị thu hồi: {reason}
+---
+Xin chào,
+
+Quản trị viên vibefix đã thu hồi xác minh sinh viên của bạn. Lý do: {reason}
+
+Bạn vẫn tiếp tục các công việc đang làm, nhưng chưa thể tham gia nhóm thực hiện mới cho đến khi xác minh lại trong Hồ sơ.

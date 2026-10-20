@@ -1265,6 +1265,36 @@ POST /api/v1/admin/disputes/{disputeId}/retry,CUSTOMER,,,404 NOT_FOUND
 POST /api/v1/admin/disputes/{disputeId}/retry,MENTOR,,,404 NOT_FOUND
 POST /api/v1/admin/disputes/{disputeId}/retry,STUDENT,,,404 NOT_FOUND
 POST /api/v1/admin/disputes/{disputeId}/retry,ADMINISTRATOR,,,409 CONFLICT NOT_FAILED
+GET /api/v1/admin/users,ANONYMOUS,,,401
+GET /api/v1/admin/users,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/admin/users,MENTOR,,,404 NOT_FOUND
+GET /api/v1/admin/users,STUDENT,,,404 NOT_FOUND
+GET /api/v1/admin/users,ADMINISTRATOR,,,200
+GET /api/v1/admin/users/{accountId},ANONYMOUS,,,401
+GET /api/v1/admin/users/{accountId},CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/admin/users/{accountId},MENTOR,,,404 NOT_FOUND
+GET /api/v1/admin/users/{accountId},STUDENT,,,404 NOT_FOUND
+GET /api/v1/admin/users/{accountId},ADMINISTRATOR,,,200
+POST /api/v1/admin/users/{accountId}/lock,ANONYMOUS,,admin-user-reason.json,401
+POST /api/v1/admin/users/{accountId}/lock,CUSTOMER,,admin-user-reason.json,404 NOT_FOUND
+POST /api/v1/admin/users/{accountId}/lock,MENTOR,,admin-user-reason.json,404 NOT_FOUND
+POST /api/v1/admin/users/{accountId}/lock,STUDENT,,admin-user-reason.json,404 NOT_FOUND
+POST /api/v1/admin/users/{accountId}/lock,ADMINISTRATOR,,admin-user-reason.json,200
+POST /api/v1/admin/users/{accountId}/unlock,ANONYMOUS,,admin-user-reason.json,401
+POST /api/v1/admin/users/{accountId}/unlock,CUSTOMER,,admin-user-reason.json,404 NOT_FOUND
+POST /api/v1/admin/users/{accountId}/unlock,MENTOR,,admin-user-reason.json,404 NOT_FOUND
+POST /api/v1/admin/users/{accountId}/unlock,STUDENT,,admin-user-reason.json,404 NOT_FOUND
+POST /api/v1/admin/users/{accountId}/unlock,ADMINISTRATOR,,admin-user-reason.json,409 CONFLICT NOT_LOCKED
+POST /api/v1/admin/users/{accountId}/revoke-verification,ANONYMOUS,,admin-user-reason.json,401
+POST /api/v1/admin/users/{accountId}/revoke-verification,CUSTOMER,,admin-user-reason.json,404 NOT_FOUND
+POST /api/v1/admin/users/{accountId}/revoke-verification,MENTOR,,admin-user-reason.json,404 NOT_FOUND
+POST /api/v1/admin/users/{accountId}/revoke-verification,STUDENT,,admin-user-reason.json,404 NOT_FOUND
+POST /api/v1/admin/users/{accountId}/revoke-verification,ADMINISTRATOR,,admin-user-reason.json,409 CONFLICT NOT_VERIFIED
+POST /api/v1/admin/users/{accountId}/revoke-approval,ANONYMOUS,,admin-user-revoke-approval.json,401
+POST /api/v1/admin/users/{accountId}/revoke-approval,CUSTOMER,,admin-user-revoke-approval.json,404 NOT_FOUND
+POST /api/v1/admin/users/{accountId}/revoke-approval,MENTOR,,admin-user-revoke-approval.json,404 NOT_FOUND
+POST /api/v1/admin/users/{accountId}/revoke-approval,STUDENT,,admin-user-revoke-approval.json,404 NOT_FOUND
+POST /api/v1/admin/users/{accountId}/revoke-approval,ADMINISTRATOR,,admin-user-revoke-approval.json,404 NOT_FOUND
 # Milestone Handovers (FR-32, AD-20, AD-39): the Customer (OWNER), the Mentor, and ACTIVE members read;
 # only the Mentor hands over, and the fixture's Milestone is not Funded. The Customer's Delivery Report
 # never carries the Work Item note, whose text is the WORK_ITEM_NOTE canary.

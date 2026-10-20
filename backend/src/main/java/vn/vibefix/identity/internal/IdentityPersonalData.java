@@ -57,7 +57,8 @@ class IdentityPersonalData implements PersonalDataParticipant {
 				"identity.customer_profile", "identity.student_profile", "identity.showcase_repository",
 				"identity.contact_grant", "identity.school_email_code", "identity.student_verification",
 				"identity.student_card", "identity.administrator_credential", "identity.administrator_enrolment",
-				"identity.person_signal", "identity.mentor_application", "identity.mentor_decision");
+				"identity.person_signal", "identity.mentor_application", "identity.mentor_decision",
+				"identity.account_action");
 	}
 
 	@Override
@@ -156,6 +157,15 @@ class IdentityPersonalData implements PersonalDataParticipant {
 			if (!decisions.isEmpty()) {
 				data.put("mentorDecisions", decisions);
 			}
+			// What Administrators did to the account and why (FR-59); not which Administrator.
+			List<Map<String, String>> actions = this.jdbc.sql("""
+					SELECT action, reason, acted_at FROM identity.account_action WHERE account_id = :id ORDER BY acted_at
+					""").param("id", accountId).query((rs, n) -> Map.of("action", rs.getString("action"), "reason",
+					rs.getString("reason"), "at", rs.getTimestamp("acted_at").toInstant().toString()))
+				.list();
+			if (!actions.isEmpty()) {
+				data.put("accountActions", actions);
+			}
 			// Person-link signals by where they came from, never their HMACs (AD-19).
 			List<Map<String, String>> signals = this.jdbc.sql("""
 					SELECT DISTINCT source, recorded_at FROM identity.person_signal
@@ -193,7 +203,7 @@ class IdentityPersonalData implements PersonalDataParticipant {
 		for (String table : new String[] { "identity.customer_profile", "identity.student_profile",
 				"identity.showcase_repository", "identity.school_email_code", "identity.student_verification",
 				"identity.student_card", "identity.administrator_credential", "identity.administrator_enrolment",
-				"identity.mentor_application", "identity.mentor_decision" }) {
+				"identity.mentor_application", "identity.mentor_decision", "identity.account_action" }) {
 			this.jdbc.sql("DELETE FROM " + table + " WHERE account_id = :id").param("id", accountId).update();
 		}
 		this.jdbc.sql("""

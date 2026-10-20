@@ -1,4 +1,4 @@
-import { Gavel, IdCard, LayoutDashboard, ShieldCheck, UserCheck, type LucideIcon } from 'lucide-react'
+import { Gavel, IdCard, LayoutDashboard, ShieldCheck, UserCheck, Users, type LucideIcon } from 'lucide-react'
 import type { MessageKey } from '@/i18n/t'
 
 export interface AdminDestination {
@@ -14,6 +14,7 @@ export interface AdminDestination {
  */
 export const ADMIN_DESTINATIONS: AdminDestination[] = [
   { label: 'screen.admin.nav.overview', to: '/quan-tri', icon: LayoutDashboard },
+  { label: 'screen.admin.nav.users', to: '/quan-tri/nguoi-dung', icon: Users },
   { label: 'screen.admin.nav.mentors', to: '/quan-tri/nguoi-huong-dan', icon: UserCheck, count: 'mentorApplications' },
   { label: 'screen.admin.nav.studentCards', to: '/quan-tri/the-sinh-vien', icon: IdCard, count: 'studentCards' },
   { label: 'screen.admin.nav.disputes', to: '/quan-tri/tranh-chap', icon: Gavel, count: 'disputes' },

@@ -22,6 +22,12 @@ public interface PrivateFeedback {
 	/** The Mentor's summary, when anyone gave them feedback. */
 	Optional<Summary> summary(UUID mentorId);
 
+	/**
+	 * Whether a warning or revocation may rely on the Mentor's private feedback (FR-78): at least 3
+	 * feedbacks, from at least 2 different Students, on at least 2 different Jobs.
+	 */
+	boolean enoughToAct(UUID mentorId);
+
 	/** Mentors averaging below 3 over at least 3 feedbacks (ADM-1's filter). */
 	List<Summary> belowThreshold();
 

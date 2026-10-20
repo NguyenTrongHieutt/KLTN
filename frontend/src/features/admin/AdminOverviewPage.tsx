@@ -33,6 +33,7 @@ export function AdminOverviewPage() {
   const stalled = overview.data?.stalledEvents
   const cards = overview.data?.studentCards
   const applications = overview.data?.mentorApplications
+  const lowFeedback = overview.data?.lowFeedback
 
   return (
     <div className="flex flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
@@ -81,6 +82,16 @@ export function AdminOverviewPage() {
                   ? t('screen.admin.overview.oldest', { date: formatDayMonth(applications.oldestAt) })
                   : t('screen.admin.overview.empty')}
               </p>
+            </Link>
+          )}
+          {lowFeedback && (
+            <Link
+              to="/quan-tri/nguoi-dung?status=LOW_FEEDBACK"
+              className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 hover:border-primary"
+            >
+              <p className="text-caption text-muted-foreground">{t('screen.admin.overview.lowFeedback')}</p>
+              <p className={cn('text-h1', lowFeedback.count > 0 && 'text-warning')}>{lowFeedback.count}</p>
+              <p className="text-caption text-muted-foreground">{t('screen.admin.overview.lowFeedbackNote')}</p>
             </Link>
           )}
           {failed && (

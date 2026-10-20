@@ -1,0 +1,12 @@
+package vn.vibefix.admin.internal;
+
+/**
+ * The {@code reason} of an {@code admin} refusal (AD-23); the SPA reads {@code reason.admin.{REASON}} in
+ * {@code vi.json}.
+ */
+enum AdminReason {
+
+	/** FR-78: fewer than 3 private feedbacks from 2 different Students on 2 different Jobs. */
+	FEEDBACK_NOT_ENOUGH
+
+}

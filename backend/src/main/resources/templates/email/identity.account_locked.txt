@@ -1,0 +1,7 @@
+subject: Tài khoản vibefix của bạn đã bị khóa: {reason}
+---
+Xin chào,
+
+Quản trị viên vibefix đã khóa tài khoản của bạn. Lý do: {reason}
+
+Bạn không thể đăng nhập cho đến khi tài khoản được mở khóa. Nếu bạn nghĩ đây là nhầm lẫn, hãy trả lời email này.

@@ -538,7 +538,8 @@
         "mentors": "Người hướng dẫn",
         "studentCards": "Thẻ sinh viên",
         "pendingCount": "{n} đang chờ",
-        "disputes": "Tranh chấp"
+        "disputes": "Tranh chấp",
+        "users": "Người dùng"
       },
       "overview": {
         "title": "Tổng quan",
@@ -556,7 +557,9 @@
         "onlyOne": "Chỉ có một quản trị viên. Khôi phục tài khoản chỉ do quản trị viên khác làm; hãy tạo quản trị viên thứ hai trước công việc thật đầu tiên.",
         "onlyOneAction": "Tạo quản trị viên",
         "studentCards": "Thẻ sinh viên chờ duyệt",
-        "mentorApplications": "Hồ sơ người hướng dẫn chờ duyệt"
+        "mentorApplications": "Hồ sơ người hướng dẫn chờ duyệt",
+        "lowFeedback": "Đánh giá kín thấp",
+        "lowFeedbackNote": "Người hướng dẫn trung bình dưới 3 sao trên ít nhất 3 đánh giá"
       },
       "idle": {
         "title": "Phiên làm việc sắp hết",
@@ -829,6 +832,112 @@
         "failure": "Lỗi: {failure}",
         "retry": "Thử lại",
         "decision": "Quyết định"
+      },
+      "users": {
+        "title": "Người dùng",
+        "heading": "Người dùng",
+        "unnamed": "Chưa có tên",
+        "search": "Tìm theo tên, GitHub hoặc email",
+        "find": "Tìm",
+        "roleFilter": "Vai trò",
+        "statusFilter": "Trạng thái",
+        "role": {
+          "CUSTOMER": "Khách hàng",
+          "MENTOR": "Người hướng dẫn",
+          "STUDENT": "Sinh viên"
+        },
+        "filter": {
+          "LOCKED": "Đã khóa",
+          "VERIFIED": "Đã xác minh",
+          "PENDING": "Chờ duyệt",
+          "APPROVED": "Đã duyệt",
+          "REVOKED": "Đã thu hồi",
+          "LOW_FEEDBACK": "Đánh giá kín thấp"
+        },
+        "status": {
+          "VERIFIED": "Đã xác minh",
+          "UNVERIFIED": "Chưa xác minh",
+          "PENDING": "Chờ duyệt",
+          "APPROVED": "Đã duyệt",
+          "REJECTED": "Bị từ chối",
+          "REVOKED": "Đã thu hồi"
+        },
+        "locked": "Đã khóa",
+        "empty": "Không có tài khoản nào khớp.",
+        "listLabel": "Danh sách người dùng",
+        "pagination": "Phân trang người dùng",
+        "previous": "Trang trước",
+        "next": "Trang sau",
+        "page": "Trang {page}/{pages}",
+        "pick": "Chọn một tài khoản để xem chi tiết.",
+        "roleLabel": "Vai trò",
+        "github": "GitHub",
+        "email": "Email",
+        "createdAt": "Tạo lúc",
+        "verification": "Xác minh sinh viên",
+        "verifiedUntil": "{method}, còn hiệu lực đến {date}",
+        "verificationExpired": "{method}, đã hết hạn ngày {date}",
+        "unverified": "Chưa xác minh",
+        "method": {
+          "SCHOOL_EMAIL": "Email trường",
+          "STUDENT_CARD": "Thẻ sinh viên"
+        },
+        "approval": "Phê duyệt người hướng dẫn",
+        "lockReason": "Lý do khóa",
+        "lock": "Khóa tài khoản",
+        "unlock": "Mở khóa",
+        "revokeVerification": "Thu hồi xác minh",
+        "revokeApproval": "Thu hồi",
+        "unlockNote": "Mở khóa chỉ cho đăng nhập lại; quyền vào kho mã, nhóm và phê duyệt không tự trở lại.",
+        "feedback": "Đánh giá kín",
+        "feedbackPrivate": "Chỉ quản trị viên xem được. Người hướng dẫn không biết ai đã đánh giá hay vào lúc nào.",
+        "feedbackSummary": "Trung bình {average} sao trên {n} đánh giá",
+        "history": "Lịch sử",
+        "noHistory": "Chưa có thao tác nào.",
+        "action": {
+          "LOCKED": "Khóa",
+          "UNLOCKED": "Mở khóa",
+          "VERIFICATION_REVOKED": "Thu hồi xác minh",
+          "APPROVAL_REVOKED": "Thu hồi phê duyệt"
+        },
+        "reason": "Lý do (người dùng sẽ đọc)",
+        "back": "Quay lại",
+        "ask": {
+          "lock": "Khóa tài khoản của {name}?",
+          "unlock": "Mở khóa tài khoản của {name}?",
+          "revokeVerification": "Thu hồi xác minh sinh viên của {name}?",
+          "revokeApproval": "Thu hồi phê duyệt của {name}?"
+        },
+        "effects": {
+          "lock": "Mọi phiên đăng nhập kết thúc ngay và người này nhận email kèm lý do. Họ không đăng nhập được cho đến khi được mở khóa.",
+          "unlock": "Người này đăng nhập lại được. Quyền vào kho mã, nhóm và phê duyệt không tự trở lại.",
+          "revokeVerification": "Sinh viên vẫn làm tiếp công việc đang chạy nhưng không được thêm vào nhóm mới cho đến khi xác minh lại.",
+          "revokeApproval": "Công việc đang chạy vẫn tiếp tục. Đơn ứng tuyển chưa được chọn bị rút, nhóm đóng lại và người hướng dẫn không nhận việc mới."
+        },
+        "confirm": {
+          "lock": "Khóa tài khoản",
+          "unlock": "Mở khóa",
+          "revokeVerification": "Thu hồi xác minh",
+          "revokeApproval": "Thu hồi"
+        },
+        "done": {
+          "lock": "Đã khóa tài khoản.",
+          "unlock": "Đã mở khóa tài khoản.",
+          "revokeVerification": "Đã thu hồi xác minh.",
+          "revokeApproval": "Đã thu hồi phê duyệt."
+        },
+        "ground": "Căn cứ",
+        "groundOption": {
+          "OTHER": "Lý do khác",
+          "PRIVATE_FEEDBACK": "Dựa trên đánh giá kín"
+        },
+        "category": "Nhóm vi phạm (người hướng dẫn chỉ đọc dòng này)",
+        "categoryOption": {
+          "RESPECT": "Thiếu tôn trọng với sinh viên",
+          "GUIDANCE": "Không hướng dẫn hoặc không phản hồi nhóm",
+          "RULES": "Vi phạm quy tắc của vibefix"
+        },
+        "categoryNote": "Người hướng dẫn chỉ thấy nhóm vi phạm, không thấy đánh giá, công việc, sinh viên hay ngày nào."
       }
     },
     "product": {
@@ -3116,6 +3225,15 @@
       },
       "mentor_rejected": {
         "title": "Hồ sơ người hướng dẫn chưa được duyệt: {reason}"
+      },
+      "account_locked": {
+        "title": "Tài khoản vibefix của bạn đã bị khóa: {reason}"
+      },
+      "verification_revoked": {
+        "title": "Xác minh sinh viên đã bị thu hồi: {reason}"
+      },
+      "mentor_approval_revoked": {
+        "title": "Bạn tạm thời không nhận được việc mới: {reason}"
       }
     },
     "team": {
@@ -3388,7 +3506,12 @@
       "ACCOUNT_LOCKED": "Tài khoản của bạn đang bị khóa.",
       "MENTOR_LINKEDIN_IN_USE": "Liên kết LinkedIn này đã được dùng cho một hồ sơ người hướng dẫn khác.",
       "PRIVACY_NOTICE_REQUIRED": "Hãy đọc và đồng ý với thông báo quyền riêng tư trước khi gửi hồ sơ.",
-      "MENTOR_REAPPLY_TOO_SOON": "Bạn có thể gửi lại hồ sơ từ ngày {date}."
+      "MENTOR_REAPPLY_TOO_SOON": "Bạn có thể gửi lại hồ sơ từ ngày {date}.",
+      "ADMINISTRATOR_ACCOUNT": "Tài khoản quản trị viên được quản lý ở trang Quản trị viên.",
+      "ALREADY_LOCKED": "Tài khoản này đã bị khóa.",
+      "NOT_LOCKED": "Tài khoản này không bị khóa.",
+      "NOT_VERIFIED": "Sinh viên này chưa được xác minh.",
+      "NOT_APPROVED": "Người hướng dẫn này không ở trạng thái đã duyệt."
     },
     "files": {
       "FILE_TOO_LARGE": "Tệp lớn hơn 10 MB.",
@@ -3582,6 +3705,9 @@
       "NOTHING_TO_CONTINUE": "Không còn giai đoạn chưa bắt đầu nào để tiếp tục.",
       "ALREADY_DECIDED": "Tranh chấp này đã có quyết định.",
       "NOT_FAILED": "Chỉ thử lại được khi việc thực hiện bị lỗi."
+    },
+    "admin": {
+      "FEEDBACK_NOT_ENOUGH": "Cần ít nhất 3 đánh giá kín từ 2 sinh viên khác nhau trên 2 công việc khác nhau."
     }
   },
   "markdown": {
