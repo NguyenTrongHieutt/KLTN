@@ -1295,6 +1295,16 @@ POST /api/v1/admin/users/{accountId}/revoke-approval,CUSTOMER,,admin-user-revoke
 POST /api/v1/admin/users/{accountId}/revoke-approval,MENTOR,,admin-user-revoke-approval.json,404 NOT_FOUND
 POST /api/v1/admin/users/{accountId}/revoke-approval,STUDENT,,admin-user-revoke-approval.json,404 NOT_FOUND
 POST /api/v1/admin/users/{accountId}/revoke-approval,ADMINISTRATOR,,admin-user-revoke-approval.json,404 NOT_FOUND
+GET /api/v1/admin/moderation,ANONYMOUS,,,401
+GET /api/v1/admin/moderation,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/admin/moderation,MENTOR,,,404 NOT_FOUND
+GET /api/v1/admin/moderation,STUDENT,,,404 NOT_FOUND
+GET /api/v1/admin/moderation,ADMINISTRATOR,,,200
+POST /api/v1/admin/moderation/{kind}/{contentId}/hide,ANONYMOUS,,admin-user-reason.json,401
+POST /api/v1/admin/moderation/{kind}/{contentId}/hide,CUSTOMER,,admin-user-reason.json,404 NOT_FOUND
+POST /api/v1/admin/moderation/{kind}/{contentId}/hide,MENTOR,,admin-user-reason.json,404 NOT_FOUND
+POST /api/v1/admin/moderation/{kind}/{contentId}/hide,STUDENT,,admin-user-reason.json,404 NOT_FOUND
+POST /api/v1/admin/moderation/{kind}/{contentId}/hide,ADMINISTRATOR,,admin-user-reason.json,200
 # Milestone Handovers (FR-32, AD-20, AD-39): the Customer (OWNER), the Mentor, and ACTIVE members read;
 # only the Mentor hands over, and the fixture's Milestone is not Funded. The Customer's Delivery Report
 # never carries the Work Item note, whose text is the WORK_ITEM_NOTE canary.

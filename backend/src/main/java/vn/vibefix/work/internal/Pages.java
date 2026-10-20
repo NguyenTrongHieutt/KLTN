@@ -69,6 +69,11 @@ class Pages {
 			id, job_id, parent_id, title, version_no, created_by_account_id, created_at, updated_at, template, visibility
 			""";
 
+	/** FR-60: a hidden Page, and a child of one, is read by no one. */
+	static final String SHOWN = """
+			hidden_at IS NULL AND (parent_id IS NULL OR parent_id NOT IN (SELECT h.id FROM work.page h WHERE h.hidden_at IS NOT NULL))
+			""";
+
 	private static final String VERSION_COLUMNS = "page_id, version_no, title, body, author_account_id, restored_from, created_at";
 
 	private final JdbcClient jdbc;
@@ -170,7 +175,7 @@ class Pages {
 	/** "Chỉ nhóm" or "Khách hàng xem được": only the Mentor, never for the Assessment Report (FR-31). */
 	@Transactional
 	Page setVisibility(BoardViewer writer, UUID pageId, Visibility visibility) {
-		Page page = this.jdbc.sql("SELECT " + PAGE_COLUMNS + " FROM work.page WHERE id = :id FOR UPDATE")
+		Page page = this.jdbc.sql("SELECT " + PAGE_COLUMNS + " FROM work.page WHERE id = :id AND " + SHOWN + " FOR UPDATE")
 			.param("id", pageId)
 			.query(Pages::page)
 			.optional()
@@ -220,7 +225,7 @@ class Pages {
 	}
 
 	private Page locked(BoardViewer writer, UUID pageId, int version) {
-		Page page = this.jdbc.sql("SELECT " + PAGE_COLUMNS + " FROM work.page WHERE id = :id FOR UPDATE")
+		Page page = this.jdbc.sql("SELECT " + PAGE_COLUMNS + " FROM work.page WHERE id = :id AND " + SHOWN + " FOR UPDATE")
 			.param("id", pageId)
 			.query(Pages::page)
 			.optional()
@@ -278,7 +283,7 @@ class Pages {
 
 	@Transactional(readOnly = true)
 	Optional<Page> page(UUID pageId) {
-		return this.jdbc.sql("SELECT " + PAGE_COLUMNS + " FROM work.page WHERE id = :id")
+		return this.jdbc.sql("SELECT " + PAGE_COLUMNS + " FROM work.page WHERE id = :id AND " + SHOWN)
 			.param("id", pageId)
 			.query(Pages::page)
 			.optional();
@@ -296,7 +301,7 @@ class Pages {
 	/** The Pages the viewer sees, in tree order (parents in creation order, each with its children). */
 	@Transactional
 	List<Seen> visible(BoardViewer viewer) {
-		List<Page> pages = this.jdbc.sql("SELECT " + PAGE_COLUMNS + " FROM work.page WHERE job_id = :job ORDER BY seq")
+		List<Page> pages = this.jdbc.sql("SELECT " + PAGE_COLUMNS + " FROM work.page WHERE job_id = :job AND " + SHOWN + " ORDER BY seq")
 			.param("job", viewer.board().jobId())
 			.query(Pages::page)
 			.list();

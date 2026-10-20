@@ -7,6 +7,9 @@ package vn.vibefix.admin.internal;
 enum AdminReason {
 
 	/** FR-78: fewer than 3 private feedbacks from 2 different Students on 2 different Jobs. */
-	FEEDBACK_NOT_ENOUGH
+	FEEDBACK_NOT_ENOUGH,
+
+	/** FR-60: the content is hidden already. */
+	ALREADY_HIDDEN
 
 }

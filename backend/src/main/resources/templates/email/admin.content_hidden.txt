@@ -1,0 +1,7 @@
+subject: {kind} “{title}” đã bị ẩn: {reason}
+---
+Xin chào,
+
+Quản trị viên vibefix đã ẩn {kind} “{title}” vì vi phạm quy định. Lý do: {reason}
+
+Nội dung không còn hiện với người khác. Công việc đang chạy vẫn tiếp tục. Nếu bạn nghĩ đây là nhầm lẫn, hãy trả lời email này.

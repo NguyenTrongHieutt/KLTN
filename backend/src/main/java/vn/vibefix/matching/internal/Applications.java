@@ -60,6 +60,8 @@ class Applications {
 	static final int DAILY_LIMIT = 20;
 
 	/** N-5's version, recorded with the Application. */
+	static final String POST_HIDDEN = "job.job_post_hidden";
+
 	static final String PUBLIC_CODE_NOTICE_VERSION = "1.0";
 
 	static final String RECEIVED = "matching.application_received";
@@ -260,6 +262,21 @@ class Applications {
 				AuditObject.of("matching.application", applicationId)).forJob(application.jobId()));
 		this.posts.post(application.jobId()).ifPresent(post -> refreshTodo(post, openCount(post.jobId())));
 		return find(application.jobId(), mentorId).orElseThrow();
+	}
+
+	/** FR-60: each Mentor with a submitted or held Application learns the Job Post was hidden. */
+	@Transactional
+	void postHidden(UUID jobId) {
+		String title = this.posts.post(jobId).map(JobPostState::title).orElse("");
+		this.jdbc.sql("""
+				SELECT id, mentor_account_id FROM matching.application WHERE job_id = :job AND status IN ('SUBMITTED', 'ON_HOLD')
+				""").param("job", jobId).query((rs, n) -> {
+			UUID application = rs.getObject("id", UUID.class);
+			this.notifications.send(new NotificationRequest(POST_HIDDEN, application,
+					List.of(new Recipient(rs.getObject("mentor_account_id", UUID.class), Audience.SUBJECT)),
+					Map.of("job", title), "/cong-viec", null, application));
+			return null;
+		}).list();
 	}
 
 	/** J2: the Job's submitted and held Applications close, and so does the Customer's to-do (§4.0). */
