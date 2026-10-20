@@ -2103,7 +2103,25 @@
       "restoredFrom": "khôi phục từ phiên bản {n}",
       "view": "Xem",
       "restore": "Khôi phục",
-      "restored": "Đã khôi phục phiên bản {from} thành phiên bản {n}"
+      "restored": "Đã khôi phục phiên bản {from} thành phiên bản {n}",
+      "blank": "Trang trống",
+      "fromTemplate": "Bắt đầu từ mẫu",
+      "created": "Đã tạo trang {title}",
+      "emptyCustomer": "Người hướng dẫn chưa chia sẻ tài liệu nào với bạn.",
+      "reportVisible": "Báo cáo đánh giá luôn để khách hàng xem.",
+      "n12": "Mã của khách hàng có thể chứa phần mềm độc hại. Hãy chạy nó trong môi trường tách biệt (máy ảo hoặc container), không dùng tài khoản và khóa cá nhân của bạn, và xóa môi trường khi xong.",
+      "template": {
+        "ASSESSMENT_REPORT": "Báo cáo đánh giá",
+        "SCOPE": "Phạm vi và tiêu chí",
+        "TECHNICAL_NOTES": "Ghi chú kỹ thuật và quyết định",
+        "MEETING_NOTES": "Biên bản họp",
+        "HANDOVER": "Tài liệu bàn giao",
+        "USER_GUIDE": "Hướng dẫn sử dụng"
+      },
+      "visibility": {
+        "TEAM": "Chỉ nhóm",
+        "CUSTOMER": "Khách hàng xem được"
+      }
     }
   },
   "notice": {
@@ -2902,7 +2920,10 @@
       "SELF_CHECK_INCOMPLETE": "Hãy đánh dấu đủ bốn mục tự kiểm trước khi gửi duyệt.",
       "REVIEW_COMMENT_REQUIRED": "Hãy viết nhận xét trước khi duyệt hoặc trả lại.",
       "PAGE_TOO_DEEP": "Tài liệu chỉ có hai cấp: trang gốc và trang con.",
-      "PAGE_PARENT_UNKNOWN": "Không tìm thấy trang cha."
+      "PAGE_PARENT_UNKNOWN": "Không tìm thấy trang cha.",
+      "TEMPLATE_NOT_AVAILABLE": "Mẫu báo cáo đánh giá chỉ dùng cho công việc đánh giá.",
+      "REPORT_EXISTS": "Công việc này đã có báo cáo đánh giá.",
+      "REPORT_ALWAYS_VISIBLE": "Báo cáo đánh giá luôn để khách hàng xem."
     }
   },
   "markdown": {

@@ -1380,6 +1380,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/pages/{pageId}/visibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["setPageVisibility"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/payment-orders/{paymentOrderId}": {
         parameters: {
             query?: never;
@@ -3183,11 +3199,15 @@ export interface components {
             id: string;
             /** Format: uuid */
             parentId?: string;
+            /** @enum {string} */
+            template?: "ASSESSMENT_REPORT" | "SCOPE" | "TECHNICAL_NOTES" | "MEETING_NOTES" | "HANDOVER" | "USER_GUIDE";
             title: string;
             /** Format: date-time */
             updatedAt: string;
             /** Format: int32 */
             versionNo: number;
+            /** @enum {string} */
+            visibility: "TEAM" | "CUSTOMER";
         };
         PageRequest: {
             body?: string;
@@ -3195,6 +3215,8 @@ export interface components {
             parentId?: string;
             /** @enum {string} */
             sensitive?: "CHECK" | "MASK";
+            /** @enum {string} */
+            template?: "ASSESSMENT_REPORT" | "SCOPE" | "TECHNICAL_NOTES" | "MEETING_NOTES" | "HANDOVER" | "USER_GUIDE";
             title: string;
             /** Format: int32 */
             version?: number;
@@ -3235,12 +3257,19 @@ export interface components {
             /** Format: int64 */
             total: number;
         };
+        PageTemplateView: {
+            /** @enum {string} */
+            template: "ASSESSMENT_REPORT" | "SCOPE" | "TECHNICAL_NOTES" | "MEETING_NOTES" | "HANDOVER" | "USER_GUIDE";
+            title: string;
+        };
         PageTreeView: {
             /** Format: uuid */
             boardId: string;
+            customer: boolean;
             mentor: boolean;
             pages: components["schemas"]["PageNodeView"][];
             readOnly: boolean;
+            templates: components["schemas"]["PageTemplateView"][];
             title: string;
         };
         PageVersionDetailView: {
@@ -3273,14 +3302,19 @@ export interface components {
             body: string;
             /** Format: uuid */
             id: string;
+            mentor: boolean;
             /** Format: uuid */
             parentId?: string;
             readOnly: boolean;
             /** Format: int32 */
             restoredFrom?: number;
+            /** @enum {string} */
+            template?: "ASSESSMENT_REPORT" | "SCOPE" | "TECHNICAL_NOTES" | "MEETING_NOTES" | "HANDOVER" | "USER_GUIDE";
             title: string;
             /** Format: int32 */
             versionNo: number;
+            /** @enum {string} */
+            visibility: "TEAM" | "CUSTOMER";
         };
         PaymentOrderDetailView: {
             /** Format: int64 */
@@ -3964,6 +3998,10 @@ export interface components {
             sharedAt: string;
             /** Format: int32 */
             versionNo: number;
+        };
+        VisibilityRequest: {
+            /** @enum {string} */
+            visibility: "TEAM" | "CUSTOMER";
         };
         WorkItemCardView: {
             assignee?: components["schemas"]["PersonView"];
@@ -6326,6 +6364,32 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["RestoreRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageView"];
+                };
+            };
+        };
+    };
+    setPageVisibility: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VisibilityRequest"];
             };
         };
         responses: {

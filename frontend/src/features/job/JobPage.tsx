@@ -22,6 +22,7 @@ import { formatVnd } from '@/lib/money'
 import { useJob, useWithdrawJob, type Job } from './jobApi'
 import { JobTabs } from './JobTabs'
 import { JobStateBadge } from './JobStateBadge'
+import { hasBoard } from '@/features/work/workApi'
 
 /**
  * JOB-1 Tổng quan (`/cong-viec/{jobId}`, UX-DR17, UX-DR19, UX-DR68). The Customer's: while Open, the
@@ -93,6 +94,7 @@ function Overview({ job }: { job: Job }) {
           chat={hasChat(job.state) ? { unread: chat.data?.unread ?? false } : undefined}
           agreement={job.agreementShared}
           payment={job.agreementConfirmed}
+          docs={hasBoard(job.state)}
         />
       </div>
       {job.state === 'SELECTING' && job.mentor && job.ndaDueAt ? (

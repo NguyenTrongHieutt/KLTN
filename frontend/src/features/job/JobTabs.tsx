@@ -49,9 +49,10 @@ export function JobTabs({
   chat,
   agreement = false,
   payment = false,
+  docs = false,
 }: {
   jobId: string
-  current: 'overview' | 'applications' | 'find' | 'chat' | 'agreement' | 'payment'
+  current: 'overview' | 'applications' | 'find' | 'chat' | 'agreement' | 'payment' | 'docs'
   /** The open Applications, when the tab is shown. */
   applications?: number
   /** The Job Chat, when the Job has one: whether the Mentor wrote since the Customer last read. */
@@ -60,6 +61,8 @@ export function JobTabs({
   agreement?: boolean
   /** Whether the Agreement is confirmed, so its Milestones can be funded (FR-41). */
   payment?: boolean
+  /** Whether the Job has its Documentation Space (from Active on), whose customer-visible Pages they read (FR-31). */
+  docs?: boolean
 }) {
   const tabs: JobTab[] = [
     { key: 'overview', to: `/cong-viec/${jobId}`, label: t('screen.job.detail.overview') },
@@ -74,6 +77,7 @@ export function JobTabs({
       : [{ key: 'chat', to: `/cong-viec/${jobId}/tro-chuyen`, label: t('screen.chat.tab'), dot: chat.unread }]),
     ...(agreement ? [{ key: 'agreement', to: `/cong-viec/${jobId}/thoa-thuan`, label: t('screen.agreement.tab') }] : []),
     ...(payment ? [{ key: 'payment', to: `/cong-viec/${jobId}/thanh-toan`, label: t('screen.payment.tab') }] : []),
+    ...(docs ? [{ key: 'docs', to: `/cong-viec/${jobId}/tai-lieu`, label: t('screen.docs.tab') }] : []),
   ]
   return <JobTabRow tabs={tabs} current={current} />
 }

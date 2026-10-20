@@ -30,6 +30,7 @@ import {
   type ConfirmedAgreement,
 } from './agreementApi'
 import { draftDays, inOrder, moved } from './reviewTargets'
+import { hasBoard } from '@/features/work/workApi'
 
 const TOOLS = ['LOVABLE', 'BOLT', 'REPLIT', 'V0', 'BASE44', 'CURSOR', 'CLAUDE_CODE', 'CODEX', 'OTHER'] as const
 
@@ -480,6 +481,7 @@ function CustomerHeader({ job }: { job: Job }) {
         chat={hasChat(job.state) ? { unread: chat.data?.unread ?? false } : undefined}
         agreement
         payment={job.agreementConfirmed}
+        docs={hasBoard(job.state)}
       />
     </JobHeader>
   )

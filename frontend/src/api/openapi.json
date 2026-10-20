@@ -3187,6 +3187,43 @@
         "tags" : [ "page-controller" ]
       }
     },
+    "/api/v1/pages/{pageId}/visibility" : {
+      "put" : {
+        "operationId" : "setPageVisibility",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "pageId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/VisibilityRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "page-controller" ]
+      }
+    },
     "/api/v1/payment-orders/{paymentOrderId}" : {
       "get" : {
         "operationId" : "paymentOrder",
@@ -7599,6 +7636,10 @@
             "type" : "string",
             "format" : "uuid"
           },
+          "template" : {
+            "type" : "string",
+            "enum" : [ "ASSESSMENT_REPORT", "SCOPE", "TECHNICAL_NOTES", "MEETING_NOTES", "HANDOVER", "USER_GUIDE" ]
+          },
           "title" : {
             "type" : "string"
           },
@@ -7609,9 +7650,13 @@
           "versionNo" : {
             "type" : "integer",
             "format" : "int32"
+          },
+          "visibility" : {
+            "type" : "string",
+            "enum" : [ "TEAM", "CUSTOMER" ]
           }
         },
-        "required" : [ "id", "title", "updatedAt", "versionNo" ]
+        "required" : [ "id", "title", "updatedAt", "versionNo", "visibility" ]
       },
       "PageRequest" : {
         "type" : "object",
@@ -7628,6 +7673,10 @@
           "sensitive" : {
             "type" : "string",
             "enum" : [ "CHECK", "MASK" ]
+          },
+          "template" : {
+            "type" : "string",
+            "enum" : [ "ASSESSMENT_REPORT", "SCOPE", "TECHNICAL_NOTES", "MEETING_NOTES", "HANDOVER", "USER_GUIDE" ]
           },
           "title" : {
             "type" : "string",
@@ -7737,12 +7786,28 @@
         },
         "required" : [ "items", "page", "size", "total" ]
       },
+      "PageTemplateView" : {
+        "type" : "object",
+        "properties" : {
+          "template" : {
+            "type" : "string",
+            "enum" : [ "ASSESSMENT_REPORT", "SCOPE", "TECHNICAL_NOTES", "MEETING_NOTES", "HANDOVER", "USER_GUIDE" ]
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "template", "title" ]
+      },
       "PageTreeView" : {
         "type" : "object",
         "properties" : {
           "boardId" : {
             "type" : "string",
             "format" : "uuid"
+          },
+          "customer" : {
+            "type" : "boolean"
           },
           "mentor" : {
             "type" : "boolean"
@@ -7756,11 +7821,17 @@
           "readOnly" : {
             "type" : "boolean"
           },
+          "templates" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/PageTemplateView"
+            }
+          },
           "title" : {
             "type" : "string"
           }
         },
-        "required" : [ "boardId", "mentor", "pages", "readOnly", "title" ]
+        "required" : [ "boardId", "customer", "mentor", "pages", "readOnly", "templates", "title" ]
       },
       "PageVersionDetailView" : {
         "type" : "object",
@@ -7834,6 +7905,9 @@
             "type" : "string",
             "format" : "uuid"
           },
+          "mentor" : {
+            "type" : "boolean"
+          },
           "parentId" : {
             "type" : "string",
             "format" : "uuid"
@@ -7845,15 +7919,23 @@
             "type" : "integer",
             "format" : "int32"
           },
+          "template" : {
+            "type" : "string",
+            "enum" : [ "ASSESSMENT_REPORT", "SCOPE", "TECHNICAL_NOTES", "MEETING_NOTES", "HANDOVER", "USER_GUIDE" ]
+          },
           "title" : {
             "type" : "string"
           },
           "versionNo" : {
             "type" : "integer",
             "format" : "int32"
+          },
+          "visibility" : {
+            "type" : "string",
+            "enum" : [ "TEAM", "CUSTOMER" ]
           }
         },
-        "required" : [ "at", "author", "boardId", "body", "id", "readOnly", "title", "versionNo" ]
+        "required" : [ "at", "author", "boardId", "body", "id", "mentor", "readOnly", "title", "versionNo", "visibility" ]
       },
       "PaymentOrderDetailView" : {
         "type" : "object",
@@ -9717,6 +9799,16 @@
           }
         },
         "required" : [ "sharedAt", "versionNo" ]
+      },
+      "VisibilityRequest" : {
+        "type" : "object",
+        "properties" : {
+          "visibility" : {
+            "type" : "string",
+            "enum" : [ "TEAM", "CUSTOMER" ]
+          }
+        },
+        "required" : [ "visibility" ]
       },
       "WorkItemCardView" : {
         "type" : "object",

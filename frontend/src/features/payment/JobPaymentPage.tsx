@@ -32,6 +32,7 @@ import {
 import { RefundLine } from './RefundLine'
 import { TestTag } from '@/components/TestTag'
 import { TestModeBanner } from './TestModeBanner'
+import { hasBoard } from '@/features/work/workApi'
 
 const STATE_TONE: Record<string, string> = {
   PLANNED: 'bg-warning-soft text-warning',
@@ -198,6 +199,7 @@ function Header({ job }: { job: Job }) {
         chat={hasChat(job.state) ? { unread: chat.data?.unread ?? false } : undefined}
         agreement={job.agreementShared}
         payment={job.agreementConfirmed}
+        docs={hasBoard(job.state)}
       />
     </JobHeader>
   )
