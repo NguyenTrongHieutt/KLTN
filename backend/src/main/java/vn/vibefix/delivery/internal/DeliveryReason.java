@@ -28,6 +28,21 @@ enum DeliveryReason {
 	HANDOVER_DECIDED,
 
 	/** A revision request names at least one criterion marked "Chưa đạt" (FR-33). */
-	REVISION_CRITERIA_MISSING
+	REVISION_CRITERIA_MISSING,
+
+	/** Follow-up Jobs come from an Assessment Report the Customer accepted (FR-11). */
+	REPORT_NOT_ACCEPTED,
+
+	/** A follow-up cites a numbered recommendation of the accepted Report version (FR-11). */
+	RECOMMENDATION_UNKNOWN,
+
+	/** The follow-ups were submitted to the Customer already (FR-11). */
+	FOLLOW_UPS_SUBMITTED,
+
+	/** Submitting needs at least one follow-up draft (FR-11). */
+	NO_FOLLOW_UPS,
+
+	/** The follow-up is not waiting for the Customer: still a draft, or already opened or discarded. */
+	FOLLOW_UP_NOT_AWAITING
 
 }

@@ -4,6 +4,7 @@ import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { TestTag } from '@/components/TestTag'
 import { buttonVariants } from '@/components/ui/button-variants'
+import { FollowUpSection } from '@/features/delivery/FollowUpSection'
 import { ClosureSection } from '@/features/job/closure/ClosureSection'
 import { milestoneStateText, milestoneTone } from '@/features/job/jobStateText'
 import { useTodos } from '@/features/notification/hooks'
@@ -65,6 +66,7 @@ function Content({ jobId, audience, progress }: { jobId: string; audience: Progr
         <ClosureSection jobId={jobId} />
         {progress.state === 'CLOSED' && <RatingSection jobId={jobId} />}
         {progress.state === 'CLOSED' && <JobPortfolioSection jobId={jobId} />}
+        {progress.assessment && <FollowUpSection jobId={jobId} />}
         <section aria-labelledby="progress-milestones" className="flex flex-col gap-3">
           <h2 id="progress-milestones" className="text-h2">
             {t('screen.progress.milestones')}

@@ -29,7 +29,7 @@ export interface paths {
         };
         get: operations["administrators"];
         put?: never;
-        post: operations["create_1"];
+        post: operations["create_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -286,6 +286,38 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["confirm_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/boards/{boardId}/follow-ups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["followUps"];
+        put?: never;
+        post: operations["create_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/boards/{boardId}/follow-ups/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["submit"];
         delete?: never;
         options?: never;
         head?: never;
@@ -622,6 +654,54 @@ export interface paths {
         get: operations["download"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/follow-ups/{followUpId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_1"];
+        post?: never;
+        delete: operations["delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/follow-ups/{followUpId}/discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["discard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/follow-ups/{followUpId}/open": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["open"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1758,7 +1838,7 @@ export interface paths {
         get: operations["product"];
         put?: never;
         post?: never;
-        delete: operations["delete"];
+        delete: operations["delete_1"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3097,6 +3177,45 @@ export interface components {
             status: "OPEN" | "RESOLVED" | "FALSE_POSITIVE";
             type: string;
         };
+        FollowUpRequest: {
+            criteria: string[];
+            /** Format: int32 */
+            effortDays: number;
+            jobTypes: string[];
+            /** Format: int32 */
+            recommendationNo: number;
+            scope: string;
+            skillIds: string[];
+            title: string;
+        };
+        FollowUpView: {
+            criteria: string[];
+            /** Format: uuid */
+            draftJobId?: string;
+            /** Format: int32 */
+            effortDays: number;
+            /** Format: uuid */
+            id: string;
+            jobTypes: string[];
+            /** Format: int32 */
+            recommendationNo: number;
+            scope: string;
+            skillIds: string[];
+            status: string;
+            title: string;
+        };
+        FollowUpsView: {
+            audience: string;
+            available: boolean;
+            followUps: components["schemas"]["FollowUpView"][];
+            /** Format: uuid */
+            jobId: string;
+            recommendations: components["schemas"]["RecommendationView"][];
+            /** Format: int32 */
+            reportVersionNo?: number;
+            skillIds: string[];
+            submitted: boolean;
+        };
         FundingMilestoneView: {
             blockedReason?: string;
             fundable: boolean;
@@ -3829,6 +3948,10 @@ export interface components {
             status: string;
             title: string;
         };
+        OpenedView: {
+            /** Format: uuid */
+            draftJobId: string;
+        };
         OverviewView: {
             /** Format: int64 */
             activeAdministrators: number;
@@ -4255,6 +4378,11 @@ export interface components {
             openedAt?: string;
             ratings: components["schemas"]["RatingView"][];
             toRate: components["schemas"]["RateeView"][];
+        };
+        RecommendationView: {
+            /** Format: int32 */
+            number: number;
+            text: string;
         };
         RecommendedMentorView: {
             /** Format: uuid */
@@ -4854,7 +4982,7 @@ export interface operations {
             };
         };
     };
-    create_1: {
+    create_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -5309,6 +5437,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DataDeletionView"];
+                };
+            };
+        };
+    };
+    followUps: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FollowUpsView"];
+                };
+            };
+        };
+    };
+    create_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FollowUpRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FollowUpsView"];
+                };
+            };
+        };
+    };
+    submit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FollowUpsView"];
                 };
             };
         };
@@ -5923,6 +6121,98 @@ export interface operations {
                 };
                 content: {
                     "application/json": string;
+                };
+            };
+        };
+    };
+    update_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                followUpId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FollowUpRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FollowUpsView"];
+                };
+            };
+        };
+    };
+    delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                followUpId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FollowUpsView"];
+                };
+            };
+        };
+    };
+    discard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                followUpId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FollowUpsView"];
+                };
+            };
+        };
+    };
+    open: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                followUpId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenedView"];
                 };
             };
         };
@@ -7786,7 +8076,7 @@ export interface operations {
             };
         };
     };
-    delete: {
+    delete_1: {
         parameters: {
             query?: never;
             header?: never;

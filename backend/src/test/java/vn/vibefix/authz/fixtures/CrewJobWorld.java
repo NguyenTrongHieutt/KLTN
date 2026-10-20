@@ -37,7 +37,8 @@ import vn.vibefix.team.internal.TeamTestSupport;
  * Mentor's {@code WORK_ITEM_NOTE} note and {@code ATTACHMENT} file ({@code {attachmentId}}), and a Page
  * ({@code {pageId}}, version {@code {versionNo}}), all written by the Mentor after the windows ended, and
  * a Milestone Handover ({@code {handoverId}}) whose Work Item note is the {@code WORK_ITEM_NOTE} canary.
- * The Mentor's earlier, ended Job holds the former member's {@code PRIVATE_FEEDBACK} about the Mentor.
+ * The Mentor's earlier, ended Job holds the former member's {@code PRIVATE_FEEDBACK} about the Mentor, and
+ * the Job a drafted follow-up ({@code {followUpId}}).
  */
 final class CrewJobWorld {
 
@@ -210,6 +211,16 @@ final class CrewJobWorld {
 				""").param("id", handover).param("item", item).param("note", Canaries.load().get("WORK_ITEM_NOTE").value())
 			.update();
 		world.put("handoverId", handover);
+		UUID followUp = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO delivery.follow_up (id, job_id, product_id, handover_id, report_page_id, report_version_no,
+				    recommendation_no, title, job_types, skill_ids, scope, criteria, effort_days, status, mentor_account_id,
+				    created_at, updated_at)
+				VALUES (:id, :job, :product, :handover, :page, 1, 1, 'Sửa lỗi đặt trùng bàn', ARRAY['BUG_FIX'], '{}',
+				    'Sửa lỗi hai khách đặt trùng bàn.', ARRAY['Hai khách không đặt trùng bàn'], 5, 'DRAFTING', :mentor, :at, :at)
+				""").param("id", followUp).param("job", job).param("product", product).param("handover", handover)
+			.param("page", UUID.randomUUID()).param("mentor", this.mentor).param("at", written).update();
+		world.put("followUpId", followUp);
 		world.put("crewCriterionId", criterion);
 		world.put("item", "NON_CODE_DATA");
 		UUID page = UUID.randomUUID();

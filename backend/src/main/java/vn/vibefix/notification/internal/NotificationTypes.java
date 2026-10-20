@@ -399,6 +399,18 @@ class NotificationTypes implements NotificationCatalog {
 	static final TodoType REPUTATION_APPROVE_PORTFOLIO_SUMMARY = new TodoType("reputation.approve_portfolio_summary",
 			Set.of(Audience.CUSTOMER), 3, Set.of("job"));
 
+	/** FR-11: the Mentor sent follow-up Jobs drafted from the Assessment Report. */
+	static final NotificationType DELIVERY_FOLLOW_UP_DRAFTS_READY = new NotificationType("delivery.follow_up_drafts_ready",
+			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "briefcase", Set.of("job", "n"));
+
+	/** An accepted Assessment Report waits for follow-up drafts (FR-11): until the Mentor submits them. */
+	static final TodoType DELIVERY_DRAFT_FOLLOW_UPS = new TodoType("delivery.draft_follow_ups", Set.of(Audience.MENTOR), 3,
+			Set.of("job"));
+
+	/** Submitted follow-ups wait for the Customer (FR-11): until each is opened or discarded. */
+	static final TodoType DELIVERY_APPROVE_FOLLOW_UPS = new TodoType("delivery.approve_follow_ups",
+			Set.of(Audience.CUSTOMER), 3, Set.of("job"));
+
 	/** The Rating Window is open (FR-49): until the person rated everyone they rate, or the window ends. */
 	static final TodoType REPUTATION_RATE = new TodoType("reputation.rate", Set.of(Audience.CUSTOMER, Audience.MENTOR), 3,
 			Set.of("party"));
@@ -438,6 +450,7 @@ class NotificationTypes implements NotificationCatalog {
 				REPO_DATA_DELETION_CONFIRMATION_PENDING, REPUTATION_RATING_WINDOW_OPENED,
 				REPUTATION_PRIVATE_FEEDBACK_INVITED, REPUTATION_RATINGS_PUBLISHED,
 				REPUTATION_PORTFOLIO_SUMMARY_AWAITING_APPROVAL, REPUTATION_PORTFOLIO_ENTRY_PUBLISHED,
+				DELIVERY_FOLLOW_UP_DRAFTS_READY,
 				JOB_JOB_STARTING,
 				PAYMENT_REFUND_REQUESTED, PAYMENT_REFUND_CONFIRMED, WORK_WORK_ITEM_ASSIGNED,
 				WORK_REVIEW_REQUESTED, WORK_WORK_ITEM_APPROVED, WORK_WORK_ITEM_RETURNED);
@@ -450,7 +463,8 @@ class NotificationTypes implements NotificationCatalog {
 				JOB_REVIEW_AGREEMENT, JOB_PICK_CREW, JOB_CONFIRM_CREW_TERMS, JOB_REVISE_AGREEMENT, JOB_CONFIRM_AGREEMENT_MENTOR,
 				PAYMENT_FUND_MILESTONE, WORK_REVIEW_WORK_ITEM, WORK_FIX_RETURNED_ITEM, DELIVERY_HAND_OVER,
 				DELIVERY_REVIEW_HANDOVER, JOB_ANSWER_CLOSURE, REPO_CONFIRM_DATA_DELETION, REPUTATION_RATE,
-				REPUTATION_GIVE_PRIVATE_FEEDBACK, REPUTATION_DRAFT_PORTFOLIO_SUMMARY, REPUTATION_APPROVE_PORTFOLIO_SUMMARY);
+				REPUTATION_GIVE_PRIVATE_FEEDBACK, REPUTATION_DRAFT_PORTFOLIO_SUMMARY, REPUTATION_APPROVE_PORTFOLIO_SUMMARY,
+				DELIVERY_DRAFT_FOLLOW_UPS, DELIVERY_APPROVE_FOLLOW_UPS);
 	}
 
 }

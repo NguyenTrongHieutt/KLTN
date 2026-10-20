@@ -51,7 +51,7 @@
         "tags" : [ "administrators-controller" ]
       },
       "post" : {
-        "operationId" : "create_1",
+        "operationId" : "create_2",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -676,6 +676,95 @@
           }
         },
         "tags" : [ "data-deletion-controller" ]
+      }
+    },
+    "/api/v1/boards/{boardId}/follow-ups" : {
+      "get" : {
+        "operationId" : "followUps",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FollowUpsView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "follow-up-controller" ]
+      },
+      "post" : {
+        "operationId" : "create_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/FollowUpRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FollowUpsView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "follow-up-controller" ]
+      }
+    },
+    "/api/v1/boards/{boardId}/follow-ups/submit" : {
+      "post" : {
+        "operationId" : "submit",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FollowUpsView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "follow-up-controller" ]
       }
     },
     "/api/v1/boards/{boardId}/handovers" : {
@@ -1475,6 +1564,122 @@
           }
         },
         "tags" : [ "file-controller" ]
+      }
+    },
+    "/api/v1/follow-ups/{followUpId}" : {
+      "delete" : {
+        "operationId" : "delete",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "followUpId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FollowUpsView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "follow-up-controller" ]
+      },
+      "put" : {
+        "operationId" : "update_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "followUpId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/FollowUpRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FollowUpsView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "follow-up-controller" ]
+      }
+    },
+    "/api/v1/follow-ups/{followUpId}/discard" : {
+      "post" : {
+        "operationId" : "discard",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "followUpId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FollowUpsView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "follow-up-controller" ]
+      }
+    },
+    "/api/v1/follow-ups/{followUpId}/open" : {
+      "post" : {
+        "operationId" : "open",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "followUpId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OpenedView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "follow-up-controller" ]
       }
     },
     "/api/v1/handovers/{handoverId}" : {
@@ -4007,7 +4212,7 @@
     },
     "/api/v1/products/{productId}" : {
       "delete" : {
-        "operationId" : "delete",
+        "operationId" : "delete_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "productId",
@@ -7251,6 +7456,153 @@
         },
         "required" : [ "category", "commit", "committedAt", "createdAt", "id", "maskedPreview", "path", "ruleId", "status", "type" ]
       },
+      "FollowUpRequest" : {
+        "type" : "object",
+        "properties" : {
+          "criteria" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "maxLength" : 300,
+              "minLength" : 0
+            },
+            "maxItems" : 10,
+            "minItems" : 1
+          },
+          "effortDays" : {
+            "type" : "integer",
+            "format" : "int32",
+            "maximum" : 365,
+            "minimum" : 1
+          },
+          "jobTypes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "minLength" : 1
+            },
+            "maxItems" : 8,
+            "minItems" : 1
+          },
+          "recommendationNo" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 1
+          },
+          "scope" : {
+            "type" : "string",
+            "maxLength" : 2000,
+            "minLength" : 0
+          },
+          "skillIds" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            },
+            "maxItems" : 10,
+            "minItems" : 0
+          },
+          "title" : {
+            "type" : "string",
+            "maxLength" : 120,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "criteria", "effortDays", "jobTypes", "recommendationNo", "scope", "skillIds", "title" ]
+      },
+      "FollowUpView" : {
+        "type" : "object",
+        "properties" : {
+          "criteria" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "draftJobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "effortDays" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "jobTypes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "recommendationNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "scope" : {
+            "type" : "string"
+          },
+          "skillIds" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "criteria", "effortDays", "id", "jobTypes", "recommendationNo", "scope", "skillIds", "status", "title" ]
+      },
+      "FollowUpsView" : {
+        "type" : "object",
+        "properties" : {
+          "audience" : {
+            "type" : "string"
+          },
+          "available" : {
+            "type" : "boolean"
+          },
+          "followUps" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/FollowUpView"
+            }
+          },
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "recommendations" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/RecommendationView"
+            }
+          },
+          "reportVersionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "skillIds" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          },
+          "submitted" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "audience", "available", "followUps", "jobId", "recommendations", "skillIds", "submitted" ]
+      },
       "FundingMilestoneView" : {
         "type" : "object",
         "properties" : {
@@ -9275,6 +9627,16 @@
         },
         "required" : [ "id", "key", "status", "title" ]
       },
+      "OpenedView" : {
+        "type" : "object",
+        "properties" : {
+          "draftJobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "draftJobId" ]
+      },
       "OverviewView" : {
         "type" : "object",
         "properties" : {
@@ -10406,6 +10768,19 @@
           }
         },
         "required" : [ "audience", "jobId", "open", "ratings", "toRate" ]
+      },
+      "RecommendationView" : {
+        "type" : "object",
+        "properties" : {
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "text" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "number", "text" ]
       },
       "RecommendedMentorView" : {
         "type" : "object",

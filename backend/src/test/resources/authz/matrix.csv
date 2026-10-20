@@ -933,6 +933,107 @@ POST /api/v1/boards/{boardId}/portfolio/summary/decline,JOB_MENTOR,,,403 FORBIDD
 POST /api/v1/boards/{boardId}/portfolio/summary/decline,CREW_ACTIVE,,,403 FORBIDDEN CUSTOMER_ONLY
 POST /api/v1/boards/{boardId}/portfolio/summary/decline,CREW_INACTIVE,,,403 FORBIDDEN CUSTOMER_ONLY
 POST /api/v1/boards/{boardId}/portfolio/summary/decline,CREW_FORMER,,,403 FORBIDDEN CUSTOMER_ONLY
+# Follow-up Jobs (FR-11): the Customer (OWNER) and the Mentor read them, the Mentor drafts and submits, the
+# Customer opens or discards; the Crew finds nothing. The fixture's Job is a Code Job with no accepted
+# Report, and its seeded follow-up ({followUpId}) is still a draft.
+GET /api/v1/boards/{boardId}/follow-ups,ANONYMOUS,,,401
+GET /api/v1/boards/{boardId}/follow-ups,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/follow-ups,MENTOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/follow-ups,STUDENT,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/follow-ups,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/follow-ups,TEAM_MENTOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/follow-ups,TEAM_MEMBER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/follow-ups,CREW_ASSIGNED,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/follow-ups,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/follow-ups,CREW_ACTIVE,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/follow-ups,CREW_INACTIVE,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/follow-ups,CREW_FORMER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/follow-ups,OWNER,,,200
+GET /api/v1/boards/{boardId}/follow-ups,JOB_MENTOR,,,200
+POST /api/v1/boards/{boardId}/follow-ups,ANONYMOUS,,follow-up.json,401
+POST /api/v1/boards/{boardId}/follow-ups,CUSTOMER,,follow-up.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/follow-ups,MENTOR,,follow-up.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/follow-ups,STUDENT,,follow-up.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/follow-ups,ADMINISTRATOR,,follow-up.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/follow-ups,TEAM_MENTOR,,follow-up.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/follow-ups,TEAM_MEMBER,,follow-up.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/follow-ups,CREW_ASSIGNED,,follow-up.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/follow-ups,ADMIN_TEAM_ISSUE_GRANT,,follow-up.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/follow-ups,CREW_ACTIVE,,follow-up.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/follow-ups,CREW_INACTIVE,,follow-up.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/follow-ups,CREW_FORMER,,follow-up.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/follow-ups,OWNER,,follow-up.json,403 FORBIDDEN MENTOR_ONLY
+POST /api/v1/boards/{boardId}/follow-ups,JOB_MENTOR,,follow-up.json,422 GUARD_FAILED REPORT_NOT_ACCEPTED
+POST /api/v1/boards/{boardId}/follow-ups/submit,ANONYMOUS,,,401
+POST /api/v1/boards/{boardId}/follow-ups/submit,CUSTOMER,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/follow-ups/submit,MENTOR,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/follow-ups/submit,STUDENT,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/follow-ups/submit,ADMINISTRATOR,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/follow-ups/submit,TEAM_MENTOR,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/follow-ups/submit,TEAM_MEMBER,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/follow-ups/submit,CREW_ASSIGNED,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/follow-ups/submit,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/follow-ups/submit,CREW_ACTIVE,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/follow-ups/submit,CREW_INACTIVE,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/follow-ups/submit,CREW_FORMER,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/follow-ups/submit,OWNER,,,403 FORBIDDEN MENTOR_ONLY
+POST /api/v1/boards/{boardId}/follow-ups/submit,JOB_MENTOR,,,422 GUARD_FAILED REPORT_NOT_ACCEPTED
+PUT /api/v1/follow-ups/{followUpId},ANONYMOUS,,follow-up.json,401
+PUT /api/v1/follow-ups/{followUpId},CUSTOMER,,follow-up.json,404 NOT_FOUND
+PUT /api/v1/follow-ups/{followUpId},MENTOR,,follow-up.json,404 NOT_FOUND
+PUT /api/v1/follow-ups/{followUpId},STUDENT,,follow-up.json,404 NOT_FOUND
+PUT /api/v1/follow-ups/{followUpId},ADMINISTRATOR,,follow-up.json,404 NOT_FOUND
+PUT /api/v1/follow-ups/{followUpId},TEAM_MENTOR,,follow-up.json,404 NOT_FOUND
+PUT /api/v1/follow-ups/{followUpId},TEAM_MEMBER,,follow-up.json,404 NOT_FOUND
+PUT /api/v1/follow-ups/{followUpId},CREW_ASSIGNED,,follow-up.json,404 NOT_FOUND
+PUT /api/v1/follow-ups/{followUpId},ADMIN_TEAM_ISSUE_GRANT,,follow-up.json,404 NOT_FOUND
+PUT /api/v1/follow-ups/{followUpId},CREW_ACTIVE,,follow-up.json,404 NOT_FOUND
+PUT /api/v1/follow-ups/{followUpId},CREW_INACTIVE,,follow-up.json,404 NOT_FOUND
+PUT /api/v1/follow-ups/{followUpId},CREW_FORMER,,follow-up.json,404 NOT_FOUND
+PUT /api/v1/follow-ups/{followUpId},OWNER,,follow-up.json,403 FORBIDDEN MENTOR_ONLY
+PUT /api/v1/follow-ups/{followUpId},JOB_MENTOR,,follow-up.json,422 GUARD_FAILED REPORT_NOT_ACCEPTED
+DELETE /api/v1/follow-ups/{followUpId},ANONYMOUS,,,401
+DELETE /api/v1/follow-ups/{followUpId},CUSTOMER,,,404 NOT_FOUND
+DELETE /api/v1/follow-ups/{followUpId},MENTOR,,,404 NOT_FOUND
+DELETE /api/v1/follow-ups/{followUpId},STUDENT,,,404 NOT_FOUND
+DELETE /api/v1/follow-ups/{followUpId},ADMINISTRATOR,,,404 NOT_FOUND
+DELETE /api/v1/follow-ups/{followUpId},TEAM_MENTOR,,,404 NOT_FOUND
+DELETE /api/v1/follow-ups/{followUpId},TEAM_MEMBER,,,404 NOT_FOUND
+DELETE /api/v1/follow-ups/{followUpId},CREW_ASSIGNED,,,404 NOT_FOUND
+DELETE /api/v1/follow-ups/{followUpId},ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
+DELETE /api/v1/follow-ups/{followUpId},CREW_ACTIVE,,,404 NOT_FOUND
+DELETE /api/v1/follow-ups/{followUpId},CREW_INACTIVE,,,404 NOT_FOUND
+DELETE /api/v1/follow-ups/{followUpId},CREW_FORMER,,,404 NOT_FOUND
+DELETE /api/v1/follow-ups/{followUpId},OWNER,,,403 FORBIDDEN MENTOR_ONLY
+DELETE /api/v1/follow-ups/{followUpId},JOB_MENTOR,,,422 GUARD_FAILED REPORT_NOT_ACCEPTED
+POST /api/v1/follow-ups/{followUpId}/open,ANONYMOUS,,,401
+POST /api/v1/follow-ups/{followUpId}/open,CUSTOMER,,,404 NOT_FOUND
+POST /api/v1/follow-ups/{followUpId}/open,MENTOR,,,404 NOT_FOUND
+POST /api/v1/follow-ups/{followUpId}/open,STUDENT,,,404 NOT_FOUND
+POST /api/v1/follow-ups/{followUpId}/open,ADMINISTRATOR,,,404 NOT_FOUND
+POST /api/v1/follow-ups/{followUpId}/open,TEAM_MENTOR,,,404 NOT_FOUND
+POST /api/v1/follow-ups/{followUpId}/open,TEAM_MEMBER,,,404 NOT_FOUND
+POST /api/v1/follow-ups/{followUpId}/open,CREW_ASSIGNED,,,404 NOT_FOUND
+POST /api/v1/follow-ups/{followUpId}/open,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
+POST /api/v1/follow-ups/{followUpId}/open,CREW_ACTIVE,,,404 NOT_FOUND
+POST /api/v1/follow-ups/{followUpId}/open,CREW_INACTIVE,,,404 NOT_FOUND
+POST /api/v1/follow-ups/{followUpId}/open,CREW_FORMER,,,404 NOT_FOUND
+POST /api/v1/follow-ups/{followUpId}/open,OWNER,,,409 CONFLICT FOLLOW_UP_NOT_AWAITING
+POST /api/v1/follow-ups/{followUpId}/open,JOB_MENTOR,,,403 FORBIDDEN CUSTOMER_ONLY
+POST /api/v1/follow-ups/{followUpId}/discard,ANONYMOUS,,,401
+POST /api/v1/follow-ups/{followUpId}/discard,CUSTOMER,,,404 NOT_FOUND
+POST /api/v1/follow-ups/{followUpId}/discard,MENTOR,,,404 NOT_FOUND
+POST /api/v1/follow-ups/{followUpId}/discard,STUDENT,,,404 NOT_FOUND
+POST /api/v1/follow-ups/{followUpId}/discard,ADMINISTRATOR,,,404 NOT_FOUND
+POST /api/v1/follow-ups/{followUpId}/discard,TEAM_MENTOR,,,404 NOT_FOUND
+POST /api/v1/follow-ups/{followUpId}/discard,TEAM_MEMBER,,,404 NOT_FOUND
+POST /api/v1/follow-ups/{followUpId}/discard,CREW_ASSIGNED,,,404 NOT_FOUND
+POST /api/v1/follow-ups/{followUpId}/discard,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
+POST /api/v1/follow-ups/{followUpId}/discard,CREW_ACTIVE,,,404 NOT_FOUND
+POST /api/v1/follow-ups/{followUpId}/discard,CREW_INACTIVE,,,404 NOT_FOUND
+POST /api/v1/follow-ups/{followUpId}/discard,CREW_FORMER,,,404 NOT_FOUND
+POST /api/v1/follow-ups/{followUpId}/discard,OWNER,,,409 CONFLICT FOLLOW_UP_NOT_AWAITING
+POST /api/v1/follow-ups/{followUpId}/discard,JOB_MENTOR,,,403 FORBIDDEN CUSTOMER_ONLY
 # Milestone Handovers (FR-32, AD-20, AD-39): the Customer (OWNER), the Mentor, and ACTIVE members read;
 # only the Mentor hands over, and the fixture's Milestone is not Funded. The Customer's Delivery Report
 # never carries the Work Item note, whose text is the WORK_ITEM_NOTE canary.

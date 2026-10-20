@@ -32,7 +32,7 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 	@Override
 	public Set<String> tables() {
 		return Set.of("delivery.handover", "delivery.handover_criterion", "delivery.handover_item_note",
-				"delivery.handover_check");
+				"delivery.handover_check", "delivery.follow_up");
 	}
 
 	@Override
@@ -95,10 +95,14 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 			.param("id", accountId)
 			.update();
 		this.jdbc.sql("UPDATE delivery.handover SET decided_by = NULL WHERE decided_by = :id").param("id", accountId).update();
+		this.jdbc.sql("UPDATE delivery.follow_up SET mentor_account_id = NULL WHERE mentor_account_id = :id")
+			.param("id", accountId)
+			.update();
 	}
 
 	@Override
 	public void deleteProduct(UUID productId) {
+		this.jdbc.sql("DELETE FROM delivery.follow_up WHERE product_id = :id").param("id", productId).update();
 		String handovers = "SELECT id FROM delivery.handover WHERE product_id = :id";
 		this.jdbc.sql("DELETE FROM delivery.handover_criterion WHERE handover_id IN (" + handovers + ")")
 			.param("id", productId)

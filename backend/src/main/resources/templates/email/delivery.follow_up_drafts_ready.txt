@@ -1,0 +1,5 @@
+subject: Người hướng dẫn đã soạn {n} công việc tiếp theo cho {job}
+---
+Xin chào,
+
+Từ báo cáo đánh giá bạn đã chấp nhận ở {job}, người hướng dẫn đã soạn {n} công việc tiếp theo. Hãy mở từng công việc trên vibefix: bạn có thể sửa rồi đăng tin, hoặc bỏ qua. Không có gì được đăng nếu bạn chưa tự đăng tin.
