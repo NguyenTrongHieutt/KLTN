@@ -244,6 +244,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["rules"];
+        put: operations["save_2"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/sign-in": {
         parameters: {
             query?: never;
@@ -5136,6 +5152,33 @@ export interface components {
             reason?: string;
             stepUpCode: string;
         };
+        RuleChangeView: {
+            /** Format: date-time */
+            changedAt: string;
+            domain?: string;
+            kind: string;
+            /** Format: int32 */
+            newValue?: number;
+            /** Format: int32 */
+            oldValue?: number;
+            /** @enum {string} */
+            rule?: "AUTO_ACCEPTANCE_DAYS" | "AUTO_ACCEPTANCE_FIRST_REMINDER_DAY" | "AUTO_ACCEPTANCE_SECOND_REMINDER_DAY" | "RATING_WINDOW_DAYS" | "REVISION_ROUNDS" | "DISPUTE_RESPONSE_DAYS" | "TEAM_ISSUE_ANSWER_DAYS" | "TEAM_ISSUE_ESCALATION_DAYS" | "CLOSURE_CONFIRMATION_DAYS" | "CANCELLATION_CONFIRMATION_DAYS" | "AUTOMATIC_CLOSURE_DAYS" | "FINAL_MERGE_AUTHORIZATION_DAYS" | "MENTOR_ACTIVE_JOB_LIMIT" | "MENTOR_SHARE_CAP_PERCENT";
+        };
+        RuleView: {
+            /** @enum {string} */
+            key: "AUTO_ACCEPTANCE_DAYS" | "AUTO_ACCEPTANCE_FIRST_REMINDER_DAY" | "AUTO_ACCEPTANCE_SECOND_REMINDER_DAY" | "RATING_WINDOW_DAYS" | "REVISION_ROUNDS" | "DISPUTE_RESPONSE_DAYS" | "TEAM_ISSUE_ANSWER_DAYS" | "TEAM_ISSUE_ESCALATION_DAYS" | "CLOSURE_CONFIRMATION_DAYS" | "CANCELLATION_CONFIRMATION_DAYS" | "AUTOMATIC_CLOSURE_DAYS" | "FINAL_MERGE_AUTHORIZATION_DAYS" | "MENTOR_ACTIVE_JOB_LIMIT" | "MENTOR_SHARE_CAP_PERCENT";
+            /** Format: int32 */
+            max: number;
+            /** Format: int32 */
+            min: number;
+            /** Format: int32 */
+            value: number;
+        };
+        RulesView: {
+            history: components["schemas"]["RuleChangeView"][];
+            rules: components["schemas"]["RuleView"][];
+            schoolDomains: string[];
+        };
         SaveRequest: {
             externalAccess: components["schemas"]["ExternalAccessRequest"][];
             milestones: components["schemas"]["MilestoneRequest"][];
@@ -5145,6 +5188,13 @@ export interface components {
             revision: number;
             scope: string;
             skillIds: string[];
+        };
+        SaveRulesRequest: {
+            schoolDomains: string[];
+            stepUpCode: string;
+            values: {
+                [key: string]: number;
+            };
         };
         SavedView: {
             submitted: boolean;
@@ -6071,6 +6121,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OverviewView"];
+                };
+            };
+        };
+    };
+    rules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RulesView"];
+                };
+            };
+        };
+    };
+    save_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveRulesRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RulesView"];
                 };
             };
         };

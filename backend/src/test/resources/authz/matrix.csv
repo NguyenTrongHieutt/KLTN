@@ -1305,6 +1305,16 @@ POST /api/v1/admin/moderation/{kind}/{contentId}/hide,CUSTOMER,,admin-user-reaso
 POST /api/v1/admin/moderation/{kind}/{contentId}/hide,MENTOR,,admin-user-reason.json,404 NOT_FOUND
 POST /api/v1/admin/moderation/{kind}/{contentId}/hide,STUDENT,,admin-user-reason.json,404 NOT_FOUND
 POST /api/v1/admin/moderation/{kind}/{contentId}/hide,ADMINISTRATOR,,admin-user-reason.json,200
+GET /api/v1/admin/rules,ANONYMOUS,,,401
+GET /api/v1/admin/rules,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/admin/rules,MENTOR,,,404 NOT_FOUND
+GET /api/v1/admin/rules,STUDENT,,,404 NOT_FOUND
+GET /api/v1/admin/rules,ADMINISTRATOR,,,200
+PUT /api/v1/admin/rules,ANONYMOUS,,admin-rules.json,401
+PUT /api/v1/admin/rules,CUSTOMER,,admin-rules.json,404 NOT_FOUND
+PUT /api/v1/admin/rules,MENTOR,,admin-rules.json,404 NOT_FOUND
+PUT /api/v1/admin/rules,STUDENT,,admin-rules.json,404 NOT_FOUND
+PUT /api/v1/admin/rules,ADMINISTRATOR,,admin-rules.json,404 NOT_FOUND
 # Milestone Handovers (FR-32, AD-20, AD-39): the Customer (OWNER), the Mentor, and ACTIVE members read;
 # only the Mentor hands over, and the fixture's Milestone is not Funded. The Customer's Delivery Report
 # never carries the Work Item note, whose text is the WORK_ITEM_NOTE canary.

@@ -6,7 +6,7 @@
  * <p>
  * Public API: none. The HTTP endpoints are wiring in {@code admin.internal}.
  */
-@ApplicationModule(allowedDependencies = { "shared", "audit", "operations", "notification", "identity", "dispute", "reputation" })
+@ApplicationModule(allowedDependencies = { "shared", "audit", "operations", "notification", "settings", "identity", "dispute", "reputation" })
 package vn.vibefix.admin;
 
 import org.springframework.modulith.ApplicationModule;

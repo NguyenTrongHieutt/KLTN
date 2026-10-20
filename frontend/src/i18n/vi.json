@@ -540,7 +540,8 @@
         "pendingCount": "{n} đang chờ",
         "disputes": "Tranh chấp",
         "users": "Người dùng",
-        "moderation": "Kiểm duyệt"
+        "moderation": "Kiểm duyệt",
+        "rules": "Quy tắc"
       },
       "overview": {
         "title": "Tổng quan",
@@ -968,6 +969,40 @@
         "reason": "Lý do (tác giả sẽ đọc)",
         "back": "Quay lại",
         "done": "Đã ẩn nội dung."
+      },
+      "rules": {
+        "title": "Quy tắc",
+        "heading": "Quy tắc nền tảng",
+        "lead": "Các giá trị này áp dụng cho công việc đăng sau khi lưu; công việc đang chạy giữ giá trị đã sao chép khi đăng. Giới hạn số việc áp dụng từ lần ứng tuyển hoặc chọn tiếp theo, và mức chia tối đa áp dụng cho các phiên bản điều khoản nhóm lưu sau đó.",
+        "values": "Giá trị quy tắc",
+        "rule": {
+          "AUTO_ACCEPTANCE_DAYS": "Số ngày trước khi tự động nghiệm thu",
+          "AUTO_ACCEPTANCE_FIRST_REMINDER_DAY": "Ngày nhắc nghiệm thu lần 1",
+          "AUTO_ACCEPTANCE_SECOND_REMINDER_DAY": "Ngày nhắc nghiệm thu lần 2",
+          "RATING_WINDOW_DAYS": "Số ngày mở chấm sao",
+          "REVISION_ROUNDS": "Số lượt chỉnh sửa mặc định",
+          "DISPUTE_RESPONSE_DAYS": "Số ngày trả lời tranh chấp",
+          "TEAM_ISSUE_ANSWER_DAYS": "Số ngày trả lời khiếu nại nội bộ",
+          "TEAM_ISSUE_ESCALATION_DAYS": "Số ngày chuyển khiếu nại nội bộ",
+          "CLOSURE_CONFIRMATION_DAYS": "Số ngày xác nhận kết thúc",
+          "CANCELLATION_CONFIRMATION_DAYS": "Số ngày xác nhận hủy",
+          "AUTOMATIC_CLOSURE_DAYS": "Số ngày trước khi tự động kết thúc",
+          "FINAL_MERGE_AUTHORIZATION_DAYS": "Số ngày cho phép hợp nhất cuối",
+          "MENTOR_ACTIVE_JOB_LIMIT": "Số việc tối đa của một người hướng dẫn",
+          "MENTOR_SHARE_CAP_PERCENT": "Mức chia tối đa của người hướng dẫn (%)"
+        },
+        "bounds": "Từ {min} đến {max}",
+        "domains": "Danh sách trường",
+        "domainList": "Tên miền email trường (mỗi dòng một tên miền)",
+        "domainNote": "Tên miền con cũng được chấp nhận, ví dụ sis.hust.edu.vn thuộc hust.edu.vn.",
+        "appliesLater": "Lưu cần mã xác thực.",
+        "save": "Lưu thay đổi",
+        "saved": "Đã lưu quy tắc.",
+        "history": "Thay đổi gần đây",
+        "noHistory": "Chưa có thay đổi nào.",
+        "changed": "{rule}: {from} → {to}",
+        "added": "Thêm tên miền {domain}",
+        "removed": "Bỏ tên miền {domain}"
       }
     },
     "product": {
@@ -3751,6 +3786,10 @@
     "admin": {
       "FEEDBACK_NOT_ENOUGH": "Cần ít nhất 3 đánh giá kín từ 2 sinh viên khác nhau trên 2 công việc khác nhau.",
       "ALREADY_HIDDEN": "Nội dung này đã bị ẩn."
+    },
+    "settings": {
+      "RULE_OUT_OF_BOUNDS": "Giá trị nằm ngoài giới hạn cho phép.",
+      "DOMAIN_INVALID": "Tên miền trường không hợp lệ."
     }
   },
   "markdown": {
