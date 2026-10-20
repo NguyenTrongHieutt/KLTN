@@ -1,0 +1,94 @@
+package vn.vibefix.delivery.internal;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Component;
+
+import vn.vibefix.shared.ErasureBlocker;
+import vn.vibefix.shared.PersonalDataParticipant;
+import vn.vibefix.shared.PersonalDataSection;
+
+/**
+ * {@code delivery}'s part in exports, erasure, and Product deletion (AD-24): a Mentor exports the
+ * handovers they made with their marks and notes; erasing them clears them as the handover's Mentor (the
+ * handover stays, without a person); deleting a Product deletes its handovers. A running Job blocks
+ * erasure through {@code job}.
+ */
+@Component
+class DeliveryPersonalData implements PersonalDataParticipant {
+
+	private final JdbcClient jdbc;
+
+	DeliveryPersonalData(JdbcClient jdbc) {
+		this.jdbc = jdbc;
+	}
+
+	@Override
+	public Set<String> tables() {
+		return Set.of("delivery.handover", "delivery.handover_criterion", "delivery.handover_item_note");
+	}
+
+	@Override
+	public Optional<PersonalDataSection> export(UUID accountId) {
+		List<Map<String, Object>> handovers = this.jdbc.sql("""
+				SELECT id, job_id, milestone_number, round, created_at FROM delivery.handover
+				WHERE mentor_account_id = :id ORDER BY seq
+				""").param("id", accountId).query((rs, n) -> {
+			Map<String, Object> handover = new LinkedHashMap<>();
+			UUID id = rs.getObject("id", UUID.class);
+			handover.put("jobId", rs.getObject("job_id", UUID.class).toString());
+			handover.put("milestone", rs.getInt("milestone_number"));
+			handover.put("round", rs.getInt("round"));
+			handover.put("at", rs.getTimestamp("created_at").toInstant().toString());
+			handover.put("criteria", this.jdbc.sql("""
+					SELECT number, met, note FROM delivery.handover_criterion WHERE handover_id = :id ORDER BY number
+					""").param("id", id).query((row, m) -> {
+				Map<String, Object> criterion = new LinkedHashMap<>();
+				criterion.put("number", row.getInt("number"));
+				criterion.put("met", row.getBoolean("met"));
+				criterion.put("note", row.getString("note"));
+				return criterion;
+			}).list());
+			handover.put("itemNotes", this.jdbc.sql("""
+					SELECT item_key, note FROM delivery.handover_item_note WHERE handover_id = :id ORDER BY item_key
+					""").param("id", id).query((row, m) -> Map.<String, Object>of("key", row.getString("item_key"), "note",
+					row.getString("note"))).list());
+			return handover;
+		}).list();
+		if (handovers.isEmpty()) {
+			return Optional.empty();
+		}
+		return Optional.of(new PersonalDataSection("delivery", Map.of("handovers", handovers)));
+	}
+
+	@Override
+	public void eraseAccount(UUID accountId) {
+		this.jdbc.sql("UPDATE delivery.handover SET mentor_account_id = NULL WHERE mentor_account_id = :id")
+			.param("id", accountId)
+			.update();
+	}
+
+	@Override
+	public void deleteProduct(UUID productId) {
+		String handovers = "SELECT id FROM delivery.handover WHERE product_id = :id";
+		this.jdbc.sql("DELETE FROM delivery.handover_criterion WHERE handover_id IN (" + handovers + ")")
+			.param("id", productId)
+			.update();
+		this.jdbc.sql("DELETE FROM delivery.handover_item_note WHERE handover_id IN (" + handovers + ")")
+			.param("id", productId)
+			.update();
+		this.jdbc.sql("DELETE FROM delivery.handover WHERE product_id = :id").param("id", productId).update();
+	}
+
+	@Override
+	public List<ErasureBlocker> erasureBlockers(UUID accountId) {
+		return List.of();
+	}
+
+}

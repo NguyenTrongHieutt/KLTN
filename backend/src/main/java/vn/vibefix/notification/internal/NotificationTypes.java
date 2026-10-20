@@ -313,6 +313,18 @@ class NotificationTypes implements NotificationCatalog {
 	static final TodoType WORK_FIX_RETURNED_ITEM = new TodoType("work.fix_returned_item", Set.of(Audience.CREW_ACTIVE), 2,
 			Set.of("key"));
 
+	/** M2 (FR-32): the Customer may check the handed-over Milestone, by the Auto-acceptance date. */
+	static final NotificationType JOB_MILESTONE_SUBMITTED = new NotificationType("job.milestone_submitted",
+			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "check",
+			Set.of("mentor", "n", "date"));
+
+	/** A Funded or Revision Requested Milestone waits for the Mentor's handover (FR-32): until M2. */
+	static final TodoType DELIVERY_HAND_OVER = new TodoType("delivery.hand_over", Set.of(Audience.MENTOR), 2, Set.of("n"));
+
+	/** A handed-over Milestone waits for the Customer's decision (FR-33): it decides itself if ignored. */
+	static final TodoType DELIVERY_REVIEW_HANDOVER = new TodoType("delivery.review_handover", Set.of(Audience.CUSTOMER), 1,
+			Set.of("n"));
+
 	@Override
 	public List<NotificationType> notificationTypes() {
 		return List.of(SCHOOL_EMAIL_CODE, VERIFICATION_EXPIRING, VERIFICATION_EXPIRED, ADMIN_SIGN_IN_LOCKED,
@@ -327,7 +339,8 @@ class NotificationTypes implements NotificationCatalog {
 				JOB_CREW_MEMBER_CONFIRMED, JOB_CREW_MEMBER_DECLINED, JOB_CREW_MEMBER_REMOVED, JOB_CREW_TERMS_CHANGED,
 				JOB_CREW_CONFIRMED, JOB_CONFLICT_OF_INTEREST_REFUSED, JOB_PERSON_LINK_ALERT, JOB_AGREEMENT_CHANGES_REQUESTED,
 				JOB_AGREEMENT_AWAITING_CONFIRMATION, JOB_AGREEMENT_CONFIRMED, JOB_MILESTONE_AWAITING_FUNDING, JOB_CREW_RECONFIRM_NEEDED,
-				PAYMENT_PAYMENT_RECEIVED, PAYMENT_PAYMENT_FAILED, PAYMENT_UNKNOWN_PAYMENT, JOB_MILESTONE_FUNDED, JOB_JOB_STARTING,
+				PAYMENT_PAYMENT_RECEIVED, PAYMENT_PAYMENT_FAILED, PAYMENT_UNKNOWN_PAYMENT, JOB_MILESTONE_FUNDED, JOB_MILESTONE_SUBMITTED,
+				JOB_JOB_STARTING,
 				PAYMENT_REFUND_REQUESTED, PAYMENT_REFUND_CONFIRMED, WORK_WORK_ITEM_ASSIGNED,
 				WORK_REVIEW_REQUESTED, WORK_WORK_ITEM_APPROVED, WORK_WORK_ITEM_RETURNED);
 	}
@@ -337,7 +350,8 @@ class NotificationTypes implements NotificationCatalog {
 		return List.of(COMPLETE_MENTOR_APPLICATION, VERIFY_STUDENT, SCANNING_RESOLVE_INTAKE_FINDING,
 				MATCHING_CHOOSE_ASSIGNEE, MATCHING_SIGN_NDA, MATCHING_ANSWER_INVITATION_TO_APPLY, JOB_DRAFT_AGREEMENT,
 				JOB_REVIEW_AGREEMENT, JOB_PICK_CREW, JOB_CONFIRM_CREW_TERMS, JOB_REVISE_AGREEMENT, JOB_CONFIRM_AGREEMENT_MENTOR,
-				PAYMENT_FUND_MILESTONE, WORK_REVIEW_WORK_ITEM, WORK_FIX_RETURNED_ITEM);
+				PAYMENT_FUND_MILESTONE, WORK_REVIEW_WORK_ITEM, WORK_FIX_RETURNED_ITEM, DELIVERY_HAND_OVER,
+				DELIVERY_REVIEW_HANDOVER);
 	}
 
 }

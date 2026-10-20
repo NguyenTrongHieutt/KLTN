@@ -101,6 +101,7 @@ function Overview({ job }: { job: Job }) {
           agreement={job.agreementShared}
           payment={job.agreementConfirmed}
           docs={hasBoard(job.state)}
+          handover={hasBoard(job.state)}
         />
       </div>
       {job.state === 'SELECTING' && job.mentor && job.ndaDueAt ? (

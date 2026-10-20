@@ -106,6 +106,12 @@ enum JobReason {
 	MILESTONE_NOT_FUNDABLE,
 
 	/** A Code Job's J7 waits for its repositories and verified access (FR-18, Epic 7). */
-	REPOSITORIES_NOT_READY
+	REPOSITORIES_NOT_READY,
+
+	/** Only the Job's Mentor hands a Milestone over (FR-32). */
+	MENTOR_ONLY,
+
+	/** A Code Job's handover needs its Handover Commit, recorded from Epic 7 on (FR-32, AD-4). */
+	HANDOVER_COMMIT_MISSING
 
 }

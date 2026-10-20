@@ -482,6 +482,7 @@ function CustomerHeader({ job }: { job: Job }) {
         agreement
         payment={job.agreementConfirmed}
         docs={hasBoard(job.state)}
+        handover={hasBoard(job.state)}
       />
     </JobHeader>
   )

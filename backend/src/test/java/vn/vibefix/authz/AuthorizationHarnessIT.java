@@ -144,9 +144,9 @@ class AuthorizationHarnessIT extends IntegrationTest {
 
 	@Test
 	void aPlaceholderNoFixtureSeedsFailsTheRow() {
-		assertThatThrownBy(() -> run("GET /api/v1/fixture/notes/{handoverId},AUTHOR,,,200"))
+		assertThatThrownBy(() -> run("GET /api/v1/fixture/notes/{disputeId},AUTHOR,,,200"))
 			.isInstanceOf(AssertionError.class)
-			.hasMessageContaining("No fixture seeds {handoverId}");
+			.hasMessageContaining("No fixture seeds {disputeId}");
 	}
 
 	private void run(String line) throws Exception {

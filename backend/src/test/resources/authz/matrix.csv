@@ -740,6 +740,65 @@ GET /api/v1/boards/{boardId}/progress,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/progress,OWNER,,,200
 GET /api/v1/boards/{boardId}/progress,JOB_MENTOR,,,200
 GET /api/v1/boards/{boardId}/progress,CREW_ACTIVE,,,200
+# Milestone Handovers (FR-32, AD-20, AD-39): the Customer (OWNER), the Mentor, and ACTIVE members read;
+# only the Mentor hands over, and the fixture's Milestone is not Funded. The Customer's Delivery Report
+# never carries the Work Item note, whose text is the WORK_ITEM_NOTE canary.
+GET /api/v1/boards/{boardId}/handovers,ANONYMOUS,,,401
+GET /api/v1/boards/{boardId}/handovers,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers,MENTOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers,STUDENT,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers,TEAM_MENTOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers,TEAM_MEMBER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers,CREW_ASSIGNED,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers,CREW_INACTIVE,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers,CREW_FORMER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers,OWNER,,,200
+GET /api/v1/boards/{boardId}/handovers,JOB_MENTOR,,,200
+GET /api/v1/boards/{boardId}/handovers,CREW_ACTIVE,,,200
+GET /api/v1/boards/{boardId}/handovers/preflight,ANONYMOUS,,,401
+GET /api/v1/boards/{boardId}/handovers/preflight,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers/preflight,MENTOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers/preflight,STUDENT,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers/preflight,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers/preflight,TEAM_MENTOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers/preflight,TEAM_MEMBER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers/preflight,CREW_ASSIGNED,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers/preflight,CREW_INACTIVE,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers/preflight,CREW_FORMER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers/preflight,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers/preflight,OWNER,,,403 FORBIDDEN MENTOR_ONLY
+GET /api/v1/boards/{boardId}/handovers/preflight,JOB_MENTOR,,,200
+GET /api/v1/boards/{boardId}/handovers/preflight,CREW_ACTIVE,,,403 FORBIDDEN MENTOR_ONLY
+POST /api/v1/boards/{boardId}/handovers,ANONYMOUS,,handover.json,401
+POST /api/v1/boards/{boardId}/handovers,CUSTOMER,,handover.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers,MENTOR,,handover.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers,STUDENT,,handover.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers,ADMINISTRATOR,,handover.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers,TEAM_MENTOR,,handover.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers,TEAM_MEMBER,,handover.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers,CREW_ASSIGNED,,handover.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers,CREW_INACTIVE,,handover.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers,CREW_FORMER,,handover.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers,ADMIN_TEAM_ISSUE_GRANT,,handover.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers,OWNER,,handover.json,403 FORBIDDEN MENTOR_ONLY
+POST /api/v1/boards/{boardId}/handovers,JOB_MENTOR,,handover.json,422 GUARD_FAILED MILESTONE_NOT_HELD
+POST /api/v1/boards/{boardId}/handovers,CREW_ACTIVE,,handover.json,403 FORBIDDEN MENTOR_ONLY
+GET /api/v1/handovers/{handoverId},ANONYMOUS,,,401
+GET /api/v1/handovers/{handoverId},CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/handovers/{handoverId},MENTOR,,,404 NOT_FOUND
+GET /api/v1/handovers/{handoverId},STUDENT,,,404 NOT_FOUND
+GET /api/v1/handovers/{handoverId},ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/handovers/{handoverId},TEAM_MENTOR,,,404 NOT_FOUND
+GET /api/v1/handovers/{handoverId},TEAM_MEMBER,,,404 NOT_FOUND
+GET /api/v1/handovers/{handoverId},CREW_ASSIGNED,,,404 NOT_FOUND
+GET /api/v1/handovers/{handoverId},CREW_INACTIVE,,,404 NOT_FOUND
+GET /api/v1/handovers/{handoverId},CREW_FORMER,,,404 NOT_FOUND
+GET /api/v1/handovers/{handoverId},ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
+GET /api/v1/handovers/{handoverId},OWNER,,,200
+GET /api/v1/handovers/{handoverId},JOB_MENTOR,,,200
+GET /api/v1/handovers/{handoverId},CREW_ACTIVE,,,200
 POST /api/v1/boards/{boardId}/work-items,ANONYMOUS,,work-item.json,401
 POST /api/v1/boards/{boardId}/work-items,OWNER,,work-item.json,404 NOT_FOUND
 POST /api/v1/boards/{boardId}/work-items,CUSTOMER,,work-item.json,404 NOT_FOUND

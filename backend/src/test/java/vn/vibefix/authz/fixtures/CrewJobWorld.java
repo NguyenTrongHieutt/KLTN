@@ -35,7 +35,8 @@ import vn.vibefix.team.internal.TeamTestSupport;
  * It also seeds the Job's confirmed Agreement with one Milestone ({@code {crewMilestoneId}}) and its
  * Board ({@code {boardId}}) with the criterion's seeded Story ({@code {workItemId}}), which carries the
  * Mentor's {@code WORK_ITEM_NOTE} note and {@code ATTACHMENT} file ({@code {attachmentId}}), and a Page
- * ({@code {pageId}}, version {@code {versionNo}}), all written by the Mentor after the windows ended.
+ * ({@code {pageId}}, version {@code {versionNo}}), all written by the Mentor after the windows ended, and
+ * a Milestone Handover ({@code {handoverId}}) whose Work Item note is the {@code WORK_ITEM_NOTE} canary.
  */
 final class CrewJobWorld {
 
@@ -184,6 +185,30 @@ final class CrewJobWorld {
 			.param("at", written)
 			.update();
 		world.put("attachmentId", attachment);
+		UUID handover = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO delivery.handover (id, job_id, product_id, milestone_id, milestone_number, milestone_title, round,
+				    mentor_account_id, status, job_version, transition_id, check_by, created_at)
+				VALUES (:id, :job, :product, :milestone, 1, 'Sửa lỗi trùng giờ', 1, :mentor, 'SUBMITTED', 5, :transition, :at, :at)
+				""")
+			.param("id", handover)
+			.param("job", job)
+			.param("product", product)
+			.param("milestone", milestone)
+			.param("mentor", this.mentor)
+			.param("transition", UUID.randomUUID())
+			.param("at", written)
+			.update();
+		this.jdbc.sql("""
+				INSERT INTO delivery.handover_criterion (handover_id, criterion_id, number, statement, check_steps, met, note)
+				VALUES (:id, :criterion, 1, 'Hai khách không đặt trùng bàn', '1. Mở. 2. Đặt.', true, 'Đã kiểm tra trên điện thoại')
+				""").param("id", handover).param("criterion", criterion).update();
+		this.jdbc.sql("""
+				INSERT INTO delivery.handover_item_note (handover_id, work_item_id, item_key, title, status, note)
+				VALUES (:id, :item, 'VNM-1', 'Hai khách không đặt trùng bàn', 'TODO', :note)
+				""").param("id", handover).param("item", item).param("note", Canaries.load().get("WORK_ITEM_NOTE").value())
+			.update();
+		world.put("handoverId", handover);
 		UUID page = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO work.page (id, job_id, title, version_no, created_by_account_id, created_at, updated_at)
