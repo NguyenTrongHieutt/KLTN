@@ -11,16 +11,13 @@ import { NDA_VERSION } from '@/features/matching/nda'
 import { CommitEmailNotice, NdaText } from '@/features/matching/NdaText'
 import { ConfirmDialog } from '@/features/team/ConfirmDialog'
 import { useStudentTeam } from '@/features/team/teamApi'
+import { TestTag } from '@/components/TestTag'
 import { t } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
 import { formatCalendarDayMonth, formatDayMonth } from '@/lib/dates'
 import { formatVnd } from '@/lib/money'
 import { problemMessage } from '@/lib/problemMessage'
 import { useConfirmCrewTerms, useCrewAssignments, useDeclineCrewTerms, type CrewAssignment } from './crewApi'
-
-function TestTag() {
-  return <span className="rounded bg-warning-soft px-1 text-caption font-semibold text-warning">{t('screen.matching.test')}</span>
-}
 
 /**
  * STU-4 "Công việc của tôi" (`/cong-viec` for a Student, FR-75, AD-41, UX-DR60): an assignment waiting

@@ -3,6 +3,7 @@ import { X } from 'lucide-react'
 import { useId, useState, type FormEvent, type ReactNode } from 'react'
 import { inputClass } from '@/components/formField-props'
 import { useToasts } from '@/components/toasts'
+import { TestTag } from '@/components/TestTag'
 import { Button } from '@/components/ui/button'
 import { t, type MessageKey } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
@@ -94,7 +95,7 @@ function ApplyForm({ postId, teamSize, blocked }: { postId: string; teamSize: nu
             </span>
           </div>
           <p id={`${ids}-price-hint`} className="text-caption text-muted-foreground">
-            <span className="rounded bg-warning-soft px-1 font-semibold text-warning">{t('screen.matching.test')}</span>{' '}
+            <TestTag />{' '}
             {t('screen.matching.apply.priceHint')}
           </p>
         </Field>
@@ -202,7 +203,7 @@ function Applied({ application }: { application: Application }) {
       </p>
       <p className="text-body-sm">
         {formatVnd(application.priceVnd)}{' '}
-        <span className="rounded bg-warning-soft px-1 text-caption font-semibold text-warning">{t('screen.matching.test')}</span>
+        <TestTag />
         {' · '}
         {t('screen.matching.days', { n: application.timelineDays })}
       </p>

@@ -50,6 +50,16 @@ export function AccountMenu({ session, offline }: { session: Session; offline: b
                 {t('shell.profile')}
               </Menu.Item>
             )}
+            {role === 'CUSTOMER' && (
+              <Menu.Item className={item} onClick={() => navigate('/lich-su-thanh-toan')}>
+                {t('shell.paymentHistory')}
+              </Menu.Item>
+            )}
+            {(role === 'STUDENT' || (role === 'MENTOR' && session.account?.mentorApprovalStatus === 'APPROVED')) && (
+              <Menu.Item className={item} onClick={() => navigate('/so-du')}>
+                {t('shell.balance')}
+              </Menu.Item>
+            )}
             <Menu.Group>
               <Menu.GroupLabel className="px-3 pt-2 pb-1 text-caption text-muted-foreground">
                 {t('shell.theme')}

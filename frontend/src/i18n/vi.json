@@ -40,7 +40,10 @@
     "accountMenu": "Tài khoản của {login}",
     "signOut": "Đăng xuất",
     "profile": "Hồ sơ",
-    "theme": "Giao diện"
+    "theme": "Giao diện",
+    "testMoney": "tiền thử nghiệm, không phải tiền thật",
+    "paymentHistory": "Lịch sử thanh toán",
+    "balance": "Số dư thử nghiệm"
   },
   "screen": {
     "public": {
@@ -1887,6 +1890,61 @@
           "WRONG_AMOUNT": "Số tiền đã trả khác số tiền của giai đoạn, nên tiền được hoàn lại.",
           "NOT_FUNDABLE": "Giai đoạn này không nhận thanh toán vào lúc tiền đến, nên tiền được hoàn lại."
         }
+      },
+      "n13NoWithdraw": "Số dư này không rút được.",
+      "funded": "Đã thanh toán",
+      "released": "Đã chuyển",
+      "history": {
+        "title": "Lịch sử thanh toán",
+        "lead": "Mọi khoản thanh toán và hoàn tiền, theo từng công việc.",
+        "held": "vibefix đang giữ",
+        "released": "Đã chuyển cho người hướng dẫn và nhóm",
+        "refunded": "Đã hoàn lại",
+        "empty": "Bạn chưa có khoản thanh toán nào.",
+        "time": "Thời gian",
+        "item": "Khoản",
+        "amount": "Số tiền",
+        "status": "Trạng thái",
+        "funding": "Thanh toán Giai đoạn {n}",
+        "refund": "Hoàn tiền Giai đoạn {n}",
+        "refundSimulated": "Hoàn tiền mô phỏng · Giai đoạn {n}",
+        "releasedLine": "Giai đoạn {n} · {title}: đã chuyển {amount}",
+        "refundStatus": {
+          "REQUESTED": "Đang hoàn",
+          "CONFIRMED": "Đã hoàn"
+        }
+      },
+      "balance": {
+        "title": "Số dư thử nghiệm",
+        "yours": "Số dư của bạn",
+        "count": "Từ {n} lần chuyển tiền",
+        "sentToCrew": "Đã chuyển cho nhóm thực hiện",
+        "held": "Đang giữ chờ nghiệm thu",
+        "releasesTitle": "Các lần chuyển tiền",
+        "mentorLead": "Mỗi lần khách hàng nghiệm thu một giai đoạn, số tiền được chia theo điều khoản nhóm thực hiện của phiên bản đang áp dụng. Phần lẻ dưới 1 đồng thuộc về người hướng dẫn.",
+        "studentLead": "Mỗi lần khách hàng nghiệm thu một giai đoạn, bạn nhận phần của mình theo điều khoản nhóm thực hiện.",
+        "empty": "Chưa có lần chuyển tiền nào. Tiền được chuyển khi khách hàng nghiệm thu một giai đoạn.",
+        "job": "Công việc · giai đoạn",
+        "date": "Ngày",
+        "milestone": "Giai đoạn",
+        "yourPart": "Phần của bạn",
+        "crew": "Nhóm thực hiện",
+        "terms": "Điều khoản",
+        "milestoneLine": "Giai đoạn {n} · {title}",
+        "version": "Phiên bản {n}",
+        "percent": "{n}%",
+        "customerNote": "Khách hàng chỉ thấy tổng số tiền đã chuyển của mỗi giai đoạn, không thấy phần của từng người."
+      },
+      "mentor": {
+        "releasesTitle": "Các lần chuyển tiền",
+        "noReleases": "Chưa chuyển tiền",
+        "pin": "Điều khoản phiên bản {n}",
+        "role": {
+          "MENTOR": "Người hướng dẫn",
+          "CREW": "Nhóm thực hiện"
+        },
+        "releaseLine": "{name} · {amount}",
+        "ordersTitle": "Lệnh thanh toán của khách hàng"
       }
     }
   },

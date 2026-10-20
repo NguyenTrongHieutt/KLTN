@@ -13,7 +13,8 @@ import { formatVnd } from '@/lib/money'
 import { isNotFound } from '@/lib/problemMessage'
 import { FAST_POLL_FOR_MS, usePaymentOrder, type PaymentOrder } from './paymentApi'
 import { RefundLine } from './RefundLine'
-import { TestModeBanner, TestTag } from './TestModeBanner'
+import { TestTag } from '@/components/TestTag'
+import { TestModeBanner } from './TestModeBanner'
 
 /**
  * CUS-9 (`/thanh-toan/{paymentOrderId}`, AD-14, UX-DR25): VNPay's return URL. It only displays the

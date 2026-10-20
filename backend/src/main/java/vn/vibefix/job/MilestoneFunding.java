@@ -23,8 +23,8 @@ public interface MilestoneFunding {
 	 * @param state the Job's state name
 	 * @param frozen an open Dispute freezes it (FR-52)
 	 */
-	record FundingJob(UUID jobId, UUID productId, UUID customerId, String title, String state, long version, boolean frozen,
-			int agreementVersionNo, List<FundingMilestone> milestones) {
+	record FundingJob(UUID jobId, UUID productId, UUID customerId, @Nullable UUID mentorId, String title, String state,
+			long version, boolean frozen, int agreementVersionNo, List<FundingMilestone> milestones) {
 	}
 
 	/** What M1 recorded: the Milestone's number and the Crew Terms version it pinned (AD-41). */
@@ -36,6 +36,9 @@ public interface MilestoneFunding {
 
 	/** The Job once its Agreement is confirmed. */
 	Optional<FundingJob> byId(UUID jobId);
+
+	/** The Mentor's Jobs with a confirmed Agreement, newest first (MEN-7's held money). */
+	List<FundingJob> ofMentor(UUID mentorId);
 
 	/**
 	 * Why the Milestone cannot be funded now, read without a lock: M1's guards and the freeze, and for

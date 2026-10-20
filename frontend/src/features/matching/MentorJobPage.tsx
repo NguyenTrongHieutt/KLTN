@@ -57,7 +57,7 @@ function Overview({ job }: { job: MentorJob }) {
         <p className="text-caption text-muted-foreground break-words">
           {t('screen.nda.meta', { product: job.productName, types, date: formatDayMonth(job.selectedAt) })}
         </p>
-        <MentorJobTabs jobId={job.id} state={job.state} current="overview" />
+        <MentorJobTabs jobId={job.id} state={job.state} current="overview" payment={job.agreementConfirmed} />
       </div>
       {job.state === 'SELECTING' ? (
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">

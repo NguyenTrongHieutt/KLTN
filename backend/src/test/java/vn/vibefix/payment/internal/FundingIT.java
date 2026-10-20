@@ -295,6 +295,59 @@ class FundingIT extends IntegrationTest {
 	}
 
 	@Test
+	void historiesAndBalancesShowEachSideItsOwnFiguresOnly() throws Exception {
+		confirmedAgreement("BUG_FIX");
+		UUID orderId = created();
+		ipn(paid(txnRef(orderId), "14000040", 800000), null).andExpect(jsonPath("$.RspCode").value("00"));
+		UUID release = UUID.randomUUID();
+		for (Object[] part : new Object[][] { { this.hung, 1000000L, 12 }, { this.vy, 7316429L, 88 } }) {
+			this.jdbc.sql("""
+					INSERT INTO payment.ledger_entry (id, operation_key, entry_type, job_id, product_id, milestone_id, amount_vnd,
+					    party_account_id, crew_terms_version_no, share_percent, base_amount_vnd, created_at)
+					SELECT :id, :key, 'RELEASE', job_id, product_id, milestone_id, :amount, :party, 1, :percent, 8316429, now()
+					FROM payment.ledger_account WHERE milestone_id = :milestone
+					""")
+				.param("id", UUID.randomUUID()).param("key", "RELEASE:" + release + ":" + part[0]).param("amount", part[1])
+				.param("party", part[0]).param("percent", part[2]).param("milestone", MILESTONE).update();
+		}
+		UUID other = member("Trần Quang Minh");
+
+		String customer = this.mvc.perform(get("/api/v1/payments/history").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.releasedVnd").value(8316429))
+			.andExpect(jsonPath("$.jobs[0].rows[0].kind").value("FUNDING"))
+			.andExpect(jsonPath("$.jobs[0].milestones[0].releasedTotalVnd").value(8316429))
+			.andReturn().getResponse().getContentAsString();
+		String job7 = this.mvc.perform(get("/api/v1/jobs/" + this.job + "/funding").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.milestones[0].releasedTotalVnd").value(8316429))
+			.andExpect(jsonPath("$.milestones[0].fundedVnd").value(800000))
+			.andReturn().getResponse().getContentAsString();
+		assertThat(customer + job7).as("CREW_SHARE never reaches the Customer (SG-55)").doesNotContain("7316429")
+			.doesNotContain("1000000");
+
+		this.mvc.perform(get("/api/v1/balance").with(as(this.hung, Role.MENTOR)))
+			.andExpect(jsonPath("$.balanceVnd").value(1000000))
+			.andExpect(jsonPath("$.sentToCrewVnd").value(7316429))
+			.andExpect(jsonPath("$.lines[0].crew[0].amountVnd").value(7316429))
+			.andExpect(jsonPath("$.lines[0].crew[0].name").value("Lê Thảo Vy"));
+		this.mvc.perform(get("/api/v1/balance").with(as(this.vy, Role.STUDENT)))
+			.andExpect(jsonPath("$.balanceVnd").value(7316429))
+			.andExpect(jsonPath("$.lines[0].yourPercent").value(88))
+			.andExpect(jsonPath("$.lines[0].crew.length()").value(0));
+		String otherBalance = this.mvc.perform(get("/api/v1/balance").with(as(other, Role.STUDENT)))
+			.andExpect(jsonPath("$.balanceVnd").value(0)).andReturn().getResponse().getContentAsString();
+		assertThat(otherBalance).doesNotContain("7316429");
+
+		this.mvc.perform(get("/api/v1/mentor/jobs/" + this.job + "/funding").with(as(this.hung, Role.MENTOR)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.milestones[0].crewTermsVersionNo").value(1))
+			.andExpect(jsonPath("$.milestones[0].releases.length()").value(2))
+			.andExpect(jsonPath("$.milestones[0].releases[1].role").value("CREW"));
+		this.mvc.perform(get("/api/v1/mentor/jobs/" + this.job + "/funding").with(as(this.vy, Role.STUDENT)))
+			.andExpect(status().isNotFound());
+	}
+
+	@Test
 	void aLockedCrewMemberHoldsMilestoneOneBack() throws Exception {
 		confirmedAgreement("BUG_FIX");
 		UUID orderId = created();

@@ -4,15 +4,12 @@ import { Button } from '@/components/ui/button'
 import { t } from '@/i18n/t'
 import { useTestCard } from './paymentApi'
 
-export function TestTag() {
-  return <span className="rounded bg-warning-soft px-1 text-caption font-semibold text-warning">{t('screen.matching.test')}</span>
-}
 
 /**
  * N-13 (FR-45): not dismissible, on every payment surface; "Cách thanh toán thử" opens the test card
  * VNPay publishes for its sandbox, from configuration.
  */
-export function TestModeBanner() {
+export function TestModeBanner({ balance = false }: { balance?: boolean }) {
   const ids = useId()
   const [open, setOpen] = useState(false)
   const card = useTestCard(open)
@@ -32,7 +29,7 @@ export function TestModeBanner() {
         <div className="flex flex-col gap-0.5">
           <p className="font-semibold">{t('screen.payment.n13Title')}</p>
           <p>
-            {t('screen.payment.n13Body')}{' '}
+            {t('screen.payment.n13Body')} {balance && `${t('screen.payment.n13NoWithdraw')} `}
             <Button
               type="button"
               variant="ghost"

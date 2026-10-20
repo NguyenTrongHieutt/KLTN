@@ -10,6 +10,9 @@ import { useJob, type Job } from '@/features/job/jobApi'
 import { JobHeader } from '@/features/job/JobHeader'
 import { customerMeta } from '@/features/job/jobMeta'
 import { JobTabs } from '@/features/job/JobTabs'
+import { mentorMeta } from '@/features/job/jobMeta'
+import { MentorJobTabs } from '@/features/matching/MentorJobTabs'
+import { useMentorJob } from '@/features/matching/mentorJobApi'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t, type MessageKey } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
@@ -18,9 +21,17 @@ import { formatVnd } from '@/lib/money'
 import { isNotFound, problemMessage } from '@/lib/problemMessage'
 import { redirectTo } from '@/lib/redirect'
 import { cn } from '@/lib/utils'
-import { useCreatePaymentOrder, useJobFunding, type FundingMilestone, type JobFunding } from './paymentApi'
+import {
+  useCreatePaymentOrder,
+  useJobFunding,
+  useMentorJobFunding,
+  type FundingMilestone,
+  type JobFunding,
+  type MentorJobFunding,
+} from './paymentApi'
 import { RefundLine } from './RefundLine'
-import { TestModeBanner, TestTag } from './TestModeBanner'
+import { TestTag } from '@/components/TestTag'
+import { TestModeBanner } from './TestModeBanner'
 
 const STATE_TONE: Record<string, string> = {
   PLANNED: 'bg-warning-soft text-warning',
@@ -40,15 +51,118 @@ const ORDER_TONE: Record<string, string> = {
  * JOB-7 for the Customer (`/cong-viec/{jobId}/thanh-toan`, FR-41, FR-45, AD-14): N-13, each Milestone
  * with its state and "Thanh toán" for the next one (or why it waits), and the Payment Orders.
  * "Thanh toán" creates the order and goes to VNPay's sandbox page in the same tab; CUS-9 shows the
- * result. The Mentor's view by party comes with Story 4.8.
+ * result. The Job's Mentor reads JOB-7 from its own Assignee DTO, with each release by party (AD-20).
  */
 export function JobPaymentPage() {
   const { jobId } = useParams()
   const account = useSession().data?.account
-  if (!jobId || (account !== undefined && account.role !== 'CUSTOMER')) {
+  if (!jobId || (account !== undefined && account.role !== 'CUSTOMER' && account.role !== 'MENTOR')) {
     return <NotFoundScreen />
   }
-  return <CustomerPayment jobId={jobId} />
+  return account?.role === 'MENTOR' ? <MentorPayment jobId={jobId} /> : <CustomerPayment jobId={jobId} />
+}
+
+function MentorPayment({ jobId }: { jobId: string }) {
+  const job = useMentorJob(jobId)
+  const funding = useMentorJobFunding(jobId)
+  usePageTitle(job.data ? t('screen.payment.title', { job: job.data.title }) : t('screen.job.title'))
+  if ((job.isError && isNotFound(job.error)) || (funding.isError && isNotFound(funding.error))) {
+    return <NotFoundScreen />
+  }
+  return (
+    <div className="mx-auto flex max-w-[1120px] flex-col gap-5 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+      <RegionState query={job} skeleton={<Skeleton className="h-24 w-full" />}>
+        {job.data && (
+          <JobHeader title={job.data.title} state={job.data.state} meta={mentorMeta(job.data)} audience="mentor">
+            <MentorJobTabs jobId={job.data.id} state={job.data.state} current="payment" payment={job.data.agreementConfirmed} />
+          </JobHeader>
+        )}
+      </RegionState>
+      <TestModeBanner />
+      <RegionState query={funding} skeleton={<Skeleton className="h-64 w-full" />}>
+        {funding.data && <MentorFunding funding={funding.data} />}
+      </RegionState>
+    </div>
+  )
+}
+
+function MentorFunding({ funding }: { funding: MentorJobFunding }) {
+  return (
+    <>
+      <section aria-labelledby="mentor-funding-heading" className="flex flex-col gap-3">
+        <h2 id="mentor-funding-heading" className="text-h2">
+          {t('screen.payment.milestonesTitle')}
+        </h2>
+        {funding.milestones.map((milestone) => (
+          <article key={milestone.milestoneId} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5 text-body-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-h3 break-words">{t('screen.payment.row', { n: milestone.number, title: milestone.title })}</h3>
+              <span className={cn('rounded-full px-2 py-0.5 text-caption font-semibold', STATE_TONE[milestone.state] ?? 'bg-muted')}>
+                {t(`screen.payment.milestoneState.${milestone.state}` as MessageKey)}
+              </span>
+            </div>
+            <p className="flex flex-wrap gap-x-5 gap-y-1 tabular-nums">
+              <span>
+                {t('screen.payment.amount')}: {formatVnd(milestone.priceVnd)} <TestTag />
+              </span>
+              <span>
+                {t('screen.payment.funded')}: {formatVnd(milestone.fundedVnd + milestone.topUpVnd)} <TestTag />
+              </span>
+              <span>
+                {t('screen.payment.released')}: {formatVnd(milestone.releasedTotalVnd)} <TestTag />
+              </span>
+            </p>
+            {milestone.crewTermsVersionNo != null && (
+              <p className="text-caption text-muted-foreground">{t('screen.payment.mentor.pin', { n: milestone.crewTermsVersionNo })}</p>
+            )}
+            <p className="text-label font-semibold">{t('screen.payment.mentor.releasesTitle')}</p>
+            {milestone.releases.length === 0 ? (
+              <p className="text-muted-foreground">{t('screen.payment.mentor.noReleases')}</p>
+            ) : (
+              <ul className="flex flex-col gap-1">
+                {milestone.releases.map((release, index) => (
+                  <li key={`${release.name}-${index}`} className="flex flex-wrap items-center gap-2 tabular-nums">
+                    <span className="font-semibold">{release.name}</span>
+                    <span className="text-caption text-muted-foreground">{t(`screen.payment.mentor.role.${release.role}` as MessageKey)}</span>
+                    <span>
+                      {formatVnd(release.amountVnd)} <TestTag />
+                    </span>
+                    {release.percent != null && <span>{t('screen.payment.balance.percent', { n: release.percent })}</span>}
+                    {release.crewTermsVersionNo != null && (
+                      <span className="text-caption text-muted-foreground">
+                        {t('screen.payment.balance.version', { n: release.crewTermsVersionNo })}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </article>
+        ))}
+      </section>
+      <section aria-labelledby="mentor-orders-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5">
+        <h2 id="mentor-orders-heading" className="text-h3">
+          {t('screen.payment.mentor.ordersTitle')}
+        </h2>
+        {funding.orders.length === 0 ? (
+          <p className="text-body-sm text-muted-foreground">{t('screen.payment.noOrders')}</p>
+        ) : (
+          <ul className="flex flex-col divide-y divide-border text-body-sm">
+            {funding.orders.map((order, index) => (
+              <li key={`${order.createdAt}-${index}`} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                <span className="tabular-nums">
+                  {t('screen.payment.history.funding', { n: order.number })} · {formatVnd(order.amountVnd)} <TestTag />
+                </span>
+                <span className={cn('rounded-full px-2 py-0.5 text-caption font-semibold', ORDER_TONE[order.status] ?? 'bg-muted')}>
+                  {t(`screen.payment.orderStatus.${order.status}` as MessageKey)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </>
+  )
 }
 
 function CustomerPayment({ jobId }: { jobId: string }) {
@@ -131,7 +245,7 @@ function Funding({ funding }: { funding: JobFunding }) {
           {t('screen.payment.milestonesTitle')}
         </h2>
         <div className="overflow-x-auto rounded-lg border border-border bg-card">
-          <table className="w-full min-w-[620px] text-left text-body-sm">
+          <table className="w-full min-w-[760px] text-left text-body-sm">
             <thead className="text-caption text-muted-foreground">
               <tr className="border-b border-border">
                 <th scope="col" className="px-4 py-2 font-semibold">
@@ -139,6 +253,12 @@ function Funding({ funding }: { funding: JobFunding }) {
                 </th>
                 <th scope="col" className="px-4 py-2 font-semibold">
                   {t('screen.payment.amount')}
+                </th>
+                <th scope="col" className="px-4 py-2 font-semibold">
+                  {t('screen.payment.funded')}
+                </th>
+                <th scope="col" className="px-4 py-2 font-semibold">
+                  {t('screen.payment.released')}
                 </th>
                 <th scope="col" className="px-4 py-2 font-semibold">
                   {t('screen.payment.status')}
@@ -155,8 +275,14 @@ function Funding({ funding }: { funding: JobFunding }) {
                 return (
                   <tr key={milestone.milestoneId} className="border-b border-border align-top last:border-b-0">
                     <td className="px-4 py-3 break-words">{t('screen.payment.row', { n: milestone.number, title: milestone.title })}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 tabular-nums">
                       {formatVnd(milestone.priceVnd)} <TestTag />
+                    </td>
+                    <td className="px-4 py-3 tabular-nums">
+                      {formatVnd(milestone.fundedVnd + milestone.topUpVnd)} <TestTag />
+                    </td>
+                    <td className="px-4 py-3 tabular-nums">
+                      {formatVnd(milestone.releasedTotalVnd)} <TestTag />
                     </td>
                     <td className="px-4 py-3">
                       <span className={cn('rounded-full px-2 py-0.5 text-caption font-semibold', STATE_TONE[key] ?? 'bg-muted')}>

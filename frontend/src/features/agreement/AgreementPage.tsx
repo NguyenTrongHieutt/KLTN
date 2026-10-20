@@ -23,7 +23,8 @@ import { formatDayMonthTime } from '@/lib/dates'
 import { formatVnd, groupDigits } from '@/lib/money'
 import { isNotFound, problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
-import { CodeRights, TestTag } from './AgreementContent'
+import { TestTag } from '@/components/TestTag'
+import { CodeRights } from './AgreementContent'
 import { useMentorAgreement, useSaveAgreement, useShareAgreement, type AgreementContent, type AgreementDraft } from './agreementApi'
 import { digits, problemsOf, technicalOnly, type DraftAccess, type DraftMilestone, type DraftProblem } from './agreementChecks'
 import { CustomerAgreement } from './CustomerAgreement'
@@ -75,7 +76,12 @@ function MentorAgreement({ jobId }: { jobId: string }) {
             audience="mentor"
             status={crew.data && <CrewHeaderLine panel={crew.data} />}
           >
-            <MentorJobTabs jobId={job.data.id} state={job.data.state} current="agreement" />
+            <MentorJobTabs
+              jobId={job.data.id}
+              state={job.data.state}
+              current="agreement"
+              payment={job.data.agreementConfirmed}
+            />
           </JobHeader>
         )}
       </RegionState>

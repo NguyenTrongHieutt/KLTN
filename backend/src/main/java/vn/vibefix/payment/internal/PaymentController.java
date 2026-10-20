@@ -40,8 +40,12 @@ import vn.vibefix.shared.Role;
 @Access(Gate.SIGNED_IN)
 class PaymentController {
 
+	/**
+	 * One Milestone of JOB-7 for the Customer: never a party's part (AD-20).
+	 * @param releasedTotalVnd {@code payment.releasedTotal}, the only released figure a Customer sees
+	 */
 	record FundingMilestoneView(UUID milestoneId, int number, String title, long priceVnd, String state, boolean fundable,
-			@Nullable String blockedReason) {
+			@Nullable String blockedReason, long fundedVnd, long topUpVnd, long refundedVnd, long releasedTotalVnd) {
 	}
 
 	/**
@@ -92,9 +96,12 @@ class PaymentController {
 
 	private final Refunds refunds;
 
+	private final PaymentHistory history;
+
 	PaymentController(PaymentOrders orders, MilestoneFunding funding, VnpaySandbox sandbox, CurrentCaller callers,
-			Refunds refunds) {
+			Refunds refunds, PaymentHistory history) {
 		this.refunds = refunds;
+		this.history = history;
 		this.orders = orders;
 		this.funding = funding;
 		this.sandbox = sandbox;
@@ -121,8 +128,10 @@ class PaymentController {
 				fundable = refusal == null;
 				reason = refusal == null ? null : refusal.reason().orElse(refusal.code().name());
 			}
+			PaymentHistory.Figures figures = this.history.figures(milestone.milestoneId());
 			milestones.add(new FundingMilestoneView(milestone.milestoneId(), milestone.number(), milestone.title(),
-					milestone.priceVnd(), milestone.state(), fundable, reason));
+					milestone.priceVnd(), milestone.state(), fundable, reason, figures.fundedVnd(), figures.topUpVnd(),
+					figures.refundedVnd(), figures.releasedTotalVnd()));
 		}
 		List<PaymentOrderView> orders = this.orders.ofJob(jobId)
 			.stream()

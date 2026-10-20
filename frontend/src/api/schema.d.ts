@@ -196,6 +196,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/balance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["balance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/catalog": {
         parameters: {
             query?: never;
@@ -948,6 +964,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/mentor/jobs/{jobId}/funding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["mentorJobFunding"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/mentor/jobs/{jobId}/nda": {
         parameters: {
             query?: never;
@@ -1212,6 +1244,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["testCard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payments/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["paymentHistory"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1950,6 +1998,36 @@ export interface components {
             /** Format: int64 */
             size: number;
         };
+        BalanceReleaseView: {
+            /** Format: int64 */
+            baseAmountVnd: number;
+            crew: components["schemas"]["CrewPartView"][];
+            /** Format: int32 */
+            crewTermsVersionNo?: number;
+            /** Format: uuid */
+            jobId: string;
+            jobTitle: string;
+            milestoneTitle: string;
+            /** Format: int32 */
+            number: number;
+            /** Format: date-time */
+            releasedAt: string;
+            /** Format: int64 */
+            yourPartVnd: number;
+            /** Format: int32 */
+            yourPercent?: number;
+        };
+        BalanceView: {
+            /** Format: int64 */
+            balanceVnd: number;
+            /** Format: int64 */
+            heldVnd?: number;
+            lines: components["schemas"]["BalanceReleaseView"][];
+            /** Format: int32 */
+            releases: number;
+            /** Format: int64 */
+            sentToCrewVnd?: number;
+        };
         CapacityView: {
             /** Format: int32 */
             activeJobs: number;
@@ -2131,6 +2209,13 @@ export interface components {
             /** Format: int32 */
             total: number;
         };
+        CrewPartView: {
+            /** Format: int64 */
+            amountVnd: number;
+            name: string;
+            /** Format: int32 */
+            percent?: number;
+        };
         CrewReconfirmRequest: {
             /** Format: int64 */
             crewVersion: number;
@@ -2183,6 +2268,15 @@ export interface components {
             /** Format: uuid */
             id: string;
             statement: string;
+        };
+        CustomerHistoryView: {
+            /** Format: int64 */
+            heldVnd: number;
+            jobs: components["schemas"]["HistoryJobView"][];
+            /** Format: int64 */
+            refundedVnd: number;
+            /** Format: int64 */
+            releasedVnd: number;
         };
         CustomerProfile: {
             contactEmail: string;
@@ -2273,14 +2367,53 @@ export interface components {
         FundingMilestoneView: {
             blockedReason?: string;
             fundable: boolean;
+            /** Format: int64 */
+            fundedVnd: number;
             /** Format: uuid */
             milestoneId: string;
             /** Format: int32 */
             number: number;
             /** Format: int64 */
             priceVnd: number;
+            /** Format: int64 */
+            refundedVnd: number;
+            /** Format: int64 */
+            releasedTotalVnd: number;
             state: string;
             title: string;
+            /** Format: int64 */
+            topUpVnd: number;
+        };
+        HistoryJobView: {
+            /** Format: uuid */
+            jobId: string;
+            milestones: components["schemas"]["HistoryMilestoneView"][];
+            rows: components["schemas"]["HistoryRowView"][];
+            state: string;
+            title: string;
+        };
+        HistoryMilestoneView: {
+            /** Format: uuid */
+            milestoneId: string;
+            /** Format: int32 */
+            number: number;
+            /** Format: int64 */
+            releasedTotalVnd: number;
+            state: string;
+            title: string;
+        };
+        HistoryRowView: {
+            /** Format: int64 */
+            amountVnd: number;
+            /** Format: date-time */
+            at: string;
+            kind: string;
+            /** Format: int32 */
+            number: number;
+            /** Format: uuid */
+            paymentOrderId: string;
+            simulated: boolean;
+            status: string;
         };
         InvitationsView: {
             invitations: components["schemas"]["SentInvitationView"][];
@@ -2529,6 +2662,27 @@ export interface components {
             /** Format: int64 */
             size: number;
         };
+        MentorFundingMilestoneView: {
+            /** Format: int32 */
+            crewTermsVersionNo?: number;
+            /** Format: int64 */
+            fundedVnd: number;
+            /** Format: uuid */
+            milestoneId: string;
+            /** Format: int32 */
+            number: number;
+            /** Format: int64 */
+            priceVnd: number;
+            /** Format: int64 */
+            refundedVnd: number;
+            /** Format: int64 */
+            releasedTotalVnd: number;
+            releases: components["schemas"]["MentorReleaseView"][];
+            state: string;
+            title: string;
+            /** Format: int64 */
+            topUpVnd: number;
+        };
         MentorInvitationView: {
             customer: string;
             /** Format: uuid */
@@ -2538,6 +2692,14 @@ export interface components {
             jobTitle: string;
             /** @enum {string} */
             status: "OPEN" | "APPLIED" | "LAPSED";
+        };
+        MentorJobFundingView: {
+            /** Format: uuid */
+            jobId: string;
+            milestones: components["schemas"]["MentorFundingMilestoneView"][];
+            orders: components["schemas"]["MentorOrderView"][];
+            state: string;
+            title: string;
         };
         MentorJobSummaryView: {
             /** Format: uuid */
@@ -2550,6 +2712,7 @@ export interface components {
             title: string;
         };
         MentorJobView: {
+            agreementConfirmed: boolean;
             appUsers?: string;
             codeJob: boolean;
             commitEmailNoticeAcknowledged: boolean;
@@ -2570,6 +2733,15 @@ export interface components {
             /** Format: int64 */
             version: number;
         };
+        MentorOrderView: {
+            /** Format: int64 */
+            amountVnd: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: int32 */
+            number: number;
+            status: string;
+        };
         MentorProfileView: {
             /** @enum {string} */
             approvalStatus: "PENDING" | "APPROVED" | "REJECTED" | "REVOKED";
@@ -2588,6 +2760,18 @@ export interface components {
             submittedAt?: string;
             /** Format: int32 */
             yearsOfExperience?: number;
+        };
+        MentorReleaseView: {
+            /** Format: int64 */
+            amountVnd: number;
+            /** Format: int32 */
+            crewTermsVersionNo?: number;
+            name: string;
+            /** Format: int32 */
+            percent?: number;
+            /** Format: date-time */
+            releasedAt: string;
+            role: string;
         };
         MentorReputationView: {
             average?: number;
@@ -3720,6 +3904,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StudentCardRow"];
+                };
+            };
+        };
+    };
+    balance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BalanceView"];
                 };
             };
         };
@@ -4985,6 +5189,28 @@ export interface operations {
             };
         };
     };
+    mentorJobFunding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MentorJobFundingView"];
+                };
+            };
+        };
+    };
     sign: {
         parameters: {
             query?: never;
@@ -5359,6 +5585,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TestCardView"];
+                };
+            };
+        };
+    };
+    paymentHistory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerHistoryView"];
                 };
             };
         };

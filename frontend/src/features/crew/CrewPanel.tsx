@@ -4,6 +4,7 @@ import { inputClass } from '@/components/formField-props'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/features/team/ConfirmDialog'
+import { TestTag } from '@/components/TestTag'
 import { t, type MessageKey } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
 import { formatDayMonth } from '@/lib/dates'
@@ -20,10 +21,6 @@ import {
   type CrewRow,
 } from './crewApi'
 import { crewSplit, percentOf, shareProblem, shortName, type ShareProblem } from './crewShares'
-
-function TestTag() {
-  return <span className="rounded bg-warning-soft px-1 text-caption font-semibold text-warning">{t('screen.matching.test')}</span>
-}
 
 function Avatar({ name }: { name: string }) {
   const letters = name
