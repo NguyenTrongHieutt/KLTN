@@ -221,7 +221,7 @@ export interface paths {
         };
         get: operations["workItems"];
         put?: never;
-        post?: never;
+        post: operations["createWorkItem"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1876,6 +1876,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/work-items/{workItemId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["workItem"];
+        put: operations["updateWorkItem"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/webhooks/vnpay/ipn": {
         parameters: {
             query?: never;
@@ -2119,9 +2135,11 @@ export interface components {
             /** Format: uuid */
             boardId: string;
             code: string;
+            crew: components["schemas"]["PersonView"][];
             items: components["schemas"]["WorkItemCardView"][];
             mentor: boolean;
             milestones: components["schemas"]["BoardMilestoneView"][];
+            readOnly: boolean;
             title: string;
         };
         CapacityView: {
@@ -2155,6 +2173,14 @@ export interface components {
             chatId: string;
             readOnly: boolean;
             unread: boolean;
+        };
+        ChecklistLineRequest: {
+            done: boolean;
+            text: string;
+        };
+        ChecklistLineView: {
+            done: boolean;
+            text: string;
         };
         CleanRepositoryRequest: {
             url: string;
@@ -2497,6 +2523,16 @@ export interface components {
             title: string;
             /** Format: int64 */
             topUpVnd: number;
+        };
+        HistoryEntryView: {
+            action: string;
+            actor: string;
+            assignedTo?: string;
+            /** Format: date-time */
+            at: string;
+            fields: string[];
+            /** Format: uuid */
+            id: string;
         };
         HistoryJobView: {
             /** Format: uuid */
@@ -3101,6 +3137,11 @@ export interface components {
             /** Format: date-time */
             sentAt: string;
         };
+        PersonView: {
+            /** Format: uuid */
+            accountId: string;
+            name: string;
+        };
         PortfolioEntry: {
             /** Format: date-time */
             closedAt: string;
@@ -3678,21 +3719,53 @@ export interface components {
             versionNo: number;
         };
         WorkItemCardView: {
-            /** Format: uuid */
-            assigneeId?: string;
+            assignee?: components["schemas"]["PersonView"];
+            /** Format: int32 */
+            checklistDone: number;
+            /** Format: int32 */
+            checklistTotal: number;
             criterion?: components["schemas"]["CriterionLinkView"];
             description: string;
+            estimateHours?: number;
             /** Format: uuid */
             id: string;
             key: string;
             /** Format: uuid */
             milestoneId?: string;
+            priority?: string;
             seeded: boolean;
             status: string;
             title: string;
             type: string;
             /** Format: int64 */
             version: number;
+        };
+        WorkItemDetailView: {
+            checklist: components["schemas"]["ChecklistLineView"][];
+            /** Format: date-time */
+            createdAt: string;
+            createdBy?: string;
+            history: components["schemas"]["HistoryEntryView"][];
+            item: components["schemas"]["WorkItemCardView"];
+            readOnly: boolean;
+        };
+        WorkItemRequest: {
+            /** Format: uuid */
+            assigneeId?: string;
+            checklist?: components["schemas"]["ChecklistLineRequest"][];
+            description?: string;
+            estimateHours?: number;
+            /** Format: uuid */
+            milestoneId: string;
+            /** @enum {string} */
+            priority?: "HIGH" | "MEDIUM" | "LOW";
+            /** @enum {string} */
+            sensitive?: "CHECK" | "MASK";
+            title: string;
+            /** @enum {string} */
+            type: "STORY" | "TASK" | "BUG";
+            /** Format: int64 */
+            version?: number;
         };
     };
     responses: never;
@@ -4077,6 +4150,32 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BoardView"];
+                };
+            };
+        };
+    };
+    createWorkItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkItemRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkItemDetailView"];
                 };
             };
         };
@@ -6712,6 +6811,54 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VerificationView"];
+                };
+            };
+        };
+    };
+    workItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workItemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkItemDetailView"];
+                };
+            };
+        };
+    };
+    updateWorkItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workItemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkItemRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkItemDetailView"];
                 };
             };
         };

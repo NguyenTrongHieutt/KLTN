@@ -505,6 +505,41 @@
           }
         },
         "tags" : [ "board-controller" ]
+      },
+      "post" : {
+        "operationId" : "createWorkItem",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/WorkItemRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/WorkItemDetailView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "board-controller" ]
       }
     },
     "/api/v1/catalog" : {
@@ -3976,6 +4011,68 @@
         "tags" : [ "verification-controller" ]
       }
     },
+    "/api/v1/work-items/{workItemId}" : {
+      "get" : {
+        "operationId" : "workItem",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workItemId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/WorkItemDetailView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "board-controller" ]
+      },
+      "put" : {
+        "operationId" : "updateWorkItem",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workItemId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/WorkItemRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/WorkItemDetailView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "board-controller" ]
+      }
+    },
     "/webhooks/vnpay/ipn" : {
       "get" : {
         "operationId" : "vnpayIpn",
@@ -4611,6 +4708,12 @@
           "code" : {
             "type" : "string"
           },
+          "crew" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/PersonView"
+            }
+          },
           "items" : {
             "type" : "array",
             "items" : {
@@ -4626,11 +4729,14 @@
               "$ref" : "#/components/schemas/BoardMilestoneView"
             }
           },
+          "readOnly" : {
+            "type" : "boolean"
+          },
           "title" : {
             "type" : "string"
           }
         },
-        "required" : [ "boardId", "code", "items", "mentor", "milestones", "title" ]
+        "required" : [ "boardId", "code", "crew", "items", "mentor", "milestones", "readOnly", "title" ]
       },
       "CapacityView" : {
         "type" : "object",
@@ -4723,6 +4829,32 @@
           }
         },
         "required" : [ "chatId", "readOnly", "unread" ]
+      },
+      "ChecklistLineRequest" : {
+        "type" : "object",
+        "properties" : {
+          "done" : {
+            "type" : "boolean"
+          },
+          "text" : {
+            "type" : "string",
+            "maxLength" : 300,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "done", "text" ]
+      },
+      "ChecklistLineView" : {
+        "type" : "object",
+        "properties" : {
+          "done" : {
+            "type" : "boolean"
+          },
+          "text" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "done", "text" ]
       },
       "CleanRepositoryRequest" : {
         "type" : "object",
@@ -5659,6 +5791,35 @@
           }
         },
         "required" : [ "fundable", "fundedVnd", "milestoneId", "number", "priceVnd", "refundedVnd", "releasedTotalVnd", "state", "title", "topUpVnd" ]
+      },
+      "HistoryEntryView" : {
+        "type" : "object",
+        "properties" : {
+          "action" : {
+            "type" : "string"
+          },
+          "actor" : {
+            "type" : "string"
+          },
+          "assignedTo" : {
+            "type" : "string"
+          },
+          "at" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "fields" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "action", "actor", "at", "fields", "id" ]
       },
       "HistoryJobView" : {
         "type" : "object",
@@ -7297,6 +7458,19 @@
         },
         "required" : [ "attemptsLeft", "email", "expired", "expiresAt", "sentAt" ]
       },
+      "PersonView" : {
+        "type" : "object",
+        "properties" : {
+          "accountId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "accountId", "name" ]
+      },
       "PortfolioEntry" : {
         "type" : "object",
         "properties" : {
@@ -8894,15 +9068,25 @@
       "WorkItemCardView" : {
         "type" : "object",
         "properties" : {
-          "assigneeId" : {
-            "type" : "string",
-            "format" : "uuid"
+          "assignee" : {
+            "$ref" : "#/components/schemas/PersonView"
+          },
+          "checklistDone" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "checklistTotal" : {
+            "type" : "integer",
+            "format" : "int32"
           },
           "criterion" : {
             "$ref" : "#/components/schemas/CriterionLinkView"
           },
           "description" : {
             "type" : "string"
+          },
+          "estimateHours" : {
+            "type" : "number"
           },
           "id" : {
             "type" : "string",
@@ -8914,6 +9098,9 @@
           "milestoneId" : {
             "type" : "string",
             "format" : "uuid"
+          },
+          "priority" : {
+            "type" : "string"
           },
           "seeded" : {
             "type" : "boolean"
@@ -8932,7 +9119,91 @@
             "format" : "int64"
           }
         },
-        "required" : [ "description", "id", "key", "seeded", "status", "title", "type", "version" ]
+        "required" : [ "checklistDone", "checklistTotal", "description", "id", "key", "seeded", "status", "title", "type", "version" ]
+      },
+      "WorkItemDetailView" : {
+        "type" : "object",
+        "properties" : {
+          "checklist" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ChecklistLineView"
+            }
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "createdBy" : {
+            "type" : "string"
+          },
+          "history" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/HistoryEntryView"
+            }
+          },
+          "item" : {
+            "$ref" : "#/components/schemas/WorkItemCardView"
+          },
+          "readOnly" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "checklist", "createdAt", "history", "item", "readOnly" ]
+      },
+      "WorkItemRequest" : {
+        "type" : "object",
+        "properties" : {
+          "assigneeId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "checklist" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ChecklistLineRequest"
+            },
+            "maxItems" : 20,
+            "minItems" : 0
+          },
+          "description" : {
+            "type" : "string",
+            "maxLength" : 4000,
+            "minLength" : 0
+          },
+          "estimateHours" : {
+            "type" : "number",
+            "maximum" : 999,
+            "minimum" : 0.5
+          },
+          "milestoneId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "priority" : {
+            "type" : "string",
+            "enum" : [ "HIGH", "MEDIUM", "LOW" ]
+          },
+          "sensitive" : {
+            "type" : "string",
+            "enum" : [ "CHECK", "MASK" ]
+          },
+          "title" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0
+          },
+          "type" : {
+            "type" : "string",
+            "enum" : [ "STORY", "TASK", "BUG" ]
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "milestoneId", "title", "type" ]
       }
     }
   }

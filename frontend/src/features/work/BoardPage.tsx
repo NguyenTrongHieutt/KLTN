@@ -1,11 +1,12 @@
-import { Copy, Link2 } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { ArrowDown, ArrowUp, Copy, Equal, Link2, Plus } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
 import { Link, Navigate, useParams } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
 import { usePageTitle } from '@/app/usePageTitle'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { useToasts } from '@/components/toasts'
+import { Button } from '@/components/ui/button'
 import { useSession } from '@/features/identity/useSession'
 import { JobHeader } from '@/features/job/JobHeader'
 import { mentorMeta } from '@/features/job/jobMeta'
@@ -15,13 +16,15 @@ import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t, type MessageKey } from '@/i18n/t'
 import { isNotFound } from '@/lib/problemMessage'
 import { hasBoard, STATUSES, useBoard, type Board, type WorkItemCard } from './workApi'
+import { WorkItemSheet } from './WorkItemSheet'
 
 /**
  * JOB-2 "Bảng công việc" (`/cong-viec/{jobId}/bang`, FR-22, FR-23, AD-33, AD-39, UX-DR36): the Board
- * of an Active Job for its Mentor and its active Crew, in four columns. Each card shows its key with
- * a copy button for commit messages, its type, its title, and for a seeded Story a link to the
- * criterion it came from; a seeded Story's criterion, type, and Milestone never change. Creating,
- * editing, and moving Work Items come with Stories 5.2 and 5.3. Anyone else sees the not-found screen.
+ * of an Active Job in four columns, for its Mentor and its active Crew, and read-only for a former
+ * member. Each card shows its key with a copy button for commit messages, its type, its title, the
+ * priority icon, the estimate, the assignee, and for a seeded Story a link to the criterion it came
+ * from; tapping it opens the detail in the Sheet, and "Thêm việc" opens it empty. Moving Work Items
+ * comes with Story 5.3. Anyone else sees the not-found screen.
  */
 export function BoardPage() {
   const { jobId } = useParams()
@@ -84,11 +87,23 @@ function StudentBoard({ jobId }: { jobId: string }) {
 
 function Columns({ board, jobId }: { board: Board; jobId: string }) {
   const milestones = new Map(board.milestones.map((milestone) => [milestone.milestoneId, milestone]))
+  const [sheet, setSheet] = useState<{ open: boolean; workItemId?: string }>({ open: false })
   return (
     <div className="flex flex-col gap-3">
-      {board.items.some((item) => item.seeded) && (
-        <p className="text-body-sm text-muted-foreground">{t('screen.board.seededLead')}</p>
-      )}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {board.items.some((item) => item.seeded) ? (
+          <p className="text-body-sm text-muted-foreground">{t('screen.board.seededLead')}</p>
+        ) : (
+          <span />
+        )}
+        {!board.readOnly && (
+          <Button type="button" size="compact" onClick={() => setSheet({ open: true })}>
+            <Plus aria-hidden="true" />
+            {t('screen.board.add')}
+          </Button>
+        )}
+      </div>
+      {board.readOnly && <p className="text-body-sm text-muted-foreground">{t('screen.board.readOnly')}</p>}
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {STATUSES.map((status) => {
           const items = board.items.filter((item) => item.status === status)
@@ -113,6 +128,7 @@ function Columns({ board, jobId }: { board: Board; jobId: string }) {
                       jobId={jobId}
                       mentor={board.mentor}
                       milestoneNumber={item.milestoneId ? milestones.get(item.milestoneId)?.number : undefined}
+                      onOpen={() => setSheet({ open: true, workItemId: item.id })}
                     />
                   ))}
                 </ul>
@@ -121,8 +137,21 @@ function Columns({ board, jobId }: { board: Board; jobId: string }) {
           )
         })}
       </div>
+      <WorkItemSheet
+        board={board}
+        workItemId={sheet.workItemId}
+        open={sheet.open}
+        onClose={() => setSheet({ open: false })}
+      />
     </div>
   )
+}
+
+const PRIORITY_ICON = { HIGH: ArrowUp, MEDIUM: Equal, LOW: ArrowDown } as const
+
+function initials(name: string): string {
+  const words = name.replace(/^@/, '').split(/\s+/).filter(Boolean)
+  return (words.length > 1 ? words[0][0] + words[words.length - 1][0] : (words[0] ?? '?').slice(0, 2)).toUpperCase()
 }
 
 function Card({
@@ -130,11 +159,13 @@ function Card({
   jobId,
   mentor,
   milestoneNumber,
+  onOpen,
 }: {
   item: WorkItemCard
   jobId: string
   mentor: boolean
   milestoneNumber: number | undefined
+  onOpen: () => void
 }) {
   const toasts = useToasts()
   const copy = () => {
@@ -163,7 +194,22 @@ function Card({
           {t(`screen.board.type.${item.type}` as MessageKey)}
         </span>
       </div>
-      <p className="font-semibold break-words">{item.title}</p>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="text-left font-semibold break-words underline-offset-4 hover:underline"
+      >
+        {item.title}
+      </button>
+      {(item.priority || item.estimateHours != null || item.checklistTotal > 0) && (
+        <div className="flex flex-wrap items-center gap-3 text-caption text-muted-foreground">
+          {item.priority && <Priority priority={item.priority as keyof typeof PRIORITY_ICON} />}
+          {item.estimateHours != null && <span>{t('screen.board.estimate', { n: item.estimateHours.toLocaleString('vi-VN') })}</span>}
+          {item.checklistTotal > 0 && (
+            <span>{t('screen.board.checklistCount', { done: item.checklistDone, total: item.checklistTotal })}</span>
+          )}
+        </div>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-2 text-caption text-muted-foreground">
         {criterion && criterionLabel ? (
           mentor ? (
@@ -184,9 +230,29 @@ function Card({
         ) : (
           milestoneNumber !== undefined && <span>{t('screen.board.milestone', { n: milestoneNumber })}</span>
         )}
-        <span>{item.assigneeId ? null : t('screen.board.unassigned')}</span>
+        {item.assignee ? (
+          <span
+            title={item.assignee.name}
+            className="flex size-6 items-center justify-center rounded-full bg-primary-soft text-[11px] font-semibold text-primary"
+          >
+            <span aria-hidden="true">{initials(item.assignee.name)}</span>
+            <span className="sr-only">{t('screen.board.assignee', { name: item.assignee.name })}</span>
+          </span>
+        ) : (
+          <span>{t('screen.board.unassigned')}</span>
+        )}
       </div>
     </li>
+  )
+}
+
+function Priority({ priority }: { priority: keyof typeof PRIORITY_ICON }) {
+  const Icon = PRIORITY_ICON[priority]
+  return (
+    <span className={priority === 'HIGH' ? 'flex items-center gap-0.5 text-destructive' : 'flex items-center gap-0.5'}>
+      <Icon aria-hidden="true" className="size-3.5" />
+      {t(`screen.board.priority.${priority}` as MessageKey)}
+    </span>
   )
 }
 

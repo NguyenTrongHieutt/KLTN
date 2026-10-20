@@ -288,6 +288,10 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType CHAT_CHAT_OPENED = new NotificationType("chat.chat_opened",
 			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
 
+	/** The Mentor assigned a Work Item (FR-23): the assignee, in-app only. */
+	static final NotificationType WORK_WORK_ITEM_ASSIGNED = new NotificationType("work.work_item_assigned",
+			Set.of(Audience.CREW_ACTIVE), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of("mentor", "key"));
+
 	@Override
 	public List<NotificationType> notificationTypes() {
 		return List.of(SCHOOL_EMAIL_CODE, VERIFICATION_EXPIRING, VERIFICATION_EXPIRED, ADMIN_SIGN_IN_LOCKED,
@@ -303,7 +307,7 @@ class NotificationTypes implements NotificationCatalog {
 				JOB_CREW_CONFIRMED, JOB_CONFLICT_OF_INTEREST_REFUSED, JOB_PERSON_LINK_ALERT, JOB_AGREEMENT_CHANGES_REQUESTED,
 				JOB_AGREEMENT_AWAITING_CONFIRMATION, JOB_AGREEMENT_CONFIRMED, JOB_MILESTONE_AWAITING_FUNDING, JOB_CREW_RECONFIRM_NEEDED,
 				PAYMENT_PAYMENT_RECEIVED, PAYMENT_PAYMENT_FAILED, PAYMENT_UNKNOWN_PAYMENT, JOB_MILESTONE_FUNDED, JOB_JOB_STARTING,
-				PAYMENT_REFUND_REQUESTED, PAYMENT_REFUND_CONFIRMED);
+				PAYMENT_REFUND_REQUESTED, PAYMENT_REFUND_CONFIRMED, WORK_WORK_ITEM_ASSIGNED);
 	}
 
 	@Override
