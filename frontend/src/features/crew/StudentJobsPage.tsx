@@ -275,12 +275,20 @@ function JoinedCard({ assignment }: { assignment: CrewAssignment }) {
       )}
       <div className="flex flex-wrap gap-2">
         {!inactive && hasBoard(assignment.jobState) && (
-          <Link
-            to={`/cong-viec/${assignment.jobId}/bang`}
-            className={buttonVariants({ variant: 'secondary', size: 'compact' })}
-          >
-            {t('screen.board.tab')}
-          </Link>
+          <>
+            <Link
+              to={`/cong-viec/${assignment.jobId}/bang`}
+              className={buttonVariants({ variant: 'secondary', size: 'compact' })}
+            >
+              {t('screen.board.tab')}
+            </Link>
+            <Link
+              to={`/cong-viec/${assignment.jobId}/tai-lieu`}
+              className={buttonVariants({ variant: 'secondary', size: 'compact' })}
+            >
+              {t('screen.docs.tab')}
+            </Link>
+          </>
         )}
         <Link
           to={`/cong-viec/${assignment.jobId}/trao-doi-nhom`}

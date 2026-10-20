@@ -34,6 +34,12 @@ enum WorkReason {
 	SELF_CHECK_INCOMPLETE,
 
 	/** "Duyệt" and "Trả lại" each need a written comment (FR-25, AD-39). */
-	REVIEW_COMMENT_REQUIRED
+	REVIEW_COMMENT_REQUIRED,
+
+	/** The Page tree has at most two levels (FR-29). */
+	PAGE_TOO_DEEP,
+
+	/** The parent Page is not one of this Job's. */
+	PAGE_PARENT_UNKNOWN
 
 }

@@ -50,6 +50,35 @@ class WorkTextCheck {
 	}
 
 	/**
+	 * {@code text} of any length with its matches masked: the check reads at most
+	 * {@link SensitiveText#MAX_LENGTH} characters at once, so a long text is checked in chunks of whole
+	 * lines (a single longer line is cut).
+	 */
+	String maskedLong(String text, List<MatchView> matches) {
+		if (text.length() <= SensitiveText.MAX_LENGTH) {
+			return masked(text, matches);
+		}
+		StringBuilder result = new StringBuilder();
+		StringBuilder chunk = new StringBuilder();
+		for (String line : text.split("(?<=\n)")) {
+			if (chunk.length() + line.length() > SensitiveText.MAX_LENGTH && !chunk.isEmpty()) {
+				result.append(masked(chunk.toString(), matches));
+				chunk.setLength(0);
+			}
+			String rest = line;
+			while (rest.length() > SensitiveText.MAX_LENGTH) {
+				result.append(masked(rest.substring(0, SensitiveText.MAX_LENGTH), matches));
+				rest = rest.substring(SensitiveText.MAX_LENGTH);
+			}
+			chunk.append(rest);
+		}
+		if (!chunk.isEmpty()) {
+			result.append(masked(chunk.toString(), matches));
+		}
+		return result.toString();
+	}
+
+	/**
 	 * @throws ApiException {@code GUARD_FAILED SENSITIVE_CONTENT} with the matches when there are any
 	 * and the writer has not chosen to mask them
 	 */

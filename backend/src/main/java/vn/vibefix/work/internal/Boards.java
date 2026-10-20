@@ -234,6 +234,11 @@ class Boards {
 			.optional();
 	}
 
+	/** The Board, locked for the rest of the transaction: Page tree changes run under it. */
+	Optional<Board> lockBoard(UUID jobId) {
+		return lock(jobId);
+	}
+
 	private Optional<Board> lock(UUID jobId) {
 		return this.jdbc.sql("SELECT job_id, product_id, code FROM work.board WHERE job_id = :job FOR UPDATE")
 			.param("job", jobId)

@@ -2066,6 +2066,44 @@
         "approved": "Đã duyệt {key}",
         "returned": "Đã trả lại {key}"
       }
+    },
+    "docs": {
+      "tab": "Tài liệu",
+      "title": "Tài liệu · {job}",
+      "tree": "Các trang tài liệu",
+      "newPage": "Trang mới",
+      "newChild": "Thêm trang con cho {title}",
+      "empty": "Chưa có trang nào. Hãy tạo trang đầu tiên cho công việc này.",
+      "notFound": "Không tìm thấy trang này.",
+      "versionLine": "Phiên bản {n} · {author} · {time}",
+      "unknownAuthor": "Người đã rời",
+      "history": "Lịch sử phiên bản",
+      "edit": "Sửa",
+      "emptyBody": "Trang này chưa có nội dung.",
+      "editing": "Sửa trang",
+      "pageTitle": "Tên trang",
+      "parent": "Nằm trong",
+      "topLevel": "Trang gốc",
+      "mode": "Chế độ soạn",
+      "write": "Soạn",
+      "preview": "Xem trước",
+      "body": "Nội dung (Markdown)",
+      "titleRequired": "Hãy nhập tên trang.",
+      "cancel": "Hủy",
+      "save": "Lưu",
+      "saved": "Đã lưu phiên bản {n}",
+      "sensitiveBody": "Ai xem được tài liệu đều đọc được nội dung này. Hãy che trước khi lưu.",
+      "staleBody": "Trang này vừa được lưu ở nơi khác nên thay đổi của bạn chưa được lưu. Hãy xem bản mới nhất rồi sửa lại.",
+      "latest": "Xem bản mới nhất",
+      "leaveTitle": "Rời trang khi chưa lưu?",
+      "leaveBody": "Những thay đổi chưa lưu sẽ mất.",
+      "stay": "Ở lại",
+      "leave": "Rời trang",
+      "versionTitle": "Phiên bản {n}: {title}",
+      "restoredFrom": "khôi phục từ phiên bản {n}",
+      "view": "Xem",
+      "restore": "Khôi phục",
+      "restored": "Đã khôi phục phiên bản {from} thành phiên bản {n}"
     }
   },
   "notice": {
@@ -2862,7 +2900,13 @@
       "MILESTONE_NOT_HELD": "Giai đoạn này chưa được thanh toán.",
       "MOVE_NOT_ALLOWED": "Không chuyển việc sang cột này được.",
       "SELF_CHECK_INCOMPLETE": "Hãy đánh dấu đủ bốn mục tự kiểm trước khi gửi duyệt.",
-      "REVIEW_COMMENT_REQUIRED": "Hãy viết nhận xét trước khi duyệt hoặc trả lại."
+      "REVIEW_COMMENT_REQUIRED": "Hãy viết nhận xét trước khi duyệt hoặc trả lại.",
+      "PAGE_TOO_DEEP": "Tài liệu chỉ có hai cấp: trang gốc và trang con.",
+      "PAGE_PARENT_UNKNOWN": "Không tìm thấy trang cha."
     }
+  },
+  "markdown": {
+    "newTab": "(mở trong thẻ mới)",
+    "image": "[Ảnh: {alt}]"
   }
 }

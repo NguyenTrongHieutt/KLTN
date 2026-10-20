@@ -212,6 +212,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/boards/{boardId}/pages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["pageTree"];
+        put?: never;
+        post: operations["createPage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/boards/{boardId}/work-items": {
         parameters: {
             query?: never;
@@ -1294,6 +1310,70 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["read"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pages/{pageId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["page"];
+        put: operations["savePage"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pages/{pageId}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["pageVersions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pages/{pageId}/versions/{versionNo}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["pageVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pages/{pageId}/versions/{versionNo}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["restorePage"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3098,6 +3178,27 @@ export interface components {
             stalledEvents: components["schemas"]["Queue"];
             studentCards: components["schemas"]["Queue"];
         };
+        PageNodeView: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            parentId?: string;
+            title: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: int32 */
+            versionNo: number;
+        };
+        PageRequest: {
+            body?: string;
+            /** Format: uuid */
+            parentId?: string;
+            /** @enum {string} */
+            sensitive?: "CHECK" | "MASK";
+            title: string;
+            /** Format: int32 */
+            version?: number;
+        };
         PageResponseJobPostSummaryView: {
             items: components["schemas"]["JobPostSummaryView"][];
             /** Format: int32 */
@@ -3133,6 +3234,53 @@ export interface components {
             size: number;
             /** Format: int64 */
             total: number;
+        };
+        PageTreeView: {
+            /** Format: uuid */
+            boardId: string;
+            mentor: boolean;
+            pages: components["schemas"]["PageNodeView"][];
+            readOnly: boolean;
+            title: string;
+        };
+        PageVersionDetailView: {
+            /** Format: date-time */
+            at: string;
+            author: string;
+            body: string;
+            /** Format: int32 */
+            restoredFrom?: number;
+            title: string;
+            /** Format: int32 */
+            versionNo: number;
+        };
+        PageVersionView: {
+            /** Format: date-time */
+            at: string;
+            author: string;
+            /** Format: int32 */
+            restoredFrom?: number;
+            title: string;
+            /** Format: int32 */
+            versionNo: number;
+        };
+        PageView: {
+            /** Format: date-time */
+            at: string;
+            author: string;
+            /** Format: uuid */
+            boardId: string;
+            body: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            parentId?: string;
+            readOnly: boolean;
+            /** Format: int32 */
+            restoredFrom?: number;
+            title: string;
+            /** Format: int32 */
+            versionNo: number;
         };
         PaymentOrderDetailView: {
             /** Format: int64 */
@@ -3393,6 +3541,10 @@ export interface components {
             ownerType: string;
             /** Format: int64 */
             sizeKb: number;
+        };
+        RestoreRequest: {
+            /** Format: int32 */
+            version: number;
         };
         ReviewRequest: {
             comment?: string;
@@ -4225,6 +4377,54 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BalanceView"];
+                };
+            };
+        };
+    };
+    pageTree: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageTreeView"];
+                };
+            };
+        };
+    };
+    createPage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PageRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageView"];
                 };
             };
         };
@@ -6017,6 +6217,126 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    page: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageView"];
+                };
+            };
+        };
+    };
+    savePage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PageRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageView"];
+                };
+            };
+        };
+    };
+    pageVersions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageVersionView"][];
+                };
+            };
+        };
+    };
+    pageVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pageId: string;
+                versionNo: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageVersionDetailView"];
+                };
+            };
+        };
+    };
+    restorePage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pageId: string;
+                versionNo: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RestoreRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageView"];
+                };
             };
         };
     };

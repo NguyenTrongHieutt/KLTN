@@ -92,8 +92,15 @@ class WorkAccess {
 		this.clock = clock;
 	}
 
+	/** A reader of the Board's Work Items; an Administrator needs a {@code WORK_ITEMS} grant. */
 	@Transactional(readOnly = true)
 	BoardViewer reader(UUID boardId, Caller caller) {
+		return reader(boardId, caller, AdminReadScope.WORK_ITEMS);
+	}
+
+	/** A reader of the Board's content of {@code scope}; an Administrator needs a grant with an item of it. */
+	@Transactional(readOnly = true)
+	BoardViewer reader(UUID boardId, Caller caller, AdminReadScope scope) {
 		boolean mentorRole = caller.hasRole(Role.MENTOR);
 		boolean admin = caller.hasRole(Role.ADMINISTRATOR);
 		if (!mentorRole && !admin && !caller.hasRole(Role.STUDENT)) {
@@ -110,7 +117,7 @@ class WorkAccess {
 			List<AdminReadGrant> open = this.grants.grants(account, board.jobId())
 				.stream()
 				.filter(grant -> grant.endsAt() == null || now.isBefore(grant.endsAt()))
-				.filter(grant -> grant.items().stream().anyMatch(item -> item.scope() == AdminReadScope.WORK_ITEMS))
+				.filter(grant -> grant.items().stream().anyMatch(item -> item.scope() == scope))
 				.toList();
 			if (open.isEmpty()) {
 				throw new ApiException(ErrorCode.NOT_FOUND);

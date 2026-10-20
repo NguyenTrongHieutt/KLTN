@@ -16,10 +16,10 @@ import vn.vibefix.shared.PersonalDataSection;
 
 /**
  * {@code work}'s part in exports, erasure, and Product deletion (AD-24): an account exports the Work
- * Items it created or is assigned and its history entries; erasing it clears it as creator, assignee,
- * and history actor (the entries stay, without a person), and deletes an Administrator's read grants;
- * deleting a Product deletes its Boards with their Work Items, history, and grants. A running Job
- * blocks erasure through {@code job}.
+ * Items it created or is assigned, its history entries, and the Page versions it wrote; erasing it clears
+ * it as creator, assignee, history actor, and version author (the entries and versions stay, without a
+ * person), and deletes an Administrator's read grants; deleting a Product deletes its Boards with their
+ * Work Items, history, Pages, and grants. A running Job blocks erasure through {@code job}.
  */
 @Component
 class WorkPersonalData implements PersonalDataParticipant {
@@ -32,7 +32,8 @@ class WorkPersonalData implements PersonalDataParticipant {
 
 	@Override
 	public Set<String> tables() {
-		return Set.of("work.board", "work.work_item", "work.work_item_history", "work.admin_read_grant");
+		return Set.of("work.board", "work.work_item", "work.work_item_history", "work.admin_read_grant", "work.page",
+				"work.page_version");
 	}
 
 	@Override
@@ -62,10 +63,23 @@ class WorkPersonalData implements PersonalDataParticipant {
 			entry.put("at", rs.getTimestamp("at").toInstant().toString());
 			return entry;
 		}).list();
-		if (items.isEmpty() && history.isEmpty()) {
+		List<Map<String, Object>> versions = this.jdbc.sql("""
+				SELECT v.page_id, v.version_no, v.title, v.body, v.created_at FROM work.page_version v
+				WHERE v.author_account_id = :id ORDER BY v.created_at, v.page_id, v.version_no
+				""").param("id", accountId).query((rs, n) -> {
+			Map<String, Object> version = new LinkedHashMap<>();
+			version.put("pageId", rs.getObject("page_id", UUID.class).toString());
+			version.put("versionNo", rs.getInt("version_no"));
+			version.put("title", rs.getString("title"));
+			version.put("body", rs.getString("body"));
+			version.put("at", rs.getTimestamp("created_at").toInstant().toString());
+			return version;
+		}).list();
+		if (items.isEmpty() && history.isEmpty() && versions.isEmpty()) {
 			return Optional.empty();
 		}
-		return Optional.of(new PersonalDataSection("work", Map.of("workItems", items, "history", history)));
+		return Optional.of(new PersonalDataSection("work",
+				Map.of("workItems", items, "history", history, "pageVersions", versions)));
 	}
 
 	@Override
@@ -82,6 +96,12 @@ class WorkPersonalData implements PersonalDataParticipant {
 		this.jdbc.sql("UPDATE work.work_item_history SET assigned_to = NULL WHERE assigned_to = :id")
 			.param("id", accountId)
 			.update();
+		this.jdbc.sql("UPDATE work.page_version SET author_account_id = NULL WHERE author_account_id = :id")
+			.param("id", accountId)
+			.update();
+		this.jdbc.sql("UPDATE work.page SET created_by_account_id = NULL WHERE created_by_account_id = :id")
+			.param("id", accountId)
+			.update();
 		this.jdbc.sql("DELETE FROM work.admin_read_grant WHERE admin_account_id = :id").param("id", accountId).update();
 	}
 
@@ -91,6 +111,11 @@ class WorkPersonalData implements PersonalDataParticipant {
 		this.jdbc.sql("DELETE FROM work.work_item_history WHERE job_id IN (" + jobs + ")").param("id", productId).update();
 		this.jdbc.sql("DELETE FROM work.work_item WHERE job_id IN (" + jobs + ")").param("id", productId).update();
 		this.jdbc.sql("DELETE FROM work.admin_read_grant WHERE job_id IN (" + jobs + ")").param("id", productId).update();
+		this.jdbc.sql("DELETE FROM work.page_version WHERE page_id IN (SELECT id FROM work.page WHERE job_id IN (" + jobs + "))")
+			.param("id", productId)
+			.update();
+		this.jdbc.sql("UPDATE work.page SET parent_id = NULL WHERE job_id IN (" + jobs + ")").param("id", productId).update();
+		this.jdbc.sql("DELETE FROM work.page WHERE job_id IN (" + jobs + ")").param("id", productId).update();
 		this.jdbc.sql("DELETE FROM work.board WHERE product_id = :id").param("id", productId).update();
 	}
 

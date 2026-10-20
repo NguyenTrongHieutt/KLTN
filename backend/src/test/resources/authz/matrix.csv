@@ -808,6 +808,107 @@ POST /api/v1/work-items/{workItemId}/review,CREW_FORMER,,work-item-review.json,4
 POST /api/v1/work-items/{workItemId}/review,ADMIN_TEAM_ISSUE_GRANT,,work-item-review.json,404 NOT_FOUND
 POST /api/v1/work-items/{workItemId}/review,JOB_MENTOR,,work-item-review.json,422 GUARD_FAILED MOVE_NOT_ALLOWED
 POST /api/v1/work-items/{workItemId}/review,CREW_ACTIVE,,work-item-review.json,403 FORBIDDEN MENTOR_ONLY
+# The Documentation Space (FR-29, AD-20, AD-41): the Mentor and ACTIVE members read and write; INACTIVE and
+# former members read only Pages with a version in their window (the fixture's Page was written after it),
+# never write; everyone else, and an Administrator without a PAGES grant, finds nothing.
+GET /api/v1/boards/{boardId}/pages,ANONYMOUS,,,401
+GET /api/v1/boards/{boardId}/pages,OWNER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/pages,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/pages,MENTOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/pages,STUDENT,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/pages,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/pages,TEAM_MENTOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/pages,TEAM_MEMBER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/pages,CREW_ASSIGNED,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/pages,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/pages,CREW_INACTIVE,,,200
+GET /api/v1/boards/{boardId}/pages,CREW_FORMER,,,200
+GET /api/v1/boards/{boardId}/pages,JOB_MENTOR,,,200
+GET /api/v1/boards/{boardId}/pages,CREW_ACTIVE,,,200
+POST /api/v1/boards/{boardId}/pages,ANONYMOUS,,page.json,401
+POST /api/v1/boards/{boardId}/pages,OWNER,,page.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/pages,CUSTOMER,,page.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/pages,MENTOR,,page.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/pages,STUDENT,,page.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/pages,ADMINISTRATOR,,page.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/pages,TEAM_MENTOR,,page.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/pages,TEAM_MEMBER,,page.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/pages,CREW_ASSIGNED,,page.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/pages,ADMIN_TEAM_ISSUE_GRANT,,page.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/pages,CREW_INACTIVE,,page.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/pages,CREW_FORMER,,page.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/pages,JOB_MENTOR,,page.json,201
+POST /api/v1/boards/{boardId}/pages,CREW_ACTIVE,,page.json,201
+GET /api/v1/pages/{pageId},ANONYMOUS,,,401
+GET /api/v1/pages/{pageId},OWNER,,,404 NOT_FOUND
+GET /api/v1/pages/{pageId},CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/pages/{pageId},MENTOR,,,404 NOT_FOUND
+GET /api/v1/pages/{pageId},STUDENT,,,404 NOT_FOUND
+GET /api/v1/pages/{pageId},ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/pages/{pageId},TEAM_MENTOR,,,404 NOT_FOUND
+GET /api/v1/pages/{pageId},TEAM_MEMBER,,,404 NOT_FOUND
+GET /api/v1/pages/{pageId},CREW_ASSIGNED,,,404 NOT_FOUND
+GET /api/v1/pages/{pageId},ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
+GET /api/v1/pages/{pageId},CREW_INACTIVE,,,404 NOT_FOUND
+GET /api/v1/pages/{pageId},CREW_FORMER,,,404 NOT_FOUND
+GET /api/v1/pages/{pageId},JOB_MENTOR,,,200
+GET /api/v1/pages/{pageId},CREW_ACTIVE,,,200
+PUT /api/v1/pages/{pageId},ANONYMOUS,,page-edit.json,401
+PUT /api/v1/pages/{pageId},OWNER,,page-edit.json,404 NOT_FOUND
+PUT /api/v1/pages/{pageId},CUSTOMER,,page-edit.json,404 NOT_FOUND
+PUT /api/v1/pages/{pageId},MENTOR,,page-edit.json,404 NOT_FOUND
+PUT /api/v1/pages/{pageId},STUDENT,,page-edit.json,404 NOT_FOUND
+PUT /api/v1/pages/{pageId},ADMINISTRATOR,,page-edit.json,404 NOT_FOUND
+PUT /api/v1/pages/{pageId},TEAM_MENTOR,,page-edit.json,404 NOT_FOUND
+PUT /api/v1/pages/{pageId},TEAM_MEMBER,,page-edit.json,404 NOT_FOUND
+PUT /api/v1/pages/{pageId},CREW_ASSIGNED,,page-edit.json,404 NOT_FOUND
+PUT /api/v1/pages/{pageId},ADMIN_TEAM_ISSUE_GRANT,,page-edit.json,404 NOT_FOUND
+PUT /api/v1/pages/{pageId},CREW_INACTIVE,,page-edit.json,404 NOT_FOUND
+PUT /api/v1/pages/{pageId},CREW_FORMER,,page-edit.json,404 NOT_FOUND
+PUT /api/v1/pages/{pageId},JOB_MENTOR,,page-edit.json,200
+PUT /api/v1/pages/{pageId},CREW_ACTIVE,,page-edit.json,200
+GET /api/v1/pages/{pageId}/versions,ANONYMOUS,,,401
+GET /api/v1/pages/{pageId}/versions,OWNER,,,404 NOT_FOUND
+GET /api/v1/pages/{pageId}/versions,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/pages/{pageId}/versions,MENTOR,,,404 NOT_FOUND
+GET /api/v1/pages/{pageId}/versions,STUDENT,,,404 NOT_FOUND
+GET /api/v1/pages/{pageId}/versions,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/pages/{pageId}/versions,TEAM_MENTOR,,,404 NOT_FOUND
+GET /api/v1/pages/{pageId}/versions,TEAM_MEMBER,,,404 NOT_FOUND
+GET /api/v1/pages/{pageId}/versions,CREW_ASSIGNED,,,404 NOT_FOUND
+GET /api/v1/pages/{pageId}/versions,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
+GET /api/v1/pages/{pageId}/versions,CREW_INACTIVE,,,404 NOT_FOUND
+GET /api/v1/pages/{pageId}/versions,CREW_FORMER,,,404 NOT_FOUND
+GET /api/v1/pages/{pageId}/versions,JOB_MENTOR,,,200
+GET /api/v1/pages/{pageId}/versions,CREW_ACTIVE,,,200
+GET /api/v1/pages/{pageId}/versions/{versionNo},ANONYMOUS,,,401
+GET /api/v1/pages/{pageId}/versions/{versionNo},OWNER,,,404 NOT_FOUND
+GET /api/v1/pages/{pageId}/versions/{versionNo},CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/pages/{pageId}/versions/{versionNo},MENTOR,,,404 NOT_FOUND
+GET /api/v1/pages/{pageId}/versions/{versionNo},STUDENT,,,404 NOT_FOUND
+GET /api/v1/pages/{pageId}/versions/{versionNo},ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/pages/{pageId}/versions/{versionNo},TEAM_MENTOR,,,404 NOT_FOUND
+GET /api/v1/pages/{pageId}/versions/{versionNo},TEAM_MEMBER,,,404 NOT_FOUND
+GET /api/v1/pages/{pageId}/versions/{versionNo},CREW_ASSIGNED,,,404 NOT_FOUND
+GET /api/v1/pages/{pageId}/versions/{versionNo},ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
+GET /api/v1/pages/{pageId}/versions/{versionNo},CREW_INACTIVE,,,404 NOT_FOUND
+GET /api/v1/pages/{pageId}/versions/{versionNo},CREW_FORMER,,,404 NOT_FOUND
+GET /api/v1/pages/{pageId}/versions/{versionNo},JOB_MENTOR,,,200
+GET /api/v1/pages/{pageId}/versions/{versionNo},CREW_ACTIVE,,,200
+POST /api/v1/pages/{pageId}/versions/{versionNo}/restore,ANONYMOUS,,page-restore.json,401
+POST /api/v1/pages/{pageId}/versions/{versionNo}/restore,OWNER,,page-restore.json,404 NOT_FOUND
+POST /api/v1/pages/{pageId}/versions/{versionNo}/restore,CUSTOMER,,page-restore.json,404 NOT_FOUND
+POST /api/v1/pages/{pageId}/versions/{versionNo}/restore,MENTOR,,page-restore.json,404 NOT_FOUND
+POST /api/v1/pages/{pageId}/versions/{versionNo}/restore,STUDENT,,page-restore.json,404 NOT_FOUND
+POST /api/v1/pages/{pageId}/versions/{versionNo}/restore,ADMINISTRATOR,,page-restore.json,404 NOT_FOUND
+POST /api/v1/pages/{pageId}/versions/{versionNo}/restore,TEAM_MENTOR,,page-restore.json,404 NOT_FOUND
+POST /api/v1/pages/{pageId}/versions/{versionNo}/restore,TEAM_MEMBER,,page-restore.json,404 NOT_FOUND
+POST /api/v1/pages/{pageId}/versions/{versionNo}/restore,CREW_ASSIGNED,,page-restore.json,404 NOT_FOUND
+POST /api/v1/pages/{pageId}/versions/{versionNo}/restore,ADMIN_TEAM_ISSUE_GRANT,,page-restore.json,404 NOT_FOUND
+POST /api/v1/pages/{pageId}/versions/{versionNo}/restore,CREW_INACTIVE,,page-restore.json,404 NOT_FOUND
+POST /api/v1/pages/{pageId}/versions/{versionNo}/restore,CREW_FORMER,,page-restore.json,404 NOT_FOUND
+POST /api/v1/pages/{pageId}/versions/{versionNo}/restore,JOB_MENTOR,,page-restore.json,200
+POST /api/v1/pages/{pageId}/versions/{versionNo}/restore,CREW_ACTIVE,,page-restore.json,200
 GET /api/v1/mentor/jobs/{jobId}/agreement,ANONYMOUS,,,401,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/agreement,MENTOR,,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/agreement,MENTOR,mentor=PENDING,,404 NOT_FOUND,requireActiveAccount
