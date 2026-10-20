@@ -1,0 +1,5 @@
+subject: Bạn có thể đánh giá kín người hướng dẫn trước {date}
+---
+Xin chào,
+
+Công việc đã đóng. Bạn có thể gửi đánh giá kín về người hướng dẫn trên vibefix trước {date}. Chỉ quản trị viên đọc đánh giá này; người hướng dẫn không biết bạn có gửi hay không.

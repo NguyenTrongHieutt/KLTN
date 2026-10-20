@@ -1,14 +1,16 @@
 /**
  * Layer 9 (AD-3, AD-33): Ratings and Portfolio Entries. The module holds the one definition of an
  * account's visible Rating summary, which Job Posts show for their Customer (FR-12) and public
- * profiles show for Mentors and Students (FR-51), and of Portfolio Entries; both arrive with J9's
- * Rating Window (FR-49, FR-50), so no account has any yet.
+ * profiles show for Mentors and Students (FR-51), and of Portfolio Entries. J9 opens the Rating Window
+ * (FR-49): the Customer and the Mentor rate each other blind, the Mentor rates each Crew member who was
+ * ever active, and those Crew members may give private feedback about the Mentor, which only
+ * Administrators read (FR-78). Only published Ratings count.
  * <p>
  * Public API: {@link vn.vibefix.reputation.Reputation}, {@link vn.vibefix.reputation.RatingSummary},
- * and {@link vn.vibefix.reputation.PortfolioEntry}. The HTTP endpoints are wiring in
- * {@code reputation.internal}.
+ * {@link vn.vibefix.reputation.PortfolioEntry}, and {@link vn.vibefix.reputation.PrivateFeedback}. The
+ * HTTP endpoints, the listener, and the Deadlines are wiring in {@code reputation.internal}.
  */
-@ApplicationModule(allowedDependencies = { "shared", "identity", "job" })
+@ApplicationModule(allowedDependencies = { "shared", "audit", "identity", "notification", "timers", "job" })
 package vn.vibefix.reputation;
 
 import org.springframework.modulith.ApplicationModule;

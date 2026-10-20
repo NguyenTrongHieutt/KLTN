@@ -10,6 +10,8 @@
 #   callers ends, so only the ACTIVE Crew reads them.
 # - TEAM_ISSUE_ID is a Team Issue raised by another Crew member and not escalated.
 # - Administrators read Job content only under the grant whose scope covers it (AD-20).
+# - PRIVATE_FEEDBACK is a Crew member's private feedback about the Job's Mentor (FR-78), on an ended
+#   Job of that Mentor; only Administrator surfaces may ever show it.
 canary,value,visible_to,seeded_as
 CREW_SHARE,7316429,JOB_MENTOR ADMIN_TEAM_ISSUE_GRANT,another Crew member's payout amount in VND
 CREW_EMAIL,canary.crew.c7e2@example.test,ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT,a Crew member's verified email address
@@ -24,3 +26,4 @@ CONTACT_EMAIL,canary.contact.4d8e@example.test,SUBJECT ADMINISTRATOR,a Customer'
 SCHOOL_EMAIL,canary.school.7b2d@truong.test,ADMINISTRATOR,another Student's verified school email
 STUDENT_CARD_FILE,canary-student-card-3f9a1c.pdf,ADMINISTRATOR,the file name of another Student's student card
 STUDENT_HIDDEN_NAME,Canary Ten An 6e2f,ADMINISTRATOR,the real name of a Team member who chose to hide it (FR-51)
+PRIVATE_FEEDBACK,canary-private-feedback-61d7c3,ADMINISTRATOR,a Crew member's private feedback about a Mentor

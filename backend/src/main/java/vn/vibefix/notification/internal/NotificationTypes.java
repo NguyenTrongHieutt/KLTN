@@ -366,6 +366,29 @@ class NotificationTypes implements NotificationCatalog {
 	static final TodoType REPO_CONFIRM_DATA_DELETION = new TodoType("repo.confirm_data_deletion",
 			Set.of(Audience.MENTOR, Audience.CREW_EVER_ACTIVE), 3, Set.of("job"));
 
+	/** J9 (FR-49): the Customer and the Mentor are asked to rate each other before the window ends. */
+	static final NotificationType REPUTATION_RATING_WINDOW_OPENED = new NotificationType(
+			"reputation.rating_window_opened", Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP_AND_EMAIL,
+			EmailClass.TRANSACTIONAL, "info", Set.of("party", "date"));
+
+	/** J9 (FR-78): each Crew member who was ever active may give private feedback about the Mentor. */
+	static final NotificationType REPUTATION_PRIVATE_FEEDBACK_INVITED = new NotificationType(
+			"reputation.private_feedback_invited", Set.of(Audience.CREW_EVER_ACTIVE), Channel.IN_APP_AND_EMAIL,
+			EmailClass.TRANSACTIONAL, "info", Set.of("date"));
+
+	/** FR-49: the Ratings are shown, when both rated or at the window's end. */
+	static final NotificationType REPUTATION_RATINGS_PUBLISHED = new NotificationType("reputation.ratings_published",
+			Set.of(Audience.CUSTOMER, Audience.MENTOR, Audience.CREW_EVER_ACTIVE), Channel.IN_APP, EmailClass.TRANSACTIONAL,
+			"check", Set.of("job"));
+
+	/** The Rating Window is open (FR-49): until the person rated everyone they rate, or the window ends. */
+	static final TodoType REPUTATION_RATE = new TodoType("reputation.rate", Set.of(Audience.CUSTOMER, Audience.MENTOR), 3,
+			Set.of("party"));
+
+	/** Private feedback may be given (FR-78): until it is, or the window ends. */
+	static final TodoType REPUTATION_GIVE_PRIVATE_FEEDBACK = new TodoType("reputation.give_private_feedback",
+			Set.of(Audience.CREW_EVER_ACTIVE), 3, Set.of());
+
 	/** A closure proposal waits for an answer: tier 1 for the System's (FR-67), 2 for a person's (FR-37). */
 	static final TodoType JOB_ANSWER_CLOSURE = new TodoType("job.answer_closure", Set.of(Audience.CUSTOMER, Audience.MENTOR), 1,
 			Set.of("job", "date"));
@@ -394,7 +417,8 @@ class NotificationTypes implements NotificationCatalog {
 				PAYMENT_PAYMENT_RECEIVED, PAYMENT_PAYMENT_FAILED, PAYMENT_UNKNOWN_PAYMENT, JOB_MILESTONE_FUNDED, JOB_MILESTONE_SUBMITTED,
 				JOB_MILESTONE_ACCEPTED, JOB_REVISION_REQUESTED, PAYMENT_FUNDS_RELEASED, DELIVERY_ACCEPTANCE_REMINDER,
 				JOB_CLOSURE_PROPOSED, JOB_CLOSURE_DECLINED, JOB_JOB_CLOSING, JOB_JOB_CLOSED,
-				REPO_DATA_DELETION_CONFIRMATION_PENDING,
+				REPO_DATA_DELETION_CONFIRMATION_PENDING, REPUTATION_RATING_WINDOW_OPENED,
+				REPUTATION_PRIVATE_FEEDBACK_INVITED, REPUTATION_RATINGS_PUBLISHED,
 				JOB_JOB_STARTING,
 				PAYMENT_REFUND_REQUESTED, PAYMENT_REFUND_CONFIRMED, WORK_WORK_ITEM_ASSIGNED,
 				WORK_REVIEW_REQUESTED, WORK_WORK_ITEM_APPROVED, WORK_WORK_ITEM_RETURNED);
@@ -406,7 +430,8 @@ class NotificationTypes implements NotificationCatalog {
 				MATCHING_CHOOSE_ASSIGNEE, MATCHING_SIGN_NDA, MATCHING_ANSWER_INVITATION_TO_APPLY, JOB_DRAFT_AGREEMENT,
 				JOB_REVIEW_AGREEMENT, JOB_PICK_CREW, JOB_CONFIRM_CREW_TERMS, JOB_REVISE_AGREEMENT, JOB_CONFIRM_AGREEMENT_MENTOR,
 				PAYMENT_FUND_MILESTONE, WORK_REVIEW_WORK_ITEM, WORK_FIX_RETURNED_ITEM, DELIVERY_HAND_OVER,
-				DELIVERY_REVIEW_HANDOVER, JOB_ANSWER_CLOSURE, REPO_CONFIRM_DATA_DELETION);
+				DELIVERY_REVIEW_HANDOVER, JOB_ANSWER_CLOSURE, REPO_CONFIRM_DATA_DELETION, REPUTATION_RATE,
+				REPUTATION_GIVE_PRIVATE_FEEDBACK);
 	}
 
 }

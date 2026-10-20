@@ -3,6 +3,7 @@ package vn.vibefix.job.internal;
 import java.util.Map;
 import java.util.Objects;
 
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
 import vn.vibefix.identity.ContactVisibility;
@@ -20,12 +21,17 @@ import vn.vibefix.shared.ErrorCode;
  * when and tells the Customer, the Mentor, and the active Crew ({@code job.job_closed}) while they are
  * still active; then the Mentor's contact visibility ends, the Product pin is released, and every Crew
  * row not yet released is released as {@code JOB_ENDED}, freeing its Student, before any {@code payment}
- * write in the apply. The Chats become read-only through their own listener.
+ * write in the apply. The Chats become read-only through their own listener. The transition carries the
+ * Job Post's copied {@code RATING_WINDOW_DAYS} for {@code reputation}'s Rating Window (FR-49).
  */
 @Component
 class J9Finish implements JobLifecycle.Step {
 
 	static final String CLOSED = "job.job_closed";
+
+	static final int RATING_WINDOW_DAYS = 14;
+
+	private final JdbcClient jdbc;
 
 	private final CrewService crews;
 
@@ -35,7 +41,9 @@ class J9Finish implements JobLifecycle.Step {
 
 	private final Notifications notifications;
 
-	J9Finish(CrewService crews, ContactVisibility contacts, ProductPins pins, Notifications notifications) {
+	J9Finish(JdbcClient jdbc, CrewService crews, ContactVisibility contacts, ProductPins pins,
+			Notifications notifications) {
+		this.jdbc = jdbc;
 		this.crews = crews;
 		this.contacts = contacts;
 		this.pins = pins;
@@ -58,6 +66,12 @@ class J9Finish implements JobLifecycle.Step {
 	@Override
 	public void apply(Applying applying) {
 		applying.set("closed_at", applying.now());
+		Integer days = this.jdbc.sql("SELECT (rules ->> 'RATING_WINDOW_DAYS')::int FROM job.job WHERE id = :id")
+			.param("id", applying.job().id())
+			.query(Integer.class)
+			.optional()
+			.orElse(null);
+		applying.fact("ratingWindowDays", String.valueOf(days == null ? RATING_WINDOW_DAYS : days));
 	}
 
 	@Override

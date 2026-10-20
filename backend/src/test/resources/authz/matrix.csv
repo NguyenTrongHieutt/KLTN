@@ -829,6 +829,51 @@ POST /api/v1/boards/{boardId}/data-deletion/{item},JOB_MENTOR,,,422 GUARD_FAILED
 POST /api/v1/boards/{boardId}/data-deletion/{item},CREW_ACTIVE,,,422 GUARD_FAILED JOB_NOT_ENDED
 POST /api/v1/boards/{boardId}/data-deletion/{item},CREW_INACTIVE,,,422 GUARD_FAILED JOB_NOT_ENDED
 POST /api/v1/boards/{boardId}/data-deletion/{item},CREW_FORMER,,,422 GUARD_FAILED JOB_NOT_ENDED
+# Ratings and private feedback after the Job (FR-49, FR-78, AD-20, AD-41): the Customer (OWNER), the
+# Mentor, and every Crew member ever active read the Ratings; only the Customer and the Mentor rate,
+# only those Crew members give private feedback, and the fixture's Active Job has no Rating Window yet.
+GET /api/v1/boards/{boardId}/ratings,ANONYMOUS,,,401
+GET /api/v1/boards/{boardId}/ratings,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/ratings,MENTOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/ratings,STUDENT,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/ratings,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/ratings,TEAM_MENTOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/ratings,TEAM_MEMBER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/ratings,CREW_ASSIGNED,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/ratings,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/ratings,OWNER,,,200
+GET /api/v1/boards/{boardId}/ratings,JOB_MENTOR,,,200
+GET /api/v1/boards/{boardId}/ratings,CREW_ACTIVE,,,200
+GET /api/v1/boards/{boardId}/ratings,CREW_INACTIVE,,,200
+GET /api/v1/boards/{boardId}/ratings,CREW_FORMER,,,200
+POST /api/v1/boards/{boardId}/ratings,ANONYMOUS,,rating.json,401
+POST /api/v1/boards/{boardId}/ratings,CUSTOMER,,rating.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/ratings,MENTOR,,rating.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/ratings,STUDENT,,rating.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/ratings,ADMINISTRATOR,,rating.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/ratings,TEAM_MENTOR,,rating.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/ratings,TEAM_MEMBER,,rating.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/ratings,CREW_ASSIGNED,,rating.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/ratings,ADMIN_TEAM_ISSUE_GRANT,,rating.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/ratings,OWNER,,rating.json,422 GUARD_FAILED RATING_WINDOW_NOT_OPEN
+POST /api/v1/boards/{boardId}/ratings,JOB_MENTOR,,rating.json,422 GUARD_FAILED RATING_WINDOW_NOT_OPEN
+POST /api/v1/boards/{boardId}/ratings,CREW_ACTIVE,,rating.json,403 FORBIDDEN NOT_A_RATER
+POST /api/v1/boards/{boardId}/ratings,CREW_INACTIVE,,rating.json,403 FORBIDDEN NOT_A_RATER
+POST /api/v1/boards/{boardId}/ratings,CREW_FORMER,,rating.json,403 FORBIDDEN NOT_A_RATER
+POST /api/v1/boards/{boardId}/private-feedback,ANONYMOUS,,private-feedback.json,401
+POST /api/v1/boards/{boardId}/private-feedback,CUSTOMER,,private-feedback.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/private-feedback,MENTOR,,private-feedback.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/private-feedback,STUDENT,,private-feedback.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/private-feedback,ADMINISTRATOR,,private-feedback.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/private-feedback,TEAM_MENTOR,,private-feedback.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/private-feedback,TEAM_MEMBER,,private-feedback.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/private-feedback,CREW_ASSIGNED,,private-feedback.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/private-feedback,ADMIN_TEAM_ISSUE_GRANT,,private-feedback.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/private-feedback,OWNER,,private-feedback.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/private-feedback,JOB_MENTOR,,private-feedback.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/private-feedback,CREW_ACTIVE,,private-feedback.json,422 GUARD_FAILED RATING_WINDOW_NOT_OPEN
+POST /api/v1/boards/{boardId}/private-feedback,CREW_INACTIVE,,private-feedback.json,422 GUARD_FAILED RATING_WINDOW_NOT_OPEN
+POST /api/v1/boards/{boardId}/private-feedback,CREW_FORMER,,private-feedback.json,422 GUARD_FAILED RATING_WINDOW_NOT_OPEN
 # Milestone Handovers (FR-32, AD-20, AD-39): the Customer (OWNER), the Mentor, and ACTIVE members read;
 # only the Mentor hands over, and the fixture's Milestone is not Funded. The Customer's Delivery Report
 # never carries the Work Item note, whose text is the WORK_ITEM_NOTE canary.

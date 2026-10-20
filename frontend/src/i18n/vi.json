@@ -2336,6 +2336,40 @@
         "cancel": "Quay lại",
         "saved": "Đã ghi nhận xác nhận."
       }
+    },
+    "rating": {
+      "heading": "Chấm sao",
+      "intro": "Chấm sao và nhận xét cho từng người trước {date}.",
+      "rateMentor": "Người hướng dẫn {name}",
+      "rateCustomer": "Khách hàng {name}",
+      "rateCrew": "Thành viên nhóm {name}",
+      "stars": "Số sao",
+      "star": "{n} sao",
+      "comment": "Nhận xét",
+      "commentHint": "Từ 1 đến 2000 ký tự.",
+      "final": "Không thể sửa sau khi gửi.",
+      "submit": "Gửi đánh giá",
+      "confirmTitle": "Gửi đánh giá cho {name}?",
+      "confirmBody": "Đánh giá được lưu lại và không thể sửa sau khi gửi.",
+      "sent": "Đã gửi đánh giá.",
+      "hiddenPair": "Điểm sẽ hiện khi cả hai bên đã chấm hoặc sau {date}.",
+      "hiddenEnd": "Điểm sẽ hiện sau {date}.",
+      "given": "Bạn đã chấm",
+      "received": "Bạn nhận được",
+      "byCustomer": "Khách hàng chấm",
+      "byMentor": "Người hướng dẫn chấm",
+      "forName": "cho {name}",
+      "closed": "Thời gian chấm sao đã hết.",
+      "nothing": "Chưa có đánh giá nào.",
+      "feedbackHeading": "Đánh giá kín người hướng dẫn",
+      "feedbackNote": "Chỉ quản trị viên đọc đánh giá này. Người hướng dẫn không biết bạn có gửi hay không, và không thấy nội dung.",
+      "feedbackComment": "Nhận xét (không bắt buộc)",
+      "feedbackSubmit": "Gửi đánh giá kín",
+      "feedbackConfirmTitle": "Gửi đánh giá kín?",
+      "feedbackSent": "Đã gửi đánh giá kín.",
+      "feedbackGiven": "Bạn đã gửi đánh giá kín.",
+      "feedbackClosed": "Thời gian gửi đánh giá kín đã hết.",
+      "cancel": "Hủy"
     }
   },
   "notice": {
@@ -2798,6 +2832,10 @@
     },
     "repo": {
       "confirm_data_deletion": "Xác nhận đã xóa dữ liệu và bản xem thử của {job}"
+    },
+    "reputation": {
+      "rate": "Chấm sao cho {party}",
+      "give_private_feedback": "Đánh giá kín người hướng dẫn"
     }
   },
   "theme": {
@@ -3036,6 +3074,17 @@
       "data_deletion_confirmation_pending": {
         "title": "Hãy xác nhận đã xóa dữ liệu của khách hàng ở {job}"
       }
+    },
+    "reputation": {
+      "rating_window_opened": {
+        "title": "Hãy chấm sao cho {party} trước {date}"
+      },
+      "private_feedback_invited": {
+        "title": "Bạn có thể đánh giá kín người hướng dẫn trước {date}"
+      },
+      "ratings_published": {
+        "title": "Điểm đánh giá ở {job} đã hiện"
+      }
     }
   },
   "reason": {
@@ -3211,6 +3260,13 @@
     "repo": {
       "JOB_NOT_ENDED": "Bạn xác nhận được sau khi công việc bắt đầu kết thúc.",
       "NOT_A_DUTY": "Chỉ người hướng dẫn và nhóm thực hiện xác nhận việc này."
+    },
+    "reputation": {
+      "RATING_WINDOW_NOT_OPEN": "Bạn chấm sao được sau khi công việc đã đóng.",
+      "RATING_WINDOW_CLOSED": "Thời gian chấm sao đã hết.",
+      "ALREADY_SUBMITTED": "Bạn đã gửi rồi. Không thể sửa sau khi gửi.",
+      "NOT_A_RATER": "Thành viên nhóm thực hiện không chấm sao, nhưng có thể gửi đánh giá kín.",
+      "RATEE_NOT_ALLOWED": "Bạn không chấm sao được cho người này."
     }
   },
   "markdown": {

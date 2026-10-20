@@ -1,0 +1,5 @@
+subject: Hãy chấm sao cho {party} trước {date}
+---
+Xin chào,
+
+Công việc đã đóng. Hãy chấm sao và để lại nhận xét cho {party} trên vibefix trước {date}. Điểm của hai bên chỉ hiện khi cả hai đã chấm hoặc khi hết hạn, và không sửa được sau khi gửi.
