@@ -431,6 +431,25 @@ class NotificationTypes implements NotificationCatalog {
 			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info",
 			Set.of("job"));
 
+	/** FR-40: the other side is asked to confirm a cancellation, with the full refund of held money. */
+	static final NotificationType JOB_CANCELLATION_PROPOSED = new NotificationType("job.cancellation_proposed",
+			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
+			Set.of("job", "date"));
+
+	/** FR-40: the copied days passed without an answer; a Dispute is the way on. */
+	static final NotificationType JOB_CANCELLATION_UNANSWERED = new NotificationType("job.cancellation_unanswered",
+			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.REMINDER, "info",
+			Set.of("job"));
+
+	/** J10, or J9 to Cancelled: the Job is cancelled. */
+	static final NotificationType JOB_JOB_CANCELLED = new NotificationType("job.job_cancelled",
+			Set.of(Audience.CUSTOMER, Audience.MENTOR, Audience.CREW_ACTIVE), Channel.IN_APP_AND_EMAIL,
+			EmailClass.TRANSACTIONAL, "briefcase", Set.of("job"));
+
+	/** A cancellation proposal waits for the other side (FR-40): until confirmed or withdrawn. */
+	static final TodoType JOB_ANSWER_CANCELLATION = new TodoType("job.answer_cancellation",
+			Set.of(Audience.CUSTOMER, Audience.MENTOR), 2, Set.of("job", "date"));
+
 	/** The Customer's Change Request waits for the Mentor's time impact (FR-36). */
 	static final TodoType JOB_ADD_CHANGE_IMPACT = new TodoType("job.add_change_impact", Set.of(Audience.MENTOR), 2,
 			Set.of("job"));
@@ -479,7 +498,8 @@ class NotificationTypes implements NotificationCatalog {
 				REPUTATION_PRIVATE_FEEDBACK_INVITED, REPUTATION_RATINGS_PUBLISHED,
 				REPUTATION_PORTFOLIO_SUMMARY_AWAITING_APPROVAL, REPUTATION_PORTFOLIO_ENTRY_PUBLISHED,
 				DELIVERY_FOLLOW_UP_DRAFTS_READY, JOB_CHANGE_REQUEST_PROPOSED, JOB_CHANGE_REQUEST_IMPACT_ADDED,
-				JOB_CHANGE_REQUEST_APPLIED, JOB_CHANGE_REQUEST_LAPSED,
+				JOB_CHANGE_REQUEST_APPLIED, JOB_CHANGE_REQUEST_LAPSED, JOB_CANCELLATION_PROPOSED,
+				JOB_CANCELLATION_UNANSWERED, JOB_JOB_CANCELLED,
 				JOB_JOB_STARTING,
 				PAYMENT_REFUND_REQUESTED, PAYMENT_REFUND_CONFIRMED, WORK_WORK_ITEM_ASSIGNED,
 				WORK_REVIEW_REQUESTED, WORK_WORK_ITEM_APPROVED, WORK_WORK_ITEM_RETURNED);
@@ -493,7 +513,8 @@ class NotificationTypes implements NotificationCatalog {
 				PAYMENT_FUND_MILESTONE, WORK_REVIEW_WORK_ITEM, WORK_FIX_RETURNED_ITEM, DELIVERY_HAND_OVER,
 				DELIVERY_REVIEW_HANDOVER, JOB_ANSWER_CLOSURE, REPO_CONFIRM_DATA_DELETION, REPUTATION_RATE,
 				REPUTATION_GIVE_PRIVATE_FEEDBACK, REPUTATION_DRAFT_PORTFOLIO_SUMMARY, REPUTATION_APPROVE_PORTFOLIO_SUMMARY,
-				DELIVERY_DRAFT_FOLLOW_UPS, DELIVERY_APPROVE_FOLLOW_UPS, JOB_ADD_CHANGE_IMPACT, JOB_ANSWER_CHANGE_REQUEST);
+				DELIVERY_DRAFT_FOLLOW_UPS, DELIVERY_APPROVE_FOLLOW_UPS, JOB_ADD_CHANGE_IMPACT, JOB_ANSWER_CHANGE_REQUEST,
+				JOB_ANSWER_CANCELLATION);
 	}
 
 }

@@ -83,8 +83,8 @@ function Overview({ job }: { job: MentorJob }) {
             </section>
           </aside>
         </div>
-      ) : hasBoard(job.state) ? (
-        <ProgressOverview jobId={job.id} audience="mentor" />
+      ) : hasBoard(job.state) || job.state === 'CANCELLED' ? (
+        <ProgressOverview jobId={job.id} audience="mentor" optional={job.state === 'CANCELLED'} />
       ) : (
         <section className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5">
           <h2 className="text-h2">{t('screen.nda.signedTitle')}</h2>

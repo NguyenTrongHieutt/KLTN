@@ -221,7 +221,7 @@ class JobLifecycleIT extends IntegrationTest {
 		TransactionTemplate transaction = new TransactionTemplate(this.transactions);
 
 		assertThatThrownBy(() -> transaction.executeWithoutResult(
-				status -> this.lifecycle.apply(Transition.J10, job, Actor.SYSTEM, Trigger.SYSTEM)))
+				status -> this.lifecycle.apply(Transition.M8, job, Actor.SYSTEM, Trigger.SYSTEM)))
 			.isInstanceOf(IllegalStateException.class);
 		assertThatThrownBy(() -> transaction.executeWithoutResult(
 				status -> this.lifecycle.apply(Transition.J1, job, Actor.SYSTEM, Trigger.AUTO)))

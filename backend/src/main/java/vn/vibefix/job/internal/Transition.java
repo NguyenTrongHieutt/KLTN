@@ -95,7 +95,7 @@ enum Transition {
 					new Effect("repo", "Access is revoked (FR-21)"),
 					new Effect("repo", "The Revocation Checklist is presented (FR-66)"),
 					new Effect("team", "The Crew is released (FR-75)")),
-			false, false),
+			false, true),
 
 	M1(Machine.MILESTONE, milestone(MilestoneState.PLANNED), milestone(MilestoneState.FUNDED), Set.of(SYSTEM),
 			"Verified payment of its Payment Order (FR-41)",
@@ -133,7 +133,7 @@ enum Transition {
 
 	M7(Machine.MILESTONE, milestone(MilestoneState.held()), milestone(MilestoneState.CANCELLED), Set.of(USER),
 			"Confirmed cancellation (FR-40) or a Change Request removing it (FR-36)", List.of(),
-			List.of(new Effect("payment", "Full refund (FR-43)")), true, false),
+			List.of(new Effect("payment", "Full refund (FR-43)")), true, true),
 
 	M8(Machine.MILESTONE, milestone(MilestoneState.held()), milestone(MilestoneState.SETTLED), Set.of(DECISION),
 			"Administrator decision (FR-54)", List.of(),

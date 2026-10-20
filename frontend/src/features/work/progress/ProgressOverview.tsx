@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/Skeleton'
 import { TestTag } from '@/components/TestTag'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { FollowUpSection } from '@/features/delivery/FollowUpSection'
+import { CancellationSection } from '@/features/job/cancellation/CancellationSection'
 import { ClosureSection } from '@/features/job/closure/ClosureSection'
 import { milestoneStateText, milestoneTone } from '@/features/job/jobStateText'
 import { useTodos } from '@/features/notification/hooks'
@@ -14,6 +15,7 @@ import { RatingSection } from '@/features/reputation/RatingSection'
 import { t, type MessageKey } from '@/i18n/t'
 import { formatCalendarDayMonth } from '@/lib/dates'
 import { formatVnd } from '@/lib/money'
+import { isNotFound } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { useJobProgress, type JobProgress, type MilestoneProgress } from './progressApi'
 
@@ -25,10 +27,22 @@ export type ProgressAudience = 'customer' | 'mentor' | 'crew'
  * the customer-visible Pages; and a side column with the next due date, the people, and the Product.
  * The Mentor also sees the Crew with each member's open Work Items; a Crew member sees their own and
  * N-12. On an Assessment Job the Mentor and the Crew get the public Source Repository they read and N-12
- * (FR-10, UX-DR8). The Customer never sees a Work Item. It polls every 30 s.
+ * (FR-10, UX-DR8). The Customer never sees a Work Item. It polls every 30 s. A cancelled Job shows it
+ * when it had a Board (`optional`: nothing when it never did).
  */
-export function ProgressOverview({ jobId, audience }: { jobId: string; audience: ProgressAudience }) {
+export function ProgressOverview({
+  jobId,
+  audience,
+  optional = false,
+}: {
+  jobId: string
+  audience: ProgressAudience
+  optional?: boolean
+}) {
   const progress = useJobProgress(jobId)
+  if (optional && progress.isError && isNotFound(progress.error)) {
+    return null
+  }
   return (
     <RegionState query={progress} skeleton={<Skeleton className="h-96 w-full" />}>
       {progress.data && <Content jobId={jobId} audience={audience} progress={progress.data} />}
@@ -64,6 +78,7 @@ function Content({ jobId, audience, progress }: { jobId: string; audience: Progr
         )}
         <JobNextAction jobId={jobId} />
         <ClosureSection jobId={jobId} />
+        <CancellationSection jobId={jobId} />
         {progress.state === 'CLOSED' && <RatingSection jobId={jobId} />}
         {progress.state === 'CLOSED' && <JobPortfolioSection jobId={jobId} />}
         {progress.assessment && <FollowUpSection jobId={jobId} />}
@@ -175,6 +190,7 @@ function MilestoneCard({
     roundsLeft: milestone.roundsLeft,
     revisionCriteria: milestone.revisionCriteria,
     autoAccepted: milestone.autoAccepted,
+    refunded: milestone.refunded,
   })
   return (
     <li className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">

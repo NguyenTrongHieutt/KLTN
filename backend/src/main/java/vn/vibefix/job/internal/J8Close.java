@@ -44,10 +44,13 @@ class J8Close implements JobLifecycle.Step {
 		return Transition.J8;
 	}
 
-	/** @throws ApiException {@code GUARD_FAILED MILESTONE_HELD} */
+	/**
+	 * @throws ApiException {@code GUARD_FAILED MILESTONE_HELD}, except in a cancellation, whose cascade
+	 * cancels the Held Milestone with M7 first (FR-40)
+	 */
 	@Override
 	public void check(Applying applying) {
-		if (Closures.held(this.jdbc, applying.job().id())) {
+		if (!applying.has(Cancellations.INPUT) && Closures.held(this.jdbc, applying.job().id())) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, JobReason.MILESTONE_HELD);
 		}
 	}

@@ -43,7 +43,7 @@ class Refunds {
 
 	/** Why money could not apply, as the Customer reads it. */
 	enum Reason {
-		CREW_CHANGED, ORDER_CLOSED, WRONG_AMOUNT, NOT_FUNDABLE
+		CREW_CHANGED, ORDER_CLOSED, WRONG_AMOUNT, NOT_FUNDABLE, CANCELLED
 	}
 
 	/** One refund. */

@@ -150,8 +150,8 @@ function Overview({ job }: { job: Job }) {
           </div>
           <Aside job={job} lapsesAt={job.lapsesAt} />
         </div>
-      ) : hasBoard(job.state) ? (
-        <ProgressOverview jobId={job.id} audience="customer" />
+      ) : hasBoard(job.state) || job.state === 'CANCELLED' ? (
+        <ProgressOverview jobId={job.id} audience="customer" optional={job.state === 'CANCELLED'} />
       ) : (
         <p className="text-body-sm text-muted-foreground">{t('screen.job.detail.notYet')}</p>
       )}

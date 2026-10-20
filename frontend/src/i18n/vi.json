@@ -1897,7 +1897,8 @@
           "CREW_CHANGED": "Nhóm thực hiện thay đổi trước khi bắt đầu; tiền đã được hoàn lại (thử nghiệm).",
           "ORDER_CLOSED": "Lệnh thanh toán này đã đóng khi tiền đến, nên tiền được hoàn lại.",
           "WRONG_AMOUNT": "Số tiền đã trả khác số tiền của giai đoạn, nên tiền được hoàn lại.",
-          "NOT_FUNDABLE": "Giai đoạn này không nhận thanh toán vào lúc tiền đến, nên tiền được hoàn lại."
+          "NOT_FUNDABLE": "Giai đoạn này không nhận thanh toán vào lúc tiền đến, nên tiền được hoàn lại.",
+          "CANCELLED": "Giai đoạn này bị hủy theo thỏa thuận, nên tiền đang giữ được hoàn đủ (thử nghiệm)."
         }
       },
       "n13NoWithdraw": "Số dư này không rút được.",
@@ -2186,7 +2187,8 @@
         "revisionCount": "Cần sửa: {n} tiêu chí · còn {r} lượt"
       },
       "roundsLeft": "còn {r} lượt sửa",
-      "autoAccepted": "Đã tự nghiệm thu"
+      "autoAccepted": "Đã tự nghiệm thu",
+      "cancelledRefunded": "Đã hủy · đã hoàn tiền"
     },
     "progress": {
       "milestones": "Các giai đoạn",
@@ -2474,6 +2476,33 @@
       },
       "versions": "Các phiên bản thỏa thuận",
       "version": "Phiên bản {n} · {date}"
+    },
+    "cancellation": {
+      "heading": "Hủy công việc",
+      "lead": "Khi cả hai bên đồng ý, các giai đoạn chưa bắt đầu bị hủy và tiền đang giữ được hoàn đủ. Tiền đã giải ngân không bị lấy lại.",
+      "propose": "Đề nghị hủy",
+      "scope": "Hủy gì",
+      "scopeJOB": "Hủy công việc",
+      "scopeREMAINING": "Hủy các giai đoạn còn lại",
+      "reason": "Lý do",
+      "send": "Gửi đề nghị hủy",
+      "cancel": "Hủy bỏ",
+      "sent": "Đã gửi đề nghị hủy.",
+      "openBy": {
+        "CUSTOMER": "Khách hàng đề nghị hủy",
+        "MENTOR": "Người hướng dẫn đề nghị hủy"
+      },
+      "answerBy": "Trả lời trước {date}.",
+      "unanswered": "Bên kia chưa trả lời trong thời hạn. Bạn có thể chờ thêm hoặc mở tranh chấp.",
+      "confirm": "Xác nhận hủy",
+      "withdraw": "Rút đề nghị",
+      "confirmTitle": "Hủy công việc này?",
+      "confirmHeld": "Giai đoạn đang giữ tiền bị hủy và khách hàng được hoàn đủ số tiền đó (thử nghiệm).",
+      "confirmPlanned": "Các giai đoạn chưa bắt đầu bị hủy, không có tiền nào chuyển.",
+      "confirmEnd": "Không hoàn tác được. Muốn chia tiền khác thì phải qua tranh chấp.",
+      "confirmed": "Đã hủy công việc.",
+      "withdrawn": "Đề nghị hủy đã được rút.",
+      "stale": "Công việc vừa thay đổi. Hãy xem lại rồi thử lại."
     }
   },
   "notice": {
@@ -2923,7 +2952,8 @@
       "confirm_agreement_mentor": "Xác nhận thỏa thuận cho {job}",
       "answer_closure": "Xác nhận kết thúc {job} · trước {date}",
       "add_change_impact": "Nêu ảnh hưởng về thời gian của đề nghị đổi hạn ở {job}",
-      "answer_change_request": "Trả lời đề nghị đổi hạn ở {job}"
+      "answer_change_request": "Trả lời đề nghị đổi hạn ở {job}",
+      "answer_cancellation": "Trả lời đề nghị hủy {job} trước {date}"
     },
     "payment": {
       "fund_milestone": "Thanh toán Giai đoạn {n}: {amount} THỬ NGHIỆM"
@@ -3120,6 +3150,15 @@
       },
       "change_request_lapsed": {
         "title": "Đề nghị đổi hạn ở {job} không còn hiệu lực"
+      },
+      "cancellation_proposed": {
+        "title": "Có đề nghị hủy {job}. Hãy trả lời trước {date}"
+      },
+      "cancellation_unanswered": {
+        "title": "Đề nghị hủy {job} chưa được trả lời"
+      },
+      "job_cancelled": {
+        "title": "{job} đã hủy"
       }
     },
     "matching": {
@@ -3328,7 +3367,11 @@
       "MILESTONE_FINAL": "Giai đoạn đã nghiệm thu, đã hủy hoặc đã giải quyết thì không đổi hạn được.",
       "IMPACT_MISSING": "Hãy chờ người hướng dẫn nêu ảnh hưởng về thời gian trước khi duyệt.",
       "MILESTONE_SUBMITTED": "Một giai đoạn trong đề nghị đang chờ bạn kiểm tra. Hãy quyết định bàn giao trước.",
-      "CHANGE_REQUEST_NOT_AWAITING": "Đề nghị này đã qua bước đó."
+      "CHANGE_REQUEST_NOT_AWAITING": "Đề nghị này đã qua bước đó.",
+      "CANCELLATION_OPEN": "Đang có một đề nghị hủy chưa xong.",
+      "NO_CANCELLATION_OPEN": "Không có đề nghị hủy nào đang mở.",
+      "CANCELLATION_PROPOSER": "Bên kia xác nhận đề nghị hủy; người đề nghị có thể rút lại.",
+      "HAS_ACCEPTED_WORK": "Công việc đã có giai đoạn được nghiệm thu nên kết thúc qua bước đóng công việc."
     },
     "matching": {
       "JOB_POST_NOT_OPEN": "công việc không còn nhận ứng tuyển",

@@ -1,0 +1,5 @@
+subject: Đề nghị hủy {job} chưa được trả lời
+---
+Xin chào,
+
+Bên kia chưa trả lời đề nghị hủy công việc {job} trong thời hạn. Bạn có thể chờ thêm hoặc mở tranh chấp trên vibefix.

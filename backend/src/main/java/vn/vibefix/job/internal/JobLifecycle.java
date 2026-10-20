@@ -105,6 +105,8 @@ class JobLifecycle {
 
 		private final Map<String, Object> columns = new LinkedHashMap<>();
 
+		private @Nullable String target;
+
 		private final List<String> jsonColumns = new ArrayList<>();
 
 		private final Map<String, String> facts = new LinkedHashMap<>();
@@ -193,9 +195,17 @@ class JobLifecycle {
 			return this.job.version() + 1;
 		}
 
-		/** The state the transition leads to. */
+		/** The state the transition leads to: its only one, or the one the step chose. */
 		String to() {
-			return this.transition.to().iterator().next();
+			return this.target != null ? this.target : this.transition.to().iterator().next();
+		}
+
+		/** Chooses one of the transition's states, in {@code check}: J9 to Cancelled after a cancellation. */
+		void leadTo(String state) {
+			if (!this.transition.to().contains(state)) {
+				throw new IllegalArgumentException(this.transition + " does not lead to " + state);
+			}
+			this.target = state;
 		}
 
 		/** Writes {@code value} to {@code column} with the state, in the same statement. */

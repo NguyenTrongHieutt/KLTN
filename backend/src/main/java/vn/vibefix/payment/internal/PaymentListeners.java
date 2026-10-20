@@ -2,6 +2,7 @@ package vn.vibefix.payment.internal;
 
 import java.time.Clock;
 import java.util.Map;
+import java.util.UUID;
 
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
@@ -18,7 +19,8 @@ import vn.vibefix.shared.ProcessedEvents;
 /**
  * The confirmed Agreement (FR-17, FR-41): each Milestone gets its ledger account, and the Customer's
  * "Thanh toán Giai đoạn 1: {amount} THỬ NGHIỆM" opens (UX-DR15); an accepted Milestone (M5) opens the
- * same to-do for the next Planned one. Replay-safe.
+ * same to-do for the next Planned one. A cancelled Milestone (M6, M7) closes its funding to-do, and M7
+ * refunds its held money in full (FR-40, FR-43). Replay-safe.
  */
 @Component
 class PaymentListeners {
@@ -29,13 +31,16 @@ class PaymentListeners {
 
 	private final Todos todos;
 
+	private final CancelledRefunds refunds;
+
 	private final ProcessedEvents processedEvents;
 
 	private final Clock clock;
 
-	PaymentListeners(PaymentOrders orders, MilestoneFunding funding, Todos todos, ProcessedEvents processedEvents,
-			Clock clock) {
+	PaymentListeners(PaymentOrders orders, MilestoneFunding funding, Todos todos, CancelledRefunds refunds,
+			ProcessedEvents processedEvents, Clock clock) {
 		this.orders = orders;
+		this.refunds = refunds;
 		this.funding = funding;
 		this.todos = todos;
 		this.processedEvents = processedEvents;
@@ -69,6 +74,21 @@ class PaymentListeners {
 			.ifPresent(next -> this.todos.open(new TodoRequest(PaymentOrders.FUND_TODO, job.customerId(), Audience.CUSTOMER,
 					next.milestoneId(), Map.of("n", String.valueOf(next.number()), "amount", PaymentOrders.vnd(next.priceVnd())),
 					"/cong-viec/" + job.jobId() + "/thanh-toan", null, job.jobId()))));
+	}
+
+	@ApplicationModuleListener
+	void onMilestoneCancelled(JobTransitioned event) {
+		boolean held = "M7".equals(event.transition());
+		String milestoneId = event.facts().get("milestoneId");
+		if ((!held && !"M6".equals(event.transition())) || milestoneId == null
+				|| !this.processedEvents.markProcessed("payment.PaymentListeners.onMilestoneCancelled", event.eventId())) {
+			return;
+		}
+		UUID milestone = UUID.fromString(milestoneId);
+		this.todos.closeAll(PaymentOrders.FUND_TODO, milestone);
+		if (held) {
+			this.refunds.refund(milestone);
+		}
 	}
 
 }
