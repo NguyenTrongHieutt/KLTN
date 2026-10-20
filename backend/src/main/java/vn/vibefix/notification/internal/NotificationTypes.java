@@ -337,6 +337,30 @@ class NotificationTypes implements NotificationCatalog {
 			Set.of(Audience.MENTOR, Audience.CREW_EVER_ACTIVE), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "check",
 			Set.of("amount", "job", "n"));
 
+	/** FR-37, FR-67: closure is proposed, by a person to the other side or by the System to both. */
+	static final NotificationType JOB_CLOSURE_PROPOSED = new NotificationType("job.closure_proposed",
+			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "briefcase",
+			Set.of("job", "proposer"));
+
+	/** FR-39: the proposal was declined; the Job stays Active. */
+	static final NotificationType JOB_CLOSURE_DECLINED = new NotificationType("job.closure_declined",
+			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
+			Set.of("job"));
+
+	/** J8: the Job is closing. */
+	static final NotificationType JOB_JOB_CLOSING = new NotificationType("job.job_closing",
+			Set.of(Audience.CUSTOMER, Audience.MENTOR, Audience.CREW_ACTIVE), Channel.IN_APP_AND_EMAIL,
+			EmailClass.TRANSACTIONAL, "briefcase", Set.of("job"));
+
+	/** J9 to Closed: the Job is done. */
+	static final NotificationType JOB_JOB_CLOSED = new NotificationType("job.job_closed",
+			Set.of(Audience.CUSTOMER, Audience.MENTOR, Audience.CREW_ACTIVE), Channel.IN_APP_AND_EMAIL,
+			EmailClass.TRANSACTIONAL, "check", Set.of("job"));
+
+	/** A closure proposal waits for an answer: tier 1 for the System's (FR-67), 2 for a person's (FR-37). */
+	static final TodoType JOB_ANSWER_CLOSURE = new TodoType("job.answer_closure", Set.of(Audience.CUSTOMER, Audience.MENTOR), 1,
+			Set.of("job", "date"));
+
 	/** A Funded or Revision Requested Milestone waits for the Mentor's handover (FR-32): until M2. */
 	static final TodoType DELIVERY_HAND_OVER = new TodoType("delivery.hand_over", Set.of(Audience.MENTOR), 2, Set.of("n"));
 
@@ -360,6 +384,7 @@ class NotificationTypes implements NotificationCatalog {
 				JOB_AGREEMENT_AWAITING_CONFIRMATION, JOB_AGREEMENT_CONFIRMED, JOB_MILESTONE_AWAITING_FUNDING, JOB_CREW_RECONFIRM_NEEDED,
 				PAYMENT_PAYMENT_RECEIVED, PAYMENT_PAYMENT_FAILED, PAYMENT_UNKNOWN_PAYMENT, JOB_MILESTONE_FUNDED, JOB_MILESTONE_SUBMITTED,
 				JOB_MILESTONE_ACCEPTED, JOB_REVISION_REQUESTED, PAYMENT_FUNDS_RELEASED, DELIVERY_ACCEPTANCE_REMINDER,
+				JOB_CLOSURE_PROPOSED, JOB_CLOSURE_DECLINED, JOB_JOB_CLOSING, JOB_JOB_CLOSED,
 				JOB_JOB_STARTING,
 				PAYMENT_REFUND_REQUESTED, PAYMENT_REFUND_CONFIRMED, WORK_WORK_ITEM_ASSIGNED,
 				WORK_REVIEW_REQUESTED, WORK_WORK_ITEM_APPROVED, WORK_WORK_ITEM_RETURNED);
@@ -371,7 +396,7 @@ class NotificationTypes implements NotificationCatalog {
 				MATCHING_CHOOSE_ASSIGNEE, MATCHING_SIGN_NDA, MATCHING_ANSWER_INVITATION_TO_APPLY, JOB_DRAFT_AGREEMENT,
 				JOB_REVIEW_AGREEMENT, JOB_PICK_CREW, JOB_CONFIRM_CREW_TERMS, JOB_REVISE_AGREEMENT, JOB_CONFIRM_AGREEMENT_MENTOR,
 				PAYMENT_FUND_MILESTONE, WORK_REVIEW_WORK_ITEM, WORK_FIX_RETURNED_ITEM, DELIVERY_HAND_OVER,
-				DELIVERY_REVIEW_HANDOVER);
+				DELIVERY_REVIEW_HANDOVER, JOB_ANSWER_CLOSURE);
 	}
 
 }

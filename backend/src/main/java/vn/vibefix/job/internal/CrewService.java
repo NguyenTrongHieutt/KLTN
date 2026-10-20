@@ -662,6 +662,18 @@ class CrewService implements Crews {
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 	}
 
+	/**
+	 * J9 and J10 (FR-75, AD-41): every Crew row of the Job not yet released is released as
+	 * {@code JOB_ENDED}, its window closed and its Student freed in the Team.
+	 */
+	void releaseForJobEnd(UUID jobId) {
+		this.jdbc.sql("SELECT " + ROW_COLUMNS + " FROM job.crew_row WHERE job_id = :job AND status <> 'RELEASED' ORDER BY id")
+			.param("job", jobId)
+			.query(CrewService::mapRow)
+			.list()
+			.forEach(row -> release(row, "JOB_ENDED"));
+	}
+
 	private void release(Row row, String reason) {
 		Instant now = this.clock.instant();
 		this.jdbc.sql("""

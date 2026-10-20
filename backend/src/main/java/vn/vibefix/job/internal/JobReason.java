@@ -121,6 +121,18 @@ enum JobReason {
 	HANDOVER_CHANGED,
 
 	/** The Milestone has no Revision Round left (FR-34). */
-	REVISION_ROUNDS_USED
+	REVISION_ROUNDS_USED,
+
+	/** A closure proposal is already open on the Job (FR-37). */
+	CLOSURE_OPEN,
+
+	/** No closure proposal is open on the Job. */
+	NO_CLOSURE_OPEN,
+
+	/** The caller has already confirmed this closure proposal. */
+	CLOSURE_ANSWERED,
+
+	/** A Code Job closes after its Final Merge or ZIP Fallback (FR-38), which Epic 7 brings. */
+	FINAL_MERGE_PENDING
 
 }

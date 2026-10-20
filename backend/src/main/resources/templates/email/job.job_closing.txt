@@ -1,0 +1,5 @@
+subject: {job} đang kết thúc: còn vài bước cuối
+---
+Xin chào,
+
+Công việc {job} đang kết thúc. Hãy mở công việc để làm nốt các bước cuối.

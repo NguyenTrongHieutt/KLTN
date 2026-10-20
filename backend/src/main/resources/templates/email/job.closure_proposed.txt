@@ -1,0 +1,5 @@
+subject: {proposer} đề nghị kết thúc {job}
+---
+Xin chào,
+
+{proposer} đề nghị kết thúc công việc {job}. Hãy mở công việc để xác nhận hoặc từ chối.

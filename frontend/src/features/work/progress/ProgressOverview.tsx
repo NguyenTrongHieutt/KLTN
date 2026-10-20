@@ -4,6 +4,7 @@ import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { TestTag } from '@/components/TestTag'
 import { buttonVariants } from '@/components/ui/button-variants'
+import { ClosureSection } from '@/features/job/closure/ClosureSection'
 import { milestoneStateText, milestoneTone } from '@/features/job/jobStateText'
 import { useTodos } from '@/features/notification/hooks'
 import { todoText } from '@/features/notification/texts'
@@ -59,6 +60,7 @@ function Content({ jobId, audience, progress }: { jobId: string; audience: Progr
           </a>
         )}
         <JobNextAction jobId={jobId} />
+        <ClosureSection jobId={jobId} />
         <section aria-labelledby="progress-milestones" className="flex flex-col gap-3">
           <h2 id="progress-milestones" className="text-h2">
             {t('screen.progress.milestones')}

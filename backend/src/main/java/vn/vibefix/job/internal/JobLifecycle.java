@@ -224,7 +224,12 @@ class JobLifecycle {
 	}
 
 	/** One transition of a cascade (AD-4): the Job's own, or one of its Milestones'. */
-	record Planned(Transition transition, @Nullable UUID milestoneId, Map<String, Object> input) {
+	/**
+	 * One transition of a cascade.
+	 * @param trigger its own trigger when it differs from the cascade's (J8 by a person, then M6 and J9 by
+	 * the System); {@code null} for the cascade's
+	 */
+	record Planned(Transition transition, @Nullable UUID milestoneId, Map<String, Object> input, @Nullable Trigger trigger) {
 
 		Planned {
 			input = Map.copyOf(input);
@@ -234,11 +239,19 @@ class JobLifecycle {
 		}
 
 		static Planned job(Transition transition) {
-			return new Planned(transition, null, Map.of());
+			return new Planned(transition, null, Map.of(), null);
+		}
+
+		static Planned job(Transition transition, Trigger trigger) {
+			return new Planned(transition, null, Map.of(), trigger);
 		}
 
 		static Planned milestone(Transition transition, UUID milestoneId, Map<String, Object> input) {
-			return new Planned(transition, milestoneId, input);
+			return new Planned(transition, milestoneId, input, null);
+		}
+
+		static Planned milestone(Transition transition, UUID milestoneId, Map<String, Object> input, Trigger trigger) {
+			return new Planned(transition, milestoneId, input, trigger);
 		}
 
 	}
@@ -438,12 +451,13 @@ class JobLifecycle {
 		Instant now = this.clock.instant();
 		for (Planned planned : cascade) {
 			Transition transition = planned.transition();
+			Trigger by = planned.trigger() != null ? planned.trigger() : trigger;
 			Step step = this.steps.get(transition);
 			if (step == null) {
 				throw new IllegalStateException(transition + " has no command yet");
 			}
-			if (!transition.triggers().contains(trigger)) {
-				throw new IllegalArgumentException(transition + " is not triggered by " + trigger);
+			if (!transition.triggers().contains(by)) {
+				throw new IllegalArgumentException(transition + " is not triggered by " + by);
 			}
 			String from = jobState;
 			if (planned.milestoneId() != null) {
@@ -459,7 +473,7 @@ class JobLifecycle {
 			if (transition.frozenBlocks() && job.frozenAt() != null) {
 				throw new ApiException(ErrorCode.CONFLICT, JobReason.JOB_FROZEN);
 			}
-			Applying applying = new Applying(transition, job, actor, trigger, this.ids.newId(), now, planned.input(), from,
+			Applying applying = new Applying(transition, job, actor, by, this.ids.newId(), now, planned.input(), from,
 					planned.milestoneId(), dryRun);
 			step.check(applying);
 			if (planned.milestoneId() == null) {
