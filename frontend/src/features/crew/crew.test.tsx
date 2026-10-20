@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryRouter, RouterProvider } from 'react-router'
@@ -152,6 +152,23 @@ describe('JOB-6 for the Mentor: the Crew panel (FR-75, UX-DR60)', () => {
     expect(screen.getByText('Chưa ký cam kết')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Thêm sinh viên' })).toBeDisabled()
     expect(screen.getByText('Hiện mỗi công việc chỉ có một sinh viên trong nhóm thực hiện.')).toBeInTheDocument()
+  })
+
+  it('with large Crews on, takes up to five Students before the add closes (Story 11.1)', { timeout: 20_000 }, async () => {
+    const rows = (n: number) =>
+      Array.from({ length: n }, (_, index) => minh({ rowId: `r${index}`, studentId: `s${index}`, name: `Sinh viên ${index + 1}` }))
+    let count = 2
+    mentorBackend(() => json(panel({ largeCrews: true, total: count, rows: rows(count) })))
+    renderAt('/cong-viec/j1/thoa-thuan')
+
+    expect(await screen.findByText('Nhóm thực hiện: 0/2 đã xác nhận')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Thêm sinh viên' })).toBeEnabled()
+    cleanup()
+    count = 5
+    mentorBackend(() => json(panel({ largeCrews: true, total: count, rows: rows(count) })))
+    renderAt('/cong-viec/j1/thoa-thuan')
+    expect(await screen.findByText('Nhóm thực hiện đã đủ 5 sinh viên.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Thêm sinh viên' })).toBeDisabled()
   })
 
   it('checks the shares live, shows the example amounts, and saves a version', { timeout: 25_000 }, async () => {

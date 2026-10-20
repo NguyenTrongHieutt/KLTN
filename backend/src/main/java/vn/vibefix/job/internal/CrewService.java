@@ -60,6 +60,9 @@ import vn.vibefix.team.Teams;
 @Component
 class CrewService implements Crews {
 
+	/** FR-75, AD-30: with {@code features.largeCrews} on, a Crew holds up to this many rows that are not released. */
+	static final int LARGE_CREW_LIMIT = 5;
+
 	static final String PICK_TODO = "job.pick_crew";
 
 	static final String CONFIRM_TODO = "job.confirm_crew_terms";
@@ -166,7 +169,8 @@ class CrewService implements Crews {
 		Job job = lockMentorJob(mentorId, jobId, crewVersion);
 		requireOpenCrew(job);
 		List<Row> rows = rows(jobId);
-		if (!this.largeCrews && rows.stream().anyMatch(row -> !row.released())) {
+		long running = rows.stream().filter(row -> !row.released()).count();
+		if (running >= (this.largeCrews ? LARGE_CREW_LIMIT : 1)) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, JobReason.CREW_LIMIT);
 		}
 		if (!this.verification.isVerified(studentId)) {

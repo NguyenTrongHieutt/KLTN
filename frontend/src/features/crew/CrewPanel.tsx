@@ -22,6 +22,9 @@ import {
 } from './crewApi'
 import { crewSplit, percentOf, shareProblem, shortName, type ShareProblem } from './crewShares'
 
+/** The most Students a Crew holds with `features.largeCrews` on, as `job` enforces it. */
+const LARGE_CREW_LIMIT = 5
+
 function Avatar({ name }: { name: string }) {
   const letters = name
     .replace(/^@/, '')
@@ -94,7 +97,8 @@ export function CrewSection({ jobId, panel }: { jobId: string; panel: Panel }) {
   const [confirming, setConfirming] = useState(false)
   const pending = add.isPending || remove.isPending || save.isPending || reconfirm.isPending
   const locked = panel.locked
-  const atLimit = !panel.largeCrews && running.length >= 1
+  // FR-75, AD-30: one Student per Crew, or up to five with `features.largeCrews` on (Story 11.1).
+  const atLimit = running.length >= (panel.largeCrews ? LARGE_CREW_LIMIT : 1)
   const latestNo = panel.latest?.versionNo
 
   const mentorProblem = shareProblem(mentorShare, true, panel.capPercent)
@@ -197,7 +201,7 @@ export function CrewSection({ jobId, panel }: { jobId: string; panel: Panel }) {
               </Button>
               {atLimit && (
                 <span id={`${ids}-limit`} className="text-caption text-muted-foreground">
-                  {t('screen.crew.panel.limit')}
+                  {t(panel.largeCrews ? 'screen.crew.panel.limitLarge' : 'screen.crew.panel.limit', { n: LARGE_CREW_LIMIT })}
                 </span>
               )}
             </div>

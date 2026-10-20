@@ -25,6 +25,15 @@ class CrewSplitTest {
 		assertThat(parts).containsExactly(Map.entry(MENTOR, 400_000L), Map.entry(VY, 600_000L), Map.entry(MINH, 1_000_000L));
 	}
 
+	/** Story 11.1: 1.000.001 ₫ over 34 %, 33 %, and 33 % writes parts that sum to exactly the amount. */
+	@Test
+	void aMillionAndOneOverThreePartiesSumsExactly() {
+		Map<UUID, Long> parts = CrewSplit.split(1_000_001, shares(34, 33, 33), MENTOR);
+
+		assertThat(parts).containsExactly(Map.entry(MENTOR, 340_001L), Map.entry(VY, 330_000L), Map.entry(MINH, 330_000L));
+		assertThat(parts.values().stream().mapToLong(Long::longValue).sum()).isEqualTo(1_000_001);
+	}
+
 	@Test
 	void theRemainderBelowOneDongGoesToTheMentor() {
 		Map<UUID, Long> parts = CrewSplit.split(1001, shares(20, 30, 50), MENTOR);
