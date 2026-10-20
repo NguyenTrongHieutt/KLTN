@@ -87,6 +87,16 @@ class DisputeDecisions implements DisputeQueue {
 				""").query((rs, n) -> new Waiting(rs.getObject("id", UUID.class), rs.getTimestamp("opened_at").toInstant())).list();
 	}
 
+	@Override
+	public List<FailedExecution> executionsFailed() {
+		return this.jdbc.sql("""
+				SELECT d.id, d.job_id, x.step, x.failure, x.updated_at FROM dispute.execution x
+				JOIN dispute.dispute d ON d.id = x.dispute_id
+				WHERE x.status = 'EXECUTION_FAILED' ORDER BY x.updated_at, d.id
+				""").query((rs, n) -> new FailedExecution(rs.getObject("id", UUID.class), rs.getObject("job_id", UUID.class),
+				rs.getInt("step"), rs.getString("failure"), rs.getTimestamp("updated_at").toInstant())).list();
+	}
+
 	/** "Nhận xử lý": the Administrator takes the Dispute, over another if need be. */
 	@Transactional
 	void take(UUID disputeId, UUID administrator) {

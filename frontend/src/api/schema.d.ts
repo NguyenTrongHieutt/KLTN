@@ -109,7 +109,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["retry"];
+        post: operations["retry_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -142,6 +142,54 @@ export interface paths {
         get: operations["enrolment"];
         put?: never;
         post: operations["enrol"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/failures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["failures"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/failures/findings/{findingId}/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["reopen"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/failures/operations/{operationId}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["retry"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3846,8 +3894,50 @@ export interface components {
             purpose: string;
             system: string;
         };
+        FailedExecutionView: {
+            /** Format: uuid */
+            disputeId: string;
+            /** Format: date-time */
+            failedAt: string;
+            failure: string;
+            /** Format: uuid */
+            jobId: string;
+            /** Format: int32 */
+            step: number;
+        };
+        FailedOperationView: {
+            /** Format: int32 */
+            attempts: number;
+            errorCode: string;
+            /** Format: date-time */
+            failedAt: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            jobId?: string;
+            type: string;
+        };
+        FailuresView: {
+            executions: components["schemas"]["FailedExecutionView"][];
+            falsePositives: components["schemas"]["FalsePositiveView"][];
+            operations: components["schemas"]["FailedOperationView"][];
+            stalledEvents: components["schemas"]["StalledEventView"][];
+        };
         FalsePositiveRequest: {
             reason: string;
+        };
+        FalsePositiveView: {
+            filePath: string;
+            /** Format: uuid */
+            findingId: string;
+            /** Format: date-time */
+            markedAt: string;
+            markedByName?: string;
+            /** Format: uuid */
+            productId: string;
+            productName: string;
+            reason: string;
+            ruleType: string;
         };
         FeedbackView: {
             average: number;
@@ -4751,7 +4841,9 @@ export interface components {
             /** Format: int64 */
             activeAdministrators: number;
             disputes: components["schemas"]["Queue"];
+            failedExecutions: components["schemas"]["Queue"];
             failedOperations: components["schemas"]["Queue"];
+            falsePositives: components["schemas"]["Queue"];
             lowFeedback: components["schemas"]["Queue"];
             mentorApplications: components["schemas"]["Queue"];
             stalledEvents: components["schemas"]["Queue"];
@@ -5237,6 +5329,9 @@ export interface components {
             /** Format: int32 */
             version: number;
         };
+        RetryRequest: {
+            stepUpCode: string;
+        };
         ReviewRequest: {
             comment?: string;
             /** @enum {string} */
@@ -5409,6 +5504,16 @@ export interface components {
             /** Format: uuid */
             id: string;
             name: string;
+        };
+        StalledEventView: {
+            /** Format: int32 */
+            attempts: number;
+            eventType: string;
+            /** Format: uuid */
+            id: string;
+            listenerId: string;
+            /** Format: date-time */
+            stalledAt: string;
         };
         StudentCardRow: {
             /** Format: date-time */
@@ -5997,7 +6102,7 @@ export interface operations {
             };
         };
     };
-    retry: {
+    retry_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -6084,6 +6189,74 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    failures: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FailuresView"];
+                };
+            };
+        };
+    };
+    reopen: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                findingId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FailuresView"];
+                };
+            };
+        };
+    };
+    retry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RetryRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FailuresView"];
+                };
             };
         };
     };

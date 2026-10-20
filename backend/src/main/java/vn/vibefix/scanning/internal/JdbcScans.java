@@ -23,6 +23,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import vn.vibefix.operations.ExternalOperations;
 import vn.vibefix.operations.OperationRequest;
+import vn.vibefix.scanning.FalsePositive;
 import vn.vibefix.scanning.Finding;
 import vn.vibefix.scanning.FindingCategory;
 import vn.vibefix.scanning.FindingResolution;
@@ -197,6 +198,16 @@ class JdbcScans implements Scans {
 			return null;
 		}).list();
 		return counts;
+	}
+
+	@Override
+	public List<FalsePositive> falsePositives(int limit) {
+		return this.resolutions.falsePositives(limit);
+	}
+
+	@Override
+	public void reopen(UUID findingId, UUID administrator) {
+		this.resolutions.reopen(findingId, administrator);
 	}
 
 	@Override

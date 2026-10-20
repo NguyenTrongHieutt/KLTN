@@ -1330,6 +1330,21 @@ GET /api/v1/admin/audit,CUSTOMER,,,404 NOT_FOUND
 GET /api/v1/admin/audit,MENTOR,,,404 NOT_FOUND
 GET /api/v1/admin/audit,STUDENT,,,404 NOT_FOUND
 GET /api/v1/admin/audit,ADMINISTRATOR,,,200
+GET /api/v1/admin/failures,ANONYMOUS,,,401
+GET /api/v1/admin/failures,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/admin/failures,MENTOR,,,404 NOT_FOUND
+GET /api/v1/admin/failures,STUDENT,,,404 NOT_FOUND
+GET /api/v1/admin/failures,ADMINISTRATOR,,,200
+POST /api/v1/admin/failures/operations/{operationId}/retry,ANONYMOUS,,admin-mentor-approve.json,401
+POST /api/v1/admin/failures/operations/{operationId}/retry,CUSTOMER,,admin-mentor-approve.json,404 NOT_FOUND
+POST /api/v1/admin/failures/operations/{operationId}/retry,MENTOR,,admin-mentor-approve.json,404 NOT_FOUND
+POST /api/v1/admin/failures/operations/{operationId}/retry,STUDENT,,admin-mentor-approve.json,404 NOT_FOUND
+POST /api/v1/admin/failures/operations/{operationId}/retry,ADMINISTRATOR,,admin-mentor-approve.json,404 NOT_FOUND
+POST /api/v1/admin/failures/findings/{findingId}/reopen,ANONYMOUS,,,401
+POST /api/v1/admin/failures/findings/{findingId}/reopen,CUSTOMER,,,404 NOT_FOUND
+POST /api/v1/admin/failures/findings/{findingId}/reopen,MENTOR,,,404 NOT_FOUND
+POST /api/v1/admin/failures/findings/{findingId}/reopen,STUDENT,,,404 NOT_FOUND
+POST /api/v1/admin/failures/findings/{findingId}/reopen,ADMINISTRATOR,,,409 CONFLICT NOT_A_FALSE_POSITIVE
 # Milestone Handovers (FR-32, AD-20, AD-39): the Customer (OWNER), the Mentor, and ACTIVE members read;
 # only the Mentor hands over, and the fixture's Milestone is not Funded. The Customer's Delivery Report
 # never carries the Work Item note, whose text is the WORK_ITEM_NOTE canary.

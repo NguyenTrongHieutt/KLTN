@@ -99,14 +99,27 @@ class JdbcExternalOperations implements ExternalOperations, FailedOperations {
 	@Override
 	public List<FailedOperation> findAll() {
 		return this.jdbc.sql("""
-				SELECT id, operation_key, type, error_code, attempt_count, completed_at
+				SELECT id, operation_key, type, error_code, attempt_count, completed_at,
+				       CASE WHEN payload ->> 'jobId' ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+				            THEN CAST(payload ->> 'jobId' AS UUID) END AS job_id
 				FROM operations.external_operation WHERE status = 'FAILED'
 				ORDER BY completed_at, id
 				""")
 			.query((row, number) -> new FailedOperation(row.getObject("id", UUID.class), row.getString("operation_key"),
 					row.getString("type"), row.getString("error_code"), row.getInt("attempt_count"),
-					instant(row.getTimestamp("completed_at"))))
+					instant(row.getTimestamp("completed_at")), row.getObject("job_id", UUID.class)))
 			.list();
+	}
+
+	@Override
+	@Transactional
+	public boolean retry(UUID operationId) {
+		return this.jdbc.sql("""
+				UPDATE operations.external_operation
+				SET status = 'PENDING', attempt_count = 0, next_attempt_at = :now, completed_at = NULL, error_code = NULL,
+				    read_back_first = TRUE
+				WHERE id = :id AND status = 'FAILED'
+				""").param("id", operationId).param("now", Timestamp.from(this.clock.instant())).update() == 1;
 	}
 
 	private static Instant instant(Timestamp timestamp) {

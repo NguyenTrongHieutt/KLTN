@@ -95,7 +95,7 @@ export function AdminOverviewPage() {
             </Link>
           )}
           {failed && (
-            <div className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4">
+            <Link to="/quan-tri/thao-tac-loi" className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 hover:border-primary">
               <p className="text-caption text-muted-foreground">{t('screen.admin.overview.failedOperations')}</p>
               <p className={cn('text-h1', failed.count > 0 && 'text-destructive')}>{failed.count}</p>
               <p className="text-caption text-muted-foreground">
@@ -103,7 +103,18 @@ export function AdminOverviewPage() {
                   ? t('screen.admin.overview.oldest', { date: formatDayMonth(failed.oldestAt) })
                   : t('screen.admin.overview.empty')}
               </p>
-            </div>
+            </Link>
+          )}
+          {overview.data?.falsePositives && (
+            <Link to="/quan-tri/thao-tac-loi" className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 hover:border-primary">
+              <p className="text-caption text-muted-foreground">{t('screen.admin.overview.falsePositives')}</p>
+              <p className="text-h1">{overview.data.falsePositives.count}</p>
+              <p className="text-caption text-muted-foreground">
+                {overview.data.failedExecutions && overview.data.failedExecutions.count > 0
+                  ? t('screen.admin.overview.failedExecutions', { n: overview.data.failedExecutions.count })
+                  : t('screen.admin.overview.falsePositivesNote')}
+              </p>
+            </Link>
           )}
         </section>
       </RegionState>

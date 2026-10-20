@@ -1,0 +1,5 @@
+subject: Vấn đề bảo mật trong {product} được mở lại: {type}
+---
+Xin chào,
+
+Quản trị viên vibefix đã mở lại một vấn đề bảo mật trong sản phẩm {product} ({type}) mà bạn đã đánh dấu là cảnh báo nhầm. Vấn đề lại chặn các bước như trước cho đến khi được xử lý. Hãy xem lại trong trang sản phẩm.

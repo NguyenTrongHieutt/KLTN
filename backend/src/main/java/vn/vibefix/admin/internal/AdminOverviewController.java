@@ -15,6 +15,8 @@ import vn.vibefix.identity.MentorApplicationQueue;
 import vn.vibefix.identity.StudentCardQueue;
 import vn.vibefix.operations.FailedOperations;
 import vn.vibefix.reputation.PrivateFeedback;
+import vn.vibefix.scanning.FalsePositive;
+import vn.vibefix.scanning.Scans;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.Gate;
 import vn.vibefix.shared.StalledEventPublications;
@@ -45,9 +47,11 @@ class AdminOverviewController {
 	 * @param mentorApplications Mentor applications waiting for a decision (FR-74, ADM-13)
 	 * @param disputes Disputes awaiting a decision (FR-54, ADM-4)
 	 * @param lowFeedback Mentors averaging below 3 over at least 3 private feedbacks (FR-78, ADM-2)
+	 * @param failedExecutions Dispute executions that failed (FR-54, FR-64, ADM-7)
+	 * @param falsePositives Findings marked as false positives (FR-64, ADM-7)
 	 */
 	record OverviewView(Queue failedOperations, Queue stalledEvents, long activeAdministrators, Queue studentCards,
-			Queue mentorApplications, Queue disputes, Queue lowFeedback) {
+			Queue mentorApplications, Queue disputes, Queue lowFeedback, Queue failedExecutions, Queue falsePositives) {
 	}
 
 	private final FailedOperations failedOperations;
@@ -64,11 +68,14 @@ class AdminOverviewController {
 
 	private final PrivateFeedback privateFeedback;
 
+	private final Scans scans;
+
 	AdminOverviewController(FailedOperations failedOperations, StalledEventPublications stalledEvents,
 			Administrators administrators, StudentCardQueue studentCards, MentorApplicationQueue mentorApplications,
-			DisputeQueue disputes, PrivateFeedback privateFeedback) {
+			DisputeQueue disputes, PrivateFeedback privateFeedback, Scans scans) {
 		this.disputes = disputes;
 		this.privateFeedback = privateFeedback;
+		this.scans = scans;
 		this.failedOperations = failedOperations;
 		this.stalledEvents = stalledEvents;
 		this.administrators = administrators;
@@ -82,7 +89,9 @@ class AdminOverviewController {
 				Queue.of(this.stalledEvents.findAll(), StalledEventPublications.StalledPublication::stalledAt),
 				this.administrators.activeCount(), studentCards(), mentorApplications(),
 				Queue.of(this.disputes.awaiting(), DisputeQueue.Waiting::openedAt),
-				new Queue(this.privateFeedback.belowThreshold().size(), null));
+				new Queue(this.privateFeedback.belowThreshold().size(), null),
+				Queue.of(this.disputes.executionsFailed(), DisputeQueue.FailedExecution::failedAt),
+				Queue.of(this.scans.falsePositives(AdminFailuresController.FALSE_POSITIVES), FalsePositive::markedAt));
 	}
 
 	private Queue mentorApplications() {

@@ -86,6 +86,8 @@ public class ProductFixture implements MatrixFixture {
 			.param("a", this.owner)
 			.update();
 		world.put("findingId", finding);
+		// ADM-7 retries a failed operation (FR-64); none exists in the world, so a random ID.
+		world.put("operationId", UUID.randomUUID());
 		UUID job = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO job.job (id, product_id, customer_account_id, state, title, job_types, created_at, updated_at)

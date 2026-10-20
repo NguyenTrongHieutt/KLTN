@@ -1,5 +1,6 @@
 import {
   Briefcase,
+  CircleAlert,
   EyeOff,
   Gavel,
   IdCard,
@@ -32,6 +33,7 @@ export const ADMIN_DESTINATIONS: AdminDestination[] = [
   { label: 'screen.admin.nav.jobs', to: '/quan-tri/cong-viec', icon: Briefcase },
   { label: 'screen.admin.nav.disputes', to: '/quan-tri/tranh-chap', icon: Gavel, count: 'disputes' },
   { label: 'screen.admin.nav.moderation', to: '/quan-tri/kiem-duyet', icon: EyeOff },
+  { label: 'screen.admin.nav.failures', to: '/quan-tri/thao-tac-loi', icon: CircleAlert },
   { label: 'screen.admin.nav.audit', to: '/quan-tri/nhat-ky', icon: ScrollText },
   { label: 'screen.admin.nav.rules', to: '/quan-tri/quy-tac', icon: SlidersHorizontal },
   { label: 'screen.admin.nav.administrators', to: '/quan-tri/quan-tri-vien', icon: ShieldCheck },

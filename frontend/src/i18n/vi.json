@@ -543,7 +543,8 @@
         "moderation": "Kiểm duyệt",
         "rules": "Quy tắc",
         "jobs": "Công việc",
-        "audit": "Nhật ký"
+        "audit": "Nhật ký",
+        "failures": "Thao tác lỗi"
       },
       "overview": {
         "title": "Tổng quan",
@@ -563,7 +564,10 @@
         "studentCards": "Thẻ sinh viên chờ duyệt",
         "mentorApplications": "Hồ sơ người hướng dẫn chờ duyệt",
         "lowFeedback": "Đánh giá kín thấp",
-        "lowFeedbackNote": "Người hướng dẫn trung bình dưới 3 sao trên ít nhất 3 đánh giá"
+        "lowFeedbackNote": "Người hướng dẫn trung bình dưới 3 sao trên ít nhất 3 đánh giá",
+        "falsePositives": "Cảnh báo nhầm",
+        "falsePositivesNote": "Vấn đề bảo mật bị đánh dấu là cảnh báo nhầm",
+        "failedExecutions": "{n} lần thực hiện phân xử bị lỗi"
       },
       "idle": {
         "title": "Phiên làm việc sắp hết",
@@ -1071,6 +1075,25 @@
         "previous": "Trang trước",
         "next": "Trang sau",
         "page": "Trang {page}/{pages}"
+      },
+      "failures": {
+        "title": "Thao tác lỗi",
+        "heading": "Thao tác lỗi",
+        "operations": "Thao tác với dịch vụ ngoài",
+        "operationLine": "Lỗi {error} sau {attempts} lần thử",
+        "job": "Xem công việc",
+        "retry": "Thử lại",
+        "retried": "Đã xếp thao tác để chạy lại.",
+        "executions": "Thực hiện phân xử tranh chấp",
+        "executionLine": "Dừng ở bước {step}/4",
+        "openDispute": "Mở tranh chấp",
+        "stalled": "Sự kiện bị kẹt",
+        "stalledLine": "{listener} · {attempts} lần thử",
+        "falsePositives": "Cảnh báo nhầm",
+        "reasonLine": "Lý do: {reason}",
+        "reopen": "Mở lại",
+        "reopened": "Đã mở lại vấn đề.",
+        "empty": "Không có mục nào."
       }
     },
     "product": {
@@ -3399,6 +3422,9 @@
       },
       "finding_opened": {
         "title": "Phát hiện {type} trong {product}"
+      },
+      "finding_reopened": {
+        "title": "Vấn đề bảo mật trong {product} được mở lại: {type}"
       }
     },
     "job": {
@@ -3682,7 +3708,8 @@
     },
     "scanning": {
       "FINDING_CLOSED": "Vấn đề này đã được xử lý.",
-      "NOT_A_CREDENTIAL": "Vấn đề này là dữ liệu cá nhân, không phải khóa bí mật. Hãy làm theo hướng dẫn đăng ký kho mã sạch."
+      "NOT_A_CREDENTIAL": "Vấn đề này là dữ liệu cá nhân, không phải khóa bí mật. Hãy làm theo hướng dẫn đăng ký kho mã sạch.",
+      "NOT_A_FALSE_POSITIVE": "Vấn đề này không ở trạng thái cảnh báo nhầm."
     },
     "product": {
       "NOT_GITHUB": "Đường dẫn này không phải kho mã GitHub.",
@@ -3853,7 +3880,8 @@
     },
     "admin": {
       "FEEDBACK_NOT_ENOUGH": "Cần ít nhất 3 đánh giá kín từ 2 sinh viên khác nhau trên 2 công việc khác nhau.",
-      "ALREADY_HIDDEN": "Nội dung này đã bị ẩn."
+      "ALREADY_HIDDEN": "Nội dung này đã bị ẩn.",
+      "NOT_FAILED": "Thao tác này không còn ở trạng thái lỗi."
     },
     "settings": {
       "RULE_OUT_OF_BOUNDS": "Giá trị nằm ngoài giới hạn cho phép.",
