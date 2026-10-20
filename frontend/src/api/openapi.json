@@ -4110,6 +4110,80 @@
         "tags" : [ "board-controller" ]
       }
     },
+    "/api/v1/work-items/{workItemId}/review" : {
+      "post" : {
+        "operationId" : "reviewWorkItem",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workItemId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ReviewRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/WorkItemDetailView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "board-controller" ]
+      }
+    },
+    "/api/v1/work-items/{workItemId}/submit" : {
+      "post" : {
+        "operationId" : "submitWorkItem",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workItemId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SubmitRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/WorkItemDetailView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "board-controller" ]
+      }
+    },
     "/webhooks/vnpay/ipn" : {
       "get" : {
         "operationId" : "vnpayIpn",
@@ -5851,6 +5925,9 @@
           "at" : {
             "type" : "string",
             "format" : "date-time"
+          },
+          "comment" : {
+            "type" : "string"
           },
           "fields" : {
             "type" : "array",
@@ -8079,6 +8156,51 @@
         },
         "required" : [ "defaultBranch", "fullName", "githubId", "htmlUrl", "ownerType", "sizeKb" ]
       },
+      "ReviewRequest" : {
+        "type" : "object",
+        "properties" : {
+          "comment" : {
+            "type" : "string",
+            "maxLength" : 4000,
+            "minLength" : 0
+          },
+          "decision" : {
+            "type" : "string",
+            "enum" : [ "APPROVE", "RETURN" ]
+          },
+          "sensitive" : {
+            "type" : "string",
+            "enum" : [ "CHECK", "MASK" ]
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "decision", "version" ]
+      },
+      "ReviewView" : {
+        "type" : "object",
+        "properties" : {
+          "action" : {
+            "type" : "string"
+          },
+          "at" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "by" : {
+            "type" : "string"
+          },
+          "comment" : {
+            "type" : "string"
+          },
+          "selfCheck" : {
+            "$ref" : "#/components/schemas/SelfCheckView"
+          }
+        },
+        "required" : [ "action", "at", "by" ]
+      },
       "SaveRequest" : {
         "type" : "object",
         "properties" : {
@@ -8229,6 +8351,42 @@
           }
         },
         "required" : [ "version" ]
+      },
+      "SelfCheckRequest" : {
+        "type" : "object",
+        "properties" : {
+          "docsUpdated" : {
+            "type" : "boolean"
+          },
+          "meetsCriteria" : {
+            "type" : "boolean"
+          },
+          "noSecrets" : {
+            "type" : "boolean"
+          },
+          "tested" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "docsUpdated", "meetsCriteria", "noSecrets", "tested" ]
+      },
+      "SelfCheckView" : {
+        "type" : "object",
+        "properties" : {
+          "docsUpdated" : {
+            "type" : "boolean"
+          },
+          "meetsCriteria" : {
+            "type" : "boolean"
+          },
+          "noSecrets" : {
+            "type" : "boolean"
+          },
+          "tested" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "docsUpdated", "meetsCriteria", "noSecrets", "tested" ]
       },
       "SendRequest" : {
         "type" : "object",
@@ -8624,6 +8782,28 @@
           }
         },
         "required" : [ "invitations", "joinRequests", "requestsLeft", "verified" ]
+      },
+      "SubmitRequest" : {
+        "type" : "object",
+        "properties" : {
+          "note" : {
+            "type" : "string",
+            "maxLength" : 4000,
+            "minLength" : 0
+          },
+          "selfCheck" : {
+            "$ref" : "#/components/schemas/SelfCheckRequest"
+          },
+          "sensitive" : {
+            "type" : "string",
+            "enum" : [ "CHECK", "MASK" ]
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "selfCheck", "version" ]
       },
       "SuggestedSkillView" : {
         "type" : "object",
@@ -9160,6 +9340,9 @@
           "priority" : {
             "type" : "string"
           },
+          "returnedReason" : {
+            "type" : "string"
+          },
           "seeded" : {
             "type" : "boolean"
           },
@@ -9206,6 +9389,9 @@
           },
           "readOnly" : {
             "type" : "boolean"
+          },
+          "review" : {
+            "$ref" : "#/components/schemas/ReviewView"
           }
         },
         "required" : [ "checklist", "createdAt", "history", "item", "readOnly" ]

@@ -28,6 +28,12 @@ enum WorkReason {
 	MILESTONE_NOT_HELD,
 
 	/** The move is not one of the Board's: submission, approval, and return have their own commands (AD-39). */
-	MOVE_NOT_ALLOWED
+	MOVE_NOT_ALLOWED,
+
+	/** A submission answers all four Self-check items (FR-25, AD-39). */
+	SELF_CHECK_INCOMPLETE,
+
+	/** "Duyệt" and "Trả lại" each need a written comment (FR-25, AD-39). */
+	REVIEW_COMMENT_REQUIRED
 
 }
