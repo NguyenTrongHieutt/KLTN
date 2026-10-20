@@ -1980,7 +1980,50 @@
       "criterion": "Tiêu chí {m}.{n}",
       "criterionLink": "{label}: xem trong thỏa thuận",
       "milestone": "Giai đoạn {n}",
-      "unassigned": "Chưa giao"
+      "unassigned": "Chưa giao",
+      "add": "Thêm việc",
+      "readOnly": "Bảng này chỉ để xem.",
+      "estimate": "{n} giờ",
+      "checklistCount": "{done}/{total} tiêu chí",
+      "assignee": "Người làm: {name}",
+      "priority": {
+        "HIGH": "Cao",
+        "MEDIUM": "Trung bình",
+        "LOW": "Thấp"
+      },
+      "item": {
+        "title": "Việc",
+        "new": "Thêm việc",
+        "type": "Loại",
+        "titleLabel": "Tiêu đề",
+        "titleRequired": "Hãy nhập tiêu đề.",
+        "description": "Mô tả",
+        "checklist": "Danh sách tiêu chí",
+        "noChecklist": "Chưa có dòng nào.",
+        "line": "Tiêu chí {n}",
+        "lineDone": "Tiêu chí {n} đã xong",
+        "removeLine": "Bỏ tiêu chí {n}",
+        "addLine": "Thêm dòng",
+        "milestone": "Giai đoạn",
+        "milestoneOption": "Giai đoạn {n} · {title}",
+        "priority": "Ưu tiên",
+        "noPriority": "Chưa đặt",
+        "estimate": "Ước lượng (giờ)",
+        "assignee": "Người làm",
+        "mentorOnly": "Chỉ người hướng dẫn đặt được.",
+        "save": "Lưu",
+        "saved": "Đã lưu {key}",
+        "seededNote": "Story này đến từ tiêu chí {m}.{n} của thỏa thuận: loại và giai đoạn không đổi được.",
+        "history": "Lịch sử",
+        "historySeeded": "vibefix tạo từ tiêu chí nghiệm thu",
+        "historyCreated": "{actor} tạo việc",
+        "historyUpdated": "{actor} sửa {fields}",
+        "historyAssigned": "{actor} giao cho {assignee}",
+        "sensitiveTitle": "Nội dung có thể chứa khóa bí mật hoặc dữ liệu khách hàng",
+        "sensitiveBody": "Ai xem được bảng công việc đều đọc được nội dung này. Hãy che trước khi lưu.",
+        "mask": "Che và lưu",
+        "staleBody": "Việc này vừa được sửa ở nơi khác nên thay đổi của bạn chưa được lưu. Hãy tải lại để xem bản mới rồi sửa lại."
+      }
     }
   },
   "notice": {
@@ -2621,6 +2664,11 @@
       "refund_confirmed": {
         "title": "Đã hoàn {amount} (thử nghiệm) cho {job}"
       }
+    },
+    "work": {
+      "work_item_assigned": {
+        "title": "{mentor} giao cho bạn {key}"
+      }
     }
   },
   "reason": {
@@ -2747,6 +2795,14 @@
     },
     "payment": {
       "PAYMENT_NOT_CONFIGURED": "môi trường này chưa kết nối VNPay thử nghiệm"
+    },
+    "work": {
+      "MENTOR_ONLY": "Chỉ người hướng dẫn giao việc và đặt ưu tiên.",
+      "NOT_CREW_MEMBER": "Người này không còn làm trong nhóm thực hiện của công việc.",
+      "SEEDED_FIELD_FIXED": "Loại và giai đoạn của Story từ tiêu chí nghiệm thu không đổi được.",
+      "MILESTONE_UNKNOWN": "Giai đoạn này không có trong thỏa thuận.",
+      "BOARD_READ_ONLY": "Công việc không còn đang làm nên bảng chỉ để xem.",
+      "SENSITIVE_CONTENT": "Nội dung có thể chứa khóa bí mật hoặc dữ liệu khách hàng."
     }
   }
 }

@@ -706,9 +706,10 @@ POST /api/v1/crew-chats/{crewChatId}/read,CREW_ACTIVE,,,204
 POST /api/v1/crew-chats/{crewChatId}/read,CREW_INACTIVE,,,204
 POST /api/v1/crew-chats/{crewChatId}/read,CREW_FORMER,,,204
 POST /api/v1/crew-chats/{crewChatId}/read,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
-# The Board (FR-22, FR-28, AD-39, AD-41): the Job's Mentor and ACTIVE Crew members read it; the Customer,
-# an ASSIGNED, INACTIVE, or former member, everyone else, and Administrators find nothing (Story 5.2 opens
-# the windowed reads and the grants).
+# The Board and its Work Items (FR-22, FR-23, FR-28, AD-20, AD-39, AD-41): the Job's Mentor and ACTIVE Crew
+# members read and write; INACTIVE and former members read only the Work Items of their windows (none of the
+# fixture's), never write; the Customer, an ASSIGNED Student, everyone else, and an Administrator without a
+# WORK_ITEMS grant find nothing.
 GET /api/v1/boards/{boardId}/work-items,ANONYMOUS,,,401
 GET /api/v1/boards/{boardId}/work-items,OWNER,,,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/work-items,CUSTOMER,,,404 NOT_FOUND
@@ -718,11 +719,53 @@ GET /api/v1/boards/{boardId}/work-items,ADMINISTRATOR,,,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/work-items,TEAM_MENTOR,,,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/work-items,TEAM_MEMBER,,,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/work-items,CREW_ASSIGNED,,,404 NOT_FOUND
-GET /api/v1/boards/{boardId}/work-items,CREW_INACTIVE,,,404 NOT_FOUND
-GET /api/v1/boards/{boardId}/work-items,CREW_FORMER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/work-items,CREW_INACTIVE,,,200
+GET /api/v1/boards/{boardId}/work-items,CREW_FORMER,,,200
 GET /api/v1/boards/{boardId}/work-items,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/work-items,JOB_MENTOR,,,200
 GET /api/v1/boards/{boardId}/work-items,CREW_ACTIVE,,,200
+POST /api/v1/boards/{boardId}/work-items,ANONYMOUS,,work-item.json,401
+POST /api/v1/boards/{boardId}/work-items,OWNER,,work-item.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/work-items,CUSTOMER,,work-item.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/work-items,MENTOR,,work-item.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/work-items,STUDENT,,work-item.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/work-items,ADMINISTRATOR,,work-item.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/work-items,TEAM_MENTOR,,work-item.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/work-items,TEAM_MEMBER,,work-item.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/work-items,CREW_ASSIGNED,,work-item.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/work-items,CREW_INACTIVE,,work-item.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/work-items,CREW_FORMER,,work-item.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/work-items,ADMIN_TEAM_ISSUE_GRANT,,work-item.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/work-items,JOB_MENTOR,,work-item.json,201
+POST /api/v1/boards/{boardId}/work-items,CREW_ACTIVE,,work-item.json,201
+GET /api/v1/work-items/{workItemId},ANONYMOUS,,,401
+GET /api/v1/work-items/{workItemId},OWNER,,,404 NOT_FOUND
+GET /api/v1/work-items/{workItemId},CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/work-items/{workItemId},MENTOR,,,404 NOT_FOUND
+GET /api/v1/work-items/{workItemId},STUDENT,,,404 NOT_FOUND
+GET /api/v1/work-items/{workItemId},ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/work-items/{workItemId},TEAM_MENTOR,,,404 NOT_FOUND
+GET /api/v1/work-items/{workItemId},TEAM_MEMBER,,,404 NOT_FOUND
+GET /api/v1/work-items/{workItemId},CREW_ASSIGNED,,,404 NOT_FOUND
+GET /api/v1/work-items/{workItemId},CREW_INACTIVE,,,404 NOT_FOUND
+GET /api/v1/work-items/{workItemId},CREW_FORMER,,,404 NOT_FOUND
+GET /api/v1/work-items/{workItemId},ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
+GET /api/v1/work-items/{workItemId},JOB_MENTOR,,,200
+GET /api/v1/work-items/{workItemId},CREW_ACTIVE,,,200
+PUT /api/v1/work-items/{workItemId},ANONYMOUS,,work-item-edit.json,401
+PUT /api/v1/work-items/{workItemId},OWNER,,work-item-edit.json,404 NOT_FOUND
+PUT /api/v1/work-items/{workItemId},CUSTOMER,,work-item-edit.json,404 NOT_FOUND
+PUT /api/v1/work-items/{workItemId},MENTOR,,work-item-edit.json,404 NOT_FOUND
+PUT /api/v1/work-items/{workItemId},STUDENT,,work-item-edit.json,404 NOT_FOUND
+PUT /api/v1/work-items/{workItemId},ADMINISTRATOR,,work-item-edit.json,404 NOT_FOUND
+PUT /api/v1/work-items/{workItemId},TEAM_MENTOR,,work-item-edit.json,404 NOT_FOUND
+PUT /api/v1/work-items/{workItemId},TEAM_MEMBER,,work-item-edit.json,404 NOT_FOUND
+PUT /api/v1/work-items/{workItemId},CREW_ASSIGNED,,work-item-edit.json,404 NOT_FOUND
+PUT /api/v1/work-items/{workItemId},CREW_INACTIVE,,work-item-edit.json,404 NOT_FOUND
+PUT /api/v1/work-items/{workItemId},CREW_FORMER,,work-item-edit.json,404 NOT_FOUND
+PUT /api/v1/work-items/{workItemId},ADMIN_TEAM_ISSUE_GRANT,,work-item-edit.json,404 NOT_FOUND
+PUT /api/v1/work-items/{workItemId},JOB_MENTOR,,work-item-edit.json,200
+PUT /api/v1/work-items/{workItemId},CREW_ACTIVE,,work-item-edit.json,200
 GET /api/v1/mentor/jobs/{jobId}/agreement,ANONYMOUS,,,401,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/agreement,MENTOR,,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/agreement,MENTOR,mentor=PENDING,,404 NOT_FOUND,requireActiveAccount

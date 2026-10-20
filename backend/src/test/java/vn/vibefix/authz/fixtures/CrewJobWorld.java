@@ -32,7 +32,8 @@ import vn.vibefix.team.internal.TeamTestSupport;
  * the last two with a window that ended before the {@code CREW_CHAT} canary was written;</li>
  * <li>{@link MatrixCaller#ADMIN_TEAM_ISSUE_GRANT}, an Administrator holding a grant on the Crew Chat.</li>
  * </ul>
- * It also seeds the Job's Board ({@code {boardId}}) with one seeded Story.
+ * It also seeds the Job's confirmed Agreement with one Milestone ({@code {crewMilestoneId}}) and its
+ * Board ({@code {boardId}}) with the criterion's seeded Story ({@code {workItemId}}).
  */
 final class CrewJobWorld {
 
@@ -107,21 +108,42 @@ final class CrewJobWorld {
 			.param("reason", UUID.randomUUID())
 			.update();
 		world.put("crewChatId", chat);
+		UUID milestone = UUID.randomUUID();
+		UUID criterion = UUID.randomUUID();
+		String content = """
+				{"scope":"Sửa lỗi","priceVnd":800000,"codeJob":true,"assessment":false,"skills":[],"externalAccess":[],
+				 "milestones":[{"id":"%s","title":"Sửa lỗi trùng giờ","priceVnd":800000,"dueOn":"2026-11-20","revisionRounds":2,
+				   "criteria":[{"id":"%s","statement":"Hai khách không đặt trùng bàn","checkSteps":"1. Mở. 2. Đặt."}]}]}
+				""".formatted(milestone, criterion);
+		this.jdbc.sql("""
+				INSERT INTO job.agreement_version (job_id, version_no, status, content, author_account_id, created_at)
+				VALUES (:job, 1, 'SHARED', CAST(:content AS JSONB), :mentor, :signed)
+				""").param("job", job).param("content", content).param("mentor", this.mentor)
+			.param("signed", Timestamp.from(SIGNED)).update();
+		this.jdbc.sql("""
+				INSERT INTO job.confirmed_agreement (job_id, version_no, draft_version_no, content, crew_usernames,
+				    freeze_committed, customer_account_id, approved_at, mentor_account_id, confirmed_at)
+				VALUES (:job, 1, 1, CAST(:content AS JSONB), '{}', true, :owner, :signed, :mentor, :signed)
+				""").param("job", job).param("content", content).param("owner", owner).param("mentor", this.mentor)
+			.param("signed", Timestamp.from(SIGNED)).update();
 		this.jdbc.sql("""
 				INSERT INTO work.board (job_id, product_id, code, next_number, created_at) VALUES (:job, :product, 'VNM', 2, :now)
 				""").param("job", job).param("product", product).param("now", now).update();
+		UUID item = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO work.work_item (id, job_id, number, type, title, description, criterion_id, milestone_id, created_at,
 				    updated_at)
 				VALUES (:id, :job, 1, 'STORY', 'Hai khách không đặt trùng bàn', '1. Mở. 2. Đặt.', :criterion, :milestone, :now, :now)
 				""")
-			.param("id", UUID.randomUUID())
+			.param("id", item)
 			.param("job", job)
-			.param("criterion", UUID.randomUUID())
-			.param("milestone", UUID.randomUUID())
+			.param("criterion", criterion)
+			.param("milestone", milestone)
 			.param("now", now)
 			.update();
 		world.put("boardId", job);
+		world.put("crewMilestoneId", milestone);
+		world.put("workItemId", item);
 	}
 
 	Optional<RequestPostProcessor> realize(MatrixCaller caller) {

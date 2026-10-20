@@ -1,12 +1,15 @@
 package vn.vibefix.work.internal;
 
+import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -16,6 +19,8 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.json.JsonMapper;
 import vn.vibefix.job.AgreementCriteria;
 import vn.vibefix.job.AgreementCriteria.CriteriaInForce;
 import vn.vibefix.job.AgreementCriteria.CriterionInForce;
@@ -25,13 +30,15 @@ import vn.vibefix.shared.IdGenerator;
 import vn.vibefix.shared.WorkItemKey;
 
 /**
- * The Boards and their Work Items (FR-22, AD-33): a Board is created once per Job at J7 with its Job
- * code, and seeding adds one Story per Acceptance Criterion in force that the Board does not have yet,
- * numbered after the Board's last key. Both run under the Product lock and the Board row lock, so
- * seeding twice or at the same time adds nothing.
+ * The Boards and their Work Items (FR-22, FR-23, AD-33): a Board is created once per Job at J7 with
+ * its Job code, and seeding adds one Story per Acceptance Criterion in force that the Board does not
+ * have yet, numbered after the Board's last key, each with its {@code SEEDED} history entry. Both run
+ * under the Product lock and the Board row lock, so seeding twice or at the same time adds nothing.
  */
 @Component
 class Boards {
+
+	static final JsonMapper JSON = JsonMapper.builder().build();
 
 	enum Type {
 		STORY, TASK, BUG
@@ -41,19 +48,38 @@ class Boards {
 		TODO, IN_PROGRESS, IN_REVIEW, DONE
 	}
 
+	enum Priority {
+		HIGH, MEDIUM, LOW
+	}
+
 	record Board(UUID jobId, UUID productId, String code) {
+	}
+
+	/** One line of a Work Item's criteria checklist. */
+	record ChecklistLine(String text, boolean done) {
 	}
 
 	/** One Work Item; {@code criterionId} is set only on a seeded Story. */
 	record Item(UUID id, UUID jobId, WorkItemKey key, Type type, String title, String description,
-			@Nullable UUID criterionId, @Nullable UUID milestoneId, Status status, @Nullable UUID assigneeId, long version,
-			Instant createdAt) {
+			List<ChecklistLine> checklist, @Nullable UUID criterionId, @Nullable UUID milestoneId, Status status,
+			@Nullable UUID assigneeId, @Nullable Priority priority, @Nullable BigDecimal estimateHours,
+			@Nullable UUID createdBy, long version, Instant createdAt) {
+
+		Item {
+			checklist = List.copyOf(checklist);
+		}
 
 		boolean seeded() {
 			return this.criterionId != null;
 		}
 
 	}
+
+	static final String ITEM_COLUMNS = """
+			w.id, w.job_id, b.code, w.number, w.type, w.title, w.description, w.checklist::text AS checklist,
+			w.criterion_id, w.milestone_id, w.status, w.assignee_account_id, w.priority, w.estimate_hours,
+			w.created_by_account_id, w.version, w.created_at
+			""";
 
 	private final JdbcClient jdbc;
 
@@ -99,39 +125,64 @@ class Boards {
 		Set<UUID> seeded = new HashSet<>(this.jdbc.sql("""
 				SELECT criterion_id FROM work.work_item WHERE job_id = :job AND criterion_id IS NOT NULL
 				""").param("job", jobId).query(UUID.class).list());
-		int next = this.jdbc.sql("SELECT next_number FROM work.board WHERE job_id = :job")
-			.param("job", jobId)
-			.query(Integer.class)
-			.single();
 		int added = 0;
 		Timestamp now = Timestamp.from(this.clock.instant());
 		for (CriterionInForce criterion : inForce.criteria()) {
 			if (seeded.contains(criterion.criterionId())) {
 				continue;
 			}
+			UUID id = this.ids.newId();
+			int number = nextNumber(jobId);
 			this.jdbc.sql("""
 					INSERT INTO work.work_item (id, job_id, number, type, title, description, criterion_id, milestone_id,
 					    created_at, updated_at)
 					VALUES (:id, :job, :number, 'STORY', :title, :description, :criterion, :milestone, :now, :now)
 					""")
-				.param("id", this.ids.newId())
+				.param("id", id)
 				.param("job", jobId)
-				.param("number", next + added)
+				.param("number", number)
 				.param("title", criterion.statement())
 				.param("description", criterion.checkSteps())
 				.param("criterion", criterion.criterionId())
 				.param("milestone", criterion.milestoneId())
 				.param("now", now)
 				.update();
+			Map<String, Object> changes = new LinkedHashMap<>();
+			changes.put("criterionId", Map.of("to", criterion.criterionId().toString()));
+			history(id, jobId, null, "SEEDED", changes, null);
 			added++;
 		}
-		if (added > 0) {
-			this.jdbc.sql("UPDATE work.board SET next_number = next_number + :added WHERE job_id = :job")
-				.param("added", added)
-				.param("job", jobId)
-				.update();
-		}
 		return added;
+	}
+
+	/** Takes the Board's next key number; the Board row is locked for the rest of the transaction. */
+	int nextNumber(UUID jobId) {
+		return this.jdbc.sql("""
+				UPDATE work.board SET next_number = next_number + 1 WHERE job_id = :job RETURNING next_number - 1
+				""").param("job", jobId).query(Integer.class).single();
+	}
+
+	/**
+	 * Appends a history entry (AD-39): who, what changed from what to what, and the assignee it gave.
+	 * @return the entry's ID
+	 */
+	UUID history(UUID itemId, UUID jobId, @Nullable UUID actor, String action, Map<String, Object> changes,
+			@Nullable UUID assignedTo) {
+		UUID id = this.ids.newId();
+		this.jdbc.sql("""
+				INSERT INTO work.work_item_history (id, work_item_id, job_id, actor_account_id, action, changes, assigned_to, at)
+				VALUES (:id, :item, :job, :actor, :action, CAST(:changes AS JSONB), :assigned, :now)
+				""")
+			.param("id", id)
+			.param("item", itemId)
+			.param("job", jobId)
+			.param("actor", actor)
+			.param("action", action)
+			.param("changes", JSON.writeValueAsString(changes))
+			.param("assigned", assignedTo)
+			.param("now", Timestamp.from(this.clock.instant()))
+			.update();
+		return id;
 	}
 
 	@Transactional(readOnly = true)
@@ -145,11 +196,29 @@ class Boards {
 	/** The Board's Work Items in key order. */
 	@Transactional(readOnly = true)
 	List<Item> items(Board board) {
-		return this.jdbc.sql("""
-				SELECT id, job_id, number, type, title, description, criterion_id, milestone_id, status, assignee_account_id,
-				       version, created_at
-				FROM work.work_item WHERE job_id = :job ORDER BY number
-				""").param("job", board.jobId()).query((rs, n) -> item(rs, board.code())).list();
+		return this.jdbc.sql("SELECT " + ITEM_COLUMNS
+				+ " FROM work.work_item w JOIN work.board b ON b.job_id = w.job_id WHERE w.job_id = :job ORDER BY w.number")
+			.param("job", board.jobId())
+			.query(Boards::item)
+			.list();
+	}
+
+	@Transactional(readOnly = true)
+	Optional<Item> item(UUID itemId) {
+		return this.jdbc.sql("SELECT " + ITEM_COLUMNS
+				+ " FROM work.work_item w JOIN work.board b ON b.job_id = w.job_id WHERE w.id = :id")
+			.param("id", itemId)
+			.query(Boards::item)
+			.optional();
+	}
+
+	/** The Work Item, locked for the rest of the transaction. */
+	Optional<Item> lockItem(UUID itemId) {
+		return this.jdbc.sql("SELECT " + ITEM_COLUMNS
+				+ " FROM work.work_item w JOIN work.board b ON b.job_id = w.job_id WHERE w.id = :id FOR UPDATE OF w")
+			.param("id", itemId)
+			.query(Boards::item)
+			.optional();
 	}
 
 	private Optional<Board> lock(UUID jobId) {
@@ -181,12 +250,16 @@ class Boards {
 		return new Board(rs.getObject("job_id", UUID.class), rs.getObject("product_id", UUID.class), rs.getString("code"));
 	}
 
-	private static Item item(ResultSet rs, String code) throws SQLException {
+	static Item item(ResultSet rs, int n) throws SQLException {
+		String priority = rs.getString("priority");
 		return new Item(rs.getObject("id", UUID.class), rs.getObject("job_id", UUID.class),
-				new WorkItemKey(code, rs.getInt("number")), Type.valueOf(rs.getString("type")), rs.getString("title"),
-				rs.getString("description"), rs.getObject("criterion_id", UUID.class),
-				rs.getObject("milestone_id", UUID.class), Status.valueOf(rs.getString("status")),
-				rs.getObject("assignee_account_id", UUID.class), rs.getLong("version"),
+				new WorkItemKey(rs.getString("code"), rs.getInt("number")), Type.valueOf(rs.getString("type")),
+				rs.getString("title"), rs.getString("description"),
+				JSON.readValue(rs.getString("checklist"), new TypeReference<List<ChecklistLine>>() {
+				}), rs.getObject("criterion_id", UUID.class), rs.getObject("milestone_id", UUID.class),
+				Status.valueOf(rs.getString("status")), rs.getObject("assignee_account_id", UUID.class),
+				priority == null ? null : Priority.valueOf(priority), rs.getBigDecimal("estimate_hours"),
+				rs.getObject("created_by_account_id", UUID.class), rs.getLong("version"),
 				rs.getTimestamp("created_at").toInstant());
 	}
 

@@ -1,103 +1,140 @@
 package vn.vibefix.work.internal;
 
-import java.util.HashMap;
+import java.math.BigDecimal;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import vn.vibefix.job.AgreementCriteria;
-import vn.vibefix.job.AgreementCriteria.CriteriaInForce;
-import vn.vibefix.job.AgreementCriteria.CriterionInForce;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import vn.vibefix.shared.Access;
+import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.CurrentCaller;
+import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
+import vn.vibefix.work.internal.Boards.ChecklistLine;
 import vn.vibefix.work.internal.Boards.Item;
+import vn.vibefix.work.internal.Boards.Priority;
+import vn.vibefix.work.internal.Boards.Type;
 import vn.vibefix.work.internal.WorkAccess.BoardViewer;
+import vn.vibefix.work.internal.WorkItems.Draft;
+import vn.vibefix.work.internal.WorkItems.Resolution;
+import vn.vibefix.work.internal.WorkViews.BoardView;
+import vn.vibefix.work.internal.WorkViews.WorkItemDetailView;
 
 /**
- * JOB-2 "Bảng công việc" (FR-22, FR-23, AD-33, UX-DR36): the Board of an Active Job, keyed by the Job,
- * for its Mentor and its active Crew. Each Work Item carries its key; a seeded Story names the
- * criterion it came from.
+ * JOB-2 "Bảng công việc" (FR-22, FR-23, AD-33, AD-39, UX-DR36): the Board of an Active Job, keyed by the
+ * Job, and its Work Items. The Mentor and the active Crew read and write; a former member and a
+ * granted Administrator read what they may; everyone else finds nothing. Every edit carries the Work
+ * Item's version and passes the FR-47 check.
  */
 @RestController
 @Access(Gate.SIGNED_IN)
 class BoardController {
 
-	record BoardMilestoneView(UUID milestoneId, int number, String title) {
+	record ChecklistLineRequest(@NotNull @Size(max = 300) String text, boolean done) {
 	}
 
 	/**
-	 * The criterion a seeded Story came from.
-	 * @param milestoneNumber its Milestone's number
-	 * @param number its number within the Milestone
+	 * The fields of a Work Item, sent in full on every save.
+	 * @param version the version the edit was made on; only for an edit
+	 * @param sensitive {@code CHECK} first; {@code MASK} after the FR-47 warning
 	 */
-	record CriterionLinkView(UUID criterionId, int milestoneNumber, int number) {
-	}
+	record WorkItemRequest(@NotNull Type type, @NotBlank @Size(max = 500) String title,
+			@Nullable @Size(max = 4000) String description, @Nullable @Size(max = 20) List<@Valid ChecklistLineRequest> checklist,
+			@NotNull UUID milestoneId, @Nullable Priority priority,
+			@Nullable @DecimalMin("0.5") @DecimalMax("999") BigDecimal estimateHours, @Nullable UUID assigneeId,
+			@Nullable Long version, @Nullable Resolution sensitive) {
 
-	/**
-	 * One Work Item on the Board.
-	 * @param key {@code {JOBCODE}-{n}}, for commit messages
-	 * @param seeded seeded from a criterion: the criterion link, type, and Milestone are read-only
-	 */
-	record WorkItemCardView(UUID id, String key, String type, String title, String description, String status,
-			@Nullable UUID milestoneId, @Nullable CriterionLinkView criterion, boolean seeded, @Nullable UUID assigneeId,
-			long version) {
-	}
+		Draft draft() {
+			if (this.estimateHours != null && this.estimateHours.remainder(new BigDecimal("0.5")).signum() != 0) {
+				throw new ApiException(ErrorCode.VALIDATION);
+			}
+			List<ChecklistLine> lines = this.checklist == null ? List.of()
+					: this.checklist.stream()
+						.filter(line -> !line.text().isBlank())
+						.map(line -> new ChecklistLine(line.text().strip(), line.done()))
+						.toList();
+			return new Draft(this.type, this.title.strip(), this.description == null ? "" : this.description.strip(), lines,
+					this.milestoneId, this.priority, this.estimateHours, this.assigneeId);
+		}
 
-	/**
-	 * The Board: its Job code, the Milestones in force, and the Work Items in key order.
-	 * @param title the Job's title
-	 * @param mentor whether the viewer is the Job's Mentor
-	 */
-	record BoardView(UUID boardId, String title, String code, boolean mentor, List<BoardMilestoneView> milestones,
-			List<WorkItemCardView> items) {
+		Resolution resolution() {
+			return this.sensitive == null ? Resolution.CHECK : this.sensitive;
+		}
+
 	}
 
 	private final Boards boards;
 
 	private final WorkAccess access;
 
-	private final AgreementCriteria criteria;
+	private final WorkReads reads;
+
+	private final WorkItems items;
+
+	private final WorkViews views;
 
 	private final CurrentCaller callers;
 
-	BoardController(Boards boards, WorkAccess access, AgreementCriteria criteria, CurrentCaller callers) {
+	BoardController(Boards boards, WorkAccess access, WorkReads reads, WorkItems items, WorkViews views,
+			CurrentCaller callers) {
 		this.boards = boards;
 		this.access = access;
-		this.criteria = criteria;
+		this.reads = reads;
+		this.items = items;
+		this.views = views;
 		this.callers = callers;
 	}
 
-	/** The Board of the Job {@code boardId} (a Board's ID is its Job's). */
+	/** The Board of the Job {@code boardId} (a Board's ID is its Job's), as the viewer may see it. */
 	@GetMapping("/api/v1/boards/{boardId}/work-items")
 	BoardView workItems(@PathVariable UUID boardId) {
 		BoardViewer viewer = this.access.reader(boardId, this.callers.get());
-		CriteriaInForce inForce = this.criteria.inForce(viewer.board().jobId()).orElse(null);
-		Map<UUID, CriterionInForce> criteria = new HashMap<>();
-		List<BoardMilestoneView> milestones = List.of();
-		if (inForce != null) {
-			inForce.criteria().forEach(criterion -> criteria.put(criterion.criterionId(), criterion));
-			milestones = inForce.milestones()
-				.stream()
-				.map(milestone -> new BoardMilestoneView(milestone.milestoneId(), milestone.number(), milestone.title()))
-				.toList();
-		}
-		List<WorkItemCardView> items = this.boards.items(viewer.board()).stream().map(item -> view(item, criteria)).toList();
-		return new BoardView(viewer.board().jobId(), viewer.title(), viewer.board().code(), viewer.mentor(), milestones, items);
+		return this.views.board(viewer, this.reads.items(viewer));
 	}
 
-	private static WorkItemCardView view(Item item, Map<UUID, CriterionInForce> criteria) {
-		CriterionInForce criterion = item.criterionId() == null ? null : criteria.get(item.criterionId());
-		return new WorkItemCardView(item.id(), item.key().toString(), item.type().name(), item.title(), item.description(),
-				item.status().name(), item.milestoneId(),
-				criterion == null ? null
-						: new CriterionLinkView(criterion.criterionId(), criterion.milestoneNumber(), criterion.number()),
-				item.seeded(), item.assigneeId(), item.version());
+	/** "Thêm việc": a new Work Item, keyed after the Board's last (FR-23). */
+	@PostMapping("/api/v1/boards/{boardId}/work-items")
+	@ResponseStatus(HttpStatus.CREATED)
+	WorkItemDetailView createWorkItem(@PathVariable UUID boardId, @Valid @RequestBody WorkItemRequest body) {
+		BoardViewer writer = this.access.writer(boardId, this.callers.get());
+		Item created = this.items.create(writer, body.draft(), body.resolution());
+		return this.views.detail(writer, created, this.reads.historyOf(writer, created.id()));
+	}
+
+	/** One Work Item with its history, as the viewer may see it. */
+	@GetMapping("/api/v1/work-items/{workItemId}")
+	WorkItemDetailView workItem(@PathVariable UUID workItemId) {
+		Item item = this.boards.item(workItemId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		BoardViewer viewer = this.access.reader(item.jobId(), this.callers.get());
+		Item seen = this.reads.item(viewer, item);
+		return this.views.detail(viewer, seen, this.reads.historyOf(viewer, item.id()));
+	}
+
+	/** Saves an edit made on {@code version}; a newer version answers {@code STALE} (AD-23). */
+	@PutMapping("/api/v1/work-items/{workItemId}")
+	WorkItemDetailView updateWorkItem(@PathVariable UUID workItemId, @Valid @RequestBody WorkItemRequest body) {
+		Item item = this.boards.item(workItemId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		BoardViewer writer = this.access.writer(item.jobId(), this.callers.get());
+		if (body.version() == null) {
+			throw new ApiException(ErrorCode.VALIDATION);
+		}
+		Item updated = this.items.update(writer, workItemId, body.version(), body.draft(), body.resolution());
+		return this.views.detail(writer, updated, this.reads.historyOf(writer, updated.id()));
 	}
 
 }
