@@ -6839,6 +6839,9 @@
       "JobProgressView" : {
         "type" : "object",
         "properties" : {
+          "assessment" : {
+            "type" : "boolean"
+          },
           "audience" : {
             "type" : "string"
           },
@@ -6876,6 +6879,9 @@
           "productName" : {
             "type" : "string"
           },
+          "sourceRepositoryUrl" : {
+            "type" : "string"
+          },
           "state" : {
             "type" : "string"
           },
@@ -6883,7 +6889,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "audience", "boardId", "crew", "mentorName", "milestones", "mine", "pages", "productName", "state", "title" ]
+        "required" : [ "assessment", "audience", "boardId", "crew", "mentorName", "milestones", "mine", "pages", "productName", "state", "title" ]
       },
       "JobSummaryView" : {
         "type" : "object",

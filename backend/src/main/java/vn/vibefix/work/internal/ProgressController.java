@@ -38,8 +38,9 @@ import vn.vibefix.work.internal.WorkAccess.Kind;
  * JOB-1's progress (FR-28, AD-33, AD-39, UX-DR68): per Milestone of the Agreement in force its live
  * state, price, due date, and {@code {done}/{total}} from {@code work.criteriaDone} only; the
  * customer-visible Pages; for the Mentor the Crew with each member's open Work Items, and for a Crew
- * member their own. The Job's Customer, its Mentor, and its active Crew read it; the Customer's answer
- * holds no Work Item. Everyone else finds nothing.
+ * member their own; for the Mentor and the Crew of an Assessment Job, the public Source Repository they
+ * read (FR-10). The Job's Customer, its Mentor, and its active Crew read it; the Customer's answer holds
+ * no Work Item and no repository link. Everyone else finds nothing.
  */
 @RestController
 @Access(Gate.SIGNED_IN)
@@ -69,10 +70,12 @@ class ProgressController {
 	 * @param audience {@code CUSTOMER}, {@code MENTOR}, or {@code CREW}
 	 * @param crew the active Crew with their open Work Items, for the Mentor only
 	 * @param mine the viewer's own open Work Items, for a Crew member only
+	 * @param assessment an Assessment Job (FR-10), for the Mentor and the Crew; {@code false} for the Customer
+	 * @param sourceRepositoryUrl the public Source Repository of an Assessment Job, for the Mentor and the Crew
 	 */
 	record JobProgressView(UUID boardId, String title, String state, String productName, String mentorName,
 			String audience, List<MilestoneProgressView> milestones, List<PageLinkView> pages,
-			List<CrewProgressView> crew, List<OpenItemView> mine) {
+			List<CrewProgressView> crew, List<OpenItemView> mine, boolean assessment, @Nullable String sourceRepositoryUrl) {
 	}
 
 	private final WorkAccess access;
@@ -145,11 +148,13 @@ class ProgressController {
 			}
 		}
 		List<OpenItemView> mine = viewer.kind() == Kind.CREW ? openItems(viewer, viewer.accountId()) : List.of();
-		String product = this.products.find(viewer.board().productId()).map(ProductInfo::name).orElse("");
+		ProductInfo info = this.products.find(viewer.board().productId()).orElse(null);
 		String mentor = this.mentors.cards(List.of(viewer.mentorId())).stream().findFirst().map(MentorCard::displayName)
 			.orElse("");
-		return new JobProgressView(boardId, viewer.title(), viewer.jobState(), product, mentor, viewer.kind().name(),
-				milestones, pages, crew, mine);
+		boolean assessment = viewer.kind() != Kind.CUSTOMER && viewer.assessment();
+		String repository = assessment && info != null ? "https://github.com/" + info.repositoryFullName() : null;
+		return new JobProgressView(boardId, viewer.title(), viewer.jobState(), info == null ? "" : info.name(), mentor,
+				viewer.kind().name(), milestones, pages, crew, mine, assessment, repository);
 	}
 
 	private int inReview(UUID jobId, UUID milestoneId) {

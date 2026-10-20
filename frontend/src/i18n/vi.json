@@ -2197,7 +2197,8 @@
       "mentor": "Người hướng dẫn: {name}",
       "member": "Nhóm thực hiện: {name}",
       "product": "Sản phẩm",
-      "nextAction": "Việc cần làm cho công việc này"
+      "nextAction": "Việc cần làm cho công việc này",
+      "sourceRepository": "Mở mã nguồn trên GitHub"
     }
   },
   "notice": {

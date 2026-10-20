@@ -1,9 +1,12 @@
 # FR-30: the Page templates of the Documentation Space, each with its default title and a Markdown
 # skeleton in plain Vietnamese (UX-DR8). A Page created from one keeps the template as its badge, and a
 # blank body takes the skeleton. The Assessment Report carries FR-10's six sections, "Những gì còn
-# thiếu" as the nine-item checklist; it is offered only on an Assessment Job, once, and is always
-# customer-visible (FR-31). The N-12 notice is shown by the SPA, never written into the report.
-version: 1
+# thiếu" as the nine-item checklist marked Đã kiểm tra, Phát hiện, or Không áp dụng; {openFindings} is
+# replaced at creation with the Product's open Findings from scanning (type, file, masked value only,
+# FR-8); its recommendations are numbered so follow-up Jobs can cite them (FR-11). It is offered only
+# on an Assessment Job, once, and is always customer-visible (FR-31). The N-12 notice is shown by the
+# SPA, never written into the report.
+version: 2
 templates:
   ASSESSMENT_REPORT:
     title: Báo cáo đánh giá
@@ -20,7 +23,7 @@ templates:
 
       ## Những gì còn thiếu
 
-      Đánh dấu từng mục là **Đã kiểm tra**, **Có vấn đề**, hoặc **Không áp dụng**, và giải thích mục có vấn đề.
+      Đánh dấu từng mục là **Đã kiểm tra**, **Phát hiện**, hoặc **Không áp dụng**, và giải thích mục được đánh dấu Phát hiện.
 
       - Kiểm soát truy cập và phân quyền:
       - Chèn mã độc vào dữ liệu nhập và vào trang:
@@ -36,9 +39,11 @@ templates:
 
       Các vấn đề còn mở từ lần kiểm tra khóa bí mật và dữ liệu cá nhân của sản phẩm, mỗi vấn đề với cách xử lý đề nghị.
 
+      {openFindings}
+
       ## Đề xuất
 
-      Xếp theo thứ tự ưu tiên, việc quan trọng nhất ở đầu. Mỗi đề xuất có lý do và ước lượng công sức.
+      Xếp theo thứ tự ưu tiên, việc quan trọng nhất ở đầu. Mỗi đề xuất có lý do và ước lượng công sức. Giữ số thứ tự của từng đề xuất: công việc tiếp theo sẽ dẫn lại đề xuất theo số và phiên bản báo cáo.
 
       1.
 

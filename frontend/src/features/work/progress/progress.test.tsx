@@ -35,6 +35,7 @@ const progress = (overrides: object = {}) => ({
   pages: [{ id: 'p1', title: 'Hướng dẫn sử dụng' }],
   crew: [],
   mine: [],
+  assessment: false,
   ...overrides,
 })
 
@@ -109,6 +110,22 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
     expect(screen.queryByRole('heading', { name: 'Nhóm thực hiện' })).toBeNull()
     expect(screen.queryByRole('heading', { name: 'Việc của tôi' })).toBeNull()
     expect(screen.queryByText(/phần mềm độc hại/)).toBeNull()
+    expect(screen.queryByRole('link', { name: /Mở mã nguồn trên GitHub/ })).toBeNull()
+  })
+
+  it('links the Mentor of an Assessment Job to the Source Repository with N-12 (FR-10)', { timeout: 20_000 }, async () => {
+    fakeBackend(signedIn('MENTOR'), {
+      'GET /api/v1/mentor/jobs/j1': () => json({ ...mentorJob, jobTypes: ['ASSESSMENT'] }),
+      'GET /api/v1/boards/j1/progress': () =>
+        json(progress({ audience: 'MENTOR', assessment: true, sourceRepositoryUrl: 'https://github.com/lan/so-dat-ban' })),
+    })
+    renderAt('/cong-viec/j1')
+
+    const repository = await screen.findByRole('link', { name: /Mở mã nguồn trên GitHub/ })
+    expect(repository).toHaveAttribute('href', 'https://github.com/lan/so-dat-ban')
+    expect(repository).toHaveAttribute('target', '_blank')
+    expect(repository).toHaveAttribute('rel', 'noopener noreferrer nofollow')
+    expect(screen.getByText(/có thể chứa phần mềm độc hại/)).toBeInTheDocument()
   })
 
   it('adds the Crew and their open Work Items for the Mentor', { timeout: 20_000 }, async () => {
