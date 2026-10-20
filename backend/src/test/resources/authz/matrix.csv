@@ -706,6 +706,23 @@ POST /api/v1/crew-chats/{crewChatId}/read,CREW_ACTIVE,,,204
 POST /api/v1/crew-chats/{crewChatId}/read,CREW_INACTIVE,,,204
 POST /api/v1/crew-chats/{crewChatId}/read,CREW_FORMER,,,204
 POST /api/v1/crew-chats/{crewChatId}/read,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
+# The Board (FR-22, FR-28, AD-39, AD-41): the Job's Mentor and ACTIVE Crew members read it; the Customer,
+# an ASSIGNED, INACTIVE, or former member, everyone else, and Administrators find nothing (Story 5.2 opens
+# the windowed reads and the grants).
+GET /api/v1/boards/{boardId}/work-items,ANONYMOUS,,,401
+GET /api/v1/boards/{boardId}/work-items,OWNER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/work-items,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/work-items,MENTOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/work-items,STUDENT,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/work-items,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/work-items,TEAM_MENTOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/work-items,TEAM_MEMBER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/work-items,CREW_ASSIGNED,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/work-items,CREW_INACTIVE,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/work-items,CREW_FORMER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/work-items,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/work-items,JOB_MENTOR,,,200
+GET /api/v1/boards/{boardId}/work-items,CREW_ACTIVE,,,200
 GET /api/v1/mentor/jobs/{jobId}/agreement,ANONYMOUS,,,401,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/agreement,MENTOR,,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/agreement,MENTOR,mentor=PENDING,,404 NOT_FOUND,requireActiveAccount

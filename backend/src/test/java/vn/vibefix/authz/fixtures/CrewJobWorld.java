@@ -32,6 +32,7 @@ import vn.vibefix.team.internal.TeamTestSupport;
  * the last two with a window that ended before the {@code CREW_CHAT} canary was written;</li>
  * <li>{@link MatrixCaller#ADMIN_TEAM_ISSUE_GRANT}, an Administrator holding a grant on the Crew Chat.</li>
  * </ul>
+ * It also seeds the Job's Board ({@code {boardId}}) with one seeded Story.
  */
 final class CrewJobWorld {
 
@@ -106,6 +107,21 @@ final class CrewJobWorld {
 			.param("reason", UUID.randomUUID())
 			.update();
 		world.put("crewChatId", chat);
+		this.jdbc.sql("""
+				INSERT INTO work.board (job_id, product_id, code, next_number, created_at) VALUES (:job, :product, 'VNM', 2, :now)
+				""").param("job", job).param("product", product).param("now", now).update();
+		this.jdbc.sql("""
+				INSERT INTO work.work_item (id, job_id, number, type, title, description, criterion_id, milestone_id, created_at,
+				    updated_at)
+				VALUES (:id, :job, 1, 'STORY', 'Hai khách không đặt trùng bàn', '1. Mở. 2. Đặt.', :criterion, :milestone, :now, :now)
+				""")
+			.param("id", UUID.randomUUID())
+			.param("job", job)
+			.param("criterion", UUID.randomUUID())
+			.param("milestone", UUID.randomUUID())
+			.param("now", now)
+			.update();
+		world.put("boardId", job);
 	}
 
 	Optional<RequestPostProcessor> realize(MatrixCaller caller) {

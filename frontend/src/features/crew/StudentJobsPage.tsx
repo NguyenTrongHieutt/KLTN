@@ -10,6 +10,7 @@ import { buttonVariants } from '@/components/ui/button-variants'
 import { NDA_VERSION } from '@/features/matching/nda'
 import { CommitEmailNotice, NdaText } from '@/features/matching/NdaText'
 import { ConfirmDialog } from '@/features/team/ConfirmDialog'
+import { hasBoard } from '@/features/work/workApi'
 import { useStudentTeam } from '@/features/team/teamApi'
 import { TestTag } from '@/components/TestTag'
 import { t } from '@/i18n/t'
@@ -273,6 +274,14 @@ function JoinedCard({ assignment }: { assignment: CrewAssignment }) {
         </p>
       )}
       <div className="flex flex-wrap gap-2">
+        {!inactive && hasBoard(assignment.jobState) && (
+          <Link
+            to={`/cong-viec/${assignment.jobId}/bang`}
+            className={buttonVariants({ variant: 'secondary', size: 'compact' })}
+          >
+            {t('screen.board.tab')}
+          </Link>
+        )}
         <Link
           to={`/cong-viec/${assignment.jobId}/trao-doi-nhom`}
           className={buttonVariants({ variant: 'secondary', size: 'compact' })}

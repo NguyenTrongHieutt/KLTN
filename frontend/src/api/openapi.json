@@ -480,6 +480,33 @@
         "tags" : [ "payment-history-controller" ]
       }
     },
+    "/api/v1/boards/{boardId}/work-items" : {
+      "get" : {
+        "operationId" : "workItems",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BoardView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "board-controller" ]
+      }
+    },
     "/api/v1/catalog" : {
       "get" : {
         "operationId" : "catalog",
@@ -4557,6 +4584,54 @@
         },
         "required" : [ "balanceVnd", "lines", "releases" ]
       },
+      "BoardMilestoneView" : {
+        "type" : "object",
+        "properties" : {
+          "milestoneId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "milestoneId", "number", "title" ]
+      },
+      "BoardView" : {
+        "type" : "object",
+        "properties" : {
+          "boardId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "code" : {
+            "type" : "string"
+          },
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/WorkItemCardView"
+            }
+          },
+          "mentor" : {
+            "type" : "boolean"
+          },
+          "milestones" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/BoardMilestoneView"
+            }
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "boardId", "code", "items", "mentor", "milestones", "title" ]
+      },
       "CapacityView" : {
         "type" : "object",
         "properties" : {
@@ -4887,6 +4962,9 @@
             "type" : "string",
             "format" : "uuid"
           },
+          "jobState" : {
+            "type" : "string"
+          },
           "mentorName" : {
             "type" : "string"
           },
@@ -4924,7 +5002,7 @@
             "format" : "date-time"
           }
         },
-        "required" : [ "codeJob", "commitEmailNoticeAcknowledged", "jobId", "mentorName", "milestones", "productName", "scope", "signed", "status", "title", "versionNo" ]
+        "required" : [ "codeJob", "commitEmailNoticeAcknowledged", "jobId", "jobState", "mentorName", "milestones", "productName", "scope", "signed", "status", "title", "versionNo" ]
       },
       "CrewCandidateView" : {
         "type" : "object",
@@ -5232,6 +5310,24 @@
           }
         },
         "required" : [ "checkSteps", "id", "statement" ]
+      },
+      "CriterionLinkView" : {
+        "type" : "object",
+        "properties" : {
+          "criterionId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "milestoneNumber" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "criterionId", "milestoneNumber", "number" ]
       },
       "CriterionRequest" : {
         "type" : "object",
@@ -8794,6 +8890,49 @@
           }
         },
         "required" : [ "sharedAt", "versionNo" ]
+      },
+      "WorkItemCardView" : {
+        "type" : "object",
+        "properties" : {
+          "assigneeId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "criterion" : {
+            "$ref" : "#/components/schemas/CriterionLinkView"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "key" : {
+            "type" : "string"
+          },
+          "milestoneId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "seeded" : {
+            "type" : "boolean"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "type" : {
+            "type" : "string"
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "description", "id", "key", "seeded", "status", "title", "type", "version" ]
       }
     }
   }

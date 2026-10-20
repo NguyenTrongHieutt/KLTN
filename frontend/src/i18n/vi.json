@@ -1957,6 +1957,30 @@
       "empty": "Chưa có tin nhắn. Hãy chào nhóm và chia việc.",
       "formerNote": "Bạn không còn làm trong nhóm này. Bạn chỉ xem được các tin nhắn trong thời gian bạn tham gia.",
       "back": "← Công việc của tôi"
+    },
+    "board": {
+      "tab": "Bảng công việc",
+      "title": "Bảng công việc · {job}",
+      "seededLead": "Mỗi tiêu chí nghiệm thu trong thỏa thuận là một Story trên bảng. Tiêu chí, loại và giai đoạn của các Story này không đổi được.",
+      "status": {
+        "TODO": "Cần làm",
+        "IN_PROGRESS": "Đang làm",
+        "IN_REVIEW": "Chờ duyệt",
+        "DONE": "Xong"
+      },
+      "emptyColumn": "Chưa có việc nào.",
+      "copy": "Sao chép mã {key}",
+      "copied": "Đã sao chép {key}",
+      "copyFailed": "Không sao chép được. Hãy chọn mã và sao chép bằng tay.",
+      "type": {
+        "STORY": "Story",
+        "TASK": "Task",
+        "BUG": "Bug"
+      },
+      "criterion": "Tiêu chí {m}.{n}",
+      "criterionLink": "{label}: xem trong thỏa thuận",
+      "milestone": "Giai đoạn {n}",
+      "unassigned": "Chưa giao"
     }
   },
   "notice": {

@@ -118,9 +118,11 @@ class CrewController {
 
 	/**
 	 * STU-4's assignment panel: the assignment projection (AD-41), the Student's own share only.
+	 * @param jobState the Job's state, so STU-4 links to the Board once the Job is Active
 	 * @param signed the Student already signed this Job's NDA
 	 */
-	record CrewAssignmentView(UUID jobId, String title, String productName, String mentorName, String status, String scope,
+	record CrewAssignmentView(UUID jobId, String title, String jobState, String productName, String mentorName, String status,
+			String scope,
 			List<CrewAssignmentMilestoneView> milestones, @Nullable Integer sharePercent, int versionNo,
 			@Nullable Instant versionSentAt, boolean signed, boolean codeJob, boolean commitEmailNoticeAcknowledged) {
 	}
@@ -240,7 +242,7 @@ class CrewController {
 		}
 		String mentorName = job.mentorId() == null ? ""
 				: this.mentors.cards(List.of(job.mentorId())).stream().findFirst().map(MentorCard::displayName).orElse("");
-		return new CrewAssignmentView(job.id(), job.title(),
+		return new CrewAssignmentView(job.id(), job.title(), job.state().name(),
 				this.products.find(job.productId()).map(ProductInfo::name).orElse(""), mentorName, row.status(),
 				content == null ? "" : content.scope(), milestones, percent, latest.map(TermsVersion::versionNo).orElse(0),
 				latest.map(TermsVersion::createdAt).orElse(null), row.signedAt() != null, job.code(),
