@@ -601,6 +601,232 @@
         "tags" : [ "student-cards-controller" ]
       }
     },
+    "/api/v1/admin/users" : {
+      "get" : {
+        "operationId" : "users",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "q",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "role",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "enum" : [ "CUSTOMER", "MENTOR", "STUDENT", "ADMINISTRATOR" ]
+          }
+        }, {
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "enum" : [ "LOCKED", "VERIFIED", "PENDING", "APPROVED", "REJECTED", "REVOKED", "LOW_FEEDBACK" ]
+          }
+        }, {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 0
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UsersView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-users-controller" ]
+      }
+    },
+    "/api/v1/admin/users/{accountId}" : {
+      "get" : {
+        "operationId" : "user",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "accountId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserDetailView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-users-controller" ]
+      }
+    },
+    "/api/v1/admin/users/{accountId}/lock" : {
+      "post" : {
+        "operationId" : "lock",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "accountId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ReasonRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserDetailView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-users-controller" ]
+      }
+    },
+    "/api/v1/admin/users/{accountId}/revoke-approval" : {
+      "post" : {
+        "operationId" : "revokeApproval",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "accountId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RevokeApprovalRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserDetailView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-users-controller" ]
+      }
+    },
+    "/api/v1/admin/users/{accountId}/revoke-verification" : {
+      "post" : {
+        "operationId" : "revokeVerification",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "accountId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ReasonRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserDetailView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-users-controller" ]
+      }
+    },
+    "/api/v1/admin/users/{accountId}/unlock" : {
+      "post" : {
+        "operationId" : "unlock",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "accountId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ReasonRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserDetailView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-users-controller" ]
+      }
+    },
     "/api/v1/balance" : {
       "get" : {
         "operationId" : "balance",
@@ -6110,6 +6336,29 @@
         },
         "required" : [ "id", "role", "theme" ]
       },
+      "ActionView" : {
+        "type" : "object",
+        "properties" : {
+          "actedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "actedBy" : {
+            "type" : "string"
+          },
+          "action" : {
+            "type" : "string"
+          },
+          "ground" : {
+            "type" : "string",
+            "enum" : [ "OTHER", "PRIVATE_FEEDBACK" ]
+          },
+          "reason" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "actedAt", "action", "reason" ]
+      },
       "AdminDisputeDetail" : {
         "type" : "object",
         "properties" : {
@@ -8512,6 +8761,28 @@
         },
         "required" : [ "reason" ]
       },
+      "FeedbackView" : {
+        "type" : "object",
+        "properties" : {
+          "average" : {
+            "type" : "number"
+          },
+          "comments" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "count" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "enoughToAct" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "average", "comments", "count", "enoughToAct" ]
+      },
       "FindingDetailView" : {
         "type" : "object",
         "properties" : {
@@ -10878,6 +11149,9 @@
           "failedOperations" : {
             "$ref" : "#/components/schemas/Queue"
           },
+          "lowFeedback" : {
+            "$ref" : "#/components/schemas/Queue"
+          },
           "mentorApplications" : {
             "$ref" : "#/components/schemas/Queue"
           },
@@ -10888,7 +11162,7 @@
             "$ref" : "#/components/schemas/Queue"
           }
         },
-        "required" : [ "activeAdministrators", "disputes", "failedOperations", "mentorApplications", "stalledEvents", "studentCards" ]
+        "required" : [ "activeAdministrators", "disputes", "failedOperations", "lowFeedback", "mentorApplications", "stalledEvents", "studentCards" ]
       },
       "PageLinkView" : {
         "type" : "object",
@@ -12000,6 +12274,17 @@
         },
         "required" : [ "audience", "jobId", "open", "ratings", "toRate" ]
       },
+      "ReasonRequest" : {
+        "type" : "object",
+        "properties" : {
+          "reason" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "reason" ]
+      },
       "RecommendationView" : {
         "type" : "object",
         "properties" : {
@@ -12210,6 +12495,30 @@
           }
         },
         "required" : [ "action", "at", "by" ]
+      },
+      "RevokeApprovalRequest" : {
+        "type" : "object",
+        "properties" : {
+          "category" : {
+            "type" : "string",
+            "enum" : [ "RESPECT", "GUIDANCE", "RULES" ]
+          },
+          "ground" : {
+            "type" : "string",
+            "enum" : [ "OTHER", "PRIVATE_FEEDBACK" ]
+          },
+          "reason" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0
+          },
+          "stepUpCode" : {
+            "type" : "string",
+            "minLength" : 1,
+            "pattern" : "^[0-9]{6}$"
+          }
+        },
+        "required" : [ "ground", "stepUpCode" ]
       },
       "SaveRequest" : {
         "type" : "object",
@@ -13276,6 +13585,134 @@
           }
         },
         "required" : [ "path", "reason", "sizeBytes" ]
+      },
+      "UserDetailView" : {
+        "type" : "object",
+        "properties" : {
+          "approval" : {
+            "type" : "string",
+            "enum" : [ "PENDING", "APPROVED", "REJECTED", "REVOKED" ]
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "email" : {
+            "type" : "string"
+          },
+          "feedback" : {
+            "$ref" : "#/components/schemas/FeedbackView"
+          },
+          "githubLogin" : {
+            "type" : "string"
+          },
+          "history" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ActionView"
+            }
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "lockReason" : {
+            "type" : "string"
+          },
+          "lockedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "role" : {
+            "type" : "string",
+            "enum" : [ "CUSTOMER", "MENTOR", "STUDENT", "ADMINISTRATOR" ]
+          },
+          "signedInAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "verification" : {
+            "$ref" : "#/components/schemas/UserVerificationView"
+          }
+        },
+        "required" : [ "createdAt", "history", "id", "role" ]
+      },
+      "UserRowView" : {
+        "type" : "object",
+        "properties" : {
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "githubLogin" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "locked" : {
+            "type" : "boolean"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "role" : {
+            "type" : "string",
+            "enum" : [ "CUSTOMER", "MENTOR", "STUDENT", "ADMINISTRATOR" ]
+          },
+          "status" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "createdAt", "id", "locked", "role" ]
+      },
+      "UserVerificationView" : {
+        "type" : "object",
+        "properties" : {
+          "current" : {
+            "type" : "boolean"
+          },
+          "method" : {
+            "type" : "string"
+          },
+          "validUntil" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "verifiedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "current", "method", "validUntil", "verifiedAt" ]
+      },
+      "UsersView" : {
+        "type" : "object",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/UserRowView"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "total" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "items", "page", "size", "total" ]
       },
       "VerificationView" : {
         "type" : "object",

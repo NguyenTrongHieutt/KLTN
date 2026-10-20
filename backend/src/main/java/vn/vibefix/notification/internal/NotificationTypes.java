@@ -112,6 +112,18 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType MENTOR_REJECTED = new NotificationType("identity.mentor_rejected",
 			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("reason"));
 
+	/** An Administrator locked the account with a reason (FR-59): email only, since its sessions are gone. */
+	static final NotificationType ACCOUNT_LOCKED = new NotificationType("identity.account_locked",
+			Set.of(Audience.SUBJECT), Channel.EMAIL_ONLY, EmailClass.TRANSACTIONAL, "alert", Set.of("reason"));
+
+	/** An Administrator revoked a Student's verification with a reason (FR-5, FR-59). */
+	static final NotificationType VERIFICATION_REVOKED = new NotificationType("identity.verification_revoked",
+			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("reason"));
+
+	/** An Administrator revoked a Mentor's approval (FR-59, FR-74); the reason is a policy category on FR-78's ground. */
+	static final NotificationType MENTOR_APPROVAL_REVOKED = new NotificationType("identity.mentor_approval_revoked",
+			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("reason"));
+
 	/** A Mentor invited a Student into their Team (FR-6): the Student, by email too. */
 	static final NotificationType TEAM_INVITATION_RECEIVED = new NotificationType("team.invitation_received",
 			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "users", Set.of("mentor"));
@@ -520,7 +532,7 @@ class NotificationTypes implements NotificationCatalog {
 	public List<NotificationType> notificationTypes() {
 		return List.of(SCHOOL_EMAIL_CODE, VERIFICATION_EXPIRING, VERIFICATION_EXPIRED, ADMIN_SIGN_IN_LOCKED,
 				ADMINISTRATOR_CREATED, ADMINISTRATOR_ENROLMENT, STUDENT_CARD_APPROVED, STUDENT_CARD_REJECTED,
-				MENTOR_APPLICATION_RECEIVED, MENTOR_APPROVED, MENTOR_REJECTED, TEAM_INVITATION_RECEIVED,
+				MENTOR_APPLICATION_RECEIVED, MENTOR_APPROVED, MENTOR_REJECTED, ACCOUNT_LOCKED, VERIFICATION_REVOKED, MENTOR_APPROVAL_REVOKED, TEAM_INVITATION_RECEIVED,
 				TEAM_INVITATION_ANSWERED, TEAM_JOIN_REQUEST_RECEIVED, TEAM_JOIN_REQUEST_ANSWERED, TEAM_RELEASED,
 				TEAM_MEMBER_LEFT, TEAM_MEMBER_REMOVED, SCANNING_INTAKE_SCAN_CLEAN, SCANNING_FINDING_OPENED,
 				JOB_POST_LAPSED, MATCHING_APPLICATION_RECEIVED, MATCHING_APPLICATION_AUTO_WITHDRAWN,

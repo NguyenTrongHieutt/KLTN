@@ -276,6 +276,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["users"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{accountId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["user"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{accountId}/lock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["lock"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{accountId}/revoke-approval": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["revokeApproval"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{accountId}/revoke-verification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["revokeVerification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{accountId}/unlock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["unlock"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/balance": {
         parameters: {
             query?: never;
@@ -2754,6 +2850,15 @@ export interface components {
             /** @enum {string} */
             theme: "LIGHT" | "DARK" | "SYSTEM";
         };
+        ActionView: {
+            /** Format: date-time */
+            actedAt: string;
+            actedBy?: string;
+            action: string;
+            /** @enum {string} */
+            ground?: "OTHER" | "PRIVATE_FEEDBACK";
+            reason: string;
+        };
         AdminDisputeDetail: {
             assigned: boolean;
             assignedToMe: boolean;
@@ -3620,6 +3725,13 @@ export interface components {
         FalsePositiveRequest: {
             reason: string;
         };
+        FeedbackView: {
+            average: number;
+            comments: string[];
+            /** Format: int32 */
+            count: number;
+            enoughToAct: boolean;
+        };
         FindingDetailView: {
             canResolve: boolean;
             cleanRepository?: components["schemas"]["CleanRepositoryView"];
@@ -4466,6 +4578,7 @@ export interface components {
             activeAdministrators: number;
             disputes: components["schemas"]["Queue"];
             failedOperations: components["schemas"]["Queue"];
+            lowFeedback: components["schemas"]["Queue"];
             mentorApplications: components["schemas"]["Queue"];
             stalledEvents: components["schemas"]["Queue"];
             studentCards: components["schemas"]["Queue"];
@@ -4889,6 +5002,9 @@ export interface components {
             ratings: components["schemas"]["RatingView"][];
             toRate: components["schemas"]["RateeView"][];
         };
+        ReasonRequest: {
+            reason: string;
+        };
         RecommendationView: {
             /** Format: int32 */
             number: number;
@@ -4963,6 +5079,14 @@ export interface components {
             by: string;
             comment?: string;
             selfCheck?: components["schemas"]["SelfCheckView"];
+        };
+        RevokeApprovalRequest: {
+            /** @enum {string} */
+            category?: "RESPECT" | "GUIDANCE" | "RULES";
+            /** @enum {string} */
+            ground: "OTHER" | "PRIVATE_FEEDBACK";
+            reason?: string;
+            stepUpCode: string;
         };
         SaveRequest: {
             externalAccess: components["schemas"]["ExternalAccessRequest"][];
@@ -5349,6 +5473,56 @@ export interface components {
             reason: string;
             /** Format: int64 */
             sizeBytes: number;
+        };
+        UserDetailView: {
+            /** @enum {string} */
+            approval?: "PENDING" | "APPROVED" | "REJECTED" | "REVOKED";
+            /** Format: date-time */
+            createdAt: string;
+            email?: string;
+            feedback?: components["schemas"]["FeedbackView"];
+            githubLogin?: string;
+            history: components["schemas"]["ActionView"][];
+            /** Format: uuid */
+            id: string;
+            lockReason?: string;
+            /** Format: date-time */
+            lockedAt?: string;
+            name?: string;
+            /** @enum {string} */
+            role: "CUSTOMER" | "MENTOR" | "STUDENT" | "ADMINISTRATOR";
+            /** Format: date-time */
+            signedInAt?: string;
+            verification?: components["schemas"]["UserVerificationView"];
+        };
+        UserRowView: {
+            /** Format: date-time */
+            createdAt: string;
+            githubLogin?: string;
+            /** Format: uuid */
+            id: string;
+            locked: boolean;
+            name?: string;
+            /** @enum {string} */
+            role: "CUSTOMER" | "MENTOR" | "STUDENT" | "ADMINISTRATOR";
+            status?: string;
+        };
+        UserVerificationView: {
+            current: boolean;
+            method: string;
+            /** Format: date */
+            validUntil: string;
+            /** Format: date-time */
+            verifiedAt: string;
+        };
+        UsersView: {
+            items: components["schemas"]["UserRowView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            total: number;
         };
         VerificationView: {
             method?: string;
@@ -5901,6 +6075,157 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StudentCardRow"];
+                };
+            };
+        };
+    };
+    users: {
+        parameters: {
+            query?: {
+                q?: string;
+                role?: "CUSTOMER" | "MENTOR" | "STUDENT" | "ADMINISTRATOR";
+                status?: "LOCKED" | "VERIFIED" | "PENDING" | "APPROVED" | "REJECTED" | "REVOKED" | "LOW_FEEDBACK";
+                page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsersView"];
+                };
+            };
+        };
+    };
+    user: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDetailView"];
+                };
+            };
+        };
+    };
+    lock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDetailView"];
+                };
+            };
+        };
+    };
+    revokeApproval: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RevokeApprovalRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDetailView"];
+                };
+            };
+        };
+    };
+    revokeVerification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDetailView"];
+                };
+            };
+        };
+    };
+    unlock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDetailView"];
                 };
             };
         };

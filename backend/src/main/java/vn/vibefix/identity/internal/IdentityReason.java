@@ -49,6 +49,21 @@ enum IdentityReason {
 	PRIVACY_NOTICE_REQUIRED,
 
 	/** A rejected Mentor saves before the 30-day wait ends; the answer's {@code date} says when it does. */
-	MENTOR_REAPPLY_TOO_SOON
+	MENTOR_REAPPLY_TOO_SOON,
+
+	/** Administrators are managed on ADM-11, never locked from ADM-2 (FR-59). */
+	ADMINISTRATOR_ACCOUNT,
+
+	/** The account is locked already. */
+	ALREADY_LOCKED,
+
+	/** The account is not locked. */
+	NOT_LOCKED,
+
+	/** The Student has no current verification to revoke. */
+	NOT_VERIFIED,
+
+	/** The Mentor is not approved, so there is nothing to revoke. */
+	NOT_APPROVED
 
 }

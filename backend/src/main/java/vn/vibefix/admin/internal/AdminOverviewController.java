@@ -14,6 +14,7 @@ import vn.vibefix.identity.Administrators;
 import vn.vibefix.identity.MentorApplicationQueue;
 import vn.vibefix.identity.StudentCardQueue;
 import vn.vibefix.operations.FailedOperations;
+import vn.vibefix.reputation.PrivateFeedback;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.Gate;
 import vn.vibefix.shared.StalledEventPublications;
@@ -43,9 +44,10 @@ class AdminOverviewController {
 	 * @param studentCards student cards waiting for a decision (FR-5, ADM-3)
 	 * @param mentorApplications Mentor applications waiting for a decision (FR-74, ADM-13)
 	 * @param disputes Disputes awaiting a decision (FR-54, ADM-4)
+	 * @param lowFeedback Mentors averaging below 3 over at least 3 private feedbacks (FR-78, ADM-2)
 	 */
 	record OverviewView(Queue failedOperations, Queue stalledEvents, long activeAdministrators, Queue studentCards,
-			Queue mentorApplications, Queue disputes) {
+			Queue mentorApplications, Queue disputes, Queue lowFeedback) {
 	}
 
 	private final FailedOperations failedOperations;
@@ -60,10 +62,13 @@ class AdminOverviewController {
 
 	private final DisputeQueue disputes;
 
+	private final PrivateFeedback privateFeedback;
+
 	AdminOverviewController(FailedOperations failedOperations, StalledEventPublications stalledEvents,
 			Administrators administrators, StudentCardQueue studentCards, MentorApplicationQueue mentorApplications,
-			DisputeQueue disputes) {
+			DisputeQueue disputes, PrivateFeedback privateFeedback) {
 		this.disputes = disputes;
+		this.privateFeedback = privateFeedback;
 		this.failedOperations = failedOperations;
 		this.stalledEvents = stalledEvents;
 		this.administrators = administrators;
@@ -76,7 +81,8 @@ class AdminOverviewController {
 		return new OverviewView(Queue.of(this.failedOperations.findAll(), FailedOperations.FailedOperation::failedAt),
 				Queue.of(this.stalledEvents.findAll(), StalledEventPublications.StalledPublication::stalledAt),
 				this.administrators.activeCount(), studentCards(), mentorApplications(),
-				Queue.of(this.disputes.awaiting(), DisputeQueue.Waiting::openedAt));
+				Queue.of(this.disputes.awaiting(), DisputeQueue.Waiting::openedAt),
+				new Queue(this.privateFeedback.belowThreshold().size(), null));
 	}
 
 	private Queue mentorApplications() {

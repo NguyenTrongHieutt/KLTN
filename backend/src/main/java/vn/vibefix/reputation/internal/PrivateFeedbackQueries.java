@@ -39,6 +39,14 @@ class PrivateFeedbackQueries implements PrivateFeedback {
 	}
 
 	@Override
+	public boolean enoughToAct(UUID mentorId) {
+		return this.jdbc.sql("""
+				SELECT count(*) >= 3 AND count(DISTINCT student_account_id) >= 2 AND count(DISTINCT job_id) >= 2
+				FROM reputation.private_feedback WHERE mentor_account_id = :mentor
+				""").param("mentor", mentorId).query(Boolean.class).single();
+	}
+
+	@Override
 	public List<Summary> belowThreshold() {
 		return summaries("", null).stream()
 			.filter(summary -> summary.count() >= THRESHOLD_COUNT && summary.average().compareTo(THRESHOLD_AVERAGE) < 0)

@@ -17,7 +17,7 @@ import vn.vibefix.support.MutableClock;
 /**
  * Mentor applications (FR-74): another Mentor's submitted application whose LinkedIn link is the
  * canary {@code CREW_LINKEDIN}, which no Mentor, Customer, or Student caller may receive, and which
- * ADM-13 decides ({@code {applicantId}}); and a new
+ * ADM-13 decides ({@code {applicantId}}) and ADM-2 shows and locks ({@code {accountId}}); and a new
  * LinkedIn handle for each row ({@code {mentorHandle}}), since a submitted application reserves its
  * profile and rows share one database.
  */
@@ -49,6 +49,7 @@ public class MentorApplicationFixture implements MatrixFixture {
 			.param("now", now)
 			.update();
 		world.put("applicantId", other);
+		world.put("accountId", other);
 		world.put("mentorHandle", "matrix-" + Long.toHexString(ThreadLocalRandom.current().nextLong()));
 	}
 
