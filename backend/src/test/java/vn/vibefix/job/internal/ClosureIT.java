@@ -83,7 +83,7 @@ class ClosureIT extends IntegrationTest {
 			.andExpect(jsonPath("$.proposal.proposer").value("SYSTEM"))
 			.andExpect(jsonPath("$.proposal.answerable").value(true))
 			.andExpect(jsonPath("$.canPropose").value(false))
-			.andExpect(jsonPath("$.steps[?(@.party == 'CREW')].step").value("DATA_DELETION"))
+			.andExpect(jsonPath("$.steps.length()").value(2))
 			.andExpect(jsonPath("$.steps[?(@.party == 'CUSTOMER')].done").value(false));
 		this.mvc.perform(get("/api/v1/boards/" + this.job + "/closure").with(as(this.vy, Role.STUDENT)))
 			.andExpect(jsonPath("$.audience").value("CREW"))

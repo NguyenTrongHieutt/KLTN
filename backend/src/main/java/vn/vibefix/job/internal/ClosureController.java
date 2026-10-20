@@ -3,9 +3,7 @@ package vn.vibefix.job.internal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
@@ -22,12 +20,9 @@ import jakarta.validation.constraints.NotNull;
 import vn.vibefix.identity.CustomerNames;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
-import vn.vibefix.identity.StudentDirectory;
-import vn.vibefix.identity.StudentDirectory.StudentCard;
 import vn.vibefix.job.Crews.Relationship;
 import vn.vibefix.job.internal.ClosureProposals.Party;
 import vn.vibefix.job.internal.ClosureProposals.Proposal;
-import vn.vibefix.job.internal.CrewService.Row;
 import vn.vibefix.job.internal.Jobs.Job;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.ApiException;
@@ -41,8 +36,9 @@ import vn.vibefix.shared.Role;
  * JOB-1's closure section (FR-37, FR-67, AD-20, AD-23, UX-DR55), under {@code /api/v1/boards/{boardId}}
  * like the Job's other Active-phase calls (a Board's ID is its Job's): the proposal and whose turn it is,
  * and each party's steps from the proposal through Closed. The Customer and the Mentor propose, confirm,
- * and decline on the version they loaded; an active Crew member reads only their own step and may not
- * answer ({@code FORBIDDEN MENTOR_ONLY}); everyone else finds nothing.
+ * and decline on the version they loaded; an active Crew member reads it and may not answer
+ * ({@code FORBIDDEN MENTOR_ONLY}); everyone else finds nothing. The data-deletion steps are
+ * {@code repo}'s, which the section reads beside this one (FR-66).
  */
 @RestController
 @Access(Gate.SIGNED_IN)
@@ -50,8 +46,8 @@ class ClosureController {
 
 	/**
 	 * One closure step.
-	 * @param party {@code CUSTOMER}, {@code MENTOR}, or {@code CREW}
-	 * @param step {@code CONFIRM_CLOSURE} or {@code DATA_DELETION}
+	 * @param party {@code CUSTOMER} or {@code MENTOR}
+	 * @param step {@code CONFIRM_CLOSURE}
 	 */
 	record ClosureStepView(String party, String name, String step, boolean done) {
 	}
@@ -92,19 +88,16 @@ class ClosureController {
 
 	private final MentorDirectory mentors;
 
-	private final StudentDirectory students;
-
 	private final CurrentCaller callers;
 
 	ClosureController(JdbcClient jdbc, Closures closures, ClosureProposals proposals, CrewService crews,
-			CustomerNames customers, MentorDirectory mentors, StudentDirectory students, CurrentCaller callers) {
+			CustomerNames customers, MentorDirectory mentors, CurrentCaller callers) {
 		this.jdbc = jdbc;
 		this.closures = closures;
 		this.proposals = proposals;
 		this.crews = crews;
 		this.customers = customers;
 		this.mentors = mentors;
-		this.students = students;
 		this.callers = callers;
 	}
 
@@ -196,23 +189,6 @@ class ClosureController {
 			steps.add(new ClosureStepView("MENTOR",
 					this.mentors.cards(List.of(job.mentorId())).stream().findFirst().map(MentorCard::displayName).orElse(""),
 					"CONFIRM_CLOSURE", mentorDone));
-			List<UUID> crew = this.crews.rows(job.id())
-				.stream()
-				.filter(row -> row.activatedAt() != null)
-				.map(Row::studentId)
-				.distinct()
-				.toList();
-			Map<UUID, String> names = crew.isEmpty() ? Map.of()
-					: this.students.cards(crew)
-						.stream()
-						.collect(Collectors.toMap(StudentCard::accountId,
-								card -> card.name() != null ? card.name() : "@" + card.githubLogin(), (a, b) -> a));
-			for (UUID member : crew) {
-				if (viewer.party() == null && !member.equals(viewer.accountId())) {
-					continue;
-				}
-				steps.add(new ClosureStepView("CREW", names.getOrDefault(member, ""), "DATA_DELETION", false));
-			}
 		}
 		return new ClosureView(job.id(), job.state().name(), job.version(),
 				viewer.party() == null ? "CREW" : viewer.party().name(), canPropose, proposalView, steps);

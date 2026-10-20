@@ -210,6 +210,7 @@ final class CrewJobWorld {
 			.update();
 		world.put("handoverId", handover);
 		world.put("crewCriterionId", criterion);
+		world.put("item", "NON_CODE_DATA");
 		UUID page = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO work.page (id, job_id, title, version_no, created_by_account_id, created_at, updated_at)

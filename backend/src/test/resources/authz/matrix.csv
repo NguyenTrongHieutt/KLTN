@@ -798,6 +798,37 @@ POST /api/v1/boards/{boardId}/closure/decline,ADMIN_TEAM_ISSUE_GRANT,,closure.js
 POST /api/v1/boards/{boardId}/closure/decline,OWNER,,closure.json,409 CONFLICT NO_CLOSURE_OPEN
 POST /api/v1/boards/{boardId}/closure/decline,JOB_MENTOR,,closure.json,409 CONFLICT NO_CLOSURE_OPEN
 POST /api/v1/boards/{boardId}/closure/decline,CREW_ACTIVE,,closure.json,403 FORBIDDEN MENTOR_ONLY
+# Data deletion after the Job (FR-66, AD-41): the Customer (OWNER) reads everyone's status; the Mentor and
+# every Crew member ever active (INACTIVE and FORMER included) read their own and confirm once the Job
+# has ended, which the fixture's Active Job has not.
+GET /api/v1/boards/{boardId}/data-deletion,ANONYMOUS,,,401
+GET /api/v1/boards/{boardId}/data-deletion,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/data-deletion,MENTOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/data-deletion,STUDENT,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/data-deletion,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/data-deletion,TEAM_MENTOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/data-deletion,TEAM_MEMBER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/data-deletion,CREW_ASSIGNED,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/data-deletion,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/data-deletion,OWNER,,,200
+GET /api/v1/boards/{boardId}/data-deletion,JOB_MENTOR,,,200
+GET /api/v1/boards/{boardId}/data-deletion,CREW_ACTIVE,,,200
+GET /api/v1/boards/{boardId}/data-deletion,CREW_INACTIVE,,,200
+GET /api/v1/boards/{boardId}/data-deletion,CREW_FORMER,,,200
+POST /api/v1/boards/{boardId}/data-deletion/{item},ANONYMOUS,,,401
+POST /api/v1/boards/{boardId}/data-deletion/{item},CUSTOMER,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/data-deletion/{item},MENTOR,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/data-deletion/{item},STUDENT,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/data-deletion/{item},ADMINISTRATOR,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/data-deletion/{item},TEAM_MENTOR,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/data-deletion/{item},TEAM_MEMBER,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/data-deletion/{item},CREW_ASSIGNED,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/data-deletion/{item},ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/data-deletion/{item},OWNER,,,403 FORBIDDEN NOT_A_DUTY
+POST /api/v1/boards/{boardId}/data-deletion/{item},JOB_MENTOR,,,422 GUARD_FAILED JOB_NOT_ENDED
+POST /api/v1/boards/{boardId}/data-deletion/{item},CREW_ACTIVE,,,422 GUARD_FAILED JOB_NOT_ENDED
+POST /api/v1/boards/{boardId}/data-deletion/{item},CREW_INACTIVE,,,422 GUARD_FAILED JOB_NOT_ENDED
+POST /api/v1/boards/{boardId}/data-deletion/{item},CREW_FORMER,,,422 GUARD_FAILED JOB_NOT_ENDED
 # Milestone Handovers (FR-32, AD-20, AD-39): the Customer (OWNER), the Mentor, and ACTIVE members read;
 # only the Mentor hands over, and the fixture's Milestone is not Funded. The Customer's Delivery Report
 # never carries the Work Item note, whose text is the WORK_ITEM_NOTE canary.

@@ -544,7 +544,7 @@
     },
     "/api/v1/boards/{boardId}/closure/confirm" : {
       "post" : {
-        "operationId" : "confirm_1",
+        "operationId" : "confirm_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "boardId",
@@ -614,6 +614,68 @@
           }
         },
         "tags" : [ "closure-controller" ]
+      }
+    },
+    "/api/v1/boards/{boardId}/data-deletion" : {
+      "get" : {
+        "operationId" : "dataDeletion",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DataDeletionView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "data-deletion-controller" ]
+      }
+    },
+    "/api/v1/boards/{boardId}/data-deletion/{item}" : {
+      "post" : {
+        "operationId" : "confirm_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "path",
+          "name" : "item",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "enum" : [ "NON_CODE_DATA", "PREVIEWS" ]
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DataDeletionView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "data-deletion-controller" ]
       }
     },
     "/api/v1/boards/{boardId}/handovers" : {
@@ -6573,6 +6635,59 @@
           }
         },
         "required" : [ "contactEmail", "displayName", "kind" ]
+      },
+      "DataDeletionItemView" : {
+        "type" : "object",
+        "properties" : {
+          "confirmedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "item" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "item" ]
+      },
+      "DataDeletionPartyView" : {
+        "type" : "object",
+        "properties" : {
+          "confirmed" : {
+            "type" : "boolean"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "party" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "confirmed", "name", "party" ]
+      },
+      "DataDeletionView" : {
+        "type" : "object",
+        "properties" : {
+          "ended" : {
+            "type" : "boolean"
+          },
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "mine" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/DataDeletionItemView"
+            }
+          },
+          "parties" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/DataDeletionPartyView"
+            }
+          }
+        },
+        "required" : [ "ended", "jobId", "parties" ]
       },
       "DecisionRequest" : {
         "type" : "object",

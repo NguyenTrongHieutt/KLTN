@@ -68,8 +68,17 @@ const progress = {
 const steps = [
   { party: 'CUSTOMER', name: 'Lan Nguyễn', step: 'CONFIRM_CLOSURE', done: false },
   { party: 'MENTOR', name: 'Đỗ Mạnh Hùng', step: 'CONFIRM_CLOSURE', done: true },
-  { party: 'CREW', name: 'Trần Thảo Vy', step: 'DATA_DELETION', done: false },
 ]
+
+const deletion = (overrides: object = {}) => ({
+  jobId: 'j1',
+  ended: false,
+  parties: [
+    { party: 'MENTOR', name: 'Đỗ Mạnh Hùng', confirmed: true },
+    { party: 'CREW', name: 'Trần Thảo Vy', confirmed: false },
+  ],
+  ...overrides,
+})
 
 const closure = (overrides: object = {}) => ({
   jobId: 'j1',
@@ -100,6 +109,7 @@ describe('JOB-1 closure section (FR-37, FR-67, UX-DR55)', () => {
       'GET /api/v1/jobs/j1': () => json(customerJob),
       'GET /api/v1/boards/j1/progress': () => json(progress),
       'GET /api/v1/boards/j1/closure': () => json(closure()),
+      'GET /api/v1/boards/j1/data-deletion': () => json(deletion()),
       'POST /api/v1/boards/j1/closure/confirm': async (request) => {
         sent.push(await request.json())
         return json(closure({ state: 'CLOSED', proposal: { ...closure().proposal, status: 'CONFIRMED', answerable: false } }))
@@ -111,6 +121,7 @@ describe('JOB-1 closure section (FR-37, FR-67, UX-DR55)', () => {
     expect(within(section).getByText(/Hệ thống sẽ tự xác nhận kết thúc ngày 06\/11/)).toBeInTheDocument()
     expect(within(section).getByText('Khách hàng Lan Nguyễn: xác nhận kết thúc')).toBeInTheDocument()
     expect(within(section).getByText('Trần Thảo Vy: xác nhận đã xóa dữ liệu của khách hàng')).toBeInTheDocument()
+    expect(within(section).getByText('Người hướng dẫn Đỗ Mạnh Hùng: xác nhận đã xóa dữ liệu của khách hàng')).toBeInTheDocument()
     expect(within(section).getAllByText('Chưa xong')).toHaveLength(2)
     await user.click(within(section).getByRole('button', { name: 'Xác nhận kết thúc' }))
     const dialog = await screen.findByRole('dialog', { name: 'Xác nhận kết thúc công việc?' })
@@ -154,7 +165,8 @@ describe('JOB-1 closure section (FR-37, FR-67, UX-DR55)', () => {
     expect(await screen.findByRole('button', { name: 'Đề nghị kết thúc công việc' })).toBeInTheDocument()
   })
 
-  it('shows a Crew member their own step and no answer', { timeout: 20_000 }, async () => {
+  it('shows a Crew member their own step and lets them tick the data-deletion Checklist', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
     fakeBackend(signedIn('STUDENT'), {
       'GET /api/v1/boards/j1/progress': () => json({ ...progress, audience: 'CREW' }),
       'GET /api/v1/boards/j1/closure': () =>
@@ -162,15 +174,46 @@ describe('JOB-1 closure section (FR-37, FR-67, UX-DR55)', () => {
           closure({
             audience: 'CREW',
             proposal: { ...closure().proposal, answerable: false },
-            steps: [steps[0], steps[1], steps[2]],
+            steps,
+          }),
+        ),
+      'GET /api/v1/boards/j1/data-deletion': () =>
+        json(
+          deletion({
+            ended: true,
+            parties: [{ party: 'CREW', name: 'Trần Thảo Vy', confirmed: false }],
+            mine: [
+              { item: 'NON_CODE_DATA', confirmedAt: '2026-10-20T03:00:00Z' },
+              { item: 'PREVIEWS', confirmedAt: null },
+            ],
+          }),
+        ),
+      'POST /api/v1/boards/j1/data-deletion/PREVIEWS': () =>
+        json(
+          deletion({
+            ended: true,
+            parties: [{ party: 'CREW', name: 'Trần Thảo Vy', confirmed: true }],
+            mine: [
+              { item: 'NON_CODE_DATA', confirmedAt: '2026-10-20T03:00:00Z' },
+              { item: 'PREVIEWS', confirmedAt: '2026-10-20T04:00:00Z' },
+            ],
           }),
         ),
     })
     renderAt('/cong-viec/j1')
 
     const section = (await screen.findByRole('heading', { level: 2, name: 'Kết thúc công việc' })).closest('section')!
-    expect(within(section).getByText('Trần Thảo Vy: xác nhận đã xóa dữ liệu của khách hàng')).toBeInTheDocument()
-    expect(within(section).queryByRole('button')).toBeNull()
+    expect(await within(section).findByText('Trần Thảo Vy: xác nhận đã xóa dữ liệu của khách hàng')).toBeInTheDocument()
+    expect(within(section).queryByRole('button', { name: 'Xác nhận kết thúc' })).toBeNull()
+    const done = within(section).getByRole('checkbox', { name: /Đã xóa dữ liệu không phải mã nguồn/ })
+    expect(done).toBeChecked()
+    expect(done).toBeDisabled()
+    await user.click(within(section).getByRole('checkbox', { name: 'Đã xóa các bản xem thử tôi đã triển khai' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Xác nhận đã xóa?' })
+    await user.click(within(dialog).getByRole('button', { name: 'Xác nhận' }))
+    await waitFor(() =>
+      expect(within(section).getByRole('checkbox', { name: /Đã xóa các bản xem thử/ })).toBeChecked(),
+    )
   })
 
   it('says why a proposal is refused while a Milestone is held', { timeout: 20_000 }, async () => {

@@ -2304,9 +2304,6 @@
         },
         "MENTOR": {
           "CONFIRM_CLOSURE": "Người hướng dẫn {name}: xác nhận kết thúc"
-        },
-        "CREW": {
-          "DATA_DELETION": "{name}: xác nhận đã xóa dữ liệu của khách hàng"
         }
       },
       "stepDone": "Đã xong",
@@ -2323,7 +2320,22 @@
       "declined": "Đã từ chối đề nghị kết thúc.",
       "closed": "Công việc đã kết thúc.",
       "stale": "Công việc vừa thay đổi. Hãy tải lại rồi thử lại.",
-      "held": "Còn giai đoạn đang làm nên chưa kết thúc được."
+      "held": "Còn giai đoạn đang làm nên chưa kết thúc được.",
+      "deletion": {
+        "MENTOR": "Người hướng dẫn {name}: xác nhận đã xóa dữ liệu của khách hàng",
+        "CREW": "{name}: xác nhận đã xóa dữ liệu của khách hàng",
+        "mine": "Xác nhận đã xóa dữ liệu",
+        "lead": "Công việc đã kết thúc. Hãy xóa dữ liệu của khách hàng rồi đánh dấu từng mục.",
+        "notYet": "Bạn đánh dấu được sau khi công việc bắt đầu kết thúc.",
+        "NON_CODE_DATA": "Đã xóa dữ liệu không phải mã nguồn: khóa, bản sao cơ sở dữ liệu, tệp của khách hàng",
+        "PREVIEWS": "Đã xóa các bản xem thử tôi đã triển khai",
+        "confirmedAt": "Đã xác nhận {time}",
+        "dialogTitle": "Xác nhận đã xóa?",
+        "dialogBody": "Xác nhận này được ghi lại cùng tên bạn và thời gian, và không sửa được.",
+        "confirm": "Xác nhận",
+        "cancel": "Quay lại",
+        "saved": "Đã ghi nhận xác nhận."
+      }
     }
   },
   "notice": {
@@ -2783,6 +2795,9 @@
     "delivery": {
       "hand_over": "Bàn giao Giai đoạn {n}",
       "review_handover": "Nghiệm thu Giai đoạn {n} · tự nghiệm thu {date}"
+    },
+    "repo": {
+      "confirm_data_deletion": "Xác nhận đã xóa dữ liệu và bản xem thử của {job}"
     }
   },
   "theme": {
@@ -3016,6 +3031,11 @@
       "acceptance_reminder": {
         "title": "Còn {n} ngày: hệ thống sẽ tự nghiệm thu Giai đoạn {m} ngày {date}"
       }
+    },
+    "repo": {
+      "data_deletion_confirmation_pending": {
+        "title": "Hãy xác nhận đã xóa dữ liệu của khách hàng ở {job}"
+      }
     }
   },
   "reason": {
@@ -3187,6 +3207,10 @@
       "CUSTOMER_ONLY": "Chỉ khách hàng nghiệm thu hoặc yêu cầu sửa được.",
       "HANDOVER_DECIDED": "Lần bàn giao này đã được quyết định.",
       "REVISION_CRITERIA_MISSING": "Hãy chọn ít nhất một tiêu chí Chưa đạt để yêu cầu sửa."
+    },
+    "repo": {
+      "JOB_NOT_ENDED": "Bạn xác nhận được sau khi công việc bắt đầu kết thúc.",
+      "NOT_A_DUTY": "Chỉ người hướng dẫn và nhóm thực hiện xác nhận việc này."
     }
   },
   "markdown": {
