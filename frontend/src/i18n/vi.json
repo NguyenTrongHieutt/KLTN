@@ -2292,7 +2292,8 @@
         "cancel": "Quay lại",
         "accepted": "Đã nghiệm thu Giai đoạn {n}.",
         "revised": "Đã gửi yêu cầu sửa Giai đoạn {n}.",
-        "stale": "Bàn giao vừa thay đổi. Hãy mở lại báo cáo bàn giao."
+        "stale": "Bàn giao vừa thay đổi. Hãy mở lại báo cáo bàn giao.",
+        "changeRequest": "Đề nghị thay đổi"
       }
     },
     "closure": {
@@ -2434,6 +2435,45 @@
       "none": "Chưa có công việc tiếp theo nào.",
       "edit": "Sửa",
       "cancel": "Hủy"
+    },
+    "changeRequest": {
+      "heading": "Đề nghị thay đổi",
+      "lead": "Đề nghị hạn mới cho các giai đoạn. Hạn chỉ đổi khi cả hai bên đồng ý, và thỏa thuận có phiên bản mới.",
+      "propose": "Đề nghị hạn mới",
+      "milestone": "Giai đoạn {n}: {title}",
+      "currentDue": "Hạn hiện tại: {date}",
+      "noDue": "Chưa có hạn",
+      "newDue": "Hạn mới",
+      "final": "Không đổi được",
+      "description": "Bạn muốn thay đổi gì? (viết bằng lời của bạn)",
+      "impact": "Ảnh hưởng về thời gian",
+      "send": "Gửi đề nghị",
+      "cancel": "Hủy",
+      "sent": "Đã gửi đề nghị.",
+      "openBy": {
+        "CUSTOMER": "Khách hàng đề nghị đổi hạn",
+        "MENTOR": "Người hướng dẫn đề nghị đổi hạn"
+      },
+      "change": "Giai đoạn {n}: {from} → {to}",
+      "waitingImpact": "Đang chờ người hướng dẫn nêu ảnh hưởng về thời gian.",
+      "addImpact": "Gửi ảnh hưởng",
+      "impactLabel": "Ảnh hưởng: {impact}",
+      "approve": "Duyệt hạn mới",
+      "approved": "Khách hàng đã duyệt. Đang chờ người hướng dẫn xác nhận.",
+      "confirm": "Xác nhận hạn mới",
+      "waitingCustomer": "Đang chờ khách hàng duyệt.",
+      "withdraw": "Rút đề nghị",
+      "confirmTitle": "Đổi hạn các giai đoạn?",
+      "confirmBody": "Khi cả hai bên đã đồng ý, hạn mới có hiệu lực ngay và thỏa thuận có phiên bản mới. Không hoàn tác được.",
+      "stale": "Công việc vừa thay đổi. Hãy xem lại rồi thử lại.",
+      "history": "Các đề nghị trước",
+      "status": {
+        "APPLIED": "Đã có hiệu lực (phiên bản {version})",
+        "LAPSED": "Không còn hiệu lực",
+        "WITHDRAWN": "Đã rút"
+      },
+      "versions": "Các phiên bản thỏa thuận",
+      "version": "Phiên bản {n} · {date}"
     }
   },
   "notice": {
@@ -2881,7 +2921,9 @@
       "confirm_crew_terms": "Ký cam kết và xác nhận phần chia cho {job}",
       "revise_agreement": "Sửa thỏa thuận {job} theo góp ý của khách hàng",
       "confirm_agreement_mentor": "Xác nhận thỏa thuận cho {job}",
-      "answer_closure": "Xác nhận kết thúc {job} · trước {date}"
+      "answer_closure": "Xác nhận kết thúc {job} · trước {date}",
+      "add_change_impact": "Nêu ảnh hưởng về thời gian của đề nghị đổi hạn ở {job}",
+      "answer_change_request": "Trả lời đề nghị đổi hạn ở {job}"
     },
     "payment": {
       "fund_milestone": "Thanh toán Giai đoạn {n}: {amount} THỬ NGHIỆM"
@@ -3066,6 +3108,18 @@
       },
       "job_closed": {
         "title": "{job} đã hoàn thành"
+      },
+      "change_request_proposed": {
+        "title": "Có đề nghị đổi hạn ở {job}"
+      },
+      "change_request_impact_added": {
+        "title": "Người hướng dẫn đã nêu ảnh hưởng của việc đổi hạn ở {job}"
+      },
+      "change_request_applied": {
+        "title": "Hạn mới ở {job} đã có hiệu lực"
+      },
+      "change_request_lapsed": {
+        "title": "Đề nghị đổi hạn ở {job} không còn hiệu lực"
       }
     },
     "matching": {
@@ -3268,7 +3322,13 @@
       "NO_CLOSURE_OPEN": "Không có đề nghị kết thúc nào đang chờ.",
       "CLOSURE_ANSWERED": "Bạn đã trả lời đề nghị này.",
       "MENTOR_ONLY": "Chỉ khách hàng và người hướng dẫn trả lời được.",
-      "FINAL_MERGE_PENDING": "Công việc sửa mã kết thúc sau khi hợp nhất mã."
+      "FINAL_MERGE_PENDING": "Công việc sửa mã kết thúc sau khi hợp nhất mã.",
+      "NO_CONFIRMED_AGREEMENT": "Bạn đề nghị đổi hạn được khi thỏa thuận đã xác nhận và công việc đang chạy.",
+      "CHANGE_REQUEST_OPEN": "Đang có một đề nghị thay đổi chưa xong.",
+      "MILESTONE_FINAL": "Giai đoạn đã nghiệm thu, đã hủy hoặc đã giải quyết thì không đổi hạn được.",
+      "IMPACT_MISSING": "Hãy chờ người hướng dẫn nêu ảnh hưởng về thời gian trước khi duyệt.",
+      "MILESTONE_SUBMITTED": "Một giai đoạn trong đề nghị đang chờ bạn kiểm tra. Hãy quyết định bàn giao trước.",
+      "CHANGE_REQUEST_NOT_AWAITING": "Đề nghị này đã qua bước đó."
     },
     "matching": {
       "JOB_POST_NOT_OPEN": "công việc không còn nhận ứng tuyển",

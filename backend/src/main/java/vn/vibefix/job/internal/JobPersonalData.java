@@ -37,7 +37,7 @@ class JobPersonalData implements PersonalDataParticipant {
 		return Set.of("job.job", "job.job_screenshot", "job.agreement_draft", "job.milestone", "job.acceptance_criterion",
 				"job.external_access", "job.agreement_version", "job.crew_row", "job.crew_terms_version", "job.crew_terms_share",
 				"job.crew_terms_confirmation", "job.agreement_comment", "job.agreement_change_request", "job.agreement_approval",
-				"job.confirmed_agreement", "job.closure_proposal");
+				"job.confirmed_agreement", "job.closure_proposal", "job.change_request");
 	}
 
 	@Override
@@ -71,6 +71,11 @@ class JobPersonalData implements PersonalDataParticipant {
 			.param("id", accountId)
 			.update();
 		this.jdbc.sql("UPDATE job.closure_proposal SET declined_by = NULL WHERE declined_by = :id").param("id", accountId).update();
+		for (String column : List.of("proposer_account_id", "customer_account_id", "mentor_account_id")) {
+			this.jdbc.sql("UPDATE job.change_request SET %s = NULL WHERE %s = :id".formatted(column, column))
+				.param("id", accountId)
+				.update();
+		}
 		deleteJobs("customer_account_id", accountId);
 	}
 
@@ -83,7 +88,8 @@ class JobPersonalData implements PersonalDataParticipant {
 		this.jdbc.sql("""
 				SELECT s.file_id FROM job.job_screenshot s JOIN job.job j ON j.id = s.job_id WHERE j.%s = :id
 				""".formatted(column)).param("id", id).query(UUID.class).list().forEach(this.files::delete);
-		for (String table : List.of("job.closure_proposal", "job.agreement_comment", "job.agreement_change_request",
+		for (String table : List.of("job.change_request", "job.closure_proposal", "job.agreement_comment",
+				"job.agreement_change_request",
 				"job.confirmed_agreement",
 				"job.agreement_approval", "job.acceptance_criterion", "job.milestone", "job.external_access",
 				"job.agreement_version", "job.agreement_draft", "job.crew_terms_confirmation", "job.crew_terms_share",

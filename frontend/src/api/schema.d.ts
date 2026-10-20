@@ -93,7 +93,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["approve_2"];
+        post: operations["approve_3"];
         delete?: never;
         options?: never;
         head?: never;
@@ -173,7 +173,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["approve_1"];
+        post: operations["approve_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -212,6 +212,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/boards/{boardId}/agreement-versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["versions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/boards/{boardId}/change-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["changeRequests"];
+        put?: never;
+        post: operations["propose_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/boards/{boardId}/closure": {
         parameters: {
             query?: never;
@@ -237,7 +269,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["confirm_2"];
+        post: operations["confirm_3"];
         delete?: never;
         options?: never;
         head?: never;
@@ -285,7 +317,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["confirm_1"];
+        post: operations["confirm_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -413,7 +445,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["approve"];
+        post: operations["approve_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -510,6 +542,70 @@ export interface paths {
         get: operations["catalog"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/change-requests/{changeRequestId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["approve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/change-requests/{changeRequestId}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["confirm_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/change-requests/{changeRequestId}/impact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["impact"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/change-requests/{changeRequestId}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["withdraw_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2735,6 +2831,79 @@ export interface components {
         CatalogView: {
             categories: components["schemas"]["CatalogCategory"][];
         };
+        ChangeDueDate: {
+            /** Format: uuid */
+            milestoneId: string;
+            /** Format: date */
+            newDueOn: string;
+        };
+        ChangeImpactRequest: {
+            impact: string;
+        };
+        ChangeItemView: {
+            /** Format: uuid */
+            milestoneId: string;
+            /** Format: date */
+            newDueOn: string;
+            /** Format: int32 */
+            number: number;
+            /** Format: date */
+            oldDueOn?: string;
+            title: string;
+        };
+        ChangeMilestoneView: {
+            changeable: boolean;
+            /** Format: date */
+            dueOn?: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: int32 */
+            number: number;
+            state: string;
+            title: string;
+        };
+        ChangeProposalRequest: {
+            description?: string;
+            impact?: string;
+            items: components["schemas"]["ChangeDueDate"][];
+            /** Format: int64 */
+            version: number;
+        };
+        ChangeRequestView: {
+            /** Format: int32 */
+            agreementVersionNo?: number;
+            /** Format: date-time */
+            closedAt?: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            customerApprovedAt?: string;
+            description?: string;
+            /** Format: uuid */
+            id: string;
+            impact?: string;
+            items: components["schemas"]["ChangeItemView"][];
+            /** Format: date-time */
+            mentorConfirmedAt?: string;
+            mine: boolean;
+            proposer: string;
+            status: string;
+        };
+        ChangeRequestsView: {
+            audience: string;
+            canPropose: boolean;
+            history: components["schemas"]["ChangeRequestView"][];
+            /** Format: uuid */
+            jobId: string;
+            milestones: components["schemas"]["ChangeMilestoneView"][];
+            open?: components["schemas"]["ChangeRequestView"];
+            /** Format: int64 */
+            version: number;
+        };
+        ChangeVersionRequest: {
+            /** Format: int64 */
+            version: number;
+        };
         ChatView: {
             /** Format: uuid */
             chatId: string;
@@ -2816,6 +2985,18 @@ export interface components {
             liveAccessIds: string[];
             /** Format: int32 */
             versionNo: number;
+        };
+        ConfirmedVersionView: {
+            /** Format: date-time */
+            confirmedAt: string;
+            milestones: components["schemas"]["VersionMilestoneView"][];
+            /** Format: int32 */
+            versionNo: number;
+        };
+        ConfirmedVersionsView: {
+            /** Format: uuid */
+            jobId: string;
+            versions: components["schemas"]["ConfirmedVersionView"][];
         };
         Content: {
             assessment: boolean;
@@ -4853,6 +5034,13 @@ export interface components {
             /** Format: date */
             verifiedUntil?: string;
         };
+        VersionMilestoneView: {
+            /** Format: date */
+            dueOn?: string;
+            /** Format: uuid */
+            id: string;
+            title: string;
+        };
         VersionSummary: {
             /** Format: date-time */
             sharedAt: string;
@@ -5102,7 +5290,7 @@ export interface operations {
             };
         };
     };
-    approve_2: {
+    approve_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -5224,7 +5412,7 @@ export interface operations {
             };
         };
     };
-    approve_1: {
+    approve_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -5296,6 +5484,76 @@ export interface operations {
             };
         };
     };
+    versions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfirmedVersionsView"];
+                };
+            };
+        };
+    };
+    changeRequests: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChangeRequestsView"];
+                };
+            };
+        };
+    };
+    propose_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeProposalRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChangeRequestsView"];
+                };
+            };
+        };
+    };
     closure: {
         parameters: {
             query?: never;
@@ -5344,7 +5602,7 @@ export interface operations {
             };
         };
     };
-    confirm_2: {
+    confirm_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -5418,7 +5676,7 @@ export interface operations {
             };
         };
     };
-    confirm_1: {
+    confirm_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -5679,7 +5937,7 @@ export interface operations {
             };
         };
     };
-    approve: {
+    approve_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -5887,6 +6145,106 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CatalogView"];
+                };
+            };
+        };
+    };
+    approve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                changeRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeVersionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChangeRequestsView"];
+                };
+            };
+        };
+    };
+    confirm_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                changeRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeVersionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChangeRequestsView"];
+                };
+            };
+        };
+    };
+    impact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                changeRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeImpactRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChangeRequestsView"];
+                };
+            };
+        };
+    };
+    withdraw_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                changeRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChangeRequestsView"];
                 };
             };
         };

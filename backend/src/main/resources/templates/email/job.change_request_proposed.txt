@@ -1,0 +1,5 @@
+subject: Có đề nghị đổi hạn ở {job}
+---
+Xin chào,
+
+Bên kia đề nghị đổi hạn của một số giai đoạn ở công việc {job}. Hãy xem và trả lời trên vibefix. Hạn chỉ đổi khi cả hai bên đồng ý.
