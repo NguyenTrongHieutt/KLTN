@@ -127,7 +127,8 @@ enum Transition {
 					new Effect("payment", "Then the funds are released (FR-42)")),
 			true, true),
 
-	M6(Machine.MILESTONE, milestone(MilestoneState.PLANNED), milestone(MilestoneState.CANCELLED), Set.of(USER, SYSTEM),
+	M6(Machine.MILESTONE, milestone(MilestoneState.PLANNED), milestone(MilestoneState.CANCELLED),
+			Set.of(USER, SYSTEM, DECISION),
 			"Confirmed cancellation (FR-40), a Change Request removing it (FR-36), or the Job entering Closing (J8)",
 			List.of(), List.of(new Effect("job", "No money moves")), true, true),
 
@@ -139,7 +140,7 @@ enum Transition {
 			"Administrator decision (FR-54)", List.of(),
 			List.of(new Effect("payment", "Release and refund amounts as decided"),
 					new Effect("repo", "The pull request is merged or closed as decided")),
-			false, false);
+			false, true);
 
 	/** What a transition moves: the Job itself, or one of its Milestones. */
 	enum Machine {

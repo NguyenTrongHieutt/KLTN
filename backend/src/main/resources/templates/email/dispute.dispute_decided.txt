@@ -1,0 +1,5 @@
+subject: Tranh chấp ở {job} đã được phân xử
+---
+Xin chào,
+
+Quản trị viên đã phân xử tranh chấp ở công việc {job}, và quyết định đã được thực hiện. Tiền và các thời hạn chạy lại. Xem quyết định trên vibefix.

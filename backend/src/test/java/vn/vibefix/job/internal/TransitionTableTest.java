@@ -47,7 +47,7 @@ class TransitionTableTest {
 			entry("J9", Set.of(Trigger.SYSTEM)), entry("J10", Set.of(Trigger.USER, Trigger.DECISION)),
 			entry("M1", Set.of(Trigger.SYSTEM)), entry("M2", Set.of(Trigger.USER)), entry("M3", Set.of(Trigger.SYSTEM)),
 			entry("M4", Set.of(Trigger.USER)), entry("M5", Set.of(Trigger.USER, Trigger.AUTO)),
-			entry("M6", Set.of(Trigger.USER, Trigger.SYSTEM)), entry("M7", Set.of(Trigger.USER)),
+			entry("M6", Set.of(Trigger.USER, Trigger.SYSTEM, Trigger.DECISION)), entry("M7", Set.of(Trigger.USER)),
 			entry("M8", Set.of(Trigger.DECISION)));
 
 	/** The modules of ARCHITECTURE-SPINE.md, L0 to L11. */
@@ -81,14 +81,14 @@ class TransitionTableTest {
 	}
 
 	@Test
-	void theFreezeRefusesM1ToM7AndOnlyJ1ToJ10M1M2AndM4ToM7HaveCommands() {
+	void theFreezeRefusesM1ToM7AndEveryTransitionButM3HasACommand() {
 		assertThat(EnumSet.allOf(Transition.class).stream().filter(Transition::frozenBlocks))
 			.containsExactly(Transition.M1, Transition.M2, Transition.M3, Transition.M4, Transition.M5, Transition.M6,
 					Transition.M7);
 		assertThat(EnumSet.allOf(Transition.class).stream().filter(Transition::reachable))
 			.containsExactly(Transition.J1, Transition.J2, Transition.J3, Transition.J4, Transition.J5, Transition.J6,
 					Transition.J7, Transition.J8, Transition.J9, Transition.J10, Transition.M1, Transition.M2, Transition.M4,
-					Transition.M5, Transition.M6, Transition.M7);
+					Transition.M5, Transition.M6, Transition.M7, Transition.M8);
 	}
 
 	@Test

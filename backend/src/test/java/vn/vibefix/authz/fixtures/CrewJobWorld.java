@@ -235,6 +235,14 @@ final class CrewJobWorld {
 			.param("at", written)
 			.update();
 		world.put("changeRequestId", changeRequest);
+		UUID dispute = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO dispute.dispute (id, job_id, product_id, opened_by, opener_account_id, reason, concern, job_state, status,
+				    opened_at)
+				VALUES (:id, :job, :product, 'CUSTOMER', :owner, 'Giai đoạn chưa đạt', 'NEXT_STATE', 'ACTIVE', 'OPEN', :at)
+				""").param("id", dispute).param("job", UUID.randomUUID()).param("product", product).param("owner", owner)
+			.param("at", written).update();
+		world.put("disputeId", dispute);
 		world.put("crewCriterionId", criterion);
 		world.put("item", "NON_CODE_DATA");
 		UUID page = UUID.randomUUID();

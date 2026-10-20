@@ -136,6 +136,12 @@ class Disputes {
 			.optional();
 	}
 
+	Optional<Dispute> latestDecided(UUID jobId) {
+		return this.jdbc.sql("""
+				SELECT * FROM dispute.dispute WHERE job_id = :job AND status = 'DECIDED' ORDER BY decided_at DESC, id LIMIT 1
+				""").param("job", jobId).query(Disputes::dispute).optional();
+	}
+
 	Optional<Dispute> find(UUID id) {
 		return this.jdbc.sql("SELECT * FROM dispute.dispute WHERE id = :id").param("id", id).query(Disputes::dispute).optional();
 	}

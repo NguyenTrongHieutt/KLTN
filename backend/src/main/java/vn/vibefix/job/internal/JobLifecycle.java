@@ -480,7 +480,7 @@ class JobLifecycle {
 			if (!transition.from().contains(from)) {
 				throw new ApiException(ErrorCode.STALE, JobReason.STATE_CHANGED);
 			}
-			if (transition.frozenBlocks() && job.frozenAt() != null) {
+			if (transition.frozenBlocks() && job.frozenAt() != null && by != Trigger.DECISION) {
 				throw new ApiException(ErrorCode.CONFLICT, JobReason.JOB_FROZEN);
 			}
 			Applying applying = new Applying(transition, job, actor, by, this.ids.newId(), now, planned.input(), from,

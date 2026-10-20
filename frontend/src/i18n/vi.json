@@ -537,7 +537,8 @@
         "administrators": "Quản trị viên",
         "mentors": "Người hướng dẫn",
         "studentCards": "Thẻ sinh viên",
-        "pendingCount": "{n} đang chờ"
+        "pendingCount": "{n} đang chờ",
+        "disputes": "Tranh chấp"
       },
       "overview": {
         "title": "Tổng quan",
@@ -780,6 +781,54 @@
         "rejecting": "Đang từ chối…",
         "rejectedToast": "Đã từ chối thẻ của {name}.",
         "close": "Đóng"
+      },
+      "disputes": {
+        "title": "Tranh chấp",
+        "empty": "Không có tranh chấp nào.",
+        "openedBy": {
+          "CUSTOMER": "Khách hàng mở",
+          "MENTOR": "Người hướng dẫn mở"
+        },
+        "status": {
+          "OPEN": "Đang chờ",
+          "DECIDED": "Đã phân xử"
+        },
+        "assignedToMe": "Bạn đang xử lý",
+        "assigned": "Đã có người xử lý",
+        "take": "Nhận xử lý",
+        "reason": "Lý do mở",
+        "concern": {
+          "HELD_MILESTONE": "Giai đoạn đang giữ tiền",
+          "NEXT_STATE": "Bước tiếp theo của công việc"
+        },
+        "held": "Giai đoạn {n}: {title} · đang giữ {amount}",
+        "noHeld": "Không có giai đoạn nào đang giữ tiền; quyết định chỉ về bước tiếp theo.",
+        "release": "Giải ngân cho nhóm thực hiện (VND)",
+        "refund": "Hoàn lại cho khách hàng (VND)",
+        "sum": "Tổng {sum} / đang giữ {held}",
+        "sumOk": "Khớp số tiền đang giữ.",
+        "sumMismatch": "Chưa khớp số tiền đang giữ.",
+        "merge": "Hợp nhất: Không (chưa có bàn giao mã)",
+        "next": "Bước tiếp theo",
+        "nextOption": {
+          "CONTINUE": "Tiếp tục",
+          "END": "Kết thúc",
+          "CANCEL": "Hủy"
+        },
+        "reasoning": "Lý do quyết định",
+        "review": "Xem lại và ghi quyết định",
+        "summary": "Giải ngân {release}, hoàn lại {refund}, bước tiếp theo: {next}.",
+        "confirm": "Ghi quyết định",
+        "decided": "Đã ghi quyết định.",
+        "step": "Bước {k}/4",
+        "executionStatus": {
+          "RUNNING": "Đang thực hiện",
+          "DONE": "Đã thực hiện xong",
+          "EXECUTION_FAILED": "Thực hiện bị lỗi"
+        },
+        "failure": "Lỗi: {failure}",
+        "retry": "Thử lại",
+        "decision": "Quyết định"
       }
     },
     "product": {
@@ -1898,7 +1947,8 @@
           "ORDER_CLOSED": "Lệnh thanh toán này đã đóng khi tiền đến, nên tiền được hoàn lại.",
           "WRONG_AMOUNT": "Số tiền đã trả khác số tiền của giai đoạn, nên tiền được hoàn lại.",
           "NOT_FUNDABLE": "Giai đoạn này không nhận thanh toán vào lúc tiền đến, nên tiền được hoàn lại.",
-          "CANCELLED": "Giai đoạn này bị hủy theo thỏa thuận, nên tiền đang giữ được hoàn đủ (thử nghiệm)."
+          "CANCELLED": "Giai đoạn này bị hủy theo thỏa thuận, nên tiền đang giữ được hoàn đủ (thử nghiệm).",
+          "DISPUTE_DECISION": "Quản trị viên phân xử tranh chấp và quyết định hoàn lại số tiền này (thử nghiệm)."
         }
       },
       "n13NoWithdraw": "Số dư này không rút được.",
@@ -2523,7 +2573,15 @@
       "reason": "Lý do",
       "send": "Mở tranh chấp",
       "cancel": "Hủy",
-      "opened": "Đã mở tranh chấp. Tiền và thời hạn đang tạm dừng."
+      "opened": "Đã mở tranh chấp. Tiền và thời hạn đang tạm dừng.",
+      "decided": "Tranh chấp đã được phân xử lúc {time}.",
+      "decidedNext": {
+        "CONTINUE": "Công việc tiếp tục.",
+        "END": "Công việc kết thúc.",
+        "CANCEL": "Công việc bị hủy."
+      },
+      "decidedAmounts": "Giải ngân {release}, hoàn lại {refund}.",
+      "reasoning": "Lý do: {reasoning}"
     }
   },
   "notice": {
@@ -3286,6 +3344,12 @@
     "dispute": {
       "dispute_opened": {
         "title": "Có tranh chấp ở {job}"
+      },
+      "execution_failed": {
+        "title": "Bước {step} của một quyết định tranh chấp không chạy được"
+      },
+      "dispute_decided": {
+        "title": "Tranh chấp ở {job} đã được phân xử"
       }
     }
   },
@@ -3493,7 +3557,12 @@
     "dispute": {
       "DISPUTE_ALREADY_OPEN": "Công việc này đang có một tranh chấp.",
       "MENTOR_ONLY": "Chỉ khách hàng và người hướng dẫn mở tranh chấp.",
-      "JOB_NOT_DISPUTABLE": "Bạn mở tranh chấp được khi công việc đang làm thỏa thuận, chuẩn bị, đang làm hoặc đang kết thúc."
+      "JOB_NOT_DISPUTABLE": "Bạn mở tranh chấp được khi công việc đang làm thỏa thuận, chuẩn bị, đang làm hoặc đang kết thúc.",
+      "NOT_ASSIGNED": "Chỉ quản trị viên đã nhận xử lý mới ghi quyết định.",
+      "AMOUNTS_MISMATCH": "Số tiền giải ngân và hoàn lại phải cộng bằng số tiền đang giữ.",
+      "NOTHING_TO_CONTINUE": "Không còn giai đoạn chưa bắt đầu nào để tiếp tục.",
+      "ALREADY_DECIDED": "Tranh chấp này đã có quyết định.",
+      "NOT_FAILED": "Chỉ thử lại được khi việc thực hiện bị lỗi."
     }
   },
   "markdown": {

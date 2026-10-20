@@ -1238,6 +1238,33 @@ POST /api/v1/boards/{boardId}/disputes,CREW_FORMER,,dispute.json,404 NOT_FOUND
 POST /api/v1/boards/{boardId}/disputes,CREW_ACTIVE,,dispute.json,403 FORBIDDEN MENTOR_ONLY
 POST /api/v1/boards/{boardId}/disputes,OWNER,,dispute.json,201
 POST /api/v1/boards/{boardId}/disputes,JOB_MENTOR,,dispute.json,201
+# ADM-4 (FR-54): Administrators read Disputes, take one, and the assignee decides after the step-up. The
+# fixture's {disputeId} is an open Dispute on the Mentor's earlier Job, which nobody has taken.
+GET /api/v1/admin/disputes,ANONYMOUS,,,401
+GET /api/v1/admin/disputes,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/admin/disputes,MENTOR,,,404 NOT_FOUND
+GET /api/v1/admin/disputes,STUDENT,,,404 NOT_FOUND
+GET /api/v1/admin/disputes,ADMINISTRATOR,,,200
+GET /api/v1/admin/disputes/{disputeId},ANONYMOUS,,,401
+GET /api/v1/admin/disputes/{disputeId},CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/admin/disputes/{disputeId},MENTOR,,,404 NOT_FOUND
+GET /api/v1/admin/disputes/{disputeId},STUDENT,,,404 NOT_FOUND
+GET /api/v1/admin/disputes/{disputeId},ADMINISTRATOR,,,200
+POST /api/v1/admin/disputes/{disputeId}/take,ANONYMOUS,,,401
+POST /api/v1/admin/disputes/{disputeId}/take,CUSTOMER,,,404 NOT_FOUND
+POST /api/v1/admin/disputes/{disputeId}/take,MENTOR,,,404 NOT_FOUND
+POST /api/v1/admin/disputes/{disputeId}/take,STUDENT,,,404 NOT_FOUND
+POST /api/v1/admin/disputes/{disputeId}/take,ADMINISTRATOR,,,200
+POST /api/v1/admin/disputes/{disputeId}/decision,ANONYMOUS,,dispute-decision.json,401
+POST /api/v1/admin/disputes/{disputeId}/decision,CUSTOMER,,dispute-decision.json,404 NOT_FOUND
+POST /api/v1/admin/disputes/{disputeId}/decision,MENTOR,,dispute-decision.json,404 NOT_FOUND
+POST /api/v1/admin/disputes/{disputeId}/decision,STUDENT,,dispute-decision.json,404 NOT_FOUND
+POST /api/v1/admin/disputes/{disputeId}/decision,ADMINISTRATOR,,dispute-decision.json,403 FORBIDDEN NOT_ASSIGNED
+POST /api/v1/admin/disputes/{disputeId}/retry,ANONYMOUS,,,401
+POST /api/v1/admin/disputes/{disputeId}/retry,CUSTOMER,,,404 NOT_FOUND
+POST /api/v1/admin/disputes/{disputeId}/retry,MENTOR,,,404 NOT_FOUND
+POST /api/v1/admin/disputes/{disputeId}/retry,STUDENT,,,404 NOT_FOUND
+POST /api/v1/admin/disputes/{disputeId}/retry,ADMINISTRATOR,,,409 CONFLICT NOT_FAILED
 # Milestone Handovers (FR-32, AD-20, AD-39): the Customer (OWNER), the Mentor, and ACTIVE members read;
 # only the Mentor hands over, and the fixture's Milestone is not Funded. The Customer's Delivery Report
 # never carries the Work Item note, whose text is the WORK_ITEM_NOTE canary.

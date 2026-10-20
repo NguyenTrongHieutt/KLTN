@@ -26,4 +26,14 @@ public interface Releases {
 	 */
 	List<Part> release(UUID jobId, UUID milestoneId, UUID causeId);
 
+	/**
+	 * A decided settlement (FR-54, AD-31), after M8 in the same transaction: {@code releaseVnd} split as
+	 * {@link #release} splits it, and {@code refundVnd} refunded against the Milestone's FUNDs.
+	 * @param causeId the M8 transition
+	 * @return the release parts written
+	 * @throws IllegalStateException unless the two sum to exactly what is releasable, or when the refund
+	 * could not be written in full
+	 */
+	List<Part> settle(UUID jobId, UUID milestoneId, UUID causeId, long releaseVnd, long refundVnd);
+
 }

@@ -9,6 +9,7 @@ import { NOTIFICATION_QUERY_KEY } from '@/features/notification/api'
 import { t, type MessageKey } from '@/i18n/t'
 import { apiClient, unwrap } from '@/lib/apiClient'
 import { formatDayMonthTime } from '@/lib/dates'
+import { formatVnd } from '@/lib/money'
 import { problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { useJobDispute, type JobDispute } from './disputeApi'
@@ -22,7 +23,9 @@ import { useJobDispute, type JobDispute } from './disputeApi'
 export function DisputeSection({ jobId }: { jobId: string }) {
   const dispute = useJobDispute(jobId)
   // An auxiliary part of the page: nothing while loading or when the read fails.
-  return dispute.data && (dispute.data.open || dispute.data.canOpen) ? <Content jobId={jobId} data={dispute.data} /> : null
+  return dispute.data && (dispute.data.open || dispute.data.canOpen || dispute.data.decided) ? (
+    <Content jobId={jobId} data={dispute.data} />
+  ) : null
 }
 
 function Content({ jobId, data }: { jobId: string; data: JobDispute }) {
@@ -59,6 +62,9 @@ function Content({ jobId, data }: { jobId: string; data: JobDispute }) {
         </div>
       </div>
     )
+  }
+  if (data.decided && !data.canOpen) {
+    return <Decided decided={data.decided} />
   }
   const send = () => {
     setError(undefined)
@@ -111,6 +117,21 @@ function Content({ jobId, data }: { jobId: string; data: JobDispute }) {
           </Dialog.Popup>
         </Dialog.Portal>
       </Dialog.Root>
+    </div>
+  )
+}
+
+function Decided({ decided }: { decided: NonNullable<JobDispute['decided']> }) {
+  return (
+    <div id="tranh-chap" role="status" className="flex flex-col gap-1 rounded-md bg-muted p-4 text-body-sm">
+      <p className="font-semibold">{t('screen.dispute.decided', { time: formatDayMonthTime(decided.decidedAt) })}</p>
+      <p>{t(`screen.dispute.decidedNext.${decided.nextState}` as MessageKey)}</p>
+      {decided.releaseVnd != null && decided.refundVnd != null && (
+        <p>
+          {t('screen.dispute.decidedAmounts', { release: formatVnd(decided.releaseVnd), refund: formatVnd(decided.refundVnd) })}
+        </p>
+      )}
+      <p className="break-words whitespace-pre-line">{t('screen.dispute.reasoning', { reasoning: decided.reasoning })}</p>
     </div>
   )
 }
