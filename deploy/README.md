@@ -190,6 +190,45 @@ author can run it, on GitHub, as an owner of `vibefix-dev`.
    An operation that fails goes to `bmad-architecture` before Epic 7, because AD-10 and AD-11
    depend on it; then tell Amelia, who records it and closes Story 2.1.
 
+## Spike S2: VNPay sandbox refunds and transaction queries
+
+Story 4.5 asks what the dev VNPay sandbox merchant answers: whether full and partial refunds are
+enabled, whether `querydr` answers, and the exact response codes of the return (which carries the
+IPN's fields), `querydr`, and refunds, including what `04` and `94` mean in practice (S2, SG-24).
+Only the author can run it, with the merchant VNPay gives them. vibefix only ever calls
+`sandbox.vnpayment.vn` and refuses to start with any other VNPay URL (AD-14).
+
+1. **Register the sandbox merchant** on VNPay's sandbox registration page. VNPay emails a terminal
+   code (`vnp_TmnCode`) and a hash secret. Save the hash secret, and nothing else, as
+   `deploy/secrets/vnpay-hash-secret` (the folder is ignored by git). The terminal code goes on the
+   command line.
+2. **Create a payment.** The amount is whole VND (at least 5.000 ₫).
+
+   ```sh
+   docker compose -f deploy/compose.yaml run --rm --no-deps -e SPRING_PROFILES_ACTIVE=dev,cli -v ./deploy/secrets/vnpay-hash-secret:/run/secrets/vnpay-hash-secret:ro backend --vibefix.cli.command=spike-s2 --vibefix.payment.vnpay.tmn-code=<terminal code> --vibefix.payment.vnpay.hash-secret-file=/run/secrets/vnpay-hash-secret --vibefix.payment.vnpay.return-url=http://localhost:5173/thanh-toan/ket-qua --step=pay --amount=10000
+   ```
+
+   Open the printed URL, pay with the test card from VNPay's sandbox page, and keep `vnp_TxnRef` and
+   `vnp_CreateDate`.
+3. **Check the return.** VNPay sends the browser back to the return URL (the page itself does not
+   exist yet). Copy the whole address and run the same command with
+   `--step=return --query='<the address>'`. It prints `vnp_ResponseCode`, `vnp_TransactionStatus`,
+   `vnp_TransactionNo`, and whether the hash verified. The IPN carries the same fields; it needs a
+   public URL, so it waits for Story 4.6.
+4. **Query it.** Run `--step=query --txn-ref=<vnp_TxnRef> --transaction-date=<vnp_CreateDate>`, once
+   right away and once again within a few seconds, to see the duplicate-request answer.
+5. **Refund it**, partly first, then the rest:
+   `--step=refund --txn-ref=<ref> --transaction-date=<vnp_CreateDate> --transaction-no=<vnp_TransactionNo> --amount=3000 --type=03`,
+   then `--amount=7000 --type=02`. Repeat one refund at once to see a duplicate. Make a second
+   payment and refund it whole with `--type=02`.
+6. **Record the outcome** in the spine's memlog: every step's `vnp_ResponseCode` and `vnp_Message`,
+   whether each answer's hash verified, and what `04` and `94` meant. The decision is `VnpayRefund`
+   if sandbox refunds work, otherwise `LedgerRecordedRefund` (simulated test-mode money, AD-15). Then
+   tell Amelia, who records it and closes Story 4.5.
+
+The probe prints no hash and never the secret. Exit code 0 means VNPay answered with a hash that
+verified, whatever its codes; 1 means it did not answer or its hash did not verify.
+
 ## Email locally
 
 The backend sends email as External Operations over SMTP (AD-6, AD-27). On this stack the SMTP

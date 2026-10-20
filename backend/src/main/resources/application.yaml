@@ -137,6 +137,13 @@ vibefix:
     purge-after: 30d
     processed-retention: 90d
     maintenance-interval: 1m
+  payment:
+    # AD-14: the environment's own VNPay sandbox merchant, and only the sandbox (the start is
+    # refused otherwise). The terminal code and the hash secret file are set where a story needs
+    # them; see deploy/README.md "Spike S2".
+    vnpay:
+      pay-url: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
+      api-url: https://sandbox.vnpayment.vn/merchant_webapi/api/transaction
   timers:
     # AD-7: due Deadlines are claimed every 30 s, at most this many per poll.
     poll-interval: 30s
