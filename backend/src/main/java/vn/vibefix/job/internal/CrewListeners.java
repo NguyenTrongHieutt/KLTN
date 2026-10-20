@@ -11,13 +11,12 @@ import org.springframework.stereotype.Component;
 import vn.vibefix.identity.AccountLocked;
 import vn.vibefix.identity.PersonSignalMatched;
 import vn.vibefix.shared.ProcessedEvents;
-import vn.vibefix.shared.Role;
 
 /**
  * AD-19: a person-link signal two accounts newly share alerts every Administrator once for each
  * running Job both take part in, as its Customer, its Mentor, or a Crew member; nothing else changes
- * (replay-safe through {@link ProcessedEvents}). A locked Student's Crew rows become {@code INACTIVE}
- * (AD-41, Story 4.4).
+ * (replay-safe through {@link ProcessedEvents}). A lock carries through to the person's running Jobs
+ * ({@link LockConsequences}, Story 10.2), once per event.
  */
 @Component
 class CrewListeners {
@@ -28,20 +27,21 @@ class CrewListeners {
 
 	private final ProcessedEvents processedEvents;
 
-	private final CrewService crews;
+	private final LockConsequences locks;
 
-	CrewListeners(JdbcClient jdbc, CrewAlerts alerts, ProcessedEvents processedEvents, CrewService crews) {
+	CrewListeners(JdbcClient jdbc, CrewAlerts alerts, ProcessedEvents processedEvents, LockConsequences locks) {
 		this.jdbc = jdbc;
 		this.alerts = alerts;
 		this.processedEvents = processedEvents;
-		this.crews = crews;
+		this.locks = locks;
 	}
 
 	@ApplicationModuleListener
 	void onAccountLocked(AccountLocked event) {
-		if (event.role() == Role.STUDENT) {
-			this.crews.accountLocked(event.accountId());
+		if (!this.processedEvents.markProcessed("job.CrewListeners.onAccountLocked", event.eventId())) {
+			return;
 		}
+		this.locks.locked(event.eventId(), event.accountId(), event.role());
 	}
 
 	@ApplicationModuleListener

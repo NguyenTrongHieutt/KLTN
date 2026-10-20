@@ -99,4 +99,21 @@ describe('JOB-1 Disputes (FR-52, UX-DR22, UX-DR56)', () => {
     expect(screen.getByText(/Khách hàng mở tranh chấp lúc/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Mở tranh chấp' })).toBeNull()
   })
+
+  it('says the System opened it when a lock left the Job unable to go on (FR-59)', { timeout: 20_000 }, async () => {
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/jobs/j1': () => json(customerJob),
+      'GET /api/v1/boards/j1/progress': () => json(progress),
+      'GET /api/v1/boards/j1/dispute': () =>
+        json({
+          jobId: 'j1',
+          audience: 'CUSTOMER',
+          canOpen: false,
+          open: { ...open, openedBy: 'SYSTEM', mine: false, reason: 'Một bên tham gia bị khóa tài khoản' },
+        }),
+    })
+    renderAt('/cong-viec/j1')
+
+    expect(await screen.findByText(/vibefix mở tranh chấp lúc .* vì một bên tham gia bị khóa tài khoản/)).toBeInTheDocument()
+  })
 })

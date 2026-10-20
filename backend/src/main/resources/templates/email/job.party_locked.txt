@@ -1,0 +1,5 @@
+subject: {name} không còn tham gia {job}
+---
+Xin chào,
+
+{name} không còn tham gia công việc {job} vì tài khoản đã bị khóa. Nếu công việc không thể tiếp tục, vibefix mở tranh chấp để quản trị viên quyết định; tiền đang giữ và các thời hạn tạm dừng cho đến khi có quyết định.
