@@ -10,7 +10,9 @@ import { t, type MessageKey } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
 import { formatDayMonthTime } from '@/lib/dates'
 import { problemMessage } from '@/lib/problemMessage'
+import { AttachmentList } from './Attachments'
 import { useReviewWorkItem, useSubmitWorkItem } from './moves'
+import { LatestNotes } from './NoteThread'
 import { useWorkItem, type WorkItemCard } from './workApi'
 
 const SELF_CHECK = ['meetsCriteria', 'tested', 'docsUpdated', 'noSecrets'] as const
@@ -37,12 +39,14 @@ function Frame({ title, onClose, children }: { title: string; onClose: () => voi
 }
 
 /**
- * The Submit dialog (FR-25, AD-39, UX-DR38): the four Self-check items, all required, and an optional
- * note for the Mentor; a refusal shows inline. Attachments come with Story 5.8.
+ * The Submit dialog (FR-25, FR-76, AD-39, UX-DR38, UX-DR79): the four Self-check items, all required,
+ * the Work Item's Attachments with "Thêm tệp hoặc liên kết", and an optional note for the Mentor; a
+ * refusal shows inline.
  */
 export function SubmitDialog({ item, jobId, onClose }: { item: WorkItemCard; jobId: string; onClose: () => void }) {
   const ids = useId()
   const toasts = useToasts()
+  const detail = useWorkItem(item.id)
   const submit = useSubmitWorkItem(jobId)
   const [answers, setAnswers] = useState<Answers>({ meetsCriteria: false, tested: false, docsUpdated: false, noSecrets: false })
   const [note, setNote] = useState('')
@@ -80,6 +84,9 @@ export function SubmitDialog({ item, jobId, onClose }: { item: WorkItemCard; job
           </label>
         ))}
       </fieldset>
+      <RegionState query={detail} skeleton={<Skeleton className="h-16 w-full" />}>
+        {detail.data && <AttachmentList detail={detail.data} canAdd />}
+      </RegionState>
       <label htmlFor={`${ids}-note`} className="text-label">
         {t('screen.board.submit.note')}
       </label>
@@ -115,9 +122,9 @@ export function SubmitDialog({ item, jobId, onClose }: { item: WorkItemCard; job
 }
 
 /**
- * The Review dialog (FR-25, AD-39, UX-DR38): the Self-check answers and the note of the latest
- * submission, a written comment, and "Duyệt" (to "Xong") or "Trả lại" (to "Đang làm"); a refusal shows
- * inline. Attachments and notes come with Story 5.8.
+ * The Review dialog (FR-25, FR-76, AD-39, UX-DR38, UX-DR79): the Self-check answers and the note of the
+ * latest submission, the Attachments and the latest notes, a written comment, and "Duyệt" (to "Xong") or
+ * "Trả lại" (to "Đang làm"); a refusal shows inline.
  */
 export function ReviewDialog({ item, jobId, onClose }: { item: WorkItemCard; jobId: string; onClose: () => void }) {
   const ids = useId()
@@ -176,6 +183,12 @@ export function ReviewDialog({ item, jobId, onClose }: { item: WorkItemCard; job
               </p>
             )}
           </section>
+        )}
+        {detail.data && (
+          <>
+            <AttachmentList detail={detail.data} canAdd={false} canRemove={false} />
+            <LatestNotes detail={detail.data} />
+          </>
         )}
       </RegionState>
       <label htmlFor={`${ids}-comment`} className="text-label">

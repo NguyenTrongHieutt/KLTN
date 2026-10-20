@@ -6,12 +6,15 @@
  * Board, as {@code job} says (AD-41), a former member only their own window's; an Administrator reads
  * only under a grant a case module pushed down ({@link vn.vibefix.shared.AdminReadGrants}), each read
  * audited (AD-20). No Customer endpoint returns Work Items (AD-39).
- * Nothing reaches "Xong" without the Mentor's approval (the Review Gate).
+ * Nothing reaches "Xong" without the Mentor's approval (the Review Gate). Work Items carry Attachments,
+ * whose files {@code files} stores and serves only when {@code work} allows it, and append-only notes
+ * (FR-76).
  * <p>
  * Public API: {@link vn.vibefix.work.CriteriaDone}, the one count of criteria done (AD-33). The listener,
  * the endpoints, the grants, and the personal-data participant are wiring in {@code work.internal}.
  */
-@ApplicationModule(allowedDependencies = { "shared", "audit", "identity", "notification", "scanning", "job", "product" })
+@ApplicationModule(allowedDependencies = { "shared", "audit", "files", "identity", "notification", "scanning", "job",
+		"product" })
 package vn.vibefix.work;
 
 import org.springframework.modulith.ApplicationModule;

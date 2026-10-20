@@ -2004,6 +2004,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/work-items/{workItemId}/attachments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["attachFile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/work-items/{workItemId}/attachments/{attachmentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["removeAttachment"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/work-items/{workItemId}/links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["attachLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/work-items/{workItemId}/move": {
         parameters: {
             query?: never;
@@ -2014,6 +2062,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["moveWorkItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/work-items/{workItemId}/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["addNote"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2699,10 +2763,13 @@ export interface components {
             assignedTo?: string;
             /** Format: date-time */
             at: string;
+            attachment?: string;
             comment?: string;
             fields: string[];
             /** Format: uuid */
             id: string;
+            mine: boolean;
+            quoted?: components["schemas"]["QuotedNoteView"];
         };
         HistoryJobView: {
             /** Format: uuid */
@@ -2913,6 +2980,12 @@ export interface components {
             updatedAt: string;
             /** Format: int64 */
             version: number;
+        };
+        LinkRequest: {
+            label?: string;
+            /** @enum {string} */
+            sensitive?: "CHECK" | "MASK";
+            url: string;
         };
         MentorApplicationDetail: {
             /** Format: uuid */
@@ -3225,6 +3298,13 @@ export interface components {
         NdaRequest: {
             commitEmailNoticeAcknowledged: boolean;
             ndaVersion: string;
+        };
+        NoteRequest: {
+            /** Format: uuid */
+            quotes?: string;
+            /** @enum {string} */
+            sensitive?: "CHECK" | "MASK";
+            text: string;
         };
         NotificationItem: {
             /** Format: date-time */
@@ -3586,6 +3666,14 @@ export interface components {
             priceVnd: number;
             /** Format: int32 */
             timelineDays: number;
+        };
+        QuotedNoteView: {
+            actor: string;
+            /** Format: date-time */
+            at: string;
+            /** Format: uuid */
+            id: string;
+            text: string;
         };
         RatingSummaryView: {
             average?: number;
@@ -4068,6 +4156,22 @@ export interface components {
             /** @enum {string} */
             visibility: "TEAM" | "CUSTOMER";
         };
+        WorkAttachmentView: {
+            /** Format: date-time */
+            addedAt: string;
+            author: string;
+            domain?: string;
+            downloadUrl?: string;
+            /** Format: uuid */
+            id: string;
+            kind: string;
+            mediaType?: string;
+            name: string;
+            removable: boolean;
+            /** Format: int64 */
+            size?: number;
+            url?: string;
+        };
         WorkItemCardView: {
             assignee?: components["schemas"]["PersonView"];
             /** Format: int32 */
@@ -4092,6 +4196,7 @@ export interface components {
             version: number;
         };
         WorkItemDetailView: {
+            attachments: components["schemas"]["WorkAttachmentView"][];
             checklist: components["schemas"]["ChecklistLineView"][];
             /** Format: date-time */
             createdAt: string;
@@ -7431,6 +7536,86 @@ export interface operations {
             };
         };
     };
+    attachFile: {
+        parameters: {
+            query?: {
+                sensitive?: "CHECK" | "MASK";
+            };
+            header?: never;
+            path: {
+                workItemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkItemDetailView"];
+                };
+            };
+        };
+    };
+    removeAttachment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workItemId: string;
+                attachmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkItemDetailView"];
+                };
+            };
+        };
+    };
+    attachLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workItemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkItemDetailView"];
+                };
+            };
+        };
+    };
     moveWorkItem: {
         parameters: {
             query?: never;
@@ -7448,6 +7633,32 @@ export interface operations {
         responses: {
             /** @description OK */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkItemDetailView"];
+                };
+            };
+        };
+    };
+    addNote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workItemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NoteRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };

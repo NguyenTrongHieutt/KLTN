@@ -49,6 +49,27 @@ enum WorkReason {
 	REPORT_EXISTS,
 
 	/** The Assessment Report is always customer-visible (FR-31). */
-	REPORT_ALWAYS_VISIBLE
+	REPORT_ALWAYS_VISIBLE,
+
+	/** Only an Attachment's author removes it, and only one's own note is corrected (FR-76). */
+	NOT_AUTHOR,
+
+	/** An Attachment stays once its Work Item is Done (FR-76). */
+	WORK_ITEM_DONE,
+
+	/** A link must be {@code https} with a host and no user info, at most 2000 characters (FR-76). */
+	LINK_INVALID,
+
+	/** FR-47 found a likely credential or personal data in a link's URL; masking it would break the link. */
+	LINK_SENSITIVE,
+
+	/** The Job's uploads would pass 200 MB (AD-34). */
+	JOB_FILE_QUOTA,
+
+	/** A note needs some text. */
+	NOTE_EMPTY,
+
+	/** The note a correction quotes is not one of this Work Item's. */
+	QUOTE_UNKNOWN
 
 }

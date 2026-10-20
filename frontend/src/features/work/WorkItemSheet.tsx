@@ -1,5 +1,5 @@
 import { Dialog } from '@base-ui/react/dialog'
-import { Plus, TriangleAlert, X } from 'lucide-react'
+import { Plus, X } from 'lucide-react'
 import { useId, useState, type FormEvent } from 'react'
 import { FormField } from '@/components/FormField'
 import { fieldProps, inputClass } from '@/components/formField-props'
@@ -10,9 +10,11 @@ import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
 import { t, type MessageKey } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
-import { formatDayMonthTime } from '@/lib/dates'
 import { problemMessage } from '@/lib/problemMessage'
+import { AttachmentList } from './Attachments'
 import { MoveMenu } from './MoveMenu'
+import { NoteThread } from './NoteThread'
+import { SensitiveDialog } from './SensitiveDialog'
 import type { WorkItemCard } from './workApi'
 import {
   PRIORITIES,
@@ -20,22 +22,18 @@ import {
   useSaveWorkItem,
   useWorkItem,
   type Board,
+  type SensitiveMatch,
   type WorkItemDetail,
   type WorkItemRequest,
 } from './workApi'
 
-interface Match {
-  kind: string
-  type: string
-  masked: string
-}
-
 /**
- * The Work Item detail (FR-23, AD-23, AD-33, AD-39, UX-DR36) in the Sheet: the form for the Mentor and
- * the active Crew (assignee and priority only for the Mentor; a seeded Story's type and Milestone
- * read-only), the read-only fields for anyone else, and the history. "Thêm việc" opens it empty. A
- * save carries the version it was made on; a newer one opens the Stale dialog, and a likely credential
- * or customer data opens the Sensitive-content dialog before anything is stored.
+ * The Work Item detail (FR-23, FR-76, AD-23, AD-33, AD-39, UX-DR36, UX-DR79) in the Sheet: the form for
+ * the Mentor and the active Crew (assignee and priority only for the Mentor; a seeded Story's type and
+ * Milestone read-only), the read-only fields for anyone else, the Attachments, and one history with the
+ * notes. "Thêm việc" opens it empty. A save carries the version it was made on; a newer one opens the
+ * Stale dialog, and a likely credential or customer data opens the Sensitive-content dialog before
+ * anything is stored.
  */
 export function WorkItemSheet({
   board,
@@ -109,7 +107,7 @@ function Editor({
   const [assigneeId, setAssigneeId] = useState(item?.assignee?.accountId ?? '')
   const [titleError, setTitleError] = useState<string>()
   const [error, setError] = useState<string>()
-  const [matches, setMatches] = useState<Match[]>()
+  const [matches, setMatches] = useState<SensitiveMatch[]>()
   const [stale, setStale] = useState(false)
 
   const submit = (sensitive: 'CHECK' | 'MASK') => {
@@ -143,7 +141,7 @@ function Editor({
           return
         }
         if (failure instanceof ApiError && failure.problem.reason === 'SENSITIVE_CONTENT') {
-          setMatches((failure.problem as { matches?: Match[] }).matches ?? [])
+          setMatches((failure.problem as { matches?: SensitiveMatch[] }).matches ?? [])
           return
         }
         setMatches(undefined)
@@ -345,7 +343,12 @@ function Editor({
           </Button>
         )}
       </form>
-      {detail && <History detail={detail} />}
+      {detail && (
+        <>
+          <AttachmentList detail={detail} canAdd={!readOnly} />
+          <NoteThread detail={detail} canWrite={!readOnly} />
+        </>
+      )}
       {matches && (
         <SensitiveDialog matches={matches} pending={save.isPending} onMask={() => submit('MASK')} onEdit={() => setMatches(undefined)} />
       )}
@@ -357,106 +360,6 @@ function Editor({
         }}
       />
     </div>
-  )
-}
-
-const FIELD_LABELS: Record<string, MessageKey> = {
-  type: 'screen.board.item.type',
-  title: 'screen.board.item.titleLabel',
-  description: 'screen.board.item.description',
-  checklist: 'screen.board.item.checklist',
-  milestoneId: 'screen.board.item.milestone',
-  priority: 'screen.board.item.priority',
-  estimateHours: 'screen.board.item.estimate',
-  assigneeId: 'screen.board.item.assignee',
-}
-
-function History({ detail }: { detail: WorkItemDetail }) {
-  return (
-    <section aria-labelledby="work-item-history" className="flex flex-col gap-2 border-t border-border pt-4">
-      <h3 id="work-item-history" className="text-h3">
-        {t('screen.board.item.history')}
-      </h3>
-      <ol className="flex flex-col gap-1.5 text-body-sm">
-        {detail.history.map((entry) => {
-          const fields = entry.fields
-            .filter((field) => FIELD_LABELS[field])
-            .map((field) => t(FIELD_LABELS[field]).toLowerCase())
-            .join(', ')
-          let text: string
-          if (entry.action === 'SEEDED') {
-            text = t('screen.board.item.historySeeded')
-          } else if (entry.action === 'SUBMITTED' || entry.action === 'APPROVED' || entry.action === 'RETURNED') {
-            text = t(`screen.board.item.history${entry.action}` as MessageKey, { actor: entry.actor })
-          } else if (entry.action === 'MOVED') {
-            text = t('screen.board.item.historyMOVED', { actor: entry.actor })
-          } else if (entry.action === 'CREATED') {
-            text = t('screen.board.item.historyCreated', { actor: entry.actor })
-          } else if (entry.assignedTo) {
-            text = t('screen.board.item.historyAssigned', { actor: entry.actor, assignee: entry.assignedTo })
-          } else {
-            text = t('screen.board.item.historyUpdated', { actor: entry.actor, fields })
-          }
-          return (
-            <li key={entry.id} className="flex flex-col gap-0.5">
-              <span className="flex flex-wrap justify-between gap-2">
-                <span className="break-words">{text}</span>
-                <span className="text-caption text-muted-foreground">{formatDayMonthTime(entry.at)}</span>
-              </span>
-              {entry.comment && (
-                <span className="text-caption break-words whitespace-pre-wrap text-muted-foreground">{entry.comment}</span>
-              )}
-            </li>
-          )
-        })}
-      </ol>
-    </section>
-  )
-}
-
-/** FR-47 for Work Items: "Che và lưu" stores the masked text; "Sửa lại" goes back to the form. */
-function SensitiveDialog({
-  matches,
-  pending,
-  onMask,
-  onEdit,
-}: {
-  matches: Match[]
-  pending: boolean
-  onMask: () => void
-  onEdit: () => void
-}) {
-  return (
-    <Dialog.Root open onOpenChange={(next) => !next && onEdit()}>
-      <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-[60] bg-foreground/50" />
-        <Dialog.Popup className="fixed top-24 left-1/2 z-[70] flex w-[min(520px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
-          <Dialog.Title className="text-h2">{t('screen.board.item.sensitiveTitle')}</Dialog.Title>
-          <div className="flex gap-3 rounded-md border-l-4 border-destructive bg-destructive-soft p-4 text-body-sm">
-            <TriangleAlert aria-hidden="true" className="size-5 shrink-0 text-destructive" />
-            <div className="flex flex-col gap-1.5">
-              <p>{t('screen.chat.warning.found')}</p>
-              <ul className="flex flex-col gap-1">
-                {matches.map((match, index) => (
-                  <li key={`${match.masked}-${index}`} className="font-mono break-all">
-                    {match.masked}
-                  </li>
-                ))}
-              </ul>
-              <Dialog.Description>{t('screen.board.item.sensitiveBody')}</Dialog.Description>
-            </div>
-          </div>
-          <div className="flex flex-wrap justify-end gap-3">
-            <Button type="button" variant="secondary" onClick={onEdit}>
-              {t('screen.chat.warning.edit')}
-            </Button>
-            <Button type="button" disabled={pending} onClick={onMask}>
-              {t('screen.board.item.mask')}
-            </Button>
-          </div>
-        </Dialog.Popup>
-      </Dialog.Portal>
-    </Dialog.Root>
   )
 }
 

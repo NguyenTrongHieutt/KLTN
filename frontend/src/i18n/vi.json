@@ -2026,7 +2026,9 @@
         "historySUBMITTED": "{actor} gửi duyệt",
         "historyAPPROVED": "{actor} duyệt",
         "historyRETURNED": "{actor} trả lại",
-        "historyMOVED": "{actor} chuyển cột"
+        "historyMOVED": "{actor} chuyển cột",
+        "historyATTACHED": "{actor} đã thêm {name}",
+        "historyDETACHED": "{actor} đã gỡ tệp {name}"
       },
       "filters": "Lọc bảng công việc",
       "columns": "Cột đang xem",
@@ -2065,6 +2067,38 @@
         "cancel": "Hủy",
         "approved": "Đã duyệt {key}",
         "returned": "Đã trả lại {key}"
+      },
+      "attachments": {
+        "title": "Tệp đính kèm",
+        "empty": "Chưa có tệp hoặc liên kết nào.",
+        "add": "Thêm tệp hoặc liên kết",
+        "addFile": "Tải tệp lên",
+        "addLink": "Thêm liên kết",
+        "url": "Liên kết (https://)",
+        "label": "Tên hiển thị (không bắt buộc)",
+        "saveLink": "Thêm liên kết",
+        "cancel": "Hủy",
+        "uploading": "Đang tải tệp lên…",
+        "added": "Đã thêm {name}.",
+        "remove": "Gỡ",
+        "removeLabel": "Gỡ {name}",
+        "removed": "Đã gỡ {name}.",
+        "meta": "{author} · {time}",
+        "external": "mở trang ngoài"
+      },
+      "notes": {
+        "title": "Ghi chú và lịch sử",
+        "new": "Ghi chú mới",
+        "save": "Lưu ghi chú",
+        "saved": "Đã lưu ghi chú.",
+        "append": "Ghi chú không sửa hoặc xóa được sau khi lưu.",
+        "correct": "Sửa lại",
+        "correctLabel": "Sửa lại ghi chú lúc {time}",
+        "correcting": "Ghi chú sửa lại cho ghi chú lúc {time}",
+        "cancelCorrect": "Hủy sửa",
+        "correction": "ghi chú sửa lại",
+        "latest": "Ghi chú mới nhất",
+        "noNotes": "Chưa có ghi chú nào."
       }
     },
     "docs": {
@@ -2965,7 +2999,14 @@
       "PAGE_PARENT_UNKNOWN": "Không tìm thấy trang cha.",
       "TEMPLATE_NOT_AVAILABLE": "Mẫu báo cáo đánh giá chỉ dùng cho công việc đánh giá.",
       "REPORT_EXISTS": "Công việc này đã có báo cáo đánh giá.",
-      "REPORT_ALWAYS_VISIBLE": "Báo cáo đánh giá luôn để khách hàng xem."
+      "REPORT_ALWAYS_VISIBLE": "Báo cáo đánh giá luôn để khách hàng xem.",
+      "NOT_AUTHOR": "Chỉ người đã thêm tệp hoặc viết ghi chú làm được việc này.",
+      "WORK_ITEM_DONE": "Hạng mục đã Xong nên không gỡ tệp được nữa.",
+      "LINK_INVALID": "Liên kết phải bắt đầu bằng https:// và không chứa tên đăng nhập hay mật khẩu.",
+      "LINK_SENSITIVE": "Liên kết có thể chứa khóa bí mật hoặc dữ liệu khách hàng. Hãy bỏ phần đó khỏi liên kết.",
+      "JOB_FILE_QUOTA": "Tệp của một công việc tối đa 200 MB.",
+      "NOTE_EMPTY": "Hãy viết nội dung ghi chú.",
+      "QUOTE_UNKNOWN": "Không tìm thấy ghi chú cần sửa."
     }
   },
   "markdown": {

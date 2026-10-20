@@ -824,6 +824,64 @@ POST /api/v1/work-items/{workItemId}/review,CREW_FORMER,,work-item-review.json,4
 POST /api/v1/work-items/{workItemId}/review,ADMIN_TEAM_ISSUE_GRANT,,work-item-review.json,404 NOT_FOUND
 POST /api/v1/work-items/{workItemId}/review,JOB_MENTOR,,work-item-review.json,422 GUARD_FAILED MOVE_NOT_ALLOWED
 POST /api/v1/work-items/{workItemId}/review,CREW_ACTIVE,,work-item-review.json,403 FORBIDDEN MENTOR_ONLY
+# Attachments and notes (FR-76, AD-39, AD-41): the Mentor and ACTIVE members add them; the fixture's
+# Attachment is the Mentor's, so only the Mentor removes it. The Customer and everyone else find nothing.
+POST /api/v1/work-items/{workItemId}/attachments,ANONYMOUS,,student-card.png,401
+POST /api/v1/work-items/{workItemId}/attachments,OWNER,,student-card.png,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/attachments,CUSTOMER,,student-card.png,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/attachments,MENTOR,,student-card.png,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/attachments,STUDENT,,student-card.png,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/attachments,ADMINISTRATOR,,student-card.png,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/attachments,TEAM_MENTOR,,student-card.png,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/attachments,TEAM_MEMBER,,student-card.png,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/attachments,CREW_ASSIGNED,,student-card.png,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/attachments,CREW_INACTIVE,,student-card.png,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/attachments,CREW_FORMER,,student-card.png,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/attachments,ADMIN_TEAM_ISSUE_GRANT,,student-card.png,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/attachments,JOB_MENTOR,,student-card.png,201
+POST /api/v1/work-items/{workItemId}/attachments,CREW_ACTIVE,,student-card.png,201
+POST /api/v1/work-items/{workItemId}/links,ANONYMOUS,,work-item-link.json,401
+POST /api/v1/work-items/{workItemId}/links,OWNER,,work-item-link.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/links,CUSTOMER,,work-item-link.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/links,MENTOR,,work-item-link.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/links,STUDENT,,work-item-link.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/links,ADMINISTRATOR,,work-item-link.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/links,TEAM_MENTOR,,work-item-link.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/links,TEAM_MEMBER,,work-item-link.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/links,CREW_ASSIGNED,,work-item-link.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/links,CREW_INACTIVE,,work-item-link.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/links,CREW_FORMER,,work-item-link.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/links,ADMIN_TEAM_ISSUE_GRANT,,work-item-link.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/links,JOB_MENTOR,,work-item-link.json,201
+POST /api/v1/work-items/{workItemId}/links,CREW_ACTIVE,,work-item-link.json,201
+DELETE /api/v1/work-items/{workItemId}/attachments/{attachmentId},ANONYMOUS,,,401
+DELETE /api/v1/work-items/{workItemId}/attachments/{attachmentId},OWNER,,,404 NOT_FOUND
+DELETE /api/v1/work-items/{workItemId}/attachments/{attachmentId},CUSTOMER,,,404 NOT_FOUND
+DELETE /api/v1/work-items/{workItemId}/attachments/{attachmentId},MENTOR,,,404 NOT_FOUND
+DELETE /api/v1/work-items/{workItemId}/attachments/{attachmentId},STUDENT,,,404 NOT_FOUND
+DELETE /api/v1/work-items/{workItemId}/attachments/{attachmentId},ADMINISTRATOR,,,404 NOT_FOUND
+DELETE /api/v1/work-items/{workItemId}/attachments/{attachmentId},TEAM_MENTOR,,,404 NOT_FOUND
+DELETE /api/v1/work-items/{workItemId}/attachments/{attachmentId},TEAM_MEMBER,,,404 NOT_FOUND
+DELETE /api/v1/work-items/{workItemId}/attachments/{attachmentId},CREW_ASSIGNED,,,404 NOT_FOUND
+DELETE /api/v1/work-items/{workItemId}/attachments/{attachmentId},CREW_INACTIVE,,,404 NOT_FOUND
+DELETE /api/v1/work-items/{workItemId}/attachments/{attachmentId},CREW_FORMER,,,404 NOT_FOUND
+DELETE /api/v1/work-items/{workItemId}/attachments/{attachmentId},ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
+DELETE /api/v1/work-items/{workItemId}/attachments/{attachmentId},JOB_MENTOR,,,200
+DELETE /api/v1/work-items/{workItemId}/attachments/{attachmentId},CREW_ACTIVE,,,403 FORBIDDEN NOT_AUTHOR
+POST /api/v1/work-items/{workItemId}/notes,ANONYMOUS,,work-item-note.json,401
+POST /api/v1/work-items/{workItemId}/notes,OWNER,,work-item-note.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/notes,CUSTOMER,,work-item-note.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/notes,MENTOR,,work-item-note.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/notes,STUDENT,,work-item-note.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/notes,ADMINISTRATOR,,work-item-note.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/notes,TEAM_MENTOR,,work-item-note.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/notes,TEAM_MEMBER,,work-item-note.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/notes,CREW_ASSIGNED,,work-item-note.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/notes,CREW_INACTIVE,,work-item-note.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/notes,CREW_FORMER,,work-item-note.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/notes,ADMIN_TEAM_ISSUE_GRANT,,work-item-note.json,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/notes,JOB_MENTOR,,work-item-note.json,201
+POST /api/v1/work-items/{workItemId}/notes,CREW_ACTIVE,,work-item-note.json,201
 # The Documentation Space (FR-29, AD-20, AD-41): the Mentor and ACTIVE members read and write; INACTIVE and
 # former members read only Pages with a version in their window (the fixture's Page was written after it),
 # never write; the Job's Customer (OWNER) reads customer-visible Pages only (the fixture's is team-only), never

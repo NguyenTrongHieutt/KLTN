@@ -64,6 +64,7 @@ const detail = (overrides: object = {}) => ({
   createdBy: 'Trần Thảo Vy',
   createdAt: '2026-10-20T03:00:00Z',
   readOnly: false,
+  attachments: [],
   history: [
     { id: 'h1', actor: 'Trần Thảo Vy', action: 'CREATED', fields: ['type', 'title'], at: '2026-10-20T03:00:00Z' },
     {
