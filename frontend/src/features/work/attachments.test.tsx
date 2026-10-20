@@ -48,6 +48,7 @@ const board = (overrides: object = {}) => ({
   readOnly: false,
   milestones: [{ milestoneId: 'm1', number: 1, title: 'Sửa lỗi trùng giờ', held: true }],
   crew: [],
+  workload: [],
   items: [card()],
   ...overrides,
 })

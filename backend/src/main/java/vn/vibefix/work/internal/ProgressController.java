@@ -3,6 +3,8 @@ package vn.vibefix.work.internal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -20,7 +22,6 @@ import vn.vibefix.identity.StudentDirectory.StudentCard;
 import vn.vibefix.job.AgreementCriteria;
 import vn.vibefix.job.AgreementCriteria.MilestoneInForce;
 import vn.vibefix.job.Crews;
-import vn.vibefix.job.Crews.CrewMember;
 import vn.vibefix.job.Crews.Selection;
 import vn.vibefix.job.MilestoneStates;
 import vn.vibefix.job.MilestoneStates.MilestoneDetail;
@@ -67,7 +68,11 @@ class ProgressController {
 	record OpenItemView(UUID id, String key, String title, String status) {
 	}
 
-	record CrewProgressView(UUID accountId, String name, List<OpenItemView> openItems) {
+	/**
+	 * One Crew member on JOB-1, for the Mentor (UX-DR68).
+	 * @param state the row's AD-41 state: {@code ASSIGNED}, {@code ACTIVE}, {@code INACTIVE}, or {@code RELEASED}
+	 */
+	record CrewProgressView(UUID accountId, String name, String state, List<OpenItemView> openItems) {
 	}
 
 	record PageLinkView(UUID id, String title) {
@@ -151,12 +156,19 @@ class ProgressController {
 			.list();
 		List<CrewProgressView> crew = new ArrayList<>();
 		if (viewer.mentor()) {
-			List<UUID> members = this.crews.crewOf(jobId, Selection.ACTIVE).stream().map(CrewMember::studentId).toList();
-			if (!members.isEmpty()) {
-				for (StudentCard card : this.students.cards(members)) {
-					crew.add(new CrewProgressView(card.accountId(),
-							card.name() != null ? card.name() : "@" + card.githubLogin(), openItems(viewer, card.accountId())));
-				}
+			// AD-41: every row that is not released, then each former member who was ever active, once per Student.
+			Map<UUID, String> states = new LinkedHashMap<>();
+			this.crews.crewOf(jobId, Selection.UNRELEASED).forEach(member -> states.put(member.studentId(), member.status()));
+			this.crews.crewOf(jobId, Selection.EVER_ACTIVE)
+				.forEach(member -> states.putIfAbsent(member.studentId(), member.status()));
+			if (!states.isEmpty()) {
+				Map<UUID, StudentCard> cards = new HashMap<>();
+				this.students.cards(List.copyOf(states.keySet())).forEach(card -> cards.put(card.accountId(), card));
+				states.forEach((studentId, state) -> {
+					StudentCard card = cards.get(studentId);
+					String name = card == null ? "" : card.name() != null ? card.name() : "@" + card.githubLogin();
+					crew.add(new CrewProgressView(studentId, name, state, openItems(viewer, studentId)));
+				});
 			}
 		}
 		List<OpenItemView> mine = viewer.kind() == Kind.CREW ? openItems(viewer, viewer.accountId()) : List.of();

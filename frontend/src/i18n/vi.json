@@ -2451,6 +2451,10 @@
       "criterionLink": "{label}: xem trong thỏa thuận",
       "milestone": "Giai đoạn {n}",
       "unassigned": "Chưa giao",
+      "workload": {
+        "label": "Khối lượng việc",
+        "member": "{name} · {n} việc · {hours} giờ"
+      },
       "add": "Thêm việc",
       "readOnly": "Bảng này chỉ để xem.",
       "estimate": "{n} giờ",
@@ -2481,6 +2485,7 @@
         "estimate": "Ước lượng (giờ)",
         "assignee": "Người làm",
         "mentorOnly": "Chỉ người hướng dẫn đặt được.",
+        "inactiveMember": "{name} (tạm ngừng)",
         "save": "Lưu",
         "saved": "Đã lưu {key}",
         "seededNote": "Story này đến từ tiêu chí {m}.{n} của thỏa thuận: loại và giai đoạn không đổi được.",
@@ -2659,6 +2664,12 @@
       "due": "Hạn {date}",
       "crew": "Nhóm thực hiện",
       "noCrew": "Chưa có thành viên nào đang làm.",
+      "crewState": {
+        "ASSIGNED": "Đã phân công",
+        "ACTIVE": "Đang tham gia",
+        "INACTIVE": "Tạm ngừng",
+        "RELEASED": "Đã rời"
+      },
       "mine": "Việc của tôi",
       "noOpenItems": "Không có việc nào đang mở.",
       "pages": "Tài liệu khách hàng xem được",

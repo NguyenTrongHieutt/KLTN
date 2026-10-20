@@ -111,7 +111,12 @@ function Content({ jobId, audience, progress }: { jobId: string; audience: Progr
               <ul className="flex flex-col gap-3">
                 {progress.crew.map((member) => (
                   <li key={member.accountId} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4">
-                    <p className="text-label font-semibold">{member.name}</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-label font-semibold">{member.name}</p>
+                      <span className={cn('rounded-full px-2 py-0.5 text-caption font-semibold', crewStateTone(member.state))}>
+                        {t(`screen.progress.crewState.${member.state}` as MessageKey)}
+                      </span>
+                    </div>
                     <ItemList items={member.openItems} jobId={jobId} empty={t('screen.progress.noOpenItems')} />
                   </li>
                 ))}
@@ -162,7 +167,9 @@ function Content({ jobId, audience, progress }: { jobId: string; audience: Progr
           <h3 className="text-h3">{t('screen.progress.people')}</h3>
           <p>{t('screen.progress.mentor', { name: progress.mentorName })}</p>
           {audience === 'mentor' &&
-            progress.crew.map((member) => <p key={member.accountId}>{t('screen.progress.member', { name: member.name })}</p>)}
+            progress.crew
+              .filter((member) => member.state !== 'RELEASED')
+              .map((member) => <p key={member.accountId}>{t('screen.progress.member', { name: member.name })}</p>)}
         </section>
         <section className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 text-body-sm">
           <h3 className="text-h3">{t('screen.progress.product')}</h3>
@@ -256,6 +263,17 @@ function MilestoneCard({
       {milestone.overdueSince && audience === 'customer' && <OverdueOptions jobId={jobId} />}
     </li>
   )
+}
+
+/** AD-41: an active member reads as success, an inactive one as a warning, and the rest muted. */
+function crewStateTone(state: string): string {
+  if (state === 'ACTIVE') {
+    return 'bg-success-soft text-success'
+  }
+  if (state === 'INACTIVE') {
+    return 'bg-warning-soft text-warning'
+  }
+  return 'bg-muted text-muted-foreground'
 }
 
 function ItemList({ items, jobId, empty }: { items: JobProgress['mine']; jobId: string; empty: string }) {
