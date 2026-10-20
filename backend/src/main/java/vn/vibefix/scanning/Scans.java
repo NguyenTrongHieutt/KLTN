@@ -43,6 +43,16 @@ public interface Scans {
 	/** One of the Product's Findings, open or resolved. */
 	Optional<Finding> finding(UUID productId, UUID findingId);
 
+	/** The Findings marked as false positives, the newest first (FR-64). */
+	List<FalsePositive> falsePositives(int limit);
+
+	/**
+	 * An Administrator reopens a false positive (FR-64): it is open again, blocks what an open Finding
+	 * blocks, and its resolvers get its to-do back and {@code scanning.finding_reopened}. Audited.
+	 * @throws vn.vibefix.shared.ApiException {@code NOT_FOUND}; {@code CONFLICT NOT_A_FALSE_POSITIVE}
+	 */
+	void reopen(UUID findingId, UUID administrator);
+
 	/** Whether {@code accountId} is one of the Finding's resolvers. */
 	boolean mayResolve(UUID findingId, UUID accountId);
 

@@ -10,6 +10,9 @@ enum AdminReason {
 	FEEDBACK_NOT_ENOUGH,
 
 	/** FR-60: the content is hidden already. */
-	ALREADY_HIDDEN
+	ALREADY_HIDDEN,
+
+	/** FR-64: the operation is not failed, so there is nothing to retry. */
+	NOT_FAILED
 
 }

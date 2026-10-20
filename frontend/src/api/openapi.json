@@ -208,7 +208,7 @@
     },
     "/api/v1/admin/disputes/{disputeId}/retry" : {
       "post" : {
-        "operationId" : "retry",
+        "operationId" : "retry_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "disputeId",
@@ -311,6 +311,88 @@
           }
         },
         "tags" : [ "admin-enrolment-controller" ]
+      }
+    },
+    "/api/v1/admin/failures" : {
+      "get" : {
+        "operationId" : "failures",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FailuresView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-failures-controller" ]
+      }
+    },
+    "/api/v1/admin/failures/findings/{findingId}/reopen" : {
+      "post" : {
+        "operationId" : "reopen",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "findingId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FailuresView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-failures-controller" ]
+      }
+    },
+    "/api/v1/admin/failures/operations/{operationId}/retry" : {
+      "post" : {
+        "operationId" : "retry",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "operationId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RetryRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FailuresView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-failures-controller" ]
       }
     },
     "/api/v1/admin/jobs" : {
@@ -9064,6 +9146,89 @@
         },
         "required" : [ "accessLevel", "environment", "id", "purpose", "system" ]
       },
+      "FailedExecutionView" : {
+        "type" : "object",
+        "properties" : {
+          "disputeId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "failedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "failure" : {
+            "type" : "string"
+          },
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "step" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "disputeId", "failedAt", "failure", "jobId", "step" ]
+      },
+      "FailedOperationView" : {
+        "type" : "object",
+        "properties" : {
+          "attempts" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "errorCode" : {
+            "type" : "string"
+          },
+          "failedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "type" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "attempts", "errorCode", "failedAt", "id", "type" ]
+      },
+      "FailuresView" : {
+        "type" : "object",
+        "properties" : {
+          "executions" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/FailedExecutionView"
+            }
+          },
+          "falsePositives" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/FalsePositiveView"
+            }
+          },
+          "operations" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/FailedOperationView"
+            }
+          },
+          "stalledEvents" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/StalledEventView"
+            }
+          }
+        },
+        "required" : [ "executions", "falsePositives", "operations", "stalledEvents" ]
+      },
       "FalsePositiveRequest" : {
         "type" : "object",
         "properties" : {
@@ -9074,6 +9239,39 @@
           }
         },
         "required" : [ "reason" ]
+      },
+      "FalsePositiveView" : {
+        "type" : "object",
+        "properties" : {
+          "filePath" : {
+            "type" : "string"
+          },
+          "findingId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "markedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "markedByName" : {
+            "type" : "string"
+          },
+          "productId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "productName" : {
+            "type" : "string"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "ruleType" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "filePath", "findingId", "markedAt", "productId", "productName", "reason", "ruleType" ]
       },
       "FeedbackView" : {
         "type" : "object",
@@ -11594,7 +11792,13 @@
           "disputes" : {
             "$ref" : "#/components/schemas/Queue"
           },
+          "failedExecutions" : {
+            "$ref" : "#/components/schemas/Queue"
+          },
           "failedOperations" : {
+            "$ref" : "#/components/schemas/Queue"
+          },
+          "falsePositives" : {
             "$ref" : "#/components/schemas/Queue"
           },
           "lowFeedback" : {
@@ -11610,7 +11814,7 @@
             "$ref" : "#/components/schemas/Queue"
           }
         },
-        "required" : [ "activeAdministrators", "disputes", "failedOperations", "lowFeedback", "mentorApplications", "stalledEvents", "studentCards" ]
+        "required" : [ "activeAdministrators", "disputes", "failedExecutions", "failedOperations", "falsePositives", "lowFeedback", "mentorApplications", "stalledEvents", "studentCards" ]
       },
       "PageLinkView" : {
         "type" : "object",
@@ -12899,6 +13103,17 @@
         },
         "required" : [ "version" ]
       },
+      "RetryRequest" : {
+        "type" : "object",
+        "properties" : {
+          "stepUpCode" : {
+            "type" : "string",
+            "minLength" : 1,
+            "pattern" : "^[0-9]{6}$"
+          }
+        },
+        "required" : [ "stepUpCode" ]
+      },
       "ReviewRequest" : {
         "type" : "object",
         "properties" : {
@@ -13395,6 +13610,30 @@
           }
         },
         "required" : [ "active", "id", "name" ]
+      },
+      "StalledEventView" : {
+        "type" : "object",
+        "properties" : {
+          "attempts" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "eventType" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "listenerId" : {
+            "type" : "string"
+          },
+          "stalledAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "attempts", "eventType", "id", "listenerId", "stalledAt" ]
       },
       "StudentCardRow" : {
         "type" : "object",
