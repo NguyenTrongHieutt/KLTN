@@ -228,6 +228,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/crew-chats/{crewChatId}/attachments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["attachCrewFile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/crew-chats/{crewChatId}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["crewMessages"];
+        put?: never;
+        post: operations["sendCrewMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/crew-chats/{crewChatId}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["readCrewChat"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/crew/assignments": {
         parameters: {
             query?: never;
@@ -510,6 +558,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["read_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/jobs/{jobId}/crew-chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["crewChat"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2057,6 +2121,7 @@ export interface components {
         ChatView: {
             /** Format: uuid */
             chatId: string;
+            readOnly: boolean;
             unread: boolean;
         };
         CleanRepositoryRequest: {
@@ -2165,6 +2230,14 @@ export interface components {
             state: "FREE" | "IN_CREW" | "ON_CREW" | "NOT_VERIFIED";
             /** Format: uuid */
             studentId: string;
+        };
+        CrewChatView: {
+            /** Format: uuid */
+            chatId: string;
+            closed: boolean;
+            readOnly: boolean;
+            title: string;
+            unread: boolean;
         };
         CrewConfirmRequest: {
             commitEmailNoticeAcknowledged: boolean;
@@ -3950,6 +4023,108 @@ export interface operations {
             };
         };
     };
+    attachCrewFile: {
+        parameters: {
+            query?: {
+                body?: string;
+                sensitive?: "CHECK" | "MASK" | "SEND";
+            };
+            header?: never;
+            path: {
+                crewChatId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageView"];
+                };
+            };
+        };
+    };
+    crewMessages: {
+        parameters: {
+            query?: {
+                before?: string;
+            };
+            header?: never;
+            path: {
+                crewChatId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessagePageView"];
+                };
+            };
+        };
+    };
+    sendCrewMessage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                crewChatId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageView"];
+                };
+            };
+        };
+    };
+    readCrewChat: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                crewChatId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     crewAssignments: {
         parameters: {
             query?: never;
@@ -4442,6 +4617,28 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    crewChat: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrewChatView"];
+                };
             };
         };
     };

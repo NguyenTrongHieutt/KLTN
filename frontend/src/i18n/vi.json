@@ -1508,7 +1508,8 @@
         "mask": "Che và gửi",
         "edit": "Sửa lại",
         "send": "Vẫn gửi"
-      }
+      },
+      "readOnly": "Công việc đã kết thúc. Cuộc trò chuyện chỉ còn để xem."
     },
     "agreement": {
       "tab": "Thỏa thuận",
@@ -1946,6 +1947,16 @@
         "releaseLine": "{name} · {amount}",
         "ordersTitle": "Lệnh thanh toán của khách hàng"
       }
+    },
+    "crewChat": {
+      "tab": "Trao đổi nhóm",
+      "title": "Trao đổi nhóm · {job}",
+      "heading": "Trao đổi trong nhóm thực hiện",
+      "audience": "Chỉ người hướng dẫn và nhóm thực hiện; khách hàng không xem được",
+      "placeholder": "Nhắn cho nhóm…",
+      "empty": "Chưa có tin nhắn. Hãy chào nhóm và chia việc.",
+      "formerNote": "Bạn không còn làm trong nhóm này. Bạn chỉ xem được các tin nhắn trong thời gian bạn tham gia.",
+      "back": "← Công việc của tôi"
     }
   },
   "notice": {
@@ -2707,7 +2718,8 @@
     },
     "chat": {
       "SENSITIVE_CONTENT": "Tin nhắn có thể chứa khóa bí mật hoặc dữ liệu khách hàng.",
-      "MESSAGE_EMPTY": "Hãy nhập tin nhắn hoặc đính kèm một tệp."
+      "MESSAGE_EMPTY": "Hãy nhập tin nhắn hoặc đính kèm một tệp.",
+      "CHAT_READ_ONLY": "Cuộc trò chuyện này chỉ còn để xem."
     },
     "payment": {
       "PAYMENT_NOT_CONFIGURED": "môi trường này chưa kết nối VNPay thử nghiệm"

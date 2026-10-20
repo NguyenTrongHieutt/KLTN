@@ -130,9 +130,9 @@ class AuthorizationHarnessIT extends IntegrationTest {
 
 	@Test
 	void aCallerNoFixtureRealizesFailsTheRow() {
-		assertThatThrownBy(() -> run("GET /api/v1/fixture/public,CREW_FORMER,,,200"))
+		assertThatThrownBy(() -> run("GET /api/v1/fixture/public,ADMIN_ABUSE_REPORT_GRANT,,,200"))
 			.isInstanceOf(AssertionError.class)
-			.hasMessageContaining("realizes the caller CREW_FORMER");
+			.hasMessageContaining("realizes the caller ADMIN_ABUSE_REPORT_GRANT");
 	}
 
 	@Test

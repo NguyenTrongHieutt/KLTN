@@ -17,6 +17,7 @@ import {
   useSendAttachment,
   useSendMessage,
   type ChatMessage,
+  type ChatTarget,
   type Resolution,
   type SensitiveMatch,
 } from './chatApi'
@@ -32,14 +33,31 @@ function touchScreen(): boolean {
 }
 
 /**
- * JOB-4's conversation (FR-46, FR-47, UX-DR25, UX-DR40): the newest 50 messages, "Xem tin cũ hơn",
- * day separators, own messages on primary-soft bubbles, and the composer. A message that may hold a
- * credential or customer data waits for the sender's choice in the Sensitive-content dialog. Text is
- * shown as text, never as markup.
+ * The conversation of JOB-4 and JOB-8 (FR-46, FR-47, FR-77, UX-DR25, UX-DR40, UX-DR80): the newest 50
+ * messages, "Xem tin cũ hơn", day separators, own messages on primary-soft bubbles, and the composer,
+ * or a note in its place once the Chat is read-only. A message that may hold a credential or customer
+ * data waits for the sender's choice in the Sensitive-content dialog. Text is shown as text, never as
+ * markup.
  */
-export function ChatPanel({ jobId, side }: { jobId: string; side: 'customer' | 'mentor' }) {
-  const messages = useChatMessages(jobId)
-  const markRead = useMarkRead(jobId)
+export function ChatPanel({
+  target,
+  heading,
+  audience,
+  placeholder,
+  empty = t('screen.chat.empty'),
+  readOnlyNote,
+}: {
+  target: ChatTarget
+  heading: string
+  /** Who can read the thread, in the header. */
+  audience: string
+  placeholder: string
+  empty?: string
+  /** Shown in place of the composer when the Chat is read-only. */
+  readOnlyNote?: string
+}) {
+  const messages = useChatMessages(target)
+  const markRead = useMarkRead(target)
   const pages = messages.data?.pages ?? []
   const items = [...pages].reverse().flatMap((page) => page.items)
   const newest = items.at(-1)?.id
@@ -55,10 +73,10 @@ export function ChatPanel({ jobId, side }: { jobId: string; side: 'customer' | '
       className="flex w-full max-w-[860px] flex-col gap-3.5 self-center rounded-lg border border-border bg-card p-5"
     >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
-        <h2 className="text-h3">{t(side === 'customer' ? 'screen.chat.withMentor' : 'screen.chat.withCustomer')}</h2>
+        <h2 className="text-h3">{heading}</h2>
         <p className="flex items-center gap-1.5 text-caption text-muted-foreground">
           <Lock aria-hidden="true" className="size-4" />
-          {t(side === 'customer' ? 'screen.chat.onlyMentor' : 'screen.chat.onlyCustomer')}
+          {audience}
         </p>
       </div>
       <RegionState query={messages} skeleton={<Skeleton className="h-48 w-full" />}>
@@ -75,7 +93,7 @@ export function ChatPanel({ jobId, side }: { jobId: string; side: 'customer' | '
           </Button>
         )}
         {items.length === 0 ? (
-          <p className="py-6 text-center text-body-sm text-muted-foreground">{t('screen.chat.empty')}</p>
+          <p className="py-6 text-center text-body-sm text-muted-foreground">{empty}</p>
         ) : (
           <ol className="flex flex-col gap-3">
             {items.map((message, index) => {
@@ -96,7 +114,11 @@ export function ChatPanel({ jobId, side }: { jobId: string; side: 'customer' | '
         )}
       </RegionState>
       <hr className="border-border" />
-      <Composer jobId={jobId} side={side} />
+      {readOnlyNote ? (
+        <p className="rounded-md bg-muted px-3 py-2.5 text-body-sm text-muted-foreground">{readOnlyNote}</p>
+      ) : (
+        <Composer target={target} placeholder={placeholder} />
+      )}
     </section>
   )
 }
@@ -147,15 +169,15 @@ function Bubble({ message }: { message: ChatMessage }) {
 }
 
 /** The composer (UX-DR40): 1 to 6 lines, Enter per pointer, the attach pre-check, and the icon send button. */
-function Composer({ jobId, side }: { jobId: string; side: 'customer' | 'mentor' }) {
+function Composer({ target, placeholder }: { target: ChatTarget; placeholder: string }) {
   const ids = useId()
   const text = useRef<HTMLTextAreaElement>(null)
   const fileInput = useRef<HTMLInputElement>(null)
   const [body, setBody] = useState('')
   const [file, setFile] = useState<File>()
   const [warning, setWarning] = useState<SensitiveMatch[]>()
-  const send = useSendMessage(jobId)
-  const attach = useSendAttachment(jobId)
+  const send = useSendMessage(target)
+  const attach = useSendAttachment(target)
   const toasts = useToasts()
   const touch = touchScreen()
   const pending = send.isPending || attach.isPending
@@ -256,7 +278,7 @@ function Composer({ jobId, side }: { jobId: string; side: 'customer' | 'mentor' 
           onKeyDown={onKeyDown}
           aria-label={t('screen.chat.message')}
           aria-describedby={`${ids}-hint`}
-          placeholder={t(side === 'customer' ? 'screen.chat.placeholderMentor' : 'screen.chat.placeholderCustomer')}
+          placeholder={placeholder}
           className="min-h-11 grow resize-none rounded-md border border-input bg-background px-3 py-2.5 text-body-sm focus-visible:outline-2 focus-visible:outline-ring"
         />
         <Button

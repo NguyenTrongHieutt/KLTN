@@ -22,8 +22,9 @@ import vn.vibefix.files.StoredFiles;
 import vn.vibefix.shared.IdGenerator;
 
 /**
- * The Chats and their messages (FR-46): one Job Chat per Job, opened once; messages page newest
- * first, 50 at a time, and a read marker per participant drives the unread dot.
+ * The Chats and their messages (FR-46, FR-77): one Job Chat and one Crew Chat per Job, each opened
+ * once and closed once (J9, J10); messages page newest first, 50 at a time, optionally only inside a
+ * former Crew member's windows, and a read marker per participant drives the unread dot.
  */
 @Component
 class Chats {
@@ -38,7 +39,17 @@ class Chats {
 		JOB, CREW
 	}
 
-	record Chat(UUID id, UUID jobId, UUID productId, Kind kind, Instant openedAt) {
+	/** @param closedAt when J9 or J10 made it read-only, or {@code null} while it is open */
+	record Chat(UUID id, UUID jobId, UUID productId, Kind kind, Instant openedAt, @Nullable Instant closedAt) {
+
+		boolean closed() {
+			return this.closedAt != null;
+		}
+
+	}
+
+	/** A span of time whose messages a reader sees, both ends included (AD-41). */
+	record Window(Instant from, Instant to) {
 	}
 
 	record Attachment(UUID fileId, String name, String mediaType, long size) {
@@ -51,6 +62,8 @@ class Chats {
 	/** A page of messages, oldest first. */
 	record Page(List<Message> items, boolean hasOlder) {
 	}
+
+	private static final String CHAT_COLUMNS = "id, job_id, product_id, kind, opened_at, closed_at";
 
 	private static final String MESSAGE_COLUMNS = """
 			id, chat_id, author_account_id, body, masked_credentials, masked_personal, sent_despite_warning,
@@ -88,9 +101,18 @@ class Chats {
 		return opened == 1 ? find(jobId, kind) : Optional.empty();
 	}
 
+	/** Makes both Chats of the Job read-only; a Chat closed before keeps its time. */
+	@Transactional
+	void close(UUID jobId) {
+		this.jdbc.sql("UPDATE chat.chat SET closed_at = :now WHERE job_id = :job AND closed_at IS NULL")
+			.param("job", jobId)
+			.param("now", Timestamp.from(this.clock.instant()))
+			.update();
+	}
+
 	@Transactional(readOnly = true)
 	Optional<Chat> find(UUID jobId, Kind kind) {
-		return this.jdbc.sql("SELECT id, job_id, product_id, kind, opened_at FROM chat.chat WHERE job_id = :job AND kind = :kind")
+		return this.jdbc.sql("SELECT " + CHAT_COLUMNS + " FROM chat.chat WHERE job_id = :job AND kind = :kind")
 			.param("job", jobId)
 			.param("kind", kind.name())
 			.query(Chats::chat)
@@ -99,24 +121,44 @@ class Chats {
 
 	@Transactional(readOnly = true)
 	Optional<Chat> byId(UUID chatId) {
-		return this.jdbc.sql("SELECT id, job_id, product_id, kind, opened_at FROM chat.chat WHERE id = :id")
+		return this.jdbc.sql("SELECT " + CHAT_COLUMNS + " FROM chat.chat WHERE id = :id")
 			.param("id", chatId)
 			.query(Chats::chat)
 			.optional();
 	}
 
-	/** The newest {@value #PAGE_SIZE} messages before {@code before} (or of all), oldest first. */
+	/**
+	 * The newest {@value #PAGE_SIZE} messages before {@code before} (or of all), oldest first.
+	 * @param windows the spans the reader sees, or {@code null} for every message
+	 */
 	@Transactional(readOnly = true)
-	Page messages(UUID chatId, @Nullable UUID before) {
+	Page messages(UUID chatId, @Nullable UUID before, @Nullable List<Window> windows) {
+		if (windows != null && windows.isEmpty()) {
+			return new Page(List.of(), false);
+		}
 		String cursor = before == null ? "" : """
 				 AND (sent_at, id) < (SELECT sent_at, id FROM chat.message WHERE id = :before AND chat_id = :chat)
 				""";
+		StringBuilder within = new StringBuilder();
+		if (windows != null) {
+			within.append(" AND (");
+			for (int i = 0; i < windows.size(); i++) {
+				within.append(i == 0 ? "" : " OR ").append("(sent_at >= :from").append(i).append(" AND sent_at <= :to").append(i).append(')');
+			}
+			within.append(')');
+		}
 		JdbcClient.StatementSpec query = this.jdbc.sql("SELECT " + MESSAGE_COLUMNS + " FROM chat.message WHERE chat_id = :chat" + cursor
-				+ " ORDER BY sent_at DESC, id DESC LIMIT :limit")
+				+ within + " ORDER BY sent_at DESC, id DESC LIMIT :limit")
 			.param("chat", chatId)
 			.param("limit", PAGE_SIZE + 1);
 		if (before != null) {
 			query = query.param("before", before);
+		}
+		if (windows != null) {
+			for (int i = 0; i < windows.size(); i++) {
+				query = query.param("from" + i, Timestamp.from(windows.get(i).from()))
+					.param("to" + i, Timestamp.from(windows.get(i).to()));
+			}
 		}
 		List<Message> newestFirst = new ArrayList<>(query.query(Chats::message).list());
 		boolean older = newestFirst.size() > PAGE_SIZE;
@@ -190,9 +232,10 @@ class Chats {
 	}
 
 	private static Chat chat(ResultSet rs, int n) throws SQLException {
+		Timestamp closed = rs.getTimestamp("closed_at");
 		return new Chat(rs.getObject("id", UUID.class), rs.getObject("job_id", UUID.class),
 				rs.getObject("product_id", UUID.class), Kind.valueOf(rs.getString("kind")),
-				rs.getTimestamp("opened_at").toInstant());
+				rs.getTimestamp("opened_at").toInstant(), closed == null ? null : closed.toInstant());
 	}
 
 	private static Message message(ResultSet rs, int n) throws SQLException {
