@@ -305,12 +305,17 @@ function Check({ jobId, report }: { jobId: string; report: DeliveryReport }) {
         ) : (
           <>
             {!decision.revisionAllowed && (
-              <Link
-                to={`/cong-viec/${jobId}/thoa-thuan#doi-han`}
-                className={buttonVariants({ variant: 'secondary' })}
-              >
-                {t('screen.handover.check.changeRequest')}
-              </Link>
+              <>
+                <Link to={`/cong-viec/${jobId}#tranh-chap`} className={buttonVariants({ variant: 'secondary' })}>
+                  {t('screen.handover.check.dispute')}
+                </Link>
+                <Link
+                  to={`/cong-viec/${jobId}/thoa-thuan#doi-han`}
+                  className={buttonVariants({ variant: 'secondary' })}
+                >
+                  {t('screen.handover.check.changeRequest')}
+                </Link>
+              </>
             )}
             <Button type="button" onClick={() => setConfirming('accept')}>
               {t('screen.handover.check.accept')}

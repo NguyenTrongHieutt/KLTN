@@ -1208,6 +1208,36 @@ POST /api/v1/boards/{boardId}/cancellation/alone,CREW_FORMER,,cancel-alone.json,
 POST /api/v1/boards/{boardId}/cancellation/alone,CREW_ACTIVE,,cancel-alone.json,403 FORBIDDEN
 POST /api/v1/boards/{boardId}/cancellation/alone,OWNER,,cancel-alone.json,422 GUARD_FAILED DEADLINE_NOT_PASSED
 POST /api/v1/boards/{boardId}/cancellation/alone,JOB_MENTOR,,cancel-alone.json,422 GUARD_FAILED DEADLINE_NOT_PASSED
+# Disputes (FR-52): the Customer (OWNER) and the Mentor open one, which freezes the fixture's Active Job; with
+# the active Crew they read the open one.
+GET /api/v1/boards/{boardId}/dispute,ANONYMOUS,,,401
+GET /api/v1/boards/{boardId}/dispute,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/dispute,MENTOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/dispute,STUDENT,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/dispute,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/dispute,TEAM_MENTOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/dispute,TEAM_MEMBER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/dispute,CREW_ASSIGNED,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/dispute,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/dispute,CREW_INACTIVE,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/dispute,CREW_FORMER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/dispute,CREW_ACTIVE,,,200
+GET /api/v1/boards/{boardId}/dispute,OWNER,,,200
+GET /api/v1/boards/{boardId}/dispute,JOB_MENTOR,,,200
+POST /api/v1/boards/{boardId}/disputes,ANONYMOUS,,dispute.json,401
+POST /api/v1/boards/{boardId}/disputes,CUSTOMER,,dispute.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/disputes,MENTOR,,dispute.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/disputes,STUDENT,,dispute.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/disputes,ADMINISTRATOR,,dispute.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/disputes,TEAM_MENTOR,,dispute.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/disputes,TEAM_MEMBER,,dispute.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/disputes,CREW_ASSIGNED,,dispute.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/disputes,ADMIN_TEAM_ISSUE_GRANT,,dispute.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/disputes,CREW_INACTIVE,,dispute.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/disputes,CREW_FORMER,,dispute.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/disputes,CREW_ACTIVE,,dispute.json,403 FORBIDDEN MENTOR_ONLY
+POST /api/v1/boards/{boardId}/disputes,OWNER,,dispute.json,201
+POST /api/v1/boards/{boardId}/disputes,JOB_MENTOR,,dispute.json,201
 # Milestone Handovers (FR-32, AD-20, AD-39): the Customer (OWNER), the Mentor, and ACTIVE members read;
 # only the Mentor hands over, and the fixture's Milestone is not Funded. The Customer's Delivery Report
 # never carries the Work Item note, whose text is the WORK_ITEM_NOTE canary.

@@ -1,0 +1,5 @@
+subject: Có tranh chấp ở {job}
+---
+Xin chào,
+
+Một bên đã mở tranh chấp ở công việc {job}. Tiền và mọi thời hạn tạm dừng cho đến khi quản trị viên quyết định; trò chuyện và công việc vẫn tiếp tục trên vibefix.

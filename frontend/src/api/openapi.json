@@ -930,6 +930,70 @@
         "tags" : [ "data-deletion-controller" ]
       }
     },
+    "/api/v1/boards/{boardId}/dispute" : {
+      "get" : {
+        "operationId" : "dispute",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/JobDisputeView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "dispute-controller" ]
+      }
+    },
+    "/api/v1/boards/{boardId}/disputes" : {
+      "post" : {
+        "operationId" : "open_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/OpenDisputeRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/JobDisputeView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "dispute-controller" ]
+      }
+    },
     "/api/v1/boards/{boardId}/follow-ups" : {
       "get" : {
         "operationId" : "followUps",
@@ -8986,6 +9050,25 @@
         },
         "required" : [ "id" ]
       },
+      "JobDisputeView" : {
+        "type" : "object",
+        "properties" : {
+          "audience" : {
+            "type" : "string"
+          },
+          "canOpen" : {
+            "type" : "boolean"
+          },
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "open" : {
+            "$ref" : "#/components/schemas/OpenDisputeView"
+          }
+        },
+        "required" : [ "audience", "canOpen", "jobId" ]
+      },
       "JobDraftRequest" : {
         "type" : "object",
         "properties" : {
@@ -10353,6 +10436,47 @@
           }
         },
         "required" : [ "createdAt", "icon", "id", "link", "params", "read", "type" ]
+      },
+      "OpenDisputeRequest" : {
+        "type" : "object",
+        "properties" : {
+          "reason" : {
+            "type" : "string",
+            "maxLength" : 2000,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "reason" ]
+      },
+      "OpenDisputeView" : {
+        "type" : "object",
+        "properties" : {
+          "concern" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "milestoneId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "mine" : {
+            "type" : "boolean"
+          },
+          "openedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "openedBy" : {
+            "type" : "string"
+          },
+          "reason" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "concern", "id", "mine", "openedAt", "openedBy", "reason" ]
       },
       "OpenItemView" : {
         "type" : "object",

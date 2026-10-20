@@ -19,6 +19,7 @@ import { useDeclineSelection, useMentorJob, useSignNda, type MentorJob } from '.
 import { NDA_VERSION } from './nda'
 import { CommitEmailNotice, NdaText } from './NdaText'
 import { ProgressOverview } from '@/features/work/progress/ProgressOverview'
+import { DisputeSection } from '@/features/dispute/DisputeSection'
 import { CancellationSection } from '@/features/job/cancellation/CancellationSection'
 import { hasBoard } from '@/features/work/workApi'
 
@@ -92,7 +93,12 @@ function Overview({ job }: { job: MentorJob }) {
             <h2 className="text-h2">{t('screen.nda.signedTitle')}</h2>
             <p className="text-body-sm text-muted-foreground">{t('screen.nda.signedBody')}</p>
           </section>
-          {(job.state === 'AGREEMENT' || job.state === 'STARTING') && <CancellationSection jobId={job.id} />}
+          {(job.state === 'AGREEMENT' || job.state === 'STARTING') && (
+            <>
+              <DisputeSection jobId={job.id} />
+              <CancellationSection jobId={job.id} />
+            </>
+          )}
         </>
       )}
     </>
