@@ -40,6 +40,8 @@ import vn.vibefix.timers.Deadlines;
 @Component
 class ClosureProposals {
 
+	static final String UNANSWERED = "job.closure_unanswered";
+
 	static final String PROPOSED = "job.closure_proposed";
 
 	static final String ANSWER = "job.answer_closure";
@@ -135,7 +137,39 @@ class ClosureProposals {
 		this.notifications.send(new NotificationRequest(PROPOSED, id, List.of(recipient(job, other)),
 				Map.of("job", job.title(), "proposer", proposer), "/cong-viec/" + job.id(), job.id(), null));
 		answer(job, other, id, answerBy, 2);
+		this.deadlines.schedule(new DeadlineRequest(ClosureAnswer.KEY, id, id.toString(), job.id(), answerBy));
 		return find(id).orElseThrow();
+	}
+
+	/**
+	 * FR-39: the other side did not answer a person's proposal in time; its proposer is told once and may
+	 * open a Dispute. The proposal stays open.
+	 * @return whether it applied
+	 */
+	boolean unanswered(Job job, UUID proposalId) {
+		Proposal proposal = find(proposalId).orElse(null);
+		if (proposal == null || proposal.automatic() || !"OPEN".equals(proposal.status())) {
+			return false;
+		}
+		int marked = this.jdbc.sql("""
+				UPDATE job.closure_proposal SET unanswered_at = :now WHERE id = :id AND unanswered_at IS NULL
+				""").param("id", proposalId).param("now", Timestamp.from(this.clock.instant())).update();
+		if (marked == 0) {
+			return false;
+		}
+		Party proposer = job.customerId().equals(proposal.proposerId()) ? Party.CUSTOMER : Party.MENTOR;
+		this.notifications.send(new NotificationRequest(UNANSWERED, proposalId, List.of(recipient(job, proposer)),
+				Map.of("job", job.title()), "/cong-viec/" + job.id(), job.id(), null));
+		return true;
+	}
+
+	/** Whether the proposal went unanswered past its date (FR-39). */
+	boolean wentUnanswered(UUID proposalId) {
+		return this.jdbc.sql("SELECT unanswered_at IS NOT NULL FROM job.closure_proposal WHERE id = :id")
+			.param("id", proposalId)
+			.query(Boolean.class)
+			.optional()
+			.orElse(false);
 	}
 
 	Optional<Proposal> open(UUID jobId) {

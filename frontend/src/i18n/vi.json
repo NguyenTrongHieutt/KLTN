@@ -2397,7 +2397,9 @@
         "confirm": "Xác nhận",
         "cancel": "Quay lại",
         "saved": "Đã ghi nhận xác nhận."
-      }
+      },
+      "disputable": "Đề nghị kết thúc bị từ chối hoặc chưa được trả lời. Bạn có thể mở tranh chấp.",
+      "openDispute": "Mở tranh chấp"
     },
     "rating": {
       "heading": "Chấm sao",
@@ -2557,7 +2559,9 @@
       "aloneLead": "Đã quá hạn chuẩn bị. Bạn có thể tự hủy công việc mà không cần bên kia đồng ý; tiền đang giữ được hoàn đủ.",
       "alone": "Hủy công việc một mình",
       "aloneSend": "Hủy công việc",
-      "aloneTitle": "Tự hủy công việc này?"
+      "aloneTitle": "Tự hủy công việc này?",
+      "openDispute": "Mở tranh chấp",
+      "unansweredOther": "Đề nghị hủy chưa được trả lời trong thời hạn. Bạn vẫn có thể trả lời, hoặc mở tranh chấp."
     },
     "dispute": {
       "banner": "Đang tranh chấp — tiền và mọi thời hạn tạm dừng",
@@ -3210,7 +3214,7 @@
         "title": "{proposer} đề nghị kết thúc {job}"
       },
       "closure_declined": {
-        "title": "Đề nghị kết thúc {job} bị từ chối"
+        "title": "Đề nghị kết thúc {job} bị từ chối. Bạn có thể mở tranh chấp."
       },
       "job_closing": {
         "title": "{job} đang kết thúc: còn vài bước cuối"
@@ -3234,7 +3238,7 @@
         "title": "Có đề nghị hủy {job}. Hãy trả lời trước {date}"
       },
       "cancellation_unanswered": {
-        "title": "Đề nghị hủy {job} chưa được trả lời"
+        "title": "Đề nghị hủy {job} chưa được trả lời. Bạn có thể mở tranh chấp."
       },
       "job_cancelled": {
         "title": "{job} đã hủy"
@@ -3244,6 +3248,9 @@
       },
       "starting_deadline_passed": {
         "title": "{job} chưa bắt đầu sau 7 ngày"
+      },
+      "closure_unanswered": {
+        "title": "Đề nghị kết thúc {job} chưa được trả lời. Bạn có thể mở tranh chấp."
       }
     },
     "matching": {

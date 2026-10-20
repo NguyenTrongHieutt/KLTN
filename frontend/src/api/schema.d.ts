@@ -3204,6 +3204,7 @@ export interface components {
             mentorConfirmed: boolean;
             proposer: string;
             status: string;
+            unanswered: boolean;
         };
         ClosureStepView: {
             done: boolean;
@@ -3214,6 +3215,7 @@ export interface components {
         ClosureView: {
             audience: string;
             canPropose: boolean;
+            disputable: boolean;
             /** Format: uuid */
             jobId: string;
             proposal?: components["schemas"]["ClosureProposalView"];

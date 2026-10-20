@@ -1,4 +1,4 @@
-subject: Đề nghị hủy {job} chưa được trả lời
+subject: Đề nghị hủy {job} chưa được trả lời. Bạn có thể mở tranh chấp.
 ---
 Xin chào,
 

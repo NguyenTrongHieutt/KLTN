@@ -56,18 +56,21 @@ class ClosureController {
 	 * @param kind {@code AUTOMATIC} (the System, FR-67) or {@code PROPOSED} (FR-37)
 	 * @param proposer {@code SYSTEM}, {@code CUSTOMER}, or {@code MENTOR}
 	 * @param answerable the viewer may confirm or decline it now
+	 * @param unanswered a person's proposal went unanswered past its date (FR-39)
 	 */
 	record ClosureProposalView(UUID id, String kind, String status, String proposer, @Nullable Instant autoConfirmAt,
-			Instant answerBy, boolean customerConfirmed, boolean mentorConfirmed, boolean answerable) {
+			Instant answerBy, boolean customerConfirmed, boolean mentorConfirmed, boolean answerable, boolean unanswered) {
 	}
 
 	/**
 	 * @param version the Job's version, which every command carries (AD-23)
 	 * @param audience {@code CUSTOMER}, {@code MENTOR}, or {@code CREW}
 	 * @param canPropose the viewer may propose closing an Active Job with no Held Milestone
+	 * @param disputable the latest closure proposal was declined, or went unanswered: either side may open a
+	 * Dispute (FR-39)
 	 */
 	record ClosureView(UUID jobId, String state, long version, String audience, boolean canPropose,
-			@Nullable ClosureProposalView proposal, List<ClosureStepView> steps) {
+			@Nullable ClosureProposalView proposal, List<ClosureStepView> steps, boolean disputable) {
 	}
 
 	record ClosureCommandRequest(@NotNull Long version) {
@@ -178,7 +181,7 @@ class ClosureController {
 					: job.customerId().equals(proposal.proposerId()) ? "CUSTOMER" : "MENTOR";
 			proposalView = new ClosureProposalView(proposal.id(), proposal.kind(), proposal.status(), proposer,
 					proposal.autoConfirmAt(), proposal.answerBy(), proposal.customerConfirmedAt() != null,
-					proposal.mentorConfirmedAt() != null, answerable);
+					proposal.mentorConfirmedAt() != null, answerable, this.proposals.wentUnanswered(proposal.id()));
 		}
 		List<ClosureStepView> steps = new ArrayList<>();
 		if (proposalView != null || ended) {
@@ -190,8 +193,11 @@ class ClosureController {
 					this.mentors.cards(List.of(job.mentorId())).stream().findFirst().map(MentorCard::displayName).orElse(""),
 					"CONFIRM_CLOSURE", mentorDone));
 		}
+		boolean disputable = viewer.party() != null && job.state() == JobState.ACTIVE && proposal != null
+				&& !proposal.automatic()
+				&& ("DECLINED".equals(proposal.status()) || (open && this.proposals.wentUnanswered(proposal.id())));
 		return new ClosureView(job.id(), job.state().name(), job.version(),
-				viewer.party() == null ? "CREW" : viewer.party().name(), canPropose, proposalView, steps);
+				viewer.party() == null ? "CREW" : viewer.party().name(), canPropose, proposalView, steps, disputable);
 	}
 
 }

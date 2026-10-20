@@ -1,5 +1,5 @@
-subject: Đề nghị kết thúc {job} bị từ chối
+subject: Đề nghị kết thúc {job} bị từ chối. Bạn có thể mở tranh chấp.
 ---
 Xin chào,
 
-Đề nghị kết thúc công việc {job} đã bị từ chối. Công việc vẫn đang tiếp tục.
+Đề nghị kết thúc công việc {job} đã bị từ chối. Công việc vẫn đang tiếp tục. Nếu hai bên không thống nhất được, bạn có thể mở tranh chấp trên vibefix để quản trị viên quyết định.
