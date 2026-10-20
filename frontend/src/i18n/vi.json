@@ -2122,6 +2122,48 @@
         "TEAM": "Chỉ nhóm",
         "CUSTOMER": "Khách hàng xem được"
       }
+    },
+    "milestoneState": {
+      "notStarted": "Chưa bắt đầu",
+      "ACCEPTED": "Đã nghiệm thu",
+      "CANCELLED": "Đã hủy",
+      "SETTLED": "Đã phân xử",
+      "customer": {
+        "unpaid": "Chưa thanh toán",
+        "funded": "Đang làm · {done}/{total} tiêu chí đã xong",
+        "revision": "Đang sửa theo yêu cầu · {done}/{total} tiêu chí đã xong",
+        "submitted": "Đã bàn giao · chờ bạn nghiệm thu"
+      },
+      "team": {
+        "unpaid": "Chờ khách thanh toán",
+        "funded": "Đang làm",
+        "fundedDue": "Đang làm · hạn {date}",
+        "inReview": "{n} hạng mục chờ duyệt",
+        "revision": "Cần sửa theo yêu cầu",
+        "submitted": "Chờ khách nghiệm thu"
+      }
+    },
+    "progress": {
+      "milestones": "Các giai đoạn",
+      "milestone": "Giai đoạn {n} · {title}",
+      "bar": "Tiến độ giai đoạn {n}",
+      "barText": "{done} trên {total} tiêu chí đã xong",
+      "due": "Hạn {date}",
+      "crew": "Nhóm thực hiện",
+      "noCrew": "Chưa có thành viên nào đang làm.",
+      "mine": "Việc của tôi",
+      "noOpenItems": "Không có việc nào đang mở.",
+      "pages": "Tài liệu khách hàng xem được",
+      "noPages": "Chưa có tài liệu nào được chia sẻ với khách hàng.",
+      "aside": "Thông tin công việc",
+      "deadline": "Hạn sắp tới",
+      "deadlineLine": "Giai đoạn {n}: {date}",
+      "noDeadline": "Chưa có hạn nào.",
+      "people": "Người tham gia",
+      "mentor": "Người hướng dẫn: {name}",
+      "member": "Nhóm thực hiện: {name}",
+      "product": "Sản phẩm",
+      "nextAction": "Việc cần làm cho công việc này"
     }
   },
   "notice": {

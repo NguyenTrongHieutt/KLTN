@@ -542,6 +542,33 @@
         "tags" : [ "page-controller" ]
       }
     },
+    "/api/v1/boards/{boardId}/progress" : {
+      "get" : {
+        "operationId" : "progress",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/JobProgressView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "progress-controller" ]
+      }
+    },
     "/api/v1/boards/{boardId}/work-items" : {
       "get" : {
         "operationId" : "workItems",
@@ -5708,6 +5735,25 @@
         },
         "required" : [ "amountVnd", "name" ]
       },
+      "CrewProgressView" : {
+        "type" : "object",
+        "properties" : {
+          "accountId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "openItems" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/OpenItemView"
+            }
+          }
+        },
+        "required" : [ "accountId", "name", "openItems" ]
+      },
       "CrewReconfirmRequest" : {
         "type" : "object",
         "properties" : {
@@ -6621,6 +6667,55 @@
         },
         "required" : [ "id", "jobTypes", "lapsesAt", "openedAt", "productDescription", "productName", "productOpenFindings", "productTools", "screenshots", "skills", "title" ]
       },
+      "JobProgressView" : {
+        "type" : "object",
+        "properties" : {
+          "audience" : {
+            "type" : "string"
+          },
+          "boardId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "crew" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/CrewProgressView"
+            }
+          },
+          "mentorName" : {
+            "type" : "string"
+          },
+          "milestones" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/MilestoneProgressView"
+            }
+          },
+          "mine" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/OpenItemView"
+            }
+          },
+          "pages" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/PageLinkView"
+            }
+          },
+          "productName" : {
+            "type" : "string"
+          },
+          "state" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "audience", "boardId", "crew", "mentorName", "milestones", "mine", "pages", "productName", "state", "title" ]
+      },
       "JobSummaryView" : {
         "type" : "object",
         "properties" : {
@@ -7505,6 +7600,46 @@
         },
         "required" : [ "criteria", "id", "revisionRounds", "title" ]
       },
+      "MilestoneProgressView" : {
+        "type" : "object",
+        "properties" : {
+          "done" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "dueOn" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "inReview" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "milestoneId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "priceVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "state" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "total" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "done", "inReview", "milestoneId", "number", "state", "title", "total" ]
+      },
       "MilestoneRequest" : {
         "type" : "object",
         "properties" : {
@@ -7603,6 +7738,25 @@
         },
         "required" : [ "createdAt", "icon", "id", "link", "params", "read", "type" ]
       },
+      "OpenItemView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "key" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "key", "status", "title" ]
+      },
       "OverviewView" : {
         "type" : "object",
         "properties" : {
@@ -7624,6 +7778,19 @@
           }
         },
         "required" : [ "activeAdministrators", "failedOperations", "mentorApplications", "stalledEvents", "studentCards" ]
+      },
+      "PageLinkView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "title" ]
       },
       "PageNodeView" : {
         "type" : "object",

@@ -18,6 +18,8 @@ import { MentorJobTabs } from './MentorJobTabs'
 import { useDeclineSelection, useMentorJob, useSignNda, type MentorJob } from './mentorJobApi'
 import { NDA_VERSION } from './nda'
 import { CommitEmailNotice, NdaText } from './NdaText'
+import { ProgressOverview } from '@/features/work/progress/ProgressOverview'
+import { hasBoard } from '@/features/work/workApi'
 
 /**
  * JOB-1 for the Job's Mentor (FR-15, UX-DR52): while Selecting, the NDA panel with N-14, the NDA text
@@ -81,6 +83,8 @@ function Overview({ job }: { job: MentorJob }) {
             </section>
           </aside>
         </div>
+      ) : hasBoard(job.state) ? (
+        <ProgressOverview jobId={job.id} audience="mentor" />
       ) : (
         <section className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5">
           <h2 className="text-h2">{t('screen.nda.signedTitle')}</h2>
