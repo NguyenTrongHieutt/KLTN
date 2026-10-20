@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -249,9 +250,11 @@ class CrewService implements Crews {
 	 * {@code INACTIVE}. Between the Agreement confirmation and J6 the Crew then owes a re-confirmation:
 	 * the lock lifts until the Mentor re-confirms, and the Mentor is told (R-1 H1). Safe to replay: a
 	 * row already {@code INACTIVE} changes nothing.
+	 * @return the Jobs whose row changed
 	 */
 	@Transactional
-	void accountLocked(UUID accountId) {
+	List<UUID> accountLocked(UUID accountId) {
+		List<UUID> changedJobs = new ArrayList<>();
 		List<Row> rows = this.jdbc.sql("SELECT " + ROW_COLUMNS
 				+ " FROM job.crew_row WHERE student_account_id = :id AND status IN ('ASSIGNED', 'ACTIVE')")
 			.param("id", accountId)
@@ -265,6 +268,7 @@ class CrewService implements Crews {
 			if (changed == 0) {
 				continue;
 			}
+			changedJobs.add(job.id());
 			bump(job.id(), false);
 			this.todos.closeAll(CONFIRM_TODO, row.id());
 			if (job.state() == JobState.AGREEMENT && job.agreementVersionNo() != null && job.mentorId() != null) {
@@ -280,6 +284,7 @@ class CrewService implements Crews {
 						Agreements.agreementLink(job.id()), agreementDue(job.id()), job.id()));
 			}
 		}
+		return changedJobs;
 	}
 
 	/** Whether a lock between the Agreement confirmation and J6 left the Crew owing a re-confirmation. */

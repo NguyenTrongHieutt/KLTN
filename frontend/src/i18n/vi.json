@@ -790,7 +790,8 @@
         "empty": "Không có tranh chấp nào.",
         "openedBy": {
           "CUSTOMER": "Khách hàng mở",
-          "MENTOR": "Người hướng dẫn mở"
+          "MENTOR": "Người hướng dẫn mở",
+          "SYSTEM": "Hệ thống mở (khóa tài khoản)"
         },
         "status": {
           "OPEN": "Đang chờ",
@@ -2682,7 +2683,8 @@
       "banner": "Đang tranh chấp — tiền và mọi thời hạn tạm dừng",
       "openedBy": {
         "CUSTOMER": "Khách hàng mở tranh chấp lúc {time}",
-        "MENTOR": "Người hướng dẫn mở tranh chấp lúc {time}"
+        "MENTOR": "Người hướng dẫn mở tranh chấp lúc {time}",
+        "SYSTEM": "vibefix mở tranh chấp lúc {time} vì một bên tham gia bị khóa tài khoản"
       },
       "open": "Mở tranh chấp",
       "title": "Mở tranh chấp?",
@@ -3381,6 +3383,9 @@
       },
       "milestone_overdue": {
         "title": "Giai đoạn {n} của {job} đã quá hạn ngày {date}"
+      },
+      "party_locked": {
+        "title": "{name} không còn tham gia {job}"
       }
     },
     "matching": {

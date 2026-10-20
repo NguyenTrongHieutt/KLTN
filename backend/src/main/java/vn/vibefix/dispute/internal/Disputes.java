@@ -46,8 +46,11 @@ class Disputes {
 	static final Set<String> DISPUTABLE = Set.of("AGREEMENT", "STARTING", "ACTIVE", "CLOSING");
 
 	enum Side {
-		CUSTOMER, MENTOR
+		CUSTOMER, MENTOR, SYSTEM
 	}
+
+	/** The reason a System Dispute gives (FR-59). */
+	static final String LOCKED_REASON = "Một bên tham gia bị khóa tài khoản";
 
 	record Dispute(UUID id, UUID jobId, Side openedBy, String reason, String concern, @Nullable UUID milestoneId,
 			String jobState, String status, Instant openedAt) {
@@ -127,6 +130,44 @@ class Disputes {
 		this.notifications.send(new NotificationRequest(OPENED, id, recipients, Map.of("job", job.title()),
 				"/cong-viec/" + jobId, jobId, null));
 		return find(id).orElseThrow();
+	}
+
+	/**
+	 * {@code JobNeedsDecision} (FR-59, AD-19): one open Dispute by the System on a running Job, which
+	 * freezes it; nothing when one is open already or the Job moved on.
+	 * @return whether it opened one
+	 */
+	@Transactional
+	boolean openForSystem(UUID jobId) {
+		DisputedJob job = this.freezes.lock(jobId).orElse(null);
+		if (job == null || !DISPUTABLE.contains(job.state()) || job.mentorId() == null || open(jobId).isPresent()) {
+			return false;
+		}
+		UUID id = this.ids.newId();
+		this.jdbc.sql("""
+				INSERT INTO dispute.dispute (id, job_id, product_id, opened_by, opener_account_id, reason, concern, milestone_id,
+				    job_state, status, opened_at)
+				VALUES (:id, :job, :product, 'SYSTEM', NULL, :reason, :concern, :milestone, :state, 'OPEN', :now)
+				""")
+			.param("id", id)
+			.param("job", jobId)
+			.param("product", job.productId())
+			.param("reason", LOCKED_REASON)
+			.param("concern", job.heldMilestoneId() != null ? "HELD_MILESTONE" : "NEXT_STATE")
+			.param("milestone", job.heldMilestoneId())
+			.param("state", job.state())
+			.param("now", Timestamp.from(this.clock.instant()))
+			.update();
+		this.freezes.freeze(jobId);
+		this.deadlines.freeze(jobId);
+		this.auditLog.record(AuditEntry.of(AuditActor.system(), "dispute.dispute_opened", AuditObject.of("dispute.dispute", id))
+			.forJob(jobId));
+		List<Recipient> recipients = new ArrayList<>(List.of(new Recipient(job.customerId(), Audience.CUSTOMER),
+				new Recipient(job.mentorId(), Audience.MENTOR)));
+		this.administrators.activeIds().forEach(admin -> recipients.add(new Recipient(admin, Audience.ADMIN)));
+		this.notifications.send(new NotificationRequest(OPENED, id, recipients, Map.of("job", job.title()),
+				"/cong-viec/" + jobId, jobId, null));
+		return true;
 	}
 
 	Optional<Dispute> open(UUID jobId) {
