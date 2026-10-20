@@ -70,6 +70,24 @@ enum JobReason {
 	SHARES_INVALID,
 
 	/** The Student is not a party of the version, or the Crew is not confirmed yet (FR-17, AD-41). */
-	CREW_NOT_CONFIRMED
+	CREW_NOT_CONFIRMED,
+
+	/** The Customer already approved this draft version (FR-17). */
+	AGREEMENT_APPROVED,
+
+	/** The Customer asked for changes on this version; the Mentor shares a new one first (FR-16). */
+	CHANGES_REQUESTED,
+
+	/** A Code Job's approval needs the Freeze Commitment N-6 (FR-17). */
+	FREEZE_COMMITMENT_REQUIRED,
+
+	/** The Mentor confirms only the Customer's approved latest version (FR-17). */
+	AGREEMENT_NOT_APPROVED,
+
+	/** A confirmed Agreement changes only through a Change Request (FR-17, AD-29). */
+	AGREEMENT_CONFIRMED,
+
+	/** The live draft has edits the Customer has not seen; the Mentor shares them first (AD-29). */
+	DRAFT_CHANGED
 
 }

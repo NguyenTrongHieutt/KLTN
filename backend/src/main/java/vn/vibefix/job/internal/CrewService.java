@@ -1,5 +1,6 @@
 package vn.vibefix.job.internal;
 
+import java.nio.charset.StandardCharsets;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -73,6 +74,8 @@ class CrewService implements Crews {
 	static final String TERMS_CHANGED = "job.crew_terms_changed";
 
 	static final String CREW_CONFIRMED = "job.crew_confirmed";
+
+	static final String RECONFIRM_NEEDED = "job.crew_reconfirm_needed";
 
 	/** One row as {@code job} keeps it. */
 	record Row(UUID id, UUID jobId, UUID studentId, String status, @Nullable Instant signedAt,
@@ -217,6 +220,74 @@ class CrewService implements Crews {
 		this.notifications.send(new NotificationRequest(MEMBER_REMOVED, rowId,
 				List.of(new Recipient(row.studentId(), Audience.SUBJECT)), Map.of("job", job.title()), "/cong-viec", null, rowId));
 		refreshPickTodo(job);
+	}
+
+	/**
+	 * "Xác nhận lại nhóm thực hiện" (FR-17, AD-41 as revised by R-1 H1): after a lock owed a
+	 * re-confirmation, the Crew condition must hold again, so a locked member who has not confirmed
+	 * the latest version is removed first; clearing the mark locks the Crew again.
+	 * @throws ApiException {@code STALE} without an owed mark; {@code GUARD_FAILED CREW_NOT_CONFIRMED}
+	 */
+	@Transactional
+	void reconfirm(UUID mentorId, UUID jobId, long crewVersion) {
+		Job job = lockMentorJob(mentorId, jobId, crewVersion);
+		if (job.state() != JobState.AGREEMENT || !reconfirmOwed(jobId)) {
+			throw new ApiException(ErrorCode.STALE);
+		}
+		if (!crewConfirmed(jobId)) {
+			throw new ApiException(ErrorCode.GUARD_FAILED, JobReason.CREW_NOT_CONFIRMED);
+		}
+		this.jdbc.sql("UPDATE job.job SET crew_reconfirm_owed_at = NULL WHERE id = :id").param("id", jobId).update();
+		bump(jobId, false);
+		this.auditLog.record(AuditEntry.of(AuditActor.user(mentorId), "job.crew_reconfirmed", AuditObject.of("job.job", jobId))
+			.forJob(jobId));
+		this.todos.closeAll(PICK_TODO, jobId);
+	}
+
+	/**
+	 * A locked account (AD-19): each of its {@code ASSIGNED} or {@code ACTIVE} rows becomes
+	 * {@code INACTIVE}. Between the Agreement confirmation and J6 the Crew then owes a re-confirmation:
+	 * the lock lifts until the Mentor re-confirms, and the Mentor is told (R-1 H1). Safe to replay: a
+	 * row already {@code INACTIVE} changes nothing.
+	 */
+	@Transactional
+	void accountLocked(UUID accountId) {
+		List<Row> rows = this.jdbc.sql("SELECT " + ROW_COLUMNS
+				+ " FROM job.crew_row WHERE student_account_id = :id AND status IN ('ASSIGNED', 'ACTIVE')")
+			.param("id", accountId)
+			.query(CrewService::mapRow)
+			.list();
+		for (Row row : rows) {
+			Job job = lockJob(row.jobId());
+			int changed = this.jdbc.sql("UPDATE job.crew_row SET status = 'INACTIVE' WHERE id = :id AND status IN ('ASSIGNED', 'ACTIVE')")
+				.param("id", row.id())
+				.update();
+			if (changed == 0) {
+				continue;
+			}
+			bump(job.id(), false);
+			this.todos.closeAll(CONFIRM_TODO, row.id());
+			if (job.state() == JobState.AGREEMENT && job.agreementVersionNo() != null && job.mentorId() != null) {
+				this.jdbc.sql("UPDATE job.job SET crew_reconfirm_owed_at = coalesce(crew_reconfirm_owed_at, :now) WHERE id = :id")
+					.param("id", job.id())
+					.param("now", Timestamp.from(this.clock.instant()))
+					.update();
+				this.notifications.send(new NotificationRequest(RECONFIRM_NEEDED,
+						UUID.nameUUIDFromBytes((row.id() + ":locked").getBytes(StandardCharsets.UTF_8)),
+						List.of(new Recipient(job.mentorId(), Audience.MENTOR)), Map.of("job", job.title()),
+						Agreements.agreementLink(job.id()), job.id(), null));
+				this.todos.open(new TodoRequest(PICK_TODO, job.mentorId(), Audience.MENTOR, job.id(), Map.of("job", job.title()),
+						Agreements.agreementLink(job.id()), agreementDue(job.id()), job.id()));
+			}
+		}
+	}
+
+	/** Whether a lock between the Agreement confirmation and J6 left the Crew owing a re-confirmation. */
+	boolean reconfirmOwed(UUID jobId) {
+		return this.jdbc.sql("SELECT crew_reconfirm_owed_at IS NOT NULL FROM job.job WHERE id = :id")
+			.param("id", jobId)
+			.query(Boolean.class)
+			.single();
 	}
 
 	/**

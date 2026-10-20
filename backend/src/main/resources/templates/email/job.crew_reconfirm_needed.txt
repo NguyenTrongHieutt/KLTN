@@ -1,0 +1,6 @@
+subject: Một thành viên nhóm {job} bị khóa. Hãy xác nhận lại nhóm thực hiện trước khi khách hàng thanh toán.
+---
+Xin chào,
+
+Một thành viên nhóm thực hiện công việc {job} bị khóa.
+Hãy xác nhận lại nhóm thực hiện trên vibefix trước khi khách hàng thanh toán.

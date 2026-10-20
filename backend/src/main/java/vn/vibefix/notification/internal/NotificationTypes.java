@@ -44,6 +44,13 @@ class NotificationTypes implements NotificationCatalog {
 	static final TodoType JOB_REVIEW_AGREEMENT = new TodoType("job.review_agreement", Set.of(Audience.CUSTOMER), 1,
 			Set.of("job"));
 
+	/** The Customer asked for changes (FR-16): until the Mentor shares a new draft. */
+	static final TodoType JOB_REVISE_AGREEMENT = new TodoType("job.revise_agreement", Set.of(Audience.MENTOR), 2, Set.of("job"));
+
+	/** The Customer approved the draft (FR-17): until the Mentor confirms it. */
+	static final TodoType JOB_CONFIRM_AGREEMENT_MENTOR = new TodoType("job.confirm_agreement_mentor", Set.of(Audience.MENTOR), 2,
+			Set.of("job"));
+
 	/** J4 (FR-75): the Mentor picks the Crew, until FR-17's Crew condition holds. */
 	static final TodoType JOB_PICK_CREW = new TodoType("job.pick_crew", Set.of(Audience.MENTOR), 2, Set.of("job"));
 
@@ -189,6 +196,28 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType JOB_AGREEMENT_DRAFT_READY = new NotificationType("job.agreement_draft_ready",
 			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
 
+	/** The Customer asked for changes on the shared draft (FR-16). */
+	static final NotificationType JOB_AGREEMENT_CHANGES_REQUESTED = new NotificationType("job.agreement_changes_requested",
+			Set.of(Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
+
+	/** The Customer approved; the Mentor confirms once the Crew is confirmed (FR-17). */
+	static final NotificationType JOB_AGREEMENT_AWAITING_CONFIRMATION = new NotificationType(
+			"job.agreement_awaiting_confirmation", Set.of(Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL,
+			"check", Set.of("job"));
+
+	/** The Agreement version 1 took effect (FR-17): it lists the Crew's GitHub usernames. */
+	static final NotificationType JOB_AGREEMENT_CONFIRMED = new NotificationType("job.agreement_confirmed",
+			Set.of(Audience.CUSTOMER, Audience.MENTOR, Audience.CREW_ACTIVE), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL,
+			"check", Set.of("job", "crew"));
+
+	/** A Milestone waits for the Customer's payment (FR-41): after the confirmation, Milestone 1. */
+	static final NotificationType JOB_MILESTONE_AWAITING_FUNDING = new NotificationType("job.milestone_awaiting_funding",
+			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("job", "n", "amount"));
+
+	/** A Crew member was locked between the confirmation and Starting (FR-17, R-1 H1). */
+	static final NotificationType JOB_CREW_RECONFIRM_NEEDED = new NotificationType("job.crew_reconfirm_needed",
+			Set.of(Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("job"));
+
 	/** The Mentor added this Student to the Crew (FR-75). */
 	static final NotificationType JOB_CREW_ASSIGNED = new NotificationType("job.crew_assigned", Set.of(Audience.CREW_ASSIGNED),
 			Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
@@ -237,14 +266,15 @@ class NotificationTypes implements NotificationCatalog {
 				JOB_SELECTION_DECLINED, MATCHING_APPLICATIONS_CLOSED, MATCHING_APPLICATIONS_REOPENED, MATCHING_NDA_OVERDUE,
 				MATCHING_INVITED_TO_APPLY, CHAT_CHAT_OPENED, JOB_AGREEMENT_DRAFT_READY, JOB_CREW_ASSIGNED,
 				JOB_CREW_MEMBER_CONFIRMED, JOB_CREW_MEMBER_DECLINED, JOB_CREW_MEMBER_REMOVED, JOB_CREW_TERMS_CHANGED,
-				JOB_CREW_CONFIRMED, JOB_CONFLICT_OF_INTEREST_REFUSED, JOB_PERSON_LINK_ALERT);
+				JOB_CREW_CONFIRMED, JOB_CONFLICT_OF_INTEREST_REFUSED, JOB_PERSON_LINK_ALERT, JOB_AGREEMENT_CHANGES_REQUESTED,
+				JOB_AGREEMENT_AWAITING_CONFIRMATION, JOB_AGREEMENT_CONFIRMED, JOB_MILESTONE_AWAITING_FUNDING, JOB_CREW_RECONFIRM_NEEDED);
 	}
 
 	@Override
 	public List<TodoType> todoTypes() {
 		return List.of(COMPLETE_MENTOR_APPLICATION, VERIFY_STUDENT, SCANNING_RESOLVE_INTAKE_FINDING,
 				MATCHING_CHOOSE_ASSIGNEE, MATCHING_SIGN_NDA, MATCHING_ANSWER_INVITATION_TO_APPLY, JOB_DRAFT_AGREEMENT,
-				JOB_REVIEW_AGREEMENT, JOB_PICK_CREW, JOB_CONFIRM_CREW_TERMS);
+				JOB_REVIEW_AGREEMENT, JOB_PICK_CREW, JOB_CONFIRM_CREW_TERMS, JOB_REVISE_AGREEMENT, JOB_CONFIRM_AGREEMENT_MENTOR);
 	}
 
 }

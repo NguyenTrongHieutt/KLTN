@@ -1,0 +1,6 @@
+subject: Khách hàng đã duyệt thỏa thuận {job}. Hãy xác nhận khi nhóm thực hiện đã xác nhận đủ.
+---
+Xin chào,
+
+Khách hàng đã duyệt thỏa thuận của công việc {job}.
+Hãy xác nhận thỏa thuận trên vibefix khi nhóm thực hiện đã xác nhận đủ.

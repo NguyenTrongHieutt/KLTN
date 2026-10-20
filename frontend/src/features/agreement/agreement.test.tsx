@@ -42,6 +42,7 @@ const milestone = (overrides: object = {}) => ({
 const draft = (overrides: object = {}, content: object = {}) => ({
   revision: 1,
   state: 'AGREEMENT',
+  review: { comments: [], draftMatchesShared: false },
   quote: { priceVnd: 800000, timelineDays: 7 },
   versions: [],
   problems: [],
@@ -184,6 +185,9 @@ describe('JOB-6 for the Customer: read the shared draft (FR-16)', () => {
     quote: { priceVnd: 800000, timelineDays: 7 },
     crew: ['minhtq'],
     crewConfirmed: false,
+    latestVersionNo: 2,
+    comments: [],
+    changeRequested: false,
     content: {
       scope: 'Sửa lỗi hai khách đặt trùng bàn.',
       priceVnd: 800000,

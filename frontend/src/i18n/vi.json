@@ -1578,7 +1578,108 @@
       "due": "Hạn: {date}",
       "priceLine": "Giá: {price}",
       "next": "Người hướng dẫn có thể còn chỉnh sửa. Bạn được báo mỗi khi có bản nháp mới.",
-      "stale": "Bản nháp vừa thay đổi ở nơi khác. Hãy tải lại trang rồi sửa tiếp."
+      "stale": "Bản nháp vừa thay đổi ở nơi khác. Hãy tải lại trang rồi sửa tiếp.",
+      "review": {
+        "compareTitle": "So với báo giá",
+        "comparePrice": "Giá",
+        "compareTimeline": "Thời gian",
+        "days": "{n} ngày",
+        "quoteSide": "Báo giá: {value}",
+        "differs": "Khác báo giá",
+        "same": "Khớp báo giá",
+        "comment": "Góp ý",
+        "commentOn": "Góp ý về {item}",
+        "commentLabel": "Góp ý của bạn",
+        "commentSend": "Gửi góp ý",
+        "commentCancel": "Hủy",
+        "commentSent": "Đã gửi góp ý.",
+        "yourComment": "Góp ý của bạn · {time}",
+        "customerComment": "Khách hàng · {time}",
+        "up": "Lên",
+        "down": "Xuống",
+        "upLabel": "Đưa {item} lên",
+        "downLabel": "Đưa {item} xuống",
+        "reordered": "Bạn đã đổi thứ tự giai đoạn. Thứ tự mới được gửi kèm khi bạn yêu cầu sửa.",
+        "resetOrder": "Trả lại thứ tự cũ",
+        "liveToggle": "Đây là hệ thống thật đang dùng",
+        "n7Title": "Chọn hệ thống thật?",
+        "n7Body": "Người hướng dẫn và nhóm thực hiện sẽ có quyền vào hệ thống khách hàng của bạn đang dùng. Họ có thể thay đổi dữ liệu thật trước khi bạn nghiệm thu. Chỉ chọn khi thật cần.",
+        "n7Test": "Dùng môi trường thử",
+        "n7Live": "Vẫn chọn hệ thống thật",
+        "n6": "Mọi kho mã liên quan đều công khai. Từ lúc công việc bắt đầu đến khi hợp nhất xong, tôi sẽ không thay đổi dự án gốc, kể cả việc Lovable hay công cụ AI khác tự đồng bộ. Nếu có thay đổi, việc hợp nhất cuối có thể thất bại và tôi sẽ nhận mã dưới dạng tệp ZIP.",
+        "pauseLink": "Cách tạm dừng đồng bộ",
+        "pauseLead": "Trong lúc công việc đang chạy, đừng để công cụ nào thay đổi dự án gốc:",
+        "pauseDraft": "Hướng dẫn chi tiết cho từng công cụ đang được hoàn thiện.",
+        "pauseHelp": {
+          "LOVABLE": "Lovable: đừng sửa dự án trong lúc công việc chạy; nếu cần, tạm ngắt kết nối GitHub trong phần GitHub của dự án.",
+          "BOLT": "Bolt.new: đừng mở hay sửa dự án, vì mỗi thay đổi có thể được đẩy lên kho mã.",
+          "REPLIT": "Replit: tạm dừng đồng bộ với GitHub, hoặc đừng sửa dự án cho đến khi hợp nhất xong.",
+          "V0": "v0: đừng sửa dự án, vì v0 đẩy mỗi thay đổi lên kho mã đã kết nối.",
+          "BASE44": "Base44: đừng sửa ứng dụng trong lúc công việc chạy.",
+          "CURSOR": "Cursor: đừng đẩy mã mới lên kho mã gốc.",
+          "CLAUDE_CODE": "Claude Code: đừng đẩy mã mới lên kho mã gốc.",
+          "CODEX": "Codex: đừng đẩy mã mới hay đề xuất thay đổi lên kho mã gốc.",
+          "OTHER": "Công cụ khác: đừng để công cụ nào đẩy mã lên kho mã gốc cho đến khi hợp nhất xong."
+        },
+        "afterApprove": "Sau khi bạn duyệt, người hướng dẫn xác nhận thì thỏa thuận có hiệu lực.",
+        "requestChanges": "Yêu cầu sửa",
+        "approve": "Duyệt thỏa thuận",
+        "approveBlockedOrder": "Bạn đã đổi thứ tự giai đoạn: hãy gửi yêu cầu sửa trước khi duyệt.",
+        "approveBlockedFreeze": "Đánh dấu cam kết phía trên để duyệt.",
+        "changesTitle": "Yêu cầu sửa bản nháp {n}?",
+        "changesLead": "Người hướng dẫn được báo và gửi lại bản nháp mới. Các góp ý của bạn đi kèm.",
+        "changesNote": "Bạn muốn sửa gì?",
+        "changesOrder": "Kèm thứ tự giai đoạn mới.",
+        "changesSend": "Gửi yêu cầu sửa",
+        "changesSent": "Đã gửi yêu cầu sửa cho người hướng dẫn.",
+        "approveTitle": "Duyệt bản nháp {n}?",
+        "approveWhat": "Khi bạn duyệt:",
+        "approveWhatMentor": "Người hướng dẫn được báo để xác nhận thỏa thuận.",
+        "approveWhatEffect": "Thỏa thuận có hiệu lực khi người hướng dẫn xác nhận và nhóm thực hiện đã xác nhận đủ.",
+        "approveWhatPay": "Sau đó bạn thanh toán Giai đoạn 1 để nhóm bắt đầu làm.",
+        "approveWhatFreeze": "Bạn giữ nguyên dự án gốc từ lúc công việc bắt đầu đến khi hợp nhất xong.",
+        "approveWhatLive": "Người thực hiện được vào {n} hệ thống thật bạn đã chọn.",
+        "approveConfirm": "Duyệt",
+        "back": "Quay lại",
+        "approved": "Đã duyệt bản nháp. Người hướng dẫn được báo để xác nhận.",
+        "statusApproved": "Bạn đã duyệt bản nháp {n} lúc {time}. Người hướng dẫn xác nhận khi nhóm thực hiện đã xác nhận đủ.",
+        "statusChanges": "Bạn đã gửi yêu cầu sửa bản nháp {n}. Người hướng dẫn sẽ gửi bản nháp mới.",
+        "statusOld": "Đây là bản nháp cũ. Bản nháp {n} là bản mới nhất.",
+        "confirmedLine": "Khách hàng đã duyệt · Người hướng dẫn đã xác nhận",
+        "confirmedOption": "Phiên bản {n} · đã xác nhận {date}",
+        "confirmedAt": "Thỏa thuận có hiệu lực từ {time}.",
+        "target": {
+          "SCOPE": "Phạm vi",
+          "MILESTONE": "Giai đoạn {n} · {title}",
+          "CRITERION": "Tiêu chí {c} của giai đoạn {n}",
+          "EXTERNAL_ACCESS": "Quyền truy cập · {system}",
+          "GONE": "Mục đã bỏ"
+        },
+        "reviewTitle": "Góp ý của khách hàng · bản nháp {n}",
+        "noComments": "Khách hàng chưa góp ý bản nháp này.",
+        "changeTitle": "Khách hàng yêu cầu sửa bản nháp {n} lúc {time}",
+        "proposedOrder": "Thứ tự giai đoạn khách hàng đề xuất:",
+        "applyOrder": "Áp dụng thứ tự",
+        "orderApplied": "Đã đổi thứ tự trong bản nháp. Hãy lưu và gửi lại cho khách hàng.",
+        "confirmTitle": "Xác nhận thỏa thuận",
+        "confirmLead": "Khách hàng duyệt trước, sau đó bạn xác nhận",
+        "confirm": "Xác nhận thỏa thuận",
+        "confirmWhy": "Chưa xác nhận được: {reasons}.",
+        "whyNotShared": "bạn chưa gửi bản nháp cho khách hàng",
+        "whyNotApproved": "khách hàng chưa duyệt bản nháp mới nhất",
+        "whyDraft": "bản nháp có thay đổi chưa gửi cho khách hàng",
+        "whyCrew": "nhóm thực hiện chưa xác nhận đủ",
+        "whyJoin": ", và ",
+        "customerApproved": "Khách hàng đã duyệt bản nháp {n} lúc {time}.",
+        "customerWaiting": "Khách hàng chưa duyệt bản nháp {n}.",
+        "confirmDialogTitle": "Xác nhận thỏa thuận?",
+        "confirmDialogBody": "Thỏa thuận có hiệu lực ngay và chỉ thay đổi được qua đề nghị thay đổi. Nhóm thực hiện được chốt cho đến khi công việc bắt đầu.",
+        "confirmed": "Thỏa thuận đã được xác nhận.",
+        "confirmAction": "xác nhận thỏa thuận",
+        "decisionAction": "gửi quyết định",
+        "confirmedTitle": "Thỏa thuận · phiên bản {n}",
+        "confirmedMeta": "Khách hàng duyệt bản nháp {draft} lúc {approved} · bạn xác nhận lúc {confirmed}"
+      }
     },
     "crew": {
       "panel": {
@@ -1634,7 +1735,8 @@
           "ACTIVE": "Đang tham gia · đã xác nhận phiên bản {n}",
           "ACTIVE_EARLIER": "Đang tham gia",
           "INACTIVE": "Tạm ngừng",
-          "RELEASED": "Đã rời"
+          "RELEASED": "Đã rời",
+          "INACTIVE_OWED": "Tạm ngừng · hãy bỏ khỏi nhóm"
         },
         "released": {
           "DECLINED": "Đã rời · đã từ chối tham gia",
@@ -1652,12 +1754,18 @@
         "ruleWhole": "Số nguyên, cộng lại bằng 100%",
         "ruleStudent": "Mỗi sinh viên lớn hơn 0%",
         "ruleCap": "Tối đa {cap}% cho người hướng dẫn",
-        "ruleRemainder": "Phần lẻ dưới 1 đồng thuộc về người hướng dẫn"
+        "ruleRemainder": "Phần lẻ dưới 1 đồng thuộc về người hướng dẫn",
+        "reconfirmTitle": "Cần xác nhận lại nhóm thực hiện",
+        "reconfirmBody": "Một thành viên bị khóa sau khi thỏa thuận được xác nhận. Hãy bỏ thành viên đó, thêm người khác nếu cần và lưu phần chia, rồi xác nhận lại nhóm trước khi khách hàng thanh toán.",
+        "reconfirm": "Xác nhận lại nhóm thực hiện",
+        "reconfirmed": "Đã xác nhận lại nhóm thực hiện.",
+        "reconfirmAction": "xác nhận lại nhóm thực hiện"
       },
       "customer": {
         "title": "Nhóm thực hiện",
         "waiting": "Chờ nhóm thực hiện xác nhận",
-        "none": "Người hướng dẫn chưa chọn nhóm thực hiện."
+        "none": "Người hướng dẫn chưa chọn nhóm thực hiện.",
+        "note": "Tên tài khoản GitHub để bạn cấp quyền khi cần. Người hướng dẫn chọn và chịu trách nhiệm về nhóm thực hiện."
       },
       "student": {
         "title": "Công việc của tôi",
@@ -2142,7 +2250,9 @@
       "draft_agreement": "Soạn thỏa thuận cho {job}",
       "review_agreement": "Xem thỏa thuận cho {job}",
       "pick_crew": "Chọn nhóm thực hiện cho {job}",
-      "confirm_crew_terms": "Ký cam kết và xác nhận phần chia cho {job}"
+      "confirm_crew_terms": "Ký cam kết và xác nhận phần chia cho {job}",
+      "revise_agreement": "Sửa thỏa thuận {job} theo góp ý của khách hàng",
+      "confirm_agreement_mentor": "Xác nhận thỏa thuận cho {job}"
     }
   },
   "theme": {
@@ -2263,6 +2373,21 @@
       },
       "person_link_alert": {
         "title": "Hai người trong {job} có thể là cùng một người ({first}, {second})"
+      },
+      "agreement_changes_requested": {
+        "title": "Khách hàng góp ý thỏa thuận {job}"
+      },
+      "agreement_awaiting_confirmation": {
+        "title": "Khách hàng đã duyệt thỏa thuận {job}. Hãy xác nhận khi nhóm thực hiện đã xác nhận đủ."
+      },
+      "agreement_confirmed": {
+        "title": "Thỏa thuận {job} đã được xác nhận · nhóm thực hiện: {crew}"
+      },
+      "milestone_awaiting_funding": {
+        "title": "Hãy thanh toán Giai đoạn {n} của {job}: {amount} (thử nghiệm)"
+      },
+      "crew_reconfirm_needed": {
+        "title": "Một thành viên nhóm {job} bị khóa. Hãy xác nhận lại nhóm thực hiện trước khi khách hàng thanh toán."
       }
     },
     "matching": {
@@ -2381,7 +2506,13 @@
       "APPLICANT_IS_CONTRIBUTOR": "sinh viên đã từng đóng góp vào dự án gốc này",
       "CONTRIBUTORS_UNKNOWN": "vibefix chưa kiểm tra được kho mã của khách hàng, hãy thử lại sau ít phút",
       "SHARES_INVALID": "Tỷ lệ chia phải là số nguyên, cộng lại bằng 100, mỗi sinh viên lớn hơn 0, và phần của người hướng dẫn không quá mức tối đa.",
-      "CREW_NOT_CONFIRMED": "nhóm thực hiện chưa xác nhận đủ"
+      "CREW_NOT_CONFIRMED": "nhóm thực hiện chưa xác nhận đủ",
+      "AGREEMENT_APPROVED": "bạn đã duyệt bản nháp này",
+      "CHANGES_REQUESTED": "bạn đã gửi góp ý cho bản nháp này, hãy chờ bản nháp mới",
+      "FREEZE_COMMITMENT_REQUIRED": "hãy đánh dấu cam kết không thay đổi dự án gốc",
+      "AGREEMENT_NOT_APPROVED": "khách hàng chưa duyệt bản nháp mới nhất",
+      "AGREEMENT_CONFIRMED": "thỏa thuận đã được xác nhận, chỉ thay đổi được qua đề nghị thay đổi",
+      "DRAFT_CHANGED": "bản nháp có thay đổi chưa gửi cho khách hàng"
     },
     "matching": {
       "JOB_POST_NOT_OPEN": "công việc không còn nhận ứng tuyển",

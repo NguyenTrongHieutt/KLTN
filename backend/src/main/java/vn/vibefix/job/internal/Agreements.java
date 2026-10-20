@@ -67,6 +67,8 @@ class Agreements {
 
 	static final String DRAFT_READY = "job.agreement_draft_ready";
 
+	static final String REVISE_TODO = "job.revise_agreement";
+
 	static final int MAX_MILESTONES = 20;
 
 	static final int MAX_CRITERIA = 30;
@@ -217,13 +219,15 @@ class Agreements {
 
 	/**
 	 * Saves the whole draft at the revision the editor loaded (AD-23); an incomplete draft saves.
-	 * @throws ApiException {@code STALE} for another revision or a Job past Agreement; {@code VALIDATION}
-	 * for an entity of another Job or a limit passed
+	 * @throws ApiException {@code STALE} for another revision or a Job past Agreement;
+	 * {@code GUARD_FAILED AGREEMENT_CONFIRMED} once confirmed; {@code VALIDATION} for an entity of another
+	 * Job or a limit passed
 	 */
 	@Transactional
 	Draft save(UUID mentorId, UUID jobId, SaveCommand command) {
 		Job locked = lockMentorJob(mentorId, jobId);
 		requireAgreement(locked);
+		requireUnconfirmed(locked);
 		Draft current = draft(locked).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		if (current.revision() != command.revision()) {
 			throw new ApiException(ErrorCode.STALE);
@@ -302,13 +306,16 @@ class Agreements {
 
 	/**
 	 * "Gửi cho khách hàng" (FR-16): the complete draft becomes the next shared version, with no further
-	 * gate; the Customer is told and their review to-do opens.
-	 * @throws ApiException {@code STALE}; {@code VALIDATION AGREEMENT_INCOMPLETE} with {@code problems}
+	 * gate; the Customer is told and their review to-do opens. It answers every open change request
+	 * (Story 4.4) and ends the Mentor's revision to-do.
+	 * @throws ApiException {@code STALE}; {@code GUARD_FAILED AGREEMENT_CONFIRMED} once confirmed;
+	 * {@code VALIDATION AGREEMENT_INCOMPLETE} with {@code problems}
 	 */
 	@Transactional
 	Version share(UUID mentorId, UUID jobId, int revision) {
 		Job locked = lockMentorJob(mentorId, jobId);
 		requireAgreement(locked);
+		requireUnconfirmed(locked);
 		Draft draft = draft(locked).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		if (draft.revision() != revision) {
 			throw new ApiException(ErrorCode.STALE);
@@ -337,7 +344,12 @@ class Agreements {
 		this.notifications.send(new NotificationRequest(DRAFT_READY, UUID.nameUUIDFromBytes((locked.id() + ":" + next).getBytes()),
 				List.of(new Recipient(locked.customerId(), Audience.CUSTOMER)), Map.of("job", locked.title()),
 				agreementLink(locked.id()), locked.id(), null));
+		this.jdbc.sql("UPDATE job.agreement_change_request SET resolved_at = :now WHERE job_id = :job AND resolved_at IS NULL")
+			.param("job", locked.id())
+			.param("now", Timestamp.from(now))
+			.update();
 		this.todos.closeAll(DRAFT_TODO, locked.id());
+		this.todos.closeAll(REVISE_TODO, locked.id());
 		this.todos.closeAll(REVIEW_TODO, locked.id());
 		Instant due = this.jdbc.sql("SELECT agreement_due_at FROM job.job WHERE id = :id")
 			.param("id", locked.id())
@@ -616,6 +628,13 @@ class Agreements {
 	private static void requireAgreement(Job job) {
 		if (job.state() != JobState.AGREEMENT) {
 			throw new ApiException(ErrorCode.STALE);
+		}
+	}
+
+	/** A confirmed Agreement changes only through a Change Request (FR-17, Epic 5). */
+	private static void requireUnconfirmed(Job job) {
+		if (job.agreementVersionNo() != null) {
+			throw new ApiException(ErrorCode.GUARD_FAILED, JobReason.AGREEMENT_CONFIRMED);
 		}
 	}
 

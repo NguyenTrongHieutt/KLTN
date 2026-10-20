@@ -1,0 +1,6 @@
+subject: Hãy thanh toán Giai đoạn {n} của {job}: {amount} (thử nghiệm)
+---
+Xin chào,
+
+Giai đoạn {n} của công việc {job} đang chờ bạn thanh toán: {amount} (thử nghiệm).
+Nhóm bắt đầu làm sau khi giai đoạn được thanh toán.

@@ -1,0 +1,7 @@
+subject: Thỏa thuận {job} đã được xác nhận · nhóm thực hiện: {crew}
+---
+Xin chào,
+
+Thỏa thuận của công việc {job} đã có hiệu lực.
+Nhóm thực hiện: {crew}.
+Hãy mở vibefix để xem thỏa thuận và bước tiếp theo.

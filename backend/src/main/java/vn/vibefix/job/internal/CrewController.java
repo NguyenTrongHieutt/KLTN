@@ -100,9 +100,17 @@ class CrewController {
 	}
 
 	/** The Mentor's Crew panel. */
+	/**
+	 * The Mentor's Crew panel.
+	 * @param reconfirmOwed a lock after the Agreement confirmation left the Crew owing "Xác nhận lại nhóm
+	 * thực hiện" (R-1 H1)
+	 */
 	record CrewPanelView(long crewVersion, int capPercent, boolean largeCrews, boolean locked, boolean crewConfirmed,
 			int confirmedCount, int total, CrewMentorView mentor, List<CrewRowView> rows, @Nullable CrewTermsView latest,
-			List<CrewCandidateView> team, List<CrewMilestoneView> milestones) {
+			List<CrewCandidateView> team, List<CrewMilestoneView> milestones, boolean reconfirmOwed) {
+	}
+
+	record CrewReconfirmRequest(@NotNull Long crewVersion) {
 	}
 
 	record CrewAssignmentMilestoneView(String title, @Nullable LocalDate dueOn, @Nullable Long priceVnd, @Nullable Long yourPartVnd) {
@@ -189,6 +197,14 @@ class CrewController {
 		return panel(mentorJob(mentor, jobId));
 	}
 
+	/** "Xác nhận lại nhóm thực hiện" after a lock owed it (R-1 H1). */
+	@PostMapping("/api/v1/mentor/jobs/{jobId}/crew/reconfirm")
+	CrewPanelView reconfirmCrew(@PathVariable UUID jobId, @Valid @RequestBody CrewReconfirmRequest body) {
+		UUID mentor = mentor();
+		this.crews.reconfirm(mentor, jobId, body.crewVersion());
+		return panel(mentorJob(mentor, jobId));
+	}
+
 	/** STU-4: the Student's assignments, newest first; anyone else finds nothing. */
 	@GetMapping("/api/v1/crew/assignments")
 	List<CrewAssignmentView> crewAssignments() {
@@ -270,7 +286,8 @@ class CrewController {
 				rowViews, latest.map(version -> new CrewTermsView(version.versionNo(), version.status(), version.createdAt())).orElse(null),
 				teamViews,
 				content == null ? List.of()
-						: content.milestones().stream().map(milestone -> new CrewMilestoneView(milestone.title(), milestone.priceVnd())).toList());
+						: content.milestones().stream().map(milestone -> new CrewMilestoneView(milestone.title(), milestone.priceVnd())).toList(),
+				this.crews.reconfirmOwed(job.id()));
 	}
 
 	private @Nullable String releasedReason(Row row) {

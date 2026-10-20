@@ -356,6 +356,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/jobs/{jobId}/agreement/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["approveAgreement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/jobs/{jobId}/agreement/changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["requestAgreementChanges"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/jobs/{jobId}/agreement/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["commentOnAgreement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jobs/{jobId}/applications": {
         parameters: {
             query?: never;
@@ -756,6 +804,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/mentor/jobs/{jobId}/agreement/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["confirmAgreement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/mentor/jobs/{jobId}/agreement/share": {
         parameters: {
             query?: never;
@@ -782,6 +846,22 @@ export interface paths {
         get: operations["crewPanel"];
         put?: never;
         post: operations["addCrewMember"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mentor/jobs/{jobId}/crew/reconfirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["reconfirmCrew"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1646,20 +1726,92 @@ export interface components {
             /** Format: date-time */
             idleExpiresAt: string;
         };
+        AgreementApproveRequest: {
+            freezeCommitment: boolean;
+            liveAccessIds: string[];
+            /** Format: int64 */
+            version: number;
+            /** Format: int32 */
+            versionNo: number;
+        };
+        AgreementChangeRequestView: {
+            /** Format: date-time */
+            createdAt: string;
+            milestoneOrder?: string[];
+            note: string;
+            /** Format: int32 */
+            versionNo: number;
+        };
+        AgreementChangesRequest: {
+            milestoneOrder?: string[];
+            note: string;
+            /** Format: int64 */
+            version: number;
+            /** Format: int32 */
+            versionNo: number;
+        };
+        AgreementCommentRequest: {
+            body: string;
+            /** Format: uuid */
+            targetId?: string;
+            /** @enum {string} */
+            targetKind: "SCOPE" | "MILESTONE" | "CRITERION" | "EXTERNAL_ACCESS";
+            /** Format: int32 */
+            versionNo: number;
+        };
+        AgreementCommentView: {
+            body: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            targetId?: string;
+            /** @enum {string} */
+            targetKind: "SCOPE" | "MILESTONE" | "CRITERION" | "EXTERNAL_ACCESS";
+            /** Format: int32 */
+            versionNo: number;
+        };
+        AgreementConfirmRequest: {
+            /** Format: int64 */
+            crewVersion: number;
+            /** Format: int64 */
+            version: number;
+        };
         AgreementDraftView: {
+            confirmed?: components["schemas"]["ConfirmedAgreementView"];
             content: components["schemas"]["Content"];
             problems: components["schemas"]["Problem"][];
             quote?: components["schemas"]["QuoteView"];
+            review: components["schemas"]["AgreementReviewView"];
             /** Format: int32 */
             revision: number;
             /** @enum {string} */
             state: "DRAFT" | "OPEN" | "SELECTING" | "AGREEMENT" | "STARTING" | "ACTIVE" | "CLOSING" | "CLOSED" | "CANCELLED";
             versions: components["schemas"]["VersionSummary"][];
         };
+        AgreementReviewView: {
+            /** Format: date-time */
+            approvedAt?: string;
+            changeRequest?: components["schemas"]["AgreementChangeRequestView"];
+            comments: components["schemas"]["AgreementCommentView"][];
+            draftMatchesShared: boolean;
+            /** Format: int32 */
+            latestVersionNo?: number;
+        };
         AgreementVersionView: {
+            /** Format: date-time */
+            agreementStartedAt?: string;
+            /** Format: date-time */
+            approvedAt?: string;
+            changeRequested: boolean;
+            comments: components["schemas"]["AgreementCommentView"][];
+            confirmed?: components["schemas"]["ConfirmedAgreementView"];
             content: components["schemas"]["Content"];
             crew: string[];
             crewConfirmed: boolean;
+            /** Format: int32 */
+            latestVersionNo: number;
             quote?: components["schemas"]["QuoteView"];
             /** Format: date-time */
             sharedAt: string;
@@ -1768,6 +1920,20 @@ export interface components {
         CodeRequest: {
             code: string;
         };
+        ConfirmedAgreementView: {
+            /** Format: date-time */
+            approvedAt: string;
+            /** Format: date-time */
+            confirmedAt: string;
+            content: components["schemas"]["Content"];
+            crew: string[];
+            /** Format: int32 */
+            draftVersionNo: number;
+            freezeCommitted: boolean;
+            liveAccessIds: string[];
+            /** Format: int32 */
+            versionNo: number;
+        };
         Content: {
             assessment: boolean;
             codeJob: boolean;
@@ -1868,10 +2034,15 @@ export interface components {
             locked: boolean;
             mentor: components["schemas"]["CrewMentorView"];
             milestones: components["schemas"]["CrewMilestoneView"][];
+            reconfirmOwed: boolean;
             rows: components["schemas"]["CrewRowView"][];
             team: components["schemas"]["CrewCandidateView"][];
             /** Format: int32 */
             total: number;
+        };
+        CrewReconfirmRequest: {
+            /** Format: int64 */
+            crewVersion: number;
         };
         CrewRemoveRequest: {
             /** Format: int64 */
@@ -3645,6 +3816,80 @@ export interface operations {
             };
         };
     };
+    approveAgreement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgreementApproveRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    requestAgreementChanges: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgreementChangesRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    commentOnAgreement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgreementCommentRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgreementCommentView"];
+                };
+            };
+        };
+    };
     ofJob: {
         parameters: {
             query?: never;
@@ -4310,6 +4555,32 @@ export interface operations {
             };
         };
     };
+    confirmAgreement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgreementConfirmRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgreementDraftView"];
+                };
+            };
+        };
+    };
     share: {
         parameters: {
             query?: never;
@@ -4370,6 +4641,32 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["CrewAddRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrewPanelView"];
+                };
+            };
+        };
+    };
+    reconfirmCrew: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CrewReconfirmRequest"];
             };
         };
         responses: {
