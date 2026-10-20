@@ -56,7 +56,7 @@ class MentorJobController {
 	record MentorJobView(UUID id, String title, String productName, JobState state, long version,
 			List<JobType> jobTypes, @Nullable String problem, @Nullable String expected, @Nullable String appUsers,
 			@Nullable String doneCheck, Instant selectedAt, @Nullable Instant ndaDueAt, boolean codeJob,
-			boolean commitEmailNoticeAcknowledged) {
+			boolean commitEmailNoticeAcknowledged, boolean agreementConfirmed) {
 	}
 
 	private final Jobs jobs;
@@ -108,7 +108,8 @@ class MentorJobController {
 		return new MentorJobView(job.id(), job.title(), productName(new HashMap<>(), job.productId()), job.state(),
 				job.version(), job.jobTypes(), job.problem(), job.expected(), job.appUsers(), job.doneCheck(), selectedAt,
 				job.state() == JobState.SELECTING ? selectedAt.plus(JobSelection.NDA_PERIOD) : null, job.code(),
-				this.notices.acknowledged(mentor, Notices.COMMIT_EMAIL, Notices.COMMIT_EMAIL_VERSION));
+				this.notices.acknowledged(mentor, Notices.COMMIT_EMAIL, Notices.COMMIT_EMAIL_VERSION),
+				job.agreementVersionNo() != null);
 	}
 
 	/**

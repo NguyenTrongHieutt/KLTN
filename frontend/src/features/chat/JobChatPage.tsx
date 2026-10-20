@@ -85,7 +85,7 @@ function MentorChat({ jobId }: { jobId: string }) {
 function MentorHeader({ job }: { job: MentorJob }) {
   return (
     <JobHeader title={job.title} state={job.state} meta={mentorMeta(job)} audience="mentor">
-      <MentorJobTabs jobId={job.id} state={job.state} current="chat" />
+      <MentorJobTabs jobId={job.id} state={job.state} current="chat" payment={job.agreementConfirmed} />
     </JobHeader>
   )
 }

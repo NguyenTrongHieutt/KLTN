@@ -8,6 +8,7 @@ import { RegionState } from '@/components/RegionState'
 import { Sheet } from '@/components/Sheet'
 import { Skeleton } from '@/components/Skeleton'
 import { useToasts } from '@/components/toasts'
+import { TestTag } from '@/components/TestTag'
 import { Button } from '@/components/ui/button'
 import { useSession } from '@/features/identity/useSession'
 import { useJob, type Job } from '@/features/job/jobApi'
@@ -210,7 +211,7 @@ function ApplicationCard({
       </p>
       <p className="text-body-sm">
         <span className="font-semibold">{formatVnd(application.priceVnd)}</span>{' '}
-        <span className="rounded bg-warning-soft px-1 text-caption font-semibold text-warning">{t('screen.matching.test')}</span>
+        <TestTag />
         {' · '}
         {t('screen.matching.days', { n: application.timelineDays })}
       </p>
@@ -312,7 +313,7 @@ function ChooseDialog({
           <div className="flex flex-col gap-1 rounded-md bg-muted p-3 text-body-sm">
             <p>
               {formatVnd(application.priceVnd)}{' '}
-              <span className="rounded bg-warning-soft px-1 text-caption font-semibold text-warning">{t('screen.matching.test')}</span>
+              <TestTag />
             </p>
             <p>{t('screen.matching.days', { n: application.timelineDays })}</p>
           </div>

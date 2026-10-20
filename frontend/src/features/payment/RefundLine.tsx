@@ -2,7 +2,7 @@ import { Undo2 } from 'lucide-react'
 import type { components } from '@/api/schema'
 import { t, type MessageKey } from '@/i18n/t'
 import { formatVnd } from '@/lib/money'
-import { TestTag } from './TestModeBanner'
+import { TestTag } from '@/components/TestTag'
 
 type Refund = components['schemas']['PaymentRefundView']
 

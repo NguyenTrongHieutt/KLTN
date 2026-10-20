@@ -20,7 +20,8 @@ import { formatDayMonth, formatDayMonthTime } from '@/lib/dates'
 import { formatVnd } from '@/lib/money'
 import { isNotFound, problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
-import { AgreementContentView, TestTag } from './AgreementContent'
+import { TestTag } from '@/components/TestTag'
+import { AgreementContentView } from './AgreementContent'
 import {
   useApproveAgreement,
   useCustomerAgreement,

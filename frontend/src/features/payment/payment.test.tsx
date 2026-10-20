@@ -38,6 +38,8 @@ const job = {
   agreementConfirmed: true,
 }
 
+const money = { fundedVnd: 0, topUpVnd: 0, refundedVnd: 0, releasedTotalVnd: 0 }
+
 const funding = (overrides: object = {}, first: object = {}) => ({
   jobId: 'j1',
   title: job.title,
@@ -45,8 +47,8 @@ const funding = (overrides: object = {}, first: object = {}) => ({
   version: 11,
   configured: true,
   milestones: [
-    { milestoneId: 'm1', number: 1, title: 'Sửa lỗi trùng giờ', priceVnd: 2000000, state: 'PLANNED', fundable: true, ...first },
-    { milestoneId: 'm2', number: 2, title: 'Email nhắc lịch', priceVnd: 1500000, state: 'PLANNED', fundable: false },
+    { milestoneId: 'm1', number: 1, title: 'Sửa lỗi trùng giờ', priceVnd: 2000000, state: 'PLANNED', fundable: true, ...money, ...first },
+    { milestoneId: 'm2', number: 2, title: 'Email nhắc lịch', priceVnd: 1500000, state: 'PLANNED', fundable: false, ...money },
   ],
   orders: [],
   ...overrides,

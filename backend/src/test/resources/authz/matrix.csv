@@ -765,3 +765,23 @@ GET /webhooks/vnpay/ipn,CUSTOMER,,,200
 GET /webhooks/vnpay/ipn,MENTOR,,,200
 GET /webhooks/vnpay/ipn,STUDENT,,,200
 GET /webhooks/vnpay/ipn,ADMINISTRATOR,,,200
+GET /api/v1/payments/history,ANONYMOUS,,,401
+GET /api/v1/payments/history,OWNER,,,200
+GET /api/v1/payments/history,CUSTOMER,,,200
+GET /api/v1/payments/history,MENTOR,,,404 NOT_FOUND
+GET /api/v1/payments/history,STUDENT,,,404 NOT_FOUND
+GET /api/v1/payments/history,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/balance,ANONYMOUS,,,401
+GET /api/v1/balance,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/balance,OWNER,,,404 NOT_FOUND
+GET /api/v1/balance,MENTOR,,,200
+GET /api/v1/balance,MENTOR,mentor=PENDING,,200
+GET /api/v1/balance,STUDENT,,,200
+GET /api/v1/balance,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/mentor/jobs/{jobId}/funding,ANONYMOUS,,,401,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/funding,MENTOR,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/funding,MENTOR,mentor=PENDING,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/funding,OWNER,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/funding,CUSTOMER,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/funding,STUDENT,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/funding,ADMINISTRATOR,,,404 NOT_FOUND,requireActiveAccount

@@ -7,6 +7,9 @@ export type JobFunding = components['schemas']['JobFundingView']
 export type FundingMilestone = components['schemas']['FundingMilestoneView']
 export type PaymentOrderSummary = components['schemas']['PaymentOrderView']
 export type PaymentOrder = components['schemas']['PaymentOrderDetailView']
+export type CustomerHistory = components['schemas']['CustomerHistoryView']
+export type Balance = components['schemas']['BalanceView']
+export type MentorJobFunding = components['schemas']['MentorJobFundingView']
 
 const fundingKey = (jobId: string) => ['payment', 'funding', jobId] as const
 
@@ -72,5 +75,24 @@ export function useTestCard(enabled: boolean) {
     queryFn: () => unwrap(apiClient.GET('/api/v1/payment/test-card')),
     enabled,
     staleTime: Infinity,
+  })
+}
+
+/** CUS-10: every funding and refund per Job, and one released total per Milestone (FR-44). */
+export function usePaymentHistory() {
+  return useQuery({ queryKey: ['payment', 'history'], queryFn: () => unwrap(apiClient.GET('/api/v1/payments/history')) })
+}
+
+/** MEN-7 or STU-7: the Balance and each release (FR-44). */
+export function useBalance() {
+  return useQuery({ queryKey: ['payment', 'balance'], queryFn: () => unwrap(apiClient.GET('/api/v1/balance')) })
+}
+
+/** The Mentor's JOB-7: the Milestones with each release by party (AD-20). */
+export function useMentorJobFunding(jobId: string) {
+  return useQuery({
+    queryKey: ['payment', 'mentor-funding', jobId],
+    queryFn: () => unwrap(apiClient.GET('/api/v1/mentor/jobs/{jobId}/funding', { params: { path: { jobId } } })),
+    retry: false,
   })
 }

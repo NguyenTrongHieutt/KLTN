@@ -3,6 +3,7 @@ import { useId, useState, type ReactNode } from 'react'
 import { inputClass } from '@/components/formField-props'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
+import { TestTag } from '@/components/TestTag'
 import { t } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
 import { formatCalendarDate, formatDayMonthTime } from '@/lib/dates'
@@ -12,9 +13,6 @@ import { cn } from '@/lib/utils'
 import { useCommentOnAgreement, type AgreementComment, type AgreementContent, type CommentTarget } from './agreementApi'
 import { stepCount } from './agreementChecks'
 
-export function TestTag() {
-  return <span className="rounded bg-warning-soft px-1 text-caption font-semibold text-warning">{t('screen.matching.test')}</span>
-}
 
 export function CodeRights() {
   return (

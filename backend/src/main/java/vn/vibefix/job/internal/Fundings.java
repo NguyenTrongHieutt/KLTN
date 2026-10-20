@@ -47,8 +47,25 @@ class Fundings implements MilestoneFunding {
 	@Transactional(readOnly = true)
 	public Optional<FundingJob> byId(UUID jobId) {
 		return job(jobId).filter(job -> job.agreementVersionNo() != null)
-			.map(job -> new FundingJob(job.id(), job.productId(), job.customerId(), job.title(), job.state().name(), job.version(),
-					job.frozenAt() != null, job.agreementVersionNo(), milestones(job.id())));
+			.map(this::view);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<FundingJob> ofMentor(UUID mentorId) {
+		return this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE mentor_account_id = :mentor"
+				+ " AND agreement_version_no IS NOT NULL ORDER BY updated_at DESC, id")
+			.param("mentor", mentorId)
+			.query(Jobs::job)
+			.list()
+			.stream()
+			.map(this::view)
+			.toList();
+	}
+
+	private FundingJob view(Job job) {
+		return new FundingJob(job.id(), job.productId(), job.customerId(), job.mentorId(), job.title(), job.state().name(),
+				job.version(), job.frozenAt() != null, job.agreementVersionNo(), milestones(job.id()));
 	}
 
 	@Override
