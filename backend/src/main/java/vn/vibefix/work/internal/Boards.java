@@ -177,12 +177,34 @@ class Boards {
 	 */
 	UUID history(UUID itemId, UUID jobId, @Nullable UUID actor, String action, Map<String, Object> changes,
 			@Nullable UUID assignedTo, @Nullable String comment, @Nullable Map<String, Boolean> selfCheck) {
+		return insert(itemId, jobId, actor, action, changes, assignedTo, comment, selfCheck, null, null);
+	}
+
+	/**
+	 * Appends a Work Item note (FR-76, AD-39): its text, and the earlier note a correction quotes.
+	 * @return the entry's ID
+	 */
+	UUID note(UUID itemId, UUID jobId, UUID actor, String text, @Nullable UUID quotes) {
+		return insert(itemId, jobId, actor, "NOTE", Map.of(), null, text, null, null, quotes);
+	}
+
+	/**
+	 * Appends {@code ATTACHED} or {@code DETACHED} for an Attachment (FR-76).
+	 * @return the entry's ID
+	 */
+	UUID attachmentEntry(UUID itemId, UUID jobId, UUID actor, String action, UUID attachmentId) {
+		return insert(itemId, jobId, actor, action, Map.of(), null, null, null, attachmentId, null);
+	}
+
+	private UUID insert(UUID itemId, UUID jobId, @Nullable UUID actor, String action, Map<String, Object> changes,
+			@Nullable UUID assignedTo, @Nullable String comment, @Nullable Map<String, Boolean> selfCheck,
+			@Nullable UUID attachmentId, @Nullable UUID quotes) {
 		UUID id = this.ids.newId();
 		this.jdbc.sql("""
 				INSERT INTO work.work_item_history (id, work_item_id, job_id, actor_account_id, action, changes, assigned_to,
-				    comment, self_check, at)
+				    comment, self_check, attachment_id, quotes_id, at)
 				VALUES (:id, :item, :job, :actor, :action, CAST(:changes AS JSONB), :assigned, :comment,
-				    CAST(:selfCheck AS JSONB), :now)
+				    CAST(:selfCheck AS JSONB), :attachment, :quotes, :now)
 				""")
 			.param("id", id)
 			.param("item", itemId)
@@ -193,6 +215,8 @@ class Boards {
 			.param("assigned", assignedTo)
 			.param("comment", comment)
 			.param("selfCheck", selfCheck == null ? null : JSON.writeValueAsString(selfCheck))
+			.param("attachment", attachmentId)
+			.param("quotes", quotes)
 			.param("now", Timestamp.from(this.clock.instant()))
 			.update();
 		return id;

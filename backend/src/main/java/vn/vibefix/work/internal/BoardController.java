@@ -1,18 +1,25 @@
 package vn.vibefix.work.internal;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
@@ -20,11 +27,13 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import vn.vibefix.files.PreparedFile;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
+import vn.vibefix.work.internal.Attachments.Attachment;
 import vn.vibefix.work.internal.Boards.ChecklistLine;
 import vn.vibefix.work.internal.Boards.Item;
 import vn.vibefix.work.internal.Boards.Priority;
@@ -40,9 +49,10 @@ import vn.vibefix.work.internal.WorkViews.WorkItemDetailView;
 
 /**
  * JOB-2 "Bảng công việc" (FR-22, FR-23, AD-33, AD-39, UX-DR36): the Board of an Active Job, keyed by the
- * Job, and its Work Items. The Mentor and the active Crew read and write; a former member and a
- * granted Administrator read what they may; everyone else finds nothing. Every edit carries the Work
- * Item's version and passes the FR-47 check.
+ * Job, and its Work Items with their Attachments and notes (FR-76). The Mentor and the active Crew read
+ * and write; a former member and a granted Administrator read what they may; everyone else finds
+ * nothing. Every edit carries the Work Item's version, and every text passes the FR-47 check; notes and
+ * Attachments change no version.
  */
 @RestController
 @Access(Gate.SIGNED_IN)
@@ -102,6 +112,22 @@ class BoardController {
 			@Nullable Resolution sensitive) {
 	}
 
+	/**
+	 * "Thêm liên kết": an {@code https} link with an optional label.
+	 * @param sensitive {@code CHECK} first; {@code MASK} after the FR-47 warning on the label
+	 */
+	record LinkRequest(@NotBlank @Size(max = Attachments.MAX_URL) String url,
+			@Nullable @Size(max = Attachments.MAX_LABEL) String label, @Nullable Resolution sensitive) {
+	}
+
+	/**
+	 * A note, or with {@code quotes} a correction of one of the author's earlier notes.
+	 * @param sensitive {@code CHECK} first; {@code MASK} after the FR-47 warning
+	 */
+	record NoteRequest(@NotBlank @Size(max = Notes.MAX_LENGTH) String text, @Nullable UUID quotes,
+			@Nullable Resolution sensitive) {
+	}
+
 	private final Boards boards;
 
 	private final WorkAccess access;
@@ -112,17 +138,23 @@ class BoardController {
 
 	private final Reviews reviews;
 
+	private final Attachments attachments;
+
+	private final Notes notes;
+
 	private final WorkViews views;
 
 	private final CurrentCaller callers;
 
-	BoardController(Boards boards, WorkAccess access, WorkReads reads, WorkItems items, Reviews reviews, WorkViews views,
-			CurrentCaller callers) {
+	BoardController(Boards boards, WorkAccess access, WorkReads reads, WorkItems items, Reviews reviews,
+			Attachments attachments, Notes notes, WorkViews views, CurrentCaller callers) {
 		this.boards = boards;
 		this.access = access;
 		this.reads = reads;
 		this.items = items;
 		this.reviews = reviews;
+		this.attachments = attachments;
+		this.notes = notes;
 		this.views = views;
 		this.callers = callers;
 	}
@@ -140,7 +172,7 @@ class BoardController {
 	WorkItemDetailView createWorkItem(@PathVariable UUID boardId, @Valid @RequestBody WorkItemRequest body) {
 		BoardViewer writer = this.access.writer(boardId, this.callers.get());
 		Item created = this.items.create(writer, body.draft(), body.resolution());
-		return this.views.detail(writer, created, this.reads.historyOf(writer, created.id()));
+		return detail(writer, created);
 	}
 
 	/** One Work Item with its history, as the viewer may see it. */
@@ -149,7 +181,7 @@ class BoardController {
 		Item item = this.boards.item(workItemId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		BoardViewer viewer = this.access.reader(item.jobId(), this.callers.get());
 		Item seen = this.reads.item(viewer, item);
-		return this.views.detail(viewer, seen, this.reads.historyOf(viewer, item.id()));
+		return detail(viewer, seen);
 	}
 
 	/** Saves an edit made on {@code version}; a newer version answers {@code STALE} (AD-23). */
@@ -161,7 +193,7 @@ class BoardController {
 			throw new ApiException(ErrorCode.VALIDATION);
 		}
 		Item updated = this.items.update(writer, workItemId, body.version(), body.draft(), body.resolution());
-		return this.views.detail(writer, updated, this.reads.historyOf(writer, updated.id()));
+		return detail(writer, updated);
 	}
 
 	/** "Chuyển sang…": a move between "Cần làm" and "Đang làm" (FR-24, AD-39). */
@@ -170,7 +202,7 @@ class BoardController {
 		Item item = this.boards.item(workItemId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		BoardViewer writer = this.access.writer(item.jobId(), this.callers.get());
 		Item moved = this.items.move(writer, workItemId, body.version(), body.to());
-		return this.views.detail(writer, moved, this.reads.historyOf(writer, moved.id()));
+		return detail(writer, moved);
 	}
 
 	/** "Gửi duyệt": the assignee submits with the Self-check Checklist (FR-25, AD-39). */
@@ -182,7 +214,7 @@ class BoardController {
 		Item submitted = this.reviews.submit(writer, workItemId, body.version(),
 				new SelfCheck(answers.meetsCriteria(), answers.tested(), answers.docsUpdated(), answers.noSecrets()),
 				body.note() == null ? "" : body.note().strip(), resolution(body.sensitive()));
-		return this.views.detail(writer, submitted, this.reads.historyOf(writer, submitted.id()));
+		return detail(writer, submitted);
 	}
 
 	/** "Duyệt" or "Trả lại": the Mentor's review with a comment (FR-25, AD-39). */
@@ -192,7 +224,66 @@ class BoardController {
 		BoardViewer writer = this.access.writer(item.jobId(), this.callers.get());
 		Item reviewed = this.reviews.review(writer, workItemId, body.version(), body.decision(),
 				body.comment() == null ? "" : body.comment(), resolution(body.sensitive()));
-		return this.views.detail(writer, reviewed, this.reads.historyOf(writer, reviewed.id()));
+		return detail(writer, reviewed);
+	}
+
+	/**
+	 * "Thêm tệp": one file under NFR-3, within the Job's 200 MB; a plain-text file passes the FR-47
+	 * check first (FR-76, AD-21, AD-34).
+	 */
+	@PostMapping(path = "/api/v1/work-items/{workItemId}/attachments", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	@ResponseStatus(HttpStatus.CREATED)
+	WorkItemDetailView attachFile(@PathVariable UUID workItemId, @RequestPart("file") MultipartFile file,
+			@RequestParam(required = false) @Nullable Resolution sensitive) {
+		Item item = this.boards.item(workItemId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		BoardViewer writer = this.access.writer(item.jobId(), this.callers.get());
+		byte[] content;
+		try {
+			content = file.getBytes();
+		}
+		catch (IOException ex) {
+			throw new UncheckedIOException(ex);
+		}
+		String name = file.getOriginalFilename() == null ? "" : file.getOriginalFilename();
+		PreparedFile prepared = this.attachments.prepare(writer, name, content, resolution(sensitive));
+		this.attachments.attachFile(writer, workItemId, prepared);
+		return detail(writer, this.boards.item(workItemId).orElseThrow());
+	}
+
+	/** "Thêm liên kết": an {@code https} link shown with its domain (FR-76). */
+	@PostMapping("/api/v1/work-items/{workItemId}/links")
+	@ResponseStatus(HttpStatus.CREATED)
+	WorkItemDetailView attachLink(@PathVariable UUID workItemId, @Valid @RequestBody LinkRequest body) {
+		Item item = this.boards.item(workItemId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		BoardViewer writer = this.access.writer(item.jobId(), this.callers.get());
+		this.attachments.attachLink(writer, workItemId, body.url(), body.label(), resolution(body.sensitive()));
+		return detail(writer, this.boards.item(workItemId).orElseThrow());
+	}
+
+	/** "Gỡ": the author removes their Attachment while the Work Item is not Done; the history keeps it. */
+	@DeleteMapping("/api/v1/work-items/{workItemId}/attachments/{attachmentId}")
+	WorkItemDetailView removeAttachment(@PathVariable UUID workItemId, @PathVariable UUID attachmentId) {
+		Item item = this.boards.item(workItemId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		BoardViewer writer = this.access.writer(item.jobId(), this.callers.get());
+		this.attachments.remove(writer, workItemId, attachmentId);
+		return detail(writer, this.boards.item(workItemId).orElseThrow());
+	}
+
+	/** A note, append-only; "Sửa lại" sends a new one quoting the earlier note (FR-76, AD-39). */
+	@PostMapping("/api/v1/work-items/{workItemId}/notes")
+	@ResponseStatus(HttpStatus.CREATED)
+	WorkItemDetailView addNote(@PathVariable UUID workItemId, @Valid @RequestBody NoteRequest body) {
+		Item item = this.boards.item(workItemId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		BoardViewer writer = this.access.writer(item.jobId(), this.callers.get());
+		this.notes.add(writer, workItemId, body.text(), body.quotes(), resolution(body.sensitive()));
+		return detail(writer, this.boards.item(workItemId).orElseThrow());
+	}
+
+	/** The detail with the history and the Attachments the viewer sees. */
+	private WorkItemDetailView detail(BoardViewer viewer, Item item) {
+		List<Attachment> all = this.attachments.of(item.id());
+		return this.views.detail(viewer, item, this.reads.historyOf(viewer, item.id()),
+				this.reads.attachmentsOf(viewer, all), all);
 	}
 
 	private static Resolution resolution(@Nullable Resolution resolution) {

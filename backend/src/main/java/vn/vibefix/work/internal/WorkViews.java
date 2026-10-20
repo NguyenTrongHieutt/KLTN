@@ -26,14 +26,16 @@ import vn.vibefix.job.Crews;
 import vn.vibefix.job.Crews.CrewMember;
 import vn.vibefix.job.Crews.Selection;
 import vn.vibefix.job.HeldMilestones;
+import vn.vibefix.work.internal.Attachments.Attachment;
 import vn.vibefix.work.internal.Boards.ChecklistLine;
 import vn.vibefix.work.internal.Boards.Item;
 import vn.vibefix.work.internal.WorkAccess.BoardViewer;
 import vn.vibefix.work.internal.WorkReads.Entry;
 
 /**
- * The Board's JSON as JOB-2 shows it (FR-23, UX-DR36): cards with key, type, priority, estimate, and
- * assignee; the detail with its checklist and history. People are named as the viewer may see them:
+ * The Board's JSON as JOB-2 shows it (FR-23, FR-76, UX-DR36, UX-DR79): cards with key, type, priority,
+ * estimate, and assignee; the detail with its checklist, Attachments, and one history of changes, reviews,
+ * notes, and Attachment events. People are named as the viewer may see them:
  * the Mentor by their directory name, a Crew member by their shown name or {@code @login} (FR-51).
  */
 @Component
@@ -94,23 +96,47 @@ class WorkViews {
 			List<BoardMilestoneView> milestones, List<PersonView> crew, List<WorkItemCardView> items) {
 	}
 
-	/**
-	 * One history entry.
-	 * @param actor who saved it; empty for vibefix (a seeded Story)
-	 * @param fields the fields the save changed
-	 * @param assignedTo the person it assigned, when it did
-	 * @param comment a submission's note or a review's comment
-	 */
-	record HistoryEntryView(UUID id, String actor, String action, List<String> fields, @Nullable String assignedTo,
-			@Nullable String comment, Instant at) {
+	/** The earlier note a correction quotes ("Ghi chú sửa lại"). */
+	record QuotedNoteView(UUID id, String actor, String text, Instant at) {
 	}
 
 	/**
-	 * One Work Item with its checklist and history, oldest entry first.
+	 * One history entry.
+	 * @param actor who saved it; empty for vibefix (a seeded Story)
+	 * @param mine whether the viewer wrote it: "Sửa lại" is offered on one's own notes
+	 * @param fields the fields the save changed
+	 * @param assignedTo the person it assigned, when it did
+	 * @param comment a submission's note, a review's comment, or a note's text
+	 * @param attachment the name of the Attachment an {@code ATTACHED} or {@code DETACHED} entry names
+	 * @param quoted the earlier note a correction quotes
+	 */
+	record HistoryEntryView(UUID id, String actor, boolean mine, String action, List<String> fields,
+			@Nullable String assignedTo, @Nullable String comment, @Nullable String attachment,
+			@Nullable QuotedNoteView quoted, Instant at) {
+	}
+
+	/**
+	 * One Attachment (FR-76, UX-DR79).
+	 * @param kind {@code FILE} or {@code LINK}
+	 * @param name a file's name, a link's label, or else its domain
+	 * @param domain a link's domain, shown as an External link
+	 * @param url a link's {@code https} address
+	 * @param downloadUrl a file's download, which {@code files} serves only when {@code work} allows it
+	 * @param size a file's size in bytes
+	 * @param removable the viewer is its author and may still remove it: the Work Item is not Done
+	 */
+	record WorkAttachmentView(UUID id, String kind, String name, @Nullable String domain, @Nullable String url,
+			@Nullable String downloadUrl, @Nullable String mediaType, @Nullable Long size, String author,
+			boolean removable, Instant addedAt) {
+	}
+
+	/**
+	 * One Work Item with its checklist, Attachments, and history, oldest first.
 	 * @param review the latest submission, approval, or return, for the Review dialog and the badge
 	 */
 	record WorkItemDetailView(WorkItemCardView item, List<ChecklistLineView> checklist, @Nullable String createdBy,
-			Instant createdAt, boolean readOnly, @Nullable ReviewView review, List<HistoryEntryView> history) {
+			Instant createdAt, boolean readOnly, @Nullable ReviewView review, List<WorkAttachmentView> attachments,
+			List<HistoryEntryView> history) {
 	}
 
 	private final AgreementCriteria criteria;
@@ -156,7 +182,13 @@ class WorkViews {
 				items.stream().map(item -> card(item, criteria, names, latestReviews.get(item.id()))).toList());
 	}
 
-	WorkItemDetailView detail(BoardViewer viewer, Item item, List<Entry> history) {
+	/**
+	 * The detail.
+	 * @param attachments the Attachments the viewer sees
+	 * @param all every Attachment of the Work Item, which history entries are named after
+	 */
+	WorkItemDetailView detail(BoardViewer viewer, Item item, List<Entry> history, List<Attachment> attachments,
+			List<Attachment> all) {
 		Map<UUID, CriterionInForce> criteria = criteria(this.criteria.inForce(viewer.board().jobId()).orElse(null));
 		Set<UUID> people = new HashSet<>();
 		if (item.assigneeId() != null) {
@@ -173,19 +205,36 @@ class WorkViews {
 				people.add(entry.assignedTo());
 			}
 		}
+		attachments.stream().map(Attachment::authorId).filter(id -> id != null).forEach(people::add);
 		Map<UUID, String> names = names(viewer, people);
+		Map<UUID, Attachment> byId = new HashMap<>();
+		all.forEach(attachment -> byId.put(attachment.id(), attachment));
+		Map<UUID, Entry> notes = new HashMap<>();
+		history.stream().filter(entry -> "NOTE".equals(entry.action())).forEach(entry -> notes.put(entry.id(), entry));
 		List<HistoryEntryView> entries = new ArrayList<>();
 		Entry latestReview = null;
 		for (Entry entry : history) {
 			List<String> fields = new ArrayList<>();
 			entry.changes().properties().forEach(change -> fields.add(change.getKey()));
-			entries.add(new HistoryEntryView(entry.id(), entry.actor() == null ? "" : names.getOrDefault(entry.actor(), ""),
-					entry.action(), fields, entry.assignedTo() == null ? null : names.getOrDefault(entry.assignedTo(), ""),
-					entry.comment(), entry.at()));
+			Attachment named = entry.attachmentId() == null ? null : byId.get(entry.attachmentId());
+			Entry quoted = entry.quotes() == null ? null : notes.get(entry.quotes());
+			entries.add(new HistoryEntryView(entry.id(), name(names, entry.actor()),
+					entry.actor() != null && entry.actor().equals(viewer.accountId()), entry.action(), fields,
+					entry.assignedTo() == null ? null : names.getOrDefault(entry.assignedTo(), ""), entry.comment(),
+					named == null ? null : named.name(),
+					quoted == null ? null
+							: new QuotedNoteView(quoted.id(), name(names, quoted.actor()),
+									quoted.comment() == null ? "" : quoted.comment(), quoted.at()),
+					entry.at()));
 			if (WorkReads.REVIEW_ACTIONS.contains(entry.action())) {
 				latestReview = entry;
 			}
 		}
+		boolean removable = viewer.writes() && item.status() != Boards.Status.DONE;
+		List<WorkAttachmentView> listed = attachments.stream()
+			.map(attachment -> attachment(attachment, names,
+					removable && viewer.accountId().equals(attachment.authorId())))
+			.toList();
 		ReviewView review = latestReview == null ? null
 				: new ReviewView(latestReview.action(),
 						latestReview.actor() == null ? "" : names.getOrDefault(latestReview.actor(), ""), latestReview.comment(),
@@ -193,7 +242,19 @@ class WorkViews {
 		return new WorkItemDetailView(card(item, criteria, names, latestReview),
 				item.checklist().stream().map(line -> new ChecklistLineView(line.text(), line.done())).toList(),
 				item.createdBy() == null ? null : names.getOrDefault(item.createdBy(), ""), item.createdAt(), !viewer.writes(),
-				review, entries);
+				review, listed, entries);
+	}
+
+	private static String name(Map<UUID, String> names, @Nullable UUID person) {
+		return person == null ? "" : names.getOrDefault(person, "");
+	}
+
+	private static WorkAttachmentView attachment(Attachment attachment, Map<UUID, String> names, boolean removable) {
+		boolean file = attachment.kind() == Attachments.Kind.FILE;
+		return new WorkAttachmentView(attachment.id(), attachment.kind().name(), attachment.name(),
+				file ? null : Attachments.domain(attachment.url()), file ? null : attachment.url(),
+				file ? "/api/v1/files/" + attachment.fileId() : null, attachment.mediaType(), attachment.size(),
+				name(names, attachment.authorId()), removable, attachment.addedAt());
 	}
 
 	private static Map<UUID, CriterionInForce> criteria(@Nullable CriteriaInForce inForce) {

@@ -4371,6 +4371,129 @@
         "tags" : [ "board-controller" ]
       }
     },
+    "/api/v1/work-items/{workItemId}/attachments" : {
+      "post" : {
+        "operationId" : "attachFile",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workItemId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "query",
+          "name" : "sensitive",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "enum" : [ "CHECK", "MASK" ]
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "multipart/form-data" : {
+              "schema" : {
+                "type" : "object",
+                "properties" : {
+                  "file" : {
+                    "type" : "string",
+                    "format" : "binary"
+                  }
+                },
+                "required" : [ "file" ]
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/WorkItemDetailView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "board-controller" ]
+      }
+    },
+    "/api/v1/work-items/{workItemId}/attachments/{attachmentId}" : {
+      "delete" : {
+        "operationId" : "removeAttachment",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workItemId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "path",
+          "name" : "attachmentId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/WorkItemDetailView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "board-controller" ]
+      }
+    },
+    "/api/v1/work-items/{workItemId}/links" : {
+      "post" : {
+        "operationId" : "attachLink",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workItemId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/LinkRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/WorkItemDetailView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "board-controller" ]
+      }
+    },
     "/api/v1/work-items/{workItemId}/move" : {
       "post" : {
         "operationId" : "moveWorkItem",
@@ -4403,6 +4526,43 @@
               }
             },
             "description" : "OK"
+          }
+        },
+        "tags" : [ "board-controller" ]
+      }
+    },
+    "/api/v1/work-items/{workItemId}/notes" : {
+      "post" : {
+        "operationId" : "addNote",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workItemId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/NoteRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/WorkItemDetailView"
+                }
+              }
+            },
+            "description" : "Created"
           }
         },
         "tags" : [ "board-controller" ]
@@ -6243,6 +6403,9 @@
             "type" : "string",
             "format" : "date-time"
           },
+          "attachment" : {
+            "type" : "string"
+          },
           "comment" : {
             "type" : "string"
           },
@@ -6255,9 +6418,15 @@
           "id" : {
             "type" : "string",
             "format" : "uuid"
+          },
+          "mine" : {
+            "type" : "boolean"
+          },
+          "quoted" : {
+            "$ref" : "#/components/schemas/QuotedNoteView"
           }
         },
-        "required" : [ "action", "actor", "at", "fields", "id" ]
+        "required" : [ "action", "actor", "at", "fields", "id", "mine" ]
       },
       "HistoryJobView" : {
         "type" : "object",
@@ -6866,6 +7035,26 @@
           }
         },
         "required" : [ "agreementConfirmed", "agreementShared", "canCancelSelection", "createdAt", "id", "jobTypes", "productId", "productName", "screenshots", "skills", "state", "title", "updatedAt", "version" ]
+      },
+      "LinkRequest" : {
+        "type" : "object",
+        "properties" : {
+          "label" : {
+            "type" : "string",
+            "maxLength" : 200,
+            "minLength" : 0
+          },
+          "sensitive" : {
+            "type" : "string",
+            "enum" : [ "CHECK", "MASK" ]
+          },
+          "url" : {
+            "type" : "string",
+            "maxLength" : 2000,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "url" ]
       },
       "MentorApplicationDetail" : {
         "type" : "object",
@@ -7705,6 +7894,25 @@
           }
         },
         "required" : [ "commitEmailNoticeAcknowledged", "ndaVersion" ]
+      },
+      "NoteRequest" : {
+        "type" : "object",
+        "properties" : {
+          "quotes" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "sensitive" : {
+            "type" : "string",
+            "enum" : [ "CHECK", "MASK" ]
+          },
+          "text" : {
+            "type" : "string",
+            "maxLength" : 4000,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "text" ]
       },
       "NotificationItem" : {
         "type" : "object",
@@ -8653,6 +8861,26 @@
           }
         },
         "required" : [ "priceVnd", "timelineDays" ]
+      },
+      "QuotedNoteView" : {
+        "type" : "object",
+        "properties" : {
+          "actor" : {
+            "type" : "string"
+          },
+          "at" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "text" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "actor", "at", "id", "text" ]
       },
       "RatingSummaryView" : {
         "type" : "object",
@@ -9977,6 +10205,48 @@
         },
         "required" : [ "visibility" ]
       },
+      "WorkAttachmentView" : {
+        "type" : "object",
+        "properties" : {
+          "addedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "author" : {
+            "type" : "string"
+          },
+          "domain" : {
+            "type" : "string"
+          },
+          "downloadUrl" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "mediaType" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "removable" : {
+            "type" : "boolean"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "url" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "addedAt", "author", "id", "kind", "name", "removable" ]
+      },
       "WorkItemCardView" : {
         "type" : "object",
         "properties" : {
@@ -10039,6 +10309,12 @@
       "WorkItemDetailView" : {
         "type" : "object",
         "properties" : {
+          "attachments" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/WorkAttachmentView"
+            }
+          },
           "checklist" : {
             "type" : "array",
             "items" : {
@@ -10068,7 +10344,7 @@
             "$ref" : "#/components/schemas/ReviewView"
           }
         },
-        "required" : [ "checklist", "createdAt", "history", "item", "readOnly" ]
+        "required" : [ "attachments", "checklist", "createdAt", "history", "item", "readOnly" ]
       },
       "WorkItemRequest" : {
         "type" : "object",

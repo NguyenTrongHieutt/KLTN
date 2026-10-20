@@ -33,8 +33,9 @@ import vn.vibefix.team.internal.TeamTestSupport;
  * <li>{@link MatrixCaller#ADMIN_TEAM_ISSUE_GRANT}, an Administrator holding a grant on the Crew Chat.</li>
  * </ul>
  * It also seeds the Job's confirmed Agreement with one Milestone ({@code {crewMilestoneId}}) and its
- * Board ({@code {boardId}}) with the criterion's seeded Story ({@code {workItemId}}), and a Page
- * ({@code {pageId}}, version {@code {versionNo}}) the Mentor wrote after the windows ended.
+ * Board ({@code {boardId}}) with the criterion's seeded Story ({@code {workItemId}}), which carries the
+ * Mentor's {@code WORK_ITEM_NOTE} note and {@code ATTACHMENT} file ({@code {attachmentId}}), and a Page
+ * ({@code {pageId}}, version {@code {versionNo}}), all written by the Mentor after the windows ended.
  */
 final class CrewJobWorld {
 
@@ -145,8 +146,45 @@ final class CrewJobWorld {
 		world.put("boardId", job);
 		world.put("crewMilestoneId", milestone);
 		world.put("workItemId", item);
-		UUID page = UUID.randomUUID();
 		Timestamp written = Timestamp.from(MutableClock.DEFAULT_INSTANT.minus(Duration.ofDays(1)));
+		UUID attachment = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO work.attachment (id, work_item_id, job_id, kind, file_id, file_name, media_type, size_bytes,
+				    author_account_id, added_at)
+				VALUES (:id, :item, :job, 'FILE', :file, :name, 'application/pdf', 2048, :mentor, :at)
+				""")
+			.param("id", attachment)
+			.param("item", item)
+			.param("job", job)
+			.param("file", UUID.randomUUID())
+			.param("name", Canaries.load().get("ATTACHMENT").value())
+			.param("mentor", this.mentor)
+			.param("at", written)
+			.update();
+		this.jdbc.sql("""
+				INSERT INTO work.work_item_history (id, work_item_id, job_id, actor_account_id, action, changes, attachment_id, at)
+				VALUES (:id, :item, :job, :mentor, 'ATTACHED', '{}'::jsonb, :attachment, :at)
+				""")
+			.param("id", UUID.randomUUID())
+			.param("item", item)
+			.param("job", job)
+			.param("mentor", this.mentor)
+			.param("attachment", attachment)
+			.param("at", written)
+			.update();
+		this.jdbc.sql("""
+				INSERT INTO work.work_item_history (id, work_item_id, job_id, actor_account_id, action, changes, comment, at)
+				VALUES (:id, :item, :job, :mentor, 'NOTE', '{}'::jsonb, :note, :at)
+				""")
+			.param("id", UUID.randomUUID())
+			.param("item", item)
+			.param("job", job)
+			.param("mentor", this.mentor)
+			.param("note", Canaries.load().get("WORK_ITEM_NOTE").value())
+			.param("at", written)
+			.update();
+		world.put("attachmentId", attachment);
+		UUID page = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO work.page (id, job_id, title, version_no, created_by_account_id, created_at, updated_at)
 				VALUES (:id, :job, 'Ghi chú kỹ thuật', 1, :mentor, :at, :at)

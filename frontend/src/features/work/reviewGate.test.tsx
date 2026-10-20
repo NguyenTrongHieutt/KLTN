@@ -69,9 +69,11 @@ describe('The Review Gate on JOB-2 (FR-25, AD-39, UX-DR38)', () => {
     const sent: unknown[] = []
     fakeBackend(signedIn('STUDENT'), {
       'GET /api/v1/boards/j1/work-items': () => json(board()),
+      'GET /api/v1/work-items/w1': () =>
+        json({ item: card(), checklist: [], createdAt: '2026-10-20T03:00:00Z', readOnly: false, attachments: [], history: [] }),
       'POST /api/v1/work-items/w1/submit': async (request) => {
         sent.push(await request.json())
-        return json({ item: card({ status: 'IN_REVIEW', version: 4 }), checklist: [], createdAt: '2026-10-20T03:00:00Z', readOnly: false, history: [] })
+        return json({ item: card({ status: 'IN_REVIEW', version: 4 }), checklist: [], createdAt: '2026-10-20T03:00:00Z', readOnly: false, attachments: [], history: [] })
       },
     })
     renderAt('/cong-viec/j1/bang')
@@ -118,11 +120,12 @@ describe('The Review Gate on JOB-2 (FR-25, AD-39, UX-DR38)', () => {
             selfCheck: { meetsCriteria: true, tested: true, docsUpdated: true, noSecrets: true },
             at: '2026-10-20T04:00:00Z',
           },
+          attachments: [],
           history: [],
         }),
       'POST /api/v1/work-items/w1/review': async (request) => {
         sent.push(await request.json())
-        return json({ item: card({ status: 'IN_PROGRESS', returnedReason: 'Thêm kiểm thử xóa đơn', version: 4 }), checklist: [], createdAt: '2026-10-20T03:00:00Z', readOnly: false, history: [] })
+        return json({ item: card({ status: 'IN_PROGRESS', returnedReason: 'Thêm kiểm thử xóa đơn', version: 4 }), checklist: [], createdAt: '2026-10-20T03:00:00Z', readOnly: false, attachments: [], history: [] })
       },
     })
     renderAt('/cong-viec/j1/bang')
@@ -147,7 +150,7 @@ describe('The Review Gate on JOB-2 (FR-25, AD-39, UX-DR38)', () => {
       'GET /api/v1/mentor/jobs/j1': () => json(mentorJob),
       'GET /api/v1/boards/j1/work-items': () => json(board({ mentor: true, viewerId: 'hung', items: [card({ status: 'IN_REVIEW' })] })),
       'GET /api/v1/work-items/w1': () =>
-        json({ item: card({ status: 'IN_REVIEW' }), checklist: [], createdAt: '2026-10-20T03:00:00Z', readOnly: false, history: [] }),
+        json({ item: card({ status: 'IN_REVIEW' }), checklist: [], createdAt: '2026-10-20T03:00:00Z', readOnly: false, attachments: [], history: [] }),
       'POST /api/v1/work-items/w1/review': () => json({ status: 409, code: 'STALE' }, 409),
     })
     renderAt('/cong-viec/j1/bang')

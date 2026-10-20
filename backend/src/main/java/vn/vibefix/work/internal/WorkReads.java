@@ -27,6 +27,7 @@ import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
+import vn.vibefix.work.internal.Attachments.Attachment;
 import vn.vibefix.work.internal.Boards.ChecklistLine;
 import vn.vibefix.work.internal.Boards.Item;
 import vn.vibefix.work.internal.Boards.Priority;
@@ -51,12 +52,20 @@ class WorkReads {
 
 	/**
 	 * One history entry; {@code changes} maps each field to its {@code from} and {@code to}.
-	 * @param comment a submission's note or a review's comment
+	 * @param comment a submission's note, a review's comment, or a note's text
 	 * @param selfCheck a submission's Self-check answers
+	 * @param attachmentId the Attachment an {@code ATTACHED} or {@code DETACHED} entry names
+	 * @param quotes the earlier note a correction quotes
 	 */
 	record Entry(UUID id, UUID itemId, @Nullable UUID actor, String action, JsonNode changes, @Nullable UUID assignedTo,
-			@Nullable String comment, @Nullable JsonNode selfCheck, Instant at) {
+			@Nullable String comment, @Nullable JsonNode selfCheck, @Nullable UUID attachmentId, @Nullable UUID quotes,
+			Instant at) {
 	}
+
+	private static final String ENTRY_COLUMNS = """
+			id, work_item_id, actor_account_id, action, changes::text AS changes, assigned_to, comment,
+			self_check::text AS self_check, attachment_id, quotes_id, at
+			""";
 
 	private final Boards boards;
 
@@ -137,16 +146,43 @@ class WorkReads {
 	/** The Work Item's history the viewer sees, oldest first. */
 	@Transactional(readOnly = true)
 	List<Entry> historyOf(BoardViewer viewer, UUID itemId) {
-		List<Entry> entries = this.jdbc.sql("""
-				SELECT id, work_item_id, actor_account_id, action, changes::text AS changes, assigned_to, comment,
-				       self_check::text AS self_check, at
-				FROM work.work_item_history WHERE work_item_id = :item ORDER BY seq
-				""").param("item", itemId).query((rs, n) -> entry(rs)).list();
+		List<Entry> entries = this.jdbc.sql("SELECT " + ENTRY_COLUMNS
+				+ " FROM work.work_item_history WHERE work_item_id = :item ORDER BY seq")
+			.param("item", itemId)
+			.query((rs, n) -> entry(rs))
+			.list();
 		if (viewer.kind() != Kind.FORMER) {
 			return entries;
 		}
 		Instant cutoff = cutoff(viewer);
 		return entries.stream().filter(entry -> !entry.at().isAfter(cutoff)).toList();
+	}
+
+	/**
+	 * The Work Item's Attachments the viewer sees, oldest first (FR-76, AD-41): those not removed, or for
+	 * a former member those added by the end of their last window and not removed by then.
+	 */
+	List<Attachment> attachmentsOf(BoardViewer viewer, List<Attachment> all) {
+		return all.stream().filter(attachment -> listed(viewer, attachment)).toList();
+	}
+
+	/**
+	 * Whether the viewer, who reads the Work Item, may download the Attachment: as the list shows it,
+	 * and for a granted Administrator any of the Work Item's.
+	 */
+	boolean sees(BoardViewer viewer, Attachment attachment) {
+		return viewer.kind() == Kind.ADMIN || listed(viewer, attachment);
+	}
+
+	private static boolean listed(BoardViewer viewer, Attachment attachment) {
+		return switch (viewer.kind()) {
+			case MENTOR, CREW, ADMIN -> attachment.removedAt() == null;
+			case FORMER -> {
+				Instant cutoff = cutoff(viewer);
+				yield !attachment.addedAt().isAfter(cutoff) && !attachment.removedBy(cutoff);
+			}
+			case CUSTOMER -> false;
+		};
 	}
 
 	private Set<UUID> touched(BoardViewer viewer) {
@@ -172,11 +208,10 @@ class WorkReads {
 
 	private Map<UUID, List<Entry>> history(UUID jobId) {
 		Map<UUID, List<Entry>> byItem = new HashMap<>();
-		this.jdbc.sql("""
-				SELECT id, work_item_id, actor_account_id, action, changes::text AS changes, assigned_to, comment,
-				       self_check::text AS self_check, at
-				FROM work.work_item_history WHERE job_id = :job ORDER BY seq
-				""").param("job", jobId).query((rs, n) -> entry(rs)).list()
+		this.jdbc.sql("SELECT " + ENTRY_COLUMNS + " FROM work.work_item_history WHERE job_id = :job ORDER BY seq")
+			.param("job", jobId)
+			.query((rs, n) -> entry(rs))
+			.list()
 			.forEach(entry -> byItem.computeIfAbsent(entry.itemId(), id -> new ArrayList<>()).add(entry));
 		return byItem;
 	}
@@ -255,6 +290,7 @@ class WorkReads {
 				rs.getObject("actor_account_id", UUID.class), rs.getString("action"),
 				Boards.JSON.readTree(rs.getString("changes")), rs.getObject("assigned_to", UUID.class),
 				rs.getString("comment"), selfCheck == null ? null : Boards.JSON.readTree(selfCheck),
+				rs.getObject("attachment_id", UUID.class), rs.getObject("quotes_id", UUID.class),
 				rs.getTimestamp("at").toInstant());
 	}
 

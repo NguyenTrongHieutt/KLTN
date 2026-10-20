@@ -33,6 +33,7 @@ import vn.vibefix.files.FileUpload;
 import vn.vibefix.files.PreparedFile;
 import vn.vibefix.files.StoredFile;
 import vn.vibefix.files.StoredFiles;
+import vn.vibefix.job.JobUploads;
 import vn.vibefix.product.ProductDirectory;
 import vn.vibefix.product.ProductDirectory.ProductInfo;
 import vn.vibefix.scanning.Scans;
@@ -52,7 +53,7 @@ class Jobs {
 	static final int MAX_SKILLS = 10;
 
 	/** The screenshots of one Job (AD-34). */
-	static final long FILE_QUOTA_BYTES = 200L * 1024 * 1024;
+	static final long FILE_QUOTA_BYTES = JobUploads.QUOTA_BYTES;
 
 	static final String SCREENSHOT_PURPOSE = "job.screenshot";
 
