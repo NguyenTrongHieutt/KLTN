@@ -46,4 +46,20 @@ class JobHeldMilestones implements HeldMilestones, MilestoneStates {
 		return states;
 	}
 
+	@Override
+	@Transactional(readOnly = true)
+	public Map<UUID, MilestoneDetail> detailsOf(UUID jobId) {
+		Map<UUID, MilestoneDetail> details = new HashMap<>();
+		this.jdbc.sql("""
+				SELECT id, state, revision_rounds - revision_rounds_used AS left_rounds, revision_criteria, auto_accepted
+				FROM job.milestone WHERE job_id = :job AND removed_at IS NULL
+				""")
+			.param("job", jobId)
+			.query((rs, n) -> details.put(rs.getObject("id", UUID.class), new MilestoneDetail(rs.getString("state"),
+					Math.max(0, rs.getInt("left_rounds")), (Integer) rs.getObject("revision_criteria"),
+					rs.getBoolean("auto_accepted"))))
+			.list();
+		return details;
+	}
+
 }

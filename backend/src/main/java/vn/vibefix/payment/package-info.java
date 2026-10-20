@@ -6,7 +6,8 @@
  * through {@code RefundGateway} (ledger-recorded until spike S2).
  * Spike S2's {@code spike-s2} probe is wiring in {@code payment.internal}.
  * <p>
- * Public API: {@link vn.vibefix.payment.Ledger} (releasable and released money, AD-15).
+ * Public API: {@link vn.vibefix.payment.Ledger} (releasable and released money, AD-15) and
+ * {@link vn.vibefix.payment.Releases} (the split release of an accepted Milestone, FR-42).
  */
 @ApplicationModule(allowedDependencies = { "shared", "audit", "identity", "notification", "timers", "operations", "job" })
 package vn.vibefix.payment;

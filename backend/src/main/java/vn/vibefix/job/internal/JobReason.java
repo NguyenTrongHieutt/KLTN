@@ -112,6 +112,15 @@ enum JobReason {
 	MENTOR_ONLY,
 
 	/** A Code Job's handover needs its Handover Commit, recorded from Epic 7 on (FR-32, AD-4). */
-	HANDOVER_COMMIT_MISSING
+	HANDOVER_COMMIT_MISSING,
+
+	/** Only the Job's Customer accepts a Milestone or asks for a revision (FR-33). */
+	CUSTOMER_ONLY,
+
+	/** The handover decided on is no longer the Milestone's current one (FR-33). */
+	HANDOVER_CHANGED,
+
+	/** The Milestone has no Revision Round left (FR-34). */
+	REVISION_ROUNDS_USED
 
 }

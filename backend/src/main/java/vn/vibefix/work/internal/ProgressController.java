@@ -22,6 +22,7 @@ import vn.vibefix.job.Crews;
 import vn.vibefix.job.Crews.CrewMember;
 import vn.vibefix.job.Crews.Selection;
 import vn.vibefix.job.MilestoneStates;
+import vn.vibefix.job.MilestoneStates.MilestoneDetail;
 import vn.vibefix.product.ProductDirectory;
 import vn.vibefix.product.ProductDirectory.ProductInfo;
 import vn.vibefix.shared.Access;
@@ -51,9 +52,13 @@ class ProgressController {
 	 * @param state the live Milestone state name
 	 * @param done criteria of the Agreement in force whose seeded Story the Mentor approved
 	 * @param inReview Work Items of the Milestone in "Chờ duyệt", for the Mentor; 0 for anyone else
+	 * @param roundsLeft the Revision Rounds left (FR-34)
+	 * @param revisionCriteria how many criteria the latest revision request named
+	 * @param autoAccepted accepted by Auto-acceptance (FR-35)
 	 */
 	record MilestoneProgressView(UUID milestoneId, int number, String title, String state, @Nullable Long priceVnd,
-			@Nullable LocalDate dueOn, int done, int total, int inReview) {
+			@Nullable LocalDate dueOn, int done, int total, int inReview, int roundsLeft, @Nullable Integer revisionCriteria,
+			boolean autoAccepted) {
 	}
 
 	record OpenItemView(UUID id, String key, String title, String status) {
@@ -123,14 +128,16 @@ class ProgressController {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		UUID jobId = viewer.board().jobId();
-		Map<UUID, String> live = this.states.statesOf(jobId);
+		Map<UUID, MilestoneDetail> live = this.states.detailsOf(jobId);
 		List<MilestoneProgressView> milestones = new ArrayList<>();
 		for (MilestoneInForce milestone : this.criteria.inForce(jobId).map(found -> found.milestones()).orElse(List.of())) {
 			Progress progress = this.criteriaDone.criteriaDone(jobId, milestone.milestoneId());
 			int inReview = viewer.mentor() ? inReview(jobId, milestone.milestoneId()) : 0;
+			MilestoneDetail detail = live.get(milestone.milestoneId());
 			milestones.add(new MilestoneProgressView(milestone.milestoneId(), milestone.number(), milestone.title(),
-					live.getOrDefault(milestone.milestoneId(), "PLANNED"), milestone.priceVnd(), milestone.dueOn(),
-					progress.done(), progress.total(), inReview));
+					detail == null ? "PLANNED" : detail.state(), milestone.priceVnd(), milestone.dueOn(), progress.done(),
+					progress.total(), inReview, detail == null ? 0 : detail.roundsLeft(),
+					detail == null ? null : detail.revisionCriteria(), detail != null && detail.autoAccepted()));
 		}
 		List<PageLinkView> pages = this.jdbc.sql("""
 				SELECT id, title FROM work.page WHERE job_id = :job AND visibility = 'CUSTOMER' ORDER BY seq

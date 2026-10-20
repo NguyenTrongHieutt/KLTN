@@ -78,7 +78,7 @@ class Handovers {
 
 	record Handover(UUID id, UUID jobId, UUID productId, UUID milestoneId, int number, String milestoneTitle, int round,
 			@Nullable UUID mentorId, String status, long jobVersion, @Nullable UUID reportPageId,
-			@Nullable Integer reportVersionNo, Instant checkBy, Instant createdAt) {
+			@Nullable Integer reportVersionNo, Instant checkBy, Instant createdAt, @Nullable Instant decidedAt) {
 	}
 
 	record Criterion(UUID criterionId, int number, String statement, String checkSteps, boolean met, String note) {
@@ -97,7 +97,7 @@ class Handovers {
 
 	private static final String COLUMNS = """
 			id, job_id, product_id, milestone_id, milestone_number, milestone_title, round, mentor_account_id, status,
-			job_version, report_page_id, report_version_no, check_by, created_at
+			job_version, report_page_id, report_version_no, check_by, created_at, decided_at
 			""";
 
 	private final JdbcClient jdbc;
@@ -358,12 +358,14 @@ class Handovers {
 
 	private static Handover handover(ResultSet rs, int n) throws SQLException {
 		Integer reportVersion = rs.getObject("report_version_no", Integer.class);
+		Timestamp decided = rs.getTimestamp("decided_at");
 		return new Handover(rs.getObject("id", UUID.class), rs.getObject("job_id", UUID.class),
 				rs.getObject("product_id", UUID.class), rs.getObject("milestone_id", UUID.class),
 				rs.getInt("milestone_number"), rs.getString("milestone_title"), rs.getInt("round"),
 				rs.getObject("mentor_account_id", UUID.class), rs.getString("status"), rs.getLong("job_version"),
 				rs.getObject("report_page_id", UUID.class), reportVersion,
-				Objects.requireNonNull(rs.getTimestamp("check_by")).toInstant(), rs.getTimestamp("created_at").toInstant());
+				Objects.requireNonNull(rs.getTimestamp("check_by")).toInstant(), rs.getTimestamp("created_at").toInstant(),
+				decided == null ? null : decided.toInstant());
 	}
 
 }

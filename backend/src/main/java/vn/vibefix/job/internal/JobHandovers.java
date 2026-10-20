@@ -58,4 +58,30 @@ class JobHandovers implements MilestoneHandovers {
 		return new Submitted(applied.transitionId(), this.numbers.number(jobId, milestoneId), applied.version(), checkBy);
 	}
 
+	@Override
+	@Transactional(readOnly = true)
+	public Optional<Rounds> rounds(UUID milestoneId) {
+		return this.jdbc.sql("SELECT revision_rounds, revision_rounds_used FROM job.milestone WHERE id = :id")
+			.param("id", milestoneId)
+			.query((rs, n) -> new Rounds(rs.getInt("revision_rounds"), rs.getInt("revision_rounds_used")))
+			.optional();
+	}
+
+	@Override
+	@Transactional
+	public Decided accept(UUID jobId, UUID milestoneId, UUID customerId, long expectedVersion, UUID handoverId) {
+		Applied applied = this.lifecycle.applyMilestone(Transition.M5, jobId, milestoneId, Actor.user(customerId), Trigger.USER,
+				expectedVersion, Map.of("handoverId", handoverId));
+		return new Decided(applied.transitionId(), this.numbers.number(jobId, milestoneId), applied.version());
+	}
+
+	@Override
+	@Transactional
+	public Decided requestRevision(UUID jobId, UUID milestoneId, UUID customerId, long expectedVersion, UUID handoverId,
+			int criteria) {
+		Applied applied = this.lifecycle.applyMilestone(Transition.M4, jobId, milestoneId, Actor.user(customerId), Trigger.USER,
+				expectedVersion, Map.of("handoverId", handoverId, "criteria", criteria));
+		return new Decided(applied.transitionId(), this.numbers.number(jobId, milestoneId), applied.version());
+	}
+
 }

@@ -176,6 +176,31 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
     expect(screen.getByRole('link', { name: 'Bảng công việc' })).toHaveAttribute('href', '/cong-viec/j1/bang')
   })
 
+  it('states the Revision Rounds left and what the Mentor must fix (FR-33, FR-34)', { timeout: 20_000 }, async () => {
+    fakeBackend(signedIn('MENTOR'), {
+      'GET /api/v1/mentor/jobs/j1': () => json(mentorJob),
+      'GET /api/v1/boards/j1/progress': () =>
+        json(
+          progress({
+            audience: 'MENTOR',
+            milestones: [{ ...progress().milestones[0], state: 'REVISION_REQUESTED', roundsLeft: 0, revisionCriteria: 1 }],
+          }),
+        ),
+    })
+    renderAt('/cong-viec/j1')
+    expect(await screen.findByText('Cần sửa: 1 tiêu chí · còn 0 lượt')).toBeInTheDocument()
+  })
+
+  it('tells the Customer how many Revision Rounds a submitted Milestone has left', { timeout: 20_000 }, async () => {
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/jobs/j1': () => json(customerJob),
+      'GET /api/v1/boards/j1/progress': () =>
+        json(progress({ milestones: [{ ...progress().milestones[0], state: 'SUBMITTED', roundsLeft: 2 }] })),
+    })
+    renderAt('/cong-viec/j1')
+    expect(await screen.findByText('Đã bàn giao · chờ bạn nghiệm thu · còn 2 lượt sửa')).toBeInTheDocument()
+  })
+
   it('is not found for a Student the Job does not name', { timeout: 20_000 }, async () => {
     fakeBackend(signedIn('STUDENT'))
     renderAt('/cong-viec/j1')

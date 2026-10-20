@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import vn.vibefix.delivery.internal.Decisions.Check;
 import vn.vibefix.delivery.internal.DeliveryAccess.Kind;
 import vn.vibefix.delivery.internal.DeliveryAccess.Viewer;
 import vn.vibefix.delivery.internal.Handovers.CriterionMark;
@@ -26,6 +27,9 @@ import vn.vibefix.delivery.internal.Handovers.Preflight;
 import vn.vibefix.delivery.internal.Handovers.Resolution;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
+import vn.vibefix.job.MilestoneHandovers;
+import vn.vibefix.job.MilestoneHandovers.Rounds;
+import vn.vibefix.payment.Ledger;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.CurrentCaller;
@@ -112,27 +116,68 @@ class HandoverController {
 	record HandoverReportView(UUID pageId, int versionNo, String title, String body) {
 	}
 
+	/** The Customer's mark on one criterion, once the handover is decided. */
+	record HandoverCheckView(UUID criterionId, boolean met, @Nullable String comment) {
+	}
+
+	/**
+	 * What the Customer decides with, while the handover waits for them.
+	 * @param releaseVnd what acceptance releases to the Mentor's Crew, in test-mode VND
+	 * @param revisionAllowed a Revision Round is left (FR-34)
+	 */
+	record HandoverDecisionView(long releaseVnd, boolean revisionAllowed) {
+	}
+
+	record HandoverCheckRequest(@NotNull UUID criterionId, boolean met, @Nullable @Size(max = Handovers.MAX_NOTE) String comment) {
+	}
+
+	/**
+	 * "Nghiệm thu giai đoạn" or "Yêu cầu sửa".
+	 * @param version the Job's version the check loaded (AD-23)
+	 * @param checks the Customer's marks; a revision names those "Chưa đạt"
+	 * @param sensitive {@code CHECK} first; {@code MASK} after the FR-47 warning on a comment
+	 */
+	record HandoverDecisionRequest(@NotNull Long version, @Nullable @Size(max = 100) List<@Valid HandoverCheckRequest> checks,
+			@Nullable Resolution sensitive) {
+	}
+
 	/**
 	 * The Delivery Report.
 	 * @param itemNotes the notes on Work Items that were not done; empty for the Customer (AD-39)
 	 * @param report an Assessment Job's Report at the version handed over
+	 * @param version the Job's version, which a decision carries (AD-23)
+	 * @param roundsLeft the Milestone's Revision Rounds left (FR-34)
+	 * @param decision for the Customer while the handover waits for them
+	 * @param checks the Customer's marks once decided
 	 */
 	record DeliveryReportView(UUID id, UUID jobId, String jobTitle, int number, String milestoneTitle, int round,
 			String status, String mentorName, Instant createdAt, Instant checkBy, boolean assessment, String audience,
-			List<HandoverCriterionView> criteria, List<HandoverItemNoteView> itemNotes, @Nullable HandoverReportView report) {
+			List<HandoverCriterionView> criteria, List<HandoverItemNoteView> itemNotes, @Nullable HandoverReportView report,
+			long version, int roundsLeft, @Nullable HandoverDecisionView decision, @Nullable Instant decidedAt,
+			List<HandoverCheckView> checks) {
 	}
 
 	private final DeliveryAccess access;
 
 	private final Handovers handovers;
 
+	private final Decisions decisions;
+
+	private final MilestoneHandovers jobs;
+
+	private final Ledger ledger;
+
 	private final MentorDirectory mentors;
 
 	private final CurrentCaller callers;
 
-	HandoverController(DeliveryAccess access, Handovers handovers, MentorDirectory mentors, CurrentCaller callers) {
+	HandoverController(DeliveryAccess access, Handovers handovers, Decisions decisions, MilestoneHandovers jobs, Ledger ledger,
+			MentorDirectory mentors, CurrentCaller callers) {
 		this.access = access;
 		this.handovers = handovers;
+		this.decisions = decisions;
+		this.jobs = jobs;
+		this.ledger = ledger;
 		this.mentors = mentors;
 		this.callers = callers;
 	}
@@ -205,6 +250,30 @@ class HandoverController {
 		return report(viewer, handover);
 	}
 
+	/** "Nghiệm thu giai đoạn": M5 with the split release (FR-33, FR-42, AD-5). */
+	@PostMapping("/api/v1/handovers/{handoverId}/accept")
+	DeliveryReportView accept(@PathVariable UUID handoverId, @Valid @RequestBody HandoverDecisionRequest body) {
+		Handover handover = this.handovers.find(handoverId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		Viewer viewer = this.access.reader(handover.jobId(), this.callers.get());
+		Handover decided = this.decisions.accept(viewer, handoverId, body.version(), checks(body));
+		return report(this.access.reader(handover.jobId(), this.callers.get()), decided);
+	}
+
+	/** "Yêu cầu sửa ({n} tiêu chí)": M4, one Revision Round (FR-33, FR-34). */
+	@PostMapping("/api/v1/handovers/{handoverId}/revision")
+	DeliveryReportView requestRevision(@PathVariable UUID handoverId, @Valid @RequestBody HandoverDecisionRequest body) {
+		Handover handover = this.handovers.find(handoverId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		Viewer viewer = this.access.reader(handover.jobId(), this.callers.get());
+		Handover decided = this.decisions.requestRevision(viewer, handoverId, body.version(), checks(body),
+				body.sensitive() == null ? Resolution.CHECK : body.sensitive());
+		return report(this.access.reader(handover.jobId(), this.callers.get()), decided);
+	}
+
+	private static List<Check> checks(HandoverDecisionRequest body) {
+		return body.checks() == null ? List.of()
+				: body.checks().stream().map(c -> new Check(c.criterionId(), c.met(), c.comment())).toList();
+	}
+
 	private DeliveryReportView report(Viewer viewer, Handover handover) {
 		String mentor = handover.mentorId() == null ? ""
 				: this.mentors.cards(List.of(handover.mentorId())).stream().findFirst().map(MentorCard::displayName).orElse("");
@@ -216,6 +285,10 @@ class HandoverController {
 		HandoverReportView report = this.handovers.report(handover)
 			.map(r -> new HandoverReportView(r.pageId(), r.versionNo(), r.title(), r.body()))
 			.orElse(null);
+		int roundsLeft = this.jobs.rounds(handover.milestoneId()).map(Rounds::left).orElse(0);
+		HandoverDecisionView decision = viewer.kind() == Kind.CUSTOMER && "SUBMITTED".equals(handover.status())
+				? new HandoverDecisionView(this.ledger.releasable(handover.milestoneId()), roundsLeft > 0)
+				: null;
 		return new DeliveryReportView(handover.id(), handover.jobId(), viewer.job().title(), handover.number(),
 				handover.milestoneTitle(), handover.round(), handover.status(), mentor, handover.createdAt(),
 				handover.checkBy(), viewer.job().assessment(), viewer.kind().name(),
@@ -224,7 +297,11 @@ class HandoverController {
 					.map(c -> new HandoverCriterionView(c.criterionId(), c.number(), c.statement(), c.checkSteps(), c.met(),
 							c.note()))
 					.toList(),
-				notes, report);
+				notes, report, viewer.job().version(), roundsLeft, decision, handover.decidedAt(),
+				this.decisions.checks(handover.id())
+					.stream()
+					.map(c -> new HandoverCheckView(c.criterionId(), c.met(), c.comment()))
+					.toList());
 	}
 
 }

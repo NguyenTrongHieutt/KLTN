@@ -47,6 +47,30 @@ export function useHandOver(jobId: string) {
   })
 }
 
+export type HandoverDecisionRequest = components['schemas']['HandoverDecisionRequest']
+
+/**
+ * The Customer's decision (FR-33): "Nghiệm thu giai đoạn" or "Yêu cầu sửa", on the loaded Job version;
+ * it refreshes the report, the list, JOB-1, and the to-dos.
+ */
+export function useDecideHandover(jobId: string, handoverId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ action, body }: { action: 'accept' | 'revision'; body: HandoverDecisionRequest }) =>
+      action === 'accept'
+        ? unwrap(apiClient.POST('/api/v1/handovers/{handoverId}/accept', { params: { path: { handoverId } }, body }))
+        : unwrap(apiClient.POST('/api/v1/handovers/{handoverId}/revision', { params: { path: { handoverId } }, body })),
+    onSuccess: async (report) => {
+      queryClient.setQueryData(['handover', handoverId], report)
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['handovers', jobId] }),
+        queryClient.invalidateQueries({ queryKey: ['progress', jobId] }),
+        queryClient.invalidateQueries({ queryKey: NOTIFICATION_QUERY_KEY }),
+      ])
+    },
+  })
+}
+
 /** One Delivery Report (UX-DR53). */
 export function useHandover(handoverId: string | undefined) {
   return useQuery({

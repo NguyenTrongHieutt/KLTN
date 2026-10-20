@@ -164,6 +164,9 @@ function MilestoneCard({
     nextToFund,
     dueOn: milestone.dueOn,
     inReview: audience === 'mentor' ? milestone.inReview : 0,
+    roundsLeft: milestone.roundsLeft,
+    revisionCriteria: milestone.revisionCriteria,
+    autoAccepted: milestone.autoAccepted,
   })
   return (
     <li className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">

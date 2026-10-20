@@ -16,9 +16,9 @@ import vn.vibefix.shared.PersonalDataSection;
 
 /**
  * {@code delivery}'s part in exports, erasure, and Product deletion (AD-24): a Mentor exports the
- * handovers they made with their marks and notes; erasing them clears them as the handover's Mentor (the
- * handover stays, without a person); deleting a Product deletes its handovers. A running Job blocks
- * erasure through {@code job}.
+ * handovers they made with their marks and notes, and a Customer the checks they decided with; erasing
+ * an account clears it as the handover's Mentor or decider (the handover stays, without a person);
+ * deleting a Product deletes its handovers. A running Job blocks erasure through {@code job}.
  */
 @Component
 class DeliveryPersonalData implements PersonalDataParticipant {
@@ -31,7 +31,8 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 
 	@Override
 	public Set<String> tables() {
-		return Set.of("delivery.handover", "delivery.handover_criterion", "delivery.handover_item_note");
+		return Set.of("delivery.handover", "delivery.handover_criterion", "delivery.handover_item_note",
+				"delivery.handover_check");
 	}
 
 	@Override
@@ -61,10 +62,31 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 					row.getString("note"))).list());
 			return handover;
 		}).list();
-		if (handovers.isEmpty()) {
+		List<Map<String, Object>> decisions = this.jdbc.sql("""
+				SELECT h.id, h.job_id, h.milestone_number, h.status, h.decided_at FROM delivery.handover h
+				WHERE h.decided_by = :id ORDER BY h.seq
+				""").param("id", accountId).query((rs, n) -> {
+			Map<String, Object> decision = new LinkedHashMap<>();
+			decision.put("jobId", rs.getObject("job_id", UUID.class).toString());
+			decision.put("milestone", rs.getInt("milestone_number"));
+			decision.put("decision", rs.getString("status"));
+			decision.put("at", rs.getTimestamp("decided_at").toInstant().toString());
+			decision.put("checks", this.jdbc.sql("""
+					SELECT met, comment FROM delivery.handover_check WHERE handover_id = :id
+					""").param("id", rs.getObject("id", UUID.class)).query((row, m) -> {
+				Map<String, Object> mark = new LinkedHashMap<>();
+				mark.put("met", row.getBoolean("met"));
+				if (row.getString("comment") != null) {
+					mark.put("comment", row.getString("comment"));
+				}
+				return mark;
+			}).list());
+			return decision;
+		}).list();
+		if (handovers.isEmpty() && decisions.isEmpty()) {
 			return Optional.empty();
 		}
-		return Optional.of(new PersonalDataSection("delivery", Map.of("handovers", handovers)));
+		return Optional.of(new PersonalDataSection("delivery", Map.of("handovers", handovers, "decisions", decisions)));
 	}
 
 	@Override
@@ -72,6 +94,7 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 		this.jdbc.sql("UPDATE delivery.handover SET mentor_account_id = NULL WHERE mentor_account_id = :id")
 			.param("id", accountId)
 			.update();
+		this.jdbc.sql("UPDATE delivery.handover SET decided_by = NULL WHERE decided_by = :id").param("id", accountId).update();
 	}
 
 	@Override
@@ -81,6 +104,9 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 			.param("id", productId)
 			.update();
 		this.jdbc.sql("DELETE FROM delivery.handover_item_note WHERE handover_id IN (" + handovers + ")")
+			.param("id", productId)
+			.update();
+		this.jdbc.sql("DELETE FROM delivery.handover_check WHERE handover_id IN (" + handovers + ")")
 			.param("id", productId)
 			.update();
 		this.jdbc.sql("DELETE FROM delivery.handover WHERE product_id = :id").param("id", productId).update();
