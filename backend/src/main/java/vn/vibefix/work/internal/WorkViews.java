@@ -12,6 +12,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import tools.jackson.databind.JsonNode;
@@ -56,6 +57,22 @@ class WorkViews {
 	record PersonView(UUID accountId, String name) {
 	}
 
+	/**
+	 * A Crew member in the assignee picker (FR-23, AD-41).
+	 * @param available an {@code ACTIVE} row of an unlocked account, whom the Mentor may assign; an
+	 * {@code INACTIVE} one is listed disabled
+	 */
+	record CrewPickView(UUID accountId, String name, boolean available) {
+	}
+
+	/**
+	 * One active Crew member on the workload line (FR-26, UX-DR37).
+	 * @param openItems their Work Items that are not Done
+	 * @param estimateHours the sum of those Work Items' estimates
+	 */
+	record WorkloadView(UUID accountId, String name, int openItems, BigDecimal estimateHours) {
+	}
+
 	record ChecklistLineView(String text, boolean done) {
 	}
 
@@ -89,11 +106,13 @@ class WorkViews {
 	 * @param title the Job's title
 	 * @param mentor whether the viewer is the Job's Mentor
 	 * @param readOnly the viewer cannot write: not the Mentor or an active member, or the Job is not Active
-	 * @param crew the active Crew members, the assignees the Mentor may pick; empty for anyone else
+	 * @param crew the Crew members that are not released, for the Mentor's assignee picker; empty for anyone else
+	 * @param workload with {@code features.largeCrews} on, each active member's open work, for the Mentor only
 	 * @param viewerId the viewer's account, for "Của tôi" and the moves the assignee may make
 	 */
 	record BoardView(UUID boardId, String title, String code, UUID viewerId, boolean mentor, boolean readOnly,
-			List<BoardMilestoneView> milestones, List<PersonView> crew, List<WorkItemCardView> items) {
+			List<BoardMilestoneView> milestones, List<CrewPickView> crew, List<WorkloadView> workload,
+			List<WorkItemCardView> items) {
 	}
 
 	/** The earlier note a correction quotes ("Ghi chú sửa lại"). */
@@ -149,9 +168,12 @@ class WorkViews {
 
 	private final HeldMilestones held;
 
+	private final boolean largeCrews;
+
 	WorkViews(AgreementCriteria criteria, Crews crews, MentorDirectory mentors, StudentDirectory students,
-			HeldMilestones held) {
+			HeldMilestones held, @Value("${vibefix.features.large-crews:false}") boolean largeCrews) {
 		this.held = held;
+		this.largeCrews = largeCrews;
 		this.criteria = criteria;
 		this.crews = crews;
 		this.mentors = mentors;
@@ -168,18 +190,45 @@ class WorkViews {
 					.map(milestone -> new BoardMilestoneView(milestone.milestoneId(), milestone.number(), milestone.title(),
 							heldIds.contains(milestone.milestoneId())))
 					.toList();
-		List<UUID> crewIds = viewer.mentor() ? this.crews.crewOf(viewer.board().jobId(), Selection.ACTIVE)
+		// AD-41: an INACTIVE member stays in the picker, disabled, so the Mentor sees why they cannot be chosen.
+		List<CrewMember> members = viewer.mentor() ? this.crews.crewOf(viewer.board().jobId(), Selection.UNRELEASED)
 			.stream()
-			.map(CrewMember::studentId)
+			.filter(member -> "ACTIVE".equals(member.status()) || "INACTIVE".equals(member.status()))
 			.toList() : List.of();
-		Set<UUID> people = new HashSet<>(crewIds);
+		Set<UUID> people = new HashSet<>();
+		members.forEach(member -> people.add(member.studentId()));
 		items.stream().map(Item::assigneeId).filter(id -> id != null).forEach(people::add);
 		Map<UUID, String> names = names(viewer, people);
-		List<PersonView> crew = crewIds.stream().map(id -> new PersonView(id, names.getOrDefault(id, ""))).toList();
+		Set<UUID> unlocked = new HashSet<>();
+		if (!members.isEmpty()) {
+			this.students.cards(members.stream().map(CrewMember::studentId).toList())
+				.stream()
+				.filter(StudentCard::available)
+				.forEach(card -> unlocked.add(card.accountId()));
+		}
+		List<CrewPickView> crew = members.stream()
+			.map(member -> new CrewPickView(member.studentId(), names.getOrDefault(member.studentId(), ""),
+					"ACTIVE".equals(member.status()) && unlocked.contains(member.studentId())))
+			.toList();
+		List<WorkloadView> workload = viewer.mentor() && this.largeCrews ? crew.stream()
+			.filter(CrewPickView::available)
+			.map(member -> workload(member, items))
+			.toList() : List.of();
 		return new BoardView(viewer.board().jobId(), viewer.title(), viewer.board().code(), viewer.accountId(),
 				viewer.mentor(),
-				!viewer.writes(), milestones, crew,
+				!viewer.writes(), milestones, crew, workload,
 				items.stream().map(item -> card(item, criteria, names, latestReviews.get(item.id()))).toList());
+	}
+
+	private static WorkloadView workload(CrewPickView member, List<Item> items) {
+		List<Item> open = items.stream()
+			.filter(item -> member.accountId().equals(item.assigneeId()) && item.status() != Boards.Status.DONE)
+			.toList();
+		BigDecimal hours = open.stream()
+			.map(Item::estimateHours)
+			.filter(estimate -> estimate != null)
+			.reduce(BigDecimal.ZERO, BigDecimal::add);
+		return new WorkloadView(member.accountId(), member.name(), open.size(), hours);
 	}
 
 	/**

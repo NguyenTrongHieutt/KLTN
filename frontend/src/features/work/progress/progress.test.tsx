@@ -140,8 +140,12 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
               {
                 accountId: 's1',
                 name: 'Trần Thảo Vy',
+                state: 'ACTIVE',
                 openItems: [{ id: 'w2', key: 'SDB-2', title: 'Khách thấy giờ còn trống', status: 'IN_REVIEW' }],
               },
+              { accountId: 's2', name: 'Lê Minh Tùng', state: 'ASSIGNED', openItems: [] },
+              { accountId: 's3', name: 'Nguyễn Văn Minh', state: 'INACTIVE', openItems: [] },
+              { accountId: 's4', name: 'Hoàng Kim Ngân', state: 'RELEASED', openItems: [] },
             ],
           }),
         ),
@@ -153,6 +157,13 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
     expect(within(crew).getByText('Trần Thảo Vy')).toBeInTheDocument()
     expect(within(crew).getByText('SDB-2')).toBeInTheDocument()
     expect(within(crew).getByText('Chờ duyệt')).toBeInTheDocument()
+    // UX-DR68, AD-41: each member's state on the Crew list; a former member is not in the people aside.
+    for (const state of ['Đang tham gia', 'Đã phân công', 'Tạm ngừng', 'Đã rời']) {
+      expect(within(crew).getByText(state)).toBeInTheDocument()
+    }
+    const people = screen.getByRole('heading', { level: 3, name: 'Người tham gia' }).closest('section')!
+    expect(within(people).getByText('Nhóm thực hiện: Nguyễn Văn Minh')).toBeInTheDocument()
+    expect(within(people).queryByText('Nhóm thực hiện: Hoàng Kim Ngân')).toBeNull()
   })
 
   it('gives an active Crew member their overview with their Work Items and N-12', { timeout: 20_000 }, async () => {

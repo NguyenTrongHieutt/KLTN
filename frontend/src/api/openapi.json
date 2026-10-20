@@ -7781,7 +7781,7 @@
           "crew" : {
             "type" : "array",
             "items" : {
-              "$ref" : "#/components/schemas/PersonView"
+              "$ref" : "#/components/schemas/CrewPickView"
             }
           },
           "items" : {
@@ -7808,9 +7808,15 @@
           "viewerId" : {
             "type" : "string",
             "format" : "uuid"
+          },
+          "workload" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/WorkloadView"
+            }
           }
         },
-        "required" : [ "boardId", "code", "crew", "items", "mentor", "milestones", "readOnly", "title", "viewerId" ]
+        "required" : [ "boardId", "code", "crew", "items", "mentor", "milestones", "readOnly", "title", "viewerId", "workload" ]
       },
       "CancelAloneRequest" : {
         "type" : "object",
@@ -8934,6 +8940,22 @@
         },
         "required" : [ "amountVnd", "name" ]
       },
+      "CrewPickView" : {
+        "type" : "object",
+        "properties" : {
+          "accountId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "available" : {
+            "type" : "boolean"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "accountId", "available", "name" ]
+      },
       "CrewProgressView" : {
         "type" : "object",
         "properties" : {
@@ -8949,9 +8971,12 @@
             "items" : {
               "$ref" : "#/components/schemas/OpenItemView"
             }
+          },
+          "state" : {
+            "type" : "string"
           }
         },
-        "required" : [ "accountId", "name", "openItems" ]
+        "required" : [ "accountId", "name", "openItems", "state" ]
       },
       "CrewReconfirmRequest" : {
         "type" : "object",
@@ -15294,6 +15319,26 @@
           }
         },
         "required" : [ "milestoneId", "title", "type" ]
+      },
+      "WorkloadView" : {
+        "type" : "object",
+        "properties" : {
+          "accountId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "estimateHours" : {
+            "type" : "number"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "openItems" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "accountId", "estimateHours", "name", "openItems" ]
       }
     }
   }

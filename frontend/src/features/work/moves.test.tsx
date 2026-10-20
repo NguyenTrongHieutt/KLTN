@@ -49,6 +49,7 @@ const board = (overrides: object = {}) => ({
     { milestoneId: 'm2', number: 2, title: 'Email nhắc lịch', held: false },
   ],
   crew: [],
+  workload: [],
   items: [
     card('1'),
     card('2', { milestoneId: 'm2' }),

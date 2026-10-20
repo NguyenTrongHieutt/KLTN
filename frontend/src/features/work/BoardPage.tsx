@@ -114,6 +114,44 @@ function visible(item: WorkItemCard, filters: Filters, board: Board): boolean {
   return true
 }
 
+/**
+ * FR-26, UX-DR37: with `features.largeCrews` on, each active Crew member's open Work Items and estimated
+ * hours, for the Mentor only; selecting a member applies the assignee filter, and selecting them again clears it.
+ */
+function WorkloadLine({
+  workload,
+  selected,
+  onSelect,
+}: {
+  workload: Board['workload']
+  selected: string
+  onSelect: (accountId: string) => void
+}) {
+  return (
+    <div role="group" aria-label={t('screen.board.workload.label')} className="flex flex-wrap items-center gap-2">
+      <span className="text-body-sm text-muted-foreground">{t('screen.board.workload.label')}</span>
+      {workload.map((member) => (
+        <button
+          key={member.accountId}
+          type="button"
+          aria-pressed={selected === member.accountId}
+          onClick={() => onSelect(member.accountId)}
+          className={cn(
+            'min-h-tap-min rounded-md border px-3 text-body-sm',
+            selected === member.accountId ? 'border-primary bg-primary-soft font-semibold text-primary' : 'border-border bg-card',
+          )}
+        >
+          {t('screen.board.workload.member', {
+            name: member.name,
+            n: member.openItems,
+            hours: member.estimateHours.toLocaleString('vi-VN'),
+          })}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 function Columns({ board, jobId }: { board: Board; jobId: string }) {
   const milestones = new Map(board.milestones.map((milestone) => [milestone.milestoneId, milestone]))
   const [sheet, setSheet] = useState<{ open: boolean; workItemId?: string }>({ open: false })
@@ -121,9 +159,10 @@ function Columns({ board, jobId }: { board: Board; jobId: string }) {
   const [column, setColumn] = useState<(typeof STATUSES)[number]>(board.mentor ? 'IN_REVIEW' : 'IN_PROGRESS')
   const [review, setReview] = useState<{ item: WorkItemCard; action: 'submit' | 'approve' | 'return' }>()
   const onReview = (item: WorkItemCard, action: 'submit' | 'approve' | 'return') => setReview({ item, action })
-  const people = new Map(
-    board.items.flatMap((item) => (item.assignee ? [[item.assignee.accountId, item.assignee.name] as const] : [])),
-  )
+  const people = new Map([
+    ...board.workload.map((member) => [member.accountId, member.name] as const),
+    ...board.items.flatMap((item) => (item.assignee ? [[item.assignee.accountId, item.assignee.name] as const] : [])),
+  ])
   const shown = board.items.filter((item) => visible(item, filters, board))
   return (
     <div className="flex flex-col gap-3">
@@ -141,6 +180,13 @@ function Columns({ board, jobId }: { board: Board; jobId: string }) {
         )}
       </div>
       {board.readOnly && <p className="text-body-sm text-muted-foreground">{t('screen.board.readOnly')}</p>}
+      {board.workload.length > 0 && (
+        <WorkloadLine
+          workload={board.workload}
+          selected={filters.assignee}
+          onSelect={(assignee) => setFilters({ ...filters, assignee: filters.assignee === assignee ? '' : assignee })}
+        />
+      )}
       <div role="group" aria-label={t('screen.board.filters')} className="flex flex-wrap items-end gap-2">
         <FilterSelect
           label={t('screen.board.item.milestone')}

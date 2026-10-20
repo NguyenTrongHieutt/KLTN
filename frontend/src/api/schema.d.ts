@@ -3413,7 +3413,7 @@ export interface components {
             /** Format: uuid */
             boardId: string;
             code: string;
-            crew: components["schemas"]["PersonView"][];
+            crew: components["schemas"]["CrewPickView"][];
             items: components["schemas"]["WorkItemCardView"][];
             mentor: boolean;
             milestones: components["schemas"]["BoardMilestoneView"][];
@@ -3421,6 +3421,7 @@ export interface components {
             title: string;
             /** Format: uuid */
             viewerId: string;
+            workload: components["schemas"]["WorkloadView"][];
         };
         CancelAloneRequest: {
             reason: string;
@@ -3825,11 +3826,18 @@ export interface components {
             /** Format: int32 */
             percent?: number;
         };
+        CrewPickView: {
+            /** Format: uuid */
+            accountId: string;
+            available: boolean;
+            name: string;
+        };
         CrewProgressView: {
             /** Format: uuid */
             accountId: string;
             name: string;
             openItems: components["schemas"]["OpenItemView"][];
+            state: string;
         };
         CrewReconfirmRequest: {
             /** Format: int64 */
@@ -6122,6 +6130,14 @@ export interface components {
             type: "STORY" | "TASK" | "BUG";
             /** Format: int64 */
             version?: number;
+        };
+        WorkloadView: {
+            /** Format: uuid */
+            accountId: string;
+            estimateHours: number;
+            name: string;
+            /** Format: int32 */
+            openItems: number;
         };
     };
     responses: never;

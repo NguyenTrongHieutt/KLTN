@@ -43,6 +43,8 @@ const board = (mentor: boolean) => ({
     { milestoneId: 'm1', number: 1, title: 'Sửa lỗi trùng giờ' },
     { milestoneId: 'm2', number: 2, title: 'Email nhắc lịch' },
   ],
+  crew: [],
+  workload: [],
   items: [
     story(1, 1, 1, 'Hai khách không đặt trùng bàn'),
     story(2, 1, 2, 'Khách thấy giờ còn trống'),
