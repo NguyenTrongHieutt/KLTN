@@ -44,7 +44,11 @@ export function RatingLine({
   return <p className="text-body-sm text-muted-foreground">{t('screen.team.reputation.none')}</p>
 }
 
-/** "Hồ sơ năng lực" (FR-50): entries the platform makes from real Jobs, or an empty line while there are none. */
+/**
+ * "Hồ sơ năng lực" (FR-50): entries the platform makes from real Jobs, or an empty line while there are
+ * none. Each shows its facts from records, the Rating once visible, the summary the Customer approved,
+ * and the Product name only if allowed.
+ */
 export function PortfolioSection({ entries, headingId }: { entries: PortfolioEntry[]; headingId: string }) {
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-2">
@@ -60,7 +64,10 @@ export function PortfolioSection({ entries, headingId }: { entries: PortfolioEnt
         <ul className="grid gap-3 md:grid-cols-2">
           {entries.map((entry) => (
             <li key={`${entry.title}-${entry.closedAt}`} className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4">
-              <p className="text-label font-semibold break-words">{entry.title}</p>
+              <p className="text-label font-semibold break-words">
+                {entry.title || t('screen.team.reputation.portfolioFacts.untitled')}
+              </p>
+              {entry.productName && <p className="text-caption break-words">{entry.productName}</p>}
               <p className="text-caption text-muted-foreground">
                 {[
                   entry.jobTypes.map((type) => t(`term.jobType${type}.label` as MessageKey)).join(' · '),
@@ -68,10 +75,36 @@ export function PortfolioSection({ entries, headingId }: { entries: PortfolioEnt
                   t('screen.team.reputation.milestones', { n: entry.milestones }),
                 ].join(' · ')}
               </p>
+              <EntryFacts entry={entry} />
+              {entry.skills.length > 0 && (
+                <p className="text-caption text-muted-foreground break-words">{entry.skills.join(' · ')}</p>
+              )}
+              {entry.summary && <p className="text-body-sm break-words whitespace-pre-line">{entry.summary}</p>}
             </li>
           ))}
         </ul>
       )}
     </section>
+  )
+}
+
+function EntryFacts({ entry }: { entry: PortfolioEntry }) {
+  const facts =
+    entry.role === 'MENTOR'
+      ? [
+          t('screen.team.reputation.portfolioFacts.milestonesHandedOver', { n: entry.milestonesHandedOver ?? 0 }),
+          t('screen.team.reputation.portfolioFacts.reviewsWritten', { n: entry.reviewsWritten ?? 0 }),
+        ]
+      : [t('screen.team.reputation.portfolioFacts.workItemsApproved', { n: entry.workItemsApproved ?? 0 })]
+  return (
+    <p className="flex flex-wrap items-center gap-1.5 text-caption">
+      <span>{facts.join(' · ')}</span>
+      {entry.rating != null && (
+        <span className="flex items-center gap-1">
+          <Star aria-hidden="true" className="size-3.5 fill-warning text-warning" />
+          {t('screen.team.reputation.portfolioFacts.rating', { n: entry.rating })}
+        </span>
+      )}
+    </p>
   )
 }

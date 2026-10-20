@@ -874,6 +874,65 @@ POST /api/v1/boards/{boardId}/private-feedback,JOB_MENTOR,,private-feedback.json
 POST /api/v1/boards/{boardId}/private-feedback,CREW_ACTIVE,,private-feedback.json,422 GUARD_FAILED RATING_WINDOW_NOT_OPEN
 POST /api/v1/boards/{boardId}/private-feedback,CREW_INACTIVE,,private-feedback.json,422 GUARD_FAILED RATING_WINDOW_NOT_OPEN
 POST /api/v1/boards/{boardId}/private-feedback,CREW_FORMER,,private-feedback.json,422 GUARD_FAILED RATING_WINDOW_NOT_OPEN
+# Portfolio Entries after the Job (FR-50, AD-19, AD-41): the Customer (OWNER), the Mentor, and every Crew
+# member ever active read the portfolio section; the Mentor drafts the summary and the Customer decides it;
+# the fixture's Active Job has no entries yet.
+GET /api/v1/boards/{boardId}/portfolio,ANONYMOUS,,,401
+GET /api/v1/boards/{boardId}/portfolio,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/portfolio,MENTOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/portfolio,STUDENT,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/portfolio,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/portfolio,TEAM_MENTOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/portfolio,TEAM_MEMBER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/portfolio,CREW_ASSIGNED,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/portfolio,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/portfolio,OWNER,,,200
+GET /api/v1/boards/{boardId}/portfolio,JOB_MENTOR,,,200
+GET /api/v1/boards/{boardId}/portfolio,CREW_ACTIVE,,,200
+GET /api/v1/boards/{boardId}/portfolio,CREW_INACTIVE,,,200
+GET /api/v1/boards/{boardId}/portfolio,CREW_FORMER,,,200
+POST /api/v1/boards/{boardId}/portfolio/summary,ANONYMOUS,,portfolio-summary.json,401
+POST /api/v1/boards/{boardId}/portfolio/summary,CUSTOMER,,portfolio-summary.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/portfolio/summary,MENTOR,,portfolio-summary.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/portfolio/summary,STUDENT,,portfolio-summary.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/portfolio/summary,ADMINISTRATOR,,portfolio-summary.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/portfolio/summary,TEAM_MENTOR,,portfolio-summary.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/portfolio/summary,TEAM_MEMBER,,portfolio-summary.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/portfolio/summary,CREW_ASSIGNED,,portfolio-summary.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/portfolio/summary,ADMIN_TEAM_ISSUE_GRANT,,portfolio-summary.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/portfolio/summary,OWNER,,portfolio-summary.json,403 FORBIDDEN MENTOR_ONLY
+POST /api/v1/boards/{boardId}/portfolio/summary,JOB_MENTOR,,portfolio-summary.json,422 GUARD_FAILED NO_PORTFOLIO
+POST /api/v1/boards/{boardId}/portfolio/summary,CREW_ACTIVE,,portfolio-summary.json,403 FORBIDDEN MENTOR_ONLY
+POST /api/v1/boards/{boardId}/portfolio/summary,CREW_INACTIVE,,portfolio-summary.json,403 FORBIDDEN MENTOR_ONLY
+POST /api/v1/boards/{boardId}/portfolio/summary,CREW_FORMER,,portfolio-summary.json,403 FORBIDDEN MENTOR_ONLY
+POST /api/v1/boards/{boardId}/portfolio/summary/approve,ANONYMOUS,,portfolio-approve.json,401
+POST /api/v1/boards/{boardId}/portfolio/summary/approve,CUSTOMER,,portfolio-approve.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/portfolio/summary/approve,MENTOR,,portfolio-approve.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/portfolio/summary/approve,STUDENT,,portfolio-approve.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/portfolio/summary/approve,ADMINISTRATOR,,portfolio-approve.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/portfolio/summary/approve,TEAM_MENTOR,,portfolio-approve.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/portfolio/summary/approve,TEAM_MEMBER,,portfolio-approve.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/portfolio/summary/approve,CREW_ASSIGNED,,portfolio-approve.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/portfolio/summary/approve,ADMIN_TEAM_ISSUE_GRANT,,portfolio-approve.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/portfolio/summary/approve,OWNER,,portfolio-approve.json,422 GUARD_FAILED NO_PORTFOLIO
+POST /api/v1/boards/{boardId}/portfolio/summary/approve,JOB_MENTOR,,portfolio-approve.json,403 FORBIDDEN CUSTOMER_ONLY
+POST /api/v1/boards/{boardId}/portfolio/summary/approve,CREW_ACTIVE,,portfolio-approve.json,403 FORBIDDEN CUSTOMER_ONLY
+POST /api/v1/boards/{boardId}/portfolio/summary/approve,CREW_INACTIVE,,portfolio-approve.json,403 FORBIDDEN CUSTOMER_ONLY
+POST /api/v1/boards/{boardId}/portfolio/summary/approve,CREW_FORMER,,portfolio-approve.json,403 FORBIDDEN CUSTOMER_ONLY
+POST /api/v1/boards/{boardId}/portfolio/summary/decline,ANONYMOUS,,,401
+POST /api/v1/boards/{boardId}/portfolio/summary/decline,CUSTOMER,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/portfolio/summary/decline,MENTOR,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/portfolio/summary/decline,STUDENT,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/portfolio/summary/decline,ADMINISTRATOR,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/portfolio/summary/decline,TEAM_MENTOR,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/portfolio/summary/decline,TEAM_MEMBER,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/portfolio/summary/decline,CREW_ASSIGNED,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/portfolio/summary/decline,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/portfolio/summary/decline,OWNER,,,422 GUARD_FAILED NO_PORTFOLIO
+POST /api/v1/boards/{boardId}/portfolio/summary/decline,JOB_MENTOR,,,403 FORBIDDEN CUSTOMER_ONLY
+POST /api/v1/boards/{boardId}/portfolio/summary/decline,CREW_ACTIVE,,,403 FORBIDDEN CUSTOMER_ONLY
+POST /api/v1/boards/{boardId}/portfolio/summary/decline,CREW_INACTIVE,,,403 FORBIDDEN CUSTOMER_ONLY
+POST /api/v1/boards/{boardId}/portfolio/summary/decline,CREW_FORMER,,,403 FORBIDDEN CUSTOMER_ONLY
 # Milestone Handovers (FR-32, AD-20, AD-39): the Customer (OWNER), the Mentor, and ACTIVE members read;
 # only the Mentor hands over, and the fixture's Milestone is not Funded. The Customer's Delivery Report
 # never carries the Work Item note, whose text is the WORK_ITEM_NOTE canary.

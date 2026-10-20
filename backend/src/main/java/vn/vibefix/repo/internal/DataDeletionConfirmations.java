@@ -14,6 +14,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,9 +29,11 @@ import vn.vibefix.job.Crews.Selection;
 import vn.vibefix.job.JobPosts;
 import vn.vibefix.job.JobPosts.JobPostState;
 import vn.vibefix.notification.Todos;
+import vn.vibefix.repo.DataDeletionConfirmed;
 import vn.vibefix.repo.DataDeletions;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
+import vn.vibefix.shared.IdGenerator;
 
 /**
  * The post-Job data-deletion confirmations (FR-66, AD-19, AD-41): the duty falls on the Job's Mentor and
@@ -70,13 +73,20 @@ class DataDeletionConfirmations implements DataDeletions {
 
 	private final Clock clock;
 
-	DataDeletionConfirmations(JdbcClient jdbc, JobPosts posts, Crews crews, Todos todos, AuditLog auditLog, Clock clock) {
+	private final ApplicationEventPublisher events;
+
+	private final IdGenerator ids;
+
+	DataDeletionConfirmations(JdbcClient jdbc, JobPosts posts, Crews crews, Todos todos, AuditLog auditLog, Clock clock,
+			ApplicationEventPublisher events, IdGenerator ids) {
 		this.jdbc = jdbc;
 		this.posts = posts;
 		this.crews = crews;
 		this.todos = todos;
 		this.auditLog = auditLog;
 		this.clock = clock;
+		this.events = events;
+		this.ids = ids;
 	}
 
 	@Override
@@ -135,6 +145,7 @@ class DataDeletionConfirmations implements DataDeletions {
 		if (updated.complete()) {
 			audit(accountId, "repo.data_deletion_confirmed", job.jobId());
 			this.todos.close(TODO, accountId, job.jobId());
+			this.events.publishEvent(new DataDeletionConfirmed(this.ids.newId(), job.jobId(), accountId));
 		}
 		return updated;
 	}

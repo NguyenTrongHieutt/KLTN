@@ -93,7 +93,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["approve_1"];
+        post: operations["approve_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -173,7 +173,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["approve"];
+        post: operations["approve_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -253,7 +253,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["decline_3"];
+        post: operations["decline_4"];
         delete?: never;
         options?: never;
         head?: never;
@@ -334,6 +334,70 @@ export interface paths {
         get: operations["pageTree"];
         put?: never;
         post: operations["createPage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/boards/{boardId}/portfolio": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["portfolio"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/boards/{boardId}/portfolio/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["draft_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/boards/{boardId}/portfolio/summary/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["approve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/boards/{boardId}/portfolio/summary/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["decline_3"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2495,6 +2559,10 @@ export interface components {
             /** Format: int32 */
             timelineDays: number;
         };
+        ApprovalRequest: {
+            showProductName: boolean;
+            text: string;
+        };
         ApproveMentorRequest: {
             stepUpCode: string;
         };
@@ -2955,6 +3023,22 @@ export interface components {
             email: string;
             otpauthUri: string;
             secret: string;
+        };
+        EntryView: {
+            jobTypes: string[];
+            /** Format: int32 */
+            milestones: number;
+            /** Format: int32 */
+            milestonesHandedOver?: number;
+            /** Format: date-time */
+            publishedAt?: string;
+            /** Format: int32 */
+            reviewsWritten?: number;
+            role: string;
+            skills: string[];
+            title: string;
+            /** Format: int32 */
+            workItemsApproved?: number;
         };
         EnvironmentResponse: {
             name: string;
@@ -3952,7 +4036,33 @@ export interface components {
             jobTypes: string[];
             /** Format: int32 */
             milestones: number;
+            /** Format: int32 */
+            milestonesHandedOver?: number;
+            productName?: string;
+            /** Format: int32 */
+            rating?: number;
+            /** Format: int32 */
+            reviewsWritten?: number;
+            role: string;
+            skills: string[];
+            summary?: string;
             title: string;
+            /** Format: int32 */
+            workItemsApproved?: number;
+        };
+        PortfolioView: {
+            audience: string;
+            /** Format: date-time */
+            decideBy?: string;
+            exists: boolean;
+            /** Format: uuid */
+            jobId: string;
+            mine?: components["schemas"]["EntryView"];
+            open: boolean;
+            productName?: string;
+            showProductName?: boolean;
+            summaryStatus?: string;
+            summaryText?: string;
         };
         PrivateFeedbackRequest: {
             comment?: string;
@@ -4428,6 +4538,9 @@ export interface components {
             id: string;
             name: string;
         };
+        SummaryRequest: {
+            text: string;
+        };
         TeamInvitationRequest: {
             /** Format: uuid */
             studentId: string;
@@ -4861,7 +4974,7 @@ export interface operations {
             };
         };
     };
-    approve_1: {
+    approve_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -4983,7 +5096,7 @@ export interface operations {
             };
         };
     };
-    approve: {
+    approve_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -5129,7 +5242,7 @@ export interface operations {
             };
         };
     };
-    decline_3: {
+    decline_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -5316,6 +5429,102 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PageView"];
+                };
+            };
+        };
+    };
+    portfolio: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortfolioView"];
+                };
+            };
+        };
+    };
+    draft_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SummaryRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortfolioView"];
+                };
+            };
+        };
+    };
+    approve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApprovalRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortfolioView"];
+                };
+            };
+        };
+    };
+    decline_3: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortfolioView"];
                 };
             };
         };

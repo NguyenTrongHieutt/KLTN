@@ -2,6 +2,7 @@ package vn.vibefix.reputation.internal;
 
 import java.math.BigDecimal;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -15,11 +16,15 @@ import org.springframework.stereotype.Component;
 import vn.vibefix.reputation.PortfolioEntry;
 import vn.vibefix.reputation.RatingSummary;
 import vn.vibefix.reputation.Reputation;
+import vn.vibefix.reputation.internal.Portfolios.Entry;
+import vn.vibefix.reputation.internal.Portfolios.Status;
+import vn.vibefix.reputation.internal.Portfolios.Summary;
 
 /**
  * {@link Reputation} (AD-33, FR-49, FR-51): an account's visible summary averages the published Ratings
- * it received, the latest per rater and ratee, to one decimal; a hidden Rating never counts. Portfolio
- * Entries arrive with Story 6.8, so every Mentor is still new.
+ * it received, the latest per rater and ratee, to one decimal; a hidden Rating never counts. Its
+ * portfolio is its published Portfolio Entries (FR-50), each with the summary the Customer approved, the
+ * Product name only if allowed, and its Rating once visible; a Mentor with any entry is not new (FR-14).
  */
 @Component
 class VisibleRatings implements Reputation {
@@ -36,8 +41,14 @@ class VisibleRatings implements Reputation {
 
 	private final JdbcClient jdbc;
 
-	VisibleRatings(JdbcClient jdbc) {
+	private final Portfolios portfolios;
+
+	private final SkillNames skills;
+
+	VisibleRatings(JdbcClient jdbc, Portfolios portfolios, SkillNames skills) {
 		this.jdbc = jdbc;
+		this.portfolios = portfolios;
+		this.skills = skills;
 	}
 
 	@Override
@@ -66,17 +77,44 @@ class VisibleRatings implements Reputation {
 
 	@Override
 	public List<PortfolioEntry> portfolio(UUID accountId) {
-		return List.of();
+		List<Entry> entries = this.portfolios.published(accountId);
+		if (entries.isEmpty()) {
+			return List.of();
+		}
+		Map<UUID, Summary> summaries = new HashMap<>();
+		this.portfolios.summaries(entries.stream().map(Entry::jobId).toList())
+			.forEach(summary -> summaries.put(summary.jobId(), summary));
+		Map<UUID, Integer> ratings = new HashMap<>();
+		this.jdbc.sql("""
+				SELECT r.job_id, r.stars FROM reputation.rating r JOIN reputation.rating_window w ON w.job_id = r.job_id
+				WHERE r.ratee_account_id = :account AND r.kind IN ('CUSTOMER_TO_MENTOR', 'MENTOR_TO_STUDENT')
+				  AND ((r.kind <> 'MENTOR_TO_STUDENT' AND w.pair_published_at IS NOT NULL)
+				    OR (r.kind = 'MENTOR_TO_STUDENT' AND w.crew_published_at IS NOT NULL))
+				""").param("account", accountId).query((rs, n) -> {
+			ratings.put(rs.getObject("job_id", UUID.class), rs.getInt("stars"));
+			return null;
+		}).list();
+		return entries.stream().map(entry -> {
+			Summary summary = summaries.get(entry.jobId());
+			boolean approved = summary != null && summary.status() == Status.APPROVED;
+			String product = approved && summary.showProductName() && !entry.productName().isEmpty() ? entry.productName()
+					: null;
+			return new PortfolioEntry(entry.jobTitle(), entry.role(), entry.jobTypes(), this.skills.namesOf(entry.skillIds()),
+					entry.closedAt(), entry.milestones(), entry.workItemsApproved(), entry.milestonesHandedOver(),
+					entry.reviewsWritten(), ratings.get(entry.jobId()), approved ? summary.text() : null, product);
+		}).toList();
 	}
 
 	@Override
 	public boolean newcomer(UUID mentorId) {
-		return portfolio(mentorId).isEmpty();
+		return newcomers(List.of(mentorId)).contains(mentorId);
 	}
 
 	@Override
 	public Set<UUID> newcomers(Collection<UUID> mentorIds) {
-		return new LinkedHashSet<>(mentorIds);
+		Set<UUID> newcomers = new LinkedHashSet<>(mentorIds);
+		newcomers.removeAll(this.portfolios.withEntries(mentorIds));
+		return newcomers;
 	}
 
 }

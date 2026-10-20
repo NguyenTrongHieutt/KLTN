@@ -10,7 +10,8 @@
  * transaction (AD-5), or asks for a revision within the Revision Rounds (FR-33, FR-34); left undecided,
  * it is reminded twice and then accepted automatically by a pausable Deadline (FR-35, AD-7).
  * <p>
- * No public API yet; the HTTP endpoints, the listener that opens the handover to-do, and the
+ * Public API: {@link vn.vibefix.delivery.HandoverFacts}, the Milestones handed over, for Portfolio
+ * Entries (FR-50). The HTTP endpoints, the listener that opens the handover to-do, and the
  * personal-data participant are wiring in {@code delivery.internal}.
  */
 @ApplicationModule(allowedDependencies = { "shared", "audit", "identity", "notification", "timers", "scanning", "job",

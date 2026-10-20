@@ -5,7 +5,8 @@
  * that they deleted the Customer's non-code data and their preview deployments; closure never waits for
  * it.
  * <p>
- * Public API: {@link vn.vibefix.repo.DataDeletions}, whether a person confirmed (FR-50).
+ * Public API: {@link vn.vibefix.repo.DataDeletions}, whether a person confirmed (FR-50), and
+ * {@link vn.vibefix.repo.DataDeletionConfirmed}, the event when their confirmation completes.
  */
 @ApplicationModule(allowedDependencies = { "shared", "audit", "identity", "notification", "job" })
 package vn.vibefix.repo;

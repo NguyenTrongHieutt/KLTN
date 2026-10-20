@@ -401,7 +401,15 @@
         "portfolio": "Hồ sơ năng lực",
         "portfolioNote": "Do hệ thống tạo từ công việc thật trên vibefix.",
         "portfolioEmpty": "Chưa có công việc nào hoàn thành trên vibefix.",
-        "milestones": "{n} giai đoạn"
+        "milestones": "{n} giai đoạn",
+        "portfolioFacts": {
+          "milestones": "{n} giai đoạn được chấp nhận",
+          "workItemsApproved": "{n} việc hoàn thành qua duyệt",
+          "milestonesHandedOver": "{n} giai đoạn đã bàn giao",
+          "reviewsWritten": "{n} lượt duyệt việc",
+          "rating": "{n} sao",
+          "untitled": "Công việc đã hoàn thành"
+        }
       }
     },
     "student": {
@@ -2370,6 +2378,35 @@
       "feedbackGiven": "Bạn đã gửi đánh giá kín.",
       "feedbackClosed": "Thời gian gửi đánh giá kín đã hết.",
       "cancel": "Hủy"
+    },
+    "portfolioSection": {
+      "heading": "Hồ sơ năng lực",
+      "intro": "Hệ thống tạo hồ sơ năng lực từ việc thật trên công việc này, không ai tự nhập.",
+      "summary": "Tóm tắt",
+      "draftLead": "Viết một đoạn tóm tắt ngắn để khách hàng duyệt trước {date}.",
+      "draftLabel": "Tóm tắt (tối đa 600 ký tự)",
+      "draftSubmit": "Gửi khách hàng duyệt",
+      "draftSent": "Đã gửi tóm tắt cho khách hàng duyệt.",
+      "waitingDraft": "Người hướng dẫn chưa viết tóm tắt.",
+      "waitingApproval": "Đang chờ khách hàng duyệt trước {date}.",
+      "approveLead": "Người hướng dẫn đã viết tóm tắt. Bạn có thể sửa rồi duyệt, hoặc từ chối, trước {date}.",
+      "approveLabel": "Tóm tắt",
+      "showProductName": "Cho phép hiện tên sản phẩm \"{name}\"",
+      "approve": "Duyệt",
+      "decline": "Từ chối",
+      "approved": "Đã duyệt tóm tắt.",
+      "declined": "Đã từ chối tóm tắt. Hồ sơ năng lực sẽ không có tóm tắt.",
+      "statusApproved": "Khách hàng đã duyệt tóm tắt.",
+      "statusDeclined": "Khách hàng đã từ chối tóm tắt.",
+      "statusLapsed": "Tóm tắt không được duyệt kịp, nên hồ sơ năng lực không có tóm tắt.",
+      "mine": "Hồ sơ năng lực của bạn",
+      "published": "Đã đăng lên hồ sơ công khai của bạn.",
+      "unpublished": "Hồ sơ năng lực sẽ đăng sau khi bạn xác nhận đã xóa dữ liệu của khách hàng.",
+      "milestones": "{n} giai đoạn được chấp nhận",
+      "workItemsApproved": "{n} việc hoàn thành qua duyệt",
+      "milestonesHandedOver": "{n} giai đoạn đã bàn giao",
+      "reviewsWritten": "{n} lượt duyệt việc",
+      "skills": "Kỹ năng: {skills}"
     }
   },
   "notice": {
@@ -2835,7 +2872,9 @@
     },
     "reputation": {
       "rate": "Chấm sao cho {party}",
-      "give_private_feedback": "Đánh giá kín người hướng dẫn"
+      "give_private_feedback": "Đánh giá kín người hướng dẫn",
+      "draft_portfolio_summary": "Viết tóm tắt hồ sơ năng lực cho {job}",
+      "approve_portfolio_summary": "Duyệt tóm tắt hồ sơ năng lực của {job}"
     }
   },
   "theme": {
@@ -3084,6 +3123,12 @@
       },
       "ratings_published": {
         "title": "Điểm đánh giá ở {job} đã hiện"
+      },
+      "portfolio_summary_awaiting_approval": {
+        "title": "Hãy duyệt tóm tắt hồ sơ năng lực của {job} trước {date}"
+      },
+      "portfolio_entry_published": {
+        "title": "Hồ sơ năng lực từ {job} đã đăng"
       }
     }
   },
@@ -3266,7 +3311,11 @@
       "RATING_WINDOW_CLOSED": "Thời gian chấm sao đã hết.",
       "ALREADY_SUBMITTED": "Bạn đã gửi rồi. Không thể sửa sau khi gửi.",
       "NOT_A_RATER": "Thành viên nhóm thực hiện không chấm sao, nhưng có thể gửi đánh giá kín.",
-      "RATEE_NOT_ALLOWED": "Bạn không chấm sao được cho người này."
+      "RATEE_NOT_ALLOWED": "Bạn không chấm sao được cho người này.",
+      "MENTOR_ONLY": "Chỉ người hướng dẫn viết tóm tắt hồ sơ năng lực.",
+      "CUSTOMER_ONLY": "Chỉ khách hàng duyệt tóm tắt hồ sơ năng lực.",
+      "NO_PORTFOLIO": "Công việc này không có hồ sơ năng lực vì chưa có giai đoạn nào được chấp nhận.",
+      "SUMMARY_NOT_AWAITING": "Tóm tắt đã qua bước này."
     }
   },
   "markdown": {
