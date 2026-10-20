@@ -117,6 +117,17 @@ describe('JOB-7 for the Customer: fund a Milestone (FR-41, N-13)', () => {
             {
               orders: [
                 { id: 'o1', milestoneId: 'm1', number: 1, amountVnd: 2000000, status: 'EXPIRED', createdAt: '2026-10-20T07:30:00Z', expiresAt: '2026-10-20T07:45:00Z', reference: 'ABCDEF0123456789' },
+                {
+                  id: 'o2',
+                  milestoneId: 'm1',
+                  number: 1,
+                  amountVnd: 500000,
+                  status: 'UNAPPLIED',
+                  createdAt: '2026-10-20T07:50:00Z',
+                  expiresAt: '2026-10-20T08:05:00Z',
+                  reference: 'BBCDEF0123456789',
+                  refund: { amountVnd: 500000, status: 'REQUESTED', simulated: true, reason: 'WRONG_AMOUNT', requestedAt: '2026-10-20T07:55:00Z' },
+                },
               ],
             },
             { fundable: false, blockedReason: 'CREW_NOT_READY' },
@@ -128,7 +139,9 @@ describe('JOB-7 for the Customer: fund a Milestone (FR-41, N-13)', () => {
     expect(await screen.findByText('Đang chờ người hướng dẫn hoàn tất nhóm thực hiện')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Thanh toán Giai đoạn 1' })).toBeDisabled()
     expect(screen.getByText('Hết hạn')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Xem kết quả' })).toHaveAttribute('href', '/thanh-toan/o1')
+    expect(screen.getByText('Chờ hoàn tiền')).toBeInTheDocument()
+    expect(screen.getByText('Đang hoàn 500.000 ₫')).toBeInTheDocument()
+    expect(screen.getAllByRole('link', { name: 'Xem kết quả' })[0]).toHaveAttribute('href', '/thanh-toan/o1')
   })
 })
 
@@ -148,6 +161,23 @@ describe('CUS-9: the payment result, read from the server only (AD-14)', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Đã thanh toán' }, { timeout: 6000 })).toBeInTheDocument()
     expect(screen.getByText('Thanh toán Giai đoạn 1')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Về trang thanh toán của công việc' })).toHaveAttribute('href', '/cong-viec/j1/thanh-toan')
+  })
+
+  it('shows why unapplied money is refunded, as a simulated refund', { timeout: 15_000 }, async () => {
+    backend({
+      'GET /api/v1/payment-orders/o1': () =>
+        json({
+          ...order('UNAPPLIED'),
+          refund: { amountVnd: 2000000, status: 'CONFIRMED', simulated: true, reason: 'CREW_CHANGED', requestedAt: '2026-10-20T07:40:00Z', confirmedAt: '2026-10-20T07:41:00Z' },
+        }),
+    })
+    renderAt('/thanh-toan/o1')
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Đã nhận tiền nhưng chưa áp dụng được' })).toBeInTheDocument()
+    expect(screen.getByText('Hoàn tiền mô phỏng ·')).toBeInTheDocument()
+    expect(screen.getByText('Đã hoàn 2.000.000 ₫')).toBeInTheDocument()
+    expect(screen.getByText(/Nhóm thực hiện thay đổi trước khi bắt đầu/)).toBeInTheDocument()
+    expect(screen.getByText(/chỉ được ghi trên vibefix/)).toBeInTheDocument()
   })
 
   it('says a failed payment moved no money', { timeout: 15_000 }, async () => {

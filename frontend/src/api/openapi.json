@@ -6488,6 +6488,9 @@
           "reference" : {
             "type" : "string"
           },
+          "refund" : {
+            "$ref" : "#/components/schemas/PaymentRefundView"
+          },
           "status" : {
             "type" : "string"
           }
@@ -6528,11 +6531,41 @@
           "reference" : {
             "type" : "string"
           },
+          "refund" : {
+            "$ref" : "#/components/schemas/PaymentRefundView"
+          },
           "status" : {
             "type" : "string"
           }
         },
         "required" : [ "amountVnd", "createdAt", "expiresAt", "id", "milestoneId", "number", "reference", "status" ]
+      },
+      "PaymentRefundView" : {
+        "type" : "object",
+        "properties" : {
+          "amountVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "confirmedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "requestedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "simulated" : {
+            "type" : "boolean"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "amountVnd", "reason", "requestedAt", "simulated", "status" ]
       },
       "PendingCodeView" : {
         "type" : "object",

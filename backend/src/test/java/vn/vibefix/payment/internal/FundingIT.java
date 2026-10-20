@@ -51,12 +51,19 @@ import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.CustomerTokens;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.job.Crews;
+import vn.vibefix.operations.FailedOperations;
+import vn.vibefix.operations.Lane;
+import vn.vibefix.operations.internal.OperationWorker;
+import vn.vibefix.payment.Ledger;
 import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
 import vn.vibefix.team.internal.TeamTestSupport;
 
-/** FR-41, AD-4, AD-14, AD-15 (FUND), AD-41: funding a Milestone through the VNPay sandbox's IPN. */
+/**
+ * FR-41, FR-43, AD-4, AD-14, AD-15, AD-41, SM-6: funding a Milestone through the VNPay sandbox's IPN, and
+ * refunding money that cannot apply, once per FUND.
+ */
 class FundingIT extends IntegrationTest {
 
 	private static final String TMN = "TESTTMN1";
@@ -92,6 +99,21 @@ class FundingIT extends IntegrationTest {
 
 	@Autowired
 	private PaymentOrders orders;
+
+	@Autowired
+	private OperationWorker worker;
+
+	@Autowired
+	private LedgerCheck ledgerCheck;
+
+	@Autowired
+	private FailedOperations failedOperations;
+
+	@Autowired
+	private Ledger ledger;
+
+	@Autowired
+	private RefundOperation refundOperation;
 
 	private UUID lan;
 
@@ -171,6 +193,14 @@ class FundingIT extends IntegrationTest {
 		ipn(paid(ref, "14000001", 800000), null).andExpect(jsonPath("$.RspCode").value("02"));
 		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'FUND'")).as("a replay credits nothing").isOne();
 		assertThat(this.orders.expire(orderId)).as("a paid order does not expire").isFalse();
+		assertThat(this.ledger.releasable(MILESTONE)).isEqualTo(800000);
+		assertThat(this.ledger.releasedTotal(MILESTONE)).isZero();
+
+		ipn(paid(ref, "14000009", 800000), null).andExpect(jsonPath("$.RspCode").value("00"));
+		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'FUND' AND bucket = 'MILESTONE'"))
+			.as("a duplicate payment credits the Milestone nothing twice").isOne();
+		assertThat(refundReasons()).containsExactly("ORDER_CLOSED 800000");
+		assertThat(this.ledger.releasable(MILESTONE)).as("an unapplied refund is not the Milestone's").isEqualTo(800000);
 	}
 
 	@Test
@@ -198,7 +228,7 @@ class FundingIT extends IntegrationTest {
 		UUID first = created();
 		ipn(paid(txnRef(first), "14000010", 500000), null).andExpect(jsonPath("$.RspCode").value("00"));
 		assertThat(orderStatus(first)).as("a wrong amount").isEqualTo("UNAPPLIED");
-		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE bucket = 'UNAPPLIED' AND amount_vnd = 500000")).isOne();
+		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'FUND' AND bucket = 'UNAPPLIED' AND amount_vnd = 500000")).isOne();
 		assertThat(this.jdbc.sql("SELECT state FROM job.milestone WHERE id = :id").param("id", MILESTONE).query(String.class).single())
 			.isEqualTo("PLANNED");
 
@@ -223,6 +253,45 @@ class FundingIT extends IntegrationTest {
 		assertThat(orderStatus(latest)).as("paid after it expired").isEqualTo("UNAPPLIED");
 		assertThat(this.jdbc.sql("SELECT state FROM job.job WHERE id = :id").param("id", this.job).query(String.class).single())
 			.isEqualTo("AGREEMENT");
+
+		assertThat(refundReasons()).containsExactlyInAnyOrder("WRONG_AMOUNT 500000", "ORDER_CLOSED 800000", "ORDER_CLOSED 800000");
+		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'REFUND_REQUESTED' AND bucket = 'UNAPPLIED'"))
+			.isEqualTo(3);
+		assertThat(notifications("payment.refund_requested", this.lan)).isEqualTo(3);
+		ipn(paid(txnRef(first), "14000010", 500000), null).andExpect(jsonPath("$.RspCode").value("02"));
+		assertThat(count("SELECT count(*) FROM payment.refund")).as("refunded once per vnp_TransactionNo").isEqualTo(3);
+
+		this.worker.runDue(Lane.VNPAY);
+		assertThat(count("SELECT count(*) FROM payment.refund WHERE status = 'CONFIRMED' AND gateway = 'LEDGER'")).isEqualTo(3);
+		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'REFUND_CONFIRMED'")).isEqualTo(3);
+		assertThat(notifications("payment.refund_confirmed", this.lan)).isEqualTo(3);
+		UUID refund = this.jdbc.sql("SELECT id FROM payment.refund WHERE reason = 'WRONG_AMOUNT'").query(UUID.class).single();
+		assertThat(this.refundOperation.run(new vn.vibefix.operations.OperationRun(UUID.randomUUID(), "payment.refund:" + refund,
+				RefundOperation.TYPE, 2, Map.of("refundId", refund.toString()), null))).isInstanceOf(vn.vibefix.operations.Outcome.Succeeded.class);
+		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'REFUND_CONFIRMED'"))
+			.as("a replayed confirmation credits nothing twice").isEqualTo(3);
+		this.mvc.perform(get("/api/v1/payment-orders/" + first).with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.refund.reason").value("WRONG_AMOUNT"))
+			.andExpect(jsonPath("$.refund.simulated").value(true))
+			.andExpect(jsonPath("$.refund.status").value("CONFIRMED"));
+	}
+
+	@Test
+	void theDailyCheckSendsAnUnbalancedLedgerToTheFailedQueue() throws Exception {
+		confirmedAgreement("BUG_FIX");
+		UUID orderId = created();
+		ipn(paid(txnRef(orderId), "14000030", 800000), null).andExpect(jsonPath("$.RspCode").value("00"));
+		assertThat(this.ledgerCheck.check()).as("a funded, running Milestone is not final").isEmpty();
+
+		this.jdbc.sql("UPDATE job.milestone SET state = 'CANCELLED' WHERE id = :id").param("id", MILESTONE).update();
+		assertThat(this.ledgerCheck.check()).containsExactly(MILESTONE);
+		this.worker.runDue(Lane.VNPAY);
+
+		assertThat(this.failedOperations.findAll()).extracting(FailedOperations.FailedOperation::type, FailedOperations.FailedOperation::errorCode)
+			.contains(org.assertj.core.groups.Tuple.tuple(LedgerMismatchOperation.TYPE, "LEDGER_MISMATCH"));
+		this.ledgerCheck.check();
+		assertThat(count("SELECT count(*) FROM operations.external_operation WHERE type = 'payment.ledger_mismatch'"))
+			.as("once a day").isOne();
 	}
 
 	@Test
@@ -241,6 +310,7 @@ class FundingIT extends IntegrationTest {
 
 		ipn(paid(txnRef(orderId), "14000020", 800000), null).andExpect(jsonPath("$.RspCode").value("00"));
 		assertThat(orderStatus(orderId)).as("J6's Crew guard refused it").isEqualTo("UNAPPLIED");
+		assertThat(refundReasons()).containsExactly("CREW_CHANGED 800000");
 		assertThat(this.jdbc.sql("SELECT state FROM job.job WHERE id = :id").param("id", this.job).query(String.class).single())
 			.isEqualTo("AGREEMENT");
 	}
@@ -352,6 +422,10 @@ class FundingIT extends IntegrationTest {
 		fields.forEach(request::param);
 		request.param("vnp_SecureHash", hash != null ? hash : VnpaySigner.hmacSha512(SECRET, VnpaySigner.queryHashData(fields)));
 		return this.mvc.perform(request).andExpect(status().isOk());
+	}
+
+	private List<String> refundReasons() {
+		return this.jdbc.sql("SELECT reason || ' ' || amount_vnd FROM payment.refund ORDER BY requested_at").query(String.class).list();
 	}
 
 	private String txnRef(UUID orderId) {

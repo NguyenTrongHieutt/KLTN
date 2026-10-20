@@ -44,8 +44,17 @@ class PaymentController {
 			@Nullable String blockedReason) {
 	}
 
+	/**
+	 * The refund of money that could not apply (FR-43).
+	 * @param simulated recorded on vibefix only ("Hoàn tiền mô phỏng", AD-15)
+	 * @param reason {@code CREW_CHANGED}, {@code ORDER_CLOSED}, {@code WRONG_AMOUNT}, or {@code NOT_FUNDABLE}
+	 */
+	record PaymentRefundView(long amountVnd, String status, boolean simulated, String reason, Instant requestedAt,
+			@Nullable Instant confirmedAt) {
+	}
+
 	record PaymentOrderView(UUID id, UUID milestoneId, int number, long amountVnd, String status, Instant createdAt,
-			Instant expiresAt, @Nullable Instant finishedAt, String reference) {
+			Instant expiresAt, @Nullable Instant finishedAt, String reference, @Nullable PaymentRefundView refund) {
 	}
 
 	/**
@@ -58,7 +67,8 @@ class PaymentController {
 
 	/** CUS-9: one order, as the server knows it. */
 	record PaymentOrderDetailView(UUID id, UUID jobId, String jobTitle, int number, String milestoneTitle, long amountVnd,
-			String status, Instant createdAt, Instant expiresAt, @Nullable Instant finishedAt, String reference) {
+			String status, Instant createdAt, Instant expiresAt, @Nullable Instant finishedAt, String reference,
+			@Nullable PaymentRefundView refund) {
 	}
 
 	record CreatePaymentOrderRequest(@NotNull Long version) {
@@ -80,7 +90,11 @@ class PaymentController {
 
 	private final CurrentCaller callers;
 
-	PaymentController(PaymentOrders orders, MilestoneFunding funding, VnpaySandbox sandbox, CurrentCaller callers) {
+	private final Refunds refunds;
+
+	PaymentController(PaymentOrders orders, MilestoneFunding funding, VnpaySandbox sandbox, CurrentCaller callers,
+			Refunds refunds) {
+		this.refunds = refunds;
 		this.orders = orders;
 		this.funding = funding;
 		this.sandbox = sandbox;
@@ -113,7 +127,8 @@ class PaymentController {
 		List<PaymentOrderView> orders = this.orders.ofJob(jobId)
 			.stream()
 			.map(order -> new PaymentOrderView(order.id(), order.milestoneId(), numbers.getOrDefault(order.milestoneId(), 0),
-					order.amountVnd(), order.status(), order.createdAt(), order.expiresAt(), order.finishedAt(), order.txnRef()))
+					order.amountVnd(), order.status(), order.createdAt(), order.expiresAt(), order.finishedAt(), order.txnRef(),
+					refund(order.id())))
 			.toList();
 		return new JobFundingView(job.jobId(), job.title(), job.state(), job.version(), this.sandbox.missingSetting() == null,
 				milestones, orders);
@@ -142,7 +157,7 @@ class PaymentController {
 			.orElse(null);
 		return new PaymentOrderDetailView(order.id(), order.jobId(), job.title(), milestone == null ? 0 : milestone.number(),
 				milestone == null ? "" : milestone.title(), order.amountVnd(), order.status(), order.createdAt(),
-				order.expiresAt(), order.finishedAt(), order.txnRef());
+				order.expiresAt(), order.finishedAt(), order.txnRef(), refund(order.id()));
 	}
 
 	@GetMapping("/api/v1/payment/test-card")
@@ -150,6 +165,13 @@ class PaymentController {
 		VnpayProperties.TestCard card = this.sandbox.testCard();
 		return card == null ? new TestCardView(false, null, null, null, null, null)
 				: new TestCardView(true, card.bank(), card.number(), card.holder(), card.issued(), card.otp());
+	}
+
+	private @Nullable PaymentRefundView refund(UUID orderId) {
+		return this.refunds.ofOrder(orderId)
+			.map(refund -> new PaymentRefundView(refund.amountVnd(), refund.status(), refund.simulated(), refund.reason().name(),
+					refund.requestedAt(), refund.confirmedAt()))
+			.orElse(null);
 	}
 
 	/** The Customer calling; anyone else finds nothing. */
