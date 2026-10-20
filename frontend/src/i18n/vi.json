@@ -544,7 +544,8 @@
         "rules": "Quy tắc",
         "jobs": "Công việc",
         "audit": "Nhật ký",
-        "failures": "Thao tác lỗi"
+        "failures": "Thao tác lỗi",
+        "statistics": "Thống kê"
       },
       "overview": {
         "title": "Tổng quan",
@@ -1094,6 +1095,108 @@
         "reopen": "Mở lại",
         "reopened": "Đã mở lại vấn đề.",
         "empty": "Không có mục nào."
+      },
+      "statistics": {
+        "title": "Thống kê",
+        "heading": "Thống kê nền tảng",
+        "none": "Chưa có số liệu.",
+        "feedbackHidden": "Chưa đủ 5 đánh giá kín từ 3 người hướng dẫn nên chưa hiện số liệu.",
+        "group": {
+          "usersByRole": "Người dùng theo vai trò",
+          "studentsByVerification": "Sinh viên theo xác minh",
+          "mentorsByApproval": "Người hướng dẫn theo phê duyệt",
+          "mentorApplicationsByDecision": "Quyết định về đơn người hướng dẫn",
+          "lockedAccounts": "Tài khoản bị khóa",
+          "teamsBySize": "Nhóm theo số thành viên",
+          "crewsBySize": "Nhóm thực hiện theo số người",
+          "jobsByState": "Công việc theo trạng thái",
+          "jobsByType": "Công việc theo loại",
+          "workItemReviews": "Việc được duyệt",
+          "milestones": "Giai đoạn",
+          "disputesByOutcome": "Tranh chấp theo kết quả",
+          "acceptances": "Nghiệm thu",
+          "privateFeedback": "Đánh giá kín"
+        },
+        "key": {
+          "usersByRole": {
+            "CUSTOMER": "Khách hàng",
+            "MENTOR": "Người hướng dẫn",
+            "STUDENT": "Sinh viên"
+          },
+          "studentsByVerification": {
+            "VERIFIED": "Đã xác minh",
+            "UNVERIFIED": "Chưa xác minh"
+          },
+          "mentorsByApproval": {
+            "PENDING": "Chờ duyệt",
+            "APPROVED": "Đã duyệt",
+            "REJECTED": "Bị từ chối",
+            "REVOKED": "Đã thu hồi"
+          },
+          "mentorApplicationsByDecision": {
+            "APPROVED": "Duyệt",
+            "REJECTED": "Từ chối"
+          },
+          "lockedAccounts": {
+            "LOCKED": "Đang khóa"
+          },
+          "teamsBySize": {
+            "0": "Chưa có ai",
+            "1": "1 người",
+            "2": "2 người",
+            "3": "3 người",
+            "4+": "Từ 4 người"
+          },
+          "crewsBySize": {
+            "0": "Chưa có ai",
+            "1": "1 người",
+            "2": "2 người",
+            "3": "3 người",
+            "4+": "Từ 4 người"
+          },
+          "jobsByState": {
+            "DRAFT": "Nháp",
+            "OPEN": "Đang tuyển",
+            "SELECTING": "Đang chọn",
+            "AGREEMENT": "Thỏa thuận",
+            "STARTING": "Chuẩn bị",
+            "ACTIVE": "Đang làm",
+            "CLOSING": "Đang kết thúc",
+            "CLOSED": "Đã kết thúc",
+            "CANCELLED": "Đã hủy"
+          },
+          "jobsByType": {
+            "ASSESSMENT": "Đánh giá",
+            "BUG_FIX": "Sửa lỗi",
+            "NEW_FEATURE": "Tính năng mới",
+            "MODIFICATION": "Chỉnh sửa",
+            "IMPROVEMENT": "Cải thiện",
+            "SECURITY_TESTING": "Kiểm thử bảo mật",
+            "DEPLOYMENT_OPERATIONS": "Triển khai và vận hành",
+            "DOCUMENTATION": "Tài liệu"
+          },
+          "workItemReviews": {
+            "FIRST_PASS": "Duyệt ngay lần nộp đầu",
+            "RETURNED": "Bị trả lại rồi mới duyệt"
+          },
+          "milestones": {
+            "OVERDUE": "Đang trễ hạn"
+          },
+          "disputesByOutcome": {
+            "OPEN": "Đang mở",
+            "CONTINUE": "Tiếp tục",
+            "END": "Kết thúc",
+            "CANCEL": "Hủy"
+          },
+          "acceptances": {
+            "MANUAL": "Khách hàng nghiệm thu",
+            "AUTOMATIC": "Tự động"
+          },
+          "privateFeedback": {
+            "COUNT": "Số đánh giá",
+            "AVERAGE_TENTHS": "Trung bình (sao)"
+          }
+        }
       }
     },
     "product": {
