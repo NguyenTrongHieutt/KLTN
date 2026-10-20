@@ -12,6 +12,7 @@ import { t, type MessageKey } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
 import { formatDayMonthTime } from '@/lib/dates'
 import { problemMessage } from '@/lib/problemMessage'
+import { MoveMenu } from './MoveMenu'
 import {
   PRIORITIES,
   TYPES,
@@ -150,8 +151,17 @@ function Editor({
     submit('CHECK')
   }
 
+  const card = item ? (board.items.find((other) => other.id === item.id) ?? item) : undefined
   return (
     <div className="flex flex-col gap-5">
+      {card && (
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-body-sm text-muted-foreground">
+            {t(`screen.board.status.${card.status}` as MessageKey)}
+          </span>
+          <MoveMenu board={board} item={card} jobId={board.boardId} />
+        </div>
+      )}
       {seeded && item?.criterion && (
         <p className="rounded-md bg-muted px-3 py-2 text-body-sm text-muted-foreground">
           {t('screen.board.item.seededNote', { m: item.criterion.milestoneNumber, n: item.criterion.number })}

@@ -24,6 +24,7 @@ import vn.vibefix.job.AgreementCriteria.CriterionInForce;
 import vn.vibefix.job.Crews;
 import vn.vibefix.job.Crews.CrewMember;
 import vn.vibefix.job.Crews.Selection;
+import vn.vibefix.job.HeldMilestones;
 import vn.vibefix.work.internal.Boards.ChecklistLine;
 import vn.vibefix.work.internal.Boards.Item;
 import vn.vibefix.work.internal.WorkAccess.BoardViewer;
@@ -37,7 +38,8 @@ import vn.vibefix.work.internal.WorkReads.Entry;
 @Component
 class WorkViews {
 
-	record BoardMilestoneView(UUID milestoneId, int number, String title) {
+	/** @param held a Held Milestone: its Work Items may leave "Cần làm" (FR-24) */
+	record BoardMilestoneView(UUID milestoneId, int number, String title, boolean held) {
 	}
 
 	/**
@@ -72,8 +74,9 @@ class WorkViews {
 	 * @param mentor whether the viewer is the Job's Mentor
 	 * @param readOnly the viewer cannot write: not the Mentor or an active member, or the Job is not Active
 	 * @param crew the active Crew members, the assignees the Mentor may pick; empty for anyone else
+	 * @param viewerId the viewer's account, for "Của tôi" and the moves the assignee may make
 	 */
-	record BoardView(UUID boardId, String title, String code, boolean mentor, boolean readOnly,
+	record BoardView(UUID boardId, String title, String code, UUID viewerId, boolean mentor, boolean readOnly,
 			List<BoardMilestoneView> milestones, List<PersonView> crew, List<WorkItemCardView> items) {
 	}
 
@@ -100,7 +103,11 @@ class WorkViews {
 
 	private final StudentDirectory students;
 
-	WorkViews(AgreementCriteria criteria, Crews crews, MentorDirectory mentors, StudentDirectory students) {
+	private final HeldMilestones held;
+
+	WorkViews(AgreementCriteria criteria, Crews crews, MentorDirectory mentors, StudentDirectory students,
+			HeldMilestones held) {
+		this.held = held;
 		this.criteria = criteria;
 		this.crews = crews;
 		this.mentors = mentors;
@@ -110,10 +117,12 @@ class WorkViews {
 	BoardView board(BoardViewer viewer, List<Item> items) {
 		CriteriaInForce inForce = this.criteria.inForce(viewer.board().jobId()).orElse(null);
 		Map<UUID, CriterionInForce> criteria = criteria(inForce);
+		Set<UUID> heldIds = this.held.heldOf(viewer.board().jobId());
 		List<BoardMilestoneView> milestones = inForce == null ? List.of()
 				: inForce.milestones()
 					.stream()
-					.map(milestone -> new BoardMilestoneView(milestone.milestoneId(), milestone.number(), milestone.title()))
+					.map(milestone -> new BoardMilestoneView(milestone.milestoneId(), milestone.number(), milestone.title(),
+							heldIds.contains(milestone.milestoneId())))
 					.toList();
 		List<UUID> crewIds = viewer.mentor() ? this.crews.crewOf(viewer.board().jobId(), Selection.ACTIVE)
 			.stream()
@@ -123,7 +132,8 @@ class WorkViews {
 		items.stream().map(Item::assigneeId).filter(id -> id != null).forEach(people::add);
 		Map<UUID, String> names = names(viewer, people);
 		List<PersonView> crew = crewIds.stream().map(id -> new PersonView(id, names.getOrDefault(id, ""))).toList();
-		return new BoardView(viewer.board().jobId(), viewer.title(), viewer.board().code(), viewer.mentor(),
+		return new BoardView(viewer.board().jobId(), viewer.title(), viewer.board().code(), viewer.accountId(),
+				viewer.mentor(),
 				!viewer.writes(), milestones, crew, items.stream().map(item -> card(item, criteria, names)).toList());
 	}
 

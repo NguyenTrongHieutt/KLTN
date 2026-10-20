@@ -4073,6 +4073,43 @@
         "tags" : [ "board-controller" ]
       }
     },
+    "/api/v1/work-items/{workItemId}/move" : {
+      "post" : {
+        "operationId" : "moveWorkItem",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workItemId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/MoveRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/WorkItemDetailView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "board-controller" ]
+      }
+    },
     "/webhooks/vnpay/ipn" : {
       "get" : {
         "operationId" : "vnpayIpn",
@@ -4684,6 +4721,9 @@
       "BoardMilestoneView" : {
         "type" : "object",
         "properties" : {
+          "held" : {
+            "type" : "boolean"
+          },
           "milestoneId" : {
             "type" : "string",
             "format" : "uuid"
@@ -4696,7 +4736,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "milestoneId", "number", "title" ]
+        "required" : [ "held", "milestoneId", "number", "title" ]
       },
       "BoardView" : {
         "type" : "object",
@@ -4734,9 +4774,13 @@
           },
           "title" : {
             "type" : "string"
+          },
+          "viewerId" : {
+            "type" : "string",
+            "format" : "uuid"
           }
         },
-        "required" : [ "boardId", "code", "crew", "items", "mentor", "milestones", "readOnly", "title" ]
+        "required" : [ "boardId", "code", "crew", "items", "mentor", "milestones", "readOnly", "title", "viewerId" ]
       },
       "CapacityView" : {
         "type" : "object",
@@ -7151,6 +7195,20 @@
           }
         },
         "required" : [ "criteria", "id", "revisionRounds", "title" ]
+      },
+      "MoveRequest" : {
+        "type" : "object",
+        "properties" : {
+          "to" : {
+            "type" : "string",
+            "enum" : [ "TODO", "IN_PROGRESS", "IN_REVIEW", "DONE" ]
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "to", "version" ]
       },
       "NdaRequest" : {
         "type" : "object",

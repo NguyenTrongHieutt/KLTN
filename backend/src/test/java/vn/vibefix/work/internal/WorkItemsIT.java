@@ -214,6 +214,49 @@ class WorkItemsIT extends IntegrationTest {
 			.andExpect(jsonPath("$.readOnly").value(true));
 	}
 
+	@Test
+	void theMentorAndTheAssigneeMoveBetweenToDoAndInProgressOnceTheMilestoneIsHeld() throws Exception {
+		this.jdbc.sql("""
+				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at)
+				VALUES (:id, :job, 0, 'Giai đoạn 1', 1500000, 2, now())
+				""").param("id", MILESTONE).param("job", this.job).update();
+		String id = JsonPath.read(create(this.hung, Role.MENTOR, task("Việc của Vy", ",\"assigneeId\":\"" + this.vy + "\""))
+			.andReturn().getResponse().getContentAsString(), "$.item.id");
+		UUID tung = WorkTestSupport.student(this.jdbc, "Lê Minh Tùng");
+		WorkTestSupport.crewRow(this.jdbc, this.job, tung, "ACTIVE", this.clock.instant());
+
+		move(this.vy, Role.STUDENT, id, "IN_PROGRESS", 1).andExpect(status().isUnprocessableContent())
+			.andExpect(jsonPath("$.reason").value("MILESTONE_NOT_HELD"));
+		this.jdbc.sql("UPDATE job.milestone SET state = 'FUNDED', funded_at = now(), crew_terms_version_no = 1 WHERE id = :id")
+			.param("id", MILESTONE).update();
+		this.mvc.perform(get("/api/v1/boards/" + this.job + "/work-items").with(as(this.vy, Role.STUDENT)))
+			.andExpect(jsonPath("$.milestones[0].held").value(true))
+			.andExpect(jsonPath("$.viewerId").value(this.vy.toString()));
+
+		move(tung, Role.STUDENT, id, "IN_PROGRESS", 1).andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.reason").value("NOT_ASSIGNEE"));
+		move(this.vy, Role.STUDENT, id, "IN_PROGRESS", 1).andExpect(status().isOk())
+			.andExpect(jsonPath("$.item.status").value("IN_PROGRESS"))
+			.andExpect(jsonPath("$.item.version").value(2))
+			.andExpect(jsonPath("$.history[1].action").value("MOVED"))
+			.andExpect(jsonPath("$.history[1].fields[0]").value("status"));
+		move(this.hung, Role.MENTOR, id, "TODO", 1).andExpect(status().isConflict());
+		for (String to : List.of("IN_REVIEW", "DONE")) {
+			move(this.vy, Role.STUDENT, id, to, 2).andExpect(status().isUnprocessableContent())
+				.andExpect(jsonPath("$.reason").value("MOVE_NOT_ALLOWED"));
+			move(this.hung, Role.MENTOR, id, to, 2).andExpect(status().isUnprocessableContent())
+				.andExpect(jsonPath("$.reason").value("MOVE_NOT_ALLOWED"));
+		}
+		move(this.hung, Role.MENTOR, id, "TODO", 2).andExpect(status().isOk())
+			.andExpect(jsonPath("$.item.status").value("TODO"));
+		move(this.lan, Role.CUSTOMER, id, "IN_PROGRESS", 3).andExpect(status().isNotFound());
+	}
+
+	private ResultActions move(UUID account, Role role, String id, String to, long version) throws Exception {
+		return this.mvc.perform(post("/api/v1/work-items/" + id + "/move").with(as(account, role)).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON).content("{\"to\":\"" + to + "\",\"version\":" + version + "}"));
+	}
+
 	private String task(String title, String extra) {
 		return "{\"type\":\"TASK\",\"title\":\"" + title + "\",\"description\":\"Mô tả\",\"checklist\":[{\"text\":\"Có kiểm thử\",\"done\":true},"
 				+ "{\"text\":\"Chạy trên điện thoại\",\"done\":false}],\"milestoneId\":\"" + MILESTONE + "\"" + extra + "}";
