@@ -529,6 +529,50 @@
         "tags" : [ "admin-overview-controller" ]
       }
     },
+    "/api/v1/admin/rules" : {
+      "get" : {
+        "operationId" : "rules",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RulesView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-rules-controller" ]
+      },
+      "put" : {
+        "operationId" : "save_2",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SaveRulesRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RulesView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-rules-controller" ]
+      }
+    },
     "/api/v1/admin/sign-in" : {
       "post" : {
         "operationId" : "signIn",
@@ -12646,6 +12690,80 @@
         },
         "required" : [ "ground", "stepUpCode" ]
       },
+      "RuleChangeView" : {
+        "type" : "object",
+        "properties" : {
+          "changedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "domain" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "newValue" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "oldValue" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "rule" : {
+            "type" : "string",
+            "enum" : [ "AUTO_ACCEPTANCE_DAYS", "AUTO_ACCEPTANCE_FIRST_REMINDER_DAY", "AUTO_ACCEPTANCE_SECOND_REMINDER_DAY", "RATING_WINDOW_DAYS", "REVISION_ROUNDS", "DISPUTE_RESPONSE_DAYS", "TEAM_ISSUE_ANSWER_DAYS", "TEAM_ISSUE_ESCALATION_DAYS", "CLOSURE_CONFIRMATION_DAYS", "CANCELLATION_CONFIRMATION_DAYS", "AUTOMATIC_CLOSURE_DAYS", "FINAL_MERGE_AUTHORIZATION_DAYS", "MENTOR_ACTIVE_JOB_LIMIT", "MENTOR_SHARE_CAP_PERCENT" ]
+          }
+        },
+        "required" : [ "changedAt", "kind" ]
+      },
+      "RuleView" : {
+        "type" : "object",
+        "properties" : {
+          "key" : {
+            "type" : "string",
+            "enum" : [ "AUTO_ACCEPTANCE_DAYS", "AUTO_ACCEPTANCE_FIRST_REMINDER_DAY", "AUTO_ACCEPTANCE_SECOND_REMINDER_DAY", "RATING_WINDOW_DAYS", "REVISION_ROUNDS", "DISPUTE_RESPONSE_DAYS", "TEAM_ISSUE_ANSWER_DAYS", "TEAM_ISSUE_ESCALATION_DAYS", "CLOSURE_CONFIRMATION_DAYS", "CANCELLATION_CONFIRMATION_DAYS", "AUTOMATIC_CLOSURE_DAYS", "FINAL_MERGE_AUTHORIZATION_DAYS", "MENTOR_ACTIVE_JOB_LIMIT", "MENTOR_SHARE_CAP_PERCENT" ]
+          },
+          "max" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "min" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "value" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "key", "max", "min", "value" ]
+      },
+      "RulesView" : {
+        "type" : "object",
+        "properties" : {
+          "history" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/RuleChangeView"
+            }
+          },
+          "rules" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/RuleView"
+            }
+          },
+          "schoolDomains" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "history", "rules", "schoolDomains" ]
+      },
       "SaveRequest" : {
         "type" : "object",
         "properties" : {
@@ -12691,6 +12809,32 @@
           }
         },
         "required" : [ "externalAccess", "milestones", "revision", "scope", "skillIds" ]
+      },
+      "SaveRulesRequest" : {
+        "type" : "object",
+        "properties" : {
+          "schoolDomains" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            },
+            "maxItems" : 200,
+            "minItems" : 0
+          },
+          "stepUpCode" : {
+            "type" : "string",
+            "minLength" : 1,
+            "pattern" : "^[0-9]{6}$"
+          },
+          "values" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          }
+        },
+        "required" : [ "schoolDomains", "stepUpCode", "values" ]
       },
       "SavedView" : {
         "type" : "object",
