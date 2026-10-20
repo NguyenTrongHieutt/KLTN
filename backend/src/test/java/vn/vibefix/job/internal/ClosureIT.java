@@ -1,6 +1,7 @@
 package vn.vibefix.job.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -115,6 +116,9 @@ class ClosureIT extends IntegrationTest {
 		assertThat(notifications("job.job_closed")).isEqualTo(3);
 		assertThat(count("SELECT count(*) FROM notification.todo WHERE todo_key = 'job.answer_closure' AND closed_at IS NULL"))
 			.isZero();
+		await().atMost(Duration.ofSeconds(10)).until(() -> count("""
+				SELECT count(*) FROM reputation.rating_window WHERE job_id = '%s' AND ends_at = opened_at + interval '14 days'
+				""".formatted(this.job)) == 1);
 	}
 
 	@Test

@@ -340,6 +340,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/boards/{boardId}/private-feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["giveFeedback"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/boards/{boardId}/progress": {
         parameters: {
             query?: never;
@@ -350,6 +366,22 @@ export interface paths {
         get: operations["progress"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/boards/{boardId}/ratings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ratings"];
+        put?: never;
+        post: operations["rate"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3922,6 +3954,11 @@ export interface components {
             milestones: number;
             title: string;
         };
+        PrivateFeedbackRequest: {
+            comment?: string;
+            /** Format: int32 */
+            stars: number;
+        };
         Problem: {
             /** @enum {string} */
             code: "SCOPE_MISSING" | "PRICE_MISSING" | "MILESTONE_MISSING" | "MILESTONE_INCOMPLETE" | "MILESTONE_WITHOUT_CRITERION" | "CRITERION_WITHOUT_STEPS" | "PRICE_SUM_MISMATCH" | "EXTERNAL_ACCESS_INCOMPLETE";
@@ -4062,10 +4099,52 @@ export interface components {
             id: string;
             text: string;
         };
+        RateeView: {
+            /** Format: uuid */
+            accountId: string;
+            name: string;
+            role: string;
+        };
+        RatingRequest: {
+            comment: string;
+            /** Format: uuid */
+            rateeId: string;
+            /** Format: int32 */
+            stars: number;
+        };
         RatingSummaryView: {
             average?: number;
             /** Format: int32 */
             count: number;
+        };
+        RatingView: {
+            comment: string;
+            /** Format: date-time */
+            createdAt: string;
+            kind: string;
+            mine: boolean;
+            /** Format: uuid */
+            rateeId: string;
+            rateeName: string;
+            raterRole: string;
+            /** Format: int32 */
+            stars: number;
+        };
+        RatingsView: {
+            audience: string;
+            /** Format: date-time */
+            endsAt?: string;
+            feedbackDue?: boolean;
+            feedbackGiven?: boolean;
+            /** Format: date-time */
+            hiddenUntil?: string;
+            /** Format: uuid */
+            jobId: string;
+            open: boolean;
+            /** Format: date-time */
+            openedAt?: string;
+            ratings: components["schemas"]["RatingView"][];
+            toRate: components["schemas"]["RateeView"][];
         };
         RecommendedMentorView: {
             /** Format: uuid */
@@ -5241,6 +5320,30 @@ export interface operations {
             };
         };
     };
+    giveFeedback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrivateFeedbackRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     progress: {
         parameters: {
             query?: never;
@@ -5259,6 +5362,54 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobProgressView"];
+                };
+            };
+        };
+    };
+    ratings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RatingsView"];
+                };
+            };
+        };
+    };
+    rate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RatingRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RatingsView"];
                 };
             };
         };

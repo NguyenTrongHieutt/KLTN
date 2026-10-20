@@ -37,6 +37,7 @@ import vn.vibefix.team.internal.TeamTestSupport;
  * Mentor's {@code WORK_ITEM_NOTE} note and {@code ATTACHMENT} file ({@code {attachmentId}}), and a Page
  * ({@code {pageId}}, version {@code {versionNo}}), all written by the Mentor after the windows ended, and
  * a Milestone Handover ({@code {handoverId}}) whose Work Item note is the {@code WORK_ITEM_NOTE} canary.
+ * The Mentor's earlier, ended Job holds the former member's {@code PRIVATE_FEEDBACK} about the Mentor.
  */
 final class CrewJobWorld {
 
@@ -222,6 +223,23 @@ final class CrewJobWorld {
 				""").param("id", page).param("mentor", this.mentor).param("at", written).update();
 		world.put("pageId", page);
 		world.put("versionNo", 1);
+		UUID earlier = UUID.randomUUID();
+		Instant ended = SIGNED.minus(Duration.ofDays(30));
+		this.jdbc.sql("""
+				INSERT INTO reputation.rating_window (job_id, product_id, customer_account_id, mentor_account_id, job_title,
+				    opened_at, ends_at, pair_published_at, crew_published_at)
+				VALUES (:job, :product, :owner, :mentor, 'Việc trước của người hướng dẫn', :opened, :ends, :ends, :ends)
+				""").param("job", earlier).param("product", product).param("owner", owner).param("mentor", this.mentor)
+			.param("opened", Timestamp.from(ended.minus(Duration.ofDays(14)))).param("ends", Timestamp.from(ended)).update();
+		this.jdbc.sql("""
+				INSERT INTO reputation.private_feedback (id, job_id, mentor_account_id, student_account_id, stars, comment,
+				    created_at, delete_after)
+				VALUES (:id, :job, :mentor, :student, 2, :comment, :at, :deleteAfter)
+				""").param("id", UUID.randomUUID()).param("job", earlier).param("mentor", this.mentor).param("student", this.former)
+			.param("comment", Canaries.load().get("PRIVATE_FEEDBACK").value())
+			.param("at", Timestamp.from(ended.minus(Duration.ofDays(1))))
+			.param("deleteAfter", Timestamp.from(ended.plus(Duration.ofDays(730))))
+			.update();
 	}
 
 	Optional<RequestPostProcessor> realize(MatrixCaller caller) {
