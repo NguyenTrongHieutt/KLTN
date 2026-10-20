@@ -51,7 +51,7 @@ class VnpaySandbox {
 	private static final JsonMapper JSON = JsonMapper.builder().build();
 
 	/** A payment page to open, with the values the later steps name. */
-	record PayRequest(String url, String txnRef, String createDate, String expireDate) {
+	record PayRequest(String url, String txnRef, String createDate, String expireDate, Instant expiresAt) {
 	}
 
 	/**
@@ -81,7 +81,7 @@ class VnpaySandbox {
 	 * The signed payment URL for {@code amountVnd} whole VND (VNPay counts in hundredths).
 	 * @throws IllegalStateException when the merchant is not configured
 	 */
-	PayRequest payUrl(String txnRef, long amountVnd, String orderInfo, String ipAddr) {
+	PayRequest payUrl(String txnRef, long amountVnd, String orderInfo, String ipAddr, @Nullable String returnUrl) {
 		Instant now = this.clock.instant();
 		Map<String, String> params = new TreeMap<>();
 		params.put("vnp_Version", VERSION);
@@ -96,12 +96,12 @@ class VnpaySandbox {
 		params.put("vnp_IpAddr", ipAddr);
 		params.put("vnp_CreateDate", TIME.format(now));
 		params.put("vnp_ExpireDate", TIME.format(now.plus(EXPIRY)));
-		if (this.properties.returnUrl() != null) {
-			params.put("vnp_ReturnUrl", this.properties.returnUrl().toString());
+		if (returnUrl != null) {
+			params.put("vnp_ReturnUrl", returnUrl);
 		}
 		String hash = VnpaySigner.hmacSha512(secret(), VnpaySigner.queryHashData(params));
 		String url = this.properties.payUrl() + "?" + VnpaySigner.queryString(params) + "&vnp_SecureHash=" + hash;
-		return new PayRequest(url, txnRef, params.get("vnp_CreateDate"), params.get("vnp_ExpireDate"));
+		return new PayRequest(url, txnRef, params.get("vnp_CreateDate"), params.get("vnp_ExpireDate"), now.plus(EXPIRY));
 	}
 
 	/** Checks a return query (the IPN sends the same fields): its hash, then its fields without the hash. */
@@ -154,6 +154,20 @@ class VnpaySandbox {
 	}
 
 	/** The setting the merchant still lacks, or {@code null} when both are set. */
+	/** The merchant's terminal code, once configured. */
+	@Nullable String configuredTmnCode() {
+		return this.properties.tmnCode();
+	}
+
+	/** Where VNPay sends the browser back for this order: CUS-9's route, when configured. */
+	@Nullable String returnUrl(String path) {
+		return this.properties.returnUrl() == null ? null : this.properties.returnUrl().toString().replaceAll("/+$", "") + "/" + path;
+	}
+
+	VnpayProperties.@Nullable TestCard testCard() {
+		return this.properties.testCard();
+	}
+
 	@Nullable String missingSetting() {
 		if (this.properties.tmnCode() == null || this.properties.tmnCode().isBlank()) {
 			return "vibefix.payment.vnpay.tmn-code";

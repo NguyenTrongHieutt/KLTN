@@ -1,0 +1,164 @@
+package vn.vibefix.payment.internal;
+
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import org.jspecify.annotations.Nullable;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import vn.vibefix.job.MilestoneFunding;
+import vn.vibefix.job.MilestoneFunding.FundingJob;
+import vn.vibefix.job.MilestoneFunding.FundingMilestone;
+import vn.vibefix.payment.internal.PaymentOrders.Created;
+import vn.vibefix.payment.internal.PaymentOrders.Order;
+import vn.vibefix.shared.Access;
+import vn.vibefix.shared.ApiException;
+import vn.vibefix.shared.Caller;
+import vn.vibefix.shared.CurrentCaller;
+import vn.vibefix.shared.ErrorCode;
+import vn.vibefix.shared.Gate;
+import vn.vibefix.shared.Role;
+
+/**
+ * JOB-7 for the Customer and CUS-9 (FR-41, AD-14): the Milestones to fund with why one waits,
+ * "Thanh toán", and an order's status, read from the server only; N-13's sandbox test card. Only the
+ * Job's Customer finds anything, and only once its Agreement is confirmed.
+ */
+@RestController
+@Access(Gate.SIGNED_IN)
+class PaymentController {
+
+	record FundingMilestoneView(UUID milestoneId, int number, String title, long priceVnd, String state, boolean fundable,
+			@Nullable String blockedReason) {
+	}
+
+	record PaymentOrderView(UUID id, UUID milestoneId, int number, long amountVnd, String status, Instant createdAt,
+			Instant expiresAt, @Nullable Instant finishedAt, String reference) {
+	}
+
+	/**
+	 * JOB-7's funding.
+	 * @param configured the environment has its VNPay sandbox merchant
+	 */
+	record JobFundingView(UUID jobId, String title, String state, long version, boolean configured,
+			List<FundingMilestoneView> milestones, List<PaymentOrderView> orders) {
+	}
+
+	/** CUS-9: one order, as the server knows it. */
+	record PaymentOrderDetailView(UUID id, UUID jobId, String jobTitle, int number, String milestoneTitle, long amountVnd,
+			String status, Instant createdAt, Instant expiresAt, @Nullable Instant finishedAt, String reference) {
+	}
+
+	record CreatePaymentOrderRequest(@NotNull Long version) {
+	}
+
+	record CreatedPaymentOrderView(UUID id, String payUrl, Instant expiresAt) {
+	}
+
+	/** N-13's help panel: VNPay's published sandbox card, from configuration. */
+	record TestCardView(boolean configured, @Nullable String bank, @Nullable String number, @Nullable String holder,
+			@Nullable String issued, @Nullable String otp) {
+	}
+
+	private final PaymentOrders orders;
+
+	private final MilestoneFunding funding;
+
+	private final VnpaySandbox sandbox;
+
+	private final CurrentCaller callers;
+
+	PaymentController(PaymentOrders orders, MilestoneFunding funding, VnpaySandbox sandbox, CurrentCaller callers) {
+		this.orders = orders;
+		this.funding = funding;
+		this.sandbox = sandbox;
+		this.callers = callers;
+	}
+
+	@GetMapping("/api/v1/jobs/{jobId}/funding")
+	JobFundingView jobFunding(@PathVariable UUID jobId) {
+		FundingJob job = this.funding.forCustomer(customer(), jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		Map<UUID, Integer> numbers = new java.util.HashMap<>();
+		job.milestones().forEach(milestone -> numbers.put(milestone.milestoneId(), milestone.number()));
+		UUID next = job.milestones()
+			.stream()
+			.filter(milestone -> "PLANNED".equals(milestone.state()))
+			.map(FundingMilestone::milestoneId)
+			.findFirst()
+			.orElse(null);
+		List<FundingMilestoneView> milestones = new ArrayList<>();
+		for (FundingMilestone milestone : job.milestones()) {
+			boolean fundable = false;
+			String reason = null;
+			if (milestone.milestoneId().equals(next)) {
+				ApiException refusal = this.funding.refusal(jobId, milestone.milestoneId());
+				fundable = refusal == null;
+				reason = refusal == null ? null : refusal.reason().orElse(refusal.code().name());
+			}
+			milestones.add(new FundingMilestoneView(milestone.milestoneId(), milestone.number(), milestone.title(),
+					milestone.priceVnd(), milestone.state(), fundable, reason));
+		}
+		List<PaymentOrderView> orders = this.orders.ofJob(jobId)
+			.stream()
+			.map(order -> new PaymentOrderView(order.id(), order.milestoneId(), numbers.getOrDefault(order.milestoneId(), 0),
+					order.amountVnd(), order.status(), order.createdAt(), order.expiresAt(), order.finishedAt(), order.txnRef()))
+			.toList();
+		return new JobFundingView(job.jobId(), job.title(), job.state(), job.version(), this.sandbox.missingSetting() == null,
+				milestones, orders);
+	}
+
+	/** "Thanh toán" (FR-41): the order, and the sandbox page the browser goes to in the same tab. */
+	@PostMapping("/api/v1/jobs/{jobId}/milestones/{milestoneId}/payment-orders")
+	@ResponseStatus(HttpStatus.CREATED)
+	CreatedPaymentOrderView createPaymentOrder(@PathVariable UUID jobId, @PathVariable UUID milestoneId,
+			@Valid @RequestBody CreatePaymentOrderRequest body, HttpServletRequest request) {
+		Created created = this.orders.create(customer(), jobId, milestoneId, body.version(), request.getRemoteAddr());
+		return new CreatedPaymentOrderView(created.id(), created.payUrl(), created.expiresAt());
+	}
+
+	@GetMapping("/api/v1/payment-orders/{paymentOrderId}")
+	PaymentOrderDetailView paymentOrder(@PathVariable UUID paymentOrderId) {
+		UUID customer = customer();
+		Order order = this.orders.byId(paymentOrderId)
+			.filter(found -> found.customerId().equals(customer))
+			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		FundingJob job = this.funding.byId(order.jobId()).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		FundingMilestone milestone = job.milestones()
+			.stream()
+			.filter(found -> found.milestoneId().equals(order.milestoneId()))
+			.findFirst()
+			.orElse(null);
+		return new PaymentOrderDetailView(order.id(), order.jobId(), job.title(), milestone == null ? 0 : milestone.number(),
+				milestone == null ? "" : milestone.title(), order.amountVnd(), order.status(), order.createdAt(),
+				order.expiresAt(), order.finishedAt(), order.txnRef());
+	}
+
+	@GetMapping("/api/v1/payment/test-card")
+	TestCardView testCard() {
+		VnpayProperties.TestCard card = this.sandbox.testCard();
+		return card == null ? new TestCardView(false, null, null, null, null, null)
+				: new TestCardView(true, card.bank(), card.number(), card.holder(), card.issued(), card.otp());
+	}
+
+	/** The Customer calling; anyone else finds nothing. */
+	private UUID customer() {
+		Caller caller = this.callers.get();
+		if (!caller.hasRole(Role.CUSTOMER)) {
+			throw new ApiException(ErrorCode.NOT_FOUND);
+		}
+		return caller.requireAccountId();
+	}
+
+}

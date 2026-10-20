@@ -92,6 +92,7 @@ function Overview({ job }: { job: Job }) {
           applications={job.state === 'OPEN' ? applications.length : undefined}
           chat={hasChat(job.state) ? { unread: chat.data?.unread ?? false } : undefined}
           agreement={job.agreementShared}
+          payment={job.agreementConfirmed}
         />
       </div>
       {job.state === 'SELECTING' && job.mentor && job.ndaDueAt ? (

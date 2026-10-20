@@ -11,6 +11,17 @@ vibefix:
   github:
     # AD-25: the dev GitHub organization; the prod profile refuses to start with it.
     organization: vibefix-dev
+  payment:
+    vnpay:
+      # CUS-9's route: VNPay sends the browser back to {return-url}/{paymentOrderId} (AD-14).
+      return-url: http://localhost:5173/thanh-toan
+      # N-13: the test card VNPay publishes for its sandbox (public test data, not a real card).
+      test-card:
+        bank: NCB
+        number: "9704198526191432198"
+        holder: NGUYEN VAN A
+        issued: "07/15"
+        otp: "123456"
   email:
     # The dev stack's Mailpit (deploy/compose.yaml sets VIBEFIX_EMAIL_SMTP_HOST=mailpit); its web view
     # is http://127.0.0.1:8025. It needs no credentials and no TLS.

@@ -1,0 +1,8 @@
+subject: Đã nhận thanh toán thử nghiệm {amount} cho Giai đoạn {n} của {job}
+---
+Xin chào,
+
+vibefix đã nhận thanh toán {amount} cho Giai đoạn {n} của công việc {job}.
+Nhóm thực hiện được báo để bắt đầu làm.
+
+Giao dịch thử nghiệm — không dùng tiền thật. vibefix đang chạy thử với môi trường thử nghiệm của VNPay.

@@ -64,12 +64,12 @@ enum Transition {
 			List.of(new Guard("FR-17", "The Agreement is confirmed"),
 					new Guard("FR-75", "The Crew is confirmed, re-checked here")),
 			List.of(new Effect("job", "The Crew Terms version the Crew confirmed comes into force before M1 records it")),
-			false, false),
+			false, true),
 
 	J7(Machine.JOB, job(JobState.STARTING), job(JobState.ACTIVE), Set.of(SYSTEM),
 			"Code Job: repositories created and access verified (FR-18); Assessment Job: immediately",
 			List.of(new Guard("FR-18", "A Code Job's repositories exist and its access is verified")), List.of(), false,
-			false),
+			true),
 
 	J8(Machine.JOB, job(JobState.ACTIVE), job(JobState.CLOSING), Set.of(USER, AUTO, DECISION),
 			"Closure confirmed (FR-37, FR-67), or a confirmed cancellation or decision with Accepted work (FR-40, FR-54)",
@@ -102,7 +102,7 @@ enum Transition {
 			List.of(new Guard("FR-41", "No other Held Milestone on the Job"),
 					new Guard("FR-17", "The Job is in Agreement (Milestone 1, after FR-17) or Active")),
 			List.of(new Effect("job", "The Milestone records the Crew Terms version in force, which its release uses (FR-42)")),
-			true, false),
+			true, true),
 
 	M2(Machine.MILESTONE, milestone(MilestoneState.FUNDED, MilestoneState.REVISION_REQUESTED),
 			milestone(MilestoneState.SUBMITTED), Set.of(USER), "Milestone Handover by the Mentor (FR-32)",

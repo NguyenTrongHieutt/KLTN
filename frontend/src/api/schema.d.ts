@@ -500,6 +500,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/jobs/{jobId}/funding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["jobFunding"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jobs/{jobId}/invitations": {
         parameters: {
             query?: never;
@@ -526,6 +542,22 @@ export interface paths {
         get: operations["search"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/jobs/{jobId}/milestones/{milestoneId}/payment-orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["createPaymentOrder"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1156,6 +1188,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/payment-orders/{paymentOrderId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["paymentOrder"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payment/test-card": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["testCard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/products": {
         parameters: {
             query?: never;
@@ -1684,6 +1748,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/webhooks/vnpay/ipn": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["vnpayIpn"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1950,6 +2030,17 @@ export interface components {
             email: string;
             stepUpCode: string;
         };
+        CreatePaymentOrderRequest: {
+            /** Format: int64 */
+            version: number;
+        };
+        CreatedPaymentOrderView: {
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: uuid */
+            id: string;
+            payUrl: string;
+        };
         CreatedView: {
             /** Format: uuid */
             id: string;
@@ -2179,6 +2270,18 @@ export interface components {
             status: "OPEN" | "RESOLVED" | "FALSE_POSITIVE";
             type: string;
         };
+        FundingMilestoneView: {
+            blockedReason?: string;
+            fundable: boolean;
+            /** Format: uuid */
+            milestoneId: string;
+            /** Format: int32 */
+            number: number;
+            /** Format: int64 */
+            priceVnd: number;
+            state: string;
+            title: string;
+        };
         InvitationsView: {
             invitations: components["schemas"]["SentInvitationView"][];
             /** Format: int32 */
@@ -2189,6 +2292,10 @@ export interface components {
         InviteRequest: {
             /** Format: uuid */
             mentorId: string;
+        };
+        IpnResponse: {
+            Message: string;
+            RspCode: string;
         };
         JobApplicationView: {
             approach: string;
@@ -2223,6 +2330,17 @@ export interface components {
             productId?: string;
             skillIds: string[];
             title: string;
+        };
+        JobFundingView: {
+            configured: boolean;
+            /** Format: uuid */
+            jobId: string;
+            milestones: components["schemas"]["FundingMilestoneView"][];
+            orders: components["schemas"]["PaymentOrderView"][];
+            state: string;
+            title: string;
+            /** Format: int64 */
+            version: number;
         };
         JobMentorView: {
             displayName: string;
@@ -2292,6 +2410,7 @@ export interface components {
             jobType: string;
         };
         JobView: {
+            agreementConfirmed: boolean;
             agreementShared: boolean;
             appUsers?: string;
             /** @enum {string} */
@@ -2622,6 +2741,44 @@ export interface components {
             size: number;
             /** Format: int64 */
             total: number;
+        };
+        PaymentOrderDetailView: {
+            /** Format: int64 */
+            amountVnd: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: date-time */
+            finishedAt?: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            jobId: string;
+            jobTitle: string;
+            milestoneTitle: string;
+            /** Format: int32 */
+            number: number;
+            reference: string;
+            status: string;
+        };
+        PaymentOrderView: {
+            /** Format: int64 */
+            amountVnd: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: date-time */
+            finishedAt?: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            milestoneId: string;
+            /** Format: int32 */
+            number: number;
+            reference: string;
+            status: string;
         };
         PendingCodeView: {
             /** Format: int32 */
@@ -3144,6 +3301,14 @@ export interface components {
             verifiedUntil?: string;
             /** Format: int32 */
             yearOfStudy?: number;
+        };
+        TestCardView: {
+            bank?: string;
+            configured: boolean;
+            holder?: string;
+            issued?: string;
+            number?: string;
+            otp?: string;
         };
         ThemeRequest: {
             /** @enum {string} */
@@ -4063,6 +4228,28 @@ export interface operations {
             };
         };
     };
+    jobFunding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFundingView"];
+                };
+            };
+        };
+    };
     invitations: {
         parameters: {
             query?: never;
@@ -4134,6 +4321,33 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MentorSearchView"];
+                };
+            };
+        };
+    };
+    createPaymentOrder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+                milestoneId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePaymentOrderRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedPaymentOrderView"];
                 };
             };
         };
@@ -5094,6 +5308,48 @@ export interface operations {
             };
         };
     };
+    paymentOrder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                paymentOrderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentOrderDetailView"];
+                };
+            };
+        };
+    };
+    testCard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestCardView"];
+                };
+            };
+        };
+    };
     products: {
         parameters: {
             query?: never;
@@ -5920,6 +6176,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VerificationView"];
+                };
+            };
+        };
+    };
+    vnpayIpn: {
+        parameters: {
+            query: {
+                params: {
+                    [key: string]: string;
+                };
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IpnResponse"];
                 };
             };
         };

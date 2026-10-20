@@ -76,6 +76,10 @@ export const routes: RouteObject[] = [
         lazy: async () => ({ Component: (await import('@/features/chat/JobChatPage')).JobChatPage }),
       },
       {
+        path: 'cong-viec/:jobId/thanh-toan',
+        lazy: async () => ({ Component: (await import('@/features/payment/JobPaymentPage')).JobPaymentPage }),
+      },
+      {
         path: 'cong-viec/:jobId/tim-nguoi',
         lazy: async () => ({ Component: (await import('@/features/matching/MentorSearchPage')).MentorSearchPage }),
       },
@@ -98,6 +102,20 @@ export const routes: RouteObject[] = [
         lazy: async () => ({
           Component: (await import('@/features/product/RegisterProductPage')).RegisterProductPage,
         }),
+      },
+    ],
+  },
+  {
+    // CUS-9, VNPay's return URL, a focused route (AD-14): it only reads the order's status.
+    path: 'thanh-toan/:paymentOrderId',
+    lazy: async () => {
+      const [{ FocusedLayout }, { t }] = await Promise.all([import('./FocusedLayout'), import('@/i18n/t')])
+      return { element: <FocusedLayout title={t('screen.payment.result.title')} closeTo="/cong-viec" /> }
+    },
+    children: [
+      {
+        index: true,
+        lazy: async () => ({ Component: (await import('@/features/payment/PaymentResultPage')).PaymentResultPage }),
       },
     ],
   },

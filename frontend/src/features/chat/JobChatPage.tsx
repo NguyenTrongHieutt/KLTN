@@ -52,7 +52,13 @@ function CustomerChat({ jobId }: { jobId: string }) {
 function CustomerHeader({ job }: { job: Job }) {
   return (
     <JobHeader title={job.title} state={job.state} meta={customerMeta(job)}>
-      <JobTabs jobId={job.id} current="chat" chat={{ unread: false }} agreement={job.agreementShared} />
+      <JobTabs
+        jobId={job.id}
+        current="chat"
+        chat={{ unread: false }}
+        agreement={job.agreementShared}
+        payment={job.agreementConfirmed}
+      />
     </JobHeader>
   )
 }

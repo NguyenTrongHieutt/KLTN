@@ -88,6 +88,24 @@ enum JobReason {
 	AGREEMENT_CONFIRMED,
 
 	/** The live draft has edits the Customer has not seen; the Mentor shares them first (AD-29). */
-	DRAFT_CHANGED
+	DRAFT_CHANGED,
+
+	/** J6 and M1 wait for the confirmed Agreement (FR-17). */
+	AGREEMENT_NOT_CONFIRMED,
+
+	/** J6's FR-75 guard: the Crew is not confirmed, or a lock left a re-confirmation owed (AD-41). */
+	CREW_NOT_READY,
+
+	/** Another Code Job of the Product is in Starting, Active, or Closing (AD-4). */
+	PRODUCT_HAS_RUNNING_JOB,
+
+	/** Another Milestone of the Job is Held (FR-41). */
+	MILESTONE_HELD,
+
+	/** The Milestone is not the next Planned one, or the Job cannot fund it in its state (FR-41). */
+	MILESTONE_NOT_FUNDABLE,
+
+	/** A Code Job's J7 waits for its repositories and verified access (FR-18, Epic 7). */
+	REPOSITORIES_NOT_READY
 
 }

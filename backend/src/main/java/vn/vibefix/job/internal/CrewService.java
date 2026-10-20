@@ -505,6 +505,58 @@ class CrewService implements Crews {
 			.list();
 	}
 
+	@Override
+	@Transactional(readOnly = true)
+	public Optional<ReleaseTerms> releaseTermsOf(UUID milestoneId) {
+		return this.jdbc.sql("SELECT job_id, crew_terms_version_no FROM job.milestone WHERE id = :id AND crew_terms_version_no IS NOT NULL")
+			.param("id", milestoneId)
+			.query((rs, n) -> {
+				UUID jobId = rs.getObject("job_id", UUID.class);
+				int no = rs.getInt("crew_terms_version_no");
+				Map<UUID, Integer> shares = new LinkedHashMap<>();
+				this.jdbc.sql("SELECT party_account_id, percent FROM job.crew_terms_share WHERE job_id = :job AND version_no = :no"
+						+ " ORDER BY crew_row_id NULLS FIRST, party_account_id")
+					.param("job", jobId)
+					.param("no", no)
+					.query(share -> {
+						shares.put(share.getObject("party_account_id", UUID.class), share.getInt("percent"));
+					});
+				return new ReleaseTerms(no, Map.copyOf(shares));
+			})
+			.optional();
+	}
+
+	/**
+	 * J6 (FR-17, AD-41): the latest pending Crew Terms version comes into force and the older ones are
+	 * superseded, so from J6 on exactly one version is {@code IN_FORCE}. Runs in J6's apply.
+	 * @return the version now in force
+	 */
+	int bringIntoForce(UUID jobId) {
+		int latest = this.jdbc.sql("SELECT max(version_no) FROM job.crew_terms_version WHERE job_id = :job AND status = 'PENDING'")
+			.param("job", jobId)
+			.query(Integer.class)
+			.optional()
+			.orElseThrow(() -> new IllegalStateException("J6 found no pending Crew Terms version on " + jobId));
+		this.jdbc.sql("""
+				UPDATE job.crew_terms_version SET status = CASE WHEN version_no = :latest THEN 'IN_FORCE' ELSE 'SUPERSEDED' END
+				WHERE job_id = :job AND status IN ('PENDING', 'IN_FORCE')
+				""").param("job", jobId).param("latest", latest).update();
+		return latest;
+	}
+
+	/** The Crew Terms version in force, once J6 brought one into force. */
+	Optional<Integer> inForce(UUID jobId) {
+		return this.jdbc.sql("SELECT version_no FROM job.crew_terms_version WHERE job_id = :job AND status = 'IN_FORCE'")
+			.param("job", jobId)
+			.query(Integer.class)
+			.optional();
+	}
+
+	/** J6's FR-75 guard: the Crew condition holds and no lock left a re-confirmation owed (R-1 H1). */
+	boolean crewReady(UUID jobId) {
+		return crewConfirmed(jobId) && !reconfirmOwed(jobId);
+	}
+
 	/** The latest Crew Terms version that is not voided, with its shares and confirmations. */
 	Optional<TermsVersion> latest(UUID jobId) {
 		return this.jdbc.sql("""

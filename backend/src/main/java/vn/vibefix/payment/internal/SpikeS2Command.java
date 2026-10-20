@@ -121,7 +121,8 @@ class SpikeS2Command implements ApplicationRunner, ExitCodeGenerator {
 			return;
 		}
 		String txnRef = reference != null ? reference : "S2" + VnpaySandbox.TIME.format(this.clock.instant());
-		PayRequest request = this.sandbox.payUrl(txnRef, Long.parseLong(amount), "Thanh toan thu spike S2 " + txnRef, ip(args));
+		PayRequest request = this.sandbox.payUrl(txnRef, Long.parseLong(amount), "Thanh toan thu spike S2 " + txnRef, ip(args),
+				this.environment.getProperty("vibefix.payment.vnpay.return-url"));
 		this.out.println("Spike S2 pay: open this URL in a browser and pay with the sandbox test card:");
 		this.out.println(request.url());
 		this.out.println("vnp_TxnRef=" + request.txnRef() + "  vnp_CreateDate=" + request.createDate() + "  vnp_ExpireDate="

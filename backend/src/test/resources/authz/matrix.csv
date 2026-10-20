@@ -737,3 +737,31 @@ POST /api/v1/mentor/jobs/{jobId}/crew/reconfirm,OWNER,,crew-remove.json,404 NOT_
 POST /api/v1/mentor/jobs/{jobId}/crew/reconfirm,CUSTOMER,,crew-remove.json,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/crew/reconfirm,STUDENT,,crew-remove.json,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/crew/reconfirm,ADMINISTRATOR,,crew-remove.json,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/jobs/{jobId}/funding,ANONYMOUS,,,401
+GET /api/v1/jobs/{jobId}/funding,OWNER,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/funding,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/funding,MENTOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/funding,STUDENT,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/funding,ADMINISTRATOR,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/milestones/{milestoneId}/payment-orders,ANONYMOUS,,payment-order.json,401
+POST /api/v1/jobs/{jobId}/milestones/{milestoneId}/payment-orders,OWNER,,payment-order.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/milestones/{milestoneId}/payment-orders,CUSTOMER,,payment-order.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/milestones/{milestoneId}/payment-orders,MENTOR,,payment-order.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/milestones/{milestoneId}/payment-orders,STUDENT,,payment-order.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/milestones/{milestoneId}/payment-orders,ADMINISTRATOR,,payment-order.json,404 NOT_FOUND
+GET /api/v1/payment-orders/{paymentOrderId},ANONYMOUS,,,401
+GET /api/v1/payment-orders/{paymentOrderId},OWNER,,,404 NOT_FOUND
+GET /api/v1/payment-orders/{paymentOrderId},CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/payment-orders/{paymentOrderId},MENTOR,,,404 NOT_FOUND
+GET /api/v1/payment-orders/{paymentOrderId},STUDENT,,,404 NOT_FOUND
+GET /api/v1/payment-orders/{paymentOrderId},ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/payment/test-card,ANONYMOUS,,,401
+GET /api/v1/payment/test-card,CUSTOMER,,,200
+GET /api/v1/payment/test-card,MENTOR,,,200
+GET /api/v1/payment/test-card,STUDENT,,,200
+GET /api/v1/payment/test-card,ADMINISTRATOR,,,200
+GET /webhooks/vnpay/ipn,ANONYMOUS,,,200
+GET /webhooks/vnpay/ipn,CUSTOMER,,,200
+GET /webhooks/vnpay/ipn,MENTOR,,,200
+GET /webhooks/vnpay/ipn,STUDENT,,,200
+GET /webhooks/vnpay/ipn,ADMINISTRATOR,,,200

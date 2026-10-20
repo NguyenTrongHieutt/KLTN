@@ -14,8 +14,15 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param hashSecretFile the file holding the merchant's hash secret (AD-22), never the secret itself
  * @param returnUrl where the payment page sends the browser back; it only displays status
  * @param allowLocalStub tests point the URLs at a local stub; nothing else sets it
+ * @param testCard the test card VNPay publishes for its sandbox, which N-13's help panel shows
  */
 @ConfigurationProperties("vibefix.payment.vnpay")
 record VnpayProperties(URI payUrl, URI apiUrl, @Nullable String tmnCode, @Nullable Path hashSecretFile,
-		@Nullable URI returnUrl, boolean allowLocalStub) {
+		@Nullable URI returnUrl, boolean allowLocalStub, @Nullable TestCard testCard) {
+
+	/** VNPay's published sandbox card: test data, never a real card. */
+	record TestCard(@Nullable String bank, @Nullable String number, @Nullable String holder, @Nullable String issued,
+			@Nullable String otp) {
+	}
+
 }

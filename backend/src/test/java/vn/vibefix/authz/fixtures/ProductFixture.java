@@ -122,6 +122,8 @@ public class ProductFixture implements MatrixFixture {
 		world.put("applicationId", application);
 		// No Crew row exists on the fixture's Draft: every Crew command on it finds nothing (AD-41).
 		world.put("crewRowId", UUID.randomUUID());
+		world.put("milestoneId", UUID.randomUUID());
+		world.put("paymentOrderId", UUID.randomUUID());
 	}
 
 	@Override

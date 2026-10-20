@@ -51,6 +51,10 @@ class NotificationTypes implements NotificationCatalog {
 	static final TodoType JOB_CONFIRM_AGREEMENT_MENTOR = new TodoType("job.confirm_agreement_mentor", Set.of(Audience.MENTOR), 2,
 			Set.of("job"));
 
+	/** The Agreement confirmed (Milestone 1) or the previous Milestone accepted: the Customer pays (FR-41). */
+	static final TodoType PAYMENT_FUND_MILESTONE = new TodoType("payment.fund_milestone", Set.of(Audience.CUSTOMER), 2,
+			Set.of("n", "amount"));
+
 	/** J4 (FR-75): the Mentor picks the Crew, until FR-17's Crew condition holds. */
 	static final TodoType JOB_PICK_CREW = new TodoType("job.pick_crew", Set.of(Audience.MENTOR), 2, Set.of("job"));
 
@@ -218,6 +222,28 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType JOB_CREW_RECONFIRM_NEEDED = new NotificationType("job.crew_reconfirm_needed",
 			Set.of(Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("job"));
 
+	/** The IPN recorded a payment (FR-41): the receipt, with N-13's line in its email. */
+	static final NotificationType PAYMENT_PAYMENT_RECEIVED = new NotificationType("payment.payment_received",
+			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "check", Set.of("job", "amount", "n"));
+
+	/** The IPN reported a failure, or the order expired (AD-14). */
+	static final NotificationType PAYMENT_PAYMENT_FAILED = new NotificationType("payment.payment_failed",
+			Set.of(Audience.CUSTOMER), Channel.IN_APP, EmailClass.TRANSACTIONAL, "alert", Set.of("job", "n"));
+
+	/** An IPN named no known order (AD-14): every Administrator. */
+	static final NotificationType PAYMENT_UNKNOWN_PAYMENT = new NotificationType("payment.unknown_payment",
+			Set.of(Audience.ADMIN), Channel.IN_APP, EmailClass.TRANSACTIONAL, "alert", Set.of());
+
+	/** M1 (FR-41): the Mentor and the active Crew may start, with N-13's line in the email. */
+	static final NotificationType JOB_MILESTONE_FUNDED = new NotificationType("job.milestone_funded",
+			Set.of(Audience.MENTOR, Audience.CREW_ACTIVE), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "check",
+			Set.of("job", "n"));
+
+	/** J6 for a Code Job: the repositories are being prepared (FR-18). */
+	static final NotificationType JOB_JOB_STARTING = new NotificationType("job.job_starting",
+			Set.of(Audience.CUSTOMER, Audience.MENTOR, Audience.CREW_ACTIVE), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info",
+			Set.of("job"));
+
 	/** The Mentor added this Student to the Crew (FR-75). */
 	static final NotificationType JOB_CREW_ASSIGNED = new NotificationType("job.crew_assigned", Set.of(Audience.CREW_ASSIGNED),
 			Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
@@ -267,14 +293,16 @@ class NotificationTypes implements NotificationCatalog {
 				MATCHING_INVITED_TO_APPLY, CHAT_CHAT_OPENED, JOB_AGREEMENT_DRAFT_READY, JOB_CREW_ASSIGNED,
 				JOB_CREW_MEMBER_CONFIRMED, JOB_CREW_MEMBER_DECLINED, JOB_CREW_MEMBER_REMOVED, JOB_CREW_TERMS_CHANGED,
 				JOB_CREW_CONFIRMED, JOB_CONFLICT_OF_INTEREST_REFUSED, JOB_PERSON_LINK_ALERT, JOB_AGREEMENT_CHANGES_REQUESTED,
-				JOB_AGREEMENT_AWAITING_CONFIRMATION, JOB_AGREEMENT_CONFIRMED, JOB_MILESTONE_AWAITING_FUNDING, JOB_CREW_RECONFIRM_NEEDED);
+				JOB_AGREEMENT_AWAITING_CONFIRMATION, JOB_AGREEMENT_CONFIRMED, JOB_MILESTONE_AWAITING_FUNDING, JOB_CREW_RECONFIRM_NEEDED,
+				PAYMENT_PAYMENT_RECEIVED, PAYMENT_PAYMENT_FAILED, PAYMENT_UNKNOWN_PAYMENT, JOB_MILESTONE_FUNDED, JOB_JOB_STARTING);
 	}
 
 	@Override
 	public List<TodoType> todoTypes() {
 		return List.of(COMPLETE_MENTOR_APPLICATION, VERIFY_STUDENT, SCANNING_RESOLVE_INTAKE_FINDING,
 				MATCHING_CHOOSE_ASSIGNEE, MATCHING_SIGN_NDA, MATCHING_ANSWER_INVITATION_TO_APPLY, JOB_DRAFT_AGREEMENT,
-				JOB_REVIEW_AGREEMENT, JOB_PICK_CREW, JOB_CONFIRM_CREW_TERMS, JOB_REVISE_AGREEMENT, JOB_CONFIRM_AGREEMENT_MENTOR);
+				JOB_REVIEW_AGREEMENT, JOB_PICK_CREW, JOB_CONFIRM_CREW_TERMS, JOB_REVISE_AGREEMENT, JOB_CONFIRM_AGREEMENT_MENTOR,
+				PAYMENT_FUND_MILESTONE);
 	}
 
 }

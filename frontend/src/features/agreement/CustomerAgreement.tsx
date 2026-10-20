@@ -478,6 +478,7 @@ function CustomerHeader({ job }: { job: Job }) {
         current="agreement"
         chat={hasChat(job.state) ? { unread: chat.data?.unread ?? false } : undefined}
         agreement
+        payment={job.agreementConfirmed}
       />
     </JobHeader>
   )
