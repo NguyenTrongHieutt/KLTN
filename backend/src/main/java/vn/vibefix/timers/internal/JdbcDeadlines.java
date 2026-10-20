@@ -102,6 +102,20 @@ class JdbcDeadlines implements Deadlines {
 				""").param("job", jobId).param("now", Timestamp.from(now)).update();
 	}
 
+	@Override
+	@Transactional(readOnly = true)
+	public Optional<Instant> dueAt(String kind, UUID subjectId) {
+		return this.jdbc.sql("""
+				SELECT due_at FROM timers.deadline WHERE kind = :kind AND subject_id = :subject AND status = 'PENDING'
+				ORDER BY due_at LIMIT 1
+				""")
+			.param("kind", kind)
+			.param("subject", subjectId)
+			.query(Timestamp.class)
+			.optional()
+			.map(Timestamp::toInstant);
+	}
+
 	/** Claims the earliest due Deadline in the current transaction, skipping rows another poller holds. */
 	Optional<DueDeadline> claimDue(Instant now) {
 		return this.jdbc.sql("""

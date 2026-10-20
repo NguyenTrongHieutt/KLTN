@@ -1,0 +1,5 @@
+subject: Còn {n} ngày: hệ thống sẽ tự nghiệm thu Giai đoạn {m} ngày {date}
+---
+Xin chào,
+
+Người hướng dẫn đã bàn giao Giai đoạn {m}. Nếu bạn chưa nghiệm thu hoặc yêu cầu sửa, hệ thống sẽ tự nghiệm thu giai đoạn này ngày {date}. Hãy mở báo cáo bàn giao và kiểm tra từng tiêu chí trước ngày đó.

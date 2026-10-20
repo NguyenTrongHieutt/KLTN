@@ -318,10 +318,14 @@ class NotificationTypes implements NotificationCatalog {
 			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "check",
 			Set.of("mentor", "n", "date"));
 
-	/** M5 (FR-33): the Customer and the Mentor learn the Milestone is accepted. */
+	/** M5 (FR-33, FR-35): the Customer and the Mentor learn the Milestone is accepted, or accepted automatically. */
 	static final NotificationType JOB_MILESTONE_ACCEPTED = new NotificationType("job.milestone_accepted",
 			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "check",
-			Set.of("n", "job"));
+			Set.of("n", "job", "how"));
+
+	/** FR-35: the Customer is reminded, twice, when the System accepts a handover they have not decided. */
+	static final NotificationType DELIVERY_ACCEPTANCE_REMINDER = new NotificationType("delivery.acceptance_reminder",
+			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.REMINDER, "info", Set.of("n", "m", "date"));
 
 	/** M4 (FR-33, FR-34): the Mentor learns what to fix and how many Revision Rounds are left. */
 	static final NotificationType JOB_REVISION_REQUESTED = new NotificationType("job.revision_requested",
@@ -338,7 +342,7 @@ class NotificationTypes implements NotificationCatalog {
 
 	/** A handed-over Milestone waits for the Customer's decision (FR-33): it decides itself if ignored. */
 	static final TodoType DELIVERY_REVIEW_HANDOVER = new TodoType("delivery.review_handover", Set.of(Audience.CUSTOMER), 1,
-			Set.of("n"));
+			Set.of("n", "date"));
 
 	@Override
 	public List<NotificationType> notificationTypes() {
@@ -355,7 +359,7 @@ class NotificationTypes implements NotificationCatalog {
 				JOB_CREW_CONFIRMED, JOB_CONFLICT_OF_INTEREST_REFUSED, JOB_PERSON_LINK_ALERT, JOB_AGREEMENT_CHANGES_REQUESTED,
 				JOB_AGREEMENT_AWAITING_CONFIRMATION, JOB_AGREEMENT_CONFIRMED, JOB_MILESTONE_AWAITING_FUNDING, JOB_CREW_RECONFIRM_NEEDED,
 				PAYMENT_PAYMENT_RECEIVED, PAYMENT_PAYMENT_FAILED, PAYMENT_UNKNOWN_PAYMENT, JOB_MILESTONE_FUNDED, JOB_MILESTONE_SUBMITTED,
-				JOB_MILESTONE_ACCEPTED, JOB_REVISION_REQUESTED, PAYMENT_FUNDS_RELEASED,
+				JOB_MILESTONE_ACCEPTED, JOB_REVISION_REQUESTED, PAYMENT_FUNDS_RELEASED, DELIVERY_ACCEPTANCE_REMINDER,
 				JOB_JOB_STARTING,
 				PAYMENT_REFUND_REQUESTED, PAYMENT_REFUND_CONFIRMED, WORK_WORK_ITEM_ASSIGNED,
 				WORK_REVIEW_REQUESTED, WORK_WORK_ITEM_APPROVED, WORK_WORK_ITEM_RETURNED);

@@ -188,11 +188,27 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
     expect(within(article).getByText('Người hướng dẫn tự nhận xét: Đạt')).toBeInTheDocument()
     expect(within(article).getByText('Đã rà đủ chín mục.')).toBeInTheDocument()
     expect(within(article).getByText('Mở báo cáo, đếm các mục')).toBeInTheDocument()
-    expect(within(article).getByText('Chờ bạn nghiệm thu · trước 27/10')).toBeInTheDocument()
+    expect(within(article).getByText('Chờ bạn nghiệm thu · tự nghiệm thu 27/10')).toBeInTheDocument()
     expect(within(article).getByRole('heading', { name: 'Báo cáo đánh giá · phiên bản 3' })).toBeInTheDocument()
     expect(within(article).getByText('Ứng dụng chạy trên điện thoại.')).toBeInTheDocument()
     expect(within(article).queryByRole('heading', { name: 'Hạng mục chưa Xong khi bàn giao' })).toBeNull()
     expect(screen.queryByRole('link', { name: 'Tạo bàn giao' })).toBeNull()
+  })
+
+  it('labels a Milestone accepted automatically (FR-35)', { timeout: 20_000 }, async () => {
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/jobs/j1': () => json(customerJob),
+      'GET /api/v1/boards/j1/handovers': () =>
+        json(list({ audience: 'CUSTOMER', handovers: [{ ...list().handovers[0], status: 'ACCEPTED', auto: true }] })),
+      'GET /api/v1/handovers/h1': () => json(report({ status: 'ACCEPTED', auto: true })),
+    })
+    renderAt('/cong-viec/j1/ban-giao/h1')
+
+    const article = (await screen.findByRole('heading', { level: 2, name: 'Báo cáo bàn giao · Giai đoạn 1 · Báo cáo' })).closest(
+      'article',
+    )!
+    expect(within(article).getByText('Đã tự nghiệm thu')).toBeInTheDocument()
+    expect(within(screen.getByRole('navigation', { name: 'Các lần bàn giao' })).getByText('Đã tự nghiệm thu')).toBeInTheDocument()
   })
 
   it('lets a Crew member read the report, with the item notes, and nothing more', { timeout: 20_000 }, async () => {

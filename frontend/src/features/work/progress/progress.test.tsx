@@ -201,6 +201,16 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
     expect(await screen.findByText('Đã bàn giao · chờ bạn nghiệm thu · còn 2 lượt sửa')).toBeInTheDocument()
   })
 
+  it('labels a Milestone accepted automatically (FR-35)', { timeout: 20_000 }, async () => {
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/jobs/j1': () => json(customerJob),
+      'GET /api/v1/boards/j1/progress': () =>
+        json(progress({ milestones: [{ ...progress().milestones[0], state: 'ACCEPTED', autoAccepted: true }] })),
+    })
+    renderAt('/cong-viec/j1')
+    expect(await screen.findByText('Đã tự nghiệm thu')).toBeInTheDocument()
+  })
+
   it('is not found for a Student the Job does not name', { timeout: 20_000 }, async () => {
     fakeBackend(signedIn('STUDENT'))
     renderAt('/cong-viec/j1')

@@ -2753,6 +2753,7 @@ export interface components {
         DeliveryReportView: {
             assessment: boolean;
             audience: string;
+            auto: boolean;
             /** Format: date-time */
             checkBy: string;
             checks: components["schemas"]["HandoverCheckView"][];
@@ -2982,6 +2983,7 @@ export interface components {
             version: number;
         };
         HandoverSummaryView: {
+            auto: boolean;
             /** Format: date-time */
             checkBy: string;
             /** Format: date-time */

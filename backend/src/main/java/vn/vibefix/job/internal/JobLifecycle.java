@@ -409,6 +409,28 @@ class JobLifecycle {
 		return commit(checked.get(0));
 	}
 
+	/**
+	 * Applies a Milestone transition when its checks pass, as a Deadline does (M5 by Auto-acceptance). A
+	 * refusal writes nothing and leaves the caller's transaction usable.
+	 * @return the outcome, or empty when the Milestone moved on or a check refused it
+	 */
+	@Transactional
+	Optional<Applied> tryApplyMilestone(Transition transition, UUID jobId, UUID milestoneId, Actor actor, Trigger trigger,
+			Map<String, Object> input) {
+		Job job = this.jobs.lock(jobId).orElse(null);
+		if (job == null) {
+			return Optional.empty();
+		}
+		List<Applying> checked;
+		try {
+			checked = check(job, actor, trigger, List.of(Planned.milestone(transition, milestoneId, input)), false);
+		}
+		catch (ApiException refused) {
+			return Optional.empty();
+		}
+		return Optional.of(commit(checked.get(0)));
+	}
+
 	private List<Applying> check(Job job, Actor actor, Trigger trigger, List<Planned> cascade, boolean dryRun) {
 		String jobState = job.state().name();
 		Map<UUID, String> milestones = new HashMap<>();

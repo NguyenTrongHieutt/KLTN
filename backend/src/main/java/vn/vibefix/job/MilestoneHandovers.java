@@ -16,17 +16,21 @@ public interface MilestoneHandovers {
 	 * A Job with a Board.
 	 * @param state the Job's state name
 	 * @param assessment an Assessment Job, whose handover is its Assessment Report (FR-10)
+	 * @param frozen an open Dispute freezes it (FR-52): Auto-acceptance waits
 	 */
 	record HandoverJob(UUID jobId, UUID productId, UUID customerId, @Nullable UUID mentorId, String title, String state,
-			long version, boolean assessment) {
+			long version, boolean assessment, boolean frozen) {
 	}
 
 	/**
 	 * What M2 recorded.
 	 * @param version the Job's version after it
 	 * @param checkBy when the Customer should have checked by: the handover plus the Auto-acceptance days
+	 * @param firstReminderAt the handover plus the first reminder's days (FR-35)
+	 * @param secondReminderAt the handover plus the second reminder's days
 	 */
-	record Submitted(UUID transitionId, int number, long version, Instant checkBy) {
+	record Submitted(UUID transitionId, int number, long version, Instant checkBy, Instant firstReminderAt,
+			Instant secondReminderAt) {
 	}
 
 	Optional<HandoverJob> job(UUID jobId);
@@ -61,6 +65,13 @@ public interface MilestoneHandovers {
 	 * HANDOVER_CHANGED}); {@code FORBIDDEN CUSTOMER_ONLY}; {@code CONFLICT JOB_FROZEN}
 	 */
 	Decided accept(UUID jobId, UUID milestoneId, UUID customerId, long expectedVersion, UUID handoverId);
+
+	/**
+	 * M5 by Auto-acceptance (FR-35) for the Milestone's current handover, applied by the System.
+	 * @return what M5 recorded, or empty when the Milestone moved on, the handover is not its current
+	 * one, or the Job is frozen; nothing is written then
+	 */
+	Optional<Decided> autoAccept(UUID jobId, UUID milestoneId, UUID handoverId);
 
 	/**
 	 * M4 by the Customer on the loaded version, naming {@code criteria} criteria.

@@ -56,7 +56,7 @@ class HandoverController {
 	 * @param checkBy when the Customer should have checked by
 	 */
 	record HandoverSummaryView(UUID id, int number, String milestoneTitle, int round, String status, Instant createdAt,
-			Instant checkBy) {
+			Instant checkBy, boolean auto) {
 	}
 
 	/**
@@ -149,12 +149,13 @@ class HandoverController {
 	 * @param roundsLeft the Milestone's Revision Rounds left (FR-34)
 	 * @param decision for the Customer while the handover waits for them
 	 * @param checks the Customer's marks once decided
+	 * @param auto accepted by Auto-acceptance (FR-35)
 	 */
 	record DeliveryReportView(UUID id, UUID jobId, String jobTitle, int number, String milestoneTitle, int round,
 			String status, String mentorName, Instant createdAt, Instant checkBy, boolean assessment, String audience,
 			List<HandoverCriterionView> criteria, List<HandoverItemNoteView> itemNotes, @Nullable HandoverReportView report,
 			long version, int roundsLeft, @Nullable HandoverDecisionView decision, @Nullable Instant decidedAt,
-			List<HandoverCheckView> checks) {
+			List<HandoverCheckView> checks, boolean auto) {
 	}
 
 	private final DeliveryAccess access;
@@ -194,7 +195,7 @@ class HandoverController {
 				this.handovers.of(jobId)
 					.stream()
 					.map(handover -> new HandoverSummaryView(handover.id(), handover.number(), handover.milestoneTitle(),
-							handover.round(), handover.status(), handover.createdAt(), handover.checkBy()))
+							handover.round(), handover.status(), handover.createdAt(), handover.checkBy(), handover.auto()))
 					.toList());
 	}
 
@@ -301,7 +302,8 @@ class HandoverController {
 				this.decisions.checks(handover.id())
 					.stream()
 					.map(c -> new HandoverCheckView(c.criterionId(), c.met(), c.comment()))
-					.toList());
+					.toList(),
+				handover.auto());
 	}
 
 }

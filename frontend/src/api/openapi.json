@@ -6361,6 +6361,9 @@
           "audience" : {
             "type" : "string"
           },
+          "auto" : {
+            "type" : "boolean"
+          },
           "checkBy" : {
             "type" : "string",
             "format" : "date-time"
@@ -6434,7 +6437,7 @@
             "format" : "int64"
           }
         },
-        "required" : [ "assessment", "audience", "checkBy", "checks", "createdAt", "criteria", "id", "itemNotes", "jobId", "jobTitle", "mentorName", "milestoneTitle", "number", "round", "roundsLeft", "status", "version" ]
+        "required" : [ "assessment", "audience", "auto", "checkBy", "checks", "createdAt", "criteria", "id", "itemNotes", "jobId", "jobTitle", "mentorName", "milestoneTitle", "number", "round", "roundsLeft", "status", "version" ]
       },
       "EnrolmentRequest" : {
         "type" : "object",
@@ -6998,6 +7001,9 @@
       "HandoverSummaryView" : {
         "type" : "object",
         "properties" : {
+          "auto" : {
+            "type" : "boolean"
+          },
           "checkBy" : {
             "type" : "string",
             "format" : "date-time"
@@ -7025,7 +7031,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "checkBy", "createdAt", "id", "milestoneTitle", "number", "round", "status" ]
+        "required" : [ "auto", "checkBy", "createdAt", "id", "milestoneTitle", "number", "round", "status" ]
       },
       "HandoverWorkItemView" : {
         "type" : "object",
