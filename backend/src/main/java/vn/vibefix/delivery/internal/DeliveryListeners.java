@@ -22,7 +22,8 @@ import vn.vibefix.shared.ProcessedEvents;
  * M1 and M4 make a Milestone wait for its handover (FR-32, UX-DR15): the Mentor gets
  * {@code delivery.hand_over}, due at the end of the Milestone's due date in Vietnam time, which stands
  * for {@code effectiveDueAt} until FR-68's extensions exist. M2 closes it in {@link Handovers}. Each is
- * replay-safe through {@link ProcessedEvents}.
+ * replay-safe through {@link ProcessedEvents}. M5 on an Assessment Job opens the Mentor's follow-up to-do
+ * (FR-11).
  */
 @Component
 class DeliveryListeners {
@@ -31,14 +32,18 @@ class DeliveryListeners {
 
 	private final Handovers handovers;
 
+	private final FollowUps followUps;
+
 	private final MilestoneHandovers jobs;
 
 	private final Todos todos;
 
 	private final ProcessedEvents processedEvents;
 
-	DeliveryListeners(Handovers handovers, MilestoneHandovers jobs, Todos todos, ProcessedEvents processedEvents) {
+	DeliveryListeners(Handovers handovers, FollowUps followUps, MilestoneHandovers jobs, Todos todos,
+			ProcessedEvents processedEvents) {
 		this.handovers = handovers;
+		this.followUps = followUps;
 		this.jobs = jobs;
 		this.todos = todos;
 		this.processedEvents = processedEvents;
@@ -66,6 +71,16 @@ class DeliveryListeners {
 					Map.of("n", String.valueOf(inForce.number())), "/cong-viec/" + job.jobId() + "/ban-giao", due(inForce.dueOn()),
 					job.jobId()));
 		});
+	}
+
+	/** M5 on an Assessment Job (FR-11): the Mentor may draft follow-up Jobs from the accepted Report. */
+	@ApplicationModuleListener
+	void onAssessmentAccepted(JobTransitioned event) {
+		if (!"M5".equals(event.transition())
+				|| !this.processedEvents.markProcessed("delivery.DeliveryListeners.onAssessmentAccepted", event.eventId())) {
+			return;
+		}
+		this.jobs.job(event.jobId()).filter(job -> job.assessment()).ifPresent(this.followUps::openTodo);
 	}
 
 	/** The end of the due date in Vietnam time. */

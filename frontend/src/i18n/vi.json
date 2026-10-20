@@ -2407,6 +2407,33 @@
       "milestonesHandedOver": "{n} giai đoạn đã bàn giao",
       "reviewsWritten": "{n} lượt duyệt việc",
       "skills": "Kỹ năng: {skills}"
+    },
+    "followUps": {
+      "heading": "Công việc tiếp theo",
+      "mentorLead": "Soạn công việc tiếp theo từ các đề xuất của báo cáo đánh giá (phiên bản {version}). Khách hàng sẽ tự sửa và đăng tin.",
+      "customerLead": "Người hướng dẫn đã soạn các công việc này từ báo cáo đánh giá. Mở một công việc để sửa và đăng tin, hoặc bỏ qua.",
+      "sent": "Đã gửi khách hàng. Khách hàng sẽ tự sửa và đăng tin.",
+      "recommendation": "Đề xuất {n}",
+      "recommendationLabel": "Đề xuất trong báo cáo",
+      "title": "Tiêu đề",
+      "jobTypes": "Loại công việc",
+      "scope": "Phạm vi",
+      "criteria": "Tiêu chí nghiệm thu đề xuất (mỗi dòng một tiêu chí)",
+      "effort": "Ước lượng công sức (ngày)",
+      "effortDays": "Khoảng {n} ngày",
+      "add": "Thêm công việc tiếp theo",
+      "save": "Lưu",
+      "remove": "Xóa",
+      "submit": "Gửi khách hàng",
+      "submitted": "Đã gửi các công việc tiếp theo cho khách hàng.",
+      "open": "Mở để đăng tin",
+      "discard": "Bỏ qua",
+      "opened": "Đã mở thành bản nháp tin đăng",
+      "discarded": "Đã bỏ qua",
+      "openDraft": "Xem bản nháp",
+      "none": "Chưa có công việc tiếp theo nào.",
+      "edit": "Sửa",
+      "cancel": "Hủy"
     }
   },
   "notice": {
@@ -2865,7 +2892,9 @@
     },
     "delivery": {
       "hand_over": "Bàn giao Giai đoạn {n}",
-      "review_handover": "Nghiệm thu Giai đoạn {n} · tự nghiệm thu {date}"
+      "review_handover": "Nghiệm thu Giai đoạn {n} · tự nghiệm thu {date}",
+      "draft_follow_ups": "Soạn công việc tiếp theo từ báo cáo của {job}",
+      "approve_follow_ups": "Xem các công việc tiếp theo cho {job}"
     },
     "repo": {
       "confirm_data_deletion": "Xác nhận đã xóa dữ liệu và bản xem thử của {job}"
@@ -3107,6 +3136,9 @@
     "delivery": {
       "acceptance_reminder": {
         "title": "Còn {n} ngày: hệ thống sẽ tự nghiệm thu Giai đoạn {m} ngày {date}"
+      },
+      "follow_up_drafts_ready": {
+        "title": "Người hướng dẫn đã soạn {n} công việc tiếp theo cho {job}"
       }
     },
     "repo": {
@@ -3300,7 +3332,12 @@
       "HANDOVER_COMMIT_MISSING": "Bàn giao công việc sửa mã cần kho mã của công việc, sẽ có ở bước sau.",
       "CUSTOMER_ONLY": "Chỉ khách hàng nghiệm thu hoặc yêu cầu sửa được.",
       "HANDOVER_DECIDED": "Lần bàn giao này đã được quyết định.",
-      "REVISION_CRITERIA_MISSING": "Hãy chọn ít nhất một tiêu chí Chưa đạt để yêu cầu sửa."
+      "REVISION_CRITERIA_MISSING": "Hãy chọn ít nhất một tiêu chí Chưa đạt để yêu cầu sửa.",
+      "REPORT_NOT_ACCEPTED": "Bạn soạn công việc tiếp theo được sau khi khách hàng chấp nhận báo cáo đánh giá.",
+      "RECOMMENDATION_UNKNOWN": "Hãy chọn một đề xuất có trong báo cáo đã được chấp nhận.",
+      "FOLLOW_UPS_SUBMITTED": "Các công việc tiếp theo đã được gửi cho khách hàng.",
+      "NO_FOLLOW_UPS": "Hãy soạn ít nhất một công việc tiếp theo trước khi gửi.",
+      "FOLLOW_UP_NOT_AWAITING": "Công việc tiếp theo này đã được mở hoặc bỏ qua."
     },
     "repo": {
       "JOB_NOT_ENDED": "Bạn xác nhận được sau khi công việc bắt đầu kết thúc.",
