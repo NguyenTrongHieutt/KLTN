@@ -1086,6 +1086,80 @@
         "tags" : [ "handover-controller" ]
       }
     },
+    "/api/v1/handovers/{handoverId}/accept" : {
+      "post" : {
+        "operationId" : "accept_2",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "handoverId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/HandoverDecisionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DeliveryReportView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "handover-controller" ]
+      }
+    },
+    "/api/v1/handovers/{handoverId}/revision" : {
+      "post" : {
+        "operationId" : "requestRevision",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "handoverId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/HandoverDecisionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DeliveryReportView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "handover-controller" ]
+      }
+    },
     "/api/v1/jobs" : {
       "get" : {
         "operationId" : "jobs",
@@ -6291,6 +6365,12 @@
             "type" : "string",
             "format" : "date-time"
           },
+          "checks" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/HandoverCheckView"
+            }
+          },
           "createdAt" : {
             "type" : "string",
             "format" : "date-time"
@@ -6300,6 +6380,13 @@
             "items" : {
               "$ref" : "#/components/schemas/HandoverCriterionView"
             }
+          },
+          "decidedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "decision" : {
+            "$ref" : "#/components/schemas/HandoverDecisionView"
           },
           "id" : {
             "type" : "string",
@@ -6335,11 +6422,19 @@
             "type" : "integer",
             "format" : "int32"
           },
+          "roundsLeft" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
           "status" : {
             "type" : "string"
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
           }
         },
-        "required" : [ "assessment", "audience", "checkBy", "createdAt", "criteria", "id", "itemNotes", "jobId", "jobTitle", "mentorName", "milestoneTitle", "number", "round", "status" ]
+        "required" : [ "assessment", "audience", "checkBy", "checks", "createdAt", "criteria", "id", "itemNotes", "jobId", "jobTitle", "mentorName", "milestoneTitle", "number", "round", "roundsLeft", "status", "version" ]
       },
       "EnrolmentRequest" : {
         "type" : "object",
@@ -6574,6 +6669,40 @@
         },
         "required" : [ "fundable", "fundedVnd", "milestoneId", "number", "priceVnd", "refundedVnd", "releasedTotalVnd", "state", "title", "topUpVnd" ]
       },
+      "HandoverCheckRequest" : {
+        "type" : "object",
+        "properties" : {
+          "comment" : {
+            "type" : "string",
+            "maxLength" : 2000,
+            "minLength" : 0
+          },
+          "criterionId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "met" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "criterionId", "met" ]
+      },
+      "HandoverCheckView" : {
+        "type" : "object",
+        "properties" : {
+          "comment" : {
+            "type" : "string"
+          },
+          "criterionId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "met" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "criterionId", "met" ]
+      },
       "HandoverCriterionInputView" : {
         "type" : "object",
         "properties" : {
@@ -6637,6 +6766,41 @@
           }
         },
         "required" : [ "checkSteps", "criterionId", "met", "note", "number", "statement" ]
+      },
+      "HandoverDecisionRequest" : {
+        "type" : "object",
+        "properties" : {
+          "checks" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/HandoverCheckRequest"
+            },
+            "maxItems" : 100,
+            "minItems" : 0
+          },
+          "sensitive" : {
+            "type" : "string",
+            "enum" : [ "CHECK", "MASK" ]
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "version" ]
+      },
+      "HandoverDecisionView" : {
+        "type" : "object",
+        "properties" : {
+          "releaseVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "revisionAllowed" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "releaseVnd", "revisionAllowed" ]
       },
       "HandoverItemNoteRequest" : {
         "type" : "object",
@@ -8296,6 +8460,9 @@
       "MilestoneProgressView" : {
         "type" : "object",
         "properties" : {
+          "autoAccepted" : {
+            "type" : "boolean"
+          },
           "done" : {
             "type" : "integer",
             "format" : "int32"
@@ -8320,6 +8487,14 @@
             "type" : "integer",
             "format" : "int64"
           },
+          "revisionCriteria" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "roundsLeft" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
           "state" : {
             "type" : "string"
           },
@@ -8331,7 +8506,7 @@
             "format" : "int32"
           }
         },
-        "required" : [ "done", "inReview", "milestoneId", "number", "state", "title", "total" ]
+        "required" : [ "autoAccepted", "done", "inReview", "milestoneId", "number", "roundsLeft", "state", "title", "total" ]
       },
       "MilestoneRequest" : {
         "type" : "object",

@@ -209,6 +209,7 @@ final class CrewJobWorld {
 				""").param("id", handover).param("item", item).param("note", Canaries.load().get("WORK_ITEM_NOTE").value())
 			.update();
 		world.put("handoverId", handover);
+		world.put("crewCriterionId", criterion);
 		UUID page = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO work.page (id, job_id, title, version_no, created_by_account_id, created_at, updated_at)

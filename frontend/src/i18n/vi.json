@@ -2174,8 +2174,11 @@
         "fundedDue": "Đang làm · hạn {date}",
         "inReview": "{n} hạng mục chờ duyệt",
         "revision": "Cần sửa theo yêu cầu",
-        "submitted": "Chờ khách nghiệm thu"
-      }
+        "submitted": "Chờ khách nghiệm thu",
+        "revisionCount": "Cần sửa: {n} tiêu chí · còn {r} lượt"
+      },
+      "roundsLeft": "còn {r} lượt sửa",
+      "autoAccepted": "Đã tự nghiệm thu"
     },
     "progress": {
       "milestones": "Các giai đoạn",
@@ -2214,7 +2217,9 @@
       "itemMeta": "Lần bàn giao thứ {round} · {date}",
       "status": {
         "SUBMITTED": "Chờ khách nghiệm thu",
-        "customer": "Chờ bạn nghiệm thu · trước {date}"
+        "customer": "Chờ bạn nghiệm thu · trước {date}",
+        "ACCEPTED": "Đã nghiệm thu",
+        "REVISION_REQUESTED": "Đã yêu cầu sửa"
       },
       "report": {
         "title": "Báo cáo bàn giao · Giai đoạn {n} · {title}",
@@ -2225,7 +2230,9 @@
         "selfNotMet": "Người hướng dẫn tự nhận xét: Chưa đạt",
         "checkSteps": "Cách kiểm tra",
         "items": "Hạng mục chưa Xong khi bàn giao",
-        "assessment": "{title} · phiên bản {version}"
+        "assessment": "{title} · phiên bản {version}",
+        "customerMet": "Khách hàng kiểm tra: Đạt",
+        "customerNotMet": "Khách hàng kiểm tra: Chưa đạt"
       },
       "form": {
         "title": "Tạo bàn giao",
@@ -2246,6 +2253,37 @@
         "send": "Gửi bàn giao",
         "sent": "Đã bàn giao Giai đoạn {n}.",
         "stale": "Công việc vừa thay đổi. Biểu mẫu đã tải lại, hãy kiểm tra rồi gửi lại."
+      },
+      "check": {
+        "title": "Kiểm tra bàn giao",
+        "nextAction": "Việc tiếp theo của bạn",
+        "lead": "Hãy kiểm tra từng tiêu chí rồi nghiệm thu hoặc yêu cầu sửa. Giai đoạn này còn {r} lượt sửa.",
+        "leadNoRounds": "Hãy kiểm tra từng tiêu chí rồi nghiệm thu. Giai đoạn này đã hết lượt sửa.",
+        "start": "Kiểm tra từng tiêu chí",
+        "step": "Tiêu chí {k}/{n}",
+        "howTo": "Cách kiểm tra",
+        "mentorNote": "Ghi chú của người hướng dẫn",
+        "met": "Đạt",
+        "notMet": "Chưa đạt",
+        "comment": "Nhận xét của bạn (không bắt buộc)",
+        "previous": "Trước",
+        "next": "Tiếp",
+        "pickFirst": "Hãy chọn Đạt hoặc Chưa đạt trước khi tiếp tục.",
+        "summary": "Tóm tắt kiểm tra",
+        "summaryLead": "Bạn đã kiểm tra {n} tiêu chí. Chưa có gì được gửi cho đến khi bạn chọn bên dưới.",
+        "edit": "Sửa",
+        "accept": "Nghiệm thu giai đoạn",
+        "revise": "Yêu cầu sửa ({n} tiêu chí)",
+        "noRounds": "Giai đoạn này đã hết lượt sửa, nên chỉ còn nghiệm thu.",
+        "acceptTitle": "Nghiệm thu Giai đoạn {n}?",
+        "acceptBody": "Khi nghiệm thu, {amount} được chuyển cho người hướng dẫn và nhóm thực hiện. Bước này không hoàn tác được.",
+        "reviseTitle": "Yêu cầu sửa {n} tiêu chí?",
+        "reviseBody": "Người hướng dẫn sẽ sửa rồi bàn giao lại. Yêu cầu này dùng một lượt sửa, còn {r} lượt sau đó.",
+        "confirm": "Xác nhận",
+        "cancel": "Quay lại",
+        "accepted": "Đã nghiệm thu Giai đoạn {n}.",
+        "revised": "Đã gửi yêu cầu sửa Giai đoạn {n}.",
+        "stale": "Bàn giao vừa thay đổi. Hãy mở lại báo cáo bàn giao."
       }
     }
   },
@@ -2849,6 +2887,12 @@
       },
       "milestone_submitted": {
         "title": "Người hướng dẫn {mentor} đã bàn giao Giai đoạn {n}. Hãy kiểm tra trước {date}."
+      },
+      "milestone_accepted": {
+        "title": "Giai đoạn {n} của {job} đã được nghiệm thu"
+      },
+      "revision_requested": {
+        "title": "Khách hàng yêu cầu sửa Giai đoạn {n}: {count} tiêu chí · còn {rounds} lượt"
       }
     },
     "matching": {
@@ -2897,6 +2941,9 @@
       },
       "refund_confirmed": {
         "title": "Đã hoàn {amount} (thử nghiệm) cho {job}"
+      },
+      "funds_released": {
+        "title": "Bạn nhận {amount} từ Giai đoạn {n} của {job} (thử nghiệm)"
       }
     },
     "work": {
@@ -3010,7 +3057,10 @@
       "PRODUCT_HAS_RUNNING_JOB": "sản phẩm này đang có một công việc khác chạy",
       "MILESTONE_HELD": "một giai đoạn khác đang được giữ tiền",
       "MILESTONE_NOT_FUNDABLE": "giai đoạn này chưa đến lượt thanh toán",
-      "REPOSITORIES_NOT_READY": "kho mã của công việc chưa sẵn sàng"
+      "REPOSITORIES_NOT_READY": "kho mã của công việc chưa sẵn sàng",
+      "REVISION_ROUNDS_USED": "Giai đoạn này đã hết lượt sửa.",
+      "HANDOVER_CHANGED": "Người hướng dẫn vừa bàn giao lại. Hãy mở bản bàn giao mới nhất.",
+      "CUSTOMER_ONLY": "Chỉ khách hàng nghiệm thu hoặc yêu cầu sửa được."
     },
     "matching": {
       "JOB_POST_NOT_OPEN": "công việc không còn nhận ứng tuyển",
@@ -3071,7 +3121,10 @@
       "CRITERION_MARK_MISSING": "Hãy chọn Đạt hoặc Chưa đạt và ghi chú cho từng tiêu chí.",
       "REPORT_MISSING": "Công việc đánh giá cần có báo cáo đánh giá trước khi bàn giao.",
       "SENSITIVE_CONTENT": "Ghi chú có thể chứa khóa bí mật hoặc dữ liệu khách hàng.",
-      "HANDOVER_COMMIT_MISSING": "Bàn giao công việc sửa mã cần kho mã của công việc, sẽ có ở bước sau."
+      "HANDOVER_COMMIT_MISSING": "Bàn giao công việc sửa mã cần kho mã của công việc, sẽ có ở bước sau.",
+      "CUSTOMER_ONLY": "Chỉ khách hàng nghiệm thu hoặc yêu cầu sửa được.",
+      "HANDOVER_DECIDED": "Lần bàn giao này đã được quyết định.",
+      "REVISION_CRITERIA_MISSING": "Hãy chọn ít nhất một tiêu chí Chưa đạt để yêu cầu sửa."
     }
   },
   "markdown": {

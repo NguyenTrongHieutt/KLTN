@@ -151,6 +151,27 @@ export const routes: RouteObject[] = [
     ],
   },
   {
+    // JOB-5's guided check, a focused task route (UX-DR33) that "Đóng" leaves for the Delivery Report.
+    path: 'cong-viec/:jobId/ban-giao/:handoverId/kiem-tra',
+    lazy: async () => {
+      const [{ FocusedLayout }, { t }] = await Promise.all([import('./FocusedLayout'), import('@/i18n/t')])
+      return {
+        element: (
+          <FocusedLayout
+            title={t('screen.handover.check.title')}
+            closeTo={(params) => `/cong-viec/${params.jobId ?? ''}/ban-giao/${params.handoverId ?? ''}`}
+          />
+        ),
+      }
+    },
+    children: [
+      {
+        index: true,
+        lazy: async () => ({ Component: (await import('@/features/delivery/GuidedCheckPage')).GuidedCheckPage }),
+      },
+    ],
+  },
+  {
     // CUS-9, VNPay's return URL, a focused route (AD-14): it only reads the order's status.
     path: 'thanh-toan/:paymentOrderId',
     lazy: async () => {

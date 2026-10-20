@@ -1,0 +1,7 @@
+subject: Bạn nhận {amount} từ Giai đoạn {n} của {job} (thử nghiệm)
+---
+Xin chào,
+
+Giai đoạn {n} của công việc {job} đã được nghiệm thu. Phần của bạn, {amount}, đã vào số dư của bạn trên vibefix.
+
+Giao dịch thử nghiệm — không dùng tiền thật. vibefix đang chạy thử với môi trường thử nghiệm của VNPay.

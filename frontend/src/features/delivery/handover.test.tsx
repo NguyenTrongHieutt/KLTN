@@ -96,6 +96,9 @@ const report = (overrides: object = {}) => ({
   ],
   itemNotes: [],
   report: { pageId: 'p1', versionNo: 3, title: 'Báo cáo đánh giá', body: '## Hiện trạng\n\nỨng dụng chạy trên điện thoại.' },
+  version: 13,
+  roundsLeft: 2,
+  checks: [],
   ...overrides,
 })
 

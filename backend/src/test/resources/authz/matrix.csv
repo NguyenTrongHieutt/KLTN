@@ -799,6 +799,36 @@ GET /api/v1/handovers/{handoverId},ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
 GET /api/v1/handovers/{handoverId},OWNER,,,200
 GET /api/v1/handovers/{handoverId},JOB_MENTOR,,,200
 GET /api/v1/handovers/{handoverId},CREW_ACTIVE,,,200
+# The Customer decides a handover (FR-33): OWNER reaches M4 or M5, which refuse the stale version the
+# body carries; the Mentor and the Crew may not decide.
+POST /api/v1/handovers/{handoverId}/accept,ANONYMOUS,,handover-accept.json,401
+POST /api/v1/handovers/{handoverId}/accept,CUSTOMER,,handover-accept.json,404 NOT_FOUND
+POST /api/v1/handovers/{handoverId}/accept,MENTOR,,handover-accept.json,404 NOT_FOUND
+POST /api/v1/handovers/{handoverId}/accept,STUDENT,,handover-accept.json,404 NOT_FOUND
+POST /api/v1/handovers/{handoverId}/accept,ADMINISTRATOR,,handover-accept.json,404 NOT_FOUND
+POST /api/v1/handovers/{handoverId}/accept,TEAM_MENTOR,,handover-accept.json,404 NOT_FOUND
+POST /api/v1/handovers/{handoverId}/accept,TEAM_MEMBER,,handover-accept.json,404 NOT_FOUND
+POST /api/v1/handovers/{handoverId}/accept,CREW_ASSIGNED,,handover-accept.json,404 NOT_FOUND
+POST /api/v1/handovers/{handoverId}/accept,CREW_INACTIVE,,handover-accept.json,404 NOT_FOUND
+POST /api/v1/handovers/{handoverId}/accept,CREW_FORMER,,handover-accept.json,404 NOT_FOUND
+POST /api/v1/handovers/{handoverId}/accept,ADMIN_TEAM_ISSUE_GRANT,,handover-accept.json,404 NOT_FOUND
+POST /api/v1/handovers/{handoverId}/accept,OWNER,,handover-accept.json,409 STALE
+POST /api/v1/handovers/{handoverId}/accept,JOB_MENTOR,,handover-accept.json,403 FORBIDDEN CUSTOMER_ONLY
+POST /api/v1/handovers/{handoverId}/accept,CREW_ACTIVE,,handover-accept.json,403 FORBIDDEN CUSTOMER_ONLY
+POST /api/v1/handovers/{handoverId}/revision,ANONYMOUS,,handover-revision.json,401
+POST /api/v1/handovers/{handoverId}/revision,CUSTOMER,,handover-revision.json,404 NOT_FOUND
+POST /api/v1/handovers/{handoverId}/revision,MENTOR,,handover-revision.json,404 NOT_FOUND
+POST /api/v1/handovers/{handoverId}/revision,STUDENT,,handover-revision.json,404 NOT_FOUND
+POST /api/v1/handovers/{handoverId}/revision,ADMINISTRATOR,,handover-revision.json,404 NOT_FOUND
+POST /api/v1/handovers/{handoverId}/revision,TEAM_MENTOR,,handover-revision.json,404 NOT_FOUND
+POST /api/v1/handovers/{handoverId}/revision,TEAM_MEMBER,,handover-revision.json,404 NOT_FOUND
+POST /api/v1/handovers/{handoverId}/revision,CREW_ASSIGNED,,handover-revision.json,404 NOT_FOUND
+POST /api/v1/handovers/{handoverId}/revision,CREW_INACTIVE,,handover-revision.json,404 NOT_FOUND
+POST /api/v1/handovers/{handoverId}/revision,CREW_FORMER,,handover-revision.json,404 NOT_FOUND
+POST /api/v1/handovers/{handoverId}/revision,ADMIN_TEAM_ISSUE_GRANT,,handover-revision.json,404 NOT_FOUND
+POST /api/v1/handovers/{handoverId}/revision,OWNER,,handover-revision.json,409 STALE
+POST /api/v1/handovers/{handoverId}/revision,JOB_MENTOR,,handover-revision.json,403 FORBIDDEN CUSTOMER_ONLY
+POST /api/v1/handovers/{handoverId}/revision,CREW_ACTIVE,,handover-revision.json,403 FORBIDDEN CUSTOMER_ONLY
 POST /api/v1/boards/{boardId}/work-items,ANONYMOUS,,work-item.json,401
 POST /api/v1/boards/{boardId}/work-items,OWNER,,work-item.json,404 NOT_FOUND
 POST /api/v1/boards/{boardId}/work-items,CUSTOMER,,work-item.json,404 NOT_FOUND

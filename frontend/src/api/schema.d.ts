@@ -468,6 +468,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/handovers/{handoverId}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["accept_2"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/handovers/{handoverId}/revision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["requestRevision"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jobs": {
         parameters: {
             query?: never;
@@ -2723,9 +2755,13 @@ export interface components {
             audience: string;
             /** Format: date-time */
             checkBy: string;
+            checks: components["schemas"]["HandoverCheckView"][];
             /** Format: date-time */
             createdAt: string;
             criteria: components["schemas"]["HandoverCriterionView"][];
+            /** Format: date-time */
+            decidedAt?: string;
+            decision?: components["schemas"]["HandoverDecisionView"];
             /** Format: uuid */
             id: string;
             itemNotes: components["schemas"]["HandoverItemNoteView"][];
@@ -2739,7 +2775,11 @@ export interface components {
             report?: components["schemas"]["HandoverReportView"];
             /** Format: int32 */
             round: number;
+            /** Format: int32 */
+            roundsLeft: number;
             status: string;
+            /** Format: int64 */
+            version: number;
         };
         EnrolmentRequest: {
             code: string;
@@ -2828,6 +2868,18 @@ export interface components {
             /** Format: int64 */
             topUpVnd: number;
         };
+        HandoverCheckRequest: {
+            comment?: string;
+            /** Format: uuid */
+            criterionId: string;
+            met: boolean;
+        };
+        HandoverCheckView: {
+            comment?: string;
+            /** Format: uuid */
+            criterionId: string;
+            met: boolean;
+        };
         HandoverCriterionInputView: {
             checkSteps: string;
             /** Format: uuid */
@@ -2851,6 +2903,18 @@ export interface components {
             /** Format: int32 */
             number: number;
             statement: string;
+        };
+        HandoverDecisionRequest: {
+            checks?: components["schemas"]["HandoverCheckRequest"][];
+            /** @enum {string} */
+            sensitive?: "CHECK" | "MASK";
+            /** Format: int64 */
+            version: number;
+        };
+        HandoverDecisionView: {
+            /** Format: int64 */
+            releaseVnd: number;
+            revisionAllowed: boolean;
         };
         HandoverItemNoteRequest: {
             note: string;
@@ -3444,6 +3508,7 @@ export interface components {
             title: string;
         };
         MilestoneProgressView: {
+            autoAccepted: boolean;
             /** Format: int32 */
             done: number;
             /** Format: date */
@@ -3456,6 +3521,10 @@ export interface components {
             number: number;
             /** Format: int64 */
             priceVnd?: number;
+            /** Format: int32 */
+            revisionCriteria?: number;
+            /** Format: int32 */
+            roundsLeft: number;
             state: string;
             title: string;
             /** Format: int32 */
@@ -5229,6 +5298,58 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliveryReportView"];
+                };
+            };
+        };
+    };
+    accept_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                handoverId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HandoverDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliveryReportView"];
+                };
+            };
+        };
+    };
+    requestRevision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                handoverId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HandoverDecisionRequest"];
+            };
+        };
         responses: {
             /** @description OK */
             200: {

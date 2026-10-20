@@ -27,6 +27,12 @@ export interface MilestoneContext {
   dueOn?: string | null
   /** Work Items waiting for the Mentor's review, shown to the Mentor. */
   inReview?: number
+  /** The Revision Rounds left (FR-34). */
+  roundsLeft?: number
+  /** How many criteria the latest revision request named (FR-33). */
+  revisionCriteria?: number | null
+  /** Accepted by Auto-acceptance (FR-35). */
+  autoAccepted?: boolean
 }
 
 /**
@@ -44,7 +50,11 @@ export function milestoneStateText(state: string, audience: JobAudience, context
       case 'REVISION_REQUESTED':
         return t('screen.milestoneState.customer.revision', counts)
       case 'SUBMITTED':
-        return t('screen.milestoneState.customer.submitted')
+        return context.roundsLeft === undefined
+          ? t('screen.milestoneState.customer.submitted')
+          : `${t('screen.milestoneState.customer.submitted')} · ${t('screen.milestoneState.roundsLeft', { r: context.roundsLeft })}`
+      case 'ACCEPTED':
+        return t(context.autoAccepted ? 'screen.milestoneState.autoAccepted' : 'screen.milestoneState.ACCEPTED')
       default:
         return t(`screen.milestoneState.${state}` as MessageKey)
     }
@@ -59,9 +69,13 @@ export function milestoneStateText(state: string, audience: JobAudience, context
       return context.inReview ? `${base} · ${t('screen.milestoneState.team.inReview', { n: context.inReview })}` : base
     }
     case 'REVISION_REQUESTED':
-      return t('screen.milestoneState.team.revision')
+      return context.revisionCriteria
+        ? t('screen.milestoneState.team.revisionCount', { n: context.revisionCriteria, r: context.roundsLeft ?? 0 })
+        : t('screen.milestoneState.team.revision')
     case 'SUBMITTED':
       return t('screen.milestoneState.team.submitted')
+    case 'ACCEPTED':
+      return t(context.autoAccepted ? 'screen.milestoneState.autoAccepted' : 'screen.milestoneState.ACCEPTED')
     default:
       return t(`screen.milestoneState.${state}` as MessageKey)
   }

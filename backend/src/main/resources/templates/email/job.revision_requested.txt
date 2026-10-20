@@ -1,0 +1,5 @@
+subject: Khách hàng yêu cầu sửa Giai đoạn {n}: {count} tiêu chí · còn {rounds} lượt
+---
+Xin chào,
+
+Khách hàng đã yêu cầu sửa {count} tiêu chí của Giai đoạn {n}. Hãy mở báo cáo bàn giao để xem nhận xét của khách, sửa rồi bàn giao lại. Giai đoạn này còn {rounds} lượt sửa.

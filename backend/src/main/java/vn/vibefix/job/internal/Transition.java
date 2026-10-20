@@ -119,13 +119,13 @@ enum Transition {
 
 	M4(Machine.MILESTONE, milestone(MilestoneState.SUBMITTED), milestone(MilestoneState.REVISION_REQUESTED),
 			Set.of(USER), "The Customer requests a revision (FR-33)",
-			List.of(new Guard("FR-34", "A Revision Round remains")), List.of(), true, false),
+			List.of(new Guard("FR-34", "A Revision Round remains")), List.of(), true, true),
 
 	M5(Machine.MILESTONE, milestone(MilestoneState.SUBMITTED), milestone(MilestoneState.ACCEPTED), Set.of(USER, AUTO),
 			"The Customer accepts (FR-33) or Auto-acceptance (FR-35)", List.of(),
 			List.of(new Effect("repo", "Exactly the Handover Commit is merged into the Intermediary Repository"),
 					new Effect("payment", "Then the funds are released (FR-42)")),
-			true, false),
+			true, true),
 
 	M6(Machine.MILESTONE, milestone(MilestoneState.PLANNED), milestone(MilestoneState.CANCELLED), Set.of(USER, SYSTEM),
 			"Confirmed cancellation (FR-40), a Change Request removing it (FR-36), or the Job entering Closing (J8)",
