@@ -77,7 +77,14 @@ function Content({ jobId, data }: { jobId: string; data: Cancellation }) {
           <span className="text-caption text-muted-foreground">
             {t('screen.cancellation.answerBy', { date: formatDayMonth(proposal.answerBy) })}
           </span>
-          {proposal.unanswered && proposal.mine && <p>{t('screen.cancellation.unanswered')}</p>}
+          {proposal.unanswered && (
+            <p className="flex flex-wrap items-center gap-2">
+              {t(proposal.mine ? 'screen.cancellation.unanswered' : 'screen.cancellation.unansweredOther')}
+              <a href="#tranh-chap" className="text-primary underline-offset-4 hover:underline">
+                {t('screen.cancellation.openDispute')}
+              </a>
+            </p>
+          )}
         </div>
       )}
       {alone && (

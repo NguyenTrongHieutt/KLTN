@@ -1,0 +1,5 @@
+subject: Đề nghị kết thúc {job} chưa được trả lời. Bạn có thể mở tranh chấp.
+---
+Xin chào,
+
+Bên kia chưa trả lời đề nghị kết thúc công việc {job} trong thời hạn. Bạn có thể chờ thêm, hoặc mở tranh chấp trên vibefix để quản trị viên quyết định.

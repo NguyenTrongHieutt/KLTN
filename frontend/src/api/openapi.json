@@ -7348,9 +7348,12 @@
           },
           "status" : {
             "type" : "string"
+          },
+          "unanswered" : {
+            "type" : "boolean"
           }
         },
-        "required" : [ "answerBy", "answerable", "customerConfirmed", "id", "kind", "mentorConfirmed", "proposer", "status" ]
+        "required" : [ "answerBy", "answerable", "customerConfirmed", "id", "kind", "mentorConfirmed", "proposer", "status", "unanswered" ]
       },
       "ClosureStepView" : {
         "type" : "object",
@@ -7379,6 +7382,9 @@
           "canPropose" : {
             "type" : "boolean"
           },
+          "disputable" : {
+            "type" : "boolean"
+          },
           "jobId" : {
             "type" : "string",
             "format" : "uuid"
@@ -7400,7 +7406,7 @@
             "format" : "int64"
           }
         },
-        "required" : [ "audience", "canPropose", "jobId", "state", "steps", "version" ]
+        "required" : [ "audience", "canPropose", "disputable", "jobId", "state", "steps", "version" ]
       },
       "CodeRequest" : {
         "type" : "object",

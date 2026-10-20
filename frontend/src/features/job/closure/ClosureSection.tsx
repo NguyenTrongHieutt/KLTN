@@ -41,7 +41,7 @@ function Content({ jobId, closure, deletion }: { jobId: string; closure: Closure
   const [error, setError] = useState<string>()
   const proposal = closure.proposal
   const open = proposal?.status === 'OPEN'
-  if (!proposal && closure.steps.length === 0 && !closure.canPropose) {
+  if (!proposal && closure.steps.length === 0 && !closure.canPropose && !closure.disputable) {
     return null
   }
 
@@ -112,6 +112,14 @@ function Content({ jobId, closure, deletion }: { jobId: string; closure: Closure
         </ul>
       )}
       {deletion?.mine && (closure.steps.length > 0 || deletion.ended) && <DeletionChecklist jobId={jobId} deletion={deletion} />}
+      {closure.disputable && (
+        <p className="flex flex-wrap items-center gap-2 text-body-sm">
+          {t('screen.closure.disputable')}
+          <a href="#tranh-chap" className="text-primary underline-offset-4 hover:underline">
+            {t('screen.closure.openDispute')}
+          </a>
+        </p>
+      )}
       {error && (
         <p role="alert" className="text-body-sm text-destructive">
           {error}
