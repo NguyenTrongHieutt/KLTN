@@ -1,0 +1,5 @@
+subject: Đề nghị kết thúc {job} bị từ chối
+---
+Xin chào,
+
+Đề nghị kết thúc công việc {job} đã bị từ chối. Công việc vẫn đang tiếp tục.

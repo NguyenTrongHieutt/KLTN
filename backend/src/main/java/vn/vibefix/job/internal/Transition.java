@@ -78,14 +78,14 @@ enum Transition {
 					new Effect("repo", "Write access is revoked (FR-21)"),
 					new Effect("repo", "The Revocation Checklist is presented (FR-66)"),
 					new Effect("delivery", "The Final Merge authorization is requested if not yet given (FR-37)")),
-			false, false),
+			false, true),
 
 	J9(Machine.JOB, job(JobState.CLOSING), job(JobState.CLOSED, JobState.CANCELLED), Set.of(SYSTEM),
 			"Final Merge succeeded or ZIP Fallback offered (FR-38); Assessment Job: immediately; Cancelled if entered by cancellation",
 			List.of(), List.of(new Effect("reputation", "The Rating Window opens (FR-49)"),
 					new Effect("reputation", "Portfolio Entries are created (FR-50)"),
 					new Effect("team", "The Crew is released (FR-75)")),
-			false, false),
+			false, true),
 
 	J10(Machine.JOB, job(JobState.AGREEMENT, JobState.STARTING, JobState.ACTIVE), job(JobState.CANCELLED),
 			Set.of(USER, DECISION),
@@ -129,7 +129,7 @@ enum Transition {
 
 	M6(Machine.MILESTONE, milestone(MilestoneState.PLANNED), milestone(MilestoneState.CANCELLED), Set.of(USER, SYSTEM),
 			"Confirmed cancellation (FR-40), a Change Request removing it (FR-36), or the Job entering Closing (J8)",
-			List.of(), List.of(new Effect("job", "No money moves")), true, false),
+			List.of(), List.of(new Effect("job", "No money moves")), true, true),
 
 	M7(Machine.MILESTONE, milestone(MilestoneState.held()), milestone(MilestoneState.CANCELLED), Set.of(USER),
 			"Confirmed cancellation (FR-40) or a Change Request removing it (FR-36)", List.of(),

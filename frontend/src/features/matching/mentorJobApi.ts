@@ -5,7 +5,9 @@ import { apiClient, unwrap } from '@/lib/apiClient'
 export type MentorJob = components['schemas']['MentorJobView']
 export type MentorJobSummary = components['schemas']['MentorJobSummaryView']
 
-const KEY = ['mentor-job'] as const
+export const MENTOR_JOB_KEY = ['mentor-job'] as const
+
+const KEY = MENTOR_JOB_KEY
 
 /** MEN-4 "Công việc của bạn": the Jobs whose Mentor the account is (AD-30). */
 export function useMentorJobs() {

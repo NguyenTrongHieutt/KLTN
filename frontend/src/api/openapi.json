@@ -480,6 +480,142 @@
         "tags" : [ "payment-history-controller" ]
       }
     },
+    "/api/v1/boards/{boardId}/closure" : {
+      "get" : {
+        "operationId" : "closure",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClosureView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "closure-controller" ]
+      },
+      "post" : {
+        "operationId" : "propose",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ClosureCommandRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClosureView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "closure-controller" ]
+      }
+    },
+    "/api/v1/boards/{boardId}/closure/confirm" : {
+      "post" : {
+        "operationId" : "confirm_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ClosureCommandRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClosureView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "closure-controller" ]
+      }
+    },
+    "/api/v1/boards/{boardId}/closure/decline" : {
+      "post" : {
+        "operationId" : "decline_3",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ClosureCommandRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClosureView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "closure-controller" ]
+      }
+    },
     "/api/v1/boards/{boardId}/handovers" : {
       "get" : {
         "operationId" : "handovers",
@@ -5671,6 +5807,102 @@
           }
         },
         "required" : [ "id", "repositoryFullName", "requestedAt", "status" ]
+      },
+      "ClosureCommandRequest" : {
+        "type" : "object",
+        "properties" : {
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "version" ]
+      },
+      "ClosureProposalView" : {
+        "type" : "object",
+        "properties" : {
+          "answerBy" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "answerable" : {
+            "type" : "boolean"
+          },
+          "autoConfirmAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "customerConfirmed" : {
+            "type" : "boolean"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "mentorConfirmed" : {
+            "type" : "boolean"
+          },
+          "proposer" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "answerBy", "answerable", "customerConfirmed", "id", "kind", "mentorConfirmed", "proposer", "status" ]
+      },
+      "ClosureStepView" : {
+        "type" : "object",
+        "properties" : {
+          "done" : {
+            "type" : "boolean"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "party" : {
+            "type" : "string"
+          },
+          "step" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "done", "name", "party", "step" ]
+      },
+      "ClosureView" : {
+        "type" : "object",
+        "properties" : {
+          "audience" : {
+            "type" : "string"
+          },
+          "canPropose" : {
+            "type" : "boolean"
+          },
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "proposal" : {
+            "$ref" : "#/components/schemas/ClosureProposalView"
+          },
+          "state" : {
+            "type" : "string"
+          },
+          "steps" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ClosureStepView"
+            }
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "audience", "canPropose", "jobId", "state", "steps", "version" ]
       },
       "CodeRequest" : {
         "type" : "object",

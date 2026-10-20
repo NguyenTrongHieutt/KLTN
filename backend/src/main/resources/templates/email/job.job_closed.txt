@@ -1,0 +1,5 @@
+subject: {job} đã hoàn thành
+---
+Xin chào,
+
+Công việc {job} đã hoàn thành. Cảm ơn bạn đã làm việc cùng vibefix.

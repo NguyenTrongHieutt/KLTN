@@ -2286,6 +2286,44 @@
         "revised": "Đã gửi yêu cầu sửa Giai đoạn {n}.",
         "stale": "Bàn giao vừa thay đổi. Hãy mở lại báo cáo bàn giao."
       }
+    },
+    "closure": {
+      "title": "Kết thúc công việc",
+      "titleClosed": "Công việc đã hoàn thành",
+      "done": "Mọi giai đoạn đã xong và công việc đã đóng.",
+      "closing": "Công việc đang kết thúc: còn vài bước cuối.",
+      "automatic": "Mọi giai đoạn đã nghiệm thu. Hệ thống sẽ tự xác nhận kết thúc ngày {date} nếu không ai từ chối.",
+      "proposedBy": {
+        "CUSTOMER": "Khách hàng đề nghị kết thúc công việc. Hãy trả lời trước {date}.",
+        "MENTOR": "Người hướng dẫn đề nghị kết thúc công việc. Hãy trả lời trước {date}.",
+        "SYSTEM": "Hệ thống đề nghị kết thúc công việc. Hãy trả lời trước {date}."
+      },
+      "step": {
+        "CUSTOMER": {
+          "CONFIRM_CLOSURE": "Khách hàng {name}: xác nhận kết thúc"
+        },
+        "MENTOR": {
+          "CONFIRM_CLOSURE": "Người hướng dẫn {name}: xác nhận kết thúc"
+        },
+        "CREW": {
+          "DATA_DELETION": "{name}: xác nhận đã xóa dữ liệu của khách hàng"
+        }
+      },
+      "stepDone": "Đã xong",
+      "stepPending": "Chưa xong",
+      "confirm": "Xác nhận kết thúc",
+      "decline": "Từ chối",
+      "propose": "Đề nghị kết thúc công việc",
+      "proposeTitle": "Đề nghị kết thúc công việc?",
+      "confirmTitle": "Xác nhận kết thúc công việc?",
+      "effects": "Khi công việc kết thúc, các giai đoạn chưa bắt đầu sẽ bị hủy và không thu tiền, còn nhóm thực hiện được giải phóng. Bước này không hoàn tác được.",
+      "cancel": "Quay lại",
+      "proposed": "Đã gửi đề nghị kết thúc.",
+      "confirmedOne": "Đã xác nhận. Đang chờ bên còn lại.",
+      "declined": "Đã từ chối đề nghị kết thúc.",
+      "closed": "Công việc đã kết thúc.",
+      "stale": "Công việc vừa thay đổi. Hãy tải lại rồi thử lại.",
+      "held": "Còn giai đoạn đang làm nên chưa kết thúc được."
     }
   },
   "notice": {
@@ -2732,7 +2770,8 @@
       "pick_crew": "Chọn nhóm thực hiện cho {job}",
       "confirm_crew_terms": "Ký cam kết và xác nhận phần chia cho {job}",
       "revise_agreement": "Sửa thỏa thuận {job} theo góp ý của khách hàng",
-      "confirm_agreement_mentor": "Xác nhận thỏa thuận cho {job}"
+      "confirm_agreement_mentor": "Xác nhận thỏa thuận cho {job}",
+      "answer_closure": "Xác nhận kết thúc {job} · trước {date}"
     },
     "payment": {
       "fund_milestone": "Thanh toán Giai đoạn {n}: {amount} THỬ NGHIỆM"
@@ -2894,6 +2933,18 @@
       },
       "revision_requested": {
         "title": "Khách hàng yêu cầu sửa Giai đoạn {n}: {count} tiêu chí · còn {rounds} lượt"
+      },
+      "closure_proposed": {
+        "title": "{proposer} đề nghị kết thúc {job}"
+      },
+      "closure_declined": {
+        "title": "Đề nghị kết thúc {job} bị từ chối"
+      },
+      "job_closing": {
+        "title": "{job} đang kết thúc: còn vài bước cuối"
+      },
+      "job_closed": {
+        "title": "{job} đã hoàn thành"
       }
     },
     "matching": {
@@ -3066,7 +3117,12 @@
       "REPOSITORIES_NOT_READY": "kho mã của công việc chưa sẵn sàng",
       "REVISION_ROUNDS_USED": "Giai đoạn này đã hết lượt sửa.",
       "HANDOVER_CHANGED": "Người hướng dẫn vừa bàn giao lại. Hãy mở bản bàn giao mới nhất.",
-      "CUSTOMER_ONLY": "Chỉ khách hàng nghiệm thu hoặc yêu cầu sửa được."
+      "CUSTOMER_ONLY": "Chỉ khách hàng nghiệm thu hoặc yêu cầu sửa được.",
+      "CLOSURE_OPEN": "Đã có đề nghị kết thúc đang chờ trả lời.",
+      "NO_CLOSURE_OPEN": "Không có đề nghị kết thúc nào đang chờ.",
+      "CLOSURE_ANSWERED": "Bạn đã trả lời đề nghị này.",
+      "MENTOR_ONLY": "Chỉ khách hàng và người hướng dẫn trả lời được.",
+      "FINAL_MERGE_PENDING": "Công việc sửa mã kết thúc sau khi hợp nhất mã."
     },
     "matching": {
       "JOB_POST_NOT_OPEN": "công việc không còn nhận ứng tuyển",

@@ -212,6 +212,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/boards/{boardId}/closure": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["closure"];
+        put?: never;
+        post: operations["propose"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/boards/{boardId}/closure/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["confirm_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/boards/{boardId}/closure/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["decline_3"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/boards/{boardId}/handovers": {
         parameters: {
             query?: never;
@@ -2504,6 +2552,41 @@ export interface components {
             scan?: components["schemas"]["ScanView"];
             /** @enum {string} */
             status: "PENDING" | "ACCEPTED" | "REJECTED" | "SUPERSEDED";
+        };
+        ClosureCommandRequest: {
+            /** Format: int64 */
+            version: number;
+        };
+        ClosureProposalView: {
+            /** Format: date-time */
+            answerBy: string;
+            answerable: boolean;
+            /** Format: date-time */
+            autoConfirmAt?: string;
+            customerConfirmed: boolean;
+            /** Format: uuid */
+            id: string;
+            kind: string;
+            mentorConfirmed: boolean;
+            proposer: string;
+            status: string;
+        };
+        ClosureStepView: {
+            done: boolean;
+            name: string;
+            party: string;
+            step: string;
+        };
+        ClosureView: {
+            audience: string;
+            canPropose: boolean;
+            /** Format: uuid */
+            jobId: string;
+            proposal?: components["schemas"]["ClosureProposalView"];
+            state: string;
+            steps: components["schemas"]["ClosureStepView"][];
+            /** Format: int64 */
+            version: number;
         };
         CodeRequest: {
             code: string;
@@ -4840,6 +4923,106 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BalanceView"];
+                };
+            };
+        };
+    };
+    closure: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClosureView"];
+                };
+            };
+        };
+    };
+    propose: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClosureCommandRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClosureView"];
+                };
+            };
+        };
+    };
+    confirm_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClosureCommandRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClosureView"];
+                };
+            };
+        };
+    };
+    decline_3: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClosureCommandRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClosureView"];
                 };
             };
         };

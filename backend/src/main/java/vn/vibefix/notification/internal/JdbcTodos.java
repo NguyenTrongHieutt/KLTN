@@ -54,7 +54,7 @@ class JdbcTodos implements Todos {
 			.param("key", type.key())
 			.param("account", request.recipientAccountId())
 			.param("subject", request.subjectId())
-			.param("tier", type.tier())
+			.param("tier", request.tier() != null ? request.tier() : type.tier())
 			.param("params", this.json.write(request.params()))
 			.param("link", request.link())
 			.param("deadline", request.deadlineAt() == null ? null : Timestamp.from(request.deadlineAt()))

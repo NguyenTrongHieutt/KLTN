@@ -42,11 +42,14 @@ class M5Accept implements JobLifecycle.Step {
 
 	private final AuditLog auditLog;
 
-	M5Accept(JdbcClient jdbc, M1Fund numbers, Notifications notifications, AuditLog auditLog) {
+	private final ClosureProposals closures;
+
+	M5Accept(JdbcClient jdbc, M1Fund numbers, Notifications notifications, AuditLog auditLog, ClosureProposals closures) {
 		this.jdbc = jdbc;
 		this.numbers = numbers;
 		this.notifications = notifications;
 		this.auditLog = auditLog;
+		this.closures = closures;
 	}
 
 	@Override
@@ -93,6 +96,7 @@ class M5Accept implements JobLifecycle.Step {
 				Map.of("n", String.valueOf(this.numbers.number(job.id(), applying.milestoneId())), "job", job.title(), "how",
 						auto ? "tự nghiệm thu" : "nghiệm thu"),
 				"/cong-viec/" + job.id() + "/ban-giao/" + applying.input("handoverId"), job.id(), null));
+		this.closures.proposeAutomatically(job, applying.transitionId());
 	}
 
 	/** The actor is the Customer, the Job is Active, and the handover is the Milestone's current one. */
