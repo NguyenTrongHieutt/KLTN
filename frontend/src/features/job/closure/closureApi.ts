@@ -6,6 +6,7 @@ import { NOTIFICATION_QUERY_KEY } from '@/features/notification/api'
 import { apiClient, unwrap } from '@/lib/apiClient'
 
 export type Closure = components['schemas']['ClosureView']
+export type DataDeletion = components['schemas']['DataDeletionView']
 
 /** JOB-1's closure section (FR-37, FR-67, UX-DR55); a Board's ID is its Job's. */
 export function useClosure(jobId: string | undefined) {
@@ -41,6 +42,32 @@ export function useClosureCommand(jobId: string) {
         queryClient.invalidateQueries({ queryKey: MENTOR_JOB_KEY }),
         queryClient.invalidateQueries({ queryKey: NOTIFICATION_QUERY_KEY }),
       ])
+    },
+  })
+}
+
+/** The data-deletion statuses and the viewer's own Checklist (FR-66), which `repo` keeps. */
+export function useDataDeletion(jobId: string | undefined) {
+  return useQuery({
+    queryKey: ['data-deletion', jobId ?? ''],
+    queryFn: () =>
+      unwrap(apiClient.GET('/api/v1/boards/{boardId}/data-deletion', { params: { path: { boardId: jobId ?? '' } } })),
+    enabled: jobId !== undefined,
+    retry: false,
+  })
+}
+
+/** One tick of the data-deletion Checklist, confirmed in a dialog first (UX-DR51). */
+export function useConfirmDeletion(jobId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (item: 'NON_CODE_DATA' | 'PREVIEWS') =>
+      unwrap(
+        apiClient.POST('/api/v1/boards/{boardId}/data-deletion/{item}', { params: { path: { boardId: jobId, item } } }),
+      ),
+    onSuccess: async (deletion) => {
+      queryClient.setQueryData(['data-deletion', jobId], deletion)
+      await queryClient.invalidateQueries({ queryKey: NOTIFICATION_QUERY_KEY })
     },
   })
 }

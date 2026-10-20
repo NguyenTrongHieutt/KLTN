@@ -1,0 +1,5 @@
+subject: Hãy xác nhận đã xóa dữ liệu của khách hàng ở {job}
+---
+Xin chào,
+
+Công việc {job} đã kết thúc. Hãy xóa dữ liệu không phải mã nguồn của khách hàng (khóa, bản sao cơ sở dữ liệu, tệp của khách) và các bản xem thử bạn đã triển khai, rồi xác nhận trên vibefix.

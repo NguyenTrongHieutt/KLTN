@@ -357,6 +357,15 @@ class NotificationTypes implements NotificationCatalog {
 			Set.of(Audience.CUSTOMER, Audience.MENTOR, Audience.CREW_ACTIVE), Channel.IN_APP_AND_EMAIL,
 			EmailClass.TRANSACTIONAL, "check", Set.of("job"));
 
+	/** J8 or J10 (FR-66): the Mentor and every Crew member ever active are asked to confirm data deletion. */
+	static final NotificationType REPO_DATA_DELETION_CONFIRMATION_PENDING = new NotificationType(
+			"repo.data_deletion_confirmation_pending", Set.of(Audience.MENTOR, Audience.CREW_EVER_ACTIVE),
+			Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("job"));
+
+	/** The data-deletion confirmation waits (FR-66): until both items are confirmed; it never blocks closure. */
+	static final TodoType REPO_CONFIRM_DATA_DELETION = new TodoType("repo.confirm_data_deletion",
+			Set.of(Audience.MENTOR, Audience.CREW_EVER_ACTIVE), 3, Set.of("job"));
+
 	/** A closure proposal waits for an answer: tier 1 for the System's (FR-67), 2 for a person's (FR-37). */
 	static final TodoType JOB_ANSWER_CLOSURE = new TodoType("job.answer_closure", Set.of(Audience.CUSTOMER, Audience.MENTOR), 1,
 			Set.of("job", "date"));
@@ -385,6 +394,7 @@ class NotificationTypes implements NotificationCatalog {
 				PAYMENT_PAYMENT_RECEIVED, PAYMENT_PAYMENT_FAILED, PAYMENT_UNKNOWN_PAYMENT, JOB_MILESTONE_FUNDED, JOB_MILESTONE_SUBMITTED,
 				JOB_MILESTONE_ACCEPTED, JOB_REVISION_REQUESTED, PAYMENT_FUNDS_RELEASED, DELIVERY_ACCEPTANCE_REMINDER,
 				JOB_CLOSURE_PROPOSED, JOB_CLOSURE_DECLINED, JOB_JOB_CLOSING, JOB_JOB_CLOSED,
+				REPO_DATA_DELETION_CONFIRMATION_PENDING,
 				JOB_JOB_STARTING,
 				PAYMENT_REFUND_REQUESTED, PAYMENT_REFUND_CONFIRMED, WORK_WORK_ITEM_ASSIGNED,
 				WORK_REVIEW_REQUESTED, WORK_WORK_ITEM_APPROVED, WORK_WORK_ITEM_RETURNED);
@@ -396,7 +406,7 @@ class NotificationTypes implements NotificationCatalog {
 				MATCHING_CHOOSE_ASSIGNEE, MATCHING_SIGN_NDA, MATCHING_ANSWER_INVITATION_TO_APPLY, JOB_DRAFT_AGREEMENT,
 				JOB_REVIEW_AGREEMENT, JOB_PICK_CREW, JOB_CONFIRM_CREW_TERMS, JOB_REVISE_AGREEMENT, JOB_CONFIRM_AGREEMENT_MENTOR,
 				PAYMENT_FUND_MILESTONE, WORK_REVIEW_WORK_ITEM, WORK_FIX_RETURNED_ITEM, DELIVERY_HAND_OVER,
-				DELIVERY_REVIEW_HANDOVER, JOB_ANSWER_CLOSURE);
+				DELIVERY_REVIEW_HANDOVER, JOB_ANSWER_CLOSURE, REPO_CONFIRM_DATA_DELETION);
 	}
 
 }

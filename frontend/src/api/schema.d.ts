@@ -237,7 +237,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["confirm_1"];
+        post: operations["confirm_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -254,6 +254,38 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["decline_3"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/boards/{boardId}/data-deletion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["dataDeletion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/boards/{boardId}/data-deletion/{item}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["confirm_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2829,6 +2861,23 @@ export interface components {
             kind: "INDIVIDUAL" | "BUSINESS";
             phone?: string;
         };
+        DataDeletionItemView: {
+            /** Format: date-time */
+            confirmedAt?: string;
+            item: string;
+        };
+        DataDeletionPartyView: {
+            confirmed: boolean;
+            name: string;
+            party: string;
+        };
+        DataDeletionView: {
+            ended: boolean;
+            /** Format: uuid */
+            jobId: string;
+            mine?: components["schemas"]["DataDeletionItemView"][];
+            parties: components["schemas"]["DataDeletionPartyView"][];
+        };
         DecisionRequest: {
             /** Format: int64 */
             version: number;
@@ -4975,7 +5024,7 @@ export interface operations {
             };
         };
     };
-    confirm_1: {
+    confirm_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -5023,6 +5072,51 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClosureView"];
+                };
+            };
+        };
+    };
+    dataDeletion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataDeletionView"];
+                };
+            };
+        };
+    };
+    confirm_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+                item: "NON_CODE_DATA" | "PREVIEWS";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataDeletionView"];
                 };
             };
         };
