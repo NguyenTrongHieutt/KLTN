@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/Skeleton'
 import { TestTag } from '@/components/TestTag'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { FollowUpSection } from '@/features/delivery/FollowUpSection'
+import { DisputeSection } from '@/features/dispute/DisputeSection'
 import { CancellationSection } from '@/features/job/cancellation/CancellationSection'
 import { ClosureSection } from '@/features/job/closure/ClosureSection'
 import { milestoneStateText, milestoneTone } from '@/features/job/jobStateText'
@@ -76,6 +77,7 @@ function Content({ jobId, audience, progress }: { jobId: string; audience: Progr
             <span className="sr-only"> ({t('screen.board.attachments.external')})</span>
           </a>
         )}
+        <DisputeSection jobId={jobId} />
         <JobNextAction jobId={jobId} />
         <ClosureSection jobId={jobId} />
         <CancellationSection jobId={jobId} />

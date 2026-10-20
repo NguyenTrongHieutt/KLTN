@@ -456,6 +456,11 @@ class NotificationTypes implements NotificationCatalog {
 			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
 			Set.of("job"));
 
+	/** FR-52: a Dispute froze the Job; the other side and every Administrator learn it. */
+	static final NotificationType DISPUTE_DISPUTE_OPENED = new NotificationType("dispute.dispute_opened",
+			Set.of(Audience.CUSTOMER, Audience.MENTOR, Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL,
+			"alert", Set.of("job"));
+
 	/** A cancellation proposal waits for the other side (FR-40): until confirmed or withdrawn. */
 	static final TodoType JOB_ANSWER_CANCELLATION = new TodoType("job.answer_cancellation",
 			Set.of(Audience.CUSTOMER, Audience.MENTOR), 2, Set.of("job", "date"));
@@ -510,6 +515,7 @@ class NotificationTypes implements NotificationCatalog {
 				DELIVERY_FOLLOW_UP_DRAFTS_READY, JOB_CHANGE_REQUEST_PROPOSED, JOB_CHANGE_REQUEST_IMPACT_ADDED,
 				JOB_CHANGE_REQUEST_APPLIED, JOB_CHANGE_REQUEST_LAPSED, JOB_CANCELLATION_PROPOSED,
 				JOB_CANCELLATION_UNANSWERED, JOB_JOB_CANCELLED, JOB_AGREEMENT_DEADLINE_PASSED, JOB_STARTING_DEADLINE_PASSED,
+				DISPUTE_DISPUTE_OPENED,
 				JOB_JOB_STARTING,
 				PAYMENT_REFUND_REQUESTED, PAYMENT_REFUND_CONFIRMED, WORK_WORK_ITEM_ASSIGNED,
 				WORK_REVIEW_REQUESTED, WORK_WORK_ITEM_APPROVED, WORK_WORK_ITEM_RETURNED);

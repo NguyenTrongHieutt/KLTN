@@ -2295,7 +2295,8 @@
         "accepted": "Đã nghiệm thu Giai đoạn {n}.",
         "revised": "Đã gửi yêu cầu sửa Giai đoạn {n}.",
         "stale": "Bàn giao vừa thay đổi. Hãy mở lại báo cáo bàn giao.",
-        "changeRequest": "Đề nghị thay đổi"
+        "changeRequest": "Đề nghị thay đổi",
+        "dispute": "Mở tranh chấp"
       }
     },
     "closure": {
@@ -2507,6 +2508,22 @@
       "alone": "Hủy công việc một mình",
       "aloneSend": "Hủy công việc",
       "aloneTitle": "Tự hủy công việc này?"
+    },
+    "dispute": {
+      "banner": "Đang tranh chấp — tiền và mọi thời hạn tạm dừng",
+      "openedBy": {
+        "CUSTOMER": "Khách hàng mở tranh chấp lúc {time}",
+        "MENTOR": "Người hướng dẫn mở tranh chấp lúc {time}"
+      },
+      "open": "Mở tranh chấp",
+      "title": "Mở tranh chấp?",
+      "freezes": "Tạm dừng: tiền đang giữ, việc thanh toán và mọi thời hạn có thể tạm dừng.",
+      "continues": "Vẫn tiếp tục: trò chuyện và công việc trên bảng.",
+      "decides": "Quản trị viên sẽ xem và quyết định. Tiền đã giải ngân không bị tranh chấp.",
+      "reason": "Lý do",
+      "send": "Mở tranh chấp",
+      "cancel": "Hủy",
+      "opened": "Đã mở tranh chấp. Tiền và thời hạn đang tạm dừng."
     }
   },
   "notice": {
@@ -3265,6 +3282,11 @@
       "portfolio_entry_published": {
         "title": "Hồ sơ năng lực từ {job} đã đăng"
       }
+    },
+    "dispute": {
+      "dispute_opened": {
+        "title": "Có tranh chấp ở {job}"
+      }
     }
   },
   "reason": {
@@ -3467,6 +3489,11 @@
       "CUSTOMER_ONLY": "Chỉ khách hàng duyệt tóm tắt hồ sơ năng lực.",
       "NO_PORTFOLIO": "Công việc này không có hồ sơ năng lực vì chưa có giai đoạn nào được chấp nhận.",
       "SUMMARY_NOT_AWAITING": "Tóm tắt đã qua bước này."
+    },
+    "dispute": {
+      "DISPUTE_ALREADY_OPEN": "Công việc này đang có một tranh chấp.",
+      "MENTOR_ONLY": "Chỉ khách hàng và người hướng dẫn mở tranh chấp.",
+      "JOB_NOT_DISPUTABLE": "Bạn mở tranh chấp được khi công việc đang làm thỏa thuận, chuẩn bị, đang làm hoặc đang kết thúc."
     }
   },
   "markdown": {

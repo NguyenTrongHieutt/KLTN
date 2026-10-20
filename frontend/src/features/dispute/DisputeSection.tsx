@@ -1,0 +1,116 @@
+import { Dialog } from '@base-ui/react/dialog'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { Snowflake } from 'lucide-react'
+import { useId, useState } from 'react'
+import { inputClass } from '@/components/formField-props'
+import { useToasts } from '@/components/toasts'
+import { Button } from '@/components/ui/button'
+import { NOTIFICATION_QUERY_KEY } from '@/features/notification/api'
+import { t, type MessageKey } from '@/i18n/t'
+import { apiClient, unwrap } from '@/lib/apiClient'
+import { formatDayMonthTime } from '@/lib/dates'
+import { problemMessage } from '@/lib/problemMessage'
+import { cn } from '@/lib/utils'
+import { useJobDispute, type JobDispute } from './disputeApi'
+
+
+/**
+ * The Frozen banner "Đang tranh chấp — tiền và mọi thời hạn tạm dừng" for every party while a Dispute is
+ * open (UX-DR22), and "Mở tranh chấp" with the Open-Dispute dialog for the Customer and the Mentor
+ * (UX-DR56): the reason, what freezes, and what continues.
+ */
+export function DisputeSection({ jobId }: { jobId: string }) {
+  const dispute = useJobDispute(jobId)
+  // An auxiliary part of the page: nothing while loading or when the read fails.
+  return dispute.data && (dispute.data.open || dispute.data.canOpen) ? <Content jobId={jobId} data={dispute.data} /> : null
+}
+
+function Content({ jobId, data }: { jobId: string; data: JobDispute }) {
+  const ids = useId()
+  const toasts = useToasts()
+  const queryClient = useQueryClient()
+  const [asking, setAsking] = useState(false)
+  const [reason, setReason] = useState('')
+  const [error, setError] = useState<string>()
+  const open = useMutation({
+    mutationFn: (text: string) =>
+      unwrap(apiClient.POST('/api/v1/boards/{boardId}/disputes', { params: { path: { boardId: jobId } }, body: { reason: text } })),
+    onSuccess: async (view) => {
+      queryClient.setQueryData(['dispute', jobId], view)
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['progress', jobId] }),
+        queryClient.invalidateQueries({ queryKey: NOTIFICATION_QUERY_KEY }),
+      ])
+    },
+  })
+  if (data.open) {
+    return (
+      <div
+        id="tranh-chap"
+        role="status"
+        className="flex gap-3 rounded-md border-l-4 border-primary bg-primary-soft p-4 text-body-sm"
+      >
+        <Snowflake aria-hidden="true" className="size-5 shrink-0 text-primary" />
+        <div className="flex flex-col gap-1">
+          <p className="font-semibold">{t('screen.dispute.banner')}</p>
+          <p className="text-muted-foreground">
+            {t(`screen.dispute.openedBy.${data.open.openedBy}` as MessageKey, { time: formatDayMonthTime(data.open.openedAt) })}
+          </p>
+        </div>
+      </div>
+    )
+  }
+  const send = () => {
+    setError(undefined)
+    open.mutate(reason.trim(), {
+      onSuccess: () => {
+        setAsking(false)
+        toasts.success(t('screen.dispute.opened'))
+      },
+      onError: (failure) => setError(problemMessage(failure, { module: 'dispute' }).text),
+    })
+  }
+  return (
+    <div id="tranh-chap" className="flex justify-end">
+      <Button type="button" variant="secondary" onClick={() => setAsking(true)}>
+        {t('screen.dispute.open')}
+      </Button>
+      <Dialog.Root open={asking} onOpenChange={(next) => !next && setAsking(false)}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="fixed inset-0 z-[60] bg-foreground/50" />
+          <Dialog.Popup className="fixed top-24 left-1/2 z-[70] flex w-[min(520px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
+            <Dialog.Title className="text-h2">{t('screen.dispute.title')}</Dialog.Title>
+            <Dialog.Description className="flex flex-col gap-2 text-body-sm">
+              <span>{t('screen.dispute.freezes')}</span>
+              <span>{t('screen.dispute.continues')}</span>
+              <span>{t('screen.dispute.decides')}</span>
+            </Dialog.Description>
+            <label htmlFor={`${ids}-reason`} className="text-label">
+              {t('screen.dispute.reason')}
+            </label>
+            <textarea
+              id={`${ids}-reason`}
+              value={reason}
+              maxLength={2000}
+              onChange={(event) => setReason(event.target.value)}
+              className={cn(inputClass, 'min-h-18')}
+            />
+            {error && (
+              <p role="alert" className="text-body-sm text-destructive">
+                {error}
+              </p>
+            )}
+            <div className="flex flex-wrap justify-end gap-3">
+              <Button type="button" variant="secondary" onClick={() => setAsking(false)}>
+                {t('screen.dispute.cancel')}
+              </Button>
+              <Button type="button" variant="destructive" disabled={reason.trim() === '' || open.isPending} onClick={send}>
+                {t('screen.dispute.send')}
+              </Button>
+            </div>
+          </Dialog.Popup>
+        </Dialog.Portal>
+      </Dialog.Root>
+    </div>
+  )
+}

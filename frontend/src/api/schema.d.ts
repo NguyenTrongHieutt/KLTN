@@ -388,6 +388,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/boards/{boardId}/dispute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["dispute"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/boards/{boardId}/disputes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["open_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/boards/{boardId}/follow-ups": {
         parameters: {
             query?: never;
@@ -3740,6 +3772,13 @@ export interface components {
             /** Format: uuid */
             id: string;
         };
+        JobDisputeView: {
+            audience: string;
+            canOpen: boolean;
+            /** Format: uuid */
+            jobId: string;
+            open?: components["schemas"]["OpenDisputeView"];
+        };
         JobDraftRequest: {
             appUsers?: string;
             /** @enum {string} */
@@ -4230,6 +4269,21 @@ export interface components {
             };
             read: boolean;
             type: string;
+        };
+        OpenDisputeRequest: {
+            reason: string;
+        };
+        OpenDisputeView: {
+            concern: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            milestoneId?: string;
+            mine: boolean;
+            /** Format: date-time */
+            openedAt: string;
+            openedBy: string;
+            reason: string;
         };
         OpenItemView: {
             /** Format: uuid */
@@ -5926,6 +5980,54 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DataDeletionView"];
+                };
+            };
+        };
+    };
+    dispute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobDisputeView"];
+                };
+            };
+        };
+    };
+    open_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OpenDisputeRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobDisputeView"];
                 };
             };
         };
