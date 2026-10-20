@@ -1,0 +1,5 @@
+subject: Giai đoạn {n} của {job} đã quá hạn ngày {date}
+---
+Xin chào,
+
+Giai đoạn {n} của công việc {job} đã quá hạn ngày {date} mà chưa được bàn giao. Không có khoản phạt nào và tiền vẫn được giữ (thử nghiệm). Khách hàng có thể chờ thêm, đề nghị hạn mới, đề nghị hủy, hoặc mở tranh chấp.

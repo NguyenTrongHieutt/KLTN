@@ -10646,6 +10646,10 @@
             "type" : "integer",
             "format" : "int32"
           },
+          "overdueSince" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
           "priceVnd" : {
             "type" : "integer",
             "format" : "int64"

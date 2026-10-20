@@ -14,7 +14,7 @@ import { todoText } from '@/features/notification/texts'
 import { JobPortfolioSection } from '@/features/reputation/JobPortfolioSection'
 import { RatingSection } from '@/features/reputation/RatingSection'
 import { t, type MessageKey } from '@/i18n/t'
-import { formatCalendarDayMonth } from '@/lib/dates'
+import { formatCalendarDayMonth, formatDayMonth } from '@/lib/dates'
 import { formatVnd } from '@/lib/money'
 import { isNotFound } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
@@ -92,6 +92,7 @@ function Content({ jobId, audience, progress }: { jobId: string; audience: Progr
             {progress.milestones.map((milestone) => (
               <MilestoneCard
                 key={milestone.milestoneId}
+                jobId={jobId}
                 milestone={milestone}
                 audience={audience}
                 nextToFund={milestone.milestoneId === nextToFund}
@@ -172,11 +173,35 @@ function Content({ jobId, audience, progress }: { jobId: string; audience: Progr
   )
 }
 
+/** FR-48: the Customer's options on an overdue Milestone; nothing happens by itself. */
+function OverdueOptions({ jobId }: { jobId: string }) {
+  const link = 'text-primary underline-offset-4 hover:underline'
+  return (
+    <p className="text-body-sm">
+      {t('screen.progress.overdueOptions')} {t('screen.progress.overdueWait')},{' '}
+      <Link to={`/cong-viec/${jobId}/thoa-thuan#doi-han`} className={link}>
+        {t('screen.progress.overdueNewDate')}
+      </Link>
+      ,{' '}
+      <a href="#huy-cong-viec" className={link}>
+        {t('screen.progress.overdueCancel')}
+      </a>
+      ,{' '}
+      <a href="#tranh-chap" className={link}>
+        {t('screen.progress.overdueDispute')}
+      </a>
+      .
+    </p>
+  )
+}
+
 function MilestoneCard({
+  jobId,
   milestone,
   audience,
   nextToFund,
 }: {
+  jobId: string
   milestone: MilestoneProgress
   audience: ProgressAudience
   nextToFund: boolean
@@ -198,8 +223,15 @@ function MilestoneCard({
     <li className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <h3 className="text-h3 break-words">{t('screen.progress.milestone', { n: milestone.number, title: milestone.title })}</h3>
-        <span className={cn('rounded-full px-2 py-0.5 text-caption font-semibold', milestoneTone(milestone.state, textAudience, nextToFund))}>
-          {text}
+        <span className="flex flex-wrap gap-2">
+          {milestone.overdueSince && (
+            <span className="rounded-full bg-destructive-soft px-2 py-0.5 text-caption font-semibold text-destructive">
+              {t('screen.progress.overdue', { date: formatDayMonth(milestone.overdueSince) })}
+            </span>
+          )}
+          <span className={cn('rounded-full px-2 py-0.5 text-caption font-semibold', milestoneTone(milestone.state, textAudience, nextToFund))}>
+            {text}
+          </span>
         </span>
       </div>
       <div
@@ -221,6 +253,7 @@ function MilestoneCard({
         )}
         {milestone.dueOn && <span>{t('screen.progress.due', { date: formatCalendarDayMonth(milestone.dueOn) })}</span>}
       </p>
+      {milestone.overdueSince && audience === 'customer' && <OverdueOptions jobId={jobId} />}
     </li>
   )
 }

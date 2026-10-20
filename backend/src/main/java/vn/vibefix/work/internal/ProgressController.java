@@ -1,5 +1,6 @@
 package vn.vibefix.work.internal;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -56,10 +57,11 @@ class ProgressController {
 	 * @param revisionCriteria how many criteria the latest revision request named
 	 * @param autoAccepted accepted by Auto-acceptance (FR-35)
 	 * @param refunded cancelled with its held money refunded (FR-40)
+	 * @param overdueSince when the Funded or Revision Requested Milestone became overdue (FR-48)
 	 */
 	record MilestoneProgressView(UUID milestoneId, int number, String title, String state, @Nullable Long priceVnd,
 			@Nullable LocalDate dueOn, int done, int total, int inReview, int roundsLeft, @Nullable Integer revisionCriteria,
-			boolean autoAccepted, boolean refunded) {
+			boolean autoAccepted, boolean refunded, @Nullable Instant overdueSince) {
 	}
 
 	record OpenItemView(UUID id, String key, String title, String status) {
@@ -139,7 +141,7 @@ class ProgressController {
 					detail == null ? "PLANNED" : detail.state(), milestone.priceVnd(), milestone.dueOn(), progress.done(),
 					progress.total(), inReview, detail == null ? 0 : detail.roundsLeft(),
 					detail == null ? null : detail.revisionCriteria(), detail != null && detail.autoAccepted(),
-					detail != null && detail.refunded()));
+					detail != null && detail.refunded(), detail == null ? null : detail.overdueSince()));
 		}
 		List<PageLinkView> pages = this.jdbc.sql("""
 				SELECT id, title FROM work.page WHERE job_id = :job AND visibility = 'CUSTOMER' ORDER BY seq

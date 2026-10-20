@@ -4379,6 +4379,8 @@ export interface components {
             milestoneId: string;
             /** Format: int32 */
             number: number;
+            /** Format: date-time */
+            overdueSince?: string;
             /** Format: int64 */
             priceVnd?: number;
             refunded: boolean;

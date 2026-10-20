@@ -22,8 +22,8 @@ import vn.vibefix.shared.ErrorCode;
  * M1 (FR-41): the verified payment of a Milestone's Payment Order makes it Funded. Its guards: no
  * other Held Milestone, the Job in Agreement (Milestone 1, after FR-17) or Active, and the Milestone
  * the first Planned one. It records when, and the Crew Terms version in force as the pin its release
- * uses (FR-42, AD-41); the Mentor and the active Crew are told. It only runs in a cascade, after J6 for
- * Milestone 1.
+ * uses (FR-42, AD-41); the Mentor and the active Crew are told, and its due date is watched (FR-48). It
+ * only runs in a cascade, after J6 for Milestone 1.
  */
 @Component
 class M1Fund implements JobLifecycle.Step {
@@ -36,10 +36,13 @@ class M1Fund implements JobLifecycle.Step {
 
 	private final Notifications notifications;
 
-	M1Fund(JdbcClient jdbc, CrewService crews, Notifications notifications) {
+	private final DueDates dueDates;
+
+	M1Fund(JdbcClient jdbc, CrewService crews, Notifications notifications, DueDates dueDates) {
 		this.jdbc = jdbc;
 		this.crews = crews;
 		this.notifications = notifications;
+		this.dueDates = dueDates;
 	}
 
 	@Override
@@ -94,6 +97,7 @@ class M1Fund implements JobLifecycle.Step {
 		this.notifications.send(new NotificationRequest(FUNDED, applying.transitionId(), team,
 				Map.of("job", job.title(), "n", String.valueOf(number(job.id(), applying.milestoneId()))), "/cong-viec/" + job.id(),
 				job.id(), null));
+		this.dueDates.schedule(job.id(), applying.milestoneId());
 	}
 
 	private UUID firstMilestone(UUID jobId) {

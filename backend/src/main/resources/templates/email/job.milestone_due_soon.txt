@@ -1,0 +1,5 @@
+subject: Giai đoạn {n} của {job} đến hạn ngày {date}
+---
+Xin chào,
+
+Giai đoạn {n} của công việc {job} đến hạn ngày {date}. Hãy bàn giao trước hạn, hoặc trao đổi với khách hàng về một hạn mới nếu cần thêm thời gian.

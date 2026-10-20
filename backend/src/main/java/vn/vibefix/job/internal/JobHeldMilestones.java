@@ -1,11 +1,14 @@
 package vn.vibefix.job.internal;
 
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -52,15 +55,20 @@ class JobHeldMilestones implements HeldMilestones, MilestoneStates {
 		Map<UUID, MilestoneDetail> details = new HashMap<>();
 		this.jdbc.sql("""
 				SELECT id, state, revision_rounds - revision_rounds_used AS left_rounds, revision_criteria, auto_accepted,
-				       state = 'CANCELLED' AND funded_at IS NOT NULL AS refunded
+				       state = 'CANCELLED' AND funded_at IS NOT NULL AS refunded,
+				       CASE WHEN state IN ('FUNDED', 'REVISION_REQUESTED') THEN overdue_since END AS overdue_since
 				FROM job.milestone WHERE job_id = :job AND removed_at IS NULL
 				""")
 			.param("job", jobId)
 			.query((rs, n) -> details.put(rs.getObject("id", UUID.class), new MilestoneDetail(rs.getString("state"),
 					Math.max(0, rs.getInt("left_rounds")), (Integer) rs.getObject("revision_criteria"),
-					rs.getBoolean("auto_accepted"), rs.getBoolean("refunded"))))
+					rs.getBoolean("auto_accepted"), rs.getBoolean("refunded"), overdueSince(rs.getTimestamp("overdue_since")))))
 			.list();
 		return details;
+	}
+
+	private static @Nullable Instant overdueSince(@Nullable Timestamp at) {
+		return at == null ? null : at.toInstant();
 	}
 
 }

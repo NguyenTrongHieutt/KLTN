@@ -85,6 +85,7 @@ class M2Submit implements JobLifecycle.Step {
 		UUID handover = (UUID) applying.input("handoverId");
 		applying.set("submitted_at", applying.now());
 		applying.set("handover_id", handover);
+		applying.set("overdue_since", null);
 		applying.fact("milestoneId", applying.milestoneId().toString());
 		applying.fact("handoverId", handover.toString());
 		applying.fact("number", String.valueOf(this.numbers.number(applying.job().id(), applying.milestoneId())));
