@@ -163,6 +163,9 @@ enum JobReason {
 	CANCELLATION_PROPOSER,
 
 	/** J10 cancels a Job without Accepted work; one with Accepted work goes through Closing (FR-40). */
-	HAS_ACCEPTED_WORK
+	HAS_ACCEPTED_WORK,
+
+	/** One side cancels alone only after the Agreement or Starting deadline passed (FR-40). */
+	DEADLINE_NOT_PASSED
 
 }

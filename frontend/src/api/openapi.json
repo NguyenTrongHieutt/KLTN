@@ -569,6 +569,43 @@
         "tags" : [ "cancellation-controller" ]
       }
     },
+    "/api/v1/boards/{boardId}/cancellation/alone" : {
+      "post" : {
+        "operationId" : "cancelAlone",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CancelAloneRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CancellationView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "cancellation-controller" ]
+      }
+    },
     "/api/v1/boards/{boardId}/cancellation/confirm" : {
       "post" : {
         "operationId" : "confirm_4",
@@ -6502,6 +6539,21 @@
         },
         "required" : [ "boardId", "code", "crew", "items", "mentor", "milestones", "readOnly", "title", "viewerId" ]
       },
+      "CancelAloneRequest" : {
+        "type" : "object",
+        "properties" : {
+          "reason" : {
+            "type" : "string",
+            "maxLength" : 2000,
+            "minLength" : 0
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "reason", "version" ]
+      },
       "CancellationProposalView" : {
         "type" : "object",
         "properties" : {
@@ -6577,6 +6629,9 @@
           "audience" : {
             "type" : "string"
           },
+          "canCancelAlone" : {
+            "type" : "boolean"
+          },
           "canPropose" : {
             "type" : "boolean"
           },
@@ -6598,7 +6653,7 @@
             "format" : "int64"
           }
         },
-        "required" : [ "audience", "canPropose", "held", "jobId", "state", "version" ]
+        "required" : [ "audience", "canCancelAlone", "canPropose", "held", "jobId", "state", "version" ]
       },
       "CapacityView" : {
         "type" : "object",

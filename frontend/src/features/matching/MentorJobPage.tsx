@@ -19,6 +19,7 @@ import { useDeclineSelection, useMentorJob, useSignNda, type MentorJob } from '.
 import { NDA_VERSION } from './nda'
 import { CommitEmailNotice, NdaText } from './NdaText'
 import { ProgressOverview } from '@/features/work/progress/ProgressOverview'
+import { CancellationSection } from '@/features/job/cancellation/CancellationSection'
 import { hasBoard } from '@/features/work/workApi'
 
 /**
@@ -86,10 +87,13 @@ function Overview({ job }: { job: MentorJob }) {
       ) : hasBoard(job.state) || job.state === 'CANCELLED' ? (
         <ProgressOverview jobId={job.id} audience="mentor" optional={job.state === 'CANCELLED'} />
       ) : (
-        <section className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5">
-          <h2 className="text-h2">{t('screen.nda.signedTitle')}</h2>
-          <p className="text-body-sm text-muted-foreground">{t('screen.nda.signedBody')}</p>
-        </section>
+        <>
+          <section className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5">
+            <h2 className="text-h2">{t('screen.nda.signedTitle')}</h2>
+            <p className="text-body-sm text-muted-foreground">{t('screen.nda.signedBody')}</p>
+          </section>
+          {(job.state === 'AGREEMENT' || job.state === 'STARTING') && <CancellationSection jobId={job.id} />}
+        </>
       )}
     </>
   )

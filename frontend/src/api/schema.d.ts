@@ -244,6 +244,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/boards/{boardId}/cancellation/alone": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cancelAlone"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/boards/{boardId}/cancellation/confirm": {
         parameters: {
             query?: never;
@@ -2853,6 +2869,11 @@ export interface components {
             /** Format: uuid */
             viewerId: string;
         };
+        CancelAloneRequest: {
+            reason: string;
+            /** Format: int64 */
+            version: number;
+        };
         CancellationProposalView: {
             /** Format: date-time */
             answerBy: string;
@@ -2882,6 +2903,7 @@ export interface components {
         };
         CancellationView: {
             audience: string;
+            canCancelAlone: boolean;
             canPropose: boolean;
             held: boolean;
             /** Format: uuid */
@@ -5627,6 +5649,32 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["CancellationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CancellationView"];
+                };
+            };
+        };
+    };
+    cancelAlone: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CancelAloneRequest"];
             };
         };
         responses: {

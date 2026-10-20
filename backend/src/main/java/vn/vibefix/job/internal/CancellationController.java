@@ -49,7 +49,10 @@ class CancellationController {
 	 * @param canPropose the Job can be cancelled and nothing is open
 	 */
 	record CancellationView(UUID jobId, String audience, String state, long version, boolean canPropose, boolean held,
-			@Nullable CancellationProposalView proposal) {
+			boolean canCancelAlone, @Nullable CancellationProposalView proposal) {
+	}
+
+	record CancelAloneRequest(@NotBlank @Size(max = 2000) String reason, @NotNull Long version) {
 	}
 
 	record CancellationRequest(@NotNull Scope scope, @NotBlank @Size(max = 2000) String reason, @NotNull Long version) {
@@ -103,6 +106,14 @@ class CancellationController {
 		return view(party(jobId));
 	}
 
+	/** After the Agreement or Starting deadline (FR-40): either side cancels alone. */
+	@PostMapping("/api/v1/boards/{boardId}/cancellation/alone")
+	CancellationView cancelAlone(@PathVariable("boardId") UUID jobId, @Valid @RequestBody CancelAloneRequest body) {
+		Viewer viewer = party(jobId);
+		this.cancellations.cancelAlone(jobId, viewer.accountId(), viewer.party(), body.version(), body.reason());
+		return view(party(jobId));
+	}
+
 	@PostMapping("/api/v1/boards/{boardId}/cancellation/withdraw")
 	CancellationView withdraw(@PathVariable("boardId") UUID jobId) {
 		Viewer viewer = party(jobId);
@@ -151,8 +162,9 @@ class CancellationController {
 				: new CancellationProposalView(shown.id(), shown.scope().name(), shown.reason(), shown.proposer().name(),
 						shown.proposer() == viewer.party(), shown.status(), shown.answerBy(), shown.unansweredAt() != null,
 						shown.createdAt(), shown.decidedAt());
+		boolean alone = viewer.party() != null && open == null && this.cancellations.aloneAllowed(job);
 		return new CancellationView(job.id(), viewer.party() == null ? "CREW" : viewer.party().name(), job.state().name(),
-				job.version(), canPropose, this.cancellations.held(job.id()), proposal);
+				job.version(), canPropose, this.cancellations.held(job.id()), alone, proposal);
 	}
 
 }

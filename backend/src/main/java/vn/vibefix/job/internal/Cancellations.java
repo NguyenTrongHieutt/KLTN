@@ -96,8 +96,12 @@ class Cancellations {
 
 	private final Clock clock;
 
+	private final StallDeadlines stalls;
+
 	Cancellations(JdbcClient jdbc, Jobs jobs, JobLifecycle lifecycle, ClosureProposals closures, Deadlines deadlines,
-			Notifications notifications, Todos todos, AuditLog auditLog, IdGenerator ids, Clock clock) {
+			Notifications notifications, Todos todos, AuditLog auditLog, IdGenerator ids, Clock clock,
+			StallDeadlines stalls) {
+		this.stalls = stalls;
 		this.jdbc = jdbc;
 		this.jobs = jobs;
 		this.lifecycle = lifecycle;
@@ -205,6 +209,55 @@ class Cancellations {
 		this.todos.closeAll(ANSWER, proposal.id());
 		audit(account, "job.cancellation_withdrawn", proposal.id(), jobId);
 		return find(proposal.id()).orElseThrow();
+	}
+
+	/**
+	 * One side cancels alone after the Agreement or Starting deadline passed (FR-40): M6, M7 with the full
+	 * refund, and J10, kept as a confirmed proposal marked alone.
+	 * @throws ApiException {@code STALE STATE_CHANGED}; {@code GUARD_FAILED DEADLINE_NOT_PASSED};
+	 * {@code CONFLICT CANCELLATION_OPEN}; {@code VALIDATION}; the cascade's refusals
+	 */
+	@Transactional
+	Proposal cancelAlone(UUID jobId, UUID account, Party party, long version, String reason) {
+		Job job = locked(jobId, version);
+		if (!Set.of(JobState.AGREEMENT, JobState.STARTING).contains(job.state()) || !this.stalls.passed(jobId)) {
+			throw new ApiException(ErrorCode.GUARD_FAILED, JobReason.DEADLINE_NOT_PASSED);
+		}
+		if (open(jobId).isPresent()) {
+			throw new ApiException(ErrorCode.CONFLICT, JobReason.CANCELLATION_OPEN);
+		}
+		String text = reason.strip();
+		if (text.isEmpty() || text.length() > 2000) {
+			throw new ApiException(ErrorCode.VALIDATION);
+		}
+		List<Planned> cascade = cascade(job);
+		ApiException refusal = this.lifecycle.refusal(jobId, Trigger.USER, cascade);
+		if (refusal != null) {
+			throw refusal;
+		}
+		this.lifecycle.tryApplyCascade(jobId, Trigger.USER, cascade)
+			.orElseThrow(() -> new IllegalStateException("The cancellation of " + jobId + " passed its checks but did not apply"));
+		UUID id = this.ids.newId();
+		Timestamp now = Timestamp.from(this.clock.instant());
+		this.jdbc.sql("""
+				INSERT INTO job.cancellation_proposal (id, job_id, scope, reason, proposer, proposer_account_id, status, answer_by,
+				    confirmed_by, created_at, decided_at, alone)
+				VALUES (:id, :job, 'JOB', :reason, :proposer, :account, 'CONFIRMED', :now, :account, :now, :now, true)
+				""")
+			.param("id", id)
+			.param("job", jobId)
+			.param("reason", text)
+			.param("proposer", party.name())
+			.param("account", account)
+			.param("now", now)
+			.update();
+		audit(account, "job.cancellation_alone", id, jobId);
+		return find(id).orElseThrow();
+	}
+
+	/** Whether one side may cancel alone now. */
+	boolean aloneAllowed(Job job) {
+		return Set.of(JobState.AGREEMENT, JobState.STARTING).contains(job.state()) && this.stalls.passed(job.id());
 	}
 
 	/** The copied days passed: the proposer is told once; the proposal stays open (FR-40). */
