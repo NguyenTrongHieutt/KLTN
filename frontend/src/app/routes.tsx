@@ -255,6 +255,10 @@ export const routes: RouteObject[] = [
         lazy: async () => ({ Component: (await import('@/features/admin/AdminStatisticsPage')).AdminStatisticsPage }),
       },
       {
+        path: 'ky-nang',
+        lazy: async () => ({ Component: (await import('@/features/admin/AdminCatalogPage')).AdminCatalogPage }),
+      },
+      {
         path: 'quy-tac',
         lazy: async () => ({ Component: (await import('@/features/admin/AdminRulesPage')).AdminRulesPage }),
       },

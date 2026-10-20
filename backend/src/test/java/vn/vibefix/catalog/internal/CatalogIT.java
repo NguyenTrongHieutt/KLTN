@@ -113,10 +113,14 @@ class CatalogIT extends IntegrationTest {
 		}
 	}
 
+	/** FR-72: ADM-12 adds and edits through the runtime role (Story 10.8), but nothing is ever deleted. */
 	@Test
-	void theRuntimeRoleOnlyReads() {
-		assertThatThrownBy(() -> this.jdbc.sql("UPDATE catalog.skill SET name = 'X' WHERE id = :id")
+	void theRuntimeRoleNeverDeletes() {
+		assertThatThrownBy(() -> this.jdbc.sql("DELETE FROM catalog.skill WHERE id = :id")
 			.param("id", REACT)
+			.update()).rootCause().hasMessageContaining("permission denied");
+		assertThatThrownBy(() -> this.jdbc.sql("DELETE FROM catalog.skill_category WHERE id = :id")
+			.param("id", UUID.randomUUID())
 			.update()).rootCause().hasMessageContaining("permission denied");
 	}
 

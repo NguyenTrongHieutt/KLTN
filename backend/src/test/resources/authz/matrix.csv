@@ -1350,6 +1350,51 @@ GET /api/v1/admin/statistics,CUSTOMER,,,404 NOT_FOUND
 GET /api/v1/admin/statistics,MENTOR,,,404 NOT_FOUND
 GET /api/v1/admin/statistics,STUDENT,,,404 NOT_FOUND
 GET /api/v1/admin/statistics,ADMINISTRATOR,,,200
+GET /api/v1/admin/catalog/categories,ANONYMOUS,,,401
+GET /api/v1/admin/catalog/categories,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/admin/catalog/categories,MENTOR,,,404 NOT_FOUND
+GET /api/v1/admin/catalog/categories,STUDENT,,,404 NOT_FOUND
+GET /api/v1/admin/catalog/categories,ADMINISTRATOR,,,200
+POST /api/v1/admin/catalog/categories,ANONYMOUS,,admin-catalog-category.json,401
+POST /api/v1/admin/catalog/categories,CUSTOMER,,admin-catalog-category.json,404 NOT_FOUND
+POST /api/v1/admin/catalog/categories,MENTOR,,admin-catalog-category.json,404 NOT_FOUND
+POST /api/v1/admin/catalog/categories,STUDENT,,admin-catalog-category.json,404 NOT_FOUND
+POST /api/v1/admin/catalog/categories,ADMINISTRATOR,,admin-catalog-category.json,201
+PUT /api/v1/admin/catalog/categories/{categoryId},ANONYMOUS,,admin-catalog-category.json,401
+PUT /api/v1/admin/catalog/categories/{categoryId},CUSTOMER,,admin-catalog-category.json,404 NOT_FOUND
+PUT /api/v1/admin/catalog/categories/{categoryId},MENTOR,,admin-catalog-category.json,404 NOT_FOUND
+PUT /api/v1/admin/catalog/categories/{categoryId},STUDENT,,admin-catalog-category.json,404 NOT_FOUND
+PUT /api/v1/admin/catalog/categories/{categoryId},ADMINISTRATOR,,admin-catalog-category.json,200
+POST /api/v1/admin/catalog/categories/{categoryId}/active,ANONYMOUS,,admin-catalog-active.json,401
+POST /api/v1/admin/catalog/categories/{categoryId}/active,CUSTOMER,,admin-catalog-active.json,404 NOT_FOUND
+POST /api/v1/admin/catalog/categories/{categoryId}/active,MENTOR,,admin-catalog-active.json,404 NOT_FOUND
+POST /api/v1/admin/catalog/categories/{categoryId}/active,STUDENT,,admin-catalog-active.json,404 NOT_FOUND
+POST /api/v1/admin/catalog/categories/{categoryId}/active,ADMINISTRATOR,,admin-catalog-active.json,200
+PUT /api/v1/admin/catalog/categories/order,ANONYMOUS,,admin-catalog-order.json,401
+PUT /api/v1/admin/catalog/categories/order,CUSTOMER,,admin-catalog-order.json,404 NOT_FOUND
+PUT /api/v1/admin/catalog/categories/order,MENTOR,,admin-catalog-order.json,404 NOT_FOUND
+PUT /api/v1/admin/catalog/categories/order,STUDENT,,admin-catalog-order.json,404 NOT_FOUND
+PUT /api/v1/admin/catalog/categories/order,ADMINISTRATOR,,admin-catalog-order.json,400 VALIDATION
+GET /api/v1/admin/catalog/skills,ANONYMOUS,,,401
+GET /api/v1/admin/catalog/skills,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/admin/catalog/skills,MENTOR,,,404 NOT_FOUND
+GET /api/v1/admin/catalog/skills,STUDENT,,,404 NOT_FOUND
+GET /api/v1/admin/catalog/skills,ADMINISTRATOR,,,200
+POST /api/v1/admin/catalog/skills,ANONYMOUS,,admin-catalog-skill.json,401
+POST /api/v1/admin/catalog/skills,CUSTOMER,,admin-catalog-skill.json,404 NOT_FOUND
+POST /api/v1/admin/catalog/skills,MENTOR,,admin-catalog-skill.json,404 NOT_FOUND
+POST /api/v1/admin/catalog/skills,STUDENT,,admin-catalog-skill.json,404 NOT_FOUND
+POST /api/v1/admin/catalog/skills,ADMINISTRATOR,,admin-catalog-skill.json,201
+PUT /api/v1/admin/catalog/skills/{skillId},ANONYMOUS,,admin-catalog-skill.json,401
+PUT /api/v1/admin/catalog/skills/{skillId},CUSTOMER,,admin-catalog-skill.json,404 NOT_FOUND
+PUT /api/v1/admin/catalog/skills/{skillId},MENTOR,,admin-catalog-skill.json,404 NOT_FOUND
+PUT /api/v1/admin/catalog/skills/{skillId},STUDENT,,admin-catalog-skill.json,404 NOT_FOUND
+PUT /api/v1/admin/catalog/skills/{skillId},ADMINISTRATOR,,admin-catalog-skill.json,200
+POST /api/v1/admin/catalog/skills/{skillId}/active,ANONYMOUS,,admin-catalog-active.json,401
+POST /api/v1/admin/catalog/skills/{skillId}/active,CUSTOMER,,admin-catalog-active.json,404 NOT_FOUND
+POST /api/v1/admin/catalog/skills/{skillId}/active,MENTOR,,admin-catalog-active.json,404 NOT_FOUND
+POST /api/v1/admin/catalog/skills/{skillId}/active,STUDENT,,admin-catalog-active.json,404 NOT_FOUND
+POST /api/v1/admin/catalog/skills/{skillId}/active,ADMINISTRATOR,,admin-catalog-active.json,200
 # Milestone Handovers (FR-32, AD-20, AD-39): the Customer (OWNER), the Mentor, and ACTIVE members read;
 # only the Mentor hands over, and the fixture's Milestone is not Funded. The Customer's Delivery Report
 # never carries the Work Item note, whose text is the WORK_ITEM_NOTE canary.

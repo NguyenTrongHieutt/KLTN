@@ -30,6 +30,7 @@ class StudentSkillNames {
 			return;
 		}
 		this.profiles.refreshSkillNames(event.skillId());
+		this.profiles.refreshMentorSkillNames(event.skillId());
 	}
 
 }
