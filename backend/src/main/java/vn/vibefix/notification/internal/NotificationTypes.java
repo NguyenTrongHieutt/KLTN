@@ -352,6 +352,16 @@ class NotificationTypes implements NotificationCatalog {
 			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.REMINDER, "info",
 			Set.of("job"));
 
+	/** FR-48: a held Milestone is due in 2 days. */
+	static final NotificationType JOB_MILESTONE_DUE_SOON = new NotificationType("job.milestone_due_soon",
+			Set.of(Audience.MENTOR, Audience.CREW_ACTIVE), Channel.IN_APP_AND_EMAIL, EmailClass.REMINDER, "info",
+			Set.of("job", "n", "date"));
+
+	/** FR-48: a held Milestone passed its due date unhanded; a flag that moves no money. */
+	static final NotificationType JOB_MILESTONE_OVERDUE = new NotificationType("job.milestone_overdue",
+			Set.of(Audience.CUSTOMER, Audience.MENTOR, Audience.CREW_ACTIVE), Channel.IN_APP_AND_EMAIL,
+			EmailClass.TRANSACTIONAL, "alert", Set.of("job", "n", "date"));
+
 	/** J8: the Job is closing. */
 	static final NotificationType JOB_JOB_CLOSING = new NotificationType("job.job_closing",
 			Set.of(Audience.CUSTOMER, Audience.MENTOR, Audience.CREW_ACTIVE), Channel.IN_APP_AND_EMAIL,
@@ -522,7 +532,7 @@ class NotificationTypes implements NotificationCatalog {
 				JOB_AGREEMENT_AWAITING_CONFIRMATION, JOB_AGREEMENT_CONFIRMED, JOB_MILESTONE_AWAITING_FUNDING, JOB_CREW_RECONFIRM_NEEDED,
 				PAYMENT_PAYMENT_RECEIVED, PAYMENT_PAYMENT_FAILED, PAYMENT_UNKNOWN_PAYMENT, JOB_MILESTONE_FUNDED, JOB_MILESTONE_SUBMITTED,
 				JOB_MILESTONE_ACCEPTED, JOB_REVISION_REQUESTED, PAYMENT_FUNDS_RELEASED, DELIVERY_ACCEPTANCE_REMINDER,
-				JOB_CLOSURE_PROPOSED, JOB_CLOSURE_DECLINED, JOB_CLOSURE_UNANSWERED, JOB_JOB_CLOSING, JOB_JOB_CLOSED,
+				JOB_CLOSURE_PROPOSED, JOB_CLOSURE_DECLINED, JOB_CLOSURE_UNANSWERED, JOB_JOB_CLOSING, JOB_JOB_CLOSED, JOB_MILESTONE_DUE_SOON, JOB_MILESTONE_OVERDUE,
 				REPO_DATA_DELETION_CONFIRMATION_PENDING, REPUTATION_RATING_WINDOW_OPENED,
 				REPUTATION_PRIVATE_FEEDBACK_INVITED, REPUTATION_RATINGS_PUBLISHED,
 				REPUTATION_PORTFOLIO_SUMMARY_AWAITING_APPROVAL, REPUTATION_PORTFOLIO_ENTRY_PUBLISHED,

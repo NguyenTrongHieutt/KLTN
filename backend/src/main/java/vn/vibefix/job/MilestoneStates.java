@@ -1,5 +1,6 @@
 package vn.vibefix.job;
 
+import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
@@ -21,9 +22,10 @@ public interface MilestoneStates {
 	 * @param revisionCriteria how many criteria the latest revision request named
 	 * @param autoAccepted accepted by Auto-acceptance
 	 * @param refunded cancelled after it was funded, so its held money was refunded in full (FR-40)
+	 * @param overdueSince when a Funded or Revision Requested Milestone became overdue (FR-48); a flag, not a state
 	 */
 	record MilestoneDetail(String state, int roundsLeft, @Nullable Integer revisionCriteria, boolean autoAccepted,
-			boolean refunded) {
+			boolean refunded, @Nullable Instant overdueSince) {
 	}
 
 	/** Each live Milestone of the Job by its ID, with its rounds and decision. */

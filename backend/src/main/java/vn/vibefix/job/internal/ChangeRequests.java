@@ -105,8 +105,10 @@ class ChangeRequests {
 
 	private final Clock clock;
 
+	private final DueDates dueDates;
+
 	ChangeRequests(JdbcClient jdbc, Jobs jobs, AgreementReviews reviews, Notifications notifications, Todos todos,
-			AuditLog auditLog, IdGenerator ids, Clock clock) {
+			AuditLog auditLog, IdGenerator ids, Clock clock, DueDates dueDates) {
 		this.jdbc = jdbc;
 		this.jobs = jobs;
 		this.reviews = reviews;
@@ -115,6 +117,7 @@ class ChangeRequests {
 		this.auditLog = auditLog;
 		this.ids = ids;
 		this.clock = clock;
+		this.dueDates = dueDates;
 	}
 
 	/**
@@ -295,6 +298,7 @@ class ChangeRequests {
 				.param("job", job.id())
 				.param("due", item.newDueOn())
 				.update();
+			this.dueDates.rescheduled(job.id(), item.milestoneId());
 		}
 		this.jdbc.sql("""
 				UPDATE job.job SET agreement_version_no = :next, version = version + 1, updated_at = :now WHERE id = :id

@@ -2261,7 +2261,13 @@
       "member": "Nhóm thực hiện: {name}",
       "product": "Sản phẩm",
       "nextAction": "Việc cần làm cho công việc này",
-      "sourceRepository": "Mở mã nguồn trên GitHub"
+      "sourceRepository": "Mở mã nguồn trên GitHub",
+      "overdue": "Trễ hạn từ {date}",
+      "overdueOptions": "Giai đoạn này đã quá hạn. Bạn có thể:",
+      "overdueWait": "chờ thêm",
+      "overdueNewDate": "đề nghị hạn mới",
+      "overdueCancel": "đề nghị hủy",
+      "overdueDispute": "mở tranh chấp"
     },
     "handover": {
       "tab": "Bàn giao",
@@ -3251,6 +3257,12 @@
       },
       "closure_unanswered": {
         "title": "Đề nghị kết thúc {job} chưa được trả lời. Bạn có thể mở tranh chấp."
+      },
+      "milestone_due_soon": {
+        "title": "Giai đoạn {n} của {job} đến hạn ngày {date}"
+      },
+      "milestone_overdue": {
+        "title": "Giai đoạn {n} của {job} đã quá hạn ngày {date}"
       }
     },
     "matching": {
