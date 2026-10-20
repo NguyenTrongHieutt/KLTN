@@ -177,7 +177,7 @@ class SpikeS2CommandTest {
 			Path secret = Files.writeString(this.folder.resolve("vnpay-hash-secret"), SECRET + "\n");
 			return new VnpaySandbox(new VnpayProperties(URI.create("http://127.0.0.1:9/paymentv2/vpcpay.html"),
 					URI.create("http://127.0.0.1:" + this.api.getAddress().getPort() + "/merchant_webapi/api/transaction"), tmnCode,
-					secret, URI.create("http://localhost:5173/thanh-toan/ket-qua"), true), CLOCK);
+					secret, URI.create("http://localhost:5173/thanh-toan/ket-qua"), true, null), CLOCK);
 		}
 		catch (IOException ex) {
 			throw new UncheckedIOException(ex);

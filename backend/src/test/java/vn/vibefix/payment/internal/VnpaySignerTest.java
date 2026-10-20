@@ -47,16 +47,16 @@ class VnpaySignerTest {
 	void onlyTheSandboxHostStarts() {
 		URI sandbox = URI.create("https://sandbox.vnpayment.vn/paymentv2/vpcpay.html");
 		URI api = URI.create("https://sandbox.vnpayment.vn/merchant_webapi/api/transaction");
-		SandboxGuard.check(new VnpayProperties(sandbox, api, null, null, null, false));
+		SandboxGuard.check(new VnpayProperties(sandbox, api, null, null, null, false, null));
 
 		assertThatThrownBy(() -> SandboxGuard.check(new VnpayProperties(URI.create("https://pay.vnpay.vn/vpcpay.html"), api, null,
-				null, null, false))).isInstanceOf(IllegalStateException.class).hasMessageContaining("sandbox.vnpayment.vn");
+				null, null, false, null))).isInstanceOf(IllegalStateException.class).hasMessageContaining("sandbox.vnpayment.vn");
 		assertThatThrownBy(() -> SandboxGuard.check(new VnpayProperties(URI.create("http://sandbox.vnpayment.vn/x"), api, null,
-				null, null, false))).isInstanceOf(IllegalStateException.class);
+				null, null, false, null))).isInstanceOf(IllegalStateException.class);
 		URI stub = URI.create("http://127.0.0.1:9/api");
-		assertThatThrownBy(() -> SandboxGuard.check(new VnpayProperties(sandbox, stub, null, null, null, false)))
+		assertThatThrownBy(() -> SandboxGuard.check(new VnpayProperties(sandbox, stub, null, null, null, false, null)))
 			.isInstanceOf(IllegalStateException.class);
-		SandboxGuard.check(new VnpayProperties(sandbox, stub, null, null, null, true));
+		SandboxGuard.check(new VnpayProperties(sandbox, stub, null, null, null, true, null));
 	}
 
 }

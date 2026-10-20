@@ -36,7 +36,9 @@ import vn.vibefix.shared.IdGenerator;
  * one transaction: it locks the Job row, re-reads the actor's account (a locked one is refused), checks
  * the state, the freeze, and the transition's guards, bumps {@code Job.version}, lets the transition's
  * {@link Step} write its columns and run its effects, writes one audit entry, and publishes one
- * {@link JobTransitioned}. Milestone transitions arrive with the Agreement (Epic 4).
+ * {@link JobTransitioned}. A cascade (AD-4: M1 with J6, J6 with J7) checks every transition it holds
+ * before the first write and then writes them in order under one lock and one version bump, one audit
+ * entry and one event each; Milestone transitions read and write {@code job.milestone.state}.
  */
 @Component
 class JobLifecycle {
@@ -109,8 +111,14 @@ class JobLifecycle {
 
 		private final Map<String, Object> input;
 
+		private final String from;
+
+		private final @Nullable UUID milestoneId;
+
+		private final boolean dryRun;
+
 		private Applying(Transition transition, Job job, Actor actor, Trigger trigger, UUID transitionId, Instant now,
-				Map<String, Object> input) {
+				Map<String, Object> input, String from, @Nullable UUID milestoneId, boolean dryRun) {
 			this.transition = transition;
 			this.job = job;
 			this.actor = actor;
@@ -118,6 +126,27 @@ class JobLifecycle {
 			this.transitionId = transitionId;
 			this.now = now;
 			this.input = Map.copyOf(input);
+			this.from = from;
+			this.milestoneId = milestoneId;
+			this.dryRun = dryRun;
+		}
+
+		/** The state it leaves: the Job's, or the Milestone's for a Milestone transition. */
+		String from() {
+			return this.from;
+		}
+
+		/** The Milestone a Milestone transition moves. */
+		UUID milestoneId() {
+			return Objects.requireNonNull(this.milestoneId, () -> this.transition + " moves no Milestone");
+		}
+
+		/**
+		 * A dry run checks without the lock and must not take locks or write: a guard that locks (J6's
+		 * Product lock) checks without locking.
+		 */
+		boolean dryRun() {
+			return this.dryRun;
 		}
 
 		/** What the command brought, for example J3's Mentor and Application. */
@@ -187,6 +216,26 @@ class JobLifecycle {
 
 	/** What an apply did. */
 	record Applied(UUID transitionId, long version, String to) {
+	}
+
+	/** One transition of a cascade (AD-4): the Job's own, or one of its Milestones'. */
+	record Planned(Transition transition, @Nullable UUID milestoneId, Map<String, Object> input) {
+
+		Planned {
+			input = Map.copyOf(input);
+			if ((transition.machine() == Transition.Machine.MILESTONE) != (milestoneId != null)) {
+				throw new IllegalArgumentException(transition + " and a Milestone ID do not match");
+			}
+		}
+
+		static Planned job(Transition transition) {
+			return new Planned(transition, null, Map.of());
+		}
+
+		static Planned milestone(Transition transition, UUID milestoneId, Map<String, Object> input) {
+			return new Planned(transition, milestoneId, input);
+		}
+
 	}
 
 	private final Map<Transition, Step> steps = new EnumMap<>(Transition.class);
@@ -281,6 +330,160 @@ class JobLifecycle {
 		}
 	}
 
+	/**
+	 * Applies a cascade as the System, as AD-4 lists them (M1 with J6, J6 with J7): every transition's
+	 * state, freeze, and guards are checked first, each against the state the earlier ones lead to; then
+	 * each is written in order with one {@code Job.version} bump. A refusal writes nothing and leaves the
+	 * caller's transaction usable.
+	 * @return the applied transitions in order, or empty when a check refused one
+	 */
+	@Transactional
+	Optional<List<Applied>> tryApplyCascade(UUID jobId, Trigger trigger, List<Planned> cascade) {
+		Job job = this.jobs.lock(jobId).orElse(null);
+		if (job == null) {
+			return Optional.empty();
+		}
+		List<Applying> checked;
+		try {
+			checked = check(job, trigger, cascade, false);
+		}
+		catch (ApiException refused) {
+			return Optional.empty();
+		}
+		List<Applied> applied = new ArrayList<>();
+		for (Applying applying : checked) {
+			applied.add(commit(applying));
+		}
+		return Optional.of(applied);
+	}
+
+	/**
+	 * The first refusal the cascade would meet now, read without the lock and writing nothing, for a
+	 * screen that says why an action waits.
+	 * @return the refusal, or {@code null} when the cascade would apply now
+	 */
+	@Transactional(readOnly = true)
+	@Nullable ApiException refusal(UUID jobId, Trigger trigger, List<Planned> cascade) {
+		Job job = this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id")
+			.param("id", jobId)
+			.query(Jobs::job)
+			.optional()
+			.orElse(null);
+		if (job == null) {
+			return new ApiException(ErrorCode.NOT_FOUND);
+		}
+		try {
+			check(job, trigger, cascade, true);
+			return null;
+		}
+		catch (ApiException refused) {
+			return refused;
+		}
+	}
+
+	private List<Applying> check(Job job, Trigger trigger, List<Planned> cascade, boolean dryRun) {
+		String jobState = job.state().name();
+		Map<UUID, String> milestones = new HashMap<>();
+		List<Applying> checked = new ArrayList<>();
+		Instant now = this.clock.instant();
+		for (Planned planned : cascade) {
+			Transition transition = planned.transition();
+			Step step = this.steps.get(transition);
+			if (step == null) {
+				throw new IllegalStateException(transition + " has no command yet");
+			}
+			if (!transition.triggers().contains(trigger)) {
+				throw new IllegalArgumentException(transition + " is not triggered by " + trigger);
+			}
+			String from = jobState;
+			if (planned.milestoneId() != null) {
+				from = milestones.containsKey(planned.milestoneId()) ? milestones.get(planned.milestoneId())
+						: milestoneState(job.id(), planned.milestoneId());
+				if (from == null) {
+					throw new ApiException(ErrorCode.NOT_FOUND);
+				}
+			}
+			if (!transition.from().contains(from)) {
+				throw new ApiException(ErrorCode.STALE, JobReason.STATE_CHANGED);
+			}
+			if (transition.frozenBlocks() && job.frozenAt() != null) {
+				throw new ApiException(ErrorCode.CONFLICT, JobReason.JOB_FROZEN);
+			}
+			Applying applying = new Applying(transition, job, Actor.SYSTEM, trigger, this.ids.newId(), now, planned.input(), from,
+					planned.milestoneId(), dryRun);
+			step.check(applying);
+			if (planned.milestoneId() == null) {
+				jobState = applying.to();
+			}
+			else {
+				milestones.put(planned.milestoneId(), applying.to());
+			}
+			checked.add(applying);
+		}
+		return checked;
+	}
+
+	private Applied commit(Applying applying) {
+		Step step = this.steps.get(applying.transition());
+		step.apply(applying);
+		writeCascade(applying);
+		step.afterWrite(applying);
+		AuditObject object = applying.milestoneId == null ? AuditObject.of("job.job", applying.job().id())
+				: AuditObject.of("job.milestone", applying.milestoneId());
+		this.auditLog.record(AuditEntry.of(applying.actor().audit(), applying.transition().auditAction(), object)
+			.forJob(applying.job().id()));
+		this.events.publishEvent(new JobTransitioned(this.ids.newId(), applying.transitionId(), applying.job().id(),
+				applying.transition().name(), applying.trigger().name(), applying.from(), applying.to(), applying.version(),
+				applying.job().agreementVersionNo(), applying.facts));
+		return new Applied(applying.transitionId(), applying.version(), applying.to());
+	}
+
+	/** A cascade's write: the row is locked, and every transition of it sets the same new version. */
+	private void writeCascade(Applying applying) {
+		Map<String, Object> params = new HashMap<>();
+		params.put("state", applying.to());
+		params.put("version", applying.version());
+		params.put("now", Timestamp.from(applying.now()));
+		params.put("id", applying.job().id());
+		StringBuilder columns = new StringBuilder();
+		appendColumns(applying, columns, params);
+		if (applying.milestoneId == null) {
+			int updated = this.jdbc.sql("UPDATE job.job SET state = :state, version = :version, updated_at = :now" + columns
+					+ " WHERE id = :id").params(params).update();
+			if (updated != 1) {
+				throw new IllegalStateException("The locked Job " + applying.job().id() + " is gone");
+			}
+			return;
+		}
+		params.put("milestone", applying.milestoneId());
+		params.put("from", applying.from());
+		int updated = this.jdbc.sql("UPDATE job.milestone SET state = :state" + columns
+				+ " WHERE id = :milestone AND job_id = :id AND state = :from").params(params).update();
+		if (updated != 1) {
+			throw new IllegalStateException("The Milestone " + applying.milestoneId() + " changed during the apply");
+		}
+		this.jdbc.sql("UPDATE job.job SET version = :version, updated_at = :now WHERE id = :id").params(params).update();
+	}
+
+	private void appendColumns(Applying applying, StringBuilder sql, Map<String, Object> params) {
+		int index = 0;
+		for (Map.Entry<String, Object> column : applying.columns.entrySet()) {
+			String param = "c" + index++;
+			sql.append(", ").append(column.getKey()).append(" = ");
+			sql.append(applying.jsonColumns.contains(column.getKey()) ? "CAST(:" + param + " AS JSONB)" : ":" + param);
+			params.put(param, column.getValue());
+		}
+	}
+
+	private @Nullable String milestoneState(UUID jobId, UUID milestoneId) {
+		return this.jdbc.sql("SELECT state FROM job.milestone WHERE id = :id AND job_id = :job AND removed_at IS NULL")
+			.param("id", milestoneId)
+			.param("job", jobId)
+			.query(String.class)
+			.optional()
+			.orElse(null);
+	}
+
 	private Applied run(Transition transition, UUID jobId, Actor actor, Trigger trigger, @Nullable Long expectedVersion,
 			Map<String, Object> input) {
 		Step step = this.steps.get(transition);
@@ -303,7 +506,11 @@ class JobLifecycle {
 		if (transition.frozenBlocks() && job.frozenAt() != null) {
 			throw new ApiException(ErrorCode.CONFLICT, JobReason.JOB_FROZEN);
 		}
-		Applying applying = new Applying(transition, job, actor, trigger, this.ids.newId(), this.clock.instant(), input);
+		if (transition.machine() != Transition.Machine.JOB) {
+			throw new IllegalArgumentException(transition + " moves a Milestone: apply it in a cascade");
+		}
+		Applying applying = new Applying(transition, job, actor, trigger, this.ids.newId(), this.clock.instant(), input,
+				job.state().name(), null, false);
 		step.check(applying);
 		step.apply(applying);
 		write(applying);

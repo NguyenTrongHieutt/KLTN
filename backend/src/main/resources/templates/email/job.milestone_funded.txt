@@ -1,0 +1,7 @@
+subject: Giai đoạn {n} của {job} đã được thanh toán (thử nghiệm). Bạn có thể bắt đầu.
+---
+Xin chào,
+
+Khách hàng đã thanh toán Giai đoạn {n} của công việc {job}. Bạn có thể bắt đầu làm giai đoạn này.
+
+Giao dịch thử nghiệm — không dùng tiền thật. vibefix đang chạy thử với môi trường thử nghiệm của VNPay.

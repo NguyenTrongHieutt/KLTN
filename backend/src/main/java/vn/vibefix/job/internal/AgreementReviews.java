@@ -17,6 +17,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +28,8 @@ import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
 import vn.vibefix.identity.StudentDirectory.StudentCard;
+import vn.vibefix.job.AgreementConfirmed;
+import vn.vibefix.job.AgreementConfirmed.ConfirmedMilestone;
 import vn.vibefix.job.internal.Agreements.Content;
 import vn.vibefix.job.internal.Agreements.Criterion;
 import vn.vibefix.job.internal.Agreements.ExternalAccess;
@@ -106,8 +109,11 @@ class AgreementReviews {
 
 	private final Clock clock;
 
+	private final ApplicationEventPublisher events;
+
 	AgreementReviews(JdbcClient jdbc, Agreements agreements, CrewService crews, Notifications notifications, Todos todos,
-			AuditLog auditLog, IdGenerator ids, Clock clock) {
+			AuditLog auditLog, IdGenerator ids, Clock clock, ApplicationEventPublisher events) {
+		this.events = events;
 		this.jdbc = jdbc;
 		this.agreements = agreements;
 		this.crews = crews;
@@ -328,6 +334,13 @@ class AgreementReviews {
 				AWAITING_FUNDING, cause(jobId, "funding:" + first.id()), List.of(new Recipient(job.customerId(), Audience.CUSTOMER)),
 				Map.of("job", job.title(), "n", "1", "amount", vnd(first.priceVnd() == null ? 0 : first.priceVnd())),
 				"/cong-viec/" + jobId, jobId, null)));
+		List<ConfirmedMilestone> milestones = new ArrayList<>();
+		for (int m = 0; m < latest.content().milestones().size(); m++) {
+			Milestone milestone = latest.content().milestones().get(m);
+			milestones.add(new ConfirmedMilestone(milestone.id(), m + 1, milestone.title(),
+					milestone.priceVnd() == null ? 0 : milestone.priceVnd()));
+		}
+		this.events.publishEvent(new AgreementConfirmed(this.ids.newId(), jobId, job.productId(), job.customerId(), job.title(), 1, milestones));
 		return new Confirmed(1, latest.versionNo(), usernames, approval.liveAccessIds(), approval.freezeCommitted(),
 				approval.approvedAt(), now, latest.content());
 	}

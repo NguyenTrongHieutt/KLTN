@@ -1806,6 +1806,76 @@
         "activeBadge": "Đã xác nhận",
         "inactiveBadge": "Tạm ngừng"
       }
+    },
+    "payment": {
+      "tab": "Thanh toán",
+      "title": "Thanh toán · {job}",
+      "n13Title": "Giao dịch thử nghiệm — không dùng tiền thật",
+      "n13Body": "vibefix đang chạy thử với môi trường thử nghiệm của VNPay.",
+      "n13Help": "Cách thanh toán thử",
+      "helpLead": "Trên trang VNPay, chọn thẻ ngân hàng nội địa và nhập thẻ thử VNPay công bố cho môi trường thử nghiệm:",
+      "helpBank": "Ngân hàng: {value}",
+      "helpNumber": "Số thẻ: {value}",
+      "helpHolder": "Tên chủ thẻ: {value}",
+      "helpIssued": "Ngày phát hành: {value}",
+      "helpOtp": "Mã OTP: {value}",
+      "helpNote": "Đây là thẻ thử, không phải thẻ thật, và không có tiền thật nào được chuyển.",
+      "helpMissing": "Môi trường này chưa có thẻ thử. Hãy xem trang hướng dẫn môi trường thử nghiệm của VNPay.",
+      "milestonesTitle": "Thanh toán theo giai đoạn",
+      "milestone": "Giai đoạn",
+      "amount": "Số tiền",
+      "status": "Trạng thái",
+      "row": "{n} · {title}",
+      "pay": "Thanh toán",
+      "payLabel": "Thanh toán Giai đoạn {n}",
+      "paying": "Đang mở trang VNPay…",
+      "payAction": "tạo lệnh thanh toán",
+      "notConfigured": "Môi trường này chưa kết nối VNPay thử nghiệm.",
+      "frozen": "Công việc đang tạm dừng vì có tranh chấp.",
+      "milestoneState": {
+        "PLANNED": "Chưa thanh toán",
+        "LATER": "Chưa bắt đầu",
+        "FUNDED": "Đã thanh toán · đang giữ",
+        "REVISION_REQUESTED": "Đang sửa",
+        "SUBMITTED": "Chờ nghiệm thu",
+        "ACCEPTED": "Đã nghiệm thu",
+        "CANCELLED": "Đã hủy",
+        "SETTLED": "Đã giải quyết"
+      },
+      "ordersTitle": "Lệnh thanh toán",
+      "noOrders": "Chưa có lệnh thanh toán nào.",
+      "orderLine": "Giai đoạn {n} · {time} · mã {reference}",
+      "orderOpen": "Xem kết quả",
+      "orderStatus": {
+        "OPEN": "Đang chờ VNPay",
+        "PAID": "Đã thanh toán",
+        "UNAPPLIED": "Chờ hoàn tiền",
+        "FAILED": "Không thành công",
+        "EXPIRED": "Hết hạn",
+        "VOIDED": "Đã thay bằng lệnh mới"
+      },
+      "result": {
+        "title": "Kết quả thanh toán",
+        "pending": "Đang chờ VNPay xác nhận",
+        "pendingBody": "Bạn có thể rời trang; vibefix sẽ báo khi có kết quả.",
+        "slow": "VNPay chưa xác nhận. Lệnh thanh toán hết hạn lúc {time}.",
+        "paid": "Đã thanh toán",
+        "paidBody": "Người hướng dẫn và nhóm thực hiện được báo để bắt đầu Giai đoạn {n}.",
+        "failed": "Thanh toán chưa thành công",
+        "failedBody": "Không có tiền nào bị trừ. Bạn có thể thanh toán lại ở trang thanh toán của công việc.",
+        "expired": "Lệnh thanh toán đã hết hạn",
+        "expiredBody": "Lệnh chỉ dùng được trong 15 phút. Hãy tạo lệnh mới ở trang thanh toán của công việc.",
+        "voided": "Lệnh này đã được thay bằng lệnh mới",
+        "voidedBody": "Hãy dùng lệnh thanh toán mới nhất ở trang thanh toán của công việc.",
+        "unapplied": "Đã nhận tiền nhưng chưa áp dụng được",
+        "unappliedBody": "Số tiền này không áp dụng được cho giai đoạn, nên vibefix sẽ hoàn lại cho bạn.",
+        "job": "Công việc",
+        "item": "Khoản",
+        "itemValue": "Thanh toán Giai đoạn {n}",
+        "reference": "Mã lệnh",
+        "time": "Thời gian",
+        "backToJob": "Về trang thanh toán của công việc"
+      }
     }
   },
   "notice": {
@@ -2253,6 +2323,9 @@
       "confirm_crew_terms": "Ký cam kết và xác nhận phần chia cho {job}",
       "revise_agreement": "Sửa thỏa thuận {job} theo góp ý của khách hàng",
       "confirm_agreement_mentor": "Xác nhận thỏa thuận cho {job}"
+    },
+    "payment": {
+      "fund_milestone": "Thanh toán Giai đoạn {n}: {amount} THỬ NGHIỆM"
     }
   },
   "theme": {
@@ -2388,6 +2461,12 @@
       },
       "crew_reconfirm_needed": {
         "title": "Một thành viên nhóm {job} bị khóa. Hãy xác nhận lại nhóm thực hiện trước khi khách hàng thanh toán."
+      },
+      "milestone_funded": {
+        "title": "Giai đoạn {n} của {job} đã được thanh toán (thử nghiệm). Bạn có thể bắt đầu."
+      },
+      "job_starting": {
+        "title": "Đang chuẩn bị kho mã cho {job}"
       }
     },
     "matching": {
@@ -2419,6 +2498,17 @@
     "chat": {
       "chat_opened": {
         "title": "Trò chuyện cho {job} đã mở"
+      }
+    },
+    "payment": {
+      "payment_received": {
+        "title": "Đã nhận thanh toán thử nghiệm {amount} cho Giai đoạn {n} của {job}"
+      },
+      "payment_failed": {
+        "title": "Thanh toán thử nghiệm Giai đoạn {n} của {job} chưa thành công"
+      },
+      "unknown_payment": {
+        "title": "VNPay báo một thanh toán không khớp lệnh thanh toán nào"
       }
     }
   },
@@ -2512,7 +2602,13 @@
       "FREEZE_COMMITMENT_REQUIRED": "hãy đánh dấu cam kết không thay đổi dự án gốc",
       "AGREEMENT_NOT_APPROVED": "khách hàng chưa duyệt bản nháp mới nhất",
       "AGREEMENT_CONFIRMED": "thỏa thuận đã được xác nhận, chỉ thay đổi được qua đề nghị thay đổi",
-      "DRAFT_CHANGED": "bản nháp có thay đổi chưa gửi cho khách hàng"
+      "DRAFT_CHANGED": "bản nháp có thay đổi chưa gửi cho khách hàng",
+      "AGREEMENT_NOT_CONFIRMED": "thỏa thuận chưa được xác nhận",
+      "CREW_NOT_READY": "đang chờ người hướng dẫn hoàn tất nhóm thực hiện",
+      "PRODUCT_HAS_RUNNING_JOB": "sản phẩm này đang có một công việc khác chạy",
+      "MILESTONE_HELD": "một giai đoạn khác đang được giữ tiền",
+      "MILESTONE_NOT_FUNDABLE": "giai đoạn này chưa đến lượt thanh toán",
+      "REPOSITORIES_NOT_READY": "kho mã của công việc chưa sẵn sàng"
     },
     "matching": {
       "JOB_POST_NOT_OPEN": "công việc không còn nhận ứng tuyển",
@@ -2536,6 +2632,9 @@
     "chat": {
       "SENSITIVE_CONTENT": "Tin nhắn có thể chứa khóa bí mật hoặc dữ liệu khách hàng.",
       "MESSAGE_EMPTY": "Hãy nhập tin nhắn hoặc đính kèm một tệp."
+    },
+    "payment": {
+      "PAYMENT_NOT_CONFIGURED": "môi trường này chưa kết nối VNPay thử nghiệm"
     }
   }
 }

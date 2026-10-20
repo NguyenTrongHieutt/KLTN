@@ -1136,6 +1136,33 @@
         "tags" : [ "job-chat-controller" ]
       }
     },
+    "/api/v1/jobs/{jobId}/funding" : {
+      "get" : {
+        "operationId" : "jobFunding",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/JobFundingView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "payment-controller" ]
+      }
+    },
     "/api/v1/jobs/{jobId}/invitations" : {
       "get" : {
         "operationId" : "invitations",
@@ -1264,6 +1291,51 @@
           }
         },
         "tags" : [ "invitation-controller" ]
+      }
+    },
+    "/api/v1/jobs/{jobId}/milestones/{milestoneId}/payment-orders" : {
+      "post" : {
+        "operationId" : "createPaymentOrder",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "path",
+          "name" : "milestoneId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreatePaymentOrderRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CreatedPaymentOrderView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "payment-controller" ]
       }
     },
     "/api/v1/jobs/{jobId}/publish" : {
@@ -2596,6 +2668,51 @@
         "tags" : [ "notification-controller" ]
       }
     },
+    "/api/v1/payment-orders/{paymentOrderId}" : {
+      "get" : {
+        "operationId" : "paymentOrder",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "paymentOrderId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PaymentOrderDetailView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "payment-controller" ]
+      }
+    },
+    "/api/v1/payment/test-card" : {
+      "get" : {
+        "operationId" : "testCard",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TestCardView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "payment-controller" ]
+      }
+    },
     "/api/v1/products" : {
       "get" : {
         "operationId" : "products",
@@ -3590,6 +3707,35 @@
         },
         "tags" : [ "verification-controller" ]
       }
+    },
+    "/webhooks/vnpay/ipn" : {
+      "get" : {
+        "operationId" : "vnpayIpn",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "params",
+          "required" : true,
+          "schema" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "string"
+            }
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/IpnResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "vnpay-ipn-controller" ]
+      }
     }
   },
   "components" : {
@@ -4338,6 +4484,33 @@
         },
         "required" : [ "displayName", "email", "stepUpCode" ]
       },
+      "CreatePaymentOrderRequest" : {
+        "type" : "object",
+        "properties" : {
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "version" ]
+      },
+      "CreatedPaymentOrderView" : {
+        "type" : "object",
+        "properties" : {
+          "expiresAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "payUrl" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "expiresAt", "id", "payUrl" ]
+      },
       "CreatedView" : {
         "type" : "object",
         "properties" : {
@@ -4964,6 +5137,36 @@
         },
         "required" : [ "category", "commit", "committedAt", "createdAt", "id", "maskedPreview", "path", "ruleId", "status", "type" ]
       },
+      "FundingMilestoneView" : {
+        "type" : "object",
+        "properties" : {
+          "blockedReason" : {
+            "type" : "string"
+          },
+          "fundable" : {
+            "type" : "boolean"
+          },
+          "milestoneId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "priceVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "state" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "fundable", "milestoneId", "number", "priceVnd", "state", "title" ]
+      },
       "InvitationsView" : {
         "type" : "object",
         "properties" : {
@@ -4993,6 +5196,18 @@
           }
         },
         "required" : [ "mentorId" ]
+      },
+      "IpnResponse" : {
+        "type" : "object",
+        "properties" : {
+          "Message" : {
+            "type" : "string"
+          },
+          "RspCode" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "Message", "RspCode" ]
       },
       "JobApplicationView" : {
         "type" : "object",
@@ -5096,6 +5311,41 @@
           }
         },
         "required" : [ "jobTypes", "skillIds", "title" ]
+      },
+      "JobFundingView" : {
+        "type" : "object",
+        "properties" : {
+          "configured" : {
+            "type" : "boolean"
+          },
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "milestones" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/FundingMilestoneView"
+            }
+          },
+          "orders" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/PaymentOrderView"
+            }
+          },
+          "state" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "configured", "jobId", "milestones", "orders", "state", "title", "version" ]
       },
       "JobMentorView" : {
         "type" : "object",
@@ -5293,6 +5543,9 @@
       "JobView" : {
         "type" : "object",
         "properties" : {
+          "agreementConfirmed" : {
+            "type" : "boolean"
+          },
           "agreementShared" : {
             "type" : "boolean"
           },
@@ -5388,7 +5641,7 @@
             "format" : "int64"
           }
         },
-        "required" : [ "agreementShared", "canCancelSelection", "createdAt", "id", "jobTypes", "productId", "productName", "screenshots", "skills", "state", "title", "updatedAt", "version" ]
+        "required" : [ "agreementConfirmed", "agreementShared", "canCancelSelection", "createdAt", "id", "jobTypes", "productId", "productName", "screenshots", "skills", "state", "title", "updatedAt", "version" ]
       },
       "MentorApplicationDetail" : {
         "type" : "object",
@@ -6194,6 +6447,92 @@
           }
         },
         "required" : [ "items", "page", "size", "total" ]
+      },
+      "PaymentOrderDetailView" : {
+        "type" : "object",
+        "properties" : {
+          "amountVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "expiresAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "finishedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "jobTitle" : {
+            "type" : "string"
+          },
+          "milestoneTitle" : {
+            "type" : "string"
+          },
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "reference" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "amountVnd", "createdAt", "expiresAt", "id", "jobId", "jobTitle", "milestoneTitle", "number", "reference", "status" ]
+      },
+      "PaymentOrderView" : {
+        "type" : "object",
+        "properties" : {
+          "amountVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "expiresAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "finishedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "milestoneId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "reference" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "amountVnd", "createdAt", "expiresAt", "id", "milestoneId", "number", "reference", "status" ]
       },
       "PendingCodeView" : {
         "type" : "object",
@@ -7648,6 +7987,30 @@
           }
         },
         "required" : [ "accountId", "skills", "verified" ]
+      },
+      "TestCardView" : {
+        "type" : "object",
+        "properties" : {
+          "bank" : {
+            "type" : "string"
+          },
+          "configured" : {
+            "type" : "boolean"
+          },
+          "holder" : {
+            "type" : "string"
+          },
+          "issued" : {
+            "type" : "string"
+          },
+          "number" : {
+            "type" : "string"
+          },
+          "otp" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "configured" ]
       },
       "ThemeRequest" : {
         "type" : "object",

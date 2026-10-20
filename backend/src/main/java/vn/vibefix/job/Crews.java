@@ -2,6 +2,7 @@ package vn.vibefix.job;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -74,5 +75,15 @@ public interface Crews {
 
 	/** "Từ chối": the Student leaves the Crew before the Agreement is confirmed. */
 	void decline(UUID jobId, UUID studentId, int versionNo);
+
+	/**
+	 * The Crew Terms version M1 pinned on the Milestone, with every party's share: what its release
+	 * splits by (FR-42, AD-41).
+	 */
+	record ReleaseTerms(int versionNo, Map<UUID, Integer> shares) {
+	}
+
+	/** The pinned Crew Terms of a funded Milestone; empty before M1. */
+	Optional<ReleaseTerms> releaseTermsOf(UUID milestoneId);
 
 }
