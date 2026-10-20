@@ -4,7 +4,8 @@ import { hasBoard } from '@/features/work/workApi'
 import { t } from '@/i18n/t'
 
 /**
- * The Mentor's Job tabs (UX-DR17): "Tổng quan"; from Active on, "Bảng công việc" (JOB-2); from
+ * The Mentor's Job tabs (UX-DR17): "Tổng quan"; from Active on, "Bảng công việc" (JOB-2) and "Tài liệu"
+ * (JOB-3); from
  * Agreement on, "Trò chuyện" and "Trao đổi nhóm" (JOB-8), each with its unread dot, and "Thỏa thuận";
  * "Thanh toán" once the Agreement is confirmed (JOB-7).
  */
@@ -16,7 +17,7 @@ export function MentorJobTabs({
 }: {
   jobId: string
   state: string
-  current: 'overview' | 'board' | 'chat' | 'crewChat' | 'agreement' | 'payment'
+  current: 'overview' | 'board' | 'docs' | 'chat' | 'crewChat' | 'agreement' | 'payment'
   /** Whether the Agreement is confirmed (FR-17). */
   payment?: boolean
 }) {
@@ -27,7 +28,12 @@ export function MentorJobTabs({
       current={current}
       tabs={[
         { key: 'overview', to: `/cong-viec/${jobId}`, label: t('screen.job.detail.overview') },
-        ...(hasBoard(state) ? [{ key: 'board', to: `/cong-viec/${jobId}/bang`, label: t('screen.board.tab') }] : []),
+        ...(hasBoard(state)
+          ? [
+              { key: 'board', to: `/cong-viec/${jobId}/bang`, label: t('screen.board.tab') },
+              { key: 'docs', to: `/cong-viec/${jobId}/tai-lieu`, label: t('screen.docs.tab') },
+            ]
+          : []),
         ...(hasChat(state)
           ? [
               { key: 'chat', to: `/cong-viec/${jobId}/tro-chuyen`, label: t('screen.chat.tab'), dot: chat.data?.unread },

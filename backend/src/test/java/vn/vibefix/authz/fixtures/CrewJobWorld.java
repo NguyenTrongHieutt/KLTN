@@ -33,7 +33,8 @@ import vn.vibefix.team.internal.TeamTestSupport;
  * <li>{@link MatrixCaller#ADMIN_TEAM_ISSUE_GRANT}, an Administrator holding a grant on the Crew Chat.</li>
  * </ul>
  * It also seeds the Job's confirmed Agreement with one Milestone ({@code {crewMilestoneId}}) and its
- * Board ({@code {boardId}}) with the criterion's seeded Story ({@code {workItemId}}).
+ * Board ({@code {boardId}}) with the criterion's seeded Story ({@code {workItemId}}), and a Page
+ * ({@code {pageId}}, version {@code {versionNo}}) the Mentor wrote after the windows ended.
  */
 final class CrewJobWorld {
 
@@ -144,6 +145,18 @@ final class CrewJobWorld {
 		world.put("boardId", job);
 		world.put("crewMilestoneId", milestone);
 		world.put("workItemId", item);
+		UUID page = UUID.randomUUID();
+		Timestamp written = Timestamp.from(MutableClock.DEFAULT_INSTANT.minus(Duration.ofDays(1)));
+		this.jdbc.sql("""
+				INSERT INTO work.page (id, job_id, title, version_no, created_by_account_id, created_at, updated_at)
+				VALUES (:id, :job, 'Ghi chú kỹ thuật', 1, :mentor, :at, :at)
+				""").param("id", page).param("job", job).param("mentor", this.mentor).param("at", written).update();
+		this.jdbc.sql("""
+				INSERT INTO work.page_version (page_id, version_no, title, body, author_account_id, created_at)
+				VALUES (:id, 1, 'Ghi chú kỹ thuật', '# Cách chạy', :mentor, :at)
+				""").param("id", page).param("mentor", this.mentor).param("at", written).update();
+		world.put("pageId", page);
+		world.put("versionNo", 1);
 	}
 
 	Optional<RequestPostProcessor> realize(MatrixCaller caller) {
