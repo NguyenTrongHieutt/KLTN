@@ -1,8 +1,11 @@
 package vn.vibefix.job;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+
+import org.jspecify.annotations.Nullable;
 
 /**
  * The Acceptance Criteria of the Agreement version in force, as {@code work} seeds its backlog from them
@@ -20,8 +23,13 @@ public interface AgreementCriteria {
 			String statement, String checkSteps) {
 	}
 
-	/** One Milestone in force, numbered from 1 in the Agreement's order. */
-	record MilestoneInForce(UUID milestoneId, int number, String title) {
+	/**
+	 * One Milestone in force, numbered from 1 in the Agreement's order.
+	 * @param priceVnd its price in whole VND
+	 * @param dueOn its due date
+	 */
+	record MilestoneInForce(UUID milestoneId, int number, String title, @Nullable Long priceVnd,
+			@Nullable LocalDate dueOn) {
 	}
 
 	/** The Job's Milestones, and its criteria in Milestone order, then criterion order. */

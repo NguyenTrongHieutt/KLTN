@@ -23,19 +23,25 @@ import { useJob, useWithdrawJob, type Job } from './jobApi'
 import { JobTabs } from './JobTabs'
 import { JobStateBadge } from './JobStateBadge'
 import { hasBoard } from '@/features/work/workApi'
+import { CrewJobPage } from '@/features/work/progress/CrewJobPage'
+import { ProgressOverview } from '@/features/work/progress/ProgressOverview'
 
 /**
  * JOB-1 Tổng quan (`/cong-viec/{jobId}`, UX-DR17, UX-DR19, UX-DR68). The Customer's: while Open, the
  * Job header, what happens next, the Job Post as Mentors read it, the reminder that the code is
  * public, the lapse date, and "Rút tin" (J2); while Selecting, the chosen Mentor, the held
- * Applications, and "Hủy lựa chọn" once the signature period passed (J5). A Draft opens CUS-6. The
- * Job's Mentor gets their own JOB-1.
+ * Applications, and "Hủy lựa chọn" once the signature period passed (J5); from Active on, the
+ * progress of each Milestone (FR-28). A Draft opens CUS-6. The Job's Mentor gets their own JOB-1, and
+ * an active Crew member theirs.
  */
 export function JobPage() {
   const { jobId } = useParams()
   const account = useSession().data?.account
   if (account?.role === 'MENTOR' && jobId) {
     return <MentorJobPage jobId={jobId} />
+  }
+  if (account?.role === 'STUDENT' && jobId) {
+    return <CrewJobPage jobId={jobId} />
   }
   if (account !== undefined && account.role !== 'CUSTOMER') {
     return <NotFoundScreen />
@@ -143,6 +149,8 @@ function Overview({ job }: { job: Job }) {
           </div>
           <Aside job={job} lapsesAt={job.lapsesAt} />
         </div>
+      ) : hasBoard(job.state) ? (
+        <ProgressOverview jobId={job.id} audience="customer" />
       ) : (
         <p className="text-body-sm text-muted-foreground">{t('screen.job.detail.notYet')}</p>
       )}

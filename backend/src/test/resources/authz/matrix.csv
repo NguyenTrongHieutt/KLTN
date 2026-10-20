@@ -724,6 +724,22 @@ GET /api/v1/boards/{boardId}/work-items,CREW_FORMER,,,200
 GET /api/v1/boards/{boardId}/work-items,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/work-items,JOB_MENTOR,,,200
 GET /api/v1/boards/{boardId}/work-items,CREW_ACTIVE,,,200
+# JOB-1 progress (FR-28, AD-39): the Job's Customer (OWNER), its Mentor, and ACTIVE members read it; the
+# Customer's answer holds no Work Item; INACTIVE and former members and everyone else find nothing.
+GET /api/v1/boards/{boardId}/progress,ANONYMOUS,,,401
+GET /api/v1/boards/{boardId}/progress,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/progress,MENTOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/progress,STUDENT,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/progress,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/progress,TEAM_MENTOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/progress,TEAM_MEMBER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/progress,CREW_ASSIGNED,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/progress,CREW_INACTIVE,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/progress,CREW_FORMER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/progress,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/progress,OWNER,,,200
+GET /api/v1/boards/{boardId}/progress,JOB_MENTOR,,,200
+GET /api/v1/boards/{boardId}/progress,CREW_ACTIVE,,,200
 POST /api/v1/boards/{boardId}/work-items,ANONYMOUS,,work-item.json,401
 POST /api/v1/boards/{boardId}/work-items,OWNER,,work-item.json,404 NOT_FOUND
 POST /api/v1/boards/{boardId}/work-items,CUSTOMER,,work-item.json,404 NOT_FOUND

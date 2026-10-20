@@ -46,7 +46,7 @@ class ConfirmedCriteria implements AgreementCriteria {
 		List<Milestone> milestones = confirmed.get().content().milestones();
 		for (int m = 0; m < milestones.size(); m++) {
 			Milestone milestone = milestones.get(m);
-			inForce.add(new MilestoneInForce(milestone.id(), m + 1, milestone.title()));
+			inForce.add(new MilestoneInForce(milestone.id(), m + 1, milestone.title(), milestone.priceVnd(), milestone.dueOn()));
 			for (int c = 0; c < milestone.criteria().size(); c++) {
 				Criterion criterion = milestone.criteria().get(c);
 				criteria.add(new CriterionInForce(criterion.id(), milestone.id(), m + 1, milestone.title(), c + 1,

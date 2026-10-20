@@ -228,6 +228,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/boards/{boardId}/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["progress"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/boards/{boardId}/work-items": {
         parameters: {
             query?: never;
@@ -2495,6 +2511,12 @@ export interface components {
             /** Format: int32 */
             percent?: number;
         };
+        CrewProgressView: {
+            /** Format: uuid */
+            accountId: string;
+            name: string;
+            openItems: components["schemas"]["OpenItemView"][];
+        };
         CrewReconfirmRequest: {
             /** Format: int64 */
             crewVersion: number;
@@ -2820,6 +2842,19 @@ export interface components {
             productTools: string[];
             screenshots: components["schemas"]["ScreenshotView"][];
             skills: components["schemas"]["JobPostSkillView"][];
+            title: string;
+        };
+        JobProgressView: {
+            audience: string;
+            /** Format: uuid */
+            boardId: string;
+            crew: components["schemas"]["CrewProgressView"][];
+            mentorName: string;
+            milestones: components["schemas"]["MilestoneProgressView"][];
+            mine: components["schemas"]["OpenItemView"][];
+            pages: components["schemas"]["PageLinkView"][];
+            productName: string;
+            state: string;
             title: string;
         };
         JobSummaryView: {
@@ -3151,6 +3186,24 @@ export interface components {
             revisionRounds: number;
             title: string;
         };
+        MilestoneProgressView: {
+            /** Format: int32 */
+            done: number;
+            /** Format: date */
+            dueOn?: string;
+            /** Format: int32 */
+            inReview: number;
+            /** Format: uuid */
+            milestoneId: string;
+            /** Format: int32 */
+            number: number;
+            /** Format: int64 */
+            priceVnd?: number;
+            state: string;
+            title: string;
+            /** Format: int32 */
+            total: number;
+        };
         MilestoneRequest: {
             criteria: components["schemas"]["CriterionRequest"][];
             /** Format: date */
@@ -3186,6 +3239,13 @@ export interface components {
             read: boolean;
             type: string;
         };
+        OpenItemView: {
+            /** Format: uuid */
+            id: string;
+            key: string;
+            status: string;
+            title: string;
+        };
         OverviewView: {
             /** Format: int64 */
             activeAdministrators: number;
@@ -3193,6 +3253,11 @@ export interface components {
             mentorApplications: components["schemas"]["Queue"];
             stalledEvents: components["schemas"]["Queue"];
             studentCards: components["schemas"]["Queue"];
+        };
+        PageLinkView: {
+            /** Format: uuid */
+            id: string;
+            title: string;
         };
         PageNodeView: {
             /** Format: uuid */
@@ -4463,6 +4528,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PageView"];
+                };
+            };
+        };
+    };
+    progress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobProgressView"];
                 };
             };
         };
