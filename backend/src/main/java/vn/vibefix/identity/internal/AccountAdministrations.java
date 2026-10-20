@@ -7,6 +7,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -148,6 +149,27 @@ class AccountAdministrations implements AccountAdministration {
 			})
 			.list();
 		return new Page(rows, total, page, PAGE_SIZE);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public Map<UUID, String> names(Collection<UUID> accountIds) {
+		Map<UUID, String> names = new HashMap<>();
+		if (accountIds.isEmpty()) {
+			return names;
+		}
+		this.jdbc.sql("SELECT a.id, coalesce(" + NAME.substring("coalesce(".length(), NAME.length() - 1)
+				+ ", ac.display_name, '@' || a.github_login) AS name " + FROM
+				+ " LEFT JOIN identity.administrator_credential ac ON ac.account_id = a.id WHERE a.id IN (:ids)")
+			.param("ids", List.copyOf(accountIds))
+			.query((rs, n) -> {
+				if (rs.getString("name") != null) {
+					names.put(rs.getObject("id", UUID.class), rs.getString("name"));
+				}
+				return null;
+			})
+			.list();
+		return names;
 	}
 
 	@Override

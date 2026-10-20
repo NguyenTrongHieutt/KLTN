@@ -77,6 +77,50 @@
         "tags" : [ "administrators-controller" ]
       }
     },
+    "/api/v1/admin/audit" : {
+      "get" : {
+        "operationId" : "audit",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "jobId",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "query",
+          "name" : "accountId",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 0
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AuditPageView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-oversight-controller" ]
+      }
+    },
     "/api/v1/admin/disputes" : {
       "get" : {
         "operationId" : "disputes",
@@ -267,6 +311,76 @@
           }
         },
         "tags" : [ "admin-enrolment-controller" ]
+      }
+    },
+    "/api/v1/admin/jobs" : {
+      "get" : {
+        "operationId" : "jobs_2",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "state",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "flag",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "enum" : [ "OVERDUE", "FROZEN" ]
+          }
+        }, {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 0
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OversightJobsView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-oversight-controller" ]
+      }
+    },
+    "/api/v1/admin/jobs/{jobId}" : {
+      "get" : {
+        "operationId" : "job_2",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OversightJobView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-oversight-controller" ]
       }
     },
     "/api/v1/admin/mentor-applications" : {
@@ -7066,6 +7180,80 @@
         },
         "required" : [ "fileId", "mediaType", "name", "size" ]
       },
+      "AuditEntryView" : {
+        "type" : "object",
+        "properties" : {
+          "action" : {
+            "type" : "string"
+          },
+          "actorAccountId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "actorName" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "objects" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/AuditObjectView"
+            }
+          },
+          "occurredAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "system" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "action", "id", "objects", "occurredAt", "system" ]
+      },
+      "AuditObjectView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "type" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "type" ]
+      },
+      "AuditPageView" : {
+        "type" : "object",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/AuditEntryView"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "total" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "items", "page", "size", "total" ]
+      },
       "BalanceReleaseView" : {
         "type" : "object",
         "properties" : {
@@ -11305,6 +11493,96 @@
           }
         },
         "required" : [ "draftJobId" ]
+      },
+      "OversightJobView" : {
+        "type" : "object",
+        "properties" : {
+          "customerName" : {
+            "type" : "string"
+          },
+          "frozen" : {
+            "type" : "boolean"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "mentorName" : {
+            "type" : "string"
+          },
+          "milestones" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/OversightMilestoneView"
+            }
+          },
+          "overdue" : {
+            "type" : "boolean"
+          },
+          "state" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "frozen", "id", "milestones", "overdue", "state", "title", "updatedAt" ]
+      },
+      "OversightJobsView" : {
+        "type" : "object",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/OversightJobView"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "total" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "items", "page", "size", "total" ]
+      },
+      "OversightMilestoneView" : {
+        "type" : "object",
+        "properties" : {
+          "dueOn" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "overdueSince" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "state" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "number", "state", "title" ]
       },
       "OverviewView" : {
         "type" : "object",
