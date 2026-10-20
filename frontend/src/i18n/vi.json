@@ -545,7 +545,8 @@
         "jobs": "Công việc",
         "audit": "Nhật ký",
         "failures": "Thao tác lỗi",
-        "statistics": "Thống kê"
+        "statistics": "Thống kê",
+        "catalog": "Kỹ năng"
       },
       "overview": {
         "title": "Tổng quan",
@@ -1197,6 +1198,47 @@
             "AVERAGE_TENTHS": "Trung bình (sao)"
           }
         }
+      },
+      "catalog": {
+        "title": "Kỹ năng",
+        "heading": "Danh mục kỹ năng",
+        "categories": "Nhóm kỹ năng",
+        "activeSkills": "({n} đang dùng)",
+        "up": "Đưa {name} lên",
+        "down": "Đưa {name} xuống",
+        "rename": "Đổi tên",
+        "renameTitle": "Đổi tên nhóm kỹ năng",
+        "retire": "Ngừng dùng",
+        "restore": "Dùng lại",
+        "newCategory": "Nhóm mới",
+        "add": "Thêm",
+        "categorySaved": "Đã lưu nhóm kỹ năng.",
+        "reordered": "Đã đổi thứ tự nhóm.",
+        "skills": "Kỹ năng",
+        "addSkill": "Thêm kỹ năng",
+        "addTitle": "Thêm kỹ năng",
+        "editTitle": "Sửa kỹ năng",
+        "edit": "Sửa",
+        "search": "Tìm theo tên",
+        "find": "Tìm",
+        "categoryFilter": "Lọc theo nhóm",
+        "statusFilter": "Lọc theo trạng thái",
+        "inUse": "Đang dùng",
+        "retired": "Ngừng dùng",
+        "empty": "Không có kỹ năng nào khớp.",
+        "matches": "Khớp với: {keys}",
+        "pagination": "Phân trang kỹ năng",
+        "previous": "Trang trước",
+        "next": "Trang sau",
+        "page": "Trang {page}/{pages}",
+        "name": "Tên",
+        "category": "Nhóm",
+        "hint": "Gợi ý (hiện trong bộ chọn)",
+        "languages": "Ngôn ngữ GitHub khớp (cách nhau bằng dấu phẩy)",
+        "tools": "Công cụ AI khớp (cách nhau bằng dấu phẩy, ví dụ LOVABLE)",
+        "back": "Quay lại",
+        "save": "Lưu",
+        "skillSaved": "Đã lưu kỹ năng."
       }
     },
     "product": {
@@ -3807,7 +3849,10 @@
     },
     "catalog": {
       "SKILL_INACTIVE": "Kỹ năng này đã ngừng dùng nên không thêm mới được.",
-      "SKILL_LIMIT": "Tối đa {n} kỹ năng."
+      "SKILL_LIMIT": "Tối đa {n} kỹ năng.",
+      "SKILL_NAME_TAKEN": "Đã có kỹ năng mang tên này.",
+      "CATEGORY_NAME_TAKEN": "Đã có nhóm kỹ năng mang tên này.",
+      "CATEGORY_HAS_ACTIVE_SKILLS": "Nhóm này còn kỹ năng đang dùng; hãy ngừng dùng chúng trước."
     },
     "scanning": {
       "FINDING_CLOSED": "Vấn đề này đã được xử lý.",

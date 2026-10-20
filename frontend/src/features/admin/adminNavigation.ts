@@ -6,6 +6,7 @@ import {
   Gavel,
   IdCard,
   LayoutDashboard,
+  ListTree,
   ScrollText,
   ShieldCheck,
   SlidersHorizontal,
@@ -37,6 +38,7 @@ export const ADMIN_DESTINATIONS: AdminDestination[] = [
   { label: 'screen.admin.nav.failures', to: '/quan-tri/thao-tac-loi', icon: CircleAlert },
   { label: 'screen.admin.nav.audit', to: '/quan-tri/nhat-ky', icon: ScrollText },
   { label: 'screen.admin.nav.statistics', to: '/quan-tri/thong-ke', icon: BarChart3 },
+  { label: 'screen.admin.nav.catalog', to: '/quan-tri/ky-nang', icon: ListTree },
   { label: 'screen.admin.nav.rules', to: '/quan-tri/quy-tac', icon: SlidersHorizontal },
   { label: 'screen.admin.nav.administrators', to: '/quan-tri/quan-tri-vien', icon: ShieldCheck },
 ]

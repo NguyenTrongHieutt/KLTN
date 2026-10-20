@@ -190,6 +190,26 @@ class Profiles implements ContactVisibility {
 		return holders.size();
 	}
 
+	/** Rewrites {@code skill_names} on every Mentor application holding {@code skillId}, after a rename (FR-72). */
+	int refreshMentorSkillNames(UUID skillId) {
+		record Holder(UUID accountId, List<UUID> skillIds) {
+		}
+		List<Holder> holders = this.jdbc.sql("""
+				SELECT account_id, skill_ids FROM identity.mentor_application
+				WHERE skill_ids @> ARRAY[CAST(:skill AS UUID)] FOR UPDATE
+				""")
+			.param("skill", skillId)
+			.query((row, number) -> new Holder(row.getObject("account_id", UUID.class), uuids(row.getArray("skill_ids"))))
+			.list();
+		for (Holder holder : holders) {
+			this.jdbc.sql("UPDATE identity.mentor_application SET skill_names = :names WHERE account_id = :id")
+				.param("id", holder.accountId())
+				.param("names", skillNames(holder.skillIds()))
+				.update();
+		}
+		return holders.size();
+	}
+
 	/** The names search reads (AD-36): the Skills' current names, in order, joined by ", ". */
 	private String skillNames(List<UUID> skillIds) {
 		return this.catalog.byIds(skillIds).stream().map(Skill::name).collect(Collectors.joining(", "));

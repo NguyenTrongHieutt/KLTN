@@ -6,7 +6,7 @@
  * <p>
  * Public API: none. The HTTP endpoints are wiring in {@code admin.internal}.
  */
-@ApplicationModule(allowedDependencies = { "shared", "audit", "operations", "notification", "settings", "scanning", "identity", "job", "dispute",
+@ApplicationModule(allowedDependencies = { "shared", "audit", "operations", "notification", "settings", "catalog", "scanning", "identity", "job", "dispute",
 		"reputation" })
 package vn.vibefix.admin;
 
