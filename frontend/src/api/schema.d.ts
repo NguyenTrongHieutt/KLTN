@@ -196,6 +196,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/moderation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["items"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/moderation/{kind}/{contentId}/hide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["hide"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/overview": {
         parameters: {
             query?: never;
@@ -3967,6 +3999,9 @@ export interface components {
             releasableVnd: number;
             title: string;
         };
+        HideRequest: {
+            reason: string;
+        };
         HistoryEntryView: {
             action: string;
             actor: string;
@@ -4515,6 +4550,19 @@ export interface components {
             priceVnd?: number;
             /** Format: int32 */
             revisionRounds: number;
+            title: string;
+        };
+        ModerationItemView: {
+            authorName?: string;
+            /** Format: date-time */
+            createdAt: string;
+            excerpt?: string;
+            /** Format: date-time */
+            hiddenAt?: string;
+            hiddenReason?: string;
+            /** Format: uuid */
+            id: string;
+            kind: string;
             title: string;
         };
         MoveRequest: {
@@ -5953,6 +6001,56 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MentorApplicationRow"];
+                };
+            };
+        };
+    };
+    items: {
+        parameters: {
+            query?: {
+                kind?: string;
+                hidden?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModerationItemView"][];
+                };
+            };
+        };
+    };
+    hide: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+                contentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HideRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModerationItemView"];
                 };
             };
         };

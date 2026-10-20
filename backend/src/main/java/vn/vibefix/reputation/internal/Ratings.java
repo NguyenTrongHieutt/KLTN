@@ -281,7 +281,7 @@ class Ratings {
 		return this.jdbc.sql("""
 				SELECT r.id, r.job_id, r.kind, r.rater_account_id, r.ratee_account_id, r.stars, r.comment, r.created_at
 				FROM reputation.rating r JOIN reputation.rating_window w ON w.job_id = r.job_id
-				WHERE r.job_id = :job AND (r.rater_account_id = :viewer
+				WHERE r.job_id = :job AND r.hidden_at IS NULL AND (r.rater_account_id = :viewer
 				    OR (r.kind <> 'MENTOR_TO_STUDENT' AND w.pair_published_at IS NOT NULL)
 				    OR (r.kind = 'MENTOR_TO_STUDENT' AND w.crew_published_at IS NOT NULL))
 				ORDER BY r.created_at, r.id

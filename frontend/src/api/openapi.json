@@ -429,6 +429,88 @@
         "tags" : [ "mentor-decisions-controller" ]
       }
     },
+    "/api/v1/admin/moderation" : {
+      "get" : {
+        "operationId" : "items",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "kind",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "default" : "PRODUCT"
+          }
+        }, {
+          "in" : "query",
+          "name" : "hidden",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/ModerationItemView"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-moderation-controller" ]
+      }
+    },
+    "/api/v1/admin/moderation/{kind}/{contentId}/hide" : {
+      "post" : {
+        "operationId" : "hide",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "kind",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "contentId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/HideRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ModerationItemView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-moderation-controller" ]
+      }
+    },
     "/api/v1/admin/overview" : {
       "get" : {
         "operationId" : "overview",
@@ -9461,6 +9543,17 @@
         },
         "required" : [ "milestoneId", "number", "releasableVnd", "title" ]
       },
+      "HideRequest" : {
+        "type" : "object",
+        "properties" : {
+          "reason" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "reason" ]
+      },
       "HistoryEntryView" : {
         "type" : "object",
         "properties" : {
@@ -10987,6 +11080,39 @@
           }
         },
         "required" : [ "criteria", "id", "revisionRounds", "title" ]
+      },
+      "ModerationItemView" : {
+        "type" : "object",
+        "properties" : {
+          "authorName" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "excerpt" : {
+            "type" : "string"
+          },
+          "hiddenAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "hiddenReason" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "createdAt", "id", "kind", "title" ]
       },
       "MoveRequest" : {
         "type" : "object",

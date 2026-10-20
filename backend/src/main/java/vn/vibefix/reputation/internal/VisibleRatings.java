@@ -3,6 +3,7 @@ package vn.vibefix.reputation.internal;
 import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -13,6 +14,7 @@ import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
+import vn.vibefix.product.ProductDirectory;
 import vn.vibefix.reputation.PortfolioEntry;
 import vn.vibefix.reputation.RatingSummary;
 import vn.vibefix.reputation.Reputation;
@@ -33,7 +35,7 @@ class VisibleRatings implements Reputation {
 	static final String LATEST_PUBLISHED = """
 			SELECT DISTINCT ON (coalesce(r.rater_account_id, r.id), r.ratee_account_id) r.ratee_account_id, r.stars
 			FROM reputation.rating r JOIN reputation.rating_window w ON w.job_id = r.job_id
-			WHERE r.ratee_account_id IN (:ids)
+			WHERE r.ratee_account_id IN (:ids) AND r.hidden_at IS NULL
 			  AND ((r.kind <> 'MENTOR_TO_STUDENT' AND w.pair_published_at IS NOT NULL)
 			    OR (r.kind = 'MENTOR_TO_STUDENT' AND w.crew_published_at IS NOT NULL))
 			ORDER BY coalesce(r.rater_account_id, r.id), r.ratee_account_id, r.created_at DESC, r.id DESC
@@ -45,10 +47,13 @@ class VisibleRatings implements Reputation {
 
 	private final SkillNames skills;
 
-	VisibleRatings(JdbcClient jdbc, Portfolios portfolios, SkillNames skills) {
+	private final ProductDirectory products;
+
+	VisibleRatings(JdbcClient jdbc, Portfolios portfolios, SkillNames skills, ProductDirectory products) {
 		this.jdbc = jdbc;
 		this.portfolios = portfolios;
 		this.skills = skills;
+		this.products = products;
 	}
 
 	@Override
@@ -81,13 +86,20 @@ class VisibleRatings implements Reputation {
 		if (entries.isEmpty()) {
 			return List.of();
 		}
+		// FR-60: a hidden Product is no longer named on portfolio entries.
+		Map<UUID, UUID> productOf = new HashMap<>();
+		this.jdbc.sql("SELECT job_id, product_id FROM reputation.portfolio_entry WHERE account_id = :account")
+			.param("account", accountId)
+			.query((rs, n) -> productOf.put(rs.getObject("job_id", UUID.class), rs.getObject("product_id", UUID.class)))
+			.list();
+		Set<UUID> hiddenProducts = this.products.hidden(new HashSet<>(productOf.values()));
 		Map<UUID, Summary> summaries = new HashMap<>();
 		this.portfolios.summaries(entries.stream().map(Entry::jobId).toList())
 			.forEach(summary -> summaries.put(summary.jobId(), summary));
 		Map<UUID, Integer> ratings = new HashMap<>();
 		this.jdbc.sql("""
 				SELECT r.job_id, r.stars FROM reputation.rating r JOIN reputation.rating_window w ON w.job_id = r.job_id
-				WHERE r.ratee_account_id = :account AND r.kind IN ('CUSTOMER_TO_MENTOR', 'MENTOR_TO_STUDENT')
+				WHERE r.ratee_account_id = :account AND r.kind IN ('CUSTOMER_TO_MENTOR', 'MENTOR_TO_STUDENT') AND r.hidden_at IS NULL
 				  AND ((r.kind <> 'MENTOR_TO_STUDENT' AND w.pair_published_at IS NOT NULL)
 				    OR (r.kind = 'MENTOR_TO_STUDENT' AND w.crew_published_at IS NOT NULL))
 				""").param("account", accountId).query((rs, n) -> {
@@ -97,8 +109,8 @@ class VisibleRatings implements Reputation {
 		return entries.stream().map(entry -> {
 			Summary summary = summaries.get(entry.jobId());
 			boolean approved = summary != null && summary.status() == Status.APPROVED;
-			String product = approved && summary.showProductName() && !entry.productName().isEmpty() ? entry.productName()
-					: null;
+			String product = approved && summary.showProductName() && !entry.productName().isEmpty()
+					&& !hiddenProducts.contains(productOf.get(entry.jobId())) ? entry.productName() : null;
 			return new PortfolioEntry(entry.jobTitle(), entry.role(), entry.jobTypes(), this.skills.namesOf(entry.skillIds()),
 					entry.closedAt(), entry.milestones(), entry.workItemsApproved(), entry.milestonesHandedOver(),
 					entry.reviewsWritten(), ratings.get(entry.jobId()), approved ? summary.text() : null, product);

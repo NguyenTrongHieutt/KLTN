@@ -1,7 +1,9 @@
 package vn.vibefix.product;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /** Products as other modules read them (AD-3): who owns one, its name, description, AI tools, and repository. */
@@ -22,5 +24,8 @@ public interface ProductDirectory {
 	}
 
 	Optional<ProductInfo> find(UUID productId);
+
+	/** Which of these Products an Administrator hid (FR-60). */
+	Set<UUID> hidden(Collection<UUID> productIds);
 
 }

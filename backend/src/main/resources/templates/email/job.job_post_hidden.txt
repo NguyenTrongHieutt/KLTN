@@ -1,0 +1,5 @@
+subject: Tin tuyển {job} đã bị ẩn và không nhận ứng tuyển nữa
+---
+Xin chào,
+
+Tin tuyển {job} mà bạn đã ứng tuyển vừa bị ẩn, nên không nhận ứng tuyển mới và lời mời ứng tuyển đã hết hiệu lực.

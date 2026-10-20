@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 import vn.vibefix.identity.AccountLocked;
 import vn.vibefix.identity.MentorApprovalRevoked;
+import vn.vibefix.job.JobPostHidden;
 import vn.vibefix.job.JobTransitioned;
 import vn.vibefix.matching.internal.Applications.EndReason;
 import vn.vibefix.shared.ProcessedEvents;
@@ -61,6 +62,16 @@ class MatchingListeners {
 		}
 		this.applications.closeForJob(event.jobId(),
 				"LAPSED".equals(event.facts().get("reason")) ? EndReason.JOB_LAPSED : EndReason.JOB_WITHDRAWN);
+	}
+
+	/** FR-60, FR-14: a hidden Job Post's invitations lapse and its applicants are told. */
+	@ApplicationModuleListener
+	void onJobPostHidden(JobPostHidden event) {
+		if (!this.processedEvents.markProcessed("matching.MatchingListeners.onJobPostHidden", event.eventId())) {
+			return;
+		}
+		this.invitations.lapseForJob(event.jobId());
+		this.applications.postHidden(event.jobId());
 	}
 
 	@ApplicationModuleListener

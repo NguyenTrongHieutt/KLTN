@@ -539,7 +539,8 @@
         "studentCards": "Thẻ sinh viên",
         "pendingCount": "{n} đang chờ",
         "disputes": "Tranh chấp",
-        "users": "Người dùng"
+        "users": "Người dùng",
+        "moderation": "Kiểm duyệt"
       },
       "overview": {
         "title": "Tổng quan",
@@ -939,6 +940,34 @@
           "RULES": "Vi phạm quy tắc của vibefix"
         },
         "categoryNote": "Người hướng dẫn chỉ thấy nhóm vi phạm, không thấy đánh giá, công việc, sinh viên hay ngày nào."
+      },
+      "moderation": {
+        "title": "Kiểm duyệt",
+        "heading": "Kiểm duyệt nội dung",
+        "kinds": "Loại nội dung",
+        "kind": {
+          "PRODUCT": "Sản phẩm",
+          "JOB_POST": "Tin tuyển",
+          "PAGE": "Trang",
+          "RATING": "Đánh giá"
+        },
+        "show": "Hiển thị",
+        "visible": "Đang hiện",
+        "hidden": "Đã ẩn",
+        "empty": "Không có nội dung nào.",
+        "listLabel": "Nội dung",
+        "hiddenBecause": "Đã ẩn: {reason}",
+        "hide": "Ẩn",
+        "ask": "Ẩn “{title}”?",
+        "effects": {
+          "PRODUCT": "Sản phẩm không còn xuất hiện công khai và các tin tuyển đang mở của nó bị ẩn theo. Công việc đang chạy vẫn tiếp tục.",
+          "JOB_POST": "Tin tuyển rời khỏi danh sách và tìm kiếm, không nhận ứng tuyển mới; lời mời ứng tuyển hết hiệu lực và người đã ứng tuyển được báo.",
+          "PAGE": "Không ai đọc được trang này và các trang con của nó nữa. Công việc vẫn tiếp tục.",
+          "RATING": "Đánh giá không còn hiện ở bất kỳ đâu và không được tính vào điểm trung bình."
+        },
+        "reason": "Lý do (tác giả sẽ đọc)",
+        "back": "Quay lại",
+        "done": "Đã ẩn nội dung."
       }
     },
     "product": {
@@ -3386,6 +3415,9 @@
       },
       "party_locked": {
         "title": "{name} không còn tham gia {job}"
+      },
+      "job_post_hidden": {
+        "title": "Tin tuyển {job} đã bị ẩn và không nhận ứng tuyển nữa"
       }
     },
     "matching": {
@@ -3492,6 +3524,11 @@
       },
       "dispute_decided": {
         "title": "Tranh chấp ở {job} đã được phân xử"
+      }
+    },
+    "admin": {
+      "content_hidden": {
+        "title": "{kind} “{title}” đã bị ẩn: {reason}"
       }
     }
   },
@@ -3712,7 +3749,8 @@
       "NOT_FAILED": "Chỉ thử lại được khi việc thực hiện bị lỗi."
     },
     "admin": {
-      "FEEDBACK_NOT_ENOUGH": "Cần ít nhất 3 đánh giá kín từ 2 sinh viên khác nhau trên 2 công việc khác nhau."
+      "FEEDBACK_NOT_ENOUGH": "Cần ít nhất 3 đánh giá kín từ 2 sinh viên khác nhau trên 2 công việc khác nhau.",
+      "ALREADY_HIDDEN": "Nội dung này đã bị ẩn."
     }
   },
   "markdown": {

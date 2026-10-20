@@ -143,9 +143,10 @@ class ProgressController {
 					detail == null ? null : detail.revisionCriteria(), detail != null && detail.autoAccepted(),
 					detail != null && detail.refunded(), detail == null ? null : detail.overdueSince()));
 		}
-		List<PageLinkView> pages = this.jdbc.sql("""
-				SELECT id, title FROM work.page WHERE job_id = :job AND visibility = 'CUSTOMER' ORDER BY seq
-				""").param("job", jobId)
+		List<PageLinkView> pages = this.jdbc
+			.sql("SELECT id, title FROM work.page WHERE job_id = :job AND visibility = 'CUSTOMER' AND " + Pages.SHOWN
+					+ " ORDER BY seq")
+			.param("job", jobId)
 			.query((rs, n) -> new PageLinkView(rs.getObject("id", UUID.class), rs.getString("title")))
 			.list();
 		List<CrewProgressView> crew = new ArrayList<>();

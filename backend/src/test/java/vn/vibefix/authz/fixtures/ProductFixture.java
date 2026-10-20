@@ -63,6 +63,9 @@ public class ProductFixture implements MatrixFixture {
 			.param("now", now)
 			.update();
 		world.put("productId", product);
+		// ADM-6 hides this Product (FR-60).
+		world.put("kind", "PRODUCT");
+		world.put("contentId", product);
 		UUID run = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO scanning.scan_run (id, product_id, customer_account_id, product_name, repository_full_name,
