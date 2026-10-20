@@ -230,6 +230,14 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType PAYMENT_PAYMENT_FAILED = new NotificationType("payment.payment_failed",
 			Set.of(Audience.CUSTOMER), Channel.IN_APP, EmailClass.TRANSACTIONAL, "alert", Set.of("job", "n"));
 
+	/** Money that could not apply is being refunded (FR-43); ledger-recorded while S2 is open. */
+	static final NotificationType PAYMENT_REFUND_REQUESTED = new NotificationType("payment.refund_requested",
+			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("amount", "job"));
+
+	/** The gateway confirmed the refund (FR-43). */
+	static final NotificationType PAYMENT_REFUND_CONFIRMED = new NotificationType("payment.refund_confirmed",
+			Set.of(Audience.CUSTOMER), Channel.IN_APP, EmailClass.TRANSACTIONAL, "check", Set.of("amount", "job"));
+
 	/** An IPN named no known order (AD-14): every Administrator. */
 	static final NotificationType PAYMENT_UNKNOWN_PAYMENT = new NotificationType("payment.unknown_payment",
 			Set.of(Audience.ADMIN), Channel.IN_APP, EmailClass.TRANSACTIONAL, "alert", Set.of());
@@ -294,7 +302,8 @@ class NotificationTypes implements NotificationCatalog {
 				JOB_CREW_MEMBER_CONFIRMED, JOB_CREW_MEMBER_DECLINED, JOB_CREW_MEMBER_REMOVED, JOB_CREW_TERMS_CHANGED,
 				JOB_CREW_CONFIRMED, JOB_CONFLICT_OF_INTEREST_REFUSED, JOB_PERSON_LINK_ALERT, JOB_AGREEMENT_CHANGES_REQUESTED,
 				JOB_AGREEMENT_AWAITING_CONFIRMATION, JOB_AGREEMENT_CONFIRMED, JOB_MILESTONE_AWAITING_FUNDING, JOB_CREW_RECONFIRM_NEEDED,
-				PAYMENT_PAYMENT_RECEIVED, PAYMENT_PAYMENT_FAILED, PAYMENT_UNKNOWN_PAYMENT, JOB_MILESTONE_FUNDED, JOB_JOB_STARTING);
+				PAYMENT_PAYMENT_RECEIVED, PAYMENT_PAYMENT_FAILED, PAYMENT_UNKNOWN_PAYMENT, JOB_MILESTONE_FUNDED, JOB_JOB_STARTING,
+				PAYMENT_REFUND_REQUESTED, PAYMENT_REFUND_CONFIRMED);
 	}
 
 	@Override

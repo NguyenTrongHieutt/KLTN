@@ -2760,6 +2760,7 @@ export interface components {
             /** Format: int32 */
             number: number;
             reference: string;
+            refund?: components["schemas"]["PaymentRefundView"];
             status: string;
         };
         PaymentOrderView: {
@@ -2778,6 +2779,18 @@ export interface components {
             /** Format: int32 */
             number: number;
             reference: string;
+            refund?: components["schemas"]["PaymentRefundView"];
+            status: string;
+        };
+        PaymentRefundView: {
+            /** Format: int64 */
+            amountVnd: number;
+            /** Format: date-time */
+            confirmedAt?: string;
+            reason: string;
+            /** Format: date-time */
+            requestedAt: string;
+            simulated: boolean;
             status: string;
         };
         PendingCodeView: {

@@ -12,6 +12,7 @@ import { formatDayMonthTime, formatTime } from '@/lib/dates'
 import { formatVnd } from '@/lib/money'
 import { isNotFound } from '@/lib/problemMessage'
 import { FAST_POLL_FOR_MS, usePaymentOrder, type PaymentOrder } from './paymentApi'
+import { RefundLine } from './RefundLine'
 import { TestModeBanner, TestTag } from './TestModeBanner'
 
 /**
@@ -83,6 +84,11 @@ function Outcome({ order, slow }: { order: PaymentOrder; slow: boolean }) {
               : t('screen.payment.result.pendingBody')
             : t(outcome.body, { n: order.number })}
         </p>
+        {order.refund && (
+          <div className="w-full rounded-md bg-muted p-3 text-left">
+            <RefundLine refund={order.refund} reason />
+          </div>
+        )}
         <dl className="mt-2 grid w-full grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 border-t border-border pt-4 text-left text-body-sm">
           <dt className="text-muted-foreground">{t('screen.payment.result.job')}</dt>
           <dd className="break-words">{order.jobTitle}</dd>

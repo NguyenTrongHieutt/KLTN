@@ -106,9 +106,12 @@ class PaymentOrders {
 
 	private final Clock clock;
 
+	private final Refunds refunds;
+
 	PaymentOrders(JdbcClient jdbc, MilestoneFunding funding, VnpaySandbox sandbox, Deadlines deadlines,
 			Notifications notifications, Todos todos, Administrators administrators, AuditLog auditLog, IdGenerator ids,
-			Clock clock) {
+			Clock clock, Refunds refunds) {
+		this.refunds = refunds;
 		this.jdbc = jdbc;
 		this.funding = funding;
 		this.sandbox = sandbox;
@@ -230,15 +233,19 @@ class PaymentOrders {
 			return IpnAnswer.CONFIRMED;
 		}
 		long amount = parseAmount(params.get("vnp_Amount"));
-		boolean applies = "OPEN".equals(order.status()) && amount == order.amountVnd();
+		boolean open = "OPEN".equals(order.status());
+		boolean applies = open && amount == order.amountVnd();
 		Funded funded = applies ? this.funding.tryFund(order.jobId(), order.milestoneId(), order.id()).orElse(null) : null;
+		Refunds.Reason reason = !open ? Refunds.Reason.ORDER_CLOSED
+				: amount != order.amountVnd() ? Refunds.Reason.WRONG_AMOUNT : funded == null ? notFundable(order) : null;
 		lockAccount(order.milestoneId(), order.jobId(), order.productId(), now);
+		UUID fund = this.ids.newId();
 		this.jdbc.sql("""
 				INSERT INTO payment.ledger_entry (id, operation_key, entry_type, bucket, job_id, product_id, milestone_id,
 				    payment_order_id, amount_vnd, vnp_transaction_no, created_at)
 				VALUES (:id, :key, 'FUND', :bucket, :job, :product, :milestone, :order, :amount, :no, :now)
 				""")
-			.param("id", this.ids.newId())
+			.param("id", fund)
 			.param("key", "FUND:" + transactionNo)
 			.param("bucket", funded != null ? "MILESTONE" : "UNAPPLIED")
 			.param("job", order.jobId())
@@ -262,6 +269,9 @@ class PaymentOrders {
 			.update();
 		this.auditLog.record(AuditEntry.of(AuditActor.system(), funded != null ? "payment.fund_applied" : "payment.fund_unapplied",
 				AuditObject.of("payment.payment_order", order.id())).forJob(order.jobId()));
+		if (reason != null && amount > 0) {
+			this.refunds.request(fund, order, amount, reason);
+		}
 		if (funded != null) {
 			this.todos.closeAll(FUND_TODO, order.milestoneId());
 			String title = this.funding.byId(order.jobId()).map(FundingJob::title).orElse("");
@@ -329,6 +339,13 @@ class PaymentOrders {
 			.param("id", milestoneId)
 			.query(UUID.class)
 			.single();
+	}
+
+	/** Why {@code job} refused the payment: J6's Crew guard, or anything else (FR-41, AD-41). */
+	private Refunds.Reason notFundable(Order order) {
+		ApiException refusal = this.funding.refusal(order.jobId(), order.milestoneId());
+		return refusal != null && refusal.reason().filter("CREW_NOT_READY"::equals).isPresent() ? Refunds.Reason.CREW_CHANGED
+				: Refunds.Reason.NOT_FUNDABLE;
 	}
 
 	private boolean funded(String transactionNo) {

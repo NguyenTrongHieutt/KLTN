@@ -19,6 +19,7 @@ import { isNotFound, problemMessage } from '@/lib/problemMessage'
 import { redirectTo } from '@/lib/redirect'
 import { cn } from '@/lib/utils'
 import { useCreatePaymentOrder, useJobFunding, type FundingMilestone, type JobFunding } from './paymentApi'
+import { RefundLine } from './RefundLine'
 import { TestModeBanner, TestTag } from './TestModeBanner'
 
 const STATE_TONE: Record<string, string> = {
@@ -200,10 +201,11 @@ function Funding({ funding }: { funding: JobFunding }) {
           <ul className="flex flex-col divide-y divide-border">
             {funding.orders.map((order) => (
               <li key={order.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-body-sm">
-                <span className="flex flex-col">
+                <span className="flex flex-col gap-0.5">
                   <span>
                     {formatVnd(order.amountVnd)} <TestTag />
                   </span>
+                  {order.refund && <RefundLine refund={order.refund} />}
                   <span className="text-caption text-muted-foreground">
                     {t('screen.payment.orderLine', {
                       n: order.number,

@@ -1875,6 +1875,18 @@
         "reference": "Mã lệnh",
         "time": "Thời gian",
         "backToJob": "Về trang thanh toán của công việc"
+      },
+      "refund": {
+        "requested": "Đang hoàn {amount}",
+        "confirmed": "Đã hoàn {amount}",
+        "simulated": "Hoàn tiền mô phỏng",
+        "simulatedNote": "Hoàn tiền mô phỏng: chỉ được ghi trên vibefix vì môi trường thử của VNPay chưa hỗ trợ hoàn tiền.",
+        "reason": {
+          "CREW_CHANGED": "Nhóm thực hiện thay đổi trước khi bắt đầu; tiền đã được hoàn lại (thử nghiệm).",
+          "ORDER_CLOSED": "Lệnh thanh toán này đã đóng khi tiền đến, nên tiền được hoàn lại.",
+          "WRONG_AMOUNT": "Số tiền đã trả khác số tiền của giai đoạn, nên tiền được hoàn lại.",
+          "NOT_FUNDABLE": "Giai đoạn này không nhận thanh toán vào lúc tiền đến, nên tiền được hoàn lại."
+        }
       }
     }
   },
@@ -2509,6 +2521,12 @@
       },
       "unknown_payment": {
         "title": "VNPay báo một thanh toán không khớp lệnh thanh toán nào"
+      },
+      "refund_requested": {
+        "title": "Hoàn tiền mô phỏng {amount} cho {job}"
+      },
+      "refund_confirmed": {
+        "title": "Đã hoàn {amount} (thử nghiệm) cho {job}"
       }
     }
   },
