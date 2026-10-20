@@ -133,6 +133,24 @@ enum JobReason {
 	CLOSURE_ANSWERED,
 
 	/** A Code Job closes after its Final Merge or ZIP Fallback (FR-38), which Epic 7 brings. */
-	FINAL_MERGE_PENDING
+	FINAL_MERGE_PENDING,
+
+	/** A Change Request needs a confirmed Agreement on a Job in Agreement, Starting, or Active (FR-36). */
+	NO_CONFIRMED_AGREEMENT,
+
+	/** A Change Request is already open on the Job (FR-36). */
+	CHANGE_REQUEST_OPEN,
+
+	/** An Accepted, Cancelled, or Settled Milestone is final (FR-36). */
+	MILESTONE_FINAL,
+
+	/** The Customer approves once the Mentor added the time impact (FR-36, UX-DR57). */
+	IMPACT_MISSING,
+
+	/** A Submitted Milestone waits for the Customer's decision first (FR-36). */
+	MILESTONE_SUBMITTED,
+
+	/** The Change Request is not at that step any more. */
+	CHANGE_REQUEST_NOT_AWAITING
 
 }

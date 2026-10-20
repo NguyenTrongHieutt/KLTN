@@ -1034,6 +1034,107 @@ POST /api/v1/follow-ups/{followUpId}/discard,CREW_INACTIVE,,,404 NOT_FOUND
 POST /api/v1/follow-ups/{followUpId}/discard,CREW_FORMER,,,404 NOT_FOUND
 POST /api/v1/follow-ups/{followUpId}/discard,OWNER,,,409 CONFLICT FOLLOW_UP_NOT_AWAITING
 POST /api/v1/follow-ups/{followUpId}/discard,JOB_MENTOR,,,403 FORBIDDEN CUSTOMER_ONLY
+# Due-date Change Requests (FR-36, AD-29): the Customer (OWNER) and the Mentor read and act on them; every
+# confirmed Agreement version is also read by the active Crew. The fixture's Job has a confirmed Agreement
+# and an open request by the Customer ({changeRequestId}) without the Mentor's impact yet.
+GET /api/v1/boards/{boardId}/change-requests,ANONYMOUS,,,401
+GET /api/v1/boards/{boardId}/change-requests,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/change-requests,MENTOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/change-requests,STUDENT,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/change-requests,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/change-requests,TEAM_MENTOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/change-requests,TEAM_MEMBER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/change-requests,CREW_ASSIGNED,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/change-requests,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/change-requests,CREW_INACTIVE,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/change-requests,CREW_FORMER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/change-requests,CREW_ACTIVE,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/change-requests,OWNER,,,200
+GET /api/v1/boards/{boardId}/change-requests,JOB_MENTOR,,,200
+POST /api/v1/boards/{boardId}/change-requests,ANONYMOUS,,change-request.json,401
+POST /api/v1/boards/{boardId}/change-requests,CUSTOMER,,change-request.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/change-requests,MENTOR,,change-request.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/change-requests,STUDENT,,change-request.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/change-requests,ADMINISTRATOR,,change-request.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/change-requests,TEAM_MENTOR,,change-request.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/change-requests,TEAM_MEMBER,,change-request.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/change-requests,CREW_ASSIGNED,,change-request.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/change-requests,ADMIN_TEAM_ISSUE_GRANT,,change-request.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/change-requests,CREW_INACTIVE,,change-request.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/change-requests,CREW_FORMER,,change-request.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/change-requests,CREW_ACTIVE,,change-request.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/change-requests,OWNER,,change-request.json,409 CONFLICT CHANGE_REQUEST_OPEN
+POST /api/v1/boards/{boardId}/change-requests,JOB_MENTOR,,change-request.json,409 CONFLICT CHANGE_REQUEST_OPEN
+POST /api/v1/change-requests/{changeRequestId}/impact,ANONYMOUS,,change-impact.json,401
+POST /api/v1/change-requests/{changeRequestId}/impact,CUSTOMER,,change-impact.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/impact,MENTOR,,change-impact.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/impact,STUDENT,,change-impact.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/impact,ADMINISTRATOR,,change-impact.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/impact,TEAM_MENTOR,,change-impact.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/impact,TEAM_MEMBER,,change-impact.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/impact,CREW_ASSIGNED,,change-impact.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/impact,ADMIN_TEAM_ISSUE_GRANT,,change-impact.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/impact,CREW_INACTIVE,,change-impact.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/impact,CREW_FORMER,,change-impact.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/impact,CREW_ACTIVE,,change-impact.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/impact,OWNER,,change-impact.json,403 FORBIDDEN MENTOR_ONLY
+POST /api/v1/change-requests/{changeRequestId}/impact,JOB_MENTOR,,change-impact.json,200
+POST /api/v1/change-requests/{changeRequestId}/approve,ANONYMOUS,,change-version.json,401
+POST /api/v1/change-requests/{changeRequestId}/approve,CUSTOMER,,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/approve,MENTOR,,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/approve,STUDENT,,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/approve,ADMINISTRATOR,,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/approve,TEAM_MENTOR,,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/approve,TEAM_MEMBER,,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/approve,CREW_ASSIGNED,,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/approve,ADMIN_TEAM_ISSUE_GRANT,,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/approve,CREW_INACTIVE,,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/approve,CREW_FORMER,,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/approve,CREW_ACTIVE,,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/approve,OWNER,,change-version.json,422 GUARD_FAILED IMPACT_MISSING
+POST /api/v1/change-requests/{changeRequestId}/approve,JOB_MENTOR,,change-version.json,403 FORBIDDEN CUSTOMER_ONLY
+POST /api/v1/change-requests/{changeRequestId}/confirm,ANONYMOUS,,change-version.json,401
+POST /api/v1/change-requests/{changeRequestId}/confirm,CUSTOMER,,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/confirm,MENTOR,,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/confirm,STUDENT,,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/confirm,ADMINISTRATOR,,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/confirm,TEAM_MENTOR,,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/confirm,TEAM_MEMBER,,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/confirm,CREW_ASSIGNED,,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/confirm,ADMIN_TEAM_ISSUE_GRANT,,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/confirm,CREW_INACTIVE,,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/confirm,CREW_FORMER,,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/confirm,CREW_ACTIVE,,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/confirm,OWNER,,change-version.json,403 FORBIDDEN MENTOR_ONLY
+POST /api/v1/change-requests/{changeRequestId}/confirm,JOB_MENTOR,,change-version.json,409 CONFLICT CHANGE_REQUEST_NOT_AWAITING
+POST /api/v1/change-requests/{changeRequestId}/withdraw,ANONYMOUS,,,401
+POST /api/v1/change-requests/{changeRequestId}/withdraw,CUSTOMER,,,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/withdraw,MENTOR,,,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/withdraw,STUDENT,,,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/withdraw,ADMINISTRATOR,,,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/withdraw,TEAM_MENTOR,,,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/withdraw,TEAM_MEMBER,,,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/withdraw,CREW_ASSIGNED,,,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/withdraw,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/withdraw,CREW_INACTIVE,,,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/withdraw,CREW_FORMER,,,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/withdraw,CREW_ACTIVE,,,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/withdraw,OWNER,,,200
+POST /api/v1/change-requests/{changeRequestId}/withdraw,JOB_MENTOR,,,403 FORBIDDEN CUSTOMER_ONLY
+GET /api/v1/boards/{boardId}/agreement-versions,ANONYMOUS,,,401
+GET /api/v1/boards/{boardId}/agreement-versions,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/agreement-versions,MENTOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/agreement-versions,STUDENT,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/agreement-versions,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/agreement-versions,TEAM_MENTOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/agreement-versions,TEAM_MEMBER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/agreement-versions,CREW_ASSIGNED,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/agreement-versions,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/agreement-versions,CREW_INACTIVE,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/agreement-versions,CREW_FORMER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/agreement-versions,CREW_ACTIVE,,,200
+GET /api/v1/boards/{boardId}/agreement-versions,OWNER,,,200
+GET /api/v1/boards/{boardId}/agreement-versions,JOB_MENTOR,,,200
 # Milestone Handovers (FR-32, AD-20, AD-39): the Customer (OWNER), the Mentor, and ACTIVE members read;
 # only the Mentor hands over, and the fixture's Milestone is not Funded. The Customer's Delivery Report
 # never carries the Work Item note, whose text is the WORK_ITEM_NOTE canary.

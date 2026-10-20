@@ -38,7 +38,8 @@ import vn.vibefix.team.internal.TeamTestSupport;
  * ({@code {pageId}}, version {@code {versionNo}}), all written by the Mentor after the windows ended, and
  * a Milestone Handover ({@code {handoverId}}) whose Work Item note is the {@code WORK_ITEM_NOTE} canary.
  * The Mentor's earlier, ended Job holds the former member's {@code PRIVATE_FEEDBACK} about the Mentor, and
- * the Job a drafted follow-up ({@code {followUpId}}).
+ * the Job a drafted follow-up ({@code {followUpId}}) and the Customer's open due-date Change Request
+ * ({@code {changeRequestId}}) without the Mentor's impact.
  */
 final class CrewJobWorld {
 
@@ -221,6 +222,19 @@ final class CrewJobWorld {
 				""").param("id", followUp).param("job", job).param("product", product).param("handover", handover)
 			.param("page", UUID.randomUUID()).param("mentor", this.mentor).param("at", written).update();
 		world.put("followUpId", followUp);
+		UUID changeRequest = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO job.change_request (id, job_id, proposer, proposer_account_id, description, items, status, created_at)
+				VALUES (:id, :job, 'CUSTOMER', :owner, 'Cần thêm thời gian', CAST(:items AS JSONB), 'OPEN', :at)
+				""")
+			.param("id", changeRequest)
+			.param("job", job)
+			.param("owner", owner)
+			.param("items", "[{\"milestoneId\":\"" + milestone + "\",\"number\":1,\"title\":\"Sửa lỗi trùng giờ\","
+					+ "\"oldDueOn\":\"2026-11-20\",\"newDueOn\":\"2027-01-20\"}]")
+			.param("at", written)
+			.update();
+		world.put("changeRequestId", changeRequest);
 		world.put("crewCriterionId", criterion);
 		world.put("item", "NON_CODE_DATA");
 		UUID page = UUID.randomUUID();

@@ -411,6 +411,34 @@ class NotificationTypes implements NotificationCatalog {
 	static final TodoType DELIVERY_APPROVE_FOLLOW_UPS = new TodoType("delivery.approve_follow_ups",
 			Set.of(Audience.CUSTOMER), 3, Set.of("job"));
 
+	/** FR-36: a due-date Change Request reaches the other side. */
+	static final NotificationType JOB_CHANGE_REQUEST_PROPOSED = new NotificationType("job.change_request_proposed",
+			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
+			Set.of("job"));
+
+	/** FR-36: the Mentor added the time impact; the Customer may decide. */
+	static final NotificationType JOB_CHANGE_REQUEST_IMPACT_ADDED = new NotificationType(
+			"job.change_request_impact_added", Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL,
+			"info", Set.of("job"));
+
+	/** FR-36: both sides agreed; the new due dates and Agreement version are in force. */
+	static final NotificationType JOB_CHANGE_REQUEST_APPLIED = new NotificationType("job.change_request_applied",
+			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "check",
+			Set.of("job"));
+
+	/** FR-36: the request lapsed with the Milestone's acceptance or the Job's end. */
+	static final NotificationType JOB_CHANGE_REQUEST_LAPSED = new NotificationType("job.change_request_lapsed",
+			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info",
+			Set.of("job"));
+
+	/** The Customer's Change Request waits for the Mentor's time impact (FR-36). */
+	static final TodoType JOB_ADD_CHANGE_IMPACT = new TodoType("job.add_change_impact", Set.of(Audience.MENTOR), 2,
+			Set.of("job"));
+
+	/** A Change Request waits for this side's answer: the Customer's approval, then the Mentor's confirmation. */
+	static final TodoType JOB_ANSWER_CHANGE_REQUEST = new TodoType("job.answer_change_request",
+			Set.of(Audience.CUSTOMER, Audience.MENTOR), 2, Set.of("job"));
+
 	/** The Rating Window is open (FR-49): until the person rated everyone they rate, or the window ends. */
 	static final TodoType REPUTATION_RATE = new TodoType("reputation.rate", Set.of(Audience.CUSTOMER, Audience.MENTOR), 3,
 			Set.of("party"));
@@ -450,7 +478,8 @@ class NotificationTypes implements NotificationCatalog {
 				REPO_DATA_DELETION_CONFIRMATION_PENDING, REPUTATION_RATING_WINDOW_OPENED,
 				REPUTATION_PRIVATE_FEEDBACK_INVITED, REPUTATION_RATINGS_PUBLISHED,
 				REPUTATION_PORTFOLIO_SUMMARY_AWAITING_APPROVAL, REPUTATION_PORTFOLIO_ENTRY_PUBLISHED,
-				DELIVERY_FOLLOW_UP_DRAFTS_READY,
+				DELIVERY_FOLLOW_UP_DRAFTS_READY, JOB_CHANGE_REQUEST_PROPOSED, JOB_CHANGE_REQUEST_IMPACT_ADDED,
+				JOB_CHANGE_REQUEST_APPLIED, JOB_CHANGE_REQUEST_LAPSED,
 				JOB_JOB_STARTING,
 				PAYMENT_REFUND_REQUESTED, PAYMENT_REFUND_CONFIRMED, WORK_WORK_ITEM_ASSIGNED,
 				WORK_REVIEW_REQUESTED, WORK_WORK_ITEM_APPROVED, WORK_WORK_ITEM_RETURNED);
@@ -464,7 +493,7 @@ class NotificationTypes implements NotificationCatalog {
 				PAYMENT_FUND_MILESTONE, WORK_REVIEW_WORK_ITEM, WORK_FIX_RETURNED_ITEM, DELIVERY_HAND_OVER,
 				DELIVERY_REVIEW_HANDOVER, JOB_ANSWER_CLOSURE, REPO_CONFIRM_DATA_DELETION, REPUTATION_RATE,
 				REPUTATION_GIVE_PRIVATE_FEEDBACK, REPUTATION_DRAFT_PORTFOLIO_SUMMARY, REPUTATION_APPROVE_PORTFOLIO_SUMMARY,
-				DELIVERY_DRAFT_FOLLOW_UPS, DELIVERY_APPROVE_FOLLOW_UPS);
+				DELIVERY_DRAFT_FOLLOW_UPS, DELIVERY_APPROVE_FOLLOW_UPS, JOB_ADD_CHANGE_IMPACT, JOB_ANSWER_CHANGE_REQUEST);
 	}
 
 }

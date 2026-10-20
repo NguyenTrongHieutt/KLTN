@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/Skeleton'
 import { TestTag } from '@/components/TestTag'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button-variants'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { SensitiveDialog } from '@/features/work/SensitiveDialog'
 import type { SensitiveMatch } from '@/features/work/workApi'
@@ -302,9 +303,19 @@ function Check({ jobId, report }: { jobId: string; report: DeliveryReport }) {
             </Button>
           </>
         ) : (
-          <Button type="button" onClick={() => setConfirming('accept')}>
-            {t('screen.handover.check.accept')}
-          </Button>
+          <>
+            {!decision.revisionAllowed && (
+              <Link
+                to={`/cong-viec/${jobId}/thoa-thuan#doi-han`}
+                className={buttonVariants({ variant: 'secondary' })}
+              >
+                {t('screen.handover.check.changeRequest')}
+              </Link>
+            )}
+            <Button type="button" onClick={() => setConfirming('accept')}>
+              {t('screen.handover.check.accept')}
+            </Button>
+          </>
         )}
       </div>
       <Dialog.Root open={confirming !== undefined} onOpenChange={(open) => !open && setConfirming(undefined)}>

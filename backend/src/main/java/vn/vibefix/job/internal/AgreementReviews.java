@@ -404,6 +404,11 @@ class AgreementReviews {
 			.optional();
 	}
 
+	/** A stored version's content. */
+	static Content content(String json) {
+		return JSON.readValue(json, Content.class);
+	}
+
 	/** The confirmed Agreement, once the Mentor confirmed. */
 	@Transactional(readOnly = true)
 	Optional<Confirmed> confirmed(UUID jobId) {

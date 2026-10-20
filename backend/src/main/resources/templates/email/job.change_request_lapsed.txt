@@ -1,0 +1,5 @@
+subject: Đề nghị đổi hạn ở {job} không còn hiệu lực
+---
+Xin chào,
+
+Đề nghị đổi hạn ở công việc {job} không còn hiệu lực vì giai đoạn đã được nghiệm thu hoặc công việc đã kết thúc.

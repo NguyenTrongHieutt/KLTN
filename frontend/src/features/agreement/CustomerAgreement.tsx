@@ -22,6 +22,7 @@ import { isNotFound, problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { TestTag } from '@/components/TestTag'
 import { AgreementContentView } from './AgreementContent'
+import { ChangeRequestSection } from './ChangeRequestSection'
 import {
   useApproveAgreement,
   useCustomerAgreement,
@@ -78,6 +79,7 @@ export function CustomerAgreement({ jobId }: { jobId: string }) {
           </div>
         )}
       </RegionState>
+      {agreement.data?.confirmed && <ChangeRequestSection jobId={jobId} />}
     </div>
   )
 }

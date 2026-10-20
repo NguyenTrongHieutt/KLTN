@@ -218,7 +218,7 @@
     },
     "/api/v1/admin/mentor-applications/{applicantId}/approve" : {
       "post" : {
-        "operationId" : "approve_2",
+        "operationId" : "approve_3",
         "parameters" : [ {
           "in" : "path",
           "name" : "applicantId",
@@ -390,7 +390,7 @@
     },
     "/api/v1/admin/student-cards/{cardId}/approve" : {
       "post" : {
-        "operationId" : "approve_1",
+        "operationId" : "approve_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "cardId",
@@ -480,6 +480,95 @@
         "tags" : [ "payment-history-controller" ]
       }
     },
+    "/api/v1/boards/{boardId}/agreement-versions" : {
+      "get" : {
+        "operationId" : "versions",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConfirmedVersionsView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "change-request-controller" ]
+      }
+    },
+    "/api/v1/boards/{boardId}/change-requests" : {
+      "get" : {
+        "operationId" : "changeRequests",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChangeRequestsView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "change-request-controller" ]
+      },
+      "post" : {
+        "operationId" : "propose_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChangeProposalRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChangeRequestsView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "change-request-controller" ]
+      }
+    },
     "/api/v1/boards/{boardId}/closure" : {
       "get" : {
         "operationId" : "closure",
@@ -544,7 +633,7 @@
     },
     "/api/v1/boards/{boardId}/closure/confirm" : {
       "post" : {
-        "operationId" : "confirm_2",
+        "operationId" : "confirm_3",
         "parameters" : [ {
           "in" : "path",
           "name" : "boardId",
@@ -645,7 +734,7 @@
     },
     "/api/v1/boards/{boardId}/data-deletion/{item}" : {
       "post" : {
-        "operationId" : "confirm_1",
+        "operationId" : "confirm_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "boardId",
@@ -992,7 +1081,7 @@
     },
     "/api/v1/boards/{boardId}/portfolio/summary/approve" : {
       "post" : {
-        "operationId" : "approve",
+        "operationId" : "approve_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "boardId",
@@ -1259,6 +1348,144 @@
           }
         },
         "tags" : [ "catalog-controller" ]
+      }
+    },
+    "/api/v1/change-requests/{changeRequestId}/approve" : {
+      "post" : {
+        "operationId" : "approve",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "changeRequestId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChangeVersionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChangeRequestsView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "change-request-controller" ]
+      }
+    },
+    "/api/v1/change-requests/{changeRequestId}/confirm" : {
+      "post" : {
+        "operationId" : "confirm_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "changeRequestId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChangeVersionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChangeRequestsView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "change-request-controller" ]
+      }
+    },
+    "/api/v1/change-requests/{changeRequestId}/impact" : {
+      "post" : {
+        "operationId" : "impact",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "changeRequestId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChangeImpactRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChangeRequestsView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "change-request-controller" ]
+      }
+    },
+    "/api/v1/change-requests/{changeRequestId}/withdraw" : {
+      "post" : {
+        "operationId" : "withdraw_2",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "changeRequestId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChangeRequestsView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "change-request-controller" ]
       }
     },
     "/api/v1/crew-chats/{crewChatId}/attachments" : {
@@ -6225,6 +6452,207 @@
         },
         "required" : [ "categories" ]
       },
+      "ChangeDueDate" : {
+        "type" : "object",
+        "properties" : {
+          "milestoneId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "newDueOn" : {
+            "type" : "string",
+            "format" : "date"
+          }
+        },
+        "required" : [ "milestoneId", "newDueOn" ]
+      },
+      "ChangeImpactRequest" : {
+        "type" : "object",
+        "properties" : {
+          "impact" : {
+            "type" : "string",
+            "maxLength" : 1000,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "impact" ]
+      },
+      "ChangeItemView" : {
+        "type" : "object",
+        "properties" : {
+          "milestoneId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "newDueOn" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "oldDueOn" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "milestoneId", "newDueOn", "number", "title" ]
+      },
+      "ChangeMilestoneView" : {
+        "type" : "object",
+        "properties" : {
+          "changeable" : {
+            "type" : "boolean"
+          },
+          "dueOn" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "state" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "changeable", "id", "number", "state", "title" ]
+      },
+      "ChangeProposalRequest" : {
+        "type" : "object",
+        "properties" : {
+          "description" : {
+            "type" : "string",
+            "maxLength" : 2000,
+            "minLength" : 0
+          },
+          "impact" : {
+            "type" : "string",
+            "maxLength" : 1000,
+            "minLength" : 0
+          },
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ChangeDueDate"
+            },
+            "maxItems" : 50,
+            "minItems" : 1
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "items", "version" ]
+      },
+      "ChangeRequestView" : {
+        "type" : "object",
+        "properties" : {
+          "agreementVersionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "closedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "customerApprovedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "impact" : {
+            "type" : "string"
+          },
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ChangeItemView"
+            }
+          },
+          "mentorConfirmedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "mine" : {
+            "type" : "boolean"
+          },
+          "proposer" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "createdAt", "id", "items", "mine", "proposer", "status" ]
+      },
+      "ChangeRequestsView" : {
+        "type" : "object",
+        "properties" : {
+          "audience" : {
+            "type" : "string"
+          },
+          "canPropose" : {
+            "type" : "boolean"
+          },
+          "history" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ChangeRequestView"
+            }
+          },
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "milestones" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ChangeMilestoneView"
+            }
+          },
+          "open" : {
+            "$ref" : "#/components/schemas/ChangeRequestView"
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "audience", "canPropose", "history", "jobId", "milestones", "version" ]
+      },
+      "ChangeVersionRequest" : {
+        "type" : "object",
+        "properties" : {
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "version" ]
+      },
       "ChatView" : {
         "type" : "object",
         "properties" : {
@@ -6456,6 +6884,42 @@
           }
         },
         "required" : [ "approvedAt", "confirmedAt", "content", "crew", "draftVersionNo", "freezeCommitted", "liveAccessIds", "versionNo" ]
+      },
+      "ConfirmedVersionView" : {
+        "type" : "object",
+        "properties" : {
+          "confirmedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "milestones" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/VersionMilestoneView"
+            }
+          },
+          "versionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "confirmedAt", "milestones", "versionNo" ]
+      },
+      "ConfirmedVersionsView" : {
+        "type" : "object",
+        "properties" : {
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "versions" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConfirmedVersionView"
+            }
+          }
+        },
+        "required" : [ "jobId", "versions" ]
       },
       "Content" : {
         "type" : "object",
@@ -12078,6 +12542,23 @@
           }
         },
         "required" : [ "renewalOpen", "status" ]
+      },
+      "VersionMilestoneView" : {
+        "type" : "object",
+        "properties" : {
+          "dueOn" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "title" ]
       },
       "VersionSummary" : {
         "type" : "object",
