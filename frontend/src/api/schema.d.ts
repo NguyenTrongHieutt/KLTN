@@ -212,6 +212,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/boards/{boardId}/work-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["workItems"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/catalog": {
         parameters: {
             query?: never;
@@ -2092,6 +2108,22 @@ export interface components {
             /** Format: int64 */
             sentToCrewVnd?: number;
         };
+        BoardMilestoneView: {
+            /** Format: uuid */
+            milestoneId: string;
+            /** Format: int32 */
+            number: number;
+            title: string;
+        };
+        BoardView: {
+            /** Format: uuid */
+            boardId: string;
+            code: string;
+            items: components["schemas"]["WorkItemCardView"][];
+            mentor: boolean;
+            milestones: components["schemas"]["BoardMilestoneView"][];
+            title: string;
+        };
         CapacityView: {
             /** Format: int32 */
             activeJobs: number;
@@ -2208,6 +2240,7 @@ export interface components {
             commitEmailNoticeAcknowledged: boolean;
             /** Format: uuid */
             jobId: string;
+            jobState: string;
             mentorName: string;
             milestones: components["schemas"]["CrewAssignmentMilestoneView"][];
             productName: string;
@@ -2335,6 +2368,14 @@ export interface components {
             /** Format: uuid */
             id: string;
             statement: string;
+        };
+        CriterionLinkView: {
+            /** Format: uuid */
+            criterionId: string;
+            /** Format: int32 */
+            milestoneNumber: number;
+            /** Format: int32 */
+            number: number;
         };
         CriterionRequest: {
             checkSteps: string;
@@ -3636,6 +3677,23 @@ export interface components {
             /** Format: int32 */
             versionNo: number;
         };
+        WorkItemCardView: {
+            /** Format: uuid */
+            assigneeId?: string;
+            criterion?: components["schemas"]["CriterionLinkView"];
+            description: string;
+            /** Format: uuid */
+            id: string;
+            key: string;
+            /** Format: uuid */
+            milestoneId?: string;
+            seeded: boolean;
+            status: string;
+            title: string;
+            type: string;
+            /** Format: int64 */
+            version: number;
+        };
     };
     responses: never;
     parameters: never;
@@ -3997,6 +4055,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BalanceView"];
+                };
+            };
+        };
+    };
+    workItems: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoardView"];
                 };
             };
         };

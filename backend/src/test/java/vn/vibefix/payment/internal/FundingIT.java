@@ -220,6 +220,12 @@ class FundingIT extends IntegrationTest {
 		assertThat(count("SELECT count(*) FROM audit.audit_entry WHERE action = 'job.transition_j7' AND job_id = '" + this.job + "'"))
 			.isOne();
 		assertThat(notifications("job.job_starting", this.lan)).as("no repositories to prepare").isZero();
+		// J7 in the same cascade seeds one Story per criterion of the confirmed Agreement (Story 5.1).
+		long criteria = count("SELECT count(*) FROM job.confirmed_agreement c, jsonb_array_elements(c.content -> 'milestones') m,"
+				+ " jsonb_array_elements(m -> 'criteria') k WHERE c.job_id = '" + this.job + "'");
+		assertThat(criteria).isPositive();
+		await().atMost(Duration.ofSeconds(10))
+			.until(() -> count("SELECT count(*) FROM work.work_item WHERE job_id = '" + this.job + "'") == criteria);
 	}
 
 	@Test
