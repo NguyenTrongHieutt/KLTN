@@ -19,6 +19,15 @@ enum WorkReason {
 	BOARD_READ_ONLY,
 
 	/** FR-47 found a likely credential or bulk personal data; the dialog lists the masked matches. */
-	SENSITIVE_CONTENT
+	SENSITIVE_CONTENT,
+
+	/** Only the Mentor and the Work Item's assignee move it (AD-39). */
+	NOT_ASSIGNEE,
+
+	/** A Work Item leaves "Cần làm" only while its Milestone is held (FR-24). */
+	MILESTONE_NOT_HELD,
+
+	/** The move is not one of the Board's: submission, approval, and return have their own commands (AD-39). */
+	MOVE_NOT_ALLOWED
 
 }

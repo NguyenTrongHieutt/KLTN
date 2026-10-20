@@ -28,6 +28,7 @@ import vn.vibefix.shared.Gate;
 import vn.vibefix.work.internal.Boards.ChecklistLine;
 import vn.vibefix.work.internal.Boards.Item;
 import vn.vibefix.work.internal.Boards.Priority;
+import vn.vibefix.work.internal.Boards.Status;
 import vn.vibefix.work.internal.Boards.Type;
 import vn.vibefix.work.internal.WorkAccess.BoardViewer;
 import vn.vibefix.work.internal.WorkItems.Draft;
@@ -76,6 +77,10 @@ class BoardController {
 			return this.sensitive == null ? Resolution.CHECK : this.sensitive;
 		}
 
+	}
+
+	/** A Board move, made on the Work Item's {@code version}. */
+	record MoveRequest(@NotNull Status to, @NotNull Long version) {
 	}
 
 	private final Boards boards;
@@ -135,6 +140,15 @@ class BoardController {
 		}
 		Item updated = this.items.update(writer, workItemId, body.version(), body.draft(), body.resolution());
 		return this.views.detail(writer, updated, this.reads.historyOf(writer, updated.id()));
+	}
+
+	/** "Chuyển sang…": a move between "Cần làm" and "Đang làm" (FR-24, AD-39). */
+	@PostMapping("/api/v1/work-items/{workItemId}/move")
+	WorkItemDetailView moveWorkItem(@PathVariable UUID workItemId, @Valid @RequestBody MoveRequest body) {
+		Item item = this.boards.item(workItemId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		BoardViewer writer = this.access.writer(item.jobId(), this.callers.get());
+		Item moved = this.items.move(writer, workItemId, body.version(), body.to());
+		return this.views.detail(writer, moved, this.reads.historyOf(writer, moved.id()));
 	}
 
 }

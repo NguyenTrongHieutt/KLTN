@@ -1892,6 +1892,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/work-items/{workItemId}/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["moveWorkItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/webhooks/vnpay/ipn": {
         parameters: {
             query?: never;
@@ -2125,6 +2141,7 @@ export interface components {
             sentToCrewVnd?: number;
         };
         BoardMilestoneView: {
+            held: boolean;
             /** Format: uuid */
             milestoneId: string;
             /** Format: int32 */
@@ -2141,6 +2158,8 @@ export interface components {
             milestones: components["schemas"]["BoardMilestoneView"][];
             readOnly: boolean;
             title: string;
+            /** Format: uuid */
+            viewerId: string;
         };
         CapacityView: {
             /** Format: int32 */
@@ -3014,6 +3033,12 @@ export interface components {
             /** Format: int32 */
             revisionRounds: number;
             title: string;
+        };
+        MoveRequest: {
+            /** @enum {string} */
+            to: "TODO" | "IN_PROGRESS" | "IN_REVIEW" | "DONE";
+            /** Format: int64 */
+            version: number;
         };
         NdaRequest: {
             commitEmailNoticeAcknowledged: boolean;
@@ -6849,6 +6874,32 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["WorkItemRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkItemDetailView"];
+                };
+            };
+        };
+    };
+    moveWorkItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workItemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MoveRequest"];
             };
         };
         responses: {

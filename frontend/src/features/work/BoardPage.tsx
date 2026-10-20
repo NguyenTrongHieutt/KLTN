@@ -15,7 +15,9 @@ import { useMentorJob } from '@/features/matching/mentorJobApi'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t, type MessageKey } from '@/i18n/t'
 import { isNotFound } from '@/lib/problemMessage'
-import { hasBoard, STATUSES, useBoard, type Board, type WorkItemCard } from './workApi'
+import { cn } from '@/lib/utils'
+import { MoveMenu } from './MoveMenu'
+import { hasBoard, STATUSES, TYPES, useBoard, type Board, type WorkItemCard } from './workApi'
 import { WorkItemSheet } from './WorkItemSheet'
 
 /**
@@ -85,9 +87,41 @@ function StudentBoard({ jobId }: { jobId: string }) {
   )
 }
 
+const UNASSIGNED = 'none'
+
+/** The Board's filters (UX-DR37), applied on the client: Milestone, assignee, type, and the viewer's own view. */
+interface Filters {
+  milestone: string
+  assignee: string
+  type: string
+  mine: boolean
+}
+
+function visible(item: WorkItemCard, filters: Filters, board: Board): boolean {
+  if (filters.milestone && item.milestoneId !== filters.milestone) {
+    return false
+  }
+  if (filters.assignee === UNASSIGNED ? item.assignee != null : filters.assignee && item.assignee?.accountId !== filters.assignee) {
+    return false
+  }
+  if (filters.type && item.type !== filters.type) {
+    return false
+  }
+  if (filters.mine) {
+    return board.mentor ? item.status === 'IN_REVIEW' : item.assignee?.accountId === board.viewerId
+  }
+  return true
+}
+
 function Columns({ board, jobId }: { board: Board; jobId: string }) {
   const milestones = new Map(board.milestones.map((milestone) => [milestone.milestoneId, milestone]))
   const [sheet, setSheet] = useState<{ open: boolean; workItemId?: string }>({ open: false })
+  const [filters, setFilters] = useState<Filters>({ milestone: '', assignee: '', type: '', mine: false })
+  const [column, setColumn] = useState<(typeof STATUSES)[number]>(board.mentor ? 'IN_REVIEW' : 'IN_PROGRESS')
+  const people = new Map(
+    board.items.flatMap((item) => (item.assignee ? [[item.assignee.accountId, item.assignee.name] as const] : [])),
+  )
+  const shown = board.items.filter((item) => visible(item, filters, board))
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -104,14 +138,74 @@ function Columns({ board, jobId }: { board: Board; jobId: string }) {
         )}
       </div>
       {board.readOnly && <p className="text-body-sm text-muted-foreground">{t('screen.board.readOnly')}</p>}
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div role="group" aria-label={t('screen.board.filters')} className="flex flex-wrap items-end gap-2">
+        <FilterSelect
+          label={t('screen.board.item.milestone')}
+          value={filters.milestone}
+          onChange={(milestone) => setFilters({ ...filters, milestone })}
+          options={board.milestones.map((milestone) => ({
+            value: milestone.milestoneId,
+            label: t('screen.board.milestone', { n: milestone.number }),
+          }))}
+        />
+        <FilterSelect
+          label={t('screen.board.item.assignee')}
+          value={filters.assignee}
+          onChange={(assignee) => setFilters({ ...filters, assignee })}
+          options={[
+            { value: UNASSIGNED, label: t('screen.board.unassigned') },
+            ...[...people].map(([value, label]) => ({ value, label })),
+          ]}
+        />
+        <FilterSelect
+          label={t('screen.board.item.type')}
+          value={filters.type}
+          onChange={(type) => setFilters({ ...filters, type })}
+          options={TYPES.map((value) => ({ value, label: t(`screen.board.type.${value}` as MessageKey) }))}
+        />
+        <button
+          type="button"
+          aria-pressed={filters.mine}
+          onClick={() => setFilters({ ...filters, mine: !filters.mine })}
+          className={cn(
+            'min-h-tap-min rounded-md border px-3 text-body-sm',
+            filters.mine ? 'border-primary bg-primary-soft font-semibold text-primary' : 'border-border bg-card',
+          )}
+        >
+          {t(board.mentor ? 'screen.board.awaitingMe' : 'screen.board.mine')}
+        </button>
+      </div>
+      <div role="group" aria-label={t('screen.board.columns')} className="grid grid-cols-4 gap-1 rounded-md bg-muted p-1 md:hidden">
+        {STATUSES.map((status) => (
+          <button
+            key={status}
+            type="button"
+            aria-pressed={column === status}
+            onClick={() => setColumn(status)}
+            className={cn(
+              'min-h-tap-min rounded px-1 text-caption',
+              column === status ? 'bg-card font-semibold shadow-xs' : 'text-muted-foreground',
+            )}
+          >
+            {t(`screen.board.status.${status}` as MessageKey)}
+          </button>
+        ))}
+      </div>
+      <div
+        role="region"
+        aria-label={t('screen.board.tab')}
+        className="flex flex-col gap-3 md:grid md:auto-cols-[calc(50%-6px)] md:grid-flow-col md:overflow-x-auto lg:grid-flow-row lg:grid-cols-4 lg:overflow-visible"
+      >
         {STATUSES.map((status) => {
-          const items = board.items.filter((item) => item.status === status)
+          const items = shown.filter((item) => item.status === status)
           return (
             <section
               key={status}
               aria-labelledby={`column-${status}`}
-              className="flex min-w-0 flex-col gap-2.5 rounded-lg border border-border bg-muted/40 p-3"
+              className={cn(
+                status === column ? 'flex' : 'hidden',
+                'min-w-0 flex-col gap-2.5 rounded-lg border border-border bg-muted/40 p-3 md:flex',
+              )}
             >
               <h2 id={`column-${status}`} className="flex items-center justify-between text-label font-semibold">
                 {t(`screen.board.status.${status}` as MessageKey)}
@@ -125,8 +219,8 @@ function Columns({ board, jobId }: { board: Board; jobId: string }) {
                     <Card
                       key={item.id}
                       item={item}
+                      board={board}
                       jobId={jobId}
-                      mentor={board.mentor}
                       milestoneNumber={item.milestoneId ? milestones.get(item.milestoneId)?.number : undefined}
                       onOpen={() => setSheet({ open: true, workItemId: item.id })}
                     />
@@ -154,19 +248,50 @@ function initials(name: string): string {
   return (words.length > 1 ? words[0][0] + words[words.length - 1][0] : (words[0] ?? '?').slice(0, 2)).toUpperCase()
 }
 
+function FilterSelect({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  options: { value: string; label: string }[]
+}) {
+  return (
+    <label className="flex flex-col gap-1 text-caption text-muted-foreground">
+      {label}
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="min-h-tap-min rounded-md border border-input bg-card px-2 text-body-sm text-foreground"
+      >
+        <option value="">{t('screen.board.all')}</option>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
 function Card({
   item,
+  board,
   jobId,
-  mentor,
   milestoneNumber,
   onOpen,
 }: {
   item: WorkItemCard
+  board: Board
   jobId: string
-  mentor: boolean
   milestoneNumber: number | undefined
   onOpen: () => void
 }) {
+  const mentor = board.mentor
   const toasts = useToasts()
   const copy = () => {
     void navigator.clipboard
@@ -241,6 +366,9 @@ function Card({
         ) : (
           <span>{t('screen.board.unassigned')}</span>
         )}
+      </div>
+      <div className="flex justify-end">
+        <MoveMenu board={board} item={item} jobId={jobId} />
       </div>
     </li>
   )

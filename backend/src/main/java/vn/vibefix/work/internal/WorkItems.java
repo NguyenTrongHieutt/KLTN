@@ -23,6 +23,7 @@ import vn.vibefix.job.AgreementCriteria;
 import vn.vibefix.job.AgreementCriteria.MilestoneInForce;
 import vn.vibefix.job.Crews;
 import vn.vibefix.job.Crews.Relationship;
+import vn.vibefix.job.HeldMilestones;
 import vn.vibefix.notification.Audience;
 import vn.vibefix.notification.NotificationRequest;
 import vn.vibefix.notification.Notifications;
@@ -37,6 +38,7 @@ import vn.vibefix.shared.WorkItemKey;
 import vn.vibefix.work.internal.Boards.ChecklistLine;
 import vn.vibefix.work.internal.Boards.Item;
 import vn.vibefix.work.internal.Boards.Priority;
+import vn.vibefix.work.internal.Boards.Status;
 import vn.vibefix.work.internal.Boards.Type;
 import vn.vibefix.work.internal.WorkAccess.BoardViewer;
 
@@ -87,12 +89,15 @@ class WorkItems {
 
 	private final Notifications notifications;
 
+	private final HeldMilestones held;
+
 	private final IdGenerator ids;
 
 	private final Clock clock;
 
 	WorkItems(Boards boards, JdbcClient jdbc, AgreementCriteria criteria, Crews crews, StudentDirectory students,
-			MentorDirectory mentors, SensitiveText check, Notifications notifications, IdGenerator ids, Clock clock) {
+			MentorDirectory mentors, SensitiveText check, Notifications notifications, HeldMilestones held, IdGenerator ids,
+			Clock clock) {
 		this.boards = boards;
 		this.jdbc = jdbc;
 		this.criteria = criteria;
@@ -101,6 +106,7 @@ class WorkItems {
 		this.mentors = mentors;
 		this.check = check;
 		this.notifications = notifications;
+		this.held = held;
 		this.ids = ids;
 		this.clock = clock;
 	}
@@ -200,6 +206,45 @@ class WorkItems {
 			tellAssignee(writer, updated, entry);
 		}
 		return updated;
+	}
+
+	/**
+	 * A Board move between "Cần làm" and "Đang làm" (FR-24, AD-39): by the Mentor or the assignee, made on
+	 * {@code version}, leaving "Cần làm" only while the Milestone is held; every other move is refused
+	 * until submission, approval, and return arrive with their own commands.
+	 */
+	@Transactional
+	Item move(BoardViewer writer, UUID itemId, long version, Status to) {
+		Item item = this.boards.lockItem(itemId)
+			.filter(found -> found.jobId().equals(writer.board().jobId()))
+			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		if (item.version() != version) {
+			throw new ApiException(ErrorCode.STALE);
+		}
+		if (!writer.mentor() && !writer.accountId().equals(item.assigneeId())) {
+			throw new ApiException(ErrorCode.FORBIDDEN, WorkReason.NOT_ASSIGNEE);
+		}
+		if (to == item.status()) {
+			return item;
+		}
+		boolean board = (item.status() == Status.TODO && to == Status.IN_PROGRESS)
+				|| (item.status() == Status.IN_PROGRESS && to == Status.TODO);
+		if (!board) {
+			throw new ApiException(ErrorCode.GUARD_FAILED, WorkReason.MOVE_NOT_ALLOWED);
+		}
+		if (item.status() == Status.TODO
+				&& (item.milestoneId() == null || !this.held.heldOf(item.jobId()).contains(item.milestoneId()))) {
+			throw new ApiException(ErrorCode.GUARD_FAILED, WorkReason.MILESTONE_NOT_HELD);
+		}
+		this.jdbc.sql("UPDATE work.work_item SET status = :to, version = version + 1, updated_at = :now WHERE id = :id")
+			.param("id", itemId)
+			.param("to", to.name())
+			.param("now", Timestamp.from(this.clock.instant()))
+			.update();
+		Map<String, Object> changes = new LinkedHashMap<>();
+		change(changes, "status", item.status().name(), to.name());
+		this.boards.history(itemId, item.jobId(), writer.accountId(), "MOVED", changes, null);
+		return this.boards.item(itemId).orElseThrow();
 	}
 
 	private void requireMilestone(UUID jobId, UUID milestoneId) {

@@ -2023,6 +2023,16 @@
         "sensitiveBody": "Ai xem được bảng công việc đều đọc được nội dung này. Hãy che trước khi lưu.",
         "mask": "Che và lưu",
         "staleBody": "Việc này vừa được sửa ở nơi khác nên thay đổi của bạn chưa được lưu. Hãy tải lại để xem bản mới rồi sửa lại."
+      },
+      "filters": "Lọc bảng công việc",
+      "columns": "Cột đang xem",
+      "all": "Tất cả",
+      "mine": "Của tôi",
+      "awaitingMe": "Chờ tôi duyệt",
+      "move": {
+        "trigger": "Chuyển sang…",
+        "label": "Chuyển {key} sang…",
+        "notHeld": "Giai đoạn này chưa được thanh toán."
       }
     }
   },
@@ -2802,7 +2812,10 @@
       "SEEDED_FIELD_FIXED": "Loại và giai đoạn của Story từ tiêu chí nghiệm thu không đổi được.",
       "MILESTONE_UNKNOWN": "Giai đoạn này không có trong thỏa thuận.",
       "BOARD_READ_ONLY": "Công việc không còn đang làm nên bảng chỉ để xem.",
-      "SENSITIVE_CONTENT": "Nội dung có thể chứa khóa bí mật hoặc dữ liệu khách hàng."
+      "SENSITIVE_CONTENT": "Nội dung có thể chứa khóa bí mật hoặc dữ liệu khách hàng.",
+      "NOT_ASSIGNEE": "Chỉ người được giao và người hướng dẫn chuyển được việc này.",
+      "MILESTONE_NOT_HELD": "Giai đoạn này chưa được thanh toán.",
+      "MOVE_NOT_ALLOWED": "Không chuyển việc sang cột này được."
     }
   }
 }
