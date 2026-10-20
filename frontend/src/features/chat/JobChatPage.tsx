@@ -14,12 +14,12 @@ import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t } from '@/i18n/t'
 import { isNotFound } from '@/lib/problemMessage'
 import { ChatPanel } from './ChatPanel'
-import { hasChat } from './chatApi'
+import { hasChat, useJobChat } from './chatApi'
 
 /**
  * JOB-4 "Trò chuyện" (`/cong-viec/{jobId}/tro-chuyen`, FR-46, UX-DR17): the Job Chat for its Customer
- * and its Mentor, from Agreement on; anyone else sees the not-found screen, and a Job without a Chat
- * goes back to its overview.
+ * and its Mentor, from Agreement on and read-only once the Job ends; anyone else sees the not-found
+ * screen, and a Job without a Chat goes back to its overview.
  */
 export function JobChatPage() {
   const { jobId } = useParams()
@@ -44,7 +44,7 @@ function CustomerChat({ jobId }: { jobId: string }) {
       <RegionState query={job} skeleton={<Skeleton className="h-96 w-full" />}>
         {job.data && <CustomerHeader job={job.data} />}
       </RegionState>
-      <ChatPanel jobId={jobId} side="customer" />
+      <JobChatPanel jobId={jobId} side="customer" />
     </Frame>
   )
 }
@@ -77,7 +77,7 @@ function MentorChat({ jobId }: { jobId: string }) {
       <RegionState query={job} skeleton={<Skeleton className="h-96 w-full" />}>
         {job.data && <MentorHeader job={job.data} />}
       </RegionState>
-      <ChatPanel jobId={jobId} side="mentor" />
+      <JobChatPanel jobId={jobId} side="mentor" />
     </Frame>
   )
 }
@@ -87,6 +87,19 @@ function MentorHeader({ job }: { job: MentorJob }) {
     <JobHeader title={job.title} state={job.state} meta={mentorMeta(job)} audience="mentor">
       <MentorJobTabs jobId={job.id} state={job.state} current="chat" payment={job.agreementConfirmed} />
     </JobHeader>
+  )
+}
+
+function JobChatPanel({ jobId, side }: { jobId: string; side: 'customer' | 'mentor' }) {
+  const chat = useJobChat(jobId)
+  return (
+    <ChatPanel
+      target={{ kind: 'job', jobId }}
+      heading={t(side === 'customer' ? 'screen.chat.withMentor' : 'screen.chat.withCustomer')}
+      audience={t(side === 'customer' ? 'screen.chat.onlyMentor' : 'screen.chat.onlyCustomer')}
+      placeholder={t(side === 'customer' ? 'screen.chat.placeholderMentor' : 'screen.chat.placeholderCustomer')}
+      readOnlyNote={chat.data?.readOnly ? t('screen.chat.readOnly') : undefined}
+    />
   )
 }
 

@@ -7,6 +7,9 @@ enum ChatReason {
 	SENSITIVE_CONTENT,
 
 	/** A message needs text or an attachment. */
-	MESSAGE_EMPTY
+	MESSAGE_EMPTY,
+
+	/** The Chat is closed (J9, J10), or the reader is an inactive or former Crew member (AD-41). */
+	CHAT_READ_ONLY
 
 }

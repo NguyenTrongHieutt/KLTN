@@ -26,7 +26,8 @@ import vn.vibefix.support.MutableClock;
  * Job ({@code {jobId}}) holding a screenshot ({@code {screenshotId}}), and one Open Job Post
  * ({@code {postId}}) with another Mentor's Application ({@code {applicationId}}). Only the owner and
  * Administrators read the Product; only the owner reads the Draft and the Applications, and approved
- * Mentors read the Job Post.
+ * Mentors read the Job Post. An Active Job of the same Product carries the Crew and its Crew Chat
+ * ({@link CrewJobWorld}).
  */
 public class ProductFixture implements MatrixFixture {
 
@@ -34,11 +35,14 @@ public class ProductFixture implements MatrixFixture {
 
 	private final SessionRepository<? extends Session> sessions;
 
+	private final CrewJobWorld crewJob;
+
 	private UUID owner;
 
 	public ProductFixture(JdbcClient jdbc, SessionRepository<? extends Session> sessions) {
 		this.jdbc = jdbc;
 		this.sessions = sessions;
+		this.crewJob = new CrewJobWorld(jdbc, sessions);
 	}
 
 	@Override
@@ -124,6 +128,7 @@ public class ProductFixture implements MatrixFixture {
 		world.put("crewRowId", UUID.randomUUID());
 		world.put("milestoneId", UUID.randomUUID());
 		world.put("paymentOrderId", UUID.randomUUID());
+		this.crewJob.seed(world, this.owner, product);
 	}
 
 	@Override
@@ -134,7 +139,7 @@ public class ProductFixture implements MatrixFixture {
 	@Override
 	public Optional<RequestPostProcessor> realize(MatrixCaller caller, Map<String, String> state, MatrixWorld world) {
 		if (caller != MatrixCaller.OWNER) {
-			return Optional.empty();
+			return this.crewJob.realize(caller);
 		}
 		return Optional.of(IdentityTestSupport.signedIn(this.sessions, this.owner, Role.CUSTOMER, MutableClock.DEFAULT_INSTANT));
 	}

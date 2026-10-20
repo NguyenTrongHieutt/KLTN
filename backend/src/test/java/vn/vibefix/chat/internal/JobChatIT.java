@@ -80,7 +80,7 @@ class JobChatIT extends IntegrationTest {
 		this.mvc.perform(post("/api/v1/mentor/jobs/" + this.job + "/nda").with(as(this.hung, Role.MENTOR)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("{\"ndaVersion\":\"1.0\",\"commitEmailNoticeAcknowledged\":true}")).andExpect(status().isNoContent());
-		await().atMost(Duration.ofSeconds(10)).until(() -> this.jdbc.sql("SELECT count(*) FROM chat.chat WHERE job_id = :job")
+		await().atMost(Duration.ofSeconds(10)).until(() -> this.jdbc.sql("SELECT count(*) FROM chat.chat WHERE job_id = :job AND kind = 'JOB'")
 			.param("job", this.job).query(Long.class).single() == 1);
 	}
 
@@ -157,7 +157,7 @@ class JobChatIT extends IntegrationTest {
 
 	@Test
 	void theNewestFiftyComeFirstAndOlderOnesOnRequest() throws Exception {
-		UUID chat = this.jdbc.sql("SELECT id FROM chat.chat WHERE job_id = :job").param("job", this.job).query(UUID.class).single();
+		UUID chat = this.jdbc.sql("SELECT id FROM chat.chat WHERE job_id = :job AND kind = 'JOB'").param("job", this.job).query(UUID.class).single();
 		for (int i = 0; i < 60; i++) {
 			this.clock.advance(Duration.ofSeconds(1));
 			this.jdbc.sql("""

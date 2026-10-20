@@ -506,6 +506,157 @@
         "tags" : [ "catalog-controller" ]
       }
     },
+    "/api/v1/crew-chats/{crewChatId}/attachments" : {
+      "post" : {
+        "operationId" : "attachCrewFile",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "crewChatId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "query",
+          "name" : "body",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "default" : "",
+            "maxLength" : 4000,
+            "minLength" : 0
+          }
+        }, {
+          "in" : "query",
+          "name" : "sensitive",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "enum" : [ "CHECK", "MASK", "SEND" ]
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "multipart/form-data" : {
+              "schema" : {
+                "type" : "object",
+                "properties" : {
+                  "file" : {
+                    "type" : "string",
+                    "format" : "binary"
+                  }
+                },
+                "required" : [ "file" ]
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MessageView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "crew-chat-controller" ]
+      }
+    },
+    "/api/v1/crew-chats/{crewChatId}/messages" : {
+      "get" : {
+        "operationId" : "crewMessages",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "crewChatId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "query",
+          "name" : "before",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MessagePageView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "crew-chat-controller" ]
+      },
+      "post" : {
+        "operationId" : "sendCrewMessage",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "crewChatId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SendRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MessageView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "crew-chat-controller" ]
+      }
+    },
+    "/api/v1/crew-chats/{crewChatId}/read" : {
+      "post" : {
+        "operationId" : "readCrewChat",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "crewChatId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "crew-chat-controller" ]
+      }
+    },
     "/api/v1/crew/assignments" : {
       "get" : {
         "operationId" : "crewAssignments",
@@ -1152,6 +1303,33 @@
           }
         },
         "tags" : [ "job-chat-controller" ]
+      }
+    },
+    "/api/v1/jobs/{jobId}/crew-chat" : {
+      "get" : {
+        "operationId" : "crewChat",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CrewChatView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "crew-chat-controller" ]
       }
     },
     "/api/v1/jobs/{jobId}/funding" : {
@@ -4462,11 +4640,14 @@
             "type" : "string",
             "format" : "uuid"
           },
+          "readOnly" : {
+            "type" : "boolean"
+          },
           "unread" : {
             "type" : "boolean"
           }
         },
-        "required" : [ "chatId", "unread" ]
+        "required" : [ "chatId", "readOnly", "unread" ]
       },
       "CleanRepositoryRequest" : {
         "type" : "object",
@@ -4767,6 +4948,28 @@
           }
         },
         "required" : [ "name", "state", "studentId" ]
+      },
+      "CrewChatView" : {
+        "type" : "object",
+        "properties" : {
+          "chatId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "closed" : {
+            "type" : "boolean"
+          },
+          "readOnly" : {
+            "type" : "boolean"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "unread" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "chatId", "closed", "readOnly", "title", "unread" ]
       },
       "CrewConfirmRequest" : {
         "type" : "object",

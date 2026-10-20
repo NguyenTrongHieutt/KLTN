@@ -632,6 +632,80 @@ POST /api/v1/jobs/{jobId}/chat/read,CUSTOMER,,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/chat/read,MENTOR,,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/chat/read,STUDENT,,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/chat/read,ADMINISTRATOR,,,404 NOT_FOUND
+# The Crew Chat (FR-77, AD-41): the Job's Mentor and ACTIVE members read and write; INACTIVE and former
+# members read only the messages of their window (the CREW_CHAT canary is written after it) and cannot write;
+# the Customer, an ASSIGNED Student, everyone else, and an Administrator without a grant find nothing; the
+# Administrator holding a grant on the Crew Chat only reads. The tab's read by Job uses the fixture's Draft.
+GET /api/v1/jobs/{jobId}/crew-chat,ANONYMOUS,,,401
+GET /api/v1/jobs/{jobId}/crew-chat,OWNER,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/crew-chat,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/crew-chat,MENTOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/crew-chat,STUDENT,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/crew-chat,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/crew-chat,TEAM_MENTOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/crew-chat,TEAM_MEMBER,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/crew-chat,CREW_ASSIGNED,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/crew-chat,JOB_MENTOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/crew-chat,CREW_ACTIVE,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/crew-chat,CREW_INACTIVE,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/crew-chat,CREW_FORMER,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/crew-chat,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
+GET /api/v1/crew-chats/{crewChatId}/messages,ANONYMOUS,,,401
+GET /api/v1/crew-chats/{crewChatId}/messages,OWNER,,,404 NOT_FOUND
+GET /api/v1/crew-chats/{crewChatId}/messages,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/crew-chats/{crewChatId}/messages,MENTOR,,,404 NOT_FOUND
+GET /api/v1/crew-chats/{crewChatId}/messages,STUDENT,,,404 NOT_FOUND
+GET /api/v1/crew-chats/{crewChatId}/messages,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/crew-chats/{crewChatId}/messages,TEAM_MENTOR,,,404 NOT_FOUND
+GET /api/v1/crew-chats/{crewChatId}/messages,TEAM_MEMBER,,,404 NOT_FOUND
+GET /api/v1/crew-chats/{crewChatId}/messages,CREW_ASSIGNED,,,404 NOT_FOUND
+GET /api/v1/crew-chats/{crewChatId}/messages,JOB_MENTOR,,,200
+GET /api/v1/crew-chats/{crewChatId}/messages,CREW_ACTIVE,,,200
+GET /api/v1/crew-chats/{crewChatId}/messages,CREW_INACTIVE,,,200
+GET /api/v1/crew-chats/{crewChatId}/messages,CREW_FORMER,,,200
+GET /api/v1/crew-chats/{crewChatId}/messages,ADMIN_TEAM_ISSUE_GRANT,,,200
+POST /api/v1/crew-chats/{crewChatId}/messages,ANONYMOUS,,chat-message.json,401
+POST /api/v1/crew-chats/{crewChatId}/messages,OWNER,,chat-message.json,404 NOT_FOUND
+POST /api/v1/crew-chats/{crewChatId}/messages,CUSTOMER,,chat-message.json,404 NOT_FOUND
+POST /api/v1/crew-chats/{crewChatId}/messages,MENTOR,,chat-message.json,404 NOT_FOUND
+POST /api/v1/crew-chats/{crewChatId}/messages,STUDENT,,chat-message.json,404 NOT_FOUND
+POST /api/v1/crew-chats/{crewChatId}/messages,ADMINISTRATOR,,chat-message.json,404 NOT_FOUND
+POST /api/v1/crew-chats/{crewChatId}/messages,TEAM_MENTOR,,chat-message.json,404 NOT_FOUND
+POST /api/v1/crew-chats/{crewChatId}/messages,TEAM_MEMBER,,chat-message.json,404 NOT_FOUND
+POST /api/v1/crew-chats/{crewChatId}/messages,CREW_ASSIGNED,,chat-message.json,404 NOT_FOUND
+POST /api/v1/crew-chats/{crewChatId}/messages,JOB_MENTOR,,chat-message.json,201
+POST /api/v1/crew-chats/{crewChatId}/messages,CREW_ACTIVE,,chat-message.json,201
+POST /api/v1/crew-chats/{crewChatId}/messages,CREW_INACTIVE,,chat-message.json,422 GUARD_FAILED CHAT_READ_ONLY
+POST /api/v1/crew-chats/{crewChatId}/messages,CREW_FORMER,,chat-message.json,422 GUARD_FAILED CHAT_READ_ONLY
+POST /api/v1/crew-chats/{crewChatId}/messages,ADMIN_TEAM_ISSUE_GRANT,,chat-message.json,404 NOT_FOUND
+POST /api/v1/crew-chats/{crewChatId}/attachments,ANONYMOUS,,student-card.png,401
+POST /api/v1/crew-chats/{crewChatId}/attachments,OWNER,,student-card.png,404 NOT_FOUND
+POST /api/v1/crew-chats/{crewChatId}/attachments,CUSTOMER,,student-card.png,404 NOT_FOUND
+POST /api/v1/crew-chats/{crewChatId}/attachments,MENTOR,,student-card.png,404 NOT_FOUND
+POST /api/v1/crew-chats/{crewChatId}/attachments,STUDENT,,student-card.png,404 NOT_FOUND
+POST /api/v1/crew-chats/{crewChatId}/attachments,ADMINISTRATOR,,student-card.png,404 NOT_FOUND
+POST /api/v1/crew-chats/{crewChatId}/attachments,TEAM_MENTOR,,student-card.png,404 NOT_FOUND
+POST /api/v1/crew-chats/{crewChatId}/attachments,TEAM_MEMBER,,student-card.png,404 NOT_FOUND
+POST /api/v1/crew-chats/{crewChatId}/attachments,CREW_ASSIGNED,,student-card.png,404 NOT_FOUND
+POST /api/v1/crew-chats/{crewChatId}/attachments,JOB_MENTOR,,student-card.png,201
+POST /api/v1/crew-chats/{crewChatId}/attachments,CREW_ACTIVE,,student-card.png,201
+POST /api/v1/crew-chats/{crewChatId}/attachments,CREW_INACTIVE,,student-card.png,422 GUARD_FAILED CHAT_READ_ONLY
+POST /api/v1/crew-chats/{crewChatId}/attachments,CREW_FORMER,,student-card.png,422 GUARD_FAILED CHAT_READ_ONLY
+POST /api/v1/crew-chats/{crewChatId}/attachments,ADMIN_TEAM_ISSUE_GRANT,,student-card.png,404 NOT_FOUND
+POST /api/v1/crew-chats/{crewChatId}/read,ANONYMOUS,,,401
+POST /api/v1/crew-chats/{crewChatId}/read,OWNER,,,404 NOT_FOUND
+POST /api/v1/crew-chats/{crewChatId}/read,CUSTOMER,,,404 NOT_FOUND
+POST /api/v1/crew-chats/{crewChatId}/read,MENTOR,,,404 NOT_FOUND
+POST /api/v1/crew-chats/{crewChatId}/read,STUDENT,,,404 NOT_FOUND
+POST /api/v1/crew-chats/{crewChatId}/read,ADMINISTRATOR,,,404 NOT_FOUND
+POST /api/v1/crew-chats/{crewChatId}/read,TEAM_MENTOR,,,404 NOT_FOUND
+POST /api/v1/crew-chats/{crewChatId}/read,TEAM_MEMBER,,,404 NOT_FOUND
+POST /api/v1/crew-chats/{crewChatId}/read,CREW_ASSIGNED,,,404 NOT_FOUND
+POST /api/v1/crew-chats/{crewChatId}/read,JOB_MENTOR,,,204
+POST /api/v1/crew-chats/{crewChatId}/read,CREW_ACTIVE,,,204
+POST /api/v1/crew-chats/{crewChatId}/read,CREW_INACTIVE,,,204
+POST /api/v1/crew-chats/{crewChatId}/read,CREW_FORMER,,,204
+POST /api/v1/crew-chats/{crewChatId}/read,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
 GET /api/v1/mentor/jobs/{jobId}/agreement,ANONYMOUS,,,401,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/agreement,MENTOR,,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/agreement,MENTOR,mentor=PENDING,,404 NOT_FOUND,requireActiveAccount

@@ -1,6 +1,8 @@
 package vn.vibefix.chat.internal;
 
 import java.time.Clock;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -14,6 +16,11 @@ import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
 import vn.vibefix.chat.internal.Chats.Chat;
 import vn.vibefix.chat.internal.Chats.Kind;
+import vn.vibefix.chat.internal.Chats.Window;
+import vn.vibefix.job.Crews;
+import vn.vibefix.job.Crews.CrewMember;
+import vn.vibefix.job.Crews.CrewRelationship;
+import vn.vibefix.job.Crews.Selection;
 import vn.vibefix.job.JobPosts;
 import vn.vibefix.job.JobPosts.JobPostState;
 import vn.vibefix.shared.AdminReadScope;
@@ -23,23 +30,60 @@ import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Role;
 
 /**
- * Who reads and writes a Job Chat (FR-46, AD-20): its Customer and its Mentor, read from {@code job}
- * ({@code job.mentorOf}); a Crew member, any Student, any other account, and an Administrator without
- * a grant find nothing (SG-31). A granted Administrator only reads, and each read is audited (AD-8).
+ * Who reads and writes a Chat (FR-46, FR-77, AD-20, AD-41), read from {@code job}:
+ * <ul>
+ * <li>the Job Chat: its Customer and its Mentor ({@code job.mentorOf});</li>
+ * <li>the Crew Chat: its Mentor and every {@code ACTIVE} Crew member; an {@code INACTIVE} or
+ * {@code FORMER} member only reads, and only the messages inside their windows
+ * ({@code job.crewRelationship});</li>
+ * <li>an Administrator only under a grant naming the Chat, only reading, each read audited (AD-8).</li>
+ * </ul>
+ * Everyone else, an {@code ASSIGNED} Student and the Customer of the Crew Chat included, finds nothing
+ * (SG-31). A closed Chat (J9, J10) is read, never written.
  */
 @Component
 class ChatAccess {
 
 	/**
 	 * The caller and the Chat they reached.
-	 * @param participant the Customer or the Mentor; {@code false} for a granted Administrator
+	 * @param participant a person of the Chat; {@code false} for a granted Administrator
+	 * @param readOnly the Chat is closed, or the caller only reads it
+	 * @param windows the spans whose messages the caller sees, or {@code null} for all of them
+	 * @param customerId the Job Chat's Customer; {@code null} for the Crew Chat
+	 * @param crew the Students ever {@code ACTIVE} on the Job, for the Crew Chat's names and grants
 	 */
-	record Viewer(Chat chat, UUID accountId, boolean participant, UUID customerId, UUID mentorId) {
+	record Viewer(Chat chat, UUID accountId, boolean participant, boolean readOnly, @Nullable List<Window> windows,
+			String jobTitle, UUID mentorId, @Nullable UUID customerId, List<UUID> crew) {
+
+		Viewer {
+			windows = windows == null ? null : List.copyOf(windows);
+			crew = List.copyOf(crew);
+		}
+
+		/** Whether the caller sees a message sent at {@code at}. */
+		boolean sees(Instant at) {
+			return this.windows == null
+					|| this.windows.stream().anyMatch(window -> !at.isBefore(window.from()) && !at.isAfter(window.to()));
+		}
+
+		/** Everyone whose content the Chat holds, for a grant naming an account. */
+		List<UUID> people() {
+			List<UUID> people = new ArrayList<>();
+			people.add(this.mentorId);
+			if (this.customerId != null) {
+				people.add(this.customerId);
+			}
+			people.addAll(this.crew);
+			return people;
+		}
+
 	}
 
 	private final Chats chats;
 
 	private final JobPosts posts;
+
+	private final Crews crews;
 
 	private final ChatGrants grants;
 
@@ -47,28 +91,35 @@ class ChatAccess {
 
 	private final Clock clock;
 
-	ChatAccess(Chats chats, JobPosts posts, ChatGrants grants, AuditLog auditLog, Clock clock) {
+	ChatAccess(Chats chats, JobPosts posts, Crews crews, ChatGrants grants, AuditLog auditLog, Clock clock) {
 		this.chats = chats;
 		this.posts = posts;
+		this.crews = crews;
 		this.grants = grants;
 		this.auditLog = auditLog;
 		this.clock = clock;
 	}
 
-	/** A participant of the Job's Chat, who may write. */
+	/** A person of the Job's Chat of {@code kind}, writing or not. */
 	@Transactional(readOnly = true)
-	Viewer participant(UUID jobId, Caller caller) {
-		Viewer viewer = viewer(jobId, caller);
+	Viewer participant(UUID jobId, Kind kind, Caller caller) {
+		Viewer viewer = viewer(jobId, kind, caller);
 		if (viewer == null) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		return viewer;
 	}
 
-	/** A participant, or an Administrator a grant permits, whose read this audits. */
+	/** A person of the Crew Chat {@code chatId}. */
+	@Transactional(readOnly = true)
+	Viewer crewParticipant(UUID chatId, Caller caller) {
+		return participant(crewJob(chatId), Kind.CREW, caller);
+	}
+
+	/** A person, or an Administrator a grant permits, whose read this audits. */
 	@Transactional
-	Viewer reader(UUID jobId, Caller caller) {
-		Viewer viewer = viewer(jobId, caller);
+	Viewer reader(UUID jobId, Kind kind, Caller caller) {
+		Viewer viewer = viewer(jobId, kind, caller);
 		if (viewer != null) {
 			return viewer;
 		}
@@ -77,18 +128,47 @@ class ChatAccess {
 		}
 		UUID admin = caller.requireAccountId();
 		JobPostState post = this.posts.post(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		Chat chat = this.chats.find(jobId, Kind.JOB).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		if (post.mentorId() == null || !this.grants.permits(admin, jobId, AdminReadScope.JOB_CHAT, chat.id(),
-				List.of(post.customerId(), post.mentorId()), this.clock.instant())) {
+		Chat chat = this.chats.find(jobId, kind).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		if (post.mentorId() == null) {
+			throw new ApiException(ErrorCode.NOT_FOUND);
+		}
+		Viewer granted = new Viewer(chat, admin, false, true, null, post.title(), post.mentorId(),
+				kind == Kind.JOB ? post.customerId() : null, kind == Kind.CREW ? crewOf(jobId) : List.of());
+		AdminReadScope scope = kind == Kind.JOB ? AdminReadScope.JOB_CHAT : AdminReadScope.CREW_CHAT;
+		if (!this.grants.permits(admin, jobId, scope, chat.id(), granted.people(), this.clock.instant())) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		this.auditLog.record(AuditEntry.of(AuditActor.user(admin), "chat.admin_read", AuditObject.of("chat.chat", chat.id()))
 			.forJob(jobId));
-		return new Viewer(chat, admin, false, post.customerId(), post.mentorId());
+		return granted;
 	}
 
-	private @Nullable Viewer viewer(UUID jobId, Caller caller) {
-		if (!caller.hasRole(Role.CUSTOMER) && !caller.hasRole(Role.MENTOR)) {
+	/** A reader of the Crew Chat {@code chatId}. */
+	@Transactional
+	Viewer crewReader(UUID chatId, Caller caller) {
+		return reader(crewJob(chatId), Kind.CREW, caller);
+	}
+
+	/** The viewer, when they may write. */
+	static Viewer writing(Viewer viewer) {
+		if (viewer.readOnly()) {
+			throw new ApiException(ErrorCode.GUARD_FAILED, ChatReason.CHAT_READ_ONLY);
+		}
+		return viewer;
+	}
+
+	private UUID crewJob(UUID chatId) {
+		return this.chats.byId(chatId)
+			.filter(chat -> chat.kind() == Kind.CREW)
+			.map(Chat::jobId)
+			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+	}
+
+	private @Nullable Viewer viewer(UUID jobId, Kind kind, Caller caller) {
+		boolean customerRole = caller.hasRole(Role.CUSTOMER);
+		boolean mentorRole = caller.hasRole(Role.MENTOR);
+		boolean studentRole = caller.hasRole(Role.STUDENT);
+		if (!customerRole && !mentorRole && !studentRole) {
 			return null;
 		}
 		UUID account = caller.requireAccountId();
@@ -96,14 +176,46 @@ class ChatAccess {
 		if (post == null || post.mentorId() == null) {
 			return null;
 		}
-		boolean customer = caller.hasRole(Role.CUSTOMER) && post.customerId().equals(account);
-		boolean mentor = caller.hasRole(Role.MENTOR) && post.mentorId().equals(account);
-		if (!customer && !mentor) {
+		Chat chat = this.chats.find(jobId, kind).orElse(null);
+		if (chat == null) {
 			return null;
 		}
-		return this.chats.find(jobId, Kind.JOB)
-			.map(chat -> new Viewer(chat, account, true, post.customerId(), post.mentorId()))
-			.orElse(null);
+		boolean mentor = mentorRole && post.mentorId().equals(account);
+		if (kind == Kind.JOB) {
+			boolean customer = customerRole && post.customerId().equals(account);
+			return customer || mentor ? new Viewer(chat, account, true, chat.closed(), null, post.title(),
+					post.mentorId(), post.customerId(), List.of()) : null;
+		}
+		if (mentor) {
+			return new Viewer(chat, account, true, chat.closed(), null, post.title(), post.mentorId(), null, crewOf(jobId));
+		}
+		if (!studentRole) {
+			return null;
+		}
+		CrewRelationship relationship = this.crews.crewRelationship(jobId, account);
+		return switch (relationship.kind()) {
+			case ACTIVE -> new Viewer(chat, account, true, chat.closed(), null, post.title(), post.mentorId(), null,
+					crewOf(jobId));
+			case INACTIVE, FORMER -> {
+				List<Window> windows = windows(jobId, account);
+				yield windows.isEmpty() ? null
+						: new Viewer(chat, account, true, true, windows, post.title(), post.mentorId(), null, crewOf(jobId));
+			}
+			default -> null;
+		};
+	}
+
+	/** Each of the Student's rows on the Job that was ever {@code ACTIVE}, when both bounds are known. */
+	private List<Window> windows(UUID jobId, UUID student) {
+		return this.crews.crewOf(jobId, Selection.EVER_ACTIVE)
+			.stream()
+			.filter(member -> member.studentId().equals(student) && member.signedAt() != null && member.windowEnd() != null)
+			.map(member -> new Window(member.signedAt(), member.windowEnd()))
+			.toList();
+	}
+
+	private List<UUID> crewOf(UUID jobId) {
+		return this.crews.crewOf(jobId, Selection.EVER_ACTIVE).stream().map(CrewMember::studentId).distinct().toList();
 	}
 
 }

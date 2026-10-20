@@ -242,7 +242,10 @@ function AssignmentPanel({ assignment }: { assignment: CrewAssignment }) {
   )
 }
 
-/** A Crew the Student confirmed: their share and the version, nothing of the others'. */
+/**
+ * A Crew the Student confirmed: their share and the version, nothing of the others', and the way to
+ * JOB-8 "Trao đổi nhóm" (read-only while their row is inactive).
+ */
 function JoinedCard({ assignment }: { assignment: CrewAssignment }) {
   const inactive = assignment.status === 'INACTIVE'
   return (
@@ -269,6 +272,14 @@ function JoinedCard({ assignment }: { assignment: CrewAssignment }) {
           {t('screen.crew.student.activeShare', { share: assignment.sharePercent, n: assignment.versionNo })}
         </p>
       )}
+      <div className="flex flex-wrap gap-2">
+        <Link
+          to={`/cong-viec/${assignment.jobId}/trao-doi-nhom`}
+          className={buttonVariants({ variant: 'secondary', size: 'compact' })}
+        >
+          {t('screen.crewChat.tab')}
+        </Link>
+      </div>
     </article>
   )
 }
