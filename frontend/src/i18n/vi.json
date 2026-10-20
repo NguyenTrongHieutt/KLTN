@@ -2502,7 +2502,11 @@
       "confirmEnd": "Không hoàn tác được. Muốn chia tiền khác thì phải qua tranh chấp.",
       "confirmed": "Đã hủy công việc.",
       "withdrawn": "Đề nghị hủy đã được rút.",
-      "stale": "Công việc vừa thay đổi. Hãy xem lại rồi thử lại."
+      "stale": "Công việc vừa thay đổi. Hãy xem lại rồi thử lại.",
+      "aloneLead": "Đã quá hạn chuẩn bị. Bạn có thể tự hủy công việc mà không cần bên kia đồng ý; tiền đang giữ được hoàn đủ.",
+      "alone": "Hủy công việc một mình",
+      "aloneSend": "Hủy công việc",
+      "aloneTitle": "Tự hủy công việc này?"
     }
   },
   "notice": {
@@ -3159,6 +3163,12 @@
       },
       "job_cancelled": {
         "title": "{job} đã hủy"
+      },
+      "agreement_deadline_passed": {
+        "title": "Thỏa thuận của {job} chưa được xác nhận sau 14 ngày"
+      },
+      "starting_deadline_passed": {
+        "title": "{job} chưa bắt đầu sau 7 ngày"
       }
     },
     "matching": {
@@ -3371,7 +3381,8 @@
       "CANCELLATION_OPEN": "Đang có một đề nghị hủy chưa xong.",
       "NO_CANCELLATION_OPEN": "Không có đề nghị hủy nào đang mở.",
       "CANCELLATION_PROPOSER": "Bên kia xác nhận đề nghị hủy; người đề nghị có thể rút lại.",
-      "HAS_ACCEPTED_WORK": "Công việc đã có giai đoạn được nghiệm thu nên kết thúc qua bước đóng công việc."
+      "HAS_ACCEPTED_WORK": "Công việc đã có giai đoạn được nghiệm thu nên kết thúc qua bước đóng công việc.",
+      "DEADLINE_NOT_PASSED": "Bạn tự hủy được khi thỏa thuận chưa xác nhận sau 14 ngày hoặc công việc chưa bắt đầu sau 7 ngày."
     },
     "matching": {
       "JOB_POST_NOT_OPEN": "công việc không còn nhận ứng tuyển",

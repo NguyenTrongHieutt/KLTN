@@ -13,13 +13,14 @@ import { useCancellation, useCancellationCommand, type Cancellation } from './ca
 /**
  * JOB-1's "Hủy công việc" (FR-40, UX-DR16): either side proposes cancelling the Job or its remaining
  * Milestones with a reason; the other side confirms through a destructive Confirmation dialog that
- * explains the full refund of held money; the proposer may withdraw. The active Crew reads it.
+ * explains the full refund of held money; the proposer may withdraw. After the Agreement or Starting
+ * deadline either side may cancel alone (FR-40). The active Crew reads it.
  */
 export function CancellationSection({ jobId }: { jobId: string }) {
   const cancellation = useCancellation(jobId)
   const data = cancellation.data
   // An auxiliary part of the overview: nothing while loading, when the read fails, or with nothing to show.
-  if (!data || (!data.canPropose && (!data.proposal || data.proposal.status !== 'OPEN'))) {
+  if (!data || (!data.canPropose && !data.canCancelAlone && (!data.proposal || data.proposal.status !== 'OPEN'))) {
     return null
   }
   return <Content jobId={jobId} data={data} />
@@ -39,6 +40,7 @@ function Content({ jobId, data }: { jobId: string; data: Cancellation }) {
   const [scope, setScope] = useState<'JOB' | 'REMAINING'>('JOB')
   const [reason, setReason] = useState('')
   const [asking, setAsking] = useState(false)
+  const [alone, setAlone] = useState(false)
   const [error, setError] = useState<string>()
   const proposal = data.proposal?.status === 'OPEN' ? data.proposal : undefined
   const run = (action: Parameters<typeof command.mutate>[0], success: MessageKey) => {
@@ -47,6 +49,7 @@ function Content({ jobId, data }: { jobId: string; data: Cancellation }) {
       onSuccess: () => {
         setAsking(false)
         setProposing(false)
+        setAlone(false)
         toasts.success(t(success))
       },
       onError: (error) => {
@@ -61,7 +64,9 @@ function Content({ jobId, data }: { jobId: string; data: Cancellation }) {
       <h2 id={`${ids}-title`} className="text-h2">
         {t('screen.cancellation.heading')}
       </h2>
-      <p className="text-body-sm text-muted-foreground">{t('screen.cancellation.lead')}</p>
+      <p className="text-body-sm text-muted-foreground">
+        {t(data.canCancelAlone ? 'screen.cancellation.aloneLead' : 'screen.cancellation.lead')}
+      </p>
       {proposal && (
         <div className="flex flex-col gap-1 rounded-md bg-muted p-3 text-body-sm">
           <span className="text-label">
@@ -74,6 +79,34 @@ function Content({ jobId, data }: { jobId: string; data: Cancellation }) {
           </span>
           {proposal.unanswered && proposal.mine && <p>{t('screen.cancellation.unanswered')}</p>}
         </div>
+      )}
+      {alone && (
+        <fieldset className="flex flex-col gap-2 rounded-md border border-border bg-background p-3 text-body-sm">
+          <legend className="px-1 text-label">{t('screen.cancellation.alone')}</legend>
+          <label htmlFor={`${ids}-alone`} className="text-label">
+            {t('screen.cancellation.reason')}
+          </label>
+          <textarea
+            id={`${ids}-alone`}
+            value={reason}
+            maxLength={2000}
+            onChange={(event) => setReason(event.target.value)}
+            className={cn(inputClass, 'min-h-18')}
+          />
+          <div className="flex flex-wrap justify-end gap-3">
+            <Button type="button" variant="ghost" onClick={() => setAlone(false)}>
+              {t('screen.cancellation.cancel')}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={reason.trim() === '' || command.isPending}
+              onClick={() => setAsking(true)}
+            >
+              {t('screen.cancellation.aloneSend')}
+            </Button>
+          </div>
+        </fieldset>
       )}
       {proposing && (
         <fieldset className="flex flex-col gap-2 rounded-md border border-border bg-background p-3 text-body-sm">
@@ -124,7 +157,12 @@ function Content({ jobId, data }: { jobId: string; data: Cancellation }) {
       )}
       {party && (
         <div className="flex flex-wrap justify-end gap-3">
-          {data.canPropose && !proposing && (
+          {data.canCancelAlone && !alone && !proposing && (
+            <Button type="button" variant="destructive" onClick={() => setAlone(true)}>
+              {t('screen.cancellation.alone')}
+            </Button>
+          )}
+          {data.canPropose && !proposing && !alone && (
             <Button type="button" variant="secondary" onClick={() => setProposing(true)}>
               {t('screen.cancellation.propose')}
             </Button>
@@ -150,7 +188,9 @@ function Content({ jobId, data }: { jobId: string; data: Cancellation }) {
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 z-[60] bg-foreground/50" />
           <Dialog.Popup className="fixed top-24 left-1/2 z-[70] flex w-[min(480px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
-            <Dialog.Title className="text-h2">{t('screen.cancellation.confirmTitle')}</Dialog.Title>
+            <Dialog.Title className="text-h2">
+              {t(alone ? 'screen.cancellation.aloneTitle' : 'screen.cancellation.confirmTitle')}
+            </Dialog.Title>
             <Dialog.Description className="flex flex-col gap-2 text-body-sm">
               {data.held && <span>{t('screen.cancellation.confirmHeld')}</span>}
               <span>{t('screen.cancellation.confirmPlanned')}</span>
@@ -164,9 +204,16 @@ function Content({ jobId, data }: { jobId: string; data: Cancellation }) {
                 type="button"
                 variant="destructive"
                 disabled={command.isPending}
-                onClick={() => run({ action: 'confirm', version: data.version }, 'screen.cancellation.confirmed')}
+                onClick={() =>
+                  run(
+                    alone
+                      ? { action: 'alone', reason: reason.trim(), version: data.version }
+                      : { action: 'confirm', version: data.version },
+                    'screen.cancellation.confirmed',
+                  )
+                }
               >
-                {t('screen.cancellation.confirm')}
+                {t(alone ? 'screen.cancellation.aloneSend' : 'screen.cancellation.confirm')}
               </Button>
             </div>
           </Dialog.Popup>

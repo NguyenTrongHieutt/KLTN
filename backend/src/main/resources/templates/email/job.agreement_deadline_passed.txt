@@ -1,0 +1,5 @@
+subject: Thỏa thuận của {job} chưa được xác nhận sau 14 ngày
+---
+Xin chào,
+
+Thỏa thuận của công việc {job} chưa được xác nhận sau 14 ngày. Bạn có thể chờ thêm, hoặc tự hủy công việc trên vibefix; tiền đang giữ (nếu có) được hoàn đủ.

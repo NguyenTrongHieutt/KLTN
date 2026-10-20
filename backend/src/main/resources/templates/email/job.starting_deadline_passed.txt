@@ -1,0 +1,5 @@
+subject: {job} chưa bắt đầu sau 7 ngày
+---
+Xin chào,
+
+Công việc {job} chưa bắt đầu sau 7 ngày chuẩn bị. Bạn có thể chờ thêm, hoặc tự hủy công việc trên vibefix; tiền đang giữ được hoàn đủ (thử nghiệm).

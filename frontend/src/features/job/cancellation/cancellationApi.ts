@@ -19,6 +19,7 @@ export function useCancellation(jobId: string) {
 type Command =
   | { action: 'propose'; scope: 'JOB' | 'REMAINING'; reason: string; version: number }
   | { action: 'confirm'; version: number }
+  | { action: 'alone'; reason: string; version: number }
   | { action: 'withdraw' }
 
 /** Propose, confirm, or withdraw; each refreshes the section, the overview, the Job, and the to-dos. */
@@ -32,6 +33,14 @@ export function useCancellationCommand(jobId: string) {
           apiClient.POST('/api/v1/boards/{boardId}/cancellation', {
             ...path,
             body: { scope: command.scope, reason: command.reason, version: command.version },
+          }),
+        )
+      }
+      if (command.action === 'alone') {
+        return unwrap(
+          apiClient.POST('/api/v1/boards/{boardId}/cancellation/alone', {
+            ...path,
+            body: { reason: command.reason, version: command.version },
           }),
         )
       }

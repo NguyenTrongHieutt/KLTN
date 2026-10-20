@@ -1193,6 +1193,21 @@ POST /api/v1/boards/{boardId}/cancellation/withdraw,CREW_FORMER,,,404 NOT_FOUND
 POST /api/v1/boards/{boardId}/cancellation/withdraw,CREW_ACTIVE,,,403 FORBIDDEN
 POST /api/v1/boards/{boardId}/cancellation/withdraw,OWNER,,,409 CONFLICT NO_CANCELLATION_OPEN
 POST /api/v1/boards/{boardId}/cancellation/withdraw,JOB_MENTOR,,,409 CONFLICT NO_CANCELLATION_OPEN
+# Cancelling alone after FR-40's Agreement or Starting deadline: the fixture's Job is Active, so it is refused.
+POST /api/v1/boards/{boardId}/cancellation/alone,ANONYMOUS,,cancel-alone.json,401
+POST /api/v1/boards/{boardId}/cancellation/alone,CUSTOMER,,cancel-alone.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/alone,MENTOR,,cancel-alone.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/alone,STUDENT,,cancel-alone.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/alone,ADMINISTRATOR,,cancel-alone.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/alone,TEAM_MENTOR,,cancel-alone.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/alone,TEAM_MEMBER,,cancel-alone.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/alone,CREW_ASSIGNED,,cancel-alone.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/alone,ADMIN_TEAM_ISSUE_GRANT,,cancel-alone.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/alone,CREW_INACTIVE,,cancel-alone.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/alone,CREW_FORMER,,cancel-alone.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/alone,CREW_ACTIVE,,cancel-alone.json,403 FORBIDDEN
+POST /api/v1/boards/{boardId}/cancellation/alone,OWNER,,cancel-alone.json,422 GUARD_FAILED DEADLINE_NOT_PASSED
+POST /api/v1/boards/{boardId}/cancellation/alone,JOB_MENTOR,,cancel-alone.json,422 GUARD_FAILED DEADLINE_NOT_PASSED
 # Milestone Handovers (FR-32, AD-20, AD-39): the Customer (OWNER), the Mentor, and ACTIVE members read;
 # only the Mentor hands over, and the fixture's Milestone is not Funded. The Customer's Delivery Report
 # never carries the Work Item note, whose text is the WORK_ITEM_NOTE canary.

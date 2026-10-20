@@ -42,6 +42,9 @@ class CancellationIT extends IntegrationTest {
 
 	private static final long PRICE = 800000;
 
+	/** The data-deletion duties J10 asks for: the Mentor and each Crew member ever active. */
+	private static final long DUTIES = 2;
+
 	@Autowired
 	private MockMvc mvc;
 
@@ -107,6 +110,10 @@ class CancellationIT extends IntegrationTest {
 				SELECT action FROM audit.audit_entry WHERE job_id = :job AND action LIKE 'job.cancellation%' ORDER BY occurred_at
 				""").param("job", job).query(String.class).list())
 			.containsExactly("job.cancellation_proposed", "job.cancellation_confirmed");
+		// J10's data-deletion duties are asked for asynchronously; let them land before the next test.
+		await().atMost(Duration.ofSeconds(10)).until(() -> count(
+				"SELECT count(*) FROM notification.notification WHERE type = 'repo.data_deletion_confirmation_pending' AND job_id = '"
+						+ job + "'") >= DUTIES);
 	}
 
 	@Test
