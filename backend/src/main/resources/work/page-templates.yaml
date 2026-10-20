@@ -1,0 +1,140 @@
+# FR-30: the Page templates of the Documentation Space, each with its default title and a Markdown
+# skeleton in plain Vietnamese (UX-DR8). A Page created from one keeps the template as its badge, and a
+# blank body takes the skeleton. The Assessment Report carries FR-10's six sections, "Những gì còn
+# thiếu" as the nine-item checklist; it is offered only on an Assessment Job, once, and is always
+# customer-visible (FR-31). The N-12 notice is shown by the SPA, never written into the report.
+version: 1
+templates:
+  ASSESSMENT_REPORT:
+    title: Báo cáo đánh giá
+    body: |-
+      ## Hiện trạng
+
+      Ứng dụng làm được gì, chạy ở đâu, và dùng những dịch vụ nào. Viết bằng lời khách hàng hiểu được.
+
+      ## Các lỗi tìm thấy
+
+      Với mỗi lỗi: bạn sẽ thấy gì, và các bước để thấy lại lỗi đó.
+
+      1.
+
+      ## Những gì còn thiếu
+
+      Đánh dấu từng mục là **Đã kiểm tra**, **Có vấn đề**, hoặc **Không áp dụng**, và giải thích mục có vấn đề.
+
+      - Kiểm soát truy cập và phân quyền:
+      - Chèn mã độc vào dữ liệu nhập và vào trang:
+      - Khóa bí mật bị lộ:
+      - Dữ liệu cá nhân và rủi ro theo luật bảo vệ dữ liệu cá nhân:
+      - Xử lý lỗi:
+      - Kiểm thử:
+      - Tốc độ khi nhiều người dùng:
+      - Sao lưu và khôi phục:
+      - Triển khai và vận hành:
+
+      ## Vấn đề còn mở từ kiểm tra
+
+      Các vấn đề còn mở từ lần kiểm tra khóa bí mật và dữ liệu cá nhân của sản phẩm, mỗi vấn đề với cách xử lý đề nghị.
+
+      ## Đề xuất
+
+      Xếp theo thứ tự ưu tiên, việc quan trọng nhất ở đầu. Mỗi đề xuất có lý do và ước lượng công sức.
+
+      1.
+
+      ## Giải thích thuật ngữ
+
+      - **Thuật ngữ**: lời giải thích.
+  SCOPE:
+    title: Phạm vi và tiêu chí
+    body: |-
+      ## Mục tiêu
+
+      Công việc này giúp khách hàng làm được gì.
+
+      ## Trong phạm vi
+
+      -
+
+      ## Ngoài phạm vi
+
+      -
+
+      ## Tiêu chí nghiệm thu
+
+      Theo thỏa thuận. Mỗi tiêu chí kèm cách khách hàng tự kiểm tra.
+
+      1.
+  TECHNICAL_NOTES:
+    title: Ghi chú kỹ thuật và quyết định
+    body: |-
+      ## Bối cảnh
+
+      Mã nguồn được tổ chức thế nào, và những phần chính.
+
+      ## Quyết định
+
+      ### Quyết định 1
+
+      - **Vấn đề:**
+      - **Lựa chọn:**
+      - **Lý do:**
+      - **Hệ quả:**
+
+      ## Cách chạy và kiểm thử
+
+      ```
+      ```
+  MEETING_NOTES:
+    title: Biên bản họp
+    body: |-
+      **Ngày:**
+      **Người tham dự:**
+
+      ## Nội dung đã bàn
+
+      -
+
+      ## Quyết định
+
+      -
+
+      ## Việc cần làm
+
+      - [ ] Việc — người làm — hạn
+  HANDOVER:
+    title: Tài liệu bàn giao
+    body: |-
+      ## Đã thay đổi những gì
+
+      Danh sách các thay đổi, viết bằng lời khách hàng hiểu được.
+
+      ## Cách kiểm tra
+
+      1.
+
+      ## Cấu hình và dữ liệu
+
+      Các bước cài đặt, thay đổi cơ sở dữ liệu và cấu hình, và những khóa cần đổi sau bàn giao.
+
+      ## Điều cần giữ khi dùng lại công cụ AI
+
+      Khi bạn tiếp tục sửa ứng dụng bằng công cụ AI, những phần này cần giữ nguyên để không mất các bản sửa:
+
+      -
+  USER_GUIDE:
+    title: Hướng dẫn sử dụng
+    body: |-
+      ## Bắt đầu
+
+      Cách mở và đăng nhập vào ứng dụng.
+
+      ## Các việc thường làm
+
+      ### Việc 1
+
+      1.
+
+      ## Câu hỏi thường gặp
+
+      - **Câu hỏi:** câu trả lời.

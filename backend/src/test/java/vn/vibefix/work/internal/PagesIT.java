@@ -165,16 +165,20 @@ class PagesIT extends IntegrationTest {
 	}
 
 	@Test
-	void nobodyElseFindsTheDocumentationSpaceAndItIsReadOnlyOutsideActive() throws Exception {
+	void nobodyElseFindsTheTeamOnlyPagesAndTheSpaceIsReadOnlyOutsideActive() throws Exception {
 		String id = id(create(this.hung, Role.MENTOR, "Kế hoạch", "", null));
 		UUID tung = WorkTestSupport.student(this.jdbc, "Lê Minh Tùng");
 		WorkTestSupport.crewRow(this.jdbc, this.job, tung, "ASSIGNED", null);
 		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null, null);
-		for (RequestPostProcessor outsider : List.of(as(this.lan, Role.CUSTOMER), as(tung, Role.STUDENT),
-				as(admin, Role.ADMINISTRATOR))) {
+		for (RequestPostProcessor outsider : List.of(as(tung, Role.STUDENT), as(admin, Role.ADMINISTRATOR))) {
 			this.mvc.perform(get("/api/v1/boards/" + this.job + "/pages").with(outsider)).andExpect(status().isNotFound());
 			this.mvc.perform(get("/api/v1/pages/" + id).with(outsider)).andExpect(status().isNotFound());
 		}
+		// The Job's Customer reads only customer-visible Pages (Story 5.6): this one is team-only.
+		this.mvc.perform(get("/api/v1/boards/" + this.job + "/pages").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.pages.length()").value(0));
+		this.mvc.perform(get("/api/v1/pages/" + id).with(as(this.lan, Role.CUSTOMER))).andExpect(status().isNotFound());
 		this.jdbc.sql("UPDATE job.job SET state = 'CLOSING' WHERE id = :id").param("id", this.job).update();
 		create(this.hung, Role.MENTOR, "Muộn", "", null).andExpect(status().isUnprocessableContent())
 			.andExpect(jsonPath("$.reason").value("BOARD_READ_ONLY"));

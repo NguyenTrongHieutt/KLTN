@@ -29,6 +29,8 @@ const tree = (overrides: object = {}) => ({
   title: 'Sửa lỗi đặt bàn và thêm nhắc lịch',
   mentor: false,
   readOnly: false,
+  customer: false,
+  templates: [],
   pages: [
     { id: 'p1', title: 'Ghi chú kỹ thuật', versionNo: 1, updatedAt: '2026-10-20T03:00:00Z' },
     { id: 'p2', parentId: 'p1', title: 'Cài đặt', versionNo: 1, updatedAt: '2026-10-20T03:00:00Z' },
@@ -46,6 +48,8 @@ const page = (overrides: object = {}) => ({
   author: 'Trần Thảo Vy',
   at: '2026-10-20T03:00:00Z',
   readOnly: false,
+  visibility: 'TEAM',
+  mentor: false,
   ...overrides,
 })
 
@@ -195,6 +199,7 @@ describe('JOB-3 "Tài liệu" (FR-29, AD-23, UX-DR39)', () => {
 
     expect(await screen.findByText(/Chưa có trang nào/)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Trang mới' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Trang trống' }))
     await user.click(screen.getByRole('button', { name: 'Lưu' }))
     expect(screen.getByRole('alert')).toHaveTextContent('Hãy nhập tên trang.')
     await user.type(screen.getByRole('textbox', { name: 'Tên trang' }), 'Biên bản họp')

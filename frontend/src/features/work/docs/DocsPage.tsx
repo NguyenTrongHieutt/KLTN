@@ -1,5 +1,6 @@
 import { Dialog } from '@base-ui/react/dialog'
-import { FileText, History, Plus } from 'lucide-react'
+import { Menu } from '@base-ui/react/menu'
+import { Eye, FileText, History, Plus, ShieldAlert } from 'lucide-react'
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { Link, Navigate, useBlocker, useNavigate, useParams } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
@@ -11,14 +12,17 @@ import { Sheet } from '@/components/Sheet'
 import { Skeleton } from '@/components/Skeleton'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button-variants'
 import { useSession } from '@/features/identity/useSession'
+import { useJob } from '@/features/job/jobApi'
 import { JobHeader } from '@/features/job/JobHeader'
-import { mentorMeta } from '@/features/job/jobMeta'
+import { customerMeta, mentorMeta } from '@/features/job/jobMeta'
+import { JobTabs } from '@/features/job/JobTabs'
 import { MentorJobTabs } from '@/features/matching/MentorJobTabs'
 import { useMentorJob } from '@/features/matching/mentorJobApi'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { hasBoard } from '@/features/work/workApi'
-import { t } from '@/i18n/t'
+import { t, type MessageKey } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
 import { formatDayMonthTime } from '@/lib/dates'
 import { isNotFound, problemMessage } from '@/lib/problemMessage'
@@ -30,6 +34,7 @@ import {
   usePageVersions,
   useRestorePage,
   useSavePage,
+  useSetVisibility,
   type PageDoc,
   type PageTree,
 } from './docsApi'
@@ -39,18 +44,89 @@ import {
  * (two levels), the Page in the safe Markdown view, the editor with "Soạn" / "Xem trước" and an explicit
  * "Lưu" (each save a version), and "Lịch sử phiên bản" with "Xem" and "Khôi phục". Leaving with unsaved
  * changes asks first; a stale save opens the Stale dialog. The Mentor and the active Crew write; a former
- * member reads; anyone else sees the not-found screen. Templates and visibility come with Story 5.6.
+ * member reads; the Job's Customer reads customer-visible Pages only; anyone else sees the not-found
+ * screen. "Trang mới" starts blank or from a template (FR-30); only the Mentor switches a Page between
+ * "Chỉ nhóm" and "Khách hàng xem được" (FR-31), and the Assessment Report stays customer-visible.
  */
 export function DocsPage() {
   const { jobId, pageId } = useParams()
   const account = useSession().data?.account
-  if (!jobId || (account !== undefined && account.role !== 'MENTOR' && account.role !== 'STUDENT')) {
+  if (!jobId || (account !== undefined && account.role === 'ADMINISTRATOR')) {
     return <NotFoundScreen />
+  }
+  if (account?.role === 'CUSTOMER') {
+    return <CustomerDocs jobId={jobId} pageId={pageId} />
   }
   return account?.role === 'MENTOR' ? (
     <MentorDocs jobId={jobId} pageId={pageId} />
   ) : (
     <StudentDocs jobId={jobId} pageId={pageId} />
+  )
+}
+
+function CustomerDocs({ jobId, pageId }: { jobId: string; pageId: string | undefined }) {
+  const job = useJob(jobId)
+  const tree = usePageTree(job.data && hasBoard(job.data.state) ? jobId : undefined)
+  usePageTitle(job.data ? t('screen.docs.title', { job: job.data.title }) : t('screen.job.title'))
+  if ((job.isError && isNotFound(job.error)) || (tree.isError && isNotFound(tree.error))) {
+    return <NotFoundScreen />
+  }
+  if (job.data && !hasBoard(job.data.state)) {
+    return <Navigate to={`/cong-viec/${job.data.id}`} replace />
+  }
+  return (
+    <Frame>
+      <RegionState query={job} skeleton={<Skeleton className="h-24 w-full" />}>
+        {job.data && (
+          <JobHeader title={job.data.title} state={job.data.state} meta={customerMeta(job.data)}>
+            <JobTabs
+              jobId={job.data.id}
+              current="docs"
+              chat={{ unread: false }}
+              agreement={job.data.agreementShared}
+              payment={job.data.agreementConfirmed}
+              docs
+            />
+          </JobHeader>
+        )}
+      </RegionState>
+      {job.data && (
+        <RegionState query={tree} skeleton={<Skeleton className="h-96 w-full" />}>
+          {tree.data && <Space tree={tree.data} jobId={jobId} pageId={pageId} />}
+        </RegionState>
+      )}
+    </Frame>
+  )
+}
+
+function TemplateBadge({ template }: { template?: string | null }) {
+  return template ? (
+    <span className="rounded-full bg-muted px-2 py-0.5 text-caption font-semibold">
+      {t(`screen.docs.template.${template}` as MessageKey)}
+    </span>
+  ) : null
+}
+
+function VisibilityBadge({ visibility }: { visibility: string }) {
+  return (
+    <span
+      className={cn(
+        'rounded-full px-2 py-0.5 text-caption font-semibold',
+        visibility === 'CUSTOMER' ? 'bg-primary-soft text-primary' : 'bg-muted text-muted-foreground',
+      )}
+    >
+      {t(visibility === 'CUSTOMER' ? 'screen.docs.visibility.CUSTOMER' : 'screen.docs.visibility.TEAM')}
+    </span>
+  )
+}
+
+/** N-12, for the Mentor and the Crew above the Assessment Report (FR-10); never part of the report. */
+function SafetyNotice() {
+  return (
+    <p className="flex gap-2 rounded-md border-l-4 border-warning bg-warning-soft p-3 text-body-sm">
+      <ShieldAlert aria-hidden="true" className="size-5 shrink-0 text-warning" />
+      {t('screen.docs.n12')}
+    </p>
   )
 }
 
@@ -108,17 +184,60 @@ function Space({ tree, jobId, pageId }: { tree: PageTree; jobId: string; pageId:
   const [creating, setCreating] = useState<{ parentId?: string }>()
   const shown = pageId ?? tree.pages[0]?.id
   const base = `/cong-viec/${jobId}/tai-lieu`
+  const navigate = useNavigate()
+  const toasts = useToasts()
+  const fromTemplate = useSavePage(jobId, undefined)
+  const start = (template: PageTree['templates'][number]) =>
+    fromTemplate.mutate(
+      { title: template.title, body: '', template: template.template, sensitive: 'CHECK' },
+      {
+        onSuccess: (created) => {
+          toasts.success(t('screen.docs.created', { title: created.title }))
+          void navigate(`${base}/${created.id}`)
+        },
+        onError: (failure) => toasts.error(problemMessage(failure, { module: 'work' }).text),
+      },
+    )
   return (
     <div className="grid gap-5 md:grid-cols-[260px_minmax(0,1fr)]">
       <nav aria-label={t('screen.docs.tree')} className="flex flex-col gap-2">
         {!tree.readOnly && (
-          <Button type="button" size="compact" className="self-start" onClick={() => setCreating({})}>
-            <Plus aria-hidden="true" />
-            {t('screen.docs.newPage')}
-          </Button>
+          <Menu.Root>
+            <Menu.Trigger className={cn(buttonVariants({ size: 'compact' }), 'self-start')}>
+              <Plus aria-hidden="true" />
+              {t('screen.docs.newPage')}
+            </Menu.Trigger>
+            <Menu.Portal>
+              <Menu.Positioner align="start" sideOffset={4} className="z-[60]">
+                <Menu.Popup className="min-w-60 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md">
+                  <Menu.Item className={menuItem} onClick={() => setCreating({})}>
+                    {t('screen.docs.blank')}
+                  </Menu.Item>
+                  <Menu.Separator className="my-1 h-px bg-border" />
+                  <Menu.Group>
+                    <Menu.GroupLabel className="px-3 pt-1 pb-1 text-caption text-muted-foreground">
+                      {t('screen.docs.fromTemplate')}
+                    </Menu.GroupLabel>
+                    {tree.templates.map((template) => (
+                      <Menu.Item
+                        key={template.template}
+                        className={menuItem}
+                        disabled={fromTemplate.isPending}
+                        onClick={() => start(template)}
+                      >
+                        {t(`screen.docs.template.${template.template}` as MessageKey)}
+                      </Menu.Item>
+                    ))}
+                  </Menu.Group>
+                </Menu.Popup>
+              </Menu.Positioner>
+            </Menu.Portal>
+          </Menu.Root>
         )}
         {tree.pages.length === 0 ? (
-          <p className="text-body-sm text-muted-foreground">{t('screen.docs.empty')}</p>
+          <p className="text-body-sm text-muted-foreground">
+            {t(tree.customer ? 'screen.docs.emptyCustomer' : 'screen.docs.empty')}
+          </p>
         ) : (
           <ul className="flex flex-col gap-0.5">
             {tree.pages.map((page) => (
@@ -133,6 +252,12 @@ function Space({ tree, jobId, pageId }: { tree: PageTree; jobId: string; pageId:
                 >
                   <FileText aria-hidden="true" className="size-4 shrink-0" />
                   <span className="truncate">{page.title}</span>
+                  {!tree.customer && page.visibility === 'CUSTOMER' && (
+                    <>
+                      <Eye aria-hidden="true" className="size-3.5 shrink-0 text-primary" />
+                      <span className="sr-only">{t('screen.docs.visibility.CUSTOMER')}</span>
+                    </>
+                  )}
                 </Link>
                 {!tree.readOnly && !page.parentId && (
                   <button
@@ -170,6 +295,8 @@ function PageArea({ tree, jobId, pageId }: { tree: PageTree; jobId: string; page
   const page = usePage(pageId)
   const [editing, setEditing] = useState(false)
   const [history, setHistory] = useState(false)
+  const visibility = useSetVisibility(jobId, pageId)
+  const report = page.data?.template === 'ASSESSMENT_REPORT'
   if (page.isError && isNotFound(page.error)) {
     return <p className="text-body-sm text-muted-foreground">{t('screen.docs.notFound')}</p>
   }
@@ -191,8 +318,13 @@ function PageArea({ tree, jobId, pageId }: { tree: PageTree; jobId: string; page
           />
         ) : (
           <article className="flex flex-col gap-4">
+            {report && !tree.customer && <SafetyNotice />}
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="flex min-w-0 flex-col gap-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <TemplateBadge template={page.data.template} />
+                  {!tree.customer && <VisibilityBadge visibility={page.data.visibility} />}
+                </div>
                 <h2 className="text-h2 break-words">{page.data.title}</h2>
                 <p className="text-caption text-muted-foreground">
                   {t('screen.docs.versionLine', {
@@ -202,11 +334,32 @@ function PageArea({ tree, jobId, pageId }: { tree: PageTree; jobId: string; page
                   })}
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" variant="secondary" size="compact" onClick={() => setHistory(true)}>
-                  <History aria-hidden="true" />
-                  {t('screen.docs.history')}
-                </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                {page.data.mentor && !page.data.readOnly && (
+                  <label className="flex min-h-tap-min items-center gap-2 text-body-sm">
+                    <input
+                      type="checkbox"
+                      role="switch"
+                      checked={page.data.visibility === 'CUSTOMER'}
+                      disabled={report || visibility.isPending}
+                      aria-describedby={report ? `${pageId}-report` : undefined}
+                      onChange={(event) => visibility.mutate(event.target.checked ? 'CUSTOMER' : 'TEAM')}
+                      className="size-4"
+                    />
+                    {t('screen.docs.visibility.CUSTOMER')}
+                  </label>
+                )}
+                {report && page.data.mentor && (
+                  <span id={`${pageId}-report`} className="text-caption text-muted-foreground">
+                    {t('screen.docs.reportVisible')}
+                  </span>
+                )}
+                {!tree.customer && (
+                  <Button type="button" variant="secondary" size="compact" onClick={() => setHistory(true)}>
+                    <History aria-hidden="true" />
+                    {t('screen.docs.history')}
+                  </Button>
+                )}
                 {!page.data.readOnly && (
                   <Button type="button" size="compact" onClick={() => setEditing(true)}>
                     {t('screen.docs.edit')}
@@ -219,7 +372,9 @@ function PageArea({ tree, jobId, pageId }: { tree: PageTree; jobId: string; page
             ) : (
               <SafeMarkdown>{page.data.body}</SafeMarkdown>
             )}
-            <VersionHistory jobId={jobId} page={page.data} open={history} onClose={() => setHistory(false)} />
+            {!tree.customer && (
+              <VersionHistory jobId={jobId} page={page.data} open={history} onClose={() => setHistory(false)} />
+            )}
           </article>
         ))}
     </RegionState>
@@ -309,6 +464,7 @@ function Editor({
 
   return (
     <section aria-label={t(page ? 'screen.docs.editing' : 'screen.docs.newPage')} className="flex flex-col gap-3">
+      {page?.template === 'ASSESSMENT_REPORT' && <SafetyNotice />}
       <label htmlFor={`${ids}-title`} className="text-label">
         {t('screen.docs.pageTitle')}
       </label>
@@ -528,6 +684,9 @@ function Confirm({
     </Dialog.Root>
   )
 }
+
+const menuItem =
+  'flex min-h-tap-min cursor-pointer items-center rounded-md px-3 text-body-sm data-disabled:cursor-not-allowed data-disabled:opacity-50 data-highlighted:bg-muted'
 
 function Frame({ children }: { children: ReactNode }) {
   return (

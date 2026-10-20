@@ -27,6 +27,7 @@ import vn.vibefix.shared.AdminReadScope;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.IdGenerator;
+import vn.vibefix.work.internal.PageTemplates.Template;
 import vn.vibefix.work.internal.WorkAccess.BoardViewer;
 import vn.vibefix.work.internal.WorkAccess.Kind;
 import vn.vibefix.work.internal.WorkAccess.Window;
@@ -39,13 +40,19 @@ import vn.vibefix.work.internal.WorkTextCheck.Resolution;
  * naming the version it was made on; the title and the body pass the FR-47 check first. Tree changes
  * run under the Board lock. Each viewer sees what they may: the Mentor and the active Crew everything; a
  * former member the Pages with a version inside one of their windows, each as at the end of their last
- * window; an Administrator what a {@code PAGES} grant covers, each read audited.
+ * window; an Administrator what a {@code PAGES} grant covers, each read audited; the Customer only
+ * customer-visible Pages at their current version (FR-31). A Page may start from a template (FR-30),
+ * and only the Mentor changes its visibility; an Assessment Report is always customer-visible.
  */
 @Component
 class Pages {
 
+	enum Visibility {
+		TEAM, CUSTOMER
+	}
+
 	record Page(UUID id, UUID jobId, @Nullable UUID parentId, String title, int versionNo, @Nullable UUID createdBy,
-			Instant createdAt, Instant updatedAt) {
+			Instant createdAt, Instant updatedAt, @Nullable Template template, Visibility visibility) {
 	}
 
 	/** @param restoredFrom the version a restore copied, or {@code null} for a save */
@@ -57,7 +64,9 @@ class Pages {
 	record Seen(Page page, Version version) {
 	}
 
-	private static final String PAGE_COLUMNS = "id, job_id, parent_id, title, version_no, created_by_account_id, created_at, updated_at";
+	private static final String PAGE_COLUMNS = """
+			id, job_id, parent_id, title, version_no, created_by_account_id, created_at, updated_at, template, visibility
+			""";
 
 	private static final String VERSION_COLUMNS = "page_id, version_no, title, body, author_account_id, restored_from, created_at";
 
@@ -67,16 +76,20 @@ class Pages {
 
 	private final WorkTextCheck check;
 
+	private final PageTemplates templates;
+
 	private final AuditLog auditLog;
 
 	private final IdGenerator ids;
 
 	private final Clock clock;
 
-	Pages(JdbcClient jdbc, Boards boards, WorkTextCheck check, AuditLog auditLog, IdGenerator ids, Clock clock) {
+	Pages(JdbcClient jdbc, Boards boards, WorkTextCheck check, PageTemplates templates, AuditLog auditLog, IdGenerator ids,
+			Clock clock) {
 		this.jdbc = jdbc;
 		this.boards = boards;
 		this.check = check;
+		this.templates = templates;
 		this.auditLog = auditLog;
 		this.ids = ids;
 		this.clock = clock;
@@ -84,17 +97,32 @@ class Pages {
 
 	// ---- Commands --------------------------------------------------------------------------
 
+	/**
+	 * A new Page, from {@code template} when one is named: a blank body takes its skeleton. The Assessment
+	 * Report is offered only on an Assessment Job, once, and starts customer-visible (FR-10, FR-31).
+	 */
 	@Transactional
-	Page create(BoardViewer writer, String title, String body, @Nullable UUID parentId, Resolution resolution) {
+	Page create(BoardViewer writer, String title, String body, @Nullable UUID parentId, @Nullable Template template,
+			Resolution resolution) {
 		UUID jobId = writer.board().jobId();
 		this.boards.lockBoard(jobId);
 		requireParent(jobId, null, parentId);
-		Text text = checked(title, body, resolution);
+		if (template != null && template.report()) {
+			if (!writer.assessment()) {
+				throw new ApiException(ErrorCode.VALIDATION, WorkReason.TEMPLATE_NOT_AVAILABLE);
+			}
+			if (hasReport(jobId)) {
+				throw new ApiException(ErrorCode.CONFLICT, WorkReason.REPORT_EXISTS);
+			}
+		}
+		String start = template != null && body.isBlank() ? this.templates.skeleton(template).body() : body;
+		Text text = checked(title, start, resolution);
 		UUID id = this.ids.newId();
 		Timestamp now = Timestamp.from(this.clock.instant());
 		this.jdbc.sql("""
-				INSERT INTO work.page (id, job_id, parent_id, title, version_no, created_by_account_id, created_at, updated_at)
-				VALUES (:id, :job, :parent, :title, 1, :author, :now, :now)
+				INSERT INTO work.page (id, job_id, parent_id, title, version_no, created_by_account_id, created_at, updated_at,
+				    template, visibility)
+				VALUES (:id, :job, :parent, :title, 1, :author, :now, :now, :template, :visibility)
 				""")
 			.param("id", id)
 			.param("job", jobId)
@@ -102,6 +130,8 @@ class Pages {
 			.param("title", text.title())
 			.param("author", writer.accountId())
 			.param("now", now)
+			.param("template", template == null ? null : template.name())
+			.param("visibility", (template != null && template.report() ? Visibility.CUSTOMER : Visibility.TEAM).name())
 			.update();
 		insertVersion(id, 1, text, writer.accountId(), null);
 		return page(id).orElseThrow();
@@ -126,6 +156,42 @@ class Pages {
 		Page page = locked(writer, pageId, version);
 		Version earlier = version(pageId, from).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		return writeVersion(writer, page, page.parentId(), new Text(earlier.title(), earlier.body()), from);
+	}
+
+	/** "Chỉ nhóm" or "Khách hàng xem được": only the Mentor, never for the Assessment Report (FR-31). */
+	@Transactional
+	Page setVisibility(BoardViewer writer, UUID pageId, Visibility visibility) {
+		Page page = this.jdbc.sql("SELECT " + PAGE_COLUMNS + " FROM work.page WHERE id = :id FOR UPDATE")
+			.param("id", pageId)
+			.query(Pages::page)
+			.optional()
+			.filter(found -> found.jobId().equals(writer.board().jobId()))
+			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		if (!writer.mentor()) {
+			throw new ApiException(ErrorCode.FORBIDDEN, WorkReason.MENTOR_ONLY);
+		}
+		if (page.visibility() == visibility) {
+			return page;
+		}
+		if (page.template() != null && page.template().report()) {
+			throw new ApiException(ErrorCode.GUARD_FAILED, WorkReason.REPORT_ALWAYS_VISIBLE);
+		}
+		this.jdbc.sql("UPDATE work.page SET visibility = :visibility WHERE id = :id")
+			.param("id", pageId)
+			.param("visibility", visibility.name())
+			.update();
+		this.auditLog.record(AuditEntry.of(AuditActor.user(writer.accountId()), "work.page_visibility_changed",
+				AuditObject.of("work.page", pageId)).forJob(page.jobId()));
+		return page(pageId).orElseThrow();
+	}
+
+	/** Whether the Job already has its Assessment Report. */
+	@Transactional(readOnly = true)
+	boolean hasReport(UUID jobId) {
+		return this.jdbc.sql("SELECT count(*) FROM work.page WHERE job_id = :job AND template = 'ASSESSMENT_REPORT'")
+			.param("job", jobId)
+			.query(Long.class)
+			.single() > 0;
 	}
 
 	private Page writeVersion(BoardViewer writer, Page page, @Nullable UUID parentId, Text text,
@@ -267,6 +333,7 @@ class Pages {
 	private Optional<Version> seenVersion(BoardViewer viewer, Page page) {
 		return switch (viewer.kind()) {
 			case MENTOR, CREW -> version(page.id(), page.versionNo());
+			case CUSTOMER -> page.visibility() == Visibility.CUSTOMER ? version(page.id(), page.versionNo()) : Optional.empty();
 			case FORMER -> {
 				List<Version> versions = allVersions(page.id());
 				boolean touched = versions.stream()
@@ -304,10 +371,12 @@ class Pages {
 	}
 
 	private static Page page(ResultSet rs, int n) throws SQLException {
+		String template = rs.getString("template");
 		return new Page(rs.getObject("id", UUID.class), rs.getObject("job_id", UUID.class),
 				rs.getObject("parent_id", UUID.class), rs.getString("title"), rs.getInt("version_no"),
 				rs.getObject("created_by_account_id", UUID.class), rs.getTimestamp("created_at").toInstant(),
-				rs.getTimestamp("updated_at").toInstant());
+				rs.getTimestamp("updated_at").toInstant(), template == null ? null : Template.valueOf(template),
+				Visibility.valueOf(rs.getString("visibility")));
 	}
 
 	private static Version version(ResultSet rs, int n) throws SQLException {

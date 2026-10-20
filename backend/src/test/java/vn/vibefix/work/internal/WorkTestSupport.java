@@ -39,12 +39,18 @@ final class WorkTestSupport {
 	/** An Active Assessment Job whose Mentor is {@code mentor}, with Agreement version 1 confirmed. */
 	static UUID activeJob(JdbcClient jdbc, UUID product, UUID owner, UUID mentor, List<UUID> milestones,
 			List<List<UUID>> criteria, Instant now) {
+		return activeJob(jdbc, product, owner, mentor, milestones, criteria, now, "ASSESSMENT");
+	}
+
+	/** An Active Job of {@code jobType} whose Mentor is {@code mentor}, with Agreement version 1 confirmed. */
+	static UUID activeJob(JdbcClient jdbc, UUID product, UUID owner, UUID mentor, List<UUID> milestones,
+			List<List<UUID>> criteria, Instant now, String jobType) {
 		UUID id = UUID.randomUUID();
 		jdbc.sql("""
 				INSERT INTO job.job (id, product_id, customer_account_id, state, title, problem, expected, app_users,
 				    job_types, budget, deadline, rules, selection_days, opened_at, lapses_at, mentor_account_id,
 				    selected_application_id, selected_at, version, created_at, updated_at)
-				VALUES (:id, :product, :owner, 'ACTIVE', 'Sửa lỗi đặt bàn', 'Lỗi', 'Đúng', 'Khách', ARRAY['ASSESSMENT'],
+				VALUES (:id, :product, :owner, 'ACTIVE', 'Sửa lỗi đặt bàn', 'Lỗi', 'Đúng', 'Khách', ARRAY[:type],
 				    'UNDER_2M', DATE '2026-12-01', '{}'::jsonb, 14, :now, :lapses, :mentor, :application, :now, 5, :now, :now)
 				""")
 			.param("id", id)
@@ -54,6 +60,7 @@ final class WorkTestSupport {
 			.param("lapses", Timestamp.from(now.plus(Duration.ofDays(14))))
 			.param("mentor", mentor)
 			.param("application", UUID.randomUUID())
+			.param("type", jobType)
 			.update();
 		StringBuilder content = new StringBuilder("{\"scope\":\"Đánh giá\",\"priceVnd\":3000000,\"codeJob\":false,")
 			.append("\"assessment\":true,\"skills\":[],\"externalAccess\":[],\"milestones\":[");

@@ -810,9 +810,10 @@ POST /api/v1/work-items/{workItemId}/review,JOB_MENTOR,,work-item-review.json,42
 POST /api/v1/work-items/{workItemId}/review,CREW_ACTIVE,,work-item-review.json,403 FORBIDDEN MENTOR_ONLY
 # The Documentation Space (FR-29, AD-20, AD-41): the Mentor and ACTIVE members read and write; INACTIVE and
 # former members read only Pages with a version in their window (the fixture's Page was written after it),
-# never write; everyone else, and an Administrator without a PAGES grant, finds nothing.
+# never write; the Job's Customer (OWNER) reads customer-visible Pages only (the fixture's is team-only), never
+# their history; everyone else, and an Administrator without a PAGES grant, finds nothing (FR-31).
 GET /api/v1/boards/{boardId}/pages,ANONYMOUS,,,401
-GET /api/v1/boards/{boardId}/pages,OWNER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/pages,OWNER,,,200
 GET /api/v1/boards/{boardId}/pages,CUSTOMER,,,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/pages,MENTOR,,,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/pages,STUDENT,,,404 NOT_FOUND
@@ -909,6 +910,20 @@ POST /api/v1/pages/{pageId}/versions/{versionNo}/restore,CREW_INACTIVE,,page-res
 POST /api/v1/pages/{pageId}/versions/{versionNo}/restore,CREW_FORMER,,page-restore.json,404 NOT_FOUND
 POST /api/v1/pages/{pageId}/versions/{versionNo}/restore,JOB_MENTOR,,page-restore.json,200
 POST /api/v1/pages/{pageId}/versions/{versionNo}/restore,CREW_ACTIVE,,page-restore.json,200
+PUT /api/v1/pages/{pageId}/visibility,ANONYMOUS,,page-visibility.json,401
+PUT /api/v1/pages/{pageId}/visibility,OWNER,,page-visibility.json,404 NOT_FOUND
+PUT /api/v1/pages/{pageId}/visibility,CUSTOMER,,page-visibility.json,404 NOT_FOUND
+PUT /api/v1/pages/{pageId}/visibility,MENTOR,,page-visibility.json,404 NOT_FOUND
+PUT /api/v1/pages/{pageId}/visibility,STUDENT,,page-visibility.json,404 NOT_FOUND
+PUT /api/v1/pages/{pageId}/visibility,ADMINISTRATOR,,page-visibility.json,404 NOT_FOUND
+PUT /api/v1/pages/{pageId}/visibility,TEAM_MENTOR,,page-visibility.json,404 NOT_FOUND
+PUT /api/v1/pages/{pageId}/visibility,TEAM_MEMBER,,page-visibility.json,404 NOT_FOUND
+PUT /api/v1/pages/{pageId}/visibility,CREW_ASSIGNED,,page-visibility.json,404 NOT_FOUND
+PUT /api/v1/pages/{pageId}/visibility,CREW_INACTIVE,,page-visibility.json,404 NOT_FOUND
+PUT /api/v1/pages/{pageId}/visibility,CREW_FORMER,,page-visibility.json,404 NOT_FOUND
+PUT /api/v1/pages/{pageId}/visibility,ADMIN_TEAM_ISSUE_GRANT,,page-visibility.json,404 NOT_FOUND
+PUT /api/v1/pages/{pageId}/visibility,JOB_MENTOR,,page-visibility.json,200
+PUT /api/v1/pages/{pageId}/visibility,CREW_ACTIVE,,page-visibility.json,403 FORBIDDEN MENTOR_ONLY
 GET /api/v1/mentor/jobs/{jobId}/agreement,ANONYMOUS,,,401,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/agreement,MENTOR,,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/agreement,MENTOR,mentor=PENDING,,404 NOT_FOUND,requireActiveAccount

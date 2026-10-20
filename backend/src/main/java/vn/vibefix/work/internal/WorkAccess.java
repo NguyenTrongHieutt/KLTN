@@ -36,7 +36,10 @@ import vn.vibefix.work.internal.Boards.Board;
 class WorkAccess {
 
 	enum Kind {
-		MENTOR, CREW, FORMER, ADMIN
+		MENTOR, CREW, FORMER, ADMIN,
+
+		/** The Job's Customer: only customer-visible Pages, never the Board (FR-31, AD-39). */
+		CUSTOMER
 	}
 
 	/** A span of a former member's time on the Crew, both ends included. */
@@ -55,12 +58,18 @@ class WorkAccess {
 	 * @param windows a former member's windows; empty for everyone else
 	 * @param grants an Administrator's open grants on the Job; empty for everyone else
 	 */
-	record BoardViewer(Board board, String title, String jobState, UUID mentorId, UUID accountId, Kind kind,
-			List<Window> windows, List<AdminReadGrant> grants) {
+	record BoardViewer(Board board, String title, String jobState, List<String> jobTypes, UUID mentorId, UUID accountId,
+			Kind kind, List<Window> windows, List<AdminReadGrant> grants) {
 
 		BoardViewer {
+			jobTypes = List.copyOf(jobTypes);
 			windows = List.copyOf(windows);
 			grants = List.copyOf(grants);
+		}
+
+		/** An Assessment Job (FR-10), whose Documentation Space offers the Assessment Report. */
+		boolean assessment() {
+			return this.jobTypes.contains("ASSESSMENT");
 		}
 
 		boolean mentor() {
@@ -144,6 +153,23 @@ class WorkAccess {
 		};
 	}
 
+	/**
+	 * A reader of the Documentation Space: as {@link #reader} with a {@code PAGES} grant, and also the
+	 * Job's Customer, who sees only customer-visible Pages (FR-31).
+	 */
+	@Transactional(readOnly = true)
+	BoardViewer pageReader(UUID boardId, Caller caller) {
+		if (!caller.hasRole(Role.CUSTOMER)) {
+			return reader(boardId, caller, AdminReadScope.PAGES);
+		}
+		UUID account = caller.requireAccountId();
+		Board board = this.boards.board(boardId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		JobPostState post = this.posts.post(board.jobId())
+			.filter(found -> found.customerId().equals(account) && found.mentorId() != null)
+			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		return viewer(board, post, account, Kind.CUSTOMER, List.of(), List.of());
+	}
+
 	/** A caller who may write the Board now. */
 	@Transactional(readOnly = true)
 	BoardViewer writer(UUID boardId, Caller caller) {
@@ -159,7 +185,8 @@ class WorkAccess {
 
 	private BoardViewer viewer(Board board, JobPostState post, UUID account, Kind kind, List<Window> windows,
 			List<AdminReadGrant> grants) {
-		return new BoardViewer(board, post.title(), post.state(), post.mentorId(), account, kind, windows, grants);
+		return new BoardViewer(board, post.title(), post.state(), post.jobTypes(), post.mentorId(), account, kind, windows,
+				grants);
 	}
 
 	/** Each of the Student's rows on the Job that was ever {@code ACTIVE}, when both bounds are known. */

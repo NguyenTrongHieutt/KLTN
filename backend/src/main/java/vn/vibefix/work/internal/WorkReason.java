@@ -40,6 +40,15 @@ enum WorkReason {
 	PAGE_TOO_DEEP,
 
 	/** The parent Page is not one of this Job's. */
-	PAGE_PARENT_UNKNOWN
+	PAGE_PARENT_UNKNOWN,
+
+	/** The Assessment Report template is offered only on an Assessment Job (FR-10). */
+	TEMPLATE_NOT_AVAILABLE,
+
+	/** The Job already has its Assessment Report. */
+	REPORT_EXISTS,
+
+	/** The Assessment Report is always customer-visible (FR-31). */
+	REPORT_ALWAYS_VISIBLE
 
 }
