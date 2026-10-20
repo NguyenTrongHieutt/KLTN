@@ -86,6 +86,7 @@ function CustomerDocs({ jobId, pageId }: { jobId: string; pageId: string | undef
               agreement={job.data.agreementShared}
               payment={job.data.agreementConfirmed}
               docs
+              handover
             />
           </JobHeader>
         )}

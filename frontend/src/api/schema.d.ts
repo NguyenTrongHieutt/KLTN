@@ -212,6 +212,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/boards/{boardId}/handovers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["handovers"];
+        put?: never;
+        post: operations["handOver"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/boards/{boardId}/handovers/preflight": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["preflight"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/boards/{boardId}/pages": {
         parameters: {
             query?: never;
@@ -412,6 +444,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["download"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/handovers/{handoverId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["handover"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2670,6 +2718,29 @@ export interface components {
             /** Format: int64 */
             version: number;
         };
+        DeliveryReportView: {
+            assessment: boolean;
+            audience: string;
+            /** Format: date-time */
+            checkBy: string;
+            /** Format: date-time */
+            createdAt: string;
+            criteria: components["schemas"]["HandoverCriterionView"][];
+            /** Format: uuid */
+            id: string;
+            itemNotes: components["schemas"]["HandoverItemNoteView"][];
+            /** Format: uuid */
+            jobId: string;
+            jobTitle: string;
+            mentorName: string;
+            milestoneTitle: string;
+            /** Format: int32 */
+            number: number;
+            report?: components["schemas"]["HandoverReportView"];
+            /** Format: int32 */
+            round: number;
+            status: string;
+        };
         EnrolmentRequest: {
             code: string;
             password: string;
@@ -2756,6 +2827,117 @@ export interface components {
             title: string;
             /** Format: int64 */
             topUpVnd: number;
+        };
+        HandoverCriterionInputView: {
+            checkSteps: string;
+            /** Format: uuid */
+            criterionId: string;
+            /** Format: int32 */
+            number: number;
+            statement: string;
+        };
+        HandoverCriterionMarkRequest: {
+            /** Format: uuid */
+            criterionId: string;
+            met: boolean;
+            note: string;
+        };
+        HandoverCriterionView: {
+            checkSteps: string;
+            /** Format: uuid */
+            criterionId: string;
+            met: boolean;
+            note: string;
+            /** Format: int32 */
+            number: number;
+            statement: string;
+        };
+        HandoverItemNoteRequest: {
+            note: string;
+            /** Format: uuid */
+            workItemId: string;
+        };
+        HandoverItemNoteView: {
+            key: string;
+            note: string;
+            status: string;
+            title: string;
+            /** Format: uuid */
+            workItemId: string;
+        };
+        HandoverListView: {
+            assessment: boolean;
+            audience: string;
+            handovers: components["schemas"]["HandoverSummaryView"][];
+            /** Format: uuid */
+            jobId: string;
+            title: string;
+            waiting?: components["schemas"]["HandoverMilestoneView"];
+        };
+        HandoverMilestoneView: {
+            /** Format: uuid */
+            milestoneId: string;
+            /** Format: int32 */
+            number: number;
+            title: string;
+        };
+        HandoverPreflightView: {
+            assessment: boolean;
+            criteria: components["schemas"]["HandoverCriterionInputView"][];
+            milestone: components["schemas"]["HandoverMilestoneView"];
+            problems: string[];
+            report?: components["schemas"]["HandoverReportRefView"];
+            state: string;
+            /** Format: int64 */
+            version: number;
+            workItems: components["schemas"]["HandoverWorkItemView"][];
+        };
+        HandoverReportRefView: {
+            /** Format: uuid */
+            pageId: string;
+            title: string;
+            /** Format: int32 */
+            versionNo: number;
+        };
+        HandoverReportView: {
+            body: string;
+            /** Format: uuid */
+            pageId: string;
+            title: string;
+            /** Format: int32 */
+            versionNo: number;
+        };
+        HandoverRequest: {
+            criteria: components["schemas"]["HandoverCriterionMarkRequest"][];
+            itemNotes?: components["schemas"]["HandoverItemNoteRequest"][];
+            /** Format: uuid */
+            milestoneId: string;
+            /** @enum {string} */
+            sensitive?: "CHECK" | "MASK";
+            /** Format: int64 */
+            version: number;
+        };
+        HandoverSummaryView: {
+            /** Format: date-time */
+            checkBy: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            id: string;
+            milestoneTitle: string;
+            /** Format: int32 */
+            number: number;
+            /** Format: int32 */
+            round: number;
+            status: string;
+        };
+        HandoverWorkItemView: {
+            approved: boolean;
+            /** Format: uuid */
+            id: string;
+            key: string;
+            status: string;
+            title: string;
         };
         HistoryEntryView: {
             action: string;
@@ -4591,6 +4773,78 @@ export interface operations {
             };
         };
     };
+    handovers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HandoverListView"];
+                };
+            };
+        };
+    };
+    handOver: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HandoverRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliveryReportView"];
+                };
+            };
+        };
+    };
+    preflight: {
+        parameters: {
+            query?: {
+                milestoneId?: string;
+            };
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HandoverPreflightView"];
+                };
+            };
+        };
+    };
     pageTree: {
         parameters: {
             query?: never;
@@ -4961,6 +5215,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": string;
+                };
+            };
+        };
+    };
+    handover: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                handoverId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliveryReportView"];
                 };
             };
         };

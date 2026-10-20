@@ -107,7 +107,7 @@ enum Transition {
 	M2(Machine.MILESTONE, milestone(MilestoneState.FUNDED, MilestoneState.REVISION_REQUESTED),
 			milestone(MilestoneState.SUBMITTED), Set.of(USER), "Milestone Handover by the Mentor (FR-32)",
 			List.of(new Guard("FR-8", "Scans are clean"), new Guard("FR-32", "The Handover Commit is recorded")),
-			List.of(new Effect("timers", "The Auto-acceptance timer starts (FR-35)")), true, false),
+			List.of(new Effect("timers", "The Auto-acceptance timer starts (FR-35)")), true, true),
 
 	M3(Machine.MILESTONE, milestone(MilestoneState.SUBMITTED),
 			milestone(MilestoneState.FUNDED, MilestoneState.REVISION_REQUESTED), Set.of(SYSTEM),

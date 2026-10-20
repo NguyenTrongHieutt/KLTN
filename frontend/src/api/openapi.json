@@ -480,6 +480,103 @@
         "tags" : [ "payment-history-controller" ]
       }
     },
+    "/api/v1/boards/{boardId}/handovers" : {
+      "get" : {
+        "operationId" : "handovers",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HandoverListView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "handover-controller" ]
+      },
+      "post" : {
+        "operationId" : "handOver",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/HandoverRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DeliveryReportView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "handover-controller" ]
+      }
+    },
+    "/api/v1/boards/{boardId}/handovers/preflight" : {
+      "get" : {
+        "operationId" : "preflight",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "query",
+          "name" : "milestoneId",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HandoverPreflightView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "handover-controller" ]
+      }
+    },
     "/api/v1/boards/{boardId}/pages" : {
       "get" : {
         "operationId" : "pageTree",
@@ -960,6 +1057,33 @@
           }
         },
         "tags" : [ "file-controller" ]
+      }
+    },
+    "/api/v1/handovers/{handoverId}" : {
+      "get" : {
+        "operationId" : "handover",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "handoverId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DeliveryReportView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "handover-controller" ]
       }
     },
     "/api/v1/jobs" : {
@@ -6154,6 +6278,69 @@
         },
         "required" : [ "version" ]
       },
+      "DeliveryReportView" : {
+        "type" : "object",
+        "properties" : {
+          "assessment" : {
+            "type" : "boolean"
+          },
+          "audience" : {
+            "type" : "string"
+          },
+          "checkBy" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "criteria" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/HandoverCriterionView"
+            }
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "itemNotes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/HandoverItemNoteView"
+            }
+          },
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "jobTitle" : {
+            "type" : "string"
+          },
+          "mentorName" : {
+            "type" : "string"
+          },
+          "milestoneTitle" : {
+            "type" : "string"
+          },
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "report" : {
+            "$ref" : "#/components/schemas/HandoverReportView"
+          },
+          "round" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "assessment", "audience", "checkBy", "createdAt", "criteria", "id", "itemNotes", "jobId", "jobTitle", "mentorName", "milestoneTitle", "number", "round", "status" ]
+      },
       "EnrolmentRequest" : {
         "type" : "object",
         "properties" : {
@@ -6386,6 +6573,317 @@
           }
         },
         "required" : [ "fundable", "fundedVnd", "milestoneId", "number", "priceVnd", "refundedVnd", "releasedTotalVnd", "state", "title", "topUpVnd" ]
+      },
+      "HandoverCriterionInputView" : {
+        "type" : "object",
+        "properties" : {
+          "checkSteps" : {
+            "type" : "string"
+          },
+          "criterionId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "statement" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "checkSteps", "criterionId", "number", "statement" ]
+      },
+      "HandoverCriterionMarkRequest" : {
+        "type" : "object",
+        "properties" : {
+          "criterionId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "met" : {
+            "type" : "boolean"
+          },
+          "note" : {
+            "type" : "string",
+            "maxLength" : 2000,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "criterionId", "met", "note" ]
+      },
+      "HandoverCriterionView" : {
+        "type" : "object",
+        "properties" : {
+          "checkSteps" : {
+            "type" : "string"
+          },
+          "criterionId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "met" : {
+            "type" : "boolean"
+          },
+          "note" : {
+            "type" : "string"
+          },
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "statement" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "checkSteps", "criterionId", "met", "note", "number", "statement" ]
+      },
+      "HandoverItemNoteRequest" : {
+        "type" : "object",
+        "properties" : {
+          "note" : {
+            "type" : "string",
+            "maxLength" : 2000,
+            "minLength" : 0
+          },
+          "workItemId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "note", "workItemId" ]
+      },
+      "HandoverItemNoteView" : {
+        "type" : "object",
+        "properties" : {
+          "key" : {
+            "type" : "string"
+          },
+          "note" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "workItemId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "key", "note", "status", "title", "workItemId" ]
+      },
+      "HandoverListView" : {
+        "type" : "object",
+        "properties" : {
+          "assessment" : {
+            "type" : "boolean"
+          },
+          "audience" : {
+            "type" : "string"
+          },
+          "handovers" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/HandoverSummaryView"
+            }
+          },
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "waiting" : {
+            "$ref" : "#/components/schemas/HandoverMilestoneView"
+          }
+        },
+        "required" : [ "assessment", "audience", "handovers", "jobId", "title" ]
+      },
+      "HandoverMilestoneView" : {
+        "type" : "object",
+        "properties" : {
+          "milestoneId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "milestoneId", "number", "title" ]
+      },
+      "HandoverPreflightView" : {
+        "type" : "object",
+        "properties" : {
+          "assessment" : {
+            "type" : "boolean"
+          },
+          "criteria" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/HandoverCriterionInputView"
+            }
+          },
+          "milestone" : {
+            "$ref" : "#/components/schemas/HandoverMilestoneView"
+          },
+          "problems" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "report" : {
+            "$ref" : "#/components/schemas/HandoverReportRefView"
+          },
+          "state" : {
+            "type" : "string"
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "workItems" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/HandoverWorkItemView"
+            }
+          }
+        },
+        "required" : [ "assessment", "criteria", "milestone", "problems", "state", "version", "workItems" ]
+      },
+      "HandoverReportRefView" : {
+        "type" : "object",
+        "properties" : {
+          "pageId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "versionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "pageId", "title", "versionNo" ]
+      },
+      "HandoverReportView" : {
+        "type" : "object",
+        "properties" : {
+          "body" : {
+            "type" : "string"
+          },
+          "pageId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "versionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "body", "pageId", "title", "versionNo" ]
+      },
+      "HandoverRequest" : {
+        "type" : "object",
+        "properties" : {
+          "criteria" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/HandoverCriterionMarkRequest"
+            },
+            "maxItems" : 100,
+            "minItems" : 0
+          },
+          "itemNotes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/HandoverItemNoteRequest"
+            },
+            "maxItems" : 200,
+            "minItems" : 0
+          },
+          "milestoneId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "sensitive" : {
+            "type" : "string",
+            "enum" : [ "CHECK", "MASK" ]
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "criteria", "milestoneId", "version" ]
+      },
+      "HandoverSummaryView" : {
+        "type" : "object",
+        "properties" : {
+          "checkBy" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "milestoneTitle" : {
+            "type" : "string"
+          },
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "round" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "checkBy", "createdAt", "id", "milestoneTitle", "number", "round", "status" ]
+      },
+      "HandoverWorkItemView" : {
+        "type" : "object",
+        "properties" : {
+          "approved" : {
+            "type" : "boolean"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "key" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "approved", "id", "key", "status", "title" ]
       },
       "HistoryEntryView" : {
         "type" : "object",

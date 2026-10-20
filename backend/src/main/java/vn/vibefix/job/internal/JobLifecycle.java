@@ -150,6 +150,11 @@ class JobLifecycle {
 		}
 
 		/** What the command brought, for example J3's Mentor and Application. */
+		/** Whether the command carries {@code key}, for evidence only some Jobs need. */
+		boolean has(String key) {
+			return this.input.get(key) != null;
+		}
+
 		Object input(String key) {
 			Object value = this.input.get(key);
 			if (value == null) {
@@ -345,7 +350,7 @@ class JobLifecycle {
 		}
 		List<Applying> checked;
 		try {
-			checked = check(job, trigger, cascade, false);
+			checked = check(job, Actor.SYSTEM, trigger, cascade, false);
 		}
 		catch (ApiException refused) {
 			return Optional.empty();
@@ -373,7 +378,7 @@ class JobLifecycle {
 			return new ApiException(ErrorCode.NOT_FOUND);
 		}
 		try {
-			check(job, trigger, cascade, true);
+			check(job, Actor.SYSTEM, trigger, cascade, true);
 			return null;
 		}
 		catch (ApiException refused) {
@@ -381,7 +386,30 @@ class JobLifecycle {
 		}
 	}
 
-	private List<Applying> check(Job job, Trigger trigger, List<Planned> cascade, boolean dryRun) {
+	/**
+	 * Applies a Milestone transition as a person's decision (M2 by the Mentor): the screen sends the
+	 * Job version it loaded, and a Job that moved on since answers {@code STALE} (AD-23).
+	 * @param input what the transition's step needs, such as the evidence another module vouches for
+	 * @throws ApiException {@code NOT_FOUND} for no such Job or Milestone; {@code FORBIDDEN
+	 * ACCOUNT_LOCKED} for a locked or erased actor; {@code STALE STATE_CHANGED} for another version or a
+	 * Milestone not in a state the transition leaves; {@code CONFLICT JOB_FROZEN}; the step's guards
+	 */
+	@Transactional
+	Applied applyMilestone(Transition transition, UUID jobId, UUID milestoneId, Actor actor, Trigger trigger,
+			long expectedVersion, Map<String, Object> input) {
+		Job job = this.jobs.lock(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		if (!actor.isSystem()) {
+			this.accounts.requireActiveAccount(Objects.requireNonNull(actor.accountId()));
+		}
+		if (job.version() != expectedVersion) {
+			throw new ApiException(ErrorCode.STALE, JobReason.STATE_CHANGED);
+		}
+		List<Applying> checked = check(job, actor, trigger, List.of(Planned.milestone(transition, milestoneId, input)),
+				false);
+		return commit(checked.get(0));
+	}
+
+	private List<Applying> check(Job job, Actor actor, Trigger trigger, List<Planned> cascade, boolean dryRun) {
 		String jobState = job.state().name();
 		Map<UUID, String> milestones = new HashMap<>();
 		List<Applying> checked = new ArrayList<>();
@@ -409,7 +437,7 @@ class JobLifecycle {
 			if (transition.frozenBlocks() && job.frozenAt() != null) {
 				throw new ApiException(ErrorCode.CONFLICT, JobReason.JOB_FROZEN);
 			}
-			Applying applying = new Applying(transition, job, Actor.SYSTEM, trigger, this.ids.newId(), now, planned.input(), from,
+			Applying applying = new Applying(transition, job, actor, trigger, this.ids.newId(), now, planned.input(), from,
 					planned.milestoneId(), dryRun);
 			step.check(applying);
 			if (planned.milestoneId() == null) {

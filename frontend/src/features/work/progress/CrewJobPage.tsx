@@ -38,6 +38,9 @@ export function CrewJobPage({ jobId }: { jobId: string }) {
               <Link to={`/cong-viec/${jobId}/tai-lieu`} className={buttonVariants({ variant: 'secondary', size: 'compact' })}>
                 {t('screen.docs.tab')}
               </Link>
+              <Link to={`/cong-viec/${jobId}/ban-giao`} className={buttonVariants({ variant: 'secondary', size: 'compact' })}>
+                {t('screen.handover.tab')}
+              </Link>
               <Link
                 to={`/cong-viec/${jobId}/trao-doi-nhom`}
                 className={buttonVariants({ variant: 'secondary', size: 'compact' })}

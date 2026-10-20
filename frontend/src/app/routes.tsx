@@ -84,6 +84,10 @@ export const routes: RouteObject[] = [
         lazy: async () => ({ Component: (await import('@/features/work/BoardPage')).BoardPage }),
       },
       {
+        path: 'cong-viec/:jobId/ban-giao/:handoverId?',
+        lazy: async () => ({ Component: (await import('@/features/delivery/HandoverPage')).HandoverPage }),
+      },
+      {
         path: 'cong-viec/:jobId/trao-doi-nhom',
         lazy: async () => ({ Component: (await import('@/features/chat/CrewChatPage')).CrewChatPage }),
       },
@@ -122,6 +126,27 @@ export const routes: RouteObject[] = [
         lazy: async () => ({
           Component: (await import('@/features/product/RegisterProductPage')).RegisterProductPage,
         }),
+      },
+    ],
+  },
+  {
+    // JOB-5 "Tạo bàn giao", a focused task route (UX-DR54) that "Đóng" leaves for the Job's handovers.
+    path: 'cong-viec/:jobId/ban-giao/tao',
+    lazy: async () => {
+      const [{ FocusedLayout }, { t }] = await Promise.all([import('./FocusedLayout'), import('@/i18n/t')])
+      return {
+        element: (
+          <FocusedLayout
+            title={t('screen.handover.form.title')}
+            closeTo={(params) => `/cong-viec/${params.jobId ?? ''}/ban-giao`}
+          />
+        ),
+      }
+    },
+    children: [
+      {
+        index: true,
+        lazy: async () => ({ Component: (await import('@/features/delivery/HandoverFormPage')).HandoverFormPage }),
       },
     ],
   },

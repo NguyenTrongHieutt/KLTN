@@ -2199,6 +2199,54 @@
       "product": "Sản phẩm",
       "nextAction": "Việc cần làm cho công việc này",
       "sourceRepository": "Mở mã nguồn trên GitHub"
+    },
+    "handover": {
+      "tab": "Bàn giao",
+      "title": "Bàn giao · {job}",
+      "back": "← Công việc",
+      "readOnly": "Bạn xem được các lần bàn giao; chỉ người hướng dẫn tạo bàn giao.",
+      "list": "Các lần bàn giao",
+      "none": "Chưa có lần bàn giao nào.",
+      "pick": "Chọn một lần bàn giao để xem báo cáo.",
+      "waiting": "Giai đoạn {n} · {title} đang chờ bàn giao.",
+      "create": "Tạo bàn giao",
+      "item": "Giai đoạn {n} · {title}",
+      "itemMeta": "Lần bàn giao thứ {round} · {date}",
+      "status": {
+        "SUBMITTED": "Chờ khách nghiệm thu",
+        "customer": "Chờ bạn nghiệm thu · trước {date}"
+      },
+      "report": {
+        "title": "Báo cáo bàn giao · Giai đoạn {n} · {title}",
+        "meta": "Người hướng dẫn {mentor} · {date} · lần thứ {round}",
+        "criteria": "Tiêu chí nghiệm thu",
+        "criterion": "Tiêu chí {n}: {statement}",
+        "selfMet": "Người hướng dẫn tự nhận xét: Đạt",
+        "selfNotMet": "Người hướng dẫn tự nhận xét: Chưa đạt",
+        "checkSteps": "Cách kiểm tra",
+        "items": "Hạng mục chưa Xong khi bàn giao",
+        "assessment": "{title} · phiên bản {version}"
+      },
+      "form": {
+        "title": "Tạo bàn giao",
+        "heading": "Bàn giao Giai đoạn {n} · {title}",
+        "lead": "Khách hàng sẽ kiểm tra từng tiêu chí theo báo cáo này. Nhận xét Đạt hay Chưa đạt là của bạn, không được tính là tiêu chí đã xong.",
+        "items": "Hạng mục công việc",
+        "noItems": "Giai đoạn này chưa có hạng mục nào.",
+        "approved": "Đã duyệt",
+        "itemNote": "Vì sao {key} chưa Xong",
+        "criteria": "Tiêu chí nghiệm thu",
+        "met": "Đạt",
+        "notMet": "Chưa đạt",
+        "note": "Ghi chú cho tiêu chí {n}",
+        "report": "Báo cáo đánh giá",
+        "reportVersion": "Bàn giao {title} ở phiên bản {version}. Sửa sau đó sẽ tạo phiên bản mới, không đổi bản đã bàn giao.",
+        "openReport": "Mở báo cáo",
+        "incomplete": "Hãy hoàn tất các mục trên trước khi gửi.",
+        "send": "Gửi bàn giao",
+        "sent": "Đã bàn giao Giai đoạn {n}.",
+        "stale": "Công việc vừa thay đổi. Biểu mẫu đã tải lại, hãy kiểm tra rồi gửi lại."
+      }
     }
   },
   "notice": {
@@ -2653,6 +2701,10 @@
     "work": {
       "review_work_item": "Duyệt {key}: {title}",
       "fix_returned_item": "Sửa {key} theo nhận xét của người hướng dẫn"
+    },
+    "delivery": {
+      "hand_over": "Bàn giao Giai đoạn {n}",
+      "review_handover": "Nghiệm thu Giai đoạn {n}"
     }
   },
   "theme": {
@@ -2794,6 +2846,9 @@
       },
       "job_starting": {
         "title": "Đang chuẩn bị kho mã cho {job}"
+      },
+      "milestone_submitted": {
+        "title": "Người hướng dẫn {mentor} đã bàn giao Giai đoạn {n}. Hãy kiểm tra trước {date}."
       }
     },
     "matching": {
@@ -3008,6 +3063,15 @@
       "JOB_FILE_QUOTA": "Tệp của một công việc tối đa 200 MB.",
       "NOTE_EMPTY": "Hãy viết nội dung ghi chú.",
       "QUOTE_UNKNOWN": "Không tìm thấy ghi chú cần sửa."
+    },
+    "delivery": {
+      "MENTOR_ONLY": "Chỉ người hướng dẫn bàn giao được.",
+      "MILESTONE_NOT_HELD": "Giai đoạn này chưa được thanh toán hoặc đã bàn giao.",
+      "WORK_ITEMS_NOT_DONE": "Còn {n} hạng mục chưa Xong. Hãy ghi chú cho từng hạng mục.",
+      "CRITERION_MARK_MISSING": "Hãy chọn Đạt hoặc Chưa đạt và ghi chú cho từng tiêu chí.",
+      "REPORT_MISSING": "Công việc đánh giá cần có báo cáo đánh giá trước khi bàn giao.",
+      "SENSITIVE_CONTENT": "Ghi chú có thể chứa khóa bí mật hoặc dữ liệu khách hàng.",
+      "HANDOVER_COMMIT_MISSING": "Bàn giao công việc sửa mã cần kho mã của công việc, sẽ có ở bước sau."
     }
   },
   "markdown": {
