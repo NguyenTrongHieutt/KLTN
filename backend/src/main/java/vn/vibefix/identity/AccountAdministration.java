@@ -2,7 +2,9 @@ package vn.vibefix.identity;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -76,6 +78,9 @@ public interface AccountAdministration {
 	}
 
 	Page search(Query query);
+
+	/** The names of these accounts, Administrators included, for ADM-5 and ADM-8; unnamed ones are left out. */
+	Map<UUID, String> names(Collection<UUID> accountIds);
 
 	Optional<Account> account(UUID accountId);
 

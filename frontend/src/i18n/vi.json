@@ -541,7 +541,9 @@
         "disputes": "Tranh chấp",
         "users": "Người dùng",
         "moderation": "Kiểm duyệt",
-        "rules": "Quy tắc"
+        "rules": "Quy tắc",
+        "jobs": "Công việc",
+        "audit": "Nhật ký"
       },
       "overview": {
         "title": "Tổng quan",
@@ -1003,6 +1005,72 @@
         "changed": "{rule}: {from} → {to}",
         "added": "Thêm tên miền {domain}",
         "removed": "Bỏ tên miền {domain}"
+      },
+      "jobs": {
+        "title": "Công việc",
+        "heading": "Công việc trên nền tảng",
+        "stateFilter": "Trạng thái",
+        "flagFilter": "Cần chú ý",
+        "state": {
+          "DRAFT": "Nháp",
+          "OPEN": "Đang tuyển",
+          "SELECTING": "Đang chọn",
+          "AGREEMENT": "Thỏa thuận",
+          "STARTING": "Chuẩn bị",
+          "ACTIVE": "Đang làm",
+          "CLOSING": "Đang kết thúc",
+          "CLOSED": "Đã kết thúc",
+          "CANCELLED": "Đã hủy"
+        },
+        "flag": {
+          "OVERDUE": "Trễ hạn",
+          "FROZEN": "Đang tranh chấp"
+        },
+        "empty": "Không có công việc nào khớp.",
+        "listLabel": "Danh sách công việc",
+        "pagination": "Phân trang công việc",
+        "previous": "Trang trước",
+        "next": "Trang sau",
+        "page": "Trang {page}/{pages}",
+        "pick": "Chọn một công việc để xem chi tiết.",
+        "customer": "Khách hàng: {name}",
+        "mentor": "Người hướng dẫn: {name}",
+        "updated": "Cập nhật {time}",
+        "frozenLine": "Đang tranh chấp — tiền và mọi thời hạn tạm dừng",
+        "milestones": "Các giai đoạn",
+        "noMilestones": "Chưa có giai đoạn nào.",
+        "milestone": "Giai đoạn {n} · {title}",
+        "milestoneState": {
+          "PLANNED": "Chưa thanh toán",
+          "FUNDED": "Đã thanh toán",
+          "REVISION_REQUESTED": "Đang sửa",
+          "SUBMITTED": "Đã bàn giao",
+          "ACCEPTED": "Đã nghiệm thu",
+          "CANCELLED": "Đã hủy",
+          "SETTLED": "Đã phân xử"
+        },
+        "due": "Hạn {date}",
+        "overdueSince": "Trễ hạn từ {date}",
+        "auditLink": "Xem nhật ký của công việc"
+      },
+      "audit": {
+        "title": "Nhật ký",
+        "heading": "Nhật ký kiểm tra",
+        "job": "Mã công việc",
+        "account": "Mã tài khoản",
+        "filter": "Lọc",
+        "badId": "Mã phải có dạng UUID.",
+        "empty": "Không có mục nào.",
+        "caption": "Các mục nhật ký, mới nhất trước",
+        "time": "Thời điểm",
+        "actor": "Người thực hiện",
+        "action": "Hành động",
+        "objects": "Đối tượng",
+        "system": "Hệ thống",
+        "pagination": "Phân trang nhật ký",
+        "previous": "Trang trước",
+        "next": "Trang sau",
+        "page": "Trang {page}/{pages}"
       }
     },
     "product": {

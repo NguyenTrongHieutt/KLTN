@@ -1315,6 +1315,21 @@ PUT /api/v1/admin/rules,CUSTOMER,,admin-rules.json,404 NOT_FOUND
 PUT /api/v1/admin/rules,MENTOR,,admin-rules.json,404 NOT_FOUND
 PUT /api/v1/admin/rules,STUDENT,,admin-rules.json,404 NOT_FOUND
 PUT /api/v1/admin/rules,ADMINISTRATOR,,admin-rules.json,404 NOT_FOUND
+GET /api/v1/admin/jobs,ANONYMOUS,,,401
+GET /api/v1/admin/jobs,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/admin/jobs,MENTOR,,,404 NOT_FOUND
+GET /api/v1/admin/jobs,STUDENT,,,404 NOT_FOUND
+GET /api/v1/admin/jobs,ADMINISTRATOR,,,200
+GET /api/v1/admin/jobs/{jobId},ANONYMOUS,,,401
+GET /api/v1/admin/jobs/{jobId},CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/admin/jobs/{jobId},MENTOR,,,404 NOT_FOUND
+GET /api/v1/admin/jobs/{jobId},STUDENT,,,404 NOT_FOUND
+GET /api/v1/admin/jobs/{jobId},ADMINISTRATOR,,,200
+GET /api/v1/admin/audit,ANONYMOUS,,,401
+GET /api/v1/admin/audit,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/admin/audit,MENTOR,,,404 NOT_FOUND
+GET /api/v1/admin/audit,STUDENT,,,404 NOT_FOUND
+GET /api/v1/admin/audit,ADMINISTRATOR,,,200
 # Milestone Handovers (FR-32, AD-20, AD-39): the Customer (OWNER), the Mentor, and ACTIVE members read;
 # only the Mentor hands over, and the fixture's Milestone is not Funded. The Customer's Delivery Report
 # never carries the Work Item note, whose text is the WORK_ITEM_NOTE canary.

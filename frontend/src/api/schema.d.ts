@@ -36,6 +36,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["audit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/disputes": {
         parameters: {
             query?: never;
@@ -126,6 +142,38 @@ export interface paths {
         get: operations["enrolment"];
         put?: never;
         post: operations["enrol"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["jobs_2"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/jobs/{jobId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["job_2"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3116,6 +3164,34 @@ export interface components {
             /** Format: int64 */
             size: number;
         };
+        AuditEntryView: {
+            action: string;
+            /** Format: uuid */
+            actorAccountId?: string;
+            actorName?: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            jobId?: string;
+            objects: components["schemas"]["AuditObjectView"][];
+            /** Format: date-time */
+            occurredAt: string;
+            system: boolean;
+        };
+        AuditObjectView: {
+            /** Format: uuid */
+            id: string;
+            type: string;
+        };
+        AuditPageView: {
+            items: components["schemas"]["AuditEntryView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            total: number;
+        };
         BalanceReleaseView: {
             /** Format: int64 */
             baseAmountVnd: number;
@@ -4637,6 +4713,40 @@ export interface components {
             /** Format: uuid */
             draftJobId: string;
         };
+        OversightJobView: {
+            customerName?: string;
+            frozen: boolean;
+            /** Format: uuid */
+            id: string;
+            mentorName?: string;
+            milestones: components["schemas"]["OversightMilestoneView"][];
+            overdue: boolean;
+            state: string;
+            title: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        OversightJobsView: {
+            items: components["schemas"]["OversightJobView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            total: number;
+        };
+        OversightMilestoneView: {
+            /** Format: date */
+            dueOn?: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: int32 */
+            number: number;
+            /** Format: date-time */
+            overdueSince?: string;
+            state: string;
+            title: string;
+        };
         OverviewView: {
             /** Format: int64 */
             activeAdministrators: number;
@@ -5795,6 +5905,30 @@ export interface operations {
             };
         };
     };
+    audit: {
+        parameters: {
+            query?: {
+                jobId?: string;
+                accountId?: string;
+                page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditPageView"];
+                };
+            };
+        };
+    };
     disputes: {
         parameters: {
             query?: never;
@@ -5950,6 +6084,52 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    jobs_2: {
+        parameters: {
+            query?: {
+                state?: string;
+                flag?: "OVERDUE" | "FROZEN";
+                page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OversightJobsView"];
+                };
+            };
+        };
+    };
+    job_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OversightJobView"];
+                };
             };
         };
     };
