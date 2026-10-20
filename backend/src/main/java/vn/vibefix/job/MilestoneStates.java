@@ -20,8 +20,10 @@ public interface MilestoneStates {
 	 * @param roundsLeft the Revision Rounds not used yet
 	 * @param revisionCriteria how many criteria the latest revision request named
 	 * @param autoAccepted accepted by Auto-acceptance
+	 * @param refunded cancelled after it was funded, so its held money was refunded in full (FR-40)
 	 */
-	record MilestoneDetail(String state, int roundsLeft, @Nullable Integer revisionCriteria, boolean autoAccepted) {
+	record MilestoneDetail(String state, int roundsLeft, @Nullable Integer revisionCriteria, boolean autoAccepted,
+			boolean refunded) {
 	}
 
 	/** Each live Milestone of the Job by its ID, with its rounds and decision. */

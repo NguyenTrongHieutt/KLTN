@@ -228,6 +228,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/boards/{boardId}/cancellation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["cancellation"];
+        put?: never;
+        post: operations["propose_2"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/boards/{boardId}/cancellation/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["confirm_4"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/boards/{boardId}/cancellation/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["withdraw_3"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/boards/{boardId}/change-requests": {
         parameters: {
             query?: never;
@@ -2805,6 +2853,44 @@ export interface components {
             /** Format: uuid */
             viewerId: string;
         };
+        CancellationProposalView: {
+            /** Format: date-time */
+            answerBy: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            decidedAt?: string;
+            /** Format: uuid */
+            id: string;
+            mine: boolean;
+            proposer: string;
+            reason: string;
+            scope: string;
+            status: string;
+            unanswered: boolean;
+        };
+        CancellationRequest: {
+            reason: string;
+            /** @enum {string} */
+            scope: "JOB" | "REMAINING";
+            /** Format: int64 */
+            version: number;
+        };
+        CancellationVersionRequest: {
+            /** Format: int64 */
+            version: number;
+        };
+        CancellationView: {
+            audience: string;
+            canPropose: boolean;
+            held: boolean;
+            /** Format: uuid */
+            jobId: string;
+            proposal?: components["schemas"]["CancellationProposalView"];
+            state: string;
+            /** Format: int64 */
+            version: number;
+        };
         CapacityView: {
             /** Format: int32 */
             activeJobs: number;
@@ -4071,6 +4157,7 @@ export interface components {
             number: number;
             /** Format: int64 */
             priceVnd?: number;
+            refunded: boolean;
             /** Format: int32 */
             revisionCriteria?: number;
             /** Format: int32 */
@@ -5502,6 +5589,102 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConfirmedVersionsView"];
+                };
+            };
+        };
+    };
+    cancellation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CancellationView"];
+                };
+            };
+        };
+    };
+    propose_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CancellationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CancellationView"];
+                };
+            };
+        };
+    };
+    confirm_4: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CancellationVersionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CancellationView"];
+                };
+            };
+        };
+    };
+    withdraw_3: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CancellationView"];
                 };
             };
         };

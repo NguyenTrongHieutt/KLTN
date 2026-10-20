@@ -1135,6 +1135,64 @@ GET /api/v1/boards/{boardId}/agreement-versions,CREW_FORMER,,,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/agreement-versions,CREW_ACTIVE,,,200
 GET /api/v1/boards/{boardId}/agreement-versions,OWNER,,,200
 GET /api/v1/boards/{boardId}/agreement-versions,JOB_MENTOR,,,200
+# Cancellation by agreement (FR-40): the Customer (OWNER) and the Mentor propose, confirm, and withdraw; the active
+# Crew reads. The fixture's Active Job has nothing open, so a proposal goes through and the rest find none.
+GET /api/v1/boards/{boardId}/cancellation,ANONYMOUS,,,401
+GET /api/v1/boards/{boardId}/cancellation,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/cancellation,MENTOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/cancellation,STUDENT,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/cancellation,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/cancellation,TEAM_MENTOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/cancellation,TEAM_MEMBER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/cancellation,CREW_ASSIGNED,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/cancellation,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/cancellation,CREW_INACTIVE,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/cancellation,CREW_FORMER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/cancellation,CREW_ACTIVE,,,200
+GET /api/v1/boards/{boardId}/cancellation,OWNER,,,200
+GET /api/v1/boards/{boardId}/cancellation,JOB_MENTOR,,,200
+POST /api/v1/boards/{boardId}/cancellation,ANONYMOUS,,cancellation.json,401
+POST /api/v1/boards/{boardId}/cancellation,CUSTOMER,,cancellation.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation,MENTOR,,cancellation.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation,STUDENT,,cancellation.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation,ADMINISTRATOR,,cancellation.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation,TEAM_MENTOR,,cancellation.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation,TEAM_MEMBER,,cancellation.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation,CREW_ASSIGNED,,cancellation.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation,ADMIN_TEAM_ISSUE_GRANT,,cancellation.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation,CREW_INACTIVE,,cancellation.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation,CREW_FORMER,,cancellation.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation,CREW_ACTIVE,,cancellation.json,403 FORBIDDEN
+POST /api/v1/boards/{boardId}/cancellation,OWNER,,cancellation.json,200
+POST /api/v1/boards/{boardId}/cancellation,JOB_MENTOR,,cancellation.json,200
+POST /api/v1/boards/{boardId}/cancellation/confirm,ANONYMOUS,,change-version.json,401
+POST /api/v1/boards/{boardId}/cancellation/confirm,CUSTOMER,,change-version.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/confirm,MENTOR,,change-version.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/confirm,STUDENT,,change-version.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/confirm,ADMINISTRATOR,,change-version.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/confirm,TEAM_MENTOR,,change-version.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/confirm,TEAM_MEMBER,,change-version.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/confirm,CREW_ASSIGNED,,change-version.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/confirm,ADMIN_TEAM_ISSUE_GRANT,,change-version.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/confirm,CREW_INACTIVE,,change-version.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/confirm,CREW_FORMER,,change-version.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/confirm,CREW_ACTIVE,,change-version.json,403 FORBIDDEN
+POST /api/v1/boards/{boardId}/cancellation/confirm,OWNER,,change-version.json,409 CONFLICT NO_CANCELLATION_OPEN
+POST /api/v1/boards/{boardId}/cancellation/confirm,JOB_MENTOR,,change-version.json,409 CONFLICT NO_CANCELLATION_OPEN
+POST /api/v1/boards/{boardId}/cancellation/withdraw,ANONYMOUS,,,401
+POST /api/v1/boards/{boardId}/cancellation/withdraw,CUSTOMER,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/withdraw,MENTOR,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/withdraw,STUDENT,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/withdraw,ADMINISTRATOR,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/withdraw,TEAM_MENTOR,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/withdraw,TEAM_MEMBER,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/withdraw,CREW_ASSIGNED,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/withdraw,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/withdraw,CREW_INACTIVE,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/withdraw,CREW_FORMER,,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/withdraw,CREW_ACTIVE,,,403 FORBIDDEN
+POST /api/v1/boards/{boardId}/cancellation/withdraw,OWNER,,,409 CONFLICT NO_CANCELLATION_OPEN
+POST /api/v1/boards/{boardId}/cancellation/withdraw,JOB_MENTOR,,,409 CONFLICT NO_CANCELLATION_OPEN
 # Milestone Handovers (FR-32, AD-20, AD-39): the Customer (OWNER), the Mentor, and ACTIVE members read;
 # only the Mentor hands over, and the fixture's Milestone is not Funded. The Customer's Delivery Report
 # never carries the Work Item note, whose text is the WORK_ITEM_NOTE canary.

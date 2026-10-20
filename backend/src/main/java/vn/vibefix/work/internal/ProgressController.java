@@ -55,10 +55,11 @@ class ProgressController {
 	 * @param roundsLeft the Revision Rounds left (FR-34)
 	 * @param revisionCriteria how many criteria the latest revision request named
 	 * @param autoAccepted accepted by Auto-acceptance (FR-35)
+	 * @param refunded cancelled with its held money refunded (FR-40)
 	 */
 	record MilestoneProgressView(UUID milestoneId, int number, String title, String state, @Nullable Long priceVnd,
 			@Nullable LocalDate dueOn, int done, int total, int inReview, int roundsLeft, @Nullable Integer revisionCriteria,
-			boolean autoAccepted) {
+			boolean autoAccepted, boolean refunded) {
 	}
 
 	record OpenItemView(UUID id, String key, String title, String status) {
@@ -137,7 +138,8 @@ class ProgressController {
 			milestones.add(new MilestoneProgressView(milestone.milestoneId(), milestone.number(), milestone.title(),
 					detail == null ? "PLANNED" : detail.state(), milestone.priceVnd(), milestone.dueOn(), progress.done(),
 					progress.total(), inReview, detail == null ? 0 : detail.roundsLeft(),
-					detail == null ? null : detail.revisionCriteria(), detail != null && detail.autoAccepted()));
+					detail == null ? null : detail.revisionCriteria(), detail != null && detail.autoAccepted(),
+					detail != null && detail.refunded()));
 		}
 		List<PageLinkView> pages = this.jdbc.sql("""
 				SELECT id, title FROM work.page WHERE job_id = :job AND visibility = 'CUSTOMER' ORDER BY seq

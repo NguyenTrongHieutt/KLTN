@@ -33,6 +33,8 @@ export interface MilestoneContext {
   revisionCriteria?: number | null
   /** Accepted by Auto-acceptance (FR-35). */
   autoAccepted?: boolean
+  /** Cancelled with its held money refunded (FR-40). */
+  refunded?: boolean
 }
 
 /**
@@ -55,6 +57,8 @@ export function milestoneStateText(state: string, audience: JobAudience, context
           : `${t('screen.milestoneState.customer.submitted')} · ${t('screen.milestoneState.roundsLeft', { r: context.roundsLeft })}`
       case 'ACCEPTED':
         return t(context.autoAccepted ? 'screen.milestoneState.autoAccepted' : 'screen.milestoneState.ACCEPTED')
+      case 'CANCELLED':
+        return t(context.refunded ? 'screen.milestoneState.cancelledRefunded' : 'screen.milestoneState.CANCELLED')
       default:
         return t(`screen.milestoneState.${state}` as MessageKey)
     }
@@ -76,6 +80,8 @@ export function milestoneStateText(state: string, audience: JobAudience, context
       return t('screen.milestoneState.team.submitted')
     case 'ACCEPTED':
       return t(context.autoAccepted ? 'screen.milestoneState.autoAccepted' : 'screen.milestoneState.ACCEPTED')
+    case 'CANCELLED':
+      return t(context.refunded ? 'screen.milestoneState.cancelledRefunded' : 'screen.milestoneState.CANCELLED')
     default:
       return t(`screen.milestoneState.${state}` as MessageKey)
   }

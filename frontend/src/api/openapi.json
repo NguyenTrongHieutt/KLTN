@@ -507,6 +507,132 @@
         "tags" : [ "change-request-controller" ]
       }
     },
+    "/api/v1/boards/{boardId}/cancellation" : {
+      "get" : {
+        "operationId" : "cancellation",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CancellationView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "cancellation-controller" ]
+      },
+      "post" : {
+        "operationId" : "propose_2",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CancellationRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CancellationView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "cancellation-controller" ]
+      }
+    },
+    "/api/v1/boards/{boardId}/cancellation/confirm" : {
+      "post" : {
+        "operationId" : "confirm_4",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CancellationVersionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CancellationView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "cancellation-controller" ]
+      }
+    },
+    "/api/v1/boards/{boardId}/cancellation/withdraw" : {
+      "post" : {
+        "operationId" : "withdraw_3",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CancellationView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "cancellation-controller" ]
+      }
+    },
     "/api/v1/boards/{boardId}/change-requests" : {
       "get" : {
         "operationId" : "changeRequests",
@@ -6376,6 +6502,104 @@
         },
         "required" : [ "boardId", "code", "crew", "items", "mentor", "milestones", "readOnly", "title", "viewerId" ]
       },
+      "CancellationProposalView" : {
+        "type" : "object",
+        "properties" : {
+          "answerBy" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "decidedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "mine" : {
+            "type" : "boolean"
+          },
+          "proposer" : {
+            "type" : "string"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "scope" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "unanswered" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "answerBy", "createdAt", "id", "mine", "proposer", "reason", "scope", "status", "unanswered" ]
+      },
+      "CancellationRequest" : {
+        "type" : "object",
+        "properties" : {
+          "reason" : {
+            "type" : "string",
+            "maxLength" : 2000,
+            "minLength" : 0
+          },
+          "scope" : {
+            "type" : "string",
+            "enum" : [ "JOB", "REMAINING" ]
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "reason", "scope", "version" ]
+      },
+      "CancellationVersionRequest" : {
+        "type" : "object",
+        "properties" : {
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "version" ]
+      },
+      "CancellationView" : {
+        "type" : "object",
+        "properties" : {
+          "audience" : {
+            "type" : "string"
+          },
+          "canPropose" : {
+            "type" : "boolean"
+          },
+          "held" : {
+            "type" : "boolean"
+          },
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "proposal" : {
+            "$ref" : "#/components/schemas/CancellationProposalView"
+          },
+          "state" : {
+            "type" : "string"
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "audience", "canPropose", "held", "jobId", "state", "version" ]
+      },
       "CapacityView" : {
         "type" : "object",
         "properties" : {
@@ -9934,6 +10158,9 @@
             "type" : "integer",
             "format" : "int64"
           },
+          "refunded" : {
+            "type" : "boolean"
+          },
           "revisionCriteria" : {
             "type" : "integer",
             "format" : "int32"
@@ -9953,7 +10180,7 @@
             "format" : "int32"
           }
         },
-        "required" : [ "autoAccepted", "done", "inReview", "milestoneId", "number", "roundsLeft", "state", "title", "total" ]
+        "required" : [ "autoAccepted", "done", "inReview", "milestoneId", "number", "refunded", "roundsLeft", "state", "title", "total" ]
       },
       "MilestoneRequest" : {
         "type" : "object",

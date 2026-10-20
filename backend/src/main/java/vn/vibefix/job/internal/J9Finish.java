@@ -22,7 +22,8 @@ import vn.vibefix.shared.ErrorCode;
  * still active; then the Mentor's contact visibility ends, the Product pin is released, and every Crew
  * row not yet released is released as {@code JOB_ENDED}, freeing its Student, before any {@code payment}
  * write in the apply. The Chats become read-only through their own listener. The transition carries the
- * Job Post's copied {@code RATING_WINDOW_DAYS} for {@code reputation}'s Rating Window (FR-49).
+ * Job Post's copied {@code RATING_WINDOW_DAYS} for {@code reputation}'s Rating Window (FR-49). A Job that
+ * entered Closing by a cancellation ends Cancelled instead (FR-40), with {@code job.job_cancelled}.
  */
 @Component
 class J9Finish implements JobLifecycle.Step {
@@ -61,11 +62,14 @@ class J9Finish implements JobLifecycle.Step {
 		if (applying.job().code()) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, JobReason.FINAL_MERGE_PENDING);
 		}
+		if (applying.has(Cancellations.INPUT)) {
+			applying.leadTo(JobState.CANCELLED.name());
+		}
 	}
 
 	@Override
 	public void apply(Applying applying) {
-		applying.set("closed_at", applying.now());
+		applying.set(applying.has(Cancellations.INPUT) ? "cancelled_at" : "closed_at", applying.now());
 		Integer days = this.jdbc.sql("SELECT (rules ->> 'RATING_WINDOW_DAYS')::int FROM job.job WHERE id = :id")
 			.param("id", applying.job().id())
 			.query(Integer.class)
@@ -77,7 +81,8 @@ class J9Finish implements JobLifecycle.Step {
 	@Override
 	public void afterWrite(Applying applying) {
 		Job job = applying.job();
-		this.notifications.send(new NotificationRequest(CLOSED, applying.transitionId(), J8Close.people(job, this.crews),
+		String key = applying.has(Cancellations.INPUT) ? J10Cancel.CANCELLED : CLOSED;
+		this.notifications.send(new NotificationRequest(key, applying.transitionId(), J8Close.people(job, this.crews),
 				Map.of("job", job.title()), "/cong-viec/" + job.id(), job.id(), null));
 		this.contacts.end(job.customerId(), Objects.requireNonNull(job.mentorId()), job.id(), applying.now());
 		this.pins.releaseForJob(job.productId(), job.id());

@@ -1,0 +1,5 @@
+subject: Có đề nghị hủy {job}. Hãy trả lời trước {date}
+---
+Xin chào,
+
+Bên kia đề nghị hủy công việc {job}. Nếu bạn xác nhận trước {date}, các giai đoạn chưa bắt đầu bị hủy và tiền đang giữ được hoàn đủ cho khách hàng (thử nghiệm). Hãy trả lời trên vibefix.

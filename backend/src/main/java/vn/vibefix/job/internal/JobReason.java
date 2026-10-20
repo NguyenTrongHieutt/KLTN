@@ -151,6 +151,18 @@ enum JobReason {
 	MILESTONE_SUBMITTED,
 
 	/** The Change Request is not at that step any more. */
-	CHANGE_REQUEST_NOT_AWAITING
+	CHANGE_REQUEST_NOT_AWAITING,
+
+	/** A cancellation proposal is already open on the Job (FR-40). */
+	CANCELLATION_OPEN,
+
+	/** No cancellation proposal is open on the Job (FR-40). */
+	NO_CANCELLATION_OPEN,
+
+	/** The other side confirms a cancellation; the proposer may withdraw it (FR-40). */
+	CANCELLATION_PROPOSER,
+
+	/** J10 cancels a Job without Accepted work; one with Accepted work goes through Closing (FR-40). */
+	HAS_ACCEPTED_WORK
 
 }

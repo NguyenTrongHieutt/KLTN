@@ -1,0 +1,5 @@
+subject: {job} đã hủy
+---
+Xin chào,
+
+Công việc {job} đã hủy. Tiền đang giữ được hoàn đủ cho khách hàng (thử nghiệm); tiền đã giải ngân không bị lấy lại.
