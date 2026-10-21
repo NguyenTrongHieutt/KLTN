@@ -1607,6 +1607,9 @@
         "announce": "{step}: {state}",
         "allDone": "Đã chuẩn bị xong kho mã",
         "nothingToDo": "Bạn không cần làm gì.",
+        "ownInvitedHint": "Bật xác thực hai lớp trên GitHub trước (nếu chưa bật), rồi chấp nhận lời mời. Khi chưa bật, GitHub làm mờ nút chấp nhận.",
+        "enableTwoFactor": "Bật xác thực hai lớp",
+        "githubDomain": "(github.com)",
         "blockedINTAKE_FINDING_OPEN": "Còn {n} vấn đề bảo mật chưa xử lý ở dự án gốc. Hãy xử lý rồi bấm Thử lại.",
         "blockedSOURCE_NOT_PUBLIC": "Dự án gốc không còn công khai. Hãy để kho mã ở chế độ công khai rồi bấm Thử lại.",
         "blockedNO_ADMIN_PERMISSION": "Tài khoản GitHub của bạn không còn quyền quản trị dự án gốc. Hãy lấy lại quyền rồi bấm Thử lại.",
@@ -3484,7 +3487,7 @@
     },
     "xacThucHaiLop": {
       "label": "xác thực hai lớp",
-      "hint": "Bước bảo vệ thêm khi đăng nhập GitHub, ngoài mật khẩu. Người hướng dẫn và nhóm phải bật để được ghi mã."
+      "hint": "Bước bảo vệ thêm khi đăng nhập GitHub, ngoài mật khẩu. Người hướng dẫn và nhóm phải bật trước khi chấp nhận lời mời vào kho làm việc, và để được ghi mã."
     },
     "quyenGhi": {
       "label": "quyền ghi",
@@ -3588,7 +3591,7 @@
     },
     "repo": {
       "confirm_data_deletion": "Xác nhận đã xóa dữ liệu và bản xem thử của {job}",
-      "accept_github_invitation": "Chấp nhận lời mời trên GitHub cho {job}",
+      "accept_github_invitation": "Bật xác thực hai lớp trên GitHub (nếu chưa bật), rồi chấp nhận lời mời cho {job}",
       "reconfirm_source": "Xác nhận lại dự án gốc của {job}"
     },
     "reputation": {
@@ -3949,7 +3952,7 @@
         "title": "Chưa thể bắt đầu {job}: {reason}"
       },
       "github_invitation_sent": {
-        "title": "Hãy chấp nhận lời mời trên GitHub cho {job}"
+        "title": "Hãy bật xác thực hai lớp trên GitHub (nếu chưa bật), rồi chấp nhận lời mời cho {job}"
       },
       "two_factor_required": {
         "title": "Bật xác thực hai lớp trên GitHub để nhận quyền ghi ở {job}"

@@ -6,6 +6,18 @@ import { useRetrySetup, useSetup, type Setup } from './setupApi'
 
 type Person = Setup['people'][number]
 
+/** GitHub's own page for turning on two-factor authentication. */
+const TWO_FACTOR_SETTINGS = 'https://github.com/settings/security'
+
+/**
+ * The viewer's own pending invitation: only their own sub-row carries a GitHub link. GitHub greys out
+ * "Accept invitation" until two-factor authentication is on, and no API reports it before acceptance
+ * (Spike S4, 2026-10-22), so that row always says 2FA comes first.
+ */
+function ownInvited(person: Person): boolean {
+  return person.state === 'INVITED' && !!person.githubUrl
+}
+
 const ICONS = {
   DONE: CircleCheck,
   CURRENT: CircleDot,
@@ -27,8 +39,9 @@ const TONES: Record<string, string> = {
  * "Tạo kho trung gian", "Tạo kho làm việc", "Mời người hướng dẫn và nhóm trên GitHub" with a sub-row per
  * person, and "Cấp quyền ghi và kiểm tra", each done, current, pending, blocked, or failed, read every 3 s.
  * The current step is announced politely. The Customer sees the Mentor's name and the Crew's GitHub
- * usernames; each invitee sees a GitHub link on their own sub-row. Nobody needs to act unless a step is
- * blocked on them: the Customer then reads what to fix and may tap "Thử lại".
+ * usernames; each invitee sees a GitHub link on their own sub-row, and while invited, that two-factor
+ * authentication comes first. Nobody else needs to act unless a step is blocked on them: the Customer then
+ * reads what to fix and may tap "Thử lại".
  */
 export function SetupTracker({ jobId }: { jobId: string }) {
   const setup = useSetup(jobId)
@@ -86,7 +99,9 @@ function Steps({ setup }: { setup: Setup }) {
       ) : setup.status === 'FAILED' ? (
         <p className="text-body-sm">{t('screen.job.setup.failed')}</p>
       ) : (
-        <p className="text-body-sm text-muted-foreground">{t('screen.job.setup.nothingToDo')}</p>
+        !setup.people.some(ownInvited) && (
+          <p className="text-body-sm text-muted-foreground">{t('screen.job.setup.nothingToDo')}</p>
+        )
       )}
     </section>
   )
@@ -115,6 +130,21 @@ function People({ people }: { people: Person[] }) {
               {t('screen.job.setup.openGitHub')}
               <ExternalLink aria-hidden="true" className="size-3.5" />
             </a>
+          )}
+          {ownInvited(person) && (
+            <p className="flex w-full flex-wrap items-center gap-1.5">
+              <span>{t('screen.job.setup.ownInvitedHint')}</span>
+              <a
+                href={TWO_FACTOR_SETTINGS}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline"
+              >
+                {t('screen.job.setup.enableTwoFactor')}
+                <ExternalLink aria-hidden="true" className="size-3.5" />
+              </a>
+              <span className="text-muted-foreground">{t('screen.job.setup.githubDomain')}</span>
+            </p>
           )}
         </li>
       ))}
