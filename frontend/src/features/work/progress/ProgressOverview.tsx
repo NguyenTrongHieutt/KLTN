@@ -105,6 +105,23 @@ function Content({ jobId, audience, progress }: { jobId: string; audience: Progr
             <h2 id="progress-crew" className="text-h2">
               {t('screen.progress.crew')}
             </h2>
+            {progress.crew
+              .filter((member) => member.state === 'INACTIVE' && member.openItems.length > 0)
+              .map((member) => (
+                <div
+                  key={member.accountId}
+                  role="status"
+                  className="flex flex-wrap items-center gap-3 rounded-md border-l-4 border-warning bg-warning-soft p-4 text-body-sm"
+                >
+                  <p className="min-w-0 grow">{t('screen.board.lockedMember', { name: member.name })}</p>
+                  <Link
+                    to={`/cong-viec/${jobId}/bang`}
+                    className="text-body-sm font-semibold text-primary underline-offset-4 hover:underline"
+                  >
+                    {t('screen.progress.lockedMemberBoard')}
+                  </Link>
+                </div>
+              ))}
             {progress.crew.length === 0 ? (
               <p className="text-body-sm text-muted-foreground">{t('screen.progress.noCrew')}</p>
             ) : (

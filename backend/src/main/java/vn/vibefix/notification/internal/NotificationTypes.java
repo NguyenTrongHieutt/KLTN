@@ -338,6 +338,10 @@ class NotificationTypes implements NotificationCatalog {
 	static final TodoType WORK_REVIEW_WORK_ITEM = new TodoType("work.review_work_item", Set.of(Audience.MENTOR), 2,
 			Set.of("key", "title"));
 
+	/** A locked Crew member's open Work Items wait for the Mentor to reassign them (FR-59, Story 11.4). */
+	static final TodoType WORK_REASSIGN_WORK_ITEMS = new TodoType("work.reassign_work_items", Set.of(Audience.MENTOR), 2,
+			Set.of("job", "name", "n"));
+
 	/** A returned Work Item waits for its assignee (FR-25): until it is submitted again. */
 	static final TodoType WORK_FIX_RETURNED_ITEM = new TodoType("work.fix_returned_item", Set.of(Audience.CREW_ACTIVE), 2,
 			Set.of("key"));
@@ -594,7 +598,7 @@ class NotificationTypes implements NotificationCatalog {
 		return List.of(COMPLETE_MENTOR_APPLICATION, VERIFY_STUDENT, SCANNING_RESOLVE_INTAKE_FINDING,
 				MATCHING_CHOOSE_ASSIGNEE, MATCHING_SIGN_NDA, MATCHING_ANSWER_INVITATION_TO_APPLY, JOB_DRAFT_AGREEMENT,
 				JOB_REVIEW_AGREEMENT, JOB_PICK_CREW, JOB_CONFIRM_CREW_TERMS, JOB_REVISE_AGREEMENT, JOB_CONFIRM_AGREEMENT_MENTOR,
-				PAYMENT_FUND_MILESTONE, WORK_REVIEW_WORK_ITEM, WORK_FIX_RETURNED_ITEM, DELIVERY_HAND_OVER,
+				PAYMENT_FUND_MILESTONE, WORK_REVIEW_WORK_ITEM, WORK_FIX_RETURNED_ITEM, WORK_REASSIGN_WORK_ITEMS, DELIVERY_HAND_OVER,
 				DELIVERY_REVIEW_HANDOVER, JOB_ANSWER_CLOSURE, REPO_CONFIRM_DATA_DELETION, REPUTATION_RATE,
 				REPUTATION_GIVE_PRIVATE_FEEDBACK, REPUTATION_DRAFT_PORTFOLIO_SUMMARY, REPUTATION_APPROVE_PORTFOLIO_SUMMARY,
 				DELIVERY_DRAFT_FOLLOW_UPS, DELIVERY_APPROVE_FOLLOW_UPS, JOB_ADD_CHANGE_IMPACT, JOB_ANSWER_CHANGE_REQUEST,

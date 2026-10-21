@@ -3,14 +3,17 @@ package vn.vibefix.work.internal;
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
 
+import vn.vibefix.identity.AccountLocked;
 import vn.vibefix.job.AgreementConfirmed;
 import vn.vibefix.job.JobTransitioned;
 import vn.vibefix.shared.ProcessedEvents;
+import vn.vibefix.shared.Role;
 
 /**
  * J7 creates the Job's Board and seeds one Story per Acceptance Criterion (FR-22, AD-5); a later
  * confirmed Agreement version seeds the criteria the Board does not have yet (AD-29). Each is
- * replay-safe through {@link ProcessedEvents}, and the criterion's stable ID keys every seeded Story.
+ * replay-safe through {@link ProcessedEvents}, and the criterion's stable ID keys every seeded Story. A
+ * locked Student's open Work Items open the Mentor's reassignment to-do (Story 11.4).
  */
 @Component
 class WorkListeners {
@@ -19,9 +22,21 @@ class WorkListeners {
 
 	private final ProcessedEvents processedEvents;
 
-	WorkListeners(Boards boards, ProcessedEvents processedEvents) {
+	private final Reassignments reassignments;
+
+	WorkListeners(Boards boards, ProcessedEvents processedEvents, Reassignments reassignments) {
 		this.boards = boards;
 		this.processedEvents = processedEvents;
+		this.reassignments = reassignments;
+	}
+
+	/** Story 11.4 (FR-59): a locked Student's open Work Items wait for the Mentor to reassign them. */
+	@ApplicationModuleListener
+	void onAccountLocked(AccountLocked event) {
+		if (event.role() == Role.STUDENT
+				&& this.processedEvents.markProcessed("work.WorkListeners.onAccountLocked", event.eventId())) {
+			this.reassignments.accountLocked(event.accountId());
+		}
 	}
 
 	@ApplicationModuleListener
