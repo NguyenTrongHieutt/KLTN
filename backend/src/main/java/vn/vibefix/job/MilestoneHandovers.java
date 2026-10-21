@@ -43,6 +43,13 @@ public interface MilestoneHandovers {
 	 */
 	Submitted submit(UUID jobId, UUID milestoneId, UUID mentorId, long expectedVersion, UUID handoverId);
 
+	/**
+	 * M2 with a Code Job's Handover Commit as its evidence (FR-32, AD-11): the SHA {@code delivery} pinned
+	 * to {@code handover/{handoverId}}; {@code null} for an Assessment Job.
+	 */
+	Submitted submit(UUID jobId, UUID milestoneId, UUID mentorId, long expectedVersion, UUID handoverId,
+			@Nullable String handoverCommit);
+
 	/** What M4 or M5 recorded. */
 	record Decided(UUID transitionId, int number, long version) {
 	}

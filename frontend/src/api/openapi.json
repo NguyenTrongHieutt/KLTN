@@ -9752,6 +9752,9 @@
               "$ref" : "#/components/schemas/HandoverCheckView"
             }
           },
+          "code" : {
+            "$ref" : "#/components/schemas/HandoverCodeView"
+          },
           "createdAt" : {
             "type" : "string",
             "format" : "date-time"
@@ -10555,6 +10558,62 @@
         },
         "required" : [ "criterionId", "met" ]
       },
+      "HandoverCodeView" : {
+        "type" : "object",
+        "properties" : {
+          "commits" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/HandoverCommitView"
+            }
+          },
+          "handoverCommit" : {
+            "type" : "string"
+          },
+          "pages" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/HandoverPageView"
+            }
+          },
+          "pullNumber" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "sensitiveChanges" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SensitiveChangeView"
+            }
+          },
+          "truncated" : {
+            "type" : "boolean"
+          },
+          "unattributed" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "commits", "handoverCommit", "pages", "pullNumber", "sensitiveChanges", "truncated", "unattributed" ]
+      },
+      "HandoverCommitView" : {
+        "type" : "object",
+        "properties" : {
+          "message" : {
+            "type" : "string"
+          },
+          "sha" : {
+            "type" : "string"
+          },
+          "workItemKeys" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "message", "sha", "workItemKeys" ]
+      },
       "HandoverCriterionInputView" : {
         "type" : "object",
         "properties" : {
@@ -10736,11 +10795,32 @@
         },
         "required" : [ "milestoneId", "number", "title" ]
       },
+      "HandoverPageView" : {
+        "type" : "object",
+        "properties" : {
+          "pageId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "versionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "pageId", "title", "versionNo" ]
+      },
       "HandoverPreflightView" : {
         "type" : "object",
         "properties" : {
           "assessment" : {
             "type" : "boolean"
+          },
+          "commitCount" : {
+            "type" : "integer",
+            "format" : "int32"
           },
           "criteria" : {
             "type" : "array",
@@ -10760,6 +10840,12 @@
           "report" : {
             "$ref" : "#/components/schemas/HandoverReportRefView"
           },
+          "sensitiveChanges" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SensitiveChangeView"
+            }
+          },
           "state" : {
             "type" : "string"
           },
@@ -10774,7 +10860,7 @@
             }
           }
         },
-        "required" : [ "assessment", "criteria", "milestone", "problems", "state", "version", "workItems" ]
+        "required" : [ "assessment", "commitCount", "criteria", "milestone", "problems", "sensitiveChanges", "state", "version", "workItems" ]
       },
       "HandoverReportRefView" : {
         "type" : "object",
@@ -14521,6 +14607,19 @@
           }
         },
         "required" : [ "body" ]
+      },
+      "SensitiveChangeView" : {
+        "type" : "object",
+        "properties" : {
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "CI_CONFIG", "DEPENDENCIES", "BUILD_SCRIPT", "BINARY" ]
+          },
+          "path" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "kind", "path" ]
       },
       "SentInvitationView" : {
         "type" : "object",

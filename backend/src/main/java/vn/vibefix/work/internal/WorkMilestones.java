@@ -1,12 +1,21 @@
 package vn.vibefix.work.internal;
 
+import java.sql.Timestamp;
+import java.time.Clock;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+
+import vn.vibefix.shared.WorkItemKey;
 
 import vn.vibefix.work.MilestoneWork;
 
@@ -19,8 +28,74 @@ class WorkMilestones implements MilestoneWork {
 
 	private final JdbcClient jdbc;
 
-	WorkMilestones(JdbcClient jdbc) {
+	private final Clock clock;
+
+	WorkMilestones(JdbcClient jdbc, Clock clock) {
 		this.jdbc = jdbc;
+		this.clock = clock;
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<PageUpdate> pagesUpdatedSince(UUID jobId, Instant since) {
+		return this.jdbc.sql("""
+				SELECT p.id, p.title, p.version_no, p.visibility FROM work.page p
+				WHERE p.job_id = :job AND p.hidden_at IS NULL
+				  AND EXISTS (SELECT 1 FROM work.page_version v WHERE v.page_id = p.id AND v.created_at > :since)
+				ORDER BY p.title, p.id
+				""")
+			.param("job", jobId)
+			.param("since", Timestamp.from(since))
+			.query((rs, n) -> new PageUpdate(rs.getObject("id", UUID.class), rs.getString("title"), rs.getInt("version_no"),
+					"CUSTOMER".equals(rs.getString("visibility"))))
+			.list();
+	}
+
+	@Override
+	@Transactional(propagation = Propagation.MANDATORY)
+	public Map<String, List<String>> linkCommits(UUID jobId, UUID handoverId, List<CommitMention> mentions) {
+		String code = this.jdbc.sql("SELECT code FROM work.board WHERE job_id = :job")
+			.param("job", jobId)
+			.query(String.class)
+			.optional()
+			.orElse(null);
+		Map<String, List<String>> linked = new LinkedHashMap<>();
+		if (code == null) {
+			return linked;
+		}
+		Timestamp now = Timestamp.from(this.clock.instant());
+		for (CommitMention mention : mentions) {
+			List<String> keys = new ArrayList<>();
+			for (WorkItemKey key : mention.keys()) {
+				if (!key.code().equals(code) || keys.contains(key.toString())) {
+					continue;
+				}
+				UUID item = this.jdbc.sql("SELECT id FROM work.work_item WHERE job_id = :job AND number = :number")
+					.param("job", jobId)
+					.param("number", key.number())
+					.query(UUID.class)
+					.optional()
+					.orElse(null);
+				if (item == null) {
+					continue;
+				}
+				this.jdbc.sql("""
+						INSERT INTO work.work_item_commit (work_item_id, sha, job_id, handover_id, linked_at)
+						VALUES (:item, :sha, :job, :handover, :now) ON CONFLICT DO NOTHING
+						""")
+					.param("item", item)
+					.param("sha", mention.sha())
+					.param("job", jobId)
+					.param("handover", handoverId)
+					.param("now", now)
+					.update();
+				keys.add(key.toString());
+			}
+			if (!keys.isEmpty()) {
+				linked.put(mention.sha(), keys);
+			}
+		}
+		return linked;
 	}
 
 	@Override

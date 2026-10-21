@@ -18,10 +18,13 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.diff.DiffEntry;
+import org.eclipse.jgit.diff.DiffFormatter;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.treewalk.TreeWalk;
+import org.eclipse.jgit.util.io.DisabledOutputStream;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
@@ -236,16 +239,37 @@ public final class GitHubStub implements AutoCloseable {
 
 	/** A new commit on {@code branch} of {@code owner/name}, as someone pushing it; returns its SHA. */
 	public String push(String owner, String name, String branch, String file, String content) throws Exception {
+		return push(owner, name, branch, file, content, "Push " + file, "vy@example.test");
+	}
+
+	/**
+	 * A new commit with its message and its author's email; {@link #userIds} decides whether GitHub
+	 * resolves the author to an account. {@code file} may lie in folders.
+	 */
+	public String push(String owner, String name, String branch, String file, String content, String message,
+			String authorEmail) throws Exception {
 		Path work = Files.createTempDirectory("stub-push-");
 		try (Git git = Git.cloneRepository().setURI(this.gitRoot.resolve(owner).resolve(name + ".git").toUri().toString())
 			.setDirectory(work.toFile()).setBranch(branch).call()) {
-			Files.writeString(work.resolve(file), content);
+			Path target = work.resolve(file);
+			Files.createDirectories(target.getParent());
+			Files.writeString(target, content);
 			git.add().addFilepattern(".").call();
-			RevCommit commit = git.commit().setMessage("Push " + file).setAuthor("Vy", "vy@example.test")
-				.setCommitter("Vy", "vy@example.test").call();
+			String author = authorEmail.substring(0, authorEmail.indexOf('@'));
+			RevCommit commit = git.commit().setMessage(message).setAuthor(author, authorEmail)
+				.setCommitter(author, authorEmail).call();
 			git.push().call();
 			return commit.name();
 		}
+	}
+
+	/** A platform repository as Setup leaves it: a bare copy of {@code fromOwner/fromName}, with its ID. */
+	public long platformRepository(String name, String fromOwner, String fromName) throws Exception {
+		Git.cloneRepository().setURI(this.gitRoot.resolve(fromOwner).resolve(fromName + ".git").toUri().toString()).setBare(true)
+			.setDirectory(this.gitRoot.resolve(ORGANIZATION).resolve(name + ".git").toFile()).call().close();
+		long id = this.ids.incrementAndGet();
+		this.repositories.put(name, id);
+		return id;
 	}
 
 	/** The head of {@code branch}, or none. */
@@ -466,6 +490,25 @@ public final class GitHubStub implements AutoCloseable {
 						"permissions", invitation.getValue()))
 				.toList()));
 		}
+		else if (method.equals("POST") && (matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)/pulls").matcher(path))
+			.matches()) {
+			int number = this.pullNumbers.incrementAndGet();
+			this.pulls.computeIfAbsent(matcher.group(1), name -> Collections.synchronizedMap(new LinkedHashMap<>()))
+				.put(number, "vibefix-dev-platform[bot]");
+			this.pullHeads.computeIfAbsent(matcher.group(1), name -> Collections.synchronizedMap(new LinkedHashMap<>()))
+				.put(number, body.path("head").asString());
+			send(exchange, 201, "{\"number\":" + number + "}");
+		}
+		else if (method.equals("GET") && (matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)/pulls").matcher(path))
+			.matches() && query != null && query.contains("head=")) {
+			String head = java.net.URLDecoder.decode(parameter(query, "head", ""), StandardCharsets.UTF_8);
+			String branch = head.substring(head.indexOf(':') + 1);
+			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(this.pullHeads.getOrDefault(matcher.group(1), Map.of()).entrySet()
+				.stream()
+				.filter(pull -> pull.getValue().equals(branch))
+				.map(pull -> Map.of("number", pull.getKey(), "head", Map.of("ref", pull.getValue())))
+				.toList()));
+		}
 		else if (method.equals("GET") && (matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)/pulls").matcher(path))
 			.matches()) {
 			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(this.pulls.getOrDefault(matcher.group(1), Map.of()).entrySet()
@@ -502,17 +545,35 @@ public final class GitHubStub implements AutoCloseable {
 			try (Repository repository = repository(matcher.group(1), matcher.group(2)); RevWalk walk = new RevWalk(repository)) {
 				var base = repository.resolve(matcher.group(3));
 				var head = repository.resolve("refs/heads/" + matcher.group(4));
-				if (base == null || head == null || !repository.getObjectDatabase().has(base)) {
+				if (head == null && matcher.group(4).matches("[0-9a-f]{40}")) {
+					head = repository.resolve(matcher.group(4));
+				}
+				if (base == null || head == null || !repository.getObjectDatabase().has(base)
+						|| !repository.getObjectDatabase().has(head)) {
 					send(exchange, 404, "{\"message\":\"Not Found\"}");
 					return;
 				}
 				walk.markStart(walk.parseCommit(head));
 				walk.markUninteresting(walk.parseCommit(base));
-				List<Map<String, String>> commits = new ArrayList<>();
+				List<Map<String, Object>> commits = new ArrayList<>();
 				for (RevCommit commit : walk) {
-					commits.add(0, Map.of("sha", commit.name()));
+					Map<String, Object> entry = new LinkedHashMap<>();
+					entry.put("sha", commit.name());
+					entry.put("commit", Map.of("message", commit.getFullMessage()));
+					Long user = this.userIds.get(commit.getAuthorIdent().getEmailAddress());
+					entry.put("author", user == null ? null : Map.of("id", user, "login", commit.getAuthorIdent().getName()));
+					commits.add(0, entry);
 				}
-				send(exchange, 200, GitHubHttp.JSON.writeValueAsString(Map.of("ahead_by", commits.size(), "commits", commits)));
+				List<Map<String, String>> files = new ArrayList<>();
+				try (RevWalk trees = new RevWalk(repository); DiffFormatter diff = new DiffFormatter(DisabledOutputStream.INSTANCE)) {
+					diff.setRepository(repository);
+					for (DiffEntry change : diff.scan(trees.parseCommit(base).getTree(), trees.parseCommit(head).getTree())) {
+						files.add(Map.of("filename",
+								change.getChangeType() == DiffEntry.ChangeType.DELETE ? change.getOldPath() : change.getNewPath()));
+					}
+				}
+				send(exchange, 200, GitHubHttp.JSON.writeValueAsString(Map.of("ahead_by", commits.size(), "total_commits",
+						commits.size(), "commits", commits, "files", files)));
 			}
 		}
 		else if (method.equals("GET") && (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)").matcher(path)).matches()) {
@@ -542,6 +603,14 @@ public final class GitHubStub implements AutoCloseable {
 
 	/** Requests answered 502, as GitHub down: each a prefix of {@code "METHOD /path"}. */
 	public final java.util.Set<String> unavailable = Collections.synchronizedSet(new java.util.HashSet<>());
+
+	/** GitHub numeric IDs of commit authors by email; an author missing here is unresolved, as on GitHub. */
+	public final Map<String, Long> userIds = Collections.synchronizedMap(new LinkedHashMap<>());
+
+	/** Per repository: each pull request's head branch, open or closed, by number. */
+	public final Map<String, Map<Integer, String>> pullHeads = Collections.synchronizedMap(new LinkedHashMap<>());
+
+	private final AtomicInteger pullNumbers = new AtomicInteger(100);
 
 	/** The repositories deleted, by name. */
 	public final List<String> deleted = Collections.synchronizedList(new ArrayList<>());

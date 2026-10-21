@@ -2879,6 +2879,23 @@
         "stale": "Bàn giao vừa thay đổi. Hãy mở lại báo cáo bàn giao.",
         "changeRequest": "Đề nghị thay đổi",
         "dispute": "Mở tranh chấp"
+      },
+      "code": {
+        "sensitiveNone": "Không có tệp nào có thể tự chạy chương trình khi dự án được xây dựng.",
+        "kindCI_CONFIG": "Cấu hình cho dịch vụ tự động dựng, kiểm thử hoặc đưa ứng dụng lên mạng. Dịch vụ của bạn sẽ chạy theo tệp này.",
+        "kindDEPENDENCIES": "Danh sách thư viện mà ứng dụng dùng. Thư viện mới có thể chạy chương trình khi được cài đặt.",
+        "kindBUILD_SCRIPT": "Tập lệnh dựng hoặc cài đặt. Nó có thể chạy chương trình trên máy chủ của bạn.",
+        "kindBINARY": "Tệp chương trình đã đóng gói sẵn, không đọc được như mã nguồn.",
+        "pagesTitle": "Trang tài liệu đã cập nhật",
+        "pagesNone": "Không có trang tài liệu nào được cập nhật trong giai đoạn này.",
+        "pageVersion": "{title} · phiên bản {version}",
+        "technical": "Chi tiết kỹ thuật",
+        "technicalLead": "Danh sách các lần lưu thay đổi, dành cho người hỗ trợ kỹ thuật của bạn.",
+        "pull": "Yêu cầu hợp nhất #{n} trong kho trung gian",
+        "unattributed": "{n} lần lưu không gắn với tài khoản GitHub nào.",
+        "truncated": "GitHub chỉ liệt kê một phần các lần lưu và tệp đã đổi.",
+        "formCommits": "Sẽ bàn giao {n} lần lưu thay đổi mới, đã quét bảo mật.",
+        "formSensitiveLead": "Khách hàng sẽ thấy các tệp dưới đây cùng lời giải thích."
       }
     },
     "closure": {
@@ -4193,7 +4210,7 @@
       "CRITERION_MARK_MISSING": "Hãy chọn Đạt hoặc Chưa đạt và ghi chú cho từng tiêu chí.",
       "REPORT_MISSING": "Công việc đánh giá cần có báo cáo đánh giá trước khi bàn giao.",
       "SENSITIVE_CONTENT": "Ghi chú có thể chứa khóa bí mật hoặc dữ liệu khách hàng.",
-      "HANDOVER_COMMIT_MISSING": "Bàn giao công việc sửa mã cần kho mã của công việc, sẽ có ở bước sau.",
+      "HANDOVER_COMMIT_MISSING": "Kho làm việc của công việc chưa sẵn sàng nên chưa thể bàn giao mã.",
       "CUSTOMER_ONLY": "Chỉ khách hàng nghiệm thu hoặc yêu cầu sửa được.",
       "HANDOVER_DECIDED": "Lần bàn giao này đã được quyết định.",
       "REVISION_CRITERIA_MISSING": "Hãy chọn ít nhất một tiêu chí Chưa đạt để yêu cầu sửa.",
@@ -4202,7 +4219,11 @@
       "FOLLOW_UPS_SUBMITTED": "Các công việc tiếp theo đã được gửi cho khách hàng.",
       "NO_FOLLOW_UPS": "Hãy soạn ít nhất một công việc tiếp theo trước khi gửi.",
       "FOLLOW_UP_NOT_AWAITING": "Công việc tiếp theo này đã được mở hoặc bỏ qua.",
-      "FINDING_OPEN": "Mã của công việc còn vấn đề bảo mật chưa xử lý."
+      "FINDING_OPEN": "Mã của công việc còn vấn đề bảo mật chưa xử lý.",
+      "COMMITS_NOT_SCANNED": "Các thay đổi mới đang được quét bảo mật. Hãy thử lại sau ít phút.",
+      "NO_NEW_COMMITS": "Chưa có thay đổi mới nào được lưu vào kho làm việc kể từ lần bàn giao trước.",
+      "WORKFLOW_FILES_CHANGED": "Không thể bàn giao: có thay đổi trong thư mục .github/workflows. Hãy đặt tệp cấu hình tự động đề xuất ở thư mục khác, kèm hướng dẫn để khách hàng tự thêm.",
+      "REPOSITORY_UNREADABLE": "Chưa đọc được kho làm việc trên GitHub. Hãy thử lại sau ít phút."
     },
     "repo": {
       "SETUP_NOT_BLOCKED": "Việc chuẩn bị kho mã không bị dừng, nên không cần thử lại.",

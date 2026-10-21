@@ -62,6 +62,17 @@ class RepositoryCopyJobHandlerTest {
 	}
 
 	@Test
+	void aHandoverCommitIsReadOnTheSourceBranchAndPinnedOnItsOwnBranch() throws Exception {
+		JsonNode output = this.handler.handle(input(this.head).put("sourceBranch", "main").put("branch", "handover/h1"));
+
+		assertThat(output.path("pushed").asString()).isEqualTo(this.head);
+		assertThat(this.git.head("vibefix-dev", "job-intermediary", "handover/h1")).isEqualTo(this.head);
+		assertThat(this.git.head("vibefix-dev", "job-intermediary", "main")).as("the default branch stays untouched").isNull();
+		assertThatThrownBy(() -> this.handler.handle(input(this.head).put("sourceBranch", "../main")))
+			.isInstanceOf(IllegalArgumentException.class);
+	}
+
+	@Test
 	void aCommitTheBranchDoesNotHoldIsRefused() throws Exception {
 		JsonNode output = this.handler.handle(input("0".repeat(40)));
 

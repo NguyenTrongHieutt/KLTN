@@ -10,6 +10,11 @@
  * transaction (AD-5), or asks for a revision within the Revision Rounds (FR-33, FR-34); left undecided,
  * it is reminded twice and then accepted automatically by a pausable Deadline (FR-35, AD-7).
  * <p>
+ * A Code Job's handover (Story 8.2) needs its commits since the previous Handover Commit scanned and
+ * clean, at least one of them, and no change under {@code .github/workflows/}; {@code repo} pins the
+ * Handover Commit on {@code handover/{handoverId}} with the System's pull request before M2, and the
+ * Delivery Report lists the Sensitive Changes, the Pages updated, and the commits (AD-11, AD-33).
+ * <p>
  * After an Assessment's acceptance the Mentor drafts follow-up Jobs from the Report's numbered
  * recommendations, which the Customer opens as Draft Job Posts or discards (FR-11).
  * <p>
@@ -18,7 +23,7 @@
  * the personal-data participant are wiring in {@code delivery.internal}.
  */
 @ApplicationModule(allowedDependencies = { "shared", "audit", "identity", "notification", "timers", "scanning", "job",
-		"work", "payment" })
+		"work", "payment", "repo" })
 package vn.vibefix.delivery;
 
 import org.springframework.modulith.ApplicationModule;

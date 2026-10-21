@@ -34,7 +34,8 @@ import vn.vibefix.shared.SandboxJobHandler;
  * that only the sandbox worker (or the in-process stand-in) creates.
  * <p>
  * Input: {@code source} and {@code target} ({@code owner/name}), {@code sha}, {@code branch}, and
- * {@code token}. Output: {@code pushed} (the SHA), or {@code refused}: {@value #SHA_NOT_FOUND} when the
+ * {@code token}; {@code sourceBranch} when the commit is read on another branch than the one pushed, such
+ * as a Handover Commit on the Working Repository's default branch (AD-11). Output: {@code pushed} (the SHA), or {@code refused}: {@value #SHA_NOT_FOUND} when the
  * branch no longer holds the commit, or {@value #PUSH_REFUSED}.
  */
 final class RepositoryCopyJobHandler implements SandboxJobHandler {
@@ -72,7 +73,9 @@ final class RepositoryCopyJobHandler implements SandboxJobHandler {
 		String target = valid(input, "target", REPOSITORY);
 		String sha = valid(input, "sha", SHA);
 		String branch = valid(input, "branch", BRANCH);
-		if (branch.contains("..") || branch.startsWith("/") || source.endsWith("/.") || source.endsWith("/..")
+		String sourceBranch = input.has("sourceBranch") ? valid(input, "sourceBranch", BRANCH) : branch;
+		if (branch.contains("..") || branch.startsWith("/") || sourceBranch.contains("..") || sourceBranch.startsWith("/")
+				|| source.endsWith("/.") || source.endsWith("/..")
 				|| target.endsWith("/.") || target.endsWith("/..")) {
 			throw new IllegalArgumentException("unsafe repository or branch name");
 		}
@@ -93,8 +96,8 @@ final class RepositoryCopyJobHandler implements SandboxJobHandler {
 			.setDirectory(directory.toFile())
 			.setBare(true)
 			.setNoCheckout(true)
-			.setBranchesToClone(List.of("refs/heads/" + branch))
-			.setBranch("refs/heads/" + branch)
+			.setBranchesToClone(List.of("refs/heads/" + sourceBranch))
+			.setBranch("refs/heads/" + sourceBranch)
 			.setCloneSubmodules(false)
 			.setTimeout(TIMEOUT_SECONDS)
 			.setTransportConfigCallback(transport -> {
@@ -103,7 +106,7 @@ final class RepositoryCopyJobHandler implements SandboxJobHandler {
 			})
 			.call()) {
 			ObjectId commit = ObjectId.fromString(sha);
-			if (!onBranch(git, branch, commit)) {
+			if (!onBranch(git, sourceBranch, commit)) {
 				return refused(SHA_NOT_FOUND);
 			}
 			Iterable<PushResult> results = git.push()

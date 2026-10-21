@@ -38,7 +38,7 @@ class WorkPersonalData implements PersonalDataParticipant {
 	@Override
 	public Set<String> tables() {
 		return Set.of("work.board", "work.work_item", "work.work_item_history", "work.attachment", "work.admin_read_grant",
-				"work.page", "work.page_version");
+				"work.page", "work.page_version", "work.work_item_commit");
 	}
 
 	@Override
@@ -145,6 +145,7 @@ class WorkPersonalData implements PersonalDataParticipant {
 			.forEach(this.files::delete);
 		this.jdbc.sql("DELETE FROM work.work_item_history WHERE job_id IN (" + jobs + ")").param("id", productId).update();
 		this.jdbc.sql("DELETE FROM work.attachment WHERE job_id IN (" + jobs + ")").param("id", productId).update();
+		this.jdbc.sql("DELETE FROM work.work_item_commit WHERE job_id IN (" + jobs + ")").param("id", productId).update();
 		this.jdbc.sql("DELETE FROM work.work_item WHERE job_id IN (" + jobs + ")").param("id", productId).update();
 		this.jdbc.sql("DELETE FROM work.admin_read_grant WHERE job_id IN (" + jobs + ")").param("id", productId).update();
 		this.jdbc.sql("DELETE FROM work.page_version WHERE page_id IN (SELECT id FROM work.page WHERE job_id IN (" + jobs + "))")
