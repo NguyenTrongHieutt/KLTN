@@ -175,7 +175,15 @@ author can run it, on GitHub, as an owner of `vibefix-dev`.
    docker compose -f deploy/compose.yaml run --rm --no-deps -e SPRING_PROFILES_ACTIVE=dev,cli -v ./deploy/secrets/github-platform-app-key.pem:/run/secrets/github-platform-app-key:ro -v ./deploy/secrets/s4-member-token:/run/secrets/s4-member-token:ro backend --vibefix.cli.command=spike-s4 --vibefix.github.platform-app.id=<App ID> --vibefix.github.platform-app.installation-id=<installation ID> --vibefix.github.platform-app.key-file=/run/secrets/github-platform-app-key --intermediary=<s4-…-intermediary> --member-token-file=/run/secrets/s4-member-token
    ```
 
-   Every attempt (direct push, force push, deletion, `handover/*` push) should read `refused`.
+   The member first pushes to `s4-member-control`, a branch no ruleset guards: it must read
+   `accepted`, or the token cannot write there and the refusals that follow prove nothing. Every
+   other attempt (direct push, force push, deletion, `handover/*` push) should read `refused`.
+
+   GitHub shows a ruleset's bypass actors only to a token with Administration write, so check 6
+   reads them with one and reports whether the read-only token saw them. Forks are requested with a
+   token not narrowed to the Intermediary Repository, because GitHub forks for an App only when it
+   has every repository at the destination. The JGit `/nonexistent/.config/jgit` errors in the log
+   are harmless (the image's user has no home); `-e XDG_CONFIG_HOME=/tmp` silences them.
 5. **Repeat with "All repositories"**: change the installation's repository access, run step 3
    again with another `--prefix`, and note whether any result changed (SG-21).
 6. **Check the registrations** (SG-20): register the dev Merge App too (Contents and Pull requests

@@ -31,7 +31,9 @@ import tools.jackson.databind.JsonNode;
 /**
  * A stand-in for GitHub's REST API and git hosting, on loopback and {@code file://}: installation
  * tokens, organization reads, repository creation, rulesets, forks that appear after one poll, and
- * invitations. It records every request and every token it handed out.
+ * invitations. It records every request and every token it handed out. As GitHub does (Spike S4,
+ * 2026-10-21), it shows a ruleset's {@code bypass_actors} only to a token with Administration write,
+ * and refuses a fork to a token narrowed by {@code repository_ids}.
  */
 final class GitHubStub implements AutoCloseable {
 
@@ -46,6 +48,9 @@ final class GitHubStub implements AutoCloseable {
 	final List<Seen> seen = Collections.synchronizedList(new ArrayList<>());
 
 	final List<String> tokens = Collections.synchronizedList(new ArrayList<>());
+
+	/** Each token's request: its {@code repository_ids} and {@code permissions}. */
+	private final Map<String, JsonNode> grants = Collections.synchronizedMap(new LinkedHashMap<>());
 
 	final AtomicInteger revoked = new AtomicInteger();
 
@@ -134,6 +139,7 @@ final class GitHubStub implements AutoCloseable {
 		if (method.equals("POST") && path.equals("/app/installations/" + INSTALLATION + "/access_tokens")) {
 			String token = "ghs_stubtoken_" + this.tokens.size() + "_d41d8cd98f";
 			this.tokens.add(token);
+			this.grants.put(token, body);
 			send(exchange, 201, "{\"token\":\"" + token + "\",\"expires_at\":\"2026-10-19T04:00:00Z\"}");
 		}
 		else if (method.equals("DELETE") && path.equals("/installation/token")) {
@@ -188,9 +194,17 @@ final class GitHubStub implements AutoCloseable {
 				.filter(found -> found.path("id").asString().equals(id))
 				.findFirst()
 				.orElseThrow();
-			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(ruleset));
+			tools.jackson.databind.node.ObjectNode shown = (tools.jackson.databind.node.ObjectNode) ruleset.deepCopy();
+			if (!grant(exchange).path("permissions").path("administration").asString("").equals("write")) {
+				shown.remove("bypass_actors");
+			}
+			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(shown));
 		}
 		else if ((matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)/forks").matcher(path)).matches()) {
+			if (grant(exchange).has("repository_ids")) {
+				send(exchange, 403, "{\"message\":\"Resource not accessible by integration\"}");
+				return;
+			}
 			String forkName = body.path("name").asString();
 			Git.cloneRepository().setURI(this.gitRoot.resolve(ORGANIZATION).resolve(matcher.group(1) + ".git").toUri().toString())
 				.setBare(true).setDirectory(this.gitRoot.resolve(ORGANIZATION).resolve(forkName + ".git").toFile()).call().close();
@@ -217,6 +231,12 @@ final class GitHubStub implements AutoCloseable {
 
 	long repositoryId(String name) {
 		return this.repositories.get(name);
+	}
+
+	private JsonNode grant(HttpExchange exchange) {
+		String authorization = exchange.getRequestHeaders().getFirst("Authorization");
+		JsonNode grant = authorization == null ? null : this.grants.get(authorization.replaceFirst("^Bearer ", ""));
+		return grant == null ? GitHubHttp.JSON.createObjectNode() : grant;
 	}
 
 	private static void send(HttpExchange exchange, int status, String body) throws IOException {
