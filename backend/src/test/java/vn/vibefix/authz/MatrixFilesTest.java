@@ -66,7 +66,7 @@ class MatrixFilesTest {
 	@Test
 	void theMatrixFileParses() {
 		assertThat(MatrixRow.loadMatrix()).isNotEmpty()
-			.allSatisfy(row -> assertThat(row.path()).matches("/(api|webhooks)/.+"));
+			.allSatisfy(row -> assertThat(row.path()).matches("/(api/.+|webhooks(/.+)?)"));
 	}
 
 	@Test

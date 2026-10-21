@@ -1,0 +1,6 @@
+subject: Cấu hình GitHub {app} khác với dự kiến: {differences}
+---
+Xin chào,
+
+Lần kiểm tra hằng ngày thấy cấu hình GitHub {app} khác với dự kiến: {differences}.
+Hãy kiểm tra trang cài đặt của App trên GitHub và trang quản trị của vibefix.

@@ -29,6 +29,9 @@ class MatrixCoverageIT extends IntegrationTest {
 
 	static final List<String> GATED_PREFIXES = List.of("/api/", "/webhooks/");
 
+	/** AD-12's one endpoint for both Apps' webhooks. */
+	static final String WEBHOOKS = "/webhooks";
+
 	@Autowired
 	@Qualifier("requestMappingHandlerMapping")
 	private RequestMappingHandlerMapping handlerMapping;
@@ -41,7 +44,7 @@ class MatrixCoverageIT extends IntegrationTest {
 			HandlerMethod handler = entry.getValue();
 			boolean ours = handler.getBeanType().getName().startsWith("vn.vibefix.");
 			for (String pattern : entry.getKey().getPatternValues()) {
-				if (GATED_PREFIXES.stream().noneMatch(pattern::startsWith)) {
+				if (!pattern.equals(WEBHOOKS) && GATED_PREFIXES.stream().noneMatch(pattern::startsWith)) {
 					if (ours) {
 						violations.add(handler.getShortLogMessage() + " (" + pattern
 								+ ") is outside /api and /webhooks, where no gate guards it");

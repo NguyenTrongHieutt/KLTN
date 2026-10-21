@@ -23,7 +23,8 @@ import vn.vibefix.github.internal.GitHubProperties.AppProperties;
 /**
  * {@link GitHubApps} on GitHub's REST API (AD-10). Each App's key is read once from its secret
  * file; tokens are minted with {@code repository_ids} and {@code permissions} and revoked through
- * {@code DELETE /installation/token}.
+ * {@code DELETE /installation/token}. A narrowed token names 1 to 500 repositories, and an unnarrowed
+ * one only an {@link Unnarrowed} purpose's fixed permissions.
  */
 @Component
 class GitHubAppsClient implements GitHubApps {
@@ -44,6 +45,23 @@ class GitHubAppsClient implements GitHubApps {
 
 	@Override
 	public InstallationToken token(App app, Collection<Long> repositoryIds, Map<String, String> permissions) {
+		if (repositoryIds.isEmpty() || repositoryIds.size() > MAX_REPOSITORIES) {
+			throw new IllegalArgumentException("A narrowed token names 1 to " + MAX_REPOSITORIES + " repositories, not "
+					+ repositoryIds.size() + ": an unnarrowed one is one of AD-10's Unnarrowed purposes");
+		}
+		return mint(app, repositoryIds, permissions);
+	}
+
+	@Override
+	public InstallationToken unnarrowed(App app, Unnarrowed purpose) {
+		return mint(app, List.of(), purpose.permissions());
+	}
+
+	/**
+	 * Mints any token, unchecked: {@link #token} and {@link #unnarrowed} hold AD-10's rules, and only the
+	 * dev-only S4 probe calls this directly.
+	 */
+	InstallationToken mint(App app, Collection<Long> repositoryIds, Map<String, String> permissions) {
 		AppProperties configured = configured(app);
 		if (configured.installationId() == null) {
 			throw new GitHubException(0, propertyName(app) + ".installation-id is not configured");
@@ -103,7 +121,13 @@ class GitHubAppsClient implements GitHubApps {
 		return this.properties;
 	}
 
-	private String jwt(App app) {
+	/** Whether the App has an ID configured, so the daily jobs read it. */
+	boolean isConfigured(App app) {
+		AppProperties configured = app == App.PLATFORM ? this.properties.platformApp() : this.properties.mergeApp();
+		return configured != null && configured.id() != null && configured.keyFile() != null;
+	}
+
+	String jwt(App app) {
 		return key(app).sign(this.clock.instant());
 	}
 

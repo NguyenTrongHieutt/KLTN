@@ -34,7 +34,9 @@ import tools.jackson.databind.JsonNode;
  * invitations. It records every request and every token it handed out. As GitHub does (Spike S4,
  * 2026-10-21), it shows a ruleset's {@code bypass_actors} only to a token with Administration write,
  * refuses a fork to a token narrowed by {@code repository_ids}, and leaves a pending invitation at
- * the permission it was sent with.
+ * the permission it was sent with. It also answers an App's webhook reads: its deliveries, newest first
+ * and paged by {@code cursor} in the {@code Link} header, their redelivery, and the webhook's
+ * configuration.
  */
 final class GitHubStub implements AutoCloseable {
 
@@ -54,6 +56,19 @@ final class GitHubStub implements AutoCloseable {
 	private final Map<String, JsonNode> grants = Collections.synchronizedMap(new LinkedHashMap<>());
 
 	final AtomicInteger revoked = new AtomicInteger();
+
+	/** {@code GET /app}'s body; tests replace it to show another registration. */
+	volatile String app = "{\"slug\":\"vibefix-dev-platform\",\"permissions\":{\"contents\":\"write\",\"metadata\":\"read\"},"
+			+ "\"events\":[\"push\",\"pull_request\"]}";
+
+	/** {@code GET /app/hook/config}'s body, or none for an App whose webhook is not active (404). */
+	volatile String hookConfig = "{\"url\":\"https://vibefix.test/webhooks\",\"content_type\":\"json\",\"insecure_ssl\":\"0\"}";
+
+	/** The App's webhook deliveries, newest first, as {@code GET /app/hook/deliveries} lists them. */
+	final List<Map<String, Object>> deliveries = Collections.synchronizedList(new ArrayList<>());
+
+	/** The delivery IDs asked for again through {@code POST /app/hook/deliveries/{id}/attempts}. */
+	final List<Long> redelivered = Collections.synchronizedList(new ArrayList<>());
 
 	final Path gitRoot;
 
@@ -151,8 +166,28 @@ final class GitHubStub implements AutoCloseable {
 			send(exchange, 204, "");
 		}
 		else if (method.equals("GET") && path.equals("/app")) {
-			send(exchange, 200, "{\"slug\":\"vibefix-dev-platform\",\"permissions\":{\"contents\":\"write\",\"metadata\":\"read\"},"
-					+ "\"events\":[\"push\",\"pull_request\"]}");
+			send(exchange, 200, this.app);
+		}
+		else if (method.equals("GET") && path.equals("/app/hook/config")) {
+			String config = this.hookConfig;
+			send(exchange, config == null ? 404 : 200, config == null ? "{\"message\":\"Not Found\"}" : config);
+		}
+		else if (method.equals("GET") && path.equals("/app/hook/deliveries")) {
+			int size = Integer.parseInt(parameter(query, "per_page", "30"));
+			int from = Integer.parseInt(parameter(query, "cursor", "0"));
+			List<Map<String, Object>> page;
+			synchronized (this.deliveries) {
+				page = List.copyOf(this.deliveries.subList(Math.min(from, this.deliveries.size()),
+						Math.min(from + size, this.deliveries.size())));
+			}
+			String next = from + size < this.deliveries.size()
+					? "<" + apiUrl() + "/app/hook/deliveries?per_page=" + size + "&cursor=" + (from + size) + ">; rel=\"next\""
+					: null;
+			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(page), next);
+		}
+		else if (method.equals("POST") && (matcher = Pattern.compile("/app/hook/deliveries/(\\d+)/attempts").matcher(path)).matches()) {
+			this.redelivered.add(Long.parseLong(matcher.group(1)));
+			send(exchange, 202, "{}");
 		}
 		else if (method.equals("GET") && path.equals("/app/installations/" + INSTALLATION)) {
 			send(exchange, 200, "{\"id\":" + INSTALLATION + ",\"repository_selection\":\"selected\"}");
@@ -272,9 +307,32 @@ final class GitHubStub implements AutoCloseable {
 		return grant == null ? GitHubHttp.JSON.createObjectNode() : grant;
 	}
 
+	/** A delivery as GitHub lists it: one attempt of one GUID. */
+	static Map<String, Object> delivery(long id, String guid, String deliveredAt, String status) {
+		return Map.of("id", id, "guid", guid, "delivered_at", deliveredAt, "status", status, "event", "push");
+	}
+
+	private static String parameter(String query, String name, String fallback) {
+		if (query != null) {
+			for (String pair : query.split("&")) {
+				if (pair.startsWith(name + "=")) {
+					return pair.substring(name.length() + 1);
+				}
+			}
+		}
+		return fallback;
+	}
+
 	private static void send(HttpExchange exchange, int status, String body) throws IOException {
+		send(exchange, status, body, null);
+	}
+
+	private static void send(HttpExchange exchange, int status, String body, String link) throws IOException {
 		byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
 		exchange.getResponseHeaders().add("Content-Type", "application/json");
+		if (link != null) {
+			exchange.getResponseHeaders().add("Link", link);
+		}
 		exchange.sendResponseHeaders(status, bytes.length == 0 ? -1 : bytes.length);
 		if (bytes.length > 0) {
 			try (OutputStream out = exchange.getResponseBody()) {

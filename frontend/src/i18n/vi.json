@@ -3561,6 +3561,11 @@
         "title": "Đã dùng {sent}/{budget} email hôm nay"
       }
     },
+    "github": {
+      "app_configuration_drift": {
+        "title": "Cấu hình GitHub {app} khác với dự kiến: {differences}"
+      }
+    },
     "identity": {
       "school_email_code": {
         "title": "Mã xác minh vibefix của bạn: {code} (hết hạn sau 10 phút)"

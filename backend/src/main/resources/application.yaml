@@ -122,6 +122,12 @@ vibefix:
     # (vibefix.github.platform-app.*, merge-app.*) are set where a story needs them; see
     # deploy/README.md "Spike S4".
     git-url: https://github.com
+    # AD-12: both Apps' webhooks reach POST /webhooks, signed with each App's secret file
+    # (platform-app.webhook-secret-file, merge-app.webhook-secret-file). Set webhook-url to
+    # https://<host>/webhooks where it is known, and the daily configuration check compares it.
+    # AD-12, SG-18 (Vietnam time): failed deliveries are redelivered, then each App is compared with AD-10.
+    redelivery-cron: "0 0 4 * * *"
+    configuration-check-cron: "0 10 4 * * *"
     # AD-10: the sign-in OAuth App's endpoints; its client ID and secret are secret files.
     oauth:
       authorization-uri: https://github.com/login/oauth/authorize

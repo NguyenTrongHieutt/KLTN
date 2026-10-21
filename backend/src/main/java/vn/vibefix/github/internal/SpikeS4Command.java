@@ -586,7 +586,8 @@ class SpikeS4Command implements ApplicationRunner, ExitCodeGenerator {
 
 	/** Mints a token for one check, runs it, and revokes the token whatever happened. */
 	private <T> T withToken(Set<Long> repositoryIds, Map<String, String> permissions, Function<InstallationToken, T> use) {
-		InstallationToken token = this.apps.token(App.PLATFORM, repositoryIds, permissions);
+		// The dev-only probe also reads a repository's ID by name, so it mints unchecked (GitHubAppsClient.mint).
+		InstallationToken token = this.apps.mint(App.PLATFORM, repositoryIds, permissions);
 		try {
 			return use.apply(token);
 		}
