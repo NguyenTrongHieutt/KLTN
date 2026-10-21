@@ -1,0 +1,6 @@
+subject: Một thao tác hệ thống thất bại và đang chờ bạn xử lý
+---
+Xin chào,
+
+Một thao tác hệ thống đã thất bại sau mọi lần thử và đang chờ trong hàng thao tác lỗi.
+Hãy mở trang quản trị của vibefix để xem và thử lại.

@@ -10,10 +10,14 @@ import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+
+import vn.vibefix.notification.EmailBudgetAlert;
+import vn.vibefix.shared.IdGenerator;
 
 /**
  * The daily SMTP budget (AD-34), a PostgreSQL counter per UTC day, the provider's day. A send takes
@@ -36,8 +40,14 @@ class EmailBudget {
 
 	private final Clock clock;
 
+	private final ApplicationEventPublisher events;
+
+	private final IdGenerator ids;
+
 	EmailBudget(JdbcClient jdbc, PlatformTransactionManager transactionManager, EmailProperties properties,
-			Clock clock) {
+			Clock clock, ApplicationEventPublisher events, IdGenerator ids) {
+		this.events = events;
+		this.ids = ids;
 		this.jdbc = jdbc;
 		this.transactions = new TransactionTemplate(transactionManager);
 		this.properties = properties;
@@ -65,6 +75,8 @@ class EmailBudget {
 						""").param("now", Timestamp.from(now)).param("day", Date.valueOf(day)).update();
 				if (marked == 1) {
 					log.warn("{}: {} of today's {} emails are used", ALERT, taken.get(), this.properties.dailyBudget());
+					this.events.publishEvent(new EmailBudgetAlert(this.ids.newId(), day, taken.get(),
+							this.properties.dailyBudget()));
 				}
 			}
 			return taken.orElse(null);

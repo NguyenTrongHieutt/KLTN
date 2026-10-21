@@ -1,0 +1,6 @@
+subject: Đã dùng {sent}/{budget} email hôm nay
+---
+Xin chào,
+
+vibefix đã gửi {sent} trên {budget} email được phép trong ngày hôm nay. Khi hết, email chờ đến ngày mai mới gửi.
+Hãy mở trang quản trị của vibefix để xem.

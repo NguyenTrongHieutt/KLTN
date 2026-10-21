@@ -126,6 +126,9 @@ class EmailIT extends IntegrationTest {
 		send(UUID.randomUUID(), EmailClass.TRANSACTIONAL, "test.reminder", Map.of());
 		this.worker.runDue(Lane.EMAIL);
 		assertThat(alertedAt()).isEqualTo(marked);
+		// The mark is published once, for admin's alert to every Administrator.
+		assertThat(this.jdbc.sql("SELECT count(*) FROM platform.event_publication WHERE event_type LIKE '%EmailBudgetAlert'")
+			.query(Long.class).single()).isOne();
 	}
 
 	@Test

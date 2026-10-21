@@ -166,6 +166,8 @@ class ExternalOperationsIT extends IntegrationTest {
 			assertThat(failure.attempts()).isEqualTo(8);
 		});
 		assertThat(audit(ticket.id())).containsExactly("operations.operation_failed " + ticket.id());
+		assertThat(this.jdbc.sql("SELECT count(*) FROM platform.event_publication WHERE event_type LIKE '%OperationFailed'")
+			.query(Long.class).single()).as("admin's alert is published once").isOne();
 	}
 
 	@Test
