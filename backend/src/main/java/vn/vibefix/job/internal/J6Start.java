@@ -79,6 +79,8 @@ class J6Start implements JobLifecycle.Step {
 	@Override
 	public void apply(Applying applying) {
 		applying.fact("crewTermsVersionNo", String.valueOf(this.crews.bringIntoForce(applying.job().id())));
+		// Story 7.2: repo sets up a Code Job's repositories on J6.
+		applying.fact("code", String.valueOf(applying.job().code()));
 	}
 
 	@Override

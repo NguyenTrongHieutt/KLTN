@@ -10,9 +10,12 @@ import org.jspecify.annotations.Nullable;
  * One scan run as CUS-2 and CUS-4 show it.
  * @param found distinct credentials the run found, once it succeeded
  * @param unscannedCount files not read ("chưa kiểm tra được"); {@code unscanned} lists the first 50
+ * @param defaultBranch the default branch the run read, once it succeeded
+ * @param defaultBranchSha that branch's head as the run read it: what a J7 run approves for the copy
  */
 public record ScanSummary(UUID id, ScanPurpose purpose, ScanStatus status, Instant requestedAt,
-		@Nullable Instant finishedAt, @Nullable Integer found, int unscannedCount, List<UnscannedFile> unscanned) {
+		@Nullable Instant finishedAt, @Nullable Integer found, int unscannedCount, List<UnscannedFile> unscanned,
+		@Nullable String defaultBranch, @Nullable String defaultBranchSha) {
 
 	/**
 	 * A file the scan did not read.

@@ -25,6 +25,7 @@ import { JobStateBadge } from './JobStateBadge'
 import { hasBoard } from '@/features/work/workApi'
 import { DisputeSection } from '@/features/dispute/DisputeSection'
 import { CancellationSection } from './cancellation/CancellationSection'
+import { SetupTracker } from './SetupTracker'
 import { CrewJobPage } from '@/features/work/progress/CrewJobPage'
 import { ProgressOverview } from '@/features/work/progress/ProgressOverview'
 
@@ -157,6 +158,7 @@ function Overview({ job }: { job: Job }) {
       ) : (
         <>
           <p className="text-body-sm text-muted-foreground">{t('screen.job.detail.notYet')}</p>
+          {job.state === 'STARTING' && <SetupTracker jobId={job.id} />}
           {(job.state === 'AGREEMENT' || job.state === 'STARTING') && (
             <>
               <DisputeSection jobId={job.id} />

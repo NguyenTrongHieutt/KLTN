@@ -1910,3 +1910,22 @@ POST /webhooks,CUSTOMER,,,401
 POST /webhooks,MENTOR,mentor=PENDING,,401
 POST /webhooks,STUDENT,,,401
 POST /webhooks,ADMINISTRATOR,,,401
+
+# Story 7.2 (UX-DR23, AD-11): the step tracker; {jobId} is a Draft Job, so only its Customer reads it,
+# and "Thử lại" needs a blocked Setup.
+GET /api/v1/jobs/{jobId}/setup,ANONYMOUS,,,401
+GET /api/v1/jobs/{jobId}/setup,OWNER,,,200
+GET /api/v1/jobs/{jobId}/setup,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/setup,MENTOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/setup,STUDENT,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/setup,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/setup,JOB_MENTOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/setup,CREW_ACTIVE,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/setup/retry,ANONYMOUS,,,401
+POST /api/v1/jobs/{jobId}/setup/retry,OWNER,,,409 CONFLICT SETUP_NOT_BLOCKED
+POST /api/v1/jobs/{jobId}/setup/retry,CUSTOMER,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/setup/retry,MENTOR,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/setup/retry,STUDENT,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/setup/retry,ADMINISTRATOR,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/setup/retry,JOB_MENTOR,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/setup/retry,CREW_ACTIVE,,,404 NOT_FOUND

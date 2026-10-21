@@ -95,6 +95,15 @@ class ScanCompletion {
 	private record Opened(UUID id, String type) {
 	}
 
+	private static final java.util.regex.Pattern BRANCH = java.util.regex.Pattern.compile("[A-Za-z0-9._/-]{1,255}");
+
+	private static final java.util.regex.Pattern SHA = java.util.regex.Pattern.compile("[0-9a-f]{40}");
+
+	/** A value from the sandbox's output, kept only when it has the expected form. */
+	private static @Nullable String matching(JsonNode value, java.util.regex.Pattern form) {
+		return value.isString() && form.matcher(value.stringValue()).matches() ? value.stringValue() : null;
+	}
+
 	/**
 	 * Records {@code output}.
 	 * @param stopped the cap that stopped the walk, or {@code null} for a complete scan
@@ -165,10 +174,13 @@ class ScanCompletion {
 				UPDATE scanning.scan_run
 				SET status = :status, rules_version = :version, commits = :commits, scanned_files = :scanned,
 				    unscanned_count = :unscannedCount, unscanned = CAST(:unscanned AS JSONB), found_count = :found,
-				    new_findings = :opened, stopped = :stopped, error_code = :stopped, finished_at = :now
+				    new_findings = :opened, stopped = :stopped, error_code = :stopped, finished_at = :now,
+				    default_branch = :branch, default_branch_sha = :sha
 				WHERE id = :id
 				""")
 			.param("id", run.id())
+			.param("branch", matching(output.path("defaultBranch"), BRANCH))
+			.param("sha", matching(output.path("defaultBranchSha"), SHA))
 			.param("status", complete ? "SUCCEEDED" : "FAILED")
 			.param("version", this.rules.version())
 			.param("commits", Math.max(0, output.path("commits").intValue()))

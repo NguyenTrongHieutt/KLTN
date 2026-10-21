@@ -221,7 +221,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["retry_1"];
+        post: operations["retry_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -301,7 +301,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["retry"];
+        post: operations["retry_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1742,6 +1742,38 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["cancelSelection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/jobs/{jobId}/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["setup"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/jobs/{jobId}/setup/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["retry"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5637,7 +5669,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            purpose: "INTAKE" | "CLEAN_REPOSITORY" | "RESCAN";
+            purpose: "INTAKE" | "CLEAN_REPOSITORY" | "RESCAN" | "J7";
             /** Format: date-time */
             requestedAt: string;
             /** @enum {string} */
@@ -5704,6 +5736,21 @@ export interface components {
             /** @enum {string} */
             status: "ANONYMOUS" | "SIGNING_UP" | "LOCKED" | "SIGNED_IN";
             supportEmail?: string;
+        };
+        SetupStepView: {
+            key: string;
+            state: string;
+        };
+        SetupView: {
+            blockedReason?: string;
+            canRetry: boolean;
+            /** Format: uuid */
+            jobId: string;
+            jobState: string;
+            /** Format: int32 */
+            openFindings?: number;
+            status: string;
+            steps: components["schemas"]["SetupStepView"][];
         };
         ShareRequest: {
             /** Format: int32 */
@@ -6576,7 +6623,7 @@ export interface operations {
             };
         };
     };
-    retry_1: {
+    retry_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -6708,7 +6755,7 @@ export interface operations {
             };
         };
     };
-    retry: {
+    retry_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -9252,6 +9299,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobView"];
+                };
+            };
+        };
+    };
+    setup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupView"];
+                };
+            };
+        };
+    };
+    retry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupView"];
                 };
             };
         };

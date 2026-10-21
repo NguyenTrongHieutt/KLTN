@@ -7,12 +7,14 @@ import { buttonVariants } from '@/components/ui/button-variants'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t } from '@/i18n/t'
 import { isNotFound } from '@/lib/problemMessage'
+import { SetupTracker } from '@/features/job/SetupTracker'
 import { useJobProgress } from './progressApi'
 import { ProgressOverview } from './ProgressOverview'
 
 /**
  * JOB-1 for an active Crew member (UX-DR68): the Job's title and Product, the ways to its Board,
- * Documentation Space, and Crew Chat, and the progress overview with their own Work Items and N-12.
+ * Documentation Space, and Crew Chat, the step tracker while the Job is Starting (UX-DR23), and the
+ * progress overview with their own Work Items and N-12.
  * Anyone the progress read does not name sees the not-found screen.
  */
 export function CrewJobPage({ jobId }: { jobId: string }) {
@@ -51,6 +53,7 @@ export function CrewJobPage({ jobId }: { jobId: string }) {
           </div>
         )}
       </RegionState>
+      {progress.data?.state === 'STARTING' && <SetupTracker jobId={jobId} />}
       {progress.data && <ProgressOverview jobId={jobId} audience="crew" />}
     </div>
   )

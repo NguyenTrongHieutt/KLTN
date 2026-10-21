@@ -1,0 +1,7 @@
+subject: Chưa thể bắt đầu {job}: {reason}
+---
+Xin chào,
+
+vibefix chưa tạo được kho mã cho công việc {job} vì {reason}.
+Công việc vẫn đang chờ bắt đầu và tiền của giai đoạn 1 vẫn được giữ an toàn.
+Khi đã xử lý xong, khách hàng bấm "Thử lại" ở trang công việc.

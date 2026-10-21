@@ -38,17 +38,20 @@ import tools.jackson.databind.JsonNode;
  * and paged by {@code cursor} in the {@code Link} header, their redelivery, and the webhook's
  * configuration.
  */
-final class GitHubStub implements AutoCloseable {
+public final class GitHubStub implements AutoCloseable {
 
-	static final String ORGANIZATION = "vibefix-dev";
+	public static final String ORGANIZATION = "vibefix-dev";
 
-	static final long INSTALLATION = 7;
+	public static final long INSTALLATION = 7;
 
 	/** One request as GitHub would have received it. */
-	record Seen(String method, String path, String authorization, JsonNode body) {
+	public record Seen(String method, String path, String authorization, JsonNode body) {
 	}
 
-	final List<Seen> seen = Collections.synchronizedList(new ArrayList<>());
+	public final List<Seen> seen = Collections.synchronizedList(new ArrayList<>());
+
+	/** The public metadata of repositories outside the organization, as a Customer's token reads them. */
+	private final Map<String, String> published = Collections.synchronizedMap(new LinkedHashMap<>());
 
 	final List<String> tokens = Collections.synchronizedList(new ArrayList<>());
 
@@ -87,23 +90,23 @@ final class GitHubStub implements AutoCloseable {
 
 	private final Map<String, String> collaborators = new LinkedHashMap<>();
 
-	GitHubStub(Path gitRoot) throws IOException {
+	public GitHubStub(Path gitRoot) throws IOException {
 		this.gitRoot = gitRoot;
 		this.server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
 		this.server.createContext("/", this::handle);
 		this.server.start();
 	}
 
-	URI apiUrl() {
+	public URI apiUrl() {
 		return URI.create("http://127.0.0.1:" + this.server.getAddress().getPort());
 	}
 
-	URI gitUrl() {
+	public URI gitUrl() {
 		return this.gitRoot.toUri();
 	}
 
 	/** A public source repository whose default branch holds {@code .github/workflows/ci.yml}. */
-	void source(String owner, String name) throws Exception {
+	public void source(String owner, String name) throws Exception {
 		Path work = Files.createTempDirectory("spike-s4-source-");
 		try (Git git = Git.init().setDirectory(work.toFile()).setInitialBranch("main").call()) {
 			Files.createDirectories(work.resolve(".github/workflows"));
@@ -116,11 +119,33 @@ final class GitHubStub implements AutoCloseable {
 			.setDirectory(this.gitRoot.resolve(owner).resolve(name + ".git").toFile()).call().close();
 	}
 
-	Repository repository(String owner, String name) throws IOException {
+	public Repository repository(String owner, String name) throws IOException {
 		return Git.open(this.gitRoot.resolve(owner).resolve(name + ".git").toFile()).getRepository();
 	}
 
-	boolean hasFile(String owner, String name, String branch, String path) throws IOException {
+	/**
+	 * {@code owner/name} as {@code GET /repos/{owner}/{name}} shows it: public or not, owned by the user
+	 * {@code ownerId}, with the token's admin permission.
+	 */
+	public void publish(String owner, String name, long id, long ownerId, boolean publicRepository, boolean admin) {
+		this.published.put(owner + "/" + name, "{\"id\":" + id + ",\"full_name\":\"" + owner + "/" + name
+				+ "\",\"html_url\":\"https://github.com/" + owner + "/" + name + "\",\"owner\":{\"id\":" + ownerId
+				+ ",\"type\":\"User\"},\"private\":" + !publicRepository + ",\"visibility\":\""
+				+ (publicRepository ? "public" : "private") + "\",\"size\":10,\"default_branch\":\"main\",\"permissions\":{\"admin\":"
+				+ admin + "}}");
+	}
+
+	/** The names of the rulesets on {@code name} in the organization. */
+	public List<String> rulesetNames(String name) {
+		return this.rulesets.getOrDefault(name, List.of()).stream().map(ruleset -> ruleset.path("name").asString()).toList();
+	}
+
+	/** The ID GitHub gave {@code name} in the organization. */
+	public Long organizationRepositoryId(String name) {
+		return this.repositories.get(name);
+	}
+
+	public boolean hasFile(String owner, String name, String branch, String path) throws IOException {
 		try (Repository repository = repository(owner, name); RevWalk walk = new RevWalk(repository)) {
 			var head = repository.resolve("refs/heads/" + branch);
 			if (head == null) {
@@ -136,6 +161,14 @@ final class GitHubStub implements AutoCloseable {
 	@Override
 	public void close() {
 		this.server.stop(0);
+	}
+
+	/** The head of {@code branch}, or none. */
+	public String head(String owner, String name, String branch) throws IOException {
+		try (Repository repository = repository(owner, name)) {
+			var head = repository.resolve("refs/heads/" + branch);
+			return head == null ? null : head.name();
+		}
 	}
 
 	private void handle(HttpExchange exchange) throws IOException {
@@ -285,7 +318,12 @@ final class GitHubStub implements AutoCloseable {
 		}
 		else if ((matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)").matcher(path)).matches()) {
 			Long id = this.repositories.get(matcher.group(1));
-			send(exchange, id == null ? 404 : 200, id == null ? "{\"message\":\"Not Found\"}" : "{\"id\":" + id + "}");
+			send(exchange, id == null ? 404 : 200, id == null ? "{\"message\":\"Not Found\"}"
+					: "{\"id\":" + id + ",\"name\":\"" + matcher.group(1) + "\"}");
+		}
+		else if (method.equals("GET") && (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)").matcher(path)).matches()) {
+			String metadata = this.published.get(matcher.group(1) + "/" + matcher.group(2));
+			send(exchange, metadata == null ? 404 : 200, metadata == null ? "{\"message\":\"Not Found\"}" : metadata);
 		}
 		else {
 			send(exchange, 404, "{\"message\":\"Not Found\",\"path\":\"" + path + (query == null ? "" : "?" + query) + "\"}");
