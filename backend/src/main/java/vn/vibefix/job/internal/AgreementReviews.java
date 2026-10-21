@@ -323,6 +323,11 @@ class AgreementReviews {
 		for (String key : List.of(CONFIRM_TODO, CrewService.PICK_TODO, REVISE_TODO, Agreements.REVIEW_TODO, Agreements.DRAFT_TODO)) {
 			this.todos.closeAll(key, jobId);
 		}
+		// FR-66: N-8's guidance, one to-do per External Access item, which the Customer's tick closes.
+		for (ExternalAccess access : latest.content().externalAccess()) {
+			this.todos.open(new TodoRequest(ExternalAccessGrants.TODO, job.customerId(), Audience.CUSTOMER, access.id(),
+					Map.of("system", access.system()), Agreements.agreementLink(jobId), null, jobId));
+		}
 		List<Recipient> everyone = new ArrayList<>(List.of(new Recipient(job.customerId(), Audience.CUSTOMER),
 				new Recipient(mentorId, Audience.MENTOR)));
 		running.stream()

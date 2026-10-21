@@ -17,7 +17,8 @@ import vn.vibefix.shared.ProcessedEvents;
 
 /**
  * J4 opens the Job Chat and the Crew Chat (FR-46, FR-77, AD-5) and tells the Customer and the Mentor
- * in-app of the Job Chat; J9 and J10 make both read-only (AD-9). Each is replay-safe through
+ * in-app of the Job Chat; J9 and J10 make both read-only (AD-9) and store masked every message sent as
+ * written despite the warning (FR-66, {@link ChatRedaction}). Each is replay-safe through
  * {@link ProcessedEvents}.
  */
 @Component
@@ -27,14 +28,18 @@ class ChatListeners {
 
 	private final Chats chats;
 
+	private final ChatRedaction redaction;
+
 	private final JobPosts posts;
 
 	private final Notifications notifications;
 
 	private final ProcessedEvents processedEvents;
 
-	ChatListeners(Chats chats, JobPosts posts, Notifications notifications, ProcessedEvents processedEvents) {
+	ChatListeners(Chats chats, ChatRedaction redaction, JobPosts posts, Notifications notifications,
+			ProcessedEvents processedEvents) {
 		this.chats = chats;
+		this.redaction = redaction;
 		this.posts = posts;
 		this.notifications = notifications;
 		this.processedEvents = processedEvents;
@@ -50,6 +55,7 @@ class ChatListeners {
 		}
 		if (closes) {
 			this.chats.close(event.jobId());
+			this.redaction.redact(event.jobId());
 			return;
 		}
 		this.posts.post(event.jobId()).ifPresent(post -> {

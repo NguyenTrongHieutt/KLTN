@@ -20,4 +20,10 @@ public interface Todos {
 	/** Closes every recipient's open to-do of {@code key} about {@code subjectId}. */
 	void closeAll(String key, UUID subjectId);
 
+	/**
+	 * Whether the recipient's to-do is open, for an owner whose to-do is itself the record of an action
+	 * (FR-66: "Đã cấp quyền" closes {@code job.grant_external_access}).
+	 */
+	boolean isOpen(String key, UUID recipientAccountId, UUID subjectId);
+
 }

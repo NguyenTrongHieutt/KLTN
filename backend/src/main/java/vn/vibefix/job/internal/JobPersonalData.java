@@ -16,8 +16,9 @@ import vn.vibefix.shared.PersonalDataParticipant;
 import vn.vibefix.shared.PersonalDataSection;
 
 /**
- * {@code job}'s part in exports, erasure, and Product deletion (AD-24): the Customer's Jobs. Erasure
- * and Product deletion delete the Jobs and their screenshot files; a Job from J3 to Closing blocks the
+ * {@code job}'s part in exports, erasure, and Product deletion (AD-24): the Customer's Jobs, and the External
+ * Access identifiers a Mentor or a Crew member entered (FR-66). Erasure and Product deletion delete the Jobs
+ * and their screenshot files, and erasure deletes the person's identifiers; a Job from J3 to Closing blocks the
  * erasure of its Customer and its Mentor.
  */
 @Component
@@ -37,7 +38,8 @@ class JobPersonalData implements PersonalDataParticipant {
 		return Set.of("job.job", "job.job_screenshot", "job.agreement_draft", "job.milestone", "job.acceptance_criterion",
 				"job.external_access", "job.agreement_version", "job.crew_row", "job.crew_terms_version", "job.crew_terms_share",
 				"job.crew_terms_confirmation", "job.agreement_comment", "job.agreement_change_request", "job.agreement_approval",
-				"job.confirmed_agreement", "job.closure_proposal", "job.change_request", "job.cancellation_proposal");
+				"job.confirmed_agreement", "job.closure_proposal", "job.change_request", "job.cancellation_proposal",
+				"job.external_access_identifier");
 	}
 
 	@Override
@@ -62,11 +64,34 @@ class JobPersonalData implements PersonalDataParticipant {
 			job.put("updatedAt", rs.getTimestamp("updated_at").toInstant().toString());
 			return job;
 		}).list();
-		return jobs.isEmpty() ? Optional.empty() : Optional.of(new PersonalDataSection("job", Map.of("jobs", jobs)));
+		List<Map<String, Object>> identifiers = this.jdbc.sql("""
+				SELECT i.job_id, a.system, i.identifier, i.updated_at FROM job.external_access_identifier i
+				JOIN job.external_access a ON a.id = i.access_id
+				WHERE i.account_id = :id ORDER BY i.updated_at, i.access_id
+				""").param("id", accountId).query((rs, n) -> {
+			Map<String, Object> row = new LinkedHashMap<>();
+			row.put("jobId", rs.getObject("job_id", UUID.class).toString());
+			row.put("system", rs.getString("system"));
+			row.put("identifier", rs.getString("identifier"));
+			row.put("updatedAt", rs.getTimestamp("updated_at").toInstant().toString());
+			return row;
+		}).list();
+		if (jobs.isEmpty() && identifiers.isEmpty()) {
+			return Optional.empty();
+		}
+		Map<String, Object> data = new LinkedHashMap<>();
+		if (!jobs.isEmpty()) {
+			data.put("jobs", jobs);
+		}
+		if (!identifiers.isEmpty()) {
+			data.put("externalAccessIdentifiers", identifiers);
+		}
+		return Optional.of(new PersonalDataSection("job", data));
 	}
 
 	@Override
 	public void eraseAccount(UUID accountId) {
+		this.jdbc.sql("DELETE FROM job.external_access_identifier WHERE account_id = :id").param("id", accountId).update();
 		this.jdbc.sql("UPDATE job.closure_proposal SET proposer_account_id = NULL WHERE proposer_account_id = :id")
 			.param("id", accountId)
 			.update();
@@ -97,7 +122,8 @@ class JobPersonalData implements PersonalDataParticipant {
 				"job.agreement_comment",
 				"job.agreement_change_request",
 				"job.confirmed_agreement",
-				"job.agreement_approval", "job.acceptance_criterion", "job.milestone", "job.external_access",
+				"job.agreement_approval", "job.acceptance_criterion", "job.milestone", "job.external_access_identifier",
+				"job.external_access",
 				"job.agreement_version", "job.agreement_draft", "job.crew_terms_confirmation", "job.crew_terms_share",
 				"job.crew_terms_version", "job.crew_row")) {
 			this.jdbc.sql("DELETE FROM %s WHERE job_id IN (SELECT id FROM job.job WHERE %s = :id)".formatted(table, column))

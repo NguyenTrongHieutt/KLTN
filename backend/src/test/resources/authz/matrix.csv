@@ -1930,6 +1930,33 @@ POST /api/v1/jobs/{jobId}/setup/retry,ADMINISTRATOR,,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/setup/retry,JOB_MENTOR,,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/setup/retry,CREW_ACTIVE,,,404 NOT_FOUND
 
+# Story 8.1 (FR-66, UX-DR83): External Access after confirmation; {jobId} is a Draft Assessment Job with no
+# confirmed Agreement, so nobody reads, enters, or ticks anything.
+GET /api/v1/jobs/{jobId}/external-access,ANONYMOUS,,,401
+GET /api/v1/jobs/{jobId}/external-access,OWNER,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/external-access,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/external-access,MENTOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/external-access,STUDENT,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/external-access,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/external-access,JOB_MENTOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/external-access,CREW_ACTIVE,,,404 NOT_FOUND
+PUT /api/v1/jobs/{jobId}/external-access/{accessId}/identifier,ANONYMOUS,,external-access-identifier.json,401
+PUT /api/v1/jobs/{jobId}/external-access/{accessId}/identifier,OWNER,,external-access-identifier.json,404 NOT_FOUND
+PUT /api/v1/jobs/{jobId}/external-access/{accessId}/identifier,CUSTOMER,,external-access-identifier.json,404 NOT_FOUND
+PUT /api/v1/jobs/{jobId}/external-access/{accessId}/identifier,MENTOR,,external-access-identifier.json,404 NOT_FOUND
+PUT /api/v1/jobs/{jobId}/external-access/{accessId}/identifier,STUDENT,,external-access-identifier.json,404 NOT_FOUND
+PUT /api/v1/jobs/{jobId}/external-access/{accessId}/identifier,ADMINISTRATOR,,external-access-identifier.json,404 NOT_FOUND
+PUT /api/v1/jobs/{jobId}/external-access/{accessId}/identifier,JOB_MENTOR,,external-access-identifier.json,404 NOT_FOUND
+PUT /api/v1/jobs/{jobId}/external-access/{accessId}/identifier,CREW_ACTIVE,,external-access-identifier.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/external-access/{accessId}/granted,ANONYMOUS,,,401
+POST /api/v1/jobs/{jobId}/external-access/{accessId}/granted,OWNER,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/external-access/{accessId}/granted,CUSTOMER,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/external-access/{accessId}/granted,MENTOR,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/external-access/{accessId}/granted,STUDENT,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/external-access/{accessId}/granted,ADMINISTRATOR,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/external-access/{accessId}/granted,JOB_MENTOR,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/external-access/{accessId}/granted,CREW_ACTIVE,,,404 NOT_FOUND
+
 # Story 7.4 (FR-8, UX-DR31): the Job's Findings; {jobId} is a Draft Assessment Job, so nobody reads them.
 GET /api/v1/jobs/{jobId}/findings,ANONYMOUS,,,401
 GET /api/v1/jobs/{jobId}/findings,OWNER,,,404 NOT_FOUND

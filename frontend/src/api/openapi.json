@@ -3801,6 +3801,113 @@
         "tags" : [ "source-drift-controller" ]
       }
     },
+    "/api/v1/jobs/{jobId}/external-access" : {
+      "get" : {
+        "operationId" : "view",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ExternalAccessView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "external-access-controller" ]
+      }
+    },
+    "/api/v1/jobs/{jobId}/external-access/{accessId}/granted" : {
+      "post" : {
+        "operationId" : "granted",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "path",
+          "name" : "accessId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ExternalAccessView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "external-access-controller" ]
+      }
+    },
+    "/api/v1/jobs/{jobId}/external-access/{accessId}/identifier" : {
+      "put" : {
+        "operationId" : "identifier",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "path",
+          "name" : "accessId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/IdentifierRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ExternalAccessView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "external-access-controller" ]
+      }
+    },
     "/api/v1/jobs/{jobId}/findings" : {
       "get" : {
         "operationId" : "findings_1",
@@ -9905,6 +10012,45 @@
         },
         "required" : [ "accessLevel", "environment", "id", "purpose", "system" ]
       },
+      "ExternalAccessItemView" : {
+        "type" : "object",
+        "properties" : {
+          "accessLevel" : {
+            "type" : "string",
+            "enum" : [ "READ", "WRITE", "ADMIN" ]
+          },
+          "environment" : {
+            "type" : "string",
+            "enum" : [ "NON_PRODUCTION", "PRODUCTION" ]
+          },
+          "granted" : {
+            "type" : "boolean"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "identifiers" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/IdentifierView"
+            }
+          },
+          "live" : {
+            "type" : "boolean"
+          },
+          "mine" : {
+            "type" : "string"
+          },
+          "purpose" : {
+            "type" : "string"
+          },
+          "system" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "accessLevel", "environment", "id", "identifiers", "live", "purpose", "system" ]
+      },
       "ExternalAccessRequest" : {
         "type" : "object",
         "properties" : {
@@ -9932,6 +10078,25 @@
           }
         },
         "required" : [ "accessLevel", "environment", "id", "purpose", "system" ]
+      },
+      "ExternalAccessView" : {
+        "type" : "object",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ExternalAccessItemView"
+            }
+          },
+          "open" : {
+            "type" : "boolean"
+          },
+          "viewer" : {
+            "type" : "string",
+            "enum" : [ "CUSTOMER", "MENTOR", "CREW" ]
+          }
+        },
+        "required" : [ "items", "open", "viewer" ]
       },
       "FailedExecutionView" : {
         "type" : "object",
@@ -10894,6 +11059,29 @@
           }
         },
         "required" : [ "amountVnd", "at", "kind", "number", "paymentOrderId", "simulated", "status" ]
+      },
+      "IdentifierRequest" : {
+        "type" : "object",
+        "properties" : {
+          "identifier" : {
+            "type" : "string",
+            "maxLength" : 200,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "identifier" ]
+      },
+      "IdentifierView" : {
+        "type" : "object",
+        "properties" : {
+          "githubLogin" : {
+            "type" : "string"
+          },
+          "identifier" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "githubLogin", "identifier" ]
       },
       "InvitationsView" : {
         "type" : "object",

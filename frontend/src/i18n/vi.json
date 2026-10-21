@@ -2068,6 +2068,21 @@
       "environment": "Môi trường",
       "envNON_PRODUCTION": "Môi trường thử",
       "envPRODUCTION": "Hệ thống thật",
+      "externalGuide": {
+        "customerTitle": "Cấp quyền cho người thực hiện",
+        "teamTitle": "Tài khoản để khách hàng mời",
+        "customerIntro": "Cấp quyền riêng cho từng người. Việc này không chặn công việc, nhưng nhóm cần quyền để làm Giai đoạn 1.",
+        "teamIntro": "Gửi tài khoản của bạn trên từng dịch vụ để khách hàng mời bạn với quyền thấp nhất. Chỉ khách hàng thấy tài khoản này, cạnh đúng mục. Đừng nhập mật khẩu hay khóa.",
+        "step1": "Mời đúng các tài khoản dưới đây (người hướng dẫn và từng thành viên nhóm thực hiện) với quyền thấp nhất, trong môi trường thử.",
+        "step2": "Nếu dịch vụ không cho mời, hãy tạo một khóa riêng chỉ cho công việc này. Đừng gửi mật khẩu của bạn qua Trò chuyện.",
+        "noIdentifiers": "Người hướng dẫn và nhóm thực hiện chưa gửi tài khoản để mời.",
+        "granted": "Đã cấp quyền",
+        "ended": "Công việc đã kết thúc nên các tài khoản không còn hiện ở đây.",
+        "yourAccount": "Tài khoản của bạn trên {system}",
+        "yourAccountHint": "Ví dụ email bạn dùng để đăng nhập dịch vụ đó.",
+        "save": "Lưu",
+        "saved": "Đã lưu tài khoản."
+      },
       "access": "Mức quyền",
       "accessREAD": "Chỉ xem",
       "accessWRITE": "Đọc và ghi",
@@ -3554,7 +3569,8 @@
       "answer_closure": "Xác nhận kết thúc {job} · trước {date}",
       "add_change_impact": "Nêu ảnh hưởng về thời gian của đề nghị đổi hạn ở {job}",
       "answer_change_request": "Trả lời đề nghị đổi hạn ở {job}",
-      "answer_cancellation": "Trả lời đề nghị hủy {job} trước {date}"
+      "answer_cancellation": "Trả lời đề nghị hủy {job} trước {date}",
+      "grant_external_access": "Cấp quyền {system} cho người thực hiện"
     },
     "payment": {
       "fund_milestone": "Thanh toán Giai đoạn {n}: {amount} THỬ NGHIỆM"
@@ -4111,6 +4127,8 @@
       "NO_CANCELLATION_OPEN": "Không có đề nghị hủy nào đang mở.",
       "CANCELLATION_PROPOSER": "Bên kia xác nhận đề nghị hủy; người đề nghị có thể rút lại.",
       "HAS_ACCEPTED_WORK": "Công việc đã có giai đoạn được nghiệm thu nên kết thúc qua bước đóng công việc.",
+      "IDENTIFIER_LOOKS_LIKE_SECRET": "Đây giống một mật khẩu hoặc khóa bí mật. Chỉ nhập tài khoản để khách hàng mời bạn, ví dụ email của bạn.",
+      "EXTERNAL_ACCESS_CLOSED": "Công việc đã kết thúc, không cần gửi tài khoản nữa.",
       "DEADLINE_NOT_PASSED": "Bạn tự hủy được khi thỏa thuận chưa xác nhận sau 14 ngày hoặc công việc chưa bắt đầu sau 7 ngày."
     },
     "matching": {
