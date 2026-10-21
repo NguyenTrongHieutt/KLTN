@@ -85,10 +85,28 @@ public final class GitHubStub implements AutoCloseable {
 
 	private final Map<String, Integer> forkPolls = new LinkedHashMap<>();
 
-	/** Pending invitations by invitee, with their permission, and collaborators who accepted. */
-	private final Map<String, String> invitations = new LinkedHashMap<>();
+	/** Per repository: pending invitations by invitee, with their permission, and collaborators who accepted. */
+	private final Map<String, Map<String, String>> invitations = Collections.synchronizedMap(new LinkedHashMap<>());
 
-	private final Map<String, String> collaborators = Collections.synchronizedMap(new LinkedHashMap<>());
+	private final Map<String, Map<String, String>> collaborators = Collections.synchronizedMap(new LinkedHashMap<>());
+
+	/** The organization's owners, as {@code members?role=admin} lists them. */
+	public final java.util.Set<String> owners = Collections.synchronizedSet(new java.util.TreeSet<>(java.util.Set.of("vibefix-operator")));
+
+	/** Open pull requests per repository: number to the login that opened it. */
+	public final Map<String, Map<Integer, String>> pulls = Collections.synchronizedMap(new LinkedHashMap<>());
+
+	/** The pull requests closed, as {@code name#number}. */
+	public final List<String> closedPulls = Collections.synchronizedList(new ArrayList<>());
+
+	/** The actors of each repository's recent events. */
+	public final Map<String, List<String>> eventActors = Collections.synchronizedMap(new LinkedHashMap<>());
+
+	/** {@code GET /app/installations/{id}}'s repository selection. */
+	public volatile String repositorySelection = "all";
+
+	/** Repositories whose Issues are on, as {@code GET /repos/{org}/{name}} shows them. */
+	public final java.util.Set<String> issuesOn = Collections.synchronizedSet(new java.util.HashSet<>());
 
 	/** Organization members: GitHub adds them at once, without an invitation (AD-11's MEMBER_DRIFT). */
 	public final java.util.Set<String> members = Collections.synchronizedSet(new java.util.HashSet<>());
@@ -243,7 +261,7 @@ public final class GitHubStub implements AutoCloseable {
 			send(exchange, 202, "{}");
 		}
 		else if (method.equals("GET") && path.equals("/app/installations/" + INSTALLATION)) {
-			send(exchange, 200, "{\"id\":" + INSTALLATION + ",\"repository_selection\":\"selected\"}");
+			send(exchange, 200, "{\"id\":" + INSTALLATION + ",\"repository_selection\":\"" + this.repositorySelection + "\"}");
 		}
 		else if (method.equals("GET") && path.equals("/orgs/" + ORGANIZATION)) {
 			send(exchange, 200, "{\"login\":\"" + ORGANIZATION
@@ -320,9 +338,9 @@ public final class GitHubStub implements AutoCloseable {
 			int polls = this.forkPolls.merge(matcher.group(1), 1, Integer::sum);
 			send(exchange, polls < 2 ? 409 : 200, polls < 2 ? "{\"message\":\"Git Repository is empty.\"}" : "[{\"sha\":\"abc\"}]");
 		}
-		else if ((matcher = Pattern.compile("/repos/" + ORGANIZATION + "/[^/]+/collaborators/([^/]+)/permission").matcher(path))
+		else if ((matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)/collaborators/([^/]+)/permission").matcher(path))
 			.matches()) {
-			String permission = this.collaborators.getOrDefault(matcher.group(1), "none");
+			String permission = collaboratorsOf(matcher.group(1)).getOrDefault(matcher.group(2), "none");
 			send(exchange, 200, "{\"permission\":\"" + permission + "\",\"role_name\":\"" + permission + "\"}");
 		}
 		else if (method.equals("GET") && path.equals("/orgs/" + ORGANIZATION + "/outside_collaborators")) {
@@ -332,45 +350,81 @@ public final class GitHubStub implements AutoCloseable {
 			}
 			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(list));
 		}
+		else if (method.equals("GET") && path.equals("/orgs/" + ORGANIZATION + "/members")) {
+			boolean admins = query != null && query.contains("role=admin");
+			List<Map<String, String>> list = new ArrayList<>();
+			(admins ? this.owners : this.members).forEach(login -> list.add(Map.of("login", login)));
+			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(list));
+		}
 		else if (method.equals("GET") && (matcher = Pattern.compile("/orgs/" + ORGANIZATION + "/members/([^/]+)").matcher(path))
 			.matches()) {
 			send(exchange, this.members.contains(matcher.group(1)) ? 204 : 404, "");
 		}
-		else if ((matcher = Pattern.compile("/repos/" + ORGANIZATION + "/[^/]+/collaborators/([^/]+)").matcher(path)).matches()) {
-			String login = matcher.group(1);
+		else if (method.equals("GET") && (matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)/collaborators").matcher(path))
+			.matches()) {
+			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(collaboratorsOf(matcher.group(1)).entrySet()
+				.stream()
+				.map(collaborator -> Map.of("login", collaborator.getKey(), "role_name", collaborator.getValue()))
+				.toList()));
+		}
+		else if ((matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)/collaborators/([^/]+)").matcher(path)).matches()) {
+			Map<String, String> collaborators = collaboratorsOf(matcher.group(1));
+			Map<String, String> invitations = invitationsOf(matcher.group(1));
+			String login = matcher.group(2);
 			String permission = body.path("permission").asString("").equals("push") ? "write" : "read";
 			if (method.equals("DELETE")) {
-				this.collaborators.remove(login);
+				collaborators.remove(login);
 				send(exchange, 204, "");
 			}
-			else if (!method.equals("GET") && this.members.contains(login) && !this.collaborators.containsKey(login)) {
+			else if (!method.equals("GET") && this.members.contains(login) && !collaborators.containsKey(login)) {
 				// An organization member is added at once: 204 without an invitation.
-				this.collaborators.put(login, permission);
+				collaborators.put(login, permission);
 				send(exchange, 204, "");
 			}
 			else if (method.equals("GET")) {
-				send(exchange, this.collaborators.containsKey(login) ? 204 : 404, "");
+				send(exchange, collaborators.containsKey(login) ? 204 : 404, "");
 			}
-			else if (this.collaborators.containsKey(login)) {
-				this.collaborators.put(login, permission);
+			else if (collaborators.containsKey(login)) {
+				collaborators.put(login, permission);
 				send(exchange, 204, "");
 			}
 			else {
 				// A pending invitation keeps the permission it was sent with.
-				this.invitations.putIfAbsent(login, permission);
+				invitations.putIfAbsent(login, permission);
 				send(exchange, 201, "{\"id\":1}");
 			}
 		}
-		else if (Pattern.compile("/repos/" + ORGANIZATION + "/[^/]+/invitations").matcher(path).matches()) {
-			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(this.invitations.entrySet()
+		else if ((matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)/invitations").matcher(path)).matches()) {
+			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(invitationsOf(matcher.group(1)).entrySet()
 				.stream()
 				.map(invitation -> Map.of("invitee", Map.of("login", invitation.getKey()), "permissions", invitation.getValue()))
+				.toList()));
+		}
+		else if (method.equals("GET") && (matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)/pulls").matcher(path))
+			.matches()) {
+			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(this.pulls.getOrDefault(matcher.group(1), Map.of()).entrySet()
+				.stream()
+				.map(pull -> Map.of("number", pull.getKey(), "user", Map.of("login", pull.getValue())))
+				.toList()));
+		}
+		else if (method.equals("PATCH")
+				&& (matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)/pulls/(\\d+)").matcher(path)).matches()) {
+			this.pulls.getOrDefault(matcher.group(1), new LinkedHashMap<>()).remove(Integer.parseInt(matcher.group(2)));
+			this.closedPulls.add(matcher.group(1) + "#" + matcher.group(2));
+			send(exchange, 200, "{\"state\":\"closed\"}");
+		}
+		else if (method.equals("GET") && (matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)/events").matcher(path))
+			.matches()) {
+			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(this.eventActors.getOrDefault(matcher.group(1), List.of())
+				.stream()
+				.map(login -> Map.of("type", "PushEvent", "actor", Map.of("login", login)))
 				.toList()));
 		}
 		else if ((matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)").matcher(path)).matches()) {
 			Long id = this.repositories.get(matcher.group(1));
 			send(exchange, id == null ? 404 : 200, id == null ? "{\"message\":\"Not Found\"}"
-					: "{\"id\":" + id + ",\"name\":\"" + matcher.group(1) + "\"}");
+					: "{\"id\":" + id + ",\"name\":\"" + matcher.group(1) + "\",\"has_wiki\":false,\"has_issues\":"
+							+ this.issuesOn.contains(matcher.group(1)) + ",\"has_projects\":false,\"has_discussions\":false}");
 		}
 		else if (method.equals("GET") && (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)").matcher(path)).matches()) {
 			String metadata = this.published.get(matcher.group(1) + "/" + matcher.group(2));
@@ -385,9 +439,29 @@ public final class GitHubStub implements AutoCloseable {
 		return this.repositories.get(name);
 	}
 
-	/** The invitee accepts: a collaborator with the invitation's permission, and no invitation left. */
+	/** The invitee accepts, on every repository that invited them: a collaborator with the invitation's permission. */
 	public void accept(String login) {
-		this.collaborators.put(login, this.invitations.remove(login));
+		synchronized (this.invitations) {
+			this.invitations.forEach((repository, pending) -> {
+				String permission = pending.remove(login);
+				if (permission != null) {
+					collaboratorsOf(repository).put(login, permission);
+				}
+			});
+		}
+	}
+
+	/** A direct collaborator someone added outside vibefix. */
+	public void addCollaborator(String repository, String login, String role) {
+		collaboratorsOf(repository).put(login, role);
+	}
+
+	private Map<String, String> collaboratorsOf(String repository) {
+		return this.collaborators.computeIfAbsent(repository, name -> Collections.synchronizedMap(new LinkedHashMap<>()));
+	}
+
+	private Map<String, String> invitationsOf(String repository) {
+		return this.invitations.computeIfAbsent(repository, name -> Collections.synchronizedMap(new LinkedHashMap<>()));
 	}
 
 	private JsonNode grant(HttpExchange exchange) {

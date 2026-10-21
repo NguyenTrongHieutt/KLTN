@@ -20,13 +20,20 @@ import vn.vibefix.shared.DomainEvent;
  * {@code repositories_added}, and {@code repositories_removed}
  * @param senderId the numeric ID of the account that caused it
  * @param requesterId the numeric ID of the account that asked for an installation, when someone else approved it
+ * @param senderLogin the login of the account that caused it, compared with grants and the operator account
  */
 public record GitHubWebhookReceived(UUID eventId, String deliveryId, App app, String event, @Nullable String action,
-		@Nullable Long installationId, List<Long> repositoryIds, @Nullable Long senderId, @Nullable Long requesterId)
-		implements DomainEvent {
+		@Nullable Long installationId, List<Long> repositoryIds, @Nullable Long senderId, @Nullable Long requesterId,
+		@Nullable String senderLogin) implements DomainEvent {
 
 	public GitHubWebhookReceived {
 		repositoryIds = List.copyOf(repositoryIds);
+	}
+
+	/** An event without the sender's login. */
+	public GitHubWebhookReceived(UUID eventId, String deliveryId, App app, String event, @Nullable String action,
+			@Nullable Long installationId, List<Long> repositoryIds, @Nullable Long senderId, @Nullable Long requesterId) {
+		this(eventId, deliveryId, app, event, action, installationId, repositoryIds, senderId, requesterId, null);
 	}
 
 }

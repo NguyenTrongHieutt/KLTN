@@ -203,10 +203,12 @@ class JobSetupOperation implements OperationHandler {
 			.orElseGet(() -> repositories().fork(intermediary, name));
 		setups().workingCreated(setup, working);
 		repositories().turnFeaturesOff(working);
-		List<String> organization = repositories().organizationDifferences();
+		List<String> organization = new java.util.ArrayList<>(repositories().organizationDifferences());
+		organization.addAll(repositories().installationDifferences());
 		if (!organization.isEmpty()) {
-			log.warn("Setup {} waits: the organization differs from AD-11: {}", setup.id(), organization);
-			return new Outcome.Transient("ORGANIZATION_SETTINGS_DIFFER");
+			// AD-12: an Actions, 2FA, or repository-selection difference blocks new setups until it is fixed.
+			log.warn("Setup {} waits: the organization differs from AD-10/AD-11: {}", setup.id(), organization);
+			return new Outcome.Deferred(this.clock.instant().plus(FROZEN_WAIT));
 		}
 		repositories().createRulesets(intermediary);
 		List<String> rulesets = repositories().rulesetDifferences(intermediary);

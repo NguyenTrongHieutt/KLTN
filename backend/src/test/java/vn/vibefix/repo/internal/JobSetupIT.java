@@ -118,6 +118,12 @@ class JobSetupIT extends IntegrationTest {
 	@Autowired
 	private PushScans pushScans;
 
+	@Autowired
+	private PlatformGuard guard;
+
+	@Autowired
+	private org.springframework.transaction.PlatformTransactionManager transactions;
+
 	private UUID product;
 
 	private UUID job;
@@ -133,6 +139,7 @@ class JobSetupIT extends IntegrationTest {
 		registry.add("vibefix.github.platform-app.key-file", () -> DIRECTORY.resolve("app-key").toString());
 		registry.add("vibefix.github.fork-poll", () -> "10ms");
 		registry.add("vibefix.github.fork-wait", () -> "5s");
+		registry.add("vibefix.github.operator-login", () -> "vibefix-operator");
 	}
 
 	@AfterAll
@@ -183,6 +190,11 @@ class JobSetupIT extends IntegrationTest {
 				""").param("id", UUID.randomUUID()).param("job", this.job).param("student", this.crew).param("now", now).update();
 		GITHUB.members.clear();
 		GITHUB.withoutTwoFactor.clear();
+		GITHUB.pulls.clear();
+		GITHUB.closedPulls.clear();
+		GITHUB.eventActors.clear();
+		GITHUB.issuesOn.clear();
+		GITHUB.repositorySelection = "all";
 	}
 
 	@Test
@@ -356,6 +368,83 @@ class JobSetupIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("SELECT count(*) FROM repo.push_scan WHERE job_id = :job").param("job", this.job)
 			.query(Long.class).single()).as("unchanged heads request nothing").isOne();
 		awaitListeners();
+	}
+
+	@Test
+	void foreignPullRequestsAreClosedAndOnlyTheSystemAndGranteesActWithoutAnAlert() throws Exception {
+		AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		j6();
+		run();
+		String intermediary = JobSetups.intermediaryName(this.job);
+		String working = JobSetups.workingName(this.job);
+		long intermediaryId = GITHUB.organizationRepositoryId(intermediary);
+		long workingId = GITHUB.organizationRepositoryId(working);
+		GITHUB.pulls.put(intermediary, new java.util.LinkedHashMap<>(Map.of(1, "mallory", 2, "vibefix-dev-platform[bot]")));
+		GITHUB.pulls.put(working, new java.util.LinkedHashMap<>(Map.of(3, "outsider")));
+
+		this.guard.hinted(webhook("pull_request", intermediaryId, "mallory"));
+		this.guard.hinted(webhook("pull_request", workingId, "outsider"));
+
+		assertThat(GITHUB.closedPulls).containsExactlyInAnyOrder(intermediary + "#1", working + "#3");
+		assertThat(notices("github.unexpected_actor")).as("an outsider's pull request on the Working Repository is not alerted")
+			.isOne();
+		this.guard.hinted(webhook("push", workingId, TeamTestSupport.login(this.jdbc, this.crew)));
+		assertThat(notices("github.unexpected_actor")).as("a grantee pushes freely").isOne();
+		this.guard.hinted(webhook("push", workingId, "mallory"));
+		assertThat(notices("github.unexpected_actor")).isEqualTo(2);
+		this.guard.hinted(webhook("push", intermediaryId, "vibefix-operator"));
+		assertThat(notices("github.operator_account_used")).isOne();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE action = 'repo.foreign_pull_request_closed'")
+			.query(Long.class).single()).isOne();
+		awaitListeners();
+	}
+
+	@Test
+	void theSweepReadsThePlatformBackAndAlertsEachDriftOnceADay() throws Exception {
+		AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		j6();
+		run();
+		assertThat(sweep()).as("everything as vibefix expects").isEmpty();
+		String intermediary = JobSetups.intermediaryName(this.job);
+		GITHUB.addCollaborator(intermediary, "mallory", "write");
+		GITHUB.issuesOn.add(JobSetups.workingName(this.job));
+		GITHUB.repositorySelection = "selected";
+		GITHUB.eventActors.put(intermediary, List.of("vibefix-dev-platform[bot]", "mallory"));
+
+		List<String> differences = sweep();
+
+		assertThat(differences).anyMatch(difference -> difference.contains("collaborators [mallory] on the Intermediary"))
+			.anyMatch(difference -> difference.contains("has_issues is on"))
+			.anyMatch(difference -> difference.contains("repository selection: selected instead of all"))
+			.anyMatch(difference -> difference.contains("recent changes by [mallory]"));
+		assertThat(notices("github.platform_drift")).isOne();
+		sweep();
+		assertThat(notices("github.platform_drift")).as("once a day for the same differences").isOne();
+		awaitListeners();
+	}
+
+	@Test
+	void aRepositorySelectionDifferenceHoldsNewSetupsUntilItIsFixed() throws Exception {
+		GITHUB.repositorySelection = "selected";
+		j6();
+		run();
+
+		assertThat(this.setups.latest(this.job).orElseThrow().status()).as("waiting, not failed").isEqualTo("RUNNING");
+		assertThat(this.setups.latest(this.job).orElseThrow().intermediaryAt()).isNotNull();
+		GITHUB.repositorySelection = "all";
+		this.clock.advance(Duration.ofMinutes(16));
+		this.worker.runDue(Lane.GITHUB_LONG);
+
+		assertThat(this.setups.latest(this.job).orElseThrow().status()).isEqualTo("DONE");
+	}
+
+	private List<String> sweep() {
+		return new org.springframework.transaction.support.TransactionTemplate(this.transactions).execute(status -> this.guard.sweep());
+	}
+
+	private static vn.vibefix.github.GitHubWebhookReceived webhook(String event, long repository, String login) {
+		return new vn.vibefix.github.GitHubWebhookReceived(UUID.randomUUID(), UUID.randomUUID().toString(),
+				vn.vibefix.github.GitHubApps.App.PLATFORM, event, "opened", 7L, List.of(repository), 1L, null, login);
 	}
 
 	@Test
