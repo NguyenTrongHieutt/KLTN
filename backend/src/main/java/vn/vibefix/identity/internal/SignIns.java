@@ -67,8 +67,11 @@ class SignIns {
 
 	private final JdbcPersonSignals signals;
 
+	private final TokenRenewals renewals;
+
 	SignIns(Accounts accounts, TokenCipher cipher, AuditLog auditLog, IdGenerator ids, Clock clock, Todos todos,
-			JdbcPersonSignals signals) {
+			JdbcPersonSignals signals, TokenRenewals renewals) {
+		this.renewals = renewals;
 		this.signals = signals;
 		this.accounts = accounts;
 		this.todos = todos;
@@ -106,6 +109,7 @@ class SignIns {
 		verifiedEmails.forEach(email -> this.signals.record(account.id(), JdbcPersonSignals.Source.GITHUB_EMAIL, email));
 		if (account.role() == Role.CUSTOMER && token != null) {
 			this.accounts.storeCustomerToken(account.id(), this.cipher.seal(token, account.id().toString()), now);
+			this.renewals.renewed(account.id());
 		}
 		this.auditLog.record(AuditEntry.of(AuditActor.user(account.id()), "identity.signed_in",
 				AuditObject.of("identity.account", account.id())));

@@ -72,6 +72,14 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType SCHOOL_EMAIL_CODE = new NotificationType("identity.school_email_code",
 			Set.of(Audience.SUBJECT), Channel.EMAIL_ONLY, EmailClass.ONE_TIME_CODE, "mail", Set.of("code"));
 
+	/** The Customer's kept GitHub token is gone or refused (FR-13): they sign in again for Applications. */
+	static final NotificationType IDENTITY_SIGN_IN_AGAIN = new NotificationType("identity.sign_in_again",
+			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of());
+
+	/** The Customer signs in again so the contributor check can run (FR-13): until a new token is kept. */
+	static final TodoType IDENTITY_SIGN_IN_AGAIN_TODO = new TodoType("identity.sign_in_again", Set.of(Audience.SUBJECT), 1,
+			Set.of());
+
 	/** 14 days before a Student's verification expires (FR-5, UX-DR16): a reminder, with the last valid day. */
 	static final NotificationType VERIFICATION_EXPIRING = new NotificationType("identity.verification_expiring",
 			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.REMINDER, "info", Set.of("date"));
@@ -565,7 +573,7 @@ class NotificationTypes implements NotificationCatalog {
 
 	@Override
 	public List<NotificationType> notificationTypes() {
-		return List.of(SCHOOL_EMAIL_CODE, VERIFICATION_EXPIRING, VERIFICATION_EXPIRED, ADMIN_SIGN_IN_LOCKED,
+		return List.of(SCHOOL_EMAIL_CODE, VERIFICATION_EXPIRING, VERIFICATION_EXPIRED, IDENTITY_SIGN_IN_AGAIN, ADMIN_SIGN_IN_LOCKED,
 				ADMINISTRATOR_CREATED, ADMINISTRATOR_ENROLMENT, STUDENT_CARD_APPROVED, STUDENT_CARD_REJECTED,
 				MENTOR_APPLICATION_RECEIVED, MENTOR_APPROVED, MENTOR_REJECTED, ACCOUNT_LOCKED, VERIFICATION_REVOKED, MENTOR_APPROVAL_REVOKED, TEAM_INVITATION_RECEIVED,
 				TEAM_INVITATION_ANSWERED, TEAM_JOIN_REQUEST_RECEIVED, TEAM_JOIN_REQUEST_ANSWERED, TEAM_RELEASED,
@@ -595,7 +603,7 @@ class NotificationTypes implements NotificationCatalog {
 
 	@Override
 	public List<TodoType> todoTypes() {
-		return List.of(COMPLETE_MENTOR_APPLICATION, VERIFY_STUDENT, SCANNING_RESOLVE_INTAKE_FINDING,
+		return List.of(COMPLETE_MENTOR_APPLICATION, VERIFY_STUDENT, IDENTITY_SIGN_IN_AGAIN_TODO, SCANNING_RESOLVE_INTAKE_FINDING,
 				MATCHING_CHOOSE_ASSIGNEE, MATCHING_SIGN_NDA, MATCHING_ANSWER_INVITATION_TO_APPLY, JOB_DRAFT_AGREEMENT,
 				JOB_REVIEW_AGREEMENT, JOB_PICK_CREW, JOB_CONFIRM_CREW_TERMS, JOB_REVISE_AGREEMENT, JOB_CONFIRM_AGREEMENT_MENTOR,
 				PAYMENT_FUND_MILESTONE, WORK_REVIEW_WORK_ITEM, WORK_FIX_RETURNED_ITEM, WORK_REASSIGN_WORK_ITEMS, DELIVERY_HAND_OVER,

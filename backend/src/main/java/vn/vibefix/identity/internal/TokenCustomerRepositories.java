@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Component;
 
+import vn.vibefix.github.GitHubException;
 import vn.vibefix.github.GitHubRepositories;
 import vn.vibefix.identity.CustomerRepositories;
 import vn.vibefix.shared.ApiException;
@@ -13,7 +14,9 @@ import vn.vibefix.shared.Role;
 
 /**
  * {@link CustomerRepositories} with the Customer's kept sign-in token (AD-10, AD-13, AD-22): opened in
- * memory for the call, sealed with the account ID as associated data, never returned or logged.
+ * memory for the call, sealed with the account ID as associated data, never returned or logged. When the
+ * contributor check finds no token, or GitHub refuses it, the Customer is asked to sign in again
+ * ({@link TokenRenewals}) and the check still fails closed.
  */
 @Component
 class TokenCustomerRepositories implements CustomerRepositories {
@@ -24,7 +27,11 @@ class TokenCustomerRepositories implements CustomerRepositories {
 
 	private final GitHubRepositories repositories;
 
-	TokenCustomerRepositories(Accounts accounts, TokenCipher cipher, GitHubRepositories repositories) {
+	private final TokenRenewals renewals;
+
+	TokenCustomerRepositories(Accounts accounts, TokenCipher cipher, GitHubRepositories repositories,
+			TokenRenewals renewals) {
+		this.renewals = renewals;
 		this.accounts = accounts;
 		this.cipher = cipher;
 		this.repositories = repositories;
@@ -49,7 +56,20 @@ class TokenCustomerRepositories implements CustomerRepositories {
 		if (githubId == null) {
 			return false;
 		}
-		return this.repositories.contributorIds(token(customerId), owner, name).contains(githubId);
+		try {
+			return this.repositories.contributorIds(token(customerId), owner, name).contains(githubId);
+		}
+		catch (ApiException missing) {
+			// No kept token: only the Customer's next sign-in can bring one (author decision 2026-10-21).
+			this.renewals.ask(customerId);
+			throw missing;
+		}
+		catch (GitHubException refused) {
+			if (refused.status() == 401) {
+				this.renewals.ask(customerId);
+			}
+			throw refused;
+		}
 	}
 
 	private Account customer(UUID customerId) {
