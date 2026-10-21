@@ -12,6 +12,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -311,15 +312,23 @@ class SpikeS4Command implements ApplicationRunner, ExitCodeGenerator {
 
 	private Check readRulesets(String organization, Run run) {
 		long appId = this.apps.appId(App.PLATFORM);
-		return withToken(Set.of(run.id), Map.of("administration", "read"), token -> {
-			GitHubHttp.Answer list = this.apps.http()
-				.send("GET", "/repos/" + organization + "/" + run.name + "/rulesets", token.value(), null);
-			List<String> found = new ArrayList<>();
-			boolean ok = list.ok();
+		String path = "/repos/" + organization + "/" + run.name + "/rulesets";
+		// GitHub returns bypass_actors only to a caller with write access to the ruleset, so the
+		// read-only token records whether it sees them and a write token reads the bypass itself.
+		Listed listed = withToken(Set.of(run.id), Map.of("administration", "read"), token -> {
+			GitHubHttp.Answer list = this.apps.http().send("GET", path, token.value(), null);
+			Map<String, Boolean> bypassShown = new LinkedHashMap<>();
 			for (JsonNode summary : list.body()) {
-				GitHubHttp.Answer ruleset = this.apps.http()
-					.send("GET", "/repos/" + organization + "/" + run.name + "/rulesets/" + summary.path("id").asString(),
-							token.value(), null);
+				String id = summary.path("id").asString();
+				bypassShown.put(id, this.apps.http().send("GET", path + "/" + id, token.value(), null).body().has("bypass_actors"));
+			}
+			return new Listed(list.status(), list.ok(), bypassShown);
+		});
+		return withToken(Set.of(run.id), Map.of("administration", "write"), token -> {
+			List<String> found = new ArrayList<>();
+			boolean ok = listed.ok();
+			for (Map.Entry<String, Boolean> entry : listed.bypassShown().entrySet()) {
+				GitHubHttp.Answer ruleset = this.apps.http().send("GET", path + "/" + entry.getKey(), token.value(), null);
 				List<String> rules = new ArrayList<>();
 				for (JsonNode rule : ruleset.body().path("rules")) {
 					rules.add(rule.path("type").asString());
@@ -329,11 +338,16 @@ class SpikeS4Command implements ApplicationRunner, ExitCodeGenerator {
 					bypass |= actor.path("actor_type").asString().equals("Integration") && actor.path("actor_id").asLong() == appId;
 				}
 				ok &= ruleset.ok() && bypass && "active".equals(ruleset.body().path("enforcement").asString());
-				found.add(ruleset.body().path("name").asString() + rules + (bypass ? " bypass=app" : " bypass=missing"));
+				found.add(ruleset.body().path("name").asString() + rules + (bypass ? " bypass=app" : " bypass=missing")
+						+ (entry.getValue() ? ", shown to a read-only token" : ", hidden from a read-only token"));
 			}
 			ok &= found.size() == 2;
-			return new Check(6, "read rulesets back", ok ? Outcome.OK : Outcome.FAIL, list.status(), String.join("; ", found));
+			return new Check(6, "read rulesets back", ok ? Outcome.OK : Outcome.FAIL, listed.status(), String.join("; ", found));
 		});
+	}
+
+	/** The rulesets as a read-only token lists them, and whether it sees each one's bypass actors. */
+	private record Listed(int status, boolean ok, Map<String, Boolean> bypassShown) {
 	}
 
 	private Check appHandoverPush(String organization, Run run) throws IOException {
@@ -347,7 +361,9 @@ class SpikeS4Command implements ApplicationRunner, ExitCodeGenerator {
 	private Check fork(String organization, Run run, int number) throws InterruptedException {
 		String forkName = run.name.replaceAll("-intermediary$", "") + "-working-" + number;
 		Instant started = this.clock.instant();
-		GitHubHttp.Answer answer = withToken(Set.of(run.id), Map.of("administration", "write", "contents", "read"),
+		// GitHub forks for an App only with access to all repositories at the destination: a token
+		// narrowed by repository_ids is refused (403), so this one token is not narrowed.
+		GitHubHttp.Answer answer = withToken(Set.of(), Map.of("administration", "write", "contents", "read"),
 				token -> this.apps.http().send("POST", "/repos/" + organization + "/" + run.name + "/forks", token.value(),
 						Map.of("organization", organization, "name", forkName, "default_branch_only", true)));
 		if (answer.status() != 202) {
@@ -421,6 +437,11 @@ class SpikeS4Command implements ApplicationRunner, ExitCodeGenerator {
 				ObjectId child = commit(git, tip, true);
 				ObjectId orphan = commit(git, tip, false);
 				List<String> results = new ArrayList<>();
+				// A push to a branch no ruleset guards must go through first: otherwise a token without
+				// write access would make every refusal below look like the ruleset's.
+				boolean writes = push(git, url, memberToken, child.name() + ":refs/heads/s4-member-control", false, 7,
+						"control push", "").outcome() == Outcome.OK;
+				results.add("control push=" + (writes ? "accepted" : "REFUSED"));
 				boolean allRefused = true;
 				for (String[] attempt : new String[][] { { "direct push", child.name() + ":" + branch },
 						{ "force push", "+" + orphan.name() + ":" + branch }, { "deletion", ":" + branch },
@@ -430,8 +451,9 @@ class SpikeS4Command implements ApplicationRunner, ExitCodeGenerator {
 					results.add(attempt[0] + "=" + (refused ? "refused" : "ACCEPTED"));
 					allRefused &= refused;
 				}
-				return new Check(7, "member refused by the ruleset", allRefused ? Outcome.OK : Outcome.FAIL, 0,
-						String.join(", ", results));
+				return new Check(7, "member refused by the ruleset", writes && allRefused ? Outcome.OK : Outcome.FAIL, 0,
+						String.join(", ", results)
+								+ (writes ? "" : " (the token cannot write here, so its refusals prove nothing)"));
 			}
 		}));
 	}

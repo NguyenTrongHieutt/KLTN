@@ -13,8 +13,14 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 
 import org.eclipse.jgit.internal.storage.file.WindowCache;
+import org.eclipse.jgit.lib.CommitBuilder;
+import org.eclipse.jgit.lib.ObjectId;
+import org.eclipse.jgit.lib.ObjectInserter;
+import org.eclipse.jgit.lib.PersonIdent;
+import org.eclipse.jgit.lib.RefUpdate;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.lib.RepositoryCache;
+import org.eclipse.jgit.lib.TreeFormatter;
 import org.eclipse.jgit.storage.file.WindowCacheConfig;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -66,8 +72,10 @@ class SpikeS4CommandTest {
 		assertThat(exit).as(output + this.err.toString(StandardCharsets.UTF_8)).isZero();
 		assertThat(output).contains("organization settings", "two_factor_requirement_enabled=true",
 				"default_repository_permission=none", "repository_selection=selected", "vibefix-dev/s4-test-intermediary",
-				"workflow files=1", "s4-default-branch[deletion, non_fast_forward, update] bypass=app",
-				"s4-handover[creation, update, deletion] bypass=app", "vibefix-dev/s4-test-working-1 ready",
+				"workflow files=1",
+				"s4-default-branch[deletion, non_fast_forward, update] bypass=app, hidden from a read-only token",
+				"s4-handover[creation, update, deletion] bypass=app, hidden from a read-only token",
+				"vibefix-dev/s4-test-working-1 ready",
 				"vibefix-dev/s4-test-working-2 ready", "invitations for minhtq=1 permissions=write",
 				"Spike S4: every check passed or was skipped");
 		assertThat(output.lines().filter(line -> line.contains(" FAIL "))).isEmpty();
@@ -88,6 +96,53 @@ class SpikeS4CommandTest {
 		try (Repository repository = this.github.repository(GitHubStub.ORGANIZATION, "s4-test-intermediary")) {
 			assertThat(repository.exactRef("refs/heads/handover/s4")).isNotNull();
 		}
+	}
+
+	@Test
+	void theMemberRunCountsRefusalsOnlyAfterAControlPushIsAccepted() throws Exception {
+		assertThat(run("dev,cli", "--source=octo/quan-may", "--collaborator=minhtq", "--forks=1", "--prefix=s4-test")).isZero();
+		Path token = Files.writeString(this.directory.resolve("s4-member-token"), "github_pat_stub_member\n");
+		this.out.reset();
+
+		// The stand-in enforces no ruleset, so the control push and every guarded push go through.
+		int exit = run("dev,cli", "--intermediary=s4-test-intermediary", "--member-token-file=" + token);
+
+		String output = this.out.toString(StandardCharsets.UTF_8);
+		assertThat(exit).as(output).isOne();
+		assertThat(output).contains("control push=accepted, direct push=ACCEPTED, force push=ACCEPTED, deletion=ACCEPTED,"
+				+ " handover push=ACCEPTED");
+		assertThat(output).doesNotContain("github_pat_stub_member");
+		try (Repository repository = this.github.repository(GitHubStub.ORGANIZATION, "s4-test-intermediary")) {
+			assertThat(repository.exactRef("refs/heads/s4-member-control")).isNotNull();
+		}
+	}
+
+	@Test
+	void aRefusedControlPushMeansTheRefusalsProveNothing() throws Exception {
+		assertThat(run("dev,cli", "--source=octo/quan-may", "--collaborator=minhtq", "--forks=1", "--prefix=s4-test")).isZero();
+		try (Repository repository = this.github.repository(GitHubStub.ORGANIZATION, "s4-test-intermediary");
+				ObjectInserter inserter = repository.newObjectInserter()) {
+			// An unrelated commit already on the control branch makes the member's push a non-fast-forward.
+			CommitBuilder unrelated = new CommitBuilder();
+			unrelated.setTreeId(inserter.insert(new TreeFormatter()));
+			PersonIdent someone = new PersonIdent("Lan", "lan@example.test");
+			unrelated.setAuthor(someone);
+			unrelated.setCommitter(someone);
+			unrelated.setMessage("Unrelated");
+			ObjectId id = inserter.insert(unrelated);
+			inserter.flush();
+			RefUpdate update = repository.updateRef("refs/heads/s4-member-control");
+			update.setNewObjectId(id);
+			assertThat(update.update()).isEqualTo(RefUpdate.Result.NEW);
+		}
+		Path token = Files.writeString(this.directory.resolve("s4-member-token"), "github_pat_stub_member\n");
+		this.out.reset();
+
+		int exit = run("dev,cli", "--intermediary=s4-test-intermediary", "--member-token-file=" + token);
+
+		String output = this.out.toString(StandardCharsets.UTF_8);
+		assertThat(exit).as(output).isOne();
+		assertThat(output).contains("control push=REFUSED", "the token cannot write here, so its refusals prove nothing");
 	}
 
 	@Test
