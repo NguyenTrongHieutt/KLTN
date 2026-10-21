@@ -45,6 +45,9 @@ class JobChatIT extends IntegrationTest {
 	@Autowired
 	private SessionRepository<? extends Session> sessions;
 
+	@Autowired
+	private ChatRedaction redaction;
+
 	private UUID lan;
 
 	private UUID hung;
@@ -153,6 +156,24 @@ class JobChatIT extends IntegrationTest {
 			.andExpect(jsonPath("$.body").value(text));
 		assertThat(this.jdbc.sql("SELECT count(*) FROM chat.message WHERE sent_despite_warning").query(Long.class).single())
 			.isOne();
+	}
+
+	/** FR-66 (Story 8.1): J9 or J10 stores masked what was sent despite the warning, keeping no original. */
+	@Test
+	void aCredentialSentDespiteTheWarningIsStoredMaskedOnceTheJobEnds() throws Exception {
+		String token = fakeToken();
+		send(this.lan, Role.CUSTOMER, "Khóa thử của tôi là " + token, "SEND").andExpect(status().isCreated());
+		send(this.hung, Role.MENTOR, "Cảm ơn, đã nhận.", null).andExpect(status().isCreated());
+
+		assertThat(this.redaction.redact(this.job)).isOne();
+
+		assertThat(this.jdbc.sql("SELECT count(*) FROM chat.message WHERE body LIKE :token").param("token", "%" + token + "%")
+			.query(Long.class).single()).as("no original is kept").isZero();
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM chat.message
+				WHERE sent_despite_warning AND masked_credentials = 1 AND redacted_at IS NOT NULL AND body LIKE 'Khóa thử của tôi là %'
+				""").query(Long.class).single()).isOne();
+		assertThat(this.redaction.redact(this.job)).as("each message is checked once").isZero();
 	}
 
 	@Test

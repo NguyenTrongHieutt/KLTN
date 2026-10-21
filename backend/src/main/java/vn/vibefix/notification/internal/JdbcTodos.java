@@ -78,6 +78,19 @@ class JdbcTodos implements Todos {
 	}
 
 	@Override
+	public boolean isOpen(String key, UUID recipientAccountId, UUID subjectId) {
+		return this.jdbc.sql("""
+				SELECT EXISTS (SELECT 1 FROM notification.todo
+				WHERE todo_key = :key AND account_id = :account AND subject_id = :subject AND closed_at IS NULL)
+				""")
+			.param("key", key)
+			.param("account", recipientAccountId)
+			.param("subject", subjectId)
+			.query(Boolean.class)
+			.single();
+	}
+
+	@Override
 	@Transactional(propagation = Propagation.MANDATORY)
 	public void closeAll(String key, UUID subjectId) {
 		this.jdbc.sql("""

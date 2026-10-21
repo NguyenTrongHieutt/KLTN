@@ -172,6 +172,12 @@ enum JobReason {
 	HAS_ACCEPTED_WORK,
 
 	/** One side cancels alone only after the Agreement or Starting deadline passed (FR-40). */
-	DEADLINE_NOT_PASSED
+	DEADLINE_NOT_PASSED,
+
+	/** An External Access identifier the scanning rules read as a secret; it is an account, never a credential (FR-66). */
+	IDENTIFIER_LOOKS_LIKE_SECRET,
+
+	/** A Closed or Cancelled Job takes no more External Access identifiers (FR-66). */
+	EXTERNAL_ACCESS_CLOSED
 
 }

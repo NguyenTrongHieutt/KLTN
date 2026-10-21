@@ -50,7 +50,10 @@ import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
 import vn.vibefix.team.internal.TeamTestSupport;
 
-/** FR-16, FR-17, AD-29, AD-41 (R-1): the Customer's review, the Mentor's confirmation, and a lock after it. */
+/**
+ * FR-16, FR-17, AD-29, AD-41 (R-1): the Customer's review, the Mentor's confirmation, and a lock after it;
+ * then FR-66's External Access guidance with each person's own account (Story 8.1).
+ */
 class AgreementReviewIT extends IntegrationTest {
 
 	private static final String TOKEN = "gho_customer_token_never_printed";
@@ -236,6 +239,74 @@ class AgreementReviewIT extends IntegrationTest {
 			.andExpect(jsonPath("$.locked").value(true));
 		add(member("Phạm Hải Tùng"), crewVersion()).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("CREW_LOCKED"));
 		reconfirm(crewVersion()).andExpect(status().isConflict());
+	}
+
+	@Test
+	void afterTheConfirmationTheCustomerSeesEachPersonsOwnAccountNextToTheItemAndTicksItGranted() throws Exception {
+		confirmedCrew(this.vy, 0);
+		approve(jobVersion(), 1, true, List.of()).andExpect(status().isNoContent());
+		external(this.lan, Role.CUSTOMER).andExpect(status().isNotFound());
+		confirm(jobVersion(), crewVersion()).andExpect(status().isOk());
+		assertThat(openTodos(ExternalAccessGrants.TODO, this.lan)).as("N-8, one per item").isOne();
+
+		identifier(this.hung, Role.MENTOR, "  hungdm.work@gmail.com ").andExpect(status().isOk())
+			.andExpect(jsonPath("$.viewer").value("MENTOR"))
+			.andExpect(jsonPath("$.items[0].mine").value("hungdm.work@gmail.com"))
+			.andExpect(jsonPath("$.items[0].identifiers.length()").value(0))
+			.andExpect(jsonPath("$.items[0].granted").doesNotExist());
+		identifier(this.vy, Role.STUDENT, "vy.le.dev@gmail.com").andExpect(status().isOk());
+		// A fake key, built at run time: the field holds accounts, never credentials.
+		String key = "sk" + "_live_" + UUID.randomUUID().toString().replace("-", "").substring(0, 24);
+		identifier(this.vy, Role.STUDENT, key).andExpect(status().is(422))
+			.andExpect(jsonPath("$.reason").value("IDENTIFIER_LOOKS_LIKE_SECRET"));
+		identifier(this.vy, Role.STUDENT, "vy\\nle").andExpect(status().isBadRequest());
+		identifier(this.lan, Role.CUSTOMER, "lan@gmail.com").andExpect(status().isNotFound());
+		identifier(member("Trần Quang Minh"), Role.STUDENT, "minh@gmail.com").andExpect(status().isNotFound());
+
+		String customerView = external(this.lan, Role.CUSTOMER).andExpect(status().isOk())
+			.andExpect(jsonPath("$.viewer").value("CUSTOMER"))
+			.andExpect(jsonPath("$.open").value(true))
+			.andExpect(jsonPath("$.items[0].system").value("Supabase"))
+			.andExpect(jsonPath("$.items[0].environment").value("NON_PRODUCTION"))
+			.andExpect(jsonPath("$.items[0].live").value(false))
+			.andExpect(jsonPath("$.items[0].granted").value(false))
+			.andExpect(jsonPath("$.items[0].identifiers[0].githubLogin").value(TeamTestSupport.login(this.jdbc, this.hung)))
+			.andExpect(jsonPath("$.items[0].identifiers[0].identifier").value("hungdm.work@gmail.com"))
+			.andExpect(jsonPath("$.items[0].identifiers[1].githubLogin").value(TeamTestSupport.login(this.jdbc, this.vy)))
+			.andExpect(jsonPath("$.items[0].identifiers[1].identifier").value("vy.le.dev@gmail.com"))
+			.andReturn().getResponse().getContentAsString();
+		assertThat(customerView).doesNotContain("Lê Thảo Vy");
+		external(this.vy, Role.STUDENT).andExpect(jsonPath("$.items[0].mine").value("vy.le.dev@gmail.com"))
+			.andExpect(jsonPath("$.items[0].identifiers.length()").value(0));
+		assertThat(this.mvc.perform(get("/api/v1/jobs/" + this.job + "/agreement").with(as(this.lan, Role.CUSTOMER)))
+			.andReturn().getResponse().getContentAsString()).as("no other surface returns it").doesNotContain("hungdm.work");
+
+		granted(this.hung, Role.MENTOR).andExpect(status().isNotFound());
+		granted(this.lan, Role.CUSTOMER).andExpect(status().isOk()).andExpect(jsonPath("$.items[0].granted").value(true));
+		granted(this.lan, Role.CUSTOMER).andExpect(status().isOk());
+		assertThat(openTodos(ExternalAccessGrants.TODO, this.lan)).isZero();
+
+		this.jdbc.sql("UPDATE job.job SET state = 'CANCELLED' WHERE id = :id").param("id", this.job).update();
+		external(this.lan, Role.CUSTOMER).andExpect(jsonPath("$.open").value(false))
+			.andExpect(jsonPath("$.items[0].identifiers.length()").value(0));
+		external(this.hung, Role.MENTOR).andExpect(jsonPath("$.items[0].mine").doesNotExist());
+		identifier(this.hung, Role.MENTOR, "hung@gmail.com").andExpect(status().isConflict())
+			.andExpect(jsonPath("$.reason").value("EXTERNAL_ACCESS_CLOSED"));
+	}
+
+	private ResultActions external(UUID account, Role role) throws Exception {
+		return this.mvc.perform(get("/api/v1/jobs/" + this.job + "/external-access").with(as(account, role)));
+	}
+
+	private ResultActions identifier(UUID account, Role role, String identifier) throws Exception {
+		return this.mvc.perform(put("/api/v1/jobs/" + this.job + "/external-access/" + ACCESS + "/identifier")
+			.with(as(account, role)).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+			.content("{\"identifier\":\"" + identifier + "\"}"));
+	}
+
+	private ResultActions granted(UUID account, Role role) throws Exception {
+		return this.mvc.perform(post("/api/v1/jobs/" + this.job + "/external-access/" + ACCESS + "/granted")
+			.with(as(account, role)).with(csrf()));
 	}
 
 	/** Adds the Student, saves 20/80, and lets them sign and confirm. */

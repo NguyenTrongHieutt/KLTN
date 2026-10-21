@@ -1620,6 +1620,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/jobs/{jobId}/external-access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["view"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/jobs/{jobId}/external-access/{accessId}/granted": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["granted"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/jobs/{jobId}/external-access/{accessId}/identifier": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["identifier"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jobs/{jobId}/findings": {
         parameters: {
             query?: never;
@@ -4210,6 +4258,20 @@ export interface components {
             purpose: string;
             system: string;
         };
+        ExternalAccessItemView: {
+            /** @enum {string} */
+            accessLevel: "READ" | "WRITE" | "ADMIN";
+            /** @enum {string} */
+            environment: "NON_PRODUCTION" | "PRODUCTION";
+            granted?: boolean;
+            /** Format: uuid */
+            id: string;
+            identifiers: components["schemas"]["IdentifierView"][];
+            live: boolean;
+            mine?: string;
+            purpose: string;
+            system: string;
+        };
         ExternalAccessRequest: {
             /** @enum {string} */
             accessLevel: "READ" | "WRITE" | "ADMIN";
@@ -4219,6 +4281,12 @@ export interface components {
             id: string;
             purpose: string;
             system: string;
+        };
+        ExternalAccessView: {
+            items: components["schemas"]["ExternalAccessItemView"][];
+            open: boolean;
+            /** @enum {string} */
+            viewer: "CUSTOMER" | "MENTOR" | "CREW";
         };
         FailedExecutionView: {
             /** Format: uuid */
@@ -4554,6 +4622,13 @@ export interface components {
             paymentOrderId: string;
             simulated: boolean;
             status: string;
+        };
+        IdentifierRequest: {
+            identifier: string;
+        };
+        IdentifierView: {
+            githubLogin: string;
+            identifier: string;
         };
         InvitationsView: {
             invitations: components["schemas"]["SentInvitationView"][];
@@ -9172,6 +9247,78 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DriftView"];
+                };
+            };
+        };
+    };
+    view: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExternalAccessView"];
+                };
+            };
+        };
+    };
+    granted: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+                accessId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExternalAccessView"];
+                };
+            };
+        };
+    };
+    identifier: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+                accessId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IdentifierRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExternalAccessView"];
                 };
             };
         };

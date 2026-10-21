@@ -24,6 +24,7 @@ import { cn } from '@/lib/utils'
 import { TestTag } from '@/components/TestTag'
 import { AgreementContentView } from './AgreementContent'
 import { ChangeRequestSection } from './ChangeRequestSection'
+import { ExternalAccessSection } from './ExternalAccessSection'
 import {
   useApproveAgreement,
   useCustomerAgreement,
@@ -76,6 +77,7 @@ export function CustomerAgreement({ jobId }: { jobId: string }) {
               </p>
             </div>
             <Review key={`${agreement.data.versionNo}-${job.data.version}`} job={job.data} agreement={agreement.data} />
+            {agreement.data.confirmed && <ExternalAccessSection jobId={jobId} />}
           </div>
         )}
       </RegionState>

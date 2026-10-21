@@ -650,6 +650,10 @@ class NotificationTypes implements NotificationCatalog {
 	static final TodoType JOB_ANSWER_CHANGE_REQUEST = new TodoType("job.answer_change_request",
 			Set.of(Audience.CUSTOMER, Audience.MENTOR), 2, Set.of("job"));
 
+	/** N-8 per External Access item of the confirmed Agreement (FR-66): until the Customer ticks "Đã cấp quyền". */
+	static final TodoType JOB_GRANT_EXTERNAL_ACCESS = new TodoType("job.grant_external_access", Set.of(Audience.CUSTOMER), 3,
+			Set.of("system"));
+
 	/** The Rating Window is open (FR-49): until the person rated everyone they rate, or the window ends. */
 	static final TodoType REPUTATION_RATE = new TodoType("reputation.rate", Set.of(Audience.CUSTOMER, Audience.MENTOR), 3,
 			Set.of("party"));
@@ -714,7 +718,7 @@ class NotificationTypes implements NotificationCatalog {
 				DELIVERY_REVIEW_HANDOVER, JOB_ANSWER_CLOSURE, REPO_CONFIRM_DATA_DELETION, REPUTATION_RATE,
 				REPUTATION_GIVE_PRIVATE_FEEDBACK, REPUTATION_DRAFT_PORTFOLIO_SUMMARY, REPUTATION_APPROVE_PORTFOLIO_SUMMARY,
 				DELIVERY_DRAFT_FOLLOW_UPS, DELIVERY_APPROVE_FOLLOW_UPS, JOB_ADD_CHANGE_IMPACT, JOB_ANSWER_CHANGE_REQUEST,
-				JOB_ANSWER_CANCELLATION);
+				JOB_ANSWER_CANCELLATION, JOB_GRANT_EXTERNAL_ACCESS);
 	}
 
 }

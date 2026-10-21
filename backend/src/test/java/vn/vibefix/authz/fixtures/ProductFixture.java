@@ -133,6 +133,8 @@ public class ProductFixture implements MatrixFixture {
 		world.put("crewRowId", UUID.randomUUID());
 		world.put("milestoneId", UUID.randomUUID());
 		world.put("paymentOrderId", UUID.randomUUID());
+		// The Draft has no confirmed Agreement, so no External Access item exists to name (FR-66).
+		world.put("accessId", UUID.randomUUID());
 		this.crewJob.seed(world, this.owner, product);
 	}
 

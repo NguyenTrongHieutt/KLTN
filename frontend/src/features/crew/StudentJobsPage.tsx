@@ -18,6 +18,7 @@ import { ApiError } from '@/lib/apiClient'
 import { formatCalendarDayMonth, formatDayMonth } from '@/lib/dates'
 import { formatVnd } from '@/lib/money'
 import { problemMessage } from '@/lib/problemMessage'
+import { ExternalAccessSection } from '@/features/agreement/ExternalAccessSection'
 import { useConfirmCrewTerms, useCrewAssignments, useDeclineCrewTerms, type CrewAssignment } from './crewApi'
 
 /**
@@ -234,6 +235,7 @@ function AssignmentPanel({ assignment }: { assignment: CrewAssignment }) {
         {hasTerms && !ready ? `${t(needsNotice ? 'screen.crew.student.whyNotice' : 'screen.crew.student.why')} ` : ''}
         {assignment.status === 'ASSIGNED' ? t('screen.crew.student.declineNote') : t('screen.crew.student.changeNote')}
       </p>
+      {assignment.status === 'ASSIGNED' && <ExternalAccessSection jobId={assignment.jobId} level={3} />}
       <ConfirmDialog
         open={declining}
         title={t('screen.crew.student.declineTitle')}
@@ -278,6 +280,7 @@ function JoinedCard({ assignment }: { assignment: CrewAssignment }) {
           {t('screen.crew.student.activeShare', { share: assignment.sharePercent, n: assignment.versionNo })}
         </p>
       )}
+      <ExternalAccessSection jobId={assignment.jobId} level={3} />
       <div className="flex flex-wrap gap-2">
         {!inactive && hasBoard(assignment.jobState) && (
           <>

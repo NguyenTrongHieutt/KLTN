@@ -29,6 +29,7 @@ import { useMentorAgreement, useSaveAgreement, useShareAgreement, type Agreement
 import { digits, problemsOf, technicalOnly, type DraftAccess, type DraftMilestone, type DraftProblem } from './agreementChecks'
 import { CustomerAgreement } from './CustomerAgreement'
 import { ChangeRequestSection } from './ChangeRequestSection'
+import { ExternalAccessSection } from './ExternalAccessSection'
 import { ConfirmCard, ConfirmedView, CustomerFeedback } from './MentorReview'
 import { inOrder } from './reviewTargets'
 
@@ -94,6 +95,7 @@ function MentorAgreement({ jobId }: { jobId: string }) {
             <Editor key={draft.data.revision} jobId={jobId} draft={draft.data} />
           ))}
       </RegionState>
+      {draft.data?.confirmed && <ExternalAccessSection jobId={jobId} />}
       {draft.data?.confirmed && <ChangeRequestSection jobId={jobId} />}
       <RegionState query={crew} skeleton={<Skeleton className="h-64 w-full" />}>
         {crew.data && <CrewSection key={crew.data.crewVersion} jobId={jobId} panel={crew.data} />}
