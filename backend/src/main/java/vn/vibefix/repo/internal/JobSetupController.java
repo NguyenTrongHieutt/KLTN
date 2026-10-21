@@ -141,7 +141,11 @@ class JobSetupController {
 			}
 			return new SetupView(job.jobId(), job.state(), "NONE", pending, null, null, false, List.of());
 		}
-		List<Grant> grants = this.grants.ofJob(job.jobId());
+		// A revoked grant is nobody's access any more (Story 7.7): it neither shows nor holds the Invite step.
+		List<Grant> grants = this.grants.ofJob(job.jobId())
+			.stream()
+			.filter(grant -> !"REVOKING".equals(grant.status()) && !"REVOKED".equals(grant.status()))
+			.toList();
 		boolean active = !"STARTING".equals(job.state());
 		boolean invited = "DONE".equals(setup.status()) && !grants.isEmpty()
 				&& (active || grants.stream().allMatch(Grant::ready));

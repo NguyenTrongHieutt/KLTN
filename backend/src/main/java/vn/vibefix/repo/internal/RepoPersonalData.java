@@ -7,9 +7,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
+import vn.vibefix.files.StoredFiles;
 import vn.vibefix.shared.ErasureBlocker;
 import vn.vibefix.shared.PersonalDataParticipant;
 import vn.vibefix.shared.PersonalDataSection;
@@ -17,15 +19,23 @@ import vn.vibefix.shared.PersonalDataSection;
 /**
  * {@code repo}'s part in exports, erasure, and Product deletion (AD-24): a person exports their
  * data-deletion confirmations and their access grants; erasing them deletes those rows (the Audit Log keeps
- * when each grant was made); deleting a Product deletes its Jobs' rows and Setups.
+ * when each grant was made); deleting a Product deletes its Jobs' rows and Setups, requests the deletion of
+ * the platform repositories still there at once, without a ZIP, and deletes any final ZIP (FR-21, NFR-10).
  */
 @Component
 class RepoPersonalData implements PersonalDataParticipant {
 
 	private final JdbcClient jdbc;
 
-	RepoPersonalData(JdbcClient jdbc) {
+	/** Looked up on use: the deletion requests an operation, whose handlers come back to {@code repo}. */
+	private final ObjectProvider<RepositoryDeletions> deletions;
+
+	private final ObjectProvider<StoredFiles> files;
+
+	RepoPersonalData(JdbcClient jdbc, ObjectProvider<RepositoryDeletions> deletions, ObjectProvider<StoredFiles> files) {
 		this.jdbc = jdbc;
+		this.deletions = deletions;
+		this.files = files;
 	}
 
 	@Override
@@ -46,7 +56,8 @@ class RepoPersonalData implements PersonalDataParticipant {
 			return row;
 		}).list();
 		List<Map<String, Object>> grants = this.jdbc.sql("""
-				SELECT job_id, repository_name, github_login, status, invited_at, accepted_at, write_at FROM repo.job_grant
+				SELECT job_id, repository_name, github_login, status, invited_at, accepted_at, write_at, revoked_at
+				FROM repo.job_grant
 				WHERE account_id = :id ORDER BY created_at, id
 				""").param("id", accountId).query((rs, n) -> {
 			Map<String, Object> row = new LinkedHashMap<>();
@@ -54,7 +65,9 @@ class RepoPersonalData implements PersonalDataParticipant {
 			row.put("repository", rs.getString("repository_name"));
 			row.put("githubLogin", rs.getString("github_login"));
 			row.put("status", rs.getString("status"));
-			Map.of("invitedAt", "invited_at", "acceptedAt", "accepted_at", "writeAt", "write_at").forEach((name, column) -> {
+			Map<String, String> times = Map.of("invitedAt", "invited_at", "acceptedAt", "accepted_at", "writeAt", "write_at",
+					"revokedAt", "revoked_at");
+			times.forEach((name, column) -> {
 				try {
 					java.sql.Timestamp at = rs.getTimestamp(column);
 					if (at != null) {
@@ -88,6 +101,9 @@ class RepoPersonalData implements PersonalDataParticipant {
 
 	@Override
 	public void deleteProduct(UUID productId) {
+		RepositoryDeletions deletions = this.deletions.getObject();
+		deletions.ofProduct(productId).forEach(pending -> deletions.request(pending, null, false));
+		deletions.archivesOfProduct(productId).forEach(this.files.getObject()::delete);
 		this.jdbc.sql("DELETE FROM repo.data_deletion_confirmation WHERE product_id = :id").param("id", productId).update();
 		this.jdbc.sql("DELETE FROM repo.job_grant WHERE product_id = :id").param("id", productId).update();
 		this.jdbc.sql("DELETE FROM repo.job_setup WHERE product_id = :id").param("id", productId).update();

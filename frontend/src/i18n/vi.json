@@ -3607,6 +3607,9 @@
       },
       "event_publication_stalled": {
         "title": "{n} sự kiện hệ thống bị kẹt sau nhiều lần thử"
+      },
+      "revocation_delayed": {
+        "title": "Chưa thu hồi được quyền của @{login} ở {job} sau 15 phút"
       }
     },
     "notification": {
@@ -3943,6 +3946,9 @@
       },
       "drift_detected": {
         "title": "Dự án gốc của {job} vừa thay đổi"
+      },
+      "access_revoked": {
+        "title": "Quyền của bạn trên kho làm việc của {job} đã được thu hồi"
       }
     },
     "reputation": {

@@ -130,4 +130,13 @@ public interface PlatformRepositories {
 	/** The commits on {@code branch} after {@code baseSha}, oldest first, at most 250 (FR-20, FR-53). */
 	List<String> commitsSince(String fullName, String baseSha, String branch);
 
+	/** Removes {@code login}'s pending invitation, if any (FR-21). */
+	void removeInvitation(PlatformRepository repository, String login);
+
+	/** The ZIP of the repository's {@code branch}, built in the sandbox from tree objects (FR-21, FR-38, AD-32). */
+	byte[] zip(PlatformRepository repository, String branch);
+
+	/** Deletes the repository; a repository already gone changes nothing (FR-21). */
+	void delete(PlatformRepository repository);
+
 }

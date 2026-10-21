@@ -321,6 +321,15 @@ class NotificationTypes implements NotificationCatalog {
 			"repo.invitation_renewals_exhausted", Set.of(Audience.MENTOR, Audience.ADMIN), Channel.IN_APP_AND_EMAIL,
 			EmailClass.TRANSACTIONAL, "alert", Set.of("login", "job"));
 
+	/** A grant read back as revoked (FR-21): the Mentor or the Crew member, removed ones included. */
+	static final NotificationType REPO_ACCESS_REVOKED = new NotificationType("repo.access_revoked",
+			Set.of(Audience.MENTOR, Audience.CREW_EVER_ACTIVE), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info",
+			Set.of("job"));
+
+	/** A revocation still retrying 15 minutes after its trigger (FR-21): every Administrator. */
+	static final NotificationType OPERATIONS_REVOCATION_DELAYED = new NotificationType("operations.revocation_delayed",
+			Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("login", "job"));
+
 	/** A Code Job's Setup stopped on something the Customer can fix (FR-18): the Customer, and the Mentor to know. */
 	static final NotificationType REPO_JOB_START_BLOCKED = new NotificationType("repo.job_start_blocked",
 			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
@@ -667,6 +676,7 @@ class NotificationTypes implements NotificationCatalog {
 				NOTIFICATION_EMAIL_BUDGET_80, GITHUB_APP_CONFIGURATION_DRIFT, REPO_JOB_START_BLOCKED, JOB_JOB_STARTED,
 				REPO_GITHUB_INVITATION_SENT, REPO_TWO_FACTOR_REQUIRED, REPO_MEMBER_DRIFT, REPO_INVITATION_RENEWALS_EXHAUSTED,
 				SCANNING_PUSH_SCAN_DELAYED, REPO_DRIFT_DETECTED, GITHUB_UNEXPECTED_ACTOR, GITHUB_OPERATOR_ACCOUNT_USED, GITHUB_PLATFORM_DRIFT,
+				REPO_ACCESS_REVOKED, OPERATIONS_REVOCATION_DELAYED,
 				ADMINISTRATOR_CREATED, ADMINISTRATOR_ENROLMENT, STUDENT_CARD_APPROVED, STUDENT_CARD_REJECTED,
 				MENTOR_APPLICATION_RECEIVED, MENTOR_APPROVED, MENTOR_REJECTED, ACCOUNT_LOCKED, VERIFICATION_REVOKED, MENTOR_APPROVAL_REVOKED, TEAM_INVITATION_RECEIVED,
 				TEAM_INVITATION_ANSWERED, TEAM_JOIN_REQUEST_RECEIVED, TEAM_JOIN_REQUEST_ANSWERED, TEAM_RELEASED,

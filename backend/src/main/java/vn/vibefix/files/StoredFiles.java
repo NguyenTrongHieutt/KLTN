@@ -28,6 +28,14 @@ public interface StoredFiles {
 	 */
 	StoredFile store(PreparedFile file);
 
+	/**
+	 * Stores an archive the System built, such as a Job's final ZIP (FR-21, FR-38), in the caller's
+	 * transaction: no upload check or quota, kind {@code ARCHIVE}, owned by {@code accountId}, whom its
+	 * purpose's read policy names. A rollback deletes the bytes again.
+	 * @throws org.springframework.transaction.IllegalTransactionStateException without a transaction
+	 */
+	StoredFile storeArchive(String purpose, UUID accountId, String fileName, byte[] content);
+
 	/** The file's metadata, unless it is deleted. */
 	Optional<StoredFile> find(UUID fileId);
 

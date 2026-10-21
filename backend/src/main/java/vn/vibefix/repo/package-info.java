@@ -5,13 +5,14 @@
  * reads the rulesets back, under the Job's busy marker. It also keeps the post-Job data-deletion confirmations
  * (FR-66): after J8 or J10 the Mentor and every Crew member who was ever active confirm, item by item,
  * that they deleted the Customer's non-code data and their preview deployments; closure never waits for
- * it.
+ * it. Revocation and deletion (Story 7.7) end every grant after J8, J10, a lock, or a Crew change, and
+ * delete both repositories 30 days after the end, once the final ZIP is stored through {@code files}.
  * <p>
  * Public API: {@link vn.vibefix.repo.DataDeletions}, whether a person confirmed (FR-50), and
  * {@link vn.vibefix.repo.DataDeletionConfirmed}, the event when their confirmation completes.
  */
-@ApplicationModule(allowedDependencies = { "shared", "audit", "identity", "notification", "job", "operations", "github",
-		"product", "scanning", "timers" })
+@ApplicationModule(allowedDependencies = { "shared", "audit", "files", "identity", "notification", "job", "operations",
+		"github", "product", "scanning", "timers" })
 package vn.vibefix.repo;
 
 import org.springframework.modulith.ApplicationModule;

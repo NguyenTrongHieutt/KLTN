@@ -512,6 +512,53 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 		});
 	}
 
+	@Override
+	public void removeInvitation(PlatformRepository repository, String login) {
+		this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("administration", "write"), token -> {
+			String path = "/repos/" + repository.fullName() + "/invitations";
+			for (JsonNode invitation : require(http().send("GET", path + "?per_page=100", token.value(), null),
+					"list the invitations of " + repository.fullName())) {
+				if (invitation.path("invitee").path("login").asString("").equalsIgnoreCase(login)) {
+					GitHubHttp.Answer removed = http().send("DELETE", path + "/" + invitation.path("id").asLong(), token.value(), null);
+					if (removed.status() != 404) {
+						require(removed, "remove the invitation of " + login);
+					}
+				}
+			}
+			return null;
+		});
+	}
+
+	@Override
+	public byte[] zip(PlatformRepository repository, String branch) {
+		ObjectNode input = JsonNodeFactory.instance.objectNode();
+		input.put("repository", repository.fullName());
+		input.put("branch", branch);
+		JsonNode output;
+		try {
+			output = this.sandbox.run(RepositoryZipJobHandler.TYPE, input).output();
+		}
+		catch (SandboxJobException ex) {
+			throw new GitHubException(0, "The ZIP of " + repository.fullName() + " did not run: " + ex.getMessage());
+		}
+		if (!output.path("zip").isString()) {
+			throw new GitHubException(0, "The ZIP of " + repository.fullName() + " was refused: "
+					+ output.path("refused").asString("UNKNOWN"));
+		}
+		return java.util.Base64.getDecoder().decode(output.path("zip").asString());
+	}
+
+	@Override
+	public void delete(PlatformRepository repository) {
+		this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("administration", "write"), token -> {
+			GitHubHttp.Answer answer = http().send("DELETE", "/repos/" + repository.fullName(), token.value(), null);
+			if (answer.status() != 404) {
+				require(answer, "delete " + repository.fullName());
+			}
+			return null;
+		});
+	}
+
 	private static Set<String> logins(JsonNode users) {
 		Set<String> logins = new java.util.TreeSet<>();
 		users.forEach(user -> logins.add(user.path("login").asString("").toLowerCase(Locale.ROOT)));

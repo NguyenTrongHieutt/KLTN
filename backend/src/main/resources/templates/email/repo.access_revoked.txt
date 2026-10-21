@@ -1,0 +1,6 @@
+subject: Quyền của bạn trên kho làm việc của {job} đã được thu hồi
+---
+Xin chào,
+
+vibefix đã gỡ quyền của bạn trên kho làm việc của {job} ở GitHub, vì công việc đã kết thúc hoặc bạn không còn tham gia công việc này.
+Lời mời chưa chấp nhận, nếu có, cũng đã bị hủy.
