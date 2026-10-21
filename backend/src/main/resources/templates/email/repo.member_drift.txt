@@ -1,0 +1,6 @@
+subject: @{login} đã là thành viên tổ chức GitHub nên không mời được vào {job}
+---
+Xin chào,
+
+GitHub đã thêm @{login} vào kho làm việc của {job} ngay, không qua lời mời, vì người này là thành viên của tổ chức.
+Hãy gỡ người này khỏi tổ chức trên GitHub và ghi lại sự việc. Khi họ ra khỏi tổ chức, vibefix mời lại họ.

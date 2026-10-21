@@ -11,6 +11,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Timestamp;
 import java.time.Duration;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
@@ -32,7 +34,10 @@ import vn.vibefix.github.internal.GitHubStub;
 import vn.vibefix.github.internal.TestKeys;
 import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.CustomerTokens;
+import vn.vibefix.identity.internal.AdministratorTestSupport;
 import vn.vibefix.identity.internal.IdentityTestSupport;
+import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.timers.internal.DeadlinePoller;
 import vn.vibefix.job.JobBusy;
 import vn.vibefix.job.JobTransitioned;
 import vn.vibefix.operations.Lane;
@@ -47,8 +52,10 @@ import vn.vibefix.support.IntegrationTest;
  * The Source Repository is read again with the Customer's token and scanned again (purpose {@code J7});
  * the Intermediary Repository gets exactly the commit that scan approved, the Working Repository is its
  * fork, and AD-11's rulesets are read back before the marker clears. A Finding, a private repository,
- * or lost admin rights block the start until the Customer fixes it and taps "Thử lại". GitHub and git
- * hosting are {@link GitHubStub}; the sandbox jobs run in process.
+ * or lost admin rights block the start until the Customer fixes it and taps "Thử lại". Then (Story 7.3)
+ * the Mentor and the active Crew are invited with read; once each accepted with two-factor authentication
+ * on, Verify raises them to write, reads it back, and only then applies J7. GitHub and git hosting are
+ * {@link GitHubStub}; the sandbox jobs run in process.
  */
 class JobSetupIT extends IntegrationTest {
 
@@ -97,6 +104,17 @@ class JobSetupIT extends IntegrationTest {
 
 	private UUID mentor;
 
+	private UUID crew;
+
+	@Autowired
+	private JobGrants grants;
+
+	@Autowired
+	private GrantChecks checks;
+
+	@Autowired
+	private DeadlinePoller deadlines;
+
 	private UUID product;
 
 	private UUID job;
@@ -124,7 +142,10 @@ class JobSetupIT extends IntegrationTest {
 		this.customer = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
 		// A fake token, built at run time; the stub accepts any.
 		CustomerTokens.keep(this.context, this.customer, String.join("", "gh", "o_", "x".repeat(36)));
-		this.mentor = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, MentorApprovalStatus.APPROVED, null);
+		this.mentor = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT),
+				"React");
+		this.crew = TeamTestSupport.student(this.jdbc, "Lê Thảo Vy", true, List.of(TeamTestSupport.REACT), "React",
+				LocalDate.parse("2026-12-31"));
 		long repository = REPOSITORY_IDS.incrementAndGet();
 		String name = "so-dat-ban-" + repository;
 		this.source = "lan-dev/" + name;
@@ -153,6 +174,167 @@ class JobSetupIT extends IntegrationTest {
 			.param("id", this.job).param("product", this.product).param("owner", this.customer).param("now", now)
 			.param("lapses", Timestamp.from(this.clock.instant().plus(Duration.ofDays(14)))).param("mentor", this.mentor)
 			.param("application", UUID.randomUUID()).update();
+		this.jdbc.sql("""
+				INSERT INTO job.crew_row (id, job_id, student_account_id, status, signed_at, activated_at, created_at)
+				VALUES (:id, :job, :student, 'ACTIVE', :now, :now, :now)
+				""").param("id", UUID.randomUUID()).param("job", this.job).param("student", this.crew).param("now", now).update();
+		GITHUB.members.clear();
+		GITHUB.withoutTwoFactor.clear();
+	}
+
+	@Test
+	void everyoneAcceptsWithTwoFactorOnThenWriteIsReadBackAndOnlyThenJ7Applies() throws Exception {
+		String mentorLogin = TeamTestSupport.login(this.jdbc, this.mentor);
+		String crewLogin = TeamTestSupport.login(this.jdbc, this.crew);
+		j6();
+		run();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+
+		assertThat(this.grants.ofJob(this.job)).extracting(JobGrants.Grant::status).containsOnly("INVITED");
+		assertThat(this.grants.ofJob(this.job)).hasSize(2).allSatisfy(grant -> assertThat(grant.expiresAt())
+			.isEqualTo(this.clock.instant().plus(Duration.ofDays(7))));
+		assertThat(notices("repo.github_invitation_sent")).isEqualTo(2);
+		assertThat(this.jdbc.sql("SELECT count(*) FROM notification.todo WHERE todo_key = 'repo.accept_github_invitation'")
+			.query(Long.class).single()).isEqualTo(2);
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/setup").with(as(this.customer, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.steps[3].state").value("CURRENT"))
+			.andExpect(jsonPath("$.people[0].name").value("Đỗ Mạnh Hùng"))
+			.andExpect(jsonPath("$.people[1].name").value("@" + crewLogin))
+			.andExpect(jsonPath("$.people[1].state").value("INVITED"))
+			.andExpect(jsonPath("$.people[1].githubUrl").doesNotExist());
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/setup").with(as(this.crew, Role.STUDENT)))
+			.andExpect(jsonPath("$.people[1].name").value("Lê Thảo Vy"))
+			.andExpect(jsonPath("$.people[1].githubUrl").value(org.hamcrest.Matchers.endsWith("-working/invitations")))
+			.andExpect(jsonPath("$.people[0].githubUrl").doesNotExist());
+
+		GITHUB.accept(mentorLogin);
+		this.checks.check(this.job);
+		assertThat(this.busy.job(this.job).orElseThrow().busy()).as("Verify waits for everyone").isEmpty();
+		GITHUB.accept(crewLogin);
+		GITHUB.withoutTwoFactor.add(crewLogin.toLowerCase(java.util.Locale.ROOT));
+		this.checks.check(this.job);
+		assertThat(this.busy.job(this.job).orElseThrow().busy()).as("and for two-factor authentication").isEmpty();
+		assertThat(notices("repo.two_factor_required")).isOne();
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/setup").with(as(this.customer, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.people[1].state").value("TWO_FACTOR_MISSING"));
+
+		GITHUB.withoutTwoFactor.clear();
+		this.checks.check(this.job);
+		assertThat(this.busy.job(this.job).orElseThrow().busy()).hasValueSatisfying(
+				marker -> assertThat(marker.purpose()).isEqualTo(JobBusy.Purpose.JOB_VERIFY));
+		assertThat(this.busy.job(this.job).orElseThrow().state()).as("not Active before the read-back").isEqualTo("STARTING");
+		this.worker.runDue(Lane.GITHUB_SHORT);
+
+		assertThat(this.busy.job(this.job).orElseThrow().state()).isEqualTo("ACTIVE");
+		assertThat(this.busy.job(this.job).orElseThrow().busy()).isEmpty();
+		assertThat(this.grants.ofJob(this.job)).extracting(JobGrants.Grant::status).containsOnly("WRITE");
+		assertThat(notices("job.job_started")).as("the Customer, the Mentor, and the Crew").isEqualTo(3);
+		assertThat(this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE action = 'repo.grant_raised' AND job_id = :job")
+			.param("job", this.job).query(Long.class).single()).isEqualTo(2);
+		awaitListeners();
+	}
+
+	@Test
+	void aMemberACrewChangeAddsToAnActiveJobIsInvitedAndRaisedOnAcceptanceWithinThreeRenewals() throws Exception {
+		AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		j6();
+		run();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		GITHUB.accept(TeamTestSupport.login(this.jdbc, this.mentor));
+		GITHUB.accept(TeamTestSupport.login(this.jdbc, this.crew));
+		this.checks.check(this.job);
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		assertThat(this.busy.job(this.job).orElseThrow().state()).isEqualTo("ACTIVE");
+		UUID hai = TeamTestSupport.student(this.jdbc, "Phạm Văn Hải", true, List.of(TeamTestSupport.REACT), "React",
+				LocalDate.parse("2026-12-31"));
+		UUID row = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO job.crew_row (id, job_id, student_account_id, status, signed_at, activated_at, created_at)
+				VALUES (:id, :job, :student, 'ACTIVE', :now, :now, :now)
+				""").param("id", row).param("job", this.job).param("student", hai)
+			.param("now", Timestamp.from(this.clock.instant())).update();
+
+		this.checks.added(new vn.vibefix.job.CrewMemberAdded(UUID.randomUUID(), this.job, row, hai, "ACTIVE"));
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		JobGrants.Grant added = this.grants.ofJob(this.job).stream().filter(grant -> grant.accountId().equals(hai))
+			.findFirst().orElseThrow();
+		assertThat(added.status()).isEqualTo("INVITED");
+		assertThat(added.crewChange()).isTrue();
+
+		GITHUB.accept(TeamTestSupport.login(this.jdbc, hai));
+		long repository = added.repositoryId();
+		this.checks.hinted(new vn.vibefix.github.GitHubWebhookReceived(UUID.randomUUID(), UUID.randomUUID().toString(),
+				vn.vibefix.github.GitHubApps.App.PLATFORM, "member", "added", 7L, List.of(repository), 1L, null));
+		this.worker.runDue(Lane.GITHUB_SHORT);
+
+		assertThat(this.grants.find(added.id()).orElseThrow().status()).as("raised without a state change").isEqualTo("WRITE");
+		assertThat(this.busy.job(this.job).orElseThrow().state()).isEqualTo("ACTIVE");
+
+		UUID late = TeamTestSupport.student(this.jdbc, "Ngô Minh", true, List.of(TeamTestSupport.REACT), "React",
+				LocalDate.parse("2026-12-31"));
+		UUID lateRow = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO job.crew_row (id, job_id, student_account_id, status, signed_at, activated_at, created_at)
+				VALUES (:id, :job, :student, 'ACTIVE', :now, :now, :now)
+				""").param("id", lateRow).param("job", this.job).param("student", late)
+			.param("now", Timestamp.from(this.clock.instant())).update();
+		this.checks.added(new vn.vibefix.job.CrewMemberAdded(UUID.randomUUID(), this.job, lateRow, late, "ACTIVE"));
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		for (int renewal = 0; renewal < JobGrants.CREW_CHANGE_RENEWALS; renewal++) {
+			this.clock.advance(Duration.ofDays(7).plusMinutes(1));
+			this.deadlines.runDue();
+			this.worker.runDue(Lane.GITHUB_SHORT);
+		}
+		this.clock.advance(Duration.ofDays(7).plusMinutes(1));
+		this.deadlines.runDue();
+
+		assertThat(this.grants.ofJob(this.job).stream().filter(grant -> grant.accountId().equals(late)).findFirst()
+			.orElseThrow().renewals()).isEqualTo(JobGrants.CREW_CHANGE_RENEWALS);
+		assertThat(notices("repo.invitation_renewals_exhausted")).as("the Mentor and the Administrator").isEqualTo(2);
+		awaitListeners();
+	}
+
+	@Test
+	void anOrganizationMemberDriftsAndHoldsVerifyUntilTheyLeaveTheOrganization() throws Exception {
+		AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		String mentorLogin = TeamTestSupport.login(this.jdbc, this.mentor);
+		String crewLogin = TeamTestSupport.login(this.jdbc, this.crew);
+		GITHUB.members.add(crewLogin);
+		j6();
+		run();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+
+		assertThat(this.grants.ofJob(this.job)).extracting(JobGrants.Grant::status).containsExactly("INVITED", "MEMBER_DRIFT");
+		assertThat(notices("repo.member_drift")).isOne();
+		GITHUB.accept(mentorLogin);
+		this.checks.check(this.job);
+		assertThat(this.busy.job(this.job).orElseThrow().busy()).as("a drifted grant holds Verify").isEmpty();
+
+		GITHUB.members.remove(crewLogin);
+		this.checks.check(this.job);
+		this.worker.runDue(Lane.GITHUB_SHORT);
+
+		assertThat(this.grants.ofJob(this.job)).extracting(JobGrants.Grant::status).containsExactly("ACCEPTED", "INVITED");
+		assertThat(this.grants.ofJob(this.job).get(1).renewals()).isOne();
+		awaitListeners();
+	}
+
+	@Test
+	void anExpiredInvitationIsRenewedWithReadWhileTheJobIsStarting() throws Exception {
+		j6();
+		run();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		this.clock.advance(Duration.ofDays(7).plusMinutes(1));
+
+		this.deadlines.runDue();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+
+		assertThat(this.grants.ofJob(this.job)).allSatisfy(grant -> {
+			assertThat(grant.status()).isEqualTo("INVITED");
+			assertThat(grant.renewals()).isOne();
+		});
+		assertThat(notices("repo.github_invitation_sent")).as("each renewal is told").isEqualTo(4);
+		awaitListeners();
 	}
 
 	@Test
@@ -280,6 +462,20 @@ class JobSetupIT extends IntegrationTest {
 		this.jdbc.sql("INSERT INTO scanning.finding_resolver (finding_id, account_id) VALUES (:f, :a)")
 			.param("f", finding).param("a", this.customer).update();
 		return finding;
+	}
+
+	private long notices(String type) {
+		return this.jdbc.sql("SELECT count(*) FROM notification.notification WHERE type = :type")
+			.param("type", type)
+			.query(Long.class)
+			.single();
+	}
+
+	private void awaitListeners() {
+		org.awaitility.Awaitility.await().atMost(Duration.ofSeconds(15))
+			.until(() -> this.jdbc.sql("SELECT count(*) FROM platform.event_publication WHERE completion_date IS NULL")
+				.query(Long.class)
+				.single() == 0);
 	}
 
 	private RequestPostProcessor as(UUID account, Role role) {

@@ -5737,6 +5737,14 @@ export interface components {
             status: "ANONYMOUS" | "SIGNING_UP" | "LOCKED" | "SIGNED_IN";
             supportEmail?: string;
         };
+        SetupPersonView: {
+            /** Format: date-time */
+            expiresAt?: string;
+            githubUrl?: string;
+            name: string;
+            role: string;
+            state: string;
+        };
         SetupStepView: {
             key: string;
             state: string;
@@ -5749,6 +5757,7 @@ export interface components {
             jobState: string;
             /** Format: int32 */
             openFindings?: number;
+            people: components["schemas"]["SetupPersonView"][];
             status: string;
             steps: components["schemas"]["SetupStepView"][];
         };

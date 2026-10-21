@@ -10,8 +10,9 @@ const setup = (status: string, states: string[], extra: Record<string, unknown> 
   jobId: 'j1',
   jobState: 'STARTING',
   status,
-  steps: ['CHECK', 'INTERMEDIARY', 'WORKING'].map((key, index) => ({ key, state: states[index] })),
+  steps: ['CHECK', 'INTERMEDIARY', 'WORKING', 'INVITE', 'VERIFY'].map((key, index) => ({ key, state: states[index] ?? 'PENDING' })),
   canRetry: false,
+  people: [],
   ...extra,
 })
 
@@ -55,6 +56,38 @@ describe('JOB-H step tracker while Starting (UX-DR23, AD-11)', () => {
 
     expect(await screen.findByText('Bạn không cần làm gì.')).toBeInTheDocument()
     expect(seen.some((request) => request.method === 'POST' && request.url.endsWith('/api/v1/jobs/j1/setup/retry'))).toBe(true)
+  })
+
+  it("lists each invitee with their state and a GitHub link on the viewer's own row", async () => {
+    fakeBackend(signedIn('STUDENT'), {
+      'GET /api/v1/jobs/j1/setup': () =>
+        json(
+          setup('DONE', ['DONE', 'DONE', 'DONE', 'CURRENT', 'PENDING'], {
+            people: [
+              { role: 'MENTOR', name: 'Đỗ Mạnh Hùng', state: 'ACCEPTED' },
+              {
+                role: 'CREW',
+                name: 'Lê Thảo Vy',
+                state: 'INVITED',
+                expiresAt: '2026-10-28T03:00:00Z',
+                githubUrl: 'https://github.com/vibefix-dev/job-1-working/invitations',
+              },
+              { role: 'CREW', name: '@hai-dev', state: 'TWO_FACTOR_MISSING' },
+            ],
+          }),
+        ),
+    })
+    renderTracker()
+
+    expect(await screen.findByText('Mời người hướng dẫn và nhóm trên GitHub')).toBeInTheDocument()
+    expect(screen.getByText('· đã chấp nhận')).toBeInTheDocument()
+    expect(screen.getByText('· chờ chấp nhận lời mời · hết hạn 28/10')).toBeInTheDocument()
+    expect(screen.getByText('· cần bật xác thực hai lớp')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Mở trên GitHub/ })).toHaveAttribute(
+      'href',
+      'https://github.com/vibefix-dev/job-1-working/invitations',
+    )
+    expect(screen.getByText('Mời người hướng dẫn và nhóm trên GitHub: Đang làm')).toHaveAttribute('aria-live', 'polite')
   })
 
   it('shows the Mentor that the Customer must act, without a retry', async () => {

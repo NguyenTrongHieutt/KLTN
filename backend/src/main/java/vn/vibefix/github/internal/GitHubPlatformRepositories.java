@@ -1,13 +1,18 @@
 package vn.vibefix.github.internal;
 
+import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -42,6 +47,9 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 	static final Map<String, String> REFS = Map.of(DEFAULT_BRANCH_RULESET, "~DEFAULT_BRANCH", HANDOVER_RULESET,
 			"refs/heads/handover/**");
 
+	/** GitHub expires a repository invitation 7 days after it is sent. */
+	static final Duration INVITATION_LIFETIME = Duration.ofDays(7);
+
 	private static final Map<String, Object> FEATURES_OFF = Map.of("has_wiki", false, "has_issues", false, "has_projects",
 			false, "has_discussions", false);
 
@@ -53,12 +61,16 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 
 	private final Duration forkWait;
 
+	private final Clock clock;
+
 	GitHubPlatformRepositories(GitHubAppsClient apps, SandboxJobs sandbox,
-			@Value("${vibefix.github.fork-poll:2s}") Duration forkPoll, @Value("${vibefix.github.fork-wait:5m}") Duration forkWait) {
+			@Value("${vibefix.github.fork-poll:2s}") Duration forkPoll, @Value("${vibefix.github.fork-wait:5m}") Duration forkWait,
+			Clock clock) {
 		this.apps = apps;
 		this.sandbox = sandbox;
 		this.forkPoll = forkPoll;
 		this.forkWait = forkWait;
+		this.clock = clock;
 	}
 
 	@Override
@@ -234,6 +246,105 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 			}
 			return differences;
 		});
+	}
+
+	@Override
+	public Invited invite(PlatformRepository repository, String login) {
+		return this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("administration", "write"), token -> {
+			GitHubHttp.Answer answer = http().send("PUT", "/repos/" + repository.fullName() + "/collaborators/" + login,
+					token.value(), Map.of("permission", "pull"));
+			if (answer.status() == 204) {
+				return new Invited(null, null);
+			}
+			JsonNode body = require(answer, "invite " + login);
+			Instant created = instant(body.path("created_at").asString(""));
+			return new Invited(body.path("id").asLong(),
+					(created == null ? this.clock.instant() : created).plus(INVITATION_LIFETIME));
+		});
+	}
+
+	@Override
+	public boolean collaborator(PlatformRepository repository, String login) {
+		return this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("administration", "write"), token -> {
+			GitHubHttp.Answer answer = http().send("GET", "/repos/" + repository.fullName() + "/collaborators/" + login,
+					token.value(), null);
+			if (answer.status() == 404) {
+				return false;
+			}
+			require(answer, "read whether " + login + " is a collaborator");
+			return true;
+		});
+	}
+
+	@Override
+	public void raise(PlatformRepository repository, String login) {
+		this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("administration", "write"), token -> {
+			GitHubHttp.Answer answer = http().send("PUT", "/repos/" + repository.fullName() + "/collaborators/" + login,
+					token.value(), Map.of("permission", "push"));
+			if (answer.status() != 204) {
+				throw new GitHubException(answer.status(), "Raising " + login + " did not change a collaborator in place: HTTP "
+						+ answer.status());
+			}
+			return null;
+		});
+	}
+
+	@Override
+	public String role(PlatformRepository repository, String login) {
+		return this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("metadata", "read"), token -> {
+			GitHubHttp.Answer answer = http().send("GET",
+					"/repos/" + repository.fullName() + "/collaborators/" + login + "/permission", token.value(), null);
+			if (answer.status() == 404) {
+				return "none";
+			}
+			JsonNode body = require(answer, "read the permission of " + login);
+			return body.path("role_name").asString(body.path("permission").asString("none"));
+		});
+	}
+
+	@Override
+	public Set<String> withoutTwoFactor() {
+		return this.apps.withUnnarrowed(App.PLATFORM, Unnarrowed.ORGANIZATION_READ, token -> {
+			Set<String> logins = new HashSet<>();
+			JsonNode list = require(http().send("GET",
+					"/orgs/" + organization() + "/outside_collaborators?filter=2fa_disabled&per_page=100", token.value(), null),
+					"list collaborators without two-factor authentication");
+			list.forEach(user -> logins.add(user.path("login").asString("").toLowerCase(Locale.ROOT)));
+			return logins;
+		});
+	}
+
+	@Override
+	public boolean organizationMember(String login) {
+		return this.apps.withUnnarrowed(App.PLATFORM, Unnarrowed.ORGANIZATION_READ, token -> {
+			GitHubHttp.Answer answer = http().send("GET", "/orgs/" + organization() + "/members/" + login, token.value(), null);
+			if (answer.status() == 404) {
+				return false;
+			}
+			require(answer, "read whether " + login + " is an organization member");
+			return true;
+		});
+	}
+
+	@Override
+	public void removeCollaborator(PlatformRepository repository, String login) {
+		this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("administration", "write"), token -> {
+			GitHubHttp.Answer answer = http().send("DELETE", "/repos/" + repository.fullName() + "/collaborators/" + login,
+					token.value(), null);
+			if (answer.status() != 404) {
+				require(answer, "remove " + login);
+			}
+			return null;
+		});
+	}
+
+	private static @Nullable Instant instant(String text) {
+		try {
+			return text.isEmpty() ? null : Instant.parse(text);
+		}
+		catch (DateTimeParseException ex) {
+			return null;
+		}
 	}
 
 	private GitHubHttp http() {

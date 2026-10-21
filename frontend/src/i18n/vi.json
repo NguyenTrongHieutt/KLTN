@@ -1578,6 +1578,15 @@
         "stepCHECK": "Kiểm tra lại dự án gốc",
         "stepINTERMEDIARY": "Tạo kho trung gian",
         "stepWORKING": "Tạo kho làm việc",
+        "stepINVITE": "Mời người hướng dẫn và nhóm trên GitHub",
+        "stepVERIFY": "Cấp quyền ghi và kiểm tra",
+        "personINVITING": "đang gửi lời mời",
+        "personINVITED": "chờ chấp nhận lời mời · hết hạn {date}",
+        "personTWO_FACTOR_MISSING": "cần bật xác thực hai lớp",
+        "personACCEPTED": "đã chấp nhận",
+        "personWRITE": "đã có quyền ghi",
+        "personMEMBER_DRIFT": "đang chờ quản trị viên xử lý trên GitHub",
+        "openGitHub": "Mở trên GitHub",
         "stateDONE": "Xong",
         "stateCURRENT": "Đang làm",
         "statePENDING": "Chưa tới",
@@ -3543,7 +3552,8 @@
       "approve_follow_ups": "Xem các công việc tiếp theo cho {job}"
     },
     "repo": {
-      "confirm_data_deletion": "Xác nhận đã xóa dữ liệu và bản xem thử của {job}"
+      "confirm_data_deletion": "Xác nhận đã xóa dữ liệu và bản xem thử của {job}",
+      "accept_github_invitation": "Chấp nhận lời mời trên GitHub cho {job}"
     },
     "reputation": {
       "rate": "Chấm sao cho {party}",
@@ -3734,6 +3744,9 @@
       "milestone_funded": {
         "title": "Giai đoạn {n} của {job} đã được thanh toán (thử nghiệm). Bạn có thể bắt đầu."
       },
+      "job_started": {
+        "title": "{job} đã bắt đầu"
+      },
       "job_starting": {
         "title": "Đang chuẩn bị kho mã cho {job}"
       },
@@ -3883,6 +3896,18 @@
       },
       "job_start_blocked": {
         "title": "Chưa thể bắt đầu {job}: {reason}"
+      },
+      "github_invitation_sent": {
+        "title": "Hãy chấp nhận lời mời trên GitHub cho {job}"
+      },
+      "two_factor_required": {
+        "title": "Bật xác thực hai lớp trên GitHub để nhận quyền ghi ở {job}"
+      },
+      "member_drift": {
+        "title": "@{login} đã là thành viên tổ chức GitHub nên không mời được vào {job}"
+      },
+      "invitation_renewals_exhausted": {
+        "title": "Lời mời GitHub của @{login} ở {job} đã gia hạn 3 lần mà chưa được chấp nhận"
       }
     },
     "reputation": {

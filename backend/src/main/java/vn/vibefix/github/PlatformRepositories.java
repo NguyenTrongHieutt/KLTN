@@ -1,7 +1,11 @@
 package vn.vibefix.github;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+
+import org.jspecify.annotations.Nullable;
 
 /**
  * A Job's repositories in the platform organization (AD-11, AD-10): the Intermediary Repository, a copy
@@ -43,5 +47,43 @@ public interface PlatformRepositories {
 
 	/** How the rulesets differ from AD-11's definition, the bypass actors read with an Administration write token. */
 	List<String> rulesetDifferences(PlatformRepository intermediary);
+
+	/**
+	 * What inviting someone did (AD-11).
+	 * @param invitationId the new invitation, or none when GitHub added the person at once (HTTP 204: they
+	 * are an organization member, AD-11's {@code MEMBER_DRIFT})
+	 * @param expiresAt when GitHub expires the invitation, 7 days after it was sent
+	 */
+	record Invited(@Nullable Long invitationId, @Nullable Instant expiresAt) {
+
+		public boolean memberDrift() {
+			return this.invitationId == null;
+		}
+
+	}
+
+	/**
+	 * Invites {@code login} with read permission. A pending invitation keeps the permission it was sent
+	 * with, so the platform never raises or edits one (Spike S4).
+	 */
+	Invited invite(PlatformRepository repository, String login);
+
+	/** Whether {@code login} is a collaborator now: their invitation was accepted. */
+	boolean collaborator(PlatformRepository repository, String login);
+
+	/** Raises an accepted collaborator to write in place, with no new invitation. */
+	void raise(PlatformRepository repository, String login);
+
+	/** The collaborator's role as GitHub reads it back ({@code read}, {@code write}, and so on), or {@code none}. */
+	String role(PlatformRepository repository, String login);
+
+	/** The lower-case logins of the organization's outside collaborators without two-factor authentication. */
+	Set<String> withoutTwoFactor();
+
+	/** Whether {@code login} is a member of the organization. */
+	boolean organizationMember(String login);
+
+	/** Removes a direct collaborator, as AD-11 does once a drifted member has left the organization. */
+	void removeCollaborator(PlatformRepository repository, String login);
 
 }

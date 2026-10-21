@@ -14194,6 +14194,28 @@
         },
         "required" : [ "privacyNoticeVersion", "status" ]
       },
+      "SetupPersonView" : {
+        "type" : "object",
+        "properties" : {
+          "expiresAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "githubUrl" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "role" : {
+            "type" : "string"
+          },
+          "state" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "name", "role", "state" ]
+      },
       "SetupStepView" : {
         "type" : "object",
         "properties" : {
@@ -14226,6 +14248,12 @@
             "type" : "integer",
             "format" : "int32"
           },
+          "people" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SetupPersonView"
+            }
+          },
           "status" : {
             "type" : "string"
           },
@@ -14236,7 +14264,7 @@
             }
           }
         },
-        "required" : [ "canRetry", "jobId", "jobState", "status", "steps" ]
+        "required" : [ "canRetry", "jobId", "jobState", "people", "status", "steps" ]
       },
       "ShareRequest" : {
         "type" : "object",

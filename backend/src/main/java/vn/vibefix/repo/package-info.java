@@ -11,7 +11,7 @@
  * {@link vn.vibefix.repo.DataDeletionConfirmed}, the event when their confirmation completes.
  */
 @ApplicationModule(allowedDependencies = { "shared", "audit", "identity", "notification", "job", "operations", "github",
-		"product", "scanning" })
+		"product", "scanning", "timers" })
 package vn.vibefix.repo;
 
 import org.springframework.modulith.ApplicationModule;

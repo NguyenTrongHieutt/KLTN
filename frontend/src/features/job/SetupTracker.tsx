@@ -1,7 +1,10 @@
-import { Circle, CircleAlert, CircleCheck, CircleDot, CircleX } from 'lucide-react'
+import { Circle, CircleAlert, CircleCheck, CircleDot, CircleX, ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { t, type MessageKey } from '@/i18n/t'
+import { formatDayMonth } from '@/lib/dates'
 import { useRetrySetup, useSetup, type Setup } from './setupApi'
+
+type Person = Setup['people'][number]
 
 const ICONS = {
   DONE: CircleCheck,
@@ -21,9 +24,11 @@ const TONES: Record<string, string> = {
 
 /**
  * JOB-H's step tracker while a Code Job is Starting (UX-DR23, UX-DR25, AD-11): "Kiểm tra lại dự án gốc",
- * "Tạo kho trung gian", and "Tạo kho làm việc", each done, current, pending, blocked, or failed, read every
- * 3 s. The current step is announced politely. Nobody needs to act unless a step is blocked on the
- * Customer, who then reads what to fix and may tap "Thử lại".
+ * "Tạo kho trung gian", "Tạo kho làm việc", "Mời người hướng dẫn và nhóm trên GitHub" with a sub-row per
+ * person, and "Cấp quyền ghi và kiểm tra", each done, current, pending, blocked, or failed, read every 3 s.
+ * The current step is announced politely. The Customer sees the Mentor's name and the Crew's GitHub
+ * usernames; each invitee sees a GitHub link on their own sub-row. Nobody needs to act unless a step is
+ * blocked on them: the Customer then reads what to fix and may tap "Thử lại".
  */
 export function SetupTracker({ jobId }: { jobId: string }) {
   const setup = useSetup(jobId)
@@ -51,12 +56,13 @@ function Steps({ setup }: { setup: Setup }) {
         {setup.steps.map((step) => {
           const Icon = ICONS[step.state as keyof typeof ICONS] ?? Circle
           return (
-            <li key={step.key} className="flex items-center gap-2 text-body-sm">
+            <li key={step.key} className="flex flex-wrap items-center gap-2 text-body-sm">
               <Icon aria-hidden="true" className={`size-5 shrink-0 ${TONES[step.state] ?? ''}`} />
               <span className={step.state === 'PENDING' ? 'text-muted-foreground' : 'font-semibold'}>
                 {t(`screen.job.setup.step${step.key}` as MessageKey)}
               </span>
               <span className="text-caption text-muted-foreground">· {t(`screen.job.setup.state${step.state}` as MessageKey)}</span>
+              {step.key === 'INVITE' && setup.people.length > 0 && <People people={setup.people} />}
             </li>
           )
         })}
@@ -83,5 +89,35 @@ function Steps({ setup }: { setup: Setup }) {
         <p className="text-body-sm text-muted-foreground">{t('screen.job.setup.nothingToDo')}</p>
       )}
     </section>
+  )
+}
+
+/** UX-DR23's sub-rows: one per person, with their state and, on their own row, the GitHub link. */
+function People({ people }: { people: Person[] }) {
+  return (
+    <ul className="flex w-full flex-col gap-1 pl-7">
+      {people.map((person, index) => (
+        <li key={`${person.role}-${index}`} className="flex flex-wrap items-center gap-1.5 text-caption">
+          <span className="font-semibold break-words">{person.name}</span>
+          <span className="text-muted-foreground">
+            ·{' '}
+            {t(`screen.job.setup.person${person.state}` as MessageKey, {
+              date: person.expiresAt ? formatDayMonth(person.expiresAt) : '',
+            })}
+          </span>
+          {person.githubUrl && (
+            <a
+              href={person.githubUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline"
+            >
+              {t('screen.job.setup.openGitHub')}
+              <ExternalLink aria-hidden="true" className="size-3.5" />
+            </a>
+          )}
+        </li>
+      ))}
+    </ul>
   )
 }

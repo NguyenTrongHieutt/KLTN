@@ -27,6 +27,7 @@ import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
 import vn.vibefix.identity.StudentDirectory.StudentCard;
+import vn.vibefix.job.CrewMemberAdded;
 import vn.vibefix.job.CrewMemberRemoved;
 import vn.vibefix.job.HeldMilestones;
 import vn.vibefix.job.internal.CrewService.Row;
@@ -284,6 +285,10 @@ class CrewChanges {
 				UPDATE job.crew_row SET status = 'ACTIVE', activated_at = coalesce(activated_at, :now)
 				WHERE job_id = :job AND status = 'ASSIGNED'
 				""").param("job", jobId).param("now", Timestamp.from(now)).update();
+		parties.stream()
+			.filter(row -> "ASSIGNED".equals(row.status()))
+			.forEach(row -> this.events.publishEvent(
+					new CrewMemberAdded(this.ids.newId(), jobId, row.id(), row.studentId(), job.state().name())));
 		this.crews.bump(jobId, ownVersion);
 		this.auditLog.record(AuditEntry.of(AuditActor.system(), "job.crew_change_applied", AuditObject.of("job.job", jobId))
 			.forJob(jobId));
