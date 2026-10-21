@@ -37,9 +37,12 @@ class J10Cancel implements JobLifecycle.Step {
 
 	private final Notifications notifications;
 
+	private final CrewChanges changes;
+
 	J10Cancel(JdbcClient jdbc, CrewService crews, ContactVisibility contacts, ProductPins pins,
-			Notifications notifications) {
+			Notifications notifications, CrewChanges changes) {
 		this.jdbc = jdbc;
+		this.changes = changes;
 		this.crews = crews;
 		this.contacts = contacts;
 		this.pins = pins;
@@ -75,6 +78,7 @@ class J10Cancel implements JobLifecycle.Step {
 				Map.of("job", job.title()), "/cong-viec/" + job.id(), job.id(), null));
 		this.contacts.end(job.customerId(), Objects.requireNonNull(job.mentorId()), job.id(), applying.now());
 		this.pins.releaseForJob(job.productId(), job.id());
+		this.changes.voidWaiting(job.id());
 		this.crews.releaseForJobEnd(job.id());
 	}
 

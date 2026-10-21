@@ -1988,6 +1988,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/mentor/jobs/{jobId}/crew/change": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["changeCrew"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/mentor/jobs/{jobId}/crew/reconfirm": {
         parameters: {
             query?: never;
@@ -3740,6 +3756,7 @@ export interface components {
             yourPartVnd?: number;
         };
         CrewAssignmentView: {
+            changeWaiting: boolean;
             codeJob: boolean;
             commitEmailNoticeAcknowledged: boolean;
             /** Format: uuid */
@@ -3767,6 +3784,17 @@ export interface components {
             state: "FREE" | "IN_CREW" | "ON_CREW" | "NOT_VERIFIED";
             /** Format: uuid */
             studentId: string;
+        };
+        CrewChangeView: {
+            /** Format: int32 */
+            confirmed: number;
+            held: boolean;
+            /** Format: int32 */
+            inForceVersionNo?: number;
+            /** Format: int32 */
+            total: number;
+            /** Format: int32 */
+            waitingVersionNo?: number;
         };
         CrewChatView: {
             /** Format: uuid */
@@ -3803,6 +3831,7 @@ export interface components {
         CrewPanelView: {
             /** Format: int32 */
             capPercent: number;
+            change?: components["schemas"]["CrewChangeView"];
             /** Format: int32 */
             confirmedCount: number;
             crewConfirmed: boolean;
@@ -3850,6 +3879,7 @@ export interface components {
         CrewRowView: {
             confirmedLatest: boolean;
             githubLogin?: string;
+            leaving: boolean;
             name: string;
             /** Format: int32 */
             percent?: number;
@@ -3940,6 +3970,7 @@ export interface components {
             jobId: string;
             mine?: components["schemas"]["DataDeletionItemView"][];
             parties: components["schemas"]["DataDeletionPartyView"][];
+            removed: boolean;
         };
         DecidedDisputeView: {
             /** Format: date-time */
@@ -9587,6 +9618,32 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["CrewAddRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrewPanelView"];
+                };
+            };
+        };
+    };
+    changeCrew: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CrewTermsRequest"];
             };
         };
         responses: {

@@ -85,9 +85,22 @@ class CrewController {
 	 * One Crew row.
 	 * @param confirmedLatest the row confirmed the latest Crew Terms version
 	 * @param percent the row's share in the latest version, if a party of it
+	 * @param leaving a waiting Crew change removes the row when it takes effect (Story 11.3)
 	 */
 	record CrewRowView(UUID rowId, UUID studentId, String name, @Nullable String githubLogin, String status,
-			@Nullable Instant signedAt, boolean confirmedLatest, @Nullable Integer percent, @Nullable String releasedReason) {
+			@Nullable Instant signedAt, boolean confirmedLatest, @Nullable Integer percent, @Nullable String releasedReason,
+			boolean leaving) {
+	}
+
+	/**
+	 * "Đổi nhóm thực hiện" on a running Job (Story 11.3, FR-75), for the Mentor only.
+	 * @param held a Milestone is Held, so a change cannot be saved now
+	 * @param waitingVersionNo the change still waiting, if any
+	 * @param confirmed the parties of the waiting change who signed and confirmed it
+	 * @param total the Students the waiting change names
+	 */
+	record CrewChangeView(boolean held, @Nullable Integer waitingVersionNo, @Nullable Integer inForceVersionNo, int confirmed,
+			int total) {
 	}
 
 	record CrewMentorView(UUID accountId, String displayName, @Nullable String githubLogin, @Nullable Integer percent) {
@@ -99,15 +112,17 @@ class CrewController {
 	record CrewMilestoneView(String title, @Nullable Long priceVnd) {
 	}
 
-	/** The Mentor's Crew panel. */
 	/**
 	 * The Mentor's Crew panel.
+	 * @param confirmedCount how many of the Crew confirmed; from J6 on, the Crew in force
 	 * @param reconfirmOwed a lock after the Agreement confirmation left the Crew owing "Xác nhận lại nhóm
 	 * thực hiện" (R-1 H1)
+	 * @param change a running Job's Crew change, with large Crews on; {@code null} otherwise
 	 */
 	record CrewPanelView(long crewVersion, int capPercent, boolean largeCrews, boolean locked, boolean crewConfirmed,
 			int confirmedCount, int total, CrewMentorView mentor, List<CrewRowView> rows, @Nullable CrewTermsView latest,
-			List<CrewCandidateView> team, List<CrewMilestoneView> milestones, boolean reconfirmOwed) {
+			List<CrewCandidateView> team, List<CrewMilestoneView> milestones, boolean reconfirmOwed,
+			@Nullable CrewChangeView change) {
 	}
 
 	record CrewReconfirmRequest(@NotNull Long crewVersion) {
@@ -120,14 +135,20 @@ class CrewController {
 	 * STU-4's assignment panel: the assignment projection (AD-41), the Student's own share only.
 	 * @param jobState the Job's state, so STU-4 links to the Board once the Job is Active
 	 * @param signed the Student already signed this Job's NDA
+	 * @param sharePercent their share in the version shown: the latest one to confirm, or the one in force
+	 * @param changeWaiting an active member is a party of a waiting Crew change they have not confirmed, so
+	 * the panel shows that version to confirm (Story 11.3)
 	 */
 	record CrewAssignmentView(UUID jobId, String title, String jobState, String productName, String mentorName, String status,
 			String scope,
 			List<CrewAssignmentMilestoneView> milestones, @Nullable Integer sharePercent, int versionNo,
-			@Nullable Instant versionSentAt, boolean signed, boolean codeJob, boolean commitEmailNoticeAcknowledged) {
+			@Nullable Instant versionSentAt, boolean signed, boolean codeJob, boolean commitEmailNoticeAcknowledged,
+			boolean changeWaiting) {
 	}
 
 	private final CrewService crews;
+
+	private final CrewChanges changes;
 
 	private final Agreements agreements;
 
@@ -149,11 +170,12 @@ class CrewController {
 
 	private final boolean largeCrews;
 
-	CrewController(CrewService crews, Agreements agreements, Teams teams, MentorDirectory mentors,
+	CrewController(CrewService crews, CrewChanges changes, Agreements agreements, Teams teams, MentorDirectory mentors,
 			ProductDirectory products, Notices notices, Settings settings, MentorGate gate, CurrentCaller callers,
 			JdbcClient jdbc,
 			@Value("${vibefix.features.large-crews:false}") boolean largeCrews) {
 		this.crews = crews;
+		this.changes = changes;
 		this.agreements = agreements;
 		this.teams = teams;
 		this.mentors = mentors;
@@ -189,14 +211,29 @@ class CrewController {
 	@PutMapping("/api/v1/mentor/jobs/{jobId}/crew/terms")
 	CrewPanelView saveCrewTerms(@PathVariable UUID jobId, @Valid @RequestBody CrewTermsRequest body) {
 		UUID mentor = mentor();
+		this.crews.saveTerms(mentor, jobId, body.crewVersion(), shares(body));
+		return panel(mentorJob(mentor, jobId));
+	}
+
+	/**
+	 * "Áp dụng khi mọi người đã xác nhận" (Story 11.3, FR-75): the Crew after a change on a running Job, as
+	 * one share per party; it waits for every party's confirmation and for no Milestone to be Held.
+	 */
+	@PutMapping("/api/v1/mentor/jobs/{jobId}/crew/change")
+	CrewPanelView changeCrew(@PathVariable UUID jobId, @Valid @RequestBody CrewTermsRequest body) {
+		UUID mentor = mentor();
+		this.changes.propose(mentor, jobId, body.crewVersion(), shares(body));
+		return panel(mentorJob(mentor, jobId));
+	}
+
+	private static Map<UUID, Integer> shares(CrewTermsRequest body) {
 		Map<UUID, Integer> shares = new LinkedHashMap<>();
 		for (CrewShareRequest share : body.shares()) {
 			if (shares.put(share.accountId(), share.percent()) != null) {
 				throw new ApiException(ErrorCode.VALIDATION, JobReason.SHARES_INVALID);
 			}
 		}
-		this.crews.saveTerms(mentor, jobId, body.crewVersion(), shares);
-		return panel(mentorJob(mentor, jobId));
+		return shares;
 	}
 
 	/** "Xác nhận lại nhóm thực hiện" after a lock owed it (R-1 H1). */
@@ -227,7 +264,12 @@ class CrewController {
 			.filter(found -> found.studentId().equals(student) && !found.released())
 			.findFirst()
 			.orElseThrow();
-		Optional<TermsVersion> latest = this.crews.latest(job.id());
+		Optional<TermsVersion> waiting = this.changes.waiting(job.id());
+		boolean changeWaiting = "ACTIVE".equals(row.status())
+				&& waiting.filter(version -> version.shares().containsKey(student) && !version.confirmedRows().contains(row.id()))
+					.isPresent();
+		Optional<TermsVersion> latest = "ASSIGNED".equals(row.status()) || changeWaiting ? this.crews.latest(job.id())
+				: this.crews.inForceTerms(job.id()).or(() -> this.crews.latest(job.id()));
 		Integer percent = latest.map(version -> version.shares().get(student)).orElse(null);
 		Content content = this.agreements.draft(job).map(Agreements.Draft::content).orElse(null);
 		List<CrewAssignmentMilestoneView> milestones = new ArrayList<>();
@@ -246,7 +288,7 @@ class CrewController {
 				this.products.find(job.productId()).map(ProductInfo::name).orElse(""), mentorName, row.status(),
 				content == null ? "" : content.scope(), milestones, percent, latest.map(TermsVersion::versionNo).orElse(0),
 				latest.map(TermsVersion::createdAt).orElse(null), row.signedAt() != null, job.code(),
-				this.notices.acknowledged(student, Notices.COMMIT_EMAIL, Notices.COMMIT_EMAIL_VERSION));
+				this.notices.acknowledged(student, Notices.COMMIT_EMAIL, Notices.COMMIT_EMAIL_VERSION), changeWaiting);
 	}
 
 	private CrewPanelView panel(Job job) {
@@ -258,6 +300,8 @@ class CrewController {
 		rows.stream().map(Row::studentId).filter(id -> !everyone.contains(id)).forEach(everyone::add);
 		Map<UUID, StudentCard> cards = this.crews.cards(everyone);
 		Set<UUID> inCrew = rows.stream().filter(row -> !row.released()).map(Row::studentId).collect(Collectors.toSet());
+		boolean changeable = this.changes.changeable(job.state());
+		Optional<TermsVersion> waiting = changeable ? this.changes.waiting(job.id()) : Optional.empty();
 		Map<UUID, String> elsewhere = this.crews.runningElsewhere(job.id(), team);
 		List<CrewCandidateView> teamViews = team.stream().map(id -> {
 			StudentCard card = cards.get(id);
@@ -269,27 +313,46 @@ class CrewController {
 		List<CrewRowView> rowViews = rows.stream().map(row -> {
 			StudentCard card = cards.get(row.studentId());
 			boolean confirmed = latest.map(version -> version.confirmedRows().contains(row.id())).orElse(false);
+			boolean leaving = !row.released() && waiting.filter(version -> !version.shares().containsKey(row.studentId())).isPresent();
 			return new CrewRowView(row.id(), row.studentId(), name(card), card == null ? null : card.githubLogin(), row.status(),
 					row.signedAt(), confirmed, latest.map(version -> version.shares().get(row.studentId())).orElse(null),
-					releasedReason(row));
+					releasedReason(row), leaving);
 		}).toList();
 		MentorCard mentor = this.mentors.cards(List.of(mentorId)).stream().findFirst().orElse(null);
 		List<CrewRowView> running = rowViews.stream().filter(row -> !"RELEASED".equals(row.status())).toList();
 		int confirmedCount = (int) running.stream().filter(row -> row.signedAt() != null && row.confirmedLatest()).count();
+		int total = running.size();
+		Optional<TermsVersion> inForce = this.crews.inForceTerms(job.id());
+		if (inForce.isPresent()) {
+			// From J6 on JOB-H counts the Crew in force; a waiting change has its own line.
+			List<Row> crewInForce = rows.stream().filter(row -> !row.released() && !"ASSIGNED".equals(row.status())).toList();
+			total = crewInForce.size();
+			confirmedCount = (int) crewInForce.stream().filter(row -> inForce.get().confirmedRows().contains(row.id())).count();
+		}
+		CrewChangeView change = null;
+		if (changeable) {
+			int confirmed = waiting.map(version -> (int) rows.stream()
+				.filter(row -> !row.released() && version.shares().containsKey(row.studentId()) && row.signedAt() != null
+						&& version.confirmedRows().contains(row.id()))
+				.count()).orElse(0);
+			change = new CrewChangeView(this.changes.held(job.id()), waiting.map(TermsVersion::versionNo).orElse(null),
+					inForce.map(TermsVersion::versionNo).orElse(null), confirmed,
+					waiting.map(version -> version.shares().size() - 1).orElse(0));
+		}
 		Content content = this.agreements.draft(job).map(Agreements.Draft::content).orElse(null);
 		Boolean locked = this.jdbc.sql("""
 				SELECT agreement_version_no IS NOT NULL AND crew_reconfirm_owed_at IS NULL FROM job.job WHERE id = :id
 				""").param("id", job.id()).query(Boolean.class).single();
 		return new CrewPanelView(this.crews.crewVersion(job.id()), this.settings.value(Rule.MENTOR_SHARE_CAP_PERCENT),
 				this.largeCrews, locked || job.state() != JobState.AGREEMENT, this.crews.crewConfirmed(job.id()), confirmedCount,
-				running.size(),
+				total,
 				new CrewMentorView(mentorId, mentor == null ? "" : mentor.displayName(), mentor == null ? null : mentor.githubLogin(),
 						latest.map(version -> version.shares().get(mentorId)).orElse(null)),
 				rowViews, latest.map(version -> new CrewTermsView(version.versionNo(), version.status(), version.createdAt())).orElse(null),
 				teamViews,
 				content == null ? List.of()
 						: content.milestones().stream().map(milestone -> new CrewMilestoneView(milestone.title(), milestone.priceVnd())).toList(),
-				this.crews.reconfirmOwed(job.id()));
+				this.crews.reconfirmOwed(job.id()), change);
 	}
 
 	private @Nullable String releasedReason(Row row) {

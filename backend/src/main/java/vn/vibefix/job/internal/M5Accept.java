@@ -44,8 +44,12 @@ class M5Accept implements JobLifecycle.Step {
 
 	private final ClosureProposals closures;
 
-	M5Accept(JdbcClient jdbc, M1Fund numbers, Notifications notifications, AuditLog auditLog, ClosureProposals closures) {
+	private final CrewChanges changes;
+
+	M5Accept(JdbcClient jdbc, M1Fund numbers, Notifications notifications, AuditLog auditLog, ClosureProposals closures,
+			CrewChanges changes) {
 		this.jdbc = jdbc;
+		this.changes = changes;
 		this.numbers = numbers;
 		this.notifications = notifications;
 		this.auditLog = auditLog;
@@ -97,6 +101,8 @@ class M5Accept implements JobLifecycle.Step {
 						auto ? "tự nghiệm thu" : "nghiệm thu"),
 				"/cong-viec/" + job.id() + "/ban-giao/" + applying.input("handoverId"), job.id(), null));
 		this.closures.proposeAutomatically(job, applying.transitionId());
+		// Story 11.3, AD-41: the Milestone left Held, so a waiting Crew change may take effect now.
+		this.changes.evaluate(job.id(), false);
 	}
 
 	/** The actor is the Customer, the Job is Active, and the handover is the Milestone's current one. */

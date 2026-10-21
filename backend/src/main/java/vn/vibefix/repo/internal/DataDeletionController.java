@@ -49,9 +49,10 @@ class DataDeletionController {
 	/**
 	 * @param ended the Job is Closing, Closed, or Cancelled, so the items may be ticked
 	 * @param mine the viewer's own Checklist, when the duty is theirs
+	 * @param removed a Crew change removed the viewer from the running Job, so they may tick theirs now
 	 */
 	record DataDeletionView(UUID jobId, boolean ended, @Nullable List<DataDeletionItemView> mine,
-			List<DataDeletionPartyView> parties) {
+			List<DataDeletionPartyView> parties, boolean removed) {
 	}
 
 	private final DataDeletionConfirmations confirmations;
@@ -128,7 +129,8 @@ class DataDeletionController {
 						duty.mentor() ? mentorName : names.getOrDefault(duty.accountId(), ""), duty.complete()));
 			}
 		}
-		return new DataDeletionView(job.jobId(), DataDeletionConfirmations.ENDED.contains(job.state()), mine, parties);
+		return new DataDeletionView(job.jobId(), DataDeletionConfirmations.ENDED.contains(job.state()), mine, parties,
+				mine != null && this.confirmations.removed(job, viewer));
 	}
 
 }

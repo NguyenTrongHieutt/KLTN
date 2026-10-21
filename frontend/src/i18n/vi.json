@@ -2163,6 +2163,26 @@
         "saveAction": "lưu phần chia",
         "n20": "Khách hàng chỉ thấy tên tài khoản GitHub của nhóm thực hiện, không thấy tỷ lệ chia tiền. Mỗi sinh viên phải tự xác nhận phần của mình; sửa tỷ lệ sẽ xóa các xác nhận cũ.",
         "locked": "Nhóm thực hiện đã chốt theo thỏa thuận. Không thể thay đổi cho đến khi công việc bắt đầu.",
+        "lockedRunning": "Công việc đang chạy: nhóm chỉ thay đổi qua \"Đổi nhóm thực hiện\". Mỗi người giữ nguyên các khoản đã nhận.",
+        "captionChange": "Đổi nhóm thực hiện · phiên bản {n} đang chờ áp dụng · phiên bản {current} vẫn áp dụng đến khi đổi xong",
+        "change": "Đổi nhóm thực hiện",
+        "changeEdit": "Sửa thay đổi",
+        "changeHeld": "Đang có giai đoạn giữ tiền. Bạn đổi nhóm được khi giai đoạn đó xong.",
+        "changeWaiting": "Đang chờ áp dụng: {confirmed}/{total} đã xác nhận",
+        "changeWaitingBody": "Phiên bản {n} áp dụng khi mọi người đã xác nhận và không có giai đoạn nào đang giữ tiền. Phiên bản {current} vẫn áp dụng đến khi đổi xong. Chỉ bạn thấy thay đổi đang chờ; khách hàng thanh toán bình thường.",
+        "changeTitle": "Đổi nhóm thực hiện",
+        "changeLead": "Chọn người ở lại, thêm sinh viên từ nhóm của bạn và chia lại phần. Các khoản mỗi người đã nhận vẫn giữ nguyên.",
+        "changeNew": "Thành viên mới · chờ ký và xác nhận",
+        "changeStays": "Ở lại · xác nhận phần mới",
+        "changeLeaving": "Sẽ rời nhóm khi áp dụng",
+        "changeInactive": "Tạm ngừng · phải bỏ khỏi nhóm",
+        "changeKeep": "Giữ lại",
+        "changeKeepNamed": "Giữ {name} lại trong nhóm",
+        "changeNote": "Thay đổi chỉ áp dụng khi mọi người trong nhóm mới đã xác nhận và không có giai đoạn nào đang giữ tiền. Mỗi giai đoạn đã thanh toán vẫn chia theo phiên bản lúc thanh toán.",
+        "changeApply": "Áp dụng khi mọi người đã xác nhận",
+        "changeCancel": "Hủy",
+        "changeSaved": "Đã gửi phiên bản {n} cho nhóm xác nhận.",
+        "changeAction": "đổi nhóm",
         "member": "Thành viên",
         "share": "Phần chia",
         "status": "Trạng thái",
@@ -2207,7 +2227,8 @@
           "ACTIVE_EARLIER": "Đang tham gia",
           "INACTIVE": "Tạm ngừng",
           "RELEASED": "Đã rời",
-          "INACTIVE_OWED": "Tạm ngừng · hãy bỏ khỏi nhóm"
+          "INACTIVE_OWED": "Tạm ngừng · hãy bỏ khỏi nhóm",
+        "LEAVING": "Đang tham gia · sẽ rời khi áp dụng phiên bản {n}"
         },
         "released": {
           "DECLINED": "Đã rời · đã từ chối tham gia",
@@ -2264,6 +2285,7 @@
         "changedBody": "Người hướng dẫn đã sửa điều khoản nhóm thực hiện lên phiên bản {n}. Hãy xem lại phần của bạn rồi xác nhận lại. Xác nhận trước đó không còn hiệu lực.",
         "decline": "Từ chối",
         "confirm": "Ký và xác nhận",
+        "changeNote": "Bạn vẫn ở trong nhóm theo phiên bản đang áp dụng. Phần mới chỉ áp dụng khi cả nhóm đã xác nhận và không có giai đoạn nào đang giữ tiền.",
         "declineNote": "Từ chối sẽ đưa bạn ra khỏi nhóm thực hiện của công việc này; người hướng dẫn được báo để chọn người khác. Bạn vẫn ở trong nhóm của người hướng dẫn.",
         "why": "Đánh dấu ô xác nhận phía trên để ký.",
         "whyNotice": "Đánh dấu ô xác nhận và \"Tôi đã hiểu\" để ký. Thông báo về email commit chỉ hỏi một lần.",
@@ -3607,7 +3629,16 @@
         "title": "{student} đã từ chối tham gia {job}"
       },
       "crew_member_removed": {
-        "title": "Bạn không còn trong nhóm thực hiện {job}"
+        "title": "Bạn không còn trong nhóm thực hiện {job}. Các khoản đã nhận vẫn giữ nguyên."
+      },
+      "crew_change_proposed": {
+        "title": "Người hướng dẫn đề xuất đổi nhóm thực hiện {job}. Hãy xem phần của bạn và xác nhận."
+      },
+      "crew_changed": {
+        "title": "Nhóm thực hiện {job} đã thay đổi: {usernames}"
+      },
+      "crew_change_voided": {
+        "title": "Việc đổi nhóm thực hiện {job} đã hủy vì công việc đã kết thúc."
       },
       "crew_terms_changed": {
         "title": "Phần chia của {job} đã thay đổi. Hãy xác nhận lại."
@@ -3903,6 +3934,8 @@
       "AGREEMENT_INCOMPLETE": "bản nháp chưa đủ để gửi",
       "CREW_LOCKED": "nhóm thực hiện đã chốt theo thỏa thuận",
       "CREW_CHANGE_REQUIRED": "công việc đã bắt đầu, chỉ đổi nhóm được qua yêu cầu đổi nhóm",
+      "CREW_CHANGE_WHILE_HELD": "đang có giai đoạn giữ tiền, hãy đổi nhóm khi giai đoạn đó xong",
+      "CREW_INACTIVE_PARTY": "không giữ được thành viên đang tạm ngừng, hãy bỏ họ khỏi nhóm trong lần đổi này",
       "CREW_LIMIT": "nhóm thực hiện đã đủ số sinh viên cho phép",
       "STUDENT_NOT_VERIFIED": "sinh viên chưa xác minh",
       "STUDENT_ON_CREW": "sinh viên đang làm một công việc khác",

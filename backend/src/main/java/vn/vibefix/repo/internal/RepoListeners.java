@@ -6,6 +6,7 @@ import java.util.Map;
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
 
+import vn.vibefix.job.CrewMemberRemoved;
 import vn.vibefix.job.JobTransitioned;
 import vn.vibefix.notification.Audience;
 import vn.vibefix.notification.NotificationRequest;
@@ -50,6 +51,10 @@ class RepoListeners {
 		}
 		this.confirmations.job(event.jobId()).ifPresent(job -> {
 			for (Duty duty : this.confirmations.duties(job)) {
+				if (duty.complete()) {
+					// A member a Crew change removed may have confirmed already (Story 11.3).
+					continue;
+				}
 				Audience audience = duty.mentor() ? Audience.MENTOR : Audience.CREW_EVER_ACTIVE;
 				this.todos.open(new TodoRequest(DataDeletionConfirmations.TODO, duty.accountId(), audience, job.jobId(),
 						Map.of("job", job.title()), "/cong-viec/" + job.jobId(), null, job.jobId()));
@@ -58,6 +63,27 @@ class RepoListeners {
 						"/cong-viec/" + job.jobId(), job.jobId(), null));
 			}
 		});
+	}
+
+	/**
+	 * A Crew change removed a member from a Job that has a Board (Story 11.3, FR-66): their duty starts
+	 * now, on their read-only Board. In Starting it waits for J8 or J10, which reach every former member.
+	 */
+	@ApplicationModuleListener
+	void onCrewMemberRemoved(CrewMemberRemoved event) {
+		if (!this.processedEvents.markProcessed("repo.RepoListeners.onCrewMemberRemoved", event.eventId())) {
+			return;
+		}
+		this.confirmations.job(event.jobId())
+			.filter(job -> "ACTIVE".equals(job.state()) || "CLOSING".equals(job.state()))
+			.ifPresent(job -> {
+				String board = "/cong-viec/" + job.jobId() + "/bang";
+				this.todos.open(new TodoRequest(DataDeletionConfirmations.TODO, event.studentId(), Audience.CREW_EVER_ACTIVE,
+						job.jobId(), Map.of("job", job.title()), board, null, job.jobId()));
+				this.notifications.send(new NotificationRequest(PENDING, event.crewRowId(),
+						List.of(new Recipient(event.studentId(), Audience.CREW_EVER_ACTIVE)), Map.of("job", job.title()), board,
+						job.jobId(), null));
+			});
 	}
 
 }

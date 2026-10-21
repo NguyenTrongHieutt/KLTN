@@ -241,14 +241,20 @@ class AgreementController {
 		Job job = this.jobs.find(customer(), jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		Version shared = this.agreements.version(job.id(), version).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		int latest = this.agreements.version(job.id(), null).map(Version::versionNo).orElse(shared.versionNo());
-		List<UUID> running = this.crews.rows(job.id()).stream().filter(row -> !row.released()).map(CrewService.Row::studentId).toList();
+		// Story 11.3, AD-41: from J6 on the Customer sees the Crew in force, never a waiting change's member.
+		boolean started = this.crews.inForce(job.id()).isPresent();
+		List<UUID> running = this.crews.rows(job.id())
+			.stream()
+			.filter(row -> !row.released() && !(started && "ASSIGNED".equals(row.status())))
+			.map(CrewService.Row::studentId)
+			.toList();
 		List<String> usernames = running.stream()
 			.map(this.crews.cards(running)::get)
 			.filter(card -> card != null && card.githubLogin() != null)
 			.map(card -> card.githubLogin())
 			.toList();
 		return new AgreementVersionView(shared.versionNo(), shared.sharedAt(), shared.content(),
-				this.agreements.versions(job.id()), quote(job.id()), usernames, this.crews.crewConfirmed(job.id()), latest,
+				this.agreements.versions(job.id()), quote(job.id()), usernames, started || this.crews.crewConfirmed(job.id()), latest,
 				startedAt(job.id()), this.reviews.comments(job.id(), shared.versionNo()).stream().map(this::commentView).toList(),
 				this.reviews.openChangeRequest(job.id()).filter(request -> request.versionNo() == shared.versionNo()).isPresent(),
 				this.reviews.approval(job.id(), shared.versionNo()).map(Approval::approvedAt).orElse(null),

@@ -1,3 +1,6 @@
+/** The most Students a Crew holds with `features.largeCrews` on, as `job` enforces it. */
+export const LARGE_CREW_LIMIT = 5
+
 /**
  * The split of one Milestone amount, as `shared.CrewSplit` computes it on the server: each party gets
  * ⌊amount × percent / 100⌋, the remainder goes to the Mentor, and a zero part is left out.
