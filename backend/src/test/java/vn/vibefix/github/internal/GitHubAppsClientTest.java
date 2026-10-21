@@ -76,7 +76,7 @@ class GitHubAppsClientTest {
 
 		assertThat(registration.slug()).isEqualTo("vibefix-dev-platform");
 		assertThat(registration.permissions()).containsEntry("contents", "write").containsEntry("metadata", "read");
-		assertThat(registration.events()).containsExactlyInAnyOrder("push", "meta");
+		assertThat(registration.events()).containsExactlyInAnyOrder("push", "pull_request");
 	}
 
 	@Test

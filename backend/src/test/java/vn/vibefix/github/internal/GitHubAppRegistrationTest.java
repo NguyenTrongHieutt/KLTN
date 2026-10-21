@@ -31,8 +31,13 @@ class GitHubAppRegistrationTest {
 			"pull_requests", "write", "workflows", "write", "metadata", "read", "organization_administration", "read",
 			"members", "read");
 
+	/**
+	 * AD-10's events as {@code GET /app} lists them. GitHub leaves out the global events
+	 * ({@code installation_target}, {@code security_advisory}, {@code meta}) even when the App subscribes
+	 * to them (Spike S4, 2026-10-21), so the {@code meta} subscription is checked on the App's settings page.
+	 */
 	static final Set<String> PLATFORM_EVENTS = Set.of("push", "pull_request", "repository", "member", "membership",
-			"organization", "repository_ruleset", "meta");
+			"organization", "repository_ruleset");
 
 	/** AD-10's Merge App: one Final Merge's permissions, and no event subscriptions. */
 	static final Map<String, String> MERGE_PERMISSIONS = Map.of("contents", "write", "pull_requests", "write", "metadata",

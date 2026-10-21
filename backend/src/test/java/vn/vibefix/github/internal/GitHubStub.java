@@ -152,7 +152,7 @@ final class GitHubStub implements AutoCloseable {
 		}
 		else if (method.equals("GET") && path.equals("/app")) {
 			send(exchange, 200, "{\"slug\":\"vibefix-dev-platform\",\"permissions\":{\"contents\":\"write\",\"metadata\":\"read\"},"
-					+ "\"events\":[\"push\",\"meta\"]}");
+					+ "\"events\":[\"push\",\"pull_request\"]}");
 		}
 		else if (method.equals("GET") && path.equals("/app/installations/" + INSTALLATION)) {
 			send(exchange, 200, "{\"id\":" + INSTALLATION + ",\"repository_selection\":\"selected\"}");
