@@ -7,8 +7,9 @@ import { TestTag } from '@/components/TestTag'
 type Refund = components['schemas']['PaymentRefundView']
 
 /**
- * A refund of money that could not apply (FR-43, AD-15): "Đang hoàn" or "Đã hoàn", labelled
- * "Hoàn tiền mô phỏng" while refunds are recorded on vibefix only; with `reason`, why it was refunded.
+ * A refund (FR-43, AD-15): "Đang hoàn" or "Đã hoàn". A VNPay refund reads as a normal refund; only one
+ * recorded on vibefix by the fallback gateway is labelled "Hoàn tiền mô phỏng", with its note. With
+ * `reason`, why it was refunded.
  */
 export function RefundLine({ refund, reason = false }: { refund: Refund; reason?: boolean }) {
   const amount = formatVnd(refund.amountVnd)

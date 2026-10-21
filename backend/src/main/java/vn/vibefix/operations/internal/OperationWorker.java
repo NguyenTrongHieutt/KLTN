@@ -40,7 +40,7 @@ import vn.vibefix.shared.IdGenerator;
  * One attempt: read back first when the previous attempt was ambiguous or lost its lease; run the
  * handler; then complete, retry later (30 s doubling by default), or defer without counting the
  * attempt. After the last attempt a final read-back decides between {@code SUCCEEDED} and
- * {@code FAILED}.
+ * {@code FAILED}; a refused attempt fails at once, with no read-back.
  */
 @Component
 @EnableConfigurationProperties(OperationsProperties.class)
@@ -165,6 +165,7 @@ public class OperationWorker implements DisposableBean {
 			case Outcome.Succeeded succeeded -> complete(claimed, OperationStatus.SUCCEEDED, succeeded.result(), null);
 			case Outcome.Obsolete obsolete -> complete(claimed, OperationStatus.OBSOLETE, null, obsolete.code());
 			case Outcome.Aborted aborted -> complete(claimed, OperationStatus.ABORTED, null, aborted.code());
+			case Outcome.Refused refused -> fail(claimed, refused.code());
 			case Outcome.Deferred deferred -> this.store.defer(claimed, deferred.until());
 			case Outcome.Transient failed -> failed(handler, policy, claimed, failed.code(), false);
 			case Outcome.Ambiguous unknown -> failed(handler, policy, claimed, unknown.code(), true);

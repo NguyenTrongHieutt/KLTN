@@ -4,7 +4,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * "Hoàn tiền mô phỏng" (AD-15): the refund is recorded on vibefix only, as simulated test-mode money,
- * because the sandbox merchant's refunds are not confirmed (spike S2). It confirms at once.
+ * for the tests and as the fallback setting {@code vibefix.payment.refund-gateway=ledger}. It confirms at
+ * once.
  */
 @Component
 class LedgerRecordedRefund implements RefundGateway {
@@ -18,7 +19,7 @@ class LedgerRecordedRefund implements RefundGateway {
 
 	@Override
 	public Result refund(Refunds.Refund refund) {
-		return Result.CONFIRMED;
+		return new Result.Confirmed(null);
 	}
 
 }

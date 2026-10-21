@@ -82,7 +82,14 @@ class VnpaySandbox {
 	 * @throws IllegalStateException when the merchant is not configured
 	 */
 	PayRequest payUrl(String txnRef, long amountVnd, String orderInfo, String ipAddr, @Nullable String returnUrl) {
-		Instant now = this.clock.instant();
+		return payUrl(txnRef, amountVnd, orderInfo, ipAddr, returnUrl, this.clock.instant());
+	}
+
+	/**
+	 * The signed payment URL created at {@code now}: its {@code vnp_CreateDate} is what a refund later
+	 * names as {@code vnp_TransactionDate}, so an order passes its own creation time.
+	 */
+	PayRequest payUrl(String txnRef, long amountVnd, String orderInfo, String ipAddr, @Nullable String returnUrl, Instant now) {
 		Map<String, String> params = new TreeMap<>();
 		params.put("vnp_Version", VERSION);
 		params.put("vnp_Command", "pay");

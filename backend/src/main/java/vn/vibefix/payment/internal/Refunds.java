@@ -30,14 +30,19 @@ import vn.vibefix.shared.IdGenerator;
 
 /**
  * Refunds (FR-43, AD-15): one irrevocable refund per FUND, never more than its remaining amount, with
- * its {@code vnp_RequestId} and gateway fixed when requested. The request writes REFUND_REQUESTED and
- * asks for the {@value RefundOperation#TYPE} External Operation in the VNPay lane; the confirmation
- * writes REFUND_CONFIRMED once, however often the operation runs.
+ * its {@code vnp_RequestId} and gateway fixed when requested: {@link VnpayRefund} by default, or
+ * {@link LedgerRecordedRefund} with {@code vibefix.payment.refund-gateway=ledger}. The request writes
+ * REFUND_REQUESTED, asks for the {@value RefundOperation#TYPE} External Operation in the VNPay lane, and
+ * tells the Customer once; the confirmation writes REFUND_CONFIRMED once, however often the operation
+ * runs, and tells the Customer again only when the gateway's first answer did not confirm it.
  */
 @Component
 class Refunds {
 
 	static final String REQUESTED = "payment.refund_requested";
+
+	/** A refund recorded on vibefix only ("Hoàn tiền mô phỏng"). */
+	static final String SIMULATED_REQUESTED = "payment.simulated_refund_requested";
 
 	static final String CONFIRMED = "payment.refund_confirmed";
 
@@ -78,11 +83,13 @@ class Refunds {
 	private final String gateway;
 
 	Refunds(JdbcClient jdbc, ExternalOperations operations, Notifications notifications, MilestoneFunding funding,
-			AuditLog auditLog, IdGenerator ids, Clock clock, @Value("${vibefix.payment.refund-gateway:ledger}") String gateway) {
-		if (!"ledger".equalsIgnoreCase(gateway)) {
-			throw new IllegalStateException("vibefix.payment.refund-gateway=" + gateway
-					+ " is not available: VnpayRefund waits for spike S2 (Story 4.5), so refunds are ledger-recorded");
-		}
+			AuditLog auditLog, IdGenerator ids, Clock clock, @Value("${vibefix.payment.refund-gateway:vnpay}") String gateway) {
+		this.gateway = switch (gateway.toLowerCase(java.util.Locale.ROOT)) {
+			case "vnpay" -> VnpayRefund.KEY;
+			case "ledger" -> LedgerRecordedRefund.KEY;
+			default -> throw new IllegalStateException(
+					"vibefix.payment.refund-gateway is vnpay or ledger (AD-15), not " + gateway);
+		};
 		this.jdbc = jdbc;
 		this.operations = operations;
 		this.notifications = notifications;
@@ -90,7 +97,6 @@ class Refunds {
 		this.auditLog = auditLog;
 		this.ids = ids;
 		this.clock = clock;
-		this.gateway = LedgerRecordedRefund.KEY;
 	}
 
 	/**
@@ -145,18 +151,34 @@ class Refunds {
 		this.operations.request(new OperationRequest(RefundOperation.TYPE, id, Map.of("refundId", id.toString()), null, null, 0));
 		this.auditLog.record(AuditEntry.of(AuditActor.system(), "payment.refund_requested", AuditObject.of("payment.refund", id))
 			.forJob(order.jobId()));
-		this.notifications.send(new NotificationRequest(REQUESTED, id, List.of(new Recipient(order.customerId(), Audience.CUSTOMER)),
+		String notice = LedgerRecordedRefund.KEY.equals(this.gateway) ? SIMULATED_REQUESTED : REQUESTED;
+		this.notifications.send(new NotificationRequest(notice, id, List.of(new Recipient(order.customerId(), Audience.CUSTOMER)),
 				Map.of("amount", PaymentOrders.vnd(amount), "job", title(order.jobId())), "/thanh-toan/" + order.id(), order.jobId(),
 				null));
 		return byId(id);
 	}
 
 	/**
-	 * The gateway confirmed: REFUND_CONFIRMED once, the refund {@code CONFIRMED}, the Customer told.
+	 * Counts one gateway call for the refund.
+	 * @return the calls before this one
+	 */
+	int countCall(UUID refundId) {
+		return this.jdbc.sql("UPDATE payment.refund SET gateway_calls = gateway_calls + 1 WHERE id = :id RETURNING gateway_calls - 1")
+			.param("id", refundId)
+			.query(Integer.class)
+			.single();
+	}
+
+	/**
+	 * The gateway confirmed: REFUND_CONFIRMED once, with the refund's own gateway transaction, and the
+	 * refund {@code CONFIRMED}.
+	 * @param transactionNo the refund's {@code vnp_TransactionNo}, none for a ledger-recorded one
+	 * @param tell whether the Customer hears of it: only when the first answer did not confirm it, since
+	 * the request already told them
 	 * @return whether this call confirmed it
 	 */
 	@Transactional
-	boolean confirm(UUID refundId) {
+	boolean confirm(UUID refundId, @Nullable String transactionNo, boolean tell) {
 		Refund refund = this.jdbc.sql("SELECT " + COLUMNS + " FROM payment.refund WHERE id = :id FOR UPDATE")
 			.param("id", refundId)
 			.query(Refunds::refund)
@@ -172,23 +194,27 @@ class Refunds {
 			.update();
 		this.jdbc.sql("""
 				INSERT INTO payment.ledger_entry (id, operation_key, entry_type, bucket, job_id, product_id, milestone_id,
-				    payment_order_id, amount_vnd, refund_id, created_at)
-				SELECT :id, :key, 'REFUND_CONFIRMED', bucket, job_id, product_id, milestone_id, payment_order_id, :amount, :refund, :now
+				    payment_order_id, amount_vnd, refund_id, vnp_transaction_no, created_at)
+				SELECT :id, :key, 'REFUND_CONFIRMED', bucket, job_id, product_id, milestone_id, payment_order_id, :amount, :refund,
+				    :transaction, :now
 				FROM payment.ledger_entry WHERE id = :fund
 				""")
 			.param("id", this.ids.newId())
 			.param("key", "REFUND_CONFIRMED:" + refundId)
 			.param("amount", refund.amountVnd())
+			.param("transaction", transactionNo)
 			.param("refund", refundId)
 			.param("fund", refund.fundEntryId())
 			.param("now", Timestamp.from(now))
 			.update();
 		this.auditLog.record(AuditEntry.of(AuditActor.system(), "payment.refund_confirmed", AuditObject.of("payment.refund", refundId))
 			.forJob(refund.jobId()));
-		this.notifications.send(new NotificationRequest(CONFIRMED, refundId,
-				List.of(new Recipient(refund.customerId(), Audience.CUSTOMER)),
-				Map.of("amount", PaymentOrders.vnd(refund.amountVnd()), "job", title(refund.jobId())),
-				"/thanh-toan/" + refund.paymentOrderId(), refund.jobId(), null));
+		if (tell) {
+			this.notifications.send(new NotificationRequest(CONFIRMED, refundId,
+					List.of(new Recipient(refund.customerId(), Audience.CUSTOMER)),
+					Map.of("amount", PaymentOrders.vnd(refund.amountVnd()), "job", title(refund.jobId())),
+					"/thanh-toan/" + refund.paymentOrderId(), refund.jobId(), null));
+		}
 		return true;
 	}
 

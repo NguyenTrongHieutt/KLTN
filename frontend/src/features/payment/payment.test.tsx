@@ -182,6 +182,22 @@ describe('CUS-9: the payment result, read from the server only (AD-14)', () => {
     expect(screen.getByText(/chỉ được ghi trên vibefix/)).toBeInTheDocument()
   })
 
+  it('shows a VNPay refund as a normal refund, without the simulated label', { timeout: 15_000 }, async () => {
+    backend({
+      'GET /api/v1/payment-orders/o1': () =>
+        json({
+          ...order('UNAPPLIED'),
+          refund: { amountVnd: 2000000, status: 'CONFIRMED', simulated: false, reason: 'WRONG_AMOUNT', requestedAt: '2026-10-20T07:40:00Z', confirmedAt: '2026-10-20T07:40:02Z' },
+        }),
+    })
+    renderAt('/thanh-toan/o1')
+
+    expect(await screen.findByText('Đã hoàn 2.000.000 ₫')).toBeInTheDocument()
+    expect(screen.getByText(/Số tiền đã trả khác số tiền của giai đoạn/)).toBeInTheDocument()
+    expect(screen.queryByText(/Hoàn tiền mô phỏng/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/chỉ được ghi trên vibefix/)).not.toBeInTheDocument()
+  })
+
   it('says a failed payment moved no money', { timeout: 15_000 }, async () => {
     backend({ 'GET /api/v1/payment-orders/o1': () => json(order('FAILED')) })
     renderAt('/thanh-toan/o1')

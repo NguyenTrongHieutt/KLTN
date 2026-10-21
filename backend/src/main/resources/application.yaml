@@ -150,6 +150,9 @@ vibefix:
     vnpay:
       pay-url: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
       api-url: https://sandbox.vnpayment.vn/merchant_webapi/api/transaction
+    # AD-15 (Spike S2, 2026-10-21): refunds go through VNPay's refund call (vnpay); ledger records them
+    # on vibefix only ("Hoàn tiền mô phỏng"), for the tests and as a fallback.
+    refund-gateway: vnpay
   timers:
     # AD-7: due Deadlines are claimed every 30 s, at most this many per poll.
     poll-interval: 30s

@@ -263,14 +263,15 @@ class FundingIT extends IntegrationTest {
 		assertThat(refundReasons()).containsExactlyInAnyOrder("WRONG_AMOUNT 500000", "ORDER_CLOSED 800000", "ORDER_CLOSED 800000");
 		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'REFUND_REQUESTED' AND bucket = 'UNAPPLIED'"))
 			.isEqualTo(3);
-		assertThat(notifications("payment.refund_requested", this.lan)).isEqualTo(3);
+		assertThat(notifications("payment.simulated_refund_requested", this.lan)).as("ledger-recorded in tests").isEqualTo(3);
 		ipn(paid(txnRef(first), "14000010", 500000), null).andExpect(jsonPath("$.RspCode").value("02"));
 		assertThat(count("SELECT count(*) FROM payment.refund")).as("refunded once per vnp_TransactionNo").isEqualTo(3);
 
 		this.worker.runDue(Lane.VNPAY);
 		assertThat(count("SELECT count(*) FROM payment.refund WHERE status = 'CONFIRMED' AND gateway = 'LEDGER'")).isEqualTo(3);
 		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'REFUND_CONFIRMED'")).isEqualTo(3);
-		assertThat(notifications("payment.refund_confirmed", this.lan)).isEqualTo(3);
+		assertThat(notifications("payment.refund_confirmed", this.lan)).as("confirmed at the first answer: one notice per refund")
+			.isZero();
 		UUID refund = this.jdbc.sql("SELECT id FROM payment.refund WHERE reason = 'WRONG_AMOUNT'").query(UUID.class).single();
 		assertThat(this.refundOperation.run(new vn.vibefix.operations.OperationRun(UUID.randomUUID(), "payment.refund:" + refund,
 				RefundOperation.TYPE, 2, Map.of("refundId", refund.toString()), null))).isInstanceOf(vn.vibefix.operations.Outcome.Succeeded.class);
