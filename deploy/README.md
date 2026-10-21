@@ -198,7 +198,8 @@ author can run it, on GitHub, as an owner of `vibefix-dev`.
    again with another `--prefix`, and note whether any result changed (SG-21).
 6. **Check the registrations** (SG-20): register the dev Merge App too (Contents and Pull requests
    write, Metadata read, no events), then run the tagged suite. It fails if either App's permissions
-   or events differ from AD-10's list.
+   or events differ from AD-10's list. `GET /app` never lists the global `meta` event, even when the
+   App subscribes to it, so check the Meta box on the Platform App's "Permissions & events" page by eye.
 
    ```sh
    VIBEFIX_DEV_PLATFORM_APP_ID=<id> VIBEFIX_DEV_PLATFORM_APP_KEY_FILE=../deploy/secrets/github-platform-app-key.pem VIBEFIX_DEV_MERGE_APP_ID=<id> VIBEFIX_DEV_MERGE_APP_KEY_FILE=../deploy/secrets/github-merge-app-key.pem ./mvnw -B test -Pvibefix-dev
