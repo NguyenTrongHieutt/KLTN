@@ -4,6 +4,7 @@ import { PageHeading } from '@/app/PageHeading'
 import { t } from '@/i18n/t'
 import type { Job } from './jobApi'
 import { JobStateBadge } from './JobStateBadge'
+import { DriftWarning } from './DriftWarning'
 import { SetupTracker } from './SetupTracker'
 
 /**
@@ -44,6 +45,7 @@ export function JobHeader({
         {status}
       </div>
       {state === 'STARTING' && jobId && <SetupTracker jobId={jobId} />}
+      {(state === 'ACTIVE' || state === 'CLOSING') && jobId && <DriftWarning jobId={jobId} />}
       {children}
     </div>
   )

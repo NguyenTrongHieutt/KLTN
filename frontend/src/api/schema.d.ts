@@ -1604,6 +1604,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/jobs/{jobId}/drift": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["drift"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jobs/{jobId}/findings": {
         parameters: {
             query?: never;
@@ -1806,6 +1822,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["retry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/jobs/{jobId}/source/reconfirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["reconfirm"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4119,6 +4151,19 @@ export interface components {
             /** Format: int64 */
             releaseVnd?: number;
             stepUpCode: string;
+        };
+        DriftView: {
+            reconfirmNeeded: boolean;
+            warnings: components["schemas"]["DriftWarningView"][];
+        };
+        DriftWarningView: {
+            /** Format: int32 */
+            commits: number;
+            /** Format: date-time */
+            detectedAt: string;
+            fullName?: string;
+            kind: string;
+            reconfirmed: boolean;
         };
         EnrolmentRequest: {
             code: string;
@@ -9109,6 +9154,28 @@ export interface operations {
             };
         };
     };
+    drift: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriftView"];
+                };
+            };
+        };
+    };
     findings_1: {
         parameters: {
             query?: never;
@@ -9441,6 +9508,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SetupView"];
+                };
+            };
+        };
+    };
+    reconfirm: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriftView"];
                 };
             };
         };

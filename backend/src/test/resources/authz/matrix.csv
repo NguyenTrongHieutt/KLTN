@@ -1947,3 +1947,21 @@ POST /api/v1/jobs/{jobId}/findings/{findingId}/rotation,STUDENT,,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/findings/{findingId}/rotation,ADMINISTRATOR,,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/findings/{findingId}/rotation,JOB_MENTOR,,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/findings/{findingId}/rotation,CREW_ACTIVE,,,404 NOT_FOUND
+
+# Story 7.6 (FR-20): the Drift Warning; {jobId} is a Draft Assessment Job, so nobody reads it.
+GET /api/v1/jobs/{jobId}/drift,ANONYMOUS,,,401
+GET /api/v1/jobs/{jobId}/drift,OWNER,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/drift,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/drift,MENTOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/drift,STUDENT,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/drift,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/drift,JOB_MENTOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/drift,CREW_ACTIVE,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/source/reconfirm,ANONYMOUS,,,401
+POST /api/v1/jobs/{jobId}/source/reconfirm,OWNER,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/source/reconfirm,CUSTOMER,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/source/reconfirm,MENTOR,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/source/reconfirm,STUDENT,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/source/reconfirm,ADMINISTRATOR,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/source/reconfirm,JOB_MENTOR,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/source/reconfirm,CREW_ACTIVE,,,404 NOT_FOUND

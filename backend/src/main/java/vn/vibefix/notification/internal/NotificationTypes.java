@@ -40,6 +40,10 @@ class NotificationTypes implements NotificationCatalog {
 	static final TodoType SCANNING_RESOLVE_WORK_FINDING = new TodoType("scanning.resolve_work_finding",
 			Set.of(Audience.MENTOR, Audience.CUSTOMER), 1, Set.of("job"));
 
+	/** Re-confirm a renamed or transferred Source Repository (FR-20): the Customer. */
+	static final TodoType REPO_RECONFIRM_SOURCE = new TodoType("repo.reconfirm_source", Set.of(Audience.CUSTOMER), 2,
+			Set.of("job"));
+
 	/** Accept the Working Repository's invitation on GitHub (AD-11), due at its expiry. */
 	static final TodoType REPO_ACCEPT_GITHUB_INVITATION = new TodoType("repo.accept_github_invitation",
 			Set.of(Audience.MENTOR, Audience.CREW_ACTIVE), 2, Set.of("job"));
@@ -189,6 +193,11 @@ class NotificationTypes implements NotificationCatalog {
 	/** The sweep found the platform organization unlike what vibefix expects (AD-12): every Administrator, daily. */
 	static final NotificationType GITHUB_PLATFORM_DRIFT = new NotificationType("github.platform_drift", Set.of(Audience.ADMIN),
 			Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("differences"));
+
+	/** The Source Repository changed during the Job (FR-20): the Customer and the Mentor, once per change. */
+	static final NotificationType REPO_DRIFT_DETECTED = new NotificationType("repo.drift_detected",
+			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
+			Set.of("job"));
 
 	/** A push scan waited more than 10 minutes (FR-8, the 15-minute target): every Administrator. */
 	static final NotificationType SCANNING_PUSH_SCAN_DELAYED = new NotificationType("scanning.push_scan_delayed",
@@ -657,7 +666,7 @@ class NotificationTypes implements NotificationCatalog {
 				OPERATIONS_OPERATION_FAILED, OPERATIONS_EMAIL_OPERATION_FAILED, OPERATIONS_EVENT_PUBLICATION_STALLED,
 				NOTIFICATION_EMAIL_BUDGET_80, GITHUB_APP_CONFIGURATION_DRIFT, REPO_JOB_START_BLOCKED, JOB_JOB_STARTED,
 				REPO_GITHUB_INVITATION_SENT, REPO_TWO_FACTOR_REQUIRED, REPO_MEMBER_DRIFT, REPO_INVITATION_RENEWALS_EXHAUSTED,
-				SCANNING_PUSH_SCAN_DELAYED, GITHUB_UNEXPECTED_ACTOR, GITHUB_OPERATOR_ACCOUNT_USED, GITHUB_PLATFORM_DRIFT,
+				SCANNING_PUSH_SCAN_DELAYED, REPO_DRIFT_DETECTED, GITHUB_UNEXPECTED_ACTOR, GITHUB_OPERATOR_ACCOUNT_USED, GITHUB_PLATFORM_DRIFT,
 				ADMINISTRATOR_CREATED, ADMINISTRATOR_ENROLMENT, STUDENT_CARD_APPROVED, STUDENT_CARD_REJECTED,
 				MENTOR_APPLICATION_RECEIVED, MENTOR_APPROVED, MENTOR_REJECTED, ACCOUNT_LOCKED, VERIFICATION_REVOKED, MENTOR_APPROVAL_REVOKED, TEAM_INVITATION_RECEIVED,
 				TEAM_INVITATION_ANSWERED, TEAM_JOIN_REQUEST_RECEIVED, TEAM_JOIN_REQUEST_ANSWERED, TEAM_RELEASED,
@@ -688,7 +697,7 @@ class NotificationTypes implements NotificationCatalog {
 	@Override
 	public List<TodoType> todoTypes() {
 		return List.of(COMPLETE_MENTOR_APPLICATION, VERIFY_STUDENT, IDENTITY_SIGN_IN_AGAIN_TODO, SCANNING_RESOLVE_INTAKE_FINDING,
-				REPO_ACCEPT_GITHUB_INVITATION, SCANNING_RESOLVE_WORK_FINDING,
+				REPO_ACCEPT_GITHUB_INVITATION, SCANNING_RESOLVE_WORK_FINDING, REPO_RECONFIRM_SOURCE,
 				MATCHING_CHOOSE_ASSIGNEE, MATCHING_SIGN_NDA, MATCHING_ANSWER_INVITATION_TO_APPLY, JOB_DRAFT_AGREEMENT,
 				JOB_REVIEW_AGREEMENT, JOB_PICK_CREW, JOB_CONFIRM_CREW_TERMS, JOB_REVISE_AGREEMENT, JOB_CONFIRM_AGREEMENT_MENTOR,
 				PAYMENT_FUND_MILESTONE, WORK_REVIEW_WORK_ITEM, WORK_FIX_RETURNED_ITEM, WORK_REASSIGN_WORK_ITEMS, DELIVERY_HAND_OVER,

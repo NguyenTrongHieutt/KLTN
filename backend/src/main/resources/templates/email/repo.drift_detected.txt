@@ -1,0 +1,7 @@
+subject: Dự án gốc của {job} vừa thay đổi
+---
+Xin chào,
+
+Dự án gốc của {job} vừa thay đổi trong lúc nhóm đang làm.
+Việc hợp nhất cuối có thể thất bại; khi đó mã được giao dưới dạng tệp ZIP.
+Hãy tạm dừng đồng bộ của công cụ AI cho đến khi hợp nhất xong. Chi tiết ở trang công việc.
