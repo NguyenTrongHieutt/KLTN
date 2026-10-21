@@ -85,10 +85,13 @@ class WorkItems {
 
 	private final Clock clock;
 
+	private final Reassignments reassignments;
+
 	WorkItems(Boards boards, JdbcClient jdbc, AgreementCriteria criteria, Crews crews, StudentDirectory students,
 			MentorDirectory mentors, WorkTextCheck check, Notifications notifications, HeldMilestones held, IdGenerator ids,
-			Clock clock) {
+			Clock clock, Reassignments reassignments) {
 		this.boards = boards;
+		this.reassignments = reassignments;
 		this.jdbc = jdbc;
 		this.criteria = criteria;
 		this.crews = crews;
@@ -194,6 +197,10 @@ class WorkItems {
 		Item updated = this.boards.item(itemId).orElseThrow();
 		if (assigneeChanged && checked.assigneeId() != null) {
 			tellAssignee(writer, updated, entry);
+		}
+		if (assigneeChanged && item.assigneeId() != null) {
+			// Story 11.4: reassigning a locked member's last open Work Item closes the Mentor's to-do.
+			this.reassignments.assigneeChanged(item.jobId(), writer.mentorId(), item.assigneeId());
 		}
 		return updated;
 	}

@@ -2473,6 +2473,8 @@
       "criterionLink": "{label}: xem trong thỏa thuận",
       "milestone": "Giai đoạn {n}",
       "unassigned": "Chưa giao",
+      "lockedMember": "{name} không còn tham gia vibefix. Hãy giao lại các hạng mục đang mở.",
+      "lockedMemberShow": "Xem {n} hạng mục",
       "workload": {
         "label": "Khối lượng việc",
         "member": "{name} · {n} việc · {hours} giờ"
@@ -2686,6 +2688,7 @@
       "due": "Hạn {date}",
       "crew": "Nhóm thực hiện",
       "noCrew": "Chưa có thành viên nào đang làm.",
+      "lockedMemberBoard": "Giao lại trên bảng công việc",
       "crewState": {
         "ASSIGNED": "Đã phân công",
         "ACTIVE": "Đang tham gia",
@@ -3494,7 +3497,8 @@
     },
     "work": {
       "review_work_item": "Duyệt {key}: {title}",
-      "fix_returned_item": "Sửa {key} theo nhận xét của người hướng dẫn"
+      "fix_returned_item": "Sửa {key} theo nhận xét của người hướng dẫn",
+      "reassign_work_items": "Giao lại {n} hạng mục của {name} trong {job}"
     },
     "delivery": {
       "hand_over": "Bàn giao Giai đoạn {n}",

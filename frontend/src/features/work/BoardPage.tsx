@@ -169,6 +169,14 @@ function Columns({ board, jobId }: { board: Board; jobId: string }) {
     ...board.items.flatMap((item) => (item.assignee ? [[item.assignee.accountId, item.assignee.name] as const] : [])),
   ])
   const shown = board.items.filter((item) => visible(item, filters, board))
+  // UX-DR83, Story 11.4: a member who left vibefix still holds open Work Items the Mentor reassigns.
+  const leftBehind = board.crew
+    .filter((person) => !person.available)
+    .map((person) => ({
+      ...person,
+      open: board.items.filter((item) => item.assignee?.accountId === person.accountId && item.status !== 'DONE').length,
+    }))
+    .filter((person) => person.open > 0)
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -185,6 +193,23 @@ function Columns({ board, jobId }: { board: Board; jobId: string }) {
         )}
       </div>
       {board.readOnly && <p className="text-body-sm text-muted-foreground">{t('screen.board.readOnly')}</p>}
+      {leftBehind.map((person) => (
+        <div
+          key={person.accountId}
+          role="status"
+          className="flex flex-wrap items-center gap-3 rounded-md border-l-4 border-warning bg-warning-soft p-4 text-body-sm"
+        >
+          <p className="min-w-0 grow">{t('screen.board.lockedMember', { name: person.name })}</p>
+          <Button
+            type="button"
+            variant="secondary"
+            size="compact"
+            onClick={() => setFilters({ ...filters, assignee: person.accountId })}
+          >
+            {t('screen.board.lockedMemberShow', { n: person.open })}
+          </Button>
+        </div>
+      ))}
       {board.workload.length > 0 && (
         <WorkloadLine
           workload={board.workload}
