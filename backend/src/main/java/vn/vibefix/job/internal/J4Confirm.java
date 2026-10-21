@@ -3,6 +3,7 @@ package vn.vibefix.job.internal;
 import java.time.Instant;
 import java.util.Objects;
 
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
 import vn.vibefix.identity.ContactVisibility;
@@ -27,7 +28,10 @@ class J4Confirm implements JobLifecycle.Step {
 
 	private final CrewService crews;
 
-	J4Confirm(ContactVisibility contacts, Agreements agreements, CrewService crews) {
+	private final JdbcClient jdbc;
+
+	J4Confirm(ContactVisibility contacts, Agreements agreements, CrewService crews, JdbcClient jdbc) {
+		this.jdbc = jdbc;
 		this.contacts = contacts;
 		this.agreements = agreements;
 		this.crews = crews;
@@ -51,15 +55,17 @@ class J4Confirm implements JobLifecycle.Step {
 		applying.fact("mentorId", String.valueOf(applying.job().mentorId()));
 		applying.fact("ndaVersion", (String) applying.input("ndaVersion"));
 		applying.fact("signedAt", ((Instant) applying.input("signedAt")).toString());
-		applying.set("agreement_due_at", applying.now().plus(Agreements.AGREEMENT_PERIOD));
+		applying.set("agreement_due_at", applying.now().plus(StallDeadlines.period(this.jdbc, applying.job().id(),
+				JobState.AGREEMENT)));
 	}
 
 	@Override
 	public void afterWrite(Applying applying) {
 		Job job = applying.job();
 		this.contacts.grant(job.customerId(), Objects.requireNonNull(job.mentorId()), job.id());
-		this.agreements.start(job, applying.now().plus(Agreements.AGREEMENT_PERIOD));
-		this.crews.start(job, applying.now().plus(Agreements.AGREEMENT_PERIOD));
+		Instant due = applying.now().plus(StallDeadlines.period(this.jdbc, job.id(), JobState.AGREEMENT));
+		this.agreements.start(job, due);
+		this.crews.start(job, due);
 	}
 
 }

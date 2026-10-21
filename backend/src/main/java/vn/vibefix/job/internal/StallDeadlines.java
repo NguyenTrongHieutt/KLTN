@@ -18,13 +18,16 @@ import vn.vibefix.notification.Audience;
 import vn.vibefix.notification.NotificationRequest;
 import vn.vibefix.notification.Notifications;
 import vn.vibefix.notification.Recipient;
+import vn.vibefix.settings.Rule;
 import vn.vibefix.timers.DeadlineRequest;
 import vn.vibefix.timers.Deadlines;
 
 /**
- * FR-40's stall deadlines (AD-7): 14 days from entering Agreement (J4) and 7 from entering Starting (J6),
- * FR-40's own values rather than FR-61 rules. When one passes with the Job still there, the Job records
- * it and both sides learn they may cancel alone.
+ * FR-40's stall deadlines (AD-7): from entering Agreement (J4) and from entering Starting (J6), the FR-61
+ * rule values the Job was published with ({@code AGREEMENT_STALL_DAYS}, 14 by default, and
+ * {@code STARTING_STALL_DAYS}, 7; author decision 2026-10-21). A Job published before they were rules
+ * keeps those defaults. When one passes with the Job still there, the Job records it and both sides learn
+ * they may cancel alone.
  */
 @Component
 class StallDeadlines {
@@ -60,11 +63,29 @@ class StallDeadlines {
 	void schedule(UUID jobId, JobState state) {
 		Instant now = this.clock.instant();
 		if (state == JobState.AGREEMENT) {
-			this.deadlines.schedule(new DeadlineRequest(AgreementDeadline.KEY, jobId, jobId.toString(), jobId, now.plus(AGREEMENT)));
+			this.deadlines.schedule(new DeadlineRequest(AgreementDeadline.KEY, jobId, jobId.toString(), jobId,
+					now.plus(period(this.jdbc, jobId, state))));
 		}
 		else if (state == JobState.STARTING) {
-			this.deadlines.schedule(new DeadlineRequest(StartingDeadline.KEY, jobId, jobId.toString(), jobId, now.plus(STARTING)));
+			this.deadlines.schedule(new DeadlineRequest(StartingDeadline.KEY, jobId, jobId.toString(), jobId,
+					now.plus(period(this.jdbc, jobId, state))));
 		}
+	}
+
+	/**
+	 * The stall period of Agreement or Starting, as the Job was published with its FR-61 rule, else FR-40's
+	 * default for a Job published before the rule existed.
+	 */
+	static Duration period(JdbcClient jdbc, UUID jobId, JobState state) {
+		boolean agreement = state == JobState.AGREEMENT;
+		Rule rule = agreement ? Rule.AGREEMENT_STALL_DAYS : Rule.STARTING_STALL_DAYS;
+		return jdbc.sql("SELECT (rules ->> :rule)::int FROM job.job WHERE id = :id")
+			.param("rule", rule.name())
+			.param("id", jobId)
+			.query(Integer.class)
+			.optional()
+			.map(Duration::ofDays)
+			.orElse(agreement ? AGREEMENT : STARTING);
 	}
 
 	/**

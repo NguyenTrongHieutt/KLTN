@@ -9,7 +9,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Clock;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -57,9 +56,6 @@ import vn.vibefix.shared.ErrorCode;
  */
 @Component
 class Agreements {
-
-	/** FR-40: the Agreement is confirmed within 14 days of entering Agreement. */
-	static final Duration AGREEMENT_PERIOD = Duration.ofDays(14);
 
 	static final String DRAFT_TODO = "job.draft_agreement";
 

@@ -42,6 +42,12 @@ public enum Rule {
 	/** Days after entering Closing that the Final Merge authorization is accepted (FR-37); 7. */
 	FINAL_MERGE_AUTHORIZATION_DAYS(1, 30),
 
+	/** Days a Job may stay in Agreement before either side may cancel alone (FR-40); 14. */
+	AGREEMENT_STALL_DAYS(7, 30),
+
+	/** Days a Job may stay in Starting before either side may cancel alone (FR-40); 7. */
+	STARTING_STALL_DAYS(3, 30),
+
 	/** Jobs a Mentor may hold from Selecting through Closing (FR-13); 3. */
 	MENTOR_ACTIVE_JOB_LIMIT(1, 10),
 
