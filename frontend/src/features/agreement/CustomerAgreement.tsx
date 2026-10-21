@@ -1,3 +1,4 @@
+import { PauseSyncHelp } from '@/features/job/PauseSyncHelp'
 import { Dialog } from '@base-ui/react/dialog'
 import { CircleCheck, Info, Users, X } from 'lucide-react'
 import { useId, useState, type ReactNode } from 'react'
@@ -33,7 +34,6 @@ import {
 import { draftDays, inOrder, moved } from './reviewTargets'
 import { hasBoard } from '@/features/work/workApi'
 
-const TOOLS = ['LOVABLE', 'BOLT', 'REPLIT', 'V0', 'BASE44', 'CURSOR', 'CLAUDE_CODE', 'CODEX', 'OTHER'] as const
 
 /**
  * The Customer's JOB-6 (FR-16, FR-17, UX-DR34): the shared versions with "Góp ý", "Lên"/"Xuống", the
@@ -289,36 +289,13 @@ function CrewLine({ crew, confirmed }: { crew: string[]; confirmed: boolean }) {
 
 /** N-6, bordered, with "Cách tạm dừng đồng bộ" (draft per-builder text until OQ7). */
 function FreezeCommitment({ checked, onChange }: { checked: boolean; onChange: (checked: boolean) => void }) {
-  const ids = useId()
-  const [help, setHelp] = useState(false)
   return (
     <div className="flex flex-col gap-2 rounded-lg border-2 border-border bg-card p-4">
       <label className="flex items-start gap-3 text-body-sm">
         <input type="checkbox" className="mt-1" checked={checked} onChange={(event) => onChange(event.target.checked)} />
         <span>{t('screen.agreement.review.n6')}</span>
       </label>
-      <Button
-        type="button"
-        variant="ghost"
-        size="compact"
-        className="self-start"
-        aria-expanded={help}
-        aria-controls={`${ids}-pause`}
-        onClick={() => setHelp(!help)}
-      >
-        {t('screen.agreement.review.pauseLink')}
-      </Button>
-      {help && (
-        <div id={`${ids}-pause`} className="flex flex-col gap-1 rounded-md bg-muted p-3 text-body-sm">
-          <p>{t('screen.agreement.review.pauseLead')}</p>
-          <ul className="flex list-disc flex-col gap-1 pl-5">
-            {TOOLS.map((tool) => (
-              <li key={tool}>{t(`screen.agreement.review.pauseHelp.${tool}`)}</li>
-            ))}
-          </ul>
-          <p className="text-caption text-muted-foreground">{t('screen.agreement.review.pauseDraft')}</p>
-        </div>
-      )}
+      <PauseSyncHelp />
     </div>
   )
 }

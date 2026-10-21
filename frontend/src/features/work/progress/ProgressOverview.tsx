@@ -1,3 +1,4 @@
+import { DriftWarning } from '@/features/job/DriftWarning'
 import { WorkFindings } from './WorkFindings'
 import { ExternalLink, ShieldAlert } from 'lucide-react'
 import { Link } from 'react-router'
@@ -78,6 +79,7 @@ function Content({ jobId, audience, progress }: { jobId: string; audience: Progr
             <span className="sr-only"> ({t('screen.board.attachments.external')})</span>
           </a>
         )}
+        {!progress.assessment && <DriftWarning jobId={jobId} />}
         <DisputeSection jobId={jobId} />
         {!progress.assessment && <WorkFindings jobId={jobId} />}
         <JobNextAction jobId={jobId} />

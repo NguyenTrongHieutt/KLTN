@@ -122,6 +122,9 @@ class JobSetupIT extends IntegrationTest {
 	private PlatformGuard guard;
 
 	@Autowired
+	private SourceDrift drift;
+
+	@Autowired
 	private org.springframework.transaction.PlatformTransactionManager transactions;
 
 	private UUID product;
@@ -445,6 +448,57 @@ class JobSetupIT extends IntegrationTest {
 	private static vn.vibefix.github.GitHubWebhookReceived webhook(String event, long repository, String login) {
 		return new vn.vibefix.github.GitHubWebhookReceived(UUID.randomUUID(), UUID.randomUUID().toString(),
 				vn.vibefix.github.GitHubApps.App.PLATFORM, event, "opened", 7L, List.of(repository), 1L, null, login);
+	}
+
+	@Test
+	void theDailyPollWarnsOncePerChangeAndARenameWaitsForTheCustomersReconfirmation() throws Exception {
+		j6();
+		run();
+		this.jdbc.sql("UPDATE job.job SET state = 'ACTIVE' WHERE id = :id").param("id", this.job).update();
+		String name = this.source.substring("lan-dev/".length());
+		long id = this.jdbc.sql("SELECT repository_github_id FROM product.product WHERE id = :id").param("id", this.product)
+			.query(Long.class).single();
+		this.drift.poll();
+		assertThat(this.drift.warnings(this.job)).as("nothing changed since the copy").isEmpty();
+
+		String pushed = GITHUB.push("lan-dev", name, "main", "app.js", "console.log('Lovable')\n");
+		this.drift.poll();
+		this.drift.poll();
+
+		assertThat(this.drift.warnings(this.job)).singleElement().satisfies(warning -> {
+			assertThat(warning.kind()).isEqualTo(SourceDrift.Kind.COMMITS);
+			assertThat(warning.commits()).as("stored as evidence").containsExactly(pushed);
+		});
+		assertThat(notices("repo.drift_detected")).as("the Customer and the Mentor, once").isEqualTo(2);
+
+		GITHUB.rename(id, "lan-dev", name + "-v2");
+		this.clock.advance(Duration.ofDays(1));
+		this.drift.poll();
+		assertThat(this.drift.warnings(this.job)).extracting(SourceDrift.Warning::kind)
+			.containsExactly(SourceDrift.Kind.COMMITS, SourceDrift.Kind.RENAMED);
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/drift").with(as(this.customer, Role.CUSTOMER)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.reconfirmNeeded").value(true))
+			.andExpect(jsonPath("$.warnings[1].fullName").value("lan-dev/" + name + "-v2"));
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/drift").with(as(this.mentor, Role.MENTOR)))
+			.andExpect(jsonPath("$.reconfirmNeeded").value(false));
+		this.mvc.perform(post("/api/v1/jobs/" + this.job + "/source/reconfirm").with(as(this.customer, Role.CUSTOMER))
+			.with(csrf()))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.reconfirmNeeded").value(false));
+		assertThat(this.jdbc.sql("SELECT repository_full_name FROM product.product WHERE id = :id").param("id", this.product)
+			.query(String.class).single()).as("the new name is the Final Merge target now").isEqualTo("lan-dev/" + name + "-v2");
+		assertThat(this.jdbc.sql("SELECT count(*) FROM notification.todo WHERE todo_key = 'repo.reconfirm_source' AND closed_at IS NULL")
+			.query(Long.class).single()).isZero();
+
+		GITHUB.archive(id);
+		this.clock.advance(Duration.ofDays(1));
+		this.drift.poll();
+		GITHUB.publish("lan-dev", name + "-v2", id, CustomerTokens.githubUserId(this.jdbc, this.customer), false, false);
+		this.drift.poll();
+		assertThat(this.drift.warnings(this.job)).extracting(SourceDrift.Warning::kind).contains(SourceDrift.Kind.ARCHIVED,
+				SourceDrift.Kind.DELETED_OR_PRIVATE);
+		awaitListeners();
 	}
 
 	@Test

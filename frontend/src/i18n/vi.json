@@ -1573,6 +1573,18 @@
       }
     },
     "job": {
+      "drift": {
+        "title": "Dự án gốc vừa thay đổi trong lúc nhóm đang làm. Việc hợp nhất cuối có thể thất bại.",
+        "kindCOMMITS": "Có {n} thay đổi mới trong dự án gốc kể từ khi công việc bắt đầu (ghi nhận ngày {date}).",
+        "kindDELETED_OR_PRIVATE": "Dự án gốc đã bị xóa hoặc chuyển sang riêng tư (ghi nhận ngày {date}).",
+        "kindARCHIVED": "Dự án gốc đã được lưu trữ trên GitHub, nên không nhận thay đổi mới (ghi nhận ngày {date}).",
+        "kindRENAMED": "Dự án gốc đã đổi tên thành {name} (ghi nhận ngày {date}).",
+        "kindTRANSFERRED": "Dự án gốc đã được chuyển sang {name} (ghi nhận ngày {date}).",
+        "meaning": "Nếu dự án gốc tiếp tục thay đổi, việc hợp nhất cuối có thể không làm được và bạn sẽ nhận mã dưới dạng tệp ZIP. Hãy tạm dừng đồng bộ của công cụ AI cho đến khi hợp nhất xong.",
+        "reconfirmLead": "Hãy xác nhận lại dự án gốc ở tên mới, để vibefix hợp nhất cuối vào đúng kho mã của bạn.",
+        "reconfirm": "Xác nhận lại dự án gốc",
+        "reconfirmAction": "xác nhận lại dự án gốc"
+      },
       "setup": {
         "title": "Chuẩn bị kho mã",
         "stepCHECK": "Kiểm tra lại dự án gốc",
@@ -3560,7 +3572,8 @@
     },
     "repo": {
       "confirm_data_deletion": "Xác nhận đã xóa dữ liệu và bản xem thử của {job}",
-      "accept_github_invitation": "Chấp nhận lời mời trên GitHub cho {job}"
+      "accept_github_invitation": "Chấp nhận lời mời trên GitHub cho {job}",
+      "reconfirm_source": "Xác nhận lại dự án gốc của {job}"
     },
     "reputation": {
       "rate": "Chấm sao cho {party}",
@@ -3927,6 +3940,9 @@
       },
       "invitation_renewals_exhausted": {
         "title": "Lời mời GitHub của @{login} ở {job} đã gia hạn 3 lần mà chưa được chấp nhận"
+      },
+      "drift_detected": {
+        "title": "Dự án gốc của {job} vừa thay đổi"
       }
     },
     "reputation": {
@@ -4165,6 +4181,10 @@
       "SETUP_NOT_BLOCKED": "Việc chuẩn bị kho mã không bị dừng, nên không cần thử lại.",
       "JOB_NOT_STARTING": "Công việc không còn ở bước chờ bắt đầu.",
       "JOB_FROZEN": "Công việc đang tranh chấp, nên chưa thử lại được.",
+      "NOTHING_TO_RECONFIRM": "Không có dự án gốc nào cần xác nhận lại.",
+      "SOURCE_NOT_PUBLIC": "Dự án gốc không còn công khai, hoặc không còn là kho mã đã đăng ký.",
+      "NO_ADMIN_PERMISSION": "Tài khoản GitHub của bạn không có quyền quản trị dự án gốc ở tên mới.",
+      "SIGN_IN_AGAIN": "Hãy đăng nhập lại bằng GitHub để vibefix kiểm tra dự án gốc.",
       "JOB_NOT_ENDED": "Bạn xác nhận được sau khi công việc bắt đầu kết thúc.",
       "NOT_A_DUTY": "Chỉ người hướng dẫn và nhóm thực hiện xác nhận việc này."
     },

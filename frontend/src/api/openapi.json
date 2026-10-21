@@ -3774,6 +3774,33 @@
         "tags" : [ "crew-chat-controller" ]
       }
     },
+    "/api/v1/jobs/{jobId}/drift" : {
+      "get" : {
+        "operationId" : "drift",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DriftView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "source-drift-controller" ]
+      }
+    },
     "/api/v1/jobs/{jobId}/findings" : {
       "get" : {
         "operationId" : "findings_1",
@@ -4283,6 +4310,33 @@
           }
         },
         "tags" : [ "job-setup-controller" ]
+      }
+    },
+    "/api/v1/jobs/{jobId}/source/reconfirm" : {
+      "post" : {
+        "operationId" : "reconfirm",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DriftView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "source-drift-controller" ]
       }
     },
     "/api/v1/jobs/{jobId}/withdraw" : {
@@ -9685,6 +9739,44 @@
           }
         },
         "required" : [ "nextState", "reasoning", "stepUpCode" ]
+      },
+      "DriftView" : {
+        "type" : "object",
+        "properties" : {
+          "reconfirmNeeded" : {
+            "type" : "boolean"
+          },
+          "warnings" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/DriftWarningView"
+            }
+          }
+        },
+        "required" : [ "reconfirmNeeded", "warnings" ]
+      },
+      "DriftWarningView" : {
+        "type" : "object",
+        "properties" : {
+          "commits" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "detectedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "fullName" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "reconfirmed" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "commits", "detectedAt", "kind", "reconfirmed" ]
       },
       "EnrolmentRequest" : {
         "type" : "object",

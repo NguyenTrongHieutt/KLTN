@@ -51,7 +51,7 @@ public final class GitHubStub implements AutoCloseable {
 	public final List<Seen> seen = Collections.synchronizedList(new ArrayList<>());
 
 	/** The public metadata of repositories outside the organization, as a Customer's token reads them. */
-	private final Map<String, String> published = Collections.synchronizedMap(new LinkedHashMap<>());
+	private final Map<Long, Published> published = Collections.synchronizedMap(new LinkedHashMap<>());
 
 	final List<String> tokens = Collections.synchronizedList(new ArrayList<>());
 
@@ -147,16 +147,63 @@ public final class GitHubStub implements AutoCloseable {
 		return Git.open(this.gitRoot.resolve(owner).resolve(name + ".git").toFile()).getRepository();
 	}
 
+	/** A repository outside the organization, as a Customer's token or a public read shows it. */
+	private record Published(String owner, String name, long id, long ownerId, boolean publicRepository, boolean admin,
+			boolean archived) {
+
+		String json() {
+			return "{\"id\":" + this.id + ",\"full_name\":\"" + this.owner + "/" + this.name + "\",\"html_url\":\"https://github.com/"
+					+ this.owner + "/" + this.name + "\",\"owner\":{\"id\":" + this.ownerId + ",\"type\":\"User\"},\"private\":"
+					+ !this.publicRepository + ",\"visibility\":\"" + (this.publicRepository ? "public" : "private")
+					+ "\",\"archived\":" + this.archived + ",\"size\":10,\"default_branch\":\"main\",\"permissions\":{\"admin\":"
+					+ this.admin + "}}";
+		}
+
+	}
+
 	/**
-	 * {@code owner/name} as {@code GET /repos/{owner}/{name}} shows it: public or not, owned by the user
-	 * {@code ownerId}, with the token's admin permission.
+	 * {@code owner/name} as {@code GET /repos/{owner}/{name}} and {@code GET /repositories/{id}} show it:
+	 * public or not, owned by the user {@code ownerId}, with the token's admin permission.
 	 */
 	public void publish(String owner, String name, long id, long ownerId, boolean publicRepository, boolean admin) {
-		this.published.put(owner + "/" + name, "{\"id\":" + id + ",\"full_name\":\"" + owner + "/" + name
-				+ "\",\"html_url\":\"https://github.com/" + owner + "/" + name + "\",\"owner\":{\"id\":" + ownerId
-				+ ",\"type\":\"User\"},\"private\":" + !publicRepository + ",\"visibility\":\""
-				+ (publicRepository ? "public" : "private") + "\",\"size\":10,\"default_branch\":\"main\",\"permissions\":{\"admin\":"
-				+ admin + "}}");
+		this.published.put(id, new Published(owner, name, id, ownerId, publicRepository, admin, false));
+	}
+
+	/** The repository with {@code id} is archived. */
+	public void archive(long id) {
+		this.published.computeIfPresent(id, (key, repository) -> new Published(repository.owner(), repository.name(), key,
+				repository.ownerId(), repository.publicRepository(), repository.admin(), true));
+	}
+
+	/** The repository with {@code id} is renamed or transferred, its git data copied to the new name. */
+	public void rename(long id, String owner, String name) throws IOException {
+		Published before = this.published.get(id);
+		Path from = this.gitRoot.resolve(before.owner()).resolve(before.name() + ".git");
+		Path to = this.gitRoot.resolve(owner).resolve(name + ".git");
+		// A copy, not a move: JGit keeps pack files open on Windows.
+		try (java.util.stream.Stream<Path> paths = Files.walk(from)) {
+			for (Path path : (Iterable<Path>) paths::iterator) {
+				Path target = to.resolve(from.relativize(path).toString());
+				if (Files.isDirectory(path)) {
+					Files.createDirectories(target);
+				}
+				else {
+					Files.copy(path, target);
+				}
+			}
+		}
+		this.published.put(id, new Published(owner, name, id, before.ownerId(), before.publicRepository(), before.admin(),
+				before.archived()));
+	}
+
+	private @org.jspecify.annotations.Nullable Published published(String owner, String name) {
+		synchronized (this.published) {
+			return this.published.values()
+				.stream()
+				.filter(repository -> repository.owner().equals(owner) && repository.name().equals(name))
+				.findFirst()
+				.orElse(null);
+		}
 	}
 
 	/** The names of the rulesets on {@code name} in the organization. */
@@ -426,9 +473,32 @@ public final class GitHubStub implements AutoCloseable {
 					: "{\"id\":" + id + ",\"name\":\"" + matcher.group(1) + "\",\"has_wiki\":false,\"has_issues\":"
 							+ this.issuesOn.contains(matcher.group(1)) + ",\"has_projects\":false,\"has_discussions\":false}");
 		}
+		else if (method.equals("GET") && (matcher = Pattern.compile("/repositories/(\\d+)").matcher(path)).matches()) {
+			Published repository = this.published.get(Long.parseLong(matcher.group(1)));
+			boolean visible = repository != null && repository.publicRepository();
+			send(exchange, visible ? 200 : 404, visible ? repository.json() : "{\"message\":\"Not Found\"}");
+		}
+		else if (method.equals("GET")
+				&& (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)/compare/([0-9a-f]{40})\\.\\.\\.(.+)").matcher(path)).matches()) {
+			try (Repository repository = repository(matcher.group(1), matcher.group(2)); RevWalk walk = new RevWalk(repository)) {
+				var base = repository.resolve(matcher.group(3));
+				var head = repository.resolve("refs/heads/" + matcher.group(4));
+				if (base == null || head == null || !repository.getObjectDatabase().has(base)) {
+					send(exchange, 404, "{\"message\":\"Not Found\"}");
+					return;
+				}
+				walk.markStart(walk.parseCommit(head));
+				walk.markUninteresting(walk.parseCommit(base));
+				List<Map<String, String>> commits = new ArrayList<>();
+				for (RevCommit commit : walk) {
+					commits.add(0, Map.of("sha", commit.name()));
+				}
+				send(exchange, 200, GitHubHttp.JSON.writeValueAsString(Map.of("ahead_by", commits.size(), "commits", commits)));
+			}
+		}
 		else if (method.equals("GET") && (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)").matcher(path)).matches()) {
-			String metadata = this.published.get(matcher.group(1) + "/" + matcher.group(2));
-			send(exchange, metadata == null ? 404 : 200, metadata == null ? "{\"message\":\"Not Found\"}" : metadata);
+			Published repository = published(matcher.group(1), matcher.group(2));
+			send(exchange, repository == null ? 404 : 200, repository == null ? "{\"message\":\"Not Found\"}" : repository.json());
 		}
 		else {
 			send(exchange, 404, "{\"message\":\"Not Found\",\"path\":\"" + path + (query == null ? "" : "?" + query) + "\"}");

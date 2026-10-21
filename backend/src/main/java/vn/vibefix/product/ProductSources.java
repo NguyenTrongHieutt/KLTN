@@ -33,6 +33,21 @@ public interface ProductSources {
 			String repositoryFullName, long repositoryGithubId, String defaultBranch) {
 	}
 
+	/** The Source Repository as the Product registered it: its permanent ID and the name it is used by. */
+	record Registered(UUID productId, UUID customerId, long repositoryGithubId, String repositoryFullName) {
+	}
+
+	java.util.Optional<Registered> registered(UUID productId);
+
+	/**
+	 * The Customer re-confirms a renamed or transferred Source Repository (FR-20, AD-13): read by its new
+	 * name with their token, it must keep the registered ID, stay public, and be administered by them. Only
+	 * then is the new name recorded, so it becomes the Final Merge target.
+	 * @return why it may not be used, or none once the new name is recorded
+	 * @throws vn.vibefix.github.GitHubException when GitHub cannot answer now
+	 */
+	@Nullable Block reconfirm(UUID productId, String newFullName);
+
 	/**
 	 * Reads the Product's Source Repository now.
 	 * @throws vn.vibefix.shared.ApiException {@code NOT_FOUND} for no such Product

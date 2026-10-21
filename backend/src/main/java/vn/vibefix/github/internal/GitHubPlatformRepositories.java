@@ -482,6 +482,36 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 		});
 	}
 
+	@Override
+	public Optional<SourceRepository> source(long githubId) {
+		return this.apps.withUnnarrowed(App.PLATFORM, Unnarrowed.ORGANIZATION_READ, token -> {
+			GitHubHttp.Answer answer = http().send("GET", "/repositories/" + githubId, token.value(), null);
+			if (answer.status() == 404 || answer.status() == 403) {
+				return Optional.empty();
+			}
+			JsonNode body = require(answer, "read repository " + githubId);
+			return Optional.of(new SourceRepository(body.path("id").asLong(), body.path("full_name").asString(""),
+					body.path("default_branch").asString("main"), body.path("archived").asBoolean(false)));
+		});
+	}
+
+	@Override
+	public List<String> commitsSince(String fullName, String baseSha, String branch) {
+		return this.apps.withUnnarrowed(App.PLATFORM, Unnarrowed.ORGANIZATION_READ, token -> {
+			GitHubHttp.Answer answer = http().send("GET", "/repos/" + fullName + "/compare/" + baseSha + "..." + branch,
+					token.value(), null);
+			if (answer.status() == 404) {
+				// The copied commit is gone from the branch's history: every commit counts as new.
+				return List.of("unknown");
+			}
+			List<String> commits = new ArrayList<>();
+			for (JsonNode commit : require(answer, "compare " + fullName).path("commits")) {
+				commits.add(commit.path("sha").asString(""));
+			}
+			return commits;
+		});
+	}
+
 	private static Set<String> logins(JsonNode users) {
 		Set<String> logins = new java.util.TreeSet<>();
 		users.forEach(user -> logins.add(user.path("login").asString("").toLowerCase(Locale.ROOT)));

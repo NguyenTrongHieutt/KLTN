@@ -120,4 +120,14 @@ public interface PlatformRepositories {
 	/** The lower-case logins behind the repository's recent events (SM-2, SG-22). */
 	Set<String> recentActors(PlatformRepository repository);
 
+	/** A Source Repository as GitHub shows it now, read by its permanent ID (FR-20). */
+	record SourceRepository(long id, String fullName, String defaultBranch, boolean archived) {
+	}
+
+	/** The public repository with this ID, or none when it is gone or private to a public read. */
+	Optional<SourceRepository> source(long githubId);
+
+	/** The commits on {@code branch} after {@code baseSha}, oldest first, at most 250 (FR-20, FR-53). */
+	List<String> commitsSince(String fullName, String baseSha, String branch);
+
 }

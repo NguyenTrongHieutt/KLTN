@@ -145,6 +145,8 @@ vibefix:
     # FR-19, AD-12: how often the organization, the installation, and every running Job's repositories are
     # read back against what vibefix expects; foreign pull requests are closed on the way.
     platform-sweep: PT10M
+    # FR-20, AD-12 (Vietnam time): the daily Source Repository drift poll of every running Code Job.
+    drift-cron: "0 0 5 * * *"
   # AD-9: shared.internal.EventPublicationMaintenance resubmits, stalls and purges publications.
   events:
     resubmit-after: 5m
