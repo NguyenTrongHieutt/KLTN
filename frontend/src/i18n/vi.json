@@ -1002,6 +1002,8 @@
           "CANCELLATION_CONFIRMATION_DAYS": "Số ngày xác nhận hủy",
           "AUTOMATIC_CLOSURE_DAYS": "Số ngày trước khi tự động kết thúc",
           "FINAL_MERGE_AUTHORIZATION_DAYS": "Số ngày cho phép hợp nhất cuối",
+          "AGREEMENT_STALL_DAYS": "Số ngày chờ thống nhất trước khi được hủy một phía",
+          "STARTING_STALL_DAYS": "Số ngày chờ bắt đầu trước khi được hủy một phía",
           "MENTOR_ACTIVE_JOB_LIMIT": "Số việc tối đa của một người hướng dẫn",
           "MENTOR_SHARE_CAP_PERCENT": "Mức chia tối đa của người hướng dẫn (%)"
         },

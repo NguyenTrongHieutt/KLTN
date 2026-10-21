@@ -40,6 +40,8 @@ class SettingsIT extends IntegrationTest {
 		defaults.put(Rule.CANCELLATION_CONFIRMATION_DAYS, 5);
 		defaults.put(Rule.AUTOMATIC_CLOSURE_DAYS, 7);
 		defaults.put(Rule.FINAL_MERGE_AUTHORIZATION_DAYS, 7);
+		defaults.put(Rule.AGREEMENT_STALL_DAYS, 14);
+		defaults.put(Rule.STARTING_STALL_DAYS, 7);
 		defaults.put(Rule.MENTOR_ACTIVE_JOB_LIMIT, 3);
 		defaults.put(Rule.MENTOR_SHARE_CAP_PERCENT, 40);
 

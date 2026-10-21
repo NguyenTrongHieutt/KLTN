@@ -295,7 +295,7 @@ class AgreementController {
 			.param("id", jobId)
 			.query(Timestamp.class)
 			.optional()
-			.map(due -> due.toInstant().minus(Agreements.AGREEMENT_PERIOD))
+			.map(due -> due.toInstant().minus(StallDeadlines.period(this.jdbc, jobId, JobState.AGREEMENT)))
 			.orElse(null);
 	}
 

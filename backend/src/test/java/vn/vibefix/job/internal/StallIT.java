@@ -101,6 +101,24 @@ class StallIT extends IntegrationTest {
 	}
 
 	@Test
+	void aJobKeepsTheStallRuleItWasPublishedWith() throws Exception {
+		// FR-61, author decision 2026-10-21: the stall is a rule value copied onto the Job when it is published.
+		UUID job = world("AGREEMENT", false);
+		this.jdbc.sql("UPDATE job.job SET rules = '{\"AGREEMENT_STALL_DAYS\":10}'::jsonb WHERE id = :id").param("id", job).update();
+		this.listeners.onJobTransitioned(event(job, "J4", "SELECTING", "AGREEMENT"));
+		await().atMost(Duration.ofSeconds(10)).until(() -> count("SELECT count(*) FROM timers.deadline WHERE subject_id = '"
+				+ job + "'") >= 1);
+		this.clock.advance(Duration.ofDays(9));
+		this.poller.runDue();
+		this.mvc.perform(get("/api/v1/boards/" + job + "/cancellation").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.canCancelAlone").value(false));
+		this.clock.advance(Duration.ofDays(2));
+		this.poller.runDue();
+		this.mvc.perform(get("/api/v1/boards/" + job + "/cancellation").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.canCancelAlone").value(true));
+	}
+
+	@Test
 	void sevenDaysInStartingLetTheMentorCancelAloneWithTheRefund() throws Exception {
 		UUID job = world("STARTING", true);
 		this.listeners.onJobTransitioned(event(job, "J6", "AGREEMENT", "STARTING"));
