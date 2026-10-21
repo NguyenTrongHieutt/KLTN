@@ -197,13 +197,16 @@ describe('MEN-3, one Job Post (FR-12)', () => {
   it('shows the Customer average when there are Ratings', { timeout: 15_000 }, async () => {
     fakeBackend(signedIn('MENTOR'), {
       'GET /api/v1/mentor/job-posts/j1': () => json(post),
-      'GET /api/v1/mentor/job-posts/j1/customer-rating': () => json({ average: 4.8, count: 5 }),
+      'GET /api/v1/mentor/job-posts/j1/customer-rating': () =>
+        json({ average: 4.8, count: 5, customerKind: 'INDIVIDUAL', customerJoinedAt: '2026-07-14T03:00:00Z' }),
       'GET /api/v1/mentor/capacity': () => capacity(),
     })
     renderAt('/tim-viec/j1')
 
     expect(await screen.findByText('4,8 sao')).toBeInTheDocument()
     expect(screen.getByText('(5 lượt từ người hướng dẫn)')).toBeInTheDocument()
+    // Author decision 2026-10-21: the Customer's kind and month joined, never their name before selection.
+    expect(screen.getByText('Cá nhân · từ 07/2026')).toBeInTheDocument()
   })
 
   it('shows the not-found screen for a Job Post that is not open', async () => {

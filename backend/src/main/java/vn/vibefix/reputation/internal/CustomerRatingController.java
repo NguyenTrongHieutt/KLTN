@@ -1,6 +1,7 @@
 package vn.vibefix.reputation.internal;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
@@ -8,6 +9,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
+import vn.vibefix.identity.CustomerNames;
+import vn.vibefix.identity.CustomerNames.CustomerSince;
 import vn.vibefix.identity.MentorGate;
 import vn.vibefix.job.JobPosts;
 import vn.vibefix.reputation.RatingSummary;
@@ -21,14 +24,20 @@ import vn.vibefix.shared.Gate;
 import vn.vibefix.shared.Role;
 
 /**
- * MEN-3's Customer Rating (FR-12): the visible Rating summary of an Open Job Post's Customer, for
- * approved Mentors only. The Customer's account ID stays on the server.
+ * MEN-3's Customer Rating (FR-12): the visible Rating summary of an Open Job Post's Customer, with their
+ * kind and when they joined ("Cá nhân · từ {month}", author decision 2026-10-21), for approved Mentors
+ * only. The Customer's name and account ID stay on the server.
  */
 @RestController
 @Access(Gate.SIGNED_IN)
 class CustomerRatingController {
 
-	record RatingSummaryView(@Nullable BigDecimal average, int count) {
+	/**
+	 * @param customerKind {@code INDIVIDUAL} or {@code BUSINESS}; {@code null} before the Customer saved CUS-11
+	 * @param customerJoinedAt when the Customer's account was created
+	 */
+	record RatingSummaryView(@Nullable BigDecimal average, int count, @Nullable String customerKind,
+			@Nullable Instant customerJoinedAt) {
 	}
 
 	private final JobPosts posts;
@@ -39,7 +48,11 @@ class CustomerRatingController {
 
 	private final CurrentCaller callers;
 
-	CustomerRatingController(JobPosts posts, Reputation reputation, MentorGate mentors, CurrentCaller callers) {
+	private final CustomerNames customers;
+
+	CustomerRatingController(JobPosts posts, Reputation reputation, MentorGate mentors, CurrentCaller callers,
+			CustomerNames customers) {
+		this.customers = customers;
 		this.posts = posts;
 		this.reputation = reputation;
 		this.mentors = mentors;
@@ -55,7 +68,9 @@ class CustomerRatingController {
 		this.mentors.requireApprovedMentor(caller.requireAccountId());
 		UUID customer = this.posts.openCustomer(postId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		RatingSummary summary = this.reputation.visibleSummary(customer);
-		return new RatingSummaryView(summary.average(), summary.count());
+		CustomerSince since = this.customers.since(customer).orElse(null);
+		return new RatingSummaryView(summary.average(), summary.count(), since == null ? null : since.kind(),
+				since == null ? null : since.joinedAt());
 	}
 
 }

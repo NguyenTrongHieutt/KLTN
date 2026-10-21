@@ -42,6 +42,15 @@ export function formatDate(instant: string): string {
   return `${values.day}/${values.month}/${values.year}`
 }
 
+/** "07/2026": the month and year of an instant, in Vietnam. */
+export function formatMonthYear(instant: string): string {
+  const values: Record<string, string> = {}
+  for (const part of dated.formatToParts(new Date(instant))) {
+    values[part.type] = part.value
+  }
+  return `${values.month}/${values.year}`
+}
+
 /** "30/09/2027": a calendar date the server sends as `YYYY-MM-DD`, with no time zone to apply. */
 export function formatCalendarDate(date: string): string {
   const [year, month, day] = date.split('-')

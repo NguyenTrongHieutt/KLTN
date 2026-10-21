@@ -13392,6 +13392,13 @@
           "count" : {
             "type" : "integer",
             "format" : "int32"
+          },
+          "customerJoinedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "customerKind" : {
+            "type" : "string"
           }
         },
         "required" : [ "count" ]

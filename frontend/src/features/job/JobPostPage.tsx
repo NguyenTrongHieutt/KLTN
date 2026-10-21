@@ -8,7 +8,7 @@ import { buttonVariants } from '@/components/ui/button-variants'
 import { useSession } from '@/features/identity/useSession'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t, type MessageKey } from '@/i18n/t'
-import { formatCalendarDayMonth, formatDayMonth } from '@/lib/dates'
+import { formatCalendarDayMonth, formatDayMonth, formatMonthYear } from '@/lib/dates'
 import { formatSize } from '@/lib/fileSize'
 import { isNotFound } from '@/lib/problemMessage'
 import { ApplyPanel } from '@/features/matching/ApplyPanel'
@@ -184,7 +184,10 @@ function Post({ post, invitation }: { post: JobPost; invitation: MentorInvitatio
   )
 }
 
-/** The Customer's visible Rating summary (AD-33); a Job Post never names its Customer. */
+/**
+ * The Customer's visible Rating summary (AD-33), with their kind and month joined ("Cá nhân · từ 07/2026");
+ * a Job Post never names its Customer before selection (FR-12).
+ */
 function CustomerCard({ postId }: { postId: string }) {
   const rating = useCustomerRating(postId)
   return (
@@ -192,6 +195,16 @@ function CustomerCard({ postId }: { postId: string }) {
       <h3 id="post-customer" className="text-h3">
         {t('screen.jobPost.detail.customer')}
       </h3>
+      {rating.data?.customerJoinedAt && (
+        <p>
+          {rating.data.customerKind
+            ? t('screen.jobPost.detail.customerSince', {
+                kind: t(rating.data.customerKind === 'BUSINESS' ? 'screen.jobPost.detail.business' : 'screen.jobPost.detail.individual'),
+                month: formatMonthYear(rating.data.customerJoinedAt),
+              })
+            : t('screen.jobPost.detail.customerJoined', { month: formatMonthYear(rating.data.customerJoinedAt) })}
+        </p>
+      )}
       {rating.data &&
         (rating.data.count > 0 && rating.data.average != null ? (
           <p>
