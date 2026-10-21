@@ -50,7 +50,8 @@ class JdbcScans implements Scans {
 	static final JsonMapper JSON = JsonMapper.builder().build();
 
 	private static final String SUMMARY_COLUMNS = """
-			id, product_id, purpose, status, requested_at, finished_at, found_count, unscanned_count, unscanned::text
+			id, product_id, purpose, status, requested_at, finished_at, found_count, unscanned_count, unscanned::text,
+			default_branch, default_branch_sha
 			""";
 
 	private static final String FINDING_COLUMNS = """
@@ -265,7 +266,7 @@ class JdbcScans implements Scans {
 		return new ScanSummary(rs.getObject("id", UUID.class), ScanPurpose.valueOf(rs.getString("purpose")),
 				ScanStatus.valueOf(rs.getString("status")), rs.getTimestamp("requested_at").toInstant(),
 				finished == null ? null : finished.toInstant(), foundCount, rs.getInt("unscanned_count"),
-				unscanned(rs.getString("unscanned")));
+				unscanned(rs.getString("unscanned")), rs.getString("default_branch"), rs.getString("default_branch_sha"));
 	}
 
 	static List<UnscannedFile> unscanned(String json) {

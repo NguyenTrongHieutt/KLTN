@@ -249,12 +249,16 @@ class ChangeRequests {
 	/**
 	 * The Mentor's confirmation on the loaded Job version: the request takes effect.
 	 * @throws ApiException as {@link #approve}; {@code CONFLICT CHANGE_REQUEST_NOT_AWAITING} before the
-	 * Customer's approval
+	 * Customer's approval; {@code JOB_BUSY} while the Job is busy (AD-28)
 	 */
 	@Transactional
 	ChangeRequest confirm(UUID requestId, UUID mentor, long version) {
 		Job job = locked(existing(requestId).jobId(), version);
 		running(job);
+		if (JobBusyMarkers.isBusy(this.jdbc, job.id())) {
+			// AD-28: a Change Request does not take effect while a precondition operation runs.
+			throw new ApiException(ErrorCode.JOB_BUSY);
+		}
 		ChangeRequest request = openOne(requestId);
 		if (request.customerApprovedAt() == null) {
 			throw new ApiException(ErrorCode.CONFLICT, JobReason.CHANGE_REQUEST_NOT_AWAITING);

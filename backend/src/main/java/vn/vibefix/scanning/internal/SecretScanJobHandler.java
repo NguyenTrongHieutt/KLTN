@@ -42,7 +42,7 @@ import vn.vibefix.shared.SandboxJobHandler;
  * Input: {@code repository} ({@code owner/name}), cloned from {@code vibefix.github.git-url}, and
  * {@code limits} ({@link ScanLimits}). Output: {@code commits}, {@code scannedBlobs},
  * {@code unscannedCount}, {@code unscanned} (path, size, reason), {@code stopped} (a cap's code, or
- * none), and {@code found} (category, rule, type, path, commit, date, masked value or samples, hash,
+ * none), {@code defaultBranch} and {@code defaultBranchSha} (the clone's {@code HEAD}), and {@code found} (category, rule, type, path, commit, date, masked value or samples, hash,
  * and for personal data its kinds and lines); or {@code refused}:
  * {@value #TRANSFER_LIMIT}, {@value HistoryScanner#TIMEOUT}, or {@value #UNSAFE_REPOSITORY}. Like
  * every handler, a plain class that only the sandbox worker (or the in-process stand-in) creates.
@@ -95,7 +95,9 @@ final class SecretScanJobHandler implements SandboxJobHandler {
 			CappedMonitor monitor = new CappedMonitor(directory, limits.transferBytes(), deadline);
 			try (Git git = clone(this.gitUrl + "/" + repository.stringValue() + ".git", directory, limits, monitor)) {
 				Report report = new HistoryScanner(this.rules).scan(git.getRepository(), limits, deadline);
-				return output(report);
+				ObjectNode output = output(report);
+				defaultBranch(git.getRepository(), output);
+				return output;
 			}
 			catch (GitAPIException | RuntimeException ex) {
 				if (monitor.reason() != null) {
@@ -147,6 +149,15 @@ final class SecretScanJobHandler implements SandboxJobHandler {
 		ObjectNode output = JsonNodeFactory.instance.objectNode();
 		output.put("refused", code);
 		return output;
+	}
+
+	/** The clone's {@code HEAD}: the default branch and its head, which a J7 run approves for the copy. */
+	static void defaultBranch(org.eclipse.jgit.lib.Repository repository, ObjectNode output) throws IOException {
+		org.eclipse.jgit.lib.Ref head = repository.exactRef("HEAD");
+		if (head != null && head.isSymbolic() && head.getObjectId() != null) {
+			output.put("defaultBranch", org.eclipse.jgit.lib.Repository.shortenRefName(head.getTarget().getName()));
+			output.put("defaultBranchSha", head.getObjectId().name());
+		}
 	}
 
 	static ObjectNode output(Report report) {

@@ -519,7 +519,7 @@
     },
     "/api/v1/admin/disputes/{disputeId}/retry" : {
       "post" : {
-        "operationId" : "retry_1",
+        "operationId" : "retry_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "disputeId",
@@ -671,7 +671,7 @@
     },
     "/api/v1/admin/failures/operations/{operationId}/retry" : {
       "post" : {
-        "operationId" : "retry",
+        "operationId" : "retry_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "operationId",
@@ -4161,6 +4161,60 @@
           }
         },
         "tags" : [ "job-controller" ]
+      }
+    },
+    "/api/v1/jobs/{jobId}/setup" : {
+      "get" : {
+        "operationId" : "setup",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SetupView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "job-setup-controller" ]
+      }
+    },
+    "/api/v1/jobs/{jobId}/setup/retry" : {
+      "post" : {
+        "operationId" : "retry",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SetupView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "job-setup-controller" ]
       }
     },
     "/api/v1/jobs/{jobId}/withdraw" : {
@@ -13958,7 +14012,7 @@
           },
           "purpose" : {
             "type" : "string",
-            "enum" : [ "INTAKE", "CLEAN_REPOSITORY", "RESCAN" ]
+            "enum" : [ "INTAKE", "CLEAN_REPOSITORY", "RESCAN", "J7" ]
           },
           "requestedAt" : {
             "type" : "string",
@@ -14139,6 +14193,50 @@
           }
         },
         "required" : [ "privacyNoticeVersion", "status" ]
+      },
+      "SetupStepView" : {
+        "type" : "object",
+        "properties" : {
+          "key" : {
+            "type" : "string"
+          },
+          "state" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "key", "state" ]
+      },
+      "SetupView" : {
+        "type" : "object",
+        "properties" : {
+          "blockedReason" : {
+            "type" : "string"
+          },
+          "canRetry" : {
+            "type" : "boolean"
+          },
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "jobState" : {
+            "type" : "string"
+          },
+          "openFindings" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "steps" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SetupStepView"
+            }
+          }
+        },
+        "required" : [ "canRetry", "jobId", "jobState", "status", "steps" ]
       },
       "ShareRequest" : {
         "type" : "object",

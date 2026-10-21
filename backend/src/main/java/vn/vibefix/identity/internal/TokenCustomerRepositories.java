@@ -14,9 +14,9 @@ import vn.vibefix.shared.Role;
 
 /**
  * {@link CustomerRepositories} with the Customer's kept sign-in token (AD-10, AD-13, AD-22): opened in
- * memory for the call, sealed with the account ID as associated data, never returned or logged. When the
- * contributor check finds no token, or GitHub refuses it, the Customer is asked to sign in again
- * ({@link TokenRenewals}) and the check still fails closed.
+ * memory for the call, sealed with the account ID as associated data, never returned or logged. When a
+ * repository read or the contributor check finds no token, or GitHub refuses it, the Customer is asked to
+ * sign in again ({@link TokenRenewals}) and the check still fails closed.
  */
 @Component
 class TokenCustomerRepositories implements CustomerRepositories {
@@ -40,7 +40,20 @@ class TokenCustomerRepositories implements CustomerRepositories {
 	@Override
 	public CustomerView read(UUID customerId, String owner, String name) {
 		Account account = customer(customerId);
-		return new CustomerView(account.githubUserId(), this.repositories.read(token(customerId), owner, name));
+		try {
+			return new CustomerView(account.githubUserId(), this.repositories.read(token(customerId), owner, name));
+		}
+		catch (ApiException missing) {
+			// No kept token: the admin check before a Code Job starts cannot run until the next sign-in (AD-13).
+			this.renewals.ask(customerId);
+			throw missing;
+		}
+		catch (GitHubException refused) {
+			if (refused.status() == 401) {
+				this.renewals.ask(customerId);
+			}
+			throw refused;
+		}
 	}
 
 	@Override

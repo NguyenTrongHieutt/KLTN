@@ -48,7 +48,7 @@
   "screen": {
     "signInAgain": {
       "title": "Đăng nhập lại bằng GitHub",
-      "body": "vibefix không đọc được kho mã của bạn trên GitHub nữa, nên người hướng dẫn chưa ứng tuyển được vào công việc của bạn. Hãy đăng nhập lại để vibefix kiểm tra lại.",
+      "body": "vibefix không đọc được kho mã của bạn trên GitHub nữa, nên chưa kiểm tra được người ứng tuyển hay bắt đầu công việc của bạn. Hãy đăng nhập lại để vibefix kiểm tra lại.",
       "safe": "Bạn không mất dữ liệu nào. vibefix chỉ đọc thông tin của kho mã, không thay đổi gì trên GitHub.",
       "button": "Đăng nhập lại bằng GitHub"
     },
@@ -1558,6 +1558,7 @@
         "purposeINTAKE": "Lần đầu đăng ký",
         "purposeRESCAN": "Kiểm tra lại theo yêu cầu",
         "purposeCLEAN_REPOSITORY": "Kho mã sạch",
+        "purposeJ7": "Kiểm tra lại trước khi bắt đầu công việc",
         "clean": "Không phát hiện vấn đề nào ở lần kiểm tra gần nhất.",
         "unscannedHeading": "Tệp chưa kiểm tra được",
         "unscannedSize": "{size} · lớn hơn giới hạn kiểm tra",
@@ -1572,6 +1573,27 @@
       }
     },
     "job": {
+      "setup": {
+        "title": "Chuẩn bị kho mã",
+        "stepCHECK": "Kiểm tra lại dự án gốc",
+        "stepINTERMEDIARY": "Tạo kho trung gian",
+        "stepWORKING": "Tạo kho làm việc",
+        "stateDONE": "Xong",
+        "stateCURRENT": "Đang làm",
+        "statePENDING": "Chưa tới",
+        "stateBLOCKED": "Đang dừng",
+        "stateFAILED": "Chưa làm được",
+        "announce": "{step}: {state}",
+        "allDone": "Đã chuẩn bị xong kho mã",
+        "nothingToDo": "Bạn không cần làm gì.",
+        "blockedINTAKE_FINDING_OPEN": "Còn {n} vấn đề bảo mật chưa xử lý ở dự án gốc. Hãy xử lý rồi bấm Thử lại.",
+        "blockedSOURCE_NOT_PUBLIC": "Dự án gốc không còn công khai. Hãy để kho mã ở chế độ công khai rồi bấm Thử lại.",
+        "blockedNO_ADMIN_PERMISSION": "Tài khoản GitHub của bạn không còn quyền quản trị dự án gốc. Hãy lấy lại quyền rồi bấm Thử lại.",
+        "blockedSIGN_IN_AGAIN": "vibefix cần bạn đăng nhập lại bằng GitHub để kiểm tra dự án gốc. Hãy đăng nhập lại rồi bấm Thử lại.",
+        "blockedOther": "Đang chờ khách hàng xử lý ở dự án gốc.",
+        "failed": "Chưa tạo được kho mã. Quản trị viên đã được báo; bạn chưa cần làm gì.",
+        "retry": "Thử lại"
+      },
       "title": "Công việc",
       "heading": "Công việc",
       "empty": "Bạn chưa có công việc nào.",
@@ -3484,7 +3506,7 @@
     "identity": {
       "complete_mentor_application": "Hoàn thành hồ sơ người hướng dẫn",
       "verify_student": "Xác minh là sinh viên để vào nhóm của người hướng dẫn",
-      "sign_in_again": "Đăng nhập lại bằng GitHub để người hướng dẫn ứng tuyển được"
+      "sign_in_again": "Đăng nhập lại bằng GitHub để vibefix kiểm tra được kho mã của bạn"
     },
     "scanning": {
       "resolve_intake_finding": "Xử lý vấn đề bảo mật ở {product}"
@@ -3858,6 +3880,9 @@
     "repo": {
       "data_deletion_confirmation_pending": {
         "title": "Hãy xác nhận đã xóa dữ liệu của khách hàng ở {job}"
+      },
+      "job_start_blocked": {
+        "title": "Chưa thể bắt đầu {job}: {reason}"
       }
     },
     "reputation": {
@@ -4092,6 +4117,9 @@
       "FOLLOW_UP_NOT_AWAITING": "Công việc tiếp theo này đã được mở hoặc bỏ qua."
     },
     "repo": {
+      "SETUP_NOT_BLOCKED": "Việc chuẩn bị kho mã không bị dừng, nên không cần thử lại.",
+      "JOB_NOT_STARTING": "Công việc không còn ở bước chờ bắt đầu.",
+      "JOB_FROZEN": "Công việc đang tranh chấp, nên chưa thử lại được.",
       "JOB_NOT_ENDED": "Bạn xác nhận được sau khi công việc bắt đầu kết thúc.",
       "NOT_A_DUTY": "Chỉ người hướng dẫn và nhóm thực hiện xác nhận việc này."
     },

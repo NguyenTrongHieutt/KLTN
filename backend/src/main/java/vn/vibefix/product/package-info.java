@@ -7,7 +7,8 @@
  * Findings. A Customer deletes a Product no Job pins; every participant deletes its data for it.
  * <p>
  * Public API: {@link vn.vibefix.product.ProductDirectory}, {@link vn.vibefix.product.ProductPins} (Job
- * pins, Epic 3), and {@link vn.vibefix.product.ProductDeleted}. The HTTP endpoints are wiring in {@code product.internal}.
+ * pins, Epic 3), {@link vn.vibefix.product.ProductSources} (the check before a Code Job starts, Story 7.2),
+ * and {@link vn.vibefix.product.ProductDeleted}. The HTTP endpoints are wiring in {@code product.internal}.
  */
 @ApplicationModule(allowedDependencies = { "shared", "audit", "catalog", "identity", "github", "scanning" })
 package vn.vibefix.product;

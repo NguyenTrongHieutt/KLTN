@@ -8,7 +8,7 @@ import java.util.Base64;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 
 /** RSA keys in both PEM forms GitHub's App keys come in, for the tests. */
-final class TestKeys {
+public final class TestKeys {
 
 	static final KeyPair PAIR = generate();
 
@@ -16,7 +16,7 @@ final class TestKeys {
 	}
 
 	/** {@code BEGIN RSA PRIVATE KEY}: what GitHub's "Generate a private key" downloads. */
-	static String pkcs1() {
+	public static String pkcs1() {
 		try {
 			byte[] pkcs1 = PrivateKeyInfo.getInstance(PAIR.getPrivate().getEncoded()).parsePrivateKey().toASN1Primitive()
 				.getEncoded();

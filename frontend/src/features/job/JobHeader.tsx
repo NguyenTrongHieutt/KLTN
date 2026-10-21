@@ -1,13 +1,15 @@
 import type { ReactNode } from 'react'
-import { Link } from 'react-router'
+import { Link, useParams } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
 import { t } from '@/i18n/t'
 import type { Job } from './jobApi'
 import { JobStateBadge } from './JobStateBadge'
+import { SetupTracker } from './SetupTracker'
 
 /**
  * A Job screen's top (UX-DR17): the breadcrumb, the title with its state, the meta line, an optional
- * status line such as the Crew's confirmations, and the tabs.
+ * status line such as the Crew's confirmations, the step tracker while the Job is Starting (UX-DR23),
+ * and the tabs.
  */
 export function JobHeader({
   title,
@@ -24,6 +26,7 @@ export function JobHeader({
   status?: ReactNode
   children: ReactNode
 }) {
+  const { jobId } = useParams()
   return (
     <div className="flex flex-col gap-3">
       <nav aria-label={t('screen.job.detail.breadcrumb')} className="text-caption text-muted-foreground">
@@ -40,6 +43,7 @@ export function JobHeader({
         <p className="text-caption text-muted-foreground break-words">{meta}</p>
         {status}
       </div>
+      {state === 'STARTING' && jobId && <SetupTracker jobId={jobId} />}
       {children}
     </div>
   )

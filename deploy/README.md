@@ -209,6 +209,23 @@ author can run it, on GitHub, as an owner of `vibefix-dev`.
    An operation that fails goes to `bmad-architecture` before Epic 7, because AD-10 and AD-11
    depend on it; then tell Amelia, who records it and closes Story 2.1.
 
+## Code Job setup on the dev stack (Story 7.2)
+
+When Milestone 1 of a Code Job is paid, vibefix sets up its repositories under the Job's busy marker.
+It checks the Source Repository again with the Customer's token and scans it again. Then it copies the
+approved commit into `job-…-intermediary` in `vibefix-dev`, forks that into `job-…-working`, and reads
+the organization settings and both rulesets back. JOB-H shows the three steps.
+
+On the dev stack this needs the Platform App configured for the backend, as for Spike S4:
+`vibefix.github.platform-app.id`, `installation-id`, and `key-file`, with the key mounted read-only from
+`deploy/secrets/`. Without them every attempt fails with `GITHUB_UNAVAILABLE`. After the retries, the
+operation waits in ADM-7's failed queue (Thao tác lỗi), and an Administrator retries it there once the
+App is configured.
+
+- **A block** (a new Finding, a private repository, lost admin rights, or a missing sign-in) stops the
+  start and tells the Customer and the Mentor why. The Customer fixes it and taps "Thử lại" on JOB-H.
+- **The copies are public repositories** in the organization. Delete them by hand after a dev run.
+
 ## Spike S2: VNPay sandbox refunds and transaction queries
 
 Story 4.5 asks what the dev VNPay sandbox merchant answers: whether full and partial refunds are

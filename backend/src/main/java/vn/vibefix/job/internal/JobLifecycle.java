@@ -34,7 +34,8 @@ import vn.vibefix.shared.IdGenerator;
 /**
  * The only code that changes {@code Job.state} or {@code Milestone.state} (AD-4). Every apply runs in
  * one transaction: it locks the Job row, re-reads the actor's account (a locked one is refused), checks
- * the state, the freeze, and the transition's guards, bumps {@code Job.version}, lets the transition's
+ * the state, the freeze, the busy marker (AD-28), and the transition's guards, bumps {@code Job.version},
+ * lets the transition's
  * {@link Step} write its columns and run its effects, writes one audit entry, and publishes one
  * {@link JobTransitioned}. A cascade (AD-4: M1 with J6, J6 with J7) checks every transition it holds
  * before the first write and then writes them in order under one lock and one version bump, one audit
@@ -310,7 +311,8 @@ class JobLifecycle {
 	 * Applies {@code transition} to the Job.
 	 * @throws ApiException {@code NOT_FOUND} for no such Job; {@code FORBIDDEN ACCOUNT_LOCKED} for a
 	 * locked or erased actor; {@code STALE STATE_CHANGED} when the Job is not in a state the transition
-	 * leaves; {@code CONFLICT JOB_FROZEN} for M1 to M7 while a Dispute freezes the Job; the step's guards
+	 * leaves; {@code CONFLICT JOB_FROZEN} for M1 to M7 while a Dispute freezes the Job; {@code JOB_BUSY}
+	 * while a precondition operation holds the busy marker (AD-28); the step's guards
 	 * @throws IllegalStateException for a transition whose command does not exist yet
 	 * @throws IllegalArgumentException for a trigger the transition does not have
 	 */
@@ -483,6 +485,11 @@ class JobLifecycle {
 			if (transition.frozenBlocks() && job.frozenAt() != null && by != Trigger.DECISION) {
 				throw new ApiException(ErrorCode.CONFLICT, JobReason.JOB_FROZEN);
 			}
+			// AD-28: busy refuses every transition but M1 by the IPN, which follows AD-14; a Payment Order's
+			// dry run of M1 is refused, so no new order is created while busy.
+			if ((transition != Transition.M1 || dryRun) && JobBusyMarkers.isBusy(this.jdbc, job.id())) {
+				throw new ApiException(ErrorCode.JOB_BUSY);
+			}
 			Applying applying = new Applying(transition, job, actor, by, this.ids.newId(), now, planned.input(), from,
 					planned.milestoneId(), dryRun);
 			step.check(applying);
@@ -579,6 +586,9 @@ class JobLifecycle {
 		}
 		if (transition.frozenBlocks() && job.frozenAt() != null) {
 			throw new ApiException(ErrorCode.CONFLICT, JobReason.JOB_FROZEN);
+		}
+		if (JobBusyMarkers.isBusy(this.jdbc, jobId)) {
+			throw new ApiException(ErrorCode.JOB_BUSY);
 		}
 		if (transition.machine() != Transition.Machine.JOB) {
 			throw new IllegalArgumentException(transition + " moves a Milestone: apply it in a cascade");
