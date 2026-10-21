@@ -88,11 +88,12 @@ class InvitationController {
 	}
 
 	/** MEN-3's invitation note, or its lapsed card. */
-	record MentorInvitationView(UUID id, String customer, String jobTitle, Status status, Instant invitedAt) {
+	/** The invitation as its Mentor sees it: never the Customer's name before selection (author decision 2026-10-21). */
+	record MentorInvitationView(UUID id, String jobTitle, Status status, Instant invitedAt) {
 
 		static MentorInvitationView of(MentorInvitation invitation) {
-			return new MentorInvitationView(invitation.id(), invitation.customer(), invitation.jobTitle(),
-					invitation.status(), invitation.invitedAt());
+			return new MentorInvitationView(invitation.id(), invitation.jobTitle(), invitation.status(),
+					invitation.invitedAt());
 		}
 
 	}

@@ -25,7 +25,6 @@ import vn.vibefix.audit.AuditActor;
 import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
-import vn.vibefix.identity.CustomerNames;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
 import vn.vibefix.job.JobPosts;
@@ -81,7 +80,7 @@ class Invitations {
 	}
 
 	/** The Mentor's invitation as MEN-3 shows it; {@code LAPSED} once the Job Post no longer takes Applications. */
-	record MentorInvitation(UUID id, String customer, String jobTitle, Status status, Instant invitedAt) {
+	record MentorInvitation(UUID id, String jobTitle, Status status, Instant invitedAt) {
 	}
 
 	private static final String COLUMNS = """
@@ -94,8 +93,6 @@ class Invitations {
 
 	private final MentorDirectory mentors;
 
-	private final CustomerNames customers;
-
 	private final Notifications notifications;
 
 	private final Todos todos;
@@ -106,12 +103,11 @@ class Invitations {
 
 	private final Clock clock;
 
-	Invitations(JdbcClient jdbc, JobPosts posts, MentorDirectory mentors, CustomerNames customers,
-			Notifications notifications, Todos todos, AuditLog auditLog, IdGenerator ids, Clock clock) {
+	Invitations(JdbcClient jdbc, JobPosts posts, MentorDirectory mentors, Notifications notifications, Todos todos,
+			AuditLog auditLog, IdGenerator ids, Clock clock) {
 		this.jdbc = jdbc;
 		this.posts = posts;
 		this.mentors = mentors;
-		this.customers = customers;
 		this.notifications = notifications;
 		this.todos = todos;
 		this.auditLog = auditLog;
@@ -168,7 +164,7 @@ class Invitations {
 				AuditObject.of("matching.invitation", id)).forJob(jobId));
 		String link = "/tim-viec/" + jobId;
 		this.notifications.send(new NotificationRequest(INVITED, id, List.of(new Recipient(mentorId, Audience.SUBJECT)),
-				Map.of("customer", this.customers.displayName(customerId), "job", post.title()), link, null, id));
+				Map.of("job", post.title()), link, null, id));
 		this.todos.open(new TodoRequest(ANSWER, mentorId, Audience.SUBJECT, id, Map.of("job", post.title()), link,
 				post.lapsesAt(), null));
 		return quota(customerId, jobId, now);
@@ -247,8 +243,8 @@ class Invitations {
 				Status status = invitation.status() == Status.OPEN
 						&& post.map(found -> !found.open() || found.hidden()).orElse(true) ? Status.LAPSED
 								: invitation.status();
-				return new MentorInvitation(invitation.id(), this.customers.displayName(invitation.customerId()),
-						post.map(JobPostState::title).orElse(""), status, invitation.invitedAt());
+				return new MentorInvitation(invitation.id(), post.map(JobPostState::title).orElse(""), status,
+						invitation.invitedAt());
 			});
 	}
 

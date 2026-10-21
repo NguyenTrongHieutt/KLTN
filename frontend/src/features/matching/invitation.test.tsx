@@ -233,7 +233,6 @@ describe('MEN-3 with an invitation (FR-14)', () => {
   }
   const invitation = (status: string) => ({
     id: 'i1',
-    customer: 'Lan Nguyễn',
     jobTitle: 'Sửa lỗi mất đơn hàng',
     status,
     invitedAt: '2026-10-16T03:00:00Z',
@@ -251,7 +250,7 @@ describe('MEN-3 with an invitation (FR-14)', () => {
     renderAt('/tim-viec/j1')
 
     expect(
-      await screen.findByText('Lan Nguyễn đã mời bạn ứng tuyển công việc này. Bạn tự quyết định; lời mời không giữ chỗ cho bạn.'),
+      await screen.findByText('Khách hàng đã mời bạn ứng tuyển công việc này. Bạn tự quyết định; lời mời không giữ chỗ cho bạn.'),
     ).toBeInTheDocument()
   })
 

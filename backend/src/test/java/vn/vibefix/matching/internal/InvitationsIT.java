@@ -137,10 +137,12 @@ class InvitationsIT extends IntegrationTest {
 
 		invite(this.long_).andExpect(status().isCreated()).andExpect(jsonPath("$.left").value(9));
 
+		// Author decision 2026-10-21: no invitation text names the Customer before selection.
 		assertThat(this.jdbc.sql("""
-				SELECT params ->> 'customer' FROM notification.notification
+				SELECT params::text FROM notification.notification
 				WHERE type = 'matching.invited_to_apply' AND account_id = :long
-				""").param("long", this.long_).query(String.class).single()).isEqualTo("Lan Nguyễn");
+				""").param("long", this.long_).query(String.class).single()).doesNotContain("Lan Nguyễn")
+			.contains("Đánh giá bảo mật cửa hàng online");
 		assertThat(this.jdbc.sql("""
 				SELECT params ->> 'job' FROM notification.todo
 				WHERE todo_key = 'matching.answer_invitation_to_apply' AND account_id = :long AND closed_at IS NULL
@@ -153,7 +155,7 @@ class InvitationsIT extends IntegrationTest {
 		search("supabase", "").andExpect(jsonPath("$.items[?(@.displayName == 'Trần Đức Long')].relation").value("INVITED"));
 		this.mvc.perform(get("/api/v1/mentor/job-posts/" + this.job + "/invitation").with(as(this.long_, Role.MENTOR)))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.customer").value("Lan Nguyễn"))
+			.andExpect(jsonPath("$.customer").doesNotExist())
 			.andExpect(jsonPath("$.status").value("OPEN"));
 		this.mvc.perform(get("/api/v1/mentor/job-posts/" + this.job + "/invitation").with(as(this.ha, Role.MENTOR)))
 			.andExpect(status().isNotFound());

@@ -1,0 +1,6 @@
+subject: Hai người trong {job} có thể là cùng một người ({first}, {second})
+---
+Xin chào,
+
+Trong công việc {job}, {first} và {second} có thể là cùng một người.
+Hãy mở trang quản trị của vibefix để xem.

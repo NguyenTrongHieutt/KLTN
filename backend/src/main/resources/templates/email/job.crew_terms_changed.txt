@@ -1,0 +1,6 @@
+subject: Phần chia của {job} đã thay đổi. Hãy xác nhận lại.
+---
+Xin chào,
+
+Người hướng dẫn đã sửa phần chia của nhóm thực hiện công việc {job}.
+Hãy mở vibefix để xem phần mới của bạn và xác nhận lại.

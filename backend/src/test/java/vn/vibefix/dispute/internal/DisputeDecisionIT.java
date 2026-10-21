@@ -109,7 +109,8 @@ class DisputeDecisionIT extends IntegrationTest {
 		assertThat(text("SELECT state || ':' || (frozen_at IS NULL) FROM job.job WHERE id = '" + job + "'"))
 			.isEqualTo("CANCELLED:true");
 		assertThat(count("SELECT count(*) FROM timers.frozen_job WHERE job_id = '" + job + "'")).isZero();
-		assertThat(count("SELECT count(*) FROM notification.notification WHERE type = 'dispute.dispute_decided'")).isEqualTo(2);
+		// The inventory's audience: the Customer, the Mentor, and every Crew member who was ever active.
+		assertThat(count("SELECT count(*) FROM notification.notification WHERE type = 'dispute.dispute_decided'")).isEqualTo(3);
 		assertThat(count("SELECT count(*) FROM audit.audit_entry WHERE action = 'dispute.decision_recorded'")).isEqualTo(1);
 		this.mvc.perform(get("/api/v1/boards/" + job + "/dispute").with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(jsonPath("$.decided.nextState").value("CANCEL"))

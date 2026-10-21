@@ -217,8 +217,7 @@ class NotificationTypes implements NotificationCatalog {
 
 	/** A Customer invited this Mentor to apply to their Job Post (FR-14, UX-DR16). */
 	static final NotificationType MATCHING_INVITED_TO_APPLY = new NotificationType("matching.invited_to_apply",
-			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "mail",
-			Set.of("customer", "job"));
+			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "mail", Set.of("job"));
 
 	/** The Mentor shared an Agreement draft (FR-16): the Customer. */
 	static final NotificationType JOB_AGREEMENT_DRAFT_READY = new NotificationType("job.agreement_draft_ready",
@@ -264,7 +263,7 @@ class NotificationTypes implements NotificationCatalog {
 
 	/** An IPN named no known order (AD-14): every Administrator. */
 	static final NotificationType PAYMENT_UNKNOWN_PAYMENT = new NotificationType("payment.unknown_payment",
-			Set.of(Audience.ADMIN), Channel.IN_APP, EmailClass.TRANSACTIONAL, "alert", Set.of());
+			Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of());
 
 	/** M1 (FR-41): the Mentor and the active Crew may start, with N-13's line in the email. */
 	static final NotificationType JOB_MILESTONE_FUNDED = new NotificationType("job.milestone_funded",
@@ -290,15 +289,15 @@ class NotificationTypes implements NotificationCatalog {
 
 	/** The Mentor removed this Student from the Crew before the Job started (FR-75). */
 	static final NotificationType JOB_CREW_MEMBER_REMOVED = new NotificationType("job.crew_member_removed",
-			Set.of(Audience.SUBJECT), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
+			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
 
 	/** The Mentor saved new Crew Terms: every Crew member confirms again (FR-75, N-20). */
 	static final NotificationType JOB_CREW_TERMS_CHANGED = new NotificationType("job.crew_terms_changed",
-			Set.of(Audience.CREW_ASSIGNED), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
+			Set.of(Audience.CREW_ASSIGNED), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
 
 	/** The Mentor proposed a Crew change on a running Job: each remaining active member confirms it (Story 11.3). */
 	static final NotificationType JOB_CREW_CHANGE_PROPOSED = new NotificationType("job.crew_change_proposed",
-			Set.of(Audience.CREW_ACTIVE), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
+			Set.of(Audience.CREW_ACTIVE), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
 
 	/** A Crew change took effect (FR-75): the new GitHub usernames, never a share (UX-DR83). */
 	static final NotificationType JOB_CREW_CHANGED = new NotificationType("job.crew_changed",
@@ -315,11 +314,11 @@ class NotificationTypes implements NotificationCatalog {
 
 	/** A Crew addition refused for a shared person-link signal (AD-19): every Administrator. */
 	static final NotificationType JOB_CONFLICT_OF_INTEREST_REFUSED = new NotificationType("job.conflict_of_interest_refused",
-			Set.of(Audience.ADMIN), Channel.IN_APP, EmailClass.TRANSACTIONAL, "alert", Set.of());
+			Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of());
 
 	/** Two participants of a running Job newly share a person-link signal (AD-19): every Administrator. */
 	static final NotificationType JOB_PERSON_LINK_ALERT = new NotificationType("job.person_link_alert", Set.of(Audience.ADMIN),
-			Channel.IN_APP, EmailClass.TRANSACTIONAL, "alert", Set.of("job", "first", "second"));
+			Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("job", "first", "second"));
 
 	/** J4 opened the Job Chat (FR-46): the Customer and the Mentor, in-app only. */
 	static final NotificationType CHAT_CHAT_OPENED = new NotificationType("chat.chat_opened",
@@ -498,8 +497,7 @@ class NotificationTypes implements NotificationCatalog {
 
 	/** FR-36: the request lapsed with the Milestone's acceptance or the Job's end. */
 	static final NotificationType JOB_CHANGE_REQUEST_LAPSED = new NotificationType("job.change_request_lapsed",
-			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info",
-			Set.of("job"));
+			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
 
 	/** FR-40: the other side is asked to confirm a cancellation, with the full refund of held money. */
 	static final NotificationType JOB_CANCELLATION_PROPOSED = new NotificationType("job.cancellation_proposed",
@@ -537,7 +535,8 @@ class NotificationTypes implements NotificationCatalog {
 
 	/** FR-54: the decision was carried out; the Job unfroze. */
 	static final NotificationType DISPUTE_DISPUTE_DECIDED = new NotificationType("dispute.dispute_decided",
-			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "check",
+			Set.of(Audience.CUSTOMER, Audience.MENTOR, Audience.CREW_EVER_ACTIVE), Channel.IN_APP_AND_EMAIL,
+			EmailClass.TRANSACTIONAL, "check",
 			Set.of("job"));
 
 	/** A cancellation proposal waits for the other side (FR-40): until confirmed or withdrawn. */
