@@ -54,7 +54,8 @@ import vn.vibefix.github.GitHubException;
  * [--prefix=s4-…]} runs every repository operation J7 and the Handover depend on, with the dev
  * Platform App, and prints each outcome. A second run with {@code --intermediary=<name>
  * --member-token-file=<path>} checks, with an organization member's own token, that the ruleset
- * refuses them. Each installation token is minted for one check with only its permissions and
+ * refuses them; one with {@code --intermediary=<name> --collaborator=<login>} raises a collaborator
+ * who accepted the invitation to write. Each installation token is minted for one check with only its permissions and
  * revoked after it; no token is ever printed. Nothing is deleted on GitHub.
  * <p>
  * Exit code 0 when every check is {@code OK} or {@code SKIPPED}, 1 for a {@code FAIL} or a refusal,
@@ -146,8 +147,11 @@ class SpikeS4Command implements ApplicationRunner, ExitCodeGenerator {
 		String forksArg = single(args, "forks");
 		String prefix = single(args, "prefix");
 		int forks = forksArg == null ? 3 : parse(forksArg);
-		boolean memberRun = intermediary != null;
-		boolean valid = memberRun ? NAME.matcher(intermediary).matches() && memberTokenFile != null
+		boolean followUp = intermediary != null;
+		boolean memberRun = followUp && memberTokenFile != null;
+		boolean valid = followUp
+				? NAME.matcher(intermediary).matches() && (memberTokenFile != null) != (collaborator != null)
+						&& (collaborator == null || LOGIN.matcher(collaborator).matches())
 				: source != null && REPOSITORY.matcher(source).matches() && collaborator != null
 						&& LOGIN.matcher(collaborator).matches() && forks >= 1 && forks <= 10
 						&& (prefix == null || NAME.matcher(prefix).matches());
@@ -156,6 +160,8 @@ class SpikeS4Command implements ApplicationRunner, ExitCodeGenerator {
 					+ " --source=<owner/name> --collaborator=<GitHub username> [--forks=1..10] [--prefix=<name>]");
 			this.err.println("   or: --vibefix.cli.command=" + COMMAND
 					+ " --intermediary=<name from the first run> --member-token-file=<path>");
+			this.err.println("   or: --vibefix.cli.command=" + COMMAND
+					+ " --intermediary=<name from the first run> --collaborator=<who accepted the invitation>");
 			this.exitCode = 2;
 			return;
 		}
@@ -175,6 +181,10 @@ class SpikeS4Command implements ApplicationRunner, ExitCodeGenerator {
 		try {
 			if (memberRun) {
 				memberChecks(organization, intermediary, Path.of(memberTokenFile), run, checks);
+			}
+			else if (followUp) {
+				this.out.println("Spike S4 on " + organization + ": raising " + collaborator + " on " + intermediary);
+				record(checks, check(13, "raise after acceptance", () -> raise(organization, intermediary, collaborator)));
 			}
 			else {
 				String name = (prefix == null ? "s4-" + PREFIX.format(this.clock.instant()) : prefix) + "-intermediary";
@@ -411,6 +421,50 @@ class SpikeS4Command implements ApplicationRunner, ExitCodeGenerator {
 					"read HTTP " + read.status() + ", write HTTP " + write.status() + ", invitations for " + collaborator + "="
 							+ count + " permissions=" + permission);
 		});
+	}
+
+	/**
+	 * AD-11 raises a permission only once the invitation is accepted (a pending invitation keeps the
+	 * permission it was sent with): the collaborator is raised in place, with no new invitation, and
+	 * a read-only token reads the permission back.
+	 */
+	private Check raise(String organization, String name, String collaborator) {
+		String path = "/repos/" + organization + "/" + name;
+		long id = withToken(Set.of(), Map.of("metadata", "read"),
+				token -> this.apps.http().send("GET", path, token.value(), null).body().path("id").asLong());
+		Raised raised = withToken(Set.of(id), Map.of("administration", "write"), token -> {
+			GitHubHttp.Answer accepted = this.apps.http()
+				.send("GET", path + "/collaborators/" + collaborator, token.value(), null);
+			if (accepted.status() != 204) {
+				return new Raised(false, accepted.status(), 0);
+			}
+			GitHubHttp.Answer raise = this.apps.http()
+				.send("PUT", path + "/collaborators/" + collaborator, token.value(), Map.of("permission", "push"));
+			GitHubHttp.Answer invitations = this.apps.http().send("GET", path + "/invitations", token.value(), null);
+			int count = 0;
+			for (JsonNode invitation : invitations.body()) {
+				count += invitation.path("invitee").path("login").asString().equalsIgnoreCase(collaborator) ? 1 : 0;
+			}
+			return new Raised(true, raise.status(), count);
+		});
+		if (!raised.accepted()) {
+			return new Check(13, "raise after acceptance", Outcome.FAIL, raised.status(),
+					collaborator + " has not accepted the invitation yet: accept it on " + organization + "/" + name
+							+ "/invitations, then run this again");
+		}
+		JsonNode readBack = withToken(Set.of(id), Map.of("metadata", "read"), token -> this.apps.http()
+			.send("GET", path + "/collaborators/" + collaborator + "/permission", token.value(), null)
+			.body());
+		String permission = readBack.path("permission").asString("-");
+		String role = readBack.path("role_name").asString("-");
+		boolean ok = raised.status() == 204 && raised.invitations() == 0 && "write".equals(role);
+		return new Check(13, "raise after acceptance", ok ? Outcome.OK : Outcome.FAIL, raised.status(),
+				"raise HTTP " + raised.status() + ", invitations for " + collaborator + "=" + raised.invitations()
+						+ ", read back with a read-only token: permission=" + permission + " role_name=" + role);
+	}
+
+	/** Whether the invitee is a collaborator yet, and if so the raise's status and their invitations left. */
+	private record Raised(boolean accepted, int status, int invitations) {
 	}
 
 	/** The second run: an organization member's own token, refused by the ruleset everywhere it guards. */
