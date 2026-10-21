@@ -225,15 +225,21 @@ class JobGrants {
 				Map.of("grantId", grantId.toString(), "round", round), null, null, 0));
 	}
 
-	/** The invitation was sent: the person hears of it, gets the to-do, and the renewal is scheduled. */
+	/**
+	 * The invitation was sent: the person hears of it, gets the to-do, and the renewal is scheduled. A grant
+	 * revoked meanwhile stays revoking; the platform sweep reads a late invitation back as drift.
+	 */
 	@Transactional
 	void invited(Grant grant, Invited invited) {
 		Instant now = this.clock.instant();
-		this.jdbc.sql("""
+		int updated = this.jdbc.sql("""
 				UPDATE repo.job_grant SET status = 'INVITED', invitation_id = :invitation, invited_at = :now, expires_at = :expires
 				WHERE id = :id AND status = 'INVITING'
 				""").param("invitation", invited.invitationId()).param("now", Timestamp.from(now))
 			.param("expires", Timestamp.from(invited.expiresAt())).param("id", grant.id()).update();
+		if (updated == 0) {
+			return;
+		}
 		audit("repo.grant_invited", grant);
 		String title = title(grant.jobId());
 		this.notifications.send(new NotificationRequest(SENT, key(grant.id() + ":sent:" + grant.renewals()),

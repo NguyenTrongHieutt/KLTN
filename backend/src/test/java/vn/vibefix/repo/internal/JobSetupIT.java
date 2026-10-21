@@ -32,12 +32,14 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import vn.vibefix.github.internal.GitHubStub;
 import vn.vibefix.github.internal.TestKeys;
+import vn.vibefix.identity.AccountLocked;
 import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.CustomerTokens;
 import vn.vibefix.identity.internal.AdministratorTestSupport;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.team.internal.TeamTestSupport;
 import vn.vibefix.timers.internal.DeadlinePoller;
+import vn.vibefix.job.CrewMemberRemoved;
 import vn.vibefix.job.JobBusy;
 import vn.vibefix.job.JobTransitioned;
 import vn.vibefix.operations.Lane;
@@ -54,8 +56,9 @@ import vn.vibefix.support.IntegrationTest;
  * fork, and AD-11's rulesets are read back before the marker clears. A Finding, a private repository,
  * or lost admin rights block the start until the Customer fixes it and taps "Thử lại". Then (Story 7.3)
  * the Mentor and the active Crew are invited with read; once each accepted with two-factor authentication
- * on, Verify raises them to write, reads it back, and only then applies J7. GitHub and git hosting are
- * {@link GitHubStub}; the sandbox jobs run in process.
+ * on, Verify raises them to write, reads it back, and only then applies J7. J8, J10, a locked account, or a
+ * Crew change revokes access, read back (Story 7.7); 30 days after the end the final ZIP is stored and both
+ * repositories are deleted. GitHub and git hosting are {@link GitHubStub}; the sandbox jobs run in process.
  */
 class JobSetupIT extends IntegrationTest {
 
@@ -123,6 +126,15 @@ class JobSetupIT extends IntegrationTest {
 
 	@Autowired
 	private SourceDrift drift;
+
+	@Autowired
+	private Revocations revocations;
+
+	@Autowired
+	private RepositoryDeletions deletions;
+
+	@Autowired
+	private RepoPersonalData personalData;
 
 	@Autowired
 	private org.springframework.transaction.PlatformTransactionManager transactions;
@@ -439,6 +451,159 @@ class JobSetupIT extends IntegrationTest {
 		this.worker.runDue(Lane.GITHUB_LONG);
 
 		assertThat(this.setups.latest(this.job).orElseThrow().status()).isEqualTo("DONE");
+	}
+
+	@Test
+	void j8RevokesEveryGrantAndReadsItBackWhileTheAdministratorsHearOfOneGitHubKeepsRefusing() throws Exception {
+		AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		String crewLogin = TeamTestSupport.login(this.jdbc, this.crew);
+		active();
+		GITHUB.unavailable.add("DELETE /repos/" + GitHubStub.ORGANIZATION + "/" + JobSetups.workingName(this.job)
+				+ "/collaborators/" + crewLogin);
+		this.jdbc.sql("UPDATE job.job SET state = 'CLOSING' WHERE id = :id").param("id", this.job).update();
+
+		this.revocations.transitioned(new JobTransitioned(UUID.randomUUID(), UUID.randomUUID(), this.job, "J8", "USER",
+				"ACTIVE", "CLOSING", 6, 1, Map.of()));
+		assertThat(this.grants.ofJob(this.job)).extracting(JobGrants.Grant::status).containsOnly("REVOKING");
+		this.worker.runDue(Lane.GITHUB_SHORT);
+
+		assertThat(grantStatus(this.mentor)).isEqualTo("REVOKED");
+		assertThat(grantStatus(this.crew)).as("GitHub refused; tried again in 30 seconds").isEqualTo("REVOKING");
+		assertThat(notices("repo.access_revoked")).isOne();
+		this.clock.advance(Revocations.DELAY.plusSeconds(1));
+		this.deadlines.runDue();
+		assertThat(notices("operations.revocation_delayed")).as("the Administrator, for the Crew member only").isOne();
+
+		GITHUB.unavailable.clear();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+
+		assertThat(this.grants.ofJob(this.job)).extracting(JobGrants.Grant::status).containsOnly("REVOKED");
+		assertThat(this.grants.ofJob(this.job)).allSatisfy(grant -> assertThat(this.jdbc
+			.sql("SELECT revoked_at FROM repo.job_grant WHERE id = :id").param("id", grant.id()).query(Timestamp.class).single())
+			.isNotNull());
+		assertThat(notices("repo.access_revoked")).isEqualTo(2);
+		assertThat(this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE action = 'repo.grant_revoked' AND job_id = :job")
+			.param("job", this.job).query(Long.class).single()).as("per person and repository").isEqualTo(2);
+		assertThat(sweep()).as("nobody is left on the repositories").isEmpty();
+		awaitListeners();
+	}
+
+	@Test
+	void aLockedMemberAndAMemberACrewChangeRemovesLoseTheirAccessAndAPendingInvitationGoes() throws Exception {
+		active();
+		UUID hai = TeamTestSupport.student(this.jdbc, "Phạm Văn Hải", true, List.of(TeamTestSupport.REACT), "React",
+				LocalDate.parse("2026-12-31"));
+		UUID row = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO job.crew_row (id, job_id, student_account_id, status, signed_at, activated_at, created_at)
+				VALUES (:id, :job, :student, 'ACTIVE', :now, :now, :now)
+				""").param("id", row).param("job", this.job).param("student", hai)
+			.param("now", Timestamp.from(this.clock.instant())).update();
+		this.checks.added(new vn.vibefix.job.CrewMemberAdded(UUID.randomUUID(), this.job, row, hai, "ACTIVE"));
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		assertThat(grantStatus(hai)).isEqualTo("INVITED");
+
+		this.revocations.locked(new AccountLocked(UUID.randomUUID(), this.crew, Role.STUDENT));
+		this.revocations.removed(new CrewMemberRemoved(UUID.randomUUID(), this.job, row, hai));
+		this.worker.runDue(Lane.GITHUB_SHORT);
+
+		assertThat(grantStatus(this.crew)).isEqualTo("REVOKED");
+		assertThat(grantStatus(hai)).isEqualTo("REVOKED");
+		assertThat(grantStatus(this.mentor)).isEqualTo("WRITE");
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM notification.todo
+				WHERE todo_key = 'repo.accept_github_invitation' AND account_id = :account AND closed_at IS NULL
+				""").param("account", hai).query(Long.class).single()).isZero();
+		assertThat(sweep()).as("no collaborator or invitation is left behind").isEmpty();
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/setup").with(as(this.customer, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.people.length()").value(1))
+			.andExpect(jsonPath("$.people[0].name").value("Đỗ Mạnh Hùng"));
+		awaitListeners();
+	}
+
+	@Test
+	void thirtyDaysAfterTheJobEndsTheFinalZipIsStoredForTheCustomerThenBothRepositoriesAreDeleted() throws Exception {
+		j6();
+		run();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		String working = JobSetups.workingName(this.job);
+		String intermediary = JobSetups.intermediaryName(this.job);
+		this.jdbc.sql("UPDATE job.job SET state = 'CANCELLED' WHERE id = :id").param("id", this.job).update();
+
+		this.revocations.transitioned(new JobTransitioned(UUID.randomUUID(), UUID.randomUUID(), this.job, "J10", "USER",
+				"STARTING", "CANCELLED", 4, 1, Map.of()));
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		assertThat(this.grants.ofJob(this.job)).extracting(JobGrants.Grant::status).containsOnly("REVOKED");
+		assertThat(sweep()).as("the ended Job's repositories are still read, and hold nobody").isEmpty();
+		this.clock.advance(Duration.ofDays(29));
+		this.deadlines.runDue();
+		this.worker.runDue(Lane.GITHUB_LONG);
+		assertThat(GITHUB.deleted).doesNotContain(working, intermediary);
+
+		this.clock.advance(Duration.ofDays(1).plusMinutes(1));
+		this.deadlines.runDue();
+		this.worker.runDue(Lane.GITHUB_LONG);
+
+		assertThat(GITHUB.deleted).containsSubsequence(working, intermediary);
+		UUID archive = this.jdbc.sql("SELECT archive_file_id FROM repo.job_setup WHERE job_id = :job AND deleted_at IS NOT NULL")
+			.param("job", this.job).query(UUID.class).single();
+		assertThat(this.jdbc.sql("SELECT purpose || ' ' || account_id || ' ' || kind FROM files.stored_file WHERE id = :id")
+			.param("id", archive).query(String.class).single()).isEqualTo("repo.final_zip " + this.customer + " ARCHIVE");
+		byte[] zip = this.mvc.perform(get("/api/v1/files/" + archive).with(as(this.customer, Role.CUSTOMER)))
+			.andExpect(status().isOk())
+			.andReturn()
+			.getResponse()
+			.getContentAsByteArray();
+		try (java.util.zip.ZipInputStream in = new java.util.zip.ZipInputStream(new java.io.ByteArrayInputStream(zip))) {
+			java.util.Map<String, String> entries = new java.util.TreeMap<>();
+			for (java.util.zip.ZipEntry entry = in.getNextEntry(); entry != null; entry = in.getNextEntry()) {
+				entries.put(entry.getName(), new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
+			}
+			assertThat(entries).containsEntry("README.md", "# Quán Mây\n");
+		}
+		this.mvc.perform(get("/api/v1/files/" + archive).with(as(this.mentor, Role.MENTOR))).andExpect(status().isNotFound());
+		assertThat(sweep()).as("deleted repositories are no longer read").isEmpty();
+	}
+
+	@Test
+	void deletingTheProductDeletesItsRepositoriesAtOnceWithoutAZipAndAnyStoredZip() throws Exception {
+		j6();
+		run();
+		Setup setup = this.setups.latest(this.job).orElseThrow();
+		org.springframework.transaction.support.TransactionTemplate transaction =
+				new org.springframework.transaction.support.TransactionTemplate(this.transactions);
+		transaction.executeWithoutResult(status -> this.deletions.archived(setup.id(), this.customer, "ban-cuoi.zip",
+				"PK".getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+		UUID archive = this.jdbc.sql("SELECT archive_file_id FROM repo.job_setup WHERE id = :id").param("id", setup.id())
+			.query(UUID.class).single();
+
+		transaction.executeWithoutResult(status -> this.personalData.deleteProduct(this.product));
+		this.worker.runDue(Lane.GITHUB_LONG);
+
+		assertThat(GITHUB.deleted).containsSubsequence(JobSetups.workingName(this.job), JobSetups.intermediaryName(this.job));
+		assertThat(this.jdbc.sql("SELECT count(*) FROM repo.job_setup WHERE job_id = :job").param("job", this.job)
+			.query(Long.class).single()).isZero();
+		assertThat(this.jdbc.sql("SELECT deleted_at FROM files.stored_file WHERE id = :id").param("id", archive)
+			.query(Timestamp.class).single()).isNotNull();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE action = 'repo.repositories_deleted_with_product'"
+				+ " AND job_id = :job").param("job", this.job).query(Long.class).single()).isOne();
+	}
+
+	/** Setup, the invitations, both acceptances, and Verify: an Active Job whose Mentor and Crew hold write. */
+	private void active() {
+		j6();
+		run();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		GITHUB.accept(TeamTestSupport.login(this.jdbc, this.mentor));
+		GITHUB.accept(TeamTestSupport.login(this.jdbc, this.crew));
+		this.checks.check(this.job);
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		assertThat(this.busy.job(this.job).orElseThrow().state()).isEqualTo("ACTIVE");
+	}
+
+	private String grantStatus(UUID account) {
+		return this.grants.ofJob(this.job).stream().filter(grant -> grant.accountId().equals(account)).findFirst()
+			.orElseThrow().status();
 	}
 
 	private List<String> sweep() {

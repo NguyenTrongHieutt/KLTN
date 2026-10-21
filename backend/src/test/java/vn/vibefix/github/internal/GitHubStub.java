@@ -263,6 +263,10 @@ public final class GitHubStub implements AutoCloseable {
 		String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
 		JsonNode json = body.isBlank() ? GitHubHttp.JSON.createObjectNode() : GitHubHttp.JSON.readTree(body);
 		this.seen.add(new Seen(method, path, exchange.getRequestHeaders().getFirst("Authorization"), json));
+		if (this.unavailable.stream().anyMatch(prefix -> (method + " " + path).startsWith(prefix))) {
+			send(exchange, 502, "{\"message\":\"Bad Gateway\"}");
+			return;
+		}
 		try {
 			route(exchange, method, path, query, json);
 		}
@@ -441,10 +445,25 @@ public final class GitHubStub implements AutoCloseable {
 				send(exchange, 201, "{\"id\":1}");
 			}
 		}
+		else if (method.equals("DELETE")
+				&& (matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)/invitations/(\\d+)").matcher(path)).matches()) {
+			Map<String, String> invitations = invitationsOf(matcher.group(1));
+			String login = this.invitationIds.remove(Long.parseLong(matcher.group(2)));
+			if (login != null) {
+				invitations.remove(login);
+			}
+			send(exchange, 204, "");
+		}
+		else if (method.equals("DELETE") && (matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)").matcher(path)).matches()) {
+			this.repositories.remove(matcher.group(1));
+			this.deleted.add(matcher.group(1));
+			send(exchange, 204, "");
+		}
 		else if ((matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)/invitations").matcher(path)).matches()) {
 			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(invitationsOf(matcher.group(1)).entrySet()
 				.stream()
-				.map(invitation -> Map.of("invitee", Map.of("login", invitation.getKey()), "permissions", invitation.getValue()))
+				.map(invitation -> Map.of("id", invitationId(invitation.getKey()), "invitee", Map.of("login", invitation.getKey()),
+						"permissions", invitation.getValue()))
 				.toList()));
 		}
 		else if (method.equals("GET") && (matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)/pulls").matcher(path))
@@ -518,6 +537,30 @@ public final class GitHubStub implements AutoCloseable {
 					collaboratorsOf(repository).put(login, permission);
 				}
 			});
+		}
+	}
+
+	/** Requests answered 502, as GitHub down: each a prefix of {@code "METHOD /path"}. */
+	public final java.util.Set<String> unavailable = Collections.synchronizedSet(new java.util.HashSet<>());
+
+	/** The repositories deleted, by name. */
+	public final List<String> deleted = Collections.synchronizedList(new ArrayList<>());
+
+	/** Invitation IDs by login, as the invitations list shows them. */
+	private final Map<Long, String> invitationIds = Collections.synchronizedMap(new LinkedHashMap<>());
+
+	private long invitationId(String login) {
+		synchronized (this.invitationIds) {
+			return this.invitationIds.entrySet()
+				.stream()
+				.filter(entry -> entry.getValue().equals(login))
+				.map(Map.Entry::getKey)
+				.findFirst()
+				.orElseGet(() -> {
+					long id = this.ids.incrementAndGet();
+					this.invitationIds.put(id, login);
+					return id;
+				});
 		}
 	}
 

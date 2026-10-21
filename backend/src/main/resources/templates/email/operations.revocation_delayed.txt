@@ -1,0 +1,6 @@
+subject: Chưa thu hồi được quyền của @{login} ở {job} sau 15 phút
+---
+Xin chào,
+
+vibefix vẫn đang thử gỡ quyền của @{login} trên kho làm việc của {job} ở GitHub, mỗi 30 giây, nhưng GitHub chưa xác nhận.
+Hãy kiểm tra GitHub và gỡ quyền bằng tay nếu cần. vibefix tiếp tục thử cho đến khi đọc lại thấy quyền đã hết.

@@ -143,6 +143,36 @@ class JdbcStoredFiles implements StoredFiles {
 	}
 
 	@Override
+	@Transactional(propagation = Propagation.MANDATORY)
+	public StoredFile storeArchive(String purpose, UUID accountId, String fileName, byte[] content) {
+		Instant now = this.clock.instant().truncatedTo(ChronoUnit.MICROS);
+		UUID id = this.ids.newId();
+		this.store.write(id, content);
+		TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+			@Override
+			public void afterCompletion(int status) {
+				if (status != STATUS_COMMITTED) {
+					JdbcStoredFiles.this.store.delete(id);
+				}
+			}
+		});
+		String name = FileNames.normalize(fileName, "zip");
+		this.jdbc.sql("""
+				INSERT INTO files.stored_file (id, purpose, account_id, file_name, media_type, kind, size_bytes, sha256, stored_at)
+				VALUES (:id, :purpose, :account, :name, 'application/zip', 'ARCHIVE', :size, :sha256, :now)
+				""")
+			.param("id", id)
+			.param("purpose", purpose)
+			.param("account", accountId)
+			.param("name", name)
+			.param("size", (long) content.length)
+			.param("sha256", sha256(content))
+			.param("now", Timestamp.from(now))
+			.update();
+		return new StoredFile(id, purpose, accountId, name, "application/zip", FileKind.ARCHIVE, content.length, now);
+	}
+
+	@Override
 	public Optional<StoredFile> find(UUID fileId) {
 		return this.jdbc.sql("""
 				SELECT id, purpose, account_id, file_name, media_type, kind, size_bytes, stored_at FROM files.stored_file

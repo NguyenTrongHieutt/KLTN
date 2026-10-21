@@ -51,7 +51,8 @@ import vn.vibefix.shared.ProcessedEvents;
  * neither the Platform App's bot nor a person granted on it alerts every Administrator; the operator
  * account's use alerts them too. Every 10 minutes the sweep reads the organization, the installation,
  * and each running Job's repositories back against what vibefix expects, and alerts any difference once a
- * day. Every closing and alert is audited.
+ * day; an ended Job's repositories are read until they are deleted, and a revocation in progress may go
+ * either way. Every closing and alert is audited.
  */
 @Component
 class PlatformGuard {
@@ -66,6 +67,9 @@ class PlatformGuard {
 	static final Set<String> PRIVILEGED = Set.of("push", "member", "repository", "repository_ruleset", "pull_request");
 
 	private static final Set<String> RUNNING = Set.of("STARTING", "ACTIVE", "CLOSING");
+
+	/** FR-21: an ended Job's repositories stay, without collaborators, until they are deleted. */
+	private static final Set<String> ENDED = Set.of("CLOSED", "CANCELLED");
 
 	private static final ZoneId VIETNAM = ZoneId.of("Asia/Ho_Chi_Minh");
 
@@ -217,8 +221,8 @@ class PlatformGuard {
 
 	private List<String> repositoryDifferences(PlatformRepo repo, String bot) {
 		List<String> differences = new ArrayList<>(this.repositories.featureDifferences(repo.repository()));
-		Map<String, String> collaborators = this.repositories.directCollaborators(repo.repository());
-		Set<String> invitees = this.repositories.pendingInvitees(repo.repository());
+		Map<String, String> collaborators = new TreeMap<>(this.repositories.directCollaborators(repo.repository()));
+		Set<String> invitees = new TreeSet<>(this.repositories.pendingInvitees(repo.repository()));
 		String name = repo.repository().fullName();
 		if (repo.intermediary()) {
 			// FR-19: nobody but the System writes here, and nobody is a collaborator.
@@ -244,6 +248,11 @@ class PlatformGuard {
 				case "WRITE" -> expected.put(login, "write");
 				case "ACCEPTED" -> expected.put(login, "read");
 				case "INVITED" -> invited.add(login);
+				case "REVOKING" -> {
+					// Its operation is removing the access: either way is expected until it reads back.
+					collaborators.remove(login);
+					invitees.remove(login);
+				}
 				default -> {
 				}
 			}
@@ -271,13 +280,15 @@ class PlatformGuard {
 				AuditObject.of("github.organization", UUID.nameUUIDFromBytes("platform".getBytes(StandardCharsets.UTF_8)))));
 	}
 
-	/** Every repository of a Job that is running after its Setup. */
+	/** Every repository of a Job that is running after its Setup, or ended and not deleted yet. */
 	List<PlatformRepo> running() {
 		List<PlatformRepo> repos = new ArrayList<>();
-		for (UUID jobId : this.jdbc.sql("SELECT DISTINCT job_id FROM repo.job_setup WHERE status = 'DONE'")
+		for (UUID jobId : this.jdbc.sql("SELECT DISTINCT job_id FROM repo.job_setup WHERE status = 'DONE' AND deleted_at IS NULL")
 			.query(UUID.class)
 			.list()) {
-			boolean running = this.busy.job(jobId).map(job -> RUNNING.contains(job.state())).orElse(false);
+			boolean running = this.busy.job(jobId)
+				.map(job -> RUNNING.contains(job.state()) || ENDED.contains(job.state()))
+				.orElse(false);
 			Setup setup = running ? this.setups.latest(jobId).orElse(null) : null;
 			if (setup == null || !"DONE".equals(setup.status())) {
 				continue;
@@ -294,7 +305,10 @@ class PlatformGuard {
 
 	private Set<String> grantees(UUID jobId) {
 		Set<String> logins = new TreeSet<>();
-		this.grants.ofJob(jobId).forEach(grant -> logins.add(grant.login().toLowerCase(Locale.ROOT)));
+		this.grants.ofJob(jobId)
+			.stream()
+			.filter(grant -> !"REVOKED".equals(grant.status()))
+			.forEach(grant -> logins.add(grant.login().toLowerCase(Locale.ROOT)));
 		return logins;
 	}
 
