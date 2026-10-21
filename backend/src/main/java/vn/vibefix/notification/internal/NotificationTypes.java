@@ -245,6 +245,24 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType JOB_CREW_RECONFIRM_NEEDED = new NotificationType("job.crew_reconfirm_needed",
 			Set.of(Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("job"));
 
+	/** An External Operation failed after its last attempt (AD-6): every Administrator, from ADM-7. */
+	static final NotificationType OPERATIONS_OPERATION_FAILED = new NotificationType("operations.operation_failed",
+			Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of());
+
+	/** An email operation failed: in-app only, so one failing SMTP server cannot loop on its own alert. */
+	static final NotificationType OPERATIONS_EMAIL_OPERATION_FAILED = new NotificationType(
+			"operations.email_operation_failed", Set.of(Audience.ADMIN), Channel.IN_APP, EmailClass.TRANSACTIONAL, "alert",
+			Set.of());
+
+	/** Event publications stalled after their last attempt (AD-9): every Administrator, from ADM-7. */
+	static final NotificationType OPERATIONS_EVENT_PUBLICATION_STALLED = new NotificationType(
+			"operations.event_publication_stalled", Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL,
+			EmailClass.TRANSACTIONAL, "alert", Set.of("n"));
+
+	/** Today's email budget crossed its alert share (AD-34): every Administrator, once a day. */
+	static final NotificationType NOTIFICATION_EMAIL_BUDGET_80 = new NotificationType("notification.email_budget_80",
+			Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("sent", "budget"));
+
 	/** The IPN recorded a payment (FR-41): the receipt, with N-13's line in its email. */
 	static final NotificationType PAYMENT_PAYMENT_RECEIVED = new NotificationType("payment.payment_received",
 			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "check", Set.of("job", "amount", "n"));
@@ -573,6 +591,8 @@ class NotificationTypes implements NotificationCatalog {
 	@Override
 	public List<NotificationType> notificationTypes() {
 		return List.of(SCHOOL_EMAIL_CODE, VERIFICATION_EXPIRING, VERIFICATION_EXPIRED, IDENTITY_SIGN_IN_AGAIN, ADMIN_SIGN_IN_LOCKED,
+				OPERATIONS_OPERATION_FAILED, OPERATIONS_EMAIL_OPERATION_FAILED, OPERATIONS_EVENT_PUBLICATION_STALLED,
+				NOTIFICATION_EMAIL_BUDGET_80,
 				ADMINISTRATOR_CREATED, ADMINISTRATOR_ENROLMENT, STUDENT_CARD_APPROVED, STUDENT_CARD_REJECTED,
 				MENTOR_APPLICATION_RECEIVED, MENTOR_APPROVED, MENTOR_REJECTED, ACCOUNT_LOCKED, VERIFICATION_REVOKED, MENTOR_APPROVAL_REVOKED, TEAM_INVITATION_RECEIVED,
 				TEAM_INVITATION_ANSWERED, TEAM_JOIN_REQUEST_RECEIVED, TEAM_JOIN_REQUEST_ANSWERED, TEAM_RELEASED,

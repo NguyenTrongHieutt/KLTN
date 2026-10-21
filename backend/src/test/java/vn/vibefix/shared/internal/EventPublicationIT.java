@@ -94,6 +94,8 @@ class EventPublicationIT extends IntegrationTest {
 		this.maintenance.resubmitDue();
 		assertThat(this.maintenance.markStalled()).isOne();
 		assertThat(this.maintenance.markStalled()).as("marked once").isZero();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM platform.event_publication WHERE event_type LIKE '%EventPublicationsStalled'")
+			.query(Long.class).single()).as("admin's alert is published once").isOne();
 
 		assertThat(ProbeListener.attempts.get()).isEqualTo(5);
 		assertThat(publication().get("completion_attempts")).isEqualTo(5);

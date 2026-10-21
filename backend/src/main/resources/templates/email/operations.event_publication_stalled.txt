@@ -1,0 +1,6 @@
+subject: {n} sự kiện hệ thống bị kẹt sau nhiều lần thử
+---
+Xin chào,
+
+{n} sự kiện hệ thống đã dừng sau mọi lần thử và đang chờ trong hàng thao tác lỗi.
+Hãy mở trang quản trị của vibefix để xem.

@@ -3545,6 +3545,22 @@
     "range": "Giá trị nằm ngoài khoảng cho phép."
   },
   "notification": {
+    "operations": {
+      "operation_failed": {
+        "title": "Một thao tác hệ thống thất bại và đang chờ bạn xử lý"
+      },
+      "email_operation_failed": {
+        "title": "Một email không gửi được và đang chờ bạn xử lý"
+      },
+      "event_publication_stalled": {
+        "title": "{n} sự kiện hệ thống bị kẹt sau nhiều lần thử"
+      }
+    },
+    "notification": {
+      "email_budget_80": {
+        "title": "Đã dùng {sent}/{budget} email hôm nay"
+      }
+    },
     "identity": {
       "school_email_code": {
         "title": "Mã xác minh vibefix của bạn: {code} (hết hạn sau 10 phút)"

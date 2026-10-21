@@ -17,15 +17,20 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import vn.vibefix.operations.Lane;
 import vn.vibefix.operations.OperationHandler;
+import vn.vibefix.operations.OperationFailed;
 import vn.vibefix.operations.OperationPolicy;
 import vn.vibefix.operations.OperationStatus;
 import vn.vibefix.operations.Outcome;
 import vn.vibefix.operations.internal.OperationStore.Claimed;
 import vn.vibefix.operations.internal.OperationsProperties.LaneSettings;
+import vn.vibefix.shared.IdGenerator;
 
 /**
  * Runs claimed operations outside any transaction (AD-6). The poller ({@link #poll}) claims what each
@@ -58,7 +63,17 @@ public class OperationWorker implements DisposableBean {
 
 	private final Map<Lane, LaneThreads> lanes = new EnumMap<>(Lane.class);
 
-	OperationWorker(OperationStore store, OperationHandlers handlers, OperationsProperties properties, Clock clock) {
+	private final ApplicationEventPublisher events;
+
+	private final TransactionTemplate transactions;
+
+	private final IdGenerator ids;
+
+	OperationWorker(OperationStore store, OperationHandlers handlers, OperationsProperties properties, Clock clock,
+			ApplicationEventPublisher events, PlatformTransactionManager transactionManager, IdGenerator ids) {
+		this.events = events;
+		this.transactions = new TransactionTemplate(transactionManager);
+		this.ids = ids;
 		this.store = store;
 		this.handlers = handlers;
 		this.properties = properties;
@@ -177,6 +192,9 @@ public class OperationWorker implements DisposableBean {
 		if (complete(claimed, OperationStatus.FAILED, null, code)) {
 			log.warn("Operation {} failed after {} attempts with {}; it waits in the Administrator queue",
 					claimed.type(), claimed.attempt(), code);
+			// AD-6: every Administrator is alerted; the event's own transaction records its publication.
+			this.transactions.executeWithoutResult(status -> this.events
+				.publishEvent(new OperationFailed(this.ids.newId(), claimed.id(), claimed.type(), code)));
 		}
 	}
 

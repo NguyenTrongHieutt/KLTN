@@ -9,13 +9,18 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.modulith.events.CompletedEventPublications;
 import org.springframework.modulith.events.EventPublication;
 import org.springframework.modulith.events.IncompleteEventPublications;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import vn.vibefix.shared.StalledEventPublications;
+import vn.vibefix.shared.EventPublicationsStalled;
+import vn.vibefix.shared.IdGenerator;
 
 /**
  * Keeps Spring Modulith's event publication registry (AD-9). Modulith counts the first delivery as
@@ -47,8 +52,18 @@ class EventPublicationMaintenance implements StalledEventPublications {
 
 	private final EventPublicationProperties properties;
 
+	private final ApplicationEventPublisher events;
+
+	private final TransactionTemplate transactions;
+
+	private final IdGenerator ids;
+
 	EventPublicationMaintenance(IncompleteEventPublications incomplete, CompletedEventPublications completed,
-			JdbcClient jdbc, Clock clock, EventPublicationProperties properties) {
+			JdbcClient jdbc, Clock clock, EventPublicationProperties properties, ApplicationEventPublisher events,
+			PlatformTransactionManager transactionManager, IdGenerator ids) {
+		this.events = events;
+		this.transactions = new TransactionTemplate(transactionManager);
+		this.ids = ids;
 		this.incomplete = incomplete;
 		this.completed = completed;
 		this.jdbc = jdbc;
@@ -82,6 +97,9 @@ class EventPublicationMaintenance implements StalledEventPublications {
 		if (marked > 0) {
 			log.warn("{} event publication(s) stalled after {} attempts; they wait in the Administrator queue",
 					marked, this.properties.maxAttempts());
+			// AD-9: every Administrator is alerted, through a publication of its own.
+			this.transactions.executeWithoutResult(
+					status -> this.events.publishEvent(new EventPublicationsStalled(this.ids.newId(), marked)));
 		}
 		return marked;
 	}
