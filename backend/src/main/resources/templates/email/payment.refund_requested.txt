@@ -1,8 +1,8 @@
-subject: Hoàn tiền mô phỏng {amount} cho {job}
+subject: Đang hoàn {amount} (thử nghiệm) cho {job} qua VNPay
 ---
 Xin chào,
 
-Một khoản thanh toán {amount} cho công việc {job} không áp dụng được cho giai đoạn nào, nên vibefix hoàn lại cho bạn.
-Hoàn tiền mô phỏng: chỉ được ghi trên vibefix vì môi trường thử của VNPay chưa hỗ trợ hoàn tiền.
+vibefix đang hoàn lại cho bạn {amount} của công việc {job}.
+VNPay trả lại số tiền thử nghiệm về thẻ thử bạn đã dùng để thanh toán.
 
 Giao dịch thử nghiệm — không dùng tiền thật. vibefix đang chạy thử với môi trường thử nghiệm của VNPay.

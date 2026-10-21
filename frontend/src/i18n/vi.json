@@ -2386,7 +2386,7 @@
         "requested": "Đang hoàn {amount}",
         "confirmed": "Đã hoàn {amount}",
         "simulated": "Hoàn tiền mô phỏng",
-        "simulatedNote": "Hoàn tiền mô phỏng: chỉ được ghi trên vibefix vì môi trường thử của VNPay chưa hỗ trợ hoàn tiền.",
+        "simulatedNote": "Khoản hoàn này chỉ được ghi trên vibefix, không qua VNPay, vì hoàn tiền qua VNPay đang tắt ở môi trường này.",
         "reason": {
           "CREW_CHANGED": "Nhóm thực hiện thay đổi trước khi bắt đầu; tiền đã được hoàn lại (thử nghiệm).",
           "ORDER_CLOSED": "Lệnh thanh toán này đã đóng khi tiền đến, nên tiền được hoàn lại.",
@@ -3323,8 +3323,9 @@
     },
     "refund": {
       "label": "Hoàn tiền",
-      "hint": "Hoàn tiền mô phỏng: chỉ được ghi trên vibefix vì môi trường thử của VNPay chưa hỗ trợ hoàn tiền.",
-      "labelLedgerOnly": "Hoàn tiền mô phỏng"
+      "hint": "VNPay trả lại số tiền thử nghiệm về thẻ thử bạn đã dùng để thanh toán.",
+      "labelLedgerOnly": "Hoàn tiền mô phỏng",
+      "hintLedgerOnly": "Khoản hoàn này chỉ được ghi trên vibefix, không qua VNPay, vì hoàn tiền qua VNPay đang tắt ở môi trường này."
     },
     "balance": {
       "label": "Số dư thử nghiệm"
@@ -3820,7 +3821,10 @@
         "title": "VNPay báo một thanh toán không khớp lệnh thanh toán nào"
       },
       "refund_requested": {
-        "title": "Hoàn tiền mô phỏng {amount} cho {job}"
+        "title": "Đang hoàn {amount} (thử nghiệm) cho {job} qua VNPay"
+      },
+      "simulated_refund_requested": {
+        "title": "Hoàn tiền mô phỏng {amount} (thử nghiệm) cho {job}"
       },
       "refund_confirmed": {
         "title": "Đã hoàn {amount} (thử nghiệm) cho {job}"

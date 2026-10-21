@@ -248,6 +248,24 @@ Only the author can run it, with the merchant VNPay gives them. vibefix only eve
 The probe prints no hash and never the secret. Exit code 0 means VNPay answered with a hash that
 verified, whatever its codes; 1 means it did not answer or its hash did not verify.
 
+## VNPay refunds
+
+The author chose `VnpayRefund` after Spike S2 (2026-10-21, AD-15). A refund goes through VNPay's
+`refund` call with the environment's sandbox merchant (`vibefix.payment.vnpay.tmn-code` and
+`hash-secret-file`). VNPay refunds a payment once, so each refund carries the whole amount it
+returns: type `02` for the full paid amount and `03` for less.
+
+- **A signed `00`** confirms the refund at once. VNPay shows it as processing (`05`), and no later
+  query confirms it.
+- **A refusal goes to the failed queue (ADM-7).** This covers a signed refusal (`93` invalid amount,
+  `94` already refunded, or any other code) and a missing merchant (`VNPAY_NOT_CONFIGURED`). Check the
+  transaction on VNPay's merchant portal before retrying.
+- **An unsigned answer** is no answer, and is retried with the same `vnp_RequestId`.
+
+`vibefix.payment.refund-gateway=ledger` (`VIBEFIX_PAYMENT_REFUND_GATEWAY=ledger`) records refunds on
+vibefix only, labelled "Hoàn tiền mô phỏng". The tests use it, and it is the fallback when VNPay
+refunds are off.
+
 ## Email locally
 
 The backend sends email as External Operations over SMTP (AD-6, AD-27). On this stack the SMTP

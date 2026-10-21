@@ -157,7 +157,7 @@ class PaymentOrders {
 		UUID id = this.ids.newId();
 		String txnRef = id.toString().replace("-", "").toUpperCase(Locale.ROOT);
 		PayRequest pay = this.sandbox.payUrl(txnRef, milestone.priceVnd(), "Thanh toan Giai doan " + milestone.number()
-				+ " vibefix " + txnRef.substring(0, 8), ipAddr, this.sandbox.returnUrl(id.toString()));
+				+ " vibefix " + txnRef.substring(0, 8), ipAddr, this.sandbox.returnUrl(id.toString()), now);
 		try {
 			this.jdbc.sql("""
 					INSERT INTO payment.payment_order (id, job_id, product_id, milestone_id, customer_account_id, purpose, amount_vnd,

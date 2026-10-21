@@ -1,0 +1,8 @@
+subject: Hoàn tiền mô phỏng {amount} (thử nghiệm) cho {job}
+---
+Xin chào,
+
+vibefix hoàn lại cho bạn {amount} của công việc {job}.
+Khoản hoàn này chỉ được ghi trên vibefix, không qua VNPay, vì hoàn tiền qua VNPay đang tắt ở môi trường này.
+
+Giao dịch thử nghiệm — không dùng tiền thật. vibefix đang chạy thử với môi trường thử nghiệm của VNPay.

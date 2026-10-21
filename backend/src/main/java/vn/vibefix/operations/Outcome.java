@@ -56,6 +56,19 @@ public sealed interface Outcome {
 
 	}
 
+	/**
+	 * The other side answered and refused for good (a signed VNPay refusal, for example): retrying cannot
+	 * help, and only an Administrator can tell what happened outside, so the operation fails at once into
+	 * the FR-64 queue.
+	 */
+	record Refused(String code) implements Outcome {
+
+		public Refused {
+			requireCode(code);
+		}
+
+	}
+
 	/** Not tried now, and not counted as an attempt: try again at {@code until} (a budget, for example). */
 	record Deferred(Instant until) implements Outcome {
 

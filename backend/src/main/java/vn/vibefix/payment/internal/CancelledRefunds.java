@@ -41,7 +41,10 @@ class CancelledRefunds {
 		return refund(milestoneId, this.ledger.releasable(milestoneId), Refunds.Reason.CANCELLED);
 	}
 
-	/** Refunds {@code amount} of the Milestone's FUNDs, oldest first; the caller checks it was all refunded. */
+	/**
+	 * Refunds {@code amount} of the Milestone's FUNDs, newest first, at most once each (AD-15: VNPay refunds
+	 * a transaction once); the caller checks it was all refunded.
+	 */
 	@Transactional
 	List<Refund> refund(UUID milestoneId, long amount, Refunds.Reason reason) {
 		long left = amount;
@@ -52,7 +55,7 @@ class CancelledRefunds {
 		for (Map<String, Object> fund : this.jdbc.sql("""
 				SELECT id, payment_order_id, amount_vnd FROM payment.ledger_entry
 				WHERE milestone_id = :milestone AND entry_type = 'FUND' AND bucket = 'MILESTONE' AND payment_order_id IS NOT NULL
-				ORDER BY created_at, id
+				ORDER BY created_at DESC, id DESC
 				""").param("milestone", milestoneId).query().listOfRows()) {
 			if (left <= 0) {
 				break;

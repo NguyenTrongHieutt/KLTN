@@ -21,10 +21,11 @@ import vn.vibefix.notification.internal.TestMailConfiguration;
  * template before every test. No sandbox worker runs, so its health indicator is off
  * ({@code SandboxRoundTripIT} covers it), and the pollers are off: tests run their work directly.
  * Email goes to the {@link RecordingMailSender}, never to SMTP, and the operation type
- * {@value ScriptedOperationHandler#TYPE} answers what a test scripts.
+ * {@value ScriptedOperationHandler#TYPE} answers what a test scripts. Refunds are ledger-recorded
+ * ({@code LedgerRecordedRefund}), since no test reaches VNPay; {@code VnpayRefundIT} answers for VNPay.
  */
 @SpringBootTest(properties = { "management.health.sandbox.enabled=false", "vibefix.scheduling.enabled=false",
-		"vibefix.files.root=target/test-files" })
+		"vibefix.files.root=target/test-files", "vibefix.payment.refund-gateway=ledger" })
 @AutoConfigureMockMvc
 @ActiveProfiles("dev")
 @Import({ TestClockConfiguration.class, TestMailConfiguration.class, TestOperationsConfiguration.class })

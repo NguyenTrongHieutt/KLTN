@@ -14,8 +14,10 @@ import vn.vibefix.operations.Outcome;
 
 /**
  * {@value #TYPE} (AD-6, AD-15): carries out one refund through the gateway fixed on it, in the VNPay
- * lane, retried until confirmed. A confirmed refund answers at once, so a replay confirms nothing
- * twice; a pending answer is read again later and never resent. {@code Refunds} is looked up on use:
+ * lane. A confirmed refund answers at once, so a replay confirms nothing twice. No answer is retried with
+ * the same request; a refusal fails at once into the FR-64 queue. There is no read-back: VNPay's signed
+ * answer is the result. Each gateway call is counted on the refund, so the Customer hears of the
+ * confirmation only when the first call did not confirm it. {@code Refunds} is looked up on use:
  * {@code operations} collects its handlers before the refunds that request them exist.
  */
 @Component
@@ -45,7 +47,8 @@ class RefundOperation implements OperationHandler {
 	@Override
 	public Outcome run(OperationRun run) {
 		UUID id = UUID.fromString(String.valueOf(run.payload().get("refundId")));
-		Refunds.Refund refund = this.refunds.getObject().byId(id).orElse(null);
+		Refunds refunds = this.refunds.getObject();
+		Refunds.Refund refund = refunds.byId(id).orElse(null);
 		if (refund == null) {
 			return new Outcome.Obsolete("REFUND_GONE");
 		}
@@ -59,11 +62,15 @@ class RefundOperation implements OperationHandler {
 		if (gateway == null) {
 			return new Outcome.Aborted("GATEWAY_UNAVAILABLE");
 		}
-		if (gateway.refund(refund) == RefundGateway.Result.PENDING) {
-			return new Outcome.Transient("REFUND_PENDING");
-		}
-		this.refunds.getObject().confirm(id);
-		return new Outcome.Succeeded(Map.of("status", "CONFIRMED"));
+		int earlierCalls = refunds.countCall(id);
+		return switch (gateway.refund(refund)) {
+			case RefundGateway.Result.Confirmed confirmed -> {
+				refunds.confirm(id, confirmed.transactionNo(), earlierCalls > 0);
+				yield new Outcome.Succeeded(Map.of("status", "CONFIRMED"));
+			}
+			case RefundGateway.Result.Unanswered unanswered -> new Outcome.Transient(unanswered.code());
+			case RefundGateway.Result.Refused refused -> new Outcome.Refused(refused.code());
+		};
 	}
 
 }

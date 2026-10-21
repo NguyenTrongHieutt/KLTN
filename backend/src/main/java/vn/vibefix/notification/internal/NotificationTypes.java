@@ -275,11 +275,16 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType PAYMENT_PAYMENT_FAILED = new NotificationType("payment.payment_failed",
 			Set.of(Audience.CUSTOMER), Channel.IN_APP, EmailClass.TRANSACTIONAL, "alert", Set.of("job", "n"));
 
-	/** Money that could not apply is being refunded (FR-43); ledger-recorded while S2 is open. */
+	/** Money that could not apply is being refunded through VNPay (FR-43, AD-15): the Customer's one notice. */
 	static final NotificationType PAYMENT_REFUND_REQUESTED = new NotificationType("payment.refund_requested",
 			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("amount", "job"));
 
-	/** The gateway confirmed the refund (FR-43). */
+	/** The same, recorded on vibefix only by the fallback gateway ("Hoàn tiền mô phỏng"). */
+	static final NotificationType PAYMENT_SIMULATED_REFUND_REQUESTED = new NotificationType(
+			"payment.simulated_refund_requested", Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL,
+			"info", Set.of("amount", "job"));
+
+	/** The gateway confirmed the refund after a first answer that did not (FR-43). */
 	static final NotificationType PAYMENT_REFUND_CONFIRMED = new NotificationType("payment.refund_confirmed",
 			Set.of(Audience.CUSTOMER), Channel.IN_APP, EmailClass.TRANSACTIONAL, "check", Set.of("amount", "job"));
 
@@ -620,7 +625,7 @@ class NotificationTypes implements NotificationCatalog {
 				JOB_CANCELLATION_UNANSWERED, JOB_JOB_CANCELLED, JOB_AGREEMENT_DEADLINE_PASSED, JOB_STARTING_DEADLINE_PASSED,
 				DISPUTE_DISPUTE_OPENED, DISPUTE_EXECUTION_FAILED, DISPUTE_DISPUTE_DECIDED,
 				JOB_JOB_STARTING,
-				PAYMENT_REFUND_REQUESTED, PAYMENT_REFUND_CONFIRMED, WORK_WORK_ITEM_ASSIGNED,
+				PAYMENT_REFUND_REQUESTED, PAYMENT_SIMULATED_REFUND_REQUESTED, PAYMENT_REFUND_CONFIRMED, WORK_WORK_ITEM_ASSIGNED,
 				WORK_REVIEW_REQUESTED, WORK_WORK_ITEM_APPROVED, WORK_WORK_ITEM_RETURNED);
 	}
 
