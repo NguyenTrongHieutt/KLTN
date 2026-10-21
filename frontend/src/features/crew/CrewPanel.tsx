@@ -1,6 +1,5 @@
-import { CircleCheck, Info, Lock, TriangleAlert, UserPlus, Users } from 'lucide-react'
+import { CircleCheck, Clock, Info, Lock, Repeat, TriangleAlert, UserPlus, Users } from 'lucide-react'
 import { useId, useState } from 'react'
-import { inputClass } from '@/components/formField-props'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/features/team/ConfirmDialog'
@@ -20,25 +19,9 @@ import {
   type CrewPanel as Panel,
   type CrewRow,
 } from './crewApi'
-import { crewSplit, percentOf, shareProblem, shortName, type ShareProblem } from './crewShares'
-
-/** The most Students a Crew holds with `features.largeCrews` on, as `job` enforces it. */
-const LARGE_CREW_LIMIT = 5
-
-function Avatar({ name }: { name: string }) {
-  const letters = name
-    .replace(/^@/, '')
-    .trim()
-    .split(/\s+/)
-    .slice(-2)
-    .map((word) => word.charAt(0).toUpperCase())
-    .join('')
-  return (
-    <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-soft text-caption font-semibold text-primary">
-      {letters}
-    </span>
-  )
-}
+import { CrewChangeEditor } from './CrewChange'
+import { Avatar, ShareField, TeamPicker } from './crewParts'
+import { crewSplit, LARGE_CREW_LIMIT, percentOf, shareProblem, shortName } from './crewShares'
 
 /** JOB-H's line for the Mentor: how many of the Crew confirmed the latest Crew Terms version. */
 export function CrewHeaderLine({ panel }: { panel: Panel }) {
@@ -52,6 +35,9 @@ export function CrewHeaderLine({ panel }: { panel: Panel }) {
 
 /** The line's AD-41 state: "Đã phân công · chưa xác nhận", "Đang tham gia · …", "Tạm ngừng", or "Đã rời · …". */
 function stateText(row: CrewRow, latest: number | undefined, owed: boolean): string {
+  if (row.leaving && latest !== undefined) {
+    return t('screen.crew.panel.state.LEAVING', { n: latest })
+  }
   if (row.status === 'INACTIVE' && owed) {
     return t('screen.crew.panel.state.INACTIVE_OWED')
   }
@@ -95,6 +81,10 @@ export function CrewSection({ jobId, panel }: { jobId: string; panel: Panel }) {
   )
   const [picking, setPicking] = useState(false)
   const [confirming, setConfirming] = useState(false)
+  // Story 11.3: "Đổi nhóm thực hiện" on a running Job, with large Crews on.
+  const change = panel.change
+  const [changing, setChanging] = useState(false)
+  const waitingNo = change?.waitingVersionNo ?? undefined
   const pending = add.isPending || remove.isPending || save.isPending || reconfirm.isPending
   const locked = panel.locked
   // FR-75, AD-30: one Student per Crew, or up to five with `features.largeCrews` on (Story 11.1).
@@ -181,9 +171,33 @@ export function CrewSection({ jobId, panel }: { jobId: string; panel: Panel }) {
               {t('screen.crew.panel.title')}
             </h2>
             <p className="text-caption text-muted-foreground">
-              {latestNo === undefined ? t('screen.crew.panel.captionNone') : t('screen.crew.panel.caption', { n: latestNo })}
+              {waitingNo !== undefined
+                ? t('screen.crew.panel.captionChange', { n: waitingNo, current: change?.inForceVersionNo ?? 1 })
+                : latestNo === undefined
+                  ? t('screen.crew.panel.captionNone')
+                  : t('screen.crew.panel.caption', { n: latestNo })}
             </p>
           </div>
+          {change && !changing && (
+            <div className="flex flex-col items-end gap-1">
+              <Button
+                type="button"
+                variant="secondary"
+                size="compact"
+                aria-describedby={change.held ? `${ids}-held` : undefined}
+                disabled={change.held || pending}
+                onClick={() => setChanging(true)}
+              >
+                <Repeat aria-hidden="true" className="size-4" />
+                {t(waitingNo !== undefined ? 'screen.crew.panel.changeEdit' : 'screen.crew.panel.change')}
+              </Button>
+              {change.held && (
+                <span id={`${ids}-held`} className="max-w-[280px] text-right text-caption text-muted-foreground">
+                  {t('screen.crew.panel.changeHeld')}
+                </span>
+              )}
+            </div>
+          )}
           {!locked && (
             <div className="flex flex-col items-end gap-1">
               <Button
@@ -234,10 +248,24 @@ export function CrewSection({ jobId, panel }: { jobId: string; panel: Panel }) {
           </div>
         )}
 
-        {locked ? (
+        {change && waitingNo !== undefined && (
+          <div role="status" className="flex gap-3 rounded-md border-l-4 border-primary bg-primary-soft p-4 text-body-sm">
+            <Clock aria-hidden="true" className="size-5 shrink-0 text-primary" />
+            <div className="flex flex-col gap-0.5">
+              <p className="font-semibold">
+                {t('screen.crew.panel.changeWaiting', { confirmed: change.confirmed, total: change.total })}
+              </p>
+              <p>{t('screen.crew.panel.changeWaitingBody', { n: waitingNo, current: change.inForceVersionNo ?? 1 })}</p>
+            </div>
+          </div>
+        )}
+
+        {changing && change ? (
+          <CrewChangeEditor jobId={jobId} panel={panel} onClose={() => setChanging(false)} />
+        ) : locked ? (
           <div role="note" className="flex gap-3 rounded-md border-l-4 border-primary bg-primary-soft p-4 text-body-sm">
             <Lock aria-hidden="true" className="size-5 shrink-0 text-primary" />
-            <p>{t('screen.crew.panel.locked')}</p>
+            <p>{t(change ? 'screen.crew.panel.lockedRunning' : 'screen.crew.panel.locked')}</p>
           </div>
         ) : (
           <div role="note" className="flex gap-3 rounded-md border-l-4 border-primary bg-primary-soft p-4 text-body-sm">
@@ -428,116 +456,6 @@ export function CrewSection({ jobId, panel }: { jobId: string; panel: Panel }) {
           </ul>
         </section>
       </aside>
-    </div>
-  )
-}
-
-function ShareField({
-  id,
-  label,
-  value,
-  locked,
-  problem,
-  cap,
-  mentor = false,
-  onChange,
-}: {
-  id: string
-  label: string
-  value: string
-  locked: boolean
-  problem: ShareProblem | undefined
-  cap: number
-  mentor?: boolean
-  onChange: (value: string) => void
-}) {
-  if (locked) {
-    return <span className="font-semibold">{value === '' ? '—' : `${value}%`}</span>
-  }
-  const shown = value !== '' && problem !== undefined
-  return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center gap-1">
-        <input
-          id={id}
-          inputMode="numeric"
-          aria-label={label}
-          aria-invalid={shown || undefined}
-          aria-describedby={`${id}-help`}
-          value={value}
-          maxLength={3}
-          onChange={(event) => onChange(event.target.value.replace(/\D/g, ''))}
-          className={cn(inputClass, 'w-18 text-right')}
-        />
-        <span>%</span>
-      </div>
-      <span id={`${id}-help`} className={cn('text-caption', shown ? 'text-destructive' : 'text-muted-foreground')}>
-        {shown
-          ? t(problem === 'mentorOver' ? 'screen.crew.panel.mentorOver' : `screen.crew.panel.${problem}`, { cap })
-          : mentor
-            ? t('screen.crew.panel.cap', { cap })
-            : ''}
-      </span>
-    </div>
-  )
-}
-
-const CANDIDATE_TEXT: Record<CrewCandidate['state'], MessageKey> = {
-  FREE: 'screen.crew.panel.free',
-  IN_CREW: 'screen.crew.panel.inCrew',
-  ON_CREW: 'screen.crew.panel.onCrew',
-  NOT_VERIFIED: 'screen.crew.panel.notVerified',
-}
-
-/** "Thêm sinh viên": the Mentor's Team; only free, verified Students can be picked (UX-DR60). */
-function TeamPicker({
-  id,
-  team,
-  disabled,
-  onPick,
-}: {
-  id: string
-  team: CrewCandidate[]
-  disabled: boolean
-  onPick: (student: CrewCandidate) => void
-}) {
-  return (
-    <div id={id} className="flex flex-col gap-1 rounded-md border border-border bg-background p-2">
-      <p className="px-2 py-1 text-caption text-muted-foreground">
-        {team.length === 0 ? t('screen.crew.panel.pickEmpty') : t('screen.crew.panel.pickCount', { n: team.length })}
-      </p>
-      <ul aria-label={t('screen.crew.panel.pickLabel')} className="flex flex-col gap-0.5">
-        {team.map((student) => (
-          <li
-            key={student.studentId}
-            className={cn('flex items-center gap-2 rounded-md px-2 py-1.5', student.state !== 'FREE' && 'opacity-70')}
-          >
-            <Avatar name={student.name} />
-            <span className="min-w-0 grow text-body-sm break-words">{student.name}</span>
-            {student.state === 'FREE' ? (
-              <>
-                <span className="rounded-full bg-muted px-2 py-0.5 text-caption font-semibold">{t('screen.crew.panel.free')}</span>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="compact"
-                  disabled={disabled}
-                  aria-label={t('screen.crew.panel.addNamed', { name: student.name })}
-                  onClick={() => onPick(student)}
-                >
-                  {t('screen.crew.panel.pickAdd')}
-                </Button>
-              </>
-            ) : (
-              <span className="text-caption text-muted-foreground">
-                {student.state === 'ON_CREW' && !student.onCrewJob
-                  ? t('screen.crew.panel.onCrewOther')
-                  : t(CANDIDATE_TEXT[student.state], { job: student.onCrewJob ?? '' })}
-              </span>
-            )}
-          </li>
-        ))}
-      </ul>
     </div>
   )
 }

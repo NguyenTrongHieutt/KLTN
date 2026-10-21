@@ -33,8 +33,11 @@ class J8Close implements JobLifecycle.Step {
 
 	private final Notifications notifications;
 
-	J8Close(JdbcClient jdbc, CrewService crews, Notifications notifications) {
+	private final CrewChanges changes;
+
+	J8Close(JdbcClient jdbc, CrewService crews, Notifications notifications, CrewChanges changes) {
 		this.jdbc = jdbc;
+		this.changes = changes;
 		this.crews = crews;
 		this.notifications = notifications;
 	}
@@ -65,6 +68,7 @@ class J8Close implements JobLifecycle.Step {
 		Job job = applying.job();
 		this.notifications.send(new NotificationRequest(CLOSING, applying.transitionId(), people(job, this.crews),
 				Map.of("job", job.title()), "/cong-viec/" + job.id(), job.id(), null));
+		this.changes.voidWaiting(job.id());
 	}
 
 	/** The Customer, the Mentor, and the active Crew. */

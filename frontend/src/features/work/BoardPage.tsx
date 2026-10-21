@@ -9,6 +9,8 @@ import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
 import { useSession } from '@/features/identity/useSession'
 import { JobHeader } from '@/features/job/JobHeader'
+import { DeletionChecklist } from '@/features/job/closure/ClosureSection'
+import { useDataDeletion } from '@/features/job/closure/closureApi'
 import { mentorMeta } from '@/features/job/jobMeta'
 import { MentorJobTabs } from '@/features/matching/MentorJobTabs'
 import { useMentorJob } from '@/features/matching/mentorJobApi'
@@ -68,6 +70,8 @@ function MentorBoard({ jobId }: { jobId: string }) {
 
 function StudentBoard({ jobId }: { jobId: string }) {
   const board = useBoard(jobId)
+  // FR-66, Story 11.3: a member a Crew change removed confirms their data deletion on their read-only Board.
+  const deletion = useDataDeletion(board.data?.readOnly ? jobId : undefined).data
   usePageTitle(board.data ? t('screen.board.title', { job: board.data.title }) : t('screen.board.tab'))
   if (board.isError && isNotFound(board.error)) {
     return <NotFoundScreen />
@@ -81,6 +85,7 @@ function StudentBoard({ jobId }: { jobId: string }) {
         <PageHeading>{board.data?.title ?? t('screen.board.tab')}</PageHeading>
         <p className="text-body-sm text-muted-foreground">{t('screen.board.tab')}</p>
       </div>
+      {deletion?.removed && deletion.mine && <DeletionChecklist jobId={jobId} deletion={deletion} />}
       <RegionState query={board} skeleton={<Skeleton className="h-96 w-full" />}>
         {board.data && <Columns board={board.data} jobId={jobId} />}
       </RegionState>

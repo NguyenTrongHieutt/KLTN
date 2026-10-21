@@ -828,7 +828,7 @@ POST /api/v1/boards/{boardId}/data-deletion/{item},OWNER,,,403 FORBIDDEN NOT_A_D
 POST /api/v1/boards/{boardId}/data-deletion/{item},JOB_MENTOR,,,422 GUARD_FAILED JOB_NOT_ENDED
 POST /api/v1/boards/{boardId}/data-deletion/{item},CREW_ACTIVE,,,422 GUARD_FAILED JOB_NOT_ENDED
 POST /api/v1/boards/{boardId}/data-deletion/{item},CREW_INACTIVE,,,422 GUARD_FAILED JOB_NOT_ENDED
-POST /api/v1/boards/{boardId}/data-deletion/{item},CREW_FORMER,,,422 GUARD_FAILED JOB_NOT_ENDED
+POST /api/v1/boards/{boardId}/data-deletion/{item},CREW_FORMER,,,200
 # Ratings and private feedback after the Job (FR-49, FR-78, AD-20, AD-41): the Customer (OWNER), the
 # Mentor, and every Crew member ever active read the Ratings; only the Customer and the Mentor rate,
 # only those Crew members give private feedback, and the fixture's Active Job has no Rating Window yet.
@@ -1797,6 +1797,13 @@ PUT /api/v1/mentor/jobs/{jobId}/crew/terms,OWNER,,crew-terms.json,404 NOT_FOUND,
 PUT /api/v1/mentor/jobs/{jobId}/crew/terms,CUSTOMER,,crew-terms.json,404 NOT_FOUND,requireActiveAccount
 PUT /api/v1/mentor/jobs/{jobId}/crew/terms,STUDENT,,crew-terms.json,404 NOT_FOUND,requireActiveAccount
 PUT /api/v1/mentor/jobs/{jobId}/crew/terms,ADMINISTRATOR,,crew-terms.json,404 NOT_FOUND,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/crew/change,ANONYMOUS,,crew-terms.json,401,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/crew/change,MENTOR,,crew-terms.json,404 NOT_FOUND,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/crew/change,MENTOR,mentor=PENDING,crew-terms.json,404 NOT_FOUND,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/crew/change,OWNER,,crew-terms.json,404 NOT_FOUND,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/crew/change,CUSTOMER,,crew-terms.json,404 NOT_FOUND,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/crew/change,STUDENT,,crew-terms.json,404 NOT_FOUND,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/crew/change,ADMINISTRATOR,,crew-terms.json,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/crew/assignments,ANONYMOUS,,,401
 GET /api/v1/crew/assignments,STUDENT,,,200
 GET /api/v1/crew/assignments,OWNER,,,404 NOT_FOUND

@@ -4707,6 +4707,43 @@
         "tags" : [ "crew-controller" ]
       }
     },
+    "/api/v1/mentor/jobs/{jobId}/crew/change" : {
+      "put" : {
+        "operationId" : "changeCrew",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CrewTermsRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CrewPanelView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "crew-controller" ]
+      }
+    },
     "/api/v1/mentor/jobs/{jobId}/crew/reconfirm" : {
       "post" : {
         "operationId" : "reconfirmCrew",
@@ -8705,6 +8742,9 @@
       "CrewAssignmentView" : {
         "type" : "object",
         "properties" : {
+          "changeWaiting" : {
+            "type" : "boolean"
+          },
           "codeJob" : {
             "type" : "boolean"
           },
@@ -8755,7 +8795,7 @@
             "format" : "date-time"
           }
         },
-        "required" : [ "codeJob", "commitEmailNoticeAcknowledged", "jobId", "jobState", "mentorName", "milestones", "productName", "scope", "signed", "status", "title", "versionNo" ]
+        "required" : [ "changeWaiting", "codeJob", "commitEmailNoticeAcknowledged", "jobId", "jobState", "mentorName", "milestones", "productName", "scope", "signed", "status", "title", "versionNo" ]
       },
       "CrewCandidateView" : {
         "type" : "object",
@@ -8779,6 +8819,31 @@
           }
         },
         "required" : [ "name", "state", "studentId" ]
+      },
+      "CrewChangeView" : {
+        "type" : "object",
+        "properties" : {
+          "confirmed" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "held" : {
+            "type" : "boolean"
+          },
+          "inForceVersionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "total" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "waitingVersionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "confirmed", "held", "total" ]
       },
       "CrewChatView" : {
         "type" : "object",
@@ -8871,6 +8936,9 @@
           "capPercent" : {
             "type" : "integer",
             "format" : "int32"
+          },
+          "change" : {
+            "$ref" : "#/components/schemas/CrewChangeView"
           },
           "confirmedCount" : {
             "type" : "integer",
@@ -9007,6 +9075,9 @@
           "githubLogin" : {
             "type" : "string"
           },
+          "leaving" : {
+            "type" : "boolean"
+          },
           "name" : {
             "type" : "string"
           },
@@ -9033,7 +9104,7 @@
             "format" : "uuid"
           }
         },
-        "required" : [ "confirmedLatest", "name", "rowId", "status", "studentId" ]
+        "required" : [ "confirmedLatest", "leaving", "name", "rowId", "status", "studentId" ]
       },
       "CrewShareRequest" : {
         "type" : "object",
@@ -9257,9 +9328,12 @@
             "items" : {
               "$ref" : "#/components/schemas/DataDeletionPartyView"
             }
+          },
+          "removed" : {
+            "type" : "boolean"
           }
         },
-        "required" : [ "ended", "jobId", "parties" ]
+        "required" : [ "ended", "jobId", "parties", "removed" ]
       },
       "DecidedDisputeView" : {
         "type" : "object",

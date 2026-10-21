@@ -28,7 +28,8 @@ import { useConfirmCrewTerms, useCrewAssignments, useDeclineCrewTerms, type Crew
 export function StudentJobsPage() {
   const assignments = useCrewAssignments()
   const team = useStudentTeam()
-  const waiting = assignments.data?.filter((assignment) => assignment.status === 'ASSIGNED') ?? []
+  // Story 11.3: an active member asked to confirm a waiting Crew change sees its version here too.
+  const waiting = assignments.data?.filter((assignment) => assignment.status === 'ASSIGNED' || assignment.changeWaiting) ?? []
   const joined = assignments.data?.filter((assignment) => assignment.status !== 'ASSIGNED') ?? []
   return (
     <div className="mx-auto flex max-w-[920px] flex-col gap-5 px-gutter-mobile py-section-gap md:px-gutter-desktop">
@@ -218,16 +219,20 @@ function AssignmentPanel({ assignment }: { assignment: CrewAssignment }) {
       </label>
       {needsNotice && <CommitEmailNotice understood={understood} onChange={setUnderstood} />}
       <div className="flex flex-wrap justify-between gap-3">
-        <Button type="button" variant="secondary" onClick={() => setDeclining(true)} disabled={pending}>
-          {t('screen.crew.student.decline')}
-        </Button>
+        {assignment.status === 'ASSIGNED' ? (
+          <Button type="button" variant="secondary" onClick={() => setDeclining(true)} disabled={pending}>
+            {t('screen.crew.student.decline')}
+          </Button>
+        ) : (
+          <span />
+        )}
         <Button type="button" onClick={submit} disabled={!ready || pending} aria-describedby={`${ids}-why`}>
           {t('screen.crew.student.confirm')}
         </Button>
       </div>
       <p id={`${ids}-why`} className="text-caption text-muted-foreground">
         {hasTerms && !ready ? `${t(needsNotice ? 'screen.crew.student.whyNotice' : 'screen.crew.student.why')} ` : ''}
-        {t('screen.crew.student.declineNote')}
+        {assignment.status === 'ASSIGNED' ? t('screen.crew.student.declineNote') : t('screen.crew.student.changeNote')}
       </p>
       <ConfirmDialog
         open={declining}
@@ -268,7 +273,7 @@ function JoinedCard({ assignment }: { assignment: CrewAssignment }) {
           {t(inactive ? 'screen.crew.student.inactiveBadge' : 'screen.crew.student.activeBadge')}
         </span>
       </div>
-      {assignment.sharePercent != null && (
+      {assignment.sharePercent != null && !assignment.changeWaiting && (
         <p className="text-body-sm">
           {t('screen.crew.student.activeShare', { share: assignment.sharePercent, n: assignment.versionNo })}
         </p>

@@ -11,6 +11,12 @@ import vn.vibefix.job.internal.JobLifecycle.Applying;
 @Component
 class M7Cancel implements JobLifecycle.Step {
 
+	private final CrewChanges changes;
+
+	M7Cancel(CrewChanges changes) {
+		this.changes = changes;
+	}
+
 	@Override
 	public Transition transition() {
 		return Transition.M7;
@@ -24,6 +30,12 @@ class M7Cancel implements JobLifecycle.Step {
 	public void apply(Applying applying) {
 		applying.set("cancelled_at", applying.now());
 		applying.fact("milestoneId", applying.milestoneId().toString());
+	}
+
+	/** Story 11.3, AD-41: the Milestone left Held, so a waiting Crew change may take effect now. */
+	@Override
+	public void afterWrite(Applying applying) {
+		this.changes.evaluate(applying.job().id(), false);
 	}
 
 }

@@ -16,6 +16,12 @@ class M8Settle implements JobLifecycle.Step {
 
 	static final String REFUND = "refundVnd";
 
+	private final CrewChanges changes;
+
+	M8Settle(CrewChanges changes) {
+		this.changes = changes;
+	}
+
 	@Override
 	public Transition transition() {
 		return Transition.M8;
@@ -34,6 +40,12 @@ class M8Settle implements JobLifecycle.Step {
 		applying.set("settled_release_vnd", ((Number) applying.input(RELEASE)).longValue());
 		applying.set("settled_refund_vnd", ((Number) applying.input(REFUND)).longValue());
 		applying.fact("milestoneId", applying.milestoneId().toString());
+	}
+
+	/** Story 11.3, AD-41: the Milestone left Held, so a waiting Crew change may take effect now. */
+	@Override
+	public void afterWrite(Applying applying) {
+		this.changes.evaluate(applying.job().id(), false);
 	}
 
 }

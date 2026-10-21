@@ -57,6 +57,13 @@ export function useSaveCrewTerms(jobId: string) {
   )
 }
 
+/** "Áp dụng khi mọi người đã xác nhận": the Crew after a change on a running Job (Story 11.3). */
+export function useChangeCrew(jobId: string) {
+  return usePanelCommand(jobId, (body: { crewVersion: number; shares: { accountId: string; percent: number }[] }) =>
+    unwrap(apiClient.PUT('/api/v1/mentor/jobs/{jobId}/crew/change', { params: { path: { jobId } }, body })),
+  )
+}
+
 /** "Xác nhận lại nhóm thực hiện" after a lock owed it (R-1 H1). */
 export function useReconfirmCrew(jobId: string) {
   return usePanelCommand(jobId, (crewVersion: number) =>

@@ -288,6 +288,19 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType JOB_CREW_TERMS_CHANGED = new NotificationType("job.crew_terms_changed",
 			Set.of(Audience.CREW_ASSIGNED), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
 
+	/** The Mentor proposed a Crew change on a running Job: each remaining active member confirms it (Story 11.3). */
+	static final NotificationType JOB_CREW_CHANGE_PROPOSED = new NotificationType("job.crew_change_proposed",
+			Set.of(Audience.CREW_ACTIVE), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
+
+	/** A Crew change took effect (FR-75): the new GitHub usernames, never a share (UX-DR83). */
+	static final NotificationType JOB_CREW_CHANGED = new NotificationType("job.crew_changed",
+			Set.of(Audience.CUSTOMER, Audience.MENTOR, Audience.CREW_ACTIVE), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL,
+			"info", Set.of("job", "usernames"));
+
+	/** J8, J9, or J10 cancelled a Crew change still waiting (FR-75): the Mentor and its new members. */
+	static final NotificationType JOB_CREW_CHANGE_VOIDED = new NotificationType("job.crew_change_voided",
+			Set.of(Audience.MENTOR, Audience.CREW_ASSIGNED), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
+
 	/** FR-17's Crew condition holds: the Mentor may confirm the Agreement. */
 	static final NotificationType JOB_CREW_CONFIRMED = new NotificationType("job.crew_confirmed", Set.of(Audience.MENTOR),
 			Channel.IN_APP, EmailClass.TRANSACTIONAL, "check", Set.of("job"));
@@ -558,7 +571,8 @@ class NotificationTypes implements NotificationCatalog {
 				JOB_SELECTION_DECLINED, MATCHING_APPLICATIONS_CLOSED, MATCHING_APPLICATIONS_REOPENED, MATCHING_NDA_OVERDUE,
 				MATCHING_INVITED_TO_APPLY, CHAT_CHAT_OPENED, JOB_AGREEMENT_DRAFT_READY, JOB_CREW_ASSIGNED,
 				JOB_CREW_MEMBER_CONFIRMED, JOB_CREW_MEMBER_DECLINED, JOB_CREW_MEMBER_REMOVED, JOB_CREW_TERMS_CHANGED,
-				JOB_CREW_CONFIRMED, JOB_CONFLICT_OF_INTEREST_REFUSED, JOB_PERSON_LINK_ALERT, JOB_AGREEMENT_CHANGES_REQUESTED,
+				JOB_CREW_CONFIRMED, JOB_CREW_CHANGE_PROPOSED, JOB_CREW_CHANGED, JOB_CREW_CHANGE_VOIDED,
+				JOB_CONFLICT_OF_INTEREST_REFUSED, JOB_PERSON_LINK_ALERT, JOB_AGREEMENT_CHANGES_REQUESTED,
 				JOB_AGREEMENT_AWAITING_CONFIRMATION, JOB_AGREEMENT_CONFIRMED, JOB_MILESTONE_AWAITING_FUNDING, JOB_CREW_RECONFIRM_NEEDED,
 				PAYMENT_PAYMENT_RECEIVED, PAYMENT_PAYMENT_FAILED, PAYMENT_UNKNOWN_PAYMENT, JOB_MILESTONE_FUNDED, JOB_MILESTONE_SUBMITTED,
 				JOB_MILESTONE_ACCEPTED, JOB_REVISION_REQUESTED, PAYMENT_FUNDS_RELEASED, DELIVERY_ACCEPTANCE_REMINDER,

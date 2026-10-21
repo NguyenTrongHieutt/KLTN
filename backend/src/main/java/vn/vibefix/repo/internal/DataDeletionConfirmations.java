@@ -25,6 +25,7 @@ import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
 import vn.vibefix.job.Crews;
 import vn.vibefix.job.Crews.CrewMember;
+import vn.vibefix.job.Crews.Relationship;
 import vn.vibefix.job.Crews.Selection;
 import vn.vibefix.job.JobPosts;
 import vn.vibefix.job.JobPosts.JobPostState;
@@ -117,13 +118,22 @@ class DataDeletionConfirmations implements DataDeletions {
 	}
 
 	/**
+	 * Whether the person is a former Crew member of a Job still running, such as one a Crew change removed
+	 * (Story 11.3): their duty starts with their removal, not the Job's end.
+	 */
+	@Transactional(readOnly = true)
+	boolean removed(JobPostState job, UUID accountId) {
+		return !ENDED.contains(job.state()) && this.crews.crewRelationship(job.jobId(), accountId).kind() == Relationship.FORMER;
+	}
+
+	/**
 	 * Confirms one item, once.
 	 * @throws ApiException {@code FORBIDDEN NOT_A_DUTY}; {@code GUARD_FAILED JOB_NOT_ENDED}
 	 */
 	@Transactional
 	Duty confirm(JobPostState job, UUID accountId, Item item) {
 		Duty duty = duty(job, accountId).orElseThrow(() -> new ApiException(ErrorCode.FORBIDDEN, RepoReason.NOT_A_DUTY));
-		if (!ENDED.contains(job.state())) {
+		if (!ENDED.contains(job.state()) && !removed(job, accountId)) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, RepoReason.JOB_NOT_ENDED);
 		}
 		if (duty.confirmed().containsKey(item)) {

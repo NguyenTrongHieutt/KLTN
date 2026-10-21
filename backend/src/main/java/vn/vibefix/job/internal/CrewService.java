@@ -20,6 +20,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.jspecify.annotations.Nullable;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
@@ -130,10 +131,12 @@ class CrewService implements Crews {
 
 	private final boolean largeCrews;
 
+	private final ObjectProvider<CrewChanges> changes;
+
 	CrewService(JdbcClient jdbc, Teams teams, StudentVerification verification, StudentDirectory students,
 			PersonSignals signals, CustomerRepositories repositories, ProductDirectory products, Settings settings,
 			Notifications notifications, Todos todos, CrewAlerts alerts, AuditLog auditLog, IdGenerator ids, Clock clock,
-			@Value("${vibefix.features.large-crews:false}") boolean largeCrews) {
+			@Value("${vibefix.features.large-crews:false}") boolean largeCrews, ObjectProvider<CrewChanges> changes) {
 		this.jdbc = jdbc;
 		this.teams = teams;
 		this.verification = verification;
@@ -149,6 +152,7 @@ class CrewService implements Crews {
 		this.ids = ids;
 		this.clock = clock;
 		this.largeCrews = largeCrews;
+		this.changes = changes;
 	}
 
 	/** J4 (FR-75): the Mentor's "Chọn nhóm thực hiện" to-do, due at the Agreement deadline. */
@@ -173,6 +177,19 @@ class CrewService implements Crews {
 		if (running >= (this.largeCrews ? LARGE_CREW_LIMIT : 1)) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, JobReason.CREW_LIMIT);
 		}
+		Row row = addRow(job, mentorId, studentId);
+		bump(jobId, true);
+		refreshPickTodo(job);
+		return row;
+	}
+
+	/**
+	 * A new {@code ASSIGNED} row for a Team Student (FR-75), checked in order: verification, a running
+	 * Crew, a shared person-link signal, a contribution to the Source Repository, then the Team through
+	 * {@code team.reserveForCrew}. The Student is told and gets the confirmation to-do.
+	 */
+	Row addRow(Job job, UUID mentorId, UUID studentId) {
+		UUID jobId = job.id();
 		if (!this.verification.isVerified(studentId)) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, JobReason.STUDENT_NOT_VERIFIED);
 		}
@@ -200,14 +217,12 @@ class CrewService implements Crews {
 			.param("now", Timestamp.from(now))
 			.update();
 		this.teams.reserveForCrew(rowId, mentorId, studentId, jobId);
-		bump(jobId, true);
 		this.auditLog.record(AuditEntry.of(AuditActor.user(mentorId), "job.crew_member_added", AuditObject.of("job.crew_row", rowId))
 			.forJob(jobId));
 		this.notifications.send(new NotificationRequest(ASSIGNED, rowId, List.of(new Recipient(studentId, Audience.CREW_ASSIGNED)),
 				Map.of("job", job.title()), "/cong-viec", jobId, null));
 		this.todos.open(new TodoRequest(CONFIRM_TODO, studentId, Audience.CREW_ASSIGNED, rowId, Map.of("job", job.title()),
 				"/cong-viec", agreementDue(jobId), jobId));
-		refreshPickTodo(job);
 		return row(rowId).orElseThrow();
 	}
 
@@ -321,37 +336,8 @@ class CrewService implements Crews {
 		if (!valid) {
 			throw new ApiException(ErrorCode.VALIDATION, JobReason.SHARES_INVALID, Map.of("cap", cap));
 		}
-		int next = this.jdbc.sql("SELECT coalesce(max(version_no), 0) + 1 FROM job.crew_terms_version WHERE job_id = :job")
-			.param("job", jobId)
-			.query(Integer.class)
-			.single();
-		Instant now = this.clock.instant();
-		this.jdbc.sql("UPDATE job.crew_terms_version SET status = 'VOIDED' WHERE job_id = :job AND status = 'PENDING'")
-			.param("job", jobId)
-			.update();
-		this.jdbc.sql("""
-				INSERT INTO job.crew_terms_version (job_id, version_no, status, cap_percent, author_account_id, created_at)
-				VALUES (:job, :no, 'PENDING', :cap, :author, :now)
-				""")
-			.param("job", jobId)
-			.param("no", next)
-			.param("cap", cap)
-			.param("author", mentorId)
-			.param("now", Timestamp.from(now))
-			.update();
 		Map<UUID, UUID> rowOf = running.stream().collect(Collectors.toMap(Row::studentId, Row::id));
-		for (Map.Entry<UUID, Integer> share : shares.entrySet()) {
-			this.jdbc.sql("""
-					INSERT INTO job.crew_terms_share (job_id, version_no, party_account_id, crew_row_id, percent)
-					VALUES (:job, :no, :party, :row, :percent)
-					""")
-				.param("job", jobId)
-				.param("no", next)
-				.param("party", share.getKey())
-				.param("row", rowOf.get(share.getKey()))
-				.param("percent", share.getValue())
-				.update();
-		}
+		int next = writeVersion(jobId, mentorId, cap, shares, rowOf);
 		// R-1 M1: before J6 an ACTIVE row has confirmed the latest version, so a new version resets it.
 		this.jdbc.sql("UPDATE job.crew_row SET status = 'ASSIGNED' WHERE job_id = :job AND status = 'ACTIVE'")
 			.param("job", jobId)
@@ -371,6 +357,46 @@ class CrewService implements Crews {
 		return latest(jobId).orElseThrow();
 	}
 
+	/**
+	 * Writes the next Crew Terms version as {@code PENDING} with one share per party and voids every older
+	 * pending one (AD-29, AD-41).
+	 * @param rowOf each Student party's Crew row
+	 * @return the new version's number
+	 */
+	int writeVersion(UUID jobId, UUID authorId, int cap, Map<UUID, Integer> shares, Map<UUID, UUID> rowOf) {
+		int next = this.jdbc.sql("SELECT coalesce(max(version_no), 0) + 1 FROM job.crew_terms_version WHERE job_id = :job")
+			.param("job", jobId)
+			.query(Integer.class)
+			.single();
+		Instant now = this.clock.instant();
+		this.jdbc.sql("UPDATE job.crew_terms_version SET status = 'VOIDED' WHERE job_id = :job AND status = 'PENDING'")
+			.param("job", jobId)
+			.update();
+		this.jdbc.sql("""
+				INSERT INTO job.crew_terms_version (job_id, version_no, status, cap_percent, author_account_id, created_at)
+				VALUES (:job, :no, 'PENDING', :cap, :author, :now)
+				""")
+			.param("job", jobId)
+			.param("no", next)
+			.param("cap", cap)
+			.param("author", authorId)
+			.param("now", Timestamp.from(now))
+			.update();
+		for (Map.Entry<UUID, Integer> share : shares.entrySet()) {
+			this.jdbc.sql("""
+					INSERT INTO job.crew_terms_share (job_id, version_no, party_account_id, crew_row_id, percent)
+					VALUES (:job, :no, :party, :row, :percent)
+					""")
+				.param("job", jobId)
+				.param("no", next)
+				.param("party", share.getKey())
+				.param("row", rowOf.get(share.getKey()))
+				.param("percent", share.getValue())
+				.update();
+		}
+		return next;
+	}
+
 	// ---- The Student's commands (through matching) ------------------------------------------
 
 	@Override
@@ -378,6 +404,10 @@ class CrewService implements Crews {
 	public void confirm(UUID jobId, UUID studentId, int versionNo, Instant signedAt) {
 		Job job = lockJob(jobId);
 		Row row = openRow(jobId, studentId);
+		if (job.state().compareTo(JobState.AGREEMENT) > 0) {
+			this.changes.getObject().confirm(job, row, versionNo, signedAt);
+			return;
+		}
 		requireOpenCrew(job);
 		TermsVersion latest = latest(jobId).orElseThrow(() -> new ApiException(ErrorCode.STALE));
 		if (latest.versionNo() != versionNo) {
@@ -427,6 +457,10 @@ class CrewService implements Crews {
 	public void decline(UUID jobId, UUID studentId, int versionNo) {
 		Job job = lockJob(jobId);
 		Row row = openRow(jobId, studentId);
+		if (job.state().compareTo(JobState.AGREEMENT) > 0) {
+			this.changes.getObject().decline(job, row, versionNo);
+			return;
+		}
 		requireOpenCrew(job);
 		int latest = latest(jobId).map(TermsVersion::versionNo).orElse(0);
 		if (latest != versionNo) {
@@ -568,10 +602,17 @@ class CrewService implements Crews {
 
 	/** The latest Crew Terms version that is not voided, with its shares and confirmations. */
 	Optional<TermsVersion> latest(UUID jobId) {
-		return this.jdbc.sql("""
-				SELECT version_no, status, cap_percent, created_at FROM job.crew_terms_version
-				WHERE job_id = :job AND status <> 'VOIDED' ORDER BY version_no DESC LIMIT 1
-				""").param("job", jobId).query((rs, n) -> {
+		return version(jobId, "status <> 'VOIDED'");
+	}
+
+	/** The Crew Terms version in force since J6, with its shares and confirmations. */
+	Optional<TermsVersion> inForceTerms(UUID jobId) {
+		return version(jobId, "status = 'IN_FORCE'");
+	}
+
+	private Optional<TermsVersion> version(UUID jobId, String condition) {
+		return this.jdbc.sql("SELECT version_no, status, cap_percent, created_at FROM job.crew_terms_version WHERE job_id = :job AND "
+				+ condition + " ORDER BY version_no DESC LIMIT 1").param("job", jobId).query((rs, n) -> {
 			int no = rs.getInt("version_no");
 			Map<UUID, Integer> shares = new LinkedHashMap<>();
 			this.jdbc.sql("SELECT party_account_id, percent FROM job.crew_terms_share WHERE job_id = :job AND version_no = :no"
@@ -639,6 +680,14 @@ class CrewService implements Crews {
 		return this.jdbc.sql("SELECT crew_version FROM job.job WHERE id = :id").param("id", jobId).query(Long.class).single();
 	}
 
+	/** The Job as it stands, read under the lock its caller already holds. */
+	Job current(UUID jobId) {
+		return this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id")
+			.param("id", jobId)
+			.query(Jobs::job)
+			.single();
+	}
+
 	private Job lockJob(UUID jobId) {
 		return this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id FOR UPDATE")
 			.param("id", jobId)
@@ -683,7 +732,7 @@ class CrewService implements Crews {
 			.forEach(row -> release(row, "JOB_ENDED"));
 	}
 
-	private void release(Row row, String reason) {
+	void release(Row row, String reason) {
 		Instant now = this.clock.instant();
 		this.jdbc.sql("""
 				UPDATE job.crew_row SET status = 'RELEASED', released_at = :now, released_reason = :reason,
@@ -698,8 +747,12 @@ class CrewService implements Crews {
 		this.todos.closeAll(CONFIRM_TODO, row.id());
 	}
 
+	void closeConfirmTodo(UUID rowId) {
+		this.todos.closeAll(CONFIRM_TODO, rowId);
+	}
+
 	/** Every Crew write increments {@code crew_version}; one the Customer sees increments {@code version} too. */
-	private void bump(UUID jobId, boolean usernamesChanged) {
+	void bump(UUID jobId, boolean usernamesChanged) {
 		this.jdbc.sql("UPDATE job.job SET crew_version = crew_version + 1, version = version + :bump, updated_at = :now WHERE id = :id")
 			.param("id", jobId)
 			.param("bump", usernamesChanged ? 1 : 0)
@@ -750,7 +803,7 @@ class CrewService implements Crews {
 		}
 	}
 
-	private String studentName(UUID studentId) {
+	String studentName(UUID studentId) {
 		return this.students.cards(List.of(studentId))
 			.stream()
 			.findFirst()
