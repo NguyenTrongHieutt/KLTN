@@ -63,6 +63,8 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 
 	private final Clock clock;
 
+	private volatile @Nullable String bot;
+
 	GitHubPlatformRepositories(GitHubAppsClient apps, SandboxJobs sandbox,
 			@Value("${vibefix.github.fork-poll:2s}") Duration forkPoll, @Value("${vibefix.github.fork-wait:5m}") Duration forkWait,
 			Clock clock) {
@@ -355,6 +357,135 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 			}
 			return refs;
 		});
+	}
+
+	@Override
+	public String botLogin() {
+		String cached = this.bot;
+		if (cached == null) {
+			cached = this.apps.registration(App.PLATFORM).slug().toLowerCase(Locale.ROOT) + "[bot]";
+			this.bot = cached;
+		}
+		return cached;
+	}
+
+	@Override
+	public List<PullRequest> openPullRequests(PlatformRepository repository) {
+		return this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("pull_requests", "read"), token -> {
+			List<PullRequest> open = new ArrayList<>();
+			for (JsonNode pull : require(http().send("GET", "/repos/" + repository.fullName() + "/pulls?state=open&per_page=100",
+					token.value(), null), "list the pull requests of " + repository.fullName())) {
+				open.add(new PullRequest(pull.path("number").asInt(),
+						pull.path("user").path("login").asString("").toLowerCase(Locale.ROOT)));
+			}
+			return open;
+		});
+	}
+
+	@Override
+	public void closePullRequest(PlatformRepository repository, int number) {
+		this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("pull_requests", "write"), token -> {
+			require(http().send("PATCH", "/repos/" + repository.fullName() + "/pulls/" + number, token.value(),
+					Map.of("state", "closed")), "close pull request " + number);
+			return null;
+		});
+	}
+
+	@Override
+	public Map<String, String> directCollaborators(PlatformRepository repository) {
+		return this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("administration", "write"), token -> {
+			Map<String, String> collaborators = new java.util.TreeMap<>();
+			for (JsonNode user : require(http().send("GET",
+					"/repos/" + repository.fullName() + "/collaborators?affiliation=direct&per_page=100", token.value(), null),
+					"list the collaborators of " + repository.fullName())) {
+				collaborators.put(user.path("login").asString("").toLowerCase(Locale.ROOT),
+						user.path("role_name").asString("read"));
+			}
+			return collaborators;
+		});
+	}
+
+	@Override
+	public Set<String> pendingInvitees(PlatformRepository repository) {
+		return this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("administration", "write"), token -> {
+			Set<String> invitees = new java.util.TreeSet<>();
+			for (JsonNode invitation : require(http().send("GET", "/repos/" + repository.fullName() + "/invitations?per_page=100",
+					token.value(), null), "list the invitations of " + repository.fullName())) {
+				invitees.add(invitation.path("invitee").path("login").asString("").toLowerCase(Locale.ROOT));
+			}
+			return invitees;
+		});
+	}
+
+	@Override
+	public List<String> featureDifferences(PlatformRepository repository) {
+		return this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("metadata", "read"), token -> {
+			JsonNode body = require(http().send("GET", "/repos/" + repository.fullName(), token.value(), null),
+					"read " + repository.fullName());
+			List<String> differences = new ArrayList<>();
+			for (String feature : List.of("has_wiki", "has_issues", "has_projects", "has_discussions")) {
+				if (body.path(feature).asBoolean(false)) {
+					differences.add(repository.fullName() + ": " + feature + " is on");
+				}
+			}
+			return differences;
+		});
+	}
+
+	@Override
+	public List<String> organizationPeopleDifferences(@Nullable String operatorLogin) {
+		return this.apps.withUnnarrowed(App.PLATFORM, Unnarrowed.ORGANIZATION_READ, token -> {
+			List<String> differences = new ArrayList<>();
+			Set<String> owners = logins(require(http().send("GET", "/orgs/" + organization() + "/members?role=admin&per_page=100",
+					token.value(), null), "list the organization's owners"));
+			Set<String> members = logins(require(http().send("GET", "/orgs/" + organization() + "/members?role=member&per_page=100",
+					token.value(), null), "list the organization's members"));
+			if (operatorLogin != null && !operatorLogin.isBlank()) {
+				Set<String> others = new java.util.TreeSet<>(owners);
+				others.remove(operatorLogin.toLowerCase(Locale.ROOT));
+				if (!others.isEmpty()) {
+					differences.add("organization owners besides the operator account: " + others);
+				}
+			}
+			if (!members.isEmpty()) {
+				differences.add("organization members who are not owners: " + new java.util.TreeSet<>(members));
+			}
+			return differences;
+		});
+	}
+
+	@Override
+	public List<String> installationDifferences() {
+		GitHubHttp.Answer answer = this.apps.installation(App.PLATFORM);
+		JsonNode body = require(answer, "read the Platform App's installation");
+		List<String> differences = new ArrayList<>();
+		String selection = body.path("repository_selection").asString("");
+		if (!"all".equals(selection)) {
+			differences.add("installation repository selection: " + selection + " instead of all");
+		}
+		if (!body.path("suspended_at").isMissingNode() && !body.path("suspended_at").isNull()) {
+			differences.add("installation suspended");
+		}
+		return differences;
+	}
+
+	@Override
+	public Set<String> recentActors(PlatformRepository repository) {
+		return this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("metadata", "read"), token -> {
+			Set<String> actors = new java.util.TreeSet<>();
+			GitHubHttp.Answer answer = http().send("GET", "/repos/" + repository.fullName() + "/events?per_page=30",
+					token.value(), null);
+			for (JsonNode event : require(answer, "list the events of " + repository.fullName())) {
+				actors.add(event.path("actor").path("login").asString("").toLowerCase(Locale.ROOT));
+			}
+			return actors;
+		});
+	}
+
+	private static Set<String> logins(JsonNode users) {
+		Set<String> logins = new java.util.TreeSet<>();
+		users.forEach(user -> logins.add(user.path("login").asString("").toLowerCase(Locale.ROOT)));
+		return logins;
 	}
 
 	private static @Nullable Instant instant(String text) {

@@ -3604,6 +3604,15 @@
     "github": {
       "app_configuration_drift": {
         "title": "Cấu hình GitHub {app} khác với dự kiến: {differences}"
+      },
+      "unexpected_actor": {
+        "title": "@{login} đã thao tác trên {repository} mà không được cấp quyền"
+      },
+      "operator_account_used": {
+        "title": "Tài khoản quản trị GitHub @{login} vừa được dùng trên {repository}"
+      },
+      "platform_drift": {
+        "title": "Tổ chức GitHub của vibefix khác với dự kiến: {differences}"
       }
     },
     "identity": {

@@ -1,0 +1,6 @@
+subject: Tổ chức GitHub của vibefix khác với dự kiến: {differences}
+---
+Xin chào,
+
+Lần kiểm tra định kỳ thấy tổ chức GitHub của vibefix khác với dự kiến: {differences}.
+Khi Actions, xác thực hai lớp hoặc phạm vi cài đặt khác, các công việc mới chờ chuẩn bị kho mã cho đến khi sửa xong.

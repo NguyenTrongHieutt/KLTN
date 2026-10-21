@@ -71,7 +71,7 @@ class SpikeS4CommandTest {
 		String output = this.out.toString(StandardCharsets.UTF_8);
 		assertThat(exit).as(output + this.err.toString(StandardCharsets.UTF_8)).isZero();
 		assertThat(output).contains("organization settings", "two_factor_requirement_enabled=true",
-				"default_repository_permission=none", "repository_selection=selected", "vibefix-dev/s4-test-intermediary",
+				"default_repository_permission=none", "repository_selection=all", "vibefix-dev/s4-test-intermediary",
 				"workflow files=1",
 				"s4-default-branch[deletion, non_fast_forward, update] bypass=app, hidden from a read-only token",
 				"s4-handover[creation, update, deletion] bypass=app, hidden from a read-only token",

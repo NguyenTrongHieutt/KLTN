@@ -178,6 +178,18 @@ class NotificationTypes implements NotificationCatalog {
 			Set.of(Audience.SUBJECT, Audience.CUSTOMER, Audience.MENTOR, Audience.CREW_ACTIVE), Channel.IN_APP_AND_EMAIL,
 			EmailClass.TRANSACTIONAL, "alert", Set.of("type", "product"));
 
+	/** A platform repository's event by someone neither the System nor granted there (FR-19, AD-12): every Administrator. */
+	static final NotificationType GITHUB_UNEXPECTED_ACTOR = new NotificationType("github.unexpected_actor",
+			Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("login", "repository"));
+
+	/** The operator account was used on GitHub (FR-19, SM-2): every Administrator. */
+	static final NotificationType GITHUB_OPERATOR_ACCOUNT_USED = new NotificationType("github.operator_account_used",
+			Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("login", "repository"));
+
+	/** The sweep found the platform organization unlike what vibefix expects (AD-12): every Administrator, daily. */
+	static final NotificationType GITHUB_PLATFORM_DRIFT = new NotificationType("github.platform_drift", Set.of(Audience.ADMIN),
+			Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("differences"));
+
 	/** A push scan waited more than 10 minutes (FR-8, the 15-minute target): every Administrator. */
 	static final NotificationType SCANNING_PUSH_SCAN_DELAYED = new NotificationType("scanning.push_scan_delayed",
 			Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("job"));
@@ -645,7 +657,7 @@ class NotificationTypes implements NotificationCatalog {
 				OPERATIONS_OPERATION_FAILED, OPERATIONS_EMAIL_OPERATION_FAILED, OPERATIONS_EVENT_PUBLICATION_STALLED,
 				NOTIFICATION_EMAIL_BUDGET_80, GITHUB_APP_CONFIGURATION_DRIFT, REPO_JOB_START_BLOCKED, JOB_JOB_STARTED,
 				REPO_GITHUB_INVITATION_SENT, REPO_TWO_FACTOR_REQUIRED, REPO_MEMBER_DRIFT, REPO_INVITATION_RENEWALS_EXHAUSTED,
-				SCANNING_PUSH_SCAN_DELAYED,
+				SCANNING_PUSH_SCAN_DELAYED, GITHUB_UNEXPECTED_ACTOR, GITHUB_OPERATOR_ACCOUNT_USED, GITHUB_PLATFORM_DRIFT,
 				ADMINISTRATOR_CREATED, ADMINISTRATOR_ENROLMENT, STUDENT_CARD_APPROVED, STUDENT_CARD_REJECTED,
 				MENTOR_APPLICATION_RECEIVED, MENTOR_APPROVED, MENTOR_REJECTED, ACCOUNT_LOCKED, VERIFICATION_REVOKED, MENTOR_APPROVAL_REVOKED, TEAM_INVITATION_RECEIVED,
 				TEAM_INVITATION_ANSWERED, TEAM_JOIN_REQUEST_RECEIVED, TEAM_JOIN_REQUEST_ANSWERED, TEAM_RELEASED,

@@ -98,7 +98,8 @@ class WebhookController {
 			if (kept == 1) {
 				this.events.publishEvent(new GitHubWebhookReceived(this.ids.newId(), deliveryId, app, event,
 						text(json.path("action")), number(json.path("installation").path("id")), repositoryIds(json),
-						number(json.path("sender").path("id")), number(json.path("requester").path("id"))));
+						number(json.path("sender").path("id")), number(json.path("requester").path("id")),
+							text(json.path("sender").path("login"))));
 			}
 			return kept == 1;
 		});

@@ -1,0 +1,6 @@
+subject: @{login} đã thao tác trên {repository} mà không được cấp quyền
+---
+Xin chào,
+
+GitHub báo một thao tác trên kho {repository} của @{login}, người không phải hệ thống vibefix và không được cấp quyền trên kho này.
+Hãy kiểm tra trên GitHub và ghi lại sự việc.

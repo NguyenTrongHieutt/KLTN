@@ -1,0 +1,6 @@
+subject: Tài khoản quản trị GitHub @{login} vừa được dùng trên {repository}
+---
+Xin chào,
+
+GitHub báo tài khoản quản trị @{login} vừa thao tác trên kho {repository}.
+Nếu đây không phải một sự việc đã ghi lại, hãy kiểm tra ngay và đổi thông tin đăng nhập của tài khoản này.

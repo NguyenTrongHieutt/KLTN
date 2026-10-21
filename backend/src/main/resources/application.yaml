@@ -142,6 +142,9 @@ vibefix:
     # FR-8, AD-12: how often each Working Repository's branch and tag heads are read back, so a missed
     # push webhook is caught; any new or moved head requests a push scan.
     push-sweep: PT10M
+    # FR-19, AD-12: how often the organization, the installation, and every running Job's repositories are
+    # read back against what vibefix expects; foreign pull requests are closed on the way.
+    platform-sweep: PT10M
   # AD-9: shared.internal.EventPublicationMaintenance resubmits, stalls and purges publications.
   events:
     resubmit-after: 5m

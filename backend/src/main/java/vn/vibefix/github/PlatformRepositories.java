@@ -90,4 +90,34 @@ public interface PlatformRepositories {
 	/** Every branch and tag head ({@code refs/heads/…}, {@code refs/tags/…}) and the object it points at (AD-12). */
 	Map<String, String> refs(PlatformRepository repository);
 
+	/** An open pull request and the login that opened it. */
+	record PullRequest(int number, String authorLogin) {
+	}
+
+	/** The Platform App's bot login, {@code {slug}[bot]}, lower-case: the System's actor on GitHub. */
+	String botLogin();
+
+	List<PullRequest> openPullRequests(PlatformRepository repository);
+
+	/** Closes a pull request the System did not open (FR-19, SG-16). */
+	void closePullRequest(PlatformRepository repository, int number);
+
+	/** The repository's direct collaborators, lower-case login to role ({@code read}, {@code write}, and so on). */
+	Map<String, String> directCollaborators(PlatformRepository repository);
+
+	/** The lower-case logins with a pending invitation. */
+	Set<String> pendingInvitees(PlatformRepository repository);
+
+	/** How the repository's features differ from AD-11's (Wiki, Issues, Projects, and Discussions off). */
+	List<String> featureDifferences(PlatformRepository repository);
+
+	/** How the organization's people differ: owners other than {@code operatorLogin}, and any member who is no owner. */
+	List<String> organizationPeopleDifferences(@Nullable String operatorLogin);
+
+	/** How the Platform App's installation differs from AD-10's: All repositories, not suspended. */
+	List<String> installationDifferences();
+
+	/** The lower-case logins behind the repository's recent events (SM-2, SG-22). */
+	Set<String> recentActors(PlatformRepository repository);
+
 }
