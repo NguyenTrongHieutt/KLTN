@@ -1,0 +1,6 @@
+subject: Bật xác thực hai lớp trên GitHub để nhận quyền ghi ở {job}
+---
+Xin chào,
+
+Tài khoản GitHub của bạn chưa bật xác thực hai lớp, nên vibefix chưa cấp quyền ghi vào kho làm việc của {job}.
+Hãy bật nó trong Settings > Password and authentication trên GitHub. vibefix tự kiểm tra lại sau đó.

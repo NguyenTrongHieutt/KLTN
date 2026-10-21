@@ -1,0 +1,6 @@
+subject: {job} đã bắt đầu
+---
+Xin chào,
+
+Mọi người trong công việc {job} đã nhận lời mời trên GitHub và có quyền ghi vào kho làm việc, nên công việc đã bắt đầu.
+Bảng công việc và trao đổi đã mở trên vibefix.

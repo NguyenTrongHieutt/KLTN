@@ -225,6 +225,13 @@ App is configured.
 - **A block** (a new Finding, a private repository, lost admin rights, or a missing sign-in) stops the
   start and tells the Customer and the Mentor why. The Customer fixes it and taps "Thử lại" on JOB-H.
 - **The copies are public repositories** in the organization. Delete them by hand after a dev run.
+- **Invitations follow (Story 7.3).** The Mentor and each active Crew member are invited to the Working
+  Repository with read. Each accepts on GitHub, with two-factor authentication on. vibefix reads
+  acceptance back every 10 minutes (`vibefix.repo.grant-sweep`), or at once on a `member` webhook.
+- **Verify** runs once everyone is ready. It raises them to write, reads it back, and only then is the
+  Job Active.
+- **A `vibefix-dev` member** is added by GitHub without an invitation. Administrators are alerted;
+  remove the person from the organization.
 
 ## Spike S2: VNPay sandbox refunds and transaction queries
 

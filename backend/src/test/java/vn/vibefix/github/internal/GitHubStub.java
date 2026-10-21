@@ -88,7 +88,13 @@ public final class GitHubStub implements AutoCloseable {
 	/** Pending invitations by invitee, with their permission, and collaborators who accepted. */
 	private final Map<String, String> invitations = new LinkedHashMap<>();
 
-	private final Map<String, String> collaborators = new LinkedHashMap<>();
+	private final Map<String, String> collaborators = Collections.synchronizedMap(new LinkedHashMap<>());
+
+	/** Organization members: GitHub adds them at once, without an invitation (AD-11's MEMBER_DRIFT). */
+	public final java.util.Set<String> members = Collections.synchronizedSet(new java.util.HashSet<>());
+
+	/** Outside collaborators without two-factor authentication, as {@code filter=2fa_disabled} lists them. */
+	public final java.util.Set<String> withoutTwoFactor = Collections.synchronizedSet(new java.util.HashSet<>());
 
 	public GitHubStub(Path gitRoot) throws IOException {
 		this.gitRoot = gitRoot;
@@ -294,10 +300,30 @@ public final class GitHubStub implements AutoCloseable {
 			String permission = this.collaborators.getOrDefault(matcher.group(1), "none");
 			send(exchange, 200, "{\"permission\":\"" + permission + "\",\"role_name\":\"" + permission + "\"}");
 		}
+		else if (method.equals("GET") && path.equals("/orgs/" + ORGANIZATION + "/outside_collaborators")) {
+			List<Map<String, String>> list = new ArrayList<>();
+			if (query != null && query.contains("filter=2fa_disabled")) {
+				this.withoutTwoFactor.forEach(login -> list.add(Map.of("login", login)));
+			}
+			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(list));
+		}
+		else if (method.equals("GET") && (matcher = Pattern.compile("/orgs/" + ORGANIZATION + "/members/([^/]+)").matcher(path))
+			.matches()) {
+			send(exchange, this.members.contains(matcher.group(1)) ? 204 : 404, "");
+		}
 		else if ((matcher = Pattern.compile("/repos/" + ORGANIZATION + "/[^/]+/collaborators/([^/]+)").matcher(path)).matches()) {
 			String login = matcher.group(1);
 			String permission = body.path("permission").asString("").equals("push") ? "write" : "read";
-			if (method.equals("GET")) {
+			if (method.equals("DELETE")) {
+				this.collaborators.remove(login);
+				send(exchange, 204, "");
+			}
+			else if (!method.equals("GET") && this.members.contains(login) && !this.collaborators.containsKey(login)) {
+				// An organization member is added at once: 204 without an invitation.
+				this.collaborators.put(login, permission);
+				send(exchange, 204, "");
+			}
+			else if (method.equals("GET")) {
 				send(exchange, this.collaborators.containsKey(login) ? 204 : 404, "");
 			}
 			else if (this.collaborators.containsKey(login)) {
@@ -335,7 +361,7 @@ public final class GitHubStub implements AutoCloseable {
 	}
 
 	/** The invitee accepts: a collaborator with the invitation's permission, and no invitation left. */
-	void accept(String login) {
+	public void accept(String login) {
 		this.collaborators.put(login, this.invitations.remove(login));
 	}
 

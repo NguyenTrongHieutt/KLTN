@@ -214,7 +214,7 @@ class JobSetupOperation implements OperationHandler {
 			log.warn("Setup {} waits: the rulesets differ from AD-11: {}", setup.id(), rulesets);
 			return new Outcome.Transient("RULESETS_DIFFER");
 		}
-		setups().done(setup);
+		setups().done(setup, working);
 		return new Outcome.Succeeded(Map.of("intermediary", intermediary.fullName(), "working", working.fullName()));
 	}
 

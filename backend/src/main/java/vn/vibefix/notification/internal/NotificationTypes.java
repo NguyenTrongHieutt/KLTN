@@ -36,6 +36,10 @@ class NotificationTypes implements NotificationCatalog {
 	/** The selected Mentor signs the NDA within the FR-15 period (UX-DR15). */
 	static final TodoType MATCHING_SIGN_NDA = new TodoType("matching.sign_nda", Set.of(Audience.MENTOR), 2, Set.of("job"));
 
+	/** Accept the Working Repository's invitation on GitHub (AD-11), due at its expiry. */
+	static final TodoType REPO_ACCEPT_GITHUB_INVITATION = new TodoType("repo.accept_github_invitation",
+			Set.of(Audience.MENTOR, Audience.CREW_ACTIVE), 2, Set.of("job"));
+
 	/** J4 started the Agreement draft (FR-16): the Mentor, due at the Agreement deadline. */
 	static final TodoType JOB_DRAFT_AGREEMENT = new TodoType("job.draft_agreement", Set.of(Audience.MENTOR), 2,
 			Set.of("job"));
@@ -262,6 +266,30 @@ class NotificationTypes implements NotificationCatalog {
 	/** A GitHub App's registration or webhook differs from AD-10 (SG-18): every Administrator, once a day per App. */
 	static final NotificationType GITHUB_APP_CONFIGURATION_DRIFT = new NotificationType("github.app_configuration_drift",
 			Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("app", "differences"));
+
+	/** J7 of a Code Job (FR-18): every grant was read back as write. */
+	static final NotificationType JOB_JOB_STARTED = new NotificationType("job.job_started",
+			Set.of(Audience.CUSTOMER, Audience.MENTOR, Audience.CREW_ACTIVE), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL,
+			"check", Set.of("job"));
+
+	/** An invitation to the Working Repository was sent or renewed (AD-11): the Mentor or a Crew member. */
+	static final NotificationType REPO_GITHUB_INVITATION_SENT = new NotificationType("repo.github_invitation_sent",
+			Set.of(Audience.MENTOR, Audience.CREW_ACTIVE), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info",
+			Set.of("job"));
+
+	/** An accepted collaborator without GitHub two-factor authentication (FR-18): that person. */
+	static final NotificationType REPO_TWO_FACTOR_REQUIRED = new NotificationType("repo.two_factor_required",
+			Set.of(Audience.MENTOR, Audience.CREW_ACTIVE), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
+			Set.of("job"));
+
+	/** An invitation answered 204: the person is an organization member (AD-11): every Administrator. */
+	static final NotificationType REPO_MEMBER_DRIFT = new NotificationType("repo.member_drift", Set.of(Audience.ADMIN),
+			Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("login", "job"));
+
+	/** A Crew change member's invitation was renewed 3 times (FR-75): the Mentor, and every Administrator. */
+	static final NotificationType REPO_INVITATION_RENEWALS_EXHAUSTED = new NotificationType(
+			"repo.invitation_renewals_exhausted", Set.of(Audience.MENTOR, Audience.ADMIN), Channel.IN_APP_AND_EMAIL,
+			EmailClass.TRANSACTIONAL, "alert", Set.of("login", "job"));
 
 	/** A Code Job's Setup stopped on something the Customer can fix (FR-18): the Customer, and the Mentor to know. */
 	static final NotificationType REPO_JOB_START_BLOCKED = new NotificationType("repo.job_start_blocked",
@@ -606,7 +634,8 @@ class NotificationTypes implements NotificationCatalog {
 	public List<NotificationType> notificationTypes() {
 		return List.of(SCHOOL_EMAIL_CODE, VERIFICATION_EXPIRING, VERIFICATION_EXPIRED, IDENTITY_SIGN_IN_AGAIN, ADMIN_SIGN_IN_LOCKED,
 				OPERATIONS_OPERATION_FAILED, OPERATIONS_EMAIL_OPERATION_FAILED, OPERATIONS_EVENT_PUBLICATION_STALLED,
-				NOTIFICATION_EMAIL_BUDGET_80, GITHUB_APP_CONFIGURATION_DRIFT, REPO_JOB_START_BLOCKED,
+				NOTIFICATION_EMAIL_BUDGET_80, GITHUB_APP_CONFIGURATION_DRIFT, REPO_JOB_START_BLOCKED, JOB_JOB_STARTED,
+				REPO_GITHUB_INVITATION_SENT, REPO_TWO_FACTOR_REQUIRED, REPO_MEMBER_DRIFT, REPO_INVITATION_RENEWALS_EXHAUSTED,
 				ADMINISTRATOR_CREATED, ADMINISTRATOR_ENROLMENT, STUDENT_CARD_APPROVED, STUDENT_CARD_REJECTED,
 				MENTOR_APPLICATION_RECEIVED, MENTOR_APPROVED, MENTOR_REJECTED, ACCOUNT_LOCKED, VERIFICATION_REVOKED, MENTOR_APPROVAL_REVOKED, TEAM_INVITATION_RECEIVED,
 				TEAM_INVITATION_ANSWERED, TEAM_JOIN_REQUEST_RECEIVED, TEAM_JOIN_REQUEST_ANSWERED, TEAM_RELEASED,
@@ -637,6 +666,7 @@ class NotificationTypes implements NotificationCatalog {
 	@Override
 	public List<TodoType> todoTypes() {
 		return List.of(COMPLETE_MENTOR_APPLICATION, VERIFY_STUDENT, IDENTITY_SIGN_IN_AGAIN_TODO, SCANNING_RESOLVE_INTAKE_FINDING,
+				REPO_ACCEPT_GITHUB_INVITATION,
 				MATCHING_CHOOSE_ASSIGNEE, MATCHING_SIGN_NDA, MATCHING_ANSWER_INVITATION_TO_APPLY, JOB_DRAFT_AGREEMENT,
 				JOB_REVIEW_AGREEMENT, JOB_PICK_CREW, JOB_CONFIRM_CREW_TERMS, JOB_REVISE_AGREEMENT, JOB_CONFIRM_AGREEMENT_MENTOR,
 				PAYMENT_FUND_MILESTONE, WORK_REVIEW_WORK_ITEM, WORK_FIX_RETURNED_ITEM, WORK_REASSIGN_WORK_ITEMS, DELIVERY_HAND_OVER,

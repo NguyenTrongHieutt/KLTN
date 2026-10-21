@@ -352,8 +352,15 @@ class JobLifecycle {
 	 */
 	@Transactional
 	Optional<Applied> tryApply(Transition transition, UUID jobId, Actor actor, Trigger trigger, long expectedVersion) {
+		return tryApply(transition, jobId, actor, trigger, expectedVersion, Map.of());
+	}
+
+	/** As {@link #tryApply(Transition, UUID, Actor, Trigger, long)}, with what the step needs from its initiator. */
+	@Transactional
+	Optional<Applied> tryApply(Transition transition, UUID jobId, Actor actor, Trigger trigger, long expectedVersion,
+			Map<String, Object> input) {
 		try {
-			return Optional.of(run(transition, jobId, actor, trigger, expectedVersion, Map.of()));
+			return Optional.of(run(transition, jobId, actor, trigger, expectedVersion, input));
 		}
 		catch (ApiException refused) {
 			return Optional.empty();

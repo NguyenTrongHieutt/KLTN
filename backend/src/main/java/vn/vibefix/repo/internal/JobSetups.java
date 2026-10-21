@@ -12,6 +12,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
@@ -57,10 +58,10 @@ class JobSetups {
 
 	static final String START_BLOCKED = "repo.job_start_blocked";
 
-	/** The step tracker's first three steps (UX-DR23); invitations and Verify follow in Story 7.3. */
+	/** The step tracker's steps (UX-DR23): Setup's three, then the invitations and Verify (Story 7.3). */
 	enum Step {
 
-		CHECK, INTERMEDIARY, WORKING
+		CHECK, INTERMEDIARY, WORKING, INVITE, VERIFY
 
 	}
 
@@ -80,6 +81,13 @@ class JobSetups {
 
 		String operationKey() {
 			return OPERATION + ":" + this.id;
+		}
+
+		/** The Working Repository once forked. */
+		@Nullable PlatformRepository working() {
+			return this.workingId == null || this.workingName == null ? null
+					: new PlatformRepository(this.workingId, this.workingName.substring(this.workingName.indexOf('/') + 1),
+							this.workingName);
 		}
 
 		/** The Intermediary Repository once created; its row keeps the full name. */
@@ -120,8 +128,12 @@ class JobSetups {
 
 	private final Clock clock;
 
+	/** Looked up on use: the grants need the Crew and the directories, which need {@code operations}. */
+	private final ObjectProvider<JobGrants> grants;
+
 	JobSetups(JdbcClient jdbc, JobBusy busy, ExternalOperations operations, Scans scans, Notifications notifications,
-			AuditLog auditLog, ProcessedEvents processedEvents, IdGenerator ids, Clock clock) {
+			AuditLog auditLog, ProcessedEvents processedEvents, IdGenerator ids, Clock clock, ObjectProvider<JobGrants> grants) {
+		this.grants = grants;
 		this.jdbc = jdbc;
 		this.busy = busy;
 		this.operations = operations;
@@ -291,9 +303,12 @@ class JobSetups {
 			.update();
 	}
 
-	/** Step 3 done and verified: the resolving transaction (AD-5) releases the marker; J7 waits for Verify. */
+	/**
+	 * Step 3 done and verified: the resolving transaction (AD-5) releases the marker, and the Invitations
+	 * stage starts in it (Story 7.3); J7 waits for Verify.
+	 */
 	@Transactional
-	void done(Setup setup) {
+	void done(Setup setup, PlatformRepository working) {
 		Instant now = this.clock.instant();
 		int updated = this.jdbc.sql("""
 				UPDATE repo.job_setup SET status = 'DONE', working_at = :now, finished_at = :now WHERE id = :id AND status = 'RUNNING'
@@ -301,6 +316,7 @@ class JobSetups {
 		if (updated == 1) {
 			this.busy.release(setup.jobId(), setup.operationKey());
 			audit("repo.setup_done", setup.id(), setup.jobId());
+			this.grants.getObject().grantAll(setup, working);
 		}
 	}
 

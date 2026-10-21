@@ -1,0 +1,6 @@
+subject: Lời mời GitHub của @{login} ở {job} đã gia hạn 3 lần mà chưa được chấp nhận
+---
+Xin chào,
+
+vibefix đã gia hạn lời mời vào kho làm việc của {job} cho @{login} 3 lần mà người này chưa chấp nhận.
+Hãy liên hệ người này, hoặc thay đổi nhóm thực hiện.
