@@ -169,6 +169,20 @@ public final class GitHubStub implements AutoCloseable {
 		this.server.stop(0);
 	}
 
+	/** A new commit on {@code branch} of {@code owner/name}, as someone pushing it; returns its SHA. */
+	public String push(String owner, String name, String branch, String file, String content) throws Exception {
+		Path work = Files.createTempDirectory("stub-push-");
+		try (Git git = Git.cloneRepository().setURI(this.gitRoot.resolve(owner).resolve(name + ".git").toUri().toString())
+			.setDirectory(work.toFile()).setBranch(branch).call()) {
+			Files.writeString(work.resolve(file), content);
+			git.add().addFilepattern(".").call();
+			RevCommit commit = git.commit().setMessage("Push " + file).setAuthor("Vy", "vy@example.test")
+				.setCommitter("Vy", "vy@example.test").call();
+			git.push().call();
+			return commit.name();
+		}
+	}
+
 	/** The head of {@code branch}, or none. */
 	public String head(String owner, String name, String branch) throws IOException {
 		try (Repository repository = repository(owner, name)) {
@@ -250,6 +264,17 @@ public final class GitHubStub implements AutoCloseable {
 			.matches()) {
 			boolean found = hasFile(ORGANIZATION, matcher.group(1), "main", ".github/workflows/ci.yml");
 			send(exchange, found ? 200 : 404, found ? "[{\"name\":\"ci.yml\"}]" : "{\"message\":\"Not Found\"}");
+		}
+		else if (method.equals("GET")
+				&& (matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)/git/matching-refs/(heads|tags)").matcher(path))
+					.matches()) {
+			List<Map<String, Object>> refs = new ArrayList<>();
+			try (Repository repository = repository(ORGANIZATION, matcher.group(1))) {
+				for (org.eclipse.jgit.lib.Ref ref : repository.getRefDatabase().getRefsByPrefix("refs/" + matcher.group(2) + "/")) {
+					refs.add(Map.of("ref", ref.getName(), "object", Map.of("sha", ref.getObjectId().name())));
+				}
+			}
+			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(refs));
 		}
 		else if ((matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)/rulesets").matcher(path)).matches()) {
 			List<JsonNode> list = this.rulesets.computeIfAbsent(matcher.group(1), name -> new ArrayList<>());

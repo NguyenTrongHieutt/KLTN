@@ -19,6 +19,12 @@ public enum ScanPurpose {
 	 * The Source Repository again when a Code Job starts (FR-18, SG-9): the whole history, which holds
 	 * every commit added since the last scan, and the default branch head it approves for the copy.
 	 */
-	J7
+	J7,
+
+	/**
+	 * A Working Repository after a push (FR-8, AD-12): its whole history, ahead of intake scans in the scan
+	 * lane. {@code repo} pushes down each Finding's resolvers and tells the Job's parties (AD-3).
+	 */
+	PUSH
 
 }

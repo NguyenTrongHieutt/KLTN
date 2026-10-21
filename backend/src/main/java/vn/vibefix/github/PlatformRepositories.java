@@ -2,6 +2,7 @@ package vn.vibefix.github;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -85,5 +86,8 @@ public interface PlatformRepositories {
 
 	/** Removes a direct collaborator, as AD-11 does once a drifted member has left the organization. */
 	void removeCollaborator(PlatformRepository repository, String login);
+
+	/** Every branch and tag head ({@code refs/heads/…}, {@code refs/tags/…}) and the object it points at (AD-12). */
+	Map<String, String> refs(PlatformRepository repository);
 
 }

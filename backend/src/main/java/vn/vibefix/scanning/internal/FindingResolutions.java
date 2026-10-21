@@ -24,6 +24,7 @@ import vn.vibefix.notification.Recipient;
 import vn.vibefix.notification.TodoRequest;
 import vn.vibefix.notification.Todos;
 import vn.vibefix.scanning.FalsePositive;
+import vn.vibefix.scanning.Scans;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.IdGenerator;
@@ -108,6 +109,7 @@ class FindingResolutions {
 		this.auditLog.record(AuditEntry.of(AuditActor.user(accountId), "scanning.finding_marked_false_positive",
 				AuditObject.of("scanning.finding", findingId)));
 		this.todos.closeAll(RESOLVE_INTAKE_FINDING, findingId);
+		this.todos.closeAll(Scans.RESOLVE_WORK_FINDING, findingId);
 	}
 
 	/** The false positives, the newest first (FR-64). */
@@ -180,6 +182,7 @@ class FindingResolutions {
 		this.auditLog.record(AuditEntry.of(AuditActor.user(accountId), "scanning.finding_rotated",
 				AuditObject.of("scanning.finding", findingId)));
 		this.todos.closeAll(RESOLVE_INTAKE_FINDING, findingId);
+		this.todos.closeAll(Scans.RESOLVE_WORK_FINDING, findingId);
 	}
 
 	/**
@@ -202,6 +205,7 @@ class FindingResolutions {
 			this.auditLog.record(AuditEntry.of(AuditActor.user(accountId), "scanning.finding_cleared",
 					AuditObject.of("scanning.finding", finding)));
 			this.todos.closeAll(RESOLVE_INTAKE_FINDING, finding);
+			this.todos.closeAll(Scans.RESOLVE_WORK_FINDING, finding);
 		}
 	}
 

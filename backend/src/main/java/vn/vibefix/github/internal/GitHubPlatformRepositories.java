@@ -338,6 +338,25 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 		});
 	}
 
+	@Override
+	public Map<String, String> refs(PlatformRepository repository) {
+		return this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("contents", "read"), token -> {
+			Map<String, String> refs = new java.util.TreeMap<>();
+			for (String kind : List.of("heads", "tags")) {
+				GitHubHttp.Answer answer = http().send("GET", "/repos/" + repository.fullName() + "/git/matching-refs/" + kind
+						+ "?per_page=100", token.value(), null);
+				if (answer.status() == 404 || answer.status() == 409) {
+					// An empty repository has no refs.
+					continue;
+				}
+				for (JsonNode ref : require(answer, "list the " + kind + " of " + repository.fullName())) {
+					refs.put(ref.path("ref").asString(""), ref.path("object").path("sha").asString(""));
+				}
+			}
+			return refs;
+		});
+	}
+
 	private static @Nullable Instant instant(String text) {
 		try {
 			return text.isEmpty() ? null : Instant.parse(text);

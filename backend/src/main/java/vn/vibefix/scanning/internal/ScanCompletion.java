@@ -162,7 +162,11 @@ class ScanCompletion {
 				.update();
 			if (inserted == 1) {
 				opened.add(new Opened(id, type));
-				// Every purpose so far scans the Customer's own repository: they resolve its Findings.
+				if (run.purpose() == ScanPurpose.PUSH) {
+					// AD-3: repo pushes down a push Finding's resolvers and tells the Job's parties.
+					continue;
+				}
+				// The other purposes scan the Customer's own repository: they resolve its Findings.
 				this.resolutions.addResolver(id, run.customerId());
 				this.todos.open(new TodoRequest(FindingResolutions.RESOLVE_INTAKE_FINDING, run.customerId(),
 						Audience.SUBJECT, id, Map.of("product", run.productName()),
@@ -195,6 +199,7 @@ class ScanCompletion {
 		Recipient customer = new Recipient(run.customerId(), Audience.SUBJECT);
 		String link = "/san-pham/" + run.productId();
 		opened.stream()
+			.filter(finding -> run.purpose() != ScanPurpose.PUSH)
 			.limit(NOTIFIED_FINDINGS)
 			.forEach(finding -> this.notifications.send(new NotificationRequest(FINDING_OPENED, finding.id(),
 					List.of(customer), Map.of("type", finding.type(), "product", run.productName()), link, null,
@@ -205,7 +210,8 @@ class ScanCompletion {
 						Map.of("product", run.productName()), link, null, run.productId()));
 			}
 			this.events.publishEvent(
-					new ScanCompleted(this.ids.newId(), run.id(), run.productId(), found == 0, personalDataFound));
+					new ScanCompleted(this.ids.newId(), run.id(), run.productId(), found == 0, personalDataFound, run.purpose(),
+							opened.stream().map(Opened::id).toList()));
 		}
 		return true;
 	}

@@ -1604,6 +1604,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/jobs/{jobId}/findings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["findings_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/jobs/{jobId}/findings/{findingId}/rotation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["rotated"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jobs/{jobId}/funding": {
         parameters: {
             query?: never;
@@ -4535,6 +4567,18 @@ export interface components {
             skillIds: string[];
             title: string;
         };
+        JobFindingView: {
+            canRotate: boolean;
+            category: string;
+            commit: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            id: string;
+            maskedPreview: string;
+            path: string;
+            type: string;
+        };
         JobFundingView: {
             configured: boolean;
             /** Format: uuid */
@@ -5669,7 +5713,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            purpose: "INTAKE" | "CLEAN_REPOSITORY" | "RESCAN" | "J7";
+            purpose: "INTAKE" | "CLEAN_REPOSITORY" | "RESCAN" | "J7" | "PUSH";
             /** Format: date-time */
             requestedAt: string;
             /** @enum {string} */
@@ -9061,6 +9105,51 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CrewChatView"];
+                };
+            };
+        };
+    };
+    findings_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFindingView"][];
+                };
+            };
+        };
+    };
+    rotated: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+                findingId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFindingView"][];
                 };
             };
         };

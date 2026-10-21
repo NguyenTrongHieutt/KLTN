@@ -1,0 +1,6 @@
+subject: Kiểm tra bảo mật mã của {job} đang chậm hơn 10 phút
+---
+Xin chào,
+
+Lần kiểm tra bảo mật sau khi có mã mới được đẩy lên kho làm việc của {job} đã chờ hơn 10 phút.
+Mục tiêu là xong trong 15 phút. Hãy xem hàng đợi thao tác ở trang quản trị.

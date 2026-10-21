@@ -2724,6 +2724,12 @@
       "cancelledRefunded": "Đã hủy · đã hoàn tiền"
     },
     "progress": {
+      "findings": {
+        "title": "{n} vấn đề bảo mật trong mã của công việc",
+        "lead": "Bàn giao tiếp theo chờ đến khi các vấn đề này được xử lý.",
+        "where": "{path} · commit {commit}",
+        "rotated": "Đã đổi khóa"
+      },
       "milestones": "Các giai đoạn",
       "milestone": "Giai đoạn {n} · {title}",
       "bar": "Tiến độ giai đoạn {n}",
@@ -3518,7 +3524,8 @@
       "sign_in_again": "Đăng nhập lại bằng GitHub để vibefix kiểm tra được kho mã của bạn"
     },
     "scanning": {
-      "resolve_intake_finding": "Xử lý vấn đề bảo mật ở {product}"
+      "resolve_intake_finding": "Xử lý vấn đề bảo mật ở {product}",
+      "resolve_work_finding": "Xử lý vấn đề bảo mật trong mã của {job}"
     },
     "matching": {
       "choose_assignee": "Chọn người hướng dẫn ({n} đơn ứng tuyển)",
@@ -3678,6 +3685,9 @@
       },
       "finding_reopened": {
         "title": "Vấn đề bảo mật trong {product} được mở lại: {type}"
+      },
+      "push_scan_delayed": {
+        "title": "Kiểm tra bảo mật mã của {job} đang chậm hơn 10 phút"
       }
     },
     "job": {
@@ -4139,7 +4149,8 @@
       "RECOMMENDATION_UNKNOWN": "Hãy chọn một đề xuất có trong báo cáo đã được chấp nhận.",
       "FOLLOW_UPS_SUBMITTED": "Các công việc tiếp theo đã được gửi cho khách hàng.",
       "NO_FOLLOW_UPS": "Hãy soạn ít nhất một công việc tiếp theo trước khi gửi.",
-      "FOLLOW_UP_NOT_AWAITING": "Công việc tiếp theo này đã được mở hoặc bỏ qua."
+      "FOLLOW_UP_NOT_AWAITING": "Công việc tiếp theo này đã được mở hoặc bỏ qua.",
+      "FINDING_OPEN": "Mã của công việc còn vấn đề bảo mật chưa xử lý."
     },
     "repo": {
       "SETUP_NOT_BLOCKED": "Việc chuẩn bị kho mã không bị dừng, nên không cần thử lại.",

@@ -139,6 +139,9 @@ vibefix:
     # AD-11, AD-12: how often the grants still to settle are read back from GitHub (invitations accepted,
     # two-factor authentication, drifted members); a member webhook reads a Job's grants at once.
     grant-sweep: PT10M
+    # FR-8, AD-12: how often each Working Repository's branch and tag heads are read back, so a missed
+    # push webhook is caught; any new or moved head requests a push scan.
+    push-sweep: PT10M
   # AD-9: shared.internal.EventPublicationMaintenance resubmits, stalls and purges publications.
   events:
     resubmit-after: 5m

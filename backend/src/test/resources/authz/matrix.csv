@@ -1929,3 +1929,21 @@ POST /api/v1/jobs/{jobId}/setup/retry,STUDENT,,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/setup/retry,ADMINISTRATOR,,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/setup/retry,JOB_MENTOR,,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/setup/retry,CREW_ACTIVE,,,404 NOT_FOUND
+
+# Story 7.4 (FR-8, UX-DR31): the Job's Findings; {jobId} is a Draft Assessment Job, so nobody reads them.
+GET /api/v1/jobs/{jobId}/findings,ANONYMOUS,,,401
+GET /api/v1/jobs/{jobId}/findings,OWNER,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/findings,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/findings,MENTOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/findings,STUDENT,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/findings,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/findings,JOB_MENTOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/findings,CREW_ACTIVE,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/findings/{findingId}/rotation,ANONYMOUS,,,401
+POST /api/v1/jobs/{jobId}/findings/{findingId}/rotation,OWNER,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/findings/{findingId}/rotation,CUSTOMER,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/findings/{findingId}/rotation,MENTOR,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/findings/{findingId}/rotation,STUDENT,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/findings/{findingId}/rotation,ADMINISTRATOR,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/findings/{findingId}/rotation,JOB_MENTOR,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/findings/{findingId}/rotation,CREW_ACTIVE,,,404 NOT_FOUND

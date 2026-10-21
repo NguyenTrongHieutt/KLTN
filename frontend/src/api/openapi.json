@@ -3774,6 +3774,74 @@
         "tags" : [ "crew-chat-controller" ]
       }
     },
+    "/api/v1/jobs/{jobId}/findings" : {
+      "get" : {
+        "operationId" : "findings_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/JobFindingView"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "job-finding-controller" ]
+      }
+    },
+    "/api/v1/jobs/{jobId}/findings/{findingId}/rotation" : {
+      "post" : {
+        "operationId" : "rotated",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "path",
+          "name" : "findingId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/JobFindingView"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "job-finding-controller" ]
+      }
+    },
     "/api/v1/jobs/{jobId}/funding" : {
       "get" : {
         "operationId" : "jobFunding",
@@ -10902,6 +10970,38 @@
         },
         "required" : [ "jobTypes", "skillIds", "title" ]
       },
+      "JobFindingView" : {
+        "type" : "object",
+        "properties" : {
+          "canRotate" : {
+            "type" : "boolean"
+          },
+          "category" : {
+            "type" : "string"
+          },
+          "commit" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "maskedPreview" : {
+            "type" : "string"
+          },
+          "path" : {
+            "type" : "string"
+          },
+          "type" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "canRotate", "category", "commit", "createdAt", "id", "maskedPreview", "path", "type" ]
+      },
       "JobFundingView" : {
         "type" : "object",
         "properties" : {
@@ -14012,7 +14112,7 @@
           },
           "purpose" : {
             "type" : "string",
-            "enum" : [ "INTAKE", "CLEAN_REPOSITORY", "RESCAN", "J7" ]
+            "enum" : [ "INTAKE", "CLEAN_REPOSITORY", "RESCAN", "J7", "PUSH" ]
           },
           "requestedAt" : {
             "type" : "string",
