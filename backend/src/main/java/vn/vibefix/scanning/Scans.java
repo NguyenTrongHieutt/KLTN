@@ -11,6 +11,9 @@ import java.util.UUID;
 /** Requests Secret Scans and reads their results (AD-18). */
 public interface Scans {
 
+	/** The to-do of a push Finding's resolver (FR-8), which {@code repo} opens and every resolution closes. */
+	String RESOLVE_WORK_FINDING = "scanning.resolve_work_finding";
+
 	/**
 	 * Records a scan of {@code target} in the caller's transaction, with the External Operation that
 	 * runs it, so the scan is requested exactly when the change that causes it commits.

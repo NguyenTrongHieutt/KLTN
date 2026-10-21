@@ -115,6 +115,9 @@ class JobSetupIT extends IntegrationTest {
 	@Autowired
 	private DeadlinePoller deadlines;
 
+	@Autowired
+	private PushScans pushScans;
+
 	private UUID product;
 
 	private UUID job;
@@ -291,6 +294,67 @@ class JobSetupIT extends IntegrationTest {
 		assertThat(this.grants.ofJob(this.job).stream().filter(grant -> grant.accountId().equals(late)).findFirst()
 			.orElseThrow().renewals()).isEqualTo(JobGrants.CREW_CHANGE_RENEWALS);
 		assertThat(notices("repo.invitation_renewals_exhausted")).as("the Mentor and the Administrator").isEqualTo(2);
+		awaitListeners();
+	}
+
+	@Test
+	void aPushIsScannedAndItsCredentialGoesToTheMentorWhoConfirmsTheRotation() throws Exception {
+		j6();
+		run();
+		String working = JobSetups.workingName(this.job);
+		this.pushScans.sweep();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM repo.push_scan WHERE job_id = :job").param("job", this.job)
+			.query(Long.class).single()).as("the copy itself is not scanned again").isZero();
+		// A fake credential, built at run time.
+		String key = "sk" + "_live_" + UUID.randomUUID().toString().replace("-", "").substring(0, 24);
+		GITHUB.push(GitHubStub.ORGANIZATION, working, "main", "pay.js", "const stripe = require('stripe')('" + key + "')\n");
+		long repository = GITHUB.organizationRepositoryId(working);
+
+		this.pushScans.hinted(new vn.vibefix.github.GitHubWebhookReceived(UUID.randomUUID(), UUID.randomUUID().toString(),
+				vn.vibefix.github.GitHubApps.App.PLATFORM, "push", null, 7L, List.of(repository), 1L, null));
+		UUID run = this.jdbc.sql("SELECT scan_run_id FROM repo.push_scan WHERE job_id = :job").param("job", this.job)
+			.query(UUID.class).single();
+		assertThat(this.jdbc.sql("SELECT purpose FROM scanning.scan_run WHERE id = :id").param("id", run).query(String.class)
+			.single()).isEqualTo("PUSH");
+		this.worker.runDue(Lane.SCAN);
+		awaitListeners();
+
+		UUID finding = this.jdbc.sql("SELECT id FROM scanning.finding WHERE scan_run_id = :run").param("run", run)
+			.query(UUID.class).single();
+		assertThat(this.scans.mayResolve(finding, this.mentor)).as("the Mentor resolves a pushed credential").isTrue();
+		assertThat(this.scans.mayResolve(finding, this.customer)).isFalse();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM notification.todo WHERE todo_key = 'scanning.resolve_work_finding'")
+			.query(Long.class).single()).isOne();
+		assertThat(notices("scanning.finding_opened")).as("the Customer, the Mentor, and the Crew").isEqualTo(3);
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/findings").with(as(this.customer, Role.CUSTOMER)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$[0].type").value("Khóa bí mật Stripe"))
+			.andExpect(jsonPath("$[0].canRotate").value(false))
+			.andExpect(jsonPath("$[0].maskedPreview").value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString(key))));
+		this.mvc.perform(post("/api/v1/jobs/" + this.job + "/findings/" + finding + "/rotation").with(as(this.mentor, Role.MENTOR))
+			.with(csrf()))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$").isEmpty());
+		assertThat(this.jdbc.sql("SELECT count(*) FROM notification.todo WHERE todo_key = 'scanning.resolve_work_finding' AND closed_at IS NULL")
+			.query(Long.class).single()).as("resolution closes the to-do").isZero();
+	}
+
+	@Test
+	void aPushScanWaitingMoreThanTenMinutesAlertsTheAdministrators() throws Exception {
+		AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		j6();
+		run();
+		String working = JobSetups.workingName(this.job);
+		GITHUB.push(GitHubStub.ORGANIZATION, working, "main", "README.md", "# Quán Mây v2\n");
+
+		this.pushScans.sweep();
+		this.clock.advance(PushScans.DELAY.plusMinutes(1));
+		this.deadlines.runDue();
+
+		assertThat(notices("scanning.push_scan_delayed")).isOne();
+		this.pushScans.sweep();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM repo.push_scan WHERE job_id = :job").param("job", this.job)
+			.query(Long.class).single()).as("unchanged heads request nothing").isOne();
 		awaitListeners();
 	}
 

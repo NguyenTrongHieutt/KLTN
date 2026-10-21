@@ -36,6 +36,10 @@ class NotificationTypes implements NotificationCatalog {
 	/** The selected Mentor signs the NDA within the FR-15 period (UX-DR15). */
 	static final TodoType MATCHING_SIGN_NDA = new TodoType("matching.sign_nda", Set.of(Audience.MENTOR), 2, Set.of("job"));
 
+	/** Resolve a Finding in the Job's pushed code (FR-8): the Mentor for a credential, the Customer for personal data. */
+	static final TodoType SCANNING_RESOLVE_WORK_FINDING = new TodoType("scanning.resolve_work_finding",
+			Set.of(Audience.MENTOR, Audience.CUSTOMER), 1, Set.of("job"));
+
 	/** Accept the Working Repository's invitation on GitHub (AD-11), due at its expiry. */
 	static final TodoType REPO_ACCEPT_GITHUB_INVITATION = new TodoType("repo.accept_github_invitation",
 			Set.of(Audience.MENTOR, Audience.CREW_ACTIVE), 2, Set.of("job"));
@@ -171,7 +175,12 @@ class NotificationTypes implements NotificationCatalog {
 
 	/** A scan opened a Finding (FR-8): whoever must act on it, by email too; intake Findings go to the Customer. */
 	static final NotificationType SCANNING_FINDING_OPENED = new NotificationType("scanning.finding_opened",
-			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("type", "product"));
+			Set.of(Audience.SUBJECT, Audience.CUSTOMER, Audience.MENTOR, Audience.CREW_ACTIVE), Channel.IN_APP_AND_EMAIL,
+			EmailClass.TRANSACTIONAL, "alert", Set.of("type", "product"));
+
+	/** A push scan waited more than 10 minutes (FR-8, the 15-minute target): every Administrator. */
+	static final NotificationType SCANNING_PUSH_SCAN_DELAYED = new NotificationType("scanning.push_scan_delayed",
+			Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("job"));
 
 	/** FR-64: an Administrator reopened a false positive; its resolvers act on it again. */
 	static final NotificationType SCANNING_FINDING_REOPENED = new NotificationType("scanning.finding_reopened",
@@ -636,6 +645,7 @@ class NotificationTypes implements NotificationCatalog {
 				OPERATIONS_OPERATION_FAILED, OPERATIONS_EMAIL_OPERATION_FAILED, OPERATIONS_EVENT_PUBLICATION_STALLED,
 				NOTIFICATION_EMAIL_BUDGET_80, GITHUB_APP_CONFIGURATION_DRIFT, REPO_JOB_START_BLOCKED, JOB_JOB_STARTED,
 				REPO_GITHUB_INVITATION_SENT, REPO_TWO_FACTOR_REQUIRED, REPO_MEMBER_DRIFT, REPO_INVITATION_RENEWALS_EXHAUSTED,
+				SCANNING_PUSH_SCAN_DELAYED,
 				ADMINISTRATOR_CREATED, ADMINISTRATOR_ENROLMENT, STUDENT_CARD_APPROVED, STUDENT_CARD_REJECTED,
 				MENTOR_APPLICATION_RECEIVED, MENTOR_APPROVED, MENTOR_REJECTED, ACCOUNT_LOCKED, VERIFICATION_REVOKED, MENTOR_APPROVAL_REVOKED, TEAM_INVITATION_RECEIVED,
 				TEAM_INVITATION_ANSWERED, TEAM_JOIN_REQUEST_RECEIVED, TEAM_JOIN_REQUEST_ANSWERED, TEAM_RELEASED,
@@ -666,7 +676,7 @@ class NotificationTypes implements NotificationCatalog {
 	@Override
 	public List<TodoType> todoTypes() {
 		return List.of(COMPLETE_MENTOR_APPLICATION, VERIFY_STUDENT, IDENTITY_SIGN_IN_AGAIN_TODO, SCANNING_RESOLVE_INTAKE_FINDING,
-				REPO_ACCEPT_GITHUB_INVITATION,
+				REPO_ACCEPT_GITHUB_INVITATION, SCANNING_RESOLVE_WORK_FINDING,
 				MATCHING_CHOOSE_ASSIGNEE, MATCHING_SIGN_NDA, MATCHING_ANSWER_INVITATION_TO_APPLY, JOB_DRAFT_AGREEMENT,
 				JOB_REVIEW_AGREEMENT, JOB_PICK_CREW, JOB_CONFIRM_CREW_TERMS, JOB_REVISE_AGREEMENT, JOB_CONFIRM_AGREEMENT_MENTOR,
 				PAYMENT_FUND_MILESTONE, WORK_REVIEW_WORK_ITEM, WORK_FIX_RETURNED_ITEM, WORK_REASSIGN_WORK_ITEMS, DELIVERY_HAND_OVER,

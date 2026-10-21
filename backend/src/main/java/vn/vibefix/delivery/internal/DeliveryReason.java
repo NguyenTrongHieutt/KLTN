@@ -43,6 +43,9 @@ enum DeliveryReason {
 	NO_FOLLOW_UPS,
 
 	/** The follow-up is not waiting for the Customer: still a draft, or already opened or discarded. */
-	FOLLOW_UP_NOT_AWAITING
+	FOLLOW_UP_NOT_AWAITING,
+
+	/** The Product's scans have an open Finding, which blocks a code handover (FR-8, AD-18). */
+	FINDING_OPEN
 
 }

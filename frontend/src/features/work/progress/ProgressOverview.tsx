@@ -1,3 +1,4 @@
+import { WorkFindings } from './WorkFindings'
 import { ExternalLink, ShieldAlert } from 'lucide-react'
 import { Link } from 'react-router'
 import { RegionState } from '@/components/RegionState'
@@ -78,6 +79,7 @@ function Content({ jobId, audience, progress }: { jobId: string; audience: Progr
           </a>
         )}
         <DisputeSection jobId={jobId} />
+        {!progress.assessment && <WorkFindings jobId={jobId} />}
         <JobNextAction jobId={jobId} />
         <ClosureSection jobId={jobId} />
         <CancellationSection jobId={jobId} />

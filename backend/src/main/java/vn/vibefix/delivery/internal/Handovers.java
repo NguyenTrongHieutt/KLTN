@@ -31,6 +31,7 @@ import vn.vibefix.job.MilestoneStates;
 import vn.vibefix.notification.Audience;
 import vn.vibefix.notification.TodoRequest;
 import vn.vibefix.notification.Todos;
+import vn.vibefix.scanning.Scans;
 import vn.vibefix.scanning.SensitiveText;
 import vn.vibefix.scanning.SensitiveText.Match;
 import vn.vibefix.scanning.SensitiveText.Result;
@@ -107,6 +108,8 @@ class Handovers {
 
 	private final JdbcClient jdbc;
 
+	private final Scans scans;
+
 	private final MilestoneHandovers jobs;
 
 	private final AgreementCriteria criteria;
@@ -126,7 +129,9 @@ class Handovers {
 	private final Clock clock;
 
 	Handovers(JdbcClient jdbc, MilestoneHandovers jobs, AgreementCriteria criteria, MilestoneStates states,
-			MilestoneWork work, SensitiveText check, Todos todos, Deadlines deadlines, IdGenerator ids, Clock clock) {
+			MilestoneWork work, SensitiveText check, Todos todos, Deadlines deadlines, IdGenerator ids, Clock clock,
+			Scans scans) {
+		this.scans = scans;
 		this.jdbc = jdbc;
 		this.jobs = jobs;
 		this.criteria = criteria;
@@ -165,6 +170,10 @@ class Handovers {
 		}
 		if (!mentor.job().assessment()) {
 			problems.add("HANDOVER_COMMIT_MISSING");
+			// FR-8, AD-18: an open Finding in the Product's scans blocks the next handover.
+			if (!this.scans.openFindings(mentor.job().productId()).isEmpty()) {
+				problems.add(DeliveryReason.FINDING_OPEN.name());
+			}
 		}
 		return new Preflight(milestone, state, mentor.job().version(), mentor.job().assessment(),
 				criteriaOf(jobId, milestoneId), items, report, problems);

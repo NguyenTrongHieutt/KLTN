@@ -47,6 +47,8 @@ class JdbcScans implements Scans {
 	/** AD-6 seed lanes: push scans (0, Epic 7) go before intake scans. */
 	static final int INTAKE_PRIORITY = 1;
 
+	static final int PUSH_PRIORITY = 0;
+
 	static final JsonMapper JSON = JsonMapper.builder().build();
 
 	private static final String SUMMARY_COLUMNS = """
@@ -101,8 +103,9 @@ class JdbcScans implements Scans {
 			.param("head", shaRange.head())
 			.param("now", Timestamp.from(this.clock.instant()))
 			.update();
+		// FR-8: push scans run before intake scans in the scan lane.
 		this.operations.request(new OperationRequest(OPERATION_TYPE, id, Map.of("scanRunId", id.toString()), null, null,
-				INTAKE_PRIORITY));
+				purpose == ScanPurpose.PUSH ? PUSH_PRIORITY : INTAKE_PRIORITY));
 		return id;
 	}
 

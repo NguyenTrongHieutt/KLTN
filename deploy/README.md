@@ -232,6 +232,10 @@ App is configured.
   Job Active.
 - **A `vibefix-dev` member** is added by GitHub without an invitation. Administrators are alerted;
   remove the person from the organization.
+- **Pushes to the Working Repository are scanned (Story 7.4).** A `push` webhook, or the 10-minute
+  sweep (`vibefix.repo.push-sweep`), reads the branch and tag heads back. Any change scans the
+  repository again. A credential goes to the Mentor ("Đã đổi khóa" on the Job's page) and personal
+  data to the Customer. While a Finding is open, the next handover waits.
 
 ## Spike S2: VNPay sandbox refunds and transaction queries
 
