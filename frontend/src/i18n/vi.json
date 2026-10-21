@@ -1776,7 +1776,7 @@
       "noMatchKeywordBody": "Hãy thử từ khóa ngắn hơn hoặc bỏ bớt bộ lọc.",
       "tooFast": "Bạn đang tìm hơi nhanh. Hãy đợi {seconds} giây rồi tìm lại.",
       "invitation": {
-        "note": "{customer} đã mời bạn ứng tuyển công việc này. Bạn tự quyết định; lời mời không giữ chỗ cho bạn.",
+        "note": "Khách hàng đã mời bạn ứng tuyển công việc này. Bạn tự quyết định; lời mời không giữ chỗ cho bạn.",
         "lapsedTitle": "Lời mời này đã hết hiệu lực vì công việc không còn nhận ứng tuyển.",
         "lapsedBody": "Khách hàng đã chọn người hướng dẫn khác hoặc tin đã đóng.",
         "findOther": "Tìm việc khác"
@@ -3780,7 +3780,7 @@
         "title": "Người hướng dẫn chưa ký cam kết bảo mật cho {job}. Bạn có thể chọn lại."
       },
       "invited_to_apply": {
-        "title": "{customer} đã mời bạn ứng tuyển {job}"
+        "title": "Khách hàng đã mời bạn ứng tuyển {job}"
       }
     },
     "chat": {
@@ -3896,7 +3896,7 @@
       "FILE_TOO_LARGE": "Tệp lớn hơn 10 MB.",
       "FILE_TYPE_NOT_ALLOWED": "Chỉ nhận ảnh, PDF, tệp văn bản và tệp nén. Không nhận SVG hoặc HTML.",
       "UPLOAD_QUOTA": "Bạn đã tải lên quá nhiều tệp trong một giờ. Hãy thử lại sau.",
-      "IMAGE_TOO_LARGE": "Ảnh lớn hơn 40 megapixel. Hãy chụp hoặc lưu ảnh nhỏ hơn."
+      "IMAGE_TOO_LARGE": "Ảnh quá lớn: hơn 40 triệu điểm ảnh (40 megapixel). Hãy chụp hoặc lưu ảnh nhỏ hơn."
     },
     "team": {
       "STUDENT_IN_TEAM": "Sinh viên này đang ở trong một nhóm.",

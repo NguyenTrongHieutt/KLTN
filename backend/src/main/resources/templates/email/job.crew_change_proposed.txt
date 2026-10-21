@@ -1,0 +1,6 @@
+subject: Người hướng dẫn đề xuất đổi nhóm thực hiện {job}. Hãy xem phần của bạn và xác nhận.
+---
+Xin chào,
+
+Người hướng dẫn đề xuất đổi nhóm thực hiện công việc {job}.
+Hãy mở vibefix để xem phần của bạn trong nhóm mới và xác nhận. Nhóm hiện tại vẫn làm việc như cũ cho đến khi thay đổi được áp dụng.

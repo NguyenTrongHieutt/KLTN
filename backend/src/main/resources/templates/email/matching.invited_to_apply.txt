@@ -1,6 +1,6 @@
-subject: {customer} đã mời bạn ứng tuyển {job}
+subject: Khách hàng đã mời bạn ứng tuyển {job}
 ---
 Xin chào,
 
-{customer} đã mời bạn ứng tuyển công việc {job} trên vibefix.
+Khách hàng đã mời bạn ứng tuyển công việc {job} trên vibefix.
 Bạn tự quyết định có ứng tuyển hay không; lời mời không giữ chỗ cho bạn.

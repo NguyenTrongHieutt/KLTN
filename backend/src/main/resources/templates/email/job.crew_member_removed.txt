@@ -1,0 +1,6 @@
+subject: Bạn không còn trong nhóm thực hiện {job}. Các khoản đã nhận vẫn giữ nguyên.
+---
+Xin chào,
+
+Bạn không còn trong nhóm thực hiện công việc {job}. Các khoản bạn đã nhận vẫn giữ nguyên.
+Nếu vibefix nhắc bạn xác nhận đã xóa dữ liệu của khách hàng, hãy làm việc đó trên vibefix.

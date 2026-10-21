@@ -21,6 +21,9 @@ import vn.vibefix.dispute.internal.DisputeDecisions.Decision;
 import vn.vibefix.dispute.internal.DisputeDecisions.Execution;
 import vn.vibefix.dispute.internal.Disputes.Dispute;
 import vn.vibefix.identity.Administrators;
+import vn.vibefix.job.Crews;
+import vn.vibefix.job.Crews.CrewMember;
+import vn.vibefix.job.Crews.Selection;
 import vn.vibefix.job.JobFreezes;
 import vn.vibefix.job.JobFreezes.DisputedJob;
 import vn.vibefix.job.MilestoneSettlements;
@@ -70,9 +73,13 @@ class DisputeExecution {
 
 	private final Clock clock;
 
+	private final Crews crews;
+
 	DisputeExecution(JdbcClient jdbc, Disputes disputes, DisputeDecisions decisions, MilestoneSettlements settlements,
 			Releases releases, JobFreezes freezes, Deadlines deadlines, Notifications notifications,
-			Administrators administrators, AuditLog auditLog, PlatformTransactionManager transactionManager, Clock clock) {
+			Administrators administrators, AuditLog auditLog, PlatformTransactionManager transactionManager, Clock clock,
+			Crews crews) {
+		this.crews = crews;
 		this.jdbc = jdbc;
 		this.disputes = disputes;
 		this.decisions = decisions;
@@ -138,6 +145,11 @@ class DisputeExecution {
 				if (job.mentorId() != null) {
 					sides.add(new Recipient(job.mentorId(), Audience.MENTOR));
 				}
+				this.crews.crewOf(dispute.jobId(), Selection.EVER_ACTIVE)
+					.stream()
+					.map(CrewMember::studentId)
+					.distinct()
+					.forEach(student -> sides.add(new Recipient(student, Audience.CREW_EVER_ACTIVE)));
 				this.notifications.send(new NotificationRequest(DECIDED, dispute.id(), sides, Map.of("job", job.title()),
 						"/cong-viec/" + dispute.jobId(), dispute.jobId(), null));
 			}

@@ -1,0 +1,6 @@
+subject: VNPay báo một thanh toán không khớp lệnh thanh toán nào
+---
+Xin chào,
+
+VNPay vừa báo một thanh toán mà vibefix không tìm thấy lệnh thanh toán tương ứng.
+Hãy mở trang quản trị của vibefix để kiểm tra.

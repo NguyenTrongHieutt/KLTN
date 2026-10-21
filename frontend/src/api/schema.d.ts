@@ -4728,7 +4728,6 @@ export interface components {
             topUpVnd: number;
         };
         MentorInvitationView: {
-            customer: string;
             /** Format: uuid */
             id: string;
             /** Format: date-time */

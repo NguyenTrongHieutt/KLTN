@@ -1,0 +1,6 @@
+subject: Một lượt thêm vào nhóm thực hiện bị từ chối vì có thể là cùng một người
+---
+Xin chào,
+
+vibefix vừa từ chối thêm một sinh viên vào nhóm thực hiện vì có dấu hiệu người đó và người hướng dẫn hoặc khách hàng là cùng một người.
+Hãy mở trang quản trị của vibefix để xem.

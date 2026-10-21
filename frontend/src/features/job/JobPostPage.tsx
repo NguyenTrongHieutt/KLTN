@@ -102,7 +102,7 @@ function Post({ post, invitation }: { post: JobPost; invitation: MentorInvitatio
       {invitation?.status === 'OPEN' && (
         <div role="note" className="flex gap-3 rounded-md border-l-4 border-primary bg-primary-soft p-4 text-body-sm">
           <Info aria-hidden="true" className="size-5 shrink-0 text-primary" />
-          <p className="break-words">{t('screen.jobPost.invitation.note', { customer: invitation.customer })}</p>
+          <p className="break-words">{t('screen.jobPost.invitation.note')}</p>
         </div>
       )}
       <CapacityBanners capacity={capacity.data} />
