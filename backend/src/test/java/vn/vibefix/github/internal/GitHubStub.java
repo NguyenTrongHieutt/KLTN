@@ -33,7 +33,8 @@ import tools.jackson.databind.JsonNode;
  * tokens, organization reads, repository creation, rulesets, forks that appear after one poll, and
  * invitations. It records every request and every token it handed out. As GitHub does (Spike S4,
  * 2026-10-21), it shows a ruleset's {@code bypass_actors} only to a token with Administration write,
- * and refuses a fork to a token narrowed by {@code repository_ids}.
+ * refuses a fork to a token narrowed by {@code repository_ids}, and leaves a pending invitation at
+ * the permission it was sent with.
  */
 final class GitHubStub implements AutoCloseable {
 
@@ -66,7 +67,10 @@ final class GitHubStub implements AutoCloseable {
 
 	private final Map<String, Integer> forkPolls = new LinkedHashMap<>();
 
-	private int collaboratorPuts;
+	/** Pending invitations by invitee, with their permission, and collaborators who accepted. */
+	private final Map<String, String> invitations = new LinkedHashMap<>();
+
+	private final Map<String, String> collaborators = new LinkedHashMap<>();
 
 	GitHubStub(Path gitRoot) throws IOException {
 		this.gitRoot = gitRoot;
@@ -217,12 +221,36 @@ final class GitHubStub implements AutoCloseable {
 			int polls = this.forkPolls.merge(matcher.group(1), 1, Integer::sum);
 			send(exchange, polls < 2 ? 409 : 200, polls < 2 ? "{\"message\":\"Git Repository is empty.\"}" : "[{\"sha\":\"abc\"}]");
 		}
-		else if (method.equals("PUT") && Pattern.compile("/repos/" + ORGANIZATION + "/[^/]+/collaborators/[^/]+").matcher(path).matches()) {
-			this.collaboratorPuts++;
-			send(exchange, this.collaboratorPuts == 1 ? 201 : 204, this.collaboratorPuts == 1 ? "{\"id\":1}" : "");
+		else if ((matcher = Pattern.compile("/repos/" + ORGANIZATION + "/[^/]+/collaborators/([^/]+)/permission").matcher(path))
+			.matches()) {
+			String permission = this.collaborators.getOrDefault(matcher.group(1), "none");
+			send(exchange, 200, "{\"permission\":\"" + permission + "\",\"role_name\":\"" + permission + "\"}");
+		}
+		else if ((matcher = Pattern.compile("/repos/" + ORGANIZATION + "/[^/]+/collaborators/([^/]+)").matcher(path)).matches()) {
+			String login = matcher.group(1);
+			String permission = body.path("permission").asString("").equals("push") ? "write" : "read";
+			if (method.equals("GET")) {
+				send(exchange, this.collaborators.containsKey(login) ? 204 : 404, "");
+			}
+			else if (this.collaborators.containsKey(login)) {
+				this.collaborators.put(login, permission);
+				send(exchange, 204, "");
+			}
+			else {
+				// A pending invitation keeps the permission it was sent with.
+				this.invitations.putIfAbsent(login, permission);
+				send(exchange, 201, "{\"id\":1}");
+			}
 		}
 		else if (Pattern.compile("/repos/" + ORGANIZATION + "/[^/]+/invitations").matcher(path).matches()) {
-			send(exchange, 200, "[{\"invitee\":{\"login\":\"minhtq\"},\"permissions\":\"write\"}]");
+			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(this.invitations.entrySet()
+				.stream()
+				.map(invitation -> Map.of("invitee", Map.of("login", invitation.getKey()), "permissions", invitation.getValue()))
+				.toList()));
+		}
+		else if ((matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)").matcher(path)).matches()) {
+			Long id = this.repositories.get(matcher.group(1));
+			send(exchange, id == null ? 404 : 200, id == null ? "{\"message\":\"Not Found\"}" : "{\"id\":" + id + "}");
 		}
 		else {
 			send(exchange, 404, "{\"message\":\"Not Found\",\"path\":\"" + path + (query == null ? "" : "?" + query) + "\"}");
@@ -231,6 +259,11 @@ final class GitHubStub implements AutoCloseable {
 
 	long repositoryId(String name) {
 		return this.repositories.get(name);
+	}
+
+	/** The invitee accepts: a collaborator with the invitation's permission, and no invitation left. */
+	void accept(String login) {
+		this.collaborators.put(login, this.invitations.remove(login));
 	}
 
 	private JsonNode grant(HttpExchange exchange) {

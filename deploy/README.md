@@ -184,6 +184,16 @@ author can run it, on GitHub, as an owner of `vibefix-dev`.
    token not narrowed to the Intermediary Repository, because GitHub forks for an App only when it
    has every repository at the destination. The JGit `/nonexistent/.config/jgit` errors in the log
    are harmless (the image's user has no home); `-e XDG_CONFIG_HOME=/tmp` silences them.
+   A pending invitation keeps the permission it was sent with, so step 3's raise does not reach it;
+   AD-11 raises only after acceptance. Accept the invitation as the collaborator
+   (`https://github.com/vibefix-dev/<s4-…-intermediary>/invitations`), then raise them:
+
+   ```sh
+   docker compose -f deploy/compose.yaml run --rm --no-deps -e SPRING_PROFILES_ACTIVE=dev,cli -e XDG_CONFIG_HOME=/tmp -v ./deploy/secrets/github-platform-app-key.pem:/run/secrets/github-platform-app-key:ro backend --vibefix.cli.command=spike-s4 --vibefix.github.platform-app.id=<App ID> --vibefix.github.platform-app.installation-id=<installation ID> --vibefix.github.platform-app.key-file=/run/secrets/github-platform-app-key --intermediary=<s4-…-intermediary> --collaborator=<second account>
+   ```
+
+   Check 13 expects the raise to answer 204, no invitation left, and `role_name=write` read back with a
+   read-only token.
 5. **Repeat with "All repositories"**: change the installation's repository access, run step 3
    again with another `--prefix`, and note whether any result changed (SG-21).
 6. **Check the registrations** (SG-20): register the dev Merge App too (Contents and Pull requests

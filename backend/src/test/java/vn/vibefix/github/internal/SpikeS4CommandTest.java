@@ -76,7 +76,7 @@ class SpikeS4CommandTest {
 				"s4-default-branch[deletion, non_fast_forward, update] bypass=app, hidden from a read-only token",
 				"s4-handover[creation, update, deletion] bypass=app, hidden from a read-only token",
 				"vibefix-dev/s4-test-working-1 ready",
-				"vibefix-dev/s4-test-working-2 ready", "invitations for minhtq=1 permissions=write",
+				"vibefix-dev/s4-test-working-2 ready", "invitations for minhtq=1 permissions=read",
 				"Spike S4: every check passed or was skipped");
 		assertThat(output.lines().filter(line -> line.contains(" FAIL "))).isEmpty();
 		assertThat(output).contains("member refused by the ruleset", "SKIPPED");
@@ -143,6 +143,30 @@ class SpikeS4CommandTest {
 		String output = this.out.toString(StandardCharsets.UTF_8);
 		assertThat(exit).as(output).isOne();
 		assertThat(output).contains("control push=REFUSED", "the token cannot write here, so its refusals prove nothing");
+	}
+
+	@Test
+	void anAcceptedCollaboratorIsRaisedToWriteWithNoNewInvitation() throws Exception {
+		assertThat(run("dev,cli", "--source=octo/quan-may", "--collaborator=minhtq", "--forks=1", "--prefix=s4-test")).isZero();
+		this.out.reset();
+
+		assertThat(run("dev,cli", "--intermediary=s4-test-intermediary", "--collaborator=minhtq")).isOne();
+		assertThat(this.out.toString(StandardCharsets.UTF_8)).contains("raise after acceptance", "FAIL",
+				"minhtq has not accepted the invitation yet");
+
+		this.github.accept("minhtq");
+		this.out.reset();
+		int exit = run("dev,cli", "--intermediary=s4-test-intermediary", "--collaborator=minhtq");
+
+		String output = this.out.toString(StandardCharsets.UTF_8);
+		assertThat(exit).as(output).isZero();
+		assertThat(output).contains("raise after acceptance", "raise HTTP 204", "invitations for minhtq=0",
+				"read back with a read-only token: permission=write role_name=write");
+		long intermediary = this.github.repositoryId("s4-test-intermediary");
+		assertThat(this.github.seen.stream()
+			.filter(request -> request.path().endsWith("/access_tokens"))
+			.filter(request -> request.body().path("permissions").has("administration"))
+			.map(request -> request.body().path("repository_ids").toString())).last().isEqualTo("[" + intermediary + "]");
 	}
 
 	@Test
