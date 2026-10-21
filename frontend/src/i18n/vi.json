@@ -46,6 +46,12 @@
     "balance": "Số dư thử nghiệm"
   },
   "screen": {
+    "signInAgain": {
+      "title": "Đăng nhập lại bằng GitHub",
+      "body": "vibefix không đọc được kho mã của bạn trên GitHub nữa, nên người hướng dẫn chưa ứng tuyển được vào công việc của bạn. Hãy đăng nhập lại để vibefix kiểm tra lại.",
+      "safe": "Bạn không mất dữ liệu nào. vibefix chỉ đọc thông tin của kho mã, không thay đổi gì trên GitHub.",
+      "button": "Đăng nhập lại bằng GitHub"
+    },
     "public": {
       "landing": {
         "title": "Giới thiệu",
@@ -3474,7 +3480,8 @@
   "todo": {
     "identity": {
       "complete_mentor_application": "Hoàn thành hồ sơ người hướng dẫn",
-      "verify_student": "Xác minh là sinh viên để vào nhóm của người hướng dẫn"
+      "verify_student": "Xác minh là sinh viên để vào nhóm của người hướng dẫn",
+      "sign_in_again": "Đăng nhập lại bằng GitHub để người hướng dẫn ứng tuyển được"
     },
     "scanning": {
       "resolve_intake_finding": "Xử lý vấn đề bảo mật ở {product}"
@@ -3542,6 +3549,9 @@
       },
       "verification_expiring": {
         "title": "Xác minh sinh viên hết hạn ngày {date}"
+      },
+      "sign_in_again": {
+        "title": "Hãy đăng nhập lại vibefix bằng GitHub"
       },
       "verification_expired": {
         "title": "Xác minh sinh viên đã hết hạn"
@@ -3950,7 +3960,7 @@
       "NOT_IN_TEAM": "sinh viên không còn trong nhóm của bạn",
       "CONFLICT_OF_INTEREST": "không thể thêm sinh viên này vào công việc này",
       "APPLICANT_IS_CONTRIBUTOR": "sinh viên đã từng đóng góp vào dự án gốc này",
-      "CONTRIBUTORS_UNKNOWN": "vibefix chưa kiểm tra được kho mã của khách hàng, hãy thử lại sau ít phút",
+      "CONTRIBUTORS_UNKNOWN": "vibefix chưa kiểm tra được kho mã của khách hàng nên chưa thêm được sinh viên này; việc này không do bạn, hãy thử lại sau",
       "SHARES_INVALID": "Tỷ lệ chia phải là số nguyên, cộng lại bằng 100, mỗi sinh viên lớn hơn 0, và phần của người hướng dẫn không quá mức tối đa.",
       "CREW_NOT_CONFIRMED": "nhóm thực hiện chưa xác nhận đủ",
       "AGREEMENT_APPROVED": "bạn đã duyệt bản nháp này",
@@ -3993,7 +4003,7 @@
       "MENTOR_JOB_LIMIT": "Bạn đang nhận đủ số công việc tối đa. Hãy hoàn thành bớt rồi ứng tuyển tiếp.",
       "CONFLICT_OF_INTEREST": "Bạn không thể ứng tuyển công việc này.",
       "APPLICANT_IS_CONTRIBUTOR": "Bạn đã từng đóng góp vào dự án gốc này nên không thể ứng tuyển.",
-      "CONTRIBUTORS_UNKNOWN": "vibefix chưa kiểm tra được kho mã của khách hàng. Hãy thử lại sau ít phút.",
+      "CONTRIBUTORS_UNKNOWN": "vibefix chưa kiểm tra được kho mã của khách hàng nên chưa nhận hồ sơ này. Việc này không do bạn; hãy thử lại sau.",
       "PUBLIC_CODE_NOT_ACKNOWLEDGED": "Hãy đánh dấu ô xác nhận về kho mã công khai.",
       "NOT_WITHDRAWABLE": "Đơn này không rút được nữa.",
       "NDA_VERSION_OUTDATED": "Cam kết bảo mật vừa có phiên bản mới. Hãy tải lại trang rồi ký lại.",

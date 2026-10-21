@@ -28,6 +28,10 @@ export const routes: RouteObject[] = [
         }),
       },
       {
+        path: 'dang-nhap-lai',
+        lazy: async () => ({ Component: (await import('@/features/identity/SignInAgainPage')).SignInAgainPage }),
+      },
+      {
         path: 'ho-so',
         lazy: async () => ({ Component: (await import('@/features/identity/ProfileStub')).ProfileStub }),
       },
