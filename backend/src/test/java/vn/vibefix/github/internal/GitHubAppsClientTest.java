@@ -10,19 +10,27 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
+import java.util.stream.LongStream;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import tools.jackson.databind.JsonNode;
+import vn.vibefix.github.GitHubApps;
 import vn.vibefix.github.GitHubApps.App;
 import vn.vibefix.github.GitHubApps.InstallationToken;
 import vn.vibefix.github.GitHubApps.Registration;
+import vn.vibefix.github.GitHubApps.Unnarrowed;
 import vn.vibefix.github.GitHubException;
 import vn.vibefix.github.internal.GitHubProperties.AppProperties;
 
-/** AD-10: installation tokens narrowed by repository IDs and permissions, revocation, and registrations. */
+/**
+ * AD-10: installation tokens narrowed by 1 to 500 repository IDs and the permissions of their operation,
+ * the three unnarrowed purposes, revocation after use, and registrations.
+ */
 class GitHubAppsClientTest {
 
 	@TempDir
@@ -64,10 +72,44 @@ class GitHubAppsClientTest {
 	}
 
 	@Test
-	void anOrganizationTokenNamesNoRepository() {
-		this.client.token(App.PLATFORM, List.of(), Map.of("organization_administration", "read"));
+	void aNarrowedTokenNamesOneTo500Repositories() {
+		List<Long> tooMany = LongStream.rangeClosed(1, GitHubApps.MAX_REPOSITORIES + 1).boxed().toList();
 
-		assertThat(this.github.seen.getFirst().body().has("repository_ids")).isFalse();
+		assertThatThrownBy(() -> this.client.token(App.PLATFORM, List.of(), Map.of("contents", "read")))
+			.isInstanceOf(IllegalArgumentException.class)
+			.hasMessageContaining("Unnarrowed");
+		assertThatThrownBy(() -> this.client.token(App.PLATFORM, tooMany, Map.of("contents", "read")))
+			.isInstanceOf(IllegalArgumentException.class);
+		assertThat(this.github.seen).as("nothing was minted").isEmpty();
+
+		this.client.token(App.PLATFORM, tooMany.subList(0, GitHubApps.MAX_REPOSITORIES), Map.of("contents", "read"));
+		assertThat(this.github.seen.getFirst().body().path("repository_ids").size()).isEqualTo(GitHubApps.MAX_REPOSITORIES);
+	}
+
+	@Test
+	void anUnnarrowedTokenNamesNoRepositoryAndOnlyItsPurposesPermissions() {
+		this.client.unnarrowed(App.PLATFORM, Unnarrowed.ORGANIZATION_READ);
+		this.client.unnarrowed(App.PLATFORM, Unnarrowed.REPOSITORY_CREATION);
+		this.client.unnarrowed(App.PLATFORM, Unnarrowed.FORK);
+
+		assertThat(this.github.seen).allSatisfy(request -> assertThat(request.body().has("repository_ids")).isFalse());
+		assertThat(this.github.seen).extracting(request -> permissions(request.body().path("permissions")))
+			.containsExactly(Map.of("organization_administration", "read", "members", "read"),
+					Map.of("administration", "write"), Map.of("administration", "write", "contents", "read"));
+	}
+
+	@Test
+	void aTokenIsRevokedAfterItsCallEvenWhenTheCallFails() {
+		String value = this.client.withToken(App.PLATFORM, List.of(1001L), Map.of("contents", "read"),
+				InstallationToken::value);
+
+		assertThat(this.github.revoked).hasValue(1);
+		assertThat(this.github.seen.getLast().authorization()).isEqualTo("Bearer " + value);
+
+		assertThatThrownBy(() -> this.client.withUnnarrowed(App.PLATFORM, Unnarrowed.ORGANIZATION_READ, token -> {
+			throw new IllegalStateException("the call failed");
+		})).hasMessage("the call failed");
+		assertThat(this.github.revoked).hasValue(2);
 	}
 
 	@Test
@@ -81,8 +123,16 @@ class GitHubAppsClientTest {
 
 	@Test
 	void anAppThatIsNotConfiguredIsRefusedByName() {
-		assertThatThrownBy(() -> this.client.token(App.MERGE, List.of(), Map.of())).isInstanceOf(GitHubException.class)
+		assertThatThrownBy(() -> this.client.token(App.MERGE, List.of(1001L), Map.of())).isInstanceOf(GitHubException.class)
 			.hasMessageContaining("vibefix.github.merge-app.id");
+		assertThat(this.client.isConfigured(App.MERGE)).isFalse();
+		assertThat(this.client.isConfigured(App.PLATFORM)).isTrue();
+	}
+
+	private static Map<String, String> permissions(JsonNode permissions) {
+		Map<String, String> map = new TreeMap<>();
+		permissions.properties().forEach(entry -> map.put(entry.getKey(), entry.getValue().asString()));
+		return map;
 	}
 
 }

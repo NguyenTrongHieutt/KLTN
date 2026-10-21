@@ -259,6 +259,10 @@ class NotificationTypes implements NotificationCatalog {
 			"operations.event_publication_stalled", Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL,
 			EmailClass.TRANSACTIONAL, "alert", Set.of("n"));
 
+	/** A GitHub App's registration or webhook differs from AD-10 (SG-18): every Administrator, once a day per App. */
+	static final NotificationType GITHUB_APP_CONFIGURATION_DRIFT = new NotificationType("github.app_configuration_drift",
+			Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("app", "differences"));
+
 	/** Today's email budget crossed its alert share (AD-34): every Administrator, once a day. */
 	static final NotificationType NOTIFICATION_EMAIL_BUDGET_80 = new NotificationType("notification.email_budget_80",
 			Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("sent", "budget"));
@@ -592,7 +596,7 @@ class NotificationTypes implements NotificationCatalog {
 	public List<NotificationType> notificationTypes() {
 		return List.of(SCHOOL_EMAIL_CODE, VERIFICATION_EXPIRING, VERIFICATION_EXPIRED, IDENTITY_SIGN_IN_AGAIN, ADMIN_SIGN_IN_LOCKED,
 				OPERATIONS_OPERATION_FAILED, OPERATIONS_EMAIL_OPERATION_FAILED, OPERATIONS_EVENT_PUBLICATION_STALLED,
-				NOTIFICATION_EMAIL_BUDGET_80,
+				NOTIFICATION_EMAIL_BUDGET_80, GITHUB_APP_CONFIGURATION_DRIFT,
 				ADMINISTRATOR_CREATED, ADMINISTRATOR_ENROLMENT, STUDENT_CARD_APPROVED, STUDENT_CARD_REJECTED,
 				MENTOR_APPLICATION_RECEIVED, MENTOR_APPROVED, MENTOR_REJECTED, ACCOUNT_LOCKED, VERIFICATION_REVOKED, MENTOR_APPROVAL_REVOKED, TEAM_INVITATION_RECEIVED,
 				TEAM_INVITATION_ANSWERED, TEAM_JOIN_REQUEST_RECEIVED, TEAM_JOIN_REQUEST_ANSWERED, TEAM_RELEASED,

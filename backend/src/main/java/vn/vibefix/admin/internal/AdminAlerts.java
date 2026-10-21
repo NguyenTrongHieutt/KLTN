@@ -1,5 +1,6 @@
 package vn.vibefix.admin.internal;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -7,6 +8,8 @@ import java.util.UUID;
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
 
+import vn.vibefix.github.GitHubApps.App;
+import vn.vibefix.github.GitHubConfigurationDrift;
 import vn.vibefix.identity.Administrators;
 import vn.vibefix.notification.Audience;
 import vn.vibefix.notification.EmailBudgetAlert;
@@ -19,8 +22,9 @@ import vn.vibefix.shared.ProcessedEvents;
 
 /**
  * The Administrator alerts the lower modules only record (UX-DR16, Stories 1.6 and 10.6, the PM's C-7
- * check of 2026-10-21): a failed External Operation, stalled event publications, and today's email budget
- * at its alert share reach every active Administrator in-app and by email. A failed email operation is
+ * check of 2026-10-21): a failed External Operation, stalled event publications, today's email budget at
+ * its alert share, and a GitHub App unlike AD-10 (SG-18, Story 7.1) reach every active Administrator
+ * in-app and by email. A failed email operation is
  * told in-app only, so one failing SMTP server cannot loop on its own alerts. Each is replay-safe.
  */
 @Component
@@ -33,6 +37,8 @@ class AdminAlerts {
 	static final String PUBLICATIONS_STALLED = "operations.event_publication_stalled";
 
 	static final String EMAIL_BUDGET = "notification.email_budget_80";
+
+	static final String CONFIGURATION_DRIFT = "github.app_configuration_drift";
 
 	/** The email lane's operation type ({@code notification.EmailOperationHandler}). */
 	static final String EMAIL_TYPE = "notification.email";
@@ -71,6 +77,18 @@ class AdminAlerts {
 		if (this.processedEvents.markProcessed("admin.AdminAlerts.onEmailBudget", event.eventId())) {
 			alert(EMAIL_BUDGET, event.eventId(),
 					Map.of("sent", String.valueOf(event.sent()), "budget", String.valueOf(event.budget())), "/quan-tri");
+		}
+	}
+
+	/** SG-18: an App unlike AD-10, once a day per App. */
+	@ApplicationModuleListener
+	void onConfigurationDrift(GitHubConfigurationDrift event) {
+		if (this.processedEvents.markProcessed("admin.AdminAlerts.onConfigurationDrift", event.eventId())) {
+			UUID cause = UUID.nameUUIDFromBytes((event.app() + ":" + event.day()).getBytes(StandardCharsets.UTF_8));
+			alert(CONFIGURATION_DRIFT, cause,
+					Map.of("app", event.app() == App.PLATFORM ? "Platform App" : "Merge App", "differences",
+							String.join("; ", event.differences())),
+					"/quan-tri");
 		}
 	}
 

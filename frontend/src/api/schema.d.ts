@@ -3108,6 +3108,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/webhooks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["webhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/webhooks/vnpay/ipn": {
         parameters: {
             query?: never;
@@ -11388,6 +11404,33 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["WorkItemDetailView"];
                 };
+            };
+        };
+    };
+    webhook: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-GitHub-Hook-Installation-Target-ID"?: string;
+                "X-Hub-Signature-256"?: string;
+                "X-GitHub-Delivery"?: string;
+                "X-GitHub-Event"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": string;
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

@@ -63,7 +63,8 @@ class SecurityConfiguration {
 			throws Exception {
 		http.authorizeHttpRequests(requests -> requests.anyRequest().permitAll())
 			.securityContext(context -> context.securityContextRepository(contexts))
-			.csrf(csrf -> csrf.spa())
+			// AD-12: GitHub's webhooks carry no session; their HMAC signature proves the sender.
+			.csrf(csrf -> csrf.spa().ignoringRequestMatchers("/webhooks"))
 			.headers(AbstractHttpConfigurer::disable)
 			.formLogin(AbstractHttpConfigurer::disable)
 			.httpBasic(AbstractHttpConfigurer::disable)

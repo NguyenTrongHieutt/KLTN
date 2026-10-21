@@ -6,6 +6,9 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.jspecify.annotations.Nullable;
 
@@ -21,8 +24,31 @@ final class GitHubHttp {
 
 	static final JsonMapper JSON = JsonMapper.builder().build();
 
-	/** One answer: its status, and its body as JSON (missing when it had none or was not JSON). */
-	record Answer(int status, JsonNode body) {
+	/**
+	 * One answer: its status, and its body as JSON (missing when it had none or was not JSON).
+	 * @param link the {@code Link} header, which names the next page of a paged list
+	 */
+	record Answer(int status, JsonNode body, @Nullable String link) {
+
+		Answer(int status, JsonNode body) {
+			this(status, body, null);
+		}
+
+		/** The {@code cursor} of the next page, from {@code Link: <…&cursor=…>; rel="next"}; empty on the last page. */
+		Optional<String> nextCursor() {
+			if (this.link == null) {
+				return Optional.empty();
+			}
+			for (String part : this.link.split(",")) {
+				if (part.contains("rel=\"next\"")) {
+					Matcher cursor = Pattern.compile("[?&]cursor=([^&>]+)").matcher(part);
+					if (cursor.find()) {
+						return Optional.of(cursor.group(1));
+					}
+				}
+			}
+			return Optional.empty();
+		}
 
 		boolean ok() {
 			return this.status >= 200 && this.status < 300;
@@ -62,7 +88,7 @@ final class GitHubHttp {
 		}
 		try {
 			HttpResponse<String> response = this.http.send(request.build(), HttpResponse.BodyHandlers.ofString());
-			return new Answer(response.statusCode(), parse(response.body()));
+			return new Answer(response.statusCode(), parse(response.body()), response.headers().firstValue("Link").orElse(null));
 		}
 		catch (IOException ex) {
 			return new Answer(0, MissingNode.getInstance());

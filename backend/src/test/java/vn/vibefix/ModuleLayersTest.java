@@ -28,9 +28,10 @@ class ModuleLayersTest {
 			entry("admin", 11));
 
 	/**
-	 * The order inside L1, which AD-3 leaves open: each module listed may depend on the ones before
-	 * it. {@code operations} writes audit entries at completion (AD-6, AD-8), and {@code notification}
-	 * sends email as External Operations (AD-27). Other L1 modules may not depend on each other.
+	 * The one chain inside L1, as AD-3 records it (spine update of 2026-10-21): each module listed may
+	 * depend on the ones before it. {@code operations} writes audit entries at completion (AD-6, AD-8), and
+	 * {@code notification} sends email as External Operations (AD-27). The other L1 modules depend on
+	 * {@code shared} only, and a new L1 dependency is a spine change first.
 	 */
 	static final List<String> L1_ORDER = List.of("audit", "operations", "notification");
 

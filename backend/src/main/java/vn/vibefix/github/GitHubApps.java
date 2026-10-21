@@ -5,10 +5,13 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 
 /**
  * The platform's GitHub Apps (AD-10): installation tokens for one operation each, and the Apps'
- * registrations as GitHub reports them.
+ * registrations as GitHub reports them. A token is narrowed by {@code repository_ids} whenever its call
+ * targets existing repositories; only AD-10's listed purposes get an unnarrowed one, and none of those
+ * enters the sandbox (AD-32).
  */
 public interface GitHubApps {
 
@@ -23,9 +26,39 @@ public interface GitHubApps {
 
 	}
 
+	/** The most repositories one token may name (GitHub's limit for {@code repository_ids}). */
+	int MAX_REPOSITORIES = 500;
+
+	/**
+	 * AD-10's unnarrowed tokens, each for one call and with its fixed permissions (Spike S4).
+	 * The Merge App's selection read needs a Customer's installation and arrives with Story 8.7.
+	 */
+	enum Unnarrowed {
+
+		/** The J7 Intermediary Repository: it does not exist yet, so nothing can narrow the token. */
+		REPOSITORY_CREATION(Map.of("administration", "write")),
+
+		/** The create-fork call: GitHub refuses a fork token narrowed by {@code repository_ids} (403). */
+		FORK(Map.of("administration", "write", "contents", "read")),
+
+		/** Organization settings, Actions permissions, and members. */
+		ORGANIZATION_READ(Map.of("organization_administration", "read", "members", "read"));
+
+		private final Map<String, String> permissions;
+
+		Unnarrowed(Map<String, String> permissions) {
+			this.permissions = permissions;
+		}
+
+		public Map<String, String> permissions() {
+			return this.permissions;
+		}
+
+	}
+
 	/**
 	 * An installation token. Its value is never printed: {@link #toString()} leaves it out.
-	 * @param repositoryIds the repositories it is narrowed to; empty for an organization-level token
+	 * @param repositoryIds the repositories it is narrowed to; empty only for an {@link Unnarrowed} token
 	 */
 	record InstallationToken(String value, Instant expiresAt, Set<Long> repositoryIds) {
 
@@ -52,15 +85,46 @@ public interface GitHubApps {
 	}
 
 	/**
-	 * Mints a token of the App's installation for one operation.
-	 * @param repositoryIds the numeric repository IDs it may reach; empty for none (organization reads)
+	 * Mints a token of the App's installation for one operation on existing repositories.
+	 * @param repositoryIds the numeric repository IDs it may reach: 1 to {@value #MAX_REPOSITORIES}
 	 * @param permissions only what the operation needs, for example {@code contents: write}
+	 * @throws IllegalArgumentException for no repository, or more than {@value #MAX_REPOSITORIES}: an empty set
+	 * would reach every repository of the installation
 	 * @throws GitHubException when the App is not configured or GitHub refuses
 	 */
 	InstallationToken token(App app, Collection<Long> repositoryIds, Map<String, String> permissions);
 
+	/**
+	 * Mints one of AD-10's unnarrowed tokens for one call.
+	 * @throws GitHubException when the App is not configured or GitHub refuses
+	 */
+	InstallationToken unnarrowed(App app, Unnarrowed purpose);
+
 	/** Revokes the token at once; one already expired or revoked changes nothing. */
 	void revoke(InstallationToken token);
+
+	/** Mints a narrowed token, runs one operation with it, and revokes it whatever happened. */
+	default <T> T withToken(App app, Collection<Long> repositoryIds, Map<String, String> permissions,
+			Function<InstallationToken, T> operation) {
+		InstallationToken token = token(app, repositoryIds, permissions);
+		try {
+			return operation.apply(token);
+		}
+		finally {
+			revoke(token);
+		}
+	}
+
+	/** Mints an unnarrowed token, runs its one call, and revokes it whatever happened. */
+	default <T> T withUnnarrowed(App app, Unnarrowed purpose, Function<InstallationToken, T> call) {
+		InstallationToken token = unnarrowed(app, purpose);
+		try {
+			return call.apply(token);
+		}
+		finally {
+			revoke(token);
+		}
+	}
 
 	/**
 	 * The App's registration, read with its JWT ({@code GET /app}).

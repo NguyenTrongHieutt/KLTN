@@ -1902,3 +1902,11 @@ GET /api/v1/mentor/jobs/{jobId}/funding,OWNER,,,404 NOT_FOUND,requireActiveAccou
 GET /api/v1/mentor/jobs/{jobId}/funding,CUSTOMER,,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/funding,STUDENT,,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/funding,ADMINISTRATOR,,,404 NOT_FOUND,requireActiveAccount
+
+# Story 7.1 (AD-12): anyone may call the webhook, but only a valid signature for a known App is read;
+# a row's caller sends neither, so every caller is refused alike.
+POST /webhooks,ANONYMOUS,,,401
+POST /webhooks,CUSTOMER,,,401
+POST /webhooks,MENTOR,mentor=PENDING,,401
+POST /webhooks,STUDENT,,,401
+POST /webhooks,ADMINISTRATOR,,,401
