@@ -88,6 +88,9 @@ class M2Submit implements JobLifecycle.Step {
 		applying.set("overdue_since", null);
 		applying.fact("milestoneId", applying.milestoneId().toString());
 		applying.fact("handoverId", handover.toString());
+		if (applying.has("handoverCommit")) {
+			applying.fact("handoverCommit", String.valueOf(applying.input("handoverCommit")));
+		}
 		applying.fact("number", String.valueOf(this.numbers.number(applying.job().id(), applying.milestoneId())));
 		applying.fact("checkBy", checkBy(applying).toString());
 	}

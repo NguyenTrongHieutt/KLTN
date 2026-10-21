@@ -20,7 +20,9 @@ import jakarta.validation.constraints.Size;
 import vn.vibefix.delivery.internal.Decisions.Check;
 import vn.vibefix.delivery.internal.DeliveryAccess.Kind;
 import vn.vibefix.delivery.internal.DeliveryAccess.Viewer;
+import vn.vibefix.delivery.internal.Handovers.CodeRecord;
 import vn.vibefix.delivery.internal.Handovers.CriterionMark;
+import vn.vibefix.delivery.internal.Handovers.Draft;
 import vn.vibefix.delivery.internal.Handovers.Handover;
 import vn.vibefix.delivery.internal.Handovers.ItemNote;
 import vn.vibefix.delivery.internal.Handovers.Preflight;
@@ -30,11 +32,13 @@ import vn.vibefix.identity.MentorDirectory.MentorCard;
 import vn.vibefix.job.MilestoneHandovers;
 import vn.vibefix.job.MilestoneHandovers.Rounds;
 import vn.vibefix.payment.Ledger;
+import vn.vibefix.scanning.SensitiveChanges;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
+import vn.vibefix.shared.IdGenerator;
 import vn.vibefix.work.MilestoneWork.ReportVersion;
 
 /**
@@ -82,10 +86,34 @@ class HandoverController {
 	 * The "Tạo bàn giao" form.
 	 * @param version the Job's version, which the handover carries (AD-23)
 	 * @param problems what would refuse the handover now, as reason codes
+	 * @param sensitiveChanges a Code Job's Sensitive Changes in the commits it would hand over (UX-DR54)
+	 * @param commitCount how many commits a Code Job would hand over
 	 */
 	record HandoverPreflightView(HandoverMilestoneView milestone, String state, long version, boolean assessment,
 			List<HandoverCriterionInputView> criteria, List<HandoverWorkItemView> workItems,
-			@Nullable HandoverReportRefView report, List<String> problems) {
+			@Nullable HandoverReportRefView report, List<String> problems, List<SensitiveChangeView> sensitiveChanges,
+			int commitCount) {
+	}
+
+	/** One Sensitive Change: the path, shown in mono, and its kind, which the screen explains plainly. */
+	record SensitiveChangeView(String path, SensitiveChanges.Kind kind) {
+	}
+
+	/** One commit of a Code handover, as "Chi tiết kỹ thuật" lists it (NFR-3: text only). */
+	record HandoverCommitView(String sha, String message, List<String> workItemKeys) {
+	}
+
+	/** A Page updated during the Milestone; the Customer sees only customer-visible ones. */
+	record HandoverPageView(UUID pageId, String title, int versionNo) {
+	}
+
+	/**
+	 * What a Code Job's handover pinned (FR-32, AD-11, AD-33).
+	 * @param unattributed commits whose author GitHub resolved to no account
+	 * @param truncated GitHub listed only part of the range
+	 */
+	record HandoverCodeView(String handoverCommit, int pullNumber, List<HandoverCommitView> commits, int unattributed,
+			boolean truncated, List<SensitiveChangeView> sensitiveChanges, List<HandoverPageView> pages) {
 	}
 
 	record HandoverCriterionMarkRequest(@NotNull UUID criterionId, boolean met,
@@ -150,12 +178,13 @@ class HandoverController {
 	 * @param decision for the Customer while the handover waits for them
 	 * @param checks the Customer's marks once decided
 	 * @param auto accepted by Auto-acceptance (FR-35)
+	 * @param code a Code Job's pinned commit, its range, Sensitive Changes, and updated Pages
 	 */
 	record DeliveryReportView(UUID id, UUID jobId, String jobTitle, int number, String milestoneTitle, int round,
 			String status, String mentorName, Instant createdAt, Instant checkBy, boolean assessment, String audience,
 			List<HandoverCriterionView> criteria, List<HandoverItemNoteView> itemNotes, @Nullable HandoverReportView report,
 			long version, int roundsLeft, @Nullable HandoverDecisionView decision, @Nullable Instant decidedAt,
-			List<HandoverCheckView> checks, boolean auto) {
+			List<HandoverCheckView> checks, boolean auto, @Nullable HandoverCodeView code) {
 	}
 
 	private final DeliveryAccess access;
@@ -172,8 +201,14 @@ class HandoverController {
 
 	private final CurrentCaller callers;
 
+	private final CodeHandovers code;
+
+	private final IdGenerator ids;
+
 	HandoverController(DeliveryAccess access, Handovers handovers, Decisions decisions, MilestoneHandovers jobs, Ledger ledger,
-			MentorDirectory mentors, CurrentCaller callers) {
+			MentorDirectory mentors, CurrentCaller callers, CodeHandovers code, IdGenerator ids) {
+		this.code = code;
+		this.ids = ids;
 		this.access = access;
 		this.handovers = handovers;
 		this.decisions = decisions;
@@ -212,7 +247,9 @@ class HandoverController {
 					.or(() -> this.handovers.milestones(jobId).stream().findFirst())
 					.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND))
 					.milestoneId();
-		Preflight preflight = this.handovers.preflight(mentor, target);
+		// A Code Job's checks read GitHub, so they run here, outside the preflight's transaction.
+		CodeHandovers.Check code = mentor.job().assessment() ? null : this.code.check(jobId);
+		Preflight preflight = this.handovers.preflight(mentor, target, code);
 		ReportVersion report = preflight.report();
 		return new HandoverPreflightView(
 				new HandoverMilestoneView(preflight.milestone().milestoneId(), preflight.milestone().number(),
@@ -227,7 +264,9 @@ class HandoverController {
 					.map(i -> new HandoverWorkItemView(i.id(), i.key(), i.title(), i.status(), i.approved()))
 					.toList(),
 				report == null ? null : new HandoverReportRefView(report.pageId(), report.versionNo(), report.title()),
-				preflight.problems());
+				preflight.problems(),
+				preflight.sensitive().stream().map(change -> new SensitiveChangeView(change.path(), change.kind())).toList(),
+				preflight.commitCount());
 	}
 
 	/** "Gửi bàn giao": M2 with the Delivery Report (FR-32). */
@@ -235,11 +274,15 @@ class HandoverController {
 	@ResponseStatus(HttpStatus.CREATED)
 	DeliveryReportView handOver(@PathVariable("boardId") UUID jobId, @Valid @RequestBody HandoverRequest body) {
 		Viewer mentor = this.access.maker(jobId, this.callers.get());
-		Handover handover = this.handovers.create(mentor, body.milestoneId(), body.version(),
+		Draft draft = this.handovers.draft(mentor, body.milestoneId(),
 				body.criteria().stream().map(c -> new CriterionMark(c.criterionId(), c.met(), c.note())).toList(),
 				body.itemNotes() == null ? List.of()
 						: body.itemNotes().stream().map(n -> new ItemNote(n.workItemId(), n.note())).toList(),
 				body.sensitive() == null ? Resolution.CHECK : body.sensitive());
+		// A Code Job's commit is pinned on GitHub between the draft and M2 (AD-11).
+		Handover handover = mentor.job().assessment()
+				? this.handovers.record(mentor, draft, body.version(), this.ids.newId(), null)
+				: this.code.handOver(mentor, draft, body.version());
 		return report(mentor, handover);
 	}
 
@@ -303,7 +346,19 @@ class HandoverController {
 					.stream()
 					.map(c -> new HandoverCheckView(c.criterionId(), c.met(), c.comment()))
 					.toList(),
-				handover.auto());
+				handover.auto(), this.handovers.code(handover.id()).map(found -> codeView(viewer, found)).orElse(null));
+	}
+
+	private static HandoverCodeView codeView(Viewer viewer, CodeRecord code) {
+		return new HandoverCodeView(code.commit(), code.pullNumber(),
+				code.commits().stream().map(c -> new HandoverCommitView(c.sha(), c.message(), c.workItemKeys())).toList(),
+				code.unattributed(), code.truncated(),
+				code.sensitive().stream().map(change -> new SensitiveChangeView(change.path(), change.kind())).toList(),
+				code.pages()
+					.stream()
+					.filter(page -> viewer.kind() != Kind.CUSTOMER || page.customerVisible())
+					.map(page -> new HandoverPageView(page.pageId(), page.title(), page.versionNo()))
+					.toList());
 	}
 
 }

@@ -46,6 +46,21 @@ enum DeliveryReason {
 	FOLLOW_UP_NOT_AWAITING,
 
 	/** The Product's scans have an open Finding, which blocks a code handover (FR-8, AD-18). */
-	FINDING_OPEN
+	FINDING_OPEN,
+
+	/** The Working Repository's head is not yet covered by a completed push scan (FR-8, FR-32). */
+	COMMITS_NOT_SCANNED,
+
+	/** No commit after the previous Handover Commit, or after the one Setup copied (FR-32). */
+	NO_NEW_COMMITS,
+
+	/** A commit of the handover changes a file under {@code .github/workflows/} (FR-32, AD-18, N-16). */
+	WORKFLOW_FILES_CHANGED,
+
+	/** GitHub did not answer while the handover read or pinned the Working Repository; try again shortly. */
+	REPOSITORY_UNREADABLE,
+
+	/** The Code Job has no Working Repository yet: J7's Setup is not done (FR-18, FR-32). */
+	HANDOVER_COMMIT_MISSING
 
 }

@@ -14,6 +14,7 @@ import { t, type MessageKey } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
 import { isNotFound, problemMessage } from '@/lib/problemMessage'
 import { useHandOver, useHandoverPreflight, type HandoverPreflight } from './deliveryApi'
+import { SensitiveChangeList } from './SensitiveChangeList'
 
 interface Mark {
   met?: boolean
@@ -24,8 +25,8 @@ interface Mark {
  * "Tạo bàn giao" (FR-10, FR-32, AD-23, UX-DR54), a focused route for the Mentor: the preflight of the
  * Milestone waiting for its handover. Every Work Item in "Xong" through an approval or a note for it;
  * every Acceptance Criterion "Đạt" or "Chưa đạt" with a note, next to "Cách kiểm tra"; for an Assessment
- * Job, the Report version to hand over. "Gửi bàn giao" enables only when all of it passes, and sends
- * the Job version the form loaded.
+ * Job, the Report version to hand over; for a Code Job, its new commits scanned and the Sensitive change
+ * preview. "Gửi bàn giao" enables only when all of it passes, and sends the Job version the form loaded.
  */
 export function HandoverFormPage() {
   const { jobId } = useParams()
@@ -114,6 +115,15 @@ function Form({ jobId, preflight, onStale }: { jobId: string; preflight: Handove
             </li>
           ))}
         </ul>
+      )}
+      {!preflight.assessment && preflight.commitCount > 0 && (
+        <div className="flex flex-col gap-2">
+          <p className="text-body-sm">{t('screen.handover.code.formCommits', { n: preflight.commitCount })}</p>
+          {preflight.sensitiveChanges.length > 0 && (
+            <p className="text-caption text-muted-foreground">{t('screen.handover.code.formSensitiveLead')}</p>
+          )}
+          <SensitiveChangeList changes={preflight.sensitiveChanges} headingId={`${ids}-sensitive`} level={2} />
+        </div>
       )}
       <section aria-labelledby={`${ids}-items`} className="flex flex-col gap-3">
         <h2 id={`${ids}-items`} className="text-h2">

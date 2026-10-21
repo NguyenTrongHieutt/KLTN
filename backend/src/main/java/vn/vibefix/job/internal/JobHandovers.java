@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,8 +49,17 @@ class JobHandovers implements MilestoneHandovers {
 	@Override
 	@Transactional
 	public Submitted submit(UUID jobId, UUID milestoneId, UUID mentorId, long expectedVersion, UUID handoverId) {
+		return submit(jobId, milestoneId, mentorId, expectedVersion, handoverId, null);
+	}
+
+	@Override
+	@Transactional
+	public Submitted submit(UUID jobId, UUID milestoneId, UUID mentorId, long expectedVersion, UUID handoverId,
+			@Nullable String handoverCommit) {
+		Map<String, Object> input = handoverCommit == null ? Map.of("handoverId", handoverId)
+				: Map.of("handoverId", handoverId, "handoverCommit", handoverCommit);
 		Applied applied = this.lifecycle.applyMilestone(Transition.M2, jobId, milestoneId, Actor.user(mentorId), Trigger.USER,
-				expectedVersion, Map.of("handoverId", handoverId));
+				expectedVersion, input);
 		Instant checkBy = after(milestoneId, "AUTO_ACCEPTANCE_DAYS", M2Submit.DEFAULT_AUTO_ACCEPTANCE_DAYS);
 		Instant first = after(milestoneId, "AUTO_ACCEPTANCE_FIRST_REMINDER_DAY", DEFAULT_FIRST_REMINDER_DAY);
 		Instant second = after(milestoneId, "AUTO_ACCEPTANCE_SECOND_REMINDER_DAY", DEFAULT_SECOND_REMINDER_DAY);

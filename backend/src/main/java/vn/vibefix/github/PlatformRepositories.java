@@ -34,6 +34,13 @@ public interface PlatformRepositories {
 	 */
 	void copy(String sourceFullName, String sha, String branch, PlatformRepository target);
 
+	/**
+	 * As {@link #copy(String, String, String, PlatformRepository)}, with {@code sha} read on
+	 * {@code sourceBranch} of the source and pushed to {@code branch} of the target, such as a Handover
+	 * Commit to {@code handover/{handoverId}} (AD-11).
+	 */
+	void copy(String sourceFullName, String sha, String sourceBranch, String branch, PlatformRepository target);
+
 	/** Forks {@code from} inside the organization as {@code name} (the fork token) and waits for GitHub's asynchronous fork. */
 	PlatformRepository fork(PlatformRepository from, String name);
 
@@ -99,8 +106,41 @@ public interface PlatformRepositories {
 
 	List<PullRequest> openPullRequests(PlatformRepository repository);
 
-	/** Closes a pull request the System did not open (FR-19, SG-16). */
+	/** Closes a pull request: one the System did not open (FR-19, SG-16), or its own after a handover failed. */
 	void closePullRequest(PlatformRepository repository, int number);
+
+	/**
+	 * Opens the System's pull request from {@code head} to {@code base} in the same repository, or answers
+	 * the one already opened from {@code head}, open or closed, so a retry opens none twice (AD-11).
+	 * @return its number
+	 */
+	int openPullRequest(PlatformRepository repository, String head, String base, String title, String body);
+
+	/**
+	 * One commit of a compared range (AD-33).
+	 * @param message the first line of its message, at most 300 characters
+	 * @param authorId the author's GitHub numeric ID; {@code null} when GitHub resolved no account
+	 */
+	record ComparedCommit(String sha, String message, @Nullable Long authorId, @Nullable String authorLogin) {
+	}
+
+	/**
+	 * What {@code base...head} holds (FR-32, AD-18).
+	 * @param commits oldest first, at most 250
+	 * @param files every path a commit added, changed, removed, or renamed (both names), at most 300
+	 * @param truncated whether GitHub cut either list
+	 */
+	record Comparison(List<ComparedCommit> commits, List<String> files, boolean truncated) {
+
+		public Comparison {
+			commits = List.copyOf(commits);
+			files = List.copyOf(files);
+		}
+
+	}
+
+	/** The commits and changed paths from {@code baseSha} to {@code headSha} of the repository. */
+	Comparison compare(PlatformRepository repository, String baseSha, String headSha);
 
 	/** The repository's direct collaborators, lower-case login to role ({@code read}, {@code write}, and so on). */
 	Map<String, String> directCollaborators(PlatformRepository repository);

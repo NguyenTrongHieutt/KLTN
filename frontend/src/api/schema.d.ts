@@ -4165,6 +4165,7 @@ export interface components {
             /** Format: date-time */
             checkBy: string;
             checks: components["schemas"]["HandoverCheckView"][];
+            code?: components["schemas"]["HandoverCodeView"];
             /** Format: date-time */
             createdAt: string;
             criteria: components["schemas"]["HandoverCriterionView"][];
@@ -4442,6 +4443,22 @@ export interface components {
             criterionId: string;
             met: boolean;
         };
+        HandoverCodeView: {
+            commits: components["schemas"]["HandoverCommitView"][];
+            handoverCommit: string;
+            pages: components["schemas"]["HandoverPageView"][];
+            /** Format: int32 */
+            pullNumber: number;
+            sensitiveChanges: components["schemas"]["SensitiveChangeView"][];
+            truncated: boolean;
+            /** Format: int32 */
+            unattributed: number;
+        };
+        HandoverCommitView: {
+            message: string;
+            sha: string;
+            workItemKeys: string[];
+        };
         HandoverCriterionInputView: {
             checkSteps: string;
             /** Format: uuid */
@@ -4507,12 +4524,22 @@ export interface components {
             number: number;
             title: string;
         };
+        HandoverPageView: {
+            /** Format: uuid */
+            pageId: string;
+            title: string;
+            /** Format: int32 */
+            versionNo: number;
+        };
         HandoverPreflightView: {
             assessment: boolean;
+            /** Format: int32 */
+            commitCount: number;
             criteria: components["schemas"]["HandoverCriterionInputView"][];
             milestone: components["schemas"]["HandoverMilestoneView"];
             problems: string[];
             report?: components["schemas"]["HandoverReportRefView"];
+            sensitiveChanges: components["schemas"]["SensitiveChangeView"][];
             state: string;
             /** Format: int64 */
             version: number;
@@ -5880,6 +5907,11 @@ export interface components {
             body: string;
             /** @enum {string} */
             sensitive?: "CHECK" | "MASK" | "SEND";
+        };
+        SensitiveChangeView: {
+            /** @enum {string} */
+            kind: "CI_CONFIG" | "DEPENDENCIES" | "BUILD_SCRIPT" | "BINARY";
+            path: string;
         };
         SentInvitationView: {
             displayName: string;

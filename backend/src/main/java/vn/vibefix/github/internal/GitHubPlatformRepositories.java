@@ -100,10 +100,16 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 
 	@Override
 	public void copy(String sourceFullName, String sha, String branch, PlatformRepository target) {
+		copy(sourceFullName, sha, branch, branch, target);
+	}
+
+	@Override
+	public void copy(String sourceFullName, String sha, String sourceBranch, String branch, PlatformRepository target) {
 		this.apps.withToken(App.PLATFORM, List.of(target.id()), Map.of("contents", "write", "workflows", "write"), token -> {
 			ObjectNode input = JsonNodeFactory.instance.objectNode();
 			input.put("source", sourceFullName);
 			input.put("sha", sha);
+			input.put("sourceBranch", sourceBranch);
 			input.put("branch", branch);
 			input.put("target", target.fullName());
 			input.put("token", token.value());
@@ -388,6 +394,50 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 			require(http().send("PATCH", "/repos/" + repository.fullName() + "/pulls/" + number, token.value(),
 					Map.of("state", "closed")), "close pull request " + number);
 			return null;
+		});
+	}
+
+	@Override
+	public int openPullRequest(PlatformRepository repository, String head, String base, String title, String body) {
+		return this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("pull_requests", "write"), token -> {
+			String path = "/repos/" + repository.fullName() + "/pulls";
+			String owner = repository.fullName().substring(0, repository.fullName().indexOf('/'));
+			JsonNode existing = require(http().send("GET", path + "?state=all&per_page=1&head="
+					+ java.net.URLEncoder.encode(owner + ":" + head, java.nio.charset.StandardCharsets.UTF_8), token.value(), null),
+					"find the pull request from " + head);
+			if (existing.size() > 0) {
+				return existing.get(0).path("number").asInt();
+			}
+			return require(http().send("POST", path, token.value(), Map.of("title", title, "head", head, "base", base, "body", body,
+					"maintainer_can_modify", false)), "open the pull request from " + head).path("number").asInt();
+		});
+	}
+
+	@Override
+	public Comparison compare(PlatformRepository repository, String baseSha, String headSha) {
+		return this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("contents", "read"), token -> {
+			JsonNode body = require(http().send("GET", "/repos/" + repository.fullName() + "/compare/" + baseSha + "..." + headSha,
+					token.value(), null), "compare " + repository.fullName());
+			List<ComparedCommit> commits = new ArrayList<>();
+			for (JsonNode commit : body.path("commits")) {
+				String message = commit.path("commit").path("message").asString("");
+				int end = message.indexOf('\n');
+				String subject = (end < 0 ? message : message.substring(0, end)).strip();
+				JsonNode author = commit.path("author");
+				commits.add(new ComparedCommit(commit.path("sha").asString(""),
+						subject.length() > 300 ? subject.substring(0, 300) : subject,
+						author.path("id").isNumber() ? author.path("id").asLong() : null,
+						author.path("login").isString() ? author.path("login").asString() : null));
+			}
+			java.util.LinkedHashSet<String> files = new java.util.LinkedHashSet<>();
+			for (JsonNode file : body.path("files")) {
+				if (file.path("previous_filename").isString()) {
+					files.add(file.path("previous_filename").asString());
+				}
+				files.add(file.path("filename").asString(""));
+			}
+			boolean truncated = body.path("total_commits").asInt(commits.size()) > commits.size() || files.size() >= 300;
+			return new Comparison(commits, List.copyOf(files), truncated);
 		});
 	}
 

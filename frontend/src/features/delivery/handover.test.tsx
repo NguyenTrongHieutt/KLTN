@@ -260,4 +260,67 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
       expect(anchor.getAttribute('href') ?? '').not.toMatch(/^javascript:/i)
     }
   })
+
+  it('gives a Code Job report its Sensitive Changes, updated Pages, and inert commit list (FR-32, NFR-3)', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/jobs/j1': () => json({ ...customerJob, title: 'Sửa lỗi đặt bàn', jobTypes: ['BUG_FIX'] }),
+      'GET /api/v1/boards/j1/handovers': () => json(list({ audience: 'CUSTOMER', assessment: false })),
+      'GET /api/v1/handovers/h1': () =>
+        json(
+          report({
+            assessment: false,
+            report: null,
+            code: {
+              handoverCommit: '9c41a02' + '0'.repeat(33),
+              pullNumber: 101,
+              commits: PAYLOADS.map((payload, index) => ({
+                sha: String(index).repeat(40),
+                message: payload,
+                workItemKeys: index === 0 ? ['SDB-1'] : [],
+              })),
+              unattributed: 1,
+              truncated: false,
+              sensitiveChanges: [{ path: 'package.json', kind: 'DEPENDENCIES' }],
+              pages: [{ pageId: 'p2', title: 'Hướng dẫn dùng', versionNo: 2 }],
+            },
+          }),
+        ),
+    })
+    renderAt('/cong-viec/j1/ban-giao/h1')
+
+    const sensitive = (await screen.findByText('package.json')).closest('section')!
+    expect(within(sensitive).getByText(/Danh sách thư viện mà ứng dụng dùng/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Hướng dẫn dùng · phiên bản 2' })).toHaveAttribute('href', '/cong-viec/j1/tai-lieu/p2')
+    await user.click(screen.getByText('Chi tiết kỹ thuật'))
+    expect(screen.getByText('Danh sách các lần lưu thay đổi, dành cho người hỗ trợ kỹ thuật của bạn.')).toBeInTheDocument()
+    expect(screen.getByText('SDB-1')).toBeInTheDocument()
+    expect(screen.getByText('Yêu cầu hợp nhất #101 trong kho trung gian')).toBeInTheDocument()
+    expect(screen.getByText('1 lần lưu không gắn với tài khoản GitHub nào.')).toBeInTheDocument()
+    for (const payload of PAYLOADS) {
+      expect(screen.getAllByText(payload, { exact: false }).length).toBeGreaterThan(0)
+    }
+    expect(document.querySelector('img[src="x"], script, svg[onload]')).toBeNull()
+  })
+
+  it('refuses a Code Job handover that changes a workflow file with N-16', { timeout: 20_000 }, async () => {
+    fakeBackend(signedIn('MENTOR'), {
+      'GET /api/v1/boards/j1/handovers/preflight': () =>
+        json(
+          preflight({
+            assessment: false,
+            report: null,
+            problems: ['WORKFLOW_FILES_CHANGED'],
+            commitCount: 2,
+            sensitiveChanges: [{ path: 'Dockerfile', kind: 'BUILD_SCRIPT' }],
+          }),
+        ),
+    })
+    renderAt('/cong-viec/j1/ban-giao/tao')
+
+    expect(await screen.findByText(/Không thể bàn giao: có thay đổi trong thư mục \.github\/workflows/)).toBeInTheDocument()
+    expect(screen.getByText('Sẽ bàn giao 2 lần lưu thay đổi mới, đã quét bảo mật.')).toBeInTheDocument()
+    expect(screen.getByText('Dockerfile')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Gửi bàn giao' })).toBeDisabled()
+  })
 })

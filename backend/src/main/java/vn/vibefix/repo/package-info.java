@@ -8,8 +8,9 @@
  * it. Revocation and deletion (Story 7.7) end every grant after J8, J10, a lock, or a Crew change, and
  * delete both repositories 30 days after the end, once the final ZIP is stored through {@code files}.
  * <p>
- * Public API: {@link vn.vibefix.repo.DataDeletions}, whether a person confirmed (FR-50), and
- * {@link vn.vibefix.repo.DataDeletionConfirmed}, the event when their confirmation completes.
+ * Public API: {@link vn.vibefix.repo.DataDeletions}, whether a person confirmed (FR-50),
+ * {@link vn.vibefix.repo.DataDeletionConfirmed}, the event when their confirmation completes, and
+ * {@link vn.vibefix.repo.HandoverBranches}, a handover's range and its pinned branch (FR-32, Story 8.2).
  */
 @ApplicationModule(allowedDependencies = { "shared", "audit", "files", "identity", "notification", "job", "operations",
 		"github", "product", "scanning", "timers" })
