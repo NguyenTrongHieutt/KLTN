@@ -5445,6 +5445,9 @@ export interface components {
             average?: number;
             /** Format: int32 */
             count: number;
+            /** Format: date-time */
+            customerJoinedAt?: string;
+            customerKind?: string;
         };
         RatingView: {
             comment: string;

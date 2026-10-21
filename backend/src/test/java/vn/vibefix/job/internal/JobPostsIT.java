@@ -148,10 +148,21 @@ class JobPostsIT extends IntegrationTest {
 			.getContentAsString();
 		assertThat(body).doesNotContain(this.lan.toString()).doesNotContain("user-");
 		this.mvc.perform(get("/api/v1/files/" + file).with(as(this.hung, Role.MENTOR))).andExpect(status().isOk());
-		this.mvc.perform(get("/api/v1/mentor/job-posts/" + job + "/customer-rating").with(as(this.hung, Role.MENTOR)))
+		this.jdbc.sql("""
+				INSERT INTO identity.customer_profile (account_id, kind, display_name, contact_email, updated_at)
+				VALUES (:id, 'INDIVIDUAL', 'Nguyễn Thị Lan', 'lan@example.com', now())
+				""").param("id", this.lan).update();
+		String rating = this.mvc.perform(get("/api/v1/mentor/job-posts/" + job + "/customer-rating").with(as(this.hung, Role.MENTOR)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.count").value(0))
-			.andExpect(jsonPath("$.average").value(org.hamcrest.Matchers.nullValue()));
+			.andExpect(jsonPath("$.average").value(org.hamcrest.Matchers.nullValue()))
+			.andExpect(jsonPath("$.customerKind").value("INDIVIDUAL"))
+			.andExpect(jsonPath("$.customerJoinedAt").isNotEmpty())
+			.andReturn()
+			.getResponse()
+			.getContentAsString();
+		assertThat(rating).as("FR-12: never the Customer's name or contact").doesNotContain("Nguyễn Thị Lan")
+			.doesNotContain("lan@example.com").doesNotContain(this.lan.toString());
 
 		this.jdbc.sql("UPDATE job.job SET hidden_at = now(), hidden_reason = 'Vi phạm' WHERE id = :id")
 			.param("id", job)
