@@ -1,7 +1,7 @@
-subject: Hãy chấp nhận lời mời trên GitHub cho {job}
+subject: Hãy bật xác thực hai lớp trên GitHub (nếu chưa bật), rồi chấp nhận lời mời cho {job}
 ---
 Xin chào,
 
 vibefix đã mời bạn vào kho làm việc của {job} trên GitHub, với quyền đọc.
-Hãy bật xác thực hai lớp trên GitHub nếu chưa bật, rồi chấp nhận lời mời trong 7 ngày.
-Khi mọi người đã chấp nhận, vibefix cấp quyền ghi và công việc bắt đầu.
+Trước khi chấp nhận, hãy bật xác thực hai lớp cho tài khoản GitHub của bạn tại https://github.com/settings/security. Khi chưa bật, GitHub làm mờ nút chấp nhận lời mời.
+Sau đó chấp nhận lời mời trong 7 ngày. Khi mọi người đã chấp nhận, vibefix cấp quyền ghi và công việc bắt đầu.

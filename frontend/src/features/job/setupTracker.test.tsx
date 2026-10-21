@@ -87,6 +87,10 @@ describe('JOB-H step tracker while Starting (UX-DR23, AD-11)', () => {
       'href',
       'https://github.com/vibefix-dev/job-1-working/invitations',
     )
+    // Spike S4 under 2FA: GitHub greys out the acceptance until it is on, so the own row says it first.
+    expect(screen.getByText(/Bật xác thực hai lớp trên GitHub trước \(nếu chưa bật\), rồi chấp nhận lời mời/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /^Bật xác thực hai lớp/ })).toHaveAttribute('href', 'https://github.com/settings/security')
+    expect(screen.queryByText('Bạn không cần làm gì.')).not.toBeInTheDocument()
     expect(screen.getByText('Mời người hướng dẫn và nhóm trên GitHub: Đang làm')).toHaveAttribute('aria-live', 'polite')
   })
 
