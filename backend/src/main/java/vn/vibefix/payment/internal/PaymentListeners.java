@@ -55,6 +55,10 @@ class PaymentListeners {
 		for (ConfirmedMilestone milestone : event.milestones()) {
 			this.orders.ensureAccount(milestone.milestoneId(), event.jobId(), event.productId(), this.clock.instant());
 		}
+		if (event.agreementVersionNo() > 1) {
+			// A later version (a Change Request, FR-36) opens the new Milestones' accounts only; Milestone 1 was funded.
+			return;
+		}
 		event.milestones().stream().findFirst().ifPresent(first -> this.todos.open(new TodoRequest(PaymentOrders.FUND_TODO,
 				event.customerId(), Audience.CUSTOMER, first.milestoneId(),
 				Map.of("n", String.valueOf(first.number()), "amount", PaymentOrders.vnd(first.priceVnd())),

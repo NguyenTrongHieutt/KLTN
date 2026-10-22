@@ -3,6 +3,7 @@ import type { components } from '@/api/schema'
 import { NOTIFICATION_QUERY_KEY } from '@/features/notification/api'
 import { apiClient, unwrap } from '@/lib/apiClient'
 
+export type ChangeProposal = components['schemas']['ChangeProposalRequest']
 export type ChangeRequests = components['schemas']['ChangeRequestsView']
 export type ChangeRequest = components['schemas']['ChangeRequestView']
 export type ConfirmedVersions = components['schemas']['ConfirmedVersionsView']
@@ -30,7 +31,7 @@ export function useConfirmedVersions(jobId: string) {
 type Command =
   | {
       action: 'propose'
-      body: { description?: string; impact?: string; items: { milestoneId: string; newDueOn: string }[]; version: number }
+      body: ChangeProposal
     }
   | { action: 'impact'; requestId: string; impact: string }
   | { action: 'approve' | 'confirm'; requestId: string; version: number }

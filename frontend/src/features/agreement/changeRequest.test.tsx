@@ -76,8 +76,8 @@ const agreement = {
 }
 
 const milestones = [
-  { id: 'm1', number: 1, title: 'Sửa lỗi trùng giờ', dueOn: '2026-11-20', state: 'FUNDED', changeable: true },
-  { id: 'm2', number: 2, title: 'Nhắc lịch', dueOn: '2026-11-30', state: 'ACCEPTED', changeable: false },
+  { id: 'm1', number: 1, title: 'Sửa lỗi trùng giờ', dueOn: '2026-11-20', state: 'FUNDED', changeable: true, priceVnd: 800000, held: true, criteria: [] },
+  { id: 'm2', number: 2, title: 'Nhắc lịch', dueOn: '2026-11-30', state: 'ACCEPTED', changeable: false, priceVnd: 800000, held: false, criteria: [] },
 ]
 
 const open = (overrides: object = {}) => ({
@@ -93,6 +93,7 @@ const open = (overrides: object = {}) => ({
   agreementVersionNo: null,
   createdAt: '2026-10-20T03:00:00Z',
   closedAt: null,
+  changes: { milestones: [], addedMilestones: [], criteria: [] },
   ...overrides,
 })
 
@@ -104,6 +105,7 @@ const view = (overrides: object = {}) => ({
   open: null,
   history: [],
   milestones,
+  scope: 'Sửa lỗi đặt bàn',
   ...overrides,
 })
 
@@ -116,12 +118,73 @@ const backend = (routes: Record<string, (request: Request) => Response | Promise
       json({
         jobId: 'j1',
         versions: [
-          { versionNo: 2, confirmedAt: '2026-10-25T03:00:00Z', milestones: [{ id: 'm1', title: 'Sửa lỗi trùng giờ', dueOn: '2027-01-20' }] },
-          { versionNo: 1, confirmedAt: '2026-10-19T06:00:00Z', milestones: [{ id: 'm1', title: 'Sửa lỗi trùng giờ', dueOn: '2026-11-20' }] },
+          { versionNo: 2, confirmedAt: '2026-10-25T03:00:00Z', scope: 'Sửa lỗi đặt bàn', milestones: [{ id: 'm1', title: 'Sửa lỗi trùng giờ', dueOn: '2027-01-20', criteria: [] }] },
+          { versionNo: 1, confirmedAt: '2026-10-19T06:00:00Z', scope: 'Sửa lỗi đặt bàn', milestones: [{ id: 'm1', title: 'Sửa lỗi trùng giờ', dueOn: '2026-11-20', criteria: [] }] },
         ],
       }),
     ...routes,
   })
+
+describe('JOB-6 full Change Requests (FR-36, Story 14.1)', () => {
+  it('sends only what changes and shows each change before anyone agrees', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    const sent: Record<string, unknown>[] = []
+    const planned = {
+      id: 'm3',
+      number: 3,
+      title: 'Báo cáo',
+      dueOn: '2026-12-20',
+      state: 'PLANNED',
+      changeable: true,
+      priceVnd: 500000,
+      held: false,
+      criteria: [{ id: 'c3', statement: 'Có báo cáo tuần', checkSteps: '1. Mở báo cáo.' }],
+    }
+    const proposed = open({
+      items: [],
+      changes: {
+        milestones: [{ milestoneId: 'm3', number: 3, oldTitle: 'Báo cáo', oldPriceVnd: 500000, priceVnd: 600000, remove: false }],
+        addedMilestones: [],
+        criteria: [{ kind: 'ADDED', criterionId: 'c9', milestoneNumber: 3, statement: 'Có biểu đồ', checkSteps: '1. Xem biểu đồ.' }],
+      },
+    })
+    backend({
+      'GET /api/v1/boards/j1/change-requests': () => json(view({ milestones: [...milestones, planned] })),
+      'POST /api/v1/boards/j1/change-requests': async (request) => {
+        sent.push(await request.json())
+        return json(view({ canPropose: false, open: proposed, milestones: [...milestones, planned] }), 201)
+      },
+    })
+    renderAt('/cong-viec/j1/thoa-thuan')
+
+    const section = (await screen.findByRole('heading', { level: 2, name: 'Đề nghị thay đổi' })).closest('section')!
+    await user.click(await within(section).findByRole('button', { name: 'Đề nghị hạn mới' }))
+    const more = within(section).getAllByText('Đổi tên, giá, tiêu chí hoặc bỏ giai đoạn')
+    await user.click(more[more.length - 1])
+    expect(within(section).getByText('Giai đoạn đã thanh toán nên chưa đổi giá ở đây được.', { exact: false })).toBeInTheDocument()
+    const price = within(section).getByLabelText('Giá giai đoạn 3 (đồng)')
+    await user.clear(price)
+    await user.type(price, '600000')
+    const add = within(section).getAllByRole('button', { name: 'Thêm tiêu chí' })
+    await user.click(add[add.length - 1])
+    await user.type(within(section).getByLabelText('Tiêu chí mới của giai đoạn 3'), 'Có biểu đồ')
+    const steps = within(section).getAllByLabelText('Cách kiểm tra')
+    await user.type(steps[steps.length - 1], '1. Xem biểu đồ.')
+    await user.type(within(section).getByLabelText(/Bạn muốn thay đổi gì/), 'Thêm biểu đồ vào báo cáo')
+    await user.click(within(section).getByRole('button', { name: 'Gửi đề nghị' }))
+
+    await waitFor(() => expect(sent).toHaveLength(1))
+    expect(sent[0]).toEqual({
+      items: [],
+      version: 7,
+      milestones: [{ milestoneId: 'm3', priceVnd: 600000, remove: false }],
+      addedCriteria: [{ milestoneId: 'm3', statement: 'Có biểu đồ', checkSteps: '1. Xem biểu đồ.' }],
+      description: 'Thêm biểu đồ vào báo cáo',
+    })
+    expect(await within(section).findByText('Giai đoạn 3: giá từ 500.000 ₫ thành 600.000 ₫')).toBeInTheDocument()
+    expect(within(section).getByText('Giai đoạn 3: thêm tiêu chí Có biểu đồ')).toBeInTheDocument()
+  })
+})
 
 describe('JOB-6 due-date Change Requests (FR-36, UX-DR57)', () => {
   it('lets the Customer propose a new due date for a Milestone that is not final', { timeout: 20_000 }, async () => {

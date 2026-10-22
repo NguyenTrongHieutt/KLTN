@@ -184,6 +184,9 @@ enum JobReason {
 	EXTERNAL_ACCESS_CLOSED,
 
 	/** A share Team Issue is raised only on a Held Milestone (FR-79, AD-40). */
-	MILESTONE_NOT_HELD
+	MILESTONE_NOT_HELD,
+
+	/** A Held Milestone's price changes only with its top-up or refund (FR-36, Story 14.2). */
+	HELD_PRICE_CHANGE
 
 }
