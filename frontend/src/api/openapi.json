@@ -3677,6 +3677,33 @@
         "tags" : [ "application-controller" ]
       }
     },
+    "/api/v1/jobs/{jobId}/busy" : {
+      "get" : {
+        "operationId" : "view_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BusyView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "job-busy-controller" ]
+      }
+    },
     "/api/v1/jobs/{jobId}/chat" : {
       "get" : {
         "operationId" : "chat",
@@ -8296,6 +8323,31 @@
         },
         "required" : [ "boardId", "code", "crew", "items", "mentor", "milestones", "readOnly", "title", "viewerId", "workload" ]
       },
+      "BusyView" : {
+        "type" : "object",
+        "properties" : {
+          "busy" : {
+            "type" : "boolean"
+          },
+          "handoverId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "milestone" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "purpose" : {
+            "type" : "string",
+            "enum" : [ "ACCEPTANCE", "SETTLEMENT", "FINAL_MERGE", "JOB_SETUP", "JOB_VERIFY" ]
+          },
+          "since" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "busy" ]
+      },
       "CancelAloneRequest" : {
         "type" : "object",
         "properties" : {
@@ -9841,6 +9893,9 @@
       "DeliveryReportView" : {
         "type" : "object",
         "properties" : {
+          "acceptance" : {
+            "type" : "string"
+          },
           "assessment" : {
             "type" : "boolean"
           },

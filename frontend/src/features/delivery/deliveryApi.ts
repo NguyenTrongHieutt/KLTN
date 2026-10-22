@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { components } from '@/api/schema'
+import { busyKey } from '@/features/job/jobBusy'
 import { NOTIFICATION_QUERY_KEY } from '@/features/notification/api'
 import { apiClient, formBody, unwrap } from '@/lib/apiClient'
 
@@ -53,7 +54,7 @@ export type HandoverDecisionRequest = components['schemas']['HandoverDecisionReq
 
 /**
  * The Customer's decision (FR-33): "Nghiệm thu giai đoạn" or "Yêu cầu sửa", on the loaded Job version;
- * it refreshes the report, the list, JOB-1, and the to-dos.
+ * it refreshes the report, the list, JOB-1, the to-dos, and the busy banner a Code Job's merge sets.
  */
 export function useDecideHandover(jobId: string, handoverId: string) {
   const queryClient = useQueryClient()
@@ -68,6 +69,7 @@ export function useDecideHandover(jobId: string, handoverId: string) {
         queryClient.invalidateQueries({ queryKey: ['handovers', jobId] }),
         queryClient.invalidateQueries({ queryKey: ['progress', jobId] }),
         queryClient.invalidateQueries({ queryKey: NOTIFICATION_QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: busyKey(jobId) }),
       ])
     },
   })

@@ -1572,6 +1572,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/jobs/{jobId}/busy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["view_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jobs/{jobId}/chat": {
         parameters: {
             query?: never;
@@ -3647,6 +3663,17 @@ export interface components {
             viewerId: string;
             workload: components["schemas"]["WorkloadView"][];
         };
+        BusyView: {
+            busy: boolean;
+            /** Format: uuid */
+            handoverId?: string;
+            /** Format: int32 */
+            milestone?: number;
+            /** @enum {string} */
+            purpose?: "ACCEPTANCE" | "SETTLEMENT" | "FINAL_MERGE" | "JOB_SETUP" | "JOB_VERIFY";
+            /** Format: date-time */
+            since?: string;
+        };
         CancelAloneRequest: {
             reason: string;
             /** Format: int64 */
@@ -4207,6 +4234,7 @@ export interface components {
             releaseVnd?: number;
         };
         DeliveryReportView: {
+            acceptance?: string;
             assessment: boolean;
             audience: string;
             auto: boolean;
@@ -9269,6 +9297,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SelectedView"];
+                };
+            };
+        };
+    };
+    view_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BusyView"];
                 };
             };
         };

@@ -144,6 +144,29 @@ class JobHandoverBranches implements HandoverBranches {
 		});
 	}
 
+	@Override
+	public boolean merge(UUID jobId, int pullNumber, String sha, String title) {
+		Setup setup = done(jobId).orElseThrow(() -> new IllegalStateException("Job " + jobId + " has no done Setup"));
+		try {
+			this.repositories.mergePullRequest(setup.intermediary(), pullNumber, sha, title);
+			return this.repositories.pullRequestMerged(setup.intermediary(), pullNumber);
+		}
+		catch (GitHubException failed) {
+			throw new Unavailable("Pull request " + pullNumber + " of Job " + jobId + " was not merged", failed);
+		}
+	}
+
+	@Override
+	public boolean merged(UUID jobId, int pullNumber) {
+		Setup setup = done(jobId).orElseThrow(() -> new IllegalStateException("Job " + jobId + " has no done Setup"));
+		try {
+			return this.repositories.pullRequestMerged(setup.intermediary(), pullNumber);
+		}
+		catch (GitHubException failed) {
+			throw new Unavailable("Pull request " + pullNumber + " of Job " + jobId + " was not read", failed);
+		}
+	}
+
 	private Optional<Setup> done(UUID jobId) {
 		return this.setups.latest(jobId)
 			.filter(setup -> "DONE".equals(setup.status()) && setup.working() != null && setup.intermediary() != null

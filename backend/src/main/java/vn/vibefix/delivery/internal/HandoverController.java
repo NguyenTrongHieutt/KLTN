@@ -220,13 +220,15 @@ class HandoverController {
 	 * @param checks the Customer's marks once decided
 	 * @param auto accepted by Auto-acceptance (FR-35)
 	 * @param code a Code Job's pinned commit, its range, Sensitive Changes, and updated Pages
+	 * @param acceptance a Code Job's acceptance while the handover waits: {@code MERGING} under the busy
+	 * marker, or {@code FAILED} when its merge did not go through (FR-33)
 	 */
 	record DeliveryReportView(UUID id, UUID jobId, String jobTitle, int number, String milestoneTitle, int round,
 			String status, String mentorName, Instant createdAt, Instant checkBy, boolean assessment, String audience,
 			List<HandoverCriterionView> criteria, List<HandoverItemNoteView> itemNotes, @Nullable HandoverReportView report,
 			long version, int roundsLeft, @Nullable HandoverDecisionView decision, @Nullable Instant decidedAt,
 			List<HandoverCheckView> checks, boolean auto, @Nullable HandoverCodeView code, HandoverPreviewView preview,
-			List<HandoverScreenshotView> screenshots) {
+			List<HandoverScreenshotView> screenshots, @Nullable String acceptance) {
 	}
 
 	private final DeliveryAccess access;
@@ -251,9 +253,12 @@ class HandoverController {
 
 	private final HandoverScreenshots screenshots;
 
+	private final AcceptanceMerges merges;
+
 	HandoverController(DeliveryAccess access, Handovers handovers, Decisions decisions, MilestoneHandovers jobs, Ledger ledger,
 			MentorDirectory mentors, CurrentCaller callers, CodeHandovers code, IdGenerator ids, PreviewChecks previews,
-			HandoverScreenshots screenshots) {
+			HandoverScreenshots screenshots, AcceptanceMerges merges) {
+		this.merges = merges;
 		this.code = code;
 		this.ids = ids;
 		this.previews = previews;
@@ -426,9 +431,14 @@ class HandoverController {
 			.map(r -> new HandoverReportView(r.pageId(), r.versionNo(), r.title(), r.body()))
 			.orElse(null);
 		int roundsLeft = this.jobs.rounds(handover.milestoneId()).map(Rounds::left).orElse(0);
-		HandoverDecisionView decision = viewer.kind() == Kind.CUSTOMER && "SUBMITTED".equals(handover.status())
-				? new HandoverDecisionView(this.ledger.releasable(handover.milestoneId()), roundsLeft > 0)
+		String acceptance = "SUBMITTED".equals(handover.status())
+				? this.merges.latestStatus(handover.id()).filter(status -> status.equals("MERGING") || status.equals("FAILED"))
+					.orElse(null)
 				: null;
+		HandoverDecisionView decision = viewer.kind() == Kind.CUSTOMER && "SUBMITTED".equals(handover.status())
+				&& !"MERGING".equals(acceptance)
+						? new HandoverDecisionView(this.ledger.releasable(handover.milestoneId()), roundsLeft > 0)
+						: null;
 		return new DeliveryReportView(handover.id(), handover.jobId(), viewer.job().title(), handover.number(),
 				handover.milestoneTitle(), handover.round(), handover.status(), mentor, handover.createdAt(),
 				handover.checkBy(), viewer.job().assessment(), viewer.kind().name(),
@@ -444,7 +454,7 @@ class HandoverController {
 					.toList(),
 				handover.auto(), this.handovers.code(handover.id()).map(found -> codeView(viewer, found)).orElse(null),
 				previewView(viewer, this.handovers.preview(handover.id()).orElse(new Preview(null, null, null, null))),
-				this.screenshots.of(handover.id()).stream().map(HandoverController::screenshotView).toList());
+				this.screenshots.of(handover.id()).stream().map(HandoverController::screenshotView).toList(), acceptance);
 	}
 
 	/** N-11 needs the domain beside each link; the check's time is for the Mentor and the Crew. */

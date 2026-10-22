@@ -90,6 +90,14 @@ public interface MilestoneHandovers {
 	Optional<Decided> autoAccept(UUID jobId, UUID milestoneId, UUID handoverId);
 
 	/**
+	 * M5 for a Code Job once {@code delivery} merged its Handover Commit (FR-33, AD-5), in the resolving
+	 * transaction on the Job's current version: by the Customer who pressed "Nghiệm thu giai đoạn", or by
+	 * Auto-acceptance when {@code customerId} is {@code null}.
+	 * @return what M5 recorded, or empty when a check refused it; nothing is written then
+	 */
+	Optional<Decided> acceptMerged(UUID jobId, UUID milestoneId, @Nullable UUID customerId, UUID handoverId);
+
+	/**
 	 * M4 by the Customer on the loaded version, naming {@code criteria} criteria.
 	 * @throws vn.vibefix.shared.ApiException as {@link #accept}, and {@code GUARD_FAILED
 	 * REVISION_ROUNDS_USED}

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Link, useParams } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
 import { t } from '@/i18n/t'
+import { BusyBanner } from './BusyBanner'
 import type { Job } from './jobApi'
 import { JobStateBadge } from './JobStateBadge'
 import { DriftWarning } from './DriftWarning'
@@ -10,7 +11,7 @@ import { SetupTracker } from './SetupTracker'
 /**
  * A Job screen's top (UX-DR17): the breadcrumb, the title with its state, the meta line, an optional
  * status line such as the Crew's confirmations, the step tracker while the Job is Starting (UX-DR23),
- * and the tabs.
+ * the busy banner while a precondition operation holds the Job (UX-DR21), and the tabs.
  */
 export function JobHeader({
   title,
@@ -45,6 +46,7 @@ export function JobHeader({
         {status}
       </div>
       {state === 'STARTING' && jobId && <SetupTracker jobId={jobId} />}
+      {(state === 'ACTIVE' || state === 'CLOSING') && jobId && <BusyBanner jobId={jobId} />}
       {(state === 'ACTIVE' || state === 'CLOSING') && jobId && <DriftWarning jobId={jobId} />}
       {children}
     </div>

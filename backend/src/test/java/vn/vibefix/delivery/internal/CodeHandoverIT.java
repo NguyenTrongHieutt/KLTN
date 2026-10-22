@@ -428,6 +428,169 @@ class CodeHandoverIT extends IntegrationTest {
 			.sql("SELECT status FROM delivery.handover WHERE id = :id").param("id", handover).query(String.class).single()));
 	}
 
+	@Test
+	void acceptingMergesExactlyTheHandoverCommitAndOnlyThenReleasesTheMilestone() throws Exception {
+		UUID handover = handedOver();
+		fundForRelease();
+		String commit = this.jdbc.sql("SELECT handover_commit FROM delivery.handover WHERE id = :id").param("id", handover)
+			.query(String.class).single();
+		long version = version();
+
+		accept(handover, version).andExpect(status().isOk())
+			.andExpect(jsonPath("$.status").value("SUBMITTED"))
+			.andExpect(jsonPath("$.acceptance").value("MERGING"))
+			.andExpect(jsonPath("$.decision").doesNotExist());
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/busy").with(as(this.hung, Role.MENTOR)))
+			.andExpect(jsonPath("$.busy").value(true))
+			.andExpect(jsonPath("$.purpose").value("ACCEPTANCE"))
+			.andExpect(jsonPath("$.milestone").value(1));
+		accept(handover, version).andExpect(jsonPath("$.code").value("JOB_BUSY"));
+		assertThat(milestoneState()).as("nothing is accepted before the merge").isEqualTo("SUBMITTED");
+		assertThat(releases()).isZero();
+
+		this.worker.runDue(Lane.GITHUB_SHORT);
+
+		int pull = this.jdbc.sql("SELECT pull_number FROM delivery.handover WHERE id = :id").param("id", handover)
+			.query(Integer.class).single();
+		assertThat(GITHUB.mergedPulls).contains(this.intermediary + "#" + pull);
+		assertThat(GITHUB.head(GitHubStub.ORGANIZATION, this.intermediary, "main")).isEqualTo(commit);
+		assertThat(milestoneState()).isEqualTo("ACCEPTED");
+		assertThat(releases()).isEqualTo(2);
+		this.mvc.perform(get("/api/v1/handovers/" + handover).with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.status").value("ACCEPTED"))
+			.andExpect(jsonPath("$.checks[0].met").value(true))
+			.andExpect(jsonPath("$.acceptance").doesNotExist());
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/busy").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.busy").value(false));
+		assertThat(acceptance(handover)).isEqualTo("DONE");
+		assertThat(this.jdbc.sql("SELECT decided_by FROM delivery.handover WHERE id = :id").param("id", handover)
+			.query(UUID.class).single()).isEqualTo(this.lan);
+	}
+
+	@Test
+	void aHeadThatMovedBeforeTheMergeVoidsTheHandoverAndReleasesNothing() throws Exception {
+		UUID handover = handedOver();
+		fundForRelease();
+		accept(handover, version()).andExpect(status().isOk());
+		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = false;\n",
+				"Sửa thêm trong lúc nghiệm thu", "hung@example.test");
+
+		this.worker.runDue(Lane.GITHUB_SHORT);
+
+		assertThat(GITHUB.mergedPulls).noneMatch(merged -> merged.startsWith(this.intermediary + "#"));
+		assertThat(milestoneState()).as("M3: back to where it was handed over from").isEqualTo("FUNDED");
+		assertThat(releases()).isZero();
+		assertThat(acceptance(handover)).isEqualTo("VOIDED");
+		org.awaitility.Awaitility.await().atMost(Duration.ofSeconds(15)).until(() -> "VOIDED".equals(this.jdbc
+			.sql("SELECT status FROM delivery.handover WHERE id = :id").param("id", handover).query(String.class).single()));
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/busy").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.busy").value(false));
+	}
+
+	@Test
+	void whenGitHubCannotMergeTheAcceptanceFailsAndTheMilestoneWaitsForTheCustomer() throws Exception {
+		UUID handover = handedOver();
+		fundForRelease();
+		long version = version();
+		accept(handover, version).andExpect(status().isOk());
+		String prefix = "PUT /repos/" + GitHubStub.ORGANIZATION + "/" + this.intermediary + "/pulls";
+		GITHUB.unavailable.add(prefix);
+		try {
+			for (int attempt = 0; attempt < 8; attempt++) {
+				this.jdbc.sql("""
+						UPDATE operations.external_operation SET next_attempt_at = :now
+						WHERE type = 'delivery.acceptance_merge' AND status = 'PENDING' AND payload ->> 'handoverId' = :handover
+						""").param("now", Timestamp.from(this.clock.instant())).param("handover", handover.toString()).update();
+				this.worker.runDue(Lane.GITHUB_SHORT);
+			}
+			assertThat(this.jdbc.sql("""
+					SELECT status FROM operations.external_operation
+					WHERE type = 'delivery.acceptance_merge' AND payload ->> 'handoverId' = :handover
+					""").param("handover", handover.toString()).query(String.class).single()).isEqualTo("FAILED");
+			org.awaitility.Awaitility.await().atMost(Duration.ofSeconds(15)).until(() -> "FAILED".equals(acceptance(handover)));
+		}
+		finally {
+			GITHUB.unavailable.remove(prefix);
+		}
+		assertThat(milestoneState()).isEqualTo("SUBMITTED");
+		assertThat(releases()).isZero();
+		this.mvc.perform(get("/api/v1/handovers/" + handover).with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.status").value("SUBMITTED"))
+			.andExpect(jsonPath("$.acceptance").value("FAILED"))
+			.andExpect(jsonPath("$.decision").exists());
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/busy").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.busy").value(false));
+
+		// The Customer tries again once GitHub answers.
+		accept(handover, version).andExpect(status().isOk()).andExpect(jsonPath("$.acceptance").value("MERGING"));
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		assertThat(milestoneState()).isEqualTo("ACCEPTED");
+		assertThat(releases()).isEqualTo(2);
+	}
+
+	/** The handover of one scanned commit. */
+	private UUID handedOver() throws Exception {
+		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = true;\n", "Sửa lỗi",
+				"hung@example.test");
+		preflight();
+		this.worker.runDue(Lane.SCAN);
+		String report = handOver(5).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+		return UUID.fromString(com.jayway.jsonpath.JsonPath.read(report, "$.id"));
+	}
+
+	/** Crew Terms version 1 (the Mentor 70, Vy 30) and the Milestone's funding in the ledger. */
+	private void fundForRelease() {
+		UUID product = this.jdbc.sql("SELECT product_id FROM job.job WHERE id = :id").param("id", this.job).query(UUID.class)
+			.single();
+		Map<String, Object> row = this.jdbc.sql("SELECT id, student_account_id FROM job.crew_row WHERE job_id = :id")
+			.param("id", this.job).query().singleRow();
+		this.jdbc.sql("""
+				INSERT INTO job.crew_terms_version (job_id, version_no, status, cap_percent, author_account_id, created_at)
+				VALUES (:job, 1, 'IN_FORCE', 100, :mentor, now())
+				""").param("job", this.job).param("mentor", this.hung).update();
+		this.jdbc.sql("""
+				INSERT INTO job.crew_terms_share (job_id, version_no, party_account_id, crew_row_id, percent)
+				VALUES (:job, 1, :mentor, NULL, 70), (:job, 1, :vy, :row, 30)
+				""").param("job", this.job).param("mentor", this.hung).param("vy", row.get("student_account_id"))
+			.param("row", row.get("id")).update();
+		this.jdbc.sql("""
+				INSERT INTO payment.ledger_account (milestone_id, job_id, product_id, created_at) VALUES (:id, :job, :product, now())
+				""").param("id", this.milestone).param("job", this.job).param("product", product).update();
+		this.jdbc.sql("""
+				INSERT INTO payment.ledger_entry (id, operation_key, entry_type, bucket, job_id, product_id, milestone_id, amount_vnd,
+				    vnp_transaction_no, created_at)
+				VALUES (:id, :key, 'FUND', 'MILESTONE', :job, :product, :milestone, 1500000, :no, now())
+				""").param("id", UUID.randomUUID()).param("key", "FUND:" + UUID.randomUUID()).param("job", this.job)
+			.param("product", product).param("milestone", this.milestone)
+			.param("no", String.valueOf(REPOSITORY_IDS.incrementAndGet() * 7919)).update();
+	}
+
+	private ResultActions accept(UUID handover, long version) throws Exception {
+		return this.mvc.perform(post("/api/v1/handovers/" + handover + "/accept").with(as(this.lan, Role.CUSTOMER)).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("{\"version\":" + version + ",\"checks\":[{\"criterionId\":\"" + this.criterion + "\",\"met\":true}]}"));
+	}
+
+	private long version() {
+		return this.jdbc.sql("SELECT version FROM job.job WHERE id = :id").param("id", this.job).query(Long.class).single();
+	}
+
+	private String milestoneState() {
+		return this.jdbc.sql("SELECT state FROM job.milestone WHERE id = :id").param("id", this.milestone).query(String.class)
+			.single();
+	}
+
+	private long releases() {
+		return this.jdbc.sql("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'RELEASE' AND job_id = :job")
+			.param("job", this.job).query(Long.class).single();
+	}
+
+	private String acceptance(UUID handover) {
+		return this.jdbc.sql("""
+				SELECT status FROM delivery.handover_acceptance WHERE handover_id = :id ORDER BY seq DESC LIMIT 1
+				""").param("id", handover).query(String.class).single();
+	}
+
 	private long openTodos(String key, UUID account) {
 		return this.jdbc.sql("SELECT count(*) FROM notification.todo WHERE todo_key = :key AND account_id = :id AND closed_at IS NULL")
 			.param("key", key).param("id", account).query(Long.class).single();

@@ -279,8 +279,9 @@ class CrewChangeIT extends IntegrationTest {
 			.andExpect(jsonPath("$.change.confirmed").value(2))
 			.andExpect(jsonPath("$.change.waitingVersionNo").value(2));
 
+		// A Code Job's M5 comes after delivery merged the Handover Commit (Story 8.5).
 		Applied accepted = this.lifecycle.applyMilestone(Transition.M5, this.job, M2, Actor.user(this.lan), Trigger.USER,
-				jobVersion(), Map.of("handoverId", handover));
+				jobVersion(), Map.of("handoverId", handover, "merged", true));
 		assertThat(rowStatus(this.anh)).isEqualTo("ACTIVE");
 		assertThat(rowStatus(this.tung)).isEqualTo("RELEASED");
 		assertThat(jobVersion()).as("inside an apply its own bump counts").isEqualTo(accepted.version());

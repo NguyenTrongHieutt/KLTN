@@ -69,6 +69,16 @@ public interface HandoverBranches {
 	/** Closes the handover's pull request after its M2 failed; a failure here is only logged. */
 	void unpin(UUID jobId, int pullNumber);
 
+	/**
+	 * Merges the handover's pull request into the Intermediary default branch exactly at {@code sha}
+	 * (FR-33, AD-11), and reads it back.
+	 * @return whether GitHub shows it merged
+	 */
+	boolean merge(UUID jobId, int pullNumber, String sha, String title);
+
+	/** Whether the handover's pull request is merged, read back from GitHub. */
+	boolean merged(UUID jobId, int pullNumber);
+
 	/** GitHub did not answer, or refused; the caller asks the person to try again shortly. */
 	final class Unavailable extends RuntimeException {
 

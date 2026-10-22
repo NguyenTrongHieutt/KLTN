@@ -516,6 +516,35 @@ public final class GitHubStub implements AutoCloseable {
 				.map(pull -> Map.of("number", pull.getKey(), "user", Map.of("login", pull.getValue())))
 				.toList()));
 		}
+		else if (method.equals("PUT")
+				&& (matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)/pulls/(\\d+)/merge").matcher(path)).matches()) {
+			String repository = matcher.group(1);
+			int number = Integer.parseInt(matcher.group(2));
+			String head = this.pullHeads.getOrDefault(repository, Map.of()).get(number);
+			if (head == null || this.mergedPulls.contains(repository + "#" + number)) {
+				send(exchange, 405, "{\"message\":\"Pull Request is not mergeable\"}");
+				return;
+			}
+			try (Repository git = repository(ORGANIZATION, repository)) {
+				var tip = git.resolve("refs/heads/" + head);
+				if (tip == null || !tip.name().equals(body.path("sha").asString())) {
+					send(exchange, 409, "{\"message\":\"Head branch was modified\"}");
+					return;
+				}
+				// The default branch takes the handed-over commit, as a merge would bring it in.
+				org.eclipse.jgit.lib.RefUpdate update = git.updateRef("refs/heads/main");
+				update.setNewObjectId(tip);
+				update.forceUpdate();
+			}
+			this.mergedPulls.add(repository + "#" + number);
+			this.pulls.getOrDefault(repository, new LinkedHashMap<>()).remove(number);
+			send(exchange, 200, "{\"merged\":true}");
+		}
+		else if (method.equals("GET")
+				&& (matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)/pulls/(\\d+)").matcher(path)).matches()) {
+			boolean merged = this.mergedPulls.contains(matcher.group(1) + "#" + matcher.group(2));
+			send(exchange, 200, "{\"number\":" + matcher.group(2) + ",\"merged\":" + merged + "}");
+		}
 		else if (method.equals("PATCH")
 				&& (matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)/pulls/(\\d+)").matcher(path)).matches()) {
 			this.pulls.getOrDefault(matcher.group(1), new LinkedHashMap<>()).remove(Integer.parseInt(matcher.group(2)));
@@ -606,6 +635,9 @@ public final class GitHubStub implements AutoCloseable {
 
 	/** GitHub numeric IDs of commit authors by email; an author missing here is unresolved, as on GitHub. */
 	public final Map<String, Long> userIds = Collections.synchronizedMap(new LinkedHashMap<>());
+
+	/** Merged pull requests, as {@code repository#number}. */
+	public final java.util.Set<String> mergedPulls = Collections.synchronizedSet(new java.util.LinkedHashSet<>());
 
 	/** Per repository: each pull request's head branch, open or closed, by number. */
 	public final Map<String, Map<Integer, String>> pullHeads = Collections.synchronizedMap(new LinkedHashMap<>());

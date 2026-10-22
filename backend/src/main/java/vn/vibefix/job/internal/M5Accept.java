@@ -61,10 +61,16 @@ class M5Accept implements JobLifecycle.Step {
 		return Transition.M5;
 	}
 
-	/** @throws ApiException {@code FORBIDDEN CUSTOMER_ONLY}; {@code STALE STATE_CHANGED} or {@code HANDOVER_CHANGED} */
+	/**
+	 * @throws ApiException {@code FORBIDDEN CUSTOMER_ONLY}; {@code STALE STATE_CHANGED} or {@code HANDOVER_CHANGED};
+	 * {@code GUARD_FAILED HANDOVER_NOT_MERGED} for a Code Job whose merge did not come first
+	 */
 	@Override
 	public void check(Applying applying) {
 		requireCustomerOnCurrent(this.jdbc, applying);
+		if (applying.job().code() && !applying.has("merged")) {
+			throw new ApiException(ErrorCode.GUARD_FAILED, JobReason.HANDOVER_NOT_MERGED);
+		}
 	}
 
 	@Override

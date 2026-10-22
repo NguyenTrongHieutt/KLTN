@@ -120,6 +120,9 @@ enum JobReason {
 	/** A Code Job's handover needs its Handover Commit, recorded from Epic 7 on (FR-32, AD-4). */
 	HANDOVER_COMMIT_MISSING,
 
+	/** A Code Job's Milestone is accepted only once its Handover Commit is merged (FR-33, AD-5). */
+	HANDOVER_NOT_MERGED,
+
 	/** Only the Job's Customer accepts a Milestone or asks for a revision (FR-33). */
 	CUSTOMER_ONLY,
 

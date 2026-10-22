@@ -144,10 +144,19 @@ function Check({ jobId, report }: { jobId: string; report: DeliveryReport }) {
         },
       },
       {
-        onSuccess: () => {
+        onSuccess: (decided) => {
           writeDraft(report.id, undefined)
           setMatches(undefined)
-          toasts.success(t(action === 'accept' ? 'screen.handover.check.accepted' : 'screen.handover.check.revised', { n: report.number }))
+          toasts.success(
+            t(
+              decided.acceptance === 'MERGING'
+                ? 'screen.handover.acceptance.merging'
+                : action === 'accept'
+                  ? 'screen.handover.check.accepted'
+                  : 'screen.handover.check.revised',
+              { n: report.number },
+            ),
+          )
           void navigate(`/cong-viec/${jobId}/ban-giao/${report.id}`)
         },
         onError: (failure) => {

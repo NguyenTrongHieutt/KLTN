@@ -160,6 +160,34 @@ describe('JOB-5 guided check (FR-33, FR-34, UX-DR33)', () => {
     expect(sent[0]).toMatchObject({ version: 13, checks: [{ criterionId: 'c1', met: true }, { criterionId: 'c2', met: true }] })
   })
 
+  it('says a Code Job acceptance merges first, and pays once the merge is done (FR-33)', { timeout: 25_000 }, async () => {
+    const user = userEvent.setup()
+    window.sessionStorage.setItem('vibefix.check.h1', JSON.stringify({ step: 1, marks: { c1: { met: true, comment: '' } } }))
+    const merging = report({ assessment: false, acceptance: 'MERGING', decision: null })
+    let accepted = false
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/handovers/h1': () => json(accepted ? merging : report({ assessment: false })),
+      'POST /api/v1/handovers/h1/accept': () => {
+        accepted = true
+        return json(merging)
+      },
+      'GET /api/v1/jobs/j1': () => json(customerJob),
+      'GET /api/v1/boards/j1/handovers': () => json(list),
+    })
+    renderAt('/cong-viec/j1/ban-giao/h1/kiem-tra')
+
+    expect(await screen.findByText('Tiêu chí 2/2')).toBeInTheDocument()
+    await user.click(screen.getByRole('radio', { name: 'Đạt' }))
+    await user.click(screen.getByRole('button', { name: 'Tiếp' }))
+    await user.click(await screen.findByRole('button', { name: 'Nghiệm thu giai đoạn' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Nghiệm thu Giai đoạn 1?' })
+    await user.click(within(dialog).getByRole('button', { name: 'Xác nhận' }))
+
+    const lines = await screen.findAllByText('Đang hợp nhất bàn giao Giai đoạn 1. Tiền được chuyển ngay khi hợp nhất xong.')
+    expect(lines.length).toBeGreaterThan(0)
+    expect(screen.queryByRole('link', { name: 'Kiểm tra từng tiêu chí' })).toBeNull()
+  })
+
   it('links the preview with N-11 next to each step and its check steps (UX-DR33)', { timeout: 25_000 }, async () => {
     fakeBackend(signedIn('CUSTOMER'), {
       'GET /api/v1/handovers/h1': () =>

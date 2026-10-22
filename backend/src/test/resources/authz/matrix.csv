@@ -2000,6 +2000,14 @@ POST /api/v1/jobs/{jobId}/external-access/{accessId}/granted,STUDENT,,,404 NOT_F
 POST /api/v1/jobs/{jobId}/external-access/{accessId}/granted,ADMINISTRATOR,,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/external-access/{accessId}/granted,JOB_MENTOR,,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/external-access/{accessId}/granted,CREW_ACTIVE,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/busy,ANONYMOUS,,,401
+GET /api/v1/jobs/{jobId}/busy,OWNER,,,200
+GET /api/v1/jobs/{jobId}/busy,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/busy,MENTOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/busy,STUDENT,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/busy,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/busy,JOB_MENTOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/busy,CREW_ACTIVE,,,404 NOT_FOUND
 
 # Story 7.4 (FR-8, UX-DR31): the Job's Findings; {jobId} is a Draft Assessment Job, so nobody reads them.
 GET /api/v1/jobs/{jobId}/findings,ANONYMOUS,,,401
