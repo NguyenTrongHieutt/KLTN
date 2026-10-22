@@ -1,0 +1,6 @@
+subject: Còn {n} quyền chưa thu hồi cho {job}
+---
+Xin chào,
+
+Còn {n} quyền bạn đã cấp ngoài GitHub cho công việc {job} chưa được đánh dấu là đã thu hồi.
+Mở công việc trên vibefix để xem danh sách thu hồi quyền.

@@ -3035,6 +3035,32 @@
           "DECLINED": "bạn đã chọn nhận mã dạng ZIP"
         }
       },
+      "revocation": {
+        "title": "Thu hồi quyền ngoài GitHub",
+        "lead": "Công việc đã kết thúc. Hãy gỡ quyền hoặc đổi khóa ở từng dịch vụ bạn đã cấp, rồi đánh dấu từng mục. Công việc không chờ danh sách này.",
+        "step": "Khách hàng: thu hồi quyền {system}",
+        "level": {
+          "READ": "Chỉ xem",
+          "WRITE": "Xem và sửa",
+          "ADMIN": "Quản trị"
+        },
+        "environment": {
+          "NON_PRODUCTION": "Bản thử",
+          "PRODUCTION": "Hệ thống thật"
+        },
+        "identifiers": "Gỡ các tài khoản này:",
+        "noIdentifiers": "Người hướng dẫn và nhóm chưa ghi tài khoản nào. Hãy gỡ mọi tài khoản hoặc khóa bạn đã tạo cho công việc này.",
+        "guidance": "Vào phần quản lý thành viên hoặc khóa của {system}, xóa các tài khoản đã mời cho công việc này. Nếu bạn đã đưa khóa bí mật hoặc mật khẩu, hãy đổi sang khóa mới.",
+        "removed": "Đã gỡ quyền",
+        "rotated": "Đã đổi khóa",
+        "confirmTitle": "Xác nhận đã thu hồi quyền {system}?",
+        "confirmBody": "Xác nhận này được ghi lại cùng thời gian và không sửa được.",
+        "confirm": "Xác nhận",
+        "cancel": "Quay lại",
+        "doneRemoved": "Đã gỡ quyền {time}",
+        "doneRotated": "Đã đổi khóa {time}",
+        "saved": "Đã ghi nhận."
+      },
       "disputable": "Đề nghị kết thúc bị từ chối hoặc chưa được trả lời. Bạn có thể mở tranh chấp.",
       "openDispute": "Mở tranh chấp"
     },
@@ -3698,7 +3724,8 @@
       "confirm_data_deletion": "Xác nhận đã xóa dữ liệu và bản xem thử của {job}",
       "accept_github_invitation": "Bật xác thực hai lớp trên GitHub (nếu chưa bật), rồi chấp nhận lời mời cho {job}",
       "reconfirm_source": "Xác nhận lại dự án gốc của {job}",
-      "authorize_final_merge": "Cho phép hợp nhất vào dự án của bạn"
+      "authorize_final_merge": "Cho phép hợp nhất vào dự án của bạn",
+      "revocation_item": "Thu hồi quyền {system}"
     },
     "reputation": {
       "rate": "Chấm sao cho {party}",
@@ -4071,6 +4098,12 @@
       },
       "merge_app_request_refused": {
         "title": "Yêu cầu cài ứng dụng hợp nhất cho kho {repo} chưa được duyệt. Bạn có thể gửi lại yêu cầu hoặc nhận mã dạng ZIP trước {date}"
+      },
+      "revocation_checklist_pending": {
+        "title": "Hãy thu hồi quyền truy cập ngoài GitHub cho {job}"
+      },
+      "revocation_checklist_reminder": {
+        "title": "Còn {n} quyền chưa thu hồi cho {job}"
       },
       "zip_fallback_ready": {
         "title": "{job}: không hợp nhất tự động được, bạn có thể tải mã về dạng tệp ZIP"

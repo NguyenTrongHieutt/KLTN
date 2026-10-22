@@ -1,0 +1,6 @@
+subject: Hãy thu hồi quyền truy cập ngoài GitHub cho {job}
+---
+Xin chào,
+
+Công việc {job} đã kết thúc. Hãy gỡ quyền hoặc đổi khóa ở từng dịch vụ bạn đã cấp ngoài GitHub cho người hướng dẫn và nhóm.
+Mở công việc trên vibefix để xem danh sách thu hồi quyền và đánh dấu từng mục. Công việc không chờ danh sách này.

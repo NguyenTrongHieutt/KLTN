@@ -247,9 +247,9 @@ class FinalMergeIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("SELECT end_reason FROM repo.final_merge_authorization WHERE job_id = :job")
 			.param("job", this.job).query(String.class).single()).isEqualTo("ZIP_FALLBACK");
 		assertThat(GITHUB.sourcePulls.getOrDefault(this.owner + "/" + this.name, java.util.Map.of())).isEmpty();
-		assertThat(jobState()).isEqualTo("CLOSING");
 
-		// Story 8.9: the ZIP Fallback stores the code, then the Job closes.
+		// Story 8.9: the ZIP Fallback stores the code, then the Job closes. Its operation may already have run in
+		// the same worker pass, once the ended authorization's listener requested it.
 		zipFallback();
 		assertThat(this.jdbc.sql("SELECT reason || ':' || status FROM repo.zip_fallback WHERE job_id = :job")
 			.param("job", this.job).query(String.class).single()).isEqualTo("TRIAL_CONFLICT:READY");

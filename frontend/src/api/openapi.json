@@ -1624,7 +1624,7 @@
     },
     "/api/v1/boards/{boardId}/cancellation/confirm" : {
       "post" : {
-        "operationId" : "confirm_5",
+        "operationId" : "confirm_6",
         "parameters" : [ {
           "in" : "path",
           "name" : "boardId",
@@ -1812,7 +1812,7 @@
     },
     "/api/v1/boards/{boardId}/closure/confirm" : {
       "post" : {
-        "operationId" : "confirm_4",
+        "operationId" : "confirm_5",
         "parameters" : [ {
           "in" : "path",
           "name" : "boardId",
@@ -1913,7 +1913,7 @@
     },
     "/api/v1/boards/{boardId}/data-deletion/{item}" : {
       "post" : {
-        "operationId" : "confirm_3",
+        "operationId" : "confirm_4",
         "parameters" : [ {
           "in" : "path",
           "name" : "boardId",
@@ -2611,6 +2611,78 @@
           }
         },
         "tags" : [ "rating-controller" ]
+      }
+    },
+    "/api/v1/boards/{boardId}/revocation-checklist" : {
+      "get" : {
+        "operationId" : "checklist",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RevocationChecklistView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "revocation-checklist-controller" ]
+      }
+    },
+    "/api/v1/boards/{boardId}/revocation-checklist/{accessId}" : {
+      "post" : {
+        "operationId" : "confirm_3",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "path",
+          "name" : "accessId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RevocationConfirmRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RevocationChecklistView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "revocation-checklist-controller" ]
       }
     },
     "/api/v1/boards/{boardId}/work-items" : {
@@ -14823,6 +14895,85 @@
           }
         },
         "required" : [ "action", "at", "by" ]
+      },
+      "RevocationChecklistView" : {
+        "type" : "object",
+        "properties" : {
+          "audience" : {
+            "type" : "string"
+          },
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/RevocationItemView"
+            }
+          },
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "audience", "items", "jobId" ]
+      },
+      "RevocationConfirmRequest" : {
+        "type" : "object",
+        "properties" : {
+          "outcome" : {
+            "type" : "string",
+            "pattern" : "REMOVED|ROTATED"
+          }
+        },
+        "required" : [ "outcome" ]
+      },
+      "RevocationIdentifierView" : {
+        "type" : "object",
+        "properties" : {
+          "githubLogin" : {
+            "type" : "string"
+          },
+          "identifier" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "githubLogin", "identifier" ]
+      },
+      "RevocationItemView" : {
+        "type" : "object",
+        "properties" : {
+          "accessId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "accessLevel" : {
+            "type" : "string"
+          },
+          "confirmedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "done" : {
+            "type" : "boolean"
+          },
+          "environment" : {
+            "type" : "string"
+          },
+          "identifiers" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/RevocationIdentifierView"
+            }
+          },
+          "outcome" : {
+            "type" : "string"
+          },
+          "purpose" : {
+            "type" : "string"
+          },
+          "system" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "accessId", "accessLevel", "done", "environment", "identifiers", "purpose", "system" ]
       },
       "RevokeApprovalRequest" : {
         "type" : "object",
