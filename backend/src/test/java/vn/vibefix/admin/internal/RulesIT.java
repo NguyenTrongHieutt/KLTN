@@ -57,7 +57,7 @@ class RulesIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/admin/rules").with(admin(ha))).andExpect(status().isOk())
 			.andExpect(jsonPath("$.rules[?(@.key == 'AUTO_ACCEPTANCE_DAYS')].value").value(7))
 			.andExpect(jsonPath("$.rules[?(@.key == 'MENTOR_SHARE_CAP_PERCENT')].min").value(10))
-			.andExpect(jsonPath("$.rules[?(@.key == 'TEAM_ISSUE_ANSWER_DAYS')]").isEmpty());
+			.andExpect(jsonPath("$.rules[?(@.key == 'TEAM_ISSUE_ANSWER_DAYS')].value").value(5));
 
 		save(ha, "{\"AUTO_ACCEPTANCE_DAYS\":31}", List.of(), "000000").andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.reason").value("RULE_OUT_OF_BOUNDS"));

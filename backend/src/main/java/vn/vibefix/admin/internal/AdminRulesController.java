@@ -42,16 +42,16 @@ import vn.vibefix.shared.Gate;
 
 /**
  * ADM-10 (FR-61, FR-63, SG-10, UX-DR42): the rule values within their bounds, the school allowlist, and
- * the latest changes; saving takes the step-up and is audited with each change's old and new value. The
- * Team Issue values stay off the screen until Team Issues are built (Epic 12).
+ * the latest changes; saving takes the step-up and is audited with each change's old and new value. A
+ * rule whose feature is not built stays off the screen.
  */
 @RestController
 @RequestMapping("/api/v1/admin/rules")
 @Access(Gate.ADMINISTRATOR)
 class AdminRulesController {
 
-	/** Rules whose features are not built yet (Epic 12). */
-	static final Set<Rule> NOT_BUILT = EnumSet.of(Rule.TEAM_ISSUE_ANSWER_DAYS, Rule.TEAM_ISSUE_ESCALATION_DAYS);
+	/** Rules whose features are not built yet; none since Team Issues (Epic 12). */
+	static final Set<Rule> NOT_BUILT = EnumSet.noneOf(Rule.class);
 
 	record RuleView(Rule key, int value, int min, int max) {
 	}

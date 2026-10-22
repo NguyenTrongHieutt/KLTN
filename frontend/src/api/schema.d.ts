@@ -1140,6 +1140,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/boards/{boardId}/team-issues": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ofJob_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/boards/{boardId}/work-items": {
         parameters: {
             query?: never;
@@ -3140,6 +3156,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/team-issues": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["panel"];
+        put?: never;
+        post: operations["raise"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/team/invitations/{invitationId}/accept": {
         parameters: {
             query?: never;
@@ -3745,6 +3777,7 @@ export interface components {
         BalanceView: {
             /** Format: int64 */
             balanceVnd: number;
+            heldParts: components["schemas"]["HeldPartView"][];
             /** Format: int64 */
             heldVnd?: number;
             lines: components["schemas"]["BalanceReleaseView"][];
@@ -4838,6 +4871,18 @@ export interface components {
             releasableVnd: number;
             title: string;
         };
+        HeldPartView: {
+            /** Format: int64 */
+            amountVnd: number;
+            /** Format: date-time */
+            heldAt: string;
+            /** Format: uuid */
+            jobId: string;
+            jobTitle: string;
+            milestoneTitle: string;
+            /** Format: int32 */
+            number: number;
+        };
         HideRequest: {
             reason: string;
         };
@@ -5052,6 +5097,12 @@ export interface components {
             title: string;
             /** Format: date-time */
             updatedAt: string;
+        };
+        JobTeamIssuesView: {
+            issues: components["schemas"]["TeamIssueView"][];
+            /** Format: uuid */
+            jobId: string;
+            mentor: boolean;
         };
         JobTypeMatchView: {
             /** Format: int32 */
@@ -5925,6 +5976,17 @@ export interface components {
             id: string;
             text: string;
         };
+        RaiseTeamIssueRequest: {
+            /** Format: uuid */
+            jobId: string;
+            /** Format: uuid */
+            milestoneId?: string;
+            /** Format: uuid */
+            ratingId?: string;
+            reason: string;
+            /** @enum {string} */
+            subject: "SHARE" | "RATING";
+        };
         RateeView: {
             /** Format: uuid */
             accountId: string;
@@ -6401,6 +6463,63 @@ export interface components {
         TeamInvitationRequest: {
             /** Format: uuid */
             studentId: string;
+        };
+        TeamIssuePanelView: {
+            issues: components["schemas"]["TeamIssueView"][];
+            /** Format: uuid */
+            jobId: string;
+            mentorName: string;
+            ratings: components["schemas"]["TeamIssueRatingOptionView"][];
+            shares: components["schemas"]["TeamIssueShareOptionView"][];
+            title: string;
+        };
+        TeamIssueRatingOptionView: {
+            /** Format: date-time */
+            closesAt: string;
+            /** Format: date-time */
+            endedAt?: string;
+            /** Format: uuid */
+            ratingId: string;
+            refusal?: string;
+            /** Format: int32 */
+            stars: number;
+            /** Format: date-time */
+            visibleAt: string;
+        };
+        TeamIssueShareOptionView: {
+            /** Format: date-time */
+            endedAt?: string;
+            /** Format: uuid */
+            milestoneId: string;
+            /** Format: int32 */
+            number: number;
+            refusal?: string;
+            title: string;
+        };
+        TeamIssueView: {
+            /** Format: date-time */
+            answerDueAt: string;
+            /** Format: date-time */
+            endedAt?: string;
+            /** Format: date-time */
+            escalationDueAt?: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            jobId: string;
+            /** Format: uuid */
+            milestoneId?: string;
+            /** Format: int32 */
+            milestoneNumber?: number;
+            mine: boolean;
+            phase: string;
+            /** Format: date-time */
+            raisedAt: string;
+            raiserName?: string;
+            /** Format: uuid */
+            ratingId?: string;
+            reason: string;
+            subject: string;
         };
         TeamJoinRequest: {
             /** Format: uuid */
@@ -8719,6 +8838,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RevocationChecklistView"];
+                };
+            };
+        };
+    };
+    ofJob_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobTeamIssuesView"];
                 };
             };
         };
@@ -11949,6 +12090,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StudentTeamView"];
+                };
+            };
+        };
+    };
+    panel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamIssuePanelView"][];
+                };
+            };
+        };
+    };
+    raise: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RaiseTeamIssueRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamIssueView"];
                 };
             };
         };

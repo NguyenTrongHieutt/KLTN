@@ -25,6 +25,15 @@ enum DisputeReason {
 	ALREADY_DECIDED,
 
 	/** Only a failed execution is retried (AD-31). */
-	NOT_FAILED
+	NOT_FAILED,
+
+	/** The Crew member already has a Team Issue on the Job that has not ended (FR-79, AD-40). */
+	TEAM_ISSUE_OPEN,
+
+	/** One share Team Issue per Milestone and one per Rating, ended or not (FR-79, AD-40). */
+	TEAM_ISSUE_ALREADY_RAISED,
+
+	/** A Rating is contested within 14 days of becoming visible (FR-79). */
+	TEAM_ISSUE_WINDOW_CLOSED
 
 }

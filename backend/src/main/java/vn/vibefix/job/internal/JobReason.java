@@ -181,6 +181,9 @@ enum JobReason {
 	IDENTIFIER_LOOKS_LIKE_SECRET,
 
 	/** A Closed or Cancelled Job takes no more External Access identifiers (FR-66). */
-	EXTERNAL_ACCESS_CLOSED
+	EXTERNAL_ACCESS_CLOSED,
+
+	/** A share Team Issue is raised only on a Held Milestone (FR-79, AD-40). */
+	MILESTONE_NOT_HELD
 
 }

@@ -73,7 +73,7 @@ describe('CUS-10: the payment history (FR-44)', () => {
 describe('MEN-7 and STU-7: the test Balance (FR-44, AD-20)', () => {
   it('shows the Mentor the Crew parts of each release', { timeout: 15_000 }, async () => {
     fakeBackend(signedIn('MENTOR'), {
-      'GET /api/v1/balance': () => json({ balanceVnd: 240000, releases: 1, sentToCrewVnd: 960000, heldVnd: 2000000, lines: [release()] }),
+      'GET /api/v1/balance': () => json({ balanceVnd: 240000, releases: 1, sentToCrewVnd: 960000, heldVnd: 2000000, lines: [release()], heldParts: [] }),
     })
     renderAt('/so-du')
 
@@ -88,7 +88,7 @@ describe('MEN-7 and STU-7: the test Balance (FR-44, AD-20)', () => {
 
   it('shows a Student only their own parts', { timeout: 15_000 }, async () => {
     fakeBackend(signedIn('STUDENT'), {
-      'GET /api/v1/balance': () => json({ balanceVnd: 960000, releases: 1, lines: [release({ yourPartVnd: 960000, yourPercent: 80, crew: [] })] }),
+      'GET /api/v1/balance': () => json({ balanceVnd: 960000, releases: 1, lines: [release({ yourPartVnd: 960000, yourPercent: 80, crew: [] })], heldParts: [] }),
     })
     renderAt('/so-du')
 
