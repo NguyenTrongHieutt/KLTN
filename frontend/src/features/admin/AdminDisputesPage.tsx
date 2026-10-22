@@ -14,6 +14,7 @@ import { problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { useAdminDispute, useAdminDisputes, useDisputeCommand, type AdminDispute } from './adminDisputesApi'
 import { CaseTabs } from './CaseTabs'
+import { DisputeEvidence } from './DisputeEvidence'
 import { StepUpDialog } from './StepUpDialog'
 
 type Next = 'CONTINUE' | 'END' | 'CANCEL'
@@ -21,7 +22,8 @@ type Next = 'CONTINUE' | 'END' | 'CANCEL'
 /**
  * ADM-4 (FR-54, AD-20, AD-31, UX-DR58): the Disputes, and one Dispute with its Held Milestone, "Nhận xử
  * lý", the decision form (release and refund that sum to what is held, the next state, the reasoning),
- * the summary, the step-up, and the execution "Bước {k}/4" with "Thử lại". Totals only.
+ * the summary, the step-up, and the execution "Bước {k}/4" with "Thử lại". Totals only. The assignee reads
+ * the Evidence Package until 30 days after the decision (Story 15.2).
  */
 export function AdminDisputesPage() {
   const { disputeId } = useParams()
@@ -143,6 +145,13 @@ function Detail({ data }: { data: AdminDispute }) {
       )}
       {data.status === 'OPEN' && data.statements.length === 0 && data.decidable && (
         <p className="text-caption text-muted-foreground">{t('screen.admin.disputes.noStatement')}</p>
+      )}
+      {data.evidenceReadable ? (
+        <DisputeEvidence data={data} />
+      ) : (
+        <p className="text-caption text-muted-foreground">
+          {t(data.status === 'OPEN' ? 'screen.admin.disputes.evidence.takeFirst' : 'screen.admin.disputes.evidence.closed')}
+        </p>
       )}
       {error && (
         <p role="alert" className="text-destructive">

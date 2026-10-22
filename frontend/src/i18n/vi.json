@@ -858,7 +858,81 @@
         "waitStatement": "Bên kia đang trong thời hạn trình bày đến {date}. Bạn quyết định được khi đã có trình bày hoặc sau thời hạn đó.",
         "noStatement": "Bên kia không trình bày trong thời hạn.",
         "filterLong": "Chưa quyết sau 7 ngày",
-        "filterAll": "Tất cả"
+        "filterAll": "Tất cả",
+        "evidence": {
+          "title": "Hồ sơ bằng chứng",
+          "note": "Mỗi lần xem hồ sơ được ghi vào nhật ký kiểm toán.",
+          "takeFirst": "Nhận xử lý để xem hồ sơ bằng chứng.",
+          "closed": "Hồ sơ bằng chứng chỉ mở cho quản trị viên nhận xử lý, đến 30 ngày sau quyết định.",
+          "empty": "Không có mục nào.",
+          "tab": {
+            "agreement": "Phiên bản thỏa thuận",
+            "criteria": "Tiêu chí trong báo cáo bàn giao",
+            "work": "Công việc",
+            "pages": "Trang",
+            "chat": "Trò chuyện",
+            "decisions": "Duyệt và yêu cầu sửa",
+            "payments": "Thanh toán",
+            "drift": "Cảnh báo thay đổi",
+            "audit": "Nhật ký kiểm toán"
+          },
+          "version": "Phiên bản {n} · xác nhận lúc {time}",
+          "milestone": "Giai đoạn {n}: {title}",
+          "report": "Giai đoạn {n}: {title} · lần {round}",
+          "reportStatus": {
+            "SUBMITTED": "Chờ khách hàng kiểm tra",
+            "ACCEPTED": "Đã chấp nhận",
+            "REVISION_REQUESTED": "Yêu cầu sửa",
+            "VOIDED": "Bàn giao đã bị hủy"
+          },
+          "criterion": "Tiêu chí",
+          "reported": "Người hướng dẫn báo cáo",
+          "checked": "Khách hàng kiểm tra",
+          "met": "Đạt",
+          "notMet": "Chưa đạt",
+          "unchecked": "Chưa kiểm tra",
+          "attachments": "Tệp đính kèm: {names}",
+          "system": "vibefix",
+          "pageVersion": "Bản {n} · {time}",
+          "decision": {
+            "AGREEMENT_APPROVED": "Khách hàng duyệt thỏa thuận phiên bản {n}",
+            "AGREEMENT_CONFIRMED": "Người hướng dẫn xác nhận thỏa thuận phiên bản {n}",
+            "HANDOVER_ACCEPTED": "Khách hàng chấp nhận Giai đoạn {n}: {title} (lần {round})",
+            "HANDOVER_AUTO_ACCEPTED": "Tự động chấp nhận Giai đoạn {n}: {title} (lần {round}) khi hết hạn kiểm tra",
+            "HANDOVER_REVISION_REQUESTED": "Khách hàng yêu cầu sửa Giai đoạn {n}: {title} (lần {round})",
+            "HANDOVER_VOIDED": "Bàn giao Giai đoạn {n}: {title} (lần {round}) bị hủy"
+          },
+          "moneyIn": {
+            "FUND": "Nạp tiền Giai đoạn",
+            "TOP_UP_FUND": "Nạp bổ sung",
+            "TOPUP_APPLIED": "Áp dụng nạp bổ sung"
+          },
+          "refund": "Hoàn tiền ({reason}, {status})",
+          "refundReason": {
+            "CREW_CHANGED": "nhóm thay đổi",
+            "ORDER_CLOSED": "đơn đã đóng",
+            "WRONG_AMOUNT": "sai số tiền",
+            "NOT_FUNDABLE": "không nạp được",
+            "CANCELLED": "hủy Giai đoạn",
+            "DISPUTE_DECISION": "quyết định tranh chấp",
+            "PRICE_CUT": "giảm giá"
+          },
+          "refundStatus": {
+            "REQUESTED": "đã yêu cầu",
+            "CONFIRMED": "đã hoàn"
+          },
+          "totals": "Đã giải ngân {released} · Còn giữ {releasable}",
+          "drift": {
+            "COMMITS": "Có commit mới trên kho nguồn",
+            "DELETED_OR_PRIVATE": "Kho nguồn bị xóa hoặc chuyển sang riêng tư",
+            "ARCHIVED": "Kho nguồn đã được lưu trữ",
+            "RENAMED": "Kho nguồn đổi tên thành {name}",
+            "TRANSFERRED": "Kho nguồn được chuyển sang {name}"
+          },
+          "newer": "Mới hơn",
+          "older": "Cũ hơn",
+          "page": "Trang {n}/{total}"
+        }
       },
       "users": {
         "title": "Người dùng",

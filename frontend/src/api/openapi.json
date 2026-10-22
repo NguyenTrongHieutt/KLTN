@@ -79,7 +79,7 @@
     },
     "/api/v1/admin/audit" : {
       "get" : {
-        "operationId" : "audit",
+        "operationId" : "audit_1",
         "parameters" : [ {
           "in" : "query",
           "name" : "jobId",
@@ -515,6 +515,192 @@
           }
         },
         "tags" : [ "admin-dispute-controller" ]
+      }
+    },
+    "/api/v1/admin/disputes/{disputeId}/evidence/agreement" : {
+      "get" : {
+        "operationId" : "agreement",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "disputeId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/EvidenceAgreementVersion"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-evidence-controller" ]
+      }
+    },
+    "/api/v1/admin/disputes/{disputeId}/evidence/audit" : {
+      "get" : {
+        "operationId" : "audit",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "disputeId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 0
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/EvidenceAuditPage"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-evidence-controller" ]
+      }
+    },
+    "/api/v1/admin/disputes/{disputeId}/evidence/criteria" : {
+      "get" : {
+        "operationId" : "criteria",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "disputeId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/EvidenceReport"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-evidence-controller" ]
+      }
+    },
+    "/api/v1/admin/disputes/{disputeId}/evidence/decisions" : {
+      "get" : {
+        "operationId" : "decisions",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "disputeId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/EvidenceDecision"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-evidence-controller" ]
+      }
+    },
+    "/api/v1/admin/disputes/{disputeId}/evidence/drift" : {
+      "get" : {
+        "operationId" : "drift_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "disputeId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/EvidenceDriftWarning"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-evidence-controller" ]
+      }
+    },
+    "/api/v1/admin/disputes/{disputeId}/evidence/payments" : {
+      "get" : {
+        "operationId" : "payments",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "disputeId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/EvidencePayments"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-evidence-controller" ]
       }
     },
     "/api/v1/admin/disputes/{disputeId}/retry" : {
@@ -8269,6 +8455,9 @@
           "decision" : {
             "$ref" : "#/components/schemas/DecisionView"
           },
+          "evidenceReadable" : {
+            "type" : "boolean"
+          },
           "execution" : {
             "$ref" : "#/components/schemas/ExecutionView"
           },
@@ -8313,7 +8502,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "assigned", "assignedToMe", "concern", "decidable", "id", "jobId", "jobTitle", "openedAt", "openedBy", "plannedRemains", "reason", "statementDueAt", "statements", "status" ]
+        "required" : [ "assigned", "assignedToMe", "concern", "decidable", "evidenceReadable", "id", "jobId", "jobTitle", "openedAt", "openedBy", "plannedRemains", "reason", "statementDueAt", "statements", "status" ]
       },
       "AdminDisputeRow" : {
         "type" : "object",
@@ -11350,6 +11539,350 @@
           }
         },
         "required" : [ "name" ]
+      },
+      "EvidenceAgreementVersion" : {
+        "type" : "object",
+        "properties" : {
+          "approvedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "confirmedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "milestones" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/EvidenceMilestone"
+            }
+          },
+          "priceVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "scope" : {
+            "type" : "string"
+          },
+          "versionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "approvedAt", "confirmedAt", "milestones", "scope", "versionNo" ]
+      },
+      "EvidenceAuditEntry" : {
+        "type" : "object",
+        "properties" : {
+          "action" : {
+            "type" : "string"
+          },
+          "actorName" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "occurredAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "system" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "action", "id", "occurredAt", "system" ]
+      },
+      "EvidenceAuditPage" : {
+        "type" : "object",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/EvidenceAuditEntry"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "total" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "items", "page", "size", "total" ]
+      },
+      "EvidenceCriterion" : {
+        "type" : "object",
+        "properties" : {
+          "checkSteps" : {
+            "type" : "string"
+          },
+          "criterionId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "statement" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "checkSteps", "criterionId", "number", "statement" ]
+      },
+      "EvidenceDecision" : {
+        "type" : "object",
+        "properties" : {
+          "at" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "milestoneNumber" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "milestoneTitle" : {
+            "type" : "string"
+          },
+          "round" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "versionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "at", "kind" ]
+      },
+      "EvidenceDriftWarning" : {
+        "type" : "object",
+        "properties" : {
+          "commits" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "detectedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "fullName" : {
+            "type" : "string"
+          },
+          "headSha" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "reconfirmedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "commits", "detectedAt", "id", "kind" ]
+      },
+      "EvidenceMilestone" : {
+        "type" : "object",
+        "properties" : {
+          "criteria" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/EvidenceCriterion"
+            }
+          },
+          "dueOn" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "milestoneId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "priceVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "criteria", "milestoneId", "number", "title" ]
+      },
+      "EvidenceMoneyIn" : {
+        "type" : "object",
+        "properties" : {
+          "amountVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "at" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "bucket" : {
+            "type" : "string"
+          },
+          "type" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "amountVnd", "at", "type" ]
+      },
+      "EvidencePayments" : {
+        "type" : "object",
+        "properties" : {
+          "milestoneId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "moneyIn" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/EvidenceMoneyIn"
+            }
+          },
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "refunds" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/EvidenceRefund"
+            }
+          },
+          "releasableVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "releasedTotalVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "milestoneId", "moneyIn", "number", "refunds", "releasableVnd", "releasedTotalVnd", "title" ]
+      },
+      "EvidenceRefund" : {
+        "type" : "object",
+        "properties" : {
+          "amountVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "confirmedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "requestedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "amountVnd", "reason", "requestedAt", "status" ]
+      },
+      "EvidenceReport" : {
+        "type" : "object",
+        "properties" : {
+          "auto" : {
+            "type" : "boolean"
+          },
+          "criteria" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/EvidenceReportCriterion"
+            }
+          },
+          "decidedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "handoverCommit" : {
+            "type" : "string"
+          },
+          "handoverId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "milestoneNumber" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "milestoneTitle" : {
+            "type" : "string"
+          },
+          "round" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "submittedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "auto", "criteria", "handoverId", "milestoneNumber", "milestoneTitle", "round", "status", "submittedAt" ]
+      },
+      "EvidenceReportCriterion" : {
+        "type" : "object",
+        "properties" : {
+          "criterionId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "customerComment" : {
+            "type" : "string"
+          },
+          "customerMet" : {
+            "type" : "boolean"
+          },
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "reportNote" : {
+            "type" : "string"
+          },
+          "reportedMet" : {
+            "type" : "boolean"
+          },
+          "statement" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "criterionId", "number", "reportedMet", "statement" ]
       },
       "ExecutionView" : {
         "type" : "object",

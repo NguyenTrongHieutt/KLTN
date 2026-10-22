@@ -1276,6 +1276,42 @@ POST /api/v1/admin/disputes/{disputeId}/decision,CUSTOMER,,dispute-decision.json
 POST /api/v1/admin/disputes/{disputeId}/decision,MENTOR,,dispute-decision.json,404 NOT_FOUND
 POST /api/v1/admin/disputes/{disputeId}/decision,STUDENT,,dispute-decision.json,404 NOT_FOUND
 POST /api/v1/admin/disputes/{disputeId}/decision,ADMINISTRATOR,,dispute-decision.json,403 FORBIDDEN NOT_ASSIGNED
+GET /api/v1/admin/disputes/{disputeId}/evidence/agreement,ANONYMOUS,,,401
+GET /api/v1/admin/disputes/{disputeId}/evidence/agreement,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/admin/disputes/{disputeId}/evidence/agreement,MENTOR,,,404 NOT_FOUND
+GET /api/v1/admin/disputes/{disputeId}/evidence/agreement,STUDENT,,,404 NOT_FOUND
+GET /api/v1/admin/disputes/{disputeId}/evidence/agreement,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/admin/disputes/{disputeId}/evidence/agreement,ADMIN_DISPUTE_GRANT,,,200
+GET /api/v1/admin/disputes/{disputeId}/evidence/criteria,ANONYMOUS,,,401
+GET /api/v1/admin/disputes/{disputeId}/evidence/criteria,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/admin/disputes/{disputeId}/evidence/criteria,MENTOR,,,404 NOT_FOUND
+GET /api/v1/admin/disputes/{disputeId}/evidence/criteria,STUDENT,,,404 NOT_FOUND
+GET /api/v1/admin/disputes/{disputeId}/evidence/criteria,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/admin/disputes/{disputeId}/evidence/criteria,ADMIN_DISPUTE_GRANT,,,200
+GET /api/v1/admin/disputes/{disputeId}/evidence/decisions,ANONYMOUS,,,401
+GET /api/v1/admin/disputes/{disputeId}/evidence/decisions,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/admin/disputes/{disputeId}/evidence/decisions,MENTOR,,,404 NOT_FOUND
+GET /api/v1/admin/disputes/{disputeId}/evidence/decisions,STUDENT,,,404 NOT_FOUND
+GET /api/v1/admin/disputes/{disputeId}/evidence/decisions,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/admin/disputes/{disputeId}/evidence/decisions,ADMIN_DISPUTE_GRANT,,,200
+GET /api/v1/admin/disputes/{disputeId}/evidence/payments,ANONYMOUS,,,401
+GET /api/v1/admin/disputes/{disputeId}/evidence/payments,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/admin/disputes/{disputeId}/evidence/payments,MENTOR,,,404 NOT_FOUND
+GET /api/v1/admin/disputes/{disputeId}/evidence/payments,STUDENT,,,404 NOT_FOUND
+GET /api/v1/admin/disputes/{disputeId}/evidence/payments,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/admin/disputes/{disputeId}/evidence/payments,ADMIN_DISPUTE_GRANT,,,200
+GET /api/v1/admin/disputes/{disputeId}/evidence/drift,ANONYMOUS,,,401
+GET /api/v1/admin/disputes/{disputeId}/evidence/drift,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/admin/disputes/{disputeId}/evidence/drift,MENTOR,,,404 NOT_FOUND
+GET /api/v1/admin/disputes/{disputeId}/evidence/drift,STUDENT,,,404 NOT_FOUND
+GET /api/v1/admin/disputes/{disputeId}/evidence/drift,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/admin/disputes/{disputeId}/evidence/drift,ADMIN_DISPUTE_GRANT,,,200
+GET /api/v1/admin/disputes/{disputeId}/evidence/audit,ANONYMOUS,,,401
+GET /api/v1/admin/disputes/{disputeId}/evidence/audit,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/admin/disputes/{disputeId}/evidence/audit,MENTOR,,,404 NOT_FOUND
+GET /api/v1/admin/disputes/{disputeId}/evidence/audit,STUDENT,,,404 NOT_FOUND
+GET /api/v1/admin/disputes/{disputeId}/evidence/audit,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/admin/disputes/{disputeId}/evidence/audit,ADMIN_DISPUTE_GRANT,,,200
 POST /api/v1/admin/disputes/{disputeId}/retry,ANONYMOUS,,,401
 POST /api/v1/admin/disputes/{disputeId}/retry,CUSTOMER,,,404 NOT_FOUND
 POST /api/v1/admin/disputes/{disputeId}/retry,MENTOR,,,404 NOT_FOUND

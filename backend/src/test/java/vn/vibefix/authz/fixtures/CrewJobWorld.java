@@ -30,7 +30,9 @@ import vn.vibefix.team.internal.TeamTestSupport;
  * <li>{@link MatrixCaller#JOB_MENTOR}, the Job's Mentor;</li>
  * <li>one Student per Crew state: {@code ASSIGNED}, {@code ACTIVE}, {@code INACTIVE} and a former member,
  * the last two with a window that ended before the {@code CREW_CHAT} canary was written;</li>
- * <li>{@link MatrixCaller#ADMIN_TEAM_ISSUE_GRANT}, an Administrator holding a grant on the Crew Chat.</li>
+ * <li>{@link MatrixCaller#ADMIN_TEAM_ISSUE_GRANT}, an Administrator holding a grant on the Crew Chat;</li>
+ * <li>{@link MatrixCaller#ADMIN_DISPUTE_GRANT}, the Administrator assigned to the Dispute
+ * ({@code {disputeId}}), holding its read grant.</li>
  * </ul>
  * It also seeds the Job's confirmed Agreement with one Milestone ({@code {crewMilestoneId}}) and its
  * Board ({@code {boardId}}) with the criterion's seeded Story ({@code {workItemId}}), which carries the
@@ -65,6 +67,8 @@ final class CrewJobWorld {
 	private UUID former;
 
 	private UUID admin;
+
+	private UUID disputeAdmin;
 
 	CrewJobWorld(JdbcClient jdbc, SessionRepository<? extends Session> sessions) {
 		this.jdbc = jdbc;
@@ -253,12 +257,14 @@ final class CrewJobWorld {
 			.update();
 		world.put("changeRequestId", changeRequest);
 		UUID dispute = UUID.randomUUID();
+		this.disputeAdmin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null, null);
 		this.jdbc.sql("""
 				INSERT INTO dispute.dispute (id, job_id, product_id, opened_by, opener_account_id, reason, concern, job_state, status,
-				    opened_at)
-				VALUES (:id, :job, :product, 'CUSTOMER', :owner, 'Giai đoạn chưa đạt', 'NEXT_STATE', 'ACTIVE', 'OPEN', :at)
+				    opened_at, assigned_admin_id, assigned_at, grant_id)
+				VALUES (:id, :job, :product, 'CUSTOMER', :owner, 'Giai đoạn chưa đạt', 'NEXT_STATE', 'ACTIVE', 'OPEN', :at,
+				    :admin, :at, :grant)
 				""").param("id", dispute).param("job", UUID.randomUUID()).param("product", product).param("owner", owner)
-			.param("at", written).update();
+			.param("at", written).param("admin", this.disputeAdmin).param("grant", UUID.randomUUID()).update();
 		world.put("disputeId", dispute);
 		world.put("crewCriterionId", criterion);
 		world.put("item", "NON_CODE_DATA");
@@ -300,6 +306,7 @@ final class CrewJobWorld {
 			case CREW_INACTIVE -> signedIn(this.inactive, Role.STUDENT);
 			case CREW_FORMER -> signedIn(this.former, Role.STUDENT);
 			case ADMIN_TEAM_ISSUE_GRANT -> signedIn(this.admin, Role.ADMINISTRATOR);
+			case ADMIN_DISPUTE_GRANT -> signedIn(this.disputeAdmin, Role.ADMINISTRATOR);
 			default -> Optional.empty();
 		};
 	}

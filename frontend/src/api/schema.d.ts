@@ -43,7 +43,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["audit"];
+        get: operations["audit_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -206,6 +206,102 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["decide_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/disputes/{disputeId}/evidence/agreement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["agreement"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/disputes/{disputeId}/evidence/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["audit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/disputes/{disputeId}/evidence/criteria": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["criteria"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/disputes/{disputeId}/evidence/decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["decisions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/disputes/{disputeId}/evidence/drift": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["drift_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/disputes/{disputeId}/evidence/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["payments"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3728,6 +3824,7 @@ export interface components {
             concern: string;
             decidable: boolean;
             decision?: components["schemas"]["DecisionView"];
+            evidenceReadable: boolean;
             execution?: components["schemas"]["ExecutionView"];
             held?: components["schemas"]["HeldMilestoneView"];
             /** Format: uuid */
@@ -4829,6 +4926,139 @@ export interface components {
         };
         EnvironmentResponse: {
             name: string;
+        };
+        EvidenceAgreementVersion: {
+            /** Format: date-time */
+            approvedAt: string;
+            /** Format: date-time */
+            confirmedAt: string;
+            milestones: components["schemas"]["EvidenceMilestone"][];
+            /** Format: int64 */
+            priceVnd?: number;
+            scope: string;
+            /** Format: int32 */
+            versionNo: number;
+        };
+        EvidenceAuditEntry: {
+            action: string;
+            actorName?: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            occurredAt: string;
+            system: boolean;
+        };
+        EvidenceAuditPage: {
+            items: components["schemas"]["EvidenceAuditEntry"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            total: number;
+        };
+        EvidenceCriterion: {
+            checkSteps: string;
+            /** Format: uuid */
+            criterionId: string;
+            /** Format: int32 */
+            number: number;
+            statement: string;
+        };
+        EvidenceDecision: {
+            /** Format: date-time */
+            at: string;
+            kind: string;
+            /** Format: int32 */
+            milestoneNumber?: number;
+            milestoneTitle?: string;
+            /** Format: int32 */
+            round?: number;
+            /** Format: int32 */
+            versionNo?: number;
+        };
+        EvidenceDriftWarning: {
+            commits: string[];
+            /** Format: date-time */
+            detectedAt: string;
+            fullName?: string;
+            headSha?: string;
+            /** Format: uuid */
+            id: string;
+            kind: string;
+            /** Format: date-time */
+            reconfirmedAt?: string;
+        };
+        EvidenceMilestone: {
+            criteria: components["schemas"]["EvidenceCriterion"][];
+            /** Format: date */
+            dueOn?: string;
+            /** Format: uuid */
+            milestoneId: string;
+            /** Format: int32 */
+            number: number;
+            /** Format: int64 */
+            priceVnd?: number;
+            title: string;
+        };
+        EvidenceMoneyIn: {
+            /** Format: int64 */
+            amountVnd: number;
+            /** Format: date-time */
+            at: string;
+            bucket?: string;
+            type: string;
+        };
+        EvidencePayments: {
+            /** Format: uuid */
+            milestoneId: string;
+            moneyIn: components["schemas"]["EvidenceMoneyIn"][];
+            /** Format: int32 */
+            number: number;
+            refunds: components["schemas"]["EvidenceRefund"][];
+            /** Format: int64 */
+            releasableVnd: number;
+            /** Format: int64 */
+            releasedTotalVnd: number;
+            title: string;
+        };
+        EvidenceRefund: {
+            /** Format: int64 */
+            amountVnd: number;
+            /** Format: date-time */
+            confirmedAt?: string;
+            reason: string;
+            /** Format: date-time */
+            requestedAt: string;
+            status: string;
+        };
+        EvidenceReport: {
+            auto: boolean;
+            criteria: components["schemas"]["EvidenceReportCriterion"][];
+            /** Format: date-time */
+            decidedAt?: string;
+            handoverCommit?: string;
+            /** Format: uuid */
+            handoverId: string;
+            /** Format: int32 */
+            milestoneNumber: number;
+            milestoneTitle: string;
+            /** Format: int32 */
+            round: number;
+            status: string;
+            /** Format: date-time */
+            submittedAt: string;
+        };
+        EvidenceReportCriterion: {
+            /** Format: uuid */
+            criterionId: string;
+            customerComment?: string;
+            customerMet?: boolean;
+            /** Format: int32 */
+            number: number;
+            reportNote?: string;
+            reportedMet: boolean;
+            statement: string;
         };
         ExecutionView: {
             failure?: string;
@@ -7371,7 +7601,7 @@ export interface operations {
             };
         };
     };
-    audit: {
+    audit_1: {
         parameters: {
             query?: {
                 jobId?: string;
@@ -7680,6 +7910,140 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AdminDisputeDetail"];
+                };
+            };
+        };
+    };
+    agreement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                disputeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceAgreementVersion"][];
+                };
+            };
+        };
+    };
+    audit: {
+        parameters: {
+            query?: {
+                page?: number;
+            };
+            header?: never;
+            path: {
+                disputeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceAuditPage"];
+                };
+            };
+        };
+    };
+    criteria: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                disputeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceReport"][];
+                };
+            };
+        };
+    };
+    decisions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                disputeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceDecision"][];
+                };
+            };
+        };
+    };
+    drift_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                disputeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceDriftWarning"][];
+                };
+            };
+        };
+    };
+    payments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                disputeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidencePayments"][];
                 };
             };
         };
