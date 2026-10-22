@@ -14,7 +14,7 @@ import { problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { useAdminDispute, useAdminDisputes, useDisputeCommand, type AdminDispute } from './adminDisputesApi'
 import { CaseTabs } from './CaseTabs'
-import { DisputeEvidence } from './DisputeEvidence'
+import { DecisionEvidence, DisputeEvidence } from './DisputeEvidence'
 import { StepUpDialog } from './StepUpDialog'
 
 type Next = 'CONTINUE' | 'END' | 'CANCEL'
@@ -23,7 +23,8 @@ type Next = 'CONTINUE' | 'END' | 'CANCEL'
  * ADM-4 (FR-54, AD-20, AD-31, UX-DR58): the Disputes, and one Dispute with its Held Milestone, "Nhận xử
  * lý", the decision form (release and refund that sum to what is held, the next state, the reasoning),
  * the summary, the step-up, and the execution "Bước {k}/4" with "Thử lại". Totals only. The assignee reads
- * the Evidence Package until 30 days after the decision (Story 15.2).
+ * the Evidence Package until 30 days after the decision (Story 15.2); every Administrator reads a decided
+ * Dispute's evidence snapshot, kept after the Job's data is retired (Story 15.3).
  */
 export function AdminDisputesPage() {
   const { disputeId } = useParams()
@@ -153,6 +154,7 @@ function Detail({ data }: { data: AdminDispute }) {
           {t(data.status === 'OPEN' ? 'screen.admin.disputes.evidence.takeFirst' : 'screen.admin.disputes.evidence.closed')}
         </p>
       )}
+      {data.evidenceSnapshot && <DecisionEvidence snapshot={data.evidenceSnapshot} />}
       {error && (
         <p role="alert" className="text-destructive">
           {error}

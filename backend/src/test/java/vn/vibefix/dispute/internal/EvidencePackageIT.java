@@ -30,6 +30,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import vn.vibefix.identity.internal.AdministratorTestSupport;
 import vn.vibefix.identity.internal.AdministratorTestSupport.Administrator;
 import vn.vibefix.identity.internal.IdentityTestSupport;
+import vn.vibefix.shared.PersonalData;
 import vn.vibefix.shared.Role;
 import vn.vibefix.support.HeldCrewJob;
 import vn.vibefix.support.IntegrationTest;
@@ -37,7 +38,9 @@ import vn.vibefix.support.IntegrationTest;
 /**
  * Story 15.2 (FR-53, FR-63, AD-8, AD-20, AD-31): taking a Dispute pushes its read grant down to {@code chat}
  * and {@code work}; the assignee reads the Evidence Package's nine tabs, each view audited, never the Crew
- * Chat; a takeover ends the old grant at once, and the decision ends it 30 days later.
+ * Chat; a takeover ends the old grant at once, and the decision ends it 30 days later. Story 15.3 (SG-27,
+ * AD-24, AD-31): the decision keeps an evidence snapshot of IDs, versions, counts, and totals that outlives the
+ * NFR-10 retirement of the Job's data and the erasure of the people.
  */
 class EvidencePackageIT extends IntegrationTest {
 
@@ -54,6 +57,12 @@ class EvidencePackageIT extends IntegrationTest {
 
 	@Autowired
 	private ApplicationContext context;
+
+	@Autowired
+	private PersonalData personalData;
+
+	@Autowired
+	private DisputePersonalData disputePersonalData;
 
 	private HeldCrewJob world;
 
@@ -237,6 +246,61 @@ class EvidencePackageIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/admin/disputes/" + dispute).with(admin(this.ha.accountId())))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.evidenceReadable").value(false));
+	}
+
+	@Test
+	void theDecisionKeepsItsEvidenceSnapshotAfterRetentionAndErasure() throws Exception {
+		UUID dispute = open();
+		take(this.ha.accountId(), dispute);
+		this.mvc.perform(post("/api/v1/boards/" + this.world.job() + "/dispute/statement").with(as(this.world.hung(), Role.MENTOR))
+			.with(csrf())
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("{\"text\":\"Khách đổi yêu cầu giữa chừng.\"}")).andExpect(status().isOk());
+		this.mvc.perform(post("/api/v1/admin/disputes/" + dispute + "/decision").with(admin(this.ha.accountId())).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("{\"releaseVnd\":500000,\"refundVnd\":500000,\"nextState\":\"END\",\"reasoning\":\"Hai bên cùng có lỗi\","
+					+ "\"stepUpCode\":\"" + AdministratorTestSupport.code(this.ha, this.clock.instant()) + "\"}"))
+			.andExpect(status().isOk());
+
+		String snapshot = this.jdbc.sql("SELECT evidence_snapshot::text FROM dispute.decision WHERE dispute_id = :id")
+			.param("id", dispute)
+			.query(String.class)
+			.single();
+		assertThat(snapshot).doesNotContain("Bản sửa đã gửi", "Cách chạy", "Vẫn đặt trùng bàn", "Khách đổi yêu cầu",
+				this.world.lan().toString(), this.world.hung().toString(), this.ha.accountId().toString());
+		this.mvc.perform(get("/api/v1/admin/disputes/" + dispute).with(admin(this.ha.accountId())))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.evidenceSnapshot.agreementVersions[0]").value(1))
+			.andExpect(jsonPath("$.evidenceSnapshot.reports[0].status").value("REVISION_REQUESTED"))
+			.andExpect(jsonPath("$.evidenceSnapshot.reports[0].reportedMet").value(1))
+			.andExpect(jsonPath("$.evidenceSnapshot.reports[0].checkedMet").value(0))
+			.andExpect(jsonPath("$.evidenceSnapshot.workItems[0].workItemId").value(this.item.toString()))
+			.andExpect(jsonPath("$.evidenceSnapshot.pages[0].versionNo").value(1))
+			.andExpect(jsonPath("$.evidenceSnapshot.jobChat.messageCount").value(1))
+			.andExpect(jsonPath("$.evidenceSnapshot.payments[0].moneyInVnd").value(HeldCrewJob.PRICE))
+			.andExpect(jsonPath("$.evidenceSnapshot.payments[0].releasableVnd").value(HeldCrewJob.PRICE))
+			.andExpect(jsonPath("$.evidenceSnapshot.driftWarnings[0].commits").value(1))
+			.andExpect(jsonPath("$.evidenceSnapshot.statements[0].side").value("MENTOR"));
+
+		this.personalData.retireJobData(this.world.product());
+		assertThat(count("SELECT count(*) FROM work.page WHERE job_id = '" + this.world.job() + "'")).isZero();
+		assertThat(count("SELECT count(*) FROM chat.message m JOIN chat.chat c ON c.id = m.chat_id WHERE c.job_id = '"
+				+ this.world.job() + "'")).isZero();
+		this.disputePersonalData.eraseAccount(this.world.lan());
+		this.disputePersonalData.eraseAccount(this.world.hung());
+		this.disputePersonalData.eraseAccount(this.ha.accountId());
+
+		assertThat(count("SELECT count(*) FROM dispute.dispute WHERE id = '" + dispute + "' AND opener_account_id IS NULL"))
+			.isOne();
+		assertThat(count("SELECT count(*) FROM dispute.decision WHERE dispute_id = '" + dispute + "' AND admin_account_id IS NULL"))
+			.isOne();
+		this.mvc.perform(get("/api/v1/admin/disputes/" + dispute).with(admin(this.quan)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.decision.reasoning").value("Hai bên cùng có lỗi"))
+			.andExpect(jsonPath("$.decision.releaseVnd").value(500000))
+			.andExpect(jsonPath("$.evidenceSnapshot.pages[0].versionNo").value(1))
+			.andExpect(jsonPath("$.evidenceSnapshot.jobChat.messageCount").value(1))
+			.andExpect(jsonPath("$.statements[0].text").value("Khách đổi yêu cầu giữa chừng."));
 	}
 
 	private UUID open() throws Exception {

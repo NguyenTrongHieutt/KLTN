@@ -38,7 +38,8 @@ import vn.vibefix.shared.IdGenerator;
  * audited with its reasoning and totals, and its execution starts at step 0.
  * <p>
  * Taking pushes the Dispute's read grant ({@link AdminReadItem#forDispute()}) down to every module holding
- * Job content; a takeover ends the old one at once, and the decision ends it 30 days later (Story 15.2).
+ * Job content; a takeover ends the old one at once, and the decision ends it 30 days later (Story 15.2). The
+ * decision is written with its evidence snapshot (Story 15.3).
  */
 @Component
 class DisputeDecisions implements DisputeQueue {
@@ -84,10 +85,13 @@ class DisputeDecisions implements DisputeQueue {
 
 	private final IdGenerator ids;
 
+	private final ObjectProvider<EvidenceSnapshots> snapshots;
+
 	DisputeDecisions(JdbcClient jdbc, Disputes disputes, MilestoneSettlements settlements, Ledger ledger, AdministratorStepUp stepUp,
 			AuditLog auditLog, Clock clock, ObjectProvider<DisputeStatements> statements, List<AdminReadGrants> grants,
-			IdGenerator ids) {
+			IdGenerator ids, ObjectProvider<EvidenceSnapshots> snapshots) {
 		this.statements = statements;
+		this.snapshots = snapshots;
 		this.grants = grants;
 		this.ids = ids;
 		this.jdbc = jdbc;
@@ -201,8 +205,8 @@ class DisputeDecisions implements DisputeQueue {
 		Timestamp now = Timestamp.from(this.clock.instant());
 		this.jdbc.sql("""
 				INSERT INTO dispute.decision (dispute_id, admin_account_id, milestone_id, releasable_vnd, release_vnd, refund_vnd,
-				    next_state, reasoning, decided_at)
-				VALUES (:id, :admin, :milestone, :releasable, :release, :refund, :next, :reasoning, :now)
+				    next_state, reasoning, decided_at, evidence_snapshot)
+				VALUES (:id, :admin, :milestone, :releasable, :release, :refund, :next, :reasoning, :now, CAST(:snapshot AS JSONB))
 				""")
 			.param("id", disputeId)
 			.param("admin", administrator)
@@ -213,6 +217,7 @@ class DisputeDecisions implements DisputeQueue {
 			.param("next", next.name())
 			.param("reasoning", text)
 			.param("now", now)
+			.param("snapshot", EvidenceSnapshots.json(this.snapshots.getObject().take(dispute, now.toInstant())))
 			.update();
 		this.jdbc.sql("INSERT INTO dispute.execution (dispute_id, status, step, updated_at) VALUES (:id, 'RUNNING', 0, :now)")
 			.param("id", disputeId)

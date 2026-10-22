@@ -932,6 +932,18 @@
           "newer": "Mới hơn",
           "older": "Cũ hơn",
           "page": "Trang {n}/{total}"
+        },
+        "snapshot": {
+          "title": "Bằng chứng khi quyết định",
+          "note": "Ghi lại lúc {time}: chỉ mã, phiên bản, số lượng và tổng tiền, không sao chép nội dung. Phần này vẫn còn sau khi dữ liệu công việc bị xóa theo thời hạn lưu trữ.",
+          "agreement": "Thỏa thuận: phiên bản {versions}",
+          "noAgreement": "Thỏa thuận: chưa có phiên bản được xác nhận",
+          "report": "Bàn giao Giai đoạn {n} lần {round}: {status} · người hướng dẫn báo đạt {reported}/{total} tiêu chí, khách hàng xác nhận đạt {checked}/{total}",
+          "work": "Công việc: {items} mục · Trang: {pages} trang",
+          "chat": "Trò chuyện: {n} tin nhắn, tin cuối lúc {time}",
+          "noChat": "Trò chuyện: chưa có tin nhắn",
+          "payment": "Giai đoạn {n}: nạp {in} · hoàn {refunds} · đã giải ngân {released} · còn giữ {releasable}",
+          "drift": "Cảnh báo thay đổi: {n}"
         }
       },
       "users": {

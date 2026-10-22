@@ -28,6 +28,7 @@ import vn.vibefix.dispute.internal.DisputeDecisions.Decision;
 import vn.vibefix.dispute.internal.DisputeDecisions.Execution;
 import vn.vibefix.dispute.internal.DisputeDecisions.Outcome;
 import vn.vibefix.dispute.internal.Disputes.Dispute;
+import vn.vibefix.dispute.internal.EvidenceSnapshots.EvidenceSnapshot;
 import vn.vibefix.job.JobPosts;
 import vn.vibefix.job.MilestoneSettlements;
 import vn.vibefix.job.MilestoneSettlements.Next;
@@ -77,11 +78,13 @@ class AdminDisputeController {
 	/**
 	 * @param decidable a statement arrived or the period passed, so the decision form is offered
 	 * @param evidenceReadable the viewer is the assignee and reads the Evidence Package (Story 15.2)
+	 * @param evidenceSnapshot what the decision was based on, kept after the Job's data is retired (Story 15.3)
 	 */
 	record AdminDisputeDetail(UUID id, UUID jobId, String jobTitle, String openedBy, String reason, String concern,
 			Instant openedAt, String status, boolean assigned, boolean assignedToMe, @Nullable HeldMilestoneView held,
 			boolean plannedRemains, @Nullable DecisionView decision, @Nullable ExecutionView execution,
-			List<AdminStatementView> statements, Instant statementDueAt, boolean decidable, boolean evidenceReadable) {
+			List<AdminStatementView> statements, Instant statementDueAt, boolean decidable, boolean evidenceReadable,
+			@Nullable EvidenceSnapshot evidenceSnapshot) {
 	}
 
 	/** How long a Dispute waits before the list flags it (FR-52). */
@@ -112,10 +115,13 @@ class AdminDisputeController {
 
 	private final Clock clock;
 
+	private final EvidenceSnapshots snapshots;
+
 	AdminDisputeController(Disputes disputes, DisputeDecisions decisions, DisputeExecution execution, JobPosts posts,
 			MilestoneSettlements settlements, Ledger ledger, JdbcClient jdbc, CurrentCaller callers,
-			DisputeStatements statements, Clock clock) {
+			DisputeStatements statements, Clock clock, EvidenceSnapshots snapshots) {
 		this.statements = statements;
+		this.snapshots = snapshots;
 		this.clock = clock;
 		this.disputes = disputes;
 		this.decisions = decisions;
@@ -217,7 +223,8 @@ class AdminDisputeController {
 					.stream()
 					.map(statement -> new AdminStatementView(statement.side().name(), statement.text(), statement.submittedAt()))
 					.toList(),
-				dispute.statementDueAt(), this.statements.decidable(dispute), this.decisions.evidenceReadable(disputeId, me));
+				dispute.statementDueAt(), this.statements.decidable(dispute), this.decisions.evidenceReadable(disputeId, me),
+				this.snapshots.of(disputeId).orElse(null));
 	}
 
 	private String title(UUID jobId) {

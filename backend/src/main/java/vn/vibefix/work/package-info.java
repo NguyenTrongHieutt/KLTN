@@ -12,8 +12,10 @@
  * <p>
  * Public API: {@link vn.vibefix.work.CriteriaDone}, the one count of criteria done (AD-33), and
  * {@link vn.vibefix.work.MilestoneWork}, what a Milestone Handover reads (FR-32), and
- * {@link vn.vibefix.work.WorkFacts}, the Board's facts for Portfolio Entries (FR-50). The listener,
- * the endpoints, the grants, and the personal-data participant are wiring in {@code work.internal}.
+ * {@link vn.vibefix.work.WorkFacts}, the Board's facts for Portfolio Entries (FR-50), and
+ * {@link vn.vibefix.work.WorkEvidence}, the IDs and versions a Dispute decision's snapshot records (SG-27).
+ * The listener, the endpoints, the grants, and the personal-data participant are wiring in
+ * {@code work.internal}.
  */
 @ApplicationModule(allowedDependencies = { "shared", "audit", "files", "identity", "notification", "scanning", "job",
 		"product" })

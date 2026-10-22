@@ -33,7 +33,8 @@ type Tab = (typeof TABS)[number]
  * it opens. The Agreement versions, the criteria in each Delivery Report, the approvals and revision
  * requests, the payments, the Drift Warnings, and the Audit Log come from `dispute`; the Job Chat, the Work
  * Items, and the Pages from `chat` and `work` under the assignee's grant. Every view is audited, and the
- * note says so. Never the Crew Chat, the Crew Terms, or private feedback.
+ * note says so. Never the Crew Chat, the Crew Terms, or private feedback. A decided Dispute also shows
+ * `DecisionEvidence`, its evidence snapshot.
  */
 export function DisputeEvidence({ data }: { data: AdminDispute }) {
   const [tab, setTab] = useState<Tab>('agreement')
@@ -430,5 +431,72 @@ function AuditTab({ disputeId }: { disputeId: string }) {
         </div>
       )}
     </RegionState>
+  )
+}
+
+type Snapshot = NonNullable<AdminDispute['evidenceSnapshot']>
+
+/**
+ * "Bằng chứng khi quyết định" (SG-27, AD-31): the decision's evidence snapshot, IDs, versions, counts, and
+ * totals as they stood when it was made. It stays after the Job's data is retired (NFR-10).
+ */
+export function DecisionEvidence({ snapshot }: { snapshot: Snapshot }) {
+  return (
+    <section aria-labelledby="decision-evidence" className="flex flex-col gap-2 rounded-md border border-border p-3">
+      <h3 id="decision-evidence" className="text-h3">
+        {t('screen.admin.disputes.snapshot.title')}
+      </h3>
+      <p className="text-caption text-muted-foreground">
+        {t('screen.admin.disputes.snapshot.note', { time: formatDayMonthTime(snapshot.takenAt) })}
+      </p>
+      <ul className="flex flex-col gap-1">
+        <li>
+          {snapshot.agreementVersions.length === 0
+            ? t('screen.admin.disputes.snapshot.noAgreement')
+            : t('screen.admin.disputes.snapshot.agreement', { versions: snapshot.agreementVersions.join(', ') })}
+        </li>
+        {snapshot.reports.map((report) => (
+          <li key={report.handoverId}>
+            {t('screen.admin.disputes.snapshot.report', {
+              n: report.milestoneNumber,
+              round: report.round,
+              status: t(`screen.admin.disputes.evidence.reportStatus.${report.status}` as MessageKey),
+              reported: report.reportedMet,
+              checked: report.checkedMet,
+              total: report.criteria,
+            })}
+          </li>
+        ))}
+        <li>{t('screen.admin.disputes.snapshot.work', { items: snapshot.workItems.length, pages: snapshot.pages.length })}</li>
+        <li>
+          {snapshot.jobChat.lastSentAt
+            ? t('screen.admin.disputes.snapshot.chat', {
+                n: snapshot.jobChat.messageCount,
+                time: formatDayMonthTime(snapshot.jobChat.lastSentAt),
+              })
+            : t('screen.admin.disputes.snapshot.noChat')}
+        </li>
+        {snapshot.payments.map((payment) => (
+          <li key={payment.milestoneId}>
+            {t('screen.admin.disputes.snapshot.payment', {
+              n: payment.number,
+              in: formatVnd(payment.moneyInVnd),
+              refunds: formatVnd(payment.refundsVnd),
+              released: formatVnd(payment.releasedTotalVnd),
+              releasable: formatVnd(payment.releasableVnd),
+            })}{' '}
+            <TestTag />
+          </li>
+        ))}
+        <li>{t('screen.admin.disputes.snapshot.drift', { n: snapshot.driftWarnings.length })}</li>
+        {snapshot.statements.map((statement) => (
+          <li key={statement.side}>
+            {t(`screen.admin.disputes.statementBy.${statement.side}` as MessageKey, {
+              time: formatDayMonthTime(statement.submittedAt),
+            })}
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }

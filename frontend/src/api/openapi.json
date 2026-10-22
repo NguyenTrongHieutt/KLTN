@@ -8458,6 +8458,9 @@
           "evidenceReadable" : {
             "type" : "boolean"
           },
+          "evidenceSnapshot" : {
+            "$ref" : "#/components/schemas/EvidenceSnapshot"
+          },
           "execution" : {
             "$ref" : "#/components/schemas/ExecutionView"
           },
@@ -11883,6 +11886,62 @@
           }
         },
         "required" : [ "criterionId", "number", "reportedMet", "statement" ]
+      },
+      "EvidenceSnapshot" : {
+        "type" : "object",
+        "properties" : {
+          "agreementVersions" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "driftWarnings" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SnapshotDrift"
+            }
+          },
+          "jobChat" : {
+            "$ref" : "#/components/schemas/SnapshotChat"
+          },
+          "pages" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SnapshotPage"
+            }
+          },
+          "payments" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SnapshotPayment"
+            }
+          },
+          "reports" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SnapshotReport"
+            }
+          },
+          "statements" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SnapshotStatement"
+            }
+          },
+          "takenAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "workItems" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SnapshotWorkItem"
+            }
+          }
+        },
+        "required" : [ "agreementVersions", "driftWarnings", "jobChat", "pages", "payments", "reports", "statements", "takenAt", "workItems" ]
       },
       "ExecutionView" : {
         "type" : "object",
@@ -17214,6 +17273,155 @@
           }
         },
         "required" : [ "active", "id", "name" ]
+      },
+      "SnapshotChat" : {
+        "type" : "object",
+        "properties" : {
+          "lastMessageId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "lastSentAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "messageCount" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "messageCount" ]
+      },
+      "SnapshotDrift" : {
+        "type" : "object",
+        "properties" : {
+          "commits" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "headSha" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "kind" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "commits", "id", "kind" ]
+      },
+      "SnapshotPage" : {
+        "type" : "object",
+        "properties" : {
+          "pageId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "versionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "pageId", "versionNo" ]
+      },
+      "SnapshotPayment" : {
+        "type" : "object",
+        "properties" : {
+          "milestoneId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "moneyInVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "refundsVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "releasableVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "releasedTotalVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "milestoneId", "moneyInVnd", "number", "refundsVnd", "releasableVnd", "releasedTotalVnd" ]
+      },
+      "SnapshotReport" : {
+        "type" : "object",
+        "properties" : {
+          "checkedMet" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "criteria" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "handoverId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "milestoneNumber" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "reportedMet" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "round" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "checkedMet", "criteria", "handoverId", "milestoneNumber", "reportedMet", "round", "status" ]
+      },
+      "SnapshotStatement" : {
+        "type" : "object",
+        "properties" : {
+          "side" : {
+            "type" : "string"
+          },
+          "submittedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "side", "submittedAt" ]
+      },
+      "SnapshotWorkItem" : {
+        "type" : "object",
+        "properties" : {
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "workItemId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "number", "status", "version", "workItemId" ]
       },
       "StalledEventView" : {
         "type" : "object",

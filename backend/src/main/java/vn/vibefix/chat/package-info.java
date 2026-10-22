@@ -6,7 +6,8 @@
  * participants read a Chat; an Administrator reads one only under a grant a case module pushed down
  * ({@link vn.vibefix.shared.AdminReadGrants}), each read audited (AD-20, AD-8).
  * <p>
- * No public API yet; the HTTP endpoints, the listener, the grants, the file read policy, and the
+ * Public API: {@link vn.vibefix.chat.ChatEvidence}, how far the Job Chat reached, for a Dispute decision's
+ * evidence snapshot (SG-27). The HTTP endpoints, the listener, the grants, the file read policy, and the
  * personal-data participant are wiring in {@code chat.internal}.
  */
 @ApplicationModule(allowedDependencies = { "shared", "audit", "files", "scanning", "identity", "notification", "job" })

@@ -67,6 +67,7 @@ const detail = (overrides: object = {}) => ({
   statementDueAt: '2026-10-25T03:00:00Z',
   decidable: true,
   evidenceReadable: false,
+  evidenceSnapshot: null,
   ...overrides,
 })
 
@@ -196,6 +197,44 @@ describe('ADM-4 Dispute decisions (FR-54, UX-DR58)', () => {
     await user.click(screen.getByRole('tab', { name: 'Trò chuyện' }))
     expect(await screen.findByText('Bản sửa đã gửi hôm qua')).toBeInTheDocument()
     expect(seen.some((request) => request.url.includes('crew-chat'))).toBe(false)
+  })
+
+  it('shows any Administrator what a decided Dispute was decided on', { timeout: 20_000 }, async () => {
+    fakeBackend(administrator, {
+      'GET /api/v1/admin/overview': () => json(overview),
+      'GET /api/v1/admin/disputes': () => json([{ ...row, status: 'DECIDED', executionStatus: 'DONE' }]),
+      'GET /api/v1/admin/disputes/d1': () =>
+        json(
+          detail({
+            status: 'DECIDED',
+            assigned: true,
+            decision: { releaseVnd: 500000, refundVnd: 300000, nextState: 'END', reasoning: 'Lý do', decidedAt: '2026-10-21T03:00:00Z' },
+            execution: { status: 'DONE', step: 4, failure: null },
+            evidenceSnapshot: {
+              takenAt: '2026-10-21T03:00:00Z',
+              agreementVersions: [1, 2],
+              reports: [
+                { handoverId: 'h1', milestoneNumber: 1, round: 1, status: 'REVISION_REQUESTED', criteria: 3, reportedMet: 3, checkedMet: 1 },
+              ],
+              workItems: [{ workItemId: 'w1', number: 1, version: 4, status: 'DONE' }],
+              pages: [{ pageId: 'p1', versionNo: 2 }],
+              jobChat: { messageCount: 14, lastMessageId: 'x14', lastSentAt: '2026-10-20T03:00:00Z' },
+              payments: [
+                { milestoneId: 'm1', number: 1, moneyInVnd: 800000, refundsVnd: 0, releasedTotalVnd: 0, releasableVnd: 800000 },
+              ],
+              driftWarnings: [],
+              statements: [{ side: 'MENTOR', submittedAt: '2026-10-20T05:00:00Z' }],
+            },
+          }),
+        ),
+    })
+    renderAt('/quan-tri/tranh-chap/d1')
+
+    expect(await screen.findByRole('heading', { name: 'Bằng chứng khi quyết định' })).toBeInTheDocument()
+    expect(screen.getByText('Thỏa thuận: phiên bản 1, 2')).toBeInTheDocument()
+    expect(screen.getByText(/Trò chuyện: 14 tin nhắn/)).toBeInTheDocument()
+    expect(screen.getByText(/khách hàng xác nhận đạt 1\/3/)).toBeInTheDocument()
+    expect(screen.getByText(/Hồ sơ bằng chứng chỉ mở cho quản trị viên nhận xử lý/)).toBeInTheDocument()
   })
 
   it('retries a failed execution', { timeout: 20_000 }, async () => {
