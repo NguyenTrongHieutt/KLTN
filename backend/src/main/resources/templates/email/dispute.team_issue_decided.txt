@@ -1,0 +1,5 @@
+subject: Khiếu nại nội bộ của {job} đã có kết quả
+---
+Xin chào,
+
+Khiếu nại nội bộ của công việc {job} đã kết thúc. Mở vibefix để xem kết quả và phần chia của bạn.

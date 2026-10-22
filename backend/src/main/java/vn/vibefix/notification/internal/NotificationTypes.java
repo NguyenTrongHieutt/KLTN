@@ -48,6 +48,10 @@ class NotificationTypes implements NotificationCatalog {
 	static final TodoType REPO_REVOCATION_ITEM = new TodoType("repo.revocation_item", Set.of(Audience.CUSTOMER), 3,
 			Set.of("system"));
 
+	/** FR-79, AD-40: the raiser accepts the answer or asks an Administrator, until the escalation period ends. */
+	static final TodoType DISPUTE_DECIDE_TEAM_ISSUE_ANSWER = new TodoType("dispute.decide_team_issue_answer",
+			Set.of(Audience.CREW_EVER_ACTIVE), 2, Set.of());
+
 	/** FR-79, AD-40: a Team Issue waits for the Mentor's answer until the answer period ends. */
 	static final TodoType DISPUTE_ANSWER_TEAM_ISSUE = new TodoType("dispute.answer_team_issue", Set.of(Audience.MENTOR), 1,
 			Set.of("name"));
@@ -706,6 +710,20 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType DISPUTE_TEAM_ISSUE_RAISED = new NotificationType("dispute.team_issue_raised",
 			Set.of(Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("name", "job", "date"));
 
+	/** FR-79, AD-40: the Mentor answered the raiser's Team Issue; nothing moved yet. */
+	static final NotificationType DISPUTE_TEAM_ISSUE_ANSWERED = new NotificationType("dispute.team_issue_answered",
+			Set.of(Audience.CREW_EVER_ACTIVE), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
+
+	/** FR-79, AD-40: the raiser asked an Administrator to look; the Mentor and every Administrator learn it. */
+	static final NotificationType DISPUTE_TEAM_ISSUE_ESCALATED = new NotificationType("dispute.team_issue_escalated",
+			Set.of(Audience.MENTOR, Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
+			Set.of("job"));
+
+	/** FR-79, AD-40: the Team Issue ended in one of its four ways. */
+	static final NotificationType DISPUTE_TEAM_ISSUE_DECIDED = new NotificationType("dispute.team_issue_decided",
+			Set.of(Audience.MENTOR, Audience.CREW_EVER_ACTIVE), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "check",
+			Set.of("job"));
+
 	/** AD-40: a release held this party's part for an open share Team Issue. */
 	static final NotificationType PAYMENT_SHARE_HELD = new NotificationType("payment.share_held",
 			Set.of(Audience.MENTOR, Audience.CREW_EVER_ACTIVE), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info",
@@ -786,6 +804,7 @@ class NotificationTypes implements NotificationCatalog {
 				JOB_CHANGE_REQUEST_APPLIED, JOB_CHANGE_REQUEST_LAPSED, JOB_CANCELLATION_PROPOSED,
 				JOB_CANCELLATION_UNANSWERED, JOB_JOB_CANCELLED, JOB_AGREEMENT_DEADLINE_PASSED, JOB_STARTING_DEADLINE_PASSED,
 				DISPUTE_DISPUTE_OPENED, DISPUTE_EXECUTION_FAILED, DISPUTE_DISPUTE_DECIDED, DISPUTE_TEAM_ISSUE_RAISED,
+				DISPUTE_TEAM_ISSUE_ANSWERED, DISPUTE_TEAM_ISSUE_ESCALATED, DISPUTE_TEAM_ISSUE_DECIDED,
 				PAYMENT_SHARE_HELD, JOB_JOB_STARTING,
 				PAYMENT_REFUND_REQUESTED, PAYMENT_SIMULATED_REFUND_REQUESTED, PAYMENT_REFUND_CONFIRMED, WORK_WORK_ITEM_ASSIGNED,
 				WORK_REVIEW_REQUESTED, WORK_WORK_ITEM_APPROVED, WORK_WORK_ITEM_RETURNED);
@@ -802,7 +821,8 @@ class NotificationTypes implements NotificationCatalog {
 				DELIVERY_REVIEW_HANDOVER, JOB_ANSWER_CLOSURE, REPO_CONFIRM_DATA_DELETION, REPUTATION_RATE,
 				REPUTATION_GIVE_PRIVATE_FEEDBACK, REPUTATION_DRAFT_PORTFOLIO_SUMMARY, REPUTATION_APPROVE_PORTFOLIO_SUMMARY,
 				DELIVERY_DRAFT_FOLLOW_UPS, DELIVERY_APPROVE_FOLLOW_UPS, JOB_ADD_CHANGE_IMPACT, JOB_ANSWER_CHANGE_REQUEST,
-				JOB_ANSWER_CANCELLATION, JOB_GRANT_EXTERNAL_ACCESS, DISPUTE_ANSWER_TEAM_ISSUE);
+				JOB_ANSWER_CANCELLATION, JOB_GRANT_EXTERNAL_ACCESS, DISPUTE_ANSWER_TEAM_ISSUE,
+				DISPUTE_DECIDE_TEAM_ISSUE_ANSWER);
 	}
 
 }

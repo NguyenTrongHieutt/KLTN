@@ -575,7 +575,8 @@
         "lowFeedbackNote": "Người hướng dẫn trung bình dưới 3 sao trên ít nhất 3 đánh giá",
         "falsePositives": "Cảnh báo nhầm",
         "falsePositivesNote": "Vấn đề bảo mật bị đánh dấu là cảnh báo nhầm",
-        "failedExecutions": "{n} lần thực hiện phân xử bị lỗi"
+        "failedExecutions": "{n} lần thực hiện phân xử bị lỗi",
+        "teamIssues": "Khiếu nại nội bộ chờ quản trị viên"
       },
       "idle": {
         "title": "Phiên làm việc sắp hết",
@@ -2405,6 +2406,48 @@
         "escalation": "Người hướng dẫn chưa trả lời trong thời hạn. Bước tiếp theo trước {date}",
         "escalated": "Đã chuyển cho quản trị viên",
         "ended": "Đã kết thúc ngày {date}"
+      },
+      "answer": {
+        "keepShare": "Giữ nguyên phần chia",
+        "keepRating": "Giữ nguyên điểm",
+        "transfer": "Chuyển điểm phần trăm từ phần của tôi cho {name}",
+        "withdraw": "Rút lại điểm",
+        "points": "Số điểm phần trăm",
+        "cap": "Tối đa {cap} điểm: phần của bạn ở Giai đoạn {n} là {pct}%.",
+        "overCap": "Số điểm chuyển vượt quá phần còn lại của người hướng dẫn ở giai đoạn này: tối đa {cap} điểm phần trăm.",
+        "preview": "Sau khi chuyển, trên {amount} THỬ NGHIỆM của Giai đoạn {n}: bạn {mentorPct}% · {mentorVnd}, {name} {raiserPct}% · {raiserVnd} THỬ NGHIỆM. Phần của những người khác không đổi.",
+        "once": "Bạn chỉ trả lời được một lần và không sửa được. Câu trả lời chưa chuyển tiền: {name} chấp nhận thì kết quả mới được áp dụng, hoặc nhờ quản trị viên xem xét; nếu {name} không chọn trong thời hạn, câu trả lời của bạn được áp dụng.",
+        "submit": "Gửi câu trả lời",
+        "confirmTitle": "Gửi câu trả lời này?",
+        "sent": "Đã gửi câu trả lời."
+      },
+      "answerText": {
+        "keepShare": "Câu trả lời: giữ nguyên phần chia",
+        "keepRating": "Câu trả lời: giữ nguyên điểm",
+        "transfer": "Câu trả lời: chuyển {n} điểm phần trăm từ phần của người hướng dẫn",
+        "withdraw": "Câu trả lời: rút lại điểm"
+      },
+      "choice": {
+        "preview": "Nếu bạn chấp nhận, trên {amount} THỬ NGHIỆM của Giai đoạn {n}: bạn {raiserPct}% · {raiserVnd}, {mentor} {mentorPct}% · {mentorVnd} THỬ NGHIỆM.",
+        "noAnswer": "Người hướng dẫn chưa trả lời trong thời hạn.",
+        "accept": "Chấp nhận",
+        "escalate": "Nhờ quản trị viên xem xét",
+        "lapse": "Nếu bạn không chọn trước {date}, khiếu nại kết thúc và câu trả lời của người hướng dẫn được áp dụng.",
+        "lapseSilent": "Nếu bạn không chọn trước {date}, khiếu nại kết thúc và mọi thứ giữ nguyên.",
+        "accepted": "Đã chấp nhận câu trả lời.",
+        "escalated": "Đã nhờ quản trị viên xem xét."
+      },
+      "ending": {
+        "ACCEPTED": "Kết thúc vì câu trả lời được chấp nhận",
+        "LAPSED": "Kết thúc vì hết thời gian chọn",
+        "DECIDED": "Kết thúc theo quyết định của quản trị viên",
+        "MOOT": "Kết thúc vì giai đoạn không còn tiền để chia hoặc điểm đã được gỡ"
+      },
+      "outcome": {
+        "points": "Đã chuyển {n} điểm phần trăm",
+        "none": "Phần chia giữ nguyên",
+        "removed": "Điểm đã được rút lại",
+        "kept": "Điểm giữ nguyên"
       }
     },
     "payment": {
@@ -3738,7 +3781,8 @@
       "fund_milestone": "Thanh toán Giai đoạn {n}: {amount} THỬ NGHIỆM"
     },
     "dispute": {
-      "answer_team_issue": "Trả lời khiếu nại nội bộ của {name}"
+      "answer_team_issue": "Trả lời khiếu nại nội bộ của {name}",
+      "decide_team_issue_answer": "Xem câu trả lời cho khiếu nại của bạn"
     },
     "work": {
       "review_work_item": "Duyệt {key}: {title}",
@@ -4202,6 +4246,15 @@
       },
       "team_issue_raised": {
         "title": "{name} gửi khiếu nại nội bộ cho {job}. Hãy trả lời trước {date}."
+      },
+      "team_issue_answered": {
+        "title": "Người hướng dẫn đã trả lời khiếu nại nội bộ của bạn ở {job}"
+      },
+      "team_issue_escalated": {
+        "title": "Khiếu nại nội bộ của {job} đã được chuyển cho quản trị viên"
+      },
+      "team_issue_decided": {
+        "title": "Khiếu nại nội bộ của {job} đã có kết quả"
       }
     },
     "admin": {
@@ -4463,7 +4516,13 @@
       "TEAM_ISSUE_OPEN": "Bạn đã có một khiếu nại nội bộ đang mở cho công việc này.",
       "TEAM_ISSUE_ALREADY_RAISED": "Bạn đã khiếu nại mục này rồi. Mỗi giai đoạn và mỗi lần chấm điểm chỉ khiếu nại được một lần.",
       "TEAM_ISSUE_WINDOW_CLOSED": "Đã quá thời hạn gửi khiếu nại cho mục này.",
-      "MILESTONE_NOT_HELD": "Phần chia giai đoạn này không còn khiếu nại được: giai đoạn chưa được thanh toán hoặc đã chuyển tiền."
+      "MILESTONE_NOT_HELD": "Phần chia giai đoạn này không còn khiếu nại được: giai đoạn chưa được thanh toán hoặc đã chuyển tiền.",
+      "ALREADY_ANSWERED": "Bạn đã trả lời khiếu nại này; câu trả lời không sửa được.",
+      "ANSWER_PERIOD_ENDED": "Đã hết thời hạn trả lời khiếu nại này.",
+      "ESCALATION_PERIOD_NOT_OPEN": "Khiếu nại này không còn ở bước chấp nhận hoặc nhờ quản trị viên.",
+      "NO_ANSWER": "Người hướng dẫn chưa trả lời nên chưa có gì để chấp nhận.",
+      "SHARE_TRANSFER_TOO_LARGE": "Số điểm chuyển vượt quá phần còn lại của người hướng dẫn ở giai đoạn này.",
+      "ENDING_REFUSED": "Chưa thực hiện được kết quả này. Quản trị viên đã được báo để xử lý."
     },
     "admin": {
       "FEEDBACK_NOT_ENOUGH": "Cần ít nhất 3 đánh giá kín từ 2 sinh viên khác nhau trên 2 công việc khác nhau.",

@@ -2,17 +2,25 @@ package vn.vibefix.reputation.internal;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import vn.vibefix.reputation.CrewRatings;
+import vn.vibefix.reputation.RatingRemoved;
+import vn.vibefix.shared.IdGenerator;
 
-/** {@link CrewRatings} over the published, unhidden {@code MENTOR_TO_STUDENT} Ratings. */
+/**
+ * {@link CrewRatings} over the published, unhidden {@code MENTOR_TO_STUDENT} Ratings; a removal hides the
+ * Rating as an Administrator's moderation does (FR-60), so every summary already leaves it out.
+ */
 @Component
 class VisibleCrewRatings implements CrewRatings {
 
@@ -24,8 +32,17 @@ class VisibleCrewRatings implements CrewRatings {
 
 	private final JdbcClient jdbc;
 
-	VisibleCrewRatings(JdbcClient jdbc) {
+	private final ApplicationEventPublisher events;
+
+	private final IdGenerator ids;
+
+	private final Clock clock;
+
+	VisibleCrewRatings(JdbcClient jdbc, ApplicationEventPublisher events, IdGenerator ids, Clock clock) {
 		this.jdbc = jdbc;
+		this.events = events;
+		this.ids = ids;
+		this.clock = clock;
 	}
 
 	@Override
@@ -41,6 +58,23 @@ class VisibleCrewRatings implements CrewRatings {
 	@Transactional(readOnly = true)
 	public Optional<CrewRating> find(UUID ratingId) {
 		return this.jdbc.sql(VISIBLE + " AND r.id = :id").param("id", ratingId).query(VisibleCrewRatings::rating).optional();
+	}
+
+	@Override
+	@Transactional
+	public boolean removeRating(UUID ratingId, String reason) {
+		int hidden = this.jdbc.sql("""
+				UPDATE reputation.rating SET hidden_at = :now, hidden_reason = :reason WHERE id = :id AND hidden_at IS NULL
+				""")
+			.param("now", Timestamp.from(this.clock.instant()))
+			.param("reason", reason.strip())
+			.param("id", ratingId)
+			.update();
+		if (hidden == 0) {
+			return false;
+		}
+		this.events.publishEvent(new RatingRemoved(this.ids.newId(), ratingId));
+		return true;
 	}
 
 	private static CrewRating rating(ResultSet rs, int n) throws SQLException {

@@ -33,6 +33,43 @@ export function useRaiseTeamIssue() {
   })
 }
 
+export type TeamIssueAnswer = components['schemas']['AnswerTeamIssueRequest']
+
+/** The Mentor's one answer on JOB-1; the list reloads either way. */
+export function useAnswerTeamIssue(jobId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ issueId, body }: { issueId: string; body: TeamIssueAnswer }) =>
+      unwrap(
+        apiClient.POST('/api/v1/boards/{boardId}/team-issues/{teamIssueId}/answer', {
+          params: { path: { boardId: jobId, teamIssueId: issueId } },
+          body,
+        }),
+      ),
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: jobKey(jobId) })
+      await queryClient.invalidateQueries({ queryKey: NOTIFICATION_QUERY_KEY })
+    },
+  })
+}
+
+/** "Chấp nhận" or "Nhờ quản trị viên xem xét" on STU-4. */
+export function useChooseTeamIssue() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ issueId, choice }: { issueId: string; choice: 'accept' | 'escalate' }) =>
+      unwrap(
+        choice === 'accept'
+          ? apiClient.POST('/api/v1/team-issues/{teamIssueId}/accept', { params: { path: { teamIssueId: issueId } } })
+          : apiClient.POST('/api/v1/team-issues/{teamIssueId}/escalate', { params: { path: { teamIssueId: issueId } } }),
+      ),
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: PANEL_KEY })
+      await queryClient.invalidateQueries({ queryKey: NOTIFICATION_QUERY_KEY })
+    },
+  })
+}
+
 /** JOB-1: the Job's Team Issues for its Mentor (AD-40); nobody else is asked. */
 export function useJobTeamIssues(jobId: string) {
   return useQuery({

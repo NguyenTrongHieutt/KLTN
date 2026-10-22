@@ -97,6 +97,13 @@ class DisputeDecisions implements DisputeQueue {
 				rs.getInt("step"), rs.getString("failure"), rs.getTimestamp("updated_at").toInstant())).list();
 	}
 
+	@Override
+	public List<Waiting> teamIssuesEscalated() {
+		return this.jdbc.sql("SELECT id, escalated_at FROM dispute.team_issue WHERE phase = 'ESCALATED' ORDER BY escalated_at, id")
+			.query((rs, n) -> new Waiting(rs.getObject("id", UUID.class), rs.getTimestamp("escalated_at").toInstant()))
+			.list();
+	}
+
 	/** "Nhận xử lý": the Administrator takes the Dispute, over another if need be. */
 	@Transactional
 	void take(UUID disputeId, UUID administrator) {

@@ -28,4 +28,11 @@ public interface CrewRatings {
 	/** The Rating while it is visible; empty otherwise. */
 	Optional<CrewRating> find(UUID ratingId);
 
+	/**
+	 * {@code reputation.removeRating}: a Team Issue's outcome removes the Rating (FR-49, FR-79), which is
+	 * hidden with {@code reason} for its rater and stops counting; {@link RatingRemoved} is published.
+	 * @return whether it was visible until now
+	 */
+	boolean removeRating(UUID ratingId, String reason);
+
 }

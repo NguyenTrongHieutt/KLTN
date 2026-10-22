@@ -2133,3 +2133,32 @@ GET /api/v1/boards/{boardId}/team-issues,CREW_ASSIGNED,,,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/team-issues,JOB_MENTOR,,,200
 GET /api/v1/boards/{boardId}/team-issues,CREW_ACTIVE,,,200
 GET /api/v1/boards/{boardId}/team-issues,CREW_FORMER,,,200
+# Story 12.2 (AD-40): only the Job's Mentor answers, and only the raiser accepts or escalates; the fixture's
+# issue still waits for the answer, so the raiser's choice is refused until the escalation period.
+POST /api/v1/boards/{boardId}/team-issues/{teamIssueId}/answer,ANONYMOUS,,team-issue-answer.json,401
+POST /api/v1/boards/{boardId}/team-issues/{teamIssueId}/answer,CUSTOMER,,team-issue-answer.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/team-issues/{teamIssueId}/answer,MENTOR,,team-issue-answer.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/team-issues/{teamIssueId}/answer,STUDENT,,team-issue-answer.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/team-issues/{teamIssueId}/answer,ADMINISTRATOR,,team-issue-answer.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/team-issues/{teamIssueId}/answer,ADMIN_TEAM_ISSUE_GRANT,,team-issue-answer.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/team-issues/{teamIssueId}/answer,OWNER,,team-issue-answer.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/team-issues/{teamIssueId}/answer,CREW_ACTIVE,,team-issue-answer.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/team-issues/{teamIssueId}/answer,JOB_MENTOR,,team-issue-answer.json,200
+POST /api/v1/team-issues/{teamIssueId}/accept,ANONYMOUS,,,401
+POST /api/v1/team-issues/{teamIssueId}/accept,CUSTOMER,,,404 NOT_FOUND
+POST /api/v1/team-issues/{teamIssueId}/accept,MENTOR,,,404 NOT_FOUND
+POST /api/v1/team-issues/{teamIssueId}/accept,STUDENT,,,404 NOT_FOUND
+POST /api/v1/team-issues/{teamIssueId}/accept,ADMINISTRATOR,,,404 NOT_FOUND
+POST /api/v1/team-issues/{teamIssueId}/accept,OWNER,,,404 NOT_FOUND
+POST /api/v1/team-issues/{teamIssueId}/accept,JOB_MENTOR,,,404 NOT_FOUND
+POST /api/v1/team-issues/{teamIssueId}/accept,CREW_INACTIVE,,,404 NOT_FOUND
+POST /api/v1/team-issues/{teamIssueId}/accept,CREW_ACTIVE,,,422 GUARD_FAILED ESCALATION_PERIOD_NOT_OPEN
+POST /api/v1/team-issues/{teamIssueId}/escalate,ANONYMOUS,,,401
+POST /api/v1/team-issues/{teamIssueId}/escalate,CUSTOMER,,,404 NOT_FOUND
+POST /api/v1/team-issues/{teamIssueId}/escalate,MENTOR,,,404 NOT_FOUND
+POST /api/v1/team-issues/{teamIssueId}/escalate,STUDENT,,,404 NOT_FOUND
+POST /api/v1/team-issues/{teamIssueId}/escalate,ADMINISTRATOR,,,404 NOT_FOUND
+POST /api/v1/team-issues/{teamIssueId}/escalate,OWNER,,,404 NOT_FOUND
+POST /api/v1/team-issues/{teamIssueId}/escalate,JOB_MENTOR,,,404 NOT_FOUND
+POST /api/v1/team-issues/{teamIssueId}/escalate,CREW_INACTIVE,,,404 NOT_FOUND
+POST /api/v1/team-issues/{teamIssueId}/escalate,CREW_ACTIVE,,,422 GUARD_FAILED ESCALATION_PERIOD_NOT_OPEN

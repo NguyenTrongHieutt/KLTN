@@ -102,6 +102,30 @@ class ShareHoldIT extends IntegrationTest {
 		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'RELEASE_HELD'")).isZero();
 	}
 
+	@Test
+	void anEndingIsRefusedWholeAboveTheMentorsShareAndWritesNothingTheSecondTime() {
+		UUID issue = UUID.randomUUID();
+		hold(this.world.milestone(), issue, this.world.vy());
+		this.transactions.executeWithoutResult(
+				status -> this.releases.release(this.world.job(), this.world.milestone(), UUID.randomUUID()));
+		long entries = count("SELECT count(*) FROM payment.ledger_entry");
+
+		assertThat(catchThrowableOfType(IllegalStateException.class,
+				() -> this.transactions.executeWithoutResult(status -> this.holds.endHold(issue, 30))))
+			.hasMessageContaining("SHARE_TRANSFER_TOO_LARGE");
+		assertThat(count("SELECT count(*) FROM payment.share_hold WHERE team_issue_id = '" + issue + "' AND ended_at IS NULL"))
+			.as("nothing is written").isOne();
+		assertThat(count("SELECT count(*) FROM payment.ledger_entry")).isEqualTo(entries);
+
+		this.transactions.executeWithoutResult(status -> this.holds.endHold(issue, 0));
+		long ended = count("SELECT count(*) FROM payment.ledger_entry");
+		assertThat(ended).as("two reversals and two RELEASEs").isEqualTo(entries + 4);
+		this.transactions.executeWithoutResult(status -> this.holds.endHold(issue, 0));
+		assertThat(count("SELECT count(*) FROM payment.ledger_entry")).isEqualTo(ended);
+		assertThat(release(this.world.vy())).isEqualTo(400_000);
+		assertThat(release(this.world.hung())).isEqualTo(200_000);
+	}
+
 	private void hold(UUID milestone, UUID issue, UUID raiser) {
 		this.transactions.executeWithoutResult(status -> this.holds.holdShares(milestone, issue, raiser));
 	}

@@ -20,4 +20,7 @@ public interface DisputeQueue {
 	/** The executions that failed, the oldest first. */
 	List<FailedExecution> executionsFailed();
 
+	/** The escalated Team Issues waiting for an Administrator (FR-79, AD-40), by escalation time, the oldest first. */
+	List<Waiting> teamIssuesEscalated();
+
 }

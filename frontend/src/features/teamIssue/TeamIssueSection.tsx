@@ -1,10 +1,13 @@
-import { useId, useState } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import { useToasts } from '@/components/toasts'
+import { TestTag } from '@/components/TestTag'
 import { Button } from '@/components/ui/button'
 import { t } from '@/i18n/t'
 import { formatDayMonth } from '@/lib/dates'
+import { formatVnd } from '@/lib/money'
 import { problemMessage } from '@/lib/problemMessage'
 import {
+  useChooseTeamIssue,
   useRaiseTeamIssue,
   useTeamIssuePanel,
   type TeamIssue,
@@ -17,7 +20,9 @@ import {
  * STU-4 "Khiếu nại nội bộ" (FR-79, AD-40, UX-DR63): on each Job where the Student was ever active, they
  * choose "Phần chia giai đoạn {n}" while that Milestone is Held, or "Điểm người hướng dẫn chấm tôi" within
  * 14 days of it becoming visible, write the reason, and send it to the Mentor; an option already used is
- * disabled with its reason. Their issues show with the period they are in. Nothing shows without either.
+ * disabled with its reason. Their issues show with the period they are in; in the escalation period the
+ * Mentor's answer shows with its preview, then "Chấp nhận" or "Nhờ quản trị viên xem xét". Nothing shows
+ * without an option or an issue.
  */
 export function TeamIssueSection() {
   const panel = useTeamIssuePanel()
@@ -87,7 +92,9 @@ function JobCard({ job }: { job: TeamIssuePanel }) {
       {job.issues.length > 0 && (
         <ul className="flex flex-col gap-2">
           {job.issues.map((issue) => (
-            <IssueLine key={issue.id} issue={issue} audience="crew" />
+            <IssueLine key={issue.id} issue={issue} audience="crew">
+              {issue.phase === 'ESCALATION' && <Choice issue={issue} mentorName={job.mentorName} />}
+            </IssueLine>
           ))}
         </ul>
       )}
@@ -160,24 +167,112 @@ function refusalText(choice: Choice) {
   return refusal === 'TEAM_ISSUE_ALREADY_RAISED' ? t('reason.dispute.TEAM_ISSUE_ALREADY_RAISED') : t('reason.dispute.TEAM_ISSUE_OPEN')
 }
 
-/** One Team Issue with the period it is in, for its raiser or for the Mentor. */
-export function IssueLine({ issue, audience }: { issue: TeamIssue; audience: 'crew' | 'mentor' }) {
+/** The raiser's choice in the escalation period: the answer and its preview, then accept or escalate. */
+function Choice({ issue, mentorName }: { issue: TeamIssue; mentorName: string }) {
+  const toasts = useToasts()
+  const choose = useChooseTeamIssue()
+  const preview = issue.answerPreview
+  const due = issue.escalationDueAt ? formatDayMonth(issue.escalationDueAt) : ''
+  const run = (choice: 'accept' | 'escalate') =>
+    choose.mutate(
+      { issueId: issue.id, choice },
+      {
+        onSuccess: () => toasts.success(t(choice === 'accept' ? 'screen.teamIssue.choice.accepted' : 'screen.teamIssue.choice.escalated')),
+        onError: (error) => toasts.error(problemMessage(error, { module: 'dispute' }).text),
+      },
+    )
+  return (
+    <div className="flex flex-col gap-2 border-t border-border pt-2">
+      {issue.answerKind == null && <p>{t('screen.teamIssue.choice.noAnswer')}</p>}
+      {issue.answerKind === 'TRANSFER' && preview && issue.split && (
+        <p>
+          {t('screen.teamIssue.choice.preview', {
+            amount: formatVnd(issue.split.basisVnd),
+            n: issue.milestoneNumber ?? 0,
+            raiserPct: preview.raiserPercent,
+            raiserVnd: formatVnd(preview.raiserVnd),
+            mentor: mentorName,
+            mentorPct: preview.mentorPercent,
+            mentorVnd: formatVnd(preview.mentorVnd),
+          })}{' '}
+          <TestTag />
+        </p>
+      )}
+      <div className="flex flex-wrap gap-2">
+        {issue.answerKind != null && (
+          <Button type="button" size="compact" disabled={choose.isPending} onClick={() => run('accept')}>
+            {t('screen.teamIssue.choice.accept')}
+          </Button>
+        )}
+        <Button type="button" size="compact" variant="secondary" disabled={choose.isPending} onClick={() => run('escalate')}>
+          {t('screen.teamIssue.choice.escalate')}
+        </Button>
+      </div>
+      <p className="text-caption text-muted-foreground">
+        {t(issue.answerKind == null ? 'screen.teamIssue.choice.lapseSilent' : 'screen.teamIssue.choice.lapse', { date: due })}
+      </p>
+    </div>
+  )
+}
+
+/** One Team Issue with the period it is in, its answer, and its outcome, for its raiser or for the Mentor. */
+export function IssueLine({
+  issue,
+  audience,
+  children,
+}: {
+  issue: TeamIssue
+  audience: 'crew' | 'mentor'
+  children?: ReactNode
+}) {
   const subject =
     issue.subject === 'SHARE'
       ? t('screen.teamIssue.share', { n: issue.milestoneNumber ?? 0 })
       : t('screen.teamIssue.rating')
+  const answer = answerText(issue)
+  const outcome = outcomeText(issue)
   return (
     <li className="flex flex-col gap-1 rounded-md bg-muted p-3 text-body-sm">
       <p className="font-semibold break-words">
         {audience === 'mentor' ? t('screen.teamIssue.from', { name: issue.raiserName ?? '', subject }) : subject}
       </p>
       <p className="break-words whitespace-pre-line">{issue.reason}</p>
+      {answer && <p>{answer}</p>}
       <p className="text-caption text-muted-foreground">{phaseText(issue, audience)}</p>
+      {outcome && <p className="text-caption text-muted-foreground">{outcome}</p>}
       {issue.subject === 'SHARE' && issue.phase !== 'ENDED' && (
         <p className="text-caption text-muted-foreground">{t('screen.teamIssue.held')}</p>
       )}
+      {children}
     </li>
   )
+}
+
+function answerText(issue: TeamIssue) {
+  switch (issue.answerKind) {
+    case 'KEEP':
+      return t(issue.subject === 'SHARE' ? 'screen.teamIssue.answerText.keepShare' : 'screen.teamIssue.answerText.keepRating')
+    case 'TRANSFER':
+      return t('screen.teamIssue.answerText.transfer', { n: issue.answerPoints ?? 0 })
+    case 'WITHDRAW_RATING':
+      return t('screen.teamIssue.answerText.withdraw')
+    default:
+      return undefined
+  }
+}
+
+function outcomeText(issue: TeamIssue) {
+  if (issue.phase !== 'ENDED' || !issue.ending) {
+    return undefined
+  }
+  const ending = t(`screen.teamIssue.ending.${issue.ending as 'ACCEPTED' | 'LAPSED' | 'DECIDED' | 'MOOT'}`)
+  const outcome =
+    issue.subject === 'SHARE'
+      ? issue.outcomePoints
+        ? t('screen.teamIssue.outcome.points', { n: issue.outcomePoints })
+        : t('screen.teamIssue.outcome.none')
+      : t(issue.outcomeRatingRemoved ? 'screen.teamIssue.outcome.removed' : 'screen.teamIssue.outcome.kept')
+  return `${ending} · ${outcome}`
 }
 
 function phaseText(issue: TeamIssue, audience: 'crew' | 'mentor') {

@@ -2712,6 +2712,51 @@
         "tags" : [ "team-issue-controller" ]
       }
     },
+    "/api/v1/boards/{boardId}/team-issues/{teamIssueId}/answer" : {
+      "post" : {
+        "operationId" : "answer",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "path",
+          "name" : "teamIssueId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AnswerTeamIssueRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamIssueView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "team-issue-controller" ]
+      }
+    },
     "/api/v1/boards/{boardId}/work-items" : {
       "get" : {
         "operationId" : "workItems",
@@ -3422,7 +3467,7 @@
     },
     "/api/v1/handovers/{handoverId}/accept" : {
       "post" : {
-        "operationId" : "accept_2",
+        "operationId" : "accept_3",
         "parameters" : [ {
           "in" : "path",
           "name" : "handoverId",
@@ -5711,7 +5756,7 @@
     },
     "/api/v1/mentor/team/join-requests/{joinRequestId}/accept" : {
       "post" : {
-        "operationId" : "accept_1",
+        "operationId" : "accept_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "joinRequestId",
@@ -7054,6 +7099,60 @@
         "tags" : [ "team-issue-controller" ]
       }
     },
+    "/api/v1/team-issues/{teamIssueId}/accept" : {
+      "post" : {
+        "operationId" : "accept_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "teamIssueId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamIssueView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "team-issue-controller" ]
+      }
+    },
+    "/api/v1/team-issues/{teamIssueId}/escalate" : {
+      "post" : {
+        "operationId" : "escalate",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "teamIssueId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamIssueView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "team-issue-controller" ]
+      }
+    },
     "/api/v1/team/invitations/{invitationId}/accept" : {
       "post" : {
         "operationId" : "accept",
@@ -8251,6 +8350,22 @@
           }
         },
         "required" : [ "changeRequested", "comments", "content", "crew", "crewConfirmed", "latestVersionNo", "sharedAt", "versionNo", "versions" ]
+      },
+      "AnswerTeamIssueRequest" : {
+        "type" : "object",
+        "properties" : {
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "KEEP", "TRANSFER", "WITHDRAW_RATING" ]
+          },
+          "points" : {
+            "type" : "integer",
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1
+          }
+        },
+        "required" : [ "kind" ]
       },
       "ApplicantView" : {
         "type" : "object",
@@ -13642,9 +13757,12 @@
           },
           "studentCards" : {
             "$ref" : "#/components/schemas/Queue"
+          },
+          "teamIssues" : {
+            "$ref" : "#/components/schemas/Queue"
           }
         },
-        "required" : [ "activeAdministrators", "disputes", "failedExecutions", "failedOperations", "falsePositives", "lowFeedback", "mentorApplications", "stalledEvents", "studentCards" ]
+        "required" : [ "activeAdministrators", "disputes", "failedExecutions", "failedOperations", "falsePositives", "lowFeedback", "mentorApplications", "stalledEvents", "studentCards", "teamIssues" ]
       },
       "PageLinkView" : {
         "type" : "object",
@@ -16113,6 +16231,28 @@
         },
         "required" : [ "issues", "jobId", "mentorName", "ratings", "shares", "title" ]
       },
+      "TeamIssuePreviewView" : {
+        "type" : "object",
+        "properties" : {
+          "mentorPercent" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "mentorVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "raiserPercent" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "raiserVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "mentorPercent", "mentorVnd", "raiserPercent", "raiserVnd" ]
+      },
       "TeamIssueRatingOptionView" : {
         "type" : "object",
         "properties" : {
@@ -16166,6 +16306,35 @@
         },
         "required" : [ "milestoneId", "number", "title" ]
       },
+      "TeamIssueSplitView" : {
+        "type" : "object",
+        "properties" : {
+          "basisVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "capPoints" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "mentorPercent" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "others" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "raiserPercent" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "basisVnd", "mentorPercent", "others", "raiserPercent" ]
+      },
       "TeamIssueView" : {
         "type" : "object",
         "properties" : {
@@ -16173,7 +16342,28 @@
             "type" : "string",
             "format" : "date-time"
           },
+          "answerKind" : {
+            "type" : "string"
+          },
+          "answerPoints" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "answerPreview" : {
+            "$ref" : "#/components/schemas/TeamIssuePreviewView"
+          },
+          "answeredAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
           "endedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "ending" : {
+            "type" : "string"
+          },
+          "escalatedAt" : {
             "type" : "string",
             "format" : "date-time"
           },
@@ -16200,6 +16390,13 @@
           "mine" : {
             "type" : "boolean"
           },
+          "outcomePoints" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "outcomeRatingRemoved" : {
+            "type" : "boolean"
+          },
           "phase" : {
             "type" : "string"
           },
@@ -16216,6 +16413,9 @@
           },
           "reason" : {
             "type" : "string"
+          },
+          "split" : {
+            "$ref" : "#/components/schemas/TeamIssueSplitView"
           },
           "subject" : {
             "type" : "string"

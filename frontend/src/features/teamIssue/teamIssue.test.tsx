@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryRouter, RouterProvider } from 'react-router'
@@ -127,6 +127,84 @@ describe('JOB-1: the Mentor reads the Team Issues of the Job (AD-40)', () => {
     expect(await screen.findByText('Trần Thảo Vy · Phần chia giai đoạn 2')).toBeInTheDocument()
     expect(screen.getByText('Mình làm gần hết phần đặt bàn khi Minh ốm.')).toBeInTheDocument()
     expect(screen.getByText('Hãy trả lời trước 28/10')).toBeInTheDocument()
+  })
+})
+
+const split = { basisVnd: 1000000, mentorPercent: 20, raiserPercent: 40, capPoints: 20, others: [40] }
+
+describe('Story 12.2: the Mentor answers once, the raiser accepts or escalates (AD-40)', () => {
+  it('previews a transfer from the same split, refuses one over the cap, and sends it after confirming', { timeout: 15_000 }, async () => {
+    const user = userEvent.setup()
+    const sent: unknown[] = []
+    fakeBackend(signedIn('MENTOR'), {
+      'GET /api/v1/boards/j1/team-issues': () => json({ jobId: 'j1', mentor: true, issues: [{ ...issue, split }] }),
+      'POST /api/v1/boards/j1/team-issues/i1/answer': async (request) => {
+        sent.push(await request.json())
+        return json({ ...issue, phase: 'ESCALATION', answerKind: 'TRANSFER', answerPoints: 10 })
+      },
+    })
+    renderWith(<JobTeamIssues jobId="j1" />)
+
+    await user.click(await screen.findByRole('radio', { name: 'Chuyển điểm phần trăm từ phần của tôi cho Trần Thảo Vy' }))
+    expect(screen.getByText('Tối đa 20 điểm: phần của bạn ở Giai đoạn 2 là 20%.')).toBeInTheDocument()
+    await user.type(screen.getByRole('textbox', { name: 'Số điểm phần trăm' }), '25')
+    expect(screen.getByText(/tối đa 20 điểm phần trăm/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Gửi câu trả lời' })).toBeDisabled()
+
+    await user.clear(screen.getByRole('textbox', { name: 'Số điểm phần trăm' }))
+    await user.type(screen.getByRole('textbox', { name: 'Số điểm phần trăm' }), '10')
+    expect(screen.getByText(/bạn 10% · 100\.000 ₫, Trần Thảo Vy 50% · 500\.000 ₫/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Gửi câu trả lời' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Gửi câu trả lời này?' })
+    await user.click(within(dialog).getByRole('button', { name: 'Gửi câu trả lời' }))
+
+    expect(await screen.findAllByText('Đã gửi câu trả lời.')).not.toHaveLength(0)
+    expect(sent).toEqual([{ kind: 'TRANSFER', points: 10 }])
+  })
+
+  it('shows the raiser the answer with its preview, then accepts it', { timeout: 15_000 }, async () => {
+    const user = userEvent.setup()
+    const chosen: string[] = []
+    const answered = {
+      ...issue,
+      mine: true,
+      raiserName: null,
+      phase: 'ESCALATION',
+      answerKind: 'TRANSFER',
+      answerPoints: 10,
+      escalationDueAt: '2026-11-02T03:00:00Z',
+      split: { ...split, capPoints: null, others: [] },
+      answerPreview: { raiserPercent: 50, raiserVnd: 500000, mentorPercent: 10, mentorVnd: 100000 },
+    }
+    fakeBackend(signedIn('STUDENT'), {
+      'GET /api/v1/team-issues': () => json([panel({ shares: [], ratings: [], issues: [answered] })]),
+      'POST /api/v1/team-issues/i1/accept': () => {
+        chosen.push('accept')
+        return json({ ...answered, phase: 'ENDED', ending: 'ACCEPTED', outcomePoints: 10, endedAt: '2026-10-25T03:00:00Z' })
+      },
+    })
+    renderWith(<TeamIssueSection />)
+
+    expect(await screen.findByText('Câu trả lời: chuyển 10 điểm phần trăm từ phần của người hướng dẫn')).toBeInTheDocument()
+    expect(screen.getByText(/bạn 50% · 500\.000 ₫, Đỗ Mạnh Hùng 10% · 100\.000 ₫/)).toBeInTheDocument()
+    expect(screen.getByText(/Nếu bạn không chọn trước 02\/11/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Nhờ quản trị viên xem xét' })).toBeEnabled()
+    await user.click(screen.getByRole('button', { name: 'Chấp nhận' }))
+
+    expect(await screen.findAllByText('Đã chấp nhận câu trả lời.')).not.toHaveLength(0)
+    expect(chosen).toEqual(['accept'])
+  })
+
+  it('offers only "Nhờ quản trị viên xem xét" after a silent Mentor', async () => {
+    fakeBackend(signedIn('STUDENT'), {
+      'GET /api/v1/team-issues': () =>
+        json([panel({ shares: [], ratings: [], issues: [{ ...issue, mine: true, phase: 'ESCALATION', escalationDueAt: '2026-11-02T03:00:00Z' }] })]),
+    })
+    renderWith(<TeamIssueSection />)
+
+    expect(await screen.findByText('Người hướng dẫn chưa trả lời trong thời hạn.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Chấp nhận' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Nhờ quản trị viên xem xét' })).toBeInTheDocument()
   })
 })
 
