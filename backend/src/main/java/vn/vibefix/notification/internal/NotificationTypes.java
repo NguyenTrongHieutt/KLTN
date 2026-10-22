@@ -44,6 +44,10 @@ class NotificationTypes implements NotificationCatalog {
 	static final TodoType REPO_RECONFIRM_SOURCE = new TodoType("repo.reconfirm_source", Set.of(Audience.CUSTOMER), 2,
 			Set.of("job"));
 
+	/** FR-66: one per External Access item when the Job ends; ticked when the Customer removed it. */
+	static final TodoType REPO_REVOCATION_ITEM = new TodoType("repo.revocation_item", Set.of(Audience.CUSTOMER), 3,
+			Set.of("system"));
+
 	/** FR-37, AD-10: the Final Merge authorization waits for the Customer's Merge App install; its deadline from J8. */
 	static final TodoType REPO_AUTHORIZE_FINAL_MERGE = new TodoType("repo.authorize_final_merge", Set.of(Audience.CUSTOMER),
 			1, Set.of());
@@ -324,6 +328,16 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType REPO_FINAL_MERGE_COMPLETED = new NotificationType("repo.final_merge_completed",
 			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "check",
 			Set.of("job"));
+
+	/** J8 or J10 on a Job with External Access (FR-66): the Customer. */
+	static final NotificationType REPO_REVOCATION_CHECKLIST_PENDING = new NotificationType(
+			"repo.revocation_checklist_pending", Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL,
+			"alert", Set.of("job"));
+
+	/** Day 1 and day 7 while items stay unticked (FR-66): the Customer. */
+	static final NotificationType REPO_REVOCATION_CHECKLIST_REMINDER = new NotificationType(
+			"repo.revocation_checklist_reminder", Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.REMINDER,
+			"info", Set.of("job", "n"));
 
 	/** The ZIP Fallback is stored and the Job ended (FR-38): the Customer and the Mentor. */
 	static final NotificationType REPO_ZIP_FALLBACK_READY = new NotificationType("repo.zip_fallback_ready",
@@ -734,7 +748,8 @@ class NotificationTypes implements NotificationCatalog {
 				REPO_GITHUB_INVITATION_SENT, REPO_TWO_FACTOR_REQUIRED, REPO_MEMBER_DRIFT, REPO_INVITATION_RENEWALS_EXHAUSTED,
 				SCANNING_PUSH_SCAN_DELAYED, REPO_DRIFT_DETECTED, REPO_FINAL_MERGE_AUTHORIZATION_PENDING,
 				REPO_FINAL_MERGE_AUTHORIZATION_REMINDER, REPO_FINAL_MERGE_AUTHORIZED, REPO_MERGE_APP_REQUEST_REFUSED,
-				REPO_MERGE_APP_SELECTION_WIDENED, REPO_FINAL_MERGE_COMPLETED, REPO_ZIP_FALLBACK_READY, GITHUB_UNEXPECTED_ACTOR, GITHUB_OPERATOR_ACCOUNT_USED, GITHUB_PLATFORM_DRIFT,
+				REPO_MERGE_APP_SELECTION_WIDENED, REPO_FINAL_MERGE_COMPLETED, REPO_ZIP_FALLBACK_READY,
+				REPO_REVOCATION_CHECKLIST_PENDING, REPO_REVOCATION_CHECKLIST_REMINDER, GITHUB_UNEXPECTED_ACTOR, GITHUB_OPERATOR_ACCOUNT_USED, GITHUB_PLATFORM_DRIFT,
 				REPO_ACCESS_REVOKED, OPERATIONS_REVOCATION_DELAYED, JOB_HANDOVER_VOIDED,
 				ADMINISTRATOR_CREATED, ADMINISTRATOR_ENROLMENT, STUDENT_CARD_APPROVED, STUDENT_CARD_REJECTED,
 				MENTOR_APPLICATION_RECEIVED, MENTOR_APPROVED, MENTOR_REJECTED, ACCOUNT_LOCKED, VERIFICATION_REVOKED, MENTOR_APPROVAL_REVOKED, TEAM_INVITATION_RECEIVED,
@@ -767,6 +782,7 @@ class NotificationTypes implements NotificationCatalog {
 	public List<TodoType> todoTypes() {
 		return List.of(COMPLETE_MENTOR_APPLICATION, VERIFY_STUDENT, IDENTITY_SIGN_IN_AGAIN_TODO, SCANNING_RESOLVE_INTAKE_FINDING,
 				REPO_ACCEPT_GITHUB_INVITATION, SCANNING_RESOLVE_WORK_FINDING, REPO_RECONFIRM_SOURCE, REPO_AUTHORIZE_FINAL_MERGE,
+				REPO_REVOCATION_ITEM,
 				MATCHING_CHOOSE_ASSIGNEE, MATCHING_SIGN_NDA, MATCHING_ANSWER_INVITATION_TO_APPLY, JOB_DRAFT_AGREEMENT,
 				JOB_REVIEW_AGREEMENT, JOB_PICK_CREW, JOB_CONFIRM_CREW_TERMS, JOB_REVISE_AGREEMENT, JOB_CONFIRM_AGREEMENT_MENTOR,
 				PAYMENT_FUND_MILESTONE, WORK_REVIEW_WORK_ITEM, WORK_FIX_RETURNED_ITEM, WORK_REASSIGN_WORK_ITEMS, DELIVERY_HAND_OVER,

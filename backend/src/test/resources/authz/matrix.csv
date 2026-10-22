@@ -829,6 +829,22 @@ POST /api/v1/boards/{boardId}/data-deletion/{item},JOB_MENTOR,,,422 GUARD_FAILED
 POST /api/v1/boards/{boardId}/data-deletion/{item},CREW_ACTIVE,,,422 GUARD_FAILED JOB_NOT_ENDED
 POST /api/v1/boards/{boardId}/data-deletion/{item},CREW_INACTIVE,,,422 GUARD_FAILED JOB_NOT_ENDED
 POST /api/v1/boards/{boardId}/data-deletion/{item},CREW_FORMER,,,200
+GET /api/v1/boards/{boardId}/revocation-checklist,ANONYMOUS,,,401
+GET /api/v1/boards/{boardId}/revocation-checklist,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/revocation-checklist,MENTOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/revocation-checklist,STUDENT,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/revocation-checklist,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/revocation-checklist,CREW_ACTIVE,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/revocation-checklist,OWNER,,,200
+GET /api/v1/boards/{boardId}/revocation-checklist,JOB_MENTOR,,,200
+POST /api/v1/boards/{boardId}/revocation-checklist/{accessId},ANONYMOUS,,revocation-confirm.json,401
+POST /api/v1/boards/{boardId}/revocation-checklist/{accessId},OWNER,,revocation-confirm.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/revocation-checklist/{accessId},CUSTOMER,,revocation-confirm.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/revocation-checklist/{accessId},MENTOR,,revocation-confirm.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/revocation-checklist/{accessId},STUDENT,,revocation-confirm.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/revocation-checklist/{accessId},ADMINISTRATOR,,revocation-confirm.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/revocation-checklist/{accessId},JOB_MENTOR,,revocation-confirm.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/revocation-checklist/{accessId},CREW_ACTIVE,,revocation-confirm.json,404 NOT_FOUND
 # Ratings and private feedback after the Job (FR-49, FR-78, AD-20, AD-41): the Customer (OWNER), the
 # Mentor, and every Crew member ever active read the Ratings; only the Customer and the Mentor rate,
 # only those Crew members give private feedback, and the fixture's Active Job has no Rating Window yet.

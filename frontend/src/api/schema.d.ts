@@ -717,7 +717,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["confirm_5"];
+        post: operations["confirm_6"];
         delete?: never;
         options?: never;
         head?: never;
@@ -781,7 +781,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["confirm_4"];
+        post: operations["confirm_5"];
         delete?: never;
         options?: never;
         head?: never;
@@ -829,7 +829,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["confirm_3"];
+        post: operations["confirm_4"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1102,6 +1102,38 @@ export interface paths {
         get: operations["ratings"];
         put?: never;
         post: operations["rate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/boards/{boardId}/revocation-checklist": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["checklist"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/boards/{boardId}/revocation-checklist/{accessId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["confirm_3"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6024,6 +6056,32 @@ export interface components {
             comment?: string;
             selfCheck?: components["schemas"]["SelfCheckView"];
         };
+        RevocationChecklistView: {
+            audience: string;
+            items: components["schemas"]["RevocationItemView"][];
+            /** Format: uuid */
+            jobId: string;
+        };
+        RevocationConfirmRequest: {
+            outcome: string;
+        };
+        RevocationIdentifierView: {
+            githubLogin: string;
+            identifier: string;
+        };
+        RevocationItemView: {
+            /** Format: uuid */
+            accessId: string;
+            accessLevel: string;
+            /** Format: date-time */
+            confirmedAt?: string;
+            done: boolean;
+            environment: string;
+            identifiers: components["schemas"]["RevocationIdentifierView"][];
+            outcome?: string;
+            purpose: string;
+            system: string;
+        };
         RevokeApprovalRequest: {
             /** @enum {string} */
             category?: "RESPECT" | "GUIDANCE" | "RULES";
@@ -7871,7 +7929,7 @@ export interface operations {
             };
         };
     };
-    confirm_5: {
+    confirm_6: {
         parameters: {
             query?: never;
             header?: never;
@@ -8015,7 +8073,7 @@ export interface operations {
             };
         };
     };
-    confirm_4: {
+    confirm_5: {
         parameters: {
             query?: never;
             header?: never;
@@ -8089,7 +8147,7 @@ export interface operations {
             };
         };
     };
-    confirm_3: {
+    confirm_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -8612,6 +8670,55 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RatingsView"];
+                };
+            };
+        };
+    };
+    checklist: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevocationChecklistView"];
+                };
+            };
+        };
+    };
+    confirm_3: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+                accessId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RevocationConfirmRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevocationChecklistView"];
                 };
             };
         };
