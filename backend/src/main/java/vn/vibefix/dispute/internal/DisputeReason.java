@@ -52,6 +52,15 @@ enum DisputeReason {
 	SHARE_TRANSFER_TOO_LARGE,
 
 	/** The ending could not be executed; Administrators retry it (AD-40, FR-64). */
-	ENDING_REFUSED
+	ENDING_REFUSED,
+
+	/** Only the side that did not open the Dispute sends a statement; either side of a System one (FR-52). */
+	NOT_THE_OTHER_SIDE,
+
+	/** Each side sends one statement (FR-52). */
+	STATEMENT_ALREADY_SENT,
+
+	/** The decision waits for the statement or the end of its period (FR-52). */
+	STATEMENT_PERIOD_OPEN
 
 }

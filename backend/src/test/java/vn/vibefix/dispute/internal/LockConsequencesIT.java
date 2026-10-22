@@ -104,6 +104,10 @@ class LockConsequencesIT extends IntegrationTest {
 
 		this.mvc.perform(post("/api/v1/admin/disputes/" + dispute + "/take").with(admin(ha)).with(csrf()))
 			.andExpect(status().isOk());
+		// Story 15.1: a statement arrived, so the decision need not wait for its period.
+		this.jdbc.sql("""
+				INSERT INTO dispute.statement (dispute_id, side, text, submitted_at) VALUES (CAST(:id AS UUID), 'CUSTOMER', 'Trình bày', now())
+				""").param("id", dispute.toString()).update();
 		this.mvc.perform(post("/api/v1/admin/disputes/" + dispute + "/decision").with(admin(ha)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("{\"releaseVnd\":" + PRICE + ",\"refundVnd\":0,\"nextState\":\"CONTINUE\",\"reasoning\":\"Giai đoạn đạt\","

@@ -948,6 +948,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/boards/{boardId}/dispute/statement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["statement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/boards/{boardId}/disputes": {
         parameters: {
             query?: never;
@@ -3710,6 +3726,7 @@ export interface components {
             assigned: boolean;
             assignedToMe: boolean;
             concern: string;
+            decidable: boolean;
             decision?: components["schemas"]["DecisionView"];
             execution?: components["schemas"]["ExecutionView"];
             held?: components["schemas"]["HeldMilestoneView"];
@@ -3723,12 +3740,16 @@ export interface components {
             openedBy: string;
             plannedRemains: boolean;
             reason: string;
+            /** Format: date-time */
+            statementDueAt: string;
+            statements: components["schemas"]["AdminStatementView"][];
             status: string;
         };
         AdminDisputeRow: {
             assigned: boolean;
             assignedToMe: boolean;
             executionStatus?: string;
+            hasStatement: boolean;
             /** Format: uuid */
             id: string;
             /** Format: uuid */
@@ -3738,6 +3759,7 @@ export interface components {
             openedAt: string;
             openedBy: string;
             status: string;
+            undecidedLong: boolean;
         };
         AdminRatingEvidenceView: {
             comment: string;
@@ -3753,6 +3775,12 @@ export interface components {
             /** Format: email */
             email: string;
             password: string;
+        };
+        AdminStatementView: {
+            side: string;
+            /** Format: date-time */
+            submittedAt: string;
+            text: string;
         };
         AdminTeamIssueDecisionView: {
             /** Format: date-time */
@@ -4743,6 +4771,16 @@ export interface components {
             /** Format: int64 */
             releaseVnd?: number;
             stepUpCode: string;
+        };
+        DisputeStatementRequest: {
+            text: string;
+        };
+        DisputeStatementView: {
+            mine: boolean;
+            side: string;
+            /** Format: date-time */
+            submittedAt: string;
+            text: string;
         };
         DriftView: {
             reconfirmNeeded: boolean;
@@ -5875,6 +5913,7 @@ export interface components {
             reason: string;
         };
         OpenDisputeView: {
+            canState: boolean;
             concern: string;
             /** Format: uuid */
             id: string;
@@ -5885,6 +5924,9 @@ export interface components {
             openedAt: string;
             openedBy: string;
             reason: string;
+            /** Format: date-time */
+            statementDueAt: string;
+            statements: components["schemas"]["DisputeStatementView"][];
         };
         OpenItemView: {
             /** Format: uuid */
@@ -8838,6 +8880,32 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobDisputeView"];
+                };
+            };
+        };
+    };
+    statement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DisputeStatementRequest"];
+            };
+        };
         responses: {
             /** @description OK */
             200: {

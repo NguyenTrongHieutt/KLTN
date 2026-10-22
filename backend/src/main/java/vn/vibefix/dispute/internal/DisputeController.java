@@ -1,6 +1,7 @@
 package vn.vibefix.dispute.internal;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
@@ -31,15 +32,28 @@ import vn.vibefix.shared.Role;
 
 /**
  * JOB-1's Dispute (FR-52, UX-DR22, UX-DR56): the Customer and the Mentor open one, and with the active
- * Crew they read the open one, which drives the Frozen banner. Everyone else finds nothing.
+ * Crew they read the open one, which drives the Frozen banner. The other side sends its statement in the
+ * period the Dispute copied (Story 15.1), and both sides read the statements. Everyone else finds nothing.
  */
 @RestController
 @Access(Gate.SIGNED_IN)
 class DisputeController {
 
-	/** @param concern {@code HELD_MILESTONE} or {@code NEXT_STATE} */
+	/** @param side {@code CUSTOMER} or {@code MENTOR} */
+	record DisputeStatementView(String side, boolean mine, String text, Instant submittedAt) {
+	}
+
+	/**
+	 * @param concern {@code HELD_MILESTONE} or {@code NEXT_STATE}
+	 * @param statements what each side sent; the Crew reads none
+	 * @param canState the reader is the other side and has not sent one yet
+	 */
 	record OpenDisputeView(UUID id, String openedBy, boolean mine, String reason, String concern,
-			@Nullable UUID milestoneId, Instant openedAt) {
+			@Nullable UUID milestoneId, Instant openedAt, Instant statementDueAt, List<DisputeStatementView> statements,
+			boolean canState) {
+	}
+
+	record DisputeStatementRequest(@NotBlank @Size(max = 4000) String text) {
 	}
 
 	/** The latest decision, totals only (AD-20). */
@@ -68,7 +82,11 @@ class DisputeController {
 
 	private final CurrentCaller callers;
 
-	DisputeController(Disputes disputes, DisputeDecisions decisions, JobPosts posts, Crews crews, CurrentCaller callers) {
+	private final DisputeStatements statements;
+
+	DisputeController(Disputes disputes, DisputeDecisions decisions, JobPosts posts, Crews crews, CurrentCaller callers,
+			DisputeStatements statements) {
+		this.statements = statements;
 		this.disputes = disputes;
 		this.decisions = decisions;
 		this.posts = posts;
@@ -90,6 +108,17 @@ class DisputeController {
 			throw new ApiException(ErrorCode.FORBIDDEN, DisputeReason.MENTOR_ONLY);
 		}
 		this.disputes.open(jobId, viewer.accountId(), viewer.side(), body.reason());
+		return view(viewer(jobId, this.callers.get()));
+	}
+
+	/** "Gửi trình bày": the other side's one statement (Story 15.1). */
+	@PostMapping("/api/v1/boards/{boardId}/dispute/statement")
+	JobDisputeView statement(@PathVariable("boardId") UUID jobId, @Valid @RequestBody DisputeStatementRequest body) {
+		Viewer viewer = viewer(jobId, this.callers.get());
+		if (viewer.side() == null) {
+			throw new ApiException(ErrorCode.NOT_FOUND);
+		}
+		this.statements.submit(jobId, viewer.accountId(), viewer.side(), body.text());
 		return view(viewer(jobId, this.callers.get()));
 	}
 
@@ -123,9 +152,18 @@ class DisputeController {
 					.map(decision -> new DecidedDisputeView(decision.disputeId(), decision.nextState(), decision.reasoning(),
 							decision.releaseVnd(), decision.refundVnd(), decision.decidedAt()))
 					.orElse(null);
+		List<DisputeStatementView> statements = open == null || viewer.side() == null ? List.of()
+				: this.statements.of(open.id())
+					.stream()
+					.map(statement -> new DisputeStatementView(statement.side().name(), statement.side() == viewer.side(),
+							statement.text(), statement.submittedAt()))
+					.toList();
+		boolean canState = open != null && DisputeStatements.mayState(open, viewer.side())
+				&& statements.stream().noneMatch(DisputeStatementView::mine);
 		return new JobDisputeView(viewer.job().jobId(), viewer.side() == null ? "CREW" : viewer.side().name(), canOpen,
 				open == null ? null : new OpenDisputeView(open.id(), open.openedBy().name(), open.openedBy() == viewer.side(),
-						open.reason(), open.concern(), open.milestoneId(), open.openedAt()),
+						open.reason(), open.concern(), open.milestoneId(), open.openedAt(), open.statementDueAt(), statements,
+						canState),
 				decided);
 	}
 

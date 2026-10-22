@@ -2228,3 +2228,12 @@ POST /api/v1/jobs/{jobId}/top-up-orders,CUSTOMER,,payment-order.json,404 NOT_FOU
 POST /api/v1/jobs/{jobId}/top-up-orders,MENTOR,,payment-order.json,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/top-up-orders,STUDENT,,payment-order.json,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/top-up-orders,ADMINISTRATOR,,payment-order.json,404 NOT_FOUND
+# Story 15.1 (FR-52): only the side that did not open the open Dispute states; the fixture's Board has none open.
+POST /api/v1/boards/{boardId}/dispute/statement,ANONYMOUS,,dispute-statement.json,401
+POST /api/v1/boards/{boardId}/dispute/statement,OWNER,,dispute-statement.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/dispute/statement,CUSTOMER,,dispute-statement.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/dispute/statement,MENTOR,,dispute-statement.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/dispute/statement,STUDENT,,dispute-statement.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/dispute/statement,ADMINISTRATOR,,dispute-statement.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/dispute/statement,JOB_MENTOR,,dispute-statement.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/dispute/statement,CREW_ACTIVE,,dispute-statement.json,404 NOT_FOUND

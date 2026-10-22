@@ -31,7 +31,7 @@ class DisputePersonalData implements PersonalDataParticipant {
 
 	@Override
 	public Set<String> tables() {
-		return Set.of("dispute.dispute", "dispute.decision", "dispute.execution", "dispute.team_issue");
+		return Set.of("dispute.dispute", "dispute.decision", "dispute.execution", "dispute.team_issue", "dispute.statement");
 	}
 
 	@Override
@@ -79,6 +79,7 @@ class DisputePersonalData implements PersonalDataParticipant {
 		this.jdbc.sql("UPDATE dispute.decision SET admin_account_id = NULL WHERE admin_account_id = :id")
 			.param("id", accountId)
 			.update();
+		this.jdbc.sql("UPDATE dispute.statement SET account_id = NULL WHERE account_id = :id").param("id", accountId).update();
 		this.jdbc.sql("UPDATE dispute.team_issue SET raiser_account_id = NULL WHERE raiser_account_id = :id")
 			.param("id", accountId)
 			.update();
@@ -91,7 +92,7 @@ class DisputePersonalData implements PersonalDataParticipant {
 
 	@Override
 	public void deleteProduct(UUID productId) {
-		for (String table : List.of("dispute.execution", "dispute.decision")) {
+		for (String table : List.of("dispute.execution", "dispute.decision", "dispute.statement")) {
 			this.jdbc.sql("DELETE FROM %s WHERE dispute_id IN (SELECT id FROM dispute.dispute WHERE product_id = :id)"
 				.formatted(table)).param("id", productId).update();
 		}
