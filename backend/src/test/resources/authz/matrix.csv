@@ -1440,6 +1440,50 @@ POST /api/v1/boards/{boardId}/handovers,ADMIN_TEAM_ISSUE_GRANT,,handover.json,40
 POST /api/v1/boards/{boardId}/handovers,OWNER,,handover.json,403 FORBIDDEN MENTOR_ONLY
 POST /api/v1/boards/{boardId}/handovers,JOB_MENTOR,,handover.json,422 GUARD_FAILED MILESTONE_NOT_HELD
 POST /api/v1/boards/{boardId}/handovers,CREW_ACTIVE,,handover.json,403 FORBIDDEN MENTOR_ONLY
+# Story 8.3 (FR-32, AD-21, AD-35): the Mentor checks a preview link and uploads screenshots for the next
+# handover; {fileId} is no upload of theirs, so removing it finds nothing.
+POST /api/v1/boards/{boardId}/handovers/preview-check,ANONYMOUS,,preview-check.json,401
+POST /api/v1/boards/{boardId}/handovers/preview-check,CUSTOMER,,preview-check.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/preview-check,MENTOR,,preview-check.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/preview-check,STUDENT,,preview-check.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/preview-check,ADMINISTRATOR,,preview-check.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/preview-check,TEAM_MENTOR,,preview-check.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/preview-check,TEAM_MEMBER,,preview-check.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/preview-check,CREW_ASSIGNED,,preview-check.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/preview-check,CREW_INACTIVE,,preview-check.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/preview-check,CREW_FORMER,,preview-check.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/preview-check,ADMIN_TEAM_ISSUE_GRANT,,preview-check.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/preview-check,OWNER,,preview-check.json,403 FORBIDDEN MENTOR_ONLY
+POST /api/v1/boards/{boardId}/handovers/preview-check,JOB_MENTOR,,preview-check.json,200
+POST /api/v1/boards/{boardId}/handovers/preview-check,CREW_ACTIVE,,preview-check.json,403 FORBIDDEN MENTOR_ONLY
+POST /api/v1/boards/{boardId}/handovers/screenshots,ANONYMOUS,,student-card.png,401
+POST /api/v1/boards/{boardId}/handovers/screenshots,CUSTOMER,,student-card.png,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/screenshots,MENTOR,,student-card.png,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/screenshots,STUDENT,,student-card.png,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/screenshots,ADMINISTRATOR,,student-card.png,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/screenshots,TEAM_MENTOR,,student-card.png,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/screenshots,TEAM_MEMBER,,student-card.png,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/screenshots,CREW_ASSIGNED,,student-card.png,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/screenshots,CREW_INACTIVE,,student-card.png,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/screenshots,CREW_FORMER,,student-card.png,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/screenshots,ADMIN_TEAM_ISSUE_GRANT,,student-card.png,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/screenshots,OWNER,,student-card.png,403 FORBIDDEN MENTOR_ONLY
+POST /api/v1/boards/{boardId}/handovers/screenshots,JOB_MENTOR,,student-card.png,201
+POST /api/v1/boards/{boardId}/handovers/screenshots,CREW_ACTIVE,,student-card.png,403 FORBIDDEN MENTOR_ONLY
+DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},ANONYMOUS,,,401
+DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},CUSTOMER,,,404 NOT_FOUND
+DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},MENTOR,,,404 NOT_FOUND
+DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},STUDENT,,,404 NOT_FOUND
+DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},ADMINISTRATOR,,,404 NOT_FOUND
+DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},TEAM_MENTOR,,,404 NOT_FOUND
+DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},TEAM_MEMBER,,,404 NOT_FOUND
+DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},CREW_ASSIGNED,,,404 NOT_FOUND
+DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},CREW_INACTIVE,,,404 NOT_FOUND
+DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},CREW_FORMER,,,404 NOT_FOUND
+DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
+DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},OWNER,,,403 FORBIDDEN MENTOR_ONLY
+DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},JOB_MENTOR,,,404 NOT_FOUND
+DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},CREW_ACTIVE,,,403 FORBIDDEN MENTOR_ONLY
 GET /api/v1/handovers/{handoverId},ANONYMOUS,,,401
 GET /api/v1/handovers/{handoverId},CUSTOMER,,,404 NOT_FOUND
 GET /api/v1/handovers/{handoverId},MENTOR,,,404 NOT_FOUND

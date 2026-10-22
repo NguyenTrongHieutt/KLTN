@@ -932,6 +932,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/boards/{boardId}/handovers/preview-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["checkPreview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/boards/{boardId}/handovers/screenshots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["addScreenshot_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/boards/{boardId}/handovers/screenshots/{fileId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["removeScreenshot_1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/boards/{boardId}/pages": {
         parameters: {
             query?: never;
@@ -4182,11 +4230,13 @@ export interface components {
             milestoneTitle: string;
             /** Format: int32 */
             number: number;
+            preview: components["schemas"]["HandoverPreviewView"];
             report?: components["schemas"]["HandoverReportView"];
             /** Format: int32 */
             round: number;
             /** Format: int32 */
             roundsLeft: number;
+            screenshots: components["schemas"]["HandoverScreenshotView"][];
             status: string;
             /** Format: int64 */
             version: number;
@@ -4508,6 +4558,12 @@ export interface components {
             /** Format: uuid */
             workItemId: string;
         };
+        HandoverLinkView: {
+            /** Format: date-time */
+            checkedAt?: string;
+            domain: string;
+            url: string;
+        };
         HandoverListView: {
             assessment: boolean;
             audience: string;
@@ -4537,13 +4593,20 @@ export interface components {
             commitCount: number;
             criteria: components["schemas"]["HandoverCriterionInputView"][];
             milestone: components["schemas"]["HandoverMilestoneView"];
+            previewRequired: boolean;
             problems: string[];
             report?: components["schemas"]["HandoverReportRefView"];
+            screenshots: components["schemas"]["HandoverScreenshotView"][];
             sensitiveChanges: components["schemas"]["SensitiveChangeView"][];
             state: string;
             /** Format: int64 */
             version: number;
             workItems: components["schemas"]["HandoverWorkItemView"][];
+        };
+        HandoverPreviewView: {
+            noPreviewReason?: string;
+            preview?: components["schemas"]["HandoverLinkView"];
+            recording?: components["schemas"]["HandoverLinkView"];
         };
         HandoverReportRefView: {
             /** Format: uuid */
@@ -4565,10 +4628,21 @@ export interface components {
             itemNotes?: components["schemas"]["HandoverItemNoteRequest"][];
             /** Format: uuid */
             milestoneId: string;
+            noPreviewReason?: string;
+            previewUrl?: string;
+            recordingUrl?: string;
+            screenshotIds?: string[];
             /** @enum {string} */
             sensitive?: "CHECK" | "MASK";
             /** Format: int64 */
             version: number;
+        };
+        HandoverScreenshotView: {
+            /** Format: uuid */
+            fileId: string;
+            fileName: string;
+            /** Format: int64 */
+            size: number;
         };
         HandoverSummaryView: {
             auto: boolean;
@@ -5520,6 +5594,14 @@ export interface components {
             showProductName?: boolean;
             summaryStatus?: string;
             summaryText?: string;
+        };
+        PreviewCheckRequest: {
+            url: string;
+        };
+        PreviewCheckView: {
+            domain: string;
+            reachable: boolean;
+            reason?: string;
         };
         PrivateFeedbackRequest: {
             comment?: string;
@@ -8065,6 +8147,82 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HandoverPreflightView"];
                 };
+            };
+        };
+    };
+    checkPreview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreviewCheckRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreviewCheckView"];
+                };
+            };
+        };
+    };
+    addScreenshot_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HandoverScreenshotView"];
+                };
+            };
+        };
+    };
+    removeScreenshot_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+                fileId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

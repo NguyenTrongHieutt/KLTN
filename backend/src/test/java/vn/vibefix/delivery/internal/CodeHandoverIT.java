@@ -2,7 +2,9 @@ package vn.vibefix.delivery.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -24,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.session.Session;
 import org.springframework.session.SessionRepository;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -48,8 +51,10 @@ import vn.vibefix.team.internal.TeamTestSupport;
  * scan, at least one of them, and no change under {@code .github/workflows/}. "Gửi bàn giao" pins the head
  * on {@code handover/{id}} in the Intermediary Repository with the System's pull request, applies M2, and
  * records each commit with its author's GitHub ID and the Work Items it mentions, the Sensitive Changes,
- * and the Pages updated. When M2 refuses, the pull request is closed again. GitHub and git hosting are
- * {@link GitHubStub}; the sandbox jobs run in process.
+ * and the Pages updated. When M2 refuses, the pull request is closed again. A Bug fixing handover carries a
+ * preview that responds, or a reason with a recording, and up to five screenshots (Story 8.3). GitHub and
+ * git hosting are {@link GitHubStub}; the sandbox jobs run in process; the preview check is
+ * {@link ScriptedPreviewChecks}.
  */
 class CodeHandoverIT extends IntegrationTest {
 
@@ -81,6 +86,9 @@ class CodeHandoverIT extends IntegrationTest {
 
 	@Autowired
 	private OperationWorker worker;
+
+	@Autowired
+	private ScriptedPreviewChecks previews;
 
 	private UUID lan;
 
@@ -231,6 +239,8 @@ class CodeHandoverIT extends IntegrationTest {
 			.andExpect(jsonPath("$.code.commits[0].message").value(message))
 			.andExpect(jsonPath("$.code.commits[0].workItemKeys[0]").value("SDB-1"))
 			.andExpect(jsonPath("$.code.unattributed").value(1))
+			.andExpect(jsonPath("$.preview.preview.domain").value("so-dat-ban-gd1.vercel.app"))
+			.andExpect(jsonPath("$.preview.preview.checkedAt").exists())
 			.andReturn().getResponse().getContentAsString();
 		String handover = com.jayway.jsonpath.JsonPath.read(report, "$.id");
 		int pull = com.jayway.jsonpath.JsonPath.read(report, "$.code.pullNumber");
@@ -244,6 +254,8 @@ class CodeHandoverIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("SELECT state FROM job.milestone WHERE id = :id").param("id", this.milestone)
 			.query(String.class).single()).isEqualTo("SUBMITTED");
 		this.mvc.perform(get("/api/v1/handovers/" + handover).with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.preview.preview.url").value("https://so-dat-ban-gd1.vercel.app"))
+			.andExpect(jsonPath("$.preview.preview.checkedAt").doesNotExist())
 			.andExpect(jsonPath("$.code.pages.length()").value(1))
 			.andExpect(jsonPath("$.code.pages[0].title").value("Hướng dẫn dùng"))
 			.andExpect(jsonPath("$.code.sensitiveChanges[0].kind").value("DEPENDENCIES"));
@@ -281,6 +293,81 @@ class CodeHandoverIT extends IntegrationTest {
 			.query(Long.class).single()).isZero();
 	}
 
+	@Test
+	void aBugFixNeedsAPreviewThatRespondsOrAReasonWithARecording() throws Exception {
+		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = true;\n", "Sửa lỗi",
+				"hung@example.test");
+		preflight().andExpect(jsonPath("$.previewRequired").value(true));
+		this.worker.runDue(Lane.SCAN);
+
+		handOverWith("").andExpect(status().isBadRequest()).andExpect(jsonPath("$.reason").value("PREVIEW_REQUIRED"));
+		handOverWith(",\"previewUrl\":\"http://so-dat-ban.vercel.app\"").andExpect(status().isBadRequest());
+		handOverWith(",\"previewUrl\":\"https://a.vercel.app\",\"recordingUrl\":\"https://www.loom.com/share/x\","
+				+ "\"noPreviewReason\":\"Không có máy chủ thử\"")
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.reason").value("PREVIEW_OR_RECORDING"));
+		handOverWith(",\"recordingUrl\":\"https://www.loom.com/share/x\"").andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.reason").value("RECORDING_REASON_MISSING"));
+		String dead = "https://dead-" + UUID.randomUUID() + ".vercel.app";
+		this.previews.unreachable(dead);
+		this.mvc.perform(post("/api/v1/boards/" + this.job + "/handovers/preview-check").with(as(this.hung, Role.MENTOR))
+			.with(csrf()).contentType(MediaType.APPLICATION_JSON).content("{\"url\":\"" + dead + "\"}"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.reachable").value(false))
+			.andExpect(jsonPath("$.domain").value(dead.substring("https://".length())));
+		handOverWith(",\"previewUrl\":\"" + dead + "\"").andExpect(status().isUnprocessableEntity())
+			.andExpect(jsonPath("$.reason").value("PREVIEW_UNREACHABLE"));
+		assertThat(GITHUB.pullHeads.getOrDefault(this.intermediary, Map.of())).as("nothing pinned").isEmpty();
+
+		String first = upload();
+		String second = upload();
+		preflight().andExpect(jsonPath("$.screenshots.length()").value(2));
+		String report = handOverWith(",\"recordingUrl\":\"https://www.loom.com/share/abc\",\"noPreviewReason\":\"Ứng dụng chỉ chạy"
+				+ " trên máy của quán\",\"screenshotIds\":[\"" + second + "\",\"" + first + "\"]")
+			.andExpect(status().isCreated())
+			.andExpect(jsonPath("$.preview.preview").doesNotExist())
+			.andExpect(jsonPath("$.preview.recording.domain").value("www.loom.com"))
+			.andExpect(jsonPath("$.preview.noPreviewReason").value("Ứng dụng chỉ chạy trên máy của quán"))
+			.andExpect(jsonPath("$.screenshots[0].fileId").value(second))
+			.andReturn().getResponse().getContentAsString();
+		String handover = com.jayway.jsonpath.JsonPath.read(report, "$.id");
+		this.mvc.perform(get("/api/v1/files/" + first).with(as(this.lan, Role.CUSTOMER))).andExpect(status().isOk());
+		UUID outsider = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		this.mvc.perform(get("/api/v1/files/" + first).with(as(outsider, Role.CUSTOMER))).andExpect(status().isNotFound());
+		preflight().andExpect(jsonPath("$.screenshots.length()").value(0));
+		this.mvc.perform(get("/api/v1/handovers/" + handover).with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.screenshots.length()").value(2));
+	}
+
+	@Test
+	void anUploadIsTheMentorsAloneUntilAHandoverCarriesIt() throws Exception {
+		String upload = upload();
+		this.mvc.perform(get("/api/v1/files/" + upload).with(as(this.hung, Role.MENTOR))).andExpect(status().isOk());
+		this.mvc.perform(get("/api/v1/files/" + upload).with(as(this.lan, Role.CUSTOMER))).andExpect(status().isNotFound());
+		this.mvc.perform(delete("/api/v1/boards/" + this.job + "/handovers/screenshots/" + upload).with(as(this.hung, Role.MENTOR))
+			.with(csrf())).andExpect(status().isNoContent());
+		this.mvc.perform(get("/api/v1/files/" + upload).with(as(this.hung, Role.MENTOR))).andExpect(status().isNotFound());
+	}
+
+	private String upload() throws Exception {
+		byte[] png;
+		try (var in = getClass().getResourceAsStream("/authz/bodies/student-card.png")) {
+			png = java.util.Objects.requireNonNull(in).readAllBytes();
+		}
+		String body = this.mvc.perform(multipart("/api/v1/boards/" + this.job + "/handovers/screenshots")
+			.file(new MockMultipartFile("file", "dat-ban.png", "image/png", png)).with(as(this.hung, Role.MENTOR)).with(csrf()))
+			.andExpect(status().isCreated())
+			.andReturn().getResponse().getContentAsString();
+		return com.jayway.jsonpath.JsonPath.read(body, "$.fileId");
+	}
+
+	private ResultActions handOverWith(String evidence) throws Exception {
+		return this.mvc.perform(post("/api/v1/boards/" + this.job + "/handovers").with(as(this.hung, Role.MENTOR)).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("{\"milestoneId\":\"" + this.milestone + "\",\"version\":5,\"criteria\":[{\"criterionId\":\"" + this.criterion
+					+ "\",\"met\":true,\"note\":\"Đạt.\"}]" + evidence + "}"));
+	}
+
 	private void page(String title, String visibility) {
 		UUID page = UUID.randomUUID();
 		Timestamp now = Timestamp.from(this.clock.instant());
@@ -304,7 +391,8 @@ class CodeHandoverIT extends IntegrationTest {
 		return this.mvc.perform(post("/api/v1/boards/" + this.job + "/handovers").with(as(this.hung, Role.MENTOR)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("{\"milestoneId\":\"" + this.milestone + "\",\"version\":" + version + ",\"criteria\":[{\"criterionId\":\""
-					+ this.criterion + "\",\"met\":true,\"note\":\"Đạt: không còn đặt trùng.\"}]}"));
+					+ this.criterion + "\",\"met\":true,\"note\":\"Đạt: không còn đặt trùng.\"}],"
+					+ "\"previewUrl\":\"https://so-dat-ban-gd1.vercel.app\"}"));
 	}
 
 	private RequestPostProcessor as(UUID account, Role role) {

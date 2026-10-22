@@ -23,7 +23,7 @@
  * the personal-data participant are wiring in {@code delivery.internal}.
  */
 @ApplicationModule(allowedDependencies = { "shared", "audit", "identity", "notification", "timers", "scanning", "job",
-		"work", "payment", "repo" })
+		"work", "payment", "repo", "files" })
 package vn.vibefix.delivery;
 
 import org.springframework.modulith.ApplicationModule;

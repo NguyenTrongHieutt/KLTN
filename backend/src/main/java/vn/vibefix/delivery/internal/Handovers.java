@@ -110,10 +110,28 @@ class Handovers {
 			List<SensitiveChange> sensitive, int commitCount) {
 	}
 
-	/** A handover checked and masked, not yet written (FR-32, FR-47). */
+	/**
+	 * A handover checked and masked, not yet written (FR-32, FR-47).
+	 * @param previewUrl the preview link, which the caller checks before {@link #record}
+	 * @param noPreviewReason why a preview is impossible, masked; with {@code recordingUrl}
+	 */
 	record Draft(MilestoneInForce milestone, List<CriterionInForce> criteria, Map<UUID, Boolean> met,
 			Map<UUID, String> criterionNotes, List<ItemState> unfinished, Map<UUID, String> itemNotes,
-			@Nullable ReportVersion report) {
+			@Nullable ReportVersion report, @Nullable String previewUrl, @Nullable String recordingUrl,
+			@Nullable String noPreviewReason, List<UUID> screenshotIds) {
+	}
+
+	/** The preview link, or a recording with its reason, for "Gửi bàn giao" (FR-32, AD-35). */
+	record Evidence(@Nullable String previewUrl, @Nullable String recordingUrl, @Nullable String noPreviewReason,
+			List<UUID> screenshotIds) {
+
+		static final Evidence NONE = new Evidence(null, null, null, List.of());
+
+	}
+
+	/** What a handover carries to try the change (FR-32, AD-35). */
+	record Preview(@Nullable String previewUrl, @Nullable Instant previewCheckedAt, @Nullable String recordingUrl,
+			@Nullable String noPreviewReason) {
 	}
 
 	/**
@@ -161,9 +179,12 @@ class Handovers {
 
 	private final Clock clock;
 
+	private final HandoverScreenshots screenshots;
+
 	Handovers(JdbcClient jdbc, MilestoneHandovers jobs, AgreementCriteria criteria, MilestoneStates states,
 			MilestoneWork work, SensitiveText check, Todos todos, Deadlines deadlines, IdGenerator ids, Clock clock,
-			Scans scans) {
+			Scans scans, HandoverScreenshots screenshots) {
+		this.screenshots = screenshots;
 		this.scans = scans;
 		this.jdbc = jdbc;
 		this.jobs = jobs;
@@ -224,10 +245,13 @@ class Handovers {
 	 * @throws ApiException {@code NOT_FOUND} for a Milestone not in force; {@code GUARD_FAILED
 	 * MILESTONE_NOT_HELD}, {@code FINDING_OPEN} for a Code Job, {@code WORK_ITEMS_NOT_DONE} (with
 	 * {@code n}), {@code REPORT_MISSING}, or {@code SENSITIVE_CONTENT} (with the matches, under
-	 * {@code CHECK}); {@code VALIDATION CRITERION_MARK_MISSING}
+	 * {@code CHECK}); {@code VALIDATION CRITERION_MARK_MISSING}, {@code PREVIEW_REQUIRED},
+	 * {@code PREVIEW_OR_RECORDING}, {@code RECORDING_REASON_MISSING}, {@code TOO_MANY_SCREENSHOTS}, or
+	 * {@code SCREENSHOT_UNKNOWN}
 	 */
 	@Transactional(readOnly = true)
-	Draft draft(Viewer mentor, UUID milestoneId, List<CriterionMark> marks, List<ItemNote> notes, Resolution resolution) {
+	Draft draft(Viewer mentor, UUID milestoneId, List<CriterionMark> marks, List<ItemNote> notes, Resolution resolution,
+			Evidence evidence) {
 		UUID jobId = mentor.job().jobId();
 		MilestoneInForce milestone = milestone(jobId, milestoneId);
 		if (!HANDABLE.contains(this.states.statesOf(jobId).getOrDefault(milestoneId, "PLANNED"))) {
@@ -267,12 +291,27 @@ class Handovers {
 		for (ItemState item : unfinished) {
 			itemNotes.put(item.id(), masked(noted.get(item.id()), matches));
 		}
+		String preview = blankToNull(evidence.previewUrl());
+		String recording = blankToNull(evidence.recordingUrl());
+		String reason = blankToNull(evidence.noPreviewReason());
+		if (preview != null && (recording != null || reason != null)) {
+			throw new ApiException(ErrorCode.VALIDATION, DeliveryReason.PREVIEW_OR_RECORDING);
+		}
+		if ((recording == null) != (reason == null)) {
+			throw new ApiException(ErrorCode.VALIDATION, DeliveryReason.RECORDING_REASON_MISSING);
+		}
+		if (mentor.job().previewRequired() && preview == null && recording == null) {
+			throw new ApiException(ErrorCode.VALIDATION, DeliveryReason.PREVIEW_REQUIRED);
+		}
+		String maskedReason = reason == null ? null : masked(reason, matches);
+		this.screenshots.requireAttachable(jobId, mentor.accountId(), evidence.screenshotIds());
 		if (!matches.isEmpty() && resolution == Resolution.CHECK) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, DeliveryReason.SENSITIVE_CONTENT, Map.of("matches", matches));
 		}
 		Map<UUID, Boolean> met = new HashMap<>();
 		criteria.forEach(criterion -> met.put(criterion.criterionId(), byCriterion.get(criterion.criterionId()).met()));
-		return new Draft(milestone, criteria, met, criterionNotes, unfinished, itemNotes, report);
+		return new Draft(milestone, criteria, met, criterionNotes, unfinished, itemNotes, report, preview, recording,
+				maskedReason, evidence.screenshotIds());
 	}
 
 	/**
@@ -297,9 +336,11 @@ class Handovers {
 		this.jdbc.sql("""
 				INSERT INTO delivery.handover (id, job_id, product_id, milestone_id, milestone_number, milestone_title, round,
 				    mentor_account_id, status, job_version, transition_id, report_page_id, report_version_no, check_by, created_at,
-				    handover_commit, range_start, pull_number, unattributed_commits, commits_truncated)
+				    handover_commit, range_start, pull_number, unattributed_commits, commits_truncated, preview_url,
+				    preview_checked_at, recording_url, no_preview_reason)
 				VALUES (:id, :job, :product, :milestone, :number, :title, :round, :mentor, 'SUBMITTED', :version, :transition,
-				    :page, :pageVersion, :checkBy, :now, :commit, :start, :pull, :unattributed, :truncated)
+				    :page, :pageVersion, :checkBy, :now, :commit, :start, :pull, :unattributed, :truncated, :preview,
+				    :previewChecked, :recording, :reason)
 				""")
 			.param("id", id)
 			.param("job", jobId)
@@ -320,7 +361,13 @@ class Handovers {
 			.param("pull", code == null ? null : code.pullNumber())
 			.param("unattributed", code == null ? 0 : (int) code.commits().stream().filter(c -> c.authorId() == null).count())
 			.param("truncated", code != null && code.truncated())
+			// The caller checked the preview link just before (AD-32): that check is the one stored.
+			.param("preview", draft.previewUrl())
+			.param("previewChecked", draft.previewUrl() == null ? null : Timestamp.from(now))
+			.param("recording", draft.recordingUrl())
+			.param("reason", draft.noPreviewReason())
 			.update();
+		this.screenshots.attach(id, jobId, mentor.accountId(), draft.screenshotIds());
 		for (CriterionInForce criterion : draft.criteria()) {
 			this.jdbc.sql("""
 					INSERT INTO delivery.handover_criterion (handover_id, criterion_id, number, statement, check_steps, met, note)
@@ -409,6 +456,22 @@ class Handovers {
 				.param("visible", page.customerVisible())
 				.update();
 		}
+	}
+
+	@Transactional(readOnly = true)
+	Optional<Preview> preview(UUID handoverId) {
+		return this.jdbc.sql("""
+				SELECT preview_url, preview_checked_at, recording_url, no_preview_reason FROM delivery.handover WHERE id = :id
+				""").param("id", handoverId).query((rs, n) -> {
+					Timestamp checked = rs.getTimestamp("preview_checked_at");
+					return new Preview(rs.getString("preview_url"), checked == null ? null : checked.toInstant(),
+							rs.getString("recording_url"), rs.getString("no_preview_reason"));
+				})
+			.optional();
+	}
+
+	private static @Nullable String blankToNull(@Nullable String text) {
+		return text == null || text.isBlank() ? null : text.strip();
 	}
 
 	/** The previous Handover Commit of the Job, whichever Milestone it handed over. */

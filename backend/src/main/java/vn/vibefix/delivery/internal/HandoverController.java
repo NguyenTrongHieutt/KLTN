@@ -1,21 +1,28 @@
 package vn.vibefix.delivery.internal;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import vn.vibefix.delivery.internal.Decisions.Check;
 import vn.vibefix.delivery.internal.DeliveryAccess.Kind;
@@ -23,14 +30,18 @@ import vn.vibefix.delivery.internal.DeliveryAccess.Viewer;
 import vn.vibefix.delivery.internal.Handovers.CodeRecord;
 import vn.vibefix.delivery.internal.Handovers.CriterionMark;
 import vn.vibefix.delivery.internal.Handovers.Draft;
+import vn.vibefix.delivery.internal.Handovers.Evidence;
 import vn.vibefix.delivery.internal.Handovers.Handover;
 import vn.vibefix.delivery.internal.Handovers.ItemNote;
 import vn.vibefix.delivery.internal.Handovers.Preflight;
+import vn.vibefix.delivery.internal.Handovers.Preview;
+import vn.vibefix.delivery.internal.HandoverScreenshots.Screenshot;
 import vn.vibefix.delivery.internal.Handovers.Resolution;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
 import vn.vibefix.job.MilestoneHandovers;
 import vn.vibefix.job.MilestoneHandovers.Rounds;
+import vn.vibefix.files.PreparedFile;
 import vn.vibefix.payment.Ledger;
 import vn.vibefix.scanning.SensitiveChanges;
 import vn.vibefix.shared.Access;
@@ -88,11 +99,37 @@ class HandoverController {
 	 * @param problems what would refuse the handover now, as reason codes
 	 * @param sensitiveChanges a Code Job's Sensitive Changes in the commits it would hand over (UX-DR54)
 	 * @param commitCount how many commits a Code Job would hand over
+	 * @param previewRequired the Job Types change the running Product: a preview, or a reason and a recording
+	 * @param screenshots the Mentor's uploads waiting for this handover
 	 */
 	record HandoverPreflightView(HandoverMilestoneView milestone, String state, long version, boolean assessment,
 			List<HandoverCriterionInputView> criteria, List<HandoverWorkItemView> workItems,
 			@Nullable HandoverReportRefView report, List<String> problems, List<SensitiveChangeView> sensitiveChanges,
-			int commitCount) {
+			int commitCount, boolean previewRequired, List<HandoverScreenshotView> screenshots) {
+	}
+
+	/** One screenshot: read through {@code /api/v1/files/{fileId}}. */
+	record HandoverScreenshotView(UUID fileId, String fileName, long size) {
+	}
+
+	/**
+	 * A link to try the change, with its domain for N-11 (AD-35).
+	 * @param checkedAt when the preview last responded; for the Mentor and the Crew only
+	 */
+	record HandoverLinkView(String url, String domain, @Nullable Instant checkedAt) {
+	}
+
+	/** The preview, or the recording with why a preview is impossible (FR-32). */
+	record HandoverPreviewView(@Nullable HandoverLinkView preview, @Nullable HandoverLinkView recording,
+			@Nullable String noPreviewReason) {
+	}
+
+	/** "Kiểm tra đường dẫn" on the form. */
+	record PreviewCheckRequest(@NotNull @Size(max = 500) @Pattern(regexp = "^https://\\S+$") String url) {
+	}
+
+	/** @param reason why it did not respond, as the check's code */
+	record PreviewCheckView(boolean reachable, String domain, @Nullable String reason) {
 	}
 
 	/** One Sensitive Change: the path, shown in mono, and its kind, which the screen explains plainly. */
@@ -130,7 +167,11 @@ class HandoverController {
 	 */
 	record HandoverRequest(@NotNull UUID milestoneId, @NotNull Long version,
 			@NotNull @Size(max = 100) List<@Valid HandoverCriterionMarkRequest> criteria,
-			@Nullable @Size(max = 200) List<@Valid HandoverItemNoteRequest> itemNotes, @Nullable Resolution sensitive) {
+			@Nullable @Size(max = 200) List<@Valid HandoverItemNoteRequest> itemNotes, @Nullable Resolution sensitive,
+			@Nullable @Size(max = 500) @Pattern(regexp = "^https://\\S+$") String previewUrl,
+			@Nullable @Size(max = 500) @Pattern(regexp = "^https://\\S+$") String recordingUrl,
+			@Nullable @Size(max = 500) String noPreviewReason,
+			@Nullable @Size(max = HandoverScreenshots.MAX) List<@NotNull UUID> screenshotIds) {
 	}
 
 	/** One criterion as the Mentor marked it: their own statement, never a criterion done (AD-33). */
@@ -184,7 +225,8 @@ class HandoverController {
 			String status, String mentorName, Instant createdAt, Instant checkBy, boolean assessment, String audience,
 			List<HandoverCriterionView> criteria, List<HandoverItemNoteView> itemNotes, @Nullable HandoverReportView report,
 			long version, int roundsLeft, @Nullable HandoverDecisionView decision, @Nullable Instant decidedAt,
-			List<HandoverCheckView> checks, boolean auto, @Nullable HandoverCodeView code) {
+			List<HandoverCheckView> checks, boolean auto, @Nullable HandoverCodeView code, HandoverPreviewView preview,
+			List<HandoverScreenshotView> screenshots) {
 	}
 
 	private final DeliveryAccess access;
@@ -205,10 +247,17 @@ class HandoverController {
 
 	private final IdGenerator ids;
 
+	private final PreviewChecks previews;
+
+	private final HandoverScreenshots screenshots;
+
 	HandoverController(DeliveryAccess access, Handovers handovers, Decisions decisions, MilestoneHandovers jobs, Ledger ledger,
-			MentorDirectory mentors, CurrentCaller callers, CodeHandovers code, IdGenerator ids) {
+			MentorDirectory mentors, CurrentCaller callers, CodeHandovers code, IdGenerator ids, PreviewChecks previews,
+			HandoverScreenshots screenshots) {
 		this.code = code;
 		this.ids = ids;
+		this.previews = previews;
+		this.screenshots = screenshots;
 		this.access = access;
 		this.handovers = handovers;
 		this.decisions = decisions;
@@ -266,7 +315,44 @@ class HandoverController {
 				report == null ? null : new HandoverReportRefView(report.pageId(), report.versionNo(), report.title()),
 				preflight.problems(),
 				preflight.sensitive().stream().map(change -> new SensitiveChangeView(change.path(), change.kind())).toList(),
-				preflight.commitCount());
+				preflight.commitCount(), mentor.job().previewRequired(),
+				this.screenshots.pending(jobId, mentor.accountId()).stream().map(HandoverController::screenshotView).toList());
+	}
+
+	/** "Kiểm tra đường dẫn": the preview check before sending (UX-DR27); "Gửi bàn giao" checks again. */
+	@PostMapping("/api/v1/boards/{boardId}/handovers/preview-check")
+	PreviewCheckView checkPreview(@PathVariable("boardId") UUID jobId, @Valid @RequestBody PreviewCheckRequest body) {
+		this.access.maker(jobId, this.callers.get());
+		PreviewChecks.Result result = this.previews.check(body.url());
+		return new PreviewCheckView(result.reachable(), result.domain(), result.reason());
+	}
+
+	/** A screenshot for the next handover: an image of at most the upload limit, re-encoded (AD-21). */
+	@PostMapping(path = "/api/v1/boards/{boardId}/handovers/screenshots", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	@ResponseStatus(HttpStatus.CREATED)
+	HandoverScreenshotView addScreenshot(@PathVariable("boardId") UUID jobId, @RequestPart("file") MultipartFile file) {
+		Viewer mentor = this.access.maker(jobId, this.callers.get());
+		byte[] content;
+		try {
+			content = file.getBytes();
+		}
+		catch (IOException ex) {
+			throw new UncheckedIOException(ex);
+		}
+		PreparedFile prepared = this.screenshots.prepare(mentor.accountId(),
+				file.getOriginalFilename() == null ? "" : file.getOriginalFilename(), content);
+		return screenshotView(this.screenshots.add(mentor, prepared));
+	}
+
+	/** Removes an upload that no handover carries yet. */
+	@DeleteMapping("/api/v1/boards/{boardId}/handovers/screenshots/{fileId}")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	void removeScreenshot(@PathVariable("boardId") UUID jobId, @PathVariable UUID fileId) {
+		this.screenshots.remove(this.access.maker(jobId, this.callers.get()), fileId);
+	}
+
+	private static HandoverScreenshotView screenshotView(Screenshot screenshot) {
+		return new HandoverScreenshotView(screenshot.fileId(), screenshot.fileName(), screenshot.size());
 	}
 
 	/** "Gửi bàn giao": M2 with the Delivery Report (FR-32). */
@@ -278,7 +364,17 @@ class HandoverController {
 				body.criteria().stream().map(c -> new CriterionMark(c.criterionId(), c.met(), c.note())).toList(),
 				body.itemNotes() == null ? List.of()
 						: body.itemNotes().stream().map(n -> new ItemNote(n.workItemId(), n.note())).toList(),
-				body.sensitive() == null ? Resolution.CHECK : body.sensitive());
+				body.sensitive() == null ? Resolution.CHECK : body.sensitive(),
+				new Evidence(body.previewUrl(), body.recordingUrl(), body.noPreviewReason(),
+						body.screenshotIds() == null ? List.of() : body.screenshotIds()));
+		// AD-32: the preview responds now, or nothing is pinned or written.
+		if (draft.previewUrl() != null) {
+			PreviewChecks.Result result = this.previews.check(draft.previewUrl());
+			if (!result.reachable()) {
+				throw new ApiException(ErrorCode.GUARD_FAILED, DeliveryReason.PREVIEW_UNREACHABLE,
+						java.util.Map.of("domain", result.domain()));
+			}
+		}
 		// A Code Job's commit is pinned on GitHub between the draft and M2 (AD-11).
 		Handover handover = mentor.job().assessment()
 				? this.handovers.record(mentor, draft, body.version(), this.ids.newId(), null)
@@ -346,7 +442,21 @@ class HandoverController {
 					.stream()
 					.map(c -> new HandoverCheckView(c.criterionId(), c.met(), c.comment()))
 					.toList(),
-				handover.auto(), this.handovers.code(handover.id()).map(found -> codeView(viewer, found)).orElse(null));
+				handover.auto(), this.handovers.code(handover.id()).map(found -> codeView(viewer, found)).orElse(null),
+				previewView(viewer, this.handovers.preview(handover.id()).orElse(new Preview(null, null, null, null))),
+				this.screenshots.of(handover.id()).stream().map(HandoverController::screenshotView).toList());
+	}
+
+	/** N-11 needs the domain beside each link; the check's time is for the Mentor and the Crew. */
+	private static HandoverPreviewView previewView(Viewer viewer, Preview preview) {
+		boolean team = viewer.kind() != Kind.CUSTOMER;
+		return new HandoverPreviewView(
+				preview.previewUrl() == null ? null
+						: new HandoverLinkView(preview.previewUrl(), PreviewChecks.domain(preview.previewUrl()),
+								team ? preview.previewCheckedAt() : null),
+				preview.recordingUrl() == null ? null
+						: new HandoverLinkView(preview.recordingUrl(), PreviewChecks.domain(preview.recordingUrl()), null),
+				preview.noPreviewReason());
 	}
 
 	private static HandoverCodeView codeView(Viewer viewer, CodeRecord code) {

@@ -73,6 +73,9 @@ class HandoverIT extends IntegrationTest {
 
 	private UUID task;
 
+	/** The preview link a Bug fixing handover carries (Story 8.3); none for an Assessment. */
+	private String previewUrl;
+
 	@Test
 	void theMentorHandsOverAnAssessmentMilestoneWithTheReportVersionOfThatMoment() throws Exception {
 		world("ASSESSMENT");
@@ -171,6 +174,7 @@ class HandoverIT extends IntegrationTest {
 	@Test
 	void aCodeJobWaitsForItsHandoverCommit() throws Exception {
 		world("BUG_FIX");
+		this.previewUrl = "https://so-dat-ban.vercel.app";
 		this.mvc.perform(get("/api/v1/boards/" + this.job + "/handovers/preflight").param("milestoneId", this.milestone.toString())
 			.with(as(this.hung, Role.MENTOR)))
 			.andExpect(jsonPath("$.problems").value(Matchers.hasItem("HANDOVER_COMMIT_MISSING")));
@@ -274,7 +278,8 @@ class HandoverIT extends IntegrationTest {
 		String json = "{\"milestoneId\":\"" + this.milestone + "\",\"version\":" + version + ",\"criteria\":[{\"criterionId\":\""
 				+ this.criterion + "\",\"met\":true,\"note\":\"" + criterionNote + "\"}]"
 				+ (taskNote == null ? "" : ",\"itemNotes\":[{\"workItemId\":\"" + this.task + "\",\"note\":\"" + taskNote + "\"}]")
-				+ (sensitive == null ? "" : ",\"sensitive\":\"" + sensitive + "\"") + "}";
+				+ (sensitive == null ? "" : ",\"sensitive\":\"" + sensitive + "\"")
+				+ (this.previewUrl == null ? "" : ",\"previewUrl\":\"" + this.previewUrl + "\"") + "}";
 		return this.mvc.perform(post("/api/v1/boards/" + this.job + "/handovers").with(as(account, role)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
 			.content(json));

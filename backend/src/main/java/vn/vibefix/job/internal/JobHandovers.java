@@ -43,7 +43,8 @@ class JobHandovers implements MilestoneHandovers {
 			.query(Jobs::job)
 			.optional()
 			.map(job -> new HandoverJob(job.id(), job.productId(), job.customerId(), job.mentorId(), job.title(),
-					job.state().name(), job.version(), !job.code(), job.frozenAt() != null));
+					job.state().name(), job.version(), !job.code(), job.frozenAt() != null,
+					job.jobTypes().stream().anyMatch(JobType::changesProduct)));
 	}
 
 	@Override
