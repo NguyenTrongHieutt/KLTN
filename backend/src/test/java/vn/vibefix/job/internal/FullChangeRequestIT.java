@@ -193,9 +193,8 @@ class FullChangeRequestIT extends IntegrationTest {
 
 	@Test
 	void removingAMilestoneCancelsItAndARefusedChangeSaysWhy() throws Exception {
-		propose(this.lan, Role.CUSTOMER, "\"milestones\":[{\"milestoneId\":\"" + this.first + "\",\"priceVnd\":900000,\"remove\":false}]")
-			.andExpect(status().isUnprocessableEntity())
-			.andExpect(jsonPath("$.reason").value("HELD_PRICE_CHANGE"));
+		propose(this.lan, Role.CUSTOMER, "\"milestones\":[{\"milestoneId\":\"" + this.first + "\",\"priceVnd\":500,\"remove\":false}]")
+			.andExpect(status().isBadRequest());
 		propose(this.lan, Role.CUSTOMER, "\"removedCriteria\":[\"" + this.c2 + "\"]")
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.reason").value("AGREEMENT_INCOMPLETE"))

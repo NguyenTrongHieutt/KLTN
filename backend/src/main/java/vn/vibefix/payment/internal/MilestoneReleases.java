@@ -72,6 +72,10 @@ class MilestoneReleases implements Releases {
 		this.clock = clock;
 	}
 
+	/**
+	 * {@inheritDoc} A Held Milestone whose price a Change Request cut (FR-36, Story 14.2) releases its new
+	 * price, and the rest of what it holds is refunded now, newest FUND first ({@code PRICE_CUT}).
+	 */
 	@Override
 	@Transactional
 	public List<Part> release(UUID jobId, UUID milestoneId, UUID causeId) {
@@ -80,7 +84,22 @@ class MilestoneReleases implements Releases {
 		if (releasable <= 0) {
 			throw new IllegalStateException("The Milestone " + milestoneId + " has nothing to release");
 		}
-		return split(jobId, milestoneId, causeId, releasable);
+		long price = this.funding.byId(jobId)
+			.flatMap(job -> job.milestones().stream().filter(milestone -> milestone.milestoneId().equals(milestoneId)).findFirst())
+			.map(milestone -> milestone.priceVnd())
+			.orElse(0L);
+		long cut = price > 0 && releasable > price ? releasable - price : 0;
+		List<Part> parts = split(jobId, milestoneId, causeId, releasable - cut);
+		if (cut > 0) {
+			long refunded = this.refunds.refund(milestoneId, cut, Refunds.Reason.PRICE_CUT)
+				.stream()
+				.mapToLong(refund -> refund.amountVnd())
+				.sum();
+			if (refunded != cut) {
+				throw new IllegalStateException("The price cut of " + milestoneId + " could not refund " + cut);
+			}
+		}
+		return parts;
 	}
 
 	@Override

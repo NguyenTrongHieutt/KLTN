@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
@@ -44,8 +45,18 @@ class PaymentController {
 	 * One Milestone of JOB-7 for the Customer: never a party's part (AD-20).
 	 * @param releasedTotalVnd {@code payment.releasedTotal}, the only released figure a Customer sees
 	 */
+	/**
+	 * One Milestone of JOB-7 for the Customer: never a party's part (AD-20).
+	 * @param refundAtEndVnd held above a price a Change Request cut: "Sẽ hoàn {amount} THỬ NGHIỆM khi giai đoạn
+	 * kết thúc" (FR-36)
+	 */
 	record FundingMilestoneView(UUID milestoneId, int number, String title, long priceVnd, String state, boolean fundable,
-			@Nullable String blockedReason, long fundedVnd, long topUpVnd, long refundedVnd, long releasedTotalVnd) {
+			@Nullable String blockedReason, long fundedVnd, long topUpVnd, long refundedVnd, long releasedTotalVnd,
+			long refundAtEndVnd) {
+	}
+
+	/** The difference a waiting Change Request asks the Customer to pay (FR-36). */
+	record TopUpView(UUID changeRequestId, int number, long amountVnd) {
 	}
 
 	/**
@@ -66,7 +77,7 @@ class PaymentController {
 	 * @param configured the environment has its VNPay sandbox merchant
 	 */
 	record JobFundingView(UUID jobId, String title, String state, long version, boolean configured,
-			List<FundingMilestoneView> milestones, List<PaymentOrderView> orders) {
+			List<FundingMilestoneView> milestones, List<PaymentOrderView> orders, @Nullable TopUpView topUp) {
 	}
 
 	/** CUS-9: one order, as the server knows it. */
@@ -129,9 +140,11 @@ class PaymentController {
 				reason = refusal == null ? null : refusal.reason().orElse(refusal.code().name());
 			}
 			PaymentHistory.Figures figures = this.history.figures(milestone.milestoneId());
+			boolean held = Set.of("FUNDED", "REVISION_REQUESTED", "SUBMITTED").contains(milestone.state());
+			long atEnd = held && milestone.priceVnd() > 0 ? Math.max(0, figures.releasableVnd() - milestone.priceVnd()) : 0;
 			milestones.add(new FundingMilestoneView(milestone.milestoneId(), milestone.number(), milestone.title(),
 					milestone.priceVnd(), milestone.state(), fundable, reason, figures.fundedVnd(), figures.topUpVnd(),
-					figures.refundedVnd(), figures.releasedTotalVnd()));
+					figures.refundedVnd(), figures.releasedTotalVnd(), atEnd));
 		}
 		List<PaymentOrderView> orders = this.orders.ofJob(jobId)
 			.stream()
@@ -139,8 +152,20 @@ class PaymentController {
 					order.amountVnd(), order.status(), order.createdAt(), order.expiresAt(), order.finishedAt(), order.txnRef(),
 					refund(order.id())))
 			.toList();
+		TopUpView topUp = this.funding.topUpOf(jobId)
+			.map(waiting -> new TopUpView(waiting.changeRequestId(), waiting.number(), waiting.amountVnd()))
+			.orElse(null);
 		return new JobFundingView(job.jobId(), job.title(), job.state(), job.version(), this.sandbox.missingSetting() == null,
-				milestones, orders);
+				milestones, orders, topUp);
+	}
+
+	/** "Thanh toán thêm" (FR-36): the top-up order a waiting Change Request asks for, and its sandbox page. */
+	@PostMapping("/api/v1/jobs/{jobId}/top-up-orders")
+	@ResponseStatus(HttpStatus.CREATED)
+	CreatedPaymentOrderView createTopUpOrder(@PathVariable UUID jobId, @Valid @RequestBody CreatePaymentOrderRequest body,
+			HttpServletRequest request) {
+		Created created = this.orders.createTopUp(customer(), jobId, body.version(), request.getRemoteAddr());
+		return new CreatedPaymentOrderView(created.id(), created.payUrl(), created.expiresAt());
 	}
 
 	/** "Thanh toán" (FR-41): the order, and the sandbox page the browser goes to in the same tab. */

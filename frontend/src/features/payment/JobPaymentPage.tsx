@@ -286,6 +286,11 @@ function Funding({ funding }: { funding: JobFunding }) {
                     </td>
                     <td className="px-4 py-3 tabular-nums">
                       {formatVnd(milestone.releasedTotalVnd)} <TestTag />
+                      {milestone.refundAtEndVnd > 0 && (
+                        <p className="text-caption text-muted-foreground">
+                          {t('screen.payment.refundAtEnd', { amount: formatVnd(milestone.refundAtEndVnd) })}
+                        </p>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <span className={cn('rounded-full px-2 py-0.5 text-caption font-semibold', STATE_TONE[key] ?? 'bg-muted')}>

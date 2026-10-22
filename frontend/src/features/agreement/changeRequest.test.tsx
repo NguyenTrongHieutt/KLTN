@@ -5,7 +5,10 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
+import { redirectTo } from '@/lib/redirect'
 import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+
+vi.mock('@/lib/redirect', () => ({ redirectTo: vi.fn() }))
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -161,7 +164,7 @@ describe('JOB-6 full Change Requests (FR-36, Story 14.1)', () => {
     await user.click(await within(section).findByRole('button', { name: 'Đề nghị hạn mới' }))
     const more = within(section).getAllByText('Đổi tên, giá, tiêu chí hoặc bỏ giai đoạn')
     await user.click(more[more.length - 1])
-    expect(within(section).getByText('Giai đoạn đã thanh toán nên chưa đổi giá ở đây được.', { exact: false })).toBeInTheDocument()
+    expect(within(section).getByText(/tăng giá cần thanh toán thêm/)).toBeInTheDocument()
     const price = within(section).getByLabelText('Giá giai đoạn 3 (đồng)')
     await user.clear(price)
     await user.type(price, '600000')
@@ -183,6 +186,42 @@ describe('JOB-6 full Change Requests (FR-36, Story 14.1)', () => {
     })
     expect(await within(section).findByText('Giai đoạn 3: giá từ 500.000 ₫ thành 600.000 ₫')).toBeInTheDocument()
     expect(within(section).getByText('Giai đoạn 3: thêm tiêu chí Có biểu đồ')).toBeInTheDocument()
+  })
+})
+
+describe('JOB-6 top-ups (FR-36, Story 14.2)', () => {
+  it('asks the Customer to pay the difference before a raised Held price takes effect', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    const sent: unknown[] = []
+    const waiting = open({
+      status: 'AWAITING_TOP_UP',
+      impact: 'Thêm 200.000 ₫',
+      customerApprovedAt: '2026-10-21T03:00:00Z',
+      mentorConfirmedAt: '2026-10-21T04:00:00Z',
+      topUpVnd: 200000,
+      items: [],
+      changes: {
+        milestones: [{ milestoneId: 'm1', number: 1, oldTitle: 'Sửa lỗi trùng giờ', oldPriceVnd: 800000, priceVnd: 1000000, remove: false }],
+        addedMilestones: [],
+        criteria: [],
+      },
+    })
+    backend({
+      'GET /api/v1/boards/j1/change-requests': () => json(view({ canPropose: false, open: waiting })),
+      'POST /api/v1/jobs/j1/top-up-orders': async (request) => {
+        sent.push(await request.json())
+        return json({ id: 'o2', payUrl: 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?vnp_TxnRef=TU', expiresAt: '2026-10-21T04:15:00Z' }, 201)
+      },
+    })
+    renderAt('/cong-viec/j1/thoa-thuan')
+
+    const section = (await screen.findByRole('heading', { level: 2, name: 'Đề nghị thay đổi' })).closest('section')!
+    expect(await within(section).findByText('Bạn cần thanh toán thêm 200.000 ₫ THỬ NGHIỆM trước khi thay đổi có hiệu lực')).toBeInTheDocument()
+    expect(within(section).queryByRole('button', { name: 'Duyệt hạn mới' })).toBeNull()
+    await user.click(within(section).getByRole('button', { name: 'Thanh toán thêm' }))
+
+    await waitFor(() => expect(redirectTo).toHaveBeenCalledWith('https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?vnp_TxnRef=TU'))
+    expect(sent).toEqual([{ version: 7 }])
   })
 })
 

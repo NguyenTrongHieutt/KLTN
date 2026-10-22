@@ -2196,6 +2196,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/jobs/{jobId}/top-up-orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["createTopUpOrder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jobs/{jobId}/withdraw": {
         parameters: {
             query?: never;
@@ -4235,6 +4251,8 @@ export interface components {
             mine: boolean;
             proposer: string;
             status: string;
+            /** Format: int64 */
+            topUpVnd?: number;
         };
         ChangeRequestsView: {
             audience: string;
@@ -4972,6 +4990,8 @@ export interface components {
             /** Format: int64 */
             priceVnd: number;
             /** Format: int64 */
+            refundAtEndVnd: number;
+            /** Format: int64 */
             refundedVnd: number;
             /** Format: int64 */
             releasedTotalVnd: number;
@@ -5322,6 +5342,7 @@ export interface components {
             orders: components["schemas"]["PaymentOrderView"][];
             state: string;
             title: string;
+            topUp?: components["schemas"]["TopUpView"];
             /** Format: int64 */
             version: number;
         };
@@ -7048,6 +7069,14 @@ export interface components {
             items: components["schemas"]["TodoItem"][];
             /** Format: int64 */
             total: number;
+        };
+        TopUpView: {
+            /** Format: int64 */
+            amountVnd: number;
+            /** Format: uuid */
+            changeRequestId: string;
+            /** Format: int32 */
+            number: number;
         };
         UnreadCount: {
             /** Format: int64 */
@@ -10940,6 +10969,32 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DriftView"];
+                };
+            };
+        };
+    };
+    createTopUpOrder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePaymentOrderRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedPaymentOrderView"];
                 };
             };
         };

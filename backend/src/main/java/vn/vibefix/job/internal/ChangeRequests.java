@@ -56,7 +56,9 @@ import vn.vibefix.shared.IdGenerator;
  * version, and the confirmation cancels the removed Milestones (M6, or M7 with the full refund), changes
  * the live entities without re-keying, writes the next immutable confirmed Agreement version, and
  * publishes it ({@link AgreementConfirmed}) so new Milestones get their ledger accounts and new criteria
- * their Stories. A Held Milestone's price waits for Story 14.2. One is open per Job; it lapses when a
+ * their Stories. A raised Held Milestone price (Story 14.2) waits after the confirmation for the Customer's
+ * top-up ({@code AWAITING_TOP_UP}) and takes effect in the top-up's IPN transaction; a cut takes effect at
+ * once and is refunded when the Milestone ends. One is open per Job, waiting or not; it lapses when a
  * touched Milestone is accepted or settled, or the Job enters Closing or Cancelled. Every command takes
  * the Job row lock first (AD-4).
  */
@@ -74,6 +76,11 @@ class ChangeRequests {
 	static final String ADD_IMPACT = "job.add_change_impact";
 
 	static final String ANSWER = "job.answer_change_request";
+
+	static final String AWAITING_TOP_UP = "job.change_request_awaiting_top_up";
+
+	/** {@code payment}'s to-do for the top-up, which {@code job} opens and closes with the request. */
+	static final String FUND_TOP_UP = "payment.fund_top_up";
 
 	static final Set<JobState> RUNNING = Set.of(JobState.AGREEMENT, JobState.STARTING, JobState.ACTIVE);
 
@@ -137,7 +144,8 @@ class ChangeRequests {
 
 	record ChangeRequest(UUID id, UUID jobId, Party proposer, @Nullable String description, @Nullable String impact,
 			List<Item> items, String status, @Nullable Instant customerApprovedAt, @Nullable Instant mentorConfirmedAt,
-			@Nullable Integer agreementVersionNo, Instant createdAt, @Nullable Instant closedAt, Changes changes) {
+			@Nullable Integer agreementVersionNo, Instant createdAt, @Nullable Instant closedAt, Changes changes,
+			@Nullable Long topUpVnd, @Nullable UUID topUpMilestoneId) {
 	}
 
 	/** One live Milestone as the form lists it. */
@@ -342,6 +350,95 @@ class ChangeRequests {
 		notSubmitted(request);
 		Confirmed confirmed = this.reviews.confirmed(job.id())
 			.orElseThrow(() -> new ApiException(ErrorCode.GUARD_FAILED, JobReason.NO_CONFIRMED_AGREEMENT));
+		TopUpNeed need = topUpNeed(job.id(), confirmed.content(), request.changes());
+		if (need != null) {
+			return awaitTopUp(job, request, mentor, need);
+		}
+		return apply(job, request, mentor, confirmed);
+	}
+
+	/** The raise of a Held Milestone's price a request carries, which waits for a top-up (Story 14.2). */
+	private record TopUpNeed(UUID milestoneId, int number, long amountVnd) {
+	}
+
+	private @Nullable TopUpNeed topUpNeed(UUID jobId, Content content, Changes changes) {
+		Map<UUID, LiveMilestone> live = new HashMap<>();
+		milestones(jobId).forEach(milestone -> live.put(milestone.id(), milestone));
+		for (MilestoneChange change : changes.milestones()) {
+			LiveMilestone milestone = live.get(change.milestoneId());
+			if (change.remove() || change.priceVnd() == null || milestone == null || !HELD.contains(milestone.state())) {
+				continue;
+			}
+			Long before = content.milestones()
+				.stream()
+				.filter(agreed -> agreed.id().equals(change.milestoneId()))
+				.findFirst()
+				.map(Milestone::priceVnd)
+				.orElse(null);
+			if (before != null && change.priceVnd() > before) {
+				return new TopUpNeed(change.milestoneId(), milestone.number(), change.priceVnd() - before);
+			}
+		}
+		return null;
+	}
+
+	/** Both sides agreed to a raise of the Held Milestone's price: the request waits for the Customer's top-up. */
+	private ChangeRequest awaitTopUp(Job job, ChangeRequest request, UUID mentor, TopUpNeed need) {
+		Instant now = this.clock.instant();
+		this.jdbc.sql("""
+				UPDATE job.change_request SET status = 'AWAITING_TOP_UP', mentor_confirmed_at = :now, mentor_account_id = :mentor,
+				    top_up_vnd = :amount, top_up_milestone_id = :milestone
+				WHERE id = :id
+				""")
+			.param("id", request.id())
+			.param("mentor", mentor)
+			.param("amount", need.amountVnd())
+			.param("milestone", need.milestoneId())
+			.param("now", Timestamp.from(now))
+			.update();
+		audit(mentor, "job.change_request_awaiting_top_up", request.id(), job.id());
+		this.todos.closeAll(ANSWER, request.id());
+		String amount = vnd(need.amountVnd());
+		String link = "/cong-viec/" + job.id() + "/thoa-thuan";
+		this.notifications.send(new NotificationRequest(AWAITING_TOP_UP, request.id(),
+				List.of(new Recipient(job.customerId(), Audience.CUSTOMER)), Map.of("job", job.title(), "amount", amount), link,
+				job.id(), null));
+		this.todos.open(new TodoRequest(FUND_TOP_UP, job.customerId(), Audience.CUSTOMER, request.id(),
+				Map.of("amount", amount), link, null, job.id()));
+		return find(request.id()).orElseThrow();
+	}
+
+	/**
+	 * The top-up's verified payment applies the waiting request, in the IPN's transaction (Story 14.2).
+	 * @return whether it applied; {@code false} when the request no longer waits or cannot apply now (a
+	 * Submitted Milestone, a busy or frozen Job), so the money is booked unapplied and refunded
+	 */
+	@Transactional
+	boolean applyTopUp(UUID jobId, UUID requestId) {
+		Job job = this.jobs.lock(jobId).orElse(null);
+		ChangeRequest request = find(requestId).orElse(null);
+		if (job == null || request == null || !"AWAITING_TOP_UP".equals(request.status()) || !request.jobId().equals(jobId)
+				|| !RUNNING.contains(job.state()) || job.frozenAt() != null || JobBusyMarkers.isBusy(this.jdbc, jobId)) {
+			return false;
+		}
+		Confirmed confirmed = this.reviews.confirmed(jobId).orElse(null);
+		if (confirmed == null) {
+			return false;
+		}
+		try {
+			notSubmitted(request);
+		}
+		catch (ApiException submitted) {
+			return false;
+		}
+		this.todos.closeAll(FUND_TOP_UP, requestId);
+		apply(job, request, Objects.requireNonNull(job.mentorId()), confirmed);
+		return true;
+	}
+
+	/** The request takes effect: the shared step of a confirmation and of a top-up (FR-36, AD-29). */
+	private ChangeRequest apply(Job job, ChangeRequest request, UUID mentor, Confirmed confirmed) {
+		UUID requestId = request.id();
 		Map<UUID, LocalDate> dueDates = new HashMap<>();
 		request.items().forEach(item -> dueDates.put(item.milestoneId(), item.newDueOn()));
 		Changes changes = request.changes();
@@ -393,8 +490,8 @@ class ChangeRequests {
 		this.events.publishEvent(new AgreementConfirmed(this.ids.newId(), job.id(), job.productId(), job.customerId(),
 				job.title(), next, published));
 		this.jdbc.sql("""
-				UPDATE job.change_request SET status = 'APPLIED', mentor_confirmed_at = :now, mentor_account_id = :mentor,
-				    agreement_version_no = :next, closed_at = :now
+				UPDATE job.change_request SET status = 'APPLIED', mentor_confirmed_at = coalesce(mentor_confirmed_at, :now),
+				    mentor_account_id = :mentor, agreement_version_no = :next, closed_at = :now
 				WHERE id = :id
 				""").param("id", requestId).param("mentor", mentor).param("next", next).param("now", Timestamp.from(now)).update();
 		audit(mentor, "job.change_request_applied", requestId, job.id());
@@ -409,7 +506,10 @@ class ChangeRequests {
 	ChangeRequest withdraw(UUID requestId, UUID account) {
 		ChangeRequest request = existing(requestId);
 		this.jobs.lock(request.jobId()).orElseThrow();
-		ChangeRequest current = openOne(requestId);
+		ChangeRequest current = existing(requestId);
+		if (!"OPEN".equals(current.status()) && !"AWAITING_TOP_UP".equals(current.status())) {
+			throw new ApiException(ErrorCode.CONFLICT, JobReason.CHANGE_REQUEST_NOT_AWAITING);
+		}
 		this.jdbc.sql("UPDATE job.change_request SET status = 'WITHDRAWN', closed_at = :now WHERE id = :id")
 			.param("id", requestId)
 			.param("now", Timestamp.from(this.clock.instant()))
@@ -430,7 +530,10 @@ class ChangeRequests {
 			return;
 		}
 		Job job = this.jobs.lock(jobId).orElseThrow();
-		int lapsed = this.jdbc.sql("UPDATE job.change_request SET status = 'LAPSED', closed_at = :now WHERE id = :id AND status = 'OPEN'")
+		int lapsed = this.jdbc.sql("""
+				UPDATE job.change_request SET status = 'LAPSED', closed_at = :now
+				WHERE id = :id AND status IN ('OPEN', 'AWAITING_TOP_UP')
+				""")
 			.param("id", request.id())
 			.param("now", Timestamp.from(this.clock.instant()))
 			.update();
@@ -447,7 +550,7 @@ class ChangeRequests {
 	}
 
 	Optional<ChangeRequest> open(UUID jobId) {
-		return this.jdbc.sql("SELECT * FROM job.change_request WHERE job_id = :job AND status = 'OPEN'")
+		return this.jdbc.sql("SELECT * FROM job.change_request WHERE job_id = :job AND status IN ('OPEN', 'AWAITING_TOP_UP')")
 			.param("job", jobId)
 			.query(ChangeRequests::request)
 			.optional();
@@ -550,15 +653,18 @@ class ChangeRequests {
 			milestone.criteria().forEach(criterion -> criterionMilestones.put(criterion.id(), milestone.id()));
 		}
 		Set<UUID> seen = new HashSet<>();
+		int rises = 0;
 		for (MilestoneChange change : changes.milestones()) {
 			LiveMilestone milestone = changeable(live, change.milestoneId());
 			if (!seen.add(change.milestoneId()) || (change.title() != null && (change.title().isBlank() || change.title().length() > 120))
 					|| (change.priceVnd() != null && (change.priceVnd() < 1000 || change.priceVnd() > 1_000_000_000))) {
 				throw new ApiException(ErrorCode.VALIDATION);
 			}
-			if (change.priceVnd() != null && HELD.contains(milestone.state())
-					&& !change.priceVnd().equals(prices.get(change.milestoneId()))) {
-				throw new ApiException(ErrorCode.GUARD_FAILED, JobReason.HELD_PRICE_CHANGE);
+			Long before = prices.get(change.milestoneId());
+			if (!change.remove() && change.priceVnd() != null && HELD.contains(milestone.state()) && before != null
+					&& change.priceVnd() > before && ++rises > 1) {
+				// Story 14.2: one top-up at a time.
+				throw new ApiException(ErrorCode.VALIDATION);
 			}
 		}
 		for (AddedCriterion added : changes.addedCriteria()) {
@@ -754,6 +860,12 @@ class ChangeRequests {
 	private void closeTodos(UUID requestId) {
 		this.todos.closeAll(ADD_IMPACT, requestId);
 		this.todos.closeAll(ANSWER, requestId);
+		this.todos.closeAll(FUND_TOP_UP, requestId);
+	}
+
+	/** "1.000.000 ₫", as notifications write money. */
+	static String vnd(long amount) {
+		return String.format(java.util.Locale.ROOT, "%,d", amount).replace(',', '.') + " ₫";
 	}
 
 	private static List<Recipient> both(Job job) {
@@ -778,7 +890,8 @@ class ChangeRequests {
 		return new ChangeRequest(rs.getObject("id", UUID.class), rs.getObject("job_id", UUID.class),
 				Party.valueOf(rs.getString("proposer")), rs.getString("description"), rs.getString("impact"), items,
 				rs.getString("status"), instant(rs, "customer_approved_at"), instant(rs, "mentor_confirmed_at"), version,
-				rs.getTimestamp("created_at").toInstant(), instant(rs, "closed_at"), changes);
+				rs.getTimestamp("created_at").toInstant(), instant(rs, "closed_at"), changes,
+				rs.getObject("top_up_vnd", Long.class), rs.getObject("top_up_milestone_id", UUID.class));
 	}
 
 	private static @Nullable Instant instant(ResultSet rs, String column) throws SQLException {

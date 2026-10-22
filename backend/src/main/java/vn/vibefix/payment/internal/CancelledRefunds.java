@@ -54,7 +54,8 @@ class CancelledRefunds {
 		}
 		for (Map<String, Object> fund : this.jdbc.sql("""
 				SELECT id, payment_order_id, amount_vnd FROM payment.ledger_entry
-				WHERE milestone_id = :milestone AND entry_type = 'FUND' AND bucket = 'MILESTONE' AND payment_order_id IS NOT NULL
+				WHERE milestone_id = :milestone AND entry_type = 'FUND' AND bucket IN ('MILESTONE', 'CHANGE_REQUEST')
+				  AND payment_order_id IS NOT NULL
 				ORDER BY created_at DESC, id DESC
 				""").param("milestone", milestoneId).query().listOfRows()) {
 			if (left <= 0) {

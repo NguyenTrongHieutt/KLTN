@@ -48,7 +48,10 @@ class Refunds {
 
 	/** Why money could not apply, as the Customer reads it. */
 	enum Reason {
-		CREW_CHANGED, ORDER_CLOSED, WRONG_AMOUNT, NOT_FUNDABLE, CANCELLED, DISPUTE_DECISION
+		CREW_CHANGED, ORDER_CLOSED, WRONG_AMOUNT, NOT_FUNDABLE, CANCELLED, DISPUTE_DECISION,
+
+		/** A Change Request lowered a Held Milestone's price; the difference goes back at its end (FR-36). */
+		PRICE_CUT
 	}
 
 	/** One refund. */

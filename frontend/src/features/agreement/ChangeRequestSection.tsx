@@ -8,9 +8,11 @@ import { ApiError } from '@/lib/apiClient'
 import { formatCalendarDate, formatDayMonthTime } from '@/lib/dates'
 import { formatVnd } from '@/lib/money'
 import { problemMessage } from '@/lib/problemMessage'
+import { redirectTo } from '@/lib/redirect'
 import { cn } from '@/lib/utils'
 import {
   useChangeRequestCommand,
+  useTopUpOrder,
   useChangeRequests,
   useConfirmedVersions,
   type ChangeProposal,
@@ -188,6 +190,9 @@ function OpenRequest({ jobId, data, request }: { jobId: string; data: ChangeRequ
   }
   const needsImpact = request.impact == null
   const approved = request.customerApprovedAt != null
+  if (request.status === 'AWAITING_TOP_UP') {
+    return <AwaitingTopUp jobId={jobId} data={data} request={request} />
+  }
   return (
     <div className="flex flex-col gap-2 rounded-md border border-border bg-background p-3 text-body-sm">
       <Changes request={request} />
@@ -364,6 +369,43 @@ function changesOf(data: ChangeRequests, scope: string, drafts: Record<string, M
   }
 }
 
+/** Both sides agreed to a raised Held price: it takes effect once the Customer pays the difference (Story 14.2). */
+function AwaitingTopUp({ jobId, data, request }: { jobId: string; data: ChangeRequests; request: ChangeRequest }) {
+  const topUp = useTopUpOrder(jobId)
+  const [error, setError] = useState<string>()
+  const amount = formatVnd(request.topUpVnd ?? 0)
+  const customer = data.audience === 'CUSTOMER'
+  return (
+    <div className="flex flex-col gap-2 rounded-md border border-warning bg-warning-soft p-3 text-body-sm">
+      <Changes request={request} />
+      <p className="font-semibold">
+        {t(customer ? 'screen.changeRequest.full.topUpNeeded' : 'screen.changeRequest.full.topUpMentor', { amount })}
+      </p>
+      {error && (
+        <p role="alert" className="text-destructive">
+          {error}
+        </p>
+      )}
+      {customer && (
+        <div>
+          <Button
+            type="button"
+            disabled={topUp.isPending}
+            onClick={() =>
+              topUp.mutate(data.version, {
+                onSuccess: (created) => redirectTo(created.payUrl),
+                onError: (failed) => setError(failure(failed)),
+              })
+            }
+          >
+            {t('screen.changeRequest.full.payTopUp')}
+          </Button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ProposalForm({ jobId, data, onDone }: { jobId: string; data: ChangeRequests; onDone: () => void }) {
   const ids = useId()
   const toasts = useToasts()
@@ -469,15 +511,12 @@ function ProposalForm({ jobId, data, onDone }: { jobId: string; data: ChangeRequ
                       <input
                         inputMode="numeric"
                         value={draft.price}
-                        disabled={milestone.held}
                         onChange={(event) =>
                           update(milestone.id, (current) => ({ ...current, price: event.target.value.replace(/[^0-9]/g, '') }))
                         }
                         className={inputClass}
                       />
-                      {milestone.held && (
-                        <span className="text-caption text-muted-foreground">{t('screen.changeRequest.full.heldPrice')}</span>
-                      )}
+                      {milestone.held && <HeldPriceNote milestone={milestone} price={whole(draft.price)} />}
                     </label>
                     <label className="flex items-center gap-2">
                       <input
@@ -697,6 +736,20 @@ function ProposalForm({ jobId, data, onDone }: { jobId: string; data: ChangeRequ
         </Button>
       </div>
     </fieldset>
+  )
+}
+
+/** A Held Milestone's new price: a rise waits for the top-up, a cut is refunded when the Milestone ends. */
+function HeldPriceNote({ milestone, price }: { milestone: ChangeRequests['milestones'][number]; price: number | undefined }) {
+  const before = milestone.priceVnd ?? 0
+  if (price === undefined || price === before) {
+    return <span className="text-caption text-muted-foreground">{t('screen.changeRequest.full.heldPrice')}</span>
+  }
+  const key = price > before ? 'screen.changeRequest.full.rise' : 'screen.changeRequest.full.cut'
+  return (
+    <span className="text-caption">
+      {t(key, { n: milestone.number, price: formatVnd(price), amount: formatVnd(Math.abs(price - before)) })}
+    </span>
   )
 }
 

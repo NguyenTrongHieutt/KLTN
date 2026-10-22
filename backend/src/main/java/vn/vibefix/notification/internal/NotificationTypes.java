@@ -48,6 +48,10 @@ class NotificationTypes implements NotificationCatalog {
 	static final TodoType REPO_REVOCATION_ITEM = new TodoType("repo.revocation_item", Set.of(Audience.CUSTOMER), 3,
 			Set.of("system"));
 
+	/** FR-36, Story 14.2: a raised Held price waits for the Customer's top-up. */
+	static final TodoType PAYMENT_FUND_TOP_UP = new TodoType("payment.fund_top_up", Set.of(Audience.CUSTOMER), 2,
+			Set.of("amount"));
+
 	/** FR-79, AD-40: the raiser accepts the answer or asks an Administrator, until the escalation period ends. */
 	static final TodoType DISPUTE_DECIDE_TEAM_ISSUE_ANSWER = new TodoType("dispute.decide_team_issue_answer",
 			Set.of(Audience.CREW_EVER_ACTIVE), 2, Set.of());
@@ -710,6 +714,11 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType DISPUTE_TEAM_ISSUE_RAISED = new NotificationType("dispute.team_issue_raised",
 			Set.of(Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("name", "job", "date"));
 
+	/** FR-36, Story 14.2: both sides agreed to a raised Held price; it takes effect once the Customer pays the difference. */
+	static final NotificationType JOB_CHANGE_REQUEST_AWAITING_TOP_UP = new NotificationType(
+			"job.change_request_awaiting_top_up", Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL,
+			"alert", Set.of("job", "amount"));
+
 	/** FR-79, AD-40: the Mentor answered the raiser's Team Issue; nothing moved yet. */
 	static final NotificationType DISPUTE_TEAM_ISSUE_ANSWERED = new NotificationType("dispute.team_issue_answered",
 			Set.of(Audience.CREW_EVER_ACTIVE), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
@@ -805,6 +814,7 @@ class NotificationTypes implements NotificationCatalog {
 				JOB_CANCELLATION_UNANSWERED, JOB_JOB_CANCELLED, JOB_AGREEMENT_DEADLINE_PASSED, JOB_STARTING_DEADLINE_PASSED,
 				DISPUTE_DISPUTE_OPENED, DISPUTE_EXECUTION_FAILED, DISPUTE_DISPUTE_DECIDED, DISPUTE_TEAM_ISSUE_RAISED,
 				DISPUTE_TEAM_ISSUE_ANSWERED, DISPUTE_TEAM_ISSUE_ESCALATED, DISPUTE_TEAM_ISSUE_DECIDED,
+				JOB_CHANGE_REQUEST_AWAITING_TOP_UP,
 				PAYMENT_SHARE_HELD, JOB_JOB_STARTING,
 				PAYMENT_REFUND_REQUESTED, PAYMENT_SIMULATED_REFUND_REQUESTED, PAYMENT_REFUND_CONFIRMED, WORK_WORK_ITEM_ASSIGNED,
 				WORK_REVIEW_REQUESTED, WORK_WORK_ITEM_APPROVED, WORK_WORK_ITEM_RETURNED);
@@ -822,7 +832,7 @@ class NotificationTypes implements NotificationCatalog {
 				REPUTATION_GIVE_PRIVATE_FEEDBACK, REPUTATION_DRAFT_PORTFOLIO_SUMMARY, REPUTATION_APPROVE_PORTFOLIO_SUMMARY,
 				DELIVERY_DRAFT_FOLLOW_UPS, DELIVERY_APPROVE_FOLLOW_UPS, JOB_ADD_CHANGE_IMPACT, JOB_ANSWER_CHANGE_REQUEST,
 				JOB_ANSWER_CANCELLATION, JOB_GRANT_EXTERNAL_ACCESS, DISPUTE_ANSWER_TEAM_ISSUE,
-				DISPUTE_DECIDE_TEAM_ISSUE_ANSWER);
+				DISPUTE_DECIDE_TEAM_ISSUE_ANSWER, PAYMENT_FUND_TOP_UP);
 	}
 
 }

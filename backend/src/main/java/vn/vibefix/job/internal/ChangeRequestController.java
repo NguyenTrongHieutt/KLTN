@@ -82,11 +82,14 @@ class ChangeRequestController {
 			List<CriterionChangeView> criteria) {
 	}
 
-	/** @param status {@code OPEN}, {@code APPLIED}, {@code LAPSED}, or {@code WITHDRAWN} */
+	/**
+	 * @param status {@code OPEN}, {@code AWAITING_TOP_UP}, {@code APPLIED}, {@code LAPSED}, or {@code WITHDRAWN}
+	 * @param topUpVnd the difference the Customer pays before a raised Held price takes effect (Story 14.2)
+	 */
 	record ChangeRequestView(UUID id, String proposer, boolean mine, @Nullable String description, @Nullable String impact,
 			List<ChangeItemView> items, String status, @Nullable Instant customerApprovedAt,
 			@Nullable Instant mentorConfirmedAt, @Nullable Integer agreementVersionNo, Instant createdAt,
-			@Nullable Instant closedAt, ChangeSetView changes) {
+			@Nullable Instant closedAt, ChangeSetView changes, @Nullable Long topUpVnd) {
 	}
 
 	/**
@@ -350,7 +353,7 @@ class ChangeRequestController {
 			.toList();
 		List<ChangeRequestView> history = this.requests.history(jobId)
 			.stream()
-			.filter(request -> !"OPEN".equals(request.status()))
+			.filter(request -> !"OPEN".equals(request.status()) && !"AWAITING_TOP_UP".equals(request.status()))
 			.map(request -> view(request, viewer))
 			.toList();
 		return new ChangeRequestsView(jobId, viewer.party() == null ? "CREW" : viewer.party().name(), viewer.job().version(),
@@ -434,7 +437,7 @@ class ChangeRequestController {
 		return new ChangeRequestView(request.id(), request.proposer().name(), request.proposer() == viewer.party(),
 				request.description(), request.impact(), items, request.status(), request.customerApprovedAt(),
 				request.mentorConfirmedAt(), request.agreementVersionNo(), request.createdAt(), request.closedAt(),
-				changes(request));
+				changes(request), request.topUpVnd());
 	}
 
 }
