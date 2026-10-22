@@ -43,7 +43,7 @@ import vn.vibefix.shared.Gate;
  * amount, "Nhận xử lý", the assignee's decision behind the step-up, its execution "Bước {k}/4", and a
  * retry of a failed execution. Totals only, never per-party parts. The other side's statements show, and
  * the decision waits for one or for the end of their period (Story 15.1); the list flags Disputes still
- * undecided 7 days after they opened.
+ * undecided 7 days after they opened. The assignee reads the Evidence Package ({@link AdminEvidenceController}).
  */
 @RestController
 @RequestMapping("/api/v1/admin/disputes")
@@ -76,11 +76,12 @@ class AdminDisputeController {
 
 	/**
 	 * @param decidable a statement arrived or the period passed, so the decision form is offered
+	 * @param evidenceReadable the viewer is the assignee and reads the Evidence Package (Story 15.2)
 	 */
 	record AdminDisputeDetail(UUID id, UUID jobId, String jobTitle, String openedBy, String reason, String concern,
 			Instant openedAt, String status, boolean assigned, boolean assignedToMe, @Nullable HeldMilestoneView held,
 			boolean plannedRemains, @Nullable DecisionView decision, @Nullable ExecutionView execution,
-			List<AdminStatementView> statements, Instant statementDueAt, boolean decidable) {
+			List<AdminStatementView> statements, Instant statementDueAt, boolean decidable, boolean evidenceReadable) {
 	}
 
 	/** How long a Dispute waits before the list flags it (FR-52). */
@@ -216,7 +217,7 @@ class AdminDisputeController {
 					.stream()
 					.map(statement -> new AdminStatementView(statement.side().name(), statement.text(), statement.submittedAt()))
 					.toList(),
-				dispute.statementDueAt(), this.statements.decidable(dispute));
+				dispute.statementDueAt(), this.statements.decidable(dispute), this.decisions.evidenceReadable(disputeId, me));
 	}
 
 	private String title(UUID jobId) {

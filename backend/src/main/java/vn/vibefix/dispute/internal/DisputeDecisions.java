@@ -2,6 +2,7 @@ package vn.vibefix.dispute.internal;
 
 import java.sql.Timestamp;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -24,14 +25,20 @@ import vn.vibefix.identity.AdministratorStepUp;
 import vn.vibefix.job.MilestoneSettlements;
 import vn.vibefix.job.MilestoneSettlements.Next;
 import vn.vibefix.payment.Ledger;
+import vn.vibefix.shared.AdminReadGrants;
+import vn.vibefix.shared.AdminReadItem;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
+import vn.vibefix.shared.IdGenerator;
 
 /**
  * Taking and deciding Disputes (FR-54, AD-20, AD-31, SG-10): an Administrator takes a Dispute (another may
  * take it over), and only the assignee records a decision after a fresh step-up. The amounts must sum to
  * what the Held Milestone holds; "Tiếp tục" needs a Planned Milestone left. The decision is recorded and
  * audited with its reasoning and totals, and its execution starts at step 0.
+ * <p>
+ * Taking pushes the Dispute's read grant ({@link AdminReadItem#forDispute()}) down to every module holding
+ * Job content; a takeover ends the old one at once, and the decision ends it 30 days later (Story 15.2).
  */
 @Component
 class DisputeDecisions implements DisputeQueue {
@@ -42,6 +49,9 @@ class DisputeDecisions implements DisputeQueue {
 
 	record Execution(UUID disputeId, String status, int step, @Nullable String failure) {
 	}
+
+	/** How long the assignee still reads the evidence after the decision (AD-20). */
+	static final Duration GRANT_AFTER_DECISION = Duration.ofDays(30);
 
 	/** How a decision ended: recorded, or refused by the step-up (thrown after commit). */
 	sealed interface Outcome {
@@ -70,9 +80,16 @@ class DisputeDecisions implements DisputeQueue {
 
 	private final ObjectProvider<DisputeStatements> statements;
 
+	private final List<AdminReadGrants> grants;
+
+	private final IdGenerator ids;
+
 	DisputeDecisions(JdbcClient jdbc, Disputes disputes, MilestoneSettlements settlements, Ledger ledger, AdministratorStepUp stepUp,
-			AuditLog auditLog, Clock clock, ObjectProvider<DisputeStatements> statements) {
+			AuditLog auditLog, Clock clock, ObjectProvider<DisputeStatements> statements, List<AdminReadGrants> grants,
+			IdGenerator ids) {
 		this.statements = statements;
+		this.grants = grants;
+		this.ids = ids;
 		this.jdbc = jdbc;
 		this.disputes = disputes;
 		this.settlements = settlements;
@@ -108,17 +125,37 @@ class DisputeDecisions implements DisputeQueue {
 			.list();
 	}
 
-	/** "Nhận xử lý": the Administrator takes the Dispute, over another if need be. */
+	/**
+	 * "Nhận xử lý": the Administrator takes the Dispute, over another if need be, and reads its evidence under
+	 * a new grant; the assignee taking it again changes nothing.
+	 */
 	@Transactional
 	void take(UUID disputeId, UUID administrator) {
 		Dispute dispute = this.disputes.find(disputeId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		Assignment current = this.jdbc
+			.sql("SELECT assigned_admin_id, grant_id FROM dispute.dispute WHERE id = :id FOR UPDATE")
+			.param("id", disputeId)
+			.query((rs, n) -> new Assignment(rs.getObject("assigned_admin_id", UUID.class), rs.getObject("grant_id", UUID.class)))
+			.single();
 		if (decision(disputeId).isPresent()) {
 			throw new ApiException(ErrorCode.CONFLICT, DisputeReason.ALREADY_DECIDED);
 		}
-		this.jdbc.sql("UPDATE dispute.dispute SET assigned_admin_id = :admin, assigned_at = :now WHERE id = :id")
+		if (administrator.equals(current.adminId()) && current.grantId() != null) {
+			return;
+		}
+		Instant now = this.clock.instant();
+		UUID previous = current.grantId();
+		if (previous != null) {
+			this.grants.forEach(module -> module.endAdminRead(previous, now));
+		}
+		UUID grant = this.ids.newId();
+		this.grants.forEach(
+				module -> module.grantAdminRead(grant, administrator, dispute.jobId(), AdminReadItem.forDispute(), disputeId));
+		this.jdbc.sql("UPDATE dispute.dispute SET assigned_admin_id = :admin, assigned_at = :now, grant_id = :grant WHERE id = :id")
 			.param("id", disputeId)
 			.param("admin", administrator)
-			.param("now", Timestamp.from(this.clock.instant()))
+			.param("now", Timestamp.from(now))
+			.param("grant", grant)
 			.update();
 		this.auditLog.record(AuditEntry.of(AuditActor.user(administrator), "dispute.dispute_taken",
 				AuditObject.of("dispute.dispute", disputeId)).forJob(dispute.jobId()));
@@ -183,7 +220,35 @@ class DisputeDecisions implements DisputeQueue {
 			.update();
 		this.auditLog.record(AuditEntry.of(AuditActor.user(administrator), "dispute.decision_recorded",
 				AuditObject.of("dispute.dispute", disputeId)).forJob(dispute.jobId()));
+		UUID grant = this.jdbc.sql("SELECT grant_id FROM dispute.dispute WHERE id = :id")
+			.param("id", disputeId)
+			.query((rs, n) -> rs.getObject("grant_id", UUID.class))
+			.single();
+		if (grant != null) {
+			Instant ends = now.toInstant().plus(GRANT_AFTER_DECISION);
+			this.grants.forEach(module -> module.endAdminRead(grant, ends));
+		}
 		return new Outcome.Recorded();
+	}
+
+	/**
+	 * Whether {@code administrator} reads the Dispute's Evidence Package now: its assignee, under the grant
+	 * their take opened, until 30 days after the decision.
+	 */
+	boolean evidenceReadable(UUID disputeId, UUID administrator) {
+		Assignment current = this.jdbc.sql("SELECT assigned_admin_id, grant_id FROM dispute.dispute WHERE id = :id")
+			.param("id", disputeId)
+			.query((rs, n) -> new Assignment(rs.getObject("assigned_admin_id", UUID.class), rs.getObject("grant_id", UUID.class)))
+			.optional()
+			.orElse(null);
+		if (current == null || current.grantId() == null || !administrator.equals(current.adminId())) {
+			return false;
+		}
+		return decision(disputeId).map(decided -> this.clock.instant().isBefore(decided.decidedAt().plus(GRANT_AFTER_DECISION)))
+			.orElse(true);
+	}
+
+	private record Assignment(@Nullable UUID adminId, @Nullable UUID grantId) {
 	}
 
 	@Nullable UUID assignee(UUID disputeId) {
