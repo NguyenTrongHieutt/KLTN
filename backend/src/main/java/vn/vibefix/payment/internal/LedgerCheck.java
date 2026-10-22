@@ -23,7 +23,10 @@ import vn.vibefix.operations.OperationRequest;
 /**
  * SG-23's daily ledger check (AD-15): a final Milestone whose paid out plus requested refunds differ
  * from what was funded, and an unapplied FUND that no refund reverses, each go to the failed-operations
- * queue as a {@value LedgerMismatchOperation#TYPE} operation, once a day. Open holds join with Epic 12.
+ * queue as a {@value LedgerMismatchOperation#TYPE} operation, once a day. So do three of AD-40's hold
+ * cases: a raiser's RELEASE_HELD still unreversed after their hold ended, a Mentor's RELEASE_HELD still
+ * unreversed on a Milestone with no open hold, and an open hold on a Milestone that became final without a
+ * release. The fourth, a Team Issue open too long, is {@code dispute}'s.
  */
 @Component
 class LedgerCheck {
@@ -55,7 +58,8 @@ class LedgerCheck {
 
 	/**
 	 * Runs the check now.
-	 * @return the IDs found out of balance: Milestones, and unapplied FUND entries
+	 * @return the IDs found out of balance: Milestones, unapplied FUND entries, the Team Issues of holds
+	 * left on a final Milestone, and held entries left unreversed
 	 */
 	@Transactional
 	List<UUID> check() {
@@ -67,11 +71,31 @@ class LedgerCheck {
 				continue;
 			}
 			for (FundingMilestone milestone : job.milestones()) {
-				if (FINAL.contains(milestone.state()) && !LedgerMath.balanced(this.ledger.entries(milestone.milestoneId()))) {
+				if (!FINAL.contains(milestone.state())) {
+					continue;
+				}
+				if (!LedgerMath.balanced(this.ledger.entries(milestone.milestoneId()))) {
 					mismatches.add(milestone.milestoneId());
 				}
+				mismatches.addAll(this.jdbc.sql("""
+						SELECT h.team_issue_id FROM payment.share_hold h
+						WHERE h.milestone_id = :id AND h.ended_at IS NULL
+						  AND NOT EXISTS (SELECT 1 FROM payment.ledger_entry e
+						                  WHERE e.milestone_id = h.milestone_id AND e.entry_type IN ('RELEASE', 'RELEASE_HELD'))
+						""").param("id", milestone.milestoneId()).query(UUID.class).list());
 			}
 		}
+		mismatches.addAll(this.jdbc.sql("""
+				SELECT e.id FROM payment.ledger_entry e JOIN payment.share_hold h ON h.team_issue_id = e.hold_id
+				WHERE e.entry_type = 'RELEASE_HELD' AND h.ended_at IS NOT NULL
+				  AND NOT EXISTS (SELECT 1 FROM payment.ledger_entry r WHERE r.reverses_entry_id = e.id)
+				""").query(UUID.class).list());
+		mismatches.addAll(this.jdbc.sql("""
+				SELECT e.id FROM payment.ledger_entry e
+				WHERE e.entry_type = 'RELEASE_HELD' AND e.hold_id IS NULL
+				  AND NOT EXISTS (SELECT 1 FROM payment.ledger_entry r WHERE r.reverses_entry_id = e.id)
+				  AND NOT EXISTS (SELECT 1 FROM payment.share_hold h WHERE h.milestone_id = e.milestone_id AND h.ended_at IS NULL)
+				""").query(UUID.class).list());
 		mismatches.addAll(this.jdbc.sql("""
 				SELECT f.id FROM payment.ledger_entry f
 				WHERE f.entry_type = 'FUND' AND f.bucket = 'UNAPPLIED'

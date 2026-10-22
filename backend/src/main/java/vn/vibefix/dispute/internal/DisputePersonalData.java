@@ -16,7 +16,9 @@ import vn.vibefix.shared.PersonalDataSection;
 
 /**
  * {@code dispute}'s part in exports, erasure, and Product deletion (AD-24): a person exports the Disputes
- * they opened; erasure clears them as the opener; deleting a Product deletes its Disputes.
+ * they opened and the Team Issues they raised; erasure clears them as the opener, the raiser, or the
+ * Mentor, and a Team Issue not ended blocks it, since its hold would never end; deleting a Product deletes
+ * its Disputes and Team Issues.
  */
 @Component
 class DisputePersonalData implements PersonalDataParticipant {
@@ -29,7 +31,7 @@ class DisputePersonalData implements PersonalDataParticipant {
 
 	@Override
 	public Set<String> tables() {
-		return Set.of("dispute.dispute", "dispute.decision", "dispute.execution");
+		return Set.of("dispute.dispute", "dispute.decision", "dispute.execution", "dispute.team_issue");
 	}
 
 	@Override
@@ -44,8 +46,29 @@ class DisputePersonalData implements PersonalDataParticipant {
 			row.put("openedAt", rs.getTimestamp("opened_at").toInstant().toString());
 			return row;
 		}).list();
-		return disputes.isEmpty() ? Optional.empty()
-				: Optional.of(new PersonalDataSection("dispute", Map.of("disputesOpened", disputes)));
+		List<Map<String, Object>> issues = this.jdbc.sql("""
+				SELECT job_id, subject, reason, phase, raised_at FROM dispute.team_issue WHERE raiser_account_id = :id
+				ORDER BY raised_at, id
+				""").param("id", accountId).query((rs, n) -> {
+			Map<String, Object> row = new LinkedHashMap<>();
+			row.put("jobId", rs.getObject("job_id", UUID.class).toString());
+			row.put("subject", rs.getString("subject"));
+			row.put("reason", rs.getString("reason"));
+			row.put("phase", rs.getString("phase"));
+			row.put("raisedAt", rs.getTimestamp("raised_at").toInstant().toString());
+			return row;
+		}).list();
+		if (disputes.isEmpty() && issues.isEmpty()) {
+			return Optional.empty();
+		}
+		Map<String, Object> data = new LinkedHashMap<>();
+		if (!disputes.isEmpty()) {
+			data.put("disputesOpened", disputes);
+		}
+		if (!issues.isEmpty()) {
+			data.put("teamIssuesRaised", issues);
+		}
+		return Optional.of(new PersonalDataSection("dispute", data));
 	}
 
 	@Override
@@ -54,6 +77,12 @@ class DisputePersonalData implements PersonalDataParticipant {
 			.param("id", accountId)
 			.update();
 		this.jdbc.sql("UPDATE dispute.decision SET admin_account_id = NULL WHERE admin_account_id = :id")
+			.param("id", accountId)
+			.update();
+		this.jdbc.sql("UPDATE dispute.team_issue SET raiser_account_id = NULL WHERE raiser_account_id = :id")
+			.param("id", accountId)
+			.update();
+		this.jdbc.sql("UPDATE dispute.team_issue SET mentor_account_id = NULL WHERE mentor_account_id = :id")
 			.param("id", accountId)
 			.update();
 	}
@@ -65,11 +94,21 @@ class DisputePersonalData implements PersonalDataParticipant {
 				.formatted(table)).param("id", productId).update();
 		}
 		this.jdbc.sql("DELETE FROM dispute.dispute WHERE product_id = :id").param("id", productId).update();
+		this.jdbc.sql("DELETE FROM dispute.team_issue WHERE product_id = :id").param("id", productId).update();
 	}
 
 	@Override
 	public List<ErasureBlocker> erasureBlockers(UUID accountId) {
-		return List.of();
+		return this.jdbc.sql("""
+				SELECT DISTINCT job_id FROM dispute.team_issue
+				WHERE phase <> 'ENDED' AND (raiser_account_id = :id OR mentor_account_id = :id)
+				""")
+			.param("id", accountId)
+			.query(UUID.class)
+			.list()
+			.stream()
+			.map(job -> new ErasureBlocker("dispute", "TEAM_ISSUE_OPEN", job))
+			.toList();
 	}
 
 }

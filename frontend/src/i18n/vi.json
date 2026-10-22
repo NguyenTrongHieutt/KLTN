@@ -2309,7 +2309,7 @@
           "INACTIVE": "Tạm ngừng",
           "RELEASED": "Đã rời",
           "INACTIVE_OWED": "Tạm ngừng · hãy bỏ khỏi nhóm",
-        "LEAVING": "Đang tham gia · sẽ rời khi áp dụng phiên bản {n}"
+          "LEAVING": "Đang tham gia · sẽ rời khi áp dụng phiên bản {n}"
         },
         "released": {
           "DECLINED": "Đã rời · đã từ chối tham gia",
@@ -2380,6 +2380,31 @@
         "activeShare": "Phần của bạn: {share}% · điều khoản phiên bản {n}",
         "activeBadge": "Đã xác nhận",
         "inactiveBadge": "Tạm ngừng"
+      }
+    },
+    "teamIssue": {
+      "title": "Khiếu nại nội bộ",
+      "lead": "Khiếu nại với người hướng dẫn về phần chia một giai đoạn hoặc điểm người hướng dẫn chấm bạn. Khách hàng không thấy khiếu nại này.",
+      "mentor": "Người hướng dẫn: {name}",
+      "choose": "Bạn muốn khiếu nại về",
+      "share": "Phần chia giai đoạn {n}",
+      "rating": "Điểm người hướng dẫn chấm tôi",
+      "ratingLine": "{n} sao · khiếu nại được đến {date}",
+      "raisedShare": "Bạn đã khiếu nại phần chia giai đoạn này; khiếu nại kết thúc ngày {date}. Mỗi giai đoạn chỉ khiếu nại được một lần.",
+      "raisedRating": "Bạn đã khiếu nại điểm này; khiếu nại kết thúc ngày {date}. Mỗi lần chấm điểm chỉ khiếu nại được một lần.",
+      "reason": "Lý do",
+      "reasonHint": "Viết rõ điều bạn thấy chưa công bằng. Người hướng dẫn đọc lý do này và trả lời trong 5 ngày.",
+      "submit": "Gửi khiếu nại",
+      "sent": "Đã gửi khiếu nại nội bộ cho người hướng dẫn.",
+      "held": "Phần tiền của hai bạn cho giai đoạn này được giữ lại cho đến khi có kết quả",
+      "from": "{name} · {subject}",
+      "jobLead": "Chỉ bạn và người gửi thấy các khiếu nại này; khách hàng không thấy.",
+      "phase": {
+        "answer": "Chờ người hướng dẫn trả lời trước {date}",
+        "answerMentor": "Hãy trả lời trước {date}",
+        "escalation": "Người hướng dẫn chưa trả lời trong thời hạn. Bước tiếp theo trước {date}",
+        "escalated": "Đã chuyển cho quản trị viên",
+        "ended": "Đã kết thúc ngày {date}"
       }
     },
     "payment": {
@@ -2494,6 +2519,9 @@
         "count": "Từ {n} lần chuyển tiền",
         "sentToCrew": "Đã chuyển cho nhóm thực hiện",
         "held": "Đang giữ chờ nghiệm thu",
+        "onHoldTitle": "Đang giữ",
+        "onHoldLead": "Phần tiền của bạn cho các giai đoạn này được giữ lại cho đến khi khiếu nại nội bộ có kết quả. Phần này chưa tính vào số dư.",
+        "onHoldLine": "{job} · Giai đoạn {n}",
         "releasesTitle": "Các lần chuyển tiền",
         "mentorLead": "Mỗi lần khách hàng nghiệm thu một giai đoạn, số tiền được chia theo điều khoản nhóm thực hiện của phiên bản đang áp dụng. Phần lẻ dưới 1 đồng thuộc về người hướng dẫn.",
         "studentLead": "Mỗi lần khách hàng nghiệm thu một giai đoạn, bạn nhận phần của mình theo điều khoản nhóm thực hiện.",
@@ -3709,6 +3737,9 @@
     "payment": {
       "fund_milestone": "Thanh toán Giai đoạn {n}: {amount} THỬ NGHIỆM"
     },
+    "dispute": {
+      "answer_team_issue": "Trả lời khiếu nại nội bộ của {name}"
+    },
     "work": {
       "review_work_item": "Duyệt {key}: {title}",
       "fix_returned_item": "Sửa {key} theo nhận xét của người hướng dẫn",
@@ -4042,6 +4073,9 @@
       }
     },
     "payment": {
+      "share_held": {
+        "title": "Phần tiền của bạn cho Giai đoạn {n} đang được giữ đến khi khiếu nại nội bộ có kết quả"
+      },
       "payment_received": {
         "title": "Đã nhận thanh toán thử nghiệm {amount} cho Giai đoạn {n} của {job}"
       },
@@ -4165,6 +4199,9 @@
       },
       "dispute_decided": {
         "title": "Tranh chấp ở {job} đã được phân xử"
+      },
+      "team_issue_raised": {
+        "title": "{name} gửi khiếu nại nội bộ cho {job}. Hãy trả lời trước {date}."
       }
     },
     "admin": {
@@ -4302,6 +4339,7 @@
       "HAS_ACCEPTED_WORK": "Công việc đã có giai đoạn được nghiệm thu nên kết thúc qua bước đóng công việc.",
       "IDENTIFIER_LOOKS_LIKE_SECRET": "Đây giống một mật khẩu hoặc khóa bí mật. Chỉ nhập tài khoản để khách hàng mời bạn, ví dụ email của bạn.",
       "EXTERNAL_ACCESS_CLOSED": "Công việc đã kết thúc, không cần gửi tài khoản nữa.",
+      "MILESTONE_NOT_HELD": "Phần chia giai đoạn này không còn khiếu nại được: giai đoạn chưa được thanh toán hoặc đã chuyển tiền.",
       "DEADLINE_NOT_PASSED": "Bạn tự hủy được khi thỏa thuận chưa xác nhận sau 14 ngày hoặc công việc chưa bắt đầu sau 7 ngày."
     },
     "matching": {
@@ -4329,7 +4367,8 @@
       "CHAT_READ_ONLY": "Cuộc trò chuyện này chỉ còn để xem."
     },
     "payment": {
-      "PAYMENT_NOT_CONFIGURED": "môi trường này chưa kết nối VNPay thử nghiệm"
+      "PAYMENT_NOT_CONFIGURED": "môi trường này chưa kết nối VNPay thử nghiệm",
+      "MILESTONE_NOT_HELD": "Phần chia giai đoạn này không còn khiếu nại được: giai đoạn chưa được thanh toán hoặc đã chuyển tiền."
     },
     "work": {
       "MENTOR_ONLY": "Chỉ người hướng dẫn làm được việc này.",
@@ -4420,7 +4459,11 @@
       "AMOUNTS_MISMATCH": "Số tiền giải ngân và hoàn lại phải cộng bằng số tiền đang giữ.",
       "NOTHING_TO_CONTINUE": "Không còn giai đoạn chưa bắt đầu nào để tiếp tục.",
       "ALREADY_DECIDED": "Tranh chấp này đã có quyết định.",
-      "NOT_FAILED": "Chỉ thử lại được khi việc thực hiện bị lỗi."
+      "NOT_FAILED": "Chỉ thử lại được khi việc thực hiện bị lỗi.",
+      "TEAM_ISSUE_OPEN": "Bạn đã có một khiếu nại nội bộ đang mở cho công việc này.",
+      "TEAM_ISSUE_ALREADY_RAISED": "Bạn đã khiếu nại mục này rồi. Mỗi giai đoạn và mỗi lần chấm điểm chỉ khiếu nại được một lần.",
+      "TEAM_ISSUE_WINDOW_CLOSED": "Đã quá thời hạn gửi khiếu nại cho mục này.",
+      "MILESTONE_NOT_HELD": "Phần chia giai đoạn này không còn khiếu nại được: giai đoạn chưa được thanh toán hoặc đã chuyển tiền."
     },
     "admin": {
       "FEEDBACK_NOT_ENOUGH": "Cần ít nhất 3 đánh giá kín từ 2 sinh viên khác nhau trên 2 công việc khác nhau.",

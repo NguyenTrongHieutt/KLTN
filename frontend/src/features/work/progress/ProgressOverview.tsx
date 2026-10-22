@@ -15,6 +15,7 @@ import { useTodos } from '@/features/notification/hooks'
 import { todoText } from '@/features/notification/texts'
 import { JobPortfolioSection } from '@/features/reputation/JobPortfolioSection'
 import { RatingSection } from '@/features/reputation/RatingSection'
+import { JobTeamIssues } from '@/features/teamIssue/JobTeamIssues'
 import { t, type MessageKey } from '@/i18n/t'
 import { formatCalendarDayMonth, formatDayMonth } from '@/lib/dates'
 import { formatVnd } from '@/lib/money'
@@ -81,6 +82,7 @@ function Content({ jobId, audience, progress }: { jobId: string; audience: Progr
         )}
         {!progress.assessment && <DriftWarning jobId={jobId} />}
         <DisputeSection jobId={jobId} />
+        {audience === 'mentor' && <JobTeamIssues jobId={jobId} />}
         {!progress.assessment && <WorkFindings jobId={jobId} />}
         <JobNextAction jobId={jobId} />
         <ClosureSection jobId={jobId} />

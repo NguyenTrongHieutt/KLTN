@@ -5,7 +5,9 @@ import java.util.UUID;
 
 /**
  * The release of an accepted Milestone (FR-42, AD-5, AD-15, AD-41): one RELEASE per party of the Crew
- * Terms version pinned at M1, split from {@link Ledger#releasable} by {@link vn.vibefix.shared.CrewSplit}.
+ * Terms version pinned at M1, split from {@link Ledger#releasable} by {@link vn.vibefix.shared.CrewSplit};
+ * while a share Team Issue holds the Milestone, the Mentor and each raiser get a RELEASE_HELD instead
+ * (AD-40), and every split follows the pin adjusted by the recorded transfers ({@link ShareHolds}).
  * The module that applies M5 calls it in the same transaction, after M5, so the Job row is locked before
  * the Milestone's ledger account.
  */
@@ -13,9 +15,10 @@ public interface Releases {
 
 	/**
 	 * One party's part.
-	 * @param sharePercent the party's percentage in the pinned version
+	 * @param sharePercent the party's percentage in the pinned version, adjusted by the recorded transfers
+	 * @param held written as RELEASE_HELD for an open share Team Issue
 	 */
-	record Part(UUID partyId, long amountVnd, int sharePercent) {
+	record Part(UUID partyId, long amountVnd, int sharePercent, boolean held) {
 	}
 
 	/**

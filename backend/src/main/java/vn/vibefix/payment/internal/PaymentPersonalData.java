@@ -31,7 +31,8 @@ class PaymentPersonalData implements PersonalDataParticipant {
 
 	@Override
 	public Set<String> tables() {
-		return Set.of("payment.payment_order", "payment.ledger_account", "payment.ledger_entry", "payment.refund");
+		return Set.of("payment.payment_order", "payment.ledger_account", "payment.ledger_entry", "payment.refund",
+				"payment.share_hold");
 	}
 
 	@Override
@@ -73,7 +74,8 @@ class PaymentPersonalData implements PersonalDataParticipant {
 	}
 
 	private void delete(String where, Map<String, Object> params) {
-		for (String table : List.of("payment.refund", "payment.ledger_entry", "payment.ledger_account", "payment.payment_order")) {
+		for (String table : List.of("payment.refund", "payment.share_hold", "payment.ledger_entry", "payment.ledger_account",
+				"payment.payment_order")) {
 			this.jdbc.sql("DELETE FROM " + table + " WHERE " + where).params(params).update();
 		}
 	}

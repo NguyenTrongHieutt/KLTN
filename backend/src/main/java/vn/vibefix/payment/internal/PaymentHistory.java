@@ -23,8 +23,9 @@ import vn.vibefix.job.MilestoneFunding.FundingMilestone;
 
 /**
  * Where test money is (FR-44, AD-15, AD-20): a Milestone's figures; CUS-10, which never names a party;
- * the Balance of MEN-7 and STU-7, the sum of the account's RELEASE entries; and the Mentor's JOB-7,
- * which lists each release by party. Reads take no lock.
+ * the Balance of MEN-7 and STU-7, the sum of the account's RELEASE entries, with the account's own held
+ * parts beside it ("Đang giữ", AD-40), which never count in it; and the Mentor's JOB-7, which lists each
+ * release by party. Reads take no lock.
  */
 @Component
 class PaymentHistory {
@@ -47,8 +48,13 @@ class PaymentHistory {
 			long yourPartVnd, @Nullable Integer yourPercent, @Nullable Integer crewTermsVersionNo, List<Part> crew) {
 	}
 
+	/** One of the account's own held parts: a RELEASE_HELD not reversed yet (AD-40). */
+	record HeldPart(UUID jobId, String jobTitle, int number, String milestoneTitle, long amountVnd, Instant heldAt) {
+	}
+
 	/** MEN-7 or STU-7. */
-	record Balance(long balanceVnd, int releases, @Nullable Long sentToCrewVnd, @Nullable Long heldVnd, List<ReleaseLine> lines) {
+	record Balance(long balanceVnd, int releases, @Nullable Long sentToCrewVnd, @Nullable Long heldVnd, List<ReleaseLine> lines,
+			List<HeldPart> heldParts) {
 	}
 
 	private final JdbcClient jdbc;
@@ -138,8 +144,9 @@ class PaymentHistory {
 		}
 		lines.sort(Comparator.comparing(ReleaseLine::releasedAt).reversed());
 		long balance = own.stream().mapToLong(Release::amountVnd).sum();
+		List<HeldPart> heldParts = heldParts(accountId, jobs);
 		if (!mentor) {
-			return new Balance(balance, own.size(), null, null, lines);
+			return new Balance(balance, own.size(), null, null, lines, heldParts);
 		}
 		long sent = lines.stream().flatMap(line -> line.crew().stream()).mapToLong(Part::amountVnd).sum();
 		long held = this.funding.ofMentor(accountId)
@@ -147,7 +154,28 @@ class PaymentHistory {
 			.flatMap(job -> job.milestones().stream())
 			.mapToLong(milestone -> figures(milestone.milestoneId()).releasableVnd())
 			.sum();
-		return new Balance(balance, own.size(), sent, held, lines);
+		return new Balance(balance, own.size(), sent, held, lines, heldParts);
+	}
+
+	/** The account's RELEASE_HELD entries that no HELD_RELEASED reversed, the newest first. */
+	private List<HeldPart> heldParts(UUID accountId, Map<UUID, FundingJob> jobs) {
+		return this.jdbc.sql("""
+				SELECT e.milestone_id, e.amount_vnd, e.created_at FROM payment.ledger_entry e
+				WHERE e.entry_type = 'RELEASE_HELD' AND e.party_account_id = :id
+				  AND NOT EXISTS (SELECT 1 FROM payment.ledger_entry r WHERE r.reverses_entry_id = e.id)
+				ORDER BY e.created_at DESC, e.id
+				""").param("id", accountId).query((rs, n) -> {
+			UUID milestoneId = rs.getObject("milestone_id", UUID.class);
+			FundingJob job = jobOf(milestoneId, jobs);
+			FundingMilestone milestone = job == null ? null : job.milestones()
+				.stream()
+				.filter(found -> found.milestoneId().equals(milestoneId))
+				.findFirst()
+				.orElse(null);
+			return new HeldPart(job == null ? new UUID(0, 0) : job.jobId(), job == null ? "" : job.title(),
+					milestone == null ? 0 : milestone.number(), milestone == null ? "" : milestone.title(),
+					rs.getLong("amount_vnd"), rs.getTimestamp("created_at").toInstant());
+		}).list();
 	}
 
 	/** The RELEASE entries of a Milestone with their version, for the Mentor's JOB-7. */

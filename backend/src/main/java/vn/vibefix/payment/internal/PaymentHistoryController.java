@@ -64,12 +64,17 @@ class PaymentHistoryController {
 			List<CrewPartView> crew) {
 	}
 
+	/** One of the reader's own parts held for an open share Team Issue: "Đang giữ" (AD-40). */
+	record HeldPartView(UUID jobId, String jobTitle, int number, String milestoneTitle, long amountVnd, Instant heldAt) {
+	}
+
 	/**
 	 * MEN-7 or STU-7.
 	 * @param sentToCrewVnd and {@code heldVnd}: the Mentor's only
+	 * @param heldParts the reader's own held parts, which the Balance never counts
 	 */
 	record BalanceView(long balanceVnd, int releases, @Nullable Long sentToCrewVnd, @Nullable Long heldVnd,
-			List<BalanceReleaseView> lines) {
+			List<BalanceReleaseView> lines, List<HeldPartView> heldParts) {
 	}
 
 	record MentorReleaseView(String name, String role, long amountVnd, @Nullable Integer percent,
@@ -160,6 +165,11 @@ class PaymentHistoryController {
 					.map(line -> new BalanceReleaseView(line.jobId(), line.jobTitle(), line.number(), line.milestoneTitle(),
 							line.releasedAt(), line.baseAmountVnd(), line.yourPartVnd(), line.yourPercent(), line.crewTermsVersionNo(),
 							line.crew().stream().map(part -> new CrewPartView(part.name(), part.amountVnd(), part.percent())).toList()))
+					.toList(),
+				balance.heldParts()
+					.stream()
+					.map(part -> new HeldPartView(part.jobId(), part.jobTitle(), part.number(), part.milestoneTitle(),
+							part.amountVnd(), part.heldAt()))
 					.toList());
 	}
 

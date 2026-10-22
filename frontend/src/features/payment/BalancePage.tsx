@@ -14,7 +14,8 @@ import { TestModeBanner } from './TestModeBanner'
 /**
  * MEN-7 and STU-7 (`/so-du`, FR-44, FR-45): the Balance, the sum of the account's releases, and each
  * release per Job. The Mentor also sees each Crew member's part; a Student sees only their own, even
- * after leaving the Crew (AD-20). The Balance cannot be withdrawn.
+ * after leaving the Crew (AD-20). The reader's own parts held for an open Team Issue show as "Đang giữ"
+ * and never count in the Balance (AD-40). The Balance cannot be withdrawn.
  */
 export function BalancePage() {
   usePageTitle(t('screen.payment.balance.title'))
@@ -63,6 +64,26 @@ function Content({ balance, mentor }: { balance: Balance; mentor: boolean }) {
           </div>
         )}
       </div>
+      {balance.heldParts.length > 0 && (
+        <section aria-labelledby="held-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4">
+          <h2 id="held-heading" className="text-h3">
+            {t('screen.payment.balance.onHoldTitle')}
+          </h2>
+          <p className="text-body-sm text-muted-foreground">{t('screen.payment.balance.onHoldLead')}</p>
+          <ul className="flex flex-col gap-1.5 text-body-sm">
+            {balance.heldParts.map((part, index) => (
+              <li key={`${part.jobId}-${part.number}-${index}`} className="flex flex-wrap justify-between gap-2">
+                <span className="break-words">
+                  {t('screen.payment.balance.onHoldLine', { job: part.jobTitle, n: part.number })}
+                </span>
+                <span className="tabular-nums">
+                  {formatVnd(part.amountVnd)} <TestTag />
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <section aria-labelledby="releases-heading" className="flex flex-col gap-2.5">
         <h2 id="releases-heading" className="text-h2">
           {t('screen.payment.balance.releasesTitle')}

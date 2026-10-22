@@ -2685,6 +2685,33 @@
         "tags" : [ "revocation-checklist-controller" ]
       }
     },
+    "/api/v1/boards/{boardId}/team-issues" : {
+      "get" : {
+        "operationId" : "ofJob_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/JobTeamIssuesView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "team-issue-controller" ]
+      }
+    },
     "/api/v1/boards/{boardId}/work-items" : {
       "get" : {
         "operationId" : "workItems",
@@ -6980,6 +7007,53 @@
         "tags" : [ "student-team-controller" ]
       }
     },
+    "/api/v1/team-issues" : {
+      "get" : {
+        "operationId" : "panel",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/TeamIssuePanelView"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "team-issue-controller" ]
+      },
+      "post" : {
+        "operationId" : "raise",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RaiseTeamIssueRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamIssueView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "team-issue-controller" ]
+      }
+    },
     "/api/v1/team/invitations/{invitationId}/accept" : {
       "post" : {
         "operationId" : "accept",
@@ -8456,6 +8530,12 @@
             "type" : "integer",
             "format" : "int64"
           },
+          "heldParts" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/HeldPartView"
+            }
+          },
           "heldVnd" : {
             "type" : "integer",
             "format" : "int64"
@@ -8475,7 +8555,7 @@
             "format" : "int64"
           }
         },
-        "required" : [ "balanceVnd", "lines", "releases" ]
+        "required" : [ "balanceVnd", "heldParts", "lines", "releases" ]
       },
       "BoardMilestoneView" : {
         "type" : "object",
@@ -11549,6 +11629,34 @@
         },
         "required" : [ "milestoneId", "number", "releasableVnd", "title" ]
       },
+      "HeldPartView" : {
+        "type" : "object",
+        "properties" : {
+          "amountVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "heldAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "jobTitle" : {
+            "type" : "string"
+          },
+          "milestoneTitle" : {
+            "type" : "string"
+          },
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "amountVnd", "heldAt", "jobId", "jobTitle", "milestoneTitle", "number" ]
+      },
       "HideRequest" : {
         "type" : "object",
         "properties" : {
@@ -12184,6 +12292,25 @@
           }
         },
         "required" : [ "id", "jobTypes", "productId", "productName", "state", "title", "updatedAt" ]
+      },
+      "JobTeamIssuesView" : {
+        "type" : "object",
+        "properties" : {
+          "issues" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/TeamIssueView"
+            }
+          },
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "mentor" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "issues", "jobId", "mentor" ]
       },
       "JobTypeMatchView" : {
         "type" : "object",
@@ -14527,6 +14654,33 @@
         },
         "required" : [ "actor", "at", "id", "text" ]
       },
+      "RaiseTeamIssueRequest" : {
+        "type" : "object",
+        "properties" : {
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "milestoneId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "ratingId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "reason" : {
+            "type" : "string",
+            "maxLength" : 2000,
+            "minLength" : 0
+          },
+          "subject" : {
+            "type" : "string",
+            "enum" : [ "SHARE", "RATING" ]
+          }
+        },
+        "required" : [ "jobId", "reason", "subject" ]
+      },
       "RateeView" : {
         "type" : "object",
         "properties" : {
@@ -15924,6 +16078,150 @@
           }
         },
         "required" : [ "studentId" ]
+      },
+      "TeamIssuePanelView" : {
+        "type" : "object",
+        "properties" : {
+          "issues" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/TeamIssueView"
+            }
+          },
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "mentorName" : {
+            "type" : "string"
+          },
+          "ratings" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/TeamIssueRatingOptionView"
+            }
+          },
+          "shares" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/TeamIssueShareOptionView"
+            }
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "issues", "jobId", "mentorName", "ratings", "shares", "title" ]
+      },
+      "TeamIssueRatingOptionView" : {
+        "type" : "object",
+        "properties" : {
+          "closesAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "endedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "ratingId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "refusal" : {
+            "type" : "string"
+          },
+          "stars" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "visibleAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "closesAt", "ratingId", "stars", "visibleAt" ]
+      },
+      "TeamIssueShareOptionView" : {
+        "type" : "object",
+        "properties" : {
+          "endedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "milestoneId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "refusal" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "milestoneId", "number", "title" ]
+      },
+      "TeamIssueView" : {
+        "type" : "object",
+        "properties" : {
+          "answerDueAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "endedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "escalationDueAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "milestoneId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "milestoneNumber" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "mine" : {
+            "type" : "boolean"
+          },
+          "phase" : {
+            "type" : "string"
+          },
+          "raisedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "raiserName" : {
+            "type" : "string"
+          },
+          "ratingId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "subject" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "answerDueAt", "id", "jobId", "mine", "phase", "raisedAt", "reason", "subject" ]
       },
       "TeamJoinRequest" : {
         "type" : "object",

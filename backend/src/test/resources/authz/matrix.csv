@@ -2098,3 +2098,38 @@ GET /api/v1/github/merge-app/setup,CUSTOMER,,,303
 GET /api/v1/github/merge-app/setup,MENTOR,,,303
 GET /api/v1/github/merge-app/setup,STUDENT,,,303
 GET /api/v1/github/merge-app/setup,ADMINISTRATOR,,,303
+# Team Issues (FR-79, AD-40, AD-20): a Student reads the STU-4 panel, empty unless they were ever active on
+# a Crew; only a Crew member who was ever active raises one, and the fixture's Milestone is not Held. The
+# Job's list is the Mentor's and, for their own issues, such a Crew member's: the Customer (OWNER) finds
+# nothing, so no Customer screen shows a Team Issue.
+GET /api/v1/team-issues,ANONYMOUS,,,401
+GET /api/v1/team-issues,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/team-issues,MENTOR,,,404 NOT_FOUND
+GET /api/v1/team-issues,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/team-issues,OWNER,,,404 NOT_FOUND
+GET /api/v1/team-issues,JOB_MENTOR,,,404 NOT_FOUND
+GET /api/v1/team-issues,STUDENT,,,200
+GET /api/v1/team-issues,CREW_ACTIVE,,,200
+GET /api/v1/team-issues,CREW_FORMER,,,200
+POST /api/v1/team-issues,ANONYMOUS,,team-issue.json,401
+POST /api/v1/team-issues,CUSTOMER,,team-issue.json,404 NOT_FOUND
+POST /api/v1/team-issues,MENTOR,,team-issue.json,404 NOT_FOUND
+POST /api/v1/team-issues,STUDENT,,team-issue.json,404 NOT_FOUND
+POST /api/v1/team-issues,ADMINISTRATOR,,team-issue.json,404 NOT_FOUND
+POST /api/v1/team-issues,OWNER,,team-issue.json,404 NOT_FOUND
+POST /api/v1/team-issues,JOB_MENTOR,,team-issue.json,404 NOT_FOUND
+POST /api/v1/team-issues,CREW_ASSIGNED,,team-issue.json,404 NOT_FOUND
+POST /api/v1/team-issues,CREW_ACTIVE,,team-issue.json,422 GUARD_FAILED MILESTONE_NOT_HELD
+POST /api/v1/team-issues,CREW_INACTIVE,,team-issue.json,422 GUARD_FAILED MILESTONE_NOT_HELD
+POST /api/v1/team-issues,CREW_FORMER,,team-issue.json,422 GUARD_FAILED MILESTONE_NOT_HELD
+GET /api/v1/boards/{boardId}/team-issues,ANONYMOUS,,,401
+GET /api/v1/boards/{boardId}/team-issues,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/team-issues,MENTOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/team-issues,STUDENT,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/team-issues,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/team-issues,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/team-issues,OWNER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/team-issues,CREW_ASSIGNED,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/team-issues,JOB_MENTOR,,,200
+GET /api/v1/boards/{boardId}/team-issues,CREW_ACTIVE,,,200
+GET /api/v1/boards/{boardId}/team-issues,CREW_FORMER,,,200

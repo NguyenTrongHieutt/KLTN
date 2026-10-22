@@ -19,12 +19,14 @@ import { formatCalendarDayMonth, formatDayMonth } from '@/lib/dates'
 import { formatVnd } from '@/lib/money'
 import { problemMessage } from '@/lib/problemMessage'
 import { ExternalAccessSection } from '@/features/agreement/ExternalAccessSection'
+import { TeamIssueSection } from '@/features/teamIssue/TeamIssueSection'
 import { useConfirmCrewTerms, useCrewAssignments, useDeclineCrewTerms, type CrewAssignment } from './crewApi'
 
 /**
  * STU-4 "Công việc của tôi" (`/cong-viec` for a Student, FR-75, AD-41, UX-DR60): an assignment waiting
  * for the Student shows the Crew assignment panel (N-19, N-14 with the NDA text, N-5, and N-23 for a
- * Code Job); a confirmed one shows as "Đang tham gia". Nothing else of the Job is reachable yet.
+ * Code Job); a confirmed one shows as "Đang tham gia". Nothing else of the Job is reachable yet. Tier 3
+ * adds "Khiếu nại nội bộ" (FR-79) for every Job where the Student was ever active.
  */
 export function StudentJobsPage() {
   const assignments = useCrewAssignments()
@@ -49,6 +51,7 @@ export function StudentJobsPage() {
                 ))}
               </section>
             )}
+            <TeamIssueSection />
             {assignments.data.length === 0 && (
               <>
                 {team.data && !team.data.team && (
