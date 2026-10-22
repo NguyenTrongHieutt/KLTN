@@ -19,7 +19,7 @@ import vn.vibefix.notification.Todos;
 import vn.vibefix.shared.ProcessedEvents;
 
 /**
- * M1 and M4 make a Milestone wait for its handover (FR-32, UX-DR15): the Mentor gets
+ * M1, M3, and M4 make a Milestone wait for its handover (FR-32, UX-DR15): the Mentor gets
  * {@code delivery.hand_over}, due at the end of the Milestone's due date in Vietnam time, which stands
  * for {@code effectiveDueAt} until FR-68's extensions exist. M2 closes it in {@link Handovers}. Each is
  * replay-safe through {@link ProcessedEvents}. M5 on an Assessment Job opens the Mentor's follow-up to-do
@@ -51,7 +51,7 @@ class DeliveryListeners {
 
 	@ApplicationModuleListener
 	void onJobTransitioned(JobTransitioned event) {
-		boolean waits = "M1".equals(event.transition()) || "M4".equals(event.transition());
+		boolean waits = "M1".equals(event.transition()) || "M3".equals(event.transition()) || "M4".equals(event.transition());
 		String milestoneId = event.facts().get("milestoneId");
 		if (!waits || milestoneId == null
 				|| !this.processedEvents.markProcessed("delivery.DeliveryListeners.onJobTransitioned", event.eventId())) {

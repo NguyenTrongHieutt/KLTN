@@ -13,6 +13,7 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -41,6 +42,7 @@ import vn.vibefix.notification.Recipient;
 import vn.vibefix.notification.TodoRequest;
 import vn.vibefix.notification.Todos;
 import vn.vibefix.product.ProductDirectory;
+import vn.vibefix.repo.WorkingHeadMoved;
 import vn.vibefix.repo.internal.JobSetups.Setup;
 import vn.vibefix.scanning.Finding;
 import vn.vibefix.scanning.FindingCategory;
@@ -49,6 +51,7 @@ import vn.vibefix.scanning.ScanPurpose;
 import vn.vibefix.scanning.ScanTarget;
 import vn.vibefix.scanning.Scans;
 import vn.vibefix.scanning.ShaRange;
+import vn.vibefix.shared.IdGenerator;
 import vn.vibefix.shared.ProcessedEvents;
 import vn.vibefix.timers.DeadlineRequest;
 import vn.vibefix.timers.Deadlines;
@@ -101,10 +104,17 @@ class PushScans {
 
 	private final TransactionTemplate transactions;
 
+	private final ApplicationEventPublisher events;
+
+	private final IdGenerator ids;
+
 	PushScans(JdbcClient jdbc, JobBusy busy, JobSetups setups, PlatformRepositories repositories, Scans scans,
 			ProductDirectory products, Crews crews, Notifications notifications, Todos todos, Deadlines deadlines,
-			AuditLog auditLog, ProcessedEvents processedEvents, Clock clock, PlatformTransactionManager transactionManager) {
+			AuditLog auditLog, ProcessedEvents processedEvents, Clock clock, PlatformTransactionManager transactionManager,
+			ApplicationEventPublisher events, IdGenerator ids) {
 		this.transactions = new TransactionTemplate(transactionManager);
+		this.events = events;
+		this.ids = ids;
 		this.jdbc = jdbc;
 		this.busy = busy;
 		this.setups = setups;
@@ -149,10 +159,18 @@ class PushScans {
 	}
 
 	private void record(BusyJob job, PlatformRepository working, Map<String, String> heads) {
+		Map<String, String> before = recorded(working.id());
 		this.jdbc.sql("DELETE FROM repo.branch_head WHERE repository_github_id = :repository")
 			.param("repository", working.id())
 			.update();
 		upsert(working.id(), job.jobId(), heads);
+		// FR-32: a new default-branch head may void a handover (M3), which delivery decides.
+		this.setups.latest(job.jobId()).map(Setup::defaultBranch).ifPresent(branch -> {
+			String sha = heads.get("refs/heads/" + branch);
+			if (sha != null && !sha.equals(before.get("refs/heads/" + branch))) {
+				this.events.publishEvent(new WorkingHeadMoved(this.ids.newId(), job.jobId(), branch, sha));
+			}
+		});
 		String product = this.products.find(job.productId()).map(ProductDirectory.ProductInfo::name).orElse(job.title());
 		UUID run = this.scans.requestScan(new ScanTarget(job.productId(), job.customerId(), product, working.fullName(),
 				working.id()), ShaRange.wholeHistory(), ScanPurpose.PUSH);

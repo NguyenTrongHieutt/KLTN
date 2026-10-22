@@ -382,6 +382,18 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
     expect(sent).not.toHaveProperty('previewUrl')
   })
 
+  it('tells the Customer a voided handover was cancelled by a new change (FR-32, M3)', { timeout: 20_000 }, async () => {
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/jobs/j1': () => json(customerJob),
+      'GET /api/v1/boards/j1/handovers': () => json(list({ audience: 'CUSTOMER' })),
+      'GET /api/v1/handovers/h1': () => json(report({ status: 'VOIDED' })),
+    })
+    renderAt('/cong-viec/j1/ban-giao/h1')
+
+    expect(await screen.findByText('Bàn giao này đã bị hủy vì có thay đổi mới được lưu sau khi bàn giao.')).toBeInTheDocument()
+    expect(screen.getAllByText('Đã hủy vì có thay đổi mới').length).toBeGreaterThan(0)
+  })
+
   it('refuses a Code Job handover that changes a workflow file with N-16', { timeout: 20_000 }, async () => {
     fakeBackend(signedIn('MENTOR'), {
       'GET /api/v1/boards/j1/handovers/preflight': () =>

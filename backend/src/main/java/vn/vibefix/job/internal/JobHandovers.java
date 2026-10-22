@@ -70,6 +70,14 @@ class JobHandovers implements MilestoneHandovers {
 
 	@Override
 	@Transactional
+	public boolean voidHandover(UUID jobId, UUID milestoneId, UUID handoverId) {
+		return this.lifecycle
+			.tryApplyMilestone(Transition.M3, jobId, milestoneId, Actor.SYSTEM, Trigger.SYSTEM, Map.of("handoverId", handoverId))
+			.isPresent();
+	}
+
+	@Override
+	@Transactional
 	public Optional<Decided> autoAccept(UUID jobId, UUID milestoneId, UUID handoverId) {
 		return this.lifecycle
 			.tryApplyMilestone(Transition.M5, jobId, milestoneId, Actor.SYSTEM, Trigger.AUTO, Map.of("handoverId", handoverId))
