@@ -37,6 +37,14 @@ type Command =
   | { action: 'approve' | 'confirm'; requestId: string; version: number }
   | { action: 'withdraw'; requestId: string }
 
+/** "Thanh toán thêm" (FR-36, Story 14.2): the top-up order and the sandbox page to open in the same tab. */
+export function useTopUpOrder(jobId: string) {
+  return useMutation({
+    mutationFn: (version: number) =>
+      unwrap(apiClient.POST('/api/v1/jobs/{jobId}/top-up-orders', { params: { path: { jobId } }, body: { version } })),
+  })
+}
+
 /** Every Change Request command; each answers the section and refreshes the versions and the Job. */
 export function useChangeRequestCommand(jobId: string) {
   const queryClient = useQueryClient()

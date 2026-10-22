@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -44,12 +45,17 @@ import vn.vibefix.timers.Deadlines;
  * signed sandbox URL. Only the IPN changes state, classified in AD-14's order; a success is applied
  * through {@code job}'s non-throwing M1 cascade and booked as a FUND keyed by
  * {@code vnp_TransactionNo}. Money that cannot apply (a closed order, a wrong amount, a refused guard)
- * is booked in the unapplied bucket and never rejected; its refund is Story 4.7.
+ * is booked in the unapplied bucket and never rejected; its refund is Story 4.7. A {@code TOP_UP} order pays
+ * the difference a Change Request waits for (FR-36, Story 14.2): its success applies the request through
+ * {@code job.tryTopUp} and is booked as a FUND in the Change Request bucket with a TOPUP_APPLIED on the
+ * Milestone.
  */
 @Component
 class PaymentOrders {
 
 	static final String FUND_TODO = "payment.fund_milestone";
+
+	static final String TOP_UP_TODO = "payment.fund_top_up";
 
 	static final String RECEIVED = "payment.payment_received";
 
@@ -61,7 +67,13 @@ class PaymentOrders {
 
 	/** One order as the screens and the IPN read it. */
 	record Order(UUID id, UUID jobId, UUID productId, UUID milestoneId, UUID customerId, long amountVnd, String txnRef,
-			String status, Instant createdAt, Instant expiresAt, @Nullable Instant finishedAt) {
+			String status, Instant createdAt, Instant expiresAt, @Nullable Instant finishedAt, String purpose,
+			@Nullable UUID changeRequestId) {
+
+		boolean topUp() {
+			return "TOP_UP".equals(this.purpose);
+		}
+
 	}
 
 	/** A new order, with the sandbox page to open. */
@@ -83,7 +95,7 @@ class PaymentOrders {
 
 	private static final String COLUMNS = """
 			id, job_id, product_id, milestone_id, customer_account_id, amount_vnd, txn_ref, status, created_at, expires_at,
-			finished_at
+			finished_at, purpose, change_request_id
 			""";
 
 	private final JdbcClient jdbc;
@@ -186,6 +198,65 @@ class PaymentOrders {
 	}
 
 	/**
+	 * "Thanh toán thêm" (FR-36, Story 14.2): an order for the difference the Job's waiting Change Request
+	 * names, at the {@code Job.version} the screen loaded; the Job's open order, if any, is voided first.
+	 * @throws ApiException {@code NOT_FOUND}; {@code STALE}; {@code CONFLICT JOB_FROZEN}; {@code GUARD_FAILED
+	 * NO_TOP_UP} or {@code PAYMENT_NOT_CONFIGURED}
+	 */
+	@Transactional
+	Created createTopUp(UUID customerId, UUID jobId, long version, String ipAddr) {
+		FundingJob job = this.funding.forCustomer(customerId, jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		if (job.version() != version) {
+			throw new ApiException(ErrorCode.STALE);
+		}
+		ApiException refusal = this.funding.topUpRefusal(jobId);
+		if (refusal != null) {
+			throw refusal;
+		}
+		MilestoneFunding.TopUp topUp = this.funding.topUpOf(jobId).orElseThrow();
+		if (this.sandbox.missingSetting() != null) {
+			throw new ApiException(ErrorCode.GUARD_FAILED, PaymentReason.PAYMENT_NOT_CONFIGURED);
+		}
+		Instant now = this.clock.instant();
+		this.jdbc.sql("UPDATE payment.payment_order SET status = 'VOIDED', finished_at = :now WHERE job_id = :job AND status = 'OPEN'")
+			.param("job", jobId)
+			.param("now", Timestamp.from(now))
+			.update();
+		ensureAccount(topUp.milestoneId(), jobId, job.productId(), now);
+		UUID id = this.ids.newId();
+		String txnRef = id.toString().replace("-", "").toUpperCase(Locale.ROOT);
+		PayRequest pay = this.sandbox.payUrl(txnRef, topUp.amountVnd(), "Thanh toan them Giai doan " + topUp.number()
+				+ " vibefix " + txnRef.substring(0, 8), ipAddr, this.sandbox.returnUrl(id.toString()), now);
+		try {
+			this.jdbc.sql("""
+					INSERT INTO payment.payment_order (id, job_id, product_id, milestone_id, customer_account_id, purpose, amount_vnd,
+					    agreement_version_no, txn_ref, status, created_at, expires_at, change_request_id)
+					VALUES (:id, :job, :product, :milestone, :customer, 'TOP_UP', :amount, :version, :ref, 'OPEN', :now, :expires,
+					    :request)
+					""")
+				.param("id", id)
+				.param("job", jobId)
+				.param("product", job.productId())
+				.param("milestone", topUp.milestoneId())
+				.param("customer", customerId)
+				.param("amount", topUp.amountVnd())
+				.param("version", job.agreementVersionNo())
+				.param("ref", txnRef)
+				.param("now", Timestamp.from(now))
+				.param("expires", Timestamp.from(pay.expiresAt()))
+				.param("request", topUp.changeRequestId())
+				.update();
+		}
+		catch (DuplicateKeyException concurrent) {
+			throw new ApiException(ErrorCode.STALE);
+		}
+		this.deadlines.schedule(new DeadlineRequest(EXPIRY, id, "OPEN", jobId, pay.expiresAt()));
+		this.auditLog.record(AuditEntry.of(AuditActor.user(customerId), "payment.top_up_order_created",
+				AuditObject.of("payment.payment_order", id)).forJob(jobId));
+		return new Created(id, pay.url(), pay.expiresAt());
+	}
+
+	/**
 	 * The IPN (AD-14), classified in order: a bad hash, a foreign terminal, or a currency other than
 	 * VND answers {@code 97} and records nothing; an unknown reference {@code 01} and alerts; a
 	 * transaction number already booked {@code 02}; a failure marks the open order failed; a success is
@@ -235,6 +306,9 @@ class PaymentOrders {
 		long amount = parseAmount(params.get("vnp_Amount"));
 		boolean open = "OPEN".equals(order.status());
 		boolean applies = open && amount == order.amountVnd();
+		if (order.topUp()) {
+			return topUp(order, amount, applies, transactionNo, responseCode, transactionStatus, now);
+		}
 		Funded funded = applies ? this.funding.tryFund(order.jobId(), order.milestoneId(), order.id()).orElse(null) : null;
 		Refunds.Reason reason = !open ? Refunds.Reason.ORDER_CLOSED
 				: amount != order.amountVnd() ? Refunds.Reason.WRONG_AMOUNT : funded == null ? notFundable(order) : null;
@@ -279,6 +353,76 @@ class PaymentOrders {
 					List.of(new Recipient(order.customerId(), Audience.CUSTOMER)),
 					Map.of("job", title, "amount", vnd(amount), "n", String.valueOf(funded.number())),
 					"/thanh-toan/" + order.id(), order.jobId(), null));
+		}
+		return IpnAnswer.CONFIRMED;
+	}
+
+	/**
+	 * A verified top-up: applied with its Change Request, booked as a FUND in the Change Request bucket and a
+	 * TOPUP_APPLIED on the Milestone; otherwise booked unapplied and refunded (FR-36, AD-15).
+	 */
+	private IpnAnswer topUp(Order order, long amount, boolean applies, String transactionNo, String responseCode,
+			String transactionStatus, Instant now) {
+		UUID request = Objects.requireNonNull(order.changeRequestId());
+		MilestoneFunding.TopUp applied = applies ? this.funding.tryTopUp(order.jobId(), request, order.id()).orElse(null) : null;
+		Refunds.Reason reason = !"OPEN".equals(order.status()) ? Refunds.Reason.ORDER_CLOSED
+				: amount != order.amountVnd() ? Refunds.Reason.WRONG_AMOUNT : applied == null ? Refunds.Reason.NOT_FUNDABLE : null;
+		lockAccount(order.milestoneId(), order.jobId(), order.productId(), now);
+		UUID fund = this.ids.newId();
+		this.jdbc.sql("""
+				INSERT INTO payment.ledger_entry (id, operation_key, entry_type, bucket, job_id, product_id, milestone_id,
+				    payment_order_id, amount_vnd, vnp_transaction_no, created_at)
+				VALUES (:id, :key, 'FUND', :bucket, :job, :product, :milestone, :order, :amount, :no, :now)
+				""")
+			.param("id", fund)
+			.param("key", "FUND:" + transactionNo)
+			.param("bucket", applied != null ? "CHANGE_REQUEST" : "UNAPPLIED")
+			.param("job", order.jobId())
+			.param("product", order.productId())
+			.param("milestone", order.milestoneId())
+			.param("order", order.id())
+			.param("amount", amount)
+			.param("no", transactionNo)
+			.param("now", Timestamp.from(now))
+			.update();
+		if (applied != null) {
+			this.jdbc.sql("""
+					INSERT INTO payment.ledger_entry (id, operation_key, entry_type, job_id, product_id, milestone_id, payment_order_id,
+					    amount_vnd, created_at)
+					VALUES (:id, :key, 'TOPUP_APPLIED', :job, :product, :milestone, :order, :amount, :now)
+					""")
+				.param("id", this.ids.newId())
+				.param("key", "TOPUP_APPLIED:" + transactionNo)
+				.param("job", order.jobId())
+				.param("product", order.productId())
+				.param("milestone", order.milestoneId())
+				.param("order", order.id())
+				.param("amount", amount)
+				.param("now", Timestamp.from(now))
+				.update();
+		}
+		this.jdbc.sql("""
+				UPDATE payment.payment_order SET status = :status, finished_at = :now, response_code = :code,
+				    transaction_status = :tstatus, vnp_transaction_no = :no WHERE id = :id
+				""")
+			.param("id", order.id())
+			.param("status", applied != null ? "PAID" : "UNAPPLIED")
+			.param("now", Timestamp.from(now))
+			.param("code", responseCode)
+			.param("tstatus", transactionStatus)
+			.param("no", transactionNo)
+			.update();
+		this.auditLog.record(AuditEntry.of(AuditActor.system(), applied != null ? "payment.top_up_applied" : "payment.fund_unapplied",
+				AuditObject.of("payment.payment_order", order.id())).forJob(order.jobId()));
+		if (reason != null && amount > 0) {
+			this.refunds.request(fund, order, amount, reason);
+		}
+		if (applied != null) {
+			String title = this.funding.byId(order.jobId()).map(FundingJob::title).orElse("");
+			this.notifications.send(new NotificationRequest(RECEIVED, order.id(),
+					List.of(new Recipient(order.customerId(), Audience.CUSTOMER)),
+					Map.of("job", title, "amount", vnd(amount), "n", String.valueOf(applied.number())), "/thanh-toan/" + order.id(),
+					order.jobId(), null));
 		}
 		return IpnAnswer.CONFIRMED;
 	}
@@ -393,7 +537,8 @@ class PaymentOrders {
 				rs.getObject("product_id", UUID.class), rs.getObject("milestone_id", UUID.class),
 				rs.getObject("customer_account_id", UUID.class), rs.getLong("amount_vnd"), rs.getString("txn_ref"),
 				rs.getString("status"), rs.getTimestamp("created_at").toInstant(), rs.getTimestamp("expires_at").toInstant(),
-				finished == null ? null : finished.toInstant());
+				finished == null ? null : finished.toInstant(), rs.getString("purpose"),
+				rs.getObject("change_request_id", UUID.class));
 	}
 
 }

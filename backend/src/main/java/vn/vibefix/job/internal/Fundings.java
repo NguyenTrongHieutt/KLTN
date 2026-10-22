@@ -7,6 +7,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,9 +33,52 @@ class Fundings implements MilestoneFunding {
 
 	private final JobLifecycle lifecycle;
 
-	Fundings(JdbcClient jdbc, JobLifecycle lifecycle) {
+	private final ObjectProvider<ChangeRequests> requests;
+
+	Fundings(JdbcClient jdbc, JobLifecycle lifecycle, ObjectProvider<ChangeRequests> requests) {
 		this.jdbc = jdbc;
 		this.lifecycle = lifecycle;
+		this.requests = requests;
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public Optional<TopUp> topUpOf(UUID jobId) {
+		ChangeRequests requests = this.requests.getObject();
+		return requests.open(jobId)
+			.filter(request -> "AWAITING_TOP_UP".equals(request.status()) && request.topUpVnd() != null
+					&& request.topUpMilestoneId() != null)
+			.map(request -> new TopUp(request.id(), request.topUpMilestoneId(),
+					requests.milestones(jobId)
+						.stream()
+						.filter(milestone -> milestone.id().equals(request.topUpMilestoneId()))
+						.findFirst()
+						.map(ChangeRequests.LiveMilestone::number)
+						.orElse(0),
+					request.topUpVnd()));
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public @Nullable ApiException topUpRefusal(UUID jobId) {
+		Job job = job(jobId).orElse(null);
+		if (job == null) {
+			return new ApiException(ErrorCode.NOT_FOUND);
+		}
+		if (job.frozenAt() != null) {
+			return new ApiException(ErrorCode.CONFLICT, JobReason.JOB_FROZEN);
+		}
+		return topUpOf(jobId).isPresent() ? null : new ApiException(ErrorCode.GUARD_FAILED, JobReason.NO_TOP_UP);
+	}
+
+	@Override
+	@Transactional
+	public Optional<TopUp> tryTopUp(UUID jobId, UUID changeRequestId, UUID paymentOrderId) {
+		Optional<TopUp> waiting = topUpOf(jobId).filter(topUp -> topUp.changeRequestId().equals(changeRequestId));
+		if (waiting.isEmpty() || !this.requests.getObject().applyTopUp(jobId, changeRequestId)) {
+			return Optional.empty();
+		}
+		return waiting;
 	}
 
 	@Override

@@ -2221,3 +2221,10 @@ GET /api/v1/boards/{boardId}/crew-chat/messages,CREW_ACTIVE,,,200
 GET /api/v1/boards/{boardId}/crew-chat/messages,CREW_INACTIVE,,,200
 GET /api/v1/boards/{boardId}/crew-chat/messages,CREW_FORMER,,,200
 GET /api/v1/boards/{boardId}/crew-chat/messages,ADMIN_TEAM_ISSUE_GRANT,,,200
+# Story 14.2 (FR-36): only the Customer pays a top-up, for a Job whose Change Request waits for one.
+POST /api/v1/jobs/{jobId}/top-up-orders,ANONYMOUS,,payment-order.json,401
+POST /api/v1/jobs/{jobId}/top-up-orders,OWNER,,payment-order.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/top-up-orders,CUSTOMER,,payment-order.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/top-up-orders,MENTOR,,payment-order.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/top-up-orders,STUDENT,,payment-order.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/top-up-orders,ADMINISTRATOR,,payment-order.json,404 NOT_FOUND

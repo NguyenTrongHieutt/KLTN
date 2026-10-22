@@ -55,4 +55,24 @@ public interface MilestoneFunding {
 	 */
 	Optional<Funded> tryFund(UUID jobId, UUID milestoneId, UUID paymentOrderId);
 
+	/** The difference a Change Request waits for on a Held Milestone before it takes effect (FR-36). */
+	record TopUp(UUID changeRequestId, UUID milestoneId, int number, long amountVnd) {
+	}
+
+	/** The Job's Change Request waiting for its top-up, if any. */
+	Optional<TopUp> topUpOf(UUID jobId);
+
+	/**
+	 * Why a top-up cannot be paid now, read without a lock: no request waits, or the freeze (FR-52).
+	 * @return the refusal, or {@code null}
+	 */
+	@Nullable ApiException topUpRefusal(UUID jobId);
+
+	/**
+	 * Applies the waiting Change Request after its top-up's verified payment, in the caller's transaction;
+	 * a refusal writes nothing and leaves it usable.
+	 * @return the top-up applied, or empty when the request no longer waits or cannot apply now
+	 */
+	Optional<TopUp> tryTopUp(UUID jobId, UUID changeRequestId, UUID paymentOrderId);
+
 }

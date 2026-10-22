@@ -1,0 +1,5 @@
+subject: Hãy thanh toán thêm {amount} THỬ NGHIỆM để thay đổi ở {job} có hiệu lực
+---
+Xin chào,
+
+Bạn và người hướng dẫn đã đồng ý tăng giá một giai đoạn đã thanh toán của công việc {job}. Thay đổi có hiệu lực khi bạn thanh toán thêm {amount} THỬ NGHIỆM trên vibefix.

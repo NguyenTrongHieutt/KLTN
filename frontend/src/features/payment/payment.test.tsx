@@ -206,3 +206,15 @@ describe('CUS-9: the payment result, read from the server only (AD-14)', () => {
     expect(screen.getByText(/Không có tiền nào bị trừ/)).toBeInTheDocument()
   })
 })
+
+describe('JOB-7 after a price cut (FR-36, Story 14.2)', () => {
+  it('says what is refunded when the Milestone ends', async () => {
+    backend({
+      'GET /api/v1/jobs/j1/funding': () =>
+        json(funding({ state: 'ACTIVE' }, { state: 'FUNDED', fundable: false, priceVnd: 600000, fundedVnd: 800000, refundAtEndVnd: 200000 })),
+    })
+    renderAt('/cong-viec/j1/thanh-toan')
+
+    expect(await screen.findByText('Sẽ hoàn 200.000 ₫ THỬ NGHIỆM khi giai đoạn kết thúc')).toBeInTheDocument()
+  })
+})

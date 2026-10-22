@@ -5051,6 +5051,43 @@
         "tags" : [ "source-drift-controller" ]
       }
     },
+    "/api/v1/jobs/{jobId}/top-up-orders" : {
+      "post" : {
+        "operationId" : "createTopUpOrder",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreatePaymentOrderRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CreatedPaymentOrderView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "payment-controller" ]
+      }
+    },
     "/api/v1/jobs/{jobId}/withdraw" : {
       "post" : {
         "operationId" : "withdraw_1",
@@ -9688,6 +9725,10 @@
           },
           "status" : {
             "type" : "string"
+          },
+          "topUpVnd" : {
+            "type" : "integer",
+            "format" : "int64"
           }
         },
         "required" : [ "changes", "createdAt", "id", "items", "mine", "proposer", "status" ]
@@ -11784,6 +11825,10 @@
             "type" : "integer",
             "format" : "int64"
           },
+          "refundAtEndVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
           "refundedVnd" : {
             "type" : "integer",
             "format" : "int64"
@@ -11803,7 +11848,7 @@
             "format" : "int64"
           }
         },
-        "required" : [ "fundable", "fundedVnd", "milestoneId", "number", "priceVnd", "refundedVnd", "releasedTotalVnd", "state", "title", "topUpVnd" ]
+        "required" : [ "fundable", "fundedVnd", "milestoneId", "number", "priceVnd", "refundAtEndVnd", "refundedVnd", "releasedTotalVnd", "state", "title", "topUpVnd" ]
       },
       "HandoverCheckRequest" : {
         "type" : "object",
@@ -12795,6 +12840,9 @@
           },
           "title" : {
             "type" : "string"
+          },
+          "topUp" : {
+            "$ref" : "#/components/schemas/TopUpView"
           },
           "version" : {
             "type" : "integer",
@@ -17545,6 +17593,24 @@
           }
         },
         "required" : [ "items", "total" ]
+      },
+      "TopUpView" : {
+        "type" : "object",
+        "properties" : {
+          "amountVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "changeRequestId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "amountVnd", "changeRequestId", "number" ]
       },
       "UnreadCount" : {
         "type" : "object",

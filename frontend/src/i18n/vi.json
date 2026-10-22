@@ -2653,7 +2653,8 @@
         },
         "releaseLine": "{name} · {amount}",
         "ordersTitle": "Lệnh thanh toán của khách hàng"
-      }
+      },
+      "refundAtEnd": "Sẽ hoàn {amount} THỬ NGHIỆM khi giai đoạn kết thúc"
     },
     "crewChat": {
       "tab": "Trao đổi nhóm",
@@ -3322,7 +3323,8 @@
       "status": {
         "APPLIED": "Đã có hiệu lực (phiên bản {version})",
         "LAPSED": "Không còn hiệu lực",
-        "WITHDRAWN": "Đã rút"
+        "WITHDRAWN": "Đã rút",
+        "AWAITING_TOP_UP": "Chờ khách hàng thanh toán thêm"
       },
       "versions": "Các phiên bản thỏa thuận",
       "version": "Phiên bản {n} · {date}",
@@ -3331,7 +3333,7 @@
         "more": "Đổi tên, giá, tiêu chí hoặc bỏ giai đoạn",
         "title": "Tên giai đoạn {n}",
         "price": "Giá giai đoạn {n} (đồng)",
-        "heldPrice": "Giai đoạn đã thanh toán nên chưa đổi giá ở đây được.",
+        "heldPrice": "Giai đoạn đã thanh toán: tăng giá cần thanh toán thêm, giảm giá được hoàn khi giai đoạn kết thúc.",
         "remove": "Bỏ giai đoạn {n}",
         "removeHeld": "Bỏ giai đoạn {n} và hoàn toàn bộ số tiền đã thanh toán",
         "criteria": "Tiêu chí nghiệm thu",
@@ -3356,7 +3358,12 @@
         "editedCriterionLine": "Giai đoạn {n}: sửa tiêu chí {from} thành {to}",
         "removedCriterionLine": "Giai đoạn {n}: bỏ tiêu chí {statement}",
         "addedMilestoneLine": "Thêm giai đoạn {title} · {price} · hạn {date} · {n} tiêu chí",
-        "criteriaCount": "{n} tiêu chí"
+        "criteriaCount": "{n} tiêu chí",
+        "topUpNeeded": "Bạn cần thanh toán thêm {amount} THỬ NGHIỆM trước khi thay đổi có hiệu lực",
+        "topUpMentor": "Thay đổi có hiệu lực khi khách hàng thanh toán thêm {amount} THỬ NGHIỆM.",
+        "payTopUp": "Thanh toán thêm",
+        "cut": "Giai đoạn {n} giảm còn {price} THỬ NGHIỆM. Phần chênh lệch {amount} THỬ NGHIỆM vẫn được giữ và sẽ tự động hoàn lại cho bạn khi giai đoạn kết thúc.",
+        "rise": "Giai đoạn {n} tăng lên {price} THỬ NGHIỆM. Bạn cần thanh toán thêm {amount} THỬ NGHIỆM trước khi thay đổi có hiệu lực."
       }
     },
     "cancellation": {
@@ -3873,7 +3880,8 @@
       "grant_external_access": "Cấp quyền {system} cho người thực hiện"
     },
     "payment": {
-      "fund_milestone": "Thanh toán Giai đoạn {n}: {amount} THỬ NGHIỆM"
+      "fund_milestone": "Thanh toán Giai đoạn {n}: {amount} THỬ NGHIỆM",
+      "fund_top_up": "Thanh toán thêm {amount} THỬ NGHIỆM cho yêu cầu thay đổi"
     },
     "dispute": {
       "answer_team_issue": "Trả lời khiếu nại nội bộ của {name}",
@@ -4178,6 +4186,9 @@
       },
       "job_post_hidden": {
         "title": "Tin tuyển {job} đã bị ẩn và không nhận ứng tuyển nữa"
+      },
+      "change_request_awaiting_top_up": {
+        "title": "Hãy thanh toán thêm {amount} THỬ NGHIỆM để thay đổi ở {job} có hiệu lực"
       }
     },
     "matching": {
@@ -4489,7 +4500,7 @@
       "EXTERNAL_ACCESS_CLOSED": "Công việc đã kết thúc, không cần gửi tài khoản nữa.",
       "MILESTONE_NOT_HELD": "Phần chia giai đoạn này không còn khiếu nại được: giai đoạn chưa được thanh toán hoặc đã chuyển tiền.",
       "DEADLINE_NOT_PASSED": "Bạn tự hủy được khi thỏa thuận chưa xác nhận sau 14 ngày hoặc công việc chưa bắt đầu sau 7 ngày.",
-      "HELD_PRICE_CHANGE": "Giá của giai đoạn đã thanh toán chưa đổi được ở đây; hãy đổi các giai đoạn chưa thanh toán."
+      "NO_TOP_UP": "Không có yêu cầu thay đổi nào đang chờ thanh toán thêm."
     },
     "matching": {
       "JOB_POST_NOT_OPEN": "công việc không còn nhận ứng tuyển",

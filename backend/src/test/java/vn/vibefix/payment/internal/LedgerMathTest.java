@@ -39,6 +39,19 @@ class LedgerMathTest {
 	}
 
 	@Test
+	void anAppliedTopUpCountsOnceAndItsRefundCountsAgainstTheMilestone() {
+		// Story 14.2: the top-up's FUND sits in the Change Request bucket; its TOPUP_APPLIED is what counts.
+		List<Entry> entries = List.of(new Entry("FUND", "MILESTONE", 1_000_000), new Entry("FUND", "CHANGE_REQUEST", 200_000),
+				new Entry("TOPUP_APPLIED", null, 200_000), new Entry("REFUND_REQUESTED", "CHANGE_REQUEST", 200_000),
+				new Entry("RELEASE", null, 1_000_000));
+
+		assertThat(LedgerMath.funded(entries)).isEqualTo(1_200_000);
+		assertThat(LedgerMath.refundsRequested(entries)).isEqualTo(200_000);
+		assertThat(LedgerMath.releasable(entries)).isZero();
+		assertThat(LedgerMath.balanced(entries)).isTrue();
+	}
+
+	@Test
 	void aFinalMilestoneBalancesWhenPaidOutAndRefundsMakeUpTheFund() {
 		assertThat(LedgerMath.balanced(List.of(new Entry("FUND", "MILESTONE", 1_000_000), new Entry("RELEASE", null, 600_000),
 				new Entry("REFUND_REQUESTED", "MILESTONE", 400_000)))).isTrue();

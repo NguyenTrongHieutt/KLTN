@@ -186,7 +186,7 @@ enum JobReason {
 	/** A share Team Issue is raised only on a Held Milestone (FR-79, AD-40). */
 	MILESTONE_NOT_HELD,
 
-	/** A Held Milestone's price changes only with its top-up or refund (FR-36, Story 14.2). */
-	HELD_PRICE_CHANGE
+	/** No Change Request waits for a top-up on the Job (FR-36, Story 14.2). */
+	NO_TOP_UP
 
 }
