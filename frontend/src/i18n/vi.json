@@ -3008,6 +3008,33 @@
         "merged": "Đã hợp nhất vào dự án của bạn",
         "viewOnGitHub": "Xem thay đổi trên GitHub ↗ (github.com)"
       },
+      "zip": {
+        "lead": "Không thể hợp nhất tự động: {reason}. Bạn có thể tải toàn bộ mã đã hoàn thiện về máy. Bạn không cần chạy lệnh nào; hãy đăng một công việc nhỏ để một người hướng dẫn ghép mã này vào dự án của bạn.",
+        "building": "Đang chuẩn bị tệp ZIP…",
+        "programs": "Tệp nén có thể chứa chương trình. Bạn chỉ cần lưu tệp này và gửi cho người hướng dẫn ghép mã.",
+        "post": "Đăng công việc ghép mã",
+        "declineOffer": "Nhận mã dạng ZIP",
+        "declineTitle": "Nhận mã dạng ZIP thay vì hợp nhất?",
+        "declineBody": "vibefix sẽ không hợp nhất vào {repo}. Yêu cầu cài ứng dụng hợp nhất không còn được dùng, kể cả khi chủ tổ chức duyệt sau. Công việc kết thúc khi tệp ZIP sẵn sàng. Bước này không hoàn tác được.",
+        "declineConfirm": "Nhận mã dạng ZIP",
+        "declineCancel": "Quay lại",
+        "prefill": {
+          "title": "Ghép mã đã hoàn thiện vào dự án",
+          "problem": "Một công việc trước đã hoàn thiện mã nhưng không hợp nhất tự động được vào dự án gốc. Toàn bộ mã nằm trong tệp ZIP của công việc đó.",
+          "expected": "Mã trong tệp ZIP được ghép vào dự án gốc, và ứng dụng chạy như trước với các thay đổi đã nghiệm thu."
+        },
+        "reason": {
+          "TRIAL_CONFLICT": "dự án gốc đã thay đổi sau khi công việc bắt đầu, nên mã không ghép tự động được",
+          "SOURCE_NOT_PUBLIC": "dự án gốc đã bị xóa, chuyển sang riêng tư, hoặc đổi tên mà chưa được xác nhận lại",
+          "J9_GUARD": "mã trong kho trung gian không khớp với các lần bàn giao đã nghiệm thu",
+          "PUSH_REFUSED": "GitHub không cho đưa mã mới vào dự án gốc của bạn",
+          "MERGE_REFUSED": "GitHub từ chối hợp nhất vào dự án của bạn, vì quy tắc bảo vệ, kiểm tra bắt buộc, hoặc dự án đã được lưu trữ",
+          "NOT_AUTHORIZED": "bạn chưa cho phép hợp nhất trước hạn",
+          "REQUEST_NOT_APPROVED": "yêu cầu cài ứng dụng hợp nhất chưa được chủ tổ chức duyệt trước hạn",
+          "CONFIRMATION_MISSED": "các thay đổi cần lưu ý chưa được xác nhận trước hạn",
+          "DECLINED": "bạn đã chọn nhận mã dạng ZIP"
+        }
+      },
       "disputable": "Đề nghị kết thúc bị từ chối hoặc chưa được trả lời. Bạn có thể mở tranh chấp.",
       "openDispute": "Mở tranh chấp"
     },
@@ -4045,6 +4072,9 @@
       "merge_app_request_refused": {
         "title": "Yêu cầu cài ứng dụng hợp nhất cho kho {repo} chưa được duyệt. Bạn có thể gửi lại yêu cầu hoặc nhận mã dạng ZIP trước {date}"
       },
+      "zip_fallback_ready": {
+        "title": "{job}: không hợp nhất tự động được, bạn có thể tải mã về dạng tệp ZIP"
+      },
       "final_merge_completed": {
         "title": "Đã hợp nhất mã của {job} vào dự án gốc"
       },
@@ -4333,6 +4363,7 @@
       "NO_AUTHORIZATION_OPEN": "Công việc này không còn bước cho phép hợp nhất đang mở.",
       "MERGE_APP_WRONG_REPOSITORY": "Ứng dụng hợp nhất chỉ được cài cho đúng dự án gốc. Hãy chọn lại.",
       "FINAL_MERGE_NOT_READY": "Mã chưa được kiểm tra xong để hợp nhất. Hãy tải lại trang rồi thử lại.",
+      "FINAL_MERGE_CONFIRMED": "Bạn đã xác nhận hợp nhất, nên không còn chọn nhận mã dạng ZIP được.",
       "SIGN_IN_AGAIN": "Hãy đăng nhập lại bằng GitHub để vibefix kiểm tra dự án gốc.",
       "JOB_NOT_ENDED": "Bạn xác nhận được sau khi công việc bắt đầu kết thúc.",
       "NOT_A_DUTY": "Chỉ người hướng dẫn và nhóm thực hiện xác nhận việc này."

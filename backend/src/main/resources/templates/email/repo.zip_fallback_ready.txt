@@ -1,0 +1,6 @@
+subject: {job}: không hợp nhất tự động được, bạn có thể tải mã về dạng tệp ZIP
+---
+Xin chào,
+
+vibefix không hợp nhất tự động được mã của công việc {job} vào dự án gốc, nên toàn bộ mã đã hoàn thiện được lưu thành một tệp ZIP.
+Khách hàng mở công việc trên vibefix để tải tệp và xem lý do. Không cần chạy lệnh nào; một công việc nhỏ có thể nhờ người hướng dẫn ghép mã vào dự án. Công việc đã kết thúc.

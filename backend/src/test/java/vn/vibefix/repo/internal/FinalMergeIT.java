@@ -248,6 +248,63 @@ class FinalMergeIT extends IntegrationTest {
 			.param("job", this.job).query(String.class).single()).isEqualTo("ZIP_FALLBACK");
 		assertThat(GITHUB.sourcePulls.getOrDefault(this.owner + "/" + this.name, java.util.Map.of())).isEmpty();
 		assertThat(jobState()).isEqualTo("CLOSING");
+
+		// Story 8.9: the ZIP Fallback stores the code, then the Job closes.
+		zipFallback();
+		assertThat(this.jdbc.sql("SELECT reason || ':' || status FROM repo.zip_fallback WHERE job_id = :job")
+			.param("job", this.job).query(String.class).single()).isEqualTo("TRIAL_CONFLICT:READY");
+		assertThat(jobState()).isEqualTo("CLOSED");
+		UUID file = this.jdbc.sql("SELECT archive_file_id FROM repo.job_setup WHERE job_id = :job").param("job", this.job)
+			.query(UUID.class).single();
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.status").value("ENDED"))
+			.andExpect(jsonPath("$.zip.status").value("READY"))
+			.andExpect(jsonPath("$.zip.reason").value("TRIAL_CONFLICT"))
+			.andExpect(jsonPath("$.zip.fileId").value(file.toString()))
+			.andExpect(jsonPath("$.zip.sensitive[0].path").value("package.json"));
+		this.mvc.perform(get("/api/v1/files/" + file).with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(status().isOk())
+			.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
+				.string("Content-Disposition", org.hamcrest.Matchers.startsWith("attachment")));
+		this.mvc.perform(get("/api/v1/files/" + file).with(as(this.hung, Role.MENTOR))).andExpect(status().isNotFound());
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM notification.notification WHERE type = 'repo.zip_fallback_ready' AND account_id IN (:lan, :hung)
+				""").param("lan", this.lan).param("hung", this.hung).query(Long.class).single()).isEqualTo(2);
+	}
+
+	@Test
+	void theCustomerMayChooseTheZipUntilTheyConfirmTheMerge() throws Exception {
+		bind();
+		this.worker.runDue(Lane.GITHUB_LONG);
+		this.mvc.perform(post("/api/v1/jobs/" + this.job + "/final-merge/decline").with(as(this.lan, Role.CUSTOMER)).with(csrf()))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.status").value("ENDED"))
+			.andExpect(jsonPath("$.endReason").value("DECLINED"));
+		zipFallback();
+		assertThat(this.jdbc.sql("SELECT reason FROM repo.zip_fallback WHERE job_id = :job").param("job", this.job)
+			.query(String.class).single()).isEqualTo("DECLINED");
+		assertThat(jobState()).isEqualTo("CLOSED");
+		this.mvc.perform(post("/api/v1/jobs/" + this.job + "/final-merge/decline").with(as(this.lan, Role.CUSTOMER)).with(csrf()))
+			.andExpect(status().isConflict())
+			.andExpect(jsonPath("$.reason").value("NO_AUTHORIZATION_OPEN"));
+	}
+
+	@Test
+	void aConfirmedMergeCanNoLongerBeDeclined() throws Exception {
+		bind();
+		this.worker.runDue(Lane.GITHUB_LONG);
+		confirm(true).andExpect(status().isOk());
+		this.mvc.perform(post("/api/v1/jobs/" + this.job + "/final-merge/decline").with(as(this.lan, Role.CUSTOMER)).with(csrf()))
+			.andExpect(status().isConflict())
+			.andExpect(jsonPath("$.reason").value("FINAL_MERGE_CONFIRMED"));
+	}
+
+	/** The fallback the ended authorization starts, built by its operation. */
+	private void zipFallback() {
+		org.awaitility.Awaitility.await().atMost(java.time.Duration.ofSeconds(15)).until(() -> this.jdbc
+			.sql("SELECT count(*) FROM repo.zip_fallback WHERE job_id = :job").param("job", this.job).query(Long.class)
+			.single() == 1);
+		this.worker.runDue(Lane.GITHUB_LONG);
 	}
 
 	@Test

@@ -11,6 +11,7 @@ import { redirectTo } from '@/lib/redirect'
 import { OutsideLink } from '@/features/delivery/OutsideLink'
 import { SensitiveChangeList } from '@/features/delivery/SensitiveChangeList'
 import { useConfirmFinalMerge, useFinalMerge, useInstallLink, type FinalMerge } from './finalMergeApi'
+import { DeclineToZip, ZipFallbackStep } from './ZipFallbackStep'
 
 /** Where the GitHub return marks that nothing was installed (a request, or a blocked install). */
 const NOT_SEEN = 'chua-thay'
@@ -28,7 +29,13 @@ const NOT_SEEN = 'chua-thay'
  */
 export function FinalMergeStep({ jobId }: { jobId: string }) {
   const merge = useFinalMerge(jobId)
-  return merge.data && merge.data.status !== 'ENDED' ? <Content jobId={jobId} merge={merge.data} /> : null
+  if (!merge.data) {
+    return null
+  }
+  if (merge.data.status === 'ENDED') {
+    return <ZipFallbackStep jobId={jobId} merge={merge.data} />
+  }
+  return <Content jobId={jobId} merge={merge.data} />
 }
 
 function Content({ jobId, merge }: { jobId: string; merge: FinalMerge }) {
@@ -105,17 +112,20 @@ function Content({ jobId, merge }: { jobId: string; merge: FinalMerge }) {
           {error}
         </p>
       )}
-      {!merge.requestWaiting && (
-        <Button type="button" className="w-fit" disabled={link.isPending} onClick={install}>
-          {t(
-            merge.requestRefused
-              ? 'screen.closure.finalMerge.resend'
-              : notSeen || merge.refusal
-                ? 'screen.closure.finalMerge.reinstall'
-                : 'screen.closure.finalMerge.install',
-          )}
-        </Button>
-      )}
+      <div className="flex flex-wrap gap-3">
+        {!merge.requestWaiting && (
+          <Button type="button" className="w-fit" disabled={link.isPending} onClick={install}>
+            {t(
+              merge.requestRefused
+                ? 'screen.closure.finalMerge.resend'
+                : notSeen || merge.refusal
+                  ? 'screen.closure.finalMerge.reinstall'
+                  : 'screen.closure.finalMerge.install',
+            )}
+          </Button>
+        )}
+        <DeclineToZip jobId={jobId} repo={repo} />
+      </div>
     </section>
   )
 }
@@ -156,6 +166,7 @@ function Merge({ jobId, merge }: { jobId: string; merge: FinalMerge }) {
             {t('screen.closure.finalMerge.checking')}
           </p>
         )}
+        <DeclineToZip jobId={jobId} repo={repo} />
       </div>
     )
   }
@@ -215,9 +226,12 @@ function Merge({ jobId, merge }: { jobId: string; merge: FinalMerge }) {
           {error}
         </p>
       )}
-      <Button type="button" className="w-fit" disabled={!agreed || confirm.isPending} onClick={run}>
-        {t('screen.closure.finalMerge.confirm')}
-      </Button>
+      <div className="flex flex-wrap gap-3">
+        <Button type="button" className="w-fit" disabled={!agreed || confirm.isPending} onClick={run}>
+          {t('screen.closure.finalMerge.confirm')}
+        </Button>
+        <DeclineToZip jobId={jobId} repo={repo} />
+      </div>
     </section>
   )
 }

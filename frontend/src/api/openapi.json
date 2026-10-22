@@ -1849,7 +1849,7 @@
     },
     "/api/v1/boards/{boardId}/closure/decline" : {
       "post" : {
-        "operationId" : "decline_4",
+        "operationId" : "decline_5",
         "parameters" : [ {
           "in" : "path",
           "name" : "boardId",
@@ -2469,7 +2469,7 @@
     },
     "/api/v1/boards/{boardId}/portfolio/summary/decline" : {
       "post" : {
-        "operationId" : "decline_3",
+        "operationId" : "decline_4",
         "parameters" : [ {
           "in" : "path",
           "name" : "boardId",
@@ -4126,6 +4126,33 @@
           },
           "required" : true
         },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FinalMergeView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "final-merge-controller" ]
+      }
+    },
+    "/api/v1/jobs/{jobId}/final-merge/decline" : {
+      "post" : {
+        "operationId" : "decline_3",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
         "responses" : {
           "200" : {
             "content" : {
@@ -10579,6 +10606,10 @@
           "owner" : {
             "type" : "string"
           },
+          "productId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
           "refusal" : {
             "type" : "string"
           },
@@ -10596,9 +10627,12 @@
           },
           "status" : {
             "type" : "string"
+          },
+          "zip" : {
+            "$ref" : "#/components/schemas/ZipView"
           }
         },
-        "required" : [ "id", "owner", "repository", "requestRefused", "requestWaiting", "status" ]
+        "required" : [ "id", "owner", "productId", "repository", "requestRefused", "requestWaiting", "status" ]
       },
       "FindingDetailView" : {
         "type" : "object",
@@ -16580,6 +16614,28 @@
           }
         },
         "required" : [ "accountId", "estimateHours", "name", "openItems" ]
+      },
+      "ZipView" : {
+        "type" : "object",
+        "properties" : {
+          "fileId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "sensitive" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/MergeSensitiveChangeView"
+            }
+          },
+          "status" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "reason", "sensitive", "status" ]
       }
     }
   }

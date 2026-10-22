@@ -61,10 +61,21 @@ class FinalMergeController {
 	 * @param requestOrg the organization whose owner must approve the waiting request
 	 * @param requestRefused a request listed before and no longer, with nothing bound
 	 * @param merge the Final Merge once the authorization is bound in Closing (Story 8.8)
+	 * @param zip the ZIP Fallback once the merge cannot happen (Story 8.9)
+	 * @param productId for "Đăng công việc ghép mã", which opens CUS-6 for the Product
 	 */
 	record FinalMergeView(UUID id, String status, String repository, String owner, @Nullable Instant deadlineAt,
 			@Nullable String refusal, @Nullable String requestOrg, boolean requestWaiting, boolean requestRefused,
-			@Nullable String endReason, @Nullable MergeView merge) {
+			@Nullable String endReason, @Nullable MergeView merge, @Nullable ZipView zip, UUID productId) {
+	}
+
+	/**
+	 * The ZIP Fallback (FR-38, N-17).
+	 * @param status {@code BUILDING} or {@code READY}
+	 * @param reason why the merge could not happen
+	 * @param fileId the ZIP, served by {@code GET /api/v1/files/{id}} to the Customer alone
+	 */
+	record ZipView(String status, String reason, @Nullable UUID fileId, List<MergeSensitiveChangeView> sensitive) {
 	}
 
 	/**
@@ -94,6 +105,8 @@ class FinalMergeController {
 
 	private final FinalMerges merges;
 
+	private final ZipFallbacks fallbacks;
+
 	private final MergeAppBindings bindings;
 
 	private final MergeApp app;
@@ -102,10 +115,11 @@ class FinalMergeController {
 
 	private final CurrentCaller callers;
 
-	FinalMergeController(FinalMergeAuthorizations authorizations, FinalMerges merges, MergeAppBindings bindings, MergeApp app,
-			JobBusy busy, CurrentCaller callers) {
+	FinalMergeController(FinalMergeAuthorizations authorizations, FinalMerges merges, ZipFallbacks fallbacks,
+			MergeAppBindings bindings, MergeApp app, JobBusy busy, CurrentCaller callers) {
 		this.authorizations = authorizations;
 		this.merges = merges;
+		this.fallbacks = fallbacks;
 		this.bindings = bindings;
 		this.app = app;
 		this.busy = busy;
@@ -137,6 +151,26 @@ class FinalMergeController {
 		BusyJob job = customerJob(jobId);
 		this.merges.confirm(job, this.callers.get().requireAccountId());
 		return view(this.authorizations.latest(job.jobId()).orElseThrow());
+	}
+
+	/**
+	 * "Nhận mã dạng ZIP" after its Confirmation dialog (FR-37, FR-38): the authorization ends
+	 * {@code DECLINED} and the ZIP Fallback follows; it cannot be undone.
+	 * @throws ApiException {@code CONFLICT NO_AUTHORIZATION_OPEN}; {@code CONFLICT FINAL_MERGE_CONFIRMED}
+	 */
+	@PostMapping("/api/v1/jobs/{jobId}/final-merge/decline")
+	FinalMergeView decline(@PathVariable UUID jobId) {
+		BusyJob job = customerJob(jobId);
+		Authorization authorization = this.authorizations.openOf(job.jobId())
+			.orElseThrow(() -> new ApiException(ErrorCode.CONFLICT, RepoReason.NO_AUTHORIZATION_OPEN));
+		boolean confirmed = this.merges.find(authorization.id())
+			.filter(merge -> "CONFIRMED".equals(merge.status()) || "MERGED".equals(merge.status()))
+			.isPresent();
+		if (confirmed) {
+			throw new ApiException(ErrorCode.CONFLICT, RepoReason.FINAL_MERGE_CONFIRMED);
+		}
+		this.authorizations.end(authorization.id(), "DECLINED");
+		return view(this.authorizations.find(authorization.id()).orElseThrow());
 	}
 
 	/** A fresh install link; the previous one's {@code state} no longer binds. */
@@ -189,10 +223,15 @@ class FinalMergeController {
 					found.sensitive().stream().map(change -> new MergeSensitiveChangeView(change.path(), change.kind())).toList(),
 					found.workflows(), "MERGED".equals(found.status()) ? found.pullUrl() : null, found.refusal()))
 			.orElse(null);
+		ZipView zip = this.fallbacks.find(authorization.jobId())
+			.filter(found -> found.authorizationId().equals(authorization.id()))
+			.map(found -> new ZipView(found.status(), found.reason(), found.archiveFileId(),
+					found.sensitive().stream().map(change -> new MergeSensitiveChangeView(change.path(), change.kind())).toList()))
+			.orElse(null);
 		return new FinalMergeView(authorization.id(), authorization.status(), authorization.repositoryName(),
 				authorization.owner(), authorization.deadlineAt(), authorization.refusal(), authorization.requestOrg(),
 				authorization.requestSeenAt() != null, authorization.requestRefusedAt() != null, authorization.endReason(),
-				merge);
+				merge, zip, authorization.productId());
 	}
 
 	private static ResponseEntity<Void> back(String path) {

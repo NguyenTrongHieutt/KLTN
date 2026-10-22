@@ -797,7 +797,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["decline_4"];
+        post: operations["decline_5"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1053,7 +1053,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["decline_3"];
+        post: operations["decline_4"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1774,6 +1774,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["confirm_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/jobs/{jobId}/final-merge/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["decline_3"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4495,12 +4511,15 @@ export interface components {
             id: string;
             merge?: components["schemas"]["MergeView"];
             owner: string;
+            /** Format: uuid */
+            productId: string;
             refusal?: string;
             repository: string;
             requestOrg?: string;
             requestRefused: boolean;
             requestWaiting: boolean;
             status: string;
+            zip?: components["schemas"]["ZipView"];
         };
         FindingDetailView: {
             canResolve: boolean;
@@ -6648,6 +6667,13 @@ export interface components {
             /** Format: int32 */
             openItems: number;
         };
+        ZipView: {
+            /** Format: uuid */
+            fileId?: string;
+            reason: string;
+            sensitive: components["schemas"]["MergeSensitiveChangeView"][];
+            status: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -8015,7 +8041,7 @@ export interface operations {
             };
         };
     };
-    decline_4: {
+    decline_5: {
         parameters: {
             query?: never;
             header?: never;
@@ -8474,7 +8500,7 @@ export interface operations {
             };
         };
     };
-    decline_3: {
+    decline_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -9719,6 +9745,28 @@ export interface operations {
                 "application/json": components["schemas"]["ConfirmRequest"];
             };
         };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FinalMergeView"];
+                };
+            };
+        };
+    };
+    decline_3: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description OK */
             200: {
