@@ -23,4 +23,7 @@ public interface PersonalData {
 	/** Deletes a Product's data through every participant. */
 	void deleteProduct(UUID productId);
 
+	/** Retires a Product's Job data through every participant at the end of its retention (NFR-10). */
+	void retireJobData(UUID productId);
+
 }

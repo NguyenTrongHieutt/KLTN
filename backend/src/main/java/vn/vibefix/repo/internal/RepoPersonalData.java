@@ -121,6 +121,15 @@ class RepoPersonalData implements PersonalDataParticipant {
 		this.jdbc.sql("DELETE FROM repo.job_setup WHERE product_id = :id").param("id", productId).update();
 	}
 
+	/** NFR-10: the final ZIPs and their ZIP Fallback rows go, with the Revocation Checklist. */
+	@Override
+	public void retireJobData(UUID productId) {
+		this.deletions.getObject().archivesOfProduct(productId).forEach(this.files.getObject()::delete);
+		this.jdbc.sql("DELETE FROM repo.zip_fallback WHERE product_id = :id").param("id", productId).update();
+		this.jdbc.sql("UPDATE repo.job_setup SET archive_file_id = NULL WHERE product_id = :id").param("id", productId).update();
+		this.jdbc.sql("DELETE FROM repo.revocation_item WHERE product_id = :id").param("id", productId).update();
+	}
+
 	@Override
 	public List<ErasureBlocker> erasureBlockers(UUID accountId) {
 		return List.of();

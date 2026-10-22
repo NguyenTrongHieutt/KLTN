@@ -49,4 +49,10 @@ class ParticipantPersonalData implements PersonalData {
 		this.participants.forEach(participant -> participant.deleteProduct(productId));
 	}
 
+	@Override
+	@Transactional
+	public void retireJobData(UUID productId) {
+		this.participants.forEach(participant -> participant.retireJobData(productId));
+	}
+
 }

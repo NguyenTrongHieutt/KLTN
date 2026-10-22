@@ -79,6 +79,12 @@ class ChatPersonalData implements PersonalDataParticipant {
 		this.jdbc.sql("DELETE FROM chat.chat WHERE product_id = :id").param("id", productId).update();
 	}
 
+	/** NFR-10: the Job Chat and the Crew Chat go with their files, as with the Product's deletion. */
+	@Override
+	public void retireJobData(UUID productId) {
+		deleteProduct(productId);
+	}
+
 	@Override
 	public List<ErasureBlocker> erasureBlockers(UUID accountId) {
 		return List.of();

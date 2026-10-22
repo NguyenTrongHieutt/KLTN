@@ -156,6 +156,26 @@ class WorkPersonalData implements PersonalDataParticipant {
 		this.jdbc.sql("DELETE FROM work.board WHERE product_id = :id").param("id", productId).update();
 	}
 
+	/** NFR-10: Pages, Work Items with their history, notes, and Attachments go; each Board stays, empty. */
+	@Override
+	public void retireJobData(UUID productId) {
+		String jobs = "SELECT job_id FROM work.board WHERE product_id = :id";
+		this.jdbc.sql("SELECT file_id FROM work.attachment WHERE file_id IS NOT NULL AND job_id IN (" + jobs + ")")
+			.param("id", productId)
+			.query(UUID.class)
+			.list()
+			.forEach(this.files::delete);
+		for (String table : List.of("work.work_item_history", "work.attachment", "work.work_item_commit", "work.work_item",
+				"work.admin_read_grant")) {
+			this.jdbc.sql("DELETE FROM " + table + " WHERE job_id IN (" + jobs + ")").param("id", productId).update();
+		}
+		this.jdbc.sql("DELETE FROM work.page_version WHERE page_id IN (SELECT id FROM work.page WHERE job_id IN (" + jobs + "))")
+			.param("id", productId)
+			.update();
+		this.jdbc.sql("UPDATE work.page SET parent_id = NULL WHERE job_id IN (" + jobs + ")").param("id", productId).update();
+		this.jdbc.sql("DELETE FROM work.page WHERE job_id IN (" + jobs + ")").param("id", productId).update();
+	}
+
 	@Override
 	public List<ErasureBlocker> erasureBlockers(UUID accountId) {
 		return List.of();

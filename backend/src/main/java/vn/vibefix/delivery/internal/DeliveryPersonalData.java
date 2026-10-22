@@ -148,6 +148,28 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 		this.jdbc.sql("DELETE FROM delivery.handover WHERE product_id = :id").param("id", productId).update();
 	}
 
+	/**
+	 * NFR-10: what each handover said goes (criteria and notes, the Customer's marks and comments,
+	 * screenshots, recorded commits, Pages, Sensitive Changes, pending acceptances, follow-ups); each
+	 * handover row and its status stay for the Milestone history.
+	 */
+	@Override
+	public void retireJobData(UUID productId) {
+		this.jdbc.sql("DELETE FROM delivery.follow_up WHERE product_id = :id").param("id", productId).update();
+		this.jdbc.sql("SELECT file_id FROM delivery.handover_screenshot WHERE product_id = :id")
+			.param("id", productId)
+			.query(UUID.class)
+			.list()
+			.forEach(this.files::delete);
+		this.jdbc.sql("DELETE FROM delivery.handover_screenshot WHERE product_id = :id").param("id", productId).update();
+		String handovers = "SELECT id FROM delivery.handover WHERE product_id = :id";
+		for (String table : List.of("delivery.handover_criterion", "delivery.handover_item_note", "delivery.handover_check",
+				"delivery.handover_commit", "delivery.handover_sensitive_change", "delivery.handover_page",
+				"delivery.handover_acceptance")) {
+			this.jdbc.sql("DELETE FROM " + table + " WHERE handover_id IN (" + handovers + ")").param("id", productId).update();
+		}
+	}
+
 	@Override
 	public List<ErasureBlocker> erasureBlockers(UUID accountId) {
 		return List.of();
