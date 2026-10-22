@@ -3916,6 +3916,9 @@
       "milestone_overdue": {
         "title": "Giai đoạn {n} của {job} đã quá hạn ngày {date}"
       },
+      "milestone_unfunded_reminder": {
+        "title": "Giai đoạn {n} của {job} chưa được thanh toán sau {days} ngày"
+      },
       "party_locked": {
         "title": "{name} không còn tham gia {job}"
       },
