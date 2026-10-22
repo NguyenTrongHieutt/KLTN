@@ -1,0 +1,6 @@
+subject: Hãy cho phép hợp nhất trước {date}, nếu không bạn sẽ nhận mã dạng ZIP
+---
+Xin chào,
+
+Công việc đang kết thúc. Để vibefix đưa mã đã nghiệm thu vào dự án gốc của bạn, hãy cài ứng dụng hợp nhất của vibefix trên GitHub cho đúng dự án đó trước {date}.
+Nếu không, bạn sẽ nhận mã dạng ZIP. Hãy mở công việc trên vibefix để làm bước "Cho phép hợp nhất".

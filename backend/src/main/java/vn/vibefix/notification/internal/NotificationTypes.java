@@ -44,6 +44,10 @@ class NotificationTypes implements NotificationCatalog {
 	static final TodoType REPO_RECONFIRM_SOURCE = new TodoType("repo.reconfirm_source", Set.of(Audience.CUSTOMER), 2,
 			Set.of("job"));
 
+	/** FR-37, AD-10: the Final Merge authorization waits for the Customer's Merge App install; its deadline from J8. */
+	static final TodoType REPO_AUTHORIZE_FINAL_MERGE = new TodoType("repo.authorize_final_merge", Set.of(Audience.CUSTOMER),
+			1, Set.of());
+
 	/** Accept the Working Repository's invitation on GitHub (AD-11), due at its expiry. */
 	static final TodoType REPO_ACCEPT_GITHUB_INVITATION = new TodoType("repo.accept_github_invitation",
 			Set.of(Audience.MENTOR, Audience.CREW_ACTIVE), 2, Set.of("job"));
@@ -296,6 +300,30 @@ class NotificationTypes implements NotificationCatalog {
 	/** A busy marker held past its operation's budget plus an hour (AD-28): every Administrator, once per marker. */
 	static final NotificationType OPERATIONS_BUSY_MARKER_STUCK = new NotificationType("operations.busy_marker_stuck",
 			Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("job", "operation"));
+
+	/** J8 while the Final Merge authorization is still REQUESTED (FR-37): the Customer, with the deadline. */
+	static final NotificationType REPO_FINAL_MERGE_AUTHORIZATION_PENDING = new NotificationType(
+			"repo.final_merge_authorization_pending", Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL,
+			EmailClass.TRANSACTIONAL, "alert", Set.of("date"));
+
+	/** 2 days before the FR-37 deadline while still REQUESTED (author decision 2026-10-21). */
+	static final NotificationType REPO_FINAL_MERGE_AUTHORIZATION_REMINDER = new NotificationType(
+			"repo.final_merge_authorization_reminder", Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL,
+			EmailClass.REMINDER, "info", Set.of("job", "date", "waiting"));
+
+	/** An organization owner's later approval bound the authorization without the Customer on the page (AD-10). */
+	static final NotificationType REPO_FINAL_MERGE_AUTHORIZED = new NotificationType("repo.final_merge_authorized",
+			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "check",
+			Set.of("org", "repo", "date"));
+
+	/** An install request listed before is no longer listed, and nothing is bound (AD-10, SG-21). */
+	static final NotificationType REPO_MERGE_APP_REQUEST_REFUSED = new NotificationType("repo.merge_app_request_refused",
+			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("repo", "date"));
+
+	/** The Merge App's selection grew beyond the authorized repositories, so no Final Merge token is minted (AD-10). */
+	static final NotificationType REPO_MERGE_APP_SELECTION_WIDENED = new NotificationType(
+			"repo.merge_app_selection_widened", Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL,
+			"alert", Set.of("repo"));
 
 	/** A GitHub App's registration or webhook differs from AD-10 (SG-18): every Administrator, once a day per App. */
 	static final NotificationType GITHUB_APP_CONFIGURATION_DRIFT = new NotificationType("github.app_configuration_drift",
@@ -694,7 +722,9 @@ class NotificationTypes implements NotificationCatalog {
 				OPERATIONS_BUSY_MARKER_STUCK,
 				NOTIFICATION_EMAIL_BUDGET_80, GITHUB_APP_CONFIGURATION_DRIFT, REPO_JOB_START_BLOCKED, JOB_JOB_STARTED,
 				REPO_GITHUB_INVITATION_SENT, REPO_TWO_FACTOR_REQUIRED, REPO_MEMBER_DRIFT, REPO_INVITATION_RENEWALS_EXHAUSTED,
-				SCANNING_PUSH_SCAN_DELAYED, REPO_DRIFT_DETECTED, GITHUB_UNEXPECTED_ACTOR, GITHUB_OPERATOR_ACCOUNT_USED, GITHUB_PLATFORM_DRIFT,
+				SCANNING_PUSH_SCAN_DELAYED, REPO_DRIFT_DETECTED, REPO_FINAL_MERGE_AUTHORIZATION_PENDING,
+				REPO_FINAL_MERGE_AUTHORIZATION_REMINDER, REPO_FINAL_MERGE_AUTHORIZED, REPO_MERGE_APP_REQUEST_REFUSED,
+				REPO_MERGE_APP_SELECTION_WIDENED, GITHUB_UNEXPECTED_ACTOR, GITHUB_OPERATOR_ACCOUNT_USED, GITHUB_PLATFORM_DRIFT,
 				REPO_ACCESS_REVOKED, OPERATIONS_REVOCATION_DELAYED, JOB_HANDOVER_VOIDED,
 				ADMINISTRATOR_CREATED, ADMINISTRATOR_ENROLMENT, STUDENT_CARD_APPROVED, STUDENT_CARD_REJECTED,
 				MENTOR_APPLICATION_RECEIVED, MENTOR_APPROVED, MENTOR_REJECTED, ACCOUNT_LOCKED, VERIFICATION_REVOKED, MENTOR_APPROVAL_REVOKED, TEAM_INVITATION_RECEIVED,
@@ -726,7 +756,7 @@ class NotificationTypes implements NotificationCatalog {
 	@Override
 	public List<TodoType> todoTypes() {
 		return List.of(COMPLETE_MENTOR_APPLICATION, VERIFY_STUDENT, IDENTITY_SIGN_IN_AGAIN_TODO, SCANNING_RESOLVE_INTAKE_FINDING,
-				REPO_ACCEPT_GITHUB_INVITATION, SCANNING_RESOLVE_WORK_FINDING, REPO_RECONFIRM_SOURCE,
+				REPO_ACCEPT_GITHUB_INVITATION, SCANNING_RESOLVE_WORK_FINDING, REPO_RECONFIRM_SOURCE, REPO_AUTHORIZE_FINAL_MERGE,
 				MATCHING_CHOOSE_ASSIGNEE, MATCHING_SIGN_NDA, MATCHING_ANSWER_INVITATION_TO_APPLY, JOB_DRAFT_AGREEMENT,
 				JOB_REVIEW_AGREEMENT, JOB_PICK_CREW, JOB_CONFIRM_CREW_TERMS, JOB_REVISE_AGREEMENT, JOB_CONFIRM_AGREEMENT_MENTOR,
 				PAYMENT_FUND_MILESTONE, WORK_REVIEW_WORK_ITEM, WORK_FIX_RETURNED_ITEM, WORK_REASSIGN_WORK_ITEMS, DELIVERY_HAND_OVER,

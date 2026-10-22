@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
@@ -27,6 +28,7 @@ import vn.vibefix.notification.Notifications;
 import vn.vibefix.notification.Recipient;
 import vn.vibefix.notification.TodoRequest;
 import vn.vibefix.notification.Todos;
+import vn.vibefix.job.ClosureProposalChanged;
 import vn.vibefix.shared.IdGenerator;
 import vn.vibefix.timers.DeadlineRequest;
 import vn.vibefix.timers.Deadlines;
@@ -90,11 +92,14 @@ class ClosureProposals {
 
 	private final IdGenerator ids;
 
+	private final ApplicationEventPublisher events;
+
 	private final Clock clock;
 
 	ClosureProposals(JdbcClient jdbc, MentorDirectory mentors, Notifications notifications, Todos todos, Deadlines deadlines,
-			IdGenerator ids, Clock clock) {
+			IdGenerator ids, ApplicationEventPublisher events, Clock clock) {
 		this.jdbc = jdbc;
+		this.events = events;
 		this.mentors = mentors;
 		this.notifications = notifications;
 		this.todos = todos;
@@ -161,6 +166,12 @@ class ClosureProposals {
 		this.notifications.send(new NotificationRequest(UNANSWERED, proposalId, List.of(recipient(job, proposer)),
 				Map.of("job", job.title()), "/cong-viec/" + job.id(), job.id(), null));
 		return true;
+	}
+
+	/** The proposal was declined: {@code repo} ends a Final Merge authorization it opened (AD-10). */
+	void declined(Proposal proposal) {
+		this.events.publishEvent(new ClosureProposalChanged(this.ids.newId(), proposal.jobId(), proposal.id(),
+				ClosureProposalChanged.Status.DECLINED, proposal.automatic()));
 	}
 
 	/** Whether the proposal went unanswered past its date (FR-39). */
@@ -234,6 +245,8 @@ class ClosureProposals {
 			.param("answerBy", Timestamp.from(answerBy))
 			.param("now", Timestamp.from(now))
 			.update();
+		this.events.publishEvent(new ClosureProposalChanged(this.ids.newId(), jobId, id, ClosureProposalChanged.Status.OPEN,
+				"AUTOMATIC".equals(kind)));
 		return id;
 	}
 

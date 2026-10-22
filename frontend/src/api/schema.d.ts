@@ -1396,6 +1396,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/github/merge-app/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["setup_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/handovers/{handoverId}": {
         parameters: {
             query?: never;
@@ -1579,7 +1595,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["view_1"];
+        get: operations["view_2"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1691,7 +1707,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["view"];
+        get: operations["view_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1726,6 +1742,38 @@ export interface paths {
         get?: never;
         put: operations["identifier"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/jobs/{jobId}/final-merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["view"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/jobs/{jobId}/final-merge/install-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["installLink"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4419,6 +4467,20 @@ export interface components {
             count: number;
             enoughToAct: boolean;
         };
+        FinalMergeView: {
+            /** Format: date-time */
+            deadlineAt?: string;
+            endReason?: string;
+            /** Format: uuid */
+            id: string;
+            owner: string;
+            refusal?: string;
+            repository: string;
+            requestOrg?: string;
+            requestRefused: boolean;
+            requestWaiting: boolean;
+            status: string;
+        };
         FindingDetailView: {
             canResolve: boolean;
             cleanRepository?: components["schemas"]["CleanRepositoryView"];
@@ -4758,6 +4820,9 @@ export interface components {
         IdentifierView: {
             githubLogin: string;
             identifier: string;
+        };
+        InstallLinkView: {
+            url: string;
         };
         InvitationsView: {
             invitations: components["schemas"]["SentInvitationView"][];
@@ -8988,6 +9053,28 @@ export interface operations {
             };
         };
     };
+    setup_1: {
+        parameters: {
+            query?: {
+                installation_id?: number;
+                setup_action?: string;
+                state?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     handover: {
         parameters: {
             query?: never;
@@ -9301,7 +9388,7 @@ export interface operations {
             };
         };
     };
-    view_1: {
+    view_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -9491,7 +9578,7 @@ export interface operations {
             };
         };
     };
-    view: {
+    view_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -9559,6 +9646,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ExternalAccessView"];
+                };
+            };
+        };
+    };
+    view: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FinalMergeView"];
+                };
+            };
+        };
+    };
+    installLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstallLinkView"];
                 };
             };
         };

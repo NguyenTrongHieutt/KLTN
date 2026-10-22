@@ -40,7 +40,7 @@ class RepoPersonalData implements PersonalDataParticipant {
 
 	@Override
 	public Set<String> tables() {
-		return Set.of("repo.data_deletion_confirmation", "repo.job_grant");
+		return Set.of("repo.data_deletion_confirmation", "repo.job_grant", "repo.final_merge_authorization");
 	}
 
 	@Override
@@ -97,6 +97,9 @@ class RepoPersonalData implements PersonalDataParticipant {
 	public void eraseAccount(UUID accountId) {
 		this.jdbc.sql("DELETE FROM repo.data_deletion_confirmation WHERE account_id = :id").param("id", accountId).update();
 		this.jdbc.sql("DELETE FROM repo.job_grant WHERE account_id = :id").param("id", accountId).update();
+		this.jdbc.sql("UPDATE repo.final_merge_authorization SET customer_account_id = NULL WHERE customer_account_id = :id")
+			.param("id", accountId)
+			.update();
 	}
 
 	@Override
@@ -106,6 +109,7 @@ class RepoPersonalData implements PersonalDataParticipant {
 		deletions.archivesOfProduct(productId).forEach(this.files.getObject()::delete);
 		this.jdbc.sql("DELETE FROM repo.data_deletion_confirmation WHERE product_id = :id").param("id", productId).update();
 		this.jdbc.sql("DELETE FROM repo.job_grant WHERE product_id = :id").param("id", productId).update();
+		this.jdbc.sql("DELETE FROM repo.final_merge_authorization WHERE product_id = :id").param("id", productId).update();
 		this.jdbc.sql("DELETE FROM repo.job_setup WHERE product_id = :id").param("id", productId).update();
 	}
 

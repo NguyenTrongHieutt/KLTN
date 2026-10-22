@@ -31,7 +31,7 @@ public interface GitHubApps {
 
 	/**
 	 * AD-10's unnarrowed tokens, each for one call and with its fixed permissions (Spike S4).
-	 * The Merge App's selection read needs a Customer's installation and arrives with Story 8.7.
+	 * The Merge App's selection read names a Customer's installation, so it lives in {@link MergeApp}.
 	 */
 	enum Unnarrowed {
 

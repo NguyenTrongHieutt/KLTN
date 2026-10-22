@@ -2044,3 +2044,25 @@ POST /api/v1/jobs/{jobId}/source/reconfirm,STUDENT,,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/source/reconfirm,ADMINISTRATOR,,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/source/reconfirm,JOB_MENTOR,,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/source/reconfirm,CREW_ACTIVE,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/final-merge,ANONYMOUS,,,401
+GET /api/v1/jobs/{jobId}/final-merge,OWNER,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/final-merge,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/final-merge,MENTOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/final-merge,STUDENT,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/final-merge,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/final-merge,JOB_MENTOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/final-merge,CREW_ACTIVE,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/final-merge/install-link,ANONYMOUS,,,401
+POST /api/v1/jobs/{jobId}/final-merge/install-link,OWNER,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/final-merge/install-link,CUSTOMER,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/final-merge/install-link,MENTOR,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/final-merge/install-link,STUDENT,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/final-merge/install-link,ADMINISTRATOR,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/final-merge/install-link,JOB_MENTOR,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/final-merge/install-link,CREW_ACTIVE,,,404 NOT_FOUND
+GET /api/v1/github/merge-app/setup,ANONYMOUS,,,401
+GET /api/v1/github/merge-app/setup,OWNER,,,303
+GET /api/v1/github/merge-app/setup,CUSTOMER,,,303
+GET /api/v1/github/merge-app/setup,MENTOR,,,303
+GET /api/v1/github/merge-app/setup,STUDENT,,,303
+GET /api/v1/github/merge-app/setup,ADMINISTRATOR,,,303

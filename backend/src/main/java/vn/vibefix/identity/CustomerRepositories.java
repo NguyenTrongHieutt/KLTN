@@ -41,4 +41,11 @@ public interface CustomerRepositories {
 	 */
 	boolean hasContributor(UUID customerId, String owner, String name, UUID accountId);
 
+	/**
+	 * The Customer's numeric GitHub user ID, with no GitHub call (AD-10): a Merge App installation made
+	 * without the Customer on the page binds only when its requester or sender is this account.
+	 * @return empty for an account that is not a Customer, or an erased one
+	 */
+	Optional<Long> githubUserId(UUID customerId);
+
 }

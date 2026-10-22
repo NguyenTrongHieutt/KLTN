@@ -1,0 +1,6 @@
+subject: Chủ tổ chức {org} đã duyệt ứng dụng hợp nhất cho kho {repo}. Hãy xác nhận các thay đổi cần lưu ý trước {date}
+---
+Xin chào,
+
+Chủ tổ chức {org} đã duyệt ứng dụng hợp nhất của vibefix cho kho {repo}.
+Hãy mở công việc trên vibefix và xác nhận các thay đổi cần lưu ý trước {date}.

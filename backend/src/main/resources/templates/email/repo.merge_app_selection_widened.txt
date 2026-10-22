@@ -1,0 +1,6 @@
+subject: Ứng dụng hợp nhất đang được cài cho cả kho khác ngoài {repo}. Hãy chọn lại chỉ kho {repo} trên GitHub
+---
+Xin chào,
+
+Ứng dụng hợp nhất của vibefix chỉ được dùng cho đúng kho {repo}, nhưng nó đang được cài cho cả kho khác.
+vibefix sẽ không hợp nhất cho đến khi bạn chọn lại chỉ kho {repo} trong phần cài đặt ứng dụng trên GitHub.
