@@ -29,14 +29,17 @@ class FinalMergeListeners {
 
 	private final MergeAppBindings bindings;
 
+	private final FinalMerges merges;
+
 	private final JobBusy busy;
 
 	private final ProcessedEvents processedEvents;
 
-	FinalMergeListeners(FinalMergeAuthorizations authorizations, MergeAppBindings bindings, JobBusy busy,
+	FinalMergeListeners(FinalMergeAuthorizations authorizations, MergeAppBindings bindings, FinalMerges merges, JobBusy busy,
 			ProcessedEvents processedEvents) {
 		this.authorizations = authorizations;
 		this.bindings = bindings;
+		this.merges = merges;
 		this.busy = busy;
 		this.processedEvents = processedEvents;
 	}
@@ -62,6 +65,8 @@ class FinalMergeListeners {
 		}
 		if ("J8".equals(event.transition())) {
 			this.authorizations.closing(event.jobId());
+			// Story 8.8: an authorization already bound before Closing is checked now.
+			this.merges.prepare(event.jobId());
 		}
 		else {
 			this.authorizations.endOf(event.jobId(), "CANCELLED");

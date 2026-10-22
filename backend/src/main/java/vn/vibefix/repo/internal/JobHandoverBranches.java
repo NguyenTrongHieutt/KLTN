@@ -149,7 +149,11 @@ class JobHandoverBranches implements HandoverBranches {
 		Setup setup = done(jobId).orElseThrow(() -> new IllegalStateException("Job " + jobId + " has no done Setup"));
 		try {
 			this.repositories.mergePullRequest(setup.intermediary(), pullNumber, sha, title);
-			return this.repositories.pullRequestMerged(setup.intermediary(), pullNumber);
+			boolean merged = this.repositories.pullRequestMerged(setup.intermediary(), pullNumber);
+			if (merged) {
+				recordHead(setup, pullNumber, sha);
+			}
+			return merged;
 		}
 		catch (GitHubException failed) {
 			throw new Unavailable("Pull request " + pullNumber + " of Job " + jobId + " was not merged", failed);
@@ -165,6 +169,23 @@ class JobHandoverBranches implements HandoverBranches {
 		catch (GitHubException failed) {
 			throw new Unavailable("Pull request " + pullNumber + " of Job " + jobId + " was not read", failed);
 		}
+	}
+
+	/**
+	 * SG-9: the Intermediary head as GitHub shows it after this handover's merge, which J9's guard compares
+	 * the head with before the Final Merge. Recording it twice changes nothing.
+	 */
+	private void recordHead(Setup setup, int pullNumber, String sha) {
+		String head = this.repositories.refs(java.util.Objects.requireNonNull(setup.intermediary()))
+			.get("refs/heads/" + setup.defaultBranch());
+		if (head == null) {
+			throw new GitHubException(0, "The Intermediary default branch of Job " + setup.jobId() + " was not read back");
+		}
+		this.jdbc.sql("""
+				INSERT INTO repo.handover_merge (job_id, pull_number, handover_sha, head_after, merged_at)
+				VALUES (:job, :pull, :sha, :head, now())
+				ON CONFLICT DO NOTHING
+				""").param("job", setup.jobId()).param("pull", pullNumber).param("sha", sha).param("head", head).update();
 	}
 
 	private Optional<Setup> done(UUID jobId) {

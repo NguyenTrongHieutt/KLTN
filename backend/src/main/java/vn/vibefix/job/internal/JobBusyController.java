@@ -34,9 +34,10 @@ class JobBusyController {
 	 * @param purpose why a precondition operation holds the Job, as {@link JobBusy.Purpose}
 	 * @param milestone the number of the Milestone it acts on, for an acceptance
 	 * @param handoverId the handover an acceptance merges, whose report states the outcome once it clears
+	 * @param audience {@code CUSTOMER}, {@code MENTOR}, or {@code CREW}: the Final Merge reads differently to each
 	 */
 	record BusyView(boolean busy, JobBusy.@Nullable Purpose purpose, @Nullable Instant since, @Nullable Integer milestone,
-			@Nullable UUID handoverId) {
+			@Nullable UUID handoverId, String audience) {
 	}
 
 	private final JobBusy busy;
@@ -60,14 +61,14 @@ class JobBusyController {
 	@GetMapping("/api/v1/jobs/{jobId}/busy")
 	BusyView view(@PathVariable UUID jobId) {
 		Job job = this.grants.job(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		requireReader(job, this.callers.get());
+		String audience = reader(job, this.callers.get());
 		Busy marker = this.busy.job(jobId).flatMap(JobBusy.BusyJob::busy).orElse(null);
 		if (marker == null) {
-			return new BusyView(false, null, null, null, null);
+			return new BusyView(false, null, null, null, null, audience);
 		}
 		String subject = marker.subjectToken();
 		UUID handover = marker.purpose() == JobBusy.Purpose.ACCEPTANCE && subject != null ? UUID.fromString(subject) : null;
-		return new BusyView(true, marker.purpose(), marker.since(), milestone(jobId, marker), handover);
+		return new BusyView(true, marker.purpose(), marker.since(), milestone(jobId, marker), handover, audience);
 	}
 
 	/** The Milestone whose current handover the marker names. */
@@ -85,12 +86,16 @@ class JobBusyController {
 	}
 
 	/** The Job's Customer, its Mentor, or one of its Crew; anyone else finds nothing. */
-	private void requireReader(Job job, Caller caller) {
+	private String reader(Job job, Caller caller) {
 		UUID account = caller.requireAccountId();
-		if ((caller.hasRole(Role.CUSTOMER) && job.customerId().equals(account))
-				|| (caller.hasRole(Role.MENTOR) && account.equals(job.mentorId()))
-				|| (caller.hasRole(Role.STUDENT) && this.grants.onCrew(job.id(), account))) {
-			return;
+		if (caller.hasRole(Role.CUSTOMER) && job.customerId().equals(account)) {
+			return "CUSTOMER";
+		}
+		if (caller.hasRole(Role.MENTOR) && account.equals(job.mentorId())) {
+			return "MENTOR";
+		}
+		if (caller.hasRole(Role.STUDENT) && this.grants.onCrew(job.id(), account)) {
+			return "CREW";
 		}
 		throw new ApiException(ErrorCode.NOT_FOUND);
 	}

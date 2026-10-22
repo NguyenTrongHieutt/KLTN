@@ -56,4 +56,62 @@ public interface MergeApp {
 	/** Revokes the token at once. */
 	void revoke(InstallationToken token);
 
+	/** A pull request on the Source Repository: its number and its page. */
+	record PullRequest(int number, String url) {
+	}
+
+	/**
+	 * How a merge answered (SG-15).
+	 * {@code REFUSED} is not transient: an archived repository, a ruleset, or required checks.
+	 */
+	enum MergeAnswer {
+
+		MERGED, REFUSED, TRANSIENT
+
+	}
+
+	/**
+	 * The trial merge's result.
+	 * @param moved the Intermediary branch no longer has the head that was checked
+	 */
+	record TrialMerge(boolean clean, boolean moved, List<String> conflicts) {
+
+		public TrialMerge {
+			conflicts = List.copyOf(conflicts);
+		}
+
+	}
+
+	/** The paths under {@code .github/workflows/} on {@code branch} (SG-19), with a Contents-read token. */
+	List<String> workflowFiles(InstallationToken token, String fullName, String branch);
+
+	/**
+	 * Merges {@code intermediaryBranch} of the Intermediary Repository into the Source default branch in
+	 * memory, in the sandbox, with nothing pushed (AD-11). Both are read as public repositories.
+	 */
+	TrialMerge trialMerge(String sourceFullName, String sourceBranch, String intermediaryFullName, String intermediaryBranch,
+			String sha);
+
+	/**
+	 * Pushes {@code sha}, read on {@code intermediaryBranch}, to a new branch of the Source Repository,
+	 * never forced, in the sandbox with the token.
+	 * @return whether the push went through; one already there counts
+	 */
+	boolean push(InstallationToken token, String intermediaryFullName, String intermediaryBranch, String sha,
+			String sourceFullName, String branch);
+
+	/** The open pull request from {@code branch}, if one is. */
+	Optional<PullRequest> findPull(InstallationToken token, String fullName, String branch);
+
+	PullRequest openPull(InstallationToken token, String fullName, String branch, String base, String title, String body);
+
+	/** Merges with a merge commit exactly at {@code sha}. */
+	MergeAnswer mergePull(InstallationToken token, String fullName, int number, String sha, String title);
+
+	/** Whether the pull request is merged, read back. */
+	boolean pullMerged(InstallationToken token, String fullName, int number);
+
+	/** Deletes the pushed branch; one already gone changes nothing. */
+	void deleteBranch(InstallationToken token, String fullName, String branch);
+
 }
