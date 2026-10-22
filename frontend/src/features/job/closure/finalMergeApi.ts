@@ -1,15 +1,26 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { components } from '@/api/schema'
+import { busyKey } from '@/features/job/jobBusy'
 import { apiClient, unwrap } from '@/lib/apiClient'
 
 export type FinalMerge = components['schemas']['FinalMergeView']
 
-/** The Customer's step "Cho phép hợp nhất" (FR-37, AD-10); others, and an Assessment Job, find nothing. */
+/** How often the step reads again while the code is checked or merged. */
+const RUNNING_POLL_MS = 5_000
+
+/**
+ * The Customer's step "Cho phép hợp nhất" (FR-37, AD-10); others, and an Assessment Job, find nothing. It
+ * reads again while the Final Merge is checked or merged.
+ */
 export function useFinalMerge(jobId: string) {
   return useQuery({
     queryKey: ['final-merge', jobId],
     queryFn: () => unwrap(apiClient.GET('/api/v1/jobs/{jobId}/final-merge', { params: { path: { jobId } } })),
     retry: false,
+    refetchInterval: (query) => {
+      const status = query.state.data?.merge?.status
+      return status === 'CHECKING' || status === 'CONFIRMED' ? RUNNING_POLL_MS : false
+    },
   })
 }
 
@@ -18,5 +29,23 @@ export function useInstallLink(jobId: string) {
   return useMutation({
     mutationFn: () =>
       unwrap(apiClient.POST('/api/v1/jobs/{jobId}/final-merge/install-link', { params: { path: { jobId } } })),
+  })
+}
+
+/** "Hợp nhất vào dự án" (N-18): the merge starts, so the step and the busy banner refresh. */
+export function useConfirmFinalMerge(jobId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () =>
+      unwrap(
+        apiClient.POST('/api/v1/jobs/{jobId}/final-merge/confirm', {
+          params: { path: { jobId } },
+          body: { agreed: true },
+        }),
+      ),
+    onSuccess: async (view) => {
+      queryClient.setQueryData(['final-merge', jobId], view)
+      await queryClient.invalidateQueries({ queryKey: busyKey(jobId) })
+    },
   })
 }

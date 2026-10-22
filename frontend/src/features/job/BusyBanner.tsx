@@ -39,7 +39,7 @@ export function BusyBanner({ jobId }: { jobId: string }) {
       return
     }
     void (async () => {
-      const outcome = await announce(before)
+      const outcome = await announce(before, jobId)
       if (outcome.error) {
         toasts.error(outcome.text)
       } else {
@@ -50,6 +50,8 @@ export function BusyBanner({ jobId }: { jobId: string }) {
         client.invalidateQueries({ queryKey: ['handover'] }),
         client.invalidateQueries({ queryKey: ['handovers', jobId] }),
         client.invalidateQueries({ queryKey: ['progress', jobId] }),
+        client.invalidateQueries({ queryKey: ['final-merge', jobId] }),
+        client.invalidateQueries({ queryKey: ['closure', jobId] }),
       ])
     })()
   }, [busy.data, client, jobId, toasts])
@@ -65,14 +67,27 @@ export function BusyBanner({ jobId }: { jobId: string }) {
       className="flex items-center gap-2 rounded-md border-l-4 border-primary bg-primary-soft p-3 text-body-sm"
     >
       <LoaderCircle aria-hidden="true" className="size-4 shrink-0 animate-spin text-primary motion-reduce:animate-none" />
-      {t(`screen.job.busy.${view.purpose}` as MessageKey, { n: view.milestone ?? '' })}
+      {t(`screen.job.busy.${banner(view)}` as MessageKey, { n: view.milestone ?? '' })}
     </p>
   )
 }
 
-/** What the cleared marker came to: an acceptance reads its handover's report. */
-async function announce(before: Busy): Promise<{ text: string; error: boolean }> {
+/** The Final Merge reads as the Customer's own project to them, and as the last merge to the team. */
+function banner(view: Busy): string {
+  return view.purpose === 'FINAL_MERGE' && view.audience === 'CUSTOMER' ? 'FINAL_MERGE_CUSTOMER' : (view.purpose ?? '')
+}
+
+/** What the cleared marker came to: an acceptance reads its handover's report, a Final Merge its step. */
+async function announce(before: Busy, jobId: string): Promise<{ text: string; error: boolean }> {
   const done = { text: t('screen.job.busy.done'), error: false }
+  if (before.purpose === 'FINAL_MERGE' && before.audience === 'CUSTOMER') {
+    try {
+      const merge = await unwrap(apiClient.GET('/api/v1/jobs/{jobId}/final-merge', { params: { path: { jobId } } }))
+      return merge.merge?.status === 'MERGED' ? { text: t('screen.job.busy.mergedCustomer'), error: false } : done
+    } catch {
+      return done
+    }
+  }
   if (before.purpose !== 'ACCEPTANCE' || !before.handoverId) {
     return done
   }

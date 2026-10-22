@@ -2060,6 +2060,14 @@ POST /api/v1/jobs/{jobId}/final-merge/install-link,STUDENT,,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/final-merge/install-link,ADMINISTRATOR,,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/final-merge/install-link,JOB_MENTOR,,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/final-merge/install-link,CREW_ACTIVE,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/final-merge/confirm,ANONYMOUS,,final-merge-confirm.json,401
+POST /api/v1/jobs/{jobId}/final-merge/confirm,OWNER,,final-merge-confirm.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/final-merge/confirm,CUSTOMER,,final-merge-confirm.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/final-merge/confirm,MENTOR,,final-merge-confirm.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/final-merge/confirm,STUDENT,,final-merge-confirm.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/final-merge/confirm,ADMINISTRATOR,,final-merge-confirm.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/final-merge/confirm,JOB_MENTOR,,final-merge-confirm.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/final-merge/confirm,CREW_ACTIVE,,final-merge-confirm.json,404 NOT_FOUND
 GET /api/v1/github/merge-app/setup,ANONYMOUS,,,401
 GET /api/v1/github/merge-app/setup,OWNER,,,303
 GET /api/v1/github/merge-app/setup,CUSTOMER,,,303

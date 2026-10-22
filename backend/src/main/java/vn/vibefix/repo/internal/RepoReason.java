@@ -31,6 +31,9 @@ enum RepoReason {
 	SIGN_IN_AGAIN,
 
 	/** The Job has no open Final Merge authorization to install the Merge App for (FR-37, AD-10). */
-	NO_AUTHORIZATION_OPEN
+	NO_AUTHORIZATION_OPEN,
+
+	/** The Final Merge is not checked and waiting for the Customer's confirmation (FR-37). */
+	FINAL_MERGE_NOT_READY
 
 }

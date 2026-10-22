@@ -1,5 +1,5 @@
-import { CircleCheck } from 'lucide-react'
-import { useState } from 'react'
+import { CircleCheck, Info } from 'lucide-react'
+import { useId, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { TermHint } from '@/components/TermHint'
 import { useToasts } from '@/components/toasts'
@@ -8,7 +8,9 @@ import { t } from '@/i18n/t'
 import { formatDayMonth } from '@/lib/dates'
 import { problemMessage } from '@/lib/problemMessage'
 import { redirectTo } from '@/lib/redirect'
-import { useFinalMerge, useInstallLink, type FinalMerge } from './finalMergeApi'
+import { OutsideLink } from '@/features/delivery/OutsideLink'
+import { SensitiveChangeList } from '@/features/delivery/SensitiveChangeList'
+import { useConfirmFinalMerge, useFinalMerge, useInstallLink, type FinalMerge } from './finalMergeApi'
 
 /** Where the GitHub return marks that nothing was installed (a request, or a blocked install). */
 const NOT_SEEN = 'chua-thay'
@@ -19,7 +21,10 @@ const NOT_SEEN = 'chua-thay'
  * bound, "Đã cho phép cho kho {repo}". A refused selection, a request waiting for an organization owner
  * with the message to send them, a return that installed nothing, and a request no longer listed each
  * say what to do. The link is minted on click, with a single-use state, and the page goes to GitHub;
- * the return refetches. Nothing shows for anyone else, or once the authorization ended.
+ * the return refetches. Once bound in Closing (Story 8.8) the code is checked, then the whole Job's
+ * Sensitive change list, the workflow files already in the project, and N-18's checkbox lead to "Hợp
+ * nhất vào dự án"; the merge ends with "Đã hợp nhất vào dự án của bạn" and its pull request on GitHub.
+ * Nothing shows for anyone else, or once the authorization ended.
  */
 export function FinalMergeStep({ jobId }: { jobId: string }) {
   const merge = useFinalMerge(jobId)
@@ -36,12 +41,7 @@ function Content({ jobId, merge }: { jobId: string; merge: FinalMerge }) {
   const date = merge.deadlineAt ? formatDayMonth(merge.deadlineAt) : t('screen.closure.finalMerge.beforeEnd')
 
   if (merge.status === 'BOUND' || merge.status === 'USED') {
-    return (
-      <p className="flex items-center gap-2 text-body-sm">
-        <CircleCheck aria-hidden="true" className="size-4 shrink-0 text-success" />
-        {t('screen.closure.finalMerge.bound', { repo })}
-      </p>
-    )
+    return <Merge jobId={jobId} merge={merge} />
   }
 
   const install = () => {
@@ -116,6 +116,108 @@ function Content({ jobId, merge }: { jobId: string; merge: FinalMerge }) {
           )}
         </Button>
       )}
+    </section>
+  )
+}
+
+/** The Final Merge once the authorization is bound (FR-37, SG-19, UX-DR35, UX-DR55). */
+function Merge({ jobId, merge }: { jobId: string; merge: FinalMerge }) {
+  const ids = useId()
+  const confirm = useConfirmFinalMerge(jobId)
+  const [agreed, setAgreed] = useState(false)
+  const [error, setError] = useState<string>()
+  const repo = merge.repository
+  const step = merge.merge
+  const bound = (
+    <p className="flex items-center gap-2 text-body-sm">
+      <CircleCheck aria-hidden="true" className="size-4 shrink-0 text-success" />
+      {t('screen.closure.finalMerge.bound', { repo })}
+    </p>
+  )
+  if (step?.status === 'MERGED') {
+    return (
+      <div className="flex flex-col gap-2">
+        <p className="flex items-center gap-2 text-body-sm font-semibold">
+          <CircleCheck aria-hidden="true" className="size-4 shrink-0 text-success" />
+          {t('screen.closure.finalMerge.merged')}
+        </p>
+        {step.pullUrl && (
+          <OutsideLink url={step.pullUrl} domain="github.com" label={t('screen.closure.finalMerge.viewOnGitHub')} />
+        )}
+      </div>
+    )
+  }
+  if (!step || step.status === 'CHECKING') {
+    return (
+      <div className="flex flex-col gap-2">
+        {bound}
+        {step && (
+          <p role="status" className="text-body-sm text-muted-foreground">
+            {t('screen.closure.finalMerge.checking')}
+          </p>
+        )}
+      </div>
+    )
+  }
+  if (step.status === 'CONFIRMED') {
+    return (
+      <div className="flex flex-col gap-2">
+        {bound}
+        <p role="status" className="text-body-sm">
+          {t('screen.closure.finalMerge.confirming')}
+        </p>
+      </div>
+    )
+  }
+  if (step.status !== 'READY') {
+    return bound
+  }
+  const run = () => {
+    setError(undefined)
+    confirm.mutate(undefined, {
+      onError: (failure) => setError(problemMessage(failure, { module: 'repo' }).text),
+    })
+  }
+  return (
+    <section aria-labelledby={`${ids}-review`} className="flex flex-col gap-3 rounded-md border border-border p-4">
+      {bound}
+      <p id={`${ids}-review`} className="text-body-sm">
+        {t('screen.closure.finalMerge.reviewLead')}
+      </p>
+      <SensitiveChangeList changes={step.sensitive} headingId={`${ids}-sensitive`} />
+      {step.workflows.length > 0 && (
+        <div role="note" className="flex flex-col gap-1 rounded-md border-l-4 border-primary bg-primary-soft p-3 text-body-sm">
+          <p className="flex items-center gap-2 font-semibold">
+            <Info aria-hidden="true" className="size-4 shrink-0 text-primary" />
+            {t('screen.closure.finalMerge.workflowsTitle')}
+          </p>
+          <ul className="flex flex-col gap-0.5">
+            {step.workflows.map((path) => (
+              <li key={path}>
+                <code className="font-mono text-caption break-all">{path}</code>
+              </li>
+            ))}
+          </ul>
+          <p>{t('screen.closure.finalMerge.workflowsLead')}</p>
+        </div>
+      )}
+      <label className="flex items-start gap-2 text-body-sm">
+        <input
+          type="checkbox"
+          className="mt-1 size-4"
+          checked={agreed}
+          onChange={(event) => setAgreed(event.target.checked)}
+        />
+        {t('screen.closure.finalMerge.agree')}
+      </label>
+      {error && (
+        <p role="alert" className="text-body-sm text-destructive">
+          {error}
+        </p>
+      )}
+      <Button type="button" className="w-fit" disabled={!agreed || confirm.isPending} onClick={run}>
+        {t('screen.closure.finalMerge.confirm')}
+      </Button>
     </section>
   )
 }

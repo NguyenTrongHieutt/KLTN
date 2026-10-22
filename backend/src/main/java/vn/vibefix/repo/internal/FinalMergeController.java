@@ -13,14 +13,18 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.AssertTrue;
 import vn.vibefix.github.GitHubException;
 import vn.vibefix.github.MergeApp;
 import vn.vibefix.job.JobBusy;
 import vn.vibefix.job.JobBusy.BusyJob;
 import vn.vibefix.repo.internal.FinalMergeAuthorizations.Authorization;
+import vn.vibefix.scanning.SensitiveChanges;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.Caller;
@@ -56,10 +60,30 @@ class FinalMergeController {
 	 * @param refusal {@code MERGE_APP_WRONG_REPOSITORY} after a refused installation, until one binds
 	 * @param requestOrg the organization whose owner must approve the waiting request
 	 * @param requestRefused a request listed before and no longer, with nothing bound
+	 * @param merge the Final Merge once the authorization is bound in Closing (Story 8.8)
 	 */
 	record FinalMergeView(UUID id, String status, String repository, String owner, @Nullable Instant deadlineAt,
 			@Nullable String refusal, @Nullable String requestOrg, boolean requestWaiting, boolean requestRefused,
-			@Nullable String endReason) {
+			@Nullable String endReason, @Nullable MergeView merge) {
+	}
+
+	/**
+	 * The Final Merge (FR-37, SG-19, UX-DR35).
+	 * @param status {@code CHECKING}, {@code READY}, {@code CONFIRMED}, {@code MERGED}, {@code CONFLICT}, or {@code REFUSED}
+	 * @param sensitive the whole Job's Sensitive Changes
+	 * @param workflows the workflow files already in the Source Repository, for the info alert
+	 * @param pullUrl "Xem thay đổi trên GitHub ↗", once merged
+	 */
+	record MergeView(String status, List<MergeSensitiveChangeView> sensitive, List<String> workflows, @Nullable String pullUrl,
+			@Nullable String refusal) {
+	}
+
+	/** One Sensitive Change: its path and kind, as the Delivery Report shows one. */
+	record MergeSensitiveChangeView(String path, SensitiveChanges.Kind kind) {
+	}
+
+	/** "Tôi đã xem và đồng ý hợp nhất." (N-18). */
+	record ConfirmRequest(@AssertTrue boolean agreed) {
 	}
 
 	/** Where "Cài ứng dụng hợp nhất trên GitHub ↗" goes. */
@@ -67,6 +91,8 @@ class FinalMergeController {
 	}
 
 	private final FinalMergeAuthorizations authorizations;
+
+	private final FinalMerges merges;
 
 	private final MergeAppBindings bindings;
 
@@ -76,9 +102,10 @@ class FinalMergeController {
 
 	private final CurrentCaller callers;
 
-	FinalMergeController(FinalMergeAuthorizations authorizations, MergeAppBindings bindings, MergeApp app, JobBusy busy,
-			CurrentCaller callers) {
+	FinalMergeController(FinalMergeAuthorizations authorizations, FinalMerges merges, MergeAppBindings bindings, MergeApp app,
+			JobBusy busy, CurrentCaller callers) {
 		this.authorizations = authorizations;
+		this.merges = merges;
 		this.bindings = bindings;
 		this.app = app;
 		this.busy = busy;
@@ -94,7 +121,22 @@ class FinalMergeController {
 			this.bindings.readRequests(List.of(authorization));
 			authorization = this.authorizations.find(authorization.id()).orElseThrow();
 		}
+		else if ("BOUND".equals(authorization.status())) {
+			// A check that failed is started again here (Story 8.8).
+			this.merges.prepare(job.jobId());
+		}
 		return view(authorization);
+	}
+
+	/**
+	 * "Hợp nhất vào dự án" (FR-37, N-18): the merge starts under the {@code FINAL_MERGE} busy marker.
+	 * @throws ApiException {@code CONFLICT FINAL_MERGE_NOT_READY}; {@code JOB_BUSY}; {@code STALE}
+	 */
+	@PostMapping("/api/v1/jobs/{jobId}/final-merge/confirm")
+	FinalMergeView confirm(@PathVariable UUID jobId, @Valid @RequestBody ConfirmRequest body) {
+		BusyJob job = customerJob(jobId);
+		this.merges.confirm(job, this.callers.get().requireAccountId());
+		return view(this.authorizations.latest(job.jobId()).orElseThrow());
 	}
 
 	/** A fresh install link; the previous one's {@code state} no longer binds. */
@@ -141,10 +183,16 @@ class FinalMergeController {
 		return job;
 	}
 
-	private static FinalMergeView view(Authorization authorization) {
+	private FinalMergeView view(Authorization authorization) {
+		MergeView merge = this.merges.find(authorization.id())
+			.map(found -> new MergeView(found.status(),
+					found.sensitive().stream().map(change -> new MergeSensitiveChangeView(change.path(), change.kind())).toList(),
+					found.workflows(), "MERGED".equals(found.status()) ? found.pullUrl() : null, found.refusal()))
+			.orElse(null);
 		return new FinalMergeView(authorization.id(), authorization.status(), authorization.repositoryName(),
 				authorization.owner(), authorization.deadlineAt(), authorization.refusal(), authorization.requestOrg(),
-				authorization.requestSeenAt() != null, authorization.requestRefusedAt() != null, authorization.endReason());
+				authorization.requestSeenAt() != null, authorization.requestRefusedAt() != null, authorization.endReason(),
+				merge);
 	}
 
 	private static ResponseEntity<Void> back(String path) {

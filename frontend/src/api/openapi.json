@@ -1624,7 +1624,7 @@
     },
     "/api/v1/boards/{boardId}/cancellation/confirm" : {
       "post" : {
-        "operationId" : "confirm_4",
+        "operationId" : "confirm_5",
         "parameters" : [ {
           "in" : "path",
           "name" : "boardId",
@@ -1812,7 +1812,7 @@
     },
     "/api/v1/boards/{boardId}/closure/confirm" : {
       "post" : {
-        "operationId" : "confirm_3",
+        "operationId" : "confirm_4",
         "parameters" : [ {
           "in" : "path",
           "name" : "boardId",
@@ -1913,7 +1913,7 @@
     },
     "/api/v1/boards/{boardId}/data-deletion/{item}" : {
       "post" : {
-        "operationId" : "confirm_2",
+        "operationId" : "confirm_3",
         "parameters" : [ {
           "in" : "path",
           "name" : "boardId",
@@ -2740,7 +2740,7 @@
     },
     "/api/v1/change-requests/{changeRequestId}/confirm" : {
       "post" : {
-        "operationId" : "confirm_1",
+        "operationId" : "confirm_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "changeRequestId",
@@ -4089,6 +4089,43 @@
             "format" : "uuid"
           }
         } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FinalMergeView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "final-merge-controller" ]
+      }
+    },
+    "/api/v1/jobs/{jobId}/final-merge/confirm" : {
+      "post" : {
+        "operationId" : "confirm_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ConfirmRequest"
+              }
+            }
+          },
+          "required" : true
+        },
         "responses" : {
           "200" : {
             "content" : {
@@ -8414,6 +8451,9 @@
       "BusyView" : {
         "type" : "object",
         "properties" : {
+          "audience" : {
+            "type" : "string"
+          },
           "busy" : {
             "type" : "boolean"
           },
@@ -8434,7 +8474,7 @@
             "format" : "date-time"
           }
         },
-        "required" : [ "busy" ]
+        "required" : [ "audience", "busy" ]
       },
       "CancelAloneRequest" : {
         "type" : "object",
@@ -9111,6 +9151,15 @@
           }
         },
         "required" : [ "code" ]
+      },
+      "ConfirmRequest" : {
+        "type" : "object",
+        "properties" : {
+          "agreed" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "agreed" ]
       },
       "ConfirmedAgreementView" : {
         "type" : "object",
@@ -10523,6 +10572,9 @@
           "id" : {
             "type" : "string",
             "format" : "uuid"
+          },
+          "merge" : {
+            "$ref" : "#/components/schemas/MergeView"
           },
           "owner" : {
             "type" : "string"
@@ -12812,6 +12864,46 @@
           }
         },
         "required" : [ "invitations", "invitesLeft", "joinRequests", "members", "size", "sizeLimit", "status" ]
+      },
+      "MergeSensitiveChangeView" : {
+        "type" : "object",
+        "properties" : {
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "CI_CONFIG", "DEPENDENCIES", "BUILD_SCRIPT", "BINARY" ]
+          },
+          "path" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "kind", "path" ]
+      },
+      "MergeView" : {
+        "type" : "object",
+        "properties" : {
+          "pullUrl" : {
+            "type" : "string"
+          },
+          "refusal" : {
+            "type" : "string"
+          },
+          "sensitive" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/MergeSensitiveChangeView"
+            }
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "workflows" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "sensitive", "status", "workflows" ]
       },
       "MessagePageView" : {
         "type" : "object",

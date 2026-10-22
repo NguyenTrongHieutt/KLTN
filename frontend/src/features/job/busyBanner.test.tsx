@@ -67,4 +67,19 @@ describe('The busy banner on JOB-H (UX-DR21, AD-28)', () => {
     await vi.waitFor(() => expect(read).toBe(true))
     expect(screen.queryByRole('status')).toBeNull()
   })
+
+  it('reads the Final Merge as the Customer’s own project to them and as the last merge to the team', async () => {
+    const finalMerge = { busy: true, purpose: 'FINAL_MERGE', since: '2026-10-22T10:00:00Z' }
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/jobs/j1/busy': () => json({ ...finalMerge, audience: 'CUSTOMER' }),
+    })
+    renderBanner()
+    expect(await screen.findByRole('status')).toHaveTextContent('Đang đưa mã vào dự án của bạn…')
+
+    fakeBackend(signedIn('MENTOR'), {
+      'GET /api/v1/jobs/j1/busy': () => json({ ...finalMerge, audience: 'MENTOR' }),
+    })
+    renderBanner()
+    expect(await screen.findByText('Đang hợp nhất cuối…')).toBeInTheDocument()
+  })
 })

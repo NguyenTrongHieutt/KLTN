@@ -357,6 +357,121 @@ public final class GitHubStub implements AutoCloseable {
 			}
 			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(requests));
 		}
+		else if (method.equals("GET")
+				&& (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)/contents/\\.github/workflows").matcher(path)).matches()
+				&& !matcher.group(1).equals(ORGANIZATION)) {
+			String branch = parameter(query, "ref", "main");
+			List<Map<String, Object>> files = new ArrayList<>();
+			try (Repository git = repository(matcher.group(1), matcher.group(2)); RevWalk walk = new RevWalk(git)) {
+				var head = git.resolve("refs/heads/" + branch);
+				if (head != null) {
+					try (TreeWalk tree = new TreeWalk(git)) {
+						tree.addTree(walk.parseCommit(head).getTree());
+						tree.setRecursive(true);
+						while (tree.next()) {
+							if (tree.getPathString().startsWith(".github/workflows/")) {
+								files.add(Map.of("name", tree.getNameString(), "path", tree.getPathString(), "type", "file"));
+							}
+						}
+					}
+				}
+			}
+			if (files.isEmpty()) {
+				send(exchange, 404, GitHubHttp.JSON.writeValueAsString(Map.of("message", "Not Found")));
+				return;
+			}
+			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(files));
+		}
+		else if ((method.equals("GET") || method.equals("POST"))
+				&& (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)/pulls").matcher(path)).matches()
+				&& !matcher.group(1).equals(ORGANIZATION)) {
+			String repository = matcher.group(1) + "/" + matcher.group(2);
+			Map<Integer, Map<String, String>> pulls = this.sourcePulls.computeIfAbsent(repository,
+					name -> Collections.synchronizedMap(new LinkedHashMap<>()));
+			if (method.equals("GET")) {
+				String head = parameter(query, "head", "");
+				String branch = java.net.URLDecoder.decode(head, StandardCharsets.UTF_8);
+				branch = branch.substring(branch.indexOf(':') + 1);
+				List<Map<String, Object>> open = new ArrayList<>();
+				synchronized (pulls) {
+					for (var entry : pulls.entrySet()) {
+						if (entry.getValue().get("head").equals(branch) && !"true".equals(entry.getValue().get("merged"))) {
+							open.add(Map.of("number", entry.getKey(), "html_url", "https://github.com/" + repository + "/pull/"
+									+ entry.getKey()));
+						}
+					}
+				}
+				send(exchange, 200, GitHubHttp.JSON.writeValueAsString(open));
+				return;
+			}
+			int number = pulls.size() + 1;
+			pulls.put(number, new java.util.concurrent.ConcurrentHashMap<>(Map.of("head", body.path("head").asString(), "base",
+					body.path("base").asString(), "merged", "false")));
+			send(exchange, 201, GitHubHttp.JSON.writeValueAsString(Map.of("number", number, "html_url",
+					"https://github.com/" + repository + "/pull/" + number)));
+		}
+		else if (method.equals("PUT")
+				&& (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)/pulls/(\\d+)/merge").matcher(path)).matches()
+				&& !matcher.group(1).equals(ORGANIZATION)) {
+			String repository = matcher.group(1) + "/" + matcher.group(2);
+			Map<String, String> pull = this.sourcePulls.getOrDefault(repository, Map.of()).get(Integer.parseInt(matcher.group(3)));
+			Integer refusal = this.sourceMergeRefusal;
+			if (pull == null) {
+				send(exchange, 404, GitHubHttp.JSON.writeValueAsString(Map.of("message", "Not Found")));
+				return;
+			}
+			if (refusal != null) {
+				send(exchange, refusal, GitHubHttp.JSON.writeValueAsString(Map.of("message", "Repository rule violations found")));
+				return;
+			}
+			try (Repository git = repository(matcher.group(1), matcher.group(2)); RevWalk walk = new RevWalk(git);
+					org.eclipse.jgit.lib.ObjectInserter inserter = git.newObjectInserter()) {
+				RevCommit base = walk.parseCommit(git.resolve("refs/heads/" + pull.get("base")));
+				RevCommit head = walk.parseCommit(git.resolve("refs/heads/" + pull.get("head")));
+				if (!head.name().equals(body.path("sha").asString())) {
+					send(exchange, 409, GitHubHttp.JSON.writeValueAsString(Map.of("message", "Head branch was modified")));
+					return;
+				}
+				org.eclipse.jgit.merge.ThreeWayMerger merger = org.eclipse.jgit.merge.MergeStrategy.RECURSIVE.newMerger(git, true);
+				if (!merger.merge(base, head)) {
+					send(exchange, 405, GitHubHttp.JSON.writeValueAsString(Map.of("message", "Pull Request is not mergeable")));
+					return;
+				}
+				org.eclipse.jgit.lib.CommitBuilder commit = new org.eclipse.jgit.lib.CommitBuilder();
+				commit.setTreeId(merger.getResultTreeId());
+				commit.setParentIds(base, head);
+				org.eclipse.jgit.lib.PersonIdent bot = new org.eclipse.jgit.lib.PersonIdent("vibefix-merge[bot]", "bot@example.test");
+				commit.setAuthor(bot);
+				commit.setCommitter(bot);
+				commit.setMessage(body.path("commit_title").asString("Merge"));
+				var merged = inserter.insert(commit);
+				inserter.flush();
+				org.eclipse.jgit.lib.RefUpdate update = git.updateRef("refs/heads/" + pull.get("base"));
+				update.setNewObjectId(merged);
+				update.setExpectedOldObjectId(base);
+				update.update();
+				pull.put("merged", "true");
+				send(exchange, 200, GitHubHttp.JSON.writeValueAsString(Map.of("sha", merged.name(), "merged", true)));
+			}
+		}
+		else if (method.equals("GET")
+				&& (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)/pulls/(\\d+)").matcher(path)).matches()
+				&& !matcher.group(1).equals(ORGANIZATION)) {
+			Map<String, String> pull = this.sourcePulls.getOrDefault(matcher.group(1) + "/" + matcher.group(2), Map.of())
+				.get(Integer.parseInt(matcher.group(3)));
+			send(exchange, pull == null ? 404 : 200, GitHubHttp.JSON.writeValueAsString(pull == null ? Map.of("message", "Not Found")
+					: Map.of("number", Integer.parseInt(matcher.group(3)), "merged", "true".equals(pull.get("merged")))));
+		}
+		else if (method.equals("DELETE")
+				&& (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)/git/refs/heads/(.+)").matcher(path)).matches()
+				&& !matcher.group(1).equals(ORGANIZATION)) {
+			try (Repository git = repository(matcher.group(1), matcher.group(2))) {
+				org.eclipse.jgit.lib.RefUpdate delete = git.updateRef("refs/heads/" + matcher.group(3));
+				delete.setForceUpdate(true);
+				var result = delete.delete();
+				send(exchange, result == org.eclipse.jgit.lib.RefUpdate.Result.NO_CHANGE ? 422 : 204, "");
+			}
+		}
 		else if (method.equals("DELETE") && path.equals("/installation/token")) {
 			this.revoked.incrementAndGet();
 			send(exchange, 204, "");
@@ -715,6 +830,15 @@ public final class GitHubStub implements AutoCloseable {
 		}
 
 	}
+
+	/**
+	 * Pull requests on repositories outside the organization, a Customer's Source Repository among them
+	 * (Story 8.8): by {@code owner/name}, each number's {@code head}, {@code base}, and {@code merged}.
+	 */
+	public final Map<String, Map<Integer, Map<String, String>>> sourcePulls = Collections.synchronizedMap(new LinkedHashMap<>());
+
+	/** The status a merge on a repository outside the organization answers instead, as a ruleset or an archive would. */
+	public volatile Integer sourceMergeRefusal;
 
 	/** The Merge App's installations on Customers' accounts, by installation ID. */
 	public final Map<Long, MergeInstallation> mergeInstallations = Collections.synchronizedMap(new LinkedHashMap<>());

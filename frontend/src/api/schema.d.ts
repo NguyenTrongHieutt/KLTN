@@ -717,7 +717,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["confirm_4"];
+        post: operations["confirm_5"];
         delete?: never;
         options?: never;
         head?: never;
@@ -781,7 +781,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["confirm_3"];
+        post: operations["confirm_4"];
         delete?: never;
         options?: never;
         head?: never;
@@ -829,7 +829,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["confirm_2"];
+        post: operations["confirm_3"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1165,7 +1165,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["confirm_1"];
+        post: operations["confirm_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1758,6 +1758,22 @@ export interface paths {
         get: operations["view"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/jobs/{jobId}/final-merge/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["confirm_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3712,6 +3728,7 @@ export interface components {
             workload: components["schemas"]["WorkloadView"][];
         };
         BusyView: {
+            audience: string;
             busy: boolean;
             /** Format: uuid */
             handoverId?: string;
@@ -3965,6 +3982,9 @@ export interface components {
         };
         CodeRequest: {
             code: string;
+        };
+        ConfirmRequest: {
+            agreed: boolean;
         };
         ConfirmedAgreementView: {
             /** Format: date-time */
@@ -4473,6 +4493,7 @@ export interface components {
             endReason?: string;
             /** Format: uuid */
             id: string;
+            merge?: components["schemas"]["MergeView"];
             owner: string;
             refusal?: string;
             repository: string;
@@ -5271,6 +5292,18 @@ export interface components {
             sizeLimit: number;
             /** @enum {string} */
             status: "OPEN" | "CLOSED";
+        };
+        MergeSensitiveChangeView: {
+            /** @enum {string} */
+            kind: "CI_CONFIG" | "DEPENDENCIES" | "BUILD_SCRIPT" | "BINARY";
+            path: string;
+        };
+        MergeView: {
+            pullUrl?: string;
+            refusal?: string;
+            sensitive: components["schemas"]["MergeSensitiveChangeView"][];
+            status: string;
+            workflows: string[];
         };
         MessagePageView: {
             hasOlder: boolean;
@@ -7812,7 +7845,7 @@ export interface operations {
             };
         };
     };
-    confirm_4: {
+    confirm_5: {
         parameters: {
             query?: never;
             header?: never;
@@ -7956,7 +7989,7 @@ export interface operations {
             };
         };
     };
-    confirm_3: {
+    confirm_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -8030,7 +8063,7 @@ export interface operations {
             };
         };
     };
-    confirm_2: {
+    confirm_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -8653,7 +8686,7 @@ export interface operations {
             };
         };
     };
-    confirm_1: {
+    confirm_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -9660,6 +9693,32 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FinalMergeView"];
+                };
+            };
+        };
+    };
+    confirm_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmRequest"];
+            };
+        };
         responses: {
             /** @description OK */
             200: {

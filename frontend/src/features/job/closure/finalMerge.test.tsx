@@ -119,3 +119,66 @@ describe('The Customer step "Cho phép hợp nhất" (FR-37, AD-10, UX-DR55)', (
     expect(screen.queryByText(/Cho phép hợp nhất/)).toBeNull()
   })
 })
+
+describe('The Final Merge once bound (FR-37, SG-19, UX-DR35, Story 8.8)', () => {
+  const ready = {
+    ...requested,
+    status: 'BOUND',
+    merge: {
+      status: 'READY',
+      sensitive: [{ path: 'package.json', kind: 'DEPENDENCIES' }],
+      workflows: ['.github/workflows/ci.yml'],
+    },
+  }
+
+  it('shows the whole Job’s Sensitive Changes and merges only after the checkbox', async () => {
+    const user = userEvent.setup()
+    const sent: unknown[] = []
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/jobs/j1/final-merge': () => json(ready),
+      'POST /api/v1/jobs/j1/final-merge/confirm': async (request) => {
+        sent.push(await request.json())
+        return json({ ...ready, merge: { ...ready.merge, status: 'CONFIRMED' } })
+      },
+    })
+    renderStep()
+
+    expect(await screen.findByText('package.json')).toBeInTheDocument()
+    expect(screen.getByText('.github/workflows/ci.yml')).toBeInTheDocument()
+    expect(screen.getByText('Dự án của bạn đã có sẵn các tệp cấu hình tự động này')).toBeInTheDocument()
+    const merge = screen.getByRole('button', { name: 'Hợp nhất vào dự án' })
+    expect(merge).toBeDisabled()
+    await user.click(screen.getByRole('checkbox', { name: 'Tôi đã xem và đồng ý hợp nhất.' }))
+    await user.click(merge)
+
+    expect(await screen.findByText('Đang đưa mã vào dự án của bạn…')).toBeInTheDocument()
+    expect(sent).toEqual([{ agreed: true }])
+  })
+
+  it('says the code reached the project, with its pull request on GitHub', async () => {
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/jobs/j1/final-merge': () =>
+        json({
+          ...ready,
+          status: 'USED',
+          merge: { ...ready.merge, status: 'MERGED', pullUrl: 'https://github.com/quan-may/so-dat-ban/pull/1' },
+        }),
+    })
+    renderStep()
+
+    expect(await screen.findByText('Đã hợp nhất vào dự án của bạn')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Xem thay đổi trên GitHub/ })).toHaveAttribute(
+      'href',
+      'https://github.com/quan-may/so-dat-ban/pull/1',
+    )
+  })
+
+  it('says the code is checked first', async () => {
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/jobs/j1/final-merge': () => json({ ...ready, merge: { ...ready.merge, status: 'CHECKING' } }),
+    })
+    renderStep()
+    expect(await screen.findByRole('status')).toHaveTextContent('Đang kiểm tra mã trước khi hợp nhất…')
+    expect(screen.queryByRole('button', { name: 'Hợp nhất vào dự án' })).toBeNull()
+  })
+})

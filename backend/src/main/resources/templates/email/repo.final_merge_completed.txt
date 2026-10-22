@@ -1,0 +1,6 @@
+subject: Đã hợp nhất mã của {job} vào dự án gốc
+---
+Xin chào,
+
+vibefix đã đưa toàn bộ mã đã nghiệm thu của công việc {job} vào dự án gốc trên GitHub và đọc lại thấy đã hợp nhất xong.
+Công việc đã kết thúc. Bạn có thể mở công việc trên vibefix để xem thay đổi và chấm sao.

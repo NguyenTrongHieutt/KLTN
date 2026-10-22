@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -80,8 +81,12 @@ class MergeAppBindings {
 
 	private final Clock clock;
 
+	/** Looked up on use: a bind in Closing starts the Final Merge's check (Story 8.8). */
+	private final ObjectProvider<FinalMerges> merges;
+
 	MergeAppBindings(MergeApp app, JdbcClient jdbc, FinalMergeAuthorizations authorizations, CustomerRepositories customers,
-			Notifications notifications, TransactionTemplate transactions, Clock clock) {
+			Notifications notifications, TransactionTemplate transactions, Clock clock, ObjectProvider<FinalMerges> merges) {
+		this.merges = merges;
 		this.app = app;
 		this.jdbc = jdbc;
 		this.authorizations = authorizations;
@@ -279,6 +284,7 @@ class MergeAppBindings {
 					""").param("installation", installation.id()).param("now", now()).param("id", target.id()).update();
 			if (bound == 1) {
 				this.authorizations.audit("repo.final_merge_bound", target.id(), target.jobId());
+				this.merges.getObject().prepare(target.jobId());
 				if (named == null && target.customerId() != null) {
 					Authorization now = this.authorizations.find(target.id()).orElseThrow();
 					this.notifications.send(new NotificationRequest(AUTHORIZED,

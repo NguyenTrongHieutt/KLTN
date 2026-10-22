@@ -248,6 +248,17 @@ class FinalMergeAuthorizations {
 		return true;
 	}
 
+	/** The Final Merge was read back (Story 8.8): the pair is no longer bound and the to-do is done. */
+	@Transactional
+	void used(UUID id) {
+		this.jdbc.sql("""
+				UPDATE repo.final_merge_authorization SET status = 'USED', ended_at = :now, state_hash = NULL,
+				    state_expires_at = NULL
+				WHERE id = :id AND status = 'BOUND'
+				""").param("now", Timestamp.from(this.clock.instant())).param("id", id).update();
+		this.todos.closeAll(TODO, id);
+	}
+
 	/**
 	 * A fresh install link's single-use {@code state} for the Job's open authorization.
 	 * @return the state, kept only as its SHA-256

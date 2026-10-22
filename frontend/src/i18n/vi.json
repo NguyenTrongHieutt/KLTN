@@ -1576,7 +1576,9 @@
       "busy": {
         "ACCEPTANCE": "Đang hợp nhất bàn giao Giai đoạn {n}…",
         "SETTLEMENT": "Đang tất toán công việc…",
-        "FINAL_MERGE": "Đang hợp nhất mã cuối cùng vào dự án của bạn…",
+        "FINAL_MERGE": "Đang hợp nhất cuối…",
+        "FINAL_MERGE_CUSTOMER": "Đang đưa mã vào dự án của bạn…",
+        "mergedCustomer": "Đã hợp nhất vào dự án của bạn.",
         "done": "Việc đang chạy đã xong."
       },
       "drift": {
@@ -2995,7 +2997,16 @@
         "copyFailed": "Không sao chép được. Hãy chọn lời nhắn rồi sao chép bằng tay.",
         "notSeen": "Chưa thấy ứng dụng hợp nhất được cài cho kho {repo}, cũng không có yêu cầu nào đang chờ duyệt. Nếu bạn chưa cài xong trên GitHub, hãy cài lại. Nếu GitHub không cho bạn cài hay gửi yêu cầu, tổ chức {org} đang chặn việc này: hãy nhờ chủ tổ chức cho phép bạn cài ứng dụng GitHub, hoặc nhận mã dạng ZIP trước {date}.",
         "refusedBadge": "Yêu cầu chưa được duyệt",
-        "refused": "Chủ tổ chức {org} chưa duyệt yêu cầu cài ứng dụng hợp nhất cho kho {repo}. Bạn có thể gửi lại yêu cầu và nhờ họ chấp nhận trước {date}, hoặc nhận mã dạng ZIP."
+        "refused": "Chủ tổ chức {org} chưa duyệt yêu cầu cài ứng dụng hợp nhất cho kho {repo}. Bạn có thể gửi lại yêu cầu và nhờ họ chấp nhận trước {date}, hoặc nhận mã dạng ZIP.",
+        "checking": "Đang kiểm tra mã trước khi hợp nhất…",
+        "reviewLead": "Trước khi hợp nhất, hãy xem các thay đổi cần lưu ý của cả công việc. Mã được đưa vào dự án qua một yêu cầu hợp nhất trên GitHub, rồi nhánh tạm được xóa.",
+        "workflowsTitle": "Dự án của bạn đã có sẵn các tệp cấu hình tự động này",
+        "workflowsLead": "vibefix không thay đổi chúng. Sau khi hợp nhất, dịch vụ của bạn vẫn chạy theo các tệp này.",
+        "agree": "Tôi đã xem và đồng ý hợp nhất.",
+        "confirm": "Hợp nhất vào dự án",
+        "confirming": "Đang đưa mã vào dự án của bạn…",
+        "merged": "Đã hợp nhất vào dự án của bạn",
+        "viewOnGitHub": "Xem thay đổi trên GitHub ↗ (github.com)"
       },
       "disputable": "Đề nghị kết thúc bị từ chối hoặc chưa được trả lời. Bạn có thể mở tranh chấp.",
       "openDispute": "Mở tranh chấp"
@@ -4034,6 +4045,9 @@
       "merge_app_request_refused": {
         "title": "Yêu cầu cài ứng dụng hợp nhất cho kho {repo} chưa được duyệt. Bạn có thể gửi lại yêu cầu hoặc nhận mã dạng ZIP trước {date}"
       },
+      "final_merge_completed": {
+        "title": "Đã hợp nhất mã của {job} vào dự án gốc"
+      },
       "merge_app_selection_widened": {
         "title": "Ứng dụng hợp nhất đang được cài cho cả kho khác ngoài {repo}. Hãy chọn lại chỉ kho {repo} trên GitHub"
       },
@@ -4318,6 +4332,7 @@
       "NO_ADMIN_PERMISSION": "Tài khoản GitHub của bạn không có quyền quản trị dự án gốc ở tên mới.",
       "NO_AUTHORIZATION_OPEN": "Công việc này không còn bước cho phép hợp nhất đang mở.",
       "MERGE_APP_WRONG_REPOSITORY": "Ứng dụng hợp nhất chỉ được cài cho đúng dự án gốc. Hãy chọn lại.",
+      "FINAL_MERGE_NOT_READY": "Mã chưa được kiểm tra xong để hợp nhất. Hãy tải lại trang rồi thử lại.",
       "SIGN_IN_AGAIN": "Hãy đăng nhập lại bằng GitHub để vibefix kiểm tra dự án gốc.",
       "JOB_NOT_ENDED": "Bạn xác nhận được sau khi công việc bắt đầu kết thúc.",
       "NOT_A_DUTY": "Chỉ người hướng dẫn và nhóm thực hiện xác nhận việc này."
