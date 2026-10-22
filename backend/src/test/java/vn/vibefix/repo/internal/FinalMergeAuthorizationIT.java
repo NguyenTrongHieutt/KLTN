@@ -299,6 +299,12 @@ class FinalMergeAuthorizationIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("SELECT end_reason FROM repo.final_merge_authorization WHERE job_id = :job")
 			.param("job", this.job).query(String.class).single()).isEqualTo("DEADLINE");
 		assertThat(openTodos()).isZero();
+		// Story 8.9: the ZIP Fallback starts, saying nothing was authorized in time.
+		await().atMost(Duration.ofSeconds(15)).until(() -> this.jdbc
+			.sql("SELECT count(*) FROM repo.zip_fallback WHERE job_id = :job").param("job", this.job).query(Long.class)
+			.single() == 1);
+		assertThat(this.jdbc.sql("SELECT reason FROM repo.zip_fallback WHERE job_id = :job").param("job", this.job)
+			.query(String.class).single()).isEqualTo("NOT_AUTHORIZED");
 	}
 
 	@Test

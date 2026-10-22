@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryRouter, RouterProvider } from 'react-router'
@@ -180,5 +180,54 @@ describe('The Final Merge once bound (FR-37, SG-19, UX-DR35, Story 8.8)', () => 
     renderStep()
     expect(await screen.findByRole('status')).toHaveTextContent('Đang kiểm tra mã trước khi hợp nhất…')
     expect(screen.queryByRole('button', { name: 'Hợp nhất vào dự án' })).toBeNull()
+  })
+})
+
+describe('N-17, the ZIP Fallback (FR-38, Story 8.9)', () => {
+  it('says why, offers the ZIP and a Job that merges it, and asks nothing to be run', async () => {
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/jobs/j1/final-merge': () =>
+        json({
+          ...requested,
+          status: 'ENDED',
+          endReason: 'ZIP_FALLBACK',
+          productId: 'pr1',
+          zip: { status: 'READY', reason: 'TRIAL_CONFLICT', fileId: 'f1', sensitive: [] },
+        }),
+    })
+    renderStep()
+
+    expect(
+      await screen.findByText(/Không thể hợp nhất tự động: dự án gốc đã thay đổi sau khi công việc bắt đầu/),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Tải mã về (tệp ZIP)' })).toHaveAttribute('href', '/api/v1/files/f1')
+    expect(screen.getByRole('link', { name: 'Đăng công việc ghép mã' })).toHaveAttribute(
+      'href',
+      '/san-pham/pr1/cong-viec-moi?ghep-ma=j1',
+    )
+    expect(screen.getByText(/Bạn không cần chạy lệnh nào/)).toBeInTheDocument()
+  })
+
+  it('lets the Customer choose the ZIP after the confirmation dialog', async () => {
+    const user = userEvent.setup()
+    let declined = false
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/jobs/j1/final-merge': () =>
+        json(declined ? { ...requested, status: 'ENDED', productId: 'pr1', zip: { status: 'BUILDING', reason: 'DECLINED', sensitive: [] } } : requested),
+      'POST /api/v1/jobs/j1/final-merge/decline': () => {
+        declined = true
+        return json({ ...requested, status: 'ENDED', productId: 'pr1', zip: { status: 'BUILDING', reason: 'DECLINED', sensitive: [] } })
+      },
+    })
+    renderStep()
+
+    await user.click(await screen.findByRole('button', { name: 'Nhận mã dạng ZIP' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Nhận mã dạng ZIP thay vì hợp nhất?' })
+    expect(dialog).toHaveTextContent('vibefix sẽ không hợp nhất vào quan-may/so-dat-ban')
+    expect(dialog).toHaveTextContent('không hoàn tác được')
+    await user.click(within(dialog).getByRole('button', { name: 'Nhận mã dạng ZIP' }))
+
+    expect(await screen.findByText('Đang chuẩn bị tệp ZIP…')).toBeInTheDocument()
+    expect(declined).toBe(true)
   })
 })

@@ -1,7 +1,7 @@
 import { Dialog } from '@base-ui/react/dialog'
 import { FileText, Info, TriangleAlert, X } from 'lucide-react'
 import { useId, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
 import { usePageTitle } from '@/app/usePageTitle'
 import { inputClass } from '@/components/formField-props'
@@ -97,6 +97,9 @@ export function JobFormPage() {
 function ProductStep({ productId, job }: { productId: string; job?: Job }) {
   const product = useProduct(productId)
   const suggestions = useSkillSuggestions(job ? undefined : productId)
+  // FR-38: "Đăng công việc ghép mã" from a ZIP Fallback asks a Mentor to merge that code.
+  const [params] = useSearchParams()
+  const mergeCode = !job && params.has('ghep-ma')
   if (product.isError && isNotFound(product.error)) {
     return <NotFoundScreen />
   }
@@ -107,7 +110,13 @@ function ProductStep({ productId, job }: { productId: string; job?: Job }) {
         <JobForm
           product={product.data}
           job={job}
-          initial={job ? fromJob(job) : empty((suggestions.data ?? []).map((skill) => skill.id))}
+          initial={
+            job
+              ? fromJob(job)
+              : mergeCode
+                ? mergingCode(empty((suggestions.data ?? []).map((skill) => skill.id)))
+                : empty((suggestions.data ?? []).map((skill) => skill.id))
+          }
           known={
             job
               ? job.skills
@@ -130,6 +139,17 @@ function empty(skillIds: string[]): FormValues {
     skillIds: skillIds.slice(0, 10),
     budget: '',
     deadline: '',
+  }
+}
+
+/** CUS-6 pre-filled to merge a ZIP Fallback's code into the project (FR-38, N-17). */
+function mergingCode(values: FormValues): FormValues {
+  return {
+    ...values,
+    title: t('screen.closure.zip.prefill.title'),
+    problem: t('screen.closure.zip.prefill.problem'),
+    expected: t('screen.closure.zip.prefill.expected'),
+    jobTypes: ['MODIFICATION'],
   }
 }
 

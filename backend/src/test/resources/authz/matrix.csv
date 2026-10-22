@@ -2068,6 +2068,14 @@ POST /api/v1/jobs/{jobId}/final-merge/confirm,STUDENT,,final-merge-confirm.json,
 POST /api/v1/jobs/{jobId}/final-merge/confirm,ADMINISTRATOR,,final-merge-confirm.json,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/final-merge/confirm,JOB_MENTOR,,final-merge-confirm.json,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/final-merge/confirm,CREW_ACTIVE,,final-merge-confirm.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/final-merge/decline,ANONYMOUS,,,401
+POST /api/v1/jobs/{jobId}/final-merge/decline,OWNER,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/final-merge/decline,CUSTOMER,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/final-merge/decline,MENTOR,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/final-merge/decline,STUDENT,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/final-merge/decline,ADMINISTRATOR,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/final-merge/decline,JOB_MENTOR,,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/final-merge/decline,CREW_ACTIVE,,,404 NOT_FOUND
 GET /api/v1/github/merge-app/setup,ANONYMOUS,,,401
 GET /api/v1/github/merge-app/setup,OWNER,,,303
 GET /api/v1/github/merge-app/setup,CUSTOMER,,,303

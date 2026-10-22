@@ -5,6 +5,9 @@ import { apiClient, unwrap } from '@/lib/apiClient'
 
 export type FinalMerge = components['schemas']['FinalMergeView']
 
+/** Where "Đăng công việc ghép mã" opens CUS-6, pre-filled to merge a Job's code (FR-38). */
+export const MERGE_CODE_PARAM = 'ghep-ma'
+
 /** How often the step reads again while the code is checked or merged. */
 const RUNNING_POLL_MS = 5_000
 
@@ -19,7 +22,11 @@ export function useFinalMerge(jobId: string) {
     retry: false,
     refetchInterval: (query) => {
       const status = query.state.data?.merge?.status
-      return status === 'CHECKING' || status === 'CONFIRMED' ? RUNNING_POLL_MS : false
+      const zip = query.state.data?.zip?.status
+      return status === 'CHECKING' || status === 'CONFIRMED' || zip === 'BUILDING' ||
+        (query.state.data?.status === 'ENDED' && !zip)
+        ? RUNNING_POLL_MS
+        : false
     },
   })
 }
@@ -47,5 +54,15 @@ export function useConfirmFinalMerge(jobId: string) {
       queryClient.setQueryData(['final-merge', jobId], view)
       await queryClient.invalidateQueries({ queryKey: busyKey(jobId) })
     },
+  })
+}
+
+/** "Nhận mã dạng ZIP" (FR-38): the authorization ends and the ZIP Fallback follows. */
+export function useDeclineFinalMerge(jobId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () =>
+      unwrap(apiClient.POST('/api/v1/jobs/{jobId}/final-merge/decline', { params: { path: { jobId } } })),
+    onSuccess: (view) => queryClient.setQueryData(['final-merge', jobId], view),
   })
 }

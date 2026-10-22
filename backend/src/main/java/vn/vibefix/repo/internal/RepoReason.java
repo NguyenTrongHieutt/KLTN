@@ -34,6 +34,9 @@ enum RepoReason {
 	NO_AUTHORIZATION_OPEN,
 
 	/** The Final Merge is not checked and waiting for the Customer's confirmation (FR-37). */
-	FINAL_MERGE_NOT_READY
+	FINAL_MERGE_NOT_READY,
+
+	/** The Customer already confirmed the Final Merge, so the ZIP can no longer be chosen instead (FR-38). */
+	FINAL_MERGE_CONFIRMED
 
 }
