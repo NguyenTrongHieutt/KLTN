@@ -71,7 +71,7 @@ class Decisions {
 
 	/**
 	 * "Nghiệm thu giai đoạn": M5 on {@code version}, then the release.
-	 * @throws ApiException {@code FORBIDDEN CUSTOMER_ONLY}; {@code CONFLICT HANDOVER_DECIDED}; M5's refusals
+	 * @throws ApiException {@code FORBIDDEN CUSTOMER_ONLY}; {@code STALE HANDOVER_VOIDED}; {@code CONFLICT HANDOVER_DECIDED}; M5's refusals
 	 */
 	@Transactional
 	Handover accept(Viewer customer, UUID handoverId, long version, List<Check> checks) {
@@ -104,7 +104,7 @@ class Decisions {
 
 	/**
 	 * "Yêu cầu sửa ({n} tiêu chí)": M4 on {@code version}, naming the criteria marked "Chưa đạt".
-	 * @throws ApiException {@code FORBIDDEN CUSTOMER_ONLY}; {@code CONFLICT HANDOVER_DECIDED};
+	 * @throws ApiException {@code FORBIDDEN CUSTOMER_ONLY}; {@code STALE HANDOVER_VOIDED}; {@code CONFLICT HANDOVER_DECIDED};
 	 * {@code VALIDATION REVISION_CRITERIA_MISSING}; {@code GUARD_FAILED SENSITIVE_CONTENT} under
 	 * {@code CHECK}; M4's refusals, {@code REVISION_ROUNDS_USED} among them
 	 */
@@ -137,6 +137,10 @@ class Decisions {
 		Handover handover = this.handovers.find(handoverId)
 			.filter(found -> found.jobId().equals(customer.job().jobId()))
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		if ("VOIDED".equals(handover.status())) {
+			// FR-32, UX-DR26: a new commit voided it while the Customer was deciding.
+			throw new ApiException(ErrorCode.STALE, DeliveryReason.HANDOVER_VOIDED);
+		}
 		if (!"SUBMITTED".equals(handover.status())) {
 			throw new ApiException(ErrorCode.CONFLICT, DeliveryReason.HANDOVER_DECIDED);
 		}

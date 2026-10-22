@@ -38,6 +38,11 @@ export function DeliveryReportView({ report }: { report: DeliveryReport }) {
               : t(`screen.handover.status.${report.status}` as MessageKey)}
         </p>
       </header>
+      {report.status === 'VOIDED' && (
+        <p role="note" className="rounded-md border-l-4 border-warning bg-warning-soft p-3 text-body-sm">
+          {t('reason.delivery.HANDOVER_VOIDED')}
+        </p>
+      )}
       {report.decision && (
         <section
           aria-label={t('screen.handover.check.nextAction')}

@@ -216,13 +216,11 @@ class JobLifecycleIT extends IntegrationTest {
 	}
 
 	@Test
-	void theLifecycleRefusesALockedActorAndTransitionsWithoutACommand() throws Exception {
+	void theLifecycleRefusesALockedActorAndAWrongTrigger() throws Exception {
 		UUID job = draft("[\"BUG_FIX\"]", "\"UNDER_2M\"", "\"2026-11-15\"");
 		TransactionTemplate transaction = new TransactionTemplate(this.transactions);
 
-		assertThatThrownBy(() -> transaction.executeWithoutResult(
-				status -> this.lifecycle.apply(Transition.M3, job, Actor.SYSTEM, Trigger.SYSTEM)))
-			.isInstanceOf(IllegalStateException.class);
+		// Since Story 8.4 every transition has its step, so none is refused for lacking one.
 		assertThatThrownBy(() -> transaction.executeWithoutResult(
 				status -> this.lifecycle.apply(Transition.J1, job, Actor.SYSTEM, Trigger.AUTO)))
 			.isInstanceOf(IllegalArgumentException.class);

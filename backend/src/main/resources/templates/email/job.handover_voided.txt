@@ -1,0 +1,6 @@
+subject: Bàn giao Giai đoạn {n} đã bị hủy vì có thay đổi mới sau khi bàn giao
+---
+Xin chào,
+
+Sau khi bàn giao Giai đoạn {n}, nhóm thực hiện đã lưu thêm thay đổi vào kho làm việc, nên lần bàn giao này đã bị hủy.
+Khách hàng không cần kiểm tra lần bàn giao này nữa. Người hướng dẫn sẽ bàn giao lại khi các thay đổi mới đã được quét bảo mật.

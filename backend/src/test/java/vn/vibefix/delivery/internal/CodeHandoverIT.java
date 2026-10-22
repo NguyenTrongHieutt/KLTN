@@ -52,7 +52,8 @@ import vn.vibefix.team.internal.TeamTestSupport;
  * on {@code handover/{id}} in the Intermediary Repository with the System's pull request, applies M2, and
  * records each commit with its author's GitHub ID and the Work Items it mentions, the Sensitive Changes,
  * and the Pages updated. When M2 refuses, the pull request is closed again. A Bug fixing handover carries a
- * preview that responds, or a reason with a recording, and up to five screenshots (Story 8.3). GitHub and
+ * preview that responds, or a reason with a recording, and up to five screenshots (Story 8.3). A push
+ * after the handover voids it through M3 (Story 8.4). GitHub and
  * git hosting are {@link GitHubStub}; the sandbox jobs run in process; the preview check is
  * {@link ScriptedPreviewChecks}.
  */
@@ -89,6 +90,9 @@ class CodeHandoverIT extends IntegrationTest {
 
 	@Autowired
 	private ScriptedPreviewChecks previews;
+
+	@Autowired
+	private HandoverVoids voids;
 
 	private UUID lan;
 
@@ -366,6 +370,67 @@ class CodeHandoverIT extends IntegrationTest {
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("{\"milestoneId\":\"" + this.milestone + "\",\"version\":5,\"criteria\":[{\"criterionId\":\"" + this.criterion
 					+ "\",\"met\":true,\"note\":\"Đạt.\"}]" + evidence + "}"));
+	}
+
+	@Test
+	void aPushAfterTheHandoverVoidsItAndTheCustomerCanNoLongerDecideOnIt() throws Exception {
+		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = true;\n", "Sửa lỗi",
+				"hung@example.test");
+		preflight();
+		this.worker.runDue(Lane.SCAN);
+		String report = handOver(5).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+		UUID handover = UUID.fromString(com.jayway.jsonpath.JsonPath.read(report, "$.id"));
+		long version = this.jdbc.sql("SELECT version FROM job.job WHERE id = :id").param("id", this.job).query(Long.class).single();
+
+		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = false;\n",
+				"Sửa thêm sau khi bàn giao", "hung@example.test");
+		// The Mentor's next look reads the head back; repo tells delivery it moved.
+		preflight();
+
+		org.awaitility.Awaitility.await().atMost(Duration.ofSeconds(15)).until(() -> "VOIDED".equals(this.jdbc
+			.sql("SELECT status FROM delivery.handover WHERE id = :id").param("id", handover).query(String.class).single()));
+		assertThat(this.jdbc.sql("SELECT state FROM job.milestone WHERE id = :id").param("id", this.milestone)
+			.query(String.class).single()).as("back to where it was handed over from").isEqualTo("FUNDED");
+		org.awaitility.Awaitility.await().atMost(Duration.ofSeconds(15)).until(() -> openTodos("delivery.hand_over", this.hung) == 1);
+		assertThat(openTodos("delivery.review_handover", this.lan)).isZero();
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM notification.notification WHERE type = 'job.handover_voided' AND account_id IN (:lan, :hung)
+				""").param("lan", this.lan).param("hung", this.hung).query(Long.class).single()).isEqualTo(2);
+		this.mvc.perform(get("/api/v1/handovers/" + handover).with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.status").value("VOIDED"));
+		this.mvc.perform(post("/api/v1/handovers/" + handover + "/accept").with(as(this.lan, Role.CUSTOMER)).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("{\"version\":" + (version + 1) + ",\"checks\":[{\"criterionId\":\"" + this.criterion + "\",\"met\":true}]}"))
+			.andExpect(status().isConflict())
+			.andExpect(jsonPath("$.code").value("STALE"))
+			.andExpect(jsonPath("$.reason").value("HANDOVER_VOIDED"));
+	}
+
+	@Test
+	void theTenMinuteLookVoidsAHandoverWhoseRecordedHeadMoved() throws Exception {
+		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = true;\n", "Sửa lỗi",
+				"hung@example.test");
+		preflight();
+		this.worker.runDue(Lane.SCAN);
+		String report = handOver(5).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+		UUID handover = UUID.fromString(com.jayway.jsonpath.JsonPath.read(report, "$.id"));
+		this.voids.sweep();
+		assertThat(this.jdbc.sql("SELECT state FROM job.milestone WHERE id = :id").param("id", this.milestone)
+			.query(String.class).single()).as("the same head changes nothing").isEqualTo("SUBMITTED");
+
+		this.jdbc.sql("UPDATE repo.branch_head SET sha = :sha WHERE job_id = :job AND ref = 'refs/heads/main'")
+			.param("sha", "f".repeat(40)).param("job", this.job).update();
+		this.voids.sweep();
+
+		assertThat(this.jdbc.sql("SELECT state FROM job.milestone WHERE id = :id").param("id", this.milestone)
+			.query(String.class).single()).isEqualTo("FUNDED");
+		org.awaitility.Awaitility.await().atMost(Duration.ofSeconds(15)).until(() -> "VOIDED".equals(this.jdbc
+			.sql("SELECT status FROM delivery.handover WHERE id = :id").param("id", handover).query(String.class).single()));
+	}
+
+	private long openTodos(String key, UUID account) {
+		return this.jdbc.sql("SELECT count(*) FROM notification.todo WHERE todo_key = :key AND account_id = :id AND closed_at IS NULL")
+			.param("key", key).param("id", account).query(Long.class).single();
 	}
 
 	private void page(String title, String visibility) {

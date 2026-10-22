@@ -51,6 +51,14 @@ public interface MilestoneHandovers {
 	Submitted submit(UUID jobId, UUID milestoneId, UUID mentorId, long expectedVersion, UUID handoverId,
 			@Nullable String handoverCommit);
 
+	/**
+	 * M3 by the System (FR-32, AD-11): the handover's Working head moved, so it is void, in the caller's
+	 * transaction. A handover that is not the Milestone's current one, a Job that left Active, or a busy or
+	 * frozen Job changes nothing: the caller asks again on its next look (AD-28).
+	 * @return whether M3 applied
+	 */
+	boolean voidHandover(UUID jobId, UUID milestoneId, UUID handoverId);
+
 	/** What M4 or M5 recorded. */
 	record Decided(UUID transitionId, int number, long version) {
 	}

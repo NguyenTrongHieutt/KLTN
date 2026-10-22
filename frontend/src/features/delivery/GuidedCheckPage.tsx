@@ -158,9 +158,11 @@ function Check({ jobId, report }: { jobId: string; report: DeliveryReport }) {
           }
           setMatches(undefined)
           setError(
-            failure instanceof ApiError && failure.problem.code === 'STALE'
-              ? t('screen.handover.check.stale')
-              : problemMessage(failure, { module: 'delivery' }).text,
+            failure instanceof ApiError && failure.problem.reason === 'HANDOVER_VOIDED'
+              ? t('reason.delivery.HANDOVER_VOIDED')
+              : failure instanceof ApiError && failure.problem.code === 'STALE'
+                ? t('screen.handover.check.stale')
+                : problemMessage(failure, { module: 'delivery' }).text,
           )
         },
       },

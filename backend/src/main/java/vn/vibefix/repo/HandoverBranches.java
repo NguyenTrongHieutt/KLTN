@@ -30,6 +30,12 @@ public interface HandoverBranches {
 	Optional<WorkingHead> working(UUID jobId);
 
 	/**
+	 * The Working default branch's head as {@code repo} recorded it last, with no GitHub call: for the
+	 * 10-minute look at handovers that may be void (FR-32). Empty without a done Setup or a recorded head.
+	 */
+	Optional<String> recordedHead(UUID jobId);
+
+	/**
 	 * One commit of a range.
 	 * @param message the first line of its message
 	 * @param authorId the author's GitHub numeric ID, or {@code null} when GitHub resolved no account

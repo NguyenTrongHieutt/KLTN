@@ -172,6 +172,25 @@ describe('JOB-5 guided check (FR-33, FR-34, UX-DR33)', () => {
     expect(screen.getByText(/Trang này nằm ngoài vibefix \(vht-preview\.vercel\.app\)/)).toBeInTheDocument()
   })
 
+  it('explains a Stale answer when a new change voided the handover meanwhile (UX-DR26)', { timeout: 25_000 }, async () => {
+    const user = userEvent.setup()
+    window.sessionStorage.setItem('vibefix.check.h1', JSON.stringify({ step: 1, marks: { c1: { met: true, comment: '' } } }))
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/handovers/h1': () => json(report()),
+      'POST /api/v1/handovers/h1/accept': () => json({ code: 'STALE', reason: 'HANDOVER_VOIDED' }, 409),
+    })
+    renderAt('/cong-viec/j1/ban-giao/h1/kiem-tra')
+
+    expect(await screen.findByText('Tiêu chí 2/2')).toBeInTheDocument()
+    await user.click(screen.getByRole('radio', { name: 'Đạt' }))
+    await user.click(screen.getByRole('button', { name: 'Tiếp' }))
+    await user.click(await screen.findByRole('button', { name: 'Nghiệm thu giai đoạn' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Nghiệm thu Giai đoạn 1?' })
+    await user.click(within(dialog).getByRole('button', { name: 'Xác nhận' }))
+
+    expect(await screen.findByText('Bàn giao này đã bị hủy vì có thay đổi mới được lưu sau khi bàn giao.')).toBeInTheDocument()
+  })
+
   it('offers only acceptance when no Revision Round is left', { timeout: 25_000 }, async () => {
     const user = userEvent.setup()
     window.sessionStorage.setItem(

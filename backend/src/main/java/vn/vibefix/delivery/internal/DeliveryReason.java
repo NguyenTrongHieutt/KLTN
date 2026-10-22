@@ -82,6 +82,9 @@ enum DeliveryReason {
 	SCREENSHOT_UNKNOWN,
 
 	/** The Job's uploads would pass its quota (AD-34). */
-	JOB_FILE_QUOTA
+	JOB_FILE_QUOTA,
+
+	/** A push after the handover voided it (M3, FR-32): the Customer decides on the next one. */
+	HANDOVER_VOIDED
 
 }

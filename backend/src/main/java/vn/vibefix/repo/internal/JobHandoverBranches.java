@@ -90,6 +90,16 @@ class JobHandoverBranches implements HandoverBranches {
 	}
 
 	@Override
+	public Optional<String> recordedHead(UUID jobId) {
+		return done(jobId).flatMap(setup -> this.jdbc.sql(
+				"SELECT sha FROM repo.branch_head WHERE repository_github_id = :id AND ref = :ref")
+			.param("id", setup.working().id())
+			.param("ref", "refs/heads/" + setup.defaultBranch())
+			.query(String.class)
+			.optional());
+	}
+
+	@Override
 	public Range range(UUID jobId, String fromSha, String toSha) {
 		Setup setup = done(jobId).orElseThrow(() -> new IllegalStateException("Job " + jobId + " has no done Setup"));
 		Comparison comparison;

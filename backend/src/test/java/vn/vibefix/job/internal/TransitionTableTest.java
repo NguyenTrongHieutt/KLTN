@@ -81,14 +81,13 @@ class TransitionTableTest {
 	}
 
 	@Test
-	void theFreezeRefusesM1ToM7AndEveryTransitionButM3HasACommand() {
+	void theFreezeRefusesM1ToM7AndEveryTransitionHasACommand() {
 		assertThat(EnumSet.allOf(Transition.class).stream().filter(Transition::frozenBlocks))
 			.containsExactly(Transition.M1, Transition.M2, Transition.M3, Transition.M4, Transition.M5, Transition.M6,
 					Transition.M7);
+		// Story 8.4 gave M3 its step, the last one missing.
 		assertThat(EnumSet.allOf(Transition.class).stream().filter(Transition::reachable))
-			.containsExactly(Transition.J1, Transition.J2, Transition.J3, Transition.J4, Transition.J5, Transition.J6,
-					Transition.J7, Transition.J8, Transition.J9, Transition.J10, Transition.M1, Transition.M2, Transition.M4,
-					Transition.M5, Transition.M6, Transition.M7, Transition.M8);
+			.containsExactlyElementsOf(EnumSet.allOf(Transition.class));
 	}
 
 	@Test

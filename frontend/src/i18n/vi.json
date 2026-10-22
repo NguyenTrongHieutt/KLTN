@@ -2812,6 +2812,7 @@
         "customer": "Chờ bạn nghiệm thu · tự nghiệm thu {date}",
         "ACCEPTED": "Đã nghiệm thu",
         "REVISION_REQUESTED": "Đã yêu cầu sửa",
+        "VOIDED": "Đã hủy vì có thay đổi mới",
         "auto": "Đã tự nghiệm thu"
       },
       "report": {
@@ -3773,6 +3774,9 @@
       }
     },
     "job": {
+      "handover_voided": {
+        "title": "Bàn giao Giai đoạn {n} đã bị hủy vì có thay đổi mới sau khi bàn giao"
+      },
       "job_post_lapsed": {
         "title": "Tin {job} đã hết hạn và trở về bản nháp"
       },
@@ -4251,7 +4255,8 @@
       "PREVIEW_UNREACHABLE": "Bản xem thử không phản hồi. Hãy kiểm tra đường dẫn.",
       "TOO_MANY_SCREENSHOTS": "Mỗi lần bàn giao có tối đa 5 ảnh chụp màn hình.",
       "SCREENSHOT_UNKNOWN": "Có ảnh chụp không còn trong danh sách. Hãy tải lại trang.",
-      "JOB_FILE_QUOTA": "Tệp của công việc này đã đạt giới hạn 200 MB."
+      "JOB_FILE_QUOTA": "Tệp của công việc này đã đạt giới hạn 200 MB.",
+      "HANDOVER_VOIDED": "Bàn giao này đã bị hủy vì có thay đổi mới được lưu sau khi bàn giao."
     },
     "repo": {
       "SETUP_NOT_BLOCKED": "Việc chuẩn bị kho mã không bị dừng, nên không cần thử lại.",

@@ -115,7 +115,7 @@ enum Transition {
 			List.of(), List.of(new Effect("delivery", "The Handover is void"),
 					new Effect("timers", "The Auto-acceptance timer is cancelled"),
 					new Effect("notification", "The Customer is notified")),
-			true, false),
+			true, true),
 
 	M4(Machine.MILESTONE, milestone(MilestoneState.SUBMITTED), milestone(MilestoneState.REVISION_REQUESTED),
 			Set.of(USER), "The Customer requests a revision (FR-33)",
