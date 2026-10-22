@@ -3325,7 +3325,39 @@
         "WITHDRAWN": "Đã rút"
       },
       "versions": "Các phiên bản thỏa thuận",
-      "version": "Phiên bản {n} · {date}"
+      "version": "Phiên bản {n} · {date}",
+      "full": {
+        "scope": "Phạm vi công việc",
+        "more": "Đổi tên, giá, tiêu chí hoặc bỏ giai đoạn",
+        "title": "Tên giai đoạn {n}",
+        "price": "Giá giai đoạn {n} (đồng)",
+        "heldPrice": "Giai đoạn đã thanh toán nên chưa đổi giá ở đây được.",
+        "remove": "Bỏ giai đoạn {n}",
+        "removeHeld": "Bỏ giai đoạn {n} và hoàn toàn bộ số tiền đã thanh toán",
+        "criteria": "Tiêu chí nghiệm thu",
+        "criterion": "Tiêu chí {n}.{m}",
+        "steps": "Cách kiểm tra",
+        "removeCriterion": "Bỏ tiêu chí {n}.{m}",
+        "newCriterion": "Tiêu chí mới của giai đoạn {n}",
+        "addCriterion": "Thêm tiêu chí",
+        "newMilestone": "Giai đoạn mới {n}",
+        "newTitle": "Tên giai đoạn",
+        "newPrice": "Giá (đồng)",
+        "newDue": "Hạn",
+        "newRounds": "Số lần yêu cầu sửa",
+        "dropMilestone": "Bỏ giai đoạn mới này",
+        "addMilestone": "Thêm giai đoạn",
+        "noShares": "Đề nghị thay đổi không đổi phần chia của nhóm thực hiện; phần chia chỉ đổi qua điều khoản nhóm.",
+        "scopeLine": "Phạm vi mới: {scope}",
+        "removedLine": "Bỏ giai đoạn {n} · {title}",
+        "titleLine": "Giai đoạn {n}: đổi tên từ {from} thành {to}",
+        "priceLine": "Giai đoạn {n}: giá từ {from} thành {to}",
+        "addedCriterionLine": "Giai đoạn {n}: thêm tiêu chí {statement}",
+        "editedCriterionLine": "Giai đoạn {n}: sửa tiêu chí {from} thành {to}",
+        "removedCriterionLine": "Giai đoạn {n}: bỏ tiêu chí {statement}",
+        "addedMilestoneLine": "Thêm giai đoạn {title} · {price} · hạn {date} · {n} tiêu chí",
+        "criteriaCount": "{n} tiêu chí"
+      }
     },
     "cancellation": {
       "heading": "Hủy công việc",
@@ -4456,7 +4488,8 @@
       "IDENTIFIER_LOOKS_LIKE_SECRET": "Đây giống một mật khẩu hoặc khóa bí mật. Chỉ nhập tài khoản để khách hàng mời bạn, ví dụ email của bạn.",
       "EXTERNAL_ACCESS_CLOSED": "Công việc đã kết thúc, không cần gửi tài khoản nữa.",
       "MILESTONE_NOT_HELD": "Phần chia giai đoạn này không còn khiếu nại được: giai đoạn chưa được thanh toán hoặc đã chuyển tiền.",
-      "DEADLINE_NOT_PASSED": "Bạn tự hủy được khi thỏa thuận chưa xác nhận sau 14 ngày hoặc công việc chưa bắt đầu sau 7 ngày."
+      "DEADLINE_NOT_PASSED": "Bạn tự hủy được khi thỏa thuận chưa xác nhận sau 14 ngày hoặc công việc chưa bắt đầu sau 7 ngày.",
+      "HELD_PRICE_CHANGE": "Giá của giai đoạn đã thanh toán chưa đổi được ở đây; hãy đổi các giai đoạn chưa thanh toán."
     },
     "matching": {
       "JOB_POST_NOT_OPEN": "công việc không còn nhận ứng tuyển",

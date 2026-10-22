@@ -9,6 +9,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -17,6 +18,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,9 +29,14 @@ import vn.vibefix.audit.AuditActor;
 import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
+import vn.vibefix.job.AgreementConfirmed;
+import vn.vibefix.job.AgreementConfirmed.ConfirmedMilestone;
 import vn.vibefix.job.internal.Agreements.Content;
+import vn.vibefix.job.internal.Agreements.Criterion;
 import vn.vibefix.job.internal.Agreements.Milestone;
+import vn.vibefix.job.internal.Agreements.Problem;
 import vn.vibefix.job.internal.AgreementReviews.Confirmed;
+import vn.vibefix.job.internal.JobLifecycle.Planned;
 import vn.vibefix.job.internal.Jobs.Job;
 import vn.vibefix.notification.Audience;
 import vn.vibefix.notification.NotificationRequest;
@@ -42,12 +49,16 @@ import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.IdGenerator;
 
 /**
- * Due-date Change Requests (FR-36, AD-29, UX-DR57's due-date variant): the Customer or the Mentor
- * proposes new due dates for live Milestones, the Mentor states the time impact, the Customer approves
- * and the Mentor confirms on the loaded Job version, and the confirmation writes the next immutable
- * confirmed Agreement version and moves the live due dates. One is open per Job; it lapses when a touched
- * Milestone is accepted or settled, or the Job enters Closing or Cancelled. Every command takes the Job
- * row lock first (AD-4).
+ * Change Requests (FR-36, AD-29, UX-DR57): the Customer or the Mentor proposes new due dates, and in the
+ * full form a new scope, Milestone titles and prices, added or removed Milestones, and added, edited, or
+ * removed Acceptance Criteria, never a share or the Crew; the resulting Agreement must pass FR-16. The
+ * Mentor states the cost and time impact, the Customer approves and the Mentor confirms on the loaded Job
+ * version, and the confirmation cancels the removed Milestones (M6, or M7 with the full refund), changes
+ * the live entities without re-keying, writes the next immutable confirmed Agreement version, and
+ * publishes it ({@link AgreementConfirmed}) so new Milestones get their ledger accounts and new criteria
+ * their Stories. A Held Milestone's price waits for Story 14.2. One is open per Job; it lapses when a
+ * touched Milestone is accepted or settled, or the Job enters Closing or Cancelled. Every command takes
+ * the Job row lock first (AD-4).
  */
 @Component
 class ChangeRequests {
@@ -68,6 +79,8 @@ class ChangeRequests {
 
 	static final Set<String> FINAL = Set.of("ACCEPTED", "CANCELLED", "SETTLED");
 
+	static final Set<String> HELD = Set.of("FUNDED", "REVISION_REQUESTED", "SUBMITTED");
+
 	private static final ZoneId VIETNAM = ZoneId.of("Asia/Ho_Chi_Minh");
 
 	private static final JsonMapper JSON = JsonMapper.builder().build();
@@ -80,9 +93,51 @@ class ChangeRequests {
 	record Item(UUID milestoneId, int number, String title, @Nullable LocalDate oldDueOn, LocalDate newDueOn) {
 	}
 
+	/** A live Milestone's new title or price, or its removal (FR-36). */
+	record MilestoneChange(UUID milestoneId, @Nullable String title, @Nullable Long priceVnd, boolean remove) {
+	}
+
+	/** One criterion of an added Milestone. */
+	record NewCriterion(UUID id, String statement, String checkSteps) {
+	}
+
+	/** A Milestone added after the live ones, Planned, with its criteria. */
+	record AddedMilestone(UUID id, String title, long priceVnd, LocalDate dueOn, int revisionRounds,
+			List<NewCriterion> criteria) {
+	}
+
+	/** A criterion added to a live Milestone. */
+	record AddedCriterion(UUID id, UUID milestoneId, String statement, String checkSteps) {
+	}
+
+	/** A live criterion's new statement and steps. */
+	record EditedCriterion(UUID criterionId, String statement, String checkSteps) {
+	}
+
+	/** What a request changes beyond due dates (FR-36): never a share or the Crew. */
+	record Changes(@Nullable String scope, List<MilestoneChange> milestones, List<AddedMilestone> addedMilestones,
+			List<AddedCriterion> addedCriteria, List<EditedCriterion> editedCriteria, List<UUID> removedCriteria) {
+
+		static final Changes NONE = new Changes(null, List.of(), List.of(), List.of(), List.of(), List.of());
+
+		Changes {
+			milestones = milestones == null ? List.of() : List.copyOf(milestones);
+			addedMilestones = addedMilestones == null ? List.of() : List.copyOf(addedMilestones);
+			addedCriteria = addedCriteria == null ? List.of() : List.copyOf(addedCriteria);
+			editedCriteria = editedCriteria == null ? List.of() : List.copyOf(editedCriteria);
+			removedCriteria = removedCriteria == null ? List.of() : List.copyOf(removedCriteria);
+		}
+
+		boolean isEmpty() {
+			return this.scope == null && this.milestones.isEmpty() && this.addedMilestones.isEmpty()
+					&& this.addedCriteria.isEmpty() && this.editedCriteria.isEmpty() && this.removedCriteria.isEmpty();
+		}
+
+	}
+
 	record ChangeRequest(UUID id, UUID jobId, Party proposer, @Nullable String description, @Nullable String impact,
 			List<Item> items, String status, @Nullable Instant customerApprovedAt, @Nullable Instant mentorConfirmedAt,
-			@Nullable Integer agreementVersionNo, Instant createdAt, @Nullable Instant closedAt) {
+			@Nullable Integer agreementVersionNo, Instant createdAt, @Nullable Instant closedAt, Changes changes) {
 	}
 
 	/** One live Milestone as the form lists it. */
@@ -107,8 +162,18 @@ class ChangeRequests {
 
 	private final DueDates dueDates;
 
+	private final Agreements agreements;
+
+	private final JobLifecycle lifecycle;
+
+	private final ApplicationEventPublisher events;
+
 	ChangeRequests(JdbcClient jdbc, Jobs jobs, AgreementReviews reviews, Notifications notifications, Todos todos,
-			AuditLog auditLog, IdGenerator ids, Clock clock, DueDates dueDates) {
+			AuditLog auditLog, IdGenerator ids, Clock clock, DueDates dueDates, Agreements agreements, JobLifecycle lifecycle,
+			ApplicationEventPublisher events) {
+		this.agreements = agreements;
+		this.lifecycle = lifecycle;
+		this.events = events;
 		this.jdbc = jdbc;
 		this.jobs = jobs;
 		this.reviews = reviews;
@@ -122,12 +187,13 @@ class ChangeRequests {
 
 	/**
 	 * A proposal; the Mentor's carries its impact.
-	 * @throws ApiException {@code STALE STATE_CHANGED}; {@code GUARD_FAILED NO_CONFIRMED_AGREEMENT};
-	 * {@code CONFLICT CHANGE_REQUEST_OPEN}; {@code VALIDATION MILESTONE_FINAL}; {@code VALIDATION}
+	 * @throws ApiException {@code STALE STATE_CHANGED}; {@code GUARD_FAILED NO_CONFIRMED_AGREEMENT} or
+	 * {@code HELD_PRICE_CHANGE}; {@code CONFLICT CHANGE_REQUEST_OPEN}; {@code VALIDATION MILESTONE_FINAL};
+	 * {@code VALIDATION AGREEMENT_INCOMPLETE} with the FR-16 {@code problems}; {@code VALIDATION}
 	 */
 	@Transactional
 	ChangeRequest propose(UUID jobId, UUID account, Party party, long version, @Nullable String description,
-			@Nullable String impact, Map<UUID, LocalDate> dueDates) {
+			@Nullable String impact, Map<UUID, LocalDate> dueDates, Changes changes) {
 		Job job = locked(jobId, version);
 		running(job);
 		if (open(jobId).isPresent()) {
@@ -135,8 +201,9 @@ class ChangeRequests {
 		}
 		String text = blankToNull(description);
 		String effect = blankToNull(impact);
-		if ((party == Party.CUSTOMER && text == null) || (party == Party.MENTOR && effect == null) || dueDates.isEmpty()
-				|| (text != null && text.length() > 2000) || (effect != null && effect.length() > 1000)) {
+		if ((party == Party.CUSTOMER && text == null) || (party == Party.MENTOR && effect == null)
+				|| (dueDates.isEmpty() && changes.isEmpty()) || (text != null && text.length() > 2000)
+				|| (effect != null && effect.length() > 1000)) {
 			throw new ApiException(ErrorCode.VALIDATION);
 		}
 		Map<UUID, LiveMilestone> live = new HashMap<>();
@@ -157,11 +224,19 @@ class ChangeRequests {
 			items.add(new Item(milestone.id(), milestone.number(), milestone.title(), milestone.dueOn(), change.getValue()));
 		}
 		items.sort((a, b) -> Integer.compare(a.number(), b.number()));
+		Content current = this.reviews.confirmed(jobId).orElseThrow().content();
+		check(current, live, changes, today);
+		List<Problem> problems = changes.isEmpty() ? List.of() : this.agreements.problems(resulting(current, dueDates, changes));
+		if (!problems.isEmpty()) {
+			throw new ApiException(ErrorCode.VALIDATION, JobReason.AGREEMENT_INCOMPLETE,
+					Map.of("problems", problems.stream().map(problem -> problem.code().name()).distinct().toList()));
+		}
 		UUID id = this.ids.newId();
 		this.jdbc.sql("""
-				INSERT INTO job.change_request (id, job_id, proposer, proposer_account_id, description, impact, items, status,
-				    created_at)
-				VALUES (:id, :job, :proposer, :account, :description, :impact, CAST(:items AS JSONB), 'OPEN', :now)
+				INSERT INTO job.change_request (id, job_id, proposer, proposer_account_id, description, impact, items, changes,
+				    status, created_at)
+				VALUES (:id, :job, :proposer, :account, :description, :impact, CAST(:items AS JSONB), CAST(:changes AS JSONB),
+				    'OPEN', :now)
 				""")
 			.param("id", id)
 			.param("job", jobId)
@@ -170,6 +245,7 @@ class ChangeRequests {
 			.param("description", text)
 			.param("impact", effect)
 			.param("items", JSON.writeValueAsString(items))
+			.param("changes", JSON.writeValueAsString(changes))
 			.param("now", Timestamp.from(this.clock.instant()))
 			.update();
 		audit(account, "job.change_request_proposed", id, jobId);
@@ -268,16 +344,17 @@ class ChangeRequests {
 			.orElseThrow(() -> new ApiException(ErrorCode.GUARD_FAILED, JobReason.NO_CONFIRMED_AGREEMENT));
 		Map<UUID, LocalDate> dueDates = new HashMap<>();
 		request.items().forEach(item -> dueDates.put(item.milestoneId(), item.newDueOn()));
-		Content content = confirmed.content();
-		List<Milestone> milestones = content.milestones()
-			.stream()
-			.map(milestone -> dueDates.containsKey(milestone.id())
-					? new Milestone(milestone.id(), milestone.title(), milestone.priceVnd(), dueDates.get(milestone.id()),
-							milestone.revisionRounds(), milestone.criteria())
-					: milestone)
-			.toList();
-		Content changed = new Content(content.scope(), content.priceVnd(), content.codeJob(), content.assessment(),
-				content.skills(), milestones, content.externalAccess());
+		Changes changes = request.changes();
+		Content changed = resulting(confirmed.content(), dueDates, changes);
+		List<Planned> cascade = removals(job.id(), changes);
+		if (!cascade.isEmpty()) {
+			ApiException refusal = this.lifecycle.refusal(job.id(), Trigger.USER, cascade);
+			if (refusal != null) {
+				throw refusal;
+			}
+			this.lifecycle.tryApplyCascade(job.id(), Trigger.USER, cascade)
+				.orElseThrow(() -> new IllegalStateException("The removals of " + requestId + " passed their checks but did not apply"));
+		}
 		int next = confirmed.versionNo() + 1;
 		Instant now = this.clock.instant();
 		this.jdbc.sql("""
@@ -304,9 +381,17 @@ class ChangeRequests {
 				.update();
 			this.dueDates.rescheduled(job.id(), item.milestoneId());
 		}
+		applyLive(job.id(), changes, now);
 		this.jdbc.sql("""
 				UPDATE job.job SET agreement_version_no = :next, version = version + 1, updated_at = :now WHERE id = :id
 				""").param("id", job.id()).param("next", next).param("now", Timestamp.from(now)).update();
+		List<ConfirmedMilestone> published = new ArrayList<>();
+		for (Milestone milestone : changed.milestones()) {
+			published.add(new ConfirmedMilestone(milestone.id(), published.size() + 1, milestone.title(),
+					milestone.priceVnd() == null ? 0 : milestone.priceVnd()));
+		}
+		this.events.publishEvent(new AgreementConfirmed(this.ids.newId(), job.id(), job.productId(), job.customerId(),
+				job.title(), next, published));
 		this.jdbc.sql("""
 				UPDATE job.change_request SET status = 'APPLIED', mentor_confirmed_at = :now, mentor_account_id = :mentor,
 				    agreement_version_no = :next, closed_at = :now
@@ -341,8 +426,7 @@ class ChangeRequests {
 	@Transactional
 	void lapse(UUID jobId, @Nullable UUID milestoneId) {
 		ChangeRequest request = open(jobId).orElse(null);
-		if (request == null || (milestoneId != null
-				&& request.items().stream().noneMatch(item -> item.milestoneId().equals(milestoneId)))) {
+		if (request == null || (milestoneId != null && !touched(request).contains(milestoneId))) {
 			return;
 		}
 		Job job = this.jobs.lock(jobId).orElseThrow();
@@ -424,8 +508,8 @@ class ChangeRequests {
 	private void notSubmitted(ChangeRequest request) {
 		Map<UUID, String> states = new HashMap<>();
 		milestones(request.jobId()).forEach(milestone -> states.put(milestone.id(), milestone.state()));
-		for (Item item : request.items()) {
-			String state = states.get(item.milestoneId());
+		for (UUID touched : touched(request)) {
+			String state = states.get(touched);
 			if ("SUBMITTED".equals(state)) {
 				throw new ApiException(ErrorCode.GUARD_FAILED, JobReason.MILESTONE_SUBMITTED);
 			}
@@ -433,6 +517,238 @@ class ChangeRequests {
 				throw new ApiException(ErrorCode.VALIDATION, JobReason.MILESTONE_FINAL);
 			}
 		}
+	}
+
+	/** The live Milestones a request touches: its due dates, its Milestone changes, and its criteria's Milestones. */
+	Set<UUID> touched(ChangeRequest request) {
+		Set<UUID> touched = new HashSet<>();
+		request.items().forEach(item -> touched.add(item.milestoneId()));
+		Changes changes = request.changes();
+		changes.milestones().forEach(change -> touched.add(change.milestoneId()));
+		changes.addedCriteria().forEach(added -> touched.add(added.milestoneId()));
+		List<UUID> criteria = new ArrayList<>(changes.removedCriteria());
+		changes.editedCriteria().forEach(edited -> criteria.add(edited.criterionId()));
+		if (!criteria.isEmpty()) {
+			touched.addAll(this.jdbc.sql("SELECT milestone_id FROM job.acceptance_criterion WHERE id IN (:ids)")
+				.param("ids", criteria)
+				.query(UUID.class)
+				.list());
+		}
+		return touched;
+	}
+
+	/**
+	 * The checks a proposal's changes pass against the live Milestones (FR-36): every reference is live
+	 * and on a Milestone that is not final, a Held Milestone's price stays (Story 14.2), and every value
+	 * fits the Agreement editor's bounds.
+	 */
+	private void check(Content current, Map<UUID, LiveMilestone> live, Changes changes, LocalDate today) {
+		Map<UUID, UUID> criterionMilestones = new HashMap<>();
+		Map<UUID, Long> prices = new HashMap<>();
+		for (Milestone milestone : current.milestones()) {
+			prices.put(milestone.id(), milestone.priceVnd());
+			milestone.criteria().forEach(criterion -> criterionMilestones.put(criterion.id(), milestone.id()));
+		}
+		Set<UUID> seen = new HashSet<>();
+		for (MilestoneChange change : changes.milestones()) {
+			LiveMilestone milestone = changeable(live, change.milestoneId());
+			if (!seen.add(change.milestoneId()) || (change.title() != null && (change.title().isBlank() || change.title().length() > 120))
+					|| (change.priceVnd() != null && (change.priceVnd() < 1000 || change.priceVnd() > 1_000_000_000))) {
+				throw new ApiException(ErrorCode.VALIDATION);
+			}
+			if (change.priceVnd() != null && HELD.contains(milestone.state())
+					&& !change.priceVnd().equals(prices.get(change.milestoneId()))) {
+				throw new ApiException(ErrorCode.GUARD_FAILED, JobReason.HELD_PRICE_CHANGE);
+			}
+		}
+		for (AddedCriterion added : changes.addedCriteria()) {
+			changeable(live, added.milestoneId());
+			criterion(added.statement(), added.checkSteps());
+		}
+		for (EditedCriterion edited : changes.editedCriteria()) {
+			changeable(live, criterionOn(criterionMilestones, edited.criterionId()));
+			criterion(edited.statement(), edited.checkSteps());
+		}
+		for (UUID removed : changes.removedCriteria()) {
+			changeable(live, criterionOn(criterionMilestones, removed));
+		}
+		for (AddedMilestone added : changes.addedMilestones()) {
+			if (added.title().isBlank() || added.title().length() > 120 || added.priceVnd() < 1000
+					|| added.priceVnd() > 1_000_000_000 || !added.dueOn().isAfter(today) || added.revisionRounds() < 0
+					|| added.revisionRounds() > 10 || live.containsKey(added.id())) {
+				throw new ApiException(ErrorCode.VALIDATION);
+			}
+			added.criteria().forEach(criterion -> criterion(criterion.statement(), criterion.checkSteps()));
+		}
+		if (changes.scope() != null && (changes.scope().isBlank() || changes.scope().length() > 4000)) {
+			throw new ApiException(ErrorCode.VALIDATION);
+		}
+	}
+
+	private static LiveMilestone changeable(Map<UUID, LiveMilestone> live, UUID milestoneId) {
+		LiveMilestone milestone = live.get(milestoneId);
+		if (milestone == null) {
+			throw new ApiException(ErrorCode.VALIDATION);
+		}
+		if (FINAL.contains(milestone.state())) {
+			throw new ApiException(ErrorCode.VALIDATION, JobReason.MILESTONE_FINAL);
+		}
+		return milestone;
+	}
+
+	private static UUID criterionOn(Map<UUID, UUID> criterionMilestones, UUID criterionId) {
+		UUID milestone = criterionMilestones.get(criterionId);
+		if (milestone == null) {
+			throw new ApiException(ErrorCode.VALIDATION);
+		}
+		return milestone;
+	}
+
+	private static void criterion(String statement, String checkSteps) {
+		if (statement.isBlank() || statement.length() > 500 || checkSteps.isBlank() || checkSteps.length() > 2000) {
+			throw new ApiException(ErrorCode.VALIDATION);
+		}
+	}
+
+	/**
+	 * The Agreement a request leads to: the new scope, every kept Milestone with its new title, price,
+	 * due date, and criteria, then the added Milestones; the price is their sum (FR-16).
+	 */
+	static Content resulting(Content content, Map<UUID, LocalDate> dueDates, Changes changes) {
+		Map<UUID, MilestoneChange> edits = new HashMap<>();
+		changes.milestones().forEach(change -> edits.put(change.milestoneId(), change));
+		Map<UUID, EditedCriterion> edited = new HashMap<>();
+		changes.editedCriteria().forEach(change -> edited.put(change.criterionId(), change));
+		Set<UUID> removedCriteria = Set.copyOf(changes.removedCriteria());
+		List<Milestone> milestones = new ArrayList<>();
+		for (Milestone milestone : content.milestones()) {
+			MilestoneChange change = edits.get(milestone.id());
+			if (change != null && change.remove()) {
+				continue;
+			}
+			List<Criterion> criteria = new ArrayList<>();
+			for (Criterion criterion : milestone.criteria()) {
+				if (removedCriteria.contains(criterion.id())) {
+					continue;
+				}
+				EditedCriterion edit = edited.get(criterion.id());
+				criteria.add(edit == null ? criterion : new Criterion(criterion.id(), edit.statement(), edit.checkSteps()));
+			}
+			changes.addedCriteria()
+				.stream()
+				.filter(added -> added.milestoneId().equals(milestone.id()))
+				.forEach(added -> criteria.add(new Criterion(added.id(), added.statement(), added.checkSteps())));
+			milestones.add(new Milestone(milestone.id(),
+					change != null && change.title() != null ? change.title().strip() : milestone.title(),
+					change != null && change.priceVnd() != null ? change.priceVnd() : milestone.priceVnd(),
+					dueDates.getOrDefault(milestone.id(), milestone.dueOn()), milestone.revisionRounds(), List.copyOf(criteria)));
+		}
+		for (AddedMilestone added : changes.addedMilestones()) {
+			milestones.add(new Milestone(added.id(), added.title().strip(), added.priceVnd(), added.dueOn(), added.revisionRounds(),
+					added.criteria()
+						.stream()
+						.map(criterion -> new Criterion(criterion.id(), criterion.statement(), criterion.checkSteps()))
+						.toList()));
+		}
+		long price = milestones.stream().mapToLong(milestone -> milestone.priceVnd() == null ? 0 : milestone.priceVnd()).sum();
+		return new Content(changes.scope() != null ? changes.scope().strip() : content.scope(),
+				changes.isEmpty() ? content.priceVnd() : Long.valueOf(price), content.codeJob(), content.assessment(),
+				content.skills(), List.copyOf(milestones), content.externalAccess());
+	}
+
+	/** The removed Milestones' cancellations: M6 for a Planned one, M7 with the full refund for a Held one. */
+	private List<Planned> removals(UUID jobId, Changes changes) {
+		Map<UUID, String> states = new HashMap<>();
+		milestones(jobId).forEach(milestone -> states.put(milestone.id(), milestone.state()));
+		List<Planned> cascade = new ArrayList<>();
+		for (MilestoneChange change : changes.milestones()) {
+			String state = states.get(change.milestoneId());
+			if (!change.remove() || state == null) {
+				continue;
+			}
+			if ("PLANNED".equals(state)) {
+				cascade.add(Planned.milestone(Transition.M6, change.milestoneId(), Map.of(), Trigger.USER));
+			}
+			else if (HELD.contains(state)) {
+				cascade.add(Planned.milestone(Transition.M7, change.milestoneId(), Map.of(), Trigger.USER));
+			}
+		}
+		return cascade;
+	}
+
+	/** The live entities follow the request without re-keying; removed ones are marked removed (AD-29). */
+	private void applyLive(UUID jobId, Changes changes, Instant now) {
+		Timestamp at = Timestamp.from(now);
+		for (MilestoneChange change : changes.milestones()) {
+			if (change.remove()) {
+				this.jdbc.sql("UPDATE job.milestone SET removed_at = :now WHERE id = :id AND job_id = :job")
+					.param("now", at).param("id", change.milestoneId()).param("job", jobId).update();
+				this.jdbc.sql("""
+						UPDATE job.acceptance_criterion SET removed_at = :now WHERE milestone_id = :id AND removed_at IS NULL
+						""").param("now", at).param("id", change.milestoneId()).update();
+				continue;
+			}
+			this.jdbc.sql("""
+					UPDATE job.milestone SET title = coalesce(:title, title), price_vnd = coalesce(:price, price_vnd)
+					WHERE id = :id AND job_id = :job
+					""")
+				.param("title", change.title() == null ? null : change.title().strip())
+				.param("price", change.priceVnd())
+				.param("id", change.milestoneId())
+				.param("job", jobId)
+				.update();
+		}
+		for (UUID removed : changes.removedCriteria()) {
+			this.jdbc.sql("UPDATE job.acceptance_criterion SET removed_at = :now WHERE id = :id AND job_id = :job")
+				.param("now", at).param("id", removed).param("job", jobId).update();
+		}
+		for (EditedCriterion edited : changes.editedCriteria()) {
+			this.jdbc.sql("""
+					UPDATE job.acceptance_criterion SET statement = :statement, check_steps = :steps WHERE id = :id AND job_id = :job
+					""")
+				.param("statement", edited.statement().strip())
+				.param("steps", edited.checkSteps().strip())
+				.param("id", edited.criterionId())
+				.param("job", jobId)
+				.update();
+		}
+		for (AddedCriterion added : changes.addedCriteria()) {
+			insertCriterion(jobId, added.milestoneId(), added.id(), added.statement(), added.checkSteps(), at);
+		}
+		for (AddedMilestone added : changes.addedMilestones()) {
+			this.jdbc.sql("""
+					INSERT INTO job.milestone (id, job_id, position, title, price_vnd, due_on, revision_rounds, created_at)
+					VALUES (:id, :job, (SELECT coalesce(max(position) + 1, 0) FROM job.milestone WHERE job_id = :job), :title, :price,
+					    :due, :rounds, :now)
+					""")
+				.param("id", added.id())
+				.param("job", jobId)
+				.param("title", added.title().strip())
+				.param("price", added.priceVnd())
+				.param("due", added.dueOn())
+				.param("rounds", added.revisionRounds())
+				.param("now", at)
+				.update();
+			for (NewCriterion criterion : added.criteria()) {
+				insertCriterion(jobId, added.id(), criterion.id(), criterion.statement(), criterion.checkSteps(), at);
+			}
+		}
+	}
+
+	private void insertCriterion(UUID jobId, UUID milestoneId, UUID id, String statement, String checkSteps, Timestamp at) {
+		this.jdbc.sql("""
+				INSERT INTO job.acceptance_criterion (id, job_id, milestone_id, position, statement, check_steps, created_at)
+				VALUES (:id, :job, :milestone,
+				    (SELECT coalesce(max(position) + 1, 0) FROM job.acceptance_criterion WHERE milestone_id = :milestone), :statement,
+				    :steps, :now)
+				""")
+			.param("id", id)
+			.param("job", jobId)
+			.param("milestone", milestoneId)
+			.param("statement", statement.strip())
+			.param("steps", checkSteps.strip())
+			.param("now", at)
+			.update();
 	}
 
 	private void closeTodos(UUID requestId) {
@@ -458,10 +774,11 @@ class ChangeRequests {
 		List<Item> items = JSON.readValue(rs.getString("items"), new TypeReference<List<Item>>() {
 		});
 		Integer version = rs.getObject("agreement_version_no", Integer.class);
+		Changes changes = JSON.readValue(rs.getString("changes"), Changes.class);
 		return new ChangeRequest(rs.getObject("id", UUID.class), rs.getObject("job_id", UUID.class),
 				Party.valueOf(rs.getString("proposer")), rs.getString("description"), rs.getString("impact"), items,
 				rs.getString("status"), instant(rs, "customer_approved_at"), instant(rs, "mentor_confirmed_at"), version,
-				rs.getTimestamp("created_at").toInstant(), instant(rs, "closed_at"));
+				rs.getTimestamp("created_at").toInstant(), instant(rs, "closed_at"), changes);
 	}
 
 	private static @Nullable Instant instant(ResultSet rs, String column) throws SQLException {

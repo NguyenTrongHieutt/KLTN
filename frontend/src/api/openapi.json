@@ -8095,6 +8095,88 @@
         },
         "required" : [ "active" ]
       },
+      "AddedCriterionRequest" : {
+        "type" : "object",
+        "properties" : {
+          "checkSteps" : {
+            "type" : "string",
+            "maxLength" : 2000,
+            "minLength" : 0
+          },
+          "milestoneId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "statement" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "checkSteps", "milestoneId", "statement" ]
+      },
+      "AddedMilestoneRequest" : {
+        "type" : "object",
+        "properties" : {
+          "criteria" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/NewCriterionRequest"
+            },
+            "maxItems" : 30,
+            "minItems" : 1
+          },
+          "dueOn" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "priceVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "revisionRounds" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "title" : {
+            "type" : "string",
+            "maxLength" : 120,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "criteria", "dueOn", "priceVnd", "revisionRounds", "title" ]
+      },
+      "AddedMilestoneView" : {
+        "type" : "object",
+        "properties" : {
+          "criteria" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ChangeCriterionView"
+            }
+          },
+          "dueOn" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "priceVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "revisionRounds" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "criteria", "dueOn", "id", "priceVnd", "revisionRounds", "title" ]
+      },
       "AdminDisputeDetail" : {
         "type" : "object",
         "properties" : {
@@ -9376,6 +9458,22 @@
         },
         "required" : [ "categories" ]
       },
+      "ChangeCriterionView" : {
+        "type" : "object",
+        "properties" : {
+          "checkSteps" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "statement" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "checkSteps", "id", "statement" ]
+      },
       "ChangeDueDate" : {
         "type" : "object",
         "properties" : {
@@ -9432,9 +9530,18 @@
           "changeable" : {
             "type" : "boolean"
           },
+          "criteria" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ChangeCriterionView"
+            }
+          },
           "dueOn" : {
             "type" : "string",
             "format" : "date"
+          },
+          "held" : {
+            "type" : "boolean"
           },
           "id" : {
             "type" : "string",
@@ -9444,6 +9551,10 @@
             "type" : "integer",
             "format" : "int32"
           },
+          "priceVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
           "state" : {
             "type" : "string"
           },
@@ -9451,15 +9562,39 @@
             "type" : "string"
           }
         },
-        "required" : [ "changeable", "id", "number", "state", "title" ]
+        "required" : [ "changeable", "criteria", "held", "id", "number", "state", "title" ]
       },
       "ChangeProposalRequest" : {
         "type" : "object",
         "properties" : {
+          "addedCriteria" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/AddedCriterionRequest"
+            },
+            "maxItems" : 100,
+            "minItems" : 0
+          },
+          "addedMilestones" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/AddedMilestoneRequest"
+            },
+            "maxItems" : 20,
+            "minItems" : 0
+          },
           "description" : {
             "type" : "string",
             "maxLength" : 2000,
             "minLength" : 0
+          },
+          "editedCriteria" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/EditedCriterionRequest"
+            },
+            "maxItems" : 100,
+            "minItems" : 0
           },
           "impact" : {
             "type" : "string",
@@ -9472,7 +9607,29 @@
               "$ref" : "#/components/schemas/ChangeDueDate"
             },
             "maxItems" : 50,
-            "minItems" : 1
+            "minItems" : 0
+          },
+          "milestones" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/MilestoneChangeRequest"
+            },
+            "maxItems" : 50,
+            "minItems" : 0
+          },
+          "removedCriteria" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            },
+            "maxItems" : 100,
+            "minItems" : 0
+          },
+          "scope" : {
+            "type" : "string",
+            "maxLength" : 4000,
+            "minLength" : 0
           },
           "version" : {
             "type" : "integer",
@@ -9487,6 +9644,9 @@
           "agreementVersionNo" : {
             "type" : "integer",
             "format" : "int32"
+          },
+          "changes" : {
+            "$ref" : "#/components/schemas/ChangeSetView"
           },
           "closedAt" : {
             "type" : "string",
@@ -9530,7 +9690,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "createdAt", "id", "items", "mine", "proposer", "status" ]
+        "required" : [ "changes", "createdAt", "id", "items", "mine", "proposer", "status" ]
       },
       "ChangeRequestsView" : {
         "type" : "object",
@@ -9560,12 +9720,42 @@
           "open" : {
             "$ref" : "#/components/schemas/ChangeRequestView"
           },
+          "scope" : {
+            "type" : "string"
+          },
           "version" : {
             "type" : "integer",
             "format" : "int64"
           }
         },
         "required" : [ "audience", "canPropose", "history", "jobId", "milestones", "version" ]
+      },
+      "ChangeSetView" : {
+        "type" : "object",
+        "properties" : {
+          "addedMilestones" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/AddedMilestoneView"
+            }
+          },
+          "criteria" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/CriterionChangeView"
+            }
+          },
+          "milestones" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/MilestoneChangeView"
+            }
+          },
+          "scope" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "addedMilestones", "criteria", "milestones" ]
       },
       "ChangeVersionRequest" : {
         "type" : "object",
@@ -9837,12 +10027,19 @@
               "$ref" : "#/components/schemas/VersionMilestoneView"
             }
           },
+          "priceVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "scope" : {
+            "type" : "string"
+          },
           "versionNo" : {
             "type" : "integer",
             "format" : "int32"
           }
         },
-        "required" : [ "confirmedAt", "milestones", "versionNo" ]
+        "required" : [ "confirmedAt", "milestones", "scope", "versionNo" ]
       },
       "ConfirmedVersionsView" : {
         "type" : "object",
@@ -10484,6 +10681,32 @@
         },
         "required" : [ "checkSteps", "id", "statement" ]
       },
+      "CriterionChangeView" : {
+        "type" : "object",
+        "properties" : {
+          "checkSteps" : {
+            "type" : "string"
+          },
+          "criterionId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "milestoneNumber" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "oldStatement" : {
+            "type" : "string"
+          },
+          "statement" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "criterionId", "kind" ]
+      },
       "CriterionLinkView" : {
         "type" : "object",
         "properties" : {
@@ -10877,6 +11100,26 @@
           }
         },
         "required" : [ "commits", "detectedAt", "kind", "reconfirmed" ]
+      },
+      "EditedCriterionRequest" : {
+        "type" : "object",
+        "properties" : {
+          "checkSteps" : {
+            "type" : "string",
+            "maxLength" : 2000,
+            "minLength" : 0
+          },
+          "criterionId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "statement" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "checkSteps", "criterionId", "statement" ]
       },
       "EnrolmentRequest" : {
         "type" : "object",
@@ -13720,6 +13963,59 @@
         },
         "required" : [ "criteria", "id", "revisionRounds", "title" ]
       },
+      "MilestoneChangeRequest" : {
+        "type" : "object",
+        "properties" : {
+          "milestoneId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "priceVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "remove" : {
+            "type" : "boolean"
+          },
+          "title" : {
+            "type" : "string",
+            "maxLength" : 120,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "milestoneId", "remove" ]
+      },
+      "MilestoneChangeView" : {
+        "type" : "object",
+        "properties" : {
+          "milestoneId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "oldPriceVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "oldTitle" : {
+            "type" : "string"
+          },
+          "priceVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "remove" : {
+            "type" : "boolean"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "milestoneId", "oldTitle", "remove" ]
+      },
       "MilestoneProgressView" : {
         "type" : "object",
         "properties" : {
@@ -13887,6 +14183,22 @@
           }
         },
         "required" : [ "commitEmailNoticeAcknowledged", "ndaVersion" ]
+      },
+      "NewCriterionRequest" : {
+        "type" : "object",
+        "properties" : {
+          "checkSteps" : {
+            "type" : "string",
+            "maxLength" : 2000,
+            "minLength" : 0
+          },
+          "statement" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "checkSteps", "statement" ]
       },
       "NoteRequest" : {
         "type" : "object",
@@ -17424,6 +17736,12 @@
       "VersionMilestoneView" : {
         "type" : "object",
         "properties" : {
+          "criteria" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
           "dueOn" : {
             "type" : "string",
             "format" : "date"
@@ -17432,11 +17750,15 @@
             "type" : "string",
             "format" : "uuid"
           },
+          "priceVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
           "title" : {
             "type" : "string"
           }
         },
-        "required" : [ "id", "title" ]
+        "required" : [ "criteria", "id", "title" ]
       },
       "VersionSummary" : {
         "type" : "object",

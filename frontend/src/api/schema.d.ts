@@ -3662,6 +3662,34 @@ export interface components {
         ActiveRequest: {
             active: boolean;
         };
+        AddedCriterionRequest: {
+            checkSteps: string;
+            /** Format: uuid */
+            milestoneId: string;
+            statement: string;
+        };
+        AddedMilestoneRequest: {
+            criteria: components["schemas"]["NewCriterionRequest"][];
+            /** Format: date */
+            dueOn: string;
+            /** Format: int64 */
+            priceVnd: number;
+            /** Format: int32 */
+            revisionRounds: number;
+            title: string;
+        };
+        AddedMilestoneView: {
+            criteria: components["schemas"]["ChangeCriterionView"][];
+            /** Format: date */
+            dueOn: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: int64 */
+            priceVnd: number;
+            /** Format: int32 */
+            revisionRounds: number;
+            title: string;
+        };
         AdminDisputeDetail: {
             assigned: boolean;
             assignedToMe: boolean;
@@ -4133,6 +4161,12 @@ export interface components {
         CatalogView: {
             categories: components["schemas"]["CatalogCategory"][];
         };
+        ChangeCriterionView: {
+            checkSteps: string;
+            /** Format: uuid */
+            id: string;
+            statement: string;
+        };
         ChangeDueDate: {
             /** Format: uuid */
             milestoneId: string;
@@ -4155,25 +4189,36 @@ export interface components {
         };
         ChangeMilestoneView: {
             changeable: boolean;
+            criteria: components["schemas"]["ChangeCriterionView"][];
             /** Format: date */
             dueOn?: string;
+            held: boolean;
             /** Format: uuid */
             id: string;
             /** Format: int32 */
             number: number;
+            /** Format: int64 */
+            priceVnd?: number;
             state: string;
             title: string;
         };
         ChangeProposalRequest: {
+            addedCriteria?: components["schemas"]["AddedCriterionRequest"][];
+            addedMilestones?: components["schemas"]["AddedMilestoneRequest"][];
             description?: string;
+            editedCriteria?: components["schemas"]["EditedCriterionRequest"][];
             impact?: string;
             items: components["schemas"]["ChangeDueDate"][];
+            milestones?: components["schemas"]["MilestoneChangeRequest"][];
+            removedCriteria?: string[];
+            scope?: string;
             /** Format: int64 */
             version: number;
         };
         ChangeRequestView: {
             /** Format: int32 */
             agreementVersionNo?: number;
+            changes: components["schemas"]["ChangeSetView"];
             /** Format: date-time */
             closedAt?: string;
             /** Format: date-time */
@@ -4199,8 +4244,15 @@ export interface components {
             jobId: string;
             milestones: components["schemas"]["ChangeMilestoneView"][];
             open?: components["schemas"]["ChangeRequestView"];
+            scope?: string;
             /** Format: int64 */
             version: number;
+        };
+        ChangeSetView: {
+            addedMilestones: components["schemas"]["AddedMilestoneView"][];
+            criteria: components["schemas"]["CriterionChangeView"][];
+            milestones: components["schemas"]["MilestoneChangeView"][];
+            scope?: string;
         };
         ChangeVersionRequest: {
             /** Format: int64 */
@@ -4297,6 +4349,9 @@ export interface components {
             /** Format: date-time */
             confirmedAt: string;
             milestones: components["schemas"]["VersionMilestoneView"][];
+            /** Format: int64 */
+            priceVnd?: number;
+            scope: string;
             /** Format: int32 */
             versionNo: number;
         };
@@ -4533,6 +4588,16 @@ export interface components {
             id: string;
             statement: string;
         };
+        CriterionChangeView: {
+            checkSteps?: string;
+            /** Format: uuid */
+            criterionId: string;
+            kind: string;
+            /** Format: int32 */
+            milestoneNumber?: number;
+            oldStatement?: string;
+            statement?: string;
+        };
         CriterionLinkView: {
             /** Format: uuid */
             criterionId: string;
@@ -4673,6 +4738,12 @@ export interface components {
             fullName?: string;
             kind: string;
             reconfirmed: boolean;
+        };
+        EditedCriterionRequest: {
+            checkSteps: string;
+            /** Format: uuid */
+            criterionId: string;
+            statement: string;
         };
         EnrolmentRequest: {
             code: string;
@@ -5670,6 +5741,27 @@ export interface components {
             revisionRounds: number;
             title: string;
         };
+        MilestoneChangeRequest: {
+            /** Format: uuid */
+            milestoneId: string;
+            /** Format: int64 */
+            priceVnd?: number;
+            remove: boolean;
+            title?: string;
+        };
+        MilestoneChangeView: {
+            /** Format: uuid */
+            milestoneId: string;
+            /** Format: int32 */
+            number?: number;
+            /** Format: int64 */
+            oldPriceVnd?: number;
+            oldTitle: string;
+            /** Format: int64 */
+            priceVnd?: number;
+            remove: boolean;
+            title?: string;
+        };
         MilestoneProgressView: {
             autoAccepted: boolean;
             /** Format: int32 */
@@ -5733,6 +5825,10 @@ export interface components {
         NdaRequest: {
             commitEmailNoticeAcknowledged: boolean;
             ndaVersion: string;
+        };
+        NewCriterionRequest: {
+            checkSteps: string;
+            statement: string;
         };
         NoteRequest: {
             /** Format: uuid */
@@ -7027,10 +7123,13 @@ export interface components {
             verifiedUntil?: string;
         };
         VersionMilestoneView: {
+            criteria: string[];
             /** Format: date */
             dueOn?: string;
             /** Format: uuid */
             id: string;
+            /** Format: int64 */
+            priceVnd?: number;
             title: string;
         };
         VersionSummary: {
