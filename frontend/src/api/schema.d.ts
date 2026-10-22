@@ -3825,6 +3825,7 @@ export interface components {
             decidable: boolean;
             decision?: components["schemas"]["DecisionView"];
             evidenceReadable: boolean;
+            evidenceSnapshot?: components["schemas"]["EvidenceSnapshot"];
             execution?: components["schemas"]["ExecutionView"];
             held?: components["schemas"]["HeldMilestoneView"];
             /** Format: uuid */
@@ -5059,6 +5060,18 @@ export interface components {
             reportNote?: string;
             reportedMet: boolean;
             statement: string;
+        };
+        EvidenceSnapshot: {
+            agreementVersions: number[];
+            driftWarnings: components["schemas"]["SnapshotDrift"][];
+            jobChat: components["schemas"]["SnapshotChat"];
+            pages: components["schemas"]["SnapshotPage"][];
+            payments: components["schemas"]["SnapshotPayment"][];
+            reports: components["schemas"]["SnapshotReport"][];
+            statements: components["schemas"]["SnapshotStatement"][];
+            /** Format: date-time */
+            takenAt: string;
+            workItems: components["schemas"]["SnapshotWorkItem"][];
         };
         ExecutionView: {
             failure?: string;
@@ -6959,6 +6972,71 @@ export interface components {
             /** Format: uuid */
             id: string;
             name: string;
+        };
+        SnapshotChat: {
+            /** Format: uuid */
+            lastMessageId?: string;
+            /** Format: date-time */
+            lastSentAt?: string;
+            /** Format: int32 */
+            messageCount: number;
+        };
+        SnapshotDrift: {
+            /** Format: int32 */
+            commits: number;
+            headSha?: string;
+            /** Format: uuid */
+            id: string;
+            kind: string;
+        };
+        SnapshotPage: {
+            /** Format: uuid */
+            pageId: string;
+            /** Format: int32 */
+            versionNo: number;
+        };
+        SnapshotPayment: {
+            /** Format: uuid */
+            milestoneId: string;
+            /** Format: int64 */
+            moneyInVnd: number;
+            /** Format: int32 */
+            number: number;
+            /** Format: int64 */
+            refundsVnd: number;
+            /** Format: int64 */
+            releasableVnd: number;
+            /** Format: int64 */
+            releasedTotalVnd: number;
+        };
+        SnapshotReport: {
+            /** Format: int32 */
+            checkedMet: number;
+            /** Format: int32 */
+            criteria: number;
+            /** Format: uuid */
+            handoverId: string;
+            /** Format: int32 */
+            milestoneNumber: number;
+            /** Format: int32 */
+            reportedMet: number;
+            /** Format: int32 */
+            round: number;
+            status: string;
+        };
+        SnapshotStatement: {
+            side: string;
+            /** Format: date-time */
+            submittedAt: string;
+        };
+        SnapshotWorkItem: {
+            /** Format: int32 */
+            number: number;
+            status: string;
+            /** Format: int64 */
+            version: number;
+            /** Format: uuid */
+            workItemId: string;
         };
         StalledEventView: {
             /** Format: int32 */
