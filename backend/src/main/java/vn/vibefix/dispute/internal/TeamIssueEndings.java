@@ -2,6 +2,8 @@ package vn.vibefix.dispute.internal;
 
 import java.sql.Timestamp;
 import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -38,13 +40,15 @@ import vn.vibefix.operations.OperationRequest;
 import vn.vibefix.payment.Ledger;
 import vn.vibefix.payment.ShareHolds;
 import vn.vibefix.reputation.CrewRatings;
+import vn.vibefix.shared.AdminReadGrants;
 
 /**
  * A Team Issue ends exactly once (AD-40), in its own transaction in AD-4's lock order: the Job row, the
  * Milestone's Team Issue rows, then the ledger through {@code payment.endHold}. The caller's check runs under
  * those locks and names the outcome; any ending of a share issue whose Milestone is already final without a
  * release is moot. A share ending executes through {@code payment.endHold}, a Rating removed through
- * {@code reputation.removeRating}, and both parties are told. When {@code payment} refuses the execution,
+ * {@code reputation.removeRating}, and both parties are told; an escalated issue's read grant ends 30 days
+ * after a decision, at once after any other ending (AD-20). When {@code payment} refuses the execution,
  * the issue stays in its phase and the ending is requested as a {@value TeamIssueEndingOperation#TYPE}
  * operation, which lands in FR-64's list and alerts Administrators, who retry it there.
  */
@@ -57,6 +61,9 @@ class TeamIssueEndings {
 	static final String REMOVED_REASON = "Rút lại qua khiếu nại nội bộ";
 
 	private static final Set<String> FINAL = Set.of("CANCELLED", "SETTLED");
+
+	/** How long a decided issue's Administrator keeps reading (AD-20). */
+	static final Duration GRANT_AFTER_DECISION = Duration.ofDays(30);
 
 	/** What an ending moves: points from the Mentor's share to the raiser's, or the Rating removed. */
 	record Outcome(int points, boolean removeRating) {
@@ -100,13 +107,16 @@ class TeamIssueEndings {
 
 	private final AuditLog auditLog;
 
+	private final List<AdminReadGrants> grants;
+
 	private final Clock clock;
 
 	private final TransactionTemplate own;
 
 	TeamIssueEndings(JdbcClient jdbc, TeamIssues issues, TeamIssueLocks locks, MilestoneStates milestones, Ledger ledger,
 			ShareHolds holds, CrewRatings ratings, Notifications notifications, Todos todos, ExternalOperations operations,
-			AuditLog auditLog, Clock clock, PlatformTransactionManager transactionManager) {
+			AuditLog auditLog, List<AdminReadGrants> grants, Clock clock, PlatformTransactionManager transactionManager) {
+		this.grants = grants;
 		this.jdbc = jdbc;
 		this.issues = issues;
 		this.locks = locks;
@@ -195,12 +205,22 @@ class TeamIssueEndings {
 
 	private void execute(TeamIssue issue, TeamIssueJob job, Ending ending, Outcome outcome, @Nullable UUID actorId) {
 		boolean removed = issue.subject() == Subject.RATING && outcome.removeRating();
+		Instant now = this.clock.instant();
+		UUID grant = this.jdbc.sql("SELECT grant_id FROM dispute.team_issue WHERE id = :id AND grant_id IS NOT NULL")
+			.param("id", issue.id())
+			.query(UUID.class)
+			.optional()
+			.orElse(null);
+		if (grant != null) {
+			Instant ends = ending == Ending.DECIDED ? now.plus(GRANT_AFTER_DECISION) : now;
+			this.grants.forEach(module -> module.endAdminRead(grant, ends));
+		}
 		this.jdbc.sql("""
 				UPDATE dispute.team_issue SET phase = 'ENDED', ended_at = :now, ending = :ending, outcome_points = :points,
 				    outcome_rating_removed = :removed
 				WHERE id = :id
 				""")
-			.param("now", Timestamp.from(this.clock.instant()))
+			.param("now", Timestamp.from(now))
 			.param("ending", ending.name())
 			.param("points", issue.subject() == Subject.SHARE ? outcome.points() : null)
 			.param("removed", issue.subject() == Subject.RATING ? removed : null)

@@ -13,6 +13,10 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import vn.vibefix.audit.AuditActor;
+import vn.vibefix.audit.AuditEntry;
+import vn.vibefix.audit.AuditLog;
+import vn.vibefix.audit.AuditObject;
 import vn.vibefix.reputation.CrewRatings;
 import vn.vibefix.reputation.RatingRemoved;
 import vn.vibefix.shared.IdGenerator;
@@ -38,7 +42,10 @@ class VisibleCrewRatings implements CrewRatings {
 
 	private final Clock clock;
 
-	VisibleCrewRatings(JdbcClient jdbc, ApplicationEventPublisher events, IdGenerator ids, Clock clock) {
+	private final AuditLog auditLog;
+
+	VisibleCrewRatings(JdbcClient jdbc, ApplicationEventPublisher events, IdGenerator ids, Clock clock, AuditLog auditLog) {
+		this.auditLog = auditLog;
 		this.jdbc = jdbc;
 		this.events = events;
 		this.ids = ids;
@@ -75,6 +82,22 @@ class VisibleCrewRatings implements CrewRatings {
 		}
 		this.events.publishEvent(new RatingRemoved(this.ids.newId(), ratingId));
 		return true;
+	}
+
+	@Override
+	@Transactional
+	public Optional<RatingEvidence> evidence(UUID ratingId, UUID adminId) {
+		Optional<RatingEvidence> found = this.jdbc.sql("""
+				SELECT id, job_id, stars, comment, created_at, hidden_at FROM reputation.rating
+				WHERE id = :id AND kind = 'MENTOR_TO_STUDENT'
+				""").param("id", ratingId).query((rs, n) -> {
+			Timestamp hidden = rs.getTimestamp("hidden_at");
+			return new RatingEvidence(rs.getObject("id", UUID.class), rs.getInt("stars"), rs.getString("comment"),
+					rs.getTimestamp("created_at").toInstant(), hidden == null ? null : hidden.toInstant());
+		}).optional();
+		found.ifPresent(rating -> this.auditLog
+			.record(AuditEntry.of(AuditActor.user(adminId), "reputation.admin_read", AuditObject.of("reputation.rating", ratingId))));
+		return found;
 	}
 
 	private static CrewRating rating(ResultSet rs, int n) throws SQLException {

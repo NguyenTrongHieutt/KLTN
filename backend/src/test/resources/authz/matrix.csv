@@ -2162,3 +2162,62 @@ POST /api/v1/team-issues/{teamIssueId}/escalate,OWNER,,,404 NOT_FOUND
 POST /api/v1/team-issues/{teamIssueId}/escalate,JOB_MENTOR,,,404 NOT_FOUND
 POST /api/v1/team-issues/{teamIssueId}/escalate,CREW_INACTIVE,,,404 NOT_FOUND
 POST /api/v1/team-issues/{teamIssueId}/escalate,CREW_ACTIVE,,,422 GUARD_FAILED ESCALATION_PERIOD_NOT_OPEN
+# Story 12.3 (AD-20, AD-40): only Administrators read the escalated Team Issues; the fixture's issue was never
+# escalated, so it is not theirs; the Crew Terms versions need a grant from an issue they took, which the
+# Crew Chat grant of ADMIN_TEAM_ISSUE_GRANT is not.
+GET /api/v1/admin/team-issues,ANONYMOUS,,,401
+GET /api/v1/admin/team-issues,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/admin/team-issues,MENTOR,,,404 NOT_FOUND
+GET /api/v1/admin/team-issues,STUDENT,,,404 NOT_FOUND
+GET /api/v1/admin/team-issues,ADMINISTRATOR,,,200
+GET /api/v1/admin/team-issues,ADMIN_TEAM_ISSUE_GRANT,,,200
+GET /api/v1/admin/team-issues/{teamIssueId},ANONYMOUS,,,401
+GET /api/v1/admin/team-issues/{teamIssueId},CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/admin/team-issues/{teamIssueId},MENTOR,,,404 NOT_FOUND
+GET /api/v1/admin/team-issues/{teamIssueId},STUDENT,,,404 NOT_FOUND
+GET /api/v1/admin/team-issues/{teamIssueId},OWNER,,,404 NOT_FOUND
+GET /api/v1/admin/team-issues/{teamIssueId},JOB_MENTOR,,,404 NOT_FOUND
+GET /api/v1/admin/team-issues/{teamIssueId},CREW_ACTIVE,,,404 NOT_FOUND
+GET /api/v1/admin/team-issues/{teamIssueId},ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/admin/team-issues/{teamIssueId},ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
+POST /api/v1/admin/team-issues/{teamIssueId}/take,ANONYMOUS,,,401
+POST /api/v1/admin/team-issues/{teamIssueId}/take,CUSTOMER,,,404 NOT_FOUND
+POST /api/v1/admin/team-issues/{teamIssueId}/take,MENTOR,,,404 NOT_FOUND
+POST /api/v1/admin/team-issues/{teamIssueId}/take,STUDENT,,,404 NOT_FOUND
+POST /api/v1/admin/team-issues/{teamIssueId}/take,OWNER,,,404 NOT_FOUND
+POST /api/v1/admin/team-issues/{teamIssueId}/take,JOB_MENTOR,,,404 NOT_FOUND
+POST /api/v1/admin/team-issues/{teamIssueId}/take,CREW_ACTIVE,,,404 NOT_FOUND
+POST /api/v1/admin/team-issues/{teamIssueId}/take,ADMINISTRATOR,,,404 NOT_FOUND
+POST /api/v1/admin/team-issues/{teamIssueId}/take,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
+POST /api/v1/admin/team-issues/{teamIssueId}/decision,ANONYMOUS,,admin-team-issue-decision.json,401
+POST /api/v1/admin/team-issues/{teamIssueId}/decision,CUSTOMER,,admin-team-issue-decision.json,404 NOT_FOUND
+POST /api/v1/admin/team-issues/{teamIssueId}/decision,MENTOR,,admin-team-issue-decision.json,404 NOT_FOUND
+POST /api/v1/admin/team-issues/{teamIssueId}/decision,STUDENT,,admin-team-issue-decision.json,404 NOT_FOUND
+POST /api/v1/admin/team-issues/{teamIssueId}/decision,OWNER,,admin-team-issue-decision.json,404 NOT_FOUND
+POST /api/v1/admin/team-issues/{teamIssueId}/decision,JOB_MENTOR,,admin-team-issue-decision.json,404 NOT_FOUND
+POST /api/v1/admin/team-issues/{teamIssueId}/decision,CREW_ACTIVE,,admin-team-issue-decision.json,404 NOT_FOUND
+POST /api/v1/admin/team-issues/{teamIssueId}/decision,ADMINISTRATOR,,admin-team-issue-decision.json,404 NOT_FOUND
+POST /api/v1/admin/team-issues/{teamIssueId}/decision,ADMIN_TEAM_ISSUE_GRANT,,admin-team-issue-decision.json,404 NOT_FOUND
+GET /api/v1/admin/jobs/{jobId}/crew-terms,ANONYMOUS,,,401
+GET /api/v1/admin/jobs/{jobId}/crew-terms,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/admin/jobs/{jobId}/crew-terms,MENTOR,,,404 NOT_FOUND
+GET /api/v1/admin/jobs/{jobId}/crew-terms,STUDENT,,,404 NOT_FOUND
+GET /api/v1/admin/jobs/{jobId}/crew-terms,OWNER,,,404 NOT_FOUND
+GET /api/v1/admin/jobs/{jobId}/crew-terms,JOB_MENTOR,,,404 NOT_FOUND
+GET /api/v1/admin/jobs/{jobId}/crew-terms,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/admin/jobs/{jobId}/crew-terms,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
+# The Crew Chat by the Job (Story 12.3): the same readers as by its ID, the Team Issue grant included.
+GET /api/v1/boards/{boardId}/crew-chat/messages,ANONYMOUS,,,401
+GET /api/v1/boards/{boardId}/crew-chat/messages,OWNER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/crew-chat/messages,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/crew-chat/messages,MENTOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/crew-chat/messages,STUDENT,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/crew-chat/messages,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/crew-chat/messages,TEAM_MENTOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/crew-chat/messages,TEAM_MEMBER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/crew-chat/messages,CREW_ASSIGNED,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/crew-chat/messages,JOB_MENTOR,,,200
+GET /api/v1/boards/{boardId}/crew-chat/messages,CREW_ACTIVE,,,200
+GET /api/v1/boards/{boardId}/crew-chat/messages,CREW_INACTIVE,,,200
+GET /api/v1/boards/{boardId}/crew-chat/messages,CREW_FORMER,,,200
+GET /api/v1/boards/{boardId}/crew-chat/messages,ADMIN_TEAM_ISSUE_GRANT,,,200
