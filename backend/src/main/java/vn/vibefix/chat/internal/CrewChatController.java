@@ -71,6 +71,16 @@ class CrewChatController {
 		return new CrewChatView(viewer.chat().id(), viewer.jobTitle(), unread, viewer.readOnly(), viewer.chat().closed());
 	}
 
+	/**
+	 * The same page by the Job, for the Team Evidence Package (AD-20, AD-40): an escalated Team Issue's
+	 * Administrator reads it under their grant, audited, without knowing the Chat's ID.
+	 */
+	@GetMapping("/api/v1/boards/{boardId}/crew-chat/messages")
+	MessagePageView crewMessagesOfJob(@PathVariable("boardId") UUID jobId,
+			@RequestParam(required = false) @Nullable UUID before) {
+		return this.conversation.page(this.access.reader(jobId, Kind.CREW, this.callers.get()), before);
+	}
+
 	/** The newest 50 messages the viewer sees, or the 50 before {@code before} (UX-DR25). */
 	@GetMapping("/api/v1/crew-chats/{crewChatId}/messages")
 	MessagePageView crewMessages(@PathVariable UUID crewChatId, @RequestParam(required = false) @Nullable UUID before) {

@@ -482,7 +482,7 @@
     },
     "/api/v1/admin/disputes/{disputeId}/decision" : {
       "post" : {
-        "operationId" : "decide",
+        "operationId" : "decide_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "disputeId",
@@ -546,7 +546,7 @@
     },
     "/api/v1/admin/disputes/{disputeId}/take" : {
       "post" : {
-        "operationId" : "take",
+        "operationId" : "take_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "disputeId",
@@ -774,6 +774,33 @@
           }
         },
         "tags" : [ "admin-oversight-controller" ]
+      }
+    },
+    "/api/v1/admin/jobs/{jobId}/crew-terms" : {
+      "get" : {
+        "operationId" : "crewTerms",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CrewTermsEvidenceView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-crew-terms-controller" ]
       }
     },
     "/api/v1/admin/mentor-applications" : {
@@ -1250,6 +1277,118 @@
           }
         },
         "tags" : [ "student-cards-controller" ]
+      }
+    },
+    "/api/v1/admin/team-issues" : {
+      "get" : {
+        "operationId" : "teamIssues",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/AdminTeamIssueRow"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-team-issue-controller" ]
+      }
+    },
+    "/api/v1/admin/team-issues/{teamIssueId}" : {
+      "get" : {
+        "operationId" : "teamIssue",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "teamIssueId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminTeamIssueDetail"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-team-issue-controller" ]
+      }
+    },
+    "/api/v1/admin/team-issues/{teamIssueId}/decision" : {
+      "post" : {
+        "operationId" : "decide",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "teamIssueId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/TeamIssueDecisionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminTeamIssueDetail"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-team-issue-controller" ]
+      }
+    },
+    "/api/v1/admin/team-issues/{teamIssueId}/take" : {
+      "post" : {
+        "operationId" : "take",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "teamIssueId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminTeamIssueDetail"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-team-issue-controller" ]
       }
     },
     "/api/v1/admin/users" : {
@@ -1882,6 +2021,41 @@
           }
         },
         "tags" : [ "closure-controller" ]
+      }
+    },
+    "/api/v1/boards/{boardId}/crew-chat/messages" : {
+      "get" : {
+        "operationId" : "crewMessagesOfJob",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "query",
+          "name" : "before",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MessagePageView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "crew-chat-controller" ]
       }
     },
     "/api/v1/boards/{boardId}/data-deletion" : {
@@ -8008,6 +8182,27 @@
         },
         "required" : [ "assigned", "assignedToMe", "id", "jobId", "jobTitle", "openedAt", "openedBy", "status" ]
       },
+      "AdminRatingEvidenceView" : {
+        "type" : "object",
+        "properties" : {
+          "comment" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "hiddenAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "stars" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "comment", "createdAt", "stars" ]
+      },
       "AdminSignInRequest" : {
         "type" : "object",
         "properties" : {
@@ -8029,6 +8224,139 @@
           }
         },
         "required" : [ "code", "email", "password" ]
+      },
+      "AdminTeamIssueDecisionView" : {
+        "type" : "object",
+        "properties" : {
+          "decidedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "points" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "ratingRemoved" : {
+            "type" : "boolean"
+          },
+          "reasoning" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "decidedAt", "reasoning" ]
+      },
+      "AdminTeamIssueDetail" : {
+        "type" : "object",
+        "properties" : {
+          "answerKind" : {
+            "type" : "string"
+          },
+          "answerPoints" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "assigned" : {
+            "type" : "boolean"
+          },
+          "assignedToMe" : {
+            "type" : "boolean"
+          },
+          "decision" : {
+            "$ref" : "#/components/schemas/AdminTeamIssueDecisionView"
+          },
+          "endedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "ending" : {
+            "type" : "string"
+          },
+          "escalatedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "jobTitle" : {
+            "type" : "string"
+          },
+          "mentorName" : {
+            "type" : "string"
+          },
+          "milestoneNumber" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "phase" : {
+            "type" : "string"
+          },
+          "raisedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "raiserName" : {
+            "type" : "string"
+          },
+          "rating" : {
+            "$ref" : "#/components/schemas/AdminRatingEvidenceView"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "split" : {
+            "$ref" : "#/components/schemas/TeamIssueSplitView"
+          },
+          "subject" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "assigned", "assignedToMe", "escalatedAt", "id", "jobId", "jobTitle", "phase", "raisedAt", "reason", "subject" ]
+      },
+      "AdminTeamIssueRow" : {
+        "type" : "object",
+        "properties" : {
+          "assigned" : {
+            "type" : "boolean"
+          },
+          "assignedToMe" : {
+            "type" : "boolean"
+          },
+          "ending" : {
+            "type" : "string"
+          },
+          "escalatedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "jobTitle" : {
+            "type" : "string"
+          },
+          "milestoneNumber" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "phase" : {
+            "type" : "string"
+          },
+          "subject" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "assigned", "assignedToMe", "escalatedAt", "id", "jobId", "jobTitle", "phase", "subject" ]
       },
       "AdministratorListItem" : {
         "type" : "object",
@@ -10046,6 +10374,22 @@
         },
         "required" : [ "accountId", "percent" ]
       },
+      "CrewTermsEvidenceView" : {
+        "type" : "object",
+        "properties" : {
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "versions" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/CrewTermsVersionEvidenceView"
+            }
+          }
+        },
+        "required" : [ "jobId", "versions" ]
+      },
       "CrewTermsRequest" : {
         "type" : "object",
         "properties" : {
@@ -10063,6 +10407,49 @@
           }
         },
         "required" : [ "crewVersion", "shares" ]
+      },
+      "CrewTermsShareEvidenceView" : {
+        "type" : "object",
+        "properties" : {
+          "confirmedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "percent" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "role" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "name", "percent", "role" ]
+      },
+      "CrewTermsVersionEvidenceView" : {
+        "type" : "object",
+        "properties" : {
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "shares" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/CrewTermsShareEvidenceView"
+            }
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "versionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "createdAt", "shares", "status", "versionNo" ]
       },
       "CrewTermsView" : {
         "type" : "object",
@@ -16196,6 +16583,31 @@
           }
         },
         "required" : [ "studentId" ]
+      },
+      "TeamIssueDecisionRequest" : {
+        "type" : "object",
+        "properties" : {
+          "points" : {
+            "type" : "integer",
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 0
+          },
+          "reasoning" : {
+            "type" : "string",
+            "maxLength" : 4000,
+            "minLength" : 0
+          },
+          "removeRating" : {
+            "type" : "boolean"
+          },
+          "stepUpCode" : {
+            "type" : "string",
+            "minLength" : 1,
+            "pattern" : "^[0-9]{6}$"
+          }
+        },
+        "required" : [ "reasoning", "stepUpCode" ]
       },
       "TeamIssuePanelView" : {
         "type" : "object",

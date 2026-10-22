@@ -205,7 +205,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["decide"];
+        post: operations["decide_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -237,7 +237,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["take"];
+        post: operations["take_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -332,6 +332,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["job_2"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/jobs/{jobId}/crew-terms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["crewTerms"];
         put?: never;
         post?: never;
         delete?: never;
@@ -542,6 +558,70 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["reject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/team-issues": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["teamIssues"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/team-issues/{teamIssueId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["teamIssue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/team-issues/{teamIssueId}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["decide"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/team-issues/{teamIssueId}/take": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["take"];
         delete?: never;
         options?: never;
         head?: never;
@@ -798,6 +878,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["decline_5"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/boards/{boardId}/crew-chat/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["crewMessagesOfJob"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3599,11 +3695,73 @@ export interface components {
             openedBy: string;
             status: string;
         };
+        AdminRatingEvidenceView: {
+            comment: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            hiddenAt?: string;
+            /** Format: int32 */
+            stars: number;
+        };
         AdminSignInRequest: {
             code: string;
             /** Format: email */
             email: string;
             password: string;
+        };
+        AdminTeamIssueDecisionView: {
+            /** Format: date-time */
+            decidedAt: string;
+            /** Format: int32 */
+            points?: number;
+            ratingRemoved?: boolean;
+            reasoning: string;
+        };
+        AdminTeamIssueDetail: {
+            answerKind?: string;
+            /** Format: int32 */
+            answerPoints?: number;
+            assigned: boolean;
+            assignedToMe: boolean;
+            decision?: components["schemas"]["AdminTeamIssueDecisionView"];
+            /** Format: date-time */
+            endedAt?: string;
+            ending?: string;
+            /** Format: date-time */
+            escalatedAt: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            jobId: string;
+            jobTitle: string;
+            mentorName?: string;
+            /** Format: int32 */
+            milestoneNumber?: number;
+            phase: string;
+            /** Format: date-time */
+            raisedAt: string;
+            raiserName?: string;
+            rating?: components["schemas"]["AdminRatingEvidenceView"];
+            reason: string;
+            split?: components["schemas"]["TeamIssueSplitView"];
+            subject: string;
+        };
+        AdminTeamIssueRow: {
+            assigned: boolean;
+            assignedToMe: boolean;
+            ending?: string;
+            /** Format: date-time */
+            escalatedAt: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            jobId: string;
+            jobTitle: string;
+            /** Format: int32 */
+            milestoneNumber?: number;
+            phase: string;
+            subject: string;
         };
         AdministratorListItem: {
             /** Format: date-time */
@@ -4336,10 +4494,31 @@ export interface components {
             /** Format: int32 */
             percent: number;
         };
+        CrewTermsEvidenceView: {
+            /** Format: uuid */
+            jobId: string;
+            versions: components["schemas"]["CrewTermsVersionEvidenceView"][];
+        };
         CrewTermsRequest: {
             /** Format: int64 */
             crewVersion: number;
             shares: components["schemas"]["CrewShareRequest"][];
+        };
+        CrewTermsShareEvidenceView: {
+            /** Format: date-time */
+            confirmedAt?: string;
+            name: string;
+            /** Format: int32 */
+            percent: number;
+            role: string;
+        };
+        CrewTermsVersionEvidenceView: {
+            /** Format: date-time */
+            createdAt: string;
+            shares: components["schemas"]["CrewTermsShareEvidenceView"][];
+            status: string;
+            /** Format: int32 */
+            versionNo: number;
         };
         CrewTermsView: {
             /** Format: date-time */
@@ -6519,6 +6698,13 @@ export interface components {
             /** Format: uuid */
             studentId: string;
         };
+        TeamIssueDecisionRequest: {
+            /** Format: int32 */
+            points?: number;
+            reasoning: string;
+            removeRating?: boolean;
+            stepUpCode: string;
+        };
         TeamIssuePanelView: {
             issues: components["schemas"]["TeamIssueView"][];
             /** Format: uuid */
@@ -7302,7 +7488,7 @@ export interface operations {
             };
         };
     };
-    decide: {
+    decide_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -7350,7 +7536,7 @@ export interface operations {
             };
         };
     };
-    take: {
+    take_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -7528,6 +7714,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OversightJobView"];
+                };
+            };
+        };
+    };
+    crewTerms: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrewTermsEvidenceView"];
                 };
             };
         };
@@ -7866,6 +8074,96 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StudentCardRow"];
+                };
+            };
+        };
+    };
+    teamIssues: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminTeamIssueRow"][];
+                };
+            };
+        };
+    };
+    teamIssue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                teamIssueId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminTeamIssueDetail"];
+                };
+            };
+        };
+    };
+    decide: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                teamIssueId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeamIssueDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminTeamIssueDetail"];
+                };
+            };
+        };
+    };
+    take: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                teamIssueId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminTeamIssueDetail"];
                 };
             };
         };
@@ -8329,6 +8627,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClosureView"];
+                };
+            };
+        };
+    };
+    crewMessagesOfJob: {
+        parameters: {
+            query?: {
+                before?: string;
+            };
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessagePageView"];
                 };
             };
         };

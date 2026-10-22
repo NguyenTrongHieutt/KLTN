@@ -1248,6 +1248,69 @@
         "back": "Quay lại",
         "save": "Lưu",
         "skillSaved": "Đã lưu kỹ năng."
+      },
+      "teamIssues": {
+        "title": "Khiếu nại nội bộ",
+        "tabDisputes": "Tranh chấp",
+        "tabTeamIssues": "Khiếu nại nội bộ",
+        "empty": "Chưa có khiếu nại nội bộ nào được chuyển cho quản trị viên.",
+        "pick": "Chọn một khiếu nại để xem.",
+        "subject": {
+          "SHARE": "Phần chia giai đoạn {n}",
+          "RATING": "Điểm người hướng dẫn chấm"
+        },
+        "waiting": "Chờ quyết định",
+        "decided": "Đã kết thúc",
+        "assigned": "Đã có người nhận",
+        "assignedToMe": "Bạn đang xử lý",
+        "people": "{raiser} khiếu nại {mentor}",
+        "escalatedAt": "chuyển cho quản trị viên lúc {time}",
+        "reason": "Lý do của sinh viên",
+        "answer": {
+          "none": "Người hướng dẫn không trả lời trong thời hạn.",
+          "KEEP": "Người hướng dẫn trả lời: giữ nguyên.",
+          "TRANSFER": "Người hướng dẫn đề nghị chuyển {n} điểm phần trăm.",
+          "WITHDRAW_RATING": "Người hướng dẫn đề nghị rút lại điểm."
+        },
+        "take": "Nhận xử lý",
+        "takeNote": "Khi nhận xử lý, bạn được xem trao đổi nhóm, lịch sử công việc của sinh viên và các phiên bản điều khoản nhóm, đến 30 ngày sau quyết định. Mỗi lần xem đều được ghi lại.",
+        "evidence": {
+          "title": "Hồ sơ bằng chứng nội bộ",
+          "terms": "Điều khoản nhóm",
+          "chat": "Trao đổi nhóm",
+          "work": "Lịch sử công việc",
+          "rating": "Điểm",
+          "version": "Phiên bản {n} · {status}",
+          "status": {
+            "PENDING": "Chờ xác nhận",
+            "IN_FORCE": "Đang áp dụng",
+            "SUPERSEDED": "Đã thay",
+            "VOIDED": "Đã hủy"
+          },
+          "share": "{name} · {pct}%",
+          "confirmed": "xác nhận {time}",
+          "noMessages": "Chưa có tin nhắn.",
+          "noItems": "Không có việc nào của sinh viên này.",
+          "stars": "{n} sao",
+          "hidden": "Điểm này đang bị ẩn."
+        },
+        "decision": {
+          "title": "Quyết định",
+          "points": "Số điểm phần trăm chuyển từ phần của người hướng dẫn cho sinh viên",
+          "cap": "Tối đa {cap} điểm: người hướng dẫn có {pct}% ở giai đoạn này.",
+          "preview": "Trên {amount} THỬ NGHIỆM: người hướng dẫn {mentorPct}% · {mentorVnd}, sinh viên {raiserPct}% · {raiserVnd}.",
+          "keep": "Giữ điểm",
+          "remove": "Gỡ điểm",
+          "reasoning": "Lý do quyết định",
+          "final": "Quyết định là cuối cùng và được thực hiện ngay; cả hai bên được báo kết quả.",
+          "confirm": "Ghi quyết định",
+          "decided": "Đã ghi quyết định.",
+          "outcomePoints": "Chuyển {n} điểm phần trăm cho sinh viên",
+          "outcomeNone": "Giữ nguyên phần chia",
+          "outcomeRemoved": "Gỡ điểm",
+          "outcomeKept": "Giữ điểm",
+          "at": "Quyết định lúc {time}"
+        }
       }
     },
     "product": {

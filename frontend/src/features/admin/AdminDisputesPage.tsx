@@ -13,6 +13,7 @@ import { formatVnd } from '@/lib/money'
 import { problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { useAdminDispute, useAdminDisputes, useDisputeCommand, type AdminDispute } from './adminDisputesApi'
+import { CaseTabs } from './CaseTabs'
 import { StepUpDialog } from './StepUpDialog'
 
 type Next = 'CONTINUE' | 'END' | 'CANCEL'
@@ -28,6 +29,7 @@ export function AdminDisputesPage() {
   return (
     <div className="flex flex-col gap-5">
       <PageHeading>{t('screen.admin.disputes.title')}</PageHeading>
+      <CaseTabs current="disputes" />
       <div className="grid gap-5 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
         <DisputeList current={disputeId} />
         {disputeId && <DisputeDetail key={disputeId} disputeId={disputeId} />}

@@ -39,7 +39,7 @@ class JobPersonalData implements PersonalDataParticipant {
 				"job.external_access", "job.agreement_version", "job.crew_row", "job.crew_terms_version", "job.crew_terms_share",
 				"job.crew_terms_confirmation", "job.agreement_comment", "job.agreement_change_request", "job.agreement_approval",
 				"job.confirmed_agreement", "job.closure_proposal", "job.change_request", "job.cancellation_proposal",
-				"job.external_access_identifier");
+				"job.external_access_identifier", "job.admin_read_grant");
 	}
 
 	@Override
@@ -92,6 +92,7 @@ class JobPersonalData implements PersonalDataParticipant {
 	@Override
 	public void eraseAccount(UUID accountId) {
 		this.jdbc.sql("DELETE FROM job.external_access_identifier WHERE account_id = :id").param("id", accountId).update();
+		this.jdbc.sql("DELETE FROM job.admin_read_grant WHERE admin_account_id = :id").param("id", accountId).update();
 		this.jdbc.sql("UPDATE job.closure_proposal SET proposer_account_id = NULL WHERE proposer_account_id = :id")
 			.param("id", accountId)
 			.update();
@@ -135,7 +136,8 @@ class JobPersonalData implements PersonalDataParticipant {
 		this.jdbc.sql("""
 				SELECT s.file_id FROM job.job_screenshot s JOIN job.job j ON j.id = s.job_id WHERE j.%s = :id
 				""".formatted(column)).param("id", id).query(UUID.class).list().forEach(this.files::delete);
-		for (String table : List.of("job.cancellation_proposal", "job.change_request", "job.closure_proposal",
+		for (String table : List.of("job.admin_read_grant", "job.cancellation_proposal", "job.change_request",
+				"job.closure_proposal",
 				"job.agreement_comment",
 				"job.agreement_change_request",
 				"job.confirmed_agreement",

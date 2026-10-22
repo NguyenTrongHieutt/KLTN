@@ -82,9 +82,11 @@ class DisputePersonalData implements PersonalDataParticipant {
 		this.jdbc.sql("UPDATE dispute.team_issue SET raiser_account_id = NULL WHERE raiser_account_id = :id")
 			.param("id", accountId)
 			.update();
-		this.jdbc.sql("UPDATE dispute.team_issue SET mentor_account_id = NULL WHERE mentor_account_id = :id")
-			.param("id", accountId)
-			.update();
+		for (String column : List.of("mentor_account_id", "assigned_admin_id", "decided_by_admin_id")) {
+			this.jdbc.sql("UPDATE dispute.team_issue SET %s = NULL WHERE %s = :id".formatted(column, column))
+				.param("id", accountId)
+				.update();
+		}
 	}
 
 	@Override

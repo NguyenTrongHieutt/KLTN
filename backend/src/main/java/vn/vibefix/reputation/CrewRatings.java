@@ -22,6 +22,10 @@ public interface CrewRatings {
 			Instant visibleAt) {
 	}
 
+	/** The Rating as an escalated Team Issue's Administrator reads it (FR-63, FR-79), hidden or not. */
+	record RatingEvidence(UUID ratingId, int stars, String comment, Instant createdAt, @Nullable Instant hiddenAt) {
+	}
+
 	/** The visible Ratings the Student received, the newest first. */
 	List<CrewRating> receivedBy(UUID studentId);
 
@@ -34,5 +38,11 @@ public interface CrewRatings {
 	 * @return whether it was visible until now
 	 */
 	boolean removeRating(UUID ratingId, String reason);
+
+	/**
+	 * The Team Evidence Package's Rating (AD-40): read by the Team Issue's assigned Administrator, which
+	 * {@code dispute} checks, and audited {@code reputation.admin_read} (AD-8).
+	 */
+	Optional<RatingEvidence> evidence(UUID ratingId, UUID adminId);
 
 }

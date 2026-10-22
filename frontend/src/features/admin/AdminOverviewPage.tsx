@@ -96,7 +96,7 @@ export function AdminOverviewPage() {
           )}
           {overview.data?.teamIssues && (
             <Link
-              to="/quan-tri/tranh-chap"
+              to="/quan-tri/khieu-nai-noi-bo"
               className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 hover:border-primary"
             >
               <p className="text-caption text-muted-foreground">{t('screen.admin.overview.teamIssues')}</p>
