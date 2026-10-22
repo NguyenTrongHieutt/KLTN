@@ -28,6 +28,9 @@ enum RepoReason {
 	NO_ADMIN_PERMISSION,
 
 	/** The Customer's kept token is missing or refused: they sign in again first (AD-13). */
-	SIGN_IN_AGAIN
+	SIGN_IN_AGAIN,
+
+	/** The Job has no open Final Merge authorization to install the Merge App for (FR-37, AD-10). */
+	NO_AUTHORIZATION_OPEN
 
 }

@@ -1,0 +1,6 @@
+subject: Yêu cầu cài ứng dụng hợp nhất cho kho {repo} chưa được duyệt. Bạn có thể gửi lại yêu cầu hoặc nhận mã dạng ZIP trước {date}
+---
+Xin chào,
+
+Yêu cầu cài ứng dụng hợp nhất của vibefix cho kho {repo} không còn chờ duyệt, và ứng dụng chưa được cài.
+Bạn có thể gửi lại yêu cầu và nhờ chủ tổ chức chấp nhận, hoặc nhận mã dạng ZIP trước {date}.

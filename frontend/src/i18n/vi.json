@@ -2979,6 +2979,24 @@
         "cancel": "Quay lại",
         "saved": "Đã ghi nhận xác nhận."
       },
+      "finalMerge": {
+        "install": "Cài ứng dụng hợp nhất trên GitHub ↗ (github.com)",
+        "reinstall": "Cài lại trên GitHub ↗ (github.com)",
+        "resend": "Gửi lại yêu cầu trên GitHub ↗ (github.com)",
+        "deadline": "Hạn cho phép: {date}. Sau hạn này bạn sẽ nhận mã dạng ZIP.",
+        "beforeEnd": "khi công việc kết thúc",
+        "bound": "Đã cho phép cho kho {repo}",
+        "waitingBadge": "Chờ chủ tổ chức duyệt",
+        "waiting": "Yêu cầu cài ứng dụng hợp nhất đang chờ chủ tổ chức {org} duyệt trên GitHub. Hãy nhờ họ chấp nhận cho đúng kho {repo} trước {date}; nếu không, bạn sẽ nhận mã dạng ZIP.",
+        "messageTitle": "Lời nhắn gửi chủ tổ chức",
+        "message": "Nhờ duyệt giúp yêu cầu cài ứng dụng hợp nhất của vibefix cho đúng kho {repo} trên GitHub, trước {date}. Yêu cầu đang chờ trong phần GitHub Apps của tổ chức {org}.",
+        "copy": "Sao chép lời nhắn",
+        "copied": "Đã sao chép lời nhắn.",
+        "copyFailed": "Không sao chép được. Hãy chọn lời nhắn rồi sao chép bằng tay.",
+        "notSeen": "Chưa thấy ứng dụng hợp nhất được cài cho kho {repo}, cũng không có yêu cầu nào đang chờ duyệt. Nếu bạn chưa cài xong trên GitHub, hãy cài lại. Nếu GitHub không cho bạn cài hay gửi yêu cầu, tổ chức {org} đang chặn việc này: hãy nhờ chủ tổ chức cho phép bạn cài ứng dụng GitHub, hoặc nhận mã dạng ZIP trước {date}.",
+        "refusedBadge": "Yêu cầu chưa được duyệt",
+        "refused": "Chủ tổ chức {org} chưa duyệt yêu cầu cài ứng dụng hợp nhất cho kho {repo}. Bạn có thể gửi lại yêu cầu và nhờ họ chấp nhận trước {date}, hoặc nhận mã dạng ZIP."
+      },
       "disputable": "Đề nghị kết thúc bị từ chối hoặc chưa được trả lời. Bạn có thể mở tranh chấp.",
       "openDispute": "Mở tranh chấp"
     },
@@ -3641,7 +3659,8 @@
     "repo": {
       "confirm_data_deletion": "Xác nhận đã xóa dữ liệu và bản xem thử của {job}",
       "accept_github_invitation": "Bật xác thực hai lớp trên GitHub (nếu chưa bật), rồi chấp nhận lời mời cho {job}",
-      "reconfirm_source": "Xác nhận lại dự án gốc của {job}"
+      "reconfirm_source": "Xác nhận lại dự án gốc của {job}",
+      "authorize_final_merge": "Cho phép hợp nhất vào dự án của bạn"
     },
     "reputation": {
       "rate": "Chấm sao cho {party}",
@@ -4003,6 +4022,21 @@
       }
     },
     "repo": {
+      "final_merge_authorization_pending": {
+        "title": "Hãy cho phép hợp nhất trước {date}, nếu không bạn sẽ nhận mã dạng ZIP"
+      },
+      "final_merge_authorization_reminder": {
+        "title": "Còn 2 ngày để cho phép hợp nhất mã của {job} vào dự án của bạn (hạn {date}){waiting}"
+      },
+      "final_merge_authorized": {
+        "title": "Chủ tổ chức {org} đã duyệt ứng dụng hợp nhất cho kho {repo}. Hãy xác nhận các thay đổi cần lưu ý trước {date}"
+      },
+      "merge_app_request_refused": {
+        "title": "Yêu cầu cài ứng dụng hợp nhất cho kho {repo} chưa được duyệt. Bạn có thể gửi lại yêu cầu hoặc nhận mã dạng ZIP trước {date}"
+      },
+      "merge_app_selection_widened": {
+        "title": "Ứng dụng hợp nhất đang được cài cho cả kho khác ngoài {repo}. Hãy chọn lại chỉ kho {repo} trên GitHub"
+      },
       "data_deletion_confirmation_pending": {
         "title": "Hãy xác nhận đã xóa dữ liệu của khách hàng ở {job}"
       },
@@ -4282,6 +4316,8 @@
       "NOTHING_TO_RECONFIRM": "Không có dự án gốc nào cần xác nhận lại.",
       "SOURCE_NOT_PUBLIC": "Dự án gốc không còn công khai, hoặc không còn là kho mã đã đăng ký.",
       "NO_ADMIN_PERMISSION": "Tài khoản GitHub của bạn không có quyền quản trị dự án gốc ở tên mới.",
+      "NO_AUTHORIZATION_OPEN": "Công việc này không còn bước cho phép hợp nhất đang mở.",
+      "MERGE_APP_WRONG_REPOSITORY": "Ứng dụng hợp nhất chỉ được cài cho đúng dự án gốc. Hãy chọn lại.",
       "SIGN_IN_AGAIN": "Hãy đăng nhập lại bằng GitHub để vibefix kiểm tra dự án gốc.",
       "JOB_NOT_ENDED": "Bạn xác nhận được sau khi công việc bắt đầu kết thúc.",
       "NOT_A_DUTY": "Chỉ người hướng dẫn và nhóm thực hiện xác nhận việc này."

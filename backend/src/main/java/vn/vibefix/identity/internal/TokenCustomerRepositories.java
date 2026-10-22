@@ -1,6 +1,7 @@
 package vn.vibefix.identity.internal;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.stereotype.Component;
@@ -83,6 +84,13 @@ class TokenCustomerRepositories implements CustomerRepositories {
 			}
 			throw refused;
 		}
+	}
+
+	@Override
+	public Optional<Long> githubUserId(UUID customerId) {
+		return this.accounts.findById(customerId)
+			.filter(found -> found.role() == Role.CUSTOMER && found.erasedAt() == null)
+			.map(Account::githubUserId);
 	}
 
 	private Account customer(UUID customerId) {

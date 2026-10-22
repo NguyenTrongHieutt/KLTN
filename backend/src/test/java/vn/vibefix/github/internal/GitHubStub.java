@@ -307,6 +307,56 @@ public final class GitHubStub implements AutoCloseable {
 			this.grants.put(token, body);
 			send(exchange, 201, "{\"token\":\"" + token + "\",\"expires_at\":\"2026-10-19T04:00:00Z\"}");
 		}
+		else if (method.equals("POST") && (matcher = Pattern.compile("/app/installations/(\\d+)/access_tokens").matcher(path)).matches()
+				&& this.mergeInstallations.containsKey(Long.parseLong(matcher.group(1)))) {
+			String token = "ghs_stubtoken_" + this.tokens.size() + "_m3rg3";
+			this.tokens.add(token);
+			this.grants.put(token, body);
+			this.tokenInstallations.put(token, Long.parseLong(matcher.group(1)));
+			send(exchange, 201, "{\"token\":\"" + token + "\",\"expires_at\":\"2026-10-19T04:00:00Z\"}");
+		}
+		else if (method.equals("GET") && (matcher = Pattern.compile("/app/installations/(\\d+)").matcher(path)).matches()
+				&& Long.parseLong(matcher.group(1)) != INSTALLATION) {
+			MergeInstallation installation = this.mergeInstallations.get(Long.parseLong(matcher.group(1)));
+			if (installation == null) {
+				send(exchange, 404, "{\"message\":\"Not Found\"}");
+				return;
+			}
+			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(Map.of("id", Long.parseLong(matcher.group(1)), "account",
+					Map.of("id", installation.accountId, "login", installation.accountLogin), "repository_selection",
+					installation.all ? "all" : "selected", "suspended_at", installation.suspended ? "2026-10-22T00:00:00Z" : "")));
+		}
+		else if (method.equals("DELETE") && (matcher = Pattern.compile("/app/installations/(\\d+)").matcher(path)).matches()) {
+			long id = Long.parseLong(matcher.group(1));
+			if (this.mergeInstallations.remove(id) == null) {
+				send(exchange, 404, "{\"message\":\"Not Found\"}");
+				return;
+			}
+			this.removedInstallations.add(id);
+			send(exchange, 204, "");
+		}
+		else if (method.equals("GET") && path.equals("/installation/repositories")) {
+			String authorization = exchange.getRequestHeaders().getFirst("Authorization");
+			Long id = authorization == null ? null : this.tokenInstallations.get(authorization.replaceFirst("^Bearer ", ""));
+			MergeInstallation installation = id == null ? null : this.mergeInstallations.get(id);
+			if (installation == null) {
+				send(exchange, 401, "{\"message\":\"Bad credentials\"}");
+				return;
+			}
+			List<Map<String, Object>> repositories;
+			synchronized (installation.repositories) {
+				repositories = List.copyOf(installation.repositories);
+			}
+			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(Map.of("total_count", repositories.size(), "repositories",
+					repositories)));
+		}
+		else if (method.equals("GET") && path.equals("/app/installation-requests")) {
+			List<Map<String, Object>> requests;
+			synchronized (this.installationRequests) {
+				requests = List.copyOf(this.installationRequests);
+			}
+			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(requests));
+		}
 		else if (method.equals("DELETE") && path.equals("/installation/token")) {
 			this.revoked.incrementAndGet();
 			send(exchange, 204, "");
@@ -635,6 +685,68 @@ public final class GitHubStub implements AutoCloseable {
 
 	/** GitHub numeric IDs of commit authors by email; an author missing here is unresolved, as on GitHub. */
 	public final Map<String, Long> userIds = Collections.synchronizedMap(new LinkedHashMap<>());
+
+	/**
+	 * A Customer's Merge App installation (Story 8.7): its account, its selection, and whether it is
+	 * suspended. Tests change it to show a wider selection or a suspension.
+	 */
+	public static final class MergeInstallation {
+
+		public final long accountId;
+
+		public final String accountLogin;
+
+		public volatile boolean all;
+
+		public volatile boolean suspended;
+
+		/** Each selected repository as GitHub lists it: {@code id}, {@code full_name}, {@code owner.id}. */
+		public final List<Map<String, Object>> repositories = Collections.synchronizedList(new ArrayList<>());
+
+		public MergeInstallation(long accountId, String accountLogin) {
+			this.accountId = accountId;
+			this.accountLogin = accountLogin;
+		}
+
+		/** Selects a repository. */
+		public MergeInstallation repository(long id, String fullName, long ownerId) {
+			this.repositories.add(Map.of("id", id, "full_name", fullName, "owner", Map.of("id", ownerId)));
+			return this;
+		}
+
+	}
+
+	/** The Merge App's installations on Customers' accounts, by installation ID. */
+	public final Map<Long, MergeInstallation> mergeInstallations = Collections.synchronizedMap(new LinkedHashMap<>());
+
+	/** The install requests waiting for an organization owner, as {@code GET /app/installation-requests} lists them. */
+	public final List<Map<String, Object>> installationRequests = Collections.synchronizedList(new ArrayList<>());
+
+	/** The installations removed through {@code DELETE /app/installations/{id}}. */
+	public final List<Long> removedInstallations = Collections.synchronizedList(new ArrayList<>());
+
+	/** Each Merge App token's installation. */
+	private final Map<String, Long> tokenInstallations = Collections.synchronizedMap(new LinkedHashMap<>());
+
+	/** The {@code repository_ids} and {@code permissions} a token was minted with, or none for an unknown token. */
+	public JsonNode grantOf(String token) {
+		JsonNode grant = this.grants.get(token);
+		return grant == null ? GitHubHttp.JSON.createObjectNode() : grant;
+	}
+
+	/** Every token minted from one Merge App installation, oldest first. */
+	public List<String> tokensOf(long installationId) {
+		synchronized (this.tokenInstallations) {
+			return this.tokenInstallations.entrySet().stream().filter(entry -> entry.getValue() == installationId)
+				.map(Map.Entry::getKey).toList();
+		}
+	}
+
+	/** An install request for an organization, asked by {@code requesterId}. */
+	public void installationRequest(long id, long accountId, String accountLogin, long requesterId) {
+		this.installationRequests.add(Map.of("id", id, "account", Map.of("id", accountId, "login", accountLogin, "type",
+				"Organization"), "requester", Map.of("id", requesterId, "login", "requester-" + requesterId)));
+	}
 
 	/** Merged pull requests, as {@code repository#number}. */
 	public final java.util.Set<String> mergedPulls = Collections.synchronizedSet(new java.util.LinkedHashSet<>());

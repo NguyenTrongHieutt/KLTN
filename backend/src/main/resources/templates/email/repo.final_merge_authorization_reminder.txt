@@ -1,0 +1,6 @@
+subject: Còn 2 ngày để cho phép hợp nhất mã của {job} vào dự án của bạn (hạn {date}){waiting}
+---
+Xin chào,
+
+Còn 2 ngày để cho phép hợp nhất mã của {job} vào dự án của bạn, hạn {date}{waiting}.
+Sau hạn đó bạn sẽ nhận mã dạng ZIP. Hãy mở công việc trên vibefix để làm bước "Cho phép hợp nhất".

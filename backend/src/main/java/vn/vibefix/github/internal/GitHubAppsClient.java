@@ -66,13 +66,21 @@ class GitHubAppsClient implements GitHubApps {
 		if (configured.installationId() == null) {
 			throw new GitHubException(0, propertyName(app) + ".installation-id is not configured");
 		}
+		return mintFrom(app, configured.installationId(), repositoryIds, permissions);
+	}
+
+	/**
+	 * Mints a token from one installation, unchecked: the Merge App's installations are the Customers'
+	 * (AD-10), so {@link GitHubMergeApp} names the installation and holds its rules.
+	 */
+	InstallationToken mintFrom(App app, long installationId, Collection<Long> repositoryIds, Map<String, String> permissions) {
 		Map<String, Object> body = new LinkedHashMap<>();
 		if (!repositoryIds.isEmpty()) {
 			body.put("repository_ids", List.copyOf(repositoryIds));
 		}
 		body.put("permissions", Map.copyOf(permissions));
 		GitHubHttp.Answer answer = this.http.send("POST",
-				"/app/installations/" + configured.installationId() + "/access_tokens", jwt(app), body);
+				"/app/installations/" + installationId + "/access_tokens", jwt(app), body);
 		if (answer.status() != 201) {
 			throw new GitHubException(answer.status(), "GitHub refused the installation token: HTTP " + answer.status()
 					+ " " + answer.body().path("message").asString(""));

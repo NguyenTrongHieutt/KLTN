@@ -134,6 +134,7 @@ class Closures {
 			.param("now", Timestamp.from(this.clock.instant()))
 			.update();
 		this.todos.closeAll(ClosureProposals.ANSWER, proposal.id());
+		this.proposals.declined(proposal);
 		Party other = party == Party.CUSTOMER ? Party.MENTOR : Party.CUSTOMER;
 		this.notifications.send(new NotificationRequest(DECLINED, proposal.id(), List.of(ClosureProposals.recipient(job, other)),
 				Map.of("job", job.title()), "/cong-viec/" + job.id(), job.id(), null));

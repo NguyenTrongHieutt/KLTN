@@ -3260,6 +3260,40 @@
         "tags" : [ "follow-up-controller" ]
       }
     },
+    "/api/v1/github/merge-app/setup" : {
+      "get" : {
+        "operationId" : "setup_1",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "installation_id",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "in" : "query",
+          "name" : "setup_action",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "state",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "final-merge-controller" ]
+      }
+    },
     "/api/v1/handovers/{handoverId}" : {
       "get" : {
         "operationId" : "handover",
@@ -3679,7 +3713,7 @@
     },
     "/api/v1/jobs/{jobId}/busy" : {
       "get" : {
-        "operationId" : "view_1",
+        "operationId" : "view_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "jobId",
@@ -3938,7 +3972,7 @@
     },
     "/api/v1/jobs/{jobId}/external-access" : {
       "get" : {
-        "operationId" : "view",
+        "operationId" : "view_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "jobId",
@@ -4041,6 +4075,60 @@
           }
         },
         "tags" : [ "external-access-controller" ]
+      }
+    },
+    "/api/v1/jobs/{jobId}/final-merge" : {
+      "get" : {
+        "operationId" : "view",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FinalMergeView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "final-merge-controller" ]
+      }
+    },
+    "/api/v1/jobs/{jobId}/final-merge/install-link" : {
+      "post" : {
+        "operationId" : "installLink",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InstallLinkView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "final-merge-controller" ]
       }
     },
     "/api/v1/jobs/{jobId}/findings" : {
@@ -10422,6 +10510,44 @@
         },
         "required" : [ "average", "comments", "count", "enoughToAct" ]
       },
+      "FinalMergeView" : {
+        "type" : "object",
+        "properties" : {
+          "deadlineAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "endReason" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "owner" : {
+            "type" : "string"
+          },
+          "refusal" : {
+            "type" : "string"
+          },
+          "repository" : {
+            "type" : "string"
+          },
+          "requestOrg" : {
+            "type" : "string"
+          },
+          "requestRefused" : {
+            "type" : "boolean"
+          },
+          "requestWaiting" : {
+            "type" : "boolean"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "owner", "repository", "requestRefused", "requestWaiting", "status" ]
+      },
       "FindingDetailView" : {
         "type" : "object",
         "properties" : {
@@ -11422,6 +11548,15 @@
           }
         },
         "required" : [ "githubLogin", "identifier" ]
+      },
+      "InstallLinkView" : {
+        "type" : "object",
+        "properties" : {
+          "url" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "url" ]
       },
       "InvitationsView" : {
         "type" : "object",
