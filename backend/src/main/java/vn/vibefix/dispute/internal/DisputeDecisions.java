@@ -9,6 +9,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -67,8 +68,11 @@ class DisputeDecisions implements DisputeQueue {
 
 	private final Clock clock;
 
+	private final ObjectProvider<DisputeStatements> statements;
+
 	DisputeDecisions(JdbcClient jdbc, Disputes disputes, MilestoneSettlements settlements, Ledger ledger, AdministratorStepUp stepUp,
-			AuditLog auditLog, Clock clock) {
+			AuditLog auditLog, Clock clock, ObjectProvider<DisputeStatements> statements) {
+		this.statements = statements;
 		this.jdbc = jdbc;
 		this.disputes = disputes;
 		this.settlements = settlements;
@@ -134,6 +138,10 @@ class DisputeDecisions implements DisputeQueue {
 		}
 		if (decision(disputeId).isPresent() || !"OPEN".equals(dispute.status())) {
 			throw new ApiException(ErrorCode.CONFLICT, DisputeReason.ALREADY_DECIDED);
+		}
+		if (!this.statements.getObject().decidable(dispute)) {
+			throw new ApiException(ErrorCode.GUARD_FAILED, DisputeReason.STATEMENT_PERIOD_OPEN,
+					Map.of("until", dispute.statementDueAt().toString()));
 		}
 		String text = reasoning.strip();
 		if (text.isEmpty() || text.length() > 4000) {

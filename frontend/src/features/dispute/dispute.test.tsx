@@ -5,7 +5,9 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
+import { Toaster } from '@/components/Toaster'
 import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { DisputeSection } from './DisputeSection'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -20,6 +22,16 @@ function renderAt(path: string) {
 afterEach(() => {
   vi.unstubAllGlobals()
 })
+
+function renderSection() {
+  render(
+    <QueryClientProvider client={createQueryClient()}>
+      <Toaster>
+        <DisputeSection jobId="j1" />
+      </Toaster>
+    </QueryClientProvider>,
+  )
+}
 
 const customerJob = {
   id: 'j1',
@@ -60,7 +72,42 @@ const open = {
   concern: 'HELD_MILESTONE',
   milestoneId: 'm1',
   openedAt: '2026-10-20T03:00:00Z',
+  statementDueAt: '2026-10-25T03:00:00Z',
+  statements: [],
+  canState: false,
 }
+
+describe('JOB-1 statements (FR-52, Story 15.1)', () => {
+  it('lets the other side send its statement once', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    const sent: unknown[] = []
+    const mentorOpen = { ...open, mine: false, canState: true }
+    fakeBackend(signedIn('MENTOR'), {
+      'GET /api/v1/boards/j1/dispute': () => json({ jobId: 'j1', audience: 'MENTOR', canOpen: false, open: mentorOpen }),
+      'POST /api/v1/boards/j1/dispute/statement': async (request) => {
+        sent.push(await request.json())
+        return json({
+          jobId: 'j1',
+          audience: 'MENTOR',
+          canOpen: false,
+          open: {
+            ...mentorOpen,
+            canState: false,
+            statements: [{ side: 'MENTOR', mine: true, text: 'Khách đổi yêu cầu giữa chừng.', submittedAt: '2026-10-21T03:00:00Z' }],
+          },
+        })
+      },
+    })
+    renderSection()
+
+    await user.type(await screen.findByLabelText(/Trình bày của bạn/), 'Khách đổi yêu cầu giữa chừng.')
+    await user.click(screen.getByRole('button', { name: 'Gửi trình bày' }))
+
+    expect(await screen.findByText('Khách đổi yêu cầu giữa chừng.', { selector: 'p' })).toBeInTheDocument()
+    expect(sent).toEqual([{ text: 'Khách đổi yêu cầu giữa chừng.' }])
+    expect(screen.queryByRole('button', { name: 'Gửi trình bày' })).toBeNull()
+  })
+})
 
 describe('JOB-1 Disputes (FR-52, UX-DR22, UX-DR56)', () => {
   it('lets the Customer open a Dispute through the dialog that says what freezes', { timeout: 20_000 }, async () => {

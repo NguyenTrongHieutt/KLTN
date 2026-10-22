@@ -18,7 +18,8 @@ import { useJobDispute, type JobDispute } from './disputeApi'
 /**
  * The Frozen banner "Đang tranh chấp — tiền và mọi thời hạn tạm dừng" for every party while a Dispute is
  * open (UX-DR22), and "Mở tranh chấp" with the Open-Dispute dialog for the Customer and the Mentor
- * (UX-DR56): the reason, what freezes, and what continues.
+ * (UX-DR56): the reason, what freezes, what continues, and the other side's statement period. While it is
+ * open, the other side sends its one statement with "Gửi trình bày" (FR-52), and both sides read them.
  */
 export function DisputeSection({ jobId }: { jobId: string }) {
   const dispute = useJobDispute(jobId)
@@ -54,11 +55,14 @@ function Content({ jobId, data }: { jobId: string; data: JobDispute }) {
         className="flex gap-3 rounded-md border-l-4 border-primary bg-primary-soft p-4 text-body-sm"
       >
         <Snowflake aria-hidden="true" className="size-5 shrink-0 text-primary" />
-        <div className="flex flex-col gap-1">
+        <div className="flex min-w-0 grow flex-col gap-1">
           <p className="font-semibold">{t('screen.dispute.banner')}</p>
           <p className="text-muted-foreground">
             {t(`screen.dispute.openedBy.${data.open.openedBy}` as MessageKey, { time: formatDayMonthTime(data.open.openedAt) })}
           </p>
+          {data.audience !== 'CREW' && (
+            <Statements jobId={jobId} data={data} />
+          )}
         </div>
       </div>
     )
@@ -90,6 +94,7 @@ function Content({ jobId, data }: { jobId: string; data: JobDispute }) {
               <span>{t('screen.dispute.freezes')}</span>
               <span>{t('screen.dispute.continues')}</span>
               <span>{t('screen.dispute.decides')}</span>
+              <span>{t('screen.dispute.period')}</span>
             </Dialog.Description>
             <label htmlFor={`${ids}-reason`} className="text-label">
               {t('screen.dispute.reason')}
@@ -117,6 +122,78 @@ function Content({ jobId, data }: { jobId: string; data: JobDispute }) {
           </Dialog.Popup>
         </Dialog.Portal>
       </Dialog.Root>
+    </div>
+  )
+}
+
+/** The statements both sides read, and the other side's "Gửi trình bày" while it may still send one. */
+function Statements({ jobId, data }: { jobId: string; data: JobDispute }) {
+  const ids = useId()
+  const toasts = useToasts()
+  const queryClient = useQueryClient()
+  const [text, setText] = useState('')
+  const [error, setError] = useState<string>()
+  const state = useMutation({
+    mutationFn: (statement: string) =>
+      unwrap(
+        apiClient.POST('/api/v1/boards/{boardId}/dispute/statement', {
+          params: { path: { boardId: jobId } },
+          body: { text: statement },
+        }),
+      ),
+    onSuccess: async (view) => {
+      queryClient.setQueryData(['dispute', jobId], view)
+      await queryClient.invalidateQueries({ queryKey: NOTIFICATION_QUERY_KEY })
+    },
+  })
+  const open = data.open
+  if (!open) {
+    return null
+  }
+  const send = () => {
+    setError(undefined)
+    state.mutate(text.trim(), {
+      onSuccess: () => {
+        setText('')
+        toasts.success(t('screen.dispute.statementSent'))
+      },
+      onError: (failure) => setError(problemMessage(failure, { module: 'dispute' }).text),
+    })
+  }
+  return (
+    <div className="mt-2 flex flex-col gap-2">
+      {open.statements.map((statement) => (
+        <div key={statement.side} className="rounded-md bg-background p-3">
+          <p className="text-caption text-muted-foreground">
+            {t(`screen.dispute.statementBy.${statement.side}` as MessageKey, { time: formatDayMonthTime(statement.submittedAt) })}
+          </p>
+          <p className="break-words whitespace-pre-line">{statement.text}</p>
+        </div>
+      ))}
+      {open.canState && (
+        <div className="flex flex-col gap-2">
+          <label htmlFor={`${ids}-statement`} className="text-label">
+            {t('screen.dispute.statementLabel', { date: formatDayMonthTime(open.statementDueAt) })}
+          </label>
+          <textarea
+            id={`${ids}-statement`}
+            value={text}
+            maxLength={4000}
+            onChange={(event) => setText(event.target.value)}
+            className={cn(inputClass, 'min-h-24')}
+          />
+          {error && (
+            <p role="alert" className="text-destructive">
+              {error}
+            </p>
+          )}
+          <div>
+            <Button type="button" disabled={text.trim() === '' || state.isPending} onClick={send}>
+              {t('screen.dispute.statementSend')}
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

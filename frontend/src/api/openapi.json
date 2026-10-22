@@ -2147,6 +2147,43 @@
         "tags" : [ "dispute-controller" ]
       }
     },
+    "/api/v1/boards/{boardId}/dispute/statement" : {
+      "post" : {
+        "operationId" : "statement",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DisputeStatementRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/JobDisputeView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "dispute-controller" ]
+      }
+    },
     "/api/v1/boards/{boardId}/disputes" : {
       "post" : {
         "operationId" : "open_1",
@@ -8226,6 +8263,9 @@
           "concern" : {
             "type" : "string"
           },
+          "decidable" : {
+            "type" : "boolean"
+          },
           "decision" : {
             "$ref" : "#/components/schemas/DecisionView"
           },
@@ -8259,11 +8299,21 @@
           "reason" : {
             "type" : "string"
           },
+          "statementDueAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "statements" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/AdminStatementView"
+            }
+          },
           "status" : {
             "type" : "string"
           }
         },
-        "required" : [ "assigned", "assignedToMe", "concern", "id", "jobId", "jobTitle", "openedAt", "openedBy", "plannedRemains", "reason", "status" ]
+        "required" : [ "assigned", "assignedToMe", "concern", "decidable", "id", "jobId", "jobTitle", "openedAt", "openedBy", "plannedRemains", "reason", "statementDueAt", "statements", "status" ]
       },
       "AdminDisputeRow" : {
         "type" : "object",
@@ -8276,6 +8326,9 @@
           },
           "executionStatus" : {
             "type" : "string"
+          },
+          "hasStatement" : {
+            "type" : "boolean"
           },
           "id" : {
             "type" : "string",
@@ -8297,9 +8350,12 @@
           },
           "status" : {
             "type" : "string"
+          },
+          "undecidedLong" : {
+            "type" : "boolean"
           }
         },
-        "required" : [ "assigned", "assignedToMe", "id", "jobId", "jobTitle", "openedAt", "openedBy", "status" ]
+        "required" : [ "assigned", "assignedToMe", "hasStatement", "id", "jobId", "jobTitle", "openedAt", "openedBy", "status", "undecidedLong" ]
       },
       "AdminRatingEvidenceView" : {
         "type" : "object",
@@ -8343,6 +8399,22 @@
           }
         },
         "required" : [ "code", "email", "password" ]
+      },
+      "AdminStatementView" : {
+        "type" : "object",
+        "properties" : {
+          "side" : {
+            "type" : "string"
+          },
+          "submittedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "text" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "side", "submittedAt", "text" ]
       },
       "AdminTeamIssueDecisionView" : {
         "type" : "object",
@@ -11103,6 +11175,36 @@
           }
         },
         "required" : [ "nextState", "reasoning", "stepUpCode" ]
+      },
+      "DisputeStatementRequest" : {
+        "type" : "object",
+        "properties" : {
+          "text" : {
+            "type" : "string",
+            "maxLength" : 4000,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "text" ]
+      },
+      "DisputeStatementView" : {
+        "type" : "object",
+        "properties" : {
+          "mine" : {
+            "type" : "boolean"
+          },
+          "side" : {
+            "type" : "string"
+          },
+          "submittedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "text" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "mine", "side", "submittedAt", "text" ]
       },
       "DriftView" : {
         "type" : "object",
@@ -14313,6 +14415,9 @@
       "OpenDisputeView" : {
         "type" : "object",
         "properties" : {
+          "canState" : {
+            "type" : "boolean"
+          },
           "concern" : {
             "type" : "string"
           },
@@ -14336,9 +14441,19 @@
           },
           "reason" : {
             "type" : "string"
+          },
+          "statementDueAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "statements" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/DisputeStatementView"
+            }
           }
         },
-        "required" : [ "concern", "id", "mine", "openedAt", "openedBy", "reason" ]
+        "required" : [ "canState", "concern", "id", "mine", "openedAt", "openedBy", "reason", "statementDueAt", "statements" ]
       },
       "OpenItemView" : {
         "type" : "object",

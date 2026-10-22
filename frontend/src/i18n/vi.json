@@ -849,7 +849,16 @@
         },
         "failure": "Lỗi: {failure}",
         "retry": "Thử lại",
-        "decision": "Quyết định"
+        "decision": "Quyết định",
+        "hasStatement": "Đã có trình bày",
+        "statementBy": {
+          "CUSTOMER": "Khách hàng trình bày lúc {time}",
+          "MENTOR": "Người hướng dẫn trình bày lúc {time}"
+        },
+        "waitStatement": "Bên kia đang trong thời hạn trình bày đến {date}. Bạn quyết định được khi đã có trình bày hoặc sau thời hạn đó.",
+        "noStatement": "Bên kia không trình bày trong thời hạn.",
+        "filterLong": "Chưa quyết sau 7 ngày",
+        "filterAll": "Tất cả"
       },
       "users": {
         "title": "Người dùng",
@@ -3422,7 +3431,15 @@
         "CANCEL": "Công việc bị hủy."
       },
       "decidedAmounts": "Giải ngân {release}, hoàn lại {refund}.",
-      "reasoning": "Lý do: {reasoning}"
+      "reasoning": "Lý do: {reasoning}",
+      "period": "Bên kia có một khoảng thời gian (thường là 5 ngày) để trình bày trước khi quản trị viên quyết định.",
+      "statementBy": {
+        "CUSTOMER": "Khách hàng trình bày lúc {time}",
+        "MENTOR": "Người hướng dẫn trình bày lúc {time}"
+      },
+      "statementLabel": "Trình bày của bạn (hạn {date})",
+      "statementSend": "Gửi trình bày",
+      "statementSent": "Đã gửi trình bày."
     }
   },
   "notice": {
@@ -3885,7 +3902,8 @@
     },
     "dispute": {
       "answer_team_issue": "Trả lời khiếu nại nội bộ của {name}",
-      "decide_team_issue_answer": "Xem câu trả lời cho khiếu nại của bạn"
+      "decide_team_issue_answer": "Xem câu trả lời cho khiếu nại của bạn",
+      "submit_statement": "Gửi trình bày cho tranh chấp"
     },
     "work": {
       "review_work_item": "Duyệt {key}: {title}",
@@ -4361,6 +4379,9 @@
       },
       "team_issue_decided": {
         "title": "Khiếu nại nội bộ của {job} đã có kết quả"
+      },
+      "statement_submitted": {
+        "title": "Đã có trình bày cho tranh chấp {job}"
       }
     },
     "admin": {
@@ -4629,7 +4650,10 @@
       "ESCALATION_PERIOD_NOT_OPEN": "Khiếu nại này không còn ở bước chấp nhận hoặc nhờ quản trị viên.",
       "NO_ANSWER": "Người hướng dẫn chưa trả lời nên chưa có gì để chấp nhận.",
       "SHARE_TRANSFER_TOO_LARGE": "Số điểm chuyển vượt quá phần còn lại của người hướng dẫn ở giai đoạn này.",
-      "ENDING_REFUSED": "Chưa thực hiện được kết quả này. Quản trị viên đã được báo để xử lý."
+      "ENDING_REFUSED": "Chưa thực hiện được kết quả này. Quản trị viên đã được báo để xử lý.",
+      "NOT_THE_OTHER_SIDE": "Chỉ bên không mở tranh chấp mới gửi trình bày.",
+      "STATEMENT_ALREADY_SENT": "Bạn đã gửi trình bày cho tranh chấp này.",
+      "STATEMENT_PERIOD_OPEN": "Bên kia vẫn đang trong thời hạn trình bày."
     },
     "admin": {
       "FEEDBACK_NOT_ENOUGH": "Cần ít nhất 3 đánh giá kín từ 2 sinh viên khác nhau trên 2 công việc khác nhau.",

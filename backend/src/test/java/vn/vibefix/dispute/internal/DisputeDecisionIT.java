@@ -163,6 +163,7 @@ class DisputeDecisionIT extends IntegrationTest {
 	}
 
 	private ResultActions decide(Administrator ha, String dispute, Long release, Long refund, String next) throws Exception {
+		stated(dispute);
 		String amounts = release == null ? "" : "\"releaseVnd\":" + release + ",\"refundVnd\":" + refund + ",";
 		return this.mvc.perform(post("/api/v1/admin/disputes/" + dispute + "/decision").with(admin(ha)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
@@ -288,6 +289,14 @@ class DisputeDecisionIT extends IntegrationTest {
 
 	private String text(String sql) {
 		return this.jdbc.sql(sql).query(String.class).single();
+	}
+
+	/** Story 15.1: the other side's statement arrived, so the decision need not wait for its period. */
+	private void stated(String dispute) {
+		this.jdbc.sql("""
+				INSERT INTO dispute.statement (dispute_id, side, text, submitted_at) VALUES (CAST(:id AS UUID), 'CUSTOMER', 'Trình bày', now())
+				ON CONFLICT DO NOTHING
+				""").param("id", dispute).update();
 	}
 
 	private RequestPostProcessor admin(Administrator administrator) {

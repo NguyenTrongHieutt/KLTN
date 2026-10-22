@@ -40,14 +40,32 @@ export function AdminDisputesPage() {
 
 function DisputeList({ current }: { current?: string }) {
   const disputes = useAdminDisputes()
+  const [onlyLong, setOnlyLong] = useState(false)
+  const rows = (disputes.data ?? []).filter((row) => !onlyLong || row.undecidedLong)
   return (
     <RegionState query={disputes} skeleton={<Skeleton className="h-64 w-full" />}>
+      <div role="group" aria-label={t('screen.admin.disputes.filterLong')} className="mb-2 flex flex-wrap gap-2">
+        {[false, true].map((option) => (
+          <button
+            key={String(option)}
+            type="button"
+            aria-pressed={onlyLong === option}
+            onClick={() => setOnlyLong(option)}
+            className={cn(
+              'min-h-control-compact rounded-full border px-3 text-label focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+              onlyLong === option ? 'border-primary bg-primary-soft text-foreground' : 'border-border bg-card text-muted-foreground hover:bg-muted',
+            )}
+          >
+            {t(option ? 'screen.admin.disputes.filterLong' : 'screen.admin.disputes.filterAll')}
+          </button>
+        ))}
+      </div>
       {disputes.data &&
-        (disputes.data.length === 0 ? (
+        (rows.length === 0 ? (
           <p className="text-body-sm text-muted-foreground">{t('screen.admin.disputes.empty')}</p>
         ) : (
           <ul className="flex flex-col gap-2">
-            {disputes.data.map((row) => (
+            {rows.map((row) => (
               <li key={row.id}>
                 <Link
                   to={`/quan-tri/tranh-chap/${row.id}`}
@@ -64,6 +82,7 @@ function DisputeList({ current }: { current?: string }) {
                       formatDayMonthTime(row.openedAt),
                       t(`screen.admin.disputes.status.${row.status}` as MessageKey),
                       row.assignedToMe ? t('screen.admin.disputes.assignedToMe') : row.assigned ? t('screen.admin.disputes.assigned') : '',
+                      row.hasStatement ? t('screen.admin.disputes.hasStatement') : '',
                     ]
                       .filter((part) => part !== '')
                       .join(' · ')}
@@ -111,6 +130,20 @@ function Detail({ data }: { data: AdminDispute }) {
             })
           : t('screen.admin.disputes.noHeld')}
       </p>
+      {data.statements.map((statement) => (
+        <div key={statement.side} className="flex flex-col gap-1 rounded-md bg-muted p-3">
+          <span className="text-caption text-muted-foreground">
+            {t(`screen.admin.disputes.statementBy.${statement.side}` as MessageKey, { time: formatDayMonthTime(statement.submittedAt) })}
+          </span>
+          <p className="break-words whitespace-pre-line">{statement.text}</p>
+        </div>
+      ))}
+      {data.status === 'OPEN' && data.statements.length > 0 && (
+        <p className="text-caption font-semibold">{t('screen.admin.disputes.hasStatement')}</p>
+      )}
+      {data.status === 'OPEN' && data.statements.length === 0 && data.decidable && (
+        <p className="text-caption text-muted-foreground">{t('screen.admin.disputes.noStatement')}</p>
+      )}
       {error && (
         <p role="alert" className="text-destructive">
           {error}
@@ -128,6 +161,10 @@ function Detail({ data }: { data: AdminDispute }) {
             {t('screen.admin.disputes.take')}
           </Button>
         </div>
+      ) : data.status === 'OPEN' && !data.decidable ? (
+        <p className="rounded-md bg-muted p-3">
+          {t('screen.admin.disputes.waitStatement', { date: formatDayMonthTime(data.statementDueAt) })}
+        </p>
       ) : (
         data.status === 'OPEN' && (
           <DecisionForm

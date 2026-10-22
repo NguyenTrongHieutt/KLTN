@@ -63,6 +63,9 @@ const detail = (overrides: object = {}) => ({
   plannedRemains: true,
   decision: null,
   execution: null,
+  statements: [],
+  statementDueAt: '2026-10-25T03:00:00Z',
+  decidable: true,
   ...overrides,
 })
 
