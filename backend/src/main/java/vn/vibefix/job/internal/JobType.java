@@ -10,4 +10,9 @@ enum JobType {
 		return this != ASSESSMENT;
 	}
 
+	/** A Job Type that changes the running Product, whose handover needs a preview (FR-32): not Assessment or Documentation. */
+	boolean changesProduct() {
+		return this != ASSESSMENT && this != DOCUMENTATION;
+	}
+
 }

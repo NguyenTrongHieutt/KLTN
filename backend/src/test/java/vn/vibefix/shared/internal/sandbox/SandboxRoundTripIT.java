@@ -109,10 +109,11 @@ class SandboxRoundTripIT {
 		assertThat(worker.containsBean("environmentGuard")).isFalse();
 		assertThat(worker.containsBean("environmentController")).isFalse();
 		// HEALTH, files' image re-encoding (AD-21), scanning's history scan (AD-18), github's copy into the
-		// Intermediary Repository (AD-11) and its final ZIP (FR-21); a test handler on the classpath would show here.
+		// Intermediary Repository (AD-11) and its final ZIP (FR-21), and delivery's preview check (AD-35); a test
+		// handler on the classpath would show here.
 		assertThat(worker.getBeansOfType(SandboxJobHandler.class).values()).extracting(SandboxJobHandler::type)
 			.containsExactlyInAnyOrder(HealthJobHandler.TYPE, "IMAGE_REENCODE", "SECRET_SCAN", "REPOSITORY_COPY",
-					"REPOSITORY_ZIP");
+					"REPOSITORY_ZIP", "PREVIEW_CHECK");
 	}
 
 	@Test

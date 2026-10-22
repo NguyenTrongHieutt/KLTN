@@ -10,6 +10,8 @@ import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
+import vn.vibefix.files.StoredFiles;
+
 import vn.vibefix.shared.ErasureBlocker;
 import vn.vibefix.shared.PersonalDataParticipant;
 import vn.vibefix.shared.PersonalDataSection;
@@ -18,22 +20,27 @@ import vn.vibefix.shared.PersonalDataSection;
  * {@code delivery}'s part in exports, erasure, and Product deletion (AD-24): a Mentor exports the
  * handovers they made with their marks and notes, and a Customer the checks they decided with; erasing
  * an account clears it as the handover's Mentor or decider (the handover stays, without a person);
- * deleting a Product deletes its handovers. A running Job blocks erasure through {@code job}.
+ * deleting a Product deletes its handovers. A Mentor's screenshot uploads are theirs (Story 8.3): erasure
+ * deletes those no handover carries and clears them as uploader of the others; deleting a Product deletes
+ * them all, files included. A running Job blocks erasure through {@code job}.
  */
 @Component
 class DeliveryPersonalData implements PersonalDataParticipant {
 
 	private final JdbcClient jdbc;
 
-	DeliveryPersonalData(JdbcClient jdbc) {
+	private final StoredFiles files;
+
+	DeliveryPersonalData(JdbcClient jdbc, StoredFiles files) {
 		this.jdbc = jdbc;
+		this.files = files;
 	}
 
 	@Override
 	public Set<String> tables() {
 		return Set.of("delivery.handover", "delivery.handover_criterion", "delivery.handover_item_note",
 				"delivery.handover_check", "delivery.follow_up", "delivery.handover_commit", "delivery.handover_sensitive_change",
-				"delivery.handover_page");
+				"delivery.handover_page", "delivery.handover_screenshot");
 	}
 
 	@Override
@@ -92,6 +99,17 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 
 	@Override
 	public void eraseAccount(UUID accountId) {
+		this.jdbc.sql("SELECT file_id FROM delivery.handover_screenshot WHERE account_id = :id AND handover_id IS NULL")
+			.param("id", accountId)
+			.query(UUID.class)
+			.list()
+			.forEach(this.files::delete);
+		this.jdbc.sql("DELETE FROM delivery.handover_screenshot WHERE account_id = :id AND handover_id IS NULL")
+			.param("id", accountId)
+			.update();
+		this.jdbc.sql("UPDATE delivery.handover_screenshot SET account_id = NULL WHERE account_id = :id")
+			.param("id", accountId)
+			.update();
 		this.jdbc.sql("UPDATE delivery.handover SET mentor_account_id = NULL WHERE mentor_account_id = :id")
 			.param("id", accountId)
 			.update();
@@ -104,6 +122,12 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 	@Override
 	public void deleteProduct(UUID productId) {
 		this.jdbc.sql("DELETE FROM delivery.follow_up WHERE product_id = :id").param("id", productId).update();
+		this.jdbc.sql("SELECT file_id FROM delivery.handover_screenshot WHERE product_id = :id")
+			.param("id", productId)
+			.query(UUID.class)
+			.list()
+			.forEach(this.files::delete);
+		this.jdbc.sql("DELETE FROM delivery.handover_screenshot WHERE product_id = :id").param("id", productId).update();
 		String handovers = "SELECT id FROM delivery.handover WHERE product_id = :id";
 		this.jdbc.sql("DELETE FROM delivery.handover_criterion WHERE handover_id IN (" + handovers + ")")
 			.param("id", productId)

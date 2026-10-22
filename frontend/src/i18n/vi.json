@@ -2896,6 +2896,27 @@
         "truncated": "GitHub chỉ liệt kê một phần các lần lưu và tệp đã đổi.",
         "formCommits": "Sẽ bàn giao {n} lần lưu thay đổi mới, đã quét bảo mật.",
         "formSensitiveLead": "Khách hàng sẽ thấy các tệp dưới đây cùng lời giải thích."
+      },
+      "preview": {
+        "url": "Đường dẫn bản xem thử (https)",
+        "urlHelper": "Bản chạy thử trên tài khoản lưu trữ của bạn hoặc nhóm. vibefix kiểm tra đường dẫn này phản hồi trước khi gửi.",
+        "check": "Kiểm tra đường dẫn",
+        "reachable": "Bản xem thử phản hồi ({domain}).",
+        "required": "Công việc này thay đổi ứng dụng đang chạy, nên cần bản xem thử, hoặc lý do kèm video quay màn hình.",
+        "impossible": "Không thể làm bản xem thử",
+        "reason": "Vì sao không làm được bản xem thử",
+        "recording": "Đường dẫn video quay màn hình (https)",
+        "recordingHelper": "Đưa video lên dịch vụ khác, như YouTube hoặc Loom. vibefix không nhận tệp video.",
+        "open": "Mở bản xem thử",
+        "openRecording": "Xem video quay màn hình",
+        "warning": "Trang này nằm ngoài vibefix ({domain}). Đừng nhập mật khẩu GitHub hoặc vibefix ở đó.",
+        "checkedAt": "phản hồi lúc {time}",
+        "reasonLabel": "Lý do không có bản xem thử",
+        "screenshots": "Ảnh chụp màn hình",
+        "screenshotsHelper": "Tối đa 5 ảnh, mỗi ảnh tối đa 10 MB.",
+        "addScreenshot": "Thêm ảnh",
+        "removeScreenshot": "Xóa ảnh {name}",
+        "includeScreenshot": "Gửi kèm ảnh {name}"
       }
     },
     "closure": {
@@ -4223,7 +4244,14 @@
       "COMMITS_NOT_SCANNED": "Các thay đổi mới đang được quét bảo mật. Hãy thử lại sau ít phút.",
       "NO_NEW_COMMITS": "Chưa có thay đổi mới nào được lưu vào kho làm việc kể từ lần bàn giao trước.",
       "WORKFLOW_FILES_CHANGED": "Không thể bàn giao: có thay đổi trong thư mục .github/workflows. Hãy đặt tệp cấu hình tự động đề xuất ở thư mục khác, kèm hướng dẫn để khách hàng tự thêm.",
-      "REPOSITORY_UNREADABLE": "Chưa đọc được kho làm việc trên GitHub. Hãy thử lại sau ít phút."
+      "REPOSITORY_UNREADABLE": "Chưa đọc được kho làm việc trên GitHub. Hãy thử lại sau ít phút.",
+      "PREVIEW_REQUIRED": "Công việc này thay đổi ứng dụng đang chạy, nên cần bản xem thử, hoặc lý do kèm video quay màn hình.",
+      "PREVIEW_OR_RECORDING": "Hãy chọn một: bản xem thử, hoặc lý do kèm video quay màn hình.",
+      "RECORDING_REASON_MISSING": "Khi không làm được bản xem thử, hãy ghi lý do và thêm đường dẫn video quay màn hình.",
+      "PREVIEW_UNREACHABLE": "Bản xem thử không phản hồi. Hãy kiểm tra đường dẫn.",
+      "TOO_MANY_SCREENSHOTS": "Mỗi lần bàn giao có tối đa 5 ảnh chụp màn hình.",
+      "SCREENSHOT_UNKNOWN": "Có ảnh chụp không còn trong danh sách. Hãy tải lại trang.",
+      "JOB_FILE_QUOTA": "Tệp của công việc này đã đạt giới hạn 200 MB."
     },
     "repo": {
       "SETUP_NOT_BLOCKED": "Việc chuẩn bị kho mã không bị dừng, nên không cần thử lại.",

@@ -61,6 +61,27 @@ enum DeliveryReason {
 	REPOSITORY_UNREADABLE,
 
 	/** The Code Job has no Working Repository yet: J7's Setup is not done (FR-18, FR-32). */
-	HANDOVER_COMMIT_MISSING
+	HANDOVER_COMMIT_MISSING,
+
+	/** A Job Type changes the running Product: the handover needs a preview, or a reason and a recording (FR-32). */
+	PREVIEW_REQUIRED,
+
+	/** A handover carries a preview or a recording with its reason, never both (FR-32, AD-35). */
+	PREVIEW_OR_RECORDING,
+
+	/** "Không thể làm bản xem thử" needs both its reason and the recording link (FR-32). */
+	RECORDING_REASON_MISSING,
+
+	/** The preview link did not respond to the outbound check (FR-32, AD-32, UX-DR27). */
+	PREVIEW_UNREACHABLE,
+
+	/** More screenshots than a handover takes, or than may wait for one (FR-32). */
+	TOO_MANY_SCREENSHOTS,
+
+	/** A screenshot that is not the Mentor's upload waiting on this Job. */
+	SCREENSHOT_UNKNOWN,
+
+	/** The Job's uploads would pass its quota (AD-34). */
+	JOB_FILE_QUOTA
 
 }

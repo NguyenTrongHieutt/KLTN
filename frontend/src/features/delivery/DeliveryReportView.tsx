@@ -3,9 +3,10 @@ import { Link } from 'react-router'
 import { SafeMarkdown } from '@/components/SafeMarkdown'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { t, type MessageKey } from '@/i18n/t'
-import { formatDate, formatDayMonth } from '@/lib/dates'
+import { formatDate, formatDayMonth, formatDayMonthTime } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 import type { DeliveryReport } from './deliveryApi'
+import { OutsideLink } from './OutsideLink'
 import { SensitiveChangeList } from './SensitiveChangeList'
 
 /**
@@ -55,6 +56,7 @@ export function DeliveryReportView({ report }: { report: DeliveryReport }) {
           </Link>
         </section>
       )}
+      <PreviewSection report={report} />
       <section aria-labelledby="delivery-criteria" className="flex flex-col gap-3">
         <h3 id="delivery-criteria" className="text-h3">
           {t('screen.handover.report.criteria')}
@@ -123,6 +125,60 @@ export function DeliveryReportView({ report }: { report: DeliveryReport }) {
 }
 
 type Code = NonNullable<DeliveryReport['code']>
+
+/** The preview or the recording with N-11, and the screenshots (FR-32, AD-35, UX-DR30). */
+function PreviewSection({ report }: { report: DeliveryReport }) {
+  const { preview, recording, noPreviewReason } = report.preview
+  if (!preview && !recording && report.screenshots.length === 0) {
+    return null
+  }
+  return (
+    <section aria-labelledby="delivery-preview" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 text-body-sm">
+      <h3 id="delivery-preview" className="text-h3">
+        {t('term.previewLink.label')}
+      </h3>
+      {preview && (
+        <div className="flex flex-col gap-0.5">
+          <OutsideLink url={preview.url} domain={preview.domain} label={t('screen.handover.preview.open')} />
+          {preview.checkedAt && (
+            <span className="text-caption text-muted-foreground">
+              {t('screen.handover.preview.checkedAt', { time: formatDayMonthTime(preview.checkedAt) })}
+            </span>
+          )}
+        </div>
+      )}
+      {recording && (
+        <div className="flex flex-col gap-1">
+          <OutsideLink url={recording.url} domain={recording.domain} label={t('screen.handover.preview.openRecording')} />
+          {noPreviewReason && (
+            <p className="flex flex-col gap-0.5">
+              <span className="text-label">{t('screen.handover.preview.reasonLabel')}</span>
+              <span className="break-words whitespace-pre-wrap">{noPreviewReason}</span>
+            </p>
+          )}
+        </div>
+      )}
+      {report.screenshots.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <h4 className="text-label">{t('screen.handover.preview.screenshots')}</h4>
+          <ul className="grid grid-cols-2 gap-2 md:grid-cols-3">
+            {report.screenshots.map((screenshot) => (
+              <li key={screenshot.fileId}>
+                <a href={`/api/v1/files/${screenshot.fileId}`} target="_blank" rel="noopener noreferrer">
+                  <img
+                    src={`/api/v1/files/${screenshot.fileId}`}
+                    alt={screenshot.fileName}
+                    className="aspect-video w-full rounded-md border border-border object-cover"
+                  />
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
+  )
+}
 
 /** A Code Job's part of the report (FR-32, AD-33, UX-DR53). */
 function CodeSections({ report, code }: { report: DeliveryReport; code: Code }) {

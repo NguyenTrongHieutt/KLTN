@@ -2196,6 +2196,114 @@
         "tags" : [ "handover-controller" ]
       }
     },
+    "/api/v1/boards/{boardId}/handovers/preview-check" : {
+      "post" : {
+        "operationId" : "checkPreview",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PreviewCheckRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PreviewCheckView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "handover-controller" ]
+      }
+    },
+    "/api/v1/boards/{boardId}/handovers/screenshots" : {
+      "post" : {
+        "operationId" : "addScreenshot_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "multipart/form-data" : {
+              "schema" : {
+                "type" : "object",
+                "properties" : {
+                  "file" : {
+                    "type" : "string",
+                    "format" : "binary"
+                  }
+                },
+                "required" : [ "file" ]
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HandoverScreenshotView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "handover-controller" ]
+      }
+    },
+    "/api/v1/boards/{boardId}/handovers/screenshots/{fileId}" : {
+      "delete" : {
+        "operationId" : "removeScreenshot_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "path",
+          "name" : "fileId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "handover-controller" ]
+      }
+    },
     "/api/v1/boards/{boardId}/pages" : {
       "get" : {
         "operationId" : "pageTree",
@@ -9799,6 +9907,9 @@
             "type" : "integer",
             "format" : "int32"
           },
+          "preview" : {
+            "$ref" : "#/components/schemas/HandoverPreviewView"
+          },
           "report" : {
             "$ref" : "#/components/schemas/HandoverReportView"
           },
@@ -9810,6 +9921,12 @@
             "type" : "integer",
             "format" : "int32"
           },
+          "screenshots" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/HandoverScreenshotView"
+            }
+          },
           "status" : {
             "type" : "string"
           },
@@ -9818,7 +9935,7 @@
             "format" : "int64"
           }
         },
-        "required" : [ "assessment", "audience", "auto", "checkBy", "checks", "createdAt", "criteria", "id", "itemNotes", "jobId", "jobTitle", "mentorName", "milestoneTitle", "number", "round", "roundsLeft", "status", "version" ]
+        "required" : [ "assessment", "audience", "auto", "checkBy", "checks", "createdAt", "criteria", "id", "itemNotes", "jobId", "jobTitle", "mentorName", "milestoneTitle", "number", "preview", "round", "roundsLeft", "screenshots", "status", "version" ]
       },
       "DisputeDecisionRequest" : {
         "type" : "object",
@@ -10750,6 +10867,22 @@
         },
         "required" : [ "key", "note", "status", "title", "workItemId" ]
       },
+      "HandoverLinkView" : {
+        "type" : "object",
+        "properties" : {
+          "checkedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "domain" : {
+            "type" : "string"
+          },
+          "url" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "domain", "url" ]
+      },
       "HandoverListView" : {
         "type" : "object",
         "properties" : {
@@ -10831,6 +10964,9 @@
           "milestone" : {
             "$ref" : "#/components/schemas/HandoverMilestoneView"
           },
+          "previewRequired" : {
+            "type" : "boolean"
+          },
           "problems" : {
             "type" : "array",
             "items" : {
@@ -10839,6 +10975,12 @@
           },
           "report" : {
             "$ref" : "#/components/schemas/HandoverReportRefView"
+          },
+          "screenshots" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/HandoverScreenshotView"
+            }
           },
           "sensitiveChanges" : {
             "type" : "array",
@@ -10860,7 +11002,21 @@
             }
           }
         },
-        "required" : [ "assessment", "commitCount", "criteria", "milestone", "problems", "sensitiveChanges", "state", "version", "workItems" ]
+        "required" : [ "assessment", "commitCount", "criteria", "milestone", "previewRequired", "problems", "screenshots", "sensitiveChanges", "state", "version", "workItems" ]
+      },
+      "HandoverPreviewView" : {
+        "type" : "object",
+        "properties" : {
+          "noPreviewReason" : {
+            "type" : "string"
+          },
+          "preview" : {
+            "$ref" : "#/components/schemas/HandoverLinkView"
+          },
+          "recording" : {
+            "$ref" : "#/components/schemas/HandoverLinkView"
+          }
+        }
       },
       "HandoverReportRefView" : {
         "type" : "object",
@@ -10922,6 +11078,32 @@
             "type" : "string",
             "format" : "uuid"
           },
+          "noPreviewReason" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0
+          },
+          "previewUrl" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0,
+            "pattern" : "^https://\\S+$"
+          },
+          "recordingUrl" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0,
+            "pattern" : "^https://\\S+$"
+          },
+          "screenshotIds" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            },
+            "maxItems" : 5,
+            "minItems" : 0
+          },
           "sensitive" : {
             "type" : "string",
             "enum" : [ "CHECK", "MASK" ]
@@ -10932,6 +11114,23 @@
           }
         },
         "required" : [ "criteria", "milestoneId", "version" ]
+      },
+      "HandoverScreenshotView" : {
+        "type" : "object",
+        "properties" : {
+          "fileId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "fileName" : {
+            "type" : "string"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "fileId", "fileName", "size" ]
       },
       "HandoverSummaryView" : {
         "type" : "object",
@@ -13504,6 +13703,33 @@
           }
         },
         "required" : [ "audience", "exists", "jobId", "open" ]
+      },
+      "PreviewCheckRequest" : {
+        "type" : "object",
+        "properties" : {
+          "url" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0,
+            "pattern" : "^https://\\S+$"
+          }
+        },
+        "required" : [ "url" ]
+      },
+      "PreviewCheckView" : {
+        "type" : "object",
+        "properties" : {
+          "domain" : {
+            "type" : "string"
+          },
+          "reachable" : {
+            "type" : "boolean"
+          },
+          "reason" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "domain", "reachable" ]
       },
       "PrivateFeedbackRequest" : {
         "type" : "object",

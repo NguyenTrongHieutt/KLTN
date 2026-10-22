@@ -14,6 +14,8 @@ import { t, type MessageKey } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
 import { isNotFound, problemMessage } from '@/lib/problemMessage'
 import { useHandOver, useHandoverPreflight, type HandoverPreflight } from './deliveryApi'
+import { EvidenceFields } from './HandoverEvidence'
+import { NO_EVIDENCE, evidenceBody, evidenceReady, type Evidence } from './evidenceRules'
 import { SensitiveChangeList } from './SensitiveChangeList'
 
 interface Mark {
@@ -26,7 +28,8 @@ interface Mark {
  * Milestone waiting for its handover. Every Work Item in "Xong" through an approval or a note for it;
  * every Acceptance Criterion "Đạt" or "Chưa đạt" with a note, next to "Cách kiểm tra"; for an Assessment
  * Job, the Report version to hand over; for a Code Job, its new commits scanned and the Sensitive change
- * preview. "Gửi bàn giao" enables only when all of it passes, and sends the Job version the form loaded.
+ * preview; the preview link, or a reason with a recording, and screenshots (Story 8.3). "Gửi bàn giao"
+ * enables only when all of it passes, and sends the Job version the form loaded.
  */
 export function HandoverFormPage() {
   const { jobId } = useParams()
@@ -53,13 +56,18 @@ function Form({ jobId, preflight, onStale }: { jobId: string; preflight: Handove
   const [itemNotes, setItemNotes] = useState<Record<string, string>>({})
   const [error, setError] = useState<string>()
   const [matches, setMatches] = useState<SensitiveMatch[]>()
+  const [evidence, setEvidence] = useState<Evidence>(() => ({
+    ...NO_EVIDENCE,
+    screenshotIds: preflight.screenshots.slice(0, 5).map((upload) => upload.fileId),
+  }))
   const unfinished = preflight.workItems.filter((item) => !item.approved)
   const criteriaReady = preflight.criteria.every((criterion) => {
     const mark = marks[criterion.criterionId]
     return mark?.met !== undefined && mark.note.trim() !== ''
   })
   const itemsReady = unfinished.every((item) => (itemNotes[item.id] ?? '').trim() !== '')
-  const ready = preflight.problems.length === 0 && criteriaReady && itemsReady
+  const ready =
+    preflight.problems.length === 0 && criteriaReady && itemsReady && evidenceReady(evidence, preflight.previewRequired)
 
   const send = (sensitive: 'CHECK' | 'MASK') => {
     setError(undefined)
@@ -74,6 +82,7 @@ function Form({ jobId, preflight, onStale }: { jobId: string; preflight: Handove
         })),
         itemNotes: unfinished.map((item) => ({ workItemId: item.id, note: (itemNotes[item.id] ?? '').trim() })),
         sensitive,
+        ...evidenceBody(evidence),
       },
       {
         onSuccess: (report) => {
@@ -223,6 +232,13 @@ function Form({ jobId, preflight, onStale }: { jobId: string; preflight: Handove
           })}
         </ol>
       </section>
+      <EvidenceFields
+        jobId={jobId}
+        required={preflight.previewRequired}
+        uploads={preflight.screenshots}
+        value={evidence}
+        onChange={setEvidence}
+      />
       {preflight.report && (
         <section aria-labelledby={`${ids}-report`} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 text-body-sm">
           <h2 id={`${ids}-report`} className="text-h3">

@@ -70,6 +70,8 @@ const report = (overrides: object = {}) => ({
   roundsLeft: 2,
   decision: { releaseVnd: 1000001, revisionAllowed: true },
   checks: [],
+  preview: {},
+  screenshots: [],
   ...overrides,
 })
 
@@ -156,6 +158,18 @@ describe('JOB-5 guided check (FR-33, FR-34, UX-DR33)', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Xác nhận' }))
     await waitFor(() => expect(sent).toHaveLength(1))
     expect(sent[0]).toMatchObject({ version: 13, checks: [{ criterionId: 'c1', met: true }, { criterionId: 'c2', met: true }] })
+  })
+
+  it('links the preview with N-11 next to each step and its check steps (UX-DR33)', { timeout: 25_000 }, async () => {
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/handovers/h1': () =>
+        json(report({ preview: { preview: { url: 'https://vht-preview.vercel.app', domain: 'vht-preview.vercel.app' } } })),
+    })
+    renderAt('/cong-viec/j1/ban-giao/h1/kiem-tra')
+
+    expect(await screen.findByRole('link', { name: /Mở bản xem thử/ })).toHaveAttribute('href', 'https://vht-preview.vercel.app')
+    expect(screen.getByText('(vht-preview.vercel.app)')).toBeInTheDocument()
+    expect(screen.getByText(/Trang này nằm ngoài vibefix \(vht-preview\.vercel\.app\)/)).toBeInTheDocument()
   })
 
   it('offers only acceptance when no Revision Round is left', { timeout: 25_000 }, async () => {
