@@ -414,6 +414,27 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 	}
 
 	@Override
+	public void mergePullRequest(PlatformRepository repository, int number, String sha, String title) {
+		this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("contents", "write", "pull_requests", "write"),
+				token -> {
+					GitHubHttp.Answer answer = http().send("PUT", "/repos/" + repository.fullName() + "/pulls/" + number + "/merge",
+							token.value(), Map.of("sha", sha, "merge_method", "merge", "commit_title", title));
+					if (answer.status() == 405 && pullRequestMerged(repository, number)) {
+						return null;
+					}
+					require(answer, "merge pull request " + number);
+					return null;
+				});
+	}
+
+	@Override
+	public boolean pullRequestMerged(PlatformRepository repository, int number) {
+		return this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("pull_requests", "read"),
+				token -> require(http().send("GET", "/repos/" + repository.fullName() + "/pulls/" + number, token.value(), null),
+						"read pull request " + number).path("merged").asBoolean(false));
+	}
+
+	@Override
 	public Comparison compare(PlatformRepository repository, String baseSha, String headSha) {
 		return this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("contents", "read"), token -> {
 			JsonNode body = require(http().send("GET", "/repos/" + repository.fullName() + "/compare/" + baseSha + "..." + headSha,

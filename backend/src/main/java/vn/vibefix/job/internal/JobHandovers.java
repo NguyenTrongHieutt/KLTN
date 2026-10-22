@@ -84,6 +84,18 @@ class JobHandovers implements MilestoneHandovers {
 			.map(applied -> new Decided(applied.transitionId(), this.numbers.number(jobId, milestoneId), applied.version()));
 	}
 
+	@Override
+	@Transactional
+	public Optional<Decided> acceptMerged(UUID jobId, UUID milestoneId, @Nullable UUID customerId, UUID handoverId) {
+		Map<String, Object> input = Map.of("handoverId", handoverId, "merged", true);
+		Optional<Applied> applied = customerId == null
+				? this.lifecycle.tryApplyMilestone(Transition.M5, jobId, milestoneId, Actor.SYSTEM, Trigger.AUTO, input)
+				: this.lifecycle.tryApplyMilestone(Transition.M5, jobId, milestoneId, Actor.user(customerId), Trigger.USER,
+						input);
+		return applied
+			.map(done -> new Decided(done.transitionId(), this.numbers.number(jobId, milestoneId), done.version()));
+	}
+
 	/** The Milestone's handover time plus the Job's copied {@code rule} days. */
 	private Instant after(UUID milestoneId, String rule, int fallback) {
 		return this.jdbc.sql("""

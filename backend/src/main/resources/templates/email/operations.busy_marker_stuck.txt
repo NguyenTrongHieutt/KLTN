@@ -1,0 +1,6 @@
+subject: {job} kẹt ở việc {operation} quá lâu
+---
+Xin chào,
+
+Công việc {job} vẫn chờ việc {operation} xong, lâu hơn mọi lần thử cộng thêm một giờ.
+Trong lúc này công việc không đổi được trạng thái. Hãy mở hàng thao tác lỗi trên trang quản trị của vibefix để xem và thử lại.

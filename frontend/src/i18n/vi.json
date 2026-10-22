@@ -1573,6 +1573,12 @@
       }
     },
     "job": {
+      "busy": {
+        "ACCEPTANCE": "Đang hợp nhất bàn giao Giai đoạn {n}…",
+        "SETTLEMENT": "Đang tất toán công việc…",
+        "FINAL_MERGE": "Đang hợp nhất mã cuối cùng vào dự án của bạn…",
+        "done": "Việc đang chạy đã xong."
+      },
       "drift": {
         "title": "Dự án gốc vừa thay đổi trong lúc nhóm đang làm. Việc hợp nhất cuối có thể thất bại.",
         "kindCOMMITS": "Có {n} thay đổi mới trong dự án gốc kể từ khi công việc bắt đầu (ghi nhận ngày {date}).",
@@ -2815,6 +2821,10 @@
         "VOIDED": "Đã hủy vì có thay đổi mới",
         "auto": "Đã tự nghiệm thu"
       },
+      "acceptance": {
+        "merging": "Đang hợp nhất bàn giao Giai đoạn {n}. Tiền được chuyển ngay khi hợp nhất xong.",
+        "failed": "Chưa hợp nhất được. Quản trị viên đã được báo; bạn chưa cần làm gì."
+      },
       "report": {
         "title": "Báo cáo bàn giao · Giai đoạn {n} · {title}",
         "meta": "Người hướng dẫn {mentor} · {date} · lần thứ {round}",
@@ -3668,6 +3678,9 @@
       },
       "revocation_delayed": {
         "title": "Chưa thu hồi được quyền của @{login} ở {job} sau 15 phút"
+      },
+      "busy_marker_stuck": {
+        "title": "{job} kẹt ở việc {operation} quá lâu"
       }
     },
     "notification": {
@@ -4157,6 +4170,7 @@
       "REVISION_ROUNDS_USED": "Giai đoạn này đã hết lượt sửa.",
       "HANDOVER_CHANGED": "Người hướng dẫn vừa bàn giao lại. Hãy mở bản bàn giao mới nhất.",
       "CUSTOMER_ONLY": "Chỉ khách hàng nghiệm thu hoặc yêu cầu sửa được.",
+      "HANDOVER_NOT_MERGED": "Mã bàn giao cần được hợp nhất trước khi nghiệm thu giai đoạn.",
       "CLOSURE_OPEN": "Đã có đề nghị kết thúc đang chờ trả lời.",
       "NO_CLOSURE_OPEN": "Không có đề nghị kết thúc nào đang chờ.",
       "CLOSURE_ANSWERED": "Bạn đã trả lời đề nghị này.",

@@ -40,7 +40,7 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 	public Set<String> tables() {
 		return Set.of("delivery.handover", "delivery.handover_criterion", "delivery.handover_item_note",
 				"delivery.handover_check", "delivery.follow_up", "delivery.handover_commit", "delivery.handover_sensitive_change",
-				"delivery.handover_page", "delivery.handover_screenshot");
+				"delivery.handover_page", "delivery.handover_screenshot", "delivery.handover_acceptance");
 	}
 
 	@Override
@@ -114,6 +114,9 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 			.param("id", accountId)
 			.update();
 		this.jdbc.sql("UPDATE delivery.handover SET decided_by = NULL WHERE decided_by = :id").param("id", accountId).update();
+		this.jdbc.sql("UPDATE delivery.handover_acceptance SET customer_account_id = NULL WHERE customer_account_id = :id")
+			.param("id", accountId)
+			.update();
 		this.jdbc.sql("UPDATE delivery.follow_up SET mentor_account_id = NULL WHERE mentor_account_id = :id")
 			.param("id", accountId)
 			.update();
@@ -138,7 +141,8 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 		this.jdbc.sql("DELETE FROM delivery.handover_check WHERE handover_id IN (" + handovers + ")")
 			.param("id", productId)
 			.update();
-		for (String table : List.of("delivery.handover_commit", "delivery.handover_sensitive_change", "delivery.handover_page")) {
+		for (String table : List.of("delivery.handover_commit", "delivery.handover_sensitive_change", "delivery.handover_page",
+				"delivery.handover_acceptance")) {
 			this.jdbc.sql("DELETE FROM " + table + " WHERE handover_id IN (" + handovers + ")").param("id", productId).update();
 		}
 		this.jdbc.sql("DELETE FROM delivery.handover WHERE product_id = :id").param("id", productId).update();

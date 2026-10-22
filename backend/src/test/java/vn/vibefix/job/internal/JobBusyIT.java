@@ -46,6 +46,9 @@ class JobBusyIT extends IntegrationTest {
 	@Autowired
 	private PlatformTransactionManager transactions;
 
+	@Autowired
+	private StuckBusyMarkers markers;
+
 	private UUID job;
 
 	@BeforeEach
@@ -93,6 +96,49 @@ class JobBusyIT extends IntegrationTest {
 			.as("only inside a transaction")
 			.isInstanceOf(IllegalTransactionStateException.class);
 		assertThat(this.busy.job(this.job).orElseThrow().busy()).isEmpty();
+	}
+
+	@Test
+	void aMarkerHeldPastItsOperationsBudgetPlusAnHourAlertsEveryAdministratorOnce() {
+		UUID admin = administrator();
+		String key = "delivery.acceptance_merge:" + UUID.randomUUID();
+		this.jdbc.sql("UPDATE job.job SET state = 'ACTIVE' WHERE id = :id").param("id", this.job).update();
+		inTransaction(() -> this.busy.reserve(this.job, Purpose.ACCEPTANCE, null, 1, key));
+		UUID cause = UUID.nameUUIDFromBytes(("busy:" + key).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+		this.markers.sweep();
+		assertThat(alerts(admin, cause)).as("not stuck yet").isZero();
+
+		this.jdbc.sql("UPDATE job.job SET busy_since = :since WHERE id = :id")
+			.param("since", Timestamp.from(this.clock.instant().minus(StuckBusyMarkers.THRESHOLD).minusSeconds(60)))
+			.param("id", this.job)
+			.update();
+		this.markers.sweep();
+		this.markers.sweep();
+
+		assertThat(alerts(admin, cause)).isOne();
+		assertThat(this.jdbc.sql("SELECT params ->> 'operation' FROM notification.notification WHERE causing_record_id = :cause")
+			.param("cause", cause).query(String.class).single()).isEqualTo("hợp nhất bàn giao");
+		assertThat(this.busy.job(this.job).orElseThrow().busy()).as("only its own resolution clears it").isPresent();
+		assertThat(StuckBusyMarkers.THRESHOLD).as("63.5 minutes of retries plus an hour")
+			.isEqualTo(Duration.ofSeconds(3810).plusHours(1));
+	}
+
+	private long alerts(UUID admin, UUID cause) {
+		return this.jdbc.sql("""
+				SELECT count(*) FROM notification.notification
+				WHERE type = 'operations.busy_marker_stuck' AND account_id = :admin AND causing_record_id = :cause
+				""").param("admin", admin).param("cause", cause).query(Long.class).single();
+	}
+
+	/** An Administrator with credentials, as {@code Administrators.activeIds} counts them. */
+	private UUID administrator() {
+		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null, null);
+		this.jdbc.sql("""
+				INSERT INTO identity.administrator_credential (account_id, email, display_name, password_hash,
+				    totp_key_version, totp_nonce, totp_ciphertext, created_at)
+				VALUES (:id, :email, 'Quản trị', '$argon2id$x', 1, '\\x00'::bytea, '\\x00'::bytea, now())
+				""").param("id", admin).param("email", "qt-" + admin.toString().substring(0, 8) + "@vibefix.vn").update();
+		return admin;
 	}
 
 	private ApiException refused(Runnable call) {

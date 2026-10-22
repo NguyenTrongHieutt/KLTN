@@ -117,6 +117,15 @@ public interface PlatformRepositories {
 	int openPullRequest(PlatformRepository repository, String head, String base, String title, String body);
 
 	/**
+	 * Merges the pull request exactly at {@code sha} with a merge commit (FR-33, AD-11); GitHub refuses it
+	 * when the head moved. A pull request already merged changes nothing.
+	 */
+	void mergePullRequest(PlatformRepository repository, int number, String sha, String title);
+
+	/** Whether the pull request is merged, read back from GitHub. */
+	boolean pullRequestMerged(PlatformRepository repository, int number);
+
+	/**
 	 * One commit of a compared range (AD-33).
 	 * @param message the first line of its message, at most 300 characters
 	 * @param authorId the author's GitHub numeric ID; {@code null} when GitHub resolved no account

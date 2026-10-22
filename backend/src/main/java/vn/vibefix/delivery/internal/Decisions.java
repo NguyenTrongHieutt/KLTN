@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import vn.vibefix.delivery.internal.DeliveryAccess.Kind;
 import vn.vibefix.delivery.internal.DeliveryAccess.Viewer;
+import vn.vibefix.delivery.internal.Handovers.CodeRecord;
 import vn.vibefix.delivery.internal.Handovers.Handover;
 import vn.vibefix.delivery.internal.Handovers.MatchView;
 import vn.vibefix.delivery.internal.Handovers.Resolution;
@@ -31,7 +32,9 @@ import vn.vibefix.shared.ErrorCode;
 
 /**
  * The Customer's decision on a handover (FR-33, FR-34, AD-5, AD-23): "Nghiệm thu giai đoạn" applies M5
- * and has {@code payment} write the split release in the same transaction; "Yêu cầu sửa" names the
+ * and has {@code payment} write the split release in the same transaction. On a Code Job it first
+ * merges the Handover Commit: the command only reserves the Job and requests the merge, and
+ * {@link AcceptanceMerges} applies M5 once GitHub shows it merged. "Yêu cầu sửa" names the
  * criteria marked "Chưa đạt", with comments FR-47 checked, and applies M4, which uses one Revision Round.
  * Either keeps the Customer's marks, decides the handover once, and closes the review to-do; the
  * handover to-do reopens through the M4 listener. The Job row, which M4 and M5 lock, serializes two
@@ -56,27 +59,36 @@ class Decisions {
 
 	private final Todos todos;
 
+	private final AcceptanceMerges merges;
+
 	private final Clock clock;
 
 	Decisions(JdbcClient jdbc, Handovers handovers, MilestoneHandovers jobs, Releases releases, SensitiveText check,
-			Todos todos, Clock clock) {
+			Todos todos, AcceptanceMerges merges, Clock clock) {
 		this.jdbc = jdbc;
 		this.handovers = handovers;
 		this.jobs = jobs;
 		this.releases = releases;
 		this.check = check;
 		this.todos = todos;
+		this.merges = merges;
 		this.clock = clock;
 	}
 
 	/**
-	 * "Nghiệm thu giai đoạn": M5 on {@code version}, then the release.
-	 * @throws ApiException {@code FORBIDDEN CUSTOMER_ONLY}; {@code STALE HANDOVER_VOIDED}; {@code CONFLICT HANDOVER_DECIDED}; M5's refusals
+	 * "Nghiệm thu giai đoạn": M5 on {@code version}, then the release; on a Code Job, the merge first.
+	 * @throws ApiException {@code FORBIDDEN CUSTOMER_ONLY}; {@code STALE HANDOVER_VOIDED}; {@code CONFLICT HANDOVER_DECIDED}; M5's refusals;
+	 * for a Code Job the busy marker's ({@code JOB_BUSY}, {@code STALE}, {@code CONFLICT JOB_FROZEN})
 	 */
 	@Transactional
 	Handover accept(Viewer customer, UUID handoverId, long version, List<Check> checks) {
 		Handover handover = open(customer, handoverId);
 		List<Check> kept = known(handover, checks, Resolution.MASK);
+		CodeRecord code = this.handovers.code(handoverId).orElse(null);
+		if (code != null) {
+			this.merges.request(handover, code, customer.accountId(), version, kept, false);
+			return handover;
+		}
 		Decided decided = this.jobs.accept(handover.jobId(), handover.milestoneId(), customer.accountId(), version, handoverId);
 		this.releases.release(handover.jobId(), handover.milestoneId(), decided.transitionId());
 		decide(handover, customer.accountId(), customer.job().customerId(), "ACCEPTED", kept, false);
@@ -99,6 +111,29 @@ class Decisions {
 		}
 		this.releases.release(handover.jobId(), handover.milestoneId(), decided.transitionId());
 		decide(handover, null, customerId, "ACCEPTED", List.of(), true);
+		return true;
+	}
+
+	/**
+	 * M5 once a Code Job's merge is verified, in its resolving transaction (FR-33, AD-5): by the Customer
+	 * who pressed "Nghiệm thu giai đoạn", with their marks, or by Auto-acceptance; then the release and the
+	 * decision.
+	 * @return whether it applied; nothing is written when M5 refused
+	 */
+	@Transactional
+	boolean acceptMerged(Handover handover, @Nullable UUID customerAccountId, List<Check> checks, boolean auto) {
+		if (!"SUBMITTED".equals(handover.status())) {
+			return false;
+		}
+		UUID customerId = this.jobs.job(handover.jobId()).orElseThrow().customerId();
+		Decided decided = this.jobs
+			.acceptMerged(handover.jobId(), handover.milestoneId(), auto ? null : customerAccountId, handover.id())
+			.orElse(null);
+		if (decided == null) {
+			return false;
+		}
+		this.releases.release(handover.jobId(), handover.milestoneId(), decided.transitionId());
+		decide(handover, auto ? null : customerAccountId, customerId, "ACCEPTED", checks, auto);
 		return true;
 	}
 

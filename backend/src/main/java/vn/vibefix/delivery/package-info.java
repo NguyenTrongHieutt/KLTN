@@ -22,8 +22,8 @@
  * Entries (FR-50). The HTTP endpoints, the listeners that open the handover and follow-up to-dos, and
  * the personal-data participant are wiring in {@code delivery.internal}.
  */
-@ApplicationModule(allowedDependencies = { "shared", "audit", "identity", "notification", "timers", "scanning", "job",
-		"work", "payment", "repo", "files" })
+@ApplicationModule(allowedDependencies = { "shared", "audit", "identity", "notification", "operations", "timers",
+		"scanning", "job", "work", "payment", "repo", "files" })
 package vn.vibefix.delivery;
 
 import org.springframework.modulith.ApplicationModule;

@@ -293,6 +293,10 @@ class NotificationTypes implements NotificationCatalog {
 			"operations.event_publication_stalled", Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL,
 			EmailClass.TRANSACTIONAL, "alert", Set.of("n"));
 
+	/** A busy marker held past its operation's budget plus an hour (AD-28): every Administrator, once per marker. */
+	static final NotificationType OPERATIONS_BUSY_MARKER_STUCK = new NotificationType("operations.busy_marker_stuck",
+			Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("job", "operation"));
+
 	/** A GitHub App's registration or webhook differs from AD-10 (SG-18): every Administrator, once a day per App. */
 	static final NotificationType GITHUB_APP_CONFIGURATION_DRIFT = new NotificationType("github.app_configuration_drift",
 			Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("app", "differences"));
@@ -682,6 +686,7 @@ class NotificationTypes implements NotificationCatalog {
 	public List<NotificationType> notificationTypes() {
 		return List.of(SCHOOL_EMAIL_CODE, VERIFICATION_EXPIRING, VERIFICATION_EXPIRED, IDENTITY_SIGN_IN_AGAIN, ADMIN_SIGN_IN_LOCKED,
 				OPERATIONS_OPERATION_FAILED, OPERATIONS_EMAIL_OPERATION_FAILED, OPERATIONS_EVENT_PUBLICATION_STALLED,
+				OPERATIONS_BUSY_MARKER_STUCK,
 				NOTIFICATION_EMAIL_BUDGET_80, GITHUB_APP_CONFIGURATION_DRIFT, REPO_JOB_START_BLOCKED, JOB_JOB_STARTED,
 				REPO_GITHUB_INVITATION_SENT, REPO_TWO_FACTOR_REQUIRED, REPO_MEMBER_DRIFT, REPO_INVITATION_RENEWALS_EXHAUSTED,
 				SCANNING_PUSH_SCAN_DELAYED, REPO_DRIFT_DETECTED, GITHUB_UNEXPECTED_ACTOR, GITHUB_OPERATOR_ACCOUNT_USED, GITHUB_PLATFORM_DRIFT,

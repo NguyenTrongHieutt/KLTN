@@ -32,11 +32,14 @@ class AutoAcceptance implements DeadlineHandler {
 
 	private final ObjectProvider<MilestoneHandovers> jobs;
 
+	private final ObjectProvider<AcceptanceMerges> merges;
+
 	AutoAcceptance(ObjectProvider<Handovers> handovers, ObjectProvider<Decisions> decisions,
-			ObjectProvider<MilestoneHandovers> jobs) {
+			ObjectProvider<MilestoneHandovers> jobs, ObjectProvider<AcceptanceMerges> merges) {
 		this.handovers = handovers;
 		this.decisions = decisions;
 		this.jobs = jobs;
+		this.merges = merges;
 	}
 
 	@Override
@@ -57,6 +60,10 @@ class AutoAcceptance implements DeadlineHandler {
 		}
 		if (job.frozen()) {
 			return DeadlineOutcome.REPAUSE;
+		}
+		if (!job.assessment() && this.handovers.getObject().code(handover.id()).isPresent()) {
+			// FR-33: a Code Job's Auto-acceptance merges first, as the Customer's would.
+			return this.merges.getObject().requestAutomatically(handover);
 		}
 		return this.decisions.getObject().acceptAutomatically(handover, job.customerId()) ? DeadlineOutcome.FIRED
 				: DeadlineOutcome.OBSOLETE;
