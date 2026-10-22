@@ -25,10 +25,13 @@ import org.springframework.session.SessionRepository;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.IdentityTestSupport;
+import vn.vibefix.job.MilestoneFunding;
 import vn.vibefix.shared.Role;
+import vn.vibefix.timers.internal.DeadlinePoller;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.team.internal.TeamTestSupport;
 
@@ -51,6 +54,15 @@ class DecisionIT extends IntegrationTest {
 
 	@Autowired
 	private SessionRepository<? extends Session> sessions;
+
+	@Autowired
+	private DeadlinePoller poller;
+
+	@Autowired
+	private MilestoneFunding funding;
+
+	@Autowired
+	private TransactionTemplate transactions;
 
 	private UUID lan;
 
@@ -105,6 +117,65 @@ class DecisionIT extends IntegrationTest {
 			.andExpect(jsonPath("$.reason").value("HANDOVER_DECIDED"));
 		this.mvc.perform(get("/api/v1/boards/" + this.job + "/progress").with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(jsonPath("$.milestones[0].state").value("ACCEPTED"));
+	}
+
+	@Test
+	void theNextMilestoneWaitsForItsPaymentAndBothSidesHearIfItStillDoesFourteenDaysLater() throws Exception {
+		world(2);
+		String handover = handOver(5);
+		assertThat(fundNext()).as("Milestone 1 is still Held (§4.0 M1)").isFalse();
+		decide(this.lan, Role.CUSTOMER, handover, "accept", 6, true, null, null).andExpect(status().isOk());
+
+		assertThat(this.jdbc.sql("""
+				SELECT (params ->> 'n') || ':' || (params ->> 'amount') FROM notification.notification
+				WHERE type = 'job.milestone_awaiting_funding' AND account_id = :lan
+				""").param("lan", this.lan).query(String.class).single()).isEqualTo("2:500.000 ₫");
+		assertThat(this.jdbc.sql("SELECT kind || ':' || generation || ':' || pausable FROM timers.deadline WHERE subject_id = :next")
+			.param("next", this.next).query(String.class).single())
+			.isEqualTo("job.milestone_unfunded:" + this.milestone + ":true");
+
+		this.clock.advance(Duration.ofDays(13));
+		this.poller.runDue();
+		assertThat(notifications("job.milestone_unfunded_reminder")).isZero();
+		this.clock.advance(Duration.ofDays(1).plusMinutes(1));
+		this.poller.runDue();
+		assertThat(this.jdbc.sql("""
+				SELECT account_id FROM notification.notification WHERE type = 'job.milestone_unfunded_reminder'
+				    AND params ->> 'n' = '2' AND params ->> 'days' = '14'
+				""").query(UUID.class).list()).containsExactlyInAnyOrder(this.lan, this.hung);
+
+		// M1 of the next Milestone applies once none is Held, while the Job is Active.
+		assertThat(fundNext()).isTrue();
+		assertThat(text("SELECT state FROM job.milestone WHERE id = '" + this.next + "'")).isEqualTo("FUNDED");
+	}
+
+	@Test
+	void aPaidNextMilestoneIsNotReminded() throws Exception {
+		world(2);
+		decide(this.lan, Role.CUSTOMER, handOver(5), "accept", 6, true, null, null).andExpect(status().isOk());
+		assertThat(fundNext()).isTrue();
+		this.clock.advance(Duration.ofDays(15));
+		this.poller.runDue();
+		assertThat(notifications("job.milestone_unfunded_reminder")).isZero();
+		assertThat(text("SELECT status FROM timers.deadline WHERE kind = 'job.milestone_unfunded'")).isEqualTo("OBSOLETE");
+	}
+
+	@Test
+	void aFrozenJobPausesTheReminder() throws Exception {
+		world(2);
+		decide(this.lan, Role.CUSTOMER, handOver(5), "accept", 6, true, null, null).andExpect(status().isOk());
+		this.jdbc.sql("UPDATE job.job SET frozen_at = :now WHERE id = :id")
+			.param("now", Timestamp.from(this.clock.instant())).param("id", this.job).update();
+		this.clock.advance(Duration.ofDays(15));
+		this.poller.runDue();
+		assertThat(notifications("job.milestone_unfunded_reminder")).isZero();
+		assertThat(text("SELECT status FROM timers.deadline WHERE kind = 'job.milestone_unfunded'")).isEqualTo("PAUSED");
+	}
+
+	/** M1 of Milestone 2 as the IPN applies it, with a stand-in Payment Order. */
+	private boolean fundNext() {
+		return Boolean.TRUE.equals(this.transactions
+			.execute(status -> this.funding.tryFund(this.job, this.next, UUID.randomUUID()).isPresent()));
 	}
 
 	@Test

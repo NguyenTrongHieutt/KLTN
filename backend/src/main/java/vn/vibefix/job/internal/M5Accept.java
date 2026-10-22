@@ -1,8 +1,10 @@
 package vn.vibefix.job.internal;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -20,12 +22,16 @@ import vn.vibefix.notification.Notifications;
 import vn.vibefix.notification.Recipient;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
+import vn.vibefix.timers.DeadlineRequest;
+import vn.vibefix.timers.Deadlines;
 
 /**
  * M5 (FR-33, FR-35, AD-5): the Customer accepts the current handover, or Auto-acceptance does (Story
  * 6.4). The Milestone records when and whether automatically, and carries the Crew Terms version its
  * release uses; the Customer and the Mentor get {@code job.milestone_accepted}. {@code delivery} has
- * {@code payment} write the RELEASE entries in the same transaction.
+ * {@code payment} write the RELEASE entries in the same transaction. With a Planned Milestone after it,
+ * the Customer hears that it waits for payment, and {@link MilestoneUnfunded} reminds both sides if it
+ * still does 14 days later (FR-41).
  */
 @Component
 class M5Accept implements JobLifecycle.Step {
@@ -46,9 +52,16 @@ class M5Accept implements JobLifecycle.Step {
 
 	private final CrewChanges changes;
 
+	private final Deadlines deadlines;
+
+	/** The next Planned Milestone and its price. */
+	private record Next(UUID id, long priceVnd) {
+	}
+
 	M5Accept(JdbcClient jdbc, M1Fund numbers, Notifications notifications, AuditLog auditLog, ClosureProposals closures,
-			CrewChanges changes) {
+			CrewChanges changes, Deadlines deadlines) {
 		this.jdbc = jdbc;
+		this.deadlines = deadlines;
 		this.changes = changes;
 		this.numbers = numbers;
 		this.notifications = notifications;
@@ -106,9 +119,30 @@ class M5Accept implements JobLifecycle.Step {
 				Map.of("n", String.valueOf(this.numbers.number(job.id(), applying.milestoneId())), "job", job.title(), "how",
 						auto ? "tự nghiệm thu" : "nghiệm thu"),
 				"/cong-viec/" + job.id() + "/ban-giao/" + applying.input("handoverId"), job.id(), null));
+		next(job.id()).ifPresent(next -> awaitFunding(applying, job, next));
 		this.closures.proposeAutomatically(job, applying.transitionId());
 		// Story 11.3, AD-41: the Milestone left Held, so a waiting Crew change may take effect now.
 		this.changes.evaluate(job.id(), false);
+	}
+
+	/** FR-41: the next Milestone waits for the Customer's payment, with its 14-day reminder. */
+	private void awaitFunding(Applying applying, Job job, Next next) {
+		int n = this.numbers.number(job.id(), next.id());
+		UUID cause = UUID.nameUUIDFromBytes((job.id() + ":funding:" + next.id()).getBytes(StandardCharsets.UTF_8));
+		this.notifications.send(new NotificationRequest(AgreementReviews.AWAITING_FUNDING, cause,
+				List.of(new Recipient(job.customerId(), Audience.CUSTOMER)),
+				Map.of("job", job.title(), "n", String.valueOf(n), "amount", AgreementReviews.vnd(next.priceVnd())),
+				"/cong-viec/" + job.id(), job.id(), null));
+		this.deadlines.schedule(new DeadlineRequest(MilestoneUnfunded.KEY, next.id(), applying.milestoneId().toString(), job.id(),
+				applying.now().plus(MilestoneUnfunded.WAIT)));
+	}
+
+	private Optional<Next> next(UUID jobId) {
+		return this.jdbc.sql("""
+				SELECT id, price_vnd FROM job.milestone WHERE job_id = :job AND state = 'PLANNED' AND removed_at IS NULL
+				ORDER BY position, created_at, id LIMIT 1
+				""").param("job", jobId).query((rs, n) -> new Next(rs.getObject("id", UUID.class), rs.getLong("price_vnd")))
+			.optional();
 	}
 
 	/** The actor is the Customer, the Job is Active, and the handover is the Milestone's current one. */

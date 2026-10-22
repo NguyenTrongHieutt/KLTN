@@ -1,0 +1,6 @@
+subject: Giai đoạn {n} của {job} chưa được thanh toán sau {days} ngày
+---
+Xin chào,
+
+Giai đoạn trước của công việc {job} đã được nghiệm thu {days} ngày, nhưng Giai đoạn {n} vẫn chưa được thanh toán (thử nghiệm), nên nhóm chưa thể bắt đầu.
+Khách hàng có thể thanh toán Giai đoạn {n} ở trang thanh toán của công việc. Nếu không cần làm tiếp, một trong hai bên có thể đề nghị kết thúc công việc.
