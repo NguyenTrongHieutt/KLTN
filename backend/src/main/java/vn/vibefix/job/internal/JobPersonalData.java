@@ -114,6 +114,23 @@ class JobPersonalData implements PersonalDataParticipant {
 		deleteJobs("product_id", productId);
 	}
 
+	/**
+	 * NFR-10: the Job Post screenshots, the External Access identifiers, and the Agreement comments go; the
+	 * Job, its Milestones, its Agreement versions, and the Crew Terms stay, as {@code payment} and
+	 * {@code reputation} refer to them.
+	 */
+	@Override
+	public void retireJobData(UUID productId) {
+		this.jdbc.sql("""
+				SELECT s.file_id FROM job.job_screenshot s JOIN job.job j ON j.id = s.job_id WHERE j.product_id = :id
+				""").param("id", productId).query(UUID.class).list().forEach(this.files::delete);
+		for (String table : List.of("job.job_screenshot", "job.external_access_identifier", "job.agreement_comment")) {
+			this.jdbc.sql("DELETE FROM %s WHERE job_id IN (SELECT id FROM job.job WHERE product_id = :id)".formatted(table))
+				.param("id", productId)
+				.update();
+		}
+	}
+
 	private void deleteJobs(String column, UUID id) {
 		this.jdbc.sql("""
 				SELECT s.file_id FROM job.job_screenshot s JOIN job.job j ON j.id = s.job_id WHERE j.%s = :id

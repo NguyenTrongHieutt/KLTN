@@ -33,6 +33,15 @@ public interface PersonalDataParticipant {
 	void deleteProduct(UUID productId);
 
 	/**
+	 * Deletes or anonymizes the Product's Job data at the end of its retention (NFR-10, AD-24): 12 months
+	 * after its last Job ended. The Product stays. Only the modules holding what NFR-10 names act (Pages,
+	 * the Job Chat and the Crew Chat, Work Items with their notes and Attachments, files, ZIPs); every
+	 * other module keeps its records, financial and Dispute records above all.
+	 */
+	default void retireJobData(UUID productId) {
+	}
+
+	/**
 	 * What keeps {@code accountId} from being erased now: for example running Jobs and unreleased
 	 * Crew rows ({@code job}), open Disputes and Team Issues ({@code dispute}).
 	 */
