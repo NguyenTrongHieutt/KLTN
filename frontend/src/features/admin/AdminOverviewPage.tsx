@@ -94,6 +94,20 @@ export function AdminOverviewPage() {
               <p className="text-caption text-muted-foreground">{t('screen.admin.overview.lowFeedbackNote')}</p>
             </Link>
           )}
+          {overview.data?.teamIssues && (
+            <Link
+              to="/quan-tri/tranh-chap"
+              className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 hover:border-primary"
+            >
+              <p className="text-caption text-muted-foreground">{t('screen.admin.overview.teamIssues')}</p>
+              <p className={cn('text-h1', overview.data.teamIssues.count > 0 && 'text-warning')}>{overview.data.teamIssues.count}</p>
+              <p className="text-caption text-muted-foreground">
+                {overview.data.teamIssues.oldestAt
+                  ? t('screen.admin.overview.oldest', { date: formatDayMonth(overview.data.teamIssues.oldestAt) })
+                  : t('screen.admin.overview.empty')}
+              </p>
+            </Link>
+          )}
           {failed && (
             <Link to="/quan-tri/thao-tac-loi" className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 hover:border-primary">
               <p className="text-caption text-muted-foreground">{t('screen.admin.overview.failedOperations')}</p>

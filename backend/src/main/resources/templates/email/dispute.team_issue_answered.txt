@@ -1,0 +1,5 @@
+subject: Người hướng dẫn đã trả lời khiếu nại nội bộ của bạn ở {job}
+---
+Xin chào,
+
+Người hướng dẫn đã trả lời khiếu nại nội bộ của bạn ở công việc {job}. Hãy mở vibefix để chấp nhận câu trả lời hoặc nhờ quản trị viên xem xét trước hạn; nếu bạn không chọn, câu trả lời được áp dụng.

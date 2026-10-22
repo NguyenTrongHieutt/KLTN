@@ -36,7 +36,8 @@ import vn.vibefix.team.internal.TeamTestSupport;
  * Board ({@code {boardId}}) with the criterion's seeded Story ({@code {workItemId}}), which carries the
  * Mentor's {@code WORK_ITEM_NOTE} note and {@code ATTACHMENT} file ({@code {attachmentId}}), and a Page
  * ({@code {pageId}}, version {@code {versionNo}}), all written by the Mentor after the windows ended, and
- * a Milestone Handover ({@code {handoverId}}) whose Work Item note is the {@code WORK_ITEM_NOTE} canary.
+ * a Milestone Handover ({@code {handoverId}}) whose Work Item note is the {@code WORK_ITEM_NOTE} canary, and
+ * the active member's Team Issue ({@code {teamIssueId}}) about a Rating, waiting for the Mentor's answer.
  * The Mentor's earlier, ended Job holds the former member's {@code PRIVATE_FEEDBACK} about the Mentor, and
  * the Job a drafted follow-up ({@code {followUpId}}) and the Customer's open due-date Change Request
  * ({@code {changeRequestId}}) without the Mentor's impact.
@@ -149,6 +150,22 @@ final class CrewJobWorld {
 			.update();
 		world.put("boardId", job);
 		world.put("crewMilestoneId", milestone);
+		UUID teamIssue = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO dispute.team_issue (id, job_id, product_id, subject, rating_id, raiser_account_id, mentor_account_id,
+				    reason, phase, answer_days, escalation_days, raised_at, answer_due_at)
+				VALUES (:id, :job, :product, 'RATING', :rating, :raiser, :mentor, 'Điểm chưa đúng', 'ANSWER', 5, 5, :raised, :due)
+				""")
+			.param("id", teamIssue)
+			.param("job", job)
+			.param("product", product)
+			.param("rating", UUID.randomUUID())
+			.param("raiser", this.active)
+			.param("mentor", this.mentor)
+			.param("raised", now)
+			.param("due", Timestamp.from(MutableClock.DEFAULT_INSTANT.plus(Duration.ofDays(5))))
+			.update();
+		world.put("teamIssueId", teamIssue);
 		world.put("workItemId", item);
 		Timestamp written = Timestamp.from(MutableClock.DEFAULT_INSTANT.minus(Duration.ofDays(1)));
 		UUID attachment = UUID.randomUUID();

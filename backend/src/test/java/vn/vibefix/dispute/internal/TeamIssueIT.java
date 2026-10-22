@@ -169,13 +169,13 @@ class TeamIssueIT extends IntegrationTest {
 			.andExpect(jsonPath("$[0].shares[0].refusal").value("TEAM_ISSUE_ALREADY_RAISED"))
 			.andExpect(jsonPath("$[0].ratings[0].refusal").value("TEAM_ISSUE_OPEN"));
 
-		this.jdbc.sql("UPDATE dispute.team_issue SET phase = 'ENDED', ended_at = now() WHERE raiser_account_id = :vy")
+		this.jdbc.sql("UPDATE dispute.team_issue SET phase = 'ENDED', ended_at = now(), ending = 'LAPSED' WHERE raiser_account_id = :vy")
 			.param("vy", this.world.vy()).update();
 		raise(this.world.vy(), "SHARE", this.world.milestone(), "Lần nữa.")
 			.andExpect(status().isConflict())
 			.andExpect(jsonPath("$.reason").value("TEAM_ISSUE_ALREADY_RAISED"));
 		raise(this.world.vy(), "RATING", vyRating, "Điểm chưa đúng.").andExpect(status().isCreated());
-		this.jdbc.sql("UPDATE dispute.team_issue SET phase = 'ENDED', ended_at = now() WHERE raiser_account_id = :vy")
+		this.jdbc.sql("UPDATE dispute.team_issue SET phase = 'ENDED', ended_at = now(), ending = 'LAPSED' WHERE raiser_account_id = :vy")
 			.param("vy", this.world.vy()).update();
 		raise(this.world.vy(), "RATING", vyRating, "Lần nữa.")
 			.andExpect(status().isConflict())
@@ -201,7 +201,8 @@ class TeamIssueIT extends IntegrationTest {
 			.query(Timestamp.class).single().toInstant()).isEqualTo(this.clock.instant().plus(Duration.ofDays(5)));
 		assertThat(count("SELECT count(*) FROM notification.todo WHERE todo_key = 'dispute.answer_team_issue' AND closed_at IS NULL"))
 			.isZero();
-		assertThat(text("SELECT status FROM timers.deadline WHERE subject_id = '" + issue + "'")).isEqualTo("FIRED");
+		assertThat(text("SELECT status FROM timers.deadline WHERE kind = 'dispute.team_issue_answer' AND subject_id = '" + issue + "'"))
+			.isEqualTo("FIRED");
 
 		assertThat(this.check.check()).doesNotContain(issue);
 		this.clock.advance(Duration.ofDays(12));

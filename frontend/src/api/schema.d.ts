@@ -1156,6 +1156,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/boards/{boardId}/team-issues/{teamIssueId}/answer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["answer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/boards/{boardId}/work-items": {
         parameters: {
             query?: never;
@@ -1485,7 +1501,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["accept_2"];
+        post: operations["accept_3"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2493,7 +2509,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["accept_1"];
+        post: operations["accept_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3172,6 +3188,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/team-issues/{teamIssueId}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["accept_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/team-issues/{teamIssueId}/escalate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["escalate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/team/invitations/{invitationId}/accept": {
         parameters: {
             query?: never;
@@ -3671,6 +3719,12 @@ export interface components {
             /** Format: int32 */
             versionNo: number;
             versions: components["schemas"]["VersionSummary"][];
+        };
+        AnswerTeamIssueRequest: {
+            /** @enum {string} */
+            kind: "KEEP" | "TRANSFER" | "WITHDRAW_RATING";
+            /** Format: int32 */
+            points?: number;
         };
         ApplicantView: {
             displayName: string;
@@ -5595,6 +5649,7 @@ export interface components {
             mentorApplications: components["schemas"]["Queue"];
             stalledEvents: components["schemas"]["Queue"];
             studentCards: components["schemas"]["Queue"];
+            teamIssues: components["schemas"]["Queue"];
         };
         PageLinkView: {
             /** Format: uuid */
@@ -6473,6 +6528,16 @@ export interface components {
             shares: components["schemas"]["TeamIssueShareOptionView"][];
             title: string;
         };
+        TeamIssuePreviewView: {
+            /** Format: int32 */
+            mentorPercent: number;
+            /** Format: int64 */
+            mentorVnd: number;
+            /** Format: int32 */
+            raiserPercent: number;
+            /** Format: int64 */
+            raiserVnd: number;
+        };
         TeamIssueRatingOptionView: {
             /** Format: date-time */
             closesAt: string;
@@ -6496,11 +6561,31 @@ export interface components {
             refusal?: string;
             title: string;
         };
+        TeamIssueSplitView: {
+            /** Format: int64 */
+            basisVnd: number;
+            /** Format: int32 */
+            capPoints?: number;
+            /** Format: int32 */
+            mentorPercent: number;
+            others: number[];
+            /** Format: int32 */
+            raiserPercent: number;
+        };
         TeamIssueView: {
             /** Format: date-time */
             answerDueAt: string;
+            answerKind?: string;
+            /** Format: int32 */
+            answerPoints?: number;
+            answerPreview?: components["schemas"]["TeamIssuePreviewView"];
+            /** Format: date-time */
+            answeredAt?: string;
             /** Format: date-time */
             endedAt?: string;
+            ending?: string;
+            /** Format: date-time */
+            escalatedAt?: string;
             /** Format: date-time */
             escalationDueAt?: string;
             /** Format: uuid */
@@ -6512,6 +6597,9 @@ export interface components {
             /** Format: int32 */
             milestoneNumber?: number;
             mine: boolean;
+            /** Format: int32 */
+            outcomePoints?: number;
+            outcomeRatingRemoved?: boolean;
             phase: string;
             /** Format: date-time */
             raisedAt: string;
@@ -6519,6 +6607,7 @@ export interface components {
             /** Format: uuid */
             ratingId?: string;
             reason: string;
+            split?: components["schemas"]["TeamIssueSplitView"];
             subject: string;
         };
         TeamJoinRequest: {
@@ -8864,6 +8953,33 @@ export interface operations {
             };
         };
     };
+    answer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+                teamIssueId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnswerTeamIssueRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamIssueView"];
+                };
+            };
+        };
+    };
     workItems: {
         parameters: {
             query?: never;
@@ -9404,7 +9520,7 @@ export interface operations {
             };
         };
     };
-    accept_2: {
+    accept_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -11043,7 +11159,7 @@ export interface operations {
             };
         };
     };
-    accept_1: {
+    accept_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -12129,6 +12245,50 @@ export interface operations {
         responses: {
             /** @description Created */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamIssueView"];
+                };
+            };
+        };
+    };
+    accept_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                teamIssueId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamIssueView"];
+                };
+            };
+        };
+    };
+    escalate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                teamIssueId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

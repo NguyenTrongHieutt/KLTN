@@ -26,8 +26,9 @@ import vn.vibefix.timers.DueDeadline;
 /**
  * {@value #KEY} (FR-79, AD-7, AD-40): the Team Issue's answer period, non-pausable, its generation the
  * issue and phase {@code ANSWER}. Once the issue left that phase it is {@code OBSOLETE}; otherwise, under
- * the Job row lock and then the issue's, the escalation period starts by the copied days and the Mentor's
- * to-do closes. What the escalation period does is Story 12.2's. Collaborators are looked up on use.
+ * the Job row lock and then the issue's, the escalation period starts by the copied days: the Mentor's
+ * to-do closes, and the raiser's opens with "Nhờ quản trị viên xem xét" only, with the escalation
+ * Deadline. Collaborators are looked up on use.
  */
 @Component
 class TeamIssueAnswerDeadline implements DeadlineHandler {
@@ -46,11 +47,15 @@ class TeamIssueAnswerDeadline implements DeadlineHandler {
 
 	private final ObjectProvider<AuditLog> auditLog;
 
+	private final ObjectProvider<TeamIssueAnswers> answers;
+
 	private final Clock clock;
 
 	TeamIssueAnswerDeadline(JdbcClient jdbc, ObjectProvider<TeamIssues> issues, ObjectProvider<TeamIssueLocks> locks,
-			ObjectProvider<Todos> todos, ObjectProvider<AuditLog> auditLog, Clock clock) {
+			ObjectProvider<Todos> todos, ObjectProvider<AuditLog> auditLog, ObjectProvider<TeamIssueAnswers> answers,
+			Clock clock) {
 		this.jdbc = jdbc;
+		this.answers = answers;
 		this.issues = issues;
 		this.locks = locks;
 		this.todos = todos;
@@ -72,7 +77,7 @@ class TeamIssueAnswerDeadline implements DeadlineHandler {
 			return DeadlineOutcome.OBSOLETE;
 		}
 		this.locks.getObject().lockForTeamIssue(found.jobId(), found.milestoneId(), false);
-		TeamIssue issue = issues.lock(found.id()).orElse(null);
+		TeamIssue issue = issues.lockRows(found).orElse(null);
 		if (issue == null || issue.phase() != Phase.ANSWER) {
 			return DeadlineOutcome.OBSOLETE;
 		}
@@ -80,14 +85,15 @@ class TeamIssueAnswerDeadline implements DeadlineHandler {
 			.param("id", issue.id())
 			.query(Integer.class)
 			.single();
-		Instant now = this.clock.instant();
+		Instant due = this.clock.instant().plus(Duration.ofDays(days));
 		this.jdbc.sql("UPDATE dispute.team_issue SET phase = 'ESCALATION', escalation_due_at = :due WHERE id = :id")
-			.param("due", Timestamp.from(now.plus(Duration.ofDays(days))))
+			.param("due", Timestamp.from(due))
 			.param("id", issue.id())
 			.update();
 		if (issue.mentorId() != null) {
 			this.todos.getObject().close(TeamIssues.ANSWER_TODO, issue.mentorId(), issue.id());
 		}
+		this.answers.getObject().openEscalationPeriod(issue, due);
 		this.auditLog.getObject().record(AuditEntry.of(AuditActor.system(), "dispute.team_issue_answer_period_ended",
 				AuditObject.of("dispute.team_issue", issue.id())).forJob(issue.jobId()));
 		return DeadlineOutcome.FIRED;

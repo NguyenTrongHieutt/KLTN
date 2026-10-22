@@ -64,6 +64,8 @@ class TeamIssues {
 
 	static final String ANSWER_TODO = "dispute.answer_team_issue";
 
+	static final String DECIDE_TODO = "dispute.decide_team_issue_answer";
+
 	/** How long after a Rating becomes visible it may be contested (FR-79). */
 	static final Duration RATING_WINDOW = Duration.ofDays(14);
 
@@ -84,9 +86,26 @@ class TeamIssues {
 		ANSWER, ESCALATION, ESCALATED, ENDED
 	}
 
+	/** The Mentor's one answer (AD-40). */
+	enum Answer {
+		KEEP, TRANSFER, WITHDRAW_RATING
+	}
+
+	/** AD-40's four endings. */
+	enum Ending {
+		ACCEPTED, LAPSED, DECIDED, MOOT
+	}
+
+	/**
+	 * @param answerPoints the points the answer moves, 0 unless {@code TRANSFER}
+	 * @param outcomePoints the points the ending moved
+	 */
 	record TeamIssue(UUID id, UUID jobId, Subject subject, @Nullable UUID milestoneId, @Nullable Integer milestoneNumber,
 			@Nullable UUID ratingId, @Nullable UUID raiserId, @Nullable UUID mentorId, String reason, Phase phase,
-			Instant raisedAt, Instant answerDueAt, @Nullable Instant escalationDueAt, @Nullable Instant endedAt) {
+			Instant raisedAt, Instant answerDueAt, @Nullable Instant escalationDueAt, @Nullable Instant endedAt,
+			@Nullable Answer answerKind, @Nullable Integer answerPoints, @Nullable Instant answeredAt,
+			@Nullable Instant escalatedAt, @Nullable Ending ending, @Nullable Integer outcomePoints,
+			@Nullable Boolean outcomeRatingRemoved) {
 	}
 
 	/**
@@ -334,6 +353,20 @@ class TeamIssues {
 		return this.jdbc.sql("SELECT * FROM dispute.team_issue WHERE id = :id").param("id", id).query(TeamIssues::issue).optional();
 	}
 
+	/**
+	 * After {@code job.lockForTeamIssue}: the Milestone's Team Issue rows for a share issue, else its own row
+	 * (AD-4, AD-40), then the issue as it now is.
+	 */
+	Optional<TeamIssue> lockRows(TeamIssue issue) {
+		if (issue.milestoneId() != null) {
+			this.jdbc.sql("SELECT id FROM dispute.team_issue WHERE milestone_id = :milestone ORDER BY id FOR UPDATE")
+				.param("milestone", issue.milestoneId())
+				.query(UUID.class)
+				.list();
+		}
+		return lock(issue.id());
+	}
+
 	/** The issue under its row lock; the caller took the Job row lock first (AD-4). */
 	Optional<TeamIssue> lock(UUID id) {
 		return this.jdbc.sql("SELECT * FROM dispute.team_issue WHERE id = :id FOR UPDATE")
@@ -356,13 +389,20 @@ class TeamIssues {
 	private static TeamIssue issue(ResultSet rs, int n) throws SQLException {
 		Timestamp escalation = rs.getTimestamp("escalation_due_at");
 		Timestamp ended = rs.getTimestamp("ended_at");
+		Timestamp answered = rs.getTimestamp("answered_at");
+		Timestamp escalated = rs.getTimestamp("escalated_at");
+		String answer = rs.getString("answer_kind");
+		String ending = rs.getString("ending");
 		return new TeamIssue(rs.getObject("id", UUID.class), rs.getObject("job_id", UUID.class),
 				Subject.valueOf(rs.getString("subject")), rs.getObject("milestone_id", UUID.class),
 				rs.getObject("milestone_number", Integer.class), rs.getObject("rating_id", UUID.class),
 				rs.getObject("raiser_account_id", UUID.class), rs.getObject("mentor_account_id", UUID.class),
 				rs.getString("reason"), Phase.valueOf(rs.getString("phase")), rs.getTimestamp("raised_at").toInstant(),
 				rs.getTimestamp("answer_due_at").toInstant(), escalation == null ? null : escalation.toInstant(),
-				ended == null ? null : ended.toInstant());
+				ended == null ? null : ended.toInstant(), answer == null ? null : Answer.valueOf(answer),
+				rs.getObject("answer_points", Integer.class), answered == null ? null : answered.toInstant(),
+				escalated == null ? null : escalated.toInstant(), ending == null ? null : Ending.valueOf(ending),
+				rs.getObject("outcome_points", Integer.class), rs.getObject("outcome_rating_removed", Boolean.class));
 	}
 
 }

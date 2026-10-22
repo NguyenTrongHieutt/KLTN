@@ -51,7 +51,8 @@ class AdminOverviewController {
 	 * @param falsePositives Findings marked as false positives (FR-64, ADM-7)
 	 */
 	record OverviewView(Queue failedOperations, Queue stalledEvents, long activeAdministrators, Queue studentCards,
-			Queue mentorApplications, Queue disputes, Queue lowFeedback, Queue failedExecutions, Queue falsePositives) {
+			Queue mentorApplications, Queue disputes, Queue lowFeedback, Queue failedExecutions, Queue falsePositives,
+			Queue teamIssues) {
 	}
 
 	private final FailedOperations failedOperations;
@@ -91,7 +92,8 @@ class AdminOverviewController {
 				Queue.of(this.disputes.awaiting(), DisputeQueue.Waiting::openedAt),
 				new Queue(this.privateFeedback.belowThreshold().size(), null),
 				Queue.of(this.disputes.executionsFailed(), DisputeQueue.FailedExecution::failedAt),
-				Queue.of(this.scans.falsePositives(AdminFailuresController.FALSE_POSITIVES), FalsePositive::markedAt));
+				Queue.of(this.scans.falsePositives(AdminFailuresController.FALSE_POSITIVES), FalsePositive::markedAt),
+				Queue.of(this.disputes.teamIssuesEscalated(), DisputeQueue.Waiting::openedAt));
 	}
 
 	private Queue mentorApplications() {

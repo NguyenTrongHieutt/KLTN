@@ -8,25 +8,34 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import vn.vibefix.reputation.RatingRemoved;
 import vn.vibefix.shared.ContentModeration;
+import vn.vibefix.shared.IdGenerator;
 
 /**
  * FR-60, FR-49: a hidden Rating, with the reason its rater reads; no screen or API shows it and no
- * summary counts it.
+ * summary counts it, and {@link RatingRemoved} tells a Team Issue about it (FR-79).
  */
 @Component
 class RatingModeration implements ContentModeration {
 
 	private final JdbcClient jdbc;
 
+	private final ApplicationEventPublisher events;
+
+	private final IdGenerator ids;
+
 	private final Clock clock;
 
-	RatingModeration(JdbcClient jdbc, Clock clock) {
+	RatingModeration(JdbcClient jdbc, ApplicationEventPublisher events, IdGenerator ids, Clock clock) {
 		this.jdbc = jdbc;
+		this.events = events;
+		this.ids = ids;
 		this.clock = clock;
 	}
 
@@ -61,6 +70,7 @@ class RatingModeration implements ContentModeration {
 			.param("now", Timestamp.from(this.clock.instant()))
 			.query(RatingModeration::item)
 			.optional();
+		hidden.ifPresent(item -> this.events.publishEvent(new RatingRemoved(this.ids.newId(), item.id())));
 		return hidden;
 	}
 
