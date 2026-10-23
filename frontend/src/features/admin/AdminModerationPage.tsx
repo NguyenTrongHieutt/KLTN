@@ -11,41 +11,57 @@ import { t, type MessageKey } from '@/i18n/t'
 import { formatDayMonthTime } from '@/lib/dates'
 import { problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
+import { AbuseReportsPanel } from './AbuseReportsPanel'
 import { useHideContent, useModerationItems, type ContentKind, type ModerationItem } from './adminModerationApi'
 
 const KINDS: ContentKind[] = ['PRODUCT', 'JOB_POST', 'PAGE', 'RATING']
 
+type Tab = ContentKind | 'REPORTS'
+
+const TABS: Tab[] = [...KINDS, 'REPORTS']
+
 /**
- * ADM-6 (`/quan-tri/kiem-duyet`, FR-60, UX-DR16): per kind, the newest visible or hidden items with their
- * author, and "Ẩn" with the reason the author reads. Hiding never deletes, and running Jobs continue.
+ * ADM-6 (`/quan-tri/kiem-duyet`, FR-60, FR-69, UX-DR16): per kind, the newest visible or hidden items with
+ * their author, and "Ẩn" with the reason the author reads. Hiding never deletes, and running Jobs continue.
+ * The "Báo cáo vi phạm" tab holds the Abuse Report queue (Story 16.1).
  */
 export function AdminModerationPage() {
   usePageTitle(t('screen.admin.moderation.title'))
-  const [kind, setKind] = useState<ContentKind>('PRODUCT')
-  const [hidden, setHidden] = useState(false)
-  const items = useModerationItems(kind, hidden)
-  const [hiding, setHiding] = useState<ModerationItem>()
+  const [tab, setTab] = useState<Tab>('PRODUCT')
 
   return (
     <div className="flex flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
       <PageHeading>{t('screen.admin.moderation.heading')}</PageHeading>
       <div role="tablist" aria-label={t('screen.admin.moderation.kinds')} className="flex flex-wrap gap-2">
-        {KINDS.map((option) => (
+        {TABS.map((option) => (
           <button
             key={option}
             type="button"
             role="tab"
-            aria-selected={kind === option}
-            onClick={() => setKind(option)}
+            aria-selected={tab === option}
+            onClick={() => setTab(option)}
             className={cn(
               'min-h-control-compact rounded-full border px-3 text-label focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-              kind === option ? 'border-primary bg-primary-soft text-foreground' : 'border-border bg-card text-muted-foreground hover:bg-muted',
+              tab === option ? 'border-primary bg-primary-soft text-foreground' : 'border-border bg-card text-muted-foreground hover:bg-muted',
             )}
           >
             {t(`screen.admin.moderation.kind.${option}` as MessageKey)}
           </button>
         ))}
       </div>
+      {tab === 'REPORTS' ? <AbuseReportsPanel /> : <ModerationList key={tab} kind={tab} />}
+    </div>
+  )
+}
+
+/** One FR-60 kind's newest visible or hidden items, and "Ẩn". */
+function ModerationList({ kind }: { kind: ContentKind }) {
+  const [hidden, setHidden] = useState(false)
+  const items = useModerationItems(kind, hidden)
+  const [hiding, setHiding] = useState<ModerationItem>()
+
+  return (
+    <>
       <div role="group" aria-label={t('screen.admin.moderation.show')} className="flex flex-wrap gap-2">
         {[false, true].map((option) => (
           <button
@@ -98,7 +114,7 @@ export function AdminModerationPage() {
           ))}
       </RegionState>
       <HideDialog kind={kind} item={hiding} onClose={() => setHiding(undefined)} />
-    </div>
+    </>
   )
 }
 

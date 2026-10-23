@@ -4,6 +4,7 @@ import { useId, useState } from 'react'
 import { inputClass } from '@/components/formField-props'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
+import { ReportAbuseMenu } from '@/features/abuse/ReportAbuseMenu'
 import { t } from '@/i18n/t'
 import { formatDayMonth } from '@/lib/dates'
 import { problemMessage } from '@/lib/problemMessage'
@@ -194,6 +195,9 @@ function RatingList({ title, ratings, mine }: { title: string; ratings: GivenRat
                   ? t('screen.rating.forName', { name: rating.rateeName })
                   : t(rating.raterRole === 'CUSTOMER' ? 'screen.rating.byCustomer' : 'screen.rating.byMentor')}
               </span>
+              {!mine && (
+                <ReportAbuseMenu targets={[{ kind: 'RATING', targetId: rating.id }]} label={t('screen.report.ratingMore')} />
+              )}
             </span>
             <span className="break-words whitespace-pre-line">{rating.comment}</span>
           </li>

@@ -5,6 +5,7 @@ import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
+import { ReportAbuseMenu } from '@/features/abuse/ReportAbuseMenu'
 import { t } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
 import { formatDate, formatTime } from '@/lib/dates'
@@ -106,7 +107,7 @@ export function ChatPanel({
                       {day}
                     </li>
                   )}
-                  <Bubble message={message} />
+                  <Bubble message={message} kind={target.kind === 'job' ? 'JOB_CHAT_MESSAGE' : 'CREW_CHAT_MESSAGE'} />
                 </Fragment>
               )
             })}
@@ -134,12 +135,21 @@ function dayLabel(instant: string): string {
   return day
 }
 
-function Bubble({ message }: { message: ChatMessage }) {
+/** One message; another person's carries "Báo cáo vi phạm" in its "…" menu (FR-69). */
+function Bubble({ message, kind }: { message: ChatMessage; kind: 'JOB_CHAT_MESSAGE' | 'CREW_CHAT_MESSAGE' }) {
   return (
     <li className={cn('flex flex-col gap-1', message.mine ? 'items-end' : 'items-start')}>
-      <p className="text-caption text-muted-foreground">
-        {t('screen.chat.meta', { name: message.mine ? t('screen.chat.you') : message.author, time: formatTime(message.sentAt) })}
-      </p>
+      <div className="flex items-center gap-1">
+        <p className="text-caption text-muted-foreground">
+          {t('screen.chat.meta', { name: message.mine ? t('screen.chat.you') : message.author, time: formatTime(message.sentAt) })}
+        </p>
+        {!message.mine && (
+          <ReportAbuseMenu
+            targets={[{ kind, targetId: message.id }]}
+            label={t('screen.report.messageMore', { name: message.author })}
+          />
+        )}
+      </div>
       <div
         className={cn(
           'flex max-w-[80%] flex-col gap-1.5 rounded-lg px-3 py-2 text-body-sm',

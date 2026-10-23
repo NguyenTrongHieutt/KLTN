@@ -128,9 +128,12 @@ class AuthorizationHarnessIT extends IntegrationTest {
 			.hasMessageContaining("Expected reason OTHER but got MENTOR_NOT_APPROVED");
 	}
 
+	/** Every caller is realized by now, so this runner holds only the note fixture, which realizes no grant. */
 	@Test
 	void aCallerNoFixtureRealizesFailsTheRow() {
-		assertThatThrownBy(() -> run("GET /api/v1/fixture/public,ADMIN_ABUSE_REPORT_GRANT,,,200"))
+		MatrixRowRunner bare = new MatrixRowRunner(this.mvc, List.of(new NoteFixture()), Canaries.load());
+		assertThatThrownBy(
+				() -> bare.run(MatrixRow.parse(HEADER + "GET /api/v1/fixture/public,ADMIN_ABUSE_REPORT_GRANT,,,200").getFirst()))
 			.isInstanceOf(AssertionError.class)
 			.hasMessageContaining("realizes the caller ADMIN_ABUSE_REPORT_GRANT");
 	}

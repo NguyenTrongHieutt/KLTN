@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
@@ -16,6 +17,7 @@ import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
 import vn.vibefix.chat.internal.Chats.Chat;
 import vn.vibefix.chat.internal.Chats.Kind;
+import vn.vibefix.chat.internal.Chats.Message;
 import vn.vibefix.chat.internal.Chats.Window;
 import vn.vibefix.job.Crews;
 import vn.vibefix.job.Crews.CrewMember;
@@ -36,7 +38,8 @@ import vn.vibefix.shared.Role;
  * <li>the Crew Chat: its Mentor and every {@code ACTIVE} Crew member; an {@code INACTIVE} or
  * {@code FORMER} member only reads, and only the messages inside their windows
  * ({@code job.crewRelationship});</li>
- * <li>an Administrator only under a grant naming the Chat, only reading, each read audited (AD-8).</li>
+ * <li>an Administrator only under a grant naming the Chat, or for one message the grant of an Abuse Report
+ * naming it (FR-69), only reading, each read audited (AD-8).</li>
  * </ul>
  * Everyone else, an {@code ASSIGNED} Student and the Customer of the Crew Chat included, finds nothing
  * (SG-31). A closed Chat (J9, J10) is read, never written.
@@ -127,13 +130,8 @@ class ChatAccess {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		UUID admin = caller.requireAccountId();
-		JobPostState post = this.posts.post(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		Chat chat = this.chats.find(jobId, kind).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		if (post.mentorId() == null) {
-			throw new ApiException(ErrorCode.NOT_FOUND);
-		}
-		Viewer granted = new Viewer(chat, admin, false, true, null, post.title(), post.mentorId(),
-				kind == Kind.JOB ? post.customerId() : null, kind == Kind.CREW ? crewOf(jobId) : List.of());
+		Viewer granted = granted(jobId, kind, admin);
+		Chat chat = granted.chat();
 		AdminReadScope scope = kind == Kind.JOB ? AdminReadScope.JOB_CHAT : AdminReadScope.CREW_CHAT;
 		if (!this.grants.permits(admin, jobId, scope, chat.id(), granted.people(), this.clock.instant())) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
@@ -149,12 +147,69 @@ class ChatAccess {
 		return reader(crewJob(chatId), Kind.CREW, caller);
 	}
 
+	/** One message and who reads it. */
+	record MessageRead(Viewer viewer, Message message) {
+	}
+
+	/**
+	 * One message: for a person of its Chat who sees it, or an Administrator whose grant covers it (an Abuse
+	 * Report's grant names the message itself), whose read this audits.
+	 */
+	@Transactional
+	MessageRead messageReader(UUID messageId, Caller caller) {
+		Message message = this.chats.message(messageId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		Chat chat = this.chats.byId(message.chatId()).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		Viewer viewer = viewer(chat.jobId(), chat.kind(), caller);
+		if (viewer != null) {
+			if (!viewer.sees(message.sentAt())) {
+				throw new ApiException(ErrorCode.NOT_FOUND);
+			}
+			return new MessageRead(viewer, message);
+		}
+		if (!caller.hasRole(Role.ADMINISTRATOR)) {
+			throw new ApiException(ErrorCode.NOT_FOUND);
+		}
+		UUID admin = caller.requireAccountId();
+		Viewer granted = granted(chat.jobId(), chat.kind(), admin);
+		AdminReadScope scope = chat.kind() == Kind.JOB ? AdminReadScope.JOB_CHAT : AdminReadScope.CREW_CHAT;
+		if (!this.grants.permits(admin, chat.jobId(), scope, messageId, granted.people(), this.clock.instant())) {
+			throw new ApiException(ErrorCode.NOT_FOUND);
+		}
+		this.auditLog.record(AuditEntry.of(AuditActor.user(admin), "chat.admin_read", AuditObject.of("chat.message", messageId))
+			.forJob(chat.jobId()));
+		return new MessageRead(granted, message);
+	}
+
+	/** A person of the Chat who sees the message, for an Abuse Report (FR-69); never an Administrator. */
+	@Transactional(readOnly = true)
+	Optional<MessageRead> seenBy(UUID messageId, Caller caller) {
+		Message message = this.chats.message(messageId).orElse(null);
+		Chat chat = message == null ? null : this.chats.byId(message.chatId()).orElse(null);
+		if (chat == null) {
+			return Optional.empty();
+		}
+		Viewer viewer = viewer(chat.jobId(), chat.kind(), caller);
+		return viewer != null && viewer.sees(message.sentAt()) ? Optional.of(new MessageRead(viewer, message))
+				: Optional.empty();
+	}
+
 	/** The viewer, when they may write. */
 	static Viewer writing(Viewer viewer) {
 		if (viewer.readOnly()) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, ChatReason.CHAT_READ_ONLY);
 		}
 		return viewer;
+	}
+
+	/** The read-only viewer an Administrator reads through, before any grant is checked. */
+	private Viewer granted(UUID jobId, Kind kind, UUID admin) {
+		JobPostState post = this.posts.post(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		Chat chat = this.chats.find(jobId, kind).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		if (post.mentorId() == null) {
+			throw new ApiException(ErrorCode.NOT_FOUND);
+		}
+		return new Viewer(chat, admin, false, true, null, post.title(), post.mentorId(),
+				kind == Kind.JOB ? post.customerId() : null, kind == Kind.CREW ? crewOf(jobId) : List.of());
 	}
 
 	private UUID crewJob(UUID chatId) {

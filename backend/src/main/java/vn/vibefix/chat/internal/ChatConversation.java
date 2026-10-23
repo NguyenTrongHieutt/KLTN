@@ -105,6 +105,11 @@ class ChatConversation {
 				page.hasOlder());
 	}
 
+	/** One message, as the viewer reads it (FR-69). */
+	MessageView one(Viewer viewer, Message message) {
+		return view(message, viewer, names(viewer));
+	}
+
 	/** Sends plain text after the FR-47 check (AD-18). */
 	MessageView send(Viewer viewer, String body, @Nullable Resolution resolution) {
 		ChatAccess.writing(viewer);

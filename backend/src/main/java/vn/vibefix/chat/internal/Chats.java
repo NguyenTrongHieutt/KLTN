@@ -222,6 +222,15 @@ class Chats {
 				""").param("chat", chatId).param("account", accountId).query(Boolean.class).single();
 	}
 
+	/** One message, for an Abuse Report (FR-69). */
+	@Transactional(readOnly = true)
+	Optional<Message> message(UUID messageId) {
+		return this.jdbc.sql("SELECT " + MESSAGE_COLUMNS + " FROM chat.message WHERE id = :id")
+			.param("id", messageId)
+			.query(Chats::message)
+			.optional();
+	}
+
 	/** The message carrying the attachment, for its read policy. */
 	@Transactional(readOnly = true)
 	Optional<Message> byAttachment(UUID fileId) {

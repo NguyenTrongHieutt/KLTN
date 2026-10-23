@@ -722,6 +722,10 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType DISPUTE_STATEMENT_SUBMITTED = new NotificationType("dispute.statement_submitted",
 			Set.of(Audience.ADMIN), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
 
+	/** FR-69, Story 16.1: an Administrator decided the reporter's Abuse Report, with the outcome they wrote. */
+	static final NotificationType ADMIN_ABUSE_REPORT_RESOLVED = new NotificationType("admin.abuse_report_resolved",
+			Set.of(Audience.SUBJECT), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of("outcome"));
+
 	/** FR-36, Story 14.2: both sides agreed to a raised Held price; it takes effect once the Customer pays the difference. */
 	static final NotificationType JOB_CHANGE_REQUEST_AWAITING_TOP_UP = new NotificationType(
 			"job.change_request_awaiting_top_up", Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL,
@@ -822,7 +826,7 @@ class NotificationTypes implements NotificationCatalog {
 				JOB_CANCELLATION_UNANSWERED, JOB_JOB_CANCELLED, JOB_AGREEMENT_DEADLINE_PASSED, JOB_STARTING_DEADLINE_PASSED,
 				DISPUTE_DISPUTE_OPENED, DISPUTE_EXECUTION_FAILED, DISPUTE_DISPUTE_DECIDED, DISPUTE_TEAM_ISSUE_RAISED,
 				DISPUTE_TEAM_ISSUE_ANSWERED, DISPUTE_TEAM_ISSUE_ESCALATED, DISPUTE_TEAM_ISSUE_DECIDED,
-				JOB_CHANGE_REQUEST_AWAITING_TOP_UP, DISPUTE_STATEMENT_SUBMITTED,
+				JOB_CHANGE_REQUEST_AWAITING_TOP_UP, DISPUTE_STATEMENT_SUBMITTED, ADMIN_ABUSE_REPORT_RESOLVED,
 				PAYMENT_SHARE_HELD, JOB_JOB_STARTING,
 				PAYMENT_REFUND_REQUESTED, PAYMENT_SIMULATED_REFUND_REQUESTED, PAYMENT_REFUND_CONFIRMED, WORK_WORK_ITEM_ASSIGNED,
 				WORK_REVIEW_REQUESTED, WORK_WORK_ITEM_APPROVED, WORK_WORK_ITEM_RETURNED);

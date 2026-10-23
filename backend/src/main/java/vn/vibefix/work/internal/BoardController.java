@@ -29,6 +29,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import vn.vibefix.files.PreparedFile;
 import vn.vibefix.shared.Access;
+import vn.vibefix.shared.AdminReadScope;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
@@ -173,6 +174,18 @@ class BoardController {
 		BoardViewer writer = this.access.writer(boardId, this.callers.get());
 		Item created = this.items.create(writer, body.draft(), body.resolution());
 		return detail(writer, created);
+	}
+
+	/**
+	 * One Work Item note (FR-69, AD-20): for the Mentor or a Crew member who sees it, or the Administrator whose
+	 * Abuse Report grant names it (or a Dispute's grant covering every note), read only and audited.
+	 */
+	@GetMapping("/api/v1/work-item-notes/{workItemNoteId}")
+	WorkViews.WorkItemNoteView note(@PathVariable("workItemNoteId") UUID noteId) {
+		UUID itemId = this.reads.noteItem(noteId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		Item item = this.boards.item(itemId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		BoardViewer viewer = this.access.reader(item.jobId(), this.callers.get(), AdminReadScope.WORK_ITEM_NOTES);
+		return this.views.note(viewer, item, this.reads.note(viewer, item, noteId));
 	}
 
 	/** One Work Item with its history, as the viewer may see it. */

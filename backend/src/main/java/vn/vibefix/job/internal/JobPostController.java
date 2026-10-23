@@ -60,10 +60,11 @@ class JobPostController {
 	}
 
 	/** One Job Post as MEN-3 shows it. */
-	record JobPostView(UUID id, String title, String productName, String productDescription, List<String> productTools,
-			int productOpenFindings, @Nullable String problem, @Nullable String expected, @Nullable String appUsers,
-			@Nullable String doneCheck, List<JobType> jobTypes, List<JobPostSkillView> skills, @Nullable Budget budget,
-			@Nullable LocalDate deadline, Instant openedAt, Instant lapsesAt, List<ScreenshotView> screenshots) {
+	record JobPostView(UUID id, UUID productId, String title, String productName, String productDescription,
+			List<String> productTools, int productOpenFindings, @Nullable String problem, @Nullable String expected,
+			@Nullable String appUsers, @Nullable String doneCheck, List<JobType> jobTypes, List<JobPostSkillView> skills,
+			@Nullable Budget budget, @Nullable LocalDate deadline, Instant openedAt, Instant lapsesAt,
+			List<ScreenshotView> screenshots) {
 	}
 
 	/** The Mentor's FR-13 position, and why they cannot apply now. */
@@ -161,8 +162,8 @@ class JobPostController {
 			shown.add(new JobPostSkillView(job.skillIds().get(i), job.skillNames().get(i), skill == null ? "" : skill.hint()));
 		}
 		int findings = this.scans.openFindingCounts(List.of(product.id())).getOrDefault(product.id(), 0);
-		return new JobPostView(job.id(), job.title(), product.name(), product.description(), product.tools(), findings,
-				job.problem(), job.expected(), job.appUsers(), job.doneCheck(), job.jobTypes(), shown, job.budget(),
+		return new JobPostView(job.id(), product.id(), job.title(), product.name(), product.description(), product.tools(),
+				findings, job.problem(), job.expected(), job.appUsers(), job.doneCheck(), job.jobTypes(), shown, job.budget(),
 				job.deadline(), opened(job), Objects.requireNonNull(job.lapsesAt()),
 				this.jobs.screenshots(job.id()).stream().map(ScreenshotView::of).toList());
 	}

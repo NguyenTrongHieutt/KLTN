@@ -9,6 +9,34 @@
     "description" : "Generated server url"
   } ],
   "paths" : {
+    "/api/v1/abuse-reports" : {
+      "post" : {
+        "operationId" : "file",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AbuseReportRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AbuseReportFiledView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "abuse-report-controller" ]
+      }
+    },
     "/api/v1/account/theme" : {
       "put" : {
         "operationId" : "theme",
@@ -28,6 +56,118 @@
           }
         },
         "tags" : [ "account-controller" ]
+      }
+    },
+    "/api/v1/admin/abuse-reports" : {
+      "get" : {
+        "operationId" : "queue",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/AbuseReportRow"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-abuse-report-controller" ]
+      }
+    },
+    "/api/v1/admin/abuse-reports/{reportId}" : {
+      "get" : {
+        "operationId" : "report",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "reportId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AbuseReportDetail"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-abuse-report-controller" ]
+      }
+    },
+    "/api/v1/admin/abuse-reports/{reportId}/decision" : {
+      "post" : {
+        "operationId" : "decide_2",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "reportId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AbuseReportDecisionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AbuseReportDetail"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-abuse-report-controller" ]
+      }
+    },
+    "/api/v1/admin/abuse-reports/{reportId}/take" : {
+      "post" : {
+        "operationId" : "take_2",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "reportId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AbuseReportDetail"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-abuse-report-controller" ]
       }
     },
     "/api/v1/admin/administrators" : {
@@ -3378,6 +3518,33 @@
           }
         },
         "tags" : [ "change-request-controller" ]
+      }
+    },
+    "/api/v1/chat-messages/{messageId}" : {
+      "get" : {
+        "operationId" : "message",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "messageId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MessageView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "chat-message-controller" ]
       }
     },
     "/api/v1/crew-chats/{crewChatId}/attachments" : {
@@ -7886,6 +8053,33 @@
         "tags" : [ "verification-controller" ]
       }
     },
+    "/api/v1/work-item-notes/{workItemNoteId}" : {
+      "get" : {
+        "operationId" : "note",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workItemNoteId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/WorkItemNoteView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "board-controller" ]
+      }
+    },
     "/api/v1/work-items/{workItemId}" : {
       "get" : {
         "operationId" : "workItem",
@@ -8301,6 +8495,154 @@
   },
   "components" : {
     "schemas" : {
+      "AbuseReportDecisionRequest" : {
+        "type" : "object",
+        "properties" : {
+          "action" : {
+            "type" : "string",
+            "enum" : [ "HIDE", "ACTION_TAKEN", "DISMISS" ]
+          },
+          "hideReason" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0
+          },
+          "outcome" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "action", "outcome" ]
+      },
+      "AbuseReportDetail" : {
+        "type" : "object",
+        "properties" : {
+          "assigned" : {
+            "type" : "boolean"
+          },
+          "assignedToMe" : {
+            "type" : "boolean"
+          },
+          "authorName" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "decidedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "hideable" : {
+            "type" : "boolean"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "itemReadable" : {
+            "type" : "boolean"
+          },
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "outcome" : {
+            "type" : "string"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "reporterName" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "targetId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "assigned", "assignedToMe", "createdAt", "hideable", "id", "itemReadable", "kind", "label", "reason", "status", "targetId" ]
+      },
+      "AbuseReportFiledView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "id" ]
+      },
+      "AbuseReportRequest" : {
+        "type" : "object",
+        "properties" : {
+          "kind" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "reason" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0
+          },
+          "targetId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "targetLogin" : {
+            "type" : "string",
+            "maxLength" : 39,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "kind", "reason" ]
+      },
+      "AbuseReportRow" : {
+        "type" : "object",
+        "properties" : {
+          "assigned" : {
+            "type" : "boolean"
+          },
+          "assignedToMe" : {
+            "type" : "boolean"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "reporterName" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "assigned", "assignedToMe", "createdAt", "id", "kind", "label", "reason", "status" ]
+      },
       "AccountView" : {
         "type" : "object",
         "properties" : {
@@ -13659,6 +14001,10 @@
           "productDescription" : {
             "type" : "string"
           },
+          "productId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
           "productName" : {
             "type" : "string"
           },
@@ -13688,7 +14034,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "id", "jobTypes", "lapsesAt", "openedAt", "productDescription", "productName", "productOpenFindings", "productTools", "screenshots", "skills", "title" ]
+        "required" : [ "id", "jobTypes", "lapsesAt", "openedAt", "productDescription", "productId", "productName", "productOpenFindings", "productTools", "screenshots", "skills", "title" ]
       },
       "JobProgressView" : {
         "type" : "object",
@@ -16320,6 +16666,10 @@
             "type" : "string",
             "format" : "date-time"
           },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
           "kind" : {
             "type" : "string"
           },
@@ -16341,7 +16691,7 @@
             "format" : "int32"
           }
         },
-        "required" : [ "comment", "createdAt", "kind", "mine", "rateeId", "rateeName", "raterRole", "stars" ]
+        "required" : [ "comment", "createdAt", "id", "kind", "mine", "rateeId", "rateeName", "raterRole", "stars" ]
       },
       "RatingsView" : {
         "type" : "object",
@@ -18846,6 +19196,36 @@
           }
         },
         "required" : [ "attachments", "checklist", "createdAt", "history", "item", "readOnly" ]
+      },
+      "WorkItemNoteView" : {
+        "type" : "object",
+        "properties" : {
+          "at" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "author" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "itemKey" : {
+            "type" : "string"
+          },
+          "itemTitle" : {
+            "type" : "string"
+          },
+          "text" : {
+            "type" : "string"
+          },
+          "workItemId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "at", "author", "id", "itemKey", "itemTitle", "text", "workItemId" ]
       },
       "WorkItemRequest" : {
         "type" : "object",
