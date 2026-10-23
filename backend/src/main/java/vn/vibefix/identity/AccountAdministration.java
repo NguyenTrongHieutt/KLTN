@@ -12,6 +12,7 @@ import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 
 import vn.vibefix.shared.ApiException;
+import vn.vibefix.shared.ErasureBlocker;
 import vn.vibefix.shared.Role;
 
 /**
@@ -109,5 +110,29 @@ public interface AccountAdministration {
 	 * checks a {@code PRIVATE_FEEDBACK} ground's threshold and passes its category as the reason.
 	 */
 	Result revokeApproval(UUID administrator, UUID accountId, Ground ground, String reason, String stepUpCode);
+
+	/**
+	 * A person's account deletion request as ADM-2 shows it (NFR-11, AD-24).
+	 * @param completedAt when an Administrator confirmed it and the account was erased
+	 * @param blockers what keeps it waiting now; none once it is completed
+	 */
+	record DeletionRequest(Instant requestedAt, @Nullable Instant completedAt, List<ErasureBlocker> blockers) {
+
+		public DeletionRequest {
+			blockers = List.copyOf(blockers);
+		}
+
+	}
+
+	/** The account's deletion request, if the person made one. */
+	Optional<DeletionRequest> deletionRequest(UUID accountId);
+
+	/**
+	 * Confirms the account's deletion request after the step-up: every participant erases or anonymizes the
+	 * account, its sessions end, the sign-in grant is revoked through an operation when a token was kept (SG-9),
+	 * and {@link AccountErased} is published. A refusal comes back in the result: {@code GUARD_FAILED
+	 * NO_DELETION_REQUEST}, or {@code GUARD_FAILED ERASURE_BLOCKED} with the blockers while any remains.
+	 */
+	Result erase(UUID administrator, UUID accountId, String stepUpCode);
 
 }

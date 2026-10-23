@@ -57,7 +57,7 @@ class IdentityPersonalData implements PersonalDataParticipant {
 				"identity.customer_profile", "identity.student_profile", "identity.showcase_repository",
 				"identity.contact_grant", "identity.school_email_code", "identity.student_verification",
 				"identity.student_card", "identity.administrator_credential", "identity.administrator_enrolment",
-				"identity.person_signal", "identity.mentor_application", "identity.mentor_decision",
+				"identity.person_signal", "identity.mentor_application", "identity.mentor_decision", "identity.deletion_request",
 				"identity.account_action");
 	}
 
@@ -200,6 +200,10 @@ class IdentityPersonalData implements PersonalDataParticipant {
 	@Transactional
 	public void eraseAccount(UUID accountId) {
 		this.jdbc.sql("DELETE FROM identity.customer_token WHERE account_id = :id").param("id", accountId).update();
+		// The deletion request stays as the record that it was carried out; an erased Administrator's name goes.
+		this.jdbc.sql("UPDATE identity.deletion_request SET completed_by_admin_id = NULL WHERE completed_by_admin_id = :id")
+			.param("id", accountId)
+			.update();
 		for (String table : new String[] { "identity.customer_profile", "identity.student_profile",
 				"identity.showcase_repository", "identity.school_email_code", "identity.student_verification",
 				"identity.student_card", "identity.administrator_credential", "identity.administrator_enrolment",

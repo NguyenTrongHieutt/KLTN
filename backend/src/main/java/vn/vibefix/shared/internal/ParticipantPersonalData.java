@@ -34,13 +34,20 @@ class ParticipantPersonalData implements PersonalData {
 	@Override
 	@Transactional
 	public ErasureOutcome erase(UUID accountId) {
-		List<ErasureBlocker> blockers = new ArrayList<>();
-		this.participants.forEach(participant -> blockers.addAll(participant.erasureBlockers(accountId)));
+		List<ErasureBlocker> blockers = erasureBlockers(accountId);
 		if (!blockers.isEmpty()) {
 			return new ErasureOutcome.Blocked(blockers);
 		}
 		this.participants.forEach(participant -> participant.eraseAccount(accountId));
 		return new ErasureOutcome.Erased();
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<ErasureBlocker> erasureBlockers(UUID accountId) {
+		List<ErasureBlocker> blockers = new ArrayList<>();
+		this.participants.forEach(participant -> blockers.addAll(participant.erasureBlockers(accountId)));
+		return blockers;
 	}
 
 	@Override

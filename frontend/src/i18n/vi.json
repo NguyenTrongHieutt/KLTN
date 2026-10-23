@@ -43,7 +43,8 @@
     "theme": "Giao diện",
     "testMoney": "tiền thử nghiệm, không phải tiền thật",
     "paymentHistory": "Lịch sử thanh toán",
-    "balance": "Số dư thử nghiệm"
+    "balance": "Số dư thử nghiệm",
+    "myData": "Dữ liệu của tôi"
   },
   "screen": {
     "signInAgain": {
@@ -1050,7 +1051,16 @@
           "GUIDANCE": "Không hướng dẫn hoặc không phản hồi nhóm",
           "RULES": "Vi phạm quy tắc của vibefix"
         },
-        "categoryNote": "Người hướng dẫn chỉ thấy nhóm vi phạm, không thấy đánh giá, công việc, sinh viên hay ngày nào."
+        "categoryNote": "Người hướng dẫn chỉ thấy nhóm vi phạm, không thấy đánh giá, công việc, sinh viên hay ngày nào.",
+        "deletion": {
+          "title": "Yêu cầu xóa tài khoản",
+          "requested": "Người dùng yêu cầu xóa tài khoản lúc {time}.",
+          "waiting": "Chưa xóa được vì:",
+          "lockFirst": "Nếu cần chặn ngay, hãy khóa tài khoản trước.",
+          "effects": "Xác nhận sẽ xóa hoặc ẩn danh dữ liệu của người dùng, xóa sản phẩm và kho mã của họ, chỉ giữ hồ sơ thanh toán và tranh chấp theo quy định.",
+          "confirm": "Xác nhận xóa tài khoản",
+          "done": "Đã xóa tài khoản."
+        }
       },
       "moderation": {
         "title": "Kiểm duyệt",
@@ -3585,6 +3595,31 @@
       "postMore": "Thao tác khác với tin tuyển",
       "ratingMore": "Thao tác khác với đánh giá",
       "profileMore": "Thao tác khác với hồ sơ của {name}"
+    },
+    "myData": {
+      "title": "Dữ liệu của tôi",
+      "keptTitle": "vibefix lưu gì và vì sao",
+      "kept": "vibefix lưu danh tính GitHub, email, thông tin hồ sơ, giấy tờ xác minh và những gì bạn làm trên các công việc, để vận hành công việc, thanh toán và giải quyết tranh chấp. Thời gian lưu và quyền của bạn có trong thông báo quyền riêng tư.",
+      "privacy": "Xem thông báo quyền riêng tư",
+      "exportTitle": "Tải dữ liệu của bạn",
+      "exportBody": "Một tệp JSON gồm mọi dữ liệu vibefix lưu về bạn mà bạn được xem.",
+      "export": "Tải dữ liệu của tôi",
+      "deleteTitle": "Xóa tài khoản",
+      "deleteBody": "Yêu cầu sẽ gửi tới quản trị viên. Tài khoản chỉ bị xóa khi bạn không còn công việc đang chạy, tranh chấp hay khiếu nại nội bộ chưa xong.",
+      "lawKeeps": "Theo quy định, vibefix vẫn giữ hồ sơ thanh toán, hồ sơ tranh chấp và nhật ký kiểm toán, nhưng bỏ thông tin định danh của bạn.",
+      "delete": "Yêu cầu xóa tài khoản",
+      "askTitle": "Yêu cầu xóa tài khoản?",
+      "askBody": "Quản trị viên sẽ xử lý yêu cầu. Sau khi xóa, bạn không đăng nhập lại được và dữ liệu không khôi phục được.",
+      "back": "Quay lại",
+      "confirm": "Gửi yêu cầu",
+      "requested": "Yêu cầu xóa tài khoản đã gửi ngày {date}. Quản trị viên sẽ xử lý.",
+      "waiting": "Yêu cầu đang chờ vì:",
+      "blocker": {
+        "JOB_RUNNING": "Công việc đang chạy",
+        "TEAM_ISSUE_OPEN": "Khiếu nại nội bộ chưa xong"
+      },
+      "githubRevoked": "Khi xóa tài khoản, vibefix sẽ thu hồi quyền truy cập GitHub của mình.",
+      "githubYourself": "Sau khi tài khoản bị xóa, bạn có thể thu hồi quyền của vibefix trong phần cài đặt Applications của GitHub."
     }
   },
   "notice": {
@@ -4172,6 +4207,9 @@
       },
       "mentor_approval_revoked": {
         "title": "Bạn tạm thời không nhận được việc mới: {reason}"
+      },
+      "deletion_requested": {
+        "title": "{name} yêu cầu xóa tài khoản"
       }
     },
     "team": {
@@ -4559,7 +4597,10 @@
       "ALREADY_LOCKED": "Tài khoản này đã bị khóa.",
       "NOT_LOCKED": "Tài khoản này không bị khóa.",
       "NOT_VERIFIED": "Sinh viên này chưa được xác minh.",
-      "NOT_APPROVED": "Người hướng dẫn này không ở trạng thái đã duyệt."
+      "NOT_APPROVED": "Người hướng dẫn này không ở trạng thái đã duyệt.",
+      "ALREADY_REQUESTED": "Bạn đã gửi yêu cầu xóa tài khoản.",
+      "NO_DELETION_REQUEST": "Người dùng chưa gửi yêu cầu xóa tài khoản.",
+      "ERASURE_BLOCKED": "Chưa xóa được vì người dùng còn công việc đang chạy, tranh chấp hoặc khiếu nại nội bộ chưa xong."
     },
     "files": {
       "FILE_TOO_LARGE": "Tệp lớn hơn 10 MB.",

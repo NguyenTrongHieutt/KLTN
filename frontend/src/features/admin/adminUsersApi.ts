@@ -50,6 +50,20 @@ export type UserCommand =
       body: { ground: 'OTHER' | 'PRIVATE_FEEDBACK'; reason?: string; category?: FeedbackCategory; stepUpCode: string }
     }
 
+/** "Xác nhận xóa tài khoản" behind the step-up (NFR-11); the list and ADM-1 refresh. */
+export function useEraseUser(accountId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (stepUpCode: string) =>
+      unwrap(apiClient.POST('/api/v1/admin/users/{accountId}/erase', { params: { path: { accountId } }, body: { stepUpCode } })),
+    onSettled: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: USERS_QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: OVERVIEW_QUERY_KEY }),
+      ]),
+  })
+}
+
 /** Lock, unlock, or a revocation; the account, the list, and ADM-1 refresh. */
 export function useUserCommand(accountId: string) {
   const queryClient = useQueryClient()

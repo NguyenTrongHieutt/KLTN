@@ -37,6 +37,61 @@
         "tags" : [ "abuse-report-controller" ]
       }
     },
+    "/api/v1/account/data" : {
+      "get" : {
+        "operationId" : "data",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MyDataView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "data-request-controller" ]
+      }
+    },
+    "/api/v1/account/data/export" : {
+      "get" : {
+        "operationId" : "export",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "string",
+                  "format" : "byte"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "data-request-controller" ]
+      }
+    },
+    "/api/v1/account/deletion-request" : {
+      "post" : {
+        "operationId" : "requestDeletion",
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MyDataView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "data-request-controller" ]
+      }
+    },
     "/api/v1/account/theme" : {
       "put" : {
         "operationId" : "theme",
@@ -1786,6 +1841,43 @@
               "application/json" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/UserDetailView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-users-controller" ]
+      }
+    },
+    "/api/v1/admin/users/{accountId}/erase" : {
+      "post" : {
+        "operationId" : "erase",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "accountId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/EraseRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AccountErasedView"
                 }
               }
             },
@@ -8643,6 +8735,19 @@
         },
         "required" : [ "assigned", "assignedToMe", "createdAt", "id", "kind", "label", "reason", "status" ]
       },
+      "AccountErasedView" : {
+        "type" : "object",
+        "properties" : {
+          "erased" : {
+            "type" : "boolean"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "erased", "id" ]
+      },
       "AccountView" : {
         "type" : "object",
         "properties" : {
@@ -11578,6 +11683,42 @@
         },
         "required" : [ "decidedAt", "nextState", "reasoning" ]
       },
+      "DeletionBlockerView" : {
+        "type" : "object",
+        "properties" : {
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "module" : {
+            "type" : "string"
+          },
+          "reason" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "module", "reason" ]
+      },
+      "DeletionRequestView" : {
+        "type" : "object",
+        "properties" : {
+          "blockers" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/DeletionBlockerView"
+            }
+          },
+          "completedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "requestedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "blockers", "requestedAt" ]
+      },
       "DeliveryReportView" : {
         "type" : "object",
         "properties" : {
@@ -11884,6 +12025,33 @@
           }
         },
         "required" : [ "name" ]
+      },
+      "EraseRequest" : {
+        "type" : "object",
+        "properties" : {
+          "stepUpCode" : {
+            "type" : "string",
+            "minLength" : 1,
+            "pattern" : "^[0-9]{6}$"
+          }
+        },
+        "required" : [ "stepUpCode" ]
+      },
+      "ErasureBlockerView" : {
+        "type" : "object",
+        "properties" : {
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "module" : {
+            "type" : "string"
+          },
+          "reason" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "module", "reason" ]
       },
       "EvidenceAgreementVersion" : {
         "type" : "object",
@@ -15247,6 +15415,29 @@
           }
         },
         "required" : [ "to", "version" ]
+      },
+      "MyDataView" : {
+        "type" : "object",
+        "properties" : {
+          "blockers" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ErasureBlockerView"
+            }
+          },
+          "deletionCompletedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "deletionRequestedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "tokenKept" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "blockers", "tokenKept" ]
       },
       "NameRequest" : {
         "type" : "object",
@@ -18854,6 +19045,9 @@
           "createdAt" : {
             "type" : "string",
             "format" : "date-time"
+          },
+          "deletionRequest" : {
+            "$ref" : "#/components/schemas/DeletionRequestView"
           },
           "email" : {
             "type" : "string"

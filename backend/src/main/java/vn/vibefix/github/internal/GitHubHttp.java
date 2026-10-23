@@ -73,12 +73,17 @@ final class GitHubHttp {
 	 * @return the answer; status 0 when GitHub could not be reached
 	 */
 	Answer send(String method, String path, String bearer, @Nullable Object body) {
+		return sendAuthorized(method, path, "Bearer " + bearer, body);
+	}
+
+	/** As {@link #send}, with an {@code Authorization} value of the caller's own, for example HTTP Basic. */
+	Answer sendAuthorized(String method, String path, String authorization, @Nullable Object body) {
 		String base = this.apiUrl.toString().replaceAll("/+$", "");
 		HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(base + path))
 			.timeout(Duration.ofSeconds(30))
 			.header("Accept", "application/vnd.github+json")
 			.header("X-GitHub-Api-Version", "2022-11-28")
-			.header("Authorization", "Bearer " + bearer);
+			.header("Authorization", authorization);
 		if (body == null) {
 			request.method(method, HttpRequest.BodyPublishers.noBody());
 		}

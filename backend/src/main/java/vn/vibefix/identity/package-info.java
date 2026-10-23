@@ -20,7 +20,7 @@
  * wiring in {@code identity.internal}.
  */
 @ApplicationModule(allowedDependencies = { "shared", "audit", "files", "settings", "catalog", "github", "timers",
-		"notification" })
+		"notification", "operations" })
 package vn.vibefix.identity;
 
 import org.springframework.modulith.ApplicationModule;

@@ -1,6 +1,6 @@
 import { Dialog } from '@base-ui/react/dialog'
 import { useId, useState, type FormEvent } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
 import { usePageTitle } from '@/app/usePageTitle'
 import { inputClass } from '@/components/formField-props'
@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils'
 import {
   useAdminUser,
   useAdminUsers,
+  useEraseUser,
   useUserCommand,
   type AdminUser,
   type FeedbackCategory,
@@ -331,6 +332,7 @@ function UserDetail({ user }: { user: AdminUser }) {
           )}
         </section>
       )}
+      {user.deletionRequest && <DeletionSection user={user} />}
       <section aria-labelledby="history-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5 text-body-sm">
         <h3 id="history-heading" className="text-h3">
           {t('screen.admin.users.history')}
@@ -357,6 +359,76 @@ function UserDetail({ user }: { user: AdminUser }) {
         <ReasonDialog user={user} action={asking} onClose={() => setAsking(undefined)} />
       )}
     </>
+  )
+}
+
+/**
+ * The person's account deletion request (NFR-11, AD-24): when it was sent, what keeps it waiting (each Job
+ * linked to ADM-5), and "Xác nhận xóa tài khoản" behind the step-up once nothing does.
+ */
+function DeletionSection({ user }: { user: AdminUser }) {
+  const toasts = useToasts()
+  const navigate = useNavigate()
+  const erase = useEraseUser(user.id)
+  const [stepUp, setStepUp] = useState(false)
+  const [error, setError] = useState<string>()
+  const deletion = user.deletionRequest!
+  return (
+    <section aria-labelledby="deletion-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5 text-body-sm">
+      <h3 id="deletion-heading" className="text-h3">
+        {t('screen.admin.users.deletion.title')}
+      </h3>
+      <p>{t('screen.admin.users.deletion.requested', { time: formatDayMonthTime(deletion.requestedAt) })}</p>
+      {deletion.blockers.length > 0 ? (
+        <div className="flex flex-col gap-1">
+          <p className="text-label">{t('screen.admin.users.deletion.waiting')}</p>
+          <ul className="flex flex-col gap-1">
+            {deletion.blockers.map((blocker, index) => (
+              <li key={`${blocker.reason}-${blocker.jobId ?? index}`}>
+                {blocker.jobId ? (
+                  <Link to={`/quan-tri/cong-viec/${blocker.jobId}`} className="text-primary underline-offset-4 hover:underline">
+                    {t(`screen.myData.blocker.${blocker.reason}` as MessageKey)}
+                  </Link>
+                ) : (
+                  t(`screen.myData.blocker.${blocker.reason}` as MessageKey)
+                )}
+              </li>
+            ))}
+          </ul>
+          <p className="text-caption text-muted-foreground">{t('screen.admin.users.deletion.lockFirst')}</p>
+        </div>
+      ) : (
+        <p className="text-caption text-muted-foreground">{t('screen.admin.users.deletion.effects')}</p>
+      )}
+      {error && (
+        <p role="alert" className="text-destructive">
+          {error}
+        </p>
+      )}
+      <div>
+        <Button type="button" variant="destructive" disabled={deletion.blockers.length > 0} onClick={() => setStepUp(true)}>
+          {t('screen.admin.users.deletion.confirm')}
+        </Button>
+      </div>
+      <StepUpDialog
+        open={stepUp}
+        onOpenChange={setStepUp}
+        confirmLabel={t('screen.admin.users.deletion.confirm')}
+        pending={erase.isPending}
+        onConfirm={(code, refused) =>
+          erase.mutate(code, {
+            onSuccess: () => {
+              toasts.success(t('screen.admin.users.deletion.done'))
+              navigate('/quan-tri/nguoi-dung')
+            },
+            onError: (failure) => {
+              refused(failure)
+              setError(problemMessage(failure, { module: 'identity' }).text)
+            },
+          })
+        }
+      />
+    </section>
   )
 }
 

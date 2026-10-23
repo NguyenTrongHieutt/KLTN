@@ -60,6 +60,11 @@ export function AccountMenu({ session, offline }: { session: Session; offline: b
                 {t('shell.balance')}
               </Menu.Item>
             )}
+            {role !== 'ADMINISTRATOR' && (
+              <Menu.Item className={item} onClick={() => navigate('/tai-khoan/du-lieu')}>
+                {t('shell.myData')}
+              </Menu.Item>
+            )}
             <Menu.Group>
               <Menu.GroupLabel className="px-3 pt-2 pb-1 text-caption text-muted-foreground">
                 {t('shell.theme')}
