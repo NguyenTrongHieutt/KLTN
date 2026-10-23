@@ -29,6 +29,14 @@ class WorkCounts implements PlatformCounts {
 				    GROUP BY work_item_id HAVING bool_or(action = 'APPROVED')) reviewed
 				GROUP BY 1
 				""");
+		this.jdbc.sql("""
+				SELECT count(*) FILTER (WHERE NOT returned) AS part, count(*) AS whole FROM (
+				    SELECT work_item_id, bool_or(action = 'RETURNED') AS returned FROM work.work_item_history
+				    GROUP BY work_item_id HAVING bool_or(action = 'APPROVED')) reviewed
+				""")
+			.query((rs, n) -> PlatformCounts.rate("workItemReviews", "FIRST_PASS_SHARE", rs.getLong("part"), rs.getLong("whole")))
+			.single()
+			.ifPresent(counts::add);
 		return counts;
 	}
 

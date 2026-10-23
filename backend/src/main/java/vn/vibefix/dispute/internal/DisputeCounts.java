@@ -27,6 +27,11 @@ class DisputeCounts implements PlatformCounts {
 				SELECT coalesce(x.next_state, 'OPEN') AS key, count(*) AS value FROM dispute.dispute d
 				LEFT JOIN dispute.decision x ON x.dispute_id = d.id GROUP BY 1
 				""");
+		grouped(counts, "teamIssuesByOutcome", """
+				SELECT coalesce(ending, CASE WHEN escalated_at IS NOT NULL THEN 'ESCALATED' ELSE 'OPEN' END) AS key,
+				       count(*) AS value
+				FROM dispute.team_issue GROUP BY 1
+				""");
 		return counts;
 	}
 

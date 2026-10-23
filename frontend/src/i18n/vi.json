@@ -1244,10 +1244,13 @@
           "crewsBySize": "Nhóm thực hiện theo số người",
           "jobsByState": "Công việc theo trạng thái",
           "jobsByType": "Công việc theo loại",
+          "rates": "Tỷ lệ công việc",
           "workItemReviews": "Việc được duyệt",
           "milestones": "Giai đoạn",
           "disputesByOutcome": "Tranh chấp theo kết quả",
+          "teamIssuesByOutcome": "Khiếu nại nội bộ theo kết quả",
           "acceptances": "Nghiệm thu",
+          "ratings": "Đánh giá công khai",
           "privateFeedback": "Đánh giá kín"
         },
         "key": {
@@ -1308,9 +1311,14 @@
             "DEPLOYMENT_OPERATIONS": "Triển khai và vận hành",
             "DOCUMENTATION": "Tài liệu"
           },
+          "rates": {
+            "COMPLETION": "Hoàn thành (trên số công việc đã kết thúc sau thỏa thuận)",
+            "ON_TIME": "Bàn giao đúng hạn (trên số giai đoạn đã nghiệm thu)"
+          },
           "workItemReviews": {
             "FIRST_PASS": "Duyệt ngay lần nộp đầu",
-            "RETURNED": "Bị trả lại rồi mới duyệt"
+            "RETURNED": "Bị trả lại rồi mới duyệt",
+            "FIRST_PASS_SHARE": "Tỷ lệ duyệt ngay lần nộp đầu"
           },
           "milestones": {
             "OVERDUE": "Đang trễ hạn"
@@ -1321,9 +1329,27 @@
             "END": "Kết thúc",
             "CANCEL": "Hủy"
           },
+          "teamIssuesByOutcome": {
+            "OPEN": "Đang mở",
+            "ESCALATED": "Đã chuyển quản trị viên",
+            "ACCEPTED": "Người nêu đồng ý câu trả lời",
+            "LAPSED": "Hết hạn chuyển quản trị viên",
+            "DECIDED": "Quản trị viên đã quyết định",
+            "MOOT": "Không còn cần giải quyết"
+          },
           "acceptances": {
             "MANUAL": "Khách hàng nghiệm thu",
-            "AUTOMATIC": "Tự động"
+            "AUTOMATIC": "Tự động",
+            "MANUAL_SHARE": "Tỷ lệ khách hàng nghiệm thu",
+            "AUTOMATIC_SHARE": "Tỷ lệ tự động nghiệm thu"
+          },
+          "ratings": {
+            "CUSTOMER_TO_MENTOR_AVERAGE": "Khách hàng chấm người hướng dẫn: trung bình (sao)",
+            "CUSTOMER_TO_MENTOR_COUNT": "Khách hàng chấm người hướng dẫn: số lượt",
+            "MENTOR_TO_CUSTOMER_AVERAGE": "Người hướng dẫn chấm khách hàng: trung bình (sao)",
+            "MENTOR_TO_CUSTOMER_COUNT": "Người hướng dẫn chấm khách hàng: số lượt",
+            "MENTOR_TO_STUDENT_AVERAGE": "Người hướng dẫn chấm sinh viên: trung bình (sao)",
+            "MENTOR_TO_STUDENT_COUNT": "Người hướng dẫn chấm sinh viên: số lượt"
           },
           "privateFeedback": {
             "COUNT": "Số đánh giá",

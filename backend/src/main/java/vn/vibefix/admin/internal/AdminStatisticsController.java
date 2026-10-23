@@ -11,10 +11,12 @@ import org.springframework.web.bind.annotation.RestController;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.Gate;
 import vn.vibefix.shared.PlatformCounts;
+import vn.vibefix.shared.PlatformCounts.Unit;
 
 /**
- * ADM-9 (FR-62 counts only, FR-35, SM-C2): every module's figures, grouped in a fixed order and each
- * group's keys in their own order. Counts only: no figure names a person.
+ * ADM-9 (FR-62, FR-35, FR-78, SM-9, SM-C2): every module's figures, grouped in a fixed order and each
+ * group's keys in their own order, each with its unit: counts, and since Story 17.2 rates and averages.
+ * No figure names a person.
  */
 @RestController
 @Access(Gate.ADMINISTRATOR)
@@ -22,9 +24,10 @@ class AdminStatisticsController {
 
 	static final List<String> ORDER = List.of("usersByRole", "studentsByVerification", "mentorsByApproval",
 			"mentorApplicationsByDecision", "lockedAccounts", "teamsBySize", "crewsBySize", "jobsByState", "jobsByType",
-			"workItemReviews", "milestones", "disputesByOutcome", "acceptances", "privateFeedback");
+			"rates", "workItemReviews", "milestones", "acceptances", "ratings", "privateFeedback", "disputesByOutcome",
+			"teamIssuesByOutcome");
 
-	record StatisticView(String key, long value) {
+	record StatisticView(String key, long value, Unit unit) {
 	}
 
 	record StatisticGroupView(String group, List<StatisticView> counts) {
@@ -45,7 +48,7 @@ class AdminStatisticsController {
 		ORDER.forEach(group -> groups.put(group, new ArrayList<>()));
 		this.sources.forEach(source -> source.counts()
 			.forEach(count -> groups.computeIfAbsent(count.group(), group -> new ArrayList<>())
-				.add(new StatisticView(count.key(), count.value()))));
+				.add(new StatisticView(count.key(), count.value(), count.unit()))));
 		return new StatisticsView(groups.entrySet()
 			.stream()
 			.map(entry -> new StatisticGroupView(entry.getKey(),
