@@ -75,7 +75,7 @@ const deletion = (overrides: object = {}) => ({
   ended: false,
   parties: [
     { party: 'MENTOR', name: 'Đỗ Mạnh Hùng', confirmed: true },
-    { party: 'CREW', name: 'Trần Thảo Vy', confirmed: false },
+    { party: 'TEAM', name: '', confirmed: false },
   ],
   ...overrides,
 })
@@ -120,7 +120,9 @@ describe('JOB-1 closure section (FR-37, FR-67, UX-DR55)', () => {
     const section = (await screen.findByRole('heading', { level: 2, name: 'Kết thúc công việc' })).closest('section')!
     expect(within(section).getByText(/Hệ thống sẽ tự xác nhận kết thúc ngày 06\/11/)).toBeInTheDocument()
     expect(within(section).getByText('Khách hàng Lan Nguyễn: xác nhận kết thúc')).toBeInTheDocument()
-    expect(within(section).getByText('Trần Thảo Vy: xác nhận đã xóa dữ liệu của khách hàng')).toBeInTheDocument()
+    expect(
+      within(section).getByText('Nhóm thực hiện của người hướng dẫn: xác nhận đã xóa dữ liệu của khách hàng'),
+    ).toBeInTheDocument()
     expect(within(section).getByText('Người hướng dẫn Đỗ Mạnh Hùng: xác nhận đã xóa dữ liệu của khách hàng')).toBeInTheDocument()
     expect(within(section).getAllByText('Chưa xong')).toHaveLength(2)
     await user.click(within(section).getByRole('button', { name: 'Xác nhận kết thúc' }))
@@ -214,6 +216,53 @@ describe('JOB-1 closure section (FR-37, FR-67, UX-DR55)', () => {
     await waitFor(() =>
       expect(within(section).getByRole('checkbox', { name: /Đã xóa các bản xem thử/ })).toBeChecked(),
     )
+  })
+
+  it('keeps the post-Job duties for a Crew member the closed Job released (AD-41)', { timeout: 20_000 }, async () => {
+    fakeBackend(signedIn('STUDENT'), {
+      'GET /api/v1/boards/j1/progress': () => json({ ...progress, state: 'CLOSED', audience: 'FORMER' }),
+      'GET /api/v1/boards/j1/closure': () =>
+        json(
+          closure({
+            state: 'CLOSED',
+            audience: 'CREW',
+            proposal: { ...closure().proposal, status: 'CONFIRMED', answerable: false },
+          }),
+        ),
+      'GET /api/v1/boards/j1/data-deletion': () =>
+        json(
+          deletion({
+            ended: true,
+            parties: [{ party: 'CREW', name: 'Trần Thảo Vy', confirmed: false }],
+            mine: [
+              { item: 'NON_CODE_DATA', confirmedAt: null },
+              { item: 'PREVIEWS', confirmedAt: null },
+            ],
+          }),
+        ),
+      'GET /api/v1/boards/j1/ratings': () =>
+        json({
+          jobId: 'j1',
+          audience: 'CREW',
+          openedAt: '2026-10-20T03:00:00Z',
+          endsAt: '2026-11-03T03:00:00Z',
+          open: true,
+          toRate: [],
+          ratings: [],
+          hiddenUntil: '2026-11-03T03:00:00Z',
+          feedbackDue: true,
+          feedbackGiven: false,
+        }),
+    })
+    renderAt('/cong-viec/j1')
+
+    expect(
+      await screen.findByText('Bạn không còn tham gia công việc này. Bạn chỉ xem được nội dung trong thời gian đã tham gia.'),
+    ).toBeInTheDocument()
+    const section = (await screen.findByRole('heading', { level: 2, name: 'Công việc đã hoàn thành' })).closest('section')!
+    expect(await within(section).findByRole('checkbox', { name: /Đã xóa dữ liệu không phải mã nguồn/ })).toBeEnabled()
+    expect(await screen.findByRole('group', { name: 'Đánh giá kín người hướng dẫn' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Các giai đoạn' })).not.toBeInTheDocument()
   })
 
   it('says why a proposal is refused while a Milestone is held', { timeout: 20_000 }, async () => {

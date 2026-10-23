@@ -752,8 +752,8 @@ GET /api/v1/boards/{boardId}/progress,ADMINISTRATOR,,,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/progress,TEAM_MENTOR,,,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/progress,TEAM_MEMBER,,,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/progress,CREW_ASSIGNED,,,404 NOT_FOUND
-GET /api/v1/boards/{boardId}/progress,CREW_INACTIVE,,,404 NOT_FOUND
-GET /api/v1/boards/{boardId}/progress,CREW_FORMER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/progress,CREW_INACTIVE,,,200
+GET /api/v1/boards/{boardId}/progress,CREW_FORMER,,,200
 GET /api/v1/boards/{boardId}/progress,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/progress,OWNER,,,200
 GET /api/v1/boards/{boardId}/progress,JOB_MENTOR,,,200
@@ -768,8 +768,8 @@ GET /api/v1/boards/{boardId}/closure,ADMINISTRATOR,,,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/closure,TEAM_MENTOR,,,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/closure,TEAM_MEMBER,,,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/closure,CREW_ASSIGNED,,,404 NOT_FOUND
-GET /api/v1/boards/{boardId}/closure,CREW_INACTIVE,,,404 NOT_FOUND
-GET /api/v1/boards/{boardId}/closure,CREW_FORMER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/closure,CREW_INACTIVE,,,200
+GET /api/v1/boards/{boardId}/closure,CREW_FORMER,,,200
 GET /api/v1/boards/{boardId}/closure,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/closure,OWNER,,,200
 GET /api/v1/boards/{boardId}/closure,JOB_MENTOR,,,200
@@ -782,8 +782,8 @@ POST /api/v1/boards/{boardId}/closure,ADMINISTRATOR,,closure.json,404 NOT_FOUND
 POST /api/v1/boards/{boardId}/closure,TEAM_MENTOR,,closure.json,404 NOT_FOUND
 POST /api/v1/boards/{boardId}/closure,TEAM_MEMBER,,closure.json,404 NOT_FOUND
 POST /api/v1/boards/{boardId}/closure,CREW_ASSIGNED,,closure.json,404 NOT_FOUND
-POST /api/v1/boards/{boardId}/closure,CREW_INACTIVE,,closure.json,404 NOT_FOUND
-POST /api/v1/boards/{boardId}/closure,CREW_FORMER,,closure.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/closure,CREW_INACTIVE,,closure.json,403 FORBIDDEN MENTOR_ONLY
+POST /api/v1/boards/{boardId}/closure,CREW_FORMER,,closure.json,403 FORBIDDEN MENTOR_ONLY
 POST /api/v1/boards/{boardId}/closure,ADMIN_TEAM_ISSUE_GRANT,,closure.json,404 NOT_FOUND
 POST /api/v1/boards/{boardId}/closure,OWNER,,closure.json,201
 POST /api/v1/boards/{boardId}/closure,JOB_MENTOR,,closure.json,201
@@ -796,8 +796,8 @@ POST /api/v1/boards/{boardId}/closure/confirm,ADMINISTRATOR,,closure.json,404 NO
 POST /api/v1/boards/{boardId}/closure/confirm,TEAM_MENTOR,,closure.json,404 NOT_FOUND
 POST /api/v1/boards/{boardId}/closure/confirm,TEAM_MEMBER,,closure.json,404 NOT_FOUND
 POST /api/v1/boards/{boardId}/closure/confirm,CREW_ASSIGNED,,closure.json,404 NOT_FOUND
-POST /api/v1/boards/{boardId}/closure/confirm,CREW_INACTIVE,,closure.json,404 NOT_FOUND
-POST /api/v1/boards/{boardId}/closure/confirm,CREW_FORMER,,closure.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/closure/confirm,CREW_INACTIVE,,closure.json,403 FORBIDDEN MENTOR_ONLY
+POST /api/v1/boards/{boardId}/closure/confirm,CREW_FORMER,,closure.json,403 FORBIDDEN MENTOR_ONLY
 POST /api/v1/boards/{boardId}/closure/confirm,ADMIN_TEAM_ISSUE_GRANT,,closure.json,404 NOT_FOUND
 POST /api/v1/boards/{boardId}/closure/confirm,OWNER,,closure.json,409 CONFLICT NO_CLOSURE_OPEN
 POST /api/v1/boards/{boardId}/closure/confirm,JOB_MENTOR,,closure.json,409 CONFLICT NO_CLOSURE_OPEN
@@ -810,8 +810,8 @@ POST /api/v1/boards/{boardId}/closure/decline,ADMINISTRATOR,,closure.json,404 NO
 POST /api/v1/boards/{boardId}/closure/decline,TEAM_MENTOR,,closure.json,404 NOT_FOUND
 POST /api/v1/boards/{boardId}/closure/decline,TEAM_MEMBER,,closure.json,404 NOT_FOUND
 POST /api/v1/boards/{boardId}/closure/decline,CREW_ASSIGNED,,closure.json,404 NOT_FOUND
-POST /api/v1/boards/{boardId}/closure/decline,CREW_INACTIVE,,closure.json,404 NOT_FOUND
-POST /api/v1/boards/{boardId}/closure/decline,CREW_FORMER,,closure.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/closure/decline,CREW_INACTIVE,,closure.json,403 FORBIDDEN MENTOR_ONLY
+POST /api/v1/boards/{boardId}/closure/decline,CREW_FORMER,,closure.json,403 FORBIDDEN MENTOR_ONLY
 POST /api/v1/boards/{boardId}/closure/decline,ADMIN_TEAM_ISSUE_GRANT,,closure.json,404 NOT_FOUND
 POST /api/v1/boards/{boardId}/closure/decline,OWNER,,closure.json,409 CONFLICT NO_CLOSURE_OPEN
 POST /api/v1/boards/{boardId}/closure/decline,JOB_MENTOR,,closure.json,409 CONFLICT NO_CLOSURE_OPEN

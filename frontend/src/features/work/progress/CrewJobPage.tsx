@@ -7,14 +7,18 @@ import { buttonVariants } from '@/components/ui/button-variants'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t } from '@/i18n/t'
 import { isNotFound } from '@/lib/problemMessage'
+import { ClosureSection } from '@/features/job/closure/ClosureSection'
 import { SetupTracker } from '@/features/job/SetupTracker'
+import { JobPortfolioSection } from '@/features/reputation/JobPortfolioSection'
+import { RatingSection } from '@/features/reputation/RatingSection'
 import { useJobProgress } from './progressApi'
 import { ProgressOverview } from './ProgressOverview'
 
 /**
  * JOB-1 for an active Crew member (UX-DR68): the Job's title and Product, the ways to its Board,
  * Documentation Space, and Crew Chat, the step tracker while the Job is Starting (UX-DR23), and the
- * progress overview with their own Work Items and N-12.
+ * progress overview with their own Work Items and N-12. An inactive or former member (`FORMER`) gets the
+ * read-only banner and their post-Job duties instead (AD-41).
  * Anyone the progress read does not name sees the not-found screen.
  */
 export function CrewJobPage({ jobId }: { jobId: string }) {
@@ -54,7 +58,30 @@ export function CrewJobPage({ jobId }: { jobId: string }) {
         )}
       </RegionState>
       {progress.data?.state === 'STARTING' && <SetupTracker jobId={jobId} />}
-      {progress.data && <ProgressOverview jobId={jobId} audience="crew" />}
+      {progress.data &&
+        (progress.data.audience === 'FORMER' ? (
+          <FormerDuties jobId={jobId} closed={progress.data.state === 'CLOSED'} />
+        ) : (
+          <ProgressOverview jobId={jobId} audience="crew" />
+        ))}
+    </div>
+  )
+}
+
+/**
+ * What stays for a member the Crew no longer counts (AD-41, UX spine "Crew member inactive or former"):
+ * the read-only banner, the closure section with their data-deletion Checklist, and once the Job is
+ * Closed, private feedback and the Portfolio summary.
+ */
+function FormerDuties({ jobId, closed }: { jobId: string; closed: boolean }) {
+  return (
+    <div className="flex flex-col gap-6">
+      <p role="status" className="rounded-md border-l-4 border-warning bg-warning-soft p-3 text-body-sm">
+        {t('screen.progress.former')}
+      </p>
+      <ClosureSection jobId={jobId} />
+      {closed && <RatingSection jobId={jobId} />}
+      {closed && <JobPortfolioSection jobId={jobId} />}
     </div>
   )
 }

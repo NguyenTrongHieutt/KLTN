@@ -3150,7 +3150,8 @@
       "overdueWait": "chờ thêm",
       "overdueNewDate": "đề nghị hạn mới",
       "overdueCancel": "đề nghị hủy",
-      "overdueDispute": "mở tranh chấp"
+      "overdueDispute": "mở tranh chấp",
+      "former": "Bạn không còn tham gia công việc này. Bạn chỉ xem được nội dung trong thời gian đã tham gia."
     },
     "handover": {
       "tab": "Bàn giao",
@@ -3318,6 +3319,7 @@
       "deletion": {
         "MENTOR": "Người hướng dẫn {name}: xác nhận đã xóa dữ liệu của khách hàng",
         "CREW": "{name}: xác nhận đã xóa dữ liệu của khách hàng",
+        "TEAM": "Nhóm thực hiện của người hướng dẫn: xác nhận đã xóa dữ liệu của khách hàng",
         "mine": "Xác nhận đã xóa dữ liệu",
         "lead": "Công việc đã kết thúc. Hãy xóa dữ liệu của khách hàng rồi đánh dấu từng mục.",
         "notYet": "Bạn đánh dấu được sau khi công việc bắt đầu kết thúc.",

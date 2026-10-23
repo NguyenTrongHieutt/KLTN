@@ -3,6 +3,7 @@ package vn.vibefix.job.internal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
@@ -36,13 +37,18 @@ import vn.vibefix.shared.Role;
  * JOB-1's closure section (FR-37, FR-67, AD-20, AD-23, UX-DR55), under {@code /api/v1/boards/{boardId}}
  * like the Job's other Active-phase calls (a Board's ID is its Job's): the proposal and whose turn it is,
  * and each party's steps from the proposal through Closed. The Customer and the Mentor propose, confirm,
- * and decline on the version they loaded; an active Crew member reads it and may not answer
- * ({@code FORBIDDEN MENTOR_ONLY}); everyone else finds nothing. The data-deletion steps are
- * {@code repo}'s, which the section reads beside this one (FR-66).
+ * and decline on the version they loaded; a Crew member who was ever active reads it and may not answer
+ * ({@code FORBIDDEN MENTOR_ONLY}), a released or inactive one included, whose post-Job duties stay (AD-41);
+ * everyone else finds nothing. The data-deletion steps are {@code repo}'s, which the section reads beside
+ * this one (FR-66).
  */
 @RestController
 @Access(Gate.SIGNED_IN)
 class ClosureController {
+
+	/** The Crew relationships that read the section: every one that was active at some point. */
+	private static final Set<Relationship> EVER_ACTIVE = Set.of(Relationship.ACTIVE, Relationship.INACTIVE,
+			Relationship.FORMER);
 
 	/**
 	 * One closure step.
@@ -142,7 +148,7 @@ class ClosureController {
 		return viewer;
 	}
 
-	/** The Customer, the Mentor, or an active Crew member (party empty) of a Job with a Board. */
+	/** The Customer, the Mentor, or a Crew member who was ever active (party empty) of a Job with a Board. */
 	private Viewer viewer(UUID jobId, Caller caller) {
 		Job job = this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id")
 			.param("id", jobId)
@@ -160,7 +166,7 @@ class ClosureController {
 		if (caller.hasRole(Role.MENTOR) && account.equals(job.mentorId())) {
 			return new Viewer(job, account, Party.MENTOR);
 		}
-		if (caller.hasRole(Role.STUDENT) && this.crews.crewRelationship(jobId, account).kind() == Relationship.ACTIVE) {
+		if (caller.hasRole(Role.STUDENT) && EVER_ACTIVE.contains(this.crews.crewRelationship(jobId, account).kind())) {
 			return new Viewer(job, account, null);
 		}
 		throw new ApiException(ErrorCode.NOT_FOUND);
