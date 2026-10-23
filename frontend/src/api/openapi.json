@@ -18475,12 +18475,16 @@
           "key" : {
             "type" : "string"
           },
+          "unit" : {
+            "type" : "string",
+            "enum" : [ "COUNT", "PERCENT_TENTHS", "AVERAGE_TENTHS" ]
+          },
           "value" : {
             "type" : "integer",
             "format" : "int64"
           }
         },
-        "required" : [ "key", "value" ]
+        "required" : [ "key", "unit", "value" ]
       },
       "StatisticsView" : {
         "type" : "object",

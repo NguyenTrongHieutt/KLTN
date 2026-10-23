@@ -43,7 +43,36 @@ class JobCounts implements PlatformCounts {
 				SELECT CASE WHEN auto_accepted THEN 'AUTOMATIC' ELSE 'MANUAL' END AS key, count(*) AS value FROM job.milestone
 				WHERE removed_at IS NULL AND accepted_at IS NOT NULL GROUP BY 1
 				""");
+		// Story 17.2's FR-62 formulas (SPEC.md Open Questions): completion counts the Jobs that ended after
+		// their Agreement was confirmed; on time means the accepted handover was submitted by the end of the
+		// due date in Vietnam.
+		rate(counts, "rates", "COMPLETION", """
+				SELECT count(*) FILTER (WHERE j.state = 'CLOSED') AS part,
+				       count(*) FILTER (WHERE j.state = 'CLOSED' OR (j.state = 'CANCELLED'
+				           AND EXISTS (SELECT 1 FROM job.confirmed_agreement c WHERE c.job_id = j.id))) AS whole
+				FROM job.job j
+				""");
+		rate(counts, "rates", "ON_TIME", """
+				SELECT count(*) FILTER (WHERE submitted_at < ((due_on + 1)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')) AS part,
+				       count(*) AS whole
+				FROM job.milestone WHERE removed_at IS NULL AND accepted_at IS NOT NULL AND due_on IS NOT NULL
+				""");
+		rate(counts, "acceptances", "MANUAL_SHARE", """
+				SELECT count(*) FILTER (WHERE NOT auto_accepted) AS part, count(*) AS whole FROM job.milestone
+				WHERE removed_at IS NULL AND accepted_at IS NOT NULL
+				""");
+		rate(counts, "acceptances", "AUTOMATIC_SHARE", """
+				SELECT count(*) FILTER (WHERE auto_accepted) AS part, count(*) AS whole FROM job.milestone
+				WHERE removed_at IS NULL AND accepted_at IS NOT NULL
+				""");
 		return counts;
+	}
+
+	private void rate(List<Count> counts, String group, String key, String sql) {
+		this.jdbc.sql(sql)
+			.query((rs, n) -> PlatformCounts.rate(group, key, rs.getLong("part"), rs.getLong("whole")))
+			.single()
+			.ifPresent(counts::add);
 	}
 
 	private void grouped(List<Count> counts, String group, String sql) {

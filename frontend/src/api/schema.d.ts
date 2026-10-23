@@ -7492,6 +7492,8 @@ export interface components {
         };
         StatisticView: {
             key: string;
+            /** @enum {string} */
+            unit: "COUNT" | "PERCENT_TENTHS" | "AVERAGE_TENTHS";
             /** Format: int64 */
             value: number;
         };
