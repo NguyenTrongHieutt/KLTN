@@ -11,6 +11,8 @@ The local development stack of vibefix: four services, each published on localho
 
 ```text
 compose.yaml          the four services
+compose.integrations.yaml  the dev GitHub Apps and VNPay merchant for the backend (checkpoint 1, below)
+.env.example          the IDs compose.integrations.yaml reads from deploy/.env (ignored by git)
 postgres/initdb/      creates the roles and the database on an empty volume
 dev-secrets.sh        creates the local secret files in deploy/secrets/ (ignored by git)
 later/                the production shape and CI, parked until the dev environment works (below)
@@ -103,6 +105,51 @@ Authenticator, 1Password) right away, because it is never shown again. Without a
 Five wrong sign-ins within 15 minutes lock that email for 15 minutes and alert the other
 Administrators. An Administrator session ends after 30 minutes without a command, or 8 hours after
 sign-in; ADM-1's automatic refresh does not keep it open.
+
+## The end-to-end path (checkpoint 1)
+
+Checkpoint 1 runs the Mentor path with a one-Student Crew on a test repository: Mentor approval and
+Team, intake, an Assessment Job, a Code Job with two Milestones, and closure with a Final Merge. Beyond
+the stack above it needs the dev Platform App, the dev Merge App, and the dev VNPay sandbox merchant.
+
+1. **Give the backend the three accounts.** Copy `.env.example` to `deploy/.env` and fill in the App
+   IDs, the Platform App's installation ID on `vibefix-dev`, and the VNPay terminal code. The keys stay
+   in `deploy/secrets/` as `github-platform-app-key.pem`, `github-merge-app-key.pem`, and
+   `vnpay-hash-secret`. Then start the stack with both files:
+
+   ```sh
+   docker compose -f deploy/compose.yaml -f deploy/compose.integrations.yaml up -d --build --wait
+   ```
+
+   Pass both files to every later `up` too; `up` with `compose.yaml` alone drops the accounts again.
+2. **Point the Merge App back at localhost.** On the Merge App's settings page, set the Setup URL to
+   `http://localhost:5173/api/v1/github/merge-app/setup` and tick "Redirect on update". GitHub sends
+   the Customer there after the install, and vibefix binds the installation to the Job.
+3. **Relay each VNPay IPN by hand.** VNPay cannot reach localhost, and the IPN is the only request that
+   changes a Payment Order (AD-14). After paying, VNPay sends the browser to
+   `http://localhost:5173/thanh-toan/<order>?vnp_…`; the return carries the same signed fields as the IPN.
+   Within 15 minutes of creating the order, open the same query on the backend, which answers
+   `{"RspCode":"00",…}`:
+
+   ```text
+   http://localhost:8080/webhooks/vnpay/ipn?vnp_Amount=…   (everything after the "?" of the return address)
+   ```
+
+4. **Wait for the sweeps instead of webhooks.** No GitHub webhook reaches localhost either. Accepted
+   invitations, pushes to the Working Repository, and organization drift are read back every 10 minutes
+   (`vibefix.repo.grant-sweep`, `vibefix.repo.push-sweep`).
+5. **Use four accounts, one browser profile each.** A GitHub account has one role, and a browser holds
+   one vibefix session at a time:
+   - the Customer, who owns the public Source Repository and has admin rights on it;
+   - the Mentor and the Student, two GitHub accounts that are not members of `vibefix-dev` (a member
+     gets access without an invitation, which alerts Administrators), each with two-factor
+     authentication on;
+   - an Administrator, created with the bootstrap CLI ("The first Administrator", above).
+
+   The Student verifies with a school email code: `ten@truong.test` is a seeded school domain, and the
+   code arrives in Mailpit.
+6. **Clean up after a run.** The Intermediary and Working Repositories are public repositories in
+   `vibefix-dev`; delete them by hand.
 
 ## Spike S1: the admin check for organization-owned repositories
 
@@ -218,7 +265,8 @@ the organization settings and both rulesets back. JOB-H shows the three steps.
 
 On the dev stack this needs the Platform App configured for the backend, as for Spike S4:
 `vibefix.github.platform-app.id`, `installation-id`, and `key-file`, with the key mounted read-only from
-`deploy/secrets/`. Without them every attempt fails with `GITHUB_UNAVAILABLE`. After the retries, the
+`deploy/secrets/`; `compose.integrations.yaml` does this ("The end-to-end path", below). Without them
+every attempt fails with `GITHUB_UNAVAILABLE`. After the retries, the
 operation waits in ADM-7's failed queue (Thao tác lỗi), and an Administrator retries it there once the
 App is configured.
 
