@@ -61,7 +61,8 @@ record ScanRules(int version, Pattern placeholders, List<Rule> rules, PersonalDa
 	 */
 	record PersonalData(int phones, int emails, int dataFileValues, Pattern phone, Pattern email,
 			Pattern ignoredEmails, Pattern citizenIdInContext, Pattern citizenId, Pattern dataFiles, Pattern columns,
-			Pattern citizenIdColumns, Pattern exemptFiles, Pattern notExtracted, Map<String, String> labels) {
+			Pattern citizenIdColumns, Pattern exemptFiles, Pattern extracted, Pattern notExtracted,
+			Map<String, String> labels) {
 
 		/** The type a personal-data Finding shows, for example "Email và số điện thoại khách hàng". */
 		String label(Set<PersonalKind> kinds) {
@@ -146,7 +147,7 @@ record ScanRules(int version, Pattern placeholders, List<Rule> rules, PersonalDa
 				threshold(thresholds, "dataFileValues"), pattern(data, "phone"), pattern(data, "email"),
 				pattern(data, "ignoredEmails"), pattern(data, "citizenIdInContext"), pattern(data, "citizenId"),
 				pattern(data, "dataFiles"), pattern(data, "columns"), pattern(data, "citizenIdColumns"),
-				pattern(data, "exemptFiles"), pattern(data, "notExtracted"), Map.copyOf(words));
+				pattern(data, "exemptFiles"), pattern(data, "extracted"), pattern(data, "notExtracted"), Map.copyOf(words));
 	}
 
 	private static int threshold(Map<?, ?> thresholds, String key) {

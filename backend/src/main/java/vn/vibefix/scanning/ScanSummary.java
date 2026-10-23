@@ -19,8 +19,8 @@ public record ScanSummary(UUID id, ScanPurpose purpose, ScanStatus status, Insta
 
 	/**
 	 * A file the scan did not read.
-	 * @param reason {@code TOO_LARGE}, or {@code NOT_EXTRACTED} for a spreadsheet or database file,
-	 * whose extraction is off (FR-65 Tier 3)
+	 * @param reason {@code TOO_LARGE}; {@code NOT_EXTRACTED} for a spreadsheet or database file whose extraction
+	 * is off (FR-65 Tier 3); or {@code UNREADABLE} for one the extraction could not read (Story 16.3)
 	 */
 	public record UnscannedFile(String path, long sizeBytes, String reason) {
 	}

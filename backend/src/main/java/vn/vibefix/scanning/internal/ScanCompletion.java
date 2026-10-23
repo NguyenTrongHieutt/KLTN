@@ -241,8 +241,9 @@ class ScanCompletion {
 				break;
 			}
 			if (file.path("path").isString() && file.path("sizeBytes").isIntegralNumber()) {
-				String reason = HistoryScanner.NOT_EXTRACTED.equals(file.path("reason").stringValue())
-						? HistoryScanner.NOT_EXTRACTED : HistoryScanner.TOO_LARGE;
+				String given = file.path("reason").stringValue();
+				String reason = HistoryScanner.NOT_EXTRACTED.equals(given) || HistoryScanner.UNREADABLE.equals(given) ? given
+						: HistoryScanner.TOO_LARGE;
 				kept.addObject()
 					.put("path", file.path("path").stringValue())
 					.put("sizeBytes", file.path("sizeBytes").longValue())

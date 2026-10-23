@@ -51,12 +51,19 @@ final class TestRepositories {
 
 	/** Writes {@code files}, deletes {@code deleted}, and commits at {@code when}. */
 	static RevCommit commit(Git git, Instant when, Map<String, String> files, Set<String> deleted) {
+		Map<String, byte[]> bytes = new java.util.LinkedHashMap<>();
+		files.forEach((path, text) -> bytes.put(path, text.getBytes(StandardCharsets.UTF_8)));
+		return commitBytes(git, when, bytes, deleted);
+	}
+
+	/** As {@link #commit}, with each file's bytes: Story 16.3's spreadsheets and databases. */
+	static RevCommit commitBytes(Git git, Instant when, Map<String, byte[]> files, Set<String> deleted) {
 		try {
 			Path work = git.getRepository().getWorkTree().toPath();
-			for (Map.Entry<String, String> file : files.entrySet()) {
+			for (Map.Entry<String, byte[]> file : files.entrySet()) {
 				Path path = work.resolve(file.getKey());
 				Files.createDirectories(path.getParent());
-				Files.writeString(path, file.getValue(), StandardCharsets.UTF_8);
+				Files.write(path, file.getValue());
 				git.add().addFilepattern(file.getKey()).call();
 			}
 			for (String path : deleted) {

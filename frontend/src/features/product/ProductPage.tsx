@@ -38,6 +38,13 @@ import { ScanStateBadge } from './ScanStateBadge'
  * masked values only. "Xóa sản phẩm" deletes it after a destructive Confirmation dialog; Jobs
  * arrive with Epic 3.
  */
+/** Why a file was not checked: too large, a type not extracted, or one the extraction could not read (Story 16.3). */
+const UNSCANNED_REASONS: Record<string, MessageKey> = {
+  TOO_LARGE: 'screen.product.detail.unscannedSize',
+  NOT_EXTRACTED: 'screen.product.detail.unscannedNotExtracted',
+  UNREADABLE: 'screen.product.detail.unscannedUnreadable',
+}
+
 export function ProductPage() {
   const { productId } = useParams()
   const product = useProduct(productId)
@@ -414,9 +421,7 @@ function UnscannedFiles({ scan }: { scan: Scan }) {
           <li key={file.path} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
             <span className="font-mono break-all">{file.path}</span>
             <span className="text-caption text-muted-foreground">
-              {t(file.reason === 'NOT_EXTRACTED' ? 'screen.product.detail.unscannedNotExtracted' : 'screen.product.detail.unscannedSize', {
-                size: formatSize(file.sizeBytes),
-              })}
+              {t(UNSCANNED_REASONS[file.reason] ?? 'screen.product.detail.unscannedSize', { size: formatSize(file.sizeBytes) })}
             </span>
           </li>
         ))}
