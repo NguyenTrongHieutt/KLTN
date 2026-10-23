@@ -2388,6 +2388,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/jobs/{jobId}/page-shares": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["pageShares"];
+        put: operations["sharePages"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jobs/{jobId}/publish": {
         parameters: {
             query?: never;
@@ -2494,6 +2510,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["retry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/jobs/{jobId}/shared-pages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["sharedPages"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -6674,6 +6706,23 @@ export interface components {
             /** Format: int64 */
             total: number;
         };
+        PageShareOptionView: {
+            assessmentReport: boolean;
+            /** Format: uuid */
+            jobId: string;
+            /** Format: int32 */
+            pages: number;
+            shared: boolean;
+            state: string;
+            title: string;
+        };
+        PageSharesRequest: {
+            jobIds: string[];
+        };
+        PageSharesView: {
+            editable: boolean;
+            jobs: components["schemas"]["PageShareOptionView"][];
+        };
         PageTemplateView: {
             /** @enum {string} */
             template: "ASSESSMENT_REPORT" | "SCOPE" | "TECHNICAL_NOTES" | "MEETING_NOTES" | "HANDOVER" | "USER_GUIDE";
@@ -6725,6 +6774,7 @@ export interface components {
             readOnly: boolean;
             /** Format: int32 */
             restoredFrom?: number;
+            shared: boolean;
             /** @enum {string} */
             template?: "ASSESSMENT_REPORT" | "SCOPE" | "TECHNICAL_NOTES" | "MEETING_NOTES" | "HANDOVER" | "USER_GUIDE";
             title: string;
@@ -7319,6 +7369,12 @@ export interface components {
         ShareRequest: {
             /** Format: int32 */
             revision: number;
+        };
+        SharedJobView: {
+            /** Format: uuid */
+            jobId: string;
+            pages: components["schemas"]["PageNodeView"][];
+            title: string;
         };
         SignUpRequest: {
             privacyNoticeVersion: string;
@@ -11988,6 +12044,54 @@ export interface operations {
             };
         };
     };
+    pageShares: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageSharesView"];
+                };
+            };
+        };
+    };
+    sharePages: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PageSharesRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageSharesView"];
+                };
+            };
+        };
+    };
     publish: {
         parameters: {
             query?: never;
@@ -12151,6 +12255,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SetupView"];
+                };
+            };
+        };
+    };
+    sharedPages: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharedJobView"][];
                 };
             };
         };

@@ -17,6 +17,7 @@ import { mentorMeta } from '@/features/job/jobMeta'
 import { MentorJobTabs } from '@/features/matching/MentorJobTabs'
 import { useMentorJob } from '@/features/matching/mentorJobApi'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
+import { SharedDocsLink } from '@/features/work/docs/SharedDocsPage'
 import { t, type MessageKey } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
 import { formatDayMonthTime } from '@/lib/dates'
@@ -95,6 +96,7 @@ function MentorAgreement({ jobId }: { jobId: string }) {
             <Editor key={draft.data.revision} jobId={jobId} draft={draft.data} />
           ))}
       </RegionState>
+      <SharedDocsLink jobId={jobId} />
       {draft.data?.confirmed && <ExternalAccessSection jobId={jobId} />}
       {draft.data?.confirmed && <ChangeRequestSection jobId={jobId} />}
       <RegionState query={crew} skeleton={<Skeleton className="h-64 w-full" />}>

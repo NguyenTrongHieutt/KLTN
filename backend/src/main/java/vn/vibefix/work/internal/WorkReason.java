@@ -70,6 +70,12 @@ enum WorkReason {
 	NOTE_EMPTY,
 
 	/** The note a correction quotes is not one of this Work Item's. */
-	QUOTE_UNKNOWN
+	QUOTE_UNKNOWN,
+
+	/** Shared earlier Pages change only while the Job is Agreement, Starting, Active, or Closing (FR-70). */
+	SHARING_CLOSED,
+
+	/** Only another Job of the same Product with customer-visible Pages can be shared (FR-70). */
+	NOT_SHAREABLE
 
 }

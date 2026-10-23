@@ -5366,6 +5366,68 @@
         "tags" : [ "payment-controller" ]
       }
     },
+    "/api/v1/jobs/{jobId}/page-shares" : {
+      "get" : {
+        "operationId" : "pageShares",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageSharesView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "page-share-controller" ]
+      },
+      "put" : {
+        "operationId" : "sharePages",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PageSharesRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageSharesView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "page-share-controller" ]
+      }
+    },
     "/api/v1/jobs/{jobId}/publish" : {
       "post" : {
         "operationId" : "publish",
@@ -5605,6 +5667,36 @@
           }
         },
         "tags" : [ "job-setup-controller" ]
+      }
+    },
+    "/api/v1/jobs/{jobId}/shared-pages" : {
+      "get" : {
+        "operationId" : "sharedPages",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/SharedJobView"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "page-share-controller" ]
       }
     },
     "/api/v1/jobs/{jobId}/source/reconfirm" : {
@@ -16205,6 +16297,62 @@
         },
         "required" : [ "items", "page", "size", "total" ]
       },
+      "PageShareOptionView" : {
+        "type" : "object",
+        "properties" : {
+          "assessmentReport" : {
+            "type" : "boolean"
+          },
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "pages" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "shared" : {
+            "type" : "boolean"
+          },
+          "state" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "assessmentReport", "jobId", "pages", "shared", "state", "title" ]
+      },
+      "PageSharesRequest" : {
+        "type" : "object",
+        "properties" : {
+          "jobIds" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            },
+            "maxItems" : 100,
+            "minItems" : 0
+          }
+        },
+        "required" : [ "jobIds" ]
+      },
+      "PageSharesView" : {
+        "type" : "object",
+        "properties" : {
+          "editable" : {
+            "type" : "boolean"
+          },
+          "jobs" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/PageShareOptionView"
+            }
+          }
+        },
+        "required" : [ "editable", "jobs" ]
+      },
       "PageTemplateView" : {
         "type" : "object",
         "properties" : {
@@ -16338,6 +16486,9 @@
             "type" : "integer",
             "format" : "int32"
           },
+          "shared" : {
+            "type" : "boolean"
+          },
           "template" : {
             "type" : "string",
             "enum" : [ "ASSESSMENT_REPORT", "SCOPE", "TECHNICAL_NOTES", "MEETING_NOTES", "HANDOVER", "USER_GUIDE" ]
@@ -16354,7 +16505,7 @@
             "enum" : [ "TEAM", "CUSTOMER" ]
           }
         },
-        "required" : [ "at", "author", "boardId", "body", "id", "mentor", "readOnly", "title", "versionNo", "visibility" ]
+        "required" : [ "at", "author", "boardId", "body", "id", "mentor", "readOnly", "shared", "title", "versionNo", "visibility" ]
       },
       "PaymentOrderDetailView" : {
         "type" : "object",
@@ -17990,6 +18141,25 @@
           }
         },
         "required" : [ "revision" ]
+      },
+      "SharedJobView" : {
+        "type" : "object",
+        "properties" : {
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "pages" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/PageNodeView"
+            }
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "jobId", "pages", "title" ]
       },
       "SignUpRequest" : {
         "type" : "object",

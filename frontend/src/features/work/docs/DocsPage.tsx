@@ -28,6 +28,7 @@ import { ApiError } from '@/lib/apiClient'
 import { formatDayMonthTime } from '@/lib/dates'
 import { isNotFound, problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
+import { SharedDocsLink } from './SharedDocsPage'
 import {
   usePage,
   usePageTree,
@@ -275,6 +276,7 @@ function Space({ tree, jobId, pageId }: { tree: PageTree; jobId: string; pageId:
             ))}
           </ul>
         )}
+        {!tree.customer && <SharedDocsLink jobId={jobId} />}
       </nav>
       <main className="min-w-0">
         {creating ? (

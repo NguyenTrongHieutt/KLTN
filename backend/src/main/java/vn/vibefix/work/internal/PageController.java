@@ -46,8 +46,8 @@ import vn.vibefix.work.internal.WorkTextCheck.Resolution;
  * (keyed by the Job), its two-level Page tree, each Page's current version, its version history, saves
  * made on a version, restores, templates (FR-30), and the Mentor's visibility switch (FR-31). The
  * Mentor and the active Crew read and write; a former member and a granted Administrator read what
- * they may; the Job's Customer reads customer-visible Pages only, without their history; everyone else
- * finds nothing.
+ * they may; the Job's Customer, and the assignees of a new Job it was shared with (FR-70), read
+ * customer-visible Pages only, without their history; everyone else finds nothing.
  */
 @RestController
 @Access(Gate.SIGNED_IN)
@@ -94,10 +94,11 @@ class PageController {
 	/**
 	 * A Page at the version the viewer sees.
 	 * @param author who wrote that version; empty when the account is gone
+	 * @param shared read through a share from another Job (FR-70): read-only, without history
 	 */
 	record PageView(UUID id, UUID boardId, @Nullable UUID parentId, String title, String body, int versionNo,
 			String author, Instant at, @Nullable Integer restoredFrom, boolean readOnly, @Nullable Template template,
-			Visibility visibility, boolean mentor) {
+			Visibility visibility, boolean mentor, boolean shared) {
 	}
 
 	/** One version in "Lịch sử phiên bản". */
@@ -134,11 +135,7 @@ class PageController {
 	@GetMapping("/api/v1/boards/{boardId}/pages")
 	PageTreeView pageTree(@PathVariable UUID boardId) {
 		BoardViewer viewer = this.access.pageReader(boardId, this.callers.get());
-		List<PageNodeView> nodes = this.pages.visible(viewer)
-			.stream()
-			.map(seen -> new PageNodeView(seen.page().id(), seen.page().parentId(), seen.version().title(),
-					seen.version().versionNo(), seen.version().at(), seen.page().template(), seen.page().visibility()))
-			.toList();
+		List<PageNodeView> nodes = this.pages.visible(viewer).stream().map(PageController::node).toList();
 		List<PageTemplateView> offered = new ArrayList<>();
 		if (viewer.writes()) {
 			boolean report = viewer.assessment() && !this.pages.hasReport(viewer.board().jobId());
@@ -225,10 +222,16 @@ class PageController {
 		return view(writer, this.pages.seen(writer, changed));
 	}
 
-	/** A reader of the Page's history: the Customer reads the current version only. */
+	/** One Page in the tree, at the version the viewer sees. */
+	static PageNodeView node(Seen seen) {
+		return new PageNodeView(seen.page().id(), seen.page().parentId(), seen.version().title(), seen.version().versionNo(),
+				seen.version().at(), seen.page().template(), seen.page().visibility());
+	}
+
+	/** A reader of the Page's history: the Customer and a shared reader read the current version only. */
 	private BoardViewer historyReader(Page page) {
 		BoardViewer viewer = this.access.pageReader(page.jobId(), this.callers.get());
-		if (viewer.kind() == Kind.CUSTOMER) {
+		if (viewer.kind() == Kind.CUSTOMER || viewer.kind() == Kind.SHARED) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		this.pages.seen(viewer, page);
@@ -240,7 +243,7 @@ class PageController {
 		return new PageView(seen.page().id(), seen.page().jobId(), seen.page().parentId(), seen.version().title(),
 				seen.version().body(), seen.version().versionNo(), name(names, seen.version().author()), seen.version().at(),
 				seen.version().restoredFrom(), !viewer.writes(), seen.page().template(), seen.page().visibility(),
-				viewer.mentor());
+				viewer.mentor(), viewer.kind() == Kind.SHARED);
 	}
 
 	private Map<UUID, String> names(BoardViewer viewer, List<Version> versions) {

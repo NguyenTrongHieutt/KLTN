@@ -50,6 +50,9 @@ public interface JobPosts {
 	/** Any Job by ID, whatever its state; empty for no such Job. */
 	Optional<JobPostState> post(UUID jobId);
 
+	/** Every Job of a Product, whatever its state, newest first: the earlier Jobs FR-70 offers. */
+	List<JobPostState> productJobs(UUID productId);
+
 	/** The Customer of any Job, for checking that a caller is it. */
 	Optional<UUID> customerOf(UUID jobId);
 
