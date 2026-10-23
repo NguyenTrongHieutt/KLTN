@@ -113,9 +113,25 @@ class JobPostQueries implements JobPosts {
 			.param("id", jobId)
 			.query(Jobs::job)
 			.optional()
-			.map(job -> new JobPostState(job.id(), job.customerId(), job.productId(), job.title(), job.state().name(),
-					job.state() == JobState.OPEN, job.hiddenAt() != null, job.lapsesAt(), job.code(), job.mentorId(),
-					job.jobTypes().stream().map(Enum::name).toList(), job.skillIds()));
+			.map(JobPostQueries::state);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<JobPostState> productJobs(UUID productId) {
+		return this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE product_id = :product ORDER BY created_at DESC, id")
+			.param("product", productId)
+			.query(Jobs::job)
+			.list()
+			.stream()
+			.map(JobPostQueries::state)
+			.toList();
+	}
+
+	private static JobPostState state(Job job) {
+		return new JobPostState(job.id(), job.customerId(), job.productId(), job.title(), job.state().name(),
+				job.state() == JobState.OPEN, job.hiddenAt() != null, job.lapsesAt(), job.code(), job.mentorId(),
+				job.jobTypes().stream().map(Enum::name).toList(), job.skillIds());
 	}
 
 	@Override

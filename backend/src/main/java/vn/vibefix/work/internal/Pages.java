@@ -347,7 +347,8 @@ class Pages {
 	private Optional<Version> seenVersion(BoardViewer viewer, Page page) {
 		return switch (viewer.kind()) {
 			case MENTOR, CREW -> version(page.id(), page.versionNo());
-			case CUSTOMER -> page.visibility() == Visibility.CUSTOMER ? version(page.id(), page.versionNo()) : Optional.empty();
+			case CUSTOMER, SHARED ->
+				page.visibility() == Visibility.CUSTOMER ? version(page.id(), page.versionNo()) : Optional.empty();
 			case FORMER -> {
 				List<Version> versions = allVersions(page.id());
 				boolean touched = versions.stream()

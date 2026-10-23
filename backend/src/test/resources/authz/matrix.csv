@@ -434,6 +434,24 @@ PUT /api/v1/jobs/{jobId},CUSTOMER,,job-draft.json,404 NOT_FOUND
 PUT /api/v1/jobs/{jobId},MENTOR,,job-draft.json,404 NOT_FOUND
 PUT /api/v1/jobs/{jobId},STUDENT,,job-draft.json,404 NOT_FOUND
 PUT /api/v1/jobs/{jobId},ADMINISTRATOR,,job-draft.json,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/page-shares,ANONYMOUS,,,401
+GET /api/v1/jobs/{jobId}/page-shares,OWNER,,,200
+GET /api/v1/jobs/{jobId}/page-shares,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/page-shares,MENTOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/page-shares,STUDENT,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/page-shares,ADMINISTRATOR,,,404 NOT_FOUND
+PUT /api/v1/jobs/{jobId}/page-shares,ANONYMOUS,,page-shares.json,401
+PUT /api/v1/jobs/{jobId}/page-shares,OWNER,,page-shares.json,422 GUARD_FAILED SHARING_CLOSED
+PUT /api/v1/jobs/{jobId}/page-shares,CUSTOMER,,page-shares.json,404 NOT_FOUND
+PUT /api/v1/jobs/{jobId}/page-shares,MENTOR,,page-shares.json,404 NOT_FOUND
+PUT /api/v1/jobs/{jobId}/page-shares,STUDENT,,page-shares.json,404 NOT_FOUND
+PUT /api/v1/jobs/{jobId}/page-shares,ADMINISTRATOR,,page-shares.json,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/shared-pages,ANONYMOUS,,,401
+GET /api/v1/jobs/{jobId}/shared-pages,OWNER,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/shared-pages,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/shared-pages,MENTOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/shared-pages,STUDENT,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/shared-pages,ADMINISTRATOR,,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/screenshots,ANONYMOUS,,student-card.png,401
 POST /api/v1/jobs/{jobId}/screenshots,OWNER,,student-card.png,201
 POST /api/v1/jobs/{jobId}/screenshots,CUSTOMER,,student-card.png,404 NOT_FOUND

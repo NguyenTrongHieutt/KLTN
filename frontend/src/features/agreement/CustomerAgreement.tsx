@@ -34,6 +34,7 @@ import {
 } from './agreementApi'
 import { draftDays, inOrder, moved } from './reviewTargets'
 import { hasBoard } from '@/features/work/workApi'
+import { PageSharesSection } from '@/features/work/docs/PageSharesSection'
 
 
 /**
@@ -82,6 +83,7 @@ export function CustomerAgreement({ jobId }: { jobId: string }) {
         )}
       </RegionState>
       {agreement.data?.confirmed && <ChangeRequestSection jobId={jobId} />}
+      {agreement.data && <PageSharesSection jobId={jobId} />}
     </div>
   )
 }

@@ -3662,6 +3662,24 @@
       },
       "githubRevoked": "Khi xóa tài khoản, vibefix sẽ thu hồi quyền truy cập GitHub của mình.",
       "githubYourself": "Sau khi tài khoản bị xóa, bạn có thể thu hồi quyền của vibefix trong phần cài đặt Applications của GitHub."
+    },
+    "pageShares": {
+      "heading": "Chia sẻ tài liệu cũ",
+      "body": "Chọn công việc trước của sản phẩm này để người hướng dẫn và nhóm thực hiện đọc những trang tài liệu bạn xem được. Họ chỉ đọc, không sửa, và quyền đọc kết thúc khi công việc này kết thúc.",
+      "closed": "Tài liệu đã chia sẻ với người hướng dẫn và nhóm thực hiện của công việc này. Không thay đổi được nữa.",
+      "report": "Báo cáo đánh giá",
+      "pages": "{n} trang tài liệu",
+      "save": "Lưu chia sẻ",
+      "saved": "Đã lưu chia sẻ tài liệu."
+    },
+    "sharedDocs": {
+      "title": "Tài liệu từ công việc trước",
+      "heading": "Tài liệu từ công việc trước",
+      "note": "Khách hàng chia sẻ các trang này từ công việc trước của cùng sản phẩm. Bạn chỉ đọc được, cho đến khi công việc này kết thúc.",
+      "back": "Quay lại công việc",
+      "empty": "Chưa có tài liệu nào được chia sẻ.",
+      "noPages": "Không còn trang nào để đọc.",
+      "link": "Tài liệu từ công việc trước ({n})"
     }
   },
   "notice": {
@@ -4503,6 +4521,9 @@
       },
       "work_item_returned": {
         "title": "{key} bị trả lại: {reason}"
+      },
+      "pages_shared": {
+        "title": "Khách hàng đã chia sẻ tài liệu từ công việc trước"
       }
     },
     "delivery": {
@@ -4811,7 +4832,9 @@
       "LINK_SENSITIVE": "Liên kết có thể chứa khóa bí mật hoặc dữ liệu khách hàng. Hãy bỏ phần đó khỏi liên kết.",
       "JOB_FILE_QUOTA": "Tệp của một công việc tối đa 200 MB.",
       "NOTE_EMPTY": "Hãy viết nội dung ghi chú.",
-      "QUOTE_UNKNOWN": "Không tìm thấy ghi chú cần sửa."
+      "QUOTE_UNKNOWN": "Không tìm thấy ghi chú cần sửa.",
+      "SHARING_CLOSED": "Chỉ thay đổi được việc chia sẻ khi công việc đang thỏa thuận, chuẩn bị, đang làm hoặc đang kết thúc.",
+      "NOT_SHAREABLE": "Chỉ chia sẻ được công việc khác của cùng sản phẩm có tài liệu khách hàng xem được."
     },
     "delivery": {
       "MENTOR_ONLY": "Chỉ người hướng dẫn bàn giao được.",
