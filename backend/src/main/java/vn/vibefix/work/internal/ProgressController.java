@@ -43,7 +43,9 @@ import vn.vibefix.work.internal.WorkAccess.Kind;
  * customer-visible Pages; for the Mentor the Crew with each member's open Work Items, and for a Crew
  * member their own; for the Mentor and the Crew of an Assessment Job, the public Source Repository they
  * read (FR-10). The Job's Customer, its Mentor, and its active Crew read it; the Customer's answer holds
- * no Work Item and no repository link. Everyone else finds nothing.
+ * no Work Item and no repository link. An inactive or former Crew member reads only the Job's header, as
+ * {@code FORMER}, so JOB-1 keeps their post-Job duties without anything from after their time (AD-41).
+ * Everyone else finds nothing.
  */
 @RestController
 @Access(Gate.SIGNED_IN)
@@ -80,7 +82,7 @@ class ProgressController {
 
 	/**
 	 * The progress of a Job with a Board.
-	 * @param audience {@code CUSTOMER}, {@code MENTOR}, or {@code CREW}
+	 * @param audience {@code CUSTOMER}, {@code MENTOR}, {@code CREW}, or {@code FORMER} (the header only)
 	 * @param crew the active Crew with their open Work Items, for the Mentor only
 	 * @param mine the viewer's own open Work Items, for a Crew member only
 	 * @param assessment an Assessment Job (FR-10), for the Mentor and the Crew; {@code false} for the Customer
@@ -132,6 +134,11 @@ class ProgressController {
 	@GetMapping("/api/v1/boards/{boardId}/progress")
 	JobProgressView progress(@PathVariable UUID boardId) {
 		BoardViewer viewer = this.access.pageReader(boardId, this.callers.get());
+		if (viewer.kind() == Kind.FORMER) {
+			ProductInfo info = this.products.find(viewer.board().productId()).orElse(null);
+			return new JobProgressView(boardId, viewer.title(), viewer.jobState(), info == null ? "" : info.name(),
+					mentorName(viewer), Kind.FORMER.name(), List.of(), List.of(), List.of(), List.of(), false, null);
+		}
 		if (viewer.kind() != Kind.CUSTOMER && viewer.kind() != Kind.MENTOR && viewer.kind() != Kind.CREW) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
@@ -173,12 +180,14 @@ class ProgressController {
 		}
 		List<OpenItemView> mine = viewer.kind() == Kind.CREW ? openItems(viewer, viewer.accountId()) : List.of();
 		ProductInfo info = this.products.find(viewer.board().productId()).orElse(null);
-		String mentor = this.mentors.cards(List.of(viewer.mentorId())).stream().findFirst().map(MentorCard::displayName)
-			.orElse("");
 		boolean assessment = viewer.kind() != Kind.CUSTOMER && viewer.assessment();
 		String repository = assessment && info != null ? "https://github.com/" + info.repositoryFullName() : null;
-		return new JobProgressView(boardId, viewer.title(), viewer.jobState(), info == null ? "" : info.name(), mentor,
-				viewer.kind().name(), milestones, pages, crew, mine, assessment, repository);
+		return new JobProgressView(boardId, viewer.title(), viewer.jobState(), info == null ? "" : info.name(),
+				mentorName(viewer), viewer.kind().name(), milestones, pages, crew, mine, assessment, repository);
+	}
+
+	private String mentorName(BoardViewer viewer) {
+		return this.mentors.cards(List.of(viewer.mentorId())).stream().findFirst().map(MentorCard::displayName).orElse("");
 	}
 
 	private int inReview(UUID jobId, UUID milestoneId) {

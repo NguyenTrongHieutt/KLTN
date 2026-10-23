@@ -99,11 +99,19 @@ class DataDeletionIT extends IntegrationTest {
 			.containsExactlyInAnyOrder("repo.data_deletion_item_confirmed", "repo.data_deletion_item_confirmed",
 					"repo.data_deletion_confirmed");
 
+		// The Customer reads the Mentor and the Crew as one party: Customer screens never name a Student.
 		this.mvc.perform(get("/api/v1/boards/" + job + "/data-deletion").with(as(lan, Role.CUSTOMER)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.mine").doesNotExist())
-			.andExpect(jsonPath("$.parties.length()").value(3))
+			.andExpect(jsonPath("$.parties.length()").value(2))
 			.andExpect(jsonPath("$.parties[0].party").value("MENTOR"))
+			.andExpect(jsonPath("$.parties[0].name").value("Đỗ Mạnh Hùng"))
+			.andExpect(jsonPath("$.parties[1].party").value("TEAM"))
+			.andExpect(jsonPath("$.parties[1].name").value(""))
+			.andExpect(jsonPath("$.parties[1].confirmed").value(false));
+		this.mvc.perform(get("/api/v1/boards/" + job + "/data-deletion").with(as(hung, Role.MENTOR)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.parties.length()").value(3))
 			.andExpect(jsonPath("$.parties[?(@.name == 'Lê Văn Hải')].confirmed").value(true));
 		ticks(lan, Role.CUSTOMER, job, "PREVIEWS").andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.reason").value("NOT_A_DUTY"));

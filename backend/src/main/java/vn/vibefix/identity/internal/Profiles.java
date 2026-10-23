@@ -210,7 +210,7 @@ class Profiles implements ContactVisibility {
 		return holders.size();
 	}
 
-	/** The names search reads (AD-36): the Skills' current names, in order, joined by ", ". */
+	/** The names search reads (AD-36): the Skills' current names, in order, each followed by a comma and a space but the last. */
 	private String skillNames(List<UUID> skillIds) {
 		return this.catalog.byIds(skillIds).stream().map(Skill::name).collect(Collectors.joining(", "));
 	}

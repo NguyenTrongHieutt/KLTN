@@ -112,6 +112,20 @@ class ClosureIT extends IntegrationTest {
 				""").param("job", this.job).query(Long.class).single()).isZero();
 		assertThat(text("SELECT released_reason || ':' || (window_end IS NOT NULL) FROM job.crew_row WHERE job_id = '" + this.job
 				+ "'")).isEqualTo("JOB_ENDED:true");
+		// AD-41: the released member keeps JOB-1 for the post-Job duties, read-only, with nothing from after their time.
+		this.mvc.perform(get("/api/v1/boards/" + this.job + "/closure").with(as(this.vy, Role.STUDENT)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.audience").value("CREW"))
+			.andExpect(jsonPath("$.state").value("CLOSED"));
+		command(this.vy, Role.STUDENT, "decline", 8).andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.reason").value("MENTOR_ONLY"));
+		this.mvc.perform(get("/api/v1/boards/" + this.job + "/progress").with(as(this.vy, Role.STUDENT)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.audience").value("FORMER"))
+			.andExpect(jsonPath("$.state").value("CLOSED"))
+			.andExpect(jsonPath("$.milestones.length()").value(0))
+			.andExpect(jsonPath("$.pages.length()").value(0))
+			.andExpect(jsonPath("$.mine.length()").value(0));
 		assertThat(notifications("job.job_closing")).isEqualTo(3);
 		assertThat(notifications("job.job_closed")).isEqualTo(3);
 		assertThat(count("SELECT count(*) FROM notification.todo WHERE todo_key = 'job.answer_closure' AND closed_at IS NULL"))

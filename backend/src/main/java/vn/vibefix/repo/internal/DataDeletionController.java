@@ -30,9 +30,11 @@ import vn.vibefix.shared.Role;
 
 /**
  * The data-deletion confirmation in JOB-1's closure section (FR-66, AD-20, UX-DR51, UX-DR55), under
- * {@code /api/v1/boards/{boardId}} like the Job's other Active-phase calls. The Customer and the Mentor
- * read every party's status, and a Crew member who was ever active reads their own; the Mentor and those
- * Crew members tick their items once the Job has ended. Everyone else finds nothing.
+ * {@code /api/v1/boards/{boardId}} like the Job's other Active-phase calls. The Mentor reads every party's
+ * status; the Customer reads the Mentor's and the Crew's as one {@code TEAM} party with no name, since
+ * Customer screens never name a Student (UX spine, Voice and Tone); a Crew member who was ever active
+ * reads their own. The Mentor and those Crew members tick their items once the Job has ended. Everyone else
+ * finds nothing.
  */
 @RestController
 @Access(Gate.SIGNED_IN)
@@ -42,7 +44,10 @@ class DataDeletionController {
 	record DataDeletionItemView(String item, @Nullable Instant confirmedAt) {
 	}
 
-	/** One party's status: {@code MENTOR} or {@code CREW}. */
+	/**
+	 * One party's status: {@code MENTOR}, {@code CREW} (one member), or {@code TEAM} (the whole Crew, for
+	 * the Customer, confirmed once every member has; its name is empty).
+	 */
 	record DataDeletionPartyView(String party, String name, boolean confirmed) {
 	}
 
@@ -106,9 +111,10 @@ class DataDeletionController {
 
 	private DataDeletionView view(JobPostState job, UUID viewer) {
 		List<Duty> duties = this.confirmations.duties(job);
-		boolean everyone = viewer.equals(job.customerId()) || viewer.equals(job.mentorId());
+		boolean customer = viewer.equals(job.customerId());
+		boolean everyone = viewer.equals(job.mentorId());
 		List<UUID> crew = duties.stream().filter(duty -> !duty.mentor()).map(Duty::accountId).toList();
-		Map<UUID, String> names = crew.isEmpty() ? Map.of()
+		Map<UUID, String> names = crew.isEmpty() || customer ? Map.of()
 				: this.students.cards(crew)
 					.stream()
 					.collect(Collectors.toMap(StudentCard::accountId,
@@ -124,10 +130,14 @@ class DataDeletionController {
 					mine.add(new DataDeletionItemView(item.name(), duty.confirmed().get(item)));
 				}
 			}
-			if (everyone || duty.accountId().equals(viewer)) {
+			if (everyone || duty.accountId().equals(viewer) || (customer && duty.mentor())) {
 				parties.add(new DataDeletionPartyView(duty.mentor() ? "MENTOR" : "CREW",
 						duty.mentor() ? mentorName : names.getOrDefault(duty.accountId(), ""), duty.complete()));
 			}
+		}
+		if (customer && !crew.isEmpty()) {
+			parties.add(new DataDeletionPartyView("TEAM", "",
+					duties.stream().filter(duty -> !duty.mentor()).allMatch(Duty::complete)));
 		}
 		return new DataDeletionView(job.jobId(), DataDeletionConfirmations.ENDED.contains(job.state()), mine, parties,
 				mine != null && this.confirmations.removed(job, viewer));
