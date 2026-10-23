@@ -143,3 +143,62 @@ describe('the Skill picker on STU-5 (FR-4, UX-DR75, SG-50)', () => {
     expect(screen.getByRole('combobox', { name: 'Kỹ năng' })).toHaveAttribute('aria-invalid', 'true')
   })
 })
+
+const problem = (status: number, body: Record<string, unknown>) =>
+  new Response(JSON.stringify({ status, ...body }), { status, headers: { 'Content-Type': 'application/problem+json' } })
+
+describe('suggesting a missing Skill from the picker (FR-73, Story 16.4)', () => {
+  it('sends the typed name, says it was sent, and offers an existing Skill instead', { timeout: 30_000 }, async () => {
+    const user = userEvent.setup()
+    const sent: unknown[] = []
+    fakeBackend(signedIn('STUDENT'), {
+      'GET /api/v1/profile': () => profile(),
+      'GET /api/v1/catalog': catalog,
+      'POST /api/v1/skill-suggestions': async (request) => {
+        const body = (await request.json()) as { name: string }
+        sent.push(body)
+        return body.name === 'Reactjs'
+          ? problem(409, { code: 'CONFLICT', reason: 'SKILL_ALREADY_EXISTS', skillId: 'react', skillName: 'React' })
+          : json({ id: 'g1', name: body.name, status: 'OPEN', createdAt: new Date().toISOString() }, 201)
+      },
+    })
+    renderAt('/ho-so')
+
+    const input = await screen.findByRole('combobox', { name: 'Kỹ năng' })
+    await user.type(input, 'Supabase Edge')
+    await user.click(await screen.findByRole('button', { name: 'Đề xuất thêm kỹ năng này' }))
+    let dialog = await screen.findByRole('dialog', { name: 'Đề xuất kỹ năng' })
+    expect(within(dialog).getByLabelText('Tên kỹ năng')).toHaveValue('Supabase Edge')
+    await user.selectOptions(within(dialog).getByLabelText('Nhóm kỹ năng (không bắt buộc)'), 'c6')
+    await user.type(within(dialog).getByLabelText('Ghi chú (không bắt buộc)'), 'Dự án cần hàm phía máy chủ')
+    await user.click(within(dialog).getByRole('button', { name: 'Gửi đề xuất' }))
+    expect(await within(dialog).findByRole('status')).toHaveTextContent('Đã gửi đề xuất.')
+    expect(sent[0]).toEqual({ name: 'Supabase Edge', categoryId: 'c6', note: 'Dự án cần hàm phía máy chủ' })
+    await user.click(within(dialog).getByRole('button', { name: 'Đóng' }))
+
+    await user.clear(input)
+    await user.type(input, 'Reactjs')
+    await user.click(await screen.findByRole('button', { name: 'Đề xuất thêm kỹ năng này' }))
+    dialog = await screen.findByRole('dialog', { name: 'Đề xuất kỹ năng' })
+    await user.click(within(dialog).getByRole('button', { name: 'Gửi đề xuất' }))
+    expect(await within(dialog).findByText('Kỹ năng “React” đã có trong danh sách.')).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Chọn kỹ năng này' }))
+    expect(await screen.findByRole('button', { name: 'Bỏ React' })).toBeInTheDocument()
+  })
+
+  it('says when the day’s five suggestions are used', { timeout: 15_000 }, async () => {
+    const user = userEvent.setup()
+    fakeBackend(signedIn('STUDENT'), {
+      'GET /api/v1/profile': () => profile(),
+      'GET /api/v1/catalog': catalog,
+      'POST /api/v1/skill-suggestions': () => problem(429, { code: 'RATE_LIMITED', reason: 'SKILL_SUGGESTION_LIMIT' }),
+    })
+    renderAt('/ho-so')
+
+    await user.type(await screen.findByRole('combobox', { name: 'Kỹ năng' }), 'Thanh toán MoMo')
+    await user.click(await screen.findByRole('button', { name: 'Đề xuất thêm kỹ năng này' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Đề xuất kỹ năng' })
+    await user.click(within(dialog).getByRole('button', { name: 'Gửi đề xuất' }))
+    expect(await within(dialog).findByText('Bạn đã gửi đủ 5 đề xuất hôm nay. Hãy thử lại vào ngày mai.')).toBeInTheDocument()
+  })
+})

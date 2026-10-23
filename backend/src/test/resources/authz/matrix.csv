@@ -2351,3 +2351,29 @@ POST /api/v1/admin/users/{accountId}/erase,CUSTOMER,,admin-user-erase.json,404 N
 POST /api/v1/admin/users/{accountId}/erase,MENTOR,,admin-user-erase.json,404 NOT_FOUND
 POST /api/v1/admin/users/{accountId}/erase,STUDENT,,admin-user-erase.json,404 NOT_FOUND
 POST /api/v1/admin/users/{accountId}/erase,ADMINISTRATOR,,admin-user-erase.json,404 NOT_FOUND
+POST /api/v1/skill-suggestions,ANONYMOUS,,skill-suggestion.json,401
+POST /api/v1/skill-suggestions,CUSTOMER,,skill-suggestion.json,201
+POST /api/v1/skill-suggestions,MENTOR,,skill-suggestion.json,201
+POST /api/v1/skill-suggestions,STUDENT,,skill-suggestion.json,201
+POST /api/v1/skill-suggestions,ADMINISTRATOR,,skill-suggestion.json,404 NOT_FOUND
+GET /api/v1/skill-suggestions,ANONYMOUS,,,401
+GET /api/v1/skill-suggestions,CUSTOMER,,,200
+GET /api/v1/skill-suggestions,MENTOR,,,200
+GET /api/v1/skill-suggestions,STUDENT,,,200
+GET /api/v1/skill-suggestions,SUBJECT,,,200
+GET /api/v1/skill-suggestions,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/admin/skill-suggestions,ANONYMOUS,,,401
+GET /api/v1/admin/skill-suggestions,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/admin/skill-suggestions,MENTOR,,,404 NOT_FOUND
+GET /api/v1/admin/skill-suggestions,STUDENT,,,404 NOT_FOUND
+GET /api/v1/admin/skill-suggestions,ADMINISTRATOR,,,200
+POST /api/v1/admin/skill-suggestions/{suggestionId}/approve,ANONYMOUS,,admin-skill-suggestion-approve.json,401
+POST /api/v1/admin/skill-suggestions/{suggestionId}/approve,CUSTOMER,,admin-skill-suggestion-approve.json,404 NOT_FOUND
+POST /api/v1/admin/skill-suggestions/{suggestionId}/approve,MENTOR,,admin-skill-suggestion-approve.json,404 NOT_FOUND
+POST /api/v1/admin/skill-suggestions/{suggestionId}/approve,STUDENT,,admin-skill-suggestion-approve.json,404 NOT_FOUND
+POST /api/v1/admin/skill-suggestions/{suggestionId}/approve,ADMINISTRATOR,,admin-skill-suggestion-approve.json,200
+POST /api/v1/admin/skill-suggestions/{suggestionId}/decline,ANONYMOUS,,admin-skill-suggestion-decline.json,401
+POST /api/v1/admin/skill-suggestions/{suggestionId}/decline,CUSTOMER,,admin-skill-suggestion-decline.json,404 NOT_FOUND
+POST /api/v1/admin/skill-suggestions/{suggestionId}/decline,MENTOR,,admin-skill-suggestion-decline.json,404 NOT_FOUND
+POST /api/v1/admin/skill-suggestions/{suggestionId}/decline,STUDENT,,admin-skill-suggestion-decline.json,404 NOT_FOUND
+POST /api/v1/admin/skill-suggestions/{suggestionId}/decline,ADMINISTRATOR,,admin-skill-suggestion-decline.json,200

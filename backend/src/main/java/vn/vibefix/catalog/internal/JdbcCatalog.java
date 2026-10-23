@@ -9,6 +9,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -83,6 +84,14 @@ class JdbcCatalog implements Catalog {
 			.list()
 			.forEach(skill -> found.put(skill.id(), skill));
 		return new LinkedHashSet<>(ids).stream().map(found::get).filter(Objects::nonNull).toList();
+	}
+
+	@Override
+	public Optional<Skill> byName(String name) {
+		return this.jdbc.sql("""
+				SELECT id, category_id, name, hint, active FROM catalog.skill
+				WHERE platform.vi_normalize(name) = platform.vi_normalize(:name) ORDER BY active DESC, id LIMIT 1
+				""").param("name", name.strip()).query((rs, n) -> skill(rs)).optional();
 	}
 
 	@Override

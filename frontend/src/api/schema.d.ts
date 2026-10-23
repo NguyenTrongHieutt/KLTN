@@ -91,7 +91,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["queue"];
+        get: operations["queue_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -621,7 +621,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["approve_3"];
+        post: operations["approve_4"];
         delete?: never;
         options?: never;
         head?: never;
@@ -718,6 +718,54 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["signIn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/skill-suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["queue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/skill-suggestions/{suggestionId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["approve_3"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/skill-suggestions/{suggestionId}/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["decline_6"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2507,7 +2555,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["mine_1"];
+        get: operations["mine_2"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2619,7 +2667,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["mine"];
+        get: operations["mine_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3508,6 +3556,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/skill-suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["mine"];
+        put?: never;
+        post: operations["suggest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/students/{studentLogin}": {
         parameters: {
             query?: never;
@@ -4108,6 +4172,27 @@ export interface components {
             email: string;
             password: string;
         };
+        AdminSkillSuggestionView: {
+            /** Format: uuid */
+            categoryId?: string;
+            categoryName?: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            decidedAt?: string;
+            declineReason?: string;
+            /** Format: uuid */
+            id: string;
+            inactiveSkill?: components["schemas"]["SuggestedInactiveSkill"];
+            name: string;
+            note?: string;
+            /** Format: uuid */
+            skillId?: string;
+            status: string;
+            suggesterName?: string;
+            /** @enum {string} */
+            suggesterRole: "CUSTOMER" | "MENTOR" | "STUDENT" | "ADMINISTRATOR";
+        };
         AdminStatementView: {
             side: string;
             /** Format: date-time */
@@ -4334,6 +4419,14 @@ export interface components {
         ApproveRequest: {
             school: string;
             studentNumber: string;
+        };
+        ApproveSuggestionRequest: {
+            /** Format: uuid */
+            categoryId: string;
+            hint: string;
+            matchLanguages?: string[];
+            matchTools?: string[];
+            name: string;
         };
         AttachmentView: {
             /** Format: uuid */
@@ -5057,6 +5150,9 @@ export interface components {
             refundVnd?: number;
             /** Format: int64 */
             releaseVnd?: number;
+        };
+        DeclineSuggestionRequest: {
+            reason: string;
         };
         DeletionBlockerView: {
             /** Format: uuid */
@@ -6387,6 +6483,17 @@ export interface components {
             deletionRequestedAt?: string;
             tokenKept: boolean;
         };
+        MySkillSuggestionView: {
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            decidedAt?: string;
+            declineReason?: string;
+            /** Format: uuid */
+            id: string;
+            name: string;
+            status: string;
+        };
         NameRequest: {
             name: string;
         };
@@ -6494,6 +6601,7 @@ export interface components {
             falsePositives: components["schemas"]["Queue"];
             lowFeedback: components["schemas"]["Queue"];
             mentorApplications: components["schemas"]["Queue"];
+            skillSuggestions: components["schemas"]["Queue"];
             stalledEvents: components["schemas"]["Queue"];
             studentCards: components["schemas"]["Queue"];
             teamIssues: components["schemas"]["Queue"];
@@ -7235,6 +7343,12 @@ export interface components {
             matchTools?: string[];
             name: string;
         };
+        SkillSuggestionRequest: {
+            /** Format: uuid */
+            categoryId?: string;
+            name: string;
+            note?: string;
+        };
         SkillView: {
             active: boolean;
             /** Format: uuid */
@@ -7419,6 +7533,11 @@ export interface components {
             sensitive?: "CHECK" | "MASK";
             /** Format: int64 */
             version: number;
+        };
+        SuggestedInactiveSkill: {
+            /** Format: uuid */
+            id: string;
+            name: string;
         };
         SuggestedSkillView: {
             hint: string;
@@ -8000,7 +8119,7 @@ export interface operations {
             };
         };
     };
-    queue: {
+    queue_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -8857,7 +8976,7 @@ export interface operations {
             };
         };
     };
-    approve_3: {
+    approve_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -9042,6 +9161,78 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    queue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSkillSuggestionView"][];
+                };
+            };
+        };
+    };
+    approve_3: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                suggestionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApproveSuggestionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSkillSuggestionView"][];
+                };
+            };
+        };
+    };
+    decline_6: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                suggestionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeclineSuggestionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSkillSuggestionView"][];
+                };
             };
         };
     };
@@ -12034,7 +12225,7 @@ export interface operations {
             };
         };
     };
-    mine_1: {
+    mine_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -12194,7 +12385,7 @@ export interface operations {
             };
         };
     };
-    mine: {
+    mine_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -13631,6 +13822,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SessionView"];
+                };
+            };
+        };
+    };
+    mine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MySkillSuggestionView"][];
+                };
+            };
+        };
+    };
+    suggest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SkillSuggestionRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MySkillSuggestionView"];
                 };
             };
         };

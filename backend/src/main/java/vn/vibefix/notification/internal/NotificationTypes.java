@@ -722,6 +722,14 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType DISPUTE_STATEMENT_SUBMITTED = new NotificationType("dispute.statement_submitted",
 			Set.of(Audience.ADMIN), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
 
+	/** FR-73, Story 16.4: the suggester's Skill was added to the catalog. */
+	static final NotificationType ADMIN_SKILL_SUGGESTION_APPROVED = new NotificationType("admin.skill_suggestion_approved",
+			Set.of(Audience.SUBJECT), Channel.IN_APP, EmailClass.TRANSACTIONAL, "check", Set.of("name"));
+
+	/** FR-73, Story 16.4: the suggester's Skill was not added, with the reason. */
+	static final NotificationType ADMIN_SKILL_SUGGESTION_DECLINED = new NotificationType("admin.skill_suggestion_declined",
+			Set.of(Audience.SUBJECT), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of("name", "reason"));
+
 	/** NFR-11, Story 16.2: a person requested their account's deletion; an Administrator confirms it on ADM-2. */
 	static final NotificationType IDENTITY_DELETION_REQUESTED = new NotificationType("identity.deletion_requested",
 			Set.of(Audience.ADMIN), Channel.IN_APP, EmailClass.TRANSACTIONAL, "alert", Set.of("name"));
@@ -831,6 +839,7 @@ class NotificationTypes implements NotificationCatalog {
 				DISPUTE_DISPUTE_OPENED, DISPUTE_EXECUTION_FAILED, DISPUTE_DISPUTE_DECIDED, DISPUTE_TEAM_ISSUE_RAISED,
 				DISPUTE_TEAM_ISSUE_ANSWERED, DISPUTE_TEAM_ISSUE_ESCALATED, DISPUTE_TEAM_ISSUE_DECIDED,
 				JOB_CHANGE_REQUEST_AWAITING_TOP_UP, DISPUTE_STATEMENT_SUBMITTED, ADMIN_ABUSE_REPORT_RESOLVED, IDENTITY_DELETION_REQUESTED,
+				ADMIN_SKILL_SUGGESTION_APPROVED, ADMIN_SKILL_SUGGESTION_DECLINED,
 				PAYMENT_SHARE_HELD, JOB_JOB_STARTING,
 				PAYMENT_REFUND_REQUESTED, PAYMENT_SIMULATED_REFUND_REQUESTED, PAYMENT_REFUND_CONFIRMED, WORK_WORK_ITEM_ASSIGNED,
 				WORK_REVIEW_REQUESTED, WORK_WORK_ITEM_APPROVED, WORK_WORK_ITEM_RETURNED);

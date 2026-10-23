@@ -115,7 +115,7 @@
     },
     "/api/v1/admin/abuse-reports" : {
       "get" : {
-        "operationId" : "queue",
+        "operationId" : "queue_1",
         "responses" : {
           "200" : {
             "content" : {
@@ -1272,7 +1272,7 @@
     },
     "/api/v1/admin/mentor-applications/{applicantId}/approve" : {
       "post" : {
-        "operationId" : "approve_3",
+        "operationId" : "approve_4",
         "parameters" : [ {
           "in" : "path",
           "name" : "applicantId",
@@ -1507,6 +1507,107 @@
           }
         },
         "tags" : [ "admin-sign-in-controller" ]
+      }
+    },
+    "/api/v1/admin/skill-suggestions" : {
+      "get" : {
+        "operationId" : "queue",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/AdminSkillSuggestionView"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-skill-suggestion-controller" ]
+      }
+    },
+    "/api/v1/admin/skill-suggestions/{suggestionId}/approve" : {
+      "post" : {
+        "operationId" : "approve_3",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "suggestionId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ApproveSuggestionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/AdminSkillSuggestionView"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-skill-suggestion-controller" ]
+      }
+    },
+    "/api/v1/admin/skill-suggestions/{suggestionId}/decline" : {
+      "post" : {
+        "operationId" : "decline_6",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "suggestionId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DeclineSuggestionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/AdminSkillSuggestionView"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-skill-suggestion-controller" ]
       }
     },
     "/api/v1/admin/statistics" : {
@@ -5599,7 +5700,7 @@
     },
     "/api/v1/mentor/applications" : {
       "get" : {
-        "operationId" : "mine_1",
+        "operationId" : "mine_2",
         "responses" : {
           "200" : {
             "content" : {
@@ -5843,7 +5944,7 @@
     },
     "/api/v1/mentor/job-posts/{postId}/invitation" : {
       "get" : {
-        "operationId" : "mine",
+        "operationId" : "mine_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "postId",
@@ -7675,6 +7776,53 @@
         "tags" : [ "session-controller" ]
       }
     },
+    "/api/v1/skill-suggestions" : {
+      "get" : {
+        "operationId" : "mine",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/MySkillSuggestionView"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "skill-suggestion-controller" ]
+      },
+      "post" : {
+        "operationId" : "suggest",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SkillSuggestionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MySkillSuggestionView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "skill-suggestion-controller" ]
+      }
+    },
     "/api/v1/students/{studentLogin}" : {
       "get" : {
         "operationId" : "student",
@@ -9039,6 +9187,57 @@
         },
         "required" : [ "code", "email", "password" ]
       },
+      "AdminSkillSuggestionView" : {
+        "type" : "object",
+        "properties" : {
+          "categoryId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "categoryName" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "decidedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "declineReason" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "inactiveSkill" : {
+            "$ref" : "#/components/schemas/SuggestedInactiveSkill"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "note" : {
+            "type" : "string"
+          },
+          "skillId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "suggesterName" : {
+            "type" : "string"
+          },
+          "suggesterRole" : {
+            "type" : "string",
+            "enum" : [ "CUSTOMER", "MENTOR", "STUDENT", "ADMINISTRATOR" ]
+          }
+        },
+        "required" : [ "createdAt", "id", "name", "status", "suggesterRole" ]
+      },
       "AdminStatementView" : {
         "type" : "object",
         "properties" : {
@@ -9655,6 +9854,42 @@
           }
         },
         "required" : [ "school", "studentNumber" ]
+      },
+      "ApproveSuggestionRequest" : {
+        "type" : "object",
+        "properties" : {
+          "categoryId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "hint" : {
+            "type" : "string",
+            "maxLength" : 160,
+            "minLength" : 0
+          },
+          "matchLanguages" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            },
+            "maxItems" : 20,
+            "minItems" : 0
+          },
+          "matchTools" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            },
+            "maxItems" : 20,
+            "minItems" : 0
+          },
+          "name" : {
+            "type" : "string",
+            "maxLength" : 60,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "categoryId", "hint", "name" ]
       },
       "AttachmentView" : {
         "type" : "object",
@@ -11682,6 +11917,17 @@
           }
         },
         "required" : [ "decidedAt", "nextState", "reasoning" ]
+      },
+      "DeclineSuggestionRequest" : {
+        "type" : "object",
+        "properties" : {
+          "reason" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "reason" ]
       },
       "DeletionBlockerView" : {
         "type" : "object",
@@ -15439,6 +15685,33 @@
         },
         "required" : [ "blockers", "tokenKept" ]
       },
+      "MySkillSuggestionView" : {
+        "type" : "object",
+        "properties" : {
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "decidedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "declineReason" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "createdAt", "id", "name", "status" ]
+      },
       "NameRequest" : {
         "type" : "object",
         "properties" : {
@@ -15743,6 +16016,9 @@
           "mentorApplications" : {
             "$ref" : "#/components/schemas/Queue"
           },
+          "skillSuggestions" : {
+            "$ref" : "#/components/schemas/Queue"
+          },
           "stalledEvents" : {
             "$ref" : "#/components/schemas/Queue"
           },
@@ -15753,7 +16029,7 @@
             "$ref" : "#/components/schemas/Queue"
           }
         },
-        "required" : [ "activeAdministrators", "disputes", "failedExecutions", "failedOperations", "falsePositives", "lowFeedback", "mentorApplications", "stalledEvents", "studentCards", "teamIssues" ]
+        "required" : [ "activeAdministrators", "disputes", "failedExecutions", "failedOperations", "falsePositives", "lowFeedback", "mentorApplications", "skillSuggestions", "stalledEvents", "studentCards", "teamIssues" ]
       },
       "PageLinkView" : {
         "type" : "object",
@@ -17799,6 +18075,26 @@
         },
         "required" : [ "categoryId", "hint", "name" ]
       },
+      "SkillSuggestionRequest" : {
+        "type" : "object",
+        "properties" : {
+          "categoryId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "name" : {
+            "type" : "string",
+            "maxLength" : 60,
+            "minLength" : 0
+          },
+          "note" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "name" ]
+      },
       "SkillView" : {
         "type" : "object",
         "properties" : {
@@ -18303,6 +18599,19 @@
           }
         },
         "required" : [ "selfCheck", "version" ]
+      },
+      "SuggestedInactiveSkill" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "name" ]
       },
       "SuggestedSkillView" : {
         "type" : "object",
