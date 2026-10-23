@@ -2,6 +2,8 @@ import { Combobox } from '@base-ui/react/combobox'
 import { Check, X } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 import { useCatalog } from '@/features/catalog/catalogApi'
+import { SuggestSkillDialog } from '@/features/catalog/SuggestSkillDialog'
+import { useSession } from '@/features/identity/useSession'
 import { t } from '@/i18n/t'
 import { cn } from '@/lib/utils'
 import { viNormalize } from '@/lib/viNormalize'
@@ -27,7 +29,8 @@ interface SkillGroup {
  * VNI) the filter waits for `compositionend`. Chosen Skills are removable tokens, and a Skill the
  * catalog retired keeps its token until removed. At `max`, the other options are disabled.
  * `showHints` is for Customer screens (NFR-12). `wholeCategories` heads each group with "Cả nhóm
- * {category}", a value `categoryValue(id)` for filters that take whole Skill Categories (FR-72).
+ * {category}", a value `categoryValue(id)` for filters that take whole Skill Categories (FR-72). With no match,
+ * a Customer, a Mentor, or a Student may suggest the Skill ("Đề xuất thêm kỹ năng này", FR-73).
  */
 export function SkillPicker({
   id,
@@ -53,6 +56,9 @@ export function SkillPicker({
   wholeCategories?: boolean
 }) {
   const catalog = useCatalog()
+  const role = useSession().data?.account?.role
+  const canSuggest = role === 'CUSTOMER' || role === 'MENTOR' || role === 'STUDENT'
+  const [suggesting, setSuggesting] = useState<string>()
   const [input, setInput] = useState('')
   const [query, setQuery] = useState('')
   const composing = useRef(false)
@@ -104,121 +110,143 @@ export function SkillPicker({
   }, [groups, query])
 
   return (
-    <Combobox.Root
-      multiple
-      items={groups}
-      filteredItems={filtered}
-      value={chosen}
-      onValueChange={(next) => onChange(next.map((option) => option.id))}
-      inputValue={input}
-      onInputValueChange={(next) => {
-        setInput(next)
-        if (!composing.current) {
-          setQuery(next)
-        }
-      }}
-      isItemEqualToValue={(item, selected) => item.id === selected.id}
-      itemToStringLabel={(option) => option.name}
-    >
-      <Combobox.InputGroup
-        className={cn(
-          'flex min-h-tap-min w-full cursor-text flex-wrap items-center gap-1.5 rounded-md border border-input bg-card px-2 py-1.5 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring',
-          invalid && 'border-destructive',
-        )}
+    <>
+      <Combobox.Root
+        multiple
+        items={groups}
+        filteredItems={filtered}
+        value={chosen}
+        onValueChange={(next) => onChange(next.map((option) => option.id))}
+        inputValue={input}
+        onInputValueChange={(next) => {
+          setInput(next)
+          if (!composing.current) {
+            setQuery(next)
+          }
+        }}
+        isItemEqualToValue={(item, selected) => item.id === selected.id}
+        itemToStringLabel={(option) => option.name}
       >
-        <Combobox.Chips
-          className="flex w-full flex-wrap items-center gap-1.5"
-          aria-label={chosen.length > 0 ? t('screen.shared.skillPicker.chosen') : undefined}
+        <Combobox.InputGroup
+          className={cn(
+            'flex min-h-tap-min w-full cursor-text flex-wrap items-center gap-1.5 rounded-md border border-input bg-card px-2 py-1.5 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring',
+            invalid && 'border-destructive',
+          )}
         >
-          {chosen.map((skill) => (
-            <Combobox.Chip
-              key={skill.id}
-              aria-description={t('screen.shared.skillPicker.chipHint')}
-              className="flex items-center gap-1 rounded-md bg-muted py-0.5 pr-0.5 pl-2 text-body-sm outline-none focus-within:bg-primary-soft data-highlighted:bg-primary-soft"
-            >
-              <span>{skill.name}</span>
-              {skill.retired && <span className="text-caption text-muted-foreground">{t('screen.shared.skillPicker.retired')}</span>}
-              <Combobox.ChipRemove
-                aria-label={t('screen.shared.skillPicker.remove', { skill: skill.name })}
-                className="flex size-6 items-center justify-center rounded-sm hover:bg-card focus-visible:outline-2 focus-visible:outline-ring"
+          <Combobox.Chips
+            className="flex w-full flex-wrap items-center gap-1.5"
+            aria-label={chosen.length > 0 ? t('screen.shared.skillPicker.chosen') : undefined}
+          >
+            {chosen.map((skill) => (
+              <Combobox.Chip
+                key={skill.id}
+                aria-description={t('screen.shared.skillPicker.chipHint')}
+                className="flex items-center gap-1 rounded-md bg-muted py-0.5 pr-0.5 pl-2 text-body-sm outline-none focus-within:bg-primary-soft data-highlighted:bg-primary-soft"
               >
-                <X aria-hidden="true" className="size-3.5" />
-              </Combobox.ChipRemove>
-            </Combobox.Chip>
-          ))}
-          <Combobox.Input
-            id={id}
-            aria-describedby={describedBy}
-            aria-invalid={invalid || undefined}
-            aria-description={
-              chosen.length > 0 ? t('screen.shared.skillPicker.inputHint', { n: chosen.length }) : undefined
-            }
-            placeholder={chosen.length > 0 ? '' : t('screen.shared.skillPicker.placeholder')}
-            onCompositionStart={() => {
-              composing.current = true
-            }}
-            onCompositionEnd={(event) => {
-              composing.current = false
-              setQuery(event.currentTarget.value)
-            }}
-            className="min-h-8 min-w-24 flex-1 border-0 bg-transparent px-1 text-body outline-none placeholder:text-muted-foreground"
-          />
-        </Combobox.Chips>
-      </Combobox.InputGroup>
-      <Combobox.Portal>
-        <Combobox.Positioner sideOffset={4} className="z-50">
-          <Combobox.Popup className="max-h-[min(var(--available-height),24rem)] w-[var(--anchor-width)] max-w-[var(--available-width)] overflow-y-auto rounded-md border border-border bg-popover py-1 text-popover-foreground shadow-md">
-            {atLimit && (
-              <p className="px-3 py-2 text-caption text-muted-foreground">{t('screen.shared.skillPicker.limit', { n: max })}</p>
-            )}
-            {catalog.isPending && (
-              <p className="px-3 py-2 text-body-sm text-muted-foreground">{t('screen.shared.skillPicker.loading')}</p>
-            )}
-            {catalog.isError && (
-              <p role="alert" className="px-3 py-2 text-body-sm text-destructive">
-                {t('error.unexpected')}
-              </p>
-            )}
-            <Combobox.Empty>
-              {catalog.isSuccess && (
-                <p className="px-3 py-2 text-body-sm text-muted-foreground">
-                  {t('screen.shared.skillPicker.noMatch', { q: input.trim() })}
+                <span>{skill.name}</span>
+                {skill.retired && <span className="text-caption text-muted-foreground">{t('screen.shared.skillPicker.retired')}</span>}
+                <Combobox.ChipRemove
+                  aria-label={t('screen.shared.skillPicker.remove', { skill: skill.name })}
+                  className="flex size-6 items-center justify-center rounded-sm hover:bg-card focus-visible:outline-2 focus-visible:outline-ring"
+                >
+                  <X aria-hidden="true" className="size-3.5" />
+                </Combobox.ChipRemove>
+              </Combobox.Chip>
+            ))}
+            <Combobox.Input
+              id={id}
+              aria-describedby={describedBy}
+              aria-invalid={invalid || undefined}
+              aria-description={
+                chosen.length > 0 ? t('screen.shared.skillPicker.inputHint', { n: chosen.length }) : undefined
+              }
+              placeholder={chosen.length > 0 ? '' : t('screen.shared.skillPicker.placeholder')}
+              onCompositionStart={() => {
+                composing.current = true
+              }}
+              onCompositionEnd={(event) => {
+                composing.current = false
+                setQuery(event.currentTarget.value)
+              }}
+              className="min-h-8 min-w-24 flex-1 border-0 bg-transparent px-1 text-body outline-none placeholder:text-muted-foreground"
+            />
+          </Combobox.Chips>
+        </Combobox.InputGroup>
+        <Combobox.Portal>
+          <Combobox.Positioner sideOffset={4} className="z-50">
+            <Combobox.Popup className="max-h-[min(var(--available-height),24rem)] w-[var(--anchor-width)] max-w-[var(--available-width)] overflow-y-auto rounded-md border border-border bg-popover py-1 text-popover-foreground shadow-md">
+              {atLimit && (
+                <p className="px-3 py-2 text-caption text-muted-foreground">{t('screen.shared.skillPicker.limit', { n: max })}</p>
+              )}
+              {catalog.isPending && (
+                <p className="px-3 py-2 text-body-sm text-muted-foreground">{t('screen.shared.skillPicker.loading')}</p>
+              )}
+              {catalog.isError && (
+                <p role="alert" className="px-3 py-2 text-body-sm text-destructive">
+                  {t('error.unexpected')}
                 </p>
               )}
-            </Combobox.Empty>
-            <Combobox.List>
-              {(group: SkillGroup) => (
-                <Combobox.Group key={group.value} items={group.items} className="pb-1">
-                  <Combobox.GroupLabel className="px-3 pt-2 pb-1 text-caption font-semibold text-muted-foreground">
-                    {group.value}
-                  </Combobox.GroupLabel>
-                  <Combobox.Collection>
-                    {(skill: SkillOption) => {
-                      const selected = value.includes(skill.id)
-                      return (
-                        <Combobox.Item
-                          key={skill.id}
-                          value={skill}
-                          disabled={atLimit && !selected}
-                          className="grid cursor-default grid-cols-[1rem_1fr] items-start gap-2 px-3 py-2 text-body-sm outline-none select-none data-disabled:opacity-50 data-highlighted:bg-muted"
-                        >
-                          <Combobox.ItemIndicator className="col-start-1 pt-0.5">
-                            <Check aria-hidden="true" className="size-4 text-primary" />
-                          </Combobox.ItemIndicator>
-                          <span className="col-start-2 flex flex-col">
-                            <span>{skill.name}</span>
-                            {showHints && <span className="text-caption text-muted-foreground">{skill.hint}</span>}
-                          </span>
-                        </Combobox.Item>
-                      )
-                    }}
-                  </Combobox.Collection>
-                </Combobox.Group>
-              )}
-            </Combobox.List>
-          </Combobox.Popup>
-        </Combobox.Positioner>
-      </Combobox.Portal>
-    </Combobox.Root>
+              <Combobox.Empty>
+                {catalog.isSuccess && (
+                  <p className="px-3 py-2 text-body-sm text-muted-foreground">
+                    {t('screen.shared.skillPicker.noMatch', { q: input.trim() })}
+                  </p>
+                )}
+                {catalog.isSuccess && canSuggest && input.trim().length >= 2 && (
+                  <button
+                    type="button"
+                    onClick={() => setSuggesting(input.trim())}
+                    className="mx-3 mb-2 text-left text-body-sm text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+                  >
+                    {t('screen.shared.skillPicker.suggest')}
+                  </button>
+                )}
+              </Combobox.Empty>
+              <Combobox.List>
+                {(group: SkillGroup) => (
+                  <Combobox.Group key={group.value} items={group.items} className="pb-1">
+                    <Combobox.GroupLabel className="px-3 pt-2 pb-1 text-caption font-semibold text-muted-foreground">
+                      {group.value}
+                    </Combobox.GroupLabel>
+                    <Combobox.Collection>
+                      {(skill: SkillOption) => {
+                        const selected = value.includes(skill.id)
+                        return (
+                          <Combobox.Item
+                            key={skill.id}
+                            value={skill}
+                            disabled={atLimit && !selected}
+                            className="grid cursor-default grid-cols-[1rem_1fr] items-start gap-2 px-3 py-2 text-body-sm outline-none select-none data-disabled:opacity-50 data-highlighted:bg-muted"
+                          >
+                            <Combobox.ItemIndicator className="col-start-1 pt-0.5">
+                              <Check aria-hidden="true" className="size-4 text-primary" />
+                            </Combobox.ItemIndicator>
+                            <span className="col-start-2 flex flex-col">
+                              <span>{skill.name}</span>
+                              {showHints && <span className="text-caption text-muted-foreground">{skill.hint}</span>}
+                            </span>
+                          </Combobox.Item>
+                        )
+                      }}
+                    </Combobox.Collection>
+                  </Combobox.Group>
+                )}
+              </Combobox.List>
+            </Combobox.Popup>
+          </Combobox.Positioner>
+        </Combobox.Portal>
+      </Combobox.Root>
+      {suggesting !== undefined && (
+        <SuggestSkillDialog
+          name={suggesting}
+          onPick={(skillId) => {
+            if (!value.includes(skillId) && value.length < max) {
+              onChange([...value, skillId])
+            }
+          }}
+          onClose={() => setSuggesting(undefined)}
+        />
+      )}
+    </>
   )
 }

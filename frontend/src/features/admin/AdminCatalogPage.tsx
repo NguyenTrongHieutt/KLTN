@@ -2,6 +2,7 @@ import { Dialog } from '@base-ui/react/dialog'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp } from 'lucide-react'
 import { useId, useState, type FormEvent } from 'react'
+import { Link, useSearchParams } from 'react-router'
 import type { components } from '@/api/schema'
 import { PageHeading } from '@/app/PageHeading'
 import { usePageTitle } from '@/app/usePageTitle'
@@ -14,6 +15,7 @@ import { t } from '@/i18n/t'
 import { apiClient, unwrap } from '@/lib/apiClient'
 import { problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
+import { SkillSuggestionsPanel } from './SkillSuggestionsPanel'
 
 type Category = components['schemas']['CatalogCategoryView']
 type Skill = components['schemas']['CatalogSkillView']
@@ -32,10 +34,13 @@ function list(text: string): string[] {
  * ADM-12 (`/quan-tri/ky-nang`, FR-72, UX-DR76, UX-DR69): the Skill Categories in display order, which the
  * picker's groups follow, and the Skills with Category and status chips, a search that ignores accents,
  * and paging. "Ngừng dùng" takes a Skill out of every picker, filter, and suggestion while records keep
- * it; nothing is ever deleted.
+ * it; nothing is ever deleted. The tab "Đề xuất" (`?tab=de-xuat`, Story 16.4) decides the Skills people
+ * suggested.
  */
 export function AdminCatalogPage() {
   usePageTitle(t('screen.admin.catalog.title'))
+  const [params] = useSearchParams()
+  const suggestions = params.get('tab') === 'de-xuat'
   const categories = useQuery({
     queryKey: [...KEY, 'categories'],
     queryFn: () => unwrap(apiClient.GET('/api/v1/admin/catalog/categories')),
@@ -44,15 +49,43 @@ export function AdminCatalogPage() {
   return (
     <div className="flex flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
       <PageHeading>{t('screen.admin.catalog.heading')}</PageHeading>
+      <CatalogTabs suggestions={suggestions} />
       <RegionState query={categories} skeleton={<Skeleton className="h-64 w-full" />}>
-        {categories.data && (
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-            <Categories categories={categories.data} />
-            <Skills categories={categories.data} />
-          </div>
-        )}
+        {categories.data &&
+          (suggestions ? (
+            <SkillSuggestionsPanel categories={categories.data} />
+          ) : (
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+              <Categories categories={categories.data} />
+              <Skills categories={categories.data} />
+            </div>
+          ))}
       </RegionState>
     </div>
+  )
+}
+
+function CatalogTabs({ suggestions }: { suggestions: boolean }) {
+  const tabs = [
+    { key: 'catalog', to: '/quan-tri/ky-nang', label: t('screen.admin.catalog.tabCatalog'), current: !suggestions },
+    { key: 'suggestions', to: '/quan-tri/ky-nang?tab=de-xuat', label: t('screen.admin.catalog.tabSuggestions'), current: suggestions },
+  ]
+  return (
+    <nav aria-label={t('screen.admin.catalog.heading')} className="flex flex-wrap gap-2">
+      {tabs.map((tab) => (
+        <Link
+          key={tab.key}
+          to={tab.to}
+          aria-current={tab.current ? 'page' : undefined}
+          className={cn(
+            'flex min-h-control-compact items-center rounded-full border px-3 text-label focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+            tab.current ? 'border-primary bg-primary-soft text-foreground' : 'border-border bg-card text-muted-foreground hover:bg-muted',
+          )}
+        >
+          {tab.label}
+        </Link>
+      ))}
+    </nav>
   )
 }
 

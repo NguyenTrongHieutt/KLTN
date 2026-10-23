@@ -108,6 +108,20 @@ export function AdminOverviewPage() {
               </p>
             </Link>
           )}
+          {overview.data?.skillSuggestions && (
+            <Link
+              to="/quan-tri/ky-nang?tab=de-xuat"
+              className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 hover:border-primary"
+            >
+              <p className="text-caption text-muted-foreground">{t('screen.admin.overview.skillSuggestions')}</p>
+              <p className="text-h1">{overview.data.skillSuggestions.count}</p>
+              <p className="text-caption text-muted-foreground">
+                {overview.data.skillSuggestions.oldestAt
+                  ? t('screen.admin.overview.oldest', { date: formatDayMonth(overview.data.skillSuggestions.oldestAt) })
+                  : t('screen.admin.overview.empty')}
+              </p>
+            </Link>
+          )}
           {failed && (
             <Link to="/quan-tri/thao-tac-loi" className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 hover:border-primary">
               <p className="text-caption text-muted-foreground">{t('screen.admin.overview.failedOperations')}</p>

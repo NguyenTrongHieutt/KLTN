@@ -121,3 +121,79 @@ describe('ADM-12 Skill catalog (FR-72)', () => {
     await waitFor(() => expect(orders).toEqual([{ ids: ['c2', 'c1'] }]))
   })
 })
+
+describe('ADM-12 Skill suggestions (FR-73, Story 16.4)', () => {
+  it('approves a suggestion with a hint, declines one with a reason, and flags an inactive name', { timeout: 30_000 }, async () => {
+    const user = userEvent.setup()
+    const approved: unknown[] = []
+    const declined: unknown[] = []
+    const edge = {
+      id: 'g1',
+      name: 'Supabase Edge',
+      categoryId: 'c2',
+      categoryName: 'Máy chủ và API',
+      note: 'Dự án cần',
+      suggesterName: 'Vy Trần',
+      suggesterRole: 'STUDENT',
+      createdAt: minutes(-120),
+      status: 'OPEN',
+    }
+    const base = {
+      id: 'g2',
+      name: 'BASE44',
+      suggesterName: 'Lan Nguyễn',
+      suggesterRole: 'CUSTOMER',
+      createdAt: minutes(-60),
+      status: 'OPEN',
+      inactiveSkill: { id: 's9', name: 'Base44' },
+    }
+    fakeBackend(administrator, {
+      'GET /api/v1/admin/overview': () => json({ ...overview, skillSuggestions: { count: 2, oldestAt: minutes(-120) } }),
+      'GET /api/v1/admin/catalog/categories': () => json(categories),
+      'GET /api/v1/admin/skill-suggestions': () => json([edge, base]),
+      'POST /api/v1/admin/skill-suggestions/g1/approve': async (request) => {
+        approved.push(await request.json())
+        return json([base, { ...edge, status: 'APPROVED', decidedAt: minutes(0), skillId: 's10' }])
+      },
+      'POST /api/v1/admin/skill-suggestions/g2/decline': async (request) => {
+        declined.push(await request.json())
+        return json([
+          { ...edge, status: 'APPROVED', decidedAt: minutes(0), skillId: 's10' },
+          { ...base, status: 'DECLINED', decidedAt: minutes(0), declineReason: 'Dùng lại Base44' },
+        ])
+      },
+    })
+    renderAt('/quan-tri')
+
+    await user.click(await screen.findByRole('link', { name: /Đề xuất kỹ năng chờ duyệt/ }))
+    expect(await screen.findByRole('link', { name: 'Đề xuất' })).toHaveAttribute('aria-current', 'page')
+    const queue = await screen.findByRole('list', { name: 'Đề xuất kỹ năng' })
+    expect(within(queue).getByText(/Trùng tên với kỹ năng đã ngừng dùng “Base44”/)).toBeInTheDocument()
+    expect(within(queue).getByText(/Vy Trần \(Sinh viên\)/)).toBeInTheDocument()
+
+    await user.click(within(queue).getAllByRole('button', { name: 'Duyệt' })[0])
+    const dialog = await screen.findByRole('dialog', { name: 'Duyệt đề xuất kỹ năng' })
+    expect(within(dialog).getByRole('button', { name: 'Duyệt' })).toBeDisabled()
+    await user.clear(within(dialog).getByLabelText('Tên'))
+    await user.type(within(dialog).getByLabelText('Tên'), 'Supabase Edge Functions')
+    await user.type(within(dialog).getByLabelText('Gợi ý (hiện trong bộ chọn)'), 'Hàm chạy phía máy chủ của Supabase')
+    await user.click(within(dialog).getByRole('button', { name: 'Duyệt' }))
+    await waitFor(() =>
+      expect(approved[0]).toEqual({
+        categoryId: 'c2',
+        name: 'Supabase Edge Functions',
+        hint: 'Hàm chạy phía máy chủ của Supabase',
+        matchLanguages: [],
+        matchTools: [],
+      }),
+    )
+    expect(await within(queue).findByText(/Đã duyệt ngày/)).toBeInTheDocument()
+
+    await user.click(within(queue).getByRole('button', { name: 'Từ chối' }))
+    const decline = await screen.findByRole('dialog', { name: 'Từ chối đề xuất “BASE44”' })
+    await user.type(within(decline).getByLabelText('Lý do (người đề xuất sẽ đọc)'), 'Dùng lại Base44')
+    await user.click(within(decline).getByRole('button', { name: 'Từ chối' }))
+    await waitFor(() => expect(declined[0]).toEqual({ reason: 'Dùng lại Base44' }))
+    expect(await within(queue).findByText(/Đã từ chối ngày .*: Dùng lại Base44/)).toBeInTheDocument()
+  })
+})

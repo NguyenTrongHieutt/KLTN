@@ -28,6 +28,12 @@ enum AdminReason {
 	NOT_ASSIGNED,
 
 	/** FR-69: FR-60 does not hide this kind; record the action taken instead. */
-	NOT_HIDEABLE
+	NOT_HIDEABLE,
+
+	/** FR-73: an active Skill already has this name; the detail names it. */
+	SKILL_ALREADY_EXISTS,
+
+	/** FR-73, AD-34: the account sent 5 suggestions today. */
+	SKILL_SUGGESTION_LIMIT
 
 }

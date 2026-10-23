@@ -20,7 +20,8 @@ import vn.vibefix.support.MutableClock;
  * Realizes {@link MatrixCaller#SUBJECT} (AD-20): one Customer account that is the subject of every
  * record the matrix reads as its own. It has a notification ({@code {notificationId}}) and a to-do
  * with the canaries {@code NOTIFICATION_PARAM} and {@code TODO_PARAM} as their parameters, and a
- * profile ({@code {customerId}}) whose contact email is the canary {@code CONTACT_EMAIL}. A later
+ * profile ({@code {customerId}}) whose contact email is the canary {@code CONTACT_EMAIL}, and a Skill
+ * suggestion ({@code {suggestionId}}) named with the canary {@code SKILL_SUGGESTION} (Story 16.4). A later
  * subject kind seeds its records for this same account, because one fixture realizes each caller.
  */
 public class SubjectFixture implements MatrixFixture {
@@ -69,8 +70,19 @@ public class SubjectFixture implements MatrixFixture {
 			.param("canary", this.canaries.get("CONTACT_EMAIL").value())
 			.param("now", now)
 			.update();
+		UUID suggestion = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO admin.skill_suggestion (id, suggester_account_id, suggester_role, name, status, created_at)
+				VALUES (:id, :account, 'CUSTOMER', :canary, 'OPEN', :now)
+				""")
+			.param("id", suggestion)
+			.param("account", this.subject)
+			.param("canary", this.canaries.get("SKILL_SUGGESTION").value())
+			.param("now", now)
+			.update();
 		world.put("notificationId", notification);
 		world.put("customerId", this.subject);
+		world.put("suggestionId", suggestion);
 	}
 
 	@Override

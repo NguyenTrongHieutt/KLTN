@@ -2,6 +2,7 @@ package vn.vibefix.catalog;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /** Reads the Skill catalog and checks a holder's choice of Skills against it (AD-38). */
@@ -12,6 +13,12 @@ public interface Catalog {
 
 	/** The Skills with these IDs, inactive ones included, in the order of {@code ids}; unknown IDs are left out. */
 	List<Skill> byIds(Collection<UUID> ids);
+
+	/**
+	 * The Skill, active or not, whose name equals {@code name} ignoring accents and case
+	 * ({@code platform.vi_normalize}), as a suggestion is checked against the catalog (FR-73, SG-50).
+	 */
+	Optional<Skill> byName(String name);
 
 	/**
 	 * The active Skills whose match keys fit {@code languages} (GitHub language names) or {@code tools}

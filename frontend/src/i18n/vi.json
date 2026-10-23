@@ -181,7 +181,23 @@
         "limit": "Tối đa {n} kỹ năng",
         "noMatch": "Không có kỹ năng “{q}” trong danh sách.",
         "loading": "Đang tải danh sách kỹ năng…",
-        "wholeCategory": "Cả nhóm {category}"
+        "wholeCategory": "Cả nhóm {category}",
+        "suggest": "Đề xuất thêm kỹ năng này"
+      },
+      "suggestSkill": {
+        "title": "Đề xuất kỹ năng",
+        "body": "Quản trị viên sẽ xem xét và thêm kỹ năng vào danh sách nếu phù hợp.",
+        "name": "Tên kỹ năng",
+        "nameShort": "Tên kỹ năng cần ít nhất 2 ký tự.",
+        "category": "Nhóm kỹ năng (không bắt buộc)",
+        "anyCategory": "Chưa chọn nhóm",
+        "note": "Ghi chú (không bắt buộc)",
+        "send": "Gửi đề xuất",
+        "cancel": "Hủy",
+        "close": "Đóng",
+        "sent": "Đã gửi đề xuất. Bạn sẽ nhận thông báo khi quản trị viên quyết định.",
+        "exists": "Kỹ năng “{name}” đã có trong danh sách.",
+        "pick": "Chọn kỹ năng này"
       }
     },
     "mentor": {
@@ -577,7 +593,8 @@
         "falsePositives": "Cảnh báo nhầm",
         "falsePositivesNote": "Vấn đề bảo mật bị đánh dấu là cảnh báo nhầm",
         "failedExecutions": "{n} lần thực hiện phân xử bị lỗi",
-        "teamIssues": "Khiếu nại nội bộ chờ quản trị viên"
+        "teamIssues": "Khiếu nại nội bộ chờ quản trị viên",
+        "skillSuggestions": "Đề xuất kỹ năng chờ duyệt"
       },
       "idle": {
         "title": "Phiên làm việc sắp hết",
@@ -1353,7 +1370,31 @@
         "tools": "Công cụ AI khớp (cách nhau bằng dấu phẩy, ví dụ LOVABLE)",
         "back": "Quay lại",
         "save": "Lưu",
-        "skillSaved": "Đã lưu kỹ năng."
+        "skillSaved": "Đã lưu kỹ năng.",
+        "tabCatalog": "Danh sách",
+        "tabSuggestions": "Đề xuất",
+        "suggestions": {
+          "heading": "Đề xuất kỹ năng",
+          "empty": "Chưa có đề xuất nào.",
+          "by": "{name} ({role}) · {date}",
+          "erased": "Tài khoản đã xóa",
+          "role": {
+            "CUSTOMER": "Khách hàng",
+            "MENTOR": "Mentor",
+            "STUDENT": "Sinh viên",
+            "ADMINISTRATOR": "Quản trị viên"
+          },
+          "inactive": "Trùng tên với kỹ năng đã ngừng dùng “{name}”. Có thể dùng lại kỹ năng đó ở tab Danh sách.",
+          "approved": "Đã duyệt ngày {date}",
+          "declined": "Đã từ chối ngày {date}: {reason}",
+          "approve": "Duyệt",
+          "decline": "Từ chối",
+          "approveTitle": "Duyệt đề xuất kỹ năng",
+          "declineTitle": "Từ chối đề xuất “{name}”",
+          "reason": "Lý do (người đề xuất sẽ đọc)",
+          "approvedToast": "Đã thêm kỹ năng vào danh sách.",
+          "declinedToast": "Đã từ chối đề xuất."
+        }
       },
       "teamIssues": {
         "title": "Khiếu nại nội bộ",
@@ -4574,6 +4615,12 @@
       },
       "abuse_report_resolved": {
         "title": "Báo cáo vi phạm của bạn đã được xử lý: {outcome}"
+      },
+      "skill_suggestion_approved": {
+        "title": "Kỹ năng “{name}” đã được thêm vào danh sách"
+      },
+      "skill_suggestion_declined": {
+        "title": "Đề xuất kỹ năng “{name}” chưa được thêm: {reason}"
       }
     }
   },
@@ -4853,7 +4900,9 @@
       "ABUSE_REPORT_LIMIT": "Bạn đã gửi 10 báo cáo hôm nay. Hãy thử lại vào ngày mai.",
       "ALREADY_DECIDED": "Báo cáo này đã được xử lý.",
       "NOT_ASSIGNED": "Chỉ quản trị viên nhận xử lý báo cáo mới ghi được quyết định.",
-      "NOT_HIDEABLE": "Loại nội dung này không ẩn được. Hãy ghi lại cách đã xử lý."
+      "NOT_HIDEABLE": "Loại nội dung này không ẩn được. Hãy ghi lại cách đã xử lý.",
+      "SKILL_ALREADY_EXISTS": "Kỹ năng này đã có trong danh sách.",
+      "SKILL_SUGGESTION_LIMIT": "Bạn đã gửi đủ 5 đề xuất hôm nay. Hãy thử lại vào ngày mai."
     },
     "settings": {
       "RULE_OUT_OF_BOUNDS": "Giá trị nằm ngoài giới hạn cho phép.",

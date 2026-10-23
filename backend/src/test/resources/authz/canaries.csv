@@ -27,3 +27,4 @@ SCHOOL_EMAIL,canary.school.7b2d@truong.test,ADMINISTRATOR,another Student's veri
 STUDENT_CARD_FILE,canary-student-card-3f9a1c.pdf,ADMINISTRATOR,the file name of another Student's student card
 STUDENT_HIDDEN_NAME,Canary Ten An 6e2f,ADMINISTRATOR,the real name of a Team member who chose to hide it (FR-51)
 PRIVATE_FEEDBACK,canary-private-feedback-61d7c3,ADMINISTRATOR,a Crew member's private feedback about a Mentor
+SKILL_SUGGESTION,canary-skill-suggestion-4c1e9a,SUBJECT ADMINISTRATOR,the name of another account's Skill suggestion (SUBJECT is its suggester)

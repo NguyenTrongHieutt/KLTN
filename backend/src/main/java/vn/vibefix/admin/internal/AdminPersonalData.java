@@ -16,8 +16,9 @@ import vn.vibefix.shared.PersonalDataSection;
 
 /**
  * {@code admin}'s part in exports, erasure, and Product deletion (AD-24): a person exports the Abuse Reports
- * they filed; erasure clears them as the reporter, the reported author, the assignee, or the decider, and a
- * reported user's name; deleting a Product deletes the reports on its content.
+ * they filed and the Skills they suggested; erasure clears them as the reporter, the reported author, the
+ * assignee, the suggester, or the decider, and a reported user's name; deleting a Product deletes the reports on
+ * its content.
  */
 @Component
 class AdminPersonalData implements PersonalDataParticipant {
@@ -30,7 +31,7 @@ class AdminPersonalData implements PersonalDataParticipant {
 
 	@Override
 	public Set<String> tables() {
-		return Set.of("admin.abuse_report");
+		return Set.of("admin.abuse_report", "admin.skill_suggestion");
 	}
 
 	@Override
@@ -48,8 +49,26 @@ class AdminPersonalData implements PersonalDataParticipant {
 			row.put("filedAt", rs.getTimestamp("created_at").toInstant().toString());
 			return row;
 		}).list();
-		return reports.isEmpty() ? Optional.empty()
-				: Optional.of(new PersonalDataSection("admin", Map.of("abuseReportsFiled", reports)));
+		List<Map<String, Object>> suggestions = this.jdbc.sql("""
+				SELECT name, note, status, decline_reason, created_at FROM admin.skill_suggestion
+				WHERE suggester_account_id = :id ORDER BY created_at, id
+				""").param("id", accountId).query((rs, n) -> {
+			Map<String, Object> row = new LinkedHashMap<>();
+			row.put("name", rs.getString("name"));
+			row.put("note", rs.getString("note"));
+			row.put("status", rs.getString("status"));
+			row.put("declineReason", rs.getString("decline_reason"));
+			row.put("suggestedAt", rs.getTimestamp("created_at").toInstant().toString());
+			return row;
+		}).list();
+		Map<String, Object> data = new LinkedHashMap<>();
+		if (!reports.isEmpty()) {
+			data.put("abuseReportsFiled", reports);
+		}
+		if (!suggestions.isEmpty()) {
+			data.put("skillSuggestions", suggestions);
+		}
+		return data.isEmpty() ? Optional.empty() : Optional.of(new PersonalDataSection("admin", data));
 	}
 
 	@Override
@@ -59,6 +78,11 @@ class AdminPersonalData implements PersonalDataParticipant {
 			.update();
 		for (String column : List.of("reporter_account_id", "author_account_id", "assigned_admin_id", "decided_by_admin_id")) {
 			this.jdbc.sql("UPDATE admin.abuse_report SET %s = NULL WHERE %s = :id".formatted(column, column))
+				.param("id", accountId)
+				.update();
+		}
+		for (String column : List.of("suggester_account_id", "decided_by_admin_id")) {
+			this.jdbc.sql("UPDATE admin.skill_suggestion SET %s = NULL WHERE %s = :id".formatted(column, column))
 				.param("id", accountId)
 				.update();
 		}
