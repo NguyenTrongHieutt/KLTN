@@ -64,6 +64,15 @@ enum IdentityReason {
 	NOT_VERIFIED,
 
 	/** The Mentor is not approved, so there is nothing to revoke. */
-	NOT_APPROVED
+	NOT_APPROVED,
+
+	/** NFR-11: the account's deletion was requested already. */
+	ALREADY_REQUESTED,
+
+	/** NFR-11: the person has not requested their account's deletion. */
+	NO_DELETION_REQUEST,
+
+	/** NFR-11, AD-24: a running Job, an open Dispute, or a Team Issue keeps the account from being erased now. */
+	ERASURE_BLOCKED
 
 }

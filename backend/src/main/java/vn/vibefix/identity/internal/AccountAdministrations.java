@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
@@ -83,8 +84,12 @@ class AccountAdministrations implements AccountAdministration {
 
 	private final Clock clock;
 
+	private final ObjectProvider<DataRequests> dataRequests;
+
 	AccountAdministrations(JdbcClient jdbc, StepUps stepUps, Notifications notifications, Todos todos,
-			ApplicationEventPublisher events, AuditLog auditLog, IdGenerator ids, Clock clock) {
+			ApplicationEventPublisher events, AuditLog auditLog, IdGenerator ids, Clock clock,
+			ObjectProvider<DataRequests> dataRequests) {
+		this.dataRequests = dataRequests;
 		this.jdbc = jdbc;
 		this.stepUps = stepUps;
 		this.notifications = notifications;
@@ -285,6 +290,18 @@ class AccountAdministrations implements AccountAdministration {
 				List.of(new Recipient(accountId, Audience.SUBJECT)), Map.of("reason", text), "/ho-so", null, accountId));
 		audit(administrator, "identity.mentor_approval_revoked", accountId, action);
 		return new Result(null, false);
+	}
+
+	@Override
+	public Optional<DeletionRequest> deletionRequest(UUID accountId) {
+		DataRequests.State state = this.dataRequests.getObject().state(accountId);
+		return state.requestedAt() == null ? Optional.empty()
+				: Optional.of(new DeletionRequest(state.requestedAt(), state.completedAt(), state.blockers()));
+	}
+
+	@Override
+	public Result erase(UUID administrator, UUID accountId, String stepUpCode) {
+		return this.dataRequests.getObject().erase(administrator, accountId, stepUpCode);
 	}
 
 	/** The account to act on, locked; {@code NOT_FOUND} for one erased, gone, or an Administrator's on unlock. */

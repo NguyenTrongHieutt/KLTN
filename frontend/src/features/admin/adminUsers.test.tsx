@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryRouter, RouterProvider } from 'react-router'
@@ -146,4 +146,38 @@ describe('ADM-2 users (FR-59, FR-74, FR-78)', () => {
     expect(await within(account).findByText('Đã thu hồi')).toBeInTheDocument()
     expect(within(account).queryByRole('button', { name: 'Thu hồi' })).toBeNull()
   })
+
+  it('waits for the blocker, then confirms the account deletion through the step-up', { timeout: 30_000 }, async () => {
+    const user = userEvent.setup()
+    const sent: unknown[] = []
+    let blockers = [{ module: 'job', reason: 'JOB_RUNNING', jobId: 'j1' }]
+    fakeBackend(administrator, {
+      'GET /api/v1/admin/overview': () => json(overview),
+      'GET /api/v1/admin/users': () => json({ items: rows, total: 2, page: 0, size: 20 }),
+      'GET /api/v1/admin/users/s1': () =>
+        json({ ...vy, deletionRequest: { requestedAt: '2026-10-20T03:00:00Z', completedAt: null, blockers } }),
+      'POST /api/v1/admin/users/s1/erase': async (request) => {
+        sent.push(await request.json())
+        return json({ id: 's1', erased: true })
+      },
+    })
+    renderAt('/quan-tri/nguoi-dung/s1')
+
+    expect(await screen.findByRole('heading', { name: 'Yêu cầu xóa tài khoản' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Công việc đang chạy' })).toHaveAttribute('href', '/quan-tri/cong-viec/j1')
+    expect(screen.getByRole('button', { name: 'Xác nhận xóa tài khoản' })).toBeDisabled()
+    blockers = []
+    cleanupAndRender()
+
+    await user.click(await screen.findByRole('button', { name: 'Xác nhận xóa tài khoản' }))
+    const stepUp = await screen.findByRole('dialog')
+    await user.type(within(stepUp).getByRole('textbox'), '123456')
+    await user.click(within(stepUp).getByRole('button', { name: 'Xác nhận xóa tài khoản' }))
+    await waitFor(() => expect(sent).toEqual([{ stepUpCode: '123456' }]))
+  })
 })
+
+function cleanupAndRender() {
+  cleanup()
+  renderAt('/quan-tri/nguoi-dung/s1')
+}

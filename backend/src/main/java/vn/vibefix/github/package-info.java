@@ -10,7 +10,8 @@
  * <p>
  * Public API: {@link vn.vibefix.github.GitHubApps}, {@link vn.vibefix.github.MergeApp} (the Customers'
  * Merge App installations, Story 8.7), {@link vn.vibefix.github.GitHubRepositories}
- * (read-only metadata with a caller's credential), and the events
+ * (read-only metadata with a caller's credential), {@link vn.vibefix.github.OAuthGrants} (revoking the sign-in
+ * App's grant when an account is deleted, SG-9), and the events
  * {@link vn.vibefix.github.GitHubWebhookReceived} and {@link vn.vibefix.github.GitHubConfigurationDrift}.
  * Story 2.1's {@code spike-s4} probe and the webhook endpoint are wiring in {@code github.internal}.
  */

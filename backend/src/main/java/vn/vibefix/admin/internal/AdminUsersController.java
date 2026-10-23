@@ -93,11 +93,29 @@ class AdminUsersController {
 	record FeedbackView(BigDecimal average, int count, List<String> comments, boolean enoughToAct) {
 	}
 
-	/** @param feedback a Mentor's private feedback, when anyone gave any (FR-78) */
+	/** @param jobId the Job a blocker concerns, when there is one */
+	record DeletionBlockerView(String module, String reason, @Nullable UUID jobId) {
+	}
+
+	/** NFR-11 (Story 16.2): the person's deletion request and what keeps it waiting. */
+	record DeletionRequestView(Instant requestedAt, @Nullable Instant completedAt, List<DeletionBlockerView> blockers) {
+	}
+
+	/** The account after "Xác nhận xóa tài khoản": erased, kept only as NFR-10 requires. */
+	record AccountErasedView(UUID id, boolean erased) {
+	}
+
+	/**
+	 * @param feedback a Mentor's private feedback, when anyone gave any (FR-78)
+	 * @param deletionRequest the person's account deletion request, if they made one (NFR-11)
+	 */
 	record UserDetailView(UUID id, Role role, @Nullable String name, @Nullable String githubLogin, @Nullable String email,
 			Instant createdAt, @Nullable Instant signedInAt, @Nullable Instant lockedAt, @Nullable String lockReason,
 			@Nullable MentorApprovalStatus approval, @Nullable UserVerificationView verification, List<ActionView> history,
-			@Nullable FeedbackView feedback) {
+			@Nullable FeedbackView feedback, @Nullable DeletionRequestView deletionRequest) {
+	}
+
+	record EraseRequest(@NotBlank @Pattern(regexp = "^[0-9]{6}$") String stepUpCode) {
 	}
 
 	record ReasonRequest(@NotBlank @Size(max = 500) String reason) {
@@ -206,6 +224,28 @@ class AdminUsersController {
 		return detail(accountId, false);
 	}
 
+	/**
+	 * "Xác nhận xóa tài khoản" (NFR-11, AD-24): behind the step-up, only on the person's request and with no
+	 * blocker left.
+	 * @throws ApiException the step-up refusal; {@code GUARD_FAILED NO_DELETION_REQUEST}; {@code GUARD_FAILED
+	 * ERASURE_BLOCKED} with the blockers; {@code FORBIDDEN ADMINISTRATOR_ACCOUNT}
+	 */
+	@PostMapping("/{accountId}/erase")
+	AccountErasedView erase(@PathVariable UUID accountId, @Valid @RequestBody EraseRequest body, HttpServletRequest request) {
+		AccountAdministration.Result result = this.accounts.erase(administrator(), accountId, body.stepUpCode());
+		if (!result.done()) {
+			if (result.endSession()) {
+				SecurityContextHolder.clearContext();
+				HttpSession session = request.getSession(false);
+				if (session != null) {
+					session.invalidate();
+				}
+			}
+			throw result.refusal();
+		}
+		return new AccountErasedView(accountId, true);
+	}
+
 	private UserDetailView detail(UUID accountId, boolean viewed) {
 		AccountAdministration.Account account = this.accounts.account(accountId)
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
@@ -229,7 +269,14 @@ class AdminUsersController {
 					.map(action -> new ActionView(action.action(), action.reason(), action.ground(), action.actedBy(),
 							action.actedAt()))
 					.toList(),
-				feedback);
+				feedback,
+				this.accounts.deletionRequest(accountId)
+					.map(deletion -> new DeletionRequestView(deletion.requestedAt(), deletion.completedAt(),
+							deletion.blockers()
+								.stream()
+								.map(blocker -> new DeletionBlockerView(blocker.module(), blocker.reason(), blocker.jobId()))
+								.toList()))
+					.orElse(null));
 	}
 
 	private UUID administrator() {

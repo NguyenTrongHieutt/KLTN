@@ -2331,3 +2331,23 @@ POST /api/v1/admin/abuse-reports/{reportId}/decision,MENTOR,,abuse-report-decisi
 POST /api/v1/admin/abuse-reports/{reportId}/decision,STUDENT,,abuse-report-decision.json,404 NOT_FOUND
 POST /api/v1/admin/abuse-reports/{reportId}/decision,ADMINISTRATOR,,abuse-report-decision.json,403 FORBIDDEN NOT_ASSIGNED
 POST /api/v1/admin/abuse-reports/{reportId}/decision,ADMIN_ABUSE_REPORT_GRANT,,abuse-report-decision.json,200
+GET /api/v1/account/data,ANONYMOUS,,,401
+GET /api/v1/account/data,CUSTOMER,,,200
+GET /api/v1/account/data,MENTOR,,,200
+GET /api/v1/account/data,STUDENT,,,200
+GET /api/v1/account/data,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/account/data/export,ANONYMOUS,,,401
+GET /api/v1/account/data/export,CUSTOMER,,,200
+GET /api/v1/account/data/export,MENTOR,,,200
+GET /api/v1/account/data/export,STUDENT,,,200
+GET /api/v1/account/data/export,ADMINISTRATOR,,,404 NOT_FOUND
+POST /api/v1/account/deletion-request,ANONYMOUS,,,401
+POST /api/v1/account/deletion-request,CUSTOMER,,,201
+POST /api/v1/account/deletion-request,MENTOR,,,201
+POST /api/v1/account/deletion-request,STUDENT,,,201
+POST /api/v1/account/deletion-request,ADMINISTRATOR,,,404 NOT_FOUND
+POST /api/v1/admin/users/{accountId}/erase,ANONYMOUS,,admin-user-erase.json,401
+POST /api/v1/admin/users/{accountId}/erase,CUSTOMER,,admin-user-erase.json,404 NOT_FOUND
+POST /api/v1/admin/users/{accountId}/erase,MENTOR,,admin-user-erase.json,404 NOT_FOUND
+POST /api/v1/admin/users/{accountId}/erase,STUDENT,,admin-user-erase.json,404 NOT_FOUND
+POST /api/v1/admin/users/{accountId}/erase,ADMINISTRATOR,,admin-user-erase.json,404 NOT_FOUND

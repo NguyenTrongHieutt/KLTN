@@ -20,6 +20,9 @@ public interface PersonalData {
 	 */
 	ErasureOutcome erase(UUID accountId);
 
+	/** What keeps {@code accountId} from being erased now, from every participant; nothing is erased. */
+	List<ErasureBlocker> erasureBlockers(UUID accountId);
+
 	/** Deletes a Product's data through every participant. */
 	void deleteProduct(UUID productId);
 
