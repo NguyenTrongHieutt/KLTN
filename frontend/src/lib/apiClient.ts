@@ -78,7 +78,9 @@ export class ApiError extends Error {
 /**
  * Resolves to the response data, or rejects with an {@link ApiError} carrying the Problem Details.
  * A successful response without a body (204, or an empty 200 from a command) resolves to
- * `undefined`, which the operation's type then says.
+ * `undefined`, which the operation's type then says. The backend writes a `@Nullable` field as
+ * `null`, while the generated types make it optional, so such fields are left out here and read as
+ * `undefined`, as the types say.
  */
 export async function unwrap<T>(
   request: Promise<{ data?: T; error?: unknown; response: Response }>,
@@ -92,7 +94,25 @@ export async function unwrap<T>(
       Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined,
     )
   }
-  return data as T
+  return withoutNulls(data) as T
+}
+
+/**
+ * A copy of parsed JSON without the object fields whose value is `null`; array entries stay where
+ * they are, and anything but plain objects and arrays (a `Blob`, say) is returned as it is.
+ */
+function withoutNulls(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(withoutNulls)
+  }
+  if (typeof value !== 'object' || value === null || Object.getPrototypeOf(value) !== Object.prototype) {
+    return value
+  }
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([, entry]) => entry !== null)
+      .map(([key, entry]) => [key, withoutNulls(entry)]),
+  )
 }
 
 function isProblem(value: unknown): value is Problem {

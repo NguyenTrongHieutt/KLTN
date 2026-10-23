@@ -77,6 +77,28 @@ describe('STU-5 school email code (FR-5, UX-DR19, UX-DR70)', () => {
     expect(await request.clone().json()).toEqual({ email: 'minh@sis.hust.edu.vn' })
   })
 
+  it('offers the email field when the backend writes no code as null', async () => {
+    fakeBackend(signedIn('STUDENT'), {
+      'GET /api/v1/profile': profile,
+      'GET /api/v1/verification': () =>
+        json({
+          status: 'UNVERIFIED',
+          method: null,
+          verifiedUntil: null,
+          verifiedAt: null,
+          schoolEmail: null,
+          pendingCode: null,
+          studentCard: null,
+          renewalOpen: false,
+        }),
+    })
+    renderAt('/ho-so')
+
+    const card = (await screen.findByRole('heading', { name: 'Xác minh sinh viên' })).closest('section')!
+    expect(await within(card).findByRole('button', { name: 'Gửi mã' })).toBeInTheDocument()
+    expect(within(card).queryByLabelText('Mã 6 số trong email')).not.toBeInTheDocument()
+  })
+
   it('sends a new code, not the code entry, on Enter in the email field', async () => {
     const user = userEvent.setup()
     const seen = fakeBackend(signedIn('STUDENT'), {

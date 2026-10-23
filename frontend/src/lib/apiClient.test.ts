@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { apiClient, readCookie } from './apiClient'
+import { apiClient, readCookie, unwrap } from './apiClient'
 
 describe('apiClient (AD-19, AD-23)', () => {
   afterEach(() => {
@@ -23,6 +23,27 @@ describe('apiClient (AD-19, AD-23)', () => {
 
     expect(seen[0].headers.get('X-XSRF-TOKEN')).toBeNull()
     expect(seen[1].headers.get('X-XSRF-TOKEN')).toBe('abc-123')
+  })
+
+  it('leaves out the null fields the backend writes, as the generated types say', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              status: 'ANONYMOUS',
+              account: null,
+              nested: { kept: 0, gone: null, list: [{ a: null, b: '' }, null] },
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+      ),
+    )
+
+    const data: unknown = await unwrap(apiClient.GET('/api/v1/session'))
+
+    expect(data).toStrictEqual({ status: 'ANONYMOUS', nested: { kept: 0, list: [{ b: '' }, null] } })
   })
 
   it('reads one cookie by name', () => {
