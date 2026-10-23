@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -25,6 +26,7 @@ import vn.vibefix.audit.AuditActor;
 import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
+import vn.vibefix.shared.AdminReadScope;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.work.internal.Attachments.Attachment;
@@ -126,6 +128,49 @@ class WorkReads {
 			}
 			case CUSTOMER -> throw new ApiException(ErrorCode.NOT_FOUND);
 		};
+	}
+
+	/** The Work Item a note belongs to. */
+	@Transactional(readOnly = true)
+	Optional<UUID> noteItem(UUID noteId) {
+		return this.jdbc.sql("SELECT work_item_id FROM work.work_item_history WHERE id = :id AND action = 'NOTE'")
+			.param("id", noteId)
+			.query(UUID.class)
+			.optional();
+	}
+
+	/**
+	 * One note the viewer sees, with its Work Item, or {@code NOT_FOUND} (FR-69). The Mentor and the Crew see
+	 * it on the Work Item's history; an Administrator needs a grant naming the note, or every note, and the
+	 * read is audited. An Abuse Report's grant opens that note only, not its Work Item.
+	 */
+	@Transactional
+	Entry note(BoardViewer viewer, Item item, UUID noteId) {
+		Entry note = this.jdbc.sql("SELECT " + ENTRY_COLUMNS
+				+ " FROM work.work_item_history WHERE id = :id AND work_item_id = :item AND action = 'NOTE'")
+			.param("id", noteId)
+			.param("item", item.id())
+			.query((rs, n) -> entry(rs))
+			.optional()
+			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		if (viewer.kind() == Kind.ADMIN) {
+			List<UUID> involved = note.actor() == null ? List.of() : List.of(note.actor());
+			Instant now = this.clock.instant();
+			boolean granted = viewer.grants()
+				.stream()
+				.anyMatch(grant -> grant.permits(viewer.accountId(), viewer.board().jobId(), AdminReadScope.WORK_ITEM_NOTES,
+						noteId, involved, now));
+			if (!granted) {
+				throw new ApiException(ErrorCode.NOT_FOUND);
+			}
+			audit(viewer, AuditObject.of("work.work_item_history", noteId));
+			return note;
+		}
+		Item seen = item(viewer, item);
+		if (historyOf(viewer, seen.id()).stream().noneMatch(entry -> entry.id().equals(noteId))) {
+			throw new ApiException(ErrorCode.NOT_FOUND);
+		}
+		return note;
 	}
 
 	/** Each Work Item's latest review entry the viewer sees, for "Bị trả lại" on the cards. */

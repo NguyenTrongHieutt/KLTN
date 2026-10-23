@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/Skeleton'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
 import { buttonVariants } from '@/components/ui/button-variants'
+import { ReportAbuseMenu } from '@/features/abuse/ReportAbuseMenu'
 import { useSession } from '@/features/identity/useSession'
 import { useJob } from '@/features/job/jobApi'
 import { JobHeader } from '@/features/job/JobHeader'
@@ -336,6 +337,10 @@ function PageArea({ tree, jobId, pageId }: { tree: PageTree; jobId: string; page
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
+                <ReportAbuseMenu
+                  targets={[{ kind: 'PAGE', targetId: page.data.id }]}
+                  label={t('screen.report.pageMore', { title: page.data.title })}
+                />
                 {page.data.mentor && !page.data.readOnly && (
                   <label className="flex min-h-tap-min items-center gap-2 text-body-sm">
                     <input

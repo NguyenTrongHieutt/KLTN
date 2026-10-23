@@ -54,7 +54,7 @@ class RatingController {
 	}
 
 	/** A Rating the viewer may see: their own, or a published one. */
-	record RatingView(String kind, String raterRole, UUID rateeId, String rateeName, int stars, String comment,
+	record RatingView(UUID id, String kind, String raterRole, UUID rateeId, String rateeName, int stars, String comment,
 			Instant createdAt, boolean mine) {
 	}
 
@@ -139,7 +139,7 @@ class RatingController {
 		Map<UUID, String> names = names(window, viewer);
 		List<RatingView> ratings = new ArrayList<>();
 		for (Rating rating : visible) {
-			ratings.add(new RatingView(rating.kind().name(), rating.kind() == Kind.CUSTOMER_TO_MENTOR ? "CUSTOMER" : "MENTOR",
+			ratings.add(new RatingView(rating.id(), rating.kind().name(), rating.kind() == Kind.CUSTOMER_TO_MENTOR ? "CUSTOMER" : "MENTOR",
 					rating.rateeId(), names.getOrDefault(rating.rateeId(), ""), rating.stars(), rating.comment(),
 					rating.createdAt(), viewer.accountId().equals(rating.raterId())));
 		}

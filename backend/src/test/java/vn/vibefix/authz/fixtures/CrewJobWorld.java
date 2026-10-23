@@ -32,8 +32,12 @@ import vn.vibefix.team.internal.TeamTestSupport;
  * the last two with a window that ended before the {@code CREW_CHAT} canary was written;</li>
  * <li>{@link MatrixCaller#ADMIN_TEAM_ISSUE_GRANT}, an Administrator holding a grant on the Crew Chat;</li>
  * <li>{@link MatrixCaller#ADMIN_DISPUTE_GRANT}, the Administrator assigned to the Dispute
- * ({@code {disputeId}}), holding its read grant.</li>
+ * ({@code {disputeId}}), holding its read grant;</li>
+ * <li>{@link MatrixCaller#ADMIN_ABUSE_REPORT_GRANT}, the Administrator assigned to the active member's Abuse
+ * Report ({@code {reportId}}) on the {@code CREW_CHAT} canary message ({@code {messageId}}), holding the
+ * grant on that one message.</li>
  * </ul>
+ * The Mentor's {@code WORK_ITEM_NOTE} note is {@code {workItemNoteId}}.
  * It also seeds the Job's confirmed Agreement with one Milestone ({@code {crewMilestoneId}}) and its
  * Board ({@code {boardId}}) with the criterion's seeded Story ({@code {workItemId}}), which carries the
  * Mentor's {@code WORK_ITEM_NOTE} note and {@code ATTACHMENT} file ({@code {attachmentId}}), and a Page
@@ -69,6 +73,8 @@ final class CrewJobWorld {
 	private UUID admin;
 
 	private UUID disputeAdmin;
+
+	private UUID abuseAdmin;
 
 	CrewJobWorld(JdbcClient jdbc, SessionRepository<? extends Session> sessions) {
 		this.jdbc = jdbc;
@@ -106,7 +112,9 @@ final class CrewJobWorld {
 				INSERT INTO chat.chat (id, job_id, product_id, kind, opened_at) VALUES (:id, :job, :product, 'CREW', :signed)
 				""").param("id", chat).param("job", job).param("product", product).param("signed", Timestamp.from(SIGNED)).update();
 		message(chat, "Chào cả nhóm, mình bắt đầu nhé", SIGNED.plus(Duration.ofHours(1)));
-		message(chat, Canaries.load().get("CREW_CHAT").value(), MutableClock.DEFAULT_INSTANT.minus(Duration.ofDays(1)));
+		UUID canaryMessage = message(chat, Canaries.load().get("CREW_CHAT").value(),
+				MutableClock.DEFAULT_INSTANT.minus(Duration.ofDays(1)));
+		world.put("messageId", canaryMessage);
 		this.admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null, null);
 		this.jdbc.sql("""
 				INSERT INTO chat.admin_read_grant (grant_id, admin_account_id, job_id, items, reason_id)
@@ -197,11 +205,13 @@ final class CrewJobWorld {
 			.param("attachment", attachment)
 			.param("at", written)
 			.update();
+		UUID note = UUID.randomUUID();
+		world.put("workItemNoteId", note);
 		this.jdbc.sql("""
 				INSERT INTO work.work_item_history (id, work_item_id, job_id, actor_account_id, action, changes, comment, at)
 				VALUES (:id, :item, :job, :mentor, 'NOTE', '{}'::jsonb, :note, :at)
 				""")
-			.param("id", UUID.randomUUID())
+			.param("id", note)
 			.param("item", item)
 			.param("job", job)
 			.param("mentor", this.mentor)
@@ -266,6 +276,28 @@ final class CrewJobWorld {
 				""").param("id", dispute).param("job", UUID.randomUUID()).param("product", product).param("owner", owner)
 			.param("at", written).param("admin", this.disputeAdmin).param("grant", UUID.randomUUID()).update();
 		world.put("disputeId", dispute);
+		UUID report = UUID.randomUUID();
+		UUID reportGrant = UUID.randomUUID();
+		this.abuseAdmin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null, null);
+		this.jdbc.sql("""
+				INSERT INTO admin.abuse_report (id, reporter_account_id, kind, target_id, job_id, product_id, author_account_id,
+				    label, reason, status, created_at, assigned_admin_id, assigned_at, grant_id)
+				VALUES (:id, :reporter, 'CREW_CHAT_MESSAGE', :message, :job, :product, :mentor, 'Việc nhóm ma trận',
+				    'Lời lẽ xúc phạm', 'OPEN', :at, :admin, :at, :grant)
+				""").param("id", report).param("reporter", this.active).param("message", canaryMessage).param("job", job)
+			.param("product", product).param("mentor", this.mentor).param("at", written).param("admin", this.abuseAdmin)
+			.param("grant", reportGrant).update();
+		this.jdbc.sql("""
+				INSERT INTO chat.admin_read_grant (grant_id, admin_account_id, job_id, items, reason_id)
+				VALUES (:grant, :admin, :job, CAST(:items AS JSONB), :reason)
+				""")
+			.param("grant", reportGrant)
+			.param("admin", this.abuseAdmin)
+			.param("job", job)
+			.param("items", "[{\"scope\":\"CREW_CHAT\",\"objectId\":\"" + canaryMessage + "\",\"accountId\":\"\"}]")
+			.param("reason", report)
+			.update();
+		world.put("reportId", report);
 		world.put("crewCriterionId", criterion);
 		world.put("item", "NON_CODE_DATA");
 		UUID page = UUID.randomUUID();
@@ -307,6 +339,7 @@ final class CrewJobWorld {
 			case CREW_FORMER -> signedIn(this.former, Role.STUDENT);
 			case ADMIN_TEAM_ISSUE_GRANT -> signedIn(this.admin, Role.ADMINISTRATOR);
 			case ADMIN_DISPUTE_GRANT -> signedIn(this.disputeAdmin, Role.ADMINISTRATOR);
+			case ADMIN_ABUSE_REPORT_GRANT -> signedIn(this.abuseAdmin, Role.ADMINISTRATOR);
 			default -> Optional.empty();
 		};
 	}
@@ -340,16 +373,18 @@ final class CrewJobWorld {
 		return student;
 	}
 
-	private void message(UUID chat, String body, Instant at) {
+	private UUID message(UUID chat, String body, Instant at) {
+		UUID id = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO chat.message (id, chat_id, author_account_id, body, sent_at) VALUES (:id, :chat, :author, :body, :at)
 				""")
-			.param("id", UUID.randomUUID())
+			.param("id", id)
 			.param("chat", chat)
 			.param("author", this.mentor)
 			.param("body", body)
 			.param("at", Timestamp.from(at))
 			.update();
+		return id;
 	}
 
 }

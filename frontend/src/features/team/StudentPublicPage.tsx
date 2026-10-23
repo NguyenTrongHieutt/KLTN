@@ -3,6 +3,7 @@ import { PageHeading } from '@/app/PageHeading'
 import { usePageTitle } from '@/app/usePageTitle'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
+import { ReportUserMenu } from '@/features/abuse/ReportAbuseMenu'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t } from '@/i18n/t'
 import { isNotFound } from '@/lib/problemMessage'
@@ -53,6 +54,7 @@ function Profile({ student, username }: { student: PublicStudent; username: stri
         <div className="flex min-w-60 grow flex-col gap-1.5">
           <div className="flex flex-wrap items-center gap-2">
             <PageHeading className="break-words">{name}</PageHeading>
+            <ReportUserMenu login={student.githubLogin ?? username} name={name} />
             <span
               className={
                 student.verified

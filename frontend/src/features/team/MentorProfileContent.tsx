@@ -2,6 +2,7 @@ import { Link } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
+import { ReportUserMenu } from '@/features/abuse/ReportAbuseMenu'
 import { t } from '@/i18n/t'
 import { formatDayMonth } from '@/lib/dates'
 import { problemMessage } from '@/lib/problemMessage'
@@ -36,7 +37,10 @@ export function MentorProfileContent({
         </span>
         <div className="flex min-w-0 grow flex-col gap-1">
           {onPage ? (
-            <PageHeading className="break-words">{mentor.displayName}</PageHeading>
+            <div className="flex flex-wrap items-center gap-2">
+              <PageHeading className="break-words">{mentor.displayName}</PageHeading>
+              <ReportUserMenu accountId={mentor.accountId} name={mentor.displayName} />
+            </div>
           ) : (
             <p className="text-h3 break-words">{mentor.displayName}</p>
           )}

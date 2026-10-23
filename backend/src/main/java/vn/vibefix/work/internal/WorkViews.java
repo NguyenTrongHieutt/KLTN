@@ -158,6 +158,14 @@ class WorkViews {
 			List<HistoryEntryView> history) {
 	}
 
+	/**
+	 * One Work Item note, for an Abuse Report (FR-69).
+	 * @param author who wrote it; empty when the account is gone
+	 */
+	record WorkItemNoteView(UUID id, UUID workItemId, String itemKey, String itemTitle, String author, String text,
+			Instant at) {
+	}
+
 	private final AgreementCriteria criteria;
 
 	private final Crews crews;
@@ -292,6 +300,13 @@ class WorkViews {
 				item.checklist().stream().map(line -> new ChecklistLineView(line.text(), line.done())).toList(),
 				item.createdBy() == null ? null : names.getOrDefault(item.createdBy(), ""), item.createdAt(), !viewer.writes(),
 				review, listed, entries);
+	}
+
+	/** One note as an Abuse Report's reader sees it. */
+	WorkItemNoteView note(BoardViewer viewer, Item item, Entry note) {
+		Map<UUID, String> names = note.actor() == null ? Map.of() : names(viewer, List.of(note.actor()));
+		return new WorkItemNoteView(note.id(), item.id(), item.key().toString(), item.title(), name(names, note.actor()),
+				note.comment() == null ? "" : note.comment(), note.at());
 	}
 
 	private static String name(Map<UUID, String> names, @Nullable UUID person) {

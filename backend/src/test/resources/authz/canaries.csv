@@ -18,7 +18,7 @@ CREW_EMAIL,canary.crew.c7e2@example.test,ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN
 CREW_LINKEDIN,https://www.linkedin.com/in/canary-crew-9f41,SUBJECT ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT,the LinkedIn link of a Mentor application (SUBJECT is its applicant)
 WORK_ITEM_NOTE,canary-note-4b8e1d,JOB_MENTOR CREW_ACTIVE ADMIN_DISPUTE_GRANT,a Work Item note
 ATTACHMENT,canary-attachment-2c6f0a.pdf,JOB_MENTOR CREW_ACTIVE ADMIN_DISPUTE_GRANT,an Attachment's file name
-CREW_CHAT,canary-crew-chat-8d3b57,JOB_MENTOR CREW_ACTIVE ADMIN_TEAM_ISSUE_GRANT,a Crew Chat message
+CREW_CHAT,canary-crew-chat-8d3b57,JOB_MENTOR CREW_ACTIVE ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT,a Crew Chat message
 TEAM_ISSUE_ID,01923c4f-5a6b-7c8d-9e0f-1a2b3c4d5e6f,JOB_MENTOR,the ID of a Team Issue another Crew member raised
 NOTIFICATION_PARAM,canary-notification-5e1a3b,SUBJECT,a parameter of another account's notification (SUBJECT is its recipient)
 TODO_PARAM,canary-todo-9a4c27,SUBJECT,a parameter of another account's to-do (SUBJECT is its recipient)

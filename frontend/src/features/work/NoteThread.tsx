@@ -2,6 +2,7 @@ import { useId, useState, type FormEvent } from 'react'
 import { inputClass } from '@/components/formField-props'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
+import { ReportAbuseMenu } from '@/features/abuse/ReportAbuseMenu'
 import { t } from '@/i18n/t'
 import { formatDayMonthTime } from '@/lib/dates'
 import { SensitiveDialog } from './SensitiveDialog'
@@ -74,7 +75,15 @@ export function NoteThread({ detail, canWrite }: { detail: WorkItemDetail; canWr
                   <span className="font-normal text-muted-foreground"> · {t('screen.board.notes.correction')}</span>
                 )}
               </span>
-              <span className="text-caption text-muted-foreground">{formatDayMonthTime(entry.at)}</span>
+              <span className="flex items-center gap-1">
+                <span className="text-caption text-muted-foreground">{formatDayMonthTime(entry.at)}</span>
+                {entry.action === 'NOTE' && !entry.mine && (
+                  <ReportAbuseMenu
+                    targets={[{ kind: 'WORK_ITEM_NOTE', targetId: entry.id }]}
+                    label={t('screen.report.noteMore', { name: entry.actor })}
+                  />
+                )}
+              </span>
             </span>
             {entry.quoted && (
               <blockquote className="border-l-2 border-border pl-2 text-caption break-words whitespace-pre-wrap text-muted-foreground">

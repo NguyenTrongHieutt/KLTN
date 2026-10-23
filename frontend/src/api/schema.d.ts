@@ -4,6 +4,22 @@
  */
 
 export interface paths {
+    "/api/v1/abuse-reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["file"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/account/theme": {
         parameters: {
             query?: never;
@@ -14,6 +30,70 @@ export interface paths {
         get?: never;
         put: operations["theme"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/abuse-reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["queue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/abuse-reports/{reportId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["report"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/abuse-reports/{reportId}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["decide_2"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/abuse-reports/{reportId}/take": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["take_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1470,6 +1550,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["withdraw_2"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/chat-messages/{messageId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["message"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3604,6 +3700,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/work-item-notes/{workItemNoteId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["note"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/work-items/{workItemId}": {
         parameters: {
             query?: never;
@@ -3768,6 +3880,59 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AbuseReportDecisionRequest: {
+            /** @enum {string} */
+            action: "HIDE" | "ACTION_TAKEN" | "DISMISS";
+            hideReason?: string;
+            outcome: string;
+        };
+        AbuseReportDetail: {
+            assigned: boolean;
+            assignedToMe: boolean;
+            authorName?: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            decidedAt?: string;
+            hideable: boolean;
+            /** Format: uuid */
+            id: string;
+            itemReadable: boolean;
+            /** Format: uuid */
+            jobId?: string;
+            kind: string;
+            label: string;
+            outcome?: string;
+            reason: string;
+            reporterName?: string;
+            status: string;
+            /** Format: uuid */
+            targetId: string;
+        };
+        AbuseReportFiledView: {
+            /** Format: uuid */
+            id: string;
+        };
+        AbuseReportRequest: {
+            kind: string;
+            reason: string;
+            /** Format: uuid */
+            targetId?: string;
+            targetLogin?: string;
+        };
+        AbuseReportRow: {
+            assigned: boolean;
+            assignedToMe: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            id: string;
+            kind: string;
+            label: string;
+            reason: string;
+            reporterName?: string;
+            status: string;
+        };
         AccountView: {
             /** Format: uuid */
             id: string;
@@ -5668,6 +5833,8 @@ export interface components {
             openedAt: string;
             problem?: string;
             productDescription: string;
+            /** Format: uuid */
+            productId: string;
             productName: string;
             /** Format: int32 */
             productOpenFindings: number;
@@ -6648,6 +6815,8 @@ export interface components {
             comment: string;
             /** Format: date-time */
             createdAt: string;
+            /** Format: uuid */
+            id: string;
             kind: string;
             mine: boolean;
             /** Format: uuid */
@@ -7571,6 +7740,18 @@ export interface components {
             readOnly: boolean;
             review?: components["schemas"]["ReviewView"];
         };
+        WorkItemNoteView: {
+            /** Format: date-time */
+            at: string;
+            author: string;
+            /** Format: uuid */
+            id: string;
+            itemKey: string;
+            itemTitle: string;
+            text: string;
+            /** Format: uuid */
+            workItemId: string;
+        };
         WorkItemRequest: {
             /** Format: uuid */
             assigneeId?: string;
@@ -7613,6 +7794,30 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    file: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AbuseReportRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AbuseReportFiledView"];
+                };
+            };
+        };
+    };
     theme: {
         parameters: {
             query?: never;
@@ -7632,6 +7837,96 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    queue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AbuseReportRow"][];
+                };
+            };
+        };
+    };
+    report: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reportId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AbuseReportDetail"];
+                };
+            };
+        };
+    };
+    decide_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reportId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AbuseReportDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AbuseReportDetail"];
+                };
+            };
+        };
+    };
+    take_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reportId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AbuseReportDetail"];
+                };
             };
         };
     };
@@ -10106,6 +10401,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChangeRequestsView"];
+                };
+            };
+        };
+    };
+    message: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                messageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageView"];
                 };
             };
         };
@@ -13512,6 +13829,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VerificationView"];
+                };
+            };
+        };
+    };
+    note: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workItemNoteId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkItemNoteView"];
                 };
             };
         };

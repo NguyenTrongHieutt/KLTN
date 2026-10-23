@@ -5,6 +5,7 @@ import { usePageTitle } from '@/app/usePageTitle'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { buttonVariants } from '@/components/ui/button-variants'
+import { ReportAbuseMenu } from '@/features/abuse/ReportAbuseMenu'
 import { useSession } from '@/features/identity/useSession'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t, type MessageKey } from '@/i18n/t'
@@ -96,6 +97,13 @@ function Post({ post, invitation }: { post: JobPost; invitation: MentorInvitatio
         <div className="flex flex-wrap items-center gap-2">
           <PageHeading>{post.title}</PageHeading>
           <JobStateBadge state="OPEN" audience="mentor" />
+          <ReportAbuseMenu
+            targets={[
+              { kind: 'JOB_POST', targetId: post.id, item: 'screen.report.post' },
+              { kind: 'PRODUCT', targetId: post.productId, item: 'screen.report.product' },
+            ]}
+            label={t('screen.report.postMore')}
+          />
         </div>
         <p className="text-caption text-muted-foreground break-words">{meta.join(' · ')}</p>
       </div>

@@ -1060,7 +1060,8 @@
           "PRODUCT": "Sản phẩm",
           "JOB_POST": "Tin tuyển",
           "PAGE": "Trang",
-          "RATING": "Đánh giá"
+          "RATING": "Đánh giá",
+          "REPORTS": "Báo cáo vi phạm"
         },
         "show": "Hiển thị",
         "visible": "Đang hiện",
@@ -1406,6 +1407,46 @@
           "outcomeKept": "Giữ điểm",
           "at": "Quyết định lúc {time}"
         }
+      },
+      "reports": {
+        "empty": "Chưa có báo cáo vi phạm nào.",
+        "listLabel": "Báo cáo vi phạm",
+        "pick": "Chọn một báo cáo để xem.",
+        "kind": {
+          "PRODUCT": "Sản phẩm",
+          "JOB_POST": "Tin tuyển",
+          "PAGE": "Trang",
+          "RATING": "Đánh giá",
+          "JOB_CHAT_MESSAGE": "Tin nhắn trò chuyện công việc",
+          "CREW_CHAT_MESSAGE": "Tin nhắn trò chuyện nhóm",
+          "WORK_ITEM_NOTE": "Ghi chú công việc",
+          "USER": "Người dùng"
+        },
+        "status": {
+          "OPEN": "Chờ xử lý",
+          "HIDDEN": "Đã ẩn nội dung",
+          "ACTION_TAKEN": "Đã xử lý",
+          "DISMISSED": "Đã bỏ qua"
+        },
+        "assigned": "Đã có người nhận",
+        "assignedToMe": "Bạn đang xử lý",
+        "filedBy": "{name} báo cáo lúc {time}",
+        "erased": "Tài khoản đã xóa",
+        "author": "Tác giả: {name}",
+        "reason": "Lý do báo cáo",
+        "take": "Nhận xử lý",
+        "item": "Nội dung bị báo cáo",
+        "itemNote": "Mỗi lần xem nội dung này được ghi vào nhật ký kiểm toán.",
+        "action": "Cách xử lý",
+        "actions": {
+          "HIDE": "Ẩn nội dung",
+          "ACTION_TAKEN": "Đã xử lý (ví dụ khóa tài khoản trên trang Người dùng)",
+          "DISMISS": "Bỏ qua báo cáo"
+        },
+        "hideReason": "Lý do ẩn (tác giả sẽ đọc)",
+        "outcome": "Kết quả gửi người báo cáo",
+        "decide": "Ghi quyết định",
+        "decided": "Đã ghi quyết định và báo cho người báo cáo."
       }
     },
     "product": {
@@ -3526,6 +3567,24 @@
       "statementLabel": "Trình bày của bạn (hạn {date})",
       "statementSend": "Gửi trình bày",
       "statementSent": "Đã gửi trình bày."
+    },
+    "report": {
+      "item": "Báo cáo vi phạm",
+      "post": "Báo cáo tin tuyển",
+      "product": "Báo cáo sản phẩm",
+      "title": "Báo cáo vi phạm",
+      "body": "Cho quản trị viên biết nội dung này vi phạm quy định như thế nào.",
+      "reason": "Lý do",
+      "send": "Gửi báo cáo",
+      "cancel": "Hủy",
+      "close": "Đóng",
+      "sent": "Quản trị viên sẽ xem xét và báo kết quả cho bạn.",
+      "messageMore": "Thao tác khác với tin nhắn của {name}",
+      "noteMore": "Thao tác khác với ghi chú của {name}",
+      "pageMore": "Thao tác khác với trang {title}",
+      "postMore": "Thao tác khác với tin tuyển",
+      "ratingMore": "Thao tác khác với đánh giá",
+      "profileMore": "Thao tác khác với hồ sơ của {name}"
     }
   },
   "notice": {
@@ -4473,6 +4532,9 @@
     "admin": {
       "content_hidden": {
         "title": "{kind} “{title}” đã bị ẩn: {reason}"
+      },
+      "abuse_report_resolved": {
+        "title": "Báo cáo vi phạm của bạn đã được xử lý: {outcome}"
       }
     }
   },
@@ -4744,7 +4806,12 @@
     "admin": {
       "FEEDBACK_NOT_ENOUGH": "Cần ít nhất 3 đánh giá kín từ 2 sinh viên khác nhau trên 2 công việc khác nhau.",
       "ALREADY_HIDDEN": "Nội dung này đã bị ẩn.",
-      "NOT_FAILED": "Thao tác này không còn ở trạng thái lỗi."
+      "NOT_FAILED": "Thao tác này không còn ở trạng thái lỗi.",
+      "ALREADY_REPORTED": "Bạn đã báo cáo mục này và báo cáo đang chờ xử lý.",
+      "ABUSE_REPORT_LIMIT": "Bạn đã gửi 10 báo cáo hôm nay. Hãy thử lại vào ngày mai.",
+      "ALREADY_DECIDED": "Báo cáo này đã được xử lý.",
+      "NOT_ASSIGNED": "Chỉ quản trị viên nhận xử lý báo cáo mới ghi được quyết định.",
+      "NOT_HIDEABLE": "Loại nội dung này không ẩn được. Hãy ghi lại cách đã xử lý."
     },
     "settings": {
       "RULE_OUT_OF_BOUNDS": "Giá trị nằm ngoài giới hạn cho phép.",
