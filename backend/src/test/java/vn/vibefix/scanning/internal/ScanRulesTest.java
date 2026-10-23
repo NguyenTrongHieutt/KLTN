@@ -23,7 +23,7 @@ class ScanRulesTest {
 
 	@Test
 	void everyRuleCompilesWithRe2jAndHoldsTheCredentialInAGroup() {
-		assertThat(RULES.version()).isEqualTo(2);
+		assertThat(RULES.version()).isEqualTo(3);
 		assertThat(RULES.rules()).hasSizeGreaterThanOrEqualTo(30)
 			.allSatisfy(rule -> assertThat(rule.pattern().groupCount()).as(rule.id()).isPositive());
 	}

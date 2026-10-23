@@ -35,14 +35,16 @@ import vn.vibefix.scanning.internal.SecretMatcher.Match;
  * Nothing is ever checked out: a file is read as a blob, a symbolic link as the text of its target,
  * which is never followed; submodule entries are skipped. A blob larger than
  * {@link ScanLimits#blobBytes()}, and a spreadsheet or database file whose extraction is off, is
- * listed, not read; a binary blob (a NUL byte in its first 8 000 bytes) is skipped. The other caps
- * stop the walk and say which one was reached.
+ * listed, not read; a binary blob (a NUL byte in its first 8 000 bytes) is skipped. An {@code .xlsx}
+ * workbook or a SQLite file is extracted to tables and given the Personal-Data Check as a data file
+ * (Story 16.3), or listed {@value #UNREADABLE} when it cannot be read. The other caps stop the walk and
+ * say which one was reached.
  */
 final class HistoryScanner {
 
 	/**
 	 * A file the scan did not read.
-	 * @param reason {@value #TOO_LARGE} or {@value #NOT_EXTRACTED}
+	 * @param reason {@value #TOO_LARGE}, {@value #NOT_EXTRACTED}, or {@value #UNREADABLE}
 	 */
 	record UnscannedFile(String path, long sizeBytes, String reason) {
 	}
@@ -88,6 +90,12 @@ final class HistoryScanner {
 	/** A spreadsheet or database file: its extraction is a separate step, off (FR-65 Tier 3). */
 	static final String NOT_EXTRACTED = "NOT_EXTRACTED";
 
+	/** A spreadsheet or database file the extraction could not read: broken, another format, or past a cap. */
+	static final String UNREADABLE = "UNREADABLE";
+
+	/** How many times the per-file cap an {@code .xlsx} may inflate to, a ZIP bomb guard. */
+	static final int INFLATE_FACTOR = 8;
+
 	/** The unscanned files listed by path; the rest are counted. */
 	static final int LISTED_UNSCANNED = 50;
 
@@ -102,10 +110,13 @@ final class HistoryScanner {
 
 	private final java.util.function.Predicate<String> notExtracted;
 
+	private final java.util.function.Predicate<String> extracted;
+
 	HistoryScanner(ScanRules rules) {
 		this.matcher = new SecretMatcher(rules);
 		this.personalData = new PersonalDataMatcher(rules.personalData());
 		this.notExtracted = path -> rules.personalData().notExtracted().matcher(path).find();
+		this.extracted = path -> rules.personalData().extracted().matcher(path).find();
 	}
 
 	Report scan(Repository repository, ScanLimits limits, long deadlineNanos) throws IOException {
@@ -164,7 +175,8 @@ final class HistoryScanner {
 						}
 						ObjectLoader loader = reader.open(blob, Constants.OBJ_BLOB);
 						long size = loader.getSize();
-						boolean notRead = mode != FileMode.SYMLINK && this.notExtracted.test(path);
+						boolean extract = mode != FileMode.SYMLINK && this.extracted.test(path);
+						boolean notRead = mode != FileMode.SYMLINK && !extract && this.notExtracted.test(path);
 						if (notRead || size > limits.blobBytes()) {
 							if (unscannedCount++ < LISTED_UNSCANNED) {
 								unscanned.add(new UnscannedFile(path, size, notRead ? NOT_EXTRACTED : TOO_LARGE));
@@ -186,18 +198,32 @@ final class HistoryScanner {
 							break commits;
 						}
 						byte[] bytes = loader.getCachedBytes(limits.blobBytes());
-						if (mode != FileMode.SYMLINK && binary(bytes)) {
-							continue;
-						}
-						String text = pieces(new String(bytes, StandardCharsets.UTF_8), limits.lineLength());
 						List<Found> here = new ArrayList<>();
 						Instant when = commit.getAuthorIdent().getWhenAsInstant();
-						for (Match match : this.matcher.find(path, text)) {
-							here.add(new Found(match.ruleId(), match.type(), path, commit.name(), when, match.masked(),
-									match.hash(), Set.of(), 0));
+						Optional<Hit> personal;
+						if (extract) {
+							try {
+								personal = this.personalData.findInTables(path, DataFileTables.read(path, bytes,
+										limits.blobBytes(), (long) INFLATE_FACTOR * limits.blobBytes()));
+							}
+							catch (DataFileTables.Unreadable unreadable) {
+								if (unscannedCount++ < LISTED_UNSCANNED) {
+									unscanned.add(new UnscannedFile(path, size, UNREADABLE));
+								}
+								continue;
+							}
 						}
-						Optional<Hit> personal = mode == FileMode.SYMLINK ? Optional.empty()
-								: this.personalData.find(path, text);
+						else {
+							if (mode != FileMode.SYMLINK && binary(bytes)) {
+								continue;
+							}
+							String text = pieces(new String(bytes, StandardCharsets.UTF_8), limits.lineLength());
+							for (Match match : this.matcher.find(path, text)) {
+								here.add(new Found(match.ruleId(), match.type(), path, commit.name(), when, match.masked(),
+										match.hash(), Set.of(), 0));
+							}
+							personal = mode == FileMode.SYMLINK ? Optional.empty() : this.personalData.find(path, text);
+						}
 						personal.ifPresent(hit -> here.add(new Found(PersonalDataMatcher.RULE_ID, "", path, commit.name(),
 								when, String.join(" · ", hit.samples()), hit.hash(), hit.kinds(), hit.lines())));
 						for (Found one : here) {

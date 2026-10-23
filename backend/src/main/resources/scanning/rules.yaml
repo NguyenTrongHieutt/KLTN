@@ -11,7 +11,7 @@
 #
 # Rules run in order and a file's text is claimed once: a later rule never reports a value an earlier
 # rule already found, so specific providers come first and the generic rules last.
-version: 2
+version: 3
 source: >-
   Written for vibefix from each provider's published credential format (2026-10-19). Not copied from
   gitleaks: its MIT-licensed rules can be merged in later with their licence notice and source commit.
@@ -39,8 +39,11 @@ personalData:
   citizenIdColumns: '(?i)^(?:[a-z0-9]+[_ ])*(?:cccd|cmnd|citizen[_ ]?id|national[_ ]?id|id[_ ]?card)$'
   # Dependency manifests and lockfiles name maintainers, never end users.
   exemptFiles: '(?:^|/)(?:package\.json|package-lock\.json|npm-shrinkwrap\.json|yarn\.lock|pnpm-lock\.yaml|composer\.json|composer\.lock|Gemfile\.lock|poetry\.lock|Cargo\.lock)$'
-  # Spreadsheets and databases: their extraction is a separate pipeline step, off (FR-65 Tier 3).
-  notExtracted: '(?i)\.(?:xlsx|xls|ods|sqlite|sqlite3|db)$'
+  # Story 16.3, SG-12: .xlsx workbooks and SQLite files are extracted to tables in the scan job and checked as
+  # data files; the Tier 3 fallback moves them back to notExtracted.
+  extracted: '(?i)\.(?:xlsx|sqlite|sqlite3|db)$'
+  # Spreadsheets and databases whose extraction is off: listed as "chưa kiểm tra được" (FR-65 Tier 3).
+  notExtracted: '(?i)\.(?:xls|ods)$'
   # The type the Customer reads: the kinds found, in this order, then the suffix.
   labels:
     CITIZEN_ID: số căn cước

@@ -89,7 +89,7 @@ class SecretScanJobTest {
 	}
 
 	@Test
-	void theSm7RepositoryHasEveryPlantedPersonalDataFileDetectedAndSpreadsheetsListed() {
+	void theSm7RepositoryHasEveryPlantedPersonalDataFileDetectedSpreadsheetsAndDatabasesIncluded() {
 		Map<String, Map.Entry<String, Set<ScanRules.PersonalKind>>> planted = PlantedPersonalData.all();
 		List<String> paths = new ArrayList<>(planted.keySet());
 		try (Git git = TestRepositories.create(this.root, "sm7/personal")) {
@@ -104,7 +104,22 @@ class SecretScanJobTest {
 			TestRepositories.commit(git, time.plusSeconds(60), second, Set.of());
 			// Removed from the code, still in the history.
 			TestRepositories.commit(git, time.plusSeconds(120), Map.of(), Set.of(paths.get(0), paths.get(4)));
+			// Story 16.3: a workbook and a SQLite export are extracted; a clean database is not reported, and an
+			// old .xls is still listed.
+			Map<String, byte[]> binaries = new LinkedHashMap<>();
+			binaries.put("exports/danh-sach.xlsx", TestWorkbooks.xlsx(List.of(List.of("ho_ten", "so_dien_thoai", "email"),
+					List.of("Khách A", PlantedPersonalData.phone(50), "khach.a@gmail.com"),
+					List.of("Khách B", PlantedPersonalData.phone(51), "khach.b@gmail.com"))));
+			binaries.put("data/khach-hang.sqlite", TestWorkbooks.planted("khach-hang.sqlite"));
+			binaries.put("app/cau-hinh.db", TestWorkbooks.planted("cau-hinh.db"));
+			binaries.put("reports/bao-cao.xls", "an old binary workbook".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+			TestRepositories.commitBytes(git, time.plusSeconds(180), binaries, Set.of());
 		}
+		Map<String, Set<String>> expected = new LinkedHashMap<>();
+		paths.forEach(path -> expected.put(path, planted.get(path).getValue().stream().map(Enum::name)
+			.collect(java.util.stream.Collectors.toSet())));
+		expected.put("exports/danh-sach.xlsx", Set.of("PHONE", "EMAIL", "DATA_COLUMNS"));
+		expected.put("data/khach-hang.sqlite", Set.of("PHONE", "EMAIL", "DATA_COLUMNS"));
 
 		JsonNode output = scan("sm7/personal", ScanLimits.DEFAULT);
 
@@ -113,21 +128,21 @@ class SecretScanJobTest {
 			assertThat(match.path("category").stringValue()).isEqualTo("PERSONAL_DATA");
 			found.put(match.path("path").stringValue(), match);
 		});
-		assertThat(found.keySet()).as("100%% of the planted personal data").containsExactlyInAnyOrderElementsOf(paths);
-		for (String path : paths) {
+		assertThat(found.keySet()).as("100%% of the planted personal data").containsExactlyInAnyOrderElementsOf(expected.keySet());
+		for (String path : expected.keySet()) {
 			Set<String> kinds = new java.util.HashSet<>();
 			found.get(path).path("kinds").forEach(kind -> kinds.add(kind.stringValue()));
-			assertThat(kinds).as(path)
-				.containsExactlyInAnyOrderElementsOf(planted.get(path).getValue().stream().map(Enum::name).toList());
+			assertThat(kinds).as(path).containsExactlyInAnyOrderElementsOf(expected.get(path));
 			assertThat(found.get(path).path("masked").stringValue()).as(path).contains("•");
 		}
 		String text = output.toString();
 		assertThat(text).doesNotContain(PlantedPersonalData.phone(0)).doesNotContain("khach.hang0@gmail.com")
-			.doesNotContain("079203001234").doesNotContain("123456789");
-		assertThat(output.path("unscanned")).singleElement().satisfies(file -> {
-			assertThat(file.path("path").stringValue()).isEqualTo("exports/khach-hang.xlsx");
-			assertThat(file.path("reason").stringValue()).isEqualTo(HistoryScanner.NOT_EXTRACTED);
-		});
+			.doesNotContain("079203001234").doesNotContain("123456789").doesNotContain("khach.so0@gmail.com")
+			.doesNotContain(PlantedPersonalData.phone(50));
+		Map<String, String> unscanned = new LinkedHashMap<>();
+		output.path("unscanned").forEach(file -> unscanned.put(file.path("path").stringValue(), file.path("reason").stringValue()));
+		assertThat(unscanned).containsExactly(Map.entry("exports/khach-hang.xlsx", HistoryScanner.UNREADABLE),
+				Map.entry("reports/bao-cao.xls", HistoryScanner.NOT_EXTRACTED));
 	}
 
 	@Test

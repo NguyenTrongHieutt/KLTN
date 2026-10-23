@@ -53,7 +53,32 @@ final class PersonalDataMatcher {
 			return Optional.empty();
 		}
 		boolean dataFile = this.rules.dataFiles().matcher(path).find();
-		Columns columns = dataFile ? columns(path, text) : Columns.NONE;
+		return hit(path, text, dataFile, dataFile ? columns(path, text) : Columns.NONE);
+	}
+
+	/**
+	 * A spreadsheet's or a database's tables, extracted (Story 16.3): one hit for the file, read as a data file
+	 * whose columns are every table's header and whose lines are the rows.
+	 */
+	Optional<Hit> findInTables(String path, List<DataFileTables.Table> tables) {
+		boolean personal = false;
+		boolean citizenId = false;
+		boolean rows = false;
+		StringBuilder text = new StringBuilder();
+		for (DataFileTables.Table table : tables) {
+			for (String name : table.header()) {
+				personal |= this.rules.columns().matcher(name.strip()).matches();
+				citizenId |= this.rules.citizenIdColumns().matcher(name.strip()).matches();
+			}
+			rows |= !table.rows().isEmpty();
+			for (List<String> row : table.rows()) {
+				text.append(String.join(",", row)).append('\n');
+			}
+		}
+		return hit(path, text.toString(), true, new Columns(personal, citizenId, rows));
+	}
+
+	private Optional<Hit> hit(String path, String text, boolean dataFile, Columns columns) {
 		Set<String> phones = new LinkedHashSet<>();
 		Set<String> emails = new LinkedHashSet<>();
 		Set<String> ids = new LinkedHashSet<>();

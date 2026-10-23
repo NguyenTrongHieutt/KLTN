@@ -406,10 +406,11 @@ describe('CUS-4, a Product (FR-7)', () => {
           ...product,
           scanState: 'NOT_FINISHED',
           scan: scanOf('FAILED', {
-            unscannedCount: 4,
+            unscannedCount: 5,
             unscanned: [
               { path: 'public/video/gioi-thieu.mp4', sizeBytes: 32 * 1024 * 1024, reason: 'TOO_LARGE' },
-              { path: 'exports/khach-hang.xlsx', sizeBytes: 350 * 1024, reason: 'NOT_EXTRACTED' },
+              { path: 'exports/khach-hang.xls', sizeBytes: 350 * 1024, reason: 'NOT_EXTRACTED' },
+              { path: 'data/hong.sqlite', sizeBytes: 8 * 1024, reason: 'UNREADABLE' },
             ],
           }),
         }),
@@ -421,6 +422,7 @@ describe('CUS-4, a Product (FR-7)', () => {
     expect(screen.getByText('public/video/gioi-thieu.mp4')).toBeInTheDocument()
     expect(screen.getByText('32 MB · lớn hơn giới hạn kiểm tra')).toBeInTheDocument()
     expect(screen.getByText('350 KB · chưa đọc được loại tệp này')).toBeInTheDocument()
+    expect(screen.getByText('8 KB · không đọc được tệp')).toBeInTheDocument()
     expect(screen.getByText('Và 2 tệp khác chưa kiểm tra được.')).toBeInTheDocument()
   })
 

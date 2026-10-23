@@ -146,7 +146,7 @@ class IntakeScanIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("""
 				SELECT status || ' ' || found_count || ' ' || new_findings || ' ' || unscanned_count || ' ' || rules_version
 				FROM scanning.scan_run WHERE id = :id
-				""").param("id", run).query(String.class).single()).isEqualTo("SUCCEEDED 3 3 1 2");
+				""").param("id", run).query(String.class).single()).isEqualTo("SUCCEEDED 3 3 1 3");
 		assertThat(this.jdbc.sql("""
 				SELECT rule_id || ' ' || masked_preview || ' ' || file_path FROM scanning.finding WHERE product_id = :p
 				ORDER BY rule_id
@@ -216,7 +216,7 @@ class IntakeScanIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/products/" + product).with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(jsonPath("$.scanState").value("FINDINGS"))
 			.andExpect(jsonPath("$.scan.unscanned[0].path").value("exports/khach-hang.xlsx"))
-			.andExpect(jsonPath("$.scan.unscanned[0].reason").value("NOT_EXTRACTED"));
+			.andExpect(jsonPath("$.scan.unscanned[0].reason").value("UNREADABLE"));
 		this.mvc.perform(get("/api/v1/products/" + product + "/findings").with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(jsonPath("$[0].category").value("PERSONAL_DATA"))
 			.andExpect(jsonPath("$[0].matchCount").value(12))
