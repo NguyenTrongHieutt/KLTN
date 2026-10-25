@@ -47,6 +47,10 @@
     "myData": "Dữ liệu của tôi"
   },
   "screen": {
+    "linkGitHub": {
+      "title": "Liên kết GitHub",
+      "body": "Việc liên kết tài khoản GitHub sẽ có trong phiên bản tiếp theo của vibefix."
+    },
     "signInAgain": {
       "title": "Đăng nhập lại bằng GitHub",
       "body": "vibefix không đọc được kho mã của bạn trên GitHub nữa, nên chưa kiểm tra được người ứng tuyển hay bắt đầu công việc của bạn. Hãy đăng nhập lại để vibefix kiểm tra lại.",
@@ -96,7 +100,7 @@
       "signIn": {
         "title": "Đăng nhập",
         "heading": "Đăng nhập vibefix",
-        "lead": "Dùng tài khoản Google của bạn. vibefix chỉ nhận tên và địa chỉ Gmail, không đọc mật khẩu Google. Bạn liên kết {github} sau, khi cần đến.",
+        "lead": "Dùng tài khoản Google của bạn. vibefix chỉ giữ tên, địa chỉ email Google và mã định danh của tài khoản Google, không đọc mật khẩu Google. Bạn liên kết {github} sau, khi cần đến.",
         "button": "Đăng nhập bằng Google",
         "firstTime": "Lần đầu dùng vibefix?",
         "firstTimeBody": "Bạn không cần chọn vai trò. Một tài khoản dùng được cho mọi vai: ở mỗi công việc, bạn giữ một vai.",
@@ -120,11 +124,11 @@
         "noticeHeading": "Thông báo về dữ liệu cá nhân",
         "noticeVersion": "Phiên bản {version} · 25/10/2026",
         "noticeCollectedTitle": "vibefix thu thập gì",
-        "noticeCollected": "Tên và địa chỉ Gmail từ tài khoản Google của bạn, thông tin hồ sơ bạn tự nhập, và chỉ khi bạn bắt đầu một lần xác minh, thông tin của lần xác minh đó, mỗi lần có thông báo đồng ý riêng.",
+        "noticeCollected": "Từ tài khoản Google: tên, địa chỉ email Google và mã định danh của tài khoản, dùng làm khóa của tài khoản vibefix. Khi bạn liên kết GitHub: tên tài khoản, mã số tài khoản GitHub, liên kết ảnh đại diện và các email đã xác minh. Thông tin hồ sơ bạn tự nhập, và thông tin xác minh chỉ khi bạn xác minh: email trường hoặc ảnh thẻ sinh viên, hồ sơ và tài liệu nếu bạn ứng tuyển làm người hướng dẫn.",
         "noticePurposeTitle": "Để làm gì",
-        "noticePurpose": "Đăng nhập, liên lạc về công việc, xác minh khi bạn yêu cầu và giải quyết tranh chấp. Vai trò thuộc về từng công việc: người cùng công việc chỉ thấy những gì vai đó cần.",
+        "noticePurpose": "Đăng nhập, liên lạc về công việc, xác minh khi bạn yêu cầu, duyệt người hướng dẫn và giải quyết tranh chấp. Vai trò thuộc về từng công việc: người cùng công việc chỉ thấy những gì vai đó cần.",
         "noticeRetentionTitle": "Giữ trong bao lâu",
-        "noticeRetention": "Đến khi bạn xóa tài khoản, trừ dữ liệu giao dịch phải giữ theo quy định. Thông tin xác minh được giữ đến khi bạn gỡ liên kết hoặc khi hết hạn.",
+        "noticeRetention": "Đến khi bạn xóa tài khoản, trừ dữ liệu giao dịch phải giữ theo quy định. Ảnh thẻ sinh viên và tài liệu của người hướng dẫn tự xóa 30 ngày sau khi có quyết định.",
         "noticeRightsTitle": "Quyền của bạn",
         "noticeRights": "Xem, tải về và yêu cầu xóa dữ liệu tại \"Dữ liệu của tôi\".",
         "noticeFull": "Đọc toàn văn thông báo quyền riêng tư",
@@ -703,6 +707,7 @@
         "roleSTUDENT": "Sinh viên",
         "roleMENTOR": "Người hướng dẫn",
         "roleADMINISTRATOR": "Quản trị viên",
+        "roleGoogle": "Tài khoản đăng nhập bằng Google",
         "stateVerified": "Đã xác minh · hết hạn {month}",
         "stateExpired": "Hết hạn xác minh {month}",
         "stateUnverified": "Chưa xác minh",
@@ -1255,7 +1260,8 @@
           "usersByRole": {
             "CUSTOMER": "Khách hàng",
             "MENTOR": "Người hướng dẫn",
-            "STUDENT": "Sinh viên"
+            "STUDENT": "Sinh viên",
+            "NONE": "Tài khoản mới (vai trò theo công việc)"
           },
           "studentsByVerification": {
             "VERIFIED": "Đã xác minh",
@@ -3715,7 +3721,7 @@
       "effective": "Áp dụng từ 25/10/2026. Từ phiên bản 3.0, bạn đăng nhập bằng Google và giữ vai trò theo từng công việc.",
       "collectedHeading": "vibefix thu thập gì",
       "collected": {
-        "identity": "Danh tính Google: tên và địa chỉ Gmail; vibefix không giữ ảnh đại diện. Khi bạn liên kết {github}: tên tài khoản và các email đã xác minh.",
+        "identity": "Danh tính Google: tên, địa chỉ email Google và mã định danh của tài khoản Google, dùng làm khóa của tài khoản vibefix; vibefix không giữ ảnh đại diện Google. Khi bạn liên kết {github}: tên tài khoản, mã số tài khoản, liên kết ảnh đại diện và các email đã xác minh.",
         "profile": "Thông tin hồ sơ bạn nhập: tên hiển thị, email liên hệ, số điện thoại (không bắt buộc).",
         "student": "Với sinh viên: email trường hoặc ảnh thẻ sinh viên để xác minh.",
         "mentor": "Với người hướng dẫn: hồ sơ ứng tuyển, liên kết LinkedIn và tài liệu kèm theo để quản trị viên duyệt.",

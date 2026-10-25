@@ -50,9 +50,12 @@ record Account(UUID id, Kind kind, @Nullable Long githubUserId, @Nullable String
 		return this.lockedAt == null && this.erasedAt == null;
 	}
 
-	/** The name to greet the account by: its Google name, else its GitHub login. */
+	/** The name to greet the account by: its Google name, else its GitHub login, else its Google email. */
 	@Nullable String displayName() {
-		return this.googleName != null && !this.googleName.isBlank() ? this.googleName : this.githubLogin;
+		if (this.googleName != null && !this.googleName.isBlank()) {
+			return this.googleName;
+		}
+		return this.githubLogin != null ? this.githubLogin : this.googleEmail;
 	}
 
 }

@@ -98,18 +98,17 @@ class IdentityPersonalDataIT extends IntegrationTest implements PersonalDataPart
 	}
 
 	@Test
-	void aGoogleAccountExportsItsGoogleEmailAndNameButNeverItsSubjectAndErasureClearsAllThree() {
+	void aGoogleAccountExportsItsGoogleSubjectEmailAndNameAndErasureClearsAllThree() {
 		UUID google = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-sub-7003", "3.0");
 
 		PersonalDataSection section = this.participant.export(google).orElseThrow();
 
 		assertThat(section.data()).containsEntry("kind", "USER")
+			.containsEntry("googleSub", "google-sub-7003")
 			.containsEntry("googleEmail", "google-sub-7003@gmail.test")
 			.containsEntry("googleName", "Người dùng google-sub-7003")
 			.doesNotContainKey("role")
 			.doesNotContainKey("githubEmail");
-		assertThat(section.data().values().stream().map(String::valueOf)).as("the subject is a key, never exported")
-			.doesNotContain("google-sub-7003");
 
 		this.participant.eraseAccount(google);
 

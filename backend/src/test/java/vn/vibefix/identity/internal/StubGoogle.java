@@ -38,6 +38,29 @@ import tools.jackson.databind.json.JsonMapper;
  */
 public final class StubGoogle implements AutoCloseable {
 
+	/** How the next ID token is spoiled, for the tests that the application refuses it. */
+	public enum Flaw {
+
+		/** A good token. */
+		NONE,
+
+		/** A nonce other than the authorization request's. */
+		NONCE,
+
+		/** Issued for another client. */
+		AUDIENCE,
+
+		/** Issued by another issuer. */
+		ISSUER,
+
+		/** Expired well beyond the allowed clock skew. */
+		EXPIRED,
+
+		/** Signed by a key the key set does not publish, under the same key ID. */
+		FOREIGN_KEY
+
+	}
+
 	static final String CLIENT_ID = "stub-google-client";
 
 	private static final String GOOGLE_SCOPES = "openid https://www.googleapis.com/auth/userinfo.email "
@@ -50,6 +73,8 @@ public final class StubGoogle implements AutoCloseable {
 	private final HttpServer server;
 
 	private final RSAKey key;
+
+	private final RSAKey foreignKey;
 
 	private final AtomicInteger tokens = new AtomicInteger();
 
@@ -65,9 +90,12 @@ public final class StubGoogle implements AutoCloseable {
 
 	private volatile String nonce = "";
 
+	private volatile Flaw flaw = Flaw.NONE;
+
 	private StubGoogle() {
 		try {
 			this.key = new RSAKeyGenerator(2048).keyID("stub-google-key").generate();
+			this.foreignKey = new RSAKeyGenerator(2048).keyID("stub-google-key").generate();
 			this.server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
 		}
 		catch (IOException | JOSEException ex) {
@@ -88,12 +116,18 @@ public final class StubGoogle implements AutoCloseable {
 		return "http://127.0.0.1:" + this.server.getAddress().getPort();
 	}
 
-	/** The user Google answers next, with a verified email. */
+	/** The user Google answers next, with a verified email and a good ID token. */
 	public void signsInAs(String subject, String email, @Nullable String name) {
 		this.subject = subject;
 		this.email = email;
 		this.name = name;
 		this.emailVerified = Boolean.TRUE;
+		this.flaw = Flaw.NONE;
+	}
+
+	/** Spoils the next ID tokens so; {@link #signsInAs} makes them good again. */
+	public void flaw(Flaw flaw) {
+		this.flaw = flaw;
 	}
 
 	/** The {@code email_verified} claim of the next answers; {@code null} leaves it out. */
@@ -114,13 +148,15 @@ public final class StubGoogle implements AutoCloseable {
 	private void token(HttpExchange exchange) throws IOException {
 		exchange.getRequestBody().readAllBytes();
 		String accessToken = "stub-google-access-" + this.tokens.incrementAndGet();
-		Instant now = Instant.now();
-		JWTClaimsSet.Builder claims = new JWTClaimsSet.Builder().issuer(baseUrl())
+		Flaw flaw = this.flaw;
+		Instant now = flaw == Flaw.EXPIRED ? Instant.now().minusSeconds(3600) : Instant.now();
+		JWTClaimsSet.Builder claims = new JWTClaimsSet.Builder()
+			.issuer(flaw == Flaw.ISSUER ? "https://issuer.example.test" : baseUrl())
 			.subject(this.subject)
-			.audience(CLIENT_ID)
+			.audience(flaw == Flaw.AUDIENCE ? "another-client" : CLIENT_ID)
 			.issueTime(Date.from(now))
 			.expirationTime(Date.from(now.plusSeconds(300)))
-			.claim("nonce", this.nonce)
+			.claim("nonce", flaw == Flaw.NONCE ? "another-nonce" : this.nonce)
 			.claim("email", this.email);
 		if (this.emailVerified != null) {
 			claims.claim("email_verified", this.emailVerified);
@@ -131,7 +167,7 @@ public final class StubGoogle implements AutoCloseable {
 		SignedJWT idToken = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.RS256).keyID(this.key.getKeyID()).build(),
 				claims.build());
 		try {
-			idToken.sign(new RSASSASigner(this.key));
+			idToken.sign(new RSASSASigner(flaw == Flaw.FOREIGN_KEY ? this.foreignKey : this.key));
 		}
 		catch (JOSEException ex) {
 			throw new IOException(ex);

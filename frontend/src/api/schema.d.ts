@@ -6185,7 +6185,7 @@ export interface components {
             locked: boolean;
             /** @enum {string} */
             mentorStatus?: "PENDING" | "APPROVED" | "REJECTED" | "REVOKED";
-            role: string;
+            role?: string;
             /** Format: date */
             verifiedUntil?: string;
         };

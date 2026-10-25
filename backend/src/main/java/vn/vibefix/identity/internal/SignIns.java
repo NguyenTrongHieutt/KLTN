@@ -128,8 +128,8 @@ class SignIns {
 	}
 
 	/**
-	 * PUB-3's "Đồng ý và bắt đầu": records the acknowledgment of N-10 with its version (NFR-9) and
-	 * opens {@code identity.link_github} while GitHub is not linked.
+	 * PUB-3's "Đồng ý và bắt đầu": records the acknowledgment of N-10 with its version (NFR-9), opens
+	 * {@code identity.link_github} while GitHub is not linked, and audits the sign-in it completes.
 	 * @throws ApiException {@code NOT_FOUND} when the account is locked, erased, or gone meanwhile
 	 */
 	@Transactional
@@ -148,6 +148,9 @@ class SignIns {
 			this.todos.open(new TodoRequest(LINK_GITHUB, accountId, Audience.SUBJECT, accountId, Map.of(), LINK_GITHUB_PATH,
 					null, null));
 		}
+		// The sign-in completes here, so it is audited here as on the direct path.
+		this.auditLog.record(AuditEntry.of(AuditActor.user(accountId), "identity.signed_in",
+				AuditObject.of("identity.account", accountId)));
 		return account;
 	}
 

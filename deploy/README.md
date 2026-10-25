@@ -92,7 +92,8 @@ without them.
 
 The ID token is checked by Spring against Google's keys, issuer, audience, and nonce, and the
 account is keyed by Google's subject (`sub`), never the email. vibefix keeps no Google token and no
-picture; it keeps the Google name and the verified Gmail address, where notifications are emailed.
+picture; it keeps the Google subject, the Google name, and the verified Google email address, where
+notifications are emailed.
 An address Google has not verified is refused with "email chưa xác minh". The first sign-in opens
 PUB-3 "Chào mừng"; accepting N-10 there opens the `identity.link_github` to-do. To try a locked
 account, set it in the database:

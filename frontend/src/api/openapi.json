@@ -14900,7 +14900,7 @@
             "format" : "date"
           }
         },
-        "required" : [ "accountId", "createdAt", "erased", "kind", "locked", "role" ]
+        "required" : [ "accountId", "createdAt", "erased", "kind", "locked" ]
       },
       "MentorApplicationRequest" : {
         "type" : "object",

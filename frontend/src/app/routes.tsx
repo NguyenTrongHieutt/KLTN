@@ -36,6 +36,11 @@ export const routes: RouteObject[] = [
         lazy: async () => ({ Component: (await import('@/features/identity/ProfileStub')).ProfileStub }),
       },
       {
+        // Where the identity.link_github to-do leads; Story 19.2 builds ACC-2 here.
+        path: 'ho-so/xac-minh',
+        lazy: async () => ({ Component: (await import('@/features/identity/LinkGitHubPage')).LinkGitHubPage }),
+      },
+      {
         path: 'tai-khoan/du-lieu',
         lazy: async () => ({ Component: (await import('@/features/identity/MyDataPage')).MyDataPage }),
       },

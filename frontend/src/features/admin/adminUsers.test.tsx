@@ -113,6 +113,23 @@ describe('ADM-2 users (FR-59, FR-74, FR-78)', () => {
     expect(screen.getAllByText('Gửi tin nhắn quấy rối').length).toBeGreaterThan(0)
   })
 
+  it('lists and opens a Google account, which has no role, without a role text', { timeout: 30_000 }, async () => {
+    const lan = { id: 'g1', name: 'Nguyễn Thị Lan', email: 'lan@gmail.test', createdAt: '2026-10-25T03:00:00Z', history: [] }
+    fakeBackend(administrator, {
+      'GET /api/v1/admin/overview': () => json(overview),
+      'GET /api/v1/admin/users': () =>
+        json({ items: [{ id: 'g1', name: 'Nguyễn Thị Lan', locked: false, createdAt: lan.createdAt }], total: 1, page: 0, size: 20 }),
+      'GET /api/v1/admin/users/g1': () => json(lan),
+    })
+    renderAt('/quan-tri/nguoi-dung/g1')
+
+    const role = (await screen.findAllByText('Vai trò')).find((element) => element.tagName === 'DT')
+    expect(role?.nextElementSibling).toHaveTextContent(/^—$/)
+    expect(screen.getAllByRole('link', { name: /Nguyễn Thị Lan/ }).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/screen\.admin\.users\.role/)).not.toBeInTheDocument()
+    expect(screen.getByText('lan@gmail.test')).toBeInTheDocument()
+  })
+
   it('shows a Mentor’s private feedback and revokes on its ground with a category', { timeout: 30_000 }, async () => {
     const user = userEvent.setup()
     const sent: unknown[] = []

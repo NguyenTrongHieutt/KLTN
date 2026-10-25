@@ -95,7 +95,7 @@ public final class IdentityTestSupport {
 	 */
 	@SuppressWarnings("unchecked")
 	public static RequestPostProcessor signedIn(SessionRepository<? extends Session> repository, UUID accountId,
-			Role role, Instant signedInAt) {
+			@Nullable Role role, Instant signedInAt) {
 		if (role != Role.ADMINISTRATOR) {
 			return SecurityMockMvcRequestPostProcessors.authentication(authentication(accountId, role));
 		}

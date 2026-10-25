@@ -1,6 +1,7 @@
 package vn.vibefix.identity.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -148,6 +149,22 @@ class MentorDecisionIT extends IntegrationTest {
 			.andExpect(status().isNotFound());
 		this.mvc.perform(get("/api/v1/admin/mentor-applications").with(as(student, Role.STUDENT)))
 			.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void aGoogleAccountThatSharesASignalIsAMatchWithNoRole() throws Exception {
+		UUID google = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-hung", "3.0");
+		this.transactions.executeWithoutResult(status -> {
+			this.signals.record(google, Source.GOOGLE_EMAIL, "hung.do@gmail.test");
+			this.signals.record(this.hung, Source.GITHUB_EMAIL, "Hung.Do@gmail.test");
+		});
+
+		this.mvc.perform(get("/api/v1/admin/mentor-applications/" + this.hung).with(admin()))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.matches.length()").value(1))
+			.andExpect(jsonPath("$.matches[0].accountId").value(google.toString()))
+			.andExpect(jsonPath("$.matches[0].role").value(nullValue()))
+			.andExpect(jsonPath("$.matches[0].kind").value("EMAIL"));
 	}
 
 	@Test

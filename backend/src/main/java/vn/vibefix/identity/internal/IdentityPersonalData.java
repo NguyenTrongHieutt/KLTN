@@ -69,7 +69,10 @@ class IdentityPersonalData implements PersonalDataParticipant {
 			if (account.role() != null) {
 				data.put("role", account.role().name());
 			}
-			// The Google identity read at the last sign-in; the subject is the key only, never exported.
+			// The Google identity: the subject that keys the account, and what the last sign-in read.
+			if (account.googleSub() != null) {
+				data.put("googleSub", account.googleSub());
+			}
 			if (account.googleEmail() != null) {
 				data.put("googleEmail", account.googleEmail());
 			}

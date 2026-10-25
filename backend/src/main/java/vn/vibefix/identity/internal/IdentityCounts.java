@@ -11,7 +11,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import vn.vibefix.shared.PlatformCounts;
 
-/** ADM-9 (FR-62): users by role, Students by verification, Mentors by approval, applications by decision. */
+/**
+ * ADM-9 (FR-62): users by role, Students by verification, Mentors by approval, applications by decision.
+ * A Google account has no role (Story 19.1) and counts under {@code NONE}.
+ */
 @Component
 class IdentityCounts implements PlatformCounts {
 
@@ -29,8 +32,8 @@ class IdentityCounts implements PlatformCounts {
 	public List<Count> counts() {
 		List<Count> counts = new ArrayList<>();
 		grouped(counts, "usersByRole", """
-				SELECT role AS key, count(*) AS value FROM identity.account
-				WHERE role <> 'ADMINISTRATOR' AND erased_at IS NULL GROUP BY role
+				SELECT coalesce(role, 'NONE') AS key, count(*) AS value FROM identity.account
+				WHERE kind = 'USER' AND erased_at IS NULL GROUP BY 1
 				""");
 		this.jdbc.sql("""
 				SELECT CASE WHEN v.valid_until >= :today THEN 'VERIFIED' ELSE 'UNVERIFIED' END AS key, count(*) AS value

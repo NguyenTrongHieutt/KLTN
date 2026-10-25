@@ -60,12 +60,13 @@ class MentorDecisionsController {
 
 	/**
 	 * Another account that may be the same person: what it is, never the shared value (AD-19).
-	 * @param role {@code CUSTOMER}, {@code STUDENT}, {@code MENTOR}, or {@code ADMINISTRATOR}
+	 * @param role {@code CUSTOMER}, {@code STUDENT}, {@code MENTOR}, or {@code ADMINISTRATOR}; absent for a
+	 * Google account, which has none (Story 19.1)
 	 * @param erased whether the account was erased; its signals stay for 24 months
 	 * @param verifiedUntil a Student's verification end, if they ever verified
 	 * @param kind {@code EMAIL} for a shared verified email, {@code LINKEDIN} for a shared profile
 	 */
-	record MentorApplicationMatch(UUID accountId, String role, @Nullable MentorApprovalStatus mentorStatus,
+	record MentorApplicationMatch(UUID accountId, @Nullable String role, @Nullable MentorApprovalStatus mentorStatus,
 			boolean locked, boolean erased, @Nullable LocalDate verifiedUntil, String kind, Instant createdAt) {
 	}
 

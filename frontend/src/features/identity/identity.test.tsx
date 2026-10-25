@@ -55,7 +55,16 @@ describe('route guards (AD-19, FR-74)', () => {
       const nav = screen.getByRole('navigation', { name })
       expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Việc cần làm', 'Thông báo'])
     }
-    expect(screen.getByRole('button', { name: 'Tài khoản của Nguyễn Thị Lan' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Tài khoản của Nguyễn Thị Lan' })).toHaveTextContent('TL')
+  })
+
+  it('leads the identity.link_github to-do to a placeholder until Story 19.2 builds ACC-2', async () => {
+    fakeBackend(signedInWithGoogle)
+    renderAt('/ho-so/xac-minh')
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Liên kết GitHub' })).toBeInTheDocument()
+    expect(screen.getByText('Việc liên kết tài khoản GitHub sẽ có trong phiên bản tiếp theo của vibefix.')).toBeInTheDocument()
+    expect(document.title).toBe('Liên kết GitHub · vibefix')
   })
 
   it('keeps a Mentor that is not approved on MEN-5, with no other destination', async () => {

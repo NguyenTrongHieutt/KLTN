@@ -1,6 +1,7 @@
 import { Menu } from '@base-ui/react/menu'
 import { Check } from 'lucide-react'
 import { useNavigate } from 'react-router'
+import { initials } from '@/features/team/teamText'
 import { t, type MessageKey } from '@/i18n/t'
 import { applyTheme, DEFAULT_THEME, type ThemeChoice } from '@/theme/accountTheme'
 import type { Session } from './api'
@@ -100,8 +101,4 @@ export function AccountMenu({ session, offline }: { session: Session; offline: b
       </Menu.Portal>
     </Menu.Root>
   )
-}
-
-function initials(login: string): string {
-  return login.replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase() || '?'
 }

@@ -20,6 +20,8 @@ import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.ApplicationContext;
@@ -103,6 +105,8 @@ class GoogleSignInIT extends IntegrationTest {
 		assertThat(query.get("response_type")).containsExactly("code");
 		assertThat(decode(query.get("redirect_uri").getFirst())).endsWith("/login/oauth2/code/google");
 		assertThat(query).containsKey("state").containsKey("nonce");
+		assertThat(query.get("prompt")).as("Google asks which account, after a sign-out too")
+			.containsExactly("select_account");
 	}
 
 	@Test
@@ -149,7 +153,8 @@ class GoogleSignInIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("SELECT notice || ' ' || notice_version FROM identity.acknowledgment")
 			.query(String.class)
 			.list()).containsExactly("PRIVACY " + version());
-		assertThat(audits()).containsExactly("identity.account_created", "identity.notice_acknowledged");
+		assertThat(audits()).containsExactly("identity.account_created", "identity.notice_acknowledged",
+				"identity.signed_in");
 		assertThat(this.jdbc.sql("""
 				SELECT todo_key || ' ' || tier || ' ' || link FROM notification.todo
 				WHERE account_id = subject_id AND closed_at IS NULL
@@ -198,7 +203,7 @@ class GoogleSignInIT extends IntegrationTest {
 		assertThat(countAccounts()).isOne();
 		assertThat(session().path("status").asString()).isEqualTo("SIGNED_IN");
 		assertThat(audits()).containsExactly("identity.account_created", "identity.notice_acknowledged",
-				"identity.signed_in");
+				"identity.signed_in", "identity.signed_in");
 	}
 
 	@Test
@@ -259,6 +264,45 @@ class GoogleSignInIT extends IntegrationTest {
 			assertThat(session().path("status").asString()).isEqualTo("ANONYMOUS");
 		}
 		assertThat(this.jdbc.sql("SELECT count(*) FROM identity.person_signal").query(Long.class).single()).isZero();
+	}
+
+	@ParameterizedTest
+	@EnumSource(value = StubGoogle.Flaw.class, names = "NONE", mode = EnumSource.Mode.EXCLUDE)
+	void anIdTokenSpringCannotValidateSignsNobodyIn(StubGoogle.Flaw flaw) throws Exception {
+		google.flaw(flaw);
+
+		assertThat(signIn()).isEqualTo("/dang-nhap?loi=that-bai");
+
+		assertThat(countAccounts()).isZero();
+		JsonNode session = session();
+		assertThat(session.path("status").asString()).isEqualTo("ANONYMOUS");
+		assertThat(session.path("account").isNull()).isTrue();
+	}
+
+	@Test
+	void aSignInWithNoGoogleNameIsGreetedByItsEmail() throws Exception {
+		google.signsInAs("google-an", "an.le@gmail.test", null);
+
+		signIn();
+
+		assertThat(session().path("displayName").asString()).isEqualTo("an.le@gmail.test");
+		assertThat(JSON.readTree(welcome(version()).getResponse().getContentAsString()).path("displayName").asString())
+			.isEqualTo("an.le@gmail.test");
+	}
+
+	@Test
+	void anAccountLockedOnTheWelcomeCannotAcceptAndIsSignedOut() throws Exception {
+		signIn();
+		this.jdbc.sql("UPDATE identity.account SET locked_at = now(), lock_reason = 'x'").update();
+
+		MvcResult welcome = welcome(version());
+
+		assertThat(welcome.getResponse().getStatus()).isEqualTo(404);
+		assertThat(this.jdbc.sql("SELECT count(*) FROM identity.acknowledgment").query(Long.class).single()).isZero();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM notification.todo WHERE todo_key = 'identity.link_github'")
+			.query(Long.class)
+			.single()).isZero();
+		assertThat(session().path("status").asString()).isEqualTo("ANONYMOUS");
 	}
 
 	@Test

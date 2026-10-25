@@ -151,6 +151,36 @@ describe('ADM-13 Mentor applications (FR-74, AD-19)', () => {
     expect(screen.getByRole('link', { name: /Trịnh Văn Đức/ })).toHaveAttribute('aria-current', 'true')
   })
 
+  it('names a matching Google account, which has no role, in words', async () => {
+    fakeBackend(administrator, {
+      'GET /api/v1/admin/overview': overview,
+      'GET /api/v1/admin/mentor-applications': applications,
+      'GET /api/v1/admin/mentor-applications/a2': () =>
+        json(
+          detail({
+            accountId: 'a2',
+            displayName: 'Nguyễn Phương Thảo',
+            matches: [
+              {
+                accountId: 'g1',
+                role: null,
+                locked: false,
+                erased: false,
+                verifiedUntil: null,
+                kind: 'EMAIL',
+                createdAt: '2026-10-25T02:00:00Z',
+              },
+            ],
+          }),
+        ),
+    })
+    renderAt('/quan-tri/nguoi-huong-dan/a2')
+
+    const matches = await screen.findByRole('table', { name: 'Các tài khoản có thể cùng một người' })
+    expect(within(matches).getByText('Tài khoản đăng nhập bằng Google')).toBeInTheDocument()
+    expect(within(matches).queryByText(/screen\.admin/)).not.toBeInTheDocument()
+  })
+
   it('says so when no other account matches', async () => {
     fakeBackend(administrator, {
       'GET /api/v1/admin/overview': overview,

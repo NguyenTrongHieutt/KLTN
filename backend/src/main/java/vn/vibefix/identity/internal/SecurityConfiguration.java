@@ -11,8 +11,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
+import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.context.SecurityContextHolderFilter;
@@ -85,9 +88,12 @@ class SecurityConfiguration {
 			.addFilterBefore(new SignInStartFilter(google.registration().isPresent()),
 					OAuth2AuthorizationRequestRedirectFilter.class);
 		google.registration().ifPresent(registration -> {
+			InMemoryClientRegistrationRepository registrations = new InMemoryClientRegistrationRepository(registration);
 			try {
 				http.oauth2Login(login -> login.loginPage("/dang-nhap")
-					.clientRegistrationRepository(new InMemoryClientRegistrationRepository(registration))
+					.clientRegistrationRepository(registrations)
+					.authorizationEndpoint(
+							endpoint -> endpoint.authorizationRequestResolver(authorizationRequests(registrations)))
 					.authorizedClientService(new NoStoreAuthorizedClients.Service())
 					.authorizedClientRepository(new NoStoreAuthorizedClients.Repository())
 					.userInfoEndpoint(userInfo -> userInfo.oidcUserService(new GoogleUserService()))
@@ -103,6 +109,18 @@ class SecurityConfiguration {
 			}
 		});
 		return http.build();
+	}
+
+	/**
+	 * Google's authorization requests, with {@code prompt=select_account}: after "Đăng xuất" Google asks
+	 * which account to use, instead of signing the browser's last account straight back in.
+	 */
+	static OAuth2AuthorizationRequestResolver authorizationRequests(ClientRegistrationRepository registrations) {
+		DefaultOAuth2AuthorizationRequestResolver resolver = new DefaultOAuth2AuthorizationRequestResolver(registrations,
+				OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI);
+		resolver.setAuthorizationRequestCustomizer(
+				request -> request.additionalParameters(parameters -> parameters.put("prompt", "select_account")));
+		return resolver;
 	}
 
 	/** PUB-2's {@code loi} for a failed sign-in: an unverified Google email has its own words (FR-1). */
