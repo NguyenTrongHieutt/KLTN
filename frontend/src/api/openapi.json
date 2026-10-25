@@ -9008,7 +9008,7 @@
             "enum" : [ "LIGHT", "DARK", "SYSTEM" ]
           }
         },
-        "required" : [ "id", "role", "theme" ]
+        "required" : [ "id", "theme" ]
       },
       "ActionView" : {
         "type" : "object",
@@ -14900,7 +14900,7 @@
             "format" : "date"
           }
         },
-        "required" : [ "accountId", "createdAt", "erased", "kind", "locked", "role" ]
+        "required" : [ "accountId", "createdAt", "erased", "kind", "locked" ]
       },
       "MentorApplicationRequest" : {
         "type" : "object",
@@ -18038,6 +18038,9 @@
           "administrator" : {
             "$ref" : "#/components/schemas/AdministratorView"
           },
+          "displayName" : {
+            "type" : "string"
+          },
           "githubAvatarUrl" : {
             "type" : "string"
           },
@@ -18167,13 +18170,9 @@
           "privacyNoticeVersion" : {
             "type" : "string",
             "minLength" : 1
-          },
-          "role" : {
-            "type" : "string",
-            "enum" : [ "CUSTOMER", "MENTOR", "STUDENT" ]
           }
         },
-        "required" : [ "privacyNoticeVersion", "role" ]
+        "required" : [ "privacyNoticeVersion" ]
       },
       "SignalsView" : {
         "type" : "object",
@@ -19573,7 +19572,7 @@
             "$ref" : "#/components/schemas/UserVerificationView"
           }
         },
-        "required" : [ "createdAt", "history", "id", "role" ]
+        "required" : [ "createdAt", "history", "id" ]
       },
       "UserRowView" : {
         "type" : "object",
@@ -19603,7 +19602,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "createdAt", "id", "locked", "role" ]
+        "required" : [ "createdAt", "id", "locked" ]
       },
       "UserVerificationView" : {
         "type" : "object",

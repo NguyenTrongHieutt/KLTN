@@ -24,6 +24,10 @@ class NotificationTypes implements NotificationCatalog {
 	static final TodoType COMPLETE_MENTOR_APPLICATION = new TodoType("identity.complete_mentor_application",
 			Set.of(Audience.SUBJECT), 1, Set.of());
 
+	/** Link GitHub (UX-DR89, UX-DR112): opened when N-10 is accepted at the first sign-in, until GitHub is linked. */
+	static final TodoType IDENTITY_LINK_GITHUB = new TodoType("identity.link_github", Set.of(Audience.SUBJECT), 1,
+			Set.of());
+
 	/** An Intake Finding to resolve (FR-8, FR-65): its Customer, until it is resolved or marked a false positive. */
 	static final TodoType SCANNING_RESOLVE_INTAKE_FINDING = new TodoType("scanning.resolve_intake_finding",
 			Set.of(Audience.SUBJECT), 2, Set.of("product"));
@@ -851,7 +855,8 @@ class NotificationTypes implements NotificationCatalog {
 
 	@Override
 	public List<TodoType> todoTypes() {
-		return List.of(COMPLETE_MENTOR_APPLICATION, VERIFY_STUDENT, IDENTITY_SIGN_IN_AGAIN_TODO, SCANNING_RESOLVE_INTAKE_FINDING,
+		return List.of(IDENTITY_LINK_GITHUB, COMPLETE_MENTOR_APPLICATION, VERIFY_STUDENT, IDENTITY_SIGN_IN_AGAIN_TODO,
+				SCANNING_RESOLVE_INTAKE_FINDING,
 				REPO_ACCEPT_GITHUB_INVITATION, SCANNING_RESOLVE_WORK_FINDING, REPO_RECONFIRM_SOURCE, REPO_AUTHORIZE_FINAL_MERGE,
 				REPO_REVOCATION_ITEM,
 				MATCHING_CHOOSE_ASSIGNEE, MATCHING_SIGN_NDA, MATCHING_ANSWER_INVITATION_TO_APPLY, JOB_DRAFT_AGREEMENT,

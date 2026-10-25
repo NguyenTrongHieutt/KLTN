@@ -57,11 +57,15 @@ class StatisticsIT extends IntegrationTest {
 		TeamTestSupport.student(this.jdbc, "Trần Thảo Vy", true, List.of(TeamTestSupport.REACT), "React",
 				LocalDate.parse("2026-09-30"));
 		IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null, null);
+		IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-thong-ke", "3.0");
 
 		this.mvc.perform(get("/api/v1/admin/statistics").with(admin(ha))).andExpect(status().isOk())
 			.andExpect(jsonPath("$.groups[0].group").value("usersByRole"))
 			.andExpect(jsonPath("$.groups[?(@.group == 'usersByRole')].counts[?(@.key == 'CUSTOMER')].value").value(2))
 			.andExpect(jsonPath("$.groups[?(@.group == 'usersByRole')].counts[?(@.key == 'STUDENT')].value").value(2))
+			// Story 19.1: a Google account has no role and counts under NONE; Administrators never count.
+			.andExpect(jsonPath("$.groups[?(@.group == 'usersByRole')].counts[?(@.key == 'NONE')].value").value(1))
+			.andExpect(jsonPath("$.groups[?(@.group == 'usersByRole')].counts[?(@.key == 'ADMINISTRATOR')]").isEmpty())
 			.andExpect(jsonPath("$.groups[?(@.group == 'studentsByVerification')].counts[?(@.key == 'VERIFIED')].value").value(1))
 			.andExpect(jsonPath("$.groups[?(@.group == 'studentsByVerification')].counts[?(@.key == 'UNVERIFIED')].value")
 				.value(1))

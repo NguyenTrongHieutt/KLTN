@@ -1,7 +1,6 @@
 package vn.vibefix.identity.internal;
 
 import java.io.IOException;
-import java.util.List;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -10,21 +9,23 @@ import jakarta.servlet.http.HttpSession;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.context.SecurityContextRepository;
 
 import vn.vibefix.identity.internal.SignInSession.AccountAuthentication;
 
 /**
- * Finishes a GitHub sign-in (AD-19). The GitHub principal Spring built is replaced at once, so the
- * session never holds GitHub's profile or a token:
+ * Finishes a Google sign-in (AD-19). The Google principal Spring built is replaced at once, so the
+ * session never holds Google's ID token, its claims, or a token:
  * <ul>
- * <li>an active account signs in, as its account ID and role, and returns to the route it asked for
- * or lands on its role's first screen;</li>
+ * <li>an account that accepted the current N-10 signs in, as its account ID (a Google account has no
+ * role), and returns to the route it asked for or lands on the to-do list;</li>
  * <li>a locked account is refused, and PUB-2 shows the reason;</li>
- * <li>a new GitHub account goes to PUB-3 to choose its role, as a pending sign-up.</li>
+ * <li>a first sign-in, or an account that has not accepted the current N-10, goes to PUB-3
+ * "Chào mừng" holding no account until it accepts.</li>
  * </ul>
+ * {@link GoogleUserService} has refused an unverified email before this runs.
  */
 class SignInSuccessHandler implements AuthenticationSuccessHandler {
 
@@ -40,17 +41,10 @@ class SignInSuccessHandler implements AuthenticationSuccessHandler {
 	@Override
 	public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
 			Authentication authentication) throws IOException {
-		OAuth2User user = (OAuth2User) authentication.getPrincipal();
-		long githubUserId = ((Number) user.getAttributes().get("id")).longValue();
-		String login = (String) user.getAttributes().get("login");
-		String avatar = (String) user.getAttributes().get("avatar_url");
-		String token = (String) request.getAttribute(TokenCapturingUserService.TOKEN_ATTRIBUTE);
-		request.removeAttribute(TokenCapturingUserService.TOKEN_ATTRIBUTE);
-		String email = (String) request.getAttribute(TokenCapturingUserService.EMAIL_ATTRIBUTE);
-		request.removeAttribute(TokenCapturingUserService.EMAIL_ATTRIBUTE);
-		@SuppressWarnings("unchecked")
-		List<String> verifiedEmails = (List<String>) request.getAttribute(TokenCapturingUserService.VERIFIED_EMAILS_ATTRIBUTE);
-		request.removeAttribute(TokenCapturingUserService.VERIFIED_EMAILS_ATTRIBUTE);
+		OidcUser user = (OidcUser) authentication.getPrincipal();
+		String subject = user.getSubject();
+		String email = user.getEmail();
+		String name = user.getFullName();
 
 		HttpSession session = request.getSession();
 		SignInSession.clear(session);
@@ -58,8 +52,7 @@ class SignInSuccessHandler implements AuthenticationSuccessHandler {
 		session.removeAttribute(SignInSession.RETURN_TO);
 
 		SecurityContext context = SecurityContextHolder.createEmptyContext();
-		String target = switch (this.signIns.signIn(githubUserId, login, avatar, email,
-				verifiedEmails == null ? List.of() : verifiedEmails, token)) {
+		String target = switch (this.signIns.signInWithGoogle(subject, email, name)) {
 			case SignIns.Outcome.SignedIn signedIn -> {
 				context.setAuthentication(new AccountAuthentication(signedIn.account().id(), signedIn.account().role()));
 				yield returnTo != null ? returnTo : SignIns.landingPath(signedIn.account());
@@ -68,10 +61,12 @@ class SignInSuccessHandler implements AuthenticationSuccessHandler {
 				session.setAttribute(SignInSession.LOCKED, new SignInSession.Locked(locked.reason()));
 				yield "/dang-nhap";
 			}
-			case SignIns.Outcome.NeedsRole needsRole -> {
-				session.setAttribute(SignInSession.PENDING_SIGN_UP, needsRole.pending());
+			case SignIns.Outcome.NeedsWelcome welcome -> {
+				session.setAttribute(SignInSession.PENDING_WELCOME, welcome.pending());
 				yield "/bat-dau";
 			}
+			// Only the GitHub path answers this, and nothing runs it since Story 19.1.
+			case SignIns.Outcome.NotLinked notLinked -> "/dang-nhap?loi=that-bai";
 		};
 		SecurityContextHolder.setContext(context);
 		this.contexts.saveContext(context, request, response);

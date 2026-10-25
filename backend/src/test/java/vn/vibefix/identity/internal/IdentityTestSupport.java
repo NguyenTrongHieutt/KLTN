@@ -25,8 +25,10 @@ import vn.vibefix.shared.Role;
 import vn.vibefix.support.MutableClock;
 
 /**
- * Accounts for tests that need a signed-in caller without the GitHub flow: a row in
- * {@code identity.account} and the authentication a session would hold for it.
+ * Accounts for tests that need a signed-in caller without the sign-in flow: a row in
+ * {@code identity.account} and the authentication a session would hold for it. An account with a role
+ * is the shim of the accounts from before Google sign-in (Story 19.1), kept while tests move over to
+ * roles per Job (Epic 20).
  */
 public final class IdentityTestSupport {
 
@@ -49,11 +51,12 @@ public final class IdentityTestSupport {
 				? (mentorStatus == null ? MentorApprovalStatus.APPROVED : mentorStatus) : null;
 		Timestamp now = Timestamp.from(MutableClock.DEFAULT_INSTANT);
 		jdbc.sql("""
-				INSERT INTO identity.account (id, github_user_id, github_login, role, mentor_approval_status, locked_at,
-				    lock_reason, created_at)
-				VALUES (:id, :githubId, :login, :role, :status, :lockedAt, :lockReason, :now)
+				INSERT INTO identity.account (id, kind, github_user_id, github_login, role, mentor_approval_status,
+				    locked_at, lock_reason, created_at)
+				VALUES (:id, :kind, :githubId, :login, :role, :status, :lockedAt, :lockReason, :now)
 				""")
 			.param("id", id)
+			.param("kind", role == Role.ADMINISTRATOR ? "ADMINISTRATOR" : "USER")
 			.param("githubId", githubId)
 			.param("login", githubId == null ? null : "user-" + githubId)
 			.param("role", role.name())
@@ -66,13 +69,33 @@ public final class IdentityTestSupport {
 	}
 
 	/**
+	 * Inserts a Google account, as a first Google sign-in creates it (Story 19.1): a {@code USER} with
+	 * no role and no GitHub ID, which accepted N-10 {@code privacyNoticeVersion}. Returns its ID.
+	 */
+	public static UUID insertGoogleAccount(JdbcClient jdbc, String googleSub, String privacyNoticeVersion) {
+		UUID id = UUID.randomUUID();
+		Timestamp now = Timestamp.from(MutableClock.DEFAULT_INSTANT);
+		jdbc.sql("""
+				INSERT INTO identity.account (id, kind, google_sub, google_email, google_name, created_at, signed_in_at)
+				VALUES (:id, 'USER', :sub, :sub || '@gmail.test', 'Người dùng ' || :sub, :now, :now)
+				""").param("id", id).param("sub", googleSub).param("now", now).update();
+		jdbc.sql("""
+				INSERT INTO identity.acknowledgment (id, account_id, notice, notice_version, acknowledged_at)
+				VALUES (:ack, :id, 'PRIVACY', :version, :now)
+				""").param("ack", UUID.randomUUID()).param("id", id).param("version", privacyNoticeVersion)
+			.param("now", now)
+			.update();
+		return id;
+	}
+
+	/**
 	 * A request signed in as the account. An Administrator's is a real stored session (Spring Session
 	 * JDBC) with the times {@code CallerFilter} requires (SG-10), as if signed in at
 	 * {@code signedInAt} and active since; it is sent with its cookie, as a browser sends it.
 	 */
 	@SuppressWarnings("unchecked")
 	public static RequestPostProcessor signedIn(SessionRepository<? extends Session> repository, UUID accountId,
-			Role role, Instant signedInAt) {
+			@Nullable Role role, Instant signedInAt) {
 		if (role != Role.ADMINISTRATOR) {
 			return SecurityMockMvcRequestPostProcessors.authentication(authentication(accountId, role));
 		}
@@ -95,8 +118,8 @@ public final class IdentityTestSupport {
 		};
 	}
 
-	/** The authentication a signed-in session holds for the account. */
-	public static Authentication authentication(UUID accountId, Role role) {
+	/** The authentication a signed-in session holds for the account; a Google account's role is {@code null}. */
+	public static Authentication authentication(UUID accountId, @Nullable Role role) {
 		return new SignInSession.AccountAuthentication(accountId, role);
 	}
 

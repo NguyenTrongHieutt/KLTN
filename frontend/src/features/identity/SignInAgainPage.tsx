@@ -4,7 +4,7 @@ import { usePageTitle } from '@/app/usePageTitle'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { t } from '@/i18n/t'
 import { cn } from '@/lib/utils'
-import { signInUrl } from './api'
+import { gitHubSignInUrl } from './api'
 
 /**
  * "Đăng nhập lại bằng GitHub" (`/dang-nhap-lai`, FR-13, author decision 2026-10-21): a signed-in Customer
@@ -18,7 +18,7 @@ export function SignInAgainPage() {
       <PageHeading>{t('screen.signInAgain.title')}</PageHeading>
       <p className="text-body">{t('screen.signInAgain.body')}</p>
       <p className="text-body-sm text-muted-foreground">{t('screen.signInAgain.safe')}</p>
-      <a href={signInUrl('/viec-can-lam')} className={cn(buttonVariants(), 'self-start')}>
+      <a href={gitHubSignInUrl('/viec-can-lam')} className={cn(buttonVariants(), 'self-start')}>
         <RefreshCw aria-hidden="true" className="size-4" />
         {t('screen.signInAgain.button')}
       </a>

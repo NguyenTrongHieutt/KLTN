@@ -80,7 +80,7 @@ class MentorApplicationIT extends IntegrationTest {
 			.andExpect(jsonPath("$.mentor.approvalStatus").value("PENDING"))
 			.andExpect(jsonPath("$.mentor.submittedAt").doesNotExist());
 
-		save(this.hung, "do-manh-hung", "2.0").andExpect(status().isOk()).andExpect(jsonPath("$.submitted").value(true));
+		save(this.hung, "do-manh-hung", "3.0").andExpect(status().isOk()).andExpect(jsonPath("$.submitted").value(true));
 
 		this.mvc.perform(get("/api/v1/profile").with(mentor(this.hung)))
 			.andExpect(jsonPath("$.mentor.displayName").value("Đỗ Mạnh Hùng"))
@@ -95,7 +95,7 @@ class MentorApplicationIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("SELECT notice_version FROM identity.acknowledgment WHERE account_id = :id")
 			.param("id", this.hung)
 			.query(String.class)
-			.list()).containsExactly("2.0");
+			.list()).containsExactly("3.0");
 		this.mvc.perform(get("/api/v1/admin/overview").with(admin()))
 			.andExpect(jsonPath("$.mentorApplications.count").value(1));
 	}
@@ -107,7 +107,7 @@ class MentorApplicationIT extends IntegrationTest {
 		save(this.hung, "do-manh-hung", "1.0").andExpect(status().isBadRequest());
 		assertThat(this.jdbc.sql("SELECT count(*) FROM identity.mentor_application").query(Long.class).single()).isZero();
 
-		save(this.hung, "do-manh-hung", "2.0").andExpect(jsonPath("$.submitted").value(true));
+		save(this.hung, "do-manh-hung", "3.0").andExpect(jsonPath("$.submitted").value(true));
 		String submittedAt = this.jdbc.sql("SELECT submitted_at::text FROM identity.mentor_application")
 			.query(String.class)
 			.single();
@@ -122,13 +122,13 @@ class MentorApplicationIT extends IntegrationTest {
 
 	@Test
 	void aLinkedInProfileServesOneLiveApplication() throws Exception {
-		save(this.hung, "do-manh-hung", "2.0").andExpect(status().isOk());
+		save(this.hung, "do-manh-hung", "3.0").andExpect(status().isOk());
 		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, MentorApprovalStatus.PENDING, null);
 
-		save(other, "Do-Manh-Hung", "2.0").andExpect(status().is(422))
+		save(other, "Do-Manh-Hung", "3.0").andExpect(status().is(422))
 			.andExpect(jsonPath("$.code").value("GUARD_FAILED"))
 			.andExpect(jsonPath("$.reason").value("MENTOR_LINKEDIN_IN_USE"));
-		save(other, "someone-else", "2.0").andExpect(status().isOk());
+		save(other, "someone-else", "3.0").andExpect(status().isOk());
 	}
 
 	@Test
@@ -146,7 +146,7 @@ class MentorApplicationIT extends IntegrationTest {
 
 		upload(this.hung, "cv.png", TestFiles.png(6, 6)).andExpect(status().isCreated());
 		assertThat(this.files.exists(first)).as("the earlier document is deleted").isFalse();
-		save(this.hung, "do-manh-hung", "2.0").andExpect(jsonPath("$.submitted").value(true));
+		save(this.hung, "do-manh-hung", "3.0").andExpect(jsonPath("$.submitted").value(true));
 		UUID second = documentId();
 
 		this.mvc.perform(delete("/api/v1/profile/mentor/document").with(mentor(this.hung)).with(csrf()))
@@ -164,7 +164,7 @@ class MentorApplicationIT extends IntegrationTest {
 
 		this.mvc.perform(put("/api/v1/profile/mentor").with(mentor(student)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
-			.content(body("do-manh-hung", "2.0"))).andExpect(status().isNotFound());
+			.content(body("do-manh-hung", "3.0"))).andExpect(status().isNotFound());
 	}
 
 	private ResultActions save(UUID account, String handle, String notice) throws Exception {

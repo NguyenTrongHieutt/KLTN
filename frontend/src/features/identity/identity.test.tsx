@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { anonymous, fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { anonymous, fakeBackend, json, signedIn, signedInWithGoogle, welcome } from '@/test/fakeBackend'
 import { sessionExpiry } from './sessionExpiry'
 
 function renderAt(path: string) {
@@ -24,24 +24,47 @@ afterEach(() => {
 })
 
 describe('route guards (AD-19, FR-74)', () => {
-  it('sends an anonymous visitor to PUB-2, and the GitHub button returns to the route asked for', async () => {
+  it('sends an anonymous visitor to PUB-2, and the Google button returns to the route asked for', async () => {
     fakeBackend(anonymous)
     const router = renderAt('/viec-can-lam')
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Đăng nhập vibefix' })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/dang-nhap')
-    expect(screen.getByRole('link', { name: 'Đăng nhập với GitHub' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Đăng nhập bằng Google' })).toHaveAttribute(
       'href',
-      '/oauth2/authorization/github?quay-lai=%2Fviec-can-lam',
+      '/oauth2/authorization/google?quay-lai=%2Fviec-can-lam',
     )
+    expect(screen.queryByRole('link', { name: /GitHub/ })).not.toBeInTheDocument()
   })
 
-  it('sends a first sign-in still choosing its role to PUB-3', async () => {
-    fakeBackend({ status: 'SIGNING_UP', githubLogin: 'octo-cat', privacyNoticeVersion: '2.0' })
+  it('sends a Google sign-in that has not accepted N-10 to PUB-3 from any route', async () => {
+    fakeBackend(welcome)
     const router = renderAt('/viec-can-lam')
 
-    expect(await screen.findByRole('heading', { level: 1, name: /hãy chọn cách bạn dùng vibefix/ })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Chào mừng Nguyễn Thị Lan' })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/bat-dau')
+  })
+
+  it('lands a Google account with no role on the to-do list, with the to-dos and notifications only', async () => {
+    fakeBackend(signedInWithGoogle)
+    const router = renderAt('/dang-nhap')
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Việc cần làm' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/viec-can-lam')
+    for (const name of ['Điều hướng chính', 'Điều hướng nhanh']) {
+      const nav = screen.getByRole('navigation', { name })
+      expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Việc cần làm', 'Thông báo'])
+    }
+    expect(screen.getByRole('button', { name: 'Tài khoản của Nguyễn Thị Lan' })).toHaveTextContent('TL')
+  })
+
+  it('leads the identity.link_github to-do to a placeholder until Story 19.2 builds ACC-2', async () => {
+    fakeBackend(signedInWithGoogle)
+    renderAt('/ho-so/xac-minh')
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Liên kết GitHub' })).toBeInTheDocument()
+    expect(screen.getByText('Việc liên kết tài khoản GitHub sẽ có trong phiên bản tiếp theo của vibefix.')).toBeInTheDocument()
+    expect(document.title).toBe('Liên kết GitHub · vibefix')
   })
 
   it('keeps a Mentor that is not approved on MEN-5, with no other destination', async () => {
@@ -102,8 +125,12 @@ describe('PUB-2 sign in (FR-1, FR-59)', () => {
   })
 
   it.each([
-    ['chua-thiet-lap', 'Đăng nhập GitHub chưa được thiết lập trên máy chủ này.'],
+    ['chua-thiet-lap', 'Đăng nhập Google chưa được thiết lập trên máy chủ này.'],
     ['that-bai', 'Chưa đăng nhập được. Hãy thử lại.'],
+    [
+      'email-chua-xac-minh',
+      'Google chưa xác minh địa chỉ email của tài khoản này. Hãy xác minh email trong tài khoản Google, rồi đăng nhập lại.',
+    ],
   ])('explains ?loi=%s', async (code, message) => {
     fakeBackend(anonymous)
     renderAt(`/dang-nhap?loi=${code}`)
@@ -112,53 +139,64 @@ describe('PUB-2 sign in (FR-1, FR-59)', () => {
   })
 })
 
-describe('PUB-3 choose a role (FR-1, NFR-9)', () => {
-  it('needs a role and the accepted notice, then sends the server-named version and lands', async () => {
+describe('PUB-3 "Chào mừng" (FR-1, NFR-9, UX-DR89)', () => {
+  it('greets by the Google name with no role to choose, needs the notice, sends the server-named version, and lands', async () => {
     const user = userEvent.setup()
     document.cookie = 'XSRF-TOKEN=token-1'
-    const seen = fakeBackend(
-      { status: 'SIGNING_UP', githubLogin: 'octo-cat', privacyNoticeVersion: '2.0' },
-      { 'POST /api/v1/session/sign-up': () => json(signedIn('STUDENT'), 201) },
-    )
+    const seen = fakeBackend(welcome, { 'POST /api/v1/session/sign-up': () => json(signedInWithGoogle, 201) })
     const router = renderAt('/bat-dau')
 
-    const submit = await screen.findByRole('button', { name: 'Tiếp tục' })
-    expect(screen.getByText(/Vai trò gắn cố định với tài khoản octo-cat/)).toBeInTheDocument()
-    expect(screen.getByText('Phiên bản 2.0 · 18/10/2026')).toBeInTheDocument()
+    const submit = await screen.findByRole('button', { name: 'Đồng ý và bắt đầu' })
+    expect(screen.getByRole('heading', { level: 1, name: 'Chào mừng Nguyễn Thị Lan' })).toBeInTheDocument()
+    expect(document.title).toBe('Chào mừng · vibefix')
+    for (const line of [
+      'Đăng sản phẩm và tin công việc để nhận hỗ trợ.',
+      'Chào giá để làm người hướng dẫn cho công việc của người khác.',
+      'Xin vào nhóm thực hiện của một người hướng dẫn.',
+    ]) {
+      expect(screen.getByText(line)).toBeInTheDocument()
+    }
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument()
+    expect(screen.getByText('Phiên bản 3.0 · 25/10/2026')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Đọc toàn văn thông báo quyền riêng tư' })).toHaveAttribute('target', '_blank')
     expect(submit).toBeDisabled()
-    await user.click(screen.getByRole('radio', { name: /Sinh viên/ }))
-    expect(submit).toBeDisabled()
-    await user.click(screen.getByRole('checkbox', { name: /phiên bản 2.0/ }))
+    await user.click(screen.getByRole('checkbox', { name: /phiên bản 3.0/ }))
     await user.click(submit)
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/viec-can-lam'))
     const request = seen.find((entry) => entry.method === 'POST')!
-    expect(await request.clone().json()).toEqual({ role: 'STUDENT', privacyNoticeVersion: '2.0' })
+    expect(await request.clone().json()).toEqual({ privacyNoticeVersion: '3.0' })
     expect(request.headers.get('X-XSRF-TOKEN')).toBe('token-1')
     document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT'
   })
 
   it('says so when the notice changed meanwhile, and asks to accept the new version', async () => {
     const user = userEvent.setup()
-    let version = '2.0'
+    let version = '3.0'
     fakeBackend(anonymous, {
-      'GET /api/v1/session': () => json({ status: 'SIGNING_UP', githubLogin: 'octo-cat', privacyNoticeVersion: version }),
+      'GET /api/v1/session': () => json({ ...welcome, privacyNoticeVersion: version }),
       'POST /api/v1/session/sign-up': () => {
-        version = '2.1'
+        version = '3.1'
         return json({ status: 409, code: 'STALE' }, 409)
       },
     })
     renderAt('/bat-dau')
 
-    await user.click(await screen.findByRole('radio', { name: /Khách hàng/ }))
-    await user.click(screen.getByRole('checkbox'))
-    await user.click(screen.getByRole('button', { name: 'Tiếp tục' }))
+    await user.click(await screen.findByRole('checkbox'))
+    await user.click(screen.getByRole('button', { name: 'Đồng ý và bắt đầu' }))
 
     expect(await screen.findByRole('alert')).toBeInTheDocument()
-    const checkbox = await screen.findByRole('checkbox', { name: /phiên bản 2.1/ })
+    const checkbox = await screen.findByRole('checkbox', { name: /phiên bản 3.1/ })
     expect(checkbox).not.toBeChecked()
-    expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Đồng ý và bắt đầu' })).toBeDisabled()
+  })
+
+  it('sends a visitor with no pending sign-in on /bat-dau to PUB-2', async () => {
+    fakeBackend(anonymous)
+    const router = renderAt('/bat-dau')
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Đăng nhập vibefix' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/dang-nhap')
   })
 })
 
@@ -195,7 +233,7 @@ describe('signed-in shell (UX-DR10 to UX-DR12, UX-DR26)', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Phiên đăng nhập đã hết' })
     expect(within(dialog).getByRole('link', { name: 'Đăng nhập lại' })).toHaveAttribute(
       'href',
-      '/oauth2/authorization/github?quay-lai=%2Fviec-can-lam',
+      '/oauth2/authorization/google?quay-lai=%2Fviec-can-lam',
     )
     // The screen stays behind the modal dialog, hidden from assistive technology meanwhile.
     expect(screen.getByRole('heading', { level: 1, name: 'Việc cần làm', hidden: true })).toBeInTheDocument()

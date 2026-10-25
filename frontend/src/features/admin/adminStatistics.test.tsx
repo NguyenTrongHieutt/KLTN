@@ -59,6 +59,7 @@ describe('ADM-9 statistics (FR-62)', () => {
               counts: [
                 { key: 'CUSTOMER', value: 12, unit: 'COUNT' },
                 { key: 'MENTOR', value: 3, unit: 'COUNT' },
+                { key: 'NONE', value: 7, unit: 'COUNT' },
               ],
             },
             {
@@ -77,6 +78,9 @@ describe('ADM-9 statistics (FR-62)', () => {
     const users = await screen.findByRole('region', { name: 'Người dùng theo vai trò' })
     expect(within(users).getByText('Khách hàng')).toBeInTheDocument()
     expect(within(users).getByText('12')).toBeInTheDocument()
+    // Story 19.1: Google accounts have no role and count on their own line.
+    expect(within(users).getByText('Tài khoản mới (vai trò theo công việc)')).toBeInTheDocument()
+    expect(within(users).getByText('7')).toBeInTheDocument()
     const acceptances = screen.getByRole('region', { name: 'Nghiệm thu' })
     expect(within(acceptances).getByText('Tự động')).toBeInTheDocument()
     expect(screen.getByText(/Chưa đủ 5 đánh giá kín từ 3 người hướng dẫn/)).toBeInTheDocument()

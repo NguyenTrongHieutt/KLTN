@@ -20,7 +20,8 @@ const mentorProfile: Destination = { label: 'nav.mentorProfile', to: '/ho-so', i
 
 /**
  * One route table per role (EXPERIENCE.md Navigation). A Mentor that is not approved has MEN-5 only
- * (FR-74). Destinations whose surface is not built yet are left out.
+ * (FR-74). A Google account has no role (Story 19.1): it has the to-do list and the notifications
+ * until the one shell of Story 20.6. Destinations whose surface is not built yet are left out.
  */
 export function roleNavigation(session: Session): Destination[] {
   const account = session.account
@@ -37,8 +38,10 @@ export function roleNavigation(session: Session): Destination[] {
           : [mentorProfile]
       case 'STUDENT':
         return [todo, jobs, team, notifications]
-      default:
+      case 'ADMINISTRATOR':
         return []
+      default:
+        return [todo, notifications]
     }
   })()
   return all.filter((destination) => destination.built)

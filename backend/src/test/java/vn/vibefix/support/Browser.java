@@ -6,6 +6,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import jakarta.servlet.http.Cookie;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -17,7 +18,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  * address, so tests never share a sign-in rate-limit window.
  * <p>
  * Use it in a test class with its own application context (a {@code @DynamicPropertySource} of its
- * own, as {@code GitHubSignInIT} and {@code AdminSignInIT} have): Spring Security's {@code csrf()}
+ * own, as {@code GoogleSignInIT} and {@code AdminSignInIT} have): Spring Security's {@code csrf()}
  * test helper, which other suites use, swaps the shared CSRF filter's cookie repository for a
  * session-based one for the rest of a context's life, and the cookie never comes.
  */
@@ -54,6 +55,12 @@ public final class Browser {
 
 	public String remoteAddress() {
 		return this.remoteAddress;
+	}
+
+	/** The value of the cookie the browser keeps under {@code name}, or {@code null}. */
+	public @Nullable String cookie(String name) {
+		Cookie cookie = this.cookies.get(name);
+		return cookie == null ? null : cookie.getValue();
 	}
 
 	private MvcResult send(MockHttpServletRequestBuilder request, boolean csrfHeader) throws Exception {

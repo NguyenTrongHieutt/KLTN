@@ -18,15 +18,13 @@ GET /api/v1/session,MENTOR,mentor=PENDING,,200
 GET /api/v1/session,STUDENT,,,200
 GET /api/v1/session,ADMINISTRATOR,,,200
 GET /api/v1/session,CUSTOMER,locked=true,,200
-# Sign-up needs a pending first sign-in in the session; a signed-in account has its role already.
+# PUB-3's welcome needs a pending Google sign-in in the session (Story 19.1); a signed-in account accepted it already.
 POST /api/v1/session/sign-up,ANONYMOUS,,session-sign-up.json,404 NOT_FOUND
 POST /api/v1/session/sign-up,CUSTOMER,,session-sign-up.json,409 CONFLICT
 POST /api/v1/session/sign-up,MENTOR,mentor=PENDING,session-sign-up.json,409 CONFLICT
 POST /api/v1/session/sign-up,STUDENT,,session-sign-up.json,409 CONFLICT
 POST /api/v1/session/sign-up,ADMINISTRATOR,,session-sign-up.json,409 CONFLICT
 POST /api/v1/session/sign-up,CUSTOMER,locked=true,session-sign-up.json,404 NOT_FOUND
-# FR-2: no public sign-up path produces an Administrator; the role is not one a person may choose.
-POST /api/v1/session/sign-up,ANONYMOUS,,session-sign-up-administrator.json,400 VALIDATION
 # SG-10: activity extends an Administrator session; for other accounts it changes nothing.
 POST /api/v1/session/activity,ANONYMOUS,,,401
 POST /api/v1/session/activity,CUSTOMER,,,200

@@ -84,7 +84,7 @@ describe('MEN-5, the Mentor application (FR-74, UX-DR78)', () => {
         yearsOfExperience: 8,
         skillIds: ['react'],
         linkedinUrl: 'https://www.linkedin.com/in/do-manh-hung',
-        privacyNoticeVersion: '2.0',
+        privacyNoticeVersion: '3.0',
       }),
     )
     expect(await screen.findByText('Đã gửi hồ sơ. Quản trị viên sẽ xem trong vài ngày.')).toBeInTheDocument()

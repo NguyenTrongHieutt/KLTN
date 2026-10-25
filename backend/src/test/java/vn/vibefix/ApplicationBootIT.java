@@ -100,10 +100,14 @@ class ApplicationBootIT extends IntegrationTest {
 	}
 
 	@Test
-	void withoutTheDevOAuthAppTheSignInButtonReturnsToSignInSayingItIsNotSetUp() throws Exception {
-		this.mvc.perform(get("/oauth2/authorization/github").param("quay-lai", "/viec-can-lam"))
+	void withoutTheDevGoogleClientTheSignInButtonReturnsToSignInSayingItIsNotSetUp() throws Exception {
+		this.mvc.perform(get("/oauth2/authorization/google").param("quay-lai", "/viec-can-lam"))
 			.andExpect(status().isFound())
 			.andExpect(header().string("Location", "/dang-nhap?loi=chua-thiet-lap"));
+		// Story 19.1: GitHub signs nobody in; Story 19.2 links it.
+		this.mvc.perform(get("/oauth2/authorization/github"))
+			.andExpect(status().isFound())
+			.andExpect(header().string("Location", "/dang-nhap?loi=that-bai"));
 	}
 
 	@Test

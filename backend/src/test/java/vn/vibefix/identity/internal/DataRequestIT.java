@@ -17,6 +17,7 @@ import java.util.HexFormat;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -136,10 +137,40 @@ class DataRequestIT extends IntegrationTest {
 		erase().andExpect(status().isNotFound());
 	}
 
-	/** Each confirmation one minute later, since a step-up code is accepted once per time step. */
+	@Test
+	void aGoogleAccountRequestsDeletionUnderItsGoogleNameAndTheAdministratorErasesIt() throws Exception {
+		UUID google = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-xoa", "3.0");
+
+		this.mvc.perform(post("/api/v1/account/deletion-request").with(as(google, null)).with(csrf()))
+			.andExpect(status().isCreated())
+			.andExpect(jsonPath("$.deletionRequestedAt").exists());
+
+		assertThat(this.jdbc.sql("""
+				SELECT params ->> 'name' FROM notification.notification
+				WHERE type = 'identity.deletion_requested' AND account_id = :admin
+				""").param("admin", this.ha.accountId()).query(String.class).single()).isEqualTo("Người dùng google-xoa");
+		erase(google).andExpect(status().isOk()).andExpect(jsonPath("$.erased").value(true));
+		assertThat(count("SELECT count(*) FROM identity.account WHERE id = '" + google + "' AND erased_at IS NOT NULL"))
+			.isOne();
+	}
+
+	@Test
+	void anAdministratorsAccountIsNeverErased() throws Exception {
+		erase(this.ha.accountId()).andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.reason").value("ADMINISTRATOR_ACCOUNT"));
+
+		assertThat(count("SELECT count(*) FROM identity.account WHERE id = '" + this.ha.accountId()
+				+ "' AND erased_at IS NULL")).isOne();
+	}
+
 	private ResultActions erase() throws Exception {
+		return erase(this.world.lan());
+	}
+
+	/** Each confirmation one minute later, since a step-up code is accepted once per time step. */
+	private ResultActions erase(UUID account) throws Exception {
 		this.clock.advance(Duration.ofMinutes(1));
-		return this.mvc.perform(post("/api/v1/admin/users/" + this.world.lan() + "/erase").with(admin()).with(csrf())
+		return this.mvc.perform(post("/api/v1/admin/users/" + account + "/erase").with(admin()).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("{\"stepUpCode\":\"" + AdministratorTestSupport.code(this.ha, this.clock.instant()) + "\"}"));
 	}
@@ -158,7 +189,7 @@ class DataRequestIT extends IntegrationTest {
 		return IdentityTestSupport.signedIn(this.sessions, this.ha.accountId(), Role.ADMINISTRATOR, this.clock.instant());
 	}
 
-	private RequestPostProcessor as(UUID account, Role role) {
+	private RequestPostProcessor as(UUID account, @Nullable Role role) {
 		return IdentityTestSupport.signedIn(this.sessions, account, role, this.clock.instant());
 	}
 

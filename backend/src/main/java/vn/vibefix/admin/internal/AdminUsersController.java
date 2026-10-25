@@ -76,7 +76,8 @@ class AdminUsersController {
 
 	}
 
-	record UserRowView(UUID id, Role role, @Nullable String name, @Nullable String githubLogin, boolean locked,
+	/** @param role absent for a Google account, which has none until Epic 20 */
+	record UserRowView(UUID id, @Nullable Role role, @Nullable String name, @Nullable String githubLogin, boolean locked,
 			@Nullable String status, Instant createdAt) {
 	}
 
@@ -109,7 +110,7 @@ class AdminUsersController {
 	 * @param feedback a Mentor's private feedback, when anyone gave any (FR-78)
 	 * @param deletionRequest the person's account deletion request, if they made one (NFR-11)
 	 */
-	record UserDetailView(UUID id, Role role, @Nullable String name, @Nullable String githubLogin, @Nullable String email,
+	record UserDetailView(UUID id, @Nullable Role role, @Nullable String name, @Nullable String githubLogin, @Nullable String email,
 			Instant createdAt, @Nullable Instant signedInAt, @Nullable Instant lockedAt, @Nullable String lockReason,
 			@Nullable MentorApprovalStatus approval, @Nullable UserVerificationView verification, List<ActionView> history,
 			@Nullable FeedbackView feedback, @Nullable DeletionRequestView deletionRequest) {

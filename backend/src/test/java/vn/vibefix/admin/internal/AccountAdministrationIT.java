@@ -119,6 +119,32 @@ class AccountAdministrationIT extends IntegrationTest {
 	}
 
 	@Test
+	void aGoogleAccountWithNoRoleIsListedFoundByItsGoogleEmailOpenedAndLocked() throws Exception {
+		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		UUID lan = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-lan", "3.0");
+
+		this.mvc.perform(get("/api/v1/admin/users").with(admin(ha))).andExpect(status().isOk())
+			.andExpect(jsonPath("$.items[?(@.id == '" + lan + "')].name").value("Người dùng google-lan"));
+		this.mvc.perform(get("/api/v1/admin/users").param("q", "google-lan@gmail.test").with(admin(ha)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.total").value(1))
+			.andExpect(jsonPath("$.items[0].id").value(lan.toString()))
+			.andExpect(jsonPath("$.items[0].role").doesNotExist())
+			.andExpect(jsonPath("$.items[0].status").doesNotExist());
+		this.mvc.perform(get("/api/v1/admin/users/" + lan).with(admin(ha))).andExpect(status().isOk())
+			.andExpect(jsonPath("$.name").value("Người dùng google-lan"))
+			.andExpect(jsonPath("$.email").value("google-lan@gmail.test"))
+			.andExpect(jsonPath("$.role").doesNotExist());
+
+		command(ha, lan, "lock", "{\"reason\":\"Gửi tin nhắn quấy rối\"}").andExpect(status().isOk())
+			.andExpect(jsonPath("$.lockReason").value("Gửi tin nhắn quấy rối"));
+		assertThat(this.events.stream(AccountLocked.class).filter(event -> event.accountId().equals(lan)))
+			.singleElement()
+			.satisfies(event -> assertThat(event.role()).isNull());
+		awaitListeners();
+	}
+
+	@Test
 	void aRevokedVerificationStopsCountingAndTellsTheStudent() throws Exception {
 		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
 		UUID vy = TeamTestSupport.student(this.jdbc, "Trần Thảo Vy", true, List.of(TeamTestSupport.REACT), "React",

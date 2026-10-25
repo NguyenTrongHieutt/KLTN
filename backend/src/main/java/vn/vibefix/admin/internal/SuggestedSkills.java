@@ -100,12 +100,17 @@ class SuggestedSkills {
 
 	/**
 	 * "Đề xuất thêm kỹ năng này".
-	 * @throws ApiException {@code NOT_FOUND} for an Administrator; {@code VALIDATION}; {@code CONFLICT
+	 * @throws ApiException {@code FORBIDDEN} for an account with no role; {@code NOT_FOUND} for an Administrator;
+	 * {@code VALIDATION}; {@code CONFLICT
 	 * SKILL_ALREADY_EXISTS} with {@code skillId} and {@code skillName}; {@code RATE_LIMITED SKILL_SUGGESTION_LIMIT}
 	 */
 	@Transactional
 	Suggestion suggest(Caller caller, String name, @Nullable UUID categoryId, @Nullable String note) {
 		Role role = caller.role();
+		if (role == null) {
+			// A Google account has no role until Epic 20: refused, as every role check refuses it (AD-20).
+			throw new ApiException(ErrorCode.FORBIDDEN);
+		}
 		if (role != Role.CUSTOMER && role != Role.MENTOR && role != Role.STUDENT) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}

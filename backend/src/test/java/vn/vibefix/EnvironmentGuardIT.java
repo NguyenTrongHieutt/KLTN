@@ -192,13 +192,26 @@ class EnvironmentGuardIT {
 	}
 
 	@Test
-	void prodRefusesToStartWithoutTheSignInOAuthApp() throws Exception {
+	void prodRefusesToStartWithoutTheGitHubOAuthApp() throws Exception {
 		String db = database.createScratchDatabase();
 		List<String> args = new ArrayList<>(List.of(database.applicationArguments(db)));
+		args.addAll(GOOGLE);
 		args.addAll(EMAIL);
 
 		assertThatThrownBy(() -> run(args, "prod")).rootCause()
 			.hasMessageContaining("github-oauth-client-id")
+			.hasMessageContaining("refusing to start");
+	}
+
+	@Test
+	void prodRefusesToStartWithoutTheGoogleSignInClient() throws Exception {
+		String db = database.createScratchDatabase();
+		List<String> args = new ArrayList<>(List.of(database.applicationArguments(db)));
+		args.addAll(GITHUB);
+		args.addAll(EMAIL);
+
+		assertThatThrownBy(() -> run(args, "prod")).rootCause()
+			.hasMessageContaining("google-oauth-client-id")
 			.hasMessageContaining("refusing to start");
 	}
 
@@ -213,9 +226,15 @@ class EnvironmentGuardIT {
 			.hasMessageContaining("refusing to start");
 	}
 
-	/** AD-25: production needs the sign-in OAuth App ... */
-	private static final List<String> OAUTH = List.of("--github-oauth-client-id=test-client",
+	/** AD-25: production needs the GitHub OAuth App (linked in Story 19.2) ... */
+	private static final List<String> GITHUB = List.of("--github-oauth-client-id=test-client",
 			"--github-oauth-client-secret=test-secret");
+
+	/** ... and the Google sign-in client (Story 19.1) ... */
+	private static final List<String> GOOGLE = List.of("--google-oauth-client-id=test-google-client",
+			"--google-oauth-client-secret=test-google-secret");
+
+	private static final List<String> OAUTH = Stream.concat(GITHUB.stream(), GOOGLE.stream()).toList();
 
 	/** ... and an SMTP server with the platform address its links use (AD-27). */
 	private static final List<String> EMAIL = List.of("--vibefix.email.smtp.host=localhost",

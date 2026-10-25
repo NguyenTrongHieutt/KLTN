@@ -22,7 +22,7 @@ import vn.vibefix.timers.Deadlines;
 
 /**
  * {@code identity}'s part in exports and erasure (AD-24). An erased account keeps its row, so the
- * records that name it still resolve, but loses its GitHub identity, its avatar, its kept token,
+ * records that name it still resolve, but loses its Google and GitHub identities, its avatar, its kept token,
  * its profiles, its school email codes, and its verification (so its school address no longer counts
  * as used); its acknowledgments stay as the proof of what it agreed to.
  */
@@ -65,14 +65,27 @@ class IdentityPersonalData implements PersonalDataParticipant {
 	public Optional<PersonalDataSection> export(UUID accountId) {
 		return this.accounts.findById(accountId).map(account -> {
 			Map<String, Object> data = new LinkedHashMap<>();
-			data.put("role", account.role().name());
+			data.put("kind", account.kind().name());
+			if (account.role() != null) {
+				data.put("role", account.role().name());
+			}
+			// The Google identity: the subject that keys the account, and what the last sign-in read.
+			if (account.googleSub() != null) {
+				data.put("googleSub", account.googleSub());
+			}
+			if (account.googleEmail() != null) {
+				data.put("googleEmail", account.googleEmail());
+			}
+			if (account.googleName() != null) {
+				data.put("googleName", account.googleName());
+			}
 			if (account.githubLogin() != null) {
 				data.put("githubLogin", account.githubLogin());
 			}
 			if (account.githubUserId() != null) {
 				data.put("githubUserId", account.githubUserId());
 			}
-			this.accounts.notificationAddress(accountId).ifPresent(email -> data.put("githubEmail", email));
+			this.accounts.gitHubEmail(accountId).ifPresent(email -> data.put("githubEmail", email));
 			data.put("createdAt", account.createdAt().toString());
 			data.put("acknowledgments", this.jdbc.sql("""
 					SELECT notice, notice_version, acknowledged_at FROM identity.acknowledgment
@@ -216,7 +229,8 @@ class IdentityPersonalData implements PersonalDataParticipant {
 		Instant erasedAt = this.clock.instant();
 		this.jdbc.sql("""
 				UPDATE identity.account
-				SET github_user_id = NULL, github_login = NULL, github_avatar_url = NULL, github_email = NULL, erased_at = :at
+				SET github_user_id = NULL, github_login = NULL, github_avatar_url = NULL, github_email = NULL,
+				    google_sub = NULL, google_email = NULL, google_name = NULL, erased_at = :at
 				WHERE id = :id
 				""").param("id", accountId).param("at", Timestamp.from(erasedAt)).update();
 		// The person-link signals outlive the account (AD-19, AD-24): deleted 24 months from now.

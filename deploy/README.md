@@ -63,14 +63,52 @@ file: `secrets/` is in `.gitignore`.
 
 After pulling a change that adds a secret (Story 1.16 added `identity-person-signal-key-1`, the key
 of the person-link signals; Story 2.3 added `scanning-fingerprint-key`, the key of the Finding
-fingerprints), run `deploy/dev-secrets.sh` again: it creates only the missing files,
-and the backend refuses to start without them.
+fingerprints; Story 19.1 added `google-oauth-client-id` and `google-oauth-client-secret`), run
+`deploy/dev-secrets.sh` again: it creates only the missing files, and the stack needs every
+mounted file to exist, even an empty one.
+
+## Signing in with Google locally
+
+Since Story 19.1 users sign in with Google only (FR-1, AD-19, AD-25), through a Google OAuth client
+of the dev environment. Until it exists, the two files `secrets/google-oauth-client-id` and
+`secrets/google-oauth-client-secret` stay empty, and the "Đăng nhập bằng Google" button on
+http://localhost:5173/dang-nhap answers that sign-in is not set up. Production refuses to start
+without them.
+
+1. In the Google Cloud console, in a project of the dev environment, open APIs & Services ›
+   OAuth consent screen (Google Auth Platform):
+   - User type: External, publishing status **Testing**, so only the listed test users can sign in.
+   - Scopes: none beyond the defaults; vibefix asks for `openid`, `email`, and `profile` only.
+   - Test users: the Gmail accounts that will sign in, for checkpoint 1 its three accounts.
+2. Under Credentials (Clients), choose Create credentials › OAuth client ID:
+   - Application type: Web application.
+   - Authorized JavaScript origins: none needed.
+   - Authorized redirect URI: `http://localhost:5173/login/oauth2/code/google` (Vite forwards
+     `/login/oauth2` to the backend, so the callback is the SPA's origin).
+3. Copy the Client ID into `secrets/google-oauth-client-id` and the Client secret into
+   `secrets/google-oauth-client-secret`. Write each value without a trailing newline (the files are
+   read-only: `chmod 644` them first, and `chmod 444` after).
+4. Restart the backend: `docker compose -f deploy/compose.yaml up -d --force-recreate backend`.
+
+The ID token is checked by Spring against Google's keys, issuer, audience, and nonce, and the
+account is keyed by Google's subject (`sub`), never the email. vibefix keeps no Google token and no
+picture; it keeps the Google subject, the Google name, and the verified Google email address, where
+notifications are emailed.
+An address Google has not verified is refused with "email chưa xác minh". The first sign-in opens
+PUB-3 "Chào mừng"; accepting N-10 there opens the `identity.link_github` to-do. To try a locked
+account, set it in the database:
+`UPDATE identity.account SET locked_at = now(), lock_reason = '...' WHERE google_email = '...'`.
+
+Accounts created before Story 19.1 carry a GitHub ID and no Google subject, so they can no longer
+sign in. Resetting the dev database removes them (an author action, not done by any story):
+`docker compose -f deploy/compose.yaml -f deploy/compose.integrations.yaml down -v`.
 
 ## Signing in with GitHub locally
 
-Sign-in uses a GitHub OAuth App of the dev environment (AD-10, AD-25). Until it exists, the two
-files `secrets/github-oauth-client-id` and `secrets/github-oauth-client-secret` stay empty, and the
-"Đăng nhập với GitHub" button on http://localhost:5173/dang-nhap answers that sign-in is not set up.
+Since Story 19.1 GitHub signs nobody in: `/oauth2/authorization/github` returns to PUB-2, and Story
+19.2 reuses this OAuth App to link GitHub to an account. Its two files
+`secrets/github-oauth-client-id` and `secrets/github-oauth-client-secret` stay mounted, and
+production still refuses to start without them.
 
 1. On GitHub, under the `vibefix-dev` organization's Settings › Developer settings › OAuth Apps (or
    your own account's, while that organization does not exist yet), choose New OAuth App:
@@ -83,8 +121,7 @@ files `secrets/github-oauth-client-id` and `secrets/github-oauth-client-secret` 
 
 The app asks only for `read:user` and `user:email` (FR-1). vibefix keeps the token of a Customer
 only, encrypted with `secrets/identity-token-key-1`, which `dev-secrets.sh` creates; deleting that
-key makes every kept token unreadable. To try a locked account, set it in the database:
-`UPDATE identity.account SET locked_at = now(), lock_reason = '...' WHERE github_login = '...'`.
+key makes every kept token unreadable.
 
 ## The first Administrator
 

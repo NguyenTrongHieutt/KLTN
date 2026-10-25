@@ -65,9 +65,14 @@ services:
       - identity-person-signal-key-1
       # AD-18, AD-22: the key of the Finding fingerprints.
       - scanning-fingerprint-key
-      # AD-10: the dev sign-in OAuth App; empty files until it is registered (deploy/README.md).
+      # AD-10: the dev GitHub OAuth App, linked from Story 19.2; empty files until it is registered
+      # (deploy/README.md).
       - github-oauth-client-id
       - github-oauth-client-secret
+      # FR-1, AD-19 (Story 19.1): the dev Google sign-in client; empty files until it is created
+      # (deploy/README.md, "Signing in with Google locally").
+      - google-oauth-client-id
+      - google-oauth-client-secret
     volumes:
       # AD-21: stored files live on their own volume, never in PostgreSQL.
       - files:/var/lib/vibefix/files
@@ -171,3 +176,7 @@ secrets:
     file: ./secrets/github-oauth-client-id
   github-oauth-client-secret:
     file: ./secrets/github-oauth-client-secret
+  google-oauth-client-id:
+    file: ./secrets/google-oauth-client-id
+  google-oauth-client-secret:
+    file: ./secrets/google-oauth-client-secret

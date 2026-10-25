@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
@@ -80,7 +81,11 @@ class LockConsequences {
 
 	/** The account's lock, by its role; {@code causeId} keeps each notice once per event and Job. */
 	@Transactional
-	void locked(UUID causeId, UUID accountId, Role role) {
+	void locked(UUID causeId, UUID accountId, @Nullable Role role) {
+		if (role == null) {
+			// A Google account holds no role (Story 19.1); Story 20.4 extends the lock to every relation.
+			return;
+		}
 		switch (role) {
 			case STUDENT -> crewLocked(causeId, accountId);
 			case MENTOR, CUSTOMER -> partyLocked(causeId, accountId, role);

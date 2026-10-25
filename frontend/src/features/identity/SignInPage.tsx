@@ -13,12 +13,14 @@ import { useSession } from './useSession'
 const ERRORS: Record<string, MessageKey> = {
   'that-bai': 'screen.public.signIn.failed',
   'chua-thiet-lap': 'screen.public.signIn.notConfigured',
+  'email-chua-xac-minh': 'screen.public.signIn.emailNotVerified',
 }
 
 /**
- * PUB-2 (`/dang-nhap`): sign in with GitHub, the only way in for Customers, Mentors, and Students
- * (FR-1). A locked account sees why it was refused and whom to contact (FR-59). A route that sent
- * the visitor here is the one they return to.
+ * PUB-2 (`/dang-nhap`): sign in with Google, the only way in for users (FR-1, Story 19.1); GitHub is
+ * linked later, where it is first needed. An email Google has not verified is refused, and a locked
+ * account sees why it was refused and whom to contact (FR-59). A route that sent the visitor here is
+ * the one they return to.
  */
 export function SignInPage() {
   usePageTitle(t('screen.public.signIn.title'))

@@ -6,11 +6,13 @@ import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Who sends the current request (AD-20): anonymous, or an account with its permanent role. It
- * carries nothing that can change, so policies read approval, verification, and lock status from
- * the database on every request, never from here (AD-19).
+ * Who sends the current request (AD-20): anonymous, or an account with its permanent role, if it has
+ * one. It carries nothing that can change, so policies read approval, verification, and lock status
+ * from the database on every request, never from here (AD-19).
  * @param accountId the account; {@code null} exactly when the caller is anonymous
- * @param role the account's role; {@code null} exactly when the caller is anonymous
+ * @param role the role of an account from before Google sign-in, and an Administrator's; {@code null}
+ * when the caller is anonymous, and for a Google account, which every role check refuses until
+ * Epic 20 (deny by default, AD-20). Story 20.1 brings the account's kind instead.
  */
 public record Caller(@Nullable UUID accountId, @Nullable Role role) {
 
@@ -23,8 +25,8 @@ public record Caller(@Nullable UUID accountId, @Nullable Role role) {
 	private static final Caller ANONYMOUS = new Caller(null, null);
 
 	public Caller {
-		if ((accountId == null) != (role == null)) {
-			throw new IllegalArgumentException("A caller has both an account and a role, or neither");
+		if (accountId == null && role != null) {
+			throw new IllegalArgumentException("A role needs an account");
 		}
 	}
 
@@ -32,8 +34,8 @@ public record Caller(@Nullable UUID accountId, @Nullable Role role) {
 		return ANONYMOUS;
 	}
 
-	public static Caller account(UUID accountId, Role role) {
-		return new Caller(Objects.requireNonNull(accountId, "accountId"), Objects.requireNonNull(role, "role"));
+	public static Caller account(UUID accountId, @Nullable Role role) {
+		return new Caller(Objects.requireNonNull(accountId, "accountId"), role);
 	}
 
 	public boolean isAnonymous() {

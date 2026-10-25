@@ -161,12 +161,15 @@ class DataRequests {
 		if (stepUp instanceof StepUps.Outcome.Refused refused) {
 			return new Result(refused.refusal(), refused.endSession());
 		}
-		Role role = this.jdbc.sql("SELECT role FROM identity.account WHERE id = :id AND erased_at IS NULL FOR UPDATE")
+		String[] kindAndRole = this.jdbc
+			.sql("SELECT kind, role FROM identity.account WHERE id = :id AND erased_at IS NULL FOR UPDATE")
 			.param("id", accountId)
-			.query((rs, n) -> Role.valueOf(rs.getString("role")))
+			.query((rs, n) -> new String[] { rs.getString("kind"), rs.getString("role") })
 			.optional()
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		if (role == Role.ADMINISTRATOR) {
+		// A Google account has no role (Story 19.1).
+		Role role = kindAndRole[1] == null ? null : Role.valueOf(kindAndRole[1]);
+		if (Account.Kind.ADMINISTRATOR.name().equals(kindAndRole[0])) {
 			throw new ApiException(ErrorCode.FORBIDDEN, IdentityReason.ADMINISTRATOR_ACCOUNT);
 		}
 		Request request = stored(accountId).filter(found -> found.completedAt() == null).orElse(null);
@@ -213,7 +216,8 @@ class DataRequests {
 
 	private String name(UUID accountId) {
 		return this.jdbc.sql("""
-				SELECT coalesce(cp.display_name, ma.display_name, sp.real_name, '@' || a.github_login, '') AS name
+				SELECT coalesce(cp.display_name, ma.display_name, sp.real_name, a.google_name, '@' || a.github_login, '')
+				       AS name
 				FROM identity.account a
 				LEFT JOIN identity.customer_profile cp ON cp.account_id = a.id
 				LEFT JOIN identity.mentor_application ma ON ma.account_id = a.id

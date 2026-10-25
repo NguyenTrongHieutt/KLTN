@@ -93,7 +93,7 @@ class MentorDecisions {
 	 * @param verifiedUntil a Student's verification end, if they ever verified
 	 * @param erased an erased account's signals outlive it for 24 months (AD-19)
 	 */
-	record Match(UUID accountId, String role, @Nullable MentorApprovalStatus mentorStatus, boolean locked,
+	record Match(UUID accountId, @Nullable String role, @Nullable MentorApprovalStatus mentorStatus, boolean locked,
 			boolean erased, @Nullable LocalDate verifiedUntil, String kind, Instant createdAt) {
 	}
 

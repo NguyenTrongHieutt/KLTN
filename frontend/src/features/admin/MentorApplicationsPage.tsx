@@ -399,7 +399,12 @@ function Matches({ matches }: { matches: MentorApplicationMatch[] }) {
             <tbody className="divide-y divide-border">
               {matches.map((match) => (
                 <tr key={`${match.accountId}-${match.kind}`}>
-                  <td className="px-3 py-2">{t(`screen.admin.mentors.role${match.role}` as MessageKey)}</td>
+                  <td className="px-3 py-2">
+                    {/* A Google account has no role (Story 19.1). */}
+                    {match.role
+                      ? t(`screen.admin.mentors.role${match.role}` as MessageKey)
+                      : t('screen.admin.mentors.roleGoogle')}
+                  </td>
                   <td className="px-3 py-2">
                     <MatchState match={match} />
                   </td>
