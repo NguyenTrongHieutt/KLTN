@@ -6,8 +6,8 @@ import { t } from '@/i18n/t'
 
 /**
  * Keeps signed-in routes for signed-in accounts (AD-19): anyone else goes to PUB-2, carrying the
- * route to return to; a first sign-in still choosing its role goes to PUB-3; a Mentor that is not
- * approved reaches MEN-5 only (FR-74).
+ * route to return to; a Google sign-in that has not accepted N-10 yet goes to PUB-3 "Chào mừng"; a
+ * Mentor that is not approved reaches MEN-5 only (FR-74).
  */
 export function RequireSignedIn({ children }: { children: ReactNode }) {
   const session = useSession()

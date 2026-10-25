@@ -92,14 +92,14 @@ class MentorDecisionIT extends IntegrationTest {
 		this.administrator = created.accountId();
 		this.secret = Totp.fromBase32(created.secret());
 		this.hung = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, MentorApprovalStatus.PENDING, null);
-		save(this.hung, "do-manh-hung", "2.0").andExpect(status().isOk()).andExpect(jsonPath("$.submitted").value(true));
+		save(this.hung, "do-manh-hung", "3.0").andExpect(status().isOk()).andExpect(jsonPath("$.submitted").value(true));
 	}
 
 	@Test
 	void theQueueListsPendingApplicationsOldestFirstWithTheirMatches() throws Exception {
 		this.clock.advance(Duration.ofHours(1));
 		UUID later = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, MentorApprovalStatus.PENDING, null);
-		save(later, "someone-else", "2.0").andExpect(status().isOk());
+		save(later, "someone-else", "3.0").andExpect(status().isOk());
 		UUID student = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null, null);
 		this.jdbc.sql("""
 				INSERT INTO identity.student_verification (account_id, method, school_email, verified_at, valid_until)
@@ -130,7 +130,7 @@ class MentorDecisionIT extends IntegrationTest {
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.experience").value("Kỹ sư phần mềm 8 năm."))
 			.andExpect(jsonPath("$.skills[0].name").value("React"))
-			.andExpect(jsonPath("$.privacyNoticeVersion").value("2.0"))
+			.andExpect(jsonPath("$.privacyNoticeVersion").value("3.0"))
 			.andExpect(jsonPath("$.matches.length()").value(1))
 			.andExpect(jsonPath("$.matches[0].accountId").value(student.toString()))
 			.andExpect(jsonPath("$.matches[0].role").value("STUDENT"))
@@ -227,7 +227,7 @@ class MentorDecisionIT extends IntegrationTest {
 			.andExpect(jsonPath("$.reason").value("MENTOR_REAPPLY_TOO_SOON"));
 		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, MentorApprovalStatus.PENDING, null);
 		// The profile stays reserved through the wait.
-		save(other, "do-manh-hung", "2.0").andExpect(status().is(422))
+		save(other, "do-manh-hung", "3.0").andExpect(status().is(422))
 			.andExpect(jsonPath("$.reason").value("MENTOR_LINKEDIN_IN_USE"));
 	}
 
@@ -268,7 +268,7 @@ class MentorDecisionIT extends IntegrationTest {
 		this.clock.advance(MentorDecisions.REAPPLY_WAIT.plusMinutes(1));
 		this.poller.runDue();
 		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, MentorApprovalStatus.PENDING, null);
-		save(other, "do-manh-hung", "2.0").andExpect(status().isOk());
+		save(other, "do-manh-hung", "3.0").andExpect(status().isOk());
 
 		save(this.hung, "do-manh-hung", null).andExpect(status().is(422))
 			.andExpect(jsonPath("$.reason").value("MENTOR_LINKEDIN_IN_USE"));
@@ -294,7 +294,7 @@ class MentorDecisionIT extends IntegrationTest {
 		// A new application needs the notice again.
 		save(this.hung, "do-manh-hung", null).andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.reason").value("PRIVACY_NOTICE_REQUIRED"));
-		save(this.hung, "do-manh-hung", "2.0").andExpect(status().isOk()).andExpect(jsonPath("$.submitted").value(true));
+		save(this.hung, "do-manh-hung", "3.0").andExpect(status().isOk()).andExpect(jsonPath("$.submitted").value(true));
 		assertThat(statusOf(this.hung)).isEqualTo("PENDING");
 	}
 

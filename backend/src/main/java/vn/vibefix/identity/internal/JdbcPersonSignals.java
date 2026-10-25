@@ -26,15 +26,15 @@ import vn.vibefix.shared.IdGenerator;
  * Person-link signals (AD-19, D1): HMACs of an account's verified email addresses and of its
  * LinkedIn profile, one row per live key version, never the values themselves. Recording a signal
  * that another account already has publishes {@link PersonSignalMatched} for that account.
- * Unverified addresses never arrive here: callers record GitHub's verified emails, a confirmed
- * school email, and a saved LinkedIn link only.
+ * Unverified addresses never arrive here: callers record Google's verified sign-in email, GitHub's
+ * verified emails, a confirmed school email, and a saved LinkedIn link only.
  */
 @Component
 class JdbcPersonSignals implements PersonSignals {
 
 	enum Source {
 
-		GITHUB_EMAIL("EMAIL"), SCHOOL_EMAIL("EMAIL"), LINKEDIN("LINKEDIN");
+		GOOGLE_EMAIL("EMAIL"), GITHUB_EMAIL("EMAIL"), SCHOOL_EMAIL("EMAIL"), LINKEDIN("LINKEDIN");
 
 		final String kind;
 

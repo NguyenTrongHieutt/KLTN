@@ -134,7 +134,8 @@ export function AdminUsersPage() {
                       <span className="text-label font-semibold break-words">{nameOf(row)}</span>
                       <span className="text-caption text-muted-foreground">
                         {[
-                          t(`screen.admin.users.role.${row.role}` as MessageKey),
+                          // A Google account has no role until Epic 20 (Story 19.1).
+                          row.role ? t(`screen.admin.users.role.${row.role}` as MessageKey) : '',
                           row.status ? t(`screen.admin.users.status.${row.status}` as MessageKey) : '',
                           row.locked ? t('screen.admin.users.locked') : '',
                         ]
@@ -248,7 +249,7 @@ function UserDetail({ user }: { user: AdminUser }) {
         </div>
         <dl className="grid gap-x-6 gap-y-1 sm:grid-cols-[max-content_1fr]">
           <dt className="text-muted-foreground">{t('screen.admin.users.roleLabel')}</dt>
-          <dd>{t(`screen.admin.users.role.${user.role}` as MessageKey)}</dd>
+          <dd>{user.role ? t(`screen.admin.users.role.${user.role}` as MessageKey) : '—'}</dd>
           {user.githubLogin && (
             <>
               <dt className="text-muted-foreground">{t('screen.admin.users.github')}</dt>

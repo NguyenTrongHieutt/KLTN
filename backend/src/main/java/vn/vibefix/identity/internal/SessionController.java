@@ -9,7 +9,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
@@ -25,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.SignInSession.AccountAuthentication;
-import vn.vibefix.identity.internal.SignInSession.PendingSignUp;
+import vn.vibefix.identity.internal.SignInSession.PendingWelcome;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.Caller;
@@ -35,41 +34,36 @@ import vn.vibefix.shared.Gate;
 import vn.vibefix.shared.Role;
 
 /**
- * The session as the SPA sees it (AD-19): who is here, a pending first sign-in choosing its role on
- * PUB-3, a refused locked sign-in on PUB-2, or a signed-in account. Public, because each state is
- * about the session itself and shows nothing of anyone else.
+ * The session as the SPA sees it (AD-19): who is here, a Google sign-in waiting on PUB-3 "Chào mừng"
+ * for the personal-data notice N-10, a refused locked sign-in on PUB-2, or a signed-in account.
+ * Public, because each state is about the session itself and shows nothing of anyone else.
  */
 @RestController
 @RequestMapping("/api/v1/session")
 @Access(Gate.PUBLIC)
 class SessionController {
 
-	/** Which of the four session states this is. */
+	/** Which of the four session states this is; {@code SIGNING_UP} is the welcome on PUB-3. */
 	enum SessionStatus {
 
 		ANONYMOUS, SIGNING_UP, LOCKED, SIGNED_IN
 
 	}
 
-	/** The roles a person chooses at sign-up; Administrators are created by Administrators (FR-2). */
-	enum SignUpRole {
-
-		CUSTOMER, MENTOR, STUDENT
-
-	}
-
 	/**
 	 * @param account the signed-in account; present exactly for {@code SIGNED_IN}
-	 * @param githubLogin the GitHub username, for {@code SIGNING_UP} and {@code SIGNED_IN}
-	 * @param githubAvatarUrl the GitHub avatar, for {@code SIGNING_UP} and {@code SIGNED_IN}
+	 * @param githubLogin the GitHub username, for {@code SIGNED_IN} once GitHub is linked
+	 * @param githubAvatarUrl the GitHub avatar, for {@code SIGNED_IN} once GitHub is linked
+	 * @param displayName whom PUB-3 greets, for {@code SIGNING_UP}; the account's Google name, else its
+	 * GitHub username, for {@code SIGNED_IN}
 	 * @param lockReason why sign-in was refused, for {@code LOCKED}
 	 * @param supportEmail whom a locked account may write to, for {@code LOCKED}
 	 * @param privacyNoticeVersion the current version of the personal-data notice (N-10)
 	 * @param administrator an Administrator's name and session limits, exactly for Administrators
 	 */
 	record SessionView(SessionStatus status, @Nullable AccountView account, @Nullable String githubLogin,
-			@Nullable String githubAvatarUrl, @Nullable String lockReason, @Nullable String supportEmail,
-			String privacyNoticeVersion, @Nullable AdministratorView administrator) {
+			@Nullable String githubAvatarUrl, @Nullable String displayName, @Nullable String lockReason,
+			@Nullable String supportEmail, String privacyNoticeVersion, @Nullable AdministratorView administrator) {
 	}
 
 	/**
@@ -81,17 +75,17 @@ class SessionController {
 	}
 
 	/**
+	 * @param role the permanent role of an account from before Google sign-in, and an Administrator's;
+	 * absent for a Google account, which holds roles in Jobs only (Epic 20)
 	 * @param mentorApprovalStatus set exactly for Mentors
 	 * @param theme the account's Theme toggle choice (UX-DR5)
 	 */
-	record AccountView(UUID id, Role role, @Nullable MentorApprovalStatus mentorApprovalStatus, Profiles.Theme theme) {
+	record AccountView(UUID id, @Nullable Role role, @Nullable MentorApprovalStatus mentorApprovalStatus,
+			Profiles.Theme theme) {
 	}
 
-	/**
-	 * @param role the permanent role
-	 * @param privacyNoticeVersion the version of the personal-data notice the person accepted
-	 */
-	record SignUpRequest(@NotNull SignUpRole role, @NotBlank String privacyNoticeVersion) {
+	/** @param privacyNoticeVersion the version of the personal-data notice the person accepted */
+	record SignUpRequest(@NotBlank String privacyNoticeVersion) {
 	}
 
 	private final CurrentCaller callers;
@@ -130,20 +124,21 @@ class SessionController {
 		}
 		HttpSession session = request.getSession(false);
 		if (session != null && session.getAttribute(SignInSession.LOCKED) instanceof SignInSession.Locked locked) {
-			return new SessionView(SessionStatus.LOCKED, null, null, null, locked.reason(),
+			return new SessionView(SessionStatus.LOCKED, null, null, null, null, locked.reason(),
 					this.properties.supportEmail(), version(), null);
 		}
-		if (session != null && session.getAttribute(SignInSession.PENDING_SIGN_UP) instanceof PendingSignUp pending) {
-			return new SessionView(SessionStatus.SIGNING_UP, null, pending.githubLogin(), pending.githubAvatarUrl(), null,
-					null, version(), null);
+		if (session != null && session.getAttribute(SignInSession.PENDING_WELCOME) instanceof PendingWelcome pending) {
+			return new SessionView(SessionStatus.SIGNING_UP, null, null, null, pending.displayName(), null, null,
+					version(), null);
 		}
-		return new SessionView(SessionStatus.ANONYMOUS, null, null, null, null, null, version(), null);
+		return new SessionView(SessionStatus.ANONYMOUS, null, null, null, null, null, null, version(), null);
 	}
 
 	/**
-	 * PUB-3's choice: creates the account with its permanent role and the acknowledgment of the
-	 * personal-data notice, then signs it in. A notice changed since the screen loaded answers
-	 * {@code 409 STALE}.
+	 * PUB-3's "Đồng ý và bắt đầu": records the acknowledgment of the personal-data notice with its
+	 * version, opens the {@code identity.link_github} to-do, then signs the account in on a new
+	 * session ID. A notice changed since the screen loaded answers {@code 409 STALE}; an account
+	 * locked meanwhile, {@code 404 NOT_FOUND}.
 	 */
 	@PostMapping("/sign-up")
 	ResponseEntity<SessionView> signUp(@Valid @RequestBody SignUpRequest body, HttpServletRequest request,
@@ -152,13 +147,20 @@ class SessionController {
 			throw new ApiException(ErrorCode.CONFLICT);
 		}
 		HttpSession session = request.getSession(false);
-		if (session == null || !(session.getAttribute(SignInSession.PENDING_SIGN_UP) instanceof PendingSignUp pending)) {
+		if (session == null || !(session.getAttribute(SignInSession.PENDING_WELCOME) instanceof PendingWelcome pending)) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		if (!version().equals(body.privacyNoticeVersion())) {
 			throw new ApiException(ErrorCode.STALE);
 		}
-		Account account = this.signIns.signUp(pending, Role.valueOf(body.role().name()), body.privacyNoticeVersion());
+		Account account;
+		try {
+			account = this.signIns.welcome(pending.accountId(), body.privacyNoticeVersion());
+		}
+		catch (ApiException ex) {
+			SignInSession.clear(session);
+			throw ex;
+		}
 		SignInSession.clear(session);
 		request.changeSessionId();
 		SecurityContext context = SecurityContextHolder.createEmptyContext();
@@ -193,12 +195,12 @@ class SessionController {
 		return new SessionView(SessionStatus.SIGNED_IN,
 				new AccountView(account.id(), account.role(), account.mentorApprovalStatus(),
 						this.profiles.theme(account.id())),
-				account.githubLogin(),
-				account.githubAvatarUrl(), null, null, version(), administrator(account, request));
+				account.githubLogin(), account.githubAvatarUrl(), account.displayName(), null, null, version(),
+				administrator(account, request));
 	}
 
 	private @Nullable AdministratorView administrator(Account account, HttpServletRequest request) {
-		if (account.role() != Role.ADMINISTRATOR) {
+		if (account.kind() != Account.Kind.ADMINISTRATOR) {
 			return null;
 		}
 		AdminSessions.Expiry expiry = AdminSessions.current(request.getSession(false), this.clock.instant());

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryRouter, RouterProvider } from 'react-router'
@@ -29,7 +29,7 @@ function renderAt(path: string) {
 }
 
 describe('public routes (UX-DR65, UX-DR70, UX-DR26)', () => {
-  it('PUB-1 explains vibefix, shows the 7 Stages and both notices, and offers three ways in', async () => {
+  it('PUB-1 explains vibefix, the 7 Stages, both notices, and the roles in three cards above one Google sign-in', async () => {
     renderAt('/')
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Hoàn thiện ứng dụng bạn đã làm bằng AI' })).toBeInTheDocument()
@@ -39,9 +39,17 @@ describe('public routes (UX-DR65, UX-DR70, UX-DR26)', () => {
     expect(stages).toHaveTextContent('Bàn giao và nghiệm thu')
     expect(screen.getByText('Tiền trên vibefix hiện là tiền thử nghiệm')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /Dự án của bạn phải công khai trên GitHub/ })).toBeInTheDocument()
-    for (const role of ['Tôi có sản phẩm cần hoàn thiện', 'Tôi là người hướng dẫn', 'Tôi là sinh viên IT']) {
-      expect(screen.getByRole('link', { name: new RegExp(role) })).toHaveAttribute('href', '/dang-nhap')
-    }
+    const roles = screen.getByRole('region', { name: 'Bạn đến vibefix để làm gì?' })
+    expect(within(roles).getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)).toEqual([
+      'Bạn có sản phẩm cần hoàn thiện',
+      'Bạn muốn làm người hướng dẫn',
+      'Bạn muốn làm thành viên nhóm thực hiện',
+    ])
+    expect(within(roles).getAllByRole('link')).toHaveLength(1)
+    expect(within(roles).getByRole('link', { name: 'Đăng nhập bằng Google' })).toHaveAttribute(
+      'href',
+      '/oauth2/authorization/google',
+    )
   })
 
   it('explains the unavoidable terms on their first occurrence', async () => {
@@ -81,7 +89,7 @@ describe('public routes (UX-DR65, UX-DR70, UX-DR26)', () => {
   it('PUB-7 shows the current notice with its version number', async () => {
     renderAt('/quyen-rieng-tu')
 
-    expect(await screen.findByText('Thông báo quyền riêng tư · phiên bản 2.0')).toBeInTheDocument()
+    expect(await screen.findByText('Thông báo quyền riêng tư · phiên bản 3.0')).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 2, name: 'vibefix thu thập gì' })).toBeInTheDocument()
   })
 

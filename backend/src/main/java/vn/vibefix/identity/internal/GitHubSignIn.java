@@ -16,6 +16,9 @@ import org.springframework.stereotype.Component;
  * to {@code read:user,user:email}, never a repository scope (FR-1, SG-11). Without the files the
  * {@code dev} profile still starts and PUB-2 says sign-in is not set up; {@code prod} refuses to
  * start. The endpoint URIs are configuration so tests can point them at a stub.
+ * <p>
+ * Since Story 19.1 no login uses it: users sign in with Google ({@link GoogleSignIn}), and Story 19.2
+ * reuses this registration to link GitHub.
  */
 @Component
 class GitHubSignIn {

@@ -3,7 +3,18 @@ import type { Session } from '@/features/identity/api'
 
 type Handler = (request: Request) => Response | Promise<Response>
 
-export const anonymous: Session = { status: 'ANONYMOUS', privacyNoticeVersion: '2.0' }
+export const anonymous: Session = { status: 'ANONYMOUS', privacyNoticeVersion: '3.0' }
+
+/** A Google account on PUB-3, waiting to accept N-10 (Story 19.1). */
+export const welcome: Session = { status: 'SIGNING_UP', displayName: 'Nguyễn Thị Lan', privacyNoticeVersion: '3.0' }
+
+/** A signed-in Google account, which has no role until Epic 20 (Story 19.1). */
+export const signedInWithGoogle: Session = {
+  status: 'SIGNED_IN',
+  privacyNoticeVersion: '3.0',
+  displayName: 'Nguyễn Thị Lan',
+  account: { id: '00000000-0000-7000-8000-000000000002', theme: 'LIGHT' },
+}
 
 /** A signed-in session of `role`; a Mentor is approved unless `mentorApprovalStatus` says otherwise. */
 export function signedIn(

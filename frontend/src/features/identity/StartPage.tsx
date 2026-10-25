@@ -1,4 +1,4 @@
-import { TriangleAlert } from 'lucide-react'
+import { BriefcaseBusiness, Info, Package, Users, type LucideIcon } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
@@ -6,14 +6,13 @@ import { usePageTitle } from '@/app/usePageTitle'
 import { Button } from '@/components/ui/button'
 import { t, type MessageKey } from '@/i18n/t'
 import { problemMessage } from '@/lib/problemMessage'
-import { cn } from '@/lib/utils'
-import { landingPath, type SignUpRole } from './api'
+import { landingPath } from './api'
 import { useSession, useSignOut, useSignUp } from './useSession'
 
-const ROLES: { role: SignUpRole; label: MessageKey; body: MessageKey }[] = [
-  { role: 'CUSTOMER', label: 'screen.public.start.customer', body: 'screen.public.start.customerBody' },
-  { role: 'MENTOR', label: 'screen.public.start.mentor', body: 'screen.public.start.mentorBody' },
-  { role: 'STUDENT', label: 'screen.public.start.student', body: 'screen.public.start.studentBody' },
+const LINES: { icon: LucideIcon; text: MessageKey }[] = [
+  { icon: Package, text: 'screen.public.start.linePost' },
+  { icon: BriefcaseBusiness, text: 'screen.public.start.lineMentor' },
+  { icon: Users, text: 'screen.public.start.lineCrew' },
 ]
 
 const NOTICE: { title: MessageKey; body: MessageKey }[] = [
@@ -24,9 +23,11 @@ const NOTICE: { title: MessageKey; body: MessageKey }[] = [
 ]
 
 /**
- * PUB-3 (`/bat-dau`), first sign-in only (FR-1, FR-74, NFR-9): the one permanent choice of role, and
- * the personal-data notice N-10, which must be accepted; the accepted version is the one the server
- * named, so a notice changed meanwhile answers STALE.
+ * PUB-3 "Chào mừng" (`/bat-dau`, FR-1, NFR-9, UX-DR89): after a Google sign-in, until N-10 is accepted.
+ * It greets the user by their Google name, says in three plain lines what one account can do, and
+ * asks for the personal-data notice N-10; there is no role to choose. The accepted version is the
+ * one the server named, so a notice changed meanwhile answers STALE. Accepting opens the
+ * `identity.link_github` to-do and lands on the to-do list.
  */
 export function StartPage() {
   usePageTitle(t('screen.public.start.title'))
@@ -34,7 +35,6 @@ export function StartPage() {
   const signUp = useSignUp()
   const signOut = useSignOut()
   const navigate = useNavigate()
-  const [role, setRole] = useState<SignUpRole | null>(null)
   // The version the box was ticked for: a notice changed meanwhile (STALE) needs ticking again.
   const [acceptedVersion, setAcceptedVersion] = useState<string | null>(null)
 
@@ -48,17 +48,17 @@ export function StartPage() {
   if (current?.status !== 'SIGNING_UP') {
     return <Navigate to="/dang-nhap" replace />
   }
-  const login = current.githubLogin ?? ''
+  const name = current.displayName ?? ''
   const version = current.privacyNoticeVersion
   const accepted = acceptedVersion === version
 
   function submit(event: FormEvent) {
     event.preventDefault()
-    if (role === null || !accepted) {
+    if (!accepted) {
       return
     }
     signUp.mutate(
-      { role, privacyNoticeVersion: version },
+      { privacyNoticeVersion: version },
       {
         onSuccess: (signedIn) => navigate(landingPath(signedIn), { replace: true }),
         onError: () => session.refetch(),
@@ -71,39 +71,21 @@ export function StartPage() {
       onSubmit={submit}
       className="mx-auto flex max-w-reading-max flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop"
     >
-      <p className="text-body-sm text-muted-foreground">{t('screen.public.start.signedInAs', { login })}</p>
-      <div className="flex flex-col gap-2">
-        <PageHeading>{t('screen.public.start.heading')}</PageHeading>
+      <div className="flex flex-col gap-3">
+        <PageHeading>{t('screen.public.start.heading', { name })}</PageHeading>
         <p className="text-muted-foreground">{t('screen.public.start.lead')}</p>
+        <ul className="flex flex-col gap-2">
+          {LINES.map((line) => (
+            <li key={line.text} className="flex gap-3">
+              <line.icon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-primary" />
+              <span>{t(line.text)}</span>
+            </li>
+          ))}
+        </ul>
       </div>
-      <fieldset className="flex min-w-0 flex-col gap-3">
-        <legend className="mb-2 text-label">{t('screen.public.start.roleLegend')}</legend>
-        {ROLES.map((option) => (
-          <label
-            key={option.role}
-            className={cn(
-              'flex cursor-pointer gap-3 rounded-lg border bg-card p-4',
-              role === option.role ? 'border-2 border-primary bg-primary-soft' : 'border-border',
-            )}
-          >
-            <input
-              type="radio"
-              name="role"
-              value={option.role}
-              checked={role === option.role}
-              onChange={() => setRole(option.role)}
-              className="mt-1 size-5 shrink-0 accent-primary"
-            />
-            <span className="flex flex-col gap-0.5">
-              <span className="font-semibold">{t(option.label)}</span>
-              <span className="text-body-sm text-muted-foreground">{t(option.body)}</span>
-            </span>
-          </label>
-        ))}
-      </fieldset>
-      <div className="flex gap-3 rounded-md border-l-4 border-warning bg-warning-soft p-4">
-        <TriangleAlert aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-warning" />
-        <p className="text-body-sm">{t('screen.public.start.permanent', { login })}</p>
+      <div className="flex gap-3 rounded-md border-l-4 border-info bg-info-soft p-4">
+        <Info aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-info" />
+        <p className="text-body-sm">{t('screen.public.start.rolePerJob')}</p>
       </div>
       <section className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4" aria-labelledby="thong-bao-du-lieu">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -151,7 +133,7 @@ export function StartPage() {
         >
           {t('screen.public.start.signOut')}
         </Button>
-        <Button type="submit" disabled={role === null || !accepted || signUp.isPending}>
+        <Button type="submit" disabled={!accepted || signUp.isPending}>
           {signUp.isPending ? t('screen.public.start.saving') : t('screen.public.start.continue')}
         </Button>
       </div>

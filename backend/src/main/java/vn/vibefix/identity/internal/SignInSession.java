@@ -15,13 +15,16 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import vn.vibefix.shared.Role;
 
 /**
- * What the session holds between the GitHub callback and the account (AD-19). Every value is
- * serializable, because sessions live in PostgreSQL, and none is a token in clear.
+ * What the session holds between the Google callback and the account (AD-19). Every value is
+ * serializable, because sessions live in PostgreSQL, and none is a token.
  */
 final class SignInSession {
 
-	/** A first sign-in whose role is not chosen yet; the token is sealed with the GitHub ID. */
-	static final String PENDING_SIGN_UP = SignInSession.class.getName() + ".pendingSignUp";
+	/**
+	 * A Google sign-in waiting on PUB-3 for the personal-data notice N-10 (NFR-9). The account exists
+	 * already, but the session holds no account until the notice is accepted.
+	 */
+	static final String PENDING_WELCOME = SignInSession.class.getName() + ".pendingWelcome";
 
 	/** A sign-in refused because the account is locked, with the reason to show. */
 	static final String LOCKED = SignInSession.class.getName() + ".locked";
@@ -33,24 +36,10 @@ final class SignInSession {
 	}
 
 	/**
-	 * A first sign-in waiting for its role (PUB-3).
-	 * @param githubEmail the primary verified email GitHub gave, where notifications will go
-	 * @param verifiedEmails every verified email GitHub gave, recorded as person-link signals (AD-19)
-	 * @param token the sign-in token, sealed to the GitHub account
+	 * A signed-in Google account that has not accepted the current N-10 yet (PUB-3 "Chào mừng").
+	 * @param displayName the name PUB-3 greets it by
 	 */
-	record PendingSignUp(long githubUserId, String githubLogin, @Nullable String githubAvatarUrl,
-			@Nullable String githubEmail, List<String> verifiedEmails, TokenCipher.@Nullable Sealed token)
-			implements Serializable {
-
-		PendingSignUp {
-			verifiedEmails = List.copyOf(verifiedEmails);
-		}
-
-		/** The associated data that binds the pending token to this GitHub account. */
-		static String tokenAssociatedData(long githubUserId) {
-			return "github:" + githubUserId;
-		}
-
+	record PendingWelcome(UUID accountId, String displayName) implements Serializable {
 	}
 
 	record Locked(String reason) implements Serializable {
@@ -58,21 +47,23 @@ final class SignInSession {
 
 	/** Forgets every sign-in state, before a new one is set. */
 	static void clear(HttpSession session) {
-		session.removeAttribute(PENDING_SIGN_UP);
+		session.removeAttribute(PENDING_WELCOME);
 		session.removeAttribute(LOCKED);
 	}
 
 	/**
-	 * The authenticated account in the security context: its ID and permanent role only. Approval and
-	 * lock status are read from the database on every request, never from here (AD-19).
+	 * The authenticated account in the security context: its ID and, for an account from before Google
+	 * sign-in or an Administrator, its permanent role; a Google account has none (Story 20.1 brings the
+	 * kind). Approval and lock status are read from the database on every request, never from here
+	 * (AD-19).
 	 */
 	static final class AccountAuthentication extends AbstractAuthenticationToken {
 
 		private final UUID accountId;
 
-		private final Role role;
+		private final @Nullable Role role;
 
-		AccountAuthentication(UUID accountId, Role role) {
+		AccountAuthentication(UUID accountId, @Nullable Role role) {
 			super(authorities(role));
 			this.accountId = accountId;
 			this.role = role;
@@ -83,7 +74,7 @@ final class SignInSession {
 			return this.accountId;
 		}
 
-		Role role() {
+		@Nullable Role role() {
 			return this.role;
 		}
 
@@ -103,8 +94,8 @@ final class SignInSession {
 			return this.accountId.toString();
 		}
 
-		private static Collection<? extends GrantedAuthority> authorities(Role role) {
-			return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
+		private static Collection<? extends GrantedAuthority> authorities(@Nullable Role role) {
+			return role == null ? List.of() : List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
 		}
 
 	}

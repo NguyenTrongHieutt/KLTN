@@ -25,7 +25,8 @@ export function AccountMenu({ session, offline }: { session: Session; offline: b
   const navigate = useNavigate()
   const signOut = useSignOut()
   const saveTheme = useSaveTheme()
-  const login = session.githubLogin ?? ''
+  // A Google account has no GitHub username until Story 19.2 links it: its Google name stands in.
+  const login = session.githubLogin ?? session.displayName ?? ''
   const role = session.account?.role
   const theme = session.account?.theme ?? DEFAULT_THEME
 

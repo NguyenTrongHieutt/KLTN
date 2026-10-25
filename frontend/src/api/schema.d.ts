@@ -4104,7 +4104,7 @@ export interface components {
             /** @enum {string} */
             mentorApprovalStatus?: "PENDING" | "APPROVED" | "REJECTED" | "REVOKED";
             /** @enum {string} */
-            role: "CUSTOMER" | "MENTOR" | "STUDENT" | "ADMINISTRATOR";
+            role?: "CUSTOMER" | "MENTOR" | "STUDENT" | "ADMINISTRATOR";
             /** @enum {string} */
             theme: "LIGHT" | "DARK" | "SYSTEM";
         };
@@ -7334,6 +7334,7 @@ export interface components {
         SessionView: {
             account?: components["schemas"]["AccountView"];
             administrator?: components["schemas"]["AdministratorView"];
+            displayName?: string;
             githubAvatarUrl?: string;
             githubLogin?: string;
             lockReason?: string;
@@ -7378,8 +7379,6 @@ export interface components {
         };
         SignUpRequest: {
             privacyNoticeVersion: string;
-            /** @enum {string} */
-            role: "CUSTOMER" | "MENTOR" | "STUDENT";
         };
         SignalsView: {
             jobTypeMatches: components["schemas"]["JobTypeMatchView"][];
@@ -7900,7 +7899,7 @@ export interface components {
             lockedAt?: string;
             name?: string;
             /** @enum {string} */
-            role: "CUSTOMER" | "MENTOR" | "STUDENT" | "ADMINISTRATOR";
+            role?: "CUSTOMER" | "MENTOR" | "STUDENT" | "ADMINISTRATOR";
             /** Format: date-time */
             signedInAt?: string;
             verification?: components["schemas"]["UserVerificationView"];
@@ -7914,7 +7913,7 @@ export interface components {
             locked: boolean;
             name?: string;
             /** @enum {string} */
-            role: "CUSTOMER" | "MENTOR" | "STUDENT" | "ADMINISTRATOR";
+            role?: "CUSTOMER" | "MENTOR" | "STUDENT" | "ADMINISTRATOR";
             status?: string;
         };
         UserVerificationView: {

@@ -48,8 +48,11 @@ public interface AccountAdministration {
 			int page) {
 	}
 
-	/** @param status {@code VERIFIED} or {@code UNVERIFIED} for a Student, the approval for a Mentor */
-	record Row(UUID id, Role role, @Nullable String name, @Nullable String githubLogin, boolean locked,
+	/**
+	 * @param role absent for a Google account, which has none (Story 19.1)
+	 * @param status {@code VERIFIED} or {@code UNVERIFIED} for a Student, the approval for a Mentor
+	 */
+	record Row(UUID id, @Nullable Role role, @Nullable String name, @Nullable String githubLogin, boolean locked,
 			@Nullable String status, Instant createdAt) {
 	}
 
@@ -63,8 +66,8 @@ public interface AccountAdministration {
 	record Verification(String method, Instant verifiedAt, LocalDate validUntil, boolean current) {
 	}
 
-	/** One account as ADM-2 shows it. */
-	record Account(UUID id, Role role, @Nullable String name, @Nullable String githubLogin, @Nullable String email,
+	/** One account as ADM-2 shows it; {@code role} is absent for a Google account (Story 19.1). */
+	record Account(UUID id, @Nullable Role role, @Nullable String name, @Nullable String githubLogin, @Nullable String email,
 			Instant createdAt, @Nullable Instant signedInAt, @Nullable Instant lockedAt, @Nullable String lockReason,
 			@Nullable MentorApprovalStatus approval, @Nullable Verification verification, List<Action> history) {
 	}

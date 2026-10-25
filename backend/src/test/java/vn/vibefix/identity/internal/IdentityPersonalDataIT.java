@@ -97,11 +97,34 @@ class IdentityPersonalDataIT extends IntegrationTest implements PersonalDataPart
 		assertThat(this.participant.erasureBlockers(SUBJECT)).isEmpty();
 	}
 
+	@Test
+	void aGoogleAccountExportsItsGoogleEmailAndNameButNeverItsSubjectAndErasureClearsAllThree() {
+		UUID google = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-sub-7003", "3.0");
+
+		PersonalDataSection section = this.participant.export(google).orElseThrow();
+
+		assertThat(section.data()).containsEntry("kind", "USER")
+			.containsEntry("googleEmail", "google-sub-7003@gmail.test")
+			.containsEntry("googleName", "Người dùng google-sub-7003")
+			.doesNotContainKey("role")
+			.doesNotContainKey("githubEmail");
+		assertThat(section.data().values().stream().map(String::valueOf)).as("the subject is a key, never exported")
+			.doesNotContain("google-sub-7003");
+
+		this.participant.eraseAccount(google);
+
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM identity.account
+				WHERE id = :id AND google_sub IS NULL AND google_email IS NULL AND google_name IS NULL AND erased_at IS NOT NULL
+				""").param("id", google).query(Long.class).single()).isOne();
+		assertThat(this.accounts.notificationAddress(google)).isEmpty();
+	}
+
 	private void seed(UUID id, long githubId, String login) {
 		Timestamp now = Timestamp.from(this.clock.instant());
 		this.jdbc.sql("""
-				INSERT INTO identity.account (id, github_user_id, github_login, github_email, role, created_at)
-				VALUES (:id, :githubId, :login, :login || '@example.test', 'CUSTOMER', :now)
+				INSERT INTO identity.account (id, kind, github_user_id, github_login, github_email, role, created_at)
+				VALUES (:id, 'USER', :githubId, :login, :login || '@example.test', 'CUSTOMER', :now)
 				""").param("id", id).param("githubId", githubId).param("login", login).param("now", now).update();
 		this.accounts.insertAcknowledgment(UUID.randomUUID(), id, "PRIVACY", "2.0", this.clock.instant());
 		this.accounts.storeCustomerToken(id, this.cipher.seal("gho_" + login, id.toString()), this.clock.instant());

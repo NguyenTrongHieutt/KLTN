@@ -55,7 +55,7 @@ class AccountAdministrations implements AccountAdministration {
 
 	static final String APPROVAL_REVOKED = "identity.mentor_approval_revoked";
 
-	private static final String NAME = "coalesce(cp.display_name, ma.display_name, sp.real_name)";
+	private static final String NAME = "coalesce(cp.display_name, ma.display_name, sp.real_name, a.google_name)";
 
 	private static final String FROM = """
 			FROM identity.account a
@@ -65,7 +65,9 @@ class AccountAdministrations implements AccountAdministration {
 			LEFT JOIN identity.student_verification v ON v.account_id = a.id
 			""";
 
-	private record Target(UUID id, Role role, @Nullable MentorApprovalStatus approval, boolean locked) {
+	/** @param role absent for a Google account, which has none (Story 19.1) */
+	private record Target(UUID id, boolean administrator, @Nullable Role role, @Nullable MentorApprovalStatus approval,
+			boolean locked) {
 	}
 
 	private final JdbcClient jdbc;
@@ -103,7 +105,7 @@ class AccountAdministrations implements AccountAdministration {
 	@Override
 	@Transactional(readOnly = true)
 	public Page search(Query query) {
-		StringBuilder where = new StringBuilder(" WHERE a.role <> 'ADMINISTRATOR' AND a.erased_at IS NULL");
+		StringBuilder where = new StringBuilder(" WHERE a.kind = 'USER' AND a.erased_at IS NULL");
 		Map<String, Object> params = new HashMap<>();
 		LocalDate today = today();
 		params.put("today", today);
@@ -113,7 +115,8 @@ class AccountAdministrations implements AccountAdministration {
 		}
 		if (query.text() != null && !query.text().isBlank()) {
 			where.append(" AND platform.vi_normalize(coalesce(" + NAME + ", '') || ' ' || coalesce(a.github_login, '')")
-				.append(" || ' ' || coalesce(cp.contact_email, '') || ' ' || coalesce(a.github_email, ''))")
+				.append(" || ' ' || coalesce(cp.contact_email, '') || ' ' || coalesce(a.google_email, '')")
+				.append(" || ' ' || coalesce(a.github_email, ''))")
 				.append(" LIKE '%' || platform.vi_normalize(:text) || '%' ESCAPE '\\'");
 			params.put("text", escapeLike(query.text().strip()));
 		}
@@ -142,9 +145,9 @@ class AccountAdministrations implements AccountAdministration {
 				+ NAME + " AS name, v.valid_until " + FROM + where + " ORDER BY a.created_at DESC, a.id LIMIT :size OFFSET :offset")
 			.params(params)
 			.query((rs, n) -> {
-				Role role = Role.valueOf(rs.getString("role"));
+				Role role = role(rs);
 				LocalDate validUntil = rs.getObject("valid_until", LocalDate.class);
-				String status = switch (role) {
+				String status = role == null ? null : switch (role) {
 					case STUDENT -> validUntil != null && !validUntil.isBefore(today) ? "VERIFIED" : "UNVERIFIED";
 					case MENTOR -> rs.getString("mentor_approval_status");
 					default -> null;
@@ -182,9 +185,10 @@ class AccountAdministrations implements AccountAdministration {
 	public Optional<Account> account(UUID accountId) {
 		LocalDate today = today();
 		return this.jdbc.sql("SELECT a.id, a.role, a.github_login, a.created_at, a.signed_in_at, a.locked_at, a.lock_reason, "
-				+ "a.mentor_approval_status, coalesce(cp.contact_email, a.github_email) AS email, " + NAME + " AS name, "
+				+ "a.mentor_approval_status, coalesce(cp.contact_email, a.google_email, a.github_email) AS email, " + NAME
+				+ " AS name, "
 				+ "v.method, v.verified_at, v.valid_until " + FROM
-				+ " WHERE a.id = :id AND a.role <> 'ADMINISTRATOR' AND a.erased_at IS NULL")
+				+ " WHERE a.id = :id AND a.kind = 'USER' AND a.erased_at IS NULL")
 			.param("id", accountId)
 			.query((rs, n) -> {
 				LocalDate validUntil = rs.getObject("valid_until", LocalDate.class);
@@ -192,7 +196,7 @@ class AccountAdministrations implements AccountAdministration {
 						: new Verification(rs.getString("method"), rs.getTimestamp("verified_at").toInstant(), validUntil,
 								!validUntil.isBefore(today));
 				String approval = rs.getString("mentor_approval_status");
-				return new Account(rs.getObject("id", UUID.class), Role.valueOf(rs.getString("role")), rs.getString("name"),
+				return new Account(rs.getObject("id", UUID.class), role(rs), rs.getString("name"),
 						rs.getString("github_login"), rs.getString("email"), rs.getTimestamp("created_at").toInstant(),
 						instant(rs, "signed_in_at"), instant(rs, "locked_at"), rs.getString("lock_reason"),
 						approval == null ? null : MentorApprovalStatus.valueOf(approval), verification, history(accountId));
@@ -204,7 +208,7 @@ class AccountAdministrations implements AccountAdministration {
 	@Transactional
 	public void lock(UUID administrator, UUID accountId, String reason) {
 		Target target = target(accountId);
-		if (target.role() == Role.ADMINISTRATOR) {
+		if (target.administrator()) {
 			throw new ApiException(ErrorCode.FORBIDDEN, IdentityReason.ADMINISTRATOR_ACCOUNT);
 		}
 		if (target.locked()) {
@@ -307,13 +311,13 @@ class AccountAdministrations implements AccountAdministration {
 	/** The account to act on, locked; {@code NOT_FOUND} for one erased, gone, or an Administrator's on unlock. */
 	private Target target(UUID accountId) {
 		return this.jdbc.sql("""
-				SELECT id, role, mentor_approval_status, locked_at IS NOT NULL AS locked FROM identity.account
+				SELECT id, kind, role, mentor_approval_status, locked_at IS NOT NULL AS locked FROM identity.account
 				WHERE id = :id AND erased_at IS NULL FOR UPDATE
 				""")
 			.param("id", accountId)
 			.query((rs, n) -> {
 				String approval = rs.getString("mentor_approval_status");
-				return new Target(rs.getObject("id", UUID.class), Role.valueOf(rs.getString("role")),
+				return new Target(rs.getObject("id", UUID.class), "ADMINISTRATOR".equals(rs.getString("kind")), role(rs),
 						approval == null ? null : MentorApprovalStatus.valueOf(approval), rs.getBoolean("locked"));
 			})
 			.optional()
@@ -366,6 +370,11 @@ class AccountAdministrations implements AccountAdministration {
 
 	private static String escapeLike(String text) {
 		return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+	}
+
+	private static @Nullable Role role(ResultSet rs) throws SQLException {
+		String role = rs.getString("role");
+		return role == null ? null : Role.valueOf(role);
 	}
 
 	private static @Nullable Instant instant(ResultSet rs, String column) throws SQLException {

@@ -12,14 +12,18 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * Runs when a sign-in starts at {@code /oauth2/authorization/github}. It keeps the route the SPA
- * wants to return to ({@code quay-lai}) in the session, but only a plain relative path, so a link can
- * never send a signed-in user to another site. When this environment has no sign-in OAuth App, it
- * sends the visitor back to PUB-2 with {@code loi=chua-thiet-lap} instead.
+ * Runs when a sign-in starts under {@code /oauth2/authorization/}. For the Google sign-in it keeps
+ * the route the SPA wants to return to ({@code quay-lai}) in the session, but only a plain relative
+ * path, so a link can never send a signed-in user to another site; when this environment has no
+ * Google client, it sends the visitor back to PUB-2 with {@code loi=chua-thiet-lap} instead. Any other
+ * start, the GitHub one of before Story 19.1 included, signs nobody in and returns to PUB-2 with
+ * {@code loi=that-bai}.
  */
 class SignInStartFilter extends OncePerRequestFilter {
 
-	static final String START_PATH = "/oauth2/authorization/" + GitHubSignIn.REGISTRATION_ID;
+	static final String AUTHORIZATION_PATH = "/oauth2/authorization/";
+
+	static final String START_PATH = AUTHORIZATION_PATH + GoogleSignIn.REGISTRATION_ID;
 
 	static final String RETURN_PARAMETER = "quay-lai";
 
@@ -33,12 +37,16 @@ class SignInStartFilter extends OncePerRequestFilter {
 
 	@Override
 	protected boolean shouldNotFilter(HttpServletRequest request) {
-		return !START_PATH.equals(request.getRequestURI());
+		return !request.getRequestURI().startsWith(AUTHORIZATION_PATH);
 	}
 
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
 			throws ServletException, IOException {
+		if (!START_PATH.equals(request.getRequestURI())) {
+			response.sendRedirect("/dang-nhap?loi=that-bai");
+			return;
+		}
 		if (!this.configured) {
 			response.sendRedirect("/dang-nhap?loi=chua-thiet-lap");
 			return;

@@ -10,14 +10,37 @@ import vn.vibefix.shared.Role;
 
 /**
  * An account row of {@code identity.account} (AD-19).
- * @param githubUserId GitHub's permanent numeric user ID; {@code null} for Administrators and once
- * erased
+ * @param kind a person's account or an Administrator's
+ * @param githubUserId GitHub's permanent numeric user ID; {@code null} for Administrators, for a
+ * Google account until Story 19.2 links GitHub, and once erased
+ * @param role the permanent role of an account from before Google sign-in, and an Administrator's;
+ * {@code null} for every Google account (Story 20.3 drops it)
  * @param mentorApprovalStatus set exactly for Mentors
+ * @param googleSub Google's subject, the key of a Google account; {@code null} for the others and once
+ * erased
+ * @param googleEmail the verified Google email read at the last sign-in
+ * @param googleName the Google name read at the last sign-in, shown when nothing else names the account
  * @param lockReason why the account is locked, {@code null} while it is not
  */
-record Account(UUID id, @Nullable Long githubUserId, @Nullable String githubLogin, @Nullable String githubAvatarUrl,
-		Role role, @Nullable MentorApprovalStatus mentorApprovalStatus, @Nullable Instant lockedAt,
+record Account(UUID id, Kind kind, @Nullable Long githubUserId, @Nullable String githubLogin,
+		@Nullable String githubAvatarUrl, @Nullable Role role, @Nullable MentorApprovalStatus mentorApprovalStatus,
+		@Nullable String googleSub, @Nullable String googleEmail, @Nullable String googleName, @Nullable Instant lockedAt,
 		@Nullable String lockReason, @Nullable Instant erasedAt, Instant createdAt) {
+
+	/** Whose account it is (Story 19.1); {@code shared.Caller} carries it from Story 20.1. */
+	enum Kind {
+
+		USER, ADMINISTRATOR
+
+	}
+
+	/** An account with a role and no Google identity: an Administrator's, or one from before Google sign-in. */
+	Account(UUID id, @Nullable Long githubUserId, @Nullable String githubLogin, @Nullable String githubAvatarUrl, Role role,
+			@Nullable MentorApprovalStatus mentorApprovalStatus, @Nullable Instant lockedAt, @Nullable String lockReason,
+			@Nullable Instant erasedAt, Instant createdAt) {
+		this(id, role == Role.ADMINISTRATOR ? Kind.ADMINISTRATOR : Kind.USER, githubUserId, githubLogin, githubAvatarUrl,
+				role, mentorApprovalStatus, null, null, null, lockedAt, lockReason, erasedAt, createdAt);
+	}
 
 	boolean isLocked() {
 		return this.lockedAt != null;
@@ -25,6 +48,11 @@ record Account(UUID id, @Nullable Long githubUserId, @Nullable String githubLogi
 
 	boolean isActive() {
 		return this.lockedAt == null && this.erasedAt == null;
+	}
+
+	/** The name to greet the account by: its Google name, else its GitHub login. */
+	@Nullable String displayName() {
+		return this.googleName != null && !this.googleName.isBlank() ? this.googleName : this.githubLogin;
 	}
 
 }

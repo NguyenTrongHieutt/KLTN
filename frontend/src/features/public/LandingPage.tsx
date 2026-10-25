@@ -1,9 +1,9 @@
-import { FlaskConical, Globe } from 'lucide-react'
-import { Link } from 'react-router'
+import { BriefcaseBusiness, FlaskConical, Globe, Package, Users } from 'lucide-react'
 import { PageHeading } from '@/app/PageHeading'
 import { usePageTitle } from '@/app/usePageTitle'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { TermHint, TermScope } from '@/components/TermHint'
+import { signInUrl } from '@/features/identity/api'
 import { rich } from '@/i18n/rich'
 import { t } from '@/i18n/t'
 import { cn } from '@/lib/utils'
@@ -11,15 +11,16 @@ import { cn } from '@/lib/utils'
 const STAGES = ['1', '2', '3', '4', '5', '6', '7'] as const
 
 const ROLES = [
-  { label: 'screen.public.landing.roleCustomer', body: 'screen.public.landing.roleCustomerBody', primary: true },
-  { label: 'screen.public.landing.roleMentor', body: 'screen.public.landing.roleMentorBody', primary: false },
-  { label: 'screen.public.landing.roleStudent', body: 'screen.public.landing.roleStudentBody', primary: false },
+  { label: 'screen.public.landing.roleCustomer', body: 'screen.public.landing.roleCustomerBody', icon: Package },
+  { label: 'screen.public.landing.roleMentor', body: 'screen.public.landing.roleMentorBody', icon: BriefcaseBusiness },
+  { label: 'screen.public.landing.roleCrew', body: 'screen.public.landing.roleCrewBody', icon: Users },
 ] as const
 
 /**
- * PUB-1, the landing page (FR-45, NFR-12, PRD §6.5 #2, UX-DR65): what vibefix does in plain
- * Vietnamese, the seven Stages, the test-money and public-code notices, and one way in for each role.
- * Every way in leads to sign-in, where the role is chosen once.
+ * PUB-1, the landing page (FR-45, NFR-12, PRD §6.5 #2, UX-DR65, UX-DR89): what vibefix does in plain
+ * Vietnamese, the seven Stages, the test-money and public-code notices, three cards that each explain
+ * one role, and one "Đăng nhập bằng Google" below them. One account holds every role, a role per Job,
+ * so the cards pick nothing.
  */
 export function LandingPage() {
   usePageTitle(t('screen.public.landing.title'))
@@ -98,24 +99,21 @@ export function LandingPage() {
           <h2 id="vai-tro" className="text-h2">
             {t('screen.public.landing.rolesHeading')}
           </h2>
-          <ul className="flex flex-col gap-3">
+          <p>{t('screen.public.landing.rolesLead')}</p>
+          <ul className="grid gap-3 md:grid-cols-3">
             {ROLES.map((role) => (
-              <li key={role.label}>
-                <Link
-                  to="/dang-nhap"
-                  className={cn(
-                    buttonVariants({ variant: role.primary ? 'primary' : 'secondary' }),
-                    'h-auto w-full flex-col items-start gap-0.5 py-3 text-start whitespace-normal',
-                  )}
-                >
-                  <span>{t(role.label)}</span>
-                  <span className={cn('text-body-sm font-normal', role.primary ? 'opacity-90' : 'text-muted-foreground')}>
-                    {t(role.body)}
-                  </span>
-                </Link>
+              <li key={role.label} className="flex gap-3 rounded-lg border border-border bg-card p-4">
+                <role.icon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-primary" />
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <h3 className="text-label font-semibold">{t(role.label)}</h3>
+                  <p className="text-body-sm text-muted-foreground">{t(role.body)}</p>
+                </div>
               </li>
             ))}
           </ul>
+          <a href={signInUrl()} className={cn(buttonVariants(), 'w-full md:w-auto md:self-start')}>
+            {t('screen.public.landing.signIn')}
+          </a>
         </section>
       </div>
     </TermScope>
