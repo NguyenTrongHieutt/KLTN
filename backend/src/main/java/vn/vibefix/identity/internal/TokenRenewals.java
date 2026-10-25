@@ -20,21 +20,22 @@ import vn.vibefix.notification.TodoRequest;
 import vn.vibefix.notification.Todos;
 
 /**
- * A Customer whose kept GitHub token is gone or refused (FR-13, author decision 2026-10-21): the
- * contributor check keeps failing closed, and the Customer is asked to sign in again with a to-do and a
- * notice, at most one notice a day. Both are written in their own transaction, so the refused command
- * that found the token unusable does not undo them. Signing in again stores a new token and closes the
- * to-do ({@link SignIns}).
+ * An account whose kept GitHub token is gone or refused at an AD-13 re-check (FR-13, FR-18, FR-37): the
+ * check keeps failing closed, and the account is asked to re-link GitHub with a to-do and a notice, at
+ * most one notice a day; ACC-2 then shows "Cần liên kết lại". Both are written in their own transaction,
+ * so the refused command that found the token unusable does not undo them. A re-link, which must return
+ * the same numeric GitHub ID, keeps a new token and closes the to-do ({@link GitHubLinksImpl}). This
+ * replaced "sign in again" in Story 19.2.
  */
 @Component
 class TokenRenewals {
 
-	static final String TODO = "identity.sign_in_again";
+	static final String TODO = "identity.relink_github";
 
-	static final String NOTICE = "identity.sign_in_again";
+	static final String NOTICE = "identity.relink_github";
 
-	/** The page that starts GitHub's sign-in again for a signed-in Customer. */
-	static final String LINK = "/dang-nhap-lai";
+	/** ACC-2, whose GitHub row re-links (UX-DR91). */
+	static final String LINK = "/ho-so/xac-minh";
 
 	private static final ZoneId VIETNAM = ZoneId.of("Asia/Ho_Chi_Minh");
 
@@ -51,17 +52,22 @@ class TokenRenewals {
 	}
 
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
-	void ask(UUID customerId) {
-		this.todos.open(new TodoRequest(TODO, customerId, Audience.SUBJECT, customerId, Map.of(), LINK, null, null));
+	void ask(UUID accountId) {
+		this.todos.open(new TodoRequest(TODO, accountId, Audience.SUBJECT, accountId, Map.of(), LINK, null, null));
 		LocalDate today = LocalDate.ofInstant(this.clock.instant(), VIETNAM);
 		this.notifications.send(new NotificationRequest(NOTICE,
-				UUID.nameUUIDFromBytes((customerId + ":sign-in-again:" + today).getBytes(StandardCharsets.UTF_8)),
-				List.of(new Recipient(customerId, Audience.SUBJECT)), Map.of(), LINK, null, customerId));
+				UUID.nameUUIDFromBytes((accountId + ":relink-github:" + today).getBytes(StandardCharsets.UTF_8)),
+				List.of(new Recipient(accountId, Audience.SUBJECT)), Map.of(), LINK, null, accountId));
 	}
 
-	/** A new token is kept: nothing is left to ask. */
-	void renewed(UUID customerId) {
-		this.todos.close(TODO, customerId, customerId);
+	/** GitHub was linked again: nothing is left to ask. */
+	void renewed(UUID accountId) {
+		this.todos.close(TODO, accountId, accountId);
+	}
+
+	/** Whether the account is asked to re-link: ACC-2's "Cần liên kết lại". */
+	boolean asked(UUID accountId) {
+		return this.todos.isOpen(TODO, accountId, accountId);
 	}
 
 }

@@ -60,8 +60,14 @@ class GrantRaiseOperation implements OperationHandler {
 		}
 		try {
 			PlatformRepositories repositories = this.repositories.getObject();
-			repositories.raise(grant.repository(), grant.login());
-			if (!"write".equals(repositories.role(grant.repository(), grant.login()))) {
+			// AD-10 "Logins by ID": the login GitHub uses now.
+			String login = this.grants.getObject().currentLogin(grant, repositories).orElse(null);
+			if (login == null) {
+				return new Outcome.Aborted("GITHUB_ACCOUNT_GONE");
+			}
+			this.grants.getObject().renamed(grant, login);
+			repositories.raise(grant.repository(), login);
+			if (!"write".equals(repositories.role(grant.repository(), login))) {
 				return new Outcome.Transient("WRITE_NOT_READ_BACK");
 			}
 		}

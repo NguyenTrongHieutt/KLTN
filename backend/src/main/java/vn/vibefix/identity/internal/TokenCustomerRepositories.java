@@ -11,13 +11,13 @@ import vn.vibefix.github.GitHubRepositories;
 import vn.vibefix.identity.CustomerRepositories;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
-import vn.vibefix.shared.Role;
 
 /**
- * {@link CustomerRepositories} with the Customer's kept sign-in token (AD-10, AD-13, AD-22): opened in
- * memory for the call, sealed with the account ID as associated data, never returned or logged. When a
- * repository read or the contributor check finds no token, or GitHub refuses it, the Customer is asked to
- * sign in again ({@link TokenRenewals}) and the check still fails closed.
+ * {@link CustomerRepositories} with the account's kept GitHub token (AD-10, AD-13, AD-22): opened in
+ * memory for the call, sealed with the account ID as associated data, never returned or logged. Any
+ * active account with a linked GitHub account qualifies, whatever it does in a Job (Story 19.2). When a
+ * repository read or the contributor check finds no token, or GitHub refuses it, the account is asked to
+ * re-link GitHub ({@link TokenRenewals}) and the check still fails closed.
  */
 @Component
 class TokenCustomerRepositories implements CustomerRepositories {
@@ -45,7 +45,7 @@ class TokenCustomerRepositories implements CustomerRepositories {
 			return new CustomerView(account.githubUserId(), this.repositories.read(token(customerId), owner, name));
 		}
 		catch (ApiException missing) {
-			// No kept token: the admin check before a Code Job starts cannot run until the next sign-in (AD-13).
+			// No kept token: the admin check before a Code Job starts cannot run until GitHub is re-linked (AD-13).
 			this.renewals.ask(customerId);
 			throw missing;
 		}
@@ -74,7 +74,7 @@ class TokenCustomerRepositories implements CustomerRepositories {
 			return this.repositories.contributorIds(token(customerId), owner, name).contains(githubId);
 		}
 		catch (ApiException missing) {
-			// No kept token: only the Customer's next sign-in can bring one (author decision 2026-10-21).
+			// No kept token: only a re-link can bring one (author decision 2026-10-21, Story 19.2).
 			this.renewals.ask(customerId);
 			throw missing;
 		}
@@ -89,14 +89,14 @@ class TokenCustomerRepositories implements CustomerRepositories {
 	@Override
 	public Optional<Long> githubUserId(UUID customerId) {
 		return this.accounts.findById(customerId)
-			.filter(found -> found.role() == Role.CUSTOMER && found.erasedAt() == null)
+			.filter(found -> found.kind() == Account.Kind.USER && found.erasedAt() == null)
 			.map(Account::githubUserId);
 	}
 
+	/** An active person's account with a linked GitHub account. */
 	private Account customer(UUID customerId) {
 		return this.accounts.findById(customerId)
-			.filter(found -> found.role() == Role.CUSTOMER && found.githubUserId() != null && !found.isLocked()
-					&& found.erasedAt() == null)
+			.filter(found -> found.kind() == Account.Kind.USER && found.githubUserId() != null && found.isActive())
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 	}
 

@@ -58,13 +58,33 @@ describe('route guards (AD-19, FR-74)', () => {
     expect(screen.getByRole('button', { name: 'Tài khoản của Nguyễn Thị Lan' })).toHaveTextContent('TL')
   })
 
-  it('leads the identity.link_github to-do to a placeholder until Story 19.2 builds ACC-2', async () => {
-    fakeBackend(signedInWithGoogle)
-    renderAt('/ho-so/xac-minh')
+  it("leads the identity.link_github to-do to ACC-2's GitHub row (C-8, Story 19.2)", { timeout: 15_000 }, async () => {
+    const user = userEvent.setup()
+    fakeBackend(signedInWithGoogle, {
+      'GET /api/v1/todos': () =>
+        json({
+          items: [
+            {
+              id: '00000000-0000-7000-8000-0000000000aa',
+              key: 'identity.link_github',
+              tier: 1,
+              params: {},
+              link: '/ho-so/xac-minh',
+              deadlineNear: false,
+              openedAt: '2026-10-25T00:00:00Z',
+            },
+          ],
+          total: 1,
+        }),
+    })
+    const router = renderAt('/viec-can-lam')
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Liên kết GitHub' })).toBeInTheDocument()
-    expect(screen.getByText('Việc liên kết tài khoản GitHub sẽ có trong phiên bản tiếp theo của vibefix.')).toBeInTheDocument()
-    expect(document.title).toBe('Liên kết GitHub · vibefix')
+    const list = await screen.findByRole('list', { name: 'Việc cần làm của bạn' })
+    await user.click(within(list).getByRole('link', { name: /Liên kết tài khoản GitHub/ }))
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Hồ sơ và xác minh' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/ho-so/xac-minh')
+    expect(await screen.findByRole('region', { name: 'GitHub' })).toHaveTextContent('Chưa liên kết')
   })
 
   it('keeps a Mentor that is not approved on MEN-5, with no other destination', async () => {

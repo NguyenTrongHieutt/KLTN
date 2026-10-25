@@ -1,0 +1,6 @@
+subject: Hãy liên kết lại GitHub để vibefix kiểm tra được kho mã của bạn
+---
+Xin chào,
+
+vibefix không còn đọc được kho mã của bạn trên GitHub, nên chưa kiểm tra được người chào giá hay bắt đầu công việc của bạn.
+Hãy mở vibefix, vào mục Xác minh và liên kết lại đúng tài khoản GitHub đã liên kết. Bạn không mất dữ liệu nào.

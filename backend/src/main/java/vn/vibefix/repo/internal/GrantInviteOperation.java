@@ -16,7 +16,9 @@ import vn.vibefix.repo.internal.JobGrants.Grant;
 
 /**
  * {@value JobGrants#INVITE} (AD-11): one invitation to the Working Repository, with read permission, as a
- * consequence operation that never takes the busy marker. A 204 means GitHub added an organization
+ * consequence operation that never takes the busy marker. The invitee's login is resolved from their
+ * numeric GitHub ID just before sending (AD-10 "Logins by ID"), so a renamed GitHub account is still the one
+ * invited; a GitHub account that is gone cannot be invited. A 204 means GitHub added an organization
  * member at once ({@code MEMBER_DRIFT}). Collaborators are looked up on use.
  */
 @Component
@@ -48,18 +50,26 @@ class GrantInviteOperation implements OperationHandler {
 		if (grant == null || grant.renewals() != round || !"INVITING".equals(grant.status())) {
 			return new Outcome.Obsolete("GRANT_MOVED_ON");
 		}
+		JobGrants grants = this.grants.getObject();
 		Invited invited;
 		try {
-			invited = this.repositories.getObject().invite(grant.repository(), grant.login());
+			PlatformRepositories repositories = this.repositories.getObject();
+			String login = grants.currentLogin(grant, repositories).orElse(null);
+			if (login == null) {
+				return new Outcome.Aborted("GITHUB_ACCOUNT_GONE");
+			}
+			grants.renamed(grant, login);
+			invited = repositories.invite(grant.repository(), login);
 		}
 		catch (GitHubException failed) {
 			return new Outcome.Transient(failed.status() == 0 ? "GITHUB_UNAVAILABLE" : "GITHUB_HTTP_" + failed.status());
 		}
+		Grant sent = grants.find(grant.id()).orElse(grant);
 		if (invited.memberDrift()) {
-			this.grants.getObject().drifted(grant);
+			grants.drifted(sent);
 		}
 		else {
-			this.grants.getObject().invited(grant, invited);
+			grants.invited(sent, invited);
 		}
 		return Outcome.succeeded();
 	}

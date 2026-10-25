@@ -1,5 +1,6 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { Check, CircleAlert, ExternalLink, GitFork, X } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
 import { z } from 'zod'
 import { PageHeading } from '@/app/PageHeading'
@@ -9,6 +10,8 @@ import { FormField } from '@/components/FormField'
 import { fieldProps, inputClass } from '@/components/formField-props'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
+import { GitHubGate } from '@/features/identity/GitHubGate'
+import { GITHUB_LINK_QUERY_KEY } from '@/features/identity/githubApi'
 import { useSession } from '@/features/identity/useSession'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t, type MessageKey } from '@/i18n/t'
@@ -43,10 +46,52 @@ type Details = z.input<typeof details>
 /** The outcome of the last repository check: passed, or refused with a reason. */
 type Checked = { kind: 'passed'; repository: RepositoryCheck } | { kind: 'refused'; reason: string; message: string }
 
+/** Where the GitHub gate returns, and where the wizard's unsent input waits meanwhile (UX-DR95). */
+const ROUTE = '/san-pham/moi'
+
+const DRAFT_KEY = 'vibefix.product.registration'
+
+/** What the wizard holds when the GitHub gate sends the browser to GitHub; the repository is checked again on return. */
+interface Draft {
+  step: number
+  tools: Tool[]
+  url: string
+  values: Details
+}
+
+function readDraft(): Draft | undefined {
+  try {
+    const stored = window.sessionStorage.getItem(DRAFT_KEY)
+    if (stored) {
+      const draft = JSON.parse(stored) as Draft
+      if (typeof draft.step === 'number' && Array.isArray(draft.tools) && typeof draft.url === 'string' && draft.values) {
+        return draft
+      }
+    }
+  } catch {
+    // A blocked or full storage only loses the draft.
+  }
+  return undefined
+}
+
+function writeDraft(draft: Draft | undefined) {
+  try {
+    if (draft) {
+      window.sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
+    } else {
+      window.sessionStorage.removeItem(DRAFT_KEY)
+    }
+  } catch {
+    // As above.
+  }
+}
+
 /**
  * CUS-3 (`/san-pham/moi`, FR-7, AD-13), a focused task route in four steps: the AI tool and how
  * to get its code onto GitHub; the repository with live checks; the name, description, and demo
- * link; and the three acknowledgments, after which the Product is registered and CUS-4 opens.
+ * link; and the three acknowledgments, after which the Product is registered and CUS-4 opens. The
+ * GitHub gate (UX-DR95, FR-80) replaces step 2's form until GitHub is linked with a kept token; the
+ * input waits in a `sessionStorage` draft while the browser is on GitHub, and comes back at step 2.
  */
 export function RegisterProductPage() {
   usePageTitle(t('screen.product.wizard.title'))
@@ -58,11 +103,14 @@ export function RegisterProductPage() {
 }
 
 function Wizard() {
-  const [step, setStep] = useState(1)
-  const [tools, setTools] = useState<Tool[]>([])
-  const [url, setUrl] = useState('')
+  const [draft] = useState(readDraft)
+  const [step, setStep] = useState(draft?.step ?? 1)
+  const [tools, setTools] = useState<Tool[]>(draft?.tools ?? [])
+  const [url, setUrl] = useState(draft?.url ?? '')
   const [checked, setChecked] = useState<Checked>()
-  const [values, setValues] = useState<Details>({ name: '', description: '', demoUrl: '' })
+  const [values, setValues] = useState<Details>(draft?.values ?? { name: '', description: '', demoUrl: '' })
+  // A draft comes back once: it is taken as the wizard opens.
+  useEffect(() => writeDraft(undefined), [])
 
   return (
     <div className="mx-auto flex max-w-[760px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
@@ -81,18 +129,26 @@ function Wizard() {
       </div>
       {step === 1 && <ToolStep tools={tools} onChange={setTools} onNext={() => setStep(2)} />}
       {step === 2 && (
-        <RepositoryStep
-          tool={tools[0]}
-          url={url}
-          checked={checked}
-          onUrl={(next) => {
-            setUrl(next)
-            setChecked(undefined)
-          }}
-          onChecked={setChecked}
+        <GitHubGate
+          action={t('screen.githubGate.action.registerProduct')}
+          returnTo={ROUTE}
+          needsRepositoryToken
+          onLeave={() => writeDraft({ step: 2, tools, url, values })}
           onBack={() => setStep(1)}
-          onNext={() => setStep(3)}
-        />
+        >
+          <RepositoryStep
+            tool={tools[0]}
+            url={url}
+            checked={checked}
+            onUrl={(next) => {
+              setUrl(next)
+              setChecked(undefined)
+            }}
+            onChecked={setChecked}
+            onBack={() => setStep(1)}
+            onNext={() => setStep(3)}
+          />
+        </GitHubGate>
       )}
       {step === 3 && <DetailsStep values={values} onChange={setValues} onBack={() => setStep(2)} onNext={() => setStep(4)} />}
       {step === 4 && (
@@ -200,6 +256,7 @@ function RepositoryStep({
   onNext: () => void
 }) {
   const check = useRepositoryCheck()
+  const queryClient = useQueryClient()
   const [checkedUrl, setCheckedUrl] = useState<string>()
 
   function run(value: string) {
@@ -212,7 +269,12 @@ function RepositoryStep({
       onSuccess: (repository) => onChecked({ kind: 'passed', repository }),
       onError: (error) => {
         const reason = error instanceof ApiError ? (error.problem.reason ?? '') : ''
-        onChecked({ kind: 'refused', reason, message: problemMessage(error, { module: 'product' }).text })
+        if (error instanceof ApiError && (error.problem.code === 'NOT_FOUND' || reason === 'GITHUB_NOT_LINKED')) {
+          // No usable token, or no link any more: the GitHub gate takes over the form again (AD-10).
+          void queryClient.invalidateQueries({ queryKey: GITHUB_LINK_QUERY_KEY })
+        }
+        const module = reason === 'GITHUB_NOT_LINKED' ? 'identity' : 'product'
+        onChecked({ kind: 'refused', reason, message: problemMessage(error, { module }).text })
       },
     })
   }

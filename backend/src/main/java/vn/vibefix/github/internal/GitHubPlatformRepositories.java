@@ -311,14 +311,40 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 	}
 
 	@Override
-	public Set<String> withoutTwoFactor() {
+	public Set<Long> collaboratorIds(PlatformRepository repository) {
+		return this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("administration", "write"), token -> {
+			Set<Long> ids = new HashSet<>();
+			for (JsonNode user : require(http().send("GET", "/repos/" + repository.fullName() + "/collaborators?per_page=100",
+					token.value(), null), "list the collaborators of " + repository.fullName())) {
+				if (user.path("id").isNumber()) {
+					ids.add(user.path("id").asLong());
+				}
+			}
+			return ids;
+		});
+	}
+
+	@Override
+	public Optional<String> login(long githubUserId) {
 		return this.apps.withUnnarrowed(App.PLATFORM, Unnarrowed.ORGANIZATION_READ, token -> {
-			Set<String> logins = new HashSet<>();
+			GitHubHttp.Answer answer = http().send("GET", "/user/" + githubUserId, token.value(), null);
+			if (answer.status() == 404) {
+				return Optional.empty();
+			}
+			String login = require(answer, "read the GitHub account " + githubUserId).path("login").asString("");
+			return login.isBlank() ? Optional.empty() : Optional.of(login);
+		});
+	}
+
+	@Override
+	public Map<Long, String> withoutTwoFactor() {
+		return this.apps.withUnnarrowed(App.PLATFORM, Unnarrowed.ORGANIZATION_READ, token -> {
+			Map<Long, String> users = new java.util.HashMap<>();
 			JsonNode list = require(http().send("GET",
 					"/orgs/" + organization() + "/outside_collaborators?filter=2fa_disabled&per_page=100", token.value(), null),
 					"list collaborators without two-factor authentication");
-			list.forEach(user -> logins.add(user.path("login").asString("").toLowerCase(Locale.ROOT)));
-			return logins;
+			list.forEach(user -> users.put(user.path("id").asLong(0), user.path("login").asString("").toLowerCase(Locale.ROOT)));
+			return users;
 		});
 	}
 

@@ -103,25 +103,33 @@ Accounts created before Story 19.1 carry a GitHub ID and no Google subject, so t
 sign in. Resetting the dev database removes them (an author action, not done by any story):
 `docker compose -f deploy/compose.yaml -f deploy/compose.integrations.yaml down -v`.
 
-## Signing in with GitHub locally
+## Linking GitHub locally
 
-Since Story 19.1 GitHub signs nobody in: `/oauth2/authorization/github` returns to PUB-2, and Story
-19.2 reuses this OAuth App to link GitHub to an account. Its two files
+GitHub signs nobody in (Story 19.1): `/oauth2/authorization/github` returns to PUB-2. Since Story
+19.2 a signed-in account links its GitHub account through this OAuth App, from ACC-2
+(`/ho-so/xac-minh`) or from the GitHub gate on CUS-3 step 2. Its two files
 `secrets/github-oauth-client-id` and `secrets/github-oauth-client-secret` stay mounted, and
-production still refuses to start without them.
+production still refuses to start without them. Without them, ACC-2 says linking is not set up.
 
 1. On GitHub, under the `vibefix-dev` organization's Settings › Developer settings › OAuth Apps (or
-   your own account's, while that organization does not exist yet), choose New OAuth App:
+   your own account's, while that organization does not exist yet), choose New OAuth App, or open
+   the existing dev app:
    - Homepage URL: `http://localhost:5173`
-   - Authorization callback URL: `http://localhost:5173/login/oauth2/code/github`
+   - Authorization callback URL: `http://localhost:5173/link/oauth2/code/github` (Vite forwards
+     `/link/oauth2` to the backend). **Author action for Story 19.2:** an app made before it has
+     `http://localhost:5173/login/oauth2/code/github` here; change it to the new address. An OAuth
+     App has one callback URL, and GitHub refuses a `redirect_uri` that is not that address or a
+     path under it.
 2. Copy the Client ID into `secrets/github-oauth-client-id`, then generate a client secret and copy
    it into `secrets/github-oauth-client-secret`. Write each value without a trailing newline (the
    files are read-only: `chmod 644` them first, and `chmod 444` after).
 3. Restart the backend: `docker compose -f deploy/compose.yaml up -d --force-recreate backend`.
 
-The app asks only for `read:user` and `user:email` (FR-1). vibefix keeps the token of a Customer
-only, encrypted with `secrets/identity-token-key-1`, which `dev-secrets.sh` creates; deleting that
-key makes every kept token unreadable.
+The app asks only for `read:user` and `user:email` (FR-80), with PKCE and a `state` bound to the
+session. vibefix keeps the token only for the owner of a live Product, or for a link started from
+CUS-3 step 2 (a first Product), encrypted with `secrets/identity-token-key-1`, which `dev-secrets.sh`
+creates; deleting that key makes every kept token unreadable. Deleting the last live Product deletes
+the token, and unlinking GitHub on ACC-2 also revokes the app's grant on GitHub.
 
 ## The first Administrator
 
@@ -192,7 +200,7 @@ the stack above it needs the dev Platform App, the dev Merge App, and the dev VN
 
 Story 1.14 asks whether a Customer's stored sign-in token sees `permissions.admin` on a repository
 owned by an organization (AD-13, S1). Only the author can run it, on GitHub, with the dev OAuth App
-registered ("Signing in with GitHub locally" above).
+registered ("Linking GitHub locally" above).
 
 1. In `vibefix-dev`, create four public test repositories:
    - one owned by your own GitHub user (`<you>/s1-user`);

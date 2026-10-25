@@ -18,7 +18,7 @@ import vn.vibefix.shared.ErrorCode;
  * {@link ProductSources} with the same rules as registration (AD-13): a user-owned repository passes on
  * its owner ID, an organization-owned one on {@code permissions.admin}. The repository is read by the
  * name it was registered with and must still carry the registered GitHub ID. A missing or refused token
- * blocks the start; {@code identity} has asked the Customer to sign in again.
+ * blocks the start; {@code identity} has asked the Customer to re-link GitHub.
  */
 @Component
 class SourceChecks implements ProductSources {
@@ -57,11 +57,11 @@ class SourceChecks implements ProductSources {
 			view = this.repositories.read(product.customerId(), owner[0], owner[1]);
 		}
 		catch (ApiException noToken) {
-			return Block.SIGN_IN_AGAIN;
+			return Block.RELINK_GITHUB;
 		}
 		catch (GitHubException refused) {
 			if (refused.status() == 401) {
-				return Block.SIGN_IN_AGAIN;
+				return Block.RELINK_GITHUB;
 			}
 			throw refused;
 		}
@@ -102,11 +102,11 @@ class SourceChecks implements ProductSources {
 			view = this.repositories.read(product.customerId(), owner[0], owner[1]);
 		}
 		catch (ApiException noToken) {
-			return result(Block.SIGN_IN_AGAIN, productId, product, product.defaultBranch());
+			return result(Block.RELINK_GITHUB, productId, product, product.defaultBranch());
 		}
 		catch (GitHubException refused) {
 			if (refused.status() == 401) {
-				return result(Block.SIGN_IN_AGAIN, productId, product, product.defaultBranch());
+				return result(Block.RELINK_GITHUB, productId, product, product.defaultBranch());
 			}
 			throw refused;
 		}

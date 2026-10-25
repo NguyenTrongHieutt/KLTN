@@ -34,6 +34,23 @@ export function signedIn(
   }
 }
 
+/**
+ * ACC-2's GitHub row (Story 19.2): by default a session with a GitHub username is linked, with its token
+ * kept and nothing keeping the link, and any other is not linked.
+ */
+export function gitHubLink(session: Session, overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  const linked = session.githubLogin !== undefined
+  return {
+    linked,
+    ...(linked ? { login: session.githubLogin, linkedAt: '2026-10-20T03:00:00Z' } : {}),
+    relinkNeeded: false,
+    repositoryTokenKept: linked,
+    blockers: [],
+    noticeVersion: '1.0',
+    ...overrides,
+  }
+}
+
 export function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -43,9 +60,9 @@ export function json(body: unknown, status = 200): Response {
 
 /**
  * Replaces `fetch` with a backend that answers `GET /api/v1/session` with `session` and any other
- * `METHOD /path` from `handlers`; the to-dos and notifications are empty and the verification is
- * `UNVERIFIED` unless a handler answers them, and an unknown request answers 404. Returns the
- * requests it saw.
+ * `METHOD /path` from `handlers`; the to-dos and notifications are empty, GitHub is as
+ * {@link gitHubLink} says, and the verification is `UNVERIFIED` unless a handler answers them, and an
+ * unknown request answers 404. Returns the requests it saw.
  */
 export function fakeBackend(session: Session, handlers: Record<string, Handler> = {}): Request[] {
   const seen: Request[] = []
@@ -72,6 +89,9 @@ export function fakeBackend(session: Session, handlers: Record<string, Handler> 
       }
       if (key === 'GET /api/v1/notifications') {
         return json({ items: [], page: 0, size: 20, total: 0 })
+      }
+      if (key === 'GET /api/v1/identity/github') {
+        return json(gitHubLink(session))
       }
       // A Student who has not verified yet.
       if (key === 'GET /api/v1/verification') {

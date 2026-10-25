@@ -68,7 +68,7 @@ class JobSetups {
 	/** Why a Setup stopped on something the Customer can fix (FR-18). */
 	enum Block {
 
-		INTAKE_FINDING_OPEN, SOURCE_NOT_PUBLIC, NO_ADMIN_PERMISSION, SIGN_IN_AGAIN
+		INTAKE_FINDING_OPEN, SOURCE_NOT_PUBLIC, NO_ADMIN_PERMISSION, RELINK_GITHUB
 
 	}
 
@@ -102,7 +102,7 @@ class JobSetups {
 	/** The plain reasons in {@value #START_BLOCKED}, which the Customer and the Mentor both read. */
 	private static final Map<Block, String> REASONS = Map.of(Block.SOURCE_NOT_PUBLIC, "dự án gốc không còn công khai",
 			Block.NO_ADMIN_PERMISSION, "tài khoản GitHub của khách hàng không còn quyền quản trị dự án gốc",
-			Block.SIGN_IN_AGAIN, "khách hàng cần đăng nhập lại để vibefix kiểm tra dự án gốc");
+			Block.RELINK_GITHUB, "khách hàng cần liên kết lại GitHub để vibefix kiểm tra dự án gốc");
 
 	private static final String COLUMNS = """
 			id, job_id, product_id, status, blocked_reason, open_findings, scan_run_id, source_full_name, default_branch,

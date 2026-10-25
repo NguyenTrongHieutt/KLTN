@@ -44,7 +44,7 @@ done
 
 # The client IDs and secrets of the dev Google sign-in client (FR-1, Story 19.1) and of the dev
 # GitHub OAuth App (AD-10, linked from Story 19.2). They cannot be generated: register each app
-# (deploy/README.md, "Signing in with Google locally" and "Signing in with GitHub locally") and
+# (deploy/README.md, "Signing in with Google locally" and "Linking GitHub locally") and
 # paste its values into these files. Until then they are empty, and PUB-2 says sign-in is not set
 # up. Existing files are kept, even with --force.
 for name in github-oauth-client-id github-oauth-client-secret google-oauth-client-id google-oauth-client-secret; do

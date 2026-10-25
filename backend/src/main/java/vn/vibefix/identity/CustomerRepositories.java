@@ -7,8 +7,8 @@ import java.util.UUID;
 import vn.vibefix.github.GitHubRepositories.RepositoryMetadata;
 
 /**
- * GitHub repositories as a Customer sees them (AD-13): read with the Customer's kept sign-in token,
- * which never leaves {@code identity}. The Product intake decides admin rights from what this returns.
+ * GitHub repositories as a Customer sees them (AD-13): read with the Customer's kept GitHub token, kept
+ * from linking for the owner of a live Product (AD-10), which never leaves {@code identity}. The Product intake decides admin rights from what this returns.
  */
 public interface CustomerRepositories {
 
@@ -20,8 +20,8 @@ public interface CustomerRepositories {
 	}
 
 	/**
-	 * @throws vn.vibefix.shared.ApiException {@code NOT_FOUND} for an account that is not a Customer
-	 * with a kept token
+	 * @throws vn.vibefix.shared.ApiException {@code NOT_FOUND} for an account that is not active with a
+	 * linked GitHub account and a kept token
 	 * @throws vn.vibefix.github.GitHubException when GitHub refuses or cannot be reached
 	 */
 	CustomerView read(UUID customerId, String owner, String name);
@@ -44,7 +44,7 @@ public interface CustomerRepositories {
 	/**
 	 * The Customer's numeric GitHub user ID, with no GitHub call (AD-10): a Merge App installation made
 	 * without the Customer on the page binds only when its requester or sender is this account.
-	 * @return empty for an account that is not a Customer, or an erased one
+	 * @return empty for an Administrator, an erased account, or one with no linked GitHub account
 	 */
 	Optional<Long> githubUserId(UUID customerId);
 

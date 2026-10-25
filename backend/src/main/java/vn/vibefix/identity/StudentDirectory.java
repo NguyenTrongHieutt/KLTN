@@ -20,6 +20,8 @@ public interface StudentDirectory {
 
 	/**
 	 * A Student's public card.
+	 * @param githubUserId the linked GitHub account's permanent numeric ID, by which {@code repo} grants
+	 * and recognizes the Student (AD-10 "Logins by ID"); {@code null} while GitHub is not linked
 	 * @param name the Student's name, only while they show it
 	 * @param school the Student's school, only while they show it
 	 * @param yearOfStudy the year of study, only while they show their name and school
@@ -27,7 +29,8 @@ public interface StudentDirectory {
 	 * @param verifiedUntil the last day of the verification, if they ever verified
 	 * @param available an unlocked, unerased account
 	 */
-	record StudentCard(UUID accountId, @Nullable String githubLogin, @Nullable String name, @Nullable String school,
+	record StudentCard(UUID accountId, @Nullable String githubLogin, @Nullable Long githubUserId, @Nullable String name,
+			@Nullable String school,
 			@Nullable Integer yearOfStudy, List<String> skills, boolean verified, @Nullable LocalDate verifiedUntil,
 			boolean available) {
 

@@ -40,7 +40,7 @@ import vn.vibefix.shared.KeywordQuery;
 class JdbcStudentDirectory implements StudentDirectory {
 
 	private static final String COLUMNS = """
-			a.id, a.github_login, a.locked_at IS NULL AND a.erased_at IS NULL AS available,
+			a.id, a.github_login, a.github_user_id, a.locked_at IS NULL AND a.erased_at IS NULL AS available,
 			p.real_name, p.school, p.year_of_study, coalesce(p.show_name_and_school, FALSE) AS shown,
 			coalesce(p.skill_ids, '{}') AS skill_ids, v.valid_until
 			""";
@@ -56,7 +56,7 @@ class JdbcStudentDirectory implements StudentDirectory {
 			""";
 
 	/** One row before its Skill IDs are named. */
-	private record Row(UUID id, @Nullable String login, boolean available, @Nullable String name,
+	private record Row(UUID id, @Nullable String login, @Nullable Long githubUserId, boolean available, @Nullable String name,
 			@Nullable String school, @Nullable Integer year, boolean shown, List<UUID> skillIds,
 			@Nullable LocalDate verifiedUntil) {
 	}
@@ -160,7 +160,7 @@ class JdbcStudentDirectory implements StudentDirectory {
 		}
 		LocalDate today = today();
 		return rows.stream()
-			.map(row -> new StudentCard(row.id(), row.login(), row.shown() ? row.name() : null,
+			.map(row -> new StudentCard(row.id(), row.login(), row.githubUserId(), row.shown() ? row.name() : null,
 					row.shown() ? row.school() : null, row.shown() ? row.year() : null,
 					row.skillIds().stream().map(names::get).filter(name -> name != null).toList(),
 					row.verifiedUntil() != null && !today.isAfter(row.verifiedUntil()), row.verifiedUntil(),
@@ -173,7 +173,8 @@ class JdbcStudentDirectory implements StudentDirectory {
 	}
 
 	private static Row row(ResultSet rs, int n) throws SQLException {
-		return new Row(rs.getObject("id", UUID.class), rs.getString("github_login"), rs.getBoolean("available"),
+		return new Row(rs.getObject("id", UUID.class), rs.getString("github_login"), rs.getObject("github_user_id", Long.class),
+				rs.getBoolean("available"),
 				rs.getString("real_name"), rs.getString("school"), (Integer) rs.getObject("year_of_study", Integer.class),
 				rs.getBoolean("shown"), uuids(rs.getArray("skill_ids")), rs.getObject("valid_until", LocalDate.class));
 	}

@@ -6,7 +6,7 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * The Source Repository checked again before a Code Job starts (FR-18, AD-13): still the registered
- * repository, still public, and still administered by the Customer, read with their kept sign-in token.
+ * repository, still public, and still administered by the Customer, read with their kept GitHub token.
  */
 public interface ProductSources {
 
@@ -19,8 +19,8 @@ public interface ProductSources {
 		/** The Customer no longer administers it. */
 		NO_ADMIN_PERMISSION,
 
-		/** The Customer's kept token is missing or refused: they are asked to sign in again. */
-		SIGN_IN_AGAIN
+		/** The Customer's kept token is missing or refused: they are asked to re-link GitHub (AD-10). */
+		RELINK_GITHUB
 
 	}
 

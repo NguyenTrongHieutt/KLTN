@@ -36,8 +36,10 @@ import vn.vibefix.shared.ErrorCode;
  * <li>CSRF is cookie-to-header for the SPA ({@code XSRF-TOKEN} / {@code X-XSRF-TOKEN}).</li>
  * <li>Spring's header writers are off: {@code SecurityHeadersFilter} is the one source (AD-21).</li>
  * <li>Refusals are Problem Details ({@link SecurityProblems}).</li>
- * <li>Only the {@code google} registration logs in. GitHub signs nobody in since Story 19.1; Story 19.2
- * links it.</li>
+ * <li>Only the {@code google} registration logs in. GitHub signs nobody in since Story 19.1: a signed-in
+ * account links it, and its callback {@value GitHubSignIn#CALLBACK_PATH} is a plain controller that no
+ * Spring login filter handles, so linking never replaces the session's authentication
+ * ({@link GitHubLinkController}).</li>
  * </ul>
  */
 @Configuration(proxyBeanMethods = false)

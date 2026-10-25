@@ -403,7 +403,8 @@ class JobSetupIT extends IntegrationTest {
 		assertThat(GITHUB.closedPulls).containsExactlyInAnyOrder(intermediary + "#1", working + "#3");
 		assertThat(notices("github.unexpected_actor")).as("an outsider's pull request on the Working Repository is not alerted")
 			.isOne();
-		this.guard.hinted(webhook("push", workingId, TeamTestSupport.login(this.jdbc, this.crew)));
+		this.guard.hinted(webhook("push", workingId, TeamTestSupport.login(this.jdbc, this.crew),
+				CustomerTokens.githubUserId(this.jdbc, this.crew)));
 		assertThat(notices("github.unexpected_actor")).as("a grantee pushes freely").isOne();
 		this.guard.hinted(webhook("push", workingId, "mallory"));
 		assertThat(notices("github.unexpected_actor")).isEqualTo(2);
@@ -611,8 +612,86 @@ class JobSetupIT extends IntegrationTest {
 	}
 
 	private static vn.vibefix.github.GitHubWebhookReceived webhook(String event, long repository, String login) {
+		return webhook(event, repository, login, 1L);
+	}
+
+	private static vn.vibefix.github.GitHubWebhookReceived webhook(String event, long repository, String login,
+			long senderId) {
 		return new vn.vibefix.github.GitHubWebhookReceived(UUID.randomUUID(), UUID.randomUUID().toString(),
-				vn.vibefix.github.GitHubApps.App.PLATFORM, event, "opened", 7L, List.of(repository), 1L, null, login);
+				vn.vibefix.github.GitHubApps.App.PLATFORM, event, "opened", 7L, List.of(repository), senderId, null, login);
+	}
+
+	/**
+	 * AD-10 "Logins by ID" (Story 19.2): a Crew member renamed their GitHub account, and vibefix still holds
+	 * the old login. The invitation goes to the login resolved from the ID just before it is sent, the
+	 * acceptance is matched by ID, the raise names the new login, and the webhook sender is recognized by
+	 * ID whatever login it carries.
+	 */
+	@Test
+	void aGranteeWhoRenamedTheirGitHubAccountIsInvitedRecognizedAndRaisedByTheirId() throws Exception {
+		AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		long crewId = CustomerTokens.githubUserId(this.jdbc, this.crew);
+		String oldLogin = TeamTestSupport.login(this.jdbc, this.crew);
+		GITHUB.logins.put(crewId, "thao-vy-moi");
+		try {
+			j6();
+			run();
+			this.worker.runDue(Lane.GITHUB_SHORT);
+
+			JobGrants.Grant invited = crewGrant();
+			assertThat(invited.status()).isEqualTo("INVITED");
+			assertThat(invited.githubUserId()).isEqualTo(crewId);
+			assertThat(invited.login()).as("resolved from the ID just before the invitation").isEqualTo("thao-vy-moi");
+			assertThat(GITHUB.seen).anyMatch(seen -> seen.method().equals("GET") && seen.path().equals("/user/" + crewId));
+			assertThat(GITHUB.seen).as("nobody invites the old login")
+				.noneMatch(seen -> seen.method().equals("PUT") && seen.path().endsWith("/collaborators/" + oldLogin));
+			assertThat(this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE action = 'repo.grant_login_renamed'")
+				.query(Long.class).single()).isOne();
+
+			GITHUB.accept(TeamTestSupport.login(this.jdbc, this.mentor));
+			GITHUB.accept("thao-vy-moi");
+			this.checks.check(this.job);
+			this.worker.runDue(Lane.GITHUB_SHORT);
+
+			assertThat(this.busy.job(this.job).orElseThrow().state()).as("the acceptance was matched by ID").isEqualTo("ACTIVE");
+			assertThat(this.grants.ofJob(this.job)).extracting(JobGrants.Grant::status).containsOnly("WRITE");
+
+			long workingId = GITHUB.organizationRepositoryId(JobSetups.workingName(this.job));
+			this.guard.hinted(webhook("push", workingId, "thao-vy-moi", crewId));
+			this.guard.hinted(webhook("push", workingId, oldLogin, crewId));
+			assertThat(notices("github.unexpected_actor")).as("the sender is recognized by ID").isZero();
+			this.guard.hinted(webhook("push", workingId, oldLogin, crewId + 1_000_000));
+			assertThat(notices("github.unexpected_actor")).as("an old login under another ID is a stranger").isOne();
+			awaitListeners();
+		}
+		finally {
+			GITHUB.logins.remove(crewId);
+		}
+	}
+
+	/** A grant from before Story 19.2 has no ID: it takes its account's while the login still matches. */
+	@Test
+	void aGrantWithoutAGitHubIdTakesItsAccountsWhileTheLoginMatches() throws Exception {
+		j6();
+		run();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		this.jdbc.sql("UPDATE repo.job_grant SET github_user_id = NULL WHERE job_id = :job").param("job", this.job).update();
+		this.jdbc.sql("UPDATE repo.job_grant SET github_login = 'someone-else' WHERE account_id = :mentor")
+			.param("mentor", this.mentor).update();
+
+		GITHUB.accept(TeamTestSupport.login(this.jdbc, this.crew));
+		this.checks.check(this.job);
+
+		assertThat(crewGrant().githubUserId()).isEqualTo(CustomerTokens.githubUserId(this.jdbc, this.crew));
+		assertThat(crewGrant().status()).isEqualTo("ACCEPTED");
+		JobGrants.Grant mentor = this.grants.ofJob(this.job).stream().filter(grant -> grant.accountId().equals(this.mentor))
+			.findFirst().orElseThrow();
+		assertThat(mentor.githubUserId()).as("a login that no longer matches is not trusted").isNull();
+	}
+
+	private JobGrants.Grant crewGrant() {
+		return this.grants.ofJob(this.job).stream().filter(grant -> grant.accountId().equals(this.crew)).findFirst()
+			.orElseThrow();
 	}
 
 	@Test

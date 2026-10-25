@@ -19,10 +19,13 @@ public interface MentorDirectory {
 
 	/**
 	 * A Mentor's public card.
+	 * @param githubUserId the linked GitHub account's permanent numeric ID, by which {@code repo} grants
+	 * and recognizes the Mentor (AD-10 "Logins by ID"); {@code null} while GitHub is not linked
 	 * @param skills the Skills' current names, in the Mentor's order
 	 * @param available approved and unlocked: a revoked or locked Mentor takes no new work (FR-74)
 	 */
-	record MentorCard(UUID accountId, @Nullable String githubLogin, String displayName, int yearsOfExperience,
+	record MentorCard(UUID accountId, @Nullable String githubLogin, @Nullable Long githubUserId, String displayName,
+			int yearsOfExperience,
 			List<String> skills, boolean available) {
 
 		public MentorCard {

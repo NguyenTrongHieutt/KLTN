@@ -15,9 +15,12 @@
  * {@link vn.vibefix.identity.AccountLocked}, the public profile searches
  * {@link vn.vibefix.identity.StudentDirectory} and {@link vn.vibefix.identity.MentorDirectory},
  * {@link vn.vibefix.identity.CustomerRepositories} (repositories read with a Customer's kept token),
- * {@link vn.vibefix.identity.Administrators}, {@link vn.vibefix.identity.Notices}, and
- * {@link vn.vibefix.identity.CustomerNames}. Sign-in, sessions, and the HTTP endpoints are
- * wiring in {@code identity.internal}.
+ * {@link vn.vibefix.identity.Administrators}, {@link vn.vibefix.identity.Notices},
+ * {@link vn.vibefix.identity.CustomerNames}, and the GitHub link (Story 19.2): the gate of the commands that
+ * create work {@link vn.vibefix.identity.GitHubGate}, {@link vn.vibefix.identity.GitHubLinks}, and the port
+ * {@link vn.vibefix.identity.GitHubLinkParticipant} with {@link vn.vibefix.identity.GitHubLinkBlocker}, which
+ * {@code product}, {@code job}, and {@code matching} implement so that {@code identity} depends on none of
+ * them. Sign-in, linking, sessions, and the HTTP endpoints are wiring in {@code identity.internal}.
  */
 @ApplicationModule(allowedDependencies = { "shared", "audit", "files", "settings", "catalog", "github", "timers",
 		"notification", "operations" })

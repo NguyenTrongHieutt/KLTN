@@ -85,6 +85,8 @@ class IdentityPersonalData implements PersonalDataParticipant {
 			if (account.githubUserId() != null) {
 				data.put("githubUserId", account.githubUserId());
 			}
+			// When GitHub was linked (Story 19.2): ACC-2's "Xác minh qua GitHub · {tháng/năm}".
+			this.accounts.gitHubLinkedAt(accountId).ifPresent(at -> data.put("githubLinkedAt", at.toString()));
 			this.accounts.gitHubEmail(accountId).ifPresent(email -> data.put("githubEmail", email));
 			data.put("createdAt", account.createdAt().toString());
 			data.put("acknowledgments", this.jdbc.sql("""
@@ -230,7 +232,7 @@ class IdentityPersonalData implements PersonalDataParticipant {
 		this.jdbc.sql("""
 				UPDATE identity.account
 				SET github_user_id = NULL, github_login = NULL, github_avatar_url = NULL, github_email = NULL,
-				    google_sub = NULL, google_email = NULL, google_name = NULL, erased_at = :at
+				    github_linked_at = NULL, google_sub = NULL, google_email = NULL, google_name = NULL, erased_at = :at
 				WHERE id = :id
 				""").param("id", accountId).param("at", Timestamp.from(erasedAt)).update();
 		// The person-link signals outlive the account (AD-19, AD-24): deleted 24 months from now.

@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.shared.Role;
 
-/** Reads and writes {@code identity.account}, {@code identity.acknowledgment}, and the Customer token. */
+/** Reads and writes {@code identity.account}, {@code identity.acknowledgment}, and the kept GitHub token. */
 @Component
 class Accounts {
 
@@ -97,25 +97,53 @@ class Accounts {
 			.update();
 	}
 
-	/** A sign-in refreshes the GitHub login and avatar, which may have changed since the last one. */
-	void recordSignIn(UUID id, String githubLogin, @Nullable String githubAvatarUrl, Instant at) {
+	/**
+	 * Links the GitHub account, or refreshes the linked one (FR-80): its numeric ID, the current login and
+	 * avatar, and the time. The primary verified email replaces the one on file only when GitHub gave one.
+	 * @throws org.springframework.dao.DuplicateKeyException when another account holds the ID meanwhile
+	 */
+	void linkGitHub(UUID id, long githubUserId, String githubLogin, @Nullable String githubAvatarUrl,
+			@Nullable String githubEmail, Instant at) {
 		this.jdbc.sql("""
-				UPDATE identity.account SET github_login = :login, github_avatar_url = :avatar, signed_in_at = :at
+				UPDATE identity.account
+				SET github_user_id = :githubUserId, github_login = :login, github_avatar_url = :avatar,
+				    github_email = coalesce(:email, github_email), github_linked_at = :at
 				WHERE id = :id
 				""")
 			.param("id", id)
+			.param("githubUserId", githubUserId)
 			.param("login", githubLogin)
 			.param("avatar", githubAvatarUrl)
+			.param("email", githubEmail)
 			.param("at", Timestamp.from(at))
 			.update();
 	}
 
-	/** The GitHub primary verified email, where notifications went before Google sign-in (FR-48). */
-	void recordGitHubEmail(UUID id, String email) {
-		this.jdbc.sql("UPDATE identity.account SET github_email = :email WHERE id = :id")
+	/** Removes the GitHub link and its public facts at once (FR-80); the person-link signals stay (AD-24). */
+	void unlinkGitHub(UUID id) {
+		this.jdbc.sql("""
+				UPDATE identity.account
+				SET github_user_id = NULL, github_login = NULL, github_avatar_url = NULL, github_email = NULL,
+				    github_linked_at = NULL
+				WHERE id = :id
+				""").param("id", id).update();
+	}
+
+	/** When GitHub was last linked or re-linked, while it is linked. */
+	Optional<Instant> gitHubLinkedAt(UUID id) {
+		return this.jdbc.sql("SELECT github_linked_at FROM identity.account WHERE id = :id")
 			.param("id", id)
-			.param("email", email)
-			.update();
+			.query((row, number) -> Optional.ofNullable(instant(row, "github_linked_at")))
+			.optional()
+			.flatMap(at -> at);
+	}
+
+	/** Locks the account's row for a link change, so two of them never interleave. */
+	Optional<Account> lockForLink(UUID id) {
+		return this.jdbc.sql("SELECT * FROM identity.account WHERE id = :id FOR UPDATE")
+			.param("id", id)
+			.query(Accounts::row)
+			.optional();
 	}
 
 	/** The GitHub primary verified email on file, if any. */
@@ -174,7 +202,7 @@ class Accounts {
 			.single();
 	}
 
-	/** Stores or replaces the Customer's sealed sign-in token (AD-22, SG-9). */
+	/** Stores or replaces the account's sealed GitHub token (AD-22, SG-9); the table keeps its first name. */
 	void storeCustomerToken(UUID accountId, TokenCipher.Sealed sealed, Instant at) {
 		this.jdbc.sql("""
 				INSERT INTO identity.customer_token (account_id, key_version, nonce, ciphertext, stored_at)
@@ -189,6 +217,11 @@ class Accounts {
 			.param("ciphertext", sealed.ciphertext())
 			.param("at", Timestamp.from(at))
 			.update();
+	}
+
+	/** Deletes the account's kept GitHub token, if any. */
+	void deleteCustomerToken(UUID accountId) {
+		this.jdbc.sql("DELETE FROM identity.customer_token WHERE account_id = :id").param("id", accountId).update();
 	}
 
 	Optional<TokenCipher.Sealed> customerToken(UUID accountId) {

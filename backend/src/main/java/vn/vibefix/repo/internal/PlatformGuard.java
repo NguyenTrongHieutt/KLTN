@@ -147,7 +147,10 @@ class PlatformGuard {
 		}
 	}
 
-	/** AD-12: the sender must be the bot or someone granted on the repository; the operator account always alerts. */
+	/**
+	 * AD-12: the sender must be the bot or someone granted on the repository, matched by the sender's numeric
+	 * GitHub ID (AD-10 "Logins by ID"); the operator account always alerts.
+	 */
 	private void actor(GitHubWebhookReceived event, PlatformRepo repo) {
 		if (event.senderLogin() == null) {
 			return;
@@ -162,7 +165,7 @@ class PlatformGuard {
 			audit("repo.operator_account_used", repo.jobId());
 			return;
 		}
-		boolean granted = !repo.intermediary() && grantees(repo.jobId()).contains(login);
+		boolean granted = !repo.intermediary() && granted(repo.jobId(), event.senderId(), login);
 		if (granted || (!repo.intermediary() && "pull_request".equals(event.event()))) {
 			// SG-16: an outsider's pull request on a public Working Repository is closed and logged only.
 			return;
@@ -301,6 +304,24 @@ class PlatformGuard {
 			}
 		}
 		return repos;
+	}
+
+	/**
+	 * Whether the sender holds a grant on the Job: by numeric GitHub ID, or by login for a grant whose ID is
+	 * unknown (one from before Story 19.2 whose account no longer matches) or an event without a sender ID.
+	 */
+	private boolean granted(UUID jobId, @Nullable Long senderId, String senderLogin) {
+		for (Grant grant : this.grants.ofJob(jobId)) {
+			if ("REVOKED".equals(grant.status())) {
+				continue;
+			}
+			Long id = this.grants.githubUserId(grant);
+			if (id != null && senderId != null ? id.equals(senderId)
+					: grant.login().toLowerCase(Locale.ROOT).equals(senderLogin)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private Set<String> grantees(UUID jobId) {

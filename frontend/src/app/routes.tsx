@@ -28,17 +28,18 @@ export const routes: RouteObject[] = [
         }),
       },
       {
+        // The sign-in-again page of before Story 19.2: re-linking GitHub happens on ACC-2 now (AD-10).
         path: 'dang-nhap-lai',
-        lazy: async () => ({ Component: (await import('@/features/identity/SignInAgainPage')).SignInAgainPage }),
+        element: <Navigate to="/ho-so/xac-minh" replace />,
       },
       {
         path: 'ho-so',
         lazy: async () => ({ Component: (await import('@/features/identity/ProfileStub')).ProfileStub }),
       },
       {
-        // Where the identity.link_github to-do leads; Story 19.2 builds ACC-2 here.
+        // ACC-2, where the identity.link_github and identity.relink_github to-dos lead (Story 19.2).
         path: 'ho-so/xac-minh',
-        lazy: async () => ({ Component: (await import('@/features/identity/LinkGitHubPage')).LinkGitHubPage }),
+        lazy: async () => ({ Component: (await import('@/features/identity/VerificationPage')).VerificationPage }),
       },
       {
         path: 'tai-khoan/du-lieu',

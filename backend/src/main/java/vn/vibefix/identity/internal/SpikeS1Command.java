@@ -122,7 +122,7 @@ class SpikeS1Command implements ApplicationRunner, ExitCodeGenerator {
 		Optional<TokenCipher.Sealed> sealed = customer.flatMap(this.accounts::customerToken);
 		if (sealed.isEmpty()) {
 			this.err.println("Refused: no Customer " + logins.getFirst()
-					+ " with a stored sign-in token; sign in on the dev stack as that Customer first");
+					+ " with a stored GitHub token; link GitHub from CUS-3 step 2 on the dev stack as that Customer first");
 			this.exitCode = 1;
 			return;
 		}

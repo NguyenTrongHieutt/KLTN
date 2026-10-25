@@ -7,9 +7,14 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
+import vn.vibefix.identity.GitHubLinkBlocker;
+import vn.vibefix.identity.GitHubLinkParticipant;
+import vn.vibefix.job.JobPosts;
+import vn.vibefix.job.JobPosts.JobPostState;
 import vn.vibefix.shared.ErasureBlocker;
 import vn.vibefix.shared.PersonalDataParticipant;
 import vn.vibefix.shared.PersonalDataSection;
@@ -20,14 +25,20 @@ import vn.vibefix.shared.PersonalDataSection;
  * received; erasing a Mentor or a Customer deletes the Applications and invitations they made or
  * received, and deleting a Product deletes those to its Jobs. A running Job blocks erasure through
  * {@code job}.
+ * <p>
+ * It also answers for the GitHub link (FR-80, R14): an open bid keeps it, since the Customer's contributor
+ * check knows the Mentor by their GitHub ID.
  */
 @Component
-class MatchingPersonalData implements PersonalDataParticipant {
+class MatchingPersonalData implements PersonalDataParticipant, GitHubLinkParticipant {
 
 	private final JdbcClient jdbc;
 
-	MatchingPersonalData(JdbcClient jdbc) {
+	private final ObjectProvider<JobPosts> posts;
+
+	MatchingPersonalData(JdbcClient jdbc, ObjectProvider<JobPosts> posts) {
 		this.jdbc = jdbc;
+		this.posts = posts;
 	}
 
 	@Override
@@ -107,6 +118,22 @@ class MatchingPersonalData implements PersonalDataParticipant {
 	@Override
 	public List<ErasureBlocker> erasureBlockers(UUID accountId) {
 		return List.of();
+	}
+
+	/** Each Application of the Mentor still waiting for the Customer's choice: submitted, or on hold. */
+	@Override
+	public List<GitHubLinkBlocker> githubLinkBlockers(UUID accountId) {
+		return this.jdbc.sql("""
+				SELECT job_id FROM matching.application WHERE mentor_account_id = :id AND status IN ('SUBMITTED', 'ON_HOLD')
+				ORDER BY submitted_at, id
+				""")
+			.param("id", accountId)
+			.query(UUID.class)
+			.list()
+			.stream()
+			.map(job -> new GitHubLinkBlocker("matching", "OPEN_BID", job,
+					this.posts.getObject().post(job).map(JobPostState::title).orElse("")))
+			.toList();
 	}
 
 }

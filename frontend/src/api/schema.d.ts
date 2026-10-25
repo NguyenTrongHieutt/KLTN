@@ -1940,6 +1940,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/identity/github": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["read_2"];
+        put?: never;
+        post?: never;
+        delete: operations["unlink"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/identity/github/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["start"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jobs": {
         parameters: {
             query?: never;
@@ -5664,6 +5696,33 @@ export interface components {
             title: string;
             /** Format: int64 */
             topUpVnd: number;
+        };
+        GitHubLinkBlockerView: {
+            module: string;
+            name: string;
+            reason: string;
+            /** Format: uuid */
+            subjectId: string;
+        };
+        GitHubLinkRequest: {
+            noticeVersion: string;
+            /** @enum {string} */
+            purpose: "PROFILE" | "PRODUCT";
+            returnTo?: string;
+        };
+        GitHubLinkStartView: {
+            authorizationUrl: string;
+        };
+        GitHubLinkView: {
+            avatarUrl?: string;
+            blockers: components["schemas"]["GitHubLinkBlockerView"][];
+            linked: boolean;
+            /** Format: date-time */
+            linkedAt?: string;
+            login?: string;
+            noticeVersion: string;
+            relinkNeeded: boolean;
+            repositoryTokenKept: boolean;
         };
         HandoverCheckRequest: {
             comment?: string;
@@ -11279,6 +11338,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DeliveryReportView"];
+                };
+            };
+        };
+    };
+    read_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitHubLinkView"];
+                };
+            };
+        };
+    };
+    unlink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    start: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GitHubLinkRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitHubLinkStartView"];
                 };
             };
         };

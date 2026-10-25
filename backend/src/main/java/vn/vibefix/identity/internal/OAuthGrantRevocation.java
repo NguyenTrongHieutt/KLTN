@@ -14,10 +14,10 @@ import vn.vibefix.operations.OperationRun;
 import vn.vibefix.operations.Outcome;
 
 /**
- * {@value #TYPE} (SG-9, NFR-11): after an erased Customer's deletion, the sign-in OAuth App's grant is revoked
- * with the token they last signed in with. The token rides sealed as the operation's personal data, opened in
- * memory with the account ID as associated data, and purged when the operation completes. Without the App's
- * credentials (an environment that has none) there is nothing to revoke.
+ * {@value #TYPE} (SG-9, NFR-11, FR-80): after an account's deletion, or when its owner unlinks GitHub, the
+ * linking OAuth App's grant is revoked with the token kept for it. The token rides sealed as the operation's
+ * personal data, opened in memory with the account ID as associated data, and purged when the operation
+ * completes. Without the App's credentials (an environment that has none) there is nothing to revoke.
  */
 @Component
 class OAuthGrantRevocation implements OperationHandler {

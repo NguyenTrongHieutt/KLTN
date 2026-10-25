@@ -73,6 +73,22 @@ enum IdentityReason {
 	NO_DELETION_REQUEST,
 
 	/** NFR-11, AD-24: a running Job, an open Dispute, or a Team Issue keeps the account from being erased now. */
-	ERASURE_BLOCKED
+	ERASURE_BLOCKED,
+
+	/** FR-80, AD-19: a command that creates work, from an account with no linked GitHub account. */
+	GITHUB_NOT_LINKED,
+
+	/** FR-80, R14: the GitHub account is linked to another vibefix account; nothing is merged. */
+	GITHUB_ALREADY_LINKED,
+
+	/**
+	 * FR-80, R14: unlinking while a live Product, a role in a running Job, or an open bid keeps the link
+	 * (the answer's {@code blockers} name them), or re-linking another GitHub account than the linked one.
+	 * The SPA's copy key is {@code GITHUB_CHANGE_BLOCKED} (SG-58).
+	 */
+	GITHUB_LINK_IN_USE,
+
+	/** This environment has no linking OAuth App yet (AD-25): nothing can be linked. */
+	GITHUB_NOT_SET_UP
 
 }

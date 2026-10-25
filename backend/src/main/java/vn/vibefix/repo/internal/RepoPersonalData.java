@@ -57,7 +57,8 @@ class RepoPersonalData implements PersonalDataParticipant {
 			return row;
 		}).list();
 		List<Map<String, Object>> grants = this.jdbc.sql("""
-				SELECT job_id, repository_name, github_login, status, invited_at, accepted_at, write_at, revoked_at
+				SELECT job_id, repository_name, github_login, github_user_id, status, invited_at, accepted_at, write_at,
+				       revoked_at
 				FROM repo.job_grant
 				WHERE account_id = :id ORDER BY created_at, id
 				""").param("id", accountId).query((rs, n) -> {
@@ -65,6 +66,9 @@ class RepoPersonalData implements PersonalDataParticipant {
 			row.put("jobId", rs.getObject("job_id", UUID.class).toString());
 			row.put("repository", rs.getString("repository_name"));
 			row.put("githubLogin", rs.getString("github_login"));
+			if (rs.getObject("github_user_id") != null) {
+				row.put("githubUserId", rs.getLong("github_user_id"));
+			}
 			row.put("status", rs.getString("status"));
 			Map<String, String> times = Map.of("invitedAt", "invited_at", "acceptedAt", "accepted_at", "writeAt", "write_at",
 					"revokedAt", "revoked_at");

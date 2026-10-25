@@ -8,6 +8,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -22,10 +23,12 @@ import vn.vibefix.audit.AuditActor;
 import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
+import vn.vibefix.github.PlatformRepositories;
 import vn.vibefix.github.PlatformRepositories.Invited;
 import vn.vibefix.github.PlatformRepositories.PlatformRepository;
 import vn.vibefix.identity.Administrators;
 import vn.vibefix.identity.MentorDirectory;
+import vn.vibefix.identity.MentorDirectory.MentorCard;
 import vn.vibefix.identity.MentorGate;
 import vn.vibefix.identity.StudentDirectory;
 import vn.vibefix.identity.StudentDirectory.StudentCard;
@@ -82,10 +85,16 @@ class JobGrants {
 	/** FR-75: a Crew change member's invitation is renewed at most this often. */
 	static final int CREW_CHANGE_RENEWALS = 3;
 
-	/** One person's access to one Working Repository. */
-	record Grant(UUID id, UUID jobId, UUID productId, UUID accountId, String role, String login, long repositoryId,
-			String repositoryName, boolean crewChange, String status, boolean twoFactorMissing, @Nullable Long invitationId,
-			@Nullable Instant expiresAt, int renewals, @Nullable Instant acceptedAt, @Nullable Instant writeAt) {
+	/**
+	 * One person's access to one Working Repository.
+	 * @param login the GitHub login last used for the person
+	 * @param githubUserId the person's permanent numeric GitHub ID (AD-10); {@code null} on a grant from before
+	 * Story 19.2 until {@link JobGrants#githubUserId} finds it
+	 */
+	record Grant(UUID id, UUID jobId, UUID productId, UUID accountId, String role, String login, @Nullable Long githubUserId,
+			long repositoryId, String repositoryName, boolean crewChange, String status, boolean twoFactorMissing,
+			@Nullable Long invitationId, @Nullable Instant expiresAt, int renewals, @Nullable Instant acceptedAt,
+			@Nullable Instant writeAt) {
 
 		PlatformRepository repository() {
 			return new PlatformRepository(this.repositoryId, this.repositoryName.substring(this.repositoryName.indexOf('/') + 1),
@@ -103,13 +112,16 @@ class JobGrants {
 
 	}
 
-	/** A person the Job counts (AD-41): the Mentor, or an active Crew member, with an unlocked account. */
-	record Person(UUID accountId, String role, String login) {
+	/**
+	 * A person the Job counts (AD-41): the Mentor, or an active Crew member, with an unlocked account and a
+	 * linked GitHub account, known by its numeric ID (AD-10).
+	 */
+	record Person(UUID accountId, String role, long githubUserId, String login) {
 	}
 
 	private static final String COLUMNS = """
-			id, job_id, product_id, account_id, role, github_login, repository_github_id, repository_name, crew_change, status,
-			two_factor_missing, invitation_id, expires_at, renewals, accepted_at, write_at
+			id, job_id, product_id, account_id, role, github_login, github_user_id, repository_github_id, repository_name,
+			crew_change, status, two_factor_missing, invitation_id, expires_at, renewals, accepted_at, write_at
 			""";
 
 	private final JdbcClient jdbc;
@@ -175,13 +187,15 @@ class JobGrants {
 	void grant(BusyJob job, Person person, PlatformRepository working, boolean crewChange) {
 		UUID id = this.ids.newId();
 		int inserted = this.jdbc.sql("""
-				INSERT INTO repo.job_grant (id, job_id, product_id, account_id, role, github_login, repository_github_id,
-				    repository_name, crew_change, status, created_at)
-				VALUES (:id, :job, :product, :account, :role, :login, :repository, :name, :change, 'INVITING', :now)
+				INSERT INTO repo.job_grant (id, job_id, product_id, account_id, role, github_login, github_user_id,
+				    repository_github_id, repository_name, crew_change, status, created_at)
+				VALUES (:id, :job, :product, :account, :role, :login, :githubUserId, :repository, :name, :change, 'INVITING',
+				        :now)
 				ON CONFLICT (job_id, account_id, repository_github_id) DO NOTHING
 				""")
 			.param("id", id).param("job", job.jobId()).param("product", job.productId()).param("account", person.accountId())
-			.param("role", person.role()).param("login", person.login()).param("repository", working.id())
+			.param("role", person.role()).param("login", person.login()).param("githubUserId", person.githubUserId())
+			.param("repository", working.id())
 			.param("name", working.fullName()).param("change", crewChange).param("now", Timestamp.from(this.clock.instant()))
 			.update();
 		if (inserted == 1) {
@@ -189,25 +203,88 @@ class JobGrants {
 		}
 	}
 
-	/** The Mentor and the active Crew, each with an unlocked account and a GitHub username. */
+	/** The Mentor and the active Crew, each with an unlocked account and a linked GitHub account. */
 	List<Person> counted(BusyJob job) {
 		List<Person> people = new ArrayList<>();
 		if (job.mentorId() != null && unlocked(job.mentorId())) {
 			this.mentors.cards(List.of(job.mentorId()))
 				.stream()
-				.filter(card -> card.githubLogin() != null)
+				.filter(card -> card.githubUserId() != null && card.githubLogin() != null)
 				.findFirst()
-				.ifPresent(card -> people.add(new Person(card.accountId(), "MENTOR", card.githubLogin())));
+				.ifPresent(card -> people.add(new Person(card.accountId(), "MENTOR", card.githubUserId(), card.githubLogin())));
 		}
 		List<UUID> crew = this.crews.crewOf(job.jobId(), Crews.Selection.ACTIVE).stream().map(CrewMember::studentId).toList();
 		if (!crew.isEmpty()) {
 			for (StudentCard card : this.students.cards(crew)) {
-				if (card.available() && card.githubLogin() != null) {
-					people.add(new Person(card.accountId(), "CREW", card.githubLogin()));
+				if (card.available() && card.githubUserId() != null && card.githubLogin() != null) {
+					people.add(new Person(card.accountId(), "CREW", card.githubUserId(), card.githubLogin()));
 				}
 			}
 		}
 		return people;
+	}
+
+	/**
+	 * The grantee's numeric GitHub ID (AD-10 "Logins by ID"). A grant from before Story 19.2 takes its
+	 * account's ID the first time it is asked, while that account's login still matches the grant's,
+	 * ignoring case; the ID is stored then.
+	 * @return {@code null} when no account's ID can be trusted for the grant: its login is used as before
+	 */
+	@Nullable Long githubUserId(Grant grant) {
+		if (grant.githubUserId() != null) {
+			return grant.githubUserId();
+		}
+		Long id = null;
+		String login = null;
+		if ("MENTOR".equals(grant.role())) {
+			MentorCard card = this.mentors.cards(List.of(grant.accountId())).stream().findFirst().orElse(null);
+			if (card != null) {
+				id = card.githubUserId();
+				login = card.githubLogin();
+			}
+		}
+		else {
+			StudentCard card = this.students.cards(List.of(grant.accountId())).stream().findFirst().orElse(null);
+			if (card != null) {
+				id = card.githubUserId();
+				login = card.githubLogin();
+			}
+		}
+		if (id == null || login == null || !login.toLowerCase(Locale.ROOT).equals(grant.login().toLowerCase(Locale.ROOT))) {
+			return null;
+		}
+		this.jdbc.sql("UPDATE repo.job_grant SET github_user_id = :githubUserId WHERE id = :id AND github_user_id IS NULL")
+			.param("githubUserId", id)
+			.param("id", grant.id())
+			.update();
+		return id;
+	}
+
+	/**
+	 * The grantee's login on GitHub now (AD-10 "Logins by ID"), resolved from their numeric ID just before
+	 * a call that names them; the caller stores a new one with {@link #renamed}. A grant whose ID is unknown
+	 * keeps its login.
+	 * @return empty when GitHub has no account with the ID any more
+	 * @throws vn.vibefix.github.GitHubException when GitHub cannot answer now
+	 */
+	Optional<String> currentLogin(Grant grant, PlatformRepositories repositories) {
+		Long id = githubUserId(grant);
+		if (id == null) {
+			return Optional.of(grant.login());
+		}
+		return repositories.login(id);
+	}
+
+	/** The grantee renamed their GitHub account: the grant keeps the new login (AD-10); the same one changes nothing. */
+	@Transactional
+	void renamed(Grant grant, String login) {
+		int updated = this.jdbc.sql("UPDATE repo.job_grant SET github_login = :login WHERE id = :id AND github_login <> :login")
+			.param("login", login)
+			.param("id", grant.id())
+			.update();
+		if (updated == 1) {
+			audit("repo.grant_login_renamed", grant);
+		}
 	}
 
 	private boolean unlocked(UUID accountId) {
@@ -444,7 +521,8 @@ class JobGrants {
 		Timestamp write = rs.getTimestamp("write_at");
 		return new Grant(rs.getObject("id", UUID.class), rs.getObject("job_id", UUID.class),
 				rs.getObject("product_id", UUID.class), rs.getObject("account_id", UUID.class), rs.getString("role"),
-				rs.getString("github_login"), rs.getLong("repository_github_id"), rs.getString("repository_name"),
+				rs.getString("github_login"), rs.getObject("github_user_id", Long.class), rs.getLong("repository_github_id"),
+				rs.getString("repository_name"),
 				rs.getBoolean("crew_change"), rs.getString("status"), rs.getBoolean("two_factor_missing"),
 				rs.getObject("invitation_id", Long.class), expires == null ? null : expires.toInstant(), rs.getInt("renewals"),
 				accepted == null ? null : accepted.toInstant(), write == null ? null : write.toInstant());

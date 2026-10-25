@@ -11,6 +11,8 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
 import vn.vibefix.files.StoredFiles;
+import vn.vibefix.identity.GitHubLinkBlocker;
+import vn.vibefix.identity.GitHubLinkParticipant;
 import vn.vibefix.shared.ErasureBlocker;
 import vn.vibefix.shared.PersonalDataParticipant;
 import vn.vibefix.shared.PersonalDataSection;
@@ -20,9 +22,12 @@ import vn.vibefix.shared.PersonalDataSection;
  * Access identifiers a Mentor or a Crew member entered (FR-66). Erasure and Product deletion delete the Jobs
  * and their screenshot files, and erasure deletes the person's identifiers; a Job from J3 to Closing blocks the
  * erasure of its Customer and its Mentor.
+ * <p>
+ * It also answers for the GitHub link (FR-80, R14): a role in a Job that is not Closed or Cancelled keeps it,
+ * since the Job's repositories and grants know the person by their GitHub ID.
  */
 @Component
-class JobPersonalData implements PersonalDataParticipant {
+class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant {
 
 	private final JdbcClient jdbc;
 
@@ -166,6 +171,19 @@ class JobPersonalData implements PersonalDataParticipant {
 			.stream()
 			.map(job -> new ErasureBlocker("job", "JOB_RUNNING", job))
 			.toList();
+	}
+
+	/** Each Job, not Closed or Cancelled, where the account is the Customer, the Mentor, or an unreleased Crew member. */
+	@Override
+	public List<GitHubLinkBlocker> githubLinkBlockers(UUID accountId) {
+		return this.jdbc.sql("""
+				SELECT id, title FROM job.job WHERE (customer_account_id = :id OR mentor_account_id = :id
+				    OR id IN (SELECT job_id FROM job.crew_row WHERE student_account_id = :id AND status <> 'RELEASED'))
+				  AND state NOT IN ('CLOSED', 'CANCELLED') ORDER BY created_at, id
+				""")
+			.param("id", accountId)
+			.query((rs, n) -> new GitHubLinkBlocker("job", "JOB_ROLE", rs.getObject("id", UUID.class), rs.getString("title")))
+			.list();
 	}
 
 }

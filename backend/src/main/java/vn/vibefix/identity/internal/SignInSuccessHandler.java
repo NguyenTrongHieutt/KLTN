@@ -65,8 +65,6 @@ class SignInSuccessHandler implements AuthenticationSuccessHandler {
 				session.setAttribute(SignInSession.PENDING_WELCOME, welcome.pending());
 				yield "/bat-dau";
 			}
-			// Only the GitHub path answers this, and nothing runs it since Story 19.1.
-			case SignIns.Outcome.NotLinked notLinked -> "/dang-nhap?loi=that-bai";
 		};
 		SecurityContextHolder.setContext(context);
 		this.contexts.saveContext(context, request, response);

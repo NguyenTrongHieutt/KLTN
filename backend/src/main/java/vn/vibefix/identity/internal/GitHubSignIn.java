@@ -11,14 +11,15 @@ import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.stereotype.Component;
 
 /**
- * The sign-in OAuth App of this environment (AD-10, AD-25), built from the secret files
+ * The linking OAuth App of this environment (AD-10, AD-25), built from the secret files
  * {@code github-oauth-client-id} and {@code github-oauth-client-secret}. The scope is set explicitly
- * to {@code read:user,user:email}, never a repository scope (FR-1, SG-11). Without the files the
- * {@code dev} profile still starts and PUB-2 says sign-in is not set up; {@code prod} refuses to
+ * to {@code read:user user:email}, never a repository scope (FR-80, SG-11). Without the files the
+ * {@code dev} profile still starts and ACC-2 says linking is not set up; {@code prod} refuses to
  * start. The endpoint URIs are configuration so tests can point them at a stub.
  * <p>
- * Since Story 19.1 no login uses it: users sign in with Google ({@link GoogleSignIn}), and Story 19.2
- * reuses this registration to link GitHub.
+ * It signs nobody in: users sign in with Google ({@link GoogleSignIn}). Since Story 19.2 a signed-in
+ * account links GitHub through it ({@link GitHubLinkController}), and its callback is
+ * {@value #CALLBACK_PATH}, outside Spring's login filter.
  */
 @Component
 class GitHubSignIn {
@@ -28,6 +29,9 @@ class GitHubSignIn {
 	static final String CLIENT_ID = "github-oauth-client-id";
 
 	static final String CLIENT_SECRET = "github-oauth-client-secret";
+
+	/** Where GitHub returns the browser after linking; the Vite dev server forwards it to the backend. */
+	static final String CALLBACK_PATH = "/link/oauth2/code/" + REGISTRATION_ID;
 
 	private final @Nullable ClientRegistration registration;
 
@@ -50,7 +54,7 @@ class GitHubSignIn {
 			.clientSecret(clientSecret)
 			.clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
 			.authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-			.redirectUri("{baseUrl}/login/oauth2/code/{registrationId}")
+			.redirectUri("{baseUrl}" + CALLBACK_PATH)
 			.scope("read:user", "user:email")
 			.authorizationUri(environment.getRequiredProperty("vibefix.github.oauth.authorization-uri"))
 			.tokenUri(environment.getRequiredProperty("vibefix.github.oauth.token-uri"))
@@ -60,12 +64,12 @@ class GitHubSignIn {
 			.build();
 	}
 
-	/** Where the signed-in user's email addresses are read (scope {@code user:email}). */
+	/** Where the linking user's email addresses are read (scope {@code user:email}). */
 	@Nullable String userEmailsUri() {
 		return this.userEmailsUri;
 	}
 
-	/** The registration, or empty when this environment has no sign-in OAuth App yet. */
+	/** The registration, or empty when this environment has no linking OAuth App yet. */
 	Optional<ClientRegistration> registration() {
 		return Optional.ofNullable(this.registration);
 	}

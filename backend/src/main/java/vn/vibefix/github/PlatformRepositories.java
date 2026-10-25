@@ -79,14 +79,30 @@ public interface PlatformRepositories {
 	/** Whether {@code login} is a collaborator now: their invitation was accepted. */
 	boolean collaborator(PlatformRepository repository, String login);
 
+	/**
+	 * The numeric GitHub IDs of the repository's collaborators now (AD-10 "Logins by ID"): an invitee
+	 * among them accepted, whatever their login has become.
+	 */
+	Set<Long> collaboratorIds(PlatformRepository repository);
+
+	/**
+	 * The current login of the GitHub account with this numeric ID (AD-10 "Logins by ID"), read with the
+	 * Platform App just before a call that names the person ({@code GET /user/{id}}).
+	 * @return empty when GitHub has no such account any more
+	 */
+	Optional<String> login(long githubUserId);
+
 	/** Raises an accepted collaborator to write in place, with no new invitation. */
 	void raise(PlatformRepository repository, String login);
 
 	/** The collaborator's role as GitHub reads it back ({@code read}, {@code write}, and so on), or {@code none}. */
 	String role(PlatformRepository repository, String login);
 
-	/** The lower-case logins of the organization's outside collaborators without two-factor authentication. */
-	Set<String> withoutTwoFactor();
+	/**
+	 * The organization's outside collaborators without two-factor authentication: each numeric GitHub ID
+	 * with its lower-case login.
+	 */
+	Map<Long, String> withoutTwoFactor();
 
 	/** Whether {@code login} is a member of the organization. */
 	boolean organizationMember(String login);

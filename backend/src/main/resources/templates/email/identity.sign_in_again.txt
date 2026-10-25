@@ -1,6 +1,0 @@
-subject: Hãy đăng nhập lại vibefix bằng GitHub
----
-Xin chào,
-
-vibefix không đọc được kho mã của bạn trên GitHub nữa, nên người hướng dẫn chưa ứng tuyển được vào công việc của bạn.
-Hãy đăng nhập lại vibefix bằng GitHub. Bạn không mất dữ liệu nào.

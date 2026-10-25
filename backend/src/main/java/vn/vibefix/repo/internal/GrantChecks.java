@@ -1,6 +1,8 @@
 package vn.vibefix.repo.internal;
 
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -26,8 +28,9 @@ import vn.vibefix.shared.ProcessedEvents;
 
 /**
  * The hints of acceptance (AD-11, AD-12): a {@code member} webhook on a Working Repository and the sweep
- * make {@code repo} read a Job's grants back from GitHub. An invitee shown as a collaborator accepted; an
- * accepted one among the outside collaborators without two-factor authentication is not ready; a drifted
+ * make {@code repo} read a Job's grants back from GitHub. People are matched by their numeric GitHub ID
+ * (AD-10 "Logins by ID"), so a renamed account still counts: an invitee whose ID is among the collaborators
+ * accepted; an accepted one among the outside collaborators without two-factor authentication is not ready; a drifted
  * organization member who has left the organization loses any direct grant and is invited again. Then
  * Verify may start (Starting), or an accepted Crew change member is raised (Active). It also grants a
  * member a Crew change adds once the Job's Setup is done.
@@ -62,11 +65,17 @@ class GrantChecks {
 		if (job == null || !("STARTING".equals(job.state()) || "ACTIVE".equals(job.state()))) {
 			return;
 		}
-		Set<String> withoutTwoFactor = null;
+		Map<Long, Set<Long>> collaborators = new HashMap<>();
 		for (Grant grant : this.grants.ofJob(jobId)) {
 			switch (grant.status()) {
 				case "INVITED" -> {
-					if (this.repositories.collaborator(grant.repository(), grant.login())) {
+					Long id = this.grants.githubUserId(grant);
+					boolean accepted = id != null
+							? collaborators
+								.computeIfAbsent(grant.repositoryId(), repository -> this.repositories.collaboratorIds(grant.repository()))
+								.contains(id)
+							: this.repositories.collaborator(grant.repository(), grant.login());
+					if (accepted) {
 						this.grants.accepted(grant);
 					}
 				}
@@ -80,12 +89,15 @@ class GrantChecks {
 				}
 			}
 		}
+		Map<Long, String> withoutTwoFactor = null;
 		for (Grant grant : this.grants.ofJob(jobId)) {
 			if ("ACCEPTED".equals(grant.status()) || "WRITE".equals(grant.status())) {
 				if (withoutTwoFactor == null) {
 					withoutTwoFactor = this.repositories.withoutTwoFactor();
 				}
-				this.grants.twoFactor(grant, withoutTwoFactor.contains(grant.login().toLowerCase(Locale.ROOT)));
+				Long id = this.grants.githubUserId(grant);
+				this.grants.twoFactor(grant, id != null ? withoutTwoFactor.containsKey(id)
+						: withoutTwoFactor.containsValue(grant.login().toLowerCase(Locale.ROOT)));
 			}
 		}
 		if ("STARTING".equals(job.state())) {

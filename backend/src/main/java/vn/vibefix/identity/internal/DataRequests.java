@@ -58,7 +58,7 @@ class DataRequests {
 	/**
 	 * The person's request as ALL-2 and ADM-2 show it.
 	 * @param blockers what keeps it waiting now; none before a request, or once it is completed
-	 * @param tokenKept a Customer sign-in token is kept, so the grant is revoked for them at the erasure
+	 * @param tokenKept a GitHub token is kept for the account, so the grant is revoked for them at the erasure
 	 */
 	record State(@Nullable Instant requestedAt, @Nullable Instant completedAt, List<ErasureBlocker> blockers,
 			boolean tokenKept) {
