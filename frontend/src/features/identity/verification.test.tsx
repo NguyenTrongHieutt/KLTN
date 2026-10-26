@@ -17,8 +17,6 @@ function renderAt(path: string) {
   return router
 }
 
-const profile = () => json({ role: 'STUDENT', githubLogin: 'minh-dev', customer: null, student: null })
-
 /** A code sent at 09:41 in Vietnam. */
 const pending = (attemptsLeft: number, expired = false) => ({
   status: 'UNVERIFIED',
@@ -53,14 +51,13 @@ describe('STU-5 school email code (FR-5, UX-DR19, UX-DR70)', () => {
     const user = userEvent.setup()
     let view: object = { status: 'UNVERIFIED' }
     const seen = fakeBackend(signedIn('STUDENT'), {
-      'GET /api/v1/profile': profile,
       'GET /api/v1/verification': () => json(view),
       'POST /api/v1/verification/school-email': () => {
         view = pending(5)
         return json(view, 202)
       },
     })
-    renderAt('/ho-so')
+    renderAt('/ho-so/xac-minh')
 
     const card = (await screen.findByRole('heading', { name: 'Xác minh sinh viên' })).closest('section')!
     expect(await within(card).findByText('Chưa xác minh')).toBeInTheDocument()
@@ -79,7 +76,6 @@ describe('STU-5 school email code (FR-5, UX-DR19, UX-DR70)', () => {
 
   it('offers the email field when the backend writes no code as null', async () => {
     fakeBackend(signedIn('STUDENT'), {
-      'GET /api/v1/profile': profile,
       'GET /api/v1/verification': () =>
         json({
           status: 'UNVERIFIED',
@@ -92,7 +88,7 @@ describe('STU-5 school email code (FR-5, UX-DR19, UX-DR70)', () => {
           renewalOpen: false,
         }),
     })
-    renderAt('/ho-so')
+    renderAt('/ho-so/xac-minh')
 
     const card = (await screen.findByRole('heading', { name: 'Xác minh sinh viên' })).closest('section')!
     expect(await within(card).findByRole('button', { name: 'Gửi mã' })).toBeInTheDocument()
@@ -102,11 +98,10 @@ describe('STU-5 school email code (FR-5, UX-DR19, UX-DR70)', () => {
   it('sends a new code, not the code entry, on Enter in the email field', async () => {
     const user = userEvent.setup()
     const seen = fakeBackend(signedIn('STUDENT'), {
-      'GET /api/v1/profile': profile,
       'GET /api/v1/verification': () => json(pending(5)),
       'POST /api/v1/verification/school-email': () => json(pending(5), 202),
     })
-    renderAt('/ho-so')
+    renderAt('/ho-so/xac-minh')
 
     await user.type(await screen.findByLabelText('Mã 6 số trong email'), '123456')
     await user.type(screen.getByRole('textbox', { name: 'Email trường' }), '{Enter}')
@@ -118,10 +113,9 @@ describe('STU-5 school email code (FR-5, UX-DR19, UX-DR70)', () => {
   it('says an address outside the allowlist may use the student card instead', async () => {
     const user = userEvent.setup()
     fakeBackend(signedIn('STUDENT'), {
-      'GET /api/v1/profile': profile,
       'POST /api/v1/verification/school-email': () => refusal(422, 'GUARD_FAILED', 'EMAIL_DOMAIN_NOT_ALLOWED'),
     })
-    renderAt('/ho-so')
+    renderAt('/ho-so/xac-minh')
 
     const field = await screen.findByRole('textbox', { name: 'Email trường' })
     await user.type(field, 'khoa@gmail.com')
@@ -135,8 +129,8 @@ describe('STU-5 school email code (FR-5, UX-DR19, UX-DR70)', () => {
 
   it('checks the address before sending', async () => {
     const user = userEvent.setup()
-    const seen = fakeBackend(signedIn('STUDENT'), { 'GET /api/v1/profile': profile })
-    renderAt('/ho-so')
+    const seen = fakeBackend(signedIn('STUDENT'))
+    renderAt('/ho-so/xac-minh')
 
     await user.type(await screen.findByRole('textbox', { name: 'Email trường' }), 'not-an-email')
     await user.click(screen.getByRole('button', { name: 'Gửi mã' }))
@@ -148,11 +142,10 @@ describe('STU-5 school email code (FR-5, UX-DR19, UX-DR70)', () => {
   it('says when to try again after the send limit', async () => {
     const user = userEvent.setup()
     fakeBackend(signedIn('STUDENT'), {
-      'GET /api/v1/profile': profile,
       'POST /api/v1/verification/school-email': () =>
         refusal(429, 'RATE_LIMITED', undefined, { 'Retry-After': '2700' }),
     })
-    renderAt('/ho-so')
+    renderAt('/ho-so/xac-minh')
 
     await user.type(await screen.findByRole('textbox', { name: 'Email trường' }), 'minh@sis.hust.edu.vn')
     await user.click(screen.getByRole('button', { name: 'Gửi mã' }))
@@ -164,14 +157,13 @@ describe('STU-5 school email code (FR-5, UX-DR19, UX-DR70)', () => {
     const user = userEvent.setup()
     let view = pending(4)
     fakeBackend(signedIn('STUDENT'), {
-      'GET /api/v1/profile': profile,
       'GET /api/v1/verification': () => json(view),
       'POST /api/v1/verification/school-email/confirm': () => {
         view = pending(3)
         return refusal(422, 'GUARD_FAILED', 'WRONG_CODE')
       },
     })
-    renderAt('/ho-so')
+    renderAt('/ho-so/xac-minh')
 
     await user.type(await screen.findByLabelText('Mã 6 số trong email'), '482100')
     await user.click(screen.getByRole('button', { name: 'Xác minh' }))
@@ -181,10 +173,9 @@ describe('STU-5 school email code (FR-5, UX-DR19, UX-DR70)', () => {
 
   it('offers a new code once the code expired', async () => {
     fakeBackend(signedIn('STUDENT'), {
-      'GET /api/v1/profile': profile,
       'GET /api/v1/verification': () => json(pending(5, true)),
     })
-    renderAt('/ho-so')
+    renderAt('/ho-so/xac-minh')
 
     expect(await screen.findByText('Mã đã hết hạn. Hãy gửi mã mới.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Xác minh' })).toBeDisabled()
@@ -193,10 +184,9 @@ describe('STU-5 school email code (FR-5, UX-DR19, UX-DR70)', () => {
 
   it('says the attempts are used up after the fifth wrong code', async () => {
     fakeBackend(signedIn('STUDENT'), {
-      'GET /api/v1/profile': profile,
       'GET /api/v1/verification': () => json(pending(0)),
     })
-    renderAt('/ho-so')
+    renderAt('/ho-so/xac-minh')
 
     expect(await screen.findByText('Bạn đã thử quá 5 lần. Hãy gửi mã mới.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Xác minh' })).toBeDisabled()
@@ -206,14 +196,13 @@ describe('STU-5 school email code (FR-5, UX-DR19, UX-DR70)', () => {
     const user = userEvent.setup()
     let view: object = pending(5)
     const seen = fakeBackend(signedIn('STUDENT'), {
-      'GET /api/v1/profile': profile,
       'GET /api/v1/verification': () => json(view),
       'POST /api/v1/verification/school-email/confirm': () => {
         view = verified
         return json(view)
       },
     })
-    renderAt('/ho-so')
+    renderAt('/ho-so/xac-minh')
 
     await user.type(await screen.findByLabelText('Mã 6 số trong email'), '4821a07')
     expect(screen.getByLabelText('Mã 6 số trong email')).toHaveValue('482107')
@@ -241,10 +230,9 @@ describe('STU-5 renewal and expiry (FR-5, UX-DR27)', () => {
   it('says the verification expired, what still works, and renews from the school email field', async () => {
     const user = userEvent.setup()
     fakeBackend(signedIn('STUDENT'), {
-      'GET /api/v1/profile': profile,
       'GET /api/v1/verification': () => json(expired),
     })
-    renderAt('/ho-so')
+    renderAt('/ho-so/xac-minh')
 
     expect(await screen.findByText('Xác minh đã hết hạn ngày 30/09')).toBeInTheDocument()
     expect(screen.getByText(/Công việc đang làm vẫn tiếp tục/)).toBeInTheDocument()
@@ -260,10 +248,9 @@ describe('STU-5 renewal and expiry (FR-5, UX-DR27)', () => {
 
   it('offers renewal in the last 14 days, while still verified', async () => {
     fakeBackend(signedIn('STUDENT'), {
-      'GET /api/v1/profile': profile,
       'GET /api/v1/verification': () => json({ ...verified, renewalOpen: true }),
     })
-    renderAt('/ho-so')
+    renderAt('/ho-so/xac-minh')
 
     expect(await screen.findByText('Đã xác minh đến 30/09/2027.')).toBeInTheDocument()
     expect(
@@ -275,10 +262,9 @@ describe('STU-5 renewal and expiry (FR-5, UX-DR27)', () => {
 
   it('shows no code form to a verified Student before renewal opens', async () => {
     fakeBackend(signedIn('STUDENT'), {
-      'GET /api/v1/profile': profile,
       'GET /api/v1/verification': () => json({ ...verified, renewalOpen: false }),
     })
-    renderAt('/ho-so')
+    renderAt('/ho-so/xac-minh')
 
     expect(await screen.findByText('Đã xác minh đến 30/09/2027.')).toBeInTheDocument()
     expect(screen.queryByRole('textbox', { name: 'Email trường' })).not.toBeInTheDocument()
@@ -294,7 +280,7 @@ describe('STU-1 verification banner (UX-DR27)', () => {
     renderAt('/viec-can-lam')
 
     expect(await screen.findByText('Xác minh đã hết hạn ngày 30/09')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Gia hạn' })).toHaveAttribute('href', '/ho-so')
+    expect(screen.getByRole('link', { name: 'Gia hạn' })).toHaveAttribute('href', '/ho-so/xac-minh')
     expect(screen.queryByText('Xác minh là sinh viên để vào nhóm của một người hướng dẫn')).not.toBeInTheDocument()
   })
 
@@ -303,7 +289,7 @@ describe('STU-1 verification banner (UX-DR27)', () => {
     renderAt('/viec-can-lam')
 
     expect(await screen.findByText('Xác minh là sinh viên để vào nhóm của một người hướng dẫn')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Xác minh ngay' })).toHaveAttribute('href', '/ho-so')
+    expect(screen.getByRole('link', { name: 'Xác minh ngay' })).toHaveAttribute('href', '/ho-so/xac-minh')
   })
 
   it('is gone once the Student is verified, and never shown to other roles', async () => {

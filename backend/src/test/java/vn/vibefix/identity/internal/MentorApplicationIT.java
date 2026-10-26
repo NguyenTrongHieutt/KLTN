@@ -76,16 +76,25 @@ class MentorApplicationIT extends IntegrationTest {
 
 	@Test
 	void theFirstSaveSubmitsAndTellsTheAdministrators() throws Exception {
-		this.mvc.perform(get("/api/v1/profile").with(mentor(this.hung)))
-			.andExpect(jsonPath("$.mentor.approvalStatus").value("PENDING"))
-			.andExpect(jsonPath("$.mentor.submittedAt").doesNotExist());
+		this.mvc.perform(get("/api/v1/profile/mentor").with(mentor(this.hung)))
+			.andExpect(jsonPath("$.approvalStatus").value("PENDING"))
+			.andExpect(jsonPath("$.submittedAt").doesNotExist());
 
 		save(this.hung, "do-manh-hung", "3.0").andExpect(status().isOk()).andExpect(jsonPath("$.submitted").value(true));
 
+		this.mvc.perform(get("/api/v1/profile/mentor").with(mentor(this.hung)))
+			.andExpect(jsonPath("$.displayName").value("Đỗ Mạnh Hùng"))
+			.andExpect(jsonPath("$.skills[0].name").value("React"))
+			.andExpect(jsonPath("$.submittedAt").exists());
+		// The application's profile fields are the one profile's (Story 19.3).
+		assertThat(this.jdbc.sql("""
+				SELECT display_name || ' | ' || experience || ' | ' || years_of_experience || ' | ' || skill_names
+				FROM identity.profile WHERE account_id = :id
+				""").param("id", this.hung).query(String.class).single())
+			.isEqualTo("Đỗ Mạnh Hùng | Kỹ sư phần mềm 8 năm. | 8 | React");
 		this.mvc.perform(get("/api/v1/profile").with(mentor(this.hung)))
-			.andExpect(jsonPath("$.mentor.displayName").value("Đỗ Mạnh Hùng"))
-			.andExpect(jsonPath("$.mentor.skills[0].name").value("React"))
-			.andExpect(jsonPath("$.mentor.submittedAt").exists());
+			.andExpect(jsonPath("$.displayName").value("Đỗ Mạnh Hùng"))
+			.andExpect(jsonPath("$.yearsOfExperience").value(8));
 		assertThat(openTodos(this.hung)).isZero();
 		assertThat(this.jdbc.sql("SELECT type FROM notification.notification WHERE account_id = :id")
 			.param("id", this.administrator)
@@ -106,6 +115,9 @@ class MentorApplicationIT extends IntegrationTest {
 			.andExpect(jsonPath("$.reason").value("PRIVACY_NOTICE_REQUIRED"));
 		save(this.hung, "do-manh-hung", "1.0").andExpect(status().isBadRequest());
 		assertThat(this.jdbc.sql("SELECT count(*) FROM identity.mentor_application").query(Long.class).single()).isZero();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM identity.profile WHERE account_id = :id").param("id", this.hung)
+			.query(Long.class)
+			.single()).as("a refused save writes no profile").isZero();
 
 		save(this.hung, "do-manh-hung", "3.0").andExpect(jsonPath("$.submitted").value(true));
 		String submittedAt = this.jdbc.sql("SELECT submitted_at::text FROM identity.mentor_application")
@@ -136,9 +148,9 @@ class MentorApplicationIT extends IntegrationTest {
 		upload(this.hung, "chung-chi.pdf", TestFiles.pdf()).andExpect(status().isCreated())
 			.andExpect(jsonPath("$.name").value("chung-chi.pdf"));
 		UUID first = documentId();
-		this.mvc.perform(get("/api/v1/profile").with(mentor(this.hung)))
-			.andExpect(jsonPath("$.mentor.document.name").value("chung-chi.pdf"))
-			.andExpect(jsonPath("$.mentor.submittedAt").doesNotExist());
+		this.mvc.perform(get("/api/v1/profile/mentor").with(mentor(this.hung)))
+			.andExpect(jsonPath("$.document.name").value("chung-chi.pdf"))
+			.andExpect(jsonPath("$.submittedAt").doesNotExist());
 
 		this.mvc.perform(get("/api/v1/files/" + first).with(mentor(this.hung))).andExpect(status().isNotFound());
 		this.mvc.perform(get("/api/v1/files/" + first).with(admin())).andExpect(status().isOk());
@@ -165,6 +177,7 @@ class MentorApplicationIT extends IntegrationTest {
 		this.mvc.perform(put("/api/v1/profile/mentor").with(mentor(student)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
 			.content(body("do-manh-hung", "3.0"))).andExpect(status().isNotFound());
+		this.mvc.perform(get("/api/v1/profile/mentor").with(mentor(student))).andExpect(status().isNotFound());
 	}
 
 	private ResultActions save(UUID account, String handle, String notice) throws Exception {

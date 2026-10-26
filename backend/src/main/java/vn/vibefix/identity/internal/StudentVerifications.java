@@ -304,6 +304,11 @@ class StudentVerifications implements StudentVerification {
 		return !verifiedWithoutRenewal(accountId);
 	}
 
+	/** ACC-1's student fact: the verification while it is current; a lapsed one is none (Story 19.3). */
+	Optional<Verification> currentVerification(UUID accountId) {
+		return verification(accountId).filter(this::current);
+	}
+
 	/** When the account's current verification began, if it has one. */
 	Optional<Instant> verifiedAt(UUID accountId) {
 		return verification(accountId).map(Verification::verifiedAt);

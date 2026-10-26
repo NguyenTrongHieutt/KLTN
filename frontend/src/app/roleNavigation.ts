@@ -1,5 +1,5 @@
 import { Bell, BriefcaseBusiness, ListChecks, Package, Search, UserRound, Users, type LucideIcon } from 'lucide-react'
-import type { Session } from '@/features/identity/api'
+import { MENTOR_PROFILE_PATH, type Session } from '@/features/identity/api'
 import type { MessageKey } from '@/i18n/t'
 
 export interface Destination {
@@ -16,7 +16,7 @@ const jobs: Destination = { label: 'nav.jobs', to: '/cong-viec', icon: Briefcase
 const notifications: Destination = { label: 'nav.notifications', to: '/thong-bao', icon: Bell, built: true }
 const findWork: Destination = { label: 'nav.findWork', to: '/tim-viec', icon: Search, built: true }
 const team: Destination = { label: 'nav.team', to: '/nhom', icon: Users, built: true }
-const mentorProfile: Destination = { label: 'nav.mentorProfile', to: '/ho-so', icon: UserRound, built: true }
+const mentorProfile: Destination = { label: 'nav.mentorProfile', to: MENTOR_PROFILE_PATH, icon: UserRound, built: true }
 
 /**
  * One route table per role (EXPERIENCE.md Navigation). A Mentor that is not approved has MEN-5 only

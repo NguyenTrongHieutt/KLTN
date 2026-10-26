@@ -149,7 +149,7 @@ class JobPostsIT extends IntegrationTest {
 		assertThat(body).doesNotContain(this.lan.toString()).doesNotContain("user-");
 		this.mvc.perform(get("/api/v1/files/" + file).with(as(this.hung, Role.MENTOR))).andExpect(status().isOk());
 		this.jdbc.sql("""
-				INSERT INTO identity.customer_profile (account_id, kind, display_name, contact_email, updated_at)
+				INSERT INTO identity.profile (account_id, kind, display_name, contact_email, updated_at)
 				VALUES (:id, 'INDIVIDUAL', 'Nguyễn Thị Lan', 'lan@example.com', now())
 				""").param("id", this.lan).update();
 		String rating = this.mvc.perform(get("/api/v1/mentor/job-posts/" + job + "/customer-rating").with(as(this.hung, Role.MENTOR)))

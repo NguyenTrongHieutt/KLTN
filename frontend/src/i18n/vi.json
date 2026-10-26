@@ -94,6 +94,70 @@
         }
       }
     },
+    "profile": {
+      "title": "Hồ sơ",
+      "heading": "Hồ sơ và xác minh",
+      "tabs": {
+        "label": "Hồ sơ và xác minh",
+        "profile": "Hồ sơ",
+        "verification": "Xác minh"
+      },
+      "typed": {
+        "heading": "Bạn tự nhập",
+        "lead": "Những gì bạn tự viết về mình. Người khác thấy chúng với nhãn “Tự khai”. Lưu là xong, không cần ai duyệt.",
+        "kind": "Bạn là",
+        "individual": "Cá nhân",
+        "business": "Doanh nghiệp",
+        "displayName": "Tên hiển thị *",
+        "contactEmail": "Email liên hệ (không bắt buộc)",
+        "contactHelper": "Khi có, vibefix gửi thông báo đến địa chỉ này thay cho email Google. Chỉ bạn, quản trị viên và người hướng dẫn của mỗi công việc đang chạy mà bạn đăng thấy email liên hệ và số điện thoại; thành viên nhóm không bao giờ thấy.",
+        "phone": "Số điện thoại (không bắt buộc)",
+        "phoneHelper": "Ví dụ: +84 912 345 678",
+        "experience": "Mô tả kinh nghiệm (không bắt buộc)",
+        "experienceHelper": "Bạn đã làm gì, giỏi việc gì. Tối đa 2.000 ký tự.",
+        "years": "Số năm kinh nghiệm (không bắt buộc)",
+        "skills": "Kỹ năng",
+        "skillsHelper": "Chọn từ danh sách của vibefix, tối đa 20. Gõ có dấu hay không dấu đều được. Kỹ năng đã ngừng dùng vẫn được giữ, nhưng không thêm lại được.",
+        "links": "Liên kết",
+        "linksHelper": "Tối đa 5 liên kết bắt đầu bằng https://, ví dụ trang cá nhân hoặc sản phẩm bạn đã làm. Mỗi liên kết hiện kèm nhãn “Tự khai”.",
+        "linkN": "Liên kết {n}",
+        "removeLink": "Bỏ liên kết {n}",
+        "addLink": "Thêm liên kết",
+        "selfDeclared": "Tự khai",
+        "repositories": "Kho mã muốn giới thiệu",
+        "repositoriesHelper": "Tối đa 5 kho mã công khai trên GitHub, dạng chủ-sở-hữu/tên-kho. vibefix chỉ hiện đường dẫn, không đọc mã.",
+        "repositoryN": "Kho mã {n}",
+        "removeRepository": "Bỏ kho mã {n}",
+        "addRepository": "Thêm kho mã",
+        "hideStudentDetails": "Ẩn thông tin sinh viên trên hồ sơ công khai",
+        "hideHelper": "Mặc định tắt, nên trường, họ tên và năm học bạn đã khai hiện trên hồ sơ công khai. Khi bật, chúng được ẩn; huy hiệu vẫn hiện.",
+        "save": "Lưu hồ sơ",
+        "saving": "Đang lưu…",
+        "saved": "Đã lưu hồ sơ.",
+        "savedAt": "Đã lưu lúc {time}"
+      },
+      "verified": {
+        "heading": "Đã xác minh",
+        "lead": "vibefix nhận từ GitHub, LinkedIn hoặc trường của bạn. Bạn không sửa được.",
+        "unverified": "Chưa xác minh",
+        "github": "GitHub",
+        "githubLine": "@{login} · Xác minh qua GitHub · {month}",
+        "student": "Email sinh viên",
+        "studentLine": "Sinh viên đã xác minh · Có hiệu lực đến {date}",
+        "declared": "Khai khi xác minh",
+        "studentName": "Họ và tên",
+        "studentSchool": "Trường",
+        "studentYear": "Năm học",
+        "yearN": "Năm {n}",
+        "linkedin": "LinkedIn",
+        "manage": "Quản lý xác minh"
+      },
+      "mentor": {
+        "heading": "Hồ sơ người hướng dẫn",
+        "body": "Liên kết LinkedIn, tài liệu kèm theo và việc duyệt hồ sơ người hướng dẫn nằm ở trang riêng.",
+        "link": "Mở hồ sơ người hướng dẫn"
+      }
+    },
     "githubGate": {
       "heading": "Liên kết GitHub để {action}",
       "relinkHeading": "Liên kết lại GitHub để {action}",
@@ -485,30 +549,6 @@
       }
     },
     "student": {
-      "profile": {
-        "title": "Hồ sơ và xác minh",
-        "heading": "Hồ sơ và xác minh",
-        "github": "Tên người dùng GitHub",
-        "githubHelper": "Lấy từ lần đăng nhập; không đổi được sang tài khoản khác.",
-        "realName": "Họ và tên",
-        "school": "Trường",
-        "year": "Năm học",
-        "yearNone": "Chưa chọn",
-        "yearN": "Năm {n}",
-        "showNameAndSchool": "Hiện họ tên và trường trên hồ sơ công khai",
-        "showHelper": "Mặc định ẩn. Khi ẩn, người khác chỉ thấy tên người dùng GitHub của bạn.",
-        "skills": "Kỹ năng",
-        "skillsHelper": "Chọn từ danh sách của vibefix, tối đa 20. Người hướng dẫn tìm bạn theo những kỹ năng này.",
-        "linkedin": "LinkedIn (không bắt buộc)",
-        "linkedinHelper": "Ví dụ: https://www.linkedin.com/in/ten-cua-ban",
-        "repositories": "Kho mã muốn giới thiệu",
-        "repositoriesHelper": "Tối đa 5 kho mã công khai trên GitHub, dạng chủ-sở-hữu/tên-kho. vibefix chỉ hiện đường dẫn, không đọc mã.",
-        "repositoryN": "Kho mã {n}",
-        "removeRepository": "Bỏ kho mã {n}",
-        "addRepository": "Thêm kho mã",
-        "saved": "Đã lưu hồ sơ.",
-        "section": "Hồ sơ"
-      },
       "verification": {
         "heading": "Xác minh sinh viên",
         "unverified": "Chưa xác minh",
@@ -564,24 +604,7 @@
         "renew": "Gia hạn"
       }
     },
-    "customer": {
-      "profile": {
-        "title": "Hồ sơ",
-        "heading": "Hồ sơ của bạn",
-        "kind": "Bạn là",
-        "individual": "Cá nhân",
-        "business": "Doanh nghiệp",
-        "displayName": "Tên hiển thị",
-        "contactEmail": "Email liên hệ",
-        "contactHelper": "vibefix gửi thông báo đến địa chỉ này. Chỉ người hướng dẫn của công việc đang chạy và quản trị viên thấy nó.",
-        "phone": "Số điện thoại (không bắt buộc)",
-        "phoneHelper": "Ví dụ: +84 912 345 678",
-        "save": "Lưu hồ sơ",
-        "saving": "Đang lưu…",
-        "saved": "Đã lưu hồ sơ.",
-        "savedAt": "Đã lưu lúc {time}"
-      }
-    },
+    "customer": {},
     "admin": {
       "badge": "Quản trị",
       "signIn": {

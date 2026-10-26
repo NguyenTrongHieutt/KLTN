@@ -164,7 +164,7 @@ class MentorDecisions {
 		}
 		order.add("m.account_id ASC");
 		List<QueueRow> rows = this.jdbc.sql("""
-				SELECT m.account_id, m.display_name, a.github_login, m.years_of_experience, a.mentor_approval_status,
+				SELECT m.account_id, p.display_name, a.github_login, p.years_of_experience, a.mentor_approval_status,
 				       m.submitted_at, d.decided_at,
 				       (SELECT count(DISTINCT theirs.account_id) FROM identity.person_signal mine
 				        JOIN identity.person_signal theirs ON theirs.kind = mine.kind AND theirs.key_version = mine.key_version
@@ -172,6 +172,7 @@ class MentorDecisions {
 				        WHERE mine.account_id = m.account_id) AS matches
 				FROM identity.mentor_application m
 				JOIN identity.account a ON a.id = m.account_id
+				LEFT JOIN identity.profile p ON p.account_id = m.account_id
 				LEFT JOIN identity.mentor_decision d ON d.id = m.decision_id
 				WHERE m.submitted_at IS NOT NULL AND a.mentor_approval_status = :status AND a.erased_at IS NULL
 				ORDER BY %s
@@ -291,15 +292,15 @@ class MentorDecisions {
 		List<Recipient> mentor = List.of(new Recipient(accountId, Audience.SUBJECT));
 		if (approve) {
 			this.events.publishEvent(new MentorApproved(this.ids.newId(), accountId));
-			this.notifications.send(new NotificationRequest(APPROVED_NOTIFICATION, decision, mentor, Map.of(), "/ho-so",
-					null, accountId));
+			this.notifications.send(new NotificationRequest(APPROVED_NOTIFICATION, decision, mentor, Map.of(),
+					SignIns.MENTOR_PROFILE_PATH, null, accountId));
 		}
 		else {
 			this.deadlines.schedule(new DeadlineRequest(MentorReapplyWait.KEY, accountId, generation, null, reapplyAfter));
 			this.deadlines.schedule(new DeadlineRequest(MentorApplicationPurge.KEY, accountId, generation, null,
 					now.atOffset(ZoneOffset.UTC).plusMonths(FIELDS_KEPT_MONTHS).toInstant()));
 			this.notifications.send(new NotificationRequest(REJECTED_NOTIFICATION, decision, mentor,
-					Map.of("reason", reason), "/ho-so", null, accountId));
+					Map.of("reason", reason), SignIns.MENTOR_PROFILE_PATH, null, accountId));
 		}
 		this.auditLog.record(AuditEntry.of(AuditActor.user(administrator),
 				approve ? "identity.mentor_approved" : "identity.mentor_rejected",

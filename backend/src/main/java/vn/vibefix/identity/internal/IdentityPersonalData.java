@@ -22,9 +22,10 @@ import vn.vibefix.timers.Deadlines;
 
 /**
  * {@code identity}'s part in exports and erasure (AD-24). An erased account keeps its row, so the
- * records that name it still resolve, but loses its Google and GitHub identities, its avatar, its kept token,
- * its profiles, its school email codes, and its verification (so its school address no longer counts
- * as used); its acknowledgments stay as the proof of what it agreed to.
+ * records that name it still resolve, but loses its Google and GitHub identities, its avatar, its kept
+ * token, its profile with its typed links and showcased repositories, its school email codes, and its
+ * verification (so its school address no longer counts as used); its acknowledgments stay as the
+ * proof of what it agreed to.
  */
 @Component
 class IdentityPersonalData implements PersonalDataParticipant {
@@ -54,7 +55,7 @@ class IdentityPersonalData implements PersonalDataParticipant {
 	@Override
 	public Set<String> tables() {
 		return Set.of("identity.account", "identity.acknowledgment", "identity.customer_token",
-				"identity.customer_profile", "identity.student_profile", "identity.showcase_repository",
+				"identity.profile", "identity.profile_link", "identity.showcase_repository",
 				"identity.contact_grant", "identity.school_email_code", "identity.student_verification",
 				"identity.student_card", "identity.administrator_credential", "identity.administrator_enrolment",
 				"identity.person_signal", "identity.mentor_application", "identity.mentor_decision", "identity.deletion_request",
@@ -95,12 +96,8 @@ class IdentityPersonalData implements PersonalDataParticipant {
 					""").param("id", accountId).query((rs, n) -> Map.of("notice", rs.getString("notice"), "version",
 					rs.getString("notice_version"), "at", rs.getTimestamp("acknowledged_at").toInstant().toString()))
 				.list());
-			this.profiles.customer(accountId).ifPresent(profile -> data.put("customerProfile", profile));
-			this.profiles.student(accountId).ifPresent(profile -> {
-				data.put("studentProfile", profile);
-				// The Skills by name, as the Student chose them; the IDs alone mean nothing to a person.
-				data.put("studentSkills", this.profiles.skills(profile.skillIds()).stream().map(skill -> skill.name()).toList());
-			});
+			// The one profile as the person typed it (Story 19.3), with its typed links and repositories.
+			this.profiles.find(accountId).ifPresent(profile -> data.put("profile", profileSection(profile)));
 			data.put("theme", this.profiles.theme(accountId).name());
 			this.jdbc.sql("""
 					SELECT method, school_email, verified_at, valid_until FROM identity.student_verification
@@ -137,17 +134,12 @@ class IdentityPersonalData implements PersonalDataParticipant {
 			if (!cards.isEmpty()) {
 				data.put("studentCards", cards);
 			}
-			// The Mentor application as its applicant filled it in, with the document's name.
+			// What the Mentor application keeps besides the profile, with the document's name.
 			this.jdbc.sql("""
-					SELECT display_name, experience, years_of_experience, skill_names, linkedin_url, other_link,
-					       document_name, submitted_at
+					SELECT linkedin_url, other_link, document_name, submitted_at
 					FROM identity.mentor_application WHERE account_id = :id
 					""").param("id", accountId).query((rs, n) -> {
 				Map<String, Object> application = new LinkedHashMap<>();
-				application.put("displayName", rs.getString("display_name"));
-				application.put("experience", rs.getString("experience"));
-				application.put("yearsOfExperience", rs.getObject("years_of_experience"));
-				application.put("skills", rs.getString("skill_names"));
 				application.put("linkedinUrl", rs.getString("linkedin_url"));
 				application.put("otherLink", rs.getString("other_link"));
 				application.put("document", rs.getString("document_name"));
@@ -219,10 +211,10 @@ class IdentityPersonalData implements PersonalDataParticipant {
 		this.jdbc.sql("UPDATE identity.deletion_request SET completed_by_admin_id = NULL WHERE completed_by_admin_id = :id")
 			.param("id", accountId)
 			.update();
-		for (String table : new String[] { "identity.customer_profile", "identity.student_profile",
-				"identity.showcase_repository", "identity.school_email_code", "identity.student_verification",
+		for (String table : new String[] { "identity.showcase_repository", "identity.school_email_code", "identity.student_verification",
 				"identity.student_card", "identity.administrator_credential", "identity.administrator_enrolment",
-				"identity.mentor_application", "identity.mentor_decision", "identity.account_action" }) {
+				"identity.mentor_application", "identity.mentor_decision", "identity.account_action",
+				"identity.profile_link", "identity.profile" }) {
 			this.jdbc.sql("DELETE FROM " + table + " WHERE account_id = :id").param("id", accountId).update();
 		}
 		this.jdbc.sql("""
@@ -237,6 +229,30 @@ class IdentityPersonalData implements PersonalDataParticipant {
 				""").param("id", accountId).param("at", Timestamp.from(erasedAt)).update();
 		// The person-link signals outlive the account (AD-19, AD-24): deleted 24 months from now.
 		this.deadlines.schedule(PersonSignalPurge.after(accountId, erasedAt));
+	}
+
+	/** Every field as saved; the Skills by name too, since the IDs alone mean nothing to a person. */
+	private Map<String, Object> profileSection(Profiles.Profile profile) {
+		Map<String, Object> section = new LinkedHashMap<>();
+		section.put("displayName", profile.displayName());
+		section.put("kind", profile.kind().name());
+		section.put("contactEmail", profile.contactEmail());
+		section.put("phone", profile.phone());
+		section.put("experience", profile.experience());
+		section.put("yearsOfExperience", profile.yearsOfExperience());
+		section.put("skills", this.profiles.skills(profile.skillIds()).stream().map(skill -> skill.name()).toList());
+		section.put("links", profile.links());
+		section.put("repositories", profile.repositories());
+		section.put("hideStudentDetails", profile.hideStudentDetails());
+		Profiles.StudentDetails details = profile.studentDetails();
+		if (details != null) {
+			Map<String, Object> student = new LinkedHashMap<>();
+			student.put("name", details.name());
+			student.put("school", details.school());
+			student.put("year", details.year());
+			section.put("studentDetails", student);
+		}
+		return section;
 	}
 
 	@Override

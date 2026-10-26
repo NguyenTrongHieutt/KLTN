@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router'
-import { landingPath } from '@/features/identity/api'
+import { landingPath, MENTOR_PROFILE_PATH } from '@/features/identity/api'
 import { useSession } from '@/features/identity/useSession'
 import { t } from '@/i18n/t'
 
@@ -38,8 +38,8 @@ export function RequireSignedIn({ children }: { children: ReactNode }) {
   if (landing === '/quan-tri') {
     return <Navigate to="/quan-tri" replace />
   }
-  if (landing === '/ho-so' && location.pathname !== '/ho-so') {
-    return <Navigate to="/ho-so" replace />
+  if (landing === MENTOR_PROFILE_PATH && location.pathname !== MENTOR_PROFILE_PATH) {
+    return <Navigate to={MENTOR_PROFILE_PATH} replace />
   }
   return <>{children}</>
 }

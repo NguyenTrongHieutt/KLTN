@@ -51,6 +51,19 @@ export function gitHubLink(session: Session, overrides: Record<string, unknown> 
   }
 }
 
+/** ACC-1's read (Story 19.3): by default an empty profile with nothing verified. */
+export function profileView(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    kind: 'INDIVIDUAL',
+    skills: [],
+    links: [],
+    repositories: [],
+    hideStudentDetails: false,
+    verified: {},
+    ...overrides,
+  }
+}
+
 export function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -61,8 +74,8 @@ export function json(body: unknown, status = 200): Response {
 /**
  * Replaces `fetch` with a backend that answers `GET /api/v1/session` with `session` and any other
  * `METHOD /path` from `handlers`; the to-dos and notifications are empty, GitHub is as
- * {@link gitHubLink} says, and the verification is `UNVERIFIED` unless a handler answers them, and an
- * unknown request answers 404. Returns the requests it saw.
+ * {@link gitHubLink} says, the profile is {@link profileView}'s, and the verification is `UNVERIFIED`
+ * unless a handler answers them, and an unknown request answers 404. Returns the requests it saw.
  */
 export function fakeBackend(session: Session, handlers: Record<string, Handler> = {}): Request[] {
   const seen: Request[] = []
@@ -92,6 +105,9 @@ export function fakeBackend(session: Session, handlers: Record<string, Handler> 
       }
       if (key === 'GET /api/v1/identity/github') {
         return json(gitHubLink(session))
+      }
+      if (key === 'GET /api/v1/profile') {
+        return json(profileView())
       }
       // A Student who has not verified yet.
       if (key === 'GET /api/v1/verification') {

@@ -165,7 +165,7 @@ describe('MEN-2, browsing Job Posts (FR-12)', () => {
     const seen = fakeBackend(signedIn('MENTOR', 'PENDING'))
     const router = renderAt('/tim-viec')
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/ho-so'))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/ho-so/nguoi-huong-dan'))
     expect(seen.some((request) => request.url.includes('/api/v1/mentor/job-posts'))).toBe(false)
   })
 })

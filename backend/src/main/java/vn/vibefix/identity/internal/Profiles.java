@@ -19,18 +19,25 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import vn.vibefix.audit.AuditActor;
+import vn.vibefix.audit.AuditEntry;
+import vn.vibefix.audit.AuditLog;
+import vn.vibefix.audit.AuditObject;
 import vn.vibefix.catalog.Catalog;
 import vn.vibefix.catalog.Skill;
 import vn.vibefix.identity.ContactVisibility;
 
 /**
- * Reads and writes the Customer and Student profiles, their showcased repositories and Skills, the
- * theme, and the contact grants (FR-3, FR-4, FR-51, UX-DR5). Skills are catalog IDs (AD-38): a save
- * may keep IDs that became inactive, but adds only active ones, at most {@value #MAX_SKILLS}, and
- * writes their names for search.
+ * The one profile of each account (FR-3, FR-4, FR-51, FR-72, Story 19.3): what the person typed, with
+ * their typed links and showcased repositories, the theme, and the contact grants (UX-DR5, AD-3).
+ * Nothing here is verified, and nothing here writes a verified fact (AD-42). Skills are catalog IDs
+ * (AD-38): a save may keep IDs that became inactive, but adds only active ones, at most
+ * {@value #MAX_SKILLS}, and writes their names for search.
  */
 @Component
 class Profiles implements ContactVisibility {
+
+	static final String SAVED_AUDIT = "identity.profile_saved";
 
 	/** "Sáng", "Tối" or "Theo hệ thống". */
 	enum Theme {
@@ -39,24 +46,53 @@ class Profiles implements ContactVisibility {
 
 	}
 
-	enum CustomerKind {
+	/** "Cá nhân" or "Doanh nghiệp". */
+	enum ProfileKind {
 
 		INDIVIDUAL, BUSINESS
 
 	}
 
-	record CustomerProfile(CustomerKind kind, String displayName, String contactEmail, @Nullable String phone) {
-	}
-
-	/** A Student or Mentor profile keeps at most 20 Skills (FR-4, FR-74). */
+	/** A profile keeps at most 20 Skills (FR-4, FR-72). */
 	static final int MAX_SKILLS = 20;
 
+	/** A profile shows at most 5 typed links and 5 repositories (FR-4). */
+	static final int MAX_LINKS = 5;
+
 	/**
-	 * @param repositories {@code owner/name} references, in the order the Student gave
-	 * @param skillIds catalog Skill IDs, in the order the Student chose them
+	 * The student details a Student typed before Story 19.4, which declares them at verification; they
+	 * are not edited on the profile.
+	 * @param year the year of study, 1 to 8
 	 */
-	record StudentProfile(@Nullable String realName, @Nullable String school, @Nullable Integer yearOfStudy,
-			@Nullable String linkedinUrl, boolean showNameAndSchool, List<String> repositories, List<UUID> skillIds) {
+	record StudentDetails(@Nullable String name, @Nullable String school, @Nullable Integer year) {
+	}
+
+	/**
+	 * The profile as saved; an account that never saved one has {@link #empty()}.
+	 * @param skillIds catalog Skill IDs, in the order the person chose them
+	 * @param links typed {@code https} links, "Tự khai", in order
+	 * @param repositories {@code owner/name} references, in order
+	 * @param studentDetails absent when no detail was ever given
+	 */
+	record Profile(@Nullable String displayName, ProfileKind kind, @Nullable String contactEmail, @Nullable String phone,
+			@Nullable String experience, @Nullable Integer yearsOfExperience, List<UUID> skillIds, List<String> links,
+			List<String> repositories, boolean hideStudentDetails, @Nullable StudentDetails studentDetails) {
+
+		static Profile empty() {
+			return new Profile(null, ProfileKind.INDIVIDUAL, null, null, null, null, List.of(), List.of(), List.of(), false,
+					null);
+		}
+
+	}
+
+	/** What a save of ACC-1 writes: every typed field, never a verified fact or a student detail. */
+	record Changes(String displayName, ProfileKind kind, @Nullable String contactEmail, @Nullable String phone,
+			@Nullable String experience, @Nullable Integer yearsOfExperience, List<UUID> skillIds, List<String> links,
+			List<String> repositories, boolean hideStudentDetails) {
+	}
+
+	/** The contact details only the owner, Administrators, and a granted Mentor read (FR-3, AD-20). */
+	record Contact(ProfileKind kind, @Nullable String displayName, @Nullable String contactEmail, @Nullable String phone) {
 	}
 
 	private final JdbcClient jdbc;
@@ -65,96 +101,92 @@ class Profiles implements ContactVisibility {
 
 	private final Clock clock;
 
-	private final JdbcPersonSignals signals;
+	private final AuditLog auditLog;
 
-	Profiles(JdbcClient jdbc, Catalog catalog, Clock clock, JdbcPersonSignals signals) {
+	Profiles(JdbcClient jdbc, Catalog catalog, Clock clock, AuditLog auditLog) {
 		this.jdbc = jdbc;
 		this.catalog = catalog;
 		this.clock = clock;
-		this.signals = signals;
+		this.auditLog = auditLog;
 	}
 
-	Optional<CustomerProfile> customer(UUID accountId) {
-		return this.jdbc.sql("SELECT * FROM identity.customer_profile WHERE account_id = :id")
+	/** The saved profile, if the account ever saved one. */
+	Optional<Profile> find(UUID accountId) {
+		List<String> links = this.jdbc.sql("SELECT url FROM identity.profile_link WHERE account_id = :id ORDER BY position")
 			.param("id", accountId)
-			.query((row, number) -> new CustomerProfile(CustomerKind.valueOf(row.getString("kind")),
-					row.getString("display_name"), row.getString("contact_email"), row.getString("phone")))
-			.optional();
-	}
-
-	@Transactional
-	void saveCustomer(UUID accountId, CustomerProfile profile) {
-		this.jdbc.sql("""
-				INSERT INTO identity.customer_profile (account_id, kind, display_name, contact_email, phone, updated_at)
-				VALUES (:id, :kind, :name, :email, :phone, :now)
-				ON CONFLICT (account_id) DO UPDATE SET kind = EXCLUDED.kind, display_name = EXCLUDED.display_name,
-				    contact_email = EXCLUDED.contact_email, phone = EXCLUDED.phone, updated_at = EXCLUDED.updated_at
-				""")
-			.param("id", accountId)
-			.param("kind", profile.kind().name())
-			.param("name", profile.displayName())
-			.param("email", profile.contactEmail())
-			.param("phone", profile.phone())
-			.param("now", now())
-			.update();
-	}
-
-	Optional<StudentProfile> student(UUID accountId) {
+			.query(String.class)
+			.list();
 		List<String> repositories = this.jdbc.sql("""
 				SELECT owner || '/' || name FROM identity.showcase_repository WHERE account_id = :id ORDER BY position
 				""").param("id", accountId).query(String.class).list();
-		return this.jdbc.sql("SELECT * FROM identity.student_profile WHERE account_id = :id")
+		return this.jdbc.sql("SELECT * FROM identity.profile WHERE account_id = :id")
 			.param("id", accountId)
-			.query((row, number) -> new StudentProfile(row.getString("real_name"), row.getString("school"),
-					(Integer) row.getObject("year_of_study", Integer.class), row.getString("linkedin_url"),
-					row.getBoolean("show_name_and_school"), repositories, uuids(row.getArray("skill_ids"))))
+			.query((row, number) -> {
+				String name = row.getString("student_name");
+				String school = row.getString("student_school");
+				Integer year = (Integer) row.getObject("student_year", Integer.class);
+				return new Profile(row.getString("display_name"), ProfileKind.valueOf(row.getString("kind")),
+						row.getString("contact_email"), row.getString("phone"), row.getString("experience"),
+						(Integer) row.getObject("years_of_experience", Integer.class), uuids(row.getArray("skill_ids")),
+						links, repositories, row.getBoolean("hide_student_details"),
+						name == null && school == null && year == null ? null : new StudentDetails(name, school, year));
+			})
 			.optional();
 	}
 
-	/** The profile's Skills with their current names, inactive ones included, in the Student's order. */
+	/** The saved profile, or the empty one. */
+	Profile profile(UUID accountId) {
+		return find(accountId).orElseGet(Profile::empty);
+	}
+
+	/** The profile's Skills with their current names, inactive ones included, in the person's order. */
 	List<Skill> skills(List<UUID> skillIds) {
 		return this.catalog.byIds(skillIds);
 	}
 
 	/**
-	 * Saves the profile with its Skills: each one once, in order; the IDs it did not hold yet must be
-	 * active, and no more than {@value #MAX_SKILLS} in all.
+	 * Saves ACC-1's typed fields, creating the row on the first save; the student details stay as
+	 * they are. Needs no approval, and is audited (AD-8).
 	 * @throws vn.vibefix.shared.ApiException {@code VALIDATION} with {@code SKILL_INACTIVE} or {@code SKILL_LIMIT}
 	 */
 	@Transactional
-	void saveStudent(UUID accountId, StudentProfile profile) {
-		List<UUID> skillIds = List.copyOf(new LinkedHashSet<>(profile.skillIds()));
-		this.catalog.requireAtMost(skillIds.size(), MAX_SKILLS);
-		Set<UUID> held = Set.copyOf(this.jdbc.sql("""
-				SELECT skill_ids FROM identity.student_profile WHERE account_id = :id FOR UPDATE
-				""").param("id", accountId).query((row, number) -> uuids(row.getArray("skill_ids"))).optional().orElse(List.of()));
-		this.catalog.requireActive(skillIds.stream().filter(id -> !held.contains(id)).toList());
+	void save(UUID accountId, Changes changes) {
+		List<UUID> skillIds = checkedSkills(accountId, changes.skillIds());
 		this.jdbc.sql("""
-				INSERT INTO identity.student_profile
-				    (account_id, real_name, school, year_of_study, linkedin_url, show_name_and_school, skill_ids,
-				     skill_names, updated_at)
-				VALUES (:id, :realName, :school, :year, :linkedin, :show, CAST(:skills AS UUID[]), :names, :now)
-				ON CONFLICT (account_id) DO UPDATE SET real_name = EXCLUDED.real_name, school = EXCLUDED.school,
-				    year_of_study = EXCLUDED.year_of_study, linkedin_url = EXCLUDED.linkedin_url,
-				    show_name_and_school = EXCLUDED.show_name_and_school, skill_ids = EXCLUDED.skill_ids,
-				    skill_names = EXCLUDED.skill_names, updated_at = EXCLUDED.updated_at
+				INSERT INTO identity.profile
+				    (account_id, display_name, kind, contact_email, phone, experience, years_of_experience, skill_ids,
+				     skill_names, hide_student_details, updated_at)
+				VALUES (:id, :name, :kind, :email, :phone, :experience, :years, CAST(:skills AS UUID[]), :names, :hide, :now)
+				ON CONFLICT (account_id) DO UPDATE SET display_name = EXCLUDED.display_name, kind = EXCLUDED.kind,
+				    contact_email = EXCLUDED.contact_email, phone = EXCLUDED.phone, experience = EXCLUDED.experience,
+				    years_of_experience = EXCLUDED.years_of_experience, skill_ids = EXCLUDED.skill_ids,
+				    skill_names = EXCLUDED.skill_names, hide_student_details = EXCLUDED.hide_student_details,
+				    updated_at = EXCLUDED.updated_at
 				""")
 			.param("id", accountId)
-			.param("realName", profile.realName())
-			.param("school", profile.school())
-			.param("year", profile.yearOfStudy())
-			.param("linkedin", profile.linkedinUrl())
-			.param("show", profile.showNameAndSchool())
+			.param("name", changes.displayName())
+			.param("kind", changes.kind().name())
+			.param("email", changes.contactEmail())
+			.param("phone", changes.phone())
+			.param("experience", changes.experience())
+			.param("years", changes.yearsOfExperience())
 			.param("skills", arrayLiteral(skillIds))
 			.param("names", skillNames(skillIds))
+			.param("hide", changes.hideStudentDetails())
 			.param("now", now())
 			.update();
-		if (profile.linkedinUrl() != null) {
-			this.signals.record(accountId, JdbcPersonSignals.Source.LINKEDIN, profile.linkedinUrl());
+		// A typed link is "Tự khai": it proves nothing, so it records no person-link signal (Story 19.3).
+		this.jdbc.sql("DELETE FROM identity.profile_link WHERE account_id = :id").param("id", accountId).update();
+		for (int position = 0; position < changes.links().size(); position++) {
+			this.jdbc.sql("INSERT INTO identity.profile_link (account_id, position, url) VALUES (:id, :position, :url)")
+				.param("id", accountId)
+				.param("position", position)
+				.param("url", changes.links().get(position))
+				.update();
 		}
 		this.jdbc.sql("DELETE FROM identity.showcase_repository WHERE account_id = :id").param("id", accountId).update();
-		for (int position = 0; position < profile.repositories().size(); position++) {
-			String[] parts = profile.repositories().get(position).split("/", 2);
+		for (int position = 0; position < changes.repositories().size(); position++) {
+			String[] parts = changes.repositories().get(position).split("/", 2);
 			this.jdbc.sql("""
 					INSERT INTO identity.showcase_repository (account_id, position, owner, name)
 					VALUES (:id, :position, :owner, :name)
@@ -165,24 +197,68 @@ class Profiles implements ContactVisibility {
 				.param("name", parts[1])
 				.update();
 		}
+		this.auditLog.record(AuditEntry.of(AuditActor.user(accountId), SAVED_AUDIT,
+				AuditObject.of("identity.account", accountId)));
 	}
 
 	/**
-	 * Rewrites {@code skill_names} on every Student profile holding {@code skillId}, after a rename
-	 * (AD-38); the caller's transaction also records the event as processed.
+	 * MEN-5's part of the profile (FR-74, until Story 19.7): the display name, the experience, the
+	 * years, and the Skills, in the same row ACC-1 saves; the caller's transaction writes the rest of
+	 * the application.
+	 * @throws vn.vibefix.shared.ApiException {@code VALIDATION} with {@code SKILL_INACTIVE} or {@code SKILL_LIMIT}
+	 */
+	@Transactional
+	void saveMentorFields(UUID accountId, String displayName, String experience, int yearsOfExperience,
+			List<UUID> requestedSkillIds) {
+		List<UUID> skillIds = checkedSkills(accountId, requestedSkillIds);
+		this.jdbc.sql("""
+				INSERT INTO identity.profile
+				    (account_id, display_name, experience, years_of_experience, skill_ids, skill_names, updated_at)
+				VALUES (:id, :name, :experience, :years, CAST(:skills AS UUID[]), :names, :now)
+				ON CONFLICT (account_id) DO UPDATE SET display_name = EXCLUDED.display_name,
+				    experience = EXCLUDED.experience, years_of_experience = EXCLUDED.years_of_experience,
+				    skill_ids = EXCLUDED.skill_ids, skill_names = EXCLUDED.skill_names, updated_at = EXCLUDED.updated_at
+				""")
+			.param("id", accountId)
+			.param("name", displayName)
+			.param("experience", experience)
+			.param("years", yearsOfExperience)
+			.param("skills", arrayLiteral(skillIds))
+			.param("names", skillNames(skillIds))
+			.param("now", now())
+			.update();
+	}
+
+	/**
+	 * Each Skill once, in order; the IDs the profile did not hold yet must be active, and no more than
+	 * {@value #MAX_SKILLS} in all. Locks the profile row, so two saves of one account run one at a time.
+	 */
+	private List<UUID> checkedSkills(UUID accountId, List<UUID> requested) {
+		List<UUID> skillIds = List.copyOf(new LinkedHashSet<>(requested));
+		this.catalog.requireAtMost(skillIds.size(), MAX_SKILLS);
+		Set<UUID> held = Set.copyOf(this.jdbc.sql("""
+				SELECT skill_ids FROM identity.profile WHERE account_id = :id FOR UPDATE
+				""").param("id", accountId).query((row, number) -> uuids(row.getArray("skill_ids"))).optional().orElse(List.of()));
+		this.catalog.requireActive(skillIds.stream().filter(id -> !held.contains(id)).toList());
+		return skillIds;
+	}
+
+	/**
+	 * Rewrites {@code skill_names} on every profile holding {@code skillId}, after a rename (AD-38); the
+	 * caller's transaction also records the event as processed, so a replay rewrites nothing.
 	 */
 	int refreshSkillNames(UUID skillId) {
 		record Holder(UUID accountId, List<UUID> skillIds) {
 		}
 		List<Holder> holders = this.jdbc.sql("""
-				SELECT account_id, skill_ids FROM identity.student_profile
+				SELECT account_id, skill_ids FROM identity.profile
 				WHERE skill_ids @> ARRAY[CAST(:skill AS UUID)] FOR UPDATE
 				""")
 			.param("skill", skillId)
 			.query((row, number) -> new Holder(row.getObject("account_id", UUID.class), uuids(row.getArray("skill_ids"))))
 			.list();
 		for (Holder holder : holders) {
-			this.jdbc.sql("UPDATE identity.student_profile SET skill_names = :names WHERE account_id = :id")
+			this.jdbc.sql("UPDATE identity.profile SET skill_names = :names WHERE account_id = :id")
 				.param("id", holder.accountId())
 				.param("names", skillNames(holder.skillIds()))
 				.update();
@@ -190,24 +266,13 @@ class Profiles implements ContactVisibility {
 		return holders.size();
 	}
 
-	/** Rewrites {@code skill_names} on every Mentor application holding {@code skillId}, after a rename (FR-72). */
-	int refreshMentorSkillNames(UUID skillId) {
-		record Holder(UUID accountId, List<UUID> skillIds) {
-		}
-		List<Holder> holders = this.jdbc.sql("""
-				SELECT account_id, skill_ids FROM identity.mentor_application
-				WHERE skill_ids @> ARRAY[CAST(:skill AS UUID)] FOR UPDATE
-				""")
-			.param("skill", skillId)
-			.query((row, number) -> new Holder(row.getObject("account_id", UUID.class), uuids(row.getArray("skill_ids"))))
-			.list();
-		for (Holder holder : holders) {
-			this.jdbc.sql("UPDATE identity.mentor_application SET skill_names = :names WHERE account_id = :id")
-				.param("id", holder.accountId())
-				.param("names", skillNames(holder.skillIds()))
-				.update();
-		}
-		return holders.size();
+	/** The contact details, once the account saved a profile. */
+	Optional<Contact> contact(UUID accountId) {
+		return this.jdbc.sql("SELECT kind, display_name, contact_email, phone FROM identity.profile WHERE account_id = :id")
+			.param("id", accountId)
+			.query((row, number) -> new Contact(ProfileKind.valueOf(row.getString("kind")), row.getString("display_name"),
+					row.getString("contact_email"), row.getString("phone")))
+			.optional();
 	}
 
 	/** The names search reads (AD-36): the Skills' current names, in order, each followed by a comma and a space but the last. */

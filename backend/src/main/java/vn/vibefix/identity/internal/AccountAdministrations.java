@@ -55,13 +55,11 @@ class AccountAdministrations implements AccountAdministration {
 
 	static final String APPROVAL_REVOKED = "identity.mentor_approval_revoked";
 
-	private static final String NAME = "coalesce(cp.display_name, ma.display_name, sp.real_name, a.google_name)";
+	private static final String NAME = "coalesce(p.display_name, p.student_name, a.google_name, '@' || a.github_login)";
 
 	private static final String FROM = """
 			FROM identity.account a
-			LEFT JOIN identity.customer_profile cp ON cp.account_id = a.id
-			LEFT JOIN identity.mentor_application ma ON ma.account_id = a.id
-			LEFT JOIN identity.student_profile sp ON sp.account_id = a.id
+			LEFT JOIN identity.profile p ON p.account_id = a.id
 			LEFT JOIN identity.student_verification v ON v.account_id = a.id
 			""";
 
@@ -115,7 +113,7 @@ class AccountAdministrations implements AccountAdministration {
 		}
 		if (query.text() != null && !query.text().isBlank()) {
 			where.append(" AND platform.vi_normalize(coalesce(" + NAME + ", '') || ' ' || coalesce(a.github_login, '')")
-				.append(" || ' ' || coalesce(cp.contact_email, '') || ' ' || coalesce(a.google_email, '')")
+				.append(" || ' ' || coalesce(p.contact_email, '') || ' ' || coalesce(a.google_email, '')")
 				.append(" || ' ' || coalesce(a.github_email, ''))")
 				.append(" LIKE '%' || platform.vi_normalize(:text) || '%' ESCAPE '\\'");
 			params.put("text", escapeLike(query.text().strip()));
@@ -185,7 +183,7 @@ class AccountAdministrations implements AccountAdministration {
 	public Optional<Account> account(UUID accountId) {
 		LocalDate today = today();
 		return this.jdbc.sql("SELECT a.id, a.role, a.github_login, a.created_at, a.signed_in_at, a.locked_at, a.lock_reason, "
-				+ "a.mentor_approval_status, coalesce(cp.contact_email, a.google_email, a.github_email) AS email, " + NAME
+				+ "a.mentor_approval_status, coalesce(p.contact_email, a.google_email, a.github_email) AS email, " + NAME
 				+ " AS name, "
 				+ "v.method, v.verified_at, v.valid_until " + FROM
 				+ " WHERE a.id = :id AND a.kind = 'USER' AND a.erased_at IS NULL")

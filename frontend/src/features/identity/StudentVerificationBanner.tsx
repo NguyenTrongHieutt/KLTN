@@ -9,7 +9,7 @@ import { useVerification } from './verificationApi'
 
 /**
  * STU-1's banner for a Student who is not verified (UX-DR27): why to verify and "Xác minh ngay", or,
- * once the verification expired, "Xác minh đã hết hạn ngày 30/09" and "Gia hạn", both to STU-5.
+ * once the verification expired, "Xác minh đã hết hạn ngày 30/09" and "Gia hạn", both to ACC-2.
  * Nothing for other roles, a verified Student, or while the status is loading or failing.
  */
 export function StudentVerificationBanner() {
@@ -31,7 +31,7 @@ export function StudentVerificationBanner() {
         </p>
         <p className="text-body-sm">{t(expired ? 'screen.student.banner.expiredBody' : 'screen.student.banner.body')}</p>
       </div>
-      <Link to="/ho-so" className={cn(buttonVariants({ variant: 'secondary', size: 'compact' }))}>
+      <Link to="/ho-so/xac-minh" className={cn(buttonVariants({ variant: 'secondary', size: 'compact' }))}>
         {t(expired ? 'screen.student.banner.renew' : 'screen.student.banner.action')}
       </Link>
     </div>

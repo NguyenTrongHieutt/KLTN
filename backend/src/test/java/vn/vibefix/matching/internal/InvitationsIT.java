@@ -70,7 +70,7 @@ class InvitationsIT extends IntegrationTest {
 	void aCustomerWithAnOpenJobPostAndMentorsInEveryState() {
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
 		this.jdbc.sql("""
-				INSERT INTO identity.customer_profile (account_id, kind, display_name, contact_email, updated_at)
+				INSERT INTO identity.profile (account_id, kind, display_name, contact_email, updated_at)
 				VALUES (:id, 'INDIVIDUAL', 'Lan Nguyễn', 'lan@example.com', now())
 				""").param("id", this.lan).update();
 		this.product = product(this.lan);

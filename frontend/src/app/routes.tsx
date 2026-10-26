@@ -33,8 +33,14 @@ export const routes: RouteObject[] = [
         element: <Navigate to="/ho-so/xac-minh" replace />,
       },
       {
+        // ACC-1, the one profile of every account (Story 19.3).
         path: 'ho-so',
-        lazy: async () => ({ Component: (await import('@/features/identity/ProfileStub')).ProfileStub }),
+        lazy: async () => ({ Component: (await import('@/features/identity/ProfilePage')).ProfilePage }),
+      },
+      {
+        // MEN-5, the Mentor application, until Story 19.7 retires it.
+        path: 'ho-so/nguoi-huong-dan',
+        lazy: async () => ({ Component: (await import('@/features/mentor/MentorProfilePage')).MentorProfilePage }),
       },
       {
         // ACC-2, where the identity.link_github and identity.relink_github to-dos lead (Story 19.2).

@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button'
 import { IMAGE_OR_PDF, precheckUpload, uploadMessage } from '@/features/files/uploadRules'
 import {
   useDeleteMentorDocument,
-  useProfile,
+  useMentorProfile,
   useSaveMentorProfile,
   useUploadMentorDocument,
   type MentorProfile,
@@ -38,7 +38,7 @@ const LINKEDIN = /^https:\/\/www\.linkedin\.com\/in\/[A-Za-z0-9_%-]{3,100}\/?$/
 
 const schema = z.object({
   displayName: z.string().trim().min(1, 'required').max(100, 'tooLong'),
-  experience: z.string().trim().min(1, 'required').max(4000, 'tooLong'),
+  experience: z.string().trim().min(1, 'required').max(2000, 'tooLong'),
   yearsOfExperience: z.string().trim().regex(/^\d{1,2}$/, 'format').refine((value) => Number(value) <= 60, 'range'),
   linkedinUrl: z.string().trim().min(1, 'required').regex(LINKEDIN, 'format'),
   otherLink: z.string().trim().regex(/^(?:https:\/\/\S+)?$/, 'format').max(300, 'tooLong'),
@@ -92,12 +92,13 @@ function refusalOf(error: unknown): { field: Field; message: string } | undefine
 }
 
 /**
- * MEN-5 (`/ho-so`), the Mentor application and profile (FR-74, UX-DR78): the only screen of a Mentor
- * not yet approved. Before the first submission it ends with the personal-data notice to accept,
- * N-22, and "Gửi hồ sơ"; afterwards it reads "Đang chờ duyệt" and keeps every field editable with
- * "Lưu thay đổi". Once approved it reads "Đã duyệt" and stays editable; once rejected it shows the
- * reason, and the fields and "Gửi lại hồ sơ" stay disabled until the 30-day wait ends. The document
- * is read by Administrators only; the Mentor sees its name.
+ * MEN-5 (`/ho-so/nguoi-huong-dan`, FR-74, UX-DR78, until Story 19.7), the Mentor application: the
+ * only screen of a Mentor not yet approved. Its display name, experience, years, and Skills are the
+ * one profile's (ACC-1, Story 19.3). Before the first submission it ends with the personal-data
+ * notice to accept, N-22, and "Gửi hồ sơ"; afterwards it reads "Đang chờ duyệt" and keeps every field
+ * editable with "Lưu thay đổi". Once approved it reads "Đã duyệt" and stays editable; once rejected it
+ * shows the reason, and the fields and "Gửi lại hồ sơ" stay disabled until the 30-day wait ends. The
+ * document is read by Administrators only; the Mentor sees its name.
  */
 export function MentorProfilePage() {
   const session = useSession()
@@ -110,8 +111,8 @@ export function MentorProfilePage() {
 
 function MentorProfileScreen() {
   usePageTitle(t('screen.mentor.profile.title'))
-  const profile = useProfile()
-  const mentor = profile.data?.mentor
+  const profile = useMentorProfile()
+  const mentor = profile.data
 
   return (
     <div className="mx-auto flex max-w-[760px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
@@ -305,7 +306,7 @@ function ApplicationForm({ mentor }: { mentor: MentorProfile }) {
           <textarea
             {...fieldProps('experience', errors.experience, t('screen.mentor.profile.experienceHelper'))}
             className={cn(inputClass, 'min-h-32')}
-            maxLength={4000}
+            maxLength={2000}
             value={values.experience}
             onChange={(event) => setValues({ ...values, experience: event.target.value })}
             onBlur={() => validate('experience')}

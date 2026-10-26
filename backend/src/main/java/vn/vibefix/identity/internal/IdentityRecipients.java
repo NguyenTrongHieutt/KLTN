@@ -14,8 +14,9 @@ import vn.vibefix.notification.RecipientLookup;
 
 /**
  * {@code identity}'s answers to {@code notification} (AD-3 recipient lookup): who is an
- * Administrator, and where an account's notifications are emailed (its GitHub primary verified
- * email, FR-48), a Customer's contact email once it is saved (FR-3), or an Administrator's sign-in email.
+ * Administrator, and where an account's notifications are emailed (FR-48): an Administrator's
+ * sign-in email, otherwise the profile's contact email once saved (FR-3, Story 19.3), the verified
+ * Google email, or the GitHub primary verified email.
  */
 @Component
 class IdentityRecipients implements RecipientLookup, RecipientAddresses {
@@ -24,14 +25,11 @@ class IdentityRecipients implements RecipientLookup, RecipientAddresses {
 
 	private final Accounts accounts;
 
-	private final Profiles profiles;
-
 	private final AdministratorCredentials administrators;
 
-	IdentityRecipients(JdbcClient jdbc, Accounts accounts, Profiles profiles, AdministratorCredentials administrators) {
+	IdentityRecipients(JdbcClient jdbc, Accounts accounts, AdministratorCredentials administrators) {
 		this.jdbc = jdbc;
 		this.accounts = accounts;
-		this.profiles = profiles;
 		this.administrators = administrators;
 	}
 
@@ -53,15 +51,15 @@ class IdentityRecipients implements RecipientLookup, RecipientAddresses {
 	}
 
 	/**
-	 * A Customer's contact email once saved (FR-3), an Administrator's sign-in email, otherwise the
-	 * GitHub primary verified email.
+	 * An Administrator's sign-in email; otherwise {@code coalesce(profile.contact_email, google_email,
+	 * github_email)}.
 	 */
 	@Override
 	public Optional<String> emailAddress(UUID accountId) {
-		// An erasure deletes the profile, the credential, and the GitHub email, so an erased account has none.
-		return this.profiles.customer(accountId)
-			.map(Profiles.CustomerProfile::contactEmail)
-			.or(() -> this.administrators.identity(accountId).map(AdministratorCredentials.Identity::email))
+		// An erasure deletes the profile and the credential, and clears the account's addresses, so an
+		// erased account has none.
+		return this.administrators.identity(accountId)
+			.map(AdministratorCredentials.Identity::email)
 			.or(() -> this.accounts.notificationAddress(accountId));
 	}
 

@@ -36,13 +36,16 @@ public class MentorApplicationFixture implements MatrixFixture {
 		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, MentorApprovalStatus.PENDING, null);
 		Timestamp now = Timestamp.from(MutableClock.DEFAULT_INSTANT);
 		this.jdbc.sql("""
-				INSERT INTO identity.mentor_application
-				    (account_id, display_name, experience, years_of_experience, skill_ids, skill_names, linkedin_url,
-				     linkedin_hmac, linkedin_key_version, linkedin_reserved, privacy_notice_version, n22_version,
-				     submitted_at, updated_at)
+				INSERT INTO identity.profile
+				    (account_id, display_name, experience, years_of_experience, skill_ids, skill_names, updated_at)
 				VALUES (:account, 'Người hướng dẫn khác', 'Kinh nghiệm', 5,
-				        ARRAY[CAST('0192b000-0000-7000-8001-000000000004' AS UUID)], 'React', :linkedin,
-				        repeat('c', 64), 1, FALSE, '2.0', '1.0', :now, :now)
+				        ARRAY[CAST('0192b000-0000-7000-8001-000000000004' AS UUID)], 'React', :now)
+				""").param("account", other).param("now", now).update();
+		this.jdbc.sql("""
+				INSERT INTO identity.mentor_application
+				    (account_id, linkedin_url, linkedin_hmac, linkedin_key_version, linkedin_reserved, privacy_notice_version,
+				     n22_version, submitted_at, updated_at)
+				VALUES (:account, :linkedin, repeat('c', 64), 1, FALSE, '2.0', '1.0', :now, :now)
 				""")
 			.param("account", other)
 			.param("linkedin", this.canaries.get("CREW_LINKEDIN").value())

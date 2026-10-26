@@ -22,7 +22,7 @@ const catalog = () =>
     categories: [{ id: 'c1', name: 'Giao diện web', skills: [{ id: 'react', name: 'React', hint: 'x' }] }],
   })
 
-const profile = (mentor: object) => () => json({ role: 'MENTOR', githubLogin: 'hung-dev', mentor })
+const profile = (mentor: object) => () => json(mentor)
 
 const draft = { approvalStatus: 'PENDING', skills: [] }
 
@@ -58,14 +58,14 @@ describe('MEN-5, the Mentor application (FR-74, UX-DR78)', () => {
     const user = userEvent.setup()
     let body: Record<string, unknown> | undefined
     fakeBackend(signedIn('MENTOR', 'PENDING'), {
-      'GET /api/v1/profile': profile(draft),
+      'GET /api/v1/profile/mentor': profile(draft),
       'GET /api/v1/catalog': catalog,
       'PUT /api/v1/profile/mentor': async (request) => {
         body = await request.json()
         return json({ submitted: true })
       },
     })
-    renderAt('/ho-so')
+    renderAt('/ho-so/nguoi-huong-dan')
 
     expect(await screen.findByText('Chưa gửi')).toBeInTheDocument()
     expect(screen.getByText('Ít nhất 2 năm kinh nghiệm làm phần mềm chuyên nghiệp')).toBeInTheDocument()
@@ -92,8 +92,8 @@ describe('MEN-5, the Mentor application (FR-74, UX-DR78)', () => {
 
   it('validates each field and lists them in the summary', async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('MENTOR', 'PENDING'), { 'GET /api/v1/profile': profile(draft), 'GET /api/v1/catalog': catalog })
-    renderAt('/ho-so')
+    fakeBackend(signedIn('MENTOR', 'PENDING'), { 'GET /api/v1/profile/mentor': profile(draft), 'GET /api/v1/catalog': catalog })
+    renderAt('/ho-so/nguoi-huong-dan')
 
     await user.type(await screen.findByLabelText('Liên kết LinkedIn *'), 'linkedin.com/hung')
     await user.tab()
@@ -106,8 +106,8 @@ describe('MEN-5, the Mentor application (FR-74, UX-DR78)', () => {
   })
 
   it('shows a submitted application as pending, editable, with its document', async () => {
-    fakeBackend(signedIn('MENTOR', 'PENDING'), { 'GET /api/v1/profile': profile(submitted), 'GET /api/v1/catalog': catalog })
-    renderAt('/ho-so')
+    fakeBackend(signedIn('MENTOR', 'PENDING'), { 'GET /api/v1/profile/mentor': profile(submitted), 'GET /api/v1/catalog': catalog })
+    renderAt('/ho-so/nguoi-huong-dan')
 
     expect(await screen.findByText('Hồ sơ đang chờ quản trị viên duyệt. Bạn sẽ nhận email khi có kết quả.')).toBeInTheDocument()
     expect(screen.getByText('Gửi 16/10. Bạn vẫn sửa được hồ sơ trong lúc chờ.')).toBeInTheDocument()
@@ -122,11 +122,11 @@ describe('MEN-5, the Mentor application (FR-74, UX-DR78)', () => {
   it('puts a LinkedIn profile that another application holds on its field', async () => {
     const user = userEvent.setup()
     fakeBackend(signedIn('MENTOR', 'PENDING'), {
-      'GET /api/v1/profile': profile(submitted),
+      'GET /api/v1/profile/mentor': profile(submitted),
       'GET /api/v1/catalog': catalog,
       'PUT /api/v1/profile/mentor': () => refusal(422, { code: 'GUARD_FAILED', reason: 'MENTOR_LINKEDIN_IN_USE' }),
     })
-    renderAt('/ho-so')
+    renderAt('/ho-so/nguoi-huong-dan')
 
     await user.click(await screen.findByRole('button', { name: 'Lưu thay đổi' }))
 
@@ -136,8 +136,8 @@ describe('MEN-5, the Mentor application (FR-74, UX-DR78)', () => {
 
   it('checks a document before sending it', async () => {
     const user = userEvent.setup({ applyAccept: false })
-    const seen = fakeBackend(signedIn('MENTOR', 'PENDING'), { 'GET /api/v1/profile': profile(draft) })
-    renderAt('/ho-so')
+    const seen = fakeBackend(signedIn('MENTOR', 'PENDING'), { 'GET /api/v1/profile/mentor': profile(draft) })
+    renderAt('/ho-so/nguoi-huong-dan')
     await screen.findByRole('button', { name: 'Chọn tài liệu' })
 
     await user.upload(document.querySelector<HTMLInputElement>('input[type="file"]')!, new File(['<svg/>'], 'cv.svg', { type: 'image/svg+xml' }))
@@ -148,10 +148,10 @@ describe('MEN-5, the Mentor application (FR-74, UX-DR78)', () => {
 
   it('shows an approved application as approved and editable, without the criteria', async () => {
     fakeBackend(signedIn('MENTOR', 'APPROVED'), {
-      'GET /api/v1/profile': profile({ ...submitted, approvalStatus: 'APPROVED', decidedAt: '2026-06-12T03:00:00Z' }),
+      'GET /api/v1/profile/mentor': profile({ ...submitted, approvalStatus: 'APPROVED', decidedAt: '2026-06-12T03:00:00Z' }),
       'GET /api/v1/catalog': catalog,
     })
-    renderAt('/ho-so')
+    renderAt('/ho-so/nguoi-huong-dan')
 
     expect(await screen.findByText('Duyệt ngày 12/06/2026. Thay đổi kỹ năng và mô tả hiện ngay trên hồ sơ công khai.')).toBeInTheDocument()
     expect(screen.getByText('Đã duyệt')).toBeInTheDocument()
@@ -164,7 +164,7 @@ describe('MEN-5, the Mentor application (FR-74, UX-DR78)', () => {
     const reapplyAfter = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString()
     const day = new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit' }).format(new Date(reapplyAfter))
     fakeBackend(signedIn('MENTOR', 'REJECTED'), {
-      'GET /api/v1/profile': profile({
+      'GET /api/v1/profile/mentor': profile({
         ...submitted,
         approvalStatus: 'REJECTED',
         decidedAt: '2026-10-18T03:00:00Z',
@@ -173,7 +173,7 @@ describe('MEN-5, the Mentor application (FR-74, UX-DR78)', () => {
       }),
       'GET /api/v1/catalog': catalog,
     })
-    renderAt('/ho-so')
+    renderAt('/ho-so/nguoi-huong-dan')
 
     expect(await screen.findByText('Bị từ chối: Chưa có thông tin kinh nghiệm cụ thể.')).toBeInTheDocument()
     expect(screen.getAllByText(new RegExp(`Bạn có thể gửi lại hồ sơ từ ngày ${day}/\\d{2}\\.`))).toHaveLength(2)
@@ -188,7 +188,7 @@ describe('MEN-5, the Mentor application (FR-74, UX-DR78)', () => {
     const user = userEvent.setup()
     let body: Record<string, unknown> | undefined
     fakeBackend(signedIn('MENTOR', 'REJECTED'), {
-      'GET /api/v1/profile': profile({
+      'GET /api/v1/profile/mentor': profile({
         ...submitted,
         approvalStatus: 'REJECTED',
         decidedAt: '2026-09-01T03:00:00Z',
@@ -201,7 +201,7 @@ describe('MEN-5, the Mentor application (FR-74, UX-DR78)', () => {
         return json({ submitted: true })
       },
     })
-    renderAt('/ho-so')
+    renderAt('/ho-so/nguoi-huong-dan')
 
     expect(await screen.findByText('Bạn đã có thể sửa và gửi lại hồ sơ.')).toBeInTheDocument()
     expect(screen.getByLabelText('Tên hiển thị *')).toBeEnabled()
@@ -214,12 +214,12 @@ describe('MEN-5, the Mentor application (FR-74, UX-DR78)', () => {
   it('says from which day a rejected Mentor may submit again when the server refuses', { timeout: 15_000 }, async () => {
     const user = userEvent.setup()
     fakeBackend(signedIn('MENTOR', 'REJECTED'), {
-      'GET /api/v1/profile': profile({ ...submitted, approvalStatus: 'REJECTED', reapplyAfter: '2026-10-01T03:00:00Z' }),
+      'GET /api/v1/profile/mentor': profile({ ...submitted, approvalStatus: 'REJECTED', reapplyAfter: '2026-10-01T03:00:00Z' }),
       'GET /api/v1/catalog': catalog,
       'PUT /api/v1/profile/mentor': () =>
         refusal(422, { code: 'GUARD_FAILED', reason: 'MENTOR_REAPPLY_TOO_SOON', date: '2026-11-17' }),
     })
-    renderAt('/ho-so')
+    renderAt('/ho-so/nguoi-huong-dan')
 
     await user.click(await screen.findByRole('button', { name: 'Gửi lại hồ sơ' }))
 
@@ -229,7 +229,7 @@ describe('MEN-5, the Mentor application (FR-74, UX-DR78)', () => {
   it('keeps planted payloads as text', async () => {
     const payload = '<img src=x onerror=alert(1)>'
     fakeBackend(signedIn('MENTOR', 'PENDING'), {
-      'GET /api/v1/profile': profile({
+      'GET /api/v1/profile/mentor': profile({
         ...submitted,
         displayName: payload,
         experience: payload,
@@ -237,7 +237,7 @@ describe('MEN-5, the Mentor application (FR-74, UX-DR78)', () => {
         document: { name: payload, mediaType: 'application/pdf', size: 10 },
       }),
     })
-    renderAt('/ho-so')
+    renderAt('/ho-so/nguoi-huong-dan')
 
     expect(await screen.findByLabelText('Tên hiển thị *')).toHaveValue(payload)
     expect(screen.getByLabelText('Mô tả kinh nghiệm *')).toHaveValue(payload)

@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, profileView, signedIn } from '@/test/fakeBackend'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -43,25 +43,20 @@ const catalog = () =>
   })
 
 const profile = (skills: { id: string; name: string; active: boolean }[] = []) =>
-  json({
-    role: 'STUDENT',
-    githubLogin: 'minh-dev',
-    customer: null,
-    student: { showNameAndSchool: false, repositories: [], skills },
-  })
+  json(profileView({ displayName: 'Minh', skills }))
 
 afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('the Skill picker on STU-5 (FR-4, UX-DR75, SG-50)', () => {
+describe('the Skill picker on ACC-1 (FR-4, UX-DR75, SG-50)', () => {
   it('filters without accents or letter case, groups by Category, and saves the chosen IDs', { timeout: 15_000 }, async () => {
     const user = userEvent.setup()
     let body: unknown
     fakeBackend(signedIn('STUDENT'), {
       'GET /api/v1/profile': () => profile(),
       'GET /api/v1/catalog': catalog,
-      'PUT /api/v1/profile/student': async (request) => {
+      'PUT /api/v1/profile': async (request) => {
         body = await request.json()
         return new Response(null, { status: 204 })
       },
@@ -129,7 +124,7 @@ describe('the Skill picker on STU-5 (FR-4, UX-DR75, SG-50)', () => {
     fakeBackend(signedIn('STUDENT'), {
       'GET /api/v1/profile': () => profile([{ id: 'react', name: 'React', active: true }]),
       'GET /api/v1/catalog': catalog,
-      'PUT /api/v1/profile/student': () =>
+      'PUT /api/v1/profile': () =>
         new Response(JSON.stringify({ status: 400, code: 'VALIDATION', reason: 'SKILL_LIMIT', limit: 20 }), {
           status: 400,
           headers: { 'Content-Type': 'application/problem+json' },

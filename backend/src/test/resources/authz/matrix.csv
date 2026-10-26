@@ -129,23 +129,35 @@ DELETE /api/v1/identity/github,OWNER,,,422 GUARD_FAILED GITHUB_LINK_IN_USE
 DELETE /api/v1/identity/github,MENTOR,,,409 CONFLICT
 DELETE /api/v1/identity/github,STUDENT,,,409 CONFLICT
 DELETE /api/v1/identity/github,ADMINISTRATOR,,,404 NOT_FOUND
-# Profiles and the theme (identity): signed in, each account its own; the wrong role finds no profile.
+# ACC-1 (identity, Story 19.3): every person's account reads and saves its one profile, whatever role it
+# holds; an Administrator has none. The Team member's own profile holds a hidden-name canary, so only its
+# save has a row.
 GET /api/v1/profile,ANONYMOUS,,,401
 GET /api/v1/profile,CUSTOMER,,,200
+GET /api/v1/profile,OWNER,,,200
+GET /api/v1/profile,MENTOR,,,200
 GET /api/v1/profile,MENTOR,mentor=PENDING,,200
 GET /api/v1/profile,STUDENT,,,200
-GET /api/v1/profile,ADMINISTRATOR,,,200
+GET /api/v1/profile,ADMINISTRATOR,,,404 NOT_FOUND
 GET /api/v1/profile,SUBJECT,,,200
-PUT /api/v1/profile/customer,ANONYMOUS,,profile-customer.json,401
-PUT /api/v1/profile/customer,CUSTOMER,,profile-customer.json,204
-PUT /api/v1/profile/customer,MENTOR,,profile-customer.json,404 NOT_FOUND
-PUT /api/v1/profile/customer,STUDENT,,profile-customer.json,404 NOT_FOUND
-PUT /api/v1/profile/customer,ADMINISTRATOR,,profile-customer.json,404 NOT_FOUND
-PUT /api/v1/profile/student,ANONYMOUS,,profile-student.json,401
-PUT /api/v1/profile/student,STUDENT,,profile-student.json,204
-PUT /api/v1/profile/student,CUSTOMER,,profile-student.json,404 NOT_FOUND
-PUT /api/v1/profile/student,MENTOR,,profile-student.json,404 NOT_FOUND
-PUT /api/v1/profile/student,ADMINISTRATOR,,profile-student.json,404 NOT_FOUND
+GET /api/v1/profile,JOB_MENTOR,,,200
+GET /api/v1/profile,CREW_ACTIVE,,,200
+GET /api/v1/profile,ADMIN_DISPUTE_GRANT,,,404 NOT_FOUND
+GET /api/v1/profile,CUSTOMER,locked=true,,401
+PUT /api/v1/profile,ANONYMOUS,,profile.json,401
+PUT /api/v1/profile,CUSTOMER,,profile.json,204
+PUT /api/v1/profile,OWNER,,profile.json,204
+PUT /api/v1/profile,MENTOR,,profile.json,204
+PUT /api/v1/profile,MENTOR,mentor=PENDING,profile.json,204
+PUT /api/v1/profile,STUDENT,,profile.json,204
+PUT /api/v1/profile,ADMINISTRATOR,,profile.json,404 NOT_FOUND
+PUT /api/v1/profile,SUBJECT,,profile.json,204
+PUT /api/v1/profile,JOB_MENTOR,,profile.json,204
+PUT /api/v1/profile,CREW_ACTIVE,,profile.json,204
+PUT /api/v1/profile,TEAM_MEMBER,,profile.json,204
+PUT /api/v1/profile,ADMIN_DISPUTE_GRANT,,profile.json,404 NOT_FOUND
+PUT /api/v1/profile,CUSTOMER,locked=true,profile.json,401
+# The theme (identity, UX-DR5): signed in, each account its own.
 PUT /api/v1/account/theme,ANONYMOUS,,account-theme.json,401
 PUT /api/v1/account/theme,CUSTOMER,,account-theme.json,204
 PUT /api/v1/account/theme,MENTOR,mentor=PENDING,account-theme.json,204
@@ -158,8 +170,14 @@ GET /api/v1/catalog,MENTOR,mentor=PENDING,,200
 GET /api/v1/catalog,STUDENT,,,200
 GET /api/v1/catalog,ADMINISTRATOR,,,200
 GET /api/v1/catalog,SUBJECT,,,200
-# MEN-5 (identity, FR-74): every Mentor saves its own application and document, whatever its approval
-# status; any other role finds nothing. Another Mentor's LinkedIn link is a canary.
+# MEN-5 (identity, FR-74, until Story 19.7): every Mentor reads and saves its own application and document,
+# whatever its approval status; any other role finds nothing. Another Mentor's LinkedIn link is a canary.
+GET /api/v1/profile/mentor,ANONYMOUS,,,401
+GET /api/v1/profile/mentor,MENTOR,mentor=PENDING,,200
+GET /api/v1/profile/mentor,MENTOR,,,200
+GET /api/v1/profile/mentor,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/profile/mentor,STUDENT,,,404 NOT_FOUND
+GET /api/v1/profile/mentor,ADMINISTRATOR,,,404 NOT_FOUND
 PUT /api/v1/profile/mentor,ANONYMOUS,,profile-mentor.json,401
 PUT /api/v1/profile/mentor,MENTOR,mentor=PENDING,profile-mentor.json,200
 PUT /api/v1/profile/mentor,CUSTOMER,,profile-mentor.json,404 NOT_FOUND
@@ -424,13 +442,16 @@ GET /api/v1/files/{fileId},MENTOR,,,404 NOT_FOUND
 GET /api/v1/files/{fileId},STUDENT,,,404 NOT_FOUND
 GET /api/v1/files/{fileId},SUBJECT,,,404 NOT_FOUND
 GET /api/v1/files/{fileId},ADMINISTRATOR,,,200
-# A Customer's contact: the Customer (SUBJECT) and Administrators; a Mentor only under a grant (FR-3).
+# A Customer's contact: the Customer (SUBJECT) and Administrators; anyone else only under a contact grant
+# (FR-3, Story 19.3), which no matrix caller holds on SUBJECT. A Crew member never reads it.
 GET /api/v1/customers/{customerId}/contact,ANONYMOUS,,,401
 GET /api/v1/customers/{customerId}/contact,SUBJECT,,,200
 GET /api/v1/customers/{customerId}/contact,ADMINISTRATOR,,,200
 GET /api/v1/customers/{customerId}/contact,CUSTOMER,,,404 NOT_FOUND
 GET /api/v1/customers/{customerId}/contact,MENTOR,,,404 NOT_FOUND
 GET /api/v1/customers/{customerId}/contact,STUDENT,,,404 NOT_FOUND
+GET /api/v1/customers/{customerId}/contact,JOB_MENTOR,,,404 NOT_FOUND
+GET /api/v1/customers/{customerId}/contact,CREW_ACTIVE,,,404 NOT_FOUND
 GET /api/v1/jobs,ANONYMOUS,,,401
 GET /api/v1/jobs,CUSTOMER,,,200
 GET /api/v1/jobs,OWNER,,,200

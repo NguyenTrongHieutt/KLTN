@@ -100,7 +100,7 @@ class SkillSuggestionIT extends IntegrationTest {
 		assertThat(count("SELECT count(*) FROM notification.notification WHERE type = 'admin.skill_suggestion_approved' AND account_id = '"
 				+ this.vy + "'")).isOne();
 		UUID created = this.jdbc.sql("SELECT id FROM catalog.skill WHERE name = 'Supabase Edge Functions'").query(UUID.class).single();
-		assertThat(count("SELECT count(*) FROM identity.student_profile WHERE '" + created + "' = ANY (skill_ids)")
+		assertThat(count("SELECT count(*) FROM identity.profile WHERE '" + created + "' = ANY (skill_ids)")
 				+ count("SELECT count(*) FROM job.job WHERE '" + created + "' = ANY (skill_ids)")).as("added to no profile or Job Post")
 			.isZero();
 	}

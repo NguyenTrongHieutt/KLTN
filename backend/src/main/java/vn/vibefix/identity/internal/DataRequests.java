@@ -216,12 +216,8 @@ class DataRequests {
 
 	private String name(UUID accountId) {
 		return this.jdbc.sql("""
-				SELECT coalesce(cp.display_name, ma.display_name, sp.real_name, a.google_name, '@' || a.github_login, '')
-				       AS name
-				FROM identity.account a
-				LEFT JOIN identity.customer_profile cp ON cp.account_id = a.id
-				LEFT JOIN identity.mentor_application ma ON ma.account_id = a.id
-				LEFT JOIN identity.student_profile sp ON sp.account_id = a.id
+				SELECT coalesce(p.display_name, p.student_name, a.google_name, '@' || a.github_login, '') AS name
+				FROM identity.account a LEFT JOIN identity.profile p ON p.account_id = a.id
 				WHERE a.id = :id
 				""").param("id", accountId).query(String.class).optional().orElse("");
 	}

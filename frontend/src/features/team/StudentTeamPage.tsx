@@ -190,7 +190,7 @@ function NoTeam({ team }: { team: StudentTeam }) {
           <CircleAlert aria-hidden="true" className="size-5 shrink-0 text-warning" />
           <p className="text-body-sm">
             {t('screen.team.student.unverified')}{' '}
-            <Link to="/ho-so" className="text-primary underline-offset-4 hover:underline">
+            <Link to="/ho-so/xac-minh" className="text-primary underline-offset-4 hover:underline">
               {t('screen.team.student.verifyLink')}
             </Link>
           </p>

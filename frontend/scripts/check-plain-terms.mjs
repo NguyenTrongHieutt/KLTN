@@ -18,6 +18,7 @@ export const CUSTOMER_FACING = [
   'shell',
   'notice',
   'screen.public',
+  'screen.profile',
   'screen.customer',
   'screen.shared',
 ]

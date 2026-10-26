@@ -112,7 +112,7 @@ describe('the next-action strip and the to-do list (FR-28, UX-DR14)', () => {
     fakeBackend(signedIn('MENTOR', 'PENDING'), {
       'GET /api/v1/todos': () => json({ items: [todo('identity.complete_mentor_application', { tier: 1 })], total: 1 }),
     })
-    renderAt('/ho-so')
+    renderAt('/ho-so/nguoi-huong-dan')
 
     expect(await screen.findByRole('region', { name: 'Việc cần làm tiếp theo' })).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /^Thông báo/ })).not.toBeInTheDocument()
