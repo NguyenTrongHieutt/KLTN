@@ -8,6 +8,7 @@ import java.util.regex.Pattern;
 
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.core.env.CommandLinePropertySource;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.EnumerablePropertySource;
 import org.springframework.core.env.PropertySource;
@@ -17,10 +18,10 @@ import org.springframework.stereotype.Component;
 
 /**
  * AD-22: platform credentials are mounted secret files, never environment variables (nor JVM system
- * properties, which are as visible in the process listing). This guard refuses to start when a
- * known secret property is set in either place, in any spelling Spring would bind (for example
- * {@code SPRING_DATASOURCE_PASSWORD} or {@code DB_APP_PASSWORD}), or inside
- * {@code SPRING_APPLICATION_JSON}, which Boot reads from an environment variable or a system
+ * properties or command-line arguments, which are as visible in the process listing). This guard
+ * refuses to start when a known secret property is set in any of those places, in any spelling
+ * Spring would bind (for example {@code SPRING_DATASOURCE_PASSWORD} or {@code DB_APP_PASSWORD}), or
+ * inside {@code SPRING_APPLICATION_JSON}, which Boot reads from an environment variable or a system
  * property into its own property source.
  * <p>
  * {@link EnvironmentGuard} depends on it, so the check has run before Flyway connects. The error
@@ -65,7 +66,7 @@ class SecretSourceGuard implements InitializingBean {
 		}
 	}
 
-	/** Each secret property set in an environment variable or a system property, with that source. */
+	/** Each secret property set in an environment variable, a system property or a command-line argument. */
 	static List<String> violations(ConfigurableEnvironment environment) {
 		List<String> violations = new ArrayList<>();
 		for (PropertySource<?> source : environment.getPropertySources()) {
@@ -97,6 +98,9 @@ class SecretSourceGuard implements InitializingBean {
 		}
 		if (APPLICATION_JSON_SOURCE.equals(source.getName())) {
 			return "the SPRING_APPLICATION_JSON environment variable or system property";
+		}
+		if (source instanceof CommandLinePropertySource<?>) {
+			return "a command-line argument";
 		}
 		return null;
 	}

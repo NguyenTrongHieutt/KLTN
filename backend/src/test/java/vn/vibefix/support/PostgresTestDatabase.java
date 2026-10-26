@@ -1,9 +1,15 @@
 package vn.vibefix.support;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -88,24 +94,53 @@ public final class PostgresTestDatabase {
 		registry.add("spring.datasource.hikari.minimum-idle", () -> "0");
 	}
 
-	/** Command-line arguments that point an application started by hand at {@code database}. */
+	/**
+	 * Command-line arguments that point an application started by hand at {@code database}. The
+	 * passwords and keys are secret files in a new folder ({@code VIBEFIX_SECRETS_DIR}), because the
+	 * application refuses a secret given on the command line (AD-22).
+	 */
 	public String[] applicationArguments(String database) {
-		return new String[] { "--spring.datasource.url=" + jdbcUrl(database), "--spring.datasource.username=" + APP,
-				"--spring.datasource.password=" + this.appPassword, "--spring.flyway.user=" + MIGRATOR,
-				"--spring.flyway.password=" + this.migratorPassword, "--identity-token-key-1=" + TEST_TOKEN_KEY,
-				"--identity-person-signal-key-1=" + TEST_SIGNAL_KEY,
-				"--scanning-fingerprint-key=" + TEST_FINGERPRINT_KEY };
+		return applicationArguments(database, Map.of());
+	}
+
+	/** Like {@link #applicationArguments(String)}, with more secret files (name and value) beside them. */
+	public String[] applicationArguments(String database, Map<String, String> secrets) {
+		try {
+			Path folder = Files.createTempDirectory("vibefix-secrets-");
+			folder.toFile().deleteOnExit();
+			Map<String, String> files = new LinkedHashMap<>(secrets);
+			files.put("db-app-password", this.appPassword);
+			files.put("db-migrator-password", this.migratorPassword);
+			writeSecretFiles(folder, files);
+			return applicationArgumentsWithoutPasswords(database, folder);
+		}
+		catch (IOException ex) {
+			throw new UncheckedIOException(ex);
+		}
 	}
 
 	/**
-	 * Like {@link #applicationArguments} but without passwords, so the application must read them
-	 * from its secret files ({@code db-app-password}, {@code db-migrator-password}).
+	 * Like {@link #applicationArguments(String)}, but only the keys are written into {@code secrets}:
+	 * the caller writes the passwords' secret files ({@code db-app-password}, {@code db-migrator-password}).
 	 */
-	public String[] applicationArgumentsWithoutPasswords(String database) {
+	public String[] applicationArgumentsWithoutPasswords(String database, Path secrets) {
+		writeSecretFiles(secrets, Map.of("identity-token-key-1", TEST_TOKEN_KEY, "identity-person-signal-key-1",
+				TEST_SIGNAL_KEY, "scanning-fingerprint-key", TEST_FINGERPRINT_KEY));
 		return new String[] { "--spring.datasource.url=" + jdbcUrl(database), "--spring.datasource.username=" + APP,
-				"--spring.flyway.user=" + MIGRATOR, "--identity-token-key-1=" + TEST_TOKEN_KEY,
-				"--identity-person-signal-key-1=" + TEST_SIGNAL_KEY,
-				"--scanning-fingerprint-key=" + TEST_FINGERPRINT_KEY };
+				"--spring.flyway.user=" + MIGRATOR,
+				"--VIBEFIX_SECRETS_DIR=" + secrets.toAbsolutePath().toString().replace('\\', '/') + "/" };
+	}
+
+	private static void writeSecretFiles(Path folder, Map<String, String> files) {
+		files.forEach((name, value) -> {
+			try {
+				Path file = Files.writeString(folder.resolve(name), value);
+				file.toFile().deleteOnExit();
+			}
+			catch (IOException ex) {
+				throw new UncheckedIOException(ex);
+			}
+		});
 	}
 
 	public String appPassword() {

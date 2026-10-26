@@ -14,12 +14,13 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.support.SpringApplicationJsonEnvironmentPostProcessor;
 import org.springframework.core.env.MapPropertySource;
+import org.springframework.core.env.SimpleCommandLinePropertySource;
 import org.springframework.core.env.StandardEnvironment;
 import org.springframework.core.env.SystemEnvironmentPropertySource;
 
 /**
- * AD-22: a secret property set in an environment variable (any spelling Spring binds) or a JVM
- * system property refuses the start; the same property from a secret file, the command line or a
+ * AD-22: a secret property set in an environment variable (any spelling Spring binds), a JVM system
+ * property or a command-line argument refuses the start; the same property from a secret file or a
  * test's dynamic properties is fine. The refusal never shows the value.
  */
 class SecretSourceGuardTest {
@@ -81,6 +82,21 @@ class SecretSourceGuardTest {
 		assertThatNoException().isThrownBy(() -> new SecretSourceGuard(environment).afterPropertiesSet());
 	}
 
+	@ParameterizedTest
+	@ValueSource(strings = { "linkedin-client-secret", "spring.datasource.password", "db-app-password",
+			"identity-token-key-1" })
+	void secretAsACommandLineArgumentIsRefused(String property) {
+		StandardEnvironment environment = environmentWith(Map.of(), Map.of());
+		environment.getPropertySources()
+			.addFirst(new SimpleCommandLinePropertySource("--" + property + "=" + VALUE,
+					"--vibefix.cli.command=spike-s5"));
+
+		assertThatThrownBy(() -> new SecretSourceGuard(environment).afterPropertiesSet())
+			.isInstanceOf(IllegalStateException.class)
+			.hasMessageContaining(property + " is set in a command-line argument")
+			.hasMessageNotContaining(VALUE);
+	}
+
 	@Test
 	void secretFromAnotherSourceIsAccepted() {
 		StandardEnvironment environment = environmentWith(Map.of("VIBEFIX_SECRETS_DIR", "/run/secrets/"), Map.of());
@@ -88,7 +104,9 @@ class SecretSourceGuardTest {
 			.addFirst(new MapPropertySource("Config resource 'configtree' [/run/secrets/]",
 					Map.of("db-app-password", VALUE, "db-migrator-password", VALUE)));
 		environment.getPropertySources()
-			.addFirst(new MapPropertySource("commandLineArgs", Map.of("spring.datasource.password", VALUE)));
+			.addFirst(new MapPropertySource("Dynamic Test Properties", Map.of("spring.datasource.password", VALUE)));
+		environment.getPropertySources()
+			.addFirst(new SimpleCommandLinePropertySource("--vibefix.cli.command=spike-s5", "--step=authorize"));
 
 		assertThatNoException().isThrownBy(() -> new SecretSourceGuard(environment).afterPropertiesSet());
 	}
