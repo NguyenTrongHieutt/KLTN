@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -26,6 +27,8 @@ import vn.vibefix.audit.AuditObject;
 import vn.vibefix.catalog.Catalog;
 import vn.vibefix.catalog.Skill;
 import vn.vibefix.identity.ContactVisibility;
+import vn.vibefix.shared.ApiException;
+import vn.vibefix.shared.ErrorCode;
 
 /**
  * The one profile of each account (FR-3, FR-4, FR-51, FR-72, Story 19.3): what the person typed, with
@@ -38,6 +41,12 @@ import vn.vibefix.identity.ContactVisibility;
 class Profiles implements ContactVisibility {
 
 	static final String SAVED_AUDIT = "identity.profile_saved";
+
+	/**
+	 * The one name rule (Story 19.3) over {@code identity.account a} and {@code identity.profile p}: the
+	 * display name, else the GitHub username, else the Google name.
+	 */
+	static final String NAME = "coalesce(p.display_name, '@' || a.github_login, a.google_name)";
 
 	/** "Sáng", "Tối" or "Theo hệ thống". */
 	enum Theme {
@@ -231,7 +240,8 @@ class Profiles implements ContactVisibility {
 
 	/**
 	 * Each Skill once, in order; the IDs the profile did not hold yet must be active, and no more than
-	 * {@value #MAX_SKILLS} in all. Locks the profile row, so two saves of one account run one at a time.
+	 * {@value #MAX_SKILLS} in all. Locks the profile row when there is one, so two later saves of one
+	 * account run one at a time; a first save has no row to lock, and the upsert keeps one row.
 	 */
 	private List<UUID> checkedSkills(UUID accountId, List<UUID> requested) {
 		List<UUID> skillIds = List.copyOf(new LinkedHashSet<>(requested));
@@ -264,6 +274,15 @@ class Profiles implements ContactVisibility {
 				.update();
 		}
 		return holders.size();
+	}
+
+	/** A {@code VALIDATION} refusal naming its fields with their constraint codes, as bean validation does. */
+	static ApiException invalid(Map<String, String> codes) {
+		List<Map<String, String>> errors = codes.entrySet()
+			.stream()
+			.map(entry -> Map.of("field", entry.getKey(), "code", entry.getValue()))
+			.toList();
+		return new ApiException(ErrorCode.VALIDATION, null, Map.<String, Object>of("errors", errors));
 	}
 
 	/** The contact details, once the account saved a profile. */

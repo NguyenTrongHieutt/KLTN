@@ -15051,7 +15051,7 @@
             "type" : "string",
             "maxLength" : 300,
             "minLength" : 0,
-            "pattern" : "^https://[^\\s]+$"
+            "pattern" : "(?U)^https://\\S+$"
           },
           "privacyNoticeVersion" : {
             "type" : "string"
@@ -17092,14 +17092,14 @@
               "type" : "string",
               "maxLength" : 500,
               "minLength" : 0,
-              "pattern" : "^https://[^\\s]+$"
+              "pattern" : "(?U)^https://\\S+$"
             },
             "maxItems" : 5,
             "minItems" : 0
           },
           "phone" : {
             "type" : "string",
-            "pattern" : "^\\+?(?:[0-9] ?){7,14}[0-9]$"
+            "pattern" : "^\\+?[0-9 ]{8,20}$"
           },
           "repositories" : {
             "type" : "array",

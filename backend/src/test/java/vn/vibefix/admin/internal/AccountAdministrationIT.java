@@ -157,6 +157,11 @@ class AccountAdministrationIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("""
 				SELECT params ->> 'reason' FROM notification.notification WHERE type = 'identity.verification_revoked' AND account_id = :vy
 				""").param("vy", vy).query(String.class).single()).isEqualTo("Thẻ sinh viên giả");
+		// Both lead to ACC-2, where the student verification lives (Story 19.3).
+		assertThat(this.jdbc.sql("""
+				SELECT (SELECT link FROM notification.notification WHERE type = 'identity.verification_revoked' AND account_id = :vy)
+				       || ' ' || (SELECT link FROM notification.todo WHERE todo_key = 'identity.verify_student' AND account_id = :vy)
+				""").param("vy", vy).query(String.class).single()).isEqualTo("/ho-so/xac-minh /ho-so/xac-minh");
 		command(ha, vy, "revoke-verification", "{\"reason\":\"Lần nữa\"}").andExpect(status().isConflict())
 			.andExpect(jsonPath("$.reason").value("NOT_VERIFIED"));
 		assertThat(audits("identity.verification_revoked")).isEqualTo(1);

@@ -38,12 +38,15 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import vn.vibefix.catalog.SkillRenamed;
 import vn.vibefix.identity.ContactVisibility;
+import vn.vibefix.identity.CustomerNames;
+import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.StudentDirectory;
 import vn.vibefix.notification.RecipientAddresses;
 import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
 import vn.vibefix.support.PostgresTestDatabase;
+import vn.vibefix.team.internal.TeamTestSupport;
 
 /**
  * Story 19.3 (FR-3, FR-4, FR-51, FR-72, AD-36, AD-38, AD-42): one profile per account, whatever role it
@@ -82,6 +85,9 @@ class ProfileIT extends IntegrationTest {
 	@Autowired
 	private SessionRepository<? extends Session> sessions;
 
+	@Autowired
+	private CustomerNames names;
+
 	@Test
 	void aFirstSaveCreatesTheRowWithItsSkillNamesAndIsAuditedForAnAccountWithNoRole() throws Exception {
 		UUID lan = google("lan");
@@ -95,7 +101,7 @@ class ProfileIT extends IntegrationTest {
 		assertThat(profileRows(lan)).isZero();
 
 		save(lan, body("Nguyễn Thị Lan", List.of(REACT, TYPESCRIPT, REACT),
-				List.of("https://lan.dev", "https://lan.dev"), List.of("https://github.com/lan/shop", "Lan/Shop.git", "lan/blog"),
+				List.of("https://lan.dev", " https://lan.dev "), List.of("https://github.com/lan/shop", "Lan/Shop.git", "lan/blog"),
 				false)).andExpect(status().isNoContent());
 
 		this.mvc.perform(get("/api/v1/profile").with(as(lan)))
@@ -167,11 +173,108 @@ class ProfileIT extends IntegrationTest {
 			.andExpect(status().isBadRequest());
 		save(lan, body(" ", List.of(), List.of(), List.of(), false)).andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.errors[0].field").value("displayName"));
+		save(lan, body("Lan", List.of(UUID.randomUUID()), List.of(), List.of(), false)).andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.reason").value("SKILL_INACTIVE"));
+		// Each field's own format, as identity.profile checks it too: a field error, never a 500.
+		for (String[] refused : new String[][] {
+				{ "\"links\":[],\"repositories\":[],\"contactEmail\":\"not-an-email\"", "contactEmail" },
+				{ "\"links\":[],\"repositories\":[],\"phone\":\"1234567\"", "phone" },
+				{ "\"links\":[],\"repositories\":[],\"phone\":\"+8 4 9 1 2 3 4 5 6 7 8 9 0 1 2\"", "phone" },
+				{ "\"links\":[],\"repositories\":[],\"experience\":\"" + "x".repeat(2001) + "\"", "experience" },
+				{ "\"repositories\":[],\"links\":[\"https://lan.dev/a\u3000b\"]", "links" },
+				{ "\"links\":[],\"repositories\":[\"a/b/c\"]", "repositories" },
+				{ "\"links\":[],\"repositories\":[\"owner/.git\"]", "repositories" } }) {
+			save(lan, typed(refused[0])).andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("VALIDATION"))
+				.andExpect(jsonPath("$.errors[0].field").value(Matchers.startsWith(refused[1])));
+		}
 
 		assertThat(profileRows(lan)).isZero();
 		assertThat(this.jdbc.sql("""
 				SELECT (SELECT count(*) FROM identity.profile_link) + (SELECT count(*) FROM identity.showcase_repository)
 				""").query(Long.class).single()).isZero();
+	}
+
+	@Test
+	void exactlyTwentySkillsAreKept() throws Exception {
+		UUID lan = google("lan");
+
+		save(lan, body("Lan", IntStream.rangeClosed(1, 20).mapToObj(ProfileIT::skill).toList(), List.of(), List.of(), false))
+			.andExpect(status().isNoContent());
+
+		assertThat(this.jdbc.sql("SELECT cardinality(skill_ids) FROM identity.profile WHERE account_id = :id")
+			.param("id", lan)
+			.query(Integer.class)
+			.single()).isEqualTo(20);
+	}
+
+	@Test
+	void aMentorWithASubmittedApplicationKeepsTheApplicationRulesOnTheProfile() throws Exception {
+		UUID hung = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Đỗ Mạnh Hùng",
+				List.of(REACT.toString()), "React");
+		RequestPostProcessor mentor = authentication(IdentityTestSupport.authentication(hung, Role.MENTOR));
+		String experience = text("SELECT experience FROM identity.profile WHERE account_id = '" + hung + "'");
+
+		this.mvc.perform(put("/api/v1/profile").with(mentor).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON)
+			.content(typed("\"links\":[],\"repositories\":[]")))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("VALIDATION"))
+			.andExpect(jsonPath("$.errors[*].field")
+				.value(Matchers.containsInAnyOrder("experience", "yearsOfExperience", "skillIds")));
+		assertThat(text("SELECT experience FROM identity.profile WHERE account_id = '" + hung + "'")).isEqualTo(experience);
+
+		this.mvc.perform(put("/api/v1/profile").with(mentor).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON)
+			.content(body("Đỗ Mạnh Hùng", List.of(REACT), List.of(), List.of(), false))).andExpect(status().isNoContent());
+		assertThat(this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE action = 'identity.mentor_application_updated'")
+			.query(Long.class)
+			.single()).isOne();
+
+		// A rejection's 30-day wait holds the profile's application fields as it holds MEN-5.
+		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null, null);
+		this.jdbc.sql("UPDATE identity.account SET mentor_approval_status = 'REJECTED' WHERE id = :id").param("id", hung).update();
+		this.jdbc.sql("""
+				INSERT INTO identity.mentor_decision (id, account_id, decision, reason, reapply_after, decided_by, decided_at)
+				VALUES (:id, :account, 'REJECTED', 'Chưa đủ kinh nghiệm', :after, :admin, :now)
+				""")
+			.param("id", UUID.randomUUID())
+			.param("account", hung)
+			.param("after", Timestamp.from(this.clock.instant().plus(Duration.ofDays(30))))
+			.param("admin", admin)
+			.param("now", Timestamp.from(this.clock.instant()))
+			.update();
+		this.mvc.perform(put("/api/v1/profile").with(mentor).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON)
+			.content(body("Đỗ Mạnh Hùng", List.of(REACT), List.of(), List.of(), false)))
+			.andExpect(status().is(422))
+			.andExpect(jsonPath("$.reason").value("MENTOR_REAPPLY_TOO_SOON"));
+
+		// A Mentor who never submitted an application saves the profile freely.
+		UUID pending = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, MentorApprovalStatus.PENDING, null);
+		this.mvc.perform(put("/api/v1/profile").with(authentication(IdentityTestSupport.authentication(pending, Role.MENTOR)))
+			.with(csrf())
+			.contentType(MediaType.APPLICATION_JSON)
+			.content(typed("\"links\":[],\"repositories\":[]"))).andExpect(status().isNoContent());
+	}
+
+	@Test
+	void anAccountIsNamedByItsDisplayNameThenItsGitHubUsernameThenItsGoogleName() {
+		UUID typed = google("typed");
+		this.jdbc.sql("""
+				INSERT INTO identity.profile (account_id, display_name, updated_at) VALUES (:id, 'Tiệm bánh Lan', :now)
+				""").param("id", typed).param("now", Timestamp.from(this.clock.instant())).update();
+		UUID linked = google("linked");
+		this.jdbc.sql("""
+				UPDATE identity.account SET github_user_id = 880001, github_login = 'lan-gh', github_linked_at = :now WHERE id = :id
+				""").param("id", linked).param("now", Timestamp.from(this.clock.instant())).update();
+		UUID googleOnly = google("only");
+		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null, null);
+
+		assertThat(this.names.displayName(typed)).isEqualTo("Tiệm bánh Lan");
+		assertThat(this.names.displayName(linked)).isEqualTo("@lan-gh");
+		assertThat(this.names.displayName(googleOnly)).isEqualTo("Người dùng only");
+		assertThat(this.names.displayName(admin)).as("an Administrator is no Customer").isEmpty();
 	}
 
 	@Test
@@ -363,6 +466,11 @@ class ProfileIT extends IntegrationTest {
 				 "hideStudentDetails":%s}
 				""".formatted(quoted(displayName), array(skillIds.stream().map(UUID::toString).toList()), array(links),
 				array(repositories), hide);
+	}
+
+	/** A save with only the required fields, then {@code extra}, which names {@code links} and {@code repositories}. */
+	private static String typed(String extra) {
+		return "{\"displayName\":\"Lan\",\"skillIds\":[],\"hideStudentDetails\":false," + extra + "}";
 	}
 
 	private static String array(List<String> values) {

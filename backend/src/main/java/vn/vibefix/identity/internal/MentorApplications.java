@@ -9,6 +9,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -212,6 +213,41 @@ class MentorApplications implements MentorApplicationQueue {
 					AuditObject.of("identity.account", accountId)));
 		}
 		return submitting;
+	}
+
+	/**
+	 * ACC-1's save for a Mentor (Story 19.3, until Story 19.7): once the application is submitted, the
+	 * profile fields it shows keep MEN-5's rules (an experience, the years, at least one Skill), a
+	 * rejection's 30-day wait holds them as it holds MEN-5, and the save is audited as an update of the
+	 * application too.
+	 * @throws ApiException {@code VALIDATION} naming the missing fields; {@code GUARD_FAILED} with
+	 * {@code MENTOR_REAPPLY_TOO_SOON} during a rejection's wait
+	 */
+	@Transactional
+	void saveProfile(UUID accountId, Profiles.Changes changes) {
+		lockAccount(accountId);
+		boolean submitted = find(accountId).map(Application::submittedAt).isPresent();
+		if (submitted) {
+			requireReapplyOpen(accountId);
+			Map<String, String> missing = new LinkedHashMap<>();
+			if (changes.experience() == null) {
+				missing.put("experience", "NotBlank");
+			}
+			if (changes.yearsOfExperience() == null) {
+				missing.put("yearsOfExperience", "NotNull");
+			}
+			if (changes.skillIds().isEmpty()) {
+				missing.put("skillIds", "Size");
+			}
+			if (!missing.isEmpty()) {
+				throw Profiles.invalid(missing);
+			}
+		}
+		this.profiles.save(accountId, changes);
+		if (submitted) {
+			this.auditLog.record(AuditEntry.of(AuditActor.user(accountId), "identity.mentor_application_updated",
+					AuditObject.of("identity.account", accountId)));
+		}
 	}
 
 	/** Checks and, for an image, re-encodes a document before its transaction (AD-21). */

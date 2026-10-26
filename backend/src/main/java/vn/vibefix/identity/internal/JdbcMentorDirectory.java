@@ -35,11 +35,9 @@ import vn.vibefix.shared.KeywordQuery;
 @Component
 class JdbcMentorDirectory implements MentorDirectory {
 
-	private static final String COLUMNS = """
-			a.id, a.github_login, a.github_user_id, a.created_at, coalesce(p.display_name, a.github_login, '') AS display_name,
-			coalesce(p.experience, '') AS experience, p.years_of_experience, p.skill_ids,
-			a.mentor_approval_status = 'APPROVED' AND a.locked_at IS NULL AS available
-			""";
+	private static final String COLUMNS = " a.id, a.github_login, a.github_user_id, a.created_at, coalesce(" + Profiles.NAME
+			+ ", '') AS display_name, coalesce(p.experience, '') AS experience, p.years_of_experience, p.skill_ids,"
+			+ " a.mentor_approval_status = 'APPROVED' AND a.locked_at IS NULL AS available ";
 
 	private static final String FROM = """
 			FROM identity.account a JOIN identity.mentor_application m ON m.account_id = a.id

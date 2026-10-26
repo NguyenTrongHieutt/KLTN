@@ -114,6 +114,20 @@ describe('route guards (AD-19, FR-74)', () => {
     expect(screen.queryByRole('heading', { name: 'Hồ sơ người hướng dẫn' })).not.toBeInTheDocument()
   })
 
+  it.each([
+    ['a Google account with no role', signedInWithGoogle, true],
+    ['an approved Mentor', signedIn('MENTOR'), true],
+    ['a Mentor waiting for approval, held on MEN-5', signedIn('MENTOR', 'PENDING'), false],
+  ])('offers "Hồ sơ" in the avatar menu or not to %s', async (_, session, offered) => {
+    const user = userEvent.setup()
+    fakeBackend(session, { 'GET /api/v1/profile/mentor': () => json({ approvalStatus: 'PENDING', skills: [] }) })
+    renderAt('/viec-can-lam')
+
+    await user.click(await screen.findByRole('button', { name: /^Tài khoản của / }))
+    await screen.findByRole('menuitem', { name: 'Đăng xuất' })
+    expect(screen.queryAllByRole('menuitem', { name: 'Hồ sơ' })).toHaveLength(offered ? 1 : 0)
+  })
+
   it('sends a signed-in account away from PUB-2 and PUB-3 to where it lands', async () => {
     fakeBackend(signedIn('CUSTOMER'))
     const router = renderAt('/dang-nhap')

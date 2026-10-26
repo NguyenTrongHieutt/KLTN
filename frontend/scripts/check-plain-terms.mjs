@@ -19,7 +19,6 @@ export const CUSTOMER_FACING = [
   'notice',
   'screen.public',
   'screen.profile',
-  'screen.customer',
   'screen.shared',
 ]
 
@@ -96,7 +95,7 @@ function escape(text) {
 function selfTest() {
   const audience = { khoMa: 'C', handoverCommit: 'M S A', khoaBiMat: 'C' }
   const vi = (screen) => ({
-    screen: { customer: { probe: screen } },
+    screen: { profile: { probe: screen } },
     term: {
       khoMa: { label: 'kho mã', hint: 'Nơi lưu mã.' },
       handoverCommit: { label: 'commit bàn giao' },

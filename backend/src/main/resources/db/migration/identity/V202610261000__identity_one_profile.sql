@@ -82,6 +82,12 @@ ON CONFLICT (account_id) DO UPDATE SET
                        ELSE identity.profile.skill_names END,
     updated_at = greatest(identity.profile.updated_at, EXCLUDED.updated_at);
 
+-- A Student's typed LinkedIn link stays as their first typed link, "Tự khai" like any other.
+INSERT INTO identity.profile_link (account_id, position, url)
+SELECT account_id, 0, linkedin_url
+FROM identity.student_profile
+WHERE linkedin_url IS NOT NULL;
+
 DROP TABLE identity.customer_profile;
 DROP TABLE identity.student_profile;
 

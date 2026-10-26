@@ -215,11 +215,12 @@ class DataRequests {
 	}
 
 	private String name(UUID accountId) {
-		return this.jdbc.sql("""
-				SELECT coalesce(p.display_name, p.student_name, a.google_name, '@' || a.github_login, '') AS name
-				FROM identity.account a LEFT JOIN identity.profile p ON p.account_id = a.id
-				WHERE a.id = :id
-				""").param("id", accountId).query(String.class).optional().orElse("");
+		return this.jdbc.sql("SELECT coalesce(" + Profiles.NAME + ", '') AS name"
+				+ " FROM identity.account a LEFT JOIN identity.profile p ON p.account_id = a.id WHERE a.id = :id")
+			.param("id", accountId)
+			.query(String.class)
+			.optional()
+			.orElse("");
 	}
 
 	private static Map<String, Object> blocker(ErasureBlocker blocker) {

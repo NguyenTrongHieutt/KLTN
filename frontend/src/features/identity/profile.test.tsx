@@ -180,6 +180,7 @@ describe('ACC-1 "Đã xác minh" (FR-4, AD-42, UX-DR90, UX-DR108)', () => {
     const verified = await screen.findByRole('region', { name: 'Đã xác minh' })
     expect(within(verified).getByText('@minh-dev · Xác minh qua GitHub · 10/2026')).toBeInTheDocument()
     expect(within(verified).getByText('Sinh viên đã xác minh · Có hiệu lực đến 30/09/2027')).toBeInTheDocument()
+    expect(within(verified).getByText('Xác minh qua email trường')).toBeInTheDocument()
     expect(within(verified).getByText('Trần Quang Minh')).toBeInTheDocument()
     expect(within(verified).getAllByText('Khai khi xác minh')).toHaveLength(3)
     // LinkedIn is not verified yet (Story 19.6).
@@ -187,6 +188,36 @@ describe('ACC-1 "Đã xác minh" (FR-4, AD-42, UX-DR90, UX-DR108)', () => {
     expect(within(verified).queryAllByRole('textbox')).toHaveLength(0)
     expect(within(verified).queryAllByRole('button')).toHaveLength(0)
     expect(within(verified).getByRole('link', { name: 'Quản lý xác minh' })).toHaveAttribute('href', '/ho-so/xac-minh')
+  })
+
+  it('shows the declared student details without the badge while the student status is not verified', async () => {
+    fakeBackend(signedIn('STUDENT'), {
+      'GET /api/v1/profile': () =>
+        json(
+          profileView({
+            displayName: 'Minh',
+            studentDetails: { name: 'Trần Quang Minh', school: 'Đại học Bách khoa Hà Nội', year: 3 },
+          }),
+        ),
+    })
+    renderAt('/ho-so')
+
+    const verified = await screen.findByRole('region', { name: 'Đã xác minh' })
+    expect(within(verified).getByText('Trần Quang Minh')).toBeInTheDocument()
+    expect(within(verified).getAllByText('Khai khi xác minh')).toHaveLength(3)
+    expect(within(verified).queryByText(/Sinh viên đã xác minh/)).not.toBeInTheDocument()
+    expect(within(verified).getAllByRole('link', { name: 'Chưa xác minh' })).toHaveLength(3)
+  })
+
+  it('names how a student card verified the student status', async () => {
+    fakeBackend(signedIn('STUDENT'), {
+      'GET /api/v1/profile': () =>
+        json(profileView({ verified: { student: { validUntil: '2027-09-30', method: 'STUDENT_CARD' } } })),
+    })
+    renderAt('/ho-so')
+
+    const verified = await screen.findByRole('region', { name: 'Đã xác minh' })
+    expect(within(verified).getByText('Xác minh qua thẻ sinh viên')).toBeInTheDocument()
   })
 
   it('shows "Chưa xác minh" linking to ACC-2 for each verification not done', async () => {

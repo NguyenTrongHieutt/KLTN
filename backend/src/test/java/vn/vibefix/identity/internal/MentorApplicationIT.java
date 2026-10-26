@@ -140,7 +140,21 @@ class MentorApplicationIT extends IntegrationTest {
 		save(other, "Do-Manh-Hung", "3.0").andExpect(status().is(422))
 			.andExpect(jsonPath("$.code").value("GUARD_FAILED"))
 			.andExpect(jsonPath("$.reason").value("MENTOR_LINKEDIN_IN_USE"));
+		assertThat(this.jdbc.sql("SELECT count(*) FROM identity.profile WHERE account_id = :id").param("id", other)
+			.query(Long.class)
+			.single()).as("the refused save wrote no profile").isZero();
 		save(other, "someone-else", "3.0").andExpect(status().isOk());
+	}
+
+	@Test
+	void anExperienceLongerThanTheProfileAllowsIsRefused() throws Exception {
+		this.mvc.perform(put("/api/v1/profile/mentor").with(mentor(this.hung)).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON)
+			.content(body("do-manh-hung", "3.0").replace("Kỹ sư phần mềm 8 năm.", "x".repeat(2001))))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("VALIDATION"))
+			.andExpect(jsonPath("$.errors[0].field").value("experience"));
+		assertThat(this.jdbc.sql("SELECT count(*) FROM identity.mentor_application").query(Long.class).single()).isZero();
 	}
 
 	@Test

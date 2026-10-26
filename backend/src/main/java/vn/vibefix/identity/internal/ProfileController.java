@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 
 import jakarta.validation.Valid;
@@ -34,6 +35,7 @@ import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
+import vn.vibefix.shared.Role;
 
 /**
  * ACC-1 (Story 19.3, FR-3, FR-4, FR-51): the caller's one profile, whatever role it holds in a Job.
@@ -49,8 +51,11 @@ class ProfileController {
 	/** A showcased repository: {@code owner/name}, or its {@code https://github.com/} address. */
 	static final String REPOSITORY = "^(?:https://github\\.com/)?[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9._-]{1,100}?(?:\\.git)?/?$";
 
-	/** A typed link: {@code https} only, as identity.profile_link checks it too. */
-	static final String LINK = "^https://[^\\s]+$";
+	/** A typed link: {@code https} only, with no whitespace of any script, as identity.profile_link checks it too. */
+	static final String LINK = "(?U)^https://\\S+$";
+
+	/** A phone number, as identity.profile checks it. */
+	static final String PHONE = "^\\+?[0-9 ]{8,20}$";
 
 	/**
 	 * @param displayName absent until the first save
@@ -103,12 +108,18 @@ class ProfileController {
 	 */
 	record ProfileRequest(@NotBlank @Size(max = 100) String displayName, @Nullable ProfileKind kind,
 			@Nullable @Email @Size(max = 254) String contactEmail,
-			@Nullable @Pattern(regexp = "^\\+?(?:[0-9] ?){7,14}[0-9]$") String phone,
+			@Nullable @Pattern(regexp = PHONE) String phone,
 			@Nullable @Size(max = 2000) String experience, @Nullable @Min(0) @Max(60) Integer yearsOfExperience,
 			@NotNull @Size(max = 100) List<@NotNull UUID> skillIds,
 			@NotNull @Size(max = Profiles.MAX_LINKS) List<@NotBlank @Size(max = 500) @Pattern(regexp = LINK) String> links,
 			@NotNull @Size(max = Profiles.MAX_LINKS) List<@NotBlank @Pattern(regexp = REPOSITORY) String> repositories,
 			@NotNull Boolean hideStudentDetails) {
+
+		/** Links are checked without the spaces around them, as they are saved. */
+		ProfileRequest {
+			links = links == null ? null : links.stream().map(link -> link == null ? null : link.strip()).toList();
+		}
+
 	}
 
 	private final Profiles profiles;
@@ -117,12 +128,16 @@ class ProfileController {
 
 	private final StudentVerifications verifications;
 
+	private final MentorApplications mentorApplications;
+
 	private final CurrentCaller caller;
 
-	ProfileController(Profiles profiles, Accounts accounts, StudentVerifications verifications, CurrentCaller caller) {
+	ProfileController(Profiles profiles, Accounts accounts, StudentVerifications verifications,
+			MentorApplications mentorApplications, CurrentCaller caller) {
 		this.profiles = profiles;
 		this.accounts = accounts;
 		this.verifications = verifications;
+		this.mentorApplications = mentorApplications;
 		this.caller = caller;
 	}
 
@@ -148,16 +163,25 @@ class ProfileController {
 				new VerifiedView(github, student, null));
 	}
 
-	/** Saves the typed zone, with no approval; a verified fact is never written here (AD-42). */
+	/**
+	 * Saves the typed zone, with no approval; a verified fact is never written here (AD-42). A Mentor's
+	 * save keeps MEN-5's rules once the application is submitted (until Story 19.7).
+	 */
 	@PutMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void save(@Valid @RequestBody ProfileRequest request) {
-		UUID id = requireUser().id();
-		this.profiles.save(id, new Changes(request.displayName().strip(),
+		Account account = requireUser();
+		Changes changes = new Changes(request.displayName().strip(),
 				request.kind() == null ? ProfileKind.INDIVIDUAL : request.kind(), blankToNull(request.contactEmail()),
 				blankToNull(request.phone()), blankToNull(request.experience()), request.yearsOfExperience(),
 				request.skillIds(), links(request.links()), repositories(request.repositories()),
-				request.hideStudentDetails()));
+				request.hideStudentDetails());
+		if (account.role() == Role.MENTOR) {
+			this.mentorApplications.saveProfile(account.id(), changes);
+		}
+		else {
+			this.profiles.save(account.id(), changes);
+		}
 	}
 
 	/** The caller's account, if it is a person's; an Administrator has no profile. */
@@ -172,13 +196,20 @@ class ProfileController {
 		return List.copyOf(new LinkedHashSet<>(given.stream().map(String::strip).toList()));
 	}
 
-	/** {@code owner/name} once each, in order, from either spelling. */
+	/**
+	 * {@code owner/name} once each, in order, from either spelling.
+	 * @throws ApiException {@code VALIDATION} on {@code repositories} for a name that is empty once
+	 * {@code .git} is taken off
+	 */
 	static List<String> repositories(List<String> given) {
 		LinkedHashSet<String> seen = new LinkedHashSet<>();
 		List<String> keys = new ArrayList<>();
 		for (String repository : given) {
 			String reference = repository.strip().replaceFirst("^https://github\\.com/", "").replaceFirst("/$", "")
 				.replaceFirst("\\.git$", "");
+			if (reference.endsWith("/")) {
+				throw Profiles.invalid(Map.of("repositories", "Pattern"));
+			}
 			// GitHub names are case-insensitive: one repository, however it is spelled.
 			if (seen.add(reference.toLowerCase(Locale.ROOT))) {
 				keys.add(reference);

@@ -1,6 +1,7 @@
 package vn.vibefix.team.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -16,6 +17,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.IdentityTestSupport;
+import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
 
 /** FR-51, FR-14, AD-33: PUB-4 and PUB-5's Ratings and Portfolio Entries, for anyone. */
@@ -65,6 +67,25 @@ class PublicProfilesIT extends IntegrationTest {
 		this.jdbc.sql("""
 				INSERT INTO team.membership (id, team_id, student_account_id, joined_at) VALUES (:id, :team, :student, now())
 				""").param("id", UUID.randomUUID()).param("team", team).param("student", shown).update();
+		// The listed Student's own contact details (FR-3, AD-20): never on PUB-4 or in the Team.
+		this.jdbc.sql("""
+				UPDATE identity.profile SET contact_email = 'minh.lienhe@example.test', phone = '+84 966 123 456'
+				WHERE account_id = :id
+				""").param("id", shown).update();
+		String team1 = this.mvc.perform(get("/api/v1/mentor/team")
+			.with(authentication(IdentityTestSupport.authentication(mentor, Role.MENTOR))))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.members[0].student.name").value("Trần Quang Minh"))
+			.andReturn()
+			.getResponse()
+			.getContentAsString();
+		String student = this.mvc.perform(get("/api/v1/students/" + TeamTestSupport.login(this.jdbc, shown)))
+			.andReturn()
+			.getResponse()
+			.getContentAsString();
+		for (String response : List.of(team1, student)) {
+			assertThat(response).doesNotContain("minh.lienhe@example.test").doesNotContain("966 123 456");
+		}
 
 		this.mvc.perform(get("/api/v1/students/" + TeamTestSupport.login(this.jdbc, shown)))
 			.andExpect(status().isOk())

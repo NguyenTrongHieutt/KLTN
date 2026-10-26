@@ -65,7 +65,7 @@ class MentorProfileController {
 			@NotBlank @Size(max = 2000) String experience, @NotNull @Min(0) @Max(60) Integer yearsOfExperience,
 			@NotNull @Size(min = 1, max = 100) List<@NotNull UUID> skillIds,
 			@NotBlank @Pattern(regexp = LINKEDIN) String linkedinUrl,
-			@Nullable @Size(max = 300) @Pattern(regexp = "^https://[^\\s]+$") String otherLink,
+			@Nullable @Size(max = 300) @Pattern(regexp = ProfileController.LINK) String otherLink,
 			@Nullable String privacyNoticeVersion) {
 	}
 

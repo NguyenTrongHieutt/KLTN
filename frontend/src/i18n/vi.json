@@ -104,7 +104,7 @@
       },
       "typed": {
         "heading": "Bạn tự nhập",
-        "lead": "Những gì bạn tự viết về mình. Người khác thấy chúng với nhãn “Tự khai”. Lưu là xong, không cần ai duyệt.",
+        "lead": "Những gì bạn tự viết về mình. Hồ sơ công khai (sắp có) sẽ hiện chúng với nhãn “Tự khai”. Lưu là xong, không cần ai duyệt.",
         "kind": "Bạn là",
         "individual": "Cá nhân",
         "business": "Doanh nghiệp",
@@ -144,6 +144,8 @@
         "githubLine": "@{login} · Xác minh qua GitHub · {month}",
         "student": "Email sinh viên",
         "studentLine": "Sinh viên đã xác minh · Có hiệu lực đến {date}",
+        "methodSchoolEmail": "Xác minh qua email trường",
+        "methodStudentCard": "Xác minh qua thẻ sinh viên",
         "declared": "Khai khi xác minh",
         "studentName": "Họ và tên",
         "studentSchool": "Trường",
@@ -604,7 +606,6 @@
         "renew": "Gia hạn"
       }
     },
-    "customer": {},
     "admin": {
       "badge": "Quản trị",
       "signIn": {

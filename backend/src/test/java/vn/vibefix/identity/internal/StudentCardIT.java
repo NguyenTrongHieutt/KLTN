@@ -227,6 +227,10 @@ class StudentCardIT extends IntegrationTest {
 			.query(Boolean.class)
 			.single()).isTrue();
 		assertThat(notifications(this.student)).containsExactly(StudentCards.APPROVED_NOTIFICATION);
+		assertThat(this.jdbc.sql("SELECT link FROM notification.notification WHERE account_id = :id")
+			.param("id", this.student)
+			.query(String.class)
+			.single()).as("the decision leads to ACC-2").isEqualTo("/ho-so/xac-minh");
 		assertThat(this.jdbc.sql("SELECT kind FROM timers.deadline ORDER BY kind").query(String.class).list())
 			.contains(StudentCardDeletion.KEY, VerificationDeadlines.EXPIRY.key());
 		assertThat(audited("identity.student_card_approved")).isOne();

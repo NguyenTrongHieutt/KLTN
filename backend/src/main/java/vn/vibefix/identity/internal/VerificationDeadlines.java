@@ -110,7 +110,7 @@ class VerificationDeadlines {
 			}
 			this.notifications.send(new NotificationRequest(VERIFICATION_EXPIRING, deadline.id(),
 					List.of(new Recipient(deadline.subjectId(), Audience.SUBJECT)),
-					Map.of("date", validUntil.get().format(DATE)), "/ho-so", null, deadline.subjectId()));
+					Map.of("date", validUntil.get().format(DATE)), SignIns.VERIFICATION_PATH, null, deadline.subjectId()));
 			return DeadlineOutcome.FIRED;
 		}
 
@@ -155,9 +155,9 @@ class VerificationDeadlines {
 				return DeadlineOutcome.OBSOLETE;
 			}
 			this.notifications.send(new NotificationRequest(VERIFICATION_EXPIRED, deadline.id(),
-					List.of(new Recipient(account, Audience.SUBJECT)), Map.of(), "/ho-so", null, account));
+					List.of(new Recipient(account, Audience.SUBJECT)), Map.of(), SignIns.VERIFICATION_PATH, null, account));
 			this.todos.open(new TodoRequest(SignIns.VERIFY_STUDENT, account, Audience.SUBJECT, account, Map.of(),
-					"/ho-so", null, null));
+					SignIns.VERIFICATION_PATH, null, null));
 			this.auditLog.record(AuditEntry.of(AuditActor.system(), "identity.verification_expired",
 					AuditObject.of("identity.account", account)));
 			return DeadlineOutcome.FIRED;

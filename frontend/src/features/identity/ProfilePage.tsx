@@ -507,29 +507,36 @@ function VerifiedZone({ profile }: { profile: Profile }) {
           )}
         </FactRow>
         <FactRow label={t('screen.profile.verified.student')}>
-          {student ? (
-            <div className="flex flex-col gap-1.5">
-              <VerifiedLine>
-                {t('screen.profile.verified.studentLine', { date: formatCalendarDate(student.validUntil) })}
-              </VerifiedLine>
-              {details && (
-                <ul className="flex flex-col gap-1 text-body-sm">
-                  {details.name && <Declared label={t('screen.profile.verified.studentName')} value={details.name} />}
-                  {details.school && (
-                    <Declared label={t('screen.profile.verified.studentSchool')} value={details.school} />
+          <div className="flex flex-col gap-1.5">
+            {student ? (
+              <>
+                <VerifiedLine>
+                  {t('screen.profile.verified.studentLine', { date: formatCalendarDate(student.validUntil) })}
+                </VerifiedLine>
+                <p className="text-caption text-muted-foreground">
+                  {t(
+                    student.method === 'STUDENT_CARD'
+                      ? 'screen.profile.verified.methodStudentCard'
+                      : 'screen.profile.verified.methodSchoolEmail',
                   )}
-                  {details.year && (
-                    <Declared
-                      label={t('screen.profile.verified.studentYear')}
-                      value={t('screen.profile.verified.yearN', { n: details.year })}
-                    />
-                  )}
-                </ul>
-              )}
-            </div>
-          ) : (
-            <Unverified />
-          )}
+                </p>
+              </>
+            ) : (
+              <Unverified />
+            )}
+            {details && (
+              <ul className="flex flex-col gap-1 text-body-sm">
+                {details.name && <Declared label={t('screen.profile.verified.studentName')} value={details.name} />}
+                {details.school && <Declared label={t('screen.profile.verified.studentSchool')} value={details.school} />}
+                {details.year && (
+                  <Declared
+                    label={t('screen.profile.verified.studentYear')}
+                    value={t('screen.profile.verified.yearN', { n: details.year })}
+                  />
+                )}
+              </ul>
+            )}
+          </div>
         </FactRow>
         <FactRow label={t('screen.profile.verified.linkedin')}>
           <Unverified />

@@ -305,7 +305,8 @@ class StudentCards implements StudentCardQueue {
 		this.deadlines.schedule(new DeadlineRequest(StudentCardDeletion.KIND.key(), card.id(), now.toString(), null,
 				now.plus(KEPT_AFTER_DECISION)));
 		this.notifications.send(new NotificationRequest(notification, card.id(),
-				List.of(new Recipient(card.accountId(), Audience.SUBJECT)), params, "/ho-so", null, card.accountId()));
+				List.of(new Recipient(card.accountId(), Audience.SUBJECT)), params, SignIns.VERIFICATION_PATH, null,
+				card.accountId()));
 		this.auditLog.record(AuditEntry.of(AuditActor.user(administrator), action,
 				AuditObject.of("identity.student_card", card.id()), AuditObject.of("identity.account", card.accountId())));
 	}

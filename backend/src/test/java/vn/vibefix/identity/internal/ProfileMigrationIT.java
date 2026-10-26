@@ -40,6 +40,8 @@ class ProfileMigrationIT {
 
 	private static final String DRAFT = "00000000-0000-7000-8000-00000000a005";
 
+	private static final String LONG = "00000000-0000-7000-8000-00000000a006";
+
 	@Test
 	void theRoleProfilesBecomeOneProfileRowPerAccount() throws Exception {
 		String db = database.createScratchDatabase();
@@ -50,8 +52,9 @@ class ProfileMigrationIT {
 				       ('%s', 'USER', 7002, 'minh', 'STUDENT', NULL, now()),
 				       ('%s', 'USER', 7003, 'vy', 'STUDENT', NULL, now()),
 				       ('%s', 'USER', 7004, 'hung', 'MENTOR', 'APPROVED', now()),
-				       ('%s', 'USER', 7005, 'draft', 'MENTOR', 'PENDING', now())
-				""".formatted(LAN, MINH, VY, HUNG, DRAFT), """
+				       ('%s', 'USER', 7005, 'draft', 'MENTOR', 'PENDING', now()),
+				       ('%s', 'USER', 7006, 'long', 'MENTOR', 'PENDING', now())
+				""".formatted(LAN, MINH, VY, HUNG, DRAFT, LONG), """
 				INSERT INTO identity.customer_profile (account_id, kind, display_name, contact_email, phone, updated_at)
 				VALUES ('%s', 'BUSINESS', 'Tiệm bánh Lan', 'lan@tiembanh.vn', '+84 912 345 678', now())
 				""".formatted(LAN), """
@@ -74,7 +77,14 @@ class ProfileMigrationIT {
 				INSERT INTO identity.mentor_application
 				    (account_id, document_file_id, document_name, document_media_type, document_size, updated_at)
 				VALUES ('%s', gen_random_uuid(), 'cv.pdf', 'application/pdf', 100, now())
-				""".formatted(DRAFT));
+				""".formatted(DRAFT), """
+				INSERT INTO identity.mentor_application
+				    (account_id, display_name, experience, years_of_experience, skill_ids, skill_names, linkedin_url,
+				     linkedin_hmac, linkedin_key_version, linkedin_reserved, privacy_notice_version, n22_version, submitted_at,
+				     updated_at)
+				VALUES ('%s', 'Mentor viết dài', repeat('x', 2500), 9, ARRAY['%s'::uuid], 'React',
+				        'https://www.linkedin.com/in/mentor-viet-dai', repeat('b', 64), 1, TRUE, '3.0', '1.0', now(), now())
+				""".formatted(LONG, REACT));
 
 		flyway(db, "latest").migrate();
 
@@ -84,14 +94,20 @@ class ProfileMigrationIT {
 				       || coalesce(years_of_experience::text, '-') || '|' || array_to_string(skill_ids, ',') || '|' || skill_names
 				       || '|' || coalesce(student_name, '-') || '|' || coalesce(student_school, '-') || '|'
 				       || coalesce(student_year::text, '-') || '|' || hide_student_details
-				FROM identity.profile ORDER BY account_id
-				""")).containsExactly(
+				FROM identity.profile WHERE account_id <> '%s' ORDER BY account_id
+				""".formatted(LONG))).containsExactly(
 				LAN + "|Tiệm bánh Lan|BUSINESS|lan@tiembanh.vn|+84 912 345 678|-|-|||-|-|-|false",
 				MINH + "|-|INDIVIDUAL|-|-|-|-|" + REACT + "|React|Trần Quang Minh|Đại học Bách khoa Hà Nội|3|true",
 				VY + "|-|INDIVIDUAL|-|-|-|-|||Lê Thảo Vy|Đại học Kinh tế Quốc dân|2|false",
 				HUNG + "|Đỗ Mạnh Hùng|INDIVIDUAL|-|-|Kỹ sư phần mềm 8 năm.|8|" + REACT + "," + DOCKER
 						+ "|React, Docker|-|-|-|false");
+		// The 4000 characters MEN-5 allowed are cut to the profile's 2000.
+		assertThat(rows(db, "SELECT char_length(experience) FROM identity.profile WHERE account_id = '" + LONG + "'"))
+			.containsExactly("2000");
 		assertThat(rows(db, "SELECT owner || '/' || name FROM identity.showcase_repository")).containsExactly("minh/shop");
+		// The typed LinkedIn link of the Student's profile is their first typed link.
+		assertThat(rows(db, "SELECT account_id || ' ' || position || ' ' || url FROM identity.profile_link"))
+			.containsExactly(MINH + " 0 https://www.linkedin.com/in/minh-tran");
 		assertThat(rows(db, """
 				SELECT coalesce(to_regclass('identity.customer_profile')::text, 'gone') || ' '
 				       || coalesce(to_regclass('identity.student_profile')::text, 'gone')

@@ -55,7 +55,7 @@ class AccountAdministrations implements AccountAdministration {
 
 	static final String APPROVAL_REVOKED = "identity.mentor_approval_revoked";
 
-	private static final String NAME = "coalesce(p.display_name, p.student_name, a.google_name, '@' || a.github_login)";
+	private static final String NAME = Profiles.NAME;
 
 	private static final String FROM = """
 			FROM identity.account a
@@ -112,7 +112,9 @@ class AccountAdministrations implements AccountAdministration {
 			params.put("role", query.role().name());
 		}
 		if (query.text() != null && !query.text().isBlank()) {
-			where.append(" AND platform.vi_normalize(coalesce(" + NAME + ", '') || ' ' || coalesce(a.github_login, '')")
+			// The declared student name is searched too, though the name rule does not show it.
+			where.append(" AND platform.vi_normalize(coalesce(" + NAME + ", '') || ' ' || coalesce(p.student_name, '')")
+				.append(" || ' ' || coalesce(a.github_login, '')")
 				.append(" || ' ' || coalesce(p.contact_email, '') || ' ' || coalesce(a.google_email, '')")
 				.append(" || ' ' || coalesce(a.github_email, ''))")
 				.append(" LIKE '%' || platform.vi_normalize(:text) || '%' ESCAPE '\\'");
@@ -164,8 +166,7 @@ class AccountAdministrations implements AccountAdministration {
 		if (accountIds.isEmpty()) {
 			return names;
 		}
-		this.jdbc.sql("SELECT a.id, coalesce(" + NAME.substring("coalesce(".length(), NAME.length() - 1)
-				+ ", ac.display_name, '@' || a.github_login) AS name " + FROM
+		this.jdbc.sql("SELECT a.id, coalesce(" + NAME + ", ac.display_name) AS name " + FROM
 				+ " LEFT JOIN identity.administrator_credential ac ON ac.account_id = a.id WHERE a.id IN (:ids)")
 			.param("ids", List.copyOf(accountIds))
 			.query((rs, n) -> {
@@ -264,8 +265,10 @@ class AccountAdministrations implements AccountAdministration {
 		this.jdbc.sql("DELETE FROM identity.student_verification WHERE account_id = :id").param("id", accountId).update();
 		UUID action = record(accountId, "VERIFICATION_REVOKED", text, null, administrator, now);
 		this.notifications.send(new NotificationRequest(VERIFICATION_REVOKED, action,
-				List.of(new Recipient(accountId, Audience.SUBJECT)), Map.of("reason", text), "/ho-so", null, accountId));
-		this.todos.open(new TodoRequest(SignIns.VERIFY_STUDENT, accountId, Audience.SUBJECT, accountId, Map.of(), "/ho-so",
+				List.of(new Recipient(accountId, Audience.SUBJECT)), Map.of("reason", text), SignIns.VERIFICATION_PATH, null,
+				accountId));
+		this.todos.open(new TodoRequest(SignIns.VERIFY_STUDENT, accountId, Audience.SUBJECT, accountId, Map.of(),
+				SignIns.VERIFICATION_PATH,
 				null, null));
 		audit(administrator, "identity.verification_revoked", accountId, action);
 	}
