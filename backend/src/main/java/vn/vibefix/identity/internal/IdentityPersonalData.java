@@ -238,8 +238,8 @@ class IdentityPersonalData implements PersonalDataParticipant {
 				WHERE account_id = :id AND ended_at IS NULL
 				""").param("id", accountId).param("now", Timestamp.from(this.clock.instant())).update();
 		for (String table : new String[] { "identity.showcase_repository", "identity.school_email_code",
-				"identity.school_email_send_hour", "identity.student_card", "identity.administrator_credential", "identity.administrator_enrolment",
-				"identity.mentor_application", "identity.mentor_decision", "identity.account_action",
+				"identity.school_email_send_hour", "identity.student_card", "identity.administrator_credential",
+				"identity.administrator_enrolment", "identity.mentor_application", "identity.mentor_decision", "identity.account_action",
 				"identity.profile_link", "identity.profile" }) {
 			this.jdbc.sql("DELETE FROM " + table + " WHERE account_id = :id").param("id", accountId).update();
 		}

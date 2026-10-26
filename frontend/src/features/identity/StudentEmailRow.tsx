@@ -182,7 +182,17 @@ function Intro({ onStart }: { onStart: () => void }) {
 }
 
 /** A Student's two ways, as tabs ("Cách xác minh"), until Story 19.7 removes the card. */
-function Ways({ way, onWay, email, card }: { way: Way; onWay: (way: Way) => void; email: ReactNode; card: ReactNode }) {
+function Ways({
+  way,
+  onWay,
+  email,
+  card,
+}: {
+  way: Way
+  onWay: (way: Way) => void
+  email: ReactNode
+  card: ReactNode
+}) {
   const tabClass =
     'min-h-control-compact border-b-2 border-transparent px-3 text-label text-muted-foreground data-active:border-primary data-active:text-foreground focus-visible:outline-2 focus-visible:outline-ring'
   return (

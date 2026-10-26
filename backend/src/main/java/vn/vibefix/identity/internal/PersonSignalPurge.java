@@ -68,7 +68,9 @@ class PersonSignalPurge implements DeadlineHandler {
 		}
 		this.signals.purge(deadline.subjectId());
 		// The verification rows' subject HMACs are kept as long as the signals (Story 19.4).
-		this.jdbc.sql("DELETE FROM identity.verification WHERE account_id = :id").param("id", deadline.subjectId()).update();
+		this.jdbc.sql("DELETE FROM identity.verification WHERE account_id = :id")
+			.param("id", deadline.subjectId())
+			.update();
 		this.auditLog.record(AuditEntry.of(AuditActor.system(), "identity.person_signals_purged",
 				AuditObject.of("identity.account", deadline.subjectId())));
 		return DeadlineOutcome.FIRED;
