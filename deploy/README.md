@@ -413,7 +413,9 @@ and no signal.
    Primary Client Secret into `deploy/secrets/linkedin-client-secret`. Write each value without a
    trailing newline, then `chmod 444` both. They are secret files like the others: the application
    refuses to start with `LINKEDIN_CLIENT_SECRET` as an environment variable. `compose.yaml` does not
-   mount them; the two commands below do, and `dev-secrets.sh` leaves them alone.
+   mount them; the two commands below do, and `dev-secrets.sh` leaves them alone. Create both files
+   before the first run: for a missing file, Docker creates an empty folder in its place, and the
+   probe answers that the secret file is missing.
 3. **Authorize.** The probe starts the backend image under `cli` like the other probes, so the stack's
    `postgres` must be up. Rebuild the image first if the branch changed
    (`docker compose -f deploy/compose.yaml build backend`). Then run:
