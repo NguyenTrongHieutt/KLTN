@@ -14,12 +14,13 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.support.SpringApplicationJsonEnvironmentPostProcessor;
 import org.springframework.core.env.MapPropertySource;
+import org.springframework.core.env.SimpleCommandLinePropertySource;
 import org.springframework.core.env.StandardEnvironment;
 import org.springframework.core.env.SystemEnvironmentPropertySource;
 
 /**
- * AD-22: a secret property set in an environment variable (any spelling Spring binds) or a JVM
- * system property refuses the start; the same property from a secret file, the command line or a
+ * AD-22: a secret property set in an environment variable (any spelling Spring binds), a JVM system
+ * property or a command-line argument refuses the start; the same property from a secret file or a
  * test's dynamic properties is fine. The refusal never shows the value.
  */
 class SecretSourceGuardTest {
@@ -29,8 +30,8 @@ class SecretSourceGuardTest {
 	@ParameterizedTest
 	@ValueSource(strings = { "SPRING_DATASOURCE_PASSWORD", "SPRING_DATASOURCE_HIKARI_PASSWORD", "SPRING_FLYWAY_PASSWORD",
 			"DB_APP_PASSWORD", "DB_MIGRATOR_PASSWORD", "db_app_password", "spring.datasource.password",
-			"GITHUB_OAUTH_CLIENT_SECRET", "GOOGLE_OAUTH_CLIENT_SECRET", "IDENTITY_TOKEN_KEY_1", "IDENTITY_TOKEN_KEY_12",
-			"identity-token-key-2" })
+			"GITHUB_OAUTH_CLIENT_SECRET", "GOOGLE_OAUTH_CLIENT_SECRET", "LINKEDIN_CLIENT_SECRET", "linkedin_client_secret",
+			"IDENTITY_TOKEN_KEY_1", "IDENTITY_TOKEN_KEY_12", "identity-token-key-2" })
 	void secretInAnEnvironmentVariableIsRefused(String variable) {
 		StandardEnvironment environment = environmentWith(Map.of(variable, VALUE), Map.of());
 
@@ -42,8 +43,8 @@ class SecretSourceGuardTest {
 
 	@ParameterizedTest
 	@ValueSource(strings = { "db-app-password", "db-migrator-password", "spring.datasource.password",
-			"spring.flyway.password", "github-oauth-client-secret", "google-oauth-client-secret", "identity-token-key-1",
-			"identity-person-signal-key-1", "scanning-fingerprint-key" })
+			"spring.flyway.password", "github-oauth-client-secret", "google-oauth-client-secret", "linkedin-client-secret",
+			"identity-token-key-1", "identity-person-signal-key-1", "scanning-fingerprint-key" })
 	void secretInASystemPropertyIsRefused(String property) {
 		StandardEnvironment environment = environmentWith(Map.of(), Map.of(property, ""));
 
@@ -81,6 +82,21 @@ class SecretSourceGuardTest {
 		assertThatNoException().isThrownBy(() -> new SecretSourceGuard(environment).afterPropertiesSet());
 	}
 
+	@ParameterizedTest
+	@ValueSource(strings = { "linkedin-client-secret", "spring.datasource.password", "db-app-password",
+			"identity-token-key-1" })
+	void secretAsACommandLineArgumentIsRefused(String property) {
+		StandardEnvironment environment = environmentWith(Map.of(), Map.of());
+		environment.getPropertySources()
+			.addFirst(new SimpleCommandLinePropertySource("--" + property + "=" + VALUE,
+					"--vibefix.cli.command=spike-s5"));
+
+		assertThatThrownBy(() -> new SecretSourceGuard(environment).afterPropertiesSet())
+			.isInstanceOf(IllegalStateException.class)
+			.hasMessageContaining(property + " is set in a command-line argument")
+			.hasMessageNotContaining(VALUE);
+	}
+
 	@Test
 	void secretFromAnotherSourceIsAccepted() {
 		StandardEnvironment environment = environmentWith(Map.of("VIBEFIX_SECRETS_DIR", "/run/secrets/"), Map.of());
@@ -88,7 +104,9 @@ class SecretSourceGuardTest {
 			.addFirst(new MapPropertySource("Config resource 'configtree' [/run/secrets/]",
 					Map.of("db-app-password", VALUE, "db-migrator-password", VALUE)));
 		environment.getPropertySources()
-			.addFirst(new MapPropertySource("commandLineArgs", Map.of("spring.datasource.password", VALUE)));
+			.addFirst(new MapPropertySource("Dynamic Test Properties", Map.of("spring.datasource.password", VALUE)));
+		environment.getPropertySources()
+			.addFirst(new SimpleCommandLinePropertySource("--vibefix.cli.command=spike-s5", "--step=authorize"));
 
 		assertThatNoException().isThrownBy(() -> new SecretSourceGuard(environment).afterPropertiesSet());
 	}

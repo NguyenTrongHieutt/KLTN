@@ -11,6 +11,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
@@ -27,8 +28,8 @@ import vn.vibefix.support.PostgresTestDatabase;
  * profile, and it checks before any migration runs (or, with Flyway off, before the context is
  * ready). SG-36: {@code prod} refuses the dev seed location and the dev GitHub organization before
  * migrating. AD-22: database passwords come from secret files, and a secret given as a JVM system
- * property refuses the start ({@code SecretSourceGuardTest} covers environment variables). Each
- * scenario gets its own database.
+ * property refuses the start ({@code SecretSourceGuardTest} covers environment variables and
+ * command-line arguments). Each scenario gets its own database.
  */
 class EnvironmentGuardIT {
 
@@ -132,8 +133,7 @@ class EnvironmentGuardIT {
 		Files.writeString(secrets.resolve("db-app-password"), database.appPassword());
 		Files.writeString(secrets.resolve("db-migrator-password"), database.migratorPassword());
 		String db = database.createScratchDatabase();
-		List<String> args = new ArrayList<>(List.of(database.applicationArgumentsWithoutPasswords(db)));
-		args.add("--VIBEFIX_SECRETS_DIR=" + secrets.toAbsolutePath().toString().replace('\\', '/') + "/");
+		List<String> args = List.of(database.applicationArgumentsWithoutPasswords(db, secrets));
 
 		try (ConfigurableApplicationContext ignored = run(args, "dev")) {
 			assertThat(environmentRows(db)).containsExactly("dev");
@@ -194,7 +194,7 @@ class EnvironmentGuardIT {
 	@Test
 	void prodRefusesToStartWithoutTheGitHubOAuthApp() throws Exception {
 		String db = database.createScratchDatabase();
-		List<String> args = new ArrayList<>(List.of(database.applicationArguments(db)));
+		List<String> args = new ArrayList<>(List.of(database.applicationArguments(db, GOOGLE_SECRET)));
 		args.addAll(GOOGLE);
 		args.addAll(EMAIL);
 
@@ -206,7 +206,7 @@ class EnvironmentGuardIT {
 	@Test
 	void prodRefusesToStartWithoutTheGoogleSignInClient() throws Exception {
 		String db = database.createScratchDatabase();
-		List<String> args = new ArrayList<>(List.of(database.applicationArguments(db)));
+		List<String> args = new ArrayList<>(List.of(database.applicationArguments(db, GITHUB_SECRET)));
 		args.addAll(GITHUB);
 		args.addAll(EMAIL);
 
@@ -218,7 +218,7 @@ class EnvironmentGuardIT {
 	@Test
 	void prodRefusesToStartWithoutAnSmtpServer() throws Exception {
 		String db = database.createScratchDatabase();
-		List<String> args = new ArrayList<>(List.of(database.applicationArguments(db)));
+		List<String> args = new ArrayList<>(List.of(database.applicationArguments(db, OAUTH_SECRETS)));
 		args.addAll(OAUTH);
 
 		assertThatThrownBy(() -> run(args, "prod")).rootCause()
@@ -226,22 +226,31 @@ class EnvironmentGuardIT {
 			.hasMessageContaining("refusing to start");
 	}
 
-	/** AD-25: production needs the GitHub OAuth App (linked in Story 19.2) ... */
-	private static final List<String> GITHUB = List.of("--github-oauth-client-id=test-client",
-			"--github-oauth-client-secret=test-secret");
+	/**
+	 * AD-25: production needs the GitHub OAuth App (linked in Story 19.2) ... Its secret is a secret
+	 * file, since a secret on the command line refuses the start (AD-22).
+	 */
+	private static final List<String> GITHUB = List.of("--github-oauth-client-id=test-client");
+
+	private static final Map<String, String> GITHUB_SECRET = Map.of("github-oauth-client-secret", "test-secret");
 
 	/** ... and the Google sign-in client (Story 19.1) ... */
-	private static final List<String> GOOGLE = List.of("--google-oauth-client-id=test-google-client",
-			"--google-oauth-client-secret=test-google-secret");
+	private static final List<String> GOOGLE = List.of("--google-oauth-client-id=test-google-client");
+
+	private static final Map<String, String> GOOGLE_SECRET = Map.of("google-oauth-client-secret",
+			"test-google-secret");
 
 	private static final List<String> OAUTH = Stream.concat(GITHUB.stream(), GOOGLE.stream()).toList();
+
+	private static final Map<String, String> OAUTH_SECRETS = Map.of("github-oauth-client-secret", "test-secret",
+			"google-oauth-client-secret", "test-google-secret");
 
 	/** ... and an SMTP server with the platform address its links use (AD-27). */
 	private static final List<String> EMAIL = List.of("--vibefix.email.smtp.host=localhost",
 			"--vibefix.email.link-base-url=https://vibefix.vn");
 
 	private static ConfigurableApplicationContext start(String db, String profiles, String... extraArgs) {
-		List<String> args = new ArrayList<>(List.of(database.applicationArguments(db)));
+		List<String> args = new ArrayList<>(List.of(database.applicationArguments(db, OAUTH_SECRETS)));
 		// These scenarios are about the environment, so production gets what it needs besides.
 		args.addAll(OAUTH);
 		args.addAll(EMAIL);

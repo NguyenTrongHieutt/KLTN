@@ -146,6 +146,20 @@ vibefix:
       token-uri: https://oauth2.googleapis.com/token
       jwk-set-uri: https://www.googleapis.com/oauth2/v3/certs
       user-info-uri: https://openidconnect.googleapis.com/v1/userinfo
+  # FR-80, AD-42 (Story 19.5): Verified on LinkedIn, read for now only by the dev-only spike-s5 probe
+  # (deploy/README.md, "Spike S5"). Its client ID and secret are the secret files linkedin-client-id and
+  # linkedin-client-secret. Each REST API request names api-version (YYYYMM) in its LinkedIn-Version header.
+  linkedin:
+    authorization-uri: https://www.linkedin.com/oauth/v2/authorization
+    token-uri: https://www.linkedin.com/oauth/v2/accessToken
+    identity-me-uri: https://api.linkedin.com/rest/identityMe
+    verification-report-uri: https://api.linkedin.com/rest/verificationReport
+    # LinkedIn serves each monthly version for about a year, then answers HTTP 426; override it with
+    # --vibefix.linkedin.api-version=YYYYMM.
+    api-version: "202609"
+    # The dev LinkedIn app's redirect URL. The Vite proxy does not forward it (Story 19.6's callback will
+    # live under /link/oauth2), so the code stops at the SPA's not-found page; the author copies it by hand.
+    redirect-uri: http://localhost:5173/spike-s5/linkedin
   repo:
     # AD-11, AD-12: how often the grants still to settle are read back from GitHub (invitations accepted,
     # two-factor authentication, drifted members); a member webhook reads a Job's grants at once.
