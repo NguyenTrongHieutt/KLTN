@@ -4,8 +4,9 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Something that keeps an account's GitHub link as it is (FR-80, R14, AD-19): while it lasts, GitHub
- * cannot be unlinked, and a re-link must return the same numeric ID.
+ * Something that keeps an account from unlinking GitHub (FR-80, R14, AD-19): a live Product, an open bid, or a
+ * role in a Job that is not Closed or Cancelled. Unlinking waits until no participant reports one. A re-link must
+ * return the same numeric ID in every case, blocker or not.
  * @param module the module reporting it
  * @param reason the module's code: {@code LIVE_PRODUCT}, {@code JOB_ROLE}, or {@code OPEN_BID}
  * @param subjectId the Product or the Job it concerns

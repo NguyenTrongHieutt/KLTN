@@ -49,6 +49,9 @@ type Checked = { kind: 'passed'; repository: RepositoryCheck } | { kind: 'refuse
 /** Where the GitHub gate returns, and where the wizard's unsent input waits meanwhile (UX-DR95). */
 const ROUTE = '/san-pham/moi'
 
+/** The answers that send the wizard back to the GitHub gate: no link, or no kept token that GitHub accepts. */
+const GATE_REASONS = ['RELINK_GITHUB', 'GITHUB_NOT_LINKED']
+
 const DRAFT_KEY = 'vibefix.product.registration'
 
 /** What the wizard holds when the GitHub gate sends the browser to GitHub; the repository is checked again on return. */
@@ -109,8 +112,17 @@ function Wizard() {
   const [url, setUrl] = useState(draft?.url ?? '')
   const [checked, setChecked] = useState<Checked>()
   const [values, setValues] = useState<Details>(draft?.values ?? { name: '', description: '', demoUrl: '' })
+  // The backend said GitHub must be linked again: the gate takes over step 2 whatever the link read says.
+  const [relink, setRelink] = useState(false)
+  const queryClient = useQueryClient()
   // A draft comes back once: it is taken as the wizard opens.
   useEffect(() => writeDraft(undefined), [])
+  const toGate = () => {
+    void queryClient.invalidateQueries({ queryKey: GITHUB_LINK_QUERY_KEY })
+    setRelink(true)
+    setChecked(undefined)
+    setStep(2)
+  }
 
   return (
     <div className="mx-auto flex max-w-[760px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
@@ -133,6 +145,7 @@ function Wizard() {
           action={t('screen.githubGate.action.registerProduct')}
           returnTo={ROUTE}
           needsRepositoryToken
+          forceRelink={relink}
           onLeave={() => writeDraft({ step: 2, tools, url, values })}
           onBack={() => setStep(1)}
         >
@@ -145,6 +158,7 @@ function Wizard() {
               setChecked(undefined)
             }}
             onChecked={setChecked}
+            onGate={toGate}
             onBack={() => setStep(1)}
             onNext={() => setStep(3)}
           />
@@ -159,6 +173,7 @@ function Wizard() {
             setChecked(undefined)
             setStep(2)
           }}
+          onGate={toGate}
         />
       )}
     </div>
@@ -244,6 +259,7 @@ function RepositoryStep({
   checked,
   onUrl,
   onChecked,
+  onGate,
   onBack,
   onNext,
 }: {
@@ -252,11 +268,12 @@ function RepositoryStep({
   checked?: Checked
   onUrl: (url: string) => void
   onChecked: (checked: Checked) => void
+  /** No link, or no kept token GitHub accepts: back to the GitHub gate (AD-10). */
+  onGate: () => void
   onBack: () => void
   onNext: () => void
 }) {
   const check = useRepositoryCheck()
-  const queryClient = useQueryClient()
   const [checkedUrl, setCheckedUrl] = useState<string>()
 
   function run(value: string) {
@@ -269,12 +286,11 @@ function RepositoryStep({
       onSuccess: (repository) => onChecked({ kind: 'passed', repository }),
       onError: (error) => {
         const reason = error instanceof ApiError ? (error.problem.reason ?? '') : ''
-        if (error instanceof ApiError && (error.problem.code === 'NOT_FOUND' || reason === 'GITHUB_NOT_LINKED')) {
-          // No usable token, or no link any more: the GitHub gate takes over the form again (AD-10).
-          void queryClient.invalidateQueries({ queryKey: GITHUB_LINK_QUERY_KEY })
+        if (GATE_REASONS.includes(reason)) {
+          onGate()
+          return
         }
-        const module = reason === 'GITHUB_NOT_LINKED' ? 'identity' : 'product'
-        onChecked({ kind: 'refused', reason, message: problemMessage(error, { module }).text })
+        onChecked({ kind: 'refused', reason, message: problemMessage(error, { module: 'product' }).text })
       },
     })
   }
@@ -516,10 +532,12 @@ function NoticeStep({
   registration,
   onBack,
   onRefused,
+  onGate,
 }: {
   registration: { url: string; tools: Tool[]; values: Details }
   onBack: () => void
   onRefused: () => void
+  onGate: () => void
 }) {
   const [ticked, setTicked] = useState({ public: false, copy: false, detection: false })
   const [error, setError] = useState<string>()
@@ -553,6 +571,10 @@ function NoticeStep({
         onError: (failure) => {
           const reason = failure instanceof ApiError ? failure.problem.reason : undefined
           const message = problemMessage(failure, { module: 'product' }).text
+          if (reason && GATE_REASONS.includes(reason)) {
+            onGate()
+            return
+          }
           if (reason && CHECKS.some((item) => item.reason === reason)) {
             toasts.error(message)
             onRefused()

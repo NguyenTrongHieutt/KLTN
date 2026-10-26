@@ -245,7 +245,8 @@ function JobForm({
       } else if (problem?.reason === 'JOB_INCOMPLETE') {
         setMissing(problem.missing ?? [])
       } else {
-        toasts.error(problemMessage(error, { module: 'job', action: t('screen.job.form.publishAction') }).text)
+        const message = problemMessage(error, { module: 'job', action: t('screen.job.form.publishAction') })
+        toasts.error(message.text, message.link)
       }
       if (!job) {
         void navigate(`/cong-viec/${id}/sua`, { replace: true })

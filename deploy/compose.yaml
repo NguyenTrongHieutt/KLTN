@@ -59,7 +59,7 @@ services:
     secrets:
       - db-app-password
       - db-migrator-password
-      # AD-22: the key that seals the kept Customer sign-in tokens.
+      # AD-22: the key that seals the kept GitHub tokens.
       - identity-token-key-1
       # AD-19, AD-22: the key of the person-link signals.
       - identity-person-signal-key-1

@@ -51,7 +51,7 @@ class IdentityPersonalDataIT extends IntegrationTest implements PersonalDataPart
 	public boolean holdsErasableDataOf(UUID accountId) {
 		return this.jdbc.sql("""
 				SELECT count(*) FROM identity.account
-				WHERE id = :id AND (github_user_id IS NOT NULL OR github_email IS NOT NULL)
+				WHERE id = :id AND (github_user_id IS NOT NULL OR github_email IS NOT NULL OR github_linked_at IS NOT NULL)
 				""").param("id", accountId).query(Long.class).single() > 0
 				|| this.accounts.customerToken(accountId).isPresent()
 				|| this.jdbc.sql("""
@@ -70,7 +70,8 @@ class IdentityPersonalDataIT extends IntegrationTest implements PersonalDataPart
 		assertThat(section.module()).isEqualTo("identity");
 		assertThat(section.data()).containsEntry("role", "CUSTOMER")
 			.containsEntry("githubLogin", "lan-subject")
-			.containsEntry("githubEmail", "lan-subject@example.test");
+			.containsEntry("githubEmail", "lan-subject@example.test")
+			.containsEntry("githubLinkedAt", this.clock.instant().toString());
 		assertThat(section.data().toString()).contains("PRIVACY")
 			.contains("2.0")
 			.contains("lan-subject@contact.test")
@@ -89,6 +90,7 @@ class IdentityPersonalDataIT extends IntegrationTest implements PersonalDataPart
 		Account erased = this.accounts.findById(SUBJECT).orElseThrow();
 		assertThat(erased.erasedAt()).isNotNull();
 		assertThat(erased.githubLogin()).isNull();
+		assertThat(this.accounts.gitHubLinkedAt(SUBJECT)).as("the link's time goes too").isEmpty();
 		assertThat(erased.isActive()).isFalse();
 		assertThat(this.jdbc.sql("SELECT count(*) FROM identity.acknowledgment WHERE account_id = :id")
 			.param("id", SUBJECT)
@@ -122,8 +124,9 @@ class IdentityPersonalDataIT extends IntegrationTest implements PersonalDataPart
 	private void seed(UUID id, long githubId, String login) {
 		Timestamp now = Timestamp.from(this.clock.instant());
 		this.jdbc.sql("""
-				INSERT INTO identity.account (id, kind, github_user_id, github_login, github_email, role, created_at)
-				VALUES (:id, 'USER', :githubId, :login, :login || '@example.test', 'CUSTOMER', :now)
+				INSERT INTO identity.account (id, kind, github_user_id, github_login, github_email, github_linked_at, role,
+				    created_at)
+				VALUES (:id, 'USER', :githubId, :login, :login || '@example.test', :now, 'CUSTOMER', :now)
 				""").param("id", id).param("githubId", githubId).param("login", login).param("now", now).update();
 		this.accounts.insertAcknowledgment(UUID.randomUUID(), id, "PRIVACY", "2.0", this.clock.instant());
 		this.accounts.storeCustomerToken(id, this.cipher.seal("gho_" + login, id.toString()), this.clock.instant());

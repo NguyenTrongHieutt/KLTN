@@ -2,8 +2,12 @@ package vn.vibefix.identity.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
@@ -12,6 +16,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.session.Session;
+import org.springframework.session.SessionRepository;
+import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -53,6 +60,15 @@ class RelinkGitHubIT extends IntegrationTest {
 
 	@Autowired
 	private PlatformTransactionManager transactionManager;
+
+	@Autowired
+	private UnusedTokenSweep sweep;
+
+	@Autowired
+	private MockMvc mvc;
+
+	@Autowired
+	private SessionRepository<? extends Session> sessions;
 
 	@Test
 	void aMissingTokenAsksTheOwnerToReLinkUntilTheyDo() {
@@ -115,6 +131,65 @@ class RelinkGitHubIT extends IntegrationTest {
 			.executeWithoutResult(status -> this.publicLinks.forgetRepositoryToken(lan));
 		assertThat(tokens(lan)).isZero();
 		assertThat(CustomerTokens.githubUserId(this.jdbc, lan)).as("the link stays").isPositive();
+	}
+
+	@Test
+	void deletingTheOnlyLiveProductForgetsAndRevokesTheTokenAndAnotherLiveProductKeepsIt() throws Exception {
+		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		UUID first = liveProduct(lan);
+		UUID second = liveProduct(lan);
+		CustomerTokens.keep(this.context, lan, String.join("", "gh", "o_", "q".repeat(36)));
+
+		deleteProduct(lan, first);
+		assertThat(tokens(lan)).as("another live Product still reads with it").isOne();
+		assertThat(revocations(lan)).isZero();
+
+		deleteProduct(lan, second);
+		assertThat(tokens(lan)).isZero();
+		assertThat(revocations(lan)).as("revoked alone on GitHub").isOne();
+	}
+
+	@Test
+	void theDailySweepForgetsAndRevokesTokensNoLiveProductNeedsAfterADay() {
+		UUID abandoned = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		UUID owner = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		UUID registering = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		liveProduct(owner);
+		for (UUID account : List.of(abandoned, owner, registering)) {
+			CustomerTokens.keep(this.context, account, String.join("", "gh", "o_", "w".repeat(36)));
+		}
+		storedAgo(abandoned, Duration.ofHours(25));
+		storedAgo(owner, Duration.ofHours(25));
+		storedAgo(registering, Duration.ofHours(1));
+
+		assertThat(this.sweep.sweep()).containsExactlyInAnyOrder(abandoned, owner);
+
+		assertThat(tokens(abandoned)).isZero();
+		assertThat(revocations(abandoned)).isOne();
+		assertThat(tokens(owner)).as("a live Product's owner keeps it").isOne();
+		assertThat(tokens(registering)).as("a registration has a day").isOne();
+		assertThat(revocations(owner) + revocations(registering)).isZero();
+	}
+
+	private void deleteProduct(UUID customer, UUID product) throws Exception {
+		this.mvc.perform(delete("/api/v1/products/" + product)
+			.with(IdentityTestSupport.signedIn(this.sessions, customer, Role.CUSTOMER, this.clock.instant()))
+			.with(csrf())).andExpect(status().isNoContent());
+	}
+
+	private void storedAgo(UUID account, Duration ago) {
+		this.jdbc.sql("UPDATE identity.customer_token SET stored_at = :at WHERE account_id = :id")
+			.param("at", Timestamp.from(this.clock.instant().minus(ago)))
+			.param("id", account)
+			.update();
+	}
+
+	/** The single-token revocations queued for the account (Story 19.2). */
+	private long revocations(UUID account) {
+		return this.jdbc.sql("""
+				SELECT count(*) FROM operations.external_operation
+				WHERE type = 'identity.revoke_oauth_grant' AND account_id = :id AND payload ->> 'revoke' = 'TOKEN'
+				""").param("id", account).query(Long.class).single();
 	}
 
 	private long tokens(UUID account) {

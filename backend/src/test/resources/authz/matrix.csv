@@ -306,20 +306,20 @@ GET /api/v1/students/{studentLogin}/reputation,MENTOR,,,200
 GET /api/v1/students/{studentLogin}/reputation,STUDENT,,,200
 GET /api/v1/students/{studentLogin}/reputation,ADMINISTRATOR,,,200
 # Products (product, FR-7, AD-20): only Customers list, check, and register; only the owning Customer
-# and Administrators read a Product. The matrix Customer has no kept sign-in token, so its
-# repository reads find nothing.
+# and Administrators read a Product. The matrix Customer has no kept GitHub token, so its
+# repository reads ask it to link GitHub again (RELINK_GITHUB, Story 19.2).
 GET /api/v1/products,ANONYMOUS,,,401
 GET /api/v1/products,CUSTOMER,,,200
 GET /api/v1/products,MENTOR,,,404 NOT_FOUND
 GET /api/v1/products,STUDENT,,,404 NOT_FOUND
 GET /api/v1/products,ADMINISTRATOR,,,404 NOT_FOUND
 POST /api/v1/products/repository-check,ANONYMOUS,,product-repository-check.json,401
-POST /api/v1/products/repository-check,CUSTOMER,,product-repository-check.json,404 NOT_FOUND
+POST /api/v1/products/repository-check,CUSTOMER,,product-repository-check.json,422 GUARD_FAILED RELINK_GITHUB
 POST /api/v1/products/repository-check,MENTOR,,product-repository-check.json,404 NOT_FOUND
 POST /api/v1/products/repository-check,STUDENT,,product-repository-check.json,404 NOT_FOUND
 POST /api/v1/products/repository-check,ADMINISTRATOR,,product-repository-check.json,404 NOT_FOUND
 POST /api/v1/products,ANONYMOUS,,product-registration.json,401
-POST /api/v1/products,CUSTOMER,,product-registration.json,404 NOT_FOUND
+POST /api/v1/products,CUSTOMER,,product-registration.json,422 GUARD_FAILED RELINK_GITHUB
 POST /api/v1/products,MENTOR,,product-registration.json,404 NOT_FOUND
 POST /api/v1/products,STUDENT,,product-registration.json,404 NOT_FOUND
 POST /api/v1/products,ADMINISTRATOR,,product-registration.json,404 NOT_FOUND

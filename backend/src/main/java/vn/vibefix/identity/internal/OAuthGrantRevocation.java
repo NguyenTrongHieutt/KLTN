@@ -14,15 +14,21 @@ import vn.vibefix.operations.OperationRun;
 import vn.vibefix.operations.Outcome;
 
 /**
- * {@value #TYPE} (SG-9, NFR-11, FR-80): after an account's deletion, or when its owner unlinks GitHub, the
- * linking OAuth App's grant is revoked with the token kept for it. The token rides sealed as the operation's
- * personal data, opened in memory with the account ID as associated data, and purged when the operation
- * completes. Without the App's credentials (an environment that has none) there is nothing to revoke.
+ * {@value #TYPE} (SG-9, NFR-11, FR-80, AD-10): every GitHub token vibefix stops keeping is revoked on GitHub. A
+ * token discarded after linking, forgotten, replaced by a re-link, or dropped by an unlink is revoked alone
+ * ({@value #TOKEN}), so the App's grant and a newer token stay; after an account's deletion the whole grant is
+ * revoked with the token kept for it (the payload names no {@code revoke}, as before Story 19.2). The token rides
+ * sealed as the operation's personal data, opened in memory with the account ID as associated data, and purged
+ * when the operation completes. Without the App's credentials (an environment that has none) there is nothing to
+ * revoke.
  */
 @Component
 class OAuthGrantRevocation implements OperationHandler {
 
 	static final String TYPE = "identity.revoke_oauth_grant";
+
+	/** The payload's {@code revoke} for one token alone. */
+	static final String TOKEN = "TOKEN";
 
 	private final TokenCipher cipher;
 
@@ -60,7 +66,12 @@ class OAuthGrantRevocation implements OperationHandler {
 				Base64.getDecoder().decode((String) sealed.get("nonce")), Base64.getDecoder().decode((String) sealed.get("ciphertext"))),
 				accountId);
 		try {
-			this.grants.revokeGrant(registration.getClientId(), registration.getClientSecret(), token);
+			if (TOKEN.equals(run.payload().get("revoke"))) {
+				this.grants.revokeToken(registration.getClientId(), registration.getClientSecret(), token);
+			}
+			else {
+				this.grants.revokeGrant(registration.getClientId(), registration.getClientSecret(), token);
+			}
 			return Outcome.succeeded();
 		}
 		catch (GitHubException refused) {

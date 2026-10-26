@@ -1,6 +1,6 @@
 import { Dialog } from '@base-ui/react/dialog'
 import { CircleAlert, CircleCheck, ExternalLink, X } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
 import { usePageTitle } from '@/app/usePageTitle'
@@ -31,9 +31,14 @@ const ERRORS = ['da-lien-ket-tai-khoan-khac', 'sai-tai-khoan', 'that-bai']
 export function VerificationPage() {
   usePageTitle(t('screen.verification.title'))
   const link = useGitHubLink()
-  const [params] = useSearchParams()
-  const result = params.get('ket-qua')
-  const error = params.get('loi')
+  const [params, setParams] = useSearchParams()
+  // GitHub's return is read once: the banner stays until the page is left, and a reload shows none.
+  const [{ result, error }] = useState(() => ({ result: params.get('ket-qua'), error: params.get('loi') }))
+  useEffect(() => {
+    if (params.has('ket-qua') || params.has('loi')) {
+      setParams({}, { replace: true })
+    }
+  }, [params, setParams])
   return (
     <div className="mx-auto flex max-w-[760px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
       <div className="flex flex-col gap-1">

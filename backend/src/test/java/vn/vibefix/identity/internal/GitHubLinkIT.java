@@ -409,6 +409,9 @@ class GitHubLinkIT extends IntegrationTest {
 				"application.json"), 403, "FORBIDDEN", "GITHUB_NOT_LINKED");
 		assertProblem(as(mentor, Role.MENTOR, post("/api/v1/mentor/jobs/" + UUID.randomUUID() + "/nda"), "nda.json"), 403,
 				"FORBIDDEN", "GITHUB_NOT_LINKED");
+		UUID student = unlinked(Role.STUDENT);
+		assertProblem(as(student, Role.STUDENT, post("/api/v1/crew/jobs/" + UUID.randomUUID() + "/confirm"), "crew-confirm.json"),
+				403, "FORBIDDEN", "GITHUB_NOT_LINKED");
 
 		this.jdbc.sql("UPDATE identity.account SET github_user_id = 777001, github_login = 'lan-dev' WHERE id = :id")
 			.param("id", customer).update();
@@ -417,6 +420,139 @@ class GitHubLinkIT extends IntegrationTest {
 		IdentityTestSupport.lock(this.jdbc, customer, "Vi phạm điều khoản");
 		assertThat(as(customer, Role.CUSTOMER, post("/api/v1/jobs/" + UUID.randomUUID() + "/publish"), null).getResponse()
 			.getStatus()).as("a locked account is signed out").isEqualTo(401);
+	}
+
+	@Test
+	void aProductLinkThenAProfileLinkWithNoLiveProductDiscardsTheTokenAndRevokesEachOneAlone() throws Exception {
+		UUID lan = signIn(this.browser, "google-lan", "lan.nguyen@gmail.test", "Nguyễn Thị Lan");
+		link(this.browser, "PRODUCT");
+		String first = github.lastToken();
+		link(this.browser, "PRODUCT");
+		assertThat(revokedTokens(lan)).as("the token a re-link replaced").containsExactly(first);
+
+		link(this.browser, "PROFILE");
+
+		assertThat(keptToken(lan)).as("no live Product needs one").isNull();
+		assertThat(revokedTokens(lan)).as("the dropped token and the discarded one, never the grant")
+			.containsExactlyInAnyOrder(first, previousToken(), github.lastToken());
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM operations.external_operation
+				WHERE type = 'identity.revoke_oauth_grant' AND account_id = :id AND payload ->> 'revoke' IS NULL
+				""").param("id", lan).query(Long.class).single()).isZero();
+	}
+
+	@Test
+	void aMentorOnARunningJobAndAnUnreleasedCrewRowKeepTheLinkAndAReleasedRowOrAClosedJobDoNot() throws Exception {
+		UUID lan = signIn(this.browser, "google-lan", "lan.nguyen@gmail.test", "Nguyễn Thị Lan");
+		link(this.browser, "PROFILE");
+		UUID mentored = job("STARTING", lan);
+		assertThat(blockerReasons()).containsExactly("JOB_ROLE");
+
+		this.jdbc.sql("UPDATE job.job SET state = 'CLOSED', closed_at = :now WHERE id = :id")
+			.param("now", Timestamp.from(this.clock.instant())).param("id", mentored).update();
+		assertThat(blockerReasons()).as("a Closed Job").isEmpty();
+
+		UUID crewed = job("ACTIVE", UUID.randomUUID());
+		UUID row = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO job.crew_row (id, job_id, student_account_id, status, created_at)
+				VALUES (:id, :job, :student, 'ASSIGNED', :now)
+				""").param("id", row).param("job", crewed).param("student", lan)
+			.param("now", Timestamp.from(this.clock.instant())).update();
+		assertThat(blockerReasons()).as("an unreleased Crew row").containsExactly("JOB_ROLE");
+
+		this.jdbc.sql("""
+				UPDATE job.crew_row SET status = 'RELEASED', released_at = :now, released_reason = 'DECLINED' WHERE id = :id
+				""").param("now", Timestamp.from(this.clock.instant())).param("id", row).update();
+		assertThat(blockerReasons()).as("a released Crew row").isEmpty();
+		assertThat(this.browser.command(delete("/api/v1/identity/github")).getResponse().getStatus()).isEqualTo(204);
+	}
+
+	@Test
+	void aReLinkWhileGitHubDoesNotListTheEmailsSucceedsAndKeepsTheAddressOnFile() throws Exception {
+		UUID lan = signIn(this.browser, "google-lan", "lan.nguyen@gmail.test", "Nguyễn Thị Lan");
+		link(this.browser, "PROFILE");
+		github.signsInAs(4242, "lan-moi");
+		github.emailsAnswer(500);
+
+		assertThat(link(this.browser, "PROFILE")).isEqualTo("/ho-so/xac-minh?ket-qua=da-lien-ket");
+
+		assertThat(this.jdbc.sql("SELECT github_login || ' ' || github_email FROM identity.account WHERE id = :id")
+			.param("id", lan).query(String.class).single()).isEqualTo("lan-moi lan-dev@example.test");
+		assertThat(signals(lan)).as("no new signal without the emails").isEqualTo(2);
+	}
+
+	@Test
+	void signingInAsAnotherAccountInTheSameSessionForgetsAPendingLink() throws Exception {
+		UUID lan = signIn(this.browser, "google-lan", "lan.nguyen@gmail.test", "Nguyễn Thị Lan");
+		String state = authorization(this.browser, "PROFILE", null).get("state");
+		UUID ha = signIn(this.browser, "google-ha", "ha.phuong@gmail.test", "Hà Phương");
+
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM platform.spring_session_attributes WHERE attribute_name = :name
+				""").param("name", SignInSession.PENDING_LINK).query(Long.class).single())
+			.as("the sign-in clears the earlier account's link").isZero();
+		assertThat(callback(this.browser, state)).isEqualTo("/ho-so/xac-minh?loi=that-bai");
+		assertThat(githubId(lan)).isNull();
+		assertThat(githubId(ha)).isNull();
+	}
+
+	@Test
+	void onlyACustomerOrAnAccountWithNoRoleLinksForAProduct() throws Exception {
+		this.browser.perform(get("/api/v1/session"));
+		for (Role role : List.of(Role.MENTOR, Role.STUDENT, Role.CUSTOMER)) {
+			UUID account = unlinked(role);
+			this.jdbc.sql("""
+					INSERT INTO identity.acknowledgment (id, account_id, notice, notice_version, acknowledged_at)
+					VALUES (:ack, :id, 'PRIVACY', '3.0', :now)
+					""").param("ack", UUID.randomUUID()).param("id", account)
+				.param("now", Timestamp.from(this.clock.instant())).update();
+			MvcResult started = as(account, role, post("/api/v1/identity/github/link"), null, "{\"noticeVersion\":\"1.0\","
+					+ "\"purpose\":\"PRODUCT\"}");
+			assertThat(started.getResponse().getStatus()).as(role.name()).isEqualTo(role == Role.CUSTOMER ? 200 : 400);
+		}
+		UUID google = signIn(this.browser, "google-lan", "lan.nguyen@gmail.test", "Nguyễn Thị Lan");
+		assertThat(start(this.browser, "1.0", "PRODUCT", null).getResponse().getStatus()).as("no role").isEqualTo(200);
+		assertThat(githubId(google)).isNull();
+	}
+
+	/** A Job of the Customer's, with a Mentor; {@code mentor} may be the account under test. */
+	private UUID job(String state, UUID mentor) {
+		UUID id = UUID.randomUUID();
+		Timestamp now = Timestamp.from(this.clock.instant());
+		this.jdbc.sql("""
+				INSERT INTO job.job (id, product_id, customer_account_id, state, title, job_types, rules, selection_days,
+				    mentor_account_id, selected_application_id, selected_at, created_at, updated_at)
+				VALUES (:id, :product, :customer, :state, 'Sửa lỗi đặt bàn', ARRAY['BUG_FIX'], '{}'::jsonb, 14, :mentor,
+				    :application, :now, :now, :now)
+				""").param("id", id).param("product", UUID.randomUUID()).param("customer", UUID.randomUUID())
+			.param("state", state).param("mentor", mentor).param("application", UUID.randomUUID()).param("now", now).update();
+		return id;
+	}
+
+	private List<String> blockerReasons() throws Exception {
+		List<String> reasons = new java.util.ArrayList<>();
+		read(this.browser).path("blockers").forEach(blocker -> reasons.add(blocker.path("reason").asString()));
+		return reasons;
+	}
+
+	/** The tokens queued for revocation alone, opened from the operations' sealed personal data. */
+	private List<String> revokedTokens(UUID account) {
+		return this.jdbc.sql("""
+				SELECT personal_data ->> 'keyVersion' AS version, personal_data ->> 'nonce' AS nonce,
+				       personal_data ->> 'ciphertext' AS ciphertext
+				FROM operations.external_operation
+				WHERE type = 'identity.revoke_oauth_grant' AND account_id = :id AND payload ->> 'revoke' = 'TOKEN'
+				""").param("id", account).query((rs, n) -> this.cipher.open(new TokenCipher.Sealed(
+						Integer.parseInt(rs.getString("version")), java.util.Base64.getDecoder().decode(rs.getString("nonce")),
+						java.util.Base64.getDecoder().decode(rs.getString("ciphertext"))), account.toString()))
+			.list();
+	}
+
+	/** The token issued just before the last one. */
+	private static String previousToken() {
+		String last = github.lastToken();
+		return "gho_stub_" + (Integer.parseInt(last.substring("gho_stub_".length())) - 1);
 	}
 
 	/** An account with a role and no GitHub link: the shim's, keyed by a Google subject instead. */
@@ -431,9 +567,18 @@ class GitHubLinkIT extends IntegrationTest {
 
 	private MvcResult as(UUID account, Role role, MockHttpServletRequestBuilder request, @Nullable String body)
 			throws Exception {
+		return as(account, role, request, body, null);
+	}
+
+	/** As the account, with the body file {@code body} or the JSON {@code json}. */
+	private MvcResult as(UUID account, Role role, MockHttpServletRequestBuilder request, @Nullable String body,
+			@Nullable String json) throws Exception {
 		request.with(IdentityTestSupport.signedIn(this.sessions, account, role, this.clock.instant()));
 		if (body != null) {
 			request.contentType(MediaType.APPLICATION_JSON).content(body(body));
+		}
+		else if (json != null) {
+			request.contentType(MediaType.APPLICATION_JSON).content(json);
 		}
 		return this.browser.command(request);
 	}

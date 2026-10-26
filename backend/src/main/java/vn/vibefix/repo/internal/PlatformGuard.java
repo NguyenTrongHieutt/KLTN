@@ -174,12 +174,18 @@ class PlatformGuard {
 		audit("repo.unexpected_actor", repo.jobId());
 	}
 
-	/** Closes the open pull requests the System did not open (FR-19) or, on a Working Repository, an outsider did. */
+	/**
+	 * Closes the open pull requests the System did not open (FR-19) or, on a Working Repository, an outsider
+	 * did. A grantee is recognized by the author's numeric GitHub ID (AD-10 "Logins by ID"), by login only
+	 * when either ID is unknown.
+	 */
 	void closeForeign(PlatformRepo repo) {
 		String bot = this.repositories.botLogin();
-		Set<String> grantees = repo.intermediary() ? Set.of() : grantees(repo.jobId());
+		List<Grant> grantees = repo.intermediary() ? List.of()
+				: this.grants.ofJob(repo.jobId()).stream().filter(grant -> !"REVOKED".equals(grant.status())).toList();
 		for (PullRequest pull : this.repositories.openPullRequests(repo.repository())) {
-			if (pull.authorLogin().equals(bot) || grantees.contains(pull.authorLogin())) {
+			if (pull.authorLogin().equals(bot) || grantees.stream().anyMatch(grant -> sameAccount(grant, pull.authorId(),
+					pull.authorLogin()))) {
 				continue;
 			}
 			this.repositories.closePullRequest(repo.repository(), pull.number());
@@ -246,7 +252,7 @@ class PlatformGuard {
 		Map<String, String> expected = new TreeMap<>();
 		Set<String> invited = new TreeSet<>();
 		for (Grant grant : this.grants.ofJob(repo.jobId())) {
-			String login = grant.login().toLowerCase(Locale.ROOT);
+			String login = currentLogin(grant).toLowerCase(Locale.ROOT);
 			switch (grant.status()) {
 				case "WRITE" -> expected.put(login, "write");
 				case "ACCEPTED" -> expected.put(login, "read");
@@ -311,26 +317,27 @@ class PlatformGuard {
 	 * unknown (one from before Story 19.2 whose account no longer matches) or an event without a sender ID.
 	 */
 	private boolean granted(UUID jobId, @Nullable Long senderId, String senderLogin) {
-		for (Grant grant : this.grants.ofJob(jobId)) {
-			if ("REVOKED".equals(grant.status())) {
-				continue;
-			}
-			Long id = this.grants.githubUserId(grant);
-			if (id != null && senderId != null ? id.equals(senderId)
-					: grant.login().toLowerCase(Locale.ROOT).equals(senderLogin)) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	private Set<String> grantees(UUID jobId) {
-		Set<String> logins = new TreeSet<>();
-		this.grants.ofJob(jobId)
+		return this.grants.ofJob(jobId)
 			.stream()
 			.filter(grant -> !"REVOKED".equals(grant.status()))
-			.forEach(grant -> logins.add(grant.login().toLowerCase(Locale.ROOT)));
-		return logins;
+			.anyMatch(grant -> sameAccount(grant, senderId, senderLogin));
+	}
+
+	/** The grant's person is this GitHub account: by numeric ID when both are known, else by lower-case login. */
+	private boolean sameAccount(Grant grant, @Nullable Long githubUserId, String login) {
+		Long id = this.grants.githubUserId(grant);
+		return id != null && githubUserId != null ? id.equals(githubUserId)
+				: grant.login().toLowerCase(Locale.ROOT).equals(login.toLowerCase(Locale.ROOT));
+	}
+
+	/**
+	 * The login GitHub uses now for the grant's person (AD-10 "Logins by ID"), stored when it changed; the
+	 * last one when GitHub has no account with the ID any more.
+	 */
+	private String currentLogin(Grant grant) {
+		String login = this.grants.currentLogin(grant, this.repositories).orElse(grant.login());
+		this.grants.renamed(grant, login);
+		return login;
 	}
 
 	private void alert(String type, UUID cause, Map<String, String> params) {

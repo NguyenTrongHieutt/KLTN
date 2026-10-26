@@ -21,6 +21,8 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
@@ -46,6 +48,7 @@ import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
+import vn.vibefix.shared.Role;
 
 /**
  * ACC-2's GitHub row and the GitHub gate (FR-80, AD-10, AD-19, UX-DR91, UX-DR95). Linking runs inside a
@@ -65,6 +68,8 @@ class GitHubLinkController {
 	static final Duration LINK_LIFETIME = Duration.ofMinutes(10);
 
 	static final String SCOPE = "read:user user:email";
+
+	private static final Logger log = LoggerFactory.getLogger(GitHubLinkController.class);
 
 	/**
 	 * @param noticeVersion the version of N-24 the person accepted
@@ -147,7 +152,8 @@ class GitHubLinkController {
 	 * "Liên kết GitHub ↗ (github.com)" after N-24: records the {@code LINK_GITHUB} acknowledgment and
 	 * answers GitHub's authorization page for this session.
 	 * @throws ApiException {@code NOT_FOUND} for an Administrator; {@code FORBIDDEN PRIVACY_NOTICE_REQUIRED}
-	 * before the current N-10 is accepted; {@code GUARD_FAILED GITHUB_NOT_SET_UP} without a linking OAuth
+	 * before the current N-10 is accepted; {@code VALIDATION} for {@code PRODUCT} from an account that is
+	 * neither a Customer nor role-less; {@code GUARD_FAILED GITHUB_NOT_SET_UP} without a linking OAuth
 	 * App; {@code STALE} for an N-24 version that is not the current one; {@code VALIDATION} for a
 	 * {@code returnTo} outside the SPA
 	 */
@@ -155,11 +161,15 @@ class GitHubLinkController {
 	@Access(Gate.SIGNED_IN)
 	GitHubLinkStartView start(@Valid @RequestBody GitHubLinkRequest body, HttpServletRequest request) {
 		UUID accountId = this.callers.get().requireAccountId();
-		this.accounts.findById(accountId)
-			.filter(account -> account.kind() == Account.Kind.USER && account.isActive())
+		Account account = this.accounts.findById(accountId)
+			.filter(found -> found.kind() == Account.Kind.USER && found.isActive())
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		if (!this.accounts.hasAcknowledged(accountId, SignIns.PRIVACY_NOTICE, this.properties.privacyNoticeVersion())) {
 			throw new ApiException(ErrorCode.FORBIDDEN, IdentityReason.PRIVACY_NOTICE_REQUIRED);
+		}
+		// Only who may register a Product links for one: a Customer, or a Google account, which holds no role.
+		if (body.purpose() == Purpose.PRODUCT && account.role() != null && account.role() != Role.CUSTOMER) {
+			throw new ApiException(ErrorCode.VALIDATION);
 		}
 		ClientRegistration registration = this.signIn.registration()
 			.orElseThrow(() -> new ApiException(ErrorCode.GUARD_FAILED, IdentityReason.GITHUB_NOT_SET_UP));
@@ -204,7 +214,16 @@ class GitHubLinkController {
 	void callback(@RequestParam(required = false) @Nullable String code, @RequestParam(required = false) @Nullable String state,
 			@RequestParam(required = false) @Nullable String error, HttpServletRequest request, HttpServletResponse response)
 			throws IOException {
-		response.sendRedirect(finish(code, state, error, request));
+		String target;
+		try {
+			target = finish(code, state, error, request);
+		}
+		catch (RuntimeException failed) {
+			// The class only: a message could hold the code, the token, or a claim.
+			log.warn("A GitHub link failed: {}", failed.getClass().getSimpleName());
+			target = failed("that-bai");
+		}
+		response.sendRedirect(target);
 	}
 
 	/** "Bỏ liên kết", after the Confirmation dialog. */

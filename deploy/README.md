@@ -128,8 +128,13 @@ production still refuses to start without them. Without them, ACC-2 says linking
 The app asks only for `read:user` and `user:email` (FR-80), with PKCE and a `state` bound to the
 session. vibefix keeps the token only for the owner of a live Product, or for a link started from
 CUS-3 step 2 (a first Product), encrypted with `secrets/identity-token-key-1`, which `dev-secrets.sh`
-creates; deleting that key makes every kept token unreadable. Deleting the last live Product deletes
-the token, and unlinking GitHub on ACC-2 also revokes the app's grant on GitHub.
+creates; deleting that key makes every kept token unreadable. Every token vibefix does not keep is
+revoked alone on GitHub (`DELETE /applications/{client_id}/token`, through the
+`identity.revoke_oauth_grant` operation): the token of a link that needs none, the one a re-link
+replaces, the one forgotten when the last live Product is deleted, the one dropped by an unlink on
+ACC-2, and, by a daily sweep, one kept for a registration that no live Product needs after 24 hours.
+The app's grant stays, so a newer token keeps working; only an account's deletion revokes the whole
+grant. A person can remove vibefix themselves on GitHub under Settings › Applications.
 
 ## The first Administrator
 
@@ -198,7 +203,7 @@ the stack above it needs the dev Platform App, the dev Merge App, and the dev VN
 
 ## Spike S1: the admin check for organization-owned repositories
 
-Story 1.14 asks whether a Customer's stored sign-in token sees `permissions.admin` on a repository
+Story 1.14 asks whether a Customer's kept GitHub token sees `permissions.admin` on a repository
 owned by an organization (AD-13, S1). Only the author can run it, on GitHub, with the dev OAuth App
 registered ("Linking GitHub locally" above).
 

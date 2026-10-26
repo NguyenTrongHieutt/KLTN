@@ -59,10 +59,10 @@ class GitHubLinksImpl implements GitHubLinks {
 		/** The linked GitHub account came back: its login, avatar, and emails are read again. */
 		RELINKED,
 
-		/** {@code GITHUB_ALREADY_LINKED}: another account holds this GitHub ID; nothing changed. */
+		/** Another account holds this GitHub ID (ACC-2's {@code da-lien-ket-tai-khoan-khac}); nothing changed. */
 		ALREADY_LINKED,
 
-		/** {@code GITHUB_LINK_IN_USE}: the account is linked to another GitHub ID; nothing changed. */
+		/** The account is linked to another GitHub ID (ACC-2's {@code sai-tai-khoan}); nothing changed. */
 		LINK_IN_USE,
 
 		/** The account was locked, erased, or is not a person's; nothing changed. */
@@ -158,13 +158,18 @@ class GitHubLinksImpl implements GitHubLinks {
 		this.accounts.linkGitHub(accountId, user.id(), user.login(), user.avatarUrl(), user.primaryEmail(), now);
 		user.verifiedEmails().forEach(email -> this.signals.record(accountId, JdbcPersonSignals.Source.GITHUB_EMAIL, email));
 		if (token != null) {
+			Optional<TokenCipher.Sealed> previous = this.accounts.customerToken(accountId);
+			TokenCipher.Sealed sealed = this.cipher.seal(token, accountId.toString());
 			if (keepsToken(accountId, purpose)) {
-				this.accounts.storeCustomerToken(accountId, this.cipher.seal(token, accountId.toString()), now);
+				this.accounts.storeCustomerToken(accountId, sealed, now);
 			}
 			else {
 				// Not an owner of a live Product, nor a first registration: no token is kept (AD-10).
 				this.accounts.deleteCustomerToken(accountId);
+				revokeLater(accountId, sealed);
 			}
+			// The token this link replaced, or the one it dropped, is revoked alone; the new one stays valid.
+			previous.ifPresent(old -> revokeLater(accountId, old));
 		}
 		this.todos.close(SignIns.LINK_GITHUB, accountId, accountId);
 		this.renewals.renewed(accountId);
@@ -197,11 +202,7 @@ class GitHubLinksImpl implements GitHubLinks {
 		Optional<TokenCipher.Sealed> token = this.accounts.customerToken(accountId);
 		this.accounts.deleteCustomerToken(accountId);
 		this.accounts.unlinkGitHub(accountId);
-		token.ifPresent(sealed -> this.operations.request(new OperationRequest(OAuthGrantRevocation.TYPE, this.ids.newId(),
-				Map.of("accountId", accountId.toString()),
-				Map.of("keyVersion", sealed.keyVersion(), "nonce", Base64.getEncoder().encodeToString(sealed.nonce()),
-						"ciphertext", Base64.getEncoder().encodeToString(sealed.ciphertext())),
-				accountId, 0)));
+		token.ifPresent(sealed -> revokeLater(accountId, sealed));
 		this.renewals.renewed(accountId);
 		this.todos.open(new TodoRequest(SignIns.LINK_GITHUB, accountId, Audience.SUBJECT, accountId, Map.of(),
 				SignIns.LINK_GITHUB_PATH, null, null));
@@ -233,17 +234,32 @@ class GitHubLinksImpl implements GitHubLinks {
 	@Override
 	@Transactional
 	public void forgetRepositoryToken(UUID accountId) {
-		if (this.participants.orderedStream().noneMatch(participant -> participant.keepsRepositoryToken(accountId))) {
+		if (!keepsRepositoryToken(accountId)) {
+			Optional<TokenCipher.Sealed> token = this.accounts.customerToken(accountId);
 			this.accounts.deleteCustomerToken(accountId);
+			token.ifPresent(sealed -> revokeLater(accountId, sealed));
 			// Nothing of the account's is read with a token any more, so nothing asks it to re-link.
 			this.renewals.renewed(accountId);
 		}
 	}
 
+	/** Whether a participant reads the account's repositories with its kept token: a live Product's owner. */
+	boolean keepsRepositoryToken(UUID accountId) {
+		return this.participants.orderedStream().anyMatch(participant -> participant.keepsRepositoryToken(accountId));
+	}
+
+	/** The token is revoked alone on GitHub, as an operation that carries it sealed ({@link OAuthGrantRevocation}). */
+	private void revokeLater(UUID accountId, TokenCipher.Sealed sealed) {
+		this.operations.request(new OperationRequest(OAuthGrantRevocation.TYPE, this.ids.newId(),
+				Map.of("accountId", accountId.toString(), "revoke", OAuthGrantRevocation.TOKEN),
+				Map.of("keyVersion", sealed.keyVersion(), "nonce", Base64.getEncoder().encodeToString(sealed.nonce()),
+						"ciphertext", Base64.getEncoder().encodeToString(sealed.ciphertext())),
+				accountId, 0));
+	}
+
 	/** A first Product's registration keeps it, and so does a participant that reads with it (AD-10). */
 	private boolean keepsToken(UUID accountId, Purpose purpose) {
-		return purpose == Purpose.PRODUCT
-				|| this.participants.orderedStream().anyMatch(participant -> participant.keepsRepositoryToken(accountId));
+		return purpose == Purpose.PRODUCT || keepsRepositoryToken(accountId);
 	}
 
 	/** A blocker as the refusal's {@code blockers} lists it. */

@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 import vn.vibefix.github.GitHubException;
@@ -16,8 +17,8 @@ import vn.vibefix.shared.ErrorCode;
  * {@link CustomerRepositories} with the account's kept GitHub token (AD-10, AD-13, AD-22): opened in
  * memory for the call, sealed with the account ID as associated data, never returned or logged. Any
  * active account with a linked GitHub account qualifies, whatever it does in a Job (Story 19.2). When a
- * repository read or the contributor check finds no token, or GitHub refuses it, the account is asked to
- * re-link GitHub ({@link TokenRenewals}) and the check still fails closed.
+ * repository read or the contributor check finds no token, or GitHub refuses it, the check still fails closed,
+ * and a live Product's owner is asked to re-link GitHub ({@link TokenRenewals}).
  */
 @Component
 class TokenCustomerRepositories implements CustomerRepositories {
@@ -30,8 +31,11 @@ class TokenCustomerRepositories implements CustomerRepositories {
 
 	private final TokenRenewals renewals;
 
+	private final ObjectProvider<GitHubLinksImpl> links;
+
 	TokenCustomerRepositories(Accounts accounts, TokenCipher cipher, GitHubRepositories repositories,
-			TokenRenewals renewals) {
+			TokenRenewals renewals, ObjectProvider<GitHubLinksImpl> links) {
+		this.links = links;
 		this.renewals = renewals;
 		this.accounts = accounts;
 		this.cipher = cipher;
@@ -46,12 +50,12 @@ class TokenCustomerRepositories implements CustomerRepositories {
 		}
 		catch (ApiException missing) {
 			// No kept token: the admin check before a Code Job starts cannot run until GitHub is re-linked (AD-13).
-			this.renewals.ask(customerId);
+			askToRelink(customerId);
 			throw missing;
 		}
 		catch (GitHubException refused) {
 			if (refused.status() == 401) {
-				this.renewals.ask(customerId);
+				askToRelink(customerId);
 			}
 			throw refused;
 		}
@@ -75,12 +79,12 @@ class TokenCustomerRepositories implements CustomerRepositories {
 		}
 		catch (ApiException missing) {
 			// No kept token: only a re-link can bring one (author decision 2026-10-21, Story 19.2).
-			this.renewals.ask(customerId);
+			askToRelink(customerId);
 			throw missing;
 		}
 		catch (GitHubException refused) {
 			if (refused.status() == 401) {
-				this.renewals.ask(customerId);
+				askToRelink(customerId);
 			}
 			throw refused;
 		}
@@ -98,6 +102,16 @@ class TokenCustomerRepositories implements CustomerRepositories {
 		return this.accounts.findById(customerId)
 			.filter(found -> found.kind() == Account.Kind.USER && found.githubUserId() != null && found.isActive())
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+	}
+
+	/**
+	 * Asks for a re-link only when the token must be kept: a live Product's owner (AD-10). Anyone else, a first
+	 * registration on CUS-3 for example, re-links from the GitHub gate, with no to-do and no email.
+	 */
+	private void askToRelink(UUID accountId) {
+		if (this.links.getObject().keepsRepositoryToken(accountId)) {
+			this.renewals.ask(accountId);
+		}
 	}
 
 	/** The kept token, opened in memory for one call. */

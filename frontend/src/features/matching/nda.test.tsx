@@ -83,6 +83,21 @@ describe('JOB-1 for the selected Mentor, the NDA panel (FR-15, FR-18)', () => {
     expect(await screen.findByRole('heading', { level: 2, name: 'Bạn đã ký cam kết bảo mật' })).toBeInTheDocument()
   })
 
+  it('says GitHub must be linked before signing and links to ACC-2 (FR-80)', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    fakeBackend(signedIn('MENTOR'), {
+      'GET /api/v1/mentor/jobs/j1': () => json(mentorJob({ commitEmailNoticeAcknowledged: true })),
+      'POST /api/v1/mentor/jobs/j1/nda': () => json({ status: 403, code: 'FORBIDDEN', reason: 'GITHUB_NOT_LINKED' }, 403),
+    })
+    renderAt('/cong-viec/j1')
+
+    await user.click(await screen.findByRole('button', { name: 'Ký cam kết' }))
+
+    expect(await screen.findAllByText('Bạn không thể làm việc này. Hãy liên kết GitHub trước.')).not.toHaveLength(0)
+    // Base UI hides a toast from the accessibility tree until the toasts region is reached (F6).
+    expect(screen.getAllByRole('link', { name: 'Liên kết GitHub', hidden: true })[0]).toHaveAttribute('href', '/ho-so/xac-minh')
+  })
+
   it('skips N-23 once acknowledged, and declines after a confirmation', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     let declined: unknown

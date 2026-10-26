@@ -80,8 +80,8 @@ public interface PlatformRepositories {
 	boolean collaborator(PlatformRepository repository, String login);
 
 	/**
-	 * The numeric GitHub IDs of the repository's collaborators now (AD-10 "Logins by ID"): an invitee
-	 * among them accepted, whatever their login has become.
+	 * The numeric GitHub IDs of the repository's collaborators now (AD-10 "Logins by ID"), every page: an
+	 * invitee among them accepted, whatever their login has become.
 	 */
 	Set<Long> collaboratorIds(PlatformRepository repository);
 
@@ -99,8 +99,8 @@ public interface PlatformRepositories {
 	String role(PlatformRepository repository, String login);
 
 	/**
-	 * The organization's outside collaborators without two-factor authentication: each numeric GitHub ID
-	 * with its lower-case login.
+	 * The organization's outside collaborators without two-factor authentication, every page: each numeric
+	 * GitHub ID with its lower-case login.
 	 */
 	Map<Long, String> withoutTwoFactor();
 
@@ -113,8 +113,11 @@ public interface PlatformRepositories {
 	/** Every branch and tag head ({@code refs/heads/…}, {@code refs/tags/…}) and the object it points at (AD-12). */
 	Map<String, String> refs(PlatformRepository repository);
 
-	/** An open pull request and the login that opened it. */
-	record PullRequest(int number, String authorLogin) {
+	/**
+	 * An open pull request, with the login and the numeric ID of the account that opened it.
+	 * @param authorId {@code null} when GitHub named no account ID
+	 */
+	record PullRequest(int number, String authorLogin, @Nullable Long authorId) {
 	}
 
 	/** The Platform App's bot login, {@code {slug}[bot]}, lower-case: the System's actor on GitHub. */

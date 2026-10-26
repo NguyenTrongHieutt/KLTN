@@ -807,7 +807,7 @@ class CrewService implements Crews {
 		return this.students.cards(List.of(studentId))
 			.stream()
 			.findFirst()
-			.map(card -> card.name() != null ? card.name() : "@" + card.githubLogin())
+			.map(StudentCard::shownName)
 			.orElse("");
 	}
 

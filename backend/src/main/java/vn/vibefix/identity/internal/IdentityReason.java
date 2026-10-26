@@ -78,13 +78,12 @@ enum IdentityReason {
 	/** FR-80, AD-19: a command that creates work, from an account with no linked GitHub account. */
 	GITHUB_NOT_LINKED,
 
-	/** FR-80, R14: the GitHub account is linked to another vibefix account; nothing is merged. */
-	GITHUB_ALREADY_LINKED,
-
 	/**
-	 * FR-80, R14: unlinking while a live Product, a role in a running Job, or an open bid keeps the link
-	 * (the answer's {@code blockers} name them), or re-linking another GitHub account than the linked one.
-	 * The SPA's copy key is {@code GITHUB_CHANGE_BLOCKED} (SG-58).
+	 * FR-80, R14: unlinking while a live Product, an open bid, or a role in a Job that is not Closed or Cancelled
+	 * keeps the link; the answer's {@code blockers} name them. A re-link must return the same numeric GitHub ID
+	 * whatever blocks it; GitHub's return refuses another one on ACC-2 ({@code loi=sai-tai-khoan}), as it refuses
+	 * an ID another account holds ({@code loi=da-lien-ket-tai-khoan-khac}). The SPA's copy key is
+	 * {@code GITHUB_CHANGE_BLOCKED} (SG-58).
 	 */
 	GITHUB_LINK_IN_USE,
 

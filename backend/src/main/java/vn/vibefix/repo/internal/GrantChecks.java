@@ -80,8 +80,11 @@ class GrantChecks {
 					}
 				}
 				case "MEMBER_DRIFT" -> {
-					if (!this.repositories.organizationMember(grant.login())) {
-						this.repositories.removeCollaborator(grant.repository(), grant.login());
+					// AD-10 "Logins by ID": the login GitHub uses now, stored when it changed.
+					String login = this.grants.currentLogin(grant, this.repositories).orElse(grant.login());
+					this.grants.renamed(grant, login);
+					if (!this.repositories.organizationMember(login)) {
+						this.repositories.removeCollaborator(grant.repository(), login);
 						this.grants.reinvite(grant);
 					}
 				}

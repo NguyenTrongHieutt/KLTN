@@ -50,6 +50,31 @@ final class GitHubHttp {
 			return Optional.empty();
 		}
 
+		/**
+		 * The next page from {@code Link: <…>; rel="next"} as a path below {@code apiUrl}, for example
+		 * {@code /repositories/7/collaborators?per_page=100&page=2}; empty on the last page.
+		 */
+		Optional<String> nextPath(URI apiUrl) {
+			if (this.link == null) {
+				return Optional.empty();
+			}
+			for (String part : this.link.split(",")) {
+				if (part.contains("rel=\"next\"")) {
+					Matcher url = Pattern.compile("<([^>]+)>").matcher(part);
+					if (url.find()) {
+						URI next = URI.create(url.group(1));
+						String prefix = apiUrl.getRawPath() == null ? "" : apiUrl.getRawPath().replaceAll("/+$", "");
+						String path = next.getRawPath();
+						if (!prefix.isEmpty() && path.startsWith(prefix)) {
+							path = path.substring(prefix.length());
+						}
+						return Optional.of(next.getRawQuery() == null ? path : path + "?" + next.getRawQuery());
+					}
+				}
+			}
+			return Optional.empty();
+		}
+
 		boolean ok() {
 			return this.status >= 200 && this.status < 300;
 		}

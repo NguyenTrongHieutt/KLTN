@@ -19,6 +19,7 @@ export function GitHubGate({
   action,
   returnTo,
   needsRepositoryToken = false,
+  forceRelink = false,
   onLeave,
   onBack,
   children,
@@ -28,6 +29,8 @@ export function GitHubGate({
   returnTo: string
   /** CUS-3: the form reads the person's repositories with the kept token (AD-13). */
   needsRepositoryToken?: boolean
+  /** The backend answered that GitHub must be linked again (`RELINK_GITHUB`): the gate shows whatever the read says. */
+  forceRelink?: boolean
   onLeave: () => void
   onBack?: () => void
   children: ReactNode
@@ -35,7 +38,10 @@ export function GitHubGate({
   const link = useGitHubLink()
   const [notice, setNotice] = useState(false)
   const data = link.data
-  const relink = data !== undefined && data.linked && (data.relinkNeeded || (needsRepositoryToken && !data.repositoryTokenKept))
+  const relink =
+    data !== undefined &&
+    data.linked &&
+    (forceRelink || data.relinkNeeded || (needsRepositoryToken && !data.repositoryTokenKept))
   const open = data !== undefined && data.linked && !relink
   return (
     <RegionState query={link} skeleton={<Skeleton className="h-48 w-full" />}>

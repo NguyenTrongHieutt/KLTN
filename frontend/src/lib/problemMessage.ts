@@ -2,11 +2,22 @@ import { t, type MessageKey } from '@/i18n/t'
 import vi from '@/i18n/vi.json'
 import { ApiError } from './apiClient'
 
-/** What the user reads for a failed request: the sentence, and for a server error its reference. */
+/** A way forward a screen shows beside the sentence. */
+export interface ProblemLink {
+  href: string
+  label: string
+}
+
+/** What the user reads for a failed request: the sentence, for a server error its reference, and a way forward. */
 export interface ProblemText {
   text: string
   reference?: string
+  /** `GITHUB_NOT_LINKED`, from any module: ACC-2, where GitHub is linked (FR-80). */
+  link?: ProblemLink
 }
+
+/** Reasons any module's command may answer, read from `reason.identity` when the module has no text of its own. */
+const IDENTITY_REASONS = ['GITHUB_NOT_LINKED']
 
 /** The calling screen's context: its module for the reason, and the words the patterns need. */
 export interface ProblemContext {
@@ -42,6 +53,10 @@ export function problemMessage(error: unknown, context: ProblemContext = {}): Pr
     return unexpected(error.status >= 500 ? correlationId : undefined)
   }
   const reasonText = reason ? reasonFor(context, reason) : undefined
+  if (reason === 'GITHUB_NOT_LINKED') {
+    const text = reasonText ? `${t('error.FORBIDDEN')} ${sentence(reasonText)}` : t('error.FORBIDDEN')
+    return { text, link: { href: '/ho-so/xac-minh', label: t('error.githubLink') } }
+  }
   switch (code) {
     case 'VALIDATION':
       return { text: t('error.VALIDATION', { n: errors?.length ?? 1 }) }
@@ -74,7 +89,8 @@ function unexpected(correlationId?: string): ProblemText {
 
 function reasonFor(context: ProblemContext, reason: string): string | undefined {
   const catalog = context.messages ?? (vi as { reason?: Record<string, Record<string, string>> })
-  return context.module ? catalog.reason?.[context.module]?.[reason] : undefined
+  const own = context.module ? catalog.reason?.[context.module]?.[reason] : undefined
+  return own ?? (IDENTITY_REASONS.includes(reason) ? catalog.reason?.identity?.[reason] : undefined)
 }
 
 /** A lower-case reason fragment as a sentence of its own. */

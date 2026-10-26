@@ -54,6 +54,7 @@ export function GitHubNoticeDialog({
             <p>{t('notice.github.body')}</p>
             <p>{t('notice.github.emails')}</p>
             <p>{t('notice.github.repository')}</p>
+            <p>{t('notice.github.revokeYourself')}</p>
           </Dialog.Description>
           <p className="text-caption text-muted-foreground">
             {t('notice.github.versionLine', { version: GITHUB_NOTICE_VERSION })}

@@ -38,6 +38,17 @@ public interface StudentDirectory {
 			skills = List.copyOf(skills);
 		}
 
+		/**
+		 * What a screen calls the Student: the name while they show it, else {@code @login}, else nothing when
+		 * neither is known (no GitHub account linked).
+		 */
+		public String shownName() {
+			if (this.name != null) {
+				return this.name;
+			}
+			return this.githubLogin != null ? "@" + this.githubLogin : "";
+		}
+
 	}
 
 	/**

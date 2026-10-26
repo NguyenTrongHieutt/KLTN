@@ -29,7 +29,7 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * Spike S1's probe (Story 1.14, AD-13): under the {@code cli} profile with {@code dev},
  * {@code --vibefix.cli.command=spike-s1 --github-login=<Customer> --repo=<owner/name> [--repo=…]}
- * reads each repository from GitHub's REST API with that Customer's stored sign-in token, as the
+ * reads each repository from GitHub's REST API with that Customer's kept GitHub token, as the
  * Product intake's admin check will, and prints the owner type, the HTTP status, and
  * {@code permissions.admin}. The token is opened in memory only and never printed or logged.
  * <p>
@@ -128,7 +128,7 @@ class SpikeS1Command implements ApplicationRunner, ExitCodeGenerator {
 		}
 		String token = this.cipher.open(sealed.get(), customer.get().toString());
 		int failures = 0;
-		this.out.println("Spike S1: each repository read with " + logins.getFirst() + "'s stored sign-in token");
+		this.out.println("Spike S1: each repository read with " + logins.getFirst() + "'s kept GitHub token");
 		for (String repository : repositories) {
 			Probe probe = probe(repository, token);
 			this.out.println(probe.line());

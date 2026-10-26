@@ -66,10 +66,11 @@ final class SignInSession {
 
 	}
 
-	/** Forgets every sign-in state, before a new one is set. */
+	/** Forgets every sign-in state, and a GitHub link started by the session's earlier account, before a new one is set. */
 	static void clear(HttpSession session) {
 		session.removeAttribute(PENDING_WELCOME);
 		session.removeAttribute(LOCKED);
+		session.removeAttribute(PENDING_LINK);
 	}
 
 	/**

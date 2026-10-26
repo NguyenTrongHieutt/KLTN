@@ -61,7 +61,7 @@ class AdminCrewTermsController {
 		Map<UUID, String> roles = new HashMap<>();
 		if (!parties.isEmpty()) {
 			this.students.cards(parties).forEach(card -> {
-				names.put(card.accountId(), card.name() != null ? card.name() : "@" + card.githubLogin());
+				names.put(card.accountId(), card.shownName());
 				roles.put(card.accountId(), "STUDENT");
 			});
 			this.mentors.cards(parties).forEach(card -> {

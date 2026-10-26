@@ -700,7 +700,7 @@ public final class GitHubStub implements AutoCloseable {
 			.matches()) {
 			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(this.pulls.getOrDefault(matcher.group(1), Map.of()).entrySet()
 				.stream()
-				.map(pull -> Map.of("number", pull.getKey(), "user", Map.of("login", pull.getValue())))
+				.map(pull -> Map.of("number", pull.getKey(), "user", user(pull.getValue())))
 				.toList()));
 		}
 		else if (method.equals("PUT")
@@ -926,6 +926,37 @@ public final class GitHubStub implements AutoCloseable {
 	/** The login of the GitHub account with this ID now. */
 	public String loginOf(long id) {
 		return this.logins.getOrDefault(id, "user-" + id);
+	}
+
+	/**
+	 * The account with this ID renames itself on GitHub: its pending invitations, its collaborator places,
+	 * its organization membership, and its two-factor listing follow it to the new login, as on GitHub.
+	 */
+	public void renameUser(long id, String login) {
+		String old = loginOf(id);
+		this.logins.put(id, login);
+		synchronized (this.invitations) {
+			this.invitations.values().forEach(pending -> move(pending, old, login));
+		}
+		synchronized (this.collaborators) {
+			this.collaborators.values().forEach(placed -> move(placed, old, login));
+		}
+		synchronized (this.invitationIds) {
+			this.invitationIds.replaceAll((invitation, invitee) -> invitee.equals(old) ? login : invitee);
+		}
+		if (this.members.remove(old)) {
+			this.members.add(login);
+		}
+		if (this.withoutTwoFactor.remove(old.toLowerCase(java.util.Locale.ROOT))) {
+			this.withoutTwoFactor.add(login.toLowerCase(java.util.Locale.ROOT));
+		}
+	}
+
+	private static void move(Map<String, String> byLogin, String from, String to) {
+		String value = byLogin.remove(from);
+		if (value != null) {
+			byLogin.put(to, value);
+		}
 	}
 
 	/** A user as GitHub lists one: the login, and the ID of the account that carries it now, if any. */

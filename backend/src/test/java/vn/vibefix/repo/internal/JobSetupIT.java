@@ -689,6 +689,169 @@ class JobSetupIT extends IntegrationTest {
 		assertThat(mentor.githubUserId()).as("a login that no longer matches is not trusted").isNull();
 	}
 
+	/** A rename after the invitation and before its acceptance: acceptance, two-factor, and the raise go by ID. */
+	@Test
+	void aGranteeWhoRenamesAfterTheInvitationIsAcceptedCheckedAndRaisedByTheirId() throws Exception {
+		long crewId = CustomerTokens.githubUserId(this.jdbc, this.crew);
+		try {
+			j6();
+			run();
+			this.worker.runDue(Lane.GITHUB_SHORT);
+			assertThat(crewGrant().status()).isEqualTo("INVITED");
+
+			GITHUB.renameUser(crewId, "thao-vy-sau");
+			GITHUB.accept(TeamTestSupport.login(this.jdbc, this.mentor));
+			GITHUB.accept("thao-vy-sau");
+			GITHUB.withoutTwoFactor.add("thao-vy-sau");
+			this.checks.check(this.job);
+
+			assertThat(crewGrant().status()).as("the acceptance is matched by ID").isEqualTo("ACCEPTED");
+			assertThat(crewGrant().twoFactorMissing()).as("two-factor is read by ID").isTrue();
+			assertThat(this.busy.job(this.job).orElseThrow().busy()).as("Verify waits for two-factor").isEmpty();
+
+			GITHUB.withoutTwoFactor.clear();
+			this.checks.check(this.job);
+			this.worker.runDue(Lane.GITHUB_SHORT);
+
+			assertThat(this.busy.job(this.job).orElseThrow().state()).isEqualTo("ACTIVE");
+			assertThat(crewGrant().status()).isEqualTo("WRITE");
+			assertThat(crewGrant().login()).isEqualTo("thao-vy-sau");
+			assertThat(GITHUB.seen).as("Verify raises the login GitHub uses now")
+				.anyMatch(seen -> seen.method().equals("PUT") && seen.path().endsWith("/collaborators/thao-vy-sau")
+						&& seen.body().path("permission").asString("").equals("push"));
+		}
+		finally {
+			GITHUB.logins.remove(crewId);
+		}
+	}
+
+	/** A rename once Active: the sweep reads it as no drift, and J8 revokes the new login. */
+	@Test
+	void aGranteeWhoRenamesOnceActiveIsNoDriftAndJ8RevokesTheirNewLogin() throws Exception {
+		AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		long crewId = CustomerTokens.githubUserId(this.jdbc, this.crew);
+		try {
+			active();
+			GITHUB.renameUser(crewId, "thao-vy-moi");
+
+			assertThat(sweep()).as("a renamed grantee is no drift").isEmpty();
+			assertThat(crewGrant().login()).isEqualTo("thao-vy-moi");
+
+			this.jdbc.sql("UPDATE job.job SET state = 'CLOSING' WHERE id = :id").param("id", this.job).update();
+			this.revocations.transitioned(new JobTransitioned(UUID.randomUUID(), UUID.randomUUID(), this.job, "J8", "USER",
+					"ACTIVE", "CLOSING", 6, 1, Map.of()));
+			this.worker.runDue(Lane.GITHUB_SHORT);
+
+			assertThat(grantStatus(this.crew)).isEqualTo("REVOKED");
+			assertThat(GITHUB.seen).anyMatch(seen -> seen.method().equals("DELETE")
+					&& seen.path().endsWith("/collaborators/thao-vy-moi"));
+			assertThat(sweep()).as("nothing left behind").isEmpty();
+			assertThat(notices("github.platform_drift")).isZero();
+			awaitListeners();
+		}
+		finally {
+			GITHUB.logins.remove(crewId);
+		}
+	}
+
+	/** A Crew change member renames before accepting: the acceptance and the raise go by ID. */
+	@Test
+	void aCrewChangeMemberWhoRenamesBeforeTheRaiseIsRaisedUnderTheNewLogin() throws Exception {
+		active();
+		UUID hai = TeamTestSupport.student(this.jdbc, "Phạm Văn Hải", true, List.of(TeamTestSupport.REACT), "React",
+				LocalDate.parse("2026-12-31"));
+		long haiId = CustomerTokens.githubUserId(this.jdbc, hai);
+		UUID row = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO job.crew_row (id, job_id, student_account_id, status, signed_at, activated_at, created_at)
+				VALUES (:id, :job, :student, 'ACTIVE', :now, :now, :now)
+				""").param("id", row).param("job", this.job).param("student", hai)
+			.param("now", Timestamp.from(this.clock.instant())).update();
+		try {
+			this.checks.added(new vn.vibefix.job.CrewMemberAdded(UUID.randomUUID(), this.job, row, hai, "ACTIVE"));
+			this.worker.runDue(Lane.GITHUB_SHORT);
+			JobGrants.Grant added = this.grants.ofJob(this.job).stream().filter(grant -> grant.accountId().equals(hai))
+				.findFirst().orElseThrow();
+			assertThat(added.status()).isEqualTo("INVITED");
+
+			GITHUB.renameUser(haiId, "hai-pham");
+			GITHUB.accept("hai-pham");
+			this.checks.hinted(new vn.vibefix.github.GitHubWebhookReceived(UUID.randomUUID(), UUID.randomUUID().toString(),
+					vn.vibefix.github.GitHubApps.App.PLATFORM, "member", "added", 7L, List.of(added.repositoryId()), 1L, null));
+			this.worker.runDue(Lane.GITHUB_SHORT);
+
+			JobGrants.Grant raised = this.grants.find(added.id()).orElseThrow();
+			assertThat(raised.status()).isEqualTo("WRITE");
+			assertThat(raised.login()).isEqualTo("hai-pham");
+			assertThat(GITHUB.seen).anyMatch(seen -> seen.method().equals("PUT") && seen.path().endsWith("/collaborators/hai-pham")
+					&& seen.body().path("permission").asString("").equals("push"));
+		}
+		finally {
+			GITHUB.logins.remove(haiId);
+		}
+	}
+
+	/** A GitHub account deleted on GitHub cannot be invited; its revocation names the last login. */
+	@Test
+	void aGitHubAccountThatIsGoneIsNotInvitedAndItsRevocationUsesTheStoredLogin() throws Exception {
+		long crewId = CustomerTokens.githubUserId(this.jdbc, this.crew);
+		String stored = TeamTestSupport.login(this.jdbc, this.crew);
+		GITHUB.goneUsers.add(crewId);
+		try {
+			j6();
+			run();
+			this.worker.runDue(Lane.GITHUB_SHORT);
+
+			assertThat(this.jdbc.sql("""
+					SELECT status || ' ' || error_code FROM operations.external_operation
+					WHERE type = 'repo.grant_invite' AND payload ->> 'grantId' = :grant
+					""").param("grant", crewGrant().id().toString()).query(String.class).single())
+				.isEqualTo("ABORTED GITHUB_ACCOUNT_GONE");
+			assertThat(GITHUB.seen).noneMatch(seen -> seen.method().equals("PUT") && seen.path().endsWith("/collaborators/" + stored));
+
+			this.jdbc.sql("UPDATE job.job SET state = 'CANCELLED' WHERE id = :id").param("id", this.job).update();
+			this.revocations.transitioned(new JobTransitioned(UUID.randomUUID(), UUID.randomUUID(), this.job, "J10", "USER",
+					"STARTING", "CANCELLED", 4, 1, Map.of()));
+			this.worker.runDue(Lane.GITHUB_SHORT);
+
+			assertThat(GITHUB.seen).as("the revocation falls back to the stored login")
+				.anyMatch(seen -> seen.method().equals("DELETE") && seen.path().endsWith("/collaborators/" + stored));
+			assertThat(grantStatus(this.crew)).isEqualTo("REVOKED");
+		}
+		finally {
+			GITHUB.goneUsers.remove(crewId);
+		}
+	}
+
+	/** The Customer's kept token is gone: Setup blocks on a re-link, and so does a re-confirmation. */
+	@Test
+	void aMissingTokenBlocksSetupAndTheReconfirmationOnARelink() throws Exception {
+		this.jdbc.sql("DELETE FROM identity.customer_token WHERE account_id = :id").param("id", this.customer).update();
+
+		j6();
+		this.worker.runDue(Lane.GITHUB_LONG);
+
+		Setup blocked = this.setups.latest(this.job).orElseThrow();
+		assertThat(blocked.status()).isEqualTo("BLOCKED");
+		assertThat(blocked.block()).isEqualTo(JobSetups.Block.RELINK_GITHUB);
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM notification.todo WHERE todo_key = 'identity.relink_github' AND account_id = :id
+				    AND closed_at IS NULL
+				""").param("id", this.customer).query(Long.class).single()).as("the live Product's owner re-links").isOne();
+
+		this.jdbc.sql("UPDATE job.job SET state = 'ACTIVE' WHERE id = :id").param("id", this.job).update();
+		this.jdbc.sql("""
+				INSERT INTO repo.drift_warning (id, job_id, product_id, kind, full_name, detected_at)
+				VALUES (:id, :job, :product, 'RENAMED', 'lan-dev/so-dat-ban-moi', :now)
+				""").param("id", UUID.randomUUID()).param("job", this.job).param("product", this.product)
+			.param("now", Timestamp.from(this.clock.instant())).update();
+		this.mvc.perform(post("/api/v1/jobs/" + this.job + "/source/reconfirm").with(as(this.customer, Role.CUSTOMER))
+			.with(csrf()))
+			.andExpect(status().is(422))
+			.andExpect(jsonPath("$.code").value("GUARD_FAILED"))
+			.andExpect(jsonPath("$.reason").value("RELINK_GITHUB"));
+	}
+
 	private JobGrants.Grant crewGrant() {
 		return this.grants.ofJob(this.job).stream().filter(grant -> grant.accountId().equals(this.crew)).findFirst()
 			.orElseThrow();

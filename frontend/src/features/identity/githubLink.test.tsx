@@ -119,7 +119,7 @@ describe('ACC-2, the GitHub row (FR-80, UX-DR91)', () => {
 
     const unlink = await screen.findByRole('button', { name: 'Bỏ liên kết' })
     expect(unlink).toBeDisabled()
-    expect(unlink).toHaveAccessibleDescription(/Bạn chưa đổi hay bỏ liên kết GitHub được/)
+    expect(unlink).toHaveAccessibleDescription(/Bạn chưa bỏ liên kết GitHub được khi bạn đang có sản phẩm, có đơn chào giá đang mở/)
     expect(screen.getByText('Sản phẩm Sổ đặt bàn Quán Mây')).toBeInTheDocument()
     expect(screen.getByText('Công việc Sửa lỗi đặt bàn')).toBeInTheDocument()
     expect(screen.getByText('Một đơn chào giá đang mở')).toBeInTheDocument()
@@ -146,6 +146,15 @@ describe('ACC-2, the GitHub row (FR-80, UX-DR91)', () => {
 
     await waitFor(() => expect(redirectTo).toHaveBeenCalledWith(AUTHORIZATION))
     expect(started).toEqual({ noticeVersion: '1.0', purpose: 'PROFILE' })
+  })
+
+  it('reads GitHub\'s return once, so a reload shows no banner', async () => {
+    fakeBackend(linkedLan)
+    const router = renderAt('/ho-so/xac-minh?ket-qua=da-lien-ket')
+
+    expect(await screen.findByText('Đã liên kết GitHub.')).toBeInTheDocument()
+    await waitFor(() => expect(router.state.location.search).toBe(''))
+    expect(screen.getByText('Đã liên kết GitHub.')).toBeInTheDocument()
   })
 
   it.each([
@@ -200,6 +209,32 @@ describe('The GitHub gate on CUS-3 step 2 (UX-DR95)', () => {
       step: 2,
       tools: ['LOVABLE'],
     })
+  })
+
+  it.each([
+    [403, 'FORBIDDEN', 'GITHUB_NOT_LINKED', 'Liên kết GitHub để đăng ký sản phẩm'],
+    [422, 'GUARD_FAILED', 'RELINK_GITHUB', 'Liên kết lại GitHub để đăng ký sản phẩm'],
+  ])('takes over again once the repository check answers %s %s %s', { timeout: 20_000 }, async (status, code, reason, heading) => {
+    const user = userEvent.setup()
+    let refused = false
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/identity/github': () =>
+        json(refused && reason === 'GITHUB_NOT_LINKED' ? gitHubLink(signedInWithGoogle) : gitHubLink(signedIn('CUSTOMER'))),
+      'POST /api/v1/products/repository-check': () => {
+        refused = true
+        return json({ status, code, reason }, status)
+      },
+    })
+    renderAt('/san-pham/moi')
+
+    await user.click(await screen.findByRole('button', { name: 'Lovable' }))
+    await user.click(screen.getByRole('button', { name: 'Tiếp tục' }))
+    await user.type(await screen.findByLabelText('Đường dẫn kho mã trên GitHub'), 'https://github.com/lan-nguyen/shop-gom')
+    await user.click(screen.getByRole('button', { name: 'Kiểm tra' }))
+
+    expect(await screen.findByRole('heading', { name: heading })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Đường dẫn kho mã trên GitHub')).not.toBeInTheDocument()
+    expect(screen.getByText('Bước 2/4')).toBeInTheDocument()
   })
 
   it('links again when no token is kept, and comes back to step 2 with the input', { timeout: 15_000 }, async () => {

@@ -321,6 +321,25 @@ describe('Publishing a Job Post and JOB-1 (FR-9, J1, J2)', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Sửa công việc' })).toBeInTheDocument()
   })
 
+  it('says GitHub must be linked first and links to ACC-2 (FR-80)', { timeout: 15_000 }, async () => {
+    const user = userEvent.setup()
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/jobs/j1': () => json(complete),
+      'GET /api/v1/products/p1': () => json(product()),
+      'GET /api/v1/catalog': catalog,
+      'PUT /api/v1/jobs/j1': () => json(complete),
+      'POST /api/v1/jobs/j1/publish': () => json({ status: 403, code: 'FORBIDDEN', reason: 'GITHUB_NOT_LINKED' }, 403),
+    })
+    renderAt('/cong-viec/j1/sua')
+
+    await user.click(await screen.findByRole('button', { name: 'Đăng tin' }))
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Đăng tin' }))
+
+    expect(await screen.findAllByText('Bạn không thể làm việc này. Hãy liên kết GitHub trước.')).not.toHaveLength(0)
+    // Base UI hides a toast from the accessibility tree until the toasts region is reached (F6).
+    expect(screen.getAllByRole('link', { name: 'Liên kết GitHub', hidden: true })[0]).toHaveAttribute('href', '/ho-so/xac-minh')
+  })
+
   it('shows the Open Job on JOB-1 with what happens next, and withdraws it', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     let withdrawn = false
