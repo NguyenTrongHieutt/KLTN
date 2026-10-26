@@ -366,7 +366,7 @@ class CrewController {
 		if (card == null) {
 			return "";
 		}
-		return card.name() != null ? card.name() : "@" + card.githubLogin();
+		return card.shownName();
 	}
 
 	private Optional<Job> job(UUID jobId) {

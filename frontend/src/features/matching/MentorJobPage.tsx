@@ -117,7 +117,10 @@ function NdaPanel({ job }: { job: MentorJob }) {
       { ndaVersion: NDA_VERSION, commitEmailNoticeAcknowledged: understood || job.commitEmailNoticeAcknowledged },
       {
         onSuccess: () => toasts.success(t('screen.nda.signed')),
-        onError: (error) => toasts.error(problemMessage(error, { module: 'matching' }).text),
+        onError: (error) => {
+          const message = problemMessage(error, { module: 'matching' })
+          toasts.error(message.text, message.link)
+        },
       },
     )
   return (

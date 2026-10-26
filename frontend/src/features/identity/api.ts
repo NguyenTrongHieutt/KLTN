@@ -25,14 +25,6 @@ export function signInUrl(returnTo?: string): string {
   return withReturn('/oauth2/authorization/google', returnTo)
 }
 
-/**
- * The GitHub start of "Đăng nhập lại bằng GitHub" (`/dang-nhap-lai`). It signs nobody in since Story
- * 19.1; Story 19.2 turns the page into ACC-2's re-link.
- */
-export function gitHubSignInUrl(returnTo?: string): string {
-  return withReturn('/oauth2/authorization/github', returnTo)
-}
-
 function withReturn(start: string, returnTo?: string): string {
   return returnTo ? `${start}?quay-lai=${encodeURIComponent(returnTo)}` : start
 }

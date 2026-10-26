@@ -20,12 +20,14 @@ export default defineConfig({
   },
   server: {
     // The SPA and the API share one origin (AD-26). In deploy/compose.yaml the backend is
-    // http://backend:8080; run on the host, it is localhost. The GitHub sign-in paths go through
-    // too, so the callback GitHub calls is this origin's.
+    // http://backend:8080; run on the host, it is localhost. The Google sign-in paths and the GitHub
+    // linking callback (Story 19.2) go through too, so the callbacks Google and GitHub call are this
+    // origin's.
     proxy: {
       '/api': backend,
       '/oauth2': backend,
       '/login/oauth2': backend,
+      '/link/oauth2': backend,
     },
     // Docker Desktop does not pass file change events from a Windows folder into a container.
     watch: process.env.VIBEFIX_WATCH_POLLING === 'true' ? { usePolling: true, interval: 300 } : undefined,

@@ -81,10 +81,16 @@ class JobVerifyOperation implements OperationHandler {
 				if (grant == null) {
 					return new Outcome.Aborted("GRANT_NOT_READY");
 				}
-				if (!"WRITE".equals(grant.status())) {
-					repositories.raise(grant.repository(), grant.login());
+				// AD-10 "Logins by ID": the login GitHub uses now.
+				String login = grants.currentLogin(grant, repositories).orElse(null);
+				if (login == null) {
+					return new Outcome.Aborted("GITHUB_ACCOUNT_GONE");
 				}
-				if (!"write".equals(repositories.role(grant.repository(), grant.login()))) {
+				grants.renamed(grant, login);
+				if (!"WRITE".equals(grant.status())) {
+					repositories.raise(grant.repository(), login);
+				}
+				if (!"write".equals(repositories.role(grant.repository(), login))) {
 					return new Outcome.Transient("WRITE_NOT_READ_BACK");
 				}
 				grants.wrote(grant);

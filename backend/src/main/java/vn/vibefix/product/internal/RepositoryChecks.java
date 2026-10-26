@@ -16,7 +16,7 @@ import vn.vibefix.shared.ErrorCode;
 /**
  * CUS-3 step 2's live checks (FR-7, AD-13), in the order the Customer reads them: a GitHub
  * address, found, public, administered by the Customer, not linked yet, no LFS or submodules, and
- * at most 250 MB. Organization-owned repositories pass on {@code permissions.admin} (Spike S1,
+ * at most 250 MB. A missing or refused kept token answers {@code RELINK_GITHUB}. Organization-owned repositories pass on {@code permissions.admin} (Spike S1,
  * 2026-10-19). A refusal past "found" carries the repository's name in the details.
  */
 @Component
@@ -41,8 +41,12 @@ class RepositoryChecks {
 		try {
 			view = this.repositories.read(customerId, address.owner(), address.name());
 		}
+		catch (ApiException noToken) {
+			// No kept token reads the repositories: CUS-3 step 2 shows the GitHub gate again (AD-10).
+			throw refuse(ProductReason.RELINK_GITHUB, null);
+		}
 		catch (GitHubException ex) {
-			throw refuse(ProductReason.GITHUB_UNAVAILABLE, null);
+			throw refuse(ex.status() == 401 ? ProductReason.RELINK_GITHUB : ProductReason.GITHUB_UNAVAILABLE, null);
 		}
 		RepositoryMetadata repository = view.repository().orElseThrow(() -> refuse(ProductReason.REPO_NOT_FOUND, null));
 		if (!repository.publicRepository()) {

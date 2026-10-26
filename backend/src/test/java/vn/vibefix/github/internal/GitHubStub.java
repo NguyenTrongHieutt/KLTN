@@ -117,6 +117,16 @@ public final class GitHubStub implements AutoCloseable {
 	/** Outside collaborators without two-factor authentication, as {@code filter=2fa_disabled} lists them. */
 	public final java.util.Set<String> withoutTwoFactor = Collections.synchronizedSet(new java.util.HashSet<>());
 
+	/**
+	 * GitHub accounts by numeric ID, as {@code GET /user/{id}} answers them (AD-10 "Logins by ID"); a test
+	 * renames an account by putting its new login. An ID not here has the login the tests' accounts carry,
+	 * {@code user-{id}} ({@code IdentityTestSupport}), unless it is {@link #goneUsers gone}.
+	 */
+	public final Map<Long, String> logins = Collections.synchronizedMap(new LinkedHashMap<>());
+
+	/** GitHub accounts deleted on GitHub: {@code GET /user/{id}} answers 404. */
+	public final java.util.Set<Long> goneUsers = Collections.synchronizedSet(new java.util.HashSet<>());
+
 	public GitHubStub(Path gitRoot) throws IOException {
 		this.gitRoot = gitRoot;
 		this.server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
@@ -301,7 +311,15 @@ public final class GitHubStub implements AutoCloseable {
 
 	private void route(HttpExchange exchange, String method, String path, String query, JsonNode body) throws Exception {
 		Matcher matcher;
-		if (method.equals("POST") && path.equals("/app/installations/" + INSTALLATION + "/access_tokens")) {
+		if (method.equals("GET") && (matcher = Pattern.compile("/user/(\\d+)").matcher(path)).matches()) {
+			long id = Long.parseLong(matcher.group(1));
+			if (this.goneUsers.contains(id)) {
+				send(exchange, 404, "{\"message\":\"Not Found\"}");
+				return;
+			}
+			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(Map.of("id", id, "login", loginOf(id))));
+		}
+		else if (method.equals("POST") && path.equals("/app/installations/" + INSTALLATION + "/access_tokens")) {
 			String token = "ghs_stubtoken_" + this.tokens.size() + "_d41d8cd98f";
 			this.tokens.add(token);
 			this.grants.put(token, body);
@@ -584,9 +602,9 @@ public final class GitHubStub implements AutoCloseable {
 			send(exchange, 200, "{\"permission\":\"" + permission + "\",\"role_name\":\"" + permission + "\"}");
 		}
 		else if (method.equals("GET") && path.equals("/orgs/" + ORGANIZATION + "/outside_collaborators")) {
-			List<Map<String, String>> list = new ArrayList<>();
+			List<Map<String, Object>> list = new ArrayList<>();
 			if (query != null && query.contains("filter=2fa_disabled")) {
-				this.withoutTwoFactor.forEach(login -> list.add(Map.of("login", login)));
+				this.withoutTwoFactor.forEach(login -> list.add(user(login)));
 			}
 			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(list));
 		}
@@ -604,7 +622,11 @@ public final class GitHubStub implements AutoCloseable {
 			.matches()) {
 			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(collaboratorsOf(matcher.group(1)).entrySet()
 				.stream()
-				.map(collaborator -> Map.of("login", collaborator.getKey(), "role_name", collaborator.getValue()))
+				.map(collaborator -> {
+					Map<String, Object> user = user(collaborator.getKey());
+					user.put("role_name", collaborator.getValue());
+					return user;
+				})
 				.toList()));
 		}
 		else if ((matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)/collaborators/([^/]+)").matcher(path)).matches()) {
@@ -678,7 +700,7 @@ public final class GitHubStub implements AutoCloseable {
 			.matches()) {
 			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(this.pulls.getOrDefault(matcher.group(1), Map.of()).entrySet()
 				.stream()
-				.map(pull -> Map.of("number", pull.getKey(), "user", Map.of("login", pull.getValue())))
+				.map(pull -> Map.of("number", pull.getKey(), "user", user(pull.getValue())))
 				.toList()));
 		}
 		else if (method.equals("PUT")
@@ -899,6 +921,70 @@ public final class GitHubStub implements AutoCloseable {
 					return id;
 				});
 		}
+	}
+
+	/** The login of the GitHub account with this ID now. */
+	public String loginOf(long id) {
+		return this.logins.getOrDefault(id, "user-" + id);
+	}
+
+	/**
+	 * The account with this ID renames itself on GitHub: its pending invitations, its collaborator places,
+	 * its organization membership, and its two-factor listing follow it to the new login, as on GitHub.
+	 */
+	public void renameUser(long id, String login) {
+		String old = loginOf(id);
+		this.logins.put(id, login);
+		synchronized (this.invitations) {
+			this.invitations.values().forEach(pending -> move(pending, old, login));
+		}
+		synchronized (this.collaborators) {
+			this.collaborators.values().forEach(placed -> move(placed, old, login));
+		}
+		synchronized (this.invitationIds) {
+			this.invitationIds.replaceAll((invitation, invitee) -> invitee.equals(old) ? login : invitee);
+		}
+		if (this.members.remove(old)) {
+			this.members.add(login);
+		}
+		if (this.withoutTwoFactor.remove(old.toLowerCase(java.util.Locale.ROOT))) {
+			this.withoutTwoFactor.add(login.toLowerCase(java.util.Locale.ROOT));
+		}
+	}
+
+	private static void move(Map<String, String> byLogin, String from, String to) {
+		String value = byLogin.remove(from);
+		if (value != null) {
+			byLogin.put(to, value);
+		}
+	}
+
+	/** A user as GitHub lists one: the login, and the ID of the account that carries it now, if any. */
+	private Map<String, Object> user(String login) {
+		Map<String, Object> user = new LinkedHashMap<>();
+		user.put("login", login);
+		Long id = idOf(login);
+		if (id != null) {
+			user.put("id", id);
+		}
+		return user;
+	}
+
+	private @org.jspecify.annotations.Nullable Long idOf(String login) {
+		synchronized (this.logins) {
+			for (Map.Entry<Long, String> entry : this.logins.entrySet()) {
+				if (entry.getValue().equalsIgnoreCase(login)) {
+					return entry.getKey();
+				}
+			}
+		}
+		Matcher matcher = Pattern.compile("user-(\\d+)", Pattern.CASE_INSENSITIVE).matcher(login);
+		if (matcher.matches()) {
+			long id = Long.parseLong(matcher.group(1));
+			// Renamed away: the old login no longer names the account.
+			return this.logins.containsKey(id) ? null : id;
+		}
+		return null;
 	}
 
 	/** A direct collaborator someone added outside vibefix. */

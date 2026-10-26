@@ -24,7 +24,8 @@ import vn.vibefix.shared.ErrorCode;
  */
 class SignInRateLimiter extends OncePerRequestFilter {
 
-	static final String[] PATHS = { "/oauth2/authorization/", "/login/oauth2/code/" };
+	/** The Google sign-in's start and callback, and the GitHub link's callback (Story 19.2). */
+	static final String[] PATHS = { "/oauth2/authorization/", "/login/oauth2/code/", "/link/oauth2/code/" };
 
 	/** Windows kept before stale ones are dropped, so a flood of addresses cannot grow memory without end. */
 	static final int MAX_TRACKED = 10_000;

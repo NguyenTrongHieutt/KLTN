@@ -118,7 +118,7 @@ class DataDeletionController {
 				: this.students.cards(crew)
 					.stream()
 					.collect(Collectors.toMap(StudentCard::accountId,
-							card -> card.name() != null ? card.name() : "@" + card.githubLogin(), (a, b) -> a));
+							StudentCard::shownName, (a, b) -> a));
 		String mentorName = job.mentorId() == null ? ""
 				: this.mentors.cards(List.of(job.mentorId())).stream().findFirst().map(MentorCard::displayName).orElse("");
 		List<DataDeletionPartyView> parties = new ArrayList<>();

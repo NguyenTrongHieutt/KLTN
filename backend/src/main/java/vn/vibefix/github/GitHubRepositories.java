@@ -7,7 +7,7 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Read-only repository metadata (AD-13, FR-7), with a caller's credential: the Product intake
- * reads it with the Customer's own sign-in token, through {@code identity}. Nothing is written.
+ * reads it with the Customer's own GitHub token, kept from linking, through {@code identity}. Nothing is written.
  */
 public interface GitHubRepositories {
 

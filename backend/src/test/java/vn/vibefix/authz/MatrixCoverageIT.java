@@ -23,7 +23,9 @@ import vn.vibefix.support.IntegrationTest;
 /**
  * AD-20, SM-5: every vibefix handler lives under {@code /api} or {@code /webhooks}, where the gate
  * guards it; each declares its {@link Access} gate and an explicit HTTP method and has at least one
- * row in {@code authz/matrix.csv}; and every row names a handler that exists.
+ * row in {@code authz/matrix.csv}; and every row names a handler that exists. The one exception is
+ * GitHub's return from linking ({@link #LINK_CALLBACK}, Story 19.2), a browser redirect that is no
+ * API: it acts only for the signed-in session that started the link, with its one-time {@code state}.
  */
 class MatrixCoverageIT extends IntegrationTest {
 
@@ -31,6 +33,9 @@ class MatrixCoverageIT extends IntegrationTest {
 
 	/** AD-12's one endpoint for both Apps' webhooks. */
 	static final String WEBHOOKS = "/webhooks";
+
+	/** AD-10's linking callback, outside {@code /api} by design (Story 19.2); {@code GitHubLinkIT} answers for it. */
+	static final String LINK_CALLBACK = "/link/oauth2/code/github";
 
 	@Autowired
 	@Qualifier("requestMappingHandlerMapping")
@@ -45,7 +50,7 @@ class MatrixCoverageIT extends IntegrationTest {
 			boolean ours = handler.getBeanType().getName().startsWith("vn.vibefix.");
 			for (String pattern : entry.getKey().getPatternValues()) {
 				if (!pattern.equals(WEBHOOKS) && GATED_PREFIXES.stream().noneMatch(pattern::startsWith)) {
-					if (ours) {
+					if (ours && !pattern.equals(LINK_CALLBACK)) {
 						violations.add(handler.getShortLogMessage() + " (" + pattern
 								+ ") is outside /api and /webhooks, where no gate guards it");
 					}

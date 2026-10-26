@@ -35,7 +35,7 @@ import vn.vibefix.shared.KeywordQuery;
 class JdbcMentorDirectory implements MentorDirectory {
 
 	private static final String COLUMNS = """
-			a.id, a.github_login, a.created_at, m.display_name, m.experience, m.years_of_experience, m.skill_ids,
+			a.id, a.github_login, a.github_user_id, a.created_at, m.display_name, m.experience, m.years_of_experience, m.skill_ids,
 			a.mentor_approval_status = 'APPROVED' AND a.locked_at IS NULL AS available
 			""";
 
@@ -44,7 +44,8 @@ class JdbcMentorDirectory implements MentorDirectory {
 			WHERE a.role = 'MENTOR' AND a.erased_at IS NULL AND m.submitted_at IS NOT NULL
 			""";
 
-	private record Row(UUID id, @Nullable String login, Instant createdAt, String displayName, String experience,
+	private record Row(UUID id, @Nullable String login, @Nullable Long githubUserId, Instant createdAt, String displayName,
+			String experience,
 			int years, List<UUID> skillIds, boolean available) {
 	}
 
@@ -170,12 +171,12 @@ class JdbcMentorDirectory implements MentorDirectory {
 	}
 
 	private static MentorCard card(Row row, Map<UUID, String> names) {
-		return new MentorCard(row.id(), row.login(), row.displayName(), row.years(),
+		return new MentorCard(row.id(), row.login(), row.githubUserId(), row.displayName(), row.years(),
 				row.skillIds().stream().map(names::get).filter(name -> name != null).toList(), row.available());
 	}
 
 	private static Row row(ResultSet rs, int n) throws SQLException {
-		return new Row(rs.getObject("id", UUID.class), rs.getString("github_login"),
+		return new Row(rs.getObject("id", UUID.class), rs.getString("github_login"), rs.getObject("github_user_id", Long.class),
 				rs.getTimestamp("created_at").toInstant(), rs.getString("display_name"), rs.getString("experience"),
 				rs.getInt("years_of_experience"), JdbcStudentDirectory.uuids(rs.getArray("skill_ids")),
 				rs.getBoolean("available"));

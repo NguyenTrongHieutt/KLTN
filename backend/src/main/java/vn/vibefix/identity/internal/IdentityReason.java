@@ -73,6 +73,21 @@ enum IdentityReason {
 	NO_DELETION_REQUEST,
 
 	/** NFR-11, AD-24: a running Job, an open Dispute, or a Team Issue keeps the account from being erased now. */
-	ERASURE_BLOCKED
+	ERASURE_BLOCKED,
+
+	/** FR-80, AD-19: a command that creates work, from an account with no linked GitHub account. */
+	GITHUB_NOT_LINKED,
+
+	/**
+	 * FR-80, R14: unlinking while a live Product, an open bid, or a role in a Job that is not Closed or Cancelled
+	 * keeps the link; the answer's {@code blockers} name them. A re-link must return the same numeric GitHub ID
+	 * whatever blocks it; GitHub's return refuses another one on ACC-2 ({@code loi=sai-tai-khoan}), as it refuses
+	 * an ID another account holds ({@code loi=da-lien-ket-tai-khoan-khac}). The SPA's copy key is
+	 * {@code GITHUB_CHANGE_BLOCKED} (SG-58).
+	 */
+	GITHUB_LINK_IN_USE,
+
+	/** This environment has no linking OAuth App yet (AD-25): nothing can be linked. */
+	GITHUB_NOT_SET_UP
 
 }

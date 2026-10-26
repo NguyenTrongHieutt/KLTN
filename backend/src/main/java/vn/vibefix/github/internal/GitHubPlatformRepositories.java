@@ -311,14 +311,43 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 	}
 
 	@Override
-	public Set<String> withoutTwoFactor() {
+	public Set<Long> collaboratorIds(PlatformRepository repository) {
+		return this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("administration", "write"), token -> {
+			Set<Long> ids = new HashSet<>();
+			for (JsonNode user : pages("/repos/" + repository.fullName() + "/collaborators?per_page=100", token.value(),
+					"list the collaborators of " + repository.fullName())) {
+				if (user.path("id").isNumber()) {
+					ids.add(user.path("id").asLong());
+				}
+			}
+			return ids;
+		});
+	}
+
+	@Override
+	public Optional<String> login(long githubUserId) {
 		return this.apps.withUnnarrowed(App.PLATFORM, Unnarrowed.ORGANIZATION_READ, token -> {
-			Set<String> logins = new HashSet<>();
-			JsonNode list = require(http().send("GET",
-					"/orgs/" + organization() + "/outside_collaborators?filter=2fa_disabled&per_page=100", token.value(), null),
-					"list collaborators without two-factor authentication");
-			list.forEach(user -> logins.add(user.path("login").asString("").toLowerCase(Locale.ROOT)));
-			return logins;
+			GitHubHttp.Answer answer = http().send("GET", "/user/" + githubUserId, token.value(), null);
+			if (answer.status() == 404) {
+				return Optional.empty();
+			}
+			String login = require(answer, "read the GitHub account " + githubUserId).path("login").asString("");
+			return login.isBlank() ? Optional.empty() : Optional.of(login);
+		});
+	}
+
+	@Override
+	public Map<Long, String> withoutTwoFactor() {
+		return this.apps.withUnnarrowed(App.PLATFORM, Unnarrowed.ORGANIZATION_READ, token -> {
+			Map<Long, String> users = new java.util.HashMap<>();
+			for (JsonNode user : pages("/orgs/" + organization() + "/outside_collaborators?filter=2fa_disabled&per_page=100",
+					token.value(), "list collaborators without two-factor authentication")) {
+				// An entry without a numeric ID names nobody vibefix can match.
+				if (user.path("id").isNumber()) {
+					users.put(user.path("id").asLong(), user.path("login").asString("").toLowerCase(Locale.ROOT));
+				}
+			}
+			return users;
 		});
 	}
 
@@ -381,8 +410,9 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 			List<PullRequest> open = new ArrayList<>();
 			for (JsonNode pull : require(http().send("GET", "/repos/" + repository.fullName() + "/pulls?state=open&per_page=100",
 					token.value(), null), "list the pull requests of " + repository.fullName())) {
-				open.add(new PullRequest(pull.path("number").asInt(),
-						pull.path("user").path("login").asString("").toLowerCase(Locale.ROOT)));
+				JsonNode author = pull.path("user");
+				open.add(new PullRequest(pull.path("number").asInt(), author.path("login").asString("").toLowerCase(Locale.ROOT),
+						author.path("id").isNumber() ? author.path("id").asLong() : null));
 			}
 			return open;
 		});
@@ -660,6 +690,18 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 	private PlatformRepository repository(JsonNode body, String name) {
 		String actual = body.path("name").asString(name);
 		return new PlatformRepository(body.path("id").asLong(), actual, organization() + "/" + actual);
+	}
+
+	/** Every item of a paged list, following {@code Link: rel="next"} until it runs out. */
+	private List<JsonNode> pages(String path, String token, String what) {
+		List<JsonNode> items = new ArrayList<>();
+		String next = path;
+		for (int page = 0; next != null && page < 100; page++) {
+			GitHubHttp.Answer answer = http().send("GET", next, token, null);
+			require(answer, what).forEach(items::add);
+			next = answer.nextPath(this.apps.properties().apiUrl()).orElse(null);
+		}
+		return items;
 	}
 
 	private static JsonNode require(GitHubHttp.Answer answer, String what) {

@@ -158,6 +158,28 @@ describe('MEN-3, applying with a quote (FR-13)', () => {
     expect(screen.getByRole('button', { name: 'Rút đơn' })).toBeInTheDocument()
   })
 
+  it('says GitHub must be linked before bidding and links to ACC-2 (FR-80)', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    fakeBackend(signedIn('MENTOR'), {
+      'GET /api/v1/mentor/job-posts/j1': () => json(post),
+      'GET /api/v1/mentor/job-posts/j1/customer-rating': () => json({ count: 0 }),
+      'GET /api/v1/mentor/capacity': () => capacity(),
+      'GET /api/v1/mentor/applications': () => json([]),
+      'POST /api/v1/mentor/job-posts/j1/applications': () => json({ status: 403, code: 'FORBIDDEN', reason: 'GITHUB_NOT_LINKED' }, 403),
+    })
+    renderAt('/tim-viec/j1')
+
+    await user.type(await screen.findByLabelText('Giá đề xuất'), '800000')
+    await user.type(screen.getByLabelText('Thời gian làm (ngày)'), '7')
+    await user.type(screen.getByLabelText('Cách bạn sẽ làm'), 'Tái hiện lỗi, sửa và thêm kiểm thử.')
+    await user.click(screen.getByRole('checkbox', { name: /Tôi hiểu mã tôi và nhóm làm/ }))
+    await user.click(screen.getByRole('button', { name: 'Ứng tuyển' }))
+
+    expect(await screen.findAllByText('Bạn không thể làm việc này. Hãy liên kết GitHub trước.')).not.toHaveLength(0)
+    // Base UI hides a toast from the accessibility tree until the toasts region is reached (F6).
+    expect(screen.getAllByRole('link', { name: 'Liên kết GitHub', hidden: true })[0]).toHaveAttribute('href', '/ho-so/xac-minh')
+  })
+
   it('keeps "Ứng tuyển" disabled while FR-13 refuses and says the reason from the server', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     fakeBackend(signedIn('MENTOR'), {

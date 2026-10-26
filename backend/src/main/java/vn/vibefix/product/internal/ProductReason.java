@@ -27,6 +27,9 @@ enum ProductReason {
 	/** GitHub could not be read just now. */
 	GITHUB_UNAVAILABLE,
 
+	/** No kept GitHub token reads the Customer's repositories, or GitHub refused it: they link GitHub again (AD-10). */
+	RELINK_GITHUB,
+
 	/** A Job in Selecting to Closing pins the Product (FR-7, AD-3). */
 	PRODUCT_HAS_ACTIVE_JOB,
 

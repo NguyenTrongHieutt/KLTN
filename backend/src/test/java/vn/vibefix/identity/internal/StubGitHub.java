@@ -13,9 +13,10 @@ import com.sun.net.httpserver.HttpServer;
 
 /**
  * A stand-in for GitHub's OAuth endpoints and its {@code /user} API (AD-10), on a random local port,
- * for the whole sign-in flow in tests: it issues a new access token per code and answers the user
- * the test sets. The browser's step (GitHub's authorization page) is skipped: the test calls the
- * callback with the {@code state} the application generated.
+ * for the whole linking flow in tests (Story 19.2): it issues a new access token per code and answers
+ * the user the test sets, and it keeps each token request's form, so a test sees the PKCE
+ * {@code code_verifier} arrive. The browser's step (GitHub's authorization page) is skipped: the test
+ * calls the callback with the {@code state} the application generated.
  */
 public final class StubGitHub implements AutoCloseable {
 
@@ -32,6 +33,8 @@ public final class StubGitHub implements AutoCloseable {
 	private volatile String emailsJson = "[]";
 
 	private volatile int emailsStatus = 200;
+
+	private volatile boolean refusesCodes;
 
 	private StubGitHub() {
 		try {
@@ -72,6 +75,11 @@ public final class StubGitHub implements AutoCloseable {
 		this.emailsStatus = status;
 	}
 
+	/** Whether the token endpoint refuses every code, as GitHub does a used or expired one (200 with an error). */
+	public void refusesCodes(boolean refuses) {
+		this.refusesCodes = refuses;
+	}
+
 	/** The last access token issued. */
 	public String lastToken() {
 		return "gho_stub_" + this.tokens.get();
@@ -84,6 +92,10 @@ public final class StubGitHub implements AutoCloseable {
 
 	private void token(HttpExchange exchange) throws IOException {
 		this.tokenRequests.add(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+		if (this.refusesCodes) {
+			respond(exchange, "{\"error\":\"bad_verification_code\"}");
+			return;
+		}
 		String token = "gho_stub_" + this.tokens.incrementAndGet();
 		respond(exchange, "{\"access_token\":\"" + token + "\",\"token_type\":\"bearer\",\"scope\":\"read:user,user:email\"}");
 	}

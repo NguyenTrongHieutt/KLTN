@@ -174,22 +174,22 @@ class ApplicationsIT extends IntegrationTest {
 		CONTRIBUTORS.put("/repos/lan/so-dat-ban/contributors", "502 {}");
 		apply(mentorWithFreeStudent("C"), this.job, true).andExpect(status().is(422))
 			.andExpect(jsonPath("$.reason").value("CONTRIBUTORS_UNKNOWN"));
-		assertThat(signInAgain()).as("GitHub not answering is not the Customer's to fix").isZero();
-		// Author decision 2026-10-21: a refused token still fails closed and asks the Customer to sign in again.
+		assertThat(relinkGitHub()).as("GitHub not answering is not the Customer's to fix").isZero();
+		// Author decision 2026-10-21: a refused token still fails closed and asks the Customer to re-link GitHub.
 		CONTRIBUTORS.put("/repos/lan/so-dat-ban/contributors", "401 {}");
 		apply(mentorWithFreeStudent("D"), this.job, true).andExpect(status().is(422))
 			.andExpect(jsonPath("$.reason").value("CONTRIBUTORS_UNKNOWN"));
-		assertThat(signInAgain()).isOne();
+		assertThat(relinkGitHub()).isOne();
 		assertThat(this.jdbc.sql("""
-				SELECT count(*) FROM notification.notification WHERE type = 'identity.sign_in_again' AND account_id = :lan
+				SELECT count(*) FROM notification.notification WHERE type = 'identity.relink_github' AND account_id = :lan
 				""").param("lan", this.lan).query(Long.class).single()).isOne();
 		assertThat(this.jdbc.sql("SELECT count(*) FROM matching.application").query(Long.class).single())
 			.as("a refusal writes nothing").isOne();
 	}
 
-	private long signInAgain() {
+	private long relinkGitHub() {
 		return this.jdbc.sql("""
-				SELECT count(*) FROM notification.todo WHERE todo_key = 'identity.sign_in_again' AND account_id = :lan
+				SELECT count(*) FROM notification.todo WHERE todo_key = 'identity.relink_github' AND account_id = :lan
 				    AND closed_at IS NULL
 				""").param("lan", this.lan).query(Long.class).single();
 	}

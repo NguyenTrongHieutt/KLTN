@@ -1,8 +1,10 @@
 import { Toast } from '@base-ui/react/toast'
 import { X } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { Link } from 'react-router'
 import { t } from '@/i18n/t'
 import { cn } from '@/lib/utils'
+import type { ToastData } from './toasts'
 
 /**
  * The toasts of the signed-in shell (UX-DR43): Base UI's Toast, at most 3 visible, bottom-center
@@ -23,7 +25,7 @@ export function Toaster({ children }: { children: ReactNode }) {
 }
 
 function ToastList() {
-  const { toasts } = Toast.useToastManager()
+  const { toasts, close } = Toast.useToastManager<ToastData>()
   return toasts.map((toast) => (
     <Toast.Root
       key={toast.id}
@@ -33,7 +35,18 @@ function ToastList() {
         toast.type === 'error' ? 'border-l-destructive' : 'border-l-success',
       )}
     >
-      <Toast.Title className="grow text-body-sm" />
+      <div className="flex grow flex-col gap-1">
+        <Toast.Title className="text-body-sm" />
+        {toast.data?.link && (
+          <Link
+            to={toast.data.link.href}
+            onClick={() => close(toast.id)}
+            className="w-fit text-body-sm font-semibold text-primary underline-offset-4 hover:underline"
+          >
+            {toast.data.link.label}
+          </Link>
+        )}
+      </div>
       <Toast.Close aria-label={t('toast.close')} className="rounded-md p-1 text-muted-foreground hover:bg-muted">
         <X aria-hidden="true" className="size-4" />
       </Toast.Close>

@@ -23,6 +23,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import vn.vibefix.identity.GitHubGate;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
 import vn.vibefix.identity.MentorGate;
@@ -104,9 +105,12 @@ class ApplicationController {
 
 	private final CurrentCaller callers;
 
+	private final GitHubGate gitHub;
+
 	ApplicationController(Applications applications, JobPosts posts, MentorDirectory mentors, Teams teams,
 			MentorGate gate, JobSelection selection, NdaSignatures signatures, Invitations invitations,
-			CurrentCaller callers) {
+			CurrentCaller callers, GitHubGate gitHub) {
+		this.gitHub = gitHub;
 		this.applications = applications;
 		this.posts = posts;
 		this.mentors = mentors;
@@ -123,6 +127,7 @@ class ApplicationController {
 	ApplicationView apply(@PathVariable UUID postId, @Valid @RequestBody ApplyRequest body) {
 		UUID mentor = mentor();
 		this.gate.requireApprovedMentor(mentor);
+		this.gitHub.requireGitHubLinked(mentor);
 		if (!body.publicCodeAcknowledged()) {
 			throw new ApiException(ErrorCode.VALIDATION, MatchingReason.PUBLIC_CODE_NOT_ACKNOWLEDGED);
 		}
@@ -194,6 +199,7 @@ class ApplicationController {
 	void sign(@PathVariable UUID jobId, @Valid @RequestBody NdaRequest body) {
 		UUID mentor = mentor();
 		this.gate.requireApprovedMentor(mentor);
+		this.gitHub.requireGitHubLinked(mentor);
 		this.signatures.sign(mentor, jobId, body.ndaVersion(), body.commitEmailNoticeAcknowledged());
 	}
 

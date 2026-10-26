@@ -4296,6 +4296,61 @@
         "tags" : [ "handover-controller" ]
       }
     },
+    "/api/v1/identity/github" : {
+      "delete" : {
+        "operationId" : "unlink",
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "git-hub-link-controller" ]
+      },
+      "get" : {
+        "operationId" : "read_2",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GitHubLinkView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "git-hub-link-controller" ]
+      }
+    },
+    "/api/v1/identity/github/link" : {
+      "post" : {
+        "operationId" : "start",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/GitHubLinkRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GitHubLinkStartView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "git-hub-link-controller" ]
+      }
+    },
     "/api/v1/jobs" : {
       "get" : {
         "operationId" : "jobs",
@@ -13391,6 +13446,87 @@
           }
         },
         "required" : [ "fundable", "fundedVnd", "milestoneId", "number", "priceVnd", "refundAtEndVnd", "refundedVnd", "releasedTotalVnd", "state", "title", "topUpVnd" ]
+      },
+      "GitHubLinkBlockerView" : {
+        "type" : "object",
+        "properties" : {
+          "module" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "subjectId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "module", "name", "reason", "subjectId" ]
+      },
+      "GitHubLinkRequest" : {
+        "type" : "object",
+        "properties" : {
+          "noticeVersion" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "purpose" : {
+            "type" : "string",
+            "enum" : [ "PROFILE", "PRODUCT" ]
+          },
+          "returnTo" : {
+            "type" : "string",
+            "maxLength" : 200,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "noticeVersion", "purpose" ]
+      },
+      "GitHubLinkStartView" : {
+        "type" : "object",
+        "properties" : {
+          "authorizationUrl" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "authorizationUrl" ]
+      },
+      "GitHubLinkView" : {
+        "type" : "object",
+        "properties" : {
+          "avatarUrl" : {
+            "type" : "string"
+          },
+          "blockers" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/GitHubLinkBlockerView"
+            }
+          },
+          "linked" : {
+            "type" : "boolean"
+          },
+          "linkedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "login" : {
+            "type" : "string"
+          },
+          "noticeVersion" : {
+            "type" : "string"
+          },
+          "relinkNeeded" : {
+            "type" : "boolean"
+          },
+          "repositoryTokenKept" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "blockers", "linked", "noticeVersion", "relinkNeeded", "repositoryTokenKept" ]
       },
       "HandoverCheckRequest" : {
         "type" : "object",

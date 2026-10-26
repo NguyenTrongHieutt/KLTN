@@ -69,7 +69,7 @@ function ApplyForm({ postId, teamSize, blocked }: { postId: string; teamSize: nu
       { priceVnd, timelineDays, approach: approach.trim(), publicCodeAcknowledged: true },
       {
         onSuccess: () => toasts.success(t('screen.matching.apply.sent')),
-        onError: (error) => toasts.error(refusal(error)),
+        onError: (error) => toasts.error(refusal(error), problemMessage(error, { module: 'matching' }).link),
       },
     )
   }

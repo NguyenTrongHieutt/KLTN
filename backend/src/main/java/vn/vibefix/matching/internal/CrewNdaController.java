@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import vn.vibefix.identity.GitHubGate;
 import vn.vibefix.job.Crews;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.ApiException;
@@ -22,8 +23,9 @@ import vn.vibefix.shared.Gate;
 import vn.vibefix.shared.Role;
 
 /**
- * STU-4's "Ký và xác nhận" and "Từ chối" (FR-75): a Crew member's commands, which need only an
- * unlocked account (AD-19); anyone but an assigned Student finds nothing.
+ * STU-4's "Ký và xác nhận" and "Từ chối" (FR-75): a Crew member's commands, which need an unlocked account
+ * (AD-19); signing needs a linked GitHub account too (FR-80), since the Crew member is granted on the Working
+ * Repository by it. Anyone but an assigned Student finds nothing.
  */
 @RestController
 @Access(Gate.SIGNED_IN)
@@ -43,7 +45,10 @@ class CrewNdaController {
 
 	private final CurrentCaller callers;
 
-	CrewNdaController(CrewSignatures signatures, Crews crews, CurrentCaller callers) {
+	private final GitHubGate gitHub;
+
+	CrewNdaController(CrewSignatures signatures, Crews crews, CurrentCaller callers, GitHubGate gitHub) {
+		this.gitHub = gitHub;
 		this.signatures = signatures;
 		this.crews = crews;
 		this.callers = callers;
@@ -52,7 +57,9 @@ class CrewNdaController {
 	@PostMapping("/api/v1/crew/jobs/{jobId}/confirm")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void confirmCrewTerms(@PathVariable UUID jobId, @Valid @RequestBody CrewConfirmRequest body) {
-		this.signatures.confirm(student(), jobId, body.crewTermsVersionNo(), body.ndaVersion(), body.publicCodeAcknowledged(),
+		UUID student = student();
+		this.gitHub.requireGitHubLinked(student);
+		this.signatures.confirm(student, jobId, body.crewTermsVersionNo(), body.ndaVersion(), body.publicCodeAcknowledged(),
 				body.commitEmailNoticeAcknowledged());
 	}
 

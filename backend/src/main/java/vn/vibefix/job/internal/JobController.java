@@ -32,6 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import vn.vibefix.files.PreparedFile;
+import vn.vibefix.identity.GitHubGate;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.job.JobSelection;
 import vn.vibefix.job.internal.JobLifecycle.Actor;
@@ -127,8 +128,11 @@ class JobController {
 
 	private final Clock clock;
 
+	private final GitHubGate gitHub;
+
 	JobController(Jobs jobs, JobLifecycle lifecycle, ProductDirectory products, MentorDirectory mentors,
-			Agreements agreements, CurrentCaller callers, Clock clock) {
+			Agreements agreements, CurrentCaller callers, Clock clock, GitHubGate gitHub) {
+		this.gitHub = gitHub;
 		this.jobs = jobs;
 		this.agreements = agreements;
 		this.lifecycle = lifecycle;
@@ -172,9 +176,10 @@ class JobController {
 		return view(this.jobs.find(customer, jobId).orElseThrow());
 	}
 
-	/** CUS-6 "Đăng tin", after N-3: J1 makes the Draft an Open Job Post (FR-9). */
+	/** CUS-6 "Đăng tin", after N-3: J1 makes the Draft an Open Job Post (FR-9); GitHub must be linked (FR-80). */
 	@PostMapping("/{jobId}/publish")
 	JobView publish(@PathVariable UUID jobId) {
+		this.gitHub.requireGitHubLinked(customer());
 		return transition(jobId, Transition.J1);
 	}
 

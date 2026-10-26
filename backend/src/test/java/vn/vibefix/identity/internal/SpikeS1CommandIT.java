@@ -28,7 +28,7 @@ import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
 
 /**
- * Story 1.14's probe (S1, AD-13): it reads each repository with the Customer's stored sign-in token
+ * Story 1.14's probe (S1, AD-13): it reads each repository with the Customer's kept GitHub token
  * and prints what GitHub says about admin permission, never the token, and only on the dev stack.
  */
 class SpikeS1CommandIT extends IntegrationTest {

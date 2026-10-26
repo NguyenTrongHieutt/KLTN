@@ -35,7 +35,7 @@ class PersonSignalsIT extends IntegrationTest {
 	private PersonSignals publicSignals;
 
 	@Autowired
-	private SignIns signIns;
+	private GitHubLinksImpl links;
 
 	@Autowired
 	private IdentityPersonalData personalData;
@@ -93,15 +93,15 @@ class PersonSignalsIT extends IntegrationTest {
 	}
 
 	@Test
-	void everyVerifiedGitHubEmailIsASignalAtSignIn() {
+	void everyVerifiedGitHubEmailIsASignalAtLinking() {
 		UUID mentor = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null, null);
 		long githubId = this.jdbc.sql("SELECT github_user_id FROM identity.account WHERE id = :id")
 			.param("id", mentor)
 			.query(Long.class)
 			.single();
 
-		this.signIns.signIn(githubId, "hung-dev", null, "hung@example.test",
-				List.of("hung@example.test", "hung@work.example.test"), null);
+		this.links.link(mentor, new GitHubLinkReader.LinkedUser(githubId, "hung-dev", null, "hung@example.test",
+				List.of("hung@example.test", "hung@work.example.test")), GitHubLinksImpl.Purpose.PROFILE, null);
 
 		assertThat(this.jdbc.sql("SELECT count(*) FROM identity.person_signal WHERE account_id = :id AND source = 'GITHUB_EMAIL'")
 			.param("id", mentor)

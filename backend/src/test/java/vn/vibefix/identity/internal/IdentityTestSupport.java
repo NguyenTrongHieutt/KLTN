@@ -39,7 +39,8 @@ public final class IdentityTestSupport {
 	}
 
 	/**
-	 * Inserts an account and returns its ID.
+	 * Inserts an account and returns its ID. A person's account carries a linked GitHub account
+	 * ({@code user-{id}}), as the accounts from before Google sign-in did.
 	 * @param mentorStatus for a Mentor, its approval status (defaults to {@code APPROVED})
 	 * @param lockReason a reason to lock it, or {@code null}
 	 */
@@ -51,14 +52,15 @@ public final class IdentityTestSupport {
 				? (mentorStatus == null ? MentorApprovalStatus.APPROVED : mentorStatus) : null;
 		Timestamp now = Timestamp.from(MutableClock.DEFAULT_INSTANT);
 		jdbc.sql("""
-				INSERT INTO identity.account (id, kind, github_user_id, github_login, role, mentor_approval_status,
-				    locked_at, lock_reason, created_at)
-				VALUES (:id, :kind, :githubId, :login, :role, :status, :lockedAt, :lockReason, :now)
+				INSERT INTO identity.account (id, kind, github_user_id, github_login, github_linked_at, role,
+				    mentor_approval_status, locked_at, lock_reason, created_at)
+				VALUES (:id, :kind, :githubId, :login, :linkedAt, :role, :status, :lockedAt, :lockReason, :now)
 				""")
 			.param("id", id)
 			.param("kind", role == Role.ADMINISTRATOR ? "ADMINISTRATOR" : "USER")
 			.param("githubId", githubId)
 			.param("login", githubId == null ? null : "user-" + githubId)
+			.param("linkedAt", githubId == null ? null : now)
 			.param("role", role.name())
 			.param("status", status == null ? null : status.name())
 			.param("lockedAt", lockReason == null ? null : now)

@@ -48,6 +48,17 @@ class SignInGuardsTest {
 	}
 
 	@Test
+	void theRateLimitCoversTheGitHubLinkCallback() {
+		SignInRateLimiter limiter = new SignInRateLimiter(new MutableClock(Instant.EPOCH), 3);
+
+		assertThat(limiter.shouldNotFilter(new MockHttpServletRequest("GET", GitHubSignIn.CALLBACK_PATH))).isFalse();
+		for (int attempt = 0; attempt < 3; attempt++) {
+			assertThat(limiter.allow("10.0.0.9", 0)).isTrue();
+		}
+		assertThat(limiter.allow("10.0.0.9", 0)).as("the fourth link return in a minute").isFalse();
+	}
+
+	@Test
 	void onlyAPlainRelativePathIsKeptAsTheReturnRoute() {
 		assertThat(SignInStartFilter.safeReturnPath("/viec-can-lam")).isEqualTo("/viec-can-lam");
 		assertThat(SignInStartFilter.safeReturnPath("/cong-viec/abc?tab=2")).isEqualTo("/cong-viec/abc?tab=2");

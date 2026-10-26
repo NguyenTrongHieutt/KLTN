@@ -1,6 +1,7 @@
 package vn.vibefix.identity.internal;
 
 import java.io.Serializable;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -32,6 +33,9 @@ final class SignInSession {
 	/** Where to go after a sign-in, a relative path the SPA asked for with {@code quay-lai}. */
 	static final String RETURN_TO = SignInSession.class.getName() + ".returnTo";
 
+	/** A GitHub link started from this session and not returned yet (Story 19.2); used once. */
+	static final String PENDING_LINK = SignInSession.class.getName() + ".pendingLink";
+
 	private SignInSession() {
 	}
 
@@ -45,10 +49,28 @@ final class SignInSession {
 	record Locked(String reason) implements Serializable {
 	}
 
-	/** Forgets every sign-in state, before a new one is set. */
+	/**
+	 * A GitHub link on its way to GitHub (AD-10, RFC 7636): the {@code state} it must come back with, the
+	 * PKCE verifier its code is exchanged with, what it is for, where to return, and who started it when.
+	 * The verifier is a secret of the session, never logged or returned, and gone once the link returns.
+	 * @param redirectUri the callback the authorization request named, which the exchange names again
+	 * @param returnTo a relative path inside the SPA, or {@code null} for ACC-2
+	 */
+	record PendingLink(UUID accountId, String state, String codeVerifier, GitHubLinksImpl.Purpose purpose,
+			String redirectUri, @Nullable String returnTo, Instant startedAt) implements Serializable {
+
+		@Override
+		public String toString() {
+			return "PendingLink[accountId=" + this.accountId + ", purpose=" + this.purpose + "]";
+		}
+
+	}
+
+	/** Forgets every sign-in state, and a GitHub link started by the session's earlier account, before a new one is set. */
 	static void clear(HttpSession session) {
 		session.removeAttribute(PENDING_WELCOME);
 		session.removeAttribute(LOCKED);
+		session.removeAttribute(PENDING_LINK);
 	}
 
 	/**

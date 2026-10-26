@@ -17,6 +17,8 @@ import vn.vibefix.audit.AuditActor;
 import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
+import vn.vibefix.identity.GitHubLinkBlocker;
+import vn.vibefix.identity.GitHubLinkParticipant;
 import vn.vibefix.product.ProductDeleted;
 import vn.vibefix.shared.ErasureBlocker;
 import vn.vibefix.shared.IdGenerator;
@@ -29,10 +31,13 @@ import vn.vibefix.shared.PersonalDataSection;
  * acknowledgments. Erasure deletes them as a Product deletion does (Story 16.2): every participant's data for
  * each, audited as the System, and {@link ProductDeleted} published, so {@code repo} deletes their platform
  * repositories (FR-21); {@code job} blocks the erasure first while a Job runs.
+ * <p>
+ * It also answers for the GitHub link (FR-80, R14, AD-10): a live Product keeps its Customer's link, and
+ * the token its Source Repository is read with.
  */
 @Component
 @EnableConfigurationProperties(Products.ProductProperties.class)
-class ProductPersonalData implements PersonalDataParticipant {
+class ProductPersonalData implements PersonalDataParticipant, GitHubLinkParticipant {
 
 	private final JdbcClient jdbc;
 
@@ -106,6 +111,27 @@ class ProductPersonalData implements PersonalDataParticipant {
 	@Override
 	public List<ErasureBlocker> erasureBlockers(UUID accountId) {
 		return List.of();
+	}
+
+	/** Each live Product of the account: its Source Repository is known by the linked GitHub account. */
+	@Override
+	public List<GitHubLinkBlocker> githubLinkBlockers(UUID accountId) {
+		return this.jdbc.sql("""
+				SELECT id, name FROM product.product WHERE customer_account_id = :id AND deleted_at IS NULL
+				ORDER BY created_at, id
+				""")
+			.param("id", accountId)
+			.query((rs, n) -> new GitHubLinkBlocker("product", "LIVE_PRODUCT", rs.getObject("id", UUID.class),
+					rs.getString("name")))
+			.list();
+	}
+
+	/** The owner of a live Product: AD-13's re-checks read its Source Repository with the token. */
+	@Override
+	public boolean keepsRepositoryToken(UUID accountId) {
+		return this.jdbc.sql("""
+				SELECT EXISTS (SELECT 1 FROM product.product WHERE customer_account_id = :id AND deleted_at IS NULL)
+				""").param("id", accountId).query(Boolean.class).single();
 	}
 
 }

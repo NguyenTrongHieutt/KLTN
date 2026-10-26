@@ -2,9 +2,7 @@ package vn.vibefix.identity.internal;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
@@ -28,7 +26,7 @@ import vn.vibefix.shared.Role;
 /**
  * The account side of signing in (AD-19, FR-1). One account per person, keyed by Google's subject,
  * with no role: the first Google sign-in creates it and the welcome (PUB-3) records the personal-data
- * notice N-10. The GitHub path below no longer signs anyone in; Story 19.2 turns it into linking.
+ * notice N-10. GitHub signs nobody in: a signed-in account links it ({@link GitHubLinksImpl}).
  */
 @Component
 class SignIns {
@@ -39,7 +37,7 @@ class SignIns {
 
 	static final String VERIFY_STUDENT = "identity.verify_student";
 
-	/** Opened by the welcome and open until GitHub is linked (UX-DR89, UX-DR112); ACC-2 comes in Story 19.2. */
+	/** Opened by the welcome and open until GitHub is linked (UX-DR89, UX-DR112); it leads to ACC-2. */
 	static final String LINK_GITHUB = "identity.link_github";
 
 	static final String LINK_GITHUB_PATH = "/ho-so/xac-minh";
@@ -57,15 +55,9 @@ class SignIns {
 		record NeedsWelcome(PendingWelcome pending) implements Outcome {
 		}
 
-		/** No account holds this GitHub ID: GitHub no longer creates accounts (Story 19.2 links it). */
-		record NotLinked() implements Outcome {
-		}
-
 	}
 
 	private final Accounts accounts;
-
-	private final TokenCipher cipher;
 
 	private final AuditLog auditLog;
 
@@ -77,18 +69,14 @@ class SignIns {
 
 	private final JdbcPersonSignals signals;
 
-	private final TokenRenewals renewals;
-
 	private final IdentityProperties properties;
 
-	SignIns(Accounts accounts, TokenCipher cipher, AuditLog auditLog, IdGenerator ids, Clock clock, Todos todos,
-			JdbcPersonSignals signals, TokenRenewals renewals, IdentityProperties properties) {
+	SignIns(Accounts accounts, AuditLog auditLog, IdGenerator ids, Clock clock, Todos todos, JdbcPersonSignals signals,
+			IdentityProperties properties) {
 		this.properties = properties;
-		this.renewals = renewals;
 		this.signals = signals;
 		this.accounts = accounts;
 		this.todos = todos;
-		this.cipher = cipher;
 		this.auditLog = auditLog;
 		this.ids = ids;
 		this.clock = clock;
@@ -152,39 +140,6 @@ class SignIns {
 		this.auditLog.record(AuditEntry.of(AuditActor.user(accountId), "identity.signed_in",
 				AuditObject.of("identity.account", accountId)));
 		return account;
-	}
-
-	/**
-	 * Completes a GitHub sign-in for the user GitHub returned. Nothing calls it since Story 19.1, and
-	 * an unknown GitHub ID creates nothing; Story 19.2 turns it into linking.
-	 * @param githubEmail the primary verified email GitHub gave, or {@code null} when it gave none or
-	 * did not answer: the address on file then stays
-	 * @param verifiedEmails every verified email GitHub gave, each a person-link signal (AD-19)
-	 */
-	@Transactional
-	Outcome signIn(long githubUserId, String githubLogin, @Nullable String githubAvatarUrl, @Nullable String githubEmail,
-			List<String> verifiedEmails, @Nullable String token) {
-		Optional<Account> existing = this.accounts.findByGitHubUserId(githubUserId);
-		if (existing.isEmpty()) {
-			return new Outcome.NotLinked();
-		}
-		Account account = existing.get();
-		if (account.isLocked()) {
-			return new Outcome.Locked(account.lockReason() == null ? "" : account.lockReason());
-		}
-		Instant now = this.clock.instant();
-		this.accounts.recordSignIn(account.id(), githubLogin, githubAvatarUrl, now);
-		if (githubEmail != null) {
-			this.accounts.recordGitHubEmail(account.id(), githubEmail);
-		}
-		verifiedEmails.forEach(email -> this.signals.record(account.id(), JdbcPersonSignals.Source.GITHUB_EMAIL, email));
-		if (account.role() == Role.CUSTOMER && token != null) {
-			this.accounts.storeCustomerToken(account.id(), this.cipher.seal(token, account.id().toString()), now);
-			this.renewals.renewed(account.id());
-		}
-		this.auditLog.record(AuditEntry.of(AuditActor.user(account.id()), "identity.signed_in",
-				AuditObject.of("identity.account", account.id())));
-		return new Outcome.SignedIn(this.accounts.findById(account.id()).orElseThrow());
 	}
 
 	/**

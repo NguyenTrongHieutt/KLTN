@@ -68,10 +68,12 @@ class GrantRevokeOperation implements OperationHandler {
 		}
 		try {
 			PlatformRepositories repositories = this.repositories.getObject();
-			repositories.removeCollaborator(grant.repository(), grant.login());
-			repositories.removeInvitation(grant.repository(), grant.login());
-			if (repositories.collaborator(grant.repository(), grant.login()) || repositories.pendingInvitees(grant.repository())
-				.contains(grant.login().toLowerCase(Locale.ROOT))) {
+			// AD-10 "Logins by ID": the login GitHub uses now; a GitHub account that is gone keeps the last one.
+			String login = this.grants.getObject().currentLogin(grant, repositories).orElse(grant.login());
+			repositories.removeCollaborator(grant.repository(), login);
+			repositories.removeInvitation(grant.repository(), login);
+			if (repositories.collaborator(grant.repository(), login) || repositories.pendingInvitees(grant.repository())
+				.contains(login.toLowerCase(Locale.ROOT))) {
 				return new Outcome.Deferred(this.clock.instant().plus(RETRY));
 			}
 		}

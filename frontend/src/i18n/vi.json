@@ -24,7 +24,8 @@
     "GUARD_FAILED": "Chưa thể {action}: {reason}.",
     "RATE_LIMITED": "Bạn thao tác hơi nhanh. Hãy thử lại sau {time}.",
     "UNAUTHENTICATED": "Phiên đăng nhập đã hết.",
-    "CONFLICT": "Không thể làm việc này vì dữ liệu đã thay đổi."
+    "CONFLICT": "Không thể làm việc này vì dữ liệu đã thay đổi.",
+    "githubLink": "Liên kết GitHub"
   },
   "shell": {
     "title": "{screen} · vibefix",
@@ -47,15 +48,61 @@
     "myData": "Dữ liệu của tôi"
   },
   "screen": {
-    "linkGitHub": {
-      "title": "Liên kết GitHub",
-      "body": "Việc liên kết tài khoản GitHub sẽ có trong phiên bản tiếp theo của vibefix."
+    "verification": {
+      "title": "Xác minh",
+      "heading": "Hồ sơ và xác minh",
+      "lead": "Những gì được xác minh do nơi xác minh cung cấp, và bạn không sửa được.",
+      "loading": "Đang tải phần xác minh…",
+      "github": {
+        "name": "GitHub",
+        "required": "Bắt buộc",
+        "why": "Bắt buộc để đăng sản phẩm, chào giá hoặc xin vào nhóm.",
+        "notLinked": "Chưa liên kết",
+        "linked": "Đã liên kết",
+        "relink": "Cần liên kết lại",
+        "verifiedLine": "@{login} · Xác minh qua GitHub · {month}",
+        "linkExpired": "vibefix không còn đọc được GitHub của bạn. Hãy liên kết lại.",
+        "relinkSafe": "Bạn không mất dữ liệu nào. vibefix chỉ đọc thông tin của kho mã, không thay đổi gì trên GitHub.",
+        "link": "Liên kết GitHub ↗ (github.com)",
+        "relinkButton": "Liên kết lại GitHub ↗ (github.com)",
+        "unlink": "Bỏ liên kết",
+        "changeBlocked": "Bạn chưa bỏ liên kết GitHub được khi bạn đang có sản phẩm, có đơn chào giá đang mở, hoặc giữ một vai trong công việc chưa đóng hay chưa hủy. Liên kết lại phải dùng đúng tài khoản GitHub đã liên kết.",
+        "blockersHeading": "Đang giữ liên kết:",
+        "blocker": {
+          "LIVE_PRODUCT": "Sản phẩm {name}",
+          "JOB_ROLE": "Công việc {name}",
+          "OPEN_BID": "Đơn chào giá cho {name}"
+        },
+        "blockerUnnamed": {
+          "LIVE_PRODUCT": "Một sản phẩm của bạn",
+          "JOB_ROLE": "Một công việc chưa đóng hay chưa hủy",
+          "OPEN_BID": "Một đơn chào giá đang mở"
+        },
+        "unlinkTitle": "Bỏ liên kết GitHub?",
+        "unlinkBody": "Tên tài khoản GitHub được gỡ khỏi hồ sơ của bạn ngay, và quyền chỉ đọc vibefix đang giữ (nếu có) được thu hồi trên GitHub. Những việc cần GitHub, như đăng sản phẩm, chào giá hay xin vào nhóm, sẽ đóng lại cho đến khi bạn liên kết lại. Dấu mã hóa dùng để chống gian lận vẫn được giữ, như thông báo khi liên kết đã nói.",
+        "unlinkConfirm": "Bỏ liên kết",
+        "unlinking": "Đang bỏ liên kết…",
+        "unlinked": "Đã bỏ liên kết GitHub.",
+        "opening": "Đang mở GitHub…",
+        "result": {
+          "da-lien-ket": "Đã liên kết GitHub."
+        },
+        "error": {
+          "da-lien-ket-tai-khoan-khac": "Tài khoản GitHub này đã liên kết với một tài khoản vibefix khác. Mỗi tài khoản GitHub chỉ liên kết với một tài khoản vibefix.",
+          "sai-tai-khoan": "Đây không phải tài khoản GitHub bạn đã liên kết. Hãy đăng nhập GitHub đúng tài khoản đó rồi liên kết lại. Muốn dùng tài khoản GitHub khác, hãy bỏ liên kết trước.",
+          "that-bai": "Chưa liên kết được GitHub. Hãy thử lại."
+        }
+      }
     },
-    "signInAgain": {
-      "title": "Đăng nhập lại bằng GitHub",
-      "body": "vibefix không đọc được kho mã của bạn trên GitHub nữa, nên chưa kiểm tra được người ứng tuyển hay bắt đầu công việc của bạn. Hãy đăng nhập lại để vibefix kiểm tra lại.",
-      "safe": "Bạn không mất dữ liệu nào. vibefix chỉ đọc thông tin của kho mã, không thay đổi gì trên GitHub.",
-      "button": "Đăng nhập lại bằng GitHub"
+    "githubGate": {
+      "heading": "Liên kết GitHub để {action}",
+      "relinkHeading": "Liên kết lại GitHub để {action}",
+      "why": "vibefix dùng tài khoản GitHub để cấp quyền vào kho mã và nhận ra các thao tác của bạn trên GitHub.",
+      "relinkWhy": "vibefix cần quyền chỉ đọc kho mã của bạn trên GitHub để kiểm tra dự án gốc. Bạn không mất dữ liệu nào.",
+      "kept": "Những gì bạn đã nhập được giữ lại. Sau khi liên kết, bạn quay về đúng bước này.",
+      "action": {
+        "registerProduct": "đăng ký sản phẩm"
+      }
     },
     "public": {
       "landing": {
@@ -1903,7 +1950,7 @@
         "blockedINTAKE_FINDING_OPEN": "Còn {n} vấn đề bảo mật chưa xử lý ở dự án gốc. Hãy xử lý rồi bấm Thử lại.",
         "blockedSOURCE_NOT_PUBLIC": "Dự án gốc không còn công khai. Hãy để kho mã ở chế độ công khai rồi bấm Thử lại.",
         "blockedNO_ADMIN_PERMISSION": "Tài khoản GitHub của bạn không còn quyền quản trị dự án gốc. Hãy lấy lại quyền rồi bấm Thử lại.",
-        "blockedSIGN_IN_AGAIN": "vibefix cần bạn đăng nhập lại bằng GitHub để kiểm tra dự án gốc. Hãy đăng nhập lại rồi bấm Thử lại.",
+        "blockedRELINK_GITHUB": "vibefix cần bạn liên kết lại GitHub để kiểm tra dự án gốc. Hãy liên kết lại trong mục Xác minh rồi bấm Thử lại.",
         "blockedOther": "Đang chờ khách hàng xử lý ở dự án gốc.",
         "failed": "Chưa tạo được kho mã. Quản trị viên đã được báo; bạn chưa cần làm gì.",
         "retry": "Thử lại"
@@ -3735,6 +3782,18 @@
       "rights": "Xem, tải về và yêu cầu xóa dữ liệu của bạn trong mục \"Dữ liệu của tôi\".",
       "changes": "Khi thông báo thay đổi, phiên bản mới có số mới và bạn được hỏi lại trước khi tiếp tục."
     },
+    "github": {
+      "version": "1.0",
+      "versionLine": "Lưu ý khi liên kết GitHub · phiên bản {version}",
+      "title": "Trước khi liên kết GitHub",
+      "body": "vibefix sẽ nhận từ GitHub tên tài khoản và mã số tài khoản của bạn, để cấp quyền vào kho mã và nhận ra các thao tác của bạn trên GitHub. Tên tài khoản GitHub hiện trên hồ sơ công khai và cho khách hàng của công việc bạn tham gia. Một tài khoản GitHub chỉ liên kết với một tài khoản vibefix. Bạn không bỏ liên kết được khi bạn đang có sản phẩm, có đơn chào giá đang mở, hoặc giữ một vai trong công việc chưa đóng hay chưa hủy. Liên kết lại phải dùng đúng tài khoản GitHub đã liên kết.",
+      "emails": "vibefix cũng đọc các email bạn đã xác minh trên GitHub và chỉ giữ dấu mã hóa của chúng, để nhận ra hai tài khoản của cùng một người.",
+      "repository": "Khi bạn đăng ký sản phẩm, vibefix giữ quyền chỉ đọc mà GitHub cấp, đã mã hóa, để kiểm tra lại dự án gốc. Quyền nào vibefix không còn giữ đều được thu hồi trên GitHub: quyền của một lần liên kết không cần giữ, quyền cũ khi bạn liên kết lại, quyền khi bạn không còn sản phẩm nào hoặc bỏ liên kết, và quyền giữ cho một lần đăng ký chưa xong sau 24 giờ.",
+      "revokeYourself": "Bạn cũng có thể gỡ vibefix bất cứ lúc nào trong GitHub, ở mục Settings › Applications.",
+      "button": "Liên kết GitHub ↗ (github.com)",
+      "relinkButton": "Liên kết lại GitHub ↗ (github.com)",
+      "cancel": "Để sau"
+    },
     "product": {
       "version": "1.0",
       "versionLine": "Lưu ý khi đăng ký sản phẩm · phiên bản {version} · 19/10/2026",
@@ -4145,7 +4204,7 @@
       "link_github": "Liên kết tài khoản GitHub",
       "complete_mentor_application": "Hoàn thành hồ sơ người hướng dẫn",
       "verify_student": "Xác minh là sinh viên để vào nhóm của người hướng dẫn",
-      "sign_in_again": "Đăng nhập lại bằng GitHub để vibefix kiểm tra được kho mã của bạn"
+      "relink_github": "Liên kết lại GitHub để vibefix kiểm tra được kho mã của bạn"
     },
     "scanning": {
       "resolve_intake_finding": "Xử lý vấn đề bảo mật ở {product}",
@@ -4262,8 +4321,8 @@
       "verification_expiring": {
         "title": "Xác minh sinh viên hết hạn ngày {date}"
       },
-      "sign_in_again": {
-        "title": "Hãy đăng nhập lại vibefix bằng GitHub"
+      "relink_github": {
+        "title": "Hãy liên kết lại GitHub để vibefix kiểm tra được kho mã của bạn"
       },
       "verification_expired": {
         "title": "Xác minh sinh viên đã hết hạn"
@@ -4702,7 +4761,10 @@
       "NOT_APPROVED": "Người hướng dẫn này không ở trạng thái đã duyệt.",
       "ALREADY_REQUESTED": "Bạn đã gửi yêu cầu xóa tài khoản.",
       "NO_DELETION_REQUEST": "Người dùng chưa gửi yêu cầu xóa tài khoản.",
-      "ERASURE_BLOCKED": "Chưa xóa được vì người dùng còn công việc đang chạy, tranh chấp hoặc khiếu nại nội bộ chưa xong."
+      "ERASURE_BLOCKED": "Chưa xóa được vì người dùng còn công việc đang chạy, tranh chấp hoặc khiếu nại nội bộ chưa xong.",
+      "GITHUB_NOT_LINKED": "Hãy liên kết GitHub trước.",
+      "GITHUB_LINK_IN_USE": "Bạn chưa bỏ liên kết GitHub được khi bạn đang có sản phẩm, có đơn chào giá đang mở, hoặc giữ một vai trong công việc chưa đóng hay chưa hủy. Liên kết lại phải dùng đúng tài khoản GitHub đã liên kết.",
+      "GITHUB_NOT_SET_UP": "Môi trường này chưa thiết lập việc liên kết GitHub."
     },
     "files": {
       "FILE_TOO_LARGE": "Tệp lớn hơn 10 MB.",
@@ -4748,7 +4810,8 @@
       "REPO_TOO_LARGE": "Kho mã lớn hơn giới hạn 250 MB.",
       "GITHUB_UNAVAILABLE": "Chưa đọc được kho mã từ GitHub. Hãy thử lại sau ít phút.",
       "NOTICE_REQUIRED": "Hãy đánh dấu đủ 3 lưu ý trước khi bắt đầu.",
-      "PRODUCT_LIMIT": "Bạn đã đăng ký đủ 5 sản phẩm hôm nay. Hãy đăng ký tiếp vào ngày mai."
+      "PRODUCT_LIMIT": "Bạn đã đăng ký đủ 5 sản phẩm hôm nay. Hãy đăng ký tiếp vào ngày mai.",
+      "RELINK_GITHUB": "vibefix chưa đọc được kho mã của bạn trên GitHub. Hãy liên kết lại GitHub để kiểm tra."
     },
     "job": {
       "ASSESSMENT_ALONE": "Công việc đánh giá không đi cùng loại công việc khác.",
@@ -4910,7 +4973,7 @@
       "MERGE_APP_WRONG_REPOSITORY": "Ứng dụng hợp nhất chỉ được cài cho đúng dự án gốc. Hãy chọn lại.",
       "FINAL_MERGE_NOT_READY": "Mã chưa được kiểm tra xong để hợp nhất. Hãy tải lại trang rồi thử lại.",
       "FINAL_MERGE_CONFIRMED": "Bạn đã xác nhận hợp nhất, nên không còn chọn nhận mã dạng ZIP được.",
-      "SIGN_IN_AGAIN": "Hãy đăng nhập lại bằng GitHub để vibefix kiểm tra dự án gốc.",
+      "RELINK_GITHUB": "Hãy liên kết lại GitHub để vibefix kiểm tra dự án gốc.",
       "JOB_NOT_ENDED": "Bạn xác nhận được sau khi công việc bắt đầu kết thúc.",
       "NOT_A_DUTY": "Chỉ người hướng dẫn và nhóm thực hiện xác nhận việc này."
     },

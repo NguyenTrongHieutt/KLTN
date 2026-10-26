@@ -5,7 +5,7 @@ import java.util.UUID;
 
 import org.springframework.context.ApplicationContext;
 
-/** Keeps a Customer's sign-in token as sign-in does, for tests outside {@code identity}. */
+/** Keeps a Customer's GitHub token as linking does, for tests outside {@code identity}: the kept GitHub token. */
 public final class CustomerTokens {
 
 	private CustomerTokens() {

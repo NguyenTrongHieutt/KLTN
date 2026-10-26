@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import vn.vibefix.github.GitHubRepositories.RepositoryMetadata;
+import vn.vibefix.identity.GitHubGate;
 import vn.vibefix.product.internal.CleanRepositories.Replacement;
 import vn.vibefix.product.internal.Products.Product;
 import vn.vibefix.product.internal.Products.Registration;
@@ -189,8 +190,11 @@ class ProductController {
 
 	private final CurrentCaller callers;
 
+	private final GitHubGate gitHub;
+
 	ProductController(Products products, RepositoryChecks checks, Scans scans, CleanRepositories cleanRepositories,
-			Rescans rescans, SkillSuggestions skillSuggestions, CurrentCaller callers) {
+			Rescans rescans, SkillSuggestions skillSuggestions, CurrentCaller callers, GitHubGate gitHub) {
+		this.gitHub = gitHub;
 		this.products = products;
 		this.checks = checks;
 		this.scans = scans;
@@ -211,17 +215,24 @@ class ProductController {
 			.toList();
 	}
 
-	/** CUS-3 step 2: every repository check, read with the Customer's own GitHub sign-in. */
+	/**
+	 * CUS-3 step 2: every repository check, read with the Customer's own GitHub token; GitHub must be linked
+	 * (FR-80, the UX-DR95 gate).
+	 */
 	@PostMapping("/repository-check")
 	RepositoryCheckView check(@Valid @RequestBody RepositoryCheckRequest body) {
-		return RepositoryCheckView.of(this.checks.check(customer(), body.url()));
+		UUID customer = customer();
+		this.gitHub.requireGitHubLinked(customer);
+		return RepositoryCheckView.of(this.checks.check(customer, body.url()));
 	}
 
-	/** CUS-3 step 4: "Bắt đầu kiểm tra". */
+	/** CUS-3 step 4: "Bắt đầu kiểm tra"; GitHub must be linked (FR-80). */
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	ProductCreatedView register(@Valid @RequestBody ProductRegistrationRequest body) {
-		return new ProductCreatedView(this.products.register(customer(),
+		UUID customer = customer();
+		this.gitHub.requireGitHubLinked(customer);
+		return new ProductCreatedView(this.products.register(customer,
 				new Registration(body.repositoryUrl(), body.tools(), body.name(), body.description(), body.demoUrl(),
 						body.publicNoticeVersion(), body.copyPermissionVersion(), body.detectionNoticeVersion())));
 	}

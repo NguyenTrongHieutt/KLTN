@@ -112,12 +112,12 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType SCHOOL_EMAIL_CODE = new NotificationType("identity.school_email_code",
 			Set.of(Audience.SUBJECT), Channel.EMAIL_ONLY, EmailClass.ONE_TIME_CODE, "mail", Set.of("code"));
 
-	/** The Customer's kept GitHub token is gone or refused (FR-13): they sign in again for Applications. */
-	static final NotificationType IDENTITY_SIGN_IN_AGAIN = new NotificationType("identity.sign_in_again",
+	/** A live Product's owner's kept GitHub token is gone or refused (FR-13, AD-10): they re-link GitHub. */
+	static final NotificationType IDENTITY_RELINK_GITHUB = new NotificationType("identity.relink_github",
 			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of());
 
-	/** The Customer signs in again so the contributor check can run (FR-13): until a new token is kept. */
-	static final TodoType IDENTITY_SIGN_IN_AGAIN_TODO = new TodoType("identity.sign_in_again", Set.of(Audience.SUBJECT), 1,
+	/** The owner re-links GitHub so the AD-13 re-checks can run (FR-13, AD-10, UX-DR91): until GitHub is linked again. */
+	static final TodoType IDENTITY_RELINK_GITHUB_TODO = new TodoType("identity.relink_github", Set.of(Audience.SUBJECT), 1,
 			Set.of());
 
 	/** 14 days before a Student's verification expires (FR-5, UX-DR16): a reminder, with the last valid day. */
@@ -813,7 +813,7 @@ class NotificationTypes implements NotificationCatalog {
 
 	@Override
 	public List<NotificationType> notificationTypes() {
-		return List.of(SCHOOL_EMAIL_CODE, VERIFICATION_EXPIRING, VERIFICATION_EXPIRED, IDENTITY_SIGN_IN_AGAIN, ADMIN_SIGN_IN_LOCKED,
+		return List.of(SCHOOL_EMAIL_CODE, VERIFICATION_EXPIRING, VERIFICATION_EXPIRED, IDENTITY_RELINK_GITHUB, ADMIN_SIGN_IN_LOCKED,
 				OPERATIONS_OPERATION_FAILED, OPERATIONS_EMAIL_OPERATION_FAILED, OPERATIONS_EVENT_PUBLICATION_STALLED,
 				OPERATIONS_BUSY_MARKER_STUCK,
 				NOTIFICATION_EMAIL_BUDGET_80, GITHUB_APP_CONFIGURATION_DRIFT, REPO_JOB_START_BLOCKED, JOB_JOB_STARTED,
@@ -855,7 +855,7 @@ class NotificationTypes implements NotificationCatalog {
 
 	@Override
 	public List<TodoType> todoTypes() {
-		return List.of(IDENTITY_LINK_GITHUB, COMPLETE_MENTOR_APPLICATION, VERIFY_STUDENT, IDENTITY_SIGN_IN_AGAIN_TODO,
+		return List.of(IDENTITY_LINK_GITHUB, COMPLETE_MENTOR_APPLICATION, VERIFY_STUDENT, IDENTITY_RELINK_GITHUB_TODO,
 				SCANNING_RESOLVE_INTAKE_FINDING,
 				REPO_ACCEPT_GITHUB_INVITATION, SCANNING_RESOLVE_WORK_FINDING, REPO_RECONFIRM_SOURCE, REPO_AUTHORIZE_FINAL_MERGE,
 				REPO_REVOCATION_ITEM,

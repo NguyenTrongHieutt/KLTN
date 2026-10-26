@@ -106,6 +106,29 @@ POST /api/v1/notifications/read-all,STUDENT,,,204
 POST /api/v1/notifications/read-all,ADMINISTRATOR,,,204
 POST /api/v1/notifications/read-all,SUBJECT,,,204
 
+# ACC-2's GitHub row (identity, FR-80, Story 19.2): a person's own; an Administrator finds nothing. The matrix
+# accounts predate Google sign-in: GitHub is linked and is their only way in, and none accepted N-10, so the
+# start refuses before GitHub (FORBIDDEN PRIVACY_NOTICE_REQUIRED) and the unlink keeps them (CONFLICT). The
+# owner of the fixture's live Product cannot unlink (GITHUB_LINK_IN_USE).
+GET /api/v1/identity/github,ANONYMOUS,,,401
+GET /api/v1/identity/github,CUSTOMER,,,200
+GET /api/v1/identity/github,OWNER,,,200
+GET /api/v1/identity/github,MENTOR,,,200
+GET /api/v1/identity/github,STUDENT,,,200
+GET /api/v1/identity/github,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/identity/github,CUSTOMER,locked=true,,401
+POST /api/v1/identity/github/link,ANONYMOUS,,identity-github-link.json,401
+POST /api/v1/identity/github/link,CUSTOMER,,identity-github-link.json,403 FORBIDDEN PRIVACY_NOTICE_REQUIRED
+POST /api/v1/identity/github/link,MENTOR,,identity-github-link.json,403 FORBIDDEN PRIVACY_NOTICE_REQUIRED
+POST /api/v1/identity/github/link,STUDENT,,identity-github-link.json,403 FORBIDDEN PRIVACY_NOTICE_REQUIRED
+POST /api/v1/identity/github/link,ADMINISTRATOR,,identity-github-link.json,404 NOT_FOUND
+POST /api/v1/identity/github/link,CUSTOMER,locked=true,identity-github-link.json,401
+DELETE /api/v1/identity/github,ANONYMOUS,,,401
+DELETE /api/v1/identity/github,CUSTOMER,,,409 CONFLICT
+DELETE /api/v1/identity/github,OWNER,,,422 GUARD_FAILED GITHUB_LINK_IN_USE
+DELETE /api/v1/identity/github,MENTOR,,,409 CONFLICT
+DELETE /api/v1/identity/github,STUDENT,,,409 CONFLICT
+DELETE /api/v1/identity/github,ADMINISTRATOR,,,404 NOT_FOUND
 # Profiles and the theme (identity): signed in, each account its own; the wrong role finds no profile.
 GET /api/v1/profile,ANONYMOUS,,,401
 GET /api/v1/profile,CUSTOMER,,,200
@@ -283,20 +306,20 @@ GET /api/v1/students/{studentLogin}/reputation,MENTOR,,,200
 GET /api/v1/students/{studentLogin}/reputation,STUDENT,,,200
 GET /api/v1/students/{studentLogin}/reputation,ADMINISTRATOR,,,200
 # Products (product, FR-7, AD-20): only Customers list, check, and register; only the owning Customer
-# and Administrators read a Product. The matrix Customer has no kept sign-in token, so its
-# repository reads find nothing.
+# and Administrators read a Product. The matrix Customer has no kept GitHub token, so its
+# repository reads ask it to link GitHub again (RELINK_GITHUB, Story 19.2).
 GET /api/v1/products,ANONYMOUS,,,401
 GET /api/v1/products,CUSTOMER,,,200
 GET /api/v1/products,MENTOR,,,404 NOT_FOUND
 GET /api/v1/products,STUDENT,,,404 NOT_FOUND
 GET /api/v1/products,ADMINISTRATOR,,,404 NOT_FOUND
 POST /api/v1/products/repository-check,ANONYMOUS,,product-repository-check.json,401
-POST /api/v1/products/repository-check,CUSTOMER,,product-repository-check.json,404 NOT_FOUND
+POST /api/v1/products/repository-check,CUSTOMER,,product-repository-check.json,422 GUARD_FAILED RELINK_GITHUB
 POST /api/v1/products/repository-check,MENTOR,,product-repository-check.json,404 NOT_FOUND
 POST /api/v1/products/repository-check,STUDENT,,product-repository-check.json,404 NOT_FOUND
 POST /api/v1/products/repository-check,ADMINISTRATOR,,product-repository-check.json,404 NOT_FOUND
 POST /api/v1/products,ANONYMOUS,,product-registration.json,401
-POST /api/v1/products,CUSTOMER,,product-registration.json,404 NOT_FOUND
+POST /api/v1/products,CUSTOMER,,product-registration.json,422 GUARD_FAILED RELINK_GITHUB
 POST /api/v1/products,MENTOR,,product-registration.json,404 NOT_FOUND
 POST /api/v1/products,STUDENT,,product-registration.json,404 NOT_FOUND
 POST /api/v1/products,ADMINISTRATOR,,product-registration.json,404 NOT_FOUND
