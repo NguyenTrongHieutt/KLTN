@@ -102,11 +102,7 @@ class MentorDecisionIT extends IntegrationTest {
 		UUID later = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, MentorApprovalStatus.PENDING, null);
 		save(later, "someone-else", "3.0").andExpect(status().isOk());
 		UUID student = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null, null);
-		this.jdbc.sql("""
-				INSERT INTO identity.student_verification (account_id, method, school_email, verified_at, valid_until)
-				VALUES (:id, 'SCHOOL_EMAIL', :email, :now, :until)
-				""").param("id", student).param("email", SCHOOL_EMAIL).param("now", Timestamp.from(this.clock.instant()))
-			.param("until", LocalDate.of(2027, 9, 30)).update();
+		IdentityTestSupport.verifyStudent(this.jdbc, student, LocalDate.of(2027, 9, 30));
 		this.transactions.executeWithoutResult(status -> {
 			this.signals.record(student, Source.SCHOOL_EMAIL, SCHOOL_EMAIL);
 			this.signals.record(this.hung, Source.GITHUB_EMAIL, "Hung.Do@hcmut.edu.vn");
@@ -143,6 +139,14 @@ class MentorDecisionIT extends IntegrationTest {
 			.getContentAsString(StandardCharsets.UTF_8);
 		assertThat(detail).as("never the shared value or its HMAC").doesNotContainIgnoringCase(SCHOOL_EMAIL)
 			.doesNotContain("hmac");
+		// Once the Student lets the verification go, the match stays but carries no verification (Story 19.4).
+		this.jdbc.sql("""
+				UPDATE identity.verification SET ended_at = now(), ended_reason = 'UNLINKED', facts = NULL WHERE account_id = :id
+				""").param("id", student).update();
+		this.mvc.perform(get("/api/v1/admin/mentor-applications/" + this.hung).with(admin()))
+			.andExpect(jsonPath("$.matches.length()").value(1))
+			.andExpect(jsonPath("$.matches[0].accountId").value(student.toString()))
+			.andExpect(jsonPath("$.matches[0].verifiedUntil").doesNotExist());
 		this.mvc.perform(get("/api/v1/admin/mentor-applications/" + later).with(admin()))
 			.andExpect(jsonPath("$.matches.length()").value(0));
 		this.mvc.perform(get("/api/v1/admin/mentor-applications/" + student).with(admin()))

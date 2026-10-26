@@ -16,6 +16,7 @@ import jakarta.validation.constraints.Size;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -26,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import vn.vibefix.files.PreparedFile;
+import vn.vibefix.identity.Notices;
 import vn.vibefix.identity.internal.StudentCards.CardView;
 import vn.vibefix.identity.internal.StudentVerifications.Confirmation;
 import vn.vibefix.identity.internal.StudentVerifications.Status;
@@ -39,8 +41,10 @@ import vn.vibefix.shared.Gate;
 import vn.vibefix.shared.Role;
 
 /**
- * STU-5's verification part (FR-5): the Student's own status, the school email code and its entry,
- * and the student card upload. Only a Student has one; any other role gets {@code NOT_FOUND}.
+ * ACC-2's student email row (FR-5, FR-80, AD-42, UX-DR93), for any person's account: the status, the
+ * school email code and its entry after N-26, and "Bỏ xác minh"; and, for a Student until Story 19.7,
+ * the student card upload. The school email address appears in no answer: the code step and the badge
+ * name the school. An Administrator has no verification and gets {@code NOT_FOUND}.
  */
 @RestController
 @RequestMapping("/api/v1/verification")
@@ -48,34 +52,43 @@ import vn.vibefix.shared.Role;
 class VerificationController {
 
 	/**
-	 * @param status {@code VERIFIED} until the end of {@code verifiedUntil}, then {@code EXPIRED}
+	 * @param status {@code VERIFIED} until the end of {@code verifiedUntil}; {@code EXPIRED} from then on,
+	 * with only the method and the last valid day ("Chưa xác minh" and the expired alert); {@code UNVERIFIED}
+	 * when never verified or after "Bỏ xác minh"
 	 * @param method how the account verified: {@code SCHOOL_EMAIL} or {@code STUDENT_CARD}
+	 * @param school the allowlisted domain the school email matched, or the student card's school
+	 * @param name the full name declared at verification, locked while verified ("Khai khi xác minh")
+	 * @param major the major declared at verification, locked while verified
 	 * @param verifiedUntil the last valid day, a 30 September
-	 * @param schoolEmail the address that verified the account, for {@code SCHOOL_EMAIL}
+	 * @param renewalOpen the verification is within 14 days of its expiry, so a code (or a card) renews it
 	 * @param pendingCode the code waiting for its entry, while the account is not verified or renews
-	 * @param renewalOpen the verification is within 14 days of its expiry, so a code or a card renews it
 	 * @param studentCard the latest card, while it is pending or rejected since the last verification
 	 */
-	record VerificationView(Status status, @Nullable String method, @Nullable LocalDate verifiedUntil,
-			@Nullable Instant verifiedAt, @Nullable String schoolEmail, @Nullable PendingCodeView pendingCode,
-			boolean renewalOpen, @Nullable StudentCardView studentCard) {
+	record VerificationView(Status status, @Nullable String method, @Nullable String school, @Nullable String name,
+			@Nullable String major, @Nullable Instant verifiedAt, @Nullable LocalDate verifiedUntil, boolean renewalOpen,
+			@Nullable PendingCodeView pendingCode, @Nullable StudentCardView studentCard) {
 
 		static VerificationView of(View view, Optional<CardView> card) {
-			var verification = view.verification();
-			var pending = view.pendingCode();
-			return new VerificationView(view.status(), verification == null ? null : verification.method(),
-					verification == null ? null : verification.validUntil(),
-					verification == null ? null : verification.verifiedAt(),
-					verification == null ? null : verification.schoolEmail(),
-					pending == null ? null : new PendingCodeView(pending.email(), pending.sentAt(), pending.expiresAt(),
+			VerificationRows.Row verification = view.verification();
+			VerificationRows.Facts facts = verification == null ? null : verification.facts();
+			StudentVerifications.PendingCode pending = view.pendingCode();
+			return new VerificationView(view.status(), verification == null ? null : verification.provider().method(),
+					facts == null ? null : facts.school(), facts == null ? null : facts.name(),
+					facts == null ? null : facts.major(),
+					verification == null || view.status() != Status.VERIFIED ? null : verification.verifiedAt(),
+					verification == null ? null : verification.validUntil(), view.renewalOpen(),
+					pending == null ? null : new PendingCodeView(pending.school(), pending.sentAt(), pending.expiresAt(),
 							pending.attemptsLeft(), pending.expired()),
-					view.renewalOpen(), card.map(StudentCardView::of).orElse(null));
+					card.map(StudentCardView::of).orElse(null));
 		}
 
 	}
 
-	/** @param attemptsLeft entries left before the code needs replacing, 0 to 5 */
-	record PendingCodeView(String email, Instant sentAt, Instant expiresAt, int attemptsLeft, boolean expired) {
+	/**
+	 * @param school the school whose address the code went to: "Đã gửi mã đến email của {school}"
+	 * @param attemptsLeft entries left before the code needs replacing, 0 to 5
+	 */
+	record PendingCodeView(String school, Instant sentAt, Instant expiresAt, int attemptsLeft, boolean expired) {
 	}
 
 	/**
@@ -92,7 +105,15 @@ class VerificationController {
 
 	}
 
-	record SchoolEmailRequest(@NotBlank @Email @Size(max = 254) String email) {
+	/**
+	 * "Gửi mã" and "Gửi mã mới" after N-26.
+	 * @param noticeVersion the version of N-26 the person accepted
+	 * @param name the full name to declare: required on a first verification, ignored on a renewal
+	 * @param major the major to declare: required on a first verification, ignored on a renewal
+	 */
+	record SchoolEmailRequest(@NotBlank @Size(max = 20) String noticeVersion,
+			@NotBlank @Email @Size(max = 254) String email, @Nullable @Size(max = 100) String name,
+			@Nullable @Size(max = 100) String major) {
 	}
 
 	record CodeRequest(@NotBlank @Pattern(regexp = "^[0-9]{6}$") String code) {
@@ -102,37 +123,54 @@ class VerificationController {
 
 	private final StudentCards cards;
 
+	private final Accounts accounts;
+
 	private final CurrentCaller caller;
 
-	VerificationController(StudentVerifications verifications, StudentCards cards, CurrentCaller caller) {
+	VerificationController(StudentVerifications verifications, StudentCards cards, Accounts accounts,
+			CurrentCaller caller) {
 		this.verifications = verifications;
 		this.cards = cards;
+		this.accounts = accounts;
 		this.caller = caller;
 	}
 
 	@GetMapping
 	VerificationView verification() {
-		return view(requireStudent());
+		return view(requireUser().id());
 	}
 
-	/** Emails a 6-digit code to a school address on the allowlist (FR-5, AD-34). */
+	/**
+	 * Records N-26 and emails a 6-digit code to a school address on the allowlist (FR-5, AD-34).
+	 * @throws ApiException {@code STALE} for an N-26 version that is not the current one
+	 */
 	@PostMapping("/school-email")
 	@ResponseStatus(HttpStatus.ACCEPTED)
 	VerificationView sendCode(@Valid @RequestBody SchoolEmailRequest request) {
-		UUID account = requireStudent();
-		this.verifications.send(account, request.email());
+		UUID account = requireUser().id();
+		if (!Notices.VERIFY_STUDENT_VERSION.equals(request.noticeVersion())) {
+			throw new ApiException(ErrorCode.STALE);
+		}
+		this.verifications.send(account, request.email(), request.name(), request.major(), request.noticeVersion());
 		return view(account);
 	}
 
 	/** Verifies the account with the emailed code; a refused entry is answered after it is counted. */
 	@PostMapping("/school-email/confirm")
 	VerificationView confirm(@Valid @RequestBody CodeRequest request) {
-		UUID account = requireStudent();
+		UUID account = requireUser().id();
 		Confirmation confirmation = this.verifications.confirm(account, request.code());
 		if (confirmation instanceof Confirmation.Refused refused) {
 			throw refused.refusal();
 		}
 		return view(account);
+	}
+
+	/** "Bỏ xác minh", after the Confirmation dialog: the public facts go at once; the keyed hash stays (FR-80). */
+	@DeleteMapping("/student")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	void unlinkStudent() {
+		this.verifications.unlink(requireUser().id());
 	}
 
 	/**
@@ -160,6 +198,14 @@ class VerificationController {
 		return VerificationView.of(this.verifications.view(account), this.cards.current(account));
 	}
 
+	/** The caller's account, if it is an active person's; an Administrator has no verification. */
+	private Account requireUser() {
+		return this.accounts.findById(this.caller.get().requireAccountId())
+			.filter(found -> found.kind() == Account.Kind.USER && found.isActive())
+			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+	}
+
+	/** The student card stays a Student's until Story 19.7 removes it. */
 	private UUID requireStudent() {
 		Caller current = this.caller.get();
 		if (current.role() != Role.STUDENT) {

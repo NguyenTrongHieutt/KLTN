@@ -6,11 +6,18 @@ package vn.vibefix.identity.internal;
  */
 enum IdentityReason {
 
-	/** The school email's domain is not on the allowlist (FR-5, FR-61). */
+	/** The school email's domain is not on the allowlist at the send, or left it before the entry (FR-5, FR-61). */
 	EMAIL_DOMAIN_NOT_ALLOWED,
 
-	/** The school email already verifies another account (FR-5). */
+	/** The student card's school and number already verify another account (FR-5, until Story 19.7). */
 	ALREADY_USED_FOR_VERIFICATION,
+
+	/**
+	 * At the entry of a correct code, the school email's keyed HMAC is on another account's live verification
+	 * (FR-5, AD-23, AD-42): one email verifies one live account at a time. The send never answers it, so it
+	 * cannot be used to probe an address. The SPA reads its own sentence, {@code reason.identity.STUDENT_EMAIL_IN_USE}.
+	 */
+	STUDENT_EMAIL_IN_USE,
 
 	/** The code does not match; the verification view says how many attempts are left. */
 	WRONG_CODE,

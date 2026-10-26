@@ -1,9 +1,9 @@
 subject: Mã xác minh vibefix của bạn: {code} (hết hạn sau 10 phút)
-link: /ho-so
+link: /ho-so/xac-minh
 ---
 Xin chào,
 
 Mã xác minh sinh viên vibefix của bạn là {code}.
-Mã hết hạn sau 10 phút và chỉ dùng được một lần. Hãy nhập mã ở trang Hồ sơ và xác minh.
+Mã hết hạn sau 10 phút và chỉ dùng được một lần. Hãy nhập mã ở trang Xác minh.
 
-Nếu bạn không yêu cầu mã này, hãy bỏ qua email: email trường của bạn sẽ không được dùng.
+Nếu bạn không yêu cầu mã này, hãy bỏ qua email. vibefix không lưu địa chỉ email này.

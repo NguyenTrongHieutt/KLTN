@@ -32,24 +32,25 @@ import vn.vibefix.identity.StudentDirectory;
 import vn.vibefix.shared.KeywordQuery;
 
 /**
- * Students' public fields from their profiles (FR-51, AD-36, Story 19.3). Search and the username
- * lookup find verified, unlocked, unerased Students only; {@link #cards} describes any Student by ID,
- * for the Team screens. Hidden student details hide the name, the school, and the year (X9). Epics 20
- * and 21 rework who is listed.
+ * Students' public fields from their profiles (FR-51, AD-36, Stories 19.3 and 19.4). The name, the
+ * school, and the major are the projection of the live student verification, shown only while it is
+ * current (today in Vietnam on or before its last valid day) and the details are not hidden (X9).
+ * Search and the username lookup find verified, unlocked, unerased Students only; {@link #cards}
+ * describes any Student by ID, for the Team screens. Epics 20 and 21 rework who is listed.
  */
 @Component
 class JdbcStudentDirectory implements StudentDirectory {
 
 	private static final String COLUMNS = """
 			a.id, a.github_login, a.github_user_id, a.locked_at IS NULL AND a.erased_at IS NULL AS available,
-			p.student_name, p.student_school, p.student_year, coalesce(NOT p.hide_student_details, FALSE) AS shown,
+			p.student_name, p.student_school, p.student_major, coalesce(NOT p.hide_student_details, FALSE) AS shown,
 			coalesce(p.skill_ids, '{}') AS skill_ids, v.valid_until
 			""";
 
 	private static final String FROM = """
 			FROM identity.account a
 			LEFT JOIN identity.profile p ON p.account_id = a.id
-			LEFT JOIN identity.student_verification v ON v.account_id = a.id
+			LEFT JOIN identity.verification v ON v.account_id = a.id AND v.kind = 'STUDENT' AND v.ended_at IS NULL
 			""";
 
 	private static final String FINDABLE = """
@@ -58,7 +59,7 @@ class JdbcStudentDirectory implements StudentDirectory {
 
 	/** One row before its Skill IDs are named. */
 	private record Row(UUID id, @Nullable String login, @Nullable Long githubUserId, boolean available, @Nullable String name,
-			@Nullable String school, @Nullable Integer year, boolean shown, List<UUID> skillIds,
+			@Nullable String school, @Nullable String major, boolean shown, List<UUID> skillIds,
 			@Nullable LocalDate verifiedUntil) {
 	}
 
@@ -161,11 +162,15 @@ class JdbcStudentDirectory implements StudentDirectory {
 		}
 		LocalDate today = today();
 		return rows.stream()
-			.map(row -> new StudentCard(row.id(), row.login(), row.githubUserId(), row.shown() ? row.name() : null,
-					row.shown() ? row.school() : null, row.shown() ? row.year() : null,
-					row.skillIds().stream().map(names::get).filter(name -> name != null).toList(),
-					row.verifiedUntil() != null && !today.isAfter(row.verifiedUntil()), row.verifiedUntil(),
-					row.available()))
+			.map(row -> {
+				boolean verified = row.verifiedUntil() != null && !today.isAfter(row.verifiedUntil());
+				// A lapsed verification's details are not shown, though its expiry Deadline has yet to clear them.
+				boolean shown = row.shown() && verified;
+				return new StudentCard(row.id(), row.login(), row.githubUserId(), shown ? row.name() : null,
+						shown ? row.school() : null, shown ? row.major() : null,
+						row.skillIds().stream().map(names::get).filter(name -> name != null).toList(), verified,
+						row.verifiedUntil(), row.available());
+			})
 			.toList();
 	}
 
@@ -177,7 +182,7 @@ class JdbcStudentDirectory implements StudentDirectory {
 		return new Row(rs.getObject("id", UUID.class), rs.getString("github_login"), rs.getObject("github_user_id", Long.class),
 				rs.getBoolean("available"),
 				rs.getString("student_name"), rs.getString("student_school"),
-				(Integer) rs.getObject("student_year", Integer.class),
+				rs.getString("student_major"),
 				rs.getBoolean("shown"), uuids(rs.getArray("skill_ids")), rs.getObject("valid_until", LocalDate.class));
 	}
 

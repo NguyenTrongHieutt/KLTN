@@ -69,11 +69,11 @@ class Profiles implements ContactVisibility {
 	static final int MAX_LINKS = 5;
 
 	/**
-	 * The student details a Student typed before Story 19.4, which declares them at verification; they
-	 * are not edited on the profile.
-	 * @param year the year of study, 1 to 8
+	 * The projection of the live student verification's facts (Story 19.4): the full name and major
+	 * declared at verification and the school (the email's domain). Only the verification writes and
+	 * clears them; the profile never edits them.
 	 */
-	record StudentDetails(@Nullable String name, @Nullable String school, @Nullable Integer year) {
+	record StudentDetails(@Nullable String name, @Nullable String school, @Nullable String major) {
 	}
 
 	/**
@@ -133,12 +133,12 @@ class Profiles implements ContactVisibility {
 			.query((row, number) -> {
 				String name = row.getString("student_name");
 				String school = row.getString("student_school");
-				Integer year = (Integer) row.getObject("student_year", Integer.class);
+				String major = row.getString("student_major");
 				return new Profile(row.getString("display_name"), ProfileKind.valueOf(row.getString("kind")),
 						row.getString("contact_email"), row.getString("phone"), row.getString("experience"),
 						(Integer) row.getObject("years_of_experience", Integer.class), uuids(row.getArray("skill_ids")),
 						links, repositories, row.getBoolean("hide_student_details"),
-						name == null && school == null && year == null ? null : new StudentDetails(name, school, year));
+						name == null && school == null && major == null ? null : new StudentDetails(name, school, major));
 			})
 			.optional();
 	}

@@ -8399,6 +8399,17 @@
         "tags" : [ "verification-controller" ]
       }
     },
+    "/api/v1/verification/student" : {
+      "delete" : {
+        "operationId" : "unlinkStudent",
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "verification-controller" ]
+      }
+    },
     "/api/v1/verification/student-card" : {
       "post" : {
         "operationId" : "uploadCard",
@@ -16760,9 +16771,6 @@
             "type" : "integer",
             "format" : "int32"
           },
-          "email" : {
-            "type" : "string"
-          },
           "expired" : {
             "type" : "boolean"
           },
@@ -16770,12 +16778,15 @@
             "type" : "string",
             "format" : "date-time"
           },
+          "school" : {
+            "type" : "string"
+          },
           "sentAt" : {
             "type" : "string",
             "format" : "date-time"
           }
         },
-        "required" : [ "attemptsLeft", "email", "expired", "expiresAt", "sentAt" ]
+        "required" : [ "attemptsLeft", "expired", "expiresAt", "school", "sentAt" ]
       },
       "PersonView" : {
         "type" : "object",
@@ -17311,6 +17322,9 @@
           "githubLogin" : {
             "type" : "string"
           },
+          "major" : {
+            "type" : "string"
+          },
           "memberSince" : {
             "type" : "string",
             "format" : "date-time"
@@ -17332,10 +17346,6 @@
           },
           "verified" : {
             "type" : "boolean"
-          },
-          "yearOfStudy" : {
-            "type" : "integer",
-            "format" : "int32"
           }
         },
         "required" : [ "memberSince", "skillGroups", "verified" ]
@@ -18123,9 +18133,24 @@
             "format" : "email",
             "maxLength" : 254,
             "minLength" : 0
+          },
+          "major" : {
+            "type" : "string",
+            "maxLength" : 100,
+            "minLength" : 0
+          },
+          "name" : {
+            "type" : "string",
+            "maxLength" : 100,
+            "minLength" : 0
+          },
+          "noticeVersion" : {
+            "type" : "string",
+            "maxLength" : 20,
+            "minLength" : 0
           }
         },
-        "required" : [ "email" ]
+        "required" : [ "email", "noticeVersion" ]
       },
       "ScreenshotView" : {
         "type" : "object",
@@ -18800,30 +18825,42 @@
       "StudentDetailsView" : {
         "type" : "object",
         "properties" : {
+          "major" : {
+            "type" : "string"
+          },
           "name" : {
             "type" : "string"
           },
           "school" : {
             "type" : "string"
-          },
-          "year" : {
-            "type" : "integer",
-            "format" : "int32"
           }
         }
       },
       "StudentFact" : {
         "type" : "object",
         "properties" : {
+          "major" : {
+            "type" : "string"
+          },
           "method" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "school" : {
             "type" : "string"
           },
           "validUntil" : {
             "type" : "string",
             "format" : "date"
+          },
+          "verifiedAt" : {
+            "type" : "string",
+            "format" : "date-time"
           }
         },
-        "required" : [ "method", "validUntil" ]
+        "required" : [ "method", "school", "validUntil", "verifiedAt" ]
       },
       "StudentReputationView" : {
         "type" : "object",
@@ -19529,6 +19566,9 @@
           "githubLogin" : {
             "type" : "string"
           },
+          "major" : {
+            "type" : "string"
+          },
           "name" : {
             "type" : "string"
           },
@@ -19547,10 +19587,6 @@
           "verifiedUntil" : {
             "type" : "string",
             "format" : "date"
-          },
-          "yearOfStudy" : {
-            "type" : "integer",
-            "format" : "int32"
           }
         },
         "required" : [ "accountId", "skills", "verified" ]
@@ -19824,7 +19860,13 @@
       "VerificationView" : {
         "type" : "object",
         "properties" : {
+          "major" : {
+            "type" : "string"
+          },
           "method" : {
+            "type" : "string"
+          },
+          "name" : {
             "type" : "string"
           },
           "pendingCode" : {
@@ -19833,7 +19875,7 @@
           "renewalOpen" : {
             "type" : "boolean"
           },
-          "schoolEmail" : {
+          "school" : {
             "type" : "string"
           },
           "status" : {

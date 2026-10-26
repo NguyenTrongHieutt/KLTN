@@ -395,24 +395,38 @@ POST /api/v1/products/{productId}/findings/{findingId}/false-positive,CUSTOMER,,
 POST /api/v1/products/{productId}/findings/{findingId}/false-positive,MENTOR,,product-false-positive.json,404 NOT_FOUND
 POST /api/v1/products/{productId}/findings/{findingId}/false-positive,STUDENT,,product-false-positive.json,404 NOT_FOUND
 POST /api/v1/products/{productId}/findings/{findingId}/false-positive,ADMINISTRATOR,,product-false-positive.json,404 NOT_FOUND
-# Student verification (identity, FR-5): a Student's own; any other role, and SUBJECT (a Customer),
-# finds none. The confirm row's Student has no code waiting, so it finds none either.
+# Student verification (identity, FR-5, AD-42, Story 19.4): every person's account has its own, whatever
+# role it holds; an Administrator has none. Another account's live verification is keyed by the
+# SCHOOL_EMAIL canary as its subject HMAC, which no answer may hold. The confirm rows' callers have no
+# code waiting, and the unlink rows' callers are not verified, so they find nothing.
 GET /api/v1/verification,ANONYMOUS,,,401
 GET /api/v1/verification,STUDENT,,,200
-GET /api/v1/verification,CUSTOMER,,,404 NOT_FOUND
-GET /api/v1/verification,MENTOR,mentor=PENDING,,404 NOT_FOUND
+GET /api/v1/verification,CUSTOMER,,,200
+GET /api/v1/verification,MENTOR,mentor=PENDING,,200
+GET /api/v1/verification,OWNER,,,200
+GET /api/v1/verification,SUBJECT,,,200
+GET /api/v1/verification,CREW_ACTIVE,,,200
 GET /api/v1/verification,ADMINISTRATOR,,,404 NOT_FOUND
-GET /api/v1/verification,SUBJECT,,,404 NOT_FOUND
+GET /api/v1/verification,ADMIN_DISPUTE_GRANT,,,404 NOT_FOUND
+GET /api/v1/verification,CUSTOMER,locked=true,,401
 POST /api/v1/verification/school-email,ANONYMOUS,,verification-school-email.json,401
 POST /api/v1/verification/school-email,STUDENT,,verification-school-email.json,202
-POST /api/v1/verification/school-email,CUSTOMER,,verification-school-email.json,404 NOT_FOUND
-POST /api/v1/verification/school-email,MENTOR,,verification-school-email.json,404 NOT_FOUND
+POST /api/v1/verification/school-email,CUSTOMER,,verification-school-email.json,202
+POST /api/v1/verification/school-email,MENTOR,,verification-school-email.json,202
 POST /api/v1/verification/school-email,ADMINISTRATOR,,verification-school-email.json,404 NOT_FOUND
+POST /api/v1/verification/school-email,CUSTOMER,locked=true,verification-school-email.json,401
 POST /api/v1/verification/school-email/confirm,ANONYMOUS,,verification-code.json,401
 POST /api/v1/verification/school-email/confirm,STUDENT,,verification-code.json,404 NOT_FOUND
 POST /api/v1/verification/school-email/confirm,CUSTOMER,,verification-code.json,404 NOT_FOUND
 POST /api/v1/verification/school-email/confirm,MENTOR,,verification-code.json,404 NOT_FOUND
 POST /api/v1/verification/school-email/confirm,ADMINISTRATOR,,verification-code.json,404 NOT_FOUND
+POST /api/v1/verification/school-email/confirm,CUSTOMER,locked=true,verification-code.json,401
+DELETE /api/v1/verification/student,ANONYMOUS,,,401
+DELETE /api/v1/verification/student,STUDENT,,,404 NOT_FOUND
+DELETE /api/v1/verification/student,CUSTOMER,,,404 NOT_FOUND
+DELETE /api/v1/verification/student,MENTOR,,,404 NOT_FOUND
+DELETE /api/v1/verification/student,ADMINISTRATOR,,,404 NOT_FOUND
+DELETE /api/v1/verification/student,CUSTOMER,locked=true,,401
 # Student cards (identity and files, FR-5, AD-20): a Student uploads their own; only Administrators
 # list, decide, and read cards, and every other caller finds none. The card's file name is a canary.
 POST /api/v1/verification/student-card,ANONYMOUS,,student-card.png,401

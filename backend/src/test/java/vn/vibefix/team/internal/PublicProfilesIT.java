@@ -54,9 +54,9 @@ class PublicProfilesIT extends IntegrationTest {
 	}
 
 	@Test
-	void aStudentWhoShowsTheirNameShowsTheSchoolAndTheirTeam() throws Exception {
+	void aStudentWhoShowsTheirNameShowsTheSchoolTheMajorAndTheirTeam() throws Exception {
 		UUID shown = TeamTestSupport.student(this.jdbc, "Trần Quang Minh", true, List.of(TeamTestSupport.REACT), "React",
-				null);
+				VERIFIED_UNTIL);
 		UUID mentor = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Đỗ Mạnh Hùng",
 				List.of(TeamTestSupport.REACT), "React");
 		UUID team = UUID.randomUUID();
@@ -90,9 +90,9 @@ class PublicProfilesIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/students/" + TeamTestSupport.login(this.jdbc, shown)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.name").value("Trần Quang Minh"))
-			.andExpect(jsonPath("$.school").value("Đại học Bách khoa Hà Nội"))
-			.andExpect(jsonPath("$.yearOfStudy").value(3))
-			.andExpect(jsonPath("$.verified").value(false))
+			.andExpect(jsonPath("$.school").value(TeamTestSupport.SCHOOL))
+			.andExpect(jsonPath("$.major").value(TeamTestSupport.MAJOR))
+			.andExpect(jsonPath("$.verified").value(true))
 			.andExpect(jsonPath("$.team.mentorDisplayName").value("Đỗ Mạnh Hùng"))
 			.andExpect(jsonPath("$.team.mentorLogin").value(TeamTestSupport.login(this.jdbc, mentor)))
 			.andExpect(jsonPath("$.team.size").value(1));
@@ -101,6 +101,17 @@ class PublicProfilesIT extends IntegrationTest {
 			.andExpect(jsonPath("$.count").value(0))
 			.andExpect(jsonPath("$.average").value(org.hamcrest.Matchers.nullValue()))
 			.andExpect(jsonPath("$.portfolio.length()").value(0));
+		this.mvc.perform(get("/api/v1/mentor/team").with(authentication(IdentityTestSupport.authentication(mentor, Role.MENTOR))))
+			.andExpect(jsonPath("$.members[0].student.major").value(TeamTestSupport.MAJOR));
+
+		// Once the verification lapses, the declared details are not shown, though its Deadline has yet to clear them.
+		this.clock.setInstant(java.time.Instant.parse("2026-09-30T17:00:00Z"));
+		this.mvc.perform(get("/api/v1/students/" + TeamTestSupport.login(this.jdbc, shown)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.name").value(org.hamcrest.Matchers.nullValue()))
+			.andExpect(jsonPath("$.school").value(org.hamcrest.Matchers.nullValue()))
+			.andExpect(jsonPath("$.major").value(org.hamcrest.Matchers.nullValue()))
+			.andExpect(jsonPath("$.verified").value(false));
 	}
 
 	@Test

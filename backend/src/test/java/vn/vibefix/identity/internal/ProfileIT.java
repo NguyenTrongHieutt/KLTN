@@ -305,6 +305,10 @@ class ProfileIT extends IntegrationTest {
 			.andExpect(jsonPath("$.verified.github.since").value(MutableClock.DEFAULT_INSTANT.toString()))
 			.andExpect(jsonPath("$.verified.student.validUntil").value("2026-09-30"))
 			.andExpect(jsonPath("$.verified.student.method").value("SCHOOL_EMAIL"))
+			.andExpect(jsonPath("$.verified.student.school").value("hust.edu.vn"))
+			.andExpect(jsonPath("$.verified.student.name").value("Sinh viên thử"))
+			.andExpect(jsonPath("$.verified.student.major").value("Công nghệ thông tin"))
+			.andExpect(jsonPath("$.verified.student.verifiedAt").value(MutableClock.DEFAULT_INSTANT.toString()))
 			.andExpect(jsonPath("$.verified.linkedin").doesNotExist());
 
 		// A save that tries to write the facts writes none of them.
@@ -321,8 +325,9 @@ class ProfileIT extends IntegrationTest {
 			.andExpect(jsonPath("$.verified.github.login").value(login))
 			.andExpect(jsonPath("$.verified.student.validUntil").value("2026-09-30"))
 			.andExpect(jsonPath("$.verified.linkedin").doesNotExist());
-		assertThat(text("SELECT github_login || ' ' || valid_until FROM identity.account a JOIN identity.student_verification v"
-				+ " ON v.account_id = a.id WHERE a.id = '" + minh + "'")).isEqualTo(login + " 2026-09-30");
+		assertThat(text("SELECT github_login || ' ' || valid_until || ' ' || (v.facts ->> 'name') FROM identity.account a"
+				+ " JOIN identity.verification v ON v.account_id = a.id WHERE a.id = '" + minh + "'"))
+			.isEqualTo(login + " 2026-09-30 Sinh viên thử");
 
 		// A lapsed verification, and an account with neither, show no fact.
 		this.clock.setInstant(Instant.parse("2026-10-01T03:00:00Z"));
@@ -340,21 +345,26 @@ class ProfileIT extends IntegrationTest {
 		UUID minh = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null, null);
 		verify(minh, LocalDate.of(2026, 9, 30));
 		this.jdbc.sql("""
-				INSERT INTO identity.profile (account_id, display_name, student_name, student_school, student_year, updated_at)
-				VALUES (:id, 'Minh', 'Trần Quang Minh', 'Đại học Bách khoa Hà Nội', 3, :now)
+				INSERT INTO identity.profile (account_id, display_name, student_name, student_school, student_major, updated_at)
+				VALUES (:id, 'Minh', 'Trần Quang Minh', 'Đại học Bách khoa Hà Nội', 'Kỹ thuật phần mềm', :now)
 				""").param("id", minh).param("now", Timestamp.from(this.clock.instant())).update();
 
 		assertThat(this.students.cards(List.of(minh))).singleElement().satisfies(card -> {
 			assertThat(card.name()).isEqualTo("Trần Quang Minh");
 			assertThat(card.school()).isEqualTo("Đại học Bách khoa Hà Nội");
+			assertThat(card.major()).isEqualTo("Kỹ thuật phần mềm");
 		});
 		assertThat(this.students.search("Bách khoa", List.of(), PageRequest.of(0, 10)).getContent())
+			.extracting(StudentDirectory.StudentCard::accountId)
+			.containsExactly(minh);
+		assertThat(this.students.search("phần mềm", List.of(), PageRequest.of(0, 10)).getContent())
+			.as("the declared major is searched while shown")
 			.extracting(StudentDirectory.StudentCard::accountId)
 			.containsExactly(minh);
 		this.mvc.perform(get("/api/v1/profile").with(authentication(IdentityTestSupport.authentication(minh, Role.STUDENT))))
 			.andExpect(jsonPath("$.hideStudentDetails").value(false))
 			.andExpect(jsonPath("$.studentDetails.name").value("Trần Quang Minh"))
-			.andExpect(jsonPath("$.studentDetails.year").value(3));
+			.andExpect(jsonPath("$.studentDetails.major").value("Kỹ thuật phần mềm"));
 
 		this.mvc.perform(put("/api/v1/profile").with(authentication(IdentityTestSupport.authentication(minh, Role.STUDENT)))
 			.with(csrf())
@@ -364,9 +374,10 @@ class ProfileIT extends IntegrationTest {
 		assertThat(this.students.cards(List.of(minh))).singleElement().satisfies(card -> {
 			assertThat(card.name()).isNull();
 			assertThat(card.school()).isNull();
-			assertThat(card.yearOfStudy()).isNull();
+			assertThat(card.major()).isNull();
 		});
 		assertThat(this.students.search("Bách khoa", List.of(), PageRequest.of(0, 10)).getContent()).isEmpty();
+		assertThat(this.students.search("phần mềm", List.of(), PageRequest.of(0, 10)).getContent()).isEmpty();
 		assertThat(this.jdbc.sql("""
 				SELECT search_vector @@ plainto_tsquery('platform.vi_search', 'Bách khoa') FROM identity.profile
 				WHERE account_id = :id
@@ -375,6 +386,45 @@ class ProfileIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/profile").with(authentication(IdentityTestSupport.authentication(minh, Role.STUDENT))))
 			.andExpect(jsonPath("$.hideStudentDetails").value(true))
 			.andExpect(jsonPath("$.studentDetails.school").value("Đại học Bách khoa Hà Nội"));
+
+		// A lapsed verification's details are not shown, though its expiry Deadline has yet to clear them.
+		this.clock.setInstant(Instant.parse("2026-09-30T17:00:00Z"));
+		this.mvc.perform(get("/api/v1/profile").with(authentication(IdentityTestSupport.authentication(minh, Role.STUDENT))))
+			.andExpect(jsonPath("$.studentDetails").doesNotExist());
+	}
+
+	/** Story 19.4: only the live, valid row counts; an ended one hides the Student, a renewal leaves one card. */
+	@Test
+	void anUnlinkedOrRevokedStudentIsNotFoundAndARenewedOneIsListedOnce() throws Exception {
+		LocalDate until = LocalDate.of(2026, 9, 30);
+		UUID unlinked = TeamTestSupport.student(this.jdbc, "Đã bỏ xác minh", true, List.of(TeamTestSupport.REACT), "React",
+				until);
+		UUID revoked = TeamTestSupport.student(this.jdbc, "Bị thu hồi", true, List.of(TeamTestSupport.REACT), "React", until);
+		for (UUID ended : List.of(unlinked, revoked)) {
+			this.jdbc.sql("""
+					UPDATE identity.verification SET ended_at = now(), facts = NULL,
+					    ended_reason = CASE WHEN account_id = :unlinked THEN 'UNLINKED' ELSE 'REVOKED' END
+					WHERE account_id = :id
+					""").param("id", ended).param("unlinked", unlinked).update();
+		}
+		UUID renewed = TeamTestSupport.student(this.jdbc, "Đã gia hạn", true, List.of(TeamTestSupport.REACT), "React", until);
+		this.jdbc.sql("""
+				INSERT INTO identity.verification (id, account_id, kind, provider, subject_hmac, key_version, consent_version,
+				    verified_at, valid_until, ended_at, ended_reason)
+				VALUES (:id, :account, 'STUDENT', 'EMAIL_CODE', :hmac, 1, '1.0', now() - interval '1 year', DATE '2025-09-30',
+				        now(), 'REPLACED')
+				""").param("id", UUID.randomUUID()).param("account", renewed)
+			.param("hmac", IdentityTestSupport.fakeHmac("renewed-old")).update();
+
+		assertThat(this.students.search("", List.of(), PageRequest.of(0, 10)).getContent())
+			.extracting(StudentDirectory.StudentCard::accountId)
+			.containsExactly(renewed);
+		assertThat(this.students.byLogin(TeamTestSupport.login(this.jdbc, unlinked))).isEmpty();
+		assertThat(this.students.byLogin(TeamTestSupport.login(this.jdbc, revoked))).isEmpty();
+		assertThat(this.students.cards(List.of(unlinked, revoked, renewed))).hasSize(3).allSatisfy(card -> {
+			assertThat(card.verified()).isEqualTo(card.accountId().equals(renewed));
+			assertThat(card.name() == null).isEqualTo(!card.accountId().equals(renewed));
+		});
 	}
 
 	@Test
@@ -490,15 +540,7 @@ class ProfileIT extends IntegrationTest {
 	}
 
 	private void verify(UUID account, LocalDate validUntil) {
-		this.jdbc.sql("""
-				INSERT INTO identity.student_verification (account_id, method, school_email, verified_at, valid_until)
-				VALUES (:id, 'SCHOOL_EMAIL', :email, :now, :until)
-				""")
-			.param("id", account)
-			.param("email", account.toString().substring(0, 8) + "@hust.edu.vn")
-			.param("now", Timestamp.from(this.clock.instant()))
-			.param("until", validUntil)
-			.update();
+		IdentityTestSupport.verifyStudent(this.jdbc, account, validUntil);
 	}
 
 	private long profileRows(UUID account) {

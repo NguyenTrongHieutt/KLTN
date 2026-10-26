@@ -2,6 +2,7 @@ package vn.vibefix.settings.internal;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 
 import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -31,14 +32,20 @@ class JdbcSettings implements Settings {
 
 	@Override
 	public boolean allowsSchoolEmail(String address) {
+		return schoolOf(address).isPresent();
+	}
+
+	@Override
+	public Optional<String> schoolOf(String address) {
 		String domain = domainOf(address);
 		if (domain == null) {
-			return false;
+			return Optional.empty();
 		}
 		return this.jdbc.sql("""
-				SELECT count(*) FROM settings.school_domain
+				SELECT domain FROM settings.school_domain
 				WHERE :domain = domain OR right(:domain, char_length(domain) + 1) = '.' || domain
-				""").param("domain", domain).query(Long.class).single() > 0;
+				ORDER BY char_length(domain) DESC, domain LIMIT 1
+				""").param("domain", domain).query(String.class).optional();
 	}
 
 	@Override

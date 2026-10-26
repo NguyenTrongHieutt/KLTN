@@ -156,7 +156,7 @@ describe('ADM-3 student cards (FR-5, UX-DR46)', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Duyệt thẻ' }))
 
     expect(await within(dialog).findByRole('alert')).toHaveTextContent(
-      'Email hoặc thẻ sinh viên này đã xác minh cho tài khoản khác.',
+      'Thẻ sinh viên này đã xác minh cho tài khoản khác.',
     )
   })
 

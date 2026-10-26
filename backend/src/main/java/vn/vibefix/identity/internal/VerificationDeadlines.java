@@ -30,9 +30,11 @@ import vn.vibefix.timers.Deadlines;
 import vn.vibefix.timers.DueDeadline;
 
 /**
- * The Deadlines of a Student verification (FR-5, AD-7, UX-DR16): a reminder 14 days before it
+ * The Deadlines of a student verification (FR-5, AD-7, UX-DR16): a reminder 14 days before it
  * expires, and the expiry at the start of the day after its last valid day, in Vietnam. Both serve
- * the verification as of its {@code verified_at}; a renewal or an erasure leaves them {@code OBSOLETE}.
+ * one {@code identity.verification} row, named by their generation; once that row has ended (renewed,
+ * unlinked, revoked, or erased) they are {@code OBSOLETE}. The expiry ends the row {@code EXPIRED} and
+ * deletes its facts.
  */
 @Component
 class VerificationDeadlines {
@@ -61,10 +63,10 @@ class VerificationDeadlines {
 		return validUntil.plusDays(1).atStartOfDay(StudentVerifications.VIETNAM).toInstant();
 	}
 
-	/** Schedules the expiry, and the reminder unless its time has passed already. */
-	void schedule(UUID accountId, Instant verifiedAt, LocalDate validUntil, Instant now) {
+	/** Schedules the expiry of the row {@code verificationId}, and the reminder unless its time has passed already. */
+	void schedule(UUID accountId, UUID verificationId, LocalDate validUntil, Instant now) {
 		Instant expiry = expiresAt(validUntil);
-		String generation = verifiedAt.toString();
+		String generation = verificationId.toString();
 		Instant reminder = expiry.minus(LEAD);
 		if (reminder.isAfter(now)) {
 			this.deadlines.schedule(new DeadlineRequest(REMINDER.key(), accountId, generation, null, reminder));
@@ -72,28 +74,31 @@ class VerificationDeadlines {
 		this.deadlines.schedule(new DeadlineRequest(EXPIRY.key(), accountId, generation, null, expiry));
 	}
 
-	/** The account's verification as of the Deadline's generation, if it is still that one. */
-	static Optional<LocalDate> sameVerification(JdbcClient jdbc, DueDeadline deadline) {
-		record Row(Instant verifiedAt, LocalDate validUntil) {
+	/**
+	 * The row the Deadline serves, while it has not ended. A generation from before Story 19.4, the time the
+	 * verification was made, names no row: that verification is gone.
+	 */
+	static Optional<VerificationRows.Row> sameVerification(VerificationRows rows, DueDeadline deadline) {
+		UUID id;
+		try {
+			id = UUID.fromString(deadline.generation());
 		}
-		return jdbc.sql("SELECT verified_at, valid_until FROM identity.student_verification WHERE account_id = :id")
-			.param("id", deadline.subjectId())
-			.query((rs, n) -> new Row(rs.getTimestamp("verified_at").toInstant(), rs.getObject("valid_until", LocalDate.class)))
-			.optional()
-			.filter(row -> row.verifiedAt().toString().equals(deadline.generation()))
-			.map(Row::validUntil);
+		catch (IllegalArgumentException notARow) {
+			return Optional.empty();
+		}
+		return rows.liveById(id, deadline.subjectId());
 	}
 
 	/** {@code identity.verification_expiring}, in-app and by email, with the last valid day. */
 	@Component
 	static class Reminder implements DeadlineHandler {
 
-		private final JdbcClient jdbc;
+		private final VerificationRows rows;
 
 		private final Notifications notifications;
 
-		Reminder(JdbcClient jdbc, Notifications notifications) {
-			this.jdbc = jdbc;
+		Reminder(VerificationRows rows, Notifications notifications) {
+			this.rows = rows;
 			this.notifications = notifications;
 		}
 
@@ -104,26 +109,30 @@ class VerificationDeadlines {
 
 		@Override
 		public DeadlineOutcome handle(DueDeadline deadline) {
-			Optional<LocalDate> validUntil = sameVerification(this.jdbc, deadline);
-			if (validUntil.isEmpty()) {
+			Optional<VerificationRows.Row> row = sameVerification(this.rows, deadline);
+			if (row.isEmpty()) {
 				return DeadlineOutcome.OBSOLETE;
 			}
 			this.notifications.send(new NotificationRequest(VERIFICATION_EXPIRING, deadline.id(),
 					List.of(new Recipient(deadline.subjectId(), Audience.SUBJECT)),
-					Map.of("date", validUntil.get().format(DATE)), SignIns.VERIFICATION_PATH, null, deadline.subjectId()));
+					Map.of("date", row.get().validUntil().format(DATE)), SignIns.VERIFICATION_PATH, null,
+					deadline.subjectId()));
 			return DeadlineOutcome.FIRED;
 		}
 
 	}
 
 	/**
-	 * The expiry: {@code isVerified} is false from now on, so only the Student is told, the
-	 * {@code identity.verify_student} to-do opens again, and the change is audited.
+	 * The expiry: {@code isVerified} has been false since the start of the day, so the row ends
+	 * {@code EXPIRED}, its facts and the profile's projection of them are deleted, only the account is
+	 * told, a Student's {@code identity.verify_student} to-do opens again, and the change is audited.
 	 */
 	@Component
 	static class Expiry implements DeadlineHandler {
 
 		private final JdbcClient jdbc;
+
+		private final VerificationRows rows;
 
 		private final Notifications notifications;
 
@@ -131,8 +140,9 @@ class VerificationDeadlines {
 
 		private final AuditLog auditLog;
 
-		Expiry(JdbcClient jdbc, Notifications notifications, Todos todos, AuditLog auditLog) {
+		Expiry(JdbcClient jdbc, VerificationRows rows, Notifications notifications, Todos todos, AuditLog auditLog) {
 			this.jdbc = jdbc;
+			this.rows = rows;
 			this.notifications = notifications;
 			this.todos = todos;
 			this.auditLog = auditLog;
@@ -151,13 +161,18 @@ class VerificationDeadlines {
 				.param("id", account)
 				.query(UUID.class)
 				.optional();
-			if (sameVerification(this.jdbc, deadline).isEmpty()) {
+			Optional<VerificationRows.Row> row = sameVerification(this.rows, deadline);
+			if (row.isEmpty()) {
 				return DeadlineOutcome.OBSOLETE;
 			}
+			this.rows.end(row.get(), VerificationRows.Ending.EXPIRED, deadline.dueAt());
 			this.notifications.send(new NotificationRequest(VERIFICATION_EXPIRED, deadline.id(),
 					List.of(new Recipient(account, Audience.SUBJECT)), Map.of(), SignIns.VERIFICATION_PATH, null, account));
-			this.todos.open(new TodoRequest(SignIns.VERIFY_STUDENT, account, Audience.SUBJECT, account, Map.of(),
-					SignIns.VERIFICATION_PATH, null, null));
+			// The to-do is a Student's only, until Story 19.7.
+			if (this.rows.isStudent(account)) {
+				this.todos.open(new TodoRequest(SignIns.VERIFY_STUDENT, account, Audience.SUBJECT, account, Map.of(),
+						SignIns.VERIFICATION_PATH, null, null));
+			}
 			this.auditLog.record(AuditEntry.of(AuditActor.system(), "identity.verification_expired",
 					AuditObject.of("identity.account", account)));
 			return DeadlineOutcome.FIRED;

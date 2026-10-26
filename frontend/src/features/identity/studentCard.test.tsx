@@ -130,7 +130,9 @@ describe('STU-5 student card (FR-5, UX-DR45, UX-DR27)', () => {
     expect(screen.getByText('Bị từ chối')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Tải lên thẻ khác' })).toBeEnabled()
 
+    // The email way starts with N-26, as on the email tab (Story 19.4).
     await user.click(screen.getByRole('button', { name: 'Dùng email trường' }))
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Đồng ý và tiếp tục' }))
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'Email trường' })).toBeVisible())
   })
 
@@ -160,8 +162,30 @@ describe('STU-5 student card (FR-5, UX-DR45, UX-DR27)', () => {
     })
     renderAt('/ho-so/xac-minh')
 
-    expect(await screen.findByText(/^Xác minh bằng thẻ sinh viên ngày 19\/10\/2026\./)).toBeInTheDocument()
+    expect(await screen.findByText('Qua thẻ sinh viên · 10/2026')).toBeInTheDocument()
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
+  })
+
+  it('asks a card-verified Student renewing by email for the name and major, which the card did not give', async () => {
+    const user = userEvent.setup()
+    fakeBackend(signedIn('STUDENT'), {
+      'GET /api/v1/verification': () =>
+        json({
+          status: 'VERIFIED',
+          method: 'STUDENT_CARD',
+          school: 'Trường Đại học Thử nghiệm',
+          verifiedUntil: '2026-09-30',
+          verifiedAt: '2025-10-01T02:00:00Z',
+          renewalOpen: true,
+        }),
+    })
+    renderAt('/ho-so/xac-minh')
+
+    await user.click(await screen.findByRole('button', { name: 'Gia hạn' }))
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Đồng ý và tiếp tục' }))
+
+    expect(await screen.findByRole('textbox', { name: 'Họ và tên' })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Ngành học' })).toBeInTheDocument()
   })
 
   it('renews from the school email even while the card tab is open', async () => {
@@ -179,9 +203,10 @@ describe('STU-5 student card (FR-5, UX-DR45, UX-DR27)', () => {
     renderAt('/ho-so/xac-minh')
 
     expect(await screen.findByRole('tab', { name: 'Thẻ sinh viên' })).toHaveAttribute('aria-selected', 'true')
-    await user.click(screen.getByRole('button', { name: 'Gia hạn' }))
+    await user.click(screen.getByRole('button', { name: 'Xác minh lại' }))
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Đồng ý và tiếp tục' }))
 
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'Email trường' })).toHaveFocus())
-    expect(screen.getByText('Đã xác minh bằng thẻ sinh viên đến 30/09/2026.')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Email trường' })).toHaveAttribute('aria-selected', 'true')
   })
 })

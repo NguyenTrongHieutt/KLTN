@@ -1,10 +1,14 @@
 package vn.vibefix.identity.internal;
 
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.HexFormat;
 import java.util.UUID;
 
 import jakarta.servlet.http.Cookie;
@@ -123,6 +127,93 @@ public final class IdentityTestSupport {
 	/** The authentication a signed-in session holds for the account; a Google account's role is {@code null}. */
 	public static Authentication authentication(UUID accountId, @Nullable Role role) {
 		return new SignInSession.AccountAuthentication(accountId, role);
+	}
+
+	/**
+	 * Verifies the account as a student until {@code validUntil}, as a confirmed school email code does
+	 * (Story 19.4): a live {@code identity.verification} row whose subject is a fake HMAC of the account,
+	 * so no two accounts share it. The profile is left as it is.
+	 */
+	public static UUID verifyStudent(JdbcClient jdbc, UUID accountId, LocalDate validUntil) {
+		UUID id = verifyStudent(jdbc, accountId, validUntil, fakeHmac(accountId.toString()));
+		if (id == null) {
+			throw new IllegalStateException("The account " + accountId + " is verified already");
+		}
+		return id;
+	}
+
+	/**
+	 * Verifies the account with the subject {@code subjectHmac}, unless a live row holds that subject or
+	 * the account already; returns the row's ID, or {@code null} when nothing was written.
+	 */
+	public static @Nullable UUID verifyStudent(JdbcClient jdbc, UUID accountId, LocalDate validUntil, String subjectHmac) {
+		UUID id = UUID.randomUUID();
+		int inserted = jdbc.sql("""
+				INSERT INTO identity.verification (id, account_id, kind, provider, subject_hmac, key_version, facts,
+				    consent_version, verified_at, valid_until)
+				VALUES (:id, :account, 'STUDENT', 'EMAIL_CODE', :hmac, 1, CAST(:facts AS jsonb), '1.0', :now, :until)
+				ON CONFLICT DO NOTHING
+				""")
+			.param("id", id)
+			.param("account", accountId)
+			.param("hmac", subjectHmac)
+			.param("facts", """
+					{"school":"hust.edu.vn","name":"Sinh viên thử","major":"Công nghệ thông tin","verifiedMonth":"2026-01"}""")
+			.param("now", Timestamp.from(MutableClock.DEFAULT_INSTANT))
+			.param("until", validUntil)
+			.update();
+		return inserted == 1 ? id : null;
+	}
+
+	/**
+	 * Verifies the account until {@code validUntil} with these public facts, and projects them into its profile
+	 * as {@code VerificationRows.insert} does (the profile row is created when there is none); the subject is
+	 * a fake HMAC of the account. Returns the row's ID.
+	 */
+	public static UUID verifyStudent(JdbcClient jdbc, UUID accountId, LocalDate validUntil, String school,
+			@Nullable String name, @Nullable String major) {
+		UUID id = UUID.randomUUID();
+		Timestamp now = Timestamp.from(MutableClock.DEFAULT_INSTANT);
+		jdbc.sql("""
+				INSERT INTO identity.verification (id, account_id, kind, provider, subject_hmac, key_version, facts,
+				    consent_version, verified_at, valid_until)
+				VALUES (:id, :account, 'STUDENT', 'EMAIL_CODE', :hmac, 1,
+				        jsonb_strip_nulls(jsonb_build_object('school', CAST(:school AS text), 'name', CAST(:name AS text),
+				            'major', CAST(:major AS text), 'verifiedMonth', '2026-01')), '1.0', :now, :until)
+				""")
+			.param("id", id)
+			.param("account", accountId)
+			.param("hmac", fakeHmac(accountId.toString()))
+			.param("school", school)
+			.param("name", name)
+			.param("major", major)
+			.param("now", now)
+			.param("until", validUntil)
+			.update();
+		jdbc.sql("""
+				INSERT INTO identity.profile (account_id, student_name, student_school, student_major, updated_at)
+				VALUES (:account, :name, :school, :major, :now)
+				ON CONFLICT (account_id) DO UPDATE SET student_name = EXCLUDED.student_name,
+				    student_school = EXCLUDED.student_school, student_major = EXCLUDED.student_major
+				""")
+			.param("account", accountId)
+			.param("name", name)
+			.param("school", school)
+			.param("major", major)
+			.param("now", now)
+			.update();
+		return id;
+	}
+
+	/** A stand-in for a keyed HMAC: 64 lower-case hexadecimal digits that depend on {@code seed} only. */
+	public static String fakeHmac(String seed) {
+		try {
+			return HexFormat.of()
+				.formatHex(MessageDigest.getInstance("SHA-256").digest(seed.getBytes(StandardCharsets.UTF_8)));
+		}
+		catch (NoSuchAlgorithmException ex) {
+			throw new IllegalStateException("Every Java platform has SHA-256", ex);
+		}
 	}
 
 	/** Locks an account, as an Administrator will (FR-59). */

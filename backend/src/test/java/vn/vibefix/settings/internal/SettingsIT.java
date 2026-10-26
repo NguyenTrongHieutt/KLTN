@@ -96,6 +96,20 @@ class SettingsIT extends IntegrationTest {
 		assertThat(this.settings.allowsSchoolEmail("minh@")).isFalse();
 	}
 
+	/** Story 19.4: the public school is the allowlisted domain the address matched, the most specific one. */
+	@Test
+	void theSchoolOfAnAddressIsItsMostSpecificAllowlistedDomain() {
+		this.jdbc.sql("DELETE FROM settings.school_domain").update();
+		this.jdbc.sql("INSERT INTO settings.school_domain (domain, added_at) VALUES ('hust.edu.vn', now())").update();
+		this.jdbc.sql("INSERT INTO settings.school_domain (domain, added_at) VALUES ('sis.hust.edu.vn', now())").update();
+
+		assertThat(this.settings.schoolOf("khoa@SIS.hust.edu.vn")).contains("sis.hust.edu.vn");
+		assertThat(this.settings.schoolOf("khoa@a.sis.hust.edu.vn")).contains("sis.hust.edu.vn");
+		assertThat(this.settings.schoolOf("minh@hust.edu.vn")).contains("hust.edu.vn");
+		assertThat(this.settings.schoolOf("minh@gmail.com")).isEmpty();
+		assertThat(this.settings.schoolOf("not-an-address")).isEmpty();
+	}
+
 	@Test
 	void anAllowlistEntryIsALowerCaseDomain() {
 		for (String bad : new String[] { "HUST.edu.vn", "hust", "-hust.edu.vn", "hust..edu.vn", "*.edu.vn" }) {

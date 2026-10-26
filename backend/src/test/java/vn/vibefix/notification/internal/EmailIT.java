@@ -142,6 +142,39 @@ class EmailIT extends IntegrationTest {
 		assertThat(statusAndCode()).isEqualTo("OBSOLETE RECIPIENT_ERASED");
 	}
 
+	/** AD-42: a one-time code's email still waiting once its code expired is aborted, its address purged. */
+	@Test
+	void aOneTimeCodesEmailStillWaitingOnceItsCodeExpiredIsAbortedWithItsAddressPurged() {
+		setSentToday(100);
+		send(UUID.randomUUID(), EmailClass.ONE_TIME_CODE, "test.greeting", Map.of("name", "Lan", "code", "482915"));
+		this.worker.runDue(Lane.EMAIL);
+		assertThat(statusAndCode()).as("the budget is used up").startsWith("PENDING");
+
+		this.clock.setInstant(LocalDate.ofInstant(this.clock.instant(), ZoneOffset.UTC).plusDays(1)
+			.atStartOfDay(ZoneOffset.UTC)
+			.toInstant());
+		this.worker.runDue(Lane.EMAIL);
+
+		assertThat(this.mail.sent()).isEmpty();
+		assertThat(statusAndCode()).isEqualTo("ABORTED CODE_EXPIRED");
+		assertThat(this.jdbc.sql("SELECT personal_data IS NULL FROM operations.external_operation")
+			.query(Boolean.class)
+			.single()).isTrue();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM platform.event_publication WHERE event_type LIKE '%OperationFailed'")
+			.query(Long.class)
+			.single()).as("no Administrator alert").isZero();
+	}
+
+	@Test
+	void aOneTimeCodesEmailGoesOutWithinItsTenMinutes() {
+		send(UUID.randomUUID(), EmailClass.ONE_TIME_CODE, "test.greeting", Map.of("name", "Lan", "code", "482915"));
+		this.clock.advance(EmailClass.ONE_TIME_CODE_LIFETIME.minusSeconds(1));
+		this.worker.runDue(Lane.EMAIL);
+
+		assertThat(this.mail.sent()).hasSize(1);
+		assertThat(statusAndCode()).isEqualTo("SUCCEEDED");
+	}
+
 	@Test
 	void aRefusedRecipientAbortsAndGivesTheBudgetBack() {
 		this.mail.rejectNext();

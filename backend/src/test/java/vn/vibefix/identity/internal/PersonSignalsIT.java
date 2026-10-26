@@ -129,6 +129,34 @@ class PersonSignalsIT extends IntegrationTest {
 		assertThat(count(back)).isOne();
 	}
 
+	/** Story 19.4: an erased account's verification rows keep their subject HMACs as long as its signals. */
+	@Test
+	void anErasedAccountsVerificationRowsGoWithItsSignalsAfterTwentyFourMonths() {
+		UUID gone = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null, null);
+		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null, null);
+		IdentityTestSupport.verifyStudent(this.jdbc, gone, java.time.LocalDate.parse("2026-09-30"));
+		IdentityTestSupport.verifyStudent(this.jdbc, other, java.time.LocalDate.parse("2026-09-30"));
+
+		this.transactions.executeWithoutResult(status -> this.personalData.eraseAccount(gone));
+		assertThat(verifications(gone)).as("ended ERASED, its HMAC kept").isOne();
+
+		this.clock.setInstant(this.clock.instant().atOffset(ZoneOffset.UTC).plusMonths(24).minusMinutes(1).toInstant());
+		this.poller.runDue();
+		assertThat(verifications(gone)).isOne();
+
+		this.clock.advance(Duration.ofMinutes(2));
+		this.poller.runDue();
+		assertThat(verifications(gone)).isZero();
+		assertThat(verifications(other)).isOne();
+	}
+
+	private long verifications(UUID account) {
+		return this.jdbc.sql("SELECT count(*) FROM identity.verification WHERE account_id = :id")
+			.param("id", account)
+			.query(Long.class)
+			.single();
+	}
+
 	private void record(UUID account, Source source, String value) {
 		this.transactions.executeWithoutResult(status -> this.signals.record(account, source, value));
 	}

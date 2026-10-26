@@ -15,6 +15,8 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import tools.jackson.databind.json.JsonMapper;
+
 import vn.vibefix.shared.ErasureBlocker;
 import vn.vibefix.shared.PersonalDataParticipant;
 import vn.vibefix.shared.PersonalDataSection;
@@ -23,12 +25,16 @@ import vn.vibefix.timers.Deadlines;
 /**
  * {@code identity}'s part in exports and erasure (AD-24). An erased account keeps its row, so the
  * records that name it still resolve, but loses its Google and GitHub identities, its avatar, its kept
- * token, its profile with its typed links and showcased repositories, its school email codes, and its
- * verification (so its school address no longer counts as used); its acknowledgments stay as the
- * proof of what it agreed to.
+ * token, its profile with its typed links and showcased repositories, its school email codes and send
+ * counters, and its live verification, which ends {@code ERASED} with its facts deleted (so its subject
+ * no longer counts as used). The verification rows keep their subject HMACs, as the person-link signals
+ * do, until {@link PersonSignalPurge} deletes them 24 months later; no export shows an HMAC. Its
+ * acknowledgments stay as the proof of what it agreed to.
  */
 @Component
 class IdentityPersonalData implements PersonalDataParticipant {
+
+	private static final JsonMapper JSON = JsonMapper.builder().build();
 
 	private final JdbcClient jdbc;
 
@@ -56,7 +62,8 @@ class IdentityPersonalData implements PersonalDataParticipant {
 	public Set<String> tables() {
 		return Set.of("identity.account", "identity.acknowledgment", "identity.customer_token",
 				"identity.profile", "identity.profile_link", "identity.showcase_repository",
-				"identity.contact_grant", "identity.school_email_code", "identity.student_verification",
+				"identity.contact_grant", "identity.school_email_code", "identity.school_email_send_hour",
+				"identity.school_email_send_day", "identity.verification",
 				"identity.student_card", "identity.administrator_credential", "identity.administrator_enrolment",
 				"identity.person_signal", "identity.mentor_application", "identity.mentor_decision", "identity.deletion_request",
 				"identity.account_action");
@@ -99,17 +106,29 @@ class IdentityPersonalData implements PersonalDataParticipant {
 			// The one profile as the person typed it (Story 19.3), with its typed links and repositories.
 			this.profiles.find(accountId).ifPresent(profile -> data.put("profile", profileSection(profile)));
 			data.put("theme", this.profiles.theme(accountId).name());
-			this.jdbc.sql("""
-					SELECT method, school_email, verified_at, valid_until FROM identity.student_verification
-					WHERE account_id = :id
+			// Each verification with its public facts while live; never its subject HMAC (Story 19.4).
+			List<Map<String, Object>> verifications = this.jdbc.sql("""
+					SELECT kind, provider, facts, consent_version, verified_at, valid_until, ended_at, ended_reason
+					FROM identity.verification WHERE account_id = :id ORDER BY verified_at
 					""").param("id", accountId).query((rs, n) -> {
 				Map<String, Object> verification = new LinkedHashMap<>();
-				verification.put("method", rs.getString("method"));
-				verification.put("schoolEmail", rs.getString("school_email"));
+				verification.put("kind", rs.getString("kind"));
+				verification.put("method", VerificationRows.Provider.valueOf(rs.getString("provider")).method());
+				if (rs.getString("facts") != null) {
+					verification.put("facts", JSON.readValue(rs.getString("facts"), Map.class));
+				}
+				verification.put("consentVersion", rs.getString("consent_version"));
 				verification.put("verifiedAt", rs.getTimestamp("verified_at").toInstant().toString());
 				verification.put("validUntil", rs.getObject("valid_until", LocalDate.class).toString());
+				if (rs.getTimestamp("ended_at") != null) {
+					verification.put("endedAt", rs.getTimestamp("ended_at").toInstant().toString());
+					verification.put("endedReason", rs.getString("ended_reason"));
+				}
 				return verification;
-			}).optional().ifPresent(verification -> data.put("studentVerification", verification));
+			}).list();
+			if (!verifications.isEmpty()) {
+				data.put("verifications", verifications);
+			}
 			// The cards' decisions and what the Administrator recorded; the files are files' to export.
 			List<Map<String, Object>> cards = this.jdbc.sql("""
 					SELECT status, file_name, uploaded_at, decided_at, student_number, school, rejection_reason
@@ -182,10 +201,12 @@ class IdentityPersonalData implements PersonalDataParticipant {
 			if (!signals.isEmpty()) {
 				data.put("personSignals", signals);
 			}
-			// The addresses and times of the codes, never the codes: only their hashes are kept.
+			// The pending code's school, declared details, and time; never the code or the address, which no table holds.
 			List<Map<String, String>> codes = this.jdbc.sql("""
-					SELECT email, sent_at FROM identity.school_email_code WHERE account_id = :id ORDER BY sent_at
-					""").param("id", accountId).query((rs, n) -> Map.of("email", rs.getString("email"), "sentAt",
+					SELECT school, declared_name, declared_major, sent_at FROM identity.school_email_code
+					WHERE account_id = :id ORDER BY sent_at
+					""").param("id", accountId).query((rs, n) -> Map.of("school", rs.getString("school"), "name",
+					rs.getString("declared_name"), "major", rs.getString("declared_major"), "sentAt",
 					rs.getTimestamp("sent_at").toInstant().toString())).list();
 			if (!codes.isEmpty()) {
 				data.put("schoolEmailCodes", codes);
@@ -211,9 +232,14 @@ class IdentityPersonalData implements PersonalDataParticipant {
 		this.jdbc.sql("UPDATE identity.deletion_request SET completed_by_admin_id = NULL WHERE completed_by_admin_id = :id")
 			.param("id", accountId)
 			.update();
-		for (String table : new String[] { "identity.showcase_repository", "identity.school_email_code", "identity.student_verification",
-				"identity.student_card", "identity.administrator_credential", "identity.administrator_enrolment",
-				"identity.mentor_application", "identity.mentor_decision", "identity.account_action",
+		// The live verification ends ERASED with its facts; the row keeps its subject HMAC (AD-24).
+		this.jdbc.sql("""
+				UPDATE identity.verification SET ended_at = :now, ended_reason = 'ERASED', facts = NULL
+				WHERE account_id = :id AND ended_at IS NULL
+				""").param("id", accountId).param("now", Timestamp.from(this.clock.instant())).update();
+		for (String table : new String[] { "identity.showcase_repository", "identity.school_email_code",
+				"identity.school_email_send_hour", "identity.student_card", "identity.administrator_credential",
+				"identity.administrator_enrolment", "identity.mentor_application", "identity.mentor_decision", "identity.account_action",
 				"identity.profile_link", "identity.profile" }) {
 			this.jdbc.sql("DELETE FROM " + table + " WHERE account_id = :id").param("id", accountId).update();
 		}
@@ -249,7 +275,7 @@ class IdentityPersonalData implements PersonalDataParticipant {
 			Map<String, Object> student = new LinkedHashMap<>();
 			student.put("name", details.name());
 			student.put("school", details.school());
-			student.put("year", details.year());
+			student.put("major", details.major());
 			section.put("studentDetails", student);
 		}
 		return section;

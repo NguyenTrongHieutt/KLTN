@@ -56,37 +56,34 @@ public final class TeamTestSupport {
 		return id;
 	}
 
+	/** The school of every Student {@link #student} verifies. */
+	public static final String SCHOOL = "Đại học Bách khoa Hà Nội";
+
+	/** The major every Student {@link #student} verifies declares. */
+	public static final String MAJOR = "Công nghệ thông tin";
+
 	/**
-	 * A Student with a profile; verified until {@code verifiedUntil} when given.
-	 * @param name their real name, shown only when {@code shown}
+	 * A Student with a profile; verified until {@code verifiedUntil} when given, declaring {@code name} and
+	 * {@link #MAJOR} at {@link #SCHOOL}, which the profile then holds as the verification's projection (Story
+	 * 19.4). An unverified Student has no student details.
+	 * @param name their declared full name, shown only when {@code shown} and verified
 	 */
 	public static UUID student(JdbcClient jdbc, @Nullable String name, boolean shown, List<String> skillIds,
 			String skillNames, @Nullable LocalDate verifiedUntil) {
 		UUID id = IdentityTestSupport.insertAccount(jdbc, Role.STUDENT, null, null);
 		Timestamp now = Timestamp.from(MutableClock.DEFAULT_INSTANT);
 		jdbc.sql("""
-				INSERT INTO identity.profile
-				    (account_id, student_name, student_school, student_year, hide_student_details, skill_ids, skill_names,
-				     updated_at)
-				VALUES (:account, :name, 'Đại học Bách khoa Hà Nội', 3, :hidden, CAST(:skills AS UUID[]), :skillNames, :now)
+				INSERT INTO identity.profile (account_id, hide_student_details, skill_ids, skill_names, updated_at)
+				VALUES (:account, :hidden, CAST(:skills AS UUID[]), :skillNames, :now)
 				""")
 			.param("account", id)
-			.param("name", name)
 			.param("hidden", !shown)
 			.param("skills", "{" + String.join(",", skillIds) + "}")
 			.param("skillNames", skillNames)
 			.param("now", now)
 			.update();
 		if (verifiedUntil != null) {
-			jdbc.sql("""
-					INSERT INTO identity.student_verification (account_id, method, school_email, verified_at, valid_until)
-					VALUES (:account, 'SCHOOL_EMAIL', :email, :now, :until)
-					""")
-				.param("account", id)
-				.param("email", id.toString().substring(0, 8) + "@hust.edu.vn")
-				.param("now", now)
-				.param("until", verifiedUntil)
-				.update();
+			IdentityTestSupport.verifyStudent(jdbc, id, verifiedUntil, SCHOOL, name, MAJOR);
 		}
 		return id;
 	}

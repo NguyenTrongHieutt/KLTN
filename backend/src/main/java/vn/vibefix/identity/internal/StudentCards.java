@@ -49,9 +49,10 @@ import vn.vibefix.timers.Deadlines;
  * Student verification by a student card (FR-5, UX-DR27): the Student uploads an image or a PDF of
  * the card, kept by {@code files} under {@value #PURPOSE}; an Administrator approves it, recording
  * the card's student number and school, or rejects it with a reason. An approval verifies the account
- * as a school email code does ({@link StudentVerifications#verifyByCard}), and the card's school and
- * number verify at most one account. Every decision is audited and notified, and the file is deleted
- * 30 days later ({@link StudentCardDeletion}).
+ * as a school email code does ({@link StudentVerifications#verifyByCard}): an {@code identity.verification}
+ * row whose subject is the keyed HMAC of the card's school and number, which verify at most one account.
+ * Every decision is audited and notified, and the file is deleted 30 days later
+ * ({@link StudentCardDeletion}). Story 19.7 removes the card path.
  * <p>
  * Commands lock the Student's account row first, as {@link StudentVerifications} does, so an upload,
  * a decision, a code entry, and the expiry of one account run one at a time.
@@ -226,13 +227,17 @@ class StudentCards implements StudentCardQueue {
 
 	/**
 	 * Approves a pending card, recording what it says, and verifies its Student.
-	 * @throws ApiException {@code NOT_FOUND} for no such card; {@code CONFLICT} for a decided one, or with
-	 * {@code ALREADY_USED_FOR_VERIFICATION} when that school and number verify another account;
+	 * @throws ApiException {@code NOT_FOUND} for no such card; {@code CONFLICT} for a decided one, for a
+	 * Student verified since the upload whose renewal is not open (a card would end that verification), or
+	 * with {@code ALREADY_USED_FOR_VERIFICATION} when that school and number verify another account;
 	 * {@code VALIDATION} when either is empty once normalized
 	 */
 	@Transactional
 	QueueRow approve(UUID administrator, UUID cardId, String studentNumber, String school) {
 		Card card = lockPendingCard(cardId);
+		if (!this.verifications.mayVerify(card.accountId())) {
+			throw new ApiException(ErrorCode.CONFLICT);
+		}
 		String number = studentNumber.strip();
 		String schoolName = school.strip();
 		String key = cardKey(schoolName, number);
@@ -251,7 +256,7 @@ class StudentCards implements StudentCardQueue {
 			.param("number", number)
 			.param("school", schoolName)
 			.update();
-		this.verifications.verifyByCard(card.accountId(), key, cardId, now);
+		this.verifications.verifyByCard(card.accountId(), key, schoolName, now);
 		decided(administrator, card, now, "identity.student_card_approved", APPROVED_NOTIFICATION, Map.of());
 		return row(cardId);
 	}

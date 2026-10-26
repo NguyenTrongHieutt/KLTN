@@ -25,7 +25,7 @@ const student = (overrides: object = {}) => ({
   githubLogin: 'minhtq',
   name: 'Trần Quang Minh',
   school: 'ĐH Bách khoa Hà Nội',
-  yearOfStudy: 3,
+  major: 'Khoa học máy tính',
   skills: ['React', 'Supabase'],
   verified: true,
   verifiedUntil: '2027-09-30',

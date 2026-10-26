@@ -88,7 +88,15 @@ class JdbcPersonSignals implements PersonSignals {
 		if (normalized.isEmpty()) {
 			return;
 		}
-		Map<Integer, String> hmacs = this.keys.all(source.kind, normalized.get());
+		recordHmacs(accountId, source, this.keys.all(source.kind, normalized.get()));
+	}
+
+	/**
+	 * Records signals computed already, by key version, as {@link #record} does: a confirmed school
+	 * email's, whose address is gone by then and whose HMAC the code kept (Story 19.4).
+	 */
+	@Transactional(propagation = Propagation.MANDATORY)
+	void recordHmacs(UUID accountId, Source source, Map<Integer, String> hmacs) {
 		int added = 0;
 		for (Map.Entry<Integer, String> hmac : hmacs.entrySet()) {
 			added += this.jdbc.sql("""
