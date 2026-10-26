@@ -24,7 +24,6 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import com.jayway.jsonpath.JsonPath;
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
@@ -56,9 +55,9 @@ class PageVisibilityIT extends IntegrationTest {
 	private UUID vy;
 
 	private UUID job(String type) {
-		this.lan = this.lan != null ? this.lan : IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		this.lan = this.lan != null ? this.lan : IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.hung = this.hung != null ? this.hung
-				: TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT),
+				: TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT),
 						"React");
 		UUID product = WorkTestSupport.product(this.jdbc, this.lan, "Sổ đặt bàn Quán Mây " + type);
 		UUID job = WorkTestSupport.activeJob(this.jdbc, product, this.lan, this.hung, List.of(UUID.randomUUID()),
@@ -145,7 +144,7 @@ class PageVisibilityIT extends IntegrationTest {
 
 		this.jdbc.sql("UPDATE job.job SET state = 'CLOSED' WHERE id = :id").param("id", assessment).update();
 		this.mvc.perform(get("/api/v1/pages/" + report).with(as(this.lan, Role.CUSTOMER))).andExpect(status().isOk());
-		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.mvc.perform(get("/api/v1/pages/" + report).with(as(other, Role.CUSTOMER))).andExpect(status().isNotFound());
 	}
 

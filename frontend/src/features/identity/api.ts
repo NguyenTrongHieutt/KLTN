@@ -29,21 +29,10 @@ function withReturn(start: string, returnTo?: string): string {
   return returnTo ? `${start}?quay-lai=${encodeURIComponent(returnTo)}` : start
 }
 
-/** MEN-5, the Mentor application, beside ACC-1 since Story 19.3 (until Story 19.7). */
-export const MENTOR_PROFILE_PATH = '/ho-so/nguoi-huong-dan'
-
 /**
- * Where a signed-in account lands: an Administrator in the Admin shell, a Mentor from before Google
- * sign-in waiting for approval on MEN-5 only (FR-74), everyone else, a Google account with no role
- * too, on the to-do list.
+ * Where a signed-in account lands: an Administrator in the Admin shell, everyone else, a Google account
+ * with no role too, on the to-do list. No Mentor waits for an approval (Story 19.7).
  */
 export function landingPath(session: Session): string {
-  const account = session.account
-  if (account?.role === 'ADMINISTRATOR') {
-    return '/quan-tri'
-  }
-  if (account?.role === 'MENTOR' && account.mentorApprovalStatus !== 'APPROVED') {
-    return MENTOR_PROFILE_PATH
-  }
-  return '/viec-can-lam'
+  return session.account?.role === 'ADMINISTRATOR' ? '/quan-tri' : '/viec-can-lam'
 }

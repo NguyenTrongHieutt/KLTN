@@ -47,7 +47,6 @@ import com.jayway.jsonpath.JsonPath;
 import com.sun.net.httpserver.HttpServer;
 
 import vn.vibefix.identity.AccountLocked;
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.CustomerTokens;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.job.Crews;
@@ -378,7 +377,7 @@ class FundingIT extends IntegrationTest {
 	// ---- The way to a confirmed Agreement ----------------------------------------------------
 
 	private void confirmedAgreement(String jobType) throws Exception {
-		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		CustomerTokens.keep(this.context, this.lan, "gho_customer_token_never_printed");
 		UUID product = product(this.lan);
 		this.job = UUID.randomUUID();
@@ -391,7 +390,7 @@ class FundingIT extends IntegrationTest {
 				""")
 			.param("id", this.job).param("product", product).param("owner", this.lan).param("type", jobType)
 			.param("now", Timestamp.from(now)).param("lapses", Timestamp.from(now.plus(Duration.ofDays(14)))).update();
-		this.hung = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT),
+		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT),
 				"React");
 		this.team = UUID.randomUUID();
 		this.jdbc.sql("INSERT INTO team.team (id, mentor_account_id, status, created_at) VALUES (:id, :mentor, 'OPEN', now())")
@@ -506,7 +505,7 @@ class FundingIT extends IntegrationTest {
 
 	/** An Administrator with credentials, as {@code Administrators.activeIds} counts them. */
 	private UUID administrator() {
-		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null, null);
+		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
 		this.jdbc.sql("""
 				INSERT INTO identity.administrator_credential (account_id, email, display_name, password_hash,
 				    totp_key_version, totp_nonce, totp_ciphertext, created_at)

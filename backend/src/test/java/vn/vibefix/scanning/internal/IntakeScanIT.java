@@ -104,7 +104,7 @@ class IntakeScanIT extends IntegrationTest {
 
 	@BeforeEach
 	void aCustomer() {
-		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.jdbc.sql("UPDATE identity.account SET github_email = 'lan@users.github.test' WHERE id = :id")
 			.param("id", this.lan)
 			.update();
@@ -189,7 +189,7 @@ class IntakeScanIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/products").with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(jsonPath("$[0].scanState").value("FINDINGS"))
 			.andExpect(jsonPath("$[0].openFindings").value(3));
-		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.mvc.perform(get("/api/v1/products/" + product + "/findings").with(as(other, Role.CUSTOMER)))
 			.andExpect(status().isNotFound());
 	}
@@ -247,9 +247,9 @@ class IntakeScanIT extends IntegrationTest {
 			.andExpect(jsonPath("$.tools[0]").value("LOVABLE"))
 			.andExpect(jsonPath("$.finding.ruleId").value("stripe-secret-key"))
 			.andExpect(jsonPath("$.finding.status").value("OPEN"));
-		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null, null);
+		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
 		this.mvc.perform(get(path).with(as(admin, Role.ADMINISTRATOR))).andExpect(jsonPath("$.canResolve").value(false));
-		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.mvc.perform(get(path).with(as(other, Role.CUSTOMER))).andExpect(status().isNotFound());
 		this.mvc.perform(post(path + "/rotation").with(as(other, Role.CUSTOMER)).with(csrf()))
 			.andExpect(status().isNotFound());
@@ -286,7 +286,7 @@ class IntakeScanIT extends IntegrationTest {
 		requestScan(product, "lan/resolvers");
 		this.worker.runDue(Lane.SCAN);
 		UUID finding = findingOf(product, "CREDENTIAL");
-		UUID mentor = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null, null);
+		UUID mentor = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null);
 		assertThat(this.scans.mayResolve(finding, this.lan)).isTrue();
 
 		new TransactionTemplate(this.transactions).executeWithoutResult(
@@ -312,7 +312,7 @@ class IntakeScanIT extends IntegrationTest {
 		this.mvc.perform(delete("/api/v1/products/" + product).with(as(this.lan, Role.CUSTOMER)).with(csrf()))
 			.andExpect(status().is(422))
 			.andExpect(jsonPath("$.reason").value("PRODUCT_HAS_ACTIVE_JOB"));
-		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.mvc.perform(delete("/api/v1/products/" + product).with(as(other, Role.CUSTOMER)).with(csrf()))
 			.andExpect(status().isNotFound());
 		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.pins.releaseForJob(product, job));
@@ -348,7 +348,7 @@ class IntakeScanIT extends IntegrationTest {
 		this.mvc.perform(post(path).with(as(this.lan, Role.CUSTOMER)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("{\"reason\":\"  \"}")).andExpect(status().isBadRequest());
-		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.mvc.perform(post(path).with(as(other, Role.CUSTOMER)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("{\"reason\":\"Khóa mẫu\"}")).andExpect(status().isNotFound());

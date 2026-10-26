@@ -26,7 +26,7 @@ import jakarta.validation.constraints.Size;
 import vn.vibefix.identity.GitHubGate;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
-import vn.vibefix.identity.MentorGate;
+import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.job.JobPosts;
 import vn.vibefix.job.JobPosts.JobPostState;
 import vn.vibefix.job.JobSelection;
@@ -45,7 +45,7 @@ import vn.vibefix.shared.Role;
 import vn.vibefix.team.Teams;
 
 /**
- * Applications (FR-13, FR-15, AD-20): an approved Mentor applies from MEN-3 (AD-19 new-work command)
+ * Applications (FR-13, FR-15, AD-20): a Mentor with GitHub linked applies from MEN-3 (AD-19 new-work command)
  * and lists or withdraws their own (MEN-4); the Job's Customer reads the open ones on CUS-8 and selects
  * one (J3). Nobody else finds them.
  */
@@ -95,7 +95,7 @@ class ApplicationController {
 
 	private final Teams teams;
 
-	private final MentorGate gate;
+	private final ActiveAccount gate;
 
 	private final JobSelection selection;
 
@@ -108,7 +108,7 @@ class ApplicationController {
 	private final GitHubGate gitHub;
 
 	ApplicationController(Applications applications, JobPosts posts, MentorDirectory mentors, Teams teams,
-			MentorGate gate, JobSelection selection, NdaSignatures signatures, Invitations invitations,
+			ActiveAccount gate, JobSelection selection, NdaSignatures signatures, Invitations invitations,
 			CurrentCaller callers, GitHubGate gitHub) {
 		this.gitHub = gitHub;
 		this.applications = applications;
@@ -126,7 +126,6 @@ class ApplicationController {
 	@ResponseStatus(HttpStatus.CREATED)
 	ApplicationView apply(@PathVariable UUID postId, @Valid @RequestBody ApplyRequest body) {
 		UUID mentor = mentor();
-		this.gate.requireApprovedMentor(mentor);
 		this.gitHub.requireGitHubLinked(mentor);
 		if (!body.publicCodeAcknowledged()) {
 			throw new ApiException(ErrorCode.VALIDATION, MatchingReason.PUBLIC_CODE_NOT_ACKNOWLEDGED);
@@ -198,7 +197,6 @@ class ApplicationController {
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void sign(@PathVariable UUID jobId, @Valid @RequestBody NdaRequest body) {
 		UUID mentor = mentor();
-		this.gate.requireApprovedMentor(mentor);
 		this.gitHub.requireGitHubLinked(mentor);
 		this.signatures.sign(mentor, jobId, body.ndaVersion(), body.commitEmailNoticeAcknowledged());
 	}

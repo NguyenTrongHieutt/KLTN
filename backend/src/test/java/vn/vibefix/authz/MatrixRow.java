@@ -24,16 +24,16 @@ import org.springframework.http.HttpMethod;
  * seeds, for example {@code GET /api/v1/jobs/{jobId}}.</li>
  * <li>{@code caller}: a {@link MatrixCaller}.</li>
  * <li>{@code subject_state}: {@code key=value} pairs separated by {@code ;} (for example
- * {@code locked=true;mentor=PENDING}); the fixture that realizes the caller must understand every
+ * {@code locked=true;github=unlinked}); the fixture that realizes the caller must understand every
  * key.</li>
  * <li>{@code body}: the name of a JSON file under {@code authz/bodies/}, with the same
- * {@code {name}} placeholders; any other file there (for example {@code student-card.png}) is sent
+ * {@code {name}} placeholders; any other file there (for example {@code upload.png}) is sent
  * as the multipart part {@code file}, byte for byte.</li>
  * <li>{@code expect}: an {@link Expectation}.</li>
- * <li>{@code check} (optional): the Mentor gate the endpoint applies (AD-19), {@value #APPROVED_MENTOR} for
- * new-work commands or {@value #ACTIVE_ACCOUNT} for Job commands. Every row of an endpoint under
- * {@value #MENTOR_PATH} names one, and no other row does, so a Mentor endpoint cannot be added
- * without deciding which.</li>
+ * <li>{@code check} (optional): the global gate the Mentor endpoint applies (AD-19), {@value #GITHUB_LINKED}
+ * for new-work commands (bidding, the Mentor's NDA) or {@value #ACTIVE_ACCOUNT} for everything else. Every
+ * row of an endpoint under {@value #MENTOR_PATH} names one, and no other row does, so a Mentor endpoint
+ * cannot be added without deciding which.</li>
  * </ul>
  */
 public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map<String, String> state,
@@ -43,11 +43,11 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 
 	static final List<String> HEADER = List.of("endpoint", "caller", "subject_state", "body", "expect", "check");
 
-	static final String APPROVED_MENTOR = "requireApprovedMentor";
+	static final String GITHUB_LINKED = "requireGitHubLinked";
 
 	static final String ACTIVE_ACCOUNT = "requireActiveAccount";
 
-	/** Where the Mentor's own endpoints live, each behind one of the two checks. */
+	/** Where the Mentor's own endpoints live, each behind one of the two global gates. */
 	static final String MENTOR_PATH = "/api/v1/mentor/";
 
 	private static final Set<HttpMethod> METHODS = Set.of(HttpMethod.GET, HttpMethod.POST, HttpMethod.PUT,
@@ -58,11 +58,11 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 		if (!path.startsWith("/")) {
 			throw new IllegalArgumentException("A path starts with '/': " + path);
 		}
-		if (check != null && !check.equals(APPROVED_MENTOR) && !check.equals(ACTIVE_ACCOUNT)) {
-			throw new IllegalArgumentException("check is " + APPROVED_MENTOR + " or " + ACTIVE_ACCOUNT + ", not " + check);
+		if (check != null && !check.equals(GITHUB_LINKED) && !check.equals(ACTIVE_ACCOUNT)) {
+			throw new IllegalArgumentException("check is " + GITHUB_LINKED + " or " + ACTIVE_ACCOUNT + ", not " + check);
 		}
 		if (path.startsWith(MENTOR_PATH) && check == null) {
-			throw new IllegalArgumentException("a Mentor endpoint names its check, " + APPROVED_MENTOR + " or "
+			throw new IllegalArgumentException("a Mentor endpoint names its check, " + GITHUB_LINKED + " or "
 					+ ACTIVE_ACCOUNT + " (AD-19): " + path);
 		}
 		if (!path.startsWith(MENTOR_PATH) && check != null) {

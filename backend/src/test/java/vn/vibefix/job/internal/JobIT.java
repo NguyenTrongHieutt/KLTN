@@ -70,7 +70,7 @@ class JobIT extends IntegrationTest {
 
 	@BeforeEach
 	void aCustomerWithAProduct() {
-		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.product = product(this.lan);
 	}
 
@@ -108,7 +108,7 @@ class JobIT extends IntegrationTest {
 			.andExpect(jsonPath("$.length()").value(1))
 			.andExpect(jsonPath("$[0].state").value("DRAFT"))
 			.andExpect(jsonPath("$[0].productName").value("Sổ đặt bàn Quán Mây"));
-		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.mvc.perform(get("/api/v1/jobs/" + job).with(as(other))).andExpect(status().isNotFound());
 		this.mvc.perform(put("/api/v1/jobs/" + job).with(as(other)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
@@ -131,7 +131,7 @@ class JobIT extends IntegrationTest {
 		create(draft("Sửa lỗi", "[\"BUG_FIX\"]", List.of(), null, null)).andExpect(status().is(422))
 			.andExpect(jsonPath("$.reason").value("OPEN_FINDINGS"));
 		create(draft("Đánh giá trước", "[\"ASSESSMENT\"]", List.of(), null, null)).andExpect(status().isCreated());
-		UUID someoneElses = product(IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null));
+		UUID someoneElses = product(IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null));
 		this.mvc.perform(post("/api/v1/jobs").with(as(this.lan)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
 			.content(draft("Của người khác", "[]", List.of(), null, null).replace(this.product.toString(), someoneElses.toString())))
@@ -150,7 +150,7 @@ class JobIT extends IntegrationTest {
 			.andReturn().getResponse().getContentAsString();
 		UUID file = UUID.fromString(com.jayway.jsonpath.JsonPath.read(added, "$.fileId"));
 		this.mvc.perform(get("/api/v1/files/" + file).with(as(this.lan))).andExpect(status().isOk());
-		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.mvc.perform(get("/api/v1/files/" + file).with(as(other))).andExpect(status().isNotFound());
 		this.mvc.perform(get("/api/v1/jobs/" + job).with(as(this.lan)))
 			.andExpect(jsonPath("$.screenshots.length()").value(1))

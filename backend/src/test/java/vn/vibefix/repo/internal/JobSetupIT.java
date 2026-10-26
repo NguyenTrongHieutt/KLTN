@@ -33,7 +33,6 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import vn.vibefix.github.internal.GitHubStub;
 import vn.vibefix.github.internal.TestKeys;
 import vn.vibefix.identity.AccountLocked;
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.CustomerTokens;
 import vn.vibefix.identity.internal.AdministratorTestSupport;
 import vn.vibefix.identity.internal.IdentityTestSupport;
@@ -164,10 +163,10 @@ class JobSetupIT extends IntegrationTest {
 
 	@BeforeEach
 	void aCodeJobStarting() throws Exception {
-		this.customer = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		this.customer = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		// A fake token, built at run time; the stub accepts any.
 		CustomerTokens.keep(this.context, this.customer, String.join("", "gh", "o_", "x".repeat(36)));
-		this.mentor = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT),
+		this.mentor = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT),
 				"React");
 		this.crew = TeamTestSupport.student(this.jdbc, "Lê Thảo Vy", true, List.of(TeamTestSupport.REACT), "React",
 				LocalDate.parse("2026-12-31"));
@@ -990,7 +989,7 @@ class JobSetupIT extends IntegrationTest {
 			.andExpect(jsonPath("$.status").value("DONE"))
 			.andExpect(jsonPath("$.steps[2].state").value("DONE"))
 			.andExpect(jsonPath("$.canRetry").value(false));
-		UUID stranger = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		UUID stranger = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/setup").with(as(stranger, Role.CUSTOMER)))
 			.andExpect(status().isNotFound());
 	}

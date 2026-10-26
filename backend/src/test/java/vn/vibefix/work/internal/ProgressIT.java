@@ -19,7 +19,6 @@ import org.springframework.session.SessionRepository;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
@@ -59,8 +58,8 @@ class ProgressIT extends IntegrationTest {
 
 	@BeforeEach
 	void milestoneOneFundedWithOneCriterionApproved() {
-		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
-		this.hung = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Đỗ Mạnh Hùng",
+		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng",
 				List.of(TeamTestSupport.REACT), "React");
 		UUID product = WorkTestSupport.product(this.jdbc, this.lan, "Sổ đặt bàn Quán Mây");
 		this.job = WorkTestSupport.activeJob(this.jdbc, product, this.lan, this.hung, MILESTONES, CRITERIA,
@@ -129,10 +128,10 @@ class ProgressIT extends IntegrationTest {
 
 	@Test
 	void nobodyElseReadsTheProgress() throws Exception {
-		UUID otherCustomer = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		UUID otherCustomer = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		UUID tung = WorkTestSupport.student(this.jdbc, "Lê Minh Tùng");
 		WorkTestSupport.crewRow(this.jdbc, this.job, tung, "ASSIGNED", null);
-		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null, null);
+		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
 		for (RequestPostProcessor outsider : List.of(as(otherCustomer, Role.CUSTOMER), as(tung, Role.STUDENT),
 				as(admin, Role.ADMINISTRATOR))) {
 			this.mvc.perform(get("/api/v1/boards/" + this.job + "/progress").with(outsider)).andExpect(status().isNotFound());

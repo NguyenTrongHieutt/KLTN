@@ -1,5 +1,4 @@
 import { Dialog } from '@base-ui/react/dialog'
-import { Tabs } from '@base-ui/react/tabs'
 import { BadgeCheck, TriangleAlert, X } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
@@ -17,7 +16,6 @@ import { formatCalendarDate, formatCalendarDayMonth, formatMonthYear, formatTime
 import { fieldMessage, serverFieldErrors } from '@/lib/formErrors'
 import { problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
-import { StudentCardUpload } from './StudentCardUpload'
 import { StudentNoticeDialog } from './StudentNoticeDialog'
 import {
   useConfirmSchoolEmailCode,
@@ -41,20 +39,12 @@ function isStale(error: unknown): boolean {
   return error instanceof ApiError && error.problem.code === 'STALE'
 }
 
-type Way = 'email' | 'card'
-
 /** The row's status chip: verified, verified with renewal open, or not (lapsed included). */
 function statusOf(verification: Verification): { label: MessageKey; tone: string } {
   if (verification.status === 'VERIFIED') {
     return verification.renewalOpen
       ? { label: 'screen.verification.student.renewalDue', tone: 'bg-warning-soft text-warning' }
       : { label: 'screen.verification.student.verified', tone: 'bg-success-soft text-success' }
-  }
-  if (verification.studentCard?.status === 'PENDING') {
-    return { label: 'screen.student.verification.cardPendingBadge', tone: 'bg-primary-soft text-primary' }
-  }
-  if (verification.studentCard?.status === 'REJECTED') {
-    return { label: 'screen.student.verification.cardRejectedBadge', tone: 'bg-destructive-soft text-destructive' }
   }
   return { label: 'screen.verification.student.unverified', tone: 'bg-muted text-foreground' }
 }
@@ -66,7 +56,7 @@ function statusOf(verification: Verification): { label: MessageKey; tone: string
  * shows the badge "Sinh viên đã xác minh" with the school, the month, and "Có hiệu lực đến", the name and
  * major marked "Khai khi xác minh", and "Bỏ xác minh". From 14 days before the expiry it reads "Sắp hết
  * hạn" with "Gia hạn", which asks for the address only; once expired it reads "Chưa xác minh" under the
- * expired alert. A Student keeps the student-card tab until Story 19.7.
+ * expired alert. The school email is the one way to verify: the student card is gone (Story 19.7).
  */
 export function StudentEmailRow({ student }: { student: boolean }) {
   const verification = useVerification()
@@ -107,11 +97,8 @@ function StudentEmailBody({ verification, student }: { verification: Verificatio
   const [editing, setEditing] = useState(false)
   // What was sent this visit, for "Gửi mã mới": vibefix keeps no address, so a reload asks for it again.
   const [last, setLast] = useState<SchoolEmailSend>()
-  const [chosen, setChosen] = useState<Way>()
-  const way: Way = chosen ?? (verification.studentCard ? 'card' : 'email')
 
   function start() {
-    setChosen('email')
     if (accepted) {
       setEditing(true)
     } else {
@@ -161,17 +148,7 @@ function StudentEmailBody({ verification, student }: { verification: Verificatio
           </Button>
         </div>
       )}
-      {showWays &&
-        (student ? (
-          <Ways
-            way={way}
-            onWay={setChosen}
-            email={emailWay}
-            card={<StudentCardUpload verification={verification} onUseEmail={start} />}
-          />
-        ) : (
-          emailWay
-        ))}
+      {showWays && emailWay}
       {verified && <Unlink />}
       <StudentNoticeDialog
         open={notice}
@@ -196,36 +173,6 @@ function Intro({ onStart }: { onStart: () => void }) {
   )
 }
 
-/** A Student's two ways, as tabs ("Cách xác minh"), until Story 19.7 removes the card. */
-function Ways({
-  way,
-  onWay,
-  email,
-  card,
-}: {
-  way: Way
-  onWay: (way: Way) => void
-  email: ReactNode
-  card: ReactNode
-}) {
-  const tabClass =
-    'min-h-control-compact border-b-2 border-transparent px-3 text-label text-muted-foreground data-active:border-primary data-active:text-foreground focus-visible:outline-2 focus-visible:outline-ring'
-  return (
-    <Tabs.Root value={way} onValueChange={(next) => onWay(next as Way)} className="flex flex-col gap-4">
-      <Tabs.List aria-label={t('screen.verification.student.methods')} className="flex gap-2 border-b border-border">
-        <Tabs.Tab value="email" className={tabClass}>
-          {t('screen.verification.student.tabEmail')}
-        </Tabs.Tab>
-        <Tabs.Tab value="card" className={tabClass}>
-          {t('screen.verification.student.tabCard')}
-        </Tabs.Tab>
-      </Tabs.List>
-      <Tabs.Panel value="email">{email}</Tabs.Panel>
-      <Tabs.Panel value="card">{card}</Tabs.Panel>
-    </Tabs.Root>
-  )
-}
-
 /** The badge's facts: the school, how and when, until when, and the declared name and major. */
 function VerifiedFacts({ verification }: { verification: Verification }) {
   return (
@@ -238,12 +185,7 @@ function VerifiedFacts({ verification }: { verification: Verification }) {
         {verification.school && <Fact label={t('screen.verification.student.school')}>{verification.school}</Fact>}
         {verification.verifiedAt && (
           <Fact label={t('screen.verification.student.source')}>
-            {t(
-              verification.method === 'STUDENT_CARD'
-                ? 'screen.verification.student.sourceCard'
-                : 'screen.verification.student.sourceEmail',
-              { month: formatMonthYear(verification.verifiedAt) },
-            )}
+            {t('screen.verification.student.sourceEmail', { month: formatMonthYear(verification.verifiedAt) })}
           </Fact>
         )}
         {verification.verifiedUntil && (

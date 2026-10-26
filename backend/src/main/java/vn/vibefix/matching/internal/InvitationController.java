@@ -26,7 +26,7 @@ import jakarta.validation.constraints.Size;
 import vn.vibefix.catalog.Catalog;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
-import vn.vibefix.identity.MentorGate;
+import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.job.JobPosts;
 import vn.vibefix.matching.internal.Invitations.Invitation;
 import vn.vibefix.matching.internal.Invitations.MentorInvitation;
@@ -44,7 +44,7 @@ import vn.vibefix.team.Teams;
 
 /**
  * CUS-8 "Tìm người hướng dẫn" and invitations to apply (FR-14, AD-20, AD-36): the Job's Customer
- * searches approved, unlocked Mentors by keyword and Skills and invites them; the invited Mentor reads
+ * searches unlocked Mentors by keyword and Skills and invites them; the invited Mentor reads
  * their invitation on MEN-3. Contact details and Balances never appear (SG-42).
  */
 @RestController
@@ -108,12 +108,12 @@ class InvitationController {
 
 	private final Catalog catalog;
 
-	private final MentorGate gate;
+	private final ActiveAccount gate;
 
 	private final CurrentCaller callers;
 
 	InvitationController(Invitations invitations, JobPosts posts, MentorDirectory mentors, Teams teams,
-			Catalog catalog, MentorGate gate, CurrentCaller callers) {
+			Catalog catalog, ActiveAccount gate, CurrentCaller callers) {
 		this.invitations = invitations;
 		this.posts = posts;
 		this.mentors = mentors;

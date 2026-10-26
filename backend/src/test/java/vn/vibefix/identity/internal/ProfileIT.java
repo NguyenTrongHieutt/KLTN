@@ -39,7 +39,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 import vn.vibefix.catalog.SkillRenamed;
 import vn.vibefix.identity.ContactVisibility;
 import vn.vibefix.identity.CustomerNames;
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.StudentDirectory;
 import vn.vibefix.notification.RecipientAddresses;
 import vn.vibefix.shared.Role;
@@ -129,14 +128,14 @@ class ProfileIT extends IntegrationTest {
 	@Test
 	void anyRoleKeepsTheSameOneProfileAndAnAdministratorHasNone() throws Exception {
 		for (Role role : new Role[] { Role.CUSTOMER, Role.MENTOR, Role.STUDENT }) {
-			UUID account = IdentityTestSupport.insertAccount(this.jdbc, role, null, null);
+			UUID account = IdentityTestSupport.insertAccount(this.jdbc, role, null);
 			this.mvc.perform(put("/api/v1/profile").with(authentication(IdentityTestSupport.authentication(account, role)))
 				.with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(body("Người dùng", List.of(REACT), List.of(), List.of(), false))).andExpect(status().isNoContent());
 			assertThat(profileRows(account)).as(role.name()).isOne();
 		}
-		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null, null);
+		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
 		RequestPostProcessor administrator = IdentityTestSupport.signedIn(this.sessions, admin, Role.ADMINISTRATOR,
 				this.clock.instant());
 		this.mvc.perform(get("/api/v1/profile").with(administrator)).andExpect(status().isNotFound());
@@ -209,53 +208,19 @@ class ProfileIT extends IntegrationTest {
 	}
 
 	@Test
-	void aMentorWithASubmittedApplicationKeepsTheApplicationRulesOnTheProfile() throws Exception {
-		UUID hung = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Đỗ Mạnh Hùng",
-				List.of(REACT.toString()), "React");
+	void aMentorSavesTheProfileFreelySinceNoApplicationRuleIsLeft() throws Exception {
+		UUID hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(REACT.toString()), "React");
 		RequestPostProcessor mentor = authentication(IdentityTestSupport.authentication(hung, Role.MENTOR));
-		String experience = text("SELECT experience FROM identity.profile WHERE account_id = '" + hung + "'");
 
+		// Story 19.7: no experience, years, or Skills are required of a Mentor any more.
 		this.mvc.perform(put("/api/v1/profile").with(mentor).with(csrf())
-			.contentType(MediaType.APPLICATION_JSON)
-			.content(typed("\"links\":[],\"repositories\":[]")))
-			.andExpect(status().isBadRequest())
-			.andExpect(jsonPath("$.code").value("VALIDATION"))
-			.andExpect(jsonPath("$.errors[*].field")
-				.value(Matchers.containsInAnyOrder("experience", "yearsOfExperience", "skillIds")));
-		assertThat(text("SELECT experience FROM identity.profile WHERE account_id = '" + hung + "'")).isEqualTo(experience);
-
-		this.mvc.perform(put("/api/v1/profile").with(mentor).with(csrf())
-			.contentType(MediaType.APPLICATION_JSON)
-			.content(body("Đỗ Mạnh Hùng", List.of(REACT), List.of(), List.of(), false))).andExpect(status().isNoContent());
-		assertThat(this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE action = 'identity.mentor_application_updated'")
-			.query(Long.class)
-			.single()).isOne();
-
-		// A rejection's 30-day wait holds the profile's application fields as it holds MEN-5.
-		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null, null);
-		this.jdbc.sql("UPDATE identity.account SET mentor_approval_status = 'REJECTED' WHERE id = :id").param("id", hung).update();
-		this.jdbc.sql("""
-				INSERT INTO identity.mentor_decision (id, account_id, decision, reason, reapply_after, decided_by, decided_at)
-				VALUES (:id, :account, 'REJECTED', 'Chưa đủ kinh nghiệm', :after, :admin, :now)
-				""")
-			.param("id", UUID.randomUUID())
-			.param("account", hung)
-			.param("after", Timestamp.from(this.clock.instant().plus(Duration.ofDays(30))))
-			.param("admin", admin)
-			.param("now", Timestamp.from(this.clock.instant()))
-			.update();
-		this.mvc.perform(put("/api/v1/profile").with(mentor).with(csrf())
-			.contentType(MediaType.APPLICATION_JSON)
-			.content(body("Đỗ Mạnh Hùng", List.of(REACT), List.of(), List.of(), false)))
-			.andExpect(status().is(422))
-			.andExpect(jsonPath("$.reason").value("MENTOR_REAPPLY_TOO_SOON"));
-
-		// A Mentor who never submitted an application saves the profile freely.
-		UUID pending = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, MentorApprovalStatus.PENDING, null);
-		this.mvc.perform(put("/api/v1/profile").with(authentication(IdentityTestSupport.authentication(pending, Role.MENTOR)))
-			.with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
 			.content(typed("\"links\":[],\"repositories\":[]"))).andExpect(status().isNoContent());
+
+		assertThat(text("SELECT coalesce(experience, '') FROM identity.profile WHERE account_id = '" + hung + "'")).isEmpty();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE action = 'identity.mentor_application_updated'")
+			.query(Long.class)
+			.single()).isZero();
 	}
 
 	@Test
@@ -269,7 +234,7 @@ class ProfileIT extends IntegrationTest {
 				UPDATE identity.account SET github_user_id = 880001, github_login = 'lan-gh', github_linked_at = :now WHERE id = :id
 				""").param("id", linked).param("now", Timestamp.from(this.clock.instant())).update();
 		UUID googleOnly = google("only");
-		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null, null);
+		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
 
 		assertThat(this.names.displayName(typed)).isEqualTo("Tiệm bánh Lan");
 		assertThat(this.names.displayName(linked)).isEqualTo("@lan-gh");
@@ -296,7 +261,7 @@ class ProfileIT extends IntegrationTest {
 
 	@Test
 	void theVerifiedZoneIsReadFromTheLinkAndTheCurrentVerificationAndNoSaveChangesIt() throws Exception {
-		UUID minh = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null, null);
+		UUID minh = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null);
 		String login = text("SELECT github_login FROM identity.account WHERE id = '" + minh + "'");
 		verify(minh, LocalDate.of(2026, 9, 30));
 
@@ -342,7 +307,7 @@ class ProfileIT extends IntegrationTest {
 
 	@Test
 	void hidingTheStudentDetailsHidesThemOnTheCardAndLeavesThemOutOfSearch() throws Exception {
-		UUID minh = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null, null);
+		UUID minh = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null);
 		verify(minh, LocalDate.of(2026, 9, 30));
 		this.jdbc.sql("""
 				INSERT INTO identity.profile (account_id, display_name, student_name, student_school, student_major, updated_at)
@@ -431,9 +396,9 @@ class ProfileIT extends IntegrationTest {
 	void theContactIsReadByTheOwnerAnAdministratorAndAGranteeWhateverItsRoleOnly() throws Exception {
 		UUID lan = google("lan");
 		UUID grantee = google("grantee");
-		UUID crew = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null, null);
-		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null, null);
-		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null, null);
+		UUID crew = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null);
+		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null);
+		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
 		save(lan, body("Nguyễn Thị Lan", List.of(), List.of(), List.of(), false)).andExpect(status().isNoContent());
 		String contact = "/api/v1/customers/" + lan + "/contact";
 
@@ -490,7 +455,7 @@ class ProfileIT extends IntegrationTest {
 
 	@Test
 	void theThemeIsSavedToTheAccountAndDefaultsToLight() throws Exception {
-		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		RequestPostProcessor customer = authentication(IdentityTestSupport.authentication(lan, Role.CUSTOMER));
 		this.mvc.perform(get("/api/v1/session").with(customer)).andExpect(jsonPath("$.account.theme").value("LIGHT"));
 

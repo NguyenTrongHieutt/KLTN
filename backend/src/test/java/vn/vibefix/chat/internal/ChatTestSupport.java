@@ -10,7 +10,6 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
 
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.support.MutableClock;
 import vn.vibefix.team.internal.TeamTestSupport;
 
@@ -63,7 +62,7 @@ final class ChatTestSupport {
 	}
 
 	static UUID mentorWithFreeStudent(JdbcClient jdbc, String name) {
-		UUID mentor = TeamTestSupport.mentor(jdbc, MentorApprovalStatus.APPROVED, name, List.of(TeamTestSupport.REACT),
+		UUID mentor = TeamTestSupport.mentor(jdbc, name, List.of(TeamTestSupport.REACT),
 				"React");
 		UUID team = UUID.randomUUID();
 		jdbc.sql("INSERT INTO team.team (id, mentor_account_id, status, created_at) VALUES (:id, :mentor, 'OPEN', now())")

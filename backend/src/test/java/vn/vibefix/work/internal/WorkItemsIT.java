@@ -25,7 +25,6 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import com.jayway.jsonpath.JsonPath;
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
@@ -63,8 +62,8 @@ class WorkItemsIT extends IntegrationTest {
 
 	@BeforeEach
 	void anActiveJobWithItsBacklogAndCrew() {
-		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
-		this.hung = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Đỗ Mạnh Hùng",
+		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng",
 				List.of(TeamTestSupport.REACT), "React");
 		UUID product = WorkTestSupport.product(this.jdbc, this.lan, "Sổ đặt bàn Quán Mây");
 		this.job = WorkTestSupport.activeJob(this.jdbc, product, this.lan, this.hung, List.of(MILESTONE),
@@ -101,7 +100,7 @@ class WorkItemsIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/boards/" + this.job + "/work-items").with(as(this.vy, Role.STUDENT)))
 			.andExpect(jsonPath("$.crew.length()").value(0));
 		for (RequestPostProcessor outsider : List.of(as(this.lan, Role.CUSTOMER),
-				as(IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null, null), Role.STUDENT))) {
+				as(IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null), Role.STUDENT))) {
 			this.mvc.perform(get("/api/v1/work-items/" + id).with(outsider)).andExpect(status().isNotFound());
 			create(outsider, task("Xin chào", "")).andExpect(status().isNotFound());
 		}

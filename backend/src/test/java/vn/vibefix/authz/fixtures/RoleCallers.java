@@ -14,7 +14,6 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import vn.vibefix.authz.MatrixCaller;
 import vn.vibefix.authz.MatrixFixture;
 import vn.vibefix.authz.MatrixWorld;
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.Role;
@@ -26,8 +25,9 @@ import vn.vibefix.support.MutableClock;
  * Subject state:
  * <ul>
  * <li>{@code locked=true}: the account is locked, so the request arrives anonymous;</li>
- * <li>{@code mentor=PENDING|APPROVED|REJECTED|REVOKED}: a Mentor's approval status (default
- * {@code APPROVED}).</li>
+ * <li>{@code github=unlinked}: a person's account with no GitHub account linked, which the commands that
+ * create work refuse ({@code GITHUB_NOT_LINKED}); linked by default. No Mentor has an approval status
+ * since Story 19.7.</li>
  * </ul>
  */
 public class RoleCallers implements MatrixFixture {
@@ -43,7 +43,7 @@ public class RoleCallers implements MatrixFixture {
 
 	@Override
 	public Set<String> stateKeys() {
-		return Set.of("locked", "mentor");
+		return Set.of("locked", "github");
 	}
 
 	@Override
@@ -64,19 +64,26 @@ public class RoleCallers implements MatrixFixture {
 		if (role == null) {
 			return Optional.empty();
 		}
-		MentorApprovalStatus mentor = state.containsKey("mentor") ? MentorApprovalStatus.valueOf(state.get("mentor"))
-				: null;
-		if (mentor != null && role != Role.MENTOR) {
-			throw new AssertionError("Only a Mentor has an approval status");
+		String github = state.get("github");
+		if (github != null && (!github.equals("unlinked") || role == Role.ADMINISTRATOR)) {
+			throw new AssertionError("github=unlinked is the one GitHub state, and only a person's account has one");
 		}
 		String lockReason = "true".equals(state.get("locked")) ? "matrix: locked" : null;
-		return Optional.of(signedIn(this.jdbc, this.sessions, role, mentor, lockReason));
+		return Optional.of(signedIn(this.jdbc, this.sessions, role, lockReason, github != null));
 	}
 
 	/** A request from a new account with {@code role}, signed in through the session. */
 	public static RequestPostProcessor signedIn(JdbcClient jdbc, SessionRepository<? extends Session> sessions, Role role,
-			@Nullable MentorApprovalStatus mentor, @Nullable String lockReason) {
-		UUID id = IdentityTestSupport.insertAccount(jdbc, role, mentor, lockReason);
+			@Nullable String lockReason) {
+		return signedIn(jdbc, sessions, role, lockReason, false);
+	}
+
+	private static RequestPostProcessor signedIn(JdbcClient jdbc, SessionRepository<? extends Session> sessions, Role role,
+			@Nullable String lockReason, boolean unlinked) {
+		UUID id = IdentityTestSupport.insertAccount(jdbc, role, lockReason);
+		if (unlinked) {
+			IdentityTestSupport.unlinkGitHub(jdbc, id);
+		}
 		return IdentityTestSupport.signedIn(sessions, id, role, MutableClock.DEFAULT_INSTANT);
 	}
 

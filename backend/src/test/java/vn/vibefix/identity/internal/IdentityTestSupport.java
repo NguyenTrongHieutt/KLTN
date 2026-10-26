@@ -24,7 +24,6 @@ import org.springframework.session.Session;
 import org.springframework.session.SessionRepository;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.shared.Role;
 import vn.vibefix.support.MutableClock;
 
@@ -44,21 +43,18 @@ public final class IdentityTestSupport {
 
 	/**
 	 * Inserts an account and returns its ID. A person's account carries a linked GitHub account
-	 * ({@code user-{id}}), as the accounts from before Google sign-in did.
-	 * @param mentorStatus for a Mentor, its approval status (defaults to {@code APPROVED})
+	 * ({@code user-{id}}), as the accounts from before Google sign-in did; a Mentor needs no approval
+	 * (Story 19.7).
 	 * @param lockReason a reason to lock it, or {@code null}
 	 */
-	public static UUID insertAccount(JdbcClient jdbc, Role role, @Nullable MentorApprovalStatus mentorStatus,
-			@Nullable String lockReason) {
+	public static UUID insertAccount(JdbcClient jdbc, Role role, @Nullable String lockReason) {
 		UUID id = UUID.randomUUID();
 		Long githubId = role == Role.ADMINISTRATOR ? null : githubIds.incrementAndGet();
-		MentorApprovalStatus status = role == Role.MENTOR
-				? (mentorStatus == null ? MentorApprovalStatus.APPROVED : mentorStatus) : null;
 		Timestamp now = Timestamp.from(MutableClock.DEFAULT_INSTANT);
 		jdbc.sql("""
 				INSERT INTO identity.account (id, kind, github_user_id, github_login, github_linked_at, role,
-				    mentor_approval_status, locked_at, lock_reason, created_at)
-				VALUES (:id, :kind, :githubId, :login, :linkedAt, :role, :status, :lockedAt, :lockReason, :now)
+				    locked_at, lock_reason, created_at)
+				VALUES (:id, :kind, :githubId, :login, :linkedAt, :role, :lockedAt, :lockReason, :now)
 				""")
 			.param("id", id)
 			.param("kind", role == Role.ADMINISTRATOR ? "ADMINISTRATOR" : "USER")
@@ -66,7 +62,6 @@ public final class IdentityTestSupport {
 			.param("login", githubId == null ? null : "user-" + githubId)
 			.param("linkedAt", githubId == null ? null : now)
 			.param("role", role.name())
-			.param("status", status == null ? null : status.name())
 			.param("lockedAt", lockReason == null ? null : now)
 			.param("lockReason", lockReason)
 			.param("now", now)
@@ -214,6 +209,19 @@ public final class IdentityTestSupport {
 		catch (NoSuchAlgorithmException ex) {
 			throw new IllegalStateException("Every Java platform has SHA-256", ex);
 		}
+	}
+
+	/**
+	 * Removes the account's GitHub link, as an unlink does (Story 19.2); an account from before Google
+	 * sign-in gets a Google subject first, since a person's account keeps one of the two.
+	 */
+	public static void unlinkGitHub(JdbcClient jdbc, UUID accountId) {
+		jdbc.sql("""
+				UPDATE identity.account
+				SET google_sub = coalesce(google_sub, 'google-' || id), github_user_id = NULL, github_login = NULL,
+				    github_avatar_url = NULL, github_linked_at = NULL
+				WHERE id = :id
+				""").param("id", accountId).update();
 	}
 
 	/** Locks an account, as an Administrator will (FR-59). */

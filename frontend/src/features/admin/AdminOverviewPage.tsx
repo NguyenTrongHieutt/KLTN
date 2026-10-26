@@ -31,8 +31,6 @@ export function AdminOverviewPage() {
   const alerts = useAdminAlerts()
   const failed = overview.data?.failedOperations
   const stalled = overview.data?.stalledEvents
-  const cards = overview.data?.studentCards
-  const applications = overview.data?.mentorApplications
   const lowFeedback = overview.data?.lowFeedback
 
   return (
@@ -56,34 +54,6 @@ export function AdminOverviewPage() {
       )}
       <RegionState query={overview} skeleton={<Skeleton className="h-24 w-full max-w-xs" />}>
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label={t('screen.admin.overview.heading')}>
-          {cards && (
-            <Link
-              to="/quan-tri/the-sinh-vien"
-              className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 hover:border-primary"
-            >
-              <p className="text-caption text-muted-foreground">{t('screen.admin.overview.studentCards')}</p>
-              <p className="text-h1">{cards.count}</p>
-              <p className="text-caption text-muted-foreground">
-                {cards.oldestAt
-                  ? t('screen.admin.overview.oldest', { date: formatDayMonth(cards.oldestAt) })
-                  : t('screen.admin.overview.empty')}
-              </p>
-            </Link>
-          )}
-          {applications && (
-            <Link
-              to="/quan-tri/nguoi-huong-dan"
-              className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 hover:border-primary"
-            >
-              <p className="text-caption text-muted-foreground">{t('screen.admin.overview.mentorApplications')}</p>
-              <p className="text-h1">{applications.count}</p>
-              <p className="text-caption text-muted-foreground">
-                {applications.oldestAt
-                  ? t('screen.admin.overview.oldest', { date: formatDayMonth(applications.oldestAt) })
-                  : t('screen.admin.overview.empty')}
-              </p>
-            </Link>
-          )}
           {lowFeedback && (
             <Link
               to="/quan-tri/nguoi-dung?status=LOW_FEEDBACK"

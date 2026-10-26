@@ -26,7 +26,6 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import com.jayway.jsonpath.JsonPath;
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
@@ -74,10 +73,10 @@ class PageSharesIT extends IntegrationTest {
 
 	@BeforeEach
 	void aProductWithEarlierJobsAndANewOne() throws Exception {
-		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
-		this.hung = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT),
+		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT),
 				"React");
-		this.mai = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Phạm Thu Mai", List.of(TeamTestSupport.REACT),
+		this.mai = TeamTestSupport.mentor(this.jdbc, "Phạm Thu Mai", List.of(TeamTestSupport.REACT),
 				"React");
 		UUID product = WorkTestSupport.product(this.jdbc, this.lan, "Sổ đặt bàn Quán Mây");
 		Instant now = this.clock.instant();
@@ -118,7 +117,7 @@ class PageSharesIT extends IntegrationTest {
 			.andExpect(jsonPath("$.jobs[1].shared").value(false));
 		this.mvc.perform(get("/api/v1/jobs/" + this.next + "/page-shares").with(as(this.mai, Role.MENTOR)))
 			.andExpect(status().isNotFound());
-		UUID stranger = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		UUID stranger = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.mvc.perform(get("/api/v1/jobs/" + this.next + "/page-shares").with(as(stranger, Role.CUSTOMER)))
 			.andExpect(status().isNotFound());
 

@@ -29,8 +29,8 @@ const ERRORS = ['da-lien-ket-tai-khoan-khac', 'sai-tai-khoan', 'that-bai']
  * {tháng/năm}"; "Cần liên kết lại" when the kept token stopped working (`identity.relink_github`, which
  * replaced the `/dang-nhap-lai` page). "Bỏ liên kết" is disabled while something keeps the link
  * (`GITHUB_CHANGE_BLOCKED`, R14) and confirmed otherwise. GitHub's return shows its result or its error at
- * the top. The student email row follows, for every person (Story 19.4), with a Student's card tab until
- * Story 19.7; the LinkedIn row comes with Story 19.6.
+ * the top. The student email row follows, for every person (Story 19.4); the LinkedIn row comes with
+ * Story 19.6.
  */
 export function VerificationPage() {
   usePageTitle(t('screen.verification.title'))

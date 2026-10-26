@@ -29,7 +29,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
-import vn.vibefix.identity.MentorGate;
+import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.identity.Notices;
 import vn.vibefix.identity.StudentDirectory.StudentCard;
 import vn.vibefix.job.internal.Agreements.Content;
@@ -162,7 +162,7 @@ class CrewController {
 
 	private final Settings settings;
 
-	private final MentorGate gate;
+	private final ActiveAccount gate;
 
 	private final CurrentCaller callers;
 
@@ -171,7 +171,7 @@ class CrewController {
 	private final boolean largeCrews;
 
 	CrewController(CrewService crews, CrewChanges changes, Agreements agreements, Teams teams, MentorDirectory mentors,
-			ProductDirectory products, Notices notices, Settings settings, MentorGate gate, CurrentCaller callers,
+			ProductDirectory products, Notices notices, Settings settings, ActiveAccount gate, CurrentCaller callers,
 			JdbcClient jdbc,
 			@Value("${vibefix.features.large-crews:false}") boolean largeCrews) {
 		this.crews = crews;

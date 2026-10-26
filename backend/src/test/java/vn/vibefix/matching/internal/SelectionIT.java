@@ -27,7 +27,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
@@ -54,7 +53,7 @@ class SelectionIT extends IntegrationTest {
 
 	@BeforeEach
 	void aCustomerWithAnOpenJobPost() {
-		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.product = product(this.lan);
 		this.job = openJob("Sửa lỗi mất đơn hàng");
 	}
@@ -107,9 +106,9 @@ class SelectionIT extends IntegrationTest {
 
 	@Test
 	void j3ChecksTheMentorAgain() throws Exception {
-		UUID revoked = mentor("Đã thu hồi", true);
-		UUID gone = application(revoked);
-		this.jdbc.sql("UPDATE identity.account SET mentor_approval_status = 'REVOKED' WHERE id = :id").param("id", revoked).update();
+		UUID unlinked = mentor("Đã bỏ liên kết", true);
+		UUID gone = application(unlinked);
+		IdentityTestSupport.unlinkGitHub(this.jdbc, unlinked);
 		select(gone, 1).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("MENTOR_NOT_AVAILABLE"));
 
 		UUID busy = application(mentor("Nhóm chưa xác minh", false));
@@ -130,7 +129,7 @@ class SelectionIT extends IntegrationTest {
 			this.jdbc.sql("UPDATE settings.rule_value SET value = 3 WHERE rule_key = 'MENTOR_ACTIVE_JOB_LIMIT'").update();
 		}
 
-		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.mvc.perform(post("/api/v1/jobs/" + this.job + "/applications/" + atLimit + "/select")
 			.with(as(other, Role.CUSTOMER)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON).content("{\"version\":1}")).andExpect(status().isNotFound());
@@ -171,7 +170,7 @@ class SelectionIT extends IntegrationTest {
 
 	/** An approved Mentor with a Team of one Student, verified or not. */
 	private UUID mentor(String name, boolean verifiedStudent) {
-		UUID mentor = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, name, List.of(TeamTestSupport.REACT),
+		UUID mentor = TeamTestSupport.mentor(this.jdbc, name, List.of(TeamTestSupport.REACT),
 				"React");
 		UUID team = UUID.randomUUID();
 		this.jdbc.sql("INSERT INTO team.team (id, mentor_account_id, status, created_at) VALUES (:id, :mentor, 'OPEN', now())")

@@ -42,7 +42,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 import com.sun.net.httpserver.HttpServer;
 
 import vn.vibefix.identity.AccountLocked;
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.CustomerTokens;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.shared.Role;
@@ -101,7 +100,7 @@ class AgreementReviewIT extends IntegrationTest {
 
 	@BeforeEach
 	void aSharedDraft() throws Exception {
-		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		CustomerTokens.keep(this.context, this.lan, TOKEN);
 		UUID product = product(this.lan);
 		this.job = UUID.randomUUID();
@@ -114,7 +113,7 @@ class AgreementReviewIT extends IntegrationTest {
 				""")
 			.param("id", this.job).param("product", product).param("owner", this.lan)
 			.param("now", Timestamp.from(now)).param("lapses", Timestamp.from(now.plus(Duration.ofDays(14)))).update();
-		this.hung = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT),
+		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT),
 				"React");
 		this.team = UUID.randomUUID();
 		this.jdbc.sql("INSERT INTO team.team (id, mentor_account_id, status, created_at) VALUES (:id, :mentor, 'OPEN', now())")

@@ -73,7 +73,7 @@ class CrewChatIT extends IntegrationTest {
 
 	@BeforeEach
 	void aJobThatReachedAgreement() throws Exception {
-		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		UUID product = ChatTestSupport.product(this.jdbc, this.lan);
 		this.job = ChatTestSupport.job(this.jdbc, product, this.lan, "OPEN", null, this.clock.instant());
 		this.hung = ChatTestSupport.mentorWithFreeStudent(this.jdbc, "Đỗ Mạnh Hùng");
@@ -144,9 +144,9 @@ class CrewChatIT extends IntegrationTest {
 		this.mvc.perform(post("/api/v1/crew-chats/" + this.crewChat + "/read").with(as(vy, Role.STUDENT)).with(csrf()))
 			.andExpect(status().isNoContent());
 
-		UUID otherStudent = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null, null);
+		UUID otherStudent = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null);
 		UUID otherMentor = ChatTestSupport.mentorWithFreeStudent(this.jdbc, "Phạm Thu Hà");
-		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null, null);
+		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
 		for (RequestPostProcessor outsider : List.of(as(this.lan, Role.CUSTOMER), as(assigned, Role.STUDENT),
 				as(otherStudent, Role.STUDENT), as(otherMentor, Role.MENTOR), as(admin, Role.ADMINISTRATOR))) {
 			this.mvc.perform(get("/api/v1/crew-chats/" + this.crewChat + "/messages").with(outsider))
@@ -212,7 +212,7 @@ class CrewChatIT extends IntegrationTest {
 	@Test
 	void anAdministratorReadsTheCrewChatOnlyUnderAGrantNamingIt() throws Exception {
 		sendCrew(this.hung, Role.MENTOR, "Chào cả nhóm").andExpect(status().isCreated());
-		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null, null);
+		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
 		this.grants.grantAdminRead(UUID.randomUUID(), admin, this.job,
 				Set.of(new AdminReadItem(AdminReadScope.JOB_CHAT, null, null)), UUID.randomUUID());
 		// A Job Chat grant reads no Crew Chat.

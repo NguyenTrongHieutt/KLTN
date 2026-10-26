@@ -80,9 +80,6 @@ class StudentVerifications implements StudentVerification {
 	/** The person-link signal kind whose keyed HMAC is an email address's subject (AD-19). */
 	static final String EMAIL_SUBJECT = "EMAIL";
 
-	/** The kind whose keyed HMAC is a student card's subject: its school and number ({@link StudentCards#cardKey}). */
-	static final String CARD_SUBJECT = "STUDENT_CARD";
-
 	/** A code's lifetime, which is also how long its email may still go out (AD-42). */
 	static final Duration CODE_LIFETIME = EmailClass.ONE_TIME_CODE_LIFETIME;
 
@@ -361,41 +358,6 @@ class StudentVerifications implements StudentVerification {
 			this.todos.open(new TodoRequest(SignIns.VERIFY_STUDENT, accountId, Audience.SUBJECT, accountId, Map.of(),
 					SignIns.VERIFICATION_PATH, null, null));
 		}
-	}
-
-	/**
-	 * Verifies the account by an approved student card (FR-5, until Story 19.7), as a correct code does:
-	 * until the next 30 September, with the reminder and the expiry, and the {@code identity.verify_student}
-	 * to-do closed. The row's subject is the card key's HMAC, its school the card's, and a renewal keeps the
-	 * locked name and major; every pending school email code goes. The caller holds the account's lock and the
-	 * subject's ({@link #cardKeyUsedByAnotherAccount}), and checked {@link #mayVerify}.
-	 */
-	void verifyByCard(UUID accountId, String cardKey, String school, Instant now) {
-		this.rows.deleteCodes(accountId);
-		Instant verifiedAt = now.truncatedTo(ChronoUnit.MICROS);
-		LocalDate validUntil = validUntil(LocalDate.ofInstant(now, VIETNAM));
-		Optional<Row> live = this.rows.live(accountId);
-		Optional<Facts> locked = live.filter(this::current).map(Row::facts);
-		live.ifPresent(found -> this.rows.end(found, current(found) ? Ending.REPLACED : Ending.EXPIRED, verifiedAt));
-		UUID verification = this.ids.newId();
-		this.rows.insert(new NewRow(verification, accountId, Provider.STUDENT_CARD,
-				this.keys.current(CARD_SUBJECT, cardKey), this.keys.currentVersion(),
-				new Facts(school, locked.map(Facts::name).orElse(null), locked.map(Facts::major).orElse(null),
-						VerificationRows.month(verifiedAt)),
-				null, verifiedAt, validUntil), verifiedAt);
-		this.deadlines.schedule(accountId, verification, validUntil, now);
-		this.todos.close(SignIns.VERIFY_STUDENT, accountId, accountId);
-	}
-
-	/** Whether {@code cardKey} verifies another account, under any key version; holds the subject's lock until commit. */
-	boolean cardKeyUsedByAnotherAccount(String cardKey, UUID accountId) {
-		this.rows.lockSubject(this.keys.current(CARD_SUBJECT, cardKey));
-		return this.rows.liveElsewhere(this.keys.all(CARD_SUBJECT, cardKey), accountId);
-	}
-
-	/** Whether the account may verify now: it is not verified, or its renewal is open. */
-	boolean mayVerify(UUID accountId) {
-		return currentVerification(accountId).filter(found -> !renewalOpen(found)).isEmpty();
 	}
 
 	/**

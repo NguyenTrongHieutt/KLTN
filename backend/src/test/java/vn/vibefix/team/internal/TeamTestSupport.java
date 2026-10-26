@@ -8,12 +8,11 @@ import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.shared.Role;
 import vn.vibefix.support.MutableClock;
 
-/** Mentors with a profile and a submitted application, and Students with a profile, for the Team tests. */
+/** Mentors and Students with a profile, for the Team tests; nobody is approved since Story 19.7. */
 public final class TeamTestSupport {
 
 	public static final String REACT = "0192b000-0000-7000-8001-000000000004";
@@ -25,10 +24,9 @@ public final class TeamTestSupport {
 	private TeamTestSupport() {
 	}
 
-	/** A Mentor in {@code status} with a submitted application; returns the account ID. */
-	public static UUID mentor(JdbcClient jdbc, MentorApprovalStatus status, String displayName, List<String> skillIds,
-			String skillNames) {
-		UUID id = IdentityTestSupport.insertAccount(jdbc, Role.MENTOR, status, null);
+	/** A Mentor with GitHub linked and a profile; returns the account ID. */
+	public static UUID mentor(JdbcClient jdbc, String displayName, List<String> skillIds, String skillNames) {
+		UUID id = IdentityTestSupport.insertAccount(jdbc, Role.MENTOR, null);
 		Timestamp now = Timestamp.from(MutableClock.DEFAULT_INSTANT);
 		jdbc.sql("""
 				INSERT INTO identity.profile
@@ -40,17 +38,6 @@ public final class TeamTestSupport {
 			.param("name", displayName)
 			.param("skills", "{" + String.join(",", skillIds) + "}")
 			.param("skillNames", skillNames)
-			.param("now", now)
-			.update();
-		jdbc.sql("""
-				INSERT INTO identity.mentor_application
-				    (account_id, linkedin_url, linkedin_hmac, linkedin_key_version, linkedin_reserved, privacy_notice_version,
-				     n22_version, submitted_at, updated_at)
-				VALUES (:account, :linkedin, :hmac, 1, TRUE, '2.0', '1.0', :now, :now)
-				""")
-			.param("account", id)
-			.param("linkedin", "https://www.linkedin.com/in/m-" + id.toString().substring(0, 8))
-			.param("hmac", id.toString().replace("-", "") + id.toString().replace("-", ""))
 			.param("now", now)
 			.update();
 		return id;
@@ -70,7 +57,7 @@ public final class TeamTestSupport {
 	 */
 	public static UUID student(JdbcClient jdbc, @Nullable String name, boolean shown, List<String> skillIds,
 			String skillNames, @Nullable LocalDate verifiedUntil) {
-		UUID id = IdentityTestSupport.insertAccount(jdbc, Role.STUDENT, null, null);
+		UUID id = IdentityTestSupport.insertAccount(jdbc, Role.STUDENT, null);
 		Timestamp now = Timestamp.from(MutableClock.DEFAULT_INSTANT);
 		jdbc.sql("""
 				INSERT INTO identity.profile (account_id, hide_student_details, skill_ids, skill_names, updated_at)

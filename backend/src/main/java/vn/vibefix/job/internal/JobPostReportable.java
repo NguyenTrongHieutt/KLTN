@@ -7,7 +7,7 @@ import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
-import vn.vibefix.identity.MentorGate;
+import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.product.ProductDirectory;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.Caller;
@@ -15,7 +15,7 @@ import vn.vibefix.shared.ReportableContent;
 import vn.vibefix.shared.Role;
 
 /**
- * FR-69: a Job Post and its Product are reportable by whoever MEN-3 shows them to, an approved Mentor
+ * FR-69: a Job Post and its Product are reportable by whoever MEN-3 shows them to, an unlocked Mentor
  * reading an Open Job Post that is not hidden.
  */
 @Component
@@ -25,11 +25,11 @@ class JobPostReportable implements ReportableContent {
 
 	private final ProductDirectory products;
 
-	private final MentorGate mentors;
+	private final ActiveAccount mentors;
 
 	private final JdbcClient jdbc;
 
-	JobPostReportable(JobPostQueries posts, ProductDirectory products, MentorGate mentors, JdbcClient jdbc) {
+	JobPostReportable(JobPostQueries posts, ProductDirectory products, ActiveAccount mentors, JdbcClient jdbc) {
 		this.posts = posts;
 		this.products = products;
 		this.mentors = mentors;
@@ -44,7 +44,7 @@ class JobPostReportable implements ReportableContent {
 	/** Runs outside any transaction: a refused read must not mark the caller's transaction rollback-only. */
 	@Override
 	public Optional<Reported> reportable(String kind, UUID id, Caller caller) {
-		if (!caller.hasRole(Role.MENTOR) || !approved(caller.requireAccountId())) {
+		if (!caller.hasRole(Role.MENTOR) || !active(caller.requireAccountId())) {
 			return Optional.empty();
 		}
 		if ("JOB_POST".equals(kind)) {
@@ -62,9 +62,9 @@ class JobPostReportable implements ReportableContent {
 		return this.products.find(id).map(product -> new Reported(null, product.id(), product.customerId(), product.name()));
 	}
 
-	private boolean approved(UUID mentorId) {
+	private boolean active(UUID mentorId) {
 		try {
-			this.mentors.requireApprovedMentor(mentorId);
+			this.mentors.requireActiveAccount(mentorId);
 			return true;
 		}
 		catch (ApiException refused) {

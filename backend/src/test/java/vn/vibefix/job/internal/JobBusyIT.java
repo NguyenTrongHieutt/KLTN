@@ -17,7 +17,6 @@ import org.springframework.transaction.IllegalTransactionStateException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.job.JobBusy;
 import vn.vibefix.job.JobBusy.Purpose;
@@ -132,7 +131,7 @@ class JobBusyIT extends IntegrationTest {
 
 	/** An Administrator with credentials, as {@code Administrators.activeIds} counts them. */
 	private UUID administrator() {
-		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null, null);
+		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
 		this.jdbc.sql("""
 				INSERT INTO identity.administrator_credential (account_id, email, display_name, password_hash,
 				    totp_key_version, totp_nonce, totp_ciphertext, created_at)
@@ -160,8 +159,8 @@ class JobBusyIT extends IntegrationTest {
 	}
 
 	private UUID job(String state) {
-		UUID customer = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
-		UUID mentor = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, MentorApprovalStatus.APPROVED, null);
+		UUID customer = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		UUID mentor = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null);
 		UUID product = UUID.randomUUID();
 		Timestamp now = Timestamp.from(this.clock.instant());
 		this.jdbc.sql("""

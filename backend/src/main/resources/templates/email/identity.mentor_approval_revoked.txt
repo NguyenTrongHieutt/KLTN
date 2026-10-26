@@ -1,7 +1,0 @@
-subject: Bạn tạm thời không nhận được việc mới: {reason}
----
-Xin chào,
-
-Quản trị viên vibefix đã thu hồi phê duyệt người hướng dẫn của bạn. Lý do: {reason}
-
-Các công việc đang chạy vẫn tiếp tục. Bạn không thể ứng tuyển, mời hoặc thêm thành viên nhóm mới.

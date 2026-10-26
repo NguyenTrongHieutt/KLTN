@@ -1,13 +1,12 @@
 import type { ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router'
-import { landingPath, MENTOR_PROFILE_PATH } from '@/features/identity/api'
+import { landingPath } from '@/features/identity/api'
 import { useSession } from '@/features/identity/useSession'
 import { t } from '@/i18n/t'
 
 /**
  * Keeps signed-in routes for signed-in accounts (AD-19): anyone else goes to PUB-2, carrying the
- * route to return to; a Google sign-in that has not accepted N-10 yet goes to PUB-3 "Chào mừng"; a
- * Mentor that is not approved reaches MEN-5 only (FR-74).
+ * route to return to; a Google sign-in that has not accepted N-10 yet goes to PUB-3 "Chào mừng".
  */
 export function RequireSignedIn({ children }: { children: ReactNode }) {
   const session = useSession()
@@ -33,13 +32,9 @@ export function RequireSignedIn({ children }: { children: ReactNode }) {
   if (current.status !== 'SIGNED_IN') {
     return <Navigate to="/dang-nhap" replace state={{ returnTo: location.pathname + location.search }} />
   }
-  const landing = landingPath(current)
   // Administrators work in the Admin shell only.
-  if (landing === '/quan-tri') {
+  if (landingPath(current) === '/quan-tri') {
     return <Navigate to="/quan-tri" replace />
-  }
-  if (landing === MENTOR_PROFILE_PATH && location.pathname !== MENTOR_PROFILE_PATH) {
-    return <Navigate to={MENTOR_PROFILE_PATH} replace />
   }
   return <>{children}</>
 }

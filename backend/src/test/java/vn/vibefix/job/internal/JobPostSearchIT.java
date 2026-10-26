@@ -59,9 +59,9 @@ class JobPostSearchIT extends IntegrationTest {
 
 	@BeforeEach
 	void aCustomerWithAProductAndAnApprovedMentor() {
-		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.product = product(this.lan);
-		this.hung = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null, null);
+		this.hung = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null);
 	}
 
 	@Test

@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import vn.vibefix.identity.CustomerNames;
 import vn.vibefix.identity.CustomerNames.CustomerSince;
-import vn.vibefix.identity.MentorGate;
+import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.job.JobPosts;
 import vn.vibefix.reputation.RatingSummary;
 import vn.vibefix.reputation.Reputation;
@@ -25,7 +25,7 @@ import vn.vibefix.shared.Role;
 
 /**
  * MEN-3's Customer Rating (FR-12): the visible Rating summary of an Open Job Post's Customer, with their
- * kind and when they joined ("Cá nhân · từ {month}", author decision 2026-10-21), for approved Mentors
+ * kind and when they joined ("Cá nhân · từ {month}", author decision 2026-10-21), for unlocked Mentors
  * only. The Customer's name and account ID stay on the server.
  */
 @RestController
@@ -44,13 +44,13 @@ class CustomerRatingController {
 
 	private final Reputation reputation;
 
-	private final MentorGate mentors;
+	private final ActiveAccount mentors;
 
 	private final CurrentCaller callers;
 
 	private final CustomerNames customers;
 
-	CustomerRatingController(JobPosts posts, Reputation reputation, MentorGate mentors, CurrentCaller callers,
+	CustomerRatingController(JobPosts posts, Reputation reputation, ActiveAccount mentors, CurrentCaller callers,
 			CustomerNames customers) {
 		this.customers = customers;
 		this.posts = posts;
@@ -65,7 +65,7 @@ class CustomerRatingController {
 		if (!caller.hasRole(Role.MENTOR)) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
-		this.mentors.requireApprovedMentor(caller.requireAccountId());
+		this.mentors.requireActiveAccount(caller.requireAccountId());
 		UUID customer = this.posts.openCustomer(postId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		RatingSummary summary = this.reputation.visibleSummary(customer);
 		CustomerSince since = this.customers.since(customer).orElse(null);

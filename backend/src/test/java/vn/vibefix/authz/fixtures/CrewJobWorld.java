@@ -16,7 +16,6 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import vn.vibefix.authz.Canaries;
 import vn.vibefix.authz.MatrixCaller;
 import vn.vibefix.authz.MatrixWorld;
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.shared.Role;
 import vn.vibefix.support.MutableClock;
@@ -83,7 +82,7 @@ final class CrewJobWorld {
 
 	void seed(MatrixWorld world, UUID owner, UUID product) {
 		Timestamp now = Timestamp.from(MutableClock.DEFAULT_INSTANT);
-		this.mentor = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Người hướng dẫn nhóm ma trận",
+		this.mentor = TeamTestSupport.mentor(this.jdbc, "Người hướng dẫn nhóm ma trận",
 				List.of(TeamTestSupport.REACT), "React");
 		UUID job = UUID.randomUUID();
 		this.jdbc.sql("""
@@ -115,7 +114,7 @@ final class CrewJobWorld {
 		UUID canaryMessage = message(chat, Canaries.load().get("CREW_CHAT").value(),
 				MutableClock.DEFAULT_INSTANT.minus(Duration.ofDays(1)));
 		world.put("messageId", canaryMessage);
-		this.admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null, null);
+		this.admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
 		this.jdbc.sql("""
 				INSERT INTO chat.admin_read_grant (grant_id, admin_account_id, job_id, items, reason_id)
 				VALUES (:grant, :admin, :job, CAST(:items AS JSONB), :reason)
@@ -267,7 +266,7 @@ final class CrewJobWorld {
 			.update();
 		world.put("changeRequestId", changeRequest);
 		UUID dispute = UUID.randomUUID();
-		this.disputeAdmin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null, null);
+		this.disputeAdmin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
 		this.jdbc.sql("""
 				INSERT INTO dispute.dispute (id, job_id, product_id, opened_by, opener_account_id, reason, concern, job_state, status,
 				    opened_at, assigned_admin_id, assigned_at, grant_id)
@@ -278,7 +277,7 @@ final class CrewJobWorld {
 		world.put("disputeId", dispute);
 		UUID report = UUID.randomUUID();
 		UUID reportGrant = UUID.randomUUID();
-		this.abuseAdmin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null, null);
+		this.abuseAdmin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
 		this.jdbc.sql("""
 				INSERT INTO admin.abuse_report (id, reporter_account_id, kind, target_id, job_id, product_id, author_account_id,
 				    label, reason, status, created_at, assigned_admin_id, assigned_at, grant_id)

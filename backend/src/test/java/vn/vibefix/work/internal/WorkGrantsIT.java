@@ -8,7 +8,6 @@ import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.shared.AdminReadGrants;
 import vn.vibefix.shared.AdminReadScope;
@@ -50,8 +49,8 @@ class WorkGrantsIT extends IntegrationTest implements AdminReadGrantsContract {
 
 	@Override
 	public Seeded seed() {
-		UUID owner = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
-		UUID mentor = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Đỗ Mạnh Hùng",
+		UUID owner = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		UUID mentor = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng",
 				List.of(TeamTestSupport.REACT), "React");
 		UUID product = WorkTestSupport.product(this.jdbc, owner, "Sổ đặt bàn Quán Mây");
 		UUID job = WorkTestSupport.activeJob(this.jdbc, product, owner, mentor, List.of(UUID.randomUUID()),

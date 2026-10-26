@@ -217,28 +217,6 @@ describe('ACC-1 "Đã xác minh" (FR-4, AD-42, UX-DR90, UX-DR108)', () => {
     expect(within(verified).getAllByRole('link', { name: 'Chưa xác minh' })).toHaveLength(3)
   })
 
-  it('names how a student card verified the student status', async () => {
-    fakeBackend(signedIn('STUDENT'), {
-      'GET /api/v1/profile': () =>
-        json(
-          profileView({
-            verified: {
-              student: {
-                validUntil: '2027-09-30',
-                method: 'STUDENT_CARD',
-                school: 'Trường Đại học Thử nghiệm',
-                verifiedAt: '2026-10-19T03:00:00Z',
-              },
-            },
-          }),
-        ),
-    })
-    renderAt('/ho-so')
-
-    const verified = await screen.findByRole('region', { name: 'Đã xác minh' })
-    expect(within(verified).getByText('Trường Đại học Thử nghiệm · Xác minh qua thẻ sinh viên · 10/2026')).toBeInTheDocument()
-  })
-
   it('shows "Chưa xác minh" linking to ACC-2 for each verification not done', async () => {
     fakeBackend(signedInWithGoogle)
     renderAt('/ho-so')
@@ -252,14 +230,12 @@ describe('ACC-1 "Đã xác minh" (FR-4, AD-42, UX-DR90, UX-DR108)', () => {
     expect(within(verified).queryByText('Khai khi xác minh')).not.toBeInTheDocument()
   })
 
-  it('offers a Mentor its application on MEN-5', async () => {
+  it('gives a Mentor the same one profile, with no Mentor application to open (Story 19.7)', async () => {
     fakeBackend(signedIn('MENTOR'))
     renderAt('/ho-so')
 
-    expect(await screen.findByRole('link', { name: 'Mở hồ sơ người hướng dẫn' })).toHaveAttribute(
-      'href',
-      '/ho-so/nguoi-huong-dan',
-    )
+    expect(await screen.findByRole('heading', { level: 2, name: 'Bạn tự nhập' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Mở hồ sơ người hướng dẫn' })).not.toBeInTheDocument()
   })
 
   it('leads to ACC-2 from its tabs', async () => {

@@ -47,7 +47,7 @@ public class ProductFixture implements MatrixFixture {
 
 	@Override
 	public void seed(MatrixWorld world) {
-		this.owner = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		this.owner = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		UUID product = UUID.randomUUID();
 		Timestamp now = Timestamp.from(MutableClock.DEFAULT_INSTANT);
 		this.jdbc.sql("""
@@ -114,7 +114,7 @@ public class ProductFixture implements MatrixFixture {
 			.param("lapses", Timestamp.from(MutableClock.DEFAULT_INSTANT.plus(java.time.Duration.ofDays(14))))
 			.update();
 		world.put("postId", post);
-		UUID applicant = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null, null);
+		UUID applicant = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null);
 		UUID application = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO matching.application (id, job_id, product_id, customer_account_id, mentor_account_id, status,

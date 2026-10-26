@@ -16,9 +16,10 @@ import vn.vibefix.shared.ErasureBlocker;
 import vn.vibefix.shared.Role;
 
 /**
- * ADM-2's accounts (FR-5, FR-59, FR-74, AD-19): the search, one account with its history, and what an
- * Administrator may do to it. Every command is audited with its reason; Administrators are not
- * listed here (ADM-11).
+ * ADM-2's accounts (FR-5, FR-59, AD-19): the search, one account with its history and the accounts that may
+ * be the same person, and what an Administrator may do to it: lock, unlock, and erase on request. Nobody is
+ * approved, verified, or revoked here (Story 19.7). Every command is audited with its reason;
+ * Administrators are not listed here (ADM-11).
  */
 public interface AccountAdministration {
 
@@ -28,14 +29,7 @@ public interface AccountAdministration {
 	/** What a status chip filters on. */
 	enum Status {
 
-		LOCKED, VERIFIED, PENDING, APPROVED, REJECTED, REVOKED
-
-	}
-
-	/** Why a Mentor's approval was revoked: the Mentor reads the reason either way (FR-78). */
-	enum Ground {
-
-		OTHER, PRIVATE_FEEDBACK
+		LOCKED, VERIFIED
 
 	}
 
@@ -50,7 +44,8 @@ public interface AccountAdministration {
 
 	/**
 	 * @param role absent for a Google account, which has none (Story 19.1)
-	 * @param status {@code VERIFIED} or {@code UNVERIFIED} for a Student, the approval for a Mentor
+	 * @param status {@code VERIFIED} for a verified student, else {@code UNVERIFIED} for a Student; absent
+	 * otherwise
 	 */
 	record Row(UUID id, @Nullable Role role, @Nullable String name, @Nullable String githubLogin, boolean locked,
 			@Nullable String status, Instant createdAt) {
@@ -59,8 +54,12 @@ public interface AccountAdministration {
 	record Page(List<Row> items, long total, int page, int size) {
 	}
 
-	/** @param action {@code LOCKED}, {@code UNLOCKED}, {@code VERIFICATION_REVOKED}, or {@code APPROVAL_REVOKED} */
-	record Action(String action, String reason, @Nullable Ground ground, @Nullable String actedBy, Instant actedAt) {
+	/**
+	 * @param action {@code LOCKED} or {@code UNLOCKED}; {@code VERIFICATION_REVOKED} and {@code APPROVAL_REVOKED}
+	 * on the history from before Story 19.7, which stays readable (AD-8)
+	 * @param ground an old approval revocation's ground, {@code OTHER} or {@code PRIVATE_FEEDBACK}
+	 */
+	record Action(String action, String reason, @Nullable String ground, @Nullable String actedBy, Instant actedAt) {
 	}
 
 	record Verification(String method, Instant verifiedAt, LocalDate validUntil, boolean current) {
@@ -69,7 +68,21 @@ public interface AccountAdministration {
 	/** One account as ADM-2 shows it; {@code role} is absent for a Google account (Story 19.1). */
 	record Account(UUID id, @Nullable Role role, @Nullable String name, @Nullable String githubLogin, @Nullable String email,
 			Instant createdAt, @Nullable Instant signedInAt, @Nullable Instant lockedAt, @Nullable String lockReason,
-			@Nullable MentorApprovalStatus approval, @Nullable Verification verification, List<Action> history) {
+			@Nullable Verification verification, List<Action> history) {
+	}
+
+	/**
+	 * Another account that shares a person-link signal with the one ADM-2 shows (AD-19): "Tài khoản có thể
+	 * cùng một người". Never the signal itself.
+	 * @param name absent for an erased account, whose signals outlive it for 24 months
+	 * @param kinds the kinds of the signals they share, {@code EMAIL} or {@code LINKEDIN}, each once
+	 */
+	record PersonLink(UUID accountId, @Nullable String name, List<String> kinds) {
+
+		public PersonLink {
+			kinds = List.copyOf(kinds);
+		}
+
 	}
 
 	/** A step-up command's result: refused, or done. */
@@ -89,6 +102,12 @@ public interface AccountAdministration {
 	Optional<Account> account(UUID accountId);
 
 	/**
+	 * The accounts that share a person-link signal with {@code accountId}, the oldest first. A read that
+	 * finds any is audited as {@code identity.person_links_viewed} (AD-8).
+	 */
+	List<PersonLink> personLinks(UUID administrator, UUID accountId);
+
+	/**
 	 * Locks the account: its sessions end, {@link AccountLocked} is published, and the person is emailed
 	 * the reason.
 	 * @throws ApiException {@code NOT_FOUND}; {@code FORBIDDEN ADMINISTRATOR_ACCOUNT};
@@ -101,18 +120,6 @@ public interface AccountAdministration {
 	 * @throws ApiException {@code NOT_FOUND}; {@code CONFLICT NOT_LOCKED}
 	 */
 	void unlock(UUID administrator, UUID accountId, String reason);
-
-	/**
-	 * Revokes a Student's current verification; running Crews keep the Student.
-	 * @throws ApiException {@code NOT_FOUND}; {@code CONFLICT NOT_VERIFIED}
-	 */
-	void revokeVerification(UUID administrator, UUID accountId, String reason);
-
-	/**
-	 * Revokes a Mentor's approval after the step-up, publishing {@link MentorApprovalRevoked}; the caller
-	 * checks a {@code PRIVATE_FEEDBACK} ground's threshold and passes its category as the reason.
-	 */
-	Result revokeApproval(UUID administrator, UUID accountId, Ground ground, String reason, String stepUpCode);
 
 	/**
 	 * A person's account deletion request as ADM-2 shows it (NFR-11, AD-24).

@@ -21,7 +21,7 @@ public final class Policies {
 
 	/**
 	 * Refuses with {@code FORBIDDEN} and the module's {@code reason} unless the caller, who can see
-	 * the object, may act on it (for example {@code MENTOR_NOT_APPROVED}).
+	 * the object, may act on it (for example {@code MENTOR_ONLY}).
 	 */
 	public static void requireAllowed(boolean allowed, Enum<?> reason) {
 		if (!allowed) {

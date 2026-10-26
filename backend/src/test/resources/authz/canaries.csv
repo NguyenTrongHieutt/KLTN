@@ -15,7 +15,6 @@
 canary,value,visible_to,seeded_as
 CREW_SHARE,7316429,JOB_MENTOR ADMIN_TEAM_ISSUE_GRANT,another Crew member's payout amount in VND
 CREW_EMAIL,canary.crew.c7e2@example.test,ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT,a Crew member's verified email address
-CREW_LINKEDIN,https://www.linkedin.com/in/canary-crew-9f41,SUBJECT ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT,the LinkedIn link of a Mentor application (SUBJECT is its applicant)
 WORK_ITEM_NOTE,canary-note-4b8e1d,JOB_MENTOR CREW_ACTIVE ADMIN_DISPUTE_GRANT,a Work Item note
 ATTACHMENT,canary-attachment-2c6f0a.pdf,JOB_MENTOR CREW_ACTIVE ADMIN_DISPUTE_GRANT,an Attachment's file name
 CREW_CHAT,canary-crew-chat-8d3b57,JOB_MENTOR CREW_ACTIVE ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT,a Crew Chat message
@@ -24,7 +23,7 @@ NOTIFICATION_PARAM,canary-notification-5e1a3b,SUBJECT,a parameter of another acc
 TODO_PARAM,canary-todo-9a4c27,SUBJECT,a parameter of another account's to-do (SUBJECT is its recipient)
 CONTACT_EMAIL,canary.contact.4d8e@example.test,SUBJECT ADMINISTRATOR,the contact email of another account's profile (SUBJECT is its owner)
 SCHOOL_EMAIL,5c40015c40015c40015c40015c40015c40015c40015c40015c40015c40015c40,,the subject HMAC of another account's student verification; the school email itself is stored nowhere (AD-42)
-STUDENT_CARD_FILE,canary-student-card-3f9a1c.pdf,ADMINISTRATOR,the file name of another Student's student card
+PERSON_SIGNAL,7e1a9c4b7e1a9c4b7e1a9c4b7e1a9c4b7e1a9c4b7e1a9c4b7e1a9c4b7e1a9c4b,,the HMAC of a person-link signal two other accounts share; ADM-2 lists the pair by kind only (AD-19)
 STUDENT_HIDDEN_NAME,Canary Ten An 6e2f,ADMINISTRATOR,the real name of a Team member who chose to hide it (FR-51)
 PRIVATE_FEEDBACK,canary-private-feedback-61d7c3,ADMINISTRATOR,a Crew member's private feedback about a Mentor
 SKILL_SUGGESTION,canary-skill-suggestion-4c1e9a,SUBJECT ADMINISTRATOR,the name of another account's Skill suggestion (SUBJECT is its suggester)

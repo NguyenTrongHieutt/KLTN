@@ -30,7 +30,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.job.JobTransitioned;
 import vn.vibefix.shared.Role;
@@ -145,7 +144,7 @@ class HandoverIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/handovers/" + handover).with(as(this.vy, Role.STUDENT)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.itemNotes[0].note").value("Phần phụ lục làm ở giai đoạn sau."));
-		UUID stranger = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		UUID stranger = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.mvc.perform(get("/api/v1/handovers/" + handover).with(as(stranger, Role.CUSTOMER))).andExpect(status().isNotFound());
 		this.mvc.perform(get("/api/v1/boards/" + this.job + "/handovers").with(as(this.hung, Role.MENTOR)))
 			.andExpect(jsonPath("$.waiting").doesNotExist())
@@ -198,8 +197,8 @@ class HandoverIT extends IntegrationTest {
 	 * approved, and a Task in progress. Vy is an active Crew member.
 	 */
 	private void world(String type) {
-		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
-		this.hung = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Đỗ Mạnh Hùng",
+		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng",
 				List.of(TeamTestSupport.REACT), "React");
 		this.vy = TeamTestSupport.student(this.jdbc, "Trần Thảo Vy", true, List.of(TeamTestSupport.REACT), "React",
 				LocalDate.parse("2026-09-30"));

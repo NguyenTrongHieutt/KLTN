@@ -44,9 +44,6 @@ export function MentorProfileContent({
           ) : (
             <p className="text-h3 break-words">{mentor.displayName}</p>
           )}
-          <p className="w-fit rounded-full bg-success-soft px-2 py-0.5 text-caption font-semibold text-success">
-            {t('screen.team.profile.approved')}
-          </p>
           <p className="text-caption text-muted-foreground">
             {t('screen.team.profile.meta', { years: mentor.yearsOfExperience, month: formatMonth(mentor.memberSince) })}
             {mentor.githubLogin && <> · @{mentor.githubLogin}</>}

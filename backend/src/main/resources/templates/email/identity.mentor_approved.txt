@@ -1,8 +1,0 @@
-subject: Hồ sơ người hướng dẫn của bạn đã được duyệt. Bạn có thể mời sinh viên vào nhóm và ứng tuyển.
-link: /ho-so
----
-Xin chào,
-
-Quản trị viên vibefix đã duyệt hồ sơ người hướng dẫn của bạn.
-Giờ bạn có thể mời sinh viên vào nhóm, ứng tuyển vào dự án và nhận việc; hồ sơ công khai của bạn hiện với khách hàng và sinh viên.
-Tài liệu bạn đính kèm sẽ tự xóa sau 30 ngày.

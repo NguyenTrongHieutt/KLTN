@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
-import vn.vibefix.identity.MentorGate;
+import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.job.Crews;
 import vn.vibefix.job.MilestoneFunding;
 import vn.vibefix.job.MilestoneFunding.FundingJob;
@@ -104,12 +104,12 @@ class PaymentHistoryController {
 
 	private final Crews crews;
 
-	private final MentorGate gate;
+	private final ActiveAccount gate;
 
 	private final CurrentCaller callers;
 
 	PaymentHistoryController(PaymentHistory history, PaymentOrders orders, Refunds refunds, MilestoneFunding funding,
-			Crews crews, MentorGate gate, CurrentCaller callers) {
+			Crews crews, ActiveAccount gate, CurrentCaller callers) {
 		this.history = history;
 		this.orders = orders;
 		this.refunds = refunds;

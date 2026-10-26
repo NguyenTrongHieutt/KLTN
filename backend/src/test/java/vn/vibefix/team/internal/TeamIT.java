@@ -39,9 +39,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 import com.jayway.jsonpath.JsonPath;
 
 import vn.vibefix.identity.AccountLocked;
-import vn.vibefix.identity.MentorApprovalRevoked;
-import vn.vibefix.identity.MentorApprovalStatus;
-import vn.vibefix.identity.MentorApproved;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
@@ -78,8 +75,8 @@ class TeamIT extends IntegrationTest {
 	private UUID minh;
 
 	@BeforeEach
-	void anApprovedMentorWithATeamAndAVerifiedStudent() {
-		this.hung = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Đỗ Mạnh Hùng",
+	void aMentorWithATeamAndAVerifiedStudent() {
+		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng",
 				List.of(REACT, SUPABASE), "React, Supabase");
 		this.store.ensure(this.hung, this.clock.instant());
 		this.minh = TeamTestSupport.student(this.jdbc, "Trần Quang Minh", true, List.of(REACT, WEB_SECURITY),
@@ -87,20 +84,20 @@ class TeamIT extends IntegrationTest {
 	}
 
 	@Test
-	void anApprovalCreatesOneTeamEvenWhenTheEventComesTwice() throws Exception {
-		UUID thao = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Nguyễn Phương Thảo",
+	void aMentorWithNoTeamSeesAnOpenEmptyOneAndTheFirstInvitationCreatesIt() throws Exception {
+		UUID thao = TeamTestSupport.mentor(this.jdbc, "Nguyễn Phương Thảo",
 				List.of(SUPABASE), "Supabase");
-		publish(new MentorApproved(UUID.randomUUID(), thao));
-		publish(new MentorApproved(UUID.randomUUID(), thao));
 
-		await().atMost(Duration.ofSeconds(10)).until(() -> teams(thao) == 1 && settled());
-		assertThat(teams(thao)).isOne();
 		this.mvc.perform(get("/api/v1/mentor/team").with(as(thao, Role.MENTOR)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.status").value("OPEN"))
 			.andExpect(jsonPath("$.size").value(0))
 			.andExpect(jsonPath("$.sizeLimit").value(10))
 			.andExpect(jsonPath("$.invitesLeft").value(20));
+		assertThat(teams(thao)).as("no approval creates a Team any more (Story 19.7)").isZero();
+
+		invite(thao, this.minh).andExpect(status().isCreated());
+		assertThat(teams(thao)).isOne();
 	}
 
 	@Test
@@ -144,16 +141,16 @@ class TeamIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/mentor/team/students/" + unverified).with(as(this.hung, Role.MENTOR)))
 			.andExpect(status().isNotFound());
 
-		UUID pending = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.PENDING, "Chờ Duyệt", List.of(REACT), "React");
-		search("q=quang", pending).andExpect(status().isForbidden())
-			.andExpect(jsonPath("$.reason").value("MENTOR_NOT_APPROVED"));
+		// Story 19.7: a new Mentor needs no approval to search.
+		UUID newcomer = TeamTestSupport.mentor(this.jdbc, "Mới Vào", List.of(REACT), "React");
+		search("q=quang", newcomer).andExpect(status().isOk());
 		this.mvc.perform(get("/api/v1/mentor/team/students?q=quang").with(as(this.minh, Role.STUDENT)))
 			.andExpect(status().isNotFound());
 	}
 
 	@Test
 	void anInvitationAcceptedMakesTheStudentAMemberAndCancelsTheirOtherRequests() throws Exception {
-		UUID thao = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Nguyễn Phương Thảo",
+		UUID thao = TeamTestSupport.mentor(this.jdbc, "Nguyễn Phương Thảo",
 				List.of(SUPABASE), "Supabase");
 		this.store.ensure(thao, this.clock.instant());
 		UUID joinRequest = id(joinRequest(this.minh, thao).andExpect(status().isCreated()));
@@ -204,7 +201,7 @@ class TeamIT extends IntegrationTest {
 			.andExpect(jsonPath("$.joinRequests.length()").value(2))
 			.andExpect(jsonPath("$.joinRequests[0].student.name").value("Trần Quang Minh"));
 
-		UUID other = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Người Khác", List.of(REACT), "React");
+		UUID other = TeamTestSupport.mentor(this.jdbc, "Người Khác", List.of(REACT), "React");
 		answer("/api/v1/mentor/team/join-requests/" + first + "/accept", other, Role.MENTOR).andExpect(status().isNotFound());
 		// A join request is not the Student's to accept.
 		answer("/api/v1/team/invitations/" + first + "/accept", this.minh, Role.STUDENT).andExpect(status().isNotFound());
@@ -230,11 +227,11 @@ class TeamIT extends IntegrationTest {
 			.andExpect(jsonPath("$.reason").value("TEAM_INVITE_LIMIT"));
 
 		for (int i = 0; i < TeamRequests.JOIN_REQUESTS_PER_DAY; i++) {
-			UUID mentor = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Người hướng dẫn " + i,
+			UUID mentor = TeamTestSupport.mentor(this.jdbc, "Người hướng dẫn " + i,
 					List.of(REACT), "React");
 			joinRequest(this.minh, mentor).andExpect(status().isCreated());
 		}
-		UUID sixth = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Thứ sáu", List.of(REACT), "React");
+		UUID sixth = TeamTestSupport.mentor(this.jdbc, "Thứ sáu", List.of(REACT), "React");
 		joinRequest(this.minh, sixth).andExpect(status().isTooManyRequests())
 			.andExpect(jsonPath("$.reason").value("JOIN_REQUEST_LIMIT"));
 
@@ -262,7 +259,7 @@ class TeamIT extends IntegrationTest {
 
 	@Test
 	void twoTeamsAcceptingTheSameStudentAtOnceMakeOneMembership() throws Exception {
-		UUID thao = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Nguyễn Phương Thảo",
+		UUID thao = TeamTestSupport.mentor(this.jdbc, "Nguyễn Phương Thảo",
 				List.of(SUPABASE), "Supabase");
 		this.store.ensure(thao, this.clock.instant());
 		UUID toHung = id(joinRequest(this.minh, this.hung).andExpect(status().isCreated()));
@@ -318,18 +315,16 @@ class TeamIT extends IntegrationTest {
 	}
 
 	@Test
-	void aRevokedMentorsTeamClosesAndReleasesItsStudents() throws Exception {
+	void aLockedMentorsTeamClosesAndReleasesItsStudents() throws Exception {
 		UUID vy = TeamTestSupport.student(this.jdbc, "Lê Thảo Vy", true, List.of(REACT), "React", VERIFIED_UNTIL);
 		UUID tung = TeamTestSupport.student(this.jdbc, "Phạm Hải Tùng", true, List.of(REACT), "React", VERIFIED_UNTIL);
 		UUID team = this.store.byMentor(this.hung).orElseThrow().id();
 		this.store.insertMembership(team, this.minh, this.clock.instant());
 		this.store.insertMembership(team, vy, this.clock.instant());
 		UUID pending = id(invite(this.hung, tung).andExpect(status().isCreated()));
-		this.jdbc.sql("UPDATE identity.account SET mentor_approval_status = 'REVOKED' WHERE id = :id")
-			.param("id", this.hung)
-			.update();
+		IdentityTestSupport.lock(this.jdbc, this.hung, "Vi phạm");
 
-		publish(new MentorApprovalRevoked(UUID.randomUUID(), this.hung));
+		publish(new AccountLocked(UUID.randomUUID(), this.hung, Role.MENTOR));
 
 		await().atMost(Duration.ofSeconds(10)).until(() -> this.store.sizeOf(this.hung) == 0 && settled());
 		assertThat(this.store.byMentor(this.hung).orElseThrow().status()).isEqualTo(TeamStore.Status.CLOSED);
@@ -339,8 +334,6 @@ class TeamIT extends IntegrationTest {
 		joinRequest(tung, this.hung).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("TEAM_CLOSED"));
 		this.mvc.perform(get("/api/v1/mentors/" + TeamTestSupport.login(this.jdbc, this.hung)))
 			.andExpect(jsonPath("$.available").value(false));
-		this.mvc.perform(get("/api/v1/mentor/team").with(as(this.hung, Role.MENTOR)))
-			.andExpect(jsonPath("$.status").value("CLOSED"));
 	}
 
 	@Test
@@ -388,8 +381,9 @@ class TeamIT extends IntegrationTest {
 			.andExpect(jsonPath("$.viewer.requestsLeft").value(4))
 			.andExpect(jsonPath("$.viewer.pending.kind").value("JOIN_REQUEST"));
 
-		UUID pending = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.PENDING, "Chờ Duyệt", List.of(REACT), "React");
-		this.mvc.perform(get("/api/v1/mentors/" + TeamTestSupport.login(this.jdbc, pending))).andExpect(status().isNotFound());
+		// A Mentor is listed once they have a profile (Story 19.7): one without is not found.
+		UUID noProfile = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null);
+		this.mvc.perform(get("/api/v1/mentors/" + TeamTestSupport.login(this.jdbc, noProfile))).andExpect(status().isNotFound());
 	}
 
 	@Test

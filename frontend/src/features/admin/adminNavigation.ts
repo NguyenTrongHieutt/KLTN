@@ -4,13 +4,11 @@ import {
   CircleAlert,
   EyeOff,
   Gavel,
-  IdCard,
   LayoutDashboard,
   ListTree,
   ScrollText,
   ShieldCheck,
   SlidersHorizontal,
-  UserCheck,
   Users,
   type LucideIcon,
 } from 'lucide-react'
@@ -21,7 +19,7 @@ export interface AdminDestination {
   to: string
   icon: LucideIcon
   /** The ADM-1 queue whose waiting count the sidebar shows beside the label. */
-  count?: 'studentCards' | 'mentorApplications' | 'disputes'
+  count?: 'disputes'
 }
 
 /**
@@ -30,8 +28,6 @@ export interface AdminDestination {
 export const ADMIN_DESTINATIONS: AdminDestination[] = [
   { label: 'screen.admin.nav.overview', to: '/quan-tri', icon: LayoutDashboard },
   { label: 'screen.admin.nav.users', to: '/quan-tri/nguoi-dung', icon: Users },
-  { label: 'screen.admin.nav.mentors', to: '/quan-tri/nguoi-huong-dan', icon: UserCheck, count: 'mentorApplications' },
-  { label: 'screen.admin.nav.studentCards', to: '/quan-tri/the-sinh-vien', icon: IdCard, count: 'studentCards' },
   { label: 'screen.admin.nav.jobs', to: '/quan-tri/cong-viec', icon: Briefcase },
   { label: 'screen.admin.nav.disputes', to: '/quan-tri/tranh-chap', icon: Gavel, count: 'disputes' },
   { label: 'screen.admin.nav.moderation', to: '/quan-tri/kiem-duyet', icon: EyeOff },

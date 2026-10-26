@@ -11,7 +11,6 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.shared.Role;
 
 /** Reads and writes {@code identity.account}, {@code identity.acknowledgment}, and the kept GitHub token. */
@@ -48,10 +47,8 @@ class Accounts {
 	void insert(Account account) {
 		this.jdbc.sql("""
 				INSERT INTO identity.account
-				    (id, kind, github_user_id, github_login, github_avatar_url, role, mentor_approval_status, created_at,
-				     signed_in_at)
-				VALUES (:id, :kind, :githubUserId, :githubLogin, :githubAvatarUrl, :role, :mentorApprovalStatus, :createdAt,
-				        :createdAt)
+				    (id, kind, github_user_id, github_login, github_avatar_url, role, created_at, signed_in_at)
+				VALUES (:id, :kind, :githubUserId, :githubLogin, :githubAvatarUrl, :role, :createdAt, :createdAt)
 				""")
 			.param("id", account.id())
 			.param("kind", account.kind().name())
@@ -59,8 +56,6 @@ class Accounts {
 			.param("githubLogin", account.githubLogin())
 			.param("githubAvatarUrl", account.githubAvatarUrl())
 			.param("role", account.role() == null ? null : account.role().name())
-			.param("mentorApprovalStatus",
-					account.mentorApprovalStatus() == null ? null : account.mentorApprovalStatus().name())
 			.param("createdAt", Timestamp.from(account.createdAt()))
 			.update();
 	}
@@ -235,11 +230,9 @@ class Accounts {
 
 	private static Account row(ResultSet rs, int number) throws SQLException {
 		String role = rs.getString("role");
-		String status = rs.getString("mentor_approval_status");
 		return new Account(rs.getObject("id", UUID.class), Account.Kind.valueOf(rs.getString("kind")),
 				(Long) rs.getObject("github_user_id"), rs.getString("github_login"), rs.getString("github_avatar_url"),
-				role == null ? null : Role.valueOf(role), status == null ? null : MentorApprovalStatus.valueOf(status),
-				rs.getString("google_sub"), rs.getString("google_email"), rs.getString("google_name"),
+				role == null ? null : Role.valueOf(role), rs.getString("google_sub"), rs.getString("google_email"), rs.getString("google_name"),
 				instant(rs, "locked_at"), rs.getString("lock_reason"), instant(rs, "erased_at"), instant(rs, "created_at"));
 	}
 

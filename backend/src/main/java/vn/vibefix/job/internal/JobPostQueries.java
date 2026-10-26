@@ -22,7 +22,7 @@ import vn.vibefix.job.internal.Jobs.Job;
 import vn.vibefix.shared.KeywordQuery;
 
 /**
- * Open Job Posts as approved Mentors browse them (FR-12, AD-38): Open and not hidden, 20 a page,
+ * Open Job Posts as Mentors browse them (FR-12, AD-38): Open and not hidden, 20 a page,
  * narrowed by Job Type, Skills, budget range, and deadline, every filter given at once. Without a
  * keyword they come newest first; with one, by text relevance and then ID only (SG-43), so a
  * Customer's Rating never changes the order.

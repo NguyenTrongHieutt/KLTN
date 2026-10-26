@@ -37,7 +37,6 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import vn.vibefix.github.internal.GitHubStub;
 import vn.vibefix.github.internal.TestKeys;
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.operations.Lane;
 import vn.vibefix.operations.internal.OperationWorker;
@@ -126,8 +125,8 @@ class CodeHandoverIT extends IntegrationTest {
 
 	@BeforeEach
 	void anActiveCodeJobAfterItsSetup() throws Exception {
-		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
-		this.hung = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT),
+		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT),
 				"React");
 		UUID vy = TeamTestSupport.student(this.jdbc, "Trần Thảo Vy", true, List.of(TeamTestSupport.REACT), "React",
 				LocalDate.parse("2026-09-30"));
@@ -336,7 +335,7 @@ class CodeHandoverIT extends IntegrationTest {
 			.andReturn().getResponse().getContentAsString();
 		String handover = com.jayway.jsonpath.JsonPath.read(report, "$.id");
 		this.mvc.perform(get("/api/v1/files/" + first).with(as(this.lan, Role.CUSTOMER))).andExpect(status().isOk());
-		UUID outsider = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		UUID outsider = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.mvc.perform(get("/api/v1/files/" + first).with(as(outsider, Role.CUSTOMER))).andExpect(status().isNotFound());
 		preflight().andExpect(jsonPath("$.screenshots.length()").value(0));
 		this.mvc.perform(get("/api/v1/handovers/" + handover).with(as(this.lan, Role.CUSTOMER)))
@@ -355,7 +354,7 @@ class CodeHandoverIT extends IntegrationTest {
 
 	private String upload() throws Exception {
 		byte[] png;
-		try (var in = getClass().getResourceAsStream("/authz/bodies/student-card.png")) {
+		try (var in = getClass().getResourceAsStream("/authz/bodies/upload.png")) {
 			png = java.util.Objects.requireNonNull(in).readAllBytes();
 		}
 		String body = this.mvc.perform(multipart("/api/v1/boards/" + this.job + "/handovers/screenshots")

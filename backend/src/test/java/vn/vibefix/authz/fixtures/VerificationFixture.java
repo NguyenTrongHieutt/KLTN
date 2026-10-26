@@ -30,7 +30,7 @@ public class VerificationFixture implements MatrixFixture {
 
 	@Override
 	public void seed(MatrixWorld world) {
-		UUID verified = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null, null);
+		UUID verified = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null);
 		IdentityTestSupport.verifyStudent(this.jdbc, verified, LocalDate.parse("2026-09-30"),
 				this.canaries.get("SCHOOL_EMAIL").value());
 	}

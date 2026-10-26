@@ -227,7 +227,7 @@ class NotificationsIT extends IntegrationTest {
 	}
 
 	private UUID account(Role role, String email) {
-		UUID id = IdentityTestSupport.insertAccount(this.jdbc, role, null, null);
+		UUID id = IdentityTestSupport.insertAccount(this.jdbc, role, null);
 		if (email != null) {
 			this.jdbc.sql("UPDATE identity.account SET github_email = :email WHERE id = :id")
 				.param("email", email)

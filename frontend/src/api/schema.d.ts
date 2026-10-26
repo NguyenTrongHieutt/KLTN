@@ -580,70 +580,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/mentor-applications": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["applications"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/mentor-applications/{applicantId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["application"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/mentor-applications/{applicantId}/approve": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["approve_4"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/mentor-applications/{applicantId}/reject": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["reject_1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/admin/moderation": {
         parameters: {
             query?: never;
@@ -700,7 +636,7 @@ export interface paths {
             cookie?: never;
         };
         get: operations["rules"];
-        put: operations["save_3"];
+        put: operations["save_2"];
         post?: never;
         delete?: never;
         options?: never;
@@ -749,7 +685,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["approve_3"];
+        post: operations["approve_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -782,54 +718,6 @@ export interface paths {
         get: operations["statistics"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/student-cards": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["cards"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/student-cards/{cardId}/approve": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["approve_2"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/student-cards/{cardId}/reject": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["reject"];
         delete?: never;
         options?: never;
         head?: never;
@@ -958,38 +846,6 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["lock"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/users/{accountId}/revoke-approval": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["revokeApproval"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/users/{accountId}/revoke-verification": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["revokeVerification"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1947,7 +1803,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["read_3"];
+        get: operations["read_2"];
         put?: never;
         post?: never;
         delete: operations["unlink"];
@@ -2173,7 +2029,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["read_2"];
+        post: operations["read_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2780,7 +2636,7 @@ export interface paths {
             cookie?: never;
         };
         get: operations["draft"];
-        put: operations["save_2"];
+        put: operations["save_1"];
         post?: never;
         delete?: never;
         options?: never;
@@ -3165,7 +3021,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["read_1"];
+        post: operations["read"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3471,38 +3327,6 @@ export interface paths {
         put: operations["save"];
         post?: never;
         delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/profile/mentor": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["read"];
-        put: operations["save_1"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/profile/mentor/document": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["uploadDocument"];
-        delete: operations["deleteDocument"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3860,22 +3684,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/verification/student-card": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["uploadCard"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/work-item-notes/{workItemNoteId}": {
         parameters: {
             query?: never;
@@ -4118,8 +3926,6 @@ export interface components {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            mentorApprovalStatus?: "PENDING" | "APPROVED" | "REJECTED" | "REVOKED";
-            /** @enum {string} */
             role?: "CUSTOMER" | "MENTOR" | "STUDENT" | "ADMINISTRATOR";
             /** @enum {string} */
             theme: "LIGHT" | "DARK" | "SYSTEM";
@@ -4129,8 +3935,7 @@ export interface components {
             actedAt: string;
             actedBy?: string;
             action: string;
-            /** @enum {string} */
-            ground?: "OTHER" | "PRIVATE_FEEDBACK";
+            ground?: string;
             reason: string;
         };
         ActiveRequest: {
@@ -4460,13 +4265,6 @@ export interface components {
         ApprovalRequest: {
             showProductName: boolean;
             text: string;
-        };
-        ApproveMentorRequest: {
-            stepUpCode: string;
-        };
-        ApproveRequest: {
-            school: string;
-            studentNumber: string;
         };
         ApproveSuggestionRequest: {
             /** Format: uuid */
@@ -6190,87 +5988,6 @@ export interface components {
             /** Format: date-time */
             since: string;
         };
-        MentorApplicationDetail: {
-            /** Format: uuid */
-            accountId: string;
-            /** Format: date-time */
-            decidedAt?: string;
-            displayName?: string;
-            document?: components["schemas"]["MentorApplicationDocument"];
-            experience?: string;
-            githubLogin?: string;
-            linkedinUrl?: string;
-            matches: components["schemas"]["MentorApplicationMatch"][];
-            otherLink?: string;
-            privacyNoticeVersion?: string;
-            rejectionReason?: string;
-            skills: components["schemas"]["MentorApplicationSkill"][];
-            /** @enum {string} */
-            status: "PENDING" | "APPROVED" | "REJECTED" | "REVOKED";
-            /** Format: date-time */
-            submittedAt?: string;
-            /** Format: int32 */
-            yearsOfExperience?: number;
-        };
-        MentorApplicationDocument: {
-            fileUrl: string;
-            mediaType: string;
-            name: string;
-            /** Format: int64 */
-            size: number;
-        };
-        MentorApplicationMatch: {
-            /** Format: uuid */
-            accountId: string;
-            /** Format: date-time */
-            createdAt: string;
-            erased: boolean;
-            kind: string;
-            locked: boolean;
-            /** @enum {string} */
-            mentorStatus?: "PENDING" | "APPROVED" | "REJECTED" | "REVOKED";
-            role?: string;
-            /** Format: date */
-            verifiedUntil?: string;
-        };
-        MentorApplicationRequest: {
-            displayName: string;
-            experience: string;
-            linkedinUrl: string;
-            otherLink?: string;
-            privacyNoticeVersion?: string;
-            skillIds: string[];
-            /** Format: int32 */
-            yearsOfExperience: number;
-        };
-        MentorApplicationRow: {
-            /** Format: uuid */
-            accountId: string;
-            /** Format: date-time */
-            decidedAt?: string;
-            displayName?: string;
-            githubLogin?: string;
-            /** Format: int64 */
-            matches: number;
-            /** @enum {string} */
-            status: "PENDING" | "APPROVED" | "REJECTED" | "REVOKED";
-            /** Format: date-time */
-            submittedAt?: string;
-            /** Format: int32 */
-            yearsOfExperience?: number;
-        };
-        MentorApplicationSkill: {
-            active: boolean;
-            /** Format: uuid */
-            id: string;
-            name: string;
-        };
-        MentorDocumentView: {
-            mediaType: string;
-            name: string;
-            /** Format: int64 */
-            size: number;
-        };
         MentorFundingMilestoneView: {
             /** Format: int32 */
             crewTermsVersionNo?: number;
@@ -6349,25 +6066,6 @@ export interface components {
             /** Format: int32 */
             number: number;
             status: string;
-        };
-        MentorProfileView: {
-            /** @enum {string} */
-            approvalStatus: "PENDING" | "APPROVED" | "REJECTED" | "REVOKED";
-            /** Format: date-time */
-            decidedAt?: string;
-            displayName?: string;
-            document?: components["schemas"]["MentorDocumentView"];
-            experience?: string;
-            linkedinUrl?: string;
-            otherLink?: string;
-            /** Format: date-time */
-            reapplyAfter?: string;
-            rejectionReason?: string;
-            skills: components["schemas"]["ProfileSkill"][];
-            /** Format: date-time */
-            submittedAt?: string;
-            /** Format: int32 */
-            yearsOfExperience?: number;
         };
         MentorReleaseView: {
             /** Format: int64 */
@@ -6676,10 +6374,8 @@ export interface components {
             failedOperations: components["schemas"]["Queue"];
             falsePositives: components["schemas"]["Queue"];
             lowFeedback: components["schemas"]["Queue"];
-            mentorApplications: components["schemas"]["Queue"];
             skillSuggestions: components["schemas"]["Queue"];
             stalledEvents: components["schemas"]["Queue"];
-            studentCards: components["schemas"]["Queue"];
             teamIssues: components["schemas"]["Queue"];
         };
         PageLinkView: {
@@ -6723,26 +6419,8 @@ export interface components {
             /** Format: int64 */
             total: number;
         };
-        PageResponseMentorApplicationRow: {
-            items: components["schemas"]["MentorApplicationRow"][];
-            /** Format: int32 */
-            page: number;
-            /** Format: int32 */
-            size: number;
-            /** Format: int64 */
-            total: number;
-        };
         PageResponseNotificationItem: {
             items: components["schemas"]["NotificationItem"][];
-            /** Format: int32 */
-            page: number;
-            /** Format: int32 */
-            size: number;
-            /** Format: int64 */
-            total: number;
-        };
-        PageResponseStudentCardRow: {
-            items: components["schemas"]["StudentCardRow"][];
             /** Format: int32 */
             page: number;
             /** Format: int32 */
@@ -6887,6 +6565,12 @@ export interface components {
             school: string;
             /** Format: date-time */
             sentAt: string;
+        };
+        PersonLinkView: {
+            /** Format: uuid */
+            accountId: string;
+            kinds: string[];
+            name?: string;
         };
         PersonView: {
             /** Format: uuid */
@@ -7201,13 +6885,6 @@ export interface components {
             signals: components["schemas"]["SignalsView"];
             title: string;
         };
-        RejectMentorRequest: {
-            reason: string;
-            stepUpCode: string;
-        };
-        RejectRequest: {
-            reason: string;
-        };
         RepositoryCheckRequest: {
             url: string;
         };
@@ -7272,14 +6949,6 @@ export interface components {
             purpose: string;
             system: string;
         };
-        RevokeApprovalRequest: {
-            /** @enum {string} */
-            category?: "RESPECT" | "GUIDANCE" | "RULES";
-            /** @enum {string} */
-            ground: "OTHER" | "PRIVATE_FEEDBACK";
-            reason?: string;
-            stepUpCode: string;
-        };
         RuleChangeView: {
             /** Format: date-time */
             changedAt: string;
@@ -7323,9 +6992,6 @@ export interface components {
             values: {
                 [key: string]: number;
             };
-        };
-        SavedView: {
-            submitted: boolean;
         };
         ScanView: {
             /** Format: date-time */
@@ -7567,35 +7233,6 @@ export interface components {
         };
         StatisticsView: {
             groups: components["schemas"]["StatisticGroupView"][];
-        };
-        StudentCardRow: {
-            /** Format: date-time */
-            decidedAt?: string;
-            fileName: string;
-            fileUrl?: string;
-            githubLogin?: string;
-            /** Format: uuid */
-            id: string;
-            mediaType: string;
-            profileSchool?: string;
-            realName?: string;
-            rejectionReason?: string;
-            school?: string;
-            /** @enum {string} */
-            status: "PENDING" | "APPROVED" | "REJECTED";
-            studentNumber?: string;
-            /** Format: date-time */
-            uploadedAt: string;
-        };
-        StudentCardView: {
-            /** Format: date-time */
-            decidedAt?: string;
-            fileName: string;
-            rejectionReason?: string;
-            /** @enum {string} */
-            status: "PENDING" | "APPROVED" | "REJECTED";
-            /** Format: date-time */
-            uploadedAt: string;
         };
         StudentDetailsView: {
             major?: string;
@@ -7946,8 +7583,6 @@ export interface components {
             sizeBytes: number;
         };
         UserDetailView: {
-            /** @enum {string} */
-            approval?: "PENDING" | "APPROVED" | "REJECTED" | "REVOKED";
             /** Format: date-time */
             createdAt: string;
             deletionRequest?: components["schemas"]["DeletionRequestView"];
@@ -7961,6 +7596,7 @@ export interface components {
             /** Format: date-time */
             lockedAt?: string;
             name?: string;
+            personLinks: components["schemas"]["PersonLinkView"][];
             /** @enum {string} */
             role?: "CUSTOMER" | "MENTOR" | "STUDENT" | "ADMINISTRATOR";
             /** Format: date-time */
@@ -8005,7 +7641,6 @@ export interface components {
             school?: string;
             /** @enum {string} */
             status: "UNVERIFIED" | "VERIFIED" | "EXPIRED";
-            studentCard?: components["schemas"]["StudentCardView"];
             /** Format: date-time */
             verifiedAt?: string;
             /** Format: date */
@@ -9053,108 +8688,6 @@ export interface operations {
             };
         };
     };
-    applications: {
-        parameters: {
-            query?: {
-                status?: "PENDING" | "APPROVED" | "REJECTED" | "REVOKED";
-                /** @description Zero-based page index (0..N) */
-                page?: number;
-                /** @description The size of the page to be returned */
-                size?: number;
-                /** @description Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported. */
-                sort?: string[];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PageResponseMentorApplicationRow"];
-                };
-            };
-        };
-    };
-    application: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                applicantId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MentorApplicationDetail"];
-                };
-            };
-        };
-    };
-    approve_4: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                applicantId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ApproveMentorRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MentorApplicationRow"];
-                };
-            };
-        };
-    };
-    reject_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                applicantId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RejectMentorRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MentorApplicationRow"];
-                };
-            };
-        };
-    };
     items: {
         parameters: {
             query?: {
@@ -9245,7 +8778,7 @@ export interface operations {
             };
         };
     };
-    save_3: {
+    save_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -9311,7 +8844,7 @@ export interface operations {
             };
         };
     };
-    approve_3: {
+    approve_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -9379,86 +8912,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StatisticsView"];
-                };
-            };
-        };
-    };
-    cards: {
-        parameters: {
-            query?: {
-                status?: "PENDING" | "APPROVED" | "REJECTED";
-                /** @description Zero-based page index (0..N) */
-                page?: number;
-                /** @description The size of the page to be returned */
-                size?: number;
-                /** @description Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported. */
-                sort?: string[];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PageResponseStudentCardRow"];
-                };
-            };
-        };
-    };
-    approve_2: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                cardId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ApproveRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StudentCardRow"];
-                };
-            };
-        };
-    };
-    reject: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                cardId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RejectRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StudentCardRow"];
                 };
             };
         };
@@ -9558,7 +9011,7 @@ export interface operations {
             query?: {
                 q?: string;
                 role?: "CUSTOMER" | "MENTOR" | "STUDENT" | "ADMINISTRATOR";
-                status?: "LOCKED" | "VERIFIED" | "PENDING" | "APPROVED" | "REJECTED" | "REVOKED" | "LOW_FEEDBACK";
+                status?: "LOCKED" | "VERIFIED" | "LOW_FEEDBACK";
                 page?: number;
             };
             header?: never;
@@ -9627,58 +9080,6 @@ export interface operations {
         };
     };
     lock: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                accountId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ReasonRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserDetailView"];
-                };
-            };
-        };
-    };
-    revokeApproval: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                accountId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RevokeApprovalRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserDetailView"];
-                };
-            };
-        };
-    };
-    revokeVerification: {
         parameters: {
             query?: never;
             header?: never;
@@ -11353,7 +10754,7 @@ export interface operations {
             };
         };
     };
-    read_3: {
+    read_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -11780,7 +11181,7 @@ export interface operations {
             };
         };
     };
-    read_2: {
+    read_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -12730,7 +12131,7 @@ export interface operations {
             };
         };
     };
-    save_2: {
+    save_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -13323,7 +12724,7 @@ export interface operations {
             };
         };
     };
-    read_1: {
+    read: {
         parameters: {
             query?: never;
             header?: never;
@@ -13890,95 +13291,6 @@ export interface operations {
             };
         };
     };
-    read: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MentorProfileView"];
-                };
-            };
-        };
-    };
-    save_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MentorApplicationRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SavedView"];
-                };
-            };
-        };
-    };
-    uploadDocument: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "multipart/form-data": {
-                    /** Format: binary */
-                    file: string;
-                };
-            };
-        };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MentorDocumentView"];
-                };
-            };
-        };
-    };
-    deleteDocument: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No Content */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
     summaries: {
         parameters: {
             query?: {
@@ -14499,33 +13811,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-        };
-    };
-    uploadCard: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "multipart/form-data": {
-                    /** Format: binary */
-                    file: string;
-                };
-            };
-        };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["VerificationView"];
-                };
             };
         };
     };

@@ -6,7 +6,7 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * The {@code expect} column of a matrix row: {@code status [CODE [REASON]]}, for example
- * {@code 200}, {@code 401}, {@code 404 NOT_FOUND} or {@code 403 FORBIDDEN MENTOR_NOT_APPROVED}.
+ * {@code 200}, {@code 401}, {@code 404 NOT_FOUND} or {@code 403 FORBIDDEN GITHUB_NOT_LINKED}.
  */
 public record Expectation(int status, @Nullable String code, @Nullable String reason) {
 

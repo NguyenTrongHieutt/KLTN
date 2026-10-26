@@ -81,7 +81,7 @@ class AdministratorBootstrap {
 		}
 		Instant now = this.clock.instant();
 		UUID id = this.ids.newId();
-		this.accounts.insert(new Account(id, null, null, null, Role.ADMINISTRATOR, null, null, null, null, now));
+		this.accounts.insert(new Account(id, null, null, null, Role.ADMINISTRATOR, null, null, null, now));
 		byte[] secret = Totp.newSecret();
 		String encoded = Totp.base32(secret);
 		this.credentials.insert(id, email, name, AdminSignIns.PASSWORDS.encode(new String(password)),

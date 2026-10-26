@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router'
 import { initials } from '@/features/team/teamText'
 import { t, type MessageKey } from '@/i18n/t'
 import { applyTheme, DEFAULT_THEME, type ThemeChoice } from '@/theme/accountTheme'
-import { landingPath, MENTOR_PROFILE_PATH, type Session } from './api'
+import type { Session } from './api'
 import { useSaveTheme } from './profileApi'
 import { useSignOut } from './useSession'
 
@@ -29,8 +29,6 @@ export function AccountMenu({ session, offline }: { session: Session; offline: b
   // A Google account has no GitHub username until Story 19.2 links it: its Google name stands in.
   const login = session.githubLogin ?? session.displayName ?? ''
   const role = session.account?.role
-  // A Mentor waiting for approval has MEN-5 only (FR-74); everyone else has ACC-1 (Story 19.3).
-  const heldOnMentorProfile = landingPath(session) === MENTOR_PROFILE_PATH
   const theme = session.account?.theme ?? DEFAULT_THEME
 
   function chooseTheme(choice: ThemeChoice) {
@@ -49,7 +47,7 @@ export function AccountMenu({ session, offline }: { session: Session; offline: b
       <Menu.Portal>
         <Menu.Positioner align="end" sideOffset={6} className="z-50">
           <Menu.Popup className="min-w-52 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md">
-            {role !== 'ADMINISTRATOR' && !heldOnMentorProfile && (
+            {role !== 'ADMINISTRATOR' && (
               <Menu.Item className={item} onClick={() => navigate('/ho-so')}>
                 {t('shell.profile')}
               </Menu.Item>
@@ -59,7 +57,7 @@ export function AccountMenu({ session, offline }: { session: Session; offline: b
                 {t('shell.paymentHistory')}
               </Menu.Item>
             )}
-            {(role === 'STUDENT' || (role === 'MENTOR' && session.account?.mentorApprovalStatus === 'APPROVED')) && (
+            {(role === 'STUDENT' || role === 'MENTOR') && (
               <Menu.Item className={item} onClick={() => navigate('/so-du')}>
                 {t('shell.balance')}
               </Menu.Item>

@@ -29,7 +29,6 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import com.jayway.jsonpath.JsonPath;
 
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
@@ -60,40 +59,38 @@ class InvitationsIT extends IntegrationTest {
 
 	private UUID bao;
 
-	private UUID pending;
-
-	private UUID revoked;
+	private UUID unlinked;
 
 	private UUID locked;
 
 	@BeforeEach
 	void aCustomerWithAnOpenJobPostAndMentorsInEveryState() {
-		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.jdbc.sql("""
 				INSERT INTO identity.profile (account_id, kind, display_name, contact_email, updated_at)
 				VALUES (:id, 'INDIVIDUAL', 'Lan Nguyễn', 'lan@example.com', now())
 				""").param("id", this.lan).update();
 		this.product = product(this.lan);
 		this.job = openJob();
-		this.long_ = mentor(MentorApprovalStatus.APPROVED, "Trần Đức Long", List.of(TeamTestSupport.SUPABASE), "Supabase");
-		this.ha = mentor(MentorApprovalStatus.APPROVED, "Phạm Thu Hà",
-				List.of(TeamTestSupport.REACT, TeamTestSupport.SUPABASE), "React Supabase");
-		this.bao = mentor(MentorApprovalStatus.APPROVED, "Lê Quốc Bảo", List.of(TeamTestSupport.REACT), "React");
-		this.pending = mentor(MentorApprovalStatus.PENDING, "Chờ Duyệt", List.of(TeamTestSupport.SUPABASE), "Supabase");
-		this.revoked = mentor(MentorApprovalStatus.REVOKED, "Bị Thu Hồi", List.of(TeamTestSupport.SUPABASE), "Supabase");
-		this.locked = mentor(MentorApprovalStatus.APPROVED, "Bị Khóa", List.of(TeamTestSupport.SUPABASE), "Supabase");
+		this.long_ = mentor("Trần Đức Long", List.of(TeamTestSupport.SUPABASE), "Supabase");
+		this.ha = mentor("Phạm Thu Hà", List.of(TeamTestSupport.REACT, TeamTestSupport.SUPABASE), "React Supabase");
+		this.bao = mentor("Lê Quốc Bảo", List.of(TeamTestSupport.REACT), "React");
+		// Story 19.7: a Mentor without GitHub linked is listed, but cannot be invited to bid.
+		this.unlinked = mentor("Chưa Liên Kết", List.of(TeamTestSupport.SUPABASE), "Supabase");
+		IdentityTestSupport.unlinkGitHub(this.jdbc, this.unlinked);
+		this.locked = mentor("Bị Khóa", List.of(TeamTestSupport.SUPABASE), "Supabase");
 		IdentityTestSupport.lock(this.jdbc, this.locked, "Vi phạm");
 	}
 
 	@Test
-	void theSearchFindsOnlyApprovedUnlockedMentorsAndNoContactDetails() throws Exception {
+	void theSearchFindsUnlockedMentorsWithAProfileAndNoContactDetails() throws Exception {
 		// The listed Mentor's own contact details (FR-3, AD-20): never in the directory or on PUB-5.
 		this.jdbc.sql("""
 				UPDATE identity.profile SET contact_email = 'long.lienhe@example.test', phone = '+84 977 123 456'
 				WHERE account_id = :id
 				""").param("id", this.long_).update();
 		String body = search("supabase", "").andExpect(status().isOk())
-			.andExpect(jsonPath("$.total").value(2))
+			.andExpect(jsonPath("$.total").value(3))
 			.andExpect(jsonPath("$.size").value(20))
 			.andExpect(jsonPath("$.items[0].linkedinUrl").doesNotExist())
 			.andExpect(jsonPath("$.items[0].experience").doesNotExist())
@@ -101,8 +98,8 @@ class InvitationsIT extends IntegrationTest {
 			.getResponse()
 			.getContentAsString();
 		List<String> found = JsonPath.read(body, "$.items[*].accountId");
-		assertThat(found).as("pending, revoked, and locked Mentors are absent (SG-44)")
-			.containsExactlyInAnyOrder(this.long_.toString(), this.ha.toString());
+		assertThat(found).as("a locked Mentor is absent (SG-44); one without GitHub linked is listed")
+			.containsExactlyInAnyOrder(this.long_.toString(), this.ha.toString(), this.unlinked.toString());
 		List<String> relations = JsonPath.read(body, "$.items[*].relation");
 		assertThat(relations).containsOnly("NONE");
 		String login = this.jdbc.sql("SELECT github_login FROM identity.account WHERE id = :id").param("id", this.long_)
@@ -120,7 +117,7 @@ class InvitationsIT extends IntegrationTest {
 			.andExpect(jsonPath("$.items[0].displayName").value("Phạm Thu Hà"))
 			.andExpect(jsonPath("$.items[0].skills[0]").value("React"));
 		search("", "").andExpect(jsonPath("$.total").value(0)).andExpect(jsonPath("$.items.length()").value(0));
-		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/mentors?q=supabase").with(as(other, Role.CUSTOMER)))
 			.andExpect(status().isNotFound());
 		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/mentors?q=supabase").with(as(this.long_, Role.MENTOR)))
@@ -129,8 +126,8 @@ class InvitationsIT extends IntegrationTest {
 
 	@Test
 	void theSearchOrdersByRelevanceThenAccountIdNeverByName() throws Exception {
-		UUID first = mentor(MentorApprovalStatus.APPROVED, "Zô Bảo Mật", List.of(TeamTestSupport.SUPABASE), "Bảo mật");
-		UUID second = mentor(MentorApprovalStatus.APPROVED, "An Bảo Mật", List.of(TeamTestSupport.SUPABASE), "Bảo mật");
+		UUID first = mentor("Zô Bảo Mật", List.of(TeamTestSupport.SUPABASE), "Bảo mật");
+		UUID second = mentor("An Bảo Mật", List.of(TeamTestSupport.SUPABASE), "Bảo mật");
 
 		String body = search("bảo mật", "").andExpect(jsonPath("$.total").value(2)).andReturn().getResponse()
 			.getContentAsString();
@@ -174,7 +171,7 @@ class InvitationsIT extends IntegrationTest {
 			.andExpect(jsonPath("$.status").value("OPEN"));
 		this.mvc.perform(get("/api/v1/mentor/job-posts/" + this.job + "/invitation").with(as(this.ha, Role.MENTOR)))
 			.andExpect(status().isNotFound());
-		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.mvc.perform(post("/api/v1/jobs/" + this.job + "/invitations").with(as(other, Role.CUSTOMER)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON).content("{\"mentorId\":\"" + this.ha + "\"}"))
 			.andExpect(status().isNotFound());
@@ -184,7 +181,7 @@ class InvitationsIT extends IntegrationTest {
 	void eachRefusalHasItsReasonAndNeverSaysWhyAMentorIsUnavailable() throws Exception {
 		invite(this.long_).andExpect(status().isCreated());
 		invite(this.long_).andExpect(status().isConflict()).andExpect(jsonPath("$.reason").value("ALREADY_INVITED"));
-		for (UUID unavailable : List.of(this.pending, this.revoked, this.locked, UUID.randomUUID(), this.lan)) {
+		for (UUID unavailable : List.of(this.unlinked, this.locked, UUID.randomUUID(), this.lan)) {
 			invite(unavailable).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("INVITEE_NOT_AVAILABLE"));
 		}
 		application(this.ha);
@@ -288,8 +285,8 @@ class InvitationsIT extends IntegrationTest {
 			.update();
 	}
 
-	private UUID mentor(MentorApprovalStatus status, String name, List<String> skills, String skillNames) {
-		return TeamTestSupport.mentor(this.jdbc, status, name, skills, skillNames);
+	private UUID mentor(String name, List<String> skills, String skillNames) {
+		return TeamTestSupport.mentor(this.jdbc, name, skills, skillNames);
 	}
 
 	private UUID openJob() {

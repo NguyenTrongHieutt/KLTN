@@ -211,34 +211,6 @@ class Profiles implements ContactVisibility {
 	}
 
 	/**
-	 * MEN-5's part of the profile (FR-74, until Story 19.7): the display name, the experience, the
-	 * years, and the Skills, in the same row ACC-1 saves; the caller's transaction writes the rest of
-	 * the application.
-	 * @throws vn.vibefix.shared.ApiException {@code VALIDATION} with {@code SKILL_INACTIVE} or {@code SKILL_LIMIT}
-	 */
-	@Transactional
-	void saveMentorFields(UUID accountId, String displayName, String experience, int yearsOfExperience,
-			List<UUID> requestedSkillIds) {
-		List<UUID> skillIds = checkedSkills(accountId, requestedSkillIds);
-		this.jdbc.sql("""
-				INSERT INTO identity.profile
-				    (account_id, display_name, experience, years_of_experience, skill_ids, skill_names, updated_at)
-				VALUES (:id, :name, :experience, :years, CAST(:skills AS UUID[]), :names, :now)
-				ON CONFLICT (account_id) DO UPDATE SET display_name = EXCLUDED.display_name,
-				    experience = EXCLUDED.experience, years_of_experience = EXCLUDED.years_of_experience,
-				    skill_ids = EXCLUDED.skill_ids, skill_names = EXCLUDED.skill_names, updated_at = EXCLUDED.updated_at
-				""")
-			.param("id", accountId)
-			.param("name", displayName)
-			.param("experience", experience)
-			.param("years", yearsOfExperience)
-			.param("skills", arrayLiteral(skillIds))
-			.param("names", skillNames(skillIds))
-			.param("now", now())
-			.update();
-	}
-
-	/**
 	 * Each Skill once, in order; the IDs the profile did not hold yet must be active, and no more than
 	 * {@value #MAX_SKILLS} in all. Locks the profile row when there is one, so two later saves of one
 	 * account run one at a time; a first save has no row to lock, and the upsert keeps one row.

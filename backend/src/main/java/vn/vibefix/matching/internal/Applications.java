@@ -154,7 +154,7 @@ class Applications {
 	}
 
 	/**
-	 * Submits the approved Mentor's Application (the caller checks the approval, AD-19).
+	 * Submits the Mentor's Application (the caller checks the GitHub link, AD-19).
 	 * @throws ApiException {@code NOT_FOUND} for no such Job; {@code GUARD_FAILED} with
 	 * {@code JOB_POST_HIDDEN}, {@code JOB_POST_NOT_OPEN}, {@code NO_FREE_STUDENT}, {@code MENTOR_JOB_LIMIT}
 	 * (with {@code limit}), {@code CONFLICT_OF_INTEREST}, {@code APPLICANT_IS_CONTRIBUTOR}, or
@@ -294,7 +294,7 @@ class Applications {
 	}
 
 	/**
-	 * A locked or revoked Mentor (FR-13, AD-19): their submitted and held Applications are withdrawn, and
+	 * A locked Mentor (FR-13, AD-19): their submitted and held Applications are withdrawn, and
 	 * each Customer learns why. Withdrawing them again changes nothing.
 	 */
 	@Transactional

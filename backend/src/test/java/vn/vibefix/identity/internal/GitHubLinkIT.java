@@ -557,7 +557,7 @@ class GitHubLinkIT extends IntegrationTest {
 
 	/** An account with a role and no GitHub link: the shim's, keyed by a Google subject instead. */
 	private UUID unlinked(Role role) {
-		UUID id = IdentityTestSupport.insertAccount(this.jdbc, role, null, null);
+		UUID id = IdentityTestSupport.insertAccount(this.jdbc, role, null);
 		this.jdbc.sql("""
 				UPDATE identity.account SET google_sub = :sub, github_user_id = NULL, github_login = NULL, github_linked_at = NULL
 				WHERE id = :id

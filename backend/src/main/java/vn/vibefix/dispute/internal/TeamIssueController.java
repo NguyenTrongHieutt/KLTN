@@ -28,7 +28,7 @@ import vn.vibefix.dispute.internal.TeamIssues.JobPanel;
 import vn.vibefix.dispute.internal.TeamIssues.Phase;
 import vn.vibefix.dispute.internal.TeamIssues.Subject;
 import vn.vibefix.dispute.internal.TeamIssues.TeamIssue;
-import vn.vibefix.identity.MentorGate;
+import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.identity.StudentDirectory;
 import vn.vibefix.job.JobPosts;
 import vn.vibefix.job.JobPosts.JobPostState;
@@ -124,12 +124,12 @@ class TeamIssueController {
 
 	private final StudentDirectory students;
 
-	private final MentorGate gate;
+	private final ActiveAccount gate;
 
 	private final CurrentCaller callers;
 
 	TeamIssueController(TeamIssues issues, TeamIssueAnswers answers, TeamIssueLocks locks, JobPosts posts,
-			StudentDirectory students, MentorGate gate, CurrentCaller callers) {
+			StudentDirectory students, ActiveAccount gate, CurrentCaller callers) {
 		this.issues = issues;
 		this.answers = answers;
 		this.locks = locks;

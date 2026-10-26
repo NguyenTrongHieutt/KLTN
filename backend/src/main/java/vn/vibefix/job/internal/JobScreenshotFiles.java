@@ -5,13 +5,13 @@ import java.util.UUID;
 import org.springframework.stereotype.Component;
 
 import vn.vibefix.files.FileReadPolicy;
-import vn.vibefix.identity.MentorGate;
+import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.Role;
 
 /**
- * Who may read a Job's screenshot (FR-9, FR-12, AD-20): its Customer, and an approved Mentor while
+ * Who may read a Job's screenshot (FR-9, FR-12, AD-20): its Customer, and an unlocked Mentor while
  * the Job is an Open Job Post that is not hidden.
  */
 @Component
@@ -21,9 +21,9 @@ class JobScreenshotFiles implements FileReadPolicy {
 
 	private final JobPostQueries posts;
 
-	private final MentorGate mentors;
+	private final ActiveAccount mentors;
 
-	JobScreenshotFiles(Jobs jobs, JobPostQueries posts, MentorGate mentors) {
+	JobScreenshotFiles(Jobs jobs, JobPostQueries posts, ActiveAccount mentors) {
 		this.jobs = jobs;
 		this.posts = posts;
 		this.mentors = mentors;
@@ -39,13 +39,13 @@ class JobScreenshotFiles implements FileReadPolicy {
 		if (caller.hasRole(Role.CUSTOMER)) {
 			return this.jobs.ownsScreenshot(fileId, caller.requireAccountId());
 		}
-		return caller.hasRole(Role.MENTOR) && approved(caller.requireAccountId()) && this.posts.isOpenScreenshot(fileId);
+		return caller.hasRole(Role.MENTOR) && active(caller.requireAccountId()) && this.posts.isOpenScreenshot(fileId);
 	}
 
 	/** The gate reads the account again (AD-19); it runs in no transaction, so its refusal is only an answer. */
-	private boolean approved(UUID mentorId) {
+	private boolean active(UUID mentorId) {
 		try {
-			this.mentors.requireApprovedMentor(mentorId);
+			this.mentors.requireActiveAccount(mentorId);
 			return true;
 		}
 		catch (ApiException refused) {

@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
-import vn.vibefix.identity.MentorGate;
+import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.identity.Notices;
 import vn.vibefix.job.JobSelection;
 import vn.vibefix.job.internal.JobController.DecisionRequest;
@@ -38,7 +38,7 @@ import vn.vibefix.shared.Role;
 /**
  * The Mentor's Jobs (FR-15, AD-19 Job commands): MEN-4 lists the Jobs whose Mentor they are, JOB-1
  * shows one with what the NDA panel needs, and "Từ chối" applies J5 while Selecting. Only the Job's
- * Mentor finds it; a revoked Mentor keeps their running Jobs.
+ * Mentor finds it; an unlocked account is all it needs.
  */
 @RestController
 @RequestMapping("/api/v1/mentor/jobs")
@@ -67,14 +67,14 @@ class MentorJobController {
 
 	private final Notices notices;
 
-	private final MentorGate gate;
+	private final ActiveAccount gate;
 
 	private final JdbcClient jdbc;
 
 	private final CurrentCaller callers;
 
 	MentorJobController(Jobs jobs, JobLifecycle lifecycle, ProductDirectory products, Notices notices,
-			MentorGate gate, JdbcClient jdbc, CurrentCaller callers) {
+			ActiveAccount gate, JdbcClient jdbc, CurrentCaller callers) {
 		this.jobs = jobs;
 		this.lifecycle = lifecycle;
 		this.products = products;

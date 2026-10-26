@@ -93,7 +93,7 @@ class CleanRepositoryIT extends IntegrationTest {
 	@BeforeEach
 	void aCustomerWithAKeptToken() {
 		REPOSITORIES.clear();
-		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.lanGithubId = CustomerTokens.githubUserId(this.jdbc, this.lan);
 		CustomerTokens.keep(this.context, this.lan, TOKEN);
 	}
@@ -193,7 +193,7 @@ class CleanRepositoryIT extends IntegrationTest {
 		offer(product, "lan-nguyen/secret-" + suffix).andExpect(status().is(422))
 			.andExpect(jsonPath("$.reason").value("REPO_PRIVATE"));
 		offer(product, source).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("REPO_ALREADY_LINKED"));
-		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.mvc.perform(post("/api/v1/products/" + product + "/clean-repository").with(as(other)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("{\"url\":\"https://github.com/" + source + "\"}")).andExpect(status().isNotFound());

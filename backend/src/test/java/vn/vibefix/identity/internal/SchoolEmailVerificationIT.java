@@ -638,7 +638,7 @@ class SchoolEmailVerificationIT extends IntegrationTest {
 
 	@Test
 	void anyPersonVerifiesButAnAdministratorHasNoVerification() throws Exception {
-		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		RequestPostProcessor customer = authentication(IdentityTestSupport.authentication(lan, Role.CUSTOMER));
 		this.mvc.perform(get("/api/v1/verification").with(customer))
 			.andExpect(status().isOk())
@@ -650,7 +650,7 @@ class SchoolEmailVerificationIT extends IntegrationTest {
 			.andExpect(status().isAccepted())
 			.andExpect(jsonPath("$.pendingCode.school").value("hcmut.edu.vn"));
 
-		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null, null);
+		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
 		this.mvc.perform(get("/api/v1/verification")
 			.with(IdentityTestSupport.signedIn(this.sessions, admin, Role.ADMINISTRATOR, this.clock.instant())))
 			.andExpect(status().isNotFound());

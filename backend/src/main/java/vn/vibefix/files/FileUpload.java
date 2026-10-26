@@ -8,7 +8,7 @@ import java.util.regex.Pattern;
 /**
  * One file to check and store (AD-21).
  * @param purpose what the file is for, {@code {owning module}.{kind}}, for example
- * {@code identity.student_card}; it names the {@link FileReadPolicy} that decides who may read it
+ * {@code work.attachment}; it names the {@link FileReadPolicy} that decides who may read it
  * @param accountId the uploader, whose hourly quota it counts against
  * @param fileName the name the client sent; it is normalized before it is kept
  * @param content the bytes as uploaded

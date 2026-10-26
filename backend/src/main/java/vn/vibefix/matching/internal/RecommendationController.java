@@ -20,7 +20,7 @@ import vn.vibefix.catalog.Catalog;
 import vn.vibefix.catalog.Skill;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
-import vn.vibefix.identity.MentorGate;
+import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.job.JobPosts;
 import vn.vibefix.job.JobPosts.JobPostState;
 import vn.vibefix.job.JobPosts.OpenPost;
@@ -92,12 +92,12 @@ class RecommendationController {
 
 	private final Catalog catalog;
 
-	private final MentorGate gate;
+	private final ActiveAccount gate;
 
 	private final CurrentCaller callers;
 
 	RecommendationController(Recommendations recommendations, Invitations invitations, JobPosts posts,
-			MentorDirectory mentors, Teams teams, ProductDirectory products, Catalog catalog, MentorGate gate,
+			MentorDirectory mentors, Teams teams, ProductDirectory products, Catalog catalog, ActiveAccount gate,
 			CurrentCaller callers) {
 		this.recommendations = recommendations;
 		this.invitations = invitations;
@@ -137,7 +137,7 @@ class RecommendationController {
 		}).toList();
 	}
 
-	/** An approved Mentor's Recommendations on MEN-2. */
+	/** A Mentor's Recommendations on MEN-2. */
 	@GetMapping("/api/v1/mentor/recommendations")
 	List<RecommendedPostView> forMentor(@RequestParam(name = "skill", required = false) @Nullable List<UUID> skills,
 			@RequestParam(name = "category", required = false) @Nullable List<UUID> categories) {
@@ -146,7 +146,7 @@ class RecommendationController {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		UUID mentor = caller.requireAccountId();
-		this.gate.requireApprovedMentor(mentor);
+		this.gate.requireActiveAccount(mentor);
 		List<RecommendedPost> found = this.recommendations.forMentor(mentor,
 				SkillFilter.resolve(this.catalog, skills, categories));
 		Set<UUID> invited = this.invitations.openFor(mentor);

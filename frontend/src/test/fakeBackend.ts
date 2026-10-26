@@ -16,21 +16,13 @@ export const signedInWithGoogle: Session = {
   account: { id: '00000000-0000-7000-8000-000000000002', theme: 'LIGHT' },
 }
 
-/** A signed-in session of `role`; a Mentor is approved unless `mentorApprovalStatus` says otherwise. */
-export function signedIn(
-  role: 'CUSTOMER' | 'MENTOR' | 'STUDENT',
-  mentorApprovalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'REVOKED',
-): Session {
+/** A signed-in session of `role`; no Mentor needs an approval (Story 19.7). */
+export function signedIn(role: 'CUSTOMER' | 'MENTOR' | 'STUDENT'): Session {
   return {
     status: 'SIGNED_IN',
     privacyNoticeVersion: '2.0',
     githubLogin: 'octo-cat',
-    account: {
-      id: '00000000-0000-7000-8000-000000000001',
-      role,
-      theme: 'LIGHT',
-      ...(role === 'MENTOR' ? { mentorApprovalStatus: mentorApprovalStatus ?? 'APPROVED' } : {}),
-    },
+    account: { id: '00000000-0000-7000-8000-000000000001', role, theme: 'LIGHT' },
   }
 }
 

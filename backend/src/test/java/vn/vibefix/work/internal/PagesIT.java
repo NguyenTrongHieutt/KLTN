@@ -26,7 +26,6 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import com.jayway.jsonpath.JsonPath;
 import tools.jackson.databind.json.JsonMapper;
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
@@ -63,8 +62,8 @@ class PagesIT extends IntegrationTest {
 
 	@BeforeEach
 	void anActiveJobWithItsCrew() {
-		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
-		this.hung = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Đỗ Mạnh Hùng",
+		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng",
 				List.of(TeamTestSupport.REACT), "React");
 		UUID product = WorkTestSupport.product(this.jdbc, this.lan, "Sổ đặt bàn Quán Mây");
 		this.job = WorkTestSupport.activeJob(this.jdbc, product, this.lan, this.hung, List.of(UUID.randomUUID()),
@@ -169,7 +168,7 @@ class PagesIT extends IntegrationTest {
 		String id = id(create(this.hung, Role.MENTOR, "Kế hoạch", "", null));
 		UUID tung = WorkTestSupport.student(this.jdbc, "Lê Minh Tùng");
 		WorkTestSupport.crewRow(this.jdbc, this.job, tung, "ASSIGNED", null);
-		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null, null);
+		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
 		for (RequestPostProcessor outsider : List.of(as(tung, Role.STUDENT), as(admin, Role.ADMINISTRATOR))) {
 			this.mvc.perform(get("/api/v1/boards/" + this.job + "/pages").with(outsider)).andExpect(status().isNotFound());
 			this.mvc.perform(get("/api/v1/pages/" + id).with(outsider)).andExpect(status().isNotFound());

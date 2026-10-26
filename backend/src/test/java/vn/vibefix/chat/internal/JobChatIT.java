@@ -56,7 +56,7 @@ class JobChatIT extends IntegrationTest {
 
 	@BeforeEach
 	void aJobThatReachedAgreement() throws Exception {
-		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.jdbc.sql("""
 				INSERT INTO identity.profile (account_id, kind, display_name, contact_email, updated_at)
 				VALUES (:id, 'INDIVIDUAL', 'Lan Nguyễn', 'lan@example.com', now())
@@ -121,9 +121,9 @@ class JobChatIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("SELECT count(*) FROM notification.notification WHERE type LIKE 'chat.message%'")
 			.query(Long.class).single()).as("a message sends no notification").isZero();
 
-		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
-		UUID student = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null, null);
-		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null, null);
+		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		UUID student = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null);
+		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
 		UUID otherMentor = ChatTestSupport.mentorWithFreeStudent(this.jdbc, "Phạm Thu Hà");
 		for (RequestPostProcessor outsider : List.of(as(other, Role.CUSTOMER), as(student, Role.STUDENT),
 				as(admin, Role.ADMINISTRATOR), as(otherMentor, Role.MENTOR))) {
@@ -223,7 +223,7 @@ class JobChatIT extends IntegrationTest {
 		String file = JsonPath.read(body, "$.attachment.fileId");
 
 		this.mvc.perform(get("/api/v1/files/" + file).with(as(this.lan, Role.CUSTOMER))).andExpect(status().isOk());
-		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.mvc.perform(get("/api/v1/files/" + file).with(as(other, Role.CUSTOMER))).andExpect(status().isNotFound());
 		this.mvc.perform(multipart("/api/v1/jobs/" + this.job + "/chat/attachments")
 			.file(new MockMultipartFile("file", "trang.svg", "image/svg+xml", TestFiles.svg()))

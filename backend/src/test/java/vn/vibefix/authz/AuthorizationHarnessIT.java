@@ -70,7 +70,7 @@ class AuthorizationHarnessIT extends IntegrationTest {
 				GET /api/v1/fixture/notes/{noteId},ANONYMOUS,,,401
 				POST /api/v1/fixture/notes,AUTHOR,,fixture-note.json,200
 				POST /api/v1/fixture/notes,CUSTOMER,,fixture-note.json,404 NOT_FOUND
-				GET /api/v1/fixture/forbidden,STUDENT,,,403 FORBIDDEN MENTOR_NOT_APPROVED
+				GET /api/v1/fixture/forbidden,STUDENT,,,403 FORBIDDEN FIXTURE_NOT_ALLOWED
 				GET /api/v1/fixture/leak-body,CREW_ACTIVE,,,200
 				""")) {
 			this.runner.run(row);
@@ -125,7 +125,7 @@ class AuthorizationHarnessIT extends IntegrationTest {
 			.hasMessageContaining("Expected code FORBIDDEN but got NOT_FOUND");
 		assertThatThrownBy(() -> run("GET /api/v1/fixture/forbidden,STUDENT,,,403 FORBIDDEN OTHER"))
 			.isInstanceOf(AssertionError.class)
-			.hasMessageContaining("Expected reason OTHER but got MENTOR_NOT_APPROVED");
+			.hasMessageContaining("Expected reason OTHER but got FIXTURE_NOT_ALLOWED");
 	}
 
 	/** Every caller is realized by now, so this runner holds only the note fixture, which realizes no grant. */

@@ -9,9 +9,6 @@ enum IdentityReason {
 	/** The school email's domain is not on the allowlist at the send, or left it before the entry (FR-5, FR-61). */
 	EMAIL_DOMAIN_NOT_ALLOWED,
 
-	/** The student card's school and number already verify another account (FR-5, until Story 19.7). */
-	ALREADY_USED_FOR_VERIFICATION,
-
 	/**
 	 * At the entry of a correct code, the school email's keyed HMAC is on another account's live verification
 	 * (FR-5, AD-23, AD-42): one email verifies one live account at a time. The send never answers it, so it
@@ -43,20 +40,11 @@ enum IdentityReason {
 	/** The enrolment's code does not match the secret it showed. */
 	ENROLMENT_CODE_WRONG,
 
-	/** A new-work command from a Mentor who is not {@code APPROVED} (FR-74, AD-19). */
-	MENTOR_NOT_APPROVED,
-
 	/** A command from a locked or erased account (FR-59, AD-19). */
 	ACCOUNT_LOCKED,
 
-	/** The LinkedIn profile is on another live Mentor application (AD-19). */
-	MENTOR_LINKEDIN_IN_USE,
-
-	/** The first submission of a Mentor application without the current personal-data notice accepted. */
+	/** Linking GitHub before the current personal-data notice N-10 is accepted. */
 	PRIVACY_NOTICE_REQUIRED,
-
-	/** A rejected Mentor saves before the 30-day wait ends; the answer's {@code date} says when it does. */
-	MENTOR_REAPPLY_TOO_SOON,
 
 	/** Administrators are managed on ADM-11, never locked from ADM-2 (FR-59). */
 	ADMINISTRATOR_ACCOUNT,
@@ -66,12 +54,6 @@ enum IdentityReason {
 
 	/** The account is not locked. */
 	NOT_LOCKED,
-
-	/** The Student has no current verification to revoke. */
-	NOT_VERIFIED,
-
-	/** The Mentor is not approved, so there is nothing to revoke. */
-	NOT_APPROVED,
 
 	/** NFR-11: the account's deletion was requested already. */
 	ALREADY_REQUESTED,
