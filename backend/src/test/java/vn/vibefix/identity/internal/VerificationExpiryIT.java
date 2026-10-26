@@ -3,6 +3,7 @@ package vn.vibefix.identity.internal;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -22,6 +23,7 @@ import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import vn.vibefix.identity.StudentVerification;
 import vn.vibefix.notification.internal.RecordingMailSender;
@@ -29,14 +31,24 @@ import vn.vibefix.operations.Lane;
 import vn.vibefix.operations.internal.OperationWorker;
 import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
+import vn.vibefix.timers.DeadlineRequest;
+import vn.vibefix.timers.Deadlines;
 import vn.vibefix.timers.internal.DeadlinePoller;
 
-/** FR-5, AD-7, UX-DR16, UX-DR27: the reminder 14 days before 30 September, the expiry, and renewal. */
+/**
+ * FR-5, AD-7, AD-42, UX-DR16, UX-DR27: the reminder 14 days before 30 September, the expiry, which ends the
+ * row {@code EXPIRED} and deletes its facts, and renewal, which asks for the address only and keeps the
+ * declared name and major.
+ */
 class VerificationExpiryIT extends IntegrationTest {
 
 	private static final Pattern CODE = Pattern.compile("Mã xác minh vibefix của bạn: ([0-9]{6}) .*");
 
 	private static final String MINH = "minh@sis.hust.edu.vn";
+
+	private static final String NAME = "Trần Quang Minh";
+
+	private static final String MAJOR = "Khoa học máy tính";
 
 	/** 2026-10-19 10:00 in Vietnam. */
 	private static final Instant VERIFIED = Instant.parse("2026-10-19T03:00:00Z");
@@ -61,6 +73,12 @@ class VerificationExpiryIT extends IntegrationTest {
 
 	@Autowired
 	private StudentVerification studentVerification;
+
+	@Autowired
+	private Deadlines timers;
+
+	@Autowired
+	private TransactionTemplate transactions;
 
 	private UUID student;
 
@@ -102,11 +120,21 @@ class VerificationExpiryIT extends IntegrationTest {
 	}
 
 	@Test
-	void atTheExpiryTheStudentIsUnverifiedToldAndAskedToVerifyAgain() throws Exception {
+	void atTheExpiryTheRowEndsItsFactsGoAndTheStudentIsToldAndAskedToVerifyAgain() throws Exception {
 		this.clock.setInstant(EXPIRY);
 		assertThat(this.poller.runDue()).as("the reminder, then the expiry").isEqualTo(2);
 
 		assertThat(this.studentVerification.isVerified(this.student)).isFalse();
+		assertThat(this.jdbc.sql("""
+				SELECT ended_reason || ' ' || (facts IS NULL) || ' ' || (subject_hmac IS NOT NULL)
+				FROM identity.verification WHERE account_id = :id
+				""").param("id", this.student).query(String.class).single()).isEqualTo("EXPIRED true true");
+		assertThat(this.jdbc.sql("SELECT ended_at FROM identity.verification WHERE account_id = :id")
+			.param("id", this.student).query(java.sql.Timestamp.class).single()).isEqualTo(java.sql.Timestamp.from(EXPIRY));
+		assertThat(this.jdbc.sql("""
+				SELECT coalesce(student_name, '-') || coalesce(student_school, '-') || coalesce(student_major, '-')
+				FROM identity.profile WHERE account_id = :id
+				""").param("id", this.student).query(String.class).single()).as("the projection is cleared").isEqualTo("---");
 		assertThat(this.jdbc.sql("""
 				SELECT type FROM notification.notification WHERE account_id = :id ORDER BY created_at, type
 				""").param("id", this.student).query(String.class).list())
@@ -126,7 +154,10 @@ class VerificationExpiryIT extends IntegrationTest {
 		this.worker.runDue(Lane.EMAIL);
 		assertThat(this.mail.sent()).extracting(RecordingMailSender.Sent::subject)
 			.contains("Xác minh sinh viên đã hết hạn");
-		view().andExpect(jsonPath("$.status").value("EXPIRED")).andExpect(jsonPath("$.verifiedUntil").value("2027-09-30"));
+		view().andExpect(jsonPath("$.status").value("EXPIRED"))
+			.andExpect(jsonPath("$.verifiedUntil").value("2027-09-30"))
+			.andExpect(jsonPath("$.school").doesNotExist())
+			.andExpect(jsonPath("$.name").doesNotExist());
 		assertThat(deadlines()).containsExactly("identity.verification_reminder FIRED", "identity.verification_expiry FIRED");
 	}
 
@@ -137,9 +168,18 @@ class VerificationExpiryIT extends IntegrationTest {
 			.andExpect(jsonPath("$.renewalOpen").value(true))
 			.andExpect(jsonPath("$.pendingCode").doesNotExist());
 
-		verify("minh.k23@vnu.edu.vn").andExpect(jsonPath("$.verifiedUntil").value("2028-09-30"))
-			.andExpect(jsonPath("$.schoolEmail").value("minh.k23@vnu.edu.vn"))
+		// The renewal asks for the address only: a name or a major sent with it is ignored.
+		verify("minh.k23@vnu.edu.vn", "Tên khác", "Ngành khác").andExpect(jsonPath("$.verifiedUntil").value("2028-09-30"))
+			.andExpect(jsonPath("$.school").value("vnu.edu.vn"))
+			.andExpect(jsonPath("$.name").value(NAME))
+			.andExpect(jsonPath("$.major").value(MAJOR))
 			.andExpect(jsonPath("$.renewalOpen").value(false));
+		assertThat(this.jdbc.sql("""
+				SELECT coalesce(ended_reason, 'LIVE') || ' ' || (facts IS NULL) FROM identity.verification
+				WHERE account_id = :id ORDER BY verified_at
+				""").param("id", this.student).query(String.class).list()).containsExactly("REPLACED true", "LIVE false");
+		assertThat(this.jdbc.sql("SELECT student_school || ' ' || student_name FROM identity.profile WHERE account_id = :id")
+			.param("id", this.student).query(String.class).single()).isEqualTo("vnu.edu.vn " + NAME);
 
 		assertThat(this.poller.runDue()).as("the old reminder").isOne();
 		this.clock.setInstant(EXPIRY);
@@ -165,8 +205,9 @@ class VerificationExpiryIT extends IntegrationTest {
 	}
 
 	@Test
-	void aDeadlineWhoseVerificationIsGoneIsObsolete() {
-		this.jdbc.sql("DELETE FROM identity.student_verification WHERE account_id = :id").param("id", this.student).update();
+	void aDeadlineWhoseVerificationEndedIsObsolete() throws Exception {
+		this.mvc.perform(delete("/api/v1/verification/student").with(student()).with(csrf()))
+			.andExpect(status().isNoContent());
 
 		this.clock.setInstant(EXPIRY);
 		this.poller.runDue();
@@ -175,6 +216,21 @@ class VerificationExpiryIT extends IntegrationTest {
 				"identity.verification_expiry OBSOLETE");
 		assertThat(this.jdbc.sql("SELECT count(*) FROM notification.notification WHERE account_id = :id")
 			.param("id", this.student).query(Long.class).single()).isZero();
+	}
+
+	@Test
+	void aDeadlineFromBeforeTheVerificationTableIsObsolete() {
+		this.transactions.executeWithoutResult(status -> this.timers.schedule(new DeadlineRequest(
+				VerificationDeadlines.EXPIRY.key(), this.student, VERIFIED.toString(), null, EXPIRY.minusSeconds(60))));
+
+		this.clock.setInstant(EXPIRY.minusSeconds(30));
+		assertThat(this.poller.runDue()).as("the reminder and the old expiry").isEqualTo(2);
+
+		assertThat(this.studentVerification.isVerified(this.student)).isTrue();
+		assertThat(this.jdbc.sql("""
+				SELECT status FROM timers.deadline WHERE subject_id = :id AND generation = :generation
+				""").param("id", this.student).param("generation", VERIFIED.toString()).query(String.class).single())
+			.isEqualTo("OBSOLETE");
 	}
 
 	@Test
@@ -187,7 +243,11 @@ class VerificationExpiryIT extends IntegrationTest {
 
 	/** Sends a code to {@code address} and enters it; the account is verified after this. */
 	private ResultActions verify(String address) throws Exception {
-		send(address).andExpect(status().isAccepted());
+		return verify(address, NAME, MAJOR);
+	}
+
+	private ResultActions verify(String address, String name, String major) throws Exception {
+		send(address, name, major).andExpect(status().isAccepted());
 		this.worker.runDue(Lane.EMAIL);
 		RecordingMailSender.Sent sent = this.mail.sent().getLast();
 		Matcher matcher = CODE.matcher(sent.subject());
@@ -201,10 +261,15 @@ class VerificationExpiryIT extends IntegrationTest {
 	}
 
 	private ResultActions send(String address) throws Exception {
+		return send(address, NAME, MAJOR);
+	}
+
+	private ResultActions send(String address, String name, String major) throws Exception {
 		return this.mvc.perform(post("/api/v1/verification/school-email").with(student())
 			.with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
-			.content("{\"email\":\"" + address + "\"}"));
+			.content("{\"noticeVersion\":\"1.0\",\"email\":\"" + address + "\",\"name\":\"" + name
+					+ "\",\"major\":\"" + major + "\"}"));
 	}
 
 	private ResultActions view() throws Exception {

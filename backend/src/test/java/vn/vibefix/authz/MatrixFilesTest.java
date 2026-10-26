@@ -96,7 +96,7 @@ class MatrixFilesTest {
 					"PRIVATE_FEEDBACK", "SKILL_SUGGESTION");
 		assertThat(canaries.hiddenFrom(MatrixCaller.ADMINISTRATOR)).extracting(Canaries.Canary::name)
 			.containsExactlyInAnyOrder("CREW_SHARE", "WORK_ITEM_NOTE", "ATTACHMENT", "CREW_CHAT", "TEAM_ISSUE_ID",
-					"NOTIFICATION_PARAM", "TODO_PARAM");
+					"NOTIFICATION_PARAM", "TODO_PARAM", "SCHOOL_EMAIL");
 	}
 
 	@Test

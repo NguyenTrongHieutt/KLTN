@@ -102,11 +102,7 @@ class MentorDecisionIT extends IntegrationTest {
 		UUID later = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, MentorApprovalStatus.PENDING, null);
 		save(later, "someone-else", "3.0").andExpect(status().isOk());
 		UUID student = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null, null);
-		this.jdbc.sql("""
-				INSERT INTO identity.student_verification (account_id, method, school_email, verified_at, valid_until)
-				VALUES (:id, 'SCHOOL_EMAIL', :email, :now, :until)
-				""").param("id", student).param("email", SCHOOL_EMAIL).param("now", Timestamp.from(this.clock.instant()))
-			.param("until", LocalDate.of(2027, 9, 30)).update();
+		IdentityTestSupport.verifyStudent(this.jdbc, student, LocalDate.of(2027, 9, 30));
 		this.transactions.executeWithoutResult(status -> {
 			this.signals.record(student, Source.SCHOOL_EMAIL, SCHOOL_EMAIL);
 			this.signals.record(this.hung, Source.GITHUB_EMAIL, "Hung.Do@hcmut.edu.vn");

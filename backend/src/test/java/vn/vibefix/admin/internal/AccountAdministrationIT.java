@@ -154,6 +154,12 @@ class AccountAdministrationIT extends IntegrationTest {
 			.andExpect(jsonPath("$.verification").doesNotExist())
 			.andExpect(jsonPath("$.history[0].action").value("VERIFICATION_REVOKED"));
 		assertThat(this.verification.isVerified(vy)).isFalse();
+		// The row ends REVOKED with its facts and the profile's projection deleted; its subject HMAC stays (Story 19.4).
+		assertThat(this.jdbc.sql("""
+				SELECT v.ended_reason || ' ' || (v.facts IS NULL) || ' ' || (v.subject_hmac IS NOT NULL) || ' '
+				       || coalesce(p.student_name, '-')
+				FROM identity.verification v JOIN identity.profile p ON p.account_id = v.account_id WHERE v.account_id = :vy
+				""").param("vy", vy).query(String.class).single()).isEqualTo("REVOKED true true -");
 		assertThat(this.jdbc.sql("""
 				SELECT params ->> 'reason' FROM notification.notification WHERE type = 'identity.verification_revoked' AND account_id = :vy
 				""").param("vy", vy).query(String.class).single()).isEqualTo("Thẻ sinh viên giả");

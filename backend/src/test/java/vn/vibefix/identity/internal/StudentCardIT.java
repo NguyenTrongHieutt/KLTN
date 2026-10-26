@@ -72,6 +72,9 @@ class StudentCardIT extends IntegrationTest {
 	@Autowired
 	private PlatformTransactionManager transactionManager;
 
+	@Autowired
+	private PersonSignalKeys keys;
+
 	private UUID student;
 
 	private UUID administrator;
@@ -221,7 +224,17 @@ class StudentCardIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/verification").with(as(this.student, Role.STUDENT)))
 			.andExpect(jsonPath("$.status").value("VERIFIED"))
 			.andExpect(jsonPath("$.method").value("STUDENT_CARD"))
+			.andExpect(jsonPath("$.school").value(SCHOOL))
 			.andExpect(jsonPath("$.studentCard").doesNotExist());
+		// The row's subject is the card key's keyed HMAC (Story 19.4); the card's school is its public school.
+		assertThat(this.jdbc.sql("""
+				SELECT provider || ' ' || subject_hmac || ' ' || (facts ->> 'school') || ' ' || (consent_version IS NULL)
+				FROM identity.verification WHERE account_id = :id AND ended_at IS NULL
+				""").param("id", this.student).query(String.class).single())
+			.isEqualTo("STUDENT_CARD " + this.keys.current("STUDENT_CARD", StudentCards.cardKey(SCHOOL, "2020-1234")) + " "
+					+ SCHOOL + " true");
+		assertThat(this.jdbc.sql("SELECT student_school FROM identity.profile WHERE account_id = :id")
+			.param("id", this.student).query(String.class).single()).isEqualTo(SCHOOL);
 		assertThat(this.jdbc.sql("SELECT closed_at IS NOT NULL FROM notification.todo WHERE account_id = :id")
 			.param("id", this.student)
 			.query(Boolean.class)

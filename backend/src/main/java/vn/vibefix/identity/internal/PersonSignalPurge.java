@@ -18,9 +18,10 @@ import vn.vibefix.timers.DueDeadline;
 import vn.vibefix.timers.DeadlineRequest;
 
 /**
- * {@value #KEY} (AD-24, AD-19): an erased account's person-link signals stay 24 months
- * {@code [ASSUMPTION]}, so a person cannot erase one account and come back to sign the other side
- * of a Job at once; then they are deleted. An account that is not erased leaves it {@code OBSOLETE}.
+ * {@value #KEY} (AD-24, AD-19): an erased account's person-link signals, and the subject HMACs of its
+ * ended verifications, stay 24 months {@code [ASSUMPTION]}, so a person cannot erase one account and come
+ * back to sign the other side of a Job at once; then they are deleted. An account that is not erased
+ * leaves it {@code OBSOLETE}.
  */
 @Component
 class PersonSignalPurge implements DeadlineHandler {
@@ -66,6 +67,8 @@ class PersonSignalPurge implements DeadlineHandler {
 			return DeadlineOutcome.OBSOLETE;
 		}
 		this.signals.purge(deadline.subjectId());
+		// The verification rows' subject HMACs are kept as long as the signals (Story 19.4).
+		this.jdbc.sql("DELETE FROM identity.verification WHERE account_id = :id").param("id", deadline.subjectId()).update();
 		this.auditLog.record(AuditEntry.of(AuditActor.system(), "identity.person_signals_purged",
 				AuditObject.of("identity.account", deadline.subjectId())));
 		return DeadlineOutcome.FIRED;

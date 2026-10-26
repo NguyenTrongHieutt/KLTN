@@ -60,7 +60,7 @@ class AccountAdministrations implements AccountAdministration {
 	private static final String FROM = """
 			FROM identity.account a
 			LEFT JOIN identity.profile p ON p.account_id = a.id
-			LEFT JOIN identity.student_verification v ON v.account_id = a.id
+			LEFT JOIN identity.verification v ON v.account_id = a.id AND v.kind = 'STUDENT' AND v.ended_at IS NULL
 			""";
 
 	/** @param role absent for a Google account, which has none (Story 19.1) */
@@ -86,10 +86,13 @@ class AccountAdministrations implements AccountAdministration {
 
 	private final ObjectProvider<DataRequests> dataRequests;
 
+	private final VerificationRows verificationRows;
+
 	AccountAdministrations(JdbcClient jdbc, StepUps stepUps, Notifications notifications, Todos todos,
 			ApplicationEventPublisher events, AuditLog auditLog, IdGenerator ids, Clock clock,
-			ObjectProvider<DataRequests> dataRequests) {
+			ObjectProvider<DataRequests> dataRequests, VerificationRows verificationRows) {
 		this.dataRequests = dataRequests;
+		this.verificationRows = verificationRows;
 		this.jdbc = jdbc;
 		this.stepUps = stepUps;
 		this.notifications = notifications;
@@ -186,7 +189,8 @@ class AccountAdministrations implements AccountAdministration {
 		return this.jdbc.sql("SELECT a.id, a.role, a.github_login, a.created_at, a.signed_in_at, a.locked_at, a.lock_reason, "
 				+ "a.mentor_approval_status, coalesce(p.contact_email, a.google_email, a.github_email) AS email, " + NAME
 				+ " AS name, "
-				+ "v.method, v.verified_at, v.valid_until " + FROM
+				+ "CASE v.provider WHEN 'EMAIL_CODE' THEN 'SCHOOL_EMAIL' ELSE v.provider END AS method, v.verified_at, "
+				+ "v.valid_until " + FROM
 				+ " WHERE a.id = :id AND a.kind = 'USER' AND a.erased_at IS NULL")
 			.param("id", accountId)
 			.query((rs, n) -> {
@@ -249,20 +253,15 @@ class AccountAdministrations implements AccountAdministration {
 	@Override
 	@Transactional
 	public void revokeVerification(UUID administrator, UUID accountId, String reason) {
-		Target target = target(accountId);
-		Boolean current = this.jdbc.sql("SELECT valid_until >= :today FROM identity.student_verification WHERE account_id = :id")
-			.param("id", accountId)
-			.param("today", today())
-			.query(Boolean.class)
-			.optional()
-			.orElse(false);
-		if (target.role() != Role.STUDENT || !current) {
-			throw new ApiException(ErrorCode.CONFLICT, IdentityReason.NOT_VERIFIED);
-		}
+		target(accountId);
+		// Any person's account may verify since Story 19.4; the revocation itself goes in Story 19.7.
+		VerificationRows.Row current = this.verificationRows.live(accountId)
+			.filter(row -> !today().isAfter(row.validUntil()))
+			.orElseThrow(() -> new ApiException(ErrorCode.CONFLICT, IdentityReason.NOT_VERIFIED));
 		Instant now = now();
 		String text = reason.strip();
-		// The verification goes; its reminder and expiry Deadlines find nothing and end obsolete.
-		this.jdbc.sql("DELETE FROM identity.student_verification WHERE account_id = :id").param("id", accountId).update();
+		// The row ends REVOKED with its facts deleted; its reminder and expiry Deadlines find it ended and are obsolete.
+		this.verificationRows.end(current, VerificationRows.Ending.REVOKED, now);
 		UUID action = record(accountId, "VERIFICATION_REVOKED", text, null, administrator, now);
 		this.notifications.send(new NotificationRequest(VERIFICATION_REVOKED, action,
 				List.of(new Recipient(accountId, Audience.SUBJECT)), Map.of("reason", text), SignIns.VERIFICATION_PATH, null,

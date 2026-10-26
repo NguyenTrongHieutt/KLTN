@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils'
 import { GitHubNoticeDialog } from './GitHubNoticeDialog'
 import { useGitHubLink, useUnlinkGitHub, type GitHubLink, type GitHubLinkBlocker } from './githubApi'
 import { ProfileTabs } from './ProfileTabs'
-import { StudentVerificationCard } from './StudentVerificationCard'
+import { StudentEmailRow } from './StudentEmailRow'
 import { useSession } from './useSession'
 
 /** What GitHub's return says in ACC-2's address (`?ket-qua=…` or `?loi=…`), as the backend writes it. */
@@ -24,13 +24,13 @@ const RESULTS = ['da-lien-ket']
 const ERRORS = ['da-lien-ket-tai-khoan-khac', 'sai-tai-khoan', 'that-bai']
 
 /**
- * ACC-2 (`/ho-so/xac-minh`, FR-80, UX-DR91): the verification hub's GitHub row, "Bắt buộc". Not linked,
- * it starts linking after N-24; linked, it shows the username and "Xác minh qua GitHub · {tháng/năm}";
- * "Cần liên kết lại" when the kept token stopped working (`identity.relink_github`, which replaced the
- * `/dang-nhap-lai` page). "Bỏ liên kết" is disabled while something keeps the link (`GITHUB_CHANGE_BLOCKED`,
- * R14) and confirmed otherwise. GitHub's return shows its result or its error at the top. The LinkedIn
- * and student email rows come with Stories 19.4 and 19.6; until then a Student verifies here with the
- * earlier school email and student card ("Chưa xác minh" on ACC-1 leads here).
+ * ACC-2 (`/ho-so/xac-minh`, FR-80, UX-DR91, UX-DR93): the verification hub. The GitHub row, "Bắt buộc":
+ * not linked, it starts linking after N-24; linked, it shows the username and "Xác minh qua GitHub ·
+ * {tháng/năm}"; "Cần liên kết lại" when the kept token stopped working (`identity.relink_github`, which
+ * replaced the `/dang-nhap-lai` page). "Bỏ liên kết" is disabled while something keeps the link
+ * (`GITHUB_CHANGE_BLOCKED`, R14) and confirmed otherwise. GitHub's return shows its result or its error at
+ * the top. The student email row follows, for every person (Story 19.4), with a Student's card tab until
+ * Story 19.7; the LinkedIn row comes with Story 19.6.
  */
 export function VerificationPage() {
   usePageTitle(t('screen.verification.title'))
@@ -68,7 +68,7 @@ export function VerificationPage() {
       <RegionState query={link} skeleton={<Skeleton className="h-40 w-full" />}>
         {link.data && <GitHubRow link={link.data} />}
       </RegionState>
-      {student && <StudentVerificationCard />}
+      <StudentEmailRow student={student} />
     </div>
   )
 }

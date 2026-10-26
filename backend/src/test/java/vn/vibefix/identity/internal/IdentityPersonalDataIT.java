@@ -59,7 +59,9 @@ class IdentityPersonalDataIT extends IntegrationTest implements PersonalDataPart
 						     + (SELECT count(*) FROM identity.profile_link WHERE account_id = :id)
 						     + (SELECT count(*) FROM identity.showcase_repository WHERE account_id = :id)
 						     + (SELECT count(*) FROM identity.school_email_code WHERE account_id = :id)
-						     + (SELECT count(*) FROM identity.student_verification WHERE account_id = :id)
+						     + (SELECT count(*) FROM identity.school_email_send_hour WHERE account_id = :id)
+						     + (SELECT count(*) FROM identity.verification WHERE account_id = :id
+						                                                     AND (ended_at IS NULL OR facts IS NOT NULL))
 						""").param("id", accountId).query(Long.class).single() > 0;
 	}
 
@@ -84,10 +86,29 @@ class IdentityPersonalDataIT extends IntegrationTest implements PersonalDataPart
 			.contains("yearsOfExperience=4")
 			.contains("+84 912 345 678")
 			.contains("skills=[React]")
-			.contains("lan-subject@hust.edu.vn")
-			.contains("lan-subject@sis.hust.edu.vn")
+			.contains("Ngành của lan-subject")
+			.contains("verifiedMonth=2026-01")
+			.contains("method=SCHOOL_EMAIL")
+			.contains("school=hust.edu.vn")
 			.doesNotContain("ciphertext")
-			.doesNotContain(CODE_HASH);
+			.doesNotContain(CODE_HASH)
+			.doesNotContain(IdentityTestSupport.fakeHmac("lan-subject"));
+	}
+
+	/** The verification row keeps its subject HMAC after erasure (AD-24); its facts go, and it no longer counts. */
+	@Test
+	void anErasureEndsTheLiveVerificationErasedAndKeepsItsHmac() {
+		seedSubjectAndOther();
+
+		this.participant.eraseAccount(SUBJECT);
+
+		assertThat(this.jdbc.sql("""
+				SELECT ended_reason || ' ' || (facts IS NULL) || ' ' || subject_hmac FROM identity.verification
+				WHERE account_id = :id
+				""").param("id", SUBJECT).query(String.class).single())
+			.isEqualTo("ERASED true " + IdentityTestSupport.fakeHmac("lan-subject"));
+		assertThat(this.jdbc.sql("SELECT count(*) FROM identity.verification WHERE account_id = :id AND ended_at IS NULL")
+			.param("id", OTHER).query(Long.class).single()).isOne();
 	}
 
 	@Test
@@ -152,19 +173,24 @@ class IdentityPersonalDataIT extends IntegrationTest implements PersonalDataPart
 				INSERT INTO identity.showcase_repository (account_id, position, owner, name) VALUES (:id, 0, :login, 'shop')
 				""").param("id", id).param("login", login).update();
 		this.jdbc.sql("""
-				INSERT INTO identity.school_email_code (id, account_id, email, code_hash, sent_at, expires_at)
-				VALUES (:code, :id, :login || '@sis.hust.edu.vn', :hash, :now, :now)
+				INSERT INTO identity.school_email_code (id, account_id, address_hmac, key_version, code_hash, sent_at,
+				    expires_at, school, declared_name, declared_major, renewal)
+				VALUES (:code, :id, :hmac, 1, :hash, :now, :now, 'hust.edu.vn', 'Tên của ' || :login, 'Ngành của ' || :login,
+				        FALSE)
 				""")
 			.param("code", UUID.randomUUID())
 			.param("id", id)
+			.param("hmac", IdentityTestSupport.fakeHmac("code-" + login))
 			.param("login", login)
 			.param("hash", CODE_HASH)
 			.param("now", now)
 			.update();
-		this.jdbc.sql("""
-				INSERT INTO identity.student_verification (account_id, method, school_email, verified_at, valid_until)
-				VALUES (:id, 'SCHOOL_EMAIL', :login || '@hust.edu.vn', :now, DATE '2026-09-30')
-				""").param("id", id).param("login", login).param("now", now).update();
+		this.jdbc.sql("INSERT INTO identity.school_email_send_hour (account_id, hour, sends) VALUES (:id, :now, 1)")
+			.param("id", id)
+			.param("now", now)
+			.update();
+		IdentityTestSupport.verifyStudent(this.jdbc, id, java.time.LocalDate.parse("2026-09-30"),
+				IdentityTestSupport.fakeHmac(login));
 		assertThat(Role.valueOf("CUSTOMER")).isEqualTo(Role.CUSTOMER);
 	}
 

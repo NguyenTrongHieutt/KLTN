@@ -3844,6 +3844,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/verification/student": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["unlinkStudent"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/verification/student-card": {
         parameters: {
             query?: never;
@@ -6865,10 +6881,10 @@ export interface components {
         PendingCodeView: {
             /** Format: int32 */
             attemptsLeft: number;
-            email: string;
             expired: boolean;
             /** Format: date-time */
             expiresAt: string;
+            school: string;
             /** Format: date-time */
             sentAt: string;
         };
@@ -7332,6 +7348,9 @@ export interface components {
         SchoolEmailRequest: {
             /** Format: email */
             email: string;
+            major?: string;
+            name?: string;
+            noticeVersion: string;
         };
         ScreenshotView: {
             /** Format: date-time */
@@ -7580,15 +7599,19 @@ export interface components {
             uploadedAt: string;
         };
         StudentDetailsView: {
+            major?: string;
             name?: string;
             school?: string;
-            /** Format: int32 */
-            year?: number;
         };
         StudentFact: {
+            major?: string;
             method: string;
+            name?: string;
+            school: string;
             /** Format: date */
             validUntil: string;
+            /** Format: date-time */
+            verifiedAt: string;
         };
         StudentReputationView: {
             average?: number;
@@ -7976,10 +7999,12 @@ export interface components {
             total: number;
         };
         VerificationView: {
+            major?: string;
             method?: string;
+            name?: string;
             pendingCode?: components["schemas"]["PendingCodeView"];
             renewalOpen: boolean;
-            schoolEmail?: string;
+            school?: string;
             /** @enum {string} */
             status: "UNVERIFIED" | "VERIFIED" | "EXPIRED";
             studentCard?: components["schemas"]["StudentCardView"];
@@ -14458,6 +14483,24 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["VerificationView"];
                 };
+            };
+        };
+    };
+    unlinkStudent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

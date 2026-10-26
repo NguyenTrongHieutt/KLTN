@@ -4,7 +4,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, profileView, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, profileView, signedIn, signedInWithGoogle } from '@/test/fakeBackend'
 import { PAYLOADS } from '@/test/payloads'
 
 /**
@@ -77,10 +77,17 @@ describe.each(PAYLOADS)('the payload %s', (payload) => {
         json(
           profileView({
             displayName: 'Minh',
-            studentDetails: { name: payload, school: payload, year: 3 },
+            studentDetails: { name: payload, school: payload, major: payload },
             verified: {
               github: { login: payload, since: '2026-10-20T03:00:00Z' },
-              student: { validUntil: '2027-09-30', method: 'SCHOOL_EMAIL' },
+              student: {
+                validUntil: '2027-09-30',
+                method: 'SCHOOL_EMAIL',
+                school: payload,
+                name: payload,
+                major: payload,
+                verifiedAt: '2026-10-19T03:00:00Z',
+              },
             },
           }),
         ),
@@ -88,33 +95,49 @@ describe.each(PAYLOADS)('the payload %s', (payload) => {
     renderAt('/ho-so')
 
     expect(await screen.findByText((text) => text.startsWith(`@${payload} · Xác minh qua GitHub`))).toBeInTheDocument()
+    expect(screen.getByText((text) => text.startsWith(`${payload} · Xác minh qua email trường`))).toBeInTheDocument()
     expect(screen.getAllByText(payload)).toHaveLength(2)
     expectInert()
   })
 
-  it('stays text in the ACC-2 school email while a code waits', async () => {
-    const email = `${payload}@sis.hust.edu.vn`
-    fakeBackend(signedIn('STUDENT'), {
+  it('stays text in the ACC-2 code step, which names the school', async () => {
+    fakeBackend(signedInWithGoogle, {
       'GET /api/v1/verification': () =>
         json({
           status: 'UNVERIFIED',
-          pendingCode: { email, sentAt: '2026-10-19T02:41:00Z', expiresAt: '2026-10-19T02:51:00Z', attemptsLeft: 5, expired: false },
+          renewalOpen: false,
+          pendingCode: {
+            school: payload,
+            sentAt: '2026-10-19T02:41:00Z',
+            expiresAt: '2026-10-19T02:51:00Z',
+            attemptsLeft: 5,
+            expired: false,
+          },
         }),
     })
     renderAt('/ho-so/xac-minh')
 
-    expect(await screen.findByRole('textbox', { name: 'Email trường' })).toHaveValue(email)
+    expect(await screen.findByText((text) => text.includes(`tại ${payload}.`))).toBeInTheDocument()
     expectInert()
   })
 
-  it('stays text in the ACC-2 student verified line', async () => {
-    fakeBackend(signedIn('STUDENT'), {
+  it('stays text in the ACC-2 student badge and its declared details', async () => {
+    fakeBackend(signedInWithGoogle, {
       'GET /api/v1/verification': () =>
-        json({ status: 'VERIFIED', verifiedUntil: '2027-09-30', verifiedAt: '2026-10-19T02:45:00Z', schoolEmail: `x@${payload}` }),
+        json({
+          status: 'VERIFIED',
+          method: 'SCHOOL_EMAIL',
+          school: payload,
+          name: payload,
+          major: payload,
+          verifiedUntil: '2027-09-30',
+          verifiedAt: '2026-10-19T02:45:00Z',
+          renewalOpen: false,
+        }),
     })
     renderAt('/ho-so/xac-minh')
 
-    expect(await screen.findByText((text) => text.includes(`@${payload}`))).toBeInTheDocument()
+    expect(await screen.findAllByText(payload)).toHaveLength(3)
     expectInert()
   })
 })

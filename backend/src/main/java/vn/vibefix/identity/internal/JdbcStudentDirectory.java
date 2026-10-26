@@ -49,7 +49,7 @@ class JdbcStudentDirectory implements StudentDirectory {
 	private static final String FROM = """
 			FROM identity.account a
 			LEFT JOIN identity.profile p ON p.account_id = a.id
-			LEFT JOIN identity.student_verification v ON v.account_id = a.id
+			LEFT JOIN identity.verification v ON v.account_id = a.id AND v.kind = 'STUDENT' AND v.ended_at IS NULL
 			""";
 
 	private static final String FINDABLE = """

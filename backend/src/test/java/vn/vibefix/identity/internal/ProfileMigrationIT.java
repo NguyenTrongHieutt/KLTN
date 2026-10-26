@@ -86,7 +86,8 @@ class ProfileMigrationIT {
 				        'https://www.linkedin.com/in/mentor-viet-dai', repeat('b', 64), 1, TRUE, '3.0', '1.0', now(), now())
 				""".formatted(LONG, REACT));
 
-		flyway(db, "latest").migrate();
+		// Story 19.3's own version: Story 19.4 clears the student details nothing verified.
+		flyway(db, "202610261000").migrate();
 
 		assertThat(rows(db, """
 				SELECT account_id || '|' || coalesce(display_name, '-') || '|' || kind || '|' || coalesce(contact_email, '-')

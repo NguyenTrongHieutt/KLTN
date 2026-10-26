@@ -319,7 +319,7 @@ class MentorDecisions {
 				JOIN identity.person_signal theirs ON theirs.kind = mine.kind AND theirs.key_version = mine.key_version
 				     AND theirs.hmac = mine.hmac AND theirs.account_id <> mine.account_id
 				JOIN identity.account a ON a.id = theirs.account_id
-				LEFT JOIN identity.student_verification v ON v.account_id = a.id
+				LEFT JOIN identity.verification v ON v.account_id = a.id AND v.kind = 'STUDENT' AND v.ended_at IS NULL
 				WHERE mine.account_id = :id
 				ORDER BY a.created_at, a.id, theirs.kind
 				""").param("id", accountId).query((rs, n) -> {

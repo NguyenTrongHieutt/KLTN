@@ -76,8 +76,11 @@ class ProfileController {
 	record ProfileSkill(UUID id, String name, boolean active) {
 	}
 
-	/** @param year the year of study, 1 to 8 */
-	record StudentDetailsView(@Nullable String name, @Nullable String school, @Nullable Integer year) {
+	/**
+	 * The live student verification's facts as the profile holds them (Story 19.4): what the public profile
+	 * shows unless {@code hideStudentDetails}, and what search reads.
+	 */
+	record StudentDetailsView(@Nullable String name, @Nullable String school, @Nullable String major) {
 	}
 
 	/**
@@ -94,8 +97,13 @@ class ProfileController {
 	/**
 	 * @param validUntil the last valid day, a 30 September
 	 * @param method how the account verified: {@code SCHOOL_EMAIL} or {@code STUDENT_CARD}
+	 * @param school the allowlisted domain the school email matched, or the student card's school
+	 * @param name the full name declared at verification ("Khai khi xác minh")
+	 * @param major the major declared at verification ("Khai khi xác minh")
+	 * @param verifiedAt when it was verified: "Xác minh qua email trường · {tháng/năm}"
 	 */
-	record StudentFact(LocalDate validUntil, String method) {
+	record StudentFact(LocalDate validUntil, String method, String school, @Nullable String name,
+			@Nullable String major, Instant verifiedAt) {
 	}
 
 	/** Verified on LinkedIn (Story 19.6). */
@@ -154,12 +162,14 @@ class ProfileController {
 		GitHubFact github = account.githubUserId() == null || account.githubLogin() == null ? null
 				: this.accounts.gitHubLinkedAt(id).map(since -> new GitHubFact(account.githubLogin(), since)).orElse(null);
 		StudentFact student = this.verifications.currentVerification(id)
-			.map(found -> new StudentFact(found.validUntil(), found.method()))
+			.filter(found -> found.facts() != null)
+			.map(found -> new StudentFact(found.validUntil(), found.provider().method(), found.facts().school(),
+					found.facts().name(), found.facts().major(), found.verifiedAt()))
 			.orElse(null);
 		return new ProfileView(profile.displayName(), profile.kind(), profile.contactEmail(), profile.phone(),
 				profile.experience(), profile.yearsOfExperience(), skills, profile.links(), profile.repositories(),
 				profile.hideStudentDetails(),
-				details == null ? null : new StudentDetailsView(details.name(), details.school(), details.year()),
+				details == null ? null : new StudentDetailsView(details.name(), details.school(), details.major()),
 				new VerifiedView(github, student, null));
 	}
 

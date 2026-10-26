@@ -484,7 +484,6 @@ function SelfDeclared() {
  */
 function VerifiedZone({ profile }: { profile: Profile }) {
   const { github, student } = profile.verified
-  const details = profile.studentDetails
   return (
     <section
       aria-labelledby="verified-heading"
@@ -513,28 +512,25 @@ function VerifiedZone({ profile }: { profile: Profile }) {
                 <VerifiedLine>
                   {t('screen.profile.verified.studentLine', { date: formatCalendarDate(student.validUntil) })}
                 </VerifiedLine>
-                <p className="text-caption text-muted-foreground">
+                <p className="text-caption break-words text-muted-foreground">
                   {t(
                     student.method === 'STUDENT_CARD'
                       ? 'screen.profile.verified.methodStudentCard'
                       : 'screen.profile.verified.methodSchoolEmail',
+                    { school: student.school, month: formatMonthYear(student.verifiedAt) },
                   )}
                 </p>
+                {(student.name || student.major) && (
+                  <ul className="flex flex-col gap-1 text-body-sm">
+                    {student.name && <Declared label={t('screen.profile.verified.studentName')} value={student.name} />}
+                    {student.major && (
+                      <Declared label={t('screen.profile.verified.studentMajor')} value={student.major} />
+                    )}
+                  </ul>
+                )}
               </>
             ) : (
               <Unverified />
-            )}
-            {details && (
-              <ul className="flex flex-col gap-1 text-body-sm">
-                {details.name && <Declared label={t('screen.profile.verified.studentName')} value={details.name} />}
-                {details.school && <Declared label={t('screen.profile.verified.studentSchool')} value={details.school} />}
-                {details.year && (
-                  <Declared
-                    label={t('screen.profile.verified.studentYear')}
-                    value={t('screen.profile.verified.yearN', { n: details.year })}
-                  />
-                )}
-              </ul>
             )}
           </div>
         </FactRow>

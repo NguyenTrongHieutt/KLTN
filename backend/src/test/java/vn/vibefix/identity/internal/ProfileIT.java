@@ -305,6 +305,10 @@ class ProfileIT extends IntegrationTest {
 			.andExpect(jsonPath("$.verified.github.since").value(MutableClock.DEFAULT_INSTANT.toString()))
 			.andExpect(jsonPath("$.verified.student.validUntil").value("2026-09-30"))
 			.andExpect(jsonPath("$.verified.student.method").value("SCHOOL_EMAIL"))
+			.andExpect(jsonPath("$.verified.student.school").value("hust.edu.vn"))
+			.andExpect(jsonPath("$.verified.student.name").value("Sinh viên thử"))
+			.andExpect(jsonPath("$.verified.student.major").value("Công nghệ thông tin"))
+			.andExpect(jsonPath("$.verified.student.verifiedAt").value(MutableClock.DEFAULT_INSTANT.toString()))
 			.andExpect(jsonPath("$.verified.linkedin").doesNotExist());
 
 		// A save that tries to write the facts writes none of them.
@@ -321,8 +325,9 @@ class ProfileIT extends IntegrationTest {
 			.andExpect(jsonPath("$.verified.github.login").value(login))
 			.andExpect(jsonPath("$.verified.student.validUntil").value("2026-09-30"))
 			.andExpect(jsonPath("$.verified.linkedin").doesNotExist());
-		assertThat(text("SELECT github_login || ' ' || valid_until FROM identity.account a JOIN identity.student_verification v"
-				+ " ON v.account_id = a.id WHERE a.id = '" + minh + "'")).isEqualTo(login + " 2026-09-30");
+		assertThat(text("SELECT github_login || ' ' || valid_until || ' ' || (v.facts ->> 'name') FROM identity.account a"
+				+ " JOIN identity.verification v ON v.account_id = a.id WHERE a.id = '" + minh + "'"))
+			.isEqualTo(login + " 2026-09-30 Sinh viên thử");
 
 		// A lapsed verification, and an account with neither, show no fact.
 		this.clock.setInstant(Instant.parse("2026-10-01T03:00:00Z"));
@@ -340,8 +345,8 @@ class ProfileIT extends IntegrationTest {
 		UUID minh = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null, null);
 		verify(minh, LocalDate.of(2026, 9, 30));
 		this.jdbc.sql("""
-				INSERT INTO identity.profile (account_id, display_name, student_name, student_school, student_year, updated_at)
-				VALUES (:id, 'Minh', 'Trần Quang Minh', 'Đại học Bách khoa Hà Nội', 3, :now)
+				INSERT INTO identity.profile (account_id, display_name, student_name, student_school, student_major, updated_at)
+				VALUES (:id, 'Minh', 'Trần Quang Minh', 'Đại học Bách khoa Hà Nội', 'Kỹ thuật phần mềm', :now)
 				""").param("id", minh).param("now", Timestamp.from(this.clock.instant())).update();
 
 		assertThat(this.students.cards(List.of(minh))).singleElement().satisfies(card -> {
@@ -354,7 +359,7 @@ class ProfileIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/profile").with(authentication(IdentityTestSupport.authentication(minh, Role.STUDENT))))
 			.andExpect(jsonPath("$.hideStudentDetails").value(false))
 			.andExpect(jsonPath("$.studentDetails.name").value("Trần Quang Minh"))
-			.andExpect(jsonPath("$.studentDetails.year").value(3));
+			.andExpect(jsonPath("$.studentDetails.major").value("Kỹ thuật phần mềm"));
 
 		this.mvc.perform(put("/api/v1/profile").with(authentication(IdentityTestSupport.authentication(minh, Role.STUDENT)))
 			.with(csrf())
@@ -490,15 +495,7 @@ class ProfileIT extends IntegrationTest {
 	}
 
 	private void verify(UUID account, LocalDate validUntil) {
-		this.jdbc.sql("""
-				INSERT INTO identity.student_verification (account_id, method, school_email, verified_at, valid_until)
-				VALUES (:id, 'SCHOOL_EMAIL', :email, :now, :until)
-				""")
-			.param("id", account)
-			.param("email", account.toString().substring(0, 8) + "@hust.edu.vn")
-			.param("now", Timestamp.from(this.clock.instant()))
-			.param("until", validUntil)
-			.update();
+		IdentityTestSupport.verifyStudent(this.jdbc, account, validUntil);
 	}
 
 	private long profileRows(UUID account) {

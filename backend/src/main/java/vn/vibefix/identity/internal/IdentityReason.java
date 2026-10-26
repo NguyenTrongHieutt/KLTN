@@ -9,8 +9,14 @@ enum IdentityReason {
 	/** The school email's domain is not on the allowlist (FR-5, FR-61). */
 	EMAIL_DOMAIN_NOT_ALLOWED,
 
-	/** The school email already verifies another account (FR-5). */
+	/** The student card's school and number already verify another account (FR-5, until Story 19.7). */
 	ALREADY_USED_FOR_VERIFICATION,
+
+	/**
+	 * The school email's keyed HMAC is on another account's live verification (FR-5, AD-23, AD-42). The SPA's
+	 * copy key is {@code ALREADY_USED_FOR_VERIFICATION}.
+	 */
+	STUDENT_EMAIL_IN_USE,
 
 	/** The code does not match; the verification view says how many attempts are left. */
 	WRONG_CODE,

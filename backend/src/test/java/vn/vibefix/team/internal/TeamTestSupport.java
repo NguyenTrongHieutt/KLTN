@@ -78,15 +78,7 @@ public final class TeamTestSupport {
 			.param("now", now)
 			.update();
 		if (verifiedUntil != null) {
-			jdbc.sql("""
-					INSERT INTO identity.student_verification (account_id, method, school_email, verified_at, valid_until)
-					VALUES (:account, 'SCHOOL_EMAIL', :email, :now, :until)
-					""")
-				.param("account", id)
-				.param("email", id.toString().substring(0, 8) + "@hust.edu.vn")
-				.param("now", now)
-				.param("until", verifiedUntil)
-				.update();
+			IdentityTestSupport.verifyStudent(jdbc, id, verifiedUntil);
 		}
 		return id;
 	}
