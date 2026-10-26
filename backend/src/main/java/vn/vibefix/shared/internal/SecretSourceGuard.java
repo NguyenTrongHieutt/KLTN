@@ -29,10 +29,14 @@ import org.springframework.stereotype.Component;
 @Component
 class SecretSourceGuard implements InitializingBean {
 
-	/** Every secret property of the platform; later stories add theirs (GitHub App keys, VNPay). */
+	/**
+	 * Every secret property of the platform; later stories add theirs (GitHub App keys, VNPay). The dev
+	 * LinkedIn app's secret is read by Spike S5's probe only, until Story 19.6.
+	 */
 	static final Set<String> SECRET_PROPERTIES = Set.of("spring.datasource.password",
 			"spring.datasource.hikari.password", "spring.flyway.password", "db-app-password", "db-migrator-password",
-			"github-oauth-client-secret", "google-oauth-client-secret", "smtp-password", "scanning-fingerprint-key");
+			"github-oauth-client-secret", "google-oauth-client-secret", "linkedin-client-secret", "smtp-password",
+			"scanning-fingerprint-key");
 
 	/**
 	 * Secrets that come in numbered versions, matched against the property names of the process

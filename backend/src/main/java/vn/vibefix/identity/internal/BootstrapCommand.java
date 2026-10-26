@@ -38,7 +38,8 @@ class BootstrapCommand implements ApplicationRunner, ExitCodeGenerator {
 	/** Story 4.5's probe, in {@code payment.internal}; named here so this command lets it run. */
 	static final String SPIKE_S2 = "spike-s2";
 
-	private static final Set<String> OTHER_COMMANDS = Set.of(SpikeS1Command.COMMAND, SPIKE_S4, SPIKE_S2);
+	private static final Set<String> OTHER_COMMANDS = Set.of(SpikeS1Command.COMMAND, SPIKE_S4, SPIKE_S2,
+			SpikeS5Command.COMMAND);
 
 	static final String PASSWORD_VARIABLE = "VIBEFIX_ADMIN_PASSWORD";
 
@@ -72,7 +73,7 @@ class BootstrapCommand implements ApplicationRunner, ExitCodeGenerator {
 	public void run(ApplicationArguments args) {
 		String command = this.environment.getProperty("vibefix.cli.command");
 		if (command != null && OTHER_COMMANDS.contains(command)) {
-			// Another command's run (Stories 1.14 and 2.1); it answers for itself.
+			// Another command's run (Stories 1.14, 2.1, 4.5 and 19.5); it answers for itself.
 			this.exitCode = 0;
 			return;
 		}
@@ -82,8 +83,8 @@ class BootstrapCommand implements ApplicationRunner, ExitCodeGenerator {
 			this.err.println("Usage: --spring.profiles.active=dev,cli --vibefix.cli.command=" + COMMAND
 					+ " --email=<address> --name=<display name>; the password comes from the console or "
 					+ PASSWORD_VARIABLE + ". Also: --vibefix.cli.command=" + SpikeS1Command.COMMAND
-					+ " --github-login=<Customer> --repo=<owner/name>, " + SPIKE_S4 + " (deploy/README.md, \"Spike S4\"), and "
-					+ SPIKE_S2 + " (\"Spike S2\"), dev only.");
+					+ " --github-login=<Customer> --repo=<owner/name>, " + SPIKE_S4 + " (deploy/README.md, \"Spike S4\"), "
+					+ SPIKE_S2 + " (\"Spike S2\"), and " + SpikeS5Command.COMMAND + " (\"Spike S5\"), dev only.");
 			this.exitCode = 2;
 			return;
 		}

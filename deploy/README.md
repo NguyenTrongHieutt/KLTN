@@ -392,6 +392,82 @@ returns: type `02` for the full paid amount and `03` for less.
 vibefix only, labelled "Hoàn tiền mô phỏng". The tests use it, and it is the fallback when VNPay
 refunds are off.
 
+## Spike S5: Verified on LinkedIn access and retention
+
+Story 19.5 asks what Verified on LinkedIn gives the dev LinkedIn app before Story 19.6 builds on it
+(S5, AD-42, AD-22). It checks whether the Development tier is granted, and what `/identityMe` and
+`/verificationReport` return. LinkedIn's terms then say how long the facts may be kept, whether
+`profileUrl` is stable, and which branding is required. Only the author can run it, with their own
+LinkedIn account. The probe makes one consent with `r_profile_basicinfo` and `r_verify`. It keeps the
+token in memory only, and writes nothing to the database. It creates no account, no verification,
+and no signal.
+
+1. **Create the dev LinkedIn app** on the LinkedIn developer portal (<https://www.linkedin.com/developers/apps>,
+   which asks for a LinkedIn Page to own the app):
+   - Products: request **Verified on LinkedIn** at the **Development** tier. The Lite tier, and its
+     review, are for the production app (AD-25).
+   - Auth › Authorized redirect URLs: `http://localhost:5173/link/oauth2/code/linkedin`. Nothing serves
+     this address (`vibefix.linkedin.redirect-uri`); you copy it from the address bar instead.
+   - Auth › OAuth 2.0 scopes should then list `r_profile_basicinfo` and `r_verify`.
+2. **Save the two secret files.** Copy the Client ID into `deploy/secrets/linkedin-client-id` and the
+   Primary Client Secret into `deploy/secrets/linkedin-client-secret`. Write each value without a
+   trailing newline, then `chmod 444` both. They are secret files like the others: the application
+   refuses to start with `LINKEDIN_CLIENT_SECRET` as an environment variable. `compose.yaml` does not
+   mount them; the two commands below do, and `dev-secrets.sh` leaves them alone.
+3. **Authorize.** The probe starts the backend image under `cli` like the other probes, so the stack's
+   `postgres` must be up. Rebuild the image first if the branch changed
+   (`docker compose -f deploy/compose.yaml build backend`). Then run:
+
+   ```sh
+   docker compose -f deploy/compose.yaml run --rm --no-deps -e SPRING_PROFILES_ACTIVE=dev,cli -v ./deploy/secrets/linkedin-client-id:/run/secrets/linkedin-client-id:ro -v ./deploy/secrets/linkedin-client-secret:/run/secrets/linkedin-client-secret:ro backend --vibefix.cli.command=spike-s5 --step=authorize
+   ```
+
+   It prints a LinkedIn authorization URL with a new `state`, and that `state`. Open the URL and sign
+   in to LinkedIn as yourself. Allow the consent, and complete LinkedIn's identity verification if it
+   asks. LinkedIn then sends the browser to `http://localhost:5173/link/oauth2/code/linkedin?code=…&state=…`,
+   which shows an error page or nothing. Copy that whole address at once: the code is short-lived
+   and works once.
+4. **Exchange.** Run the same command with the second step, quoting the address:
+
+   ```sh
+   docker compose -f deploy/compose.yaml run --rm --no-deps -e SPRING_PROFILES_ACTIVE=dev,cli -v ./deploy/secrets/linkedin-client-id:/run/secrets/linkedin-client-id:ro -v ./deploy/secrets/linkedin-client-secret:/run/secrets/linkedin-client-secret:ro backend --vibefix.cli.command=spike-s5 --step=exchange --state=<the state step 3 printed> --query='<the address>'
+   ```
+
+   It checks the `state`, then exchanges the code with the client secret. In the same process it reads
+   `identityMe` and `verificationReport` with the token, under the `LinkedIn-Version` header
+   (`vibefix.linkedin.api-version`, `202510`). For each call it prints the HTTP status and the JSON
+   shape of the answer:
+   - Every string is masked: letters become `x` or `X` and digits `9`, so a URL keeps its form. The
+     exceptions are upper-case values such as `IDENTITY` (outside fields that name a person) and
+     `downloadUrlExpiresAt`.
+   - The tokens show as `<redacted>`.
+   - It also prints the token's `expires_in` and `refresh_token_expires_in`, and each picture's
+     `downloadUrlExpiresAt` with its date and how far away it is.
+
+   A refusal prints LinkedIn's status and error code (`error=invalid_grant`, `code=ACCESS_DENIED`).
+   A `state` that does not match makes no token request. The token, the code, and the client secret
+   are never printed, logged, or written.
+5. **Record the Outcome** in Story 19.5's spec, section "Outcome". Paste the printed shapes (already
+   masked): the fields, the member `id`, the form of `profileUrl`, the picture URL with
+   `downloadUrlExpiresAt`, and the verification categories. From LinkedIn's documentation and the
+   developer portal, answer these questions:
+   - Does the Lite tier need a review, and what is its status?
+   - How long may the facts be kept without a refresh? This sets `valid_until` of `LINKEDIN`
+     verifications (90 days until then, AD-42).
+   - Is `profileUrl` stable enough to show and to record as the `LINKEDIN` signal? If not, only
+     `LINKEDIN_SUB` is recorded.
+   - May the badge show from stored facts, in Vietnamese, next to the other verifications?
+   - May the categories appear in the bid comparison? If not, LinkedIn shows on the public profile
+     only.
+
+   Then decide with Winston (architect) and Sally (UX designer); Story 19.6 stays blocked until then.
+   If LinkedIn refuses access, or its terms forbid keeping the facts, Story 19.6 ships its Tier 3
+   fallback ("Chưa xác minh", with no action).
+
+Exit code 0 means LinkedIn answered every call; 1 means a refusal, a `state` that does not match, or
+no answer; 2 means a wrong invocation, or a missing setting or secret file (with the usage). LinkedIn
+lists the app among your permitted services, where you can remove its access after the spike.
+
 ## Email locally
 
 The backend sends email as External Operations over SMTP (AD-6, AD-27). On this stack the SMTP
