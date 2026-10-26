@@ -17,9 +17,11 @@ import vn.vibefix.timers.DeadlineOutcome;
 import vn.vibefix.timers.DueDeadline;
 
 /**
- * {@value #KEY} (AD-24): 12 months after a rejection {@code [ASSUMPTION]}, the application's fields are
- * deleted; the decision record in {@code identity.mentor_decision} stays. A resubmission or a later
- * decision leaves it {@code OBSOLETE}.
+ * {@value #KEY} (AD-24): 12 months after a rejection {@code [ASSUMPTION]}, the application's own fields
+ * (the LinkedIn link, the other link, the document, the notices) are deleted; the decision record in
+ * {@code identity.mentor_decision} stays. The display name, experience, years, and Skills are the
+ * person's own profile since Story 19.3, and are kept until the account is erased. A resubmission or
+ * a later decision leaves it {@code OBSOLETE}.
  */
 @Component
 class MentorApplicationPurge implements DeadlineHandler {

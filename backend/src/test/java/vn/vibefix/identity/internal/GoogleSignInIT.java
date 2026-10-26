@@ -436,12 +436,14 @@ class GoogleSignInIT extends IntegrationTest {
 		assertThat(status(HttpMethod.GET, "/api/v1/products", null)).isIn(403, 404);
 		assertThat(status(HttpMethod.POST, "/api/v1/products", body("product-registration.json"))).isIn(403, 404);
 		assertThat(status(HttpMethod.GET, "/api/v1/jobs", null)).isIn(403, 404);
-		assertThat(status(HttpMethod.PUT, "/api/v1/profile/customer", body("profile-customer.json"))).isIn(403, 404);
 		assertThat(status(HttpMethod.GET, "/api/v1/verification", null)).isIn(403, 404);
 		assertThat(status(HttpMethod.POST, "/api/v1/skill-suggestions", body("skill-suggestion.json"))).isEqualTo(403);
 		assertThat(status(HttpMethod.GET, "/api/v1/admin/users", null)).isEqualTo(404);
 		// What any signed-in account may do still works, commands included (so the refusals above are not CSRF's).
 		assertThat(status(HttpMethod.PUT, "/api/v1/account/theme", body("account-theme.json"))).isEqualTo(204);
+		// The one profile has no role (Story 19.3): an account with none saves and reads it.
+		assertThat(status(HttpMethod.PUT, "/api/v1/profile", body("profile.json"))).isEqualTo(204);
+		assertThat(status(HttpMethod.GET, "/api/v1/profile", null)).isEqualTo(200);
 		assertThat(status(HttpMethod.GET, "/api/v1/todos", null)).isEqualTo(200);
 
 		// Every endpoint under /api, with placeholder IDs and an empty body: anything but a 500.

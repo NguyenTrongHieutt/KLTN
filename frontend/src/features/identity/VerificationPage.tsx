@@ -14,6 +14,9 @@ import { problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { GitHubNoticeDialog } from './GitHubNoticeDialog'
 import { useGitHubLink, useUnlinkGitHub, type GitHubLink, type GitHubLinkBlocker } from './githubApi'
+import { ProfileTabs } from './ProfileTabs'
+import { StudentVerificationCard } from './StudentVerificationCard'
+import { useSession } from './useSession'
 
 /** What GitHub's return says in ACC-2's address (`?ket-qua=…` or `?loi=…`), as the backend writes it. */
 const RESULTS = ['da-lien-ket']
@@ -26,11 +29,13 @@ const ERRORS = ['da-lien-ket-tai-khoan-khac', 'sai-tai-khoan', 'that-bai']
  * "Cần liên kết lại" when the kept token stopped working (`identity.relink_github`, which replaced the
  * `/dang-nhap-lai` page). "Bỏ liên kết" is disabled while something keeps the link (`GITHUB_CHANGE_BLOCKED`,
  * R14) and confirmed otherwise. GitHub's return shows its result or its error at the top. The LinkedIn
- * and student email rows come with Stories 19.4 and 19.6.
+ * and student email rows come with Stories 19.4 and 19.6; until then a Student verifies here with the
+ * earlier school email and student card ("Chưa xác minh" on ACC-1 leads here).
  */
 export function VerificationPage() {
   usePageTitle(t('screen.verification.title'))
   const link = useGitHubLink()
+  const student = useSession().data?.account?.role === 'STUDENT'
   const [params, setParams] = useSearchParams()
   // GitHub's return is read once: the banner stays until the page is left, and a reload shows none.
   const [{ result, error }] = useState(() => ({ result: params.get('ket-qua'), error: params.get('loi') }))
@@ -41,8 +46,9 @@ export function VerificationPage() {
   }, [params, setParams])
   return (
     <div className="mx-auto flex max-w-[760px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-3">
         <PageHeading>{t('screen.verification.heading')}</PageHeading>
+        <ProfileTabs />
         <p className="text-body-sm text-muted-foreground">{t('screen.verification.lead')}</p>
       </div>
       {result !== null && RESULTS.includes(result) && (
@@ -62,6 +68,7 @@ export function VerificationPage() {
       <RegionState query={link} skeleton={<Skeleton className="h-40 w-full" />}>
         {link.data && <GitHubRow link={link.data} />}
       </RegionState>
+      {student && <StudentVerificationCard />}
     </div>
   )
 }

@@ -1,11 +1,12 @@
 package vn.vibefix.identity.internal;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Optional;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 
 import jakarta.validation.Valid;
@@ -26,22 +27,21 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import vn.vibefix.identity.MentorApprovalStatus;
-import vn.vibefix.identity.internal.Profiles.CustomerKind;
-import vn.vibefix.identity.internal.Profiles.CustomerProfile;
-import vn.vibefix.identity.internal.Profiles.StudentProfile;
+import vn.vibefix.identity.internal.Profiles.Changes;
+import vn.vibefix.identity.internal.Profiles.Profile;
+import vn.vibefix.identity.internal.Profiles.ProfileKind;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.ApiException;
-import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
 import vn.vibefix.shared.Role;
 
 /**
- * The caller's own profile (FR-3, FR-4, FR-51): CUS-11 for a Customer, the profile part of STU-5 for
- * a Student. Only the owner reads and saves it here; a profile of another role answers
- * {@code NOT_FOUND}. The GitHub username comes from sign-in and is not part of it.
+ * ACC-1 (Story 19.3, FR-3, FR-4, FR-51): the caller's one profile, whatever role it holds in a Job.
+ * The typed zone ("Bạn tự nhập") saves without any approval; the verified zone ("Đã xác minh") is
+ * read from the GitHub link and the current student verification, and no field of a save changes it
+ * (AD-42). Only a person's account has a profile: an Administrator finds none.
  */
 @RestController
 @RequestMapping("/api/v1/profile")
@@ -51,149 +51,165 @@ class ProfileController {
 	/** A showcased repository: {@code owner/name}, or its {@code https://github.com/} address. */
 	static final String REPOSITORY = "^(?:https://github\\.com/)?[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9._-]{1,100}?(?:\\.git)?/?$";
 
-	/**
-	 * @param githubLogin the GitHub username, from sign-in
-	 * @param customer the Customer's profile, once saved
-	 * @param student the Student's profile, once saved
-	 */
-	record ProfileView(Role role, @Nullable String githubLogin, @Nullable CustomerProfile customer,
-			@Nullable StudentProfileView student, @Nullable MentorProfileView mentor) {
-	}
+	/** A typed link: {@code https} only, with no whitespace of any script, as identity.profile_link checks it too. */
+	static final String LINK = "(?U)^https://\\S+$";
+
+	/** A phone number, as identity.profile checks it. */
+	static final String PHONE = "^\\+?[0-9 ]{8,20}$";
 
 	/**
-	 * MEN-5: the Mentor application as saved, and where it stands.
-	 * @param approvalStatus {@code PENDING} until an Administrator decides (FR-74)
-	 * @param submittedAt absent until the first save, which submits it
-	 * @param document the attached document's name, type, and size; only Administrators read it
-	 * @param decidedAt once decided, when the latest decision was made
-	 * @param rejectionReason while {@code REJECTED}, the reason the Administrator gave
-	 * @param reapplyAfter while {@code REJECTED}, from when the Mentor may submit again
+	 * @param displayName absent until the first save
+	 * @param skills the chosen Skills with their current names, in the person's order (FR-4, AD-38)
+	 * @param links the typed links, each shown with "Tự khai"
+	 * @param repositories showcased repositories as {@code owner/name}, metadata only: their code is never fetched
+	 * @param hideStudentDetails "Ẩn thông tin sinh viên trên hồ sơ công khai", off by default (X9)
+	 * @param studentDetails the student details, shown "Khai khi xác minh"; absent when there are none
+	 * @param verified what the System verified, read-only here
 	 */
-	record MentorProfileView(MentorApprovalStatus approvalStatus, @Nullable String displayName,
-			@Nullable String experience, @Nullable Integer yearsOfExperience, List<ProfileSkill> skills,
-			@Nullable String linkedinUrl, @Nullable String otherLink,
-			MentorProfileController.@Nullable MentorDocumentView document, @Nullable Instant submittedAt,
-			@Nullable Instant decidedAt, @Nullable String rejectionReason, @Nullable Instant reapplyAfter) {
-	}
-
-	/** @param skills the chosen Skills with their current names, in the Student's order (FR-4, AD-38) */
-	record StudentProfileView(@Nullable String realName, @Nullable String school, @Nullable Integer yearOfStudy,
-			@Nullable String linkedinUrl, boolean showNameAndSchool, List<String> repositories, List<ProfileSkill> skills) {
+	record ProfileView(@Nullable String displayName, ProfileKind kind, @Nullable String contactEmail,
+			@Nullable String phone, @Nullable String experience, @Nullable Integer yearsOfExperience,
+			List<ProfileSkill> skills, List<String> links, List<String> repositories, boolean hideStudentDetails,
+			@Nullable StudentDetailsView studentDetails, VerifiedView verified) {
 	}
 
 	/** @param active {@code false} for a Skill the catalog retired: it stays, but cannot be added again */
 	record ProfileSkill(UUID id, String name, boolean active) {
 	}
 
-	record CustomerProfileRequest(@NotNull CustomerKind kind, @NotBlank @Size(max = 100) String displayName,
-			@NotBlank @Email @Size(max = 254) String contactEmail,
-			@Nullable @Pattern(regexp = "^\\+?(?:[0-9] ?){7,14}[0-9]$") String phone) {
+	/** @param year the year of study, 1 to 8 */
+	record StudentDetailsView(@Nullable String name, @Nullable String school, @Nullable Integer year) {
 	}
 
-	record StudentProfileRequest(@Nullable @Size(max = 100) String realName, @Nullable @Size(max = 150) String school,
-			@Nullable @Min(1) @Max(8) Integer yearOfStudy,
-			@Nullable @Pattern(regexp = "^https://www\\.linkedin\\.com/in/[A-Za-z0-9_%-]{3,100}/?$") String linkedinUrl,
-			@NotNull Boolean showNameAndSchool,
-			@NotNull @Size(max = 5) List<@NotBlank @Pattern(regexp = REPOSITORY) String> repositories,
-			@NotNull @Size(max = 100) List<@NotNull UUID> skillIds) {
+	/**
+	 * ACC-1's "Đã xác minh" zone; each fact is absent while it is not verified, or lapsed.
+	 * @param linkedin always absent until Story 19.6
+	 */
+	record VerifiedView(@Nullable GitHubFact github, @Nullable StudentFact student, @Nullable LinkedInFact linkedin) {
+	}
+
+	/** @param since when GitHub was last linked: "Xác minh qua GitHub · {tháng/năm}" */
+	record GitHubFact(String login, Instant since) {
+	}
+
+	/**
+	 * @param validUntil the last valid day, a 30 September
+	 * @param method how the account verified: {@code SCHOOL_EMAIL} or {@code STUDENT_CARD}
+	 */
+	record StudentFact(LocalDate validUntil, String method) {
+	}
+
+	/** Verified on LinkedIn (Story 19.6). */
+	record LinkedInFact(Instant since) {
+	}
+
+	/**
+	 * ACC-1's typed zone. Skills are checked against the catalog: at most 20, new ones active.
+	 * @param kind {@code INDIVIDUAL} when absent
+	 */
+	record ProfileRequest(@NotBlank @Size(max = 100) String displayName, @Nullable ProfileKind kind,
+			@Nullable @Email @Size(max = 254) String contactEmail,
+			@Nullable @Pattern(regexp = PHONE) String phone,
+			@Nullable @Size(max = 2000) String experience, @Nullable @Min(0) @Max(60) Integer yearsOfExperience,
+			@NotNull @Size(max = 100) List<@NotNull UUID> skillIds,
+			@NotNull @Size(max = Profiles.MAX_LINKS) List<@NotBlank @Size(max = 500) @Pattern(regexp = LINK) String> links,
+			@NotNull @Size(max = Profiles.MAX_LINKS) List<@NotBlank @Pattern(regexp = REPOSITORY) String> repositories,
+			@NotNull Boolean hideStudentDetails) {
+
+		/** Links are checked without the spaces around them, as they are saved. */
+		ProfileRequest {
+			links = links == null ? null : links.stream().map(link -> link == null ? null : link.strip()).toList();
+		}
+
 	}
 
 	private final Profiles profiles;
 
 	private final Accounts accounts;
 
-	private final MentorApplications mentorApplications;
+	private final StudentVerifications verifications;
 
-	private final MentorDecisions mentorDecisions;
+	private final MentorApplications mentorApplications;
 
 	private final CurrentCaller caller;
 
-	ProfileController(Profiles profiles, Accounts accounts, MentorApplications mentorApplications,
-			MentorDecisions mentorDecisions, CurrentCaller caller) {
+	ProfileController(Profiles profiles, Accounts accounts, StudentVerifications verifications,
+			MentorApplications mentorApplications, CurrentCaller caller) {
 		this.profiles = profiles;
 		this.accounts = accounts;
+		this.verifications = verifications;
 		this.mentorApplications = mentorApplications;
-		this.mentorDecisions = mentorDecisions;
 		this.caller = caller;
 	}
 
 	@GetMapping
 	ProfileView profile() {
-		Caller current = this.caller.get();
-		UUID id = current.requireAccountId();
-		Role role = current.role();
-		Optional<Account> account = this.accounts.findById(id);
-		String login = account.map(Account::githubLogin).orElse(null);
-		return new ProfileView(role, login, role == Role.CUSTOMER ? this.profiles.customer(id).orElse(null) : null,
-				role == Role.STUDENT ? this.profiles.student(id).map(this::view).orElse(null) : null,
-				role == Role.MENTOR ? mentorView(id, account.map(Account::mentorApprovalStatus)
-					.orElse(MentorApprovalStatus.PENDING)) : null);
-	}
-
-	private MentorProfileView mentorView(UUID id, MentorApprovalStatus status) {
-		Optional<MentorApplications.Application> application = this.mentorApplications.find(id);
-		List<ProfileSkill> skills = this.mentorApplications
-			.skills(application.map(MentorApplications.Application::skillIds).orElse(List.of()))
-			.stream()
-			.map(skill -> new ProfileSkill(skill.id(), skill.name(), skill.active()))
-			.toList();
-		Optional<MentorDecisions.Decision> decision = status == MentorApprovalStatus.PENDING ? Optional.empty()
-				: this.mentorDecisions.latest(id);
-		Instant decidedAt = decision.map(MentorDecisions.Decision::decidedAt).orElse(null);
-		String reason = decision.map(MentorDecisions.Decision::reason).orElse(null);
-		Instant reapplyAfter = decision.map(MentorDecisions.Decision::reapplyAfter).orElse(null);
-		return application
-			.map(found -> new MentorProfileView(status, found.displayName(), found.experience(), found.yearsOfExperience(),
-					skills, found.linkedinUrl(), found.otherLink(),
-					found.document() == null ? null
-							: new MentorProfileController.MentorDocumentView(found.document().name(),
-									found.document().mediaType(), found.document().size()),
-					found.submittedAt(), decidedAt, reason, reapplyAfter))
-			.orElse(new MentorProfileView(status, null, null, null, List.of(), null, null, null, null, decidedAt, reason,
-					reapplyAfter));
-	}
-
-	private StudentProfileView view(StudentProfile profile) {
+		Account account = requireUser();
+		UUID id = account.id();
+		Profile profile = this.profiles.profile(id);
 		List<ProfileSkill> skills = this.profiles.skills(profile.skillIds())
 			.stream()
 			.map(skill -> new ProfileSkill(skill.id(), skill.name(), skill.active()))
 			.toList();
-		return new StudentProfileView(profile.realName(), profile.school(), profile.yearOfStudy(), profile.linkedinUrl(),
-				profile.showNameAndSchool(), profile.repositories(), skills);
+		Profiles.StudentDetails details = profile.studentDetails();
+		GitHubFact github = account.githubUserId() == null || account.githubLogin() == null ? null
+				: this.accounts.gitHubLinkedAt(id).map(since -> new GitHubFact(account.githubLogin(), since)).orElse(null);
+		StudentFact student = this.verifications.currentVerification(id)
+			.map(found -> new StudentFact(found.validUntil(), found.method()))
+			.orElse(null);
+		return new ProfileView(profile.displayName(), profile.kind(), profile.contactEmail(), profile.phone(),
+				profile.experience(), profile.yearsOfExperience(), skills, profile.links(), profile.repositories(),
+				profile.hideStudentDetails(),
+				details == null ? null : new StudentDetailsView(details.name(), details.school(), details.year()),
+				new VerifiedView(github, student, null));
 	}
 
-	@PutMapping("/customer")
+	/**
+	 * Saves the typed zone, with no approval; a verified fact is never written here (AD-42). A Mentor's
+	 * save keeps MEN-5's rules once the application is submitted (until Story 19.7).
+	 */
+	@PutMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	void saveCustomer(@Valid @RequestBody CustomerProfileRequest request) {
-		UUID id = requireRole(Role.CUSTOMER);
-		this.profiles.saveCustomer(id, new CustomerProfile(request.kind(), request.displayName().strip(),
-				request.contactEmail().strip(), blankToNull(request.phone())));
-	}
-
-	@PutMapping("/student")
-	@ResponseStatus(HttpStatus.NO_CONTENT)
-	void saveStudent(@Valid @RequestBody StudentProfileRequest request) {
-		UUID id = requireRole(Role.STUDENT);
-		this.profiles.saveStudent(id, new StudentProfile(blankToNull(request.realName()), blankToNull(request.school()),
-				request.yearOfStudy(), blankToNull(request.linkedinUrl()), request.showNameAndSchool(),
-				repositories(request.repositories()), request.skillIds()));
-	}
-
-	private UUID requireRole(Role role) {
-		Caller current = this.caller.get();
-		if (current.role() != role) {
-			throw new ApiException(ErrorCode.NOT_FOUND);
+	void save(@Valid @RequestBody ProfileRequest request) {
+		Account account = requireUser();
+		Changes changes = new Changes(request.displayName().strip(),
+				request.kind() == null ? ProfileKind.INDIVIDUAL : request.kind(), blankToNull(request.contactEmail()),
+				blankToNull(request.phone()), blankToNull(request.experience()), request.yearsOfExperience(),
+				request.skillIds(), links(request.links()), repositories(request.repositories()),
+				request.hideStudentDetails());
+		if (account.role() == Role.MENTOR) {
+			this.mentorApplications.saveProfile(account.id(), changes);
 		}
-		return current.requireAccountId();
+		else {
+			this.profiles.save(account.id(), changes);
+		}
 	}
 
-	/** {@code owner/name} once each, in order, from either spelling. */
+	/** The caller's account, if it is a person's; an Administrator has no profile. */
+	private Account requireUser() {
+		return this.accounts.findById(this.caller.get().requireAccountId())
+			.filter(found -> found.kind() == Account.Kind.USER)
+			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+	}
+
+	/** Each link once, in order, without surrounding spaces. */
+	static List<String> links(List<String> given) {
+		return List.copyOf(new LinkedHashSet<>(given.stream().map(String::strip).toList()));
+	}
+
+	/**
+	 * {@code owner/name} once each, in order, from either spelling.
+	 * @throws ApiException {@code VALIDATION} on {@code repositories} for a name that is empty once
+	 * {@code .git} is taken off
+	 */
 	static List<String> repositories(List<String> given) {
 		LinkedHashSet<String> seen = new LinkedHashSet<>();
 		List<String> keys = new ArrayList<>();
 		for (String repository : given) {
 			String reference = repository.strip().replaceFirst("^https://github\\.com/", "").replaceFirst("/$", "")
 				.replaceFirst("\\.git$", "");
+			if (reference.endsWith("/")) {
+				throw Profiles.invalid(Map.of("repositories", "Pattern"));
+			}
 			// GitHub names are case-insensitive: one repository, however it is spelled.
 			if (seen.add(reference.toLowerCase(Locale.ROOT))) {
 				keys.add(reference);

@@ -22,7 +22,7 @@ CREW_CHAT,canary-crew-chat-8d3b57,JOB_MENTOR CREW_ACTIVE ADMIN_TEAM_ISSUE_GRANT 
 TEAM_ISSUE_ID,01923c4f-5a6b-7c8d-9e0f-1a2b3c4d5e6f,JOB_MENTOR,the ID of a Team Issue another Crew member raised
 NOTIFICATION_PARAM,canary-notification-5e1a3b,SUBJECT,a parameter of another account's notification (SUBJECT is its recipient)
 TODO_PARAM,canary-todo-9a4c27,SUBJECT,a parameter of another account's to-do (SUBJECT is its recipient)
-CONTACT_EMAIL,canary.contact.4d8e@example.test,SUBJECT ADMINISTRATOR,a Customer's contact email (SUBJECT is that Customer)
+CONTACT_EMAIL,canary.contact.4d8e@example.test,SUBJECT ADMINISTRATOR,the contact email of another account's profile (SUBJECT is its owner)
 SCHOOL_EMAIL,canary.school.7b2d@truong.test,ADMINISTRATOR,another Student's verified school email
 STUDENT_CARD_FILE,canary-student-card-3f9a1c.pdf,ADMINISTRATOR,the file name of another Student's student card
 STUDENT_HIDDEN_NAME,Canary Ten An 6e2f,ADMINISTRATOR,the real name of a Team member who chose to hide it (FR-51)

@@ -202,12 +202,12 @@ class StudentCards implements StudentCardQueue {
 		}
 		order.add("c.id ASC");
 		List<QueueRow> rows = this.jdbc.sql("""
-				SELECT c.id, c.account_id, a.github_login, p.real_name, p.school AS profile_school, c.status,
+				SELECT c.id, c.account_id, a.github_login, p.student_name, p.student_school AS profile_school, c.status,
 				       c.uploaded_at, c.decided_at, c.file_id, c.file_name, c.media_type, c.file_deleted_at,
 				       c.student_number, c.school, c.rejection_reason
 				FROM identity.student_card c
 				JOIN identity.account a ON a.id = c.account_id
-				LEFT JOIN identity.student_profile p ON p.account_id = c.account_id
+				LEFT JOIN identity.profile p ON p.account_id = c.account_id
 				WHERE c.status = :status
 				ORDER BY %s
 				LIMIT :size OFFSET :offset
@@ -305,7 +305,8 @@ class StudentCards implements StudentCardQueue {
 		this.deadlines.schedule(new DeadlineRequest(StudentCardDeletion.KIND.key(), card.id(), now.toString(), null,
 				now.plus(KEPT_AFTER_DECISION)));
 		this.notifications.send(new NotificationRequest(notification, card.id(),
-				List.of(new Recipient(card.accountId(), Audience.SUBJECT)), params, "/ho-so", null, card.accountId()));
+				List.of(new Recipient(card.accountId(), Audience.SUBJECT)), params, SignIns.VERIFICATION_PATH, null,
+				card.accountId()));
 		this.auditLog.record(AuditEntry.of(AuditActor.user(administrator), action,
 				AuditObject.of("identity.student_card", card.id()), AuditObject.of("identity.account", card.accountId())));
 	}
@@ -349,19 +350,19 @@ class StudentCards implements StudentCardQueue {
 
 	private QueueRow row(UUID cardId) {
 		return this.jdbc.sql("""
-				SELECT c.id, c.account_id, a.github_login, p.real_name, p.school AS profile_school, c.status,
+				SELECT c.id, c.account_id, a.github_login, p.student_name, p.student_school AS profile_school, c.status,
 				       c.uploaded_at, c.decided_at, c.file_id, c.file_name, c.media_type, c.file_deleted_at,
 				       c.student_number, c.school, c.rejection_reason
 				FROM identity.student_card c
 				JOIN identity.account a ON a.id = c.account_id
-				LEFT JOIN identity.student_profile p ON p.account_id = c.account_id
+				LEFT JOIN identity.profile p ON p.account_id = c.account_id
 				WHERE c.id = :id
 				""").param("id", cardId).query((rs, n) -> queueRow(rs)).single();
 	}
 
 	private static QueueRow queueRow(ResultSet rs) throws SQLException {
 		return new QueueRow(rs.getObject("id", UUID.class), rs.getObject("account_id", UUID.class),
-				rs.getString("github_login"), rs.getString("real_name"), rs.getString("profile_school"),
+				rs.getString("github_login"), rs.getString("student_name"), rs.getString("profile_school"),
 				Status.valueOf(rs.getString("status")), rs.getTimestamp("uploaded_at").toInstant(),
 				instant(rs, "decided_at"), rs.getObject("file_id", UUID.class), rs.getString("file_name"),
 				rs.getString("media_type"), rs.getTimestamp("file_deleted_at") != null, rs.getString("student_number"),

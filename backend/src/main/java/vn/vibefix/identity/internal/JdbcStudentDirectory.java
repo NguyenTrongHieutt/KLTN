@@ -32,22 +32,23 @@ import vn.vibefix.identity.StudentDirectory;
 import vn.vibefix.shared.KeywordQuery;
 
 /**
- * Students' public fields from their profiles (FR-51, AD-36). Search and the username lookup find
- * verified, unlocked, unerased Students only; {@link #cards} describes any Student by ID, for the
- * Team screens. A hidden name hides the school and year too.
+ * Students' public fields from their profiles (FR-51, AD-36, Story 19.3). Search and the username
+ * lookup find verified, unlocked, unerased Students only; {@link #cards} describes any Student by ID,
+ * for the Team screens. Hidden student details hide the name, the school, and the year (X9). Epics 20
+ * and 21 rework who is listed.
  */
 @Component
 class JdbcStudentDirectory implements StudentDirectory {
 
 	private static final String COLUMNS = """
 			a.id, a.github_login, a.github_user_id, a.locked_at IS NULL AND a.erased_at IS NULL AS available,
-			p.real_name, p.school, p.year_of_study, coalesce(p.show_name_and_school, FALSE) AS shown,
+			p.student_name, p.student_school, p.student_year, coalesce(NOT p.hide_student_details, FALSE) AS shown,
 			coalesce(p.skill_ids, '{}') AS skill_ids, v.valid_until
 			""";
 
 	private static final String FROM = """
 			FROM identity.account a
-			LEFT JOIN identity.student_profile p ON p.account_id = a.id
+			LEFT JOIN identity.profile p ON p.account_id = a.id
 			LEFT JOIN identity.student_verification v ON v.account_id = a.id
 			""";
 
@@ -175,7 +176,8 @@ class JdbcStudentDirectory implements StudentDirectory {
 	private static Row row(ResultSet rs, int n) throws SQLException {
 		return new Row(rs.getObject("id", UUID.class), rs.getString("github_login"), rs.getObject("github_user_id", Long.class),
 				rs.getBoolean("available"),
-				rs.getString("real_name"), rs.getString("school"), (Integer) rs.getObject("year_of_study", Integer.class),
+				rs.getString("student_name"), rs.getString("student_school"),
+				(Integer) rs.getObject("student_year", Integer.class),
 				rs.getBoolean("shown"), uuids(rs.getArray("skill_ids")), rs.getObject("valid_until", LocalDate.class));
 	}
 

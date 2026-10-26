@@ -115,6 +115,11 @@ class VerificationExpiryIT extends IntegrationTest {
 				SELECT count(*) FROM notification.todo
 				WHERE account_id = :id AND todo_key = 'identity.verify_student' AND closed_at IS NULL
 				""").param("id", this.student).query(Long.class).single()).isOne();
+		// The reminder, the expiry, and the to-do lead to ACC-2, where the verification lives (Story 19.3).
+		assertThat(this.jdbc.sql("""
+				SELECT link FROM notification.notification WHERE account_id = :id
+				UNION ALL SELECT link FROM notification.todo WHERE account_id = :id AND todo_key = 'identity.verify_student'
+				""").param("id", this.student).query(String.class).list()).hasSize(3).containsOnly("/ho-so/xac-minh");
 		assertThat(this.jdbc.sql("""
 				SELECT actor_type FROM audit.audit_entry WHERE action = 'identity.verification_expired'
 				""").query(String.class).single()).isEqualTo("SYSTEM");

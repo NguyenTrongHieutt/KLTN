@@ -35,6 +35,12 @@ class SignIns {
 
 	static final String COMPLETE_MENTOR_APPLICATION = "identity.complete_mentor_application";
 
+	/** ACC-2, the verification hub, where the student verification lives since Story 19.3. */
+	static final String VERIFICATION_PATH = "/ho-so/xac-minh";
+
+	/** MEN-5, the Mentor application, beside ACC-1 since Story 19.3 (until Story 19.7). */
+	static final String MENTOR_PROFILE_PATH = "/ho-so/nguoi-huong-dan";
+
 	static final String VERIFY_STUDENT = "identity.verify_student";
 
 	/** Opened by the welcome and open until GitHub is linked (UX-DR89, UX-DR112); it leads to ACC-2. */
@@ -148,7 +154,7 @@ class SignIns {
 	 */
 	static String landingPath(Account account) {
 		return account.role() == Role.MENTOR && account.mentorApprovalStatus() != MentorApprovalStatus.APPROVED
-				? "/ho-so" : "/viec-can-lam";
+				? MENTOR_PROFILE_PATH : "/viec-can-lam";
 	}
 
 	/** PUB-3 greets the Google name, else the address. */

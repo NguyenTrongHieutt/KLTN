@@ -28,19 +28,20 @@ import vn.vibefix.identity.SkillGroup;
 import vn.vibefix.shared.KeywordQuery;
 
 /**
- * Mentors' public fields from their submitted applications (FR-51, AD-36). Search finds approved,
- * unlocked, unerased Mentors only; PUB-5 also shows a revoked or locked Mentor, as unavailable.
+ * Mentors' public fields from their profiles, for Mentors who submitted an application (FR-51, AD-36,
+ * Story 19.3). Search finds approved, unlocked, unerased Mentors only; PUB-5 also shows a revoked or
+ * locked Mentor, as unavailable. Epics 20 and 21 rework who is listed.
  */
 @Component
 class JdbcMentorDirectory implements MentorDirectory {
 
-	private static final String COLUMNS = """
-			a.id, a.github_login, a.github_user_id, a.created_at, m.display_name, m.experience, m.years_of_experience, m.skill_ids,
-			a.mentor_approval_status = 'APPROVED' AND a.locked_at IS NULL AS available
-			""";
+	private static final String COLUMNS = " a.id, a.github_login, a.github_user_id, a.created_at, coalesce(" + Profiles.NAME
+			+ ", '') AS display_name, coalesce(p.experience, '') AS experience, p.years_of_experience, p.skill_ids,"
+			+ " a.mentor_approval_status = 'APPROVED' AND a.locked_at IS NULL AS available ";
 
 	private static final String FROM = """
 			FROM identity.account a JOIN identity.mentor_application m ON m.account_id = a.id
+			JOIN identity.profile p ON p.account_id = a.id
 			WHERE a.role = 'MENTOR' AND a.erased_at IS NULL AND m.submitted_at IS NOT NULL
 			""";
 
@@ -61,7 +62,7 @@ class JdbcMentorDirectory implements MentorDirectory {
 	@Override
 	@Transactional(readOnly = true)
 	public Page<MentorCard> search(String query, Collection<UUID> skillIds, Pageable pageable) {
-		Optional<KeywordQuery> keyword = KeywordQuery.of(query, "m.search_vector");
+		Optional<KeywordQuery> keyword = KeywordQuery.of(query, "p.search_vector");
 		Map<String, Object> params = new HashMap<>();
 		StringBuilder where = new StringBuilder(FROM)
 			.append(" AND a.mentor_approval_status = 'APPROVED' AND a.locked_at IS NULL");
@@ -70,12 +71,12 @@ class JdbcMentorDirectory implements MentorDirectory {
 			params.putAll(found.params());
 		});
 		if (!skillIds.isEmpty()) {
-			where.append(" AND m.skill_ids && CAST(:skills AS UUID[])");
+			where.append(" AND p.skill_ids && CAST(:skills AS UUID[])");
 			params.put("skills", JdbcStudentDirectory.uuidArray(skillIds));
 		}
 		// FR-14: a keyword orders by relevance alone, then the account ID; the Skill filter alone by name.
-		String order = keyword.map(found -> found.rank("m.search_vector") + " DESC, a.id")
-			.orElse("m.display_name, a.id");
+		String order = keyword.map(found -> found.rank("p.search_vector") + " DESC, a.id")
+			.orElse("p.display_name, a.id");
 		List<Row> rows = this.jdbc.sql("SELECT " + COLUMNS + where + " ORDER BY " + order + " LIMIT :size OFFSET :offset")
 			.params(params)
 			.param("size", pageable.getPageSize())
@@ -132,10 +133,10 @@ class JdbcMentorDirectory implements MentorDirectory {
 		if (skillIds.isEmpty()) {
 			return List.of();
 		}
-		return this.jdbc.sql("SELECT a.id, m.skill_ids " + FROM + """
+		return this.jdbc.sql("SELECT a.id, p.skill_ids " + FROM + """
 				 AND a.mentor_approval_status = 'APPROVED' AND a.locked_at IS NULL
-				  AND m.skill_ids && CAST(:skills AS UUID[])
-				ORDER BY cardinality(ARRAY(SELECT unnest(m.skill_ids) INTERSECT SELECT unnest(CAST(:skills AS UUID[])))) DESC,
+				  AND p.skill_ids && CAST(:skills AS UUID[])
+				ORDER BY cardinality(ARRAY(SELECT unnest(p.skill_ids) INTERSECT SELECT unnest(CAST(:skills AS UUID[])))) DESC,
 				  a.id
 				LIMIT :limit
 				""")
@@ -153,7 +154,7 @@ class JdbcMentorDirectory implements MentorDirectory {
 		if (mentorIds.isEmpty()) {
 			return skills;
 		}
-		this.jdbc.sql("SELECT a.id, m.skill_ids " + FROM
+		this.jdbc.sql("SELECT a.id, p.skill_ids " + FROM
 				+ " AND a.mentor_approval_status = 'APPROVED' AND a.locked_at IS NULL AND a.id IN (:ids)")
 			.param("ids", List.copyOf(mentorIds))
 			.query(rs -> {

@@ -55,7 +55,9 @@ class IdentityPersonalDataIT extends IntegrationTest implements PersonalDataPart
 				""").param("id", accountId).query(Long.class).single() > 0
 				|| this.accounts.customerToken(accountId).isPresent()
 				|| this.jdbc.sql("""
-						SELECT (SELECT count(*) FROM identity.customer_profile WHERE account_id = :id)
+						SELECT (SELECT count(*) FROM identity.profile WHERE account_id = :id)
+						     + (SELECT count(*) FROM identity.profile_link WHERE account_id = :id)
+						     + (SELECT count(*) FROM identity.showcase_repository WHERE account_id = :id)
 						     + (SELECT count(*) FROM identity.school_email_code WHERE account_id = :id)
 						     + (SELECT count(*) FROM identity.student_verification WHERE account_id = :id)
 						""").param("id", accountId).query(Long.class).single() > 0;
@@ -75,6 +77,13 @@ class IdentityPersonalDataIT extends IntegrationTest implements PersonalDataPart
 		assertThat(section.data().toString()).contains("PRIVACY")
 			.contains("2.0")
 			.contains("lan-subject@contact.test")
+			.contains("https://lan-subject.dev")
+			.contains("lan-subject/shop")
+			.contains("Trường của lan-subject")
+			.contains("Kinh nghiệm của lan-subject")
+			.contains("yearsOfExperience=4")
+			.contains("+84 912 345 678")
+			.contains("skills=[React]")
 			.contains("lan-subject@hust.edu.vn")
 			.contains("lan-subject@sis.hust.edu.vn")
 			.doesNotContain("ciphertext")
@@ -131,9 +140,17 @@ class IdentityPersonalDataIT extends IntegrationTest implements PersonalDataPart
 		this.accounts.insertAcknowledgment(UUID.randomUUID(), id, "PRIVACY", "2.0", this.clock.instant());
 		this.accounts.storeCustomerToken(id, this.cipher.seal("gho_" + login, id.toString()), this.clock.instant());
 		this.jdbc.sql("""
-				INSERT INTO identity.customer_profile (account_id, kind, display_name, contact_email, updated_at)
-				VALUES (:id, 'INDIVIDUAL', :login, :login || '@contact.test', :now)
+				INSERT INTO identity.profile (account_id, kind, display_name, contact_email, phone, experience,
+				    years_of_experience, skill_ids, skill_names, student_school, updated_at)
+				VALUES (:id, 'INDIVIDUAL', :login, :login || '@contact.test', '+84 912 345 678', 'Kinh nghiệm của ' || :login,
+				        4, ARRAY[CAST('0192b000-0000-7000-8001-000000000004' AS UUID)], 'React', 'Trường của ' || :login, :now)
 				""").param("id", id).param("login", login).param("now", now).update();
+		this.jdbc.sql("""
+				INSERT INTO identity.profile_link (account_id, position, url) VALUES (:id, 0, 'https://' || :login || '.dev')
+				""").param("id", id).param("login", login).update();
+		this.jdbc.sql("""
+				INSERT INTO identity.showcase_repository (account_id, position, owner, name) VALUES (:id, 0, :login, 'shop')
+				""").param("id", id).param("login", login).update();
 		this.jdbc.sql("""
 				INSERT INTO identity.school_email_code (id, account_id, email, code_hash, sent_at, expires_at)
 				VALUES (:code, :id, :login || '@sis.hust.edu.vn', :hash, :now, :now)

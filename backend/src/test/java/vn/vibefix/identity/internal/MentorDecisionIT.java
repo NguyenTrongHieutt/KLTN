@@ -186,10 +186,10 @@ class MentorDecisionIT extends IntegrationTest {
 			.satisfies(event -> assertThat(event.accountId()).isEqualTo(this.hung));
 		assertThat(notifications(this.hung, MentorDecisions.APPROVED_NOTIFICATION)).isOne();
 		assertThat(audited("identity.mentor_approved")).isOne();
-		this.mvc.perform(get("/api/v1/profile").with(as(this.hung, Role.MENTOR)))
-			.andExpect(jsonPath("$.mentor.approvalStatus").value("APPROVED"))
-			.andExpect(jsonPath("$.mentor.decidedAt").exists())
-			.andExpect(jsonPath("$.mentor.rejectionReason").doesNotExist());
+		this.mvc.perform(get("/api/v1/profile/mentor").with(as(this.hung, Role.MENTOR)))
+			.andExpect(jsonPath("$.approvalStatus").value("APPROVED"))
+			.andExpect(jsonPath("$.decidedAt").exists())
+			.andExpect(jsonPath("$.rejectionReason").doesNotExist());
 		this.mvc.perform(get("/api/v1/admin/mentor-applications/" + this.hung).with(admin()))
 			.andExpect(jsonPath("$.status").value("APPROVED"))
 			.andExpect(jsonPath("$.document.fileUrl").value("/api/v1/files/" + document));
@@ -230,10 +230,10 @@ class MentorDecisionIT extends IntegrationTest {
 		assertThat(dueOf(MentorApplicationPurge.KEY))
 			.isEqualTo(decidedAt.atOffset(ZoneOffset.UTC).plusMonths(MentorDecisions.FIELDS_KEPT_MONTHS).toInstant());
 		assertThat(this.events.stream(MentorApproved.class)).isEmpty();
-		this.mvc.perform(get("/api/v1/profile").with(as(this.hung, Role.MENTOR)))
-			.andExpect(jsonPath("$.mentor.approvalStatus").value("REJECTED"))
-			.andExpect(jsonPath("$.mentor.rejectionReason").value("Chưa có thông tin kinh nghiệm cụ thể."))
-			.andExpect(jsonPath("$.mentor.reapplyAfter").exists());
+		this.mvc.perform(get("/api/v1/profile/mentor").with(as(this.hung, Role.MENTOR)))
+			.andExpect(jsonPath("$.approvalStatus").value("REJECTED"))
+			.andExpect(jsonPath("$.rejectionReason").value("Chưa có thông tin kinh nghiệm cụ thể."))
+			.andExpect(jsonPath("$.reapplyAfter").exists());
 		this.mvc.perform(get("/api/v1/admin/mentor-applications?status=REJECTED").with(admin()))
 			.andExpect(jsonPath("$.items[0].accountId").value(this.hung.toString()));
 
@@ -268,9 +268,9 @@ class MentorDecisionIT extends IntegrationTest {
 		assertThat(notifications(this.administrator, MentorApplications.RECEIVED_NOTIFICATION)).isEqualTo(2);
 		assertThat(this.jdbc.sql("SELECT count(*) FROM identity.acknowledgment WHERE account_id = :id")
 			.param("id", this.hung).query(Long.class).single()).as("the first notice stands").isOne();
-		this.mvc.perform(get("/api/v1/profile").with(as(this.hung, Role.MENTOR)))
-			.andExpect(jsonPath("$.mentor.approvalStatus").value("PENDING"))
-			.andExpect(jsonPath("$.mentor.rejectionReason").doesNotExist());
+		this.mvc.perform(get("/api/v1/profile/mentor").with(as(this.hung, Role.MENTOR)))
+			.andExpect(jsonPath("$.approvalStatus").value("PENDING"))
+			.andExpect(jsonPath("$.rejectionReason").doesNotExist());
 
 		this.clock.advance(Duration.ofDays(400));
 		this.poller.runDue();

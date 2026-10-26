@@ -700,7 +700,7 @@ export interface paths {
             cookie?: never;
         };
         get: operations["rules"];
-        put: operations["save_2"];
+        put: operations["save_3"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1947,7 +1947,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["read_2"];
+        get: operations["read_3"];
         put?: never;
         post?: never;
         delete: operations["unlink"];
@@ -2173,7 +2173,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["read_1"];
+        post: operations["read_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2780,7 +2780,7 @@ export interface paths {
             cookie?: never;
         };
         get: operations["draft"];
-        put: operations["save_1"];
+        put: operations["save_2"];
         post?: never;
         delete?: never;
         options?: never;
@@ -3165,7 +3165,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["read"];
+        post: operations["read_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3468,23 +3468,7 @@ export interface paths {
             cookie?: never;
         };
         get: operations["profile"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/profile/customer": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["saveCustomer"];
+        put: operations["save"];
         post?: never;
         delete?: never;
         options?: never;
@@ -3499,8 +3483,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
-        put: operations["save"];
+        get: operations["read"];
+        put: operations["save_1"];
         post?: never;
         delete?: never;
         options?: never;
@@ -3519,22 +3503,6 @@ export interface paths {
         put?: never;
         post: operations["uploadDocument"];
         delete: operations["deleteDocument"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/profile/student": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["saveStudent"];
-        post?: never;
-        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -4895,6 +4863,13 @@ export interface components {
             jobId: string;
             versions: components["schemas"]["ConfirmedVersionView"][];
         };
+        ContactView: {
+            contactEmail?: string;
+            displayName?: string;
+            /** @enum {string} */
+            kind: "INDIVIDUAL" | "BUSINESS";
+            phone?: string;
+        };
         Content: {
             assessment: boolean;
             codeJob: boolean;
@@ -5155,21 +5130,6 @@ export interface components {
             refundedVnd: number;
             /** Format: int64 */
             releasedVnd: number;
-        };
-        CustomerProfile: {
-            contactEmail: string;
-            displayName: string;
-            /** @enum {string} */
-            kind: "INDIVIDUAL" | "BUSINESS";
-            phone?: string;
-        };
-        CustomerProfileRequest: {
-            /** Format: email */
-            contactEmail: string;
-            displayName: string;
-            /** @enum {string} */
-            kind: "INDIVIDUAL" | "BUSINESS";
-            phone?: string;
         };
         DataDeletionItemView: {
             /** Format: date-time */
@@ -5697,6 +5657,11 @@ export interface components {
             /** Format: int64 */
             topUpVnd: number;
         };
+        GitHubFact: {
+            login: string;
+            /** Format: date-time */
+            since: string;
+        };
         GitHubLinkBlockerView: {
             module: string;
             name: string;
@@ -6204,6 +6169,10 @@ export interface components {
             /** @enum {string} */
             sensitive?: "CHECK" | "MASK";
             url: string;
+        };
+        LinkedInFact: {
+            /** Format: date-time */
+            since: string;
         };
         MentorApplicationDetail: {
             /** Format: uuid */
@@ -7000,6 +6969,21 @@ export interface components {
             scanState: "AWAITING_SCAN" | "SCANNING" | "NOT_FINISHED" | "FINDINGS" | "CLEAN";
             tools: ("LOVABLE" | "BOLT" | "REPLIT" | "V0" | "BASE44" | "CURSOR" | "CLAUDE_CODE" | "CODEX" | "OTHER")[];
         };
+        ProfileRequest: {
+            /** Format: email */
+            contactEmail?: string;
+            displayName: string;
+            experience?: string;
+            hideStudentDetails: boolean;
+            /** @enum {string} */
+            kind?: "INDIVIDUAL" | "BUSINESS";
+            links: string[];
+            phone?: string;
+            repositories: string[];
+            skillIds: string[];
+            /** Format: int32 */
+            yearsOfExperience?: number;
+        };
         ProfileSkill: {
             active: boolean;
             /** Format: uuid */
@@ -7007,12 +6991,20 @@ export interface components {
             name: string;
         };
         ProfileView: {
-            customer?: components["schemas"]["CustomerProfile"];
-            githubLogin?: string;
-            mentor?: components["schemas"]["MentorProfileView"];
+            contactEmail?: string;
+            displayName?: string;
+            experience?: string;
+            hideStudentDetails: boolean;
             /** @enum {string} */
-            role: "CUSTOMER" | "MENTOR" | "STUDENT" | "ADMINISTRATOR";
-            student?: components["schemas"]["StudentProfileView"];
+            kind: "INDIVIDUAL" | "BUSINESS";
+            links: string[];
+            phone?: string;
+            repositories: string[];
+            skills: components["schemas"]["ProfileSkill"][];
+            studentDetails?: components["schemas"]["StudentDetailsView"];
+            verified: components["schemas"]["VerifiedView"];
+            /** Format: int32 */
+            yearsOfExperience?: number;
         };
         PublicMentorView: {
             /** Format: uuid */
@@ -7587,25 +7579,16 @@ export interface components {
             /** Format: date-time */
             uploadedAt: string;
         };
-        StudentProfileRequest: {
-            linkedinUrl?: string;
-            realName?: string;
-            repositories: string[];
+        StudentDetailsView: {
+            name?: string;
             school?: string;
-            showNameAndSchool: boolean;
-            skillIds: string[];
             /** Format: int32 */
-            yearOfStudy?: number;
+            year?: number;
         };
-        StudentProfileView: {
-            linkedinUrl?: string;
-            realName?: string;
-            repositories: string[];
-            school?: string;
-            showNameAndSchool: boolean;
-            skills: components["schemas"]["ProfileSkill"][];
-            /** Format: int32 */
-            yearOfStudy?: number;
+        StudentFact: {
+            method: string;
+            /** Format: date */
+            validUntil: string;
         };
         StudentReputationView: {
             average?: number;
@@ -8004,6 +7987,11 @@ export interface components {
             verifiedAt?: string;
             /** Format: date */
             verifiedUntil?: string;
+        };
+        VerifiedView: {
+            github?: components["schemas"]["GitHubFact"];
+            linkedin?: components["schemas"]["LinkedInFact"];
+            student?: components["schemas"]["StudentFact"];
         };
         VersionMilestoneView: {
             criteria: string[];
@@ -9234,7 +9222,7 @@ export interface operations {
             };
         };
     };
-    save_2: {
+    save_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -11107,7 +11095,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CustomerProfile"];
+                    "application/json": components["schemas"]["ContactView"];
                 };
             };
         };
@@ -11342,7 +11330,7 @@ export interface operations {
             };
         };
     };
-    read_2: {
+    read_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -11769,7 +11757,7 @@ export interface operations {
             };
         };
     };
-    read_1: {
+    read_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -12719,7 +12707,7 @@ export interface operations {
             };
         };
     };
-    save_1: {
+    save_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -13312,7 +13300,7 @@ export interface operations {
             };
         };
     };
-    read: {
+    read_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -13857,7 +13845,7 @@ export interface operations {
             };
         };
     };
-    saveCustomer: {
+    save: {
         parameters: {
             query?: never;
             header?: never;
@@ -13866,7 +13854,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CustomerProfileRequest"];
+                "application/json": components["schemas"]["ProfileRequest"];
             };
         };
         responses: {
@@ -13879,7 +13867,27 @@ export interface operations {
             };
         };
     };
-    save: {
+    read: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MentorProfileView"];
+                };
+            };
+        };
+    };
+    save_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -13938,28 +13946,6 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
-        responses: {
-            /** @description No Content */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    saveStudent: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StudentProfileRequest"];
-            };
-        };
         responses: {
             /** @description No Content */
             204: {

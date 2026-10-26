@@ -156,14 +156,15 @@ class Accounts {
 	}
 
 	/**
-	 * Where the account's notifications go (FR-48): the verified Google email, else the GitHub one;
-	 * none once it is erased or while no address is known. A saved contact email comes first in
-	 * Story 19.3.
+	 * Where the account's notifications go (FR-48): the profile's contact email once saved (Story 19.3),
+	 * else the verified Google email, else the GitHub one; none once it is erased or while no address
+	 * is known.
 	 */
 	Optional<String> notificationAddress(UUID id) {
 		return this.jdbc.sql("""
-				SELECT coalesce(google_email, github_email) AS address FROM identity.account
-				WHERE id = :id AND erased_at IS NULL
+				SELECT coalesce(p.contact_email, a.google_email, a.github_email) AS address
+				FROM identity.account a LEFT JOIN identity.profile p ON p.account_id = a.id
+				WHERE a.id = :id AND a.erased_at IS NULL
 				""")
 			.param("id", id)
 			.query((row, number) -> Optional.ofNullable(row.getString("address")))

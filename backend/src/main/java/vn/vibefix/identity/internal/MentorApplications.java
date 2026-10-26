@@ -9,13 +9,12 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import org.jspecify.annotations.Nullable;
 import org.springframework.dao.DuplicateKeyException;
@@ -27,8 +26,6 @@ import vn.vibefix.audit.AuditActor;
 import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
-import vn.vibefix.catalog.Catalog;
-import vn.vibefix.catalog.Skill;
 import vn.vibefix.files.FileKind;
 import vn.vibefix.files.FileUpload;
 import vn.vibefix.files.PreparedFile;
@@ -45,7 +42,9 @@ import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.IdGenerator;
 
 /**
- * The Mentor application, which stays the approved Mentor's profile (FR-74, AD-19). The first save
+ * The Mentor application (FR-74, AD-19, until Story 19.7). Its display name, experience, years, and
+ * Skills are the account's one profile (Story 19.3); the LinkedIn link, the other link, the document,
+ * the notices, and the submission are the application's own. The first save
  * is the submission: it needs the current personal-data notice accepted, records that, reserves the
  * LinkedIn profile among live applications, closes the {@code identity.complete_mentor_application}
  * to-do, and tells every Administrator. Later saves edit the fields; the application stays as it
@@ -64,9 +63,6 @@ class MentorApplications implements MentorApplicationQueue {
 	/** N-22's version, recorded with the submission like the personal-data notice's. */
 	static final String N22_VERSION = "1.0";
 
-	/** A Mentor profile keeps at most 20 Skills (FR-74). */
-	static final int MAX_SKILLS = 20;
-
 	/** What the Mentor fills in on MEN-5. */
 	record Fields(String displayName, String experience, int yearsOfExperience, List<UUID> skillIds,
 			String linkedinUrl, @Nullable String otherLink) {
@@ -75,7 +71,10 @@ class MentorApplications implements MentorApplicationQueue {
 	record Document(UUID fileId, String name, String mediaType, long size) {
 	}
 
-	/** The application as MEN-5 shows it; a draft has only its document. */
+	/**
+	 * The application with the profile's fields it shows, as MEN-5 and ADM-13 read it; a draft has only
+	 * its document.
+	 */
 	record Application(UUID accountId, @Nullable String displayName, @Nullable String experience,
 			@Nullable Integer yearsOfExperience, List<UUID> skillIds, @Nullable String linkedinUrl,
 			@Nullable String otherLink, @Nullable Document document, @Nullable Instant submittedAt) {
@@ -83,7 +82,7 @@ class MentorApplications implements MentorApplicationQueue {
 
 	private final JdbcClient jdbc;
 
-	private final Catalog catalog;
+	private final Profiles profiles;
 
 	private final StoredFiles files;
 
@@ -103,11 +102,11 @@ class MentorApplications implements MentorApplicationQueue {
 
 	private final IdentityProperties properties;
 
-	MentorApplications(JdbcClient jdbc, Catalog catalog, StoredFiles files, JdbcPersonSignals signals, Accounts accounts,
+	MentorApplications(JdbcClient jdbc, Profiles profiles, StoredFiles files, JdbcPersonSignals signals, Accounts accounts,
 			Notifications notifications, Todos todos, AuditLog auditLog, IdGenerator ids, Clock clock,
 			IdentityProperties properties) {
 		this.jdbc = jdbc;
-		this.catalog = catalog;
+		this.profiles = profiles;
 		this.files = files;
 		this.signals = signals;
 		this.accounts = accounts;
@@ -133,15 +132,14 @@ class MentorApplications implements MentorApplicationQueue {
 	}
 
 	Optional<Application> find(UUID accountId) {
-		return this.jdbc.sql("SELECT * FROM identity.mentor_application WHERE account_id = :id")
+		return this.jdbc.sql("""
+				SELECT m.*, p.display_name, p.experience, p.years_of_experience, coalesce(p.skill_ids, '{}') AS skill_ids
+				FROM identity.mentor_application m LEFT JOIN identity.profile p ON p.account_id = m.account_id
+				WHERE m.account_id = :id
+				""")
 			.param("id", accountId)
 			.query((rs, n) -> application(rs))
 			.optional();
-	}
-
-	/** The Skills with their current names, retired ones included, in the Mentor's order. */
-	List<Skill> skills(List<UUID> skillIds) {
-		return this.catalog.byIds(skillIds);
 	}
 
 	/**
@@ -162,10 +160,9 @@ class MentorApplications implements MentorApplicationQueue {
 		if (needsNotice && !this.properties.privacyNoticeVersion().equals(acceptedNoticeVersion)) {
 			throw new ApiException(ErrorCode.VALIDATION, IdentityReason.PRIVACY_NOTICE_REQUIRED);
 		}
-		List<UUID> skillIds = List.copyOf(new LinkedHashSet<>(fields.skillIds()));
-		this.catalog.requireAtMost(skillIds.size(), MAX_SKILLS);
-		Set<UUID> held = Set.copyOf(existing.map(Application::skillIds).orElse(List.of()));
-		this.catalog.requireActive(skillIds.stream().filter(id -> !held.contains(id)).toList());
+		// The profile's part, in this transaction: a refusal below leaves the profile as it was.
+		this.profiles.saveMentorFields(accountId, fields.displayName().strip(), fields.experience().strip(),
+				fields.yearsOfExperience(), fields.skillIds());
 		Map.Entry<Integer, String> linkedin = this.signals.currentLinkedIn(fields.linkedinUrl())
 			.orElseThrow(() -> new ApiException(ErrorCode.VALIDATION));
 		requireLinkedInFree(accountId, fields.linkedinUrl());
@@ -173,15 +170,11 @@ class MentorApplications implements MentorApplicationQueue {
 		try {
 			this.jdbc.sql("""
 					INSERT INTO identity.mentor_application
-					    (account_id, display_name, experience, years_of_experience, skill_ids, skill_names, linkedin_url,
-					     linkedin_hmac, linkedin_key_version, linkedin_reserved, other_link, privacy_notice_version,
-					     n22_version, submitted_at, updated_at)
-					VALUES (:account, :name, :experience, :years, CAST(:skills AS UUID[]), :skillNames, :linkedin,
-					        :hmac, :version, TRUE, :other, :notice, :n22, :now, :now)
+					    (account_id, linkedin_url, linkedin_hmac, linkedin_key_version, linkedin_reserved, other_link,
+					     privacy_notice_version, n22_version, submitted_at, updated_at)
+					VALUES (:account, :linkedin, :hmac, :version, TRUE, :other, :notice, :n22, :now, :now)
 					ON CONFLICT (account_id) DO UPDATE SET
-					    display_name = EXCLUDED.display_name, experience = EXCLUDED.experience,
-					    years_of_experience = EXCLUDED.years_of_experience, skill_ids = EXCLUDED.skill_ids,
-					    skill_names = EXCLUDED.skill_names, linkedin_url = EXCLUDED.linkedin_url,
+					    linkedin_url = EXCLUDED.linkedin_url,
 					    linkedin_hmac = EXCLUDED.linkedin_hmac, linkedin_key_version = EXCLUDED.linkedin_key_version,
 					    linkedin_reserved = TRUE, other_link = EXCLUDED.other_link,
 					    privacy_notice_version = COALESCE(identity.mentor_application.privacy_notice_version,
@@ -193,11 +186,6 @@ class MentorApplications implements MentorApplicationQueue {
 					    updated_at = EXCLUDED.updated_at
 					""")
 				.param("account", accountId)
-				.param("name", fields.displayName().strip())
-				.param("experience", fields.experience().strip())
-				.param("years", fields.yearsOfExperience())
-				.param("skills", skillIds.stream().map(UUID::toString).collect(Collectors.joining(",", "{", "}")))
-				.param("skillNames", this.catalog.byIds(skillIds).stream().map(Skill::name).collect(Collectors.joining(", ")))
 				.param("linkedin", fields.linkedinUrl().strip())
 				.param("hmac", linkedin.getValue())
 				.param("version", linkedin.getKey())
@@ -225,6 +213,41 @@ class MentorApplications implements MentorApplicationQueue {
 					AuditObject.of("identity.account", accountId)));
 		}
 		return submitting;
+	}
+
+	/**
+	 * ACC-1's save for a Mentor (Story 19.3, until Story 19.7): once the application is submitted, the
+	 * profile fields it shows keep MEN-5's rules (an experience, the years, at least one Skill), a
+	 * rejection's 30-day wait holds them as it holds MEN-5, and the save is audited as an update of the
+	 * application too.
+	 * @throws ApiException {@code VALIDATION} naming the missing fields; {@code GUARD_FAILED} with
+	 * {@code MENTOR_REAPPLY_TOO_SOON} during a rejection's wait
+	 */
+	@Transactional
+	void saveProfile(UUID accountId, Profiles.Changes changes) {
+		lockAccount(accountId);
+		boolean submitted = find(accountId).map(Application::submittedAt).isPresent();
+		if (submitted) {
+			requireReapplyOpen(accountId);
+			Map<String, String> missing = new LinkedHashMap<>();
+			if (changes.experience() == null) {
+				missing.put("experience", "NotBlank");
+			}
+			if (changes.yearsOfExperience() == null) {
+				missing.put("yearsOfExperience", "NotNull");
+			}
+			if (changes.skillIds().isEmpty()) {
+				missing.put("skillIds", "Size");
+			}
+			if (!missing.isEmpty()) {
+				throw Profiles.invalid(missing);
+			}
+		}
+		this.profiles.save(accountId, changes);
+		if (submitted) {
+			this.auditLog.record(AuditEntry.of(AuditActor.user(accountId), "identity.mentor_application_updated",
+					AuditObject.of("identity.account", accountId)));
+		}
 	}
 
 	/** Checks and, for an image, re-encodes a document before its transaction (AD-21). */

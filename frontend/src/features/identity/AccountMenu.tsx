@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router'
 import { initials } from '@/features/team/teamText'
 import { t, type MessageKey } from '@/i18n/t'
 import { applyTheme, DEFAULT_THEME, type ThemeChoice } from '@/theme/accountTheme'
-import type { Session } from './api'
+import { landingPath, MENTOR_PROFILE_PATH, type Session } from './api'
 import { useSaveTheme } from './profileApi'
 import { useSignOut } from './useSession'
 
@@ -18,7 +18,7 @@ const item =
   'flex min-h-tap-min cursor-pointer items-center gap-2 rounded-md px-3 text-body-sm data-disabled:cursor-not-allowed data-disabled:opacity-50 data-highlighted:bg-muted'
 
 /**
- * The avatar menu (UX-DR11, UX-DR5): "Hồ sơ" for Customers and Students, the Theme toggle ("Sáng",
+ * The avatar menu (UX-DR11, UX-DR5): "Hồ sơ" (ACC-1) for every person's account, the Theme toggle ("Sáng",
  * "Tối", "Theo hệ thống"), which applies at once and saves to the account, and "Đăng xuất". The
  * avatar is initials: the CSP loads no image from GitHub.
  */
@@ -29,6 +29,8 @@ export function AccountMenu({ session, offline }: { session: Session; offline: b
   // A Google account has no GitHub username until Story 19.2 links it: its Google name stands in.
   const login = session.githubLogin ?? session.displayName ?? ''
   const role = session.account?.role
+  // A Mentor waiting for approval has MEN-5 only (FR-74); everyone else has ACC-1 (Story 19.3).
+  const heldOnMentorProfile = landingPath(session) === MENTOR_PROFILE_PATH
   const theme = session.account?.theme ?? DEFAULT_THEME
 
   function chooseTheme(choice: ThemeChoice) {
@@ -47,7 +49,7 @@ export function AccountMenu({ session, offline }: { session: Session; offline: b
       <Menu.Portal>
         <Menu.Positioner align="end" sideOffset={6} className="z-50">
           <Menu.Popup className="min-w-52 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md">
-            {(role === 'CUSTOMER' || role === 'STUDENT') && (
+            {role !== 'ADMINISTRATOR' && !heldOnMentorProfile && (
               <Menu.Item className={item} onClick={() => navigate('/ho-so')}>
                 {t('shell.profile')}
               </Menu.Item>

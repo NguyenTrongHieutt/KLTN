@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, profileView, signedIn, signedInWithGoogle } from '@/test/fakeBackend'
 import { applyTheme, DEFAULT_THEME } from '@/theme/accountTheme'
 
 function renderAt(path: string) {
@@ -18,55 +18,69 @@ function renderAt(path: string) {
   return router
 }
 
-const customerProfile = (customer: Record<string, unknown> | null = null) => () =>
-  json({ role: 'CUSTOMER', githubLogin: 'octo-cat', customer, student: null })
-
 afterEach(() => {
   vi.unstubAllGlobals()
   applyTheme(DEFAULT_THEME)
 })
 
-describe('CUS-11 (FR-3, UX-DR44, UX-DR43)', () => {
-  it('saves the profile, says so on the page and in a toast, and sends exactly the fields', async () => {
+describe('ACC-1 "Bạn tự nhập" (Story 19.3, FR-3, FR-4, UX-DR44)', () => {
+  it('saves a first profile with no role, says so, and sends exactly the typed fields', async () => {
     const user = userEvent.setup()
-    const seen = fakeBackend(signedIn('CUSTOMER'), {
-      'GET /api/v1/profile': customerProfile(),
-      'PUT /api/v1/profile/customer': () => new Response(null, { status: 204 }),
+    const seen = fakeBackend(signedInWithGoogle, {
+      'PUT /api/v1/profile': () => new Response(null, { status: 204 }),
     })
     renderAt('/ho-so')
 
-    await user.click(await screen.findByRole('radio', { name: 'Doanh nghiệp' }))
-    await user.type(screen.getByLabelText('Tên hiển thị'), 'Tiệm bánh Lan')
-    await user.type(screen.getByLabelText('Email liên hệ'), 'lan@tiembanh.vn')
-    await user.click(screen.getByRole('button', { name: 'Lưu hồ sơ' }))
+    const typed = await screen.findByRole('region', { name: 'Bạn tự nhập' })
+    await user.click(within(typed).getByRole('radio', { name: 'Doanh nghiệp' }))
+    await user.type(within(typed).getByLabelText('Tên hiển thị *'), 'Tiệm bánh Lan')
+    await user.type(within(typed).getByLabelText('Email liên hệ (không bắt buộc)'), 'lan@tiembanh.vn')
+    await user.type(within(typed).getByLabelText('Mô tả kinh nghiệm (không bắt buộc)'), 'Bán bánh 5 năm.')
+    await user.type(within(typed).getByLabelText('Số năm kinh nghiệm (không bắt buộc)'), '5')
+    await user.click(within(typed).getByRole('button', { name: 'Thêm liên kết' }))
+    await user.type(within(typed).getByLabelText('Liên kết 1'), 'https://tiembanhlan.vn')
+    await user.click(within(typed).getByRole('button', { name: 'Thêm kho mã' }))
+    await user.type(within(typed).getByLabelText('Kho mã 1'), 'lan/shop')
+    // A row added and left blank is not sent.
+    await user.click(within(typed).getByRole('button', { name: 'Thêm kho mã' }))
+    await user.click(within(typed).getByRole('button', { name: 'Lưu hồ sơ' }))
 
     expect(await screen.findByRole('status')).toHaveTextContent(/Đã lưu lúc/)
     expect(await screen.findByText('Đã lưu hồ sơ.')).toBeInTheDocument()
     const request = seen.find((entry) => entry.method === 'PUT')!
     expect(await request.clone().json()).toEqual({
-      kind: 'BUSINESS',
       displayName: 'Tiệm bánh Lan',
+      kind: 'BUSINESS',
       contactEmail: 'lan@tiembanh.vn',
+      experience: 'Bán bánh 5 năm.',
+      yearsOfExperience: 5,
+      skillIds: [],
+      links: ['https://tiembanhlan.vn'],
+      repositories: ['lan/shop'],
+      hideStudentDetails: false,
     })
   })
 
   it('validates on blur and on submit, with a summary linking each field', async () => {
     const user = userEvent.setup()
-    const seen = fakeBackend(signedIn('CUSTOMER'), { 'GET /api/v1/profile': customerProfile() })
+    const seen = fakeBackend(signedIn('CUSTOMER'))
     renderAt('/ho-so')
 
-    const email = await screen.findByLabelText('Email liên hệ')
+    const email = await screen.findByLabelText('Email liên hệ (không bắt buộc)')
     await user.type(email, 'not-an-email')
     await user.tab()
     expect(email).toHaveAttribute('aria-invalid', 'true')
     expect(screen.getByText('Địa chỉ email chưa đúng.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Thêm liên kết' }))
+    await user.type(screen.getByLabelText('Liên kết 1'), 'http://lan.vn')
 
     await user.click(screen.getByRole('button', { name: 'Lưu hồ sơ' }))
 
     const summary = screen.getByRole('alert')
-    expect(summary).toHaveTextContent('Hãy kiểm tra lại 2 mục được đánh dấu.')
+    expect(summary).toHaveTextContent('Hãy kiểm tra lại 3 mục được đánh dấu.')
     expect(summary).toHaveFocus()
     expect(within(summary).getByRole('link', { name: /Tên hiển thị/ })).toHaveAttribute('href', '#displayName')
+    expect(within(summary).getByRole('link', { name: /Liên kết/ })).toHaveAttribute('href', '#links')
     expect(seen.some((request) => request.method === 'PUT')).toBe(false)
     expect(email).toHaveValue('not-an-email')
   })
@@ -74,8 +88,8 @@ describe('CUS-11 (FR-3, UX-DR44, UX-DR43)', () => {
   it('maps the server field errors and keeps the input', async () => {
     const user = userEvent.setup()
     fakeBackend(signedIn('CUSTOMER'), {
-      'GET /api/v1/profile': customerProfile({ kind: 'INDIVIDUAL', displayName: 'Lan', contactEmail: 'lan@x.vn' }),
-      'PUT /api/v1/profile/customer': () =>
+      'GET /api/v1/profile': () => json(profileView({ displayName: 'Lan', contactEmail: 'lan@x.vn' })),
+      'PUT /api/v1/profile': () =>
         json({ status: 400, code: 'VALIDATION', errors: [{ field: 'phone', code: 'Pattern' }] }, 400),
     })
     renderAt('/ho-so')
@@ -87,56 +101,155 @@ describe('CUS-11 (FR-3, UX-DR44, UX-DR43)', () => {
     expect(await screen.findByText('Mục này chưa đúng dạng.')).toBeInTheDocument()
     expect(phone).toHaveAttribute('aria-invalid', 'true')
     expect(phone).toHaveValue('+84 912 345 678')
-    expect(screen.getByLabelText('Tên hiển thị')).toHaveValue('Lan')
+    expect(screen.getByLabelText('Tên hiển thị *')).toHaveValue('Lan')
   })
-})
 
-describe('STU-5, the profile part (FR-4, FR-51)', () => {
-  it('shows the GitHub username read-only, hides name and school by default, and saves repositories', async () => {
+  it('marks every link "Tự khai", offers at most 5, and shows the repositories as links only', async () => {
     const user = userEvent.setup()
-    const seen = fakeBackend(signedIn('STUDENT'), {
-      'GET /api/v1/profile': () => json({ role: 'STUDENT', githubLogin: 'minh-dev', customer: null, student: null }),
-      'PUT /api/v1/profile/student': () => new Response(null, { status: 204 }),
+    fakeBackend(signedIn('STUDENT'), {
+      'GET /api/v1/profile': () =>
+        json(
+          profileView({
+            displayName: 'Minh',
+            links: ['https://a.vn', 'https://b.vn', 'https://c.vn', 'https://d.vn'],
+            repositories: ['a/1'],
+          }),
+        ),
     })
     renderAt('/ho-so')
 
-    expect(await screen.findByText('minh-dev')).toBeInTheDocument()
-    expect(screen.queryByRole('textbox', { name: /GitHub/ })).not.toBeInTheDocument()
-    expect(screen.getByRole('checkbox', { name: /Hiện họ tên và trường/ })).not.toBeChecked()
-    await user.type(screen.getByLabelText('Trường'), 'ĐH Bách khoa')
-    await user.selectOptions(screen.getByLabelText('Năm học'), '3')
-    await user.click(screen.getByRole('button', { name: 'Thêm kho mã' }))
-    await user.type(screen.getByLabelText('Kho mã 1'), 'minh/shop-app')
+    const typed = await screen.findByRole('region', { name: 'Bạn tự nhập' })
+    expect(within(typed).getAllByText('Tự khai')).toHaveLength(4)
+    await user.click(within(typed).getByRole('button', { name: 'Thêm liên kết' }))
+
+    expect(within(typed).getAllByText('Tự khai')).toHaveLength(5)
+    expect(within(typed).queryByRole('button', { name: 'Thêm liên kết' })).not.toBeInTheDocument()
+    expect(within(typed).getByRole('link', { name: 'github.com/a/1' })).toHaveAttribute('href', 'https://github.com/a/1')
+  })
+
+  it('shows the student switch only with student details, off by default, and saves it', async () => {
+    const user = userEvent.setup()
+    const seen = fakeBackend(signedIn('STUDENT'), {
+      'GET /api/v1/profile': () =>
+        json(
+          profileView({
+            displayName: 'Minh',
+            studentDetails: { name: 'Trần Quang Minh', school: 'Đại học Bách khoa Hà Nội', year: 3 },
+          }),
+        ),
+      'PUT /api/v1/profile': () => new Response(null, { status: 204 }),
+    })
+    renderAt('/ho-so')
+
+    const toggle = await screen.findByRole('switch', { name: /Ẩn thông tin sinh viên trên hồ sơ công khai/ })
+    expect(toggle).not.toBeChecked()
+    await user.click(toggle)
     await user.click(screen.getByRole('button', { name: 'Lưu hồ sơ' }))
 
     await waitFor(() => expect(seen.some((request) => request.method === 'PUT')).toBe(true))
     const request = seen.find((entry) => entry.method === 'PUT')!
-    expect(await request.clone().json()).toEqual({
-      school: 'ĐH Bách khoa',
-      yearOfStudy: 3,
-      showNameAndSchool: false,
-      repositories: ['minh/shop-app'],
-      skillIds: [],
-    })
+    expect(await request.clone().json()).toMatchObject({ displayName: 'Minh', hideStudentDetails: true })
   })
 
-  it('offers at most 5 repositories', async () => {
-    const user = userEvent.setup()
+  it('has no student switch without student details', async () => {
+    fakeBackend(signedInWithGoogle)
+    renderAt('/ho-so')
+
+    await screen.findByRole('region', { name: 'Bạn tự nhập' })
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument()
+  })
+})
+
+describe('ACC-1 "Đã xác minh" (FR-4, AD-42, UX-DR90, UX-DR108)', () => {
+  it('shows each verified fact with its source and the declared details, and no edit control', async () => {
     fakeBackend(signedIn('STUDENT'), {
       'GET /api/v1/profile': () =>
-        json({
-          role: 'STUDENT',
-          githubLogin: 'minh-dev',
-          customer: null,
-          student: { showNameAndSchool: true, repositories: ['a/1', 'a/2', 'a/3', 'a/4'], skills: [] },
-        }),
+        json(
+          profileView({
+            displayName: 'Minh',
+            studentDetails: { name: 'Trần Quang Minh', school: 'Đại học Bách khoa Hà Nội', year: 3 },
+            verified: {
+              github: { login: 'minh-dev', since: '2026-10-20T03:00:00Z' },
+              student: { validUntil: '2027-09-30', method: 'SCHOOL_EMAIL' },
+            },
+          }),
+        ),
     })
     renderAt('/ho-so')
 
-    await user.click(await screen.findByRole('button', { name: 'Thêm kho mã' }))
+    const verified = await screen.findByRole('region', { name: 'Đã xác minh' })
+    expect(within(verified).getByText('@minh-dev · Xác minh qua GitHub · 10/2026')).toBeInTheDocument()
+    expect(within(verified).getByText('Sinh viên đã xác minh · Có hiệu lực đến 30/09/2027')).toBeInTheDocument()
+    expect(within(verified).getByText('Xác minh qua email trường')).toBeInTheDocument()
+    expect(within(verified).getByText('Trần Quang Minh')).toBeInTheDocument()
+    expect(within(verified).getAllByText('Khai khi xác minh')).toHaveLength(3)
+    // LinkedIn is not verified yet (Story 19.6).
+    expect(within(verified).getAllByRole('link', { name: 'Chưa xác minh' })).toHaveLength(1)
+    expect(within(verified).queryAllByRole('textbox')).toHaveLength(0)
+    expect(within(verified).queryAllByRole('button')).toHaveLength(0)
+    expect(within(verified).getByRole('link', { name: 'Quản lý xác minh' })).toHaveAttribute('href', '/ho-so/xac-minh')
+  })
 
-    expect(screen.queryByRole('button', { name: 'Thêm kho mã' })).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'github.com/a/1' })).toHaveAttribute('href', 'https://github.com/a/1')
+  it('shows the declared student details without the badge while the student status is not verified', async () => {
+    fakeBackend(signedIn('STUDENT'), {
+      'GET /api/v1/profile': () =>
+        json(
+          profileView({
+            displayName: 'Minh',
+            studentDetails: { name: 'Trần Quang Minh', school: 'Đại học Bách khoa Hà Nội', year: 3 },
+          }),
+        ),
+    })
+    renderAt('/ho-so')
+
+    const verified = await screen.findByRole('region', { name: 'Đã xác minh' })
+    expect(within(verified).getByText('Trần Quang Minh')).toBeInTheDocument()
+    expect(within(verified).getAllByText('Khai khi xác minh')).toHaveLength(3)
+    expect(within(verified).queryByText(/Sinh viên đã xác minh/)).not.toBeInTheDocument()
+    expect(within(verified).getAllByRole('link', { name: 'Chưa xác minh' })).toHaveLength(3)
+  })
+
+  it('names how a student card verified the student status', async () => {
+    fakeBackend(signedIn('STUDENT'), {
+      'GET /api/v1/profile': () =>
+        json(profileView({ verified: { student: { validUntil: '2027-09-30', method: 'STUDENT_CARD' } } })),
+    })
+    renderAt('/ho-so')
+
+    const verified = await screen.findByRole('region', { name: 'Đã xác minh' })
+    expect(within(verified).getByText('Xác minh qua thẻ sinh viên')).toBeInTheDocument()
+  })
+
+  it('shows "Chưa xác minh" linking to ACC-2 for each verification not done', async () => {
+    fakeBackend(signedInWithGoogle)
+    renderAt('/ho-so')
+
+    const verified = await screen.findByRole('region', { name: 'Đã xác minh' })
+    const links = within(verified).getAllByRole('link', { name: 'Chưa xác minh' })
+    expect(links).toHaveLength(3)
+    for (const link of links) {
+      expect(link).toHaveAttribute('href', '/ho-so/xac-minh')
+    }
+    expect(within(verified).queryByText('Khai khi xác minh')).not.toBeInTheDocument()
+  })
+
+  it('offers a Mentor its application on MEN-5', async () => {
+    fakeBackend(signedIn('MENTOR'))
+    renderAt('/ho-so')
+
+    expect(await screen.findByRole('link', { name: 'Mở hồ sơ người hướng dẫn' })).toHaveAttribute(
+      'href',
+      '/ho-so/nguoi-huong-dan',
+    )
+  })
+
+  it('leads to ACC-2 from its tabs', async () => {
+    fakeBackend(signedIn('CUSTOMER'))
+    renderAt('/ho-so')
+
+    const tabs = await screen.findByRole('navigation', { name: 'Hồ sơ và xác minh' })
+    expect(within(tabs).getByRole('link', { name: 'Hồ sơ' })).toHaveAttribute('aria-current', 'page')
+    expect(within(tabs).getByRole('link', { name: 'Xác minh' })).toHaveAttribute('href', '/ho-so/xac-minh')
   })
 })
 

@@ -89,26 +89,43 @@ describe('route guards (AD-19, FR-74)', () => {
 
   it('keeps a Mentor that is not approved on MEN-5, with no other destination', async () => {
     fakeBackend(signedIn('MENTOR', 'PENDING'), {
-      'GET /api/v1/profile': () =>
-        json({ role: 'MENTOR', githubLogin: 'hung-dev', mentor: { approvalStatus: 'PENDING', skills: [] } }),
+      'GET /api/v1/profile/mentor': () => json({ approvalStatus: 'PENDING', skills: [] }),
     })
     const router = renderAt('/viec-can-lam')
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Hồ sơ người hướng dẫn' })).toBeInTheDocument()
-    expect(router.state.location.pathname).toBe('/ho-so')
+    expect(router.state.location.pathname).toBe('/ho-so/nguoi-huong-dan')
     expect(await screen.findByText('Chưa gửi')).toBeInTheDocument()
     const nav = screen.getByRole('navigation', { name: 'Điều hướng chính' })
     expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Hồ sơ người hướng dẫn'])
   })
 
-  it('shows each role its own profile on /ho-so', async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
-      'GET /api/v1/profile': () => json({ role: 'CUSTOMER', githubLogin: 'octo-cat', customer: null, student: null }),
-    })
+  it.each([
+    ['a Customer', signedIn('CUSTOMER')],
+    ['a Student', signedIn('STUDENT')],
+    ['a Google account with no role', signedInWithGoogle],
+  ])('shows %s the one profile on /ho-so', async (_, session) => {
+    fakeBackend(session)
     renderAt('/ho-so')
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Hồ sơ của bạn' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Hồ sơ và xác minh' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 2, name: 'Bạn tự nhập' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: 'Đã xác minh' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Hồ sơ người hướng dẫn' })).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['a Google account with no role', signedInWithGoogle, true],
+    ['an approved Mentor', signedIn('MENTOR'), true],
+    ['a Mentor waiting for approval, held on MEN-5', signedIn('MENTOR', 'PENDING'), false],
+  ])('offers "Hồ sơ" in the avatar menu or not to %s', async (_, session, offered) => {
+    const user = userEvent.setup()
+    fakeBackend(session, { 'GET /api/v1/profile/mentor': () => json({ approvalStatus: 'PENDING', skills: [] }) })
+    renderAt('/viec-can-lam')
+
+    await user.click(await screen.findByRole('button', { name: /^Tài khoản của / }))
+    await screen.findByRole('menuitem', { name: 'Đăng xuất' })
+    expect(screen.queryAllByRole('menuitem', { name: 'Hồ sơ' })).toHaveLength(offered ? 1 : 0)
   })
 
   it('sends a signed-in account away from PUB-2 and PUB-3 to where it lands', async () => {

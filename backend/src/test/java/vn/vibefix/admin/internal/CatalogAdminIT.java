@@ -77,9 +77,9 @@ class CatalogAdminIT extends IntegrationTest {
 
 		send(ha, put("/api/v1/admin/catalog/skills/" + TeamTestSupport.REACT),
 				skill("React.js", "Thư viện giao diện React")).andExpect(status().isOk());
-		await().atMost(Duration.ofSeconds(10)).until(() -> text("SELECT skill_names FROM identity.mentor_application WHERE account_id = '"
+		await().atMost(Duration.ofSeconds(10)).until(() -> text("SELECT skill_names FROM identity.profile WHERE account_id = '"
 				+ hung + "'").contains("React.js"));
-		await().atMost(Duration.ofSeconds(10)).until(() -> text("SELECT skill_names FROM identity.student_profile WHERE account_id = '"
+		await().atMost(Duration.ofSeconds(10)).until(() -> text("SELECT skill_names FROM identity.profile WHERE account_id = '"
 				+ vy + "'").contains("React.js"));
 		assertThat(text("""
 				SELECT (old_value ->> 'name') || '>' || (new_value ->> 'name') FROM catalog.change WHERE kind = 'SKILL_UPDATED'

@@ -13,7 +13,7 @@ import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.shared.Role;
 import vn.vibefix.support.MutableClock;
 
-/** Mentors with a submitted application and Students with a profile, for the Team tests. */
+/** Mentors with a profile and a submitted application, and Students with a profile, for the Team tests. */
 public final class TeamTestSupport {
 
 	public static final String REACT = "0192b000-0000-7000-8001-000000000004";
@@ -31,17 +31,24 @@ public final class TeamTestSupport {
 		UUID id = IdentityTestSupport.insertAccount(jdbc, Role.MENTOR, status, null);
 		Timestamp now = Timestamp.from(MutableClock.DEFAULT_INSTANT);
 		jdbc.sql("""
-				INSERT INTO identity.mentor_application
-				    (account_id, display_name, experience, years_of_experience, skill_ids, skill_names, linkedin_url,
-				     linkedin_hmac, linkedin_key_version, linkedin_reserved, privacy_notice_version, n22_version,
-				     submitted_at, updated_at)
+				INSERT INTO identity.profile
+				    (account_id, display_name, experience, years_of_experience, skill_ids, skill_names, updated_at)
 				VALUES (:account, :name, 'Kỹ sư phần mềm 8 năm, hướng dẫn sinh viên làm ứng dụng web.', 8,
-				        CAST(:skills AS UUID[]), :skillNames, :linkedin, :hmac, 1, TRUE, '2.0', '1.0', :now, :now)
+				        CAST(:skills AS UUID[]), :skillNames, :now)
 				""")
 			.param("account", id)
 			.param("name", displayName)
 			.param("skills", "{" + String.join(",", skillIds) + "}")
 			.param("skillNames", skillNames)
+			.param("now", now)
+			.update();
+		jdbc.sql("""
+				INSERT INTO identity.mentor_application
+				    (account_id, linkedin_url, linkedin_hmac, linkedin_key_version, linkedin_reserved, privacy_notice_version,
+				     n22_version, submitted_at, updated_at)
+				VALUES (:account, :linkedin, :hmac, 1, TRUE, '2.0', '1.0', :now, :now)
+				""")
+			.param("account", id)
 			.param("linkedin", "https://www.linkedin.com/in/m-" + id.toString().substring(0, 8))
 			.param("hmac", id.toString().replace("-", "") + id.toString().replace("-", ""))
 			.param("now", now)
@@ -58,13 +65,14 @@ public final class TeamTestSupport {
 		UUID id = IdentityTestSupport.insertAccount(jdbc, Role.STUDENT, null, null);
 		Timestamp now = Timestamp.from(MutableClock.DEFAULT_INSTANT);
 		jdbc.sql("""
-				INSERT INTO identity.student_profile
-				    (account_id, real_name, school, year_of_study, show_name_and_school, skill_ids, skill_names, updated_at)
-				VALUES (:account, :name, 'Đại học Bách khoa Hà Nội', 3, :shown, CAST(:skills AS UUID[]), :skillNames, :now)
+				INSERT INTO identity.profile
+				    (account_id, student_name, student_school, student_year, hide_student_details, skill_ids, skill_names,
+				     updated_at)
+				VALUES (:account, :name, 'Đại học Bách khoa Hà Nội', 3, :hidden, CAST(:skills AS UUID[]), :skillNames, :now)
 				""")
 			.param("account", id)
 			.param("name", name)
-			.param("shown", shown)
+			.param("hidden", !shown)
 			.param("skills", "{" + String.join(",", skillIds) + "}")
 			.param("skillNames", skillNames)
 			.param("now", now)

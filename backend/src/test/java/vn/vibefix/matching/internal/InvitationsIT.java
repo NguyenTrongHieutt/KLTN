@@ -70,7 +70,7 @@ class InvitationsIT extends IntegrationTest {
 	void aCustomerWithAnOpenJobPostAndMentorsInEveryState() {
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
 		this.jdbc.sql("""
-				INSERT INTO identity.customer_profile (account_id, kind, display_name, contact_email, updated_at)
+				INSERT INTO identity.profile (account_id, kind, display_name, contact_email, updated_at)
 				VALUES (:id, 'INDIVIDUAL', 'Lan Nguyễn', 'lan@example.com', now())
 				""").param("id", this.lan).update();
 		this.product = product(this.lan);
@@ -87,6 +87,11 @@ class InvitationsIT extends IntegrationTest {
 
 	@Test
 	void theSearchFindsOnlyApprovedUnlockedMentorsAndNoContactDetails() throws Exception {
+		// The listed Mentor's own contact details (FR-3, AD-20): never in the directory or on PUB-5.
+		this.jdbc.sql("""
+				UPDATE identity.profile SET contact_email = 'long.lienhe@example.test', phone = '+84 977 123 456'
+				WHERE account_id = :id
+				""").param("id", this.long_).update();
 		String body = search("supabase", "").andExpect(status().isOk())
 			.andExpect(jsonPath("$.total").value(2))
 			.andExpect(jsonPath("$.size").value(20))
@@ -100,6 +105,16 @@ class InvitationsIT extends IntegrationTest {
 			.containsExactlyInAnyOrder(this.long_.toString(), this.ha.toString());
 		List<String> relations = JsonPath.read(body, "$.items[*].relation");
 		assertThat(relations).containsOnly("NONE");
+		String login = this.jdbc.sql("SELECT github_login FROM identity.account WHERE id = :id").param("id", this.long_)
+			.query(String.class)
+			.single();
+		String publicProfile = this.mvc.perform(get("/api/v1/mentors/" + login)).andExpect(status().isOk())
+			.andReturn()
+			.getResponse()
+			.getContentAsString();
+		for (String response : List.of(body, publicProfile)) {
+			assertThat(response).doesNotContain("long.lienhe@example.test").doesNotContain("977 123 456");
+		}
 
 		search("supabase", "&skill=" + TeamTestSupport.REACT).andExpect(jsonPath("$.total").value(1))
 			.andExpect(jsonPath("$.items[0].displayName").value("Phạm Thu Hà"))

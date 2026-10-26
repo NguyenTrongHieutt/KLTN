@@ -1462,7 +1462,7 @@
         "tags" : [ "admin-rules-controller" ]
       },
       "put" : {
-        "operationId" : "save_2",
+        "operationId" : "save_3",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -3989,7 +3989,7 @@
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/CustomerProfile"
+                  "$ref" : "#/components/schemas/ContactView"
                 }
               }
             },
@@ -4307,7 +4307,7 @@
         "tags" : [ "git-hub-link-controller" ]
       },
       "get" : {
-        "operationId" : "read_2",
+        "operationId" : "read_3",
         "responses" : {
           "200" : {
             "content" : {
@@ -4854,7 +4854,7 @@
     },
     "/api/v1/jobs/{jobId}/chat/read" : {
       "post" : {
-        "operationId" : "read_1",
+        "operationId" : "read_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "jobId",
@@ -6191,7 +6191,7 @@
         "tags" : [ "agreement-controller" ]
       },
       "put" : {
-        "operationId" : "save_1",
+        "operationId" : "save_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "jobId",
@@ -7007,7 +7007,7 @@
     },
     "/api/v1/notifications/{notificationId}/read" : {
       "post" : {
-        "operationId" : "read",
+        "operationId" : "read_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "notificationId",
@@ -7700,16 +7700,14 @@
           }
         },
         "tags" : [ "profile-controller" ]
-      }
-    },
-    "/api/v1/profile/customer" : {
+      },
       "put" : {
-        "operationId" : "saveCustomer",
+        "operationId" : "save",
         "requestBody" : {
           "content" : {
             "application/json" : {
               "schema" : {
-                "$ref" : "#/components/schemas/CustomerProfileRequest"
+                "$ref" : "#/components/schemas/ProfileRequest"
               }
             }
           },
@@ -7724,8 +7722,24 @@
       }
     },
     "/api/v1/profile/mentor" : {
+      "get" : {
+        "operationId" : "read",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MentorProfileView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "mentor-profile-controller" ]
+      },
       "put" : {
-        "operationId" : "save",
+        "operationId" : "save_1",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -7792,27 +7806,6 @@
           }
         },
         "tags" : [ "mentor-profile-controller" ]
-      }
-    },
-    "/api/v1/profile/student" : {
-      "put" : {
-        "operationId" : "saveStudent",
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/StudentProfileRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "204" : {
-            "description" : "No Content"
-          }
-        },
-        "tags" : [ "profile-controller" ]
       }
     },
     "/api/v1/reputation/mentor-summaries" : {
@@ -11191,6 +11184,25 @@
         },
         "required" : [ "jobId", "versions" ]
       },
+      "ContactView" : {
+        "type" : "object",
+        "properties" : {
+          "contactEmail" : {
+            "type" : "string"
+          },
+          "displayName" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "INDIVIDUAL", "BUSINESS" ]
+          },
+          "phone" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "kind" ]
+      },
       "Content" : {
         "type" : "object",
         "properties" : {
@@ -11902,50 +11914,6 @@
           }
         },
         "required" : [ "heldVnd", "jobs", "refundedVnd", "releasedVnd" ]
-      },
-      "CustomerProfile" : {
-        "type" : "object",
-        "properties" : {
-          "contactEmail" : {
-            "type" : "string"
-          },
-          "displayName" : {
-            "type" : "string"
-          },
-          "kind" : {
-            "type" : "string",
-            "enum" : [ "INDIVIDUAL", "BUSINESS" ]
-          },
-          "phone" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "contactEmail", "displayName", "kind" ]
-      },
-      "CustomerProfileRequest" : {
-        "type" : "object",
-        "properties" : {
-          "contactEmail" : {
-            "type" : "string",
-            "format" : "email",
-            "maxLength" : 254,
-            "minLength" : 0
-          },
-          "displayName" : {
-            "type" : "string",
-            "maxLength" : 100,
-            "minLength" : 0
-          },
-          "kind" : {
-            "type" : "string",
-            "enum" : [ "INDIVIDUAL", "BUSINESS" ]
-          },
-          "phone" : {
-            "type" : "string",
-            "pattern" : "^\\+?(?:[0-9] ?){7,14}[0-9]$"
-          }
-        },
-        "required" : [ "contactEmail", "displayName", "kind" ]
       },
       "DataDeletionItemView" : {
         "type" : "object",
@@ -13447,6 +13415,19 @@
         },
         "required" : [ "fundable", "fundedVnd", "milestoneId", "number", "priceVnd", "refundAtEndVnd", "refundedVnd", "releasedTotalVnd", "state", "title", "topUpVnd" ]
       },
+      "GitHubFact" : {
+        "type" : "object",
+        "properties" : {
+          "login" : {
+            "type" : "string"
+          },
+          "since" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "login", "since" ]
+      },
       "GitHubLinkBlockerView" : {
         "type" : "object",
         "properties" : {
@@ -14923,6 +14904,16 @@
         },
         "required" : [ "url" ]
       },
+      "LinkedInFact" : {
+        "type" : "object",
+        "properties" : {
+          "since" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "since" ]
+      },
       "MentorApplicationDetail" : {
         "type" : "object",
         "properties" : {
@@ -15048,7 +15039,7 @@
           },
           "experience" : {
             "type" : "string",
-            "maxLength" : 4000,
+            "maxLength" : 2000,
             "minLength" : 0
           },
           "linkedinUrl" : {
@@ -15060,7 +15051,7 @@
             "type" : "string",
             "maxLength" : 300,
             "minLength" : 0,
-            "pattern" : "^https://[^\\s]+$"
+            "pattern" : "(?U)^https://\\S+$"
           },
           "privacyNoticeVersion" : {
             "type" : "string"
@@ -17069,6 +17060,75 @@
         },
         "required" : [ "createdAt", "description", "id", "jobs", "name", "openFindings", "repositoryFullName", "repositoryOwnerType", "repositoryUrl", "scanState", "tools" ]
       },
+      "ProfileRequest" : {
+        "type" : "object",
+        "properties" : {
+          "contactEmail" : {
+            "type" : "string",
+            "format" : "email",
+            "maxLength" : 254,
+            "minLength" : 0
+          },
+          "displayName" : {
+            "type" : "string",
+            "maxLength" : 100,
+            "minLength" : 0
+          },
+          "experience" : {
+            "type" : "string",
+            "maxLength" : 2000,
+            "minLength" : 0
+          },
+          "hideStudentDetails" : {
+            "type" : "boolean"
+          },
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "INDIVIDUAL", "BUSINESS" ]
+          },
+          "links" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "maxLength" : 500,
+              "minLength" : 0,
+              "pattern" : "(?U)^https://\\S+$"
+            },
+            "maxItems" : 5,
+            "minItems" : 0
+          },
+          "phone" : {
+            "type" : "string",
+            "pattern" : "^\\+?[0-9 ]{8,20}$"
+          },
+          "repositories" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "minLength" : 1,
+              "pattern" : "^(?:https://github\\.com/)?[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9._-]{1,100}?(?:\\.git)?/?$"
+            },
+            "maxItems" : 5,
+            "minItems" : 0
+          },
+          "skillIds" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            },
+            "maxItems" : 100,
+            "minItems" : 0
+          },
+          "yearsOfExperience" : {
+            "type" : "integer",
+            "format" : "int32",
+            "maximum" : 60,
+            "minimum" : 0
+          }
+        },
+        "required" : [ "displayName", "hideStudentDetails", "links", "repositories", "skillIds" ]
+      },
       "ProfileSkill" : {
         "type" : "object",
         "properties" : {
@@ -17088,24 +17148,55 @@
       "ProfileView" : {
         "type" : "object",
         "properties" : {
-          "customer" : {
-            "$ref" : "#/components/schemas/CustomerProfile"
-          },
-          "githubLogin" : {
+          "contactEmail" : {
             "type" : "string"
           },
-          "mentor" : {
-            "$ref" : "#/components/schemas/MentorProfileView"
+          "displayName" : {
+            "type" : "string"
           },
-          "role" : {
+          "experience" : {
+            "type" : "string"
+          },
+          "hideStudentDetails" : {
+            "type" : "boolean"
+          },
+          "kind" : {
             "type" : "string",
-            "enum" : [ "CUSTOMER", "MENTOR", "STUDENT", "ADMINISTRATOR" ]
+            "enum" : [ "INDIVIDUAL", "BUSINESS" ]
           },
-          "student" : {
-            "$ref" : "#/components/schemas/StudentProfileView"
+          "links" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "phone" : {
+            "type" : "string"
+          },
+          "repositories" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "skills" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ProfileSkill"
+            }
+          },
+          "studentDetails" : {
+            "$ref" : "#/components/schemas/StudentDetailsView"
+          },
+          "verified" : {
+            "$ref" : "#/components/schemas/VerifiedView"
+          },
+          "yearsOfExperience" : {
+            "type" : "integer",
+            "format" : "int32"
           }
         },
-        "required" : [ "role" ]
+        "required" : [ "hideStudentDetails", "kind", "links", "repositories", "skills", "verified" ]
       },
       "PublicMentorView" : {
         "type" : "object",
@@ -18706,87 +18797,33 @@
         },
         "required" : [ "fileName", "status", "uploadedAt" ]
       },
-      "StudentProfileRequest" : {
+      "StudentDetailsView" : {
         "type" : "object",
         "properties" : {
-          "linkedinUrl" : {
-            "type" : "string",
-            "pattern" : "^https://www\\.linkedin\\.com/in/[A-Za-z0-9_%-]{3,100}/?$"
-          },
-          "realName" : {
-            "type" : "string",
-            "maxLength" : 100,
-            "minLength" : 0
-          },
-          "repositories" : {
-            "type" : "array",
-            "items" : {
-              "type" : "string",
-              "minLength" : 1,
-              "pattern" : "^(?:https://github\\.com/)?[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9._-]{1,100}?(?:\\.git)?/?$"
-            },
-            "maxItems" : 5,
-            "minItems" : 0
-          },
-          "school" : {
-            "type" : "string",
-            "maxLength" : 150,
-            "minLength" : 0
-          },
-          "showNameAndSchool" : {
-            "type" : "boolean"
-          },
-          "skillIds" : {
-            "type" : "array",
-            "items" : {
-              "type" : "string",
-              "format" : "uuid"
-            },
-            "maxItems" : 100,
-            "minItems" : 0
-          },
-          "yearOfStudy" : {
-            "type" : "integer",
-            "format" : "int32",
-            "maximum" : 8,
-            "minimum" : 1
-          }
-        },
-        "required" : [ "repositories", "showNameAndSchool", "skillIds" ]
-      },
-      "StudentProfileView" : {
-        "type" : "object",
-        "properties" : {
-          "linkedinUrl" : {
+          "name" : {
             "type" : "string"
-          },
-          "realName" : {
-            "type" : "string"
-          },
-          "repositories" : {
-            "type" : "array",
-            "items" : {
-              "type" : "string"
-            }
           },
           "school" : {
             "type" : "string"
           },
-          "showNameAndSchool" : {
-            "type" : "boolean"
-          },
-          "skills" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/ProfileSkill"
-            }
-          },
-          "yearOfStudy" : {
+          "year" : {
             "type" : "integer",
             "format" : "int32"
           }
+        }
+      },
+      "StudentFact" : {
+        "type" : "object",
+        "properties" : {
+          "method" : {
+            "type" : "string"
+          },
+          "validUntil" : {
+            "type" : "string",
+            "format" : "date"
+          }
         },
-        "required" : [ "repositories", "showNameAndSchool", "skills" ]
+        "required" : [ "method", "validUntil" ]
       },
       "StudentReputationView" : {
         "type" : "object",
@@ -19816,6 +19853,20 @@
           }
         },
         "required" : [ "renewalOpen", "status" ]
+      },
+      "VerifiedView" : {
+        "type" : "object",
+        "properties" : {
+          "github" : {
+            "$ref" : "#/components/schemas/GitHubFact"
+          },
+          "linkedin" : {
+            "$ref" : "#/components/schemas/LinkedInFact"
+          },
+          "student" : {
+            "$ref" : "#/components/schemas/StudentFact"
+          }
+        }
       },
       "VersionMilestoneView" : {
         "type" : "object",

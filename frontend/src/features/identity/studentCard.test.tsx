@@ -17,8 +17,6 @@ function renderAt(path: string) {
   return router
 }
 
-const profile = () => json({ role: 'STUDENT', githubLogin: 'khoa-dev', customer: null, student: null })
-
 const pendingCard = {
   status: 'UNVERIFIED',
   renewalOpen: false,
@@ -56,14 +54,13 @@ describe('STU-5 student card (FR-5, UX-DR45, UX-DR27)', () => {
     const user = userEvent.setup()
     let view: object = { status: 'UNVERIFIED', renewalOpen: false }
     const seen = fakeBackend(signedIn('STUDENT'), {
-      'GET /api/v1/profile': profile,
       'GET /api/v1/verification': () => json(view),
       'POST /api/v1/verification/student-card': () => {
         view = pendingCard
         return json(view, 201)
       },
     })
-    renderAt('/ho-so')
+    renderAt('/ho-so/xac-minh')
 
     expect(await screen.findByRole('tablist', { name: 'Cách xác minh' })).toBeInTheDocument()
     await openCardTab(user)
@@ -84,8 +81,8 @@ describe('STU-5 student card (FR-5, UX-DR45, UX-DR27)', () => {
 
   it('checks the size and the type before sending anything', async () => {
     const user = userEvent.setup({ applyAccept: false })
-    const seen = fakeBackend(signedIn('STUDENT'), { 'GET /api/v1/profile': profile })
-    renderAt('/ho-so')
+    const seen = fakeBackend(signedIn('STUDENT'))
+    renderAt('/ho-so/xac-minh')
     await openCardTab(user)
     const input = document.querySelector<HTMLInputElement>('input[type="file"]')!
 
@@ -104,14 +101,13 @@ describe('STU-5 student card (FR-5, UX-DR45, UX-DR27)', () => {
   it("says the server's refusal in its own words", async () => {
     const user = userEvent.setup()
     fakeBackend(signedIn('STUDENT'), {
-      'GET /api/v1/profile': profile,
       'POST /api/v1/verification/student-card': () =>
         new Response(JSON.stringify({ status: 429, code: 'RATE_LIMITED', reason: 'UPLOAD_QUOTA' }), {
           status: 429,
           headers: { 'Content-Type': 'application/problem+json', 'Retry-After': '600' },
         }),
     })
-    renderAt('/ho-so')
+    renderAt('/ho-so/xac-minh')
     await openCardTab(user)
 
     await user.upload(document.querySelector<HTMLInputElement>('input[type="file"]')!, file('the.png', 'image/png'))
@@ -124,10 +120,9 @@ describe('STU-5 student card (FR-5, UX-DR45, UX-DR27)', () => {
   it('shows a rejection with its reason, offers another card, and the school email', async () => {
     const user = userEvent.setup()
     fakeBackend(signedIn('STUDENT'), {
-      'GET /api/v1/profile': profile,
       'GET /api/v1/verification': () => json(rejectedCard),
     })
-    renderAt('/ho-so')
+    renderAt('/ho-so/xac-minh')
 
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent('Thẻ sinh viên bị từ chối: Ảnh mờ, không đọc được')
@@ -141,10 +136,9 @@ describe('STU-5 student card (FR-5, UX-DR45, UX-DR27)', () => {
 
   it('opens on the card tab while a card waits, with no way to upload another', async () => {
     fakeBackend(signedIn('STUDENT'), {
-      'GET /api/v1/profile': profile,
       'GET /api/v1/verification': () => json(pendingCard),
     })
-    renderAt('/ho-so')
+    renderAt('/ho-so/xac-minh')
 
     const tab = await screen.findByRole('tab', { name: 'Thẻ sinh viên' })
     expect(tab).toHaveAttribute('aria-selected', 'true')
@@ -155,7 +149,6 @@ describe('STU-5 student card (FR-5, UX-DR45, UX-DR27)', () => {
 
   it('names the card as the way a verification was made', async () => {
     fakeBackend(signedIn('STUDENT'), {
-      'GET /api/v1/profile': profile,
       'GET /api/v1/verification': () =>
         json({
           status: 'VERIFIED',
@@ -165,7 +158,7 @@ describe('STU-5 student card (FR-5, UX-DR45, UX-DR27)', () => {
           renewalOpen: false,
         }),
     })
-    renderAt('/ho-so')
+    renderAt('/ho-so/xac-minh')
 
     expect(await screen.findByText(/^Xác minh bằng thẻ sinh viên ngày 19\/10\/2026\./)).toBeInTheDocument()
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
@@ -174,7 +167,6 @@ describe('STU-5 student card (FR-5, UX-DR45, UX-DR27)', () => {
   it('renews from the school email even while the card tab is open', async () => {
     const user = userEvent.setup()
     fakeBackend(signedIn('STUDENT'), {
-      'GET /api/v1/profile': profile,
       'GET /api/v1/verification': () =>
         json({
           ...rejectedCard,
@@ -184,7 +176,7 @@ describe('STU-5 student card (FR-5, UX-DR45, UX-DR27)', () => {
           verifiedAt: '2025-10-01T02:00:00Z',
         }),
     })
-    renderAt('/ho-so')
+    renderAt('/ho-so/xac-minh')
 
     expect(await screen.findByRole('tab', { name: 'Thẻ sinh viên' })).toHaveAttribute('aria-selected', 'true')
     await user.click(screen.getByRole('button', { name: 'Gia hạn' }))

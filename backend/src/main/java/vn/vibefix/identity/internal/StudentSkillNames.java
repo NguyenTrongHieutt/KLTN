@@ -7,7 +7,7 @@ import vn.vibefix.catalog.SkillRenamed;
 import vn.vibefix.shared.ProcessedEvents;
 
 /**
- * Keeps the Student profiles' {@code skill_names} current after a rename (AD-38, AD-9): it records
+ * Keeps the profiles' {@code skill_names} current after a rename (AD-38, AD-9, Story 19.3): it records
  * the event as processed and rewrites the names in one transaction, so a replay changes nothing.
  */
 @Component
@@ -30,7 +30,6 @@ class StudentSkillNames {
 			return;
 		}
 		this.profiles.refreshSkillNames(event.skillId());
-		this.profiles.refreshMentorSkillNames(event.skillId());
 	}
 
 }
