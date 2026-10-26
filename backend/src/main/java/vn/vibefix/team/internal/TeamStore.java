@@ -16,7 +16,12 @@ import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
+import vn.vibefix.audit.AuditActor;
+import vn.vibefix.audit.AuditEntry;
+import vn.vibefix.audit.AuditLog;
+import vn.vibefix.audit.AuditObject;
 import vn.vibefix.shared.IdGenerator;
 
 /**
@@ -56,7 +61,10 @@ class TeamStore {
 
 	private final IdGenerator ids;
 
-	TeamStore(JdbcClient jdbc, IdGenerator ids) {
+	private final AuditLog auditLog;
+
+	TeamStore(JdbcClient jdbc, IdGenerator ids, AuditLog auditLog) {
+		this.auditLog = auditLog;
 		this.jdbc = jdbc;
 		this.ids = ids;
 	}
@@ -102,12 +110,22 @@ class TeamStore {
 			.optional();
 	}
 
-	/** The Mentor's Team, created {@code OPEN} if it does not exist yet; idempotent. */
+	/**
+	 * The Mentor's Team, created {@code OPEN} if it does not exist yet, on the Mentor's first invitation or a
+	 * Student's first join request (Story 19.7); idempotent, and audited as {@code team.team_created} only when
+	 * this call created it. Joins the caller's transaction, or runs in its own.
+	 */
+	@Transactional
 	Team ensure(UUID mentorId, Instant now) {
-		this.jdbc.sql("""
+		UUID id = this.ids.newId();
+		boolean created = this.jdbc.sql("""
 				INSERT INTO team.team (id, mentor_account_id, status, created_at) VALUES (:id, :mentor, 'OPEN', :now)
 				ON CONFLICT (mentor_account_id) DO NOTHING
-				""").param("id", this.ids.newId()).param("mentor", mentorId).param("now", Timestamp.from(now)).update();
+				""").param("id", id).param("mentor", mentorId).param("now", Timestamp.from(now)).update() == 1;
+		if (created) {
+			this.auditLog
+				.record(AuditEntry.of(AuditActor.system(), "team.team_created", AuditObject.of("team.team", id)));
+		}
 		return byMentor(mentorId).orElseThrow();
 	}
 

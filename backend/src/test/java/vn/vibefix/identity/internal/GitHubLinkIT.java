@@ -132,7 +132,7 @@ class GitHubLinkIT extends IntegrationTest {
 		assertThat(query.get("code_challenge")).matches("[A-Za-z0-9_-]{43}");
 		assertThat(this.jdbc.sql("""
 				SELECT notice || ' ' || notice_version FROM identity.acknowledgment WHERE account_id = :id ORDER BY notice
-				""").param("id", lan).query(String.class).list()).containsExactly("LINK_GITHUB 1.0", "PRIVACY 3.0");
+				""").param("id", lan).query(String.class).list()).containsExactly("LINK_GITHUB 1.0", "PRIVACY 3.1");
 		assertThat(github.tokenRequests()).as("nothing is exchanged before GitHub returns").isEmpty();
 	}
 
@@ -504,7 +504,7 @@ class GitHubLinkIT extends IntegrationTest {
 			UUID account = unlinked(role);
 			this.jdbc.sql("""
 					INSERT INTO identity.acknowledgment (id, account_id, notice, notice_version, acknowledged_at)
-					VALUES (:ack, :id, 'PRIVACY', '3.0', :now)
+					VALUES (:ack, :id, 'PRIVACY', '3.1', :now)
 					""").param("ack", UUID.randomUUID()).param("id", account)
 				.param("now", Timestamp.from(this.clock.instant())).update();
 			MvcResult started = as(account, role, post("/api/v1/identity/github/link"), null, "{\"noticeVersion\":\"1.0\","
@@ -614,7 +614,7 @@ class GitHubLinkIT extends IntegrationTest {
 			.param("state", query.get("state")));
 		assertThat(callback.getResponse().getRedirectedUrl()).isEqualTo("/bat-dau");
 		MvcResult welcome = browser.command(post("/api/v1/session/sign-up").contentType(MediaType.APPLICATION_JSON)
-			.content("{\"privacyNoticeVersion\":\"3.0\"}"));
+			.content("{\"privacyNoticeVersion\":\"3.1\"}"));
 		assertThat(welcome.getResponse().getStatus()).isEqualTo(201);
 		return this.jdbc.sql("SELECT id FROM identity.account WHERE google_sub = :sub").param("sub", subject)
 			.query(UUID.class).single();

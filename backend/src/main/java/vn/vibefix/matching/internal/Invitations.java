@@ -43,8 +43,9 @@ import vn.vibefix.shared.RateLimitedException;
 
 /**
  * Invitations to apply (FR-14): a Customer asks an available Mentor, one with GitHub linked (Story 19.7),
- * to apply to their Open Job Post, once per Mentor and Job, within the day's counters. The Mentor is told and keeps a to-do until they
- * apply or the Job leaves Open; an invitation reserves nothing and selects no one.
+ * to apply to their Open Job Post, once per Mentor and Job, within the day's counters. The Mentor is told
+ * and keeps a to-do until they apply or the Job leaves Open; an invitation reserves nothing and selects no
+ * one.
  */
 @Component
 class Invitations {

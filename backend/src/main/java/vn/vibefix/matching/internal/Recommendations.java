@@ -135,7 +135,8 @@ class Recommendations {
 	 */
 	@Transactional(readOnly = true)
 	List<RecommendedPost> forMentor(UUID mentorId, @Nullable Set<UUID> skillFilter) {
-		List<UUID> skills = this.mentors.skillIdsOf(List.of(mentorId)).getOrDefault(mentorId, List.of());
+		// The caller's own Skills, as their profile holds them, whether or not they may be invited (Story 19.7).
+		List<UUID> skills = this.mentors.profileSkillIds(mentorId);
 		Map<String, Integer> done = this.work.workHistory(List.of(mentorId)).getOrDefault(mentorId, Map.of());
 		Set<UUID> applied = new HashSet<>(this.jdbc
 			.sql("SELECT job_id FROM matching.application WHERE mentor_account_id = :mentor")

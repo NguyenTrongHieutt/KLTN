@@ -17,6 +17,22 @@ import vn.vibefix.shared.Role;
 @Component
 class Accounts {
 
+	/**
+	 * The account is unlocked and not erased (AD-19): what every command needs, {@code ActiveAccount}'s
+	 * rule. A condition on {@code identity.account} aliased {@code a}.
+	 */
+	static final String ACTIVE = "a.locked_at IS NULL AND a.erased_at IS NULL";
+
+	/**
+	 * GitHub is linked (FR-80, AD-19): what new work needs on top of {@link #ACTIVE}, {@code GitHubGate}'s
+	 * rule and the Mentor directory's. A condition on {@code identity.account} aliased {@code a}.
+	 */
+	static final String GITHUB_LINKED = "a.github_user_id IS NOT NULL";
+
+	/** What the global gates read of an account, by {@link #ACTIVE} and {@link #GITHUB_LINKED}. */
+	record Standing(boolean active, boolean gitHubLinked) {
+	}
+
 	private final JdbcClient jdbc;
 
 	Accounts(JdbcClient jdbc) {
@@ -25,6 +41,15 @@ class Accounts {
 
 	Optional<Account> findById(UUID id) {
 		return this.jdbc.sql("SELECT * FROM identity.account WHERE id = :id").param("id", id).query(Accounts::row)
+			.optional();
+	}
+
+	/** The account's standing under the global gates, read now (AD-19); empty for an unknown account. */
+	Optional<Standing> standing(UUID id) {
+		return this.jdbc.sql("SELECT (" + ACTIVE + ") AS active, (" + GITHUB_LINKED + ") AS linked"
+				+ " FROM identity.account a WHERE a.id = :id")
+			.param("id", id)
+			.query((rs, n) -> new Standing(rs.getBoolean("active"), rs.getBoolean("linked")))
 			.optional();
 	}
 
@@ -232,8 +257,9 @@ class Accounts {
 		String role = rs.getString("role");
 		return new Account(rs.getObject("id", UUID.class), Account.Kind.valueOf(rs.getString("kind")),
 				(Long) rs.getObject("github_user_id"), rs.getString("github_login"), rs.getString("github_avatar_url"),
-				role == null ? null : Role.valueOf(role), rs.getString("google_sub"), rs.getString("google_email"), rs.getString("google_name"),
-				instant(rs, "locked_at"), rs.getString("lock_reason"), instant(rs, "erased_at"), instant(rs, "created_at"));
+				role == null ? null : Role.valueOf(role), rs.getString("google_sub"), rs.getString("google_email"),
+				rs.getString("google_name"), instant(rs, "locked_at"), rs.getString("lock_reason"), instant(rs, "erased_at"),
+				instant(rs, "created_at"));
 	}
 
 	private static @Nullable Instant instant(ResultSet rs, String column) throws SQLException {

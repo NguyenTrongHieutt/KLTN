@@ -180,6 +180,30 @@ describe('MEN-3, applying with a quote (FR-13)', () => {
     expect(screen.getAllByRole('link', { name: 'Liên kết GitHub', hidden: true })[0]).toHaveAttribute('href', '/ho-so/xac-minh')
   })
 
+  it('says a bid needs a display name and links to ACC-1 (Story 19.7)', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    fakeBackend(signedIn('MENTOR'), {
+      'GET /api/v1/mentor/job-posts/j1': () => json(post),
+      'GET /api/v1/mentor/job-posts/j1/customer-rating': () => json({ count: 0 }),
+      'GET /api/v1/mentor/capacity': () => capacity(),
+      'GET /api/v1/mentor/applications': () => json([]),
+      'POST /api/v1/mentor/job-posts/j1/applications': () =>
+        json({ status: 422, code: 'GUARD_FAILED', reason: 'PROFILE_REQUIRED' }, 422),
+    })
+    renderAt('/tim-viec/j1')
+
+    await user.type(await screen.findByLabelText('Giá đề xuất'), '800000')
+    await user.type(screen.getByLabelText('Thời gian làm (ngày)'), '7')
+    await user.type(screen.getByLabelText('Cách bạn sẽ làm'), 'Tái hiện lỗi, sửa và thêm kiểm thử.')
+    await user.click(screen.getByRole('checkbox', { name: /Tôi hiểu mã tôi và nhóm làm/ }))
+    await user.click(screen.getByRole('button', { name: 'Ứng tuyển' }))
+
+    expect(
+      await screen.findAllByText('Hãy đặt tên hiển thị trong hồ sơ trước khi ứng tuyển, để khách hàng biết ai đang ứng tuyển.'),
+    ).not.toHaveLength(0)
+    expect(screen.getAllByRole('link', { name: 'Mở hồ sơ', hidden: true })[0]).toHaveAttribute('href', '/ho-so')
+  })
+
   it('keeps "Ứng tuyển" disabled while FR-13 refuses and says the reason from the server', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     fakeBackend(signedIn('MENTOR'), {

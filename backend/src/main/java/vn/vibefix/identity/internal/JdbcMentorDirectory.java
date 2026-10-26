@@ -37,9 +37,8 @@ import vn.vibefix.shared.KeywordQuery;
 @Component
 class JdbcMentorDirectory implements MentorDirectory {
 
-	/** Unlocked, not erased, and with GitHub linked: a Mentor who may take new work (AD-19, Q8). */
-	private static final String AVAILABLE = "(a.locked_at IS NULL AND a.erased_at IS NULL"
-			+ " AND a.github_user_id IS NOT NULL)";
+	/** Unlocked, not erased, and with GitHub linked: a Mentor who may take new work, as the gates read it (Q8). */
+	private static final String AVAILABLE = "(" + Accounts.ACTIVE + " AND " + Accounts.GITHUB_LINKED + ")";
 
 	private static final String COLUMNS = " a.id, a.github_login, a.github_user_id, a.created_at, coalesce(" + Profiles.NAME
 			+ ", '') AS display_name, coalesce(p.experience, '') AS experience, p.years_of_experience, p.skill_ids,"
@@ -50,9 +49,14 @@ class JdbcMentorDirectory implements MentorDirectory {
 			WHERE a.role = 'MENTOR' AND a.erased_at IS NULL
 			""";
 
+	/** PUB-5 finds a Mentor with no profile too: their name is their GitHub username, nothing else declared. */
+	private static final String FROM_ANY = """
+			FROM identity.account a LEFT JOIN identity.profile p ON p.account_id = a.id
+			WHERE a.role = 'MENTOR' AND a.erased_at IS NULL
+			""";
+
 	private record Row(UUID id, @Nullable String login, @Nullable Long githubUserId, Instant createdAt, String displayName,
-			String experience,
-			int years, List<UUID> skillIds, boolean available) {
+			String experience, @Nullable Integer years, List<UUID> skillIds, boolean available) {
 	}
 
 	private final JdbcClient jdbc;
@@ -95,7 +99,7 @@ class JdbcMentorDirectory implements MentorDirectory {
 	@Override
 	@Transactional(readOnly = true)
 	public Optional<MentorProfile> byLogin(String githubLogin) {
-		Optional<Row> found = this.jdbc.sql("SELECT " + COLUMNS + FROM + " AND lower(a.github_login) = lower(:login)")
+		Optional<Row> found = this.jdbc.sql("SELECT " + COLUMNS + FROM_ANY + " AND lower(a.github_login) = lower(:login)")
 			.param("login", githubLogin.strip())
 			.query(JdbcMentorDirectory::row)
 			.optional();
@@ -164,6 +168,25 @@ class JdbcMentorDirectory implements MentorDirectory {
 		return skills;
 	}
 
+	@Override
+	@Transactional(readOnly = true)
+	public List<UUID> profileSkillIds(UUID mentorId) {
+		return this.jdbc.sql("SELECT p.skill_ids " + FROM + " AND a.id = :id")
+			.param("id", mentorId)
+			.query((rs, n) -> JdbcStudentDirectory.uuids(rs.getArray("skill_ids")))
+			.optional()
+			.orElse(List.of());
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public boolean hasProfileName(UUID mentorId) {
+		return this.jdbc.sql("SELECT EXISTS (SELECT 1 " + FROM + " AND a.id = :id AND p.display_name IS NOT NULL)")
+			.param("id", mentorId)
+			.query(Boolean.class)
+			.single();
+	}
+
 	private Map<UUID, String> names(List<Row> rows) {
 		Map<UUID, String> names = new HashMap<>();
 		for (Skill skill : this.catalog.byIds(rows.stream().flatMap(row -> row.skillIds().stream()).distinct().toList())) {
@@ -180,7 +203,8 @@ class JdbcMentorDirectory implements MentorDirectory {
 	private static Row row(ResultSet rs, int n) throws SQLException {
 		return new Row(rs.getObject("id", UUID.class), rs.getString("github_login"), rs.getObject("github_user_id", Long.class),
 				rs.getTimestamp("created_at").toInstant(), rs.getString("display_name"), rs.getString("experience"),
-				rs.getInt("years_of_experience"), JdbcStudentDirectory.uuids(rs.getArray("skill_ids")),
+				rs.getObject("years_of_experience", Integer.class),
+				JdbcStudentDirectory.uuids(rs.getArray("skill_ids")),
 				rs.getBoolean("available"));
 	}
 

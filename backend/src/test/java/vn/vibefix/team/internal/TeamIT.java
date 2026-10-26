@@ -95,9 +95,24 @@ class TeamIT extends IntegrationTest {
 			.andExpect(jsonPath("$.sizeLimit").value(10))
 			.andExpect(jsonPath("$.invitesLeft").value(20));
 		assertThat(teams(thao)).as("no approval creates a Team any more (Story 19.7)").isZero();
+		long created = audits("team.team_created");
 
 		invite(thao, this.minh).andExpect(status().isCreated());
 		assertThat(teams(thao)).isOne();
+		assertThat(audits("team.team_created")).as("audited when the Team is created, once").isEqualTo(created + 1);
+		UUID vy = TeamTestSupport.student(this.jdbc, "Lê Thảo Vy", true, List.of(REACT), "React", VERIFIED_UNTIL);
+		invite(thao, vy).andExpect(status().isCreated());
+		assertThat(audits("team.team_created")).isEqualTo(created + 1);
+	}
+
+	/** Story 19.7: a join request needs an unlocked Mentor, as an invitation does; GitHub linked or not. */
+	@Test
+	void aStudentAsksAMentorWithoutGitHubLinkedToJoin() throws Exception {
+		IdentityTestSupport.unlinkGitHub(this.jdbc, this.hung);
+
+		joinRequest(this.minh, this.hung).andExpect(status().isCreated());
+		invite(this.hung, TeamTestSupport.student(this.jdbc, "Lê Thảo Vy", true, List.of(REACT), "React", VERIFIED_UNTIL))
+			.andExpect(status().isCreated());
 	}
 
 	@Test
@@ -381,9 +396,12 @@ class TeamIT extends IntegrationTest {
 			.andExpect(jsonPath("$.viewer.requestsLeft").value(4))
 			.andExpect(jsonPath("$.viewer.pending.kind").value("JOIN_REQUEST"));
 
-		// A Mentor is listed once they have a profile (Story 19.7): one without is not found.
+		// Story 19.7: PUB-5 finds a Mentor with no profile yet, named by their GitHub username, nothing declared.
 		UUID noProfile = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null);
-		this.mvc.perform(get("/api/v1/mentors/" + TeamTestSupport.login(this.jdbc, noProfile))).andExpect(status().isNotFound());
+		String noProfileLogin = TeamTestSupport.login(this.jdbc, noProfile);
+		this.mvc.perform(get("/api/v1/mentors/" + noProfileLogin)).andExpect(status().isOk())
+			.andExpect(jsonPath("$.displayName").value("@" + noProfileLogin))
+			.andExpect(jsonPath("$.yearsOfExperience").doesNotExist());
 	}
 
 	@Test
@@ -440,6 +458,11 @@ class TeamIT extends IntegrationTest {
 		return this.jdbc.sql("SELECT count(*) FROM platform.event_publication WHERE completion_date IS NULL")
 			.query(Long.class)
 			.single() == 0;
+	}
+
+	private long audits(String action) {
+		return this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE action = :action")
+			.param("action", action).query(Long.class).single();
 	}
 
 	private long teams(UUID mentor) {

@@ -56,7 +56,7 @@ class StatisticsIT extends IntegrationTest {
 		TeamTestSupport.student(this.jdbc, "Trần Thảo Vy", true, List.of(TeamTestSupport.REACT), "React",
 				LocalDate.parse("2026-09-30"));
 		IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null);
-		IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-thong-ke", "3.0");
+		IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-thong-ke", "3.1");
 
 		this.mvc.perform(get("/api/v1/admin/statistics").with(admin(ha))).andExpect(status().isOk())
 			.andExpect(jsonPath("$.groups[0].group").value("usersByRole"))

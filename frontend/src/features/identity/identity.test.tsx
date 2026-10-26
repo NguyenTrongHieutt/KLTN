@@ -205,26 +205,26 @@ describe('PUB-3 "Chào mừng" (FR-1, NFR-9, UX-DR89)', () => {
       expect(screen.getByText(line)).toBeInTheDocument()
     }
     expect(screen.queryByRole('radio')).not.toBeInTheDocument()
-    expect(screen.getByText('Phiên bản 3.0 · 25/10/2026')).toBeInTheDocument()
+    expect(screen.getByText('Phiên bản 3.1 · 27/10/2026')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Đọc toàn văn thông báo quyền riêng tư' })).toHaveAttribute('target', '_blank')
     expect(submit).toBeDisabled()
-    await user.click(screen.getByRole('checkbox', { name: /phiên bản 3.0/ }))
+    await user.click(screen.getByRole('checkbox', { name: /phiên bản 3.1/ }))
     await user.click(submit)
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/viec-can-lam'))
     const request = seen.find((entry) => entry.method === 'POST')!
-    expect(await request.clone().json()).toEqual({ privacyNoticeVersion: '3.0' })
+    expect(await request.clone().json()).toEqual({ privacyNoticeVersion: '3.1' })
     expect(request.headers.get('X-XSRF-TOKEN')).toBe('token-1')
     document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT'
   })
 
   it('says so when the notice changed meanwhile, and asks to accept the new version', async () => {
     const user = userEvent.setup()
-    let version = '3.0'
+    let version = '3.1'
     fakeBackend(anonymous, {
       'GET /api/v1/session': () => json({ ...welcome, privacyNoticeVersion: version }),
       'POST /api/v1/session/sign-up': () => {
-        version = '3.1'
+        version = '3.2'
         return json({ status: 409, code: 'STALE' }, 409)
       },
     })
@@ -234,7 +234,7 @@ describe('PUB-3 "Chào mừng" (FR-1, NFR-9, UX-DR89)', () => {
     await user.click(screen.getByRole('button', { name: 'Đồng ý và bắt đầu' }))
 
     expect(await screen.findByRole('alert')).toBeInTheDocument()
-    const checkbox = await screen.findByRole('checkbox', { name: /phiên bản 3.1/ })
+    const checkbox = await screen.findByRole('checkbox', { name: /phiên bản 3.2/ })
     expect(checkbox).not.toBeChecked()
     expect(screen.getByRole('button', { name: 'Đồng ý và bắt đầu' })).toBeDisabled()
   })

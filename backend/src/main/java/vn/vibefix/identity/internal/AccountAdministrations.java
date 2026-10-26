@@ -7,8 +7,8 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
-import java.util.Collection;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -183,13 +183,13 @@ class AccountAdministrations implements AccountAdministration {
 	/**
 	 * Every other account holding a signal of the same kind, key version, and HMAC (AD-19), as
 	 * {@code PersonSignals.sharesPersonSignal} compares them. An erased account's signals are kept 24
-	 * months, so it is listed without a name. Moved here from the retired ADM-13 (Story 19.7).
+	 * months, so it is listed, without a name. Moved here from the retired ADM-13 (Story 19.7).
 	 */
 	@Override
-	@Transactional
-	public List<PersonLink> personLinks(UUID administrator, UUID accountId) {
-		List<PersonLink> links = this.jdbc.sql("SELECT a.id, CASE WHEN a.erased_at IS NULL THEN " + NAME
-				+ " END AS name, l.kinds\n" + """
+	@Transactional(readOnly = true)
+	public List<PersonLink> personLinks(UUID accountId) {
+		return this.jdbc.sql("SELECT a.id, CASE WHEN a.erased_at IS NULL THEN " + NAME + " END AS name, l.kinds,"
+				+ " a.locked_at IS NOT NULL AS locked, a.erased_at IS NOT NULL AS erased, a.created_at\n" + """
 				FROM (SELECT theirs.account_id, array_agg(DISTINCT theirs.kind ORDER BY theirs.kind) AS kinds
 				      FROM identity.person_signal mine
 				      JOIN identity.person_signal theirs ON theirs.kind = mine.kind
@@ -203,13 +203,18 @@ class AccountAdministrations implements AccountAdministration {
 				""")
 			.param("id", accountId)
 			.query((rs, n) -> new PersonLink(rs.getObject("id", UUID.class), rs.getString("name"),
-					Arrays.asList((String[]) rs.getArray("kinds").getArray())))
+					Arrays.stream((String[]) rs.getArray("kinds").getArray()).map(SignalKind::valueOf).toList(),
+					rs.getBoolean("locked"), rs.getBoolean("erased"), rs.getTimestamp("created_at").toInstant()))
 			.list();
-		if (!links.isEmpty()) {
-			// Who may be the same person is itself read under audit (AD-8, AD-19).
-			this.auditLog.record(AuditEntry.of(AuditActor.user(administrator), "identity.person_links_viewed",
-					AuditObject.of("identity.account", accountId)));
-		}
+	}
+
+	@Override
+	@Transactional
+	public List<PersonLink> viewPersonLinks(UUID administrator, UUID accountId) {
+		List<PersonLink> links = personLinks(accountId);
+		// Who may be the same person is itself read under audit, whatever the read finds (AD-8, AD-19).
+		this.auditLog.record(AuditEntry.of(AuditActor.user(administrator), "identity.person_links_viewed",
+				AuditObject.of("identity.account", accountId)));
 		return links;
 	}
 

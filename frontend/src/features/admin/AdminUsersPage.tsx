@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/Skeleton'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
 import { t, type MessageKey } from '@/i18n/t'
-import { formatCalendarDate, formatDayMonthTime } from '@/lib/dates'
+import { formatCalendarDate, formatDate, formatDayMonthTime } from '@/lib/dates'
 import { problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import {
@@ -351,13 +351,21 @@ function PersonLinks({ links }: { links: PersonLink[] }) {
         <ul className="flex flex-col gap-2">
           {links.map((link) => (
             <li key={link.accountId} className="flex flex-wrap items-center gap-2">
-              {link.name ? (
+              {link.erased ? (
+                <span className="text-label text-muted-foreground">{t('screen.admin.users.personLinks.erased')}</span>
+              ) : (
                 <Link to={`/quan-tri/nguoi-dung/${link.accountId}`} className="text-label text-primary underline-offset-4 hover:underline">
                   {link.name}
                 </Link>
-              ) : (
-                <span className="text-label text-muted-foreground">{t('screen.admin.users.personLinks.erased')}</span>
               )}
+              {link.locked && !link.erased && (
+                <span className="rounded-full bg-destructive-soft px-2 py-0.5 text-caption text-destructive">
+                  {t('screen.admin.users.personLinks.locked')}
+                </span>
+              )}
+              <span className="text-caption text-muted-foreground">
+                {t('screen.admin.users.personLinks.createdAt', { date: formatDate(link.createdAt) })}
+              </span>
               {link.kinds.map((kind) => (
                 <span key={kind} className="rounded-full bg-muted px-2 py-0.5 text-caption text-muted-foreground">
                   {t(`screen.admin.users.personLinks.kind.${kind}` as MessageKey)}

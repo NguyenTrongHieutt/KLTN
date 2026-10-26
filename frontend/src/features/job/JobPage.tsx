@@ -228,7 +228,7 @@ function NextSteps({ lapsesAt, jobId, applications }: { lapsesAt: string; jobId:
   )
 }
 
-/** The Job Post as approved Mentors read it (FR-9, FR-12). */
+/** The Job Post as Mentors read it (FR-9, FR-12). */
 function JobPost({ job }: { job: Job }) {
   const answers = [
     ['problem', job.problem],

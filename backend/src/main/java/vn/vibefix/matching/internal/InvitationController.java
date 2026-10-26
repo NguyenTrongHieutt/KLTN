@@ -24,9 +24,9 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import vn.vibefix.catalog.Catalog;
+import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
-import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.job.JobPosts;
 import vn.vibefix.matching.internal.Invitations.Invitation;
 import vn.vibefix.matching.internal.Invitations.MentorInvitation;
@@ -60,10 +60,13 @@ class InvitationController {
 
 	/**
 	 * A search card: no contact details, no Balance.
+	 * @param yearsOfExperience absent while the Mentor has not declared it
 	 * @param relation whether the Customer invited this Mentor or the Mentor applied
+	 * @param available whether the Mentor may be invited: unlocked and with GitHub linked (Story 19.7)
 	 */
-	record MentorResultView(UUID accountId, @Nullable String githubLogin, String displayName, int yearsOfExperience,
-			List<String> skills, int teamSize, Relation relation) {
+	record MentorResultView(UUID accountId, @Nullable String githubLogin, String displayName,
+			@Nullable Integer yearsOfExperience, List<String> skills, int teamSize, Relation relation,
+			boolean available) {
 	}
 
 	record MentorSearchView(List<MentorResultView> items, int page, int size, long total) {
@@ -149,7 +152,7 @@ class InvitationController {
 			.stream()
 			.map(card -> new MentorResultView(card.accountId(), card.githubLogin(), card.displayName(),
 					card.yearsOfExperience(), card.skills(), this.teams.sizeOf(card.accountId()),
-					relations.getOrDefault(card.accountId(), Relation.NONE)))
+					relations.getOrDefault(card.accountId(), Relation.NONE), card.available()))
 			.toList();
 		return new MentorSearchView(items, page, PAGE_SIZE, found.getTotalElements());
 	}

@@ -95,6 +95,21 @@ class StoredFilesIT extends IntegrationTest implements PersonalDataParticipantCo
 		assertThat(this.files.find(stored.id())).isEmpty();
 	}
 
+	/** Story 19.7: a deleted file, such as a retired student card, is no longer the account's to export. */
+	@Test
+	void theExportLeavesADeletedFileOut() {
+		StoredFile kept = store(SUBJECT, "kept.pdf", TestFiles.pdf());
+		StoredFile deleted = store(SUBJECT, "retired-card.pdf", TestFiles.pdf());
+		inTransaction(() -> {
+			this.files.delete(deleted.id());
+			return null;
+		});
+
+		assertThat(this.participant.export(SUBJECT)).hasValueSatisfying(section -> assertThat(section.data().toString())
+			.contains(kept.fileName())
+			.doesNotContain(deleted.fileName()));
+	}
+
 	@Override
 	public PersonalDataParticipant participant() {
 		return this.participant;

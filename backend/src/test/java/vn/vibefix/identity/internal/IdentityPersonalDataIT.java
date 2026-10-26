@@ -132,7 +132,7 @@ class IdentityPersonalDataIT extends IntegrationTest implements PersonalDataPart
 
 	@Test
 	void aGoogleAccountExportsItsGoogleSubjectEmailAndNameAndErasureClearsAllThree() {
-		UUID google = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-sub-7003", "3.0");
+		UUID google = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-sub-7003", "3.1");
 
 		PersonalDataSection section = this.participant.export(google).orElseThrow();
 

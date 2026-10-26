@@ -18,9 +18,9 @@ import vn.vibefix.audit.AuditActor;
 import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
+import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
-import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.identity.StudentDirectory;
 import vn.vibefix.identity.StudentDirectory.StudentCard;
 import vn.vibefix.identity.StudentVerification;
@@ -168,8 +168,9 @@ class TeamRequests {
 		}
 		Instant now = this.clock.instant();
 		Optional<Team> existing = this.store.byMentor(mentorId);
-		if (!mentor.available()) {
-			// An unavailable Mentor (locked, or without GitHub linked) with no Team has none to find; else it is closed.
+		// As invite requires of the Mentor: an unlocked account, GitHub linked or not (AD-19, Story 19.7).
+		if (!activeAccount(mentor.accountId())) {
+			// A locked Mentor with no Team has none to find; one with a Team has it closed.
 			if (existing.isEmpty()) {
 				throw new ApiException(ErrorCode.NOT_FOUND);
 			}
@@ -187,6 +188,17 @@ class TeamRequests {
 				request.id()));
 		audit(studentId, "team.join_request_sent", request);
 		return request;
+	}
+
+	/** Whether the account is unlocked and not erased; the gate runs in no transaction, so its refusal is an answer. */
+	private boolean activeAccount(UUID accountId) {
+		try {
+			this.mentorGate.requireActiveAccount(accountId);
+			return true;
+		}
+		catch (ApiException inactive) {
+			return false;
+		}
 	}
 
 	/**

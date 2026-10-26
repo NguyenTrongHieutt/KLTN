@@ -9400,7 +9400,7 @@
             "format" : "int32"
           }
         },
-        "required" : [ "displayName", "teamSize", "yearsOfExperience" ]
+        "required" : [ "displayName", "teamSize" ]
       },
       "ApplicationView" : {
         "type" : "object",
@@ -12573,12 +12573,9 @@
           "count" : {
             "type" : "integer",
             "format" : "int32"
-          },
-          "enoughToAct" : {
-            "type" : "boolean"
           }
         },
-        "required" : [ "average", "comments", "count", "enoughToAct" ]
+        "required" : [ "average", "comments", "count" ]
       },
       "FinalMergeView" : {
         "type" : "object",
@@ -13779,7 +13776,7 @@
           },
           "limit" : {
             "type" : "string",
-            "enum" : [ "JOB_POST_NOT_OPEN", "JOB_POST_HIDDEN", "ALREADY_APPLIED", "NO_FREE_STUDENT", "MENTOR_JOB_LIMIT", "CONFLICT_OF_INTEREST", "APPLICANT_IS_CONTRIBUTOR", "CONTRIBUTORS_UNKNOWN", "PUBLIC_CODE_NOT_ACKNOWLEDGED", "NOT_WITHDRAWABLE", "NDA_VERSION_OUTDATED", "COMMIT_EMAIL_NOT_ACKNOWLEDGED", "INVITEE_NOT_AVAILABLE", "ALREADY_INVITED", "INVITEE_ALREADY_APPLIED", "INVITE_LIMIT_JOB_POST", "INVITE_LIMIT_DAILY" ]
+            "enum" : [ "JOB_POST_NOT_OPEN", "JOB_POST_HIDDEN", "ALREADY_APPLIED", "NO_FREE_STUDENT", "MENTOR_JOB_LIMIT", "CONFLICT_OF_INTEREST", "APPLICANT_IS_CONTRIBUTOR", "CONTRIBUTORS_UNKNOWN", "PUBLIC_CODE_NOT_ACKNOWLEDGED", "NOT_WITHDRAWABLE", "NDA_VERSION_OUTDATED", "COMMIT_EMAIL_NOT_ACKNOWLEDGED", "INVITEE_NOT_AVAILABLE", "ALREADY_INVITED", "INVITEE_ALREADY_APPLIED", "INVITE_LIMIT_JOB_POST", "INVITE_LIMIT_DAILY", "PROFILE_REQUIRED" ]
           }
         },
         "required" : [ "invitations", "left" ]
@@ -14666,6 +14663,9 @@
             "type" : "string",
             "format" : "uuid"
           },
+          "available" : {
+            "type" : "boolean"
+          },
           "displayName" : {
             "type" : "string"
           },
@@ -14691,7 +14691,7 @@
             "format" : "int32"
           }
         },
-        "required" : [ "accountId", "displayName", "relation", "skills", "teamSize", "yearsOfExperience" ]
+        "required" : [ "accountId", "available", "displayName", "relation", "skills", "teamSize" ]
       },
       "MentorSearchView" : {
         "type" : "object",
@@ -15943,17 +15943,28 @@
             "type" : "string",
             "format" : "uuid"
           },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "erased" : {
+            "type" : "boolean"
+          },
           "kinds" : {
             "type" : "array",
             "items" : {
-              "type" : "string"
+              "type" : "string",
+              "enum" : [ "EMAIL", "LINKEDIN" ]
             }
+          },
+          "locked" : {
+            "type" : "boolean"
           },
           "name" : {
             "type" : "string"
           }
         },
-        "required" : [ "accountId", "kinds" ]
+        "required" : [ "accountId", "createdAt", "erased", "kinds", "locked" ]
       },
       "PersonView" : {
         "type" : "object",
@@ -16427,7 +16438,7 @@
             "format" : "int32"
           }
         },
-        "required" : [ "accountId", "available", "displayName", "experience", "listedMembers", "memberSince", "sizeLimit", "skillGroups", "teamSize", "yearsOfExperience" ]
+        "required" : [ "accountId", "available", "displayName", "experience", "listedMembers", "memberSince", "sizeLimit", "skillGroups", "teamSize" ]
       },
       "PublicMentorViewer" : {
         "type" : "object",
@@ -16555,7 +16566,7 @@
           },
           "limit" : {
             "type" : "string",
-            "enum" : [ "JOB_POST_NOT_OPEN", "JOB_POST_HIDDEN", "ALREADY_APPLIED", "NO_FREE_STUDENT", "MENTOR_JOB_LIMIT", "CONFLICT_OF_INTEREST", "APPLICANT_IS_CONTRIBUTOR", "CONTRIBUTORS_UNKNOWN", "PUBLIC_CODE_NOT_ACKNOWLEDGED", "NOT_WITHDRAWABLE", "NDA_VERSION_OUTDATED", "COMMIT_EMAIL_NOT_ACKNOWLEDGED", "INVITEE_NOT_AVAILABLE", "ALREADY_INVITED", "INVITEE_ALREADY_APPLIED", "INVITE_LIMIT_JOB_POST", "INVITE_LIMIT_DAILY" ]
+            "enum" : [ "JOB_POST_NOT_OPEN", "JOB_POST_HIDDEN", "ALREADY_APPLIED", "NO_FREE_STUDENT", "MENTOR_JOB_LIMIT", "CONFLICT_OF_INTEREST", "APPLICANT_IS_CONTRIBUTOR", "CONTRIBUTORS_UNKNOWN", "PUBLIC_CODE_NOT_ACKNOWLEDGED", "NOT_WITHDRAWABLE", "NDA_VERSION_OUTDATED", "COMMIT_EMAIL_NOT_ACKNOWLEDGED", "INVITEE_NOT_AVAILABLE", "ALREADY_INVITED", "INVITEE_ALREADY_APPLIED", "INVITE_LIMIT_JOB_POST", "INVITE_LIMIT_DAILY", "PROFILE_REQUIRED" ]
           }
         },
         "required" : [ "left" ]
@@ -16792,6 +16803,9 @@
             "type" : "string",
             "format" : "uuid"
           },
+          "available" : {
+            "type" : "boolean"
+          },
           "displayName" : {
             "type" : "string"
           },
@@ -16820,7 +16834,7 @@
             "format" : "int32"
           }
         },
-        "required" : [ "accountId", "displayName", "relation", "signals", "skills", "teamSize", "yearsOfExperience" ]
+        "required" : [ "accountId", "available", "displayName", "relation", "signals", "skills", "teamSize" ]
       },
       "RecommendedPostView" : {
         "type" : "object",
@@ -18462,7 +18476,7 @@
             "format" : "int32"
           }
         },
-        "required" : [ "accountId", "available", "displayName", "skills", "teamSize", "yearsOfExperience" ]
+        "required" : [ "accountId", "available", "displayName", "skills", "teamSize" ]
       },
       "TeamPendingRequest" : {
         "type" : "object",

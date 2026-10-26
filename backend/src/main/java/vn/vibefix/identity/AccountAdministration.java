@@ -71,13 +71,22 @@ public interface AccountAdministration {
 			@Nullable Verification verification, List<Action> history) {
 	}
 
+	/** The kind of a person-link signal (AD-19): a verified email address, or a LinkedIn identity. */
+	enum SignalKind {
+
+		EMAIL, LINKEDIN
+
+	}
+
 	/**
 	 * Another account that shares a person-link signal with the one ADM-2 shows (AD-19): "Tài khoản có thể
 	 * cùng một người". Never the signal itself.
-	 * @param name absent for an erased account, whose signals outlive it for 24 months
-	 * @param kinds the kinds of the signals they share, {@code EMAIL} or {@code LINKEDIN}, each once
+	 * @param name absent for an erased account
+	 * @param kinds the kinds of the signals they share, each once, in their order
+	 * @param erased an erased account's signals outlive it for 24 months
 	 */
-	record PersonLink(UUID accountId, @Nullable String name, List<String> kinds) {
+	record PersonLink(UUID accountId, @Nullable String name, List<SignalKind> kinds, boolean locked, boolean erased,
+			Instant createdAt) {
 
 		public PersonLink {
 			kinds = List.copyOf(kinds);
@@ -101,11 +110,14 @@ public interface AccountAdministration {
 
 	Optional<Account> account(UUID accountId);
 
+	/** The accounts that share a person-link signal with {@code accountId}, the oldest first; not audited. */
+	List<PersonLink> personLinks(UUID accountId);
+
 	/**
-	 * The accounts that share a person-link signal with {@code accountId}, the oldest first. A read that
-	 * finds any is audited as {@code identity.person_links_viewed} (AD-8).
+	 * {@link #personLinks} as ADM-2 opens the account: every such read, an empty one included, is audited as
+	 * {@code identity.person_links_viewed} (AD-8).
 	 */
-	List<PersonLink> personLinks(UUID administrator, UUID accountId);
+	List<PersonLink> viewPersonLinks(UUID administrator, UUID accountId);
 
 	/**
 	 * Locks the account: its sessions end, {@link AccountLocked} is published, and the person is emailed

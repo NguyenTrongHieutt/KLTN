@@ -32,6 +32,7 @@ import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
 import vn.vibefix.identity.AccountAdministration;
 import vn.vibefix.identity.AccountAdministration.Query;
+import vn.vibefix.identity.AccountAdministration.SignalKind;
 import vn.vibefix.identity.AccountAdministration.Status;
 import vn.vibefix.reputation.PrivateFeedback;
 import vn.vibefix.shared.Access;
@@ -78,16 +79,18 @@ class AdminUsersController {
 	/**
 	 * Another account that shares a person-link signal with this one (AD-19), never the signal.
 	 * @param name absent for an erased account
-	 * @param kinds {@code EMAIL} or {@code LINKEDIN}, each once
+	 * @param kinds the kinds they share, each once
+	 * @param createdAt when that account was created
 	 */
-	record PersonLinkView(UUID accountId, @Nullable String name, List<String> kinds) {
+	record PersonLinkView(UUID accountId, @Nullable String name, List<SignalKind> kinds, boolean locked, boolean erased,
+			Instant createdAt) {
 	}
 
 	record UserVerificationView(String method, Instant verifiedAt, LocalDate validUntil, boolean current) {
 	}
 
 	/** @param comments the comments as written, for Administrators only */
-	record FeedbackView(BigDecimal average, int count, List<String> comments, boolean enoughToAct) {
+	record FeedbackView(BigDecimal average, int count, List<String> comments) {
 	}
 
 	/** @param jobId the Job a blocker concerns, when there is one */
@@ -199,17 +202,19 @@ class AdminUsersController {
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		FeedbackView feedback = account.role() != Role.MENTOR ? null
 				: this.feedback.summary(accountId)
-					.map(summary -> new FeedbackView(summary.average(), summary.count(), summary.comments(),
-							this.feedback.enoughToAct(accountId)))
+					.map(summary -> new FeedbackView(summary.average(), summary.count(), summary.comments()))
 					.orElse(null);
 		if (viewed && feedback != null) {
 			// Reading a Mentor's private feedback is itself audited (FR-78, AD-8).
 			this.auditLog.record(AuditEntry.of(AuditActor.user(administrator()), "admin.private_feedback_viewed",
 					AuditObject.of("identity.account", accountId)));
 		}
-		List<PersonLinkView> personLinks = this.accounts.personLinks(administrator(), accountId)
+		// Opening ADM-2 reads the person links under audit; a lock's or an unlock's answer does not (AD-8).
+		List<PersonLinkView> personLinks = (viewed ? this.accounts.viewPersonLinks(administrator(), accountId)
+				: this.accounts.personLinks(accountId))
 			.stream()
-			.map(link -> new PersonLinkView(link.accountId(), link.name(), link.kinds()))
+			.map(link -> new PersonLinkView(link.accountId(), link.name(), link.kinds(), link.locked(), link.erased(),
+					link.createdAt()))
 			.toList();
 		return new UserDetailView(account.id(), account.role(), account.name(), account.githubLogin(), account.email(),
 				account.createdAt(), account.signedInAt(), account.lockedAt(), account.lockReason(),

@@ -52,6 +52,12 @@ enum MatchingReason {
 	INVITE_LIMIT_JOB_POST,
 
 	/** 30 invitations by this Customer today (FR-14, AD-34). */
-	INVITE_LIMIT_DAILY
+	INVITE_LIMIT_DAILY,
+
+	/**
+	 * A bid from a Mentor whose profile has no display name yet (Story 19.7): the Customer could neither
+	 * tell who applied nor select them. The SPA links to ACC-1.
+	 */
+	PROFILE_REQUIRED
 
 }

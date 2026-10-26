@@ -497,7 +497,7 @@ class ProfileIT extends IntegrationTest {
 	}
 
 	private UUID google(String sub) {
-		return IdentityTestSupport.insertGoogleAccount(this.jdbc, sub, "3.0");
+		return IdentityTestSupport.insertGoogleAccount(this.jdbc, sub, "3.1");
 	}
 
 	private static RequestPostProcessor as(UUID account) {

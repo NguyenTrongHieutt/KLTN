@@ -9,9 +9,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
+import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.identity.CustomerNames;
 import vn.vibefix.identity.CustomerNames.CustomerSince;
-import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.job.JobPosts;
 import vn.vibefix.reputation.RatingSummary;
 import vn.vibefix.reputation.Reputation;

@@ -14,9 +14,14 @@ ALTER TABLE identity.account
     DROP CONSTRAINT IF EXISTS account_mentor_status_check,
     DROP COLUMN mentor_approval_status;
 
--- A live verification by a student card ends with the card path (dev data only): its facts and the
--- profile's projection of them go, as an ended row's do.
+-- A live verification by a student card ends with the card path (dev data only): its facts, the
+-- profile's projection of them, and the account's pending school email codes (a renewal's holds a copy
+-- of the locked name and major) go, as an ended row's do. The verify to-do is not reopened.
 UPDATE identity.profile SET student_name = NULL, student_school = NULL, student_major = NULL
+WHERE account_id IN (SELECT account_id FROM identity.verification
+                     WHERE provider = 'STUDENT_CARD' AND ended_at IS NULL);
+
+DELETE FROM identity.school_email_code
 WHERE account_id IN (SELECT account_id FROM identity.verification
                      WHERE provider = 'STUDENT_CARD' AND ended_at IS NULL);
 

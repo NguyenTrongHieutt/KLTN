@@ -152,6 +152,13 @@ class ApplicationsIT extends IntegrationTest {
 		apply(hung, this.job, true).andExpect(status().isCreated());
 		apply(hung, this.job, true).andExpect(status().isConflict()).andExpect(jsonPath("$.reason").value("ALREADY_APPLIED"));
 
+		// Story 19.7: a bid needs a profile with a display name, or the Customer could not tell who applied.
+		UUID nameless = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null);
+		apply(nameless, this.job, true).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("PROFILE_REQUIRED"));
+		UUID unnamed = mentorWithFreeStudent("Chưa đặt tên");
+		this.jdbc.sql("UPDATE identity.profile SET display_name = NULL WHERE account_id = :id").param("id", unnamed).update();
+		apply(unnamed, this.job, true).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("PROFILE_REQUIRED"));
+
 		UUID lonely = TeamTestSupport.mentor(this.jdbc, "Chưa có nhóm",
 				List.of(TeamTestSupport.REACT), "React");
 		apply(lonely, this.job, true).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("NO_FREE_STUDENT"));

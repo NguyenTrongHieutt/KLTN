@@ -17,9 +17,10 @@ import vn.vibefix.support.PostgresTestDatabase;
 
 /**
  * Story 19.7's forward migrations on a database that still holds Mentor applications, decisions, student
- * cards, and their Deadlines, notifications, to-dos, and files: the tables and the approval column are gone,
- * a live card verification ends with its projection, every row of the removed kinds and types is gone, the
- * stored files are marked deleted, and everything else, the audit trail included, is untouched.
+ * cards, and their Deadlines, notifications, to-dos, files, queued emails, and event publications: the tables
+ * and the approval column are gone, a live card verification ends with its projection and its pending codes,
+ * every row of the removed kinds, types, templates, and events is gone, the stored files are marked deleted,
+ * and everything else, the audit trail included, is untouched.
  */
 class RetireApprovalMigrationIT {
 
@@ -95,8 +96,12 @@ class RetireApprovalMigrationIT {
 				       (gen_random_uuid(), '%1$s', 'identity.mentor_approval_revoked', gen_random_uuid(), '{}', '/', now()),
 				       (gen_random_uuid(), '%2$s', 'identity.student_card_rejected', gen_random_uuid(), '{}', '/', now()),
 				       (gen_random_uuid(), '%2$s', 'identity.verification_revoked', gen_random_uuid(), '{}', '/', now()),
+				       (gen_random_uuid(), '%2$s', 'identity.student_card_approved', gen_random_uuid(), '{}', '/', now()),
+				       (gen_random_uuid(), '%3$s', 'identity.mentor_application_received', gen_random_uuid(), '{}', '/',
+				        now()),
+				       (gen_random_uuid(), '%1$s', 'identity.mentor_rejected', gen_random_uuid(), '{}', '/', now()),
 				       (gen_random_uuid(), '%1$s', 'identity.account_locked', gen_random_uuid(), '{}', '/', now())
-				""".formatted(MENTOR, CARDED), """
+				""".formatted(MENTOR, CARDED, ADMIN), """
 				INSERT INTO notification.todo (id, todo_key, account_id, subject_id, tier, params, link, opened_at)
 				VALUES (gen_random_uuid(), 'identity.complete_mentor_application', '%1$s', '%1$s', 1, '{}', '/', now()),
 				       (gen_random_uuid(), 'identity.link_github', '%1$s', '%1$s', 1, '{}', '/', now())
@@ -109,7 +114,43 @@ class RetireApprovalMigrationIT {
 				""".formatted(CARD_FILE, CARDED, DOCUMENT_FILE, MENTOR, SCREENSHOT_FILE, EMAILED), """
 				INSERT INTO audit.audit_entry (id, occurred_at, actor_type, actor_account_id, action)
 				VALUES (gen_random_uuid(), now(), 'USER', '%s', 'identity.mentor_approved')
-				""".formatted(ADMIN));
+				""".formatted(ADMIN), """
+				INSERT INTO identity.school_email_code (id, account_id, code_hash, sent_at, expires_at, address_hmac,
+				    key_version, school, declared_name, declared_major, renewal, address_hmacs, consent_version)
+				VALUES (gen_random_uuid(), '%1$s', repeat('1', 64), now(), now() + INTERVAL '10 minutes', repeat('2', 64), 1,
+				        'truong.test', 'Vy', 'CNTT', TRUE, '{"1":"x"}', '1.0'),
+				       (gen_random_uuid(), '%2$s', repeat('3', 64), now(), now() + INTERVAL '10 minutes', repeat('4', 64), 1,
+				        'hust.edu.vn', 'Minh', 'CNTT', TRUE, '{"1":"y"}', '1.0')
+				""".formatted(CARDED, EMAILED), """
+				INSERT INTO operations.external_operation (id, operation_key, type, lane, priority, status, payload,
+				    next_attempt_at, created_at, completed_at)
+				VALUES (gen_random_uuid(), 'k1', 'notification.email', 'EMAIL', 0, 'PENDING',
+				        '{"template":"identity.mentor_approved"}', now(), now(), NULL),
+				       (gen_random_uuid(), 'k2', 'notification.email', 'EMAIL', 0, 'PENDING',
+				        '{"template":"identity.student_card_rejected"}', now(), now(), NULL),
+				       (gen_random_uuid(), 'k3', 'notification.email', 'EMAIL', 0, 'SUCCEEDED',
+				        '{"template":"identity.verification_revoked"}', now(), now(), now()),
+				       (gen_random_uuid(), 'k4', 'notification.email', 'EMAIL', 0, 'PENDING',
+				        '{"template":"identity.account_locked"}', now(), now(), NULL)
+				""", """
+				INSERT INTO platform.event_publication (id, listener_id, event_type, serialized_event, publication_date,
+				    completion_date)
+				VALUES ('00000000-0000-7000-8000-00000000b301',
+				        'vn.vibefix.team.internal.TeamLifecycle.onMentorApproved(vn.vibefix.identity.MentorApproved)',
+				        'vn.vibefix.identity.MentorApproved', '{}', now(), NULL),
+				       ('00000000-0000-7000-8000-00000000b302',
+				        'vn.vibefix.matching.internal.MatchingListeners.onMentorApprovalRevoked(vn.vibefix.identity.MentorApprovalRevoked)',
+				        'vn.vibefix.identity.MentorApprovalRevoked', '{}', now(), NULL),
+				       ('00000000-0000-7000-8000-00000000b303',
+				        'vn.vibefix.team.internal.TeamLifecycle.onMentorApproved(vn.vibefix.identity.MentorApproved)',
+				        'vn.vibefix.identity.MentorApproved', '{}', now(), now()),
+				       ('00000000-0000-7000-8000-00000000b304',
+				        'vn.vibefix.team.internal.TeamLifecycle.onAccountLocked(vn.vibefix.identity.AccountLocked)',
+				        'vn.vibefix.identity.AccountLocked', '{}', now(), NULL)
+				""", """
+				INSERT INTO platform.event_publication_stalled (publication_id, stalled_at)
+				VALUES ('00000000-0000-7000-8000-00000000b302', now()), ('00000000-0000-7000-8000-00000000b304', now())
+				""");
 
 		flyway(db, "latest").migrate();
 
@@ -130,6 +171,8 @@ class RetireApprovalMigrationIT {
 		assertThat(rows(db, """
 				SELECT account_id || ' ' || coalesce(student_school, '-') FROM identity.profile ORDER BY account_id
 				""")).containsExactly(CARDED + " -", EMAILED + " hust.edu.vn");
+		// The card account's pending codes go with its verification; the verify to-do is not reopened.
+		assertThat(rows(db, "SELECT account_id FROM identity.school_email_code")).containsExactly(EMAILED);
 		assertThat(rows(db, "SELECT kind FROM timers.deadline ORDER BY kind"))
 			.containsExactly("identity.verification_expiry");
 		assertThat(rows(db, "SELECT type FROM notification.notification ORDER BY type"))
@@ -138,6 +181,12 @@ class RetireApprovalMigrationIT {
 			.containsExactly("identity.link_github");
 		assertThat(rows(db, "SELECT purpose || ' ' || (deleted_at IS NOT NULL) FROM files.stored_file ORDER BY purpose"))
 			.containsExactly("identity.mentor_document true", "identity.student_card true", "job.screenshot false");
+		assertThat(rows(db, "SELECT operation_key FROM operations.external_operation ORDER BY operation_key"))
+			.containsExactly("k3", "k4");
+		assertThat(rows(db, "SELECT id FROM platform.event_publication ORDER BY id")).containsExactly(
+				"00000000-0000-7000-8000-00000000b303", "00000000-0000-7000-8000-00000000b304");
+		assertThat(rows(db, "SELECT publication_id FROM platform.event_publication_stalled"))
+			.containsExactly("00000000-0000-7000-8000-00000000b304");
 		assertThat(rows(db, "SELECT action FROM audit.audit_entry WHERE action = 'identity.mentor_approved'"))
 			.containsExactly("identity.mentor_approved");
 		assertThat(rows(db, "SELECT role FROM identity.account WHERE id = '" + MENTOR + "'")).containsExactly("MENTOR");

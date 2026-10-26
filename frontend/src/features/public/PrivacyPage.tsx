@@ -5,7 +5,7 @@ import { TermHint, TermScope } from '@/components/TermHint'
 import { rich } from '@/i18n/rich'
 import { t } from '@/i18n/t'
 
-const COLLECTED = ['identity', 'profile', 'student', 'mentor', 'jobs'] as const
+const COLLECTED = ['identity', 'profile', 'student', 'jobs'] as const
 
 /**
  * PUB-7: the current personal-data notice with its version number (NFR-9, N-10). The text is the

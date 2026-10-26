@@ -272,13 +272,13 @@
         "lineCrew": "Xin vào nhóm thực hiện của một người hướng dẫn.",
         "rolePerJob": "Mỗi công việc bạn giữ một vai. Ở các công việc khác nhau, bạn có thể giữ các vai khác nhau.",
         "noticeHeading": "Thông báo về dữ liệu cá nhân",
-        "noticeVersion": "Phiên bản {version} · 25/10/2026",
+        "noticeVersion": "Phiên bản {version} · 27/10/2026",
         "noticeCollectedTitle": "vibefix thu thập gì",
-        "noticeCollected": "Từ tài khoản Google: tên, địa chỉ email Google và mã định danh của tài khoản, dùng làm khóa của tài khoản vibefix. Khi bạn liên kết GitHub: tên tài khoản, mã số tài khoản GitHub, liên kết ảnh đại diện và các email đã xác minh. Thông tin hồ sơ bạn tự nhập, và thông tin xác minh chỉ khi bạn xác minh: email trường hoặc ảnh thẻ sinh viên, hồ sơ và tài liệu nếu bạn ứng tuyển làm người hướng dẫn.",
+        "noticeCollected": "Từ tài khoản Google: tên, địa chỉ email Google và mã định danh của tài khoản, dùng làm khóa của tài khoản vibefix. Khi bạn liên kết GitHub: tên tài khoản, mã số tài khoản GitHub, liên kết ảnh đại diện và các email đã xác minh. Thông tin hồ sơ bạn tự nhập, và email trường chỉ khi bạn xác minh là sinh viên.",
         "noticePurposeTitle": "Để làm gì",
-        "noticePurpose": "Đăng nhập, liên lạc về công việc, xác minh khi bạn yêu cầu, duyệt người hướng dẫn và giải quyết tranh chấp. Vai trò thuộc về từng công việc: người cùng công việc chỉ thấy những gì vai đó cần.",
+        "noticePurpose": "Đăng nhập, liên lạc về công việc, xác minh khi bạn yêu cầu và giải quyết tranh chấp. Vai trò thuộc về từng công việc: người cùng công việc chỉ thấy những gì vai đó cần.",
         "noticeRetentionTitle": "Giữ trong bao lâu",
-        "noticeRetention": "Đến khi bạn xóa tài khoản, trừ dữ liệu giao dịch phải giữ theo quy định. Ảnh thẻ sinh viên và tài liệu của người hướng dẫn tự xóa 30 ngày sau khi có quyết định.",
+        "noticeRetention": "Đến khi bạn xóa tài khoản, trừ dữ liệu giao dịch phải giữ theo quy định.",
         "noticeRightsTitle": "Quyền của bạn",
         "noticeRights": "Xem, tải về và yêu cầu xóa dữ liệu tại \"Dữ liệu của tôi\".",
         "noticeFull": "Đọc toàn văn thông báo quyền riêng tư",
@@ -439,19 +439,19 @@
         "verifyLink": "Xác minh ở Hồ sơ và xác minh",
         "invitations": "Lời mời vào nhóm · {n}",
         "invitationTitle": "{mentor} mời bạn vào nhóm",
-        "invitationMeta": "Người hướng dẫn · {years} năm kinh nghiệm · mời {date} · hết hạn {lapse}",
+        "invitationMeta": "Người hướng dẫn · {experience} · mời {date} · hết hạn {lapse}",
         "agree": "Đồng ý",
         "decline": "Từ chối",
         "findMentor": "Tìm người hướng dẫn",
         "keyword": "Từ khóa",
         "searchHelper": "Tìm người hướng dẫn theo kỹ năng hoặc tên. Gõ có dấu hoặc không dấu đều được.",
-        "mentorMeta": "{years} năm kinh nghiệm · {n} sinh viên",
+        "mentorMeta": "{experience} · {n} sinh viên",
         "noMentors": "Không tìm thấy người hướng dẫn nào khớp với “{q}”. Hãy thử một kỹ năng khác.",
         "noMentorsFiltered": "Không tìm thấy người hướng dẫn nào có kỹ năng này.",
         "sentRequests": "Yêu cầu đã gửi",
         "sentMeta": "Gửi {date} · hết hạn {lapse} nếu chưa được trả lời",
         "yourMentor": "Người hướng dẫn của bạn",
-        "mentorSince": "{years} năm kinh nghiệm · bạn ở trong nhóm từ {date}",
+        "mentorSince": "{experience} · bạn ở trong nhóm từ {date}",
         "members": "Thành viên",
         "membersLine": "{n} sinh viên · {hidden} người chọn không hiện tên công khai",
         "you": "{name} (bạn)",
@@ -485,7 +485,7 @@
         "privacy": "Hồ sơ công khai không hiển thị email, số điện thoại hay số dư của sinh viên."
       },
       "profile": {
-        "meta": "{years} năm kinh nghiệm làm phần mềm · tham gia vibefix từ {month}",
+        "meta": "{experience} · tham gia vibefix từ {month}",
         "teamSize": "Nhóm {n} sinh viên",
         "skills": "Kỹ năng",
         "otherSkills": "Kỹ năng khác",
@@ -526,6 +526,10 @@
           "rating": "{n} sao",
           "untitled": "Công việc đã hoàn thành"
         }
+      },
+      "experience": {
+        "years": "{years} năm kinh nghiệm",
+        "notDeclared": "Kinh nghiệm: Chưa khai"
       }
     },
     "student": {
@@ -901,7 +905,9 @@
           "kind": {
             "EMAIL": "Email",
             "LINKEDIN": "LinkedIn"
-          }
+          },
+          "locked": "Đã khóa",
+          "createdAt": "Tạo ngày {date}"
         }
       },
       "moderation": {
@@ -1955,7 +1961,8 @@
         "submit": "Ứng tuyển",
         "sending": "Đang gửi…",
         "sent": "Đã gửi đơn ứng tuyển.",
-        "tooMany": "Hôm nay bạn đã gửi đủ 20 đơn ứng tuyển. Bạn có thể ứng tuyển tiếp sau {time}."
+        "tooMany": "Hôm nay bạn đã gửi đủ 20 đơn ứng tuyển. Bạn có thể ứng tuyển tiếp sau {time}.",
+        "profileLink": "Mở hồ sơ"
       },
       "applied": {
         "title": "Bạn đã ứng tuyển công việc này",
@@ -1970,7 +1977,7 @@
       "list": {
         "title": "Đơn ứng tuyển · {job}",
         "sent": "gửi {date}",
-        "mentor": "{years} năm kinh nghiệm · nhóm {n} sinh viên",
+        "mentor": "{experience} · nhóm {n} sinh viên",
         "note": "Bạn có thể chờ thêm đơn rồi so sánh trước khi chọn. Người hướng dẫn chỉ thấy đơn của chính họ."
       },
       "mentor": {
@@ -2048,7 +2055,6 @@
         "empty": "Không tìm thấy người hướng dẫn nào cho “{q}”.",
         "emptyHint": "Hãy thử từ khóa khác hoặc bỏ bớt kỹ năng.",
         "noRecommendation": "Chưa có đề xuất cho công việc này. Hãy tìm theo kỹ năng, ví dụ: React hoặc Supabase.",
-        "years": "{years} năm kinh nghiệm",
         "students": "{n} sinh viên",
         "rating": "{average} sao ({count} lượt)",
         "newcomer": "Mới",
@@ -2058,9 +2064,10 @@
         "applied": "Đã ứng tuyển",
         "sent": "Đã gửi lời mời đến {name}. Họ tự quyết định có ứng tuyển hay không.",
         "inviteAction": "mời ứng tuyển",
-        "sheetRole": "Người hướng dẫn · {years} năm kinh nghiệm",
+        "sheetRole": "Người hướng dẫn · {experience}",
         "noContact": "vibefix không hiện cách liên lạc. Bạn trao đổi với người hướng dẫn sau khi chọn và họ ký cam kết bảo mật.",
-        "recommendations": "Đề xuất cho công việc này"
+        "recommendations": "Đề xuất cho công việc này",
+        "notLinked": "Người hướng dẫn chưa liên kết GitHub"
       },
       "signals": {
         "skills": "Hợp với {skills}",
@@ -3526,21 +3533,20 @@
   },
   "notice": {
     "privacy": {
-      "version": "3.0",
+      "version": "3.1",
       "versionLine": "Thông báo quyền riêng tư · phiên bản {version}",
-      "effective": "Áp dụng từ 25/10/2026. Từ phiên bản 3.0, bạn đăng nhập bằng Google và giữ vai trò theo từng công việc.",
+      "effective": "Áp dụng từ 27/10/2026. Từ phiên bản 3.0, bạn đăng nhập bằng Google và giữ vai trò theo từng công việc. Từ phiên bản 3.1, vibefix không còn nhận ảnh thẻ sinh viên hay hồ sơ ứng tuyển người hướng dẫn.",
       "collectedHeading": "vibefix thu thập gì",
       "collected": {
         "identity": "Danh tính Google: tên, địa chỉ email Google và mã định danh của tài khoản Google, dùng làm khóa của tài khoản vibefix; vibefix không giữ ảnh đại diện Google. Khi bạn liên kết {github}: tên tài khoản, mã số tài khoản, liên kết ảnh đại diện và các email đã xác minh.",
         "profile": "Thông tin hồ sơ bạn nhập: tên hiển thị, email liên hệ, số điện thoại (không bắt buộc).",
-        "student": "Với sinh viên: email trường hoặc ảnh thẻ sinh viên để xác minh.",
-        "mentor": "Với người hướng dẫn: hồ sơ ứng tuyển, liên kết LinkedIn và tài liệu kèm theo để quản trị viên duyệt.",
+        "student": "Khi bạn xác minh là sinh viên: email trường, chỉ để gửi mã xác minh.",
         "jobs": "Nội dung công việc: tin công việc, trò chuyện, tài liệu, tệp đính kèm."
       },
       "purposeHeading": "Để làm gì",
-      "purpose": "Đăng nhập, liên lạc về công việc, xác minh sinh viên, duyệt người hướng dẫn, giữ và chuyển tiền thử nghiệm, phân xử tranh chấp.",
+      "purpose": "Đăng nhập, liên lạc về công việc, xác minh sinh viên khi bạn yêu cầu, giữ và chuyển tiền thử nghiệm, phân xử tranh chấp.",
       "retentionHeading": "Giữ trong bao lâu",
-      "retention": "Đến khi bạn yêu cầu xóa tài khoản. Ảnh thẻ sinh viên và tài liệu của người hướng dẫn tự xóa 30 ngày sau khi có quyết định. Một số bản ghi giao dịch và nhật ký hệ thống được giữ lại theo quy định.",
+      "retention": "Đến khi bạn yêu cầu xóa tài khoản. Một số bản ghi giao dịch và nhật ký hệ thống được giữ lại theo quy định.",
       "rightsHeading": "Quyền của bạn",
       "rights": "Xem, tải về và yêu cầu xóa dữ liệu của bạn trong mục \"Dữ liệu của tôi\".",
       "changes": "Khi thông báo thay đổi, phiên bản mới có số mới và bạn được hỏi lại trước khi tiếp tục."
@@ -4640,7 +4646,8 @@
       "ALREADY_INVITED": "Bạn đã mời người hướng dẫn này cho công việc này.",
       "INVITEE_ALREADY_APPLIED": "Người hướng dẫn này đã ứng tuyển công việc này.",
       "INVITE_LIMIT_JOB_POST": "Hôm nay bạn đã gửi đủ 10 lời mời cho công việc này. Bạn có thể mời tiếp sau 00:00.",
-      "INVITE_LIMIT_DAILY": "Hôm nay bạn đã gửi đủ 30 lời mời. Bạn có thể mời tiếp sau 00:00."
+      "INVITE_LIMIT_DAILY": "Hôm nay bạn đã gửi đủ 30 lời mời. Bạn có thể mời tiếp sau 00:00.",
+      "PROFILE_REQUIRED": "Hãy đặt tên hiển thị trong hồ sơ trước khi ứng tuyển, để khách hàng biết ai đang ứng tuyển."
     },
     "chat": {
       "SENSITIVE_CONTENT": "Tin nhắn có thể chứa khóa bí mật hoặc dữ liệu khách hàng.",

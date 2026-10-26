@@ -122,7 +122,7 @@ class AccountAdministrationIT extends IntegrationTest {
 	@Test
 	void aGoogleAccountWithNoRoleIsListedFoundByItsGoogleEmailOpenedAndLocked() throws Exception {
 		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
-		UUID lan = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-lan", "3.0");
+		UUID lan = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-lan", "3.1");
 
 		this.mvc.perform(get("/api/v1/admin/users").with(admin(ha))).andExpect(status().isOk())
 			.andExpect(jsonPath("$.items[?(@.id == '" + lan + "')].name").value("Người dùng google-lan"));
@@ -179,7 +179,7 @@ class AccountAdministrationIT extends IntegrationTest {
 	@Test
 	void theVerifiedFilterAndTheStatusReadEveryPersonsLiveValidRow() throws Exception {
 		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
-		UUID lan = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-lan", "3.0");
+		UUID lan = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-lan", "3.1");
 		IdentityTestSupport.verifyStudent(this.jdbc, lan, LocalDate.parse("2026-09-30"));
 		UUID unlinked = TeamTestSupport.student(this.jdbc, "Đã bỏ", true, List.of(), "", LocalDate.parse("2026-09-30"));
 		this.jdbc.sql("""
@@ -212,7 +212,7 @@ class AccountAdministrationIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/admin/users/" + hung).with(admin(ha))).andExpect(status().isOk())
 			.andExpect(jsonPath("$.feedback.count").value(2))
 			.andExpect(jsonPath("$.feedback.comments[0]").value("Hay quát nạt"))
-			.andExpect(jsonPath("$.feedback.enoughToAct").value(false));
+			.andExpect(jsonPath("$.feedback.enoughToAct").doesNotExist());
 		assertThat(audits("admin.private_feedback_viewed")).isEqualTo(1);
 
 		feedback(second, hung, minh, 2, "Không trả lời nhóm");
@@ -220,8 +220,7 @@ class AccountAdministrationIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/admin/users").param("status", "LOW_FEEDBACK").with(admin(ha)))
 			.andExpect(jsonPath("$.items[0].id").value(hung.toString()));
 		this.mvc.perform(get("/api/v1/admin/users/" + hung).with(admin(ha))).andExpect(status().isOk())
-			.andExpect(jsonPath("$.feedback.count").value(3))
-			.andExpect(jsonPath("$.feedback.enoughToAct").value(true));
+			.andExpect(jsonPath("$.feedback.count").value(3));
 		assertThat(audits("admin.private_feedback_viewed")).isEqualTo(2);
 	}
 

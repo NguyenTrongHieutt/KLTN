@@ -22,13 +22,13 @@ public interface MentorDirectory {
 	 * A Mentor's public card.
 	 * @param githubUserId the linked GitHub account's permanent numeric ID, by which {@code repo} grants
 	 * and recognizes the Mentor (AD-10 "Logins by ID"); {@code null} while GitHub is not linked
+	 * @param yearsOfExperience absent while the Mentor has not declared it ("Chưa khai")
 	 * @param skills the Skills' current names, in the Mentor's order
 	 * @param available unlocked, not erased, and with GitHub linked: any other Mentor takes no new work and
 	 * cannot be invited to bid (AD-19)
 	 */
 	record MentorCard(UUID accountId, @Nullable String githubLogin, @Nullable Long githubUserId, String displayName,
-			int yearsOfExperience,
-			List<String> skills, boolean available) {
+			@Nullable Integer yearsOfExperience, List<String> skills, boolean available) {
 
 		public MentorCard {
 			skills = List.copyOf(skills);
@@ -60,7 +60,8 @@ public interface MentorDirectory {
 
 	/**
 	 * The profile of the Mentor with this GitHub username, ignoring letter case, unless the account is
-	 * erased; a locked one is not {@code available}.
+	 * erased; a locked one is not {@code available}. A Mentor with no profile yet is found too, with nothing
+	 * declared.
 	 */
 	Optional<MentorProfile> byLogin(String githubLogin);
 
@@ -84,5 +85,11 @@ public interface MentorDirectory {
 
 	/** The Skills of these Mentors while available; any other ID is left out. */
 	Map<UUID, List<UUID>> skillIdsOf(Collection<UUID> mentorIds);
+
+	/** The Mentor's own Skills on their profile, available or not, as they see them; empty without a profile. */
+	List<UUID> profileSkillIds(UUID mentorId);
+
+	/** Whether the Mentor's profile has a display name (ACC-1), which a bid needs (Story 19.7). */
+	boolean hasProfileName(UUID mentorId);
 
 }

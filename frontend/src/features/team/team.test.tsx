@@ -337,7 +337,7 @@ describe('PUB-5, the Mentor\'s public profile (FR-51)', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Đỗ Mạnh Hùng' })).toBeInTheDocument()
     expect(screen.getByText('Sinh viên đã xác minh có thể xin vào nhóm sau khi đăng nhập.')).toBeInTheDocument()
-    expect(screen.getByText('8 năm kinh nghiệm làm phần mềm · tham gia vibefix từ 06/2026 · @hungdm')).toBeInTheDocument()
+    expect(screen.getByText('8 năm kinh nghiệm · tham gia vibefix từ 06/2026 · @hungdm')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Xin vào nhóm' })).not.toBeInTheDocument()
   })
 
@@ -351,15 +351,15 @@ describe('PUB-5, the Mentor\'s public profile (FR-51)', () => {
     expect(screen.getByRole('button', { name: 'Xin vào nhóm' })).toBeDisabled()
   })
 
-  it('shows the not-found screen for a Mentor who is not approved', async () => {
+  it('shows the not-found screen for a username that is no Mentor', async () => {
     fakeBackend(anonymous, {
-      'GET /api/v1/mentors/cho-duyet': () =>
+      'GET /api/v1/mentors/khong-phai': () =>
         new Response(JSON.stringify({ status: 404, code: 'NOT_FOUND' }), {
           status: 404,
           headers: { 'Content-Type': 'application/problem+json' },
         }),
     })
-    renderAt('/mentor/cho-duyet')
+    renderAt('/mentor/khong-phai')
 
     expect(await screen.findByText('Không tìm thấy nội dung này.')).toBeInTheDocument()
   })

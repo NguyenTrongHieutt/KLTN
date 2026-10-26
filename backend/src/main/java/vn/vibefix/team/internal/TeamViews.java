@@ -55,8 +55,8 @@ class TeamViews {
 	}
 
 	/** A Mentor as Students and visitors see them, with the size of their Team. */
-	record TeamMentorView(UUID accountId, @Nullable String githubLogin, String displayName, int yearsOfExperience,
-			List<String> skills, boolean available, int teamSize) {
+	record TeamMentorView(UUID accountId, @Nullable String githubLogin, String displayName,
+			@Nullable Integer yearsOfExperience, List<String> skills, boolean available, int teamSize) {
 	}
 
 	/** @param onCrew on a running Crew: they can neither leave nor be removed (AD-37) */
@@ -139,9 +139,9 @@ class TeamViews {
 	record TeamPendingRequest(UUID id, Kind kind, Instant createdAt, Instant lapsesAt) {
 	}
 
-	/** PUB-5. */
+	/** PUB-5; {@code yearsOfExperience} is absent while the Mentor has not declared it. */
 	record PublicMentorView(UUID accountId, @Nullable String githubLogin, String displayName, String experience,
-			int yearsOfExperience, Instant memberSince, List<PublicSkillGroup> skillGroups, boolean available,
+			@Nullable Integer yearsOfExperience, Instant memberSince, List<PublicSkillGroup> skillGroups, boolean available,
 			int teamSize, int sizeLimit, List<PublicTeamMember> listedMembers, @Nullable PublicMentorViewer viewer) {
 	}
 
@@ -183,8 +183,8 @@ class TeamViews {
 	MentorTeamView mentorTeam(UUID mentorId) {
 		Optional<Team> team = this.store.byMentor(mentorId);
 		if (team.isEmpty()) {
-			return new MentorTeamView(Status.OPEN, 0, Teams.SIZE_LIMIT, TeamRequests.INVITES_PER_DAY, List.of(), List.of(),
-					List.of());
+			return new MentorTeamView(Status.OPEN, 0, Teams.SIZE_LIMIT, TeamRequests.INVITES_PER_DAY, List.of(),
+					List.of(), List.of());
 		}
 		UUID teamId = team.get().id();
 		List<Member> members = this.store.members(teamId);

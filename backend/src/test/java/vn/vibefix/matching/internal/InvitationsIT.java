@@ -102,6 +102,11 @@ class InvitationsIT extends IntegrationTest {
 			.containsExactlyInAnyOrder(this.long_.toString(), this.ha.toString(), this.unlinked.toString());
 		List<String> relations = JsonPath.read(body, "$.items[*].relation");
 		assertThat(relations).containsOnly("NONE");
+		// Story 19.7: the card says who may be invited, so CUS-8 disables "Mời ứng tuyển" for the others.
+		assertThat(JsonPath.<List<Boolean>>read(body, "$.items[?(@.accountId == '" + this.long_ + "')].available"))
+			.containsExactly(true);
+		assertThat(JsonPath.<List<Boolean>>read(body, "$.items[?(@.accountId == '" + this.unlinked + "')].available"))
+			.containsExactly(false);
 		String login = this.jdbc.sql("SELECT github_login FROM identity.account WHERE id = :id").param("id", this.long_)
 			.query(String.class)
 			.single();

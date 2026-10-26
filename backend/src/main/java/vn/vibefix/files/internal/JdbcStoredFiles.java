@@ -201,6 +201,14 @@ class JdbcStoredFiles implements StoredFiles {
 	}
 
 	/** Every file {@code accountId} uploaded, deleted ones included, newest first. */
+	/** The account's files that are not deleted, newest first: what it still has on the platform. */
+	List<StoredFile> keptBy(UUID accountId) {
+		return this.jdbc.sql("""
+				SELECT id, purpose, account_id, file_name, media_type, kind, size_bytes, stored_at FROM files.stored_file
+				WHERE account_id = :account AND deleted_at IS NULL ORDER BY stored_at DESC
+				""").param("account", accountId).query((rs, n) -> storedFile(rs)).list();
+	}
+
 	List<StoredFile> uploadedBy(UUID accountId) {
 		return this.jdbc.sql("""
 				SELECT id, purpose, account_id, file_name, media_type, kind, size_bytes, stored_at FROM files.stored_file

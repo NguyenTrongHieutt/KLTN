@@ -23,10 +23,10 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.identity.GitHubGate;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
-import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.job.JobPosts;
 import vn.vibefix.job.JobPosts.JobPostState;
 import vn.vibefix.job.JobSelection;
@@ -64,8 +64,12 @@ class ApplicationController {
 			String approach, Instant submittedAt, @Nullable Instant endedAt, @Nullable EndReason endReason) {
 	}
 
-	/** Who applied, as CUS-8 shows them; never contact details. */
-	record ApplicantView(String displayName, @Nullable String githubLogin, int yearsOfExperience, int teamSize) {
+	/**
+	 * Who applied, as CUS-8 shows them; never contact details.
+	 * @param yearsOfExperience absent while the Mentor has not declared it
+	 */
+	record ApplicantView(String displayName, @Nullable String githubLogin, @Nullable Integer yearsOfExperience,
+			int teamSize) {
 	}
 
 	/** CUS-8 "Chọn": the Job version the screen loaded (AD-23). */
@@ -127,6 +131,9 @@ class ApplicationController {
 	ApplicationView apply(@PathVariable UUID postId, @Valid @RequestBody ApplyRequest body) {
 		UUID mentor = mentor();
 		this.gitHub.requireGitHubLinked(mentor);
+		if (!this.mentors.hasProfileName(mentor)) {
+			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.PROFILE_REQUIRED);
+		}
 		if (!body.publicCodeAcknowledged()) {
 			throw new ApiException(ErrorCode.VALIDATION, MatchingReason.PUBLIC_CODE_NOT_ACKNOWLEDGED);
 		}
@@ -163,7 +170,7 @@ class ApplicationController {
 		return open.stream().map(application -> {
 			MentorCard card = cards.get(application.mentorId());
 			ApplicantView mentor = new ApplicantView(card == null ? "" : card.displayName(),
-					card == null ? null : card.githubLogin(), card == null ? 0 : card.yearsOfExperience(),
+					card == null ? null : card.githubLogin(), card == null ? null : card.yearsOfExperience(),
 					this.teams.sizeOf(application.mentorId()));
 			return new JobApplicationView(application.id(), application.status(), application.priceVnd(),
 					application.timelineDays(), application.approach(), application.submittedAt(), mentor,

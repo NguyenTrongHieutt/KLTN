@@ -8,7 +8,7 @@ import { formatDayMonth } from '@/lib/dates'
 import { problemMessage } from '@/lib/problemMessage'
 import { PortfolioSection, RatingLine } from './ReputationParts'
 import { useMentorReputation, useRequestToJoin, type PublicMentor } from './teamApi'
-import { formatMonth, initials } from './teamText'
+import { experienceText, formatMonth, initials } from './teamText'
 
 /**
  * PUB-5's content (FR-51, UX-DR65), on its page and in STU-6's Sheet: the display name, the
@@ -45,7 +45,10 @@ export function MentorProfileContent({
             <p className="text-h3 break-words">{mentor.displayName}</p>
           )}
           <p className="text-caption text-muted-foreground">
-            {t('screen.team.profile.meta', { years: mentor.yearsOfExperience, month: formatMonth(mentor.memberSince) })}
+            {t('screen.team.profile.meta', {
+              experience: experienceText(mentor.yearsOfExperience),
+              month: formatMonth(mentor.memberSince),
+            })}
             {mentor.githubLogin && <> · @{mentor.githubLogin}</>}
           </p>
           <p className="text-label">{t('screen.team.profile.teamSize', { n: mentor.teamSize })}</p>

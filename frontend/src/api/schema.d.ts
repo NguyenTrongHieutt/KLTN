@@ -4232,7 +4232,7 @@ export interface components {
             /** Format: int32 */
             teamSize: number;
             /** Format: int32 */
-            yearsOfExperience: number;
+            yearsOfExperience?: number;
         };
         ApplicationView: {
             approach: string;
@@ -5359,7 +5359,6 @@ export interface components {
             comments: string[];
             /** Format: int32 */
             count: number;
-            enoughToAct: boolean;
         };
         FinalMergeView: {
             /** Format: date-time */
@@ -5773,7 +5772,7 @@ export interface components {
             /** Format: int32 */
             left: number;
             /** @enum {string} */
-            limit?: "JOB_POST_NOT_OPEN" | "JOB_POST_HIDDEN" | "ALREADY_APPLIED" | "NO_FREE_STUDENT" | "MENTOR_JOB_LIMIT" | "CONFLICT_OF_INTEREST" | "APPLICANT_IS_CONTRIBUTOR" | "CONTRIBUTORS_UNKNOWN" | "PUBLIC_CODE_NOT_ACKNOWLEDGED" | "NOT_WITHDRAWABLE" | "NDA_VERSION_OUTDATED" | "COMMIT_EMAIL_NOT_ACKNOWLEDGED" | "INVITEE_NOT_AVAILABLE" | "ALREADY_INVITED" | "INVITEE_ALREADY_APPLIED" | "INVITE_LIMIT_JOB_POST" | "INVITE_LIMIT_DAILY";
+            limit?: "JOB_POST_NOT_OPEN" | "JOB_POST_HIDDEN" | "ALREADY_APPLIED" | "NO_FREE_STUDENT" | "MENTOR_JOB_LIMIT" | "CONFLICT_OF_INTEREST" | "APPLICANT_IS_CONTRIBUTOR" | "CONTRIBUTORS_UNKNOWN" | "PUBLIC_CODE_NOT_ACKNOWLEDGED" | "NOT_WITHDRAWABLE" | "NDA_VERSION_OUTDATED" | "COMMIT_EMAIL_NOT_ACKNOWLEDGED" | "INVITEE_NOT_AVAILABLE" | "ALREADY_INVITED" | "INVITEE_ALREADY_APPLIED" | "INVITE_LIMIT_JOB_POST" | "INVITE_LIMIT_DAILY" | "PROFILE_REQUIRED";
         };
         InviteRequest: {
             /** Format: uuid */
@@ -6089,6 +6088,7 @@ export interface components {
         MentorResultView: {
             /** Format: uuid */
             accountId: string;
+            available: boolean;
             displayName: string;
             githubLogin?: string;
             /** @enum {string} */
@@ -6097,7 +6097,7 @@ export interface components {
             /** Format: int32 */
             teamSize: number;
             /** Format: int32 */
-            yearsOfExperience: number;
+            yearsOfExperience?: number;
         };
         MentorSearchView: {
             items: components["schemas"]["MentorResultView"][];
@@ -6569,7 +6569,11 @@ export interface components {
         PersonLinkView: {
             /** Format: uuid */
             accountId: string;
-            kinds: string[];
+            /** Format: date-time */
+            createdAt: string;
+            erased: boolean;
+            kinds: ("EMAIL" | "LINKEDIN")[];
+            locked: boolean;
             name?: string;
         };
         PersonView: {
@@ -6723,7 +6727,7 @@ export interface components {
             teamSize: number;
             viewer?: components["schemas"]["PublicMentorViewer"];
             /** Format: int32 */
-            yearsOfExperience: number;
+            yearsOfExperience?: number;
         };
         PublicMentorViewer: {
             inTeam: boolean;
@@ -6770,7 +6774,7 @@ export interface components {
             /** Format: int32 */
             left: number;
             /** @enum {string} */
-            limit?: "JOB_POST_NOT_OPEN" | "JOB_POST_HIDDEN" | "ALREADY_APPLIED" | "NO_FREE_STUDENT" | "MENTOR_JOB_LIMIT" | "CONFLICT_OF_INTEREST" | "APPLICANT_IS_CONTRIBUTOR" | "CONTRIBUTORS_UNKNOWN" | "PUBLIC_CODE_NOT_ACKNOWLEDGED" | "NOT_WITHDRAWABLE" | "NDA_VERSION_OUTDATED" | "COMMIT_EMAIL_NOT_ACKNOWLEDGED" | "INVITEE_NOT_AVAILABLE" | "ALREADY_INVITED" | "INVITEE_ALREADY_APPLIED" | "INVITE_LIMIT_JOB_POST" | "INVITE_LIMIT_DAILY";
+            limit?: "JOB_POST_NOT_OPEN" | "JOB_POST_HIDDEN" | "ALREADY_APPLIED" | "NO_FREE_STUDENT" | "MENTOR_JOB_LIMIT" | "CONFLICT_OF_INTEREST" | "APPLICANT_IS_CONTRIBUTOR" | "CONTRIBUTORS_UNKNOWN" | "PUBLIC_CODE_NOT_ACKNOWLEDGED" | "NOT_WITHDRAWABLE" | "NDA_VERSION_OUTDATED" | "COMMIT_EMAIL_NOT_ACKNOWLEDGED" | "INVITEE_NOT_AVAILABLE" | "ALREADY_INVITED" | "INVITEE_ALREADY_APPLIED" | "INVITE_LIMIT_JOB_POST" | "INVITE_LIMIT_DAILY" | "PROFILE_REQUIRED";
         };
         QuoteView: {
             /** Format: int64 */
@@ -6860,6 +6864,7 @@ export interface components {
         RecommendedMentorView: {
             /** Format: uuid */
             accountId: string;
+            available: boolean;
             displayName: string;
             githubLogin?: string;
             /** @enum {string} */
@@ -6869,7 +6874,7 @@ export interface components {
             /** Format: int32 */
             teamSize: number;
             /** Format: int32 */
-            yearsOfExperience: number;
+            yearsOfExperience?: number;
         };
         RecommendedPostView: {
             budget?: string;
@@ -7462,7 +7467,7 @@ export interface components {
             /** Format: int32 */
             teamSize: number;
             /** Format: int32 */
-            yearsOfExperience: number;
+            yearsOfExperience?: number;
         };
         TeamPendingRequest: {
             /** Format: date-time */

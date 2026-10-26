@@ -122,6 +122,21 @@ class RecommendationsIT extends IntegrationTest {
 			.andExpect(jsonPath("$[1].signals.newcomer").value(false));
 	}
 
+	/** Story 19.7: the caller's own Skills come from their profile, whether or not they may be invited. */
+	@Test
+	void aMentorWithoutGitHubLinkedGetsJobPostsByTheirOwnSkills() throws Exception {
+		UUID mentor = mentor("Chưa Liên Kết", List.of(WEB_SECURITY), true);
+		IdentityTestSupport.unlinkGitHub(this.jdbc, mentor);
+		UUID shared = job("OPEN", List.of("BUG_FIX"), List.of(WEB_SECURITY), null);
+		job("OPEN", List.of("BUG_FIX"), List.of(REACT), null);
+
+		this.mvc.perform(get("/api/v1/mentor/recommendations").with(as(mentor, Role.MENTOR)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.length()").value(1))
+			.andExpect(jsonPath("$[0].id").value(shared.toString()))
+			.andExpect(jsonPath("$[0].signals.sharedSkills.length()").value(1));
+	}
+
 	@Test
 	void jobPostsForAMentorBySharedSkillsThenNewestLeavingOutAppliedOnes() throws Exception {
 		UUID mentor = mentor("Đỗ Mạnh Hùng", List.of(REACT, SUPABASE), true);

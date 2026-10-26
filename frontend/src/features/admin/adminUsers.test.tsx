@@ -73,10 +73,18 @@ const hung = {
     },
   ],
   personLinks: [
-    { accountId: 's1', name: 'Trần Thảo Vy', kinds: ['EMAIL', 'LINKEDIN'] },
-    { accountId: 'x9', kinds: ['EMAIL'] },
+    {
+      accountId: 's1',
+      name: 'Trần Thảo Vy',
+      kinds: ['EMAIL', 'LINKEDIN'],
+      locked: false,
+      erased: false,
+      createdAt: '2026-09-02T03:00:00Z',
+    },
+    { accountId: 'l2', name: 'Lê Bị Khóa', kinds: ['EMAIL'], locked: true, erased: false, createdAt: '2026-09-03T03:00:00Z' },
+    { accountId: 'x9', kinds: ['EMAIL'], locked: false, erased: true, createdAt: '2026-09-04T03:00:00Z' },
   ],
-  feedback: { average: 1.7, count: 3, comments: ['Hay quát nạt'], enoughToAct: true },
+  feedback: { average: 1.7, count: 3, comments: ['Hay quát nạt'] },
 }
 
 const rows = [
@@ -171,11 +179,15 @@ describe('ADM-2 users (FR-59, FR-78, AD-19)', () => {
     expect(screen.getByText(/Chỉ quản trị viên xem được/)).toBeInTheDocument()
     const links = screen.getByRole('region', { name: 'Tài khoản có thể cùng một người' })
     expect(within(links).getByRole('link', { name: 'Trần Thảo Vy' })).toHaveAttribute('href', '/quan-tri/nguoi-dung/s1')
-    expect(within(links).getAllByText('Email')).toHaveLength(2)
+    expect(within(links).getAllByText('Email')).toHaveLength(3)
     expect(within(links).getByText('LinkedIn')).toBeInTheDocument()
+    expect(within(links).getByText('Tạo ngày 02/09/2026')).toBeInTheDocument()
+    // A locked account still has its page, marked "Đã khóa".
+    expect(within(links).getByRole('link', { name: 'Lê Bị Khóa' })).toHaveAttribute('href', '/quan-tri/nguoi-dung/l2')
+    expect(within(links).getByText('Đã khóa')).toBeInTheDocument()
     // An erased account's signals outlive it; it has no name and no page.
     expect(within(links).getByText('Tài khoản đã xóa')).toBeInTheDocument()
-    expect(within(links).getAllByRole('link')).toHaveLength(1)
+    expect(within(links).getAllByRole('link')).toHaveLength(2)
     const account = screen.getByRole('region', { name: 'Đỗ Mạnh Hùng' })
     expect(within(account).queryByRole('button', { name: /Thu hồi/ })).toBeNull()
     expect(screen.queryByText('Phê duyệt người hướng dẫn')).not.toBeInTheDocument()
