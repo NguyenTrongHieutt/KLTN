@@ -12,9 +12,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 /**
- * Students' public profile fields (FR-51, AD-36): never contact details, and the name and school
- * only while the Student chooses to show them. Search serves approved Mentors' screens; the public
- * profile (PUB-4) is for anyone, and no Customer screen links to it.
+ * Students' public profile fields (FR-51, AD-36): never contact details, and the name, school, and
+ * major declared at verification only while the verification is current and the Student chooses to
+ * show them. Search serves approved Mentors' screens; the public profile (PUB-4) is for anyone, and no
+ * Customer screen links to it.
  */
 public interface StudentDirectory {
 
@@ -22,16 +23,17 @@ public interface StudentDirectory {
 	 * A Student's public card.
 	 * @param githubUserId the linked GitHub account's permanent numeric ID, by which {@code repo} grants
 	 * and recognizes the Student (AD-10 "Logins by ID"); {@code null} while GitHub is not linked
-	 * @param name the Student's name, only while they show it
-	 * @param school the Student's school, only while they show it
-	 * @param yearOfStudy the year of study, only while they show their name and school
+	 * @param name the full name declared at verification, only while it is current and they show it
+	 * @param school the school of the verification (its email's domain), only while it is current and they
+	 * show it
+	 * @param major the major declared at verification, only while it is current and they show it
 	 * @param skills the Skills' current names, in the Student's order
 	 * @param verifiedUntil the last day of the verification, if they ever verified
 	 * @param available an unlocked, unerased account
 	 */
 	record StudentCard(UUID accountId, @Nullable String githubLogin, @Nullable Long githubUserId, @Nullable String name,
 			@Nullable String school,
-			@Nullable Integer yearOfStudy, List<String> skills, boolean verified, @Nullable LocalDate verifiedUntil,
+			@Nullable String major, List<String> skills, boolean verified, @Nullable LocalDate verifiedUntil,
 			boolean available) {
 
 		public StudentCard {

@@ -69,9 +69,9 @@ class Profiles implements ContactVisibility {
 	static final int MAX_LINKS = 5;
 
 	/**
-	 * The student details a Student typed before Story 19.4, which declares them at verification; they
-	 * are not edited on the profile.
-	 * @param year the year of study, 1 to 8
+	 * The projection of the live student verification's facts (Story 19.4): the full name and major
+	 * declared at verification and the school (the email's domain). Only the verification writes and
+	 * clears them; the profile never edits them.
 	 */
 	record StudentDetails(@Nullable String name, @Nullable String school, @Nullable String major) {
 	}

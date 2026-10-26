@@ -577,8 +577,13 @@ function StudentSheet({ studentId, onClose }: { studentId?: string; onClose: () 
                 )}
                 <p className="text-caption text-muted-foreground">
                   {student.githubLogin && t('screen.team.mentor.studentGithub', { login: student.githubLogin })}
-                  {student.school && student.yearOfStudy && (
-                    <> · {t('screen.team.mentor.studentSchool', { school: student.school, year: student.yearOfStudy })}</>
+                  {student.school && (
+                    <>
+                      {' · '}
+                      {student.major
+                        ? t('screen.team.mentor.studentSchool', { school: student.school, major: student.major })
+                        : student.school}
+                    </>
                   )}
                 </p>
               </div>

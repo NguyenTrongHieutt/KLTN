@@ -329,6 +329,48 @@ class StudentCardIT extends IntegrationTest {
 		refused(upload(this.student, "b.png", TestFiles.png(4, 4)), 409, null);
 	}
 
+	/** Story 19.4: a card never ends a current email verification, which would free its address. */
+	@Test
+	void aCardIsNotApprovedForAStudentVerifiedSinceTheUploadUntilRenewalOpens() throws Exception {
+		upload(this.student, "a.png", TestFiles.png(4, 4)).andExpect(status().isCreated());
+		IdentityTestSupport.verifyStudent(this.jdbc, this.student, java.time.LocalDate.parse("2026-09-30"));
+
+		refused(approve(cardOf(this.student), "20201234", SCHOOL), 409, null);
+
+		assertThat(this.jdbc.sql("SELECT status FROM identity.student_card WHERE account_id = :id")
+			.param("id", this.student).query(String.class).single()).isEqualTo("PENDING");
+		assertThat(this.jdbc.sql("SELECT provider FROM identity.verification WHERE account_id = :id AND ended_at IS NULL")
+			.param("id", this.student).query(String.class).single()).isEqualTo("EMAIL_CODE");
+	}
+
+	/** A card declares no name or major, so a renewal by email after a card asks for both (Story 19.4). */
+	@Test
+	void aCardVerifiedStudentRenewingByEmailDeclaresTheNameAndTheMajor() throws Exception {
+		upload(this.student, "a.png", TestFiles.png(4, 4)).andExpect(status().isCreated());
+		approve(cardOf(this.student), "20201234", SCHOOL).andExpect(status().isOk());
+		this.clock.setInstant(java.time.Instant.parse("2026-09-20T03:00:00Z"));
+
+		sendCode("{\"noticeVersion\":\"1.0\",\"email\":\"minh@hust.edu.vn\"}").andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("VALIDATION"))
+			.andExpect(jsonPath("$.errors[0].field").value("name"))
+			.andExpect(jsonPath("$.errors[1].field").value("major"));
+		sendCode("""
+				{"noticeVersion":"1.0","email":"minh@hust.edu.vn","name":"Trần Quang Minh","major":"Khoa học máy tính"}
+				""").andExpect(status().isAccepted());
+
+		assertThat(this.jdbc.sql("""
+				SELECT declared_name || ' ' || declared_major || ' ' || renewal FROM identity.school_email_code WHERE account_id = :id
+				""").param("id", this.student).query(String.class).single())
+			.isEqualTo("Trần Quang Minh Khoa học máy tính true");
+	}
+
+	private ResultActions sendCode(String body) throws Exception {
+		return this.mvc.perform(post("/api/v1/verification/school-email").with(as(this.student, Role.STUDENT))
+			.with(csrf())
+			.contentType(MediaType.APPLICATION_JSON)
+			.content(body));
+	}
+
 	private ResultActions upload(UUID account, String name, byte[] content) throws Exception {
 		return this.mvc.perform(multipart("/api/v1/verification/student-card")
 			.file(new MockMultipartFile("file", name, "application/octet-stream", content))

@@ -197,8 +197,8 @@ class VerificationRows {
 
 	/**
 	 * Ends the row {@code reason}, deleting its facts. Unless a new row replaces it, the profile's
-	 * projection is cleared and a renewal's pending code goes too, since it holds the locked name and
-	 * major.
+	 * projection is cleared. "Bỏ xác minh" and a revocation delete every pending code of the account; an
+	 * expiry deletes a renewal's, since it holds a copy of the locked name and major.
 	 */
 	@Transactional(propagation = Propagation.MANDATORY)
 	void end(Row row, Ending reason, Instant now) {
@@ -206,15 +206,51 @@ class VerificationRows {
 				UPDATE identity.verification SET ended_at = :now, ended_reason = :reason, facts = NULL
 				WHERE id = :id AND ended_at IS NULL
 				""").param("id", row.id()).param("now", Timestamp.from(now)).param("reason", reason.name()).update();
-		if (reason != Ending.REPLACED) {
-			this.jdbc.sql("""
-					UPDATE identity.profile SET student_name = NULL, student_school = NULL, student_major = NULL
-					WHERE account_id = :account
-					""").param("account", row.accountId()).update();
+		if (reason == Ending.REPLACED) {
+			return;
+		}
+		this.jdbc.sql("""
+				UPDATE identity.profile SET student_name = NULL, student_school = NULL, student_major = NULL
+				WHERE account_id = :account
+				""").param("account", row.accountId()).update();
+		if (reason == Ending.EXPIRED) {
 			this.jdbc.sql("DELETE FROM identity.school_email_code WHERE account_id = :account AND renewal")
 				.param("account", row.accountId())
 				.update();
 		}
+		else {
+			deleteCodes(row.accountId());
+		}
+	}
+
+	/** Deletes every pending school email code of the account. */
+	void deleteCodes(UUID accountId) {
+		this.jdbc.sql("DELETE FROM identity.school_email_code WHERE account_id = :account")
+			.param("account", accountId)
+			.update();
+	}
+
+	/**
+	 * Whether the account holds the Student role, the only one that has the {@code identity.verify_student}
+	 * to-do (until Story 19.7).
+	 */
+	boolean isStudent(UUID accountId) {
+		return this.jdbc.sql("SELECT coalesce(role = 'STUDENT', FALSE) FROM identity.account WHERE id = :id")
+			.param("id", accountId)
+			.query(Boolean.class)
+			.optional()
+			.orElse(false);
+	}
+
+	/**
+	 * Deletes the rows that ended at or before {@code cutoff}: their subject HMACs are kept 24 months
+	 * after the row ends (AD-24), as the person-link signals of an erased account are.
+	 * @return how many rows were deleted
+	 */
+	int purgeEnded(Instant cutoff) {
+		return this.jdbc.sql("DELETE FROM identity.verification WHERE ended_at IS NOT NULL AND ended_at <= :cutoff")
+			.param("cutoff", Timestamp.from(cutoff))
+			.update();
 	}
 
 	private static String json(Facts facts) {

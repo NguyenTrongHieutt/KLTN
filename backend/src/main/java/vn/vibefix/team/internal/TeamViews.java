@@ -44,12 +44,12 @@ class TeamViews {
 
 	/** A Student as Mentors see them: never contact details, the name and school only while shown. */
 	record TeamStudentView(UUID accountId, @Nullable String githubLogin, @Nullable String name,
-			@Nullable String school, @Nullable Integer yearOfStudy, List<String> skills, boolean verified,
+			@Nullable String school, @Nullable String major, List<String> skills, boolean verified,
 			@Nullable LocalDate verifiedUntil) {
 
 		static TeamStudentView of(StudentCard card) {
 			return new TeamStudentView(card.accountId(), card.githubLogin(), card.name(), card.school(),
-					card.yearOfStudy(), card.skills(), card.verified(), card.verifiedUntil());
+					card.major(), card.skills(), card.verified(), card.verifiedUntil());
 		}
 
 	}
@@ -150,11 +150,12 @@ class TeamViews {
 	}
 
 	/**
-	 * PUB-4: the name, school, and year only while the Student shows them; never contact details.
+	 * PUB-4: the name, school, and major declared at verification only while it is current and the Student
+	 * shows them; never contact details.
 	 * @param team the Team they are in now, if any
 	 */
 	record PublicStudentView(@Nullable String githubLogin, @Nullable String name, @Nullable String school,
-			@Nullable Integer yearOfStudy, boolean verified, Instant memberSince, List<PublicSkillGroup> skillGroups,
+			@Nullable String major, boolean verified, Instant memberSince, List<PublicSkillGroup> skillGroups,
 			@Nullable PublicStudentTeam team) {
 	}
 
@@ -333,7 +334,7 @@ class TeamViews {
 				.map(mentor -> new PublicStudentTeam(mentor.displayName(), mentor.githubLogin(),
 						this.store.sizeOf(member.mentorId()))))
 			.orElse(null);
-		return new PublicStudentView(card.githubLogin(), card.name(), card.school(), card.yearOfStudy(), card.verified(),
+		return new PublicStudentView(card.githubLogin(), card.name(), card.school(), card.major(), card.verified(),
 				profile.memberSince(),
 				profile.skillGroups().stream().map(group -> new PublicSkillGroup(group.category(), group.skills())).toList(),
 				team);

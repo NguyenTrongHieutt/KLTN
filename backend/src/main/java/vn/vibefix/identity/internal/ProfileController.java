@@ -78,7 +78,8 @@ class ProfileController {
 
 	/**
 	 * The live student verification's facts as the profile holds them (Story 19.4): what the public profile
-	 * shows unless {@code hideStudentDetails}, and what search reads.
+	 * shows unless {@code hideStudentDetails}, and what search reads. Absent while the verification is not
+	 * current, as its facts are.
 	 */
 	record StudentDetailsView(@Nullable String name, @Nullable String school, @Nullable String major) {
 	}
@@ -169,7 +170,9 @@ class ProfileController {
 		return new ProfileView(profile.displayName(), profile.kind(), profile.contactEmail(), profile.phone(),
 				profile.experience(), profile.yearsOfExperience(), skills, profile.links(), profile.repositories(),
 				profile.hideStudentDetails(),
-				details == null ? null : new StudentDetailsView(details.name(), details.school(), details.major()),
+				// The projection is shown only while the verification it copies is current.
+				details == null || student == null ? null
+						: new StudentDetailsView(details.name(), details.school(), details.major()),
 				new VerifiedView(github, student, null));
 	}
 

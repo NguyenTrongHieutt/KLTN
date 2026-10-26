@@ -166,6 +166,28 @@ describe('STU-5 student card (FR-5, UX-DR45, UX-DR27)', () => {
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
   })
 
+  it('asks a card-verified Student renewing by email for the name and major, which the card did not give', async () => {
+    const user = userEvent.setup()
+    fakeBackend(signedIn('STUDENT'), {
+      'GET /api/v1/verification': () =>
+        json({
+          status: 'VERIFIED',
+          method: 'STUDENT_CARD',
+          school: 'Trường Đại học Thử nghiệm',
+          verifiedUntil: '2026-09-30',
+          verifiedAt: '2025-10-01T02:00:00Z',
+          renewalOpen: true,
+        }),
+    })
+    renderAt('/ho-so/xac-minh')
+
+    await user.click(await screen.findByRole('button', { name: 'Gia hạn' }))
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Đồng ý và tiếp tục' }))
+
+    expect(await screen.findByRole('textbox', { name: 'Họ và tên' })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Ngành học' })).toBeInTheDocument()
+  })
+
   it('renews from the school email even while the card tab is open', async () => {
     const user = userEvent.setup()
     fakeBackend(signedIn('STUDENT'), {

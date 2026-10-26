@@ -1,5 +1,6 @@
 package vn.vibefix.notification.internal;
 
+import java.time.Clock;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import vn.vibefix.notification.EmailClass;
 import vn.vibefix.notification.EmailRequest;
 import vn.vibefix.notification.Emails;
 import vn.vibefix.operations.ExternalOperations;
@@ -27,9 +29,12 @@ class OperationEmails implements Emails {
 
 	private final EmailTemplates templates;
 
-	OperationEmails(ExternalOperations operations, EmailTemplates templates) {
+	private final Clock clock;
+
+	OperationEmails(ExternalOperations operations, EmailTemplates templates, Clock clock) {
 		this.operations = operations;
 		this.templates = templates;
+		this.clock = clock;
 	}
 
 	@Override
@@ -40,6 +45,10 @@ class OperationEmails implements Emails {
 		Map<String, Object> payload = new HashMap<>();
 		payload.put(EmailOperationHandler.TEMPLATE, request.type());
 		payload.put("class", request.emailClass().name());
+		if (request.emailClass() == EmailClass.ONE_TIME_CODE) {
+			// A code's email is useless once the code expired: the lane aborts it then (EmailOperationHandler).
+			payload.put(EmailOperationHandler.REQUESTED_AT, this.clock.instant().toString());
+		}
 		Map<String, Object> personal = new HashMap<>();
 		personal.put(EmailOperationHandler.TO, to);
 		personal.put(EmailOperationHandler.PARAMETERS, request.parameters());

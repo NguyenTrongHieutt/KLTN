@@ -125,7 +125,7 @@ class VerificationDeadlines {
 	/**
 	 * The expiry: {@code isVerified} has been false since the start of the day, so the row ends
 	 * {@code EXPIRED}, its facts and the profile's projection of them are deleted, only the account is
-	 * told, the {@code identity.verify_student} to-do opens again, and the change is audited.
+	 * told, a Student's {@code identity.verify_student} to-do opens again, and the change is audited.
 	 */
 	@Component
 	static class Expiry implements DeadlineHandler {
@@ -168,8 +168,11 @@ class VerificationDeadlines {
 			this.rows.end(row.get(), VerificationRows.Ending.EXPIRED, deadline.dueAt());
 			this.notifications.send(new NotificationRequest(VERIFICATION_EXPIRED, deadline.id(),
 					List.of(new Recipient(account, Audience.SUBJECT)), Map.of(), SignIns.VERIFICATION_PATH, null, account));
-			this.todos.open(new TodoRequest(SignIns.VERIFY_STUDENT, account, Audience.SUBJECT, account, Map.of(),
-					SignIns.VERIFICATION_PATH, null, null));
+			// The to-do is a Student's only, until Story 19.7.
+			if (this.rows.isStudent(account)) {
+				this.todos.open(new TodoRequest(SignIns.VERIFY_STUDENT, account, Audience.SUBJECT, account, Map.of(),
+						SignIns.VERIFICATION_PATH, null, null));
+			}
 			this.auditLog.record(AuditEntry.of(AuditActor.system(), "identity.verification_expired",
 					AuditObject.of("identity.account", account)));
 			return DeadlineOutcome.FIRED;

@@ -165,6 +165,46 @@ public final class IdentityTestSupport {
 		return inserted == 1 ? id : null;
 	}
 
+	/**
+	 * Verifies the account until {@code validUntil} with these public facts, and projects them into its profile
+	 * as {@code VerificationRows.insert} does (the profile row is created when there is none); the subject is
+	 * a fake HMAC of the account. Returns the row's ID.
+	 */
+	public static UUID verifyStudent(JdbcClient jdbc, UUID accountId, LocalDate validUntil, String school,
+			@Nullable String name, @Nullable String major) {
+		UUID id = UUID.randomUUID();
+		Timestamp now = Timestamp.from(MutableClock.DEFAULT_INSTANT);
+		jdbc.sql("""
+				INSERT INTO identity.verification (id, account_id, kind, provider, subject_hmac, key_version, facts,
+				    consent_version, verified_at, valid_until)
+				VALUES (:id, :account, 'STUDENT', 'EMAIL_CODE', :hmac, 1,
+				        jsonb_strip_nulls(jsonb_build_object('school', CAST(:school AS text), 'name', CAST(:name AS text),
+				            'major', CAST(:major AS text), 'verifiedMonth', '2026-01')), '1.0', :now, :until)
+				""")
+			.param("id", id)
+			.param("account", accountId)
+			.param("hmac", fakeHmac(accountId.toString()))
+			.param("school", school)
+			.param("name", name)
+			.param("major", major)
+			.param("now", now)
+			.param("until", validUntil)
+			.update();
+		jdbc.sql("""
+				INSERT INTO identity.profile (account_id, student_name, student_school, student_major, updated_at)
+				VALUES (:account, :name, :school, :major, :now)
+				ON CONFLICT (account_id) DO UPDATE SET student_name = EXCLUDED.student_name,
+				    student_school = EXCLUDED.student_school, student_major = EXCLUDED.student_major
+				""")
+			.param("account", accountId)
+			.param("name", name)
+			.param("school", school)
+			.param("major", major)
+			.param("now", now)
+			.update();
+		return id;
+	}
+
 	/** A stand-in for a keyed HMAC: 64 lower-case hexadecimal digits that depend on {@code seed} only. */
 	public static String fakeHmac(String seed) {
 		try {

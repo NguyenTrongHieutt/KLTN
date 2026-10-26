@@ -227,13 +227,17 @@ class StudentCards implements StudentCardQueue {
 
 	/**
 	 * Approves a pending card, recording what it says, and verifies its Student.
-	 * @throws ApiException {@code NOT_FOUND} for no such card; {@code CONFLICT} for a decided one, or with
-	 * {@code ALREADY_USED_FOR_VERIFICATION} when that school and number verify another account;
+	 * @throws ApiException {@code NOT_FOUND} for no such card; {@code CONFLICT} for a decided one, for a
+	 * Student verified since the upload whose renewal is not open (a card would end that verification), or
+	 * with {@code ALREADY_USED_FOR_VERIFICATION} when that school and number verify another account;
 	 * {@code VALIDATION} when either is empty once normalized
 	 */
 	@Transactional
 	QueueRow approve(UUID administrator, UUID cardId, String studentNumber, String school) {
 		Card card = lockPendingCard(cardId);
+		if (!this.verifications.mayVerify(card.accountId())) {
+			throw new ApiException(ErrorCode.CONFLICT);
+		}
 		String number = studentNumber.strip();
 		String schoolName = school.strip();
 		String key = cardKey(schoolName, number);

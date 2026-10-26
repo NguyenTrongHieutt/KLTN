@@ -151,7 +151,7 @@ class VerificationController {
 		if (!Notices.VERIFY_STUDENT_VERSION.equals(request.noticeVersion())) {
 			throw new ApiException(ErrorCode.STALE);
 		}
-		this.verifications.send(account, request.email(), request.name(), request.major());
+		this.verifications.send(account, request.email(), request.name(), request.major(), request.noticeVersion());
 		return view(account);
 	}
 

@@ -1,6 +1,7 @@
 import { Dialog } from '@base-ui/react/dialog'
 import { Tabs } from '@base-ui/react/tabs'
 import { BadgeCheck, TriangleAlert, X } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { z } from 'zod'
 import { usePollHealth } from '@/app/usePollHealth'
@@ -11,7 +12,8 @@ import { Skeleton } from '@/components/Skeleton'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
 import { t, type MessageKey } from '@/i18n/t'
-import { formatCalendarDate, formatMonthYear, formatTime } from '@/lib/dates'
+import { ApiError } from '@/lib/apiClient'
+import { formatCalendarDate, formatCalendarDayMonth, formatMonthYear, formatTime } from '@/lib/dates'
 import { fieldMessage, serverFieldErrors } from '@/lib/formErrors'
 import { problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
@@ -22,6 +24,7 @@ import {
   useSendSchoolEmailCode,
   useUnlinkStudentVerification,
   useVerification,
+  VERIFICATION_QUERY_KEY,
   type SchoolEmailSend,
   type Verification,
 } from './verificationApi'
@@ -32,6 +35,11 @@ const email = z.string().trim().min(1, 'required').max(254, 'tooLong').pipe(z.em
 const declared = z.string().trim().min(1, 'required').max(100, 'tooLong')
 
 const code = z.string().trim().regex(/^[0-9]{6}$/, 'format')
+
+/** A send refused because N-26 changed since it was shown: the notice is shown again. */
+function isStale(error: unknown): boolean {
+  return error instanceof ApiError && error.problem.code === 'STALE'
+}
 
 type Way = 'email' | 'card'
 
@@ -93,7 +101,7 @@ function StudentEmailBody({ verification, student }: { verification: Verificatio
   const verified = verification.status === 'VERIFIED'
   const renewal = verified && verification.renewalOpen
   const mayVerify = !verified || renewal
-  // N-26 is shown once per visit before the form; a code waiting means it was accepted already.
+  // N-26 is shown before the form unless it was accepted in this visit, so what is recorded was shown.
   const [notice, setNotice] = useState(false)
   const [accepted, setAccepted] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -104,17 +112,23 @@ function StudentEmailBody({ verification, student }: { verification: Verificatio
 
   function start() {
     setChosen('email')
-    if (accepted || verification.pendingCode) {
+    if (accepted) {
       setEditing(true)
     } else {
       setNotice(true)
     }
   }
 
+  /** The backend holds another N-26 version (`STALE`): the notice is read and accepted again. */
+  function noticeChanged() {
+    setAccepted(false)
+    setNotice(true)
+  }
+
   // The email way's step: the code waiting, or the form after N-26; neither until the person starts.
   const step =
     verification.pendingCode && !editing ? (
-      <CodeStep verification={verification} last={last} onSent={setLast} onEdit={() => setEditing(true)} />
+      <CodeStep verification={verification} last={last} onSent={setLast} onEdit={start} onStale={noticeChanged} />
     ) : editing ? (
       <SendForm
         verification={verification}
@@ -123,6 +137,7 @@ function StudentEmailBody({ verification, student }: { verification: Verificatio
           setLast(sent)
           setEditing(false)
         }}
+        onStale={noticeChanged}
       />
     ) : null
   // A renewal shows its step only once started; a person not verified always sees a way forward.
@@ -282,7 +297,7 @@ function ExpiredAlert({ verifiedUntil, onVerifyAgain }: { verifiedUntil: string;
       <TriangleAlert aria-hidden="true" className="size-6 shrink-0 text-warning" />
       <div className="flex min-w-0 grow flex-col gap-0.5">
         <p className="text-label font-semibold">
-          {t('screen.verification.student.expiredTitle', { date: formatCalendarDate(verifiedUntil).slice(0, 5) })}
+          {t('screen.verification.student.expiredTitle', { date: formatCalendarDayMonth(verifiedUntil) })}
         </p>
         <p className="text-body-sm">{t('screen.verification.student.expiredBody')}</p>
       </div>
@@ -301,10 +316,12 @@ function SendForm({
   verification,
   renewal,
   onSent,
+  onStale,
 }: {
   verification: Verification
   renewal: boolean
   onSent: (sent: SchoolEmailSend) => void
+  onStale: () => void
 }) {
   const askName = !(renewal && verification.name)
   const askMajor = !(renewal && verification.major)
@@ -312,6 +329,7 @@ function SendForm({
   const [errors, setErrors] = useState<Record<string, string>>({})
   const send = useSendSchoolEmailCode()
   const toasts = useToasts()
+  const queryClient = useQueryClient()
   const { offline } = usePollHealth()
   const emailField = useRef<HTMLInputElement>(null)
   // The form opens on the person's own action (N-26, "Gia hạn", "Đổi email"), so the keyboard goes there.
@@ -347,7 +365,18 @@ function SendForm({
         onSent(sent)
       },
       onError: (error) => {
+        if (isStale(error)) {
+          onStale()
+          return
+        }
         const fields = serverFieldErrors(error)
+        const shown = ['email', ...(askName ? ['name'] : []), ...(askMajor ? ['major'] : [])]
+        if (Object.keys(fields).some((field) => !shown.includes(field))) {
+          // The row changed since it was read (a renewal whose verification lapsed asks for the details again).
+          setErrors({ email: verificationMessage(error) })
+          void queryClient.invalidateQueries({ queryKey: VERIFICATION_QUERY_KEY })
+          return
+        }
         setErrors(Object.keys(fields).length > 0 ? fields : { email: verificationMessage(error) })
       },
     })
@@ -431,11 +460,13 @@ function CodeStep({
   last,
   onSent,
   onEdit,
+  onStale,
 }: {
   verification: Verification
   last?: SchoolEmailSend
   onSent: (sent: SchoolEmailSend) => void
   onEdit: () => void
+  onStale: () => void
 }) {
   const pending = verification.pendingCode!
   const [entry, setEntry] = useState('')
@@ -448,14 +479,17 @@ function CodeStep({
 
   const exhausted = pending.attemptsLeft === 0
   const expired = pending.expired
-  // What the code entry shows: the server's latest refusal, else what the view says about the code.
-  const entryMessage = exhausted
-    ? t('reason.identity.TOO_MANY_ATTEMPTS')
-    : expired
-      ? t('reason.identity.CODE_EXPIRED')
-      : wrong
-        ? t('screen.verification.student.attemptsLeft', { n: pending.attemptsLeft })
-        : codeError
+  // What the code entry shows: the server's latest refusal (a failed "Gửi mã mới" included), else what the
+  // view says about the code.
+  const entryMessage =
+    codeError ??
+    (exhausted
+      ? t('reason.identity.TOO_MANY_ATTEMPTS')
+      : expired
+        ? t('reason.identity.CODE_EXPIRED')
+        : wrong
+          ? t('screen.verification.student.attemptsLeft', { n: pending.attemptsLeft })
+          : undefined)
 
   function resend() {
     if (!last) {
@@ -472,6 +506,10 @@ function CodeStep({
       },
       onError: (error) => {
         setWrong(false)
+        if (isStale(error)) {
+          onStale()
+          return
+        }
         setCodeError(verificationMessage(error))
       },
     })
@@ -497,6 +535,11 @@ function CodeStep({
         const reason = identityReason(error)
         setWrong(reason === 'WRONG_CODE')
         setCodeError(reason === 'WRONG_CODE' ? undefined : verificationMessage(error))
+        // A refusal that spends the code (the email verifies another account, the school left the list, no code)
+        // ends this step once the row is read again, so it is told as a toast too.
+        if (!reason || !['WRONG_CODE', 'CODE_EXPIRED', 'TOO_MANY_ATTEMPTS'].includes(reason)) {
+          toasts.error(verificationMessage(error))
+        }
       },
     })
   }

@@ -67,12 +67,37 @@ class StatisticsIT extends IntegrationTest {
 			.andExpect(jsonPath("$.groups[?(@.group == 'usersByRole')].counts[?(@.key == 'NONE')].value").value(1))
 			.andExpect(jsonPath("$.groups[?(@.group == 'usersByRole')].counts[?(@.key == 'ADMINISTRATOR')]").isEmpty())
 			.andExpect(jsonPath("$.groups[?(@.group == 'studentsByVerification')].counts[?(@.key == 'VERIFIED')].value").value(1))
+			// Story 19.4: every person's account counts, by its live, valid verification.
 			.andExpect(jsonPath("$.groups[?(@.group == 'studentsByVerification')].counts[?(@.key == 'UNVERIFIED')].value")
-				.value(1))
+				.value(5))
 			.andExpect(jsonPath("$.groups[?(@.group == 'mentorsByApproval')].counts[?(@.key == 'APPROVED')].value").value(1))
 			.andExpect(jsonPath("$.groups[?(@.group == 'lockedAccounts')].counts[?(@.key == 'LOCKED')].value").value(1))
 			.andExpect(jsonPath("$.groups[?(@.group == 'privateFeedback')].counts.length()").value(0))
 			.andExpect(jsonPath("$.groups.length()").value(AdminStatisticsController.ORDER.size()));
+	}
+
+	@Test
+	void aRenewedStudentCountsOnceAndAnUnlinkedOrRevokedOneIsNotVerified() throws Exception {
+		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		UUID renewed = TeamTestSupport.student(this.jdbc, "Gia hạn", true, List.of(), "", LocalDate.parse("2026-09-30"));
+		this.jdbc.sql("""
+				INSERT INTO identity.verification (id, account_id, kind, provider, subject_hmac, key_version, consent_version,
+				    verified_at, valid_until, ended_at, ended_reason)
+				VALUES (:id, :account, 'STUDENT', 'EMAIL_CODE', :hmac, 1, '1.0', now() - interval '1 year', DATE '2025-09-30',
+				        now(), 'REPLACED')
+				""").param("id", UUID.randomUUID()).param("account", renewed)
+			.param("hmac", IdentityTestSupport.fakeHmac("renewed-old")).update();
+		for (String reason : List.of("UNLINKED", "REVOKED")) {
+			UUID ended = TeamTestSupport.student(this.jdbc, reason, true, List.of(), "", LocalDate.parse("2026-09-30"));
+			this.jdbc.sql("""
+					UPDATE identity.verification SET ended_at = now(), ended_reason = :reason, facts = NULL WHERE account_id = :id
+					""").param("id", ended).param("reason", reason).update();
+		}
+
+		this.mvc.perform(get("/api/v1/admin/statistics").with(admin(ha))).andExpect(status().isOk())
+			.andExpect(jsonPath("$.groups[?(@.group == 'studentsByVerification')].counts[?(@.key == 'VERIFIED')].value").value(1))
+			.andExpect(jsonPath("$.groups[?(@.group == 'studentsByVerification')].counts[?(@.key == 'UNVERIFIED')].value")
+				.value(2));
 	}
 
 	@Test

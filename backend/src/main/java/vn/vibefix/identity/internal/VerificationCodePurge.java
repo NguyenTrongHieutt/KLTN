@@ -15,18 +15,26 @@ import org.springframework.stereotype.Component;
 /**
  * The {@code identity} code-expiry purge (AD-7, AD-24): deletes school email codes once past their
  * {@code expires_at}, the per-address counters of past UTC days, and the per-account counters of past
- * clock hours. By then neither a limit nor an entry needs them. It runs every 10 minutes.
+ * clock hours, since by then neither a limit nor an entry needs them; and the verification rows that
+ * ended more than {@value #ENDED_ROWS_KEPT_MONTHS} months ago, whose subject HMACs have served their
+ * retention. It runs every 10 minutes.
  */
 @Component
 class VerificationCodePurge {
+
+	/** How long an ended verification keeps its subject HMAC, as an erased account's signals are kept. */
+	static final int ENDED_ROWS_KEPT_MONTHS = PersonSignalPurge.MONTHS_KEPT;
 
 	private final JdbcClient jdbc;
 
 	private final Clock clock;
 
-	VerificationCodePurge(JdbcClient jdbc, Clock clock) {
+	private final VerificationRows rows;
+
+	VerificationCodePurge(JdbcClient jdbc, Clock clock, VerificationRows rows) {
 		this.jdbc = jdbc;
 		this.clock = clock;
+		this.rows = rows;
 	}
 
 	/** @return how many rows were deleted */
@@ -41,7 +49,8 @@ class VerificationCodePurge {
 		int hours = this.jdbc.sql("DELETE FROM identity.school_email_send_hour WHERE hour < :hour")
 			.param("hour", Timestamp.from(now.truncatedTo(ChronoUnit.HOURS)))
 			.update();
-		return codes + days + hours;
+		int ended = this.rows.purgeEnded(now.atOffset(ZoneOffset.UTC).minusMonths(ENDED_ROWS_KEPT_MONTHS).toInstant());
+		return codes + days + hours + ended;
 	}
 
 	@Component

@@ -7062,6 +7062,7 @@ export interface components {
         };
         PublicStudentView: {
             githubLogin?: string;
+            major?: string;
             /** Format: date-time */
             memberSince: string;
             name?: string;
@@ -7069,8 +7070,6 @@ export interface components {
             skillGroups: components["schemas"]["PublicSkillGroup"][];
             team?: components["schemas"]["PublicStudentTeam"];
             verified: boolean;
-            /** Format: int32 */
-            yearOfStudy?: number;
         };
         PublicTeamMember: {
             name: string;
@@ -7885,14 +7884,13 @@ export interface components {
             /** Format: uuid */
             accountId: string;
             githubLogin?: string;
+            major?: string;
             name?: string;
             school?: string;
             skills: string[];
             verified: boolean;
             /** Format: date */
             verifiedUntil?: string;
-            /** Format: int32 */
-            yearOfStudy?: number;
         };
         TestCardView: {
             bank?: string;

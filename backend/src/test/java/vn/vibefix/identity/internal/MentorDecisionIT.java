@@ -139,6 +139,14 @@ class MentorDecisionIT extends IntegrationTest {
 			.getContentAsString(StandardCharsets.UTF_8);
 		assertThat(detail).as("never the shared value or its HMAC").doesNotContainIgnoringCase(SCHOOL_EMAIL)
 			.doesNotContain("hmac");
+		// Once the Student lets the verification go, the match stays but carries no verification (Story 19.4).
+		this.jdbc.sql("""
+				UPDATE identity.verification SET ended_at = now(), ended_reason = 'UNLINKED', facts = NULL WHERE account_id = :id
+				""").param("id", student).update();
+		this.mvc.perform(get("/api/v1/admin/mentor-applications/" + this.hung).with(admin()))
+			.andExpect(jsonPath("$.matches.length()").value(1))
+			.andExpect(jsonPath("$.matches[0].accountId").value(student.toString()))
+			.andExpect(jsonPath("$.matches[0].verifiedUntil").doesNotExist());
 		this.mvc.perform(get("/api/v1/admin/mentor-applications/" + later).with(admin()))
 			.andExpect(jsonPath("$.matches.length()").value(0));
 		this.mvc.perform(get("/api/v1/admin/mentor-applications/" + student).with(admin()))

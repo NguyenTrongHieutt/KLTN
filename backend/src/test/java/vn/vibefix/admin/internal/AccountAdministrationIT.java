@@ -150,6 +150,9 @@ class AccountAdministrationIT extends IntegrationTest {
 		UUID vy = TeamTestSupport.student(this.jdbc, "Trần Thảo Vy", true, List.of(TeamTestSupport.REACT), "React",
 				LocalDate.parse("2026-09-30"));
 		assertThat(this.verification.isVerified(vy)).isTrue();
+		this.mvc.perform(get("/api/v1/admin/users/" + vy).with(admin(ha)))
+			.andExpect(jsonPath("$.verification.method").value("SCHOOL_EMAIL"))
+			.andExpect(jsonPath("$.verification.current").value(true));
 		command(ha, vy, "revoke-verification", "{\"reason\":\"Thẻ sinh viên giả\"}").andExpect(status().isOk())
 			.andExpect(jsonPath("$.verification").doesNotExist())
 			.andExpect(jsonPath("$.history[0].action").value("VERIFICATION_REVOKED"));
@@ -171,6 +174,43 @@ class AccountAdministrationIT extends IntegrationTest {
 		command(ha, vy, "revoke-verification", "{\"reason\":\"Lần nữa\"}").andExpect(status().isConflict())
 			.andExpect(jsonPath("$.reason").value("NOT_VERIFIED"));
 		assertThat(audits("identity.verification_revoked")).isEqualTo(1);
+	}
+
+	/** Story 19.4: any person's account may hold a student verification; ended rows count for nothing. */
+	@Test
+	void theVerifiedFilterAndTheStatusReadEveryPersonsLiveValidRow() throws Exception {
+		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		UUID lan = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-lan", "3.0");
+		IdentityTestSupport.verifyStudent(this.jdbc, lan, LocalDate.parse("2026-09-30"));
+		UUID carded = TeamTestSupport.student(this.jdbc, "Lê Văn Thẻ", true, List.of(), "", null);
+		this.jdbc.sql("""
+				INSERT INTO identity.verification (id, account_id, kind, provider, subject_hmac, key_version, facts,
+				    verified_at, valid_until)
+				VALUES (:id, :account, 'STUDENT', 'STUDENT_CARD', :hmac, 1, '{"school":"Trường thử","verifiedMonth":"2026-01"}',
+				        now(), DATE '2026-09-30')
+				""").param("id", UUID.randomUUID()).param("account", carded)
+			.param("hmac", IdentityTestSupport.fakeHmac("card")).update();
+		UUID unlinked = TeamTestSupport.student(this.jdbc, "Đã bỏ", true, List.of(), "", LocalDate.parse("2026-09-30"));
+		this.jdbc.sql("""
+				UPDATE identity.verification SET ended_at = now(), ended_reason = 'UNLINKED', facts = NULL WHERE account_id = :id
+				""").param("id", unlinked).update();
+
+		this.mvc.perform(get("/api/v1/admin/users").param("status", "VERIFIED").with(admin(ha))).andExpect(status().isOk())
+			.andExpect(jsonPath("$.total").value(2))
+			.andExpect(jsonPath("$.items[?(@.id == '" + lan + "')].status").value("VERIFIED"))
+			.andExpect(jsonPath("$.items[?(@.id == '" + carded + "')].status").value("VERIFIED"));
+		this.mvc.perform(get("/api/v1/admin/users").with(admin(ha)))
+			.andExpect(jsonPath("$.items[?(@.id == '" + unlinked + "')].status").value("UNVERIFIED"));
+		this.mvc.perform(get("/api/v1/admin/users/" + carded).with(admin(ha)))
+			.andExpect(jsonPath("$.verification.method").value("STUDENT_CARD"));
+		this.mvc.perform(get("/api/v1/admin/users/" + unlinked).with(admin(ha)))
+			.andExpect(jsonPath("$.verification").doesNotExist());
+
+		// A person without the Student role is revoked as well, and gets no Student to-do.
+		command(ha, lan, "revoke-verification", "{\"reason\":\"Email giả\"}").andExpect(status().isOk());
+		assertThat(this.verification.isVerified(lan)).isFalse();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM notification.todo WHERE account_id = :id")
+			.param("id", lan).query(Long.class).single()).isZero();
 	}
 
 	@Test

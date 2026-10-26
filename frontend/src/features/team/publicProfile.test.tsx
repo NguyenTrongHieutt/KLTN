@@ -69,17 +69,16 @@ describe('PUB-4, a Student\'s public profile (FR-51)', () => {
     expect(screen.queryByText(/Bách khoa/)).toBeNull()
   })
 
-  it('shows a shown name with the school, an unverified Student, and the Mentors\' Ratings', async () => {
+  it('shows a shown name with the school, the declared major, and the Mentors\' Ratings', async () => {
     fakeBackend(signedIn('MENTOR'), {
       'GET /api/v1/students/minhtq': () =>
-        json(publicStudent({ name: 'Trần Quang Minh', school: 'ĐH Bách khoa Hà Nội', yearOfStudy: 3, verified: false, team: undefined })),
+        json(publicStudent({ name: 'Trần Quang Minh', school: 'hust.edu.vn', major: 'Khoa học máy tính', team: undefined })),
       'GET /api/v1/students/minhtq/reputation': () => json({ average: 4.5, count: 2, portfolio: [] }),
     })
     renderAt('/sv/minhtq')
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Trần Quang Minh' })).toBeInTheDocument()
-    expect(screen.getByText('Chưa xác minh')).toBeInTheDocument()
-    expect(screen.getByText('@minhtq trên GitHub · ĐH Bách khoa Hà Nội · năm 3')).toBeInTheDocument()
+    expect(screen.getByText('@minhtq trên GitHub · hust.edu.vn · Khoa học máy tính')).toBeInTheDocument()
     expect(screen.getByText('Chưa ở trong nhóm nào.')).toBeInTheDocument()
     expect(await screen.findByText('4,5 sao')).toBeInTheDocument()
     expect(screen.getByText('(2 lượt từ người hướng dẫn)')).toBeInTheDocument()
@@ -178,7 +177,7 @@ describe('MEN-6, the link to PUB-4 (UX-DR83)', () => {
       githubLogin: 'minhtq',
       name: 'Trần Quang Minh',
       school: 'ĐH Bách khoa Hà Nội',
-      yearOfStudy: 3,
+      major: 'Khoa học máy tính',
       skills: ['React'],
       verified: true,
       verifiedUntil: '2027-09-30',

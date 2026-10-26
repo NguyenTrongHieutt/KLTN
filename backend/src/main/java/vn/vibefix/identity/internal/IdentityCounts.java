@@ -39,7 +39,7 @@ class IdentityCounts implements PlatformCounts {
 				SELECT CASE WHEN v.valid_until >= :today THEN 'VERIFIED' ELSE 'UNVERIFIED' END AS key, count(*) AS value
 				FROM identity.account a
 				LEFT JOIN identity.verification v ON v.account_id = a.id AND v.kind = 'STUDENT' AND v.ended_at IS NULL
-				WHERE a.role = 'STUDENT' AND a.erased_at IS NULL GROUP BY 1
+				WHERE a.kind = 'USER' AND a.erased_at IS NULL GROUP BY 1
 				""")
 			.param("today", LocalDate.ofInstant(this.clock.instant(), StudentVerifications.VIETNAM))
 			.query((rs, n) -> counts.add(new Count("studentsByVerification", rs.getString("key"), rs.getLong("value"))))

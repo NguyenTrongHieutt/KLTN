@@ -216,6 +216,36 @@ class VerificationExpiryIT extends IntegrationTest {
 				"identity.verification_expiry OBSOLETE");
 		assertThat(this.jdbc.sql("SELECT count(*) FROM notification.notification WHERE account_id = :id")
 			.param("id", this.student).query(Long.class).single()).isZero();
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM notification.todo
+				WHERE account_id = :id AND todo_key = 'identity.verify_student' AND closed_at IS NULL
+				""").param("id", this.student).query(Long.class).single()).as("a Student is asked to verify again").isOne();
+	}
+
+	@Test
+	void unlinkingDeletesAPendingRenewalCodeSoItsEntryFindsNothing() throws Exception {
+		this.clock.setInstant(Instant.parse("2027-09-20T03:00:00Z"));
+		send("minh.k23@vnu.edu.vn").andExpect(status().isAccepted());
+		String code = deliveredCode();
+
+		this.mvc.perform(delete("/api/v1/verification/student").with(student()).with(csrf()))
+			.andExpect(status().isNoContent());
+
+		assertThat(codes()).isZero();
+		confirm(code).andExpect(status().isNotFound());
+	}
+
+	@Test
+	void theExpiryDeletesAPendingRenewalCodeSoItsEntryFindsNothing() throws Exception {
+		this.clock.setInstant(EXPIRY.minus(java.time.Duration.ofMinutes(5)));
+		send("minh.k23@vnu.edu.vn").andExpect(status().isAccepted());
+		String code = deliveredCode();
+
+		this.clock.setInstant(EXPIRY);
+		this.poller.runDue();
+
+		assertThat(codes()).as("it held a copy of the locked name and major").isZero();
+		confirm(code).andExpect(status().isNotFound());
 	}
 
 	@Test
@@ -270,6 +300,25 @@ class VerificationExpiryIT extends IntegrationTest {
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("{\"noticeVersion\":\"1.0\",\"email\":\"" + address + "\",\"name\":\"" + name
 					+ "\",\"major\":\"" + major + "\"}"));
+	}
+
+	/** Runs the email lane and returns the code of the last email. */
+	private String deliveredCode() {
+		this.worker.runDue(Lane.EMAIL);
+		Matcher matcher = CODE.matcher(this.mail.sent().getLast().subject());
+		assertThat(matcher.matches()).isTrue();
+		return matcher.group(1);
+	}
+
+	private ResultActions confirm(String code) throws Exception {
+		return this.mvc.perform(post("/api/v1/verification/school-email/confirm").with(student())
+			.with(csrf())
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("{\"code\":\"" + code + "\"}"));
+	}
+
+	private long codes() {
+		return this.jdbc.sql("SELECT count(*) FROM identity.school_email_code").query(Long.class).single();
 	}
 
 	private ResultActions view() throws Exception {

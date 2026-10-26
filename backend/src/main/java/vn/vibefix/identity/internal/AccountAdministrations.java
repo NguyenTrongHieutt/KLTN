@@ -133,7 +133,7 @@ class AccountAdministrations implements AccountAdministration {
 		if (query.status() != null) {
 			switch (query.status()) {
 				case LOCKED -> where.append(" AND a.locked_at IS NOT NULL");
-				case VERIFIED -> where.append(" AND a.role = 'STUDENT' AND v.valid_until >= :today");
+				case VERIFIED -> where.append(" AND v.valid_until >= :today");
 				default -> {
 					where.append(" AND a.mentor_approval_status = :status");
 					params.put("status", query.status().name());
@@ -150,11 +150,10 @@ class AccountAdministrations implements AccountAdministration {
 			.query((rs, n) -> {
 				Role role = role(rs);
 				LocalDate validUntil = rs.getObject("valid_until", LocalDate.class);
-				String status = role == null ? null : switch (role) {
-					case STUDENT -> validUntil != null && !validUntil.isBefore(today) ? "VERIFIED" : "UNVERIFIED";
-					case MENTOR -> rs.getString("mentor_approval_status");
-					default -> null;
-				};
+				// A verified student is any person's account with a live, valid row (Story 19.4); a Mentor shows its approval.
+				boolean verified = validUntil != null && !validUntil.isBefore(today);
+				String status = role == Role.MENTOR ? rs.getString("mentor_approval_status")
+						: verified ? "VERIFIED" : role == Role.STUDENT ? "UNVERIFIED" : null;
 				return new Row(rs.getObject("id", UUID.class), role, rs.getString("name"), rs.getString("github_login"),
 						rs.getTimestamp("locked_at") != null, status, rs.getTimestamp("created_at").toInstant());
 			})
@@ -189,15 +188,14 @@ class AccountAdministrations implements AccountAdministration {
 		return this.jdbc.sql("SELECT a.id, a.role, a.github_login, a.created_at, a.signed_in_at, a.locked_at, a.lock_reason, "
 				+ "a.mentor_approval_status, coalesce(p.contact_email, a.google_email, a.github_email) AS email, " + NAME
 				+ " AS name, "
-				+ "CASE v.provider WHEN 'EMAIL_CODE' THEN 'SCHOOL_EMAIL' ELSE v.provider END AS method, v.verified_at, "
-				+ "v.valid_until " + FROM
+				+ "v.provider, v.verified_at, v.valid_until " + FROM
 				+ " WHERE a.id = :id AND a.kind = 'USER' AND a.erased_at IS NULL")
 			.param("id", accountId)
 			.query((rs, n) -> {
 				LocalDate validUntil = rs.getObject("valid_until", LocalDate.class);
 				Verification verification = validUntil == null ? null
-						: new Verification(rs.getString("method"), rs.getTimestamp("verified_at").toInstant(), validUntil,
-								!validUntil.isBefore(today));
+						: new Verification(VerificationRows.Provider.valueOf(rs.getString("provider")).method(),
+								rs.getTimestamp("verified_at").toInstant(), validUntil, !validUntil.isBefore(today));
 				String approval = rs.getString("mentor_approval_status");
 				return new Account(rs.getObject("id", UUID.class), role(rs), rs.getString("name"),
 						rs.getString("github_login"), rs.getString("email"), rs.getTimestamp("created_at").toInstant(),
@@ -266,9 +264,10 @@ class AccountAdministrations implements AccountAdministration {
 		this.notifications.send(new NotificationRequest(VERIFICATION_REVOKED, action,
 				List.of(new Recipient(accountId, Audience.SUBJECT)), Map.of("reason", text), SignIns.VERIFICATION_PATH, null,
 				accountId));
-		this.todos.open(new TodoRequest(SignIns.VERIFY_STUDENT, accountId, Audience.SUBJECT, accountId, Map.of(),
-				SignIns.VERIFICATION_PATH,
-				null, null));
+		if (this.verificationRows.isStudent(accountId)) {
+			this.todos.open(new TodoRequest(SignIns.VERIFY_STUDENT, accountId, Audience.SUBJECT, accountId, Map.of(),
+					SignIns.VERIFICATION_PATH, null, null));
+		}
 		audit(administrator, "identity.verification_revoked", accountId, action);
 	}
 

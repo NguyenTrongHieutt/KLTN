@@ -44,8 +44,10 @@ ALTER TABLE identity.acknowledgment
         CHECK (notice IN ('PRIVACY', 'COMMIT_EMAIL', 'LINK_GITHUB', 'VERIFY_STUDENT'));
 
 -- A code is keyed by the address HMAC, never the address, and holds what the confirm writes: the
--- school matched from the allowlist and the declared name and major (a renewal's are the locked
--- ones). One code per account: it is deleted when used or replaced, and purged once expired.
+-- school matched from the allowlist, the declared name and major (a renewal's are the locked ones),
+-- the N-26 version accepted at the send, and the address's HMAC under every live key version
+-- (address_hmacs, by version), so a key rotation between the send and the entry changes nothing.
+-- One code per account: it is deleted when used or replaced, and purged once expired.
 DELETE FROM identity.school_email_code;
 DROP INDEX identity.school_email_code_account;
 ALTER TABLE identity.school_email_code
@@ -57,7 +59,9 @@ ALTER TABLE identity.school_email_code
     ADD COLUMN school         TEXT    NOT NULL CHECK (char_length(school) BETWEEN 3 AND 253),
     ADD COLUMN declared_name  TEXT    NOT NULL CHECK (char_length(declared_name) BETWEEN 1 AND 100),
     ADD COLUMN declared_major TEXT    NOT NULL CHECK (char_length(declared_major) BETWEEN 1 AND 100),
-    ADD COLUMN renewal        BOOLEAN NOT NULL DEFAULT FALSE;
+    ADD COLUMN renewal        BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN address_hmacs  JSONB   NOT NULL CHECK (jsonb_typeof(address_hmacs) = 'object'),
+    ADD COLUMN consent_version TEXT   NOT NULL CHECK (char_length(consent_version) BETWEEN 1 AND 20);
 CREATE UNIQUE INDEX school_email_code_one_per_account ON identity.school_email_code (account_id);
 
 -- The AD-34 limits count in their own rows: 10 sends per address HMAC and UTC day, and 3 per
@@ -76,11 +80,21 @@ CREATE TABLE identity.school_email_send_hour
 GRANT SELECT, INSERT, UPDATE, DELETE ON identity.school_email_send_hour TO ${runtime_role};
 
 -- The profile holds the live verification's facts as its projection, which the AD-36 search column
--- reads; the details typed before this story are cleared, since nothing verified them.
+-- reads, the declared major included while the details are shown; the details typed before this
+-- story are cleared, since nothing verified them. The year of study is no longer read.
 ALTER TABLE identity.profile
     ADD COLUMN student_major TEXT CHECK (char_length(student_major) BETWEEN 1 AND 100),
     DROP CONSTRAINT profile_student_school_check,
     ADD CONSTRAINT profile_student_school_check CHECK (char_length(student_school) BETWEEN 1 AND 253);
 UPDATE identity.profile SET student_name = NULL, student_school = NULL, student_year = NULL;
+
+ALTER TABLE identity.profile DROP COLUMN search_vector;
+ALTER TABLE identity.profile
+    ADD COLUMN search_vector tsvector GENERATED ALWAYS AS (to_tsvector('platform.vi_search',
+        coalesce(display_name, '') || ' ' || coalesce(experience, '') || ' ' || skill_names || ' '
+            || CASE WHEN hide_student_details THEN ''
+                    ELSE coalesce(student_name, '') || ' ' || coalesce(student_school, '') || ' '
+                         || coalesce(student_major, '') END)) STORED;
+CREATE INDEX profile_search_idx ON identity.profile USING GIN (search_vector);
 
 DROP TABLE identity.student_verification;

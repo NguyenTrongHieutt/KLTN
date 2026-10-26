@@ -26,6 +26,9 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.json.JsonMapper;
+
 import vn.vibefix.audit.AuditActor;
 import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
@@ -37,9 +40,11 @@ import vn.vibefix.identity.internal.VerificationRows.Facts;
 import vn.vibefix.identity.internal.VerificationRows.NewRow;
 import vn.vibefix.identity.internal.VerificationRows.Provider;
 import vn.vibefix.identity.internal.VerificationRows.Row;
+import vn.vibefix.notification.Audience;
 import vn.vibefix.notification.EmailClass;
 import vn.vibefix.notification.EmailRequest;
 import vn.vibefix.notification.Emails;
+import vn.vibefix.notification.TodoRequest;
 import vn.vibefix.notification.Todos;
 import vn.vibefix.settings.Settings;
 import vn.vibefix.shared.ApiException;
@@ -61,8 +66,10 @@ import vn.vibefix.shared.RateLimitedException;
  * From 14 days before the expiry the account may renew, which asks for the address only.
  * <p>
  * Every command locks the account row first, so one account's sends and attempts run one at a time;
- * a transaction-scoped advisory lock on the subject HMAC makes "verifies at most one account" hold
- * across accounts, with the partial unique index as the backstop.
+ * at the entry, a transaction-scoped advisory lock on the subject HMAC makes "verifies at most one
+ * account" hold across accounts, with the partial unique index as the backstop. The code row keeps the
+ * address's HMAC under every live key version, so a key rotation between the send and the entry still
+ * finds the subject on other accounts and records the signal under every version.
  */
 @Component
 class StudentVerifications implements StudentVerification {
@@ -76,7 +83,8 @@ class StudentVerifications implements StudentVerification {
 	/** The kind whose keyed HMAC is a student card's subject: its school and number ({@link StudentCards#cardKey}). */
 	static final String CARD_SUBJECT = "STUDENT_CARD";
 
-	static final Duration CODE_LIFETIME = Duration.ofMinutes(10);
+	/** A code's lifetime, which is also how long its email may still go out (AD-42). */
+	static final Duration CODE_LIFETIME = EmailClass.ONE_TIME_CODE_LIFETIME;
 
 	static final int MAX_ATTEMPTS = 5;
 
@@ -121,9 +129,16 @@ class StudentVerifications implements StudentVerification {
 
 	}
 
-	private record CodeRow(UUID id, String addressHmac, int keyVersion, String codeHash, Instant sentAt,
-			Instant expiresAt, int attempts, String school, String name, String major) {
+	/** @param hmacs the address's HMAC under every key version live at the send, by version */
+	private record CodeRow(UUID id, String addressHmac, int keyVersion, Map<Integer, String> hmacs, String codeHash,
+			Instant sentAt, Instant expiresAt, int attempts, String school, String name, String major,
+			String consentVersion) {
 	}
+
+	private static final JsonMapper JSON = JsonMapper.builder().build();
+
+	private static final TypeReference<Map<Integer, String>> HMACS = new TypeReference<>() {
+	};
 
 	private final JdbcClient jdbc;
 
@@ -191,15 +206,17 @@ class StudentVerifications implements StudentVerification {
 	}
 
 	/**
-	 * Records N-26 and emails a new code to {@code address}, replacing the pending one. A first verification
-	 * declares {@code name} and {@code major}; a renewal keeps the locked ones and ignores these.
+	 * Records N-26 {@code noticeVersion} and emails a new code to {@code address}, replacing the pending one. A
+	 * first verification declares {@code name} and {@code major}; a renewal keeps the locked ones and ignores
+	 * these. Whether the address verifies another account is not told here: only the entry of the code, which
+	 * proves the address is the person's, answers {@code STUDENT_EMAIL_IN_USE}.
 	 * @throws ApiException {@code CONFLICT} when the account is verified and renewal is not open yet;
-	 * {@code GUARD_FAILED} with {@code EMAIL_DOMAIN_NOT_ALLOWED} or {@code STUDENT_EMAIL_IN_USE};
-	 * {@code VALIDATION} naming {@code name} or {@code major} when a first verification lacks them
+	 * {@code GUARD_FAILED} with {@code EMAIL_DOMAIN_NOT_ALLOWED}; {@code VALIDATION} naming {@code name} or
+	 * {@code major} when they are needed and missing
 	 * @throws RateLimitedException past either send limit
 	 */
 	@Transactional
-	View send(UUID accountId, String address, @Nullable String name, @Nullable String major) {
+	View send(UUID accountId, String address, @Nullable String name, @Nullable String major, String noticeVersion) {
 		String email = normalize(address);
 		lockAccount(accountId);
 		Optional<Row> current = currentVerification(accountId);
@@ -224,10 +241,7 @@ class StudentVerifications implements StudentVerification {
 		}
 		int version = this.keys.currentVersion();
 		String hmac = this.keys.current(EMAIL_SUBJECT, email);
-		this.rows.lockSubject(hmac);
-		if (this.rows.liveElsewhere(this.keys.all(EMAIL_SUBJECT, email), accountId)) {
-			throw new ApiException(ErrorCode.GUARD_FAILED, IdentityReason.STUDENT_EMAIL_IN_USE);
-		}
+		Map<Integer, String> hmacs = this.keys.all(EMAIL_SUBJECT, email);
 		Instant now = this.clock.instant();
 		requireAccountLimit(accountId, now);
 		requireAddressLimit(hmac, now);
@@ -237,9 +251,10 @@ class StudentVerifications implements StudentVerification {
 		UUID id = this.ids.newId();
 		String code = "%06d".formatted(this.random.nextInt(1_000_000));
 		this.jdbc.sql("""
-				INSERT INTO identity.school_email_code (id, account_id, address_hmac, key_version, code_hash, sent_at,
-				    expires_at, school, declared_name, declared_major, renewal)
-				VALUES (:id, :account, :hmac, :version, :hash, :now, :expires, :school, :name, :major, :renewal)
+				INSERT INTO identity.school_email_code (id, account_id, address_hmac, key_version, address_hmacs, code_hash,
+				    sent_at, expires_at, school, declared_name, declared_major, renewal, consent_version)
+				VALUES (:id, :account, :hmac, :version, CAST(:hmacs AS jsonb), :hash, :now, :expires, :school, :name,
+				        :major, :renewal, :consent)
 				""")
 			.param("id", id)
 			.param("account", accountId)
@@ -252,8 +267,10 @@ class StudentVerifications implements StudentVerification {
 			.param("name", declaredName)
 			.param("major", declaredMajor)
 			.param("renewal", renewal)
+			.param("hmacs", JSON.writeValueAsString(hmacs))
+			.param("consent", noticeVersion)
 			.update();
-		consent(accountId, now);
+		consent(accountId, noticeVersion, now);
 		// The address goes only to the email operation's personal data, purged once the email completes.
 		this.emails.send(new EmailRequest(SCHOOL_EMAIL_CODE, id, accountId, email, EmailClass.ONE_TIME_CODE,
 				Map.of("code", code)));
@@ -297,8 +314,16 @@ class StudentVerifications implements StudentVerification {
 		}
 		// A used code goes, whatever follows: it cannot be entered twice.
 		this.jdbc.sql("DELETE FROM identity.school_email_code WHERE id = :id").param("id", row.id()).update();
-		this.rows.lockSubject(row.addressHmac());
-		if (this.rows.liveElsewhere(Map.of(row.keyVersion(), row.addressHmac()), accountId)) {
+		// The school may have left the allowlist since the send.
+		if (!this.settings.schoolDomains().contains(row.school())) {
+			return refused(new ApiException(ErrorCode.GUARD_FAILED, IdentityReason.EMAIL_DOMAIN_NOT_ALLOWED));
+		}
+		// The subject under the current key, if the send knew it; a key added since leaves the send's.
+		int subjectVersion = row.hmacs().containsKey(this.keys.currentVersion()) ? this.keys.currentVersion()
+				: row.keyVersion();
+		String subject = row.hmacs().getOrDefault(subjectVersion, row.addressHmac());
+		this.rows.lockSubject(subject);
+		if (this.rows.liveElsewhere(row.hmacs(), accountId)) {
 			return refused(new ApiException(ErrorCode.GUARD_FAILED, IdentityReason.STUDENT_EMAIL_IN_USE));
 		}
 		// PostgreSQL keeps microseconds; the views and exports read back the same instant.
@@ -306,23 +331,23 @@ class StudentVerifications implements StudentVerification {
 		LocalDate validUntil = validUntil(LocalDate.ofInstant(now, VIETNAM));
 		live.ifPresent(found -> this.rows.end(found, current.isPresent() ? Ending.REPLACED : Ending.EXPIRED, verifiedAt));
 		UUID verification = this.ids.newId();
-		this.rows.insert(new NewRow(verification, accountId, Provider.EMAIL_CODE, row.addressHmac(), row.keyVersion(),
+		this.rows.insert(new NewRow(verification, accountId, Provider.EMAIL_CODE, subject, subjectVersion,
 				new Facts(row.school(), row.name(), row.major(), VerificationRows.month(verifiedAt)),
-				Notices.VERIFY_STUDENT_VERSION, verifiedAt, validUntil), verifiedAt);
+				row.consentVersion(), verifiedAt, validUntil), verifiedAt);
 		this.deadlines.schedule(accountId, verification, validUntil, now);
 		this.auditLog.record(AuditEntry.of(AuditActor.user(accountId), "identity.student_verified",
 				AuditObject.of("identity.account", accountId), AuditObject.of("identity.verification", verification)));
 		this.todos.close(SignIns.VERIFY_STUDENT, accountId, accountId);
-		// The same keyed HMAC as the subject's: the address is gone by now (AD-19).
-		this.signals.recordHmacs(accountId, JdbcPersonSignals.Source.SCHOOL_EMAIL,
-				Map.of(row.keyVersion(), row.addressHmac()));
+		// The same keyed HMACs as the subject's, under every key the send knew: the address is gone by now (AD-19).
+		this.signals.recordHmacs(accountId, JdbcPersonSignals.Source.SCHOOL_EMAIL, row.hmacs());
 		return new Confirmation.Verified(view(accountId));
 	}
 
 	/**
 	 * "Bỏ xác minh" (FR-80): ends the current verification {@code UNLINKED}, deleting its public facts and
 	 * the profile's projection of them in the same transaction. The subject HMAC stays on the ended row,
-	 * as N-26 states (AD-24); its reminder and expiry find it ended and are obsolete.
+	 * as N-26 states (AD-24); its reminder and expiry find it ended and are obsolete, and every pending code
+	 * goes. A Student's {@code identity.verify_student} to-do opens again (until Story 19.7).
 	 * @throws ApiException {@code NOT_FOUND} without a current verification
 	 */
 	@Transactional
@@ -332,16 +357,21 @@ class StudentVerifications implements StudentVerification {
 		this.rows.end(row, Ending.UNLINKED, this.clock.instant().truncatedTo(ChronoUnit.MICROS));
 		this.auditLog.record(AuditEntry.of(AuditActor.user(accountId), "identity.student_verification_unlinked",
 				AuditObject.of("identity.account", accountId), AuditObject.of("identity.verification", row.id())));
+		if (this.rows.isStudent(accountId)) {
+			this.todos.open(new TodoRequest(SignIns.VERIFY_STUDENT, accountId, Audience.SUBJECT, accountId, Map.of(),
+					SignIns.VERIFICATION_PATH, null, null));
+		}
 	}
 
 	/**
 	 * Verifies the account by an approved student card (FR-5, until Story 19.7), as a correct code does:
 	 * until the next 30 September, with the reminder and the expiry, and the {@code identity.verify_student}
 	 * to-do closed. The row's subject is the card key's HMAC, its school the card's, and a renewal keeps the
-	 * locked name and major. The caller holds the account's lock and the subject's
-	 * ({@link #cardKeyUsedByAnotherAccount}).
+	 * locked name and major; every pending school email code goes. The caller holds the account's lock and the
+	 * subject's ({@link #cardKeyUsedByAnotherAccount}), and checked {@link #mayVerify}.
 	 */
 	void verifyByCard(UUID accountId, String cardKey, String school, Instant now) {
+		this.rows.deleteCodes(accountId);
 		Instant verifiedAt = now.truncatedTo(ChronoUnit.MICROS);
 		LocalDate validUntil = validUntil(LocalDate.ofInstant(now, VIETNAM));
 		Optional<Row> live = this.rows.live(accountId);
@@ -401,10 +431,9 @@ class StudentVerifications implements StudentVerification {
 	}
 
 	/** Records N-26's acceptance, once per version, in the send's transaction: before the email is requested. */
-	private void consent(UUID accountId, Instant now) {
+	private void consent(UUID accountId, String noticeVersion, Instant now) {
 		UUID acknowledgment = this.ids.newId();
-		if (this.accounts.insertAcknowledgment(acknowledgment, accountId, Notices.VERIFY_STUDENT,
-				Notices.VERIFY_STUDENT_VERSION, now)) {
+		if (this.accounts.insertAcknowledgment(acknowledgment, accountId, Notices.VERIFY_STUDENT, noticeVersion, now)) {
 			this.auditLog.record(AuditEntry.of(AuditActor.user(accountId), "identity.notice_acknowledged",
 					AuditObject.of("identity.account", accountId), AuditObject.of("identity.acknowledgment", acknowledgment)));
 		}
@@ -436,15 +465,16 @@ class StudentVerifications implements StudentVerification {
 
 	private Optional<CodeRow> pending(UUID accountId) {
 		return this.jdbc.sql("""
-				SELECT id, address_hmac, key_version, code_hash, sent_at, expires_at, attempts, school, declared_name,
-				       declared_major
+				SELECT id, address_hmac, key_version, address_hmacs, code_hash, sent_at, expires_at, attempts, school,
+				       declared_name, declared_major, consent_version
 				FROM identity.school_email_code WHERE account_id = :account
 				""")
 			.param("account", accountId)
 			.query((rs, n) -> new CodeRow(rs.getObject("id", UUID.class), rs.getString("address_hmac"),
-					rs.getInt("key_version"), rs.getString("code_hash"), rs.getTimestamp("sent_at").toInstant(),
+					rs.getInt("key_version"), JSON.readValue(rs.getString("address_hmacs"), HMACS),
+					rs.getString("code_hash"), rs.getTimestamp("sent_at").toInstant(),
 					rs.getTimestamp("expires_at").toInstant(), rs.getInt("attempts"), rs.getString("school"),
-					rs.getString("declared_name"), rs.getString("declared_major")))
+					rs.getString("declared_name"), rs.getString("declared_major"), rs.getString("consent_version")))
 			.optional();
 	}
 

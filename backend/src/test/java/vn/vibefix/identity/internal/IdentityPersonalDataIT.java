@@ -92,7 +92,8 @@ class IdentityPersonalDataIT extends IntegrationTest implements PersonalDataPart
 			.contains("school=hust.edu.vn")
 			.doesNotContain("ciphertext")
 			.doesNotContain(CODE_HASH)
-			.doesNotContain(IdentityTestSupport.fakeHmac("lan-subject"));
+			.doesNotContain(IdentityTestSupport.fakeHmac("lan-subject"))
+			.doesNotContain(IdentityTestSupport.fakeHmac("code-lan-subject"));
 	}
 
 	/** The verification row keeps its subject HMAC after erasure (AD-24); its facts go, and it no longer counts. */
@@ -173,10 +174,10 @@ class IdentityPersonalDataIT extends IntegrationTest implements PersonalDataPart
 				INSERT INTO identity.showcase_repository (account_id, position, owner, name) VALUES (:id, 0, :login, 'shop')
 				""").param("id", id).param("login", login).update();
 		this.jdbc.sql("""
-				INSERT INTO identity.school_email_code (id, account_id, address_hmac, key_version, code_hash, sent_at,
-				    expires_at, school, declared_name, declared_major, renewal)
-				VALUES (:code, :id, :hmac, 1, :hash, :now, :now, 'hust.edu.vn', 'Tên của ' || :login, 'Ngành của ' || :login,
-				        FALSE)
+				INSERT INTO identity.school_email_code (id, account_id, address_hmac, key_version, address_hmacs, code_hash,
+				    sent_at, expires_at, school, declared_name, declared_major, renewal, consent_version)
+				VALUES (:code, :id, :hmac, 1, jsonb_build_object('1', CAST(:hmac AS text)), :hash, :now, :now, 'hust.edu.vn',
+				        'Tên của ' || :login, 'Ngành của ' || :login, FALSE, '1.0')
 				""")
 			.param("code", UUID.randomUUID())
 			.param("id", id)

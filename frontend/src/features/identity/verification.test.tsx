@@ -94,6 +94,8 @@ describe('ACC-2 student email row (FR-5, FR-80, AD-42, UX-DR93, UX-DR94)', () =>
     await user.click(within(section).getByRole('button', { name: 'Xác minh email sinh viên' }))
     const notice = await screen.findByRole('dialog', { name: 'Trước khi xác minh email sinh viên' })
     expect(within(notice).getByText(/vibefix không lưu địa chỉ email này/)).toBeInTheDocument()
+    expect(within(notice).getByText(/một email chỉ xác minh cho một tài khoản tại một thời điểm/)).toBeInTheDocument()
+    expect(within(notice).getByText(/“Trường” hiện trên hồ sơ là tên miền của email này/)).toBeInTheDocument()
     expect(within(notice).getByText('Lưu ý khi xác minh email sinh viên · phiên bản 1.0')).toBeInTheDocument()
     await user.click(within(notice).getByRole('button', { name: 'Đồng ý và tiếp tục' }))
 
@@ -218,7 +220,7 @@ describe('ACC-2 student email row (FR-5, FR-80, AD-42, UX-DR93, UX-DR94)', () =>
     expect(screen.getByRole('button', { name: 'Xác minh' })).toBeDisabled()
   })
 
-  it('asks for the address again for a new code after a reload, since vibefix keeps none', async () => {
+  it('asks for the address again for a new code after a reload, since vibefix keeps none, after N-26', async () => {
     const user = userEvent.setup()
     const seen = fakeBackend(signedInWithGoogle, {
       'GET /api/v1/verification': () => json(pending(5)),
@@ -226,11 +228,73 @@ describe('ACC-2 student email row (FR-5, FR-80, AD-42, UX-DR93, UX-DR94)', () =>
     renderAt('/ho-so/xac-minh')
 
     await user.click(await screen.findByRole('button', { name: 'Gửi mã mới' }))
+    // N-26 was not accepted in this visit, so it is shown before the version is sent again.
+    const notice = await screen.findByRole('dialog', { name: 'Trước khi xác minh email sinh viên' })
+    await user.click(within(notice).getByRole('button', { name: 'Đồng ý và tiếp tục' }))
 
     const field = await screen.findByRole('textbox', { name: 'Email trường' })
     await waitFor(() => expect(field).toHaveFocus())
     expect(field).toHaveValue('')
     expect(seen.some((request) => request.method === 'POST')).toBe(false)
+  })
+
+  it('shows N-26 again when the backend holds a newer version', async () => {
+    const user = userEvent.setup()
+    fakeBackend(signedInWithGoogle, {
+      'POST /api/v1/verification/school-email': () => refusal(409, 'STALE'),
+    })
+    renderAt('/ho-so/xac-minh')
+    await startAndAccept(user)
+
+    await fillAndSend(user)
+
+    expect(await screen.findByRole('dialog', { name: 'Trước khi xác minh email sinh viên' })).toBeInTheDocument()
+  })
+
+  it('says why a new code was refused, over what the view says about the old one', async () => {
+    const user = userEvent.setup()
+    let view: object = { status: 'UNVERIFIED', renewalOpen: false }
+    let sends = 0
+    fakeBackend(signedInWithGoogle, {
+      'GET /api/v1/verification': () => json(view),
+      'POST /api/v1/verification/school-email': () => {
+        sends += 1
+        if (sends > 1) {
+          return refusal(429, 'RATE_LIMITED', undefined, { 'Retry-After': '2700' })
+        }
+        view = pending(5, true)
+        return json(view, 202)
+      },
+    })
+    renderAt('/ho-so/xac-minh')
+    await startAndAccept(user)
+    await fillAndSend(user)
+    expect(await screen.findByText('Mã đã hết hạn. Hãy gửi mã mới.')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Gửi mã mới' }))
+
+    expect(await screen.findByText(/^Bạn thao tác hơi nhanh\. Hãy thử lại sau/)).toBeInTheDocument()
+    expect(screen.queryByText('Mã đã hết hạn. Hãy gửi mã mới.')).not.toBeInTheDocument()
+  })
+
+  it('tells a refusal that spends the code as a toast, since the code step goes', async () => {
+    const user = userEvent.setup()
+    let view: object = pending(5)
+    fakeBackend(signedInWithGoogle, {
+      'GET /api/v1/verification': () => json(view),
+      'POST /api/v1/verification/school-email/confirm': () => {
+        view = { status: 'UNVERIFIED', renewalOpen: false }
+        return refusal(422, 'GUARD_FAILED', 'STUDENT_EMAIL_IN_USE')
+      },
+    })
+    renderAt('/ho-so/xac-minh')
+
+    await user.type(await screen.findByLabelText('Mã 6 số trong email'), '482100')
+    await user.click(screen.getByRole('button', { name: 'Xác minh' }))
+
+    expect(await within(await row()).findByRole('button', { name: 'Xác minh email sinh viên' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Mã 6 số trong email')).not.toBeInTheDocument()
+    expect(screen.getAllByText('Email này đã xác minh cho một tài khoản khác.').length).toBeGreaterThan(0)
   })
 
   it('sends again what this visit sent on "Gửi mã mới"', async () => {
@@ -298,7 +362,7 @@ describe('ACC-2 student email row (FR-5, FR-80, AD-42, UX-DR93, UX-DR94)', () =>
 
     await user.click(await within(await row()).findByRole('button', { name: 'Bỏ xác minh' }))
     const dialog = await screen.findByRole('dialog', { name: 'Bỏ xác minh sinh viên?' })
-    expect(within(dialog).getByText(/Mã đã mã hóa của email vẫn được giữ/)).toBeInTheDocument()
+    expect(within(dialog).getByText(/Dấu vân tay một chiều của email vẫn được giữ 24 tháng/)).toBeInTheDocument()
     await user.click(within(dialog).getByRole('button', { name: 'Bỏ xác minh' }))
 
     expect(await screen.findByText('Đã bỏ xác minh sinh viên.')).toBeInTheDocument()
@@ -336,6 +400,34 @@ describe('ACC-2 student email renewal and expiry (FR-5, UX-DR93)', () => {
     expect(await within(section).findByLabelText('Mã 6 số trong email')).toBeInTheDocument()
     const request = seen.find((entry) => entry.method === 'POST')!
     expect(await request.clone().json()).toEqual({ noticeVersion: '1.0', email: 'minh.k23@vnu.edu.vn' })
+  })
+
+  it('asks for the name and major on the email field when the verification lapsed before the renewal was sent', async () => {
+    const user = userEvent.setup()
+    let view: object = { ...verified, renewalOpen: true }
+    const seen = fakeBackend(signedInWithGoogle, {
+      'GET /api/v1/verification': () => json(view),
+      'POST /api/v1/verification/school-email': () => {
+        view = { status: 'EXPIRED', method: 'SCHOOL_EMAIL', verifiedUntil: '2027-09-30', renewalOpen: false }
+        return json(
+          { status: 400, code: 'VALIDATION', errors: [{ field: 'name', code: 'NotBlank' }, { field: 'major', code: 'NotBlank' }] },
+          400,
+        )
+      },
+    })
+    renderAt('/ho-so/xac-minh')
+    await startAndAccept(user, 'Gia hạn')
+
+    const field = screen.getByRole('textbox', { name: 'Email trường' })
+    await user.type(field, 'minh.k23@vnu.edu.vn')
+    await user.click(screen.getByRole('button', { name: 'Gửi mã' }))
+
+    await waitFor(() => expect(field).toHaveAttribute('aria-invalid', 'true'))
+    // The row is read again: the form now asks for what a new verification declares.
+    expect(await screen.findByRole('textbox', { name: 'Họ và tên' })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Ngành học' })).toBeInTheDocument()
+    expect(seen.filter((request) => request.method === 'GET' && request.url.endsWith('/api/v1/verification')).length)
+      .toBeGreaterThan(1)
   })
 
   it('shows no form before renewal opens', async () => {

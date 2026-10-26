@@ -17322,6 +17322,9 @@
           "githubLogin" : {
             "type" : "string"
           },
+          "major" : {
+            "type" : "string"
+          },
           "memberSince" : {
             "type" : "string",
             "format" : "date-time"
@@ -17343,10 +17346,6 @@
           },
           "verified" : {
             "type" : "boolean"
-          },
-          "yearOfStudy" : {
-            "type" : "integer",
-            "format" : "int32"
           }
         },
         "required" : [ "memberSince", "skillGroups", "verified" ]
@@ -19567,6 +19566,9 @@
           "githubLogin" : {
             "type" : "string"
           },
+          "major" : {
+            "type" : "string"
+          },
           "name" : {
             "type" : "string"
           },
@@ -19585,10 +19587,6 @@
           "verifiedUntil" : {
             "type" : "string",
             "format" : "date"
-          },
-          "yearOfStudy" : {
-            "type" : "integer",
-            "format" : "int32"
           }
         },
         "required" : [ "accountId", "skills", "verified" ]

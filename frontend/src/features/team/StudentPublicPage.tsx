@@ -40,7 +40,7 @@ function Profile({ student, username }: { student: PublicStudent; username: stri
   const caption = [
     student.githubLogin && t('screen.team.publicStudent.github', { login: student.githubLogin }),
     student.school,
-    student.yearOfStudy && t('screen.team.publicStudent.year', { n: student.yearOfStudy }),
+    student.major,
   ].filter((part): part is string => !!part)
   return (
     <>

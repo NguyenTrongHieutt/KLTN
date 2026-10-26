@@ -352,8 +352,13 @@ class ProfileIT extends IntegrationTest {
 		assertThat(this.students.cards(List.of(minh))).singleElement().satisfies(card -> {
 			assertThat(card.name()).isEqualTo("Trần Quang Minh");
 			assertThat(card.school()).isEqualTo("Đại học Bách khoa Hà Nội");
+			assertThat(card.major()).isEqualTo("Kỹ thuật phần mềm");
 		});
 		assertThat(this.students.search("Bách khoa", List.of(), PageRequest.of(0, 10)).getContent())
+			.extracting(StudentDirectory.StudentCard::accountId)
+			.containsExactly(minh);
+		assertThat(this.students.search("phần mềm", List.of(), PageRequest.of(0, 10)).getContent())
+			.as("the declared major is searched while shown")
 			.extracting(StudentDirectory.StudentCard::accountId)
 			.containsExactly(minh);
 		this.mvc.perform(get("/api/v1/profile").with(authentication(IdentityTestSupport.authentication(minh, Role.STUDENT))))
@@ -369,9 +374,10 @@ class ProfileIT extends IntegrationTest {
 		assertThat(this.students.cards(List.of(minh))).singleElement().satisfies(card -> {
 			assertThat(card.name()).isNull();
 			assertThat(card.school()).isNull();
-			assertThat(card.yearOfStudy()).isNull();
+			assertThat(card.major()).isNull();
 		});
 		assertThat(this.students.search("Bách khoa", List.of(), PageRequest.of(0, 10)).getContent()).isEmpty();
+		assertThat(this.students.search("phần mềm", List.of(), PageRequest.of(0, 10)).getContent()).isEmpty();
 		assertThat(this.jdbc.sql("""
 				SELECT search_vector @@ plainto_tsquery('platform.vi_search', 'Bách khoa') FROM identity.profile
 				WHERE account_id = :id
@@ -380,6 +386,45 @@ class ProfileIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/profile").with(authentication(IdentityTestSupport.authentication(minh, Role.STUDENT))))
 			.andExpect(jsonPath("$.hideStudentDetails").value(true))
 			.andExpect(jsonPath("$.studentDetails.school").value("Đại học Bách khoa Hà Nội"));
+
+		// A lapsed verification's details are not shown, though its expiry Deadline has yet to clear them.
+		this.clock.setInstant(Instant.parse("2026-09-30T17:00:00Z"));
+		this.mvc.perform(get("/api/v1/profile").with(authentication(IdentityTestSupport.authentication(minh, Role.STUDENT))))
+			.andExpect(jsonPath("$.studentDetails").doesNotExist());
+	}
+
+	/** Story 19.4: only the live, valid row counts; an ended one hides the Student, a renewal leaves one card. */
+	@Test
+	void anUnlinkedOrRevokedStudentIsNotFoundAndARenewedOneIsListedOnce() throws Exception {
+		LocalDate until = LocalDate.of(2026, 9, 30);
+		UUID unlinked = TeamTestSupport.student(this.jdbc, "Đã bỏ xác minh", true, List.of(TeamTestSupport.REACT), "React",
+				until);
+		UUID revoked = TeamTestSupport.student(this.jdbc, "Bị thu hồi", true, List.of(TeamTestSupport.REACT), "React", until);
+		for (UUID ended : List.of(unlinked, revoked)) {
+			this.jdbc.sql("""
+					UPDATE identity.verification SET ended_at = now(), facts = NULL,
+					    ended_reason = CASE WHEN account_id = :unlinked THEN 'UNLINKED' ELSE 'REVOKED' END
+					WHERE account_id = :id
+					""").param("id", ended).param("unlinked", unlinked).update();
+		}
+		UUID renewed = TeamTestSupport.student(this.jdbc, "Đã gia hạn", true, List.of(TeamTestSupport.REACT), "React", until);
+		this.jdbc.sql("""
+				INSERT INTO identity.verification (id, account_id, kind, provider, subject_hmac, key_version, consent_version,
+				    verified_at, valid_until, ended_at, ended_reason)
+				VALUES (:id, :account, 'STUDENT', 'EMAIL_CODE', :hmac, 1, '1.0', now() - interval '1 year', DATE '2025-09-30',
+				        now(), 'REPLACED')
+				""").param("id", UUID.randomUUID()).param("account", renewed)
+			.param("hmac", IdentityTestSupport.fakeHmac("renewed-old")).update();
+
+		assertThat(this.students.search("", List.of(), PageRequest.of(0, 10)).getContent())
+			.extracting(StudentDirectory.StudentCard::accountId)
+			.containsExactly(renewed);
+		assertThat(this.students.byLogin(TeamTestSupport.login(this.jdbc, unlinked))).isEmpty();
+		assertThat(this.students.byLogin(TeamTestSupport.login(this.jdbc, revoked))).isEmpty();
+		assertThat(this.students.cards(List.of(unlinked, revoked, renewed))).hasSize(3).allSatisfy(card -> {
+			assertThat(card.verified()).isEqualTo(card.accountId().equals(renewed));
+			assertThat(card.name() == null).isEqualTo(!card.accountId().equals(renewed));
+		});
 	}
 
 	@Test

@@ -57,6 +57,7 @@ import vn.vibefix.operations.internal.OperationWorker;
 import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.PostgresTestDatabase;
+import vn.vibefix.timers.internal.DeadlinePoller;
 
 /**
  * FR-5, FR-80, AD-34, AD-42, UX-DR93: the school email code for any person's account after N-26, its
@@ -104,6 +105,9 @@ class SchoolEmailVerificationIT extends IntegrationTest {
 	@Autowired
 	private SessionRepository<? extends Session> sessions;
 
+	@Autowired
+	private DeadlinePoller poller;
+
 	/** A Google account, which holds no role (Story 19.1): verifying needs none. */
 	private UUID minh;
 
@@ -127,9 +131,12 @@ class SchoolEmailVerificationIT extends IntegrationTest {
 				""").param("id", this.minh).query(String.class).list()).containsExactly("VERIFY_STUDENT 1.0");
 		assertThat(this.jdbc.sql("""
 				SELECT address_hmac || ' ' || key_version || ' ' || school || ' ' || declared_name || ' ' || declared_major
+				       || ' ' || consent_version || ' ' || (address_hmacs ->> '1')
 				FROM identity.school_email_code WHERE account_id = :id
 				""").param("id", this.minh).query(String.class).single())
-			.isEqualTo(this.keys.current("EMAIL", MINH) + " 1 hust.edu.vn " + NAME + " " + MAJOR);
+			.as("the accepted N-26 version, and the HMAC under every live key")
+			.isEqualTo(this.keys.current("EMAIL", MINH) + " 1 hust.edu.vn " + NAME + " " + MAJOR + " 1.0 "
+					+ this.keys.current("EMAIL", MINH));
 		assertThat(this.jdbc.sql("""
 				SELECT column_name FROM information_schema.columns
 				WHERE table_schema = 'identity' AND table_name = 'school_email_code' AND column_name LIKE '%email%'
@@ -197,21 +204,73 @@ class SchoolEmailVerificationIT extends IntegrationTest {
 	}
 
 	@Test
-	void anAddressThatVerifiesAnotherLiveAccountIsRefused() throws Exception {
+	void anAddressThatVerifiesAnotherLiveAccountIsRefusedOnlyAtTheEntry() throws Exception {
 		UUID other = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-other", "3.0");
 		send(other, MINH).andExpect(status().isAccepted());
 		confirm(other, deliveredCode(MINH)).andExpect(status().isOk());
 		this.mail.reset();
 
-		send(this.minh, "MINH@sis.hust.edu.vn").andExpect(status().is(422))
+		// The send tells nothing, so nobody can probe an address: only whoever holds its code hears it is in use.
+		send(this.minh, "MINH@sis.hust.edu.vn").andExpect(status().isAccepted())
+			.andExpect(jsonPath("$.reason").doesNotExist());
+		confirm(this.minh, deliveredCode(MINH)).andExpect(status().is(422))
 			.andExpect(jsonPath("$.code").value("GUARD_FAILED"))
 			.andExpect(jsonPath("$.reason").value("STUDENT_EMAIL_IN_USE"));
-		nothingSent();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM identity.verification WHERE account_id = :id")
+			.param("id", this.minh).query(Long.class).single()).isZero();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM identity.school_email_code").query(Long.class).single())
+			.as("the code is spent").isZero();
 
 		// Once the other account lets it go, the address verifies this one.
 		this.mvc.perform(delete("/api/v1/verification/student").with(as(other)).with(csrf()))
 			.andExpect(status().isNoContent());
 		send(this.minh, MINH).andExpect(status().isAccepted());
+		confirm(this.minh, deliveredCode(MINH)).andExpect(status().isOk());
+	}
+
+	@Test
+	void aSchoolThatLeftTheAllowlistBeforeTheEntryIsRefused() throws Exception {
+		send(this.minh, MINH).andExpect(status().isAccepted());
+		String code = deliveredCode(MINH);
+		this.jdbc.sql("DELETE FROM settings.school_domain WHERE domain = 'hust.edu.vn'").update();
+
+		confirm(this.minh, code).andExpect(status().is(422))
+			.andExpect(jsonPath("$.code").value("GUARD_FAILED"))
+			.andExpect(jsonPath("$.reason").value("EMAIL_DOMAIN_NOT_ALLOWED"));
+		assertThat(this.studentVerification.isVerified(this.minh)).isFalse();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM identity.verification").query(Long.class).single()).isZero();
+	}
+
+	/** A code sent while two keys were live: the entry checks and records the address under both. */
+	@Test
+	void anEntryChecksAndRecordsTheAddressUnderEveryKeyTheSendKnew() throws Exception {
+		String first = this.keys.current("EMAIL", MINH);
+		String second = IdentityTestSupport.fakeHmac("the address under key 2");
+		UUID other = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-other", "3.0");
+		this.jdbc.sql("""
+				INSERT INTO identity.verification (id, account_id, kind, provider, subject_hmac, key_version, facts,
+				    consent_version, verified_at, valid_until)
+				VALUES (:id, :account, 'STUDENT', 'EMAIL_CODE', :hmac, 2, '{"school":"hust.edu.vn","verifiedMonth":"2026-01"}',
+				        '1.0', now(), DATE '2026-09-30')
+				""").param("id", UUID.randomUUID()).param("account", other).param("hmac", second).update();
+		code(this.minh, first, second, "123456");
+
+		confirm(this.minh, "123456").andExpect(status().is(422))
+			.andExpect(jsonPath("$.reason").value("STUDENT_EMAIL_IN_USE"));
+
+		this.jdbc.sql("""
+				UPDATE identity.verification SET ended_at = now(), ended_reason = 'UNLINKED', facts = NULL
+				WHERE account_id = :account
+				""").param("account", other).update();
+		code(this.minh, first, second, "654321");
+		confirm(this.minh, "654321").andExpect(status().isOk());
+		assertThat(this.jdbc.sql("""
+				SELECT key_version || ' ' || hmac FROM identity.person_signal
+				WHERE account_id = :id AND source = 'SCHOOL_EMAIL' ORDER BY key_version
+				""").param("id", this.minh).query(String.class).list()).containsExactly("1 " + first, "2 " + second);
+		assertThat(this.jdbc.sql("""
+				SELECT key_version || ' ' || subject_hmac FROM identity.verification WHERE account_id = :id AND ended_at IS NULL
+				""").param("id", this.minh).query(String.class).single()).as("the current key's subject").isEqualTo("1 " + first);
 	}
 
 	@Test
@@ -436,10 +495,15 @@ class SchoolEmailVerificationIT extends IntegrationTest {
 		send(this.minh, MINH);
 		confirm(this.minh, deliveredCode(MINH)).andExpect(status().isOk());
 
+		UUID other = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-other", "3.0");
+		IdentityTestSupport.verifyStudent(this.jdbc, other, LocalDate.parse("2027-09-30"));
 		this.mvc.perform(delete("/api/v1/verification/student").with(as(this.minh)).with(csrf()))
 			.andExpect(status().isNoContent());
 
 		assertThat(this.studentVerification.isVerified(this.minh)).isFalse();
+		assertThat(this.studentVerification.isVerified(other)).as("only the caller's own row ends").isTrue();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM notification.todo WHERE account_id = :id")
+			.param("id", this.minh).query(Long.class).single()).as("the to-do is a Student's only").isZero();
 		assertThat(this.jdbc.sql("""
 				SELECT ended_reason || ' ' || (facts IS NULL) || ' ' || subject_hmac FROM identity.verification
 				WHERE account_id = :id
@@ -515,6 +579,41 @@ class SchoolEmailVerificationIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("SELECT count(*) FROM identity.school_email_code").query(Long.class).single()).isZero();
 	}
 
+	@Test
+	void anEndedRowKeepsItsHmacTwentyFourMonthsThenThePurgeDeletesIt() throws Exception {
+		this.clock.setInstant(Instant.parse("2026-10-19T03:00:00Z"));
+		send(this.minh, MINH);
+		confirm(this.minh, deliveredCode(MINH)).andExpect(status().isOk());
+		this.mvc.perform(delete("/api/v1/verification/student").with(as(this.minh)).with(csrf()))
+			.andExpect(status().isNoContent());
+		UUID other = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-other", "3.0");
+		IdentityTestSupport.verifyStudent(this.jdbc, other, LocalDate.parse("2027-09-30"));
+
+		this.clock.setInstant(Instant.parse("2028-10-19T02:59:00Z"));
+		this.purge.purge();
+		assertThat(rows(this.minh)).as("24 months less a minute").isOne();
+
+		this.clock.setInstant(Instant.parse("2028-10-19T03:01:00Z"));
+		this.purge.purge();
+		assertThat(rows(this.minh)).isZero();
+		assertThat(rows(other)).as("a live row stays").isOne();
+	}
+
+	@Test
+	void theExpiryOfAnAccountWithoutTheStudentRoleOpensNoToDo() throws Exception {
+		this.clock.setInstant(Instant.parse("2026-10-19T03:00:00Z"));
+		send(this.minh, MINH);
+		confirm(this.minh, deliveredCode(MINH)).andExpect(status().isOk());
+
+		this.clock.setInstant(Instant.parse("2027-09-30T17:00:00Z"));
+		this.poller.runDue();
+
+		assertThat(this.jdbc.sql("SELECT ended_reason FROM identity.verification WHERE account_id = :id")
+			.param("id", this.minh).query(String.class).single()).isEqualTo("EXPIRED");
+		assertThat(this.jdbc.sql("SELECT count(*) FROM notification.todo WHERE account_id = :id")
+			.param("id", this.minh).query(Long.class).single()).isZero();
+	}
+
 	/** Story 1.10 counts the last 14 days (from 17 September) for the next school year, as renewal does. */
 	@Test
 	void theLastValidDayIsTheNextThirtiethOfSeptember() {
@@ -555,6 +654,35 @@ class SchoolEmailVerificationIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/verification")
 			.with(IdentityTestSupport.signedIn(this.sessions, admin, Role.ADMINISTRATOR, this.clock.instant())))
 			.andExpect(status().isNotFound());
+	}
+
+	private long rows(UUID account) {
+		return this.jdbc.sql("SELECT count(*) FROM identity.verification WHERE account_id = :id")
+			.param("id", account)
+			.query(Long.class)
+			.single();
+	}
+
+	/** A code for {@code account} as a send while keys 1 and 2 were live writes it, with {@code code} as its code. */
+	private void code(UUID account, String first, String second, String code) {
+		UUID id = UUID.randomUUID();
+		this.jdbc.sql("DELETE FROM identity.school_email_code WHERE account_id = :account").param("account", account).update();
+		this.jdbc.sql("""
+				INSERT INTO identity.school_email_code (id, account_id, address_hmac, key_version, address_hmacs, code_hash,
+				    sent_at, expires_at, school, declared_name, declared_major, renewal, consent_version)
+				VALUES (:id, :account, :first, 1, jsonb_build_object('1', CAST(:first AS text), '2', CAST(:second AS text)),
+				        :hash, :now, :expires, 'hust.edu.vn', :name, :major, FALSE, '1.0')
+				""")
+			.param("id", id)
+			.param("account", account)
+			.param("first", first)
+			.param("second", second)
+			.param("hash", StudentVerifications.hash(id, code))
+			.param("now", Timestamp.from(this.clock.instant()))
+			.param("expires", Timestamp.from(this.clock.instant().plus(StudentVerifications.CODE_LIFETIME)))
+			.param("name", NAME)
+			.param("major", MAJOR)
+			.update();
 	}
 
 	private ResultActions send(UUID account, String email) throws Exception {
