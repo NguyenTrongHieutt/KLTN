@@ -34,8 +34,8 @@ import vn.vibefix.team.internal.TeamTestSupport;
 /**
  * Story 17.1 (FR-70, AD-41, UX-DR59): the Customer shares earlier Jobs of the same Product with a new Job, an
  * Assessment Report first and nothing unchosen; the new Job's Mentor and ACTIVE Crew are told and read the
- * customer-visible Pages only, read-only and without history, until the new Job is Closed; an ASSIGNED,
- * INACTIVE, or FORMER member reads nothing.
+ * customer-visible Pages only, read-only and without history, until the new Job is Closed; an ASSIGNED or
+ * FORMER member, a locked one included, reads nothing.
  */
 class PageSharesIT extends IntegrationTest {
 
@@ -147,8 +147,13 @@ class PageSharesIT extends IntegrationTest {
 		Instant now = this.clock.instant();
 		UUID assigned = WorkTestSupport.student(this.jdbc, "Lê Minh Khoa");
 		WorkTestSupport.crewRow(this.jdbc, this.next, assigned, "ASSIGNED", null);
-		UUID inactive = WorkTestSupport.student(this.jdbc, "Ngô Bảo Ngọc");
-		WorkTestSupport.crewRow(this.jdbc, this.next, inactive, "INACTIVE", now.minus(Duration.ofDays(2)));
+		// Story 20.4: a lock counts as leaving, and an unlock brings nothing back.
+		UUID left = WorkTestSupport.student(this.jdbc, "Ngô Bảo Ngọc");
+		WorkTestSupport.crewRow(this.jdbc, this.next, left, "ACTIVE", now.minus(Duration.ofDays(2)));
+		this.jdbc.sql("""
+				UPDATE job.crew_row SET status = 'RELEASED', window_end = :now, released_at = :now, released_reason = 'LEFT'
+				WHERE member_account_id = :student
+				""").param("now", java.sql.Timestamp.from(now.minus(Duration.ofDays(1)))).param("student", left).update();
 		UUID former = WorkTestSupport.student(this.jdbc, "Võ Hoài Nam");
 		WorkTestSupport.crewRow(this.jdbc, this.next, former, "ACTIVE", now.minus(Duration.ofDays(2)));
 		this.jdbc.sql("""
@@ -175,7 +180,7 @@ class PageSharesIT extends IntegrationTest {
 			this.mvc.perform(get("/api/v1/boards/" + this.assessment + "/work-items").with(as(reader, role)))
 				.andExpect(status().isNotFound());
 		}
-		for (UUID outsider : List.of(assigned, inactive, former)) {
+		for (UUID outsider : List.of(assigned, left, former)) {
 			this.mvc.perform(get("/api/v1/jobs/" + this.next + "/shared-pages").with(as(outsider, Role.STUDENT)))
 				.andExpect(status().isNotFound());
 			this.mvc.perform(get("/api/v1/pages/" + this.report).with(as(outsider, Role.STUDENT)))

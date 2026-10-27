@@ -8,9 +8,10 @@ import { Skeleton } from '@/components/Skeleton'
 import { Button } from '@/components/ui/button'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
-import { t, type MessageKey } from '@/i18n/t'
+import { t } from '@/i18n/t'
 import { formatDate } from '@/lib/dates'
 import { problemMessage } from '@/lib/problemMessage'
+import { erasureBlockerText } from './erasureBlockers'
 import { EXPORT_URL, useMyData, useRequestDeletion, type MyData } from './myDataApi'
 import { useSession } from './useSession'
 
@@ -75,13 +76,13 @@ function Deletion({ data }: { data: MyData }) {
               <p className="text-label">{t('screen.myData.waiting')}</p>
               <ul className="flex flex-col gap-1 text-body-sm">
                 {data.blockers.map((blocker, index) => (
-                  <li key={`${blocker.reason}-${blocker.jobId ?? index}`}>
+                  <li key={`${blocker.reason}-${blocker.jobId ?? ''}-${index}`}>
                     {blocker.jobId ? (
                       <Link to={`/cong-viec/${blocker.jobId}`} className="text-primary underline-offset-4 hover:underline">
-                        {t(`screen.myData.blocker.${blocker.reason}` as MessageKey)}
+                        {erasureBlockerText(blocker)}
                       </Link>
                     ) : (
-                      t(`screen.myData.blocker.${blocker.reason}` as MessageKey)
+                      erasureBlockerText(blocker)
                     )}
                   </li>
                 ))}

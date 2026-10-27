@@ -1,5 +1,8 @@
 package vn.vibefix.identity;
 
+import java.time.Instant;
+import java.util.Collection;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -27,5 +30,13 @@ public interface Capabilities {
 
 	/** The account's capabilities, read now; {@link Held#NONE} for an unknown account. */
 	Held capabilities(UUID accountId);
+
+	/**
+	 * {@code identity.lockedAmong} (AD-41, Story 20.4): which of these accounts are locked now, each with the
+	 * {@code locked_at} its lock wrote. A lock commits before its listeners release anything, so a guard that counts
+	 * {@code ACTIVE} Crew rows reads this under the Job lock and counts a row only when its account is absent; the
+	 * lock time also bounds the split-party rule of Story 22.1. Unknown and unlocked accounts are left out.
+	 */
+	Map<UUID, Instant> lockedAmong(Collection<UUID> accountIds);
 
 }

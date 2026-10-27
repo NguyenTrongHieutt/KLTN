@@ -111,23 +111,6 @@ function Content({ jobId, audience, progress }: { jobId: string; audience: Progr
             <h2 id="progress-crew" className="text-h2">
               {t('screen.progress.crew')}
             </h2>
-            {progress.crew
-              .filter((member) => member.state === 'INACTIVE' && member.openItems.length > 0)
-              .map((member) => (
-                <div
-                  key={member.accountId}
-                  role="status"
-                  className="flex flex-wrap items-center gap-3 rounded-md border-l-4 border-warning bg-warning-soft p-4 text-body-sm"
-                >
-                  <p className="min-w-0 grow">{t('screen.board.lockedMember', { name: member.name })}</p>
-                  <Link
-                    to={`/cong-viec/${jobId}/bang`}
-                    className="text-body-sm font-semibold text-primary underline-offset-4 hover:underline"
-                  >
-                    {t('screen.progress.lockedMemberBoard')}
-                  </Link>
-                </div>
-              ))}
             {progress.crew.length === 0 ? (
               <p className="text-body-sm text-muted-foreground">{t('screen.progress.noCrew')}</p>
             ) : (
@@ -288,15 +271,9 @@ function MilestoneCard({
   )
 }
 
-/** AD-41: an active member reads as success, an inactive one as a warning, and the rest muted. */
+/** AD-41: an active member reads as success, and the rest muted. */
 function crewStateTone(state: string): string {
-  if (state === 'ACTIVE') {
-    return 'bg-success-soft text-success'
-  }
-  if (state === 'INACTIVE') {
-    return 'bg-warning-soft text-warning'
-  }
-  return 'bg-muted text-muted-foreground'
+  return state === 'ACTIVE' ? 'bg-success-soft text-success' : 'bg-muted text-muted-foreground'
 }
 
 function ItemList({ items, jobId, empty }: { items: JobProgress['mine']; jobId: string; empty: string }) {

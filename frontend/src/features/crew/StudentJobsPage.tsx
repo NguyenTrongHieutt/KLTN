@@ -255,10 +255,9 @@ function AssignmentPanel({ assignment }: { assignment: CrewAssignment }) {
 
 /**
  * A Crew the Student confirmed: their share and the version, nothing of the others', and the way to
- * JOB-8 "Trao đổi nhóm" (read-only while their row is inactive).
+ * JOB-8 "Trao đổi nhóm".
  */
 function JoinedCard({ assignment }: { assignment: CrewAssignment }) {
-  const inactive = assignment.status === 'INACTIVE'
   return (
     <article className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -268,14 +267,8 @@ function JoinedCard({ assignment }: { assignment: CrewAssignment }) {
             {t('screen.crew.student.activeMeta', { product: assignment.productName, mentor: assignment.mentorName })}
           </p>
         </div>
-        <span
-          className={
-            inactive
-              ? 'rounded-full bg-destructive-soft px-2 py-0.5 text-caption font-semibold text-destructive'
-              : 'rounded-full bg-success-soft px-2 py-0.5 text-caption font-semibold text-success'
-          }
-        >
-          {t(inactive ? 'screen.crew.student.inactiveBadge' : 'screen.crew.student.activeBadge')}
+        <span className="rounded-full bg-success-soft px-2 py-0.5 text-caption font-semibold text-success">
+          {t('screen.crew.student.activeBadge')}
         </span>
       </div>
       {assignment.sharePercent != null && !assignment.changeWaiting && (
@@ -285,7 +278,7 @@ function JoinedCard({ assignment }: { assignment: CrewAssignment }) {
       )}
       <ExternalAccessSection jobId={assignment.jobId} level={3} />
       <div className="flex flex-wrap gap-2">
-        {!inactive && hasBoard(assignment.jobState) && (
+        {hasBoard(assignment.jobState) && (
           <>
             <Link
               to={`/cong-viec/${assignment.jobId}`}

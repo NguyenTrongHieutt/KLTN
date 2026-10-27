@@ -1,7 +1,6 @@
 package vn.vibefix.team.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request;
@@ -32,7 +31,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 import vn.vibefix.identity.AccountLocked;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
-import vn.vibefix.shared.ApiException;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.team.internal.TeamStore.Kind;
 import vn.vibefix.timers.internal.DeadlinePoller;
@@ -40,8 +38,7 @@ import vn.vibefix.timers.internal.DeadlinePoller;
 /**
  * FR-6, AD-37, Story 20.3: no Team can be formed since Story 19.7, and no account role tells a Mentor or a Student
  * apart, so every Team endpoint answers nothing to every signed-in caller until Story 21.7 deletes them. What the
- * module still does runs here: a lock runs both of {@link TeamLifecycle}'s consequences, each acting only on what
- * the account holds, and a pending request lapses after 14 days.
+ * module still does runs here: a lock changes no Team (Story 20.4), and a pending request lapses after 14 days.
  */
 class TeamIT extends IntegrationTest {
 
@@ -130,57 +127,29 @@ class TeamIT extends IntegrationTest {
 		assertThat(requestStatus(request)).isEqualTo("PENDING");
 	}
 
+	/**
+	 * Story 20.4: a lock no longer acts on Teams, so team's lock listener is gone: no Team can be formed since Story 19.7,
+	 * and Story 21.7 deletes them. A locked Mentor's Team and a locked Student's membership stay as they were.
+	 */
 	@Test
-	void aLockedMentorsTeamClosesAndReleasesItsStudents() throws Exception {
-		UUID vy = TeamTestSupport.student(this.jdbc, "Lê Thảo Vy", true, List.of(REACT), "React", VERIFIED_UNTIL);
-		UUID tung = TeamTestSupport.student(this.jdbc, "Phạm Hải Tùng", true, List.of(REACT), "React", VERIFIED_UNTIL);
+	void aLockChangesNoTeam() throws Exception {
 		UUID team = this.store.byMentor(this.hung).orElseThrow().id();
 		this.store.insertMembership(team, this.minh, this.clock.instant());
-		this.store.insertMembership(team, vy, this.clock.instant());
-		UUID pending = this.requests.invite(this.hung, tung).id();
+		UUID vy = TeamTestSupport.student(this.jdbc, "Lê Thảo Vy", true, List.of(REACT), "React", VERIFIED_UNTIL);
+		UUID pending = this.requests.invite(this.hung, vy).id();
 		IdentityTestSupport.lock(this.jdbc, this.hung, "Vi phạm");
+		IdentityTestSupport.lock(this.jdbc, this.minh, "Vi phạm");
 
-		publish(new AccountLocked(UUID.randomUUID(), this.hung));
+		publish(new AccountLocked(UUID.randomUUID(), this.hung, this.clock.instant()));
+		publish(new AccountLocked(UUID.randomUUID(), this.minh, this.clock.instant()));
 
-		await().atMost(Duration.ofSeconds(10)).until(() -> this.store.sizeOf(this.hung) == 0 && settled());
-		assertThat(this.store.byMentor(this.hung).orElseThrow().status()).isEqualTo(TeamStore.Status.CLOSED);
-		assertThat(requestStatus(pending)).isEqualTo("CANCELLED");
-		assertThat(notificationParam(this.minh, TeamMemberships.RELEASED, "mentor")).isEqualTo("Đỗ Mạnh Hùng");
-		assertThat(notificationParam(vy, TeamMemberships.RELEASED, "mentor")).isEqualTo("Đỗ Mạnh Hùng");
-		assertThatThrownBy(() -> this.requests.requestToJoin(tung, this.hung)).isInstanceOf(ApiException.class)
-			.satisfies(ex -> assertThat(((ApiException) ex).reason()).contains("TEAM_CLOSED"));
-	}
-
-	@Test
-	void aLockedStudentLeavesTheirTeam() throws Exception {
-		UUID team = this.store.byMentor(this.hung).orElseThrow().id();
-		this.store.insertMembership(team, this.minh, this.clock.instant());
-
-		publish(new AccountLocked(UUID.randomUUID(), this.minh));
-
-		await().atMost(Duration.ofSeconds(10)).until(() -> !this.store.isMember(this.hung, this.minh) && settled());
-		assertThat(this.jdbc.sql("SELECT left_reason FROM team.membership WHERE student_account_id = :id")
-			.param("id", this.minh).query(String.class).single()).isEqualTo("RELEASED");
-	}
-
-	/** Story 20.3: no role switch decides which consequence runs; an account with no Team changes nothing. */
-	@Test
-	void everyLockRunsBothConsequencesWhateverRoleTheRowStores() throws Exception {
-		UUID lan = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-lan", "3.1");
-		UUID lansTeam = this.store.ensure(lan, this.clock.instant()).id();
-		UUID vy = TeamTestSupport.student(this.jdbc, "Lê Thảo Vy", true, List.of(REACT), "React", VERIFIED_UNTIL);
-		this.store.insertMembership(lansTeam, vy, this.clock.instant());
-		UUID team = this.store.byMentor(this.hung).orElseThrow().id();
-		this.store.insertMembership(team, this.minh, this.clock.instant());
-		UUID loner = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-mot-minh", "3.1");
-
-		publish(new AccountLocked(UUID.randomUUID(), lan));
-		publish(new AccountLocked(UUID.randomUUID(), loner));
-
-		await().atMost(Duration.ofSeconds(10)).until(() -> this.store.sizeOf(lan) == 0 && settled());
-		assertThat(this.store.byMentor(lan).orElseThrow().status()).as("a role-less account's Team closes too")
-			.isEqualTo(TeamStore.Status.CLOSED);
-		assertThat(this.store.isMember(this.hung, this.minh)).as("another Team is untouched").isTrue();
+		await().atMost(Duration.ofSeconds(10)).until(this::settled);
+		assertThat(this.store.byMentor(this.hung).orElseThrow().status()).isEqualTo(TeamStore.Status.OPEN);
+		assertThat(this.store.isMember(this.hung, this.minh)).isTrue();
+		assertThat(requestStatus(pending)).isEqualTo("PENDING");
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM platform.event_publication WHERE listener_id LIKE '%TeamLifecycle%'
+				""").query(Long.class).single()).as("no team listener hears a lock").isZero();
 	}
 
 	@Test
@@ -221,13 +190,6 @@ class TeamIT extends IntegrationTest {
 	private String deadlineOf(UUID request) {
 		return this.jdbc.sql("SELECT status FROM timers.deadline WHERE subject_id = :id")
 			.param("id", request).query(String.class).single();
-	}
-
-	private String notificationParam(UUID account, String type, String param) {
-		return this.jdbc.sql("""
-				SELECT params ->> :param FROM notification.notification WHERE account_id = :id AND type = :type
-				ORDER BY created_at DESC LIMIT 1
-				""").param("param", param).param("id", account).param("type", type).query(String.class).single();
 	}
 
 	private RequestPostProcessor as(UUID account, @Nullable Role role) {

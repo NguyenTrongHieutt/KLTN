@@ -100,6 +100,7 @@ class DataRequestIT extends IntegrationTest {
 			.andExpect(jsonPath("$.deletionRequestedAt").exists())
 			.andExpect(jsonPath("$.blockers[0].reason").value("JOB_RUNNING"))
 			.andExpect(jsonPath("$.blockers[0].jobId").value(this.world.job().toString()))
+			.andExpect(jsonPath("$.blockers[0].name").value("Sửa lỗi đặt bàn"))
 			.andExpect(jsonPath("$.tokenKept").value(true));
 		this.mvc.perform(post("/api/v1/account/deletion-request").with(as(this.world.lan(), Role.CUSTOMER)).with(csrf()))
 			.andExpect(status().isConflict())
@@ -108,10 +109,12 @@ class DataRequestIT extends IntegrationTest {
 				+ this.ha.accountId() + "'")).isOne();
 		this.mvc.perform(get("/api/v1/admin/users/" + this.world.lan()).with(admin()))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.deletionRequest.blockers[0].reason").value("JOB_RUNNING"));
+			.andExpect(jsonPath("$.deletionRequest.blockers[0].reason").value("JOB_RUNNING"))
+			.andExpect(jsonPath("$.deletionRequest.blockers[0].name").value("Sửa lỗi đặt bàn"));
 		erase().andExpect(status().isUnprocessableEntity())
 			.andExpect(jsonPath("$.reason").value("ERASURE_BLOCKED"))
-			.andExpect(jsonPath("$.blockers[0].jobId").value(this.world.job().toString()));
+			.andExpect(jsonPath("$.blockers[0].jobId").value(this.world.job().toString()))
+			.andExpect(jsonPath("$.blockers[0].name").value("Sửa lỗi đặt bàn"));
 		assertThat(count("SELECT count(*) FROM identity.account WHERE id = '" + this.world.lan() + "' AND erased_at IS NULL"))
 			.isOne();
 
@@ -151,6 +154,119 @@ class DataRequestIT extends IntegrationTest {
 		erase(google).andExpect(status().isOk()).andExpect(jsonPath("$.erased").value(true));
 		assertThat(count("SELECT count(*) FROM identity.account WHERE id = '" + google + "' AND erased_at IS NOT NULL"))
 			.isOne();
+	}
+
+	/**
+	 * Story 20.4 (review 2026-10-27 A-19): a former member whose window ended after a Milestone was funded joins its
+	 * split, so the request waits for it while it is neither released nor cancelled, with the Job's title.
+	 */
+	@Test
+	void aFormerMembersRequestWaitsForAMilestoneFundedDuringTheirWindow() throws Exception {
+		this.jdbc.sql("""
+				UPDATE job.crew_row SET status = 'RELEASED', released_at = now(), released_reason = 'LEFT',
+				    window_end = now() + INTERVAL '1 hour'
+				WHERE member_account_id = :vy
+				""").param("vy", this.world.vy()).update();
+		// A second Held Milestone of the same Job: the Job is listed once.
+		UUID second = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at, state, funded_at,
+				    crew_terms_version_no)
+				VALUES (:id, :job, 1, 'Giai đoạn 2', 500000, 2, now(), 'FUNDED', now(), 1)
+				""").param("id", second).param("job", this.world.job()).update();
+
+		this.mvc.perform(post("/api/v1/account/deletion-request").with(as(this.world.vy(), Role.STUDENT)).with(csrf()))
+			.andExpect(status().isCreated())
+			.andExpect(jsonPath("$.blockers.length()").value(1))
+			.andExpect(jsonPath("$.blockers[0].module").value("job"))
+			.andExpect(jsonPath("$.blockers[0].reason").value("MILESTONE_PENDING"))
+			.andExpect(jsonPath("$.blockers[0].jobId").value(this.world.job().toString()))
+			.andExpect(jsonPath("$.blockers[0].name").value("Sửa lỗi đặt bàn"));
+		erase(this.world.vy()).andExpect(status().isUnprocessableEntity())
+			.andExpect(jsonPath("$.code").value("GUARD_FAILED"))
+			.andExpect(jsonPath("$.reason").value("ERASURE_BLOCKED"))
+			.andExpect(jsonPath("$.blockers[0].reason").value("MILESTONE_PENDING"))
+			.andExpect(jsonPath("$.blockers[0].name").value("Sửa lỗi đặt bàn"));
+		this.mvc.perform(get("/api/v1/admin/users/" + this.world.vy()).with(admin()))
+			.andExpect(jsonPath("$.deletionRequest.blockers[0].reason").value("MILESTONE_PENDING"));
+
+		// A window that ended before the Milestone was funded joins nothing.
+		this.jdbc.sql("UPDATE job.crew_row SET window_end = now() - INTERVAL '1 day' WHERE member_account_id = :vy")
+			.param("vy", this.world.vy()).update();
+		this.mvc.perform(get("/api/v1/account/data").with(as(this.world.vy(), Role.STUDENT)))
+			.andExpect(jsonPath("$.blockers.length()").value(0));
+		this.jdbc.sql("UPDATE job.crew_row SET window_end = now() + INTERVAL '1 hour' WHERE member_account_id = :vy")
+			.param("vy", this.world.vy()).update();
+		// Once the Milestones are released or cancelled, nothing waits.
+		this.jdbc.sql("UPDATE job.milestone SET state = 'ACCEPTED', accepted_at = now() WHERE id = :id")
+			.param("id", this.world.milestone()).update();
+		this.mvc.perform(get("/api/v1/account/data").with(as(this.world.vy(), Role.STUDENT)))
+			.andExpect(jsonPath("$.blockers.length()").value(1));
+		this.jdbc.sql("UPDATE job.milestone SET state = 'CANCELLED' WHERE id = :id").param("id", second).update();
+		this.mvc.perform(get("/api/v1/account/data").with(as(this.world.vy(), Role.STUDENT)))
+			.andExpect(jsonPath("$.blockers.length()").value(0));
+	}
+
+	/** A Team Issue not ended keeps its raiser's request waiting, with the Job's title; an ended one blocks nothing. */
+	@Test
+	void aRaisersRequestWaitsForTheirTeamIssueUntilItEnds() throws Exception {
+		this.jdbc.sql("UPDATE job.job SET state = 'CLOSED', closed_at = now() WHERE id = :id").param("id", this.world.job()).update();
+		UUID issue = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO dispute.team_issue (id, job_id, product_id, subject, milestone_id, milestone_number,
+				    raiser_account_id, mentor_account_id, reason, phase, answer_days, escalation_days, raised_at, answer_due_at)
+				VALUES (:id, :job, :product, 'SHARE', :milestone, 1, :vy, :hung, 'Phần chia chưa đúng', 'ANSWER', 5, 5, now(),
+				    now() + INTERVAL '5 days')
+				""").param("id", issue).param("job", this.world.job()).param("product", this.world.product())
+			.param("milestone", this.world.milestone()).param("vy", this.world.vy()).param("hung", this.world.hung()).update();
+
+		this.mvc.perform(post("/api/v1/account/deletion-request").with(as(this.world.vy(), Role.STUDENT)).with(csrf()))
+			.andExpect(status().isCreated())
+			.andExpect(jsonPath("$.blockers.length()").value(1))
+			.andExpect(jsonPath("$.blockers[0].module").value("dispute"))
+			.andExpect(jsonPath("$.blockers[0].reason").value("TEAM_ISSUE_OPEN"))
+			.andExpect(jsonPath("$.blockers[0].jobId").value(this.world.job().toString()))
+			.andExpect(jsonPath("$.blockers[0].name").value("Sửa lỗi đặt bàn"));
+
+		this.jdbc.sql("UPDATE dispute.team_issue SET phase = 'ENDED', ended_at = now(), ending = 'MOOT' WHERE id = :id")
+			.param("id", issue).update();
+		this.mvc.perform(get("/api/v1/account/data").with(as(this.world.vy(), Role.STUDENT)))
+			.andExpect(jsonPath("$.blockers.length()").value(0));
+	}
+
+	/** Story 20.4: an open Dispute on a Job whose Customer or Mentor the person is keeps the request waiting. */
+	@Test
+	void theCustomersRequestWaitsForAnOpenDispute() throws Exception {
+		this.jdbc.sql("UPDATE job.job SET state = 'CLOSED', closed_at = now() WHERE id = :id").param("id", this.world.job()).update();
+		UUID dispute = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO dispute.dispute (id, job_id, product_id, opened_by, opener_account_id, reason, concern, job_state,
+				    status, opened_at)
+				VALUES (:id, :job, :product, 'CUSTOMER', :lan, 'Giai đoạn chưa đạt', 'NEXT_STATE', 'ACTIVE', 'OPEN', now())
+				""").param("id", dispute).param("job", this.world.job()).param("product", this.world.product())
+			.param("lan", this.world.lan()).update();
+
+		this.mvc.perform(post("/api/v1/account/deletion-request").with(as(this.world.lan(), Role.CUSTOMER)).with(csrf()))
+			.andExpect(status().isCreated())
+			.andExpect(jsonPath("$.blockers.length()").value(1))
+			.andExpect(jsonPath("$.blockers[0].module").value("dispute"))
+			.andExpect(jsonPath("$.blockers[0].reason").value("DISPUTE_OPEN"))
+			.andExpect(jsonPath("$.blockers[0].jobId").value(this.world.job().toString()))
+			.andExpect(jsonPath("$.blockers[0].name").value("Sửa lỗi đặt bàn"));
+		erase().andExpect(status().isUnprocessableEntity())
+			.andExpect(jsonPath("$.reason").value("ERASURE_BLOCKED"))
+			.andExpect(jsonPath("$.blockers[0].reason").value("DISPUTE_OPEN"));
+		this.mvc.perform(post("/api/v1/account/deletion-request").with(as(this.world.hung(), Role.MENTOR)).with(csrf()))
+			.andExpect(status().isCreated())
+			.andExpect(jsonPath("$.blockers[0].reason").value("DISPUTE_OPEN"));
+		this.mvc.perform(post("/api/v1/account/deletion-request").with(as(this.world.minh(), Role.STUDENT)).with(csrf()))
+			.andExpect(status().isCreated())
+			.andExpect(jsonPath("$.blockers.length()").value(0));
+
+		this.jdbc.sql("UPDATE dispute.dispute SET status = 'DECIDED', decided_at = now() WHERE id = :id").param("id", dispute)
+			.update();
+		this.mvc.perform(get("/api/v1/account/data").with(as(this.world.lan(), Role.CUSTOMER)))
+			.andExpect(jsonPath("$.blockers.length()").value(0));
 	}
 
 	@Test

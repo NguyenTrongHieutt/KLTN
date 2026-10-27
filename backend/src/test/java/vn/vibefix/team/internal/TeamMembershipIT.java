@@ -135,15 +135,12 @@ class TeamMembershipIT extends IntegrationTest {
 	}
 
 	@Test
-	void aGoneMentorsReservedStudentStaysUntilTheReservationEnds() throws Exception {
-		UUID vy = TeamTestSupport.student(this.jdbc, "Lê Thảo Vy", true, List.of(REACT), "React", VERIFIED_UNTIL);
-		this.store.insertMembership(this.store.byMentor(this.hung).orElseThrow().id(), vy, this.clock.instant());
+	void aClosedTeamsReservedStudentStaysUntilTheReservationEnds() throws Exception {
 		UUID crewRow = UUID.randomUUID();
 		reserve(crewRow, this.hung, this.minh);
+		UUID team = this.store.byMentor(this.hung).orElseThrow().id();
 
-		IdentityTestSupport.lock(this.jdbc, this.hung, "Vi phạm");
-		publish(new AccountLocked(UUID.randomUUID(), this.hung));
-		await().atMost(Duration.ofSeconds(10)).until(() -> !this.teams.isMember(this.hung, vy) && settled());
+		this.transactions.executeWithoutResult(status -> this.store.close(team, this.clock.instant()));
 
 		assertThat(this.teams.isMember(this.hung, this.minh)).isTrue();
 		this.transactions.executeWithoutResult(status -> this.teams.releaseCrew(crewRow));
@@ -152,13 +149,14 @@ class TeamMembershipIT extends IntegrationTest {
 		assertThat(notificationParam(this.minh, TeamMemberships.RELEASED, "mentor")).isEqualTo("Đỗ Mạnh Hùng");
 	}
 
+	/** Story 20.4: a lock changes no Team; the reservation's end releases a locked Student. */
 	@Test
 	void aLockedReservedStudentLeavesWhenTheReservationEnds() throws Exception {
 		UUID crewRow = UUID.randomUUID();
 		reserve(crewRow, this.hung, this.minh);
 		IdentityTestSupport.lock(this.jdbc, this.minh, "test");
 
-		publish(new AccountLocked(UUID.randomUUID(), this.minh));
+		publish(new AccountLocked(UUID.randomUUID(), this.minh, this.clock.instant()));
 		await().atMost(Duration.ofSeconds(10)).until(this::settled);
 		assertThat(this.teams.isMember(this.hung, this.minh)).isTrue();
 

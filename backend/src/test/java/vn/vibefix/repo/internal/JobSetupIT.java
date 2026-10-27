@@ -503,7 +503,7 @@ class JobSetupIT extends IntegrationTest {
 		this.worker.runDue(Lane.GITHUB_SHORT);
 		assertThat(grantStatus(hai)).isEqualTo("INVITED");
 
-		this.revocations.locked(new AccountLocked(UUID.randomUUID(), this.crew));
+		this.revocations.locked(new AccountLocked(UUID.randomUUID(), this.crew, this.clock.instant()));
 		this.revocations.removed(new CrewMemberRemoved(UUID.randomUUID(), this.job, row, hai));
 		this.worker.runDue(Lane.GITHUB_SHORT);
 

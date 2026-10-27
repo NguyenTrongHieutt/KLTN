@@ -30,7 +30,7 @@ import vn.vibefix.work.internal.Boards.Board;
  * {@code job.roleOf} reads (AD-43):
  * <ul>
  * <li>the Job's Mentor and its {@code ACTIVE} Crew members read everything and write while the Job is Active;</li>
- * <li>an {@code INACTIVE} or {@code FORMER} member reads, read-only, only what their windows allow
+ * <li>a {@code FORMER} member, a locked one included, reads, read-only, only what their windows allow
  * ({@link WorkReads});</li>
  * <li>an Administrator reads only what an open {@code WORK_ITEMS} grant covers, each read audited.</li>
  * </ul>
@@ -160,7 +160,7 @@ class WorkAccess {
 		}
 		return switch (role.crewKind()) {
 			case ACTIVE -> viewer(board, post, account, Kind.CREW, List.of(), List.of());
-			case INACTIVE, FORMER -> {
+			case FORMER -> {
 				List<Window> windows = windows(board.jobId(), account);
 				if (windows.isEmpty()) {
 					throw new ApiException(ErrorCode.NOT_FOUND);

@@ -30,8 +30,8 @@ import vn.vibefix.shared.Gate;
 
 /**
  * JOB-8 "Trao đổi nhóm" (FR-77, FR-47, UX-DR25, UX-DR40, UX-DR80): the Job's Mentor and its Crew. The
- * Mentor and {@code ACTIVE} members read every message and write while the Chat is open; an
- * {@code INACTIVE} or {@code FORMER} member reads only the messages inside their windows (AD-41). The
+ * Mentor and {@code ACTIVE} members read every message and write while the Chat is open; a
+ * {@code FORMER} member reads only the messages inside their windows (AD-41). The
  * Customer and everyone else find nothing; an Administrator only reads, under a grant naming the
  * Crew Chat, audited. The tab finds the Chat by its Job, and the messages are addressed by the Chat.
  */

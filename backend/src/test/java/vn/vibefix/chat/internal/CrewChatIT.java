@@ -167,7 +167,7 @@ class CrewChatIT extends IntegrationTest {
 	}
 
 	@Test
-	void anInactiveOrFormerMemberReadsOnlyTheirWindowAndWritesNothing() throws Exception {
+	void aFormerMemberReadsOnlyTheirWindowAndWritesNothing() throws Exception {
 		UUID vy = student("Trần Thảo Vy");
 		Instant joined = this.clock.instant();
 		crewRow(vy, "ACTIVE", joined, null);
@@ -203,7 +203,13 @@ class CrewChatIT extends IntegrationTest {
 			.andExpect(jsonPath("$.reason").value("CHAT_READ_ONLY"));
 
 		UUID minh = student("Nguyễn Văn Minh");
-		crewRow(minh, "INACTIVE", joined, null);
+		this.jdbc.sql("""
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, released_at,
+				    released_reason, created_at)
+				VALUES (:id, :job, :student, 'RELEASED', :signed, :signed, :now, 'LEFT', :now)
+				""").param("id", UUID.randomUUID()).param("job", this.job).param("student", minh)
+			.param("signed", Timestamp.from(joined.minus(Duration.ofMinutes(5))))
+			.param("now", Timestamp.from(this.clock.instant())).update();
 		// A window with no end is never read as open.
 		this.mvc.perform(get("/api/v1/crew-chats/" + this.crewChat + "/messages").with(as(minh, Role.STUDENT)))
 			.andExpect(status().isNotFound());

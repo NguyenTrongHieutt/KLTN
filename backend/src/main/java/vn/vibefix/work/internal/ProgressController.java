@@ -43,7 +43,7 @@ import vn.vibefix.work.internal.WorkAccess.Kind;
  * customer-visible Pages; for the Mentor the Crew with each member's open Work Items, and for a Crew
  * member their own; for the Mentor and the Crew of an Assessment Job, the public Source Repository they
  * read (FR-10). The Job's Customer, its Mentor, and its active Crew read it; the Customer's answer holds
- * no Work Item and no repository link. An inactive or former Crew member reads only the Job's header, as
+ * no Work Item and no repository link. A former Crew member, a locked one included, reads only the Job's header, as
  * {@code FORMER}, so JOB-1 keeps their post-Job duties without anything from after their time (AD-41).
  * Everyone else finds nothing.
  */
@@ -72,7 +72,7 @@ class ProgressController {
 
 	/**
 	 * One Crew member on JOB-1, for the Mentor (UX-DR68).
-	 * @param state the row's AD-41 state: {@code ASSIGNED}, {@code ACTIVE}, {@code INACTIVE}, or {@code RELEASED}
+	 * @param state the row's AD-41 state: {@code ASSIGNED}, {@code ACTIVE}, or {@code RELEASED}
 	 */
 	record CrewProgressView(UUID accountId, String name, String state, List<OpenItemView> openItems) {
 	}

@@ -16,12 +16,13 @@ import org.jspecify.annotations.Nullable;
 public interface Crews {
 
 	enum Relationship {
-		NONE, ASSIGNED, ACTIVE, INACTIVE, FORMER
+		NONE, ASSIGNED, ACTIVE, FORMER
 	}
 
 	/**
-	 * What an account is to a Job's Crew (AD-41). {@code INACTIVE} and {@code FORMER} carry the read
-	 * window; a row never {@code ACTIVE} has none and reads as {@code NONE} once inactive or released.
+	 * What an account is to a Job's Crew (AD-41). {@code FORMER} carries the read window; a row never
+	 * {@code ACTIVE} has none and reads as {@code NONE} once released. A lock counts as leaving, so a locked member
+	 * is {@code FORMER} once {@code job}'s listener released the row (Story 20.4).
 	 */
 	record CrewRelationship(Relationship kind, @Nullable Instant signedAt, @Nullable Instant windowEnd) {
 

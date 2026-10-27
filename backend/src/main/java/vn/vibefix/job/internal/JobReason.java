@@ -51,9 +51,6 @@ enum JobReason {
 	/** A Crew change waits until no Milestone is Held (FR-75, AD-41). */
 	CREW_CHANGE_WHILE_HELD,
 
-	/** A Crew change cannot keep a locked member as a party; the Mentor removes them in it (AD-41). */
-	CREW_INACTIVE_PARTY,
-
 	/** With large Crews off, a Job has one Crew row that is not released (AD-30). */
 	CREW_LIMIT,
 

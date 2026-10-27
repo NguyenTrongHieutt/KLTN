@@ -8,6 +8,8 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
@@ -23,22 +25,28 @@ import vn.vibefix.shared.PersonalDataSection;
  * {@code matching}'s part in exports, erasure, and Product deletion (AD-24): a Mentor exports their
  * own Applications and NDA signatures, and both sides export the invitations to apply they sent or
  * received; erasing a Mentor or a Customer deletes the Applications and invitations they made or
- * received, and deleting a Product deletes those to its Jobs. A running Job blocks erasure through
- * {@code job}.
+ * received, and deleting a Product deletes those to its Jobs. Nothing here blocks an erasure (a running Job
+ * blocks it through {@code job}): the erasure first withdraws the person's open bids through the lock's path, so
+ * each Customer is told, and then deletes (Story 20.4). It runs before the other participants, while
+ * {@code identity} still has the Mentor's name for those notices.
  * <p>
  * It also answers for the GitHub link (FR-80, R14): an open bid keeps it, since the Customer's contributor
  * check knows the Mentor by their GitHub ID.
  */
 @Component
+@Order(Ordered.HIGHEST_PRECEDENCE)
 class MatchingPersonalData implements PersonalDataParticipant, GitHubLinkParticipant {
 
 	private final JdbcClient jdbc;
 
 	private final ObjectProvider<JobPosts> posts;
 
-	MatchingPersonalData(JdbcClient jdbc, ObjectProvider<JobPosts> posts) {
+	private final ObjectProvider<Applications> applications;
+
+	MatchingPersonalData(JdbcClient jdbc, ObjectProvider<JobPosts> posts, ObjectProvider<Applications> applications) {
 		this.jdbc = jdbc;
 		this.posts = posts;
+		this.applications = applications;
 	}
 
 	@Override
@@ -96,6 +104,7 @@ class MatchingPersonalData implements PersonalDataParticipant, GitHubLinkPartici
 
 	@Override
 	public void eraseAccount(UUID accountId) {
+		this.applications.getObject().withdrawOpenBids(accountId);
 		this.jdbc.sql("DELETE FROM matching.nda_signature WHERE account_id = :id").param("id", accountId).update();
 		this.jdbc.sql("DELETE FROM matching.invitation WHERE mentor_account_id = :id OR customer_account_id = :id")
 			.param("id", accountId)

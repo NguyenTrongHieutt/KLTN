@@ -18,8 +18,8 @@ import { hasChat, useCrewChat, type CrewChat } from './chatApi'
 /**
  * JOB-8 "Trao đổi nhóm" (`/cong-viec/{jobId}/trao-doi-nhom`, FR-77, UX-DR17, UX-DR80): the Crew Chat
  * between the Job's Mentor and its Crew, never shown to the Customer. The Mentor reaches it from the
- * Job's tabs, a Crew member from "Công việc của tôi"; an inactive or former member reads only the
- * messages of their time on the Crew. Anyone else sees the not-found screen.
+ * Job's tabs, a Crew member from "Công việc của tôi"; a former member, one whose lock counted as leaving
+ * included, reads only the messages of their time on the Crew. Anyone else sees the not-found screen.
  */
 export function CrewChatPage() {
   const { jobId } = useParams()

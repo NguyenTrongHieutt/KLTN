@@ -1,5 +1,6 @@
 package vn.vibefix.dispute.internal;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -7,9 +8,12 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
+import vn.vibefix.job.JobOversight;
+import vn.vibefix.job.JobOversight.JobLine;
 import vn.vibefix.shared.ErasureBlocker;
 import vn.vibefix.shared.PersonalDataParticipant;
 import vn.vibefix.shared.PersonalDataSection;
@@ -17,16 +21,24 @@ import vn.vibefix.shared.PersonalDataSection;
 /**
  * {@code dispute}'s part in exports, erasure, and Product deletion (AD-24): a person exports the Disputes
  * they opened and the Team Issues they raised; erasure clears them as the opener, the raiser, or the
- * Mentor, and a Team Issue not ended blocks it, since its hold would never end; deleting a Product deletes
- * its Disputes and Team Issues.
+ * Mentor; an open Dispute on a Job whose Customer or Mentor the person is blocks it, since its decision needs
+ * both parties (Story 20.4), and so does a Team Issue not ended, since its hold would never end; deleting a
+ * Product deletes its Disputes and Team Issues. The Job's parties and title come from {@code job}.
  */
 @Component
 class DisputePersonalData implements PersonalDataParticipant {
 
+	static final String DISPUTE_OPEN = "DISPUTE_OPEN";
+
+	static final String TEAM_ISSUE_OPEN = "TEAM_ISSUE_OPEN";
+
 	private final JdbcClient jdbc;
 
-	DisputePersonalData(JdbcClient jdbc) {
+	private final ObjectProvider<JobOversight> jobs;
+
+	DisputePersonalData(JdbcClient jdbc, ObjectProvider<JobOversight> jobs) {
 		this.jdbc = jdbc;
+		this.jobs = jobs;
 	}
 
 	@Override
@@ -100,18 +112,30 @@ class DisputePersonalData implements PersonalDataParticipant {
 		this.jdbc.sql("DELETE FROM dispute.team_issue WHERE product_id = :id").param("id", productId).update();
 	}
 
+	/**
+	 * Each open Dispute on a Job whose Customer or Mentor the account is ({@code DISPUTE_OPEN}), and each Job with a
+	 * Team Issue not ended that the account raised or answers ({@code TEAM_ISSUE_OPEN}), each with its Job's title.
+	 */
 	@Override
 	public List<ErasureBlocker> erasureBlockers(UUID accountId) {
-		return this.jdbc.sql("""
+		List<ErasureBlocker> blockers = new ArrayList<>();
+		this.jdbc.sql("SELECT job_id FROM dispute.dispute WHERE status = 'OPEN' ORDER BY job_id")
+			.query(UUID.class)
+			.list()
+			.forEach(jobId -> this.jobs.getObject()
+				.job(jobId)
+				.filter(job -> accountId.equals(job.customerId()) || accountId.equals(job.mentorId()))
+				.ifPresent(job -> blockers.add(new ErasureBlocker("dispute", DISPUTE_OPEN, jobId, job.title()))));
+		this.jdbc.sql("""
 				SELECT DISTINCT job_id FROM dispute.team_issue
-				WHERE phase <> 'ENDED' AND (raiser_account_id = :id OR mentor_account_id = :id)
+				WHERE phase <> 'ENDED' AND (raiser_account_id = :id OR mentor_account_id = :id) ORDER BY job_id
 				""")
 			.param("id", accountId)
 			.query(UUID.class)
 			.list()
-			.stream()
-			.map(job -> new ErasureBlocker("dispute", "TEAM_ISSUE_OPEN", job))
-			.toList();
+			.forEach(jobId -> blockers.add(new ErasureBlocker("dispute", TEAM_ISSUE_OPEN, jobId,
+					this.jobs.getObject().job(jobId).map(JobLine::title).orElse(null))));
+		return blockers;
 	}
 
 }

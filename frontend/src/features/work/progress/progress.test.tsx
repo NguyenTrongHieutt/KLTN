@@ -144,12 +144,6 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
                 openItems: [{ id: 'w2', key: 'SDB-2', title: 'Khách thấy giờ còn trống', status: 'IN_REVIEW' }],
               },
               { accountId: 's2', name: 'Lê Minh Tùng', state: 'ASSIGNED', openItems: [] },
-              {
-                accountId: 's3',
-                name: 'Nguyễn Văn Minh',
-                state: 'INACTIVE',
-                openItems: [{ id: 'w5', key: 'SDB-5', title: 'Nhắc lịch qua email', status: 'TODO' }],
-              },
               { accountId: 's4', name: 'Hoàng Kim Ngân', state: 'RELEASED', openItems: [] },
             ],
           }),
@@ -163,14 +157,14 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
     expect(within(crew).getByText('SDB-2')).toBeInTheDocument()
     expect(within(crew).getByText('Chờ duyệt')).toBeInTheDocument()
     // UX-DR68, AD-41: each member's state on the Crew list; a former member is not in the people aside.
-    for (const state of ['Đang tham gia', 'Đã phân công', 'Tạm ngừng', 'Đã rời']) {
+    for (const state of ['Đang tham gia', 'Đã phân công', 'Đã rời']) {
       expect(within(crew).getByText(state)).toBeInTheDocument()
     }
-    // Story 11.4: the member who left still holds SDB-5, which the Mentor reassigns on the Board.
-    expect(within(crew).getByText('Nguyễn Văn Minh không còn tham gia vibefix. Hãy giao lại các hạng mục đang mở.')).toBeInTheDocument()
-    expect(within(crew).getByRole('link', { name: 'Giao lại trên bảng công việc' })).toHaveAttribute('href', '/cong-viec/j1/bang')
+    // Story 20.4: a lock counts as leaving, so no member is "Tạm ngừng" and no reassignment banner shows.
+    expect(within(crew).queryByText('Tạm ngừng')).toBeNull()
+    expect(within(crew).queryByRole('status')).toBeNull()
     const people = screen.getByRole('heading', { level: 3, name: 'Người tham gia' }).closest('section')!
-    expect(within(people).getByText('Nhóm thực hiện: Nguyễn Văn Minh')).toBeInTheDocument()
+    expect(within(people).getByText('Nhóm thực hiện: Lê Minh Tùng')).toBeInTheDocument()
     expect(within(people).queryByText('Nhóm thực hiện: Hoàng Kim Ngân')).toBeNull()
   })
 

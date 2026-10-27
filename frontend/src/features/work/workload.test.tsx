@@ -104,7 +104,7 @@ describe('Story 11.2: the Crew workload on JOB-2 (FR-23, FR-26, AD-41, UX-DR37)'
     expect(within(todo).getAllByRole('listitem')).toHaveLength(3)
   })
 
-  it('lists an inactive member disabled in the assignee picker', { timeout: 20_000 }, async () => {
+  it('lists a member whose lock is not carried out yet disabled in the assignee picker', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     fakeBackend(signedIn('MENTOR'), {
       'GET /api/v1/mentor/jobs/j1': () => json(mentorJob),
@@ -116,24 +116,7 @@ describe('Story 11.2: the Crew workload on JOB-2 (FR-23, FR-26, AD-41, UX-DR37)'
     const sheet = await screen.findByRole('dialog', { name: 'Thêm việc' })
     const picker = within(sheet).getByRole('combobox', { name: 'Người làm' })
     expect(within(picker).getByRole('option', { name: 'Trần Thảo Vy' })).toBeEnabled()
-    expect(within(picker).getByRole('option', { name: 'Nguyễn Văn Minh (tạm ngừng)' })).toBeDisabled()
-  })
-
-  it('asks the Mentor to reassign the open Work Items of a member who left (Story 11.4)', { timeout: 20_000 }, async () => {
-    const user = userEvent.setup()
-    const minh = { accountId: 's3', name: 'Nguyễn Văn Minh' }
-    fakeBackend(signedIn('MENTOR'), {
-      'GET /api/v1/mentor/jobs/j1': () => json(mentorJob),
-      'GET /api/v1/boards/j1/work-items': () => json(board({ items: [...board().items, task(4, 'Việc của Minh', minh, 2)] })),
-    })
-    renderAt('/cong-viec/j1/bang')
-
-    const banner = await screen.findByText('Nguyễn Văn Minh không còn tham gia vibefix. Hãy giao lại các hạng mục đang mở.')
-    expect(screen.queryByText(/Trần Thảo Vy không còn tham gia/)).toBeNull()
-    await user.click(within(banner.parentElement!).getByRole('button', { name: 'Xem 1 hạng mục' }))
-    const todo = screen.getByRole('region', { name: /Cần làm/ })
-    expect(within(todo).getAllByRole('listitem')).toHaveLength(1)
-    expect(within(todo).getByText('Việc của Minh')).toBeInTheDocument()
+    expect(within(picker).getByRole('option', { name: 'Nguyễn Văn Minh (đã rời nhóm)' })).toBeDisabled()
   })
 
   it('hides the line when the Board sends no workload: a Crew member, or the flag off', { timeout: 20_000 }, async () => {

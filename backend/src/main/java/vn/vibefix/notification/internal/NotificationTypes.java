@@ -455,6 +455,29 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType JOB_CREW_CONFIRMED = new NotificationType("job.crew_confirmed", Set.of(Audience.MENTOR),
 			Channel.IN_APP, EmailClass.TRANSACTIONAL, "check", Set.of("job"));
 
+	/**
+	 * An active Crew member left the Crew; a lock counts as leaving and reads the same, never why (FR-82, FR-59,
+	 * Story 20.4): the Mentor and the other active members.
+	 */
+	static final NotificationType JOB_CREW_MEMBER_LEFT = new NotificationType("job.crew_member_left",
+			Set.of(Audience.MENTOR, Audience.CREW_ACTIVE), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info",
+			Set.of("name", "job"));
+
+	/** The same, told to the Customer by GitHub username only (R15, UX-DR108, Story 20.4). */
+	static final NotificationType JOB_CREW_LOGIN_REMOVED = new NotificationType("job.crew_login_removed",
+			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("login", "job"));
+
+	/**
+	 * A picked person who had not signed is locked, so the pick is released as {@code DECLINED} (FR-59, A-05,
+	 * Story 20.4): the Mentor only, never why; the Customer never learns of picks.
+	 */
+	static final NotificationType JOB_CREW_PICK_RELEASED = new NotificationType("job.crew_pick_released",
+			Set.of(Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("name", "job"));
+
+	/** No active Crew member is left after Starting (Q7, FR-82, Story 20.4): the Customer, told the Mentor carries on. */
+	static final NotificationType JOB_CREW_EMPTY = new NotificationType("job.crew_empty", Set.of(Audience.CUSTOMER),
+			Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("job", "mentor"));
+
 	/** A Crew addition refused for a shared person-link signal (AD-19): every Administrator. */
 	static final NotificationType JOB_CONFLICT_OF_INTEREST_REFUSED = new NotificationType("job.conflict_of_interest_refused",
 			Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of());
@@ -492,7 +515,10 @@ class NotificationTypes implements NotificationCatalog {
 	static final TodoType WORK_REVIEW_WORK_ITEM = new TodoType("work.review_work_item", Set.of(Audience.MENTOR), 2,
 			Set.of("key", "title"));
 
-	/** A locked Crew member's open Work Items wait for the Mentor to reassign them (FR-59, Story 11.4). */
+	/**
+	 * A locked Crew member's open Work Items wait for the Mentor to reassign them (FR-59, Story 11.4). None opens since
+	 * Story 20.4, which unassigns them; one opened before closes once nothing of that person's is open.
+	 */
 	static final TodoType WORK_REASSIGN_WORK_ITEMS = new TodoType("work.reassign_work_items", Set.of(Audience.MENTOR), 2,
 			Set.of("job", "name", "n"));
 
@@ -799,7 +825,8 @@ class NotificationTypes implements NotificationCatalog {
 				JOB_SELECTION_DECLINED, MATCHING_APPLICATIONS_CLOSED, MATCHING_APPLICATIONS_REOPENED, MATCHING_NDA_OVERDUE,
 				MATCHING_INVITED_TO_APPLY, CHAT_CHAT_OPENED, JOB_AGREEMENT_DRAFT_READY, JOB_CREW_ASSIGNED,
 				JOB_CREW_MEMBER_CONFIRMED, JOB_CREW_MEMBER_DECLINED, JOB_CREW_MEMBER_REMOVED, JOB_CREW_TERMS_CHANGED,
-				JOB_CREW_CONFIRMED, JOB_CREW_CHANGE_PROPOSED, JOB_CREW_CHANGED, JOB_CREW_CHANGE_VOIDED,
+				JOB_CREW_CONFIRMED, JOB_CREW_CHANGE_PROPOSED, JOB_CREW_CHANGED, JOB_CREW_CHANGE_VOIDED, JOB_CREW_MEMBER_LEFT,
+				JOB_CREW_LOGIN_REMOVED, JOB_CREW_PICK_RELEASED, JOB_CREW_EMPTY,
 				JOB_CONFLICT_OF_INTEREST_REFUSED, JOB_PERSON_LINK_ALERT, JOB_AGREEMENT_CHANGES_REQUESTED,
 				JOB_AGREEMENT_AWAITING_CONFIRMATION, JOB_AGREEMENT_CONFIRMED, JOB_MILESTONE_AWAITING_FUNDING, JOB_CREW_RECONFIRM_NEEDED,
 				PAYMENT_PAYMENT_RECEIVED, PAYMENT_PAYMENT_FAILED, PAYMENT_UNKNOWN_PAYMENT, JOB_MILESTONE_FUNDED, JOB_MILESTONE_SUBMITTED,

@@ -57,7 +57,8 @@ class JobRolesIT extends IntegrationTest {
 		UUID mentor = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT), "React");
 		UUID assigned = student("Sinh viên được giao");
 		UUID active = student("Sinh viên đang làm");
-		UUID inactive = student("Sinh viên tạm dừng");
+		// Story 20.4: a lock counts as leaving, so a locked member is a former one.
+		UUID locked = student("Sinh viên bị khóa");
 		UUID former = student("Sinh viên đã rời");
 		UUID declined = student("Sinh viên đã từ chối");
 		UUID bidder = TeamTestSupport.mentor(this.jdbc, "Người ứng tuyển", List.of(TeamTestSupport.REACT), "React");
@@ -69,7 +70,8 @@ class JobRolesIT extends IntegrationTest {
 		UUID running = job(customer, mentor, "ACTIVE", "BUG_FIX");
 		crewRow(running, assigned, "ASSIGNED", false);
 		crewRow(running, active, "ACTIVE", true);
-		crewRow(running, inactive, "INACTIVE", true);
+		crewRow(running, locked, "RELEASED", true);
+		IdentityTestSupport.lock(this.jdbc, locked, "Vi phạm quy tắc");
 		crewRow(running, former, "RELEASED", true);
 		crewRow(running, declined, "RELEASED", false);
 		UUID open = job(crossRole, null, "OPEN", "BUG_FIX");
@@ -83,11 +85,11 @@ class JobRolesIT extends IntegrationTest {
 
 		Map<UUID, Map<UUID, String>> expected = new LinkedHashMap<>();
 		expected.put(running, Map.of(customer, "CUSTOMER", mentor, "MENTOR", assigned, "CREW ASSIGNED", active,
-				"CREW ACTIVE", inactive, "CREW INACTIVE", former, "CREW FORMER"));
+				"CREW ACTIVE", locked, "CREW FORMER", former, "CREW FORMER"));
 		expected.put(open, Map.of(crossRole, "CUSTOMER"));
 		expected.put(other, Map.of(customer, "CUSTOMER", crossRole, "MENTOR", former, "CREW ACTIVE"));
 		expected.put(missing, Map.of());
-		List<UUID> accounts = List.of(customer, mentor, assigned, active, inactive, former, declined, bidder, crossRole,
+		List<UUID> accounts = List.of(customer, mentor, assigned, active, locked, former, declined, bidder, crossRole,
 				unrelated, admin);
 
 		List<String> mismatches = new ArrayList<>();
@@ -301,8 +303,7 @@ class JobRolesIT extends IntegrationTest {
 			.param("status", status)
 			.param("signed", activated ? Timestamp.from(at) : null)
 			.param("activated", activated ? Timestamp.from(at) : null)
-			.param("end", activated && (released || "INACTIVE".equals(status)) ? Timestamp.from(at.plus(Duration.ofDays(5)))
-					: null)
+			.param("end", activated && released ? Timestamp.from(at.plus(Duration.ofDays(5))) : null)
 			.param("released", released ? Timestamp.from(at.plus(Duration.ofDays(5))) : null)
 			.param("reason", released ? (activated ? "JOB_ENDED" : "DECLINED") : null)
 			.param("at", Timestamp.from(at))

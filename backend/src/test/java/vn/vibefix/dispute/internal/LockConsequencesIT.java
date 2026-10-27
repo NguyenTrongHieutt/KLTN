@@ -4,11 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.sql.Timestamp;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,23 +31,31 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import vn.vibefix.identity.AccountLocked;
+import vn.vibefix.identity.StudentVerification;
 import vn.vibefix.identity.internal.AdministratorTestSupport;
 import vn.vibefix.identity.internal.AdministratorTestSupport.Administrator;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
+import vn.vibefix.payment.Releases;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.team.internal.TeamTestSupport;
 
 /**
- * FR-59, AD-19, AD-41, SM-8 "account lock mid-Milestone": locking the only Crew member, the Mentor, or
- * the Customer of an Active Job with a Held Milestone tells whom UX-DR83 allows, opens one Dispute by the
- * System that freezes the Job, and changes nothing more on a re-delivery; the decision's release still
- * pays the locked Crew member by the Milestone's pin, and an unlock leaves the row {@code INACTIVE}.
+ * FR-59, FR-82, AD-19, AD-41, SM-8 "account lock mid-Milestone" (Stories 10.2 and 20.4): a lock counts as leaving.
+ * Locking the only Crew member of an Active Job with a Held Milestone releases their row as {@code LEFT} with the
+ * window ending at the lock's time, tells the Mentor, the Customer by GitHub username only, and the Administrators,
+ * tells the Customer that no member is left, and opens no Dispute; a re-delivery changes nothing, the Milestone's
+ * release still pays the member by its pin, and an unlock brings nothing back and removed no Verification. A
+ * pick not yet signed is released as {@code DECLINED} and only the Mentor hears. A locked Mentor or Customer leaves
+ * each running Job to one Dispute by the System, and one lock acts on every relation, Job by Job.
  */
 @RecordApplicationEvents
 class LockConsequencesIT extends IntegrationTest {
 
 	private static final long PRICE = 800000;
+
+	private static final List<String> LOCK_NOTICES = List.of("job.crew_member_left", "job.crew_login_removed",
+			"job.crew_pick_released", "job.crew_empty", "job.party_locked");
 
 	@Autowired
 	private MockMvc mvc;
@@ -70,6 +78,12 @@ class LockConsequencesIT extends IntegrationTest {
 	@Autowired
 	private TransactionTemplate transactions;
 
+	@Autowired
+	private Releases releases;
+
+	@Autowired
+	private StudentVerification verification;
+
 	private UUID lan;
 
 	private UUID hung;
@@ -81,38 +95,44 @@ class LockConsequencesIT extends IntegrationTest {
 	private final List<UUID> crew = new ArrayList<>();
 
 	@Test
-	void theOnlyCrewMembersLockOpensOneSystemDisputeAndTheReleaseStillPaysThemByThePin() throws Exception {
+	void theOnlyCrewMembersLockCountsAsLeavingAndOpensNoDispute() throws Exception {
 		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
 		UUID job = world();
 		lock(ha, this.vy).andExpect(status().isOk());
-		String dispute = awaitSystemDispute(job);
-		assertThat(text("SELECT status FROM job.crew_row WHERE job_id = '" + job + "'")).isEqualTo("INACTIVE");
-		assertThat(text("SELECT (frozen_at IS NOT NULL)::text FROM job.job WHERE id = '" + job + "'")).isEqualTo("true");
-		assertThat(notices("job.party_locked", this.hung)).isEqualTo(1);
-		assertThat(notices("job.party_locked", ha.accountId())).isEqualTo(1);
+		awaitListeners();
+		Instant lockedAt = lockedAt(this.vy);
+
+		assertThat(text("SELECT status || ' ' || released_reason FROM job.crew_row WHERE job_id = '" + job + "'"))
+			.isEqualTo("RELEASED LEFT");
+		assertThat(this.jdbc.sql("SELECT window_end FROM job.crew_row WHERE job_id = :job").param("job", job)
+			.query(Timestamp.class).single().toInstant()).as("the window ends at the lock").isEqualTo(lockedAt);
+		assertThat(count("SELECT count(*) FROM dispute.dispute WHERE job_id = '" + job + "'")).as("no Dispute for no Crew")
+			.isZero();
+		assertThat(text("SELECT state || ' ' || (frozen_at IS NOT NULL)::text FROM job.job WHERE id = '" + job + "'"))
+			.isEqualTo("ACTIVE false");
+		assertThat(notices("job.crew_member_left", this.hung)).isOne();
+		assertThat(param("job.crew_member_left", this.hung, "name")).isEqualTo("Trần Thảo Vy");
+		assertThat(notices("job.crew_login_removed", this.lan)).isOne();
+		assertThat(param("job.crew_login_removed", this.lan, "login")).isEqualTo(TeamTestSupport.login(this.jdbc, this.vy));
+		assertThat(notices("job.crew_empty", this.lan)).isOne();
+		assertThat(param("job.crew_empty", this.lan, "mentor")).isEqualTo("Đỗ Mạnh Hùng");
+		assertThat(notices("job.party_locked", ha.accountId())).isOne();
+		assertThat(notices("job.party_locked", this.hung)).isZero();
 		assertThat(notices("job.party_locked", this.lan)).isZero();
-		assertThat(notices("dispute.dispute_opened", this.lan)).isEqualTo(1);
-		assertThat(this.jdbc.sql("SELECT params ->> 'name' FROM notification.notification WHERE type = 'job.party_locked' LIMIT 1")
-			.query(String.class).single()).isEqualTo("Trần Thảo Vy");
+		// UX-DR104, UX-DR108: the Customer reads the username only, never a name or the reason.
+		assertThat(this.jdbc.sql("SELECT string_agg(params::text, ' ') FROM notification.notification WHERE account_id = :lan")
+			.param("lan", this.lan).query(String.class).single()).doesNotContain("Trần Thảo Vy").doesNotContain("Vi phạm");
 
 		AccountLocked event = this.events.stream(AccountLocked.class).findFirst().orElseThrow();
+		assertThat(event.lockedAt()).isEqualTo(lockedAt);
+		long told = lockNotices();
 		this.transactions.executeWithoutResult(status -> this.publisher.publishEvent(event));
 		awaitListeners();
-		assertThat(count("SELECT count(*) FROM dispute.dispute WHERE job_id = '" + job + "'")).isEqualTo(1);
-		assertThat(count("SELECT count(*) FROM notification.notification WHERE type = 'job.party_locked'")).isEqualTo(2);
+		assertThat(lockNotices()).as("a replay changes nothing").isEqualTo(told);
+		assertThat(count("SELECT count(*) FROM dispute.dispute WHERE job_id = '" + job + "'")).isZero();
 
-		this.mvc.perform(post("/api/v1/admin/disputes/" + dispute + "/take").with(admin(ha)).with(csrf()))
-			.andExpect(status().isOk());
-		// Story 15.1: a statement arrived, so the decision need not wait for its period.
-		this.jdbc.sql("""
-				INSERT INTO dispute.statement (dispute_id, side, text, submitted_at) VALUES (CAST(:id AS UUID), 'CUSTOMER', 'Trình bày', now())
-				""").param("id", dispute.toString()).update();
-		this.mvc.perform(post("/api/v1/admin/disputes/" + dispute + "/decision").with(admin(ha)).with(csrf())
-			.contentType(MediaType.APPLICATION_JSON)
-			.content("{\"releaseVnd\":" + PRICE + ",\"refundVnd\":0,\"nextState\":\"CONTINUE\",\"reasoning\":\"Giai đoạn đạt\","
-					+ "\"stepUpCode\":\"" + AdministratorTestSupport.code(ha, this.clock.instant()) + "\"}"))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.execution.status").value("DONE"));
+		// FR-42, AD-41: the release splits by the Milestone's pin, so the member who left is still paid.
+		this.transactions.executeWithoutResult(status -> this.releases.release(job, this.held, UUID.randomUUID()));
 		assertThat(this.jdbc.sql("""
 				SELECT amount_vnd FROM payment.ledger_entry WHERE milestone_id = :id AND entry_type = 'RELEASE' AND party_account_id = :vy
 				""").param("id", this.held).param("vy", this.vy).query(Long.class).single()).isEqualTo(240000);
@@ -121,8 +141,89 @@ class LockConsequencesIT extends IntegrationTest {
 		this.mvc.perform(post("/api/v1/admin/users/" + this.vy + "/unlock").with(admin(ha)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("{\"reason\":\"Đã làm rõ\"}")).andExpect(status().isOk());
-		assertThat(text("SELECT status FROM job.crew_row WHERE job_id = '" + job + "'")).isEqualTo("INACTIVE");
 		awaitListeners();
+		assertThat(text("SELECT status FROM job.crew_row WHERE job_id = '" + job + "'")).as("an unlock brings no row back")
+			.isEqualTo("RELEASED");
+		assertThat(this.verification.isVerified(this.vy)).as("a lock removes no Verification").isTrue();
+	}
+
+	/** Q7, FR-82: a Crew emptied in Starting tells the Customer too, and opens no Dispute. */
+	@Test
+	void theOnlyMembersLockInStartingTellsTheCustomerTheCrewIsEmpty() throws Exception {
+		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		UUID job = world();
+		this.jdbc.sql("UPDATE job.job SET state = 'STARTING' WHERE id = :id").param("id", job).update();
+
+		lock(ha, this.vy).andExpect(status().isOk());
+		awaitListeners();
+
+		assertThat(text("SELECT status || ' ' || released_reason FROM job.crew_row WHERE job_id = '" + job + "'"))
+			.isEqualTo("RELEASED LEFT");
+		assertThat(notices("job.crew_empty", this.lan)).isOne();
+		assertThat(param("job.crew_empty", this.lan, "mentor")).isEqualTo("Đỗ Mạnh Hùng");
+		assertThat(count("SELECT count(*) FROM dispute.dispute WHERE job_id = '" + job + "'")).isZero();
+		assertThat(text("SELECT state FROM job.job WHERE id = '" + job + "'")).isEqualTo("STARTING");
+	}
+
+	/** Story 20.4: a pick not yet signed is released as DECLINED; the Customer never learns of picks. */
+	@Test
+	void aPickNotYetSignedIsReleasedAsDeclinedAndOnlyTheMentorHears() throws Exception {
+		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		UUID job = world();
+		UUID ngan = TeamTestSupport.student(this.jdbc, "Hoàng Kim Ngân", true, List.of(TeamTestSupport.REACT), "React",
+				LocalDate.parse("2026-09-30"));
+		this.jdbc.sql("""
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, created_at)
+				VALUES (:id, :job, :ngan, 'ASSIGNED', now())
+				""").param("id", UUID.randomUUID()).param("job", job).param("ngan", ngan).update();
+
+		lock(ha, ngan).andExpect(status().isOk());
+		awaitListeners();
+
+		assertThat(text("SELECT status || ' ' || released_reason || ' ' || (window_end IS NULL)::text FROM job.crew_row"
+				+ " WHERE member_account_id = '" + ngan + "'")).isEqualTo("RELEASED DECLINED true");
+		assertThat(notices("job.crew_pick_released", this.hung)).isOne();
+		assertThat(param("job.crew_pick_released", this.hung, "name")).isEqualTo("Hoàng Kim Ngân");
+		assertThat(count("SELECT count(*) FROM notification.notification WHERE account_id = '" + this.lan + "'"))
+			.as("the Customer never learns of picks").isZero();
+		assertThat(notices("job.party_locked", ha.accountId())).isZero();
+		assertThat(notices("job.crew_member_left", this.hung)).isZero();
+		assertThat(notices("job.crew_empty", this.lan)).as("Vy still works on it").isZero();
+		assertThat(text("SELECT status FROM job.crew_row WHERE member_account_id = '" + this.vy + "'")).isEqualTo("ACTIVE");
+	}
+
+	/** AD-19, AD-20: the Customer of one Job and an active member of another, in one fan-out, replay-safe. */
+	@Test
+	void oneLockActsOnTheJobItIsTheCustomerOfAndTheJobItWorksOn() throws Exception {
+		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		UUID ordered = world();
+		UUID crewed = world();
+		UUID minh = this.vy;
+		// Minh, the only active member of the second Job, is the Customer of the first.
+		this.jdbc.sql("UPDATE job.job SET customer_account_id = :minh WHERE id = :id").param("minh", minh).param("id", ordered)
+			.update();
+
+		lock(ha, minh).andExpect(status().isOk());
+		awaitSystemDispute(ordered);
+		awaitListeners();
+
+		assertThat(count("SELECT count(*) FROM dispute.dispute WHERE job_id = '" + crewed + "'")).isZero();
+		assertThat(text("SELECT status || ' ' || released_reason FROM job.crew_row WHERE member_account_id = '" + minh + "'"))
+			.isEqualTo("RELEASED LEFT");
+		assertThat(this.jdbc.sql("SELECT window_end FROM job.crew_row WHERE member_account_id = :minh").param("minh", minh)
+			.query(Timestamp.class).single().toInstant()).isEqualTo(lockedAt(minh));
+		assertThat(notices("job.crew_member_left", this.hung)).as("the second Job's Mentor").isOne();
+		assertThat(notices("job.crew_login_removed", this.lan)).as("the second Job's Customer").isOne();
+		assertThat(notices("job.party_locked", this.hung)).as("the first Job's Mentor hears of its Customer").isOne();
+		assertThat(notices("job.party_locked", ha.accountId())).isEqualTo(2);
+		assertThat(text("SELECT status FROM job.crew_row WHERE job_id = '" + ordered + "'")).isEqualTo("ACTIVE");
+
+		long told = lockNotices();
+		AccountLocked event = this.events.stream(AccountLocked.class).findFirst().orElseThrow();
+		this.transactions.executeWithoutResult(status -> this.publisher.publishEvent(event));
+		awaitListeners();
+		assertThat(lockNotices()).as("a replay changes nothing").isEqualTo(told);
+		assertThat(count("SELECT count(*) FROM dispute.dispute WHERE job_id = '" + ordered + "'")).isOne();
 	}
 
 	@Test
@@ -194,6 +295,24 @@ class LockConsequencesIT extends IntegrationTest {
 	private void awaitListeners() {
 		await().atMost(Duration.ofSeconds(15))
 			.until(() -> count("SELECT count(*) FROM platform.event_publication WHERE completion_date IS NULL") == 0);
+	}
+
+	private long lockNotices() {
+		return this.jdbc.sql("SELECT count(*) FROM notification.notification WHERE type IN (:types)")
+			.param("types", LOCK_NOTICES)
+			.query(Long.class)
+			.single();
+	}
+
+	private String param(String type, UUID account, String name) {
+		return this.jdbc.sql("""
+				SELECT params ->> :name FROM notification.notification WHERE type = :type AND account_id = :account
+				""").param("name", name).param("type", type).param("account", account).query(String.class).single();
+	}
+
+	private Instant lockedAt(UUID account) {
+		return this.jdbc.sql("SELECT locked_at FROM identity.account WHERE id = :id").param("id", account)
+			.query(Timestamp.class).single().toInstant();
 	}
 
 	private long notices(String type, UUID account) {

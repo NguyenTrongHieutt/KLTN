@@ -28,6 +28,9 @@ class RetireApprovalMigrationIT {
 
 	private static final String BEFORE = "202610261100";
 
+	/** The last version before Story 20.4, whose migration retires TeamLifecycle's lock publications too. */
+	private static final String AFTER = "202610271200";
+
 	private static final String MENTOR = "00000000-0000-7000-8000-00000000b001";
 
 	private static final String CARDED = "00000000-0000-7000-8000-00000000b002";
@@ -152,7 +155,7 @@ class RetireApprovalMigrationIT {
 				VALUES ('00000000-0000-7000-8000-00000000b302', now()), ('00000000-0000-7000-8000-00000000b304', now())
 				""");
 
-		flyway(db, "latest").migrate();
+		flyway(db, AFTER).migrate();
 
 		assertThat(rows(db, """
 				SELECT coalesce(to_regclass('identity.mentor_application')::text, 'gone') || ' '

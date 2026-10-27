@@ -22,17 +22,17 @@ interface Member {
  * "Đổi nhóm thực hiện" on a running Job (Story 11.3, FR-75, UX-DR60): a draft of the Crew after the change.
  * The Mentor keeps or removes each member, adds free Students from the Team with the Story 4.3 rules, and
  * shares the whole again; nothing changes until "Áp dụng khi mọi người đã xác nhận" saves the draft as one
- * version for every party to confirm. A locked member cannot stay and is removed in the change.
+ * version for every party to confirm. A locked member already left the Crew, so they are not in the draft.
  */
 export function CrewChangeEditor({ jobId, panel, onClose }: { jobId: string; panel: Panel; onClose: () => void }) {
   const ids = useId()
   const toasts = useToasts()
   const change = useChangeCrew(jobId)
   const running = panel.rows.filter((row) => row.status !== 'RELEASED')
-  // The latest version's parties: a waiting change's own, or the Crew in force; a locked member never stays.
+  // The latest version's parties: a waiting change's own, or the Crew in force.
   const [members, setMembers] = useState<Member[]>(() =>
     running
-      .filter((row) => row.status !== 'INACTIVE' && row.percent != null)
+      .filter((row) => row.percent != null)
       .map((row) => ({ studentId: row.studentId, name: row.name, githubLogin: row.githubLogin, joining: row.status === 'ASSIGNED' })),
   )
   const [shares, setShares] = useState<Record<string, string>>(() =>
@@ -221,28 +221,21 @@ export function CrewChangeEditor({ jobId, panel, onClose }: { jobId: string; pan
                   <span className="text-caption text-muted-foreground">—</span>
                 </td>
                 <td className="py-3 pr-3">
-                  <span
-                    className={cn(
-                      'rounded-full px-2 py-0.5 text-caption font-semibold',
-                      row.status === 'INACTIVE' ? 'bg-destructive-soft text-destructive' : 'bg-muted text-muted-foreground',
-                    )}
-                  >
-                    {t(row.status === 'INACTIVE' ? 'screen.crew.panel.changeInactive' : 'screen.crew.panel.changeLeaving')}
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-caption font-semibold text-muted-foreground">
+                    {t('screen.crew.panel.changeLeaving')}
                   </span>
                 </td>
                 <td className="py-3">
-                  {row.status !== 'INACTIVE' && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="compact"
-                      aria-label={t('screen.crew.panel.changeKeepNamed', { name: row.name })}
-                      disabled={change.isPending || atLimit}
-                      onClick={() => keep(row)}
-                    >
-                      {t('screen.crew.panel.changeKeep')}
-                    </Button>
-                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="compact"
+                    aria-label={t('screen.crew.panel.changeKeepNamed', { name: row.name })}
+                    disabled={change.isPending || atLimit}
+                    onClick={() => keep(row)}
+                  >
+                    {t('screen.crew.panel.changeKeep')}
+                  </Button>
                 </td>
               </tr>
             ))}

@@ -4,6 +4,11 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -55,6 +60,20 @@ class Accounts {
 			.query((rs, n) -> new Standing(Kind.valueOf(rs.getString("kind")), rs.getBoolean("active"),
 					rs.getBoolean("linked"), rs.getBoolean("locked")))
 			.optional();
+	}
+
+	/** {@code identity.lockedAmong} (AD-41): the locked accounts among {@code ids}, each with its {@code locked_at}. */
+	Map<UUID, Instant> lockedAmong(Collection<UUID> ids) {
+		Map<UUID, Instant> locked = new HashMap<>();
+		if (ids.isEmpty()) {
+			return locked;
+		}
+		this.jdbc.sql("SELECT id, locked_at FROM identity.account WHERE id IN (:ids) AND locked_at IS NOT NULL")
+			.param("ids", List.copyOf(new HashSet<>(ids)))
+			.query(rs -> {
+				locked.put(rs.getObject("id", UUID.class), rs.getTimestamp("locked_at").toInstant());
+			});
+		return locked;
 	}
 
 	Optional<Account> findByGitHubUserId(long githubUserId) {

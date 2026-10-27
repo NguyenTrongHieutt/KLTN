@@ -31,7 +31,7 @@ import vn.vibefix.team.internal.TeamTestSupport;
 
 /**
  * Story 11.2 (FR-23, FR-26, AD-41, UX-DR37, UX-DR68), with {@code features.largeCrews} on: the Mentor's
- * picker lists the active, unlocked members and an inactive one disabled; the workload line counts each
+ * picker lists the active, unlocked members and one whose lock is not carried out yet disabled; the workload line counts each
  * active member's open Work Items and estimated hours for the Mentor only; JOB-1 names every member's
  * AD-41 state.
  */
@@ -82,7 +82,8 @@ class CrewWorkloadIT extends IntegrationTest {
 		this.kim = WorkTestSupport.student(this.jdbc, "Hoàng Kim Ngân");
 		WorkTestSupport.crewRow(this.jdbc, this.job, this.vy, "ACTIVE", this.clock.instant().minus(Duration.ofMinutes(5)));
 		WorkTestSupport.crewRow(this.jdbc, this.job, this.tung, "ACTIVE", this.clock.instant().minus(Duration.ofMinutes(5)));
-		WorkTestSupport.crewRow(this.jdbc, this.job, this.minh, "INACTIVE", this.clock.instant().minus(Duration.ofMinutes(5)));
+		// Minh is locked and the lock's listener has not released his row yet (Story 20.4): it counts for nothing.
+		WorkTestSupport.crewRow(this.jdbc, this.job, this.minh, "ACTIVE", this.clock.instant().minus(Duration.ofMinutes(5)));
 		IdentityTestSupport.lock(this.jdbc, this.minh, "test: locked");
 		WorkTestSupport.crewRow(this.jdbc, this.job, this.an, "ASSIGNED", null);
 		WorkTestSupport.crewRow(this.jdbc, this.job, this.kim, "ACTIVE", this.clock.instant().minus(Duration.ofMinutes(5)));
@@ -147,7 +148,7 @@ class CrewWorkloadIT extends IntegrationTest {
 			.andExpect(jsonPath("$.crew[?(@.name == 'Trần Thảo Vy')].state").value("ACTIVE"))
 			.andExpect(jsonPath("$.crew[?(@.name == 'Trần Thảo Vy')].openItems.length()").value(2))
 			.andExpect(jsonPath("$.crew[?(@.name == 'Lê Minh Tùng')].state").value("ACTIVE"))
-			.andExpect(jsonPath("$.crew[?(@.name == 'Nguyễn Văn Minh')].state").value("INACTIVE"))
+			.andExpect(jsonPath("$.crew[?(@.name == 'Nguyễn Văn Minh')].state").value("ACTIVE"))
 			.andExpect(jsonPath("$.crew[?(@.name == 'Phạm Thu An')].state").value("ASSIGNED"))
 			.andExpect(jsonPath("$.crew[?(@.name == 'Hoàng Kim Ngân')].state").value("RELEASED"));
 	}

@@ -207,12 +207,19 @@ class AgreementReviewIT extends IntegrationTest {
 			.andExpect(jsonPath("$.crewConfirmed").value(true));
 	}
 
+	/**
+	 * Story 20.4: a lock counts as leaving, so the member's row is released as {@code LEFT}, its window ending at the
+	 * lock's own time even though the listener runs five minutes later; the Crew owes a re-confirmation, and nobody
+	 * is left to remove before it.
+	 */
 	@Test
-	void aLockAfterTheConfirmationOwesAReconfirmation() throws Exception {
+	void aLockAfterTheConfirmationReleasesTheMemberAndOwesAReconfirmation() throws Exception {
 		confirmedCrew(this.vy, 0);
 		approve(jobVersion(), 1, true, List.of()).andExpect(status().isNoContent());
 		confirm(jobVersion(), crewVersion()).andExpect(status().isOk());
-		AccountLocked locked = new AccountLocked(UUID.randomUUID(), this.vy);
+		Instant lockedAt = this.clock.instant();
+		AccountLocked locked = new AccountLocked(UUID.randomUUID(), this.vy, lockedAt);
+		this.clock.advance(Duration.ofMinutes(5));
 
 		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.events.publishEvent(locked));
 		await().atMost(Duration.ofSeconds(10)).until(() -> notifications("job.crew_reconfirm_needed", this.hung) == 1);
@@ -220,17 +227,22 @@ class AgreementReviewIT extends IntegrationTest {
 		Thread.sleep(300);
 
 		assertThat(notifications("job.crew_reconfirm_needed", this.hung)).as("a replay changes nothing").isOne();
-		String row = this.jdbc.sql("SELECT id::text FROM job.crew_row WHERE member_account_id = :vy").param("vy", this.vy)
-			.query(String.class).single();
+		assertThat(notifications("job.crew_member_left", this.hung)).isOne();
+		assertThat(notifications("job.crew_login_removed", this.lan)).isOne();
+		assertThat(this.jdbc.sql("""
+				SELECT status || ' ' || released_reason FROM job.crew_row WHERE member_account_id = :vy
+				""").param("vy", this.vy).query(String.class).single()).isEqualTo("RELEASED LEFT");
+		assertThat(this.jdbc.sql("SELECT window_end FROM job.crew_row WHERE member_account_id = :vy").param("vy", this.vy)
+			.query(Timestamp.class).single().toInstant()).as("the lock's time, not the listener's").isEqualTo(lockedAt);
+		assertThat(openTodos("job.pick_crew", this.hung)).as("the Mentor picks again").isOne();
+		assertThat(notifications("job.crew_empty", this.lan)).as("no Crew empties before J6").isZero();
 		this.mvc.perform(get("/api/v1/mentor/jobs/" + this.job + "/crew").with(as(this.hung, Role.MENTOR)))
 			.andExpect(jsonPath("$.reconfirmOwed").value(true))
 			.andExpect(jsonPath("$.locked").value(false))
-			.andExpect(jsonPath("$.rows[0].status").value("INACTIVE"));
+			.andExpect(jsonPath("$.rows[0].status").value("RELEASED"))
+			.andExpect(jsonPath("$.rows[0].releasedReason").value("LEFT"));
 		reconfirm(crewVersion()).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("CREW_NOT_CONFIRMED"));
 
-		this.mvc.perform(post("/api/v1/mentor/jobs/" + this.job + "/crew/" + row + "/remove").with(as(this.hung, Role.MENTOR))
-			.with(csrf()).contentType(MediaType.APPLICATION_JSON).content("{\"crewVersion\":" + crewVersion() + "}"))
-			.andExpect(status().isOk());
 		confirmedCrew(member("Trần Quang Minh"), crewVersion());
 		reconfirm(crewVersion() - 1).andExpect(status().isConflict());
 		reconfirm(crewVersion()).andExpect(status().isOk())
@@ -238,6 +250,31 @@ class AgreementReviewIT extends IntegrationTest {
 			.andExpect(jsonPath("$.locked").value(true));
 		add(member("Phạm Hải Tùng"), crewVersion()).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("CREW_LOCKED"));
 		reconfirm(crewVersion()).andExpect(status().isConflict());
+	}
+
+	/**
+	 * Story 20.4: a lock of the only confirmed member before the Agreement is confirmed releases the row and opens the
+	 * Mentor's "Chọn nhóm thực hiện" again; nothing empties before J6, and no Dispute opens.
+	 */
+	@Test
+	void aLockBeforeTheConfirmationReopensThePickToDo() throws Exception {
+		confirmedCrew(this.vy, 0);
+		assertThat(openTodos("job.pick_crew", this.hung)).as("the Crew condition holds").isZero();
+		AccountLocked locked = new AccountLocked(UUID.randomUUID(), this.vy, this.clock.instant());
+
+		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.events.publishEvent(locked));
+		await().atMost(Duration.ofSeconds(10)).until(() -> notifications("job.crew_member_left", this.hung) == 1);
+		await().atMost(Duration.ofSeconds(10)).until(() -> this.jdbc.sql(
+				"SELECT count(*) FROM platform.event_publication WHERE completion_date IS NULL").query(Long.class).single() == 0);
+
+		assertThat(this.jdbc.sql("""
+				SELECT status || ' ' || released_reason FROM job.crew_row WHERE member_account_id = :vy
+				""").param("vy", this.vy).query(String.class).single()).isEqualTo("RELEASED LEFT");
+		assertThat(openTodos("job.pick_crew", this.hung)).isOne();
+		assertThat(notifications("job.crew_reconfirm_needed", this.hung)).as("nothing was confirmed yet").isZero();
+		assertThat(notifications("job.crew_empty", this.lan)).isZero();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM dispute.dispute WHERE job_id = :job").param("job", this.job)
+			.query(Long.class).single()).isZero();
 	}
 
 	@Test

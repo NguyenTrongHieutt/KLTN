@@ -17,8 +17,8 @@ import { ProgressOverview } from './ProgressOverview'
 /**
  * JOB-1 for an active Crew member (UX-DR68): the Job's title and Product, the ways to its Board,
  * Documentation Space, and Crew Chat, the step tracker while the Job is Starting (UX-DR23), and the
- * progress overview with their own Work Items and N-12. An inactive or former member (`FORMER`) gets the
- * read-only banner and their post-Job duties instead (AD-41).
+ * progress overview with their own Work Items and N-12. A former member (`FORMER`), one whose lock counted as
+ * leaving included, gets the read-only banner and their post-Job duties instead (AD-41).
  * Anyone the progress read does not name sees the not-found screen.
  */
 export function CrewJobPage({ jobId }: { jobId: string }) {
@@ -69,7 +69,7 @@ export function CrewJobPage({ jobId }: { jobId: string }) {
 }
 
 /**
- * What stays for a member the Crew no longer counts (AD-41, UX spine "Crew member inactive or former"):
+ * What stays for a member the Crew no longer counts (AD-41, UX spine "Crew member former"):
  * the read-only banner, the closure section with their data-deletion Checklist, and once the Job is
  * Closed, private feedback and the Portfolio summary.
  */

@@ -12,8 +12,8 @@ import vn.vibefix.shared.ProcessedEvents;
  * J7 creates the Job's Board and seeds one Story per Acceptance Criterion (FR-22, AD-5); a later
  * confirmed Agreement version seeds the criteria the Board does not have yet (AD-29). Each is
  * replay-safe through {@link ProcessedEvents}, and the criterion's stable ID keys every seeded Story. A
- * locked Crew member's open Work Items open the Mentor's reassignment to-do (Story 11.4): every lock runs it, and
- * an account with no Work Item changes nothing (Story 20.3).
+ * lock counts as leaving, so a locked account's open Work Items become unassigned on every Job (Story 20.4): every
+ * lock runs it, and an account with no Work Item changes nothing.
  */
 @Component
 class WorkListeners {
@@ -30,11 +30,11 @@ class WorkListeners {
 		this.reassignments = reassignments;
 	}
 
-	/** Story 11.4 (FR-59): a locked Crew member's open Work Items wait for the Mentor to reassign them. */
+	/** FR-59, FR-82: a locked account's open Work Items become unassigned, for the Mentor to assign again. */
 	@ApplicationModuleListener
 	void onAccountLocked(AccountLocked event) {
 		if (this.processedEvents.markProcessed("work.WorkListeners.onAccountLocked", event.eventId())) {
-			this.reassignments.accountLocked(event.accountId());
+			this.reassignments.unassign(event.accountId());
 		}
 	}
 

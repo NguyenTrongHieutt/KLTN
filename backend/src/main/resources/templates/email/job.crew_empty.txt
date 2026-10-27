@@ -1,0 +1,6 @@
+subject: Nhóm thực hiện {job} không còn thành viên. Người hướng dẫn {mentor} vẫn tiếp tục thực hiện.
+---
+Xin chào,
+
+Công việc {job} vẫn tiếp tục: người hướng dẫn {mentor} thực hiện và bàn giao các giai đoạn như đã thỏa thuận.
+Bạn không cần làm gì thêm. Nếu muốn, bạn vẫn có thể đề nghị hủy công việc hoặc mở tranh chấp trên vibefix.

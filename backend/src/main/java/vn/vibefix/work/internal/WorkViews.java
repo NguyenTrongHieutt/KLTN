@@ -59,8 +59,8 @@ class WorkViews {
 
 	/**
 	 * A Crew member in the assignee picker (FR-23, AD-41).
-	 * @param available an {@code ACTIVE} row of an unlocked account, whom the Mentor may assign; an
-	 * {@code INACTIVE} one is listed disabled
+	 * @param available an {@code ACTIVE} row of an unlocked account, whom the Mentor may assign; the row of an
+	 * account locked a moment ago, which the lock's listener has not released yet, is listed disabled
 	 */
 	record CrewPickView(UUID accountId, String name, boolean available) {
 	}
@@ -198,11 +198,8 @@ class WorkViews {
 					.map(milestone -> new BoardMilestoneView(milestone.milestoneId(), milestone.number(), milestone.title(),
 							heldIds.contains(milestone.milestoneId())))
 					.toList();
-		// AD-41: an INACTIVE member stays in the picker, disabled, so the Mentor sees why they cannot be chosen.
-		List<CrewMember> members = viewer.mentor() ? this.crews.crewOf(viewer.board().jobId(), Selection.UNRELEASED)
-			.stream()
-			.filter(member -> "ACTIVE".equals(member.status()) || "INACTIVE".equals(member.status()))
-			.toList() : List.of();
+		// AD-41: the active Crew; a member locked a moment ago stays listed, disabled, until the lock releases the row.
+		List<CrewMember> members = viewer.mentor() ? this.crews.crewOf(viewer.board().jobId(), Selection.ACTIVE) : List.of();
 		Set<UUID> people = new HashSet<>();
 		members.forEach(member -> people.add(member.studentId()));
 		items.stream().map(Item::assigneeId).filter(id -> id != null).forEach(people::add);

@@ -43,7 +43,11 @@ public enum MatrixCaller {
 	/** A Crew member of the row's Job whose row is {@code ACTIVE}. */
 	CREW_ACTIVE,
 
-	/** A Crew member of the row's Job whose row is {@code INACTIVE}, with a window. */
+	/**
+	 * A locked Crew member of the row's Job, whose row the lock released as {@code LEFT}, with a window (Story 20.4:
+	 * the {@code INACTIVE} status is gone). A locked account's session ends, so every request is anonymous. The name
+	 * stays until Story 20.5 rewrites the callers.
+	 */
 	CREW_INACTIVE,
 
 	/** A former Crew member of the row's Job, with a window. */

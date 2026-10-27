@@ -38,7 +38,7 @@ import vn.vibefix.shared.Gate;
  * like the Job's other Active-phase calls (a Board's ID is its Job's): the proposal and whose turn it is,
  * and each party's steps from the proposal through Closed. The Customer and the Mentor propose, confirm,
  * and decline on the version they loaded; a Crew member who was ever active reads it and may not answer
- * ({@code FORBIDDEN MENTOR_ONLY}), a released or inactive one included, whose post-Job duties stay (AD-41);
+ * ({@code FORBIDDEN MENTOR_ONLY}), a released one included, whose post-Job duties stay (AD-41);
  * everyone else finds nothing. The data-deletion steps are {@code repo}'s, which the section reads beside
  * this one (FR-66).
  */
@@ -47,8 +47,7 @@ import vn.vibefix.shared.Gate;
 class ClosureController {
 
 	/** The Crew relationships that read the section: every one that was active at some point. */
-	private static final Set<Relationship> EVER_ACTIVE = Set.of(Relationship.ACTIVE, Relationship.INACTIVE,
-			Relationship.FORMER);
+	private static final Set<Relationship> EVER_ACTIVE = Set.of(Relationship.ACTIVE, Relationship.FORMER);
 
 	/**
 	 * One closure step.

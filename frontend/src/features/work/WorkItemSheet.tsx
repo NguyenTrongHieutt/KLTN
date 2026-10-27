@@ -325,10 +325,10 @@ function Editor({
             {item?.assignee && !board.crew.some((person) => person.accountId === item.assignee?.accountId) && (
               <option value={item.assignee.accountId}>{item.assignee.name}</option>
             )}
-            {/* AD-41: an INACTIVE member stays listed, disabled, so the Mentor sees why they cannot be chosen. */}
+            {/* AD-41: a member locked a moment ago stays listed, disabled, until the lock releases their row. */}
             {board.crew.map((person) => (
               <option key={person.accountId} value={person.accountId} disabled={!person.available}>
-                {person.available ? person.name : t('screen.board.item.inactiveMember', { name: person.name })}
+                {person.available ? person.name : t('screen.board.item.unavailableMember', { name: person.name })}
               </option>
             ))}
           </select>

@@ -356,14 +356,17 @@ class FundingIT extends IntegrationTest {
 			.andExpect(status().isNotFound());
 	}
 
+	/** Story 20.4: the lock released the last member's row, so J6's Crew condition fails until the Mentor re-confirms. */
 	@Test
 	void aLockedCrewMemberHoldsMilestoneOneBack() throws Exception {
 		confirmedAgreement("BUG_FIX");
 		UUID orderId = created();
-		AccountLocked locked = new AccountLocked(UUID.randomUUID(), this.vy);
+		AccountLocked locked = new AccountLocked(UUID.randomUUID(), this.vy, this.clock.instant());
 		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.events.publishEvent(locked));
 		await().atMost(Duration.ofSeconds(10)).until(() -> count(
 				"SELECT count(*) FROM job.job WHERE crew_reconfirm_owed_at IS NOT NULL AND id = '" + this.job + "'") == 1);
+		assertThat(count("SELECT count(*) FROM job.crew_row WHERE status = 'RELEASED' AND released_reason = 'LEFT' AND job_id = '"
+				+ this.job + "'")).isOne();
 
 		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/funding").with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(jsonPath("$.milestones[0].fundable").value(false))
@@ -375,6 +378,28 @@ class FundingIT extends IntegrationTest {
 		assertThat(refundReasons()).containsExactly("CREW_CHANGED 800000");
 		assertThat(this.jdbc.sql("SELECT state FROM job.job WHERE id = :id").param("id", this.job).query(String.class).single())
 			.isEqualTo("AGREEMENT");
+	}
+
+	/**
+	 * Story 20.4 (AD-41): the lock committed but its listener has not run, so the member's row is still ACTIVE; J6
+	 * counts it only while the account is unlocked, read under the Job lock, so Milestone 1 waits all the same.
+	 */
+	@Test
+	void aLockWhoseListenerHasNotRunHoldsMilestoneOneBackToo() throws Exception {
+		confirmedAgreement("BUG_FIX");
+		UUID orderId = created();
+		IdentityTestSupport.lock(this.jdbc, this.vy, "Vi phạm quy tắc");
+		assertThat(count("SELECT count(*) FROM job.crew_row WHERE status = 'ACTIVE' AND job_id = '" + this.job + "'")).isOne();
+
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/funding").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.milestones[0].fundable").value(false))
+			.andExpect(jsonPath("$.milestones[0].blockedReason").value("CREW_NOT_READY"));
+		order(jobVersion()).andExpect(status().is(422)).andExpect(jsonPath("$.code").value("GUARD_FAILED"))
+			.andExpect(jsonPath("$.reason").value("CREW_NOT_READY"));
+
+		ipn(paid(txnRef(orderId), "14000021", 800000), null).andExpect(jsonPath("$.RspCode").value("00"));
+		assertThat(orderStatus(orderId)).as("J6's Crew guard refused it").isEqualTo("UNAPPLIED");
+		assertThat(refundReasons()).containsExactly("CREW_CHANGED 800000");
 	}
 
 	// ---- The way to a confirmed Agreement ----------------------------------------------------

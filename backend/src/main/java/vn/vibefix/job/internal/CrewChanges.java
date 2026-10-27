@@ -121,8 +121,8 @@ class CrewChanges {
 	 * @param shares every party's share after the change, the Mentor's included
 	 * @throws ApiException {@code NOT_FOUND} with large Crews off; {@code STALE}; {@code GUARD_FAILED ROLE_TAKEN}
 	 * for the Job's Customer as a member, before any other rule (AD-43); {@code GUARD_FAILED
-	 * CREW_CHANGE_WHILE_HELD} or {@code CREW_LIMIT}; {@code VALIDATION SHARES_INVALID} or
-	 * {@code CREW_INACTIVE_PARTY}; and the Story 4.3 refusals for a new member
+	 * CREW_CHANGE_WHILE_HELD} or {@code CREW_LIMIT}; {@code VALIDATION SHARES_INVALID}; and the Story 4.3 refusals
+	 * for a new member
 	 */
 	@Transactional
 	TermsVersion propose(UUID mentorId, UUID jobId, long crewVersion, Map<UUID, Integer> shares) {
@@ -153,9 +153,6 @@ class CrewChanges {
 		}
 		List<Row> running = this.crews.rows(jobId).stream().filter(row -> !row.released()).toList();
 		Map<UUID, Row> current = running.stream().collect(Collectors.toMap(Row::studentId, Function.identity()));
-		if (members.stream().map(current::get).anyMatch(row -> row != null && "INACTIVE".equals(row.status()))) {
-			throw new ApiException(ErrorCode.VALIDATION, JobReason.CREW_INACTIVE_PARTY);
-		}
 		// A new member of an older waiting change who is not in this one never joined: they go now.
 		for (Row row : running) {
 			if ("ASSIGNED".equals(row.status()) && !members.contains(row.studentId())) {
@@ -249,8 +246,9 @@ class CrewChanges {
 
 	/**
 	 * Takes the waiting change into effect when it can (AD-41): the Job is running with no Held Milestone,
-	 * every party has a row that is not {@code INACTIVE}, signed the NDA, and confirmed the version, and
-	 * at least one party's account is unlocked. In the caller's transaction the version comes into force,
+	 * every party has a row that is not released, signed the NDA, and confirmed the version, and at least one
+	 * party counts: its account is unlocked, read through {@code identity.lockedAmong} under the Job lock the
+	 * caller holds (Story 20.4). In the caller's transaction the version comes into force,
 	 * removed rows are released as {@code REMOVED}, and new rows become {@code ACTIVE}; the Customer, the
 	 * Mentor, and the Crew get the new usernames. Runs at the last confirmation and inside M5, M7, and M8.
 	 * @param ownVersion outside an apply the usernames change moves {@code Job.version} itself; inside one
@@ -266,13 +264,13 @@ class CrewChanges {
 		List<Row> running = this.crews.rows(jobId).stream().filter(row -> !row.released()).toList();
 		List<Row> parties = running.stream().filter(row -> pending.shares().containsKey(row.studentId())).toList();
 		boolean ready = parties.size() == pending.shares().size() - 1
-				&& parties.stream()
-					.allMatch(row -> !"INACTIVE".equals(row.status()) && row.signedAt() != null
-							&& pending.confirmedRows().contains(row.id()));
-		Map<UUID, StudentCard> cards = this.crews.cards(parties.stream().map(Row::studentId).toList());
-		if (!ready || cards.values().stream().noneMatch(StudentCard::available)) {
+				&& parties.stream().allMatch(row -> row.signedAt() != null && pending.confirmedRows().contains(row.id()));
+		List<UUID> members = parties.stream().map(Row::studentId).toList();
+		Set<UUID> locked = this.crews.lockedAmong(members);
+		if (!ready || members.stream().allMatch(locked::contains)) {
 			return false;
 		}
+		Map<UUID, StudentCard> cards = this.crews.cards(members);
 		this.crews.bringIntoForce(jobId);
 		Instant now = this.clock.instant();
 		for (Row row : running) {

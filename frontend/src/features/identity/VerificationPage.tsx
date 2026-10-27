@@ -200,9 +200,14 @@ function Unlink({ blockers }: { blockers: GitHubLinkBlocker[] }) {
   )
 }
 
-/** "Sản phẩm {name}", "Công việc {name}", "Đơn chào giá cho {name}", or the kind alone without a name. */
+/**
+ * "Sản phẩm {name}", "Công việc {name}", "Cột mốc bạn đã tham gia chưa thanh toán xong · {name}", "Đơn chào giá cho
+ * {name}", or the kind alone without a name.
+ */
 function blockerText(blocker: GitHubLinkBlocker): string {
-  const reason = ['LIVE_PRODUCT', 'JOB_ROLE', 'OPEN_BID'].includes(blocker.reason) ? blocker.reason : 'JOB_ROLE'
+  const reason = ['LIVE_PRODUCT', 'JOB_ROLE', 'MILESTONE_PENDING', 'OPEN_BID'].includes(blocker.reason)
+    ? blocker.reason
+    : 'JOB_ROLE'
   return blocker.name
     ? t(`screen.verification.github.blocker.${reason}` as MessageKey, { name: blocker.name })
     : t(`screen.verification.github.blockerUnnamed.${reason}` as MessageKey)
