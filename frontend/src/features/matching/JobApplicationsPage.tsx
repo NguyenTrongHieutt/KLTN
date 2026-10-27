@@ -18,6 +18,7 @@ import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { MentorProfileContent } from '@/features/team/MentorProfileContent'
 import { RatingLine } from '@/features/team/ReputationParts'
 import { useMentorReputation, usePublicMentor } from '@/features/team/teamApi'
+import { experienceText } from '@/features/team/teamText'
 import { t } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
 import { formatDayMonth } from '@/lib/dates'
@@ -195,7 +196,7 @@ function ApplicationCard({
         </span>
       </div>
       <p className="text-caption text-muted-foreground">
-        {t('screen.matching.list.mentor', { years: mentor.yearsOfExperience, n: mentor.teamSize })}
+        {t('screen.matching.list.mentor', { experience: experienceText(mentor.yearsOfExperience), n: mentor.teamSize })}
         {mentor.githubLogin && (
           <>
             {' · '}

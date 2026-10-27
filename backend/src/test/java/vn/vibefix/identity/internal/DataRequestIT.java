@@ -139,7 +139,7 @@ class DataRequestIT extends IntegrationTest {
 
 	@Test
 	void aGoogleAccountRequestsDeletionUnderItsGoogleNameAndTheAdministratorErasesIt() throws Exception {
-		UUID google = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-xoa", "3.0");
+		UUID google = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-xoa", "3.1");
 
 		this.mvc.perform(post("/api/v1/account/deletion-request").with(as(google, null)).with(csrf()))
 			.andExpect(status().isCreated())

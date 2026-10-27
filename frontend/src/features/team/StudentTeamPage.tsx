@@ -23,7 +23,7 @@ import {
   type TeamMentorRequest,
   type TeamMentorResult,
 } from './teamApi'
-import { initials } from './teamText'
+import { experienceText, initials } from './teamText'
 import { TeamSearchBar } from './TeamSearchBar'
 
 /**
@@ -70,7 +70,7 @@ function InTeam({ team }: { team: StudentTeam }) {
             )}
             <p className="text-caption text-muted-foreground">
               {t('screen.team.student.mentorSince', {
-                years: mentor.yearsOfExperience,
+                experience: experienceText(mentor.yearsOfExperience),
                 date: formatDate(membership.joinedAt),
               })}
             </p>
@@ -325,7 +325,10 @@ function MentorResultCard({ result, onView }: { result: TeamMentorResult; onView
         <div className="flex min-w-0 grow flex-col gap-1">
           <p className="text-body-sm font-semibold break-words">{mentor.displayName}</p>
           <p className="text-caption text-muted-foreground">
-            {t('screen.team.student.mentorMeta', { years: mentor.yearsOfExperience, n: mentor.teamSize })}
+            {t('screen.team.student.mentorMeta', {
+              experience: experienceText(mentor.yearsOfExperience),
+              n: mentor.teamSize,
+            })}
           </p>
           <SkillChips skills={mentor.skills} />
         </div>
@@ -374,7 +377,7 @@ function InvitationCard({
           </p>
           <p className="text-caption text-muted-foreground">
             {t('screen.team.student.invitationMeta', {
-              years: mentor.yearsOfExperience,
+              experience: experienceText(mentor.yearsOfExperience),
               date: formatDayMonth(invitation.createdAt),
               lapse: formatDayMonth(invitation.lapsesAt),
             })}

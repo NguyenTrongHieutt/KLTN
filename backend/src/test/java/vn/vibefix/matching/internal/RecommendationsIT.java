@@ -24,8 +24,8 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import com.jayway.jsonpath.JsonPath;
 
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.IdentityTestSupport;
+import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
@@ -55,22 +55,23 @@ class RecommendationsIT extends IntegrationTest {
 
 	@BeforeEach
 	void aCustomerWithAProduct() {
-		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.product = product(this.lan);
 	}
 
 	@Test
 	void mentorsWhoCouldApplyComeBySharedSkillsWithTheirSignals() throws Exception {
 		UUID job = job("OPEN", List.of("BUG_FIX"), List.of(REACT, SUPABASE), null);
-		UUID both = mentor(MentorApprovalStatus.APPROVED, "Hai Kỹ Năng", List.of(SUPABASE, REACT), true);
-		UUID one = mentor(MentorApprovalStatus.APPROVED, "Một Kỹ Năng", List.of(SUPABASE), true);
-		UUID noTeam = mentor(MentorApprovalStatus.APPROVED, "Không Nhóm", List.of(REACT, SUPABASE), false);
-		UUID busy = mentor(MentorApprovalStatus.APPROVED, "Đủ Việc", List.of(REACT, SUPABASE), true);
+		UUID both = mentor("Hai Kỹ Năng", List.of(SUPABASE, REACT), true);
+		UUID one = mentor("Một Kỹ Năng", List.of(SUPABASE), true);
+		UUID noTeam = mentor("Không Nhóm", List.of(REACT, SUPABASE), false);
+		UUID busy = mentor("Đủ Việc", List.of(REACT, SUPABASE), true);
 		for (int i = 0; i < 3; i++) {
 			job("SELECTING", List.of("BUG_FIX"), List.of(), busy);
 		}
-		mentor(MentorApprovalStatus.PENDING, "Chờ Duyệt", List.of(REACT, SUPABASE), true);
-		mentor(MentorApprovalStatus.APPROVED, "Không Chung", List.of(WEB_SECURITY), true);
+		// Story 19.7: a Mentor without GitHub linked is not available, so never recommended.
+		IdentityTestSupport.unlinkGitHub(this.jdbc, mentor("Chưa Liên Kết", List.of(REACT, SUPABASE), true));
+		mentor("Không Chung", List.of(WEB_SECURITY), true);
 
 		String body = this.mvc.perform(get("/api/v1/jobs/" + job + "/recommendations").with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(status().isOk())
@@ -85,14 +86,14 @@ class RecommendationsIT extends IntegrationTest {
 			.getResponse()
 			.getContentAsString();
 		List<String> ids = JsonPath.read(body, "$[*].accountId");
-		assertThat(ids).as("no free Student, at the Job limit, pending, or no shared Skill: left out")
+		assertThat(ids).as("no free Student, at the Job limit, no GitHub link, or no shared Skill: left out")
 			.containsExactly(both.toString(), one.toString())
 			.doesNotContain(noTeam.toString(), busy.toString());
 
 		this.mvc.perform(get("/api/v1/jobs/" + job + "/recommendations?skill=" + REACT).with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(jsonPath("$.length()").value(1))
 			.andExpect(jsonPath("$[0].accountId").value(both.toString()));
-		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.mvc.perform(get("/api/v1/jobs/" + job + "/recommendations").with(as(other, Role.CUSTOMER)))
 			.andExpect(status().isNotFound());
 		UUID draft = job("DRAFT", List.of("BUG_FIX"), List.of(REACT), null);
@@ -104,10 +105,10 @@ class RecommendationsIT extends IntegrationTest {
 	@Test
 	void workHistoryCountsOneJobPerCustomerAndEndsBeingNew() throws Exception {
 		UUID job = job("OPEN", List.of("SECURITY_TESTING"), List.of(REACT), null);
-		UUID veteran = mentor(MentorApprovalStatus.APPROVED, "Từng Làm", List.of(WEB_SECURITY), true);
+		UUID veteran = mentor("Từng Làm", List.of(WEB_SECURITY), true);
 		job("CLOSED", List.of("SECURITY_TESTING"), List.of(), veteran);
 		job("CLOSED", List.of("SECURITY_TESTING"), List.of(), veteran);
-		UUID newcomer = mentor(MentorApprovalStatus.APPROVED, "Người Mới", List.of(REACT), true);
+		UUID newcomer = mentor("Người Mới", List.of(REACT), true);
 
 		this.mvc.perform(get("/api/v1/jobs/" + job + "/recommendations").with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(status().isOk())
@@ -121,9 +122,24 @@ class RecommendationsIT extends IntegrationTest {
 			.andExpect(jsonPath("$[1].signals.newcomer").value(false));
 	}
 
+	/** Story 19.7: the caller's own Skills come from their profile, whether or not they may be invited. */
+	@Test
+	void aMentorWithoutGitHubLinkedGetsJobPostsByTheirOwnSkills() throws Exception {
+		UUID mentor = mentor("Chưa Liên Kết", List.of(WEB_SECURITY), true);
+		IdentityTestSupport.unlinkGitHub(this.jdbc, mentor);
+		UUID shared = job("OPEN", List.of("BUG_FIX"), List.of(WEB_SECURITY), null);
+		job("OPEN", List.of("BUG_FIX"), List.of(REACT), null);
+
+		this.mvc.perform(get("/api/v1/mentor/recommendations").with(as(mentor, Role.MENTOR)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.length()").value(1))
+			.andExpect(jsonPath("$[0].id").value(shared.toString()))
+			.andExpect(jsonPath("$[0].signals.sharedSkills.length()").value(1));
+	}
+
 	@Test
 	void jobPostsForAMentorBySharedSkillsThenNewestLeavingOutAppliedOnes() throws Exception {
-		UUID mentor = mentor(MentorApprovalStatus.APPROVED, "Đỗ Mạnh Hùng", List.of(REACT, SUPABASE), true);
+		UUID mentor = mentor("Đỗ Mạnh Hùng", List.of(REACT, SUPABASE), true);
 		UUID older = job("OPEN", List.of("BUG_FIX"), List.of(SUPABASE), null);
 		this.clock.advance(Duration.ofHours(1));
 		UUID newer = job("OPEN", List.of("NEW_FEATURE"), List.of(REACT), null);
@@ -153,13 +169,17 @@ class RecommendationsIT extends IntegrationTest {
 			.andExpect(jsonPath("$.length()").value(2))
 			.andExpect(jsonPath("$[0].id").value(best.toString()))
 			.andExpect(jsonPath("$[1].id").value(older.toString()));
-		UUID pending = mentor(MentorApprovalStatus.PENDING, "Chờ Duyệt", List.of(REACT), true);
-		this.mvc.perform(get("/api/v1/mentor/recommendations").with(as(pending, Role.MENTOR)))
-			.andExpect(status().isForbidden());
+		// No Mentor needs an approval (Story 19.7); one locked after the session was read is refused.
+		UUID locked = mentor("Bị Khóa", List.of(REACT), true);
+		IdentityTestSupport.lock(this.jdbc, locked, "Vi phạm");
+		this.mvc.perform(get("/api/v1/mentor/recommendations").with(request -> {
+			request.setAttribute(Caller.REQUEST_ATTRIBUTE, Caller.account(locked, Role.MENTOR));
+			return request;
+		})).andExpect(status().isForbidden()).andExpect(jsonPath("$.reason").value("ACCOUNT_LOCKED"));
 	}
 
-	private UUID mentor(MentorApprovalStatus status, String name, List<String> skills, boolean withFreeStudent) {
-		UUID mentor = TeamTestSupport.mentor(this.jdbc, status, name, skills, "Kỹ năng");
+	private UUID mentor(String name, List<String> skills, boolean withFreeStudent) {
+		UUID mentor = TeamTestSupport.mentor(this.jdbc, name, skills, "Kỹ năng");
 		if (withFreeStudent) {
 			UUID team = UUID.randomUUID();
 			this.jdbc.sql("INSERT INTO team.team (id, mentor_account_id, status, created_at) VALUES (:id, :mentor, 'OPEN', now())")

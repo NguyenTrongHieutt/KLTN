@@ -89,7 +89,7 @@ describe('public routes (UX-DR65, UX-DR70, UX-DR26)', () => {
   it('PUB-7 shows the current notice with its version number', async () => {
     renderAt('/quyen-rieng-tu')
 
-    expect(await screen.findByText('Thông báo quyền riêng tư · phiên bản 3.0')).toBeInTheDocument()
+    expect(await screen.findByText('Thông báo quyền riêng tư · phiên bản 3.1')).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 2, name: 'vibefix thu thập gì' })).toBeInTheDocument()
   })
 

@@ -29,7 +29,6 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import com.jayway.jsonpath.JsonPath;
 
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
@@ -150,11 +149,11 @@ class AgreementDraftIT extends IntegrationTest {
 				""").param("id", foreign).param("job", otherJob).update();
 
 		save(job, 0, foreign, 800000, List.of(), UUID.randomUUID()).andExpect(status().isBadRequest());
-		UUID other = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Phạm Thu Hà",
+		UUID other = TeamTestSupport.mentor(this.jdbc, "Phạm Thu Hà",
 				List.of(TeamTestSupport.REACT), "React");
 		this.mvc.perform(get("/api/v1/mentor/jobs/" + job + "/agreement").with(as(other, Role.MENTOR)))
 			.andExpect(status().isNotFound());
-		UUID student = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null, null);
+		UUID student = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null);
 		this.mvc.perform(get("/api/v1/jobs/" + job + "/agreement").with(as(student, Role.STUDENT)))
 			.andExpect(status().isNotFound());
 	}
@@ -211,7 +210,7 @@ class AgreementDraftIT extends IntegrationTest {
 
 	/** A Job of {@code type} taken through J3 and J4 by the API. */
 	private UUID agreement(String type) throws Exception {
-		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		UUID product = product(this.lan);
 		UUID job = UUID.randomUUID();
 		Instant now = this.clock.instant();
@@ -231,7 +230,7 @@ class AgreementDraftIT extends IntegrationTest {
 			.param("now", Timestamp.from(now))
 			.param("lapses", Timestamp.from(now.plus(Duration.ofDays(14))))
 			.update();
-		this.hung = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Đỗ Mạnh Hùng",
+		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng",
 				List.of(TeamTestSupport.REACT), "React");
 		UUID team = UUID.randomUUID();
 		this.jdbc.sql("INSERT INTO team.team (id, mentor_account_id, status, created_at) VALUES (:id, :mentor, 'OPEN', now())")

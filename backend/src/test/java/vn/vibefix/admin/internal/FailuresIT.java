@@ -75,7 +75,7 @@ class FailuresIT extends IntegrationTest {
 	@Test
 	void aFalsePositiveIsReopenedForItsResolver() throws Exception {
 		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
-		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.jdbc.sql("""
 				INSERT INTO identity.profile (account_id, kind, display_name, contact_email, updated_at)
 				VALUES (:id, 'INDIVIDUAL', 'Nguyễn Thị Lan', 'lan@example.com', now())

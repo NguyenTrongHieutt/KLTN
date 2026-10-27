@@ -43,6 +43,7 @@ const long = {
   skills: ['Supabase', 'Đăng nhập và phân quyền'],
   teamSize: 9,
   relation: 'NONE',
+  available: true,
 }
 
 const ha = {
@@ -53,6 +54,7 @@ const ha = {
   skills: ['Supabase'],
   teamSize: 1,
   relation: 'INVITED',
+  available: true,
 }
 
 const page = (items: object[]) => ({ items, page: 0, size: 20, total: items.length })
@@ -151,6 +153,23 @@ describe('CUS-8 "Tìm người hướng dẫn" (FR-14)', () => {
 
     expect(await screen.findByText(/Hôm nay bạn đã gửi đủ 10 lời mời cho công việc này\./)).toBeInTheDocument()
     expect(await screen.findByRole('button', { name: 'Mời ứng tuyển' })).toBeDisabled()
+  })
+
+  it('disables the Invite button of a Mentor without GitHub linked, with the line that says why', { timeout: 15_000 }, async () => {
+    const unlinked = { ...long, githubLogin: undefined, yearsOfExperience: undefined, available: false }
+    fakeBackend(signedIn('CUSTOMER'), {
+      'GET /api/v1/jobs/j1': () => json(openJob),
+      'GET /api/v1/jobs/j1/applications': () => json([]),
+      'GET /api/v1/jobs/j1/invitations': () => json(quota(9)),
+      'GET /api/v1/jobs/j1/mentors': () => json(page([unlinked])),
+      'GET /api/v1/reputation/mentor-summaries': () => json([]),
+    })
+    renderAt('/cong-viec/j1/tim-nguoi?q=supabase')
+
+    const button = await screen.findByRole('button', { name: 'Mời ứng tuyển' })
+    expect(button).toBeDisabled()
+    expect(button).toHaveAccessibleDescription('Người hướng dẫn chưa liên kết GitHub')
+    expect(screen.getByText(/Kinh nghiệm: Chưa khai/)).toBeInTheDocument()
   })
 
   it('opens PUB-5 in a Sheet with the Invite button and returns focus to the card', { timeout: 20_000 }, async () => {

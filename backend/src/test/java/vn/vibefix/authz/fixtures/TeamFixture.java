@@ -18,7 +18,6 @@ import vn.vibefix.authz.Canaries;
 import vn.vibefix.authz.MatrixCaller;
 import vn.vibefix.authz.MatrixFixture;
 import vn.vibefix.authz.MatrixWorld;
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.shared.Role;
 import vn.vibefix.support.MutableClock;
@@ -52,7 +51,7 @@ public class TeamFixture implements MatrixFixture {
 
 	@Override
 	public void seed(MatrixWorld world) {
-		this.mentor = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Người hướng dẫn ma trận",
+		this.mentor = TeamTestSupport.mentor(this.jdbc, "Người hướng dẫn ma trận",
 				List.of(TeamTestSupport.REACT), "React");
 		Timestamp now = Timestamp.from(MutableClock.DEFAULT_INSTANT);
 		Timestamp lapses = Timestamp.from(MutableClock.DEFAULT_INSTANT.plus(Duration.ofDays(14)));

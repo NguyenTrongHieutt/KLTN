@@ -9,7 +9,7 @@ import { t, type MessageKey } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
 import { formatDayMonthTime } from '@/lib/dates'
 import { formatVnd, groupDigits, parseVnd } from '@/lib/money'
-import { problemMessage } from '@/lib/problemMessage'
+import { problemMessage, type ProblemLink } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { isLive, useApply, useMyApplications, useWithdrawApplication, type Application } from './applicationApi'
 
@@ -69,7 +69,7 @@ function ApplyForm({ postId, teamSize, blocked }: { postId: string; teamSize: nu
       { priceVnd, timelineDays, approach: approach.trim(), publicCodeAcknowledged: true },
       {
         onSuccess: () => toasts.success(t('screen.matching.apply.sent')),
-        onError: (error) => toasts.error(refusal(error), problemMessage(error, { module: 'matching' }).link),
+        onError: (error) => toasts.error(refusal(error), refusalLink(error)),
       },
     )
   }
@@ -238,6 +238,14 @@ function Applied({ application }: { application: Application }) {
       </Dialog.Root>
     </div>
   )
+}
+
+/** Where a refusal leads: ACC-1 for a profile with no display name yet (Story 19.7), else the shared way forward. */
+function refusalLink(error: unknown): ProblemLink | undefined {
+  if (error instanceof ApiError && error.problem.reason === 'PROFILE_REQUIRED') {
+    return { href: '/ho-so', label: t('screen.matching.apply.profileLink') }
+  }
+  return problemMessage(error, { module: 'matching' }).link
 }
 
 /** The plain refusal (FR-13): the Job limit names the limit, and too many today names when to try again. */

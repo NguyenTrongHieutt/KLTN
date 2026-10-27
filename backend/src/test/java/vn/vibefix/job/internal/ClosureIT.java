@@ -26,7 +26,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
@@ -178,7 +177,7 @@ class ClosureIT extends IntegrationTest {
 		world("FUNDED", false);
 		command(this.lan, Role.CUSTOMER, "", 5).andExpect(status().isUnprocessableEntity())
 			.andExpect(jsonPath("$.reason").value("MILESTONE_HELD"));
-		UUID stranger = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		UUID stranger = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.mvc.perform(get("/api/v1/boards/" + this.job + "/closure").with(as(stranger, Role.CUSTOMER)))
 			.andExpect(status().isNotFound());
 	}
@@ -189,8 +188,8 @@ class ClosureIT extends IntegrationTest {
 	 * {@code planned}, a Planned Milestone 2.
 	 */
 	private void world(String firstState, boolean planned) throws Exception {
-		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
-		this.hung = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Đỗ Mạnh Hùng",
+		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng",
 				List.of(TeamTestSupport.REACT), "React");
 		this.vy = TeamTestSupport.student(this.jdbc, "Trần Thảo Vy", true, List.of(TeamTestSupport.REACT), "React",
 				LocalDate.parse("2026-09-30"));

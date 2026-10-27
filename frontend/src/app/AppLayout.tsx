@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { Link, NavLink, Outlet } from 'react-router'
 import { Toaster } from '@/components/Toaster'
 import { buttonVariants } from '@/components/ui/button-variants'
-import { landingPath, type Session } from '@/features/identity/api'
+import { landingPath } from '@/features/identity/api'
 import { SessionExpiredDialog } from '@/features/identity/SessionExpiredDialog'
 import { AccountMenu } from '@/features/identity/AccountMenu'
 import { useSession } from '@/features/identity/useSession'
@@ -31,20 +31,13 @@ export function AppLayout() {
   )
 }
 
-/** A Mentor who is not approved keeps MEN-5 and the account menu only (FR-74), so no bell. */
-function hasBell(session: Session | undefined): boolean {
-  const account = session?.account
-  return account?.role !== 'MENTOR' || account.mentorApprovalStatus === 'APPROVED'
-}
-
 function SignedInShell() {
   useFocusHeadingOnNavigate(MAIN_ID)
   const session = useSession()
   const current = session.data
   const theme = current?.account?.theme
-  const bell = hasBell(current)
   const todos = useTodos()
-  const unread = useUnreadCount(bell)
+  const unread = useUnreadCount()
   const { offline } = usePollHealth()
   // The account's theme while signed in; light again after signing out (UX-DR5).
   useEffect(() => {
@@ -100,7 +93,7 @@ function SignedInShell() {
             </ul>
           </nav>
           <span className="grow" />
-          {bell && <NotificationBell offline={offline} />}
+          <NotificationBell offline={offline} />
           <AccountMenu session={current} offline={offline} />
         </div>
       </header>

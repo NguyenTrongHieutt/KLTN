@@ -14,27 +14,27 @@ GET /api/v1/environment,ADMINISTRATOR,,,200
 # The session (identity): public, because each answer is about the caller's own session.
 GET /api/v1/session,ANONYMOUS,,,200
 GET /api/v1/session,CUSTOMER,,,200
-GET /api/v1/session,MENTOR,mentor=PENDING,,200
+GET /api/v1/session,MENTOR,,,200
 GET /api/v1/session,STUDENT,,,200
 GET /api/v1/session,ADMINISTRATOR,,,200
 GET /api/v1/session,CUSTOMER,locked=true,,200
 # PUB-3's welcome needs a pending Google sign-in in the session (Story 19.1); a signed-in account accepted it already.
 POST /api/v1/session/sign-up,ANONYMOUS,,session-sign-up.json,404 NOT_FOUND
 POST /api/v1/session/sign-up,CUSTOMER,,session-sign-up.json,409 CONFLICT
-POST /api/v1/session/sign-up,MENTOR,mentor=PENDING,session-sign-up.json,409 CONFLICT
+POST /api/v1/session/sign-up,MENTOR,,session-sign-up.json,409 CONFLICT
 POST /api/v1/session/sign-up,STUDENT,,session-sign-up.json,409 CONFLICT
 POST /api/v1/session/sign-up,ADMINISTRATOR,,session-sign-up.json,409 CONFLICT
 POST /api/v1/session/sign-up,CUSTOMER,locked=true,session-sign-up.json,404 NOT_FOUND
 # SG-10: activity extends an Administrator session; for other accounts it changes nothing.
 POST /api/v1/session/activity,ANONYMOUS,,,401
 POST /api/v1/session/activity,CUSTOMER,,,200
-POST /api/v1/session/activity,MENTOR,mentor=PENDING,,200
+POST /api/v1/session/activity,MENTOR,,,200
 POST /api/v1/session/activity,STUDENT,,,200
 POST /api/v1/session/activity,ADMINISTRATOR,,,200
 # PUB-6 (FR-2, AD-19): the Administrator sign-in, for anonymous callers only; a wrong one says nothing more.
 POST /api/v1/admin/sign-in,ANONYMOUS,,admin-sign-in.json,422 GUARD_FAILED
 POST /api/v1/admin/sign-in,CUSTOMER,,admin-sign-in.json,409 CONFLICT
-POST /api/v1/admin/sign-in,MENTOR,mentor=PENDING,admin-sign-in.json,409 CONFLICT
+POST /api/v1/admin/sign-in,MENTOR,,admin-sign-in.json,409 CONFLICT
 POST /api/v1/admin/sign-in,STUDENT,,admin-sign-in.json,409 CONFLICT
 POST /api/v1/admin/sign-in,ADMINISTRATOR,,admin-sign-in.json,409 CONFLICT
 # ADM-11 (identity, FR-2, SG-10): Administrators only. The matrix Administrator has no TOTP
@@ -66,7 +66,7 @@ GET /api/v1/admin/overview,SUBJECT,,,404 NOT_FOUND
 GET /api/v1/admin/overview,ADMINISTRATOR,,,200
 POST /api/v1/session/sign-out,ANONYMOUS,,,204
 POST /api/v1/session/sign-out,CUSTOMER,,,204
-POST /api/v1/session/sign-out,MENTOR,mentor=REVOKED,,204
+POST /api/v1/session/sign-out,MENTOR,,,204
 POST /api/v1/session/sign-out,STUDENT,,,204
 POST /api/v1/session/sign-out,ADMINISTRATOR,,,204
 
@@ -74,21 +74,21 @@ POST /api/v1/session/sign-out,ADMINISTRATOR,,,204
 # (AD-20). SUBJECT is the recipient of the seeded notification and to-do; everyone else gets 404 on it.
 GET /api/v1/notifications,ANONYMOUS,,,401
 GET /api/v1/notifications,CUSTOMER,,,200
-GET /api/v1/notifications,MENTOR,mentor=PENDING,,200
+GET /api/v1/notifications,MENTOR,,,200
 GET /api/v1/notifications,STUDENT,,,200
 GET /api/v1/notifications,ADMINISTRATOR,,,200
 GET /api/v1/notifications,SUBJECT,,,200
 GET /api/v1/notifications,CUSTOMER,locked=true,,401
 GET /api/v1/notifications/unread-count,ANONYMOUS,,,401
 GET /api/v1/notifications/unread-count,CUSTOMER,,,200
-GET /api/v1/notifications/unread-count,MENTOR,mentor=PENDING,,200
+GET /api/v1/notifications/unread-count,MENTOR,,,200
 GET /api/v1/notifications/unread-count,STUDENT,,,200
 GET /api/v1/notifications/unread-count,ADMINISTRATOR,,,200
 GET /api/v1/notifications/unread-count,SUBJECT,,,200
 GET /api/v1/notifications/unread-count,CUSTOMER,locked=true,,401
 GET /api/v1/todos,ANONYMOUS,,,401
 GET /api/v1/todos,CUSTOMER,,,200
-GET /api/v1/todos,MENTOR,mentor=PENDING,,200
+GET /api/v1/todos,MENTOR,,,200
 GET /api/v1/todos,STUDENT,,,200
 GET /api/v1/todos,ADMINISTRATOR,,,200
 GET /api/v1/todos,SUBJECT,,,200
@@ -101,7 +101,7 @@ POST /api/v1/notifications/{notificationId}/read,ADMINISTRATOR,,,404 NOT_FOUND
 POST /api/v1/notifications/{notificationId}/read,SUBJECT,,,204
 POST /api/v1/notifications/read-all,ANONYMOUS,,,401
 POST /api/v1/notifications/read-all,CUSTOMER,,,204
-POST /api/v1/notifications/read-all,MENTOR,mentor=PENDING,,204
+POST /api/v1/notifications/read-all,MENTOR,,,204
 POST /api/v1/notifications/read-all,STUDENT,,,204
 POST /api/v1/notifications/read-all,ADMINISTRATOR,,,204
 POST /api/v1/notifications/read-all,SUBJECT,,,204
@@ -136,7 +136,7 @@ GET /api/v1/profile,ANONYMOUS,,,401
 GET /api/v1/profile,CUSTOMER,,,200
 GET /api/v1/profile,OWNER,,,200
 GET /api/v1/profile,MENTOR,,,200
-GET /api/v1/profile,MENTOR,mentor=PENDING,,200
+GET /api/v1/profile,MENTOR,github=unlinked,,200
 GET /api/v1/profile,STUDENT,,,200
 GET /api/v1/profile,ADMINISTRATOR,,,404 NOT_FOUND
 GET /api/v1/profile,SUBJECT,,,200
@@ -148,7 +148,7 @@ PUT /api/v1/profile,ANONYMOUS,,profile.json,401
 PUT /api/v1/profile,CUSTOMER,,profile.json,204
 PUT /api/v1/profile,OWNER,,profile.json,204
 PUT /api/v1/profile,MENTOR,,profile.json,204
-PUT /api/v1/profile,MENTOR,mentor=PENDING,profile.json,204
+PUT /api/v1/profile,MENTOR,github=unlinked,profile.json,204
 PUT /api/v1/profile,STUDENT,,profile.json,204
 PUT /api/v1/profile,ADMINISTRATOR,,profile.json,404 NOT_FOUND
 PUT /api/v1/profile,SUBJECT,,profile.json,204
@@ -160,101 +160,54 @@ PUT /api/v1/profile,CUSTOMER,locked=true,profile.json,401
 # The theme (identity, UX-DR5): signed in, each account its own.
 PUT /api/v1/account/theme,ANONYMOUS,,account-theme.json,401
 PUT /api/v1/account/theme,CUSTOMER,,account-theme.json,204
-PUT /api/v1/account/theme,MENTOR,mentor=PENDING,account-theme.json,204
+PUT /api/v1/account/theme,MENTOR,,account-theme.json,204
 PUT /api/v1/account/theme,STUDENT,,account-theme.json,204
 PUT /api/v1/account/theme,ADMINISTRATOR,,account-theme.json,204
 # The Skill catalog (catalog, AD-38): every signed-in role reads it; nobody writes it yet.
 GET /api/v1/catalog,ANONYMOUS,,,401
 GET /api/v1/catalog,CUSTOMER,,,200
-GET /api/v1/catalog,MENTOR,mentor=PENDING,,200
+GET /api/v1/catalog,MENTOR,,,200
 GET /api/v1/catalog,STUDENT,,,200
 GET /api/v1/catalog,ADMINISTRATOR,,,200
 GET /api/v1/catalog,SUBJECT,,,200
-# MEN-5 (identity, FR-74, until Story 19.7): every Mentor reads and saves its own application and document,
-# whatever its approval status; any other role finds nothing. Another Mentor's LinkedIn link is a canary.
-GET /api/v1/profile/mentor,ANONYMOUS,,,401
-GET /api/v1/profile/mentor,MENTOR,mentor=PENDING,,200
-GET /api/v1/profile/mentor,MENTOR,,,200
-GET /api/v1/profile/mentor,CUSTOMER,,,404 NOT_FOUND
-GET /api/v1/profile/mentor,STUDENT,,,404 NOT_FOUND
-GET /api/v1/profile/mentor,ADMINISTRATOR,,,404 NOT_FOUND
-PUT /api/v1/profile/mentor,ANONYMOUS,,profile-mentor.json,401
-PUT /api/v1/profile/mentor,MENTOR,mentor=PENDING,profile-mentor.json,200
-PUT /api/v1/profile/mentor,CUSTOMER,,profile-mentor.json,404 NOT_FOUND
-PUT /api/v1/profile/mentor,STUDENT,,profile-mentor.json,404 NOT_FOUND
-PUT /api/v1/profile/mentor,ADMINISTRATOR,,profile-mentor.json,404 NOT_FOUND
-POST /api/v1/profile/mentor/document,ANONYMOUS,,student-card.png,401
-POST /api/v1/profile/mentor/document,MENTOR,mentor=PENDING,student-card.png,201
-POST /api/v1/profile/mentor/document,CUSTOMER,,student-card.png,404 NOT_FOUND
-POST /api/v1/profile/mentor/document,STUDENT,,student-card.png,404 NOT_FOUND
-POST /api/v1/profile/mentor/document,ADMINISTRATOR,,student-card.png,404 NOT_FOUND
-DELETE /api/v1/profile/mentor/document,ANONYMOUS,,,401
-DELETE /api/v1/profile/mentor/document,MENTOR,mentor=PENDING,,204
-DELETE /api/v1/profile/mentor/document,CUSTOMER,,,404 NOT_FOUND
-DELETE /api/v1/profile/mentor/document,STUDENT,,,404 NOT_FOUND
-DELETE /api/v1/profile/mentor/document,ADMINISTRATOR,,,404 NOT_FOUND
-# ADM-13 (identity, FR-74, AD-19): only Administrators list, read, and decide Mentor applications;
-# every other caller finds none. The matrix Administrator has no authenticator, so a decision's
-# step-up finds no credential to check.
-GET /api/v1/admin/mentor-applications,ANONYMOUS,,,401
-GET /api/v1/admin/mentor-applications,CUSTOMER,,,404 NOT_FOUND
-GET /api/v1/admin/mentor-applications,MENTOR,mentor=PENDING,,404 NOT_FOUND
-GET /api/v1/admin/mentor-applications,STUDENT,,,404 NOT_FOUND
-GET /api/v1/admin/mentor-applications,SUBJECT,,,404 NOT_FOUND
-GET /api/v1/admin/mentor-applications,ADMINISTRATOR,,,200
-GET /api/v1/admin/mentor-applications/{applicantId},ANONYMOUS,,,401
-GET /api/v1/admin/mentor-applications/{applicantId},CUSTOMER,,,404 NOT_FOUND
-GET /api/v1/admin/mentor-applications/{applicantId},MENTOR,mentor=PENDING,,404 NOT_FOUND
-GET /api/v1/admin/mentor-applications/{applicantId},STUDENT,,,404 NOT_FOUND
-GET /api/v1/admin/mentor-applications/{applicantId},ADMINISTRATOR,,,200
-POST /api/v1/admin/mentor-applications/{applicantId}/approve,ANONYMOUS,,admin-mentor-approve.json,401
-POST /api/v1/admin/mentor-applications/{applicantId}/approve,CUSTOMER,,admin-mentor-approve.json,404 NOT_FOUND
-POST /api/v1/admin/mentor-applications/{applicantId}/approve,MENTOR,mentor=PENDING,admin-mentor-approve.json,404 NOT_FOUND
-POST /api/v1/admin/mentor-applications/{applicantId}/approve,STUDENT,,admin-mentor-approve.json,404 NOT_FOUND
-POST /api/v1/admin/mentor-applications/{applicantId}/approve,ADMINISTRATOR,,admin-mentor-approve.json,404 NOT_FOUND
-POST /api/v1/admin/mentor-applications/{applicantId}/reject,ANONYMOUS,,admin-mentor-reject.json,401
-POST /api/v1/admin/mentor-applications/{applicantId}/reject,CUSTOMER,,admin-mentor-reject.json,404 NOT_FOUND
-POST /api/v1/admin/mentor-applications/{applicantId}/reject,MENTOR,mentor=PENDING,admin-mentor-reject.json,404 NOT_FOUND
-POST /api/v1/admin/mentor-applications/{applicantId}/reject,STUDENT,,admin-mentor-reject.json,404 NOT_FOUND
-POST /api/v1/admin/mentor-applications/{applicantId}/reject,ADMINISTRATOR,,admin-mentor-reject.json,404 NOT_FOUND
 # MEN-6 (team, FR-6, FR-14, AD-36, AD-37): only the Mentor reads their Team, searches Students,
 # invites, and answers join requests; another Mentor finds nobody else's requests, and every other
 # role finds nothing. A member's hidden name is a canary.
 GET /api/v1/mentor/team,ANONYMOUS,,,401,requireActiveAccount
 GET /api/v1/mentor/team,MENTOR,,,200,requireActiveAccount
-GET /api/v1/mentor/team,MENTOR,mentor=PENDING,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/team,MENTOR,github=unlinked,,200,requireActiveAccount
 GET /api/v1/mentor/team,TEAM_MENTOR,,,200,requireActiveAccount
 GET /api/v1/mentor/team,CUSTOMER,,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/team,STUDENT,,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/team,ADMINISTRATOR,,,404 NOT_FOUND,requireActiveAccount
-GET /api/v1/mentor/team/students,ANONYMOUS,,,401,requireApprovedMentor
-GET /api/v1/mentor/team/students,MENTOR,,,200,requireApprovedMentor
-GET /api/v1/mentor/team/students,MENTOR,mentor=PENDING,,403 FORBIDDEN MENTOR_NOT_APPROVED,requireApprovedMentor
-GET /api/v1/mentor/team/students,CUSTOMER,,,404 NOT_FOUND,requireApprovedMentor
-GET /api/v1/mentor/team/students,STUDENT,,,404 NOT_FOUND,requireApprovedMentor
-GET /api/v1/mentor/team/students,ADMINISTRATOR,,,404 NOT_FOUND,requireApprovedMentor
-GET /api/v1/mentor/team/students/{studentId},ANONYMOUS,,,401,requireApprovedMentor
-GET /api/v1/mentor/team/students/{studentId},MENTOR,,,200,requireApprovedMentor
-GET /api/v1/mentor/team/students/{studentId},MENTOR,mentor=PENDING,,403 FORBIDDEN MENTOR_NOT_APPROVED,requireApprovedMentor
-GET /api/v1/mentor/team/students/{studentId},CUSTOMER,,,404 NOT_FOUND,requireApprovedMentor
-GET /api/v1/mentor/team/students/{studentId},STUDENT,,,404 NOT_FOUND,requireApprovedMentor
-GET /api/v1/mentor/team/students/{studentId},ADMINISTRATOR,,,404 NOT_FOUND,requireApprovedMentor
-POST /api/v1/mentor/team/invitations,ANONYMOUS,,team-invitation.json,401,requireApprovedMentor
-POST /api/v1/mentor/team/invitations,MENTOR,,team-invitation.json,201,requireApprovedMentor
-POST /api/v1/mentor/team/invitations,MENTOR,mentor=PENDING,team-invitation.json,403 FORBIDDEN MENTOR_NOT_APPROVED,requireApprovedMentor
-POST /api/v1/mentor/team/invitations,CUSTOMER,,team-invitation.json,404 NOT_FOUND,requireApprovedMentor
-POST /api/v1/mentor/team/invitations,STUDENT,,team-invitation.json,404 NOT_FOUND,requireApprovedMentor
-POST /api/v1/mentor/team/invitations,ADMINISTRATOR,,team-invitation.json,404 NOT_FOUND,requireApprovedMentor
-POST /api/v1/mentor/team/join-requests/{joinRequestId}/accept,ANONYMOUS,,,401,requireApprovedMentor
-POST /api/v1/mentor/team/join-requests/{joinRequestId}/accept,MENTOR,,,404 NOT_FOUND,requireApprovedMentor
-POST /api/v1/mentor/team/join-requests/{joinRequestId}/accept,MENTOR,mentor=PENDING,,404 NOT_FOUND,requireApprovedMentor
-POST /api/v1/mentor/team/join-requests/{joinRequestId}/accept,TEAM_MENTOR,,,200,requireApprovedMentor
-POST /api/v1/mentor/team/join-requests/{joinRequestId}/accept,CUSTOMER,,,404 NOT_FOUND,requireApprovedMentor
-POST /api/v1/mentor/team/join-requests/{joinRequestId}/accept,STUDENT,,,404 NOT_FOUND,requireApprovedMentor
-POST /api/v1/mentor/team/join-requests/{joinRequestId}/accept,ADMINISTRATOR,,,404 NOT_FOUND,requireApprovedMentor
+GET /api/v1/mentor/team/students,ANONYMOUS,,,401,requireActiveAccount
+GET /api/v1/mentor/team/students,MENTOR,,,200,requireActiveAccount
+GET /api/v1/mentor/team/students,MENTOR,github=unlinked,,200,requireActiveAccount
+GET /api/v1/mentor/team/students,CUSTOMER,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/team/students,STUDENT,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/team/students,ADMINISTRATOR,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/team/students/{studentId},ANONYMOUS,,,401,requireActiveAccount
+GET /api/v1/mentor/team/students/{studentId},MENTOR,,,200,requireActiveAccount
+GET /api/v1/mentor/team/students/{studentId},MENTOR,github=unlinked,,200,requireActiveAccount
+GET /api/v1/mentor/team/students/{studentId},CUSTOMER,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/team/students/{studentId},STUDENT,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/team/students/{studentId},ADMINISTRATOR,,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/team/invitations,ANONYMOUS,,team-invitation.json,401,requireActiveAccount
+POST /api/v1/mentor/team/invitations,MENTOR,,team-invitation.json,201,requireActiveAccount
+POST /api/v1/mentor/team/invitations,MENTOR,github=unlinked,team-invitation.json,201,requireActiveAccount
+POST /api/v1/mentor/team/invitations,CUSTOMER,,team-invitation.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/team/invitations,STUDENT,,team-invitation.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/team/invitations,ADMINISTRATOR,,team-invitation.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/team/join-requests/{joinRequestId}/accept,ANONYMOUS,,,401,requireActiveAccount
+POST /api/v1/mentor/team/join-requests/{joinRequestId}/accept,MENTOR,,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/team/join-requests/{joinRequestId}/accept,MENTOR,github=unlinked,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/team/join-requests/{joinRequestId}/accept,TEAM_MENTOR,,,200,requireActiveAccount
+POST /api/v1/mentor/team/join-requests/{joinRequestId}/accept,CUSTOMER,,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/team/join-requests/{joinRequestId}/accept,STUDENT,,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/team/join-requests/{joinRequestId}/accept,ADMINISTRATOR,,,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/team/join-requests/{joinRequestId}/decline,ANONYMOUS,,,401,requireActiveAccount
 POST /api/v1/mentor/team/join-requests/{joinRequestId}/decline,MENTOR,,,404 NOT_FOUND,requireActiveAccount
-POST /api/v1/mentor/team/join-requests/{joinRequestId}/decline,MENTOR,mentor=PENDING,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/team/join-requests/{joinRequestId}/decline,MENTOR,github=unlinked,,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/team/join-requests/{joinRequestId}/decline,TEAM_MENTOR,,,200,requireActiveAccount
 POST /api/v1/mentor/team/join-requests/{joinRequestId}/decline,CUSTOMER,,,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/team/join-requests/{joinRequestId}/decline,STUDENT,,,404 NOT_FOUND,requireActiveAccount
@@ -297,7 +250,7 @@ DELETE /api/v1/team/membership,ADMINISTRATOR,,,404 NOT_FOUND
 GET /api/v1/team,TEAM_MEMBER,,,200
 DELETE /api/v1/mentor/team/members/{membershipId},ANONYMOUS,,,401,requireActiveAccount
 DELETE /api/v1/mentor/team/members/{membershipId},MENTOR,,,404 NOT_FOUND,requireActiveAccount
-DELETE /api/v1/mentor/team/members/{membershipId},MENTOR,mentor=PENDING,,404 NOT_FOUND,requireActiveAccount
+DELETE /api/v1/mentor/team/members/{membershipId},MENTOR,github=unlinked,,404 NOT_FOUND,requireActiveAccount
 DELETE /api/v1/mentor/team/members/{membershipId},TEAM_MENTOR,,,204,requireActiveAccount
 DELETE /api/v1/mentor/team/members/{membershipId},CUSTOMER,,,404 NOT_FOUND,requireActiveAccount
 DELETE /api/v1/mentor/team/members/{membershipId},STUDENT,,,404 NOT_FOUND,requireActiveAccount
@@ -402,7 +355,7 @@ POST /api/v1/products/{productId}/findings/{findingId}/false-positive,ADMINISTRA
 GET /api/v1/verification,ANONYMOUS,,,401
 GET /api/v1/verification,STUDENT,,,200
 GET /api/v1/verification,CUSTOMER,,,200
-GET /api/v1/verification,MENTOR,mentor=PENDING,,200
+GET /api/v1/verification,MENTOR,,,200
 GET /api/v1/verification,OWNER,,,200
 GET /api/v1/verification,SUBJECT,,,200
 GET /api/v1/verification,CREW_ACTIVE,,,200
@@ -427,35 +380,16 @@ DELETE /api/v1/verification/student,CUSTOMER,,,404 NOT_FOUND
 DELETE /api/v1/verification/student,MENTOR,,,404 NOT_FOUND
 DELETE /api/v1/verification/student,ADMINISTRATOR,,,404 NOT_FOUND
 DELETE /api/v1/verification/student,CUSTOMER,locked=true,,401
-# Student cards (identity and files, FR-5, AD-20): a Student uploads their own; only Administrators
-# list, decide, and read cards, and every other caller finds none. The card's file name is a canary.
-POST /api/v1/verification/student-card,ANONYMOUS,,student-card.png,401
-POST /api/v1/verification/student-card,STUDENT,,student-card.png,201
-POST /api/v1/verification/student-card,CUSTOMER,,student-card.png,404 NOT_FOUND
-POST /api/v1/verification/student-card,MENTOR,mentor=PENDING,student-card.png,404 NOT_FOUND
-POST /api/v1/verification/student-card,ADMINISTRATOR,,student-card.png,404 NOT_FOUND
-GET /api/v1/admin/student-cards,ANONYMOUS,,,401
-GET /api/v1/admin/student-cards,CUSTOMER,,,404 NOT_FOUND
-GET /api/v1/admin/student-cards,MENTOR,,,404 NOT_FOUND
-GET /api/v1/admin/student-cards,STUDENT,,,404 NOT_FOUND
-GET /api/v1/admin/student-cards,SUBJECT,,,404 NOT_FOUND
-GET /api/v1/admin/student-cards,ADMINISTRATOR,,,200
-POST /api/v1/admin/student-cards/{cardId}/approve,ANONYMOUS,,admin-student-card-approve.json,401
-POST /api/v1/admin/student-cards/{cardId}/approve,CUSTOMER,,admin-student-card-approve.json,404 NOT_FOUND
-POST /api/v1/admin/student-cards/{cardId}/approve,MENTOR,,admin-student-card-approve.json,404 NOT_FOUND
-POST /api/v1/admin/student-cards/{cardId}/approve,STUDENT,,admin-student-card-approve.json,404 NOT_FOUND
-POST /api/v1/admin/student-cards/{cardId}/approve,ADMINISTRATOR,,admin-student-card-approve.json,200
-POST /api/v1/admin/student-cards/{cardId}/reject,ANONYMOUS,,admin-student-card-reject.json,401
-POST /api/v1/admin/student-cards/{cardId}/reject,CUSTOMER,,admin-student-card-reject.json,404 NOT_FOUND
-POST /api/v1/admin/student-cards/{cardId}/reject,MENTOR,,admin-student-card-reject.json,404 NOT_FOUND
-POST /api/v1/admin/student-cards/{cardId}/reject,STUDENT,,admin-student-card-reject.json,404 NOT_FOUND
-POST /api/v1/admin/student-cards/{cardId}/reject,ADMINISTRATOR,,admin-student-card-reject.json,200
+# Stored files (files, AD-20, AD-21): the owning module's read policy decides. {fileId} is another
+# Customer's screenshot of an Open Job Post, which any unlocked Mentor reads with no approval or GitHub
+# link (Story 19.7); nobody else does, Administrators included.
 GET /api/v1/files/{fileId},ANONYMOUS,,,401
 GET /api/v1/files/{fileId},CUSTOMER,,,404 NOT_FOUND
-GET /api/v1/files/{fileId},MENTOR,,,404 NOT_FOUND
+GET /api/v1/files/{fileId},MENTOR,,,200
+GET /api/v1/files/{fileId},MENTOR,github=unlinked,,200
 GET /api/v1/files/{fileId},STUDENT,,,404 NOT_FOUND
 GET /api/v1/files/{fileId},SUBJECT,,,404 NOT_FOUND
-GET /api/v1/files/{fileId},ADMINISTRATOR,,,200
+GET /api/v1/files/{fileId},ADMINISTRATOR,,,404 NOT_FOUND
 # A Customer's contact: the Customer (SUBJECT) and Administrators; anyone else only under a contact grant
 # (FR-3, Story 19.3), which no matrix caller holds on SUBJECT. A Crew member never reads it.
 GET /api/v1/customers/{customerId}/contact,ANONYMOUS,,,401
@@ -508,12 +442,12 @@ GET /api/v1/jobs/{jobId}/shared-pages,CUSTOMER,,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/shared-pages,MENTOR,,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/shared-pages,STUDENT,,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/shared-pages,ADMINISTRATOR,,,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/screenshots,ANONYMOUS,,student-card.png,401
-POST /api/v1/jobs/{jobId}/screenshots,OWNER,,student-card.png,201
-POST /api/v1/jobs/{jobId}/screenshots,CUSTOMER,,student-card.png,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/screenshots,MENTOR,,student-card.png,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/screenshots,STUDENT,,student-card.png,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/screenshots,ADMINISTRATOR,,student-card.png,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/screenshots,ANONYMOUS,,upload.png,401
+POST /api/v1/jobs/{jobId}/screenshots,OWNER,,upload.png,201
+POST /api/v1/jobs/{jobId}/screenshots,CUSTOMER,,upload.png,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/screenshots,MENTOR,,upload.png,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/screenshots,STUDENT,,upload.png,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/screenshots,ADMINISTRATOR,,upload.png,404 NOT_FOUND
 DELETE /api/v1/jobs/{jobId}/screenshots/{screenshotId},ANONYMOUS,,,401
 DELETE /api/v1/jobs/{jobId}/screenshots/{screenshotId},OWNER,,,204
 DELETE /api/v1/jobs/{jobId}/screenshots/{screenshotId},CUSTOMER,,,404 NOT_FOUND
@@ -532,44 +466,44 @@ POST /api/v1/jobs/{jobId}/withdraw,CUSTOMER,,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/withdraw,MENTOR,,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/withdraw,STUDENT,,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/withdraw,ADMINISTRATOR,,,404 NOT_FOUND
-GET /api/v1/mentor/job-posts,ANONYMOUS,,,401,requireApprovedMentor
-GET /api/v1/mentor/job-posts,MENTOR,,,200,requireApprovedMentor
-GET /api/v1/mentor/job-posts,MENTOR,mentor=PENDING,,403 FORBIDDEN MENTOR_NOT_APPROVED,requireApprovedMentor
-GET /api/v1/mentor/job-posts,OWNER,,,404 NOT_FOUND,requireApprovedMentor
-GET /api/v1/mentor/job-posts,CUSTOMER,,,404 NOT_FOUND,requireApprovedMentor
-GET /api/v1/mentor/job-posts,STUDENT,,,404 NOT_FOUND,requireApprovedMentor
-GET /api/v1/mentor/job-posts,ADMINISTRATOR,,,404 NOT_FOUND,requireApprovedMentor
-GET /api/v1/mentor/capacity,ANONYMOUS,,,401,requireApprovedMentor
-GET /api/v1/mentor/capacity,MENTOR,,,200,requireApprovedMentor
-GET /api/v1/mentor/capacity,MENTOR,mentor=PENDING,,403 FORBIDDEN MENTOR_NOT_APPROVED,requireApprovedMentor
-GET /api/v1/mentor/capacity,OWNER,,,404 NOT_FOUND,requireApprovedMentor
-GET /api/v1/mentor/capacity,CUSTOMER,,,404 NOT_FOUND,requireApprovedMentor
-GET /api/v1/mentor/capacity,STUDENT,,,404 NOT_FOUND,requireApprovedMentor
-GET /api/v1/mentor/capacity,ADMINISTRATOR,,,404 NOT_FOUND,requireApprovedMentor
-GET /api/v1/mentor/job-posts/{postId},ANONYMOUS,,,401,requireApprovedMentor
-GET /api/v1/mentor/job-posts/{postId},MENTOR,,,200,requireApprovedMentor
-GET /api/v1/mentor/job-posts/{postId},MENTOR,mentor=PENDING,,403 FORBIDDEN MENTOR_NOT_APPROVED,requireApprovedMentor
-GET /api/v1/mentor/job-posts/{postId},OWNER,,,404 NOT_FOUND,requireApprovedMentor
-GET /api/v1/mentor/job-posts/{postId},CUSTOMER,,,404 NOT_FOUND,requireApprovedMentor
-GET /api/v1/mentor/job-posts/{postId},STUDENT,,,404 NOT_FOUND,requireApprovedMentor
-GET /api/v1/mentor/job-posts/{postId},ADMINISTRATOR,,,404 NOT_FOUND,requireApprovedMentor
-GET /api/v1/mentor/job-posts/{postId}/customer-rating,ANONYMOUS,,,401,requireApprovedMentor
-GET /api/v1/mentor/job-posts/{postId}/customer-rating,MENTOR,,,200,requireApprovedMentor
-GET /api/v1/mentor/job-posts/{postId}/customer-rating,MENTOR,mentor=PENDING,,403 FORBIDDEN MENTOR_NOT_APPROVED,requireApprovedMentor
-GET /api/v1/mentor/job-posts/{postId}/customer-rating,OWNER,,,404 NOT_FOUND,requireApprovedMentor
-GET /api/v1/mentor/job-posts/{postId}/customer-rating,CUSTOMER,,,404 NOT_FOUND,requireApprovedMentor
-GET /api/v1/mentor/job-posts/{postId}/customer-rating,STUDENT,,,404 NOT_FOUND,requireApprovedMentor
-GET /api/v1/mentor/job-posts/{postId}/customer-rating,ADMINISTRATOR,,,404 NOT_FOUND,requireApprovedMentor
-POST /api/v1/mentor/job-posts/{postId}/applications,ANONYMOUS,,application.json,401,requireApprovedMentor
-POST /api/v1/mentor/job-posts/{postId}/applications,MENTOR,,application.json,422 GUARD_FAILED,requireApprovedMentor
-POST /api/v1/mentor/job-posts/{postId}/applications,MENTOR,mentor=PENDING,application.json,403 FORBIDDEN MENTOR_NOT_APPROVED,requireApprovedMentor
-POST /api/v1/mentor/job-posts/{postId}/applications,OWNER,,application.json,404 NOT_FOUND,requireApprovedMentor
-POST /api/v1/mentor/job-posts/{postId}/applications,CUSTOMER,,application.json,404 NOT_FOUND,requireApprovedMentor
-POST /api/v1/mentor/job-posts/{postId}/applications,STUDENT,,application.json,404 NOT_FOUND,requireApprovedMentor
-POST /api/v1/mentor/job-posts/{postId}/applications,ADMINISTRATOR,,application.json,404 NOT_FOUND,requireApprovedMentor
+GET /api/v1/mentor/job-posts,ANONYMOUS,,,401,requireActiveAccount
+GET /api/v1/mentor/job-posts,MENTOR,,,200,requireActiveAccount
+GET /api/v1/mentor/job-posts,MENTOR,github=unlinked,,200,requireActiveAccount
+GET /api/v1/mentor/job-posts,OWNER,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/job-posts,CUSTOMER,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/job-posts,STUDENT,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/job-posts,ADMINISTRATOR,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/capacity,ANONYMOUS,,,401,requireActiveAccount
+GET /api/v1/mentor/capacity,MENTOR,,,200,requireActiveAccount
+GET /api/v1/mentor/capacity,MENTOR,github=unlinked,,200,requireActiveAccount
+GET /api/v1/mentor/capacity,OWNER,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/capacity,CUSTOMER,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/capacity,STUDENT,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/capacity,ADMINISTRATOR,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/job-posts/{postId},ANONYMOUS,,,401,requireActiveAccount
+GET /api/v1/mentor/job-posts/{postId},MENTOR,,,200,requireActiveAccount
+GET /api/v1/mentor/job-posts/{postId},MENTOR,github=unlinked,,200,requireActiveAccount
+GET /api/v1/mentor/job-posts/{postId},OWNER,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/job-posts/{postId},CUSTOMER,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/job-posts/{postId},STUDENT,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/job-posts/{postId},ADMINISTRATOR,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/job-posts/{postId}/customer-rating,ANONYMOUS,,,401,requireActiveAccount
+GET /api/v1/mentor/job-posts/{postId}/customer-rating,MENTOR,,,200,requireActiveAccount
+GET /api/v1/mentor/job-posts/{postId}/customer-rating,MENTOR,github=unlinked,,200,requireActiveAccount
+GET /api/v1/mentor/job-posts/{postId}/customer-rating,OWNER,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/job-posts/{postId}/customer-rating,CUSTOMER,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/job-posts/{postId}/customer-rating,STUDENT,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/job-posts/{postId}/customer-rating,ADMINISTRATOR,,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/job-posts/{postId}/applications,ANONYMOUS,,application.json,401,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/applications,MENTOR,,application.json,422 GUARD_FAILED,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/applications,MENTOR,github=unlinked,application.json,403 FORBIDDEN GITHUB_NOT_LINKED,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/applications,OWNER,,application.json,404 NOT_FOUND,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/applications,CUSTOMER,,application.json,404 NOT_FOUND,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/applications,STUDENT,,application.json,404 NOT_FOUND,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/applications,ADMINISTRATOR,,application.json,404 NOT_FOUND,requireGitHubLinked
 GET /api/v1/mentor/applications,ANONYMOUS,,,401,requireActiveAccount
 GET /api/v1/mentor/applications,MENTOR,,,200,requireActiveAccount
-GET /api/v1/mentor/applications,MENTOR,mentor=PENDING,,200,requireActiveAccount
+GET /api/v1/mentor/applications,MENTOR,github=unlinked,,200,requireActiveAccount
 GET /api/v1/mentor/applications,OWNER,,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/applications,CUSTOMER,,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/applications,STUDENT,,,404 NOT_FOUND,requireActiveAccount
@@ -594,32 +528,32 @@ POST /api/v1/jobs/{jobId}/applications/{applicationId}/select,STUDENT,,select.js
 POST /api/v1/jobs/{jobId}/applications/{applicationId}/select,ADMINISTRATOR,,select.json,404 NOT_FOUND
 GET /api/v1/mentor/jobs,ANONYMOUS,,,401,requireActiveAccount
 GET /api/v1/mentor/jobs,MENTOR,,,200,requireActiveAccount
-GET /api/v1/mentor/jobs,MENTOR,mentor=PENDING,,200,requireActiveAccount
+GET /api/v1/mentor/jobs,MENTOR,github=unlinked,,200,requireActiveAccount
 GET /api/v1/mentor/jobs,OWNER,,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/jobs,CUSTOMER,,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/jobs,STUDENT,,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/jobs,ADMINISTRATOR,,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId},ANONYMOUS,,,401,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId},MENTOR,,,404 NOT_FOUND,requireActiveAccount
-GET /api/v1/mentor/jobs/{jobId},MENTOR,mentor=PENDING,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId},MENTOR,github=unlinked,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId},OWNER,,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId},CUSTOMER,,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId},STUDENT,,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId},ADMINISTRATOR,,,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/decline,ANONYMOUS,,decision.json,401,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/decline,MENTOR,,decision.json,404 NOT_FOUND,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/decline,MENTOR,mentor=PENDING,decision.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/decline,MENTOR,github=unlinked,decision.json,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/decline,OWNER,,decision.json,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/decline,CUSTOMER,,decision.json,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/decline,STUDENT,,decision.json,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/decline,ADMINISTRATOR,,decision.json,404 NOT_FOUND,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/nda,ANONYMOUS,,nda.json,401,requireApprovedMentor
-POST /api/v1/mentor/jobs/{jobId}/nda,MENTOR,,nda.json,404 NOT_FOUND,requireApprovedMentor
-POST /api/v1/mentor/jobs/{jobId}/nda,MENTOR,mentor=PENDING,nda.json,403 FORBIDDEN MENTOR_NOT_APPROVED,requireApprovedMentor
-POST /api/v1/mentor/jobs/{jobId}/nda,OWNER,,nda.json,404 NOT_FOUND,requireApprovedMentor
-POST /api/v1/mentor/jobs/{jobId}/nda,CUSTOMER,,nda.json,404 NOT_FOUND,requireApprovedMentor
-POST /api/v1/mentor/jobs/{jobId}/nda,STUDENT,,nda.json,404 NOT_FOUND,requireApprovedMentor
-POST /api/v1/mentor/jobs/{jobId}/nda,ADMINISTRATOR,,nda.json,404 NOT_FOUND,requireApprovedMentor
+POST /api/v1/mentor/jobs/{jobId}/nda,ANONYMOUS,,nda.json,401,requireGitHubLinked
+POST /api/v1/mentor/jobs/{jobId}/nda,MENTOR,,nda.json,404 NOT_FOUND,requireGitHubLinked
+POST /api/v1/mentor/jobs/{jobId}/nda,MENTOR,github=unlinked,nda.json,403 FORBIDDEN GITHUB_NOT_LINKED,requireGitHubLinked
+POST /api/v1/mentor/jobs/{jobId}/nda,OWNER,,nda.json,404 NOT_FOUND,requireGitHubLinked
+POST /api/v1/mentor/jobs/{jobId}/nda,CUSTOMER,,nda.json,404 NOT_FOUND,requireGitHubLinked
+POST /api/v1/mentor/jobs/{jobId}/nda,STUDENT,,nda.json,404 NOT_FOUND,requireGitHubLinked
+POST /api/v1/mentor/jobs/{jobId}/nda,ADMINISTRATOR,,nda.json,404 NOT_FOUND,requireGitHubLinked
 POST /api/v1/jobs/{jobId}/selection/cancel,ANONYMOUS,,decision.json,401
 POST /api/v1/jobs/{jobId}/selection/cancel,OWNER,,decision.json,409 STALE
 POST /api/v1/jobs/{jobId}/selection/cancel,CUSTOMER,,decision.json,404 NOT_FOUND
@@ -652,7 +586,7 @@ POST /api/v1/jobs/{jobId}/invitations,STUDENT,,invitation.json,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/invitations,ADMINISTRATOR,,invitation.json,404 NOT_FOUND
 GET /api/v1/mentor/job-posts/{postId}/invitation,ANONYMOUS,,,401,requireActiveAccount
 GET /api/v1/mentor/job-posts/{postId}/invitation,MENTOR,,,404 NOT_FOUND,requireActiveAccount
-GET /api/v1/mentor/job-posts/{postId}/invitation,MENTOR,mentor=PENDING,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/job-posts/{postId}/invitation,MENTOR,github=unlinked,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/job-posts/{postId}/invitation,OWNER,,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/job-posts/{postId}/invitation,CUSTOMER,,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/job-posts/{postId}/invitation,STUDENT,,,404 NOT_FOUND,requireActiveAccount
@@ -669,13 +603,13 @@ GET /api/v1/jobs/{jobId}/recommendations,CUSTOMER,,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/recommendations,MENTOR,,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/recommendations,STUDENT,,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/recommendations,ADMINISTRATOR,,,404 NOT_FOUND
-GET /api/v1/mentor/recommendations,ANONYMOUS,,,401,requireApprovedMentor
-GET /api/v1/mentor/recommendations,MENTOR,,,200,requireApprovedMentor
-GET /api/v1/mentor/recommendations,MENTOR,mentor=PENDING,,403 FORBIDDEN MENTOR_NOT_APPROVED,requireApprovedMentor
-GET /api/v1/mentor/recommendations,OWNER,,,404 NOT_FOUND,requireApprovedMentor
-GET /api/v1/mentor/recommendations,CUSTOMER,,,404 NOT_FOUND,requireApprovedMentor
-GET /api/v1/mentor/recommendations,STUDENT,,,404 NOT_FOUND,requireApprovedMentor
-GET /api/v1/mentor/recommendations,ADMINISTRATOR,,,404 NOT_FOUND,requireApprovedMentor
+GET /api/v1/mentor/recommendations,ANONYMOUS,,,401,requireActiveAccount
+GET /api/v1/mentor/recommendations,MENTOR,,,200,requireActiveAccount
+GET /api/v1/mentor/recommendations,MENTOR,github=unlinked,,200,requireActiveAccount
+GET /api/v1/mentor/recommendations,OWNER,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/recommendations,CUSTOMER,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/recommendations,STUDENT,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/recommendations,ADMINISTRATOR,,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/jobs/{jobId}/chat,ANONYMOUS,,,401
 GET /api/v1/jobs/{jobId}/chat,OWNER,,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/chat,CUSTOMER,,,404 NOT_FOUND
@@ -694,12 +628,12 @@ POST /api/v1/jobs/{jobId}/chat/messages,CUSTOMER,,chat-message.json,404 NOT_FOUN
 POST /api/v1/jobs/{jobId}/chat/messages,MENTOR,,chat-message.json,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/chat/messages,STUDENT,,chat-message.json,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/chat/messages,ADMINISTRATOR,,chat-message.json,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/chat/attachments,ANONYMOUS,,student-card.png,401
-POST /api/v1/jobs/{jobId}/chat/attachments,OWNER,,student-card.png,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/chat/attachments,CUSTOMER,,student-card.png,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/chat/attachments,MENTOR,,student-card.png,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/chat/attachments,STUDENT,,student-card.png,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/chat/attachments,ADMINISTRATOR,,student-card.png,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/chat/attachments,ANONYMOUS,,upload.png,401
+POST /api/v1/jobs/{jobId}/chat/attachments,OWNER,,upload.png,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/chat/attachments,CUSTOMER,,upload.png,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/chat/attachments,MENTOR,,upload.png,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/chat/attachments,STUDENT,,upload.png,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/chat/attachments,ADMINISTRATOR,,upload.png,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/chat/read,ANONYMOUS,,,401
 POST /api/v1/jobs/{jobId}/chat/read,OWNER,,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/chat/read,CUSTOMER,,,404 NOT_FOUND
@@ -752,20 +686,20 @@ POST /api/v1/crew-chats/{crewChatId}/messages,CREW_ACTIVE,,chat-message.json,201
 POST /api/v1/crew-chats/{crewChatId}/messages,CREW_INACTIVE,,chat-message.json,422 GUARD_FAILED CHAT_READ_ONLY
 POST /api/v1/crew-chats/{crewChatId}/messages,CREW_FORMER,,chat-message.json,422 GUARD_FAILED CHAT_READ_ONLY
 POST /api/v1/crew-chats/{crewChatId}/messages,ADMIN_TEAM_ISSUE_GRANT,,chat-message.json,404 NOT_FOUND
-POST /api/v1/crew-chats/{crewChatId}/attachments,ANONYMOUS,,student-card.png,401
-POST /api/v1/crew-chats/{crewChatId}/attachments,OWNER,,student-card.png,404 NOT_FOUND
-POST /api/v1/crew-chats/{crewChatId}/attachments,CUSTOMER,,student-card.png,404 NOT_FOUND
-POST /api/v1/crew-chats/{crewChatId}/attachments,MENTOR,,student-card.png,404 NOT_FOUND
-POST /api/v1/crew-chats/{crewChatId}/attachments,STUDENT,,student-card.png,404 NOT_FOUND
-POST /api/v1/crew-chats/{crewChatId}/attachments,ADMINISTRATOR,,student-card.png,404 NOT_FOUND
-POST /api/v1/crew-chats/{crewChatId}/attachments,TEAM_MENTOR,,student-card.png,404 NOT_FOUND
-POST /api/v1/crew-chats/{crewChatId}/attachments,TEAM_MEMBER,,student-card.png,404 NOT_FOUND
-POST /api/v1/crew-chats/{crewChatId}/attachments,CREW_ASSIGNED,,student-card.png,404 NOT_FOUND
-POST /api/v1/crew-chats/{crewChatId}/attachments,JOB_MENTOR,,student-card.png,201
-POST /api/v1/crew-chats/{crewChatId}/attachments,CREW_ACTIVE,,student-card.png,201
-POST /api/v1/crew-chats/{crewChatId}/attachments,CREW_INACTIVE,,student-card.png,422 GUARD_FAILED CHAT_READ_ONLY
-POST /api/v1/crew-chats/{crewChatId}/attachments,CREW_FORMER,,student-card.png,422 GUARD_FAILED CHAT_READ_ONLY
-POST /api/v1/crew-chats/{crewChatId}/attachments,ADMIN_TEAM_ISSUE_GRANT,,student-card.png,404 NOT_FOUND
+POST /api/v1/crew-chats/{crewChatId}/attachments,ANONYMOUS,,upload.png,401
+POST /api/v1/crew-chats/{crewChatId}/attachments,OWNER,,upload.png,404 NOT_FOUND
+POST /api/v1/crew-chats/{crewChatId}/attachments,CUSTOMER,,upload.png,404 NOT_FOUND
+POST /api/v1/crew-chats/{crewChatId}/attachments,MENTOR,,upload.png,404 NOT_FOUND
+POST /api/v1/crew-chats/{crewChatId}/attachments,STUDENT,,upload.png,404 NOT_FOUND
+POST /api/v1/crew-chats/{crewChatId}/attachments,ADMINISTRATOR,,upload.png,404 NOT_FOUND
+POST /api/v1/crew-chats/{crewChatId}/attachments,TEAM_MENTOR,,upload.png,404 NOT_FOUND
+POST /api/v1/crew-chats/{crewChatId}/attachments,TEAM_MEMBER,,upload.png,404 NOT_FOUND
+POST /api/v1/crew-chats/{crewChatId}/attachments,CREW_ASSIGNED,,upload.png,404 NOT_FOUND
+POST /api/v1/crew-chats/{crewChatId}/attachments,JOB_MENTOR,,upload.png,201
+POST /api/v1/crew-chats/{crewChatId}/attachments,CREW_ACTIVE,,upload.png,201
+POST /api/v1/crew-chats/{crewChatId}/attachments,CREW_INACTIVE,,upload.png,422 GUARD_FAILED CHAT_READ_ONLY
+POST /api/v1/crew-chats/{crewChatId}/attachments,CREW_FORMER,,upload.png,422 GUARD_FAILED CHAT_READ_ONLY
+POST /api/v1/crew-chats/{crewChatId}/attachments,ADMIN_TEAM_ISSUE_GRANT,,upload.png,404 NOT_FOUND
 POST /api/v1/crew-chats/{crewChatId}/read,ANONYMOUS,,,401
 POST /api/v1/crew-chats/{crewChatId}/read,OWNER,,,404 NOT_FOUND
 POST /api/v1/crew-chats/{crewChatId}/read,CUSTOMER,,,404 NOT_FOUND
@@ -1396,6 +1330,8 @@ GET /api/v1/admin/users,CUSTOMER,,,404 NOT_FOUND
 GET /api/v1/admin/users,MENTOR,,,404 NOT_FOUND
 GET /api/v1/admin/users,STUDENT,,,404 NOT_FOUND
 GET /api/v1/admin/users,ADMINISTRATOR,,,200
+# ADM-2's account (identity, FR-59, AD-19, Story 19.7): {accountId} shares a person-link signal whose HMAC
+# is the PERSON_SIGNAL canary; ADM-2 lists the pair by kind, never the HMAC. Nothing approves or revokes.
 GET /api/v1/admin/users/{accountId},ANONYMOUS,,,401
 GET /api/v1/admin/users/{accountId},CUSTOMER,,,404 NOT_FOUND
 GET /api/v1/admin/users/{accountId},MENTOR,,,404 NOT_FOUND
@@ -1411,16 +1347,6 @@ POST /api/v1/admin/users/{accountId}/unlock,CUSTOMER,,admin-user-reason.json,404
 POST /api/v1/admin/users/{accountId}/unlock,MENTOR,,admin-user-reason.json,404 NOT_FOUND
 POST /api/v1/admin/users/{accountId}/unlock,STUDENT,,admin-user-reason.json,404 NOT_FOUND
 POST /api/v1/admin/users/{accountId}/unlock,ADMINISTRATOR,,admin-user-reason.json,409 CONFLICT NOT_LOCKED
-POST /api/v1/admin/users/{accountId}/revoke-verification,ANONYMOUS,,admin-user-reason.json,401
-POST /api/v1/admin/users/{accountId}/revoke-verification,CUSTOMER,,admin-user-reason.json,404 NOT_FOUND
-POST /api/v1/admin/users/{accountId}/revoke-verification,MENTOR,,admin-user-reason.json,404 NOT_FOUND
-POST /api/v1/admin/users/{accountId}/revoke-verification,STUDENT,,admin-user-reason.json,404 NOT_FOUND
-POST /api/v1/admin/users/{accountId}/revoke-verification,ADMINISTRATOR,,admin-user-reason.json,409 CONFLICT NOT_VERIFIED
-POST /api/v1/admin/users/{accountId}/revoke-approval,ANONYMOUS,,admin-user-revoke-approval.json,401
-POST /api/v1/admin/users/{accountId}/revoke-approval,CUSTOMER,,admin-user-revoke-approval.json,404 NOT_FOUND
-POST /api/v1/admin/users/{accountId}/revoke-approval,MENTOR,,admin-user-revoke-approval.json,404 NOT_FOUND
-POST /api/v1/admin/users/{accountId}/revoke-approval,STUDENT,,admin-user-revoke-approval.json,404 NOT_FOUND
-POST /api/v1/admin/users/{accountId}/revoke-approval,ADMINISTRATOR,,admin-user-revoke-approval.json,404 NOT_FOUND
 GET /api/v1/admin/moderation,ANONYMOUS,,,401
 GET /api/v1/admin/moderation,CUSTOMER,,,404 NOT_FOUND
 GET /api/v1/admin/moderation,MENTOR,,,404 NOT_FOUND
@@ -1461,11 +1387,11 @@ GET /api/v1/admin/failures,CUSTOMER,,,404 NOT_FOUND
 GET /api/v1/admin/failures,MENTOR,,,404 NOT_FOUND
 GET /api/v1/admin/failures,STUDENT,,,404 NOT_FOUND
 GET /api/v1/admin/failures,ADMINISTRATOR,,,200
-POST /api/v1/admin/failures/operations/{operationId}/retry,ANONYMOUS,,admin-mentor-approve.json,401
-POST /api/v1/admin/failures/operations/{operationId}/retry,CUSTOMER,,admin-mentor-approve.json,404 NOT_FOUND
-POST /api/v1/admin/failures/operations/{operationId}/retry,MENTOR,,admin-mentor-approve.json,404 NOT_FOUND
-POST /api/v1/admin/failures/operations/{operationId}/retry,STUDENT,,admin-mentor-approve.json,404 NOT_FOUND
-POST /api/v1/admin/failures/operations/{operationId}/retry,ADMINISTRATOR,,admin-mentor-approve.json,404 NOT_FOUND
+POST /api/v1/admin/failures/operations/{operationId}/retry,ANONYMOUS,,admin-step-up.json,401
+POST /api/v1/admin/failures/operations/{operationId}/retry,CUSTOMER,,admin-step-up.json,404 NOT_FOUND
+POST /api/v1/admin/failures/operations/{operationId}/retry,MENTOR,,admin-step-up.json,404 NOT_FOUND
+POST /api/v1/admin/failures/operations/{operationId}/retry,STUDENT,,admin-step-up.json,404 NOT_FOUND
+POST /api/v1/admin/failures/operations/{operationId}/retry,ADMINISTRATOR,,admin-step-up.json,404 NOT_FOUND
 POST /api/v1/admin/failures/findings/{findingId}/reopen,ANONYMOUS,,,401
 POST /api/v1/admin/failures/findings/{findingId}/reopen,CUSTOMER,,,404 NOT_FOUND
 POST /api/v1/admin/failures/findings/{findingId}/reopen,MENTOR,,,404 NOT_FOUND
@@ -1582,20 +1508,20 @@ POST /api/v1/boards/{boardId}/handovers/preview-check,ADMIN_TEAM_ISSUE_GRANT,,pr
 POST /api/v1/boards/{boardId}/handovers/preview-check,OWNER,,preview-check.json,403 FORBIDDEN MENTOR_ONLY
 POST /api/v1/boards/{boardId}/handovers/preview-check,JOB_MENTOR,,preview-check.json,200
 POST /api/v1/boards/{boardId}/handovers/preview-check,CREW_ACTIVE,,preview-check.json,403 FORBIDDEN MENTOR_ONLY
-POST /api/v1/boards/{boardId}/handovers/screenshots,ANONYMOUS,,student-card.png,401
-POST /api/v1/boards/{boardId}/handovers/screenshots,CUSTOMER,,student-card.png,404 NOT_FOUND
-POST /api/v1/boards/{boardId}/handovers/screenshots,MENTOR,,student-card.png,404 NOT_FOUND
-POST /api/v1/boards/{boardId}/handovers/screenshots,STUDENT,,student-card.png,404 NOT_FOUND
-POST /api/v1/boards/{boardId}/handovers/screenshots,ADMINISTRATOR,,student-card.png,404 NOT_FOUND
-POST /api/v1/boards/{boardId}/handovers/screenshots,TEAM_MENTOR,,student-card.png,404 NOT_FOUND
-POST /api/v1/boards/{boardId}/handovers/screenshots,TEAM_MEMBER,,student-card.png,404 NOT_FOUND
-POST /api/v1/boards/{boardId}/handovers/screenshots,CREW_ASSIGNED,,student-card.png,404 NOT_FOUND
-POST /api/v1/boards/{boardId}/handovers/screenshots,CREW_INACTIVE,,student-card.png,404 NOT_FOUND
-POST /api/v1/boards/{boardId}/handovers/screenshots,CREW_FORMER,,student-card.png,404 NOT_FOUND
-POST /api/v1/boards/{boardId}/handovers/screenshots,ADMIN_TEAM_ISSUE_GRANT,,student-card.png,404 NOT_FOUND
-POST /api/v1/boards/{boardId}/handovers/screenshots,OWNER,,student-card.png,403 FORBIDDEN MENTOR_ONLY
-POST /api/v1/boards/{boardId}/handovers/screenshots,JOB_MENTOR,,student-card.png,201
-POST /api/v1/boards/{boardId}/handovers/screenshots,CREW_ACTIVE,,student-card.png,403 FORBIDDEN MENTOR_ONLY
+POST /api/v1/boards/{boardId}/handovers/screenshots,ANONYMOUS,,upload.png,401
+POST /api/v1/boards/{boardId}/handovers/screenshots,CUSTOMER,,upload.png,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/screenshots,MENTOR,,upload.png,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/screenshots,STUDENT,,upload.png,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/screenshots,ADMINISTRATOR,,upload.png,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/screenshots,TEAM_MENTOR,,upload.png,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/screenshots,TEAM_MEMBER,,upload.png,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/screenshots,CREW_ASSIGNED,,upload.png,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/screenshots,CREW_INACTIVE,,upload.png,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/screenshots,CREW_FORMER,,upload.png,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/screenshots,ADMIN_TEAM_ISSUE_GRANT,,upload.png,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/screenshots,OWNER,,upload.png,403 FORBIDDEN MENTOR_ONLY
+POST /api/v1/boards/{boardId}/handovers/screenshots,JOB_MENTOR,,upload.png,201
+POST /api/v1/boards/{boardId}/handovers/screenshots,CREW_ACTIVE,,upload.png,403 FORBIDDEN MENTOR_ONLY
 DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},ANONYMOUS,,,401
 DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},CUSTOMER,,,404 NOT_FOUND
 DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},MENTOR,,,404 NOT_FOUND
@@ -1740,20 +1666,20 @@ POST /api/v1/work-items/{workItemId}/review,JOB_MENTOR,,work-item-review.json,42
 POST /api/v1/work-items/{workItemId}/review,CREW_ACTIVE,,work-item-review.json,403 FORBIDDEN MENTOR_ONLY
 # Attachments and notes (FR-76, AD-39, AD-41): the Mentor and ACTIVE members add them; the fixture's
 # Attachment is the Mentor's, so only the Mentor removes it. The Customer and everyone else find nothing.
-POST /api/v1/work-items/{workItemId}/attachments,ANONYMOUS,,student-card.png,401
-POST /api/v1/work-items/{workItemId}/attachments,OWNER,,student-card.png,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/attachments,CUSTOMER,,student-card.png,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/attachments,MENTOR,,student-card.png,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/attachments,STUDENT,,student-card.png,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/attachments,ADMINISTRATOR,,student-card.png,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/attachments,TEAM_MENTOR,,student-card.png,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/attachments,TEAM_MEMBER,,student-card.png,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/attachments,CREW_ASSIGNED,,student-card.png,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/attachments,CREW_INACTIVE,,student-card.png,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/attachments,CREW_FORMER,,student-card.png,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/attachments,ADMIN_TEAM_ISSUE_GRANT,,student-card.png,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/attachments,JOB_MENTOR,,student-card.png,201
-POST /api/v1/work-items/{workItemId}/attachments,CREW_ACTIVE,,student-card.png,201
+POST /api/v1/work-items/{workItemId}/attachments,ANONYMOUS,,upload.png,401
+POST /api/v1/work-items/{workItemId}/attachments,OWNER,,upload.png,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/attachments,CUSTOMER,,upload.png,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/attachments,MENTOR,,upload.png,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/attachments,STUDENT,,upload.png,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/attachments,ADMINISTRATOR,,upload.png,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/attachments,TEAM_MENTOR,,upload.png,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/attachments,TEAM_MEMBER,,upload.png,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/attachments,CREW_ASSIGNED,,upload.png,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/attachments,CREW_INACTIVE,,upload.png,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/attachments,CREW_FORMER,,upload.png,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/attachments,ADMIN_TEAM_ISSUE_GRANT,,upload.png,404 NOT_FOUND
+POST /api/v1/work-items/{workItemId}/attachments,JOB_MENTOR,,upload.png,201
+POST /api/v1/work-items/{workItemId}/attachments,CREW_ACTIVE,,upload.png,201
 POST /api/v1/work-items/{workItemId}/links,ANONYMOUS,,work-item-link.json,401
 POST /api/v1/work-items/{workItemId}/links,OWNER,,work-item-link.json,404 NOT_FOUND
 POST /api/v1/work-items/{workItemId}/links,CUSTOMER,,work-item-link.json,404 NOT_FOUND
@@ -1914,21 +1840,21 @@ PUT /api/v1/pages/{pageId}/visibility,JOB_MENTOR,,page-visibility.json,200
 PUT /api/v1/pages/{pageId}/visibility,CREW_ACTIVE,,page-visibility.json,403 FORBIDDEN MENTOR_ONLY
 GET /api/v1/mentor/jobs/{jobId}/agreement,ANONYMOUS,,,401,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/agreement,MENTOR,,,404 NOT_FOUND,requireActiveAccount
-GET /api/v1/mentor/jobs/{jobId}/agreement,MENTOR,mentor=PENDING,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/agreement,MENTOR,github=unlinked,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/agreement,OWNER,,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/agreement,CUSTOMER,,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/agreement,STUDENT,,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/agreement,ADMINISTRATOR,,,404 NOT_FOUND,requireActiveAccount
 PUT /api/v1/mentor/jobs/{jobId}/agreement,ANONYMOUS,,agreement.json,401,requireActiveAccount
 PUT /api/v1/mentor/jobs/{jobId}/agreement,MENTOR,,agreement.json,404 NOT_FOUND,requireActiveAccount
-PUT /api/v1/mentor/jobs/{jobId}/agreement,MENTOR,mentor=PENDING,agreement.json,404 NOT_FOUND,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/agreement,MENTOR,github=unlinked,agreement.json,404 NOT_FOUND,requireActiveAccount
 PUT /api/v1/mentor/jobs/{jobId}/agreement,OWNER,,agreement.json,404 NOT_FOUND,requireActiveAccount
 PUT /api/v1/mentor/jobs/{jobId}/agreement,CUSTOMER,,agreement.json,404 NOT_FOUND,requireActiveAccount
 PUT /api/v1/mentor/jobs/{jobId}/agreement,STUDENT,,agreement.json,404 NOT_FOUND,requireActiveAccount
 PUT /api/v1/mentor/jobs/{jobId}/agreement,ADMINISTRATOR,,agreement.json,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/agreement/share,ANONYMOUS,,agreement-share.json,401,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/agreement/share,MENTOR,,agreement-share.json,404 NOT_FOUND,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/agreement/share,MENTOR,mentor=PENDING,agreement-share.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/agreement/share,MENTOR,github=unlinked,agreement-share.json,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/agreement/share,OWNER,,agreement-share.json,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/agreement/share,CUSTOMER,,agreement-share.json,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/agreement/share,STUDENT,,agreement-share.json,404 NOT_FOUND,requireActiveAccount
@@ -1941,35 +1867,35 @@ GET /api/v1/jobs/{jobId}/agreement,STUDENT,,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/agreement,ADMINISTRATOR,,,404 NOT_FOUND
 GET /api/v1/mentor/jobs/{jobId}/crew,ANONYMOUS,,,401,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/crew,MENTOR,,,404 NOT_FOUND,requireActiveAccount
-GET /api/v1/mentor/jobs/{jobId}/crew,MENTOR,mentor=PENDING,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/crew,MENTOR,github=unlinked,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/crew,OWNER,,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/crew,CUSTOMER,,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/crew,STUDENT,,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/crew,ADMINISTRATOR,,,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/crew,ANONYMOUS,,crew-add.json,401,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/crew,MENTOR,,crew-add.json,404 NOT_FOUND,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew,MENTOR,mentor=PENDING,crew-add.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew,MENTOR,github=unlinked,crew-add.json,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/crew,OWNER,,crew-add.json,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/crew,CUSTOMER,,crew-add.json,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/crew,STUDENT,,crew-add.json,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/crew,ADMINISTRATOR,,crew-add.json,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/crew/{crewRowId}/remove,ANONYMOUS,,crew-remove.json,401,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/crew/{crewRowId}/remove,MENTOR,,crew-remove.json,404 NOT_FOUND,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew/{crewRowId}/remove,MENTOR,mentor=PENDING,crew-remove.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew/{crewRowId}/remove,MENTOR,github=unlinked,crew-remove.json,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/crew/{crewRowId}/remove,OWNER,,crew-remove.json,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/crew/{crewRowId}/remove,CUSTOMER,,crew-remove.json,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/crew/{crewRowId}/remove,STUDENT,,crew-remove.json,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/crew/{crewRowId}/remove,ADMINISTRATOR,,crew-remove.json,404 NOT_FOUND,requireActiveAccount
 PUT /api/v1/mentor/jobs/{jobId}/crew/terms,ANONYMOUS,,crew-terms.json,401,requireActiveAccount
 PUT /api/v1/mentor/jobs/{jobId}/crew/terms,MENTOR,,crew-terms.json,404 NOT_FOUND,requireActiveAccount
-PUT /api/v1/mentor/jobs/{jobId}/crew/terms,MENTOR,mentor=PENDING,crew-terms.json,404 NOT_FOUND,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/crew/terms,MENTOR,github=unlinked,crew-terms.json,404 NOT_FOUND,requireActiveAccount
 PUT /api/v1/mentor/jobs/{jobId}/crew/terms,OWNER,,crew-terms.json,404 NOT_FOUND,requireActiveAccount
 PUT /api/v1/mentor/jobs/{jobId}/crew/terms,CUSTOMER,,crew-terms.json,404 NOT_FOUND,requireActiveAccount
 PUT /api/v1/mentor/jobs/{jobId}/crew/terms,STUDENT,,crew-terms.json,404 NOT_FOUND,requireActiveAccount
 PUT /api/v1/mentor/jobs/{jobId}/crew/terms,ADMINISTRATOR,,crew-terms.json,404 NOT_FOUND,requireActiveAccount
 PUT /api/v1/mentor/jobs/{jobId}/crew/change,ANONYMOUS,,crew-terms.json,401,requireActiveAccount
 PUT /api/v1/mentor/jobs/{jobId}/crew/change,MENTOR,,crew-terms.json,404 NOT_FOUND,requireActiveAccount
-PUT /api/v1/mentor/jobs/{jobId}/crew/change,MENTOR,mentor=PENDING,crew-terms.json,404 NOT_FOUND,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/crew/change,MENTOR,github=unlinked,crew-terms.json,404 NOT_FOUND,requireActiveAccount
 PUT /api/v1/mentor/jobs/{jobId}/crew/change,OWNER,,crew-terms.json,404 NOT_FOUND,requireActiveAccount
 PUT /api/v1/mentor/jobs/{jobId}/crew/change,CUSTOMER,,crew-terms.json,404 NOT_FOUND,requireActiveAccount
 PUT /api/v1/mentor/jobs/{jobId}/crew/change,STUDENT,,crew-terms.json,404 NOT_FOUND,requireActiveAccount
@@ -2012,14 +1938,14 @@ POST /api/v1/jobs/{jobId}/agreement/approve,STUDENT,,agreement-approve.json,404 
 POST /api/v1/jobs/{jobId}/agreement/approve,ADMINISTRATOR,,agreement-approve.json,404 NOT_FOUND
 POST /api/v1/mentor/jobs/{jobId}/agreement/confirm,ANONYMOUS,,agreement-confirm.json,401,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/agreement/confirm,MENTOR,,agreement-confirm.json,404 NOT_FOUND,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/agreement/confirm,MENTOR,mentor=PENDING,agreement-confirm.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/agreement/confirm,MENTOR,github=unlinked,agreement-confirm.json,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/agreement/confirm,OWNER,,agreement-confirm.json,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/agreement/confirm,CUSTOMER,,agreement-confirm.json,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/agreement/confirm,STUDENT,,agreement-confirm.json,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/agreement/confirm,ADMINISTRATOR,,agreement-confirm.json,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/crew/reconfirm,ANONYMOUS,,crew-remove.json,401,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/crew/reconfirm,MENTOR,,crew-remove.json,404 NOT_FOUND,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew/reconfirm,MENTOR,mentor=PENDING,crew-remove.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew/reconfirm,MENTOR,github=unlinked,crew-remove.json,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/crew/reconfirm,OWNER,,crew-remove.json,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/crew/reconfirm,CUSTOMER,,crew-remove.json,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/crew/reconfirm,STUDENT,,crew-remove.json,404 NOT_FOUND,requireActiveAccount
@@ -2062,12 +1988,12 @@ GET /api/v1/balance,ANONYMOUS,,,401
 GET /api/v1/balance,CUSTOMER,,,404 NOT_FOUND
 GET /api/v1/balance,OWNER,,,404 NOT_FOUND
 GET /api/v1/balance,MENTOR,,,200
-GET /api/v1/balance,MENTOR,mentor=PENDING,,200
+GET /api/v1/balance,MENTOR,github=unlinked,,200
 GET /api/v1/balance,STUDENT,,,200
 GET /api/v1/balance,ADMINISTRATOR,,,404 NOT_FOUND
 GET /api/v1/mentor/jobs/{jobId}/funding,ANONYMOUS,,,401,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/funding,MENTOR,,,404 NOT_FOUND,requireActiveAccount
-GET /api/v1/mentor/jobs/{jobId}/funding,MENTOR,mentor=PENDING,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/funding,MENTOR,github=unlinked,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/funding,OWNER,,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/funding,CUSTOMER,,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/funding,STUDENT,,,404 NOT_FOUND,requireActiveAccount
@@ -2077,7 +2003,7 @@ GET /api/v1/mentor/jobs/{jobId}/funding,ADMINISTRATOR,,,404 NOT_FOUND,requireAct
 # a row's caller sends neither, so every caller is refused alike.
 POST /webhooks,ANONYMOUS,,,401
 POST /webhooks,CUSTOMER,,,401
-POST /webhooks,MENTOR,mentor=PENDING,,401
+POST /webhooks,MENTOR,,,401
 POST /webhooks,STUDENT,,,401
 POST /webhooks,ADMINISTRATOR,,,401
 

@@ -15,7 +15,7 @@ import vn.vibefix.audit.AuditActor;
 import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
-import vn.vibefix.identity.MentorGate;
+import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.identity.StudentDirectory;
 import vn.vibefix.identity.StudentDirectory.StudentCard;
 import vn.vibefix.notification.Audience;
@@ -47,7 +47,7 @@ class TeamMemberships implements Teams {
 
 	private final TeamRequests requests;
 
-	private final MentorGate mentorGate;
+	private final ActiveAccount mentorGate;
 
 	private final StudentDirectory students;
 
@@ -57,7 +57,7 @@ class TeamMemberships implements Teams {
 
 	private final Clock clock;
 
-	TeamMemberships(TeamStore store, TeamRequests requests, MentorGate mentorGate, StudentDirectory students,
+	TeamMemberships(TeamStore store, TeamRequests requests, ActiveAccount mentorGate, StudentDirectory students,
 			Notifications notifications, AuditLog auditLog, Clock clock) {
 		this.store = store;
 		this.requests = requests;
@@ -137,7 +137,7 @@ class TeamMemberships implements Teams {
 
 	/**
 	 * The Mentor removes a Student from their Team; the Student hears so. Needs only an unlocked
-	 * account, so a revoked Mentor can still let Students go (FR-74).
+	 * account (AD-19).
 	 * @throws ApiException {@code NOT_FOUND} for another Team's membership; {@code GUARD_FAILED STUDENT_ON_CREW}
 	 */
 	@Transactional

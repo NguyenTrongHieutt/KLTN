@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/Skeleton'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
 import { t, type MessageKey } from '@/i18n/t'
-import { formatCalendarDate, formatDayMonthTime } from '@/lib/dates'
+import { formatCalendarDate, formatDate, formatDayMonthTime } from '@/lib/dates'
 import { problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import {
@@ -18,7 +18,7 @@ import {
   useEraseUser,
   useUserCommand,
   type AdminUser,
-  type FeedbackCategory,
+  type PersonLink,
   type UserFilter,
   type UserQuery,
   type UserRole,
@@ -27,9 +27,7 @@ import { StepUpDialog } from './StepUpDialog'
 
 const ROLES: UserRole[] = ['CUSTOMER', 'MENTOR', 'STUDENT']
 
-const FILTERS: UserFilter[] = ['LOCKED', 'VERIFIED', 'PENDING', 'APPROVED', 'REVOKED', 'LOW_FEEDBACK']
-
-const CATEGORIES: FeedbackCategory[] = ['RESPECT', 'GUIDANCE', 'RULES']
+const FILTERS: UserFilter[] = ['LOCKED', 'VERIFIED', 'LOW_FEEDBACK']
 
 const PAGE_SIZE = 20
 
@@ -45,11 +43,11 @@ function nameOf(user: { name?: string; githubLogin?: string }): string {
 }
 
 /**
- * ADM-2 (`/quan-tri/nguoi-dung/{accountId?}`, FR-5, FR-59, FR-74, FR-78, UX-DR46, UX-DR69, UX-DR81): the
- * search with role and status chips, and the chosen account with its verification or approval, its
- * lock history, and for a Mentor the private feedback, which only Administrators read. Locking,
- * unlocking, and revoking a verification take a reason; "Thu hồi" a Mentor's approval takes a ground
- * and the authenticator code, and the private-feedback ground offers only FR-78's categories.
+ * ADM-2 (`/quan-tri/nguoi-dung/{accountId?}`, FR-5, FR-59, FR-78, AD-19, UX-DR46, UX-DR69, UX-DR81, UX-DR110):
+ * the search with role and status chips, and the chosen account with its verification, the accounts that
+ * may be the same person (by kind, never a value), its history, and for a Mentor the private feedback,
+ * which only Administrators read. Locking and unlocking take a reason; nobody is approved, verified, or
+ * revoked here (Story 19.7), while the old revocations stay readable in the history.
  */
 export function AdminUsersPage() {
   usePageTitle(t('screen.admin.users.title'))
@@ -212,15 +210,7 @@ function Chips<T extends string>({
   )
 }
 
-type Asking = 'lock' | 'unlock' | 'revoke-verification' | 'revoke-approval'
-
-/** Each command's copy in `vi.json`. */
-const COPY: Record<Asking, string> = {
-  lock: 'lock',
-  unlock: 'unlock',
-  'revoke-verification': 'revokeVerification',
-  'revoke-approval': 'revokeApproval',
-}
+type Asking = 'lock' | 'unlock'
 
 function UserPanel({ accountId }: { accountId: string }) {
   const user = useAdminUser(accountId)
@@ -277,12 +267,6 @@ function UserDetail({ user }: { user: AdminUser }) {
               </dd>
             </>
           )}
-          {user.approval && (
-            <>
-              <dt className="text-muted-foreground">{t('screen.admin.users.approval')}</dt>
-              <dd>{t(`screen.admin.users.status.${user.approval}` as MessageKey)}</dd>
-            </>
-          )}
           {user.lockReason && (
             <>
               <dt className="text-muted-foreground">{t('screen.admin.users.lockReason')}</dt>
@@ -300,19 +284,10 @@ function UserDetail({ user }: { user: AdminUser }) {
               {t('screen.admin.users.lock')}
             </Button>
           )}
-          {user.role === 'STUDENT' && verified && (
-            <Button type="button" variant="secondary" onClick={() => setAsking('revoke-verification')}>
-              {t('screen.admin.users.revokeVerification')}
-            </Button>
-          )}
-          {user.approval === 'APPROVED' && (
-            <Button type="button" variant="secondary" onClick={() => setAsking('revoke-approval')}>
-              {t('screen.admin.users.revokeApproval')}
-            </Button>
-          )}
         </div>
         <p className="text-caption text-muted-foreground">{t('screen.admin.users.unlockNote')}</p>
       </section>
+      <PersonLinks links={user.personLinks} />
       {user.feedback && (
         <section aria-labelledby="feedback-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5 text-body-sm">
           <h3 id="feedback-heading" className="text-h3">
@@ -354,12 +329,53 @@ function UserDetail({ user }: { user: AdminUser }) {
           </ul>
         )}
       </section>
-      {asking === 'revoke-approval' ? (
-        <RevokeApprovalDialog user={user} onClose={() => setAsking(undefined)} />
-      ) : (
-        <ReasonDialog user={user} action={asking} onClose={() => setAsking(undefined)} />
-      )}
+      <ReasonDialog user={user} action={asking} onClose={() => setAsking(undefined)} />
     </>
+  )
+}
+
+/**
+ * "Tài khoản có thể cùng một người" (AD-19): each other account sharing a verified email or LinkedIn
+ * signal with this one, by kind only; an erased account has no name and no page to open.
+ */
+function PersonLinks({ links }: { links: PersonLink[] }) {
+  return (
+    <section aria-labelledby="links-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5 text-body-sm">
+      <h3 id="links-heading" className="text-h3">
+        {t('screen.admin.users.personLinks.title')}
+      </h3>
+      <p className="text-caption text-muted-foreground">{t('screen.admin.users.personLinks.note')}</p>
+      {links.length === 0 ? (
+        <p className="text-muted-foreground">{t('screen.admin.users.personLinks.empty')}</p>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {links.map((link) => (
+            <li key={link.accountId} className="flex flex-wrap items-center gap-2">
+              {link.erased ? (
+                <span className="text-label text-muted-foreground">{t('screen.admin.users.personLinks.erased')}</span>
+              ) : (
+                <Link to={`/quan-tri/nguoi-dung/${link.accountId}`} className="text-label text-primary underline-offset-4 hover:underline">
+                  {link.name}
+                </Link>
+              )}
+              {link.locked && !link.erased && (
+                <span className="rounded-full bg-destructive-soft px-2 py-0.5 text-caption text-destructive">
+                  {t('screen.admin.users.personLinks.locked')}
+                </span>
+              )}
+              <span className="text-caption text-muted-foreground">
+                {t('screen.admin.users.personLinks.createdAt', { date: formatDate(link.createdAt) })}
+              </span>
+              {link.kinds.map((kind) => (
+                <span key={kind} className="rounded-full bg-muted px-2 py-0.5 text-caption text-muted-foreground">
+                  {t(`screen.admin.users.personLinks.kind.${kind}` as MessageKey)}
+                </span>
+              ))}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   )
 }
 
@@ -433,16 +449,8 @@ function DeletionSection({ user }: { user: AdminUser }) {
   )
 }
 
-/** Lock, unlock, or revoke a verification: what follows, and the reason the person reads. */
-function ReasonDialog({
-  user,
-  action,
-  onClose,
-}: {
-  user: AdminUser
-  action?: Exclude<Asking, 'revoke-approval'>
-  onClose: () => void
-}) {
+/** Lock or unlock: what follows, and the reason the person reads. */
+function ReasonDialog({ user, action, onClose }: { user: AdminUser; action?: Asking; onClose: () => void }) {
   const toasts = useToasts()
   const command = useUserCommand(user.id)
   const [reason, setReason] = useState('')
@@ -458,7 +466,7 @@ function ReasonDialog({
       { action, reason: reason.trim() },
       {
         onSuccess: () => {
-          toasts.success(t(`screen.admin.users.done.${COPY[action]}` as MessageKey))
+          toasts.success(t(`screen.admin.users.done.${action}` as MessageKey))
           setReason('')
           onClose()
         },
@@ -475,9 +483,9 @@ function ReasonDialog({
           {action && (
             <form onSubmit={submit} className="flex flex-col gap-4">
               <Dialog.Title className="text-h2 break-words">
-                {t(`screen.admin.users.ask.${COPY[action]}` as MessageKey, { name: nameOf(user) })}
+                {t(`screen.admin.users.ask.${action}` as MessageKey, { name: nameOf(user) })}
               </Dialog.Title>
-              <p className="text-body-sm">{t(`screen.admin.users.effects.${COPY[action]}` as MessageKey)}</p>
+              <p className="text-body-sm">{t(`screen.admin.users.effects.${action}` as MessageKey)}</p>
               <label htmlFor={reasonId} className="text-label">
                 {t('screen.admin.users.reason')}
               </label>
@@ -501,7 +509,7 @@ function ReasonDialog({
                   variant={action === 'unlock' ? 'primary' : 'destructive'}
                   disabled={command.isPending || reason.trim() === ''}
                 >
-                  {t(`screen.admin.users.confirm.${COPY[action]}` as MessageKey)}
+                  {t(`screen.admin.users.confirm.${action}` as MessageKey)}
                 </Button>
               </div>
             </form>
@@ -509,125 +517,5 @@ function ReasonDialog({
         </Dialog.Popup>
       </Dialog.Portal>
     </Dialog.Root>
-  )
-}
-
-/** "Thu hồi" (FR-74, FR-78): the ground, its reason or category, then the authenticator code. */
-function RevokeApprovalDialog({ user, onClose }: { user: AdminUser; onClose: () => void }) {
-  const toasts = useToasts()
-  const command = useUserCommand(user.id)
-  const ids = useId()
-  const [ground, setGround] = useState<'OTHER' | 'PRIVATE_FEEDBACK'>('OTHER')
-  const [reason, setReason] = useState('')
-  const [category, setCategory] = useState<FeedbackCategory>('RESPECT')
-  const [stepUp, setStepUp] = useState(false)
-  const [error, setError] = useState<string>()
-  const enough = user.feedback?.enoughToAct === true
-  const ready = ground === 'PRIVATE_FEEDBACK' ? enough : reason.trim() !== ''
-
-  return (
-    <>
-      <Dialog.Root open={!stepUp} onOpenChange={(next) => !next && onClose()}>
-        <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 z-40 bg-foreground/50" />
-          <Dialog.Popup className="fixed top-16 left-1/2 z-50 flex max-h-[calc(100dvh-96px)] w-[min(520px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 overflow-y-auto rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
-            <Dialog.Title className="text-h2 break-words">
-              {t('screen.admin.users.ask.revokeApproval', { name: nameOf(user) })}
-            </Dialog.Title>
-            <p className="text-body-sm">{t('screen.admin.users.effects.revokeApproval')}</p>
-            <fieldset className="flex flex-col gap-1">
-              <legend className="text-label">{t('screen.admin.users.ground')}</legend>
-              {(['OTHER', 'PRIVATE_FEEDBACK'] as const).map((option) => (
-                <label key={option} className="flex min-h-tap-min items-center gap-2">
-                  <input
-                    type="radio"
-                    name={`${ids}-ground`}
-                    className="size-4"
-                    checked={ground === option}
-                    onChange={() => setGround(option)}
-                  />
-                  {t(`screen.admin.users.groundOption.${option}` as MessageKey)}
-                </label>
-              ))}
-            </fieldset>
-            {ground === 'OTHER' ? (
-              <>
-                <label htmlFor={`${ids}-reason`} className="text-label">
-                  {t('screen.admin.users.reason')}
-                </label>
-                <textarea
-                  id={`${ids}-reason`}
-                  value={reason}
-                  maxLength={500}
-                  onChange={(event) => setReason(event.target.value)}
-                  className={cn(inputClass, 'min-h-24')}
-                />
-              </>
-            ) : (
-              <>
-                <label htmlFor={`${ids}-category`} className="text-label">
-                  {t('screen.admin.users.category')}
-                </label>
-                <select
-                  id={`${ids}-category`}
-                  value={category}
-                  onChange={(event) => setCategory(event.target.value as FeedbackCategory)}
-                  className={inputClass}
-                >
-                  {CATEGORIES.map((option) => (
-                    <option key={option} value={option}>
-                      {t(`screen.admin.users.categoryOption.${option}` as MessageKey)}
-                    </option>
-                  ))}
-                </select>
-                <p className={cn('text-caption', enough ? 'text-muted-foreground' : 'text-destructive')}>
-                  {t(enough ? 'screen.admin.users.categoryNote' : 'reason.admin.FEEDBACK_NOT_ENOUGH')}
-                </p>
-              </>
-            )}
-            {error && (
-              <p role="alert" className="text-body-sm text-destructive">
-                {error}
-              </p>
-            )}
-            <div className="flex flex-wrap justify-end gap-2">
-              <Dialog.Close render={<Button type="button" variant="secondary" />}>{t('screen.admin.users.back')}</Dialog.Close>
-              <Button type="button" variant="destructive" disabled={!ready} onClick={() => setStepUp(true)}>
-                {t('screen.admin.users.confirm.revokeApproval')}
-              </Button>
-            </div>
-          </Dialog.Popup>
-        </Dialog.Portal>
-      </Dialog.Root>
-      <StepUpDialog
-        open={stepUp}
-        onOpenChange={(next) => {
-          setStepUp(next)
-        }}
-        confirmLabel={t('screen.admin.users.confirm.revokeApproval')}
-        pending={command.isPending}
-        onConfirm={(code, refused) =>
-          command.mutate(
-            {
-              action: 'revoke-approval',
-              body:
-                ground === 'OTHER'
-                  ? { ground, reason: reason.trim(), stepUpCode: code }
-                  : { ground, category, stepUpCode: code },
-            },
-            {
-              onSuccess: () => {
-                toasts.success(t('screen.admin.users.done.revokeApproval'))
-                onClose()
-              },
-              onError: (failure) => {
-                refused(failure)
-                setError(problemMessage(failure, { module: 'admin' }).text)
-              },
-            },
-          )
-        }
-      />
-    </>
   )
 }

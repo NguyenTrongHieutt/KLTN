@@ -33,7 +33,7 @@ public class HarnessController {
 	/** A reason of a module's own reason enum, as a policy would use it. */
 	enum Reason {
 
-		MENTOR_NOT_APPROVED
+		FIXTURE_NOT_ALLOWED
 
 	}
 
@@ -85,7 +85,7 @@ public class HarnessController {
 	@Access(Gate.SIGNED_IN)
 	@GetMapping("/api/v1/fixture/forbidden")
 	Map<String, Object> forbidden() {
-		Policies.requireAllowed(false, Reason.MENTOR_NOT_APPROVED);
+		Policies.requireAllowed(false, Reason.FIXTURE_NOT_ALLOWED);
 		return Map.of("ok", true);
 	}
 

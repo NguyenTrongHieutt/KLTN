@@ -11,8 +11,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import vn.vibefix.dispute.DisputeQueue;
 import vn.vibefix.identity.Administrators;
-import vn.vibefix.identity.MentorApplicationQueue;
-import vn.vibefix.identity.StudentCardQueue;
 import vn.vibefix.operations.FailedOperations;
 import vn.vibefix.reputation.PrivateFeedback;
 import vn.vibefix.scanning.FalsePositive;
@@ -43,17 +41,14 @@ class AdminOverviewController {
 	 * @param failedOperations External Operations that failed for good (FR-64, "Thao tác lỗi")
 	 * @param stalledEvents event publications that stopped after 5 attempts (AD-9)
 	 * @param activeAdministrators Administrators who can sign in; at 1, ADM-1 warns (SG-10)
-	 * @param studentCards student cards waiting for a decision (FR-5, ADM-3)
-	 * @param mentorApplications Mentor applications waiting for a decision (FR-74, ADM-13)
 	 * @param disputes Disputes awaiting a decision (FR-54, ADM-4)
 	 * @param lowFeedback Mentors averaging below 3 over at least 3 private feedbacks (FR-78, ADM-2)
 	 * @param failedExecutions Dispute executions that failed (FR-54, FR-64, ADM-7)
 	 * @param falsePositives Findings marked as false positives (FR-64, ADM-7)
 	 * @param skillSuggestions Skill suggestions waiting for a decision (FR-73, ADM-12)
 	 */
-	record OverviewView(Queue failedOperations, Queue stalledEvents, long activeAdministrators, Queue studentCards,
-			Queue mentorApplications, Queue disputes, Queue lowFeedback, Queue failedExecutions, Queue falsePositives,
-			Queue teamIssues, Queue skillSuggestions) {
+	record OverviewView(Queue failedOperations, Queue stalledEvents, long activeAdministrators, Queue disputes,
+			Queue lowFeedback, Queue failedExecutions, Queue falsePositives, Queue teamIssues, Queue skillSuggestions) {
 	}
 
 	private final FailedOperations failedOperations;
@@ -61,10 +56,6 @@ class AdminOverviewController {
 	private final StalledEventPublications stalledEvents;
 
 	private final Administrators administrators;
-
-	private final StudentCardQueue studentCards;
-
-	private final MentorApplicationQueue mentorApplications;
 
 	private final DisputeQueue disputes;
 
@@ -75,8 +66,8 @@ class AdminOverviewController {
 	private final SuggestedSkills skillSuggestions;
 
 	AdminOverviewController(FailedOperations failedOperations, StalledEventPublications stalledEvents,
-			Administrators administrators, StudentCardQueue studentCards, MentorApplicationQueue mentorApplications,
-			DisputeQueue disputes, PrivateFeedback privateFeedback, Scans scans, SuggestedSkills skillSuggestions) {
+			Administrators administrators, DisputeQueue disputes, PrivateFeedback privateFeedback, Scans scans,
+			SuggestedSkills skillSuggestions) {
 		this.skillSuggestions = skillSuggestions;
 		this.disputes = disputes;
 		this.privateFeedback = privateFeedback;
@@ -84,31 +75,19 @@ class AdminOverviewController {
 		this.failedOperations = failedOperations;
 		this.stalledEvents = stalledEvents;
 		this.administrators = administrators;
-		this.studentCards = studentCards;
-		this.mentorApplications = mentorApplications;
 	}
 
 	@GetMapping
 	OverviewView overview() {
 		return new OverviewView(Queue.of(this.failedOperations.findAll(), FailedOperations.FailedOperation::failedAt),
 				Queue.of(this.stalledEvents.findAll(), StalledEventPublications.StalledPublication::stalledAt),
-				this.administrators.activeCount(), studentCards(), mentorApplications(),
+				this.administrators.activeCount(),
 				Queue.of(this.disputes.awaiting(), DisputeQueue.Waiting::openedAt),
 				new Queue(this.privateFeedback.belowThreshold().size(), null),
 				Queue.of(this.disputes.executionsFailed(), DisputeQueue.FailedExecution::failedAt),
 				Queue.of(this.scans.falsePositives(AdminFailuresController.FALSE_POSITIVES), FalsePositive::markedAt),
 				Queue.of(this.disputes.teamIssuesEscalated(), DisputeQueue.Waiting::openedAt),
 				Queue.of(this.skillSuggestions.open(), SuggestedSkills.Suggestion::createdAt));
-	}
-
-	private Queue mentorApplications() {
-		MentorApplicationQueue.Pending pending = this.mentorApplications.pending();
-		return new Queue(Math.toIntExact(pending.count()), pending.oldestSubmittedAt());
-	}
-
-	private Queue studentCards() {
-		StudentCardQueue.Pending pending = this.studentCards.pending();
-		return new Queue(Math.toIntExact(pending.count()), pending.oldestUploadedAt());
 	}
 
 }

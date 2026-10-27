@@ -123,7 +123,6 @@
         "school": "Trường",
         "source": "Xác minh",
         "sourceEmail": "Qua email trường · {month}",
-        "sourceCard": "Qua thẻ sinh viên · {month}",
         "validUntil": "Có hiệu lực đến",
         "declared": "Khai khi xác minh",
         "renewal": "Huy hiệu sinh viên hết hạn ngày {date}. Gia hạn để giữ huy hiệu trên hồ sơ.",
@@ -137,10 +136,7 @@
         "unlinkConfirm": "Bỏ xác minh",
         "unlinking": "Đang bỏ xác minh…",
         "unlinked": "Đã bỏ xác minh sinh viên.",
-        "cancel": "Để sau",
-        "methods": "Cách xác minh",
-        "tabEmail": "Email trường",
-        "tabCard": "Thẻ sinh viên"
+        "cancel": "Để sau"
       }
     },
     "profile": {
@@ -194,17 +190,11 @@
         "student": "Email sinh viên",
         "studentLine": "Sinh viên đã xác minh · Có hiệu lực đến {date}",
         "methodSchoolEmail": "{school} · Xác minh qua email trường · {month}",
-        "methodStudentCard": "{school} · Xác minh qua thẻ sinh viên · {month}",
         "declared": "Khai khi xác minh",
         "studentName": "Họ và tên",
         "linkedin": "LinkedIn",
         "manage": "Quản lý xác minh",
         "studentMajor": "Ngành học"
-      },
-      "mentor": {
-        "heading": "Hồ sơ người hướng dẫn",
-        "body": "Liên kết LinkedIn, tài liệu kèm theo và việc duyệt hồ sơ người hướng dẫn nằm ở trang riêng.",
-        "link": "Mở hồ sơ người hướng dẫn"
       }
     },
     "githubGate": {
@@ -282,13 +272,13 @@
         "lineCrew": "Xin vào nhóm thực hiện của một người hướng dẫn.",
         "rolePerJob": "Mỗi công việc bạn giữ một vai. Ở các công việc khác nhau, bạn có thể giữ các vai khác nhau.",
         "noticeHeading": "Thông báo về dữ liệu cá nhân",
-        "noticeVersion": "Phiên bản {version} · 25/10/2026",
+        "noticeVersion": "Phiên bản {version} · 27/10/2026",
         "noticeCollectedTitle": "vibefix thu thập gì",
-        "noticeCollected": "Từ tài khoản Google: tên, địa chỉ email Google và mã định danh của tài khoản, dùng làm khóa của tài khoản vibefix. Khi bạn liên kết GitHub: tên tài khoản, mã số tài khoản GitHub, liên kết ảnh đại diện và các email đã xác minh. Thông tin hồ sơ bạn tự nhập, và thông tin xác minh chỉ khi bạn xác minh: email trường hoặc ảnh thẻ sinh viên, hồ sơ và tài liệu nếu bạn ứng tuyển làm người hướng dẫn.",
+        "noticeCollected": "Từ tài khoản Google: tên, địa chỉ email Google và mã định danh của tài khoản, dùng làm khóa của tài khoản vibefix. Khi bạn liên kết GitHub: tên tài khoản, mã số tài khoản GitHub, liên kết ảnh đại diện và các email đã xác minh. Thông tin hồ sơ bạn tự nhập, và email trường chỉ khi bạn xác minh là sinh viên.",
         "noticePurposeTitle": "Để làm gì",
-        "noticePurpose": "Đăng nhập, liên lạc về công việc, xác minh khi bạn yêu cầu, duyệt người hướng dẫn và giải quyết tranh chấp. Vai trò thuộc về từng công việc: người cùng công việc chỉ thấy những gì vai đó cần.",
+        "noticePurpose": "Đăng nhập, liên lạc về công việc, xác minh khi bạn yêu cầu và giải quyết tranh chấp. Vai trò thuộc về từng công việc: người cùng công việc chỉ thấy những gì vai đó cần.",
         "noticeRetentionTitle": "Giữ trong bao lâu",
-        "noticeRetention": "Đến khi bạn xóa tài khoản, trừ dữ liệu giao dịch phải giữ theo quy định. Ảnh thẻ sinh viên và tài liệu của người hướng dẫn tự xóa 30 ngày sau khi có quyết định.",
+        "noticeRetention": "Đến khi bạn xóa tài khoản, trừ dữ liệu giao dịch phải giữ theo quy định.",
         "noticeRightsTitle": "Quyền của bạn",
         "noticeRights": "Xem, tải về và yêu cầu xóa dữ liệu tại \"Dữ liệu của tôi\".",
         "noticeFull": "Đọc toàn văn thông báo quyền riêng tư",
@@ -360,63 +350,6 @@
         "sent": "Đã gửi đề xuất. Bạn sẽ nhận thông báo khi quản trị viên quyết định.",
         "exists": "Kỹ năng “{name}” đã có trong danh sách.",
         "pick": "Chọn kỹ năng này"
-      }
-    },
-    "mentor": {
-      "profile": {
-        "title": "Hồ sơ người hướng dẫn",
-        "heading": "Hồ sơ người hướng dẫn",
-        "lead": "Quản trị viên duyệt hồ sơ này trước khi bạn nhận việc và lập nhóm.",
-        "statusPending": "Đang chờ duyệt",
-        "statusApproved": "Đã duyệt",
-        "statusRejected": "Bị từ chối",
-        "statusRevoked": "Đã bị thu hồi",
-        "statusDraft": "Chưa gửi",
-        "pendingTitle": "Hồ sơ đang chờ quản trị viên duyệt. Bạn sẽ nhận email khi có kết quả.",
-        "pendingBody": "Gửi {date}. Bạn vẫn sửa được hồ sơ trong lúc chờ.",
-        "approvedBody": "Duyệt ngày {date}. Thay đổi kỹ năng và mô tả hiện ngay trên hồ sơ công khai.",
-        "rejectedTitle": "Bị từ chối: {reason}",
-        "reapplyFrom": "Bạn có thể gửi lại hồ sơ từ ngày {date}.",
-        "reapplyOpen": "Bạn đã có thể sửa và gửi lại hồ sơ.",
-        "criteriaHeading": "Điều kiện để được duyệt",
-        "criteria1": "Ít nhất 2 năm kinh nghiệm làm phần mềm chuyên nghiệp",
-        "criteria2": "Có liên kết LinkedIn của chính bạn",
-        "criteria3": "Hiện không phải là sinh viên đang theo học",
-        "required": "Các trường có dấu * là bắt buộc",
-        "displayName": "Tên hiển thị *",
-        "experience": "Mô tả kinh nghiệm *",
-        "experienceHelper": "Bạn đã làm sản phẩm gì, đã hướng dẫn ai. Khách hàng và sinh viên đọc phần này trên hồ sơ công khai.",
-        "years": "Số năm kinh nghiệm *",
-        "linkedin": "Liên kết LinkedIn *",
-        "linkedinHelper": "Mỗi liên kết LinkedIn chỉ dùng cho một hồ sơ người hướng dẫn.",
-        "skills": "Kỹ năng *",
-        "skillsHelper": "Chọn từ danh sách của vibefix, tối đa 20 kỹ năng. Gõ có dấu hay không dấu đều được.",
-        "skillsCount": "{n}/20 kỹ năng",
-        "otherLink": "Liên kết khác (không bắt buộc)",
-        "otherLinkHelper": "GitHub, blog hoặc sản phẩm bạn đã làm. Chỉ nhận liên kết https.",
-        "document": "Tài liệu kèm theo (không bắt buộc)",
-        "documentCaption": "Chỉ quản trị viên xem được; tự xóa 30 ngày sau khi có quyết định.",
-        "documentChoose": "Chọn tài liệu",
-        "documentHint": "Ảnh hoặc PDF, tối đa 10 MB, ví dụ CV hoặc chứng chỉ.",
-        "documentLine": "{name} · {size}",
-        "documentRemove": "Xóa",
-        "documentRemoveLabel": "Xóa tài liệu {name}",
-        "documentUploading": "Đang tải lên…",
-        "documentUploaded": "Đã tải tài liệu lên.",
-        "documentRemoved": "Đã xóa tài liệu.",
-        "privacyAccept": "Tôi đã đọc và đồng ý với thông báo quyền riêng tư.",
-        "privacySummary": "vibefix lưu tài khoản GitHub, email, các trường trong hồ sơ này và tài liệu bạn tải lên để quản trị viên xét duyệt. Tài liệu bị xóa 30 ngày sau khi có quyết định. Bạn xem, tải về hoặc yêu cầu xóa dữ liệu trong \"Dữ liệu của tôi\".",
-        "privacyRead": "Đọc toàn văn",
-        "n22": "Quản trị viên sẽ xem hồ sơ và trả lời trong vài ngày. Trước khi được duyệt, bạn chưa thể nhận việc hay mời sinh viên. Tài liệu đính kèm chỉ quản trị viên xem và bị xóa 30 ngày sau khi có quyết định.",
-        "submit": "Gửi hồ sơ",
-        "submitting": "Đang gửi…",
-        "resubmit": "Gửi lại hồ sơ",
-        "save": "Lưu thay đổi",
-        "saving": "Đang lưu…",
-        "submitted": "Đã gửi hồ sơ. Quản trị viên sẽ xem trong vài ngày.",
-        "saved": "Đã lưu hồ sơ.",
-        "privacyRequired": "Hãy đồng ý với thông báo quyền riêng tư.",
-        "skillsRequired": "Hãy chọn ít nhất một kỹ năng."
       }
     },
     "team": {
@@ -506,19 +439,19 @@
         "verifyLink": "Xác minh ở Hồ sơ và xác minh",
         "invitations": "Lời mời vào nhóm · {n}",
         "invitationTitle": "{mentor} mời bạn vào nhóm",
-        "invitationMeta": "Người hướng dẫn · {years} năm kinh nghiệm · mời {date} · hết hạn {lapse}",
+        "invitationMeta": "Người hướng dẫn · {experience} · mời {date} · hết hạn {lapse}",
         "agree": "Đồng ý",
         "decline": "Từ chối",
         "findMentor": "Tìm người hướng dẫn",
         "keyword": "Từ khóa",
         "searchHelper": "Tìm người hướng dẫn theo kỹ năng hoặc tên. Gõ có dấu hoặc không dấu đều được.",
-        "mentorMeta": "{years} năm kinh nghiệm · {n} sinh viên",
+        "mentorMeta": "{experience} · {n} sinh viên",
         "noMentors": "Không tìm thấy người hướng dẫn nào khớp với “{q}”. Hãy thử một kỹ năng khác.",
         "noMentorsFiltered": "Không tìm thấy người hướng dẫn nào có kỹ năng này.",
         "sentRequests": "Yêu cầu đã gửi",
         "sentMeta": "Gửi {date} · hết hạn {lapse} nếu chưa được trả lời",
         "yourMentor": "Người hướng dẫn của bạn",
-        "mentorSince": "{years} năm kinh nghiệm · bạn ở trong nhóm từ {date}",
+        "mentorSince": "{experience} · bạn ở trong nhóm từ {date}",
         "members": "Thành viên",
         "membersLine": "{n} sinh viên · {hidden} người chọn không hiện tên công khai",
         "you": "{name} (bạn)",
@@ -552,8 +485,7 @@
         "privacy": "Hồ sơ công khai không hiển thị email, số điện thoại hay số dư của sinh viên."
       },
       "profile": {
-        "approved": "Người hướng dẫn đã được duyệt",
-        "meta": "{years} năm kinh nghiệm làm phần mềm · tham gia vibefix từ {month}",
+        "meta": "{experience} · tham gia vibefix từ {month}",
         "teamSize": "Nhóm {n} sinh viên",
         "skills": "Kỹ năng",
         "otherSkills": "Kỹ năng khác",
@@ -594,29 +526,16 @@
           "rating": "{n} sao",
           "untitled": "Công việc đã hoàn thành"
         }
+      },
+      "experience": {
+        "years": "{years} năm kinh nghiệm",
+        "notDeclared": "Kinh nghiệm: Chưa khai"
       }
     },
     "student": {
-      "verification": {
-        "cardHeading": "Tải thẻ sinh viên lên",
-        "cardChoose": "Chọn ảnh thẻ",
-        "cardChooseAnother": "Tải lên thẻ khác",
-        "cardCaption": "Ảnh hoặc PDF, tối đa 10 MB. Chỉ quản trị viên xem được; tự xóa 30 ngày sau khi có quyết định.",
-        "cardUploading": "Đang tải lên…",
-        "cardProgress": "Đang tải thẻ lên",
-        "cardUploaded": "Đã tải thẻ sinh viên lên.",
-        "cardPendingBadge": "Đang chờ duyệt",
-        "cardPending": "Thẻ sinh viên đang chờ quản trị viên duyệt.",
-        "cardPendingFile": "Đã tải lên {name} lúc {time}.",
-        "cardRejectedBadge": "Bị từ chối",
-        "cardRejectedTitle": "Thẻ sinh viên bị từ chối: {reason}",
-        "cardRejectedBody": "Hãy chụp lại thẻ ở nơi đủ sáng, thấy rõ tên, trường và hạn thẻ, rồi tải lên lần nữa.",
-        "cardUseEmail": "Bạn cũng có thể xác minh bằng email trường nếu trường có trong danh sách.",
-        "cardUseEmailAction": "Dùng email trường"
-      },
       "banner": {
         "title": "Xác minh là sinh viên để vào nhóm của một người hướng dẫn",
-        "body": "Dùng email trường hoặc tải thẻ sinh viên lên. Thường xong trong vài phút với email trường.",
+        "body": "Dùng email trường của bạn. Thường xong trong vài phút.",
         "action": "Xác minh ngay",
         "expiredTitle": "Xác minh đã hết hạn ngày {date}",
         "expiredBody": "Công việc đang làm vẫn tiếp tục. Gia hạn để được chọn vào nhóm thực hiện mới.",
@@ -648,8 +567,6 @@
       "nav": {
         "overview": "Tổng quan",
         "administrators": "Quản trị viên",
-        "mentors": "Người hướng dẫn",
-        "studentCards": "Thẻ sinh viên",
         "pendingCount": "{n} đang chờ",
         "disputes": "Tranh chấp",
         "users": "Người dùng",
@@ -676,8 +593,6 @@
         "info": "Thông tin",
         "onlyOne": "Chỉ có một quản trị viên. Khôi phục tài khoản chỉ do quản trị viên khác làm; hãy tạo quản trị viên thứ hai trước công việc thật đầu tiên.",
         "onlyOneAction": "Tạo quản trị viên",
-        "studentCards": "Thẻ sinh viên chờ duyệt",
-        "mentorApplications": "Hồ sơ người hướng dẫn chờ duyệt",
         "lowFeedback": "Đánh giá kín thấp",
         "lowFeedbackNote": "Người hướng dẫn trung bình dưới 3 sao trên ít nhất 3 đánh giá",
         "falsePositives": "Cảnh báo nhầm",
@@ -754,162 +669,6 @@
         "submit": "Hoàn tất",
         "submitting": "Đang thiết lập…",
         "notFound": "Đường dẫn này không còn dùng được: đã dùng rồi hoặc đã quá 24 giờ. Hãy nhờ một quản trị viên tạo lại."
-      },
-      "mentors": {
-        "title": "Người hướng dẫn",
-        "heading": "Người hướng dẫn",
-        "filter": "Lọc theo trạng thái",
-        "chip": "{label} · {n}",
-        "PENDING": "Hồ sơ chờ duyệt",
-        "APPROVED": "Đã duyệt",
-        "REJECTED": "Bị từ chối",
-        "listLabel": "Hồ sơ người hướng dẫn",
-        "notePENDING": "Hồ sơ cũ nhất ở trên. Người nộp chỉ thấy màn hình hồ sơ cho đến khi được duyệt.",
-        "noteDecided": "Quyết định mới nhất ở trên.",
-        "emptyPENDING": "Không có hồ sơ nào đang chờ duyệt.",
-        "emptyAPPROVED": "Chưa có hồ sơ nào được duyệt.",
-        "emptyREJECTED": "Chưa có hồ sơ nào bị từ chối.",
-        "rowMeta": "Gửi {date} · {years} năm kinh nghiệm",
-        "rowDecided": "Quyết định {date} · {years} năm kinh nghiệm",
-        "matchBadge": "{n} tài khoản có thể cùng một người",
-        "pick": "Chọn một hồ sơ trong danh sách để xem.",
-        "unnamed": "Người hướng dẫn",
-        "statusPENDING": "Đang chờ duyệt",
-        "statusAPPROVED": "Đã duyệt",
-        "statusREJECTED": "Bị từ chối",
-        "statusREVOKED": "Đã bị thu hồi",
-        "meta": "@{login} · Gửi {date}",
-        "metaNoLogin": "Gửi {date}",
-        "decidedAPPROVED": "Đã duyệt {date}.",
-        "decidedREJECTED": "Đã từ chối {date}. Lý do: {reason}",
-        "matchesHeading": "Tài khoản có thể cùng một người: {n}",
-        "matchesNone": "Tài khoản có thể cùng một người: 0.",
-        "matchesNoneBody": "Không có tài khoản nào khác trùng email đã xác minh hoặc liên kết LinkedIn.",
-        "matchesNote": "vibefix không hiển thị email hay liên kết bị trùng. Một người chỉ được ở một phía; nếu đây là cùng một người, hãy cân nhắc từ chối.",
-        "matchesLabel": "Các tài khoản có thể cùng một người",
-        "colRole": "Vai trò",
-        "colState": "Trạng thái",
-        "colKind": "Loại trùng",
-        "colCreated": "Tạo ngày",
-        "roleCUSTOMER": "Khách hàng",
-        "roleSTUDENT": "Sinh viên",
-        "roleMENTOR": "Người hướng dẫn",
-        "roleADMINISTRATOR": "Quản trị viên",
-        "roleGoogle": "Tài khoản đăng nhập bằng Google",
-        "stateVerified": "Đã xác minh · hết hạn {month}",
-        "stateExpired": "Hết hạn xác minh {month}",
-        "stateUnverified": "Chưa xác minh",
-        "stateLocked": "Đã khóa",
-        "stateErased": "Tài khoản đã xóa",
-        "stateActive": "Đang hoạt động",
-        "kindEMAIL": "Trùng email đã xác minh",
-        "kindLINKEDIN": "Trùng liên kết LinkedIn",
-        "profileHeading": "Hồ sơ",
-        "experience": "Mô tả kinh nghiệm",
-        "years": "Số năm kinh nghiệm",
-        "yearsValue": "{n} năm",
-        "linkedin": "LinkedIn",
-        "otherLink": "Liên kết khác",
-        "skills": "Kỹ năng",
-        "domain": "({domain})",
-        "newTab": "(mở trong thẻ mới)",
-        "documentLine": "{name} · {size}",
-        "documentCaption": "Mỗi lần mở được ghi vào nhật ký hệ thống. Tự xóa 30 ngày sau khi có quyết định.",
-        "documentOpen": "Mở tài liệu",
-        "documentNone": "Không có tài liệu kèm theo.",
-        "checksHeading": "Kiểm tra điều kiện",
-        "check1": "Ít nhất 2 năm kinh nghiệm làm phần mềm chuyên nghiệp",
-        "check2": "Có liên kết LinkedIn của chính người nộp",
-        "check3": "Hiện không phải là sinh viên đang theo học",
-        "check3Warning": "· có tài khoản sinh viên đã xác minh trùng email",
-        "checksNote": "Danh sách giúp bạn xét duyệt. Chỉ quyết định và lý do được lưu.",
-        "stepUpHint": "Bạn sẽ cần nhập mã xác thực 6 số trước khi gửi quyết định.",
-        "reject": "Từ chối",
-        "approve": "Duyệt",
-        "approveTitle": "Duyệt hồ sơ của {name}?",
-        "rejectTitle": "Từ chối hồ sơ của {name}?",
-        "whatHappens": "Điều sẽ xảy ra",
-        "approve1": "{name} nhận thông báo và dùng được mọi chức năng của người hướng dẫn",
-        "approve2": "Nhóm của {name} được tạo, đang có 0/10 sinh viên",
-        "approve3": "Hồ sơ công khai của {name} hiện với khách hàng và sinh viên",
-        "reason": "Lý do (bắt buộc, người nộp sẽ thấy)",
-        "reject1": "Người nộp nhận thông báo kèm lý do",
-        "reject2": "Họ có thể gửi lại hồ sơ từ ngày {date}",
-        "reject3": "Tài liệu kèm theo tự xóa sau 30 ngày",
-        "code": "Mã xác thực 6 số",
-        "codeHint": "Mã đổi sau mỗi 30 giây.",
-        "back": "Quay lại",
-        "confirmApprove": "Duyệt hồ sơ",
-        "confirmReject": "Từ chối hồ sơ",
-        "sending": "Đang gửi…",
-        "approvedToast": "Đã duyệt hồ sơ của {name}.",
-        "rejectedToast": "Đã từ chối hồ sơ của {name}.",
-        "previous": "Trang trước",
-        "next": "Trang sau",
-        "page": "Trang {page}/{pages}",
-        "pagination": "Phân trang hồ sơ"
-      },
-      "studentCards": {
-        "title": "Thẻ sinh viên",
-        "heading": "Thẻ sinh viên",
-        "lead": "Duyệt thẻ để xác minh sinh viên. Mỗi lần mở thẻ được ghi vào nhật ký hệ thống.",
-        "filter": "Lọc theo trạng thái",
-        "PENDING": "Đang chờ",
-        "APPROVED": "Đã duyệt",
-        "REJECTED": "Bị từ chối",
-        "listLabel": "Danh sách thẻ sinh viên",
-        "student": "Sinh viên",
-        "school": "Trường (theo hồ sơ)",
-        "uploadedAt": "Tải lên lúc",
-        "decidedAt": "Quyết định lúc",
-        "file": "Tệp",
-        "status": "Trạng thái",
-        "actions": "Thao tác",
-        "sortOldest": "Tải lên lúc, cũ nhất trước. Bấm để xếp mới nhất trước.",
-        "sortNewest": "Tải lên lúc, mới nhất trước. Bấm để xếp cũ nhất trước.",
-        "sortBy": "Tải lên lúc. Bấm để xếp cũ nhất trước.",
-        "rowActions": "Thao tác cho thẻ của {name}",
-        "view": "Xem thẻ",
-        "approve": "Duyệt",
-        "reject": "Từ chối",
-        "emptyPENDING": "Không có thẻ nào đang chờ.",
-        "emptyAPPROVED": "Chưa có thẻ nào được duyệt.",
-        "emptyREJECTED": "Chưa có thẻ nào bị từ chối.",
-        "pagination": "Phân trang",
-        "page": "Trang {page}/{pages}",
-        "previous": "Trang trước",
-        "next": "Trang sau",
-        "fileDeleted": "Đã xóa tệp",
-        "image": "Ảnh",
-        "pdf": "PDF",
-        "recorded": "Mã số {number} · {school}",
-        "viewTitle": "Thẻ sinh viên của {name}",
-        "viewAudited": "Lần mở này được ghi vào nhật ký hệ thống.",
-        "imageAlt": "Ảnh thẻ sinh viên của {name}",
-        "downloadPdf": "Tải tệp PDF",
-        "studentNumber": "Mã số sinh viên",
-        "schoolField": "Trường",
-        "schoolHelper": "Lấy từ hồ sơ của sinh viên; sửa nếu thẻ ghi khác.",
-        "approveSubmit": "Duyệt thẻ",
-        "approving": "Đang duyệt…",
-        "approvedToast": "Đã duyệt thẻ của {name}.",
-        "rejectTitle": "Từ chối thẻ của {name}?",
-        "reasonLabel": "Lý do (sinh viên sẽ đọc)",
-        "reasonBlurry": "Ảnh mờ, không đọc được",
-        "reasonExpired": "Thẻ đã hết hạn",
-        "reasonMissing": "Không thấy rõ tên, trường hoặc hạn thẻ",
-        "reasonNotCard": "Đây không phải thẻ sinh viên",
-        "reasonOther": "Khác",
-        "reasonOtherLabel": "Lý do khác",
-        "whatHappens": "Điều sẽ xảy ra",
-        "happens1": "{name} nhận email kèm lý do và có thể tải lên thẻ khác ngay.",
-        "happens2": "Ảnh thẻ tự xóa 30 ngày sau quyết định.",
-        "happens3": "Quyết định được ghi vào nhật ký hệ thống.",
-        "back": "Quay lại",
-        "rejectSubmit": "Từ chối",
-        "rejecting": "Đang từ chối…",
-        "rejectedToast": "Đã từ chối thẻ của {name}.",
-        "close": "Đóng"
       },
       "disputes": {
         "title": "Tranh chấp",
@@ -1071,18 +830,11 @@
         "filter": {
           "LOCKED": "Đã khóa",
           "VERIFIED": "Đã xác minh",
-          "PENDING": "Chờ duyệt",
-          "APPROVED": "Đã duyệt",
-          "REVOKED": "Đã thu hồi",
           "LOW_FEEDBACK": "Đánh giá kín thấp"
         },
         "status": {
           "VERIFIED": "Đã xác minh",
-          "UNVERIFIED": "Chưa xác minh",
-          "PENDING": "Chờ duyệt",
-          "APPROVED": "Đã duyệt",
-          "REJECTED": "Bị từ chối",
-          "REVOKED": "Đã thu hồi"
+          "UNVERIFIED": "Chưa xác minh"
         },
         "locked": "Đã khóa",
         "empty": "Không có tài khoản nào khớp.",
@@ -1101,16 +853,12 @@
         "verificationExpired": "{method}, đã hết hạn ngày {date}",
         "unverified": "Chưa xác minh",
         "method": {
-          "SCHOOL_EMAIL": "Email trường",
-          "STUDENT_CARD": "Thẻ sinh viên"
+          "SCHOOL_EMAIL": "Email trường"
         },
-        "approval": "Phê duyệt người hướng dẫn",
         "lockReason": "Lý do khóa",
         "lock": "Khóa tài khoản",
         "unlock": "Mở khóa",
-        "revokeVerification": "Thu hồi xác minh",
-        "revokeApproval": "Thu hồi",
-        "unlockNote": "Mở khóa chỉ cho đăng nhập lại; quyền vào kho mã, nhóm và phê duyệt không tự trở lại.",
+        "unlockNote": "Mở khóa chỉ cho đăng nhập lại; quyền vào kho mã và nhóm không tự trở lại.",
         "feedback": "Đánh giá kín",
         "feedbackPrivate": "Chỉ quản trị viên xem được. Người hướng dẫn không biết ai đã đánh giá hay vào lúc nào.",
         "feedbackSummary": "Trung bình {average} sao trên {n} đánh giá",
@@ -1126,40 +874,20 @@
         "back": "Quay lại",
         "ask": {
           "lock": "Khóa tài khoản của {name}?",
-          "unlock": "Mở khóa tài khoản của {name}?",
-          "revokeVerification": "Thu hồi xác minh sinh viên của {name}?",
-          "revokeApproval": "Thu hồi phê duyệt của {name}?"
+          "unlock": "Mở khóa tài khoản của {name}?"
         },
         "effects": {
           "lock": "Mọi phiên đăng nhập kết thúc ngay và người này nhận email kèm lý do. Họ không đăng nhập được cho đến khi được mở khóa.",
-          "unlock": "Người này đăng nhập lại được. Quyền vào kho mã, nhóm và phê duyệt không tự trở lại.",
-          "revokeVerification": "Sinh viên vẫn làm tiếp công việc đang chạy nhưng không được thêm vào nhóm mới cho đến khi xác minh lại.",
-          "revokeApproval": "Công việc đang chạy vẫn tiếp tục. Đơn ứng tuyển chưa được chọn bị rút, nhóm đóng lại và người hướng dẫn không nhận việc mới."
+          "unlock": "Người này đăng nhập lại được. Quyền vào kho mã và nhóm không tự trở lại."
         },
         "confirm": {
           "lock": "Khóa tài khoản",
-          "unlock": "Mở khóa",
-          "revokeVerification": "Thu hồi xác minh",
-          "revokeApproval": "Thu hồi"
+          "unlock": "Mở khóa"
         },
         "done": {
           "lock": "Đã khóa tài khoản.",
-          "unlock": "Đã mở khóa tài khoản.",
-          "revokeVerification": "Đã thu hồi xác minh.",
-          "revokeApproval": "Đã thu hồi phê duyệt."
+          "unlock": "Đã mở khóa tài khoản."
         },
-        "ground": "Căn cứ",
-        "groundOption": {
-          "OTHER": "Lý do khác",
-          "PRIVATE_FEEDBACK": "Dựa trên đánh giá kín"
-        },
-        "category": "Nhóm vi phạm (người hướng dẫn chỉ đọc dòng này)",
-        "categoryOption": {
-          "RESPECT": "Thiếu tôn trọng với sinh viên",
-          "GUIDANCE": "Không hướng dẫn hoặc không phản hồi nhóm",
-          "RULES": "Vi phạm quy tắc của vibefix"
-        },
-        "categoryNote": "Người hướng dẫn chỉ thấy nhóm vi phạm, không thấy đánh giá, công việc, sinh viên hay ngày nào.",
         "deletion": {
           "title": "Yêu cầu xóa tài khoản",
           "requested": "Người dùng yêu cầu xóa tài khoản lúc {time}.",
@@ -1168,6 +896,18 @@
           "effects": "Xác nhận sẽ xóa hoặc ẩn danh dữ liệu của người dùng, xóa sản phẩm và kho mã của họ, chỉ giữ hồ sơ thanh toán và tranh chấp theo quy định.",
           "confirm": "Xác nhận xóa tài khoản",
           "done": "Đã xóa tài khoản."
+        },
+        "personLinks": {
+          "title": "Tài khoản có thể cùng một người",
+          "note": "Các tài khoản dùng chung một email hoặc hồ sơ LinkedIn đã xác minh với tài khoản này. Chỉ hiện loại dấu hiệu, không bao giờ hiện giá trị.",
+          "empty": "Không có tài khoản nào dùng chung dấu hiệu với tài khoản này.",
+          "erased": "Tài khoản đã xóa",
+          "kind": {
+            "EMAIL": "Email",
+            "LINKEDIN": "LinkedIn"
+          },
+          "locked": "Đã khóa",
+          "createdAt": "Tạo ngày {date}"
         }
       },
       "moderation": {
@@ -1328,8 +1068,6 @@
         "group": {
           "usersByRole": "Người dùng theo vai trò",
           "studentsByVerification": "Sinh viên theo xác minh",
-          "mentorsByApproval": "Người hướng dẫn theo phê duyệt",
-          "mentorApplicationsByDecision": "Quyết định về đơn người hướng dẫn",
           "lockedAccounts": "Tài khoản bị khóa",
           "teamsBySize": "Nhóm theo số thành viên",
           "crewsBySize": "Nhóm thực hiện theo số người",
@@ -1354,16 +1092,6 @@
           "studentsByVerification": {
             "VERIFIED": "Đã xác minh",
             "UNVERIFIED": "Chưa xác minh"
-          },
-          "mentorsByApproval": {
-            "PENDING": "Chờ duyệt",
-            "APPROVED": "Đã duyệt",
-            "REJECTED": "Bị từ chối",
-            "REVOKED": "Đã thu hồi"
-          },
-          "mentorApplicationsByDecision": {
-            "APPROVED": "Duyệt",
-            "REJECTED": "Từ chối"
           },
           "lockedAccounts": {
             "LOCKED": "Đang khóa"
@@ -2066,7 +1794,7 @@
         "remove": "Xóa",
         "removeFile": "Xóa {name}",
         "uploading": "Đang tải lên…",
-        "confidentiality": "Mọi người hướng dẫn đã được duyệt đều đọc được tin này. Đừng ghi thông tin kinh doanh bí mật ở đây; hãy trao đổi trong Trò chuyện sau khi người hướng dẫn ký cam kết bảo mật.",
+        "confidentiality": "Mọi người hướng dẫn trên vibefix đều đọc được tin này. Đừng ghi thông tin kinh doanh bí mật ở đây; hãy trao đổi trong Trò chuyện sau khi người hướng dẫn ký cam kết bảo mật.",
         "save": "Lưu nháp",
         "saving": "Đang lưu…",
         "saved": "Đã lưu nháp.",
@@ -2233,7 +1961,8 @@
         "submit": "Ứng tuyển",
         "sending": "Đang gửi…",
         "sent": "Đã gửi đơn ứng tuyển.",
-        "tooMany": "Hôm nay bạn đã gửi đủ 20 đơn ứng tuyển. Bạn có thể ứng tuyển tiếp sau {time}."
+        "tooMany": "Hôm nay bạn đã gửi đủ 20 đơn ứng tuyển. Bạn có thể ứng tuyển tiếp sau {time}.",
+        "profileLink": "Mở hồ sơ"
       },
       "applied": {
         "title": "Bạn đã ứng tuyển công việc này",
@@ -2248,7 +1977,7 @@
       "list": {
         "title": "Đơn ứng tuyển · {job}",
         "sent": "gửi {date}",
-        "mentor": "{years} năm kinh nghiệm · nhóm {n} sinh viên",
+        "mentor": "{experience} · nhóm {n} sinh viên",
         "note": "Bạn có thể chờ thêm đơn rồi so sánh trước khi chọn. Người hướng dẫn chỉ thấy đơn của chính họ."
       },
       "mentor": {
@@ -2326,7 +2055,6 @@
         "empty": "Không tìm thấy người hướng dẫn nào cho “{q}”.",
         "emptyHint": "Hãy thử từ khóa khác hoặc bỏ bớt kỹ năng.",
         "noRecommendation": "Chưa có đề xuất cho công việc này. Hãy tìm theo kỹ năng, ví dụ: React hoặc Supabase.",
-        "years": "{years} năm kinh nghiệm",
         "students": "{n} sinh viên",
         "rating": "{average} sao ({count} lượt)",
         "newcomer": "Mới",
@@ -2336,9 +2064,10 @@
         "applied": "Đã ứng tuyển",
         "sent": "Đã gửi lời mời đến {name}. Họ tự quyết định có ứng tuyển hay không.",
         "inviteAction": "mời ứng tuyển",
-        "sheetRole": "Người hướng dẫn · {years} năm kinh nghiệm",
+        "sheetRole": "Người hướng dẫn · {experience}",
         "noContact": "vibefix không hiện cách liên lạc. Bạn trao đổi với người hướng dẫn sau khi chọn và họ ký cam kết bảo mật.",
-        "recommendations": "Đề xuất cho công việc này"
+        "recommendations": "Đề xuất cho công việc này",
+        "notLinked": "Người hướng dẫn chưa liên kết GitHub"
       },
       "signals": {
         "skills": "Hợp với {skills}",
@@ -3804,21 +3533,20 @@
   },
   "notice": {
     "privacy": {
-      "version": "3.0",
+      "version": "3.1",
       "versionLine": "Thông báo quyền riêng tư · phiên bản {version}",
-      "effective": "Áp dụng từ 25/10/2026. Từ phiên bản 3.0, bạn đăng nhập bằng Google và giữ vai trò theo từng công việc.",
+      "effective": "Áp dụng từ 27/10/2026. Từ phiên bản 3.0, bạn đăng nhập bằng Google và giữ vai trò theo từng công việc. Từ phiên bản 3.1, vibefix không còn nhận ảnh thẻ sinh viên hay hồ sơ ứng tuyển người hướng dẫn.",
       "collectedHeading": "vibefix thu thập gì",
       "collected": {
         "identity": "Danh tính Google: tên, địa chỉ email Google và mã định danh của tài khoản Google, dùng làm khóa của tài khoản vibefix; vibefix không giữ ảnh đại diện Google. Khi bạn liên kết {github}: tên tài khoản, mã số tài khoản, liên kết ảnh đại diện và các email đã xác minh.",
         "profile": "Thông tin hồ sơ bạn nhập: tên hiển thị, email liên hệ, số điện thoại (không bắt buộc).",
-        "student": "Với sinh viên: email trường hoặc ảnh thẻ sinh viên để xác minh.",
-        "mentor": "Với người hướng dẫn: hồ sơ ứng tuyển, liên kết LinkedIn và tài liệu kèm theo để quản trị viên duyệt.",
+        "student": "Khi bạn xác minh là sinh viên: email trường, chỉ để gửi mã xác minh.",
         "jobs": "Nội dung công việc: tin công việc, trò chuyện, tài liệu, tệp đính kèm."
       },
       "purposeHeading": "Để làm gì",
-      "purpose": "Đăng nhập, liên lạc về công việc, xác minh sinh viên, duyệt người hướng dẫn, giữ và chuyển tiền thử nghiệm, phân xử tranh chấp.",
+      "purpose": "Đăng nhập, liên lạc về công việc, xác minh sinh viên khi bạn yêu cầu, giữ và chuyển tiền thử nghiệm, phân xử tranh chấp.",
       "retentionHeading": "Giữ trong bao lâu",
-      "retention": "Đến khi bạn yêu cầu xóa tài khoản. Ảnh thẻ sinh viên và tài liệu của người hướng dẫn tự xóa 30 ngày sau khi có quyết định. Một số bản ghi giao dịch và nhật ký hệ thống được giữ lại theo quy định.",
+      "retention": "Đến khi bạn yêu cầu xóa tài khoản. Một số bản ghi giao dịch và nhật ký hệ thống được giữ lại theo quy định.",
       "rightsHeading": "Quyền của bạn",
       "rights": "Xem, tải về và yêu cầu xóa dữ liệu của bạn trong mục \"Dữ liệu của tôi\".",
       "changes": "Khi thông báo thay đổi, phiên bản mới có số mới và bạn được hỏi lại trước khi tiếp tục."
@@ -3982,7 +3710,7 @@
     },
     "jobPost": {
       "label": "Tin công việc",
-      "hint": "Công việc đang mở để người hướng dẫn đã được duyệt xem và ứng tuyển."
+      "hint": "Công việc đang mở để người hướng dẫn xem và ứng tuyển."
     },
     "assessmentJob": {
       "label": "Công việc đánh giá",
@@ -4248,13 +3976,11 @@
     "jobs": "Công việc",
     "notifications": "Thông báo",
     "findWork": "Tìm việc",
-    "team": "Nhóm",
-    "mentorProfile": "Hồ sơ người hướng dẫn"
+    "team": "Nhóm"
   },
   "todo": {
     "identity": {
       "link_github": "Liên kết tài khoản GitHub",
-      "complete_mentor_application": "Hoàn thành hồ sơ người hướng dẫn",
       "verify_student": "Xác minh là sinh viên để vào nhóm của người hướng dẫn",
       "relink_github": "Liên kết lại GitHub để vibefix kiểm tra được kho mã của bạn"
     },
@@ -4388,29 +4114,8 @@
       "administrator_enrolment": {
         "title": "{by} đã tạo tài khoản quản trị vibefix cho bạn"
       },
-      "student_card_approved": {
-        "title": "Thẻ sinh viên đã được duyệt"
-      },
-      "student_card_rejected": {
-        "title": "Thẻ sinh viên chưa được duyệt: {reason}"
-      },
-      "mentor_application_received": {
-        "title": "Có hồ sơ người hướng dẫn mới cần duyệt"
-      },
-      "mentor_approved": {
-        "title": "Hồ sơ người hướng dẫn của bạn đã được duyệt. Bạn có thể mời sinh viên vào nhóm và ứng tuyển."
-      },
-      "mentor_rejected": {
-        "title": "Hồ sơ người hướng dẫn chưa được duyệt: {reason}"
-      },
       "account_locked": {
         "title": "Tài khoản vibefix của bạn đã bị khóa: {reason}"
-      },
-      "verification_revoked": {
-        "title": "Xác minh sinh viên đã bị thu hồi: {reason}"
-      },
-      "mentor_approval_revoked": {
-        "title": "Bạn tạm thời không nhận được việc mới: {reason}"
       },
       "deletion_requested": {
         "title": "{name} yêu cầu xóa tài khoản"
@@ -4792,7 +4497,6 @@
   "reason": {
     "identity": {
       "EMAIL_DOMAIN_NOT_ALLOWED": "Email này không thuộc trường nào trong danh sách của vibefix. Hãy dùng email do trường cấp.",
-      "ALREADY_USED_FOR_VERIFICATION": "Thẻ sinh viên này đã xác minh cho tài khoản khác.",
       "STUDENT_EMAIL_IN_USE": "Email này đã xác minh cho một tài khoản khác.",
       "WRONG_CODE": "Mã chưa đúng.",
       "CODE_EXPIRED": "Mã đã hết hạn. Hãy gửi mã mới.",
@@ -4802,16 +4506,11 @@
       "STEP_UP_FAILED": "Mã chưa đúng.",
       "ADMINISTRATOR_EMAIL_IN_USE": "Email này đã thuộc về một quản trị viên.",
       "ENROLMENT_CODE_WRONG": "Mã chưa đúng. Hãy nhập mã mới nhất trong ứng dụng xác thực.",
-      "MENTOR_NOT_APPROVED": "Hồ sơ người hướng dẫn của bạn chưa được duyệt.",
       "ACCOUNT_LOCKED": "Tài khoản của bạn đang bị khóa.",
-      "MENTOR_LINKEDIN_IN_USE": "Liên kết LinkedIn này đã được dùng cho một hồ sơ người hướng dẫn khác.",
-      "PRIVACY_NOTICE_REQUIRED": "Hãy đọc và đồng ý với thông báo quyền riêng tư trước khi gửi hồ sơ.",
-      "MENTOR_REAPPLY_TOO_SOON": "Bạn có thể gửi lại hồ sơ từ ngày {date}.",
+      "PRIVACY_NOTICE_REQUIRED": "Hãy đọc và đồng ý với thông báo quyền riêng tư trước khi tiếp tục.",
       "ADMINISTRATOR_ACCOUNT": "Tài khoản quản trị viên được quản lý ở trang Quản trị viên.",
       "ALREADY_LOCKED": "Tài khoản này đã bị khóa.",
       "NOT_LOCKED": "Tài khoản này không bị khóa.",
-      "NOT_VERIFIED": "Sinh viên này chưa được xác minh.",
-      "NOT_APPROVED": "Người hướng dẫn này không ở trạng thái đã duyệt.",
       "ALREADY_REQUESTED": "Bạn đã gửi yêu cầu xóa tài khoản.",
       "NO_DELETION_REQUEST": "Người dùng chưa gửi yêu cầu xóa tài khoản.",
       "ERASURE_BLOCKED": "Chưa xóa được vì người dùng còn công việc đang chạy, tranh chấp hoặc khiếu nại nội bộ chưa xong.",
@@ -4947,7 +4646,8 @@
       "ALREADY_INVITED": "Bạn đã mời người hướng dẫn này cho công việc này.",
       "INVITEE_ALREADY_APPLIED": "Người hướng dẫn này đã ứng tuyển công việc này.",
       "INVITE_LIMIT_JOB_POST": "Hôm nay bạn đã gửi đủ 10 lời mời cho công việc này. Bạn có thể mời tiếp sau 00:00.",
-      "INVITE_LIMIT_DAILY": "Hôm nay bạn đã gửi đủ 30 lời mời. Bạn có thể mời tiếp sau 00:00."
+      "INVITE_LIMIT_DAILY": "Hôm nay bạn đã gửi đủ 30 lời mời. Bạn có thể mời tiếp sau 00:00.",
+      "PROFILE_REQUIRED": "Hãy đặt tên hiển thị trong hồ sơ trước khi ứng tuyển, để khách hàng biết ai đang ứng tuyển."
     },
     "chat": {
       "SENSITIVE_CONTENT": "Tin nhắn có thể chứa khóa bí mật hoặc dữ liệu khách hàng.",
@@ -5065,7 +4765,6 @@
       "STATEMENT_PERIOD_OPEN": "Bên kia vẫn đang trong thời hạn trình bày."
     },
     "admin": {
-      "FEEDBACK_NOT_ENOUGH": "Cần ít nhất 3 đánh giá kín từ 2 sinh viên khác nhau trên 2 công việc khác nhau.",
       "ALREADY_HIDDEN": "Nội dung này đã bị ẩn.",
       "NOT_FAILED": "Thao tác này không còn ở trạng thái lỗi.",
       "ALREADY_REPORTED": "Bạn đã báo cáo mục này và báo cáo đang chờ xử lý.",

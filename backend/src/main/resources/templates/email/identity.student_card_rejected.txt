@@ -1,8 +1,0 @@
-subject: Thẻ sinh viên chưa được duyệt: {reason}
-link: /ho-so
----
-Xin chào,
-
-Quản trị viên vibefix chưa duyệt thẻ sinh viên của bạn. Lý do: {reason}
-Hãy chụp lại thẻ ở nơi đủ sáng, thấy rõ tên, trường và hạn thẻ, rồi chọn "Tải lên thẻ khác" ở trang Hồ sơ và xác minh.
-Ảnh thẻ cũ sẽ tự xóa sau 30 ngày.

@@ -24,7 +24,7 @@ import vn.vibefix.audit.AuditActor;
 import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
-import vn.vibefix.identity.MentorGate;
+import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.job.JobTransitioned;
 import vn.vibefix.job.internal.Jobs.Job;
 import vn.vibefix.shared.ApiException;
@@ -271,7 +271,7 @@ class JobLifecycle {
 
 	private final Jobs jobs;
 
-	private final MentorGate accounts;
+	private final ActiveAccount accounts;
 
 	private final JdbcClient jdbc;
 
@@ -283,7 +283,7 @@ class JobLifecycle {
 
 	private final Clock clock;
 
-	JobLifecycle(List<Step> steps, Jobs jobs, MentorGate accounts, JdbcClient jdbc, AuditLog auditLog,
+	JobLifecycle(List<Step> steps, Jobs jobs, ActiveAccount accounts, JdbcClient jdbc, AuditLog auditLog,
 			ApplicationEventPublisher events, IdGenerator ids, Clock clock) {
 		for (Step step : steps) {
 			if (!step.transition().reachable()) {

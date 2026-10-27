@@ -13,7 +13,6 @@ import vn.vibefix.audit.AuditActor;
 import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.SignInSession.PendingWelcome;
 import vn.vibefix.notification.Audience;
 import vn.vibefix.notification.TodoRequest;
@@ -21,7 +20,6 @@ import vn.vibefix.notification.Todos;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.IdGenerator;
-import vn.vibefix.shared.Role;
 
 /**
  * The account side of signing in (AD-19, FR-1). One account per person, keyed by Google's subject,
@@ -33,13 +31,11 @@ class SignIns {
 
 	static final String PRIVACY_NOTICE = "PRIVACY";
 
-	static final String COMPLETE_MENTOR_APPLICATION = "identity.complete_mentor_application";
-
 	/** ACC-2, the verification hub, where the student verification lives since Story 19.3. */
 	static final String VERIFICATION_PATH = "/ho-so/xac-minh";
 
-	/** MEN-5, the Mentor application, beside ACC-1 since Story 19.3 (until Story 19.7). */
-	static final String MENTOR_PROFILE_PATH = "/ho-so/nguoi-huong-dan";
+	/** Where every account lands after signing in: the to-do list; no Mentor waits for an approval (Story 19.7). */
+	static final String LANDING_PATH = "/viec-can-lam";
 
 	static final String VERIFY_STUDENT = "identity.verify_student";
 
@@ -146,15 +142,6 @@ class SignIns {
 		this.auditLog.record(AuditEntry.of(AuditActor.user(accountId), "identity.signed_in",
 				AuditObject.of("identity.account", accountId)));
 		return account;
-	}
-
-	/**
-	 * Where an account lands after signing in: a Mentor from before Google sign-in waiting for approval
-	 * sees only MEN-5 (FR-74); everyone else, a Google account with no role too, the to-do list.
-	 */
-	static String landingPath(Account account) {
-		return account.role() == Role.MENTOR && account.mentorApprovalStatus() != MentorApprovalStatus.APPROVED
-				? MENTOR_PROFILE_PATH : "/viec-can-lam";
 	}
 
 	/** PUB-3 greets the Google name, else the address. */

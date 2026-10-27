@@ -12,7 +12,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
@@ -32,10 +31,9 @@ import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
 import vn.vibefix.identity.AccountAdministration;
-import vn.vibefix.identity.AccountAdministration.Ground;
 import vn.vibefix.identity.AccountAdministration.Query;
+import vn.vibefix.identity.AccountAdministration.SignalKind;
 import vn.vibefix.identity.AccountAdministration.Status;
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.reputation.PrivateFeedback;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.ApiException;
@@ -45,34 +43,20 @@ import vn.vibefix.shared.Gate;
 import vn.vibefix.shared.Role;
 
 /**
- * ADM-2 (FR-5, FR-59, FR-74, FR-78, AD-20, SG-10): the users, one account with its history and, for a
- * Mentor, the private feedback (opening it is audited), and the lock, the unlock, and both revocations.
- * A revocation on the private-feedback ground needs FR-78's threshold and gives the Mentor only the
- * policy category; a 5th step-up failure ends the Administrator's session.
+ * ADM-2 (FR-5, FR-59, FR-78, AD-19, AD-20, SG-10): the users, one account with its history, the accounts
+ * that may be the same person ("Tài khoản có thể cùng một người") and, for a Mentor, the private feedback
+ * (opening either is audited), and the lock, the unlock, and the erasure on the person's request. Nobody is
+ * approved or revoked here (Story 19.7); a 5th step-up failure ends the Administrator's session.
  */
 @RestController
 @RequestMapping("/api/v1/admin/users")
 @Access(Gate.ADMINISTRATOR)
 class AdminUsersController {
 
-	/** FR-78's policy categories: the only reasons a Mentor reads for the private-feedback ground. */
-	enum Category {
-
-		RESPECT("Thiếu tôn trọng với sinh viên"), GUIDANCE("Không hướng dẫn hoặc không phản hồi nhóm"),
-		RULES("Vi phạm quy tắc của vibefix");
-
-		private final String text;
-
-		Category(String text) {
-			this.text = text;
-		}
-
-	}
-
 	/** The low private feedback filter (FR-78), on top of the identity statuses. */
 	enum Filter {
 
-		LOCKED, VERIFIED, PENDING, APPROVED, REJECTED, REVOKED, LOW_FEEDBACK
+		LOCKED, VERIFIED, LOW_FEEDBACK
 
 	}
 
@@ -84,14 +68,29 @@ class AdminUsersController {
 	record UsersView(List<UserRowView> items, long total, int page, int size) {
 	}
 
-	record ActionView(String action, String reason, @Nullable Ground ground, @Nullable String actedBy, Instant actedAt) {
+	/**
+	 * @param action {@code LOCKED} or {@code UNLOCKED}; {@code VERIFICATION_REVOKED} and {@code APPROVAL_REVOKED}
+	 * stay readable on the history from before Story 19.7
+	 * @param ground an old approval revocation's ground, {@code OTHER} or {@code PRIVATE_FEEDBACK}
+	 */
+	record ActionView(String action, String reason, @Nullable String ground, @Nullable String actedBy, Instant actedAt) {
+	}
+
+	/**
+	 * Another account that shares a person-link signal with this one (AD-19), never the signal.
+	 * @param name absent for an erased account
+	 * @param kinds the kinds they share, each once
+	 * @param createdAt when that account was created
+	 */
+	record PersonLinkView(UUID accountId, @Nullable String name, List<SignalKind> kinds, boolean locked, boolean erased,
+			Instant createdAt) {
 	}
 
 	record UserVerificationView(String method, Instant verifiedAt, LocalDate validUntil, boolean current) {
 	}
 
 	/** @param comments the comments as written, for Administrators only */
-	record FeedbackView(BigDecimal average, int count, List<String> comments, boolean enoughToAct) {
+	record FeedbackView(BigDecimal average, int count, List<String> comments) {
 	}
 
 	/** @param jobId the Job a blocker concerns, when there is one */
@@ -107,12 +106,13 @@ class AdminUsersController {
 	}
 
 	/**
+	 * @param personLinks the accounts that may be the same person, the oldest first (AD-19)
 	 * @param feedback a Mentor's private feedback, when anyone gave any (FR-78)
 	 * @param deletionRequest the person's account deletion request, if they made one (NFR-11)
 	 */
 	record UserDetailView(UUID id, @Nullable Role role, @Nullable String name, @Nullable String githubLogin, @Nullable String email,
 			Instant createdAt, @Nullable Instant signedInAt, @Nullable Instant lockedAt, @Nullable String lockReason,
-			@Nullable MentorApprovalStatus approval, @Nullable UserVerificationView verification, List<ActionView> history,
+			@Nullable UserVerificationView verification, List<ActionView> history, List<PersonLinkView> personLinks,
 			@Nullable FeedbackView feedback, @Nullable DeletionRequestView deletionRequest) {
 	}
 
@@ -120,11 +120,6 @@ class AdminUsersController {
 	}
 
 	record ReasonRequest(@NotBlank @Size(max = 500) String reason) {
-	}
-
-	/** {@code OTHER} takes a reason; {@code PRIVATE_FEEDBACK} takes a category. */
-	record RevokeApprovalRequest(@NotNull Ground ground, @Nullable @Size(max = 500) String reason,
-			@Nullable Category category, @NotBlank @Pattern(regexp = "^[0-9]{6}$") String stepUpCode) {
 	}
 
 	private final AccountAdministration accounts;
@@ -180,51 +175,6 @@ class AdminUsersController {
 		return detail(accountId, false);
 	}
 
-	@PostMapping("/{accountId}/revoke-verification")
-	UserDetailView revokeVerification(@PathVariable UUID accountId, @Valid @RequestBody ReasonRequest body) {
-		this.accounts.revokeVerification(administrator(), accountId, body.reason());
-		return detail(accountId, false);
-	}
-
-	/**
-	 * "Thu hồi" (FR-74, FR-78).
-	 * @throws ApiException {@code VALIDATION} without the ground's reason or category;
-	 * {@code GUARD_FAILED FEEDBACK_NOT_ENOUGH}; the step-up refusal; {@code CONFLICT NOT_APPROVED}
-	 */
-	@PostMapping("/{accountId}/revoke-approval")
-	UserDetailView revokeApproval(@PathVariable UUID accountId, @Valid @RequestBody RevokeApprovalRequest body,
-			HttpServletRequest request) {
-		String reason;
-		if (body.ground() == Ground.PRIVATE_FEEDBACK) {
-			if (body.category() == null) {
-				throw new ApiException(ErrorCode.VALIDATION);
-			}
-			if (!this.feedback.enoughToAct(accountId)) {
-				throw new ApiException(ErrorCode.GUARD_FAILED, AdminReason.FEEDBACK_NOT_ENOUGH);
-			}
-			reason = body.category().text;
-		}
-		else {
-			if (body.reason() == null || body.reason().isBlank()) {
-				throw new ApiException(ErrorCode.VALIDATION);
-			}
-			reason = body.reason();
-		}
-		AccountAdministration.Result result = this.accounts.revokeApproval(administrator(), accountId, body.ground(), reason,
-				body.stepUpCode());
-		if (!result.done()) {
-			if (result.endSession()) {
-				SecurityContextHolder.clearContext();
-				HttpSession session = request.getSession(false);
-				if (session != null) {
-					session.invalidate();
-				}
-			}
-			throw result.refusal();
-		}
-		return detail(accountId, false);
-	}
-
 	/**
 	 * "Xác nhận xóa tài khoản" (NFR-11, AD-24): behind the step-up, only on the person's request and with no
 	 * blocker left.
@@ -252,16 +202,22 @@ class AdminUsersController {
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		FeedbackView feedback = account.role() != Role.MENTOR ? null
 				: this.feedback.summary(accountId)
-					.map(summary -> new FeedbackView(summary.average(), summary.count(), summary.comments(),
-							this.feedback.enoughToAct(accountId)))
+					.map(summary -> new FeedbackView(summary.average(), summary.count(), summary.comments()))
 					.orElse(null);
 		if (viewed && feedback != null) {
 			// Reading a Mentor's private feedback is itself audited (FR-78, AD-8).
 			this.auditLog.record(AuditEntry.of(AuditActor.user(administrator()), "admin.private_feedback_viewed",
 					AuditObject.of("identity.account", accountId)));
 		}
+		// Opening ADM-2 reads the person links under audit; a lock's or an unlock's answer does not (AD-8).
+		List<PersonLinkView> personLinks = (viewed ? this.accounts.viewPersonLinks(administrator(), accountId)
+				: this.accounts.personLinks(accountId))
+			.stream()
+			.map(link -> new PersonLinkView(link.accountId(), link.name(), link.kinds(), link.locked(), link.erased(),
+					link.createdAt()))
+			.toList();
 		return new UserDetailView(account.id(), account.role(), account.name(), account.githubLogin(), account.email(),
-				account.createdAt(), account.signedInAt(), account.lockedAt(), account.lockReason(), account.approval(),
+				account.createdAt(), account.signedInAt(), account.lockedAt(), account.lockReason(),
 				account.verification() == null ? null
 						: new UserVerificationView(account.verification().method(), account.verification().verifiedAt(),
 								account.verification().validUntil(), account.verification().current()),
@@ -270,7 +226,7 @@ class AdminUsersController {
 					.map(action -> new ActionView(action.action(), action.reason(), action.ground(), action.actedBy(),
 							action.actedAt()))
 					.toList(),
-				feedback,
+				personLinks, feedback,
 				this.accounts.deletionRequest(accountId)
 					.map(deletion -> new DeletionRequestView(deletion.requestedAt(), deletion.completedAt(),
 							deletion.blockers()

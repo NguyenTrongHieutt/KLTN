@@ -79,7 +79,7 @@ class EvidencePackageIT extends IntegrationTest {
 	void aDisputedJobWithItsRecordsAndTwoAdministrators() {
 		this.world = HeldCrewJob.create(this.jdbc, this.clock.instant());
 		this.ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
-		this.quan = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null, null);
+		this.quan = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
 		this.jdbc.sql("""
 				INSERT INTO identity.administrator_credential (account_id, email, display_name, password_hash,
 				    totp_key_version, totp_nonce, totp_ciphertext, created_at)

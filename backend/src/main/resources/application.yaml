@@ -106,7 +106,8 @@ vibefix:
     person-signal-key-version: 1
     # N-10's current version; the SPA shows the same one (frontend/src/i18n/vi.json notice.privacy.version).
     # 3.0 (Story 19.1): the Google sign-in and roles per Job; a returning account accepts it again on PUB-3.
-    privacy-notice-version: "3.0"
+    # 3.1 (Story 19.7): no student card photo or Mentor application document is collected any more.
+    privacy-notice-version: "3.1"
     support-email: hotro@vibefix.vn
     # AD-34: sign-in attempts per client address and minute.
     sign-in-limit-per-minute: 20

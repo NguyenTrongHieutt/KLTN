@@ -55,7 +55,7 @@ class SignInSuccessHandler implements AuthenticationSuccessHandler {
 		String target = switch (this.signIns.signInWithGoogle(subject, email, name)) {
 			case SignIns.Outcome.SignedIn signedIn -> {
 				context.setAuthentication(new AccountAuthentication(signedIn.account().id(), signedIn.account().role()));
-				yield returnTo != null ? returnTo : SignIns.landingPath(signedIn.account());
+				yield returnTo != null ? returnTo : SignIns.LANDING_PATH;
 			}
 			case SignIns.Outcome.Locked locked -> {
 				session.setAttribute(SignInSession.LOCKED, new SignInSession.Locked(locked.reason()));

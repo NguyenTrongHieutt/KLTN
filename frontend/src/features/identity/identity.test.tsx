@@ -23,7 +23,7 @@ afterEach(() => {
   sessionExpiry.dismiss()
 })
 
-describe('route guards (AD-19, FR-74)', () => {
+describe('route guards (AD-19)', () => {
   it('sends an anonymous visitor to PUB-2, and the Google button returns to the route asked for', async () => {
     fakeBackend(anonymous)
     const router = renderAt('/viec-can-lam')
@@ -87,17 +87,29 @@ describe('route guards (AD-19, FR-74)', () => {
     expect(await screen.findByRole('region', { name: 'GitHub' })).toHaveTextContent('Chưa liên kết')
   })
 
-  it('keeps a Mentor that is not approved on MEN-5, with no other destination', async () => {
-    fakeBackend(signedIn('MENTOR', 'PENDING'), {
-      'GET /api/v1/profile/mentor': () => json({ approvalStatus: 'PENDING', skills: [] }),
-    })
-    const router = renderAt('/viec-can-lam')
+  it('lands a Mentor on the to-do list with every Mentor destination, since nobody is approved (Story 19.7)', async () => {
+    fakeBackend(signedIn('MENTOR'))
+    const router = renderAt('/dang-nhap')
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Hồ sơ người hướng dẫn' })).toBeInTheDocument()
-    expect(router.state.location.pathname).toBe('/ho-so/nguoi-huong-dan')
-    expect(await screen.findByText('Chưa gửi')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Việc cần làm' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/viec-can-lam')
     const nav = screen.getByRole('navigation', { name: 'Điều hướng chính' })
-    expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Hồ sơ người hướng dẫn'])
+    expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual([
+      'Việc cần làm',
+      'Tìm việc',
+      'Công việc',
+      'Nhóm',
+      'Thông báo',
+    ])
+    expect(screen.queryByRole('link', { name: 'Hồ sơ người hướng dẫn' })).not.toBeInTheDocument()
+  })
+
+  it('answers the retired Mentor application route with the not-found screen (Story 19.7)', async () => {
+    fakeBackend(signedIn('MENTOR'))
+    const router = renderAt('/ho-so/nguoi-huong-dan')
+
+    expect(await screen.findByRole('heading', { level: 1, name: /Không tìm thấy/ })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/ho-so/nguoi-huong-dan')
   })
 
   it.each([
@@ -115,17 +127,16 @@ describe('route guards (AD-19, FR-74)', () => {
   })
 
   it.each([
-    ['a Google account with no role', signedInWithGoogle, true],
-    ['an approved Mentor', signedIn('MENTOR'), true],
-    ['a Mentor waiting for approval, held on MEN-5', signedIn('MENTOR', 'PENDING'), false],
-  ])('offers "Hồ sơ" in the avatar menu or not to %s', async (_, session, offered) => {
+    ['a Google account with no role', signedInWithGoogle],
+    ['a Mentor', signedIn('MENTOR')],
+  ])('offers "Hồ sơ" in the avatar menu to %s', async (_, session) => {
     const user = userEvent.setup()
-    fakeBackend(session, { 'GET /api/v1/profile/mentor': () => json({ approvalStatus: 'PENDING', skills: [] }) })
+    fakeBackend(session)
     renderAt('/viec-can-lam')
 
     await user.click(await screen.findByRole('button', { name: /^Tài khoản của / }))
     await screen.findByRole('menuitem', { name: 'Đăng xuất' })
-    expect(screen.queryAllByRole('menuitem', { name: 'Hồ sơ' })).toHaveLength(offered ? 1 : 0)
+    expect(screen.queryAllByRole('menuitem', { name: 'Hồ sơ' })).toHaveLength(1)
   })
 
   it('sends a signed-in account away from PUB-2 and PUB-3 to where it lands', async () => {
@@ -194,26 +205,26 @@ describe('PUB-3 "Chào mừng" (FR-1, NFR-9, UX-DR89)', () => {
       expect(screen.getByText(line)).toBeInTheDocument()
     }
     expect(screen.queryByRole('radio')).not.toBeInTheDocument()
-    expect(screen.getByText('Phiên bản 3.0 · 25/10/2026')).toBeInTheDocument()
+    expect(screen.getByText('Phiên bản 3.1 · 27/10/2026')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Đọc toàn văn thông báo quyền riêng tư' })).toHaveAttribute('target', '_blank')
     expect(submit).toBeDisabled()
-    await user.click(screen.getByRole('checkbox', { name: /phiên bản 3.0/ }))
+    await user.click(screen.getByRole('checkbox', { name: /phiên bản 3.1/ }))
     await user.click(submit)
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/viec-can-lam'))
     const request = seen.find((entry) => entry.method === 'POST')!
-    expect(await request.clone().json()).toEqual({ privacyNoticeVersion: '3.0' })
+    expect(await request.clone().json()).toEqual({ privacyNoticeVersion: '3.1' })
     expect(request.headers.get('X-XSRF-TOKEN')).toBe('token-1')
     document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT'
   })
 
   it('says so when the notice changed meanwhile, and asks to accept the new version', async () => {
     const user = userEvent.setup()
-    let version = '3.0'
+    let version = '3.1'
     fakeBackend(anonymous, {
       'GET /api/v1/session': () => json({ ...welcome, privacyNoticeVersion: version }),
       'POST /api/v1/session/sign-up': () => {
-        version = '3.1'
+        version = '3.2'
         return json({ status: 409, code: 'STALE' }, 409)
       },
     })
@@ -223,7 +234,7 @@ describe('PUB-3 "Chào mừng" (FR-1, NFR-9, UX-DR89)', () => {
     await user.click(screen.getByRole('button', { name: 'Đồng ý và bắt đầu' }))
 
     expect(await screen.findByRole('alert')).toBeInTheDocument()
-    const checkbox = await screen.findByRole('checkbox', { name: /phiên bản 3.1/ })
+    const checkbox = await screen.findByRole('checkbox', { name: /phiên bản 3.2/ })
     expect(checkbox).not.toBeChecked()
     expect(screen.getByRole('button', { name: 'Đồng ý và bắt đầu' })).toBeDisabled()
   })

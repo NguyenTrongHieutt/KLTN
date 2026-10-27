@@ -26,7 +26,6 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.job.JobTransitioned;
 import vn.vibefix.shared.Role;
@@ -72,8 +71,8 @@ class RevocationChecklistIT extends IntegrationTest {
 
 	@BeforeEach
 	void aClosingJobWithTwoExternalAccessItems() {
-		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
-		this.hung = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Đỗ Mạnh Hùng",
+		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng",
 				java.util.List.of(TeamTestSupport.REACT), "React");
 		this.supabase = UUID.randomUUID();
 		this.vercel = UUID.randomUUID();
@@ -154,7 +153,7 @@ class RevocationChecklistIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/boards/" + this.job + "/revocation-checklist").with(as(this.hung, Role.MENTOR)))
 			.andExpect(jsonPath("$.audience").value("MENTOR"))
 			.andExpect(jsonPath("$.items[0].identifiers").isEmpty());
-		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.mvc.perform(get("/api/v1/boards/" + this.job + "/revocation-checklist").with(as(other, Role.CUSTOMER)))
 			.andExpect(status().isNotFound());
 

@@ -156,7 +156,11 @@ describe('the Admin shell (UX-DR13, SG-10)', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Tổng quan' })).toBeInTheDocument()
     const sidebar = screen.getAllByRole('navigation', { name: 'Quản trị' })[0]
     expect(within(sidebar).getByRole('link', { name: 'Tổng quan' })).toHaveAttribute('aria-current', 'page')
+    // Story 19.7: nobody is approved or reviewed, so neither queue is in the sidebar or on ADM-1.
+    expect(within(sidebar).queryByRole('link', { name: /Người hướng dẫn/ })).not.toBeInTheDocument()
+    expect(within(sidebar).queryByRole('link', { name: /Thẻ sinh viên/ })).not.toBeInTheDocument()
     expect(await screen.findByText('Thao tác lỗi')).toBeInTheDocument()
+    expect(screen.queryByText(/chờ duyệt/)).not.toBeInTheDocument()
     expect(screen.getByText('Cũ nhất: 16/10')).toBeInTheDocument()
     expect(await screen.findByText('Đăng nhập quản trị bị tạm khóa 15 phút: tuan@vibefix.vn (5 lần thử sai)')).toBeInTheDocument()
     expect(screen.getByText('Bảo mật')).toBeInTheDocument()
@@ -179,6 +183,15 @@ describe('the Admin shell (UX-DR13, SG-10)', () => {
     const router = renderAt('/quan-tri')
     await waitFor(() => expect(router.state.location.pathname).toBe('/quan-tri/dang-nhap'))
   })
+
+  it.each(['/quan-tri/nguoi-huong-dan', '/quan-tri/the-sinh-vien'])(
+    'answers the retired %s with the not-found screen (Story 19.7)',
+    async (path) => {
+      fakeBackend(administrator(), { 'GET /api/v1/admin/overview': overview(0) })
+      renderAt(path)
+      expect(await screen.findByRole('heading', { level: 1, name: /Không tìm thấy/ })).toBeInTheDocument()
+    },
+  )
 
   it('shows a Customer the not-found screen', async () => {
     fakeBackend(signedIn('CUSTOMER'))

@@ -35,8 +35,6 @@ import org.springframework.transaction.IllegalTransactionStateException;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import vn.vibefix.identity.AccountLocked;
-import vn.vibefix.identity.MentorApprovalRevoked;
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.Role;
@@ -77,7 +75,7 @@ class TeamMembershipIT extends IntegrationTest {
 
 	@BeforeEach
 	void aMentorWithOneMember() {
-		this.hung = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Đỗ Mạnh Hùng", List.of(REACT), "React");
+		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(REACT), "React");
 		UUID team = this.store.ensure(this.hung, this.clock.instant()).id();
 		this.minh = TeamTestSupport.student(this.jdbc, "Trần Quang Minh", true, List.of(REACT), "React", VERIFIED_UNTIL);
 		this.store.insertMembership(team, this.minh, this.clock.instant());
@@ -92,7 +90,7 @@ class TeamMembershipIT extends IntegrationTest {
 		assertThat(leftReason()).isEqualTo("LEFT");
 		assertThat(notificationParam(this.hung, TeamMemberships.MEMBER_LEFT, "name")).isEqualTo("Trần Quang Minh");
 		leave(this.minh).andExpect(status().isNotFound());
-		UUID thao = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Nguyễn Phương Thảo", List.of(REACT),
+		UUID thao = TeamTestSupport.mentor(this.jdbc, "Nguyễn Phương Thảo", List.of(REACT),
 				"React");
 		this.mvc.perform(post("/api/v1/team/join-requests").with(as(this.minh, Role.STUDENT)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
@@ -101,7 +99,7 @@ class TeamMembershipIT extends IntegrationTest {
 
 	@Test
 	void theMentorRemovesOnlyTheirOwnMembers() throws Exception {
-		UUID other = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Người Khác", List.of(REACT), "React");
+		UUID other = TeamTestSupport.mentor(this.jdbc, "Người Khác", List.of(REACT), "React");
 		this.store.ensure(other, this.clock.instant());
 		remove(other, this.membership).andExpect(status().isNotFound());
 
@@ -110,15 +108,6 @@ class TeamMembershipIT extends IntegrationTest {
 		assertThat(leftReason()).isEqualTo("REMOVED");
 		assertThat(notificationParam(this.minh, TeamMemberships.MEMBER_REMOVED, "mentor")).isEqualTo("Đỗ Mạnh Hùng");
 		remove(this.hung, this.membership).andExpect(status().isNotFound());
-	}
-
-	@Test
-	void aRevokedMentorMayStillRemove() throws Exception {
-		this.jdbc.sql("UPDATE identity.account SET mentor_approval_status = 'REVOKED' WHERE id = :id")
-			.param("id", this.hung)
-			.update();
-
-		remove(this.hung, this.membership).andExpect(status().isNoContent());
 	}
 
 	@Test
@@ -145,7 +134,7 @@ class TeamMembershipIT extends IntegrationTest {
 
 	@Test
 	void aReservationNeedsTheMentorsOwnMemberAndTheCallersTransaction() {
-		UUID other = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Người Khác", List.of(REACT), "React");
+		UUID other = TeamTestSupport.mentor(this.jdbc, "Người Khác", List.of(REACT), "React");
 		UUID loner = TeamTestSupport.student(this.jdbc, "Không Nhóm", true, List.of(REACT), "React", VERIFIED_UNTIL);
 
 		assertThatThrownBy(() -> reserve(UUID.randomUUID(), other, this.minh)).isInstanceOf(ApiException.class)
@@ -163,7 +152,8 @@ class TeamMembershipIT extends IntegrationTest {
 		UUID crewRow = UUID.randomUUID();
 		reserve(crewRow, this.hung, this.minh);
 
-		publish(new MentorApprovalRevoked(UUID.randomUUID(), this.hung));
+		IdentityTestSupport.lock(this.jdbc, this.hung, "Vi phạm");
+		publish(new AccountLocked(UUID.randomUUID(), this.hung, Role.MENTOR));
 		await().atMost(Duration.ofSeconds(10)).until(() -> !this.teams.isMember(this.hung, vy) && settled());
 
 		assertThat(this.teams.isMember(this.hung, this.minh)).isTrue();

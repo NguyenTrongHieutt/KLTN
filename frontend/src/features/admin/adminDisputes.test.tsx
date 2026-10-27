@@ -75,8 +75,6 @@ const overview = {
   failedOperations: { count: 0 },
   stalledEvents: { count: 0 },
   activeAdministrators: 2,
-  studentCards: { count: 0 },
-  mentorApplications: { count: 0 },
   disputes: { count: 1, oldestAt: '2026-10-20T03:00:00Z' },
 }
 

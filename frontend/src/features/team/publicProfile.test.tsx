@@ -182,7 +182,7 @@ describe('MEN-6, the link to PUB-4 (UX-DR83)', () => {
       verified: true,
       verifiedUntil: '2027-09-30',
     }
-    fakeBackend(signedIn('MENTOR', 'APPROVED'), {
+    fakeBackend(signedIn('MENTOR'), {
       'GET /api/v1/mentor/team': () =>
         json({
           status: 'OPEN',

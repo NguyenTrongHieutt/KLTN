@@ -80,7 +80,7 @@ class StudentTeamController {
 		return this.views.studentTeam(student());
 	}
 
-	/** Approved Mentors by keyword and Skills, for verified Students (AD-36). */
+	/** Unlocked Mentors by keyword and Skills, for verified Students (AD-36). */
 	@GetMapping("/mentors")
 	TeamMentorSearchView mentors(@RequestParam(defaultValue = "") @Size(max = 200) String q,
 			@RequestParam(required = false) @Nullable List<UUID> skills,

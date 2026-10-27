@@ -35,7 +35,6 @@ import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.shared.Role;
 
 /**
  * ACC-1 (Story 19.3, FR-3, FR-4, FR-51): the caller's one profile, whatever role it holds in a Job.
@@ -97,8 +96,8 @@ class ProfileController {
 
 	/**
 	 * @param validUntil the last valid day, a 30 September
-	 * @param method how the account verified: {@code SCHOOL_EMAIL} or {@code STUDENT_CARD}
-	 * @param school the allowlisted domain the school email matched, or the student card's school
+	 * @param method how the account verified: {@code SCHOOL_EMAIL}
+	 * @param school the allowlisted domain the school email matched
 	 * @param name the full name declared at verification ("Khai khi xác minh")
 	 * @param major the major declared at verification ("Khai khi xác minh")
 	 * @param verifiedAt when it was verified: "Xác minh qua email trường · {tháng/năm}"
@@ -137,16 +136,12 @@ class ProfileController {
 
 	private final StudentVerifications verifications;
 
-	private final MentorApplications mentorApplications;
-
 	private final CurrentCaller caller;
 
-	ProfileController(Profiles profiles, Accounts accounts, StudentVerifications verifications,
-			MentorApplications mentorApplications, CurrentCaller caller) {
+	ProfileController(Profiles profiles, Accounts accounts, StudentVerifications verifications, CurrentCaller caller) {
 		this.profiles = profiles;
 		this.accounts = accounts;
 		this.verifications = verifications;
-		this.mentorApplications = mentorApplications;
 		this.caller = caller;
 	}
 
@@ -177,8 +172,8 @@ class ProfileController {
 	}
 
 	/**
-	 * Saves the typed zone, with no approval; a verified fact is never written here (AD-42). A Mentor's
-	 * save keeps MEN-5's rules once the application is submitted (until Story 19.7).
+	 * Saves the typed zone, with no approval, whatever role the account holds; a verified fact is never
+	 * written here (AD-42).
 	 */
 	@PutMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
@@ -189,12 +184,7 @@ class ProfileController {
 				blankToNull(request.phone()), blankToNull(request.experience()), request.yearsOfExperience(),
 				request.skillIds(), links(request.links()), repositories(request.repositories()),
 				request.hideStudentDetails());
-		if (account.role() == Role.MENTOR) {
-			this.mentorApplications.saveProfile(account.id(), changes);
-		}
-		else {
-			this.profiles.save(account.id(), changes);
-		}
+		this.profiles.save(account.id(), changes);
 	}
 
 	/** The caller's account, if it is a person's; an Administrator has no profile. */

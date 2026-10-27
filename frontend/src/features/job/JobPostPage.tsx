@@ -19,7 +19,7 @@ import { JobStateBadge } from './JobStateBadge'
 import { useCustomerRating, useJobPost, useMentorCapacity, type JobPost, type MentorCapacity } from './jobPostApi'
 
 /**
- * MEN-3 Chi tiết tin công việc (`/tim-viec/{jobId}`, FR-12, FR-13) for approved Mentors: the Job
+ * MEN-3 Chi tiết tin công việc (`/tim-viec/{jobId}`, FR-12, FR-13) for Mentors, with no approval: the Job
  * Post's answers, Job Types, Skills with their plain hints, deadline, budget, and screenshots; the
  * Customer's Rating summary, never their name or contact details; the Product; the Team's free
  * Students; the FR-13 banners; and "Ứng tuyển" (Story 3.6). A Customer's invitation shows as a
@@ -31,7 +31,7 @@ export function JobPostPage() {
   const invitation = useMentorInvitation(postId)
   const account = useSession().data?.account
   usePageTitle(post.data?.title ?? invitation.data?.jobTitle ?? t('screen.jobPost.title'))
-  if (account && (account.role !== 'MENTOR' || account.mentorApprovalStatus !== 'APPROVED')) {
+  if (account && account.role !== 'MENTOR') {
     return <NotFoundScreen />
   }
   if (post.isError && isNotFound(post.error)) {

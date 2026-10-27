@@ -27,7 +27,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
@@ -66,7 +65,7 @@ class NdaIT extends IntegrationTest {
 
 	@BeforeEach
 	void aJobInSelectingWithAnotherApplicationOnHold() throws Exception {
-		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.product = product(this.lan);
 		this.job = openJob();
 		this.hung = mentor("Đỗ Mạnh Hùng");
@@ -171,11 +170,11 @@ class NdaIT extends IntegrationTest {
 	}
 
 	@Test
-	void aRevokedMentorCannotSign() throws Exception {
-		this.jdbc.sql("UPDATE identity.account SET mentor_approval_status = 'REVOKED' WHERE id = :id").param("id", this.hung).update();
+	void aMentorWithoutGitHubLinkedCannotSign() throws Exception {
+		IdentityTestSupport.unlinkGitHub(this.jdbc, this.hung);
 
 		sign(this.hung, "1.0", true).andExpect(status().isForbidden())
-			.andExpect(jsonPath("$.reason").value("MENTOR_NOT_APPROVED"));
+			.andExpect(jsonPath("$.reason").value("GITHUB_NOT_LINKED"));
 		assertThat(jobState()).isEqualTo("SELECTING");
 	}
 
@@ -224,7 +223,7 @@ class NdaIT extends IntegrationTest {
 	}
 
 	private UUID mentor(String name) {
-		UUID mentor = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, name, List.of(TeamTestSupport.REACT),
+		UUID mentor = TeamTestSupport.mentor(this.jdbc, name, List.of(TeamTestSupport.REACT),
 				"React");
 		UUID team = UUID.randomUUID();
 		this.jdbc.sql("INSERT INTO team.team (id, mentor_account_id, status, created_at) VALUES (:id, :mentor, 'OPEN', now())")

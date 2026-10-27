@@ -26,10 +26,10 @@ import vn.vibefix.audit.AuditObject;
 import vn.vibefix.github.PlatformRepositories;
 import vn.vibefix.github.PlatformRepositories.Invited;
 import vn.vibefix.github.PlatformRepositories.PlatformRepository;
+import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.identity.Administrators;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
-import vn.vibefix.identity.MentorGate;
 import vn.vibefix.identity.StudentDirectory;
 import vn.vibefix.identity.StudentDirectory.StudentCard;
 import vn.vibefix.job.Crews;
@@ -134,7 +134,7 @@ class JobGrants {
 
 	private final MentorDirectory mentors;
 
-	private final MentorGate gate;
+	private final ActiveAccount gate;
 
 	private final StudentDirectory students;
 
@@ -154,9 +154,9 @@ class JobGrants {
 
 	private final Clock clock;
 
-	JobGrants(JdbcClient jdbc, JobBusy busy, JobActivation activation, Crews crews, MentorDirectory mentors, MentorGate gate,
-			StudentDirectory students, ExternalOperations operations, Notifications notifications, Todos todos,
-			Deadlines deadlines, Administrators administrators, AuditLog auditLog, IdGenerator ids, Clock clock) {
+	JobGrants(JdbcClient jdbc, JobBusy busy, JobActivation activation, Crews crews, MentorDirectory mentors,
+			ActiveAccount gate, StudentDirectory students, ExternalOperations operations, Notifications notifications,
+			Todos todos, Deadlines deadlines, Administrators administrators, AuditLog auditLog, IdGenerator ids, Clock clock) {
 		this.jdbc = jdbc;
 		this.busy = busy;
 		this.activation = activation;

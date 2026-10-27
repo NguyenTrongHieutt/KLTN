@@ -7,7 +7,7 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Who sends the current request (AD-20): anonymous, or an account with its permanent role, if it has
- * one. It carries nothing that can change, so policies read approval, verification, and lock status
+ * one. It carries nothing that can change, so policies read the GitHub link, verification, and lock status
  * from the database on every request, never from here (AD-19).
  * @param accountId the account; {@code null} exactly when the caller is anonymous
  * @param role the role of an account from before Google sign-in, and an Administrator's; {@code null}

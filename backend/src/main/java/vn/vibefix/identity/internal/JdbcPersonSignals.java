@@ -27,7 +27,8 @@ import vn.vibefix.shared.IdGenerator;
  * LinkedIn profile, one row per live key version, never the values themselves. Recording a signal
  * that another account already has publishes {@link PersonSignalMatched} for that account.
  * Unverified addresses never arrive here: callers record Google's verified sign-in email, GitHub's
- * verified emails, a confirmed school email, and a saved LinkedIn link only.
+ * verified emails, and a confirmed school email; a typed link records nothing (Story 19.3). The
+ * {@code LINKEDIN} rows recorded before that stay, as every signal does, until their purge.
  */
 @Component
 class JdbcPersonSignals implements PersonSignals {
@@ -119,19 +120,6 @@ class JdbcPersonSignals implements PersonSignals {
 		for (UUID other : holdersOf(source.kind, hmacs, accountId)) {
 			this.events.publishEvent(new PersonSignalMatched(this.ids.newId(), accountId, other, source.kind));
 		}
-	}
-
-	/** The LinkedIn profile's signal under the current key, with that key's version. */
-	Optional<Map.Entry<Integer, String>> currentLinkedIn(String url) {
-		return normalize(Source.LINKEDIN, url)
-			.map(handle -> Map.entry(this.keys.currentVersion(), this.keys.current(Source.LINKEDIN.kind, handle)));
-	}
-
-	/** The LinkedIn profile's signal under every live key, for comparing with stored ones. */
-	List<String> allLinkedIn(String url) {
-		return normalize(Source.LINKEDIN, url)
-			.map(handle -> List.copyOf(this.keys.all(Source.LINKEDIN.kind, handle).values()))
-			.orElse(List.of());
 	}
 
 	/** Deletes the account's signals: their retention ended, 24 months after its erasure (AD-24). */

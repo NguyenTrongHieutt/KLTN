@@ -21,15 +21,15 @@ class MatrixFilesTest {
 		MatrixRow row = MatrixRow.parse(HEADER + """
 				# a comment
 
-				POST /api/v1/jobs/{jobId}/apply , MENTOR , mentor=PENDING;locked=false , apply.json , 403 FORBIDDEN MENTOR_NOT_APPROVED
+				POST /api/v1/jobs/{jobId}/apply , MENTOR , github=unlinked;locked=false , apply.json , 403 FORBIDDEN GITHUB_NOT_LINKED
 				""").getFirst();
 
 		assertThat(row.method()).isEqualTo(HttpMethod.POST);
 		assertThat(row.path()).isEqualTo("/api/v1/jobs/{jobId}/apply");
 		assertThat(row.caller()).isEqualTo(MatrixCaller.MENTOR);
-		assertThat(row.state()).isEqualTo(Map.of("mentor", "PENDING", "locked", "false"));
+		assertThat(row.state()).isEqualTo(Map.of("github", "unlinked", "locked", "false"));
 		assertThat(row.body()).isEqualTo("apply.json");
-		assertThat(row.expect()).isEqualTo(new Expectation(403, "FORBIDDEN", "MENTOR_NOT_APPROVED"));
+		assertThat(row.expect()).isEqualTo(new Expectation(403, "FORBIDDEN", "GITHUB_NOT_LINKED"));
 		assertThat(row.endpoint()).isEqualTo("POST /api/v1/jobs/{jobId}/apply");
 	}
 
@@ -48,9 +48,9 @@ class MatrixFilesTest {
 
 	@Test
 	void aMentorEndpointNamesItsCheckAndNoOtherDoes() {
-		assertThat(MatrixRow.parse(HEADER + "GET /api/v1/mentor/job-posts,MENTOR,mentor=APPROVED,,200,requireApprovedMentor")
+		assertThat(MatrixRow.parse(HEADER + "POST /api/v1/mentor/jobs/{jobId}/nda,MENTOR,,nda.json,404 NOT_FOUND,requireGitHubLinked")
 			.getFirst()
-			.check()).isEqualTo("requireApprovedMentor");
+			.check()).isEqualTo("requireGitHubLinked");
 		assertThat(MatrixRow.parse(HEADER + "POST /api/v1/mentor/jobs/{jobId}/rating,MENTOR,,,204,requireActiveAccount")
 			.getFirst()
 			.check()).isEqualTo("requireActiveAccount");
@@ -58,7 +58,8 @@ class MatrixFilesTest {
 		for (String line : new String[] { "GET /api/v1/mentor/job-posts,MENTOR,,,200",
 				"GET /api/v1/mentor/job-posts,MENTOR,,,200,",
 				"GET /api/v1/mentor/job-posts,MENTOR,,,200,requireNothing",
-				"GET /api/v1/profile,MENTOR,,,200,requireApprovedMentor" }) {
+				"GET /api/v1/profile,MENTOR,,,200,requireGitHubLinked",
+				"GET /api/v1/mentor/job-posts,MENTOR,,,200,requireApprovedMentor" }) {
 			assertThatThrownBy(() -> MatrixRow.parse(HEADER + line)).as(line).isInstanceOf(IllegalArgumentException.class);
 		}
 	}
@@ -74,9 +75,9 @@ class MatrixFilesTest {
 		Canaries canaries = Canaries.load();
 
 		assertThat(canaries.all()).extracting(Canaries.Canary::name)
-			.containsExactlyInAnyOrder("CREW_SHARE", "CREW_EMAIL", "CREW_LINKEDIN", "WORK_ITEM_NOTE", "ATTACHMENT",
-					"CREW_CHAT", "TEAM_ISSUE_ID", "NOTIFICATION_PARAM", "TODO_PARAM", "CONTACT_EMAIL", "SCHOOL_EMAIL",
-					"STUDENT_CARD_FILE", "STUDENT_HIDDEN_NAME", "PRIVATE_FEEDBACK", "SKILL_SUGGESTION");
+			.containsExactlyInAnyOrder("CREW_SHARE", "CREW_EMAIL", "WORK_ITEM_NOTE", "ATTACHMENT", "CREW_CHAT",
+					"TEAM_ISSUE_ID", "NOTIFICATION_PARAM", "TODO_PARAM", "CONTACT_EMAIL", "SCHOOL_EMAIL", "PERSON_SIGNAL",
+					"STUDENT_HIDDEN_NAME", "PRIVATE_FEEDBACK", "SKILL_SUGGESTION");
 		Set<MatrixCaller> neverSee = EnumSet.of(MatrixCaller.ANONYMOUS, MatrixCaller.CUSTOMER, MatrixCaller.OWNER,
 				MatrixCaller.MENTOR, MatrixCaller.STUDENT, MatrixCaller.TEAM_MENTOR, MatrixCaller.TEAM_MEMBER);
 		assertThat(canaries.all()).allSatisfy(canary -> assertThat(canary.visibleTo()).doesNotContainAnyElementsOf(neverSee));
@@ -91,12 +92,12 @@ class MatrixFilesTest {
 			assertThat(canaries.hiddenFrom(caller)).as(caller.name()).hasSize(canaries.all().size());
 		}
 		assertThat(canaries.hiddenFrom(MatrixCaller.CREW_ACTIVE)).extracting(Canaries.Canary::name)
-			.containsExactlyInAnyOrder("CREW_SHARE", "CREW_EMAIL", "CREW_LINKEDIN", "TEAM_ISSUE_ID", "NOTIFICATION_PARAM",
-					"TODO_PARAM", "CONTACT_EMAIL", "SCHOOL_EMAIL", "STUDENT_CARD_FILE", "STUDENT_HIDDEN_NAME",
-					"PRIVATE_FEEDBACK", "SKILL_SUGGESTION");
+			.containsExactlyInAnyOrder("CREW_SHARE", "CREW_EMAIL", "TEAM_ISSUE_ID", "NOTIFICATION_PARAM", "TODO_PARAM",
+					"CONTACT_EMAIL", "SCHOOL_EMAIL", "PERSON_SIGNAL", "STUDENT_HIDDEN_NAME", "PRIVATE_FEEDBACK",
+					"SKILL_SUGGESTION");
 		assertThat(canaries.hiddenFrom(MatrixCaller.ADMINISTRATOR)).extracting(Canaries.Canary::name)
 			.containsExactlyInAnyOrder("CREW_SHARE", "WORK_ITEM_NOTE", "ATTACHMENT", "CREW_CHAT", "TEAM_ISSUE_ID",
-					"NOTIFICATION_PARAM", "TODO_PARAM", "SCHOOL_EMAIL");
+					"NOTIFICATION_PARAM", "TODO_PARAM", "SCHOOL_EMAIL", "PERSON_SIGNAL");
 	}
 
 	@Test

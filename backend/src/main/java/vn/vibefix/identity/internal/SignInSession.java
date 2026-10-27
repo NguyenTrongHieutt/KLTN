@@ -76,7 +76,7 @@ final class SignInSession {
 	/**
 	 * The authenticated account in the security context: its ID and, for an account from before Google
 	 * sign-in or an Administrator, its permanent role; a Google account has none (Story 20.1 brings the
-	 * kind). Approval and lock status are read from the database on every request, never from here
+	 * kind). The GitHub link and the lock status are read from the database on every request, never from here
 	 * (AD-19).
 	 */
 	static final class AccountAuthentication extends AbstractAuthenticationToken {

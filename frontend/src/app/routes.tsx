@@ -38,11 +38,6 @@ export const routes: RouteObject[] = [
         lazy: async () => ({ Component: (await import('@/features/identity/ProfilePage')).ProfilePage }),
       },
       {
-        // MEN-5, the Mentor application, until Story 19.7 retires it.
-        path: 'ho-so/nguoi-huong-dan',
-        lazy: async () => ({ Component: (await import('@/features/mentor/MentorProfilePage')).MentorProfilePage }),
-      },
-      {
         // ACC-2, where the identity.link_github and identity.relink_github to-dos lead (Story 19.2).
         path: 'ho-so/xac-minh',
         lazy: async () => ({ Component: (await import('@/features/identity/VerificationPage')).VerificationPage }),
@@ -243,16 +238,6 @@ export const routes: RouteObject[] = [
       {
         index: true,
         lazy: async () => ({ Component: (await import('@/features/admin/AdminOverviewPage')).AdminOverviewPage }),
-      },
-      {
-        path: 'the-sinh-vien',
-        lazy: async () => ({ Component: (await import('@/features/admin/StudentCardsPage')).StudentCardsPage }),
-      },
-      {
-        path: 'nguoi-huong-dan/:accountId?',
-        lazy: async () => ({
-          Component: (await import('@/features/admin/MentorApplicationsPage')).MentorApplicationsPage,
-        }),
       },
       {
         path: 'quan-tri-vien',

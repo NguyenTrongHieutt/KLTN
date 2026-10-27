@@ -23,7 +23,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
@@ -59,8 +58,8 @@ class AssessmentReportIT extends IntegrationTest {
 
 	@BeforeEach
 	void people() {
-		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
-		this.hung = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Đỗ Mạnh Hùng",
+		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng",
 				List.of(TeamTestSupport.REACT), "React");
 	}
 

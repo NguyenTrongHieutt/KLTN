@@ -127,7 +127,7 @@ class AdminSignInIT extends IntegrationTest {
 
 	@Test
 	void theFifthFailureIn15MinutesLocksTheEmailFor15MinutesAndAlertsTheOtherAdministrators() throws Exception {
-		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null, null);
+		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
 		for (int i = 0; i < 4; i++) {
 			assertThat(signIn(EMAIL, "khong-dung-" + i, code()).getResponse().getStatus()).isEqualTo(422);
 		}
@@ -166,7 +166,7 @@ class AdminSignInIT extends IntegrationTest {
 
 	@Test
 	void anUnknownEmailLocksTooWithoutAnAlert() throws Exception {
-		IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null, null);
+		IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
 		for (int i = 0; i < 5; i++) {
 			signIn("ai.do@vibefix.vn", "khong-dung-" + i, code());
 		}

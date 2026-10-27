@@ -42,6 +42,7 @@ const thao = {
   skills: ['React', 'Supabase'],
   teamSize: 2,
   relation: 'NONE',
+  available: true,
   signals: { sharedSkills: ['React', 'Supabase'], jobTypeMatches: [], newcomer: true },
 }
 
@@ -53,6 +54,7 @@ const long = {
   skills: ['Supabase'],
   teamSize: 9,
   relation: 'APPLIED',
+  available: true,
   signals: { sharedSkills: ['Supabase'], jobTypeMatches: [{ jobType: 'BUG_FIX', count: 2 }], newcomer: false },
 }
 

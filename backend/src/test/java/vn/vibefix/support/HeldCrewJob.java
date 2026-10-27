@@ -10,7 +10,6 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
 
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.shared.Role;
 import vn.vibefix.team.internal.TeamTestSupport;
@@ -25,8 +24,8 @@ public record HeldCrewJob(UUID lan, UUID hung, UUID vy, UUID minh, UUID product,
 	public static final long PRICE = 1_000_000;
 
 	public static HeldCrewJob create(JdbcClient jdbc, Instant now) {
-		UUID lan = IdentityTestSupport.insertAccount(jdbc, Role.CUSTOMER, null, null);
-		UUID hung = TeamTestSupport.mentor(jdbc, MentorApprovalStatus.APPROVED, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT),
+		UUID lan = IdentityTestSupport.insertAccount(jdbc, Role.CUSTOMER, null);
+		UUID hung = TeamTestSupport.mentor(jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT),
 				"React");
 		UUID vy = student(jdbc, "Trần Thảo Vy");
 		UUID minh = student(jdbc, "Nguyễn Văn Minh");

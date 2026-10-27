@@ -31,8 +31,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.IdentityTestSupport;
+import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
@@ -59,14 +59,14 @@ class JobPostsIT extends IntegrationTest {
 	private UUID hung;
 
 	@BeforeEach
-	void aCustomerWithAProductAndAnApprovedMentor() {
-		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+	void aCustomerWithAProductAndAMentor() {
+		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.product = product(this.lan);
-		this.hung = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null, null);
+		this.hung = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null);
 	}
 
 	@Test
-	void anApprovedMentorBrowsesOpenVisibleJobPostsNewestFirstTwentyAPage() throws Exception {
+	void aMentorBrowsesOpenVisibleJobPostsNewestFirstTwentyAPage() throws Exception {
 		for (int i = 0; i < 21; i++) {
 			openJob("Tin " + i, "BUG_FIX", TeamTestSupport.REACT, "React", "UNDER_2M", "2026-03-01",
 					MutableClock.DEFAULT_INSTANT.minus(Duration.ofHours(21 - i)));
@@ -92,10 +92,12 @@ class JobPostsIT extends IntegrationTest {
 		list("?page=1").andExpect(jsonPath("$.items.length()").value(1))
 			.andExpect(jsonPath("$.items[0].title").value("Tin 0"));
 
-		UUID pending = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, MentorApprovalStatus.PENDING, null);
-		this.mvc.perform(get("/api/v1/mentor/job-posts").with(as(pending, Role.MENTOR)))
-			.andExpect(status().isForbidden())
-			.andExpect(jsonPath("$.reason").value("MENTOR_NOT_APPROVED"));
+		// No Mentor needs an approval (Story 19.7); one locked after the session was read is refused.
+		UUID locked = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, "Vi phạm");
+		this.mvc.perform(get("/api/v1/mentor/job-posts").with(request -> {
+			request.setAttribute(Caller.REQUEST_ATTRIBUTE, Caller.account(locked, Role.MENTOR));
+			return request;
+		})).andExpect(status().isForbidden()).andExpect(jsonPath("$.reason").value("ACCOUNT_LOCKED"));
 		this.mvc.perform(get("/api/v1/mentor/job-posts").with(as(this.lan, Role.CUSTOMER))).andExpect(status().isNotFound());
 	}
 

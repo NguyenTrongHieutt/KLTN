@@ -84,7 +84,7 @@ class VerificationExpiryIT extends IntegrationTest {
 
 	@BeforeEach
 	void aVerifiedStudent() throws Exception {
-		this.student = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null, null);
+		this.student = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null);
 		this.jdbc.sql("UPDATE identity.account SET github_email = 'minh@users.github.test' WHERE id = :id")
 			.param("id", this.student)
 			.update();

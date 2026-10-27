@@ -54,8 +54,8 @@ class PersonSignalsIT extends IntegrationTest {
 
 	@Test
 	void aSchoolEmailMatchesAnotherAccountsGitHubEmailWithoutKeepingTheAddress() {
-		UUID customer = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
-		UUID student = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null, null);
+		UUID customer = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		UUID student = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null);
 
 		record(customer, Source.GITHUB_EMAIL, "Lan.Nguyen@Example.test");
 		assertThat(this.events.stream(PersonSignalMatched.class)).isEmpty();
@@ -75,9 +75,9 @@ class PersonSignalsIT extends IntegrationTest {
 
 	@Test
 	void aLinkedInProfileIsItsHandleInAnyLetterCaseAndADifferentKindNeverMatches() {
-		UUID mentor = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null, null);
-		UUID student = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null, null);
-		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null, null);
+		UUID mentor = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null);
+		UUID student = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null);
+		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null);
 
 		record(mentor, Source.LINKEDIN, "https://www.linkedin.com/in/Do-Manh-Hung/");
 		record(student, Source.LINKEDIN, "https://www.linkedin.com/in/do-manh-hung");
@@ -94,7 +94,7 @@ class PersonSignalsIT extends IntegrationTest {
 
 	@Test
 	void everyVerifiedGitHubEmailIsASignalAtLinking() {
-		UUID mentor = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null, null);
+		UUID mentor = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null);
 		long githubId = this.jdbc.sql("SELECT github_user_id FROM identity.account WHERE id = :id")
 			.param("id", mentor)
 			.query(Long.class)
@@ -111,8 +111,8 @@ class PersonSignalsIT extends IntegrationTest {
 
 	@Test
 	void anErasedAccountsSignalsStayTwentyFourMonths() {
-		UUID gone = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
-		UUID back = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null, null);
+		UUID gone = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		UUID back = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null);
 		record(gone, Source.GITHUB_EMAIL, "same@example.test");
 
 		this.transactions.executeWithoutResult(status -> this.personalData.eraseAccount(gone));
@@ -132,8 +132,8 @@ class PersonSignalsIT extends IntegrationTest {
 	/** Story 19.4: an erased account's verification rows keep their subject HMACs as long as its signals. */
 	@Test
 	void anErasedAccountsVerificationRowsGoWithItsSignalsAfterTwentyFourMonths() {
-		UUID gone = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null, null);
-		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null, null);
+		UUID gone = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null);
+		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null);
 		IdentityTestSupport.verifyStudent(this.jdbc, gone, java.time.LocalDate.parse("2026-09-30"));
 		IdentityTestSupport.verifyStudent(this.jdbc, other, java.time.LocalDate.parse("2026-09-30"));
 

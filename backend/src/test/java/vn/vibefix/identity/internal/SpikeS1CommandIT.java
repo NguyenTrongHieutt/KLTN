@@ -57,7 +57,7 @@ class SpikeS1CommandIT extends IntegrationTest {
 
 	@BeforeEach
 	void aCustomerWithAStoredTokenAndAStubGitHub() throws IOException {
-		UUID customer = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		UUID customer = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.jdbc.sql("UPDATE identity.account SET github_login = 'Lan-Owner' WHERE id = :id").param("id", customer).update();
 		this.accounts.storeCustomerToken(customer, this.cipher.seal(TOKEN, customer.toString()), Instant.now());
 		this.github = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);

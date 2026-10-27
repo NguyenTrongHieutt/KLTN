@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 import vn.vibefix.catalog.Catalog;
 import vn.vibefix.catalog.Skill;
 import vn.vibefix.catalog.SkillCategory;
-import vn.vibefix.identity.MentorGate;
+import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.job.internal.JobController.ScreenshotView;
 import vn.vibefix.job.internal.JobPostQueries.Filter;
 import vn.vibefix.job.internal.JobPostQueries.Page;
@@ -43,9 +43,9 @@ import vn.vibefix.shared.PageResponse;
 import vn.vibefix.shared.Role;
 
 /**
- * MEN-2 and MEN-3 (FR-12, FR-13, AD-20): Open Job Posts that are not hidden, for approved Mentors only
- * (AD-19 new-work command). A Mentor who is not approved is refused; anyone else finds nothing. A Job
- * Post never carries the Customer's name or contact details.
+ * MEN-2 and MEN-3 (FR-12, FR-13, AD-20): Open Job Posts that are not hidden, for Mentors only, with no
+ * approval (Story 19.7). A locked account is refused (AD-19); anyone else finds nothing. A Job Post never
+ * carries the Customer's name or contact details.
  */
 @RestController
 @RequestMapping("/api/v1/mentor")
@@ -83,7 +83,7 @@ class JobPostController {
 
 	private final Scans scans;
 
-	private final MentorGate mentors;
+	private final ActiveAccount mentors;
 
 	private final SearchWindow searches;
 
@@ -92,7 +92,7 @@ class JobPostController {
 	private final Clock clock;
 
 	JobPostController(JobPostQueries posts, Jobs jobs, MentorCapacity capacity, Catalog catalog,
-			ProductDirectory products, Scans scans, MentorGate mentors, SearchWindow searches, CurrentCaller callers,
+			ProductDirectory products, Scans scans, ActiveAccount mentors, SearchWindow searches, CurrentCaller callers,
 			Clock clock) {
 		this.posts = posts;
 		this.jobs = jobs;
@@ -120,7 +120,7 @@ class JobPostController {
 			@RequestParam(name = "category", required = false) @Nullable List<UUID> categories,
 			@RequestParam(name = "budget", required = false) @Nullable List<Budget> budgets,
 			@RequestParam(required = false) @Nullable Integer within, @RequestParam(defaultValue = "0") int page) {
-		UUID mentor = approvedMentor();
+		UUID mentor = activeMentor();
 		if (page < 0 || (within != null && (within < 1 || within > 366))) {
 			throw new ApiException(ErrorCode.VALIDATION);
 		}
@@ -144,14 +144,14 @@ class JobPostController {
 	/** MEN-2 and MEN-3's FR-13 banners. */
 	@GetMapping("/capacity")
 	CapacityView capacity() {
-		Capacity mine = this.capacity.of(approvedMentor());
+		Capacity mine = this.capacity.of(activeMentor());
 		return new CapacityView(mine.teamSize(), mine.freeStudents(), mine.activeJobs(), mine.jobLimit(), mine.reasons());
 	}
 
 	/** MEN-3: one Open Job Post that is not hidden; its ID is the Job's. */
 	@GetMapping("/job-posts/{postId}")
 	JobPostView post(@PathVariable UUID postId) {
-		approvedMentor();
+		activeMentor();
 		Job job = this.posts.find(postId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		ProductInfo product = this.products.find(job.productId()).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		Map<UUID, Skill> skills = new HashMap<>();
@@ -200,14 +200,14 @@ class JobPostController {
 		return values == null ? List.of() : values;
 	}
 
-	/** The approved Mentor calling (AD-19, re-read on every request); anyone but a Mentor finds nothing. */
-	private UUID approvedMentor() {
+	/** The Mentor calling, unlocked (AD-19, re-read on every request); anyone but a Mentor finds nothing. */
+	private UUID activeMentor() {
 		Caller caller = this.callers.get();
 		if (!caller.hasRole(Role.MENTOR)) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		UUID mentor = caller.requireAccountId();
-		this.mentors.requireApprovedMentor(mentor);
+		this.mentors.requireActiveAccount(mentor);
 		return mentor;
 	}
 

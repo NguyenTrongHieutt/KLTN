@@ -22,10 +22,9 @@ import vn.vibefix.shared.PlatformCounts.Unit;
 @Access(Gate.ADMINISTRATOR)
 class AdminStatisticsController {
 
-	static final List<String> ORDER = List.of("usersByRole", "studentsByVerification", "mentorsByApproval",
-			"mentorApplicationsByDecision", "lockedAccounts", "teamsBySize", "crewsBySize", "jobsByState", "jobsByType",
-			"rates", "workItemReviews", "milestones", "acceptances", "ratings", "privateFeedback", "disputesByOutcome",
-			"teamIssuesByOutcome");
+	static final List<String> ORDER = List.of("usersByRole", "studentsByVerification", "lockedAccounts", "teamsBySize",
+			"crewsBySize", "jobsByState", "jobsByType", "rates", "workItemReviews", "milestones", "acceptances", "ratings",
+			"privateFeedback", "disputesByOutcome", "teamIssuesByOutcome");
 
 	record StatisticView(String key, long value, Unit unit) {
 	}

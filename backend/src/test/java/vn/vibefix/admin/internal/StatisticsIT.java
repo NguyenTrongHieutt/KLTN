@@ -20,7 +20,6 @@ import org.springframework.session.SessionRepository;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.AdministratorTestSupport;
 import vn.vibefix.identity.internal.AdministratorTestSupport.Administrator;
 import vn.vibefix.identity.internal.IdentityTestSupport;
@@ -51,13 +50,13 @@ class StatisticsIT extends IntegrationTest {
 	@Test
 	void theFiguresComeGroupedAndCountsOnly() throws Exception {
 		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
-		IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
-		IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, "Vi phạm");
-		TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT), "React");
+		IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, "Vi phạm");
+		TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT), "React");
 		TeamTestSupport.student(this.jdbc, "Trần Thảo Vy", true, List.of(TeamTestSupport.REACT), "React",
 				LocalDate.parse("2026-09-30"));
-		IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null, null);
-		IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-thong-ke", "3.0");
+		IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null);
+		IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-thong-ke", "3.1");
 
 		this.mvc.perform(get("/api/v1/admin/statistics").with(admin(ha))).andExpect(status().isOk())
 			.andExpect(jsonPath("$.groups[0].group").value("usersByRole"))
@@ -70,7 +69,9 @@ class StatisticsIT extends IntegrationTest {
 			// Story 19.4: every person's account counts, by its live, valid verification.
 			.andExpect(jsonPath("$.groups[?(@.group == 'studentsByVerification')].counts[?(@.key == 'UNVERIFIED')].value")
 				.value(5))
-			.andExpect(jsonPath("$.groups[?(@.group == 'mentorsByApproval')].counts[?(@.key == 'APPROVED')].value").value(1))
+			// Story 19.7: nobody is approved, so no Mentor or application count by decision exists.
+			.andExpect(jsonPath("$.groups[?(@.group == 'mentorsByApproval')]").isEmpty())
+			.andExpect(jsonPath("$.groups[?(@.group == 'mentorApplicationsByDecision')]").isEmpty())
 			.andExpect(jsonPath("$.groups[?(@.group == 'lockedAccounts')].counts[?(@.key == 'LOCKED')].value").value(1))
 			.andExpect(jsonPath("$.groups[?(@.group == 'privateFeedback')].counts.length()").value(0))
 			.andExpect(jsonPath("$.groups.length()").value(AdminStatisticsController.ORDER.size()));
@@ -107,8 +108,8 @@ class StatisticsIT extends IntegrationTest {
 			.andExpect(jsonPath("$.groups[?(@.group == 'rates')].counts.length()").value(0))
 			.andExpect(jsonPath("$.groups[?(@.group == 'ratings')].counts.length()").value(0));
 
-		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
-		UUID hung = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT),
+		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		UUID hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT),
 				"React");
 		UUID product = product(lan);
 		List<UUID> closed = List.of(job(product, lan, hung, "CLOSED", true), job(product, lan, hung, "CLOSED", true),

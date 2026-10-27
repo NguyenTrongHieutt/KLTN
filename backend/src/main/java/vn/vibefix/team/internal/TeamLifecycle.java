@@ -16,19 +16,17 @@ import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
 import vn.vibefix.identity.AccountLocked;
-import vn.vibefix.identity.MentorApprovalRevoked;
-import vn.vibefix.identity.MentorApproved;
 import vn.vibefix.shared.Role;
 import vn.vibefix.team.internal.TeamStore.Member;
 import vn.vibefix.team.internal.TeamStore.Team;
 
 /**
- * A Team's life with its Mentor (AD-37). The Team is created when the Mentor is approved. When the
- * Mentor is revoked or locked, the Team closes to new members, its pending requests are cancelled,
- * and each Student is released in their own short transaction with {@code team.released}, unless a
- * Crew reservation holds them: {@link TeamMemberships#releaseCrew} releases them when it ends. A
- * locked Student leaves their Team the same way. Each step is idempotent, so a replayed event
- * changes nothing more.
+ * A Team's life with its Mentor (AD-37). Nobody is approved since Story 19.7, so no Team is created at an
+ * approval: {@link TeamRequests} creates one on demand until Story 21.7 retires Teams. When the Mentor is
+ * locked, the Team closes to new members, its pending requests are cancelled, and each Student is released
+ * in their own short transaction with {@code team.released}, unless a Crew reservation holds them:
+ * {@link TeamMemberships#releaseCrew} releases them when it ends. A locked Student leaves their Team the
+ * same way. Each step is idempotent, so a replayed event changes nothing more.
  */
 @Component
 class TeamLifecycle {
@@ -54,17 +52,6 @@ class TeamLifecycle {
 		this.perStudent = new TransactionTemplate(transactions);
 		this.perStudent.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
 		this.clock = clock;
-	}
-
-	@ApplicationModuleListener
-	void onMentorApproved(MentorApproved event) {
-		Team team = this.store.ensure(event.accountId(), this.clock.instant());
-		this.auditLog.record(AuditEntry.of(AuditActor.system(), "team.team_created", AuditObject.of("team.team", team.id())));
-	}
-
-	@ApplicationModuleListener
-	void onMentorApprovalRevoked(MentorApprovalRevoked event) {
-		mentorGone(event.accountId());
 	}
 
 	@ApplicationModuleListener

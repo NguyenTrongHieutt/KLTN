@@ -28,26 +28,35 @@ import vn.vibefix.identity.SkillGroup;
 import vn.vibefix.shared.KeywordQuery;
 
 /**
- * Mentors' public fields from their profiles, for Mentors who submitted an application (FR-51, AD-36,
- * Story 19.3). Search finds approved, unlocked, unerased Mentors only; PUB-5 also shows a revoked or
- * locked Mentor, as unavailable. Epics 20 and 21 rework who is listed.
+ * Mentors' public fields from their profiles (FR-51, AD-36, Story 19.3): every account holding the
+ * {@code MENTOR} role (until Story 20.3) that has a profile and is not erased; nobody approves them (Story
+ * 19.7). A Mentor is available, to be invited, recommended, or granted, while unlocked with GitHub linked.
+ * Search finds the unlocked ones, an unlinked one as unavailable; PUB-5 also shows a locked one, as
+ * unavailable. Epics 20 and 21 rework who is listed.
  */
 @Component
 class JdbcMentorDirectory implements MentorDirectory {
 
+	/** Unlocked, not erased, and with GitHub linked: a Mentor who may take new work, as the gates read it (Q8). */
+	private static final String AVAILABLE = "(" + Accounts.ACTIVE + " AND " + Accounts.GITHUB_LINKED + ")";
+
 	private static final String COLUMNS = " a.id, a.github_login, a.github_user_id, a.created_at, coalesce(" + Profiles.NAME
 			+ ", '') AS display_name, coalesce(p.experience, '') AS experience, p.years_of_experience, p.skill_ids,"
-			+ " a.mentor_approval_status = 'APPROVED' AND a.locked_at IS NULL AS available ";
+			+ " " + AVAILABLE + " AS available ";
 
 	private static final String FROM = """
-			FROM identity.account a JOIN identity.mentor_application m ON m.account_id = a.id
-			JOIN identity.profile p ON p.account_id = a.id
-			WHERE a.role = 'MENTOR' AND a.erased_at IS NULL AND m.submitted_at IS NOT NULL
+			FROM identity.account a JOIN identity.profile p ON p.account_id = a.id
+			WHERE a.role = 'MENTOR' AND a.erased_at IS NULL
+			""";
+
+	/** PUB-5 finds a Mentor with no profile too: their name is their GitHub username, nothing else declared. */
+	private static final String FROM_ANY = """
+			FROM identity.account a LEFT JOIN identity.profile p ON p.account_id = a.id
+			WHERE a.role = 'MENTOR' AND a.erased_at IS NULL
 			""";
 
 	private record Row(UUID id, @Nullable String login, @Nullable Long githubUserId, Instant createdAt, String displayName,
-			String experience,
-			int years, List<UUID> skillIds, boolean available) {
+			String experience, @Nullable Integer years, List<UUID> skillIds, boolean available) {
 	}
 
 	private final JdbcClient jdbc;
@@ -64,8 +73,7 @@ class JdbcMentorDirectory implements MentorDirectory {
 	public Page<MentorCard> search(String query, Collection<UUID> skillIds, Pageable pageable) {
 		Optional<KeywordQuery> keyword = KeywordQuery.of(query, "p.search_vector");
 		Map<String, Object> params = new HashMap<>();
-		StringBuilder where = new StringBuilder(FROM)
-			.append(" AND a.mentor_approval_status = 'APPROVED' AND a.locked_at IS NULL");
+		StringBuilder where = new StringBuilder(FROM).append(" AND a.locked_at IS NULL");
 		keyword.ifPresent(found -> {
 			where.append(" AND ").append(found.condition());
 			params.putAll(found.params());
@@ -91,8 +99,7 @@ class JdbcMentorDirectory implements MentorDirectory {
 	@Override
 	@Transactional(readOnly = true)
 	public Optional<MentorProfile> byLogin(String githubLogin) {
-		Optional<Row> found = this.jdbc.sql("SELECT " + COLUMNS + FROM
-				+ " AND a.mentor_approval_status IN ('APPROVED', 'REVOKED') AND lower(a.github_login) = lower(:login)")
+		Optional<Row> found = this.jdbc.sql("SELECT " + COLUMNS + FROM_ANY + " AND lower(a.github_login) = lower(:login)")
 			.param("login", githubLogin.strip())
 			.query(JdbcMentorDirectory::row)
 			.optional();
@@ -133,9 +140,8 @@ class JdbcMentorDirectory implements MentorDirectory {
 		if (skillIds.isEmpty()) {
 			return List.of();
 		}
-		return this.jdbc.sql("SELECT a.id, p.skill_ids " + FROM + """
-				 AND a.mentor_approval_status = 'APPROVED' AND a.locked_at IS NULL
-				  AND p.skill_ids && CAST(:skills AS UUID[])
+		return this.jdbc.sql("SELECT a.id, p.skill_ids " + FROM + " AND " + AVAILABLE + """
+				 AND p.skill_ids && CAST(:skills AS UUID[])
 				ORDER BY cardinality(ARRAY(SELECT unnest(p.skill_ids) INTERSECT SELECT unnest(CAST(:skills AS UUID[])))) DESC,
 				  a.id
 				LIMIT :limit
@@ -154,13 +160,31 @@ class JdbcMentorDirectory implements MentorDirectory {
 		if (mentorIds.isEmpty()) {
 			return skills;
 		}
-		this.jdbc.sql("SELECT a.id, p.skill_ids " + FROM
-				+ " AND a.mentor_approval_status = 'APPROVED' AND a.locked_at IS NULL AND a.id IN (:ids)")
+		this.jdbc.sql("SELECT a.id, p.skill_ids " + FROM + " AND " + AVAILABLE + " AND a.id IN (:ids)")
 			.param("ids", List.copyOf(mentorIds))
 			.query(rs -> {
 				skills.put(rs.getObject("id", UUID.class), JdbcStudentDirectory.uuids(rs.getArray("skill_ids")));
 			});
 		return skills;
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<UUID> profileSkillIds(UUID mentorId) {
+		return this.jdbc.sql("SELECT p.skill_ids " + FROM + " AND a.id = :id")
+			.param("id", mentorId)
+			.query((rs, n) -> JdbcStudentDirectory.uuids(rs.getArray("skill_ids")))
+			.optional()
+			.orElse(List.of());
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public boolean hasProfileName(UUID mentorId) {
+		return this.jdbc.sql("SELECT EXISTS (SELECT 1 " + FROM + " AND a.id = :id AND p.display_name IS NOT NULL)")
+			.param("id", mentorId)
+			.query(Boolean.class)
+			.single();
 	}
 
 	private Map<UUID, String> names(List<Row> rows) {
@@ -179,7 +203,8 @@ class JdbcMentorDirectory implements MentorDirectory {
 	private static Row row(ResultSet rs, int n) throws SQLException {
 		return new Row(rs.getObject("id", UUID.class), rs.getString("github_login"), rs.getObject("github_user_id", Long.class),
 				rs.getTimestamp("created_at").toInstant(), rs.getString("display_name"), rs.getString("experience"),
-				rs.getInt("years_of_experience"), JdbcStudentDirectory.uuids(rs.getArray("skill_ids")),
+				rs.getObject("years_of_experience", Integer.class),
+				JdbcStudentDirectory.uuids(rs.getArray("skill_ids")),
 				rs.getBoolean("available"));
 	}
 

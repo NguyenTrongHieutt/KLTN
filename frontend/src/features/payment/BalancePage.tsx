@@ -22,7 +22,7 @@ export function BalancePage() {
   const account = useSession().data?.account
   const balance = useBalance()
   const mentor = account?.role === 'MENTOR'
-  if (account !== undefined && account.role !== 'STUDENT' && !(mentor && account.mentorApprovalStatus === 'APPROVED')) {
+  if (account !== undefined && account.role !== 'STUDENT' && !mentor) {
     return <NotFoundScreen />
   }
   return (

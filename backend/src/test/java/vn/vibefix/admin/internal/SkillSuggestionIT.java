@@ -57,8 +57,8 @@ class SkillSuggestionIT extends IntegrationTest {
 	@BeforeEach
 	void twoPeopleAndAnAdministrator() {
 		this.ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
-		this.vy = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null, null);
-		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		this.vy = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null);
+		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 	}
 
 	@Test

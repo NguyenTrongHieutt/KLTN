@@ -70,11 +70,11 @@ describe('the next-action strip and the to-do list (FR-28, UX-DR14)', () => {
       'GET /api/v1/todos': () =>
         json({
           items: [
-            todo('identity.complete_mentor_application', {
+            todo('identity.link_github', {
               tier: 1,
               deadlineAt: '2026-10-20T10:00:00Z',
               deadlineNear: true,
-              link: '/ho-so',
+              link: '/ho-so/xac-minh',
             }),
             todo('identity.verify_student'),
           ],
@@ -84,14 +84,14 @@ describe('the next-action strip and the to-do list (FR-28, UX-DR14)', () => {
     renderAt('/viec-can-lam')
 
     const strip = await screen.findByRole('region', { name: 'Việc cần làm tiếp theo' })
-    expect(strip).toHaveTextContent('Hoàn thành hồ sơ người hướng dẫn')
+    expect(strip).toHaveTextContent('Liên kết tài khoản GitHub')
     expect(strip).toHaveTextContent('Hạn 20/10')
-    expect(within(strip).getByRole('link', { name: 'Làm ngay' })).toHaveAttribute('href', '/ho-so')
+    expect(within(strip).getByRole('link', { name: 'Làm ngay' })).toHaveAttribute('href', '/ho-so/xac-minh')
     expect(within(strip).getByRole('link', { name: 'và 1 việc khác' })).toHaveAttribute('href', '/viec-can-lam')
 
     const list = screen.getByRole('list', { name: 'Việc cần làm của bạn' })
     expect(within(list).getAllByRole('link').map((link) => link.textContent)).toEqual([
-      expect.stringContaining('Hoàn thành hồ sơ người hướng dẫn'),
+      expect.stringContaining('Liên kết tài khoản GitHub'),
       expect.stringContaining('Xác minh là sinh viên để vào nhóm của người hướng dẫn'),
     ])
     const tab = within(screen.getByRole('navigation', { name: 'Điều hướng nhanh' })).getByRole('link', {
@@ -108,14 +108,15 @@ describe('the next-action strip and the to-do list (FR-28, UX-DR14)', () => {
     expect(screen.queryByRole('region', { name: 'Việc cần làm tiếp theo' })).not.toBeInTheDocument()
   })
 
-  it('keeps the strip for a Mentor who is not approved, without the bell', async () => {
-    fakeBackend(signedIn('MENTOR', 'PENDING'), {
-      'GET /api/v1/todos': () => json({ items: [todo('identity.complete_mentor_application', { tier: 1 })], total: 1 }),
+  it('gives a Mentor the strip and the bell, since no Mentor waits for an approval (Story 19.7)', async () => {
+    fakeBackend(signedIn('MENTOR'), {
+      'GET /api/v1/todos': () => json({ items: [todo('identity.link_github', { tier: 1 })], total: 1 }),
     })
-    renderAt('/ho-so/nguoi-huong-dan')
+    renderAt('/viec-can-lam')
 
     expect(await screen.findByRole('region', { name: 'Việc cần làm tiếp theo' })).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: /^Thông báo/ })).not.toBeInTheDocument()
+    // The bell is the one icon-only "Thông báo" link; the navigations name it with their text.
+    expect(screen.getAllByRole('link', { name: 'Thông báo' }).filter((link) => link.textContent === '')).toHaveLength(1)
   })
 })
 

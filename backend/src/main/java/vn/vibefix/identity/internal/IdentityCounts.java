@@ -12,7 +12,8 @@ import org.springframework.transaction.annotation.Transactional;
 import vn.vibefix.shared.PlatformCounts;
 
 /**
- * ADM-9 (FR-62): users by role, Students by verification, Mentors by approval, applications by decision.
+ * ADM-9 (FR-62): users by role, Students by verification, and locked accounts; nobody is approved since
+ * Story 19.7.
  * A Google account has no role (Story 19.1) and counts under {@code NONE}.
  */
 @Component
@@ -44,13 +45,6 @@ class IdentityCounts implements PlatformCounts {
 			.param("today", LocalDate.ofInstant(this.clock.instant(), StudentVerifications.VIETNAM))
 			.query((rs, n) -> counts.add(new Count("studentsByVerification", rs.getString("key"), rs.getLong("value"))))
 			.list();
-		grouped(counts, "mentorsByApproval", """
-				SELECT mentor_approval_status AS key, count(*) AS value FROM identity.account
-				WHERE role = 'MENTOR' AND erased_at IS NULL GROUP BY mentor_approval_status
-				""");
-		grouped(counts, "mentorApplicationsByDecision", """
-				SELECT decision AS key, count(*) AS value FROM identity.mentor_decision GROUP BY decision
-				""");
 		grouped(counts, "lockedAccounts", """
 				SELECT 'LOCKED' AS key, count(*) AS value FROM identity.account
 				WHERE locked_at IS NOT NULL AND erased_at IS NULL HAVING count(*) > 0

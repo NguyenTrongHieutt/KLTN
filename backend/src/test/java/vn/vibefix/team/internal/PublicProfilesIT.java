@@ -15,7 +15,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.web.servlet.MockMvc;
 
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
@@ -57,7 +56,7 @@ class PublicProfilesIT extends IntegrationTest {
 	void aStudentWhoShowsTheirNameShowsTheSchoolTheMajorAndTheirTeam() throws Exception {
 		UUID shown = TeamTestSupport.student(this.jdbc, "Trần Quang Minh", true, List.of(TeamTestSupport.REACT), "React",
 				VERIFIED_UNTIL);
-		UUID mentor = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Đỗ Mạnh Hùng",
+		UUID mentor = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng",
 				List.of(TeamTestSupport.REACT), "React");
 		UUID team = UUID.randomUUID();
 		this.jdbc.sql("INSERT INTO team.team (id, mentor_account_id, status, created_at) VALUES (:id, :mentor, 'OPEN', now())")
@@ -118,7 +117,7 @@ class PublicProfilesIT extends IntegrationTest {
 	void aLockedStudentOrAMentorHasNoStudentProfile() throws Exception {
 		UUID locked = TeamTestSupport.student(this.jdbc, "Bị khóa", true, List.of(), "", VERIFIED_UNTIL);
 		IdentityTestSupport.lock(this.jdbc, locked, "Vi phạm quy định");
-		UUID mentor = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Người hướng dẫn",
+		UUID mentor = TeamTestSupport.mentor(this.jdbc, "Người hướng dẫn",
 				List.of(TeamTestSupport.REACT), "React");
 
 		this.mvc.perform(get("/api/v1/students/" + TeamTestSupport.login(this.jdbc, locked))).andExpect(status().isNotFound());
@@ -128,13 +127,13 @@ class PublicProfilesIT extends IntegrationTest {
 	}
 
 	@Test
-	void aMentorWithNoClosedJobIsNewAndARevokedMentorKeepsTheirReputation() throws Exception {
-		UUID approved = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Mới vào",
+	void aMentorWithNoClosedJobIsNewAndALockedMentorKeepsTheirReputation() throws Exception {
+		UUID approved = TeamTestSupport.mentor(this.jdbc, "Mới vào",
 				List.of(TeamTestSupport.REACT), "React");
-		UUID revoked = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.REVOKED, "Đã thu hồi",
-				List.of(TeamTestSupport.REACT), "React");
-		UUID pending = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.PENDING, "Chờ duyệt",
-				List.of(TeamTestSupport.REACT), "React");
+		UUID revoked = TeamTestSupport.mentor(this.jdbc, "Đã khóa", List.of(TeamTestSupport.REACT), "React");
+		IdentityTestSupport.lock(this.jdbc, revoked, "Vi phạm");
+		// Story 19.7: only a Mentor is found on PUB-5, and no approval decides it.
+		UUID pending = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 
 		this.mvc.perform(get("/api/v1/mentors/" + TeamTestSupport.login(this.jdbc, approved) + "/reputation"))
 			.andExpect(status().isOk())

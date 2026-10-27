@@ -113,7 +113,7 @@ class VnpayRefundIT extends IntegrationTest {
 		CODE.set("00");
 		SIGNED.set(true);
 		RECEIVED.clear();
-		this.customer = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		this.customer = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.product = UUID.randomUUID();
 		Timestamp now = Timestamp.from(this.clock.instant());
 		this.jdbc.sql("""

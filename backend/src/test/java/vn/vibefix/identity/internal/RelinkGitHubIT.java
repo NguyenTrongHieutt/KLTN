@@ -72,8 +72,8 @@ class RelinkGitHubIT extends IntegrationTest {
 
 	@Test
 	void aMissingTokenAsksTheOwnerToReLinkUntilTheyDo() {
-		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
-		UUID mentor = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null, null);
+		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		UUID mentor = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null);
 		UUID product = liveProduct(lan);
 
 		for (int attempt = 0; attempt < 2; attempt++) {
@@ -102,7 +102,7 @@ class RelinkGitHubIT extends IntegrationTest {
 
 	@Test
 	void reLinkingAnotherGitHubAccountIsRefusedAndKeepsNothing() {
-		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		long githubId = CustomerTokens.githubUserId(this.jdbc, lan);
 
 		GitHubLinksImpl.Outcome outcome = this.links.link(lan, new LinkedUser(githubId + 1, "someone", null, null,
@@ -118,7 +118,7 @@ class RelinkGitHubIT extends IntegrationTest {
 
 	@Test
 	void theTokenIsForgottenOnlyOnceNoLiveProductNeedsIt() {
-		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		UUID product = liveProduct(lan);
 		CustomerTokens.keep(this.context, lan, String.join("", "gh", "o_", "z".repeat(36)));
 
@@ -135,7 +135,7 @@ class RelinkGitHubIT extends IntegrationTest {
 
 	@Test
 	void deletingTheOnlyLiveProductForgetsAndRevokesTheTokenAndAnotherLiveProductKeepsIt() throws Exception {
-		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		UUID first = liveProduct(lan);
 		UUID second = liveProduct(lan);
 		CustomerTokens.keep(this.context, lan, String.join("", "gh", "o_", "q".repeat(36)));
@@ -151,9 +151,9 @@ class RelinkGitHubIT extends IntegrationTest {
 
 	@Test
 	void theDailySweepForgetsAndRevokesTokensNoLiveProductNeedsAfterADay() {
-		UUID abandoned = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
-		UUID owner = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
-		UUID registering = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		UUID abandoned = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		UUID owner = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		UUID registering = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		liveProduct(owner);
 		for (UUID account : List.of(abandoned, owner, registering)) {
 			CustomerTokens.keep(this.context, account, String.join("", "gh", "o_", "w".repeat(36)));

@@ -39,7 +39,6 @@ import vn.vibefix.github.GitHubWebhookReceived;
 import vn.vibefix.github.internal.GitHubStub;
 import vn.vibefix.github.internal.GitHubStub.MergeInstallation;
 import vn.vibefix.github.internal.TestKeys;
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.job.ClosureProposalChanged;
 import vn.vibefix.job.JobTransitioned;
@@ -129,10 +128,10 @@ class FinalMergeAuthorizationIT extends IntegrationTest {
 
 	@BeforeEach
 	void anActiveCodeJob() {
-		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.lanGithub = this.jdbc.sql("SELECT github_user_id FROM identity.account WHERE id = :id").param("id", this.lan)
 			.query(Long.class).single();
-		UUID mentor = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, MentorApprovalStatus.APPROVED, null);
+		UUID mentor = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null);
 		this.repository = IDS.incrementAndGet();
 		this.ownerId = IDS.incrementAndGet();
 		this.owner = "quan-may-" + this.ownerId;
@@ -239,7 +238,7 @@ class FinalMergeAuthorizationIT extends IntegrationTest {
 			.andExpect(jsonPath("$.status").value("BOUND"))
 			.andExpect(jsonPath("$.repository").value(this.owner + "/so-dat-ban"))
 			.andExpect(jsonPath("$.refusal").doesNotExist());
-		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(as(other, Role.CUSTOMER)))
 			.andExpect(status().isNotFound());
 	}

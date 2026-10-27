@@ -14,7 +14,7 @@ import org.springframework.data.domain.Pageable;
 /**
  * Students' public profile fields (FR-51, AD-36): never contact details, and the name, school, and
  * major declared at verification only while the verification is current and the Student chooses to
- * show them. Search serves approved Mentors' screens; the public profile (PUB-4) is for anyone, and no
+ * show them. Search serves Mentors' screens; the public profile (PUB-4) is for anyone, and no
  * Customer screen links to it.
  */
 public interface StudentDirectory {

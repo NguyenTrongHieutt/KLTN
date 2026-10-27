@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import vn.vibefix.identity.MentorGate;
+import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.job.internal.Agreements.AccessLevel;
 import vn.vibefix.job.internal.Agreements.Environment;
 import vn.vibefix.job.internal.ExternalAccessGrants.Item;
@@ -60,11 +60,11 @@ class ExternalAccessController {
 
 	private final ExternalAccessGrants grants;
 
-	private final MentorGate gate;
+	private final ActiveAccount gate;
 
 	private final CurrentCaller callers;
 
-	ExternalAccessController(ExternalAccessGrants grants, MentorGate gate, CurrentCaller callers) {
+	ExternalAccessController(ExternalAccessGrants grants, ActiveAccount gate, CurrentCaller callers) {
 		this.grants = grants;
 		this.gate = gate;
 		this.callers = callers;

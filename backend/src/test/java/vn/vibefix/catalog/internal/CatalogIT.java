@@ -77,7 +77,7 @@ class CatalogIT extends IntegrationTest {
 
 	@Test
 	void signedInCallersReadItWithAnETagAndRevalidate() throws Exception {
-		UUID student = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null, null);
+		UUID student = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null);
 
 		MockHttpServletResponse first = this.mvc
 			.perform(get("/api/v1/catalog").with(authentication(IdentityTestSupport.authentication(student, Role.STUDENT))))

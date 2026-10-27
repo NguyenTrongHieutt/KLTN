@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import vn.vibefix.identity.MentorGate;
+import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.CurrentCaller;
@@ -37,10 +37,9 @@ import vn.vibefix.team.internal.TeamViews.TeamStudentProfileView;
 import vn.vibefix.team.internal.TeamViews.TeamStudentSearchView;
 
 /**
- * MEN-6 and the invite-to-Team Sheet (FR-6, FR-14, AD-36, AD-37), for the Mentor. Inviting,
- * searching, reading PUB-4, and accepting join requests are new-work commands that require an
- * approved Mentor; reading the Team, declining, and removing a Student need only an unlocked account
- * (AD-19). Any other role finds nothing.
+ * MEN-6 and the invite-to-Team Sheet (FR-6, FR-14, AD-36, AD-37), for the Mentor, until Story 21.7
+ * retires Teams. Every command needs only an unlocked account (AD-19); nobody is approved since Story
+ * 19.7. Any other role finds nothing.
  */
 @RestController
 @RequestMapping("/api/v1/mentor/team")
@@ -65,11 +64,11 @@ class MentorTeamController {
 
 	private final TeamMemberships memberships;
 
-	private final MentorGate mentorGate;
+	private final ActiveAccount mentorGate;
 
 	private final CurrentCaller callers;
 
-	MentorTeamController(TeamViews views, TeamRequests requests, TeamMemberships memberships, MentorGate mentorGate,
+	MentorTeamController(TeamViews views, TeamRequests requests, TeamMemberships memberships, ActiveAccount mentorGate,
 			CurrentCaller callers) {
 		this.views = views;
 		this.requests = requests;
@@ -83,8 +82,7 @@ class MentorTeamController {
 	MentorTeamView team() {
 		UUID mentor = mentor();
 		this.mentorGate.requireActiveAccount(mentor);
-		boolean approved = approved(mentor);
-		return this.views.mentorTeam(mentor, approved).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		return this.views.mentorTeam(mentor);
 	}
 
 	/**
@@ -96,7 +94,7 @@ class MentorTeamController {
 			@RequestParam(required = false) @Nullable List<UUID> skills, @RequestParam(required = false) @Nullable String login,
 			@ParameterObject @PageableDefault(size = 20) Pageable pageable) {
 		UUID mentor = mentor();
-		this.mentorGate.requireApprovedMentor(mentor);
+		this.mentorGate.requireActiveAccount(mentor);
 		return this.views.searchStudents(mentor, q, skills == null ? List.of() : skills, login, pageable);
 	}
 
@@ -104,7 +102,7 @@ class MentorTeamController {
 	@GetMapping("/students/{studentId}")
 	TeamStudentProfileView student(@PathVariable UUID studentId) {
 		UUID mentor = mentor();
-		this.mentorGate.requireApprovedMentor(mentor);
+		this.mentorGate.requireActiveAccount(mentor);
 		return this.views.studentProfile(mentor, studentId);
 	}
 
@@ -121,7 +119,7 @@ class MentorTeamController {
 		return TeamRequestView.of(this.requests.acceptOrCancel(this.requests, mentor(), joinRequestId, Kind.JOIN_REQUEST));
 	}
 
-	/** "Xóa khỏi nhóm": needs only an unlocked account, so a revoked Mentor can still let Students go. */
+	/** "Xóa khỏi nhóm": needs only an unlocked account. */
 	@DeleteMapping("/members/{membershipId}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void remove(@PathVariable UUID membershipId) {
@@ -139,16 +137,6 @@ class MentorTeamController {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		return this.callers.get().requireAccountId();
-	}
-
-	private boolean approved(UUID mentor) {
-		try {
-			this.mentorGate.requireApprovedMentor(mentor);
-			return true;
-		}
-		catch (ApiException ex) {
-			return false;
-		}
 	}
 
 }

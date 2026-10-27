@@ -200,7 +200,7 @@ class AdministratorEnrolments implements Administrators {
 		}
 		else {
 			account = this.ids.newId();
-			this.accounts.insert(new Account(account, null, null, null, Role.ADMINISTRATOR, null, null, null, null, now));
+			this.accounts.insert(new Account(account, null, null, null, Role.ADMINISTRATOR, null, null, null, now));
 			this.jdbc.sql("""
 					INSERT INTO identity.administrator_enrolment (id, account_id, email, display_name, token_hash,
 					    created_by, created_at, expires_at)

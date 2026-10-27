@@ -43,7 +43,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 import com.sun.net.httpserver.HttpServer;
 
 import vn.vibefix.identity.AccountLocked;
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.CustomerTokens;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.shared.Role;
@@ -92,7 +91,7 @@ class ApplicationsIT extends IntegrationTest {
 	void aCustomerWithAnOpenJobPost() {
 		CONTRIBUTORS.clear();
 		CONTRIBUTORS.put("/repos/lan/so-dat-ban/contributors", "200 [{\"id\":987654321,\"login\":\"lan\"},{\"login\":\"anon\"}]");
-		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		CustomerTokens.keep(this.context, this.lan, TOKEN);
 		this.job = openJob(product(this.lan), "Sửa lỗi mất đơn hàng");
 	}
@@ -135,7 +134,7 @@ class ApplicationsIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("""
 				SELECT count(*) FROM notification.todo WHERE todo_key = 'matching.answer_invitation_to_apply' AND closed_at IS NULL
 				""").query(Long.class).single()).isZero();
-		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/applications").with(as(other, Role.CUSTOMER)))
 			.andExpect(status().isNotFound());
 		this.mvc.perform(get("/api/v1/mentor/applications").with(as(hung, Role.MENTOR)))
@@ -153,7 +152,14 @@ class ApplicationsIT extends IntegrationTest {
 		apply(hung, this.job, true).andExpect(status().isCreated());
 		apply(hung, this.job, true).andExpect(status().isConflict()).andExpect(jsonPath("$.reason").value("ALREADY_APPLIED"));
 
-		UUID lonely = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Chưa có nhóm",
+		// Story 19.7: a bid needs a profile with a display name, or the Customer could not tell who applied.
+		UUID nameless = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null);
+		apply(nameless, this.job, true).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("PROFILE_REQUIRED"));
+		UUID unnamed = mentorWithFreeStudent("Chưa đặt tên");
+		this.jdbc.sql("UPDATE identity.profile SET display_name = NULL WHERE account_id = :id").param("id", unnamed).update();
+		apply(unnamed, this.job, true).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("PROFILE_REQUIRED"));
+
+		UUID lonely = TeamTestSupport.mentor(this.jdbc, "Chưa có nhóm",
 				List.of(TeamTestSupport.REACT), "React");
 		apply(lonely, this.job, true).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("NO_FREE_STUDENT"));
 
@@ -311,7 +317,7 @@ class ApplicationsIT extends IntegrationTest {
 	}
 
 	private UUID mentorWithFreeStudent(String name) {
-		UUID mentor = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, name, List.of(TeamTestSupport.REACT),
+		UUID mentor = TeamTestSupport.mentor(this.jdbc, name, List.of(TeamTestSupport.REACT),
 				"React");
 		UUID team = UUID.randomUUID();
 		this.jdbc.sql("INSERT INTO team.team (id, mentor_account_id, status, created_at) VALUES (:id, :mentor, 'OPEN', now())")
@@ -327,7 +333,7 @@ class ApplicationsIT extends IntegrationTest {
 	}
 
 	private UUID administrator() {
-		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null, null);
+		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
 		this.jdbc.sql("""
 				INSERT INTO identity.administrator_credential (account_id, email, display_name, password_hash,
 				    totp_key_version, totp_nonce, totp_ciphertext, created_at)

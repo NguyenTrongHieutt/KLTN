@@ -18,9 +18,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import vn.vibefix.catalog.Catalog;
 import vn.vibefix.catalog.Skill;
+import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
-import vn.vibefix.identity.MentorGate;
 import vn.vibefix.job.JobPosts;
 import vn.vibefix.job.JobPosts.JobPostState;
 import vn.vibefix.job.JobPosts.OpenPost;
@@ -64,9 +64,13 @@ class RecommendationController {
 
 	}
 
-	/** A Mentor for the Job Post: the search card's fields and the signals. */
+	/**
+	 * A Mentor for the Job Post: the search card's fields and the signals.
+	 * @param available always true: the pool holds only Mentors who may be invited (AD-17)
+	 */
 	record RecommendedMentorView(UUID accountId, @Nullable String githubLogin, String displayName,
-			int yearsOfExperience, List<String> skills, int teamSize, Relation relation, SignalsView signals) {
+			@Nullable Integer yearsOfExperience, List<String> skills, int teamSize, Relation relation, boolean available,
+			SignalsView signals) {
 	}
 
 	/**
@@ -92,12 +96,12 @@ class RecommendationController {
 
 	private final Catalog catalog;
 
-	private final MentorGate gate;
+	private final ActiveAccount gate;
 
 	private final CurrentCaller callers;
 
 	RecommendationController(Recommendations recommendations, Invitations invitations, JobPosts posts,
-			MentorDirectory mentors, Teams teams, ProductDirectory products, Catalog catalog, MentorGate gate,
+			MentorDirectory mentors, Teams teams, ProductDirectory products, Catalog catalog, ActiveAccount gate,
 			CurrentCaller callers) {
 		this.recommendations = recommendations;
 		this.invitations = invitations;
@@ -131,13 +135,13 @@ class RecommendationController {
 			MentorCard card = cards.get(candidate.mentorId());
 			return new RecommendedMentorView(card.accountId(), card.githubLogin(), card.displayName(),
 					card.yearsOfExperience(), card.skills(), members.getOrDefault(card.accountId(), List.of()).size(),
-					relations.getOrDefault(card.accountId(), Relation.NONE),
+					relations.getOrDefault(card.accountId(), Relation.NONE), card.available(),
 					new SignalsView(named(candidate.sharedSkillIds(), names), JobTypeMatchView.of(candidate.jobTypeMatches()),
 							candidate.newcomer()));
 		}).toList();
 	}
 
-	/** An approved Mentor's Recommendations on MEN-2. */
+	/** A Mentor's Recommendations on MEN-2. */
 	@GetMapping("/api/v1/mentor/recommendations")
 	List<RecommendedPostView> forMentor(@RequestParam(name = "skill", required = false) @Nullable List<UUID> skills,
 			@RequestParam(name = "category", required = false) @Nullable List<UUID> categories) {
@@ -146,7 +150,7 @@ class RecommendationController {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		UUID mentor = caller.requireAccountId();
-		this.gate.requireApprovedMentor(mentor);
+		this.gate.requireActiveAccount(mentor);
 		List<RecommendedPost> found = this.recommendations.forMentor(mentor,
 				SkillFilter.resolve(this.catalog, skills, categories));
 		Set<UUID> invited = this.invitations.openFor(mentor);

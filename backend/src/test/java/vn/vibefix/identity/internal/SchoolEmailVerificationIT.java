@@ -114,7 +114,7 @@ class SchoolEmailVerificationIT extends IntegrationTest {
 	/** The dev seed, which integration tests load, allowlists {@code hust.edu.vn}. */
 	@BeforeEach
 	void aPerson() {
-		this.minh = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-minh", "3.0");
+		this.minh = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-minh", "3.1");
 	}
 
 	@Test
@@ -205,7 +205,7 @@ class SchoolEmailVerificationIT extends IntegrationTest {
 
 	@Test
 	void anAddressThatVerifiesAnotherLiveAccountIsRefusedOnlyAtTheEntry() throws Exception {
-		UUID other = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-other", "3.0");
+		UUID other = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-other", "3.1");
 		send(other, MINH).andExpect(status().isAccepted());
 		confirm(other, deliveredCode(MINH)).andExpect(status().isOk());
 		this.mail.reset();
@@ -246,7 +246,7 @@ class SchoolEmailVerificationIT extends IntegrationTest {
 	void anEntryChecksAndRecordsTheAddressUnderEveryKeyTheSendKnew() throws Exception {
 		String first = this.keys.current("EMAIL", MINH);
 		String second = IdentityTestSupport.fakeHmac("the address under key 2");
-		UUID other = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-other", "3.0");
+		UUID other = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-other", "3.1");
 		this.jdbc.sql("""
 				INSERT INTO identity.verification (id, account_id, kind, provider, subject_hmac, key_version, facts,
 				    consent_version, verified_at, valid_until)
@@ -275,7 +275,7 @@ class SchoolEmailVerificationIT extends IntegrationTest {
 
 	@Test
 	void anAddressTakenBetweenTheSendAndTheEntryIsRefusedAndNothingIsWritten() throws Exception {
-		UUID other = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-other", "3.0");
+		UUID other = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-other", "3.1");
 		send(this.minh, MINH).andExpect(status().isAccepted());
 		String mine = deliveredCode(MINH);
 		send(other, MINH).andExpect(status().isAccepted());
@@ -495,7 +495,7 @@ class SchoolEmailVerificationIT extends IntegrationTest {
 		send(this.minh, MINH);
 		confirm(this.minh, deliveredCode(MINH)).andExpect(status().isOk());
 
-		UUID other = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-other", "3.0");
+		UUID other = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-other", "3.1");
 		IdentityTestSupport.verifyStudent(this.jdbc, other, LocalDate.parse("2027-09-30"));
 		this.mvc.perform(delete("/api/v1/verification/student").with(as(this.minh)).with(csrf()))
 			.andExpect(status().isNoContent());
@@ -586,7 +586,7 @@ class SchoolEmailVerificationIT extends IntegrationTest {
 		confirm(this.minh, deliveredCode(MINH)).andExpect(status().isOk());
 		this.mvc.perform(delete("/api/v1/verification/student").with(as(this.minh)).with(csrf()))
 			.andExpect(status().isNoContent());
-		UUID other = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-other", "3.0");
+		UUID other = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-other", "3.1");
 		IdentityTestSupport.verifyStudent(this.jdbc, other, LocalDate.parse("2027-09-30"));
 
 		this.clock.setInstant(Instant.parse("2028-10-19T02:59:00Z"));
@@ -638,7 +638,7 @@ class SchoolEmailVerificationIT extends IntegrationTest {
 
 	@Test
 	void anyPersonVerifiesButAnAdministratorHasNoVerification() throws Exception {
-		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		RequestPostProcessor customer = authentication(IdentityTestSupport.authentication(lan, Role.CUSTOMER));
 		this.mvc.perform(get("/api/v1/verification").with(customer))
 			.andExpect(status().isOk())
@@ -650,7 +650,7 @@ class SchoolEmailVerificationIT extends IntegrationTest {
 			.andExpect(status().isAccepted())
 			.andExpect(jsonPath("$.pendingCode.school").value("hcmut.edu.vn"));
 
-		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null, null);
+		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
 		this.mvc.perform(get("/api/v1/verification")
 			.with(IdentityTestSupport.signedIn(this.sessions, admin, Role.ADMINISTRATOR, this.clock.instant())))
 			.andExpect(status().isNotFound());

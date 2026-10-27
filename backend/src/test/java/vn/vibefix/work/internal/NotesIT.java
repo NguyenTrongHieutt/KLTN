@@ -27,7 +27,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
@@ -69,8 +68,8 @@ class NotesIT extends IntegrationTest {
 
 	@BeforeEach
 	void aSeededStoryAssignedToVyInProgress() throws Exception {
-		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
-		this.hung = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Đỗ Mạnh Hùng",
+		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng",
 				List.of(TeamTestSupport.REACT), "React");
 		UUID product = WorkTestSupport.product(this.jdbc, this.lan, "Sổ đặt bàn Quán Mây");
 		UUID job = WorkTestSupport.activeJob(this.jdbc, product, this.lan, this.hung, List.of(MILESTONE),

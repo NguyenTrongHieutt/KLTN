@@ -38,7 +38,7 @@ public class SubjectFixture implements MatrixFixture {
 
 	@Override
 	public void seed(MatrixWorld world) {
-		this.subject = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		this.subject = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		UUID notification = UUID.randomUUID();
 		Timestamp now = Timestamp.from(MutableClock.DEFAULT_INSTANT);
 		this.jdbc.sql("""

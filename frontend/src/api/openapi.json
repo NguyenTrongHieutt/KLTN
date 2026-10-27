@@ -1184,166 +1184,6 @@
         "tags" : [ "admin-crew-terms-controller" ]
       }
     },
-    "/api/v1/admin/mentor-applications" : {
-      "get" : {
-        "operationId" : "applications",
-        "parameters" : [ {
-          "in" : "query",
-          "name" : "status",
-          "required" : false,
-          "schema" : {
-            "type" : "string",
-            "default" : "PENDING",
-            "enum" : [ "PENDING", "APPROVED", "REJECTED", "REVOKED" ]
-          }
-        }, {
-          "description" : "Zero-based page index (0..N)",
-          "in" : "query",
-          "name" : "page",
-          "required" : false,
-          "schema" : {
-            "type" : "integer",
-            "default" : 0,
-            "minimum" : 0
-          }
-        }, {
-          "description" : "The size of the page to be returned",
-          "in" : "query",
-          "name" : "size",
-          "required" : false,
-          "schema" : {
-            "type" : "integer",
-            "default" : 20,
-            "minimum" : 1
-          }
-        }, {
-          "description" : "Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.",
-          "in" : "query",
-          "name" : "sort",
-          "required" : false,
-          "schema" : {
-            "type" : "array",
-            "items" : {
-              "type" : "string"
-            }
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/PageResponseMentorApplicationRow"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "mentor-decisions-controller" ]
-      }
-    },
-    "/api/v1/admin/mentor-applications/{applicantId}" : {
-      "get" : {
-        "operationId" : "application",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "applicantId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/MentorApplicationDetail"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "mentor-decisions-controller" ]
-      }
-    },
-    "/api/v1/admin/mentor-applications/{applicantId}/approve" : {
-      "post" : {
-        "operationId" : "approve_4",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "applicantId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/ApproveMentorRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/MentorApplicationRow"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "mentor-decisions-controller" ]
-      }
-    },
-    "/api/v1/admin/mentor-applications/{applicantId}/reject" : {
-      "post" : {
-        "operationId" : "reject_1",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "applicantId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/RejectMentorRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/MentorApplicationRow"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "mentor-decisions-controller" ]
-      }
-    },
     "/api/v1/admin/moderation" : {
       "get" : {
         "operationId" : "items",
@@ -1462,7 +1302,7 @@
         "tags" : [ "admin-rules-controller" ]
       },
       "put" : {
-        "operationId" : "save_3",
+        "operationId" : "save_2",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -1532,7 +1372,7 @@
     },
     "/api/v1/admin/skill-suggestions/{suggestionId}/approve" : {
       "post" : {
-        "operationId" : "approve_3",
+        "operationId" : "approve_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "suggestionId",
@@ -1626,139 +1466,6 @@
           }
         },
         "tags" : [ "admin-statistics-controller" ]
-      }
-    },
-    "/api/v1/admin/student-cards" : {
-      "get" : {
-        "operationId" : "cards",
-        "parameters" : [ {
-          "in" : "query",
-          "name" : "status",
-          "required" : false,
-          "schema" : {
-            "type" : "string",
-            "default" : "PENDING",
-            "enum" : [ "PENDING", "APPROVED", "REJECTED" ]
-          }
-        }, {
-          "description" : "Zero-based page index (0..N)",
-          "in" : "query",
-          "name" : "page",
-          "required" : false,
-          "schema" : {
-            "type" : "integer",
-            "default" : 0,
-            "minimum" : 0
-          }
-        }, {
-          "description" : "The size of the page to be returned",
-          "in" : "query",
-          "name" : "size",
-          "required" : false,
-          "schema" : {
-            "type" : "integer",
-            "default" : 20,
-            "minimum" : 1
-          }
-        }, {
-          "description" : "Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.",
-          "in" : "query",
-          "name" : "sort",
-          "required" : false,
-          "schema" : {
-            "type" : "array",
-            "items" : {
-              "type" : "string"
-            }
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/PageResponseStudentCardRow"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "student-cards-controller" ]
-      }
-    },
-    "/api/v1/admin/student-cards/{cardId}/approve" : {
-      "post" : {
-        "operationId" : "approve_2",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "cardId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/ApproveRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/StudentCardRow"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "student-cards-controller" ]
-      }
-    },
-    "/api/v1/admin/student-cards/{cardId}/reject" : {
-      "post" : {
-        "operationId" : "reject",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "cardId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/RejectRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/StudentCardRow"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "student-cards-controller" ]
       }
     },
     "/api/v1/admin/team-issues" : {
@@ -1897,7 +1604,7 @@
           "required" : false,
           "schema" : {
             "type" : "string",
-            "enum" : [ "LOCKED", "VERIFIED", "PENDING", "APPROVED", "REJECTED", "REVOKED", "LOW_FEEDBACK" ]
+            "enum" : [ "LOCKED", "VERIFIED", "LOW_FEEDBACK" ]
           }
         }, {
           "in" : "query",
@@ -1991,80 +1698,6 @@
     "/api/v1/admin/users/{accountId}/lock" : {
       "post" : {
         "operationId" : "lock",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "accountId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/ReasonRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/UserDetailView"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "admin-users-controller" ]
-      }
-    },
-    "/api/v1/admin/users/{accountId}/revoke-approval" : {
-      "post" : {
-        "operationId" : "revokeApproval",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "accountId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/RevokeApprovalRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/UserDetailView"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "admin-users-controller" ]
-      }
-    },
-    "/api/v1/admin/users/{accountId}/revoke-verification" : {
-      "post" : {
-        "operationId" : "revokeVerification",
         "parameters" : [ {
           "in" : "path",
           "name" : "accountId",
@@ -4307,7 +3940,7 @@
         "tags" : [ "git-hub-link-controller" ]
       },
       "get" : {
-        "operationId" : "read_3",
+        "operationId" : "read_2",
         "responses" : {
           "200" : {
             "content" : {
@@ -4854,7 +4487,7 @@
     },
     "/api/v1/jobs/{jobId}/chat/read" : {
       "post" : {
-        "operationId" : "read_2",
+        "operationId" : "read_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "jobId",
@@ -6191,7 +5824,7 @@
         "tags" : [ "agreement-controller" ]
       },
       "put" : {
-        "operationId" : "save_2",
+        "operationId" : "save_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "jobId",
@@ -7007,7 +6640,7 @@
     },
     "/api/v1/notifications/{notificationId}/read" : {
       "post" : {
-        "operationId" : "read_1",
+        "operationId" : "read",
         "parameters" : [ {
           "in" : "path",
           "name" : "notificationId",
@@ -7721,93 +7354,6 @@
         "tags" : [ "profile-controller" ]
       }
     },
-    "/api/v1/profile/mentor" : {
-      "get" : {
-        "operationId" : "read",
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/MentorProfileView"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "mentor-profile-controller" ]
-      },
-      "put" : {
-        "operationId" : "save_1",
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/MentorApplicationRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/SavedView"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "mentor-profile-controller" ]
-      }
-    },
-    "/api/v1/profile/mentor/document" : {
-      "delete" : {
-        "operationId" : "deleteDocument",
-        "responses" : {
-          "204" : {
-            "description" : "No Content"
-          }
-        },
-        "tags" : [ "mentor-profile-controller" ]
-      },
-      "post" : {
-        "operationId" : "uploadDocument",
-        "requestBody" : {
-          "content" : {
-            "multipart/form-data" : {
-              "schema" : {
-                "type" : "object",
-                "properties" : {
-                  "file" : {
-                    "type" : "string",
-                    "format" : "binary"
-                  }
-                },
-                "required" : [ "file" ]
-              }
-            }
-          }
-        },
-        "responses" : {
-          "201" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/MentorDocumentView"
-                }
-              }
-            },
-            "description" : "Created"
-          }
-        },
-        "tags" : [ "mentor-profile-controller" ]
-      }
-    },
     "/api/v1/reputation/mentor-summaries" : {
       "get" : {
         "operationId" : "summaries",
@@ -8405,40 +7951,6 @@
         "responses" : {
           "204" : {
             "description" : "No Content"
-          }
-        },
-        "tags" : [ "verification-controller" ]
-      }
-    },
-    "/api/v1/verification/student-card" : {
-      "post" : {
-        "operationId" : "uploadCard",
-        "requestBody" : {
-          "content" : {
-            "multipart/form-data" : {
-              "schema" : {
-                "type" : "object",
-                "properties" : {
-                  "file" : {
-                    "type" : "string",
-                    "format" : "binary"
-                  }
-                },
-                "required" : [ "file" ]
-              }
-            }
-          }
-        },
-        "responses" : {
-          "201" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/VerificationView"
-                }
-              }
-            },
-            "description" : "Created"
           }
         },
         "tags" : [ "verification-controller" ]
@@ -9054,10 +8566,6 @@
             "type" : "string",
             "format" : "uuid"
           },
-          "mentorApprovalStatus" : {
-            "type" : "string",
-            "enum" : [ "PENDING", "APPROVED", "REJECTED", "REVOKED" ]
-          },
           "role" : {
             "type" : "string",
             "enum" : [ "CUSTOMER", "MENTOR", "STUDENT", "ADMINISTRATOR" ]
@@ -9083,8 +8591,7 @@
             "type" : "string"
           },
           "ground" : {
-            "type" : "string",
-            "enum" : [ "OTHER", "PRIVATE_FEEDBACK" ]
+            "type" : "string"
           },
           "reason" : {
             "type" : "string"
@@ -9893,7 +9400,7 @@
             "format" : "int32"
           }
         },
-        "required" : [ "displayName", "teamSize", "yearsOfExperience" ]
+        "required" : [ "displayName", "teamSize" ]
       },
       "ApplicationView" : {
         "type" : "object",
@@ -9978,33 +9485,6 @@
           }
         },
         "required" : [ "showProductName", "text" ]
-      },
-      "ApproveMentorRequest" : {
-        "type" : "object",
-        "properties" : {
-          "stepUpCode" : {
-            "type" : "string",
-            "minLength" : 1,
-            "pattern" : "^[0-9]{6}$"
-          }
-        },
-        "required" : [ "stepUpCode" ]
-      },
-      "ApproveRequest" : {
-        "type" : "object",
-        "properties" : {
-          "school" : {
-            "type" : "string",
-            "maxLength" : 200,
-            "minLength" : 0
-          },
-          "studentNumber" : {
-            "type" : "string",
-            "maxLength" : 30,
-            "minLength" : 0
-          }
-        },
-        "required" : [ "school", "studentNumber" ]
       },
       "ApproveSuggestionRequest" : {
         "type" : "object",
@@ -13093,12 +12573,9 @@
           "count" : {
             "type" : "integer",
             "format" : "int32"
-          },
-          "enoughToAct" : {
-            "type" : "boolean"
           }
         },
-        "required" : [ "average", "comments", "count", "enoughToAct" ]
+        "required" : [ "average", "comments", "count" ]
       },
       "FinalMergeView" : {
         "type" : "object",
@@ -14299,7 +13776,7 @@
           },
           "limit" : {
             "type" : "string",
-            "enum" : [ "JOB_POST_NOT_OPEN", "JOB_POST_HIDDEN", "ALREADY_APPLIED", "NO_FREE_STUDENT", "MENTOR_JOB_LIMIT", "CONFLICT_OF_INTEREST", "APPLICANT_IS_CONTRIBUTOR", "CONTRIBUTORS_UNKNOWN", "PUBLIC_CODE_NOT_ACKNOWLEDGED", "NOT_WITHDRAWABLE", "NDA_VERSION_OUTDATED", "COMMIT_EMAIL_NOT_ACKNOWLEDGED", "INVITEE_NOT_AVAILABLE", "ALREADY_INVITED", "INVITEE_ALREADY_APPLIED", "INVITE_LIMIT_JOB_POST", "INVITE_LIMIT_DAILY" ]
+            "enum" : [ "JOB_POST_NOT_OPEN", "JOB_POST_HIDDEN", "ALREADY_APPLIED", "NO_FREE_STUDENT", "MENTOR_JOB_LIMIT", "CONFLICT_OF_INTEREST", "APPLICANT_IS_CONTRIBUTOR", "CONTRIBUTORS_UNKNOWN", "PUBLIC_CODE_NOT_ACKNOWLEDGED", "NOT_WITHDRAWABLE", "NDA_VERSION_OUTDATED", "COMMIT_EMAIL_NOT_ACKNOWLEDGED", "INVITEE_NOT_AVAILABLE", "ALREADY_INVITED", "INVITEE_ALREADY_APPLIED", "INVITE_LIMIT_JOB_POST", "INVITE_LIMIT_DAILY", "PROFILE_REQUIRED" ]
           }
         },
         "required" : [ "invitations", "left" ]
@@ -14925,234 +14402,6 @@
         },
         "required" : [ "since" ]
       },
-      "MentorApplicationDetail" : {
-        "type" : "object",
-        "properties" : {
-          "accountId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "decidedAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "displayName" : {
-            "type" : "string"
-          },
-          "document" : {
-            "$ref" : "#/components/schemas/MentorApplicationDocument"
-          },
-          "experience" : {
-            "type" : "string"
-          },
-          "githubLogin" : {
-            "type" : "string"
-          },
-          "linkedinUrl" : {
-            "type" : "string"
-          },
-          "matches" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/MentorApplicationMatch"
-            }
-          },
-          "otherLink" : {
-            "type" : "string"
-          },
-          "privacyNoticeVersion" : {
-            "type" : "string"
-          },
-          "rejectionReason" : {
-            "type" : "string"
-          },
-          "skills" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/MentorApplicationSkill"
-            }
-          },
-          "status" : {
-            "type" : "string",
-            "enum" : [ "PENDING", "APPROVED", "REJECTED", "REVOKED" ]
-          },
-          "submittedAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "yearsOfExperience" : {
-            "type" : "integer",
-            "format" : "int32"
-          }
-        },
-        "required" : [ "accountId", "matches", "skills", "status" ]
-      },
-      "MentorApplicationDocument" : {
-        "type" : "object",
-        "properties" : {
-          "fileUrl" : {
-            "type" : "string"
-          },
-          "mediaType" : {
-            "type" : "string"
-          },
-          "name" : {
-            "type" : "string"
-          },
-          "size" : {
-            "type" : "integer",
-            "format" : "int64"
-          }
-        },
-        "required" : [ "fileUrl", "mediaType", "name", "size" ]
-      },
-      "MentorApplicationMatch" : {
-        "type" : "object",
-        "properties" : {
-          "accountId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "createdAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "erased" : {
-            "type" : "boolean"
-          },
-          "kind" : {
-            "type" : "string"
-          },
-          "locked" : {
-            "type" : "boolean"
-          },
-          "mentorStatus" : {
-            "type" : "string",
-            "enum" : [ "PENDING", "APPROVED", "REJECTED", "REVOKED" ]
-          },
-          "role" : {
-            "type" : "string"
-          },
-          "verifiedUntil" : {
-            "type" : "string",
-            "format" : "date"
-          }
-        },
-        "required" : [ "accountId", "createdAt", "erased", "kind", "locked" ]
-      },
-      "MentorApplicationRequest" : {
-        "type" : "object",
-        "properties" : {
-          "displayName" : {
-            "type" : "string",
-            "maxLength" : 100,
-            "minLength" : 0
-          },
-          "experience" : {
-            "type" : "string",
-            "maxLength" : 2000,
-            "minLength" : 0
-          },
-          "linkedinUrl" : {
-            "type" : "string",
-            "minLength" : 1,
-            "pattern" : "^https://www\\.linkedin\\.com/in/[A-Za-z0-9_%-]{3,100}/?$"
-          },
-          "otherLink" : {
-            "type" : "string",
-            "maxLength" : 300,
-            "minLength" : 0,
-            "pattern" : "(?U)^https://\\S+$"
-          },
-          "privacyNoticeVersion" : {
-            "type" : "string"
-          },
-          "skillIds" : {
-            "type" : "array",
-            "items" : {
-              "type" : "string",
-              "format" : "uuid"
-            },
-            "maxItems" : 100,
-            "minItems" : 1
-          },
-          "yearsOfExperience" : {
-            "type" : "integer",
-            "format" : "int32",
-            "maximum" : 60,
-            "minimum" : 0
-          }
-        },
-        "required" : [ "displayName", "experience", "linkedinUrl", "skillIds", "yearsOfExperience" ]
-      },
-      "MentorApplicationRow" : {
-        "type" : "object",
-        "properties" : {
-          "accountId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "decidedAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "displayName" : {
-            "type" : "string"
-          },
-          "githubLogin" : {
-            "type" : "string"
-          },
-          "matches" : {
-            "type" : "integer",
-            "format" : "int64"
-          },
-          "status" : {
-            "type" : "string",
-            "enum" : [ "PENDING", "APPROVED", "REJECTED", "REVOKED" ]
-          },
-          "submittedAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "yearsOfExperience" : {
-            "type" : "integer",
-            "format" : "int32"
-          }
-        },
-        "required" : [ "accountId", "matches", "status" ]
-      },
-      "MentorApplicationSkill" : {
-        "type" : "object",
-        "properties" : {
-          "active" : {
-            "type" : "boolean"
-          },
-          "id" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "name" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "active", "id", "name" ]
-      },
-      "MentorDocumentView" : {
-        "type" : "object",
-        "properties" : {
-          "mediaType" : {
-            "type" : "string"
-          },
-          "name" : {
-            "type" : "string"
-          },
-          "size" : {
-            "type" : "integer",
-            "format" : "int64"
-          }
-        },
-        "required" : [ "mediaType", "name", "size" ]
-      },
       "MentorFundingMilestoneView" : {
         "type" : "object",
         "properties" : {
@@ -15357,56 +14606,6 @@
         },
         "required" : [ "amountVnd", "createdAt", "number", "status" ]
       },
-      "MentorProfileView" : {
-        "type" : "object",
-        "properties" : {
-          "approvalStatus" : {
-            "type" : "string",
-            "enum" : [ "PENDING", "APPROVED", "REJECTED", "REVOKED" ]
-          },
-          "decidedAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "displayName" : {
-            "type" : "string"
-          },
-          "document" : {
-            "$ref" : "#/components/schemas/MentorDocumentView"
-          },
-          "experience" : {
-            "type" : "string"
-          },
-          "linkedinUrl" : {
-            "type" : "string"
-          },
-          "otherLink" : {
-            "type" : "string"
-          },
-          "reapplyAfter" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "rejectionReason" : {
-            "type" : "string"
-          },
-          "skills" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/ProfileSkill"
-            }
-          },
-          "submittedAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "yearsOfExperience" : {
-            "type" : "integer",
-            "format" : "int32"
-          }
-        },
-        "required" : [ "approvalStatus", "skills" ]
-      },
       "MentorReleaseView" : {
         "type" : "object",
         "properties" : {
@@ -15464,6 +14663,9 @@
             "type" : "string",
             "format" : "uuid"
           },
+          "available" : {
+            "type" : "boolean"
+          },
           "displayName" : {
             "type" : "string"
           },
@@ -15489,7 +14691,7 @@
             "format" : "int32"
           }
         },
-        "required" : [ "accountId", "displayName", "relation", "skills", "teamSize", "yearsOfExperience" ]
+        "required" : [ "accountId", "available", "displayName", "relation", "skills", "teamSize" ]
       },
       "MentorSearchView" : {
         "type" : "object",
@@ -16243,23 +15445,17 @@
           "lowFeedback" : {
             "$ref" : "#/components/schemas/Queue"
           },
-          "mentorApplications" : {
-            "$ref" : "#/components/schemas/Queue"
-          },
           "skillSuggestions" : {
             "$ref" : "#/components/schemas/Queue"
           },
           "stalledEvents" : {
             "$ref" : "#/components/schemas/Queue"
           },
-          "studentCards" : {
-            "$ref" : "#/components/schemas/Queue"
-          },
           "teamIssues" : {
             "$ref" : "#/components/schemas/Queue"
           }
         },
-        "required" : [ "activeAdministrators", "disputes", "failedExecutions", "failedOperations", "falsePositives", "lowFeedback", "mentorApplications", "skillSuggestions", "stalledEvents", "studentCards", "teamIssues" ]
+        "required" : [ "activeAdministrators", "disputes", "failedExecutions", "failedOperations", "falsePositives", "lowFeedback", "skillSuggestions", "stalledEvents", "teamIssues" ]
       },
       "PageLinkView" : {
         "type" : "object",
@@ -16363,30 +15559,6 @@
         },
         "required" : [ "items", "page", "size", "total" ]
       },
-      "PageResponseMentorApplicationRow" : {
-        "type" : "object",
-        "properties" : {
-          "items" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/MentorApplicationRow"
-            }
-          },
-          "page" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "size" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "total" : {
-            "type" : "integer",
-            "format" : "int64"
-          }
-        },
-        "required" : [ "items", "page", "size", "total" ]
-      },
       "PageResponseNotificationItem" : {
         "type" : "object",
         "properties" : {
@@ -16394,30 +15566,6 @@
             "type" : "array",
             "items" : {
               "$ref" : "#/components/schemas/NotificationItem"
-            }
-          },
-          "page" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "size" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "total" : {
-            "type" : "integer",
-            "format" : "int64"
-          }
-        },
-        "required" : [ "items", "page", "size", "total" ]
-      },
-      "PageResponseStudentCardRow" : {
-        "type" : "object",
-        "properties" : {
-          "items" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/StudentCardRow"
             }
           },
           "page" : {
@@ -16787,6 +15935,36 @@
           }
         },
         "required" : [ "attemptsLeft", "expired", "expiresAt", "school", "sentAt" ]
+      },
+      "PersonLinkView" : {
+        "type" : "object",
+        "properties" : {
+          "accountId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "erased" : {
+            "type" : "boolean"
+          },
+          "kinds" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "enum" : [ "EMAIL", "LINKEDIN" ]
+            }
+          },
+          "locked" : {
+            "type" : "boolean"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "accountId", "createdAt", "erased", "kinds", "locked" ]
       },
       "PersonView" : {
         "type" : "object",
@@ -17260,7 +16438,7 @@
             "format" : "int32"
           }
         },
-        "required" : [ "accountId", "available", "displayName", "experience", "listedMembers", "memberSince", "sizeLimit", "skillGroups", "teamSize", "yearsOfExperience" ]
+        "required" : [ "accountId", "available", "displayName", "experience", "listedMembers", "memberSince", "sizeLimit", "skillGroups", "teamSize" ]
       },
       "PublicMentorViewer" : {
         "type" : "object",
@@ -17388,7 +16566,7 @@
           },
           "limit" : {
             "type" : "string",
-            "enum" : [ "JOB_POST_NOT_OPEN", "JOB_POST_HIDDEN", "ALREADY_APPLIED", "NO_FREE_STUDENT", "MENTOR_JOB_LIMIT", "CONFLICT_OF_INTEREST", "APPLICANT_IS_CONTRIBUTOR", "CONTRIBUTORS_UNKNOWN", "PUBLIC_CODE_NOT_ACKNOWLEDGED", "NOT_WITHDRAWABLE", "NDA_VERSION_OUTDATED", "COMMIT_EMAIL_NOT_ACKNOWLEDGED", "INVITEE_NOT_AVAILABLE", "ALREADY_INVITED", "INVITEE_ALREADY_APPLIED", "INVITE_LIMIT_JOB_POST", "INVITE_LIMIT_DAILY" ]
+            "enum" : [ "JOB_POST_NOT_OPEN", "JOB_POST_HIDDEN", "ALREADY_APPLIED", "NO_FREE_STUDENT", "MENTOR_JOB_LIMIT", "CONFLICT_OF_INTEREST", "APPLICANT_IS_CONTRIBUTOR", "CONTRIBUTORS_UNKNOWN", "PUBLIC_CODE_NOT_ACKNOWLEDGED", "NOT_WITHDRAWABLE", "NDA_VERSION_OUTDATED", "COMMIT_EMAIL_NOT_ACKNOWLEDGED", "INVITEE_NOT_AVAILABLE", "ALREADY_INVITED", "INVITEE_ALREADY_APPLIED", "INVITE_LIMIT_JOB_POST", "INVITE_LIMIT_DAILY", "PROFILE_REQUIRED" ]
           }
         },
         "required" : [ "left" ]
@@ -17625,6 +16803,9 @@
             "type" : "string",
             "format" : "uuid"
           },
+          "available" : {
+            "type" : "boolean"
+          },
           "displayName" : {
             "type" : "string"
           },
@@ -17653,7 +16834,7 @@
             "format" : "int32"
           }
         },
-        "required" : [ "accountId", "displayName", "relation", "signals", "skills", "teamSize", "yearsOfExperience" ]
+        "required" : [ "accountId", "available", "displayName", "relation", "signals", "skills", "teamSize" ]
       },
       "RecommendedPostView" : {
         "type" : "object",
@@ -17693,33 +16874,6 @@
           }
         },
         "required" : [ "id", "invited", "jobTypes", "openedAt", "productName", "signals", "title" ]
-      },
-      "RejectMentorRequest" : {
-        "type" : "object",
-        "properties" : {
-          "reason" : {
-            "type" : "string",
-            "maxLength" : 500,
-            "minLength" : 0
-          },
-          "stepUpCode" : {
-            "type" : "string",
-            "minLength" : 1,
-            "pattern" : "^[0-9]{6}$"
-          }
-        },
-        "required" : [ "reason", "stepUpCode" ]
-      },
-      "RejectRequest" : {
-        "type" : "object",
-        "properties" : {
-          "reason" : {
-            "type" : "string",
-            "maxLength" : 300,
-            "minLength" : 0
-          }
-        },
-        "required" : [ "reason" ]
       },
       "RepositoryCheckRequest" : {
         "type" : "object",
@@ -17906,30 +17060,6 @@
         },
         "required" : [ "accessId", "accessLevel", "done", "environment", "identifiers", "purpose", "system" ]
       },
-      "RevokeApprovalRequest" : {
-        "type" : "object",
-        "properties" : {
-          "category" : {
-            "type" : "string",
-            "enum" : [ "RESPECT", "GUIDANCE", "RULES" ]
-          },
-          "ground" : {
-            "type" : "string",
-            "enum" : [ "OTHER", "PRIVATE_FEEDBACK" ]
-          },
-          "reason" : {
-            "type" : "string",
-            "maxLength" : 500,
-            "minLength" : 0
-          },
-          "stepUpCode" : {
-            "type" : "string",
-            "minLength" : 1,
-            "pattern" : "^[0-9]{6}$"
-          }
-        },
-        "required" : [ "ground", "stepUpCode" ]
-      },
       "RuleChangeView" : {
         "type" : "object",
         "properties" : {
@@ -18075,15 +17205,6 @@
           }
         },
         "required" : [ "schoolDomains", "stepUpCode", "values" ]
-      },
-      "SavedView" : {
-        "type" : "object",
-        "properties" : {
-          "submitted" : {
-            "type" : "boolean"
-          }
-        },
-        "required" : [ "submitted" ]
       },
       "ScanView" : {
         "type" : "object",
@@ -18749,79 +17870,6 @@
         },
         "required" : [ "groups" ]
       },
-      "StudentCardRow" : {
-        "type" : "object",
-        "properties" : {
-          "decidedAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "fileName" : {
-            "type" : "string"
-          },
-          "fileUrl" : {
-            "type" : "string"
-          },
-          "githubLogin" : {
-            "type" : "string"
-          },
-          "id" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "mediaType" : {
-            "type" : "string"
-          },
-          "profileSchool" : {
-            "type" : "string"
-          },
-          "realName" : {
-            "type" : "string"
-          },
-          "rejectionReason" : {
-            "type" : "string"
-          },
-          "school" : {
-            "type" : "string"
-          },
-          "status" : {
-            "type" : "string",
-            "enum" : [ "PENDING", "APPROVED", "REJECTED" ]
-          },
-          "studentNumber" : {
-            "type" : "string"
-          },
-          "uploadedAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          }
-        },
-        "required" : [ "fileName", "id", "mediaType", "status", "uploadedAt" ]
-      },
-      "StudentCardView" : {
-        "type" : "object",
-        "properties" : {
-          "decidedAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "fileName" : {
-            "type" : "string"
-          },
-          "rejectionReason" : {
-            "type" : "string"
-          },
-          "status" : {
-            "type" : "string",
-            "enum" : [ "PENDING", "APPROVED", "REJECTED" ]
-          },
-          "uploadedAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          }
-        },
-        "required" : [ "fileName", "status", "uploadedAt" ]
-      },
       "StudentDetailsView" : {
         "type" : "object",
         "properties" : {
@@ -19428,7 +18476,7 @@
             "format" : "int32"
           }
         },
-        "required" : [ "accountId", "available", "displayName", "skills", "teamSize", "yearsOfExperience" ]
+        "required" : [ "accountId", "available", "displayName", "skills", "teamSize" ]
       },
       "TeamPendingRequest" : {
         "type" : "object",
@@ -19729,10 +18777,6 @@
       "UserDetailView" : {
         "type" : "object",
         "properties" : {
-          "approval" : {
-            "type" : "string",
-            "enum" : [ "PENDING", "APPROVED", "REJECTED", "REVOKED" ]
-          },
           "createdAt" : {
             "type" : "string",
             "format" : "date-time"
@@ -19769,6 +18813,12 @@
           "name" : {
             "type" : "string"
           },
+          "personLinks" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/PersonLinkView"
+            }
+          },
           "role" : {
             "type" : "string",
             "enum" : [ "CUSTOMER", "MENTOR", "STUDENT", "ADMINISTRATOR" ]
@@ -19781,7 +18831,7 @@
             "$ref" : "#/components/schemas/UserVerificationView"
           }
         },
-        "required" : [ "createdAt", "history", "id" ]
+        "required" : [ "createdAt", "history", "id", "personLinks" ]
       },
       "UserRowView" : {
         "type" : "object",
@@ -19881,9 +18931,6 @@
           "status" : {
             "type" : "string",
             "enum" : [ "UNVERIFIED", "VERIFIED", "EXPIRED" ]
-          },
-          "studentCard" : {
-            "$ref" : "#/components/schemas/StudentCardView"
           },
           "verifiedAt" : {
             "type" : "string",

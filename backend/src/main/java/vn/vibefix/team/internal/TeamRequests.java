@@ -18,9 +18,9 @@ import vn.vibefix.audit.AuditActor;
 import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
+import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
-import vn.vibefix.identity.MentorGate;
 import vn.vibefix.identity.StudentDirectory;
 import vn.vibefix.identity.StudentDirectory.StudentCard;
 import vn.vibefix.identity.StudentVerification;
@@ -89,7 +89,7 @@ class TeamRequests {
 
 	private final TeamStore store;
 
-	private final MentorGate mentorGate;
+	private final ActiveAccount mentorGate;
 
 	private final StudentVerification verification;
 
@@ -105,7 +105,7 @@ class TeamRequests {
 
 	private final Clock clock;
 
-	TeamRequests(TeamStore store, MentorGate mentorGate, StudentVerification verification, StudentDirectory students,
+	TeamRequests(TeamStore store, ActiveAccount mentorGate, StudentVerification verification, StudentDirectory students,
 			MentorDirectory mentors, Notifications notifications, Deadlines deadlines, AuditLog auditLog,
 			Clock clock) {
 		this.store = store;
@@ -121,13 +121,13 @@ class TeamRequests {
 
 	/**
 	 * The Mentor invites a verified Student into their Team.
-	 * @throws ApiException {@code FORBIDDEN MENTOR_NOT_APPROVED}; {@code NOT_FOUND} for no such Student;
+	 * @throws ApiException {@code FORBIDDEN ACCOUNT_LOCKED}; {@code NOT_FOUND} for no such Student;
 	 * {@code GUARD_FAILED} with {@code TEAM_CLOSED}, {@code MEMBER_NOT_VERIFIED}, {@code STUDENT_IN_TEAM},
 	 * or {@code TEAM_FULL}; {@code CONFLICT REQUEST_PENDING}; {@code RATE_LIMITED TEAM_INVITE_LIMIT}
 	 */
 	@Transactional
 	Request invite(UUID mentorId, UUID studentId) {
-		this.mentorGate.requireApprovedMentor(mentorId);
+		this.mentorGate.requireActiveAccount(mentorId);
 		Instant now = this.clock.instant();
 		Team team = this.store.lock(this.store.ensure(mentorId, now).id());
 		StudentCard student = this.students.cards(List.of(studentId))
@@ -168,8 +168,9 @@ class TeamRequests {
 		}
 		Instant now = this.clock.instant();
 		Optional<Team> existing = this.store.byMentor(mentorId);
-		if (!mentor.available()) {
-			// A Mentor never approved has no Team to find; one revoked or locked has a closed Team.
+		// As invite requires of the Mentor: an unlocked account, GitHub linked or not (AD-19, Story 19.7).
+		if (!activeAccount(mentor.accountId())) {
+			// A locked Mentor with no Team has none to find; one with a Team has it closed.
 			if (existing.isEmpty()) {
 				throw new ApiException(ErrorCode.NOT_FOUND);
 			}
@@ -189,6 +190,17 @@ class TeamRequests {
 		return request;
 	}
 
+	/** Whether the account is unlocked and not erased; the gate runs in no transaction, so its refusal is an answer. */
+	private boolean activeAccount(UUID accountId) {
+		try {
+			this.mentorGate.requireActiveAccount(accountId);
+			return true;
+		}
+		catch (ApiException inactive) {
+			return false;
+		}
+	}
+
 	/**
 	 * The invited Student, or the Mentor of a join request, accepts: the Student joins the Team and
 	 * their other pending requests are cancelled.
@@ -201,7 +213,7 @@ class TeamRequests {
 	Request accept(UUID answerer, UUID requestId, Kind kind) {
 		Request found = answerable(answerer, requestId, kind);
 		if (kind == Kind.JOIN_REQUEST) {
-			this.mentorGate.requireApprovedMentor(answerer);
+			this.mentorGate.requireActiveAccount(answerer);
 		}
 		Instant now = this.clock.instant();
 		Team team = this.store.lock(found.teamId());

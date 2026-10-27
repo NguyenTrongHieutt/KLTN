@@ -19,10 +19,8 @@ import { formatCalendarDate, formatDayMonthTime, formatMonthYear } from '@/lib/d
 import { fieldMessage, serverFieldErrors, zodFieldErrors } from '@/lib/formErrors'
 import { problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
-import { MENTOR_PROFILE_PATH } from './api'
 import { ProfileTabs } from './ProfileTabs'
 import { useProfile, useSaveProfile, type Profile, type ProfileRequest } from './profileApi'
-import { useSession } from './useSession'
 
 /** At most 20 Skills, 5 links, and 5 repositories (FR-4, AD-38). */
 export const MAX_SKILLS = 20
@@ -104,7 +102,6 @@ function skillRefusal(error: unknown): string | undefined {
 export function ProfilePage() {
   usePageTitle(t('screen.profile.title'))
   const profile = useProfile()
-  const account = useSession().data?.account
   return (
     <div className="mx-auto flex max-w-[760px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
       <div className="flex flex-col gap-3">
@@ -139,17 +136,6 @@ export function ProfilePage() {
           </>
         )}
       </RegionState>
-      {account?.role === 'MENTOR' && (
-        <section aria-labelledby="mentor-heading" className="flex flex-col gap-2 rounded-lg bg-muted p-4">
-          <h2 id="mentor-heading" className="text-label font-semibold">
-            {t('screen.profile.mentor.heading')}
-          </h2>
-          <p className="text-body-sm">{t('screen.profile.mentor.body')}</p>
-          <Link to={MENTOR_PROFILE_PATH} className="self-start text-body-sm text-primary underline-offset-4 hover:underline">
-            {t('screen.profile.mentor.link')}
-          </Link>
-        </section>
-      )}
     </div>
   )
 }
@@ -513,12 +499,10 @@ function VerifiedZone({ profile }: { profile: Profile }) {
                   {t('screen.profile.verified.studentLine', { date: formatCalendarDate(student.validUntil) })}
                 </VerifiedLine>
                 <p className="text-caption break-words text-muted-foreground">
-                  {t(
-                    student.method === 'STUDENT_CARD'
-                      ? 'screen.profile.verified.methodStudentCard'
-                      : 'screen.profile.verified.methodSchoolEmail',
-                    { school: student.school, month: formatMonthYear(student.verifiedAt) },
-                  )}
+                  {t('screen.profile.verified.methodSchoolEmail', {
+                    school: student.school,
+                    month: formatMonthYear(student.verifiedAt),
+                  })}
                 </p>
                 {(student.name || student.major) && (
                   <ul className="flex flex-col gap-1 text-body-sm">

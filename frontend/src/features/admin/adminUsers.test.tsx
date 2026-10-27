@@ -40,8 +40,6 @@ const overview = {
   failedOperations: { count: 0 },
   stalledEvents: { count: 0 },
   activeAdministrators: 2,
-  studentCards: { count: 0 },
-  mentorApplications: { count: 0 },
   disputes: { count: 0 },
   lowFeedback: { count: 1 },
 }
@@ -55,6 +53,7 @@ const vy = {
   createdAt: '2026-10-01T03:00:00Z',
   verification: { method: 'SCHOOL_EMAIL', verifiedAt: '2026-10-02T03:00:00Z', validUntil: '2027-09-30', current: true },
   history: [],
+  personLinks: [],
 }
 
 const hung = {
@@ -63,17 +62,37 @@ const hung = {
   name: 'Đỗ Mạnh Hùng',
   githubLogin: 'hungdo',
   createdAt: '2026-09-01T03:00:00Z',
-  approval: 'APPROVED',
-  history: [],
-  feedback: { average: 1.7, count: 3, comments: ['Hay quát nạt'], enoughToAct: true },
+  // An Administrator's revocation from before Story 19.7 stays readable in the history.
+  history: [
+    {
+      action: 'APPROVAL_REVOKED',
+      reason: 'Thiếu tôn trọng với sinh viên',
+      ground: 'PRIVATE_FEEDBACK',
+      actedBy: 'Hà Phương',
+      actedAt: '2026-10-10T03:00:00Z',
+    },
+  ],
+  personLinks: [
+    {
+      accountId: 's1',
+      name: 'Trần Thảo Vy',
+      kinds: ['EMAIL', 'LINKEDIN'],
+      locked: false,
+      erased: false,
+      createdAt: '2026-09-02T03:00:00Z',
+    },
+    { accountId: 'l2', name: 'Lê Bị Khóa', kinds: ['EMAIL'], locked: true, erased: false, createdAt: '2026-09-03T03:00:00Z' },
+    { accountId: 'x9', kinds: ['EMAIL'], locked: false, erased: true, createdAt: '2026-09-04T03:00:00Z' },
+  ],
+  feedback: { average: 1.7, count: 3, comments: ['Hay quát nạt'] },
 }
 
 const rows = [
   { id: 's1', role: 'STUDENT', name: 'Trần Thảo Vy', githubLogin: 'thaovy', locked: false, status: 'VERIFIED', createdAt: vy.createdAt },
-  { id: 'm1', role: 'MENTOR', name: 'Đỗ Mạnh Hùng', githubLogin: 'hungdo', locked: false, status: 'APPROVED', createdAt: hung.createdAt },
+  { id: 'm1', role: 'MENTOR', name: 'Đỗ Mạnh Hùng', githubLogin: 'hungdo', locked: false, createdAt: hung.createdAt },
 ]
 
-describe('ADM-2 users (FR-59, FR-74, FR-78)', () => {
+describe('ADM-2 users (FR-59, FR-78, AD-19)', () => {
   it('searches, then locks a Student with a reason', { timeout: 30_000 }, async () => {
     const user = userEvent.setup()
     const searched: string[] = []
@@ -104,6 +123,17 @@ describe('ADM-2 users (FR-59, FR-74, FR-78)', () => {
     await waitFor(() => expect(searched).toContain('thao vy'))
     await user.click(await screen.findByRole('link', { name: /Trần Thảo Vy/ }))
     expect(await screen.findByText(/Email trường, còn hiệu lực đến/)).toBeInTheDocument()
+    // Story 19.7: no verification is revoked here, and the status chips hold no approval.
+    expect(screen.queryByRole('button', { name: 'Thu hồi xác minh' })).not.toBeInTheDocument()
+    const statuses = screen.getByRole('group', { name: 'Trạng thái' })
+    expect(within(statuses).getAllByRole('button').map((chip) => chip.textContent)).toEqual([
+      'Đã khóa',
+      'Đã xác minh',
+      'Đánh giá kín thấp',
+    ])
+    expect(screen.getByRole('region', { name: 'Tài khoản có thể cùng một người' })).toHaveTextContent(
+      'Không có tài khoản nào dùng chung dấu hiệu với tài khoản này.',
+    )
     await user.click(screen.getByRole('button', { name: 'Khóa tài khoản' }))
     const dialog = await screen.findByRole('dialog', { name: 'Khóa tài khoản của Trần Thảo Vy?' })
     await user.type(within(dialog).getByLabelText('Lý do (người dùng sẽ đọc)'), 'Gửi tin nhắn quấy rối')
@@ -114,7 +144,14 @@ describe('ADM-2 users (FR-59, FR-74, FR-78)', () => {
   })
 
   it('lists and opens a Google account, which has no role, without a role text', { timeout: 30_000 }, async () => {
-    const lan = { id: 'g1', name: 'Nguyễn Thị Lan', email: 'lan@gmail.test', createdAt: '2026-10-25T03:00:00Z', history: [] }
+    const lan = {
+      id: 'g1',
+      name: 'Nguyễn Thị Lan',
+      email: 'lan@gmail.test',
+      createdAt: '2026-10-25T03:00:00Z',
+      history: [],
+      personLinks: [],
+    }
     fakeBackend(administrator, {
       'GET /api/v1/admin/overview': () => json(overview),
       'GET /api/v1/admin/users': () =>
@@ -130,38 +167,31 @@ describe('ADM-2 users (FR-59, FR-74, FR-78)', () => {
     expect(screen.getByText('lan@gmail.test')).toBeInTheDocument()
   })
 
-  it('shows a Mentor’s private feedback and revokes on its ground with a category', { timeout: 30_000 }, async () => {
-    const user = userEvent.setup()
-    const sent: unknown[] = []
-    let current: object = hung
+  it('shows a Mentor’s private feedback and who may be the same person, with nothing to revoke', { timeout: 30_000 }, async () => {
     fakeBackend(administrator, {
       'GET /api/v1/admin/overview': () => json(overview),
       'GET /api/v1/admin/users': () => json({ items: rows, total: 2, page: 0, size: 20 }),
-      'GET /api/v1/admin/users/m1': () => json(current),
-      'POST /api/v1/admin/users/m1/revoke-approval': async (request) => {
-        sent.push(await request.json())
-        current = { ...hung, approval: 'REVOKED' }
-        return json(current)
-      },
+      'GET /api/v1/admin/users/m1': () => json(hung),
     })
     renderAt('/quan-tri/nguoi-dung/m1')
 
     expect(await screen.findByText('Hay quát nạt')).toBeInTheDocument()
     expect(screen.getByText(/Chỉ quản trị viên xem được/)).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Thu hồi' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Thu hồi phê duyệt của Đỗ Mạnh Hùng?' })
-    await user.click(within(dialog).getByRole('radio', { name: 'Dựa trên đánh giá kín' }))
-    await user.selectOptions(within(dialog).getByLabelText(/Nhóm vi phạm/), 'GUIDANCE')
-    await user.click(within(dialog).getByRole('button', { name: 'Thu hồi' }))
-    const stepUp = await screen.findByRole('dialog')
-    await user.type(within(stepUp).getByRole('textbox'), '123456')
-    await user.click(within(stepUp).getByRole('button', { name: 'Thu hồi' }))
-    await waitFor(() =>
-      expect(sent).toEqual([{ ground: 'PRIVATE_FEEDBACK', category: 'GUIDANCE', stepUpCode: '123456' }]),
-    )
+    const links = screen.getByRole('region', { name: 'Tài khoản có thể cùng một người' })
+    expect(within(links).getByRole('link', { name: 'Trần Thảo Vy' })).toHaveAttribute('href', '/quan-tri/nguoi-dung/s1')
+    expect(within(links).getAllByText('Email')).toHaveLength(3)
+    expect(within(links).getByText('LinkedIn')).toBeInTheDocument()
+    expect(within(links).getByText('Tạo ngày 02/09/2026')).toBeInTheDocument()
+    // A locked account still has its page, marked "Đã khóa".
+    expect(within(links).getByRole('link', { name: 'Lê Bị Khóa' })).toHaveAttribute('href', '/quan-tri/nguoi-dung/l2')
+    expect(within(links).getByText('Đã khóa')).toBeInTheDocument()
+    // An erased account's signals outlive it; it has no name and no page.
+    expect(within(links).getByText('Tài khoản đã xóa')).toBeInTheDocument()
+    expect(within(links).getAllByRole('link')).toHaveLength(2)
     const account = screen.getByRole('region', { name: 'Đỗ Mạnh Hùng' })
-    expect(await within(account).findByText('Đã thu hồi')).toBeInTheDocument()
-    expect(within(account).queryByRole('button', { name: 'Thu hồi' })).toBeNull()
+    expect(within(account).queryByRole('button', { name: /Thu hồi/ })).toBeNull()
+    expect(screen.queryByText('Phê duyệt người hướng dẫn')).not.toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Lịch sử' })).toHaveTextContent('Thu hồi phê duyệt')
   })
 
   it('waits for the blocker, then confirms the account deletion through the step-up', { timeout: 30_000 }, async () => {

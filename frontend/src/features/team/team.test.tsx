@@ -67,7 +67,7 @@ afterEach(() => {
 
 describe('MEN-6, the Mentor\'s Team (FR-6, AD-37)', () => {
   it('shows an empty Team with its size and the way to invite', async () => {
-    fakeBackend(signedIn('MENTOR', 'APPROVED'), { 'GET /api/v1/mentor/team': () => json(emptyTeam) })
+    fakeBackend(signedIn('MENTOR'), { 'GET /api/v1/mentor/team': () => json(emptyTeam) })
     renderAt('/nhom')
 
     expect(await screen.findByText('0/10 sinh viên')).toBeInTheDocument()
@@ -80,7 +80,7 @@ describe('MEN-6, the Mentor\'s Team (FR-6, AD-37)', () => {
 
   it('accepts a join request after the confirmation', { timeout: 15_000 }, async () => {
     const user = userEvent.setup()
-    const seen = fakeBackend(signedIn('MENTOR', 'APPROVED'), {
+    const seen = fakeBackend(signedIn('MENTOR'), {
       'GET /api/v1/mentor/team': () =>
         json({
           ...emptyTeam,
@@ -112,7 +112,7 @@ describe('MEN-6, the Mentor\'s Team (FR-6, AD-37)', () => {
   it('searches Students in the invite Sheet and invites one', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     let invited: unknown
-    fakeBackend(signedIn('MENTOR', 'APPROVED'), {
+    fakeBackend(signedIn('MENTOR'), {
       'GET /api/v1/mentor/team': () => json(emptyTeam),
       'GET /api/v1/catalog': catalog,
       'GET /api/v1/mentor/team/students': (request) => {
@@ -159,7 +159,7 @@ describe('MEN-6, the Mentor\'s Team (FR-6, AD-37)', () => {
 
   it('removes a member after the confirmation, and not one on a Crew', { timeout: 15_000 }, async () => {
     const user = userEvent.setup()
-    const seen = fakeBackend(signedIn('MENTOR', 'APPROVED'), {
+    const seen = fakeBackend(signedIn('MENTOR'), {
       'GET /api/v1/mentor/team': () =>
         json({
           ...emptyTeam,
@@ -185,7 +185,7 @@ describe('MEN-6, the Mentor\'s Team (FR-6, AD-37)', () => {
   })
 
   it('shows a closed Team without actions', async () => {
-    fakeBackend(signedIn('MENTOR', 'APPROVED'), { 'GET /api/v1/mentor/team': () => json({ ...emptyTeam, status: 'CLOSED' }) })
+    fakeBackend(signedIn('MENTOR'), { 'GET /api/v1/mentor/team': () => json({ ...emptyTeam, status: 'CLOSED' }) })
     renderAt('/nhom')
 
     expect(await screen.findByText('Nhóm tạm ngừng nhận thành viên')).toBeInTheDocument()
@@ -337,7 +337,7 @@ describe('PUB-5, the Mentor\'s public profile (FR-51)', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Đỗ Mạnh Hùng' })).toBeInTheDocument()
     expect(screen.getByText('Sinh viên đã xác minh có thể xin vào nhóm sau khi đăng nhập.')).toBeInTheDocument()
-    expect(screen.getByText('8 năm kinh nghiệm làm phần mềm · tham gia vibefix từ 06/2026 · @hungdm')).toBeInTheDocument()
+    expect(screen.getByText('8 năm kinh nghiệm · tham gia vibefix từ 06/2026 · @hungdm')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Xin vào nhóm' })).not.toBeInTheDocument()
   })
 
@@ -351,15 +351,15 @@ describe('PUB-5, the Mentor\'s public profile (FR-51)', () => {
     expect(screen.getByRole('button', { name: 'Xin vào nhóm' })).toBeDisabled()
   })
 
-  it('shows the not-found screen for a Mentor who is not approved', async () => {
+  it('shows the not-found screen for a username that is no Mentor', async () => {
     fakeBackend(anonymous, {
-      'GET /api/v1/mentors/cho-duyet': () =>
+      'GET /api/v1/mentors/khong-phai': () =>
         new Response(JSON.stringify({ status: 404, code: 'NOT_FOUND' }), {
           status: 404,
           headers: { 'Content-Type': 'application/problem+json' },
         }),
     })
-    renderAt('/mentor/cho-duyet')
+    renderAt('/mentor/khong-phai')
 
     expect(await screen.findByText('Không tìm thấy nội dung này.')).toBeInTheDocument()
   })

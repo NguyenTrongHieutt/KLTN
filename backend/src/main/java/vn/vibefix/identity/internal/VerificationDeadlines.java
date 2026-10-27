@@ -33,7 +33,7 @@ import vn.vibefix.timers.DueDeadline;
  * The Deadlines of a student verification (FR-5, AD-7, UX-DR16): a reminder 14 days before it
  * expires, and the expiry at the start of the day after its last valid day, in Vietnam. Both serve
  * one {@code identity.verification} row, named by their generation; once that row has ended (renewed,
- * unlinked, revoked, or erased) they are {@code OBSOLETE}. The expiry ends the row {@code EXPIRED} and
+ * unlinked, or erased) they are {@code OBSOLETE}. The expiry ends the row {@code EXPIRED} and
  * deletes its facts.
  */
 @Component

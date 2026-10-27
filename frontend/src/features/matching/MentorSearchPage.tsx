@@ -19,7 +19,7 @@ import { JobTabs } from '@/features/job/JobTabs'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { MentorProfileContent } from '@/features/team/MentorProfileContent'
 import { usePublicMentor } from '@/features/team/teamApi'
-import { initials } from '@/features/team/teamText'
+import { experienceText, initials } from '@/features/team/teamText'
 import { t, type MessageKey } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
 import { isNotFound, problemMessage } from '@/lib/problemMessage'
@@ -67,7 +67,7 @@ function writeFilter(filter: MentorFilter): URLSearchParams {
 
 /**
  * CUS-8 "Tìm người hướng dẫn" (`/cong-viec/{jobId}/tim-nguoi`, FR-14, UX-DR47–49, UX-DR66): the Job's
- * Customer searches approved Mentors by keyword and Skills, ordered by relevance alone, sees each
+ * Customer searches Mentors by keyword and Skills, ordered by relevance alone, sees each
  * one's Team size and Rating or "Mới", opens PUB-5 in a Sheet, and invites them within the day's
  * counters. Without a keyword, "Đề xuất cho công việc này" shows AD-17's Recommendations. The tab
  * exists only while the Job is Open; afterwards the route goes to "Đơn ứng tuyển".
@@ -222,7 +222,9 @@ function FindMentors({ job }: { job: Job }) {
         open={profile !== undefined}
         onClose={() => setProfileId(undefined)}
         title={profile?.displayName ?? ''}
-        description={profile && t('screen.matching.find.sheetRole', { years: profile.yearsOfExperience })}
+        description={
+          profile && t('screen.matching.find.sheetRole', { experience: experienceText(profile.yearsOfExperience) })
+        }
         footer={
           profile && (
             <>
@@ -314,7 +316,7 @@ function SearchBar({
   )
 }
 
-/** The initials, the name, and "{years} năm kinh nghiệm · {n} sinh viên" (UX-DR48). */
+/** The initials, the name, and "{years} năm kinh nghiệm · {n} sinh viên", or "Chưa khai" (UX-DR48). */
 function MentorHeading({ mentor }: { mentor: MentorResult }) {
   return (
     <>
@@ -327,7 +329,7 @@ function MentorHeading({ mentor }: { mentor: MentorResult }) {
       <div className="flex min-w-0 flex-col gap-0.5">
         <p className="text-label font-semibold break-words">{mentor.displayName}</p>
         <p className="flex flex-wrap items-center gap-1.5 text-caption text-muted-foreground">
-          {t('screen.matching.find.years', { years: mentor.yearsOfExperience })} ·
+          {experienceText(mentor.yearsOfExperience)} ·
           <Users aria-hidden="true" className="size-4" />
           {t('screen.matching.find.students', { n: mentor.teamSize })}
         </p>
@@ -428,17 +430,32 @@ function ratingText(summary: MentorSummary | undefined, withNewcomer: boolean): 
 
 /**
  * "Mời ứng tuyển" (FR-14, UX-DR49): no Confirmation dialog and no optimistic update; once the server
- * confirms, the button reads "Đã mời". Every one is disabled at a used-up limit.
+ * confirms, the button reads "Đã mời". Every one is disabled at a used-up limit, and for a Mentor who may
+ * not be invited yet, with the one line that says why (Story 19.7).
  */
 function InviteButton({ job, mentor, limited }: { job: Job; mentor: MentorResult; limited: boolean }) {
   const invite = useInvite(job.id)
   const toasts = useToasts()
+  const hintId = useId()
   if (mentor.relation !== 'NONE') {
     return (
       <Button type="button" variant="secondary" size="compact" disabled>
         <Check aria-hidden="true" className="size-4" />
         {t(mentor.relation === 'INVITED' ? 'screen.matching.find.invited' : 'screen.matching.find.applied')}
       </Button>
+    )
+  }
+  if (!mentor.available) {
+    return (
+      <div className="flex flex-col items-start gap-1">
+        <Button type="button" variant="secondary" size="compact" disabled aria-describedby={hintId}>
+          <Send aria-hidden="true" className="size-4" />
+          {t('screen.matching.find.invite')}
+        </Button>
+        <p id={hintId} className="text-caption text-muted-foreground">
+          {t('screen.matching.find.notLinked')}
+        </p>
+      </div>
     )
   }
   const send = () =>

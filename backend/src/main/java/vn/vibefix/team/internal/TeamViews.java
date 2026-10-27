@@ -55,8 +55,8 @@ class TeamViews {
 	}
 
 	/** A Mentor as Students and visitors see them, with the size of their Team. */
-	record TeamMentorView(UUID accountId, @Nullable String githubLogin, String displayName, int yearsOfExperience,
-			List<String> skills, boolean available, int teamSize) {
+	record TeamMentorView(UUID accountId, @Nullable String githubLogin, String displayName,
+			@Nullable Integer yearsOfExperience, List<String> skills, boolean available, int teamSize) {
 	}
 
 	/** @param onCrew on a running Crew: they can neither leave nor be removed (AD-37) */
@@ -139,9 +139,9 @@ class TeamViews {
 	record TeamPendingRequest(UUID id, Kind kind, Instant createdAt, Instant lapsesAt) {
 	}
 
-	/** PUB-5. */
+	/** PUB-5; {@code yearsOfExperience} is absent while the Mentor has not declared it. */
 	record PublicMentorView(UUID accountId, @Nullable String githubLogin, String displayName, String experience,
-			int yearsOfExperience, Instant memberSince, List<PublicSkillGroup> skillGroups, boolean available,
+			@Nullable Integer yearsOfExperience, Instant memberSince, List<PublicSkillGroup> skillGroups, boolean available,
 			int teamSize, int sizeLimit, List<PublicTeamMember> listedMembers, @Nullable PublicMentorViewer viewer) {
 	}
 
@@ -178,13 +178,13 @@ class TeamViews {
 		this.verification = verification;
 	}
 
-	/** MEN-6; empty for an approved Mentor whose Team the listener has not created yet. */
+	/** MEN-6; an open, empty Team while the Mentor's first invitation or join request has not created it. */
 	@Transactional(readOnly = true)
-	Optional<MentorTeamView> mentorTeam(UUID mentorId, boolean approved) {
+	MentorTeamView mentorTeam(UUID mentorId) {
 		Optional<Team> team = this.store.byMentor(mentorId);
 		if (team.isEmpty()) {
-			return approved ? Optional.of(new MentorTeamView(Status.OPEN, 0, Teams.SIZE_LIMIT,
-					TeamRequests.INVITES_PER_DAY, List.of(), List.of(), List.of())) : Optional.empty();
+			return new MentorTeamView(Status.OPEN, 0, Teams.SIZE_LIMIT, TeamRequests.INVITES_PER_DAY, List.of(),
+					List.of(), List.of());
 		}
 		UUID teamId = team.get().id();
 		List<Member> members = this.store.members(teamId);
@@ -193,7 +193,7 @@ class TeamViews {
 		Set<UUID> onCrew = this.store.reservedAmong(members.stream().map(Member::membershipId).toList());
 		Map<UUID, StudentCard> cards = studentCards(concat(members.stream().map(Member::studentId).toList(),
 				joinRequests.stream().map(Request::studentId).toList(), invitations.stream().map(Request::studentId).toList()));
-		return Optional.of(new MentorTeamView(team.get().status(), members.size(), Teams.SIZE_LIMIT,
+		return new MentorTeamView(team.get().status(), members.size(), Teams.SIZE_LIMIT,
 				this.requests.invitesLeft(teamId),
 				members.stream()
 					.filter(member -> cards.containsKey(member.studentId()))
@@ -201,7 +201,7 @@ class TeamViews {
 							TeamStudentView.of(cards.get(member.studentId())), member.joinedAt(),
 							onCrew.contains(member.membershipId())))
 					.toList(),
-				studentRows(joinRequests, cards), studentRows(invitations, cards)));
+				studentRows(joinRequests, cards), studentRows(invitations, cards));
 	}
 
 	/** The invite Sheet's search, or the exact username when {@code login} is given. */
@@ -229,7 +229,7 @@ class TeamViews {
 	}
 
 	/**
-	 * PUB-4 in the Sheet, for an approved Mentor: a verified Student, or one in a relation with the
+	 * PUB-4 in the Sheet, for a Mentor: a verified Student, or one in a relation with the
 	 * Mentor's Team (a member whose verification lapsed, a pending request). Anyone else finds nothing,
 	 * as search would not find them (AD-36).
 	 */

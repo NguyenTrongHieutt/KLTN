@@ -1,17 +1,15 @@
 /**
- * Layer 2 (AD-3): accounts and how people get in (AD-19). Customers, Mentors, and Students sign in
- * with GitHub and choose one permanent role; Administrators sign in on their own path. Each request
- * re-reads the account, so a lock takes effect at once. The kept Customer token is encrypted
- * (AD-22), and the module answers for its personal data (AD-24). Students verify their student
- * status with a school email code on the {@code settings} allowlist or a student card an
- * Administrator approves, kept in {@code files}, and {@code timers} reminds them
- * before it expires and ends it on 30 September (FR-5).
+ * Layer 2 (AD-3): accounts and how people get in (AD-19). Each person has one account, signs in with
+ * Google, and links GitHub when an action needs it; Administrators sign in on their own path. Each request
+ * re-reads the account, so a lock takes effect at once, and nobody is approved or reviewed by an
+ * Administrator: trust comes from what the System verifies (Story 19.7). The kept GitHub token is
+ * encrypted (AD-22), and the module answers for its personal data (AD-24). A person verifies their student
+ * status with a school email code on the {@code settings} allowlist, and {@code timers} reminds them before
+ * it expires and ends it on 30 September (FR-5).
  * <p>
- * Public API: {@link vn.vibefix.identity.MentorApprovalStatus}, {@link vn.vibefix.identity.ContactVisibility},
- * {@link vn.vibefix.identity.StudentVerification}, {@link vn.vibefix.identity.StudentCardQueue},
- * {@link vn.vibefix.identity.MentorGate}, {@link vn.vibefix.identity.PersonSignals} with
- * {@link vn.vibefix.identity.PersonSignalMatched}, {@link vn.vibefix.identity.MentorApplicationQueue},
- * {@link vn.vibefix.identity.MentorApproved}, {@link vn.vibefix.identity.MentorApprovalRevoked},
+ * Public API: {@link vn.vibefix.identity.ContactVisibility}, {@link vn.vibefix.identity.StudentVerification},
+ * {@link vn.vibefix.identity.ActiveAccount} (the gate of every command that creates no new work),
+ * {@link vn.vibefix.identity.PersonSignals} with {@link vn.vibefix.identity.PersonSignalMatched},
  * {@link vn.vibefix.identity.AccountLocked}, the public profile searches
  * {@link vn.vibefix.identity.StudentDirectory} and {@link vn.vibefix.identity.MentorDirectory},
  * {@link vn.vibefix.identity.CustomerRepositories} (repositories read with a Customer's kept token),

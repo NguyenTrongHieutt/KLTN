@@ -20,10 +20,6 @@ import vn.vibefix.notification.TodoType;
 @Component
 class NotificationTypes implements NotificationCatalog {
 
-	/** A Mentor account without a submitted application; opened at sign-up as a Mentor (FR-74). */
-	static final TodoType COMPLETE_MENTOR_APPLICATION = new TodoType("identity.complete_mentor_application",
-			Set.of(Audience.SUBJECT), 1, Set.of());
-
 	/** Link GitHub (UX-DR89, UX-DR112): opened when N-10 is accepted at the first sign-in, until GitHub is linked. */
 	static final TodoType IDENTITY_LINK_GITHUB = new TodoType("identity.link_github", Set.of(Audience.SUBJECT), 1,
 			Set.of());
@@ -140,37 +136,9 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType ADMINISTRATOR_ENROLMENT = new NotificationType("identity.administrator_enrolment",
 			Set.of(Audience.SUBJECT), Channel.EMAIL_ONLY, EmailClass.TRANSACTIONAL, "mail", Set.of("by"));
 
-	/** An Administrator approved a Student's card (FR-5): the Student is verified. */
-	static final NotificationType STUDENT_CARD_APPROVED = new NotificationType("identity.student_card_approved",
-			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "check", Set.of());
-
-	/** An Administrator rejected a Student's card with a reason (FR-5); they may upload another. */
-	static final NotificationType STUDENT_CARD_REJECTED = new NotificationType("identity.student_card_rejected",
-			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("reason"));
-
-	/** A Mentor submitted an application (FR-74): every Administrator, in-app. */
-	static final NotificationType MENTOR_APPLICATION_RECEIVED = new NotificationType("identity.mentor_application_received",
-			Set.of(Audience.ADMIN), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of());
-
-	/** An Administrator approved a Mentor's application (FR-74): every Mentor action opens. */
-	static final NotificationType MENTOR_APPROVED = new NotificationType("identity.mentor_approved",
-			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "check", Set.of());
-
-	/** An Administrator rejected a Mentor's application with a reason (FR-74); they may submit again after 30 days. */
-	static final NotificationType MENTOR_REJECTED = new NotificationType("identity.mentor_rejected",
-			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("reason"));
-
 	/** An Administrator locked the account with a reason (FR-59): email only, since its sessions are gone. */
 	static final NotificationType ACCOUNT_LOCKED = new NotificationType("identity.account_locked",
 			Set.of(Audience.SUBJECT), Channel.EMAIL_ONLY, EmailClass.TRANSACTIONAL, "alert", Set.of("reason"));
-
-	/** An Administrator revoked a Student's verification with a reason (FR-5, FR-59). */
-	static final NotificationType VERIFICATION_REVOKED = new NotificationType("identity.verification_revoked",
-			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("reason"));
-
-	/** An Administrator revoked a Mentor's approval (FR-59, FR-74); the reason is a policy category on FR-78's ground. */
-	static final NotificationType MENTOR_APPROVAL_REVOKED = new NotificationType("identity.mentor_approval_revoked",
-			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("reason"));
 
 	/** A Mentor invited a Student into their Team (FR-6): the Student, by email too. */
 	static final NotificationType TEAM_INVITATION_RECEIVED = new NotificationType("team.invitation_received",
@@ -243,7 +211,7 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType MATCHING_APPLICATION_RECEIVED = new NotificationType("matching.application_received",
 			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "users", Set.of("job"));
 
-	/** A locked or revoked Mentor's Application was withdrawn by the System (FR-13, AD-19). */
+	/** A locked Mentor's Application was withdrawn by the System (FR-13, AD-19). */
 	static final NotificationType MATCHING_APPLICATION_AUTO_WITHDRAWN = new NotificationType(
 			"matching.application_auto_withdrawn", Set.of(Audience.CUSTOMER), Channel.IN_APP, EmailClass.TRANSACTIONAL,
 			"alert", Set.of("mentor", "job"));
@@ -823,8 +791,7 @@ class NotificationTypes implements NotificationCatalog {
 				REPO_MERGE_APP_SELECTION_WIDENED, REPO_FINAL_MERGE_COMPLETED, REPO_ZIP_FALLBACK_READY,
 				REPO_REVOCATION_CHECKLIST_PENDING, REPO_REVOCATION_CHECKLIST_REMINDER, GITHUB_UNEXPECTED_ACTOR, GITHUB_OPERATOR_ACCOUNT_USED, GITHUB_PLATFORM_DRIFT,
 				REPO_ACCESS_REVOKED, OPERATIONS_REVOCATION_DELAYED, JOB_HANDOVER_VOIDED,
-				ADMINISTRATOR_CREATED, ADMINISTRATOR_ENROLMENT, STUDENT_CARD_APPROVED, STUDENT_CARD_REJECTED,
-				MENTOR_APPLICATION_RECEIVED, MENTOR_APPROVED, MENTOR_REJECTED, ACCOUNT_LOCKED, VERIFICATION_REVOKED, MENTOR_APPROVAL_REVOKED, TEAM_INVITATION_RECEIVED,
+				ADMINISTRATOR_CREATED, ADMINISTRATOR_ENROLMENT, ACCOUNT_LOCKED, TEAM_INVITATION_RECEIVED,
 				TEAM_INVITATION_ANSWERED, TEAM_JOIN_REQUEST_RECEIVED, TEAM_JOIN_REQUEST_ANSWERED, TEAM_RELEASED,
 				TEAM_MEMBER_LEFT, TEAM_MEMBER_REMOVED, SCANNING_INTAKE_SCAN_CLEAN, SCANNING_FINDING_OPENED, SCANNING_FINDING_REOPENED,
 				JOB_POST_LAPSED, MATCHING_APPLICATION_RECEIVED, MATCHING_APPLICATION_AUTO_WITHDRAWN,
@@ -855,7 +822,7 @@ class NotificationTypes implements NotificationCatalog {
 
 	@Override
 	public List<TodoType> todoTypes() {
-		return List.of(IDENTITY_LINK_GITHUB, COMPLETE_MENTOR_APPLICATION, VERIFY_STUDENT, IDENTITY_RELINK_GITHUB_TODO,
+		return List.of(IDENTITY_LINK_GITHUB, VERIFY_STUDENT, IDENTITY_RELINK_GITHUB_TODO,
 				SCANNING_RESOLVE_INTAKE_FINDING,
 				REPO_ACCEPT_GITHUB_INVITATION, SCANNING_RESOLVE_WORK_FINDING, REPO_RECONFIRM_SOURCE, REPO_AUTHORIZE_FINAL_MERGE,
 				REPO_REVOCATION_ITEM,

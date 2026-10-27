@@ -1,5 +1,5 @@
-import { Bell, BriefcaseBusiness, ListChecks, Package, Search, UserRound, Users, type LucideIcon } from 'lucide-react'
-import { MENTOR_PROFILE_PATH, type Session } from '@/features/identity/api'
+import { Bell, BriefcaseBusiness, ListChecks, Package, Search, Users, type LucideIcon } from 'lucide-react'
+import type { Session } from '@/features/identity/api'
 import type { MessageKey } from '@/i18n/t'
 
 export interface Destination {
@@ -16,12 +16,11 @@ const jobs: Destination = { label: 'nav.jobs', to: '/cong-viec', icon: Briefcase
 const notifications: Destination = { label: 'nav.notifications', to: '/thong-bao', icon: Bell, built: true }
 const findWork: Destination = { label: 'nav.findWork', to: '/tim-viec', icon: Search, built: true }
 const team: Destination = { label: 'nav.team', to: '/nhom', icon: Users, built: true }
-const mentorProfile: Destination = { label: 'nav.mentorProfile', to: MENTOR_PROFILE_PATH, icon: UserRound, built: true }
 
 /**
- * One route table per role (EXPERIENCE.md Navigation). A Mentor that is not approved has MEN-5 only
- * (FR-74). A Google account has no role (Story 19.1): it has the to-do list and the notifications
- * until the one shell of Story 20.6. Destinations whose surface is not built yet are left out.
+ * One route table per role (EXPERIENCE.md Navigation). A Mentor needs no approval (Story 19.7). A Google
+ * account has no role (Story 19.1): it has the to-do list and the notifications until the one shell of
+ * Story 20.6. Destinations whose surface is not built yet are left out.
  */
 export function roleNavigation(session: Session): Destination[] {
   const account = session.account
@@ -33,9 +32,7 @@ export function roleNavigation(session: Session): Destination[] {
       case 'CUSTOMER':
         return [todo, products, jobs, notifications]
       case 'MENTOR':
-        return account.mentorApprovalStatus === 'APPROVED'
-          ? [todo, findWork, jobs, team, notifications]
-          : [mentorProfile]
+        return [todo, findWork, jobs, team, notifications]
       case 'STUDENT':
         return [todo, jobs, team, notifications]
       case 'ADMINISTRATOR':

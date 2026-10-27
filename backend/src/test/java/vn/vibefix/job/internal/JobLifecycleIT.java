@@ -72,7 +72,7 @@ class JobLifecycleIT extends IntegrationTest {
 
 	@BeforeEach
 	void aCustomerWithAProduct() {
-		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.product = product(this.lan);
 	}
 
@@ -150,7 +150,7 @@ class JobLifecycleIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE action = 'job.transition_j1'")
 			.query(Long.class).single()).as("a refusal writes nothing").isOne();
 
-		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.mvc.perform(post("/api/v1/jobs/" + assessment + "/withdraw").with(as(other)).with(csrf()))
 			.andExpect(status().isNotFound());
 	}

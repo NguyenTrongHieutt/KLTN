@@ -5,7 +5,7 @@
  * withdrawn or when its selection period lapses (J2). One transition table holds J1 to J10 and M1 to
  * M8, and {@code JobLifecycle} is the only code that changes a state.
  * <p>
- * Approved Mentors browse Open Job Posts that are not hidden (FR-12) and see whether they can take
+ * Mentors browse Open Job Posts that are not hidden (FR-12) and see whether they can take
  * new work (FR-13, AD-33).
  * <p>
  * Public API: {@link vn.vibefix.job.JobTransitioned} and {@link vn.vibefix.job.JobPosts}. The HTTP

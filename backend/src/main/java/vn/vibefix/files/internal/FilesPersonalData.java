@@ -15,9 +15,10 @@ import vn.vibefix.shared.PersonalDataParticipant;
 import vn.vibefix.shared.PersonalDataSection;
 
 /**
- * Stored files' part in AD-24. An export lists what the account uploaded (name, type, size, date),
- * never the bytes, which the owning module's screens show to whoever may see them. An erasure deletes
- * the account's files, bytes first; the owning modules erase their own records of them.
+ * Stored files' part in AD-24. An export lists what the account uploaded and still has (name, type, size,
+ * date), never the bytes, which the owning module's screens show to whoever may see them; a deleted file,
+ * such as a retired student card (Story 19.7), is left out. An erasure deletes the account's files, bytes
+ * first; the owning modules erase their own records of them.
  */
 @Component
 class FilesPersonalData implements PersonalDataParticipant {
@@ -38,7 +39,7 @@ class FilesPersonalData implements PersonalDataParticipant {
 
 	@Override
 	public Optional<PersonalDataSection> export(UUID accountId) {
-		List<StoredFile> uploaded = this.files.uploadedBy(accountId);
+		List<StoredFile> uploaded = this.files.keptBy(accountId);
 		if (uploaded.isEmpty()) {
 			return Optional.empty();
 		}

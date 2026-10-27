@@ -24,7 +24,6 @@ import org.springframework.session.SessionRepository;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.job.AgreementConfirmed;
 import vn.vibefix.job.JobTransitioned;
@@ -66,8 +65,8 @@ class BacklogSeedIT extends IntegrationTest {
 
 	@BeforeEach
 	void anActiveJobWithAConfirmedAgreement() {
-		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
-		this.hung = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Đỗ Mạnh Hùng",
+		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng",
 				List.of(TeamTestSupport.REACT), "React");
 		this.product = UUID.randomUUID();
 		this.jdbc.sql("""
@@ -178,9 +177,9 @@ class BacklogSeedIT extends IntegrationTest {
 				.andExpect(jsonPath("$.items[3].criterion.milestoneNumber").value(2))
 				.andExpect(jsonPath("$.items[3].criterion.number").value(1));
 		}
-		UUID otherMentor = TeamTestSupport.mentor(this.jdbc, MentorApprovalStatus.APPROVED, "Phạm Thu Hà",
+		UUID otherMentor = TeamTestSupport.mentor(this.jdbc, "Phạm Thu Hà",
 				List.of(TeamTestSupport.REACT), "React");
-		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null, null);
+		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
 		for (RequestPostProcessor outsider : List.of(as(this.lan, Role.CUSTOMER), as(tung, Role.STUDENT),
 				as(otherMentor, Role.MENTOR), as(admin, Role.ADMINISTRATOR))) {
 			this.mvc.perform(get("/api/v1/boards/" + this.job + "/work-items").with(outsider)).andExpect(status().isNotFound());

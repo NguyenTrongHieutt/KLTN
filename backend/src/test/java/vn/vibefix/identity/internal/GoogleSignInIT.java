@@ -119,7 +119,6 @@ class GoogleSignInIT extends IntegrationTest {
 			.containsEntry("google_email", "lan.nguyen@gmail.test")
 			.containsEntry("google_name", "Nguyễn Thị Lan");
 		assertThat(account.get("role")).isNull();
-		assertThat(account.get("mentor_approval_status")).isNull();
 		assertThat(account.get("github_user_id")).isNull();
 		assertThat(this.jdbc.sql("SELECT source FROM identity.person_signal").query(String.class).list())
 			.containsExactly("GOOGLE_EMAIL");

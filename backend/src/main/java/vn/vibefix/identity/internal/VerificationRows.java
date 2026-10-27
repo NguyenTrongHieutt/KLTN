@@ -31,19 +31,25 @@ class VerificationRows {
 
 	static final String STUDENT = "STUDENT";
 
-	/** How a student verification was made. */
+	/**
+	 * How a student verification was made. {@code STUDENT_CARD} is read on the ended rows from before Story
+	 * 19.7 retired the card; nothing writes it any more.
+	 */
 	enum Provider {
 
 		EMAIL_CODE, STUDENT_CARD;
 
-		/** The API's name of the method: {@code SCHOOL_EMAIL} or {@code STUDENT_CARD}. */
+		/** The API's name of the method: {@code SCHOOL_EMAIL}, or {@code STUDENT_CARD} for an old ended row. */
 		String method() {
 			return this == EMAIL_CODE ? "SCHOOL_EMAIL" : "STUDENT_CARD";
 		}
 
 	}
 
-	/** Why a row ended. {@code REVOKED} is the Administrator's revocation, until Story 19.7. */
+	/**
+	 * Why a row ended. {@code REVOKED} is read on the rows an Administrator revoked before Story 19.7 removed
+	 * the revocation; nothing writes it any more.
+	 */
 	enum Ending {
 
 		EXPIRED, UNLINKED, REPLACED, ERASED, REVOKED
@@ -52,7 +58,7 @@ class VerificationRows {
 
 	/**
 	 * The public facts of a live row.
-	 * @param school the allowlisted domain the address matched, or the card's school
+	 * @param school the allowlisted domain the address matched
 	 * @param name the declared full name, locked while the row is live
 	 * @param major the declared major, locked while the row is live
 	 * @param verifiedMonth {@code yyyy-MM}, in Vietnam
@@ -197,7 +203,7 @@ class VerificationRows {
 
 	/**
 	 * Ends the row {@code reason}, deleting its facts. Unless a new row replaces it, the profile's
-	 * projection is cleared. "Bỏ xác minh" and a revocation delete every pending code of the account; an
+	 * projection is cleared. "Bỏ xác minh" and an erasure delete every pending code of the account; an
 	 * expiry deletes a renewal's, since it holds a copy of the locked name and major.
 	 */
 	@Transactional(propagation = Propagation.MANDATORY)
@@ -232,7 +238,7 @@ class VerificationRows {
 
 	/**
 	 * Whether the account holds the Student role, the only one that has the {@code identity.verify_student}
-	 * to-do (until Story 19.7).
+	 * to-do (until Story 20.3 drops roles).
 	 */
 	boolean isStudent(UUID accountId) {
 		return this.jdbc.sql("SELECT coalesce(role = 'STUDENT', FALSE) FROM identity.account WHERE id = :id")

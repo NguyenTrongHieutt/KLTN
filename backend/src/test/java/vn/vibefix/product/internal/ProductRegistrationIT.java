@@ -80,7 +80,7 @@ class ProductRegistrationIT extends IntegrationTest {
 		REPOSITORIES.clear();
 		FILES.clear();
 		AUTHORIZATIONS.clear();
-		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.lanGithubId = CustomerTokens.githubUserId(this.jdbc, this.lan);
 		CustomerTokens.keep(this.context, this.lan, TOKEN);
 	}
@@ -164,7 +164,7 @@ class ProductRegistrationIT extends IntegrationTest {
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.tools[0]").value("LOVABLE"));
 
-		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null, null);
+		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.mvc.perform(get("/api/v1/products/" + id).with(as(other, Role.CUSTOMER))).andExpect(status().isNotFound());
 	}
 
@@ -208,7 +208,7 @@ class ProductRegistrationIT extends IntegrationTest {
 
 	@Test
 	void onlyCustomersRegister() throws Exception {
-		UUID mentor = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null, null);
+		UUID mentor = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null);
 		this.mvc.perform(post("/api/v1/products/repository-check").with(as(mentor, Role.MENTOR)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("{\"url\":\"https://github.com/lan-nguyen/shop-gom\"}")).andExpect(status().isNotFound());

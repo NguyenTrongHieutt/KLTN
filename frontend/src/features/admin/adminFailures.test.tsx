@@ -40,8 +40,6 @@ const overview = {
   failedOperations: { count: 1 },
   stalledEvents: { count: 0 },
   activeAdministrators: 2,
-  studentCards: { count: 0 },
-  mentorApplications: { count: 0 },
   disputes: { count: 0 },
   lowFeedback: { count: 0 },
   failedExecutions: { count: 0 },

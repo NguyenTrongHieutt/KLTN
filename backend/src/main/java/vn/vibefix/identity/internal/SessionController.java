@@ -22,7 +22,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.identity.internal.SignInSession.AccountAuthentication;
 import vn.vibefix.identity.internal.SignInSession.PendingWelcome;
 import vn.vibefix.shared.Access;
@@ -76,12 +75,10 @@ class SessionController {
 
 	/**
 	 * @param role the permanent role of an account from before Google sign-in, and an Administrator's;
-	 * absent for a Google account, which holds roles in Jobs only (Epic 20)
-	 * @param mentorApprovalStatus set exactly for Mentors
+	 * absent for a Google account, which holds roles in Jobs only (Epic 20); a Mentor needs no approval
 	 * @param theme the account's Theme toggle choice (UX-DR5)
 	 */
-	record AccountView(UUID id, @Nullable Role role, @Nullable MentorApprovalStatus mentorApprovalStatus,
-			Profiles.Theme theme) {
+	record AccountView(UUID id, @Nullable Role role, Profiles.Theme theme) {
 	}
 
 	/** @param privacyNoticeVersion the version of the personal-data notice the person accepted */
@@ -193,8 +190,7 @@ class SessionController {
 
 	private SessionView signedIn(Account account, HttpServletRequest request) {
 		return new SessionView(SessionStatus.SIGNED_IN,
-				new AccountView(account.id(), account.role(), account.mentorApprovalStatus(),
-						this.profiles.theme(account.id())),
+				new AccountView(account.id(), account.role(), this.profiles.theme(account.id())),
 				account.githubLogin(), account.githubAvatarUrl(), account.displayName(), null, null, version(),
 				administrator(account, request));
 	}

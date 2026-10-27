@@ -7,6 +7,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -27,33 +28,25 @@ import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
 import vn.vibefix.identity.AccountAdministration;
 import vn.vibefix.identity.AccountLocked;
-import vn.vibefix.identity.MentorApprovalRevoked;
-import vn.vibefix.identity.MentorApprovalStatus;
 import vn.vibefix.notification.Audience;
 import vn.vibefix.notification.NotificationRequest;
 import vn.vibefix.notification.Notifications;
 import vn.vibefix.notification.Recipient;
-import vn.vibefix.notification.TodoRequest;
-import vn.vibefix.notification.Todos;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.IdGenerator;
 import vn.vibefix.shared.Role;
 
 /**
- * {@link AccountAdministration} (FR-5, FR-59, FR-74, AD-19, SG-11): each command locks the account row,
- * records an {@code identity.account_action}, and is audited with its reason. A lock deletes the
- * account's sessions by principal name, as an erasure does, so its next request is anonymous; the
- * caller filter refuses a locked account on every request anyway.
+ * {@link AccountAdministration} (FR-5, FR-59, AD-19, SG-11): each command locks the account row, records an
+ * {@code identity.account_action}, and is audited with its reason. A lock deletes the account's sessions by
+ * principal name, as an erasure does, so its next request is anonymous; the caller filter refuses a locked
+ * account on every request anyway. The person links are read from the person-link signals, by kind only.
  */
 @Component
 class AccountAdministrations implements AccountAdministration {
 
 	static final String LOCKED = "identity.account_locked";
-
-	static final String VERIFICATION_REVOKED = "identity.verification_revoked";
-
-	static final String APPROVAL_REVOKED = "identity.mentor_approval_revoked";
 
 	private static final String NAME = Profiles.NAME;
 
@@ -64,17 +57,12 @@ class AccountAdministrations implements AccountAdministration {
 			""";
 
 	/** @param role absent for a Google account, which has none (Story 19.1) */
-	private record Target(UUID id, boolean administrator, @Nullable Role role, @Nullable MentorApprovalStatus approval,
-			boolean locked) {
+	private record Target(UUID id, boolean administrator, @Nullable Role role, boolean locked) {
 	}
 
 	private final JdbcClient jdbc;
 
-	private final StepUps stepUps;
-
 	private final Notifications notifications;
-
-	private final Todos todos;
 
 	private final ApplicationEventPublisher events;
 
@@ -86,17 +74,11 @@ class AccountAdministrations implements AccountAdministration {
 
 	private final ObjectProvider<DataRequests> dataRequests;
 
-	private final VerificationRows verificationRows;
-
-	AccountAdministrations(JdbcClient jdbc, StepUps stepUps, Notifications notifications, Todos todos,
-			ApplicationEventPublisher events, AuditLog auditLog, IdGenerator ids, Clock clock,
-			ObjectProvider<DataRequests> dataRequests, VerificationRows verificationRows) {
+	AccountAdministrations(JdbcClient jdbc, Notifications notifications, ApplicationEventPublisher events,
+			AuditLog auditLog, IdGenerator ids, Clock clock, ObjectProvider<DataRequests> dataRequests) {
 		this.dataRequests = dataRequests;
-		this.verificationRows = verificationRows;
 		this.jdbc = jdbc;
-		this.stepUps = stepUps;
 		this.notifications = notifications;
-		this.todos = todos;
 		this.events = events;
 		this.auditLog = auditLog;
 		this.ids = ids;
@@ -134,26 +116,21 @@ class AccountAdministrations implements AccountAdministration {
 			switch (query.status()) {
 				case LOCKED -> where.append(" AND a.locked_at IS NOT NULL");
 				case VERIFIED -> where.append(" AND v.valid_until >= :today");
-				default -> {
-					where.append(" AND a.mentor_approval_status = :status");
-					params.put("status", query.status().name());
-				}
 			}
 		}
 		long total = this.jdbc.sql("SELECT count(*) " + FROM + where).params(params).query(Long.class).single();
 		int page = Math.max(0, query.page());
 		params.put("offset", page * PAGE_SIZE);
 		params.put("size", PAGE_SIZE);
-		List<Row> rows = this.jdbc.sql("SELECT a.id, a.role, a.github_login, a.locked_at, a.mentor_approval_status, a.created_at, "
-				+ NAME + " AS name, v.valid_until " + FROM + where + " ORDER BY a.created_at DESC, a.id LIMIT :size OFFSET :offset")
+		List<Row> rows = this.jdbc.sql("SELECT a.id, a.role, a.github_login, a.locked_at, a.created_at, " + NAME
+				+ " AS name, v.valid_until " + FROM + where + " ORDER BY a.created_at DESC, a.id LIMIT :size OFFSET :offset")
 			.params(params)
 			.query((rs, n) -> {
 				Role role = role(rs);
 				LocalDate validUntil = rs.getObject("valid_until", LocalDate.class);
-				// A verified student is any person's account with a live, valid row (Story 19.4); a Mentor shows its approval.
+				// A verified student is any person's account with a live, valid row (Story 19.4).
 				boolean verified = validUntil != null && !validUntil.isBefore(today);
-				String status = role == Role.MENTOR ? rs.getString("mentor_approval_status")
-						: verified ? "VERIFIED" : role == Role.STUDENT ? "UNVERIFIED" : null;
+				String status = verified ? "VERIFIED" : role == Role.STUDENT ? "UNVERIFIED" : null;
 				return new Row(rs.getObject("id", UUID.class), role, rs.getString("name"), rs.getString("github_login"),
 						rs.getTimestamp("locked_at") != null, status, rs.getTimestamp("created_at").toInstant());
 			})
@@ -186,8 +163,7 @@ class AccountAdministrations implements AccountAdministration {
 	public Optional<Account> account(UUID accountId) {
 		LocalDate today = today();
 		return this.jdbc.sql("SELECT a.id, a.role, a.github_login, a.created_at, a.signed_in_at, a.locked_at, a.lock_reason, "
-				+ "a.mentor_approval_status, coalesce(p.contact_email, a.google_email, a.github_email) AS email, " + NAME
-				+ " AS name, "
+				+ "coalesce(p.contact_email, a.google_email, a.github_email) AS email, " + NAME + " AS name, "
 				+ "v.provider, v.verified_at, v.valid_until " + FROM
 				+ " WHERE a.id = :id AND a.kind = 'USER' AND a.erased_at IS NULL")
 			.param("id", accountId)
@@ -196,13 +172,50 @@ class AccountAdministrations implements AccountAdministration {
 				Verification verification = validUntil == null ? null
 						: new Verification(VerificationRows.Provider.valueOf(rs.getString("provider")).method(),
 								rs.getTimestamp("verified_at").toInstant(), validUntil, !validUntil.isBefore(today));
-				String approval = rs.getString("mentor_approval_status");
 				return new Account(rs.getObject("id", UUID.class), role(rs), rs.getString("name"),
 						rs.getString("github_login"), rs.getString("email"), rs.getTimestamp("created_at").toInstant(),
-						instant(rs, "signed_in_at"), instant(rs, "locked_at"), rs.getString("lock_reason"),
-						approval == null ? null : MentorApprovalStatus.valueOf(approval), verification, history(accountId));
+						instant(rs, "signed_in_at"), instant(rs, "locked_at"), rs.getString("lock_reason"), verification,
+						history(accountId));
 			})
 			.optional();
+	}
+
+	/**
+	 * Every other account holding a signal of the same kind, key version, and HMAC (AD-19), as
+	 * {@code PersonSignals.sharesPersonSignal} compares them. An erased account's signals are kept 24
+	 * months, so it is listed, without a name. Moved here from the retired ADM-13 (Story 19.7).
+	 */
+	@Override
+	@Transactional(readOnly = true)
+	public List<PersonLink> personLinks(UUID accountId) {
+		return this.jdbc.sql("SELECT a.id, CASE WHEN a.erased_at IS NULL THEN " + NAME + " END AS name, l.kinds,"
+				+ " a.locked_at IS NOT NULL AS locked, a.erased_at IS NOT NULL AS erased, a.created_at\n" + """
+				FROM (SELECT theirs.account_id, array_agg(DISTINCT theirs.kind ORDER BY theirs.kind) AS kinds
+				      FROM identity.person_signal mine
+				      JOIN identity.person_signal theirs ON theirs.kind = mine.kind
+				           AND theirs.key_version = mine.key_version AND theirs.hmac = mine.hmac
+				           AND theirs.account_id <> mine.account_id
+				      WHERE mine.account_id = :id
+				      GROUP BY theirs.account_id) l
+				JOIN identity.account a ON a.id = l.account_id
+				LEFT JOIN identity.profile p ON p.account_id = a.id
+				ORDER BY a.created_at, a.id
+				""")
+			.param("id", accountId)
+			.query((rs, n) -> new PersonLink(rs.getObject("id", UUID.class), rs.getString("name"),
+					Arrays.stream((String[]) rs.getArray("kinds").getArray()).map(SignalKind::valueOf).toList(),
+					rs.getBoolean("locked"), rs.getBoolean("erased"), rs.getTimestamp("created_at").toInstant()))
+			.list();
+	}
+
+	@Override
+	@Transactional
+	public List<PersonLink> viewPersonLinks(UUID administrator, UUID accountId) {
+		List<PersonLink> links = personLinks(accountId);
+		// Who may be the same person is itself read under audit, whatever the read finds (AD-8, AD-19).
+		this.auditLog.record(AuditEntry.of(AuditActor.user(administrator), "identity.person_links_viewed",
+				AuditObject.of("identity.account", accountId)));
+		return links;
 	}
 
 	@Override
@@ -222,7 +235,7 @@ class AccountAdministrations implements AccountAdministration {
 			.param("now", Timestamp.from(now))
 			.param("reason", text)
 			.update();
-		UUID action = record(accountId, "LOCKED", text, null, administrator, now);
+		UUID action = record(accountId, "LOCKED", text, administrator, now);
 		// The account's sessions end at once (SG-11): the next request is anonymous.
 		this.jdbc.sql("DELETE FROM platform.spring_session WHERE principal_name = :name")
 			.param("name", accountId.toString())
@@ -244,55 +257,8 @@ class AccountAdministrations implements AccountAdministration {
 		this.jdbc.sql("UPDATE identity.account SET locked_at = NULL, lock_reason = NULL WHERE id = :id")
 			.param("id", accountId)
 			.update();
-		UUID action = record(accountId, "UNLOCKED", reason.strip(), null, administrator, now);
+		UUID action = record(accountId, "UNLOCKED", reason.strip(), administrator, now);
 		audit(administrator, "identity.account_unlocked", accountId, action);
-	}
-
-	@Override
-	@Transactional
-	public void revokeVerification(UUID administrator, UUID accountId, String reason) {
-		target(accountId);
-		// Any person's account may verify since Story 19.4; the revocation itself goes in Story 19.7.
-		VerificationRows.Row current = this.verificationRows.live(accountId)
-			.filter(row -> !today().isAfter(row.validUntil()))
-			.orElseThrow(() -> new ApiException(ErrorCode.CONFLICT, IdentityReason.NOT_VERIFIED));
-		Instant now = now();
-		String text = reason.strip();
-		// The row ends REVOKED with its facts deleted; its reminder and expiry Deadlines find it ended and are obsolete.
-		this.verificationRows.end(current, VerificationRows.Ending.REVOKED, now);
-		UUID action = record(accountId, "VERIFICATION_REVOKED", text, null, administrator, now);
-		this.notifications.send(new NotificationRequest(VERIFICATION_REVOKED, action,
-				List.of(new Recipient(accountId, Audience.SUBJECT)), Map.of("reason", text), SignIns.VERIFICATION_PATH, null,
-				accountId));
-		if (this.verificationRows.isStudent(accountId)) {
-			this.todos.open(new TodoRequest(SignIns.VERIFY_STUDENT, accountId, Audience.SUBJECT, accountId, Map.of(),
-					SignIns.VERIFICATION_PATH, null, null));
-		}
-		audit(administrator, "identity.verification_revoked", accountId, action);
-	}
-
-	@Override
-	@Transactional
-	public Result revokeApproval(UUID administrator, UUID accountId, Ground ground, String reason, String stepUpCode) {
-		StepUps.Outcome stepUp = this.stepUps.check(administrator, stepUpCode);
-		if (stepUp instanceof StepUps.Outcome.Refused refused) {
-			return new Result(refused.refusal(), refused.endSession());
-		}
-		Target target = target(accountId);
-		if (target.role() != Role.MENTOR || target.approval() != MentorApprovalStatus.APPROVED) {
-			return new Result(new ApiException(ErrorCode.CONFLICT, IdentityReason.NOT_APPROVED), false);
-		}
-		Instant now = now();
-		String text = reason.strip();
-		this.jdbc.sql("UPDATE identity.account SET mentor_approval_status = 'REVOKED' WHERE id = :id")
-			.param("id", accountId)
-			.update();
-		UUID action = record(accountId, "APPROVAL_REVOKED", text, ground, administrator, now);
-		this.events.publishEvent(new MentorApprovalRevoked(this.ids.newId(), accountId));
-		this.notifications.send(new NotificationRequest(APPROVAL_REVOKED, action,
-				List.of(new Recipient(accountId, Audience.SUBJECT)), Map.of("reason", text), "/ho-so", null, accountId));
-		audit(administrator, "identity.mentor_approval_revoked", accountId, action);
-		return new Result(null, false);
 	}
 
 	@Override
@@ -310,31 +276,26 @@ class AccountAdministrations implements AccountAdministration {
 	/** The account to act on, locked; {@code NOT_FOUND} for one erased, gone, or an Administrator's on unlock. */
 	private Target target(UUID accountId) {
 		return this.jdbc.sql("""
-				SELECT id, kind, role, mentor_approval_status, locked_at IS NOT NULL AS locked FROM identity.account
+				SELECT id, kind, role, locked_at IS NOT NULL AS locked FROM identity.account
 				WHERE id = :id AND erased_at IS NULL FOR UPDATE
 				""")
 			.param("id", accountId)
-			.query((rs, n) -> {
-				String approval = rs.getString("mentor_approval_status");
-				return new Target(rs.getObject("id", UUID.class), "ADMINISTRATOR".equals(rs.getString("kind")), role(rs),
-						approval == null ? null : MentorApprovalStatus.valueOf(approval), rs.getBoolean("locked"));
-			})
+			.query((rs, n) -> new Target(rs.getObject("id", UUID.class), "ADMINISTRATOR".equals(rs.getString("kind")),
+					role(rs), rs.getBoolean("locked")))
 			.optional()
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 	}
 
-	private UUID record(UUID accountId, String action, String reason, @Nullable Ground ground, UUID administrator,
-			Instant now) {
+	private UUID record(UUID accountId, String action, String reason, UUID administrator, Instant now) {
 		UUID id = this.ids.newId();
 		this.jdbc.sql("""
-				INSERT INTO identity.account_action (id, account_id, action, reason, ground, acted_by, acted_at)
-				VALUES (:id, :account, :action, :reason, :ground, :by, :now)
+				INSERT INTO identity.account_action (id, account_id, action, reason, acted_by, acted_at)
+				VALUES (:id, :account, :action, :reason, :by, :now)
 				""")
 			.param("id", id)
 			.param("account", accountId)
 			.param("action", action)
 			.param("reason", reason)
-			.param("ground", ground == null ? null : ground.name())
 			.param("by", administrator)
 			.param("now", Timestamp.from(now))
 			.update();
@@ -348,9 +309,8 @@ class AccountAdministrations implements AccountAdministration {
 				WHERE x.account_id = :id ORDER BY x.acted_at DESC, x.id DESC
 				""")
 			.param("id", accountId)
-			.query((rs, n) -> new Action(rs.getString("action"), rs.getString("reason"),
-					rs.getString("ground") == null ? null : Ground.valueOf(rs.getString("ground")), rs.getString("display_name"),
-					rs.getTimestamp("acted_at").toInstant()))
+			.query((rs, n) -> new Action(rs.getString("action"), rs.getString("reason"), rs.getString("ground"),
+					rs.getString("display_name"), rs.getTimestamp("acted_at").toInstant()))
 			.list();
 	}
 

@@ -24,7 +24,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import vn.vibefix.identity.MentorGate;
+import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.job.internal.Agreements.AccessLevel;
 import vn.vibefix.job.internal.Agreements.Content;
 import vn.vibefix.job.internal.Agreements.CriterionInput;
@@ -152,7 +152,7 @@ class AgreementController {
 
 	private final Jobs jobs;
 
-	private final MentorGate gate;
+	private final ActiveAccount gate;
 
 	private final CurrentCaller callers;
 
@@ -162,7 +162,7 @@ class AgreementController {
 
 	private final AgreementReviews reviews;
 
-	AgreementController(Agreements agreements, Jobs jobs, MentorGate gate, CurrentCaller callers, JdbcClient jdbc,
+	AgreementController(Agreements agreements, Jobs jobs, ActiveAccount gate, CurrentCaller callers, JdbcClient jdbc,
 			CrewService crews, AgreementReviews reviews) {
 		this.crews = crews;
 		this.reviews = reviews;

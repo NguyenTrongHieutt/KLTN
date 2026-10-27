@@ -161,12 +161,15 @@ describe('MEN-2, browsing Job Posts (FR-12)', () => {
     expect(await screen.findByText('Không tìm thấy nội dung này.')).toBeInTheDocument()
   })
 
-  it('keeps a Mentor who is not approved on MEN-5 (FR-74)', async () => {
-    const seen = fakeBackend(signedIn('MENTOR', 'PENDING'))
+  it('shows any Mentor the Job Posts, with no approval step (Story 19.7)', async () => {
+    const seen = fakeBackend(signedIn('MENTOR'), {
+      'GET /api/v1/mentor/job-posts': () => page([]),
+      'GET /api/v1/mentor/capacity': () => capacity(),
+    })
     const router = renderAt('/tim-viec')
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/ho-so/nguoi-huong-dan'))
-    expect(seen.some((request) => request.url.includes('/api/v1/mentor/job-posts'))).toBe(false)
+    await waitFor(() => expect(seen.some((request) => request.url.includes('/api/v1/mentor/job-posts'))).toBe(true))
+    expect(router.state.location.pathname).toBe('/tim-viec')
   })
 })
 

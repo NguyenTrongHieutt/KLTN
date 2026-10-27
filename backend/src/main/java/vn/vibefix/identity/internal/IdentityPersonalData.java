@@ -63,9 +63,8 @@ class IdentityPersonalData implements PersonalDataParticipant {
 		return Set.of("identity.account", "identity.acknowledgment", "identity.customer_token",
 				"identity.profile", "identity.profile_link", "identity.showcase_repository",
 				"identity.contact_grant", "identity.school_email_code", "identity.school_email_send_hour",
-				"identity.school_email_send_day", "identity.verification",
-				"identity.student_card", "identity.administrator_credential", "identity.administrator_enrolment",
-				"identity.person_signal", "identity.mentor_application", "identity.mentor_decision", "identity.deletion_request",
+				"identity.school_email_send_day", "identity.verification", "identity.administrator_credential",
+				"identity.administrator_enrolment", "identity.person_signal", "identity.deletion_request",
 				"identity.account_action");
 	}
 
@@ -129,60 +128,6 @@ class IdentityPersonalData implements PersonalDataParticipant {
 			if (!verifications.isEmpty()) {
 				data.put("verifications", verifications);
 			}
-			// The cards' decisions and what the Administrator recorded; the files are files' to export.
-			List<Map<String, Object>> cards = this.jdbc.sql("""
-					SELECT status, file_name, uploaded_at, decided_at, student_number, school, rejection_reason
-					FROM identity.student_card WHERE account_id = :id ORDER BY uploaded_at
-					""").param("id", accountId).query((rs, n) -> {
-				Map<String, Object> card = new LinkedHashMap<>();
-				card.put("status", rs.getString("status"));
-				card.put("fileName", rs.getString("file_name"));
-				card.put("uploadedAt", rs.getTimestamp("uploaded_at").toInstant().toString());
-				if (rs.getTimestamp("decided_at") != null) {
-					card.put("decidedAt", rs.getTimestamp("decided_at").toInstant().toString());
-				}
-				if (rs.getString("student_number") != null) {
-					card.put("studentNumber", rs.getString("student_number"));
-					card.put("school", rs.getString("school"));
-				}
-				if (rs.getString("rejection_reason") != null) {
-					card.put("rejectionReason", rs.getString("rejection_reason"));
-				}
-				return card;
-			}).list();
-			if (!cards.isEmpty()) {
-				data.put("studentCards", cards);
-			}
-			// What the Mentor application keeps besides the profile, with the document's name.
-			this.jdbc.sql("""
-					SELECT linkedin_url, other_link, document_name, submitted_at
-					FROM identity.mentor_application WHERE account_id = :id
-					""").param("id", accountId).query((rs, n) -> {
-				Map<String, Object> application = new LinkedHashMap<>();
-				application.put("linkedinUrl", rs.getString("linkedin_url"));
-				application.put("otherLink", rs.getString("other_link"));
-				application.put("document", rs.getString("document_name"));
-				Timestamp submitted = rs.getTimestamp("submitted_at");
-				application.put("submittedAt", submitted == null ? null : submitted.toInstant().toString());
-				return application;
-			}).optional().ifPresent(application -> data.put("mentorApplication", application));
-			// The decisions on it, with the reasons the applicant read; not which Administrator decided.
-			List<Map<String, Object>> decisions = this.jdbc.sql("""
-					SELECT decision, reason, reapply_after, decided_at FROM identity.mentor_decision
-					WHERE account_id = :id ORDER BY decided_at
-					""").param("id", accountId).query((rs, n) -> {
-				Map<String, Object> decision = new LinkedHashMap<>();
-				decision.put("decision", rs.getString("decision"));
-				decision.put("decidedAt", rs.getTimestamp("decided_at").toInstant().toString());
-				if (rs.getString("reason") != null) {
-					decision.put("reason", rs.getString("reason"));
-					decision.put("reapplyAfter", rs.getTimestamp("reapply_after").toInstant().toString());
-				}
-				return decision;
-			}).list();
-			if (!decisions.isEmpty()) {
-				data.put("mentorDecisions", decisions);
-			}
 			// What Administrators did to the account and why (FR-59); not which Administrator.
 			List<Map<String, String>> actions = this.jdbc.sql("""
 					SELECT action, reason, acted_at FROM identity.account_action WHERE account_id = :id ORDER BY acted_at
@@ -238,9 +183,8 @@ class IdentityPersonalData implements PersonalDataParticipant {
 				WHERE account_id = :id AND ended_at IS NULL
 				""").param("id", accountId).param("now", Timestamp.from(this.clock.instant())).update();
 		for (String table : new String[] { "identity.showcase_repository", "identity.school_email_code",
-				"identity.school_email_send_hour", "identity.student_card", "identity.administrator_credential",
-				"identity.administrator_enrolment", "identity.mentor_application", "identity.mentor_decision", "identity.account_action",
-				"identity.profile_link", "identity.profile" }) {
+				"identity.school_email_send_hour", "identity.administrator_credential", "identity.administrator_enrolment",
+				"identity.account_action", "identity.profile_link", "identity.profile" }) {
 			this.jdbc.sql("DELETE FROM " + table + " WHERE account_id = :id").param("id", accountId).update();
 		}
 		this.jdbc.sql("""
