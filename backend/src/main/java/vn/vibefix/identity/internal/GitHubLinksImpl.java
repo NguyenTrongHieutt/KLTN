@@ -31,6 +31,7 @@ import vn.vibefix.operations.OperationRequest;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.IdGenerator;
+import vn.vibefix.shared.Kind;
 
 /**
  * The rules of an account's GitHub link (FR-80, R14, AD-10, AD-19, AD-22, AD-24). One GitHub account
@@ -141,7 +142,7 @@ class GitHubLinksImpl implements GitHubLinks {
 	@Transactional
 	Outcome link(UUID accountId, LinkedUser user, Purpose purpose, @Nullable String token) {
 		Account account = this.accounts.lockForLink(accountId)
-			.filter(found -> found.kind() == Account.Kind.USER && found.isActive())
+			.filter(found -> found.kind() == Kind.USER && found.isActive())
 			.orElse(null);
 		if (account == null) {
 			return Outcome.ACCOUNT_INACTIVE;
@@ -189,7 +190,7 @@ class GitHubLinksImpl implements GitHubLinks {
 	@Transactional
 	void unlink(UUID accountId) {
 		Account account = this.accounts.lockForLink(accountId)
-			.filter(found -> found.kind() == Account.Kind.USER && found.isActive() && found.githubUserId() != null)
+			.filter(found -> found.kind() == Kind.USER && found.isActive() && found.githubUserId() != null)
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		List<GitHubLinkBlocker> blockers = blockers(accountId);
 		if (!blockers.isEmpty()) {
@@ -217,7 +218,7 @@ class GitHubLinksImpl implements GitHubLinks {
 	@Transactional(readOnly = true)
 	Status status(UUID accountId) {
 		Account account = this.accounts.findById(accountId)
-			.filter(found -> found.kind() == Account.Kind.USER && found.isActive())
+			.filter(found -> found.kind() == Kind.USER && found.isActive())
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		boolean linked = account.githubUserId() != null;
 		return new Status(linked, account.githubLogin(), account.githubAvatarUrl(),

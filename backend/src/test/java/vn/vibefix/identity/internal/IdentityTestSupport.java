@@ -24,6 +24,7 @@ import org.springframework.session.Session;
 import org.springframework.session.SessionRepository;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
+import vn.vibefix.shared.Kind;
 import vn.vibefix.shared.Role;
 import vn.vibefix.support.MutableClock;
 
@@ -119,9 +120,14 @@ public final class IdentityTestSupport {
 		};
 	}
 
-	/** The authentication a signed-in session holds for the account; a Google account's role is {@code null}. */
+	/**
+	 * The authentication a signed-in session holds for the account: its ID and kind only (Story 20.1), the
+	 * kind an Administrator's for {@code ADMINISTRATOR} and a person's for any other role or none (a Google
+	 * account's). The caller filter reads the role from the account row.
+	 */
 	public static Authentication authentication(UUID accountId, @Nullable Role role) {
-		return new SignInSession.AccountAuthentication(accountId, role);
+		return new SignInSession.AccountAuthentication(accountId,
+				role == Role.ADMINISTRATOR ? Kind.ADMINISTRATOR : Kind.USER);
 	}
 
 	/**

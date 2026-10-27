@@ -19,8 +19,8 @@ import vn.vibefix.identity.internal.SignInSession.AccountAuthentication;
  * Finishes a Google sign-in (AD-19). The Google principal Spring built is replaced at once, so the
  * session never holds Google's ID token, its claims, or a token:
  * <ul>
- * <li>an account that accepted the current N-10 signs in, as its account ID (a Google account has no
- * role), and returns to the route it asked for or lands on the to-do list;</li>
+ * <li>an account that accepted the current N-10 signs in, as its account ID and kind and nothing else,
+ * and returns to the route it asked for or lands on the to-do list;</li>
  * <li>a locked account is refused, and PUB-2 shows the reason;</li>
  * <li>a first sign-in, or an account that has not accepted the current N-10, goes to PUB-3
  * "Chào mừng" holding no account until it accepts.</li>
@@ -54,7 +54,7 @@ class SignInSuccessHandler implements AuthenticationSuccessHandler {
 		SecurityContext context = SecurityContextHolder.createEmptyContext();
 		String target = switch (this.signIns.signInWithGoogle(subject, email, name)) {
 			case SignIns.Outcome.SignedIn signedIn -> {
-				context.setAuthentication(new AccountAuthentication(signedIn.account().id(), signedIn.account().role()));
+				context.setAuthentication(new AccountAuthentication(signedIn.account().id(), signedIn.account().kind()));
 				yield returnTo != null ? returnTo : SignIns.LANDING_PATH;
 			}
 			case SignIns.Outcome.Locked locked -> {

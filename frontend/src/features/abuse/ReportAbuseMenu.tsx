@@ -95,7 +95,7 @@ export function ReportUserMenu({
 }) {
   const session = useSession()
   const account = session.data?.status === 'SIGNED_IN' ? session.data.account : undefined
-  if (!account || account.role === 'ADMINISTRATOR' || (accountId !== undefined && account.id === accountId)) {
+  if (!account || account.kind === 'ADMINISTRATOR' || (accountId !== undefined && account.id === accountId)) {
     return null
   }
   return (

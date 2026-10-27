@@ -22,6 +22,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+import vn.vibefix.identity.Capabilities;
 import vn.vibefix.identity.internal.SignInSession.AccountAuthentication;
 import vn.vibefix.identity.internal.SignInSession.PendingWelcome;
 import vn.vibefix.shared.Access;
@@ -30,6 +32,7 @@ import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
+import vn.vibefix.shared.Kind;
 import vn.vibefix.shared.Role;
 
 /**
@@ -74,11 +77,32 @@ class SessionController {
 	}
 
 	/**
-	 * @param role the permanent role of an account from before Google sign-in, and an Administrator's;
-	 * absent for a Google account, which holds roles in Jobs only (Epic 20); a Mentor needs no approval
+	 * The signed-in account (AD-19): its kind and its capabilities, read from the database on this request.
+	 * @param kind {@code USER} or {@code ADMINISTRATOR}; the SPA tells an Administrator by it
+	 * @param capabilities what the account can show for itself now, which the SPA's gates read (UX-DR95)
 	 * @param theme the account's Theme toggle choice (UX-DR5)
+	 * @param role deprecated and transitional: the account role of a row from before Google sign-in and of an
+	 * Administrator; absent for a Google account, which holds roles in Jobs only. Story 20.6 removes it with
+	 * the shell that still branches on it; nothing new may read it.
 	 */
-	record AccountView(UUID id, @Nullable Role role, Profiles.Theme theme) {
+	record AccountView(UUID id, Kind kind, CapabilitiesView capabilities, Profiles.Theme theme,
+			@Schema(deprecated = true) @Nullable Role role) {
+	}
+
+	/**
+	 * {@code identity.capabilities} as the SPA reads it.
+	 * @param linkedinVerified always {@code false} until Story 19.6
+	 * @param locked never {@code true} here: a locked account has no session (the caller filter ends it), so
+	 * {@code GET /session} and the sign-up answer only for an unlocked one
+	 */
+	record CapabilitiesView(boolean githubVerified, boolean linkedinVerified, boolean studentVerified,
+			boolean locked) {
+
+		static CapabilitiesView of(Capabilities.Held held) {
+			return new CapabilitiesView(held.githubVerified(), held.linkedinVerified(), held.studentVerified(),
+					held.locked());
+		}
+
 	}
 
 	/** @param privacyNoticeVersion the version of the personal-data notice the person accepted */
@@ -99,11 +123,15 @@ class SessionController {
 
 	private final AdministratorCredentials administrators;
 
+	private final Capabilities capabilities;
+
 	private final Clock clock;
 
 	SessionController(CurrentCaller callers, Accounts accounts, SignIns signIns, SecurityContextRepository contexts,
-			IdentityProperties properties, Profiles profiles, AdministratorCredentials administrators, Clock clock) {
+			IdentityProperties properties, Profiles profiles, AdministratorCredentials administrators,
+			Capabilities capabilities, Clock clock) {
 		this.administrators = administrators;
+		this.capabilities = capabilities;
 		this.clock = clock;
 		this.profiles = profiles;
 		this.callers = callers;
@@ -161,7 +189,7 @@ class SessionController {
 		SignInSession.clear(session);
 		request.changeSessionId();
 		SecurityContext context = SecurityContextHolder.createEmptyContext();
-		context.setAuthentication(new AccountAuthentication(account.id(), account.role()));
+		context.setAuthentication(new AccountAuthentication(account.id(), account.kind()));
 		SecurityContextHolder.setContext(context);
 		this.contexts.saveContext(context, request, response);
 		return ResponseEntity.status(HttpStatus.CREATED).body(signedIn(account, request));
@@ -188,15 +216,18 @@ class SessionController {
 		return ResponseEntity.noContent().build();
 	}
 
+	/** The signed-in session, with the capabilities read now (AD-19). */
 	private SessionView signedIn(Account account, HttpServletRequest request) {
+		CapabilitiesView capabilities = CapabilitiesView.of(this.capabilities.capabilities(account.id()));
 		return new SessionView(SessionStatus.SIGNED_IN,
-				new AccountView(account.id(), account.role(), this.profiles.theme(account.id())),
+				new AccountView(account.id(), account.kind(), capabilities, this.profiles.theme(account.id()),
+						account.role()),
 				account.githubLogin(), account.githubAvatarUrl(), account.displayName(), null, null, version(),
 				administrator(account, request));
 	}
 
 	private @Nullable AdministratorView administrator(Account account, HttpServletRequest request) {
-		if (account.kind() != Account.Kind.ADMINISTRATOR) {
+		if (account.kind() != Kind.ADMINISTRATOR) {
 			return null;
 		}
 		AdminSessions.Expiry expiry = AdminSessions.current(request.getSession(false), this.clock.instant());

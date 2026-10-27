@@ -2,7 +2,6 @@ package vn.vibefix.identity.internal;
 
 import java.io.Serializable;
 import java.time.Instant;
-import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -10,10 +9,8 @@ import jakarta.servlet.http.HttpSession;
 
 import org.jspecify.annotations.Nullable;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
-import vn.vibefix.shared.Role;
+import vn.vibefix.shared.Kind;
 
 /**
  * What the session holds between the Google callback and the account (AD-19). Every value is
@@ -74,21 +71,21 @@ final class SignInSession {
 	}
 
 	/**
-	 * The authenticated account in the security context: its ID and, for an account from before Google
-	 * sign-in or an Administrator, its permanent role; a Google account has none (Story 20.1 brings the
-	 * kind). The GitHub link and the lock status are read from the database on every request, never from here
-	 * (AD-19).
+	 * The authenticated account in the security context: its ID and its kind, and nothing else (AD-19). The
+	 * transitional role, the GitHub link, the verifications, and the lock are read from the database on every
+	 * request, never from here, so a session from before a change never carries a stale fact. It grants no
+	 * authority: the caller filter and each module's policy decide.
 	 */
 	static final class AccountAuthentication extends AbstractAuthenticationToken {
 
 		private final UUID accountId;
 
-		private final @Nullable Role role;
+		private final Kind kind;
 
-		AccountAuthentication(UUID accountId, @Nullable Role role) {
-			super(authorities(role));
+		AccountAuthentication(UUID accountId, Kind kind) {
+			super(List.of());
 			this.accountId = accountId;
-			this.role = role;
+			this.kind = kind;
 			setAuthenticated(true);
 		}
 
@@ -96,8 +93,8 @@ final class SignInSession {
 			return this.accountId;
 		}
 
-		@Nullable Role role() {
-			return this.role;
+		Kind kind() {
+			return this.kind;
 		}
 
 		@Override
@@ -114,10 +111,6 @@ final class SignInSession {
 		@Override
 		public String getName() {
 			return this.accountId.toString();
-		}
-
-		private static Collection<? extends GrantedAuthority> authorities(@Nullable Role role) {
-			return role == null ? List.of() : List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
 		}
 
 	}

@@ -386,7 +386,7 @@ DELETE /api/v1/verification/student,CUSTOMER,locked=true,,401
 GET /api/v1/files/{fileId},ANONYMOUS,,,401
 GET /api/v1/files/{fileId},CUSTOMER,,,404 NOT_FOUND
 GET /api/v1/files/{fileId},MENTOR,,,200
-GET /api/v1/files/{fileId},MENTOR,github=unlinked,,200
+GET /api/v1/files/{fileId},MENTOR,github=unlinked,,404 NOT_FOUND
 GET /api/v1/files/{fileId},STUDENT,,,404 NOT_FOUND
 GET /api/v1/files/{fileId},SUBJECT,,,404 NOT_FOUND
 GET /api/v1/files/{fileId},ADMINISTRATOR,,,404 NOT_FOUND
@@ -466,34 +466,34 @@ POST /api/v1/jobs/{jobId}/withdraw,CUSTOMER,,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/withdraw,MENTOR,,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/withdraw,STUDENT,,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/withdraw,ADMINISTRATOR,,,404 NOT_FOUND
-GET /api/v1/mentor/job-posts,ANONYMOUS,,,401,requireActiveAccount
-GET /api/v1/mentor/job-posts,MENTOR,,,200,requireActiveAccount
-GET /api/v1/mentor/job-posts,MENTOR,github=unlinked,,200,requireActiveAccount
-GET /api/v1/mentor/job-posts,OWNER,,,404 NOT_FOUND,requireActiveAccount
-GET /api/v1/mentor/job-posts,CUSTOMER,,,404 NOT_FOUND,requireActiveAccount
-GET /api/v1/mentor/job-posts,STUDENT,,,404 NOT_FOUND,requireActiveAccount
-GET /api/v1/mentor/job-posts,ADMINISTRATOR,,,404 NOT_FOUND,requireActiveAccount
-GET /api/v1/mentor/capacity,ANONYMOUS,,,401,requireActiveAccount
-GET /api/v1/mentor/capacity,MENTOR,,,200,requireActiveAccount
-GET /api/v1/mentor/capacity,MENTOR,github=unlinked,,200,requireActiveAccount
-GET /api/v1/mentor/capacity,OWNER,,,404 NOT_FOUND,requireActiveAccount
-GET /api/v1/mentor/capacity,CUSTOMER,,,404 NOT_FOUND,requireActiveAccount
-GET /api/v1/mentor/capacity,STUDENT,,,404 NOT_FOUND,requireActiveAccount
-GET /api/v1/mentor/capacity,ADMINISTRATOR,,,404 NOT_FOUND,requireActiveAccount
-GET /api/v1/mentor/job-posts/{postId},ANONYMOUS,,,401,requireActiveAccount
-GET /api/v1/mentor/job-posts/{postId},MENTOR,,,200,requireActiveAccount
-GET /api/v1/mentor/job-posts/{postId},MENTOR,github=unlinked,,200,requireActiveAccount
-GET /api/v1/mentor/job-posts/{postId},OWNER,,,404 NOT_FOUND,requireActiveAccount
-GET /api/v1/mentor/job-posts/{postId},CUSTOMER,,,404 NOT_FOUND,requireActiveAccount
-GET /api/v1/mentor/job-posts/{postId},STUDENT,,,404 NOT_FOUND,requireActiveAccount
-GET /api/v1/mentor/job-posts/{postId},ADMINISTRATOR,,,404 NOT_FOUND,requireActiveAccount
-GET /api/v1/mentor/job-posts/{postId}/customer-rating,ANONYMOUS,,,401,requireActiveAccount
-GET /api/v1/mentor/job-posts/{postId}/customer-rating,MENTOR,,,200,requireActiveAccount
-GET /api/v1/mentor/job-posts/{postId}/customer-rating,MENTOR,github=unlinked,,200,requireActiveAccount
-GET /api/v1/mentor/job-posts/{postId}/customer-rating,OWNER,,,404 NOT_FOUND,requireActiveAccount
-GET /api/v1/mentor/job-posts/{postId}/customer-rating,CUSTOMER,,,404 NOT_FOUND,requireActiveAccount
-GET /api/v1/mentor/job-posts/{postId}/customer-rating,STUDENT,,,404 NOT_FOUND,requireActiveAccount
-GET /api/v1/mentor/job-posts/{postId}/customer-rating,ADMINISTRATOR,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/job-posts,ANONYMOUS,,,401,requireGitHubLinked
+GET /api/v1/mentor/job-posts,MENTOR,,,200,requireGitHubLinked
+GET /api/v1/mentor/job-posts,MENTOR,github=unlinked,,403 FORBIDDEN GITHUB_NOT_LINKED,requireGitHubLinked
+GET /api/v1/mentor/job-posts,OWNER,,,404 NOT_FOUND,requireGitHubLinked
+GET /api/v1/mentor/job-posts,CUSTOMER,,,404 NOT_FOUND,requireGitHubLinked
+GET /api/v1/mentor/job-posts,STUDENT,,,404 NOT_FOUND,requireGitHubLinked
+GET /api/v1/mentor/job-posts,ADMINISTRATOR,,,404 NOT_FOUND,requireGitHubLinked
+GET /api/v1/mentor/capacity,ANONYMOUS,,,401,requireGitHubLinked
+GET /api/v1/mentor/capacity,MENTOR,,,200,requireGitHubLinked
+GET /api/v1/mentor/capacity,MENTOR,github=unlinked,,403 FORBIDDEN GITHUB_NOT_LINKED,requireGitHubLinked
+GET /api/v1/mentor/capacity,OWNER,,,404 NOT_FOUND,requireGitHubLinked
+GET /api/v1/mentor/capacity,CUSTOMER,,,404 NOT_FOUND,requireGitHubLinked
+GET /api/v1/mentor/capacity,STUDENT,,,404 NOT_FOUND,requireGitHubLinked
+GET /api/v1/mentor/capacity,ADMINISTRATOR,,,404 NOT_FOUND,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId},ANONYMOUS,,,401,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId},MENTOR,,,200,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId},MENTOR,github=unlinked,,403 FORBIDDEN GITHUB_NOT_LINKED,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId},OWNER,,,404 NOT_FOUND,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId},CUSTOMER,,,404 NOT_FOUND,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId},STUDENT,,,404 NOT_FOUND,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId},ADMINISTRATOR,,,404 NOT_FOUND,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/customer-rating,ANONYMOUS,,,401,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/customer-rating,MENTOR,,,200,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/customer-rating,MENTOR,github=unlinked,,403 FORBIDDEN GITHUB_NOT_LINKED,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/customer-rating,OWNER,,,404 NOT_FOUND,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/customer-rating,CUSTOMER,,,404 NOT_FOUND,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/customer-rating,STUDENT,,,404 NOT_FOUND,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/customer-rating,ADMINISTRATOR,,,404 NOT_FOUND,requireGitHubLinked
 POST /api/v1/mentor/job-posts/{postId}/applications,ANONYMOUS,,application.json,401,requireGitHubLinked
 POST /api/v1/mentor/job-posts/{postId}/applications,MENTOR,,application.json,422 GUARD_FAILED,requireGitHubLinked
 POST /api/v1/mentor/job-posts/{postId}/applications,MENTOR,github=unlinked,application.json,403 FORBIDDEN GITHUB_NOT_LINKED,requireGitHubLinked
@@ -584,13 +584,13 @@ POST /api/v1/jobs/{jobId}/invitations,CUSTOMER,,invitation.json,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/invitations,MENTOR,,invitation.json,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/invitations,STUDENT,,invitation.json,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/invitations,ADMINISTRATOR,,invitation.json,404 NOT_FOUND
-GET /api/v1/mentor/job-posts/{postId}/invitation,ANONYMOUS,,,401,requireActiveAccount
-GET /api/v1/mentor/job-posts/{postId}/invitation,MENTOR,,,404 NOT_FOUND,requireActiveAccount
-GET /api/v1/mentor/job-posts/{postId}/invitation,MENTOR,github=unlinked,,404 NOT_FOUND,requireActiveAccount
-GET /api/v1/mentor/job-posts/{postId}/invitation,OWNER,,,404 NOT_FOUND,requireActiveAccount
-GET /api/v1/mentor/job-posts/{postId}/invitation,CUSTOMER,,,404 NOT_FOUND,requireActiveAccount
-GET /api/v1/mentor/job-posts/{postId}/invitation,STUDENT,,,404 NOT_FOUND,requireActiveAccount
-GET /api/v1/mentor/job-posts/{postId}/invitation,ADMINISTRATOR,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/job-posts/{postId}/invitation,ANONYMOUS,,,401,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/invitation,MENTOR,,,404 NOT_FOUND,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/invitation,MENTOR,github=unlinked,,403 FORBIDDEN GITHUB_NOT_LINKED,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/invitation,OWNER,,,404 NOT_FOUND,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/invitation,CUSTOMER,,,404 NOT_FOUND,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/invitation,STUDENT,,,404 NOT_FOUND,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/invitation,ADMINISTRATOR,,,404 NOT_FOUND,requireGitHubLinked
 GET /api/v1/reputation/mentor-summaries,ANONYMOUS,,,401
 GET /api/v1/reputation/mentor-summaries,OWNER,,,200
 GET /api/v1/reputation/mentor-summaries,CUSTOMER,,,200
@@ -603,13 +603,13 @@ GET /api/v1/jobs/{jobId}/recommendations,CUSTOMER,,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/recommendations,MENTOR,,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/recommendations,STUDENT,,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/recommendations,ADMINISTRATOR,,,404 NOT_FOUND
-GET /api/v1/mentor/recommendations,ANONYMOUS,,,401,requireActiveAccount
-GET /api/v1/mentor/recommendations,MENTOR,,,200,requireActiveAccount
-GET /api/v1/mentor/recommendations,MENTOR,github=unlinked,,200,requireActiveAccount
-GET /api/v1/mentor/recommendations,OWNER,,,404 NOT_FOUND,requireActiveAccount
-GET /api/v1/mentor/recommendations,CUSTOMER,,,404 NOT_FOUND,requireActiveAccount
-GET /api/v1/mentor/recommendations,STUDENT,,,404 NOT_FOUND,requireActiveAccount
-GET /api/v1/mentor/recommendations,ADMINISTRATOR,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/recommendations,ANONYMOUS,,,401,requireGitHubLinked
+GET /api/v1/mentor/recommendations,MENTOR,,,200,requireGitHubLinked
+GET /api/v1/mentor/recommendations,MENTOR,github=unlinked,,403 FORBIDDEN GITHUB_NOT_LINKED,requireGitHubLinked
+GET /api/v1/mentor/recommendations,OWNER,,,404 NOT_FOUND,requireGitHubLinked
+GET /api/v1/mentor/recommendations,CUSTOMER,,,404 NOT_FOUND,requireGitHubLinked
+GET /api/v1/mentor/recommendations,STUDENT,,,404 NOT_FOUND,requireGitHubLinked
+GET /api/v1/mentor/recommendations,ADMINISTRATOR,,,404 NOT_FOUND,requireGitHubLinked
 GET /api/v1/jobs/{jobId}/chat,ANONYMOUS,,,401
 GET /api/v1/jobs/{jobId}/chat,OWNER,,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/chat,CUSTOMER,,,404 NOT_FOUND

@@ -324,7 +324,7 @@ class ProductController {
 	private Product readable(UUID productId) {
 		Caller caller = this.callers.get();
 		return this.products.find(productId)
-			.filter(found -> caller.hasRole(Role.ADMINISTRATOR)
+			.filter(found -> caller.isAdministrator()
 					|| caller.hasRole(Role.CUSTOMER) && found.customerId().equals(caller.requireAccountId()))
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 	}

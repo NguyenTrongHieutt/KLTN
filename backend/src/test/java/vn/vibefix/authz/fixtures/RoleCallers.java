@@ -16,6 +16,7 @@ import vn.vibefix.authz.MatrixFixture;
 import vn.vibefix.authz.MatrixWorld;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.shared.Caller;
+import vn.vibefix.shared.Kind;
 import vn.vibefix.shared.Role;
 import vn.vibefix.support.MutableClock;
 
@@ -26,8 +27,8 @@ import vn.vibefix.support.MutableClock;
  * <ul>
  * <li>{@code locked=true}: the account is locked, so the request arrives anonymous;</li>
  * <li>{@code github=unlinked}: a person's account with no GitHub account linked, which the commands that
- * create work refuse ({@code GITHUB_NOT_LINKED}); linked by default. No Mentor has an approval status
- * since Story 19.7.</li>
+ * create work and the reads of "Tìm việc" (X1) refuse ({@code GITHUB_NOT_LINKED}); linked by default. No
+ * Mentor has an approval status since Story 19.7.</li>
  * </ul>
  */
 public class RoleCallers implements MatrixFixture {
@@ -100,7 +101,7 @@ public class RoleCallers implements MatrixFixture {
 
 	/** A request from a new account with {@code role}, set directly; see {@link #as(Caller)}. */
 	public static RequestPostProcessor as(Role role) {
-		return as(Caller.account(UUID.randomUUID(), role));
+		return as(Caller.account(UUID.randomUUID(), role == Role.ADMINISTRATOR ? Kind.ADMINISTRATOR : Kind.USER, role));
 	}
 
 }

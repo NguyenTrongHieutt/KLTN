@@ -33,6 +33,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.shared.Caller;
+import vn.vibefix.shared.Kind;
 import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
@@ -95,7 +96,7 @@ class JobPostsIT extends IntegrationTest {
 		// No Mentor needs an approval (Story 19.7); one locked after the session was read is refused.
 		UUID locked = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, "Vi phạm");
 		this.mvc.perform(get("/api/v1/mentor/job-posts").with(request -> {
-			request.setAttribute(Caller.REQUEST_ATTRIBUTE, Caller.account(locked, Role.MENTOR));
+			request.setAttribute(Caller.REQUEST_ATTRIBUTE, Caller.account(locked, Kind.USER, Role.MENTOR));
 			return request;
 		})).andExpect(status().isForbidden()).andExpect(jsonPath("$.reason").value("ACCOUNT_LOCKED"));
 		this.mvc.perform(get("/api/v1/mentor/job-posts").with(as(this.lan, Role.CUSTOMER))).andExpect(status().isNotFound());

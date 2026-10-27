@@ -20,6 +20,7 @@ export function GitHubGate({
   returnTo,
   needsRepositoryToken = false,
   forceRelink = false,
+  keepsInput = true,
   onLeave,
   onBack,
   children,
@@ -31,6 +32,8 @@ export function GitHubGate({
   needsRepositoryToken?: boolean
   /** The backend answered that GitHub must be linked again (`RELINK_GITHUB`): the gate shows whatever the read says. */
   forceRelink?: boolean
+  /** Whether the page holds the person's input (a form): false where nothing was typed, such as "Tìm việc". */
+  keepsInput?: boolean
   onLeave: () => void
   onBack?: () => void
   children: ReactNode
@@ -56,7 +59,9 @@ export function GitHubGate({
                 {t(relink ? 'screen.githubGate.relinkHeading' : 'screen.githubGate.heading', { action })}
               </h2>
               <p className="text-body-sm">{t(relink ? 'screen.githubGate.relinkWhy' : 'screen.githubGate.why')}</p>
-              <p className="text-caption text-muted-foreground">{t('screen.githubGate.kept')}</p>
+              <p className="text-caption text-muted-foreground">
+                {t(keepsInput ? 'screen.githubGate.kept' : 'screen.githubGate.returnsHere')}
+              </p>
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">

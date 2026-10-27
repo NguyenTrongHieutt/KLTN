@@ -29,6 +29,7 @@ import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
+import vn.vibefix.shared.Kind;
 
 /**
  * ACC-2's student email row (FR-5, FR-80, AD-42, UX-DR93), for any person's account: the status, the
@@ -151,7 +152,7 @@ class VerificationController {
 	/** The caller's account, if it is an active person's; an Administrator has no verification. */
 	private Account requireUser() {
 		return this.accounts.findById(this.caller.get().requireAccountId())
-			.filter(found -> found.kind() == Account.Kind.USER && found.isActive())
+			.filter(found -> found.kind() == Kind.USER && found.isActive())
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 	}
 

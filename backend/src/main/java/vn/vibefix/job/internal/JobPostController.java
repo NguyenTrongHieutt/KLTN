@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 import vn.vibefix.catalog.Catalog;
 import vn.vibefix.catalog.Skill;
 import vn.vibefix.catalog.SkillCategory;
-import vn.vibefix.identity.ActiveAccount;
+import vn.vibefix.identity.GitHubGate;
 import vn.vibefix.job.internal.JobController.ScreenshotView;
 import vn.vibefix.job.internal.JobPostQueries.Filter;
 import vn.vibefix.job.internal.JobPostQueries.Page;
@@ -43,9 +43,10 @@ import vn.vibefix.shared.PageResponse;
 import vn.vibefix.shared.Role;
 
 /**
- * MEN-2 and MEN-3 (FR-12, FR-13, AD-20): Open Job Posts that are not hidden, for Mentors only, with no
- * approval (Story 19.7). A locked account is refused (AD-19); anyone else finds nothing. A Job Post never
- * carries the Customer's name or contact details.
+ * MEN-2 and MEN-3, "Tìm việc" (X1; FR-12, FR-13, AD-20): Open Job Posts that are not hidden, for Mentors only,
+ * with no approval (Story 19.7). Reading them needs GitHub linked ({@code FORBIDDEN GITHUB_NOT_LINKED}, FR-80),
+ * and a locked account is refused (AD-19), both read on every request; anyone else finds nothing until Story
+ * 20.3 replaces the role pre-filter. A Job Post never carries the Customer's name or contact details.
  */
 @RestController
 @RequestMapping("/api/v1/mentor")
@@ -83,7 +84,7 @@ class JobPostController {
 
 	private final Scans scans;
 
-	private final ActiveAccount mentors;
+	private final GitHubGate gitHub;
 
 	private final SearchWindow searches;
 
@@ -92,7 +93,7 @@ class JobPostController {
 	private final Clock clock;
 
 	JobPostController(JobPostQueries posts, Jobs jobs, MentorCapacity capacity, Catalog catalog,
-			ProductDirectory products, Scans scans, ActiveAccount mentors, SearchWindow searches, CurrentCaller callers,
+			ProductDirectory products, Scans scans, GitHubGate gitHub, SearchWindow searches, CurrentCaller callers,
 			Clock clock) {
 		this.posts = posts;
 		this.jobs = jobs;
@@ -100,7 +101,7 @@ class JobPostController {
 		this.catalog = catalog;
 		this.products = products;
 		this.scans = scans;
-		this.mentors = mentors;
+		this.gitHub = gitHub;
 		this.searches = searches;
 		this.callers = callers;
 		this.clock = clock;
@@ -120,7 +121,7 @@ class JobPostController {
 			@RequestParam(name = "category", required = false) @Nullable List<UUID> categories,
 			@RequestParam(name = "budget", required = false) @Nullable List<Budget> budgets,
 			@RequestParam(required = false) @Nullable Integer within, @RequestParam(defaultValue = "0") int page) {
-		UUID mentor = activeMentor();
+		UUID mentor = linkedMentor();
 		if (page < 0 || (within != null && (within < 1 || within > 366))) {
 			throw new ApiException(ErrorCode.VALIDATION);
 		}
@@ -144,14 +145,14 @@ class JobPostController {
 	/** MEN-2 and MEN-3's FR-13 banners. */
 	@GetMapping("/capacity")
 	CapacityView capacity() {
-		Capacity mine = this.capacity.of(activeMentor());
+		Capacity mine = this.capacity.of(linkedMentor());
 		return new CapacityView(mine.teamSize(), mine.freeStudents(), mine.activeJobs(), mine.jobLimit(), mine.reasons());
 	}
 
 	/** MEN-3: one Open Job Post that is not hidden; its ID is the Job's. */
 	@GetMapping("/job-posts/{postId}")
 	JobPostView post(@PathVariable UUID postId) {
-		activeMentor();
+		linkedMentor();
 		Job job = this.posts.find(postId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		ProductInfo product = this.products.find(job.productId()).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		Map<UUID, Skill> skills = new HashMap<>();
@@ -200,14 +201,17 @@ class JobPostController {
 		return values == null ? List.of() : values;
 	}
 
-	/** The Mentor calling, unlocked (AD-19, re-read on every request); anyone but a Mentor finds nothing. */
-	private UUID activeMentor() {
+	/**
+	 * The Mentor calling, unlocked and with GitHub linked (X1, AD-19, re-read on every request); anyone but a
+	 * Mentor finds nothing.
+	 */
+	private UUID linkedMentor() {
 		Caller caller = this.callers.get();
 		if (!caller.hasRole(Role.MENTOR)) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		UUID mentor = caller.requireAccountId();
-		this.mentors.requireActiveAccount(mentor);
+		this.gitHub.requireGitHubLinked(mentor);
 		return mentor;
 	}
 

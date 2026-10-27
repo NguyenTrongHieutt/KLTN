@@ -8562,12 +8562,20 @@
       "AccountView" : {
         "type" : "object",
         "properties" : {
+          "capabilities" : {
+            "$ref" : "#/components/schemas/CapabilitiesView"
+          },
           "id" : {
             "type" : "string",
             "format" : "uuid"
           },
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "USER", "ADMINISTRATOR" ]
+          },
           "role" : {
             "type" : "string",
+            "deprecated" : true,
             "enum" : [ "CUSTOMER", "MENTOR", "STUDENT", "ADMINISTRATOR" ]
           },
           "theme" : {
@@ -8575,7 +8583,7 @@
             "enum" : [ "LIGHT", "DARK", "SYSTEM" ]
           }
         },
-        "required" : [ "id", "theme" ]
+        "required" : [ "capabilities", "id", "kind", "theme" ]
       },
       "ActionView" : {
         "type" : "object",
@@ -9909,6 +9917,24 @@
           }
         },
         "required" : [ "audience", "canCancelAlone", "canPropose", "held", "jobId", "state", "version" ]
+      },
+      "CapabilitiesView" : {
+        "type" : "object",
+        "properties" : {
+          "githubVerified" : {
+            "type" : "boolean"
+          },
+          "linkedinVerified" : {
+            "type" : "boolean"
+          },
+          "locked" : {
+            "type" : "boolean"
+          },
+          "studentVerified" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "githubVerified", "linkedinVerified", "locked", "studentVerified" ]
       },
       "CapacityView" : {
         "type" : "object",

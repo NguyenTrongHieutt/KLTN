@@ -15,6 +15,7 @@ import vn.vibefix.shared.AdminReadScope;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.ErrorCode;
+import vn.vibefix.shared.Kind;
 import vn.vibefix.shared.Role;
 import vn.vibefix.support.AdminReadGrantsContract;
 import vn.vibefix.support.IntegrationTest;
@@ -72,8 +73,8 @@ class PageGrantsIT extends IntegrationTest implements AdminReadGrantsContract {
 
 	@Override
 	public void read(UUID adminId, Seeded item) {
-		WorkAccess.BoardViewer viewer = this.access.reader(item.jobId(), Caller.account(adminId, Role.ADMINISTRATOR),
-				AdminReadScope.PAGES);
+		Caller admin = Caller.account(adminId, Kind.ADMINISTRATOR, Role.ADMINISTRATOR);
+		WorkAccess.BoardViewer viewer = this.access.reader(item.jobId(), admin, AdminReadScope.PAGES);
 		this.pages.seen(viewer, this.pages.page(item.objectId()).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND)));
 	}
 

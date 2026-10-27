@@ -203,8 +203,10 @@
       "why": "vibefix dùng tài khoản GitHub để cấp quyền vào kho mã và nhận ra các thao tác của bạn trên GitHub.",
       "relinkWhy": "vibefix cần quyền chỉ đọc kho mã của bạn trên GitHub để kiểm tra dự án gốc. Bạn không mất dữ liệu nào.",
       "kept": "Những gì bạn đã nhập được giữ lại. Sau khi liên kết, bạn quay về đúng bước này.",
+      "returnsHere": "Sau khi liên kết, bạn quay về đúng trang này.",
       "action": {
-        "registerProduct": "đăng ký sản phẩm"
+        "registerProduct": "đăng ký sản phẩm",
+        "findWork": "tìm việc"
       }
     },
     "public": {

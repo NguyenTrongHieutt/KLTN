@@ -12,7 +12,6 @@ import vn.vibefix.shared.AdminReadScope;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.ReportableContent;
-import vn.vibefix.shared.Role;
 import vn.vibefix.work.internal.Boards.Item;
 import vn.vibefix.work.internal.Pages.Page;
 import vn.vibefix.work.internal.WorkAccess.BoardViewer;
@@ -51,7 +50,7 @@ class WorkReportable implements ReportableContent {
 	/** Runs outside any transaction: a refused read must not mark the caller's transaction rollback-only. */
 	@Override
 	public Optional<Reported> reportable(String kind, UUID id, Caller caller) {
-		if (caller.hasRole(Role.ADMINISTRATOR)) {
+		if (caller.isAdministrator()) {
 			return Optional.empty();
 		}
 		try {

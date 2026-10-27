@@ -18,13 +18,14 @@ const findWork: Destination = { label: 'nav.findWork', to: '/tim-viec', icon: Se
 const team: Destination = { label: 'nav.team', to: '/nhom', icon: Users, built: true }
 
 /**
- * One route table per role (EXPERIENCE.md Navigation). A Mentor needs no approval (Story 19.7). A Google
+ * One route table per role (EXPERIENCE.md Navigation). An Administrator, told by the account's kind (Story
+ * 20.1), works in the Admin shell and has none here. A Mentor needs no approval (Story 19.7). A Google
  * account has no role (Story 19.1): it has the to-do list and the notifications until the one shell of
- * Story 20.6. Destinations whose surface is not built yet are left out.
+ * Story 20.6 replaces the transitional role. Destinations whose surface is not built yet are left out.
  */
 export function roleNavigation(session: Session): Destination[] {
   const account = session.account
-  if (!account) {
+  if (!account || account.kind === 'ADMINISTRATOR') {
     return []
   }
   const all = (() => {
@@ -35,8 +36,6 @@ export function roleNavigation(session: Session): Destination[] {
         return [todo, findWork, jobs, team, notifications]
       case 'STUDENT':
         return [todo, jobs, team, notifications]
-      case 'ADMINISTRATOR':
-        return []
       default:
         return [todo, notifications]
     }

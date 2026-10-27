@@ -12,6 +12,7 @@ import vn.vibefix.github.GitHubRepositories;
 import vn.vibefix.identity.CustomerRepositories;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
+import vn.vibefix.shared.Kind;
 
 /**
  * {@link CustomerRepositories} with the account's kept GitHub token (AD-10, AD-13, AD-22): opened in
@@ -93,14 +94,14 @@ class TokenCustomerRepositories implements CustomerRepositories {
 	@Override
 	public Optional<Long> githubUserId(UUID customerId) {
 		return this.accounts.findById(customerId)
-			.filter(found -> found.kind() == Account.Kind.USER && found.erasedAt() == null)
+			.filter(found -> found.kind() == Kind.USER && found.erasedAt() == null)
 			.map(Account::githubUserId);
 	}
 
 	/** An active person's account with a linked GitHub account. */
 	private Account customer(UUID customerId) {
 		return this.accounts.findById(customerId)
-			.filter(found -> found.kind() == Account.Kind.USER && found.githubUserId() != null && found.isActive())
+			.filter(found -> found.kind() == Kind.USER && found.githubUserId() != null && found.isActive())
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 	}
 

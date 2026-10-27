@@ -22,9 +22,9 @@ import { useSession } from './useSession'
  */
 export function MyDataPage() {
   usePageTitle(t('screen.myData.title'))
-  const role = useSession().data?.account?.role
+  const kind = useSession().data?.account?.kind
   const data = useMyData()
-  if (role === 'ADMINISTRATOR') {
+  if (kind === 'ADMINISTRATOR') {
     return <NotFoundScreen />
   }
   return (

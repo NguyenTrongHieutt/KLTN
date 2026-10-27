@@ -31,7 +31,7 @@ import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.shared.Role;
+import vn.vibefix.shared.Kind;
 
 /**
  * The enrolment link of a new Administrator (FR-2, AD-19): it shows the authenticator secret once
@@ -89,7 +89,7 @@ class AdminEnrolmentController {
 		SignInSession.clear(session);
 		request.changeSessionId();
 		SecurityContext context = SecurityContextHolder.createEmptyContext();
-		context.setAuthentication(new AccountAuthentication(((Outcome.Done) outcome).accountId(), Role.ADMINISTRATOR));
+		context.setAuthentication(new AccountAuthentication(((Outcome.Done) outcome).accountId(), Kind.ADMINISTRATOR));
 		SecurityContextHolder.setContext(context);
 		this.contexts.saveContext(context, request, response);
 		AdminSessions.start(request.getSession(), this.clock.instant());

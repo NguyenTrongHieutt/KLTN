@@ -37,6 +37,7 @@ import vn.vibefix.shared.ErasureBlocker;
 import vn.vibefix.shared.ErasureOutcome;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.IdGenerator;
+import vn.vibefix.shared.Kind;
 import vn.vibefix.shared.PersonalData;
 import vn.vibefix.shared.PersonalDataSection;
 import vn.vibefix.shared.Role;
@@ -169,7 +170,7 @@ class DataRequests {
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		// A Google account has no role (Story 19.1).
 		Role role = kindAndRole[1] == null ? null : Role.valueOf(kindAndRole[1]);
-		if (Account.Kind.ADMINISTRATOR.name().equals(kindAndRole[0])) {
+		if (Kind.ADMINISTRATOR.name().equals(kindAndRole[0])) {
 			throw new ApiException(ErrorCode.FORBIDDEN, IdentityReason.ADMINISTRATOR_ACCOUNT);
 		}
 		Request request = stored(accountId).filter(found -> found.completedAt() == null).orElse(null);

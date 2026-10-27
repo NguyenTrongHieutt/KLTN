@@ -9,9 +9,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
-import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.identity.CustomerNames;
 import vn.vibefix.identity.CustomerNames.CustomerSince;
+import vn.vibefix.identity.GitHubGate;
 import vn.vibefix.job.JobPosts;
 import vn.vibefix.reputation.RatingSummary;
 import vn.vibefix.reputation.Reputation;
@@ -26,7 +26,7 @@ import vn.vibefix.shared.Role;
 /**
  * MEN-3's Customer Rating (FR-12): the visible Rating summary of an Open Job Post's Customer, with their
  * kind and when they joined ("Cá nhân · từ {month}", author decision 2026-10-21), for unlocked Mentors
- * only. The Customer's name and account ID stay on the server.
+ * with GitHub linked only, as "Tìm việc" (X1) needs. The Customer's name and account ID stay on the server.
  */
 @RestController
 @Access(Gate.SIGNED_IN)
@@ -44,13 +44,13 @@ class CustomerRatingController {
 
 	private final Reputation reputation;
 
-	private final ActiveAccount mentors;
+	private final GitHubGate mentors;
 
 	private final CurrentCaller callers;
 
 	private final CustomerNames customers;
 
-	CustomerRatingController(JobPosts posts, Reputation reputation, ActiveAccount mentors, CurrentCaller callers,
+	CustomerRatingController(JobPosts posts, Reputation reputation, GitHubGate mentors, CurrentCaller callers,
 			CustomerNames customers) {
 		this.customers = customers;
 		this.posts = posts;
@@ -65,7 +65,7 @@ class CustomerRatingController {
 		if (!caller.hasRole(Role.MENTOR)) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
-		this.mentors.requireActiveAccount(caller.requireAccountId());
+		this.mentors.requireGitHubLinked(caller.requireAccountId());
 		UUID customer = this.posts.openCustomer(postId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		RatingSummary summary = this.reputation.visibleSummary(customer);
 		CustomerSince since = this.customers.since(customer).orElse(null);

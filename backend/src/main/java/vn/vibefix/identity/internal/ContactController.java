@@ -15,7 +15,6 @@ import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.shared.Role;
 
 /**
  * A Customer's contact details (FR-3, AD-20): the Customer, Administrators, and whoever holds an open
@@ -46,7 +45,7 @@ class ContactController {
 	ContactView contact(@PathVariable UUID customerId) {
 		Caller current = this.caller.get();
 		UUID id = current.requireAccountId();
-		boolean allowed = id.equals(customerId) || current.role() == Role.ADMINISTRATOR
+		boolean allowed = id.equals(customerId) || current.isAdministrator()
 				|| this.profiles.hasContactGrant(customerId, id);
 		if (!allowed) {
 			throw new ApiException(ErrorCode.NOT_FOUND);

@@ -48,6 +48,7 @@ import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
+import vn.vibefix.shared.Kind;
 import vn.vibefix.shared.Role;
 
 /**
@@ -162,7 +163,7 @@ class GitHubLinkController {
 	GitHubLinkStartView start(@Valid @RequestBody GitHubLinkRequest body, HttpServletRequest request) {
 		UUID accountId = this.callers.get().requireAccountId();
 		Account account = this.accounts.findById(accountId)
-			.filter(found -> found.kind() == Account.Kind.USER && found.isActive())
+			.filter(found -> found.kind() == Kind.USER && found.isActive())
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		if (!this.accounts.hasAcknowledged(accountId, SignIns.PRIVACY_NOTICE, this.properties.privacyNoticeVersion())) {
 			throw new ApiException(ErrorCode.FORBIDDEN, IdentityReason.PRIVACY_NOTICE_REQUIRED);

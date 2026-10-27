@@ -18,7 +18,6 @@ import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.shared.Role;
 
 /**
  * Denies by default (AD-20): before a handler under {@code /api} or {@code /webhooks} runs, its
@@ -52,7 +51,7 @@ class AccessGateInterceptor implements HandlerInterceptor {
 			case SIGNED_IN -> requireSignedIn(caller);
 			case ADMINISTRATOR -> {
 				requireSignedIn(caller);
-				if (!caller.hasRole(Role.ADMINISTRATOR)) {
+				if (!caller.isAdministrator()) {
 					throw new ApiException(ErrorCode.NOT_FOUND);
 				}
 			}

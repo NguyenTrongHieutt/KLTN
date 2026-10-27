@@ -3923,9 +3923,15 @@ export interface components {
             id: string;
         };
         AccountView: {
+            capabilities: components["schemas"]["CapabilitiesView"];
             /** Format: uuid */
             id: string;
             /** @enum {string} */
+            kind: "USER" | "ADMINISTRATOR";
+            /**
+             * @deprecated
+             * @enum {string}
+             */
             role?: "CUSTOMER" | "MENTOR" | "STUDENT" | "ADMINISTRATOR";
             /** @enum {string} */
             theme: "LIGHT" | "DARK" | "SYSTEM";
@@ -4418,6 +4424,12 @@ export interface components {
             state: string;
             /** Format: int64 */
             version: number;
+        };
+        CapabilitiesView: {
+            githubVerified: boolean;
+            linkedinVerified: boolean;
+            locked: boolean;
+            studentVerified: boolean;
         };
         CapacityView: {
             /** Format: int32 */

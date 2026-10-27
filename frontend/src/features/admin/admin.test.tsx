@@ -7,7 +7,7 @@ import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
 import type { Session } from '@/features/identity/api'
 import { sessionExpiry } from '@/features/identity/sessionExpiry'
-import { anonymous, fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { administratorAccount, anonymous, fakeBackend, json, signedIn } from '@/test/fakeBackend'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -25,7 +25,7 @@ function administrator(idleIn = 30, absoluteIn = 480): Session {
   return {
     status: 'SIGNED_IN',
     privacyNoticeVersion: '2.0',
-    account: { id: '00000000-0000-7000-8000-00000000a001', role: 'ADMINISTRATOR', theme: 'LIGHT' },
+    account: administratorAccount,
     administrator: {
       email: 'ha.phuong@vibefix.vn',
       displayName: 'Hà Phương',
@@ -203,6 +203,24 @@ describe('the Admin shell (UX-DR13, SG-10)', () => {
     fakeBackend(administrator(), { 'GET /api/v1/admin/overview': overview(0) })
     const router = renderAt('/viec-can-lam')
     await waitFor(() => expect(router.state.location.pathname).toBe('/quan-tri'))
+  })
+
+  it('tells an Administrator by the account kind, never by the role (Story 20.1)', async () => {
+    const session = administrator()
+    fakeBackend(
+      { ...session, account: { ...session.account!, role: undefined } },
+      { 'GET /api/v1/admin/overview': overview(0) },
+    )
+    const router = renderAt('/viec-can-lam')
+    await waitFor(() => expect(router.state.location.pathname).toBe('/quan-tri'))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Tổng quan' })).toBeInTheDocument()
+  })
+
+  it('shows a user whose transitional role reads ADMINISTRATOR the not-found screen (Story 20.1)', async () => {
+    const customer = signedIn('CUSTOMER')
+    fakeBackend({ ...customer, account: { ...customer.account!, role: 'ADMINISTRATOR' } })
+    renderAt('/quan-tri')
+    expect(await screen.findByRole('heading', { level: 1, name: /Không tìm thấy/ })).toBeInTheDocument()
   })
 
   it('warns 2 minutes before the idle limit, and "Tiếp tục phiên" extends it', async () => {

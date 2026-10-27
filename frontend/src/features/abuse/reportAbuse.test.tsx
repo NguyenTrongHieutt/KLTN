@@ -4,13 +4,19 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import type { Session } from '@/features/identity/api'
-import { fakeBackend, json } from '@/test/fakeBackend'
+import { capabilities, fakeBackend, json } from '@/test/fakeBackend'
 import { ReportAbuseMenu } from './ReportAbuseMenu'
 
 const student: Session = {
   status: 'SIGNED_IN',
   privacyNoticeVersion: '2.0',
-  account: { id: '00000000-0000-7000-8000-00000000b001', role: 'STUDENT', theme: 'LIGHT' },
+  account: {
+    id: '00000000-0000-7000-8000-00000000b001',
+    kind: 'USER',
+    capabilities: capabilities(),
+    role: 'STUDENT',
+    theme: 'LIGHT',
+  },
 }
 
 afterEach(() => {

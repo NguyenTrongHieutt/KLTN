@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { capabilities, fakeBackend, json, signedIn } from '@/test/fakeBackend'
 import { PAYLOADS } from '@/test/payloads'
 
 function renderAt(path: string) {
@@ -170,6 +170,53 @@ describe('MEN-2, browsing Job Posts (FR-12)', () => {
 
     await waitFor(() => expect(seen.some((request) => request.url.includes('/api/v1/mentor/job-posts'))).toBe(true))
     expect(router.state.location.pathname).toBe('/tim-viec')
+  })
+})
+
+describe('"Tìm việc" behind the GitHub gate (X1, FR-80, Story 20.1)', () => {
+  const unlinked = () => {
+    const mentor = signedIn('MENTOR')
+    return {
+      ...mentor,
+      githubLogin: undefined,
+      account: { ...mentor.account!, capabilities: capabilities({ githubVerified: false }) },
+    }
+  }
+
+  it.each([
+    ['MEN-2', '/tim-viec'],
+    ['MEN-3', '/tim-viec/j1'],
+  ])('shows a Mentor without GitHub linked the gate on %s and reads no Job Post', async (_, path) => {
+    const seen = fakeBackend(unlinked())
+    renderAt(path)
+
+    const gate = await screen.findByRole('heading', { level: 2, name: 'Liên kết GitHub để tìm việc' })
+    expect(gate).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Tìm việc' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Liên kết GitHub/ })).toBeInTheDocument()
+    expect(screen.getByText('Sau khi liên kết, bạn quay về đúng trang này.')).toBeInTheDocument()
+    const paths = seen.map((request) => new URL(request.url, 'http://localhost').pathname)
+    expect(paths.filter((pathname) => pathname.startsWith('/api/v1/mentor/'))).toEqual([])
+  })
+
+  it('reads the session again when the link read finds GitHub linked', { timeout: 15_000 }, async () => {
+    const mentor = signedIn('MENTOR')
+    const stale = { ...mentor, account: { ...mentor.account!, capabilities: capabilities({ githubVerified: false }) } }
+    let sessionReads = 0
+    fakeBackend(mentor, {
+      'GET /api/v1/session': () => {
+        sessionReads += 1
+        return json(sessionReads === 1 ? stale : mentor)
+      },
+      'GET /api/v1/mentor/job-posts': () => page([summary]),
+      'GET /api/v1/mentor/capacity': () => capacity(),
+      'GET /api/v1/catalog': catalog,
+    })
+    renderAt('/tim-viec')
+
+    expect(await screen.findByRole('link', { name: /Sửa lỗi mất đơn hàng/ })).toHaveAttribute('href', '/tim-viec/j1')
+    expect(sessionReads).toBeGreaterThanOrEqual(2)
+    expect(screen.queryByRole('heading', { name: 'Liên kết GitHub để tìm việc' })).not.toBeInTheDocument()
   })
 })
 
