@@ -310,27 +310,30 @@ class Applications {
 	}
 
 	/**
-	 * A locked Mentor (FR-13, AD-19): their submitted and held Applications are withdrawn, and
-	 * each Customer learns why. Withdrawing them again changes nothing.
+	 * The account's open bids end (FR-13, AD-19): on a lock, and before an erasure deletes them (Story 20.4), every
+	 * Application of the account that is not yet selected (submitted or on hold) is withdrawn with
+	 * {@code MENTOR_UNAVAILABLE}, and each Job's Customer learns why. A bid whose Job is gone is withdrawn with nobody
+	 * to tell. An account with no open bid changes nothing, and withdrawing them again changes nothing.
 	 */
 	@Transactional
-	void withdrawForMentor(UUID mentorId) {
+	void withdrawOpenBids(UUID accountId) {
 		List<Application> open = this.jdbc.sql("SELECT " + COLUMNS + """
 				 FROM matching.application WHERE mentor_account_id = :mentor AND status IN ('SUBMITTED', 'ON_HOLD')
 				ORDER BY submitted_at, id FOR UPDATE
-				""").param("mentor", mentorId).query(Applications::application).list();
+				""").param("mentor", accountId).query(Applications::application).list();
 		if (open.isEmpty()) {
 			return;
 		}
-		String mentor = this.mentors.cards(List.of(mentorId)).stream().findFirst().map(card -> card.displayName()).orElse("");
+		String mentor = this.mentors.cards(List.of(accountId)).stream().findFirst().map(card -> card.displayName()).orElse("");
 		for (Application application : open) {
 			end(application.id(), Status.WITHDRAWN, EndReason.MENTOR_UNAVAILABLE);
-			Optional<JobPostState> post = this.posts.post(application.jobId());
-			this.notifications.send(new NotificationRequest(AUTO_WITHDRAWN, application.id(),
-					List.of(new Recipient(application.customerId(), Audience.CUSTOMER)),
-					Map.of("mentor", mentor, "job", post.map(JobPostState::title).orElse("")),
-					applicationsLink(application.jobId()), application.jobId(), null));
-			post.ifPresent(found -> refreshTodo(found, openCount(found.jobId())));
+			this.posts.post(application.jobId()).ifPresent(post -> {
+				this.notifications.send(new NotificationRequest(AUTO_WITHDRAWN, application.id(),
+						List.of(new Recipient(application.customerId(), Audience.CUSTOMER)),
+						Map.of("mentor", mentor, "job", post.title()), applicationsLink(application.jobId()),
+						application.jobId(), null));
+				refreshTodo(post, openCount(post.jobId()));
+			});
 		}
 	}
 

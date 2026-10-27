@@ -303,14 +303,40 @@ class CrewChangeIT extends IntegrationTest {
 		assertThat(count("SELECT count(*) FROM job.crew_row WHERE member_account_id = '" + this.lan + "'")).isZero();
 	}
 
+	/**
+	 * Story 20.4 (AD-41): a change takes effect only with at least one party counted, an unlocked account read through
+	 * {@code identity.lockedAmong}. Every party is locked before the last confirmation, their locks not yet carried
+	 * out, so the version keeps waiting.
+	 */
 	@Test
-	void aLockedMemberIsRemovedInTheChangeAndJ8VoidsOneStillWaiting() throws Exception {
-		this.jdbc.sql("UPDATE job.crew_row SET status = 'INACTIVE', window_end = now() WHERE member_account_id = :id")
-			.param("id", this.tung).update();
-		IdentityTestSupport.lock(this.jdbc, this.tung, "test: locked");
-		change(crewVersion(), 40, Map.of(this.vy, 30, this.tung, 30)).andExpect(status().isBadRequest())
-			.andExpect(jsonPath("$.reason").value("CREW_INACTIVE_PARTY"));
+	void aChangeWhosePartiesAreAllLockedKeepsWaiting() throws Exception {
 		change(crewVersion(), 40, Map.of(this.vy, 30, this.anh, 30)).andExpect(status().isOk());
+		confirm(this.vy, 2).andExpect(status().isNoContent());
+		IdentityTestSupport.lock(this.jdbc, this.vy, "test: locked");
+		IdentityTestSupport.lock(this.jdbc, this.anh, "test: locked");
+
+		// The last confirmation, as matching records it after the NDA.
+		new TransactionTemplate(this.transactions)
+			.executeWithoutResult(status -> this.crews.confirm(this.job, this.anh, 2, this.clock.instant()));
+
+		assertThat(count("SELECT count(*) FROM job.crew_terms_confirmation WHERE job_id = '" + this.job + "' AND version_no = 2"))
+			.as("every party confirmed").isEqualTo(2);
+		assertThat(text("SELECT string_agg(version_no || status, ',' ORDER BY version_no) FROM job.crew_terms_version WHERE job_id = '"
+				+ this.job + "'")).isEqualTo("1IN_FORCE,2PENDING");
+		assertThat(rowStatus(this.anh)).isEqualTo("ASSIGNED");
+		assertThat(rowStatus(this.tung)).isEqualTo("ACTIVE");
+	}
+
+	/** Story 20.4: a lock counts as leaving, so the locked member's row is already released when the Mentor changes. */
+	@Test
+	void aChangeNeedsNoLockedMemberRemovedAndJ8VoidsOneStillWaiting() throws Exception {
+		this.jdbc.sql("""
+				UPDATE job.crew_row SET status = 'RELEASED', window_end = now(), released_at = now(), released_reason = 'LEFT'
+				WHERE member_account_id = :id
+				""").param("id", this.tung).update();
+		IdentityTestSupport.lock(this.jdbc, this.tung, "test: locked");
+		change(crewVersion(), 40, Map.of(this.vy, 30, this.anh, 30)).andExpect(status().isOk());
+		assertThat(rowStatus(this.tung)).isEqualTo("RELEASED");
 
 		this.lifecycle.apply(Transition.J8, this.job, Actor.SYSTEM, Trigger.AUTO);
 		assertThat(text("SELECT status FROM job.crew_terms_version WHERE job_id = '" + this.job + "' AND version_no = 2"))

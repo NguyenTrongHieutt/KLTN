@@ -156,18 +156,27 @@ describe('Story 11.3: "Đổi nhóm thực hiện" on JOB-6 (FR-75, AD-41, UX-DR
     expect(screen.getByText(/Đang có giai đoạn giữ tiền/)).toBeInTheDocument()
   })
 
-  it('lets a locked member only leave in the change', { timeout: 20_000 }, async () => {
+  it('leaves a member the lock released out of the change', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     mentorBackend(() =>
-      json(panel({ rows: [row('s-vy', 'Lê Thảo Vy', 'vy-le'), row('s-tung', 'Phạm Hải Tùng', 'tungph', { status: 'INACTIVE' })] })),
+      json(
+        panel({
+          rows: [
+            row('s-vy', 'Lê Thảo Vy', 'vy-le'),
+            row('s-tung', 'Phạm Hải Tùng', 'tungph', { status: 'RELEASED', releasedReason: 'LEFT', percent: undefined }),
+          ],
+        }),
+      ),
     )
     renderAt('/cong-viec/j1/thoa-thuan')
 
     await user.click(await screen.findByRole('button', { name: 'Đổi nhóm thực hiện' }))
     const editor = screen.getByRole('region', { name: 'Đổi nhóm thực hiện' })
-    expect(within(editor).getByText('Tạm ngừng · phải bỏ khỏi nhóm')).toBeInTheDocument()
+    // Story 20.4: a lock counts as leaving, so the member is gone before the change.
+    expect(within(editor).queryByText('Phạm Hải Tùng')).toBeNull()
     expect(within(editor).queryByRole('button', { name: 'Giữ Phạm Hải Tùng lại trong nhóm' })).toBeNull()
     expect(within(editor).queryByRole('textbox', { name: 'Phần của Phạm Hải Tùng, phần trăm' })).toBeNull()
+    expect(within(editor).getByRole('textbox', { name: 'Phần của Lê Thảo Vy, phần trăm' })).toBeInTheDocument()
   })
 })
 

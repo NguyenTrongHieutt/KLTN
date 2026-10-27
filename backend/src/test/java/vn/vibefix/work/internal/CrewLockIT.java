@@ -5,18 +5,20 @@ import static org.awaitility.Awaitility.await;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.session.Session;
@@ -26,20 +28,25 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import vn.vibefix.identity.AccountLocked;
 import vn.vibefix.identity.internal.AdministratorTestSupport;
 import vn.vibefix.identity.internal.AdministratorTestSupport.Administrator;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
+import vn.vibefix.notification.Audience;
+import vn.vibefix.notification.TodoRequest;
+import vn.vibefix.notification.Todos;
 import vn.vibefix.payment.Releases;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.team.internal.TeamTestSupport;
 
 /**
- * Story 11.4 (FR-59, FR-23, FR-42, AD-19, AD-41), SM-8 "a locked member on a Crew of three": locking
- * one of three active members keeps the Job running with no Dispute, tells the Mentor and the
- * Administrators, and gives the Mentor a to-do for the member's open Work Items that closes once they are
- * reassigned; the Milestone's release still pays the locked member by its pin. When the last member
- * who could work is locked, the Job goes to a Dispute and no to-do opens.
+ * Stories 11.4 and 20.4 (FR-59, FR-82, FR-23, FR-42, AD-19, AD-41), SM-8 "a locked member on a Crew of three": a lock
+ * counts as leaving. Locking one of three active members releases their row as {@code LEFT}, keeps the Job running
+ * with no Dispute, tells the Mentor and the other members, the Customer by GitHub username only, and the
+ * Administrators, and unassigns the member's open Work Items with no reassignment to-do; the Milestone's release
+ * still pays the member by its pin. When the last member is locked, the Customer hears that no member is left, once,
+ * and still no Dispute opens. A reassignment to-do opened before Story 20.4 closes at the unassignment.
  */
 class CrewLockIT extends IntegrationTest {
 
@@ -68,7 +75,13 @@ class CrewLockIT extends IntegrationTest {
 	private Releases releases;
 
 	@Autowired
+	private Todos todos;
+
+	@Autowired
 	private TransactionTemplate transactions;
+
+	@Autowired
+	private ApplicationEventPublisher events;
 
 	@Test
 	void aLockedMemberOfACrewOfThreeLeavesTheJobRunningAndIsStillPaidByThePin() throws Exception {
@@ -102,45 +115,57 @@ class CrewLockIT extends IntegrationTest {
 
 		lock(ha, minh).andExpect(status().isOk());
 		awaitListeners();
-		assertThat(text("SELECT status FROM job.crew_row WHERE member_account_id = '" + minh + "'")).isEqualTo("INACTIVE");
+		assertThat(text("SELECT status || ' ' || released_reason FROM job.crew_row WHERE member_account_id = '" + minh + "'"))
+			.isEqualTo("RELEASED LEFT");
 		assertThat(count("SELECT count(*) FROM dispute.dispute WHERE job_id = '" + job + "'")).as("the Job keeps running").isZero();
 		assertThat(text("SELECT state FROM job.job WHERE id = '" + job + "'")).isEqualTo("ACTIVE");
-		assertThat(notices("job.party_locked", hung)).isOne();
+		for (UUID told : List.of(hung, vy, tung)) {
+			assertThat(notices("job.crew_member_left", told)).as("the Mentor and the other active members").isOne();
+		}
+		assertThat(notices("job.crew_login_removed", lan)).isOne();
+		assertThat(notices("job.crew_empty", lan)).as("two members are left").isZero();
 		assertThat(notices("job.party_locked", ha.accountId())).isOne();
+		assertThat(notices("job.party_locked", hung)).isZero();
 		assertThat(notices("job.party_locked", lan)).isZero();
-		assertThat(text("SELECT params ->> 'n' FROM notification.todo WHERE todo_key = 'work.reassign_work_items' AND account_id = '"
-				+ hung + "' AND closed_at IS NULL")).isEqualTo("2");
-		assertThat(text("SELECT link FROM notification.todo WHERE todo_key = 'work.reassign_work_items'"))
-			.isEqualTo("/cong-viec/" + job + "/bang");
+		// FR-82: the member's open Work Items are unassigned for the Mentor, each change in their history by vibefix.
+		assertThat(count("SELECT count(*) FROM work.work_item WHERE job_id = '" + job + "' AND assignee_account_id IS NOT NULL"))
+			.isZero();
+		assertThat(count("""
+				SELECT count(*) FROM work.work_item_history WHERE job_id = '%s' AND action = 'UPDATED' AND actor_account_id IS NULL
+				  AND changes -> 'assigneeId' ->> 'from' = '%s'
+				""".formatted(job, minh))).isEqualTo(2);
+		assertThat(count("SELECT count(*) FROM notification.todo WHERE todo_key = 'work.reassign_work_items'"))
+			.as("no reassignment to-do opens any more").isZero();
 
 		List<UUID> items = this.jdbc.sql("SELECT id FROM work.work_item WHERE job_id = :job ORDER BY number").param("job", job)
 			.query(UUID.class).list();
-		reassign(hung, items.get(0), vy).andExpect(status().isOk())
-			.andExpect(jsonPath("$.history[1].assignedTo").value("Trần Thảo Vy"));
-		assertThat(openTodos(hung)).as("one Work Item still waits").isOne();
+		reassign(hung, items.get(0), vy).andExpect(status().isOk());
 		reassign(hung, items.get(1), tung).andExpect(status().isOk());
-		assertThat(openTodos(hung)).isZero();
 
-		// FR-42, AD-41: the release splits by the Milestone's pin, so the locked member is still paid.
+		// FR-42, AD-41: the release splits by the Milestone's pin, so the member who left is still paid.
 		this.transactions.executeWithoutResult(status -> this.releases.release(job, HELD, UUID.randomUUID()));
 		assertThat(this.jdbc.sql("""
 				SELECT amount_vnd FROM payment.ledger_entry WHERE milestone_id = :id AND entry_type = 'RELEASE' AND party_account_id = :minh
 				""").param("id", HELD).param("minh", minh).query(Long.class).single()).isEqualTo(160000);
 
-		// The last members who could work are locked: a Dispute decides, and no reassignment to-do opens.
+		// The last members are locked: the Customer hears once that no member is left, and no Dispute opens.
 		lock(ha, vy).andExpect(status().isOk());
 		awaitListeners();
-		assertThat(openTodos(hung)).as("Tùng can still take Vy's work").isOne();
+		assertThat(notices("job.crew_empty", lan)).isZero();
 		lock(ha, tung).andExpect(status().isOk());
-		await().atMost(Duration.ofSeconds(15)).until(() -> count("SELECT count(*) FROM dispute.dispute WHERE job_id = '" + job
-				+ "' AND opened_by = 'SYSTEM'") == 1);
 		awaitListeners();
-		assertThat(count("SELECT count(*) FROM notification.todo WHERE todo_key = 'work.reassign_work_items'")).isEqualTo(2);
+		assertThat(notices("job.crew_empty", lan)).isOne();
+		assertThat(text("SELECT params ->> 'mentor' FROM notification.notification WHERE type = 'job.crew_empty'"))
+			.isEqualTo("Đỗ Mạnh Hùng");
+		assertThat(count("SELECT count(*) FROM dispute.dispute WHERE job_id = '" + job + "'")).isZero();
+		assertThat(count("SELECT count(*) FROM job.crew_row WHERE job_id = '" + job + "' AND status <> 'RELEASED'")).isZero();
+		assertThat(count("SELECT count(*) FROM work.work_item WHERE job_id = '" + job + "' AND assignee_account_id IS NOT NULL"))
+			.isZero();
 	}
 
-	/** Story 20.3: every lock runs the Work Item consequence, so a locked member with no role leaves the to-do. */
+	/** Every lock runs the Work Item consequence; a reassignment to-do opened before Story 20.4 closes at it. */
 	@Test
-	void aLockedMemberWithNoRoleLeavesTheirWorkItemsToTheMentorsReassignmentToDo() throws Exception {
+	void aLockedMembersWorkItemsAreUnassignedAndAnOlderReassignmentToDoCloses() throws Exception {
 		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
 		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		UUID hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT), "React");
@@ -155,13 +180,51 @@ class CrewLockIT extends IntegrationTest {
 		this.boards.seed(job, true);
 		this.jdbc.sql("UPDATE work.work_item SET assignee_account_id = :minh WHERE job_id = :job").param("minh", minh)
 			.param("job", job).update();
+		// An earlier Job of Minh's, now Closed: its Board no longer moves, so the lock leaves its Work Items alone.
+		UUID closed = WorkTestSupport.activeJob(this.jdbc, WorkTestSupport.product(this.jdbc, lan, "Trang đặt món"), lan, hung,
+				List.of(UUID.randomUUID()), List.of(List.of(UUID.randomUUID(), UUID.randomUUID())), this.clock.instant());
+		this.boards.seed(closed, true);
+		this.jdbc.sql("UPDATE work.work_item SET assignee_account_id = :minh WHERE job_id = :job").param("minh", minh)
+			.param("job", closed).update();
+		this.jdbc.sql("UPDATE job.job SET state = 'CLOSED', closed_at = now() WHERE id = :id").param("id", closed).update();
+		UUID subject = UUID.nameUUIDFromBytes((job + ":reassign:" + minh).getBytes(StandardCharsets.UTF_8));
+		this.transactions.executeWithoutResult(status -> this.todos.open(new TodoRequest(Reassignments.TODO, hung,
+				Audience.MENTOR, subject, Map.of("job", "Sổ đặt bàn", "name", "Minh", "n", "2"), "/cong-viec/" + job + "/bang",
+				null, job)));
 
 		lock(ha, minh).andExpect(status().isOk());
 		awaitListeners();
 
-		assertThat(text("SELECT status FROM job.crew_row WHERE member_account_id = '" + minh + "'")).isEqualTo("INACTIVE");
-		assertThat(text("SELECT params ->> 'n' FROM notification.todo WHERE todo_key = 'work.reassign_work_items' AND account_id = '"
-				+ hung + "' AND closed_at IS NULL")).isEqualTo("2");
+		assertThat(text("SELECT status FROM job.crew_row WHERE member_account_id = '" + minh + "'")).isEqualTo("RELEASED");
+		assertThat(count("SELECT count(*) FROM work.work_item WHERE job_id = '" + job + "' AND assignee_account_id IS NOT NULL"))
+			.isZero();
+		assertThat(count("SELECT count(*) FROM work.work_item WHERE job_id = '" + closed + "' AND assignee_account_id = '" + minh
+				+ "'")).as("a Closed Job's Board stays as it was").isEqualTo(2);
+		assertThat(count("SELECT count(*) FROM work.work_item_history WHERE job_id = '" + closed + "' AND action = 'UPDATED'"))
+			.isZero();
+		assertThat(count("SELECT count(*) FROM notification.todo WHERE todo_key = 'work.reassign_work_items' AND closed_at IS NULL"))
+			.isZero();
+	}
+
+	/** An event stored before Story 20.4 carries no lock time: the window ends when the listener runs. */
+	@Test
+	void aLockEventWithoutItsTimeEndsTheWindowAtTheListenersClock() throws Exception {
+		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		UUID hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT), "React");
+		UUID product = WorkTestSupport.product(this.jdbc, lan, "Sổ đặt bàn Quán Mây");
+		UUID job = WorkTestSupport.activeJob(this.jdbc, product, lan, hung, List.of(HELD), List.of(CRITERIA), this.clock.instant());
+		UUID minh = WorkTestSupport.student(this.jdbc, "Nguyễn Văn Minh");
+		WorkTestSupport.crewRow(this.jdbc, job, minh, "ACTIVE", this.clock.instant().minus(Duration.ofDays(1)));
+		this.clock.advance(Duration.ofMinutes(5));
+
+		this.transactions.executeWithoutResult(
+				status -> this.events.publishEvent(new AccountLocked(UUID.randomUUID(), minh, null)));
+		awaitListeners();
+
+		assertThat(text("SELECT status || ' ' || released_reason FROM job.crew_row WHERE member_account_id = '" + minh + "'"))
+			.isEqualTo("RELEASED LEFT");
+		assertThat(this.jdbc.sql("SELECT window_end FROM job.crew_row WHERE member_account_id = :minh").param("minh", minh)
+			.query(Timestamp.class).single().toInstant()).isEqualTo(this.clock.instant());
 	}
 
 	private void heldMilestone(UUID job, UUID product, UUID customer) {
@@ -214,11 +277,6 @@ class CrewLockIT extends IntegrationTest {
 			.with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("{\"reason\":\"Vi phạm quy tắc\"}"));
-	}
-
-	private long openTodos(UUID mentor) {
-		return count("SELECT count(*) FROM notification.todo WHERE todo_key = 'work.reassign_work_items' AND account_id = '" + mentor
-				+ "' AND closed_at IS NULL");
 	}
 
 	private long notices(String type, UUID account) {

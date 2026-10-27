@@ -233,7 +233,7 @@ class AccountAdministrations implements AccountAdministration {
 		this.jdbc.sql("DELETE FROM platform.spring_session WHERE principal_name = :name")
 			.param("name", accountId.toString())
 			.update();
-		this.events.publishEvent(new AccountLocked(this.ids.newId(), accountId));
+		this.events.publishEvent(new AccountLocked(this.ids.newId(), accountId, now));
 		this.notifications.send(new NotificationRequest(LOCKED, action, List.of(new Recipient(accountId, Audience.SUBJECT)),
 				Map.of("reason", text), "/", null, accountId));
 		audit(administrator, "identity.account_locked", accountId, action);

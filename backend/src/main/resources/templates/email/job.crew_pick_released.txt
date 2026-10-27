@@ -1,0 +1,6 @@
+subject: {name} không thể ký cam kết cho {job}
+---
+Xin chào,
+
+{name} không thể ký cam kết tham gia nhóm thực hiện công việc {job}, nên không còn trong nhóm.
+Bạn có thể chọn người khác cho nhóm thực hiện trên vibefix.

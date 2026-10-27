@@ -10,7 +10,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -30,6 +29,7 @@ import vn.vibefix.audit.AuditActor;
 import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
+import vn.vibefix.identity.Capabilities;
 import vn.vibefix.identity.CustomerRepositories;
 import vn.vibefix.identity.PersonSignals;
 import vn.vibefix.identity.StudentDirectory;
@@ -133,10 +133,13 @@ class CrewService implements Crews {
 
 	private final ObjectProvider<CrewChanges> changes;
 
+	private final Capabilities capabilities;
+
 	CrewService(JdbcClient jdbc, Teams teams, StudentVerification verification, StudentDirectory students,
 			PersonSignals signals, CustomerRepositories repositories, ProductDirectory products, Settings settings,
 			Notifications notifications, Todos todos, CrewAlerts alerts, AuditLog auditLog, IdGenerator ids, Clock clock,
-			@Value("${vibefix.features.large-crews:false}") boolean largeCrews, ObjectProvider<CrewChanges> changes) {
+			@Value("${vibefix.features.large-crews:false}") boolean largeCrews, ObjectProvider<CrewChanges> changes,
+			Capabilities capabilities) {
 		this.jdbc = jdbc;
 		this.teams = teams;
 		this.verification = verification;
@@ -153,6 +156,7 @@ class CrewService implements Crews {
 		this.clock = clock;
 		this.largeCrews = largeCrews;
 		this.changes = changes;
+		this.capabilities = capabilities;
 	}
 
 	/** J4 (FR-75): the Mentor's "Chọn nhóm thực hiện" to-do, due at the Agreement deadline. */
@@ -249,8 +253,8 @@ class CrewService implements Crews {
 
 	/**
 	 * "Xác nhận lại nhóm thực hiện" (FR-17, AD-41 as revised by R-1 H1): after a lock owed a
-	 * re-confirmation, the Crew condition must hold again, so a locked member who has not confirmed
-	 * the latest version is removed first; clearing the mark locks the Crew again.
+	 * re-confirmation, the Crew condition must hold again; the lock already released the locked member's row
+	 * (Story 20.4), so nobody is removed first. Clearing the mark locks the Crew again.
 	 * @throws ApiException {@code STALE} without an owed mark; {@code GUARD_FAILED CREW_NOT_CONFIRMED}
 	 */
 	@Transactional
@@ -270,45 +274,70 @@ class CrewService implements Crews {
 	}
 
 	/**
-	 * A locked account (AD-19): each of its {@code ASSIGNED} or {@code ACTIVE} rows becomes
-	 * {@code INACTIVE}. Between the Agreement confirmation and J6 the Crew then owes a re-confirmation:
-	 * the lock lifts until the Mentor re-confirms, and the Mentor is told (R-1 H1). Safe to replay: a
-	 * row already {@code INACTIVE} changes nothing.
-	 * @return the Jobs whose row changed
+	 * A lock counts as leaving (FR-59, FR-82, AD-19, AD-41): each unreleased row of the account on the Job is
+	 * released, an {@code ACTIVE} one as {@code LEFT} and an {@code ASSIGNED} one, a pick not yet signed, as
+	 * {@code DECLINED}; a window it had ends at {@code lockedAt}, the lock's own time, never the listener's. In
+	 * Agreement before its confirmation the Mentor's "Chọn nhóm thực hiện" to-do opens again while the Crew condition
+	 * no longer holds; after the confirmation the Crew owes a re-confirmation: the Crew lock lifts until the Mentor
+	 * re-confirms, and the Mentor is told (R-1 H1). The caller holds the Job lock. Safe to replay: a released row
+	 * changes nothing.
+	 * @return the rows released, as they were before
 	 */
-	@Transactional
-	List<UUID> accountLocked(UUID accountId) {
-		List<UUID> changedJobs = new ArrayList<>();
+	List<Row> releaseLocked(Job job, UUID accountId, Instant lockedAt) {
 		List<Row> rows = this.jdbc.sql("SELECT " + ROW_COLUMNS
-				+ " FROM job.crew_row WHERE member_account_id = :id AND status IN ('ASSIGNED', 'ACTIVE')")
+				+ " FROM job.crew_row WHERE job_id = :job AND member_account_id = :id AND status <> 'RELEASED' ORDER BY id")
+			.param("job", job.id())
 			.param("id", accountId)
 			.query(CrewService::mapRow)
 			.list();
+		if (rows.isEmpty()) {
+			return rows;
+		}
+		boolean left = false;
 		for (Row row : rows) {
-			Job job = lockJob(row.jobId());
-			int changed = this.jdbc.sql("UPDATE job.crew_row SET status = 'INACTIVE' WHERE id = :id AND status IN ('ASSIGNED', 'ACTIVE')")
-				.param("id", row.id())
-				.update();
-			if (changed == 0) {
-				continue;
+			boolean active = "ACTIVE".equals(row.status());
+			release(row, active ? "LEFT" : "DECLINED", lockedAt);
+			left |= active;
+		}
+		bump(job.id(), left);
+		if (job.state() == JobState.AGREEMENT && job.mentorId() != null) {
+			if (job.agreementVersionNo() == null) {
+				refreshPickTodo(job);
 			}
-			changedJobs.add(job.id());
-			bump(job.id(), false);
-			this.todos.closeAll(CONFIRM_TODO, row.id());
-			if (job.state() == JobState.AGREEMENT && job.agreementVersionNo() != null && job.mentorId() != null) {
+			else {
 				this.jdbc.sql("UPDATE job.job SET crew_reconfirm_owed_at = coalesce(crew_reconfirm_owed_at, :now) WHERE id = :id")
 					.param("id", job.id())
 					.param("now", Timestamp.from(this.clock.instant()))
 					.update();
 				this.notifications.send(new NotificationRequest(RECONFIRM_NEEDED,
-						UUID.nameUUIDFromBytes((row.id() + ":locked").getBytes(StandardCharsets.UTF_8)),
+						UUID.nameUUIDFromBytes((rows.get(0).id() + ":locked").getBytes(StandardCharsets.UTF_8)),
 						List.of(new Recipient(job.mentorId(), Audience.MENTOR)), Map.of("job", job.title()),
 						Agreements.agreementLink(job.id()), job.id(), null));
 				this.todos.open(new TodoRequest(PICK_TODO, job.mentorId(), Audience.MENTOR, job.id(), Map.of("job", job.title()),
 						Agreements.agreementLink(job.id()), agreementDue(job.id()), job.id()));
 			}
 		}
-		return changedJobs;
+		return rows;
+	}
+
+	/**
+	 * The counted {@code ACTIVE} rows (AD-41, Story 20.4): an {@code ACTIVE} row counts only while its account is
+	 * unlocked, read through {@code identity.lockedAmong}, because a lock commits before its listener releases the
+	 * row. J6's Crew condition, a Crew change's "at least one member", and the empty-Crew check read it under the
+	 * Job lock their caller holds.
+	 */
+	List<Row> countedActive(UUID jobId) {
+		List<Row> active = rows(jobId).stream().filter(row -> "ACTIVE".equals(row.status())).toList();
+		if (active.isEmpty()) {
+			return active;
+		}
+		Map<UUID, Instant> locked = this.capabilities.lockedAmong(active.stream().map(Row::studentId).toList());
+		return active.stream().filter(row -> !locked.containsKey(row.studentId())).toList();
+	}
+
+	/** The accounts among {@code accountIds} that are locked now (AD-41): {@code identity.lockedAmong}. */
+	Set<UUID> lockedAmong(List<UUID> accountIds) {
+		return accountIds.isEmpty() ? Set.of() : this.capabilities.lockedAmong(accountIds).keySet();
 	}
 
 	/** Whether a lock between the Agreement confirmation and J6 left the Crew owing a re-confirmation. */
@@ -495,12 +524,8 @@ class CrewService implements Crews {
 		Optional<Row> open = mine.stream().filter(row -> !row.released()).findFirst();
 		if (open.isPresent()) {
 			Row row = open.get();
-			return switch (row.status()) {
-				case "ASSIGNED" -> new CrewRelationship(Relationship.ASSIGNED, row.signedAt(), null);
-				case "ACTIVE" -> new CrewRelationship(Relationship.ACTIVE, row.signedAt(), null);
-				default -> row.activatedAt() == null ? CrewRelationship.NONE
-						: new CrewRelationship(Relationship.INACTIVE, row.signedAt(), row.windowEnd());
-			};
+			return "ACTIVE".equals(row.status()) ? new CrewRelationship(Relationship.ACTIVE, row.signedAt(), null)
+					: new CrewRelationship(Relationship.ASSIGNED, row.signedAt(), null);
 		}
 		return mine.stream()
 			.filter(row -> row.activatedAt() != null)
@@ -533,9 +558,8 @@ class CrewService implements Crews {
 
 	/**
 	 * Whether the account has a counted Crew row on the Job (AD-43): one that is not released, or that was
-	 * released after it was activated. Until Story 20.4 removes {@code INACTIVE}, that also counts an unreleased
-	 * {@code INACTIVE} row that was never activated, which {@code job.roleOf} reads as {@code NONE}. The triggers
-	 * of {@code V202610271100__job_one_role_per_job.sql} use the same rule.
+	 * released after it was activated. The triggers of {@code V202610271100__job_one_role_per_job.sql} use the same
+	 * rule.
 	 */
 	boolean countedRow(UUID jobId, UUID accountId) {
 		return this.jdbc.sql("""
@@ -664,8 +688,9 @@ class CrewService implements Crews {
 
 	/**
 	 * FR-17's Crew condition (AD-41): every row that is not released signed the NDA and confirmed the
-	 * latest version, its parties are exactly those rows, and at least one {@code ACTIVE} row's account
-	 * is unlocked.
+	 * latest version, its parties are exactly those rows, and at least one {@code ACTIVE} row counts: its
+	 * account is unlocked ({@link #countedActive}, read under the Job lock J6 holds), since a lock commits before
+	 * its listener releases the row.
 	 */
 	boolean crewConfirmed(UUID jobId) {
 		List<Row> running = rows(jobId).stream().filter(row -> !row.released()).toList();
@@ -681,9 +706,7 @@ class CrewService implements Crews {
 		}
 		boolean everyone = running.stream()
 			.allMatch(row -> row.signedAt() != null && version.confirmedRows().contains(row.id()));
-		List<UUID> active = running.stream().filter(row -> "ACTIVE".equals(row.status())).map(Row::studentId).toList();
-		boolean unlocked = this.students.cards(active).stream().anyMatch(StudentCard::available);
-		return everyone && unlocked;
+		return everyone && !countedActive(jobId).isEmpty();
 	}
 
 	Optional<Row> row(UUID rowId) {
@@ -761,16 +784,28 @@ class CrewService implements Crews {
 			.forEach(row -> release(row, "JOB_ENDED"));
 	}
 
+	/** Releases the row now; a window it had ends now. */
 	void release(Row row, String reason) {
-		Instant now = this.clock.instant();
+		release(row, reason, this.clock.instant());
+	}
+
+	/**
+	 * Releases the row (AD-41) with {@code reason}: {@code DECLINED}, {@code REMOVED}, {@code JOB_ENDED}, or
+	 * {@code LEFT}; it is released now, and a window it had ends at {@code windowEnd}, which a lock sets to its own
+	 * time (Story 20.4), never before the row was activated (a row activated after the lock but before its listener
+	 * ran ends where it began).
+	 */
+	void release(Row row, String reason, Instant windowEnd) {
 		this.jdbc.sql("""
 				UPDATE job.crew_row SET status = 'RELEASED', released_at = :now, released_reason = :reason,
-				    window_end = CASE WHEN activated_at IS NOT NULL AND window_end IS NULL THEN :now ELSE window_end END
+				    window_end = CASE WHEN activated_at IS NOT NULL AND window_end IS NULL
+				        THEN greatest(CAST(:end AS TIMESTAMPTZ), activated_at) ELSE window_end END
 				WHERE id = :id
 				""")
 			.param("id", row.id())
 			.param("reason", reason)
-			.param("now", Timestamp.from(now))
+			.param("now", Timestamp.from(this.clock.instant()))
+			.param("end", Timestamp.from(windowEnd))
 			.update();
 		this.teams.releaseCrew(row.id());
 		this.todos.closeAll(CONFIRM_TODO, row.id());
@@ -863,7 +898,7 @@ class CrewService implements Crews {
 
 	List<UUID> openJobsOf(UUID studentId) {
 		return this.jdbc.sql("""
-				SELECT job_id FROM job.crew_row WHERE member_account_id = :id AND status IN ('ASSIGNED', 'ACTIVE', 'INACTIVE')
+				SELECT job_id FROM job.crew_row WHERE member_account_id = :id AND status IN ('ASSIGNED', 'ACTIVE')
 				ORDER BY created_at DESC
 				""").param("id", studentId).query(UUID.class).list();
 	}

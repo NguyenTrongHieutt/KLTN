@@ -101,6 +101,10 @@ class AccountAdministrationIT extends IntegrationTest {
 		assertThat(sessionsOf(vy)).isZero();
 		assertThat(this.events.stream(AccountLocked.class).filter(event -> event.accountId().equals(vy)).count())
 			.isEqualTo(1);
+		// Story 20.4: the event carries the locked_at the lock wrote, where the released Crew windows end.
+		assertThat(this.events.stream(AccountLocked.class).filter(event -> event.accountId().equals(vy)).findFirst()
+			.orElseThrow().lockedAt()).isEqualTo(this.jdbc.sql("SELECT locked_at FROM identity.account WHERE id = :id")
+				.param("id", vy).query(Timestamp.class).single().toInstant());
 		command(ha, vy, "lock", "{\"reason\":\"Lần nữa\"}").andExpect(status().isConflict())
 			.andExpect(jsonPath("$.reason").value("ALREADY_LOCKED"));
 		this.mvc.perform(get("/api/v1/admin/users").param("status", "LOCKED").with(admin(ha)))
@@ -114,6 +118,7 @@ class AccountAdministrationIT extends IntegrationTest {
 			.andExpect(jsonPath("$.history[0].action").value("UNLOCKED"));
 		command(ha, vy, "unlock", "{\"reason\":\"Lần nữa\"}").andExpect(status().isConflict())
 			.andExpect(jsonPath("$.reason").value("NOT_LOCKED"));
+		assertThat(this.verification.isVerified(vy)).as("a lock removes no Verification (FR-59)").isTrue();
 		assertThat(audits("identity.account_locked")).isEqualTo(1);
 		assertThat(audits("identity.account_unlocked")).isEqualTo(1);
 

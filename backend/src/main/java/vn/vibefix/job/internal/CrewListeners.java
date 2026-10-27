@@ -1,5 +1,7 @@
 package vn.vibefix.job.internal;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -15,8 +17,9 @@ import vn.vibefix.shared.ProcessedEvents;
 /**
  * AD-19: a person-link signal two accounts newly share alerts every Administrator once for each
  * running Job both take part in, as its Customer, its Mentor, or a Crew member; nothing else changes
- * (replay-safe through {@link ProcessedEvents}). A lock carries through to the person's running Jobs in every
- * role they hold there, Crew and party alike ({@link LockConsequences}, Stories 10.2 and 20.3), once per event.
+ * (replay-safe through {@link ProcessedEvents}). A lock carries through to every Job the person holds a relation
+ * to, Crew and party alike, in the marker's transaction ({@link LockConsequences}, Stories 10.2, 20.3 and 20.4),
+ * once per event.
  */
 @Component
 class CrewListeners {
@@ -29,19 +32,25 @@ class CrewListeners {
 
 	private final LockConsequences locks;
 
-	CrewListeners(JdbcClient jdbc, CrewAlerts alerts, ProcessedEvents processedEvents, LockConsequences locks) {
+	private final Clock clock;
+
+	CrewListeners(JdbcClient jdbc, CrewAlerts alerts, ProcessedEvents processedEvents, LockConsequences locks,
+			Clock clock) {
 		this.jdbc = jdbc;
 		this.alerts = alerts;
 		this.processedEvents = processedEvents;
 		this.locks = locks;
+		this.clock = clock;
 	}
 
+	/** The windows end at the lock's own time; an event stored before Story 20.4 carries none, so it ends now. */
 	@ApplicationModuleListener
 	void onAccountLocked(AccountLocked event) {
 		if (!this.processedEvents.markProcessed("job.CrewListeners.onAccountLocked", event.eventId())) {
 			return;
 		}
-		this.locks.locked(event.eventId(), event.accountId());
+		Instant lockedAt = event.lockedAt() != null ? event.lockedAt() : this.clock.instant();
+		this.locks.locked(event.eventId(), event.accountId(), lockedAt);
 	}
 
 	@ApplicationModuleListener

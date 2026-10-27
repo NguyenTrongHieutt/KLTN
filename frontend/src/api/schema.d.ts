@@ -5006,6 +5006,7 @@ export interface components {
             /** Format: uuid */
             jobId?: string;
             module: string;
+            name?: string;
             reason: string;
         };
         DeletionRequestView: {
@@ -5126,6 +5127,7 @@ export interface components {
             /** Format: uuid */
             jobId?: string;
             module: string;
+            name?: string;
             reason: string;
         };
         EvidenceAgreementVersion: {

@@ -47,7 +47,11 @@ describe('ALL-2 my data (NFR-11)', () => {
           {
             deletionRequestedAt: '2026-10-20T03:00:00Z',
             deletionCompletedAt: null,
-            blockers: [{ module: 'job', reason: 'JOB_RUNNING', jobId: 'j1' }],
+            blockers: [
+              { module: 'job', reason: 'JOB_RUNNING', jobId: 'j1', name: 'Sửa lỗi đặt bàn' },
+              { module: 'dispute', reason: 'DISPUTE_OPEN', jobId: 'j1', name: 'Sửa lỗi đặt bàn' },
+              { module: 'job', reason: 'MILESTONE_PENDING', jobId: 'j2', name: 'Trang đặt món' },
+            ],
             tokenKept: true,
           },
           201,
@@ -62,7 +66,11 @@ describe('ALL-2 my data (NFR-11)', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Gửi yêu cầu' }))
     await waitFor(() => expect(requested).toBe(true))
     expect(await screen.findByText(/Yêu cầu xóa tài khoản đã gửi ngày .*\. Quản trị viên sẽ xử lý\./)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Công việc đang chạy' })).toHaveAttribute('href', '/cong-viec/j1')
+    expect(screen.getByRole('link', { name: 'Công việc đang chạy · Sửa lỗi đặt bàn' })).toHaveAttribute('href', '/cong-viec/j1')
+    expect(screen.getByRole('link', { name: 'Tranh chấp đang mở · Sửa lỗi đặt bàn' })).toHaveAttribute('href', '/cong-viec/j1')
+    expect(
+      screen.getByRole('link', { name: 'Cột mốc bạn đã tham gia chưa thanh toán xong · Trang đặt món' }),
+    ).toHaveAttribute('href', '/cong-viec/j2')
     expect(screen.getByText(/thu hồi quyền truy cập GitHub/)).toBeInTheDocument()
   })
 })

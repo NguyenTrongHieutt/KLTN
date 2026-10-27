@@ -225,6 +225,7 @@ class DataRequests {
 		row.put("module", blocker.module());
 		row.put("reason", blocker.reason());
 		row.put("jobId", blocker.jobId() == null ? null : blocker.jobId().toString());
+		row.put("name", blocker.name());
 		return row;
 	}
 

@@ -42,10 +42,13 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import com.sun.net.httpserver.HttpServer;
 
+import vn.vibefix.identity.AccountAdministration;
 import vn.vibefix.identity.AccountLocked;
 import vn.vibefix.identity.internal.CustomerTokens;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
+import vn.vibefix.shared.ErasureOutcome;
+import vn.vibefix.shared.PersonalData;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
 import vn.vibefix.team.internal.TeamTestSupport;
@@ -77,6 +80,15 @@ class ApplicationsIT extends IntegrationTest {
 
 	@Autowired
 	private PlatformTransactionManager transactions;
+
+	@Autowired
+	private AccountAdministration administration;
+
+	@Autowired
+	private PersonalData personalData;
+
+	@Autowired
+	private MatchingPersonalData matching;
 
 	private UUID lan;
 
@@ -295,7 +307,7 @@ class ApplicationsIT extends IntegrationTest {
 	void aLockedMentorsApplicationsAreWithdrawnOnce() throws Exception {
 		UUID hung = mentorWithFreeStudent("Đỗ Mạnh Hùng");
 		apply(hung, this.job, true).andExpect(status().isCreated());
-		AccountLocked locked = new AccountLocked(UUID.randomUUID(), hung);
+		AccountLocked locked = new AccountLocked(UUID.randomUUID(), hung, this.clock.instant());
 
 		for (int i = 0; i < 2; i++) {
 			new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.events.publishEvent(locked));
@@ -366,14 +378,50 @@ class ApplicationsIT extends IntegrationTest {
 		apply(IdentityTestSupport.signedIn(this.sessions, minh, null, this.clock.instant()), this.job, true)
 			.andExpect(status().isCreated());
 		IdentityTestSupport.lock(this.jdbc, minh, "Vi phạm");
+		AccountLocked locked = new AccountLocked(UUID.randomUUID(), minh, this.clock.instant());
 
-		new TransactionTemplate(this.transactions)
-			.executeWithoutResult(status -> this.events.publishEvent(new AccountLocked(UUID.randomUUID(), minh)));
+		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.events.publishEvent(locked));
 
 		await().atMost(Duration.ofSeconds(10)).until(() -> this.jdbc.sql("""
 				SELECT count(*) FROM matching.application
 				WHERE mentor_account_id = :minh AND status = 'WITHDRAWN' AND end_reason = 'MENTOR_UNAVAILABLE'
 				""").param("minh", minh).query(Long.class).single() == 1);
+
+		// Story 20.4: an unlock brings no bid back.
+		UUID admin = administrator();
+		new TransactionTemplate(this.transactions)
+			.executeWithoutResult(status -> this.administration.unlock(admin, minh, "Đã làm rõ"));
+		awaitListeners();
+		assertThat(this.jdbc.sql("SELECT status FROM matching.application WHERE mentor_account_id = :minh").param("minh", minh)
+			.query(String.class).single()).isEqualTo("WITHDRAWN");
+	}
+
+	/**
+	 * Story 20.4 (AD-24): matching blocks no erasure. Erasing an unlocked Mentor with an open bid first withdraws the
+	 * bid through the lock's path, so the Customer is told under the Mentor's name, and then deletes it.
+	 */
+	@Test
+	void anErasureWithdrawsTheOpenBidAndTellsTheCustomerBeforeDeletingIt() throws Exception {
+		UUID hung = mentorWithFreeStudent("Đỗ Mạnh Hùng");
+		apply(hung, this.job, true).andExpect(status().isCreated());
+		assertThat(this.matching.erasureBlockers(hung)).isEmpty();
+
+		ErasureOutcome outcome = new TransactionTemplate(this.transactions).execute(status -> this.personalData.erase(hung));
+		assertThat(outcome).isInstanceOf(ErasureOutcome.Erased.class);
+
+		assertThat(this.jdbc.sql("""
+				SELECT params ->> 'mentor' FROM notification.notification
+				WHERE type = 'matching.application_auto_withdrawn' AND account_id = :lan
+				""").param("lan", this.lan).query(String.class).single()).isEqualTo("Đỗ Mạnh Hùng");
+		assertThat(this.jdbc.sql("SELECT count(*) FROM matching.application WHERE mentor_account_id = :hung")
+			.param("hung", hung).query(Long.class).single()).as("then the data is deleted").isZero();
+		assertThat(todoText()).as("no Application is left to choose").isNull();
+		awaitListeners();
+	}
+
+	private void awaitListeners() {
+		await().atMost(Duration.ofSeconds(10)).until(() -> this.jdbc.sql(
+				"SELECT count(*) FROM platform.event_publication WHERE completion_date IS NULL").query(Long.class).single() == 0);
 	}
 
 	private UUID administrator() {

@@ -340,8 +340,18 @@ describe('JOB-6 for the Mentor: the Customer review and the confirmation (FR-16,
           panel({
             reconfirmOwed: true,
             crewConfirmed: true,
+            // Story 20.4: the lock released the member's row as LEFT, so nobody is removed before re-confirming.
             rows: [
-              { rowId: 'r1', studentId: 's1', name: 'Trần Quang Minh', githubLogin: 'minhtq', status: 'INACTIVE', confirmedLatest: true, percent: 80 },
+              {
+                rowId: 'r1',
+                studentId: 's1',
+                name: 'Trần Quang Minh',
+                githubLogin: 'minhtq',
+                status: 'RELEASED',
+                releasedReason: 'LEFT',
+                confirmedLatest: false,
+              },
+              { rowId: 'r2', studentId: 's2', name: 'Phạm Hải Tùng', githubLogin: 'tungph', status: 'ACTIVE', confirmedLatest: true, percent: 80 },
             ],
           }),
         ),
@@ -355,7 +365,8 @@ describe('JOB-6 for the Mentor: the Customer review and the confirmation (FR-16,
     renderAt('/cong-viec/j1/thoa-thuan')
 
     expect(await screen.findByText('Cần xác nhận lại nhóm thực hiện')).toBeInTheDocument()
-    expect(screen.getByText('Tạm ngừng · hãy bỏ khỏi nhóm')).toBeInTheDocument()
+    expect(screen.getByText('Đã rời')).toBeInTheDocument()
+    expect(screen.getByText(/Một thành viên đã rời nhóm sau khi thỏa thuận được xác nhận/)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Xác nhận lại nhóm thực hiện' }))
 
     expect((await screen.findAllByText('Đã xác nhận lại nhóm thực hiện.')).length).toBeGreaterThan(0)

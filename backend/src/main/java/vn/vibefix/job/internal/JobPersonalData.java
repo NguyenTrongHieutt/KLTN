@@ -1,5 +1,6 @@
 package vn.vibefix.job.internal;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,14 +21,18 @@ import vn.vibefix.shared.PersonalDataSection;
 /**
  * {@code job}'s part in exports, erasure, and Product deletion (AD-24): the Customer's Jobs, and the External
  * Access identifiers a Mentor or a Crew member entered (FR-66). Erasure and Product deletion delete the Jobs
- * and their screenshot files, and erasure deletes the person's identifiers; a Job from J3 to Closing blocks the
- * erasure of its Customer and its Mentor.
+ * and their screenshot files, and erasure deletes the person's identifiers; a running Job blocks the erasure of
+ * its Customer, its Mentor, and its unreleased Crew, and a Milestone a former member will be a split party of
+ * blocks theirs (Story 20.4).
  * <p>
  * It also answers for the GitHub link (FR-80, R14): a role in a Job that is not Closed or Cancelled keeps it,
- * since the Job's repositories and grants know the person by their GitHub ID.
+ * since the Job's repositories and grants know the person by their GitHub ID, and so does a Milestone a former
+ * member will be a split party of.
  */
 @Component
 class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant {
+
+	static final String MILESTONE_PENDING = "MILESTONE_PENDING";
 
 	private final JdbcClient jdbc;
 
@@ -157,32 +162,68 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 		this.jdbc.sql("DELETE FROM job.job WHERE %s = :id".formatted(column)).param("id", id).update();
 	}
 
-	/** A Job from J3 to Closing keeps its Customer, its Mentor, and its running Crew from being erased (AD-24). */
+	/**
+	 * What keeps the account from being erased (AD-24, NFR-11), each with its Job's title: a Job from Selecting to
+	 * Closing where it is the Customer, the Mentor, or an unreleased Crew member ({@code JOB_RUNNING}), and each Job
+	 * with a Milestone {@link #pendingMilestoneJobs pending} for a former member ({@code MILESTONE_PENDING}), once per
+	 * Job however many of its Milestones wait.
+	 */
 	@Override
 	public List<ErasureBlocker> erasureBlockers(UUID accountId) {
-		return this.jdbc.sql("""
-				SELECT id FROM job.job WHERE (customer_account_id = :id OR mentor_account_id = :id
+		List<ErasureBlocker> blockers = new ArrayList<>(this.jdbc.sql("""
+				SELECT id, title FROM job.job WHERE (customer_account_id = :id OR mentor_account_id = :id
 				    OR id IN (SELECT job_id FROM job.crew_row WHERE member_account_id = :id AND status <> 'RELEASED'))
 				  AND state IN ('SELECTING', 'AGREEMENT', 'STARTING', 'ACTIVE', 'CLOSING') ORDER BY id
 				""")
 			.param("id", accountId)
-			.query(UUID.class)
-			.list()
-			.stream()
-			.map(job -> new ErasureBlocker("job", "JOB_RUNNING", job))
-			.toList();
+			.query((rs, n) -> new ErasureBlocker("job", "JOB_RUNNING", rs.getObject("id", UUID.class), rs.getString("title")))
+			.list());
+		pendingMilestoneJobs(accountId)
+			.forEach(job -> blockers.add(new ErasureBlocker("job", MILESTONE_PENDING, job.jobId(), job.title())));
+		return blockers;
 	}
 
-	/** Each Job, not Closed or Cancelled, where the account is the Customer, the Mentor, or an unreleased Crew member. */
+	/**
+	 * Each Job, not Closed or Cancelled, where the account is the Customer, the Mentor, or an unreleased Crew member
+	 * ({@code JOB_ROLE}), and each Job with a Milestone {@link #pendingMilestoneJobs pending} for a former member
+	 * ({@code MILESTONE_PENDING}), once per Job.
+	 */
 	@Override
 	public List<GitHubLinkBlocker> githubLinkBlockers(UUID accountId) {
-		return this.jdbc.sql("""
+		List<GitHubLinkBlocker> blockers = new ArrayList<>(this.jdbc.sql("""
 				SELECT id, title FROM job.job WHERE (customer_account_id = :id OR mentor_account_id = :id
 				    OR id IN (SELECT job_id FROM job.crew_row WHERE member_account_id = :id AND status <> 'RELEASED'))
 				  AND state NOT IN ('CLOSED', 'CANCELLED') ORDER BY created_at, id
 				""")
 			.param("id", accountId)
 			.query((rs, n) -> new GitHubLinkBlocker("job", "JOB_ROLE", rs.getObject("id", UUID.class), rs.getString("title")))
+			.list());
+		pendingMilestoneJobs(accountId)
+			.forEach(job -> blockers.add(new GitHubLinkBlocker("job", MILESTONE_PENDING, job.jobId(), job.title())));
+		return blockers;
+	}
+
+	/** A Job with a Milestone the account will be a split party of. */
+	private record PendingJob(UUID jobId, String title) {
+	}
+
+	/**
+	 * Review 2026-10-27 A-19: each Job with a Milestone funded before the window of the account's released Crew row
+	 * ended, and still Held: neither released (Accepted or Settled) nor cancelled. The former member joins its split,
+	 * so it keeps them; a Job is listed once however many of its Milestones wait.
+	 */
+	private List<PendingJob> pendingMilestoneJobs(UUID accountId) {
+		return this.jdbc.sql("""
+				SELECT j.id, j.title FROM job.job j
+				WHERE EXISTS (SELECT 1 FROM job.milestone m JOIN job.crew_row r ON r.job_id = m.job_id
+				    WHERE m.job_id = j.id AND m.removed_at IS NULL AND m.funded_at IS NOT NULL AND m.state IN (:held)
+				      AND r.member_account_id = :id AND r.status = 'RELEASED' AND r.window_end IS NOT NULL
+				      AND m.funded_at < r.window_end)
+				ORDER BY j.id
+				""")
+			.param("id", accountId)
+			.param("held", MilestoneState.held().stream().map(Enum::name).toList())
+			.query((rs, n) -> new PendingJob(rs.getObject("id", UUID.class), rs.getString("title")))
 			.list();
 	}
 

@@ -27,8 +27,10 @@ import vn.vibefix.team.internal.TeamTestSupport;
  * ({@code {crewChatId}}) and realizes:
  * <ul>
  * <li>{@link MatrixCaller#JOB_MENTOR}, the Job's Mentor;</li>
- * <li>one Student per Crew state: {@code ASSIGNED}, {@code ACTIVE}, {@code INACTIVE} and a former member,
- * the last two with a window that ended before the {@code CREW_CHAT} canary was written;</li>
+ * <li>one Student per Crew state: {@code ASSIGNED}, {@code ACTIVE}, a former member, and for
+ * {@link MatrixCaller#CREW_INACTIVE} a locked account whose row the lock released as {@code LEFT} (Story 20.4;
+ * the caller keeps its name until Story 20.5), the last two with a window that ended before the
+ * {@code CREW_CHAT} canary was written;</li>
  * <li>{@link MatrixCaller#ADMIN_TEAM_ISSUE_GRANT}, an Administrator holding a grant on the Crew Chat;</li>
  * <li>{@link MatrixCaller#ADMIN_DISPUTE_GRANT}, the Administrator assigned to the Dispute
  * ({@code {disputeId}}), holding its read grant;</li>
@@ -104,8 +106,13 @@ final class CrewJobWorld {
 			.update();
 		this.assigned = crewRow(job, "Sinh viên được giao", "ASSIGNED");
 		this.active = crewRow(job, "Sinh viên đang làm", "ACTIVE");
-		this.inactive = crewRow(job, "Sinh viên tạm dừng", "INACTIVE");
-		this.former = crewRow(job, "Sinh viên đã rời", "RELEASED");
+		this.inactive = crewRow(job, "Sinh viên bị khóa", "LEFT");
+		// A lock counts as leaving (Story 20.4): the account is locked when its window ended.
+		this.jdbc.sql("UPDATE identity.account SET locked_at = :at, lock_reason = 'Vi phạm quy tắc' WHERE id = :id")
+			.param("at", Timestamp.from(WINDOW_END))
+			.param("id", this.inactive)
+			.update();
+		this.former = crewRow(job, "Sinh viên đã rời", "REMOVED");
 		UUID chat = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO chat.chat (id, job_id, product_id, kind, opened_at) VALUES (:id, :job, :product, 'CREW', :signed)
@@ -347,13 +354,15 @@ final class CrewJobWorld {
 		return Optional.of(IdentityTestSupport.signedIn(this.sessions, account, role, MutableClock.DEFAULT_INSTANT));
 	}
 
-	/** A Student with a row in {@code status}; every row but ASSIGNED signed and became ACTIVE. */
-	private UUID crewRow(UUID job, String name, String status) {
+	/**
+	 * A Student with a row in {@code state}: {@code ASSIGNED}, {@code ACTIVE}, or the reason a row that became ACTIVE
+	 * was released with ({@code REMOVED}, {@code LEFT}); every row but ASSIGNED signed and became ACTIVE.
+	 */
+	private UUID crewRow(UUID job, String name, String state) {
 		UUID student = TeamTestSupport.student(this.jdbc, name, true, List.of(TeamTestSupport.REACT), "React",
 				VERIFIED_UNTIL);
-		boolean signed = !"ASSIGNED".equals(status);
-		boolean ended = "INACTIVE".equals(status) || "RELEASED".equals(status);
-		boolean released = "RELEASED".equals(status);
+		boolean signed = !"ASSIGNED".equals(state);
+		boolean released = !"ASSIGNED".equals(state) && !"ACTIVE".equals(state);
 		this.jdbc.sql("""
 				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, window_end,
 				    released_at, released_reason, created_at)
@@ -362,11 +371,11 @@ final class CrewJobWorld {
 			.param("id", UUID.randomUUID())
 			.param("job", job)
 			.param("student", student)
-			.param("status", status)
+			.param("status", released ? "RELEASED" : state)
 			.param("signed", signed ? Timestamp.from(SIGNED) : null)
-			.param("end", ended ? Timestamp.from(WINDOW_END) : null)
+			.param("end", released ? Timestamp.from(WINDOW_END) : null)
 			.param("released", released ? Timestamp.from(WINDOW_END) : null)
-			.param("reason", released ? "REMOVED" : null)
+			.param("reason", released ? state : null)
 			.param("created", Timestamp.from(SIGNED.minus(Duration.ofHours(1))))
 			.update();
 		return student;

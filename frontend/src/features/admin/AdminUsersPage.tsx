@@ -8,6 +8,7 @@ import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
+import { erasureBlockerText } from '@/features/identity/erasureBlockers'
 import { t, type MessageKey } from '@/i18n/t'
 import { formatCalendarDate, formatDate, formatDayMonthTime } from '@/lib/dates'
 import { problemMessage } from '@/lib/problemMessage'
@@ -386,13 +387,13 @@ function DeletionSection({ user }: { user: AdminUser }) {
           <p className="text-label">{t('screen.admin.users.deletion.waiting')}</p>
           <ul className="flex flex-col gap-1">
             {deletion.blockers.map((blocker, index) => (
-              <li key={`${blocker.reason}-${blocker.jobId ?? index}`}>
+              <li key={`${blocker.reason}-${blocker.jobId ?? ''}-${index}`}>
                 {blocker.jobId ? (
                   <Link to={`/quan-tri/cong-viec/${blocker.jobId}`} className="text-primary underline-offset-4 hover:underline">
-                    {t(`screen.myData.blocker.${blocker.reason}` as MessageKey)}
+                    {erasureBlockerText(blocker, 'admin')}
                   </Link>
                 ) : (
-                  t(`screen.myData.blocker.${blocker.reason}` as MessageKey)
+                  erasureBlockerText(blocker, 'admin')
                 )}
               </li>
             ))}

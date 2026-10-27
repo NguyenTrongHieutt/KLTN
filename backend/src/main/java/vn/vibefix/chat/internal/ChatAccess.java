@@ -36,8 +36,8 @@ import vn.vibefix.shared.ErrorCode;
  * reads (AD-43):
  * <ul>
  * <li>the Job Chat: its Customer and its Mentor;</li>
- * <li>the Crew Chat: its Mentor and every {@code ACTIVE} Crew member; an {@code INACTIVE} or
- * {@code FORMER} member only reads, and only the messages inside their windows;</li>
+ * <li>the Crew Chat: its Mentor and every {@code ACTIVE} Crew member; a {@code FORMER} member, a locked one
+ * included, only reads, and only the messages inside their windows;</li>
  * <li>an Administrator only under a grant naming the Chat, or for one message the grant of an Abuse Report
  * naming it (FR-69), only reading, each read audited (AD-8).</li>
  * </ul>
@@ -247,7 +247,7 @@ class ChatAccess {
 		return switch (role.crewKind()) {
 			case ACTIVE -> new Viewer(chat, account, true, chat.closed(), null, post.title(), post.mentorId(), null,
 					crewOf(jobId));
-			case INACTIVE, FORMER -> {
+			case FORMER -> {
 				List<Window> windows = windows(jobId, account);
 				yield windows.isEmpty() ? null
 						: new Viewer(chat, account, true, true, windows, post.title(), post.mentorId(), null, crewOf(jobId));

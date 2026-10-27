@@ -93,8 +93,11 @@ class AdminUsersController {
 	record FeedbackView(BigDecimal average, int count, List<String> comments) {
 	}
 
-	/** @param jobId the Job a blocker concerns, when there is one */
-	record DeletionBlockerView(String module, String reason, @Nullable UUID jobId) {
+	/**
+	 * @param jobId the Job a blocker concerns, when there is one
+	 * @param name that Job's title, when there is one
+	 */
+	record DeletionBlockerView(String module, String reason, @Nullable UUID jobId, @Nullable String name) {
 	}
 
 	/** NFR-11 (Story 16.2): the person's deletion request and what keeps it waiting. */
@@ -229,7 +232,8 @@ class AdminUsersController {
 					.map(deletion -> new DeletionRequestView(deletion.requestedAt(), deletion.completedAt(),
 							deletion.blockers()
 								.stream()
-								.map(blocker -> new DeletionBlockerView(blocker.module(), blocker.reason(), blocker.jobId()))
+								.map(blocker -> new DeletionBlockerView(blocker.module(), blocker.reason(), blocker.jobId(),
+										blocker.name()))
 								.toList()))
 					.orElse(null));
 	}

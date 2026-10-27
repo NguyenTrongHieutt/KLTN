@@ -1,0 +1,6 @@
+subject: {name} đã rời nhóm thực hiện {job}
+---
+Xin chào,
+
+{name} không còn trong nhóm thực hiện công việc {job}.
+Người hướng dẫn có thể chọn thêm người cho nhóm hoặc tiếp tục công việc như hiện tại. Hãy mở vibefix để xem công việc.

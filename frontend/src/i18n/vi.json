@@ -71,11 +71,13 @@
         "blocker": {
           "LIVE_PRODUCT": "Sản phẩm {name}",
           "JOB_ROLE": "Công việc {name}",
+          "MILESTONE_PENDING": "Cột mốc bạn đã tham gia chưa thanh toán xong · {name}",
           "OPEN_BID": "Đơn chào giá cho {name}"
         },
         "blockerUnnamed": {
           "LIVE_PRODUCT": "Một sản phẩm của bạn",
           "JOB_ROLE": "Một công việc chưa đóng hay chưa hủy",
+          "MILESTONE_PENDING": "Cột mốc bạn đã tham gia chưa thanh toán xong",
           "OPEN_BID": "Một đơn chào giá đang mở"
         },
         "unlinkTitle": "Bỏ liên kết GitHub?",
@@ -873,7 +875,7 @@
           "unlock": "Mở khóa tài khoản của {name}?"
         },
         "effects": {
-          "lock": "Mọi phiên đăng nhập kết thúc ngay và người này nhận email kèm lý do. Họ không đăng nhập được cho đến khi được mở khóa.",
+          "lock": "Mọi phiên đăng nhập kết thúc ngay và người này nhận email kèm lý do. Họ không đăng nhập được cho đến khi được mở khóa. Người này được tính là đã rời nhóm thực hiện của mọi công việc.",
           "unlock": "Người này đăng nhập lại được. Quyền vào kho mã và nhóm không tự trở lại."
         },
         "confirm": {
@@ -888,6 +890,12 @@
           "title": "Yêu cầu xóa tài khoản",
           "requested": "Người dùng yêu cầu xóa tài khoản lúc {time}.",
           "waiting": "Chưa xóa được vì:",
+          "blocker": {
+            "JOB_RUNNING": "Công việc đang chạy",
+            "MILESTONE_PENDING": "Cột mốc người này đã tham gia chưa thanh toán xong",
+            "DISPUTE_OPEN": "Tranh chấp đang mở",
+            "TEAM_ISSUE_OPEN": "Khiếu nại nội bộ chưa xong"
+          },
           "lockFirst": "Nếu cần chặn ngay, hãy khóa tài khoản trước.",
           "effects": "Xác nhận sẽ xóa hoặc ẩn danh dữ liệu của người dùng, xóa sản phẩm và kho mã của họ, chỉ giữ hồ sơ thanh toán và tranh chấp theo quy định.",
           "confirm": "Xác nhận xóa tài khoản",
@@ -2345,7 +2353,6 @@
         "changeNew": "Thành viên mới · chờ ký và xác nhận",
         "changeStays": "Ở lại · xác nhận phần mới",
         "changeLeaving": "Sẽ rời nhóm khi áp dụng",
-        "changeInactive": "Tạm ngừng · phải bỏ khỏi nhóm",
         "changeKeep": "Giữ lại",
         "changeKeepNamed": "Giữ {name} lại trong nhóm",
         "changeNote": "Thay đổi chỉ áp dụng khi mọi người trong nhóm mới đã xác nhận và không có giai đoạn nào đang giữ tiền. Mỗi giai đoạn đã thanh toán vẫn chia theo phiên bản lúc thanh toán.",
@@ -2395,15 +2402,14 @@
           "ASSIGNED": "Đã phân công · chưa xác nhận",
           "ACTIVE": "Đang tham gia · đã xác nhận phiên bản {n}",
           "ACTIVE_EARLIER": "Đang tham gia",
-          "INACTIVE": "Tạm ngừng",
           "RELEASED": "Đã rời",
-          "INACTIVE_OWED": "Tạm ngừng · hãy bỏ khỏi nhóm",
           "LEAVING": "Đang tham gia · sẽ rời khi áp dụng phiên bản {n}"
         },
         "released": {
           "DECLINED": "Đã rời · đã từ chối tham gia",
           "REMOVED": "Đã rời · đã bỏ khỏi nhóm",
-          "JOB_ENDED": "Đã rời · công việc đã kết thúc"
+          "JOB_ENDED": "Đã rời · công việc đã kết thúc",
+          "LEFT": "Đã rời"
         },
         "notSigned": "Chưa ký cam kết",
         "signed": "Đã ký cam kết {date}",
@@ -2418,7 +2424,7 @@
         "ruleCap": "Tối đa {cap}% cho người hướng dẫn",
         "ruleRemainder": "Phần lẻ dưới 1 đồng thuộc về người hướng dẫn",
         "reconfirmTitle": "Cần xác nhận lại nhóm thực hiện",
-        "reconfirmBody": "Một thành viên bị khóa sau khi thỏa thuận được xác nhận. Hãy bỏ thành viên đó, thêm người khác nếu cần và lưu phần chia, rồi xác nhận lại nhóm trước khi khách hàng thanh toán.",
+        "reconfirmBody": "Một thành viên đã rời nhóm sau khi thỏa thuận được xác nhận. Hãy thêm người khác nếu cần và lưu phần chia, rồi xác nhận lại nhóm trước khi khách hàng thanh toán.",
         "reconfirm": "Xác nhận lại nhóm thực hiện",
         "reconfirmed": "Đã xác nhận lại nhóm thực hiện.",
         "reconfirmAction": "xác nhận lại nhóm thực hiện",
@@ -2467,8 +2473,7 @@
         "activeTitle": "Đang tham gia",
         "activeMeta": "{product} · Người hướng dẫn: {mentor}",
         "activeShare": "Phần của bạn: {share}% · điều khoản phiên bản {n}",
-        "activeBadge": "Đã xác nhận",
-        "inactiveBadge": "Tạm ngừng"
+        "activeBadge": "Đã xác nhận"
       }
     },
     "teamIssue": {
@@ -2714,8 +2719,6 @@
       "criterionLink": "{label}: xem trong thỏa thuận",
       "milestone": "Giai đoạn {n}",
       "unassigned": "Chưa giao",
-      "lockedMember": "{name} không còn tham gia vibefix. Hãy giao lại các hạng mục đang mở.",
-      "lockedMemberShow": "Xem {n} hạng mục",
       "workload": {
         "label": "Khối lượng việc",
         "member": "{name} · {n} việc · {hours} giờ"
@@ -2750,7 +2753,7 @@
         "estimate": "Ước lượng (giờ)",
         "assignee": "Người làm",
         "mentorOnly": "Chỉ người hướng dẫn đặt được.",
-        "inactiveMember": "{name} (tạm ngừng)",
+        "unavailableMember": "{name} (đã rời nhóm)",
         "save": "Lưu",
         "saved": "Đã lưu {key}",
         "seededNote": "Story này đến từ tiêu chí {m}.{n} của thỏa thuận: loại và giai đoạn không đổi được.",
@@ -2935,11 +2938,9 @@
       "due": "Hạn {date}",
       "crew": "Nhóm thực hiện",
       "noCrew": "Chưa có thành viên nào đang làm.",
-      "lockedMemberBoard": "Giao lại trên bảng công việc",
       "crewState": {
         "ASSIGNED": "Đã phân công",
         "ACTIVE": "Đang tham gia",
-        "INACTIVE": "Tạm ngừng",
         "RELEASED": "Đã rời"
       },
       "mine": "Việc của tôi",
@@ -3497,8 +3498,11 @@
       "waiting": "Yêu cầu đang chờ vì:",
       "blocker": {
         "JOB_RUNNING": "Công việc đang chạy",
+        "MILESTONE_PENDING": "Cột mốc bạn đã tham gia chưa thanh toán xong",
+        "DISPUTE_OPEN": "Tranh chấp đang mở",
         "TEAM_ISSUE_OPEN": "Khiếu nại nội bộ chưa xong"
       },
+      "blockerOn": "{reason} · {name}",
       "githubRevoked": "Khi xóa tài khoản, vibefix sẽ thu hồi quyền truy cập GitHub của mình.",
       "githubYourself": "Sau khi tài khoản bị xóa, bạn có thể thu hồi quyền của vibefix trong phần cài đặt Applications của GitHub."
     },
@@ -4191,6 +4195,18 @@
       "crew_confirmed": {
         "title": "Nhóm thực hiện {job} đã xác nhận đủ"
       },
+      "crew_member_left": {
+        "title": "{name} đã rời nhóm thực hiện {job}"
+      },
+      "crew_login_removed": {
+        "title": "@{login} đã rời nhóm thực hiện {job}"
+      },
+      "crew_pick_released": {
+        "title": "{name} không thể ký cam kết cho {job}"
+      },
+      "crew_empty": {
+        "title": "Nhóm thực hiện {job} không còn thành viên. Người hướng dẫn {mentor} vẫn tiếp tục thực hiện."
+      },
       "conflict_of_interest_refused": {
         "title": "Một lượt thêm vào nhóm thực hiện bị từ chối vì có thể là cùng một người"
       },
@@ -4572,7 +4588,6 @@
       "CREW_LOCKED": "nhóm thực hiện đã chốt theo thỏa thuận",
       "CREW_CHANGE_REQUIRED": "công việc đã bắt đầu, chỉ đổi nhóm được qua yêu cầu đổi nhóm",
       "CREW_CHANGE_WHILE_HELD": "đang có giai đoạn giữ tiền, hãy đổi nhóm khi giai đoạn đó xong",
-      "CREW_INACTIVE_PARTY": "không giữ được thành viên đang tạm ngừng, hãy bỏ họ khỏi nhóm trong lần đổi này",
       "CREW_LIMIT": "nhóm thực hiện đã đủ số sinh viên cho phép",
       "STUDENT_NOT_VERIFIED": "sinh viên chưa xác minh",
       "STUDENT_ON_CREW": "sinh viên đang làm một công việc khác",

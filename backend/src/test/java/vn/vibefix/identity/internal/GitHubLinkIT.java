@@ -492,6 +492,34 @@ class GitHubLinkIT extends IntegrationTest {
 				UPDATE job.crew_row SET status = 'RELEASED', released_at = :now, released_reason = 'DECLINED' WHERE id = :id
 				""").param("now", Timestamp.from(this.clock.instant())).param("id", row).update();
 		assertThat(blockerReasons()).as("a released Crew row").isEmpty();
+
+		// Story 20.4 (A-19): a released row whose window ended after a Milestone was funded keeps the link until the
+		// Milestone is released or cancelled, since its split names the former member.
+		UUID milestone = UUID.randomUUID();
+		this.jdbc.sql("""
+				UPDATE job.crew_row SET signed_at = :funded, activated_at = :funded, window_end = :end, released_reason = 'LEFT'
+				WHERE id = :id
+				""").param("funded", Timestamp.from(this.clock.instant().minus(Duration.ofDays(2))))
+			.param("end", Timestamp.from(this.clock.instant())).param("id", row).update();
+		this.jdbc.sql("""
+				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at, state, funded_at,
+				    crew_terms_version_no)
+				VALUES (:id, :job, 0, 'Giai đoạn 1', 800000, 2, :funded, 'FUNDED', :funded, 1)
+				""").param("id", milestone).param("job", crewed)
+			.param("funded", Timestamp.from(this.clock.instant().minus(Duration.ofDays(1)))).update();
+		UUID second = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at, state, funded_at,
+				    crew_terms_version_no)
+				VALUES (:id, :job, 1, 'Giai đoạn 2', 800000, 2, :funded, 'FUNDED', :funded, 1)
+				""").param("id", second).param("job", crewed)
+			.param("funded", Timestamp.from(this.clock.instant().minus(Duration.ofDays(1)))).update();
+		assertThat(blockerReasons()).as("two Milestones funded during the window, one Job").containsExactly("MILESTONE_PENDING");
+		assertThat(read(this.browser).path("blockers").get(0).path("name").asString()).isEqualTo("Sửa lỗi đặt bàn");
+		assertProblem(this.browser.command(delete("/api/v1/identity/github")), 422, "GUARD_FAILED", "GITHUB_LINK_IN_USE");
+		this.jdbc.sql("UPDATE job.milestone SET state = 'ACCEPTED', accepted_at = :now WHERE id IN (:ids)")
+			.param("now", Timestamp.from(this.clock.instant())).param("ids", List.of(milestone, second)).update();
+		assertThat(blockerReasons()).as("released Milestones").isEmpty();
 		assertThat(this.browser.command(delete("/api/v1/identity/github")).getResponse().getStatus()).isEqualTo(204);
 	}
 

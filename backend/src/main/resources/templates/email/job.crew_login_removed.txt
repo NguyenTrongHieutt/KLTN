@@ -1,0 +1,6 @@
+subject: @{login} đã rời nhóm thực hiện {job}
+---
+Xin chào,
+
+Tài khoản GitHub @{login} không còn trong nhóm thực hiện công việc {job}.
+Nếu bạn đã cho tài khoản này vào một hệ thống bên ngoài vibefix, hãy gỡ quyền đó.

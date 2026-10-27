@@ -49,7 +49,7 @@ class ParticipantPersonalDataTest {
 
 	@Test
 	void aBlockerStopsTheWholeErasure() {
-		ErasureBlocker running = new ErasureBlocker("job", "JOB_RUNNING", JOB);
+		ErasureBlocker running = new ErasureBlocker("job", "JOB_RUNNING", JOB, "Sửa lỗi đặt bàn");
 		FakeParticipant blocking = new FakeParticipant("job", List.of(running));
 
 		ErasureOutcome outcome = new ParticipantPersonalData(List.of(this.identity, blocking)).erase(ACCOUNT);

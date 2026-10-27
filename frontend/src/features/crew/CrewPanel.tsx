@@ -33,13 +33,10 @@ export function CrewHeaderLine({ panel }: { panel: Panel }) {
   )
 }
 
-/** The line's AD-41 state: "Đã phân công · chưa xác nhận", "Đang tham gia · …", "Tạm ngừng", or "Đã rời · …". */
-function stateText(row: CrewRow, latest: number | undefined, owed: boolean): string {
+/** The line's AD-41 state: "Đã phân công · chưa xác nhận", "Đang tham gia · …", or "Đã rời · …". */
+function stateText(row: CrewRow, latest: number | undefined): string {
   if (row.leaving && latest !== undefined) {
     return t('screen.crew.panel.state.LEAVING', { n: latest })
-  }
-  if (row.status === 'INACTIVE' && owed) {
-    return t('screen.crew.panel.state.INACTIVE_OWED')
   }
   if (row.status === 'RELEASED') {
     return row.releasedReason
@@ -57,7 +54,6 @@ function stateText(row: CrewRow, latest: number | undefined, owed: boolean): str
 const STATE_TONE: Record<string, string> = {
   ASSIGNED: 'bg-muted text-foreground',
   ACTIVE: 'bg-success-soft text-success',
-  INACTIVE: 'bg-destructive-soft text-destructive',
   RELEASED: 'bg-muted text-muted-foreground',
 }
 
@@ -362,7 +358,7 @@ export function CrewSection({ jobId, panel }: { jobId: string; panel: Panel }) {
                     <td className="py-3 pr-3">
                       <span className="flex flex-col items-start gap-1">
                         <span className={cn('rounded-full px-2 py-0.5 text-caption font-semibold', STATE_TONE[row.status])}>
-                          {stateText(row, latestNo, panel.reconfirmOwed)}
+                          {stateText(row, latestNo)}
                         </span>
                         {!released && (
                           <span className="text-caption text-muted-foreground">

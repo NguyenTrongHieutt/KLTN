@@ -33,8 +33,11 @@ import vn.vibefix.shared.Gate;
 @Access(Gate.SIGNED_IN)
 class DataRequestController {
 
-	/** @param jobId the Job a blocker concerns, when there is one */
-	record ErasureBlockerView(String module, String reason, @Nullable UUID jobId) {
+	/**
+	 * @param jobId the Job a blocker concerns, when there is one
+	 * @param name that Job's title, when there is one
+	 */
+	record ErasureBlockerView(String module, String reason, @Nullable UUID jobId, @Nullable String name) {
 	}
 
 	/**
@@ -91,7 +94,10 @@ class DataRequestController {
 
 	private static MyDataView view(DataRequests.State state) {
 		return new MyDataView(state.requestedAt(), state.completedAt(),
-				state.blockers().stream().map(blocker -> new ErasureBlockerView(blocker.module(), blocker.reason(), blocker.jobId())).toList(),
+				state.blockers()
+					.stream()
+					.map(blocker -> new ErasureBlockerView(blocker.module(), blocker.reason(), blocker.jobId(), blocker.name()))
+					.toList(),
 				state.tokenKept());
 	}
 

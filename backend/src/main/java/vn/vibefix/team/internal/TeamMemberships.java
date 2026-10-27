@@ -158,19 +158,6 @@ class TeamMemberships implements Teams {
 				AuditObject.of("team.team", member.teamId())));
 	}
 
-	/**
-	 * Releases a member whose Mentor is gone or who is locked, unless a Crew reservation still holds
-	 * them; {@code releaseCrew} releases them later. The caller holds the membership's lock.
-	 * @return whether the membership ended
-	 */
-	boolean releaseUnlessOnCrew(Member member, String mentorName, boolean notify) {
-		if (this.store.reserved(member.membershipId())) {
-			return false;
-		}
-		release(member, mentorName, notify);
-		return true;
-	}
-
 	private void release(Member member, String mentorName, boolean notify) {
 		this.store.endMembership(member.membershipId(), "RELEASED", this.clock.instant());
 		if (notify) {

@@ -1,5 +1,8 @@
 package vn.vibefix.identity.internal;
 
+import java.time.Instant;
+import java.util.Collection;
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.stereotype.Component;
@@ -32,6 +35,11 @@ class AccountCapabilities implements Capabilities {
 			.map(standing -> new Held(standing.gitHubLinked(), false, this.students.isVerified(accountId),
 					standing.locked()))
 			.orElse(Held.NONE);
+	}
+
+	@Override
+	public Map<UUID, Instant> lockedAmong(Collection<UUID> accountIds) {
+		return this.accounts.lockedAmong(accountIds);
 	}
 
 }

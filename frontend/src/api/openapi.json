@@ -11559,6 +11559,9 @@
           "module" : {
             "type" : "string"
           },
+          "name" : {
+            "type" : "string"
+          },
           "reason" : {
             "type" : "string"
           }
@@ -11911,6 +11914,9 @@
             "format" : "uuid"
           },
           "module" : {
+            "type" : "string"
+          },
+          "name" : {
             "type" : "string"
           },
           "reason" : {

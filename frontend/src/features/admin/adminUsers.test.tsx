@@ -136,6 +136,8 @@ describe('ADM-2 users (FR-59, FR-78, AD-19)', () => {
     )
     await user.click(screen.getByRole('button', { name: 'Khóa tài khoản' }))
     const dialog = await screen.findByRole('dialog', { name: 'Khóa tài khoản của Trần Thảo Vy?' })
+    // Story 20.4: a lock counts as leaving every Crew.
+    expect(within(dialog).getByText(/được tính là đã rời nhóm thực hiện của mọi công việc/)).toBeInTheDocument()
     await user.type(within(dialog).getByLabelText('Lý do (người dùng sẽ đọc)'), 'Gửi tin nhắn quấy rối')
     await user.click(within(dialog).getByRole('button', { name: 'Khóa tài khoản' }))
     await waitFor(() => expect(sent).toEqual([{ reason: 'Gửi tin nhắn quấy rối' }]))
@@ -200,7 +202,11 @@ describe('ADM-2 users (FR-59, FR-78, AD-19)', () => {
   it('waits for the blocker, then confirms the account deletion through the step-up', { timeout: 30_000 }, async () => {
     const user = userEvent.setup()
     const sent: unknown[] = []
-    let blockers = [{ module: 'job', reason: 'JOB_RUNNING', jobId: 'j1' }]
+    let blockers = [
+      { module: 'job', reason: 'JOB_RUNNING', jobId: 'j1', name: 'Sửa lỗi đặt bàn' },
+      { module: 'dispute', reason: 'DISPUTE_OPEN', jobId: 'j1', name: 'Sửa lỗi đặt bàn' },
+      { module: 'job', reason: 'MILESTONE_PENDING', jobId: 'j2', name: 'Trang đặt món' },
+    ]
     fakeBackend(administrator, {
       'GET /api/v1/admin/overview': () => json(overview),
       'GET /api/v1/admin/users': () => json({ items: rows, total: 2, page: 0, size: 20 }),
@@ -214,7 +220,19 @@ describe('ADM-2 users (FR-59, FR-78, AD-19)', () => {
     renderAt('/quan-tri/nguoi-dung/s1')
 
     expect(await screen.findByRole('heading', { name: 'Yêu cầu xóa tài khoản' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Công việc đang chạy' })).toHaveAttribute('href', '/quan-tri/cong-viec/j1')
+    expect(screen.getByRole('link', { name: 'Công việc đang chạy · Sửa lỗi đặt bàn' })).toHaveAttribute(
+      'href',
+      '/quan-tri/cong-viec/j1',
+    )
+    expect(screen.getByRole('link', { name: 'Tranh chấp đang mở · Sửa lỗi đặt bàn' })).toHaveAttribute(
+      'href',
+      '/quan-tri/cong-viec/j1',
+    )
+    // ADM-2 reads about another user, so its labels speak of them, never "bạn".
+    expect(
+      screen.getByRole('link', { name: 'Cột mốc người này đã tham gia chưa thanh toán xong · Trang đặt món' }),
+    ).toHaveAttribute('href', '/quan-tri/cong-viec/j2')
+    expect(screen.queryByText(/bạn đã tham gia/)).toBeNull()
     expect(screen.getByRole('button', { name: 'Xác nhận xóa tài khoản' })).toBeDisabled()
     blockers = []
     cleanupAndRender()
