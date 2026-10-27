@@ -9,6 +9,12 @@ enum MatchingReason {
 	/** An Administrator hid the Job Post (FR-60). */
 	JOB_POST_HIDDEN,
 
+	/**
+	 * One role per Job (AD-43): the bidder, or the invited person, is the Job's own Customer. It maps to the UX
+	 * copy {@code OWN_JOB}, under the key {@code reason.matching.ROLE_TAKEN}.
+	 */
+	ROLE_TAKEN,
+
 	/** One Application per Mentor and Job (FR-13). */
 	ALREADY_APPLIED,
 

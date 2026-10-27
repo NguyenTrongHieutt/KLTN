@@ -303,13 +303,13 @@ class Jobs {
 		this.files.delete(fileId);
 	}
 
-	/** Whether {@code accountId} is the Customer of the Job holding the screenshot. */
+	/** The Job holding the screenshot, if any. */
 	@Transactional(readOnly = true)
-	boolean ownsScreenshot(UUID fileId, UUID accountId) {
-		return this.jdbc.sql("""
-				SELECT EXISTS (SELECT 1 FROM job.job_screenshot s JOIN job.job j ON j.id = s.job_id
-				               WHERE s.file_id = :file AND j.customer_account_id = :account)
-				""").param("file", fileId).param("account", accountId).query(Boolean.class).single();
+	Optional<UUID> screenshotJob(UUID fileId) {
+		return this.jdbc.sql("SELECT job_id FROM job.job_screenshot WHERE file_id = :file")
+			.param("file", fileId)
+			.query(UUID.class)
+			.optional();
 	}
 
 	/** Locks the Job row for a transition (AD-4: the Job row comes first in the lock order). */

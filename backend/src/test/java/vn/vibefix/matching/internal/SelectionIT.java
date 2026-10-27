@@ -137,6 +137,35 @@ class SelectionIT extends IntegrationTest {
 			.query(String.class).single()).isEqualTo("OPEN");
 	}
 
+	@Test
+	void j3RefusesAMentorWithACountedCrewRowOnTheJobBeforeAnyOtherGuard() throws Exception {
+		// AD-43: no command puts a Crew row on an Open Job, so the row is written directly. The Mentor's Team has no
+		// verified Student, so any later guard would refuse with MENTOR_NO_FREE_STUDENT instead.
+		UUID crewed = mentor("Đang trong nhóm", false);
+		UUID chosen = application(crewed);
+		UUID row = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, created_at)
+				VALUES (:id, :job, :member, 'ASSIGNED', now())
+				""").param("id", row).param("job", this.job).param("member", crewed).update();
+
+		select(chosen, 1).andExpect(status().is(422))
+			.andExpect(jsonPath("$.code").value("GUARD_FAILED"))
+			.andExpect(jsonPath("$.reason").value("ROLE_TAKEN"));
+		this.jdbc.sql("""
+				UPDATE job.crew_row SET status = 'RELEASED', signed_at = now(), activated_at = now(), window_end = now(),
+				    released_at = now(), released_reason = 'JOB_ENDED' WHERE id = :id
+				""").param("id", row).update();
+		// A row released after it was activated still counts.
+		select(chosen, 1).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("ROLE_TAKEN"));
+		this.jdbc.sql("UPDATE job.crew_row SET signed_at = NULL, activated_at = NULL, window_end = NULL, released_reason = 'DECLINED'"
+				+ " WHERE id = :id").param("id", row).update();
+		// A row released without activation holds no role, so the next guard decides.
+		select(chosen, 1).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("MENTOR_NO_FREE_STUDENT"));
+		assertThat(this.jdbc.sql("SELECT state FROM job.job WHERE id = :id").param("id", this.job)
+			.query(String.class).single()).isEqualTo("OPEN");
+	}
+
 	private ResultActions select(UUID application, long version) throws Exception {
 		return this.mvc.perform(post("/api/v1/jobs/" + this.job + "/applications/" + application + "/select")
 			.with(as(this.lan, Role.CUSTOMER))

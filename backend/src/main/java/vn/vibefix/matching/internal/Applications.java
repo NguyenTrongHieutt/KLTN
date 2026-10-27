@@ -154,16 +154,32 @@ class Applications {
 	}
 
 	/**
+	 * One role per Job (AD-43): a Job's Customer never bids on it. The check reads the Job's Customer, which never
+	 * changes after the Job is created, so it needs no Job row lock and keeps AD-4's lock order; the CHECK on
+	 * {@code matching.application} is the backstop. A Job that does not exist passes, for {@link #submit} to refuse.
+	 * @throws ApiException {@code GUARD_FAILED ROLE_TAKEN}
+	 */
+	void requireNotOwnJob(UUID mentorId, UUID jobId) {
+		if (this.posts.customerOf(jobId).filter(mentorId::equals).isPresent()) {
+			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.ROLE_TAKEN);
+		}
+	}
+
+	/**
 	 * Submits the Mentor's Application (the caller checks the GitHub link, AD-19).
-	 * @throws ApiException {@code NOT_FOUND} for no such Job; {@code GUARD_FAILED} with
-	 * {@code JOB_POST_HIDDEN}, {@code JOB_POST_NOT_OPEN}, {@code NO_FREE_STUDENT}, {@code MENTOR_JOB_LIMIT}
-	 * (with {@code limit}), {@code CONFLICT_OF_INTEREST}, {@code APPLICANT_IS_CONTRIBUTOR}, or
-	 * {@code CONTRIBUTORS_UNKNOWN}; {@code CONFLICT ALREADY_APPLIED}
+	 * @throws ApiException {@code NOT_FOUND} for no such Job; {@code GUARD_FAILED ROLE_TAKEN} for the Job's own
+	 * Customer, before any other rule (AD-43); {@code GUARD_FAILED} with {@code JOB_POST_HIDDEN},
+	 * {@code JOB_POST_NOT_OPEN}, {@code NO_FREE_STUDENT}, {@code MENTOR_JOB_LIMIT} (with {@code limit}),
+	 * {@code CONFLICT_OF_INTEREST}, {@code APPLICANT_IS_CONTRIBUTOR}, or {@code CONTRIBUTORS_UNKNOWN};
+	 * {@code CONFLICT ALREADY_APPLIED}
 	 * @throws RateLimitedException after {@value #DAILY_LIMIT} Applications today
 	 */
 	@Transactional
 	Application submit(UUID mentorId, UUID jobId, Quote quote) {
 		JobPostState post = this.posts.post(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		if (mentorId.equals(post.customerId())) {
+			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.ROLE_TAKEN);
+		}
 		if (post.hidden()) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.JOB_POST_HIDDEN);
 		}

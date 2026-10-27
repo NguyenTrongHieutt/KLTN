@@ -256,7 +256,7 @@ class PortfolioIT extends IntegrationTest {
 			.update();
 		Timestamp signed = Timestamp.from(this.clock.instant().minus(Duration.ofDays(5)));
 		this.jdbc.sql("""
-				INSERT INTO job.crew_row (id, job_id, student_account_id, status, signed_at, activated_at, window_end, released_at,
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, window_end, released_at,
 				    released_reason, created_at)
 				VALUES (:id, :job, :student, 'RELEASED', :signed, :signed, :now, :now, 'JOB_ENDED', now())
 				""").param("id", UUID.randomUUID()).param("job", job).param("student", this.vy).param("signed", signed)

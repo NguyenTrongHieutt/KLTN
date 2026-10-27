@@ -173,7 +173,7 @@ class CrewChangeIT extends IntegrationTest {
 		for (UUID student : List.of(this.vy, this.tung)) {
 			UUID row = UUID.randomUUID();
 			this.jdbc.sql("""
-					INSERT INTO job.crew_row (id, job_id, student_account_id, status, signed_at, activated_at, created_at)
+					INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, created_at)
 					VALUES (:id, :job, :student, 'ACTIVE', :at, :at, :at)
 					""").param("id", row).param("job", this.job).param("student", student).param("at", Timestamp.from(earlier))
 				.update();
@@ -227,13 +227,13 @@ class CrewChangeIT extends IntegrationTest {
 		assertThat(text("SELECT string_agg(version_no || status, ',' ORDER BY version_no) FROM job.crew_terms_version WHERE job_id = '"
 				+ this.job + "'")).isEqualTo("1SUPERSEDED,2IN_FORCE");
 		assertThat(rowStatus(this.tung)).isEqualTo("RELEASED");
-		assertThat(text("SELECT released_reason FROM job.crew_row WHERE student_account_id = '" + this.tung + "'")).isEqualTo("REMOVED");
+		assertThat(text("SELECT released_reason FROM job.crew_row WHERE member_account_id = '" + this.tung + "'")).isEqualTo("REMOVED");
 		assertThat(rowStatus(this.anh)).isEqualTo("ACTIVE");
 		assertThat(this.crews.crewRelationship(this.job, this.tung).kind()).isEqualTo(Relationship.FORMER);
 		assertThat(this.crews.crewRelationship(this.job, this.anh).kind()).isEqualTo(Relationship.ACTIVE);
 		assertThat(jobVersion()).as("the usernames changed").isEqualTo(jobVersion + 1);
 		assertThat(count("SELECT count(*) FROM team.crew_reservation r JOIN job.crew_row c ON c.id = r.crew_row_id"
-				+ " WHERE c.student_account_id = '" + this.tung + "'")).isZero();
+				+ " WHERE c.member_account_id = '" + this.tung + "'")).isZero();
 		assertThat(text("SELECT params ->> 'usernames' FROM notification.notification WHERE type = 'job.crew_changed' AND account_id = '"
 				+ this.lan + "'")).contains(TeamTestSupport.login(this.jdbc, this.anh))
 			.doesNotContain(TeamTestSupport.login(this.jdbc, this.tung));
@@ -290,8 +290,22 @@ class CrewChangeIT extends IntegrationTest {
 	}
 
 	@Test
+	void aChangeNamingTheCustomerIsRefusedBeforeAnyOtherRule() throws Exception {
+		long crewVersion = crewVersion();
+		// AD-43: refused first, even though the shares are invalid too (they do not sum to 100).
+		change(crewVersion, 40, Map.of(this.vy, 30, this.lan, 50)).andExpect(status().is(422))
+			.andExpect(jsonPath("$.code").value("GUARD_FAILED"))
+			.andExpect(jsonPath("$.reason").value("ROLE_TAKEN"));
+		change(crewVersion, 40, Map.of(this.vy, 30, this.lan, 30)).andExpect(status().is(422))
+			.andExpect(jsonPath("$.reason").value("ROLE_TAKEN"));
+
+		assertThat(crewVersion()).as("nothing was written").isEqualTo(crewVersion);
+		assertThat(count("SELECT count(*) FROM job.crew_row WHERE member_account_id = '" + this.lan + "'")).isZero();
+	}
+
+	@Test
 	void aLockedMemberIsRemovedInTheChangeAndJ8VoidsOneStillWaiting() throws Exception {
-		this.jdbc.sql("UPDATE job.crew_row SET status = 'INACTIVE', window_end = now() WHERE student_account_id = :id")
+		this.jdbc.sql("UPDATE job.crew_row SET status = 'INACTIVE', window_end = now() WHERE member_account_id = :id")
 			.param("id", this.tung).update();
 		IdentityTestSupport.lock(this.jdbc, this.tung, "test: locked");
 		change(crewVersion(), 40, Map.of(this.vy, 30, this.tung, 30)).andExpect(status().isBadRequest())
@@ -302,7 +316,7 @@ class CrewChangeIT extends IntegrationTest {
 		assertThat(text("SELECT status FROM job.crew_terms_version WHERE job_id = '" + this.job + "' AND version_no = 2"))
 			.isEqualTo("VOIDED");
 		assertThat(rowStatus(this.anh)).isEqualTo("RELEASED");
-		assertThat(text("SELECT released_reason FROM job.crew_row WHERE student_account_id = '" + this.anh + "'"))
+		assertThat(text("SELECT released_reason FROM job.crew_row WHERE member_account_id = '" + this.anh + "'"))
 			.isEqualTo("JOB_ENDED");
 		assertThat(count("SELECT count(*) FROM notification.notification WHERE type = 'job.crew_change_voided' AND account_id IN ('"
 				+ this.hung + "', '" + this.anh + "')")).isEqualTo(2);
@@ -348,7 +362,7 @@ class CrewChangeIT extends IntegrationTest {
 	}
 
 	private String rowStatus(UUID student) {
-		return text("SELECT status FROM job.crew_row WHERE job_id = '" + this.job + "' AND student_account_id = '" + student
+		return text("SELECT status FROM job.crew_row WHERE job_id = '" + this.job + "' AND member_account_id = '" + student
 				+ "' ORDER BY created_at DESC LIMIT 1");
 	}
 

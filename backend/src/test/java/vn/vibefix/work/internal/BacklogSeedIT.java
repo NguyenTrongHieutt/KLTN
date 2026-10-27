@@ -245,7 +245,7 @@ class BacklogSeedIT extends IntegrationTest {
 				LocalDate.parse("2026-09-30"));
 		boolean active = "ACTIVE".equals(status);
 		this.jdbc.sql("""
-				INSERT INTO job.crew_row (id, job_id, student_account_id, status, signed_at, activated_at, created_at)
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, created_at)
 				VALUES (:id, :job, :student, :status, :at, :at, now())
 				""")
 			.param("id", UUID.randomUUID())

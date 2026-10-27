@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.job.Crews;
+import vn.vibefix.job.JobRoles;
 import vn.vibefix.job.MilestoneFunding;
 import vn.vibefix.job.MilestoneFunding.FundingJob;
 import vn.vibefix.job.MilestoneFunding.FundingMilestone;
@@ -108,8 +109,11 @@ class PaymentHistoryController {
 
 	private final CurrentCaller callers;
 
+	private final JobRoles roles;
+
 	PaymentHistoryController(PaymentHistory history, PaymentOrders orders, Refunds refunds, MilestoneFunding funding,
-			Crews crews, ActiveAccount gate, CurrentCaller callers) {
+			Crews crews, ActiveAccount gate, CurrentCaller callers, JobRoles roles) {
+		this.roles = roles;
 		this.history = history;
 		this.orders = orders;
 		this.refunds = refunds;
@@ -175,7 +179,11 @@ class PaymentHistoryController {
 
 	@GetMapping("/api/v1/mentor/jobs/{jobId}/funding")
 	MentorJobFundingView mentorJobFunding(@PathVariable UUID jobId) {
-		UUID mentor = role(Role.MENTOR);
+		Caller caller = this.callers.get();
+		if (!this.roles.roleOf(jobId, caller).isMentor()) {
+			throw new ApiException(ErrorCode.NOT_FOUND);
+		}
+		UUID mentor = caller.requireAccountId();
 		this.gate.requireActiveAccount(mentor);
 		FundingJob job = this.funding.byId(jobId)
 			.filter(found -> mentor.equals(found.mentorId()))
@@ -205,7 +213,10 @@ class PaymentHistoryController {
 		return new MentorJobFundingView(job.jobId(), job.title(), job.state(), milestones, orders);
 	}
 
-	/** The caller in {@code role}; anyone else finds nothing. */
+	/**
+	 * The caller in {@code role}, for the global Balances and payment-history pages, which Story 20.3 moves to the
+	 * unlocked-user gate; anyone else finds nothing.
+	 */
 	private UUID role(Role role) {
 		Caller caller = this.callers.get();
 		if (!caller.hasRole(role)) {

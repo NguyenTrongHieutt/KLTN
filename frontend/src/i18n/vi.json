@@ -4590,6 +4590,7 @@
       "STUDENT_ON_CREW": "sinh viên đang làm một công việc khác",
       "NOT_IN_TEAM": "sinh viên không còn trong nhóm của bạn",
       "CONFLICT_OF_INTEREST": "không thể thêm sinh viên này vào công việc này",
+      "ROLE_TAKEN": "người này đã giữ một vai khác trong công việc này (mỗi người chỉ giữ một vai trong một công việc)",
       "APPLICANT_IS_CONTRIBUTOR": "sinh viên đã từng đóng góp vào dự án gốc này",
       "CONTRIBUTORS_UNKNOWN": "vibefix chưa kiểm tra được kho mã của khách hàng nên chưa thêm được sinh viên này; việc này không do bạn, hãy thử lại sau",
       "SHARES_INVALID": "Tỷ lệ chia phải là số nguyên, cộng lại bằng 100, mỗi sinh viên lớn hơn 0, và phần của người hướng dẫn không quá mức tối đa.",
@@ -4634,6 +4635,7 @@
     "matching": {
       "JOB_POST_NOT_OPEN": "công việc không còn nhận ứng tuyển",
       "JOB_POST_HIDDEN": "tin công việc đang bị ẩn",
+      "ROLE_TAKEN": "Đây là công việc bạn đăng.",
       "ALREADY_APPLIED": "Bạn đã có đơn ứng tuyển cho công việc này.",
       "NO_FREE_STUDENT": "Nhóm của bạn chưa có sinh viên rảnh, nên chưa ứng tuyển được.",
       "MENTOR_JOB_LIMIT": "Bạn đang nhận đủ số công việc tối đa. Hãy hoàn thành bớt rồi ứng tuyển tiếp.",

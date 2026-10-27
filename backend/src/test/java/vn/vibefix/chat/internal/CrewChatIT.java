@@ -175,7 +175,7 @@ class CrewChatIT extends IntegrationTest {
 		this.clock.advance(Duration.ofHours(1));
 		this.jdbc.sql("""
 				UPDATE job.crew_row SET status = 'RELEASED', window_end = :now, released_at = :now, released_reason = 'REMOVED'
-				WHERE student_account_id = :vy
+				WHERE member_account_id = :vy
 				""").param("now", Timestamp.from(this.clock.instant())).param("vy", vy).update();
 		this.clock.advance(Duration.ofHours(1));
 		String after = this.mvc.perform(multipart("/api/v1/crew-chats/" + this.crewChat + "/attachments")
@@ -278,7 +278,7 @@ class CrewChatIT extends IntegrationTest {
 
 	private void crewRow(UUID student, String status, @Nullable Instant signed, @Nullable Instant windowEnd) {
 		this.jdbc.sql("""
-				INSERT INTO job.crew_row (id, job_id, student_account_id, status, signed_at, activated_at, window_end, created_at)
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, window_end, created_at)
 				VALUES (:id, :job, :student, :status, :signed, :signed, :end, :now)
 				""")
 			.param("id", UUID.randomUUID())

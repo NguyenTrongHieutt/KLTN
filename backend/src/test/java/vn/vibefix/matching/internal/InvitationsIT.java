@@ -186,9 +186,13 @@ class InvitationsIT extends IntegrationTest {
 	void eachRefusalHasItsReasonAndNeverSaysWhyAMentorIsUnavailable() throws Exception {
 		invite(this.long_).andExpect(status().isCreated());
 		invite(this.long_).andExpect(status().isConflict()).andExpect(jsonPath("$.reason").value("ALREADY_INVITED"));
-		for (UUID unavailable : List.of(this.unlinked, this.locked, UUID.randomUUID(), this.lan)) {
+		for (UUID unavailable : List.of(this.unlinked, this.locked, UUID.randomUUID())) {
 			invite(unavailable).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("INVITEE_NOT_AVAILABLE"));
 		}
+		// AD-43: inviting the Customer themselves to bid is refused first, by their role in the Job.
+		invite(this.lan).andExpect(status().is(422))
+			.andExpect(jsonPath("$.code").value("GUARD_FAILED"))
+			.andExpect(jsonPath("$.reason").value("ROLE_TAKEN"));
 		application(this.ha);
 		invite(this.ha).andExpect(status().isConflict()).andExpect(jsonPath("$.reason").value("INVITEE_ALREADY_APPLIED"));
 		search("supabase", "").andExpect(jsonPath("$.items[?(@.displayName == 'Phạm Thu Hà')].relation").value("APPLIED"));

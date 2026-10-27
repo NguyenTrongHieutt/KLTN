@@ -79,7 +79,7 @@ public record HeldCrewJob(UUID lan, UUID hung, UUID vy, UUID minh, UUID product,
 		for (UUID student : List.of(vy, minh)) {
 			UUID row = UUID.randomUUID();
 			jdbc.sql("""
-					INSERT INTO job.crew_row (id, job_id, student_account_id, status, signed_at, activated_at, created_at)
+					INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, created_at)
 					VALUES (:id, :job, :student, 'ACTIVE', :signed, :signed, now())
 					""").param("id", row).param("job", job).param("student", student).param("signed", Timestamp.from(signed))
 				.update();

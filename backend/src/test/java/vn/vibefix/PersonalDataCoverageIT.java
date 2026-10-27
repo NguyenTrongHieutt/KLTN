@@ -65,8 +65,9 @@ class PersonalDataCoverageIT extends IntegrationTest {
 
 	@Test
 	void personalColumnsAreRecognizedByName() {
-		for (String column : List.of("account_id", "student_account_id", "mentor_id", "customer_id", "raiser_id",
-				"author_id", "github_user_id", "assignee_github_user_id", "email", "school_email", "principal_name")) {
+		for (String column : List.of("account_id", "student_account_id", "member_account_id", "mentor_id", "customer_id",
+				"raiser_id", "author_id", "github_user_id", "assignee_github_user_id", "email", "school_email",
+				"principal_name")) {
 			assertThat(PERSONAL_COLUMN.matcher(column).matches()).as(column).isTrue();
 		}
 		for (String column : List.of("id", "job_id", "product_id", "listener_id", "event_id", "publication_id",

@@ -92,7 +92,7 @@ class CrewLockIT extends IntegrationTest {
 		List<UUID> crew = List.of(vy, minh, tung);
 		for (int index = 0; index < crew.size(); index++) {
 			WorkTestSupport.crewRow(this.jdbc, job, crew.get(index), "ACTIVE", this.clock.instant().minus(Duration.ofMinutes(5)));
-			UUID row = this.jdbc.sql("SELECT id FROM job.crew_row WHERE student_account_id = :id").param("id", crew.get(index))
+			UUID row = this.jdbc.sql("SELECT id FROM job.crew_row WHERE member_account_id = :id").param("id", crew.get(index))
 				.query(UUID.class).single();
 			share(job, crew.get(index), row, percents[index]);
 		}
@@ -102,7 +102,7 @@ class CrewLockIT extends IntegrationTest {
 
 		lock(ha, minh).andExpect(status().isOk());
 		awaitListeners();
-		assertThat(text("SELECT status FROM job.crew_row WHERE student_account_id = '" + minh + "'")).isEqualTo("INACTIVE");
+		assertThat(text("SELECT status FROM job.crew_row WHERE member_account_id = '" + minh + "'")).isEqualTo("INACTIVE");
 		assertThat(count("SELECT count(*) FROM dispute.dispute WHERE job_id = '" + job + "'")).as("the Job keeps running").isZero();
 		assertThat(text("SELECT state FROM job.job WHERE id = '" + job + "'")).isEqualTo("ACTIVE");
 		assertThat(notices("job.party_locked", hung)).isOne();

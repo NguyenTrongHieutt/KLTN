@@ -18,6 +18,8 @@ import vn.vibefix.identity.MentorDirectory.MentorCard;
 import vn.vibefix.identity.StudentDirectory;
 import vn.vibefix.identity.StudentDirectory.StudentCard;
 import vn.vibefix.job.JobPosts.JobPostState;
+import vn.vibefix.job.JobRole;
+import vn.vibefix.job.JobRoles;
 import vn.vibefix.repo.internal.DataDeletionConfirmations.Duty;
 import vn.vibefix.repo.internal.DataDeletionConfirmations.Item;
 import vn.vibefix.shared.Access;
@@ -26,7 +28,6 @@ import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.shared.Role;
 
 /**
  * The data-deletion confirmation in JOB-1's closure section (FR-66, AD-20, UX-DR51, UX-DR55), under
@@ -68,8 +69,11 @@ class DataDeletionController {
 
 	private final CurrentCaller callers;
 
+	private final JobRoles roles;
+
 	DataDeletionController(DataDeletionConfirmations confirmations, MentorDirectory mentors, StudentDirectory students,
-			CurrentCaller callers) {
+			CurrentCaller callers, JobRoles roles) {
+		this.roles = roles;
 		this.confirmations = confirmations;
 		this.mentors = mentors;
 		this.students = students;
@@ -92,7 +96,10 @@ class DataDeletionController {
 		return view(job, caller.requireAccountId());
 	}
 
-	/** The Customer, the Mentor, or a Crew member who was ever active; a Job before Active has nothing. */
+	/**
+	 * The Customer, the Mentor, or a Crew member who was ever active, by their role in the Job (AD-43); a Job
+	 * before Active has nothing.
+	 */
 	private JobPostState reader(UUID jobId, Caller caller) {
 		JobPostState job = this.confirmations.job(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		UUID account = caller.accountId();
@@ -100,9 +107,9 @@ class DataDeletionController {
 		if (account == null || !board) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
-		boolean customer = caller.hasRole(Role.CUSTOMER) && account.equals(job.customerId());
-		boolean duty = (caller.hasRole(Role.MENTOR) || caller.hasRole(Role.STUDENT))
-				&& this.confirmations.duty(job, account).isPresent();
+		JobRole role = this.roles.roleOf(jobId, caller);
+		boolean customer = role.isCustomer();
+		boolean duty = (role.isMentor() || role.isCrew()) && this.confirmations.duty(job, account).isPresent();
 		if (!customer && !duty) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}

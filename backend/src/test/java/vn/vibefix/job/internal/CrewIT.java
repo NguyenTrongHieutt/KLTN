@@ -189,7 +189,7 @@ class CrewIT extends IntegrationTest {
 				+ " AND account_id = '" + this.hung + "'")).isEqualTo(2);
 		assertThat(openTodos("job.pick_crew", this.hung)).as("FR-17's Crew condition holds").isZero();
 		assertThat(openTodos("job.confirm_crew_terms", this.vy)).isZero();
-		Timestamp signed = this.jdbc.sql("SELECT signed_at FROM job.crew_row WHERE student_account_id = :vy").param("vy", this.vy)
+		Timestamp signed = this.jdbc.sql("SELECT signed_at FROM job.crew_row WHERE member_account_id = :vy").param("vy", this.vy)
 			.query(Timestamp.class).single();
 
 		terms(3, 30, 70).andExpect(status().isOk()).andExpect(jsonPath("$.crewConfirmed").value(false));
@@ -199,7 +199,7 @@ class CrewIT extends IntegrationTest {
 		confirm(this.vy, 2, true).andExpect(status().isNoContent());
 		assertThat(count("SELECT count(*) FROM matching.nda_signature WHERE account_id = '" + this.vy + "'"))
 			.as("one signature per Job and Student (R-1 M4)").isOne();
-		assertThat(this.jdbc.sql("SELECT signed_at FROM job.crew_row WHERE student_account_id = :vy").param("vy", this.vy)
+		assertThat(this.jdbc.sql("SELECT signed_at FROM job.crew_row WHERE member_account_id = :vy").param("vy", this.vy)
 			.query(Timestamp.class).single()).isEqualTo(signed);
 	}
 
@@ -212,7 +212,7 @@ class CrewIT extends IntegrationTest {
 		UUID busy = member("Nguyễn Văn Hải", true);
 		otherJob();
 		this.jdbc.sql("""
-				INSERT INTO job.crew_row (id, job_id, student_account_id, status, created_at)
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, created_at)
 				SELECT :id, id, :student, 'ASSIGNED', now() FROM job.job WHERE id <> :job LIMIT 1
 				""").param("id", UUID.randomUUID()).param("student", busy).param("job", this.job).update();
 		add(busy, 0).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("STUDENT_ON_CREW"));
@@ -240,13 +240,27 @@ class CrewIT extends IntegrationTest {
 	}
 
 	@Test
+	void theJobsCustomerAndMentorAreNeverPickedForItsCrew() throws Exception {
+		// AD-43: refused first, under the Job lock, before the Crew limit or any eligibility rule.
+		add(this.vy, 0).andExpect(status().isOk());
+		for (UUID taken : List.of(this.lan, this.hung)) {
+			add(taken, 1).andExpect(status().is(422))
+				.andExpect(jsonPath("$.code").value("GUARD_FAILED"))
+				.andExpect(jsonPath("$.reason").value("ROLE_TAKEN"));
+		}
+		assertThat(count("SELECT count(*) FROM job.crew_row WHERE job_id = '" + this.job + "'")).as("nothing was written")
+			.isOne();
+		assertThat(count("SELECT crew_version FROM job.job WHERE id = '" + this.job + "'")).isOne();
+	}
+
+	@Test
 	void aDeclineAndARemovalReleaseTheRowAndTheReservation() throws Exception {
 		add(this.vy, 0).andExpect(status().isOk());
 		terms(1, 20, 80).andExpect(status().isOk());
 		this.mvc.perform(post("/api/v1/crew/jobs/" + this.job + "/decline").with(as(this.vy, Role.STUDENT)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON).content("{\"crewTermsVersionNo\":1}")).andExpect(status().isNoContent());
 
-		assertThat(this.jdbc.sql("SELECT status || ' ' || released_reason FROM job.crew_row WHERE student_account_id = :vy")
+		assertThat(this.jdbc.sql("SELECT status || ' ' || released_reason FROM job.crew_row WHERE member_account_id = :vy")
 			.param("vy", this.vy).query(String.class).single()).isEqualTo("RELEASED DECLINED");
 		assertThat(count("SELECT count(*) FROM team.crew_reservation")).isZero();
 		assertThat(count("SELECT count(*) FROM notification.notification WHERE type = 'job.crew_member_declined' AND account_id = '"

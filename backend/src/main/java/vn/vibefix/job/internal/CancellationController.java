@@ -18,6 +18,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import vn.vibefix.job.Crews.Relationship;
+import vn.vibefix.job.JobRole;
 import vn.vibefix.job.internal.Cancellations.Proposal;
 import vn.vibefix.job.internal.Cancellations.Scope;
 import vn.vibefix.job.internal.ChangeRequests.Party;
@@ -28,7 +29,6 @@ import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.shared.Role;
 
 /**
  * JOB-1's "Hủy công việc" (FR-40, UX-DR16): the Customer or the Mentor proposes, the other side confirms
@@ -71,17 +71,17 @@ class CancellationController {
 
 	private final ClosureProposals closures;
 
-	private final CrewService crews;
+	private final JobRoleReader roles;
 
 	private final JdbcClient jdbc;
 
 	private final CurrentCaller callers;
 
-	CancellationController(Cancellations cancellations, ClosureProposals closures, CrewService crews, JdbcClient jdbc,
+	CancellationController(Cancellations cancellations, ClosureProposals closures, JobRoleReader roles, JdbcClient jdbc,
 			CurrentCaller callers) {
 		this.cancellations = cancellations;
 		this.closures = closures;
-		this.crews = crews;
+		this.roles = roles;
 		this.jdbc = jdbc;
 		this.callers = callers;
 	}
@@ -129,7 +129,7 @@ class CancellationController {
 		return viewer;
 	}
 
-	/** The Customer, the Mentor, or an active Crew member (party empty), from Agreement on. */
+	/** The Customer, the Mentor, or an active Crew member (party empty), by role in the Job, from Agreement on. */
 	private Viewer viewer(UUID jobId, Caller caller) {
 		Job job = this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id")
 			.param("id", jobId)
@@ -140,13 +140,14 @@ class CancellationController {
 		if (account == null || job.mentorId() == null || !VISIBLE.contains(job.state())) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
-		if (caller.hasRole(Role.CUSTOMER) && account.equals(job.customerId())) {
+		JobRole role = this.roles.roleOf(job, caller);
+		if (role.isCustomer()) {
 			return new Viewer(job, account, Party.CUSTOMER);
 		}
-		if (caller.hasRole(Role.MENTOR) && account.equals(job.mentorId())) {
+		if (role.isMentor()) {
 			return new Viewer(job, account, Party.MENTOR);
 		}
-		if (caller.hasRole(Role.STUDENT) && this.crews.crewRelationship(jobId, account).kind() == Relationship.ACTIVE) {
+		if (role.crewKind() == Relationship.ACTIVE) {
 			return new Viewer(job, account, null);
 		}
 		throw new ApiException(ErrorCode.NOT_FOUND);

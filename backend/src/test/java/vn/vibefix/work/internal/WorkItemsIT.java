@@ -185,7 +185,7 @@ class WorkItemsIT extends IntegrationTest {
 		this.clock.advance(Duration.ofHours(1));
 		this.jdbc.sql("""
 				UPDATE job.crew_row SET status = 'RELEASED', window_end = :now, released_at = :now, released_reason = 'REMOVED'
-				WHERE student_account_id = :vy
+				WHERE member_account_id = :vy
 				""").param("now", Timestamp.from(this.clock.instant())).param("vy", this.vy).update();
 		this.clock.advance(Duration.ofHours(1));
 		update(this.hung, Role.MENTOR, mine, task("Hùng đã đổi tên", ",\"version\":1")).andExpect(status().isOk());

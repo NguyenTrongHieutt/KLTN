@@ -8,17 +8,18 @@ import org.springframework.transaction.annotation.Transactional;
 
 import vn.vibefix.job.JobPosts;
 import vn.vibefix.job.JobPosts.JobPostState;
+import vn.vibefix.job.JobRole;
+import vn.vibefix.job.JobRoles;
 import vn.vibefix.reputation.internal.Ratings.Viewer;
 import vn.vibefix.reputation.internal.Ratings.ViewerRole;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.ErrorCode;
-import vn.vibefix.shared.Role;
 
 /**
- * Who may read or act on a Job's post-Job duties (AD-19, AD-41): the Customer, the Mentor (revoked or
- * not, while unlocked), or a Crew member who was ever active, once the Job is Active or later; everyone
- * else finds nothing.
+ * Who may read or act on a Job's post-Job duties (AD-19, AD-41, AD-43), by their role in the Job: the Customer,
+ * the Mentor (revoked or not, while unlocked), or a Crew member who was ever active, once the Job is Active or
+ * later; everyone else finds nothing.
  */
 @Component
 class JobViewers {
@@ -29,9 +30,12 @@ class JobViewers {
 
 	private final Ratings ratings;
 
-	JobViewers(JobPosts posts, Ratings ratings) {
+	private final JobRoles roles;
+
+	JobViewers(JobPosts posts, Ratings ratings, JobRoles roles) {
 		this.posts = posts;
 		this.ratings = ratings;
+		this.roles = roles;
 	}
 
 	/** @throws ApiException {@code NOT_FOUND} for anyone else */
@@ -44,13 +48,14 @@ class JobViewers {
 		if (account == null || !STATES.contains(post.state())) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
-		if (caller.hasRole(Role.CUSTOMER) && account.equals(post.customerId())) {
+		JobRole role = this.roles.roleOf(jobId, caller);
+		if (role.isCustomer()) {
 			return new Viewer(jobId, account, ViewerRole.CUSTOMER);
 		}
-		if (caller.hasRole(Role.MENTOR) && account.equals(post.mentorId())) {
+		if (role.isMentor()) {
 			return new Viewer(jobId, account, ViewerRole.MENTOR);
 		}
-		if (caller.hasRole(Role.STUDENT) && this.ratings.crew(jobId).contains(account)) {
+		if (role.isCrew() && this.ratings.crew(jobId).contains(account)) {
 			return new Viewer(jobId, account, ViewerRole.CREW);
 		}
 		throw new ApiException(ErrorCode.NOT_FOUND);

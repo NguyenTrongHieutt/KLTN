@@ -549,7 +549,7 @@ POST /api/v1/mentor/jobs/{jobId}/decline,STUDENT,,decision.json,404 NOT_FOUND,re
 POST /api/v1/mentor/jobs/{jobId}/decline,ADMINISTRATOR,,decision.json,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/nda,ANONYMOUS,,nda.json,401,requireGitHubLinked
 POST /api/v1/mentor/jobs/{jobId}/nda,MENTOR,,nda.json,404 NOT_FOUND,requireGitHubLinked
-POST /api/v1/mentor/jobs/{jobId}/nda,MENTOR,github=unlinked,nda.json,403 FORBIDDEN GITHUB_NOT_LINKED,requireGitHubLinked
+POST /api/v1/mentor/jobs/{jobId}/nda,MENTOR,github=unlinked,nda.json,404 NOT_FOUND,requireGitHubLinked
 POST /api/v1/mentor/jobs/{jobId}/nda,OWNER,,nda.json,404 NOT_FOUND,requireGitHubLinked
 POST /api/v1/mentor/jobs/{jobId}/nda,CUSTOMER,,nda.json,404 NOT_FOUND,requireGitHubLinked
 POST /api/v1/mentor/jobs/{jobId}/nda,STUDENT,,nda.json,404 NOT_FOUND,requireGitHubLinked

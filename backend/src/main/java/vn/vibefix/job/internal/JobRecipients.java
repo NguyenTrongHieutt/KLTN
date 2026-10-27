@@ -43,7 +43,7 @@ class JobRecipients implements RecipientLookup {
 			default -> null;
 		};
 		if (crew != null) {
-			return this.jdbc.sql("SELECT EXISTS (SELECT 1 FROM job.crew_row WHERE job_id = :job AND student_account_id = :account AND "
+			return this.jdbc.sql("SELECT EXISTS (SELECT 1 FROM job.crew_row WHERE job_id = :job AND member_account_id = :account AND "
 					+ crew + ")").param("job", jobId).param("account", accountId).query(Boolean.class).single();
 		}
 		if (audience != Audience.CUSTOMER && audience != Audience.MENTOR) {

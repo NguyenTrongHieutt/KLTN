@@ -199,7 +199,7 @@ class JobSetupIT extends IntegrationTest {
 			.param("lapses", Timestamp.from(this.clock.instant().plus(Duration.ofDays(14)))).param("mentor", this.mentor)
 			.param("application", UUID.randomUUID()).update();
 		this.jdbc.sql("""
-				INSERT INTO job.crew_row (id, job_id, student_account_id, status, signed_at, activated_at, created_at)
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, created_at)
 				VALUES (:id, :job, :student, 'ACTIVE', :now, :now, :now)
 				""").param("id", UUID.randomUUID()).param("job", this.job).param("student", this.crew).param("now", now).update();
 		GITHUB.members.clear();
@@ -278,7 +278,7 @@ class JobSetupIT extends IntegrationTest {
 				LocalDate.parse("2026-12-31"));
 		UUID row = UUID.randomUUID();
 		this.jdbc.sql("""
-				INSERT INTO job.crew_row (id, job_id, student_account_id, status, signed_at, activated_at, created_at)
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, created_at)
 				VALUES (:id, :job, :student, 'ACTIVE', :now, :now, :now)
 				""").param("id", row).param("job", this.job).param("student", hai)
 			.param("now", Timestamp.from(this.clock.instant())).update();
@@ -303,7 +303,7 @@ class JobSetupIT extends IntegrationTest {
 				LocalDate.parse("2026-12-31"));
 		UUID lateRow = UUID.randomUUID();
 		this.jdbc.sql("""
-				INSERT INTO job.crew_row (id, job_id, student_account_id, status, signed_at, activated_at, created_at)
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, created_at)
 				VALUES (:id, :job, :student, 'ACTIVE', :now, :now, :now)
 				""").param("id", lateRow).param("job", this.job).param("student", late)
 			.param("now", Timestamp.from(this.clock.instant())).update();
@@ -495,7 +495,7 @@ class JobSetupIT extends IntegrationTest {
 				LocalDate.parse("2026-12-31"));
 		UUID row = UUID.randomUUID();
 		this.jdbc.sql("""
-				INSERT INTO job.crew_row (id, job_id, student_account_id, status, signed_at, activated_at, created_at)
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, created_at)
 				VALUES (:id, :job, :student, 'ACTIVE', :now, :now, :now)
 				""").param("id", row).param("job", this.job).param("student", hai)
 			.param("now", Timestamp.from(this.clock.instant())).update();
@@ -762,7 +762,7 @@ class JobSetupIT extends IntegrationTest {
 		long haiId = CustomerTokens.githubUserId(this.jdbc, hai);
 		UUID row = UUID.randomUUID();
 		this.jdbc.sql("""
-				INSERT INTO job.crew_row (id, job_id, student_account_id, status, signed_at, activated_at, created_at)
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, created_at)
 				VALUES (:id, :job, :student, 'ACTIVE', :now, :now, :now)
 				""").param("id", row).param("job", this.job).param("student", hai)
 			.param("now", Timestamp.from(this.clock.instant())).update();

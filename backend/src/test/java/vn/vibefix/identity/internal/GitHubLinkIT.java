@@ -401,17 +401,32 @@ class GitHubLinkIT extends IntegrationTest {
 	void theCommandsThatCreateWorkAreRefusedWithoutALinkReadOnEveryRequest() throws Exception {
 		UUID customer = unlinked(Role.CUSTOMER);
 		UUID mentor = unlinked(Role.MENTOR);
+		UUID student = unlinked(Role.STUDENT);
+		// Story 20.2: a Job-scoped command reads the caller's role in the Job first, so each caller holds one here.
+		UUID draft = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO job.job (id, product_id, customer_account_id, state, title, job_types, created_at, updated_at)
+				VALUES (:id, :product, :customer, 'DRAFT', 'Sửa lỗi đặt bàn', ARRAY['BUG_FIX'], :now, :now)
+				""").param("id", draft).param("product", UUID.randomUUID()).param("customer", customer)
+			.param("now", Timestamp.from(this.clock.instant())).update();
+		UUID selecting = job("SELECTING", mentor);
+		UUID crewed = job("AGREEMENT", UUID.randomUUID());
+		this.jdbc.sql("""
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, created_at)
+				VALUES (:id, :job, :student, 'ASSIGNED', :now)
+				""").param("id", UUID.randomUUID()).param("job", crewed).param("student", student)
+			.param("now", Timestamp.from(this.clock.instant())).update();
 		this.browser.perform(get("/api/v1/session"));
 
 		assertProblem(as(customer, Role.CUSTOMER, post("/api/v1/products/repository-check"), "product-repository-check.json"), 403,
 				"FORBIDDEN", "GITHUB_NOT_LINKED");
 		assertProblem(as(customer, Role.CUSTOMER, post("/api/v1/products"), "product-registration.json"), 403, "FORBIDDEN",
 				"GITHUB_NOT_LINKED");
-		assertProblem(as(customer, Role.CUSTOMER, post("/api/v1/jobs/" + UUID.randomUUID() + "/publish"), null), 403,
-				"FORBIDDEN", "GITHUB_NOT_LINKED");
+		assertProblem(as(customer, Role.CUSTOMER, post("/api/v1/jobs/" + draft + "/publish"), null), 403, "FORBIDDEN",
+				"GITHUB_NOT_LINKED");
 		assertProblem(as(mentor, Role.MENTOR, post("/api/v1/mentor/job-posts/" + UUID.randomUUID() + "/applications"),
 				"application.json"), 403, "FORBIDDEN", "GITHUB_NOT_LINKED");
-		assertProblem(as(mentor, Role.MENTOR, post("/api/v1/mentor/jobs/" + UUID.randomUUID() + "/nda"), "nda.json"), 403,
+		assertProblem(as(mentor, Role.MENTOR, post("/api/v1/mentor/jobs/" + selecting + "/nda"), "nda.json"), 403,
 				"FORBIDDEN", "GITHUB_NOT_LINKED");
 		// Reading "Tìm việc" (X1) needs the link too (Story 20.1): the Job Posts, one Job Post, the capacity, the
 		// Recommendations, and MEN-3's Customer Rating and invitation.
@@ -421,14 +436,15 @@ class GitHubLinkIT extends IntegrationTest {
 				"/api/v1/mentor/recommendations", jobPost + "/customer-rating", jobPost + "/invitation")) {
 			assertProblem(as(mentor, Role.MENTOR, get(read), null), 403, "FORBIDDEN", "GITHUB_NOT_LINKED");
 		}
-		UUID student = unlinked(Role.STUDENT);
-		assertProblem(as(student, Role.STUDENT, post("/api/v1/crew/jobs/" + UUID.randomUUID() + "/confirm"), "crew-confirm.json"),
-				403, "FORBIDDEN", "GITHUB_NOT_LINKED");
+		assertProblem(as(student, Role.STUDENT, post("/api/v1/crew/jobs/" + crewed + "/confirm"), "crew-confirm.json"), 403,
+				"FORBIDDEN", "GITHUB_NOT_LINKED");
 
 		this.jdbc.sql("UPDATE identity.account SET github_user_id = 777001, github_login = 'lan-dev' WHERE id = :id")
 			.param("id", customer).update();
-		MvcResult linked = as(customer, Role.CUSTOMER, post("/api/v1/jobs/" + UUID.randomUUID() + "/publish"), null);
-		assertThat(linked.getResponse().getStatus()).as("past the gate, the Job is not found").isEqualTo(404);
+		MvcResult linked = as(customer, Role.CUSTOMER, post("/api/v1/jobs/" + draft + "/publish"), null);
+		assertThat(linked.getResponse().getStatus() + " " + linked.getResponse().getContentAsString())
+			.as("past the gate, J1 answers for itself").doesNotContain("GITHUB_NOT_LINKED")
+			.doesNotStartWith("403");
 		IdentityTestSupport.lock(this.jdbc, customer, "Vi phạm điều khoản");
 		assertThat(as(customer, Role.CUSTOMER, post("/api/v1/jobs/" + UUID.randomUUID() + "/publish"), null).getResponse()
 			.getStatus()).as("a locked account is signed out").isEqualTo(401);
@@ -467,7 +483,7 @@ class GitHubLinkIT extends IntegrationTest {
 		UUID crewed = job("ACTIVE", UUID.randomUUID());
 		UUID row = UUID.randomUUID();
 		this.jdbc.sql("""
-				INSERT INTO job.crew_row (id, job_id, student_account_id, status, created_at)
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, created_at)
 				VALUES (:id, :job, :student, 'ASSIGNED', :now)
 				""").param("id", row).param("job", crewed).param("student", lan)
 			.param("now", Timestamp.from(this.clock.instant())).update();

@@ -23,6 +23,7 @@ import vn.vibefix.github.GitHubException;
 import vn.vibefix.github.MergeApp;
 import vn.vibefix.job.JobBusy;
 import vn.vibefix.job.JobBusy.BusyJob;
+import vn.vibefix.job.JobRoles;
 import vn.vibefix.repo.internal.FinalMergeAuthorizations.Authorization;
 import vn.vibefix.scanning.SensitiveChanges;
 import vn.vibefix.shared.Access;
@@ -31,7 +32,6 @@ import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.shared.Role;
 
 /**
  * JOB-1's step "Cho phép hợp nhất" (FR-37, AD-10, UX-DR30, UX-DR55), for the Job's Customer only:
@@ -115,8 +115,11 @@ class FinalMergeController {
 
 	private final CurrentCaller callers;
 
+	private final JobRoles roles;
+
 	FinalMergeController(FinalMergeAuthorizations authorizations, FinalMerges merges, ZipFallbacks fallbacks,
-			MergeAppBindings bindings, MergeApp app, JobBusy busy, CurrentCaller callers) {
+			MergeAppBindings bindings, MergeApp app, JobBusy busy, CurrentCaller callers, JobRoles roles) {
+		this.roles = roles;
 		this.authorizations = authorizations;
 		this.merges = merges;
 		this.fallbacks = fallbacks;
@@ -188,7 +191,8 @@ class FinalMergeController {
 			@RequestParam(name = "setup_action", required = false) @Nullable String action,
 			@RequestParam(required = false) @Nullable String state) {
 		Caller caller = this.callers.get();
-		Authorization authorization = state == null || state.isBlank() || !caller.hasRole(Role.CUSTOMER) ? null
+		// The state binds the Customer who asked for it; consuming it matches that party (AD-43).
+		Authorization authorization = state == null || state.isBlank() || !caller.isUser() ? null
 				: this.authorizations.consume(state, caller.requireAccountId()).orElse(null);
 		if (authorization == null) {
 			return back("/cong-viec");
@@ -211,7 +215,7 @@ class FinalMergeController {
 	private BusyJob customerJob(UUID jobId) {
 		Caller caller = this.callers.get();
 		BusyJob job = this.busy.job(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		if (!job.code() || !caller.hasRole(Role.CUSTOMER) || !job.customerId().equals(caller.accountId())) {
+		if (!job.code() || !this.roles.roleOf(jobId, caller).isCustomer()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		return job;

@@ -162,7 +162,7 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 	public List<ErasureBlocker> erasureBlockers(UUID accountId) {
 		return this.jdbc.sql("""
 				SELECT id FROM job.job WHERE (customer_account_id = :id OR mentor_account_id = :id
-				    OR id IN (SELECT job_id FROM job.crew_row WHERE student_account_id = :id AND status <> 'RELEASED'))
+				    OR id IN (SELECT job_id FROM job.crew_row WHERE member_account_id = :id AND status <> 'RELEASED'))
 				  AND state IN ('SELECTING', 'AGREEMENT', 'STARTING', 'ACTIVE', 'CLOSING') ORDER BY id
 				""")
 			.param("id", accountId)
@@ -178,7 +178,7 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 	public List<GitHubLinkBlocker> githubLinkBlockers(UUID accountId) {
 		return this.jdbc.sql("""
 				SELECT id, title FROM job.job WHERE (customer_account_id = :id OR mentor_account_id = :id
-				    OR id IN (SELECT job_id FROM job.crew_row WHERE student_account_id = :id AND status <> 'RELEASED'))
+				    OR id IN (SELECT job_id FROM job.crew_row WHERE member_account_id = :id AND status <> 'RELEASED'))
 				  AND state NOT IN ('CLOSED', 'CANCELLED') ORDER BY created_at, id
 				""")
 			.param("id", accountId)

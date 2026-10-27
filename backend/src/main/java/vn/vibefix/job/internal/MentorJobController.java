@@ -73,8 +73,11 @@ class MentorJobController {
 
 	private final CurrentCaller callers;
 
+	private final JobRoleReader roles;
+
 	MentorJobController(Jobs jobs, JobLifecycle lifecycle, ProductDirectory products, Notices notices,
-			ActiveAccount gate, JdbcClient jdbc, CurrentCaller callers) {
+			ActiveAccount gate, JdbcClient jdbc, CurrentCaller callers, JobRoleReader roles) {
+		this.roles = roles;
 		this.jobs = jobs;
 		this.lifecycle = lifecycle;
 		this.products = products;
@@ -102,7 +105,7 @@ class MentorJobController {
 
 	@GetMapping("/{jobId}")
 	MentorJobView job(@PathVariable UUID jobId) {
-		UUID mentor = mentor();
+		UUID mentor = mentorOf(jobId);
 		Job job = mine(mentor, jobId);
 		Instant selectedAt = Objects.requireNonNull(job.selectedAt());
 		return new MentorJobView(job.id(), job.title(), productName(new HashMap<>(), job.productId()), job.state(),
@@ -119,7 +122,7 @@ class MentorJobController {
 	@PostMapping("/{jobId}/decline")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void decline(@PathVariable UUID jobId, @Valid @RequestBody DecisionRequest body) {
-		UUID mentor = mentor();
+		UUID mentor = mentorOf(jobId);
 		mine(mentor, jobId);
 		this.lifecycle.apply(Transition.J5, jobId, Actor.user(mentor), Trigger.USER, body.version(), Map.of());
 	}
@@ -137,10 +140,27 @@ class MentorJobController {
 		return names.computeIfAbsent(productId, id -> this.products.find(id).map(ProductInfo::name).orElse(""));
 	}
 
-	/** The Mentor calling, unlocked (AD-19 Job command); anyone else finds nothing. */
+	/**
+	 * A Mentor on MEN-4, outside any Job, unlocked: the global role gate of the Mentor's Job list, which Story
+	 * 20.6 merges into CUS-7 and Story 20.3 replaces; the rows are the caller's own. Anyone else finds nothing.
+	 */
 	private UUID mentor() {
 		Caller caller = this.callers.get();
 		if (!caller.hasRole(Role.MENTOR)) {
+			throw new ApiException(ErrorCode.NOT_FOUND);
+		}
+		UUID mentor = caller.requireAccountId();
+		this.gate.requireActiveAccount(mentor);
+		return mentor;
+	}
+
+	/**
+	 * The Job's Mentor calling, by their role in the Job (AD-43), unlocked (AD-19 Job command); anyone else finds
+	 * nothing.
+	 */
+	private UUID mentorOf(UUID jobId) {
+		Caller caller = this.callers.get();
+		if (!this.roles.roleOf(jobId, caller).isMentor()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		UUID mentor = caller.requireAccountId();

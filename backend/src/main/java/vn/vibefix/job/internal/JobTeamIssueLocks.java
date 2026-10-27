@@ -68,7 +68,7 @@ class JobTeamIssueLocks implements TeamIssueLocks {
 	@Transactional(readOnly = true)
 	public List<UUID> crewJobsOf(UUID studentId) {
 		return this.jdbc.sql("""
-				SELECT job_id FROM job.crew_row WHERE student_account_id = :id AND activated_at IS NOT NULL
+				SELECT job_id FROM job.crew_row WHERE member_account_id = :id AND activated_at IS NOT NULL
 				GROUP BY job_id ORDER BY max(activated_at) DESC, job_id
 				""").param("id", studentId).query(UUID.class).list();
 	}

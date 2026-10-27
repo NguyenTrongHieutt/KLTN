@@ -175,7 +175,7 @@ class CodeHandoverIT extends IntegrationTest {
 				VALUES (:id, :job, 0, 'Chặn đặt trùng bàn', 1500000, 2, now(), 'FUNDED', now(), 1)
 				""").param("id", this.milestone).param("job", this.job).update();
 		this.jdbc.sql("""
-				INSERT INTO job.crew_row (id, job_id, student_account_id, status, signed_at, activated_at, created_at)
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, created_at)
 				VALUES (:id, :job, :student, 'ACTIVE', :signed, :signed, now())
 				""").param("id", UUID.randomUUID()).param("job", this.job).param("student", vy)
 			.param("signed", Timestamp.from(this.clock.instant().minus(Duration.ofMinutes(5)))).update();
@@ -541,7 +541,7 @@ class CodeHandoverIT extends IntegrationTest {
 	private void fundForRelease() {
 		UUID product = this.jdbc.sql("SELECT product_id FROM job.job WHERE id = :id").param("id", this.job).query(UUID.class)
 			.single();
-		Map<String, Object> row = this.jdbc.sql("SELECT id, student_account_id FROM job.crew_row WHERE job_id = :id")
+		Map<String, Object> row = this.jdbc.sql("SELECT id, member_account_id FROM job.crew_row WHERE job_id = :id")
 			.param("id", this.job).query().singleRow();
 		this.jdbc.sql("""
 				INSERT INTO job.crew_terms_version (job_id, version_no, status, cap_percent, author_account_id, created_at)
@@ -550,7 +550,7 @@ class CodeHandoverIT extends IntegrationTest {
 		this.jdbc.sql("""
 				INSERT INTO job.crew_terms_share (job_id, version_no, party_account_id, crew_row_id, percent)
 				VALUES (:job, 1, :mentor, NULL, 70), (:job, 1, :vy, :row, 30)
-				""").param("job", this.job).param("mentor", this.hung).param("vy", row.get("student_account_id"))
+				""").param("job", this.job).param("mentor", this.hung).param("vy", row.get("member_account_id"))
 			.param("row", row.get("id")).update();
 		this.jdbc.sql("""
 				INSERT INTO payment.ledger_account (milestone_id, job_id, product_id, created_at) VALUES (:id, :job, :product, now())

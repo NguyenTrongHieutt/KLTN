@@ -9,10 +9,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import vn.vibefix.job.Crews;
 import vn.vibefix.job.Crews.Relationship;
 import vn.vibefix.job.JobBusy;
 import vn.vibefix.job.JobBusy.BusyJob;
+import vn.vibefix.job.JobRole;
+import vn.vibefix.job.JobRoles;
 import vn.vibefix.scanning.Finding;
 import vn.vibefix.scanning.FindingCategory;
 import vn.vibefix.scanning.Scans;
@@ -22,7 +23,6 @@ import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.shared.Role;
 
 /**
  * The Job's open Findings (FR-8, UX-DR31): the Customer, the Mentor, and each active Crew member read
@@ -45,14 +45,14 @@ class JobFindingController {
 
 	private final JobBusy busy;
 
-	private final Crews crews;
+	private final JobRoles roles;
 
 	private final CurrentCaller callers;
 
-	JobFindingController(Scans scans, JobBusy busy, Crews crews, CurrentCaller callers) {
+	JobFindingController(Scans scans, JobBusy busy, JobRoles roles, CurrentCaller callers) {
 		this.scans = scans;
 		this.busy = busy;
-		this.crews = crews;
+		this.roles = roles;
 		this.callers = callers;
 	}
 
@@ -82,18 +82,14 @@ class JobFindingController {
 			.toList();
 	}
 
-	/** The Customer, the Mentor, or an active Crew member of a Code Job past Draft. */
+	/** The Customer, the Mentor, or an active Crew member of a Code Job past Draft, by role in the Job (AD-43). */
 	private BusyJob party(UUID jobId, Caller caller) {
 		BusyJob job = this.busy.job(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		UUID account = caller.accountId();
-		if (account == null || !job.code()) {
+		if (!job.code()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
-		boolean customer = caller.hasRole(Role.CUSTOMER) && account.equals(job.customerId());
-		boolean mentor = caller.hasRole(Role.MENTOR) && account.equals(job.mentorId());
-		boolean crew = caller.hasRole(Role.STUDENT)
-				&& this.crews.crewRelationship(jobId, account).kind() == Relationship.ACTIVE;
-		if (!customer && !mentor && !crew) {
+		JobRole role = this.roles.roleOf(jobId, caller);
+		if (!role.isCustomer() && !role.isMentor() && role.crewKind() != Relationship.ACTIVE) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		return job;

@@ -238,7 +238,7 @@ class LockConsequencesIT extends IntegrationTest {
 		this.jdbc.sql("UPDATE job.job SET agreement_version_no = 1 WHERE id = :id").param("id", job).update();
 		UUID row = UUID.randomUUID();
 		this.jdbc.sql("""
-				INSERT INTO job.crew_row (id, job_id, student_account_id, status, signed_at, activated_at, created_at)
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, created_at)
 				VALUES (:id, :job, :student, 'ACTIVE', :signed, :signed, now())
 				""").param("id", row).param("job", job).param("student", this.vy)
 			.param("signed", Timestamp.from(this.clock.instant().minus(Duration.ofMinutes(5)))).update();

@@ -218,7 +218,7 @@ class ChangeRequestIT extends IntegrationTest {
 		milestone(job, this.second, 1, "Nhắc lịch", "2026-11-30", false, now);
 		Timestamp signed = Timestamp.from(this.clock.instant().minus(Duration.ofDays(5)));
 		this.jdbc.sql("""
-				INSERT INTO job.crew_row (id, job_id, student_account_id, status, signed_at, activated_at, created_at)
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, created_at)
 				VALUES (:id, :job, :student, 'ACTIVE', :signed, :signed, now())
 				""").param("id", UUID.randomUUID()).param("job", job).param("student", this.vy).param("signed", signed).update();
 		return job;

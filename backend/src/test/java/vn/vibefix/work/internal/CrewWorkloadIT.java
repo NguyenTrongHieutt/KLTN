@@ -88,7 +88,7 @@ class CrewWorkloadIT extends IntegrationTest {
 		WorkTestSupport.crewRow(this.jdbc, this.job, this.kim, "ACTIVE", this.clock.instant().minus(Duration.ofMinutes(5)));
 		this.jdbc.sql("""
 				UPDATE job.crew_row SET status = 'RELEASED', window_end = :now, released_at = :now, released_reason = 'REMOVED'
-				WHERE student_account_id = :kim
+				WHERE member_account_id = :kim
 				""").param("now", Timestamp.from(this.clock.instant())).param("kim", this.kim).update();
 		// Vy holds two open Work Items (2.5 h and 4 h) and a Done one; Tùng none.
 		List<UUID> items = this.jdbc.sql("SELECT id FROM work.work_item WHERE job_id = :job ORDER BY number")

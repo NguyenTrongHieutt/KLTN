@@ -5,18 +5,18 @@ import java.util.UUID;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import vn.vibefix.job.Crews;
 import vn.vibefix.job.Crews.Relationship;
+import vn.vibefix.job.JobRole;
+import vn.vibefix.job.JobRoles;
 import vn.vibefix.job.MilestoneHandovers;
 import vn.vibefix.job.MilestoneHandovers.HandoverJob;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.ErrorCode;
-import vn.vibefix.shared.Role;
 
 /**
- * Who reads and makes handovers (FR-32, AD-20, AD-41): the Job's Customer, its Mentor, and its
- * {@code ACTIVE} Crew members read; only the Mentor makes one. Everyone else finds nothing.
+ * Who reads and makes handovers (FR-32, AD-20, AD-41, AD-43), by their role in the Job: the Job's Customer, its
+ * Mentor, and its {@code ACTIVE} Crew members read; only the Mentor makes one. Everyone else finds nothing.
  */
 @Component
 class DeliveryAccess {
@@ -35,11 +35,11 @@ class DeliveryAccess {
 
 	private final MilestoneHandovers handovers;
 
-	private final Crews crews;
+	private final JobRoles roles;
 
-	DeliveryAccess(MilestoneHandovers handovers, Crews crews) {
+	DeliveryAccess(MilestoneHandovers handovers, JobRoles roles) {
 		this.handovers = handovers;
-		this.crews = crews;
+		this.roles = roles;
 	}
 
 	/** A reader of the Job's handovers. */
@@ -50,13 +50,14 @@ class DeliveryAccess {
 		if (account == null || job.mentorId() == null) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
-		if (caller.hasRole(Role.CUSTOMER) && account.equals(job.customerId())) {
+		JobRole role = this.roles.roleOf(jobId, caller);
+		if (role.isCustomer()) {
 			return new Viewer(job, account, Kind.CUSTOMER);
 		}
-		if (caller.hasRole(Role.MENTOR) && account.equals(job.mentorId())) {
+		if (role.isMentor()) {
 			return new Viewer(job, account, Kind.MENTOR);
 		}
-		if (caller.hasRole(Role.STUDENT) && this.crews.crewRelationship(jobId, account).kind() == Relationship.ACTIVE) {
+		if (role.crewKind() == Relationship.ACTIVE) {
 			return new Viewer(job, account, Kind.CREW);
 		}
 		throw new ApiException(ErrorCode.NOT_FOUND);

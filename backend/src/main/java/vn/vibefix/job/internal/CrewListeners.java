@@ -71,7 +71,7 @@ class CrewListeners {
 				  AND state IN ('SELECTING', 'AGREEMENT', 'STARTING', 'ACTIVE', 'CLOSING')
 				UNION
 				SELECT r.job_id, 'CREW' FROM job.crew_row r JOIN job.job j ON j.id = r.job_id
-				WHERE r.student_account_id = :id AND r.status <> 'RELEASED'
+				WHERE r.member_account_id = :id AND r.status <> 'RELEASED'
 				  AND j.state IN ('AGREEMENT', 'STARTING', 'ACTIVE', 'CLOSING')
 				""").param("id", accountId).query(rs -> {
 			roles.put(rs.getObject("id", UUID.class), rs.getString("role"));

@@ -21,23 +21,23 @@ import vn.vibefix.chat.internal.Chats.Message;
 import vn.vibefix.chat.internal.Chats.Window;
 import vn.vibefix.job.Crews;
 import vn.vibefix.job.Crews.CrewMember;
-import vn.vibefix.job.Crews.CrewRelationship;
 import vn.vibefix.job.Crews.Selection;
 import vn.vibefix.job.JobPosts;
 import vn.vibefix.job.JobPosts.JobPostState;
+import vn.vibefix.job.JobRole;
+import vn.vibefix.job.JobRoles;
 import vn.vibefix.shared.AdminReadScope;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.ErrorCode;
-import vn.vibefix.shared.Role;
 
 /**
- * Who reads and writes a Chat (FR-46, FR-77, AD-20, AD-41), read from {@code job}:
+ * Who reads and writes a Chat (FR-46, FR-77, AD-20, AD-41), by the role in the Job that {@code job.roleOf}
+ * reads (AD-43):
  * <ul>
- * <li>the Job Chat: its Customer and its Mentor ({@code job.mentorOf});</li>
+ * <li>the Job Chat: its Customer and its Mentor;</li>
  * <li>the Crew Chat: its Mentor and every {@code ACTIVE} Crew member; an {@code INACTIVE} or
- * {@code FORMER} member only reads, and only the messages inside their windows
- * ({@code job.crewRelationship});</li>
+ * {@code FORMER} member only reads, and only the messages inside their windows;</li>
  * <li>an Administrator only under a grant naming the Chat, or for one message the grant of an Abuse Report
  * naming it (FR-69), only reading, each read audited (AD-8).</li>
  * </ul>
@@ -94,7 +94,11 @@ class ChatAccess {
 
 	private final Clock clock;
 
-	ChatAccess(Chats chats, JobPosts posts, Crews crews, ChatGrants grants, AuditLog auditLog, Clock clock) {
+	private final JobRoles roles;
+
+	ChatAccess(Chats chats, JobPosts posts, Crews crews, ChatGrants grants, AuditLog auditLog, Clock clock,
+			JobRoles roles) {
+		this.roles = roles;
 		this.chats = chats;
 		this.posts = posts;
 		this.crews = crews;
@@ -220,10 +224,8 @@ class ChatAccess {
 	}
 
 	private @Nullable Viewer viewer(UUID jobId, Kind kind, Caller caller) {
-		boolean customerRole = caller.hasRole(Role.CUSTOMER);
-		boolean mentorRole = caller.hasRole(Role.MENTOR);
-		boolean studentRole = caller.hasRole(Role.STUDENT);
-		if (!customerRole && !mentorRole && !studentRole) {
+		JobRole role = this.roles.roleOf(jobId, caller);
+		if (JobRole.NONE.equals(role)) {
 			return null;
 		}
 		UUID account = caller.requireAccountId();
@@ -235,20 +237,14 @@ class ChatAccess {
 		if (chat == null) {
 			return null;
 		}
-		boolean mentor = mentorRole && post.mentorId().equals(account);
 		if (kind == Kind.JOB) {
-			boolean customer = customerRole && post.customerId().equals(account);
-			return customer || mentor ? new Viewer(chat, account, true, chat.closed(), null, post.title(),
-					post.mentorId(), post.customerId(), List.of()) : null;
+			return role.isCustomer() || role.isMentor() ? new Viewer(chat, account, true, chat.closed(), null,
+					post.title(), post.mentorId(), post.customerId(), List.of()) : null;
 		}
-		if (mentor) {
+		if (role.isMentor()) {
 			return new Viewer(chat, account, true, chat.closed(), null, post.title(), post.mentorId(), null, crewOf(jobId));
 		}
-		if (!studentRole) {
-			return null;
-		}
-		CrewRelationship relationship = this.crews.crewRelationship(jobId, account);
-		return switch (relationship.kind()) {
+		return switch (role.crewKind()) {
 			case ACTIVE -> new Viewer(chat, account, true, chat.closed(), null, post.title(), post.mentorId(), null,
 					crewOf(jobId));
 			case INACTIVE, FORMER -> {
