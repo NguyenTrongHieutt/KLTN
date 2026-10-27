@@ -118,14 +118,19 @@ class Invitations {
 
 	/**
 	 * Sends the Customer's invitation (FR-14), checked in this order under the Customer's lock.
-	 * @throws ApiException {@code NOT_FOUND} for another Customer's Job; {@code GUARD_FAILED} with
-	 * {@code JOB_POST_HIDDEN}, {@code JOB_POST_NOT_OPEN}, or {@code INVITEE_NOT_AVAILABLE};
-	 * {@code CONFLICT} with {@code ALREADY_INVITED} or {@code INVITEE_ALREADY_APPLIED}
+	 * @throws ApiException {@code NOT_FOUND} for another Customer's Job; {@code GUARD_FAILED ROLE_TAKEN} for
+	 * inviting the Customer themselves, before any other rule (AD-43: the Job's Customer, which never changes,
+	 * needs no Job row lock); {@code GUARD_FAILED} with {@code JOB_POST_HIDDEN}, {@code JOB_POST_NOT_OPEN}, or
+	 * {@code INVITEE_NOT_AVAILABLE}; {@code CONFLICT} with {@code ALREADY_INVITED} or
+	 * {@code INVITEE_ALREADY_APPLIED}
 	 * @throws RateLimitedException with {@code INVITE_LIMIT_JOB_POST} or {@code INVITE_LIMIT_DAILY}
 	 */
 	@Transactional
 	Quota invite(UUID customerId, UUID jobId, UUID mentorId) {
 		JobPostState post = ownPost(customerId, jobId);
+		if (mentorId.equals(post.customerId())) {
+			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.ROLE_TAKEN);
+		}
 		if (post.hidden()) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.JOB_POST_HIDDEN);
 		}

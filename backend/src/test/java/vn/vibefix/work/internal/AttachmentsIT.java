@@ -204,7 +204,7 @@ class AttachmentsIT extends IntegrationTest {
 			.andReturn().getResponse().getContentAsString();
 		String download = JsonPath.read(body, "$.attachments[0].downloadUrl");
 		this.clock.advance(Duration.ofHours(1));
-		this.jdbc.sql("UPDATE job.crew_row SET status = 'INACTIVE', window_end = :end WHERE student_account_id = :vy")
+		this.jdbc.sql("UPDATE job.crew_row SET status = 'INACTIVE', window_end = :end WHERE member_account_id = :vy")
 			.param("end", Timestamp.from(this.clock.instant()))
 			.param("vy", this.vy)
 			.update();

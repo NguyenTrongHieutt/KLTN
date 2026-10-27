@@ -16,6 +16,8 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import vn.vibefix.job.JobBusy;
 import vn.vibefix.job.JobBusy.BusyJob;
+import vn.vibefix.job.JobRole;
+import vn.vibefix.job.JobRoles;
 import vn.vibefix.repo.internal.RevocationChecklists.RevocationItem;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.ApiException;
@@ -23,7 +25,6 @@ import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.shared.Role;
 
 /**
  * JOB-1's Revocation Checklist (FR-66, UX-DR51, UX-DR55): the Customer reads each item with what to remove
@@ -61,7 +62,11 @@ class RevocationChecklistController {
 
 	private final CurrentCaller callers;
 
-	RevocationChecklistController(RevocationChecklists checklists, JobBusy busy, CurrentCaller callers) {
+	private final JobRoles roles;
+
+	RevocationChecklistController(RevocationChecklists checklists, JobBusy busy, CurrentCaller callers,
+			JobRoles roles) {
+		this.roles = roles;
 		this.checklists = checklists;
 		this.busy = busy;
 		this.callers = callers;
@@ -71,9 +76,9 @@ class RevocationChecklistController {
 	RevocationChecklistView checklist(@PathVariable("boardId") UUID jobId) {
 		Caller caller = this.callers.get();
 		BusyJob job = this.busy.job(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		boolean customer = caller.hasRole(Role.CUSTOMER) && job.customerId().equals(caller.accountId());
-		boolean mentor = caller.hasRole(Role.MENTOR) && caller.accountId() != null && caller.accountId().equals(job.mentorId());
-		if (!customer && !mentor) {
+		JobRole role = this.roles.roleOf(jobId, caller);
+		boolean customer = role.isCustomer();
+		if (!customer && !role.isMentor()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		return view(job, customer);
@@ -85,7 +90,7 @@ class RevocationChecklistController {
 			@Valid @RequestBody RevocationConfirmRequest body) {
 		Caller caller = this.callers.get();
 		BusyJob job = this.busy.job(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		if (!caller.hasRole(Role.CUSTOMER) || !job.customerId().equals(caller.accountId())) {
+		if (!this.roles.roleOf(jobId, caller).isCustomer()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		this.checklists.confirm(jobId, accessId, caller.requireAccountId(), body.outcome());

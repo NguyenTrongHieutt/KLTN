@@ -18,17 +18,17 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import vn.vibefix.dispute.internal.Disputes.Dispute;
 import vn.vibefix.dispute.internal.Disputes.Side;
-import vn.vibefix.job.Crews;
 import vn.vibefix.job.Crews.Relationship;
 import vn.vibefix.job.JobPosts;
 import vn.vibefix.job.JobPosts.JobPostState;
+import vn.vibefix.job.JobRole;
+import vn.vibefix.job.JobRoles;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.shared.Role;
 
 /**
  * JOB-1's Dispute (FR-52, UX-DR22, UX-DR56): the Customer and the Mentor open one, and with the active
@@ -78,19 +78,19 @@ class DisputeController {
 
 	private final JobPosts posts;
 
-	private final Crews crews;
+	private final JobRoles roles;
 
 	private final CurrentCaller callers;
 
 	private final DisputeStatements statements;
 
-	DisputeController(Disputes disputes, DisputeDecisions decisions, JobPosts posts, Crews crews, CurrentCaller callers,
-			DisputeStatements statements) {
+	DisputeController(Disputes disputes, DisputeDecisions decisions, JobPosts posts, JobRoles roles,
+			CurrentCaller callers, DisputeStatements statements) {
 		this.statements = statements;
 		this.disputes = disputes;
 		this.decisions = decisions;
 		this.posts = posts;
-		this.crews = crews;
+		this.roles = roles;
 		this.callers = callers;
 	}
 
@@ -122,7 +122,7 @@ class DisputeController {
 		return view(viewer(jobId, this.callers.get()));
 	}
 
-	/** The Customer, the Mentor, or an active Crew member (side empty), once the Job has a Mentor. */
+	/** The Customer, the Mentor, or an active Crew member (side empty), by role in the Job, once it has a Mentor. */
 	private Viewer viewer(UUID jobId, Caller caller) {
 		JobPostState job = this.posts.post(jobId)
 			.filter(found -> found.mentorId() != null)
@@ -131,13 +131,14 @@ class DisputeController {
 		if (account == null) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
-		if (caller.hasRole(Role.CUSTOMER) && account.equals(job.customerId())) {
+		JobRole role = this.roles.roleOf(jobId, caller);
+		if (role.isCustomer()) {
 			return new Viewer(job, account, Side.CUSTOMER);
 		}
-		if (caller.hasRole(Role.MENTOR) && account.equals(job.mentorId())) {
+		if (role.isMentor()) {
 			return new Viewer(job, account, Side.MENTOR);
 		}
-		if (caller.hasRole(Role.STUDENT) && this.crews.crewRelationship(jobId, account).kind() == Relationship.ACTIVE) {
+		if (role.crewKind() == Relationship.ACTIVE) {
 			return new Viewer(job, account, null);
 		}
 		throw new ApiException(ErrorCode.NOT_FOUND);

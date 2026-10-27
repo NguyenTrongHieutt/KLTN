@@ -98,7 +98,7 @@ class CrewService implements Crews {
 	}
 
 	private static final String ROW_COLUMNS = """
-			id, job_id, student_account_id, status, signed_at, activated_at, window_end, created_at
+			id, job_id, member_account_id, status, signed_at, activated_at, window_end, created_at
 			""";
 
 	private final JdbcClient jdbc;
@@ -164,13 +164,15 @@ class CrewService implements Crews {
 	// ---- The Mentor's commands -------------------------------------------------------------
 
 	/**
-	 * Adds a Team Student as {@code ASSIGNED} (FR-75), checked in order: the lock, the Crew limit,
-	 * verification, a running Crew, a shared person-link signal, a contribution to the Source
-	 * Repository, then the Team through {@code team.reserveForCrew}.
+	 * Adds a Team Student as {@code ASSIGNED} (FR-75), checked in order under the Job lock: one role per Job
+	 * (AD-43), the Crew lock, the Crew limit, verification, a running Crew, a shared person-link signal, a
+	 * contribution to the Source Repository, then the Team through {@code team.reserveForCrew}.
+	 * @throws ApiException {@code GUARD_FAILED ROLE_TAKEN} for the Job's Customer or Mentor
 	 */
 	@Transactional
 	Row add(UUID mentorId, UUID jobId, UUID studentId, long crewVersion) {
 		Job job = lockMentorJob(mentorId, jobId, crewVersion);
+		requireNoOtherRole(job, studentId);
 		requireOpenCrew(job);
 		List<Row> rows = rows(jobId);
 		long running = rows.stream().filter(row -> !row.released()).count();
@@ -184,12 +186,15 @@ class CrewService implements Crews {
 	}
 
 	/**
-	 * A new {@code ASSIGNED} row for a Team Student (FR-75), checked in order: verification, a running
-	 * Crew, a shared person-link signal, a contribution to the Source Repository, then the Team through
-	 * {@code team.reserveForCrew}. The Student is told and gets the confirmation to-do.
+	 * A new {@code ASSIGNED} row for a Team Student (FR-75), checked in order under the Job lock its caller
+	 * holds: one role per Job (AD-43), verification, a running Crew, a shared person-link signal, a contribution
+	 * to the Source Repository, then the Team through {@code team.reserveForCrew}. The Student is told and gets
+	 * the confirmation to-do.
+	 * @throws ApiException {@code GUARD_FAILED ROLE_TAKEN} for the Job's Customer or Mentor
 	 */
 	Row addRow(Job job, UUID mentorId, UUID studentId) {
 		UUID jobId = job.id();
+		requireNoOtherRole(job, studentId);
 		if (!this.verification.isVerified(studentId)) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, JobReason.STUDENT_NOT_VERIFIED);
 		}
@@ -207,7 +212,7 @@ class CrewService implements Crews {
 		Instant now = this.clock.instant();
 		Instant signed = signedAt(jobId, studentId);
 		this.jdbc.sql("""
-				INSERT INTO job.crew_row (id, job_id, student_account_id, status, signed_at, created_at)
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, created_at)
 				VALUES (:id, :job, :student, 'ASSIGNED', :signed, :now)
 				""")
 			.param("id", rowId)
@@ -275,7 +280,7 @@ class CrewService implements Crews {
 	List<UUID> accountLocked(UUID accountId) {
 		List<UUID> changedJobs = new ArrayList<>();
 		List<Row> rows = this.jdbc.sql("SELECT " + ROW_COLUMNS
-				+ " FROM job.crew_row WHERE student_account_id = :id AND status IN ('ASSIGNED', 'ACTIVE')")
+				+ " FROM job.crew_row WHERE member_account_id = :id AND status IN ('ASSIGNED', 'ACTIVE')")
 			.param("id", accountId)
 			.query(CrewService::mapRow)
 			.list();
@@ -481,7 +486,7 @@ class CrewService implements Crews {
 	@Override
 	@Transactional(readOnly = true)
 	public CrewRelationship crewRelationship(UUID jobId, UUID accountId) {
-		List<Row> mine = this.jdbc.sql("SELECT " + ROW_COLUMNS + " FROM job.crew_row WHERE job_id = :job AND student_account_id = :id"
+		List<Row> mine = this.jdbc.sql("SELECT " + ROW_COLUMNS + " FROM job.crew_row WHERE job_id = :job AND member_account_id = :id"
 				+ " ORDER BY created_at DESC, id")
 			.param("job", jobId)
 			.param("id", accountId)
@@ -520,10 +525,34 @@ class CrewService implements Crews {
 	@Override
 	@Transactional(readOnly = true)
 	public Optional<UUID> runningCrewOf(UUID studentId) {
-		return this.jdbc.sql("SELECT job_id FROM job.crew_row WHERE student_account_id = :id AND status <> 'RELEASED'")
+		return this.jdbc.sql("SELECT job_id FROM job.crew_row WHERE member_account_id = :id AND status <> 'RELEASED'")
 			.param("id", studentId)
 			.query(UUID.class)
 			.optional();
+	}
+
+	/**
+	 * Whether the account has a counted Crew row on the Job (AD-43): one that is not released, or that was
+	 * released after it was activated. Until Story 20.4 removes {@code INACTIVE}, that also counts an unreleased
+	 * {@code INACTIVE} row that was never activated, which {@code job.roleOf} reads as {@code NONE}. The triggers
+	 * of {@code V202610271100__job_one_role_per_job.sql} use the same rule.
+	 */
+	boolean countedRow(UUID jobId, UUID accountId) {
+		return this.jdbc.sql("""
+				SELECT EXISTS (SELECT 1 FROM job.crew_row WHERE job_id = :job AND member_account_id = :id
+				    AND (status <> 'RELEASED' OR activated_at IS NOT NULL))
+				""").param("job", jobId).param("id", accountId).query(Boolean.class).single();
+	}
+
+	/**
+	 * One role per Job (AD-43): the Job's Customer or Mentor never joins its Crew. The command checks it first,
+	 * under the Job lock, and the {@code job.crew_row} trigger is the backstop.
+	 * @throws ApiException {@code GUARD_FAILED ROLE_TAKEN}
+	 */
+	static void requireNoOtherRole(Job job, UUID memberId) {
+		if (memberId.equals(job.customerId()) || memberId.equals(job.mentorId())) {
+			throw new ApiException(ErrorCode.GUARD_FAILED, JobReason.ROLE_TAKEN);
+		}
 	}
 
 	@Override
@@ -531,7 +560,7 @@ class CrewService implements Crews {
 	public Optional<Assignment> assignment(UUID jobId, UUID studentId) {
 		return this.jdbc.sql("""
 				SELECT r.id, r.signed_at, j.job_types FROM job.crew_row r JOIN job.job j ON j.id = r.job_id
-				WHERE r.job_id = :job AND r.student_account_id = :id AND r.status IN ('ASSIGNED', 'ACTIVE')
+				WHERE r.job_id = :job AND r.member_account_id = :id AND r.status IN ('ASSIGNED', 'ACTIVE')
 				""").param("job", jobId).param("id", studentId).query((rs, n) -> {
 			String[] types = (String[]) rs.getArray("job_types").getArray();
 			boolean code = Arrays.stream(types).map(JobType::valueOf).anyMatch(JobType::code);
@@ -712,7 +741,7 @@ class CrewService implements Crews {
 
 	private Row openRow(UUID jobId, UUID studentId) {
 		return this.jdbc.sql("SELECT " + ROW_COLUMNS
-				+ " FROM job.crew_row WHERE job_id = :job AND student_account_id = :id AND status IN ('ASSIGNED', 'ACTIVE')")
+				+ " FROM job.crew_row WHERE job_id = :job AND member_account_id = :id AND status IN ('ASSIGNED', 'ACTIVE')")
 			.param("job", jobId)
 			.param("id", studentId)
 			.query(CrewService::mapRow)
@@ -781,7 +810,7 @@ class CrewService implements Crews {
 	/** The time the Student signed this Job's NDA through an earlier row (R-1 M4), if any. */
 	private @Nullable Instant signedAt(UUID jobId, UUID studentId) {
 		return this.jdbc.sql("""
-				SELECT min(signed_at) FROM job.crew_row WHERE job_id = :job AND student_account_id = :id AND signed_at IS NOT NULL
+				SELECT min(signed_at) FROM job.crew_row WHERE job_id = :job AND member_account_id = :id AND signed_at IS NOT NULL
 				""").param("job", jobId).param("id", studentId).query(Timestamp.class).optional().map(Timestamp::toInstant).orElse(null);
 	}
 
@@ -824,17 +853,17 @@ class CrewService implements Crews {
 			return titles;
 		}
 		this.jdbc.sql("""
-				SELECT r.student_account_id, j.title FROM job.crew_row r JOIN job.job j ON j.id = r.job_id
-				WHERE r.student_account_id IN (:ids) AND r.status <> 'RELEASED' AND r.job_id <> :job
+				SELECT r.member_account_id, j.title FROM job.crew_row r JOIN job.job j ON j.id = r.job_id
+				WHERE r.member_account_id IN (:ids) AND r.status <> 'RELEASED' AND r.job_id <> :job
 				""").param("ids", studentIds).param("job", jobId).query(rs -> {
-			titles.put(rs.getObject("student_account_id", UUID.class), rs.getString("title"));
+			titles.put(rs.getObject("member_account_id", UUID.class), rs.getString("title"));
 		});
 		return titles;
 	}
 
 	List<UUID> openJobsOf(UUID studentId) {
 		return this.jdbc.sql("""
-				SELECT job_id FROM job.crew_row WHERE student_account_id = :id AND status IN ('ASSIGNED', 'ACTIVE', 'INACTIVE')
+				SELECT job_id FROM job.crew_row WHERE member_account_id = :id AND status IN ('ASSIGNED', 'ACTIVE', 'INACTIVE')
 				ORDER BY created_at DESC
 				""").param("id", studentId).query(UUID.class).list();
 	}
@@ -844,7 +873,7 @@ class CrewService implements Crews {
 		Timestamp activated = rs.getTimestamp("activated_at");
 		Timestamp window = rs.getTimestamp("window_end");
 		return new Row(rs.getObject("id", UUID.class), rs.getObject("job_id", UUID.class),
-				rs.getObject("student_account_id", UUID.class), rs.getString("status"),
+				rs.getObject("member_account_id", UUID.class), rs.getString("status"),
 				signed == null ? null : signed.toInstant(), activated == null ? null : activated.toInstant(),
 				window == null ? null : window.toInstant(), rs.getTimestamp("created_at").toInstant());
 	}

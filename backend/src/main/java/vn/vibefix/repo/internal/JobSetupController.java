@@ -15,10 +15,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.StudentDirectory;
-import vn.vibefix.job.Crews;
 import vn.vibefix.job.Crews.Relationship;
 import vn.vibefix.job.JobBusy;
 import vn.vibefix.job.JobBusy.BusyJob;
+import vn.vibefix.job.JobRole;
+import vn.vibefix.job.JobRoles;
 import vn.vibefix.repo.internal.JobGrants.Grant;
 import vn.vibefix.repo.internal.JobSetups.Setup;
 import vn.vibefix.repo.internal.JobSetups.Step;
@@ -28,7 +29,6 @@ import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.shared.Role;
 
 /**
  * JOB-H's step tracker while a Code Job is Starting (UX-DR23, AD-11): the Setup's steps as the Customer,
@@ -72,7 +72,7 @@ class JobSetupController {
 
 	private final JobBusy busy;
 
-	private final Crews crews;
+	private final JobRoles roles;
 
 	private final MentorDirectory mentors;
 
@@ -82,12 +82,12 @@ class JobSetupController {
 
 	private final CurrentCaller callers;
 
-	JobSetupController(JobSetups setups, JobGrants grants, JobBusy busy, Crews crews, MentorDirectory mentors,
+	JobSetupController(JobSetups setups, JobGrants grants, JobBusy busy, JobRoles roles, MentorDirectory mentors,
 			StudentDirectory students, GitHubLinks links, CurrentCaller callers) {
 		this.setups = setups;
 		this.grants = grants;
 		this.busy = busy;
-		this.crews = crews;
+		this.roles = roles;
 		this.mentors = mentors;
 		this.students = students;
 		this.links = links;
@@ -113,23 +113,18 @@ class JobSetupController {
 		return view(this.busy.job(jobId).orElseThrow(), caller);
 	}
 
+	/** The Job's Customer, its Mentor, or an active Crew member, by their role in the Job (AD-43). */
 	private BusyJob reader(UUID jobId, Caller caller) {
 		BusyJob job = this.busy.job(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		UUID account = caller.accountId();
-		if (account == null) {
-			throw new ApiException(ErrorCode.NOT_FOUND);
-		}
-		boolean mentor = caller.hasRole(Role.MENTOR) && account.equals(job.mentorId());
-		boolean crew = caller.hasRole(Role.STUDENT)
-				&& this.crews.crewRelationship(jobId, account).kind() == Relationship.ACTIVE;
-		if (!customer(job, caller) && !mentor && !crew) {
+		JobRole role = this.roles.roleOf(jobId, caller);
+		if (!role.isCustomer() && !role.isMentor() && role.crewKind() != Relationship.ACTIVE) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		return job;
 	}
 
-	private static boolean customer(BusyJob job, Caller caller) {
-		return caller.hasRole(Role.CUSTOMER) && job.customerId().equals(caller.accountId());
+	private boolean customer(BusyJob job, Caller caller) {
+		return this.roles.roleOf(job.jobId(), caller).isCustomer();
 	}
 
 	private SetupView view(BusyJob job, Caller caller) {

@@ -66,6 +66,12 @@ enum JobReason {
 	/** The Student shares a person-link signal with the Mentor or the Customer; never says which (AD-19). */
 	CONFLICT_OF_INTEREST,
 
+	/**
+	 * One role per Job (AD-43): the person already holds another role in this Job, as its Customer, its Mentor,
+	 * or a Crew member, so they are neither picked for its Crew nor selected as its Mentor.
+	 */
+	ROLE_TAKEN,
+
 	/** The Student contributed to the Source Repository (FR-75). */
 	APPLICANT_IS_CONTRIBUTOR,
 

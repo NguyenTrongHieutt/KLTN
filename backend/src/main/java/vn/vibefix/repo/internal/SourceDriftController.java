@@ -10,10 +10,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import vn.vibefix.job.Crews;
 import vn.vibefix.job.Crews.Relationship;
 import vn.vibefix.job.JobBusy;
 import vn.vibefix.job.JobBusy.BusyJob;
+import vn.vibefix.job.JobRole;
+import vn.vibefix.job.JobRoles;
 import vn.vibefix.repo.internal.SourceDrift.Warning;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.ApiException;
@@ -21,7 +22,6 @@ import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.shared.Role;
 
 /**
  * JOB-H's and JOB-1's Drift Warning (FR-20, UX-DR27): what changed in the Source Repository, for the
@@ -49,14 +49,14 @@ class SourceDriftController {
 
 	private final JobBusy busy;
 
-	private final Crews crews;
+	private final JobRoles roles;
 
 	private final CurrentCaller callers;
 
-	SourceDriftController(SourceDrift drift, JobBusy busy, Crews crews, CurrentCaller callers) {
+	SourceDriftController(SourceDrift drift, JobBusy busy, JobRoles roles, CurrentCaller callers) {
 		this.drift = drift;
 		this.busy = busy;
-		this.crews = crews;
+		this.roles = roles;
 		this.callers = callers;
 	}
 
@@ -87,23 +87,21 @@ class SourceDriftController {
 			.toList(), customer(job, caller) && warnings.stream().anyMatch(Warning::awaitingReconfirmation));
 	}
 
+	/** The Code Job's Customer, its Mentor, or an active Crew member, by their role in the Job (AD-43). */
 	private BusyJob party(UUID jobId, Caller caller) {
 		BusyJob job = this.busy.job(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		UUID account = caller.accountId();
-		if (account == null || !job.code()) {
+		if (!job.code()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
-		boolean mentor = caller.hasRole(Role.MENTOR) && account.equals(job.mentorId());
-		boolean crew = caller.hasRole(Role.STUDENT)
-				&& this.crews.crewRelationship(jobId, account).kind() == Relationship.ACTIVE;
-		if (!customer(job, caller) && !mentor && !crew) {
+		JobRole role = this.roles.roleOf(jobId, caller);
+		if (!role.isCustomer() && !role.isMentor() && role.crewKind() != Relationship.ACTIVE) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		return job;
 	}
 
-	private static boolean customer(BusyJob job, Caller caller) {
-		return caller.hasRole(Role.CUSTOMER) && job.customerId().equals(caller.accountId());
+	private boolean customer(BusyJob job, Caller caller) {
+		return this.roles.roleOf(job.jobId(), caller).isCustomer();
 	}
 
 }

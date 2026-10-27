@@ -131,6 +131,14 @@ class AdministratorEnrolments implements Administrators {
 				""").query(UUID.class).list();
 	}
 
+	@Override
+	public boolean isAdministrator(UUID accountId) {
+		return this.jdbc.sql("SELECT EXISTS (SELECT 1 FROM identity.account WHERE id = :id AND kind = 'ADMINISTRATOR')")
+			.param("id", accountId)
+			.query(Boolean.class)
+			.single();
+	}
+
 	/** ADM-11's list, oldest first. */
 	@Transactional(readOnly = true)
 	List<AdministratorRow> list() {

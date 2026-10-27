@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import vn.vibefix.job.JobBusy;
 import vn.vibefix.job.JobBusy.Busy;
+import vn.vibefix.job.JobRole;
 import vn.vibefix.job.internal.Jobs.Job;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.ApiException;
@@ -18,7 +19,6 @@ import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.shared.Role;
 
 /**
  * The busy marker as JOB-H's banner reads it (UX-DR21, AD-28), polled while it is set. The Job's
@@ -50,7 +50,11 @@ class JobBusyController {
 
 	private final CurrentCaller callers;
 
-	JobBusyController(JobBusy busy, ExternalAccessGrants grants, M1Fund numbers, JdbcClient jdbc, CurrentCaller callers) {
+	private final JobRoleReader roles;
+
+	JobBusyController(JobBusy busy, ExternalAccessGrants grants, M1Fund numbers, JdbcClient jdbc, CurrentCaller callers,
+			JobRoleReader roles) {
+		this.roles = roles;
 		this.busy = busy;
 		this.grants = grants;
 		this.numbers = numbers;
@@ -85,16 +89,16 @@ class JobBusyController {
 		return milestoneId == null ? null : this.numbers.number(jobId, milestoneId);
 	}
 
-	/** The Job's Customer, its Mentor, or one of its Crew; anyone else finds nothing. */
+	/** The Job's Customer, its Mentor, or one of its unreleased Crew, by role in the Job; anyone else finds nothing. */
 	private String reader(Job job, Caller caller) {
-		UUID account = caller.requireAccountId();
-		if (caller.hasRole(Role.CUSTOMER) && job.customerId().equals(account)) {
+		JobRole role = this.roles.roleOf(job, caller);
+		if (role.isCustomer()) {
 			return "CUSTOMER";
 		}
-		if (caller.hasRole(Role.MENTOR) && account.equals(job.mentorId())) {
+		if (role.isMentor()) {
 			return "MENTOR";
 		}
-		if (caller.hasRole(Role.STUDENT) && this.grants.onCrew(job.id(), account)) {
+		if (role.isCrew() && this.grants.onCrew(job.id(), caller.requireAccountId())) {
 			return "CREW";
 		}
 		throw new ApiException(ErrorCode.NOT_FOUND);

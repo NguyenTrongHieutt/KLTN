@@ -48,7 +48,6 @@ import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.shared.Role;
 
 /**
  * JOB-6 "Thỏa thuận" (FR-16, FR-17, AD-29): the Job's Mentor reads, saves, shares, and confirms the
@@ -162,8 +161,11 @@ class AgreementController {
 
 	private final AgreementReviews reviews;
 
+	private final JobRoleReader roles;
+
 	AgreementController(Agreements agreements, Jobs jobs, ActiveAccount gate, CurrentCaller callers, JdbcClient jdbc,
-			CrewService crews, AgreementReviews reviews) {
+			CrewService crews, AgreementReviews reviews, JobRoleReader roles) {
+		this.roles = roles;
 		this.crews = crews;
 		this.reviews = reviews;
 		this.agreements = agreements;
@@ -175,14 +177,14 @@ class AgreementController {
 
 	@GetMapping("/api/v1/mentor/jobs/{jobId}/agreement")
 	AgreementDraftView draft(@PathVariable UUID jobId) {
-		Job job = mentorJob(mentor(), jobId);
+		Job job = mentorJob(mentorOf(jobId), jobId);
 		Draft draft = this.agreements.draft(job).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		return view(job, draft);
 	}
 
 	@PutMapping("/api/v1/mentor/jobs/{jobId}/agreement")
 	AgreementDraftView save(@PathVariable UUID jobId, @Valid @RequestBody SaveRequest body) {
-		UUID mentor = mentor();
+		UUID mentor = mentorOf(jobId);
 		Draft draft = this.agreements.save(mentor, jobId, new SaveCommand(body.revision(), body.scope(), body.priceVnd(),
 				body.skillIds(),
 				body.milestones().stream().map(milestone -> new MilestoneInput(milestone.id(), milestone.title(),
@@ -198,7 +200,7 @@ class AgreementController {
 	/** "Gửi cho khách hàng" (FR-16). */
 	@PostMapping("/api/v1/mentor/jobs/{jobId}/agreement/share")
 	AgreementDraftView share(@PathVariable UUID jobId, @Valid @RequestBody ShareRequest body) {
-		UUID mentor = mentor();
+		UUID mentor = mentorOf(jobId);
 		this.agreements.share(mentor, jobId, body.revision());
 		Job job = mentorJob(mentor, jobId);
 		return view(job, this.agreements.draft(job).orElseThrow());
@@ -207,7 +209,7 @@ class AgreementController {
 	/** "Xác nhận thỏa thuận" (FR-17): the confirmed Agreement version 1, and the Crew locks. */
 	@PostMapping("/api/v1/mentor/jobs/{jobId}/agreement/confirm")
 	AgreementDraftView confirmAgreement(@PathVariable UUID jobId, @Valid @RequestBody AgreementConfirmRequest body) {
-		UUID mentor = mentor();
+		UUID mentor = mentorOf(jobId);
 		this.reviews.confirm(mentor, jobId, body.version(), body.crewVersion());
 		Job job = mentorJob(mentor, jobId);
 		return view(job, this.agreements.draft(job).orElseThrow());
@@ -217,28 +219,30 @@ class AgreementController {
 	@PostMapping("/api/v1/jobs/{jobId}/agreement/comments")
 	@ResponseStatus(HttpStatus.CREATED)
 	AgreementCommentView commentOnAgreement(@PathVariable UUID jobId, @Valid @RequestBody AgreementCommentRequest body) {
-		return commentView(this.reviews.comment(customer(), jobId, body.versionNo(), body.targetKind(), body.targetId(),
-				body.body()));
+		return commentView(this.reviews.comment(customerOf(jobId), jobId, body.versionNo(), body.targetKind(),
+				body.targetId(), body.body()));
 	}
 
 	/** "Yêu cầu sửa" (FR-16). */
 	@PostMapping("/api/v1/jobs/{jobId}/agreement/changes")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void requestAgreementChanges(@PathVariable UUID jobId, @Valid @RequestBody AgreementChangesRequest body) {
-		this.reviews.requestChanges(customer(), jobId, body.version(), body.versionNo(), body.note(), body.milestoneOrder());
+		this.reviews.requestChanges(customerOf(jobId), jobId, body.version(), body.versionNo(), body.note(),
+				body.milestoneOrder());
 	}
 
 	/** "Duyệt thỏa thuận" (FR-17). */
 	@PostMapping("/api/v1/jobs/{jobId}/agreement/approve")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void approveAgreement(@PathVariable UUID jobId, @Valid @RequestBody AgreementApproveRequest body) {
-		this.reviews.approve(customer(), jobId, body.version(), body.versionNo(), body.freezeCommitment(), body.liveAccessIds());
+		this.reviews.approve(customerOf(jobId), jobId, body.version(), body.versionNo(), body.freezeCommitment(),
+				body.liveAccessIds());
 	}
 
 	/** The Customer's Thỏa thuận tab: a shared version, the latest by default. */
 	@GetMapping("/api/v1/jobs/{jobId}/agreement")
 	AgreementVersionView customer(@PathVariable UUID jobId, @RequestParam(required = false) @Nullable Integer version) {
-		Job job = this.jobs.find(customer(), jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		Job job = this.jobs.find(customerOf(jobId), jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		Version shared = this.agreements.version(job.id(), version).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		int latest = this.agreements.version(job.id(), null).map(Version::versionNo).orElse(shared.versionNo());
 		// Story 11.3, AD-41: from J6 on the Customer sees the Crew in force, never a waiting change's member.
@@ -299,10 +303,10 @@ class AgreementController {
 			.orElse(null);
 	}
 
-	/** The Customer calling; anyone else finds nothing. */
-	private UUID customer() {
+	/** The Job's Customer calling, by their role in the Job (AD-43); anyone else finds nothing. */
+	private UUID customerOf(UUID jobId) {
 		Caller caller = this.callers.get();
-		if (!caller.hasRole(Role.CUSTOMER)) {
+		if (!this.roles.roleOf(jobId, caller).isCustomer()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		return caller.requireAccountId();
@@ -327,10 +331,10 @@ class AgreementController {
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 	}
 
-	/** The Mentor calling, unlocked; anyone else finds nothing. */
-	private UUID mentor() {
+	/** The Job's Mentor calling, by their role in the Job (AD-43), unlocked; anyone else finds nothing. */
+	private UUID mentorOf(UUID jobId) {
 		Caller caller = this.callers.get();
-		if (!caller.hasRole(Role.MENTOR)) {
+		if (!this.roles.roleOf(jobId, caller).isMentor()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		UUID mentor = caller.requireAccountId();

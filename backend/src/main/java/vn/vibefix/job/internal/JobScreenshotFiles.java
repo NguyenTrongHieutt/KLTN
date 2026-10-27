@@ -11,8 +11,9 @@ import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.Role;
 
 /**
- * Who may read a Job's screenshot (FR-9, FR-12, AD-20): its Customer, and an unlocked Mentor with GitHub linked
- * ("Tìm việc", X1) while the Job is an Open Job Post that is not hidden.
+ * Who may read a Job's screenshot (FR-9, FR-12, AD-20): the Job's Customer, by their role in it (AD-43), and,
+ * through the global role gate of "Tìm việc" that Story 20.3 replaces, an unlocked Mentor with GitHub linked (X1)
+ * while the Job is an Open Job Post that is not hidden.
  */
 @Component
 class JobScreenshotFiles implements FileReadPolicy {
@@ -23,10 +24,13 @@ class JobScreenshotFiles implements FileReadPolicy {
 
 	private final GitHubGate mentors;
 
-	JobScreenshotFiles(Jobs jobs, JobPostQueries posts, GitHubGate mentors) {
+	private final JobRoleReader roles;
+
+	JobScreenshotFiles(Jobs jobs, JobPostQueries posts, GitHubGate mentors, JobRoleReader roles) {
 		this.jobs = jobs;
 		this.posts = posts;
 		this.mentors = mentors;
+		this.roles = roles;
 	}
 
 	@Override
@@ -36,8 +40,8 @@ class JobScreenshotFiles implements FileReadPolicy {
 
 	@Override
 	public boolean mayRead(UUID fileId, Caller caller) {
-		if (caller.hasRole(Role.CUSTOMER)) {
-			return this.jobs.ownsScreenshot(fileId, caller.requireAccountId());
+		if (this.jobs.screenshotJob(fileId).map(job -> this.roles.roleOf(job, caller).isCustomer()).orElse(false)) {
+			return true;
 		}
 		return caller.hasRole(Role.MENTOR) && linked(caller.requireAccountId()) && this.posts.isOpenScreenshot(fileId);
 	}

@@ -158,7 +158,7 @@ class DataDeletionIT extends IntegrationTest {
 		Timestamp signed = Timestamp.from(this.clock.instant().minus(Duration.ofDays(5)));
 		boolean released = "RELEASED".equals(status);
 		this.jdbc.sql("""
-				INSERT INTO job.crew_row (id, job_id, student_account_id, status, signed_at, activated_at, window_end, released_at,
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, window_end, released_at,
 				    released_reason, created_at)
 				VALUES (:id, :job, :student, :status, :signed, :activated, :end, :released, :reason, now())
 				""")

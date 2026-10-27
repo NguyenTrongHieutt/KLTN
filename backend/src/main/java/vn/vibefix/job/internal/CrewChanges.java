@@ -119,7 +119,8 @@ class CrewChanges {
 	 * A current member left out of {@code shares} is removed when it takes effect; a Student without a row
 	 * joins as {@code ASSIGNED} after every Story 4.3 check. Only {@code crewVersion} moves.
 	 * @param shares every party's share after the change, the Mentor's included
-	 * @throws ApiException {@code NOT_FOUND} with large Crews off; {@code STALE}; {@code GUARD_FAILED
+	 * @throws ApiException {@code NOT_FOUND} with large Crews off; {@code STALE}; {@code GUARD_FAILED ROLE_TAKEN}
+	 * for the Job's Customer as a member, before any other rule (AD-43); {@code GUARD_FAILED
 	 * CREW_CHANGE_WHILE_HELD} or {@code CREW_LIMIT}; {@code VALIDATION SHARES_INVALID} or
 	 * {@code CREW_INACTIVE_PARTY}; and the Story 4.3 refusals for a new member
 	 */
@@ -129,6 +130,8 @@ class CrewChanges {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		Job job = this.crews.lockMentorJob(mentorId, jobId, crewVersion);
+		shares.keySet().stream().filter(party -> !party.equals(mentorId))
+			.forEach(member -> CrewService.requireNoOtherRole(job, member));
 		if (!RUNNING.contains(job.state())) {
 			throw new ApiException(ErrorCode.STALE, JobReason.STATE_CHANGED);
 		}

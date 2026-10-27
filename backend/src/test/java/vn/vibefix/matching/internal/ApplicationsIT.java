@@ -193,6 +193,25 @@ class ApplicationsIT extends IntegrationTest {
 			.as("a refusal writes nothing").isOne();
 	}
 
+	@Test
+	void aCustomerBiddingOnTheirOwnJobIsRefusedBeforeAnyOtherRule() throws Exception {
+		// AD-43: the shim gives this account the Mentor role, and it is also the Customer of an Open Job of its own.
+		UUID hung = mentorWithFreeStudent("Đỗ Mạnh Hùng");
+		UUID own = openJob(product(hung), hung, "Việc của chính tôi");
+		this.jdbc.sql("UPDATE identity.profile SET display_name = NULL WHERE account_id = :id").param("id", hung).update();
+
+		apply(hung, own, false).andExpect(status().is(422))
+			.andExpect(jsonPath("$.code").value("GUARD_FAILED"))
+			.andExpect(jsonPath("$.reason").value("ROLE_TAKEN"));
+		this.jdbc.sql("UPDATE identity.profile SET display_name = 'Đỗ Mạnh Hùng' WHERE account_id = :id").param("id", hung)
+			.update();
+		apply(hung, own, true).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("ROLE_TAKEN"));
+
+		assertThat(this.jdbc.sql("SELECT count(*) FROM matching.application WHERE job_id = :job").param("job", own)
+			.query(Long.class).single()).as("a refusal writes nothing").isZero();
+		apply(hung, this.job, true).andExpect(status().isCreated());
+	}
+
 	private long relinkGitHub() {
 		return this.jdbc.sql("""
 				SELECT count(*) FROM notification.todo WHERE todo_key = 'identity.relink_github' AND account_id = :lan
@@ -343,6 +362,10 @@ class ApplicationsIT extends IntegrationTest {
 	}
 
 	private UUID openJob(UUID productId, String title) {
+		return openJob(productId, this.lan, title);
+	}
+
+	private UUID openJob(UUID productId, UUID owner, String title) {
 		UUID id = UUID.randomUUID();
 		Instant now = this.clock.instant();
 		this.jdbc.sql("""
@@ -353,7 +376,7 @@ class ApplicationsIT extends IntegrationTest {
 				""")
 			.param("id", id)
 			.param("product", productId)
-			.param("owner", this.lan)
+			.param("owner", owner)
 			.param("title", title)
 			.param("now", Timestamp.from(now))
 			.param("lapses", Timestamp.from(now.plus(Duration.ofDays(14))))

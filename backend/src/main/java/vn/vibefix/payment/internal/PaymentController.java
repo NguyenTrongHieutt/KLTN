@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import vn.vibefix.job.JobRoles;
 import vn.vibefix.job.MilestoneFunding;
 import vn.vibefix.job.MilestoneFunding.FundingJob;
 import vn.vibefix.job.MilestoneFunding.FundingMilestone;
@@ -30,7 +31,6 @@ import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.shared.Role;
 
 /**
  * JOB-7 for the Customer and CUS-9 (FR-41, AD-14): the Milestones to fund with why one waits,
@@ -109,8 +109,11 @@ class PaymentController {
 
 	private final PaymentHistory history;
 
+	private final JobRoles roles;
+
 	PaymentController(PaymentOrders orders, MilestoneFunding funding, VnpaySandbox sandbox, CurrentCaller callers,
-			Refunds refunds, PaymentHistory history) {
+			Refunds refunds, PaymentHistory history, JobRoles roles) {
+		this.roles = roles;
 		this.refunds = refunds;
 		this.history = history;
 		this.orders = orders;
@@ -121,7 +124,8 @@ class PaymentController {
 
 	@GetMapping("/api/v1/jobs/{jobId}/funding")
 	JobFundingView jobFunding(@PathVariable UUID jobId) {
-		FundingJob job = this.funding.forCustomer(customer(), jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		FundingJob job = this.funding.forCustomer(customerOf(jobId), jobId)
+			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		Map<UUID, Integer> numbers = new java.util.HashMap<>();
 		job.milestones().forEach(milestone -> numbers.put(milestone.milestoneId(), milestone.number()));
 		UUID next = job.milestones()
@@ -164,7 +168,7 @@ class PaymentController {
 	@ResponseStatus(HttpStatus.CREATED)
 	CreatedPaymentOrderView createTopUpOrder(@PathVariable UUID jobId, @Valid @RequestBody CreatePaymentOrderRequest body,
 			HttpServletRequest request) {
-		Created created = this.orders.createTopUp(customer(), jobId, body.version(), request.getRemoteAddr());
+		Created created = this.orders.createTopUp(customerOf(jobId), jobId, body.version(), request.getRemoteAddr());
 		return new CreatedPaymentOrderView(created.id(), created.payUrl(), created.expiresAt());
 	}
 
@@ -173,16 +177,18 @@ class PaymentController {
 	@ResponseStatus(HttpStatus.CREATED)
 	CreatedPaymentOrderView createPaymentOrder(@PathVariable UUID jobId, @PathVariable UUID milestoneId,
 			@Valid @RequestBody CreatePaymentOrderRequest body, HttpServletRequest request) {
-		Created created = this.orders.create(customer(), jobId, milestoneId, body.version(), request.getRemoteAddr());
+		Created created = this.orders.create(customerOf(jobId), jobId, milestoneId, body.version(),
+				request.getRemoteAddr());
 		return new CreatedPaymentOrderView(created.id(), created.payUrl(), created.expiresAt());
 	}
 
 	@GetMapping("/api/v1/payment-orders/{paymentOrderId}")
 	PaymentOrderDetailView paymentOrder(@PathVariable UUID paymentOrderId) {
-		UUID customer = customer();
+		Caller caller = this.callers.get();
 		Order order = this.orders.byId(paymentOrderId)
-			.filter(found -> found.customerId().equals(customer))
+			.filter(found -> found.customerId().equals(caller.accountId()))
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		customerOf(order.jobId());
 		FundingJob job = this.funding.byId(order.jobId()).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		FundingMilestone milestone = job.milestones()
 			.stream()
@@ -208,10 +214,10 @@ class PaymentController {
 			.orElse(null);
 	}
 
-	/** The Customer calling; anyone else finds nothing. */
-	private UUID customer() {
+	/** The Job's Customer calling, by their role in the Job (AD-43); anyone else finds nothing. */
+	private UUID customerOf(UUID jobId) {
 		Caller caller = this.callers.get();
-		if (!caller.hasRole(Role.CUSTOMER)) {
+		if (!this.roles.roleOf(jobId, caller).isCustomer()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		return caller.requireAccountId();

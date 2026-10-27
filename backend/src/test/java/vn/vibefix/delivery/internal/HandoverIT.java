@@ -245,7 +245,7 @@ class HandoverIT extends IntegrationTest {
 				VALUES (:id, :job, 0, 'Báo cáo', 1500000, 2, now(), 'FUNDED', now(), 1)
 				""").param("id", this.milestone).param("job", this.job).update();
 		this.jdbc.sql("""
-				INSERT INTO job.crew_row (id, job_id, student_account_id, status, signed_at, activated_at, created_at)
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, created_at)
 				VALUES (:id, :job, :student, 'ACTIVE', :signed, :signed, now())
 				""").param("id", UUID.randomUUID()).param("job", this.job).param("student", this.vy)
 			.param("signed", Timestamp.from(this.clock.instant().minus(Duration.ofMinutes(5)))).update();

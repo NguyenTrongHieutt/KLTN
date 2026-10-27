@@ -25,8 +25,9 @@ import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 
 /**
- * J3 (FR-15, AD-30): the Customer selects an Application. FR-13's guard runs again under the Mentor's
- * lock, after the Job row (AD-4 lock order): the Mentor is still approved and unlocked, below the
+ * J3 (FR-15, AD-30): the Customer selects an Application. Under the Job row lock, one role per Job comes first
+ * (AD-43): the Mentor is neither the Customer nor on the Job's Crew. FR-13's guard then runs again under the
+ * Mentor's lock, after the Job row (AD-4 lock order): the Mentor is still approved and unlocked, below the
  * live Job limit, and has a free Student. The Job records the Mentor, which never changes, pins its
  * Product, and tells the Mentor; {@code matching} puts the other Applications on hold.
  */
@@ -39,15 +40,19 @@ class J3Select implements JobLifecycle.Step {
 
 	private final MentorWork work;
 
+	private final CrewService crews;
+
 	private final ProductPins pins;
 
 	private final Notifications notifications;
 
 	private final JdbcClient jdbc;
 
-	J3Select(MentorDirectory mentors, MentorWork work, ProductPins pins, Notifications notifications, JdbcClient jdbc) {
+	J3Select(MentorDirectory mentors, MentorWork work, CrewService crews, ProductPins pins, Notifications notifications,
+			JdbcClient jdbc) {
 		this.mentors = mentors;
 		this.work = work;
+		this.crews = crews;
 		this.pins = pins;
 		this.notifications = notifications;
 		this.jdbc = jdbc;
@@ -58,12 +63,19 @@ class J3Select implements JobLifecycle.Step {
 		return Transition.J3;
 	}
 
+	/**
+	 * @throws ApiException {@code NOT_FOUND} for anyone but the Job's Customer; {@code GUARD_FAILED ROLE_TAKEN}
+	 * for a Mentor who is the Customer or has a counted Crew row on the Job, before any other guard
+	 */
 	@Override
 	public void check(Applying applying) {
 		if (!applying.actor().is(applying.job().customerId())) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		UUID mentor = mentor(applying);
+		if (mentor.equals(applying.job().customerId()) || this.crews.countedRow(applying.job().id(), mentor)) {
+			throw new ApiException(ErrorCode.GUARD_FAILED, JobReason.ROLE_TAKEN);
+		}
 		AdvisoryLocks.lockAccount(this.jdbc, mentor);
 		boolean available = this.mentors.cards(List.of(mentor)).stream().findFirst().map(MentorCard::available).orElse(false);
 		if (!available) {

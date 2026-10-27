@@ -15,6 +15,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import vn.vibefix.identity.ActiveAccount;
+import vn.vibefix.job.JobRole;
 import vn.vibefix.job.internal.Agreements.AccessLevel;
 import vn.vibefix.job.internal.Agreements.Environment;
 import vn.vibefix.job.internal.ExternalAccessGrants.Item;
@@ -26,7 +27,6 @@ import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.shared.Role;
 
 /**
  * External Access after confirmation (FR-66, UX-DR83): N-8's guidance with the identifiers for the
@@ -64,8 +64,12 @@ class ExternalAccessController {
 
 	private final CurrentCaller callers;
 
-	ExternalAccessController(ExternalAccessGrants grants, ActiveAccount gate, CurrentCaller callers) {
+	private final JobRoleReader roles;
+
+	ExternalAccessController(ExternalAccessGrants grants, ActiveAccount gate, CurrentCaller callers,
+			JobRoleReader roles) {
 		this.grants = grants;
+		this.roles = roles;
 		this.gate = gate;
 		this.callers = callers;
 	}
@@ -124,16 +128,16 @@ class ExternalAccessController {
 		return this.grants.job(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 	}
 
-	/** The Job's Customer, its Mentor, or one of its Crew; anyone else finds nothing. */
+	/** The Job's Customer, its Mentor, or one of its unreleased Crew, by role in the Job; anyone else finds nothing. */
 	private Viewer viewer(Job job, Caller caller) {
-		UUID account = caller.requireAccountId();
-		if (caller.hasRole(Role.CUSTOMER) && job.customerId().equals(account)) {
+		JobRole role = this.roles.roleOf(job, caller);
+		if (role.isCustomer()) {
 			return Viewer.CUSTOMER;
 		}
-		if (caller.hasRole(Role.MENTOR) && account.equals(job.mentorId())) {
+		if (role.isMentor()) {
 			return Viewer.MENTOR;
 		}
-		if (caller.hasRole(Role.STUDENT) && this.grants.onCrew(job.id(), account)) {
+		if (role.isCrew() && this.grants.onCrew(job.id(), caller.requireAccountId())) {
 			return Viewer.CREW;
 		}
 		throw new ApiException(ErrorCode.NOT_FOUND);

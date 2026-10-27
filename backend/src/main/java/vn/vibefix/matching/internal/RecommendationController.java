@@ -24,6 +24,7 @@ import vn.vibefix.identity.MentorDirectory.MentorCard;
 import vn.vibefix.job.JobPosts;
 import vn.vibefix.job.JobPosts.JobPostState;
 import vn.vibefix.job.JobPosts.OpenPost;
+import vn.vibefix.job.JobRoles;
 import vn.vibefix.matching.internal.Invitations.Relation;
 import vn.vibefix.matching.internal.Recommendations.Candidate;
 import vn.vibefix.matching.internal.Recommendations.JobTypeMatch;
@@ -100,9 +101,12 @@ class RecommendationController {
 
 	private final CurrentCaller callers;
 
+	private final JobRoles roles;
+
 	RecommendationController(Recommendations recommendations, Invitations invitations, JobPosts posts,
 			MentorDirectory mentors, Teams teams, ProductDirectory products, Catalog catalog, GitHubGate gate,
-			CurrentCaller callers) {
+			CurrentCaller callers, JobRoles roles) {
+		this.roles = roles;
 		this.recommendations = recommendations;
 		this.invitations = invitations;
 		this.posts = posts;
@@ -177,15 +181,13 @@ class RecommendationController {
 		return ids.stream().map(names::get).filter(name -> name != null).toList();
 	}
 
-	/** The Job's Customer calling; anyone else finds nothing. */
+	/** The Job's Customer calling, by their role in the Job (AD-43); anyone else finds nothing. */
 	private JobPostState ownPost(UUID jobId) {
 		Caller caller = this.callers.get();
-		if (!caller.hasRole(Role.CUSTOMER)) {
+		if (!this.roles.roleOf(jobId, caller).isCustomer()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
-		return this.posts.post(jobId)
-			.filter(post -> post.customerId().equals(caller.requireAccountId()))
-			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		return this.posts.post(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 	}
 
 }

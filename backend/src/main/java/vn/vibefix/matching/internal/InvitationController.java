@@ -27,7 +27,7 @@ import vn.vibefix.catalog.Catalog;
 import vn.vibefix.identity.GitHubGate;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
-import vn.vibefix.job.JobPosts;
+import vn.vibefix.job.JobRoles;
 import vn.vibefix.matching.internal.Invitations.Invitation;
 import vn.vibefix.matching.internal.Invitations.MentorInvitation;
 import vn.vibefix.matching.internal.Invitations.Quota;
@@ -103,8 +103,6 @@ class InvitationController {
 
 	private final Invitations invitations;
 
-	private final JobPosts posts;
-
 	private final MentorDirectory mentors;
 
 	private final Teams teams;
@@ -115,10 +113,12 @@ class InvitationController {
 
 	private final CurrentCaller callers;
 
-	InvitationController(Invitations invitations, JobPosts posts, MentorDirectory mentors, Teams teams,
-			Catalog catalog, GitHubGate gate, CurrentCaller callers) {
+	private final JobRoles roles;
+
+	InvitationController(Invitations invitations, MentorDirectory mentors, Teams teams,
+			Catalog catalog, GitHubGate gate, CurrentCaller callers, JobRoles roles) {
+		this.roles = roles;
 		this.invitations = invitations;
-		this.posts = posts;
 		this.mentors = mentors;
 		this.teams = teams;
 		this.catalog = catalog;
@@ -194,11 +194,10 @@ class InvitationController {
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 	}
 
-	/** The Job's Customer calling; anyone else finds nothing. */
+	/** The Job's Customer calling, by their role in the Job (AD-43); anyone else finds nothing. */
 	private UUID customerOf(UUID jobId) {
 		Caller caller = this.callers.get();
-		if (!caller.hasRole(Role.CUSTOMER)
-				|| !this.posts.customerOf(jobId).map(caller.requireAccountId()::equals).orElse(false)) {
+		if (!this.roles.roleOf(jobId, caller).isCustomer()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		return caller.requireAccountId();

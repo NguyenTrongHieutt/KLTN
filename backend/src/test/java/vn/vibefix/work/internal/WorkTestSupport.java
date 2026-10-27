@@ -97,7 +97,7 @@ final class WorkTestSupport {
 	/** A Crew row in {@code status}; every row but ASSIGNED signed and became ACTIVE at {@code signed}. */
 	static void crewRow(JdbcClient jdbc, UUID job, UUID student, String status, @Nullable Instant signed) {
 		jdbc.sql("""
-				INSERT INTO job.crew_row (id, job_id, student_account_id, status, signed_at, activated_at, created_at)
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, created_at)
 				VALUES (:id, :job, :student, :status, :signed, :signed, now())
 				""")
 			.param("id", UUID.randomUUID())

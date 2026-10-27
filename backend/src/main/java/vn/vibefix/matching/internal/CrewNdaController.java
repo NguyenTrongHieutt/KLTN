@@ -14,13 +14,13 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import vn.vibefix.identity.GitHubGate;
 import vn.vibefix.job.Crews;
+import vn.vibefix.job.JobRoles;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.shared.Role;
 
 /**
  * STU-4's "Ký và xác nhận" and "Từ chối" (FR-75): a Crew member's commands, which need an unlocked account
@@ -47,8 +47,12 @@ class CrewNdaController {
 
 	private final GitHubGate gitHub;
 
-	CrewNdaController(CrewSignatures signatures, Crews crews, CurrentCaller callers, GitHubGate gitHub) {
+	private final JobRoles roles;
+
+	CrewNdaController(CrewSignatures signatures, Crews crews, CurrentCaller callers, GitHubGate gitHub,
+			JobRoles roles) {
 		this.gitHub = gitHub;
+		this.roles = roles;
 		this.signatures = signatures;
 		this.crews = crews;
 		this.callers = callers;
@@ -57,7 +61,7 @@ class CrewNdaController {
 	@PostMapping("/api/v1/crew/jobs/{jobId}/confirm")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void confirmCrewTerms(@PathVariable UUID jobId, @Valid @RequestBody CrewConfirmRequest body) {
-		UUID student = student();
+		UUID student = member(jobId);
 		this.gitHub.requireGitHubLinked(student);
 		this.signatures.confirm(student, jobId, body.crewTermsVersionNo(), body.ndaVersion(), body.publicCodeAcknowledged(),
 				body.commitEmailNoticeAcknowledged());
@@ -66,12 +70,16 @@ class CrewNdaController {
 	@PostMapping("/api/v1/crew/jobs/{jobId}/decline")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void declineCrewTerms(@PathVariable UUID jobId, @Valid @RequestBody CrewDeclineRequest body) {
-		this.crews.decline(jobId, student(), body.crewTermsVersionNo());
+		this.crews.decline(jobId, member(jobId), body.crewTermsVersionNo());
 	}
 
-	private UUID student() {
+	/**
+	 * A Crew member of the Job, by their role in it (AD-43); anyone else finds nothing. {@code job} then finds
+	 * the member's open assignment, or answers {@code NOT_FOUND}.
+	 */
+	private UUID member(UUID jobId) {
 		Caller caller = this.callers.get();
-		if (!caller.hasRole(Role.STUDENT)) {
+		if (!this.roles.roleOf(jobId, caller).isCrew()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		return caller.requireAccountId();

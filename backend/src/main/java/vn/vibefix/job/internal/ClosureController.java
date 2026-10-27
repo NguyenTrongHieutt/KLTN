@@ -22,6 +22,7 @@ import vn.vibefix.identity.CustomerNames;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
 import vn.vibefix.job.Crews.Relationship;
+import vn.vibefix.job.JobRole;
 import vn.vibefix.job.internal.ClosureProposals.Party;
 import vn.vibefix.job.internal.ClosureProposals.Proposal;
 import vn.vibefix.job.internal.Jobs.Job;
@@ -31,7 +32,6 @@ import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.shared.Role;
 
 /**
  * JOB-1's closure section (FR-37, FR-67, AD-20, AD-23, UX-DR55), under {@code /api/v1/boards/{boardId}}
@@ -91,7 +91,7 @@ class ClosureController {
 
 	private final ClosureProposals proposals;
 
-	private final CrewService crews;
+	private final JobRoleReader roles;
 
 	private final CustomerNames customers;
 
@@ -99,12 +99,12 @@ class ClosureController {
 
 	private final CurrentCaller callers;
 
-	ClosureController(JdbcClient jdbc, Closures closures, ClosureProposals proposals, CrewService crews,
+	ClosureController(JdbcClient jdbc, Closures closures, ClosureProposals proposals, JobRoleReader roles,
 			CustomerNames customers, MentorDirectory mentors, CurrentCaller callers) {
 		this.jdbc = jdbc;
 		this.closures = closures;
 		this.proposals = proposals;
-		this.crews = crews;
+		this.roles = roles;
 		this.customers = customers;
 		this.mentors = mentors;
 		this.callers = callers;
@@ -160,13 +160,14 @@ class ClosureController {
 		if (account == null || job.mentorId() == null || !board) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
-		if (caller.hasRole(Role.CUSTOMER) && account.equals(job.customerId())) {
+		JobRole role = this.roles.roleOf(job, caller);
+		if (role.isCustomer()) {
 			return new Viewer(job, account, Party.CUSTOMER);
 		}
-		if (caller.hasRole(Role.MENTOR) && account.equals(job.mentorId())) {
+		if (role.isMentor()) {
 			return new Viewer(job, account, Party.MENTOR);
 		}
-		if (caller.hasRole(Role.STUDENT) && EVER_ACTIVE.contains(this.crews.crewRelationship(jobId, account).kind())) {
+		if (EVER_ACTIVE.contains(role.crewKind())) {
 			return new Viewer(job, account, null);
 		}
 		throw new ApiException(ErrorCode.NOT_FOUND);

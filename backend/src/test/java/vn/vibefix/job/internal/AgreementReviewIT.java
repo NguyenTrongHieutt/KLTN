@@ -220,7 +220,7 @@ class AgreementReviewIT extends IntegrationTest {
 		Thread.sleep(300);
 
 		assertThat(notifications("job.crew_reconfirm_needed", this.hung)).as("a replay changes nothing").isOne();
-		String row = this.jdbc.sql("SELECT id::text FROM job.crew_row WHERE student_account_id = :vy").param("vy", this.vy)
+		String row = this.jdbc.sql("SELECT id::text FROM job.crew_row WHERE member_account_id = :vy").param("vy", this.vy)
 			.query(String.class).single();
 		this.mvc.perform(get("/api/v1/mentor/jobs/" + this.job + "/crew").with(as(this.hung, Role.MENTOR)))
 			.andExpect(jsonPath("$.reconfirmOwed").value(true))

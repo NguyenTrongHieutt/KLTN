@@ -153,7 +153,7 @@ class PageSharesIT extends IntegrationTest {
 		WorkTestSupport.crewRow(this.jdbc, this.next, former, "ACTIVE", now.minus(Duration.ofDays(2)));
 		this.jdbc.sql("""
 				UPDATE job.crew_row SET status = 'RELEASED', window_end = :now, released_at = :now, released_reason = 'REMOVED'
-				WHERE student_account_id = :student
+				WHERE member_account_id = :student
 				""").param("now", java.sql.Timestamp.from(now.minus(Duration.ofDays(1)))).param("student", former).update();
 		share(this.assessment).andExpect(status().isOk());
 

@@ -29,6 +29,7 @@ import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
 import vn.vibefix.job.JobPosts;
 import vn.vibefix.job.JobPosts.JobPostState;
+import vn.vibefix.job.JobRoles;
 import vn.vibefix.job.JobSelection;
 import vn.vibefix.job.JobSelection.SelectedQuote;
 import vn.vibefix.matching.internal.Applications.Application;
@@ -111,10 +112,13 @@ class ApplicationController {
 
 	private final GitHubGate gitHub;
 
+	private final JobRoles roles;
+
 	ApplicationController(Applications applications, JobPosts posts, MentorDirectory mentors, Teams teams,
 			ActiveAccount gate, JobSelection selection, NdaSignatures signatures, Invitations invitations,
-			CurrentCaller callers, GitHubGate gitHub) {
+			CurrentCaller callers, GitHubGate gitHub, JobRoles roles) {
 		this.gitHub = gitHub;
+		this.roles = roles;
 		this.applications = applications;
 		this.posts = posts;
 		this.mentors = mentors;
@@ -131,6 +135,7 @@ class ApplicationController {
 	ApplicationView apply(@PathVariable UUID postId, @Valid @RequestBody ApplyRequest body) {
 		UUID mentor = mentor();
 		this.gitHub.requireGitHubLinked(mentor);
+		this.applications.requireNotOwnJob(mentor, postId);
 		if (!this.mentors.hasProfileName(mentor)) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.PROFILE_REQUIRED);
 		}
@@ -198,21 +203,29 @@ class ApplicationController {
 
 	/**
 	 * JOB-1's NDA panel "Ký cam kết" (FR-15, AD-19 new-work command): the signature and J4, in one
-	 * transaction.
+	 * transaction, by the Mentor J3 recorded on the Job (AD-43).
 	 */
 	@PostMapping("/api/v1/mentor/jobs/{jobId}/nda")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void sign(@PathVariable UUID jobId, @Valid @RequestBody NdaRequest body) {
-		UUID mentor = mentor();
+		UUID mentor = mentorOf(jobId);
 		this.gitHub.requireGitHubLinked(mentor);
 		this.signatures.sign(mentor, jobId, body.ndaVersion(), body.commitEmailNoticeAcknowledged());
 	}
 
-	/** The Job's Customer calling; anyone else finds nothing. */
+	/** The Job's Customer calling, by their role in the Job (AD-43); anyone else finds nothing. */
 	private UUID customerOf(UUID jobId) {
 		Caller caller = this.callers.get();
-		if (!caller.hasRole(Role.CUSTOMER)
-				|| !this.posts.customerOf(jobId).map(caller.requireAccountId()::equals).orElse(false)) {
+		if (!this.roles.roleOf(jobId, caller).isCustomer()) {
+			throw new ApiException(ErrorCode.NOT_FOUND);
+		}
+		return caller.requireAccountId();
+	}
+
+	/** The Job's Mentor calling, by their role in the Job (AD-43); anyone else finds nothing. */
+	private UUID mentorOf(UUID jobId) {
+		Caller caller = this.callers.get();
+		if (!this.roles.roleOf(jobId, caller).isMentor()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		return caller.requireAccountId();
@@ -226,7 +239,10 @@ class ApplicationController {
 				application.endedAt(), application.endReason());
 	}
 
-	/** The Mentor calling; anyone else finds nothing (SG-31). */
+	/**
+	 * The Mentor calling, for bidding and the Mentor's own bids: a global role gate that Story 20.3 replaces with
+	 * the GitHub capability gate; anyone else finds nothing (SG-31).
+	 */
 	private UUID mentor() {
 		Caller caller = this.callers.get();
 		if (!caller.hasRole(Role.MENTOR)) {

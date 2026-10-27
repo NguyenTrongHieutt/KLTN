@@ -170,10 +170,13 @@ class CrewController {
 
 	private final boolean largeCrews;
 
+	private final JobRoleReader roles;
+
 	CrewController(CrewService crews, CrewChanges changes, Agreements agreements, Teams teams, MentorDirectory mentors,
 			ProductDirectory products, Notices notices, Settings settings, ActiveAccount gate, CurrentCaller callers,
-			JdbcClient jdbc,
+			JdbcClient jdbc, JobRoleReader roles,
 			@Value("${vibefix.features.large-crews:false}") boolean largeCrews) {
+		this.roles = roles;
 		this.crews = crews;
 		this.changes = changes;
 		this.agreements = agreements;
@@ -190,19 +193,19 @@ class CrewController {
 
 	@GetMapping("/api/v1/mentor/jobs/{jobId}/crew")
 	CrewPanelView crewPanel(@PathVariable UUID jobId) {
-		return panel(mentorJob(mentor(), jobId));
+		return panel(mentorJob(mentor(jobId), jobId));
 	}
 
 	@PostMapping("/api/v1/mentor/jobs/{jobId}/crew")
 	CrewPanelView addCrewMember(@PathVariable UUID jobId, @Valid @RequestBody CrewAddRequest body) {
-		UUID mentor = mentor();
+		UUID mentor = mentor(jobId);
 		this.crews.add(mentor, jobId, body.studentId(), body.crewVersion());
 		return panel(mentorJob(mentor, jobId));
 	}
 
 	@PostMapping("/api/v1/mentor/jobs/{jobId}/crew/{crewRowId}/remove")
 	CrewPanelView removeCrewMember(@PathVariable UUID jobId, @PathVariable UUID crewRowId, @Valid @RequestBody CrewRemoveRequest body) {
-		UUID mentor = mentor();
+		UUID mentor = mentor(jobId);
 		this.crews.remove(mentor, jobId, crewRowId, body.crewVersion());
 		return panel(mentorJob(mentor, jobId));
 	}
@@ -210,7 +213,7 @@ class CrewController {
 	/** "Lưu và gửi cho nhóm xác nhận": a new Crew Terms version (FR-75). */
 	@PutMapping("/api/v1/mentor/jobs/{jobId}/crew/terms")
 	CrewPanelView saveCrewTerms(@PathVariable UUID jobId, @Valid @RequestBody CrewTermsRequest body) {
-		UUID mentor = mentor();
+		UUID mentor = mentor(jobId);
 		this.crews.saveTerms(mentor, jobId, body.crewVersion(), shares(body));
 		return panel(mentorJob(mentor, jobId));
 	}
@@ -221,7 +224,7 @@ class CrewController {
 	 */
 	@PutMapping("/api/v1/mentor/jobs/{jobId}/crew/change")
 	CrewPanelView changeCrew(@PathVariable UUID jobId, @Valid @RequestBody CrewTermsRequest body) {
-		UUID mentor = mentor();
+		UUID mentor = mentor(jobId);
 		this.changes.propose(mentor, jobId, body.crewVersion(), shares(body));
 		return panel(mentorJob(mentor, jobId));
 	}
@@ -239,12 +242,15 @@ class CrewController {
 	/** "Xác nhận lại nhóm thực hiện" after a lock owed it (R-1 H1). */
 	@PostMapping("/api/v1/mentor/jobs/{jobId}/crew/reconfirm")
 	CrewPanelView reconfirmCrew(@PathVariable UUID jobId, @Valid @RequestBody CrewReconfirmRequest body) {
-		UUID mentor = mentor();
+		UUID mentor = mentor(jobId);
 		this.crews.reconfirm(mentor, jobId, body.crewVersion());
 		return panel(mentorJob(mentor, jobId));
 	}
 
-	/** STU-4: the Student's assignments, newest first; anyone else finds nothing. */
+	/**
+	 * STU-4: the Student's assignments, newest first; anyone else finds nothing. The role check is the global
+	 * gate of the Student pages, which Story 20.3 replaces; the rows are the caller's own.
+	 */
 	@GetMapping("/api/v1/crew/assignments")
 	List<CrewAssignmentView> crewAssignments() {
 		Caller caller = this.callers.get();
@@ -380,10 +386,13 @@ class CrewController {
 		return job(jobId).filter(job -> mentor.equals(job.mentorId())).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 	}
 
-	/** The Mentor calling, unlocked (AD-19 Job command); anyone else finds nothing. */
-	private UUID mentor() {
+	/**
+	 * The Job's Mentor calling, by their role in the Job (AD-43), unlocked (AD-19 Job command); anyone else finds
+	 * nothing.
+	 */
+	private UUID mentor(UUID jobId) {
 		Caller caller = this.callers.get();
-		if (!caller.hasRole(Role.MENTOR)) {
+		if (!this.roles.roleOf(jobId, caller).isMentor()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		UUID mentor = caller.requireAccountId();

@@ -24,6 +24,7 @@ import vn.vibefix.job.Crews;
 import vn.vibefix.job.Crews.Selection;
 import vn.vibefix.job.JobPosts;
 import vn.vibefix.job.JobPosts.JobPostState;
+import vn.vibefix.job.JobRoles;
 import vn.vibefix.notification.Audience;
 import vn.vibefix.notification.NotificationRequest;
 import vn.vibefix.notification.Notifications;
@@ -32,7 +33,6 @@ import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.IdGenerator;
-import vn.vibefix.shared.Role;
 
 /**
  * "Chia sẻ tài liệu cũ" on JOB-6 (FR-70, UX-DR59): the Customer chooses, Job by Job, which other Jobs of the
@@ -78,8 +78,11 @@ class PageShares {
 
 	private final Clock clock;
 
+	private final JobRoles roles;
+
 	PageShares(JdbcClient jdbc, JobPosts posts, Crews crews, Notifications notifications, AuditLog auditLog,
-			IdGenerator ids, Clock clock) {
+			IdGenerator ids, Clock clock, JobRoles roles) {
+		this.roles = roles;
 		this.jdbc = jdbc;
 		this.posts = posts;
 		this.crews = crews;
@@ -188,14 +191,12 @@ class PageShares {
 		return new Choices(editable, options);
 	}
 
+	/** The Job of its Customer calling, by their role in it (AD-43); anyone else finds nothing. */
 	private JobPostState ownJob(Caller caller, UUID jobId) {
-		if (!caller.hasRole(Role.CUSTOMER)) {
+		if (!this.roles.roleOf(jobId, caller).isCustomer()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
-		UUID account = caller.requireAccountId();
-		return this.posts.post(jobId)
-			.filter(post -> post.customerId().equals(account))
-			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		return this.posts.post(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 	}
 
 	private void tell(JobPostState job) {

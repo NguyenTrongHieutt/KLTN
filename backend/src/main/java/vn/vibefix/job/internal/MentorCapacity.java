@@ -165,7 +165,7 @@ class MentorCapacity implements MentorWork {
 			return List.of();
 		}
 		Set<UUID> onCrew = new HashSet<>(this.jdbc.sql(
-				"SELECT student_account_id FROM job.crew_row WHERE student_account_id IN (:ids) AND status <> 'RELEASED'")
+				"SELECT member_account_id FROM job.crew_row WHERE member_account_id IN (:ids) AND status <> 'RELEASED'")
 			.param("ids", members)
 			.query(UUID.class)
 			.list());

@@ -30,8 +30,8 @@ import vn.vibefix.dispute.internal.TeamIssues.Subject;
 import vn.vibefix.dispute.internal.TeamIssues.TeamIssue;
 import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.identity.StudentDirectory;
-import vn.vibefix.job.JobPosts;
-import vn.vibefix.job.JobPosts.JobPostState;
+import vn.vibefix.job.JobRole;
+import vn.vibefix.job.JobRoles;
 import vn.vibefix.job.TeamIssueLocks;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.ApiException;
@@ -46,7 +46,9 @@ import vn.vibefix.shared.Role;
  * where they were ever active, and raises it; JOB-1 lists the Job's issues for its Mentor, and only their
  * own for such a Crew member. The Mentor answers on JOB-1; the raiser accepts the answer or asks an
  * Administrator to look on STU-4. A share issue carries what its preview splits: the other parties'
- * percentages and the cap for the Mentor only. The Customer and everyone else find nothing (AD-20).
+ * percentages and the cap for the Mentor only. Every check on a Job reads the caller's role in it (AD-43);
+ * STU-4's panel keeps the global gate of the Student pages until Story 20.3. The Customer and everyone else
+ * find nothing (AD-20).
  */
 @RestController
 @Access(Gate.SIGNED_IN)
@@ -120,7 +122,7 @@ class TeamIssueController {
 
 	private final TeamIssueLocks locks;
 
-	private final JobPosts posts;
+	private final JobRoles roles;
 
 	private final StudentDirectory students;
 
@@ -128,12 +130,12 @@ class TeamIssueController {
 
 	private final CurrentCaller callers;
 
-	TeamIssueController(TeamIssues issues, TeamIssueAnswers answers, TeamIssueLocks locks, JobPosts posts,
+	TeamIssueController(TeamIssues issues, TeamIssueAnswers answers, TeamIssueLocks locks, JobRoles roles,
 			StudentDirectory students, ActiveAccount gate, CurrentCaller callers) {
 		this.issues = issues;
 		this.answers = answers;
 		this.locks = locks;
-		this.posts = posts;
+		this.roles = roles;
 		this.students = students;
 		this.gate = gate;
 		this.callers = callers;
@@ -149,7 +151,7 @@ class TeamIssueController {
 	@PostMapping("/api/v1/team-issues")
 	@ResponseStatus(HttpStatus.CREATED)
 	TeamIssueView raise(@Valid @RequestBody RaiseTeamIssueRequest body) {
-		UUID student = student();
+		UUID student = member(body.jobId());
 		UUID target = body.subject() == Subject.SHARE ? body.milestoneId() : body.ratingId();
 		if (target == null) {
 			throw new ApiException(ErrorCode.VALIDATION);
@@ -162,7 +164,7 @@ class TeamIssueController {
 	/** "Chấp nhận" on STU-4. */
 	@PostMapping("/api/v1/team-issues/{teamIssueId}/accept")
 	TeamIssueView accept(@PathVariable("teamIssueId") UUID issueId) {
-		UUID student = student();
+		UUID student = raiser(issueId);
 		this.gate.requireActiveAccount(student);
 		return view(this.answers.accept(student, issueId), student, false, Map.of());
 	}
@@ -170,7 +172,7 @@ class TeamIssueController {
 	/** "Nhờ quản trị viên xem xét" on STU-4. */
 	@PostMapping("/api/v1/team-issues/{teamIssueId}/escalate")
 	TeamIssueView escalate(@PathVariable("teamIssueId") UUID issueId) {
-		UUID student = student();
+		UUID student = raiser(issueId);
 		this.gate.requireActiveAccount(student);
 		return view(this.answers.escalate(student, issueId), student, false, Map.of());
 	}
@@ -180,10 +182,10 @@ class TeamIssueController {
 	TeamIssueView answer(@PathVariable("boardId") UUID jobId, @PathVariable("teamIssueId") UUID issueId,
 			@Valid @RequestBody AnswerTeamIssueRequest body) {
 		Caller caller = this.callers.get();
-		UUID mentor = caller.accountId();
-		if (mentor == null || !caller.hasRole(Role.MENTOR)) {
+		if (!this.roles.roleOf(jobId, caller).isMentor()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
+		UUID mentor = caller.requireAccountId();
 		this.gate.requireActiveAccount(mentor);
 		TeamIssue issue = this.answers.answer(mentor, jobId, issueId, body.kind(), body.points());
 		return view(issue, mentor, true, names(List.of(issue)));
@@ -194,13 +196,13 @@ class TeamIssueController {
 	JobTeamIssuesView ofJob(@PathVariable("boardId") UUID jobId) {
 		Caller caller = this.callers.get();
 		UUID account = caller.accountId();
-		JobPostState job = this.posts.post(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		if (account != null && caller.hasRole(Role.MENTOR) && account.equals(job.mentorId())) {
+		JobRole role = this.roles.roleOf(jobId, caller);
+		if (account != null && role.isMentor()) {
 			List<TeamIssue> all = this.issues.ofJob(jobId);
 			Map<UUID, String> names = names(all);
 			return new JobTeamIssuesView(jobId, true, all.stream().map(issue -> view(issue, account, true, names)).toList());
 		}
-		if (account != null && caller.hasRole(Role.STUDENT) && this.locks.crewJobsOf(account).contains(jobId)) {
+		if (account != null && role.isCrew() && this.locks.crewJobsOf(account).contains(jobId)) {
 			return new JobTeamIssuesView(jobId, false, this.issues.ofJob(jobId)
 				.stream()
 				.filter(issue -> account.equals(issue.raiserId()))
@@ -210,6 +212,7 @@ class TeamIssueController {
 		throw new ApiException(ErrorCode.NOT_FOUND);
 	}
 
+	/** A Student on STU-4, outside any Job: the global gate of the Student pages, which Story 20.3 replaces. */
 	private UUID student() {
 		Caller caller = this.callers.get();
 		UUID account = caller.accountId();
@@ -217,6 +220,25 @@ class TeamIssueController {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		return account;
+	}
+
+	/** A Crew member of the Job, by their role in it (AD-43); anyone else finds nothing. */
+	private UUID member(UUID jobId) {
+		Caller caller = this.callers.get();
+		if (!this.roles.roleOf(jobId, caller).isCrew()) {
+			throw new ApiException(ErrorCode.NOT_FOUND);
+		}
+		return caller.requireAccountId();
+	}
+
+	/**
+	 * A Crew member of the issue's Job, by their role in it (AD-43), for the raiser's own commands; the command
+	 * then finds nothing unless the caller raised the issue.
+	 */
+	private UUID raiser(UUID issueId) {
+		return member(this.issues.find(issueId)
+			.map(TeamIssue::jobId)
+			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND)));
 	}
 
 	private TeamIssuePanelView panel(JobPanel panel, UUID reader) {

@@ -130,9 +130,12 @@ class JobController {
 
 	private final GitHubGate gitHub;
 
+	private final JobRoleReader roles;
+
 	JobController(Jobs jobs, JobLifecycle lifecycle, ProductDirectory products, MentorDirectory mentors,
-			Agreements agreements, CurrentCaller callers, Clock clock, GitHubGate gitHub) {
+			Agreements agreements, CurrentCaller callers, Clock clock, GitHubGate gitHub, JobRoleReader roles) {
 		this.gitHub = gitHub;
+		this.roles = roles;
 		this.jobs = jobs;
 		this.agreements = agreements;
 		this.lifecycle = lifecycle;
@@ -165,13 +168,13 @@ class JobController {
 
 	@GetMapping("/{jobId}")
 	JobView job(@PathVariable UUID jobId) {
-		return view(this.jobs.find(customer(), jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND)));
+		return view(this.jobs.find(customerOf(jobId), jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND)));
 	}
 
 	/** CUS-6 "Lưu nháp" on the Customer's Draft. */
 	@PutMapping("/{jobId}")
 	JobView update(@PathVariable UUID jobId, @Valid @RequestBody JobDraftRequest body) {
-		UUID customer = customer();
+		UUID customer = customerOf(jobId);
 		this.jobs.update(customer, jobId, body.draft());
 		return view(this.jobs.find(customer, jobId).orElseThrow());
 	}
@@ -179,7 +182,7 @@ class JobController {
 	/** CUS-6 "Đăng tin", after N-3: J1 makes the Draft an Open Job Post (FR-9); GitHub must be linked (FR-80). */
 	@PostMapping("/{jobId}/publish")
 	JobView publish(@PathVariable UUID jobId) {
-		this.gitHub.requireGitHubLinked(customer());
+		this.gitHub.requireGitHubLinked(customerOf(jobId));
 		return transition(jobId, Transition.J1);
 	}
 
@@ -195,14 +198,14 @@ class JobController {
 	 */
 	@PostMapping("/{jobId}/selection/cancel")
 	JobView cancelSelection(@PathVariable UUID jobId, @Valid @RequestBody DecisionRequest body) {
-		UUID customer = customer();
+		UUID customer = customerOf(jobId);
 		this.jobs.find(customer, jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		this.lifecycle.apply(Transition.J5, jobId, Actor.user(customer), Trigger.USER, body.version(), Map.of());
 		return view(this.jobs.find(customer, jobId).orElseThrow());
 	}
 
 	private JobView transition(UUID jobId, Transition transition) {
-		UUID customer = customer();
+		UUID customer = customerOf(jobId);
 		this.jobs.find(customer, jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		this.lifecycle.apply(transition, jobId, Actor.user(customer), Trigger.USER);
 		return view(this.jobs.find(customer, jobId).orElseThrow());
@@ -212,7 +215,7 @@ class JobController {
 	@PostMapping(path = "/{jobId}/screenshots", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	@ResponseStatus(HttpStatus.CREATED)
 	ScreenshotView addScreenshot(@PathVariable UUID jobId, @RequestPart("file") MultipartFile file) {
-		UUID customer = customer();
+		UUID customer = customerOf(jobId);
 		this.jobs.find(customer, jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		byte[] content;
 		try {
@@ -229,7 +232,7 @@ class JobController {
 	@DeleteMapping("/{jobId}/screenshots/{screenshotId}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void removeScreenshot(@PathVariable UUID jobId, @PathVariable UUID screenshotId) {
-		this.jobs.removeScreenshot(customer(), jobId, screenshotId);
+		this.jobs.removeScreenshot(customerOf(jobId), jobId, screenshotId);
 	}
 
 	private JobView view(Job job) {
@@ -263,9 +266,22 @@ class JobController {
 				id -> this.products.find(id).map(ProductDirectory.ProductInfo::name).orElse(""));
 	}
 
+	/**
+	 * A Customer drafting outside any Job, on CUS-6 and CUS-7: the global role gate of Job drafting, which Story
+	 * 20.3 replaces with the unlocked-user gate; anyone else finds nothing.
+	 */
 	private UUID customer() {
 		Caller caller = this.callers.get();
 		if (!caller.hasRole(Role.CUSTOMER)) {
+			throw new ApiException(ErrorCode.NOT_FOUND);
+		}
+		return caller.requireAccountId();
+	}
+
+	/** The Job's Customer calling, by their role in the Job (AD-43); anyone else finds nothing. */
+	private UUID customerOf(UUID jobId) {
+		Caller caller = this.callers.get();
+		if (!this.roles.roleOf(jobId, caller).isCustomer()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		return caller.requireAccountId();

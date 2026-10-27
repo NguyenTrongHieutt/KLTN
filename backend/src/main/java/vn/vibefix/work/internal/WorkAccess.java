@@ -12,24 +12,24 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import vn.vibefix.job.Crews;
-import vn.vibefix.job.Crews.CrewRelationship;
 import vn.vibefix.job.Crews.Relationship;
 import vn.vibefix.job.Crews.Selection;
 import vn.vibefix.job.JobPosts;
 import vn.vibefix.job.JobPosts.JobPostState;
+import vn.vibefix.job.JobRole;
+import vn.vibefix.job.JobRoles;
 import vn.vibefix.shared.AdminReadGrant;
 import vn.vibefix.shared.AdminReadScope;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.ErrorCode;
-import vn.vibefix.shared.Role;
 import vn.vibefix.work.internal.Boards.Board;
 
 /**
- * Who reads and writes a Board (FR-23, FR-28, AD-20, AD-39, AD-41), read from {@code job}:
+ * Who reads and writes a Board (FR-23, FR-28, AD-20, AD-39, AD-41), by the role in the Job that
+ * {@code job.roleOf} reads (AD-43):
  * <ul>
- * <li>the Job's Mentor ({@code job.mentorOf}) and its {@code ACTIVE} Crew members
- * ({@code job.crewRelationship}) read everything and write while the Job is Active;</li>
+ * <li>the Job's Mentor and its {@code ACTIVE} Crew members read everything and write while the Job is Active;</li>
  * <li>an {@code INACTIVE} or {@code FORMER} member reads, read-only, only what their windows allow
  * ({@link WorkReads});</li>
  * <li>an Administrator reads only what an open {@code WORK_ITEMS} grant covers, each read audited.</li>
@@ -110,7 +110,11 @@ class WorkAccess {
 
 	private final Clock clock;
 
-	WorkAccess(Boards boards, JobPosts posts, Crews crews, WorkGrants grants, JdbcClient jdbc, Clock clock) {
+	private final JobRoles roles;
+
+	WorkAccess(Boards boards, JobPosts posts, Crews crews, WorkGrants grants, JdbcClient jdbc, Clock clock,
+			JobRoles roles) {
+		this.roles = roles;
 		this.boards = boards;
 		this.posts = posts;
 		this.crews = crews;
@@ -128,9 +132,8 @@ class WorkAccess {
 	/** A reader of the Board's content of {@code scope}; an Administrator needs a grant with an item of it. */
 	@Transactional(readOnly = true)
 	BoardViewer reader(UUID boardId, Caller caller, AdminReadScope scope) {
-		boolean mentorRole = caller.hasRole(Role.MENTOR);
 		boolean admin = caller.isAdministrator();
-		if (!mentorRole && !admin && !caller.hasRole(Role.STUDENT)) {
+		if (caller.isAnonymous()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		UUID account = caller.requireAccountId();
@@ -151,14 +154,11 @@ class WorkAccess {
 			}
 			return viewer(board, post, account, Kind.ADMIN, List.of(), open);
 		}
-		if (mentorRole) {
-			if (!account.equals(post.mentorId())) {
-				throw new ApiException(ErrorCode.NOT_FOUND);
-			}
+		JobRole role = this.roles.roleOf(board.jobId(), caller);
+		if (role.isMentor()) {
 			return viewer(board, post, account, Kind.MENTOR, List.of(), List.of());
 		}
-		CrewRelationship relationship = this.crews.crewRelationship(board.jobId(), account);
-		return switch (relationship.kind()) {
+		return switch (role.crewKind()) {
 			case ACTIVE -> viewer(board, post, account, Kind.CREW, List.of(), List.of());
 			case INACTIVE, FORMER -> {
 				List<Window> windows = windows(board.jobId(), account);
@@ -178,7 +178,8 @@ class WorkAccess {
 	 */
 	@Transactional(readOnly = true)
 	BoardViewer pageReader(UUID boardId, Caller caller) {
-		if (!caller.hasRole(Role.CUSTOMER)) {
+		Board board = this.boards.board(boardId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		if (!this.roles.roleOf(board.jobId(), caller).isCustomer()) {
 			try {
 				return reader(boardId, caller, AdminReadScope.PAGES);
 			}
@@ -188,9 +189,8 @@ class WorkAccess {
 			}
 		}
 		UUID account = caller.requireAccountId();
-		Board board = this.boards.board(boardId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		JobPostState post = this.posts.post(board.jobId())
-			.filter(found -> found.customerId().equals(account) && found.mentorId() != null)
+			.filter(found -> found.mentorId() != null)
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		return viewer(board, post, account, Kind.CUSTOMER, List.of(), List.of());
 	}
@@ -204,7 +204,7 @@ class WorkAccess {
 	List<BoardViewer> sharedReaders(UUID jobId, Caller caller) {
 		UUID account = caller.requireAccountId();
 		JobPostState post = this.posts.post(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		if (!assignee(post, caller, account)) {
+		if (!assignee(post, caller)) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		if (ENDED.contains(post.state())) {
@@ -234,7 +234,7 @@ class WorkAccess {
 
 	/** A reader of the Job's customer-visible Pages through a share to a running Job they are an assignee of. */
 	private Optional<BoardViewer> sharedReader(UUID sourceJobId, Caller caller) {
-		if (!caller.hasRole(Role.MENTOR) && !caller.hasRole(Role.STUDENT)) {
+		if (!caller.isUser()) {
 			return Optional.empty();
 		}
 		UUID account = caller.requireAccountId();
@@ -244,7 +244,7 @@ class WorkAccess {
 			.list()
 			.stream()
 			.flatMap(job -> this.posts.post(job).stream())
-			.anyMatch(post -> !ENDED.contains(post.state()) && assignee(post, caller, account));
+			.anyMatch(post -> !ENDED.contains(post.state()) && assignee(post, caller));
 		return shared ? sharedViewer(sourceJobId, account) : Optional.empty();
 	}
 
@@ -255,16 +255,13 @@ class WorkAccess {
 				: Optional.of(viewer(board.get(), post.get(), account, Kind.SHARED, List.of(), List.of()));
 	}
 
-	/** The Job's Mentor, or one of its {@code ACTIVE} Crew members, read through {@code job} now (AD-41). */
-	private boolean assignee(JobPostState post, Caller caller, UUID account) {
+	/** The Job's Mentor, or one of its {@code ACTIVE} Crew members, by their role read now (AD-41, AD-43). */
+	private boolean assignee(JobPostState post, Caller caller) {
 		if (post.mentorId() == null) {
 			return false;
 		}
-		if (caller.hasRole(Role.MENTOR)) {
-			return account.equals(post.mentorId());
-		}
-		return caller.hasRole(Role.STUDENT)
-				&& this.crews.crewRelationship(post.jobId(), account).kind() == Relationship.ACTIVE;
+		JobRole role = this.roles.roleOf(post.jobId(), caller);
+		return role.isMentor() || role.crewKind() == Relationship.ACTIVE;
 	}
 
 	private BoardViewer viewer(Board board, JobPostState post, UUID account, Kind kind, List<Window> windows,

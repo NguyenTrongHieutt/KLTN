@@ -355,7 +355,7 @@ final class CrewJobWorld {
 		boolean ended = "INACTIVE".equals(status) || "RELEASED".equals(status);
 		boolean released = "RELEASED".equals(status);
 		this.jdbc.sql("""
-				INSERT INTO job.crew_row (id, job_id, student_account_id, status, signed_at, activated_at, window_end,
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, window_end,
 				    released_at, released_reason, created_at)
 				VALUES (:id, :job, :student, :status, :signed, :signed, :end, :released, :reason, :created)
 				""")
