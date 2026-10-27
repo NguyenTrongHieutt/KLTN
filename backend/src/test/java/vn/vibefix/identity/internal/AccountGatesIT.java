@@ -16,7 +16,6 @@ import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.identity.GitHubGate;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
-import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
 
 /**

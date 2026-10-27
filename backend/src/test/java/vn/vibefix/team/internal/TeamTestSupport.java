@@ -9,7 +9,7 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 import vn.vibefix.identity.internal.IdentityTestSupport;
-import vn.vibefix.shared.Role;
+import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.MutableClock;
 
 /** Mentors and Students with a profile, for the Team tests; nobody is approved since Story 19.7. */
@@ -27,6 +27,23 @@ public final class TeamTestSupport {
 	/** A Mentor with GitHub linked and a profile; returns the account ID. */
 	public static UUID mentor(JdbcClient jdbc, String displayName, List<String> skillIds, String skillNames) {
 		UUID id = IdentityTestSupport.insertAccount(jdbc, Role.MENTOR, null);
+		mentorProfile(jdbc, id, displayName, skillIds, skillNames);
+		return id;
+	}
+
+	/**
+	 * A Google account with no role (Story 20.3), GitHub linked, and the profile {@link #mentor} gives: anyone may
+	 * mentor a Job, so the Mentor directory finds it like any other. Returns the account ID.
+	 */
+	public static UUID googleMentor(JdbcClient jdbc, String displayName, List<String> skillIds, String skillNames) {
+		UUID id = IdentityTestSupport.insertGoogleAccount(jdbc, "google-" + UUID.randomUUID(), "3.1");
+		IdentityTestSupport.linkGitHub(jdbc, id);
+		mentorProfile(jdbc, id, displayName, skillIds, skillNames);
+		return id;
+	}
+
+	private static void mentorProfile(JdbcClient jdbc, UUID id, String displayName, List<String> skillIds,
+			String skillNames) {
 		Timestamp now = Timestamp.from(MutableClock.DEFAULT_INSTANT);
 		jdbc.sql("""
 				INSERT INTO identity.profile
@@ -40,7 +57,6 @@ public final class TeamTestSupport {
 			.param("skillNames", skillNames)
 			.param("now", now)
 			.update();
-		return id;
 	}
 
 	/** The school of every Student {@link #student} verifies. */

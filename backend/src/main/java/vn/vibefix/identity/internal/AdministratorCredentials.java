@@ -105,7 +105,7 @@ class AdministratorCredentials {
 	}
 
 	boolean anyExists() {
-		return this.jdbc.sql("SELECT count(*) FROM identity.account WHERE role = 'ADMINISTRATOR'")
+		return this.jdbc.sql("SELECT count(*) FROM identity.account WHERE kind = 'ADMINISTRATOR'")
 			.query(Long.class)
 			.single() > 0;
 	}
@@ -114,7 +114,7 @@ class AdministratorCredentials {
 	List<UUID> activeAdministratorsExcept(UUID excluded) {
 		return this.jdbc.sql("""
 				SELECT id FROM identity.account
-				WHERE role = 'ADMINISTRATOR' AND locked_at IS NULL AND erased_at IS NULL AND id <> :excluded
+				WHERE kind = 'ADMINISTRATOR' AND locked_at IS NULL AND erased_at IS NULL AND id <> :excluded
 				ORDER BY id
 				""").param("excluded", excluded).query(UUID.class).list();
 	}

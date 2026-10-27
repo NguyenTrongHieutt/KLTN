@@ -12,7 +12,6 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
 import vn.vibefix.shared.Kind;
-import vn.vibefix.shared.Role;
 
 /** Reads and writes {@code identity.account}, {@code identity.acknowledgment}, and the kept GitHub token. */
 @Component
@@ -73,7 +72,7 @@ class Accounts {
 			.optional();
 	}
 
-	/** An account with a role: an Administrator's, or a test's account from before Google sign-in. */
+	/** An Administrator's account ({@link Account#administrator}), with the role its row keeps writing. */
 	void insert(Account account) {
 		this.jdbc.sql("""
 				INSERT INTO identity.account
@@ -85,7 +84,7 @@ class Accounts {
 			.param("githubUserId", account.githubUserId())
 			.param("githubLogin", account.githubLogin())
 			.param("githubAvatarUrl", account.githubAvatarUrl())
-			.param("role", account.role() == null ? null : account.role().name())
+			.param("role", account.role())
 			.param("createdAt", Timestamp.from(account.createdAt()))
 			.update();
 	}
@@ -259,10 +258,9 @@ class Accounts {
 	}
 
 	private static Account row(ResultSet rs, int number) throws SQLException {
-		String role = rs.getString("role");
 		return new Account(rs.getObject("id", UUID.class), Kind.valueOf(rs.getString("kind")),
 				(Long) rs.getObject("github_user_id"), rs.getString("github_login"), rs.getString("github_avatar_url"),
-				role == null ? null : Role.valueOf(role), rs.getString("google_sub"), rs.getString("google_email"),
+				rs.getString("role"), rs.getString("google_sub"), rs.getString("google_email"),
 				rs.getString("google_name"), instant(rs, "locked_at"), rs.getString("lock_reason"), instant(rs, "erased_at"),
 				instant(rs, "created_at"));
 	}

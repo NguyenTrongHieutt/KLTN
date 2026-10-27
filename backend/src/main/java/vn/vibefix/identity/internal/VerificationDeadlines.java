@@ -20,8 +20,6 @@ import vn.vibefix.notification.Audience;
 import vn.vibefix.notification.NotificationRequest;
 import vn.vibefix.notification.Notifications;
 import vn.vibefix.notification.Recipient;
-import vn.vibefix.notification.TodoRequest;
-import vn.vibefix.notification.Todos;
 import vn.vibefix.timers.DeadlineHandler;
 import vn.vibefix.timers.DeadlineKind;
 import vn.vibefix.timers.DeadlineOutcome;
@@ -125,7 +123,8 @@ class VerificationDeadlines {
 	/**
 	 * The expiry: {@code isVerified} has been false since the start of the day, so the row ends
 	 * {@code EXPIRED}, its facts and the profile's projection of them are deleted, only the account is
-	 * told, a Student's {@code identity.verify_student} to-do opens again, and the change is audited.
+	 * told, and the change is audited. No to-do opens: the student verification is optional and no account role
+	 * marks a Student who would be asked again (Story 20.3).
 	 */
 	@Component
 	static class Expiry implements DeadlineHandler {
@@ -136,15 +135,12 @@ class VerificationDeadlines {
 
 		private final Notifications notifications;
 
-		private final Todos todos;
-
 		private final AuditLog auditLog;
 
-		Expiry(JdbcClient jdbc, VerificationRows rows, Notifications notifications, Todos todos, AuditLog auditLog) {
+		Expiry(JdbcClient jdbc, VerificationRows rows, Notifications notifications, AuditLog auditLog) {
 			this.jdbc = jdbc;
 			this.rows = rows;
 			this.notifications = notifications;
-			this.todos = todos;
 			this.auditLog = auditLog;
 		}
 
@@ -168,11 +164,6 @@ class VerificationDeadlines {
 			this.rows.end(row.get(), VerificationRows.Ending.EXPIRED, deadline.dueAt());
 			this.notifications.send(new NotificationRequest(VERIFICATION_EXPIRED, deadline.id(),
 					List.of(new Recipient(account, Audience.SUBJECT)), Map.of(), SignIns.VERIFICATION_PATH, null, account));
-			// The to-do is a Student's only, until Story 19.7.
-			if (this.rows.isStudent(account)) {
-				this.todos.open(new TodoRequest(SignIns.VERIFY_STUDENT, account, Audience.SUBJECT, account, Map.of(),
-						SignIns.VERIFICATION_PATH, null, null));
-			}
 			this.auditLog.record(AuditEntry.of(AuditActor.system(), "identity.verification_expired",
 					AuditObject.of("identity.account", account)));
 			return DeadlineOutcome.FIRED;

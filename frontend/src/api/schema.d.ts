@@ -4049,8 +4049,6 @@ export interface components {
             skillId?: string;
             status: string;
             suggesterName?: string;
-            /** @enum {string} */
-            suggesterRole: "CUSTOMER" | "MENTOR" | "STUDENT" | "ADMINISTRATOR";
         };
         AdminStatementView: {
             side: string;
@@ -7614,8 +7612,6 @@ export interface components {
             lockedAt?: string;
             name?: string;
             personLinks: components["schemas"]["PersonLinkView"][];
-            /** @enum {string} */
-            role?: "CUSTOMER" | "MENTOR" | "STUDENT" | "ADMINISTRATOR";
             /** Format: date-time */
             signedInAt?: string;
             verification?: components["schemas"]["UserVerificationView"];
@@ -7628,8 +7624,6 @@ export interface components {
             id: string;
             locked: boolean;
             name?: string;
-            /** @enum {string} */
-            role?: "CUSTOMER" | "MENTOR" | "STUDENT" | "ADMINISTRATOR";
             status?: string;
         };
         UserVerificationView: {
@@ -9027,7 +9021,6 @@ export interface operations {
         parameters: {
             query?: {
                 q?: string;
-                role?: "CUSTOMER" | "MENTOR" | "STUDENT" | "ADMINISTRATOR";
                 status?: "LOCKED" | "VERIFIED" | "LOW_FEEDBACK";
                 page?: number;
             };

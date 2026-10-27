@@ -34,7 +34,7 @@ import vn.vibefix.identity.AccountLocked;
 import vn.vibefix.identity.internal.AdministratorTestSupport;
 import vn.vibefix.identity.internal.AdministratorTestSupport.Administrator;
 import vn.vibefix.identity.internal.IdentityTestSupport;
-import vn.vibefix.shared.Role;
+import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.team.internal.TeamTestSupport;
 
@@ -155,6 +155,28 @@ class LockConsequencesIT extends IntegrationTest {
 		assertThat(notices("job.party_locked", this.vy)).isZero();
 		assertThat(text("SELECT state FROM job.job WHERE id = '" + job + "'")).isEqualTo("ACTIVE");
 		awaitListeners();
+	}
+
+	/** Story 20.3: no role switch; one lock acts on every relation, here the Mentor of one Job and Customer of another. */
+	@Test
+	void oneLockActsOnTheJobTheAccountMentorsAndTheJobItIsTheCustomerOf() throws Exception {
+		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		UUID mentored = world();
+		UUID ordered = world();
+		UUID thao = TeamTestSupport.mentor(this.jdbc, "Nguyễn Phương Thảo", List.of(TeamTestSupport.REACT), "React");
+		// Hung, the Mentor of the first Job, is the Customer of the second, which Thảo mentors.
+		this.jdbc.sql("UPDATE job.job SET customer_account_id = :hung, mentor_account_id = :thao WHERE id = :id")
+			.param("hung", this.hung).param("thao", thao).param("id", ordered).update();
+
+		lock(ha, this.hung).andExpect(status().isOk());
+		awaitSystemDispute(mentored);
+		awaitSystemDispute(ordered);
+		awaitListeners();
+
+		assertThat(notices("job.party_locked", this.lan)).as("the first Job's Customer hears of its Mentor").isEqualTo(1);
+		assertThat(notices("job.party_locked", thao)).as("the second Job's Mentor hears of its Customer").isEqualTo(1);
+		assertThat(notices("job.party_locked", ha.accountId())).isEqualTo(2);
+		assertThat(notices("job.party_locked", this.hung)).isZero();
 	}
 
 	private ResultActions lock(Administrator ha, UUID account) throws Exception {

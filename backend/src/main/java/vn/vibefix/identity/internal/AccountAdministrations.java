@@ -35,7 +35,6 @@ import vn.vibefix.notification.Recipient;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.IdGenerator;
-import vn.vibefix.shared.Role;
 
 /**
  * {@link AccountAdministration} (FR-5, FR-59, AD-19, SG-11): each command locks the account row, records an
@@ -56,8 +55,7 @@ class AccountAdministrations implements AccountAdministration {
 			LEFT JOIN identity.verification v ON v.account_id = a.id AND v.kind = 'STUDENT' AND v.ended_at IS NULL
 			""";
 
-	/** @param role absent for a Google account, which has none (Story 19.1) */
-	private record Target(UUID id, boolean administrator, @Nullable Role role, boolean locked) {
+	private record Target(UUID id, boolean administrator, boolean locked) {
 	}
 
 	private final JdbcClient jdbc;
@@ -92,10 +90,6 @@ class AccountAdministrations implements AccountAdministration {
 		Map<String, Object> params = new HashMap<>();
 		LocalDate today = today();
 		params.put("today", today);
-		if (query.role() != null) {
-			where.append(" AND a.role = :role");
-			params.put("role", query.role().name());
-		}
 		if (query.text() != null && !query.text().isBlank()) {
 			// The declared student name is searched too, though the name rule does not show it.
 			where.append(" AND platform.vi_normalize(coalesce(" + NAME + ", '') || ' ' || coalesce(p.student_name, '')")
@@ -122,17 +116,16 @@ class AccountAdministrations implements AccountAdministration {
 		int page = Math.max(0, query.page());
 		params.put("offset", page * PAGE_SIZE);
 		params.put("size", PAGE_SIZE);
-		List<Row> rows = this.jdbc.sql("SELECT a.id, a.role, a.github_login, a.locked_at, a.created_at, " + NAME
+		List<Row> rows = this.jdbc.sql("SELECT a.id, a.github_login, a.locked_at, a.created_at, " + NAME
 				+ " AS name, v.valid_until " + FROM + where + " ORDER BY a.created_at DESC, a.id LIMIT :size OFFSET :offset")
 			.params(params)
 			.query((rs, n) -> {
-				Role role = role(rs);
 				LocalDate validUntil = rs.getObject("valid_until", LocalDate.class);
 				// A verified student is any person's account with a live, valid row (Story 19.4).
 				boolean verified = validUntil != null && !validUntil.isBefore(today);
-				String status = verified ? "VERIFIED" : role == Role.STUDENT ? "UNVERIFIED" : null;
-				return new Row(rs.getObject("id", UUID.class), role, rs.getString("name"), rs.getString("github_login"),
-						rs.getTimestamp("locked_at") != null, status, rs.getTimestamp("created_at").toInstant());
+				return new Row(rs.getObject("id", UUID.class), rs.getString("name"), rs.getString("github_login"),
+						rs.getTimestamp("locked_at") != null, verified ? "VERIFIED" : null,
+						rs.getTimestamp("created_at").toInstant());
 			})
 			.list();
 		return new Page(rows, total, page, PAGE_SIZE);
@@ -162,7 +155,7 @@ class AccountAdministrations implements AccountAdministration {
 	@Transactional(readOnly = true)
 	public Optional<Account> account(UUID accountId) {
 		LocalDate today = today();
-		return this.jdbc.sql("SELECT a.id, a.role, a.github_login, a.created_at, a.signed_in_at, a.locked_at, a.lock_reason, "
+		return this.jdbc.sql("SELECT a.id, a.github_login, a.created_at, a.signed_in_at, a.locked_at, a.lock_reason, "
 				+ "coalesce(p.contact_email, a.google_email, a.github_email) AS email, " + NAME + " AS name, "
 				+ "v.provider, v.verified_at, v.valid_until " + FROM
 				+ " WHERE a.id = :id AND a.kind = 'USER' AND a.erased_at IS NULL")
@@ -172,7 +165,7 @@ class AccountAdministrations implements AccountAdministration {
 				Verification verification = validUntil == null ? null
 						: new Verification(VerificationRows.Provider.valueOf(rs.getString("provider")).method(),
 								rs.getTimestamp("verified_at").toInstant(), validUntil, !validUntil.isBefore(today));
-				return new Account(rs.getObject("id", UUID.class), role(rs), rs.getString("name"),
+				return new Account(rs.getObject("id", UUID.class), rs.getString("name"),
 						rs.getString("github_login"), rs.getString("email"), rs.getTimestamp("created_at").toInstant(),
 						instant(rs, "signed_in_at"), instant(rs, "locked_at"), rs.getString("lock_reason"), verification,
 						history(accountId));
@@ -240,7 +233,7 @@ class AccountAdministrations implements AccountAdministration {
 		this.jdbc.sql("DELETE FROM platform.spring_session WHERE principal_name = :name")
 			.param("name", accountId.toString())
 			.update();
-		this.events.publishEvent(new AccountLocked(this.ids.newId(), accountId, target.role()));
+		this.events.publishEvent(new AccountLocked(this.ids.newId(), accountId));
 		this.notifications.send(new NotificationRequest(LOCKED, action, List.of(new Recipient(accountId, Audience.SUBJECT)),
 				Map.of("reason", text), "/", null, accountId));
 		audit(administrator, "identity.account_locked", accountId, action);
@@ -276,12 +269,12 @@ class AccountAdministrations implements AccountAdministration {
 	/** The account to act on, locked; {@code NOT_FOUND} for one erased, gone, or an Administrator's on unlock. */
 	private Target target(UUID accountId) {
 		return this.jdbc.sql("""
-				SELECT id, kind, role, locked_at IS NOT NULL AS locked FROM identity.account
+				SELECT id, kind, locked_at IS NOT NULL AS locked FROM identity.account
 				WHERE id = :id AND erased_at IS NULL FOR UPDATE
 				""")
 			.param("id", accountId)
 			.query((rs, n) -> new Target(rs.getObject("id", UUID.class), "ADMINISTRATOR".equals(rs.getString("kind")),
-					role(rs), rs.getBoolean("locked")))
+					rs.getBoolean("locked")))
 			.optional()
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 	}
@@ -329,11 +322,6 @@ class AccountAdministrations implements AccountAdministration {
 
 	private static String escapeLike(String text) {
 		return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
-	}
-
-	private static @Nullable Role role(ResultSet rs) throws SQLException {
-		String role = rs.getString("role");
-		return role == null ? null : Role.valueOf(role);
 	}
 
 	private static @Nullable Instant instant(ResultSet rs, String column) throws SQLException {

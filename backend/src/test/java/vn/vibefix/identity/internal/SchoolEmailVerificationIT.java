@@ -54,7 +54,6 @@ import vn.vibefix.notification.Todos;
 import vn.vibefix.notification.internal.RecordingMailSender;
 import vn.vibefix.operations.Lane;
 import vn.vibefix.operations.internal.OperationWorker;
-import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.PostgresTestDatabase;
 import vn.vibefix.timers.internal.DeadlinePoller;
@@ -503,7 +502,7 @@ class SchoolEmailVerificationIT extends IntegrationTest {
 		assertThat(this.studentVerification.isVerified(this.minh)).isFalse();
 		assertThat(this.studentVerification.isVerified(other)).as("only the caller's own row ends").isTrue();
 		assertThat(this.jdbc.sql("SELECT count(*) FROM notification.todo WHERE account_id = :id")
-			.param("id", this.minh).query(Long.class).single()).as("the to-do is a Student's only").isZero();
+			.param("id", this.minh).query(Long.class).single()).as("no account role marks a Student to ask again (Story 20.3)").isZero();
 		assertThat(this.jdbc.sql("""
 				SELECT ended_reason || ' ' || (facts IS NULL) || ' ' || subject_hmac FROM identity.verification
 				WHERE account_id = :id
@@ -600,7 +599,7 @@ class SchoolEmailVerificationIT extends IntegrationTest {
 	}
 
 	@Test
-	void theExpiryOfAnAccountWithoutTheStudentRoleOpensNoToDo() throws Exception {
+	void theExpiryOpensNoToDoSinceNoAccountRoleMarksAStudent() throws Exception {
 		this.clock.setInstant(Instant.parse("2026-10-19T03:00:00Z"));
 		send(this.minh, MINH);
 		confirm(this.minh, deliveredCode(MINH)).andExpect(status().isOk());

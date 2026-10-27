@@ -32,7 +32,6 @@ import vn.vibefix.notification.Recipient;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.IdGenerator;
-import vn.vibefix.shared.Role;
 
 /**
  * Administrators created by Administrators (FR-2, SG-10). Creation needs a step-up, alerts every
@@ -119,7 +118,7 @@ class AdministratorEnrolments implements Administrators {
 	public long activeCount() {
 		return this.jdbc.sql("""
 				SELECT count(*) FROM identity.account a JOIN identity.administrator_credential c ON c.account_id = a.id
-				WHERE a.role = 'ADMINISTRATOR' AND a.locked_at IS NULL AND a.erased_at IS NULL
+				WHERE a.kind = 'ADMINISTRATOR' AND a.locked_at IS NULL AND a.erased_at IS NULL
 				""").query(Long.class).single();
 	}
 
@@ -127,7 +126,7 @@ class AdministratorEnrolments implements Administrators {
 	public List<UUID> activeIds() {
 		return this.jdbc.sql("""
 				SELECT a.id FROM identity.account a JOIN identity.administrator_credential c ON c.account_id = a.id
-				WHERE a.role = 'ADMINISTRATOR' AND a.locked_at IS NULL AND a.erased_at IS NULL ORDER BY a.id
+				WHERE a.kind = 'ADMINISTRATOR' AND a.locked_at IS NULL AND a.erased_at IS NULL ORDER BY a.id
 				""").query(UUID.class).list();
 	}
 
@@ -151,7 +150,7 @@ class AdministratorEnrolments implements Administrators {
 				FROM identity.account a
 				LEFT JOIN identity.administrator_credential c ON c.account_id = a.id
 				LEFT JOIN identity.administrator_enrolment e ON e.account_id = a.id
-				WHERE a.role = 'ADMINISTRATOR' AND a.erased_at IS NULL
+				WHERE a.kind = 'ADMINISTRATOR' AND a.erased_at IS NULL
 				ORDER BY a.created_at, a.id
 				""").param("now", Timestamp.from(now)).query((rs, n) -> {
 			String email = rs.getString("email");
@@ -208,7 +207,7 @@ class AdministratorEnrolments implements Administrators {
 		}
 		else {
 			account = this.ids.newId();
-			this.accounts.insert(new Account(account, null, null, null, Role.ADMINISTRATOR, null, null, null, now));
+			this.accounts.insert(Account.administrator(account, now));
 			this.jdbc.sql("""
 					INSERT INTO identity.administrator_enrolment (id, account_id, email, display_name, token_hash,
 					    created_by, created_at, expires_at)
@@ -231,7 +230,7 @@ class AdministratorEnrolments implements Administrators {
 				AuditObject.of("identity.account", account)));
 		List<Recipient> everyone = this.jdbc.sql("""
 				SELECT a.id FROM identity.account a JOIN identity.administrator_credential c ON c.account_id = a.id
-				WHERE a.role = 'ADMINISTRATOR' AND a.locked_at IS NULL AND a.erased_at IS NULL ORDER BY a.id
+				WHERE a.kind = 'ADMINISTRATOR' AND a.locked_at IS NULL AND a.erased_at IS NULL ORDER BY a.id
 				""").query(UUID.class).list().stream().map(id -> new Recipient(id, Audience.ADMIN)).toList();
 		this.notifications.send(new NotificationRequest(ADMINISTRATOR_CREATED, this.ids.newId(), everyone,
 				Map.of("email", email), "/quan-tri/quan-tri-vien", null, null));

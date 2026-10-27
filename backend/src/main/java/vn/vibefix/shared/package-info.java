@@ -8,7 +8,7 @@
  * {@link vn.vibefix.shared.PageResponse}; money: {@link vn.vibefix.shared.Money}; IDs:
  * {@link vn.vibefix.shared.IdGenerator}.</li>
  * <li>Authorization (AD-20): the caller ({@link vn.vibefix.shared.Caller} of a {@link vn.vibefix.shared.Kind},
- * {@link vn.vibefix.shared.CurrentCaller}, and the transitional {@link vn.vibefix.shared.Role}), the endpoint gate
+ * {@link vn.vibefix.shared.CurrentCaller}), the endpoint gate
  * ({@link vn.vibefix.shared.Access}, {@link vn.vibefix.shared.Gate}), the refusals of a module's policy
  * ({@link vn.vibefix.shared.Policies}), and the Administrator read-grant contract
  * ({@link vn.vibefix.shared.AdminReadGrants}, {@link vn.vibefix.shared.AdminReadGrant},

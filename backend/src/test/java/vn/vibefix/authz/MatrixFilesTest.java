@@ -55,11 +55,15 @@ class MatrixFilesTest {
 			.getFirst()
 			.check()).isEqualTo("requireActiveAccount");
 		assertThat(MatrixRow.parse(HEADER + "GET /api/v1/profile,MENTOR,,,200").getFirst().check()).isNull();
+		// The retired Team endpoints refuse every caller before any gate (Story 20.3).
+		assertThat(MatrixRow.parse(HEADER + "GET /api/v1/mentor/team/students,MENTOR,,,404 NOT_FOUND").getFirst().check())
+			.isNull();
 		for (String line : new String[] { "GET /api/v1/mentor/job-posts,MENTOR,,,200",
 				"GET /api/v1/mentor/job-posts,MENTOR,,,200,",
 				"GET /api/v1/mentor/job-posts,MENTOR,,,200,requireNothing",
 				"GET /api/v1/profile,MENTOR,,,200,requireGitHubLinked",
-				"GET /api/v1/mentor/job-posts,MENTOR,,,200,requireApprovedMentor" }) {
+				"GET /api/v1/mentor/job-posts,MENTOR,,,200,requireApprovedMentor",
+				"GET /api/v1/mentor/team,MENTOR,,,404 NOT_FOUND,requireActiveAccount" }) {
 			assertThatThrownBy(() -> MatrixRow.parse(HEADER + line)).as(line).isInstanceOf(IllegalArgumentException.class);
 		}
 	}
@@ -78,8 +82,9 @@ class MatrixFilesTest {
 			.containsExactlyInAnyOrder("CREW_SHARE", "CREW_EMAIL", "WORK_ITEM_NOTE", "ATTACHMENT", "CREW_CHAT",
 					"TEAM_ISSUE_ID", "NOTIFICATION_PARAM", "TODO_PARAM", "CONTACT_EMAIL", "SCHOOL_EMAIL", "PERSON_SIGNAL",
 					"STUDENT_HIDDEN_NAME", "PRIVATE_FEEDBACK", "SKILL_SUGGESTION");
-		Set<MatrixCaller> neverSee = EnumSet.of(MatrixCaller.ANONYMOUS, MatrixCaller.CUSTOMER, MatrixCaller.OWNER,
-				MatrixCaller.MENTOR, MatrixCaller.STUDENT, MatrixCaller.TEAM_MENTOR, MatrixCaller.TEAM_MEMBER);
+		Set<MatrixCaller> neverSee = EnumSet.of(MatrixCaller.ANONYMOUS, MatrixCaller.USER, MatrixCaller.USER_UNVERIFIED,
+				MatrixCaller.CUSTOMER, MatrixCaller.OWNER, MatrixCaller.MENTOR, MatrixCaller.STUDENT,
+				MatrixCaller.TEAM_MENTOR, MatrixCaller.TEAM_MEMBER);
 		assertThat(canaries.all()).allSatisfy(canary -> assertThat(canary.visibleTo()).doesNotContainAnyElementsOf(neverSee));
 	}
 
@@ -114,8 +119,9 @@ class MatrixFilesTest {
 
 	@Test
 	void callersCoverEveryRelationshipCrewStateAndGrant() {
-		assertThat(Arrays.stream(MatrixCaller.values()).map(Enum::name)).containsExactly("ANONYMOUS", "CUSTOMER",
-				"MENTOR", "STUDENT", "ADMINISTRATOR", "OWNER", "JOB_MENTOR", "CREW_ASSIGNED", "CREW_ACTIVE",
+		assertThat(Arrays.stream(MatrixCaller.values()).map(Enum::name)).containsExactly("ANONYMOUS", "USER",
+				"USER_UNVERIFIED", "CUSTOMER", "MENTOR", "STUDENT", "ADMINISTRATOR", "OWNER", "JOB_MENTOR", "CREW_ASSIGNED",
+				"CREW_ACTIVE",
 				"CREW_INACTIVE", "CREW_FORMER", "TEAM_MENTOR", "TEAM_MEMBER", "SUBJECT", "AUTHOR", "ADMIN_DISPUTE_GRANT",
 				"ADMIN_TEAM_ISSUE_GRANT", "ADMIN_ABUSE_REPORT_GRANT");
 	}

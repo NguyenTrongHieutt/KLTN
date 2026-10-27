@@ -35,8 +35,9 @@ import vn.vibefix.shared.KeywordQuery;
  * Students' public fields from their profiles (FR-51, AD-36, Stories 19.3 and 19.4). The name, the
  * school, and the major are the projection of the live student verification, shown only while it is
  * current (today in Vietnam on or before its last valid day) and the details are not hidden (X9).
- * Search and the username lookup find verified, unlocked, unerased Students only; {@link #cards}
- * describes any Student by ID, for the Team screens. Epics 20 and 21 rework who is listed.
+ * Search and the username lookup find verified, unlocked, unerased people only; {@link #cards}
+ * describes any person's account by ID, whatever role it holds in any Job (Story 20.3). Story 21.7 retires
+ * the directory.
  */
 @Component
 class JdbcStudentDirectory implements StudentDirectory {
@@ -54,7 +55,7 @@ class JdbcStudentDirectory implements StudentDirectory {
 			""";
 
 	private static final String FINDABLE = """
-			a.role = 'STUDENT' AND a.locked_at IS NULL AND a.erased_at IS NULL AND v.valid_until >= :today
+			a.kind = 'USER' AND a.locked_at IS NULL AND a.erased_at IS NULL AND v.valid_until >= :today
 			""";
 
 	/** One row before its Skill IDs are named. */
@@ -121,7 +122,7 @@ class JdbcStudentDirectory implements StudentDirectory {
 			return List.of();
 		}
 		Map<UUID, StudentCard> byId = named(this.jdbc.sql("SELECT " + COLUMNS + FROM
-				+ "WHERE a.role = 'STUDENT' AND a.id IN (:ids)")
+				+ "WHERE a.kind = 'USER' AND a.id IN (:ids)")
 			.param("ids", List.copyOf(ids))
 			.query(JdbcStudentDirectory::row)
 			.list()).stream().collect(Collectors.toMap(StudentCard::accountId, Function.identity()));
@@ -139,7 +140,7 @@ class JdbcStudentDirectory implements StudentDirectory {
 	@Transactional(readOnly = true)
 	public Optional<StudentProfile> profileByLogin(String githubLogin) {
 		Optional<Row> found = this.jdbc.sql("SELECT " + COLUMNS + FROM
-				+ "WHERE a.role = 'STUDENT' AND a.locked_at IS NULL AND a.erased_at IS NULL"
+				+ "WHERE a.kind = 'USER' AND a.locked_at IS NULL AND a.erased_at IS NULL"
 				+ " AND lower(a.github_login) = lower(:login)")
 			.param("login", githubLogin.strip())
 			.query(JdbcStudentDirectory::row)

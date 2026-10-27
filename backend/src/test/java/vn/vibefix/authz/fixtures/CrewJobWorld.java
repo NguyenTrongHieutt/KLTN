@@ -17,7 +17,7 @@ import vn.vibefix.authz.Canaries;
 import vn.vibefix.authz.MatrixCaller;
 import vn.vibefix.authz.MatrixWorld;
 import vn.vibefix.identity.internal.IdentityTestSupport;
-import vn.vibefix.shared.Role;
+import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.MutableClock;
 import vn.vibefix.team.internal.TeamTestSupport;
 

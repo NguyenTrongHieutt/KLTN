@@ -147,7 +147,7 @@ class SpikeS1Command implements ApplicationRunner, ExitCodeGenerator {
 	private Optional<UUID> customer(String login) {
 		return this.jdbc.sql("""
 				SELECT id FROM identity.account
-				WHERE lower(github_login) = lower(:login) AND role = 'CUSTOMER' AND erased_at IS NULL
+				WHERE lower(github_login) = lower(:login) AND kind = 'USER' AND erased_at IS NULL
 				""").param("login", login).query(UUID.class).optional();
 	}
 

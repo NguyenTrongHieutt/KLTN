@@ -7,7 +7,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
-import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
@@ -24,15 +23,16 @@ import vn.vibefix.notification.NotificationRequest;
 import vn.vibefix.notification.Notifications;
 import vn.vibefix.notification.Recipient;
 import vn.vibefix.shared.IdGenerator;
-import vn.vibefix.shared.Role;
 
 /**
  * FR-59, AD-19, AD-41, UX-DR83: what a lock means for the person's running Jobs (Agreement, Starting,
- * Active, Closing). A locked Crew member's rows become {@code INACTIVE} ({@link CrewService#accountLocked});
- * the Mentor and the Administrators hear of it, and when nobody is left to work the Job needs a decision.
- * A locked Mentor or Customer leaves each of their Jobs needing one. {@code job.party_locked} goes only
- * to whom UX-DR83 names: the Customer about the Mentor, the Mentor about the Customer or a Crew member,
- * the active Crew about the Mentor, and the Administrators always. The caller makes it replay-safe.
+ * Active, Closing), for every role they hold, Job by Job: an account holds no role (Story 20.3), so every
+ * consequence runs for every lock and acts only on the relations the account holds. A locked Crew member's rows
+ * become {@code INACTIVE} ({@link CrewService#accountLocked}); the Mentor and the Administrators hear of it, and
+ * when nobody is left to work the Job needs a decision. A locked Mentor or Customer leaves each of their Jobs
+ * needing one. {@code job.party_locked} goes only to whom UX-DR83 names: the Customer about the Mentor, the Mentor
+ * about the Customer or a Crew member, the active Crew about the Mentor, and the Administrators always. The
+ * caller makes it replay-safe. Story 20.4 adds the rest of the fan-out.
  */
 @Component
 class LockConsequences {
@@ -79,24 +79,23 @@ class LockConsequences {
 		this.ids = ids;
 	}
 
-	/** The account's lock, by its role; {@code causeId} keeps each notice once per event and Job. */
+	/**
+	 * The account's lock, on every relation it holds: its Crew rows, the Jobs it mentors, and the Jobs it is the
+	 * Customer of; each is a no-op without that relation. {@code causeId} keeps each notice once per event and Job.
+	 */
 	@Transactional
-	void locked(UUID causeId, UUID accountId, @Nullable Role role) {
-		if (role == null) {
-			// A Google account holds no role (Story 19.1); Story 20.4 extends the lock to every relation.
-			return;
-		}
-		switch (role) {
-			case STUDENT -> crewLocked(causeId, accountId);
-			case MENTOR, CUSTOMER -> partyLocked(causeId, accountId, role);
-			default -> {
-			}
-		}
+	void locked(UUID causeId, UUID accountId) {
+		crewLocked(causeId, accountId);
+		partyLocked(causeId, accountId, true);
+		partyLocked(causeId, accountId, false);
 	}
 
-	private void crewLocked(UUID causeId, UUID studentId) {
-		List<UUID> jobs = this.crews.accountLocked(studentId);
-		String name = this.students.cards(List.of(studentId))
+	private void crewLocked(UUID causeId, UUID memberId) {
+		List<UUID> jobs = this.crews.accountLocked(memberId);
+		if (jobs.isEmpty()) {
+			return;
+		}
+		String name = this.students.cards(List.of(memberId))
 			.stream()
 			.findFirst()
 			.map(card -> card.name() != null ? card.name() : card.githubLogin() != null ? "@" + card.githubLogin() : null)
@@ -117,13 +116,16 @@ class LockConsequences {
 		}
 	}
 
-	private void partyLocked(UUID causeId, UUID accountId, Role role) {
-		boolean mentor = role == Role.MENTOR;
+	/** The running Jobs the account mentors ({@code mentor}), or those it is the Customer of. */
+	private void partyLocked(UUID causeId, UUID accountId, boolean mentor) {
 		List<UUID> jobs = this.jdbc.sql("SELECT id FROM job.job WHERE " + (mentor ? "mentor_account_id" : "customer_account_id")
 				+ " = :id AND state IN " + RUNNING + " ORDER BY id")
 			.param("id", accountId)
 			.query(UUID.class)
 			.list();
+		if (jobs.isEmpty()) {
+			return;
+		}
 		String name = mentor ? this.mentors.cards(List.of(accountId)).stream().findFirst().map(card -> card.displayName())
 			.orElse("Người hướng dẫn") : this.customers.displayName(accountId);
 		for (UUID jobId : jobs) {

@@ -22,8 +22,8 @@ import vn.vibefix.job.internal.Jobs.Job;
 import vn.vibefix.shared.KeywordQuery;
 
 /**
- * Open Job Posts as Mentors browse them (FR-12, AD-38): Open and not hidden, 20 a page,
- * narrowed by Job Type, Skills, budget range, and deadline, every filter given at once. Without a
+ * Open Job Posts as users browse them (FR-12, AD-38): Open and not hidden, never the reader's own (AD-36), 20 a
+ * page, narrowed by Job Type, Skills, budget range, and deadline, every filter given at once. Without a
  * keyword they come newest first; with one, by text relevance and then ID only (SG-43), so a
  * Customer's Rating never changes the order.
  */
@@ -54,13 +54,15 @@ class JobPostQueries implements JobPosts {
 		this.jdbc = jdbc;
 	}
 
+	/** One page of the Job Posts {@code reader} may browse: never the Jobs they are the Customer of (AD-36). */
 	@Transactional(readOnly = true)
-	Page list(Filter filter, int page) {
+	Page list(Filter filter, UUID reader, int page) {
 		if (filter.skillIds() != null && filter.skillIds().isEmpty()) {
 			return new Page(List.of(), page, 0);
 		}
-		StringBuilder where = new StringBuilder(VISIBLE);
+		StringBuilder where = new StringBuilder(VISIBLE).append(" AND customer_account_id <> :reader");
 		Map<String, Object> params = new HashMap<>();
+		params.put("reader", reader);
 		if (!filter.types().isEmpty()) {
 			where.append(" AND job_types && CAST(:types AS TEXT[])");
 			params.put("types", filter.types().stream().map(Enum::name).toArray(String[]::new));

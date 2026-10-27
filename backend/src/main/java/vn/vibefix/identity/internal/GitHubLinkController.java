@@ -49,7 +49,6 @@ import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
 import vn.vibefix.shared.Kind;
-import vn.vibefix.shared.Role;
 
 /**
  * ACC-2's GitHub row and the GitHub gate (FR-80, AD-10, AD-19, UX-DR91, UX-DR95). Linking runs inside a
@@ -153,8 +152,7 @@ class GitHubLinkController {
 	 * "Liên kết GitHub ↗ (github.com)" after N-24: records the {@code LINK_GITHUB} acknowledgment and
 	 * answers GitHub's authorization page for this session.
 	 * @throws ApiException {@code NOT_FOUND} for an Administrator; {@code FORBIDDEN PRIVACY_NOTICE_REQUIRED}
-	 * before the current N-10 is accepted; {@code VALIDATION} for {@code PRODUCT} from an account that is
-	 * neither a Customer nor role-less; {@code GUARD_FAILED GITHUB_NOT_SET_UP} without a linking OAuth
+	 * before the current N-10 is accepted; {@code GUARD_FAILED GITHUB_NOT_SET_UP} without a linking OAuth
 	 * App; {@code STALE} for an N-24 version that is not the current one; {@code VALIDATION} for a
 	 * {@code returnTo} outside the SPA
 	 */
@@ -162,15 +160,12 @@ class GitHubLinkController {
 	@Access(Gate.SIGNED_IN)
 	GitHubLinkStartView start(@Valid @RequestBody GitHubLinkRequest body, HttpServletRequest request) {
 		UUID accountId = this.callers.get().requireAccountId();
-		Account account = this.accounts.findById(accountId)
+		this.accounts.findById(accountId)
 			.filter(found -> found.kind() == Kind.USER && found.isActive())
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		// Anyone who may hold a role in a Job links, for any purpose: an account holds no role (Story 20.3).
 		if (!this.accounts.hasAcknowledged(accountId, SignIns.PRIVACY_NOTICE, this.properties.privacyNoticeVersion())) {
 			throw new ApiException(ErrorCode.FORBIDDEN, IdentityReason.PRIVACY_NOTICE_REQUIRED);
-		}
-		// Only who may register a Product links for one: a Customer, or a Google account, which holds no role.
-		if (body.purpose() == Purpose.PRODUCT && account.role() != null && account.role() != Role.CUSTOMER) {
-			throw new ApiException(ErrorCode.VALIDATION);
 		}
 		ClientRegistration registration = this.signIn.registration()
 			.orElseThrow(() -> new ApiException(ErrorCode.GUARD_FAILED, IdentityReason.GITHUB_NOT_SET_UP));

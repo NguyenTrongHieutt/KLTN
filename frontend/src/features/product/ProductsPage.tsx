@@ -5,6 +5,7 @@ import { usePageTitle } from '@/app/usePageTitle'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { buttonVariants } from '@/components/ui/button-variants'
+import { holdsOtherRole } from '@/features/identity/api'
 import { useSession } from '@/features/identity/useSession'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t } from '@/i18n/t'
@@ -13,14 +14,14 @@ import { useProducts, type Product } from './productApi'
 import { ScanStateBadge } from './ScanStateBadge'
 
 /**
- * CUS-2 (`/san-pham`, FR-7, FR-8, UX-DR66): the Customer's Products, each with its scan state and
- * open Findings, its Source Repository, and its Jobs; with none, the empty state and "Đăng ký sản
- * phẩm". Job counts come with Story 3.1.
+ * CUS-2 (`/san-pham`, FR-7, FR-8, UX-DR66): the user's own Products, with no role needed (Story 20.3),
+ * each with its scan state and open Findings, its Source Repository, and its Jobs; with none, the empty
+ * state and "Đăng ký sản phẩm". Job counts come with Story 3.1.
  */
 export function ProductsPage() {
   usePageTitle(t('screen.product.title'))
   const account = useSession().data?.account
-  if (account?.role !== 'CUSTOMER') {
+  if (!account || holdsOtherRole(account, 'CUSTOMER')) {
     return <NotFoundScreen />
   }
   return <ProductList />

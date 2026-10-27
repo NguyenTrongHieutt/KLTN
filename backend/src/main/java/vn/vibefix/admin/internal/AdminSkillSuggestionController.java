@@ -30,7 +30,6 @@ import vn.vibefix.identity.AccountAdministration;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.shared.Role;
 
 /**
  * ADM-12's "Đề xuất" tab (FR-73, FR-72, AD-38): the suggestions, open ones first, each with the suggester, the
@@ -49,7 +48,7 @@ class AdminSkillSuggestionController {
 
 	/** @param status {@code OPEN}, {@code APPROVED}, or {@code DECLINED} */
 	record AdminSkillSuggestionView(UUID id, String name, @Nullable UUID categoryId, @Nullable String categoryName,
-			@Nullable String note, @Nullable String suggesterName, Role suggesterRole, Instant createdAt, String status,
+			@Nullable String note, @Nullable String suggesterName, Instant createdAt, String status,
 			@Nullable SuggestedInactiveSkill inactiveSkill, @Nullable Instant decidedAt, @Nullable String declineReason,
 			@Nullable UUID skillId) {
 	}
@@ -122,8 +121,8 @@ class AdminSkillSuggestionController {
 			Skill flagged = suggestion.inactiveSkillId() == null ? null : skills.get(suggestion.inactiveSkillId());
 			return new AdminSkillSuggestionView(suggestion.id(), suggestion.name(), suggestion.categoryId(),
 					suggestion.categoryId() == null ? null : categories.get(suggestion.categoryId()), suggestion.note(),
-					suggestion.suggesterId() == null ? null : names.get(suggestion.suggesterId()), suggestion.suggesterRole(),
-					suggestion.createdAt(), suggestion.status(),
+					suggestion.suggesterId() == null ? null : names.get(suggestion.suggesterId()), suggestion.createdAt(),
+					suggestion.status(),
 					flagged == null ? null : new SuggestedInactiveSkill(flagged.id(), flagged.name()), suggestion.decidedAt(),
 					suggestion.declineReason(), suggestion.skillId());
 		}).toList();

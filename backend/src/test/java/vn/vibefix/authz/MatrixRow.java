@@ -33,7 +33,8 @@ import org.springframework.http.HttpMethod;
  * <li>{@code check} (optional): the global gate the Mentor endpoint applies (AD-19), {@value #GITHUB_LINKED}
  * for new-work commands (bidding, the Mentor's NDA) and for reading "Tìm việc" (X1), or {@value #ACTIVE_ACCOUNT}
  * for everything else. Every row of an endpoint under {@value #MENTOR_PATH} names one, and no other row does,
- * so a Mentor endpoint cannot be added without deciding which.</li>
+ * so a Mentor endpoint cannot be added without deciding which. The retired Team endpoints under
+ * {@value #REFUSING_PATH} refuse every caller before any gate (Story 20.3), so their rows name none.</li>
  * </ul>
  */
 public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map<String, String> state,
@@ -50,6 +51,9 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 	/** Where the Mentor's own endpoints live, each behind one of the two global gates. */
 	static final String MENTOR_PATH = "/api/v1/mentor/";
 
+	/** The retired Team endpoints, which answer nothing to every caller until Story 21.7 deletes them. */
+	static final String REFUSING_PATH = "/api/v1/mentor/team";
+
 	private static final Set<HttpMethod> METHODS = Set.of(HttpMethod.GET, HttpMethod.POST, HttpMethod.PUT,
 			HttpMethod.PATCH, HttpMethod.DELETE);
 
@@ -61,12 +65,15 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 		if (check != null && !check.equals(GITHUB_LINKED) && !check.equals(ACTIVE_ACCOUNT)) {
 			throw new IllegalArgumentException("check is " + GITHUB_LINKED + " or " + ACTIVE_ACCOUNT + ", not " + check);
 		}
-		if (path.startsWith(MENTOR_PATH) && check == null) {
+		boolean gated = path.startsWith(MENTOR_PATH) && !path.equals(REFUSING_PATH)
+				&& !path.startsWith(REFUSING_PATH + "/");
+		if (gated && check == null) {
 			throw new IllegalArgumentException("a Mentor endpoint names its check, " + GITHUB_LINKED + " or "
 					+ ACTIVE_ACCOUNT + " (AD-19): " + path);
 		}
-		if (!path.startsWith(MENTOR_PATH) && check != null) {
-			throw new IllegalArgumentException("only a Mentor endpoint under " + MENTOR_PATH + " names a check: " + path);
+		if (!gated && check != null) {
+			throw new IllegalArgumentException("only a Mentor endpoint under " + MENTOR_PATH
+					+ " that a gate guards names a check: " + path);
 		}
 	}
 

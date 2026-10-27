@@ -87,8 +87,8 @@ class Recommendations {
 	}
 
 	/**
-	 * Mentors for the Job Post (AD-17): approved, unlocked Mentors who could apply under FR-13 and share
-	 * a Skill or a Job Type of their work history with it, in {@link #order}; the Skill filter then
+	 * Mentors for the Job Post (AD-17): available users, never the Job's Customer, who could apply under FR-13 and
+	 * share a Skill or a Job Type of their work history with it, in {@link #order}; the Skill filter then
 	 * narrows them without reordering.
 	 */
 	@Transactional(readOnly = true)
@@ -102,6 +102,8 @@ class Recommendations {
 			.filter(id -> !pool.containsKey(id))
 			.toList();
 		pool.putAll(this.mentors.skillIdsOf(experienced));
+		// The Job's Customer is never its Mentor (AD-43): never recommended for their own Job.
+		pool.remove(post.customerId());
 		if (pool.isEmpty()) {
 			return List.of();
 		}
@@ -129,9 +131,9 @@ class Recommendations {
 	}
 
 	/**
-	 * Job Posts for the Mentor (AD-17): Open, non-hidden ones not yet applied to that share a Skill or a
-	 * Job Type of their work history, by shared Skills, then Job Type matches, then newest first; the
-	 * Skill filter narrows them without reordering.
+	 * Job Posts for the Mentor (AD-17): Open, non-hidden ones not yet applied to and not their own (AD-36) that
+	 * share a Skill or a Job Type of their work history, by shared Skills, then Job Type matches, then newest
+	 * first; the Skill filter narrows them without reordering.
 	 */
 	@Transactional(readOnly = true)
 	List<RecommendedPost> forMentor(UUID mentorId, @Nullable Set<UUID> skillFilter) {
@@ -145,7 +147,8 @@ class Recommendations {
 			.list());
 		List<RecommendedPost> recommended = new ArrayList<>();
 		for (OpenPost post : this.posts.openPosts()) {
-			if (applied.contains(post.jobId())) {
+			// "Tìm việc" never shows the reader's own Jobs (AD-36).
+			if (applied.contains(post.jobId()) || post.customerId().equals(mentorId)) {
 				continue;
 			}
 			List<UUID> shared = post.skillIds().stream().filter(skills::contains).toList();

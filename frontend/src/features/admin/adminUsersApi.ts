@@ -7,12 +7,11 @@ export type AdminUsers = components['schemas']['UsersView']
 export type AdminUserRow = components['schemas']['UserRowView']
 export type AdminUser = components['schemas']['UserDetailView']
 export type PersonLink = components['schemas']['PersonLinkView']
-export type UserRole = 'CUSTOMER' | 'MENTOR' | 'STUDENT'
 export type UserFilter = 'LOCKED' | 'VERIFIED' | 'LOW_FEEDBACK'
 
+/** ADM-10's search: no account role filters it (Story 20.3); a person's roles are per Job. */
 export interface UserQuery {
   q?: string
-  role?: UserRole
   status?: UserFilter
   page: number
 }
@@ -26,7 +25,7 @@ export function useAdminUsers(query: UserQuery) {
     queryFn: () =>
       unwrap(
         apiClient.GET('/api/v1/admin/users', {
-          params: { query: { q: query.q || undefined, role: query.role, status: query.status, page: query.page } },
+          params: { query: { q: query.q || undefined, status: query.status, page: query.page } },
         }),
       ),
     placeholderData: keepPreviousData,
@@ -35,8 +34,8 @@ export function useAdminUsers(query: UserQuery) {
 }
 
 /**
- * One account with its history, the accounts that may be the same person (AD-19), and, for a Mentor, the
- * private feedback (FR-78).
+ * One account with its history, the accounts that may be the same person (AD-19), and the private feedback about
+ * it as a Mentor in any Job (FR-78), when anyone gave some.
  */
 export function useAdminUser(accountId: string) {
   return useQuery({

@@ -17,7 +17,6 @@ import vn.vibefix.job.JobRole;
 import vn.vibefix.job.internal.Jobs.Job;
 import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.Kind;
-import vn.vibefix.shared.Role;
 
 /** AD-43: an anonymous caller and an Administrator hold no role in any Job, answered without a read. */
 class JobRoleReaderTest {
@@ -28,7 +27,7 @@ class JobRoleReaderTest {
 		UUID job = UUID.randomUUID();
 
 		assertThat(reader.roleOf(job, Caller.anonymous())).isEqualTo(JobRole.NONE);
-		assertThat(reader.roleOf(job, Caller.account(UUID.randomUUID(), Kind.ADMINISTRATOR, Role.ADMINISTRATOR)))
+		assertThat(reader.roleOf(job, Caller.account(UUID.randomUUID(), Kind.ADMINISTRATOR)))
 			.isEqualTo(JobRole.NONE);
 	}
 
@@ -42,7 +41,7 @@ class JobRoleReaderTest {
 				null, 1, null, UUID.randomUUID(), UUID.randomUUID(), Instant.EPOCH);
 
 		assertThat(reader.roleOf(job, Caller.anonymous())).isEqualTo(JobRole.NONE);
-		assertThat(reader.roleOf(job, Caller.account(admin, Kind.ADMINISTRATOR, Role.ADMINISTRATOR)))
+		assertThat(reader.roleOf(job, Caller.account(admin, Kind.ADMINISTRATOR)))
 			.isEqualTo(JobRole.NONE);
 	}
 

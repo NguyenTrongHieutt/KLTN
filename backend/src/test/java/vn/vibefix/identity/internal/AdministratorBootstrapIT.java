@@ -84,7 +84,7 @@ class AdministratorBootstrapIT extends IntegrationTest {
 
 	@Test
 	void itRefusesOnceAnyAdministratorExists() {
-		IdentityTestSupport.insertAccount(this.jdbc, vn.vibefix.shared.Role.ADMINISTRATOR, null);
+		IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
 
 		assertThatThrownBy(() -> this.bootstrap.createFirst("lam@vibefix.vn", "Lâm", PASSWORD.clone()))
 			.isInstanceOf(IllegalStateException.class)

@@ -49,12 +49,12 @@ import com.sun.net.httpserver.HttpServer;
 import vn.vibefix.identity.AccountLocked;
 import vn.vibefix.identity.internal.CustomerTokens;
 import vn.vibefix.identity.internal.IdentityTestSupport;
+import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.Crews;
 import vn.vibefix.operations.FailedOperations;
 import vn.vibefix.operations.Lane;
 import vn.vibefix.operations.internal.OperationWorker;
 import vn.vibefix.payment.Ledger;
-import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
 import vn.vibefix.team.internal.TeamTestSupport;
@@ -348,7 +348,10 @@ class FundingIT extends IntegrationTest {
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.milestones[0].crewTermsVersionNo").value(1))
 			.andExpect(jsonPath("$.milestones[0].releases.length()").value(2))
-			.andExpect(jsonPath("$.milestones[0].releases[1].role").value("CREW"));
+			.andExpect(jsonPath("$.milestones[0].releases[0].role").value("MENTOR"))
+			.andExpect(jsonPath("$.milestones[0].releases[0].name").value("Đỗ Mạnh Hùng"))
+			.andExpect(jsonPath("$.milestones[0].releases[1].role").value("CREW"))
+			.andExpect(jsonPath("$.milestones[0].releases[1].name").value("Lê Thảo Vy"));
 		this.mvc.perform(get("/api/v1/mentor/jobs/" + this.job + "/funding").with(as(this.vy, Role.STUDENT)))
 			.andExpect(status().isNotFound());
 	}
@@ -357,7 +360,7 @@ class FundingIT extends IntegrationTest {
 	void aLockedCrewMemberHoldsMilestoneOneBack() throws Exception {
 		confirmedAgreement("BUG_FIX");
 		UUID orderId = created();
-		AccountLocked locked = new AccountLocked(UUID.randomUUID(), this.vy, Role.STUDENT);
+		AccountLocked locked = new AccountLocked(UUID.randomUUID(), this.vy);
 		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.events.publishEvent(locked));
 		await().atMost(Duration.ofSeconds(10)).until(() -> count(
 				"SELECT count(*) FROM job.job WHERE crew_reconfirm_owed_at IS NOT NULL AND id = '" + this.job + "'") == 1);

@@ -23,9 +23,9 @@ import vn.vibefix.shared.Kind;
 /**
  * Turns the session's account into the request's {@link Caller} (AD-20), after re-reading the account from
  * the database on every request (AD-19). The session holds only the account's ID and kind; the caller's kind
- * and its transitional role come from the account row, never from the session. An account that is locked,
- * erased, gone, or of another kind than the session says loses its session at once, and the request continues
- * as anonymous. An Administrator session also ends after 30 minutes without a command or 8 hours after sign-in
+ * comes from the account row, never from the session, and the caller carries nothing else. An account that is
+ * locked, erased, gone, or of another kind than the session says loses its session at once, and the request
+ * continues as anonymous. An Administrator session also ends after 30 minutes without a command or 8 hours after sign-in
  * (SG-10); only a command, never a read such as a poll, counts as activity.
  */
 class CallerFilter extends OncePerRequestFilter {
@@ -51,7 +51,7 @@ class CallerFilter extends OncePerRequestFilter {
 				.filter(found -> found.isActive() && found.kind() == signedIn.kind());
 			if (account.isPresent() && withinAdministratorLimits(account.get().kind(), request)) {
 				request.setAttribute(Caller.REQUEST_ATTRIBUTE,
-						Caller.account(account.get().id(), account.get().kind(), account.get().role()));
+						Caller.account(account.get().id(), account.get().kind()));
 			}
 			else {
 				SecurityContextHolder.clearContext();

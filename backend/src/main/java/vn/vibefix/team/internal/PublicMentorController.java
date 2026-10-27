@@ -6,16 +6,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import vn.vibefix.shared.Access;
-import vn.vibefix.shared.Caller;
-import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.shared.Role;
 import vn.vibefix.team.internal.TeamViews.PublicMentorView;
 
 /**
- * PUB-5 (`/mentor/{username}`, FR-51, FR-6): a Mentor's public profile with their Team, for anyone;
- * a signed-in Student also learns whether they may ask to join. Portfolio Entries and Ratings come
- * with Story 3.5.
+ * PUB-5 (`/mentor/{username}`, FR-51, FR-6): a Mentor's public profile with their Team, for anyone, and the
+ * profile Sheets of CUS-8 and the Mentor search. It names no viewer: only an account role told a Student who may
+ * ask to join, and no account carries one since Story 20.3. Portfolio Entries and Ratings come with Story 3.5.
  */
 @RestController
 @RequestMapping("/api/v1/mentors")
@@ -24,17 +21,13 @@ class PublicMentorController {
 
 	private final TeamViews views;
 
-	private final CurrentCaller callers;
-
-	PublicMentorController(TeamViews views, CurrentCaller callers) {
+	PublicMentorController(TeamViews views) {
 		this.views = views;
-		this.callers = callers;
 	}
 
 	@GetMapping("/{username}")
 	PublicMentorView mentor(@PathVariable String username) {
-		Caller caller = this.callers.get();
-		return this.views.publicMentor(username, caller.hasRole(Role.STUDENT) ? caller.requireAccountId() : null);
+		return this.views.publicMentor(username, null);
 	}
 
 }

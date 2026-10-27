@@ -40,7 +40,6 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import vn.vibefix.identity.CustomerRepositories;
 import vn.vibefix.shared.ApiException;
-import vn.vibefix.shared.Role;
 import vn.vibefix.support.Browser;
 import vn.vibefix.support.IntegrationTest;
 
@@ -526,7 +525,7 @@ class GitHubLinkIT extends IntegrationTest {
 	}
 
 	@Test
-	void onlyACustomerOrAnAccountWithNoRoleLinksForAProduct() throws Exception {
+	void anyUserLinksForAProductWhateverRoleTheRowStores() throws Exception {
 		this.browser.perform(get("/api/v1/session"));
 		for (Role role : List.of(Role.MENTOR, Role.STUDENT, Role.CUSTOMER)) {
 			UUID account = unlinked(role);
@@ -537,7 +536,8 @@ class GitHubLinkIT extends IntegrationTest {
 				.param("now", Timestamp.from(this.clock.instant())).update();
 			MvcResult started = as(account, role, post("/api/v1/identity/github/link"), null, "{\"noticeVersion\":\"1.0\","
 					+ "\"purpose\":\"PRODUCT\"}");
-			assertThat(started.getResponse().getStatus()).as(role.name()).isEqualTo(role == Role.CUSTOMER ? 200 : 400);
+			// An account holds no role (Story 20.3): anyone may register a Product, so anyone links for one.
+			assertThat(started.getResponse().getStatus()).as(role.name()).isEqualTo(200);
 		}
 		UUID google = signIn(this.browser, "google-lan", "lan.nguyen@gmail.test", "Nguyễn Thị Lan");
 		assertThat(start(this.browser, "1.0", "PRODUCT", null).getResponse().getStatus()).as("no role").isEqualTo(200);

@@ -11,7 +11,6 @@ import vn.vibefix.authz.MatrixWorld;
 import vn.vibefix.authz.fixtures.RoleCallers;
 import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.Kind;
-import vn.vibefix.shared.Role;
 
 /**
  * Seeds {@code {noteId}} and realizes the note's {@link MatrixCaller#AUTHOR}, for
@@ -26,7 +25,7 @@ public class NoteFixture implements MatrixFixture {
 
 	@Override
 	public Optional<RequestPostProcessor> realize(MatrixCaller caller, Map<String, String> state, MatrixWorld world) {
-		Caller author = Caller.account(HarnessController.AUTHOR_ID, Kind.USER, Role.STUDENT);
+		Caller author = Caller.account(HarnessController.AUTHOR_ID, Kind.USER);
 		return switch (caller) {
 			case AUTHOR -> Optional.of(RoleCallers.as(author));
 			default -> Optional.empty();

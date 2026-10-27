@@ -32,11 +32,11 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import vn.vibefix.identity.internal.IdentityTestSupport;
+import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.JobTransitioned;
 import vn.vibefix.job.internal.JobLifecycle.Actor;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
-import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
 import vn.vibefix.timers.internal.DeadlinePoller;

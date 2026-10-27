@@ -41,7 +41,6 @@ import vn.vibefix.identity.ContactVisibility;
 import vn.vibefix.identity.CustomerNames;
 import vn.vibefix.identity.StudentDirectory;
 import vn.vibefix.notification.RecipientAddresses;
-import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
 import vn.vibefix.support.PostgresTestDatabase;

@@ -6,6 +6,7 @@ import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { ReportAbuseMenu } from '@/features/abuse/ReportAbuseMenu'
+import { holdsOtherRole } from '@/features/identity/api'
 import { useSession } from '@/features/identity/useSession'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t, type MessageKey } from '@/i18n/t'
@@ -30,7 +31,7 @@ import { useCustomerRating, useJobPost, useMentorCapacity, type JobPost, type Me
 export function JobPostPage() {
   const { postId } = useParams()
   const account = useSession().data?.account
-  if (account && account.role !== 'MENTOR') {
+  if (account && holdsOtherRole(account, 'MENTOR')) {
     return <NotFoundScreen />
   }
   if (account && !account.capabilities.githubVerified) {

@@ -40,13 +40,13 @@ import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.shared.Role;
 
 /**
  * ADM-2 (FR-5, FR-59, FR-78, AD-19, AD-20, SG-10): the users, one account with its history, the accounts
- * that may be the same person ("Tài khoản có thể cùng một người") and, for a Mentor, the private feedback
+ * that may be the same person ("Tài khoản có thể cùng một người") and the private feedback about them as a Mentor
  * (opening either is audited), and the lock, the unlock, and the erasure on the person's request. Nobody is
- * approved or revoked here (Story 19.7); a 5th step-up failure ends the Administrator's session.
+ * approved or revoked here (Story 19.7), and no account carries a role (Story 20.3); a 5th step-up failure ends
+ * the Administrator's session.
  */
 @RestController
 @RequestMapping("/api/v1/admin/users")
@@ -60,8 +60,8 @@ class AdminUsersController {
 
 	}
 
-	/** @param role absent for a Google account, which has none until Epic 20 */
-	record UserRowView(UUID id, @Nullable Role role, @Nullable String name, @Nullable String githubLogin, boolean locked,
+	/** @param status {@code VERIFIED} for a verified student; absent otherwise */
+	record UserRowView(UUID id, @Nullable String name, @Nullable String githubLogin, boolean locked,
 			@Nullable String status, Instant createdAt) {
 	}
 
@@ -107,10 +107,11 @@ class AdminUsersController {
 
 	/**
 	 * @param personLinks the accounts that may be the same person, the oldest first (AD-19)
-	 * @param feedback a Mentor's private feedback, when anyone gave any (FR-78)
+	 * @param feedback the private feedback about the person as a Mentor, when anyone gave any (FR-78); ADM-2 shows
+	 * its section for every user, with its Empty state while there is none
 	 * @param deletionRequest the person's account deletion request, if they made one (NFR-11)
 	 */
-	record UserDetailView(UUID id, @Nullable Role role, @Nullable String name, @Nullable String githubLogin, @Nullable String email,
+	record UserDetailView(UUID id, @Nullable String name, @Nullable String githubLogin, @Nullable String email,
 			Instant createdAt, @Nullable Instant signedInAt, @Nullable Instant lockedAt, @Nullable String lockReason,
 			@Nullable UserVerificationView verification, List<ActionView> history, List<PersonLinkView> personLinks,
 			@Nullable FeedbackView feedback, @Nullable DeletionRequestView deletionRequest) {
@@ -139,20 +140,17 @@ class AdminUsersController {
 	}
 
 	@GetMapping
-	UsersView users(@RequestParam(required = false) @Nullable String q, @RequestParam(required = false) @Nullable Role role,
+	UsersView users(@RequestParam(required = false) @Nullable String q,
 			@RequestParam(required = false) @Nullable Filter status, @RequestParam(defaultValue = "0") int page) {
-		if (role == Role.ADMINISTRATOR) {
-			throw new ApiException(ErrorCode.VALIDATION);
-		}
 		Set<UUID> ids = status == Filter.LOW_FEEDBACK ? this.feedback.belowThreshold()
 			.stream()
 			.map(PrivateFeedback.Summary::mentorId)
 			.collect(Collectors.toSet()) : null;
 		Status identityStatus = status == null || status == Filter.LOW_FEEDBACK ? null : Status.valueOf(status.name());
-		AccountAdministration.Page found = this.accounts.search(new Query(q, role, identityStatus, ids, page));
+		AccountAdministration.Page found = this.accounts.search(new Query(q, identityStatus, ids, page));
 		return new UsersView(found.items()
 			.stream()
-			.map(row -> new UserRowView(row.id(), row.role(), row.name(), row.githubLogin(), row.locked(), row.status(),
+			.map(row -> new UserRowView(row.id(), row.name(), row.githubLogin(), row.locked(), row.status(),
 					row.createdAt()))
 			.toList(), found.total(), found.page(), found.size());
 	}
@@ -200,10 +198,10 @@ class AdminUsersController {
 	private UserDetailView detail(UUID accountId, boolean viewed) {
 		AccountAdministration.Account account = this.accounts.account(accountId)
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		FeedbackView feedback = account.role() != Role.MENTOR ? null
-				: this.feedback.summary(accountId)
-					.map(summary -> new FeedbackView(summary.average(), summary.count(), summary.comments()))
-					.orElse(null);
+		// Anyone may be a Mentor in some Job (Story 20.3): the private feedback is read for every user.
+		FeedbackView feedback = this.feedback.summary(accountId)
+			.map(summary -> new FeedbackView(summary.average(), summary.count(), summary.comments()))
+			.orElse(null);
 		if (viewed && feedback != null) {
 			// Reading a Mentor's private feedback is itself audited (FR-78, AD-8).
 			this.auditLog.record(AuditEntry.of(AuditActor.user(administrator()), "admin.private_feedback_viewed",
@@ -216,7 +214,7 @@ class AdminUsersController {
 			.map(link -> new PersonLinkView(link.accountId(), link.name(), link.kinds(), link.locked(), link.erased(),
 					link.createdAt()))
 			.toList();
-		return new UserDetailView(account.id(), account.role(), account.name(), account.githubLogin(), account.email(),
+		return new UserDetailView(account.id(), account.name(), account.githubLogin(), account.email(),
 				account.createdAt(), account.signedInAt(), account.lockedAt(), account.lockReason(),
 				account.verification() == null ? null
 						: new UserVerificationView(account.verification().method(), account.verification().verifiedAt(),

@@ -25,9 +25,9 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import com.jayway.jsonpath.JsonPath;
 
 import vn.vibefix.identity.internal.IdentityTestSupport;
+import vn.vibefix.identity.internal.Role;
 import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.Kind;
-import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
 import vn.vibefix.team.internal.TeamTestSupport;
@@ -123,6 +123,46 @@ class RecommendationsIT extends IntegrationTest {
 			.andExpect(jsonPath("$[1].signals.newcomer").value(false));
 	}
 
+	/**
+	 * Story 20.3: anyone with a profile who could take the Job is recommended, a user with no role too, but never the
+	 * Job's own Customer, who cannot be its Mentor (AD-43).
+	 */
+	@Test
+	void aUserWithNoRoleIsRecommendedAndTheJobsCustomerNever() throws Exception {
+		UUID job = job("OPEN", List.of("BUG_FIX"), List.of(REACT), null);
+		UUID minh = withFreeStudent(TeamTestSupport.googleMentor(this.jdbc, "Ngô Văn Minh", List.of(REACT), "React"),
+				"Ngô Văn Minh");
+		this.jdbc.sql("""
+				INSERT INTO identity.profile (account_id, display_name, skill_ids, skill_names, updated_at)
+				VALUES (:id, 'Lan Nguyễn', CAST(:skills AS UUID[]), 'React', now())
+				""").param("id", this.lan).param("skills", "{" + REACT + "}").update();
+		withFreeStudent(this.lan, "Lan Nguyễn");
+
+		String body = this.mvc.perform(get("/api/v1/jobs/" + job + "/recommendations").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(status().isOk())
+			.andReturn()
+			.getResponse()
+			.getContentAsString();
+		List<String> ids = JsonPath.read(body, "$[*].accountId");
+		assertThat(ids).containsExactly(minh.toString()).doesNotContain(this.lan.toString());
+	}
+
+	/** Story 20.3: "Tìm việc" never shows the reader's own Jobs (AD-36), whatever Skills they share. */
+	@Test
+	void aMentorsOwnOpenJobIsNeverRecommendedToThem() throws Exception {
+		UUID hung = mentor("Đỗ Mạnh Hùng", List.of(REACT), true);
+		UUID own = job(product(hung), hung, "OPEN", List.of("BUG_FIX"), List.of(REACT), null);
+		UUID lans = job("OPEN", List.of("BUG_FIX"), List.of(REACT), null);
+
+		String body = this.mvc.perform(get("/api/v1/mentor/recommendations").with(as(hung, Role.MENTOR)))
+			.andExpect(status().isOk())
+			.andReturn()
+			.getResponse()
+			.getContentAsString();
+		List<String> ids = JsonPath.read(body, "$[*].id");
+		assertThat(ids).containsExactly(lans.toString()).doesNotContain(own.toString());
+	}
+
 	/** Story 20.1: MEN-2's Recommendations are part of "Tìm việc" (X1), which needs GitHub linked. */
 	@Test
 	void aMentorWithoutGitHubLinkedIsRefusedTheRecommendations() throws Exception {
@@ -172,30 +212,38 @@ class RecommendationsIT extends IntegrationTest {
 		UUID locked = mentor("Bị Khóa", List.of(REACT), true);
 		IdentityTestSupport.lock(this.jdbc, locked, "Vi phạm");
 		this.mvc.perform(get("/api/v1/mentor/recommendations").with(request -> {
-			request.setAttribute(Caller.REQUEST_ATTRIBUTE, Caller.account(locked, Kind.USER, Role.MENTOR));
+			request.setAttribute(Caller.REQUEST_ATTRIBUTE, Caller.account(locked, Kind.USER));
 			return request;
 		})).andExpect(status().isForbidden()).andExpect(jsonPath("$.reason").value("ACCOUNT_LOCKED"));
 	}
 
 	private UUID mentor(String name, List<String> skills, boolean withFreeStudent) {
 		UUID mentor = TeamTestSupport.mentor(this.jdbc, name, skills, "Kỹ năng");
-		if (withFreeStudent) {
-			UUID team = UUID.randomUUID();
-			this.jdbc.sql("INSERT INTO team.team (id, mentor_account_id, status, created_at) VALUES (:id, :mentor, 'OPEN', now())")
-				.param("id", team)
-				.param("mentor", mentor)
-				.update();
-			UUID student = TeamTestSupport.student(this.jdbc, "Sinh viên của " + name, true, List.of(REACT), "React",
-					LocalDate.parse("2026-09-30"));
-			this.jdbc.sql("""
-					INSERT INTO team.membership (id, team_id, student_account_id, joined_at) VALUES (:id, :team, :student, now())
-					""").param("id", UUID.randomUUID()).param("team", team).param("student", student).update();
-		}
+		return withFreeStudent ? withFreeStudent(mentor, name) : mentor;
+	}
+
+	/** Gives the account a Team with one free Student, as FR-13 needs to take a Job. */
+	private UUID withFreeStudent(UUID mentor, String name) {
+		UUID team = UUID.randomUUID();
+		this.jdbc.sql("INSERT INTO team.team (id, mentor_account_id, status, created_at) VALUES (:id, :mentor, 'OPEN', now())")
+			.param("id", team)
+			.param("mentor", mentor)
+			.update();
+		UUID student = TeamTestSupport.student(this.jdbc, "Sinh viên của " + name, true, List.of(REACT), "React",
+				LocalDate.parse("2026-09-30"));
+		this.jdbc.sql("""
+				INSERT INTO team.membership (id, team_id, student_account_id, joined_at) VALUES (:id, :team, :student, now())
+				""").param("id", UUID.randomUUID()).param("team", team).param("student", student).update();
 		return mentor;
 	}
 
 	/** A Job of the Customer in {@code state}; past Open it has {@code mentor}, selected now. */
 	private UUID job(String state, List<String> types, List<String> skills, UUID mentor) {
+		return job(this.product, this.lan, state, types, skills, mentor);
+	}
+
+	/** A Job of {@code owner} on {@code product} in {@code state}; past Open it has {@code mentor}, selected now. */
+	private UUID job(UUID product, UUID owner, String state, List<String> types, List<String> skills, UUID mentor) {
 		UUID id = UUID.randomUUID();
 		Instant now = this.clock.instant();
 		boolean draft = "DRAFT".equals(state);
@@ -208,8 +256,8 @@ class RecommendationsIT extends IntegrationTest {
 				    CAST(:rules AS JSONB), :days, :opened, :lapses, :mentor, :application, :selected, 1, :now, :now)
 				""")
 			.param("id", id)
-			.param("product", this.product)
-			.param("owner", this.lan)
+			.param("product", product)
+			.param("owner", owner)
 			.param("state", state)
 			.param("types", "{" + String.join(",", types) + "}")
 			.param("skills", "{" + String.join(",", skills) + "}")

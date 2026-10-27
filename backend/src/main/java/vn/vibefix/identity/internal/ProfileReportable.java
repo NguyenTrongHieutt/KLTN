@@ -48,7 +48,9 @@ class ProfileReportable implements ReportableContent {
 					? Optional.of(new Reported(null, null, id, mentor.get().displayName())) : Optional.empty();
 		}
 		Optional<StudentCard> student = this.students.cards(List.of(id)).stream().findFirst();
-		if (student.isEmpty() || this.students.profileByLogin(student.get().githubLogin()).isEmpty()) {
+		// An account without GitHub linked has no public profile to report (Story 20.3 lists every person's account).
+		if (student.isEmpty() || student.get().githubLogin() == null
+				|| this.students.profileByLogin(student.get().githubLogin()).isEmpty()) {
 			return Optional.empty();
 		}
 		StudentCard card = student.get();

@@ -25,14 +25,14 @@ import org.springframework.session.SessionRepository;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import vn.vibefix.shared.Kind;
-import vn.vibefix.shared.Role;
 import vn.vibefix.support.MutableClock;
 
 /**
  * Accounts for tests that need a signed-in caller without the sign-in flow: a row in
- * {@code identity.account} and the authentication a session would hold for it. An account with a role
- * is the shim of the accounts from before Google sign-in (Story 19.1), kept while tests move over to
- * roles per Job (Epic 20).
+ * {@code identity.account} and the authentication a session would hold for it. An account with a {@link Role}
+ * (the test-only shim enum, Story 20.3) is the shim of the accounts from before Google sign-in (Story 19.1),
+ * kept while tests move over to roles per Job (Epic 20): the role seeds the row and its kind, and nothing on
+ * the server decides on it.
  */
 public final class IdentityTestSupport {
 
@@ -88,6 +88,23 @@ public final class IdentityTestSupport {
 			.param("now", now)
 			.update();
 		return id;
+	}
+
+	/**
+	 * Links the next fake GitHub account ({@code user-{id}}) to the account, as linking does (Story 19.2); a Google
+	 * account with it is a {@code USER} whose {@code githubVerified} capability holds, with no role anywhere.
+	 */
+	public static void linkGitHub(JdbcClient jdbc, UUID accountId) {
+		long githubId = githubIds.incrementAndGet();
+		jdbc.sql("""
+				UPDATE identity.account SET github_user_id = :githubId, github_login = :login, github_linked_at = :now
+				WHERE id = :id
+				""")
+			.param("githubId", githubId)
+			.param("login", "user-" + githubId)
+			.param("now", Timestamp.from(MutableClock.DEFAULT_INSTANT))
+			.param("id", accountId)
+			.update();
 	}
 
 	/**

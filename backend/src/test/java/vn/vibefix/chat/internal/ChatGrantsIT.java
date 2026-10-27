@@ -11,10 +11,10 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import vn.vibefix.chat.internal.Chats.Chat;
 import vn.vibefix.chat.internal.Chats.Kind;
 import vn.vibefix.identity.internal.IdentityTestSupport;
+import vn.vibefix.identity.internal.Role;
 import vn.vibefix.shared.AdminReadGrants;
 import vn.vibefix.shared.AdminReadScope;
 import vn.vibefix.shared.Caller;
-import vn.vibefix.shared.Role;
 import vn.vibefix.support.AdminReadGrantsContract;
 import vn.vibefix.support.IntegrationTest;
 
@@ -61,7 +61,7 @@ class ChatGrantsIT extends IntegrationTest implements AdminReadGrantsContract {
 
 	@Override
 	public void read(UUID adminId, Seeded item) {
-		Caller admin = Caller.account(adminId, vn.vibefix.shared.Kind.ADMINISTRATOR, Role.ADMINISTRATOR);
+		Caller admin = Caller.account(adminId, vn.vibefix.shared.Kind.ADMINISTRATOR);
 		this.access.reader(item.jobId(), Kind.JOB, admin);
 	}
 

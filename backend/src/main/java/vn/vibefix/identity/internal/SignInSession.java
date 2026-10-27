@@ -72,7 +72,7 @@ final class SignInSession {
 
 	/**
 	 * The authenticated account in the security context: its ID and its kind, and nothing else (AD-19). The
-	 * transitional role, the GitHub link, the verifications, and the lock are read from the database on every
+	 * account row's kind, the GitHub link, the verifications, and the lock are read from the database on every
 	 * request, never from here, so a session from before a change never carries a stale fact. It grants no
 	 * authority: the caller filter and each module's policy decide.
 	 */

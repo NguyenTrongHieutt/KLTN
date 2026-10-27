@@ -11,7 +11,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 import vn.vibefix.identity.internal.IdentityTestSupport;
-import vn.vibefix.shared.Role;
+import vn.vibefix.identity.internal.Role;
 import vn.vibefix.team.internal.TeamTestSupport;
 
 /**

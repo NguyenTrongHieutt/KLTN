@@ -20,7 +20,6 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import com.jayway.jsonpath.JsonPath;
 
-import vn.vibefix.shared.Role;
 import vn.vibefix.support.Browser;
 import vn.vibefix.support.IntegrationTest;
 

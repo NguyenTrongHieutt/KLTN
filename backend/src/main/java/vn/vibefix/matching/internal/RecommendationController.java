@@ -37,7 +37,6 @@ import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.shared.Role;
 import vn.vibefix.team.Teams;
 
 /**
@@ -145,12 +144,15 @@ class RecommendationController {
 		}).toList();
 	}
 
-	/** A Mentor's Recommendations on MEN-2, behind the GitHub gate of "Tìm việc" (X1, Story 20.1). */
+	/**
+	 * A user's Recommendations on MEN-2, behind the GitHub gate of "Tìm việc" (X1, Stories 20.1 and 20.3); never
+	 * the user's own Jobs (AD-36).
+	 */
 	@GetMapping("/api/v1/mentor/recommendations")
 	List<RecommendedPostView> forMentor(@RequestParam(name = "skill", required = false) @Nullable List<UUID> skills,
 			@RequestParam(name = "category", required = false) @Nullable List<UUID> categories) {
 		Caller caller = this.callers.get();
-		if (!caller.hasRole(Role.MENTOR)) {
+		if (!caller.isUser()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		UUID mentor = caller.requireAccountId();

@@ -22,6 +22,7 @@ import vn.vibefix.shared.Gate;
 /**
  * The Team Evidence Package's Crew Terms versions (FR-79, AD-20, AD-40, UX-DR84): every version of the Job
  * with each party's share and confirmation, read only under the assigned Administrator's grant and audited.
+ * Each party's role is their role in this Job ({@code job.roleOf}, AD-43), never which directory describes them.
  */
 @RestController
 @Access(Gate.ADMINISTRATOR)
@@ -46,7 +47,11 @@ class AdminCrewTermsController {
 
 	private final CurrentCaller callers;
 
-	AdminCrewTermsController(CrewTermsGrants grants, StudentDirectory students, MentorDirectory mentors, CurrentCaller callers) {
+	private final JobRoleReader roles;
+
+	AdminCrewTermsController(CrewTermsGrants grants, StudentDirectory students, MentorDirectory mentors, CurrentCaller callers,
+			JobRoleReader roles) {
+		this.roles = roles;
 		this.grants = grants;
 		this.students = students;
 		this.mentors = mentors;
@@ -58,23 +63,25 @@ class AdminCrewTermsController {
 		List<Version> versions = this.grants.crewTerms(this.callers.get().requireAccountId(), jobId);
 		List<UUID> parties = versions.stream().flatMap(version -> version.shares().stream()).map(Share::accountId).distinct().toList();
 		Map<UUID, String> names = new HashMap<>();
-		Map<UUID, String> roles = new HashMap<>();
-		if (!parties.isEmpty()) {
-			this.students.cards(parties).forEach(card -> {
+		Map<UUID, String> partyRoles = new HashMap<>();
+		List<UUID> jobMentors = parties.stream().filter(party -> this.roles.roleOf(jobId, party).isMentor()).toList();
+		List<UUID> crew = parties.stream().filter(party -> !jobMentors.contains(party)).toList();
+		if (!crew.isEmpty()) {
+			this.students.cards(crew).forEach(card -> {
 				names.put(card.accountId(), card.shownName());
-				roles.put(card.accountId(), "STUDENT");
+				partyRoles.put(card.accountId(), "STUDENT");
 			});
-			this.mentors.cards(parties).forEach(card -> {
-				names.put(card.accountId(), card.displayName());
-				roles.put(card.accountId(), "MENTOR");
-			});
+		}
+		if (!jobMentors.isEmpty()) {
+			this.mentors.cards(jobMentors).forEach(card -> names.put(card.accountId(), card.displayName()));
+			jobMentors.forEach(mentor -> partyRoles.put(mentor, "MENTOR"));
 		}
 		return new CrewTermsEvidenceView(jobId, versions.stream()
 			.map(version -> new CrewTermsVersionEvidenceView(version.versionNo(), version.status(), version.createdAt(),
 					version.shares()
 						.stream()
 						.map(share -> new CrewTermsShareEvidenceView(names.getOrDefault(share.accountId(), ""),
-								roles.getOrDefault(share.accountId(), "STUDENT"), share.percent(), share.confirmedAt()))
+								partyRoles.getOrDefault(share.accountId(), "STUDENT"), share.percent(), share.confirmedAt()))
 						.toList()))
 			.toList());
 	}

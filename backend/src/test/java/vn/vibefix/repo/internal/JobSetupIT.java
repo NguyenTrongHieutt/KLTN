@@ -36,6 +36,7 @@ import vn.vibefix.identity.AccountLocked;
 import vn.vibefix.identity.internal.CustomerTokens;
 import vn.vibefix.identity.internal.AdministratorTestSupport;
 import vn.vibefix.identity.internal.IdentityTestSupport;
+import vn.vibefix.identity.internal.Role;
 import vn.vibefix.team.internal.TeamTestSupport;
 import vn.vibefix.timers.internal.DeadlinePoller;
 import vn.vibefix.job.CrewMemberRemoved;
@@ -45,7 +46,6 @@ import vn.vibefix.operations.Lane;
 import vn.vibefix.operations.internal.OperationWorker;
 import vn.vibefix.repo.internal.JobSetups.Setup;
 import vn.vibefix.scanning.Scans;
-import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
 
 /**
@@ -503,7 +503,7 @@ class JobSetupIT extends IntegrationTest {
 		this.worker.runDue(Lane.GITHUB_SHORT);
 		assertThat(grantStatus(hai)).isEqualTo("INVITED");
 
-		this.revocations.locked(new AccountLocked(UUID.randomUUID(), this.crew, Role.STUDENT));
+		this.revocations.locked(new AccountLocked(UUID.randomUUID(), this.crew));
 		this.revocations.removed(new CrewMemberRemoved(UUID.randomUUID(), this.job, row, hai));
 		this.worker.runDue(Lane.GITHUB_SHORT);
 

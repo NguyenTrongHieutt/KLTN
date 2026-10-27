@@ -30,7 +30,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import com.jayway.jsonpath.JsonPath;
 
 import vn.vibefix.identity.internal.IdentityTestSupport;
-import vn.vibefix.shared.Role;
+import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
 import vn.vibefix.team.internal.TeamTestSupport;
@@ -127,6 +127,25 @@ class InvitationsIT extends IntegrationTest {
 			.andExpect(status().isNotFound());
 		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/mentors?q=supabase").with(as(this.long_, Role.MENTOR)))
 			.andExpect(status().isNotFound());
+	}
+
+	/**
+	 * Story 20.3: the directory lists every person's account with a profile, a user with no role too, who may be
+	 * invited; never the Job's own Customer, who cannot be its Mentor (AD-43), though her profile matches.
+	 */
+	@Test
+	void theSearchListsAUserWithNoRoleAndNeverTheJobsCustomer() throws Exception {
+		this.jdbc.sql("""
+				UPDATE identity.profile SET skill_ids = CAST(:skills AS UUID[]), skill_names = 'Supabase' WHERE account_id = :id
+				""").param("skills", "{" + TeamTestSupport.SUPABASE + "}").param("id", this.lan).update();
+		UUID minh = TeamTestSupport.googleMentor(this.jdbc, "Ngô Văn Minh", List.of(TeamTestSupport.SUPABASE), "Supabase");
+
+		String body = search("supabase", "").andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+		List<String> found = JsonPath.read(body, "$.items[*].accountId");
+		assertThat(found).contains(minh.toString()).doesNotContain(this.lan.toString());
+		assertThat(JsonPath.<List<Boolean>>read(body, "$.items[?(@.accountId == '" + minh + "')].available"))
+			.containsExactly(true);
+		invite(minh).andExpect(status().isCreated());
 	}
 
 	@Test

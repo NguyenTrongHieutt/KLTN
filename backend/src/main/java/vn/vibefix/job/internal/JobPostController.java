@@ -40,13 +40,14 @@ import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
 import vn.vibefix.shared.KeywordQuery;
 import vn.vibefix.shared.PageResponse;
-import vn.vibefix.shared.Role;
 
 /**
- * MEN-2 and MEN-3, "Tìm việc" (X1; FR-12, FR-13, AD-20): Open Job Posts that are not hidden, for Mentors only,
- * with no approval (Story 19.7). Reading them needs GitHub linked ({@code FORBIDDEN GITHUB_NOT_LINKED}, FR-80),
- * and a locked account is refused (AD-19), both read on every request; anyone else finds nothing until Story
- * 20.3 replaces the role pre-filter. A Job Post never carries the Customer's name or contact details.
+ * MEN-2 and MEN-3, "Tìm việc" (X1; FR-12, FR-13, AD-20): Open Job Posts that are not hidden, for any user, with
+ * no approval (Story 19.7) and no account role (Story 20.3). Reading them needs GitHub linked ({@code FORBIDDEN
+ * GITHUB_NOT_LINKED}, FR-80), and a locked account is refused (AD-19), both read on every request; an
+ * Administrator finds nothing. The list never shows the caller's own Jobs (AD-36); the detail of one still reads,
+ * and a bid on it is refused ({@code ROLE_TAKEN}). A Job Post never carries the Customer's name or contact
+ * details.
  */
 @RestController
 @RequestMapping("/api/v1/mentor")
@@ -121,7 +122,7 @@ class JobPostController {
 			@RequestParam(name = "category", required = false) @Nullable List<UUID> categories,
 			@RequestParam(name = "budget", required = false) @Nullable List<Budget> budgets,
 			@RequestParam(required = false) @Nullable Integer within, @RequestParam(defaultValue = "0") int page) {
-		UUID mentor = linkedMentor();
+		UUID mentor = linkedReader();
 		if (page < 0 || (within != null && (within < 1 || within > 366))) {
 			throw new ApiException(ErrorCode.VALIDATION);
 		}
@@ -132,7 +133,7 @@ class JobPostController {
 		LocalDate dueBy = within == null ? null : LocalDate.now(this.clock.withZone(J1Publish.VIETNAM)).plusDays(within);
 		Filter filter = new Filter(orEmpty(types), skillFilter(orEmpty(skills), orEmpty(categories)), orEmpty(budgets),
 				dueBy, keyword);
-		Page found = this.posts.list(filter, page);
+		Page found = this.posts.list(filter, mentor, page);
 		Map<UUID, String> names = new HashMap<>();
 		List<JobPostSummaryView> items = found.items()
 			.stream()
@@ -145,14 +146,14 @@ class JobPostController {
 	/** MEN-2 and MEN-3's FR-13 banners. */
 	@GetMapping("/capacity")
 	CapacityView capacity() {
-		Capacity mine = this.capacity.of(linkedMentor());
+		Capacity mine = this.capacity.of(linkedReader());
 		return new CapacityView(mine.teamSize(), mine.freeStudents(), mine.activeJobs(), mine.jobLimit(), mine.reasons());
 	}
 
 	/** MEN-3: one Open Job Post that is not hidden; its ID is the Job's. */
 	@GetMapping("/job-posts/{postId}")
 	JobPostView post(@PathVariable UUID postId) {
-		linkedMentor();
+		linkedReader();
 		Job job = this.posts.find(postId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		ProductInfo product = this.products.find(job.productId()).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		Map<UUID, Skill> skills = new HashMap<>();
@@ -202,12 +203,12 @@ class JobPostController {
 	}
 
 	/**
-	 * The Mentor calling, unlocked and with GitHub linked (X1, AD-19, re-read on every request); anyone but a
-	 * Mentor finds nothing.
+	 * The user calling, unlocked and with GitHub linked (X1, AD-19, re-read on every request); an Administrator
+	 * finds nothing.
 	 */
-	private UUID linkedMentor() {
+	private UUID linkedReader() {
 		Caller caller = this.callers.get();
-		if (!caller.hasRole(Role.MENTOR)) {
+		if (!caller.isUser()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		UUID mentor = caller.requireAccountId();

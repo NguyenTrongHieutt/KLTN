@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import vn.vibefix.github.GitHubRepositories.RepositoryMetadata;
+import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.identity.GitHubGate;
 import vn.vibefix.product.internal.CleanRepositories.Replacement;
 import vn.vibefix.product.internal.Products.Product;
@@ -45,13 +46,14 @@ import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.shared.Role;
 
 /**
- * CUS-2 to CUS-5 (FR-7, FR-8, AD-13): a Customer's Products with their scan state, the registration
+ * CUS-2 to CUS-5 (FR-7, FR-8, AD-13): a user's own Products with their scan state, the registration
  * wizard's live repository check and its submission, one Product's detail and open Findings, and one
  * Finding, which only its Customer and Administrators read (AD-20); only a Finding's resolvers confirm
- * its rotation. Any other caller finds nothing.
+ * its rotation. No account role gates them (Story 20.3): registering a Product and its repository check need
+ * GitHub linked ({@code FORBIDDEN GITHUB_NOT_LINKED}, FR-80), every other endpoint an unlocked user, and every
+ * query is scoped to the caller's own Products, so any other caller finds nothing.
  */
 @RestController
 @RequestMapping("/api/v1/products")
@@ -192,9 +194,13 @@ class ProductController {
 
 	private final GitHubGate gitHub;
 
+	private final ActiveAccount active;
+
 	ProductController(Products products, RepositoryChecks checks, Scans scans, CleanRepositories cleanRepositories,
-			Rescans rescans, SkillSuggestions skillSuggestions, CurrentCaller callers, GitHubGate gitHub) {
+			Rescans rescans, SkillSuggestions skillSuggestions, CurrentCaller callers, GitHubGate gitHub,
+			ActiveAccount active) {
 		this.gitHub = gitHub;
+		this.active = active;
 		this.products = products;
 		this.checks = checks;
 		this.scans = scans;
@@ -216,13 +222,12 @@ class ProductController {
 	}
 
 	/**
-	 * CUS-3 step 2: every repository check, read with the Customer's own GitHub token; GitHub must be linked
+	 * CUS-3 step 2: every repository check, read with the user's own GitHub token; GitHub must be linked
 	 * (FR-80, the UX-DR95 gate).
 	 */
 	@PostMapping("/repository-check")
 	RepositoryCheckView check(@Valid @RequestBody RepositoryCheckRequest body) {
-		UUID customer = customer();
-		this.gitHub.requireGitHubLinked(customer);
+		UUID customer = linkedUser();
 		return RepositoryCheckView.of(this.checks.check(customer, body.url()));
 	}
 
@@ -230,8 +235,7 @@ class ProductController {
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	ProductCreatedView register(@Valid @RequestBody ProductRegistrationRequest body) {
-		UUID customer = customer();
-		this.gitHub.requireGitHubLinked(customer);
+		UUID customer = linkedUser();
 		return new ProductCreatedView(this.products.register(customer,
 				new Registration(body.repositoryUrl(), body.tools(), body.name(), body.description(), body.demoUrl(),
 						body.publicNoticeVersion(), body.copyPermissionVersion(), body.detectionNoticeVersion())));
@@ -249,7 +253,7 @@ class ProductController {
 	@DeleteMapping("/{productId}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void delete(@PathVariable UUID productId) {
-		this.products.delete(customer(), productId);
+		this.products.delete(owner(productId), productId);
 	}
 
 	/** CUS-4 "Vấn đề phát hiện": every Finding with its state, open first, for the Customer or an Administrator. */
@@ -262,7 +266,7 @@ class ProductController {
 	/** CUS-6 "Kỹ năng cần có": the Skills suggested from the repository's languages and the AI tools. */
 	@GetMapping("/{productId}/skill-suggestions")
 	List<SuggestedSkillView> skillSuggestions(@PathVariable UUID productId) {
-		return this.skillSuggestions.suggest(customer(), productId)
+		return this.skillSuggestions.suggest(owner(productId), productId)
 			.stream()
 			.map(skill -> new SuggestedSkillView(skill.id(), skill.name(), skill.hint()))
 			.toList();
@@ -279,7 +283,7 @@ class ProductController {
 	@PostMapping("/{productId}/scans")
 	@ResponseStatus(HttpStatus.ACCEPTED)
 	ScanView rescan(@PathVariable UUID productId) {
-		UUID run = this.rescans.request(customer(), productId);
+		UUID run = this.rescans.request(owner(productId), productId);
 		return ScanView.of(this.scans.run(run).orElseThrow());
 	}
 
@@ -289,7 +293,7 @@ class ProductController {
 		Product product = readable(productId);
 		Finding finding = this.scans.finding(productId, findingId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		Caller caller = this.callers.get();
-		boolean canResolve = caller.hasRole(Role.CUSTOMER) && this.scans.mayResolve(findingId, caller.requireAccountId());
+		boolean canResolve = caller.isUser() && this.scans.mayResolve(findingId, caller.requireAccountId());
 		return new FindingDetailView(FindingView.of(finding), product.name(), product.tools(), canResolve,
 				this.cleanRepositories.latest(productId).map(this::cleanRepositoryView).orElse(null));
 	}
@@ -298,7 +302,7 @@ class ProductController {
 	@PostMapping("/{productId}/findings/{findingId}/false-positive")
 	FindingView markFalsePositive(@PathVariable UUID productId, @PathVariable UUID findingId,
 			@Valid @RequestBody FalsePositiveRequest body) {
-		return FindingView.of(this.scans.markFalsePositive(productId, findingId, customer(), body.reason()));
+		return FindingView.of(this.scans.markFalsePositive(productId, findingId, owner(productId), body.reason()));
 	}
 
 	/** CUS-5 "Đăng ký kho mã sạch": the Product's Customer only, while a personal-data Finding is open. */
@@ -306,7 +310,7 @@ class ProductController {
 	@ResponseStatus(HttpStatus.ACCEPTED)
 	CleanRepositoryView requestCleanRepository(@PathVariable UUID productId,
 			@Valid @RequestBody CleanRepositoryRequest body) {
-		return cleanRepositoryView(this.cleanRepositories.request(customer(), productId, body.url()));
+		return cleanRepositoryView(this.cleanRepositories.request(owner(productId), productId, body.url()));
 	}
 
 	private CleanRepositoryView cleanRepositoryView(Replacement replacement) {
@@ -318,23 +322,56 @@ class ProductController {
 	/** CUS-5 "Tôi đã đổi khóa", after the Confirmation dialog: only a resolver of an open credential Finding. */
 	@PostMapping("/{productId}/findings/{findingId}/rotation")
 	FindingView confirmRotation(@PathVariable UUID productId, @PathVariable UUID findingId) {
-		return FindingView.of(this.scans.confirmRotation(productId, findingId, customer()));
+		return FindingView.of(this.scans.confirmRotation(productId, findingId, owner(productId)));
 	}
 
+	/** The Product, for its own Customer (an unlocked user) or an Administrator; anyone else finds nothing. */
 	private Product readable(UUID productId) {
 		Caller caller = this.callers.get();
+		if (caller.isAdministrator()) {
+			return this.products.find(productId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		}
+		UUID customer = customer();
 		return this.products.find(productId)
-			.filter(found -> caller.isAdministrator()
-					|| caller.hasRole(Role.CUSTOMER) && found.customerId().equals(caller.requireAccountId()))
+			.filter(found -> found.customerId().equals(customer))
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 	}
 
+	/**
+	 * The calling user, unlocked (AD-19, read on every request), whose own Products every query is scoped to; an
+	 * Administrator, who holds no Product, finds nothing.
+	 */
 	private UUID customer() {
 		Caller caller = this.callers.get();
-		if (!caller.hasRole(Role.CUSTOMER)) {
+		if (!caller.isUser()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
-		return caller.requireAccountId();
+		UUID customer = caller.requireAccountId();
+		this.active.requireActiveAccount(customer);
+		return customer;
+	}
+
+	/**
+	 * The Product's own Customer calling, unlocked: a Finding's other resolvers (a Job's Mentor or Crew) act on
+	 * it from their Job, never through the Customer's Product (AD-20). Anyone else finds nothing.
+	 */
+	private UUID owner(UUID productId) {
+		UUID customer = customer();
+		this.products.find(productId)
+			.filter(found -> found.customerId().equals(customer))
+			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		return customer;
+	}
+
+	/** The calling user with GitHub linked (FR-80, X1), for the commands that register a Product. */
+	private UUID linkedUser() {
+		Caller caller = this.callers.get();
+		if (!caller.isUser()) {
+			throw new ApiException(ErrorCode.NOT_FOUND);
+		}
+		UUID customer = caller.requireAccountId();
+		this.gitHub.requireGitHubLinked(customer);
+		return customer;
 	}
 
 }

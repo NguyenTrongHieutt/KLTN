@@ -10,6 +10,7 @@ import { Pager } from '@/components/Pager'
 import { SkillPicker } from '@/components/SkillPicker'
 import { categoryValue, splitSkillPickerValue } from '@/components/skillPickerValue'
 import { Button } from '@/components/ui/button'
+import { holdsOtherRole } from '@/features/identity/api'
 import { useSession } from '@/features/identity/useSession'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t, type MessageKey } from '@/i18n/t'
@@ -88,7 +89,7 @@ function filtered(filter: JobPostFilter): boolean {
 export function JobPostsPage() {
   usePageTitle(t('screen.jobPost.title'))
   const account = useSession().data?.account
-  if (account && account.role !== 'MENTOR') {
+  if (account && holdsOtherRole(account, 'MENTOR')) {
     return <NotFoundScreen />
   }
   if (account && !account.capabilities.githubVerified) {

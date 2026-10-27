@@ -1592,14 +1592,6 @@
           }
         }, {
           "in" : "query",
-          "name" : "role",
-          "required" : false,
-          "schema" : {
-            "type" : "string",
-            "enum" : [ "CUSTOMER", "MENTOR", "STUDENT", "ADMINISTRATOR" ]
-          }
-        }, {
-          "in" : "query",
           "name" : "status",
           "required" : false,
           "schema" : {
@@ -8896,13 +8888,9 @@
           },
           "suggesterName" : {
             "type" : "string"
-          },
-          "suggesterRole" : {
-            "type" : "string",
-            "enum" : [ "CUSTOMER", "MENTOR", "STUDENT", "ADMINISTRATOR" ]
           }
         },
-        "required" : [ "createdAt", "id", "name", "status", "suggesterRole" ]
+        "required" : [ "createdAt", "id", "name", "status" ]
       },
       "AdminStatementView" : {
         "type" : "object",
@@ -18845,10 +18833,6 @@
               "$ref" : "#/components/schemas/PersonLinkView"
             }
           },
-          "role" : {
-            "type" : "string",
-            "enum" : [ "CUSTOMER", "MENTOR", "STUDENT", "ADMINISTRATOR" ]
-          },
           "signedInAt" : {
             "type" : "string",
             "format" : "date-time"
@@ -18878,10 +18862,6 @@
           },
           "name" : {
             "type" : "string"
-          },
-          "role" : {
-            "type" : "string",
-            "enum" : [ "CUSTOMER", "MENTOR", "STUDENT", "ADMINISTRATOR" ]
           },
           "status" : {
             "type" : "string"

@@ -15,8 +15,8 @@ import vn.vibefix.shared.ProcessedEvents;
 /**
  * AD-19: a person-link signal two accounts newly share alerts every Administrator once for each
  * running Job both take part in, as its Customer, its Mentor, or a Crew member; nothing else changes
- * (replay-safe through {@link ProcessedEvents}). A lock carries through to the person's running Jobs
- * ({@link LockConsequences}, Story 10.2), once per event.
+ * (replay-safe through {@link ProcessedEvents}). A lock carries through to the person's running Jobs in every
+ * role they hold there, Crew and party alike ({@link LockConsequences}, Stories 10.2 and 20.3), once per event.
  */
 @Component
 class CrewListeners {
@@ -41,7 +41,7 @@ class CrewListeners {
 		if (!this.processedEvents.markProcessed("job.CrewListeners.onAccountLocked", event.eventId())) {
 			return;
 		}
-		this.locks.locked(event.eventId(), event.accountId(), event.role());
+		this.locks.locked(event.eventId(), event.accountId());
 	}
 
 	@ApplicationModuleListener

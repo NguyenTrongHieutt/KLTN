@@ -46,7 +46,6 @@ const overview = {
 
 const vy = {
   id: 's1',
-  role: 'STUDENT',
   name: 'Trần Thảo Vy',
   githubLogin: 'thaovy',
   email: 'vy@example.com',
@@ -58,7 +57,6 @@ const vy = {
 
 const hung = {
   id: 'm1',
-  role: 'MENTOR',
   name: 'Đỗ Mạnh Hùng',
   githubLogin: 'hungdo',
   createdAt: '2026-09-01T03:00:00Z',
@@ -88,8 +86,8 @@ const hung = {
 }
 
 const rows = [
-  { id: 's1', role: 'STUDENT', name: 'Trần Thảo Vy', githubLogin: 'thaovy', locked: false, status: 'VERIFIED', createdAt: vy.createdAt },
-  { id: 'm1', role: 'MENTOR', name: 'Đỗ Mạnh Hùng', githubLogin: 'hungdo', locked: false, createdAt: hung.createdAt },
+  { id: 's1', name: 'Trần Thảo Vy', githubLogin: 'thaovy', locked: false, status: 'VERIFIED', createdAt: vy.createdAt },
+  { id: 'm1', name: 'Đỗ Mạnh Hùng', githubLogin: 'hungdo', locked: false, createdAt: hung.createdAt },
 ]
 
 describe('ADM-2 users (FR-59, FR-78, AD-19)', () => {
@@ -131,6 +129,8 @@ describe('ADM-2 users (FR-59, FR-78, AD-19)', () => {
       'Đã xác minh',
       'Đánh giá kín thấp',
     ])
+    // Story 20.3: no account role filters the list.
+    expect(screen.queryByRole('group', { name: 'Vai trò' })).not.toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Tài khoản có thể cùng một người' })).toHaveTextContent(
       'Không có tài khoản nào dùng chung dấu hiệu với tài khoản này.',
     )
@@ -143,7 +143,7 @@ describe('ADM-2 users (FR-59, FR-78, AD-19)', () => {
     expect(screen.getAllByText('Gửi tin nhắn quấy rối').length).toBeGreaterThan(0)
   })
 
-  it('lists and opens a Google account, which has no role, without a role text', { timeout: 30_000 }, async () => {
+  it('lists and opens an account with no role line, its verification and an empty private feedback', { timeout: 30_000 }, async () => {
     const lan = {
       id: 'g1',
       name: 'Nguyễn Thị Lan',
@@ -160,11 +160,14 @@ describe('ADM-2 users (FR-59, FR-78, AD-19)', () => {
     })
     renderAt('/quan-tri/nguoi-dung/g1')
 
-    const role = (await screen.findAllByText('Vai trò')).find((element) => element.tagName === 'DT')
-    expect(role?.nextElementSibling).toHaveTextContent(/^—$/)
+    expect(await screen.findByText('lan@gmail.test')).toBeInTheDocument()
+    // Story 20.3: no account role; every user's verification and private feedback show, here empty.
+    expect(screen.queryByText('Vai trò')).not.toBeInTheDocument()
+    const verification = screen.getAllByText('Xác minh sinh viên').find((element) => element.tagName === 'DT')
+    expect(verification?.nextElementSibling).toHaveTextContent('Chưa xác minh')
     expect(screen.getAllByRole('link', { name: /Nguyễn Thị Lan/ }).length).toBeGreaterThan(0)
-    expect(screen.queryByText(/screen\.admin\.users\.role/)).not.toBeInTheDocument()
-    expect(screen.getByText('lan@gmail.test')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Đánh giá kín' })).toBeInTheDocument()
+    expect(screen.getByText('Chưa có đánh giá kín nào về người này khi hướng dẫn.')).toBeInTheDocument()
   })
 
   it('shows a Mentor’s private feedback and who may be the same person, with nothing to revoke', { timeout: 30_000 }, async () => {

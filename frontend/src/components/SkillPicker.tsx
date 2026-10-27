@@ -56,8 +56,8 @@ export function SkillPicker({
   wholeCategories?: boolean
 }) {
   const catalog = useCatalog()
-  const role = useSession().data?.account?.role
-  const canSuggest = role === 'CUSTOMER' || role === 'MENTOR' || role === 'STUDENT'
+  // Any signed-in person's account suggests a Skill, whatever role it holds in a Job (Story 20.3).
+  const canSuggest = useSession().data?.account?.kind === 'USER'
   const [suggesting, setSuggesting] = useState<string>()
   const [input, setInput] = useState('')
   const [query, setQuery] = useState('')

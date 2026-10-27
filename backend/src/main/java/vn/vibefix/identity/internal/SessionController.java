@@ -33,7 +33,6 @@ import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
 import vn.vibefix.shared.Kind;
-import vn.vibefix.shared.Role;
 
 /**
  * The session as the SPA sees it (AD-19): who is here, a Google sign-in waiting on PUB-3 "Chào mừng"
@@ -81,12 +80,14 @@ class SessionController {
 	 * @param kind {@code USER} or {@code ADMINISTRATOR}; the SPA tells an Administrator by it
 	 * @param capabilities what the account can show for itself now, which the SPA's gates read (UX-DR95)
 	 * @param theme the account's Theme toggle choice (UX-DR5)
-	 * @param role deprecated and transitional: the account role of a row from before Google sign-in and of an
-	 * Administrator; absent for a Google account, which holds roles in Jobs only. Story 20.6 removes it with
-	 * the shell that still branches on it; nothing new may read it.
+	 * @param role deprecated and transitional: the stored {@code identity.account.role} as plain text, which a row
+	 * from before Google sign-in and an Administrator's carry; absent for a Google account, which holds roles in
+	 * Jobs only. Nothing on the server decides on it (Story 20.3). Story 20.6 removes it, with the column and the
+	 * shell that still branches on it; nothing new may read it.
 	 */
 	record AccountView(UUID id, Kind kind, CapabilitiesView capabilities, Profiles.Theme theme,
-			@Schema(deprecated = true) @Nullable Role role) {
+			@Schema(deprecated = true, allowableValues = { "CUSTOMER", "MENTOR", "STUDENT", "ADMINISTRATOR" })
+			@Nullable String role) {
 	}
 
 	/**

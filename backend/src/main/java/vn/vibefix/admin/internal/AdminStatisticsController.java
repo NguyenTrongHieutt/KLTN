@@ -16,13 +16,14 @@ import vn.vibefix.shared.PlatformCounts.Unit;
 /**
  * ADM-9 (FR-62, FR-35, FR-78, SM-9, SM-C2): every module's figures, grouped in a fixed order and each
  * group's keys in their own order, each with its unit: counts, and since Story 17.2 rates and averages.
- * No figure names a person.
+ * Users are counted by Verification and by the roles they hold per Job, never by an account role (Story 20.3,
+ * UX-DR110). No figure names a person.
  */
 @RestController
 @Access(Gate.ADMINISTRATOR)
 class AdminStatisticsController {
 
-	static final List<String> ORDER = List.of("usersByRole", "studentsByVerification", "lockedAccounts", "teamsBySize",
+	static final List<String> ORDER = List.of("usersByVerification", "usersByJobRole", "lockedAccounts", "teamsBySize",
 			"crewsBySize", "jobsByState", "jobsByType", "rates", "workItemReviews", "milestones", "acceptances", "ratings",
 			"privateFeedback", "disputesByOutcome", "teamIssuesByOutcome");
 

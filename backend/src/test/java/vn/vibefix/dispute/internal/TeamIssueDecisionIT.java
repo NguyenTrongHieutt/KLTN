@@ -28,9 +28,9 @@ import org.springframework.transaction.support.TransactionTemplate;
 import vn.vibefix.identity.internal.AdministratorTestSupport;
 import vn.vibefix.identity.internal.AdministratorTestSupport.Administrator;
 import vn.vibefix.identity.internal.IdentityTestSupport;
+import vn.vibefix.identity.internal.Role;
 import vn.vibefix.payment.Ledger;
 import vn.vibefix.payment.Releases;
-import vn.vibefix.shared.Role;
 import vn.vibefix.support.HeldCrewJob;
 import vn.vibefix.support.IntegrationTest;
 
@@ -110,9 +110,13 @@ class TeamIssueDecisionIT extends IntegrationTest {
 			assertThat(count("SELECT count(*) FROM " + table + " WHERE reason_id = '" + issue + "' AND ends_at IS NULL"))
 				.as(table).isOne();
 		}
+		// Story 20.3: each party's role is their role in this Job (roleOf), never which directory describes them.
 		this.mvc.perform(get("/api/v1/admin/jobs/" + this.world.job() + "/crew-terms").with(admin(this.minh)))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.versions[0].shares.length()").value(3));
+			.andExpect(jsonPath("$.versions[0].shares.length()").value(3))
+			.andExpect(jsonPath("$.versions[0].shares[?(@.role == 'MENTOR')].name").value("Đỗ Mạnh Hùng"))
+			.andExpect(jsonPath("$.versions[0].shares[?(@.name == 'Trần Thảo Vy')].role").value("STUDENT"))
+			.andExpect(jsonPath("$.versions[0].shares[?(@.name == 'Nguyễn Văn Minh')].role").value("STUDENT"));
 		this.mvc.perform(get("/api/v1/crew-chats/" + chat + "/messages").with(admin(this.minh))).andExpect(status().isOk());
 		assertThat(count("SELECT count(*) FROM audit.audit_entry WHERE action = 'job.admin_read'")).isOne();
 

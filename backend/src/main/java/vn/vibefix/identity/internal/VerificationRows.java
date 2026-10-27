@@ -237,18 +237,6 @@ class VerificationRows {
 	}
 
 	/**
-	 * Whether the account holds the Student role, the only one that has the {@code identity.verify_student}
-	 * to-do (until Story 20.3 drops roles).
-	 */
-	boolean isStudent(UUID accountId) {
-		return this.jdbc.sql("SELECT coalesce(role = 'STUDENT', FALSE) FROM identity.account WHERE id = :id")
-			.param("id", accountId)
-			.query(Boolean.class)
-			.optional()
-			.orElse(false);
-	}
-
-	/**
 	 * Deletes the rows that ended at or before {@code cutoff}: their subject HMACs are kept 24 months
 	 * after the row ends (AD-24), as the person-link signals of an erased account are.
 	 * @return how many rows were deleted

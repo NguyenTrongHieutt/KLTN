@@ -29,8 +29,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 import vn.vibefix.identity.internal.AdministratorTestSupport;
 import vn.vibefix.identity.internal.AdministratorTestSupport.Administrator;
 import vn.vibefix.identity.internal.IdentityTestSupport;
+import vn.vibefix.identity.internal.Role;
 import vn.vibefix.payment.Releases;
-import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.team.internal.TeamTestSupport;
 
@@ -136,6 +136,32 @@ class CrewLockIT extends IntegrationTest {
 				+ "' AND opened_by = 'SYSTEM'") == 1);
 		awaitListeners();
 		assertThat(count("SELECT count(*) FROM notification.todo WHERE todo_key = 'work.reassign_work_items'")).isEqualTo(2);
+	}
+
+	/** Story 20.3: every lock runs the Work Item consequence, so a locked member with no role leaves the to-do. */
+	@Test
+	void aLockedMemberWithNoRoleLeavesTheirWorkItemsToTheMentorsReassignmentToDo() throws Exception {
+		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		UUID hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT), "React");
+		UUID product = WorkTestSupport.product(this.jdbc, lan, "Sổ đặt bàn Quán Mây");
+		UUID job = WorkTestSupport.activeJob(this.jdbc, product, lan, hung, List.of(HELD), List.of(CRITERIA), this.clock.instant());
+		UUID minh = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-minh", "3.1");
+		IdentityTestSupport.linkGitHub(this.jdbc, minh);
+		UUID tung = WorkTestSupport.student(this.jdbc, "Lê Minh Tùng");
+		for (UUID member : List.of(minh, tung)) {
+			WorkTestSupport.crewRow(this.jdbc, job, member, "ACTIVE", this.clock.instant().minus(Duration.ofMinutes(5)));
+		}
+		this.boards.seed(job, true);
+		this.jdbc.sql("UPDATE work.work_item SET assignee_account_id = :minh WHERE job_id = :job").param("minh", minh)
+			.param("job", job).update();
+
+		lock(ha, minh).andExpect(status().isOk());
+		awaitListeners();
+
+		assertThat(text("SELECT status FROM job.crew_row WHERE member_account_id = '" + minh + "'")).isEqualTo("INACTIVE");
+		assertThat(text("SELECT params ->> 'n' FROM notification.todo WHERE todo_key = 'work.reassign_work_items' AND account_id = '"
+				+ hung + "' AND closed_at IS NULL")).isEqualTo("2");
 	}
 
 	private void heldMilestone(UUID job, UUID product, UUID customer) {

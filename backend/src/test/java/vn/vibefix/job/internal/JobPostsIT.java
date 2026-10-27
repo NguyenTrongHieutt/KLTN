@@ -19,6 +19,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import javax.imageio.ImageIO;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,14 +33,17 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import vn.vibefix.identity.internal.IdentityTestSupport;
+import vn.vibefix.identity.internal.Role;
 import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.Kind;
-import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
 import vn.vibefix.team.internal.TeamTestSupport;
 
-/** FR-12, FR-13, AD-33, AD-38: approved Mentors browse and read Open Job Posts that are not hidden. */
+/**
+ * FR-12, FR-13, AD-33, AD-36, AD-38: any user with GitHub linked browses and reads Open Job Posts that are not
+ * hidden, never listing their own (Story 20.3).
+ */
 class JobPostsIT extends IntegrationTest {
 
 	private static final String DATA_CATEGORY = "0192b000-0000-7000-8000-000000000003";
@@ -96,10 +100,57 @@ class JobPostsIT extends IntegrationTest {
 		// No Mentor needs an approval (Story 19.7); one locked after the session was read is refused.
 		UUID locked = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, "Vi phạm");
 		this.mvc.perform(get("/api/v1/mentor/job-posts").with(request -> {
-			request.setAttribute(Caller.REQUEST_ATTRIBUTE, Caller.account(locked, Kind.USER, Role.MENTOR));
+			request.setAttribute(Caller.REQUEST_ATTRIBUTE, Caller.account(locked, Kind.USER));
 			return request;
 		})).andExpect(status().isForbidden()).andExpect(jsonPath("$.reason").value("ACCOUNT_LOCKED"));
-		this.mvc.perform(get("/api/v1/mentor/job-posts").with(as(this.lan, Role.CUSTOMER))).andExpect(status().isNotFound());
+		// No role gates "Tìm việc" (Story 20.3); its list never shows the reader's own Jobs (AD-36).
+		this.mvc.perform(get("/api/v1/mentor/job-posts").with(as(this.lan, Role.CUSTOMER))).andExpect(status().isOk())
+			.andExpect(jsonPath("$.total").value(0));
+	}
+
+	@Test
+	void aUserWithNoRoleDraftsOnTheirOwnProductAndBrowsesEveryJobPostButTheirOwn() throws Exception {
+		UUID minh = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-minh", "3.1");
+		IdentityTestSupport.linkGitHub(this.jdbc, minh);
+		UUID own = product(minh);
+		UUID lans = openJob("Tin của Lan", "BUG_FIX", TeamTestSupport.REACT, "React", "UNDER_2M", "2026-03-01",
+				MutableClock.DEFAULT_INSTANT);
+
+		String created = this.mvc.perform(post("/api/v1/jobs").with(as(minh, null)).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON)
+			.content(draftBody(own)))
+			.andExpect(status().isCreated())
+			.andReturn()
+			.getResponse()
+			.getContentAsString();
+		UUID job = UUID.fromString(com.jayway.jsonpath.JsonPath.read(created, "$.id"));
+		this.mvc.perform(post("/api/v1/jobs").with(as(minh, null)).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON)
+			.content(draftBody(this.product))).andExpect(status().isNotFound());
+		this.mvc.perform(get("/api/v1/jobs").with(as(minh, null))).andExpect(status().isOk())
+			.andExpect(jsonPath("$.length()").value(1))
+			.andExpect(jsonPath("$[0].id").value(job.toString()));
+		this.mvc.perform(post("/api/v1/jobs/" + job + "/publish").with(as(minh, null)).with(csrf()))
+			.andExpect(status().isOk());
+
+		this.mvc.perform(get("/api/v1/mentor/job-posts").with(as(minh, null))).andExpect(status().isOk())
+			.andExpect(jsonPath("$.total").value(1))
+			.andExpect(jsonPath("$.items[0].id").value(lans.toString()));
+		this.mvc.perform(get("/api/v1/mentor/job-posts").with(as(this.hung, Role.MENTOR)))
+			.andExpect(jsonPath("$.total").value(2));
+		// The detail of one's own Job still reads; a bid on it is refused (Story 20.2).
+		this.mvc.perform(get("/api/v1/mentor/job-posts/" + job).with(as(minh, null))).andExpect(status().isOk());
+		this.mvc.perform(post("/api/v1/mentor/job-posts/" + job + "/applications").with(as(minh, null)).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("{\"priceVnd\":800000,\"timelineDays\":7,\"approach\":\"Cách làm\",\"publicCodeAcknowledged\":true}"))
+			.andExpect(status().isUnprocessableEntity())
+			.andExpect(jsonPath("$.reason").value("ROLE_TAKEN"));
+
+		// Without GitHub linked, "Tìm việc" shows the gate's reason; drafting needs only an unlocked user.
+		IdentityTestSupport.unlinkGitHub(this.jdbc, minh);
+		this.mvc.perform(get("/api/v1/mentor/job-posts").with(as(minh, null))).andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.reason").value("GITHUB_NOT_LINKED"));
+		this.mvc.perform(get("/api/v1/jobs").with(as(minh, null))).andExpect(status().isOk());
 	}
 
 	@Test
@@ -263,6 +314,14 @@ class JobPostsIT extends IntegrationTest {
 		return UUID.fromString(com.jayway.jsonpath.JsonPath.read(created, "$.id"));
 	}
 
+	private static String draftBody(UUID product) {
+		return """
+				{"productId":"%s","title":"Thêm thanh toán online","problem":"Khách chưa trả tiền trước được.",
+				 "expected":"Khách trả tiền cọc khi đặt bàn.","appUsers":"Khách đặt bàn trên điện thoại.",
+				 "jobTypes":["NEW_FEATURE"],"skillIds":["%s"],"budget":"FROM_2M_TO_5M","deadline":"2026-11-15"}
+				""".formatted(product, TeamTestSupport.REACT);
+	}
+
 	private UUID product(UUID owner) {
 		UUID id = UUID.randomUUID();
 		Timestamp now = Timestamp.from(MutableClock.DEFAULT_INSTANT);
@@ -288,7 +347,7 @@ class JobPostsIT extends IntegrationTest {
 		return out.toByteArray();
 	}
 
-	private RequestPostProcessor as(UUID account, Role role) {
+	private RequestPostProcessor as(UUID account, @Nullable Role role) {
 		return IdentityTestSupport.signedIn(this.sessions, account, role, this.clock.instant());
 	}
 
