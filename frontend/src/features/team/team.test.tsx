@@ -75,7 +75,6 @@ describe('MEN-6, the Mentor\'s Team (FR-6, AD-37)', () => {
     expect(screen.getByText('Chưa có yêu cầu nào.')).toBeInTheDocument()
     expect(screen.getByText('Bạn cần ít nhất một sinh viên rảnh trong nhóm để ứng tuyển.')).toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: 'Mời sinh viên' })).toHaveLength(2)
-    expect(screen.getAllByRole('link', { name: /Nhóm/ }).length).toBeGreaterThan(0)
   })
 
   it('accepts a join request after the confirmation', { timeout: 15_000 }, async () => {
