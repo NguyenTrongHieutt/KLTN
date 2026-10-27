@@ -1,7 +1,6 @@
 package vn.vibefix.team.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -16,10 +15,13 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.web.servlet.MockMvc;
 
 import vn.vibefix.identity.internal.IdentityTestSupport;
-import vn.vibefix.shared.Role;
+import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.IntegrationTest;
 
-/** FR-51, FR-14, AD-33: PUB-4 and PUB-5's Ratings and Portfolio Entries, for anyone. */
+/**
+ * FR-51, FR-14, AD-33: PUB-4 and PUB-5's Ratings and Portfolio Entries, for anyone. No account role decides who
+ * has them (Story 20.3): any person's account has PUB-4, PUB-5 and a public reputation.
+ */
 class PublicProfilesIT extends IntegrationTest {
 
 	private static final LocalDate VERIFIED_UNTIL = LocalDate.parse("2026-09-30");
@@ -71,20 +73,11 @@ class PublicProfilesIT extends IntegrationTest {
 				UPDATE identity.profile SET contact_email = 'minh.lienhe@example.test', phone = '+84 966 123 456'
 				WHERE account_id = :id
 				""").param("id", shown).update();
-		String team1 = this.mvc.perform(get("/api/v1/mentor/team")
-			.with(authentication(IdentityTestSupport.authentication(mentor, Role.MENTOR))))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.members[0].student.name").value("Trần Quang Minh"))
-			.andReturn()
-			.getResponse()
-			.getContentAsString();
 		String student = this.mvc.perform(get("/api/v1/students/" + TeamTestSupport.login(this.jdbc, shown)))
 			.andReturn()
 			.getResponse()
 			.getContentAsString();
-		for (String response : List.of(team1, student)) {
-			assertThat(response).doesNotContain("minh.lienhe@example.test").doesNotContain("966 123 456");
-		}
+		assertThat(student).doesNotContain("minh.lienhe@example.test").doesNotContain("966 123 456");
 
 		this.mvc.perform(get("/api/v1/students/" + TeamTestSupport.login(this.jdbc, shown)))
 			.andExpect(status().isOk())
@@ -100,8 +93,6 @@ class PublicProfilesIT extends IntegrationTest {
 			.andExpect(jsonPath("$.count").value(0))
 			.andExpect(jsonPath("$.average").value(org.hamcrest.Matchers.nullValue()))
 			.andExpect(jsonPath("$.portfolio.length()").value(0));
-		this.mvc.perform(get("/api/v1/mentor/team").with(authentication(IdentityTestSupport.authentication(mentor, Role.MENTOR))))
-			.andExpect(jsonPath("$.members[0].student.major").value(TeamTestSupport.MAJOR));
 
 		// Once the verification lapses, the declared details are not shown, though its Deadline has yet to clear them.
 		this.clock.setInstant(java.time.Instant.parse("2026-09-30T17:00:00Z"));
@@ -114,14 +105,16 @@ class PublicProfilesIT extends IntegrationTest {
 	}
 
 	@Test
-	void aLockedStudentOrAMentorHasNoStudentProfile() throws Exception {
+	void aLockedPersonHasNoStudentProfileAndAnyOtherPersonsAccountHasOne() throws Exception {
 		UUID locked = TeamTestSupport.student(this.jdbc, "Bị khóa", true, List.of(), "", VERIFIED_UNTIL);
 		IdentityTestSupport.lock(this.jdbc, locked, "Vi phạm quy định");
 		UUID mentor = TeamTestSupport.mentor(this.jdbc, "Người hướng dẫn",
 				List.of(TeamTestSupport.REACT), "React");
 
 		this.mvc.perform(get("/api/v1/students/" + TeamTestSupport.login(this.jdbc, locked))).andExpect(status().isNotFound());
-		this.mvc.perform(get("/api/v1/students/" + TeamTestSupport.login(this.jdbc, mentor))).andExpect(status().isNotFound());
+		// No account role tells a Student apart (Story 20.3): PUB-4 describes any person's account, unverified here.
+		this.mvc.perform(get("/api/v1/students/" + TeamTestSupport.login(this.jdbc, mentor))).andExpect(status().isOk())
+			.andExpect(jsonPath("$.verified").value(false));
 		this.mvc.perform(get("/api/v1/students/" + TeamTestSupport.login(this.jdbc, locked) + "/reputation"))
 			.andExpect(status().isNotFound());
 	}
@@ -132,8 +125,8 @@ class PublicProfilesIT extends IntegrationTest {
 				List.of(TeamTestSupport.REACT), "React");
 		UUID revoked = TeamTestSupport.mentor(this.jdbc, "Đã khóa", List.of(TeamTestSupport.REACT), "React");
 		IdentityTestSupport.lock(this.jdbc, revoked, "Vi phạm");
-		// Story 19.7: only a Mentor is found on PUB-5, and no approval decides it.
-		UUID pending = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		// Story 20.3: any person's account may mentor a Job, so its public reputation is found, with no approval.
+		UUID customer = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 
 		this.mvc.perform(get("/api/v1/mentors/" + TeamTestSupport.login(this.jdbc, approved) + "/reputation"))
 			.andExpect(status().isOk())
@@ -145,8 +138,9 @@ class PublicProfilesIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/mentors/" + TeamTestSupport.login(this.jdbc, revoked)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.available").value(false));
-		this.mvc.perform(get("/api/v1/mentors/" + TeamTestSupport.login(this.jdbc, pending) + "/reputation"))
-			.andExpect(status().isNotFound());
+		this.mvc.perform(get("/api/v1/mentors/" + TeamTestSupport.login(this.jdbc, customer) + "/reputation"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.newcomer").value(true));
 	}
 
 }

@@ -12,12 +12,12 @@ import vn.vibefix.job.JobPostHidden;
 import vn.vibefix.job.JobTransitioned;
 import vn.vibefix.matching.internal.Applications.EndReason;
 import vn.vibefix.shared.ProcessedEvents;
-import vn.vibefix.shared.Role;
 
 /**
  * What other modules' facts end (AD-5, AD-9, replay-safe through {@link ProcessedEvents}): J2 closes a
  * Job's open Applications and J3 puts the others on hold (§4.0), both lapse its open invitations
- * (FR-14), and a locked Mentor's not-yet-selected Applications are withdrawn (FR-13, AD-19).
+ * (FR-14), and a locked account's not-yet-selected Applications are withdrawn (FR-13, AD-19): every lock runs it,
+ * and an account with no bid changes nothing (Story 20.3).
  */
 @Component
 class MatchingListeners {
@@ -74,8 +74,7 @@ class MatchingListeners {
 
 	@ApplicationModuleListener
 	void onAccountLocked(AccountLocked event) {
-		if (event.role() != Role.MENTOR
-				|| !this.processedEvents.markProcessed("matching.MatchingListeners.onAccountLocked", event.eventId())) {
+		if (!this.processedEvents.markProcessed("matching.MatchingListeners.onAccountLocked", event.eventId())) {
 			return;
 		}
 		this.applications.withdrawForMentor(event.accountId());

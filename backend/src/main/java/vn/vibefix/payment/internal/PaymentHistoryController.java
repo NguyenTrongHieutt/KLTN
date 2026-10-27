@@ -27,12 +27,12 @@ import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.shared.Role;
 
 /**
  * CUS-10, MEN-7 and STU-7, and the Mentor's JOB-7 (FR-44, AD-15, AD-20). The Customer's DTOs carry
  * fundings, refunds, and one released total per Milestone, never a party's part; the Assignee DTOs
- * carry the parts, and only the Job's Mentor reads every party's.
+ * carry the parts, and only the Job's Mentor reads every party's. The payment history and the Balance are open
+ * to any unlocked user (Story 20.3), each holding only the caller's own entries; an Administrator finds nothing.
  */
 @RestController
 @Access(Gate.SIGNED_IN)
@@ -125,7 +125,7 @@ class PaymentHistoryController {
 
 	@GetMapping("/api/v1/payments/history")
 	CustomerHistoryView paymentHistory() {
-		UUID customer = role(Role.CUSTOMER);
+		UUID customer = user();
 		long held = 0;
 		long released = 0;
 		List<HistoryJobView> jobs = new ArrayList<>();
@@ -157,12 +157,7 @@ class PaymentHistoryController {
 
 	@GetMapping("/api/v1/balance")
 	BalanceView balance() {
-		Caller caller = this.callers.get();
-		boolean mentor = caller.hasRole(Role.MENTOR);
-		if (!mentor && !caller.hasRole(Role.STUDENT)) {
-			throw new ApiException(ErrorCode.NOT_FOUND);
-		}
-		Balance balance = this.history.balance(caller.requireAccountId(), mentor);
+		Balance balance = this.history.balance(user());
 		return new BalanceView(balance.balanceVnd(), balance.releases(), balance.sentToCrewVnd(), balance.heldVnd(),
 				balance.lines()
 					.stream()
@@ -194,7 +189,8 @@ class PaymentHistoryController {
 			numbers.put(milestone.milestoneId(), milestone.number());
 			Figures figures = this.history.figures(milestone.milestoneId());
 			List<Release> releases = this.history.releaseEntries(milestone.milestoneId());
-			Map<UUID, String> names = this.history.names(releases.stream().map(Release::partyId).distinct().toList());
+			Map<UUID, String> names = this.history.names(releases.stream().map(Release::partyId).distinct().toList(),
+					mentor);
 			milestones.add(new MentorFundingMilestoneView(milestone.milestoneId(), milestone.number(), milestone.title(),
 					milestone.priceVnd(), milestone.state(), figures.fundedVnd(), figures.topUpVnd(), figures.refundedVnd(),
 					figures.releasedTotalVnd(),
@@ -214,15 +210,17 @@ class PaymentHistoryController {
 	}
 
 	/**
-	 * The caller in {@code role}, for the global Balances and payment-history pages, which Story 20.3 moves to the
-	 * unlocked-user gate; anyone else finds nothing.
+	 * The user calling the global Balances and payment-history pages, unlocked (AD-19, read on every request); the
+	 * pages hold only their own entries. An Administrator finds nothing.
 	 */
-	private UUID role(Role role) {
+	private UUID user() {
 		Caller caller = this.callers.get();
-		if (!caller.hasRole(role)) {
+		if (!caller.isUser()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
-		return caller.requireAccountId();
+		UUID account = caller.requireAccountId();
+		this.gate.requireActiveAccount(account);
+		return account;
 	}
 
 }

@@ -15,7 +15,7 @@ import java.util.UUID;
 public interface GitHubGate {
 
 	/**
-	 * Called after the endpoint's own role checks; no Mentor needs an approval (Story 19.7).
+	 * No account role is checked before it (Story 20.3), and no Mentor needs an approval (Story 19.7).
 	 * @throws vn.vibefix.shared.ApiException {@code FORBIDDEN} for an Administrator; {@code FORBIDDEN} with
 	 * {@code ACCOUNT_LOCKED} for a locked, erased, or unknown account, else with {@code GITHUB_NOT_LINKED} while
 	 * no GitHub account is linked

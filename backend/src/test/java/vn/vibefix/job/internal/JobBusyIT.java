@@ -18,12 +18,12 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import vn.vibefix.identity.internal.IdentityTestSupport;
+import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.JobBusy;
 import vn.vibefix.job.JobBusy.Purpose;
 import vn.vibefix.job.internal.JobLifecycle.Planned;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
-import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
 
 /**

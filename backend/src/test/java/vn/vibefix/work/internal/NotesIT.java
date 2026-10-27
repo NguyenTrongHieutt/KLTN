@@ -28,7 +28,7 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import vn.vibefix.identity.internal.IdentityTestSupport;
-import vn.vibefix.shared.Role;
+import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.PostgresTestDatabase;
 import vn.vibefix.team.internal.TeamTestSupport;

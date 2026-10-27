@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.StudentDirectory;
+import vn.vibefix.job.JobRoles;
 import vn.vibefix.job.MilestoneFunding;
 import vn.vibefix.job.MilestoneFunding.FundingJob;
 import vn.vibefix.job.MilestoneFunding.FundingMilestone;
@@ -25,7 +26,8 @@ import vn.vibefix.job.MilestoneFunding.FundingMilestone;
  * Where test money is (FR-44, AD-15, AD-20): a Milestone's figures; CUS-10, which never names a party;
  * the Balance of MEN-7 and STU-7, the sum of the account's RELEASE entries, with the account's own held
  * parts beside it ("Đang giữ", AD-40), which never count in it; and the Mentor's JOB-7, which lists each
- * release by party. Reads take no lock.
+ * release by party. Who reads a party's part is decided by the role in each Job ({@code job.roleOf}, AD-43),
+ * never by an account role (Story 20.3). Reads take no lock.
  */
 @Component
 class PaymentHistory {
@@ -65,11 +67,15 @@ class PaymentHistory {
 
 	private final MentorDirectory mentors;
 
-	PaymentHistory(JdbcClient jdbc, MilestoneFunding funding, StudentDirectory students, MentorDirectory mentors) {
+	private final JobRoles roles;
+
+	PaymentHistory(JdbcClient jdbc, MilestoneFunding funding, StudentDirectory students, MentorDirectory mentors,
+			JobRoles roles) {
 		this.jdbc = jdbc;
 		this.funding = funding;
 		this.students = students;
 		this.mentors = mentors;
+		this.roles = roles;
 	}
 
 	@Transactional(readOnly = true)
@@ -108,22 +114,27 @@ class PaymentHistory {
 	}
 
 	/**
-	 * MEN-7 or STU-7: the sum of the account's RELEASE entries, each release listed. A Mentor also reads
-	 * the Crew's parts of their Jobs' releases, what went to the Crew, and what is held on their Jobs.
+	 * MEN-7 or STU-7, for any user: the sum of the account's RELEASE entries, each release listed. The Crew's parts
+	 * of a release are shown only on the Jobs whose Mentor the account is ({@code job.roleOf}, AD-43); what went to
+	 * the Crew and what is held on the Jobs it mentors are given only to an account that mentors a Job.
 	 */
 	@Transactional(readOnly = true)
-	Balance balance(UUID accountId, boolean mentor) {
+	Balance balance(UUID accountId) {
 		List<Release> own = releases("party_account_id = :id", Map.of("id", accountId));
-		Map<String, List<Release>> groups = new LinkedHashMap<>();
-		if (mentor) {
-			List<UUID> milestones = own.stream().map(Release::milestoneId).distinct().toList();
-			if (!milestones.isEmpty()) {
-				releases("milestone_id IN (:ids)", Map.of("ids", milestones))
-					.forEach(release -> groups.computeIfAbsent(release.group(), key -> new ArrayList<>()).add(release));
-			}
-		}
-		Map<UUID, String> names = names(groups.values().stream().flatMap(List::stream).map(Release::partyId).distinct().toList());
 		Map<UUID, FundingJob> jobs = new HashMap<>();
+		Map<UUID, Boolean> mentorOf = new HashMap<>();
+		List<UUID> mentored = own.stream().map(Release::milestoneId).distinct().filter(milestoneId -> {
+			FundingJob job = jobOf(milestoneId, jobs);
+			return job != null
+					&& mentorOf.computeIfAbsent(job.jobId(), jobId -> this.roles.roleOf(jobId, accountId).isMentor());
+		}).toList();
+		Map<String, List<Release>> groups = new LinkedHashMap<>();
+		if (!mentored.isEmpty()) {
+			releases("milestone_id IN (:ids)", Map.of("ids", mentored))
+				.forEach(release -> groups.computeIfAbsent(release.group(), key -> new ArrayList<>()).add(release));
+		}
+		Map<UUID, String> names = names(groups.values().stream().flatMap(List::stream).map(Release::partyId).distinct().toList(),
+				accountId);
 		List<ReleaseLine> lines = new ArrayList<>();
 		for (Release release : own) {
 			FundingJob job = jobOf(release.milestoneId(), jobs);
@@ -145,12 +156,12 @@ class PaymentHistory {
 		lines.sort(Comparator.comparing(ReleaseLine::releasedAt).reversed());
 		long balance = own.stream().mapToLong(Release::amountVnd).sum();
 		List<HeldPart> heldParts = heldParts(accountId, jobs);
-		if (!mentor) {
+		List<FundingJob> mentoring = this.funding.ofMentor(accountId);
+		if (mentored.isEmpty() && mentoring.isEmpty()) {
 			return new Balance(balance, own.size(), null, null, lines, heldParts);
 		}
 		long sent = lines.stream().flatMap(line -> line.crew().stream()).mapToLong(Part::amountVnd).sum();
-		long held = this.funding.ofMentor(accountId)
-			.stream()
+		long held = mentoring.stream()
 			.flatMap(job -> job.milestones().stream())
 			.mapToLong(milestone -> figures(milestone.milestoneId()).releasableVnd())
 			.sum();
@@ -184,15 +195,19 @@ class PaymentHistory {
 		return releases("milestone_id = :id", Map.of("id", milestoneId));
 	}
 
-	/** Display names: a Student's name (or @login), a Mentor's display name. */
-	Map<UUID, String> names(List<UUID> accounts) {
+	/**
+	 * Display names of one Job's parties: the Mentor's display name for {@code mentorId}, which the caller read
+	 * from the Job by its role there (AD-43), and a Crew member's shown name for everyone else.
+	 */
+	Map<UUID, String> names(List<UUID> accounts, UUID mentorId) {
 		Map<UUID, String> names = new HashMap<>();
-		if (accounts.isEmpty()) {
-			return names;
+		List<UUID> crew = accounts.stream().filter(account -> !account.equals(mentorId)).toList();
+		if (!crew.isEmpty()) {
+			this.students.cards(crew).forEach(card -> names.put(card.accountId(), card.shownName()));
 		}
-		this.students.cards(accounts)
-			.forEach(card -> names.put(card.accountId(), card.name() != null ? card.name() : "@" + card.githubLogin()));
-		this.mentors.cards(accounts).forEach(card -> names.put(card.accountId(), card.displayName()));
+		if (accounts.contains(mentorId)) {
+			this.mentors.cards(List.of(mentorId)).forEach(card -> names.put(card.accountId(), card.displayName()));
+		}
 		return names;
 	}
 

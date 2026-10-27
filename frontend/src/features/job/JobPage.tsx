@@ -8,6 +8,7 @@ import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
+import { holdsOtherRole } from '@/features/identity/api'
 import { useSession } from '@/features/identity/useSession'
 import { useProduct } from '@/features/product/productApi'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
@@ -46,9 +47,11 @@ export function JobPage() {
   if (account?.role === 'STUDENT' && jobId) {
     return <CrewJobPage jobId={jobId} />
   }
-  if (account !== undefined && account.role !== 'CUSTOMER') {
+  if (account !== undefined && holdsOtherRole(account, 'CUSTOMER')) {
     return <NotFoundScreen />
   }
+  // A user with no role reads the Customer's JOB-1 of the Job they posted from "Sản phẩm" (Story 20.3); the API
+  // answers nothing for any other Job.
   return <CustomerJobPage jobId={jobId} />
 }
 

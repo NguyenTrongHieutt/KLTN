@@ -29,7 +29,6 @@ import vn.vibefix.identity.StudentVerification;
 import vn.vibefix.notification.internal.RecordingMailSender;
 import vn.vibefix.operations.Lane;
 import vn.vibefix.operations.internal.OperationWorker;
-import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.timers.DeadlineRequest;
 import vn.vibefix.timers.Deadlines;
@@ -120,7 +119,7 @@ class VerificationExpiryIT extends IntegrationTest {
 	}
 
 	@Test
-	void atTheExpiryTheRowEndsItsFactsGoAndTheStudentIsToldAndAskedToVerifyAgain() throws Exception {
+	void atTheExpiryTheRowEndsItsFactsGoAndThePersonIsTold() throws Exception {
 		this.clock.setInstant(EXPIRY);
 		assertThat(this.poller.runDue()).as("the reminder, then the expiry").isEqualTo(2);
 
@@ -139,15 +138,16 @@ class VerificationExpiryIT extends IntegrationTest {
 				SELECT type FROM notification.notification WHERE account_id = :id ORDER BY created_at, type
 				""").param("id", this.student).query(String.class).list())
 			.contains("identity.verification_expired", "identity.verification_expiring");
+		// No account role marks a Student to ask again (Story 20.3): the student verification is optional.
 		assertThat(this.jdbc.sql("""
 				SELECT count(*) FROM notification.todo
 				WHERE account_id = :id AND todo_key = 'identity.verify_student' AND closed_at IS NULL
-				""").param("id", this.student).query(Long.class).single()).isOne();
-		// The reminder, the expiry, and the to-do lead to ACC-2, where the verification lives (Story 19.3).
+				""").param("id", this.student).query(Long.class).single()).isZero();
+		// The reminder and the expiry lead to ACC-2, where the verification lives (Story 19.3).
 		assertThat(this.jdbc.sql("""
 				SELECT link FROM notification.notification WHERE account_id = :id
 				UNION ALL SELECT link FROM notification.todo WHERE account_id = :id AND todo_key = 'identity.verify_student'
-				""").param("id", this.student).query(String.class).list()).hasSize(3).containsOnly("/ho-so/xac-minh");
+				""").param("id", this.student).query(String.class).list()).hasSize(2).containsOnly("/ho-so/xac-minh");
 		assertThat(this.jdbc.sql("""
 				SELECT actor_type FROM audit.audit_entry WHERE action = 'identity.verification_expired'
 				""").query(String.class).single()).isEqualTo("SYSTEM");
@@ -219,7 +219,7 @@ class VerificationExpiryIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("""
 				SELECT count(*) FROM notification.todo
 				WHERE account_id = :id AND todo_key = 'identity.verify_student' AND closed_at IS NULL
-				""").param("id", this.student).query(Long.class).single()).as("a Student is asked to verify again").isOne();
+				""").param("id", this.student).query(Long.class).single()).as("nobody is asked to verify again (Story 20.3)").isZero();
 	}
 
 	@Test

@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,7 +38,7 @@ import com.sun.net.httpserver.HttpServer;
 
 import vn.vibefix.identity.internal.CustomerTokens;
 import vn.vibefix.identity.internal.IdentityTestSupport;
-import vn.vibefix.shared.Role;
+import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.IntegrationTest;
 
 /** FR-7, AD-13, NFR-5: CUS-3's live repository checks and the registration, against a stub GitHub. */
@@ -207,22 +208,47 @@ class ProductRegistrationIT extends IntegrationTest {
 	}
 
 	@Test
-	void onlyCustomersRegister() throws Exception {
-		UUID mentor = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null);
-		this.mvc.perform(post("/api/v1/products/repository-check").with(as(mentor, Role.MENTOR)).with(csrf())
-			.contentType(MediaType.APPLICATION_JSON)
-			.content("{\"url\":\"https://github.com/lan-nguyen/shop-gom\"}")).andExpect(status().isNotFound());
+	void aUserWithNoRoleAndGitHubLinkedRegistersAndOneWithoutGitHubIsRefused() throws Exception {
+		// Story 20.3: no account role gates the Products; the GitHub link does (FR-80).
+		UUID minh = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-minh", "3.1");
+		IdentityTestSupport.linkGitHub(this.jdbc, minh);
+		CustomerTokens.keep(this.context, minh, TOKEN);
+		repository("minh-tran/quan-ca-phe", 4101, CustomerTokens.githubUserId(this.jdbc, minh), "User", false, 1_000, null,
+				"");
+		check(as(minh, null), "https://github.com/minh-tran/quan-ca-phe").andExpect(status().isOk());
+		register(as(minh, null), "https://github.com/minh-tran/quan-ca-phe", "1.0").andExpect(status().isCreated());
+		this.mvc.perform(get("/api/v1/products").with(as(minh, null))).andExpect(status().isOk())
+			.andExpect(jsonPath("$.length()").value(1))
+			.andExpect(jsonPath("$[0].repositoryUrl").value("https://github.com/minh-tran/quan-ca-phe"));
+		this.mvc.perform(get("/api/v1/products").with(as(this.lan, Role.CUSTOMER))).andExpect(status().isOk())
+			.andExpect(jsonPath("$.length()").value(0));
+
+		UUID unlinked = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-chua-lien-ket", "3.1");
+		check(as(unlinked, null), "https://github.com/minh-tran/quan-ca-phe").andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.reason").value("GITHUB_NOT_LINKED"));
+		register(as(unlinked, null), "https://github.com/minh-tran/quan-ca-phe", "1.0").andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.reason").value("GITHUB_NOT_LINKED"));
+		this.mvc.perform(get("/api/v1/products").with(as(unlinked, null))).andExpect(status().isOk())
+			.andExpect(jsonPath("$.length()").value(0));
 	}
 
 	private ResultActions check(String url) throws Exception {
-		return this.mvc.perform(post("/api/v1/products/repository-check").with(as(this.lan, Role.CUSTOMER)).with(csrf())
+		return check(as(this.lan, Role.CUSTOMER), url);
+	}
+
+	private ResultActions check(RequestPostProcessor caller, String url) throws Exception {
+		return this.mvc.perform(post("/api/v1/products/repository-check").with(caller).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("{\"url\":\"" + url + "\"}"));
 	}
 
 	private ResultActions register(String url, String version) throws Exception {
+		return register(as(this.lan, Role.CUSTOMER), url, version);
+	}
+
+	private ResultActions register(RequestPostProcessor caller, String url, String version) throws Exception {
 		String notice = version == null ? "null" : "\"" + version + "\"";
-		return this.mvc.perform(post("/api/v1/products").with(as(this.lan, Role.CUSTOMER)).with(csrf())
+		return this.mvc.perform(post("/api/v1/products").with(caller).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("""
 					{"repositoryUrl":"%s","tools":["LOVABLE"],"name":"Shop Gốm Bát Tràng",
@@ -240,7 +266,7 @@ class ProductRegistrationIT extends IntegrationTest {
 				admin == null ? "" : ",\"permissions\":{\"admin\":" + admin + "}", extra.isEmpty() ? "" : "," + extra));
 	}
 
-	private RequestPostProcessor as(UUID account, Role role) {
+	private RequestPostProcessor as(UUID account, @Nullable Role role) {
 		return IdentityTestSupport.signedIn(this.sessions, account, role, this.clock.instant());
 	}
 

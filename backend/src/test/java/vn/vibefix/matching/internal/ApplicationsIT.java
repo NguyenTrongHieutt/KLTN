@@ -45,7 +45,7 @@ import com.sun.net.httpserver.HttpServer;
 import vn.vibefix.identity.AccountLocked;
 import vn.vibefix.identity.internal.CustomerTokens;
 import vn.vibefix.identity.internal.IdentityTestSupport;
-import vn.vibefix.shared.Role;
+import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
 import vn.vibefix.team.internal.TeamTestSupport;
@@ -295,7 +295,7 @@ class ApplicationsIT extends IntegrationTest {
 	void aLockedMentorsApplicationsAreWithdrawnOnce() throws Exception {
 		UUID hung = mentorWithFreeStudent("Đỗ Mạnh Hùng");
 		apply(hung, this.job, true).andExpect(status().isCreated());
-		AccountLocked locked = new AccountLocked(UUID.randomUUID(), hung, Role.MENTOR);
+		AccountLocked locked = new AccountLocked(UUID.randomUUID(), hung);
 
 		for (int i = 0; i < 2; i++) {
 			new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.events.publishEvent(locked));
@@ -314,7 +314,11 @@ class ApplicationsIT extends IntegrationTest {
 	}
 
 	private ResultActions apply(UUID mentor, UUID jobId, boolean acknowledged) throws Exception {
-		return this.mvc.perform(post("/api/v1/mentor/job-posts/" + jobId + "/applications").with(as(mentor, Role.MENTOR))
+		return apply(as(mentor, Role.MENTOR), jobId, acknowledged);
+	}
+
+	private ResultActions apply(RequestPostProcessor bidder, UUID jobId, boolean acknowledged) throws Exception {
+		return this.mvc.perform(post("/api/v1/mentor/job-posts/" + jobId + "/applications").with(bidder)
 			.with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("""
@@ -336,8 +340,11 @@ class ApplicationsIT extends IntegrationTest {
 	}
 
 	private UUID mentorWithFreeStudent(String name) {
-		UUID mentor = TeamTestSupport.mentor(this.jdbc, name, List.of(TeamTestSupport.REACT),
-				"React");
+		return withFreeStudent(TeamTestSupport.mentor(this.jdbc, name, List.of(TeamTestSupport.REACT), "React"), name);
+	}
+
+	/** Gives the account a Team with one free Student, as FR-13 needs to take a Job. */
+	private UUID withFreeStudent(UUID mentor, String name) {
 		UUID team = UUID.randomUUID();
 		this.jdbc.sql("INSERT INTO team.team (id, mentor_account_id, status, created_at) VALUES (:id, :mentor, 'OPEN', now())")
 			.param("id", team)
@@ -349,6 +356,24 @@ class ApplicationsIT extends IntegrationTest {
 				INSERT INTO team.membership (id, team_id, student_account_id, joined_at) VALUES (:id, :team, :student, now())
 				""").param("id", UUID.randomUUID()).param("team", team).param("student", student).update();
 		return mentor;
+	}
+
+	/** Story 20.3: a Google account with no role bids; locking it withdraws the bid, as for any other bidder. */
+	@Test
+	void aUserWithNoRoleBidsAndALockWithdrawsTheBid() throws Exception {
+		UUID minh = withFreeStudent(TeamTestSupport.googleMentor(this.jdbc, "Ngô Văn Minh", List.of(TeamTestSupport.REACT),
+				"React"), "Ngô Văn Minh");
+		apply(IdentityTestSupport.signedIn(this.sessions, minh, null, this.clock.instant()), this.job, true)
+			.andExpect(status().isCreated());
+		IdentityTestSupport.lock(this.jdbc, minh, "Vi phạm");
+
+		new TransactionTemplate(this.transactions)
+			.executeWithoutResult(status -> this.events.publishEvent(new AccountLocked(UUID.randomUUID(), minh)));
+
+		await().atMost(Duration.ofSeconds(10)).until(() -> this.jdbc.sql("""
+				SELECT count(*) FROM matching.application
+				WHERE mentor_account_id = :minh AND status = 'WITHDRAWN' AND end_reason = 'MENTOR_UNAVAILABLE'
+				""").param("minh", minh).query(Long.class).single() == 1);
 	}
 
 	private UUID administrator() {

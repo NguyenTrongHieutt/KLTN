@@ -45,7 +45,7 @@ describe('route guards (AD-19)', () => {
     expect(router.state.location.pathname).toBe('/bat-dau')
   })
 
-  it('lands a Google account with no role on the to-do list, with the to-dos and notifications only', async () => {
+  it('lands a Google account with no role on the to-do list, with "Tìm việc" and "Sản phẩm" too (Story 20.3)', async () => {
     fakeBackend(signedInWithGoogle)
     const router = renderAt('/dang-nhap')
 
@@ -53,7 +53,12 @@ describe('route guards (AD-19)', () => {
     expect(router.state.location.pathname).toBe('/viec-can-lam')
     for (const name of ['Điều hướng chính', 'Điều hướng nhanh']) {
       const nav = screen.getByRole('navigation', { name })
-      expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Việc cần làm', 'Thông báo'])
+      expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual([
+        'Việc cần làm',
+        'Tìm việc',
+        'Sản phẩm',
+        'Thông báo',
+      ])
     }
     expect(screen.getByRole('button', { name: 'Tài khoản của Nguyễn Thị Lan' })).toHaveTextContent('TL')
   })
@@ -98,9 +103,10 @@ describe('route guards (AD-19)', () => {
       'Việc cần làm',
       'Tìm việc',
       'Công việc',
-      'Nhóm',
       'Thông báo',
     ])
+    // The Team endpoints answer nothing since Story 20.3, so "Nhóm" is not offered.
+    expect(within(nav).queryByRole('link', { name: 'Nhóm' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Hồ sơ người hướng dẫn' })).not.toBeInTheDocument()
   })
 

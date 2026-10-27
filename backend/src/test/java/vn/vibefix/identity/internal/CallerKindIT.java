@@ -38,12 +38,11 @@ import vn.vibefix.identity.Capabilities.Held;
 import vn.vibefix.identity.internal.SignInSession.AccountAuthentication;
 import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.Kind;
-import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
 
 /**
- * Story 20.1 (AD-19, AD-20, AD-42): every request carries {@code Caller(accountId, kind)} with the transitional
- * role read from the account row, the session holds the account's ID and kind and nothing else, the
+ * Stories 20.1 and 20.3 (AD-19, AD-20, AD-42): every request carries {@code Caller(accountId, kind)} and nothing
+ * else, the kind read from the account row, the session holds the account's ID and kind and nothing else, the
  * capabilities are read from the database on every call with validity judged by the Clock in Vietnam, the
  * session view answers the kind and the capabilities, and a session gone from the store leaves the next request
  * anonymous.
@@ -87,21 +86,22 @@ class CallerKindIT extends IntegrationTest {
 
 		Caller caller = resolve(new AccountAuthentication(lan, Kind.USER), null);
 
-		assertThat(caller).isEqualTo(new Caller(lan, Kind.USER, null));
+		assertThat(caller).isEqualTo(new Caller(lan, Kind.USER));
 		assertThat(caller.isUser()).isTrue();
 		assertThat(caller.isAdministrator()).isFalse();
 	}
 
 	@Test
-	void theLegacyRoleIsReadFromTheAccountRowOnEveryRequest() throws Exception {
+	void theCallerCarriesTheAccountAndItsKindOnlyWhateverRoleTheRowStores() throws Exception {
+		assertThat(Arrays.stream(Caller.class.getRecordComponents()).map(java.lang.reflect.RecordComponent::getName))
+			.containsExactly("accountId", "kind");
 		UUID hung = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null);
 		AccountAuthentication session = new AccountAuthentication(hung, Kind.USER);
 
-		assertThat(resolve(session, null)).isEqualTo(new Caller(hung, Kind.USER, Role.MENTOR));
+		assertThat(resolve(session, null)).isEqualTo(new Caller(hung, Kind.USER));
 
 		this.jdbc.sql("UPDATE identity.account SET role = 'CUSTOMER' WHERE id = :id").param("id", hung).update();
-		assertThat(resolve(session, null)).as("the same session, the role of this request")
-			.isEqualTo(new Caller(hung, Kind.USER, Role.CUSTOMER));
+		assertThat(resolve(session, null)).as("the stored role changes nothing").isEqualTo(new Caller(hung, Kind.USER));
 	}
 
 	@Test
@@ -112,7 +112,7 @@ class CallerKindIT extends IntegrationTest {
 
 		Caller caller = resolve(new AccountAuthentication(admin, Kind.ADMINISTRATOR), session);
 
-		assertThat(caller).isEqualTo(new Caller(admin, Kind.ADMINISTRATOR, Role.ADMINISTRATOR));
+		assertThat(caller).isEqualTo(new Caller(admin, Kind.ADMINISTRATOR));
 		assertThat(caller.isAdministrator()).isTrue();
 		assertThat(caller.isUser()).isFalse();
 	}

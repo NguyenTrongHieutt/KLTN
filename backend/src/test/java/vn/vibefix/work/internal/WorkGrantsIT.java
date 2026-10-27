@@ -9,13 +9,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 import vn.vibefix.identity.internal.IdentityTestSupport;
+import vn.vibefix.identity.internal.Role;
 import vn.vibefix.shared.AdminReadGrants;
 import vn.vibefix.shared.AdminReadScope;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Kind;
-import vn.vibefix.shared.Role;
 import vn.vibefix.support.AdminReadGrantsContract;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.team.internal.TeamTestSupport;
@@ -64,7 +64,7 @@ class WorkGrantsIT extends IntegrationTest implements AdminReadGrantsContract {
 
 	@Override
 	public void read(UUID adminId, Seeded item) {
-		Caller admin = Caller.account(adminId, Kind.ADMINISTRATOR, Role.ADMINISTRATOR);
+		Caller admin = Caller.account(adminId, Kind.ADMINISTRATOR);
 		WorkAccess.BoardViewer viewer = this.access.reader(item.jobId(), admin);
 		this.reads.item(viewer, this.boards.item(item.objectId())
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND)));

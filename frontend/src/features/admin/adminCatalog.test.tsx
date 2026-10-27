@@ -132,7 +132,6 @@ describe('ADM-12 Skill suggestions (FR-73, Story 16.4)', () => {
       categoryName: 'Máy chủ và API',
       note: 'Dự án cần',
       suggesterName: 'Vy Trần',
-      suggesterRole: 'STUDENT',
       createdAt: minutes(-120),
       status: 'OPEN',
     }
@@ -140,7 +139,6 @@ describe('ADM-12 Skill suggestions (FR-73, Story 16.4)', () => {
       id: 'g2',
       name: 'BASE44',
       suggesterName: 'Lan Nguyễn',
-      suggesterRole: 'CUSTOMER',
       createdAt: minutes(-60),
       status: 'OPEN',
       inactiveSkill: { id: 's9', name: 'Base44' },
@@ -167,7 +165,9 @@ describe('ADM-12 Skill suggestions (FR-73, Story 16.4)', () => {
     expect(await screen.findByRole('link', { name: 'Đề xuất' })).toHaveAttribute('aria-current', 'page')
     const queue = await screen.findByRole('list', { name: 'Đề xuất kỹ năng' })
     expect(within(queue).getByText(/Trùng tên với kỹ năng đã ngừng dùng “Base44”/)).toBeInTheDocument()
-    expect(within(queue).getByText(/Vy Trần \(Sinh viên\)/)).toBeInTheDocument()
+    // A suggestion records no suggester role (Story 20.3): the line names the person and the day.
+    expect(within(queue).getByText(/Vy Trần ·/)).toBeInTheDocument()
+    expect(within(queue).queryByText(/\(Sinh viên\)/)).not.toBeInTheDocument()
 
     await user.click(within(queue).getAllByRole('button', { name: 'Duyệt' })[0])
     const dialog = await screen.findByRole('dialog', { name: 'Duyệt đề xuất kỹ năng' })

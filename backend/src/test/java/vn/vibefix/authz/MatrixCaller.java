@@ -10,6 +10,15 @@ public enum MatrixCaller {
 	/** Nobody signed in. */
 	ANONYMOUS,
 
+	/**
+	 * A Google account with GitHub linked and no account role (Story 20.3), holding no relation to the row's
+	 * objects: what every global screen's capability gate lets in.
+	 */
+	USER,
+
+	/** A Google account without GitHub linked and no account role (Story 20.3), holding no relation either. */
+	USER_UNVERIFIED,
+
 	/** A Customer with no relationship to the row's objects. */
 	CUSTOMER,
 

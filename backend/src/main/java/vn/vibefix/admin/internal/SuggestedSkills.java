@@ -26,6 +26,7 @@ import vn.vibefix.catalog.CatalogAdministration;
 import vn.vibefix.catalog.CatalogAdministration.Saved;
 import vn.vibefix.catalog.CatalogAdministration.SkillInput;
 import vn.vibefix.catalog.Skill;
+import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.notification.Audience;
 import vn.vibefix.notification.NotificationRequest;
 import vn.vibefix.notification.Notifications;
@@ -36,14 +37,13 @@ import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.IdGenerator;
 import vn.vibefix.shared.RateLimitedException;
-import vn.vibefix.shared.Role;
 
 /**
- * Skill suggestions (FR-73, FR-72, AD-34, AD-38, SG-50): a Customer, a Mentor, or a Student suggests a Skill the
- * picker does not find, at most 5 a day. A name an active Skill already has, ignoring accents and case, is
- * refused with that Skill; one an inactive Skill has is queued and flagged. On ADM-12 an Administrator approves a
- * suggestion into a Skill through the catalog command, which adds it to no profile or Job Post, or declines it
- * with a reason; either way the suggester is told.
+ * Skill suggestions (FR-73, FR-72, AD-34, AD-38, SG-50): any unlocked user suggests a Skill the picker does not
+ * find, at most 5 a day; a suggestion records no suggester role (Story 20.3). A name an active Skill already
+ * has, ignoring accents and case, is refused with that Skill; one an inactive Skill has is queued and flagged. On
+ * ADM-12 an Administrator approves a suggestion into a Skill through the catalog command, which adds it to no
+ * profile or Job Post, or declines it with a reason; either way the suggester is told.
  */
 @Component
 class SuggestedSkills {
@@ -63,13 +63,13 @@ class SuggestedSkills {
 	 * @param inactiveSkillId the inactive Skill of the same name, flagged for the Administrator
 	 * @param skillId the Skill an approval created
 	 */
-	record Suggestion(UUID id, @Nullable UUID suggesterId, Role suggesterRole, String name, @Nullable UUID categoryId,
+	record Suggestion(UUID id, @Nullable UUID suggesterId, String name, @Nullable UUID categoryId,
 			@Nullable String note, @Nullable UUID inactiveSkillId, String status, Instant createdAt, @Nullable Instant decidedAt,
 			@Nullable String declineReason, @Nullable UUID skillId) {
 	}
 
 	private static final String COLUMNS = """
-			id, suggester_account_id, suggester_role, name, category_id, note, inactive_skill_id, status, created_at,
+			id, suggester_account_id, name, category_id, note, inactive_skill_id, status, created_at,
 			decided_at, decline_reason, skill_id
 			""";
 
@@ -87,8 +87,11 @@ class SuggestedSkills {
 
 	private final Clock clock;
 
+	private final ActiveAccount active;
+
 	SuggestedSkills(JdbcClient jdbc, Catalog catalog, CatalogAdministration administration, Notifications notifications,
-			AuditLog auditLog, IdGenerator ids, Clock clock) {
+			AuditLog auditLog, IdGenerator ids, Clock clock, ActiveAccount active) {
+		this.active = active;
 		this.jdbc = jdbc;
 		this.catalog = catalog;
 		this.administration = administration;
@@ -100,20 +103,13 @@ class SuggestedSkills {
 
 	/**
 	 * "Đề xuất thêm kỹ năng này".
-	 * @throws ApiException {@code FORBIDDEN} for an account with no role; {@code NOT_FOUND} for an Administrator;
-	 * {@code VALIDATION}; {@code CONFLICT
+	 * @throws ApiException {@code NOT_FOUND} for an Administrator; {@code FORBIDDEN ACCOUNT_LOCKED} for a locked
+	 * account; {@code VALIDATION}; {@code CONFLICT
 	 * SKILL_ALREADY_EXISTS} with {@code skillId} and {@code skillName}; {@code RATE_LIMITED SKILL_SUGGESTION_LIMIT}
 	 */
 	@Transactional
 	Suggestion suggest(Caller caller, String name, @Nullable UUID categoryId, @Nullable String note) {
-		Role role = caller.role();
-		if (role == null) {
-			// A Google account has no role until Epic 20: refused, as every role check refuses it (AD-20).
-			throw new ApiException(ErrorCode.FORBIDDEN);
-		}
-		if (role != Role.CUSTOMER && role != Role.MENTOR && role != Role.STUDENT) {
-			throw new ApiException(ErrorCode.NOT_FOUND);
-		}
+		UUID suggester = user(caller);
 		String text = name.strip();
 		String said = note == null || note.isBlank() ? null : note.strip();
 		if (text.length() < 2 || text.length() > 60 || said != null && said.length() > 500) {
@@ -127,7 +123,6 @@ class SuggestedSkills {
 			throw new ApiException(ErrorCode.CONFLICT, AdminReason.SKILL_ALREADY_EXISTS,
 					Map.of("skillId", existing.id().toString(), "skillName", existing.name()));
 		}
-		UUID suggester = caller.requireAccountId();
 		AdvisoryLocks.lockAccount(this.jdbc, suggester);
 		Instant now = this.clock.instant();
 		Instant today = LocalDate.ofInstant(now, VIETNAM).atStartOfDay(VIETNAM).toInstant();
@@ -142,13 +137,12 @@ class SuggestedSkills {
 		}
 		UUID id = this.ids.newId();
 		this.jdbc.sql("""
-				INSERT INTO admin.skill_suggestion (id, suggester_account_id, suggester_role, name, category_id, note,
-				    inactive_skill_id, status, created_at)
-				VALUES (:id, :suggester, :role, :name, :category, :note, :inactive, 'OPEN', :now)
+				INSERT INTO admin.skill_suggestion (id, suggester_account_id, name, category_id, note, inactive_skill_id,
+				    status, created_at)
+				VALUES (:id, :suggester, :name, :category, :note, :inactive, 'OPEN', :now)
 				""")
 			.param("id", id)
 			.param("suggester", suggester)
-			.param("role", role.name())
 			.param("name", text)
 			.param("category", categoryId)
 			.param("note", said)
@@ -158,6 +152,19 @@ class SuggestedSkills {
 		this.auditLog.record(AuditEntry.of(AuditActor.user(suggester), "admin.skill_suggested",
 				AuditObject.of("admin.skill_suggestion", id)));
 		return find(id);
+	}
+
+	/**
+	 * The user calling, unlocked (AD-19, read on every request); an Administrator suggests nothing and finds
+	 * nothing.
+	 */
+	UUID user(Caller caller) {
+		if (!caller.isUser()) {
+			throw new ApiException(ErrorCode.NOT_FOUND);
+		}
+		UUID account = caller.requireAccountId();
+		this.active.requireActiveAccount(account);
+		return account;
 	}
 
 	/** The suggester's own suggestions, newest first. */
@@ -270,7 +277,7 @@ class SuggestedSkills {
 	private static Suggestion suggestion(ResultSet rs, int n) throws SQLException {
 		Timestamp decided = rs.getTimestamp("decided_at");
 		return new Suggestion(rs.getObject("id", UUID.class), rs.getObject("suggester_account_id", UUID.class),
-				Role.valueOf(rs.getString("suggester_role")), rs.getString("name"), rs.getObject("category_id", UUID.class),
+				rs.getString("name"), rs.getObject("category_id", UUID.class),
 				rs.getString("note"), rs.getObject("inactive_skill_id", UUID.class), rs.getString("status"),
 				rs.getTimestamp("created_at").toInstant(), decided == null ? null : decided.toInstant(),
 				rs.getString("decline_reason"), rs.getObject("skill_id", UUID.class));

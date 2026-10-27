@@ -31,8 +31,8 @@ import vn.vibefix.catalog.Catalog;
 import vn.vibefix.catalog.Skill;
 import vn.vibefix.catalog.SkillCategory;
 import vn.vibefix.identity.internal.IdentityTestSupport;
+import vn.vibefix.identity.internal.Role;
 import vn.vibefix.shared.ApiException;
-import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.PostgresTestDatabase;
 

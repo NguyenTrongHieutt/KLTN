@@ -44,7 +44,7 @@ import com.sun.net.httpserver.HttpServer;
 import vn.vibefix.identity.AccountLocked;
 import vn.vibefix.identity.internal.CustomerTokens;
 import vn.vibefix.identity.internal.IdentityTestSupport;
-import vn.vibefix.shared.Role;
+import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
 import vn.vibefix.team.internal.TeamTestSupport;
@@ -212,7 +212,7 @@ class AgreementReviewIT extends IntegrationTest {
 		confirmedCrew(this.vy, 0);
 		approve(jobVersion(), 1, true, List.of()).andExpect(status().isNoContent());
 		confirm(jobVersion(), crewVersion()).andExpect(status().isOk());
-		AccountLocked locked = new AccountLocked(UUID.randomUUID(), this.vy, Role.STUDENT);
+		AccountLocked locked = new AccountLocked(UUID.randomUUID(), this.vy);
 
 		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.events.publishEvent(locked));
 		await().atMost(Duration.ofSeconds(10)).until(() -> notifications("job.crew_reconfirm_needed", this.hung) == 1);

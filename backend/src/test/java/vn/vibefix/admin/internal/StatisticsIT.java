@@ -23,15 +23,16 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import vn.vibefix.identity.internal.AdministratorTestSupport;
 import vn.vibefix.identity.internal.AdministratorTestSupport.Administrator;
 import vn.vibefix.identity.internal.IdentityTestSupport;
-import vn.vibefix.shared.Role;
+import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.team.internal.TeamTestSupport;
 
 /**
- * ADM-9 (FR-62): every module's figures in their groups, in the fixed order; the private-feedback figure
+ * ADM-9 (FR-62, UX-DR110): every module's figures in their groups, in the fixed order; the private-feedback figure
  * stays out below 5 feedbacks across 3 Mentors. Story 17.2 adds the rates (completion, on time, first-pass
  * approvals, acceptance shares), the Rating averages without hidden Ratings, and Team Issues by outcome; a
- * rate without a denominator is left out.
+ * rate without a denominator is left out. Story 20.3 counts users by Verification and by the roles they hold per
+ * Job, with no account-role row.
  */
 class StatisticsIT extends IntegrationTest {
 
@@ -59,16 +60,16 @@ class StatisticsIT extends IntegrationTest {
 		IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-thong-ke", "3.1");
 
 		this.mvc.perform(get("/api/v1/admin/statistics").with(admin(ha))).andExpect(status().isOk())
-			.andExpect(jsonPath("$.groups[0].group").value("usersByRole"))
-			.andExpect(jsonPath("$.groups[?(@.group == 'usersByRole')].counts[?(@.key == 'CUSTOMER')].value").value(2))
-			.andExpect(jsonPath("$.groups[?(@.group == 'usersByRole')].counts[?(@.key == 'STUDENT')].value").value(2))
-			// Story 19.1: a Google account has no role and counts under NONE; Administrators never count.
-			.andExpect(jsonPath("$.groups[?(@.group == 'usersByRole')].counts[?(@.key == 'NONE')].value").value(1))
-			.andExpect(jsonPath("$.groups[?(@.group == 'usersByRole')].counts[?(@.key == 'ADMINISTRATOR')]").isEmpty())
-			.andExpect(jsonPath("$.groups[?(@.group == 'studentsByVerification')].counts[?(@.key == 'VERIFIED')].value").value(1))
-			// Story 19.4: every person's account counts, by its live, valid verification.
-			.andExpect(jsonPath("$.groups[?(@.group == 'studentsByVerification')].counts[?(@.key == 'UNVERIFIED')].value")
-				.value(5))
+			.andExpect(jsonPath("$.groups[0].group").value("usersByVerification"))
+			.andExpect(jsonPath("$.groups[1].group").value("usersByJobRole"))
+			// Story 20.3: no account-role row; the five shim accounts have GitHub linked, the Google one has not.
+			.andExpect(jsonPath("$.groups[?(@.group == 'usersByRole')]").isEmpty())
+			.andExpect(jsonPath("$.groups[?(@.group == 'usersByVerification')].counts[?(@.key == 'GITHUB')].value").value(5))
+			.andExpect(jsonPath("$.groups[?(@.group == 'usersByVerification')].counts[?(@.key == 'LINKEDIN')].value").value(0))
+			.andExpect(jsonPath("$.groups[?(@.group == 'usersByVerification')].counts[?(@.key == 'STUDENT')].value").value(1))
+			.andExpect(jsonPath("$.groups[?(@.group == 'usersByJobRole')].counts[?(@.key == 'CUSTOMER')].value").value(0))
+			// Story 20.3: usersByVerification's STUDENT replaces the students-by-verification group.
+			.andExpect(jsonPath("$.groups[?(@.group == 'studentsByVerification')]").isEmpty())
 			// Story 19.7: nobody is approved, so no Mentor or application count by decision exists.
 			.andExpect(jsonPath("$.groups[?(@.group == 'mentorsByApproval')]").isEmpty())
 			.andExpect(jsonPath("$.groups[?(@.group == 'mentorApplicationsByDecision')]").isEmpty())
@@ -78,7 +79,34 @@ class StatisticsIT extends IntegrationTest {
 	}
 
 	@Test
-	void aRenewedStudentCountsOnceAndAnUnlinkedOrRevokedOneIsNotVerified() throws Exception {
+	void usersCountOnceInEachRoleTheyHoldInAnyJobAndByEachVerificationTheyHold() throws Exception {
+		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		UUID lan = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-lan", "3.1");
+		IdentityTestSupport.linkGitHub(this.jdbc, lan);
+		UUID hung = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-hung", "3.1");
+		IdentityTestSupport.linkGitHub(this.jdbc, hung);
+		UUID vy = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-vy", "3.1");
+		IdentityTestSupport.verifyStudent(this.jdbc, vy, LocalDate.parse("2026-09-30"));
+		UUID minh = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-minh", "3.1");
+		// Lan is the Customer of Jobs A and C and the Mentor of Job B; Hung the Mentor of Job A and the Customer of
+		// Job B; Vy a Crew member of Job A; Minh's Crew row on Job B was never activated, so it counts for nothing.
+		UUID productA = product(lan);
+		UUID jobA = job(productA, lan, hung, "ACTIVE", true);
+		UUID jobB = job(product(hung), hung, lan, "AGREEMENT", true);
+		job(productA, lan, hung, "CLOSED", true);
+		crewRow(jobA, vy, true);
+		crewRow(jobB, minh, false);
+
+		this.mvc.perform(get("/api/v1/admin/statistics").with(admin(ha))).andExpect(status().isOk())
+			.andExpect(jsonPath("$.groups[?(@.group == 'usersByJobRole')].counts[?(@.key == 'CUSTOMER')].value").value(2))
+			.andExpect(jsonPath("$.groups[?(@.group == 'usersByJobRole')].counts[?(@.key == 'MENTOR')].value").value(2))
+			.andExpect(jsonPath("$.groups[?(@.group == 'usersByJobRole')].counts[?(@.key == 'CREW')].value").value(1))
+			.andExpect(jsonPath("$.groups[?(@.group == 'usersByVerification')].counts[?(@.key == 'GITHUB')].value").value(2))
+			.andExpect(jsonPath("$.groups[?(@.group == 'usersByVerification')].counts[?(@.key == 'STUDENT')].value").value(1));
+	}
+
+	@Test
+	void aRenewedVerificationCountsOnceAndAnUnlinkedOrRevokedOneNotAtAll() throws Exception {
 		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
 		UUID renewed = TeamTestSupport.student(this.jdbc, "Gia hạn", true, List.of(), "", LocalDate.parse("2026-09-30"));
 		this.jdbc.sql("""
@@ -96,9 +124,7 @@ class StatisticsIT extends IntegrationTest {
 		}
 
 		this.mvc.perform(get("/api/v1/admin/statistics").with(admin(ha))).andExpect(status().isOk())
-			.andExpect(jsonPath("$.groups[?(@.group == 'studentsByVerification')].counts[?(@.key == 'VERIFIED')].value").value(1))
-			.andExpect(jsonPath("$.groups[?(@.group == 'studentsByVerification')].counts[?(@.key == 'UNVERIFIED')].value")
-				.value(2));
+			.andExpect(jsonPath("$.groups[?(@.group == 'usersByVerification')].counts[?(@.key == 'STUDENT')].value").value(1));
 	}
 
 	@Test
@@ -253,6 +279,17 @@ class StatisticsIT extends IntegrationTest {
 			.param("phase", ending != null ? "ENDED" : escalated != null ? "ESCALATED" : "ANSWER").param("now", now)
 			.param("escalated", escalated == null ? null : Timestamp.from(escalated)).param("ending", ending)
 			.param("ended", ending == null ? null : now).update();
+	}
+
+	/** A Crew row of the member on the Job, activated when {@code activated} (AD-41). */
+	private void crewRow(UUID job, UUID member, boolean activated) {
+		Timestamp now = Timestamp.from(this.clock.instant());
+		this.jdbc.sql("""
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, created_at)
+				VALUES (:id, :job, :member, :status, :signed, :activated, :now)
+				""").param("id", UUID.randomUUID()).param("job", job).param("member", member)
+			.param("status", activated ? "ACTIVE" : "ASSIGNED").param("signed", activated ? now : null)
+			.param("activated", activated ? now : null).param("now", now).update();
 	}
 
 	private RequestPostProcessor admin(Administrator administrator) {

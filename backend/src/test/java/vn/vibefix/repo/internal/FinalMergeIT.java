@@ -35,10 +35,10 @@ import vn.vibefix.github.internal.GitHubStub.MergeInstallation;
 import vn.vibefix.github.internal.TestKeys;
 import vn.vibefix.identity.internal.CustomerTokens;
 import vn.vibefix.identity.internal.IdentityTestSupport;
+import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.JobCompletion;
 import vn.vibefix.operations.Lane;
 import vn.vibefix.operations.internal.OperationWorker;
-import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
 
 /**

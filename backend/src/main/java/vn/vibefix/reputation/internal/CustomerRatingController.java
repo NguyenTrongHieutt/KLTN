@@ -21,12 +21,12 @@ import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.shared.Role;
 
 /**
  * MEN-3's Customer Rating (FR-12): the visible Rating summary of an Open Job Post's Customer, with their
- * kind and when they joined ("Cá nhân · từ {month}", author decision 2026-10-21), for unlocked Mentors
- * with GitHub linked only, as "Tìm việc" (X1) needs. The Customer's name and account ID stay on the server.
+ * kind and when they joined ("Cá nhân · từ {month}", author decision 2026-10-21), for any unlocked user with
+ * GitHub linked, as "Tìm việc" (X1) needs, with no account role (Story 20.3); an Administrator finds nothing.
+ * The Customer's name and account ID stay on the server.
  */
 @RestController
 @Access(Gate.SIGNED_IN)
@@ -62,7 +62,7 @@ class CustomerRatingController {
 	@GetMapping("/api/v1/mentor/job-posts/{postId}/customer-rating")
 	RatingSummaryView customerRating(@PathVariable UUID postId) {
 		Caller caller = this.callers.get();
-		if (!caller.hasRole(Role.MENTOR)) {
+		if (!caller.isUser()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		this.mentors.requireGitHubLinked(caller.requireAccountId());

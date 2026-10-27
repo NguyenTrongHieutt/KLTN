@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, profileView, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, profileView, signedIn, signedInWithGoogle } from '@/test/fakeBackend'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -179,6 +179,15 @@ describe('suggesting a missing Skill from the picker (FR-73, Story 16.4)', () =>
     expect(await within(dialog).findByText('Kỹ năng “React” đã có trong danh sách.')).toBeInTheDocument()
     await user.click(within(dialog).getByRole('button', { name: 'Chọn kỹ năng này' }))
     expect(await screen.findByRole('button', { name: 'Bỏ React' })).toBeInTheDocument()
+  })
+
+  it('offers the suggestion to a user with no role too (Story 20.3)', { timeout: 15_000 }, async () => {
+    const user = userEvent.setup()
+    fakeBackend(signedInWithGoogle, { 'GET /api/v1/profile': () => profile(), 'GET /api/v1/catalog': catalog })
+    renderAt('/ho-so')
+
+    await user.type(await screen.findByRole('combobox', { name: 'Kỹ năng' }), 'Supabase Edge')
+    expect(await screen.findByRole('button', { name: 'Đề xuất thêm kỹ năng này' })).toBeInTheDocument()
   })
 
   it('says when the day’s five suggestions are used', { timeout: 15_000 }, async () => {

@@ -39,7 +39,6 @@ import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.shared.Role;
 
 /**
  * The Team Issue panel (FR-79, AD-40, UX-DR63): a Student reads, on STU-4, what they may raise on each Job
@@ -47,8 +46,8 @@ import vn.vibefix.shared.Role;
  * own for such a Crew member. The Mentor answers on JOB-1; the raiser accepts the answer or asks an
  * Administrator to look on STU-4. A share issue carries what its preview splits: the other parties'
  * percentages and the cap for the Mentor only. Every check on a Job reads the caller's role in it (AD-43);
- * STU-4's panel keeps the global gate of the Student pages until Story 20.3. The Customer and everyone else
- * find nothing (AD-20).
+ * STU-4's panel is open to any unlocked user and lists only the Jobs where the caller was an active Crew member
+ * (Story 20.3). The Customer and everyone else find nothing (AD-20).
  */
 @RestController
 @Access(Gate.SIGNED_IN)
@@ -212,13 +211,17 @@ class TeamIssueController {
 		throw new ApiException(ErrorCode.NOT_FOUND);
 	}
 
-	/** A Student on STU-4, outside any Job: the global gate of the Student pages, which Story 20.3 replaces. */
+	/**
+	 * A user on STU-4, outside any Job, unlocked (AD-19, read on every request); the panel holds only the caller's
+	 * own Crew Jobs. An Administrator finds nothing.
+	 */
 	private UUID student() {
 		Caller caller = this.callers.get();
-		UUID account = caller.accountId();
-		if (account == null || !caller.hasRole(Role.STUDENT)) {
+		if (!caller.isUser()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
+		UUID account = caller.requireAccountId();
+		this.gate.requireActiveAccount(account);
 		return account;
 	}
 

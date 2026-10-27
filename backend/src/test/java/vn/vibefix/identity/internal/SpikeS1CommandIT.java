@@ -24,7 +24,6 @@ import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.mock.env.MockEnvironment;
 
-import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
 
 /**

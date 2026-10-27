@@ -21,21 +21,17 @@ import {
   type PersonLink,
   type UserFilter,
   type UserQuery,
-  type UserRole,
 } from './adminUsersApi'
 import { StepUpDialog } from './StepUpDialog'
-
-const ROLES: UserRole[] = ['CUSTOMER', 'MENTOR', 'STUDENT']
 
 const FILTERS: UserFilter[] = ['LOCKED', 'VERIFIED', 'LOW_FEEDBACK']
 
 const PAGE_SIZE = 20
 
 function readQuery(params: URLSearchParams): UserQuery {
-  const role = ROLES.find((candidate) => candidate === params.get('role'))
   const status = FILTERS.find((candidate) => candidate === params.get('status'))
   const page = Math.max(1, Number.parseInt(params.get('page') ?? '1', 10) || 1) - 1
-  return { q: params.get('q') ?? undefined, role, status, page }
+  return { q: params.get('q') ?? undefined, status, page }
 }
 
 function nameOf(user: { name?: string; githubLogin?: string }): string {
@@ -44,10 +40,11 @@ function nameOf(user: { name?: string; githubLogin?: string }): string {
 
 /**
  * ADM-2 (`/quan-tri/nguoi-dung/{accountId?}`, FR-5, FR-59, FR-78, AD-19, UX-DR46, UX-DR69, UX-DR81, UX-DR110):
- * the search with role and status chips, and the chosen account with its verification, the accounts that
- * may be the same person (by kind, never a value), its history, and for a Mentor the private feedback,
- * which only Administrators read. Locking and unlocking take a reason; nobody is approved, verified, or
- * revoked here (Story 19.7), while the old revocations stay readable in the history.
+ * the search with status chips, and the chosen account with its verification, the accounts that may be the
+ * same person (by kind, never a value), its history, and the private feedback about it as a Mentor, which only
+ * Administrators read, with its Empty state while there is none. No account carries a role (Story 20.3): a
+ * person's roles are per Job. Locking and unlocking take a reason; nobody is approved, verified, or revoked
+ * here (Story 19.7), while the old revocations stay readable in the history.
  */
 export function AdminUsersPage() {
   usePageTitle(t('screen.admin.users.title'))
@@ -62,7 +59,6 @@ export function AdminUsersPage() {
     const merged = { ...query, ...next }
     const search = new URLSearchParams()
     if (merged.q) search.set('q', merged.q)
-    if (merged.role) search.set('role', merged.role)
     if (merged.status) search.set('status', merged.status)
     search.set('page', `${merged.page + 1}`)
     setParams(search)
@@ -97,13 +93,6 @@ export function AdminUsersPage() {
         <Button type="submit">{t('screen.admin.users.find')}</Button>
       </form>
       <Chips
-        label={t('screen.admin.users.roleFilter')}
-        options={ROLES}
-        current={query.role}
-        text={(role) => t(`screen.admin.users.role.${role}` as MessageKey)}
-        onPick={(role) => update({ role, page: 0 })}
-      />
-      <Chips
         label={t('screen.admin.users.statusFilter')}
         options={FILTERS}
         current={query.status}
@@ -132,8 +121,6 @@ export function AdminUsersPage() {
                       <span className="text-label font-semibold break-words">{nameOf(row)}</span>
                       <span className="text-caption text-muted-foreground">
                         {[
-                          // A Google account has no role until Epic 20 (Story 19.1).
-                          row.role ? t(`screen.admin.users.role.${row.role}` as MessageKey) : '',
                           row.status ? t(`screen.admin.users.status.${row.status}` as MessageKey) : '',
                           row.locked ? t('screen.admin.users.locked') : '',
                         ]
@@ -238,8 +225,6 @@ function UserDetail({ user }: { user: AdminUser }) {
           )}
         </div>
         <dl className="grid gap-x-6 gap-y-1 sm:grid-cols-[max-content_1fr]">
-          <dt className="text-muted-foreground">{t('screen.admin.users.roleLabel')}</dt>
-          <dd>{user.role ? t(`screen.admin.users.role.${user.role}` as MessageKey) : '—'}</dd>
           {user.githubLogin && (
             <>
               <dt className="text-muted-foreground">{t('screen.admin.users.github')}</dt>
@@ -254,19 +239,15 @@ function UserDetail({ user }: { user: AdminUser }) {
           )}
           <dt className="text-muted-foreground">{t('screen.admin.users.createdAt')}</dt>
           <dd>{formatDayMonthTime(user.createdAt)}</dd>
-          {user.role === 'STUDENT' && (
-            <>
-              <dt className="text-muted-foreground">{t('screen.admin.users.verification')}</dt>
-              <dd>
-                {user.verification
-                  ? t(verified ? 'screen.admin.users.verifiedUntil' : 'screen.admin.users.verificationExpired', {
-                      method: t(`screen.admin.users.method.${user.verification.method}` as MessageKey),
-                      date: formatCalendarDate(user.verification.validUntil),
-                    })
-                  : t('screen.admin.users.unverified')}
-              </dd>
-            </>
-          )}
+          <dt className="text-muted-foreground">{t('screen.admin.users.verification')}</dt>
+          <dd>
+            {user.verification
+              ? t(verified ? 'screen.admin.users.verifiedUntil' : 'screen.admin.users.verificationExpired', {
+                  method: t(`screen.admin.users.method.${user.verification.method}` as MessageKey),
+                  date: formatCalendarDate(user.verification.validUntil),
+                })
+              : t('screen.admin.users.unverified')}
+          </dd>
           {user.lockReason && (
             <>
               <dt className="text-muted-foreground">{t('screen.admin.users.lockReason')}</dt>
@@ -288,26 +269,30 @@ function UserDetail({ user }: { user: AdminUser }) {
         <p className="text-caption text-muted-foreground">{t('screen.admin.users.unlockNote')}</p>
       </section>
       <PersonLinks links={user.personLinks} />
-      {user.feedback && (
-        <section aria-labelledby="feedback-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5 text-body-sm">
-          <h3 id="feedback-heading" className="text-h3">
-            {t('screen.admin.users.feedback')}
-          </h3>
-          <p className="text-caption text-muted-foreground">{t('screen.admin.users.feedbackPrivate')}</p>
-          <p className="tabular-nums">
-            {t('screen.admin.users.feedbackSummary', { average: user.feedback.average.toLocaleString('vi-VN'), n: user.feedback.count })}
-          </p>
-          {user.feedback.comments.length > 0 && (
-            <ul className="flex flex-col gap-1">
-              {user.feedback.comments.map((comment, index) => (
-                <li key={index} className="rounded-md bg-muted p-2 break-words whitespace-pre-line">
-                  {comment}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      )}
+      <section aria-labelledby="feedback-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5 text-body-sm">
+        <h3 id="feedback-heading" className="text-h3">
+          {t('screen.admin.users.feedback')}
+        </h3>
+        <p className="text-caption text-muted-foreground">{t('screen.admin.users.feedbackPrivate')}</p>
+        {user.feedback ? (
+          <>
+            <p className="tabular-nums">
+              {t('screen.admin.users.feedbackSummary', { average: user.feedback.average.toLocaleString('vi-VN'), n: user.feedback.count })}
+            </p>
+            {user.feedback.comments.length > 0 && (
+              <ul className="flex flex-col gap-1">
+                {user.feedback.comments.map((comment, index) => (
+                  <li key={index} className="rounded-md bg-muted p-2 break-words whitespace-pre-line">
+                    {comment}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        ) : (
+          <p className="text-muted-foreground">{t('screen.admin.users.feedbackEmpty')}</p>
+        )}
+      </section>
       {user.deletionRequest && <DeletionSection user={user} />}
       <section aria-labelledby="history-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5 text-body-sm">
         <h3 id="history-heading" className="text-h3">

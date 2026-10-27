@@ -21,10 +21,10 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import vn.vibefix.identity.internal.IdentityTestSupport;
+import vn.vibefix.identity.internal.Role;
 import vn.vibefix.notification.Audience;
 import vn.vibefix.notification.TodoRequest;
 import vn.vibefix.notification.Todos;
-import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
 
 /** AD-27, FR-28, UX-DR14, UX-DR15: the to-do store and its order. */

@@ -53,11 +53,19 @@ describe('ADM-9 statistics (FR-62)', () => {
         json({
           groups: [
             {
-              group: 'usersByRole',
+              group: 'usersByVerification',
               counts: [
+                { key: 'GITHUB', value: 9, unit: 'COUNT' },
+                { key: 'LINKEDIN', value: 0, unit: 'COUNT' },
+                { key: 'STUDENT', value: 4, unit: 'COUNT' },
+              ],
+            },
+            {
+              group: 'usersByJobRole',
+              counts: [
+                { key: 'CREW', value: 6, unit: 'COUNT' },
                 { key: 'CUSTOMER', value: 12, unit: 'COUNT' },
                 { key: 'MENTOR', value: 3, unit: 'COUNT' },
-                { key: 'NONE', value: 7, unit: 'COUNT' },
               ],
             },
             {
@@ -73,12 +81,18 @@ describe('ADM-9 statistics (FR-62)', () => {
     })
     renderAt('/quan-tri/thong-ke')
 
-    const users = await screen.findByRole('region', { name: 'Người dùng theo vai trò' })
-    expect(within(users).getByText('Khách hàng')).toBeInTheDocument()
-    expect(within(users).getByText('12')).toBeInTheDocument()
-    // Story 19.1: Google accounts have no role and count on their own line.
-    expect(within(users).getByText('Tài khoản mới (vai trò theo công việc)')).toBeInTheDocument()
-    expect(within(users).getByText('7')).toBeInTheDocument()
+    // Story 20.3 (UX-DR110): users by Verification and by the roles they hold per Job, with no account-role row.
+    const verified = await screen.findByRole('region', { name: 'Người dùng theo xác minh' })
+    expect(within(verified).getByText('Đã liên kết GitHub')).toBeInTheDocument()
+    expect(within(verified).getByText('9')).toBeInTheDocument()
+    expect(within(verified).getByText('Đã xác minh LinkedIn')).toBeInTheDocument()
+    expect(within(verified).getByText('Sinh viên đã xác minh')).toBeInTheDocument()
+    const roles = screen.getByRole('region', { name: 'Người dùng theo vai trò trong công việc' })
+    expect(within(roles).getByText('Khách hàng')).toBeInTheDocument()
+    expect(within(roles).getByText('12')).toBeInTheDocument()
+    expect(within(roles).getByText('Người hướng dẫn')).toBeInTheDocument()
+    expect(within(roles).getByText('Thành viên nhóm')).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Người dùng theo vai trò' })).not.toBeInTheDocument()
     const acceptances = screen.getByRole('region', { name: 'Nghiệm thu' })
     expect(within(acceptances).getByText('Tự động')).toBeInTheDocument()
     expect(screen.getByText(/Chưa đủ 5 đánh giá kín từ 3 người hướng dẫn/)).toBeInTheDocument()

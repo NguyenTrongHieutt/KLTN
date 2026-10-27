@@ -13,8 +13,8 @@ import org.springframework.data.domain.Pageable;
 
 /**
  * Mentors' public profile fields (FR-51, AD-36): the display name, the experience, the years, and the
- * Skills, from the profile of an account holding the {@code MENTOR} role (until Story 20.3); never contact
- * details. Nobody approves a Mentor (Story 19.7): GitHub linked is what new work needs (Q8).
+ * Skills, from the profile of any person's account, whatever role it holds in any Job (Story 20.3); never
+ * contact details. Nobody approves a Mentor (Story 19.7): GitHub linked is what new work needs (Q8).
  */
 public interface MentorDirectory {
 
@@ -55,8 +55,10 @@ public interface MentorDirectory {
 	 * GitHub linked is listed, not available.
 	 * @param query the keyword; blank for the Skill filter alone
 	 * @param skillIds the Skill filter; empty for none
+	 * @param excluded an account never listed, such as the searching Customer, who cannot be their own Job's
+	 * Mentor (AD-43); {@code null} for none
 	 */
-	Page<MentorCard> search(String query, Collection<UUID> skillIds, Pageable pageable);
+	Page<MentorCard> search(String query, Collection<UUID> skillIds, @Nullable UUID excluded, Pageable pageable);
 
 	/**
 	 * The profile of the Mentor with this GitHub username, ignoring letter case, unless the account is

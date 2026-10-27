@@ -48,7 +48,6 @@ import vn.vibefix.shared.CrewSplit;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.shared.Role;
 import vn.vibefix.team.Teams;
 
 /**
@@ -248,16 +247,17 @@ class CrewController {
 	}
 
 	/**
-	 * STU-4: the Student's assignments, newest first; anyone else finds nothing. The role check is the global
-	 * gate of the Student pages, which Story 20.3 replaces; the rows are the caller's own.
+	 * STU-4: the caller's own Crew assignments, newest first, for an unlocked user (AD-19, Story 20.3); an
+	 * Administrator finds nothing.
 	 */
 	@GetMapping("/api/v1/crew/assignments")
 	List<CrewAssignmentView> crewAssignments() {
 		Caller caller = this.callers.get();
-		if (!caller.hasRole(Role.STUDENT)) {
+		if (!caller.isUser()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		UUID student = caller.requireAccountId();
+		this.gate.requireActiveAccount(student);
 		List<CrewAssignmentView> views = new ArrayList<>();
 		for (UUID jobId : this.crews.openJobsOf(student)) {
 			job(jobId).ifPresent(job -> views.add(assignment(job, student)));

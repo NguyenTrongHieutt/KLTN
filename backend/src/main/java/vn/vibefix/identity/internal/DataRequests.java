@@ -40,7 +40,6 @@ import vn.vibefix.shared.IdGenerator;
 import vn.vibefix.shared.Kind;
 import vn.vibefix.shared.PersonalData;
 import vn.vibefix.shared.PersonalDataSection;
-import vn.vibefix.shared.Role;
 
 /**
  * NFR-11, AD-24, SG-9: a person's own data requests. They download every participant's export of their data,
@@ -162,15 +161,12 @@ class DataRequests {
 		if (stepUp instanceof StepUps.Outcome.Refused refused) {
 			return new Result(refused.refusal(), refused.endSession());
 		}
-		String[] kindAndRole = this.jdbc
-			.sql("SELECT kind, role FROM identity.account WHERE id = :id AND erased_at IS NULL FOR UPDATE")
+		String kind = this.jdbc.sql("SELECT kind FROM identity.account WHERE id = :id AND erased_at IS NULL FOR UPDATE")
 			.param("id", accountId)
-			.query((rs, n) -> new String[] { rs.getString("kind"), rs.getString("role") })
+			.query(String.class)
 			.optional()
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		// A Google account has no role (Story 19.1).
-		Role role = kindAndRole[1] == null ? null : Role.valueOf(kindAndRole[1]);
-		if (Kind.ADMINISTRATOR.name().equals(kindAndRole[0])) {
+		if (Kind.ADMINISTRATOR.name().equals(kind)) {
 			throw new ApiException(ErrorCode.FORBIDDEN, IdentityReason.ADMINISTRATOR_ACCOUNT);
 		}
 		Request request = stored(accountId).filter(found -> found.completedAt() == null).orElse(null);
@@ -198,7 +194,7 @@ class DataRequests {
 				Map.of("keyVersion", sealed.keyVersion(), "nonce", Base64.getEncoder().encodeToString(sealed.nonce()),
 						"ciphertext", Base64.getEncoder().encodeToString(sealed.ciphertext())),
 				accountId, 0)));
-		this.events.publishEvent(new AccountErased(this.ids.newId(), accountId, role));
+		this.events.publishEvent(new AccountErased(this.ids.newId(), accountId));
 		this.auditLog.record(AuditEntry.of(AuditActor.user(administrator), "identity.account_erased",
 				AuditObject.of("identity.account", accountId)));
 		return new Result(null, false);

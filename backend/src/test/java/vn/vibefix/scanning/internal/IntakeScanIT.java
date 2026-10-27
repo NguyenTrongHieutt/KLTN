@@ -44,6 +44,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import vn.vibefix.identity.internal.IdentityTestSupport;
+import vn.vibefix.identity.internal.Role;
 import vn.vibefix.operations.Lane;
 import vn.vibefix.operations.internal.OperationWorker;
 import vn.vibefix.scanning.ScanCompleted;
@@ -52,7 +53,6 @@ import vn.vibefix.scanning.ScanTarget;
 import vn.vibefix.scanning.Scans;
 import vn.vibefix.scanning.ShaRange;
 import vn.vibefix.scanning.internal.PlantedSecrets.Planted;
-import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
 

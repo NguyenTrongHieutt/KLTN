@@ -431,15 +431,17 @@ class GoogleSignInIT extends IntegrationTest {
 	}
 
 	@Test
-	void anAccountWithNoRoleIsRefusedByTheRoleGatedEndpointsAndNeverGetsA500() throws Exception {
+	void anAccountWithNoRoleOpensTheGlobalScreensByCapabilityAndNeverGetsA500() throws Exception {
 		signIn();
 		welcome(version());
 
-		// Role-gated endpoints with valid bodies: refused (deny by default, AD-20) until Epic 20.
-		assertThat(status(HttpMethod.GET, "/api/v1/products", null)).isIn(403, 404);
-		assertThat(status(HttpMethod.POST, "/api/v1/products", body("product-registration.json"))).isIn(403, 404);
-		assertThat(status(HttpMethod.GET, "/api/v1/jobs", null)).isIn(403, 404);
-		assertThat(status(HttpMethod.POST, "/api/v1/skill-suggestions", body("skill-suggestion.json"))).isEqualTo(403);
+		// No role gates a global screen (Story 20.3): an unlocked user lists their own Products and Jobs and
+		// suggests a Skill; registering a Product and reading "Tìm việc" need GitHub, which this account has not linked.
+		assertThat(status(HttpMethod.GET, "/api/v1/products", null)).isEqualTo(200);
+		assertThat(status(HttpMethod.POST, "/api/v1/products", body("product-registration.json"))).isEqualTo(403);
+		assertThat(status(HttpMethod.GET, "/api/v1/mentor/job-posts", null)).isEqualTo(403);
+		assertThat(status(HttpMethod.GET, "/api/v1/jobs", null)).isEqualTo(200);
+		assertThat(status(HttpMethod.POST, "/api/v1/skill-suggestions", body("skill-suggestion.json"))).isEqualTo(201);
 		assertThat(status(HttpMethod.GET, "/api/v1/admin/users", null)).isEqualTo(404);
 		// What any signed-in account may do still works, commands included (so the refusals above are not CSRF's).
 		assertThat(status(HttpMethod.PUT, "/api/v1/account/theme", body("account-theme.json"))).isEqualTo(204);

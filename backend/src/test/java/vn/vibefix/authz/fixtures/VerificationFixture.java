@@ -9,7 +9,7 @@ import vn.vibefix.authz.Canaries;
 import vn.vibefix.authz.MatrixFixture;
 import vn.vibefix.authz.MatrixWorld;
 import vn.vibefix.identity.internal.IdentityTestSupport;
-import vn.vibefix.shared.Role;
+import vn.vibefix.identity.internal.Role;
 
 /**
  * Student verification (FR-5, AD-42): another account is verified, its live row keyed by the

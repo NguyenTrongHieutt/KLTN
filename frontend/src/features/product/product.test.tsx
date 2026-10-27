@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedIn, signedInWithGoogle } from '@/test/fakeBackend'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -88,6 +88,14 @@ describe('CUS-2, the Products (FR-7)', () => {
     expect(await screen.findByText('Chưa có sản phẩm nào.')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Đăng ký sản phẩm' })).toHaveAttribute('href', '/san-pham/moi')
     expect(screen.getAllByRole('link', { name: /Sản phẩm/ }).length).toBeGreaterThan(0)
+  })
+
+  it('lists the own Products of a user with no role (Story 20.3)', async () => {
+    const seen = fakeBackend(signedInWithGoogle, { 'GET /api/v1/products': () => json([]) })
+    renderAt('/san-pham')
+
+    expect(await screen.findByText('Chưa có sản phẩm nào.')).toBeInTheDocument()
+    expect(seen.some((request) => new URL(request.url, 'http://localhost').pathname === '/api/v1/products')).toBe(true)
   })
 
   it('lists each Product with its state and Source Repository', async () => {
@@ -207,6 +215,14 @@ describe('CUS-3, registering a Product (FR-7, AD-13)', () => {
     renderAt('/san-pham/moi')
 
     expect(await screen.findByText('Không tìm thấy nội dung này.')).toBeInTheDocument()
+  })
+
+  it('opens the wizard for a user with no role, whose GitHub gate guards step 2 (Story 20.3)', async () => {
+    fakeBackend(signedInWithGoogle)
+    renderAt('/san-pham/moi')
+
+    expect(await screen.findByText('Bước 1/4')).toBeInTheDocument()
+    expect(screen.queryByText('Không tìm thấy nội dung này.')).not.toBeInTheDocument()
   })
 })
 

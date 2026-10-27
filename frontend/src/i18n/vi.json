@@ -822,13 +822,7 @@
         "unnamed": "Chưa có tên",
         "search": "Tìm theo tên, GitHub hoặc email",
         "find": "Tìm",
-        "roleFilter": "Vai trò",
         "statusFilter": "Trạng thái",
-        "role": {
-          "CUSTOMER": "Khách hàng",
-          "MENTOR": "Người hướng dẫn",
-          "STUDENT": "Sinh viên"
-        },
         "filter": {
           "LOCKED": "Đã khóa",
           "VERIFIED": "Đã xác minh",
@@ -846,7 +840,6 @@
         "next": "Trang sau",
         "page": "Trang {page}/{pages}",
         "pick": "Chọn một tài khoản để xem chi tiết.",
-        "roleLabel": "Vai trò",
         "github": "GitHub",
         "email": "Email",
         "createdAt": "Tạo lúc",
@@ -864,6 +857,7 @@
         "feedback": "Đánh giá kín",
         "feedbackPrivate": "Chỉ quản trị viên xem được. Người hướng dẫn không biết ai đã đánh giá hay vào lúc nào.",
         "feedbackSummary": "Trung bình {average} sao trên {n} đánh giá",
+        "feedbackEmpty": "Chưa có đánh giá kín nào về người này khi hướng dẫn.",
         "history": "Lịch sử",
         "noHistory": "Chưa có thao tác nào.",
         "action": {
@@ -1068,8 +1062,8 @@
         "none": "Chưa có số liệu.",
         "feedbackHidden": "Chưa đủ 5 đánh giá kín từ 3 người hướng dẫn nên chưa hiện số liệu.",
         "group": {
-          "usersByRole": "Người dùng theo vai trò",
-          "studentsByVerification": "Sinh viên theo xác minh",
+          "usersByVerification": "Người dùng theo xác minh",
+          "usersByJobRole": "Người dùng theo vai trò trong công việc",
           "lockedAccounts": "Tài khoản bị khóa",
           "teamsBySize": "Nhóm theo số thành viên",
           "crewsBySize": "Nhóm thực hiện theo số người",
@@ -1085,15 +1079,15 @@
           "privateFeedback": "Đánh giá kín"
         },
         "key": {
-          "usersByRole": {
+          "usersByVerification": {
+            "GITHUB": "Đã liên kết GitHub",
+            "LINKEDIN": "Đã xác minh LinkedIn",
+            "STUDENT": "Sinh viên đã xác minh"
+          },
+          "usersByJobRole": {
             "CUSTOMER": "Khách hàng",
             "MENTOR": "Người hướng dẫn",
-            "STUDENT": "Sinh viên",
-            "NONE": "Tài khoản mới (vai trò theo công việc)"
-          },
-          "studentsByVerification": {
-            "VERIFIED": "Đã xác minh",
-            "UNVERIFIED": "Chưa xác minh"
+            "CREW": "Thành viên nhóm"
           },
           "lockedAccounts": {
             "LOCKED": "Đang khóa"
@@ -1224,14 +1218,8 @@
         "suggestions": {
           "heading": "Đề xuất kỹ năng",
           "empty": "Chưa có đề xuất nào.",
-          "by": "{name} ({role}) · {date}",
+          "by": "{name} · {date}",
           "erased": "Tài khoản đã xóa",
-          "role": {
-            "CUSTOMER": "Khách hàng",
-            "MENTOR": "Mentor",
-            "STUDENT": "Sinh viên",
-            "ADMINISTRATOR": "Quản trị viên"
-          },
           "inactive": "Trùng tên với kỹ năng đã ngừng dùng “{name}”. Có thể dùng lại kỹ năng đó ở tab Danh sách.",
           "approved": "Đã duyệt ngày {date}",
           "declined": "Đã từ chối ngày {date}: {reason}",

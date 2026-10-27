@@ -28,11 +28,11 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import vn.vibefix.identity.internal.IdentityTestSupport;
+import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.JobTransitioned;
 import vn.vibefix.reputation.PrivateFeedback;
 import vn.vibefix.reputation.RatingSummary;
 import vn.vibefix.reputation.Reputation;
-import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.team.internal.TeamTestSupport;
 import vn.vibefix.timers.internal.DeadlinePoller;

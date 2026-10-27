@@ -24,9 +24,9 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import vn.vibefix.identity.internal.IdentityTestSupport;
+import vn.vibefix.identity.internal.Role;
 import vn.vibefix.payment.Ledger;
 import vn.vibefix.payment.Releases;
-import vn.vibefix.shared.Role;
 import vn.vibefix.support.HeldCrewJob;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.timers.internal.DeadlinePoller;

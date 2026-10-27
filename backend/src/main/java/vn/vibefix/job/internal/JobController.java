@@ -32,6 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import vn.vibefix.files.PreparedFile;
+import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.identity.GitHubGate;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.job.JobSelection;
@@ -47,7 +48,6 @@ import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.shared.Role;
 
 /**
  * CUS-6, CUS-7, and JOB-1 (FR-9, AD-20): a Customer's Jobs with their guided answers, Job Types,
@@ -132,9 +132,13 @@ class JobController {
 
 	private final JobRoleReader roles;
 
+	private final ActiveAccount active;
+
 	JobController(Jobs jobs, JobLifecycle lifecycle, ProductDirectory products, MentorDirectory mentors,
-			Agreements agreements, CurrentCaller callers, Clock clock, GitHubGate gitHub, JobRoleReader roles) {
+			Agreements agreements, CurrentCaller callers, Clock clock, GitHubGate gitHub, JobRoleReader roles,
+			ActiveAccount active) {
 		this.gitHub = gitHub;
+		this.active = active;
 		this.roles = roles;
 		this.jobs = jobs;
 		this.agreements = agreements;
@@ -267,15 +271,18 @@ class JobController {
 	}
 
 	/**
-	 * A Customer drafting outside any Job, on CUS-6 and CUS-7: the global role gate of Job drafting, which Story
-	 * 20.3 replaces with the unlocked-user gate; anyone else finds nothing.
+	 * A user drafting or listing their own Jobs outside any Job, on CUS-6 and CUS-7: an unlocked user (AD-19, read
+	 * on every request), whose queries are scoped to their own Products and Jobs; an Administrator, who drafts
+	 * nothing, finds nothing (Story 20.3).
 	 */
 	private UUID customer() {
 		Caller caller = this.callers.get();
-		if (!caller.hasRole(Role.CUSTOMER)) {
+		if (!caller.isUser()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
-		return caller.requireAccountId();
+		UUID customer = caller.requireAccountId();
+		this.active.requireActiveAccount(customer);
+		return customer;
 	}
 
 	/** The Job's Customer calling, by their role in the Job (AD-43); anyone else finds nothing. */

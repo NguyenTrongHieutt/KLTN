@@ -33,7 +33,6 @@ import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.shared.Role;
 
 /**
  * The Mentor's Jobs (FR-15, AD-19 Job commands): MEN-4 lists the Jobs whose Mentor they are, JOB-1
@@ -141,12 +140,12 @@ class MentorJobController {
 	}
 
 	/**
-	 * A Mentor on MEN-4, outside any Job, unlocked: the global role gate of the Mentor's Job list, which Story
-	 * 20.6 merges into CUS-7 and Story 20.3 replaces; the rows are the caller's own. Anyone else finds nothing.
+	 * A user on MEN-4, outside any Job, unlocked (AD-19): the list holds only the Jobs the caller mentors, which
+	 * Story 20.6 merges into CUS-7. An Administrator finds nothing.
 	 */
 	private UUID mentor() {
 		Caller caller = this.callers.get();
-		if (!caller.hasRole(Role.MENTOR)) {
+		if (!caller.isUser()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		UUID mentor = caller.requireAccountId();

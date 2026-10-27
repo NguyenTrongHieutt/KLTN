@@ -42,13 +42,12 @@ import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.shared.Role;
 import vn.vibefix.team.Teams;
 
 /**
- * Applications (FR-13, FR-15, AD-20): a Mentor with GitHub linked applies from MEN-3 (AD-19 new-work command)
- * and lists or withdraws their own (MEN-4); the Job's Customer reads the open ones on CUS-8 and selects
- * one (J3). Nobody else finds them.
+ * Applications (FR-13, FR-15, AD-20): any user with GitHub linked applies from MEN-3 (AD-19 new-work command),
+ * except on their own Job ({@code ROLE_TAKEN}), and an unlocked user lists or withdraws their own (MEN-4); the
+ * Job's Customer reads the open ones on CUS-8 and selects one (J3). Nobody else finds them.
  */
 @RestController
 @Access(Gate.SIGNED_IN)
@@ -133,7 +132,7 @@ class ApplicationController {
 	@PostMapping("/api/v1/mentor/job-posts/{postId}/applications")
 	@ResponseStatus(HttpStatus.CREATED)
 	ApplicationView apply(@PathVariable UUID postId, @Valid @RequestBody ApplyRequest body) {
-		UUID mentor = mentor();
+		UUID mentor = bidder();
 		this.gitHub.requireGitHubLinked(mentor);
 		this.applications.requireNotOwnJob(mentor, postId);
 		if (!this.mentors.hasProfileName(mentor)) {
@@ -150,7 +149,7 @@ class ApplicationController {
 	/** MEN-4 and MEN-3: the Mentor's own Applications, newest first. */
 	@GetMapping("/api/v1/mentor/applications")
 	List<ApplicationView> mine() {
-		UUID mentor = mentor();
+		UUID mentor = bidder();
 		this.gate.requireActiveAccount(mentor);
 		Map<UUID, String> titles = new HashMap<>();
 		return this.applications.ofMentor(mentor).stream().map(application -> view(application, titles)).toList();
@@ -158,7 +157,7 @@ class ApplicationController {
 
 	@PostMapping("/api/v1/mentor/applications/{applicationId}/withdraw")
 	ApplicationView withdraw(@PathVariable UUID applicationId) {
-		UUID mentor = mentor();
+		UUID mentor = bidder();
 		this.gate.requireActiveAccount(mentor);
 		return view(this.applications.withdraw(mentor, applicationId), new HashMap<>());
 	}
@@ -240,12 +239,13 @@ class ApplicationController {
 	}
 
 	/**
-	 * The Mentor calling, for bidding and the Mentor's own bids: a global role gate that Story 20.3 replaces with
-	 * the GitHub capability gate; anyone else finds nothing (SG-31).
+	 * The user calling, for bidding (behind the GitHub gate) and their own bids (behind the unlocked-user gate);
+	 * no account role gates them (Story 20.3), and an Administrator, who holds no role in any Job, finds nothing
+	 * (SG-31).
 	 */
-	private UUID mentor() {
+	private UUID bidder() {
 		Caller caller = this.callers.get();
-		if (!caller.hasRole(Role.MENTOR)) {
+		if (!caller.isUser()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		return caller.requireAccountId();

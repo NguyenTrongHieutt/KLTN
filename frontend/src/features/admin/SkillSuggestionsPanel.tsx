@@ -83,7 +83,6 @@ export function SkillSuggestionsPanel({ categories }: { categories: Category[] }
                     <span className="text-caption text-muted-foreground">
                       {t('screen.admin.catalog.suggestions.by', {
                         name: suggestion.suggesterName ?? t('screen.admin.catalog.suggestions.erased'),
-                        role: t(`screen.admin.catalog.suggestions.role.${suggestion.suggesterRole}`),
                         date: formatDayMonth(suggestion.createdAt),
                       })}
                       {suggestion.categoryName ? ` · ${suggestion.categoryName}` : ''}

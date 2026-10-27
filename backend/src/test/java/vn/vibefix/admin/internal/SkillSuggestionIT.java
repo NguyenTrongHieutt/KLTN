@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.util.UUID;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,7 +26,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import vn.vibefix.identity.internal.AdministratorTestSupport;
 import vn.vibefix.identity.internal.AdministratorTestSupport.Administrator;
 import vn.vibefix.identity.internal.IdentityTestSupport;
-import vn.vibefix.shared.Role;
+import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.IntegrationTest;
 
 /**
@@ -81,7 +82,9 @@ class SkillSuggestionIT extends IntegrationTest {
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$[?(@.name == '" + inactive.toUpperCase() + "')].inactiveSkill.name").value(inactive))
 			.andExpect(jsonPath("$[?(@.name == 'Supabase Edge Functions')].inactiveSkill").value(org.hamcrest.Matchers.contains((Object) null)))
-			.andExpect(jsonPath("$[?(@.name == 'Supabase Edge Functions')].suggesterRole").value("STUDENT"));
+			.andExpect(jsonPath("$[?(@.name == 'Supabase Edge Functions')].suggesterRole").isEmpty());
+		// An account holds no role (Story 20.3): a suggestion records none.
+		assertThat(count("SELECT count(*) FROM admin.skill_suggestion WHERE suggester_role IS NOT NULL")).isZero();
 		UUID edge = this.jdbc.sql("SELECT id FROM admin.skill_suggestion WHERE name = 'Supabase Edge Functions'")
 			.query(UUID.class)
 			.single();
@@ -130,6 +133,20 @@ class SkillSuggestionIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/skill-suggestions").with(admin())).andExpect(status().isNotFound());
 	}
 
+	@Test
+	void anyUnlockedUserSuggestsWithNoRoleAndReadsTheirOwn() throws Exception {
+		UUID minh = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-minh", "3.1");
+
+		this.mvc.perform(post("/api/v1/skill-suggestions").with(as(minh, null)).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("{\"name\":\"Thanh toán ZaloPay\"}")).andExpect(status().isCreated());
+		this.mvc.perform(get("/api/v1/skill-suggestions").with(as(minh, null)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$[0].name").value("Thanh toán ZaloPay"));
+		assertThat(count("SELECT count(*) FROM admin.skill_suggestion WHERE suggester_account_id = '" + minh
+				+ "' AND suggester_role IS NULL")).isOne();
+	}
+
 	private ResultActions suggest(UUID account, Role role, String name) throws Exception {
 		return this.mvc.perform(post("/api/v1/skill-suggestions").with(as(account, role)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
@@ -150,7 +167,7 @@ class SkillSuggestionIT extends IntegrationTest {
 		return IdentityTestSupport.signedIn(this.sessions, this.ha.accountId(), Role.ADMINISTRATOR, this.clock.instant());
 	}
 
-	private RequestPostProcessor as(UUID account, Role role) {
+	private RequestPostProcessor as(UUID account, @Nullable Role role) {
 		return IdentityTestSupport.signedIn(this.sessions, account, role, this.clock.instant());
 	}
 

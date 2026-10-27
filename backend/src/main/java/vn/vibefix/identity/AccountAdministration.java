@@ -13,7 +13,6 @@ import org.jspecify.annotations.Nullable;
 
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErasureBlocker;
-import vn.vibefix.shared.Role;
 
 /**
  * ADM-2's accounts (FR-5, FR-59, AD-19): the search, one account with its history and the accounts that may
@@ -38,17 +37,15 @@ public interface AccountAdministration {
 	 * @param text matched within the name, the GitHub login, and the email, ignoring accents and case
 	 * @param ids only these accounts, such as ADM-1's low private feedback list
 	 */
-	record Query(@Nullable String text, @Nullable Role role, @Nullable Status status, @Nullable Set<UUID> ids,
-			int page) {
+	record Query(@Nullable String text, @Nullable Status status, @Nullable Set<UUID> ids, int page) {
 	}
 
 	/**
-	 * @param role absent for a Google account, which has none (Story 19.1)
-	 * @param status {@code VERIFIED} for a verified student, else {@code UNVERIFIED} for a Student; absent
-	 * otherwise
+	 * A person's account in the list; it has no account role (Story 20.3).
+	 * @param status {@code VERIFIED} for a verified student; absent otherwise
 	 */
-	record Row(UUID id, @Nullable Role role, @Nullable String name, @Nullable String githubLogin, boolean locked,
-			@Nullable String status, Instant createdAt) {
+	record Row(UUID id, @Nullable String name, @Nullable String githubLogin, boolean locked, @Nullable String status,
+			Instant createdAt) {
 	}
 
 	record Page(List<Row> items, long total, int page, int size) {
@@ -65,8 +62,8 @@ public interface AccountAdministration {
 	record Verification(String method, Instant verifiedAt, LocalDate validUntil, boolean current) {
 	}
 
-	/** One account as ADM-2 shows it; {@code role} is absent for a Google account (Story 19.1). */
-	record Account(UUID id, @Nullable Role role, @Nullable String name, @Nullable String githubLogin, @Nullable String email,
+	/** One account as ADM-2 shows it, with no account role (Story 20.3). */
+	record Account(UUID id, @Nullable String name, @Nullable String githubLogin, @Nullable String email,
 			Instant createdAt, @Nullable Instant signedInAt, @Nullable Instant lockedAt, @Nullable String lockReason,
 			@Nullable Verification verification, List<Action> history) {
 	}

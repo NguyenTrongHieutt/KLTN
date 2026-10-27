@@ -17,7 +17,7 @@ import vn.vibefix.files.FileUpload;
 import vn.vibefix.files.StoredFile;
 import vn.vibefix.files.StoredFiles;
 import vn.vibefix.identity.internal.IdentityTestSupport;
-import vn.vibefix.shared.Role;
+import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.MutableClock;
 import vn.vibefix.support.TestFiles;
 

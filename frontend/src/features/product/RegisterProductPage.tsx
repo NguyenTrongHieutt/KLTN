@@ -10,6 +10,7 @@ import { FormField } from '@/components/FormField'
 import { fieldProps, inputClass } from '@/components/formField-props'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
+import { holdsOtherRole } from '@/features/identity/api'
 import { GitHubGate } from '@/features/identity/GitHubGate'
 import { GITHUB_LINK_QUERY_KEY } from '@/features/identity/githubApi'
 import { useSession } from '@/features/identity/useSession'
@@ -99,7 +100,7 @@ function writeDraft(draft: Draft | undefined) {
 export function RegisterProductPage() {
   usePageTitle(t('screen.product.wizard.title'))
   const account = useSession().data?.account
-  if (account?.role !== 'CUSTOMER') {
+  if (!account || holdsOtherRole(account, 'CUSTOMER')) {
     return <NotFoundScreen />
   }
   return <Wizard />

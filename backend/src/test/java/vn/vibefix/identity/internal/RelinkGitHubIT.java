@@ -28,7 +28,6 @@ import vn.vibefix.identity.internal.GitHubLinkReader.LinkedUser;
 import vn.vibefix.identity.internal.GitHubLinksImpl.Purpose;
 import vn.vibefix.product.ProductSources;
 import vn.vibefix.shared.ApiException;
-import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
 
 /**

@@ -13,7 +13,6 @@ import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
 import vn.vibefix.shared.IdGenerator;
-import vn.vibefix.shared.Role;
 
 /**
  * Creates the first Administrator (FR-2, AD-19, SG-10): an account with no GitHub identity, an
@@ -81,7 +80,7 @@ class AdministratorBootstrap {
 		}
 		Instant now = this.clock.instant();
 		UUID id = this.ids.newId();
-		this.accounts.insert(new Account(id, null, null, null, Role.ADMINISTRATOR, null, null, null, now));
+		this.accounts.insert(Account.administrator(id, now));
 		byte[] secret = Totp.newSecret();
 		String encoded = Totp.base32(secret);
 		this.credentials.insert(id, email, name, AdminSignIns.PASSWORDS.encode(new String(password)),

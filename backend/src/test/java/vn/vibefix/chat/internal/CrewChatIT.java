@@ -33,10 +33,10 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import com.jayway.jsonpath.JsonPath;
 import vn.vibefix.identity.internal.IdentityTestSupport;
+import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.JobTransitioned;
 import vn.vibefix.shared.AdminReadItem;
 import vn.vibefix.shared.AdminReadScope;
-import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.TestFiles;
 import vn.vibefix.team.internal.TeamTestSupport;

@@ -17,7 +17,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 import vn.vibefix.identity.PersonSignalMatched;
 import vn.vibefix.identity.PersonSignals;
 import vn.vibefix.identity.internal.JdbcPersonSignals.Source;
-import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.timers.internal.DeadlinePoller;
 

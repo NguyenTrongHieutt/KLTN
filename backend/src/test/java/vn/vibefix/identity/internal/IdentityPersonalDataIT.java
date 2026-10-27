@@ -11,7 +11,6 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 
 import vn.vibefix.shared.PersonalDataParticipant;
 import vn.vibefix.shared.PersonalDataSection;
-import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.PersonalDataParticipantContract;
 

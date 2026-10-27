@@ -4,7 +4,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
@@ -23,23 +22,19 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.ApiException;
-import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.shared.Role;
 import vn.vibefix.team.internal.TeamStore.Kind;
-import vn.vibefix.team.internal.TeamStore.Request;
 import vn.vibefix.team.internal.TeamViews.MentorTeamView;
 import vn.vibefix.team.internal.TeamViews.TeamStudentProfileView;
 import vn.vibefix.team.internal.TeamViews.TeamStudentSearchView;
 
 /**
- * MEN-6 and the invite-to-Team Sheet (FR-6, FR-14, AD-36, AD-37), for the Mentor, until Story 21.7
- * retires Teams. Every command needs only an unlocked account (AD-19); nobody is approved since Story
- * 19.7. Any other role finds nothing.
+ * MEN-6 and the invite-to-Team Sheet (FR-6, FR-14, AD-36, AD-37), until Story 21.7 deletes this class. No Team can
+ * be formed since Story 19.7, and no account role tells a Mentor apart (Story 20.3), so every signed-in caller
+ * finds nothing, whatever body it sends.
  */
 @RestController
 @RequestMapping("/api/v1/mentor/team")
@@ -51,38 +46,12 @@ class MentorTeamController {
 
 	/** A sent or answered invitation or join request. */
 	record TeamRequestView(UUID id, Kind kind, Instant createdAt, Instant lapsesAt) {
-
-		static TeamRequestView of(Request request) {
-			return new TeamRequestView(request.id(), request.kind(), request.createdAt(), request.lapsesAt());
-		}
-
-	}
-
-	private final TeamViews views;
-
-	private final TeamRequests requests;
-
-	private final TeamMemberships memberships;
-
-	private final ActiveAccount mentorGate;
-
-	private final CurrentCaller callers;
-
-	MentorTeamController(TeamViews views, TeamRequests requests, TeamMemberships memberships, ActiveAccount mentorGate,
-			CurrentCaller callers) {
-		this.views = views;
-		this.requests = requests;
-		this.memberships = memberships;
-		this.mentorGate = mentorGate;
-		this.callers = callers;
 	}
 
 	/** The Team with its members, join requests, and pending invitations. */
 	@GetMapping
 	MentorTeamView team() {
-		UUID mentor = mentor();
-		this.mentorGate.requireActiveAccount(mentor);
-		return this.views.mentorTeam(mentor);
+		throw refused();
 	}
 
 	/**
@@ -93,50 +62,44 @@ class MentorTeamController {
 	TeamStudentSearchView students(@RequestParam(defaultValue = "") @Size(max = 200) String q,
 			@RequestParam(required = false) @Nullable List<UUID> skills, @RequestParam(required = false) @Nullable String login,
 			@ParameterObject @PageableDefault(size = 20) Pageable pageable) {
-		UUID mentor = mentor();
-		this.mentorGate.requireActiveAccount(mentor);
-		return this.views.searchStudents(mentor, q, skills == null ? List.of() : skills, login, pageable);
+		throw refused();
 	}
 
 	/** PUB-4 in the Sheet. */
 	@GetMapping("/students/{studentId}")
 	TeamStudentProfileView student(@PathVariable UUID studentId) {
-		UUID mentor = mentor();
-		this.mentorGate.requireActiveAccount(mentor);
-		return this.views.studentProfile(mentor, studentId);
+		throw refused();
 	}
 
 	/** "Mời vào nhóm". */
 	@PostMapping("/invitations")
 	@ResponseStatus(HttpStatus.CREATED)
-	TeamRequestView invite(@Valid @RequestBody TeamInvitationRequest body) {
-		return TeamRequestView.of(this.requests.invite(mentor(), body.studentId()));
+	TeamRequestView invite(@RequestBody TeamInvitationRequest body) {
+		throw refused();
 	}
 
 	/** "Nhận vào nhóm". */
 	@PostMapping("/join-requests/{joinRequestId}/accept")
 	TeamRequestView accept(@PathVariable UUID joinRequestId) {
-		return TeamRequestView.of(this.requests.acceptOrCancel(this.requests, mentor(), joinRequestId, Kind.JOIN_REQUEST));
+		throw refused();
 	}
 
-	/** "Xóa khỏi nhóm": needs only an unlocked account. */
+	/** "Xóa khỏi nhóm". */
 	@DeleteMapping("/members/{membershipId}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void remove(@PathVariable UUID membershipId) {
-		this.memberships.remove(mentor(), membershipId);
+		throw refused();
 	}
 
 	/** "Từ chối". */
 	@PostMapping("/join-requests/{joinRequestId}/decline")
 	TeamRequestView decline(@PathVariable UUID joinRequestId) {
-		return TeamRequestView.of(this.requests.decline(mentor(), joinRequestId, Kind.JOIN_REQUEST));
+		throw refused();
 	}
 
-	private UUID mentor() {
-		if (!this.callers.get().hasRole(Role.MENTOR)) {
-			throw new ApiException(ErrorCode.NOT_FOUND);
-		}
-		return this.callers.get().requireAccountId();
+	/** Every signed-in caller finds nothing here (Story 20.3). */
+	private static ApiException refused() {
+		return new ApiException(ErrorCode.NOT_FOUND);
 	}
 
 }

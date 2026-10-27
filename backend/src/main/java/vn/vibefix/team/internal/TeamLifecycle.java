@@ -16,16 +16,16 @@ import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
 import vn.vibefix.identity.AccountLocked;
-import vn.vibefix.shared.Role;
 import vn.vibefix.team.internal.TeamStore.Member;
 import vn.vibefix.team.internal.TeamStore.Team;
 
 /**
  * A Team's life with its Mentor (AD-37). Nobody is approved since Story 19.7, so no Team is created at an
- * approval: {@link TeamRequests} creates one on demand until Story 21.7 retires Teams. When the Mentor is
- * locked, the Team closes to new members, its pending requests are cancelled, and each Student is released
- * in their own short transaction with {@code team.released}, unless a Crew reservation holds them:
- * {@link TeamMemberships#releaseCrew} releases them when it ends. A locked Student leaves their Team the
+ * approval: {@link TeamRequests} creates one on demand until Story 21.7 retires Teams. Every lock runs both
+ * consequences, since an account holds no role (Story 20.3), and each acts only on what the account holds: when
+ * it is a Team's Mentor, the Team closes to new members, its pending requests are cancelled, and each Student is
+ * released in their own short transaction with {@code team.released}, unless a Crew reservation holds them:
+ * {@link TeamMemberships#releaseCrew} releases them when it ends. When it is a Team member, it leaves its Team the
  * same way. Each step is idempotent, so a replayed event changes nothing more.
  */
 @Component
@@ -56,12 +56,8 @@ class TeamLifecycle {
 
 	@ApplicationModuleListener
 	void onAccountLocked(AccountLocked event) {
-		if (event.role() == Role.MENTOR) {
-			mentorGone(event.accountId());
-		}
-		else if (event.role() == Role.STUDENT) {
-			this.perStudent.executeWithoutResult(status -> studentGone(event.accountId()));
-		}
+		mentorGone(event.accountId());
+		this.perStudent.executeWithoutResult(status -> studentGone(event.accountId()));
 	}
 
 	/** Closes the Mentor's Team, then releases each Student on their own. */

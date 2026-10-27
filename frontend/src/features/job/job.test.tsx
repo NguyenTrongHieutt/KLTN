@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedIn, signedInWithGoogle } from '@/test/fakeBackend'
 import { PAYLOADS } from '@/test/payloads'
 
 function renderAt(path: string) {
@@ -378,6 +378,20 @@ describe('Publishing a Job Post and JOB-1 (FR-9, J1, J2)', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Sửa công việc' })).toBeInTheDocument()
     expect(seen.map(call)).toContain('POST /api/v1/jobs/j1/withdraw')
+  })
+
+  it("shows a user with no role the Customer's JOB-1 of the Job they posted (Story 20.3)", { timeout: 15_000 }, async () => {
+    fakeBackend(signedInWithGoogle, {
+      'GET /api/v1/jobs/j1': () => json(openJob),
+      'GET /api/v1/products/p1': () => json(product()),
+      'GET /api/v1/catalog': catalog,
+    })
+    renderAt('/cong-viec/j1')
+
+    expect(await screen.findByRole('heading', { level: 1, name: openJob.title })).toBeInTheDocument()
+    expect(screen.getByText('Đang tìm người hướng dẫn')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Rút tin' })).toBeInTheDocument()
+    expect(screen.queryByText('Không tìm thấy nội dung này.')).not.toBeInTheDocument()
   })
 
   it('opens a Draft in CUS-6', { timeout: 15_000 }, async () => {

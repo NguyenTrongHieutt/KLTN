@@ -281,7 +281,7 @@ class TeamViews {
 	/** STU-6's Mentor search. */
 	@Transactional(readOnly = true)
 	TeamMentorSearchView searchMentors(UUID studentId, String query, Collection<UUID> skillIds, Pageable pageable) {
-		Page<MentorCard> page = this.mentors.search(query, skillIds, pageable);
+		Page<MentorCard> page = this.mentors.search(query, skillIds, null, pageable);
 		List<TeamMentorView> views = withSizes(page.getContent());
 		List<TeamMentorResult> items = views.stream()
 			.map(view -> new TeamMentorResult(view, mentorRelation(studentId, view.accountId()),

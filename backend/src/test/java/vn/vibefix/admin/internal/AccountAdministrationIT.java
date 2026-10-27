@@ -35,7 +35,7 @@ import vn.vibefix.identity.StudentVerification;
 import vn.vibefix.identity.internal.AdministratorTestSupport;
 import vn.vibefix.identity.internal.AdministratorTestSupport.Administrator;
 import vn.vibefix.identity.internal.IdentityTestSupport;
-import vn.vibefix.shared.Role;
+import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.team.internal.TeamTestSupport;
 
@@ -77,15 +77,19 @@ class AccountAdministrationIT extends IntegrationTest {
 			.andExpect(jsonPath("$.total").value(1))
 			.andExpect(jsonPath("$.items[0].id").value(vy.toString()))
 			.andExpect(jsonPath("$.items[0].status").value("VERIFIED"));
-		// No Mentor has an approval status any more (Story 19.7).
-		this.mvc.perform(get("/api/v1/admin/users").param("role", "MENTOR").with(admin(ha)))
+		// No Mentor has an approval status any more (Story 19.7), and no account role filters the list (Story 20.3).
+		this.mvc.perform(get("/api/v1/admin/users").param("q", "do manh hung").with(admin(ha)))
 			.andExpect(jsonPath("$.total").value(1))
 			.andExpect(jsonPath("$.items[0].id").value(hung.toString()))
 			.andExpect(jsonPath("$.items[0].status").doesNotExist());
+		this.mvc.perform(get("/api/v1/admin/users").param("role", "MENTOR").with(admin(ha)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.total").value(2))
+			.andExpect(jsonPath("$.items[*].role").doesNotExist());
 		this.mvc.perform(get("/api/v1/admin/users").param("status", "APPROVED").with(admin(ha)))
 			.andExpect(status().isBadRequest());
 		this.mvc.perform(get("/api/v1/admin/users").with(admin(ha)))
-			.andExpect(jsonPath("$.items[?(@.role == 'ADMINISTRATOR')]").isEmpty());
+			.andExpect(jsonPath("$.items[?(@.id == '" + ha.accountId() + "')]").isEmpty());
 
 		storeSession(vy, Role.STUDENT);
 		assertThat(sessionsOf(vy)).isEqualTo(1);
@@ -139,9 +143,7 @@ class AccountAdministrationIT extends IntegrationTest {
 
 		command(ha, lan, "lock", "{\"reason\":\"Gửi tin nhắn quấy rối\"}").andExpect(status().isOk())
 			.andExpect(jsonPath("$.lockReason").value("Gửi tin nhắn quấy rối"));
-		assertThat(this.events.stream(AccountLocked.class).filter(event -> event.accountId().equals(lan)))
-			.singleElement()
-			.satisfies(event -> assertThat(event.role()).isNull());
+		assertThat(this.events.stream(AccountLocked.class).filter(event -> event.accountId().equals(lan))).hasSize(1);
 		awaitListeners();
 	}
 
@@ -189,8 +191,9 @@ class AccountAdministrationIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/admin/users").param("status", "VERIFIED").with(admin(ha))).andExpect(status().isOk())
 			.andExpect(jsonPath("$.total").value(1))
 			.andExpect(jsonPath("$.items[?(@.id == '" + lan + "')].status").value("VERIFIED"));
+		// No account role marks a Student any more (Story 20.3): an account without a valid row has no status.
 		this.mvc.perform(get("/api/v1/admin/users").with(admin(ha)))
-			.andExpect(jsonPath("$.items[?(@.id == '" + unlinked + "')].status").value("UNVERIFIED"));
+			.andExpect(jsonPath("$.items[?(@.id == '" + unlinked + "')].status").value(org.hamcrest.Matchers.contains((Object) null)));
 		this.mvc.perform(get("/api/v1/admin/users/" + lan).with(admin(ha)))
 			.andExpect(jsonPath("$.verification.method").value("SCHOOL_EMAIL"))
 			.andExpect(jsonPath("$.verification.current").value(true));
@@ -222,6 +225,17 @@ class AccountAdministrationIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/admin/users/" + hung).with(admin(ha))).andExpect(status().isOk())
 			.andExpect(jsonPath("$.feedback.count").value(3));
 		assertThat(audits("admin.private_feedback_viewed")).isEqualTo(2);
+
+		// Anyone may be a Mentor in some Job (Story 20.3): an account with no role reads the same way, and one
+		// nobody gave feedback about shows none, unaudited.
+		UUID lan = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-lan", "3.1");
+		this.mvc.perform(get("/api/v1/admin/users/" + lan).with(admin(ha))).andExpect(status().isOk())
+			.andExpect(jsonPath("$.feedback").doesNotExist());
+		assertThat(audits("admin.private_feedback_viewed")).isEqualTo(2);
+		feedback(window(lan), lan, vy, 4, "Tận tình");
+		this.mvc.perform(get("/api/v1/admin/users/" + lan).with(admin(ha))).andExpect(status().isOk())
+			.andExpect(jsonPath("$.feedback.count").value(1));
+		assertThat(audits("admin.private_feedback_viewed")).isEqualTo(3);
 	}
 
 	private UUID window(UUID mentor) {

@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { capabilities, fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { capabilities, fakeBackend, json, signedIn, signedInWithGoogle } from '@/test/fakeBackend'
 import { PAYLOADS } from '@/test/payloads'
 
 function renderAt(path: string) {
@@ -197,6 +197,35 @@ describe('"Tìm việc" behind the GitHub gate (X1, FR-80, Story 20.1)', () => {
     expect(screen.getByText('Sau khi liên kết, bạn quay về đúng trang này.')).toBeInTheDocument()
     const paths = seen.map((request) => new URL(request.url, 'http://localhost').pathname)
     expect(paths.filter((pathname) => pathname.startsWith('/api/v1/mentor/'))).toEqual([])
+  })
+
+  it.each([
+    ['MEN-2', '/tim-viec'],
+    ['MEN-3', '/tim-viec/j1'],
+  ])('shows a user with no role and no GitHub the same gate on %s (Story 20.3)', async (_, path) => {
+    const seen = fakeBackend(signedInWithGoogle)
+    renderAt(path)
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Liên kết GitHub để tìm việc' })).toBeInTheDocument()
+    expect(screen.queryByText('Không tìm thấy nội dung này.')).not.toBeInTheDocument()
+    const paths = seen.map((request) => new URL(request.url, 'http://localhost').pathname)
+    expect(paths.filter((pathname) => pathname.startsWith('/api/v1/mentor/'))).toEqual([])
+  })
+
+  it('lists the Job Posts for a user with no role once GitHub is linked (Story 20.3)', async () => {
+    const linked = {
+      ...signedInWithGoogle,
+      githubLogin: 'lan-nguyen',
+      account: { ...signedInWithGoogle.account!, capabilities: capabilities({ githubVerified: true }) },
+    }
+    const seen = fakeBackend(linked, {
+      'GET /api/v1/mentor/job-posts': () => page([]),
+      'GET /api/v1/mentor/capacity': () => capacity(),
+    })
+    renderAt('/tim-viec')
+
+    await waitFor(() => expect(seen.some((request) => request.url.includes('/api/v1/mentor/job-posts'))).toBe(true))
+    expect(screen.queryByText('Không tìm thấy nội dung này.')).not.toBeInTheDocument()
   })
 
   it('reads the session again when the link read finds GitHub linked', { timeout: 15_000 }, async () => {

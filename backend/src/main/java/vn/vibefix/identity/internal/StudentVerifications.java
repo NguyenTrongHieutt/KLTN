@@ -40,11 +40,9 @@ import vn.vibefix.identity.internal.VerificationRows.Facts;
 import vn.vibefix.identity.internal.VerificationRows.NewRow;
 import vn.vibefix.identity.internal.VerificationRows.Provider;
 import vn.vibefix.identity.internal.VerificationRows.Row;
-import vn.vibefix.notification.Audience;
 import vn.vibefix.notification.EmailClass;
 import vn.vibefix.notification.EmailRequest;
 import vn.vibefix.notification.Emails;
-import vn.vibefix.notification.TodoRequest;
 import vn.vibefix.notification.Todos;
 import vn.vibefix.settings.Settings;
 import vn.vibefix.shared.ApiException;
@@ -344,7 +342,8 @@ class StudentVerifications implements StudentVerification {
 	 * "Bỏ xác minh" (FR-80): ends the current verification {@code UNLINKED}, deleting its public facts and
 	 * the profile's projection of them in the same transaction. The subject HMAC stays on the ended row,
 	 * as N-26 states (AD-24); its reminder and expiry find it ended and are obsolete, and every pending code
-	 * goes. A Student's {@code identity.verify_student} to-do opens again (until Story 19.7).
+	 * goes. No to-do opens: the student verification is optional and gates nothing, and no account role marks a
+	 * Student who would be asked again (Story 20.3; EXPERIENCE.md removed {@code identity.verify_student}).
 	 * @throws ApiException {@code NOT_FOUND} without a current verification
 	 */
 	@Transactional
@@ -354,10 +353,6 @@ class StudentVerifications implements StudentVerification {
 		this.rows.end(row, Ending.UNLINKED, this.clock.instant().truncatedTo(ChronoUnit.MICROS));
 		this.auditLog.record(AuditEntry.of(AuditActor.user(accountId), "identity.student_verification_unlinked",
 				AuditObject.of("identity.account", accountId), AuditObject.of("identity.verification", row.id())));
-		if (this.rows.isStudent(accountId)) {
-			this.todos.open(new TodoRequest(SignIns.VERIFY_STUDENT, accountId, Audience.SUBJECT, accountId, Map.of(),
-					SignIns.VERIFICATION_PATH, null, null));
-		}
 	}
 
 	/**

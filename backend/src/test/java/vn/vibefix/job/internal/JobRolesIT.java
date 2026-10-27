@@ -21,6 +21,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 import vn.vibefix.identity.internal.IdentityTestSupport;
+import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.Crews;
 import vn.vibefix.job.JobRole;
 import vn.vibefix.job.JobRoles;
@@ -28,7 +29,6 @@ import vn.vibefix.job.JobRoles.History;
 import vn.vibefix.job.JobRoles.RoleHistory;
 import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.Kind;
-import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
 import vn.vibefix.team.internal.TeamTestSupport;
@@ -96,8 +96,8 @@ class JobRolesIT extends IntegrationTest {
 				String want = job.getValue().getOrDefault(account, "NONE");
 				String byId = describe(this.roles.roleOf(job.getKey(), account));
 				boolean administrator = account.equals(admin);
-				Caller caller = administrator ? Caller.account(account, Kind.ADMINISTRATOR, Role.ADMINISTRATOR)
-						: Caller.account(account, Kind.USER, null);
+				Caller caller = administrator ? Caller.account(account, Kind.ADMINISTRATOR)
+						: Caller.account(account, Kind.USER);
 				String byCaller = describe(this.roles.roleOf(job.getKey(), caller));
 				if (!want.equals(byId) || !want.equals(byCaller)) {
 					mismatches.add(job.getKey() + "/" + account + ": want " + want + ", by ID " + byId + ", by caller "

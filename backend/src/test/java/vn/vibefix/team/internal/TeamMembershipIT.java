@@ -3,12 +3,6 @@ package vn.vibefix.team.internal;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static vn.vibefix.team.internal.TeamTestSupport.REACT;
 
 import java.time.Duration;
@@ -24,36 +18,36 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.session.Session;
-import org.springframework.session.SessionRepository;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.ResultActions;
-import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.transaction.IllegalTransactionStateException;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import vn.vibefix.identity.AccountLocked;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.shared.ApiException;
-import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.team.Teams;
 
-/** FR-6, AD-37: leaving, removal, Crew reservations, and the guard every membership end applies. */
+/**
+ * FR-6, AD-37: leaving, removal, Crew reservations, and the guard every membership end applies, through
+ * {@link TeamMemberships} itself: its endpoints answer nothing to every caller since Story 20.3, until Story 21.7
+ * deletes Teams.
+ */
 class TeamMembershipIT extends IntegrationTest {
 
 	private static final LocalDate VERIFIED_UNTIL = LocalDate.of(2026, 9, 30);
 
 	@Autowired
-	private MockMvc mvc;
-
-	@Autowired
 	private JdbcClient jdbc;
 
 	@Autowired
-	private SessionRepository<? extends Session> sessions;
+	private TeamMemberships memberships;
+
+	@Autowired
+	private TeamRequests requests;
+
+	@Autowired
+	private TeamViews views;
 
 	@Autowired
 	private ApplicationEventPublisher events;
@@ -84,30 +78,28 @@ class TeamMembershipIT extends IntegrationTest {
 
 	@Test
 	void aStudentLeavesAndMayJoinAnotherTeam() throws Exception {
-		leave(this.minh).andExpect(status().isNoContent());
+		this.memberships.leave(this.minh);
 
 		assertThat(this.teams.isMember(this.hung, this.minh)).isFalse();
 		assertThat(leftReason()).isEqualTo("LEFT");
 		assertThat(notificationParam(this.hung, TeamMemberships.MEMBER_LEFT, "name")).isEqualTo("Trần Quang Minh");
-		leave(this.minh).andExpect(status().isNotFound());
+		assertRefused(() -> this.memberships.leave(this.minh), "NOT_FOUND", null);
 		UUID thao = TeamTestSupport.mentor(this.jdbc, "Nguyễn Phương Thảo", List.of(REACT),
 				"React");
-		this.mvc.perform(post("/api/v1/team/join-requests").with(as(this.minh, Role.STUDENT)).with(csrf())
-			.contentType(MediaType.APPLICATION_JSON)
-			.content("{\"mentorId\":\"" + thao + "\"}")).andExpect(status().isCreated());
+		assertThat(this.requests.requestToJoin(this.minh, thao).id()).isNotNull();
 	}
 
 	@Test
 	void theMentorRemovesOnlyTheirOwnMembers() throws Exception {
 		UUID other = TeamTestSupport.mentor(this.jdbc, "Người Khác", List.of(REACT), "React");
 		this.store.ensure(other, this.clock.instant());
-		remove(other, this.membership).andExpect(status().isNotFound());
+		assertRefused(() -> this.memberships.remove(other, this.membership), "NOT_FOUND", null);
 
-		remove(this.hung, this.membership).andExpect(status().isNoContent());
+		this.memberships.remove(this.hung, this.membership);
 
 		assertThat(leftReason()).isEqualTo("REMOVED");
 		assertThat(notificationParam(this.minh, TeamMemberships.MEMBER_REMOVED, "mentor")).isEqualTo("Đỗ Mạnh Hùng");
-		remove(this.hung, this.membership).andExpect(status().isNotFound());
+		assertRefused(() -> this.memberships.remove(this.hung, this.membership), "NOT_FOUND", null);
 	}
 
 	@Test
@@ -118,18 +110,15 @@ class TeamMembershipIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("SELECT count(*) FROM team.crew_reservation").query(Long.class).single())
 			.as("reserving a Crew row again changes nothing").isOne();
 
-		leave(this.minh).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("STUDENT_ON_CREW"));
-		remove(this.hung, this.membership).andExpect(status().is(422))
-			.andExpect(jsonPath("$.reason").value("STUDENT_ON_CREW"));
-		this.mvc.perform(get("/api/v1/mentor/team").with(as(this.hung, Role.MENTOR)))
-			.andExpect(jsonPath("$.members[0].onCrew").value(true));
-		this.mvc.perform(get("/api/v1/team").with(as(this.minh, Role.STUDENT)))
-			.andExpect(jsonPath("$.team.onCrew").value(true));
+		assertRefused(() -> this.memberships.leave(this.minh), "GUARD_FAILED", "STUDENT_ON_CREW");
+		assertRefused(() -> this.memberships.remove(this.hung, this.membership), "GUARD_FAILED", "STUDENT_ON_CREW");
+		assertThat(this.views.mentorTeam(this.hung).members().getFirst().onCrew()).isTrue();
+		assertThat(this.views.studentTeam(this.minh).team()).isNotNull().satisfies(team -> assertThat(team.onCrew()).isTrue());
 
 		this.transactions.executeWithoutResult(status -> this.teams.releaseCrew(crewRow));
 
 		assertThat(this.teams.isMember(this.hung, this.minh)).as("an open Team keeps its member").isTrue();
-		leave(this.minh).andExpect(status().isNoContent());
+		this.memberships.leave(this.minh);
 	}
 
 	@Test
@@ -153,7 +142,7 @@ class TeamMembershipIT extends IntegrationTest {
 		reserve(crewRow, this.hung, this.minh);
 
 		IdentityTestSupport.lock(this.jdbc, this.hung, "Vi phạm");
-		publish(new AccountLocked(UUID.randomUUID(), this.hung, Role.MENTOR));
+		publish(new AccountLocked(UUID.randomUUID(), this.hung));
 		await().atMost(Duration.ofSeconds(10)).until(() -> !this.teams.isMember(this.hung, vy) && settled());
 
 		assertThat(this.teams.isMember(this.hung, this.minh)).isTrue();
@@ -169,7 +158,7 @@ class TeamMembershipIT extends IntegrationTest {
 		reserve(crewRow, this.hung, this.minh);
 		IdentityTestSupport.lock(this.jdbc, this.minh, "test");
 
-		publish(new AccountLocked(UUID.randomUUID(), this.minh, Role.STUDENT));
+		publish(new AccountLocked(UUID.randomUUID(), this.minh));
 		await().atMost(Duration.ofSeconds(10)).until(this::settled);
 		assertThat(this.teams.isMember(this.hung, this.minh)).isTrue();
 
@@ -179,15 +168,17 @@ class TeamMembershipIT extends IntegrationTest {
 
 	@Test
 	void aLeaveAndAReservationAtOnceNeverBothWin() throws Exception {
-		RequestPostProcessor asMinh = as(this.minh, Role.STUDENT);
 		CountDownLatch start = new CountDownLatch(1);
 		ExecutorService pool = Executors.newFixedThreadPool(2);
 		Future<Integer> leaving = pool.submit(() -> {
 			start.await();
-			return this.mvc.perform(delete("/api/v1/team/membership").with(asMinh).with(csrf()))
-				.andReturn()
-				.getResponse()
-				.getStatus();
+			try {
+				this.memberships.leave(this.minh);
+				return 204;
+			}
+			catch (ApiException ex) {
+				return ex.reason().filter("STUDENT_ON_CREW"::equals).isPresent() ? 422 : 500;
+			}
 		});
 		Future<String> reserving = pool.submit(() -> {
 			start.await();
@@ -219,12 +210,15 @@ class TeamMembershipIT extends IntegrationTest {
 		this.transactions.executeWithoutResult(status -> this.teams.reserveForCrew(crewRow, mentor, student, UUID.randomUUID()));
 	}
 
-	private ResultActions leave(UUID student) throws Exception {
-		return this.mvc.perform(delete("/api/v1/team/membership").with(as(student, Role.STUDENT)).with(csrf()));
-	}
-
-	private ResultActions remove(UUID mentor, UUID membershipId) throws Exception {
-		return this.mvc.perform(delete("/api/v1/mentor/team/members/" + membershipId).with(as(mentor, Role.MENTOR)).with(csrf()));
+	/** The command is refused with {@code code} and, when given, {@code reason}. */
+	private static void assertRefused(Runnable command, String code, String reason) {
+		assertThatThrownBy(command::run).isInstanceOf(ApiException.class).satisfies(ex -> {
+			ApiException refused = (ApiException) ex;
+			assertThat(refused.code().name()).isEqualTo(code);
+			if (reason != null) {
+				assertThat(refused.reason()).contains(reason);
+			}
+		});
 	}
 
 	private String leftReason() {
@@ -247,10 +241,6 @@ class TeamMembershipIT extends IntegrationTest {
 		return this.jdbc.sql("SELECT count(*) FROM platform.event_publication WHERE completion_date IS NULL")
 			.query(Long.class)
 			.single() == 0;
-	}
-
-	private RequestPostProcessor as(UUID account, Role role) {
-		return IdentityTestSupport.signedIn(this.sessions, account, role, this.clock.instant());
 	}
 
 }

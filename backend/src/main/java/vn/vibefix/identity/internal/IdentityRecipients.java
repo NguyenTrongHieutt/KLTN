@@ -46,7 +46,7 @@ class IdentityRecipients implements RecipientLookup, RecipientAddresses {
 		}
 		return this.jdbc.sql("""
 				SELECT count(*) FROM identity.account
-				WHERE id = :id AND role = 'ADMINISTRATOR' AND locked_at IS NULL AND erased_at IS NULL
+				WHERE id = :id AND kind = 'ADMINISTRATOR' AND locked_at IS NULL AND erased_at IS NULL
 				""").param("id", accountId).query(Long.class).single() > 0;
 	}
 

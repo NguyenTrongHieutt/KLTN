@@ -39,7 +39,6 @@ import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.shared.Role;
 import vn.vibefix.team.Teams;
 
 /**
@@ -144,8 +143,9 @@ class InvitationController {
 		if (q.isBlank() || (skillIds != null && skillIds.isEmpty())) {
 			return new MentorSearchView(List.of(), page, PAGE_SIZE, 0);
 		}
+		// The Job's Customer is never its Mentor (AD-43), so the search never lists them.
 		Page<MentorCard> found = this.mentors.search(q, skillIds == null ? Set.of() : skillIds,
-				PageRequest.of(page, PAGE_SIZE));
+				this.callers.get().requireAccountId(), PageRequest.of(page, PAGE_SIZE));
 		Map<UUID, Relation> relations = this.invitations.relations(jobId,
 				found.getContent().stream().map(MentorCard::accountId).toList());
 		List<MentorResultView> items = found.getContent()
@@ -184,7 +184,7 @@ class InvitationController {
 	@GetMapping("/api/v1/mentor/job-posts/{postId}/invitation")
 	MentorInvitationView mine(@PathVariable UUID postId) {
 		Caller caller = this.callers.get();
-		if (!caller.hasRole(Role.MENTOR)) {
+		if (!caller.isUser()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		UUID mentor = caller.requireAccountId();

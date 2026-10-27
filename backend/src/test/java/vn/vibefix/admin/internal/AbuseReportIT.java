@@ -30,7 +30,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import vn.vibefix.identity.internal.AdministratorTestSupport;
 import vn.vibefix.identity.internal.AdministratorTestSupport.Administrator;
 import vn.vibefix.identity.internal.IdentityTestSupport;
-import vn.vibefix.shared.Role;
+import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.HeldCrewJob;
 import vn.vibefix.support.IntegrationTest;
 
@@ -113,8 +113,14 @@ class AbuseReportIT extends IntegrationTest {
 		file(this.world.hung(), Role.MENTOR, "JOB_POST", this.post).andExpect(status().isCreated());
 		file(this.world.hung(), Role.MENTOR, "JOB_POST", this.post).andExpect(status().isConflict())
 			.andExpect(jsonPath("$.reason").value("ALREADY_REPORTED"));
+		// Whoever reads "Tìm việc" may report what it shows, whatever role they hold elsewhere (Story 20.3); without
+		// GitHub linked nobody reads it, so nobody reports it.
+		IdentityTestSupport.unlinkGitHub(this.jdbc, this.world.vy());
 		file(this.world.vy(), Role.STUDENT, "JOB_POST", this.post).andExpect(status().isNotFound());
 		file(this.ha.accountId(), Role.ADMINISTRATOR, "JOB_POST", this.post).andExpect(status().isNotFound());
+		// Nobody reports their own content: the Job Post's Customer reads it on "Tìm việc" but cannot report it.
+		file(this.world.lan(), Role.CUSTOMER, "JOB_POST", this.post).andExpect(status().isNotFound());
+		file(this.world.lan(), Role.CUSTOMER, "PRODUCT", this.world.product()).andExpect(status().isNotFound());
 		file(this.world.hung(), Role.MENTOR, "PRODUCT", this.world.product()).andExpect(status().isCreated());
 
 		this.mvc.perform(get("/api/v1/admin/abuse-reports").with(admin(this.ha.accountId())))
