@@ -40,7 +40,7 @@ export function AdminLayout() {
   if (session.data.status !== 'SIGNED_IN') {
     return <Navigate to="/quan-tri/dang-nhap" replace />
   }
-  if (session.data.account?.role !== 'ADMINISTRATOR') {
+  if (session.data.account?.kind !== 'ADMINISTRATOR') {
     return <NotFoundScreen />
   }
   return <AdminShell session={session.data} />

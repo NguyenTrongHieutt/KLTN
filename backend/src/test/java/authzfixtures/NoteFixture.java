@@ -10,6 +10,7 @@ import vn.vibefix.authz.MatrixFixture;
 import vn.vibefix.authz.MatrixWorld;
 import vn.vibefix.authz.fixtures.RoleCallers;
 import vn.vibefix.shared.Caller;
+import vn.vibefix.shared.Kind;
 import vn.vibefix.shared.Role;
 
 /**
@@ -25,8 +26,9 @@ public class NoteFixture implements MatrixFixture {
 
 	@Override
 	public Optional<RequestPostProcessor> realize(MatrixCaller caller, Map<String, String> state, MatrixWorld world) {
+		Caller author = Caller.account(HarnessController.AUTHOR_ID, Kind.USER, Role.STUDENT);
 		return switch (caller) {
-			case AUTHOR -> Optional.of(RoleCallers.as(Caller.account(HarnessController.AUTHOR_ID, Role.STUDENT)));
+			case AUTHOR -> Optional.of(RoleCallers.as(author));
 			default -> Optional.empty();
 		};
 	}

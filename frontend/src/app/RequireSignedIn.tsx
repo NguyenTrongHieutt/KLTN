@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router'
-import { landingPath } from '@/features/identity/api'
+import { isAdministrator } from '@/features/identity/api'
 import { useSession } from '@/features/identity/useSession'
 import { t } from '@/i18n/t'
 
@@ -32,8 +32,8 @@ export function RequireSignedIn({ children }: { children: ReactNode }) {
   if (current.status !== 'SIGNED_IN') {
     return <Navigate to="/dang-nhap" replace state={{ returnTo: location.pathname + location.search }} />
   }
-  // Administrators work in the Admin shell only.
-  if (landingPath(current) === '/quan-tri') {
+  // Administrators, told by the account's kind (Story 20.1), work in the Admin shell only.
+  if (isAdministrator(current)) {
     return <Navigate to="/quan-tri" replace />
   }
   return <>{children}</>

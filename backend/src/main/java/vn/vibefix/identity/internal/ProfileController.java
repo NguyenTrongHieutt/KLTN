@@ -35,6 +35,7 @@ import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
+import vn.vibefix.shared.Kind;
 
 /**
  * ACC-1 (Story 19.3, FR-3, FR-4, FR-51): the caller's one profile, whatever role it holds in a Job.
@@ -190,7 +191,7 @@ class ProfileController {
 	/** The caller's account, if it is a person's; an Administrator has no profile. */
 	private Account requireUser() {
 		return this.accounts.findById(this.caller.get().requireAccountId())
-			.filter(found -> found.kind() == Account.Kind.USER)
+			.filter(found -> found.kind() == Kind.USER)
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 	}
 

@@ -20,6 +20,7 @@ import { isLive, useMyApplications } from '@/features/matching/applicationApi'
 import { useJobPostRecommendations, type RecommendedPost } from '@/features/matching/recommendationApi'
 import { SignalChips } from '@/features/matching/SignalChips'
 import { CapacityBanners } from './CapacityBanners'
+import { FindWorkGate } from './FindWorkGate'
 import { BUDGETS, JOB_TYPES, type Budget, type JobType } from './jobApi'
 import {
   useJobPosts,
@@ -82,13 +83,16 @@ function filtered(filter: JobPostFilter): boolean {
  * MEN-2 Tìm việc (`/tim-viec`, FR-12, UX-DR47, UX-DR72, UX-DR78) for Mentors, with no approval: Open Job
  * Posts, 20 a page, newest first, or by relevance to a keyword that only Enter or "Tìm" runs; Job
  * Type, Skill (Skills or whole Categories), budget, and deadline filters that apply at once; all of
- * it in the URL; and the FR-13 banners.
+ * it in the URL; and the FR-13 banners. Without GitHub linked, the GitHub gate stands in for all of it (X1).
  */
 export function JobPostsPage() {
   usePageTitle(t('screen.jobPost.title'))
   const account = useSession().data?.account
   if (account && account.role !== 'MENTOR') {
     return <NotFoundScreen />
+  }
+  if (account && !account.capabilities.githubVerified) {
+    return <FindWorkGate returnTo="/tim-viec" />
   }
   return <JobPostList />
 }

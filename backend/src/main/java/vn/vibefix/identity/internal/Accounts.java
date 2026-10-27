@@ -11,6 +11,7 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
+import vn.vibefix.shared.Kind;
 import vn.vibefix.shared.Role;
 
 /** Reads and writes {@code identity.account}, {@code identity.acknowledgment}, and the kept GitHub token. */
@@ -29,8 +30,11 @@ class Accounts {
 	 */
 	static final String GITHUB_LINKED = "a.github_user_id IS NOT NULL";
 
-	/** What the global gates read of an account, by {@link #ACTIVE} and {@link #GITHUB_LINKED}. */
-	record Standing(boolean active, boolean gitHubLinked) {
+	/**
+	 * What the global gates and the capabilities read of an account: its kind, {@link #ACTIVE},
+	 * {@link #GITHUB_LINKED}, and whether {@code locked_at} is set.
+	 */
+	record Standing(Kind kind, boolean active, boolean gitHubLinked, boolean locked) {
 	}
 
 	private final JdbcClient jdbc;
@@ -46,10 +50,11 @@ class Accounts {
 
 	/** The account's standing under the global gates, read now (AD-19); empty for an unknown account. */
 	Optional<Standing> standing(UUID id) {
-		return this.jdbc.sql("SELECT (" + ACTIVE + ") AS active, (" + GITHUB_LINKED + ") AS linked"
-				+ " FROM identity.account a WHERE a.id = :id")
+		return this.jdbc.sql("SELECT a.kind, (" + ACTIVE + ") AS active, (" + GITHUB_LINKED + ") AS linked,"
+				+ " (a.locked_at IS NOT NULL) AS locked FROM identity.account a WHERE a.id = :id")
 			.param("id", id)
-			.query((rs, n) -> new Standing(rs.getBoolean("active"), rs.getBoolean("linked")))
+			.query((rs, n) -> new Standing(Kind.valueOf(rs.getString("kind")), rs.getBoolean("active"),
+					rs.getBoolean("linked"), rs.getBoolean("locked")))
 			.optional();
 	}
 
@@ -255,7 +260,7 @@ class Accounts {
 
 	private static Account row(ResultSet rs, int number) throws SQLException {
 		String role = rs.getString("role");
-		return new Account(rs.getObject("id", UUID.class), Account.Kind.valueOf(rs.getString("kind")),
+		return new Account(rs.getObject("id", UUID.class), Kind.valueOf(rs.getString("kind")),
 				(Long) rs.getObject("github_user_id"), rs.getString("github_login"), rs.getString("github_avatar_url"),
 				role == null ? null : Role.valueOf(role), rs.getString("google_sub"), rs.getString("google_email"),
 				rs.getString("google_name"), instant(rs, "locked_at"), rs.getString("lock_reason"), instant(rs, "erased_at"),

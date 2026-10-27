@@ -20,6 +20,7 @@ import vn.vibefix.notification.Todos;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.IdGenerator;
+import vn.vibefix.shared.Kind;
 
 /**
  * The account side of signing in (AD-19, FR-1). One account per person, keyed by Google's subject,
@@ -126,7 +127,7 @@ class SignIns {
 	Account welcome(UUID accountId, String privacyNoticeVersion) {
 		Account account = this.accounts.findById(accountId)
 			.filter(Account::isActive)
-			.filter(found -> found.kind() == Account.Kind.USER)
+			.filter(found -> found.kind() == Kind.USER)
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		UUID acknowledgment = this.ids.newId();
 		if (this.accounts.insertAcknowledgment(acknowledgment, accountId, PRIVACY_NOTICE, privacyNoticeVersion,

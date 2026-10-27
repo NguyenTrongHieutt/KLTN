@@ -129,7 +129,7 @@ class WorkAccess {
 	@Transactional(readOnly = true)
 	BoardViewer reader(UUID boardId, Caller caller, AdminReadScope scope) {
 		boolean mentorRole = caller.hasRole(Role.MENTOR);
-		boolean admin = caller.hasRole(Role.ADMINISTRATOR);
+		boolean admin = caller.isAdministrator();
 		if (!mentorRole && !admin && !caller.hasRole(Role.STUDENT)) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}

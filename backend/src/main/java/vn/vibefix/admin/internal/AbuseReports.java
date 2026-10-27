@@ -42,7 +42,6 @@ import vn.vibefix.shared.IdGenerator;
 import vn.vibefix.shared.RateLimitedException;
 import vn.vibefix.shared.ReportableContent;
 import vn.vibefix.shared.ReportableContent.Reported;
-import vn.vibefix.shared.Role;
 
 /**
  * Abuse Reports (FR-69, AD-20, AD-34): any signed-in user but an Administrator files one on content or a user
@@ -148,7 +147,7 @@ class AbuseReports {
 	 * {@code VALIDATION}; {@code CONFLICT ALREADY_REPORTED}; {@code RATE_LIMITED ABUSE_REPORT_LIMIT}
 	 */
 	UUID file(Caller caller, String kind, @Nullable UUID item, @Nullable String login, String reason) {
-		if (caller.hasRole(Role.ADMINISTRATOR)) {
+		if (caller.isAdministrator()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		String text = reason.strip();

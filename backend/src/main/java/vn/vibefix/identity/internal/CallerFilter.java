@@ -18,14 +18,15 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import vn.vibefix.identity.internal.SignInSession.AccountAuthentication;
 import vn.vibefix.shared.Caller;
-import vn.vibefix.shared.Role;
+import vn.vibefix.shared.Kind;
 
 /**
- * Turns the session's account into the request's {@link Caller} (AD-20), after re-reading the
- * account from the database on every request (AD-19): an account that is locked, erased, or gone
- * loses its session at once and the request continues as anonymous. An Administrator session also
- * ends after 30 minutes without a command or 8 hours after sign-in (SG-10); only a command, never a
- * read such as a poll, counts as activity.
+ * Turns the session's account into the request's {@link Caller} (AD-20), after re-reading the account from
+ * the database on every request (AD-19). The session holds only the account's ID and kind; the caller's kind
+ * and its transitional role come from the account row, never from the session. An account that is locked,
+ * erased, gone, or of another kind than the session says loses its session at once, and the request continues
+ * as anonymous. An Administrator session also ends after 30 minutes without a command or 8 hours after sign-in
+ * (SG-10); only a command, never a read such as a poll, counts as activity.
  */
 class CallerFilter extends OncePerRequestFilter {
 
@@ -46,9 +47,11 @@ class CallerFilter extends OncePerRequestFilter {
 			throws ServletException, IOException {
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		if (authentication instanceof AccountAuthentication signedIn) {
-			Optional<Account> account = this.accounts.findById(signedIn.accountId());
-			if (account.isPresent() && account.get().isActive() && withinAdministratorLimits(signedIn, request)) {
-				request.setAttribute(Caller.REQUEST_ATTRIBUTE, Caller.account(signedIn.accountId(), signedIn.role()));
+			Optional<Account> account = this.accounts.findById(signedIn.accountId())
+				.filter(found -> found.isActive() && found.kind() == signedIn.kind());
+			if (account.isPresent() && withinAdministratorLimits(account.get().kind(), request)) {
+				request.setAttribute(Caller.REQUEST_ATTRIBUTE,
+						Caller.account(account.get().id(), account.get().kind(), account.get().role()));
 			}
 			else {
 				SecurityContextHolder.clearContext();
@@ -61,9 +64,9 @@ class CallerFilter extends OncePerRequestFilter {
 		chain.doFilter(request, response);
 	}
 
-	/** True for any other role; for an Administrator, within the limits, and a command extends it. */
-	private boolean withinAdministratorLimits(AccountAuthentication signedIn, HttpServletRequest request) {
-		if (signedIn.role() != Role.ADMINISTRATOR) {
+	/** True for a person's account; for an Administrator, within the limits, and a command extends it. */
+	private boolean withinAdministratorLimits(Kind kind, HttpServletRequest request) {
+		if (kind != Kind.ADMINISTRATOR) {
 			return true;
 		}
 		HttpSession session = request.getSession(false);

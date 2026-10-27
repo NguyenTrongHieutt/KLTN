@@ -7,7 +7,7 @@ import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
 import type { Session } from '@/features/identity/api'
 import { sessionExpiry } from '@/features/identity/sessionExpiry'
-import { anonymous, fakeBackend, json } from '@/test/fakeBackend'
+import { administratorAccount, anonymous, fakeBackend, json } from '@/test/fakeBackend'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -24,7 +24,7 @@ const minutes = (n: number) => new Date(Date.now() + n * 60_000).toISOString()
 const administrator: Session = {
   status: 'SIGNED_IN',
   privacyNoticeVersion: '2.0',
-  account: { id: '00000000-0000-7000-8000-00000000a001', role: 'ADMINISTRATOR', theme: 'LIGHT' },
+  account: administratorAccount,
   administrator: {
     email: 'ha.phuong@vibefix.vn',
     displayName: 'Hà Phương',

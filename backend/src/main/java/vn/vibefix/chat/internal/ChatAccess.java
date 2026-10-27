@@ -126,7 +126,7 @@ class ChatAccess {
 		if (viewer != null) {
 			return viewer;
 		}
-		if (!caller.hasRole(Role.ADMINISTRATOR)) {
+		if (!caller.isAdministrator()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		UUID admin = caller.requireAccountId();
@@ -166,7 +166,7 @@ class ChatAccess {
 			}
 			return new MessageRead(viewer, message);
 		}
-		if (!caller.hasRole(Role.ADMINISTRATOR)) {
+		if (!caller.isAdministrator()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		UUID admin = caller.requireAccountId();

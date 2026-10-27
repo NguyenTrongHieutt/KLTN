@@ -9,7 +9,6 @@ import org.springframework.stereotype.Component;
 
 import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.ReportableContent;
-import vn.vibefix.shared.Role;
 
 /**
  * FR-69: a Rating is reportable by any signed-in user once it is published and not hidden, as the public
@@ -31,7 +30,7 @@ class RatingReportable implements ReportableContent {
 
 	@Override
 	public Optional<Reported> reportable(String kind, UUID id, Caller caller) {
-		if (!"RATING".equals(kind) || caller.isAnonymous() || caller.hasRole(Role.ADMINISTRATOR)) {
+		if (!"RATING".equals(kind) || caller.isAnonymous() || caller.isAdministrator()) {
 			return Optional.empty();
 		}
 		return this.jdbc.sql("""

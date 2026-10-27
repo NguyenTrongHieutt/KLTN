@@ -6,12 +6,18 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
 import type { Session } from '@/features/identity/api'
-import { fakeBackend, json } from '@/test/fakeBackend'
+import { capabilities, fakeBackend, json } from '@/test/fakeBackend'
 
 const customer: Session = {
   status: 'SIGNED_IN',
   privacyNoticeVersion: '2.0',
-  account: { id: '00000000-0000-7000-8000-00000000c001', role: 'CUSTOMER', theme: 'LIGHT' },
+  account: {
+    id: '00000000-0000-7000-8000-00000000c001',
+    kind: 'USER',
+    capabilities: capabilities(),
+    role: 'CUSTOMER',
+    theme: 'LIGHT',
+  },
 }
 
 afterEach(() => {

@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import vn.vibefix.catalog.Catalog;
 import vn.vibefix.catalog.Skill;
-import vn.vibefix.identity.ActiveAccount;
+import vn.vibefix.identity.GitHubGate;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
 import vn.vibefix.job.JobPosts;
@@ -96,12 +96,12 @@ class RecommendationController {
 
 	private final Catalog catalog;
 
-	private final ActiveAccount gate;
+	private final GitHubGate gate;
 
 	private final CurrentCaller callers;
 
 	RecommendationController(Recommendations recommendations, Invitations invitations, JobPosts posts,
-			MentorDirectory mentors, Teams teams, ProductDirectory products, Catalog catalog, ActiveAccount gate,
+			MentorDirectory mentors, Teams teams, ProductDirectory products, Catalog catalog, GitHubGate gate,
 			CurrentCaller callers) {
 		this.recommendations = recommendations;
 		this.invitations = invitations;
@@ -141,7 +141,7 @@ class RecommendationController {
 		}).toList();
 	}
 
-	/** A Mentor's Recommendations on MEN-2. */
+	/** A Mentor's Recommendations on MEN-2, behind the GitHub gate of "Tìm việc" (X1, Story 20.1). */
 	@GetMapping("/api/v1/mentor/recommendations")
 	List<RecommendedPostView> forMentor(@RequestParam(name = "skill", required = false) @Nullable List<UUID> skills,
 			@RequestParam(name = "category", required = false) @Nullable List<UUID> categories) {
@@ -150,7 +150,7 @@ class RecommendationController {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		UUID mentor = caller.requireAccountId();
-		this.gate.requireActiveAccount(mentor);
+		this.gate.requireGitHubLinked(mentor);
 		List<RecommendedPost> found = this.recommendations.forMentor(mentor,
 				SkillFilter.resolve(this.catalog, skills, categories));
 		Set<UUID> invited = this.invitations.openFor(mentor);

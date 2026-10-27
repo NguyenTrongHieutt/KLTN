@@ -23,7 +23,6 @@ import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.shared.Role;
 
 /**
  * ALL-2 "Dữ liệu của tôi" (NFR-9, NFR-11, AD-24): a Customer, a Mentor, or a Student downloads their data and
@@ -84,7 +83,7 @@ class DataRequestController {
 
 	private UUID person() {
 		Caller caller = this.callers.get();
-		if (caller.hasRole(Role.ADMINISTRATOR)) {
+		if (caller.isAdministrator()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		return caller.requireAccountId();

@@ -61,7 +61,8 @@ class ChatGrantsIT extends IntegrationTest implements AdminReadGrantsContract {
 
 	@Override
 	public void read(UUID adminId, Seeded item) {
-		this.access.reader(item.jobId(), Kind.JOB, Caller.account(adminId, Role.ADMINISTRATOR));
+		Caller admin = Caller.account(adminId, vn.vibefix.shared.Kind.ADMINISTRATOR, Role.ADMINISTRATOR);
+		this.access.reader(item.jobId(), Kind.JOB, admin);
 	}
 
 	@Override

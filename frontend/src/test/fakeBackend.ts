@@ -1,5 +1,5 @@
 import { vi } from 'vitest'
-import type { Session } from '@/features/identity/api'
+import type { Capabilities, Session } from '@/features/identity/api'
 
 type Handler = (request: Request) => Response | Promise<Response>
 
@@ -8,22 +8,45 @@ export const anonymous: Session = { status: 'ANONYMOUS', privacyNoticeVersion: '
 /** A Google account on PUB-3, waiting to accept N-10 (Story 19.1). */
 export const welcome: Session = { status: 'SIGNING_UP', displayName: 'Nguyễn Thị Lan', privacyNoticeVersion: '3.1' }
 
-/** A signed-in Google account, which has no role until Epic 20 (Story 19.1). */
+/** What an account can show for itself (Story 20.1): by default nothing verified, and unlocked. */
+export function capabilities(overrides: Partial<Capabilities> = {}): Capabilities {
+  return { githubVerified: false, linkedinVerified: false, studentVerified: false, locked: false, ...overrides }
+}
+
+/** A signed-in Google account: a `USER` with no role and nothing verified yet (Stories 19.1, 20.1). */
 export const signedInWithGoogle: Session = {
   status: 'SIGNED_IN',
   privacyNoticeVersion: '3.1',
   displayName: 'Nguyễn Thị Lan',
-  account: { id: '00000000-0000-7000-8000-000000000002', theme: 'LIGHT' },
+  account: { id: '00000000-0000-7000-8000-000000000002', kind: 'USER', capabilities: capabilities(), theme: 'LIGHT' },
 }
 
-/** A signed-in session of `role`; no Mentor needs an approval (Story 19.7). */
+/**
+ * A signed-in `USER` with the transitional `role` and GitHub linked; no Mentor needs an approval (Story 19.7).
+ * Story 20.6 moves the tests off the role.
+ */
 export function signedIn(role: 'CUSTOMER' | 'MENTOR' | 'STUDENT'): Session {
   return {
     status: 'SIGNED_IN',
     privacyNoticeVersion: '2.0',
     githubLogin: 'octo-cat',
-    account: { id: '00000000-0000-7000-8000-000000000001', role, theme: 'LIGHT' },
+    account: {
+      id: '00000000-0000-7000-8000-000000000001',
+      kind: 'USER',
+      capabilities: capabilities({ githubVerified: true }),
+      role,
+      theme: 'LIGHT',
+    },
   }
+}
+
+/** A signed-in Administrator's account, told by its kind (Story 20.1), without the Administrator session view. */
+export const administratorAccount: NonNullable<Session['account']> = {
+  id: '00000000-0000-7000-8000-00000000a001',
+  kind: 'ADMINISTRATOR',
+  capabilities: capabilities(),
+  role: 'ADMINISTRATOR',
+  theme: 'LIGHT',
 }
 
 /**

@@ -53,7 +53,7 @@ import {
 export function DocsPage() {
   const { jobId, pageId } = useParams()
   const account = useSession().data?.account
-  if (!jobId || (account !== undefined && account.role === 'ADMINISTRATOR')) {
+  if (!jobId || (account !== undefined && account.kind === 'ADMINISTRATOR')) {
     return <NotFoundScreen />
   }
   if (account?.role === 'CUSTOMER') {

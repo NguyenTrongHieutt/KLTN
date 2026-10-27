@@ -140,6 +140,7 @@ class GitHubLinkIT extends IntegrationTest {
 	void linkingRecordsTheGitHubAccountItsVerifiedEmailsAndClosesTheToDo() throws Exception {
 		UUID lan = signIn(this.browser, "google-lan", "lan.nguyen@gmail.test", "Nguyễn Thị Lan");
 		assertThat(openTodos(lan, "identity.link_github")).isOne();
+		assertThat(sessionAccount().path("capabilities").path("githubVerified").asBoolean()).isFalse();
 
 		Map<String, String> authorization = authorization(this.browser, "PROFILE", null);
 		String target = callback(this.browser, authorization.get("state"));
@@ -176,6 +177,9 @@ class GitHubLinkIT extends IntegrationTest {
 		assertThat(session.path("status").asString()).as("linking signs nobody in or out").isEqualTo("SIGNED_IN");
 		assertThat(session.path("account").path("id").asString()).isEqualTo(lan.toString());
 		assertThat(session.path("githubLogin").asString()).isEqualTo("lan-dev");
+		assertThat(session.path("account").path("capabilities").path("githubVerified").asBoolean())
+			.as("read on the next request, with no new sign-in (Story 20.1)")
+			.isTrue();
 		assertThat(sessionsHold(github.lastToken())).as("the token never reaches the session").isFalse();
 	}
 
@@ -409,6 +413,14 @@ class GitHubLinkIT extends IntegrationTest {
 				"application.json"), 403, "FORBIDDEN", "GITHUB_NOT_LINKED");
 		assertProblem(as(mentor, Role.MENTOR, post("/api/v1/mentor/jobs/" + UUID.randomUUID() + "/nda"), "nda.json"), 403,
 				"FORBIDDEN", "GITHUB_NOT_LINKED");
+		// Reading "Tìm việc" (X1) needs the link too (Story 20.1): the Job Posts, one Job Post, the capacity, the
+		// Recommendations, and MEN-3's Customer Rating and invitation.
+		UUID post = UUID.randomUUID();
+		String jobPost = "/api/v1/mentor/job-posts/" + post;
+		for (String read : List.of("/api/v1/mentor/job-posts", jobPost, "/api/v1/mentor/capacity",
+				"/api/v1/mentor/recommendations", jobPost + "/customer-rating", jobPost + "/invitation")) {
+			assertProblem(as(mentor, Role.MENTOR, get(read), null), 403, "FORBIDDEN", "GITHUB_NOT_LINKED");
+		}
 		UUID student = unlinked(Role.STUDENT);
 		assertProblem(as(student, Role.STUDENT, post("/api/v1/crew/jobs/" + UUID.randomUUID() + "/confirm"), "crew-confirm.json"),
 				403, "FORBIDDEN", "GITHUB_NOT_LINKED");
@@ -652,6 +664,12 @@ class GitHubLinkIT extends IntegrationTest {
 		MvcResult read = browser.perform(get("/api/v1/identity/github"));
 		assertThat(read.getResponse().getStatus()).isEqualTo(200);
 		return JSON.readTree(read.getResponse().getContentAsString());
+	}
+
+	/** The signed-in account of this browser's session, as the SPA reads it. */
+	private JsonNode sessionAccount() throws Exception {
+		return JSON.readTree(this.browser.perform(get("/api/v1/session")).getResponse().getContentAsString())
+			.path("account");
 	}
 
 	private static JsonNode assertProblem(MvcResult result, int status, String code, @Nullable String reason)

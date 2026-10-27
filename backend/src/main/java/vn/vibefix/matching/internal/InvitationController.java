@@ -24,7 +24,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import vn.vibefix.catalog.Catalog;
-import vn.vibefix.identity.ActiveAccount;
+import vn.vibefix.identity.GitHubGate;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
 import vn.vibefix.job.JobPosts;
@@ -111,12 +111,12 @@ class InvitationController {
 
 	private final Catalog catalog;
 
-	private final ActiveAccount gate;
+	private final GitHubGate gate;
 
 	private final CurrentCaller callers;
 
 	InvitationController(Invitations invitations, JobPosts posts, MentorDirectory mentors, Teams teams,
-			Catalog catalog, ActiveAccount gate, CurrentCaller callers) {
+			Catalog catalog, GitHubGate gate, CurrentCaller callers) {
 		this.invitations = invitations;
 		this.posts = posts;
 		this.mentors = mentors;
@@ -180,7 +180,7 @@ class InvitationController {
 		return QuotaView.of(this.invitations.invite(customerOf(jobId), jobId, body.mentorId()));
 	}
 
-	/** MEN-3: the Mentor's own invitation to this Job, open, answered, or lapsed; nobody else's. */
+	/** MEN-3: the Mentor's own invitation, open, answered, or lapsed; behind the GitHub gate of "Tìm việc" (X1). */
 	@GetMapping("/api/v1/mentor/job-posts/{postId}/invitation")
 	MentorInvitationView mine(@PathVariable UUID postId) {
 		Caller caller = this.callers.get();
@@ -188,7 +188,7 @@ class InvitationController {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		UUID mentor = caller.requireAccountId();
-		this.gate.requireActiveAccount(mentor);
+		this.gate.requireGitHubLinked(mentor);
 		return this.invitations.forMentor(mentor, postId)
 			.map(MentorInvitationView::of)
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));

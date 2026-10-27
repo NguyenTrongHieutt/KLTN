@@ -29,6 +29,7 @@ export function AccountMenu({ session, offline }: { session: Session; offline: b
   // A Google account has no GitHub username until Story 19.2 links it: its Google name stands in.
   const login = session.githubLogin ?? session.displayName ?? ''
   const role = session.account?.role
+  const administrator = session.account?.kind === 'ADMINISTRATOR'
   const theme = session.account?.theme ?? DEFAULT_THEME
 
   function chooseTheme(choice: ThemeChoice) {
@@ -47,7 +48,7 @@ export function AccountMenu({ session, offline }: { session: Session; offline: b
       <Menu.Portal>
         <Menu.Positioner align="end" sideOffset={6} className="z-50">
           <Menu.Popup className="min-w-52 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md">
-            {role !== 'ADMINISTRATOR' && (
+            {!administrator && (
               <Menu.Item className={item} onClick={() => navigate('/ho-so')}>
                 {t('shell.profile')}
               </Menu.Item>
@@ -62,7 +63,7 @@ export function AccountMenu({ session, offline }: { session: Session; offline: b
                 {t('shell.balance')}
               </Menu.Item>
             )}
-            {role !== 'ADMINISTRATOR' && (
+            {!administrator && (
               <Menu.Item className={item} onClick={() => navigate('/tai-khoan/du-lieu')}>
                 {t('shell.myData')}
               </Menu.Item>

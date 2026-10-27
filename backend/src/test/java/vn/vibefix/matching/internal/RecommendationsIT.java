@@ -26,6 +26,7 @@ import com.jayway.jsonpath.JsonPath;
 
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.shared.Caller;
+import vn.vibefix.shared.Kind;
 import vn.vibefix.shared.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
@@ -122,19 +123,17 @@ class RecommendationsIT extends IntegrationTest {
 			.andExpect(jsonPath("$[1].signals.newcomer").value(false));
 	}
 
-	/** Story 19.7: the caller's own Skills come from their profile, whether or not they may be invited. */
+	/** Story 20.1: MEN-2's Recommendations are part of "Tìm việc" (X1), which needs GitHub linked. */
 	@Test
-	void aMentorWithoutGitHubLinkedGetsJobPostsByTheirOwnSkills() throws Exception {
+	void aMentorWithoutGitHubLinkedIsRefusedTheRecommendations() throws Exception {
 		UUID mentor = mentor("Chưa Liên Kết", List.of(WEB_SECURITY), true);
 		IdentityTestSupport.unlinkGitHub(this.jdbc, mentor);
-		UUID shared = job("OPEN", List.of("BUG_FIX"), List.of(WEB_SECURITY), null);
-		job("OPEN", List.of("BUG_FIX"), List.of(REACT), null);
+		job("OPEN", List.of("BUG_FIX"), List.of(WEB_SECURITY), null);
 
 		this.mvc.perform(get("/api/v1/mentor/recommendations").with(as(mentor, Role.MENTOR)))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.length()").value(1))
-			.andExpect(jsonPath("$[0].id").value(shared.toString()))
-			.andExpect(jsonPath("$[0].signals.sharedSkills.length()").value(1));
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.code").value("FORBIDDEN"))
+			.andExpect(jsonPath("$.reason").value("GITHUB_NOT_LINKED"));
 	}
 
 	@Test
@@ -173,7 +172,7 @@ class RecommendationsIT extends IntegrationTest {
 		UUID locked = mentor("Bị Khóa", List.of(REACT), true);
 		IdentityTestSupport.lock(this.jdbc, locked, "Vi phạm");
 		this.mvc.perform(get("/api/v1/mentor/recommendations").with(request -> {
-			request.setAttribute(Caller.REQUEST_ATTRIBUTE, Caller.account(locked, Role.MENTOR));
+			request.setAttribute(Caller.REQUEST_ATTRIBUTE, Caller.account(locked, Kind.USER, Role.MENTOR));
 			return request;
 		})).andExpect(status().isForbidden()).andExpect(jsonPath("$.reason").value("ACCOUNT_LOCKED"));
 	}

@@ -28,7 +28,7 @@ import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.shared.Role;
+import vn.vibefix.shared.Kind;
 
 /**
  * PUB-6's sign-in (FR-2, AD-19): the separate Administrator path, never linked from a public page.
@@ -75,7 +75,7 @@ class AdminSignInController {
 		SignInSession.clear(session);
 		request.changeSessionId();
 		SecurityContext context = SecurityContextHolder.createEmptyContext();
-		context.setAuthentication(new AccountAuthentication(signedIn.accountId(), Role.ADMINISTRATOR));
+		context.setAuthentication(new AccountAuthentication(signedIn.accountId(), Kind.ADMINISTRATOR));
 		SecurityContextHolder.setContext(context);
 		this.contexts.saveContext(context, request, response);
 		AdminSessions.start(request.getSession(), this.clock.instant());

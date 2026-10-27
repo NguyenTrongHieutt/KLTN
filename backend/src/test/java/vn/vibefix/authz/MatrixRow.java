@@ -31,9 +31,9 @@ import org.springframework.http.HttpMethod;
  * as the multipart part {@code file}, byte for byte.</li>
  * <li>{@code expect}: an {@link Expectation}.</li>
  * <li>{@code check} (optional): the global gate the Mentor endpoint applies (AD-19), {@value #GITHUB_LINKED}
- * for new-work commands (bidding, the Mentor's NDA) or {@value #ACTIVE_ACCOUNT} for everything else. Every
- * row of an endpoint under {@value #MENTOR_PATH} names one, and no other row does, so a Mentor endpoint
- * cannot be added without deciding which.</li>
+ * for new-work commands (bidding, the Mentor's NDA) and for reading "Tìm việc" (X1), or {@value #ACTIVE_ACCOUNT}
+ * for everything else. Every row of an endpoint under {@value #MENTOR_PATH} names one, and no other row does,
+ * so a Mentor endpoint cannot be added without deciding which.</li>
  * </ul>
  */
 public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map<String, String> state,

@@ -15,6 +15,7 @@ import { isNotFound } from '@/lib/problemMessage'
 import { ApplyPanel } from '@/features/matching/ApplyPanel'
 import { useMentorInvitation, type MentorInvitation } from '@/features/matching/invitationApi'
 import { CapacityBanners } from './CapacityBanners'
+import { FindWorkGate } from './FindWorkGate'
 import { JobStateBadge } from './JobStateBadge'
 import { useCustomerRating, useJobPost, useMentorCapacity, type JobPost, type MentorCapacity } from './jobPostApi'
 
@@ -23,17 +24,31 @@ import { useCustomerRating, useJobPost, useMentorCapacity, type JobPost, type Me
  * Post's answers, Job Types, Skills with their plain hints, deadline, budget, and screenshots; the
  * Customer's Rating summary, never their name or contact details; the Product; the Team's free
  * Students; the FR-13 banners; and "Ứng tuyển" (Story 3.6). A Customer's invitation shows as a
- * note, and once it lapsed its card replaces the not-found screen (FR-14, UX-DR27).
+ * note, and once it lapsed its card replaces the not-found screen (FR-14, UX-DR27). Without GitHub linked, the
+ * GitHub gate stands in for the Job Post (X1).
  */
 export function JobPostPage() {
   const { postId } = useParams()
-  const post = useJobPost(postId)
-  const invitation = useMentorInvitation(postId)
   const account = useSession().data?.account
-  usePageTitle(post.data?.title ?? invitation.data?.jobTitle ?? t('screen.jobPost.title'))
   if (account && account.role !== 'MENTOR') {
     return <NotFoundScreen />
   }
+  if (account && !account.capabilities.githubVerified) {
+    return <GatedJobPost returnTo={`/tim-viec/${postId ?? ''}`} />
+  }
+  return <JobPostDetail postId={postId} />
+}
+
+/** MEN-3 behind the GitHub gate, titled as the page. */
+function GatedJobPost({ returnTo }: { returnTo: string }) {
+  usePageTitle(t('screen.jobPost.title'))
+  return <FindWorkGate returnTo={returnTo} />
+}
+
+function JobPostDetail({ postId }: { postId: string | undefined }) {
+  const post = useJobPost(postId)
+  const invitation = useMentorInvitation(postId)
+  usePageTitle(post.data?.title ?? invitation.data?.jobTitle ?? t('screen.jobPost.title'))
   if (post.isError && isNotFound(post.error)) {
     if (invitation.isPending) {
       return <Skeleton className="m-6 h-48" />

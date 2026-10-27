@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
 
+import vn.vibefix.shared.Kind;
 import vn.vibefix.shared.Role;
 
 /**
@@ -24,13 +25,6 @@ record Account(UUID id, Kind kind, @Nullable Long githubUserId, @Nullable String
 		@Nullable String githubAvatarUrl, @Nullable Role role, @Nullable String googleSub, @Nullable String googleEmail,
 		@Nullable String googleName, @Nullable Instant lockedAt, @Nullable String lockReason, @Nullable Instant erasedAt,
 		Instant createdAt) {
-
-	/** Whose account it is (Story 19.1); {@code shared.Caller} carries it from Story 20.1. */
-	enum Kind {
-
-		USER, ADMINISTRATOR
-
-	}
 
 	/** An account with a role and no Google identity: an Administrator's, or one from before Google sign-in. */
 	Account(UUID id, @Nullable Long githubUserId, @Nullable String githubLogin, @Nullable String githubAvatarUrl, Role role,

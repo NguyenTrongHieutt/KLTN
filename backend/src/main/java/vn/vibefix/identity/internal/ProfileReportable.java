@@ -13,7 +13,6 @@ import vn.vibefix.identity.StudentDirectory;
 import vn.vibefix.identity.StudentDirectory.StudentCard;
 import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.ReportableContent;
-import vn.vibefix.shared.Role;
 
 /**
  * FR-69: a user is reportable through the public profile the platform shows of them, a Mentor's (PUB-3) or a
@@ -38,7 +37,7 @@ class ProfileReportable implements ReportableContent {
 
 	@Override
 	public Optional<Reported> reportable(String kind, UUID id, Caller caller) {
-		if (!"USER".equals(kind) || caller.isAnonymous() || caller.hasRole(Role.ADMINISTRATOR)
+		if (!"USER".equals(kind) || caller.isAnonymous() || caller.isAdministrator()
 				|| id.equals(caller.requireAccountId())) {
 			return Optional.empty();
 		}

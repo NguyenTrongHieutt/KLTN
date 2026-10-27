@@ -23,7 +23,6 @@ import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.shared.Role;
 
 /**
  * "Đề xuất thêm kỹ năng này" (FR-73, AD-34, UX-DR77): a Customer, a Mentor, or a Student suggests a Skill the
@@ -60,7 +59,7 @@ class SkillSuggestionController {
 	@GetMapping("/api/v1/skill-suggestions")
 	List<MySkillSuggestionView> mine() {
 		Caller caller = this.callers.get();
-		if (caller.hasRole(Role.ADMINISTRATOR)) {
+		if (caller.isAdministrator()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		return this.suggestions.mine(caller.requireAccountId()).stream().map(SkillSuggestionController::view).toList();

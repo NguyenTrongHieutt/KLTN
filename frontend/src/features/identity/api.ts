@@ -3,6 +3,12 @@ import { apiClient, unwrap } from '@/lib/apiClient'
 
 export type Session = components['schemas']['SessionView']
 
+/**
+ * What the signed-in account can show for itself (FR-80, Story 20.1): GitHub, LinkedIn and student
+ * verification, and the lock, read by the backend on every request. The SPA's gates read it (UX-DR95).
+ */
+export type Capabilities = components['schemas']['CapabilitiesView']
+
 export const SESSION_QUERY_KEY = ['identity', 'session'] as const
 
 /** The session as the backend sees it: anonymous, on the welcome (PUB-3), refused (locked), or signed in. */
@@ -29,10 +35,15 @@ function withReturn(start: string, returnTo?: string): string {
   return returnTo ? `${start}?quay-lai=${encodeURIComponent(returnTo)}` : start
 }
 
+/** Whether the session is an Administrator's, by the account's kind (Story 20.1), never by a role. */
+export function isAdministrator(session: Session | undefined): boolean {
+  return session?.account?.kind === 'ADMINISTRATOR'
+}
+
 /**
- * Where a signed-in account lands: an Administrator in the Admin shell, everyone else, a Google account
- * with no role too, on the to-do list. No Mentor waits for an approval (Story 19.7).
+ * Where a signed-in account lands: an Administrator in the Admin shell, every user, a Google account with no
+ * role too, on the to-do list. No Mentor waits for an approval (Story 19.7).
  */
 export function landingPath(session: Session): string {
-  return session.account?.role === 'ADMINISTRATOR' ? '/quan-tri' : '/viec-can-lam'
+  return isAdministrator(session) ? '/quan-tri' : '/viec-can-lam'
 }

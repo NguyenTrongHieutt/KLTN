@@ -29,7 +29,7 @@ import { DeliveryReportView } from './DeliveryReportView'
 export function HandoverPage() {
   const { jobId, handoverId } = useParams()
   const account = useSession().data?.account
-  if (!jobId || (account !== undefined && account.role === 'ADMINISTRATOR')) {
+  if (!jobId || (account !== undefined && account.kind === 'ADMINISTRATOR')) {
     return <NotFoundScreen />
   }
   if (account?.role === 'CUSTOMER') {

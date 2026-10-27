@@ -146,6 +146,10 @@ class GoogleSignInIT extends IntegrationTest {
 		JsonNode body = JSON.readTree(welcome.getResponse().getContentAsString());
 		assertThat(body.path("status").asString()).isEqualTo("SIGNED_IN");
 		assertThat(body.path("account").path("role").isNull()).as("a Google account has no role").isTrue();
+		assertThat(body.path("account").path("kind").asString()).isEqualTo("USER");
+		assertThat(body.path("account").path("capabilities").path("githubVerified").asBoolean())
+			.as("nothing is linked yet")
+			.isFalse();
 		assertThat(body.path("displayName").asString()).isEqualTo("Nguyễn Thị Lan");
 		assertThat(this.browser.cookie(SecurityConfiguration.SESSION_COOKIE)).as("the session ID rotates")
 			.isNotEqualTo(before);
