@@ -187,8 +187,8 @@ class MilestoneReleases implements Releases {
 		for (Part part : parts) {
 			Audience audience = part.partyId().equals(mentor) ? Audience.MENTOR : Audience.CREW_EVER_ACTIVE;
 			this.notifications.send(part.held()
-					? new NotificationRequest(HELD, causeId, List.of(new Recipient(part.partyId(), audience)),
-							Map.of("n", String.valueOf(number)), "/so-du", jobId, null)
+					? new NotificationRequest(HELD, causeId, List.of(new Recipient(part.partyId(), Audience.SPLIT_PARTY)),
+							Map.of("n", String.valueOf(number)), "/so-du", jobId, null, milestoneId)
 					: new NotificationRequest(RELEASED, causeId, List.of(new Recipient(part.partyId(), audience)),
 							Map.of("amount", PaymentOrders.vnd(part.amountVnd()), "job", job.title(), "n", String.valueOf(number)),
 							"/so-du", jobId, null));

@@ -75,7 +75,7 @@ class JdbcNotifications implements Notifications {
 		}
 		for (Recipient recipient : request.recipients()) {
 			this.registry.checkRecipient(type.key(), type.audiences(), recipient.accountId(), recipient.audience(),
-					request.jobId(), request.subjectRecordId());
+					request.jobId(), request.subjectRecordId(), request.milestoneId());
 		}
 		Set<UUID> accounts = new LinkedHashSet<>();
 		request.recipients().forEach(recipient -> accounts.add(recipient.accountId()));

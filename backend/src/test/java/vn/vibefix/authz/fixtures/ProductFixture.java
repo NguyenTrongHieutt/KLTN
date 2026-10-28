@@ -1,33 +1,41 @@
 package vn.vibefix.authz.fixtures;
 
 import java.sql.Timestamp;
+import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
+import org.springframework.context.ApplicationContext;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.session.Session;
 import org.springframework.session.SessionRepository;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
+import org.springframework.transaction.PlatformTransactionManager;
 
+import vn.vibefix.authz.Canaries;
+import vn.vibefix.authz.JobContent;
 import vn.vibefix.authz.MatrixCaller;
 import vn.vibefix.authz.MatrixFixture;
 import vn.vibefix.authz.MatrixWorld;
+import vn.vibefix.files.StoredFiles;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
+import vn.vibefix.shared.AdminReadGrants;
 import vn.vibefix.support.MutableClock;
+import vn.vibefix.team.internal.TeamTestSupport;
 
 /**
- * Products and their Jobs (FR-7, FR-8, FR-9, AD-20): a Customer's registered Product
- * ({@code {productId}}), whose Customer the matrix calls {@link MatrixCaller#OWNER}, with one open
- * credential Finding of its intake scan ({@code {findingId}}) that the owner resolves, and one Draft
- * Job ({@code {jobId}}) holding a screenshot ({@code {screenshotId}}), and one Open Job Post
- * ({@code {postId}}) with another Mentor's Application ({@code {applicationId}}). Only the owner and
- * Administrators read the Product; only the owner reads the Draft and the Applications, and approved
- * Mentors read the Job Post. An Active Job of the same Product carries the Crew and its Crew Chat
- * ({@link CrewJobWorld}).
+ * Products and their Jobs (FR-7, FR-8, FR-9, AD-20): a registered Product ({@code {productId}}) of
+ * {@link MatrixCaller#CUSTOMER}, the Customer of every fixture Job, with one open credential Finding of its intake
+ * scan ({@code {findingId}}) that the Customer resolves, one Draft Job ({@code {jobId}}) holding a screenshot
+ * ({@code {screenshotId}}), and one Open Job Post ({@code {postId}}) with the open bid ({@code {applicationId}}) of
+ * {@link MatrixCaller#BIDDER}, a Mentor with a profile, whom the Customer invited before the bid. The Customer's profile ({@code {customerId}}) holds the
+ * {@code CONTACT_EMAIL} canary as its contact email. Only the Customer and Administrators read the Product; only the Customer reads the
+ * Draft and the bids, and any user with GitHub linked reads the Job Post. An Active Job of the same Product carries
+ * the Crew and its content ({@link CrewJobWorld}).
  */
 public class ProductFixture implements MatrixFixture {
 
@@ -39,10 +47,13 @@ public class ProductFixture implements MatrixFixture {
 
 	private UUID owner;
 
-	public ProductFixture(JdbcClient jdbc, SessionRepository<? extends Session> sessions) {
+	private UUID bidder;
+
+	public ProductFixture(JdbcClient jdbc, SessionRepository<? extends Session> sessions, List<AdminReadGrants> grants,
+			StoredFiles files, PlatformTransactionManager transactionManager, ApplicationContext context) {
 		this.jdbc = jdbc;
 		this.sessions = sessions;
-		this.crewJob = new CrewJobWorld(jdbc, sessions);
+		this.crewJob = new CrewJobWorld(jdbc, sessions, grants, files, transactionManager, context);
 	}
 
 	@Override
@@ -63,6 +74,10 @@ public class ProductFixture implements MatrixFixture {
 			.param("now", now)
 			.update();
 		world.put("productId", product);
+		// The Customer's contact (FR-3, Story 19.3): the crew Job's Mentor and Crew meet it, so it is the canary.
+		JobContent.customerProfile(this.jdbc, this.owner, "Chủ sản phẩm ma trận",
+				Canaries.load().get("CONTACT_EMAIL").value());
+		world.put("customerId", this.owner);
 		// ADM-6 hides this Product (FR-60).
 		world.put("kind", "PRODUCT");
 		world.put("contentId", product);
@@ -111,10 +126,14 @@ public class ProductFixture implements MatrixFixture {
 			.param("product", product)
 			.param("owner", this.owner)
 			.param("now", now)
-			.param("lapses", Timestamp.from(MutableClock.DEFAULT_INSTANT.plus(java.time.Duration.ofDays(14))))
+			.param("lapses", Timestamp.from(MutableClock.DEFAULT_INSTANT.plus(Duration.ofDays(14))))
 			.update();
 		world.put("postId", post);
-		UUID applicant = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null);
+		// A row's job=post binds {jobId} to the post (MatrixRow.Binding.POST_JOB), where {applicationId} lives.
+		world.put("postJobId", post);
+		// A Mentor profile, so a bid reaches the real bid guards (FR-13).
+		this.bidder = TeamTestSupport.mentor(this.jdbc, "Người ứng tuyển ma trận", List.of(TeamTestSupport.REACT),
+				"React");
 		UUID application = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO matching.application (id, job_id, product_id, customer_account_id, mentor_account_id, status,
@@ -125,30 +144,38 @@ public class ProductFixture implements MatrixFixture {
 			.param("job", post)
 			.param("product", product)
 			.param("owner", this.owner)
-			.param("mentor", applicant)
+			.param("mentor", this.bidder)
 			.param("now", now)
 			.update();
 		world.put("applicationId", application);
-		// No Crew row exists on the fixture's Draft: every Crew command on it finds nothing (AD-41).
-		world.put("crewRowId", UUID.randomUUID());
-		world.put("milestoneId", UUID.randomUUID());
-		world.put("paymentOrderId", UUID.randomUUID());
-		// The Draft has no confirmed Agreement, so no External Access item exists to name (FR-66).
-		world.put("accessId", UUID.randomUUID());
+		// The Customer invited the Bidder a day before the bid, which answered it (FR-14): the invitation is theirs.
+		this.jdbc.sql("""
+				INSERT INTO matching.invitation (id, job_id, product_id, customer_account_id, mentor_account_id, status,
+				    invited_at, ended_at)
+				VALUES (:id, :job, :product, :owner, :mentor, 'APPLIED', :invited, :now)
+				""")
+			.param("id", UUID.randomUUID())
+			.param("job", post)
+			.param("product", product)
+			.param("owner", this.owner)
+			.param("mentor", this.bidder)
+			.param("invited", Timestamp.from(MutableClock.DEFAULT_INSTANT.minus(Duration.ofDays(1))))
+			.param("now", now)
+			.update();
+		// {crewRowId}, {milestoneId}, {paymentOrderId} and {accessId} name the crew Job's own objects (CrewJobWorld),
+		// whose rows bind {jobId} to it: the Draft has none of them.
 		this.crewJob.seed(world, this.owner, product);
 	}
 
 	@Override
-	public Set<String> stateKeys() {
-		return Set.of();
-	}
-
-	@Override
 	public Optional<RequestPostProcessor> realize(MatrixCaller caller, Map<String, String> state, MatrixWorld world) {
-		if (caller != MatrixCaller.OWNER) {
-			return this.crewJob.realize(caller);
-		}
-		return Optional.of(IdentityTestSupport.signedIn(this.sessions, this.owner, Role.CUSTOMER, MutableClock.DEFAULT_INSTANT));
+		return switch (caller) {
+			case CUSTOMER -> Optional.of(IdentityTestSupport.signedIn(this.sessions, this.owner, Role.CUSTOMER,
+					MutableClock.DEFAULT_INSTANT));
+			case BIDDER -> Optional.of(IdentityTestSupport.signedIn(this.sessions, this.bidder, Role.MENTOR,
+					MutableClock.DEFAULT_INSTANT));
+			default -> this.crewJob.realize(caller);
+		};
 	}
 
 }

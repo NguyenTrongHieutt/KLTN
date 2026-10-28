@@ -271,7 +271,8 @@ class AbuseReports {
 
 	/**
 	 * The assignee's decision, with the outcome the reporter reads.
-	 * @throws ApiException {@code NOT_FOUND}; {@code CONFLICT ALREADY_DECIDED}; {@code FORBIDDEN NOT_ASSIGNED};
+	 * @throws ApiException {@code NOT_FOUND}; {@code CONFLICT ALREADY_DECIDED}; {@code CONFLICT NOT_ASSIGNED} for an
+	 * Administrator who did not take it (SG-31: every Administrator reads the report, so no {@code FORBIDDEN});
 	 * {@code VALIDATION}, with {@code NOT_HIDEABLE} for a kind FR-60 does not hide; {@code CONFLICT ALREADY_HIDDEN}
 	 */
 	@Transactional
@@ -281,7 +282,7 @@ class AbuseReports {
 			throw new ApiException(ErrorCode.CONFLICT, AdminReason.ALREADY_DECIDED);
 		}
 		if (!administrator.equals(report.assigneeId())) {
-			throw new ApiException(ErrorCode.FORBIDDEN, AdminReason.NOT_ASSIGNED);
+			throw new ApiException(ErrorCode.CONFLICT, AdminReason.NOT_ASSIGNED);
 		}
 		String told = outcome.strip();
 		if (told.isEmpty() || told.length() > 500) {

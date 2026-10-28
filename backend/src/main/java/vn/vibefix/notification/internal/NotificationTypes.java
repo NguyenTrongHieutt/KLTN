@@ -550,7 +550,10 @@ class NotificationTypes implements NotificationCatalog {
 			Set.of(Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
 			Set.of("n", "count", "rounds"));
 
-	/** A release (FR-42): each payee learns their part, with N-13's line in the email. */
+	/**
+	 * A release (FR-42): each payee learns their part, with N-13's line in the email. It keeps its classes until
+	 * Story 22.1 moves it to {@code MENTOR} and {@code SPLIT_PARTY} (review 2026-10-27 A-11).
+	 */
 	static final NotificationType PAYMENT_FUNDS_RELEASED = new NotificationType("payment.funds_released",
 			Set.of(Audience.MENTOR, Audience.CREW_EVER_ACTIVE), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "check",
 			Set.of("amount", "job", "n"));
@@ -759,10 +762,12 @@ class NotificationTypes implements NotificationCatalog {
 			Set.of(Audience.MENTOR, Audience.CREW_EVER_ACTIVE), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "check",
 			Set.of("job"));
 
-	/** AD-40: a release held this party's part for an open share Team Issue. */
+	/**
+	 * AD-40: a release held this party's part for an open share Team Issue. A split notice reaches the Milestone's
+	 * split parties only (AD-20, Story 20.5), never the Customer or a Crew member outside the split.
+	 */
 	static final NotificationType PAYMENT_SHARE_HELD = new NotificationType("payment.share_held",
-			Set.of(Audience.MENTOR, Audience.CREW_EVER_ACTIVE), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info",
-			Set.of("n"));
+			Set.of(Audience.SPLIT_PARTY), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of("n"));
 
 	/** FR-54: the decision was carried out; the Job unfroze. */
 	static final NotificationType DISPUTE_DISPUTE_DECIDED = new NotificationType("dispute.dispute_decided",

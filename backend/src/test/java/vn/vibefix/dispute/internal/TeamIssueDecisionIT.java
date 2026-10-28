@@ -125,7 +125,7 @@ class TeamIssueDecisionIT extends IntegrationTest {
 			.as("Minh's grant ended, Hà's is open").isOne();
 		this.mvc.perform(get("/api/v1/admin/jobs/" + this.world.job() + "/crew-terms").with(admin(this.minh)))
 			.andExpect(status().isNotFound());
-		decide(this.minh, "000000", issue, "\"points\":10").andExpect(status().isForbidden())
+		decide(this.minh, "000000", issue, "\"points\":10").andExpect(status().isConflict())
 			.andExpect(jsonPath("$.reason").value("NOT_ASSIGNED"));
 		decide(this.ha, issue, "\"points\":25").andExpect(status().isUnprocessableEntity())
 			.andExpect(jsonPath("$.reason").value("SHARE_TRANSFER_TOO_LARGE"))

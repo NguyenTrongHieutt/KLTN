@@ -82,7 +82,7 @@ class DisputeDecisionIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("SELECT count(*) FROM dispute.dispute WHERE status = 'OPEN'").query(Long.class).single())
 			.isEqualTo(1);
 
-		decide(ha, dispute, 500000L, 300000L, "CANCEL").andExpect(status().isForbidden())
+		decide(ha, dispute, 500000L, 300000L, "CANCEL").andExpect(status().isConflict())
 			.andExpect(jsonPath("$.reason").value("NOT_ASSIGNED"));
 		this.mvc.perform(post("/api/v1/admin/disputes/" + dispute + "/take").with(admin(ha)).with(csrf()))
 			.andExpect(status().isOk())
