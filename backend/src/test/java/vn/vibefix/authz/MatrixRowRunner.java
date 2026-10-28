@@ -10,8 +10,11 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.regex.Pattern;
 
 import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
 import org.springframework.beans.factory.config.BeanDefinition;
@@ -31,9 +34,12 @@ import tools.jackson.databind.json.JsonMapper;
 import vn.vibefix.authz.Canaries.Canary;
 
 /**
- * Runs one matrix row (AD-20): the fixtures seed a fresh world, exactly one fixture realizes the
- * caller, the request is sent, and the answer must match the row's expectation. Then no canary
- * hidden from the caller may appear anywhere in the response body or headers (SG-55).
+ * Runs one matrix row (AD-20): the fixtures seed a fresh world, the row's world-binding keys rebind its
+ * placeholders ({@link MatrixRow.Binding}), exactly one fixture realizes the caller from the rest of its
+ * {@code subject_state}, the request is sent, and the answer must match the row's expectation. Then no canary
+ * hidden from the caller may appear anywhere in the response body or headers (SG-55), an amount in its VND form
+ * neither ({@link #forms}), except the
+ * Crew names on PUB-4's reputation endpoints for the Customer ({@link #exempt}).
  */
 public final class MatrixRowRunner {
 
@@ -42,7 +48,21 @@ public final class MatrixRowRunner {
 
 	static final String BODIES = "authz/bodies/";
 
+	/**
+	 * PUB-4's reputation endpoints, public to everyone: they stay outside the Customer's Crew-name scan rather than
+	 * refusing one viewer, which a second Google account would get around (review 2026-10-27 A-06). Their own
+	 * suite ({@code PublicReputationIT}) asserts that they name no Job, Customer, or co-member.
+	 */
+	static final Set<String> PUBLIC_REPUTATION = Set.of("GET /api/v1/mentors/{username}/reputation",
+			"GET /api/v1/students/{studentLogin}/reputation");
+
+	/** The canaries a Customer's Crew-name scan looks for. */
+	static final Set<String> CREW_NAMES = Set.of("CREW_NAME", "CROSS_CREW_NAME");
+
 	private static final JsonMapper JSON = JsonMapper.builder().build();
+
+	/** A canary that is an amount in VND, such as {@code CREW_SHARE}. */
+	private static final Pattern AMOUNT = Pattern.compile("[0-9]{4,18}");
 
 	private final MockMvc mvc;
 
@@ -50,10 +70,21 @@ public final class MatrixRowRunner {
 
 	private final Canaries canaries;
 
+	private final Set<String> publicReputation;
+
 	public MatrixRowRunner(MockMvc mvc, List<MatrixFixture> fixtures, Canaries canaries) {
+		this(mvc, fixtures, canaries, PUBLIC_REPUTATION);
+	}
+
+	/**
+	 * A runner whose Customer's Crew-name exemption covers {@code publicReputation}, for the harness to prove the
+	 * exemption on endpoints of its own.
+	 */
+	MatrixRowRunner(MockMvc mvc, List<MatrixFixture> fixtures, Canaries canaries, Set<String> publicReputation) {
 		this.mvc = mvc;
 		this.fixtures = List.copyOf(fixtures);
 		this.canaries = canaries;
+		this.publicReputation = Set.copyOf(publicReputation);
 	}
 
 	/** Creates every fixture in {@link #FIXTURE_PACKAGE}, autowired from {@code beans}. */
@@ -73,16 +104,16 @@ public final class MatrixRowRunner {
 		this.fixtures.forEach(fixture -> fixture.seed(world));
 		boolean upload = row.body() != null && !row.body().endsWith(".json");
 		AbstractMockHttpServletRequestBuilder<?> request = (upload
-				? multipart(row.method(), world.expand(row.path()))
+				? multipart(row.method(), world.expand(row.path(), row.rebound()))
 					.file(new MockMultipartFile("file", row.body(), "application/octet-stream", bytes(row.body())))
-				: request(row.method(), world.expand(row.path())))
+				: request(row.method(), world.expand(row.path(), row.rebound())))
 			.with(realize(row, world));
 		if (row.method() != HttpMethod.GET) {
 			// A command carries the CSRF token as the SPA sends it (AD-19); without it Spring refuses.
 			request.with(csrf());
 		}
 		if (row.body() != null && !upload) {
-			request.contentType(MediaType.APPLICATION_JSON).content(world.expand(body(row.body())));
+			request.contentType(MediaType.APPLICATION_JSON).content(world.expand(body(row.body()), row.rebound()));
 		}
 		MockHttpServletResponse response = this.mvc.perform(request).andReturn().getResponse();
 		assertExpectation(row, response);
@@ -93,7 +124,7 @@ public final class MatrixRowRunner {
 		List<MatrixFixture> realizers = new ArrayList<>();
 		RequestPostProcessor realized = null;
 		for (MatrixFixture fixture : this.fixtures) {
-			Optional<RequestPostProcessor> candidate = fixture.realize(row.caller(), row.state(), world);
+			Optional<RequestPostProcessor> candidate = fixture.realize(row.caller(), row.callerState(), world);
 			if (candidate.isPresent()) {
 				realizers.add(fixture);
 				realized = candidate.get();
@@ -106,7 +137,7 @@ public final class MatrixRowRunner {
 		if (realizers.size() > 1) {
 			throw new AssertionError("Several fixtures realize " + row.caller() + ": " + realizers);
 		}
-		List<String> unknown = row.state()
+		List<String> unknown = row.callerState()
 			.keySet()
 			.stream()
 			.filter(key -> !realizers.getFirst().stateKeys().contains(key))
@@ -142,22 +173,50 @@ public final class MatrixRowRunner {
 		String body = response.getContentAsString(StandardCharsets.UTF_8);
 		String errorMessage = response.getErrorMessage() == null ? "" : response.getErrorMessage();
 		for (Canary canary : this.canaries.hiddenFrom(row.caller())) {
-			if (body.contains(canary.value()) || errorMessage.contains(canary.value())) {
-				throw new AssertionError("Canary " + canary.name() + " is hidden from " + row.caller()
-						+ " but appears in the response body of " + row);
+			if (exempt(row, canary, this.publicReputation)) {
+				continue;
 			}
-			for (String header : response.getHeaderNames()) {
-				for (String value : response.getHeaders(header)) {
-					if (header.contains(canary.value()) || value.contains(canary.value())) {
-						throw new AssertionError("Canary " + canary.name() + " is hidden from " + row.caller()
-								+ " but appears in the response header " + header + " of " + row);
+			for (String form : forms(canary)) {
+				if (body.contains(form) || errorMessage.contains(form)) {
+					throw new AssertionError("Canary " + canary.name() + " is hidden from " + row.caller()
+							+ " but appears in the response body of " + row);
+				}
+				for (String header : response.getHeaderNames()) {
+					for (String value : response.getHeaders(header)) {
+						if (header.contains(form) || value.contains(form)) {
+							throw new AssertionError("Canary " + canary.name() + " is hidden from " + row.caller()
+									+ " but appears in the response header " + header + " of " + row);
+						}
 					}
 				}
 			}
 		}
 	}
 
-	private static String body(String name) {
+	/**
+	 * The forms a canary may take in an answer: its value and, for an amount, the VND form a screen or an email shows
+	 * ({@code %,d} with dots, as {@code PaymentOrders.vnd} formats it; review iteration 4, B9).
+	 */
+	static List<String> forms(Canary canary) {
+		String value = canary.value();
+		if (!AMOUNT.matcher(value).matches()) {
+			return List.of(value);
+		}
+		return List.of(value, String.format(Locale.ROOT, "%,d", Long.parseLong(value)).replace(',', '.'));
+	}
+
+	/** Whether the row's scan skips the canary: the Customer's Crew names on PUB-4's reputation endpoints. */
+	static boolean exempt(MatrixRow row, Canary canary) {
+		return exempt(row, canary, PUBLIC_REPUTATION);
+	}
+
+	private static boolean exempt(MatrixRow row, Canary canary, Set<String> publicReputation) {
+		return row.caller() == MatrixCaller.CUSTOMER && publicReputation.contains(row.endpoint())
+				&& CREW_NAMES.contains(canary.name());
+	}
+
+	/** The request body file {@code name} under {@value #BODIES}, as text. */
+	static String body(String name) {
 		return new String(bytes(name), StandardCharsets.UTF_8);
 	}
 

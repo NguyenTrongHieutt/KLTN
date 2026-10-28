@@ -3,27 +3,60 @@
 # response body or headers. visible_to is an allowlist of MatrixCaller names: a caller missing from
 # it, including a new caller kind, must never receive the value.
 #
-# How fixtures seed them:
-# - CREW_SHARE is another Crew member's Crew Terms line. A percentage cannot be unique, so fixtures
-#   seed it as that member's payout amount in VND.
-# - WORK_ITEM_NOTE, ATTACHMENT and CREW_CHAT are written after the window of the INACTIVE and FORMER
-#   callers ends, so only the ACTIVE Crew reads them.
-# - TEAM_ISSUE_ID is a Team Issue raised by another Crew member and not escalated.
-# - Administrators read Job content only under the grant whose scope covers it (AD-20).
+# How fixtures seed them (Story 20.5):
+# - The Crew canaries are the crew Job's: CREW_SHARE, CREW_EMAIL, CREW_NAME, CREW_LINKEDIN and
+#   TEAM_ISSUE_ID belong to an ACTIVE member who is no caller, and STUDENT_HIDDEN_NAME to another, the escalated
+#   Team Issue's raiser, who hides it and whose public profile {studentLogin} names (review iteration 4); WORK_ITEM_NOTE,
+#   ATTACHMENT, CREW_CHAT, CREW_CHAT_UNREPORTED and CREW_PAGE are the Job's content. The Customer sees none of
+#   them (UX-DR108: the Crew appears to the Customer as GitHub usernames only); PUB-4's two reputation endpoints
+#   are exempt from the Customer's Crew-name scan (review 2026-10-27 A-06).
+# - CREW_SHARE is that member's Crew Terms share. A percentage cannot be unique, so fixtures seed it as
+#   the member's part of the Milestone's release in VND, which only the Mentor's balance lists. An amount is
+#   scanned as digits and in its VND form, 7.316.429 (MatrixRowRunner.forms, review iteration 4).
+# - WORK_ITEM_NOTE, ATTACHMENT, CREW_CHAT, CREW_CHAT_UNREPORTED and CREW_PAGE are written after the windows of
+#   LOCKED and CREW_FORMER end, so only the ACTIVE Crew reads them; CROSS_ROLE is an ACTIVE member too. So are the
+#   titles WORK_ITEM_TITLE (the active member's Story, which the Customer's screens never name, AD-39, and the
+#   escalated Team Issue's grant does not read, being no Story of its raiser) and CREW_PAGE_TITLE (the team-only Page),
+#   and CUSTOMER_PAGE, a Customer-visible Page. EARLY_PAGE is a team-only Page written inside the windows, so the
+#   former member reads it: each Page filter is seen to keep something (review iteration 4).
+# - TEAM_ISSUE_ID is a share Team Issue another Crew member raised on the held Milestone, not escalated.
+# - JOB_CHAT is the crew Job's Job Chat, which no Crew state reads; nor does any Crew state read the
+#   crew Job's Customer's contact details (CONTACT_EMAIL), which only the Customer, the Job's Mentor under
+#   its contact grant (FR-3), and Administrators read.
+# - The CROSS_* canaries are the second Job's Crew data: CROSS_ROLE is its Customer and reads none.
+# - Administrators read Job content only under the grant whose scope covers it (AD-20): a Dispute
+#   grant reads no Crew Chat and no Crew Terms (AdminReadItem.forDispute), and an Abuse Report grant
+#   reads only the reported message, CREW_CHAT, never CREW_CHAT_UNREPORTED, another message of the same
+#   Crew Chat that no report names (review iteration 3).
 # - PRIVATE_FEEDBACK is a Crew member's private feedback about the Job's Mentor (FR-78), on an ended
 #   Job of that Mentor; only Administrator surfaces may ever show it.
 canary,value,visible_to,seeded_as
-CREW_SHARE,7316429,JOB_MENTOR ADMIN_TEAM_ISSUE_GRANT,another Crew member's payout amount in VND
-CREW_EMAIL,canary.crew.c7e2@example.test,ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT,a Crew member's verified email address
-WORK_ITEM_NOTE,canary-note-4b8e1d,JOB_MENTOR CREW_ACTIVE ADMIN_DISPUTE_GRANT,a Work Item note
-ATTACHMENT,canary-attachment-2c6f0a.pdf,JOB_MENTOR CREW_ACTIVE ADMIN_DISPUTE_GRANT,an Attachment's file name
-CREW_CHAT,canary-crew-chat-8d3b57,JOB_MENTOR CREW_ACTIVE ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT,a Crew Chat message
-TEAM_ISSUE_ID,01923c4f-5a6b-7c8d-9e0f-1a2b3c4d5e6f,JOB_MENTOR,the ID of a Team Issue another Crew member raised
+CREW_SHARE,7316429,MENTOR ADMIN_TEAM_ISSUE_GRANT,another Crew member's part of a release under the Crew Terms in VND
+CREW_EMAIL,canary.crew.c7e2@example.test,ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT,a Crew member's account email
+CREW_NAME,Canary Crew Name 3b7d,MENTOR CREW_ACTIVE CROSS_ROLE ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT,a Crew member's shown name
+CREW_LINKEDIN,https://www.linkedin.com/in/canary-crew-5e8a1c,MENTOR CREW_ACTIVE CROSS_ROLE ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT,a Crew member's LinkedIn link
+WORK_ITEM_TITLE,Canary Story 7a2c40,MENTOR CREW_ACTIVE CROSS_ROLE ADMIN_DISPUTE_GRANT,the title of the active member's Story (not the escalated issue's raiser's)
+WORK_ITEM_NOTE,canary-note-4b8e1d,MENTOR CREW_ACTIVE CROSS_ROLE ADMIN_DISPUTE_GRANT,a Work Item note
+ATTACHMENT,canary-attachment-2c6f0a.pdf,MENTOR CREW_ACTIVE CROSS_ROLE ADMIN_DISPUTE_GRANT,an Attachment's file name
+CREW_PAGE,canary-page-3e9f5a,MENTOR CREW_ACTIVE CROSS_ROLE ADMIN_DISPUTE_GRANT,the body of a team-only Page of the crew Job
+CREW_PAGE_TITLE,canary-page-title-5b1e7c,MENTOR CREW_ACTIVE CROSS_ROLE ADMIN_DISPUTE_GRANT,the title of that team-only Page
+CUSTOMER_PAGE,canary-customer-page-8f3d21,CUSTOMER MENTOR CREW_ACTIVE CROSS_ROLE ADMIN_DISPUTE_GRANT,the title and body of a Customer-visible Page of the crew Job written after the windows ended
+EARLY_PAGE,canary-early-page-2d9a64,MENTOR CREW_ACTIVE CREW_FORMER CROSS_ROLE ADMIN_DISPUTE_GRANT,the title and body of a team-only Page of the crew Job written inside the former member's window
+CREW_CHAT,canary-crew-chat-8d3b57,MENTOR CREW_ACTIVE CROSS_ROLE ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT,a Crew Chat message
+CREW_CHAT_UNREPORTED,canary-crew-chat-unreported-1e6c42,MENTOR CREW_ACTIVE CROSS_ROLE ADMIN_TEAM_ISSUE_GRANT,a Crew Chat message no Abuse Report names
+JOB_CHAT,canary-job-chat-6a1f94,CUSTOMER MENTOR ADMIN_DISPUTE_GRANT,a crew-Job Job Chat message
+TEAM_ISSUE_ID,01923c4f-5a6b-7c8d-9e0f-1a2b3c4d5e6f,MENTOR,the ID of a Team Issue another Crew member raised
 NOTIFICATION_PARAM,canary-notification-5e1a3b,SUBJECT,a parameter of another account's notification (SUBJECT is its recipient)
 TODO_PARAM,canary-todo-9a4c27,SUBJECT,a parameter of another account's to-do (SUBJECT is its recipient)
-CONTACT_EMAIL,canary.contact.4d8e@example.test,SUBJECT ADMINISTRATOR,the contact email of another account's profile (SUBJECT is its owner)
+CONTACT_EMAIL,canary.contact.4d8e@example.test,CUSTOMER MENTOR ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT,the crew Job's Customer's contact email: their own and the Mentor's under the Job's contact grant (FR-3)
 SCHOOL_EMAIL,5c40015c40015c40015c40015c40015c40015c40015c40015c40015c40015c40,,the subject HMAC of another account's student verification; the school email itself is stored nowhere (AD-42)
 PERSON_SIGNAL,7e1a9c4b7e1a9c4b7e1a9c4b7e1a9c4b7e1a9c4b7e1a9c4b7e1a9c4b7e1a9c4b,,the HMAC of a person-link signal two other accounts share; ADM-2 lists the pair by kind only (AD-19)
-STUDENT_HIDDEN_NAME,Canary Ten An 6e2f,ADMINISTRATOR,the real name of a Team member who chose to hide it (FR-51)
-PRIVATE_FEEDBACK,canary-private-feedback-61d7c3,ADMINISTRATOR,a Crew member's private feedback about a Mentor
-SKILL_SUGGESTION,canary-skill-suggestion-4c1e9a,SUBJECT ADMINISTRATOR,the name of another account's Skill suggestion (SUBJECT is its suggester)
+STUDENT_HIDDEN_NAME,Canary Ten An 6e2f,ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT,the student name a Crew member chose to hide (FR-51)
+PRIVATE_FEEDBACK,canary-private-feedback-61d7c3,ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT,a Crew member's private feedback about a Mentor
+SKILL_SUGGESTION,canary-skill-suggestion-4c1e9a,SUBJECT ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT,the name of another account's Skill suggestion (SUBJECT is its suggester)
+CROSS_CREW_NAME,Canary Cross Name 9c4e,MENTOR ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT,the shown name of the second Job's Crew member
+CROSS_CREW_EMAIL,canary.cross.a41d@example.test,ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT,the account email of the second Job's Crew member
+CROSS_LINKEDIN,https://www.linkedin.com/in/canary-cross-8b2d4f,MENTOR ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT,the LinkedIn link of the second Job's Crew member
+CROSS_CREW_CHAT,canary-cross-chat-2f7b18,MENTOR,a message of the second Job's Crew Chat
+CROSS_WORK_ITEM_NOTE,canary-cross-note-7e3c05,MENTOR,a Work Item note of the second Job
+CROSS_PAGE,canary-cross-page-5d1a8e,MENTOR,the body of a team-only Page of the second Job

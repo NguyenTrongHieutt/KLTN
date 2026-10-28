@@ -81,15 +81,19 @@ class NotificationRegistry {
 
 	/**
 	 * Refuses a recipient the entry may not reach: an audience class it does not allow, a Job-scoped
-	 * class without the Job, a subject without its record, or a class no lookup confirms.
+	 * class without the Job, a split party without the Milestone, a subject without its record, or a class
+	 * no lookup confirms.
 	 */
 	void checkRecipient(String key, Set<Audience> allowed, UUID accountId, Audience audience, @Nullable UUID jobId,
-			@Nullable UUID subjectRecordId) {
+			@Nullable UUID subjectRecordId, @Nullable UUID milestoneId) {
 		if (!allowed.contains(audience)) {
 			throw new IllegalArgumentException(key + " does not reach the audience class " + audience);
 		}
 		if (audience.jobScoped() && jobId == null) {
 			throw new IllegalArgumentException(audience + " needs the Job (" + key + ")");
+		}
+		if (audience.milestoneScoped() && milestoneId == null) {
+			throw new IllegalArgumentException(audience + " needs the Milestone (" + key + ")");
 		}
 		if (audience == Audience.SUBJECT) {
 			if (subjectRecordId == null) {
@@ -99,7 +103,8 @@ class NotificationRegistry {
 			return;
 		}
 		boolean confirmed = this.lookups.stream()
-			.anyMatch(lookup -> lookup.audiences().contains(audience) && lookup.holds(accountId, audience, jobId));
+			.anyMatch(lookup -> lookup.audiences().contains(audience)
+					&& lookup.holds(accountId, audience, jobId, milestoneId));
 		if (!confirmed) {
 			throw new IllegalArgumentException("The account is not confirmed as " + audience + " (" + key + ")");
 		}

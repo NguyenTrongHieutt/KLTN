@@ -167,7 +167,8 @@ class DisputeDecisions implements DisputeQueue {
 
 	/**
 	 * The assignee's decision, after the step-up, in one transaction with its execution row.
-	 * @throws ApiException {@code FORBIDDEN NOT_ASSIGNED}; {@code CONFLICT ALREADY_DECIDED};
+	 * @throws ApiException {@code CONFLICT NOT_ASSIGNED} for an Administrator who did not take it (SG-31: every
+	 * Administrator sees the Dispute, so the refusal is no {@code FORBIDDEN}); {@code CONFLICT ALREADY_DECIDED};
 	 * {@code VALIDATION AMOUNTS_MISMATCH} or {@code NOTHING_TO_CONTINUE}; {@code VALIDATION}
 	 */
 	@Transactional
@@ -175,7 +176,7 @@ class DisputeDecisions implements DisputeQueue {
 			String reasoning, String stepUpCode) {
 		Dispute dispute = this.disputes.find(disputeId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		if (!administrator.equals(assignee(disputeId))) {
-			throw new ApiException(ErrorCode.FORBIDDEN, DisputeReason.NOT_ASSIGNED);
+			throw new ApiException(ErrorCode.CONFLICT, DisputeReason.NOT_ASSIGNED);
 		}
 		if (decision(disputeId).isPresent() || !"OPEN".equals(dispute.status())) {
 			throw new ApiException(ErrorCode.CONFLICT, DisputeReason.ALREADY_DECIDED);

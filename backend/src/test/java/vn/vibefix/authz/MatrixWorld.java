@@ -32,10 +32,19 @@ public final class MatrixWorld {
 
 	/** {@code template} with every {@code {name}} replaced by its seeded value. */
 	public String expand(String template) {
+		return expand(template, Map.of());
+	}
+
+	/**
+	 * {@code template} with every {@code {name}} replaced by its seeded value, or, for a placeholder {@code rebound}
+	 * names (a row's world-binding keys, {@link MatrixRow#rebound()}), by the seeded value it names instead.
+	 */
+	public String expand(String template, Map<String, String> rebound) {
 		Matcher matcher = PLACEHOLDER.matcher(template);
 		StringBuilder expanded = new StringBuilder();
 		while (matcher.find()) {
-			matcher.appendReplacement(expanded, Matcher.quoteReplacement(get(matcher.group(1))));
+			String name = matcher.group(1);
+			matcher.appendReplacement(expanded, Matcher.quoteReplacement(get(rebound.getOrDefault(name, name))));
 		}
 		matcher.appendTail(expanded);
 		return expanded.toString();

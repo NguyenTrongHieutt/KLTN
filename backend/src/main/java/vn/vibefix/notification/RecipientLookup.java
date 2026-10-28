@@ -17,4 +17,12 @@ public interface RecipientLookup {
 
 	boolean holds(UUID accountId, Audience audience, @Nullable UUID jobId);
 
+	/**
+	 * Whether the account holds the class on the Job and, for {@link Audience#SPLIT_PARTY}, in the Milestone's split;
+	 * a lookup that confirms no Milestone-scoped class answers as {@link #holds(UUID, Audience, UUID)} does.
+	 */
+	default boolean holds(UUID accountId, Audience audience, @Nullable UUID jobId, @Nullable UUID milestoneId) {
+		return holds(accountId, audience, jobId);
+	}
+
 }

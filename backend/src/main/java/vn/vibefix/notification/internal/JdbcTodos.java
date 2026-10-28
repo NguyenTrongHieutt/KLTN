@@ -43,7 +43,7 @@ class JdbcTodos implements Todos {
 		NotificationRegistry.checkParams(type.key(), type.params(), request.params());
 		NotificationRegistry.checkLink(type.key(), request.link());
 		this.registry.checkRecipient(type.key(), type.audiences(), request.recipientAccountId(), request.audience(),
-				request.jobId(), request.subjectId());
+				request.jobId(), request.subjectId(), null);
 		this.jdbc.sql("""
 				INSERT INTO notification.todo
 				    (id, todo_key, account_id, subject_id, tier, params, link, deadline_at, job_id, opened_at)

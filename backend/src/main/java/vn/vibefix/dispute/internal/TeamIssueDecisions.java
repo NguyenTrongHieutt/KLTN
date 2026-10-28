@@ -149,7 +149,7 @@ class TeamIssueDecisions {
 
 	/**
 	 * The assignee's decision: {@code points} for a share issue, {@code removeRating} for a Rating issue.
-	 * @throws ApiException {@code NOT_FOUND}; {@code FORBIDDEN NOT_ASSIGNED}; {@code CONFLICT ALREADY_DECIDED};
+	 * @throws ApiException {@code NOT_FOUND}; {@code CONFLICT NOT_ASSIGNED} (SG-31); {@code CONFLICT ALREADY_DECIDED};
 	 * {@code VALIDATION}; {@code GUARD_FAILED SHARE_TRANSFER_TOO_LARGE} with the {@code cap}; {@code GUARD_FAILED
 	 * ENDING_REFUSED} when the decision is recorded but its execution waits for a retry
 	 */
@@ -183,7 +183,7 @@ class TeamIssueDecisions {
 		this.locks.lockForTeamIssue(found.jobId(), found.milestoneId(), false);
 		TeamIssue issue = this.issues.lockRows(found).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		if (!adminId.equals(assignee(issueId))) {
-			throw new ApiException(ErrorCode.FORBIDDEN, DisputeReason.NOT_ASSIGNED);
+			throw new ApiException(ErrorCode.CONFLICT, DisputeReason.NOT_ASSIGNED);
 		}
 		if (issue.phase() != Phase.ESCALATED || decision(issueId).isPresent()) {
 			throw new ApiException(ErrorCode.CONFLICT, DisputeReason.ALREADY_DECIDED);

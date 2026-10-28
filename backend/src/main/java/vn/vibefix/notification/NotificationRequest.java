@@ -15,9 +15,11 @@ import org.jspecify.annotations.Nullable;
  * @param link the platform path the item and the email open, for example {@code /viec-can-lam}
  * @param jobId the Job, for Job-scoped audience classes
  * @param subjectRecordId the record a {@link Audience#SUBJECT} recipient is the subject of
+ * @param milestoneId the Milestone whose split a {@link Audience#SPLIT_PARTY} recipient is a party of
  */
 public record NotificationRequest(String type, UUID causingRecordId, List<Recipient> recipients,
-		Map<String, String> params, String link, @Nullable UUID jobId, @Nullable UUID subjectRecordId) {
+		Map<String, String> params, String link, @Nullable UUID jobId, @Nullable UUID subjectRecordId,
+		@Nullable UUID milestoneId) {
 
 	public NotificationRequest {
 		Objects.requireNonNull(type, "type");
@@ -25,6 +27,12 @@ public record NotificationRequest(String type, UUID causingRecordId, List<Recipi
 		recipients = List.copyOf(recipients);
 		params = Map.copyOf(params);
 		Objects.requireNonNull(link, "link");
+	}
+
+	/** A notification whose recipients need no Milestone. */
+	public NotificationRequest(String type, UUID causingRecordId, List<Recipient> recipients, Map<String, String> params,
+			String link, @Nullable UUID jobId, @Nullable UUID subjectRecordId) {
+		this(type, causingRecordId, recipients, params, link, jobId, subjectRecordId, null);
 	}
 
 }

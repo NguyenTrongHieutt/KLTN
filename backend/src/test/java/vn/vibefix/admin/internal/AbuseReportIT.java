@@ -130,7 +130,7 @@ class AbuseReportIT extends IntegrationTest {
 			.andExpect(jsonPath("$[?(@.kind == 'JOB_POST')].status").value("OPEN"))
 			.andExpect(jsonPath("$[?(@.kind == 'PRODUCT')].label").value("Sổ đặt bàn Quán Mây"));
 		UUID report = reportOf("JOB_POST");
-		decide(this.ha.accountId(), report, "HIDE", "Tin tuyển lừa đảo").andExpect(status().isForbidden())
+		decide(this.ha.accountId(), report, "HIDE", "Tin tuyển lừa đảo").andExpect(status().isConflict())
 			.andExpect(jsonPath("$.reason").value("NOT_ASSIGNED"));
 		take(this.ha.accountId(), report).andExpect(jsonPath("$.hideable").value(true))
 			.andExpect(jsonPath("$.itemReadable").value(false));
