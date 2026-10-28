@@ -119,6 +119,31 @@ describe('JOB-H, the role in each Job (UX-DR87, Story 20.6)', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Việc C đã rời' })).toBeInTheDocument()
     expect(await screen.findByText('Bạn là: Thành viên nhóm · đã rời')).toBeInTheDocument()
   })
+
+  it('says "Bạn là: Thành viên nhóm" to a member of a Job that ended, who did not leave', { timeout: 15_000 }, async () => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/jobs/d/role': () => json({ role: 'CREW', crewKind: 'FORMER' }),
+      'GET /api/v1/boards/d/progress': () =>
+        json({
+          boardId: 'd',
+          title: 'Việc D đã xong',
+          state: 'CLOSED',
+          productName: 'Sổ đặt bàn Quán Mây',
+          mentorName: 'Đỗ Mạnh Hùng',
+          audience: 'FORMER',
+          milestones: [],
+          pages: [],
+          crew: [],
+          mine: [],
+          assessment: false,
+        }),
+    })
+    renderAt('/cong-viec/d')
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Việc D đã xong' })).toBeInTheDocument()
+    expect(await screen.findByText('Bạn là: Thành viên nhóm')).toBeInTheDocument()
+    expect(screen.queryByText(/đã rời/)).not.toBeInTheDocument()
+  })
 })
 
 describe('the to-dos of every role (UX-DR88, AD-27, Story 20.6)', () => {
@@ -170,10 +195,27 @@ describe('the to-dos of every role (UX-DR88, AD-27, Story 20.6)', () => {
     renderAt('/cong-viec/b')
 
     const strip = await screen.findByRole('region', { name: 'Việc cần làm tiếp theo' })
-    await waitFor(() => expect(strip).toHaveTextContent('Việc B tôi hướng dẫn · Bạn là Người hướng dẫn'))
+    await waitFor(() => expect(within(strip).getByRole('link', { name: 'Làm ngay' })).toHaveAttribute('href', '/cong-viec/b/thoa-thuan'))
+    // Inside a Job the strip says no context line: the Job is the page.
+    expect(strip).not.toHaveTextContent('Bạn là')
     expect(strip).not.toHaveTextContent('Tài khoản')
     expect(asked).toContain('b')
-    expect(within(strip).getByRole('link', { name: 'Làm ngay' })).toHaveClass('min-h-control-compact')
+    await waitFor(() => expect(within(strip).getByRole('link', { name: 'Làm ngay' })).toHaveClass('min-h-control-compact'))
+  })
+
+  it('keeps the Customer sizes in the strip inside a Job the user posted (UX-DR111)', { timeout: 15_000 }, async () => {
+    twoRoles({
+      'GET /api/v1/todos': () =>
+        json({
+          items: [todo('job.answer_closure', { params: { job: jobA.title, date: '2026-11-01' }, link: '/cong-viec/a', jobId: 'a', role: 'CUSTOMER' })],
+          total: 1,
+        }),
+    })
+    renderAt('/cong-viec/a')
+
+    expect(await screen.findByText('Bạn là: Khách hàng')).toBeInTheDocument()
+    const strip = await screen.findByRole('region', { name: 'Việc cần làm tiếp theo' })
+    expect(within(strip).getByRole('link', { name: 'Làm ngay' })).toHaveClass('min-h-tap-min')
   })
 
   it('keeps the Customer sizes in the strip outside a Job (UX-DR111)', { timeout: 15_000 }, async () => {

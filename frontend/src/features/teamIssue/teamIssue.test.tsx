@@ -56,7 +56,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('STU-4 "Khiếu nại nội bộ" (FR-79, AD-40, UX-DR63)', () => {
+describe('"Khiếu nại nội bộ" in "Việc tôi tham gia" (FR-79, AD-40, UX-DR63)', () => {
   it('sends a share issue with its reason, and a used option says why it is disabled', { timeout: 15_000 }, async () => {
     const user = userEvent.setup()
     const sent: unknown[] = []
@@ -208,7 +208,7 @@ describe('Story 12.2: the Mentor answers once, the raiser accepts or escalates (
   })
 })
 
-describe('STU-7: a held part is "Đang giữ" and not in the Balance (AD-40)', () => {
+describe('MEN-7: a held part is "Đang giữ" and not in the Balance (AD-40)', () => {
   it('lists the held part apart from the Balance', { timeout: 15_000 }, async () => {
     fakeBackend(signedInUser, {
       'GET /api/v1/balance': () =>

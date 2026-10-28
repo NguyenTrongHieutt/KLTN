@@ -250,8 +250,8 @@ describe('MEN-3, applying with a quote (FR-13)', () => {
   })
 })
 
-describe('MEN-4 and CUS-8 (UX-DR78, UX-DR66)', () => {
-  it('lists the Mentor\'s Applications by status on MEN-4', { timeout: 15_000 }, async () => {
+describe('"Việc tôi hướng dẫn" on CUS-7, and CUS-8 (UX-DR78, UX-DR66, UX-DR86)', () => {
+  it('lists the user\'s bids by status in "Việc tôi hướng dẫn"', { timeout: 15_000 }, async () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/applications': () =>

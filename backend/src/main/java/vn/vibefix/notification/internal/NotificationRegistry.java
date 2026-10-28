@@ -28,8 +28,11 @@ class NotificationRegistry {
 
 	static final Pattern KEY = Pattern.compile("[a-z]+(\\.[a-z0-9_]+)+");
 
-	/** A path inside the SPA, such as {@code /viec-can-lam} or {@code /cong-viec/{uuid}}. */
-	static final Pattern LINK = Pattern.compile("/[a-z0-9/-]*");
+	/**
+	 * A path inside the SPA, such as {@code /viec-can-lam} or {@code /cong-viec/{uuid}}, with at most one query
+	 * parameter, such as CUS-7's segment ({@code /cong-viec?vai-tro=tham-gia}, Story 20.6).
+	 */
+	static final Pattern LINK = Pattern.compile("/[a-z0-9/-]*(\\?[a-z0-9-]+=[a-z0-9-]+)?");
 
 	private final Map<String, NotificationType> notificationTypes = new TreeMap<>();
 

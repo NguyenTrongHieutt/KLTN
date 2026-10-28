@@ -231,7 +231,7 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
     expect(await screen.findByText('Đã tự nghiệm thu')).toBeInTheDocument()
   })
 
-  it('is not found for a Student the Job does not name', { timeout: 20_000 }, async () => {
+  it('is not found for a user the Job does not name', { timeout: 20_000 }, async () => {
     fakeBackend(signedInUser, inEveryJob('CREW'))
     renderAt('/cong-viec/j1')
     expect(await screen.findByRole('heading', { name: /Không tìm thấy/ })).toBeInTheDocument()

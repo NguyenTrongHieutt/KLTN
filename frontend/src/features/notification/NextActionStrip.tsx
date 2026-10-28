@@ -9,9 +9,10 @@ import { todoText } from './texts'
 
 /**
  * The next-action strip (FR-28, UX-DR14, UX-DR88): the single most urgent open to-do across every role the user
- * holds, its context line ("{job} · Bạn là {role}" or "Tài khoản"), its deadline chip, a button to the exact
- * surface, and "và N việc khác" to the to-do list. Inside a Job it shows that Job's to-dos only. It is hidden when
- * nothing is open (never filler), while loading, and while the poll fails; it cannot be dismissed.
+ * holds, outside a Job with its context line ("{job} · Bạn là {role}" or "Tài khoản"), its deadline chip, a button
+ * to the exact surface, and "và N việc khác" to the to-do list. Inside a Job it shows that Job's to-dos only, with
+ * no context line. It is hidden when nothing is open (never filler), while loading, and while the poll fails; it
+ * cannot be dismissed.
  * @param jobId the Job whose screen is open, if any
  * @param compact the 36 px button inside a Job where the user is the Mentor or a Crew member; 44 px everywhere else
  * (UX-DR111)
@@ -30,7 +31,7 @@ export function NextActionStrip({ jobId, compact }: { jobId?: string; compact: b
     >
       <div className="mx-auto flex min-h-strip-min-height max-w-content-max flex-wrap items-center gap-x-4 gap-y-2 px-gutter-mobile py-2 md:px-gutter-desktop">
         <div className="flex min-w-0 grow flex-col gap-0.5">
-          <TodoContext todo={first} />
+          {jobId === undefined && <TodoContext todo={first} />}
           <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <span className="text-label">{todoText(first)}</span>
             {first.deadlineAt && <DeadlineChip deadlineAt={first.deadlineAt} near={first.deadlineNear} />}

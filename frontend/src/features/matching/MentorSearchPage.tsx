@@ -133,7 +133,7 @@ function FindMentors({ job }: { job: Job }) {
           <PageHeading>{job.title}</PageHeading>
           <JobStateBadge state={job.state} />
         </div>
-        <JobRoleLine jobId={job.id} />
+        <JobRoleLine jobId={job.id} state={job.state} />
         <JobTabs jobId={job.id} current="find" applications={applications.data?.length ?? 0} />
       </div>
       <QuotaLine quota={quota} />
@@ -316,7 +316,7 @@ function SearchBar({
   )
 }
 
-/** The initials, the name, and "{years} năm kinh nghiệm · {n} sinh viên", or "Chưa khai" (UX-DR48). */
+/** The initials, the name, and "{years} năm kinh nghiệm · {n} thành viên", or "Chưa khai" (UX-DR48). */
 function MentorHeading({ mentor }: { mentor: MentorResult }) {
   return (
     <>

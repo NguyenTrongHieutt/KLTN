@@ -32,7 +32,7 @@ function usePanelCommand<T>(jobId: string, run: (body: T) => Promise<CrewPanel>)
   })
 }
 
-/** "Thêm sinh viên": a Team Student joins the Crew as assigned. */
+/** "Thêm thành viên": a Team member joins the Crew as assigned. */
 export function useAddCrewMember(jobId: string) {
   return usePanelCommand(jobId, (body: { studentId: string; crewVersion: number }) =>
     unwrap(apiClient.POST('/api/v1/mentor/jobs/{jobId}/crew', { params: { path: { jobId } }, body })),

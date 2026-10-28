@@ -83,7 +83,7 @@ function ApplicationList({ job }: { job: Job }) {
           <PageHeading>{job.title}</PageHeading>
           <JobStateBadge state={job.state} />
         </div>
-        <JobRoleLine jobId={job.id} />
+        <JobRoleLine jobId={job.id} state={job.state} />
         <JobTabs jobId={job.id} current="applications" applications={items.length} />
       </div>
       <RegionState query={applications} skeleton={<Skeleton className="h-48 w-full" />}>

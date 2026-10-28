@@ -513,6 +513,7 @@ POST /api/v1/jobs,ADMINISTRATOR,,job-draft.json,404 NOT_FOUND
 GET /api/v1/my-jobs,ANONYMOUS,,,401
 GET /api/v1/my-jobs,USER_UNVERIFIED,,,200
 GET /api/v1/my-jobs,USER,,,200
+GET /api/v1/my-jobs,LOCKED,,,401
 GET /api/v1/my-jobs,CUSTOMER,,,200
 GET /api/v1/my-jobs,MENTOR,,,200
 GET /api/v1/my-jobs,BIDDER,,,200

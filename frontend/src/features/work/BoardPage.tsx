@@ -7,7 +7,7 @@ import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
-import { ByJobRole } from '@/features/job/ByJobRole'
+import { ByJobRole, JobRoleLine } from '@/features/job/ByJobRole'
 import { JobHeader } from '@/features/job/JobHeader'
 import { DeletionChecklist } from '@/features/job/closure/ClosureSection'
 import { useDataDeletion } from '@/features/job/closure/closureApi'
@@ -86,6 +86,7 @@ function StudentBoard({ jobId }: { jobId: string }) {
         </Link>
         <PageHeading>{board.data?.title ?? t('screen.board.tab')}</PageHeading>
         <p className="text-body-sm text-muted-foreground">{t('screen.board.tab')}</p>
+        <JobRoleLine jobId={jobId} />
       </div>
       {deletion?.removed && deletion.mine && <DeletionChecklist jobId={jobId} deletion={deletion} />}
       <RegionState query={board} skeleton={<Skeleton className="h-96 w-full" />}>

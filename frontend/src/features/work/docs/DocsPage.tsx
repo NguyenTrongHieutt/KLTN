@@ -14,7 +14,7 @@ import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { ReportAbuseMenu } from '@/features/abuse/ReportAbuseMenu'
-import { ByJobRole } from '@/features/job/ByJobRole'
+import { ByJobRole, JobRoleLine } from '@/features/job/ByJobRole'
 import { useJob } from '@/features/job/jobApi'
 import { JobHeader } from '@/features/job/JobHeader'
 import { customerMeta, mentorMeta } from '@/features/job/jobMeta'
@@ -171,6 +171,7 @@ function StudentDocs({ jobId, pageId }: { jobId: string; pageId: string | undefi
         </Link>
         <PageHeading>{tree.data?.title ?? t('screen.docs.tab')}</PageHeading>
         <p className="text-body-sm text-muted-foreground">{t('screen.docs.tab')}</p>
+        <JobRoleLine jobId={jobId} />
       </div>
       <RegionState query={tree} skeleton={<Skeleton className="h-96 w-full" />}>
         {tree.data && <Space tree={tree.data} jobId={jobId} pageId={pageId} />}

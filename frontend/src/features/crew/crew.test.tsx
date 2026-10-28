@@ -139,6 +139,9 @@ describe('JOB-6 for the Mentor: the Crew panel (FR-75, UX-DR60)', () => {
 
     expect(await screen.findByText(/Khách hàng chỉ thấy tên tài khoản GitHub của nhóm thực hiện/)).toBeInTheDocument()
     expect(screen.getByText('Nhóm thực hiện: 0/0 đã xác nhận')).toBeInTheDocument()
+    // The role in the Job decides the words of JOB-H (UX-DR87).
+    expect(screen.getByText('Đang soạn thỏa thuận · chọn nhóm thực hiện')).toBeInTheDocument()
+    expect(await screen.findByText('Bạn là: Người hướng dẫn')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Thêm thành viên' }))
     const team = screen.getByRole('list', { name: 'Thành viên trong nhóm của bạn' })
     expect(within(team).getByText('Đang làm Viết hướng dẫn sử dụng')).toBeInTheDocument()

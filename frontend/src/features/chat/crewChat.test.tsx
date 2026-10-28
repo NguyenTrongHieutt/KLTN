@@ -87,7 +87,7 @@ describe('JOB-8 "Trao đổi nhóm" (FR-77, UX-DR80)', () => {
     await waitFor(() => expect(sent).toEqual([{ body: 'Cảm ơn Vy', sensitive: 'CHECK' }]))
   })
 
-  it('lets an active Crew member reach it from "Công việc của tôi"', { timeout: 20_000 }, async () => {
+  it('lets an active Crew member reach it from "Việc tôi tham gia"', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     fakeBackend(signedInUser, {
       ...inEveryJob('CREW'),
@@ -142,7 +142,7 @@ describe('JOB-8 "Trao đổi nhóm" (FR-77, UX-DR80)', () => {
     expect(await screen.findByRole('heading', { name: /Không tìm thấy/ })).toBeInTheDocument()
   })
 
-  it('is not found for a Student the Crew Chat does not name', { timeout: 20_000 }, async () => {
+  it('is not found for a user the Crew Chat does not name', { timeout: 20_000 }, async () => {
     fakeBackend(signedInUser, inEveryJob('CREW'))
     renderAt('/cong-viec/j1/trao-doi-nhom')
     expect(await screen.findByRole('heading', { name: /Không tìm thấy/ })).toBeInTheDocument()

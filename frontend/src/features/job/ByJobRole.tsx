@@ -3,7 +3,7 @@ import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { isNotFound } from '@/lib/problemMessage'
-import { useJobRole, youAreText, type JobRoleView } from './jobRoleApi'
+import { useJobRole, useMyJobs, youAreText, type JobRoleView } from './jobRoleApi'
 
 type Variant = (view: JobRoleView) => ReactNode
 
@@ -42,12 +42,16 @@ export function ByJobRole({
 
 /**
  * JOB-H's read-only line (UX-DR87): "Bạn là: Khách hàng / Người hướng dẫn / Thành viên nhóm", with "· đã rời" for
- * a former member. Nothing while the role loads.
+ * a member who left before the Job ended. The Job's state comes from the screen, or else from "Công việc"
+ * (`/my-jobs`). Nothing while the role loads.
  */
-export function JobRoleLine({ jobId }: { jobId: string | undefined }) {
+export function JobRoleLine({ jobId, state }: { jobId: string | undefined; state?: string }) {
   const role = useJobRole(jobId)
+  const former = role.data?.crewKind === 'FORMER'
+  const mine = useMyJobs(former && state === undefined)
   if (!role.data) {
     return null
   }
-  return <p className="text-caption font-semibold text-foreground">{youAreText(role.data)}</p>
+  const known = state ?? mine.data?.find((job) => job.jobId === jobId)?.state
+  return <p className="text-caption font-semibold text-foreground">{youAreText(role.data, known)}</p>
 }

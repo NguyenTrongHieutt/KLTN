@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { components } from '@/api/schema'
+import { JOBS_QUERY_KEY } from '@/features/job/jobApi'
 import { apiClient, unwrap } from '@/lib/apiClient'
 
 export type MentorJob = components['schemas']['MentorJobView']
@@ -39,6 +40,8 @@ export function useDeclineSelection(jobId: string) {
       Promise.all([
         queryClient.invalidateQueries({ queryKey: KEY }),
         queryClient.invalidateQueries({ queryKey: ['application'] }),
+        // The Mentor gave the Job up: "Công việc" and its role read again (Story 20.6).
+        queryClient.invalidateQueries({ queryKey: JOBS_QUERY_KEY }),
       ]),
   })
 }

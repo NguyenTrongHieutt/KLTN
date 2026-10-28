@@ -27,10 +27,11 @@ export function useJobRole(jobId: string | undefined) {
 }
 
 /** CUS-7 (UX-DR86): every Job where the caller is the Customer, the Mentor, or a Crew member, newest first. */
-export function useMyJobs() {
+export function useMyJobs(enabled = true) {
   return useQuery({
     queryKey: [...JOBS_QUERY_KEY, 'mine'],
     queryFn: () => unwrap(apiClient.GET('/api/v1/my-jobs')),
+    enabled,
   })
 }
 
@@ -45,10 +46,16 @@ export function roleLabel(role: RoleInJob): string {
   return t(ROLE_LABEL[role])
 }
 
-/** JOB-H's read-only line (UX-DR87): "Bạn là: Thành viên nhóm · đã rời" for a former member. */
-export function youAreText(view: { role: RoleInJob; crewKind?: CrewKind | null }): string {
+/**
+ * Whether the member left the Job before it ended (AD-41): a former member of a Job still running. When a Job ends,
+ * every member is released and reads `FORMER` too, but did not leave.
+ */
+export function leftEarly(view: { crewKind?: CrewKind | null }, state: string | undefined): boolean {
+  return view.crewKind === 'FORMER' && state !== undefined && state !== 'CLOSED' && state !== 'CANCELLED'
+}
+
+/** JOB-H's read-only line (UX-DR87): "Bạn là: Thành viên nhóm · đã rời" for a member who left the running Job. */
+export function youAreText(view: { role: RoleInJob; crewKind?: CrewKind | null }, state: string | undefined): string {
   const role = roleLabel(view.role)
-  return view.crewKind === 'FORMER'
-    ? t('screen.job.role.youAreFormer', { role })
-    : t('screen.job.role.youAre', { role })
+  return leftEarly(view, state) ? t('screen.job.role.youAreFormer', { role }) : t('screen.job.role.youAre', { role })
 }

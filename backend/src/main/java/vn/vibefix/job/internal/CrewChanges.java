@@ -158,7 +158,7 @@ class CrewChanges {
 			if ("ASSIGNED".equals(row.status()) && !members.contains(row.studentId())) {
 				this.crews.release(row, "REMOVED");
 				this.notifications.send(new NotificationRequest(CrewService.MEMBER_REMOVED, row.id(),
-						List.of(new Recipient(row.studentId(), Audience.SUBJECT)), Map.of("job", job.title()), "/cong-viec", null,
+						List.of(new Recipient(row.studentId(), Audience.SUBJECT)), Map.of("job", job.title()), "/cong-viec?vai-tro=tham-gia", null,
 						row.id()));
 			}
 		}
@@ -175,7 +175,7 @@ class CrewChanges {
 			Row row = current.get(member);
 			if (row != null && "ACTIVE".equals(row.status())) {
 				this.notifications.send(new NotificationRequest(PROPOSED, key(row.id() + ":p" + versionNo),
-						List.of(new Recipient(member, Audience.CREW_ACTIVE)), Map.of("job", job.title()), "/cong-viec", jobId, null));
+						List.of(new Recipient(member, Audience.CREW_ACTIVE)), Map.of("job", job.title()), "/cong-viec?vai-tro=tham-gia", jobId, null));
 			}
 		}
 		return this.crews.latest(jobId).orElseThrow();
@@ -277,7 +277,7 @@ class CrewChanges {
 			if (!parties.contains(row)) {
 				this.crews.release(row, "REMOVED");
 				this.notifications.send(new NotificationRequest(CrewService.MEMBER_REMOVED, row.id(),
-						List.of(new Recipient(row.studentId(), Audience.SUBJECT)), Map.of("job", job.title()), "/cong-viec", null,
+						List.of(new Recipient(row.studentId(), Audience.SUBJECT)), Map.of("job", job.title()), "/cong-viec?vai-tro=tham-gia", null,
 						row.id()));
 				this.events.publishEvent(new CrewMemberRemoved(this.ids.newId(), jobId, row.id(), row.studentId()));
 			}

@@ -212,6 +212,9 @@ describe('JOB-6 for the Customer: read the shared draft (FR-16)', () => {
     renderAt('/cong-viec/j1/thoa-thuan')
 
     expect(await screen.findByText(/Người hướng dẫn gửi bản nháp 2 lúc/)).toBeInTheDocument()
+    // The role in the Job decides the words of JOB-H (UX-DR87).
+    expect(screen.getByText('Đang thống nhất thỏa thuận')).toBeInTheDocument()
+    expect(await screen.findByText('Bạn là: Khách hàng')).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 3, name: 'Giai đoạn 1 · Sửa lỗi trùng giờ đặt bàn' })).toBeInTheDocument()
     expect(screen.getByText('· 3 bước kiểm tra')).toBeInTheDocument()
     expect(screen.getByText('khớp báo giá')).toBeInTheDocument()

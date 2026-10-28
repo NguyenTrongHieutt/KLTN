@@ -15,8 +15,8 @@ import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.Gate;
 
 /**
- * The caller's open to-dos (FR-28, AD-27): the next-action strip shows the first, CUS-1, MEN-1 and
- * STU-1 list them, and the tab bar counts them. There is no way to close or delete one here.
+ * The caller's open to-dos (FR-28, AD-27): the next-action strip shows the first, CUS-1 lists them across every
+ * role the caller holds, and the tab bar counts them. There is no way to close or delete one here.
  */
 @RestController
 @RequestMapping("/api/v1/todos")

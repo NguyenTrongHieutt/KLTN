@@ -1866,7 +1866,7 @@
         "huong-dan": "Việc tôi hướng dẫn",
         "tham-gia": "Việc tôi tham gia",
         "todos": "{n} việc cần làm",
-        "leftTitle": "Công việc bạn đã rời",
+        "pastTitle": "Công việc đã qua",
         "left": "{job} · đã rời"
       }
     },
@@ -1998,8 +1998,6 @@
       "mentor": {
         "jobs": "Công việc của bạn",
         "noJobs": "Bạn chưa nhận công việc nào. Công việc khách hàng chọn bạn sẽ hiện ở đây.",
-        "noApplications": "Bạn chưa ứng tuyển công việc nào.",
-        "findWork": "Tìm việc",
         "group_waiting": "Đơn đang chờ",
         "group_held": "Đơn tạm giữ",
         "group_ended": "Đơn đã đóng",

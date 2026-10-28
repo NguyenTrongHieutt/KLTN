@@ -8,6 +8,7 @@ import { buttonVariants } from '@/components/ui/button-variants'
 import { AssignmentPanel, JoinedCard } from '@/features/crew/CrewAssignmentCards'
 import { useCrewAssignments } from '@/features/crew/crewApi'
 import { useMyApplications, type Application, type ApplicationStatus } from '@/features/matching/applicationApi'
+import type { TodoItem } from '@/features/notification/api'
 import { useTodos } from '@/features/notification/hooks'
 import { TeamIssueSection } from '@/features/teamIssue/TeamIssueSection'
 import { t, type MessageKey } from '@/i18n/t'
@@ -15,7 +16,7 @@ import { formatDayMonth } from '@/lib/dates'
 import { formatVnd } from '@/lib/money'
 import { cn } from '@/lib/utils'
 import { useJobs, type JobState, type JobSummary } from './jobApi'
-import { useMyJobs, type MyJob, type RoleInJob } from './jobRoleApi'
+import { leftEarly, useMyJobs, type MyJob, type RoleInJob } from './jobRoleApi'
 import { JobStateBadge } from './JobStateBadge'
 
 /** CUS-7's segments (UX-DR86), as `?vai-tro=` keeps them: the Jobs the user posts, mentors, and joins. */
@@ -33,32 +34,41 @@ const PENDING: ApplicationStatus[] = ['SUBMITTED', 'SELECTED', 'ON_HOLD']
 /**
  * CUS-7 "Công việc" (`/cong-viec`, FR-9, UX-DR66, UX-DR86, Story 20.6), the one list of every Job the user holds a
  * role in, which MEN-4 and STU-4 merged into: the Toggle Group "Việc tôi đăng" · "Việc tôi hướng dẫn" · "Việc tôi
- * tham gia", each with its open to-do count. A segment with nothing is hidden, and so is the control when one is
- * left. The URL keeps the segment (`?vai-tro=`); without one, the segment of the most urgent to-do that names a
- * role opens. Pending bids count and show in "Việc tôi hướng dẫn"; a Job the user left shows in "Việc tôi tham
- * gia" marked "· đã rời". With no Job at all, "Bạn chưa có công việc nào." leads to "Tìm việc".
+ * tham gia". Each segment counts its open to-dos, a to-do counting for the role it carries or else for the user's
+ * role in its Job, and "Việc tôi hướng dẫn" also counts the pending bids. A segment with nothing is hidden, and so is
+ * the control when one is left; "Việc tôi hướng dẫn" shows while the user mentors a Job or has any bid, closed ones
+ * included. The URL keeps the segment (`?vai-tro=`); without one, the segment of the most urgent to-do opens, once
+ * the to-dos are read. "Việc tôi tham gia" lists the running Jobs and then the past ones, those left included. With
+ * no Job and no bid, "Bạn chưa có công việc nào." leads to "Tìm việc". Nothing shows until the Jobs and the bids
+ * are read, and a failed read shows its error.
  */
 export function JobsPage() {
   usePageTitle(t('screen.job.title'))
   const mine = useMyJobs()
   const bids = useMyApplications()
+  const both = {
+    isPending: mine.isPending || bids.isPending,
+    isError: mine.isError || bids.isError,
+    error: mine.error ?? bids.error,
+    refetch: () => Promise.all([mine.refetch(), bids.refetch()]),
+  }
   return (
     <div className="mx-auto flex max-w-[920px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
       <PageHeading>{t('screen.job.heading')}</PageHeading>
-      <RegionState query={mine} skeleton={<Skeleton className="h-48 w-full" />}>
-        {mine.data && <Segments jobs={mine.data} bids={bids.data ?? []} />}
+      <RegionState query={both} skeleton={<Skeleton className="h-48 w-full" />}>
+        {mine.data && bids.data && <Segments jobs={mine.data} bids={bids.data} />}
       </RegionState>
     </div>
   )
 }
 
 function Segments({ jobs, bids }: { jobs: MyJob[]; bids: Application[] }) {
-  const todos = useTodos().data?.items ?? []
+  const todoQuery = useTodos()
+  const todos = todoQuery.data?.items ?? []
   const [params, setParams] = useSearchParams()
   const pending = bids.filter((bid) => PENDING.includes(bid.status))
   const shown = SEGMENTS.filter(
-    (segment) =>
-      jobs.some((job) => job.role === ROLE_OF[segment]) || (segment === 'huong-dan' && pending.length > 0),
+    (segment) => jobs.some((job) => job.role === ROLE_OF[segment]) || (segment === 'huong-dan' && bids.length > 0),
   )
   if (shown.length === 0) {
     return (
@@ -71,13 +81,22 @@ function Segments({ jobs, bids }: { jobs: MyJob[]; bids: Application[] }) {
       </div>
     )
   }
+  // A to-do counts for the role it carries, or else for the user's role in its Job.
+  const segmentOf = (todo: TodoItem): Segment | undefined => {
+    const role = todo.role ?? jobs.find((job) => job.jobId === todo.jobId)?.role
+    return role === undefined ? undefined : SEGMENT_OF[role]
+  }
   const counts = Object.fromEntries(
-    SEGMENTS.map((segment) => [segment, todos.filter((todo) => todo.role === ROLE_OF[segment]).length]),
+    SEGMENTS.map((segment) => [segment, todos.filter((todo) => segmentOf(todo) === segment).length]),
   ) as Record<Segment, number>
-  const urgent = todos.find((todo) => todo.role !== undefined && shown.includes(SEGMENT_OF[todo.role]))
+  counts['huong-dan'] += pending.length
   const asked = params.get('vai-tro') as Segment | null
-  const current: Segment =
-    asked !== null && shown.includes(asked) ? asked : urgent?.role ? SEGMENT_OF[urgent.role] : shown[0]
+  const chosen = asked !== null && shown.includes(asked)
+  if (!chosen && todoQuery.isPending) {
+    return <Skeleton className="h-48 w-full" />
+  }
+  const urgent = todos.map(segmentOf).find((segment) => segment !== undefined && shown.includes(segment))
+  const current: Segment = chosen ? asked : (urgent ?? shown[0])
   return (
     <>
       {shown.length > 1 && (
@@ -265,15 +284,15 @@ function BidGroupSection({ group, items }: { group: BidGroup; items: Application
 
 /**
  * "Việc tôi tham gia" (formerly STU-4, FR-75, AD-41, UX-DR60): a pick waiting for the user shows the Crew
- * assignment panel, a confirmed one its card, and a Job the user left its row marked "· đã rời"; then the internal
- * complaints (FR-79).
+ * assignment panel and a confirmed one its card; then the past Jobs, those left included, a Job left before it
+ * ended marked "· đã rời"; then the internal complaints (FR-79).
  */
 function JoinedJobs({ jobs }: { jobs: MyJob[] }) {
   const assignments = useCrewAssignments()
   // Story 11.3: an active member asked to confirm a waiting Crew change sees its version here too.
   const waiting = assignments.data?.filter((assignment) => assignment.status === 'ASSIGNED' || assignment.changeWaiting) ?? []
   const joined = assignments.data?.filter((assignment) => assignment.status !== 'ASSIGNED') ?? []
-  const left = jobs.filter((job) => job.crewKind === 'FORMER')
+  const past = jobs.filter((job) => job.crewKind === 'FORMER')
   return (
     <>
       <RegionState query={assignments} skeleton={<Skeleton className="h-48 w-full" />}>
@@ -289,12 +308,12 @@ function JoinedJobs({ jobs }: { jobs: MyJob[] }) {
           </section>
         )}
       </RegionState>
-      {left.length > 0 && (
-        <section aria-labelledby="jobs-left" className="flex flex-col gap-2">
-          <h2 id="jobs-left" className="text-h2">
-            {t('screen.job.segments.leftTitle')}
+      {past.length > 0 && (
+        <section aria-labelledby="jobs-past" className="flex flex-col gap-2">
+          <h2 id="jobs-past" className="text-h2">
+            {t('screen.job.segments.pastTitle')}
           </h2>
-          <JobRows jobs={left} />
+          <JobRows jobs={past} />
         </section>
       )}
       <TeamIssueSection />
@@ -302,7 +321,7 @@ function JoinedJobs({ jobs }: { jobs: MyJob[] }) {
   )
 }
 
-/** Jobs as rows to their JOB-1, in the Mentor's and the Crew's words; a former member's marked "· đã rời". */
+/** Jobs as rows to their JOB-1, in the Mentor's and the Crew's words; one the user left marked "· đã rời". */
 function JobRows({ jobs }: { jobs: MyJob[] }) {
   return (
     <ul className="flex flex-col divide-y divide-border rounded-lg border border-border bg-card">
@@ -314,7 +333,7 @@ function JobRows({ jobs }: { jobs: MyJob[] }) {
           >
             <span className="flex min-w-60 grow flex-col gap-0.5">
               <span className="text-label font-semibold break-words">
-                {job.crewKind === 'FORMER' ? t('screen.job.segments.left', { job: job.title }) : job.title}
+                {leftEarly(job, job.state) ? t('screen.job.segments.left', { job: job.title }) : job.title}
               </span>
               <span className="text-caption text-muted-foreground break-words">{job.productName}</span>
             </span>

@@ -46,7 +46,7 @@ export function JobHeader({
           <JobStateBadge state={state as Job['state']} audience={role ? audienceOf(role) : undefined} />
         </div>
         <p className="text-caption text-muted-foreground break-words">{meta}</p>
-        <JobRoleLine jobId={jobId} />
+        <JobRoleLine jobId={jobId} state={state} />
         {status}
       </div>
       {state === 'STARTING' && jobId && <SetupTracker jobId={jobId} />}

@@ -5,7 +5,7 @@ import { usePageTitle } from '@/app/usePageTitle'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { buttonVariants } from '@/components/ui/button-variants'
-import { ByJobRole } from '@/features/job/ByJobRole'
+import { ByJobRole, JobRoleLine } from '@/features/job/ByJobRole'
 import { useJob } from '@/features/job/jobApi'
 import { JobHeader } from '@/features/job/JobHeader'
 import { customerMeta, mentorMeta } from '@/features/job/jobMeta'
@@ -112,6 +112,7 @@ function Content({ jobId, handoverId, header }: { jobId: string; handoverId: str
           </Link>
           <PageHeading>{list.data?.title ?? t('screen.handover.tab')}</PageHeading>
           <p className="text-body-sm text-muted-foreground">{t('screen.handover.readOnly')}</p>
+          <JobRoleLine jobId={jobId} />
         </div>
       )}
       <RegionState query={list} skeleton={<Skeleton className="h-48 w-full" />}>

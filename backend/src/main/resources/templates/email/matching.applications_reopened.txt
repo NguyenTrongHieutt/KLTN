@@ -1,5 +1,5 @@
 subject: Công việc {job} mở lại, đơn của bạn được xem xét tiếp
-link: /cong-viec
+link: /cong-viec?vai-tro=huong-dan
 ---
 Xin chào,
 

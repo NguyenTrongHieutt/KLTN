@@ -115,7 +115,7 @@ describe('JOB-2 "Bảng công việc" (FR-22, AD-33, UX-DR36)', () => {
     expect((await screen.findAllByText('Đã sao chép SDB-3')).length).toBeGreaterThan(0)
   })
 
-  it('lets an active Crew member open it from "Công việc của tôi" once the Job is Active', { timeout: 20_000 }, async () => {
+  it('lets an active Crew member open it from "Việc tôi tham gia" once the Job is Active, saying their role', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     fakeBackend(signedInUser, {
       ...inEveryJob('CREW'),
@@ -129,6 +129,7 @@ describe('JOB-2 "Bảng công việc" (FR-22, AD-33, UX-DR36)', () => {
     await user.click(await screen.findByRole('link', { name: 'Bảng công việc' }))
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Sửa lỗi đặt bàn và thêm nhắc lịch' })).toBeInTheDocument()
+    expect(await screen.findByText('Bạn là: Thành viên nhóm')).toBeInTheDocument()
     expect(await screen.findByText('Hai khách không đặt trùng bàn')).toBeInTheDocument()
     expect(screen.getAllByText('Tiêu chí 1.1')[0]).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /xem trong thỏa thuận/ })).toBeNull()

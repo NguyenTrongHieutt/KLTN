@@ -229,9 +229,9 @@ class CrewService implements Crews {
 		this.auditLog.record(AuditEntry.of(AuditActor.user(mentorId), "job.crew_member_added", AuditObject.of("job.crew_row", rowId))
 			.forJob(jobId));
 		this.notifications.send(new NotificationRequest(ASSIGNED, rowId, List.of(new Recipient(studentId, Audience.CREW_ASSIGNED)),
-				Map.of("job", job.title()), "/cong-viec", jobId, null));
+				Map.of("job", job.title()), "/cong-viec?vai-tro=tham-gia", jobId, null));
 		this.todos.open(new TodoRequest(CONFIRM_TODO, studentId, Audience.CREW_ASSIGNED, rowId, Map.of("job", job.title()),
-				"/cong-viec", agreementDue(jobId), jobId));
+				"/cong-viec?vai-tro=tham-gia", agreementDue(jobId), jobId));
 		return row(rowId).orElseThrow();
 	}
 
@@ -247,7 +247,7 @@ class CrewService implements Crews {
 		this.auditLog.record(AuditEntry.of(AuditActor.user(mentorId), "job.crew_member_removed", AuditObject.of("job.crew_row", rowId))
 			.forJob(jobId));
 		this.notifications.send(new NotificationRequest(MEMBER_REMOVED, rowId,
-				List.of(new Recipient(row.studentId(), Audience.SUBJECT)), Map.of("job", job.title()), "/cong-viec", null, rowId));
+				List.of(new Recipient(row.studentId(), Audience.SUBJECT)), Map.of("job", job.title()), "/cong-viec?vai-tro=tham-gia", null, rowId));
 		refreshPickTodo(job);
 	}
 
@@ -381,11 +381,11 @@ class CrewService implements Crews {
 			.forJob(jobId));
 		for (Row row : running) {
 			this.notifications.send(new NotificationRequest(TERMS_CHANGED, UUID.nameUUIDFromBytes((row.id() + ":" + next).getBytes()),
-					List.of(new Recipient(row.studentId(), Audience.CREW_ASSIGNED)), Map.of("job", job.title()), "/cong-viec",
+					List.of(new Recipient(row.studentId(), Audience.CREW_ASSIGNED)), Map.of("job", job.title()), "/cong-viec?vai-tro=tham-gia",
 					jobId, null));
 			this.todos.closeAll(CONFIRM_TODO, row.id());
 			this.todos.open(new TodoRequest(CONFIRM_TODO, row.studentId(), Audience.CREW_ASSIGNED, row.id(),
-					Map.of("job", job.title()), "/cong-viec", agreementDue(jobId), jobId));
+					Map.of("job", job.title()), "/cong-viec?vai-tro=tham-gia", agreementDue(jobId), jobId));
 		}
 		refreshPickTodo(job);
 		return latest(jobId).orElseThrow();

@@ -209,7 +209,7 @@ describe('JOB-4 "Trò chuyện" (FR-46, UX-DR25, UX-DR40)', () => {
     expect(await within(tab).findByText('có tin mới')).toBeInTheDocument()
   })
 
-  it('shows the not-found screen to a Student', { timeout: 15_000 }, async () => {
+  it('shows the not-found screen to a Crew member', { timeout: 15_000 }, async () => {
     fakeBackend(signedInUser, inEveryJob('CREW'))
     renderAt('/cong-viec/j1/tro-chuyen')
 

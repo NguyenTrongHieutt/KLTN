@@ -38,7 +38,7 @@ export function CrewJobPage({ jobId }: { jobId: string }) {
             </Link>
             <PageHeading>{progress.data.title}</PageHeading>
             <p className="text-caption text-muted-foreground break-words">{progress.data.productName}</p>
-            <JobRoleLine jobId={jobId} />
+            <JobRoleLine jobId={jobId} state={progress.data.state} />
             <nav aria-label={t('screen.job.detail.tabs')} className="flex flex-wrap gap-2">
               <Link to={`/cong-viec/${jobId}/bang`} className={buttonVariants({ variant: 'secondary', size: 'compact' })}>
                 {t('screen.board.tab')}

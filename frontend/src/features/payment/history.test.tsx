@@ -71,7 +71,7 @@ describe('CUS-10: the payment history (FR-44)', () => {
   })
 })
 
-describe('MEN-7 and STU-7: the test Balance (FR-44, AD-20)', () => {
+describe('MEN-7: the test Balance (FR-44, AD-20)', () => {
   it('shows the Mentor the Crew parts of each release', { timeout: 15_000 }, async () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('MENTOR'),
@@ -88,7 +88,7 @@ describe('MEN-7 and STU-7: the test Balance (FR-44, AD-20)', () => {
     expect(screen.getByText(/không thấy phần của từng người/)).toBeInTheDocument()
   })
 
-  it('shows a Student only their own parts', { timeout: 15_000 }, async () => {
+  it('shows a Crew member only their own parts', { timeout: 15_000 }, async () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('CREW'),
       'GET /api/v1/balance': () => json({ balanceVnd: 960000, releases: 1, lines: [release({ yourPartVnd: 960000, yourPercent: 80, crew: [] })], heldParts: [] }),

@@ -5,7 +5,7 @@ import { usePageTitle } from '@/app/usePageTitle'
 import { RegionState } from '@/components/RegionState'
 import { SafeMarkdown } from '@/components/SafeMarkdown'
 import { Skeleton } from '@/components/Skeleton'
-import { ByJobRole } from '@/features/job/ByJobRole'
+import { ByJobRole, JobRoleLine } from '@/features/job/ByJobRole'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t } from '@/i18n/t'
 import { formatDayMonthTime } from '@/lib/dates'
@@ -40,6 +40,7 @@ function SharedDocs({ jobId, pageId, back }: { jobId: string; pageId: string | u
         </Link>
         <PageHeading>{t('screen.sharedDocs.heading')}</PageHeading>
         <p className="text-body-sm text-muted-foreground">{t('screen.sharedDocs.note')}</p>
+        <JobRoleLine jobId={jobId} />
       </div>
       <RegionState query={shared} skeleton={<Skeleton className="h-96 w-full" />}>
         {shared.data &&

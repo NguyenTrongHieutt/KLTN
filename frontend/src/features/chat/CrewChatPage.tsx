@@ -4,7 +4,7 @@ import { PageHeading } from '@/app/PageHeading'
 import { usePageTitle } from '@/app/usePageTitle'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
-import { ByJobRole } from '@/features/job/ByJobRole'
+import { ByJobRole, JobRoleLine } from '@/features/job/ByJobRole'
 import { JobHeader } from '@/features/job/JobHeader'
 import { mentorMeta } from '@/features/job/jobMeta'
 import { MentorJobTabs } from '@/features/matching/MentorJobTabs'
@@ -74,6 +74,7 @@ function StudentCrewChat({ jobId }: { jobId: string }) {
         </Link>
         <PageHeading>{chat.data?.title ?? t('screen.crewChat.tab')}</PageHeading>
         <p className="text-body-sm text-muted-foreground">{t('screen.crewChat.tab')}</p>
+        <JobRoleLine jobId={jobId} />
       </div>
       <RegionState query={chat} skeleton={<Skeleton className="h-96 w-full" />}>
         {chat.data && <CrewThread jobId={jobId} chat={chat.data} />}

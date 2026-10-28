@@ -75,7 +75,7 @@ class CrewController {
 		FREE, IN_CREW, ON_CREW, NOT_VERIFIED
 	}
 
-	/** A member of the Mentor's Team as the "Thêm sinh viên" list shows them. */
+	/** A member of the Mentor's Team as the "Thêm thành viên" list shows them. */
 	record CrewCandidateView(UUID studentId, String name, @Nullable String githubLogin, TeamState state,
 			@Nullable String onCrewJob) {
 	}
