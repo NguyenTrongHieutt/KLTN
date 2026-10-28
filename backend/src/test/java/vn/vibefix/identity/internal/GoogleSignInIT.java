@@ -118,7 +118,7 @@ class GoogleSignInIT extends IntegrationTest {
 			.containsEntry("google_sub", "google-lan")
 			.containsEntry("google_email", "lan.nguyen@gmail.test")
 			.containsEntry("google_name", "Nguyễn Thị Lan");
-		assertThat(account.get("role")).isNull();
+		assertThat(account).doesNotContainKey("role");
 		assertThat(account.get("github_user_id")).isNull();
 		assertThat(this.jdbc.sql("SELECT source FROM identity.person_signal").query(String.class).list())
 			.containsExactly("GOOGLE_EMAIL");
@@ -145,7 +145,7 @@ class GoogleSignInIT extends IntegrationTest {
 		assertThat(welcome.getResponse().getStatus()).isEqualTo(201);
 		JsonNode body = JSON.readTree(welcome.getResponse().getContentAsString());
 		assertThat(body.path("status").asString()).isEqualTo("SIGNED_IN");
-		assertThat(body.path("account").path("role").isNull()).as("a Google account has no role").isTrue();
+		assertThat(body.path("account").path("role").isMissingNode()).as("no account has a role").isTrue();
 		assertThat(body.path("account").path("kind").asString()).isEqualTo("USER");
 		assertThat(body.path("account").path("capabilities").path("githubVerified").asBoolean())
 			.as("nothing is linked yet")

@@ -9,7 +9,7 @@ export type ApplicationStatus = Application['status']
 
 const KEY = ['application'] as const
 
-/** MEN-4 and MEN-3: the Mentor's own Applications, newest first. */
+/** "Việc tôi hướng dẫn" on CUS-7, and MEN-3: the user's own bids, newest first. */
 export function useMyApplications(enabled = true) {
   return useQuery({
     queryKey: [...KEY, 'mine'],

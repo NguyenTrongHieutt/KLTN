@@ -3,7 +3,7 @@ import { Navigate, useParams } from 'react-router'
 import { usePageTitle } from '@/app/usePageTitle'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
-import { useSession } from '@/features/identity/useSession'
+import { ByJobRole } from '@/features/job/ByJobRole'
 import { useJob, type Job } from '@/features/job/jobApi'
 import { JobHeader } from '@/features/job/JobHeader'
 import { customerMeta, mentorMeta } from '@/features/job/jobMeta'
@@ -24,11 +24,13 @@ import { hasBoard } from '@/features/work/workApi'
  */
 export function JobChatPage() {
   const { jobId } = useParams()
-  const account = useSession().data?.account
-  if (!jobId || (account !== undefined && account.role !== 'CUSTOMER' && account.role !== 'MENTOR')) {
-    return <NotFoundScreen />
-  }
-  return account?.role === 'MENTOR' ? <MentorChat jobId={jobId} /> : <CustomerChat jobId={jobId} />
+  return (
+    <ByJobRole
+      jobId={jobId}
+      customer={() => <CustomerChat jobId={jobId ?? ''} />}
+      mentor={() => <MentorChat jobId={jobId ?? ''} />}
+    />
+  )
 }
 
 function CustomerChat({ jobId }: { jobId: string }) {
@@ -87,7 +89,7 @@ function MentorChat({ jobId }: { jobId: string }) {
 
 function MentorHeader({ job }: { job: MentorJob }) {
   return (
-    <JobHeader title={job.title} state={job.state} meta={mentorMeta(job)} audience="mentor">
+    <JobHeader title={job.title} state={job.state} meta={mentorMeta(job)}>
       <MentorJobTabs jobId={job.id} state={job.state} current="chat" payment={job.agreementConfirmed} />
     </JobHeader>
   )

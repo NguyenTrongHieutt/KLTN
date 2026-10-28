@@ -29,7 +29,7 @@ final class EmailTemplate {
 
 	private static final Pattern PLACEHOLDER = Pattern.compile("\\{([a-zA-Z][a-zA-Z0-9]*)\\}");
 
-	private static final Pattern PATH = Pattern.compile("/[a-z0-9\\-/]*");
+	private static final Pattern PATH = Pattern.compile("/[a-z0-9\\-/]*(\\?[a-z0-9-]+=[a-z0-9-]+)?");
 
 	/** Unicode direction marks and overrides, which could make an address or code read differently. */
 	private static final Pattern DIRECTION_CONTROLS = Pattern.compile("[\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069]");

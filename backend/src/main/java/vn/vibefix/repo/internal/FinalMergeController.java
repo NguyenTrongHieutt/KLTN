@@ -195,7 +195,7 @@ class FinalMergeController {
 		Authorization authorization = state == null || state.isBlank() || !caller.isUser() ? null
 				: this.authorizations.consume(state, caller.requireAccountId()).orElse(null);
 		if (authorization == null) {
-			return back("/cong-viec");
+			return back("/cong-viec?vai-tro=dang");
 		}
 		MergeAppBindings.Result result = MergeAppBindings.Result.UNKNOWN;
 		if (installationId != null) {

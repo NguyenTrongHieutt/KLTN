@@ -78,7 +78,6 @@ class AdminSignInIT extends IntegrationTest {
 
 		String session = body(this.browser.perform(get("/api/v1/session")));
 		assertThat((String) JsonPath.read(session, "$.status")).isEqualTo("SIGNED_IN");
-		assertThat((String) JsonPath.read(session, "$.account.role")).isEqualTo("ADMINISTRATOR");
 		assertThat((String) JsonPath.read(session, "$.account.kind")).isEqualTo("ADMINISTRATOR");
 		assertThat((String) JsonPath.read(session, "$.administrator.email")).isEqualTo(EMAIL);
 		assertThat((String) JsonPath.read(session, "$.administrator.displayName")).isEqualTo("Hà Phương");

@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -42,7 +42,8 @@ describe('Leaving a Job that stalls before it starts (FR-40)', () => {
   it('lets the Customer cancel alone after the Agreement deadline', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     const sent: unknown[] = []
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(job),
       'GET /api/v1/boards/j1/cancellation': () =>
         json({ jobId: 'j1', audience: 'CUSTOMER', state: 'AGREEMENT', version: 4, canPropose: true, held: false, canCancelAlone: true, proposal: null }),

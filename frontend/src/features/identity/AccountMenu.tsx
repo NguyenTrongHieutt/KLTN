@@ -17,10 +17,20 @@ const THEMES: { value: ThemeChoice; label: MessageKey }[] = [
 const item =
   'flex min-h-tap-min cursor-pointer items-center gap-2 rounded-md px-3 text-body-sm data-disabled:cursor-not-allowed data-disabled:opacity-50 data-highlighted:bg-muted'
 
+/** The avatar menu's pages, the same for every user (UX-DR85): each shows its Empty state when there is nothing. */
+const PAGES: { to: string; label: MessageKey }[] = [
+  { to: '/ho-so', label: 'shell.profile' },
+  { to: '/ho-so/cong-khai', label: 'shell.publicProfile' },
+  { to: '/so-du', label: 'shell.balance' },
+  { to: '/lich-su-thanh-toan', label: 'shell.paymentHistory' },
+  { to: '/tai-khoan/du-lieu', label: 'shell.myData' },
+]
+
 /**
- * The avatar menu (UX-DR11, UX-DR5): "Hồ sơ" (ACC-1) for every person's account, the Theme toggle ("Sáng",
- * "Tối", "Theo hệ thống"), which applies at once and saves to the account, and "Đăng xuất". The
- * avatar is initials: the CSP loads no image from GitHub.
+ * The one avatar menu (UX-DR11, UX-DR5, UX-DR85): "Hồ sơ và xác minh" (ACC-1), "Hồ sơ công khai", "Số dư thử
+ * nghiệm", "Lịch sử thanh toán", "Dữ liệu của tôi", the Theme toggle ("Sáng", "Tối", "Theo hệ thống"), which
+ * applies at once and saves to the account, and "Đăng xuất". Every item is always listed, whatever roles the user
+ * holds in their Jobs. The avatar is initials: the CSP loads no image from GitHub.
  */
 export function AccountMenu({ session, offline }: { session: Session; offline: boolean }) {
   const navigate = useNavigate()
@@ -28,8 +38,6 @@ export function AccountMenu({ session, offline }: { session: Session; offline: b
   const saveTheme = useSaveTheme()
   // A Google account has no GitHub username until Story 19.2 links it: its Google name stands in.
   const login = session.githubLogin ?? session.displayName ?? ''
-  const role = session.account?.role
-  const administrator = session.account?.kind === 'ADMINISTRATOR'
   const theme = session.account?.theme ?? DEFAULT_THEME
 
   function chooseTheme(choice: ThemeChoice) {
@@ -48,26 +56,11 @@ export function AccountMenu({ session, offline }: { session: Session; offline: b
       <Menu.Portal>
         <Menu.Positioner align="end" sideOffset={6} className="z-50">
           <Menu.Popup className="min-w-52 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md">
-            {!administrator && (
-              <Menu.Item className={item} onClick={() => navigate('/ho-so')}>
-                {t('shell.profile')}
+            {PAGES.map((page) => (
+              <Menu.Item key={page.to} className={item} onClick={() => navigate(page.to)}>
+                {t(page.label)}
               </Menu.Item>
-            )}
-            {role === 'CUSTOMER' && (
-              <Menu.Item className={item} onClick={() => navigate('/lich-su-thanh-toan')}>
-                {t('shell.paymentHistory')}
-              </Menu.Item>
-            )}
-            {(role === 'STUDENT' || role === 'MENTOR') && (
-              <Menu.Item className={item} onClick={() => navigate('/so-du')}>
-                {t('shell.balance')}
-              </Menu.Item>
-            )}
-            {!administrator && (
-              <Menu.Item className={item} onClick={() => navigate('/tai-khoan/du-lieu')}>
-                {t('shell.myData')}
-              </Menu.Item>
-            )}
+            ))}
             <Menu.Group>
               <Menu.GroupLabel className="px-3 pt-2 pb-1 text-caption text-muted-foreground">
                 {t('shell.theme')}

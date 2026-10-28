@@ -9,7 +9,7 @@ export type AdminUser = components['schemas']['UserDetailView']
 export type PersonLink = components['schemas']['PersonLinkView']
 export type UserFilter = 'LOCKED' | 'VERIFIED' | 'LOW_FEEDBACK'
 
-/** ADM-10's search: no account role filters it (Story 20.3); a person's roles are per Job. */
+/** ADM-10's search: no role on the account filters it (Story 20.3); a person's roles are per Job. */
 export interface UserQuery {
   q?: string
   status?: UserFilter

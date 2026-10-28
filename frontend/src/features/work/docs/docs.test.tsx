@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
 import { PAYLOADS } from '@/test/payloads'
 // Loaded up front: the route's lazy chunk with react-markdown is slow to load the first time.
 import './DocsPage'
@@ -57,7 +57,8 @@ describe('JOB-3 "Tài liệu" (FR-29, AD-23, UX-DR39)', () => {
   it('shows the tree and the Page, and saves an edit as a new version', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     const saved: unknown[] = []
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
       'GET /api/v1/boards/j1/pages': () => json(tree()),
       'GET /api/v1/pages/p1': () => json(page()),
       'PUT /api/v1/pages/p1': async (request) => {
@@ -94,7 +95,8 @@ describe('JOB-3 "Tài liệu" (FR-29, AD-23, UX-DR39)', () => {
       '<script>alert(1)</script>',
       ...PAYLOADS,
     ].join('\n\n')
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
       'GET /api/v1/boards/j1/pages': () => json(tree()),
       'GET /api/v1/pages/p1': () => json(page({ body: markdown })),
     })
@@ -117,7 +119,8 @@ describe('JOB-3 "Tài liệu" (FR-29, AD-23, UX-DR39)', () => {
 
   it('opens the Stale dialog when someone saved first', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
       'GET /api/v1/boards/j1/pages': () => json(tree()),
       'GET /api/v1/pages/p1': () => json(page()),
       'PUT /api/v1/pages/p1': () => json({ status: 409, code: 'STALE' }, 409),
@@ -134,7 +137,8 @@ describe('JOB-3 "Tài liệu" (FR-29, AD-23, UX-DR39)', () => {
 
   it('asks before leaving with unsaved changes', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
       'GET /api/v1/boards/j1/pages': () => json(tree()),
       'GET /api/v1/pages/p1': () => json(page()),
       'GET /api/v1/pages/p3': () => json(page({ id: 'p3', title: 'Quyết định', body: 'Dùng Postgres.' })),
@@ -156,7 +160,8 @@ describe('JOB-3 "Tài liệu" (FR-29, AD-23, UX-DR39)', () => {
   it('shows the versions, one read-only, and restores an earlier one', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     const restored: unknown[] = []
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
       'GET /api/v1/boards/j1/pages': () => json(tree()),
       'GET /api/v1/pages/p1': () => json(page({ versionNo: 2 })),
       'GET /api/v1/pages/p1/versions': () =>
@@ -187,7 +192,8 @@ describe('JOB-3 "Tài liệu" (FR-29, AD-23, UX-DR39)', () => {
   it('creates a Page and opens it', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     const created: unknown[] = []
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
       'GET /api/v1/boards/j1/pages': () => json(tree({ pages: [] })),
       'POST /api/v1/boards/j1/pages': async (request) => {
         created.push(await request.json())
@@ -209,7 +215,8 @@ describe('JOB-3 "Tài liệu" (FR-29, AD-23, UX-DR39)', () => {
   })
 
   it('is read-only for a former member and not found for a Customer', { timeout: 20_000 }, async () => {
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
       'GET /api/v1/boards/j1/pages': () => json(tree({ readOnly: true })),
       'GET /api/v1/pages/p1': () => json(page({ readOnly: true })),
     })

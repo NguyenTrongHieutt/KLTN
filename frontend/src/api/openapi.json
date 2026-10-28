@@ -5187,6 +5187,33 @@
         "tags" : [ "recommendation-controller" ]
       }
     },
+    "/api/v1/jobs/{jobId}/role" : {
+      "get" : {
+        "operationId" : "role",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/JobRoleView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "job-role-controller" ]
+      }
+    },
     "/api/v1/jobs/{jobId}/screenshots" : {
       "post" : {
         "operationId" : "addScreenshot",
@@ -6549,6 +6576,27 @@
           }
         },
         "tags" : [ "public-reputation-controller" ]
+      }
+    },
+    "/api/v1/my-jobs" : {
+      "get" : {
+        "operationId" : "myJobs",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/MyJobView"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "job-role-controller" ]
       }
     },
     "/api/v1/notifications" : {
@@ -8564,11 +8612,6 @@
           "kind" : {
             "type" : "string",
             "enum" : [ "USER", "ADMINISTRATOR" ]
-          },
-          "role" : {
-            "type" : "string",
-            "deprecated" : true,
-            "enum" : [ "CUSTOMER", "MENTOR", "STUDENT", "ADMINISTRATOR" ]
           },
           "theme" : {
             "type" : "string",
@@ -14222,6 +14265,20 @@
         },
         "required" : [ "assessment", "audience", "boardId", "crew", "mentorName", "milestones", "mine", "pages", "productName", "state", "title" ]
       },
+      "JobRoleView" : {
+        "type" : "object",
+        "properties" : {
+          "crewKind" : {
+            "type" : "string",
+            "enum" : [ "ASSIGNED", "ACTIVE", "FORMER" ]
+          },
+          "role" : {
+            "type" : "string",
+            "enum" : [ "CUSTOMER", "MENTOR", "CREW" ]
+          }
+        },
+        "required" : [ "role" ]
+      },
       "JobSummaryView" : {
         "type" : "object",
         "properties" : {
@@ -15136,6 +15193,38 @@
           }
         },
         "required" : [ "blockers", "tokenKept" ]
+      },
+      "MyJobView" : {
+        "type" : "object",
+        "properties" : {
+          "crewKind" : {
+            "type" : "string",
+            "enum" : [ "ASSIGNED", "ACTIVE", "FORMER" ]
+          },
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "productName" : {
+            "type" : "string"
+          },
+          "role" : {
+            "type" : "string",
+            "enum" : [ "CUSTOMER", "MENTOR", "CREW" ]
+          },
+          "state" : {
+            "type" : "string",
+            "enum" : [ "DRAFT", "OPEN", "SELECTING", "AGREEMENT", "STARTING", "ACTIVE", "CLOSING", "CLOSED", "CANCELLED" ]
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "jobId", "productName", "role", "state", "title", "updatedAt" ]
       },
       "MySkillSuggestionView" : {
         "type" : "object",
@@ -18726,6 +18815,10 @@
             "additionalProperties" : {
               "type" : "string"
             }
+          },
+          "role" : {
+            "type" : "string",
+            "enum" : [ "CUSTOMER", "MENTOR", "CREW" ]
           },
           "tier" : {
             "type" : "integer",

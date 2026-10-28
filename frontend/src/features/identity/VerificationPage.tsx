@@ -16,7 +16,6 @@ import { GitHubNoticeDialog } from './GitHubNoticeDialog'
 import { useGitHubLink, useUnlinkGitHub, type GitHubLink, type GitHubLinkBlocker } from './githubApi'
 import { ProfileTabs } from './ProfileTabs'
 import { StudentEmailRow } from './StudentEmailRow'
-import { useSession } from './useSession'
 
 /** What GitHub's return says in ACC-2's address (`?ket-qua=…` or `?loi=…`), as the backend writes it. */
 const RESULTS = ['da-lien-ket']
@@ -35,7 +34,6 @@ const ERRORS = ['da-lien-ket-tai-khoan-khac', 'sai-tai-khoan', 'that-bai']
 export function VerificationPage() {
   usePageTitle(t('screen.verification.title'))
   const link = useGitHubLink()
-  const student = useSession().data?.account?.role === 'STUDENT'
   const [params, setParams] = useSearchParams()
   // GitHub's return is read once: the banner stays until the page is left, and a reload shows none.
   const [{ result, error }] = useState(() => ({ result: params.get('ket-qua'), error: params.get('loi') }))
@@ -68,7 +66,7 @@ export function VerificationPage() {
       <RegionState query={link} skeleton={<Skeleton className="h-40 w-full" />}>
         {link.data && <GitHubRow link={link.data} />}
       </RegionState>
-      <StudentEmailRow student={student} />
+      <StudentEmailRow />
     </div>
   )
 }

@@ -2324,6 +2324,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/jobs/{jobId}/role": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["role"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jobs/{jobId}/screenshots": {
         parameters: {
             query?: never;
@@ -2956,6 +2972,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["mentor_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/my-jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["myJobs"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3928,11 +3960,6 @@ export interface components {
             id: string;
             /** @enum {string} */
             kind: "USER" | "ADMINISTRATOR";
-            /**
-             * @deprecated
-             * @enum {string}
-             */
-            role?: "CUSTOMER" | "MENTOR" | "STUDENT" | "ADMINISTRATOR";
             /** @enum {string} */
             theme: "LIGHT" | "DARK" | "SYSTEM";
         };
@@ -5926,6 +5953,12 @@ export interface components {
             state: string;
             title: string;
         };
+        JobRoleView: {
+            /** @enum {string} */
+            crewKind?: "ASSIGNED" | "ACTIVE" | "FORMER";
+            /** @enum {string} */
+            role: "CUSTOMER" | "MENTOR" | "CREW";
+        };
         JobSummaryView: {
             /** Format: uuid */
             id: string;
@@ -6268,6 +6301,20 @@ export interface components {
             /** Format: date-time */
             deletionRequestedAt?: string;
             tokenKept: boolean;
+        };
+        MyJobView: {
+            /** @enum {string} */
+            crewKind?: "ASSIGNED" | "ACTIVE" | "FORMER";
+            /** Format: uuid */
+            jobId: string;
+            productName: string;
+            /** @enum {string} */
+            role: "CUSTOMER" | "MENTOR" | "CREW";
+            /** @enum {string} */
+            state: "DRAFT" | "OPEN" | "SELECTING" | "AGREEMENT" | "STARTING" | "ACTIVE" | "CLOSING" | "CLOSED" | "CANCELLED";
+            title: string;
+            /** Format: date-time */
+            updatedAt: string;
         };
         MySkillSuggestionView: {
             /** Format: date-time */
@@ -7573,6 +7620,8 @@ export interface components {
             params: {
                 [key: string]: string;
             };
+            /** @enum {string} */
+            role?: "CUSTOMER" | "MENTOR" | "CREW";
             /** Format: int32 */
             tier: number;
         };
@@ -11685,6 +11734,28 @@ export interface operations {
             };
         };
     };
+    role: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobRoleView"];
+                };
+            };
+        };
+    };
     addScreenshot: {
         parameters: {
             query?: never;
@@ -12667,6 +12738,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MentorReputationView"];
+                };
+            };
+        };
+    };
+    myJobs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyJobView"][];
                 };
             };
         };

@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
 import { PAYLOADS } from '@/test/payloads'
 
 function renderAt(path: string) {
@@ -122,7 +122,8 @@ describe('MEN-3, applying with a quote (FR-13)', () => {
     const user = userEvent.setup()
     let sent: unknown
     let applied = false
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/job-posts/j1': () => json(post),
       'GET /api/v1/mentor/job-posts/j1/customer-rating': () => json({ count: 0 }),
       'GET /api/v1/mentor/capacity': () => capacity(),
@@ -160,7 +161,8 @@ describe('MEN-3, applying with a quote (FR-13)', () => {
 
   it('says GitHub must be linked before bidding and links to ACC-2 (FR-80)', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/job-posts/j1': () => json(post),
       'GET /api/v1/mentor/job-posts/j1/customer-rating': () => json({ count: 0 }),
       'GET /api/v1/mentor/capacity': () => capacity(),
@@ -182,7 +184,8 @@ describe('MEN-3, applying with a quote (FR-13)', () => {
 
   it('says a bid needs a display name and links to ACC-1 (Story 19.7)', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/job-posts/j1': () => json(post),
       'GET /api/v1/mentor/job-posts/j1/customer-rating': () => json({ count: 0 }),
       'GET /api/v1/mentor/capacity': () => capacity(),
@@ -206,7 +209,8 @@ describe('MEN-3, applying with a quote (FR-13)', () => {
 
   it('keeps "Ứng tuyển" disabled while FR-13 refuses and says the reason from the server', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/job-posts/j1': () => json(post),
       'GET /api/v1/mentor/job-posts/j1/customer-rating': () => json({ count: 0 }),
       'GET /api/v1/mentor/capacity': () => capacity(['NO_FREE_STUDENT']),
@@ -215,7 +219,7 @@ describe('MEN-3, applying with a quote (FR-13)', () => {
     renderAt('/tim-viec/j1')
 
     expect(await screen.findByRole('button', { name: 'Ứng tuyển' })).toBeDisabled()
-    expect(screen.getAllByText('Nhóm của bạn chưa có sinh viên rảnh, nên chưa ứng tuyển được.').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Nhóm của bạn chưa có thành viên rảnh, nên chưa ứng tuyển được.').length).toBeGreaterThan(0)
     await user.type(screen.getByLabelText('Giá đề xuất'), 'abc')
     expect(screen.getByLabelText('Giá đề xuất')).toHaveValue('')
   })
@@ -223,7 +227,8 @@ describe('MEN-3, applying with a quote (FR-13)', () => {
   it('withdraws the Application after a confirmation', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     let withdrawn = false
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/job-posts/j1': () => json(post),
       'GET /api/v1/mentor/job-posts/j1/customer-rating': () => json({ count: 0 }),
       'GET /api/v1/mentor/capacity': () => capacity(),
@@ -245,9 +250,10 @@ describe('MEN-3, applying with a quote (FR-13)', () => {
   })
 })
 
-describe('MEN-4 and CUS-8 (UX-DR78, UX-DR66)', () => {
-  it('lists the Mentor\'s Applications by status on MEN-4', { timeout: 15_000 }, async () => {
-    fakeBackend(signedIn('MENTOR'), {
+describe('"Việc tôi hướng dẫn" on CUS-7, and CUS-8 (UX-DR78, UX-DR66, UX-DR86)', () => {
+  it('lists the user\'s bids by status in "Việc tôi hướng dẫn"', { timeout: 15_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/applications': () =>
         json([
           application(),
@@ -266,7 +272,8 @@ describe('MEN-4 and CUS-8 (UX-DR78, UX-DR66)', () => {
 
   it('shows each Application with its Rating summary and opens the profile in a Sheet', { timeout: 15_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(openJob),
       'GET /api/v1/jobs/j1/applications': () => json([hungApplication, haApplication]),
       'GET /api/v1/mentors/hungdm/reputation': () => json({ average: 4.8, count: 6, newcomer: false, portfolio: [] }),
@@ -277,7 +284,7 @@ describe('MEN-4 and CUS-8 (UX-DR78, UX-DR66)', () => {
 
     expect(await screen.findByText('Đỗ Mạnh Hùng')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Đơn ứng tuyển (2)' })).toHaveAttribute('aria-current', 'page')
-    expect(screen.getByText(/8 năm kinh nghiệm · nhóm 6 sinh viên/)).toBeInTheDocument()
+    expect(screen.getByText(/8 năm kinh nghiệm · nhóm 6 thành viên/)).toBeInTheDocument()
     expect(screen.getByText('3.500.000 ₫')).toBeInTheDocument()
     expect(await screen.findByText('4,8 sao')).toBeInTheDocument()
     expect(await screen.findByText('Mới')).toBeInTheDocument()
@@ -290,7 +297,8 @@ describe('MEN-4 and CUS-8 (UX-DR78, UX-DR66)', () => {
 
   it('pins up to three Applications in "So sánh"', { timeout: 15_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(openJob),
       'GET /api/v1/jobs/j1/applications': () => json([hungApplication, haApplication]),
     })
@@ -307,7 +315,8 @@ describe('MEN-4 and CUS-8 (UX-DR78, UX-DR66)', () => {
     const user = userEvent.setup()
     let sent: unknown
     let selected = false
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(selected ? selectingJob : openJob),
       'GET /api/v1/jobs/j1/applications': () => json([hungApplication, haApplication]),
       'POST /api/v1/jobs/j1/applications/a1/select': async (request) => {
@@ -333,7 +342,8 @@ describe('MEN-4 and CUS-8 (UX-DR78, UX-DR66)', () => {
   it('shows the Stale dialog for a Job that moved on, and never re-sends', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     let sends = 0
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(openJob),
       'GET /api/v1/jobs/j1/applications': () => json([hungApplication]),
       'POST /api/v1/jobs/j1/applications/a1/select': () => {
@@ -353,7 +363,8 @@ describe('MEN-4 and CUS-8 (UX-DR78, UX-DR66)', () => {
   })
 
   it('counts the Applications on JOB-1', { timeout: 15_000 }, async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(openJob),
       'GET /api/v1/jobs/j1/applications': () =>
         json([
@@ -377,7 +388,8 @@ describe('MEN-4 and CUS-8 (UX-DR78, UX-DR66)', () => {
 
   it('keeps planted payloads in Applications as text (SG-30)', { timeout: 15_000 }, async () => {
     const payload = PAYLOADS[0]
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(openJob),
       'GET /api/v1/jobs/j1/applications': () =>
         json([

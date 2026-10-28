@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser } from '@/test/fakeBackend'
 import { WorkFindings } from './WorkFindings'
 
 const finding = (canRotate: boolean) => ({
@@ -32,7 +32,7 @@ afterEach(() => {
 describe('The Job’s push Findings (FR-8, UX-DR31)', () => {
   it('lets the Mentor confirm a rotated credential, and then shows nothing', async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/jobs/j1/findings': () => json([finding(true)]),
       'POST /api/v1/jobs/j1/findings/f1/rotation': () => json([]),
     })
@@ -47,7 +47,7 @@ describe('The Job’s push Findings (FR-8, UX-DR31)', () => {
   })
 
   it('shows the Customer the Finding without the rotation', async () => {
-    fakeBackend(signedIn('CUSTOMER'), { 'GET /api/v1/jobs/j1/findings': () => json([finding(false)]) })
+    fakeBackend(signedInUser, { 'GET /api/v1/jobs/j1/findings': () => json([finding(false)]) })
     renderFindings()
 
     expect(await screen.findByText('Khóa bí mật Stripe')).toBeInTheDocument()

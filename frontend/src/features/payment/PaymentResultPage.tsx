@@ -5,7 +5,6 @@ import { usePageTitle } from '@/app/usePageTitle'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { buttonVariants } from '@/components/ui/button-variants'
-import { useSession } from '@/features/identity/useSession'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t, type MessageKey } from '@/i18n/t'
 import { formatDayMonthTime, formatTime } from '@/lib/dates'
@@ -23,9 +22,8 @@ import { TestModeBanner } from './TestModeBanner'
  */
 export function PaymentResultPage() {
   const { paymentOrderId } = useParams()
-  const account = useSession().data?.account
   usePageTitle(t('screen.payment.result.title'))
-  if (!paymentOrderId || (account !== undefined && account.role !== 'CUSTOMER')) {
+  if (!paymentOrderId) {
     return <NotFoundScreen />
   }
   return <Result paymentOrderId={paymentOrderId} />

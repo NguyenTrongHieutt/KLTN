@@ -29,7 +29,7 @@ export function FindWorkGate({ returnTo }: { returnTo: string }) {
 }
 
 /** The capabilities were read before GitHub was linked: the session is read again. */
-function ReadSessionAgain() {
+export function ReadSessionAgain() {
   const queryClient = useQueryClient()
   useEffect(() => {
     void queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY })

@@ -81,7 +81,7 @@ describe('ADM-9 statistics (FR-62)', () => {
     })
     renderAt('/quan-tri/thong-ke')
 
-    // Story 20.3 (UX-DR110): users by Verification and by the roles they hold per Job, with no account-role row.
+    // Story 20.3 (UX-DR110): users by Verification and by the roles they hold per Job, with no row per role on the account.
     const verified = await screen.findByRole('region', { name: 'Người dùng theo xác minh' })
     expect(within(verified).getByText('Đã liên kết GitHub')).toBeInTheDocument()
     expect(within(verified).getByText('9')).toBeInTheDocument()

@@ -83,7 +83,7 @@ class AdministratorCreationIT extends IntegrationTest {
 
 		assertThat(created.getResponse().getStatus()).isEqualTo(201);
 		UUID quan = UUID.fromString(JsonPath.read(body(created), "$.id"));
-		assertThat(this.jdbc.sql("SELECT role FROM identity.account WHERE id = :id").param("id", quan)
+		assertThat(this.jdbc.sql("SELECT kind FROM identity.account WHERE id = :id").param("id", quan)
 			.query(String.class).single()).isEqualTo("ADMINISTRATOR");
 		assertThat(this.jdbc.sql("""
 				SELECT params ->> 'email' FROM notification.notification
@@ -162,7 +162,6 @@ class AdministratorCreationIT extends IntegrationTest {
 
 		assertThat(enrol(quan, token, code(Totp.fromBase32(secret))).getResponse().getStatus()).isEqualTo(204);
 		String session = body(quan.perform(get("/api/v1/session")));
-		assertThat((String) JsonPath.read(session, "$.account.role")).isEqualTo("ADMINISTRATOR");
 		assertThat((String) JsonPath.read(session, "$.account.kind")).isEqualTo("ADMINISTRATOR");
 		assertThat((String) JsonPath.read(session, "$.administrator.email")).isEqualTo(QUAN);
 		assertThat(this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE action = 'identity.administrator_enrolled'")

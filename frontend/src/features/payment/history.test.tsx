@@ -4,7 +4,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -36,7 +36,8 @@ const release = (overrides: object = {}) => ({
 
 describe('CUS-10: the payment history (FR-44)', () => {
   it('lists fundings and refunds per Job with one released total per Milestone', { timeout: 15_000 }, async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/payments/history': () =>
         json({
           heldVnd: 2000000,
@@ -70,9 +71,10 @@ describe('CUS-10: the payment history (FR-44)', () => {
   })
 })
 
-describe('MEN-7 and STU-7: the test Balance (FR-44, AD-20)', () => {
+describe('MEN-7: the test Balance (FR-44, AD-20)', () => {
   it('shows the Mentor the Crew parts of each release', { timeout: 15_000 }, async () => {
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/balance': () => json({ balanceVnd: 240000, releases: 1, sentToCrewVnd: 960000, heldVnd: 2000000, lines: [release()], heldParts: [] }),
     })
     renderAt('/so-du')
@@ -86,8 +88,9 @@ describe('MEN-7 and STU-7: the test Balance (FR-44, AD-20)', () => {
     expect(screen.getByText(/không thấy phần của từng người/)).toBeInTheDocument()
   })
 
-  it('shows a Student only their own parts', { timeout: 15_000 }, async () => {
-    fakeBackend(signedIn('STUDENT'), {
+  it('shows a Crew member only their own parts', { timeout: 15_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
       'GET /api/v1/balance': () => json({ balanceVnd: 960000, releases: 1, lines: [release({ yourPartVnd: 960000, yourPercent: 80, crew: [] })], heldParts: [] }),
     })
     renderAt('/so-du')
@@ -101,7 +104,8 @@ describe('MEN-7 and STU-7: the test Balance (FR-44, AD-20)', () => {
 
 describe("JOB-7 for the Mentor: each release by party (AD-20)", () => {
   it('lists the releases with their role, version, and percentage', { timeout: 15_000 }, async () => {
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/jobs/j1': () =>
         json({
           id: 'j1',

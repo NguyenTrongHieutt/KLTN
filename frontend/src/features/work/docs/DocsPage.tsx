@@ -14,7 +14,7 @@ import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { ReportAbuseMenu } from '@/features/abuse/ReportAbuseMenu'
-import { useSession } from '@/features/identity/useSession'
+import { ByJobRole, JobRoleLine } from '@/features/job/ByJobRole'
 import { useJob } from '@/features/job/jobApi'
 import { JobHeader } from '@/features/job/JobHeader'
 import { customerMeta, mentorMeta } from '@/features/job/jobMeta'
@@ -52,17 +52,13 @@ import {
  */
 export function DocsPage() {
   const { jobId, pageId } = useParams()
-  const account = useSession().data?.account
-  if (!jobId || (account !== undefined && account.kind === 'ADMINISTRATOR')) {
-    return <NotFoundScreen />
-  }
-  if (account?.role === 'CUSTOMER') {
-    return <CustomerDocs jobId={jobId} pageId={pageId} />
-  }
-  return account?.role === 'MENTOR' ? (
-    <MentorDocs jobId={jobId} pageId={pageId} />
-  ) : (
-    <StudentDocs jobId={jobId} pageId={pageId} />
+  return (
+    <ByJobRole
+      jobId={jobId}
+      customer={() => <CustomerDocs jobId={jobId ?? ''} pageId={pageId} />}
+      mentor={() => <MentorDocs jobId={jobId ?? ''} pageId={pageId} />}
+      crew={() => <StudentDocs jobId={jobId ?? ''} pageId={pageId} />}
+    />
   )
 }
 
@@ -147,7 +143,7 @@ function MentorDocs({ jobId, pageId }: { jobId: string; pageId: string | undefin
     <Frame>
       <RegionState query={job} skeleton={<Skeleton className="h-24 w-full" />}>
         {job.data && (
-          <JobHeader title={job.data.title} state={job.data.state} meta={mentorMeta(job.data)} audience="mentor">
+          <JobHeader title={job.data.title} state={job.data.state} meta={mentorMeta(job.data)}>
             <MentorJobTabs jobId={job.data.id} state={job.data.state} current="docs" payment={job.data.agreementConfirmed} />
           </JobHeader>
         )}
@@ -170,11 +166,15 @@ function StudentDocs({ jobId, pageId }: { jobId: string; pageId: string | undefi
   return (
     <Frame>
       <div className="flex flex-col gap-1">
-        <Link to="/cong-viec" className="w-fit text-label text-muted-foreground underline-offset-4 hover:underline">
+        <Link
+          to="/cong-viec?vai-tro=tham-gia"
+          className="w-fit text-label text-muted-foreground underline-offset-4 hover:underline"
+        >
           {t('screen.crewChat.back')}
         </Link>
         <PageHeading>{tree.data?.title ?? t('screen.docs.tab')}</PageHeading>
         <p className="text-body-sm text-muted-foreground">{t('screen.docs.tab')}</p>
+        <JobRoleLine jobId={jobId} />
       </div>
       <RegionState query={tree} skeleton={<Skeleton className="h-96 w-full" />}>
         {tree.data && <Space tree={tree.data} jobId={jobId} pageId={pageId} />}

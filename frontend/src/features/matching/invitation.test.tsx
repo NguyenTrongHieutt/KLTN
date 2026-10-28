@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -84,7 +84,8 @@ describe('CUS-8 "Tìm người hướng dẫn" (FR-14)', () => {
     const user = userEvent.setup()
     let invited = false
     let sent: unknown
-    const seen = fakeBackend(signedIn('CUSTOMER'), {
+    const seen = fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(openJob),
       'GET /api/v1/jobs/j1/applications': () => json([]),
       'GET /api/v1/jobs/j1/invitations': () => json(quota(invited ? 8 : 9)),
@@ -124,7 +125,8 @@ describe('CUS-8 "Tìm người hướng dẫn" (FR-14)', () => {
   })
 
   it('reads "Chưa có đề xuất…" with no Recommendation, focuses the Search bar, and searches nothing', { timeout: 15_000 }, async () => {
-    const seen = fakeBackend(signedIn('CUSTOMER'), {
+    const seen = fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(openJob),
       'GET /api/v1/jobs/j1/applications': () => json([]),
       'GET /api/v1/jobs/j1/invitations': () => json(quota(10)),
@@ -142,7 +144,8 @@ describe('CUS-8 "Tìm người hướng dẫn" (FR-14)', () => {
   })
 
   it('disables every Invite button at a used-up limit and says which', { timeout: 15_000 }, async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(openJob),
       'GET /api/v1/jobs/j1/applications': () => json([]),
       'GET /api/v1/jobs/j1/invitations': () => json(quota(0, 'INVITE_LIMIT_JOB_POST')),
@@ -157,7 +160,8 @@ describe('CUS-8 "Tìm người hướng dẫn" (FR-14)', () => {
 
   it('disables the Invite button of a Mentor without GitHub linked, with the line that says why', { timeout: 15_000 }, async () => {
     const unlinked = { ...long, githubLogin: undefined, yearsOfExperience: undefined, available: false }
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(openJob),
       'GET /api/v1/jobs/j1/applications': () => json([]),
       'GET /api/v1/jobs/j1/invitations': () => json(quota(9)),
@@ -174,7 +178,8 @@ describe('CUS-8 "Tìm người hướng dẫn" (FR-14)', () => {
 
   it('opens PUB-5 in a Sheet with the Invite button and returns focus to the card', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(openJob),
       'GET /api/v1/jobs/j1/applications': () => json([]),
       'GET /api/v1/jobs/j1/invitations': () => json(quota(9)),
@@ -199,7 +204,8 @@ describe('CUS-8 "Tìm người hướng dẫn" (FR-14)', () => {
   })
 
   it('sends a Job past Open to "Đơn ứng tuyển", which goes on to the overview', { timeout: 15_000 }, async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () =>
         json({ ...openJob, state: 'SELECTING', version: 2, mentor: { displayName: 'Đỗ Mạnh Hùng' }, canCancelSelection: false }),
       'GET /api/v1/jobs/j1/applications': () => json([]),
@@ -210,7 +216,8 @@ describe('CUS-8 "Tìm người hướng dẫn" (FR-14)', () => {
   })
 
   it('marks an invited Mentor\'s Application with "Đã mời"', { timeout: 15_000 }, async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(openJob),
       'GET /api/v1/jobs/j1/applications': () =>
         json([
@@ -258,7 +265,8 @@ describe('MEN-3 with an invitation (FR-14)', () => {
   })
 
   it('shows who invited the Mentor while the invitation is open', { timeout: 15_000 }, async () => {
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/job-posts/j1': () => json(post),
       'GET /api/v1/mentor/job-posts/j1/invitation': () => json(invitation('OPEN')),
       'GET /api/v1/mentor/job-posts/j1/customer-rating': () => json({ count: 0 }),
@@ -274,7 +282,8 @@ describe('MEN-3 with an invitation (FR-14)', () => {
   })
 
   it('shows the lapsed card instead of the not-found screen', { timeout: 15_000 }, async () => {
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/job-posts/j1/invitation': () => json(invitation('LAPSED')),
     })
     renderAt('/tim-viec/j1')

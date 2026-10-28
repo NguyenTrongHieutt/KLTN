@@ -290,7 +290,7 @@ class Applications {
 			UUID application = rs.getObject("id", UUID.class);
 			this.notifications.send(new NotificationRequest(POST_HIDDEN, application,
 					List.of(new Recipient(rs.getObject("mentor_account_id", UUID.class), Audience.SUBJECT)),
-					Map.of("job", title), "/cong-viec", null, application));
+					Map.of("job", title), "/cong-viec?vai-tro=huong-dan", null, application));
 			return null;
 		}).list();
 	}
@@ -358,7 +358,7 @@ class Applications {
 				.param("id", application.id())
 				.update();
 			this.notifications.send(new NotificationRequest(ON_HOLD, application.id(),
-					List.of(new Recipient(application.mentorId(), Audience.SUBJECT)), Map.of("job", title), "/cong-viec",
+					List.of(new Recipient(application.mentorId(), Audience.SUBJECT)), Map.of("job", title), "/cong-viec?vai-tro=huong-dan",
 					null, application.id()));
 		}
 		this.todos.closeAll(CHOOSE_ASSIGNEE, jobId);
@@ -380,7 +380,7 @@ class Applications {
 		for (Application application : held) {
 			end(application.id(), Status.CLOSED, EndReason.NOT_SELECTED);
 			this.notifications.send(new NotificationRequest(CLOSED_NOTICE, application.id(),
-					List.of(new Recipient(application.mentorId(), Audience.SUBJECT)), Map.of("job", title), "/cong-viec",
+					List.of(new Recipient(application.mentorId(), Audience.SUBJECT)), Map.of("job", title), "/cong-viec?vai-tro=huong-dan",
 					null, application.id()));
 		}
 		this.todos.closeAll(SIGN_NDA, jobId);

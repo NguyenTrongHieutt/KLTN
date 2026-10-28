@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
 import { Toaster } from '@/components/Toaster'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser } from '@/test/fakeBackend'
 import { JobTeamIssues } from './JobTeamIssues'
 import { TeamIssueSection } from './TeamIssueSection'
 
@@ -56,12 +56,12 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('STU-4 "Khiếu nại nội bộ" (FR-79, AD-40, UX-DR63)', () => {
+describe('"Khiếu nại nội bộ" in "Việc tôi tham gia" (FR-79, AD-40, UX-DR63)', () => {
   it('sends a share issue with its reason, and a used option says why it is disabled', { timeout: 15_000 }, async () => {
     const user = userEvent.setup()
     const sent: unknown[] = []
     let raised = false
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/team-issues': () =>
         json([raised ? panel({ shares: [{ milestoneId: 'm1', number: 2, title: 'Đặt bàn theo giờ', refusal: 'TEAM_ISSUE_ALREADY_RAISED' }], issues: [{ ...issue, mine: true, raiserName: null }] }) : panel()]),
       'POST /api/v1/team-issues': async (request) => {
@@ -89,7 +89,7 @@ describe('STU-4 "Khiếu nại nội bộ" (FR-79, AD-40, UX-DR63)', () => {
 
   it('reads a refusal in plain words', { timeout: 15_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/team-issues': () => json([panel({ ratings: [] })]),
       'POST /api/v1/team-issues': () => json({ code: 'GUARD_FAILED', reason: 'MILESTONE_NOT_HELD' }, 422),
     })
@@ -104,7 +104,7 @@ describe('STU-4 "Khiếu nại nội bộ" (FR-79, AD-40, UX-DR63)', () => {
 
   it('shows nothing when there is nothing to raise', async () => {
     let read = false
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/team-issues': () => {
         read = true
         return json([])
@@ -119,7 +119,7 @@ describe('STU-4 "Khiếu nại nội bộ" (FR-79, AD-40, UX-DR63)', () => {
 
 describe('JOB-1: the Mentor reads the Team Issues of the Job (AD-40)', () => {
   it('lists who raised what and by when to answer', async () => {
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/boards/j1/team-issues': () => json({ jobId: 'j1', mentor: true, issues: [issue] }),
     })
     renderWith(<JobTeamIssues jobId="j1" />)
@@ -136,7 +136,7 @@ describe('Story 12.2: the Mentor answers once, the raiser accepts or escalates (
   it('previews a transfer from the same split, refuses one over the cap, and sends it after confirming', { timeout: 15_000 }, async () => {
     const user = userEvent.setup()
     const sent: unknown[] = []
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/boards/j1/team-issues': () => json({ jobId: 'j1', mentor: true, issues: [{ ...issue, split }] }),
       'POST /api/v1/boards/j1/team-issues/i1/answer': async (request) => {
         sent.push(await request.json())
@@ -176,7 +176,7 @@ describe('Story 12.2: the Mentor answers once, the raiser accepts or escalates (
       split: { ...split, capPoints: null, others: [] },
       answerPreview: { raiserPercent: 50, raiserVnd: 500000, mentorPercent: 10, mentorVnd: 100000 },
     }
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/team-issues': () => json([panel({ shares: [], ratings: [], issues: [answered] })]),
       'POST /api/v1/team-issues/i1/accept': () => {
         chosen.push('accept')
@@ -196,7 +196,7 @@ describe('Story 12.2: the Mentor answers once, the raiser accepts or escalates (
   })
 
   it('offers only "Nhờ quản trị viên xem xét" after a silent Mentor', async () => {
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/team-issues': () =>
         json([panel({ shares: [], ratings: [], issues: [{ ...issue, mine: true, phase: 'ESCALATION', escalationDueAt: '2026-11-02T03:00:00Z' }] })]),
     })
@@ -208,9 +208,9 @@ describe('Story 12.2: the Mentor answers once, the raiser accepts or escalates (
   })
 })
 
-describe('STU-7: a held part is "Đang giữ" and not in the Balance (AD-40)', () => {
+describe('MEN-7: a held part is "Đang giữ" and not in the Balance (AD-40)', () => {
   it('lists the held part apart from the Balance', { timeout: 15_000 }, async () => {
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/balance': () =>
         json({
           balanceVnd: 0,

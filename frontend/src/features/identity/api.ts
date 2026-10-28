@@ -41,17 +41,8 @@ export function isAdministrator(session: Session | undefined): boolean {
 }
 
 /**
- * Whether a transitional account role other than `role` keeps the account off a global screen (Story 20.3): a
- * user with no role opens the Products and "Tìm việc" screens too, which their GitHub gate and the API guard.
- * Story 20.6's one shell removes it with the role.
- */
-export function holdsOtherRole(account: Session['account'], role: 'CUSTOMER' | 'MENTOR'): boolean {
-  return account?.role != null && account.role !== role
-}
-
-/**
- * Where a signed-in account lands: an Administrator in the Admin shell, every user, a Google account with no
- * role too, on the to-do list. No Mentor waits for an approval (Story 19.7).
+ * Where a signed-in account lands: an Administrator in the Admin shell, every user on the to-do list of every role
+ * they hold (CUS-1, UX-DR88). No Mentor waits for an approval (Story 19.7).
  */
 export function landingPath(session: Session): string {
   return isAdministrator(session) ? '/quan-tri' : '/viec-can-lam'

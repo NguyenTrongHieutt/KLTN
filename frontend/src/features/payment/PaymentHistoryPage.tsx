@@ -4,8 +4,6 @@ import { usePageTitle } from '@/app/usePageTitle'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { TestTag } from '@/components/TestTag'
-import { useSession } from '@/features/identity/useSession'
-import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t, type MessageKey } from '@/i18n/t'
 import { formatDayMonthTime } from '@/lib/dates'
 import { formatVnd } from '@/lib/money'
@@ -18,11 +16,7 @@ import { TestModeBanner } from './TestModeBanner'
  */
 export function PaymentHistoryPage() {
   usePageTitle(t('screen.payment.history.title'))
-  const account = useSession().data?.account
   const history = usePaymentHistory()
-  if (account !== undefined && account.role !== 'CUSTOMER') {
-    return <NotFoundScreen />
-  }
   return (
     <div className="mx-auto flex max-w-[1120px] flex-col gap-5 px-gutter-mobile py-section-gap md:px-gutter-desktop">
       <div className="flex flex-col gap-0.5">

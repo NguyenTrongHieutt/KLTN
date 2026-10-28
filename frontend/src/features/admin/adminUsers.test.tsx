@@ -129,7 +129,7 @@ describe('ADM-2 users (FR-59, FR-78, AD-19)', () => {
       'Đã xác minh',
       'Đánh giá kín thấp',
     ])
-    // Story 20.3: no account role filters the list.
+    // Story 20.3: no role on the account filters the list.
     expect(screen.queryByRole('group', { name: 'Vai trò' })).not.toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Tài khoản có thể cùng một người' })).toHaveTextContent(
       'Không có tài khoản nào dùng chung dấu hiệu với tài khoản này.',
@@ -163,9 +163,9 @@ describe('ADM-2 users (FR-59, FR-78, AD-19)', () => {
     renderAt('/quan-tri/nguoi-dung/g1')
 
     expect(await screen.findByText('lan@gmail.test')).toBeInTheDocument()
-    // Story 20.3: no account role; every user's verification and private feedback show, here empty.
+    // Story 20.3: no role on the account; every user's verification and private feedback show, here empty.
     expect(screen.queryByText('Vai trò')).not.toBeInTheDocument()
-    const verification = screen.getAllByText('Xác minh sinh viên').find((element) => element.tagName === 'DT')
+    const verification = screen.getAllByText('Sinh viên đã xác minh').find((element) => element.tagName === 'DT')
     expect(verification?.nextElementSibling).toHaveTextContent('Chưa xác minh')
     expect(screen.getAllByRole('link', { name: /Nguyễn Thị Lan/ }).length).toBeGreaterThan(0)
     expect(screen.getByRole('heading', { name: 'Đánh giá kín' })).toBeInTheDocument()

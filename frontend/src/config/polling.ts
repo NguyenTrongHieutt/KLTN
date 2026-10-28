@@ -5,7 +5,7 @@
  * (`app/queryClient.ts`). There are no WebSocket or server-sent events.
  */
 export const POLLING = {
-  /** To-dos (strip, CUS-1, MEN-1, STU-1) and the unread notification count. */
+  /** To-dos (the strip and CUS-1) and the unread notification count. */
   todos: 60_000,
   unreadCount: 60_000,
   /** ADM-1's queue counts and alert list (UX-DR69). */

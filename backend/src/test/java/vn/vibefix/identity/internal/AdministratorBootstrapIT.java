@@ -50,7 +50,7 @@ class AdministratorBootstrapIT extends IntegrationTest {
 			.param("id", created.accountId())
 			.query()
 			.singleRow();
-		assertThat(account).containsEntry("role", "ADMINISTRATOR").containsEntry("github_user_id", null);
+		assertThat(account).containsEntry("kind", "ADMINISTRATOR").containsEntry("github_user_id", null).doesNotContainKey("role");
 		Map<String, Object> credential = this.jdbc.sql("SELECT * FROM identity.administrator_credential")
 			.query()
 			.singleRow();

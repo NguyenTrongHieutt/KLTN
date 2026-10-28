@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { components } from '@/api/schema'
+import { JOBS_QUERY_KEY } from '@/features/job/jobApi'
 import { apiClient, unwrap } from '@/lib/apiClient'
 
 export type MentorJob = components['schemas']['MentorJobView']
@@ -8,11 +9,6 @@ export type MentorJobSummary = components['schemas']['MentorJobSummaryView']
 export const MENTOR_JOB_KEY = ['mentor-job'] as const
 
 const KEY = MENTOR_JOB_KEY
-
-/** MEN-4 "Công việc của bạn": the Jobs whose Mentor the account is (AD-30). */
-export function useMentorJobs() {
-  return useQuery({ queryKey: [...KEY, 'list'], queryFn: () => unwrap(apiClient.GET('/api/v1/mentor/jobs')) })
-}
 
 /** The Mentor's JOB-1. */
 export function useMentorJob(jobId: string | undefined, enabled = true) {
@@ -44,6 +40,8 @@ export function useDeclineSelection(jobId: string) {
       Promise.all([
         queryClient.invalidateQueries({ queryKey: KEY }),
         queryClient.invalidateQueries({ queryKey: ['application'] }),
+        // The Mentor gave the Job up: "Công việc" and its role read again (Story 20.6).
+        queryClient.invalidateQueries({ queryKey: JOBS_QUERY_KEY }),
       ]),
   })
 }

@@ -1,9 +1,6 @@
-import { BriefcaseBusiness, TriangleAlert, Users } from 'lucide-react'
+import { TriangleAlert } from 'lucide-react'
 import { useId, useState } from 'react'
 import { Link } from 'react-router'
-import { PageHeading } from '@/app/PageHeading'
-import { RegionState } from '@/components/RegionState'
-import { Skeleton } from '@/components/Skeleton'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
 import { buttonVariants } from '@/components/ui/button-variants'
@@ -11,7 +8,6 @@ import { NDA_VERSION } from '@/features/matching/nda'
 import { CommitEmailNotice, NdaText } from '@/features/matching/NdaText'
 import { ConfirmDialog } from '@/features/team/ConfirmDialog'
 import { hasBoard } from '@/features/work/workApi'
-import { useStudentTeam } from '@/features/team/teamApi'
 import { TestTag } from '@/components/TestTag'
 import { t } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
@@ -19,69 +15,16 @@ import { formatCalendarDayMonth, formatDayMonth } from '@/lib/dates'
 import { formatVnd } from '@/lib/money'
 import { problemMessage } from '@/lib/problemMessage'
 import { ExternalAccessSection } from '@/features/agreement/ExternalAccessSection'
-import { TeamIssueSection } from '@/features/teamIssue/TeamIssueSection'
-import { useConfirmCrewTerms, useCrewAssignments, useDeclineCrewTerms, type CrewAssignment } from './crewApi'
+import { useConfirmCrewTerms, useDeclineCrewTerms, type CrewAssignment } from './crewApi'
 
-/**
- * STU-4 "Công việc của tôi" (`/cong-viec` for a Student, FR-75, AD-41, UX-DR60): an assignment waiting
- * for the Student shows the Crew assignment panel (N-19, N-14 with the NDA text, N-5, and N-23 for a
- * Code Job); a confirmed one shows as "Đang tham gia". Nothing else of the Job is reachable yet. Tier 3
- * adds "Khiếu nại nội bộ" (FR-79) for every Job where the Student was ever active.
+/*
+ * The Crew assignment cards of "Việc tôi tham gia" on CUS-7 (FR-75, AD-41, UX-DR60, UX-DR86), formerly STU-4: an
+ * assignment waiting for the member shows the Crew assignment panel (N-19, N-14 with the NDA text, N-5, and N-23
+ * for a Code Job); a confirmed one shows as "Đang tham gia".
  */
-export function StudentJobsPage() {
-  const assignments = useCrewAssignments()
-  const team = useStudentTeam()
-  // Story 11.3: an active member asked to confirm a waiting Crew change sees its version here too.
-  const waiting = assignments.data?.filter((assignment) => assignment.status === 'ASSIGNED' || assignment.changeWaiting) ?? []
-  const joined = assignments.data?.filter((assignment) => assignment.status !== 'ASSIGNED') ?? []
-  return (
-    <div className="mx-auto flex max-w-[920px] flex-col gap-5 px-gutter-mobile py-section-gap md:px-gutter-desktop">
-      <PageHeading>{t('screen.crew.student.title')}</PageHeading>
-      <RegionState query={assignments} skeleton={<Skeleton className="h-96 w-full" />}>
-        {assignments.data && (
-          <>
-            {waiting.map((assignment) => (
-              <AssignmentPanel key={`${assignment.jobId}-${assignment.versionNo}`} assignment={assignment} />
-            ))}
-            {joined.length > 0 && (
-              <section className="flex flex-col gap-2.5">
-                <h2 className="text-h2">{t('screen.crew.student.activeTitle')}</h2>
-                {joined.map((assignment) => (
-                  <JoinedCard key={assignment.jobId} assignment={assignment} />
-                ))}
-              </section>
-            )}
-            <TeamIssueSection />
-            {assignments.data.length === 0 && (
-              <>
-                {team.data && !team.data.team && (
-                  <div className="flex flex-wrap items-center gap-3 rounded-md border-l-4 border-primary bg-primary-soft p-4">
-                    <Users aria-hidden="true" className="size-5 shrink-0 text-primary" />
-                    <div className="flex min-w-0 grow flex-col gap-0.5">
-                      <p className="text-label font-semibold">{t('screen.crew.student.noTeam')}</p>
-                      <p className="text-body-sm">{t('screen.crew.student.noTeamBody')}</p>
-                    </div>
-                    <Link to="/nhom" className={buttonVariants({ size: 'compact' })}>
-                      {t('screen.crew.student.findMentor')}
-                    </Link>
-                  </div>
-                )}
-                <div className="flex flex-col items-center gap-2.5 rounded-lg border border-border bg-card px-6 py-10 text-center">
-                  <BriefcaseBusiness aria-hidden="true" className="size-12 text-muted-foreground" />
-                  <h2 className="text-h3">{t('screen.crew.student.empty')}</h2>
-                  <p className="text-body-sm text-muted-foreground">{t('screen.crew.student.emptyBody')}</p>
-                </div>
-              </>
-            )}
-          </>
-        )}
-      </RegionState>
-    </div>
-  )
-}
 
-/** The Crew assignment panel: everything the Student agrees to, and nothing of the other shares. */
-function AssignmentPanel({ assignment }: { assignment: CrewAssignment }) {
+/** The Crew assignment panel: everything the member agrees to, and nothing of the other shares. */
+export function AssignmentPanel({ assignment }: { assignment: CrewAssignment }) {
   const ids = useId()
   const toasts = useToasts()
   const confirm = useConfirmCrewTerms(assignment.jobId)
@@ -254,10 +197,10 @@ function AssignmentPanel({ assignment }: { assignment: CrewAssignment }) {
 }
 
 /**
- * A Crew the Student confirmed: their share and the version, nothing of the others', and the way to
+ * A Crew the member confirmed: their share and the version, nothing of the others', and the way to
  * JOB-8 "Trao đổi nhóm".
  */
-function JoinedCard({ assignment }: { assignment: CrewAssignment }) {
+export function JoinedCard({ assignment }: { assignment: CrewAssignment }) {
   return (
     <article className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
       <div className="flex flex-wrap items-start justify-between gap-2">

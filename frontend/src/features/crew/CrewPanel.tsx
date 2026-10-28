@@ -59,7 +59,7 @@ const STATE_TONE: Record<string, string> = {
 
 /**
  * The Mentor's Crew panel on JOB-6 (FR-75, AD-41, UX-DR60, N-20): the members with their share fields
- * and states, "Thêm sinh viên" from the Team, the live sum, the example amounts of one Milestone, and
+ * and states, "Thêm thành viên" from the Team, the live sum, the example amounts of one Milestone, and
  * "Lưu và gửi cho nhóm xác nhận". Every command carries the `crewVersion` the panel loaded; the
  * parent keys this panel by it, so an answer or a reload starts the fields again from the server.
  */

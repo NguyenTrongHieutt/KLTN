@@ -12,7 +12,7 @@ export type RaiseTeamIssue = components['schemas']['RaiseTeamIssueRequest']
 const PANEL_KEY = ['team-issues', 'panel'] as const
 const jobKey = (jobId: string) => ['team-issues', 'job', jobId] as const
 
-/** STU-4's "Khiếu nại nội bộ" (FR-79): per Job, what the Student may raise and their issues. */
+/** "Khiếu nại nội bộ" in "Việc tôi tham gia" (FR-79): per Job, what the member may raise and their issues. */
 export function useTeamIssuePanel() {
   return useQuery({
     queryKey: PANEL_KEY,
@@ -53,7 +53,7 @@ export function useAnswerTeamIssue(jobId: string) {
   })
 }
 
-/** "Chấp nhận" or "Nhờ quản trị viên xem xét" on STU-4. */
+/** "Chấp nhận" or "Nhờ quản trị viên xem xét" in "Việc tôi tham gia". */
 export function useChooseTeamIssue() {
   const queryClient = useQueryClient()
   return useMutation({

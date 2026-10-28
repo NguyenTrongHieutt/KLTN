@@ -83,7 +83,7 @@ export function usePaymentHistory() {
   return useQuery({ queryKey: ['payment', 'history'], queryFn: () => unwrap(apiClient.GET('/api/v1/payments/history')) })
 }
 
-/** MEN-7 or STU-7: the Balance and each release (FR-44). */
+/** MEN-7: the Balance and each release (FR-44). */
 export function useBalance() {
   return useQuery({ queryKey: ['payment', 'balance'], queryFn: () => unwrap(apiClient.GET('/api/v1/balance')) })
 }

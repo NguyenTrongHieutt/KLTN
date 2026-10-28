@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { capabilities, fakeBackend, json, signedIn, signedInWithGoogle } from '@/test/fakeBackend'
+import { capabilities, fakeBackend, json, signedInUser, signedInWithGoogle } from '@/test/fakeBackend'
 import { PAYLOADS } from '@/test/payloads'
 
 function renderAt(path: string) {
@@ -74,7 +74,7 @@ afterEach(() => {
 
 describe('MEN-2, browsing Job Posts (FR-12)', () => {
   it('lists the Open Job Posts and links each to MEN-3', { timeout: 15_000 }, async () => {
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/mentor/job-posts': () => page([summary]),
       'GET /api/v1/mentor/capacity': () => capacity(),
       'GET /api/v1/catalog': catalog,
@@ -93,7 +93,7 @@ describe('MEN-2, browsing Job Posts (FR-12)', () => {
 
   it('applies the filters at once and keeps them in the URL', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
-    const seen = fakeBackend(signedIn('MENTOR'), {
+    const seen = fakeBackend(signedInUser, {
       'GET /api/v1/mentor/job-posts': () => page([summary]),
       'GET /api/v1/mentor/capacity': () => capacity(),
       'GET /api/v1/catalog': catalog,
@@ -122,7 +122,7 @@ describe('MEN-2, browsing Job Posts (FR-12)', () => {
 
   it('says there is nothing yet, and offers to clear filters that match nothing', { timeout: 15_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/mentor/job-posts': () => page([]),
       'GET /api/v1/mentor/capacity': () => capacity(),
       'GET /api/v1/catalog': catalog,
@@ -138,31 +138,21 @@ describe('MEN-2, browsing Job Posts (FR-12)', () => {
   })
 
   it('states why the Mentor cannot apply now (FR-13)', { timeout: 15_000 }, async () => {
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/mentor/job-posts': () => page([summary]),
       'GET /api/v1/mentor/capacity': () => capacity(['NO_FREE_STUDENT', 'MENTOR_JOB_LIMIT'], 0, 0),
       'GET /api/v1/catalog': catalog,
     })
     renderAt('/tim-viec')
 
-    expect(await screen.findByText('Nhóm của bạn chưa có sinh viên rảnh, nên chưa ứng tuyển được.')).toBeInTheDocument()
-    expect(screen.getByText(/Nhóm của bạn chưa có sinh viên nào/)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Mời sinh viên' })).toHaveAttribute('href', '/nhom')
+    expect(await screen.findByText('Nhóm của bạn chưa có thành viên rảnh, nên chưa ứng tuyển được.')).toBeInTheDocument()
+    expect(screen.getByText(/Nhóm của bạn chưa có thành viên nào/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Mời thành viên' })).toHaveAttribute('href', '/nhom')
     expect(screen.getByText('Bạn đang nhận đủ 3 công việc. Hãy hoàn thành bớt rồi ứng tuyển tiếp.')).toBeInTheDocument()
   })
 
-  it.each([
-    ['a Customer', signedIn('CUSTOMER')],
-    ['a Student', signedIn('STUDENT')],
-  ])('finds nothing for %s', async (_, session) => {
-    fakeBackend(session)
-    renderAt('/tim-viec')
-
-    expect(await screen.findByText('Không tìm thấy nội dung này.')).toBeInTheDocument()
-  })
-
-  it('shows any Mentor the Job Posts, with no approval step (Story 19.7)', async () => {
-    const seen = fakeBackend(signedIn('MENTOR'), {
+  it('shows the Job Posts to any user with GitHub linked, with no role and no approval step (Stories 19.7, 20.6)', async () => {
+    const seen = fakeBackend(signedInUser, {
       'GET /api/v1/mentor/job-posts': () => page([]),
       'GET /api/v1/mentor/capacity': () => capacity(),
     })
@@ -175,7 +165,7 @@ describe('MEN-2, browsing Job Posts (FR-12)', () => {
 
 describe('"Tìm việc" behind the GitHub gate (X1, FR-80, Story 20.1)', () => {
   const unlinked = () => {
-    const mentor = signedIn('MENTOR')
+    const mentor = signedInUser
     return {
       ...mentor,
       githubLogin: undefined,
@@ -229,7 +219,7 @@ describe('"Tìm việc" behind the GitHub gate (X1, FR-80, Story 20.1)', () => {
   })
 
   it('reads the session again when the link read finds GitHub linked', { timeout: 15_000 }, async () => {
-    const mentor = signedIn('MENTOR')
+    const mentor = signedInUser
     const stale = { ...mentor, account: { ...mentor.account!, capabilities: capabilities({ githubVerified: false }) } }
     let sessionReads = 0
     fakeBackend(mentor, {
@@ -251,7 +241,7 @@ describe('"Tìm việc" behind the GitHub gate (X1, FR-80, Story 20.1)', () => {
 
 describe('MEN-3, one Job Post (FR-12)', () => {
   it('shows the answers, Skills with hints, the Product, the Rating summary, and the Team', { timeout: 15_000 }, async () => {
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/mentor/job-posts/j1': () => json(post),
       'GET /api/v1/mentor/job-posts/j1/customer-rating': () => json({ count: 0 }),
       'GET /api/v1/mentor/capacity': () => capacity(),
@@ -270,11 +260,11 @@ describe('MEN-3, one Job Post (FR-12)', () => {
     expect(screen.getByText('Shop Gốm Bát Tràng, làm bằng Lovable.')).toBeInTheDocument()
     expect(screen.getByText('Kiểm tra khóa bí mật: không còn vấn đề nào mở.')).toBeInTheDocument()
     expect(await screen.findByText('Chưa có lượt chấm sao')).toBeInTheDocument()
-    expect(screen.getByText('2 sinh viên · 1 đang rảnh')).toBeInTheDocument()
+    expect(screen.getByText('2 thành viên · 1 đang rảnh')).toBeInTheDocument()
   })
 
   it('shows the Customer average when there are Ratings', { timeout: 15_000 }, async () => {
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/mentor/job-posts/j1': () => json(post),
       'GET /api/v1/mentor/job-posts/j1/customer-rating': () =>
         json({ average: 4.8, count: 5, customerKind: 'INDIVIDUAL', customerJoinedAt: '2026-07-14T03:00:00Z' }),
@@ -289,7 +279,7 @@ describe('MEN-3, one Job Post (FR-12)', () => {
   })
 
   it('shows the not-found screen for a Job Post that is not open', async () => {
-    fakeBackend(signedIn('MENTOR'), { 'GET /api/v1/mentor/capacity': () => capacity() })
+    fakeBackend(signedInUser, { 'GET /api/v1/mentor/capacity': () => capacity() })
     renderAt('/tim-viec/j9')
 
     expect(await screen.findByText('Không tìm thấy nội dung này.')).toBeInTheDocument()
@@ -297,7 +287,7 @@ describe('MEN-3, one Job Post (FR-12)', () => {
 
   it('keeps planted payloads in Job Posts as text (SG-30)', { timeout: 15_000 }, async () => {
     const payload = PAYLOADS[0]
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/mentor/job-posts': () => page([{ ...summary, title: payload, productName: payload, skills: [payload] }]),
       'GET /api/v1/mentor/job-posts/j1': () =>
         json({
@@ -330,7 +320,7 @@ const keywordOf = (request: Request) => new URL(request.url, 'http://localhost')
 describe('MEN-2, searching by keyword (FR-12, UX-DR47)', () => {
   it('searches only on Enter, keeps the keyword in the URL, and clears it', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
-    const seen = fakeBackend(signedIn('MENTOR'), {
+    const seen = fakeBackend(signedInUser, {
       'GET /api/v1/mentor/job-posts': (request) =>
         page(keywordOf(request) ? [{ ...summary, title: 'Sửa trang bán hàng' }] : [summary, { ...summary, id: 'j2' }]),
       'GET /api/v1/mentor/capacity': () => capacity(),
@@ -359,7 +349,7 @@ describe('MEN-2, searching by keyword (FR-12, UX-DR47)', () => {
 
   it('says nothing matched the keyword and clears only the filters', { timeout: 15_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/mentor/job-posts': () => page([]),
       'GET /api/v1/mentor/capacity': () => capacity(),
       'GET /api/v1/catalog': catalog,
@@ -376,7 +366,7 @@ describe('MEN-2, searching by keyword (FR-12, UX-DR47)', () => {
 
   it('keeps the earlier results and says how long to wait when searching too fast', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/mentor/job-posts': (request) =>
         keywordOf(request) === 'zalo'
           ? new Response(JSON.stringify({ status: 429, code: 'RATE_LIMITED' }), {

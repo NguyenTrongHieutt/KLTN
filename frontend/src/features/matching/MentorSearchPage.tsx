@@ -12,8 +12,8 @@ import { SkillPicker } from '@/components/SkillPicker'
 import { categoryValue, splitSkillPickerValue } from '@/components/skillPickerValue'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
-import { useSession } from '@/features/identity/useSession'
 import { useJob, type Job } from '@/features/job/jobApi'
+import { JobRoleLine } from '@/features/job/ByJobRole'
 import { JobStateBadge } from '@/features/job/JobStateBadge'
 import { JobTabs } from '@/features/job/JobTabs'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
@@ -75,9 +75,8 @@ function writeFilter(filter: MentorFilter): URLSearchParams {
 export function MentorSearchPage() {
   const { jobId } = useParams()
   const job = useJob(jobId)
-  const role = useSession().data?.account?.role
   usePageTitle(job.data ? t('screen.matching.find.title', { job: job.data.title }) : t('screen.job.title'))
-  if ((role !== undefined && role !== 'CUSTOMER') || (job.isError && isNotFound(job.error))) {
+  if (job.isError && isNotFound(job.error)) {
     return <NotFoundScreen />
   }
   if (job.data && job.data.state !== 'OPEN') {
@@ -134,6 +133,7 @@ function FindMentors({ job }: { job: Job }) {
           <PageHeading>{job.title}</PageHeading>
           <JobStateBadge state={job.state} />
         </div>
+        <JobRoleLine jobId={job.id} state={job.state} />
         <JobTabs jobId={job.id} current="find" applications={applications.data?.length ?? 0} />
       </div>
       <QuotaLine quota={quota} />
@@ -316,7 +316,7 @@ function SearchBar({
   )
 }
 
-/** The initials, the name, and "{years} năm kinh nghiệm · {n} sinh viên", or "Chưa khai" (UX-DR48). */
+/** The initials, the name, and "{years} năm kinh nghiệm · {n} thành viên", or "Chưa khai" (UX-DR48). */
 function MentorHeading({ mentor }: { mentor: MentorResult }) {
   return (
     <>

@@ -506,6 +506,35 @@ POST /api/v1/jobs,LOCKED,,job-draft.json,401
 POST /api/v1/jobs,CUSTOMER,,job-draft.json,201
 POST /api/v1/jobs,CROSS_ROLE,,job-draft.json,404 NOT_FOUND
 POST /api/v1/jobs,ADMINISTRATOR,,job-draft.json,404 NOT_FOUND
+# The one shell (Story 20.6, AD-43, UX-DR85 to UX-DR87): "Công việc" lists every Job where the caller holds a role,
+# a former member's included, and JOB-H reads the caller's role in one Job in any state. Every role holder of the
+# crew Job reads theirs there, the Customer on the Draft too; an unrelated caller and an Administrator, who holds no
+# role in any Job, find nothing (SG-31). CROSS_ROLE reads its ACTIVE membership as CREW_ACTIVE does.
+GET /api/v1/my-jobs,ANONYMOUS,,,401
+GET /api/v1/my-jobs,USER_UNVERIFIED,,,200
+GET /api/v1/my-jobs,USER,,,200
+GET /api/v1/my-jobs,LOCKED,,,401
+GET /api/v1/my-jobs,CUSTOMER,,,200
+GET /api/v1/my-jobs,MENTOR,,,200
+GET /api/v1/my-jobs,BIDDER,,,200
+GET /api/v1/my-jobs,CREW_ASSIGNED,,,200
+GET /api/v1/my-jobs,CREW_ACTIVE,,,200
+GET /api/v1/my-jobs,CREW_FORMER,,,200
+GET /api/v1/my-jobs,CROSS_ROLE,,,200
+GET /api/v1/my-jobs,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/role,ANONYMOUS,,,401
+GET /api/v1/jobs/{jobId}/role,USER_UNVERIFIED,job=crew,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/role,USER,job=crew,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/role,LOCKED,job=crew,,401
+GET /api/v1/jobs/{jobId}/role,CUSTOMER,,,200
+GET /api/v1/jobs/{jobId}/role,CUSTOMER,job=crew,,200
+GET /api/v1/jobs/{jobId}/role,MENTOR,job=crew,,200
+GET /api/v1/jobs/{jobId}/role,BIDDER,job=crew,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/role,CREW_ASSIGNED,job=crew,,200
+GET /api/v1/jobs/{jobId}/role,CREW_ACTIVE,job=crew,,200
+GET /api/v1/jobs/{jobId}/role,CREW_FORMER,job=crew,,200
+GET /api/v1/jobs/{jobId}/role,CROSS_ROLE,job=crew,,200
+GET /api/v1/jobs/{jobId}/role,ADMINISTRATOR,job=crew,,404 NOT_FOUND
 # The Customer's Job (FR-8, AD-20, AD-43): {jobId} is the Customer's Draft, and with job=crew the crew Job. Only
 # the Customer reads and changes it; the crew Job's own Mentor and Crew (job=crew) find nothing, as everyone else
 # does (review iteration 1, V1). The Customer's commands answer as each Job's state allows: the Draft's edits and

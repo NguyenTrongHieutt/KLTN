@@ -5,7 +5,16 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { anonymous, fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import type { Session } from '@/features/identity/api'
+import { anonymous, fakeBackend, json, signedInUser } from '@/test/fakeBackend'
+
+/**
+ * Until Story 21.7 deletes the Teams, MEN-6 and STU-6 open for a session that still names the account role the
+ * retired Team screens were built on; the backend sends none since Story 20.6, so in the product they show nothing.
+ */
+function teamSession(role: 'MENTOR' | 'STUDENT'): Session {
+  return { ...signedInUser, account: { ...signedInUser.account!, role } } as Session
+}
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -67,7 +76,7 @@ afterEach(() => {
 
 describe('MEN-6, the Mentor\'s Team (FR-6, AD-37)', () => {
   it('shows an empty Team with its size and the way to invite', async () => {
-    fakeBackend(signedIn('MENTOR'), { 'GET /api/v1/mentor/team': () => json(emptyTeam) })
+    fakeBackend(teamSession('MENTOR'), { 'GET /api/v1/mentor/team': () => json(emptyTeam) })
     renderAt('/nhom')
 
     expect(await screen.findByText('0/10 sinh viên')).toBeInTheDocument()
@@ -79,7 +88,7 @@ describe('MEN-6, the Mentor\'s Team (FR-6, AD-37)', () => {
 
   it('accepts a join request after the confirmation', { timeout: 15_000 }, async () => {
     const user = userEvent.setup()
-    const seen = fakeBackend(signedIn('MENTOR'), {
+    const seen = fakeBackend(teamSession('MENTOR'), {
       'GET /api/v1/mentor/team': () =>
         json({
           ...emptyTeam,
@@ -111,7 +120,7 @@ describe('MEN-6, the Mentor\'s Team (FR-6, AD-37)', () => {
   it('searches Students in the invite Sheet and invites one', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     let invited: unknown
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(teamSession('MENTOR'), {
       'GET /api/v1/mentor/team': () => json(emptyTeam),
       'GET /api/v1/catalog': catalog,
       'GET /api/v1/mentor/team/students': (request) => {
@@ -158,7 +167,7 @@ describe('MEN-6, the Mentor\'s Team (FR-6, AD-37)', () => {
 
   it('removes a member after the confirmation, and not one on a Crew', { timeout: 15_000 }, async () => {
     const user = userEvent.setup()
-    const seen = fakeBackend(signedIn('MENTOR'), {
+    const seen = fakeBackend(teamSession('MENTOR'), {
       'GET /api/v1/mentor/team': () =>
         json({
           ...emptyTeam,
@@ -184,7 +193,7 @@ describe('MEN-6, the Mentor\'s Team (FR-6, AD-37)', () => {
   })
 
   it('shows a closed Team without actions', async () => {
-    fakeBackend(signedIn('MENTOR'), { 'GET /api/v1/mentor/team': () => json({ ...emptyTeam, status: 'CLOSED' }) })
+    fakeBackend(teamSession('MENTOR'), { 'GET /api/v1/mentor/team': () => json({ ...emptyTeam, status: 'CLOSED' }) })
     renderAt('/nhom')
 
     expect(await screen.findByText('Nhóm tạm ngừng nhận thành viên')).toBeInTheDocument()
@@ -196,7 +205,7 @@ describe('STU-6, the Student\'s Team (FR-6, AD-36)', () => {
   it('answers an invitation after the confirmation', { timeout: 15_000 }, async () => {
     const user = userEvent.setup()
     let accepted = false
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(teamSession('STUDENT'), {
       'GET /api/v1/team': () =>
         json(noTeam({ invitations: [{ id: 'i1', mentor: hung, createdAt: '2026-10-17T03:00:00Z', lapsesAt: '2026-10-31T03:00:00Z' }] })),
       'GET /api/v1/catalog': catalog,
@@ -220,7 +229,7 @@ describe('STU-6, the Student\'s Team (FR-6, AD-36)', () => {
   it('searches Mentors, opens PUB-5 in the Sheet, and asks to join', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     let asked: unknown
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(teamSession('STUDENT'), {
       'GET /api/v1/team': () => json(noTeam()),
       'GET /api/v1/catalog': catalog,
       'GET /api/v1/team/mentors': () =>
@@ -250,7 +259,7 @@ describe('STU-6, the Student\'s Team (FR-6, AD-36)', () => {
   })
 
   it('asks an unverified Student to verify first', async () => {
-    fakeBackend(signedIn('STUDENT'), { 'GET /api/v1/team': () => json(noTeam({ verified: false })) })
+    fakeBackend(teamSession('STUDENT'), { 'GET /api/v1/team': () => json(noTeam({ verified: false })) })
     renderAt('/nhom')
 
     expect(await screen.findByText('Xác minh là sinh viên để vào nhóm của một người hướng dẫn.')).toBeInTheDocument()
@@ -267,7 +276,7 @@ describe('STU-6, the Student\'s Team (FR-6, AD-36)', () => {
       joinRequests: [],
       requestsLeft: 5,
     })
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(teamSession('STUDENT'), {
       'GET /api/v1/team': () => json(membership(false)),
       'DELETE /api/v1/team/membership': () => {
         left = true
@@ -284,7 +293,7 @@ describe('STU-6, the Student\'s Team (FR-6, AD-36)', () => {
   })
 
   it('keeps a Student on a Crew in the Team', async () => {
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(teamSession('STUDENT'), {
       'GET /api/v1/team': () =>
         json({
           verified: true,
@@ -301,7 +310,7 @@ describe('STU-6, the Student\'s Team (FR-6, AD-36)', () => {
   })
 
   it('shows the Mentor and the listed members once in a Team', async () => {
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(teamSession('STUDENT'), {
       'GET /api/v1/team': () =>
         json({
           verified: true,
@@ -341,7 +350,7 @@ describe('PUB-5, the Mentor\'s public profile (FR-51)', () => {
   })
 
   it('shows a Student already in a Team why they cannot ask', async () => {
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(teamSession('STUDENT'), {
       'GET /api/v1/mentors/hungdm': () => json(publicHung({ relation: 'NONE', inTeam: true, verified: true, requestsLeft: 5 })),
     })
     renderAt('/mentor/hungdm')

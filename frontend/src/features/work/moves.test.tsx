@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -63,7 +63,8 @@ describe('Board moves on JOB-2 (FR-24, AD-39, UX-DR36, UX-DR37)', () => {
   it('lets the assignee move a card at once and offers only their moves', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     const moved: unknown[] = []
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
       'GET /api/v1/boards/j1/work-items': () => json(board()),
       'POST /api/v1/work-items/1/move': async (request) => {
         moved.push(await request.json())
@@ -91,7 +92,8 @@ describe('Board moves on JOB-2 (FR-24, AD-39, UX-DR36, UX-DR37)', () => {
 
   it('moves the card back with a toast when the server refuses', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
       'GET /api/v1/boards/j1/work-items': () => json(board()),
       'POST /api/v1/work-items/1/move': () =>
         json({ status: 422, code: 'GUARD_FAILED', reason: 'MILESTONE_NOT_HELD' }, 422),
@@ -109,7 +111,8 @@ describe('Board moves on JOB-2 (FR-24, AD-39, UX-DR36, UX-DR37)', () => {
 
   it('filters by Milestone, type, and "Của tôi", and starts phones on the viewer\'s column', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
       'GET /api/v1/boards/j1/work-items': () => json(board()),
     })
     renderAt('/cong-viec/j1/bang')
@@ -134,7 +137,8 @@ describe('Board moves on JOB-2 (FR-24, AD-39, UX-DR36, UX-DR37)', () => {
 
   it('gives the Mentor "Chờ tôi duyệt" and starts phones on "Chờ duyệt"', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/jobs/j1': () =>
         json({
           id: 'j1',

@@ -44,13 +44,16 @@ class JdbcTodos implements Todos {
 		NotificationRegistry.checkLink(type.key(), request.link());
 		this.registry.checkRecipient(type.key(), type.audiences(), request.recipientAccountId(), request.audience(),
 				request.jobId(), request.subjectId(), null);
+		// The recipient's role in the Job, from the audience class just confirmed (AD-27, Story 20.6).
+		TodoRole role = TodoRole.of(request.audience());
 		this.jdbc.sql("""
 				INSERT INTO notification.todo
-				    (id, todo_key, account_id, subject_id, tier, params, link, deadline_at, job_id, opened_at)
-				VALUES (:id, :key, :account, :subject, :tier, CAST(:params AS jsonb), :link, :deadline, :jobId, :now)
+				    (id, todo_key, account_id, subject_id, tier, params, link, deadline_at, job_id, role, opened_at)
+				VALUES (:id, :key, :account, :subject, :tier, CAST(:params AS jsonb), :link, :deadline, :jobId, :role, :now)
 				ON CONFLICT (todo_key, account_id, subject_id) WHERE closed_at IS NULL DO NOTHING
 				""")
 			.param("id", this.ids.newId())
+			.param("role", role == null ? null : role.name())
 			.param("key", type.key())
 			.param("account", request.recipientAccountId())
 			.param("subject", request.subjectId())

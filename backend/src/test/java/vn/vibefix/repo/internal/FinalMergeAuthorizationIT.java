@@ -219,7 +219,7 @@ class FinalMergeAuthorizationIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/github/merge-app/setup").param("installation_id", String.valueOf(all))
 			.param("state", state).with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(status().isSeeOther())
-			.andExpect(header().string("Location", "/cong-viec"));
+			.andExpect(header().string("Location", "/cong-viec?vai-tro=dang"));
 
 		long extra = IDS.incrementAndGet();
 		long wider = IDS.incrementAndGet();

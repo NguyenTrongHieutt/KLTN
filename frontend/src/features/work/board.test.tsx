@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser, inEveryJob, heldJobs } from '@/test/fakeBackend'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -86,7 +86,8 @@ describe('JOB-2 "Bảng công việc" (FR-22, AD-33, UX-DR36)', () => {
     const user = userEvent.setup()
     const writeText = vi.fn(() => Promise.resolve())
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/jobs/j1': () => json(mentorJob),
       'GET /api/v1/boards/j1/work-items': () => json(board(true)),
     })
@@ -114,9 +115,11 @@ describe('JOB-2 "Bảng công việc" (FR-22, AD-33, UX-DR36)', () => {
     expect((await screen.findAllByText('Đã sao chép SDB-3')).length).toBeGreaterThan(0)
   })
 
-  it('lets an active Crew member open it from "Công việc của tôi" once the Job is Active', { timeout: 20_000 }, async () => {
+  it('lets an active Crew member open it from "Việc tôi tham gia" once the Job is Active, saying their role', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
+      ...heldJobs({ jobId: 'j1', title: 'Sửa lỗi đặt bàn và thêm nhắc lịch', role: 'CREW', crewKind: 'ACTIVE' }),
       'GET /api/v1/crew/assignments': () => json([assignment('ACTIVE')]),
       'GET /api/v1/team': () => json({ team: null }),
       'GET /api/v1/boards/j1/work-items': () => json(board(false)),
@@ -126,13 +129,16 @@ describe('JOB-2 "Bảng công việc" (FR-22, AD-33, UX-DR36)', () => {
     await user.click(await screen.findByRole('link', { name: 'Bảng công việc' }))
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Sửa lỗi đặt bàn và thêm nhắc lịch' })).toBeInTheDocument()
+    expect(await screen.findByText('Bạn là: Thành viên nhóm')).toBeInTheDocument()
     expect(await screen.findByText('Hai khách không đặt trùng bàn')).toBeInTheDocument()
     expect(screen.getAllByText('Tiêu chí 1.1')[0]).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /xem trong thỏa thuận/ })).toBeNull()
   })
 
   it('offers no Board before the Job is Active', { timeout: 20_000 }, async () => {
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
+      ...heldJobs({ jobId: 'j1', title: 'Sửa lỗi đặt bàn và thêm nhắc lịch', role: 'CREW', crewKind: 'ACTIVE' }),
       'GET /api/v1/crew/assignments': () => json([assignment('AGREEMENT')]),
       'GET /api/v1/team': () => json({ team: null }),
     })
@@ -143,7 +149,7 @@ describe('JOB-2 "Bảng công việc" (FR-22, AD-33, UX-DR36)', () => {
   })
 
   it('is not found for a Customer', { timeout: 20_000 }, async () => {
-    fakeBackend(signedIn('CUSTOMER'))
+    fakeBackend(signedInUser, inEveryJob('CUSTOMER'))
     renderAt('/cong-viec/j1/bang')
     expect(await screen.findByRole('heading', { name: /Không tìm thấy/ })).toBeInTheDocument()
   })

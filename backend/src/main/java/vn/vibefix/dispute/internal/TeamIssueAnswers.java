@@ -171,7 +171,7 @@ class TeamIssueAnswers {
 		openEscalationPeriod(issue, due);
 		if (issue.raiserId() != null) {
 			this.notifications.send(new NotificationRequest(ANSWERED, issue.id(),
-					List.of(new Recipient(issue.raiserId(), Audience.CREW_EVER_ACTIVE)), Map.of("job", job.title()), "/cong-viec",
+					List.of(new Recipient(issue.raiserId(), Audience.CREW_EVER_ACTIVE)), Map.of("job", job.title()), "/cong-viec?vai-tro=tham-gia",
 					jobId, null));
 		}
 		this.auditLog.record(AuditEntry.of(AuditActor.user(mentorId), "dispute.team_issue_answered",
@@ -188,7 +188,7 @@ class TeamIssueAnswers {
 				TeamIssues.generation(issue.id(), Phase.ESCALATION), issue.jobId(), due));
 		if (issue.raiserId() != null) {
 			this.todos.open(new TodoRequest(TeamIssues.DECIDE_TODO, issue.raiserId(), Audience.CREW_EVER_ACTIVE, issue.id(),
-					Map.of(), "/cong-viec", due, issue.jobId()));
+					Map.of(), "/cong-viec?vai-tro=tham-gia", due, issue.jobId()));
 		}
 	}
 

@@ -38,6 +38,11 @@ export const routes: RouteObject[] = [
         lazy: async () => ({ Component: (await import('@/features/identity/ProfilePage')).ProfilePage }),
       },
       {
+        // "Hồ sơ công khai" of the avatar menu (Story 20.6): the user's public profile, or the GitHub gate.
+        path: 'ho-so/cong-khai',
+        lazy: async () => ({ Component: (await import('@/features/identity/PublicProfilePage')).PublicProfilePage }),
+      },
+      {
         // ACC-2, where the identity.link_github and identity.relink_github to-dos lead (Story 19.2).
         path: 'ho-so/xac-minh',
         lazy: async () => ({ Component: (await import('@/features/identity/VerificationPage')).VerificationPage }),

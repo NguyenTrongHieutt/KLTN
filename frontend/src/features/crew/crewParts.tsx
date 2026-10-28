@@ -79,7 +79,7 @@ const CANDIDATE_TEXT: Record<CrewCandidate['state'], MessageKey> = {
   NOT_VERIFIED: 'screen.crew.panel.notVerified',
 }
 
-/** "Thêm sinh viên": the Mentor's Team; only free, verified Students can be picked (UX-DR60). */
+/** "Thêm thành viên": the Mentor's Team; only free, verified members can be picked (UX-DR60). */
 export function TeamPicker({
   id,
   team,

@@ -7,7 +7,7 @@ import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
-import { useSession } from '@/features/identity/useSession'
+import { ByJobRole, JobRoleLine } from '@/features/job/ByJobRole'
 import { JobHeader } from '@/features/job/JobHeader'
 import { DeletionChecklist } from '@/features/job/closure/ClosureSection'
 import { useDataDeletion } from '@/features/job/closure/closureApi'
@@ -33,11 +33,13 @@ import { WorkItemSheet } from './WorkItemSheet'
  */
 export function BoardPage() {
   const { jobId } = useParams()
-  const account = useSession().data?.account
-  if (!jobId || (account !== undefined && account.role !== 'MENTOR' && account.role !== 'STUDENT')) {
-    return <NotFoundScreen />
-  }
-  return account?.role === 'MENTOR' ? <MentorBoard jobId={jobId} /> : <StudentBoard jobId={jobId} />
+  return (
+    <ByJobRole
+      jobId={jobId}
+      mentor={() => <MentorBoard jobId={jobId ?? ''} />}
+      crew={() => <StudentBoard jobId={jobId ?? ''} />}
+    />
+  )
 }
 
 function MentorBoard({ jobId }: { jobId: string }) {
@@ -54,7 +56,7 @@ function MentorBoard({ jobId }: { jobId: string }) {
     <Frame>
       <RegionState query={job} skeleton={<Skeleton className="h-24 w-full" />}>
         {job.data && (
-          <JobHeader title={job.data.title} state={job.data.state} meta={mentorMeta(job.data)} audience="mentor">
+          <JobHeader title={job.data.title} state={job.data.state} meta={mentorMeta(job.data)}>
             <MentorJobTabs jobId={job.data.id} state={job.data.state} current="board" payment={job.data.agreementConfirmed} />
           </JobHeader>
         )}
@@ -79,11 +81,15 @@ function StudentBoard({ jobId }: { jobId: string }) {
   return (
     <Frame>
       <div className="flex flex-col gap-1">
-        <Link to="/cong-viec" className="w-fit text-label text-muted-foreground underline-offset-4 hover:underline">
+        <Link
+          to="/cong-viec?vai-tro=tham-gia"
+          className="w-fit text-label text-muted-foreground underline-offset-4 hover:underline"
+        >
           {t('screen.crewChat.back')}
         </Link>
         <PageHeading>{board.data?.title ?? t('screen.board.tab')}</PageHeading>
         <p className="text-body-sm text-muted-foreground">{t('screen.board.tab')}</p>
+        <JobRoleLine jobId={jobId} />
       </div>
       {deletion?.removed && deletion.mine && <DeletionChecklist jobId={jobId} deletion={deletion} />}
       <RegionState query={board} skeleton={<Skeleton className="h-96 w-full" />}>

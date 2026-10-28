@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, profileView, signedIn, signedInWithGoogle } from '@/test/fakeBackend'
+import { fakeBackend, json, profileView, signedInUser, signedInWithGoogle } from '@/test/fakeBackend'
 import { applyTheme, DEFAULT_THEME } from '@/theme/accountTheme'
 
 function renderAt(path: string) {
@@ -63,7 +63,7 @@ describe('ACC-1 "Bạn tự nhập" (Story 19.3, FR-3, FR-4, UX-DR44)', () => {
 
   it('validates on blur and on submit, with a summary linking each field', async () => {
     const user = userEvent.setup()
-    const seen = fakeBackend(signedIn('CUSTOMER'))
+    const seen = fakeBackend(signedInUser)
     renderAt('/ho-so')
 
     const email = await screen.findByLabelText('Email liên hệ (không bắt buộc)')
@@ -87,7 +87,7 @@ describe('ACC-1 "Bạn tự nhập" (Story 19.3, FR-3, FR-4, UX-DR44)', () => {
 
   it('maps the server field errors and keeps the input', async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/profile': () => json(profileView({ displayName: 'Lan', contactEmail: 'lan@x.vn' })),
       'PUT /api/v1/profile': () =>
         json({ status: 400, code: 'VALIDATION', errors: [{ field: 'phone', code: 'Pattern' }] }, 400),
@@ -106,7 +106,7 @@ describe('ACC-1 "Bạn tự nhập" (Story 19.3, FR-3, FR-4, UX-DR44)', () => {
 
   it('marks every link "Tự khai", offers at most 5, and shows the repositories as links only', async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/profile': () =>
         json(
           profileView({
@@ -129,7 +129,7 @@ describe('ACC-1 "Bạn tự nhập" (Story 19.3, FR-3, FR-4, UX-DR44)', () => {
 
   it('shows the student switch only with student details, off by default, and saves it', async () => {
     const user = userEvent.setup()
-    const seen = fakeBackend(signedIn('STUDENT'), {
+    const seen = fakeBackend(signedInUser, {
       'GET /api/v1/profile': () =>
         json(
           profileView({
@@ -141,7 +141,7 @@ describe('ACC-1 "Bạn tự nhập" (Story 19.3, FR-3, FR-4, UX-DR44)', () => {
     })
     renderAt('/ho-so')
 
-    const toggle = await screen.findByRole('switch', { name: /Ẩn thông tin sinh viên trên hồ sơ công khai/ })
+    const toggle = await screen.findByRole('switch', { name: /Ẩn trường, họ tên và ngành học đã khai trên hồ sơ công khai/ })
     expect(toggle).not.toBeChecked()
     await user.click(toggle)
     await user.click(screen.getByRole('button', { name: 'Lưu hồ sơ' }))
@@ -231,7 +231,7 @@ describe('ACC-1 "Đã xác minh" (FR-4, AD-42, UX-DR90, UX-DR108)', () => {
   })
 
   it('gives a Mentor the same one profile, with no Mentor application to open (Story 19.7)', async () => {
-    fakeBackend(signedIn('MENTOR'))
+    fakeBackend(signedInUser)
     renderAt('/ho-so')
 
     expect(await screen.findByRole('heading', { level: 2, name: 'Bạn tự nhập' })).toBeInTheDocument()
@@ -239,7 +239,7 @@ describe('ACC-1 "Đã xác minh" (FR-4, AD-42, UX-DR90, UX-DR108)', () => {
   })
 
   it('leads to ACC-2 from its tabs', async () => {
-    fakeBackend(signedIn('CUSTOMER'))
+    fakeBackend(signedInUser)
     renderAt('/ho-so')
 
     const tabs = await screen.findByRole('navigation', { name: 'Hồ sơ và xác minh' })
@@ -252,7 +252,7 @@ describe('the Theme toggle (UX-DR5)', () => {
   it('applies at once and saves to the account', async () => {
     const user = userEvent.setup()
     let saved: unknown = null
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'PUT /api/v1/account/theme': async (request) => {
         saved = await request.json()
         return new Response(null, { status: 204 })
@@ -269,7 +269,7 @@ describe('the Theme toggle (UX-DR5)', () => {
   })
 
   it('uses the account theme from the session', async () => {
-    fakeBackend({ ...signedIn('STUDENT'), account: { ...signedIn('STUDENT').account!, theme: 'DARK' } })
+    fakeBackend({ ...signedInUser, account: { ...signedInUser.account!, theme: 'DARK' } })
     renderAt('/viec-can-lam')
 
     await screen.findByRole('heading', { level: 1, name: 'Việc cần làm' })

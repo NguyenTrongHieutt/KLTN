@@ -62,7 +62,8 @@ class ProfileController {
 	 * @param skills the chosen Skills with their current names, in the person's order (FR-4, AD-38)
 	 * @param links the typed links, each shown with "Tự khai"
 	 * @param repositories showcased repositories as {@code owner/name}, metadata only: their code is never fetched
-	 * @param hideStudentDetails "Ẩn thông tin sinh viên trên hồ sơ công khai", off by default (X9)
+	 * @param hideStudentDetails the switch that hides the declared school and name and major on the public profile,
+	 * off by default (X9)
 	 * @param studentDetails the student details, shown "Khai khi xác minh"; absent when there are none
 	 * @param verified what the System verified, read-only here
 	 */

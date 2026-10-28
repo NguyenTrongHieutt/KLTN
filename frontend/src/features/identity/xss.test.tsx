@@ -4,7 +4,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, profileView, signedIn, signedInWithGoogle } from '@/test/fakeBackend'
+import { fakeBackend, json, profileView, signedInUser, signedInWithGoogle } from '@/test/fakeBackend'
 import { PAYLOADS } from '@/test/payloads'
 
 /**
@@ -43,7 +43,7 @@ afterEach(() => {
 
 describe.each(PAYLOADS)('the payload %s', (payload) => {
   it('stays text in every typed ACC-1 field, link, and repository link', async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/profile': () =>
         json(
           profileView({
@@ -72,7 +72,7 @@ describe.each(PAYLOADS)('the payload %s', (payload) => {
   })
 
   it('stays text in the ACC-1 verified zone and the student details', async () => {
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/profile': () =>
         json(
           profileView({

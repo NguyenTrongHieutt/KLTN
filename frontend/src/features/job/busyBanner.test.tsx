@@ -3,7 +3,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { Toaster } from '@/components/Toaster'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser } from '@/test/fakeBackend'
 import { BusyBanner } from './BusyBanner'
 
 const merging = { busy: true, purpose: 'ACCEPTANCE', since: '2026-10-22T10:00:00Z', milestone: 1, handoverId: 'h1' }
@@ -22,7 +22,7 @@ function renderBanner() {
 /** The marker as the poll reads it: busy first, then cleared. */
 function clearsAfterOnePoll(handover: Record<string, unknown>) {
   let reads = 0
-  fakeBackend(signedIn('CUSTOMER'), {
+  fakeBackend(signedInUser, {
     'GET /api/v1/jobs/j1/busy': () => json(reads++ === 0 ? merging : idle),
     'GET /api/v1/handovers/h1': () => json({ id: 'h1', number: 1, ...handover }),
   })
@@ -56,7 +56,7 @@ describe('The busy banner on JOB-H (UX-DR21, AD-28)', () => {
 
   it('shows nothing while the Job is not busy', async () => {
     let read = false
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/jobs/j1/busy': () => {
         read = true
         return json(idle)
@@ -70,13 +70,13 @@ describe('The busy banner on JOB-H (UX-DR21, AD-28)', () => {
 
   it('reads the Final Merge as the Customer’s own project to them and as the last merge to the team', async () => {
     const finalMerge = { busy: true, purpose: 'FINAL_MERGE', since: '2026-10-22T10:00:00Z' }
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/jobs/j1/busy': () => json({ ...finalMerge, audience: 'CUSTOMER' }),
     })
     renderBanner()
     expect(await screen.findByRole('status')).toHaveTextContent('Đang đưa mã vào dự án của bạn…')
 
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/jobs/j1/busy': () => json({ ...finalMerge, audience: 'MENTOR' }),
     })
     renderBanner()

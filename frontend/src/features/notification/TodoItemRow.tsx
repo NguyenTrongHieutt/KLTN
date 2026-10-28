@@ -3,15 +3,15 @@ import { Link } from 'react-router'
 import { cn } from '@/lib/utils'
 import type { TodoItem } from './api'
 import { DeadlineChip } from './DeadlineChip'
+import { TodoContext } from './TodoContext'
 import { todoText } from './texts'
 
 /**
- * A to-do list item (DESIGN.md): the Job or Product name as a caption when the to-do names one, the
- * action sentence, the deadline chip, and a chevron; a deadline that decides automatically carries a
+ * A to-do list item (DESIGN.md, UX-DR88): the context line ("{job} · Bạn là {role}", "{job}", or "Tài khoản"),
+ * the action sentence, the deadline chip, and a chevron; a deadline that decides automatically carries a
  * warning left bar. Users open it; only its owning module closes it.
  */
 export function TodoItemRow({ todo }: { todo: TodoItem }) {
-  const context = todo.params.context
   return (
     <Link
       to={todo.link}
@@ -21,7 +21,7 @@ export function TodoItemRow({ todo }: { todo: TodoItem }) {
       )}
     >
       <span className="flex min-w-0 grow flex-col gap-1">
-        {context && <span className="text-caption text-muted-foreground">{context}</span>}
+        <TodoContext todo={todo} />
         <span className="text-label">{todoText(todo)}</span>
         {todo.deadlineAt && (
           <span>

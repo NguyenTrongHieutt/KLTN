@@ -4,7 +4,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -71,7 +71,8 @@ const mentorJob = {
 
 describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
   it('tells the Customer how far each Milestone has come, and nothing of the Board', { timeout: 20_000 }, async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(customerJob),
       'GET /api/v1/boards/j1/progress': () => json(progress()),
       'GET /api/v1/todos': () =>
@@ -114,7 +115,8 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
   })
 
   it('links the Mentor of an Assessment Job to the Source Repository with N-12 (FR-10)', { timeout: 20_000 }, async () => {
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/jobs/j1': () => json({ ...mentorJob, jobTypes: ['ASSESSMENT'] }),
       'GET /api/v1/boards/j1/progress': () =>
         json(progress({ audience: 'MENTOR', assessment: true, sourceRepositoryUrl: 'https://github.com/lan/so-dat-ban' })),
@@ -129,7 +131,8 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
   })
 
   it('adds the Crew and their open Work Items for the Mentor', { timeout: 20_000 }, async () => {
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/jobs/j1': () => json(mentorJob),
       'GET /api/v1/boards/j1/progress': () =>
         json(
@@ -169,7 +172,8 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
   })
 
   it('gives an active Crew member their overview with their Work Items and N-12', { timeout: 20_000 }, async () => {
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
       'GET /api/v1/boards/j1/progress': () =>
         json(
           progress({
@@ -190,7 +194,8 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
   })
 
   it('states the Revision Rounds left and what the Mentor must fix (FR-33, FR-34)', { timeout: 20_000 }, async () => {
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/jobs/j1': () => json(mentorJob),
       'GET /api/v1/boards/j1/progress': () =>
         json(
@@ -205,7 +210,8 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
   })
 
   it('tells the Customer how many Revision Rounds a submitted Milestone has left', { timeout: 20_000 }, async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(customerJob),
       'GET /api/v1/boards/j1/progress': () =>
         json(progress({ milestones: [{ ...progress().milestones[0], state: 'SUBMITTED', roundsLeft: 2 }] })),
@@ -215,7 +221,8 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
   })
 
   it('labels a Milestone accepted automatically (FR-35)', { timeout: 20_000 }, async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(customerJob),
       'GET /api/v1/boards/j1/progress': () =>
         json(progress({ milestones: [{ ...progress().milestones[0], state: 'ACCEPTED', autoAccepted: true }] })),
@@ -224,8 +231,8 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
     expect(await screen.findByText('Đã tự nghiệm thu')).toBeInTheDocument()
   })
 
-  it('is not found for a Student the Job does not name', { timeout: 20_000 }, async () => {
-    fakeBackend(signedIn('STUDENT'))
+  it('is not found for a user the Job does not name', { timeout: 20_000 }, async () => {
+    fakeBackend(signedInUser, inEveryJob('CREW'))
     renderAt('/cong-viec/j1')
     expect(await screen.findByRole('heading', { name: /Không tìm thấy/ })).toBeInTheDocument()
   })

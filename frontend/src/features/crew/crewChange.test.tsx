@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -89,7 +89,8 @@ const panel = (overrides: object = {}) => ({
 })
 
 const mentorBackend = (crew: () => Response, extra: Record<string, (request: Request) => Response | Promise<Response>> = {}) =>
-  fakeBackend(signedIn('MENTOR'), {
+  fakeBackend(signedInUser, {
+    ...inEveryJob('MENTOR'),
     'GET /api/v1/mentor/jobs/j1': () => json(mentorJob),
     'GET /api/v1/mentor/jobs/j1/agreement': () => json(draft),
     'GET /api/v1/mentor/jobs/j1/crew': crew,
@@ -126,7 +127,7 @@ describe('Story 11.3: "Đổi nhóm thực hiện" on JOB-6 (FR-75, AD-41, UX-DR
     const editor = screen.getByRole('region', { name: 'Đổi nhóm thực hiện' })
     await user.click(within(editor).getByRole('button', { name: 'Bỏ Phạm Hải Tùng khỏi nhóm' }))
     expect(within(editor).getByText('Sẽ rời nhóm khi áp dụng')).toBeInTheDocument()
-    await user.click(within(editor).getByRole('button', { name: 'Thêm sinh viên' }))
+    await user.click(within(editor).getByRole('button', { name: 'Thêm thành viên' }))
     await user.click(within(editor).getByRole('button', { name: 'Thêm Ngô Bảo Anh' }))
     const apply = within(editor).getByRole('button', { name: 'Áp dụng khi mọi người đã xác nhận' })
     expect(apply).toBeDisabled()
@@ -180,9 +181,21 @@ describe('Story 11.3: "Đổi nhóm thực hiện" on JOB-6 (FR-75, AD-41, UX-DR
   })
 })
 
-describe('Story 11.3: an active member confirms a waiting change on STU-4', () => {
+describe('Story 11.3: an active member confirms a waiting change in "Việc tôi tham gia"', () => {
   it('shows the new version to confirm, without "Từ chối"', { timeout: 20_000 }, async () => {
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/my-jobs': () =>
+        json([
+          {
+            jobId: 'j1',
+            title: 'Sửa lỗi đặt bàn và thêm nhắc lịch',
+            productName: 'Sổ đặt bàn Quán Mây',
+            state: 'ACTIVE',
+            role: 'CREW',
+            crewKind: 'ACTIVE',
+            updatedAt: '2026-10-21T03:00:00Z',
+          },
+        ]),
       'GET /api/v1/crew/assignments': () =>
         json([
           {
@@ -203,8 +216,6 @@ describe('Story 11.3: an active member confirms a waiting change on STU-4', () =
             changeWaiting: true,
           },
         ]),
-      'GET /api/v1/team': () =>
-        json({ invitations: [], joinRequests: [], requestsLeft: 3, verified: true, team: { joinedAt: '2026-10-01T03:00:00Z' } }),
     })
     renderAt('/cong-viec')
 

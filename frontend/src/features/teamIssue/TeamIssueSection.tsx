@@ -17,8 +17,8 @@ import {
 } from './teamIssueApi'
 
 /**
- * STU-4 "Khiếu nại nội bộ" (FR-79, AD-40, UX-DR63): on each Job where the Student was ever active, they
- * choose "Phần chia giai đoạn {n}" while that Milestone is Held, or "Điểm người hướng dẫn chấm tôi" within
+ * "Khiếu nại nội bộ" in "Việc tôi tham gia" on CUS-7 (FR-79, AD-40, UX-DR63): on each Job where the member was
+ * ever active, they choose "Phần chia giai đoạn {n}" while that Milestone is Held, or "Điểm người hướng dẫn chấm tôi" within
  * 14 days of it becoming visible, write the reason, and send it to the Mentor; an option already used is
  * disabled with its reason. Their issues show with the period they are in; in the escalation period the
  * Mentor's answer shows with its preview, then "Chấp nhận" or "Nhờ quản trị viên xem xét". Nothing shows

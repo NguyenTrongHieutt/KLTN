@@ -1,17 +1,18 @@
 import { Bell } from 'lucide-react'
-import { useState, useSyncExternalStore } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Skeleton } from '@/components/Skeleton'
 import { t } from '@/i18n/t'
+import { useMatchMedia } from '@/lib/useMatchMedia'
 import { useLatestNotifications, useUnreadCount } from './hooks'
 import { NotificationItemRow } from './NotificationItemRow'
 
 const DESKTOP = '(min-width: 768px)'
 
 /**
- * The top-bar bell (UX-DR11): the unread count, a popover of the 10 latest from 768 px, and ALL-1
- * itself on phones.
+ * The top-bar bell (UX-DR11, UX-DR85): the unread count, a popover of the 10 latest from 768 px, and ALL-1
+ * itself on phones; under 360 px it is the only way to "Thông báo", whose tab-bar cell gives way.
  */
 export function NotificationBell({ offline }: { offline: boolean }) {
   const unread = useUnreadCount()
@@ -83,17 +84,5 @@ function BellList({ offline, onOpen }: { offline: boolean; onOpen: () => void })
         {t('screen.shared.notifications.seeAll')}
       </Link>
     </div>
-  )
-}
-
-function useMatchMedia(query: string): boolean {
-  return useSyncExternalStore(
-    (notify) => {
-      const list = window.matchMedia(query)
-      list.addEventListener('change', notify)
-      return () => list.removeEventListener('change', notify)
-    },
-    () => window.matchMedia(query).matches,
-    () => false,
   )
 }

@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
 import { redirectTo } from '@/lib/redirect'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
 
 vi.mock('@/lib/redirect', () => ({ redirectTo: vi.fn() }))
 
@@ -68,7 +68,8 @@ const order = (status: string) => ({
 })
 
 const backend = (extra: Record<string, (request: Request) => Response | Promise<Response>>) =>
-  fakeBackend(signedIn('CUSTOMER'), {
+  fakeBackend(signedInUser, {
+    ...inEveryJob('CUSTOMER'),
     'GET /api/v1/jobs/j1': () => json(job),
     'GET /api/v1/jobs/j1/chat': () => json({ chatId: 'c1', unread: false }),
     'GET /api/v1/payment/test-card': () =>

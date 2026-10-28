@@ -8,7 +8,6 @@ import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
-import { useSession } from '@/features/identity/useSession'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t, type MessageKey } from '@/i18n/t'
 import { formatDate, formatDayMonthTime } from '@/lib/dates'
@@ -31,8 +30,7 @@ export function FindingPage() {
   const { productId, findingId } = useParams()
   const finding = useFinding(productId, findingId)
   usePageTitle(t('screen.product.finding.title'))
-  const role = useSession().data?.account?.role
-  if ((role !== undefined && role !== 'CUSTOMER') || (finding.isError && isNotFound(finding.error))) {
+  if (finding.isError && isNotFound(finding.error)) {
     return <NotFoundScreen />
   }
   return (

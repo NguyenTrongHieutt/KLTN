@@ -1,5 +1,5 @@
 subject: Đơn ứng tuyển của bạn cho {job} đang chờ: khách hàng đã chọn người khác
-link: /cong-viec
+link: /cong-viec?vai-tro=huong-dan
 ---
 Xin chào,
 

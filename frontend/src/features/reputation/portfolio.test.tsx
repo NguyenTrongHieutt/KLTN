@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -94,7 +94,8 @@ describe('JOB-1 portfolio section (FR-50, UX-DR55)', () => {
   it('lets the Mentor draft the summary and shows their own entry', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     const sent: unknown[] = []
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/jobs/j1': () => json(mentorJob),
       'GET /api/v1/boards/j1/progress': () => json({ ...progress, audience: 'MENTOR' }),
       'GET /api/v1/boards/j1/portfolio': () => json(portfolioView()),
@@ -124,7 +125,8 @@ describe('JOB-1 portfolio section (FR-50, UX-DR55)', () => {
   it('lets the Customer edit and approve the summary with the Product name', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     const sent: unknown[] = []
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(customerJob),
       'GET /api/v1/boards/j1/progress': () => json(progress),
       'GET /api/v1/boards/j1/portfolio': () =>
@@ -163,7 +165,8 @@ describe('JOB-1 portfolio section (FR-50, UX-DR55)', () => {
   })
 
   it('shows a Crew member their published entry and the approved summary', { timeout: 20_000 }, async () => {
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
       'GET /api/v1/boards/j1/progress': () => json({ ...progress, audience: 'CREW' }),
       'GET /api/v1/boards/j1/portfolio': () =>
         json(

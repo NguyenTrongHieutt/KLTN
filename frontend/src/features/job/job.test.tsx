@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn, signedInWithGoogle } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser, signedInWithGoogle, inEveryJob } from '@/test/fakeBackend'
 import { PAYLOADS } from '@/test/payloads'
 
 function renderAt(path: string) {
@@ -68,17 +68,24 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('CUS-7, the Jobs (UX-DR66)', () => {
-  it('shows the empty state with the way to post from a Product', { timeout: 15_000 }, async () => {
-    fakeBackend(signedIn('CUSTOMER'), { 'GET /api/v1/jobs': () => json([]) })
+/** One Job of "Công việc" (`/my-jobs`) where the user holds `role`. */
+function held(jobId: string, title: string, role: 'CUSTOMER' | 'MENTOR' | 'CREW', extra: Record<string, unknown> = {}) {
+  return { jobId, title, productName: 'Sổ đặt bàn Quán Mây', state: 'ACTIVE', role, updatedAt: '2026-10-20T03:00:00Z', ...extra }
+}
+
+describe('CUS-7, the Jobs of every role (UX-DR66, UX-DR86)', () => {
+  it('shows the Empty state leading to "Tìm việc" to a user with no Job', { timeout: 15_000 }, async () => {
+    fakeBackend(signedInUser)
     renderAt('/cong-viec')
 
     expect(await screen.findByText('Bạn chưa có công việc nào.')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Đăng công việc từ một sản phẩm' })).toHaveAttribute('href', '/san-pham')
+    expect(within(screen.getByRole('main')).getByRole('link', { name: 'Tìm việc' })).toHaveAttribute('href', '/tim-viec')
+    expect(screen.queryByRole('group', { name: 'Vai trò của bạn trong công việc' })).not.toBeInTheDocument()
   })
 
   it('groups the Jobs and links a Draft to its form', async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/my-jobs': () => json([held('j1', draft.title, 'CUSTOMER', { state: 'DRAFT' })]),
       'GET /api/v1/jobs': () =>
         json([{ id: 'j1', productId: 'p1', productName: 'Sổ đặt bàn Quán Mây', state: 'DRAFT', title: draft.title, jobTypes: ['NEW_FEATURE'], updatedAt: '2026-10-16T03:00:00Z' }]),
     })
@@ -90,6 +97,111 @@ describe('CUS-7, the Jobs (UX-DR66)', () => {
     for (const heading of ['Cần bạn quyết định', 'Đang thực hiện', 'Đang tìm người hướng dẫn', 'Đã kết thúc']) {
       expect(screen.getByRole('heading', { level: 2, name: new RegExp(heading) })).toBeInTheDocument()
     }
+    // One segment left: no Toggle Group.
+    expect(screen.queryByRole('group', { name: 'Vai trò của bạn trong công việc' })).not.toBeInTheDocument()
+  })
+
+  it('shows two segments to the Customer of one Job and the Mentor of another, with their to-do counts', async () => {
+    const user = userEvent.setup()
+    fakeBackend(signedInUser, {
+      'GET /api/v1/my-jobs': () =>
+        json([held('a', 'Việc A của tôi', 'CUSTOMER'), held('b', 'Việc B tôi hướng dẫn', 'MENTOR')]),
+      'GET /api/v1/jobs': () =>
+        json([{ id: 'a', productId: 'p1', productName: 'Sổ đặt bàn Quán Mây', state: 'ACTIVE', title: 'Việc A của tôi', jobTypes: [], updatedAt: '2026-10-20T03:00:00Z' }]),
+      'GET /api/v1/todos': () =>
+        json({
+          items: [
+            { id: 't1', key: 'job.draft_agreement', tier: 2, params: { job: 'Việc B tôi hướng dẫn' }, link: '/cong-viec/b/thoa-thuan', deadlineNear: false, jobId: 'b', role: 'MENTOR', openedAt: '2026-10-25T00:00:00Z' },
+            { id: 't2', key: 'job.draft_agreement', tier: 3, params: { job: 'Việc B tôi hướng dẫn' }, link: '/cong-viec/b/thoa-thuan', deadlineNear: false, jobId: 'b', role: 'MENTOR', openedAt: '2026-10-25T00:00:00Z' },
+          ],
+          total: 2,
+        }),
+    })
+    const router = renderAt('/cong-viec')
+
+    const segments = await screen.findByRole('group', { name: 'Vai trò của bạn trong công việc' })
+    expect(within(segments).getAllByRole('button').map((button) => button.textContent)).toEqual([
+      'Việc tôi đăng',
+      'Việc tôi hướng dẫn2 việc cần làm2',
+    ])
+    // The most urgent to-do is the Mentor's, so "Việc tôi hướng dẫn" opens.
+    expect(within(segments).getByRole('button', { name: /Việc tôi hướng dẫn/ })).toHaveAttribute('aria-pressed', 'true')
+    expect(await screen.findByRole('link', { name: /Việc B tôi hướng dẫn/ })).toHaveAttribute('href', '/cong-viec/b')
+    expect(screen.queryByRole('link', { name: /Việc A của tôi/ })).not.toBeInTheDocument()
+
+    await user.click(within(segments).getByRole('button', { name: 'Việc tôi đăng' }))
+    expect(await screen.findByRole('link', { name: /Việc A của tôi/ })).toHaveAttribute('href', '/cong-viec/a')
+    expect(router.state.location.search).toBe('?vai-tro=dang')
+  })
+
+  it('opens the segment the URL keeps', async () => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/my-jobs': () => json([held('a', 'Việc A của tôi', 'CUSTOMER'), held('c', 'Việc C tôi tham gia', 'CREW', { crewKind: 'ACTIVE' })]),
+      'GET /api/v1/crew/assignments': () => json([]),
+    })
+    renderAt('/cong-viec?vai-tro=tham-gia')
+
+    const segments = await screen.findByRole('group', { name: 'Vai trò của bạn trong công việc' })
+    expect(within(segments).getByRole('button', { name: 'Việc tôi tham gia' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('counts and lists pending bids in "Việc tôi hướng dẫn" before any Job is mentored', async () => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/mentor/applications': () =>
+        json([{ id: 'ap1', jobId: 'j9', jobTitle: 'Sửa lỗi giỏ hàng', status: 'SUBMITTED', priceVnd: 1500000, timelineDays: 7, submittedAt: '2026-10-20T03:00:00Z' }]),
+    })
+    renderAt('/cong-viec')
+
+    expect(await screen.findByRole('link', { name: /Sửa lỗi giỏ hàng/ })).toHaveAttribute('href', '/tim-viec/j9')
+    expect(screen.queryByRole('group', { name: 'Vai trò của bạn trong công việc' })).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['a closed bid shows the segment with the bid and no count', 'CLOSED', null],
+    ['a bid on hold counts in the segment', 'ON_HOLD', '1 việc cần làm'],
+  ])('%s', async (_, status, count) => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/my-jobs': () => json([held('a', 'Việc A của tôi', 'CUSTOMER')]),
+      'GET /api/v1/mentor/applications': () =>
+        json([{ id: 'ap1', jobId: 'j9', jobTitle: 'Sửa lỗi giỏ hàng', status, priceVnd: 1500000, timelineDays: 7, submittedAt: '2026-10-20T03:00:00Z' }]),
+    })
+    renderAt('/cong-viec?vai-tro=huong-dan')
+
+    const segments = await screen.findByRole('group', { name: 'Vai trò của bạn trong công việc' })
+    const mentoring = within(segments).getByRole('button', { name: /Việc tôi hướng dẫn/ })
+    expect(mentoring).toHaveAttribute('aria-pressed', 'true')
+    if (count === null) {
+      expect(mentoring).toHaveAccessibleName('Việc tôi hướng dẫn')
+    } else {
+      expect(mentoring).toHaveAccessibleName(`Việc tôi hướng dẫn${count}`)
+    }
+    expect(await screen.findByRole('link', { name: /Sửa lỗi giỏ hàng/ })).toHaveAttribute('href', '/tim-viec/j9')
+  })
+
+  it('shows only the Crew list, with no Toggle Group, and marks a Job the user left', async () => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/my-jobs': () => json([held('c', 'Việc C đã rời', 'CREW', { crewKind: 'FORMER', state: 'ACTIVE' })]),
+      'GET /api/v1/crew/assignments': () => json([]),
+    })
+    renderAt('/cong-viec')
+
+    const past = await screen.findByRole('region', { name: 'Công việc đã qua' })
+    expect(within(past).getByRole('link', { name: /Việc C đã rời · đã rời/ })).toHaveAttribute('href', '/cong-viec/c')
+    expect(screen.queryByRole('group', { name: 'Vai trò của bạn trong công việc' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Đăng công việc/ })).toBeNull()
+  })
+
+  it('lists a member of a Job that ended among the past Jobs, without "· đã rời"', async () => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/my-jobs': () => json([held('d', 'Việc D đã xong', 'CREW', { crewKind: 'FORMER', state: 'CLOSED' })]),
+      'GET /api/v1/crew/assignments': () => json([]),
+    })
+    renderAt('/cong-viec')
+
+    const past = await screen.findByRole('region', { name: 'Công việc đã qua' })
+    const row = within(past).getByRole('link', { name: /Việc D đã xong/ })
+    expect(row).toHaveAttribute('href', '/cong-viec/d')
+    expect(row).not.toHaveTextContent('đã rời')
   })
 })
 
@@ -97,7 +209,8 @@ describe('CUS-6, drafting a Job (FR-9)', () => {
   it('asks the guided questions with examples, pre-selects the suggested Skills, and saves a Draft', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     let saved: Record<string, unknown> | undefined
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/products/p1': () => json(product()),
       'GET /api/v1/products/p1/skill-suggestions': () =>
         json([
@@ -145,7 +258,8 @@ describe('CUS-6, drafting a Job (FR-9)', () => {
 
   it('needs a title before saving', { timeout: 15_000 }, async () => {
     const user = userEvent.setup()
-    const seen = fakeBackend(signedIn('CUSTOMER'), {
+    const seen = fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/products/p1': () => json(product()),
       'GET /api/v1/products/p1/skill-suggestions': () => json([]),
       'GET /api/v1/catalog': catalog,
@@ -160,7 +274,8 @@ describe('CUS-6, drafting a Job (FR-9)', () => {
   })
 
   it('pre-fills a Job that merges a ZIP Fallback’s code (FR-38, N-17)', { timeout: 15_000 }, async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/products/p1': () => json(product()),
       'GET /api/v1/products/p1/skill-suggestions': () => json([]),
       'GET /api/v1/catalog': catalog,
@@ -175,7 +290,8 @@ describe('CUS-6, drafting a Job (FR-9)', () => {
   })
 
   it('disables every Code Job Type while the Product has open Findings', { timeout: 15_000 }, async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/products/p1': () => json(product(1)),
       'GET /api/v1/products/p1/skill-suggestions': () => json([]),
       'GET /api/v1/catalog': catalog,
@@ -191,7 +307,8 @@ describe('CUS-6, drafting a Job (FR-9)', () => {
   it('uploads screenshots to a saved Draft and repeats the personal-data reminder', { timeout: 15_000 }, async () => {
     const user = userEvent.setup()
     let uploaded = false
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () =>
         json(uploaded ? { ...draft, screenshots: [{ fileId: 'f1', fileName: 'trang-dat-ban.png', sizeBytes: 430_000, addedAt: draft.updatedAt, url: '/api/v1/files/f1' }] } : draft),
       'GET /api/v1/products/p1': () => json(product()),
@@ -211,17 +328,10 @@ describe('CUS-6, drafting a Job (FR-9)', () => {
     expect(screen.getByRole('button', { name: 'Xóa trang-dat-ban.png' })).toBeInTheDocument()
   })
 
-  it("shows a Student's own Jobs (STU-4) instead of CUS-7", async () => {
-    fakeBackend(signedIn('STUDENT'), { 'GET /api/v1/crew/assignments': () => json([]) })
-    renderAt('/cong-viec')
-
-    expect(await screen.findByRole('heading', { level: 1, name: 'Công việc của tôi' })).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: /Đăng công việc/ })).toBeNull()
-  })
-
   it('keeps planted payloads in every Job text field as text (SG-30)', { timeout: 15_000 }, async () => {
     const payload = PAYLOADS[0]
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/my-jobs': () => json([held('j1', payload, 'CUSTOMER', { state: 'DRAFT', productName: payload })]),
       'GET /api/v1/jobs': () =>
         json([{ id: 'j1', productId: 'p1', productName: payload, state: 'DRAFT', title: payload, jobTypes: [], updatedAt: draft.updatedAt }]),
       'GET /api/v1/jobs/j1': () =>
@@ -259,7 +369,8 @@ describe('Publishing a Job Post and JOB-1 (FR-9, J1, J2)', () => {
   it('saves the Draft, shows N-3, publishes it, and lands on JOB-1', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     let published = false
-    const seen = fakeBackend(signedIn('CUSTOMER'), {
+    const seen = fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(published ? openJob : complete),
       'GET /api/v1/products/p1': () => json(product()),
       'GET /api/v1/catalog': catalog,
@@ -286,7 +397,8 @@ describe('Publishing a Job Post and JOB-1 (FR-9, J1, J2)', () => {
 
   it('names the unanswered questions before N-3', { timeout: 15_000 }, async () => {
     const user = userEvent.setup()
-    const seen = fakeBackend(signedIn('CUSTOMER'), {
+    const seen = fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(draft),
       'GET /api/v1/products/p1': () => json(product()),
       'GET /api/v1/catalog': catalog,
@@ -304,7 +416,8 @@ describe('Publishing a Job Post and JOB-1 (FR-9, J1, J2)', () => {
 
   it('says how many security problems block a Code Job', { timeout: 15_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(complete),
       'GET /api/v1/products/p1': () => json(product()),
       'GET /api/v1/catalog': catalog,
@@ -323,7 +436,8 @@ describe('Publishing a Job Post and JOB-1 (FR-9, J1, J2)', () => {
 
   it('says GitHub must be linked first and links to ACC-2 (FR-80)', { timeout: 15_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(complete),
       'GET /api/v1/products/p1': () => json(product()),
       'GET /api/v1/catalog': catalog,
@@ -343,7 +457,8 @@ describe('Publishing a Job Post and JOB-1 (FR-9, J1, J2)', () => {
   it('shows the Open Job on JOB-1 with what happens next, and withdraws it', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     let withdrawn = false
-    const seen = fakeBackend(signedIn('CUSTOMER'), {
+    const seen = fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(withdrawn ? { ...complete, version: 2 } : openJob),
       'GET /api/v1/products/p1': () => json(product()),
       'GET /api/v1/catalog': catalog,
@@ -380,8 +495,9 @@ describe('Publishing a Job Post and JOB-1 (FR-9, J1, J2)', () => {
     expect(seen.map(call)).toContain('POST /api/v1/jobs/j1/withdraw')
   })
 
-  it("shows a user with no role the Customer's JOB-1 of the Job they posted (Story 20.3)", { timeout: 15_000 }, async () => {
+  it("shows the Customer's JOB-1 by the role in the Job, never by the account (Stories 20.3, 20.6)", { timeout: 15_000 }, async () => {
     fakeBackend(signedInWithGoogle, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(openJob),
       'GET /api/v1/products/p1': () => json(product()),
       'GET /api/v1/catalog': catalog,
@@ -391,11 +507,20 @@ describe('Publishing a Job Post and JOB-1 (FR-9, J1, J2)', () => {
     expect(await screen.findByRole('heading', { level: 1, name: openJob.title })).toBeInTheDocument()
     expect(screen.getByText('Đang tìm người hướng dẫn')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Rút tin' })).toBeInTheDocument()
+    expect(screen.getByText('Bạn là: Khách hàng')).toBeInTheDocument()
     expect(screen.queryByText('Không tìm thấy nội dung này.')).not.toBeInTheDocument()
   })
 
+  it('shows the not-found screen on a Job where the user holds no role', async () => {
+    fakeBackend(signedInUser, { 'GET /api/v1/jobs/j1': () => json(openJob) })
+    renderAt('/cong-viec/j1')
+
+    expect(await screen.findByText('Không tìm thấy nội dung này.')).toBeInTheDocument()
+  })
+
   it('opens a Draft in CUS-6', { timeout: 15_000 }, async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(complete),
       'GET /api/v1/products/p1': () => json(product()),
       'GET /api/v1/catalog': catalog,
@@ -408,7 +533,8 @@ describe('Publishing a Job Post and JOB-1 (FR-9, J1, J2)', () => {
 
   it('keeps planted payloads on JOB-1 as text (SG-30)', { timeout: 15_000 }, async () => {
     const payload = PAYLOADS[0]
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () =>
         json({ ...openJob, title: payload, productName: payload, problem: payload, expected: payload, appUsers: payload, doneCheck: payload }),
       'GET /api/v1/products/p1': () => json({ ...product(), name: payload }),
