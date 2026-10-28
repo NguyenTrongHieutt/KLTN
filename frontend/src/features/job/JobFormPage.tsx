@@ -11,7 +11,6 @@ import { SkillPicker } from '@/components/SkillPicker'
 import { TermHint } from '@/components/TermHint'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
-import { useSession } from '@/features/identity/useSession'
 import { useProduct, type Product } from '@/features/product/productApi'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t, type MessageKey } from '@/i18n/t'
@@ -76,9 +75,8 @@ interface FormValues {
 export function JobFormPage() {
   const { productId, jobId } = useParams()
   const job = useJob(jobId)
-  const role = useSession().data?.account?.role
   usePageTitle(t(jobId ? 'screen.job.form.editTitle' : 'screen.job.form.newTitle'))
-  if ((role !== undefined && role !== 'CUSTOMER') || (job.isError && isNotFound(job.error))) {
+  if (job.isError && isNotFound(job.error)) {
     return <NotFoundScreen />
   }
   return (

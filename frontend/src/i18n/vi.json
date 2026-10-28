@@ -39,13 +39,14 @@
     "mainNav": "Điều hướng chính",
     "tabNav": "Điều hướng nhanh",
     "accountMenu": "Tài khoản của {login}",
-    "signOut": "Đăng xuất",
-    "profile": "Hồ sơ",
-    "theme": "Giao diện",
-    "testMoney": "tiền thử nghiệm, không phải tiền thật",
-    "paymentHistory": "Lịch sử thanh toán",
+    "profile": "Hồ sơ và xác minh",
+    "publicProfile": "Hồ sơ công khai",
     "balance": "Số dư thử nghiệm",
-    "myData": "Dữ liệu của tôi"
+    "paymentHistory": "Lịch sử thanh toán",
+    "myData": "Dữ liệu của tôi",
+    "theme": "Giao diện",
+    "signOut": "Đăng xuất",
+    "testMoney": "tiền thử nghiệm, không phải tiền thật"
   },
   "screen": {
     "verification": {
@@ -96,13 +97,13 @@
         }
       },
       "student": {
-        "name": "Email sinh viên",
+        "name": "Email trường",
         "optional": "Không bắt buộc",
         "unverified": "Chưa xác minh",
         "verified": "Sinh viên đã xác minh",
         "renewalDue": "Sắp hết hạn",
         "why": "Xác minh bằng email do trường cấp để hồ sơ hiện huy hiệu “Sinh viên đã xác minh”. Không xác minh, bạn vẫn dùng vibefix như bình thường.",
-        "start": "Xác minh email sinh viên",
+        "start": "Xác minh email trường",
         "email": "Email trường",
         "emailHelper": "vibefix gửi mã 6 số đến email này và không lưu địa chỉ.",
         "fullName": "Họ và tên",
@@ -127,17 +128,17 @@
         "sourceEmail": "Qua email trường · {month}",
         "validUntil": "Có hiệu lực đến",
         "declared": "Khai khi xác minh",
-        "renewal": "Huy hiệu sinh viên hết hạn ngày {date}. Gia hạn để giữ huy hiệu trên hồ sơ.",
+        "renewal": "Huy hiệu Sinh viên đã xác minh hết hạn ngày {date}. Gia hạn để giữ huy hiệu trên hồ sơ.",
         "renew": "Gia hạn",
-        "expiredTitle": "Huy hiệu sinh viên đã hết hạn ngày {date}",
+        "expiredTitle": "Huy hiệu Sinh viên đã xác minh hết hạn từ ngày {date}",
         "expiredBody": "Bạn vẫn dùng vibefix như bình thường. Hãy xác minh lại bằng email trường của năm học mới.",
         "verifyAgain": "Xác minh lại",
         "unlink": "Bỏ xác minh",
-        "unlinkTitle": "Bỏ xác minh sinh viên?",
+        "unlinkTitle": "Bỏ huy hiệu Sinh viên đã xác minh?",
         "unlinkBody": "Huy hiệu, trường, họ tên và ngành bạn khai được xóa khỏi hồ sơ ngay. Dấu vân tay một chiều của email vẫn được giữ 24 tháng như một tín hiệu nhận ra cùng một người, như lưu ý khi xác minh đã nói.",
         "unlinkConfirm": "Bỏ xác minh",
         "unlinking": "Đang bỏ xác minh…",
-        "unlinked": "Đã bỏ xác minh sinh viên.",
+        "unlinked": "Đã bỏ huy hiệu Sinh viên đã xác minh.",
         "cancel": "Để sau"
       }
     },
@@ -176,7 +177,7 @@
         "repositoryN": "Kho mã {n}",
         "removeRepository": "Bỏ kho mã {n}",
         "addRepository": "Thêm kho mã",
-        "hideStudentDetails": "Ẩn thông tin sinh viên trên hồ sơ công khai",
+        "hideStudentDetails": "Ẩn trường, họ tên và ngành học đã khai trên hồ sơ công khai",
         "hideHelper": "Mặc định tắt, nên trường, họ tên và ngành học bạn khai khi xác minh hiện trên hồ sơ công khai. Khi bật, chúng được ẩn; huy hiệu vẫn hiện.",
         "save": "Lưu hồ sơ",
         "saving": "Đang lưu…",
@@ -189,7 +190,7 @@
         "unverified": "Chưa xác minh",
         "github": "GitHub",
         "githubLine": "@{login} · Xác minh qua GitHub · {month}",
-        "student": "Email sinh viên",
+        "student": "Email trường",
         "studentLine": "Sinh viên đã xác minh · Có hiệu lực đến {date}",
         "methodSchoolEmail": "{school} · Xác minh qua email trường · {month}",
         "declared": "Khai khi xác minh",
@@ -197,6 +198,12 @@
         "linkedin": "LinkedIn",
         "manage": "Quản lý xác minh",
         "studentMajor": "Ngành học"
+      },
+      "public": {
+        "title": "Hồ sơ công khai",
+        "heading": "Hồ sơ công khai",
+        "empty": "Bạn chưa có hồ sơ công khai.",
+        "emptyBody": "Hồ sơ công khai có địa chỉ theo tên tài khoản GitHub của bạn. Liên kết GitHub để mọi người xem được những gì bạn đã làm trên vibefix."
       }
     },
     "githubGate": {
@@ -208,14 +215,15 @@
       "returnsHere": "Sau khi liên kết, bạn quay về đúng trang này.",
       "action": {
         "registerProduct": "đăng ký sản phẩm",
-        "findWork": "tìm việc"
+        "findWork": "tìm việc",
+        "publicProfile": "có hồ sơ công khai"
       }
     },
     "public": {
       "landing": {
         "title": "Giới thiệu",
         "heading": "Hoàn thiện ứng dụng bạn đã làm bằng AI",
-        "lead": "vibefix kết nối bạn với {mentor} có kinh nghiệm, đã được vibefix duyệt. Người hướng dẫn cùng nhóm sinh viên IT của họ sửa lỗi, thêm tính năng và bàn giao từng phần để bạn tự kiểm tra.",
+        "lead": "vibefix kết nối bạn với {mentor} có kinh nghiệm, đã được vibefix duyệt. Người hướng dẫn cùng nhóm thực hiện của họ sửa lỗi, thêm tính năng và bàn giao từng phần để bạn tự kiểm tra.",
         "promisesHeading": "Bạn luôn nắm được việc gì đang diễn ra",
         "promisePay": "Bạn thanh toán trước từng {milestone}. vibefix giữ tiền cho đến khi bạn {accept}.",
         "promiseDecide": "Không thay đổi nào vào dự án của bạn khi chưa có quyết định của bạn.",
@@ -278,7 +286,7 @@
         "noticeHeading": "Thông báo về dữ liệu cá nhân",
         "noticeVersion": "Phiên bản {version} · 27/10/2026",
         "noticeCollectedTitle": "vibefix thu thập gì",
-        "noticeCollected": "Từ tài khoản Google: tên, địa chỉ email Google và mã định danh của tài khoản, dùng làm khóa của tài khoản vibefix. Khi bạn liên kết GitHub: tên tài khoản, mã số tài khoản GitHub, liên kết ảnh đại diện và các email đã xác minh. Thông tin hồ sơ bạn tự nhập, và email trường chỉ khi bạn xác minh là sinh viên.",
+        "noticeCollected": "Từ tài khoản Google: tên, địa chỉ email Google và mã định danh của tài khoản, dùng làm khóa của tài khoản vibefix. Khi bạn liên kết GitHub: tên tài khoản, mã số tài khoản GitHub, liên kết ảnh đại diện và các email đã xác minh. Thông tin hồ sơ bạn tự nhập, và email trường chỉ khi bạn xác minh email trường.",
         "noticePurposeTitle": "Để làm gì",
         "noticePurpose": "Đăng nhập, liên lạc về công việc, xác minh khi bạn yêu cầu và giải quyết tranh chấp. Vai trò thuộc về từng công việc: người cùng công việc chỉ thấy những gì vai đó cần.",
         "noticeRetentionTitle": "Giữ trong bao lâu",
@@ -307,7 +315,10 @@
         "more": "và {n} việc khác",
         "open": "Làm ngay",
         "deadline": "Hạn {date}",
-        "stripLabel": "Việc cần làm tiếp theo"
+        "stripLabel": "Việc cần làm tiếp theo",
+        "account": "Tài khoản",
+        "context": "{job} · Bạn là {role}",
+        "contextRole": "Bạn là {role}"
       },
       "sessionExpired": {
         "title": "Phiên đăng nhập đã hết",
@@ -534,16 +545,6 @@
       "experience": {
         "years": "{years} năm kinh nghiệm",
         "notDeclared": "Kinh nghiệm: Chưa khai"
-      }
-    },
-    "student": {
-      "banner": {
-        "title": "Xác minh là sinh viên để vào nhóm của một người hướng dẫn",
-        "body": "Dùng email trường của bạn. Thường xong trong vài phút.",
-        "action": "Xác minh ngay",
-        "expiredTitle": "Xác minh đã hết hạn ngày {date}",
-        "expiredBody": "Công việc đang làm vẫn tiếp tục. Gia hạn để được chọn vào nhóm thực hiện mới.",
-        "renew": "Gia hạn"
       }
     },
     "admin": {
@@ -845,7 +846,7 @@
         "github": "GitHub",
         "email": "Email",
         "createdAt": "Tạo lúc",
-        "verification": "Xác minh sinh viên",
+        "verification": "Sinh viên đã xác minh",
         "verifiedUntil": "{method}, còn hiệu lực đến {date}",
         "verificationExpired": "{method}, đã hết hạn ngày {date}",
         "unverified": "Chưa xác minh",
@@ -1172,8 +1173,8 @@
             "CUSTOMER_TO_MENTOR_COUNT": "Khách hàng chấm người hướng dẫn: số lượt",
             "MENTOR_TO_CUSTOMER_AVERAGE": "Người hướng dẫn chấm khách hàng: trung bình (sao)",
             "MENTOR_TO_CUSTOMER_COUNT": "Người hướng dẫn chấm khách hàng: số lượt",
-            "MENTOR_TO_STUDENT_AVERAGE": "Người hướng dẫn chấm sinh viên: trung bình (sao)",
-            "MENTOR_TO_STUDENT_COUNT": "Người hướng dẫn chấm sinh viên: số lượt"
+            "MENTOR_TO_STUDENT_AVERAGE": "Người hướng dẫn chấm thành viên nhóm: trung bình (sao)",
+            "MENTOR_TO_STUDENT_COUNT": "Người hướng dẫn chấm thành viên nhóm: số lượt"
           },
           "privateFeedback": {
             "COUNT": "Số đánh giá",
@@ -1256,7 +1257,7 @@
         "assignedToMe": "Bạn đang xử lý",
         "people": "{raiser} khiếu nại {mentor}",
         "escalatedAt": "chuyển cho quản trị viên lúc {time}",
-        "reason": "Lý do của sinh viên",
+        "reason": "Lý do của thành viên nhóm",
         "answer": {
           "none": "Người hướng dẫn không trả lời trong thời hạn.",
           "KEEP": "Người hướng dẫn trả lời: giữ nguyên.",
@@ -1264,7 +1265,7 @@
           "WITHDRAW_RATING": "Người hướng dẫn đề nghị rút lại điểm."
         },
         "take": "Nhận xử lý",
-        "takeNote": "Khi nhận xử lý, bạn được xem trao đổi nhóm, lịch sử công việc của sinh viên và các phiên bản điều khoản nhóm, đến 30 ngày sau quyết định. Mỗi lần xem đều được ghi lại.",
+        "takeNote": "Khi nhận xử lý, bạn được xem trao đổi nhóm, lịch sử công việc của thành viên nhóm và các phiên bản điều khoản nhóm, đến 30 ngày sau quyết định. Mỗi lần xem đều được ghi lại.",
         "evidence": {
           "title": "Hồ sơ bằng chứng nội bộ",
           "terms": "Điều khoản nhóm",
@@ -1281,22 +1282,22 @@
           "share": "{name} · {pct}%",
           "confirmed": "xác nhận {time}",
           "noMessages": "Chưa có tin nhắn.",
-          "noItems": "Không có việc nào của sinh viên này.",
+          "noItems": "Không có việc nào của thành viên nhóm này.",
           "stars": "{n} sao",
           "hidden": "Điểm này đang bị ẩn."
         },
         "decision": {
           "title": "Quyết định",
-          "points": "Số điểm phần trăm chuyển từ phần của người hướng dẫn cho sinh viên",
+          "points": "Số điểm phần trăm chuyển từ phần của người hướng dẫn cho thành viên nhóm",
           "cap": "Tối đa {cap} điểm: người hướng dẫn có {pct}% ở giai đoạn này.",
-          "preview": "Trên {amount} THỬ NGHIỆM: người hướng dẫn {mentorPct}% · {mentorVnd}, sinh viên {raiserPct}% · {raiserVnd}.",
+          "preview": "Trên {amount} THỬ NGHIỆM: người hướng dẫn {mentorPct}% · {mentorVnd}, thành viên nhóm {raiserPct}% · {raiserVnd}.",
           "keep": "Giữ điểm",
           "remove": "Gỡ điểm",
           "reasoning": "Lý do quyết định",
           "final": "Quyết định là cuối cùng và được thực hiện ngay; cả hai bên được báo kết quả.",
           "confirm": "Ghi quyết định",
           "decided": "Đã ghi quyết định.",
-          "outcomePoints": "Chuyển {n} điểm phần trăm cho sinh viên",
+          "outcomePoints": "Chuyển {n} điểm phần trăm cho thành viên nhóm",
           "outcomeNone": "Giữ nguyên phần chia",
           "outcomeRemoved": "Gỡ điểm",
           "outcomeKept": "Giữ điểm",
@@ -1725,7 +1726,7 @@
       "title": "Công việc",
       "heading": "Công việc",
       "empty": "Bạn chưa có công việc nào.",
-      "emptyCta": "Đăng công việc từ một sản phẩm",
+      "emptyCta": "Tìm việc",
       "groupDecide": "Cần bạn quyết định",
       "groupActive": "Đang thực hiện",
       "groupOpen": "Đang tìm người hướng dẫn",
@@ -1851,6 +1852,22 @@
         "withdrawing": "Đang rút…",
         "withdrawn": "Đã rút tin. Tin đã trở về bản nháp.",
         "notYet": "Trang này của công việc sẽ có khi công việc đến bước tiếp theo."
+      },
+      "role": {
+        "CUSTOMER": "Khách hàng",
+        "MENTOR": "Người hướng dẫn",
+        "CREW": "Thành viên nhóm",
+        "youAre": "Bạn là: {role}",
+        "youAreFormer": "Bạn là: {role} · đã rời"
+      },
+      "segments": {
+        "label": "Vai trò của bạn trong công việc",
+        "dang": "Việc tôi đăng",
+        "huong-dan": "Việc tôi hướng dẫn",
+        "tham-gia": "Việc tôi tham gia",
+        "todos": "{n} việc cần làm",
+        "leftTitle": "Công việc bạn đã rời",
+        "left": "{job} · đã rời"
       }
     },
     "jobPost": {
@@ -1881,10 +1898,10 @@
       "previous": "Trước",
       "next": "Sau",
       "page": "Trang {n}",
-      "noFreeStudent": "Nhóm của bạn chưa có sinh viên rảnh, nên chưa ứng tuyển được.",
-      "noFreeStudentBusy": "Mọi sinh viên trong nhóm đang làm một công việc khác hoặc chưa xác minh.",
-      "noFreeStudentEmpty": "Nhóm của bạn chưa có sinh viên nào.",
-      "inviteStudents": "Mời sinh viên",
+      "noFreeStudent": "Nhóm của bạn chưa có thành viên rảnh, nên chưa ứng tuyển được.",
+      "noFreeStudentBusy": "Mọi thành viên trong nhóm đang làm một công việc khác hoặc chưa xác minh.",
+      "noFreeStudentEmpty": "Nhóm của bạn chưa có thành viên nào.",
+      "inviteStudents": "Mời thành viên",
       "jobLimit": "Bạn đang nhận đủ {n} công việc. Hãy hoàn thành bớt rồi ứng tuyển tiếp.",
       "jobLimitBody": "Bạn vẫn xem và tìm được tin công việc.",
       "detail": {
@@ -1911,8 +1928,8 @@
         "scanClean": "Kiểm tra khóa bí mật: không còn vấn đề nào mở.",
         "scanFindings": "Kiểm tra khóa bí mật: còn {n} vấn đề khách hàng đang xử lý.",
         "team": "Nhóm của bạn",
-        "teamFree": "{n} sinh viên · {k} đang rảnh",
-        "teamNoneFree": "{n} sinh viên · không ai đang rảnh",
+        "teamFree": "{n} thành viên · {k} đang rảnh",
+        "teamNoneFree": "{n} thành viên · không ai đang rảnh",
         "viewTeam": "Xem nhóm"
       },
       "searchLabel": "Tìm tin công việc",
@@ -1945,7 +1962,7 @@
       "overviewOpen": "Xem các đơn ứng tuyển",
       "apply": {
         "heading": "Ứng tuyển",
-        "lead": "Khách hàng sẽ thấy giá, thời gian, cách làm, số sinh viên trong nhóm của bạn ({n}) và điểm chấm sao của bạn. Bạn chọn nhóm thực hiện sau khi được chọn và ký cam kết bảo mật.",
+        "lead": "Khách hàng sẽ thấy giá, thời gian, cách làm, số thành viên trong nhóm của bạn ({n}) và điểm chấm sao của bạn. Bạn chọn nhóm thực hiện sau khi được chọn và ký cam kết bảo mật.",
         "price": "Giá đề xuất",
         "priceHint": "gồm phần của bạn và của nhóm thực hiện",
         "priceInvalid": "Hãy nhập giá từ 1.000 ₫ đến 1.000.000.000 ₫.",
@@ -1975,7 +1992,7 @@
       "list": {
         "title": "Đơn ứng tuyển · {job}",
         "sent": "gửi {date}",
-        "mentor": "{experience} · nhóm {n} sinh viên",
+        "mentor": "{experience} · nhóm {n} thành viên",
         "note": "Bạn có thể chờ thêm đơn rồi so sánh trước khi chọn. Người hướng dẫn chỉ thấy đơn của chính họ."
       },
       "mentor": {
@@ -1997,14 +2014,14 @@
         "end_JOB_LAPSED": "Tin đã hết hạn"
       },
       "compare": {
-        "lead": "So sánh giá, thời gian, cách làm và số sinh viên trong nhóm của từng người hướng dẫn.",
+        "lead": "So sánh giá, thời gian, cách làm và số thành viên trong nhóm của từng người hướng dẫn.",
         "heading": "Đang so sánh ({n})",
         "summary": "Đang so sánh {n} đơn",
         "all": "Tất cả đơn ứng tuyển ({n})",
         "toggle": "So sánh",
         "profile": "Xem hồ sơ",
         "portfolio": "{n} mục hồ sơ năng lực",
-        "note": "Khi bạn chọn, các đơn khác chuyển sang chờ. Người hướng dẫn được chọn cần ký cam kết bảo mật trong 3 ngày; nếu không, bạn có thể chọn lại. Bạn trao đổi với người hướng dẫn; họ tự chọn sinh viên trong nhóm để làm."
+        "note": "Khi bạn chọn, các đơn khác chuyển sang chờ. Người hướng dẫn được chọn cần ký cam kết bảo mật trong 3 ngày; nếu không, bạn có thể chọn lại. Bạn trao đổi với người hướng dẫn; họ tự chọn thành viên nhóm thực hiện."
       },
       "choose": {
         "button": "Chọn",
@@ -2053,7 +2070,7 @@
         "empty": "Không tìm thấy người hướng dẫn nào cho “{q}”.",
         "emptyHint": "Hãy thử từ khóa khác hoặc bỏ bớt kỹ năng.",
         "noRecommendation": "Chưa có đề xuất cho công việc này. Hãy tìm theo kỹ năng, ví dụ: React hoặc Supabase.",
-        "students": "{n} sinh viên",
+        "students": "{n} thành viên",
         "rating": "{average} sao ({count} lượt)",
         "newcomer": "Mới",
         "profile": "Xem hồ sơ",
@@ -2097,7 +2114,7 @@
       "afterTitle": "Sau khi bạn ký",
       "afterChat": "Trò chuyện với khách hàng mở ra.",
       "afterAgreement": "Bạn soạn thỏa thuận và gửi cho khách hàng.",
-      "afterCrew": "Bạn chọn nhóm thực hiện; từng sinh viên tự ký cam kết và xác nhận phần của mình.",
+      "afterCrew": "Bạn chọn nhóm thực hiện; từng thành viên tự ký cam kết và xác nhận phần của mình.",
       "customerSeesTitle": "Khách hàng thấy",
       "customerSees": "\"Chờ người hướng dẫn ký cam kết bảo mật\" cho đến khi bạn ký hoặc hết hạn.",
       "signedTitle": "Bạn đã ký cam kết bảo mật",
@@ -2335,11 +2352,11 @@
         "title": "Nhóm thực hiện",
         "caption": "Điều khoản nhóm thực hiện · phiên bản {n} · phần chia tính trên số tiền mỗi giai đoạn được nghiệm thu",
         "captionNone": "Chưa gửi phiên bản điều khoản nào · phần chia tính trên số tiền mỗi giai đoạn được nghiệm thu",
-        "add": "Thêm sinh viên",
-        "addAction": "thêm sinh viên",
-        "removeAction": "bỏ sinh viên khỏi nhóm",
+        "add": "Thêm thành viên",
+        "addAction": "thêm thành viên",
+        "removeAction": "bỏ thành viên khỏi nhóm",
         "saveAction": "lưu phần chia",
-        "n20": "Khách hàng chỉ thấy tên tài khoản GitHub của nhóm thực hiện, không thấy tỷ lệ chia tiền. Mỗi sinh viên phải tự xác nhận phần của mình; sửa tỷ lệ sẽ xóa các xác nhận cũ.",
+        "n20": "Khách hàng chỉ thấy tên tài khoản GitHub của nhóm thực hiện, không thấy tỷ lệ chia tiền. Mỗi thành viên phải tự xác nhận phần của mình; sửa tỷ lệ sẽ xóa các xác nhận cũ.",
         "locked": "Nhóm thực hiện đã chốt theo thỏa thuận. Không thể thay đổi cho đến khi công việc bắt đầu.",
         "lockedRunning": "Công việc đang chạy: nhóm chỉ thay đổi qua \"Đổi nhóm thực hiện\". Mỗi người giữ nguyên các khoản đã nhận.",
         "captionChange": "Đổi nhóm thực hiện · phiên bản {n} đang chờ áp dụng · phiên bản {current} vẫn áp dụng đến khi đổi xong",
@@ -2349,7 +2366,7 @@
         "changeWaiting": "Đang chờ áp dụng: {confirmed}/{total} đã xác nhận",
         "changeWaitingBody": "Phiên bản {n} áp dụng khi mọi người đã xác nhận và không có giai đoạn nào đang giữ tiền. Phiên bản {current} vẫn áp dụng đến khi đổi xong. Chỉ bạn thấy thay đổi đang chờ; khách hàng thanh toán bình thường.",
         "changeTitle": "Đổi nhóm thực hiện",
-        "changeLead": "Chọn người ở lại, thêm sinh viên từ nhóm của bạn và chia lại phần. Các khoản mỗi người đã nhận vẫn giữ nguyên.",
+        "changeLead": "Chọn người ở lại, thêm thành viên từ nhóm của bạn và chia lại phần. Các khoản mỗi người đã nhận vẫn giữ nguyên.",
         "changeNew": "Thành viên mới · chờ ký và xác nhận",
         "changeStays": "Ở lại · xác nhận phần mới",
         "changeLeaving": "Sẽ rời nhóm khi áp dụng",
@@ -2371,22 +2388,22 @@
         "cap": "Tối đa {cap}% cho người hướng dẫn",
         "remove": "Bỏ khỏi nhóm",
         "removeNamed": "Bỏ {name} khỏi nhóm",
-        "empty": "Chưa có sinh viên nào trong nhóm thực hiện. Chọn \"Thêm sinh viên\" để chọn từ nhóm của bạn.",
+        "empty": "Chưa có thành viên nào trong nhóm thực hiện. Chọn \"Thêm thành viên\" để chọn từ nhóm của bạn.",
         "sum": "Tổng: {n}%",
         "sumBad": "Tổng: {n}% · cần bằng 100%",
         "save": "Lưu và gửi cho nhóm xác nhận",
-        "saveNote": "Lưu sẽ tạo phiên bản mới và gửi cho từng sinh viên ký cam kết bảo mật và xác nhận phần của mình.",
+        "saveNote": "Lưu sẽ tạo phiên bản mới và gửi cho từng thành viên ký cam kết bảo mật và xác nhận phần của mình.",
         "example": "Ví dụ Giai đoạn {n}",
         "notWhole": "Hãy nhập số nguyên từ 0 đến 100.",
-        "studentZero": "Mỗi sinh viên phải lớn hơn 0%.",
+        "studentZero": "Phần của mỗi thành viên phải lớn hơn 0%.",
         "mentorOver": "Tối đa {cap}% cho người hướng dẫn.",
         "saved": "Đã lưu phiên bản {n} và gửi cho nhóm xác nhận.",
         "added": "Đã thêm {name} vào nhóm thực hiện.",
         "removed": "Đã bỏ {name} khỏi nhóm thực hiện.",
-        "limit": "Hiện mỗi công việc chỉ có một sinh viên trong nhóm thực hiện.",
-        "pickLabel": "Sinh viên trong nhóm của bạn",
-        "pickCount": "Nhóm của bạn · {n} sinh viên",
-        "pickEmpty": "Nhóm của bạn chưa có sinh viên nào. Mời sinh viên ở trang Nhóm.",
+        "limit": "Hiện mỗi công việc chỉ có một thành viên trong nhóm thực hiện.",
+        "pickLabel": "Thành viên trong nhóm của bạn",
+        "pickCount": "Nhóm của bạn · {n} thành viên",
+        "pickEmpty": "Nhóm của bạn chưa có thành viên nào. Mời thành viên ở trang Nhóm.",
         "free": "Đang rảnh",
         "onCrew": "Đang làm {job}",
         "onCrewOther": "Đang làm một công việc khác",
@@ -2395,7 +2412,7 @@
         "addNamed": "Thêm {name}",
         "pickAdd": "Thêm",
         "confirmTitle": "Lưu phần chia mới?",
-        "confirmBody": "Các xác nhận cũ sẽ bị xóa. Mỗi sinh viên phải ký và xác nhận lại phiên bản mới.",
+        "confirmBody": "Các xác nhận cũ sẽ bị xóa. Mỗi thành viên phải ký và xác nhận lại phiên bản mới.",
         "confirmBack": "Quay lại",
         "confirmSave": "Lưu và gửi",
         "state": {
@@ -2420,7 +2437,7 @@
         "seesNote": "Không có tên, hồ sơ hay tỷ lệ chia. Cho đến khi cả nhóm xác nhận, khách hàng thấy thêm \"Chờ nhóm thực hiện xác nhận\".",
         "rulesTitle": "Quy tắc phần chia",
         "ruleWhole": "Số nguyên, cộng lại bằng 100%",
-        "ruleStudent": "Mỗi sinh viên lớn hơn 0%",
+        "ruleStudent": "Mỗi thành viên lớn hơn 0%",
         "ruleCap": "Tối đa {cap}% cho người hướng dẫn",
         "ruleRemainder": "Phần lẻ dưới 1 đồng thuộc về người hướng dẫn",
         "reconfirmTitle": "Cần xác nhận lại nhóm thực hiện",
@@ -2428,7 +2445,7 @@
         "reconfirm": "Xác nhận lại nhóm thực hiện",
         "reconfirmed": "Đã xác nhận lại nhóm thực hiện.",
         "reconfirmAction": "xác nhận lại nhóm thực hiện",
-        "limitLarge": "Nhóm thực hiện đã đủ {n} sinh viên."
+        "limitLarge": "Nhóm thực hiện đã đủ {n} thành viên."
       },
       "customer": {
         "title": "Nhóm thực hiện",
@@ -2437,12 +2454,6 @@
         "note": "Tên tài khoản GitHub để bạn cấp quyền khi cần. Người hướng dẫn chọn và chịu trách nhiệm về nhóm thực hiện."
       },
       "student": {
-        "title": "Công việc của tôi",
-        "noTeam": "Bạn chưa ở nhóm nào. Hãy tìm một người hướng dẫn và xin vào nhóm.",
-        "noTeamBody": "Người hướng dẫn chọn sinh viên trong nhóm của mình vào nhóm thực hiện từng công việc.",
-        "findMentor": "Tìm người hướng dẫn",
-        "empty": "Bạn chưa có công việc nào.",
-        "emptyBody": "Khi người hướng dẫn chọn bạn vào nhóm thực hiện, phân công sẽ hiện ở đây.",
         "kicker": "Phân công nhóm thực hiện · {product}",
         "waitingBadge": "Chờ bạn ký và xác nhận",
         "mentor": "Người hướng dẫn: {name}",
@@ -3529,16 +3540,16 @@
     "privacy": {
       "version": "3.1",
       "versionLine": "Thông báo quyền riêng tư · phiên bản {version}",
-      "effective": "Áp dụng từ 27/10/2026. Từ phiên bản 3.0, bạn đăng nhập bằng Google và giữ vai trò theo từng công việc. Từ phiên bản 3.1, vibefix không còn nhận ảnh thẻ sinh viên hay hồ sơ ứng tuyển người hướng dẫn.",
+      "effective": "Áp dụng từ 27/10/2026. Từ phiên bản 3.0, bạn đăng nhập bằng Google và giữ vai trò theo từng công việc. Từ phiên bản 3.1, vibefix không còn nhận ảnh thẻ của trường hay hồ sơ ứng tuyển người hướng dẫn.",
       "collectedHeading": "vibefix thu thập gì",
       "collected": {
         "identity": "Danh tính Google: tên, địa chỉ email Google và mã định danh của tài khoản Google, dùng làm khóa của tài khoản vibefix; vibefix không giữ ảnh đại diện Google. Khi bạn liên kết {github}: tên tài khoản, mã số tài khoản, liên kết ảnh đại diện và các email đã xác minh.",
         "profile": "Thông tin hồ sơ bạn nhập: tên hiển thị, email liên hệ, số điện thoại (không bắt buộc).",
-        "student": "Khi bạn xác minh là sinh viên: email trường, chỉ để gửi mã xác minh.",
+        "student": "Khi bạn xác minh email trường: địa chỉ email trường, chỉ để gửi mã xác minh.",
         "jobs": "Nội dung công việc: tin công việc, trò chuyện, tài liệu, tệp đính kèm."
       },
       "purposeHeading": "Để làm gì",
-      "purpose": "Đăng nhập, liên lạc về công việc, xác minh sinh viên khi bạn yêu cầu, giữ và chuyển tiền thử nghiệm, phân xử tranh chấp.",
+      "purpose": "Đăng nhập, liên lạc về công việc, xác minh email trường khi bạn yêu cầu, giữ và chuyển tiền thử nghiệm, phân xử tranh chấp.",
       "retentionHeading": "Giữ trong bao lâu",
       "retention": "Đến khi bạn yêu cầu xóa tài khoản. Một số bản ghi giao dịch và nhật ký hệ thống được giữ lại theo quy định.",
       "rightsHeading": "Quyền của bạn",
@@ -3559,8 +3570,8 @@
     },
     "student": {
       "version": "1.0",
-      "versionLine": "Lưu ý khi xác minh email sinh viên · phiên bản {version}",
-      "title": "Trước khi xác minh email sinh viên",
+      "versionLine": "Lưu ý khi xác minh email trường · phiên bản {version}",
+      "title": "Trước khi xác minh email trường",
       "body": "vibefix gửi mã đến email trường bạn nhập để biết bạn đang học ở trường đó. “Trường” hiện trên hồ sơ là tên miền của email này, ví dụ hust.edu.vn.",
       "kept": "vibefix không lưu địa chỉ email này. vibefix chỉ giữ tên miền, tháng xác minh, ngày hết hạn và một dấu vân tay một chiều của địa chỉ, tạo bằng khóa bí mật của vibefix nên không đổi ngược thành địa chỉ được. Dấu này được giữ như một tín hiệu nhận ra cùng một người, loại “email trường”: nhờ nó vibefix nhận ra các tài khoản đã xác minh bằng cùng một email, và một email chỉ xác minh cho một tài khoản tại một thời điểm. Dấu này còn được giữ 24 tháng sau khi bạn bỏ xác minh, khi xác minh hết hạn, hoặc khi tài khoản của bạn bị xóa.",
       "locked": "Họ tên và ngành bạn khai ở đây sẽ được khóa sau khi xác minh.",
@@ -3582,17 +3593,17 @@
     },
     "mentor": {
       "label": "Người hướng dẫn",
-      "hint": "Người có kinh nghiệm được vibefix duyệt. Họ nhận công việc, trao đổi với bạn, giao việc cho sinh viên trong nhóm và duyệt từng phần trước khi bàn giao."
+      "hint": "Người có kinh nghiệm được vibefix duyệt. Họ nhận công việc, trao đổi với bạn, giao việc cho nhóm thực hiện và duyệt từng phần trước khi bàn giao."
     },
     "student": {
-      "label": "Sinh viên"
+      "label": "Sinh viên đã xác minh"
     },
     "team": {
       "label": "Nhóm"
     },
     "crew": {
       "label": "Nhóm thực hiện",
-      "hint": "Các sinh viên trong nhóm của người hướng dẫn được giao làm công việc này. Bạn chỉ thấy tên tài khoản GitHub của họ để cấp quyền khi cần."
+      "hint": "Những thành viên cùng người hướng dẫn làm công việc này. Bạn chỉ thấy tên tài khoản GitHub của họ để cấp quyền khi cần."
     },
     "crewTerms": {
       "label": "Điều khoản nhóm thực hiện"
@@ -3603,7 +3614,7 @@
     },
     "administrator": {
       "label": "Quản trị viên",
-      "hint": "Nhân viên vibefix: duyệt người hướng dẫn, xác minh sinh viên và phân xử tranh chấp."
+      "hint": "Nhân viên vibefix: xử lý báo cáo vi phạm và phân xử tranh chấp."
     },
     "system": {
       "label": "Hệ thống"
@@ -3975,7 +3986,7 @@
   "todo": {
     "identity": {
       "link_github": "Liên kết tài khoản GitHub",
-      "verify_student": "Xác minh là sinh viên để vào nhóm của người hướng dẫn",
+      "verify_student": "Xác minh email trường để có huy hiệu Sinh viên đã xác minh",
       "relink_github": "Liên kết lại GitHub để vibefix kiểm tra được kho mã của bạn"
     },
     "scanning": {
@@ -4091,13 +4102,13 @@
         "title": "Mã xác minh vibefix của bạn: {code} (hết hạn sau 10 phút)"
       },
       "verification_expiring": {
-        "title": "Xác minh sinh viên hết hạn ngày {date}"
+        "title": "Huy hiệu Sinh viên đã xác minh hết hạn ngày {date}"
       },
       "relink_github": {
         "title": "Hãy liên kết lại GitHub để vibefix kiểm tra được kho mã của bạn"
       },
       "verification_expired": {
-        "title": "Xác minh sinh viên đã hết hạn"
+        "title": "Huy hiệu Sinh viên đã xác minh hết hạn"
       },
       "admin_sign_in_locked": {
         "title": "Đăng nhập quản trị bị tạm khóa 15 phút: {email} (5 lần thử sai)"
@@ -4582,21 +4593,21 @@
       "JOB_FROZEN": "công việc đang tạm dừng vì có tranh chấp",
       "MENTOR_NOT_AVAILABLE": "người hướng dẫn này hiện không nhận việc",
       "MENTOR_AT_JOB_LIMIT": "người hướng dẫn này đang nhận đủ số công việc tối đa",
-      "MENTOR_NO_FREE_STUDENT": "nhóm của người hướng dẫn này hiện không có sinh viên rảnh",
+      "MENTOR_NO_FREE_STUDENT": "nhóm của người hướng dẫn này hiện không có thành viên rảnh",
       "NDA_PERIOD_RUNNING": "người hướng dẫn vẫn còn thời gian ký cam kết bảo mật",
       "AGREEMENT_INCOMPLETE": "bản nháp chưa đủ để gửi",
       "CREW_LOCKED": "nhóm thực hiện đã chốt theo thỏa thuận",
       "CREW_CHANGE_REQUIRED": "công việc đã bắt đầu, chỉ đổi nhóm được qua yêu cầu đổi nhóm",
       "CREW_CHANGE_WHILE_HELD": "đang có giai đoạn giữ tiền, hãy đổi nhóm khi giai đoạn đó xong",
-      "CREW_LIMIT": "nhóm thực hiện đã đủ số sinh viên cho phép",
-      "STUDENT_NOT_VERIFIED": "sinh viên chưa xác minh",
-      "STUDENT_ON_CREW": "sinh viên đang làm một công việc khác",
-      "NOT_IN_TEAM": "sinh viên không còn trong nhóm của bạn",
-      "CONFLICT_OF_INTEREST": "không thể thêm sinh viên này vào công việc này",
+      "CREW_LIMIT": "nhóm thực hiện đã đủ số thành viên cho phép",
+      "STUDENT_NOT_VERIFIED": "người này chưa xác minh email trường",
+      "STUDENT_ON_CREW": "người này đang làm một công việc khác",
+      "NOT_IN_TEAM": "người này không còn trong nhóm của bạn",
+      "CONFLICT_OF_INTEREST": "không thể thêm người này vào công việc này",
       "ROLE_TAKEN": "người này đã giữ một vai khác trong công việc này (mỗi người chỉ giữ một vai trong một công việc)",
-      "APPLICANT_IS_CONTRIBUTOR": "sinh viên đã từng đóng góp vào dự án gốc này",
-      "CONTRIBUTORS_UNKNOWN": "vibefix chưa kiểm tra được kho mã của khách hàng nên chưa thêm được sinh viên này; việc này không do bạn, hãy thử lại sau",
-      "SHARES_INVALID": "Tỷ lệ chia phải là số nguyên, cộng lại bằng 100, mỗi sinh viên lớn hơn 0, và phần của người hướng dẫn không quá mức tối đa.",
+      "APPLICANT_IS_CONTRIBUTOR": "người này đã từng đóng góp vào dự án gốc này",
+      "CONTRIBUTORS_UNKNOWN": "vibefix chưa kiểm tra được kho mã của khách hàng nên chưa thêm được người này; việc này không do bạn, hãy thử lại sau",
+      "SHARES_INVALID": "Tỷ lệ chia phải là số nguyên, cộng lại bằng 100, mỗi thành viên lớn hơn 0, và phần của người hướng dẫn không quá mức tối đa.",
       "CREW_NOT_CONFIRMED": "nhóm thực hiện chưa xác nhận đủ",
       "AGREEMENT_APPROVED": "bạn đã duyệt bản nháp này",
       "CHANGES_REQUESTED": "bạn đã gửi góp ý cho bản nháp này, hãy chờ bản nháp mới",
@@ -4640,7 +4651,7 @@
       "JOB_POST_HIDDEN": "tin công việc đang bị ẩn",
       "ROLE_TAKEN": "Đây là công việc bạn đăng.",
       "ALREADY_APPLIED": "Bạn đã có đơn ứng tuyển cho công việc này.",
-      "NO_FREE_STUDENT": "Nhóm của bạn chưa có sinh viên rảnh, nên chưa ứng tuyển được.",
+      "NO_FREE_STUDENT": "Nhóm của bạn chưa có thành viên rảnh, nên chưa ứng tuyển được.",
       "MENTOR_JOB_LIMIT": "Bạn đang nhận đủ số công việc tối đa. Hãy hoàn thành bớt rồi ứng tuyển tiếp.",
       "CONFLICT_OF_INTEREST": "Bạn không thể ứng tuyển công việc này.",
       "APPLICANT_IS_CONTRIBUTOR": "Bạn đã từng đóng góp vào dự án gốc này nên không thể ứng tuyển.",

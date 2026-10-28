@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -66,7 +66,8 @@ describe('CUS-8 "Đề xuất cho công việc này" (FR-14, AD-17)', () => {
   it('shows the platform-written signals and invites from a Recommendation', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     let sent: unknown
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(openJob),
       'GET /api/v1/jobs/j1/applications': () => json([]),
       'GET /api/v1/jobs/j1/invitations': () => json({ left: 10, invitations: [] }),
@@ -99,7 +100,8 @@ describe('CUS-8 "Đề xuất cho công việc này" (FR-14, AD-17)', () => {
   })
 
   it('hides the Recommendations while a keyword is active', { timeout: 15_000 }, async () => {
-    const seen = fakeBackend(signedIn('CUSTOMER'), {
+    const seen = fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(openJob),
       'GET /api/v1/jobs/j1/applications': () => json([]),
       'GET /api/v1/jobs/j1/invitations': () => json({ left: 10, invitations: [] }),
@@ -132,7 +134,7 @@ describe('MEN-2 "Đề xuất cho bạn" (FR-14, AD-17)', () => {
   }
 
   it('lists Recommendations above the Job Posts with "Bạn được mời" and the chips', { timeout: 15_000 }, async () => {
-    fakeBackend(signedIn('MENTOR'), handlers)
+    fakeBackend(signedInUser, { ...inEveryJob('MENTOR'), ...handlers })
     renderAt('/tim-viec')
 
     const section = await screen.findByRole('region', { name: 'Đề xuất cho bạn' })
@@ -143,7 +145,7 @@ describe('MEN-2 "Đề xuất cho bạn" (FR-14, AD-17)', () => {
   })
 
   it('hides them while a keyword is active', { timeout: 15_000 }, async () => {
-    const seen = fakeBackend(signedIn('MENTOR'), handlers)
+    const seen = fakeBackend(signedInUser, { ...inEveryJob('MENTOR'), ...handlers })
     renderAt('/tim-viec?q=zalo')
 
     await waitFor(() => expect(seen.some((request) => request.url.includes('/mentor/job-posts'))).toBe(true))

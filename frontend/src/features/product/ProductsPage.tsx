@@ -5,9 +5,6 @@ import { usePageTitle } from '@/app/usePageTitle'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { buttonVariants } from '@/components/ui/button-variants'
-import { holdsOtherRole } from '@/features/identity/api'
-import { useSession } from '@/features/identity/useSession'
-import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t } from '@/i18n/t'
 import { formatDayMonth } from '@/lib/dates'
 import { useProducts, type Product } from './productApi'
@@ -20,10 +17,6 @@ import { ScanStateBadge } from './ScanStateBadge'
  */
 export function ProductsPage() {
   usePageTitle(t('screen.product.title'))
-  const account = useSession().data?.account
-  if (!account || holdsOtherRole(account, 'CUSTOMER')) {
-    return <NotFoundScreen />
-  }
   return <ProductList />
 }
 

@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -81,7 +81,8 @@ const mentorJob = {
 describe('Story 11.2: the Crew workload on JOB-2 (FR-23, FR-26, AD-41, UX-DR37)', () => {
   it('shows the Mentor each member\'s open work, and selecting one filters the Board', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/jobs/j1': () => json(mentorJob),
       'GET /api/v1/boards/j1/work-items': () => json(board()),
     })
@@ -106,7 +107,8 @@ describe('Story 11.2: the Crew workload on JOB-2 (FR-23, FR-26, AD-41, UX-DR37)'
 
   it('lists a member whose lock is not carried out yet disabled in the assignee picker', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/jobs/j1': () => json(mentorJob),
       'GET /api/v1/boards/j1/work-items': () => json(board()),
     })
@@ -120,7 +122,8 @@ describe('Story 11.2: the Crew workload on JOB-2 (FR-23, FR-26, AD-41, UX-DR37)'
   })
 
   it('hides the line when the Board sends no workload: a Crew member, or the flag off', { timeout: 20_000 }, async () => {
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/jobs/j1': () => json(mentorJob),
       'GET /api/v1/boards/j1/work-items': () => json(board({ workload: [] })),
     })

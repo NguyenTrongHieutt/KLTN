@@ -3,8 +3,6 @@ import { usePageTitle } from '@/app/usePageTitle'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { TestTag } from '@/components/TestTag'
-import { useSession } from '@/features/identity/useSession'
-import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t } from '@/i18n/t'
 import { formatDayMonth } from '@/lib/dates'
 import { formatVnd } from '@/lib/money'
@@ -12,25 +10,20 @@ import { useBalance, type Balance } from './paymentApi'
 import { TestModeBanner } from './TestModeBanner'
 
 /**
- * MEN-7 and STU-7 (`/so-du`, FR-44, FR-45): the Balance, the sum of the account's releases, and each
- * release per Job. The Mentor also sees each Crew member's part; a Student sees only their own, even
- * after leaving the Crew (AD-20). The reader's own parts held for an open Team Issue show as "Đang giữ"
+ * MEN-7, which STU-7 merged into (`/so-du`, FR-44, FR-45, Story 20.6): the Balance, the sum of the account's
+ * releases, and each release per Job. A Mentor also sees each Crew member's part, which the Balance tells by its
+ * Mentor figures, never by the account; a Crew member sees only their own, even after leaving the Crew (AD-20). The reader's own parts held for an open Team Issue show as "Đang giữ"
  * and never count in the Balance (AD-40). The Balance cannot be withdrawn.
  */
 export function BalancePage() {
   usePageTitle(t('screen.payment.balance.title'))
-  const account = useSession().data?.account
   const balance = useBalance()
-  const mentor = account?.role === 'MENTOR'
-  if (account !== undefined && account.role !== 'STUDENT' && !mentor) {
-    return <NotFoundScreen />
-  }
   return (
     <div className="mx-auto flex max-w-[960px] flex-col gap-5 px-gutter-mobile py-section-gap md:px-gutter-desktop">
       <PageHeading>{t('screen.payment.balance.title')}</PageHeading>
       <TestModeBanner balance />
       <RegionState query={balance} skeleton={<Skeleton className="h-64 w-full" />}>
-        {balance.data && <Content balance={balance.data} mentor={mentor} />}
+        {balance.data && <Content balance={balance.data} mentor={balance.data.sentToCrewVnd != null} />}
       </RegionState>
     </div>
   )

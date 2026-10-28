@@ -14,7 +14,6 @@ const student: Session = {
     id: '00000000-0000-7000-8000-00000000b001',
     kind: 'USER',
     capabilities: capabilities(),
-    role: 'STUDENT',
     theme: 'LIGHT',
   },
 }

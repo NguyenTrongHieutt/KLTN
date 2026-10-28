@@ -1,8 +1,8 @@
-subject: Xác minh sinh viên đã hết hạn
+subject: Huy hiệu Sinh viên đã xác minh hết hạn
 link: /ho-so
 ---
 Xin chào,
 
-Xác minh sinh viên vibefix của bạn đã hết hạn.
+Huy hiệu Sinh viên đã xác minh của bạn trên vibefix đã hết hạn.
 Công việc đang làm vẫn tiếp tục và bạn vẫn ở trong nhóm của mình, nhưng bạn chưa được chọn vào nhóm thực hiện mới cho đến khi gia hạn.
 Hãy gia hạn ở trang Hồ sơ và xác minh.

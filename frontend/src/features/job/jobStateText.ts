@@ -1,9 +1,15 @@
 import { t, type MessageKey } from '@/i18n/t'
 import { formatCalendarDayMonth } from '@/lib/dates'
 import type { JobState } from './jobApi'
+import type { RoleInJob } from './jobRoleApi'
 
 /** Who reads the state: the Customer, or the Mentor and the Crew (UX-DR19). */
 export type JobAudience = 'customer' | 'mentor'
+
+/** The words a role in the Job reads (UX-DR87): the Customer's, or the Mentor's and the Crew's. */
+export function audienceOf(role: RoleInJob): JobAudience {
+  return role === 'CUSTOMER' ? 'customer' : 'mentor'
+}
 
 /**
  * The single state-text mapping for Job states (UX-DR19, EXPERIENCE.md "Job and Milestone status

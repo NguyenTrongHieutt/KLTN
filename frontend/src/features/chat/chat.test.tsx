@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
 import { PAYLOADS } from '@/test/payloads'
 
 function renderAt(path: string) {
@@ -49,7 +49,8 @@ const message = (overrides: object = {}) => ({
 })
 
 const customerChat = (extra: Record<string, (request: Request) => Response | Promise<Response>> = {}) =>
-  fakeBackend(signedIn('CUSTOMER'), {
+  fakeBackend(signedInUser, {
+    ...inEveryJob('CUSTOMER'),
     'GET /api/v1/jobs/j1': () => json(agreementJob),
     'GET /api/v1/jobs/j1/chat': () => json({ chatId: 'c1', unread: false }),
     'POST /api/v1/jobs/j1/chat/read': () => new Response(null, { status: 204 }),
@@ -185,7 +186,8 @@ describe('JOB-4 "Trò chuyện" (FR-46, UX-DR25, UX-DR40)', () => {
   })
 
   it('shows the Mentor\'s "Trò chuyện" tab with the unread dot from Agreement on', { timeout: 15_000 }, async () => {
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/jobs/j1': () =>
         json({
           id: 'j1',
@@ -208,7 +210,7 @@ describe('JOB-4 "Trò chuyện" (FR-46, UX-DR25, UX-DR40)', () => {
   })
 
   it('shows the not-found screen to a Student', { timeout: 15_000 }, async () => {
-    fakeBackend(signedIn('STUDENT'))
+    fakeBackend(signedInUser, inEveryJob('CREW'))
     renderAt('/cong-viec/j1/tro-chuyen')
 
     expect(await screen.findByRole('heading', { name: /Không tìm thấy/ })).toBeInTheDocument()

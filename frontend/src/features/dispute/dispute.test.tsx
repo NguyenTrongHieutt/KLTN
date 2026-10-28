@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
 import { Toaster } from '@/components/Toaster'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
 import { DisputeSection } from './DisputeSection'
 
 function renderAt(path: string) {
@@ -82,7 +82,8 @@ describe('JOB-1 statements (FR-52, Story 15.1)', () => {
     const user = userEvent.setup()
     const sent: unknown[] = []
     const mentorOpen = { ...open, mine: false, canState: true }
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/boards/j1/dispute': () => json({ jobId: 'j1', audience: 'MENTOR', canOpen: false, open: mentorOpen }),
       'POST /api/v1/boards/j1/dispute/statement': async (request) => {
         sent.push(await request.json())
@@ -113,7 +114,8 @@ describe('JOB-1 Disputes (FR-52, UX-DR22, UX-DR56)', () => {
   it('lets the Customer open a Dispute through the dialog that says what freezes', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     const sent: unknown[] = []
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(customerJob),
       'GET /api/v1/boards/j1/progress': () => json(progress),
       'GET /api/v1/boards/j1/dispute': () => json({ jobId: 'j1', audience: 'CUSTOMER', canOpen: true, open: null }),
@@ -135,7 +137,8 @@ describe('JOB-1 Disputes (FR-52, UX-DR22, UX-DR56)', () => {
   })
 
   it('shows the Frozen banner to a Crew member, who is never offered the action', { timeout: 20_000 }, async () => {
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
       'GET /api/v1/boards/j1/progress': () => json({ ...progress, audience: 'CREW' }),
       'GET /api/v1/boards/j1/dispute': () =>
         json({ jobId: 'j1', audience: 'CREW', canOpen: false, open: { ...open, mine: false } }),
@@ -148,7 +151,8 @@ describe('JOB-1 Disputes (FR-52, UX-DR22, UX-DR56)', () => {
   })
 
   it('says the System opened it when a lock left the Job unable to go on (FR-59)', { timeout: 20_000 }, async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(customerJob),
       'GET /api/v1/boards/j1/progress': () => json(progress),
       'GET /api/v1/boards/j1/dispute': () =>

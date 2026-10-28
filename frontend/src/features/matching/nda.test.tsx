@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -59,7 +59,8 @@ describe('JOB-1 for the selected Mentor, the NDA panel (FR-15, FR-18)', () => {
     const user = userEvent.setup()
     let sent: unknown
     let signed = false
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/jobs/j1': () => json(signed ? mentorJob({ state: 'AGREEMENT', ndaDueAt: undefined }) : mentorJob()),
       'POST /api/v1/mentor/jobs/j1/nda': async (request) => {
         sent = await request.json()
@@ -85,7 +86,8 @@ describe('JOB-1 for the selected Mentor, the NDA panel (FR-15, FR-18)', () => {
 
   it('says GitHub must be linked before signing and links to ACC-2 (FR-80)', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/jobs/j1': () => json(mentorJob({ commitEmailNoticeAcknowledged: true })),
       'POST /api/v1/mentor/jobs/j1/nda': () => json({ status: 403, code: 'FORBIDDEN', reason: 'GITHUB_NOT_LINKED' }, 403),
     })
@@ -101,7 +103,8 @@ describe('JOB-1 for the selected Mentor, the NDA panel (FR-15, FR-18)', () => {
   it('skips N-23 once acknowledged, and declines after a confirmation', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     let declined: unknown
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/jobs/j1': () => json(mentorJob({ commitEmailNoticeAcknowledged: true })),
       'GET /api/v1/mentor/jobs': () => json([]),
       'GET /api/v1/mentor/applications': () => json([]),
@@ -122,11 +125,19 @@ describe('JOB-1 for the selected Mentor, the NDA panel (FR-15, FR-18)', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/cong-viec'))
   })
 
-  it('lists the Mentor\'s Jobs on MEN-4', { timeout: 15_000 }, async () => {
-    fakeBackend(signedIn('MENTOR'), {
-      'GET /api/v1/mentor/jobs': () =>
-        json([{ id: 'j1', title: 'Sửa lỗi mất đơn hàng', productName: 'Shop Gốm Bát Tràng', state: 'SELECTING', selectedAt: '2026-10-18T03:00:00Z' }]),
-      'GET /api/v1/mentor/applications': () => json([]),
+  it('lists the Mentor\'s Jobs in "Việc tôi hướng dẫn" on CUS-7', { timeout: 15_000 }, async () => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/my-jobs': () =>
+        json([
+          {
+            jobId: 'j1',
+            title: 'Sửa lỗi mất đơn hàng',
+            productName: 'Shop Gốm Bát Tràng',
+            state: 'SELECTING',
+            role: 'MENTOR',
+            updatedAt: '2026-10-18T03:00:00Z',
+          },
+        ]),
     })
     renderAt('/cong-viec')
 
@@ -139,7 +150,8 @@ describe('JOB-1 for the Customer while Selecting (FR-15)', () => {
   it('shows the held Applications and cancels the selection once the period passed', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     let sent: unknown
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(selectingJob({ canCancelSelection: true })),
       'GET /api/v1/jobs/j1/applications': () =>
         json([
@@ -170,7 +182,8 @@ describe('JOB-1 for the Customer while Selecting (FR-15)', () => {
   })
 
   it('keeps "Hủy lựa chọn" away while the Mentor still has time', { timeout: 15_000 }, async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(selectingJob()),
       'GET /api/v1/jobs/j1/applications': () => json([]),
     })

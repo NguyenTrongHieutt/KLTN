@@ -5,7 +5,7 @@ import { usePageTitle } from '@/app/usePageTitle'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { buttonVariants } from '@/components/ui/button-variants'
-import { useSession } from '@/features/identity/useSession'
+import { ByJobRole } from '@/features/job/ByJobRole'
 import { useJob } from '@/features/job/jobApi'
 import { JobHeader } from '@/features/job/JobHeader'
 import { customerMeta, mentorMeta } from '@/features/job/jobMeta'
@@ -28,17 +28,13 @@ import { DeliveryReportView } from './DeliveryReportView'
  */
 export function HandoverPage() {
   const { jobId, handoverId } = useParams()
-  const account = useSession().data?.account
-  if (!jobId || (account !== undefined && account.kind === 'ADMINISTRATOR')) {
-    return <NotFoundScreen />
-  }
-  if (account?.role === 'CUSTOMER') {
-    return <CustomerHandovers jobId={jobId} handoverId={handoverId} />
-  }
-  return account?.role === 'MENTOR' ? (
-    <MentorHandovers jobId={jobId} handoverId={handoverId} />
-  ) : (
-    <Content jobId={jobId} handoverId={handoverId} header={null} />
+  return (
+    <ByJobRole
+      jobId={jobId}
+      customer={() => <CustomerHandovers jobId={jobId ?? ''} handoverId={handoverId} />}
+      mentor={() => <MentorHandovers jobId={jobId ?? ''} handoverId={handoverId} />}
+      crew={() => <Content jobId={jobId ?? ''} handoverId={handoverId} header={null} />}
+    />
   )
 }
 
@@ -90,7 +86,7 @@ function MentorHandovers({ jobId, handoverId }: { jobId: string; handoverId: str
       header={
         <RegionState query={job} skeleton={<Skeleton className="h-24 w-full" />}>
           {job.data && (
-            <JobHeader title={job.data.title} state={job.data.state} meta={mentorMeta(job.data)} audience="mentor">
+            <JobHeader title={job.data.title} state={job.data.state} meta={mentorMeta(job.data)}>
               <MentorJobTabs jobId={job.data.id} state={job.data.state} current="handover" payment={job.data.agreementConfirmed} />
             </JobHeader>
           )}

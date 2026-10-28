@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser, inEveryJob, heldJobs } from '@/test/fakeBackend'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -60,7 +60,8 @@ describe('JOB-8 "Trao đổi nhóm" (FR-77, UX-DR80)', () => {
   it('gives the Mentor a tab with its dot and a thread the Customer cannot read', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     const sent: unknown[] = []
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/jobs/j1': () => json(mentorJob),
       'GET /api/v1/jobs/j1/chat': () => json({ chatId: 'c1', unread: false, readOnly: false }),
       'GET /api/v1/jobs/j1/crew-chat': () => json(crewChat({ unread: true })),
@@ -88,7 +89,9 @@ describe('JOB-8 "Trao đổi nhóm" (FR-77, UX-DR80)', () => {
 
   it('lets an active Crew member reach it from "Công việc của tôi"', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
+      ...heldJobs({ jobId: 'j1', title: 'Sửa lỗi đặt bàn và thêm nhắc lịch', role: 'CREW', crewKind: 'ACTIVE' }),
       'GET /api/v1/crew/assignments': () =>
         json([
           {
@@ -120,7 +123,8 @@ describe('JOB-8 "Trao đổi nhóm" (FR-77, UX-DR80)', () => {
   })
 
   it('shows a former member their window read-only', { timeout: 20_000 }, async () => {
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
       'GET /api/v1/jobs/j1/crew-chat': () => json(crewChat({ readOnly: true })),
       'GET /api/v1/crew-chats/cc1/messages': () => json({ items: [message()], hasOlder: false }),
       'POST /api/v1/crew-chats/cc1/read': () => new Response(null, { status: 204 }),
@@ -133,19 +137,20 @@ describe('JOB-8 "Trao đổi nhóm" (FR-77, UX-DR80)', () => {
   })
 
   it('is not found for a Customer', { timeout: 20_000 }, async () => {
-    fakeBackend(signedIn('CUSTOMER'))
+    fakeBackend(signedInUser, inEveryJob('CUSTOMER'))
     renderAt('/cong-viec/j1/trao-doi-nhom')
     expect(await screen.findByRole('heading', { name: /Không tìm thấy/ })).toBeInTheDocument()
   })
 
   it('is not found for a Student the Crew Chat does not name', { timeout: 20_000 }, async () => {
-    fakeBackend(signedIn('STUDENT'))
+    fakeBackend(signedInUser, inEveryJob('CREW'))
     renderAt('/cong-viec/j1/trao-doi-nhom')
     expect(await screen.findByRole('heading', { name: /Không tìm thấy/ })).toBeInTheDocument()
   })
 
   it('shows a closed Job Chat read-only', { timeout: 20_000 }, async () => {
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/jobs/j1': () => json({ ...mentorJob, state: 'CLOSED' }),
       'GET /api/v1/jobs/j1/chat': () => json({ chatId: 'c1', unread: false, readOnly: true }),
       'GET /api/v1/jobs/j1/crew-chat': () => json(crewChat({ readOnly: true, closed: true })),

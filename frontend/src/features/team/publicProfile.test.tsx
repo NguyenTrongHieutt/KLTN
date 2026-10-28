@@ -5,8 +5,17 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { anonymous, fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import type { Session } from '@/features/identity/api'
+import { anonymous, fakeBackend, json, signedInUser } from '@/test/fakeBackend'
 import { PAYLOADS } from '@/test/payloads'
+
+/**
+ * Until Story 21.7 deletes the Teams, MEN-6 and STU-6 open for a session that still names the account role the
+ * retired Team screens were built on; the backend sends none since Story 20.6, so in the product they show nothing.
+ */
+function teamSession(role: 'MENTOR' | 'STUDENT'): Session {
+  return { ...signedInUser, account: { ...signedInUser.account!, role } } as Session
+}
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -70,7 +79,7 @@ describe('PUB-4, a Student\'s public profile (FR-51)', () => {
   })
 
   it('shows a shown name with the school, the declared major, and the Mentors\' Ratings', async () => {
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(teamSession('MENTOR'), {
       'GET /api/v1/students/minhtq': () =>
         json(publicStudent({ name: 'Trần Quang Minh', school: 'hust.edu.vn', major: 'Khoa học máy tính', team: undefined })),
       'GET /api/v1/students/minhtq/reputation': () => json({ average: 4.5, count: 2, portfolio: [] }),
@@ -182,7 +191,7 @@ describe('MEN-6, the link to PUB-4 (UX-DR83)', () => {
       verified: true,
       verifiedUntil: '2027-09-30',
     }
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(teamSession('MENTOR'), {
       'GET /api/v1/mentor/team': () =>
         json({
           status: 'OPEN',

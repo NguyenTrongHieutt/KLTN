@@ -1,5 +1,6 @@
+import { Bell, BriefcaseBusiness, ListChecks, Package, Search, type LucideIcon } from 'lucide-react'
 import { useEffect } from 'react'
-import { Link, NavLink, Outlet } from 'react-router'
+import { Link, NavLink, Outlet, useMatch } from 'react-router'
 import { Toaster } from '@/components/Toaster'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { landingPath } from '@/features/identity/api'
@@ -9,19 +10,42 @@ import { useSession } from '@/features/identity/useSession'
 import { useTodos, useUnreadCount } from '@/features/notification/hooks'
 import { NextActionStrip } from '@/features/notification/NextActionStrip'
 import { NotificationBell } from '@/features/notification/NotificationBell'
-import { t } from '@/i18n/t'
+import { useJobRole } from '@/features/job/jobRoleApi'
+import { t, type MessageKey } from '@/i18n/t'
+import { useMatchMedia } from '@/lib/useMatchMedia'
 import { cn } from '@/lib/utils'
 import { applyTheme, DEFAULT_THEME } from '@/theme/accountTheme'
 import { MAIN_ID } from './PublicLayout'
-import { roleNavigation } from './roleNavigation'
 import { RequireSignedIn } from './RequireSignedIn'
 import { useFocusHeadingOnNavigate } from './useFocusHeadingOnNavigate'
 import { usePollHealth } from './usePollHealth'
 
+interface Destination {
+  label: MessageKey
+  to: string
+  icon: LucideIcon
+}
+
 /**
- * The shell of a signed-in Customer, Mentor, or Student (UX-DR10 to UX-DR14): the role's
- * destinations as top-bar links from 768 px and as a bottom tab bar with counts on phones, the bell,
- * the avatar menu, the next-action strip, the offline line, and the toasts.
+ * The one set of destinations of every signed-in user (UX-DR85, Story 20.6), whatever roles they hold in their
+ * Jobs: no role on the account picks them, and there is no mode switcher. Each page shows its gate or its Empty state.
+ */
+const DESTINATIONS: Destination[] = [
+  { label: 'nav.todo', to: '/viec-can-lam', icon: ListChecks },
+  { label: 'nav.jobs', to: '/cong-viec', icon: BriefcaseBusiness },
+  { label: 'nav.findWork', to: '/tim-viec', icon: Search },
+  { label: 'nav.products', to: '/san-pham', icon: Package },
+  { label: 'nav.notifications', to: '/thong-bao', icon: Bell },
+]
+
+/** Under 360 px the tab bar keeps four cells, and "Thông báo" is reached through the bell (UX-DR85). */
+const NARROW = '(max-width: 359px)'
+
+/**
+ * The shell of every signed-in user (UX-DR10 to UX-DR14, UX-DR85, UX-DR88, UX-DR111): the five destinations as
+ * top-bar links from 768 px and as a bottom tab bar with counts on phones, the bell, the avatar menu, the
+ * next-action strip, the offline line, and the toasts. Inside a Job the strip shows that Job's to-dos only, and it
+ * is dense only where the user is the Job's Mentor or a Crew member; nothing is sized by the account.
  */
 export function AppLayout() {
   return (
@@ -39,6 +63,9 @@ function SignedInShell() {
   const todos = useTodos()
   const unread = useUnreadCount()
   const { offline } = usePollHealth()
+  const narrow = useMatchMedia(NARROW)
+  const jobId = useMatch('/cong-viec/:jobId/*')?.params.jobId
+  const role = useJobRole(jobId).data?.role
   // The account's theme while signed in; light again after signing out (UX-DR5).
   useEffect(() => {
     if (!theme) {
@@ -50,7 +77,7 @@ function SignedInShell() {
   if (!current) {
     return null
   }
-  const destinations = roleNavigation(current)
+  const tabs = narrow ? DESTINATIONS.filter((destination) => destination.to !== '/thong-bao') : DESTINATIONS
   const counts: Record<string, number> = {
     '/viec-can-lam': todos.data?.total ?? 0,
     '/thong-bao': unread.data ?? 0,
@@ -75,7 +102,7 @@ function SignedInShell() {
           </Link>
           <nav aria-label={t('shell.mainNav')} className="hidden md:block">
             <ul className="flex gap-6">
-              {destinations.map((destination) => (
+              {DESTINATIONS.map((destination) => (
                 <li key={destination.to}>
                   <NavLink
                     to={destination.to}
@@ -102,7 +129,7 @@ function SignedInShell() {
           {t('state.offline')}
         </p>
       )}
-      <NextActionStrip compact={current.account?.role !== 'CUSTOMER'} />
+      <NextActionStrip jobId={jobId} compact={role === 'MENTOR' || role === 'CREW'} />
       <main id={MAIN_ID} tabIndex={-1} className="grow pb-tab-bar-height focus:outline-none md:pb-0">
         <Outlet />
       </main>
@@ -111,7 +138,7 @@ function SignedInShell() {
         className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card pb-[env(safe-area-inset-bottom)] md:hidden"
       >
         <ul className="flex">
-          {destinations.map((destination) => {
+          {tabs.map((destination) => {
             const count = counts[destination.to] ?? 0
             return (
               <li key={destination.to} className="flex-1">

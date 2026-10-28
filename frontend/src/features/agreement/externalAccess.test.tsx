@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser, inEveryJob, heldJobs } from '@/test/fakeBackend'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -94,7 +94,8 @@ describe('FR-66 External Access after confirmation (N-8, UX-DR83)', () => {
       { githubLogin: 'vy-le', identifier: 'vy.le.dev@gmail.com' },
     ]
     const view = () => ({ viewer: 'CUSTOMER', open: true, items: [item({ granted, identifiers })] })
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(job),
       'GET /api/v1/jobs/j1/chat': () => json({ chatId: 'c1', unread: false }),
       'GET /api/v1/jobs/j1/agreement': () => json(agreement),
@@ -123,7 +124,9 @@ describe('FR-66 External Access after confirmation (N-8, UX-DR83)', () => {
   it('lets a Crew member give their own account and shows a refusal plainly', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     const sent: unknown[] = []
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
+      ...heldJobs({ jobId: 'j1', title: 'Sửa lỗi đặt bàn và thêm nhắc lịch', role: 'CREW', crewKind: 'ACTIVE' }),
       'GET /api/v1/crew/assignments': () =>
         json([
           {

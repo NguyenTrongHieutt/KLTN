@@ -8,7 +8,7 @@ import { routes } from '@/app/routes'
 import { RegionState, STILL_LOADING_MS } from '@/components/RegionState'
 import { failuresInARow, MAX_BACKOFF_MS, pollEvery } from '@/config/polling'
 import { sessionExpiry } from '@/features/identity/sessionExpiry'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser } from '@/test/fakeBackend'
 
 // Notification types join vi.json with the stories that send them; these stand in for them here.
 vi.mock('@/i18n/vi.json', async (importOriginal) => {
@@ -66,7 +66,7 @@ afterEach(() => {
 
 describe('the next-action strip and the to-do list (FR-28, UX-DR14)', () => {
   it('shows the most urgent to-do with its deadline, its button, and the others', async () => {
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/todos': () =>
         json({
           items: [
@@ -92,7 +92,7 @@ describe('the next-action strip and the to-do list (FR-28, UX-DR14)', () => {
     const list = screen.getByRole('list', { name: 'Việc cần làm của bạn' })
     expect(within(list).getAllByRole('link').map((link) => link.textContent)).toEqual([
       expect.stringContaining('Liên kết tài khoản GitHub'),
-      expect.stringContaining('Xác minh là sinh viên để vào nhóm của người hướng dẫn'),
+      expect.stringContaining('Xác minh email trường để có huy hiệu Sinh viên đã xác minh'),
     ])
     const tab = within(screen.getByRole('navigation', { name: 'Điều hướng nhanh' })).getByRole('link', {
       name: /Việc cần làm/,
@@ -101,7 +101,7 @@ describe('the next-action strip and the to-do list (FR-28, UX-DR14)', () => {
   })
 
   it('hides the strip and shows the Empty state when nothing is open', async () => {
-    fakeBackend(signedIn('CUSTOMER'))
+    fakeBackend(signedInUser)
     renderAt('/viec-can-lam')
 
     expect(await screen.findByText('Bạn không có việc nào cần làm.')).toBeInTheDocument()
@@ -109,7 +109,7 @@ describe('the next-action strip and the to-do list (FR-28, UX-DR14)', () => {
   })
 
   it('gives a Mentor the strip and the bell, since no Mentor waits for an approval (Story 19.7)', async () => {
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/todos': () => json({ items: [todo('identity.link_github', { tier: 1 })], total: 1 }),
     })
     renderAt('/viec-can-lam')
@@ -125,7 +125,7 @@ describe('notifications (FR-48, UX-DR11, UX-DR16)', () => {
     const user = userEvent.setup()
     let unread = 1
     const first = notification('test.update', { params: { name: 'Lan' }, link: '/ho-so' })
-    const seen = fakeBackend(signedIn('STUDENT'), {
+    const seen = fakeBackend(signedInUser, {
       'GET /api/v1/notifications': () =>
         json({ items: [first, notification('test.info', { read: true, icon: 'info' })], page: 0, size: 20, total: 2 }),
       'GET /api/v1/notifications/unread-count': () => json({ count: unread }),
@@ -154,7 +154,7 @@ describe('notifications (FR-48, UX-DR11, UX-DR16)', () => {
   it('offers "Đánh dấu đã đọc tất cả" only while something is unread', async () => {
     const user = userEvent.setup()
     let unread = 3
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/notifications/unread-count': () => json({ count: unread }),
       'POST /api/v1/notifications/read-all': () => {
         unread = 0
@@ -179,7 +179,7 @@ describe('notifications (FR-48, UX-DR11, UX-DR16)', () => {
       addEventListener: () => {},
       removeEventListener: () => {},
     }))
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/notifications': () => json({ items: [notification('test.info')], page: 0, size: 10, total: 1 }),
       'GET /api/v1/notifications/unread-count': () => json({ count: 1 }),
     })
@@ -196,7 +196,7 @@ describe('notifications (FR-48, UX-DR11, UX-DR16)', () => {
 
 describe('offline and loading states (UX-DR26, UX-DR18)', () => {
   it('a failing poll shows the offline line and disables commands', async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/todos': () => json({ status: 503 }, 503),
       'GET /api/v1/notifications/unread-count': () => json({ count: 2 }),
     })
@@ -207,7 +207,7 @@ describe('offline and loading states (UX-DR26, UX-DR18)', () => {
   })
 
   it('a poll answered 401 opens the session-expired dialog, not the offline line', async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/todos': () => json({ status: 401 }, 401),
     })
     renderAt('/viec-can-lam')

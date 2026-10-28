@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn, signedInWithGoogle } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser, signedInWithGoogle } from '@/test/fakeBackend'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -51,13 +51,13 @@ const refusal = (status: number, code: string, reason?: string, headers: Record<
 
 /** ACC-2's student email row. */
 async function row() {
-  return (await screen.findByRole('heading', { name: 'Email sinh viên' })).closest('section')!
+  return (await screen.findByRole('heading', { name: 'Email trường' })).closest('section')!
 }
 
-/** "Xác minh email sinh viên" (or another start), then N-26's "Đồng ý và tiếp tục". */
-async function startAndAccept(user: ReturnType<typeof userEvent.setup>, button = 'Xác minh email sinh viên') {
+/** "Xác minh email trường" (or another start), then N-26's "Đồng ý và tiếp tục". */
+async function startAndAccept(user: ReturnType<typeof userEvent.setup>, button = 'Xác minh email trường') {
   await user.click(await within(await row()).findByRole('button', { name: button }))
-  const notice = await screen.findByRole('dialog', { name: 'Trước khi xác minh email sinh viên' })
+  const notice = await screen.findByRole('dialog', { name: 'Trước khi xác minh email trường' })
   await user.click(within(notice).getByRole('button', { name: 'Đồng ý và tiếp tục' }))
 }
 
@@ -91,12 +91,12 @@ describe('ACC-2 student email row (FR-5, FR-80, AD-42, UX-DR93, UX-DR94)', () =>
     expect(await within(section).findByText('Chưa xác minh')).toBeInTheDocument()
     expect(within(section).queryByRole('textbox', { name: 'Email trường' })).not.toBeInTheDocument()
 
-    await user.click(within(section).getByRole('button', { name: 'Xác minh email sinh viên' }))
-    const notice = await screen.findByRole('dialog', { name: 'Trước khi xác minh email sinh viên' })
+    await user.click(within(section).getByRole('button', { name: 'Xác minh email trường' }))
+    const notice = await screen.findByRole('dialog', { name: 'Trước khi xác minh email trường' })
     expect(within(notice).getByText(/vibefix không lưu địa chỉ email này/)).toBeInTheDocument()
     expect(within(notice).getByText(/một email chỉ xác minh cho một tài khoản tại một thời điểm/)).toBeInTheDocument()
     expect(within(notice).getByText(/“Trường” hiện trên hồ sơ là tên miền của email này/)).toBeInTheDocument()
-    expect(within(notice).getByText('Lưu ý khi xác minh email sinh viên · phiên bản 1.0')).toBeInTheDocument()
+    expect(within(notice).getByText('Lưu ý khi xác minh email trường · phiên bản 1.0')).toBeInTheDocument()
     await user.click(within(notice).getByRole('button', { name: 'Đồng ý và tiếp tục' }))
 
     const field = within(section).getByRole('textbox', { name: 'Email trường' })
@@ -128,7 +128,7 @@ describe('ACC-2 student email row (FR-5, FR-80, AD-42, UX-DR93, UX-DR94)', () =>
     fakeBackend(signedInWithGoogle)
     renderAt('/ho-so/xac-minh')
 
-    await user.click(await within(await row()).findByRole('button', { name: 'Xác minh email sinh viên' }))
+    await user.click(await within(await row()).findByRole('button', { name: 'Xác minh email trường' }))
     await user.click(within(await screen.findByRole('dialog')).getByText('Để sau'))
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
@@ -229,7 +229,7 @@ describe('ACC-2 student email row (FR-5, FR-80, AD-42, UX-DR93, UX-DR94)', () =>
 
     await user.click(await screen.findByRole('button', { name: 'Gửi mã mới' }))
     // N-26 was not accepted in this visit, so it is shown before the version is sent again.
-    const notice = await screen.findByRole('dialog', { name: 'Trước khi xác minh email sinh viên' })
+    const notice = await screen.findByRole('dialog', { name: 'Trước khi xác minh email trường' })
     await user.click(within(notice).getByRole('button', { name: 'Đồng ý và tiếp tục' }))
 
     const field = await screen.findByRole('textbox', { name: 'Email trường' })
@@ -248,7 +248,7 @@ describe('ACC-2 student email row (FR-5, FR-80, AD-42, UX-DR93, UX-DR94)', () =>
 
     await fillAndSend(user)
 
-    expect(await screen.findByRole('dialog', { name: 'Trước khi xác minh email sinh viên' })).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: 'Trước khi xác minh email trường' })).toBeInTheDocument()
   })
 
   it('says why a new code was refused, over what the view says about the old one', async () => {
@@ -292,7 +292,7 @@ describe('ACC-2 student email row (FR-5, FR-80, AD-42, UX-DR93, UX-DR94)', () =>
     await user.type(await screen.findByLabelText('Mã 6 số trong email'), '482100')
     await user.click(screen.getByRole('button', { name: 'Xác minh' }))
 
-    expect(await within(await row()).findByRole('button', { name: 'Xác minh email sinh viên' })).toBeInTheDocument()
+    expect(await within(await row()).findByRole('button', { name: 'Xác minh email trường' })).toBeInTheDocument()
     expect(screen.queryByLabelText('Mã 6 số trong email')).not.toBeInTheDocument()
     expect(screen.getAllByText('Email này đã xác minh cho một tài khoản khác.').length).toBeGreaterThan(0)
   })
@@ -361,13 +361,13 @@ describe('ACC-2 student email row (FR-5, FR-80, AD-42, UX-DR93, UX-DR94)', () =>
     renderAt('/ho-so/xac-minh')
 
     await user.click(await within(await row()).findByRole('button', { name: 'Bỏ xác minh' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Bỏ xác minh sinh viên?' })
+    const dialog = await screen.findByRole('dialog', { name: 'Bỏ huy hiệu Sinh viên đã xác minh?' })
     expect(within(dialog).getByText(/Dấu vân tay một chiều của email vẫn được giữ 24 tháng/)).toBeInTheDocument()
     await user.click(within(dialog).getByRole('button', { name: 'Bỏ xác minh' }))
 
-    expect(await screen.findByText('Đã bỏ xác minh sinh viên.')).toBeInTheDocument()
+    expect(await screen.findByText('Đã bỏ huy hiệu Sinh viên đã xác minh.')).toBeInTheDocument()
     expect(seen.some((request) => request.method === 'DELETE' && request.url.endsWith('/verification/student'))).toBe(true)
-    expect(await within(await row()).findByRole('button', { name: 'Xác minh email sinh viên' })).toBeInTheDocument()
+    expect(await within(await row()).findByRole('button', { name: 'Xác minh email trường' })).toBeInTheDocument()
   })
 })
 
@@ -387,7 +387,7 @@ describe('ACC-2 student email renewal and expiry (FR-5, UX-DR93)', () => {
     const section = await row()
     expect(await within(section).findByText('Sắp hết hạn')).toBeInTheDocument()
     expect(
-      within(section).getByText('Huy hiệu sinh viên hết hạn ngày 30/09/2027. Gia hạn để giữ huy hiệu trên hồ sơ.'),
+      within(section).getByText('Huy hiệu Sinh viên đã xác minh hết hạn ngày 30/09/2027. Gia hạn để giữ huy hiệu trên hồ sơ.'),
     ).toBeInTheDocument()
     await startAndAccept(user, 'Gia hạn')
 
@@ -450,7 +450,7 @@ describe('ACC-2 student email renewal and expiry (FR-5, UX-DR93)', () => {
     renderAt('/ho-so/xac-minh')
 
     const section = await row()
-    expect(await within(section).findByText('Huy hiệu sinh viên đã hết hạn ngày 30/09')).toBeInTheDocument()
+    expect(await within(section).findByText('Huy hiệu Sinh viên đã xác minh hết hạn từ ngày 30/09')).toBeInTheDocument()
     expect(within(section).getByText('Chưa xác minh')).toBeInTheDocument()
     expect(within(section).queryByText('Sinh viên đã xác minh')).not.toBeInTheDocument()
     await startAndAccept(user, 'Xác minh lại')
@@ -460,35 +460,9 @@ describe('ACC-2 student email renewal and expiry (FR-5, UX-DR93)', () => {
   })
 })
 
-describe('STU-1 verification banner (UX-DR27)', () => {
-  it('says an expired verification needs renewing, linking to ACC-2', async () => {
-    fakeBackend(signedIn('STUDENT'), {
-      'GET /api/v1/verification': () => json({ status: 'EXPIRED', verifiedUntil: '2026-09-30', renewalOpen: false }),
-    })
-    renderAt('/viec-can-lam')
-
-    expect(await screen.findByText('Xác minh đã hết hạn ngày 30/09')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Gia hạn' })).toHaveAttribute('href', '/ho-so/xac-minh')
-    expect(screen.queryByText('Xác minh là sinh viên để vào nhóm của một người hướng dẫn')).not.toBeInTheDocument()
-  })
-
-  it('asks an unverified Student to verify, linking to ACC-2', async () => {
-    fakeBackend(signedIn('STUDENT'))
-    renderAt('/viec-can-lam')
-
-    expect(await screen.findByText('Xác minh là sinh viên để vào nhóm của một người hướng dẫn')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Xác minh ngay' })).toHaveAttribute('href', '/ho-so/xac-minh')
-  })
-
-  it('is gone once the Student is verified, and never shown to other roles', async () => {
-    fakeBackend(signedIn('STUDENT'), { 'GET /api/v1/verification': () => json(verified) })
-    renderAt('/viec-can-lam')
-    await screen.findByRole('heading', { level: 1, name: 'Việc cần làm' })
-    await waitFor(() => expect(screen.queryByRole('link', { name: 'Xác minh ngay' })).not.toBeInTheDocument())
-  })
-
-  it('is not asked for by a Customer', async () => {
-    const seen = fakeBackend(signedIn('CUSTOMER'))
+describe('CUS-1 without the student banner (UX-DR88, Story 20.6)', () => {
+  it('asks no user to verify on the to-do list, nor reads the verification there', async () => {
+    const seen = fakeBackend(signedInUser)
     renderAt('/viec-can-lam')
 
     await screen.findByRole('heading', { level: 1, name: 'Việc cần làm' })

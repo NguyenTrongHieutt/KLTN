@@ -9,11 +9,6 @@ export const MENTOR_JOB_KEY = ['mentor-job'] as const
 
 const KEY = MENTOR_JOB_KEY
 
-/** MEN-4 "Công việc của bạn": the Jobs whose Mentor the account is (AD-30). */
-export function useMentorJobs() {
-  return useQuery({ queryKey: [...KEY, 'list'], queryFn: () => unwrap(apiClient.GET('/api/v1/mentor/jobs')) })
-}
-
 /** The Mentor's JOB-1. */
 export function useMentorJob(jobId: string | undefined, enabled = true) {
   return useQuery({

@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser } from '@/test/fakeBackend'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -45,7 +45,7 @@ afterEach(() => {
 
 describe('CUS-5, a credential Finding (FR-8, UX-DR30, UX-DR31)', () => {
   it('explains the Finding and links the provider key page in numbered steps', async () => {
-    fakeBackend(signedIn('CUSTOMER'), { 'GET /api/v1/products/p1/findings/f1': () => json(detail(credential)) })
+    fakeBackend(signedInUser, { 'GET /api/v1/products/p1/findings/f1': () => json(detail(credential)) })
     renderAt(PATH)
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Vấn đề phát hiện' })).toBeInTheDocument()
@@ -69,7 +69,7 @@ describe('CUS-5, a credential Finding (FR-8, UX-DR30, UX-DR31)', () => {
   it('confirms the rotation in the dialog, then turns the card green', { timeout: 15_000 }, async () => {
     const user = userEvent.setup()
     let rotated = false
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/products/p1/findings/f1': () =>
         json(
           detail(
@@ -101,7 +101,7 @@ describe('CUS-5, a credential Finding (FR-8, UX-DR30, UX-DR31)', () => {
 
   it('says so when the Finding was resolved meanwhile', { timeout: 15_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/products/p1/findings/f1': () => json(detail(credential)),
       'POST /api/v1/products/p1/findings/f1/rotation': () =>
         new Response(JSON.stringify({ status: 409, code: 'CONFLICT', reason: 'FINDING_CLOSED' }), {
@@ -118,7 +118,7 @@ describe('CUS-5, a credential Finding (FR-8, UX-DR30, UX-DR31)', () => {
   })
 
   it('offers no action to a reader who may not resolve it', async () => {
-    fakeBackend(signedIn('CUSTOMER'), { 'GET /api/v1/products/p1/findings/f1': () => json(detail(credential, false)) })
+    fakeBackend(signedInUser, { 'GET /api/v1/products/p1/findings/f1': () => json(detail(credential, false)) })
     renderAt(PATH)
 
     expect(await screen.findByRole('article', { name: 'Khóa dịch vụ Supabase' })).toBeInTheDocument()
@@ -126,7 +126,7 @@ describe('CUS-5, a credential Finding (FR-8, UX-DR30, UX-DR31)', () => {
   })
 
   it('gives a type without a key page steps that say where to look', async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/products/p1/findings/f1': () =>
         json(detail({ ...credential, ruleId: 'jwt-signing-secret', type: 'Khóa ký JWT' })),
     })
@@ -138,7 +138,7 @@ describe('CUS-5, a credential Finding (FR-8, UX-DR30, UX-DR31)', () => {
   })
 
   it('finds nothing for another role', async () => {
-    fakeBackend(signedIn('MENTOR'))
+    fakeBackend(signedInUser)
     renderAt(PATH)
 
     expect(await screen.findByText('Không tìm thấy nội dung này.')).toBeInTheDocument()
@@ -168,7 +168,7 @@ describe('CUS-5, a false positive (FR-8, FR-65)', () => {
   it('requires a written reason, then shows the mark with it', { timeout: 15_000 }, async () => {
     const user = userEvent.setup()
     let marked: unknown
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/products/p1/findings/f1': () =>
         json(
           detail(
@@ -207,7 +207,7 @@ describe('CUS-5, a false positive (FR-8, FR-65)', () => {
 
 describe('CUS-5, a personal-data Finding (FR-65)', () => {
   it('shows the file, its lines, the masked samples, and the clean-repository steps', async () => {
-    fakeBackend(signedIn('CUSTOMER'), { 'GET /api/v1/products/p1/findings/f1': () => json(detail(personal)) })
+    fakeBackend(signedInUser, { 'GET /api/v1/products/p1/findings/f1': () => json(detail(personal)) })
     renderAt(PATH)
 
     const card = await screen.findByRole('article', { name: 'Email và số điện thoại khách hàng' })
@@ -222,7 +222,7 @@ describe('CUS-5, a personal-data Finding (FR-65)', () => {
   it('takes the clean repository link and shows its scan running', { timeout: 15_000 }, async () => {
     const user = userEvent.setup()
     let offered: unknown
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/products/p1/findings/f1': () =>
         json({ ...detail(personal), cleanRepository: offered ? cleanOf('PENDING', 'RUNNING') : undefined }),
       'POST /api/v1/products/p1/clean-repository': async (request) => {
@@ -243,7 +243,7 @@ describe('CUS-5, a personal-data Finding (FR-65)', () => {
 
   it('shows a refused link with its reason and keeps the input', { timeout: 15_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/products/p1/findings/f1': () => json(detail(personal)),
       'POST /api/v1/products/p1/clean-repository': () =>
         new Response(JSON.stringify({ status: 422, code: 'GUARD_FAILED', reason: 'REPO_PRIVATE' }), {
@@ -264,7 +264,7 @@ describe('CUS-5, a personal-data Finding (FR-65)', () => {
   })
 
   it('says a candidate that still held personal data changed nothing', async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/products/p1/findings/f1': () =>
         json({ ...detail(personal), cleanRepository: cleanOf('REJECTED', 'SUCCEEDED', { reason: 'PERSONAL_DATA_FOUND' }) }),
     })
@@ -277,7 +277,7 @@ describe('CUS-5, a personal-data Finding (FR-65)', () => {
   })
 
   it('shows the Finding resolved once the clean repository replaced the source', async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/products/p1/findings/f1': () =>
         json({
           ...detail({ ...personal, status: 'RESOLVED', resolution: 'CLEAN_REPOSITORY', resolvedAt: '2026-10-19T09:05:00Z' }),

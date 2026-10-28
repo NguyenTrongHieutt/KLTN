@@ -17,7 +17,7 @@ import {
 /**
  * External Access after confirmation (FR-66, UX-DR83). The Customer gets N-8 per item: whom to invite,
  * each person's account beside their GitHub username, and "Đã cấp quyền". The Mentor (JOB-6) and a Crew
- * member (STU-4) give their own account per item; only the Customer reads it. Nothing shows before the
+ * member ("Việc tôi tham gia") give their own account per item; only the Customer reads it. Nothing shows before the
  * confirmation or for an Agreement without items. `level` is the section heading's level: 3 inside a card.
  */
 export function ExternalAccessSection({ jobId, level = 2 }: { jobId: string; level?: 2 | 3 }) {

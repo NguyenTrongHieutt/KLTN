@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -105,7 +105,8 @@ describe('JOB-1 closure section (FR-37, FR-67, UX-DR55)', () => {
   it('lets the Customer confirm the System’s proposal and lists every party’s steps', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     const sent: unknown[] = []
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(customerJob),
       'GET /api/v1/boards/j1/progress': () => json(progress),
       'GET /api/v1/boards/j1/closure': () => json(closure()),
@@ -136,7 +137,8 @@ describe('JOB-1 closure section (FR-37, FR-67, UX-DR55)', () => {
   it('lets the Mentor decline the Customer’s proposal', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     const sent: unknown[] = []
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/jobs/j1': () => json(mentorJob),
       'GET /api/v1/boards/j1/progress': () => json({ ...progress, audience: 'MENTOR' }),
       'GET /api/v1/boards/j1/closure': () =>
@@ -169,7 +171,8 @@ describe('JOB-1 closure section (FR-37, FR-67, UX-DR55)', () => {
 
   it('shows a Crew member their own step and lets them tick the data-deletion Checklist', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
       'GET /api/v1/boards/j1/progress': () => json({ ...progress, audience: 'CREW' }),
       'GET /api/v1/boards/j1/closure': () =>
         json(
@@ -219,7 +222,8 @@ describe('JOB-1 closure section (FR-37, FR-67, UX-DR55)', () => {
   })
 
   it('keeps the post-Job duties for a Crew member the closed Job released (AD-41)', { timeout: 20_000 }, async () => {
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
       'GET /api/v1/boards/j1/progress': () => json({ ...progress, state: 'CLOSED', audience: 'FORMER' }),
       'GET /api/v1/boards/j1/closure': () =>
         json(
@@ -267,7 +271,8 @@ describe('JOB-1 closure section (FR-37, FR-67, UX-DR55)', () => {
 
   it('says why a proposal is refused while a Milestone is held', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(customerJob),
       'GET /api/v1/boards/j1/progress': () => json(progress),
       'GET /api/v1/boards/j1/closure': () => json(closure({ canPropose: true, proposal: null, steps: [] })),

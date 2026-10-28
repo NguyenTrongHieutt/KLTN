@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
 import { PAYLOADS } from '@/test/payloads'
 
 function renderAt(path: string) {
@@ -138,7 +138,8 @@ async function openSheet(user: ReturnType<typeof userEvent.setup>) {
 describe('Attachments and notes on JOB-2 (FR-76, AD-39, UX-DR79)', () => {
   it('lists files and links with author and time, and "Gỡ" only on the viewer’s own', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
       'GET /api/v1/boards/j1/work-items': () => json(board()),
       'GET /api/v1/work-items/w1': () => json(detail()),
       'DELETE /api/v1/work-items/w1/attachments/a1': () => json(detail({ attachments: [link()] })),
@@ -167,7 +168,8 @@ describe('Attachments and notes on JOB-2 (FR-76, AD-39, UX-DR79)', () => {
     let uploads = 0
     // jsdom's FormData does not survive a Request, so the choice is read where the form is built.
     const appended = vi.spyOn(FormData.prototype, 'append')
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
       'GET /api/v1/boards/j1/work-items': () => json(board()),
       'GET /api/v1/work-items/w1': () => json(detail({ attachments: [] })),
       'POST /api/v1/work-items/w1/links': async (request) => {
@@ -225,7 +227,8 @@ describe('Attachments and notes on JOB-2 (FR-76, AD-39, UX-DR79)', () => {
   it('keeps one time-ordered history and corrects a note by quoting it, never editing it', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     const notes: unknown[] = []
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
       'GET /api/v1/boards/j1/work-items': () => json(board()),
       'GET /api/v1/work-items/w1': () => json(detail()),
       'POST /api/v1/work-items/w1/notes': async (request) => {
@@ -260,7 +263,8 @@ describe('Attachments and notes on JOB-2 (FR-76, AD-39, UX-DR79)', () => {
 
   it('shows the Mentor the Attachments and the latest notes in the Review dialog, read-only', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/jobs/j1': () =>
         json({
           id: 'j1',
@@ -307,7 +311,8 @@ describe('Attachments and notes on JOB-2 (FR-76, AD-39, UX-DR79)', () => {
 
   it('offers nothing to write on a read-only Board', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
       'GET /api/v1/boards/j1/work-items': () => json(board({ readOnly: true })),
       'GET /api/v1/work-items/w1': () => json(detail({ readOnly: true, attachments: [file({ removable: false })] })),
     })
@@ -321,7 +326,8 @@ describe('Attachments and notes on JOB-2 (FR-76, AD-39, UX-DR79)', () => {
 
   it('keeps planted payloads in notes and link labels as text (SG-30)', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
       'GET /api/v1/boards/j1/work-items': () => json(board()),
       'GET /api/v1/work-items/w1': () =>
         json(

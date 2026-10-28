@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
 import { PAYLOADS } from '@/test/payloads'
 
 function renderAt(path: string) {
@@ -127,7 +127,8 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
   it('lets the Mentor hand over only once every item and criterion is accounted for', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     const sent: unknown[] = []
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/jobs/j1': () => json(mentorJob),
       'GET /api/v1/boards/j1/handovers': () =>
         json(list({ handovers: [], waiting: { milestoneId: 'm1', number: 1, title: 'Báo cáo' } })),
@@ -172,7 +173,8 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
   })
 
   it('shows a refusal the preflight finds and keeps "Gửi bàn giao" off', { timeout: 20_000 }, async () => {
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/boards/j1/handovers/preflight': () => json(preflight({ report: null, problems: ['REPORT_MISSING'] })),
     })
     renderAt('/cong-viec/j1/ban-giao/tao')
@@ -182,7 +184,8 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
   })
 
   it('gives the Customer the criteria with the Mentor’s own marks, the check steps, and the Report', { timeout: 20_000 }, async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(customerJob),
       'GET /api/v1/boards/j1/handovers': () => json(list({ audience: 'CUSTOMER' })),
       'GET /api/v1/handovers/h1': () => json(report()),
@@ -203,7 +206,8 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
   })
 
   it('labels a Milestone accepted automatically (FR-35)', { timeout: 20_000 }, async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(customerJob),
       'GET /api/v1/boards/j1/handovers': () =>
         json(list({ audience: 'CUSTOMER', handovers: [{ ...list().handovers[0], status: 'ACCEPTED', auto: true }] })),
@@ -219,7 +223,8 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
   })
 
   it('lets a Crew member read the report, with the item notes, and nothing more', { timeout: 20_000 }, async () => {
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
       'GET /api/v1/boards/j1/handovers': () => json(list({ audience: 'CREW' })),
       'GET /api/v1/handovers/h1': () =>
         json(
@@ -238,7 +243,8 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
   })
 
   it('keeps planted payloads in notes and the Report as inert text (SG-30)', { timeout: 20_000 }, async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(customerJob),
       'GET /api/v1/boards/j1/handovers': () => json(list({ audience: 'CUSTOMER' })),
       'GET /api/v1/handovers/h1': () =>
@@ -270,7 +276,8 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
 
   it('gives a Code Job report its Sensitive Changes, updated Pages, and inert commit list (FR-32, NFR-3)', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json({ ...customerJob, title: 'Sửa lỗi đặt bàn', jobTypes: ['BUG_FIX'] }),
       'GET /api/v1/boards/j1/handovers': () => json(list({ audience: 'CUSTOMER', assessment: false })),
       'GET /api/v1/handovers/h1': () =>
@@ -311,7 +318,8 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
   })
 
   it('shows the preview with its domain and N-11, and the screenshots (AD-35, UX-DR30)', { timeout: 20_000 }, async () => {
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/jobs/j1': () => json(mentorJob),
       'GET /api/v1/boards/j1/handovers': () => json(list()),
       'GET /api/v1/handovers/h1': () =>
@@ -342,7 +350,8 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
   it('needs a preview for a Bug fix, or a reason with a recording, and checks the link first (FR-32)', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     let sent: Record<string, unknown> | undefined
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/boards/j1/handovers/preflight': () =>
         json(
           preflight({
@@ -383,7 +392,8 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
   })
 
   it('tells the Customer a voided handover was cancelled by a new change (FR-32, M3)', { timeout: 20_000 }, async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(customerJob),
       'GET /api/v1/boards/j1/handovers': () => json(list({ audience: 'CUSTOMER' })),
       'GET /api/v1/handovers/h1': () => json(report({ status: 'VOIDED' })),
@@ -395,7 +405,8 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
   })
 
   it('refuses a Code Job handover that changes a workflow file with N-16', { timeout: 20_000 }, async () => {
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/boards/j1/handovers/preflight': () =>
         json(
           preflight({

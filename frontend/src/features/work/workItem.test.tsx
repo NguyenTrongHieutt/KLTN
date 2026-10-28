@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
 import { PAYLOADS } from '@/test/payloads'
 
 function renderAt(path: string) {
@@ -97,7 +97,8 @@ describe('Work Items on JOB-2 (FR-23, AD-23, AD-39, UX-DR36)', () => {
   it('shows the card fields and lets the Mentor edit and assign in the detail', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     const saved: unknown[] = []
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/jobs/j1': () => json(mentorJob),
       'GET /api/v1/boards/j1/work-items': () => json(board()),
       'GET /api/v1/work-items/w3': () => json(detail()),
@@ -145,7 +146,8 @@ describe('Work Items on JOB-2 (FR-23, AD-23, AD-39, UX-DR36)', () => {
   it('lets a Crew member add a Work Item, with the assignee and priority left to the Mentor', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     const sent: unknown[] = []
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
       'GET /api/v1/boards/j1/work-items': () => json(board({ mentor: false, crew: [], items: [] })),
       'POST /api/v1/boards/j1/work-items': async (request) => {
         const body = (await request.json()) as { sensitive: string }
@@ -189,7 +191,8 @@ describe('Work Items on JOB-2 (FR-23, AD-23, AD-39, UX-DR36)', () => {
 
   it('opens the Stale dialog when someone saved first', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/jobs/j1': () => json(mentorJob),
       'GET /api/v1/boards/j1/work-items': () => json(board()),
       'GET /api/v1/work-items/w3': () => json(detail()),
@@ -207,7 +210,8 @@ describe('Work Items on JOB-2 (FR-23, AD-23, AD-39, UX-DR36)', () => {
 
   it('shows a former member a read-only Board and every field as text', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
       'GET /api/v1/boards/j1/work-items': () =>
         json(
           board({

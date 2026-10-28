@@ -4,7 +4,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -83,7 +83,8 @@ const progress = (audience: string) => ({
 
 describe('Overdue Milestones (FR-48, UX-DR27)', () => {
   it('shows the Customer the badge and the options, which are links only', { timeout: 20_000 }, async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(customerJob),
       'GET /api/v1/boards/j1/progress': () => json(progress('CUSTOMER')),
     })
@@ -97,7 +98,8 @@ describe('Overdue Milestones (FR-48, UX-DR27)', () => {
   })
 
   it('shows the Mentor the badge without the Customer options', { timeout: 20_000 }, async () => {
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/jobs/j1': () => json(mentorJob),
       'GET /api/v1/boards/j1/progress': () => json(progress('MENTOR')),
     })

@@ -58,7 +58,7 @@ function statusOf(verification: Verification): { label: MessageKey; tone: string
  * hạn" with "Gia hạn", which asks for the address only; once expired it reads "Chưa xác minh" under the
  * expired alert. The school email is the one way to verify: the student card is gone (Story 19.7).
  */
-export function StudentEmailRow({ student }: { student: boolean }) {
+export function StudentEmailRow() {
   const verification = useVerification()
   const data = verification.data
   const status = data && statusOf(data)
@@ -81,13 +81,13 @@ export function StudentEmailRow({ student }: { student: boolean }) {
         )}
       </div>
       <RegionState query={verification} skeleton={<Skeleton className="h-28 w-full" />}>
-        {data && <StudentEmailBody verification={data} student={student} />}
+        {data && <StudentEmailBody verification={data} />}
       </RegionState>
     </section>
   )
 }
 
-function StudentEmailBody({ verification, student }: { verification: Verification; student: boolean }) {
+function StudentEmailBody({ verification }: { verification: Verification }) {
   const verified = verification.status === 'VERIFIED'
   const renewal = verified && verification.renewalOpen
   const mayVerify = !verified || renewal
@@ -129,7 +129,7 @@ function StudentEmailBody({ verification, student }: { verification: Verificatio
     ) : null
   // A renewal shows its step only once started; a person not verified always sees a way forward.
   const showWays = mayVerify && (step !== null || !verified)
-  const intro = verification.status === 'UNVERIFIED' || student ? <Intro onStart={start} /> : null
+  const intro = verification.status === 'UNVERIFIED' ? <Intro onStart={start} /> : null
   const emailWay = step ?? intro
 
   return (

@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
 import { crewSplit } from './crewShares'
 
 function renderAt(path: string) {
@@ -85,7 +85,8 @@ const panel = (overrides: object = {}) => ({
 })
 
 const mentorBackend = (crew: () => Response, extra: Record<string, (request: Request) => Response | Promise<Response>> = {}) =>
-  fakeBackend(signedIn('MENTOR'), {
+  fakeBackend(signedInUser, {
+    ...inEveryJob('MENTOR'),
     'GET /api/v1/mentor/jobs/j1': () => json(mentorJob),
     'GET /api/v1/mentor/jobs/j1/agreement': () => json(draft),
     'GET /api/v1/mentor/jobs/j1/crew': crew,
@@ -138,8 +139,8 @@ describe('JOB-6 for the Mentor: the Crew panel (FR-75, UX-DR60)', () => {
 
     expect(await screen.findByText(/Khách hàng chỉ thấy tên tài khoản GitHub của nhóm thực hiện/)).toBeInTheDocument()
     expect(screen.getByText('Nhóm thực hiện: 0/0 đã xác nhận')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Thêm sinh viên' }))
-    const team = screen.getByRole('list', { name: 'Sinh viên trong nhóm của bạn' })
+    await user.click(screen.getByRole('button', { name: 'Thêm thành viên' }))
+    const team = screen.getByRole('list', { name: 'Thành viên trong nhóm của bạn' })
     expect(within(team).getByText('Đang làm Viết hướng dẫn sử dụng')).toBeInTheDocument()
     expect(within(team).getByText('Chưa xác minh')).toBeInTheDocument()
     expect(within(team).queryByRole('button', { name: 'Thêm Bùi Gia Huy' })).toBeNull()
@@ -150,25 +151,25 @@ describe('JOB-6 for the Mentor: the Crew panel (FR-75, UX-DR60)', () => {
     expect(added).toEqual({ studentId: 's-minh', crewVersion: 0 })
     expect(await screen.findByText('Đã phân công · chưa xác nhận')).toBeInTheDocument()
     expect(screen.getByText('Chưa ký cam kết')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Thêm sinh viên' })).toBeDisabled()
-    expect(screen.getByText('Hiện mỗi công việc chỉ có một sinh viên trong nhóm thực hiện.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Thêm thành viên' })).toBeDisabled()
+    expect(screen.getByText('Hiện mỗi công việc chỉ có một thành viên trong nhóm thực hiện.')).toBeInTheDocument()
   })
 
   it('with large Crews on, takes up to five Students before the add closes (Story 11.1)', { timeout: 20_000 }, async () => {
     const rows = (n: number) =>
-      Array.from({ length: n }, (_, index) => minh({ rowId: `r${index}`, studentId: `s${index}`, name: `Sinh viên ${index + 1}` }))
+      Array.from({ length: n }, (_, index) => minh({ rowId: `r${index}`, studentId: `s${index}`, name: `Thành viên ${index + 1}` }))
     let count = 2
     mentorBackend(() => json(panel({ largeCrews: true, total: count, rows: rows(count) })))
     renderAt('/cong-viec/j1/thoa-thuan')
 
     expect(await screen.findByText('Nhóm thực hiện: 0/2 đã xác nhận')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Thêm sinh viên' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Thêm thành viên' })).toBeEnabled()
     cleanup()
     count = 5
     mentorBackend(() => json(panel({ largeCrews: true, total: count, rows: rows(count) })))
     renderAt('/cong-viec/j1/thoa-thuan')
-    expect(await screen.findByText('Nhóm thực hiện đã đủ 5 sinh viên.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Thêm sinh viên' })).toBeDisabled()
+    expect(await screen.findByText('Nhóm thực hiện đã đủ 5 thành viên.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Thêm thành viên' })).toBeDisabled()
   })
 
   it('checks the shares live, shows the example amounts, and saves a version', { timeout: 25_000 }, async () => {
@@ -202,7 +203,7 @@ describe('JOB-6 for the Mentor: the Crew panel (FR-75, UX-DR60)', () => {
     await user.type(mentorShare, '20')
     await user.clear(minhShare)
     await user.type(minhShare, '0')
-    expect(screen.getByText('Mỗi sinh viên phải lớn hơn 0%.')).toBeInTheDocument()
+    expect(screen.getByText('Phần của mỗi thành viên phải lớn hơn 0%.')).toBeInTheDocument()
     expect(screen.getByText('Tổng: 20% · cần bằng 100%')).toBeInTheDocument()
 
     await user.clear(minhShare)
@@ -276,7 +277,7 @@ describe('JOB-6 for the Mentor: the Crew panel (FR-75, UX-DR60)', () => {
 
     expect(await screen.findByText(/Nhóm thực hiện đã chốt theo thỏa thuận/)).toBeInTheDocument()
     expect(screen.queryByRole('textbox', { name: /phần trăm/ })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Thêm sinh viên' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Thêm thành viên' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Bỏ Trần Quang Minh khỏi nhóm' })).toBeNull()
     expect(screen.getByText('80%')).toBeInTheDocument()
   })
@@ -299,16 +300,25 @@ const assignment = (overrides: object = {}) => ({
   ...overrides,
 })
 
-const studentTeam = { invitations: [], joinRequests: [], requestsLeft: 3, verified: true, team: { joinedAt: '2026-10-01T03:00:00Z' } }
+/** The Job of the assignment in "Công việc" (`/my-jobs`), where the user is a Crew member. */
+const crewJob = (crewKind = 'ASSIGNED') => ({
+  jobId: 'j1',
+  title: 'Sửa lỗi đặt bàn và thêm nhắc lịch',
+  productName: 'Sổ đặt bàn Quán Mây',
+  state: 'AGREEMENT',
+  role: 'CREW',
+  crewKind,
+  updatedAt: '2026-10-20T03:00:00Z',
+})
 
-describe('STU-4 for a Student: the Crew assignment panel (FR-75, N-19)', () => {
+describe('"Việc tôi tham gia" on CUS-7: the Crew assignment panel (FR-75, N-19, UX-DR86)', () => {
   it('signs the NDA and confirms the version shown once N-5 and N-23 are ticked', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     let body: unknown
     let confirmed = false
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/my-jobs': () => json([crewJob(confirmed ? 'ACTIVE' : 'ASSIGNED')]),
       'GET /api/v1/crew/assignments': () => json([assignment(confirmed ? { status: 'ACTIVE', signed: true } : {})]),
-      'GET /api/v1/team': () => json(studentTeam),
       'POST /api/v1/crew/jobs/j1/confirm': async (request) => {
         body = await request.json()
         confirmed = true
@@ -344,9 +354,9 @@ describe('STU-4 for a Student: the Crew assignment panel (FR-75, N-19)', () => {
   it('declines after a confirmation and lands on the empty list', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     let declined: unknown
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/my-jobs': () => json(declined ? [] : [crewJob()]),
       'GET /api/v1/crew/assignments': () => json(declined ? [] : [assignment()]),
-      'GET /api/v1/team': () => json(studentTeam),
       'POST /api/v1/crew/jobs/j1/decline': async (request) => {
         declined = await request.json()
         return new Response(null, { status: 204 })
@@ -364,9 +374,9 @@ describe('STU-4 for a Student: the Crew assignment panel (FR-75, N-19)', () => {
 
   it('says the shares changed, and reloads when a newer version arrived meanwhile', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/my-jobs': () => json([crewJob('ACTIVE')]),
       'GET /api/v1/crew/assignments': () => json([assignment({ signed: true, codeJob: false, versionNo: 3, sharePercent: 35 })]),
-      'GET /api/v1/team': () => json(studentTeam),
       'POST /api/v1/crew/jobs/j1/confirm': () => json({ status: 409, code: 'STALE' }, 409),
     })
     renderAt('/cong-viec')
@@ -380,17 +390,5 @@ describe('STU-4 for a Student: the Crew assignment panel (FR-75, N-19)', () => {
     await user.click(screen.getByRole('button', { name: 'Ký và xác nhận' }))
 
     expect((await screen.findAllByText('Phần chia đã thay đổi. Hãy xem lại phiên bản mới rồi xác nhận.')).length).toBeGreaterThan(0)
-  })
-
-  it('points a Student without a Team to the Mentor search', { timeout: 15_000 }, async () => {
-    fakeBackend(signedIn('STUDENT'), {
-      'GET /api/v1/crew/assignments': () => json([]),
-      'GET /api/v1/team': () => json({ ...studentTeam, team: undefined }),
-    })
-    renderAt('/cong-viec')
-
-    expect(await screen.findByText('Bạn chưa ở nhóm nào. Hãy tìm một người hướng dẫn và xin vào nhóm.')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Tìm người hướng dẫn' })).toHaveAttribute('href', '/nhom')
-    expect(screen.getByText('Bạn chưa có công việc nào.')).toBeInTheDocument()
   })
 })

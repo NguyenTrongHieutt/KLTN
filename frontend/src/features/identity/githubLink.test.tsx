@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
 import { redirectTo } from '@/lib/redirect'
-import { fakeBackend, gitHubLink, json, signedIn, signedInWithGoogle } from '@/test/fakeBackend'
+import { fakeBackend, gitHubLink, json, signedInUser, signedInWithGoogle } from '@/test/fakeBackend'
 
 vi.mock('@/lib/redirect', () => ({ redirectTo: vi.fn() }))
 
@@ -174,7 +174,7 @@ describe('ACC-2, the GitHub row (FR-80, UX-DR91)', () => {
   })
 
   it('sends the old sign-in-again page to ACC-2', async () => {
-    fakeBackend(signedIn('CUSTOMER'))
+    fakeBackend(signedInUser)
     const router = renderAt('/dang-nhap-lai')
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Hồ sơ và xác minh' })).toBeInTheDocument()
@@ -186,7 +186,7 @@ describe('The GitHub gate on CUS-3 step 2 (UX-DR95)', () => {
   it('replaces the form until GitHub is linked, keeps the input, and links for the Product', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     let started: Record<string, unknown> | undefined
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/identity/github': () => json(gitHubLink(signedInWithGoogle)),
       'POST /api/v1/identity/github/link': async (request) => {
         started = await request.json()
@@ -219,9 +219,9 @@ describe('The GitHub gate on CUS-3 step 2 (UX-DR95)', () => {
   ])('takes over again once the repository check answers %s %s %s', { timeout: 20_000 }, async (status, code, reason, heading) => {
     const user = userEvent.setup()
     let refused = false
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/identity/github': () =>
-        json(refused && reason === 'GITHUB_NOT_LINKED' ? gitHubLink(signedInWithGoogle) : gitHubLink(signedIn('CUSTOMER'))),
+        json(refused && reason === 'GITHUB_NOT_LINKED' ? gitHubLink(signedInWithGoogle) : gitHubLink(signedInUser)),
       'POST /api/v1/products/repository-check': () => {
         refused = true
         return json({ status, code, reason }, status)
@@ -250,8 +250,8 @@ describe('The GitHub gate on CUS-3 step 2 (UX-DR95)', () => {
       }),
     )
     let kept = false
-    fakeBackend(signedIn('CUSTOMER'), {
-      'GET /api/v1/identity/github': () => json(gitHubLink(signedIn('CUSTOMER'), { repositoryTokenKept: kept })),
+    fakeBackend(signedInUser, {
+      'GET /api/v1/identity/github': () => json(gitHubLink(signedInUser, { repositoryTokenKept: kept })),
     })
     renderAt('/san-pham/moi')
 

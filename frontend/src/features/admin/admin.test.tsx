@@ -7,7 +7,7 @@ import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
 import type { Session } from '@/features/identity/api'
 import { sessionExpiry } from '@/features/identity/sessionExpiry'
-import { administratorAccount, anonymous, fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { administratorAccount, anonymous, fakeBackend, json, signedInUser } from '@/test/fakeBackend'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -193,11 +193,6 @@ describe('the Admin shell (UX-DR13, SG-10)', () => {
     },
   )
 
-  it('shows a Customer the not-found screen', async () => {
-    fakeBackend(signedIn('CUSTOMER'))
-    renderAt('/quan-tri')
-    expect(await screen.findByRole('heading', { level: 1, name: /Không tìm thấy/ })).toBeInTheDocument()
-  })
 
   it('sends an Administrator from the user shell to ADM-1', async () => {
     fakeBackend(administrator(), { 'GET /api/v1/admin/overview': overview(0) })
@@ -205,20 +200,15 @@ describe('the Admin shell (UX-DR13, SG-10)', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/quan-tri'))
   })
 
-  it('tells an Administrator by the account kind, never by the role (Story 20.1)', async () => {
-    const session = administrator()
-    fakeBackend(
-      { ...session, account: { ...session.account!, role: undefined } },
-      { 'GET /api/v1/admin/overview': overview(0) },
-    )
+  it('tells an Administrator by the account kind, never by a role (Stories 20.1, 20.6)', async () => {
+    fakeBackend(administrator(), { 'GET /api/v1/admin/overview': overview(0) })
     const router = renderAt('/viec-can-lam')
     await waitFor(() => expect(router.state.location.pathname).toBe('/quan-tri'))
     expect(await screen.findByRole('heading', { level: 1, name: 'Tổng quan' })).toBeInTheDocument()
   })
 
-  it('shows a user whose transitional role reads ADMINISTRATOR the not-found screen (Story 20.1)', async () => {
-    const customer = signedIn('CUSTOMER')
-    fakeBackend({ ...customer, account: { ...customer.account!, role: 'ADMINISTRATOR' } })
+  it('shows a USER the not-found screen, told by the kind alone (Stories 20.1, 20.6)', async () => {
+    fakeBackend(signedInUser)
     renderAt('/quan-tri')
     expect(await screen.findByRole('heading', { level: 1, name: /Không tìm thấy/ })).toBeInTheDocument()
   })

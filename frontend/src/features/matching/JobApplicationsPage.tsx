@@ -10,8 +10,8 @@ import { Skeleton } from '@/components/Skeleton'
 import { useToasts } from '@/components/toasts'
 import { TestTag } from '@/components/TestTag'
 import { Button } from '@/components/ui/button'
-import { useSession } from '@/features/identity/useSession'
 import { useJob, type Job } from '@/features/job/jobApi'
+import { JobRoleLine } from '@/features/job/ByJobRole'
 import { JobStateBadge } from '@/features/job/JobStateBadge'
 import { JobTabs } from '@/features/job/JobTabs'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
@@ -39,9 +39,8 @@ const MAX_COMPARED = 3
 export function JobApplicationsPage() {
   const { jobId } = useParams()
   const job = useJob(jobId)
-  const role = useSession().data?.account?.role
   usePageTitle(job.data ? t('screen.matching.list.title', { job: job.data.title }) : t('screen.job.title'))
-  if ((role !== undefined && role !== 'CUSTOMER') || (job.isError && isNotFound(job.error))) {
+  if (job.isError && isNotFound(job.error)) {
     return <NotFoundScreen />
   }
   if (job.data?.state === 'DRAFT') {
@@ -84,6 +83,7 @@ function ApplicationList({ job }: { job: Job }) {
           <PageHeading>{job.title}</PageHeading>
           <JobStateBadge state={job.state} />
         </div>
+        <JobRoleLine jobId={job.id} />
         <JobTabs jobId={job.id} current="applications" applications={items.length} />
       </div>
       <RegionState query={applications} skeleton={<Skeleton className="h-48 w-full" />}>

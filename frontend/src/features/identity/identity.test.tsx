@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { anonymous, fakeBackend, json, signedIn, signedInWithGoogle, welcome } from '@/test/fakeBackend'
+import { anonymous, fakeBackend, json, signedInUser, signedInWithGoogle, welcome } from '@/test/fakeBackend'
 import { sessionExpiry } from './sessionExpiry'
 
 function renderAt(path: string) {
@@ -45,8 +45,11 @@ describe('route guards (AD-19)', () => {
     expect(router.state.location.pathname).toBe('/bat-dau')
   })
 
-  it('lands a Google account with no role on the to-do list, with "Tìm việc" and "Sản phẩm" too (Story 20.3)', async () => {
-    fakeBackend(signedInWithGoogle)
+  it.each([
+    ['a Google account with nothing linked', signedInWithGoogle],
+    ['a user with GitHub linked', signedInUser],
+  ])('lands %s on the to-do list with the same five destinations (UX-DR85, Story 20.6)', async (_, session) => {
+    fakeBackend(session)
     const router = renderAt('/dang-nhap')
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Việc cần làm' })).toBeInTheDocument()
@@ -55,12 +58,48 @@ describe('route guards (AD-19)', () => {
       const nav = screen.getByRole('navigation', { name })
       expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual([
         'Việc cần làm',
+        'Công việc',
         'Tìm việc',
         'Sản phẩm',
         'Thông báo',
       ])
     }
-    expect(screen.getByRole('button', { name: 'Tài khoản của Nguyễn Thị Lan' })).toHaveTextContent('TL')
+    // No mode switcher, and no "Nhóm": the Team endpoints answer nothing since Story 20.3.
+    expect(screen.queryByRole('link', { name: 'Nhóm' })).not.toBeInTheDocument()
+  })
+
+  it('names the avatar by the Google name until GitHub is linked', async () => {
+    fakeBackend(signedInWithGoogle)
+    renderAt('/viec-can-lam')
+
+    expect(await screen.findByRole('button', { name: 'Tài khoản của Nguyễn Thị Lan' })).toHaveTextContent('TL')
+  })
+
+  it('keeps four tab-bar cells under 360 px, "Thông báo" going into the bell (UX-DR85)', async () => {
+    vi.stubGlobal(
+      'matchMedia',
+      (query: string) =>
+        ({
+          matches: query === '(max-width: 359px)',
+          media: query,
+          addEventListener: () => {},
+          removeEventListener: () => {},
+        }) as unknown as MediaQueryList,
+    )
+    fakeBackend(signedInUser)
+    renderAt('/viec-can-lam')
+
+    const tabs = await screen.findByRole('navigation', { name: 'Điều hướng nhanh' })
+    expect(within(tabs).getAllByRole('link').map((link) => link.textContent)).toEqual([
+      'Việc cần làm',
+      'Công việc',
+      'Tìm việc',
+      'Sản phẩm',
+    ])
+    const nav = screen.getByRole('navigation', { name: 'Điều hướng chính' })
+    const bell = screen.getAllByRole('link', { name: 'Thông báo' }).filter((link) => !nav.contains(link))
+    expect(bell).toHaveLength(1)
+    expect(bell[0]).toHaveAttribute('href', '/thong-bao')
   })
 
   it("leads the identity.link_github to-do to ACC-2's GitHub row (C-8, Story 19.2)", { timeout: 15_000 }, async () => {
@@ -92,26 +131,8 @@ describe('route guards (AD-19)', () => {
     expect(await screen.findByRole('region', { name: 'GitHub' })).toHaveTextContent('Chưa liên kết')
   })
 
-  it('lands a Mentor on the to-do list with every Mentor destination, since nobody is approved (Story 19.7)', async () => {
-    fakeBackend(signedIn('MENTOR'))
-    const router = renderAt('/dang-nhap')
-
-    expect(await screen.findByRole('heading', { level: 1, name: 'Việc cần làm' })).toBeInTheDocument()
-    expect(router.state.location.pathname).toBe('/viec-can-lam')
-    const nav = screen.getByRole('navigation', { name: 'Điều hướng chính' })
-    expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual([
-      'Việc cần làm',
-      'Tìm việc',
-      'Công việc',
-      'Thông báo',
-    ])
-    // The Team endpoints answer nothing since Story 20.3, so "Nhóm" is not offered.
-    expect(within(nav).queryByRole('link', { name: 'Nhóm' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'Hồ sơ người hướng dẫn' })).not.toBeInTheDocument()
-  })
-
   it('answers the retired Mentor application route with the not-found screen (Story 19.7)', async () => {
-    fakeBackend(signedIn('MENTOR'))
+    fakeBackend(signedInUser)
     const router = renderAt('/ho-so/nguoi-huong-dan')
 
     expect(await screen.findByRole('heading', { level: 1, name: /Không tìm thấy/ })).toBeInTheDocument()
@@ -119,9 +140,8 @@ describe('route guards (AD-19)', () => {
   })
 
   it.each([
-    ['a Customer', signedIn('CUSTOMER')],
-    ['a Student', signedIn('STUDENT')],
-    ['a Google account with no role', signedInWithGoogle],
+    ['a user with GitHub linked', signedInUser],
+    ['a Google account with nothing linked', signedInWithGoogle],
   ])('shows %s the one profile on /ho-so', async (_, session) => {
     fakeBackend(session)
     renderAt('/ho-so')
@@ -133,20 +153,49 @@ describe('route guards (AD-19)', () => {
   })
 
   it.each([
-    ['a Google account with no role', signedInWithGoogle],
-    ['a Mentor', signedIn('MENTOR')],
-  ])('offers "Hồ sơ" in the avatar menu to %s', async (_, session) => {
+    ['a Google account with nothing linked', signedInWithGoogle],
+    ['a user with GitHub linked', signedInUser],
+  ])('gives %s the one avatar menu with every item listed (UX-DR85)', async (_, session) => {
     const user = userEvent.setup()
     fakeBackend(session)
     renderAt('/viec-can-lam')
 
     await user.click(await screen.findByRole('button', { name: /^Tài khoản của / }))
     await screen.findByRole('menuitem', { name: 'Đăng xuất' })
-    expect(screen.queryAllByRole('menuitem', { name: 'Hồ sơ' })).toHaveLength(1)
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+      'Hồ sơ và xác minh',
+      'Hồ sơ công khai',
+      'Số dư thử nghiệm',
+      'Lịch sử thanh toán',
+      'Dữ liệu của tôi',
+      'Đăng xuất',
+    ])
+    expect(screen.getByText('Giao diện')).toBeInTheDocument()
+    expect(screen.getAllByRole('menuitemradio').map((item) => item.textContent)).toEqual([
+      'Sáng',
+      'Tối',
+      'Theo hệ thống',
+    ])
+  })
+
+  it('opens the public profile by the GitHub username from "Hồ sơ công khai"', async () => {
+    fakeBackend(signedInUser)
+    const router = renderAt('/ho-so/cong-khai')
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/sv/octo-cat'))
+  })
+
+  it('shows the Empty state and the GitHub gate on "Hồ sơ công khai" without GitHub', async () => {
+    fakeBackend(signedInWithGoogle)
+    renderAt('/ho-so/cong-khai')
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Hồ sơ công khai' })).toBeInTheDocument()
+    expect(screen.getByText('Bạn chưa có hồ sơ công khai.')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Liên kết GitHub để có hồ sơ công khai' })).toBeInTheDocument()
   })
 
   it('sends a signed-in account away from PUB-2 and PUB-3 to where it lands', async () => {
-    fakeBackend(signedIn('CUSTOMER'))
+    fakeBackend(signedInUser)
     const router = renderAt('/dang-nhap')
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Việc cần làm' })).toBeInTheDocument()
@@ -154,7 +203,7 @@ describe('route guards (AD-19)', () => {
   })
 
   it('offers "Vào trang của bạn" in the public header when signed in', async () => {
-    fakeBackend(signedIn('STUDENT'))
+    fakeBackend(signedInUser)
     renderAt('/quyen-rieng-tu')
 
     expect(await screen.findByRole('link', { name: 'Vào trang của bạn' })).toHaveAttribute('href', '/viec-can-lam')
@@ -255,9 +304,9 @@ describe('PUB-3 "Chào mừng" (FR-1, NFR-9, UX-DR89)', () => {
 })
 
 describe('signed-in shell (UX-DR10 to UX-DR12, UX-DR26)', () => {
-  it('shows the role destinations in both navigations and signs out from the avatar menu', async () => {
+  it('shows the destinations in both navigations and signs out from the avatar menu', async () => {
     const user = userEvent.setup()
-    const seen = fakeBackend(signedIn('CUSTOMER'), {
+    const seen = fakeBackend(signedInUser, {
       'POST /api/v1/session/sign-out': () => new Response(null, { status: 204 }),
     })
     const router = renderAt('/viec-can-lam')
@@ -276,7 +325,7 @@ describe('signed-in shell (UX-DR10 to UX-DR12, UX-DR26)', () => {
 
   it('a command that finds the session gone opens the dialog, which signs in back to this route', async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'POST /api/v1/session/sign-out': () => json({ status: 401 }, 401),
     })
     renderAt('/viec-can-lam')
@@ -295,7 +344,7 @@ describe('signed-in shell (UX-DR10 to UX-DR12, UX-DR26)', () => {
 
   it('injects no style element at run time with the menu and the dialog open', async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'POST /api/v1/session/sign-out': () => json({ status: 401 }, 401),
     })
     renderAt('/viec-can-lam')

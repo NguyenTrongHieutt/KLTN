@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -81,7 +81,8 @@ describe('JOB-1 Ratings (FR-49, FR-78, UX-DR27)', () => {
   it('lets the Customer rate the Mentor once and says when the Ratings show', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     const sent: unknown[] = []
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(customerJob),
       'GET /api/v1/boards/j1/progress': () => json(progress),
       'GET /api/v1/boards/j1/ratings': () => json(ratingsView()),
@@ -127,7 +128,8 @@ describe('JOB-1 Ratings (FR-49, FR-78, UX-DR27)', () => {
   })
 
   it('shows the Customer both Ratings once published', { timeout: 20_000 }, async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(customerJob),
       'GET /api/v1/boards/j1/progress': () => json(progress),
       'GET /api/v1/boards/j1/ratings': () =>
@@ -162,7 +164,8 @@ describe('JOB-1 Ratings (FR-49, FR-78, UX-DR27)', () => {
     const user = userEvent.setup()
     const sent: unknown[] = []
     let given = false
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
       'GET /api/v1/boards/j1/progress': () => json({ ...progress, audience: 'CREW' }),
       'GET /api/v1/boards/j1/ratings': () =>
         json(

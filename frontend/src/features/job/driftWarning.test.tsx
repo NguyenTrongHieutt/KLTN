@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser } from '@/test/fakeBackend'
 import { DriftWarning } from './DriftWarning'
 
 const warning = (kind: string, extra: Record<string, unknown> = {}) => ({
@@ -29,7 +29,7 @@ afterEach(() => {
 describe('The Drift Warning on JOB-H and JOB-1 (FR-20, UX-DR27)', () => {
   it('says what changed, what it means, and how to pause the sync', async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/jobs/j1/drift': () => json({ warnings: [warning('COMMITS', { commits: 3 })], reconfirmNeeded: false }),
     })
     renderWarning()
@@ -45,7 +45,7 @@ describe('The Drift Warning on JOB-H and JOB-1 (FR-20, UX-DR27)', () => {
   it('lets the Customer re-confirm a renamed repository, and shows a refusal plainly', async () => {
     const user = userEvent.setup()
     let refuse = true
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/jobs/j1/drift': () =>
         json({ warnings: [warning('RENAMED', { fullName: 'lan/so-dat-ban-v2' })], reconfirmNeeded: true }),
       'POST /api/v1/jobs/j1/source/reconfirm': () => {
@@ -68,7 +68,7 @@ describe('The Drift Warning on JOB-H and JOB-1 (FR-20, UX-DR27)', () => {
   })
 
   it('shows nothing without a warning', async () => {
-    fakeBackend(signedIn('CUSTOMER'), { 'GET /api/v1/jobs/j1/drift': () => json({ warnings: [], reconfirmNeeded: false }) })
+    fakeBackend(signedInUser, { 'GET /api/v1/jobs/j1/drift': () => json({ warnings: [], reconfirmNeeded: false }) })
     renderWarning()
 
     await new Promise((resolve) => setTimeout(resolve, 50))

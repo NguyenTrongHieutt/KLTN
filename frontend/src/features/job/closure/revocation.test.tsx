@@ -4,7 +4,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { Toaster } from '@/components/Toaster'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser } from '@/test/fakeBackend'
 import { RevocationChecklist } from './RevocationChecklist'
 
 const supabase = {
@@ -35,7 +35,7 @@ describe('The Revocation Checklist (FR-66, UX-DR51, UX-DR55)', () => {
   it('shows what to remove and records each confirmation after a short dialog', { timeout: 15_000 }, async () => {
     const user = userEvent.setup()
     const sent: unknown[] = []
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/boards/j1/revocation-checklist': () => json({ jobId: 'j1', audience: 'CUSTOMER', items: [supabase] }),
       'POST /api/v1/boards/j1/revocation-checklist/a1': async (request) => {
         sent.push(await request.json())
@@ -60,7 +60,7 @@ describe('The Revocation Checklist (FR-66, UX-DR51, UX-DR55)', () => {
   })
 
   it('shows the Mentor each item done or pending, without what to remove', async () => {
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/boards/j1/revocation-checklist': () =>
         json({ jobId: 'j1', audience: 'MENTOR', items: [{ ...supabase, identifiers: [], done: true }] }),
     })
@@ -73,7 +73,7 @@ describe('The Revocation Checklist (FR-66, UX-DR51, UX-DR55)', () => {
 
   it('shows nothing for a Job without External Access', async () => {
     let read = false
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/boards/j1/revocation-checklist': () => {
         read = true
         return json({ jobId: 'j1', audience: 'CUSTOMER', items: [] })

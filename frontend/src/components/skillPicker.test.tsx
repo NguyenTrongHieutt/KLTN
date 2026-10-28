@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, profileView, signedIn, signedInWithGoogle } from '@/test/fakeBackend'
+import { fakeBackend, json, profileView, signedInUser, signedInWithGoogle } from '@/test/fakeBackend'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -53,7 +53,7 @@ describe('the Skill picker on ACC-1 (FR-4, UX-DR75, SG-50)', () => {
   it('filters without accents or letter case, groups by Category, and saves the chosen IDs', { timeout: 15_000 }, async () => {
     const user = userEvent.setup()
     let body: unknown
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/profile': () => profile(),
       'GET /api/v1/catalog': catalog,
       'PUT /api/v1/profile': async (request) => {
@@ -78,7 +78,7 @@ describe('the Skill picker on ACC-1 (FR-4, UX-DR75, SG-50)', () => {
 
   it('says when nothing matches', async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('STUDENT'), { 'GET /api/v1/profile': () => profile(), 'GET /api/v1/catalog': catalog })
+    fakeBackend(signedInUser, { 'GET /api/v1/profile': () => profile(), 'GET /api/v1/catalog': catalog })
     renderAt('/ho-so')
 
     await user.type(await screen.findByRole('combobox', { name: 'Kỹ năng' }), 'cobol')
@@ -87,7 +87,7 @@ describe('the Skill picker on ACC-1 (FR-4, UX-DR75, SG-50)', () => {
   })
 
   it('waits for the IME to finish a letter before filtering', async () => {
-    fakeBackend(signedIn('STUDENT'), { 'GET /api/v1/profile': () => profile(), 'GET /api/v1/catalog': catalog })
+    fakeBackend(signedInUser, { 'GET /api/v1/profile': () => profile(), 'GET /api/v1/catalog': catalog })
     renderAt('/ho-so')
     const input = await screen.findByRole('combobox', { name: 'Kỹ năng' })
 
@@ -108,7 +108,7 @@ describe('the Skill picker on ACC-1 (FR-4, UX-DR75, SG-50)', () => {
       { id: 'retired', name: 'Kỹ năng cũ', active: false },
       ...many.slice(0, 19).map((skill) => ({ id: skill.id, name: skill.name, active: true })),
     ]
-    fakeBackend(signedIn('STUDENT'), { 'GET /api/v1/profile': () => profile(twenty), 'GET /api/v1/catalog': catalog })
+    fakeBackend(signedInUser, { 'GET /api/v1/profile': () => profile(twenty), 'GET /api/v1/catalog': catalog })
     renderAt('/ho-so')
 
     expect(await screen.findByRole('button', { name: 'Bỏ Kỹ năng cũ' })).toBeInTheDocument()
@@ -121,7 +121,7 @@ describe('the Skill picker on ACC-1 (FR-4, UX-DR75, SG-50)', () => {
 
   it("shows the server's Skill refusal on the field", { timeout: 15_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/profile': () => profile([{ id: 'react', name: 'React', active: true }]),
       'GET /api/v1/catalog': catalog,
       'PUT /api/v1/profile': () =>
@@ -146,7 +146,7 @@ describe('suggesting a missing Skill from the picker (FR-73, Story 16.4)', () =>
   it('sends the typed name, says it was sent, and offers an existing Skill instead', { timeout: 30_000 }, async () => {
     const user = userEvent.setup()
     const sent: unknown[] = []
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/profile': () => profile(),
       'GET /api/v1/catalog': catalog,
       'POST /api/v1/skill-suggestions': async (request) => {
@@ -192,7 +192,7 @@ describe('suggesting a missing Skill from the picker (FR-73, Story 16.4)', () =>
 
   it('says when the day’s five suggestions are used', { timeout: 15_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/profile': () => profile(),
       'GET /api/v1/catalog': catalog,
       'POST /api/v1/skill-suggestions': () => problem(429, { code: 'RATE_LIMITED', reason: 'SKILL_SUGGESTION_LIMIT' }),

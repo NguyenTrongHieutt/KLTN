@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { Toaster } from '@/components/Toaster'
 import { redirectTo } from '@/lib/redirect'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
 import { FinalMergeStep } from './FinalMergeStep'
 
 vi.mock('@/lib/redirect', () => ({ redirectTo: vi.fn() }))
@@ -42,7 +42,8 @@ afterEach(() => {
 describe('The Customer step "Cho phép hợp nhất" (FR-37, AD-10, UX-DR55)', () => {
   it('goes to GitHub with a fresh single-use link, and shows the deadline', async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1/final-merge': () => json(requested),
       'POST /api/v1/jobs/j1/final-merge/install-link': () =>
         json({ url: 'https://github.com/apps/vibefix-merge/installations/new?state=s1' }),
@@ -58,7 +59,8 @@ describe('The Customer step "Cho phép hợp nhất" (FR-37, AD-10, UX-DR55)', (
 
   it('says the repository once bound, and refuses a wider selection plainly', async () => {
     let bound = false
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1/final-merge': () =>
         json(bound ? { ...requested, status: 'BOUND' } : { ...requested, refusal: 'MERGE_APP_WRONG_REPOSITORY' }),
     })
@@ -77,7 +79,8 @@ describe('The Customer step "Cho phép hợp nhất" (FR-37, AD-10, UX-DR55)', (
     const user = userEvent.setup()
     const writeText = vi.fn().mockResolvedValue(undefined)
     vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } })
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1/final-merge': () => json({ ...requested, requestWaiting: true, requestOrg: 'quan-may' }),
     })
     renderStep()
@@ -93,7 +96,8 @@ describe('The Customer step "Cho phép hợp nhất" (FR-37, AD-10, UX-DR55)', (
 
   it('explains a return that installed nothing, and a request no longer listed', async () => {
     let refused = false
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1/final-merge': () => json(refused ? { ...requested, requestRefused: true } : requested),
     })
     renderStep('/cong-viec/j1?hop-nhat=chua-thay')
@@ -108,7 +112,8 @@ describe('The Customer step "Cho phép hợp nhất" (FR-37, AD-10, UX-DR55)', (
 
   it('shows nothing to someone else', async () => {
     let read = false
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/jobs/j1/final-merge': () => {
         read = true
         return json({ status: 404, code: 'NOT_FOUND' }, 404)
@@ -134,7 +139,8 @@ describe('The Final Merge once bound (FR-37, SG-19, UX-DR35, Story 8.8)', () => 
   it('shows the whole Job’s Sensitive Changes and merges only after the checkbox', async () => {
     const user = userEvent.setup()
     const sent: unknown[] = []
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1/final-merge': () => json(ready),
       'POST /api/v1/jobs/j1/final-merge/confirm': async (request) => {
         sent.push(await request.json())
@@ -156,7 +162,8 @@ describe('The Final Merge once bound (FR-37, SG-19, UX-DR35, Story 8.8)', () => 
   })
 
   it('says the code reached the project, with its pull request on GitHub', async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1/final-merge': () =>
         json({
           ...ready,
@@ -174,7 +181,8 @@ describe('The Final Merge once bound (FR-37, SG-19, UX-DR35, Story 8.8)', () => 
   })
 
   it('says the code is checked first', async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1/final-merge': () => json({ ...ready, merge: { ...ready.merge, status: 'CHECKING' } }),
     })
     renderStep()
@@ -185,7 +193,8 @@ describe('The Final Merge once bound (FR-37, SG-19, UX-DR35, Story 8.8)', () => 
 
 describe('N-17, the ZIP Fallback (FR-38, Story 8.9)', () => {
   it('says why, offers the ZIP and a Job that merges it, and asks nothing to be run', async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1/final-merge': () =>
         json({
           ...requested,
@@ -211,7 +220,8 @@ describe('N-17, the ZIP Fallback (FR-38, Story 8.9)', () => {
   it('lets the Customer choose the ZIP after the confirmation dialog', async () => {
     const user = userEvent.setup()
     let declined = false
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1/final-merge': () =>
         json(declined ? { ...requested, status: 'ENDED', productId: 'pr1', zip: { status: 'BUILDING', reason: 'DECLINED', sensitive: [] } } : requested),
       'POST /api/v1/jobs/j1/final-merge/decline': () => {

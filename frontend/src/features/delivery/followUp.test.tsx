@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -97,7 +97,8 @@ describe('JOB-1 follow-up Jobs (FR-11, UX-DR16)', () => {
   it('lets the Mentor draft a follow-up from a recommendation and send it', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     const sent: unknown[] = []
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/jobs/j1': () => json(mentorJob),
       'GET /api/v1/boards/j1/progress': () => json({ ...progress, audience: 'MENTOR' }),
       'GET /api/v1/boards/j1/follow-ups': () => json(followUps()),
@@ -142,7 +143,8 @@ describe('JOB-1 follow-up Jobs (FR-11, UX-DR16)', () => {
 
   it('lets the Customer open a follow-up as a Draft Job Post', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(customerJob),
       'GET /api/v1/boards/j1/progress': () => json(progress),
       'GET /api/v1/boards/j1/follow-ups': () =>

@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -80,7 +80,8 @@ describe('"Chia sẻ tài liệu cũ" on the Customer’s JOB-6 (FR-70, UX-DR59)
   it('offers the report first, checks nothing, and saves exactly the chosen Jobs', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     const saved: unknown[] = []
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j2': () => json(job),
       'GET /api/v1/jobs/j2/chat': () => json({ chatId: 'c1', unread: false }),
       'GET /api/v1/jobs/j2/agreement': () => json(agreement),
@@ -108,7 +109,8 @@ describe('"Chia sẻ tài liệu cũ" on the Customer’s JOB-6 (FR-70, UX-DR59)
   })
 
   it('shows only what is shared, read-only, once the Job can no longer change it', async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j2': () => json({ ...job, state: 'CLOSED' }),
       'GET /api/v1/jobs/j2/chat': () => json({ chatId: 'c1', unread: false }),
       'GET /api/v1/jobs/j2/agreement': () => json(agreement),
@@ -148,7 +150,8 @@ describe('"Tài liệu từ công việc trước" for the Mentor and the active
   }
 
   it('lists the shared Jobs and shows the first Page read-only, without history', async () => {
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
       'GET /api/v1/jobs/j2/shared-pages': () => json(shared),
       'GET /api/v1/pages/pg1': () => json(page),
     })
@@ -164,14 +167,15 @@ describe('"Tài liệu từ công việc trước" for the Mentor and the active
   })
 
   it('shows the not-found screen to anyone the Job does not share with', async () => {
-    fakeBackend(signedIn('STUDENT'), {})
+    fakeBackend(signedInUser, inEveryJob('CREW'))
     renderAt('/cong-viec/j2/tai-lieu-cu')
 
     expect(await screen.findByRole('heading', { name: /Không tìm thấy/ })).toBeInTheDocument()
   })
 
   it('links from the Mentor’s JOB-6 when something is shared', { timeout: 15_000 }, async () => {
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/jobs/j2': () => json({ id: 'j2', title: 'Thêm đặt cọc', productName: 'Sổ đặt bàn Quán Mây', state: 'AGREEMENT', version: 3, jobTypes: ['BUG_FIX'], selectedAt: '2026-10-18T03:00:00Z', codeJob: true, commitEmailNoticeAcknowledged: true }),
       'GET /api/v1/jobs/j2/shared-pages': () => json(shared),
     })

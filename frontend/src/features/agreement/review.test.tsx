@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
 import { draftDays, inOrder, moved } from './reviewTargets'
 
 function renderAt(path: string) {
@@ -73,7 +73,8 @@ const shared = (overrides: object = {}) => ({
 })
 
 const customerBackend = (agreement: () => Response, extra: Record<string, (request: Request) => Response | Promise<Response>> = {}) =>
-  fakeBackend(signedIn('CUSTOMER'), {
+  fakeBackend(signedInUser, {
+    ...inEveryJob('CUSTOMER'),
     'GET /api/v1/jobs/j1': () => json(job),
     'GET /api/v1/jobs/j1/chat': () => json({ chatId: 'c1', unread: false }),
     'GET /api/v1/jobs/j1/agreement': agreement,
@@ -254,7 +255,8 @@ const panel = (overrides: object = {}) => ({
 })
 
 const mentorBackend = (agreement: () => Response, crew: () => Response, extra: Record<string, (request: Request) => Response | Promise<Response>> = {}) =>
-  fakeBackend(signedIn('MENTOR'), {
+  fakeBackend(signedInUser, {
+    ...inEveryJob('MENTOR'),
     'GET /api/v1/mentor/jobs/j1': () => json(mentorJob),
     'GET /api/v1/mentor/jobs/j1/agreement': agreement,
     'GET /api/v1/mentor/jobs/j1/crew': crew,

@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn, signedInWithGoogle } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser, signedInWithGoogle } from '@/test/fakeBackend'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -82,7 +82,7 @@ afterEach(() => {
 describe('CUS-2, the Products (FR-7)', () => {
   // The first test of the file also pays for loading the lazy routes.
   it('shows the empty state with the way to register', { timeout: 15_000 }, async () => {
-    fakeBackend(signedIn('CUSTOMER'), { 'GET /api/v1/products': () => json([]) })
+    fakeBackend(signedInUser, { 'GET /api/v1/products': () => json([]) })
     renderAt('/san-pham')
 
     expect(await screen.findByText('Chưa có sản phẩm nào.')).toBeInTheDocument()
@@ -99,7 +99,7 @@ describe('CUS-2, the Products (FR-7)', () => {
   })
 
   it('lists each Product with its state and Source Repository', async () => {
-    fakeBackend(signedIn('CUSTOMER'), { 'GET /api/v1/products': () => json([product]) })
+    fakeBackend(signedInUser, { 'GET /api/v1/products': () => json([product]) })
     renderAt('/san-pham')
 
     const list = await screen.findByRole('list', { name: 'Sản phẩm của bạn' })
@@ -109,7 +109,7 @@ describe('CUS-2, the Products (FR-7)', () => {
   })
 
   it('shows each scan state, with the open Findings counted (FR-8)', async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/products': () =>
         json([
           { ...withFindings, id: 'p1', openFindings: 2 },
@@ -132,7 +132,7 @@ describe('CUS-3, registering a Product (FR-7, AD-13)', () => {
   it('goes through the four steps and opens CUS-4', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     let registered: Record<string, unknown> | undefined
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'POST /api/v1/products/repository-check': () => json(checked),
       'POST /api/v1/products': async (request) => {
         registered = await request.json()
@@ -189,7 +189,7 @@ describe('CUS-3, registering a Product (FR-7, AD-13)', () => {
 
   it('shows a refused repository in the checklist and keeps the input', { timeout: 15_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'POST /api/v1/products/repository-check': () =>
         refusal(422, { code: 'GUARD_FAILED', reason: 'REPO_PRIVATE', repository: 'lan-nguyen/shop-gom' }),
     })
@@ -210,13 +210,6 @@ describe('CUS-3, registering a Product (FR-7, AD-13)', () => {
     expect(field).toHaveAttribute('aria-invalid', 'true')
   })
 
-  it('finds nothing for another role', async () => {
-    fakeBackend(signedIn('STUDENT'))
-    renderAt('/san-pham/moi')
-
-    expect(await screen.findByText('Không tìm thấy nội dung này.')).toBeInTheDocument()
-  })
-
   it('opens the wizard for a user with no role, whose GitHub gate guards step 2 (Story 20.3)', async () => {
     fakeBackend(signedInWithGoogle)
     renderAt('/san-pham/moi')
@@ -228,7 +221,7 @@ describe('CUS-3, registering a Product (FR-7, AD-13)', () => {
 
 describe('CUS-4, a Product (FR-7)', () => {
   it('shows the Product with its source, state, and information', async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/products/p1': () => json({ ...product, scanState: 'AWAITING_SCAN', scan: undefined }),
     })
     renderAt('/san-pham/p1')
@@ -243,7 +236,7 @@ describe('CUS-4, a Product (FR-7)', () => {
   it('polls every 5 s under the Busy banner while the scan runs, then lists the Findings (UX-DR21)', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     let reads = 0
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/products/p1': () => json(++reads === 1 ? product : withFindings),
       'GET /api/v1/products/p1/findings': () => json(reads === 1 ? [] : [finding]),
       'GET /api/v1/products/p1/scans': () => json([reads === 1 ? scanOf('PENDING', { purpose: 'INTAKE' }) : scanOf('SUCCEEDED', { purpose: 'INTAKE', found: 1 })]),
@@ -270,7 +263,7 @@ describe('CUS-4, a Product (FR-7)', () => {
   })
 
   it('says a clean scan found nothing and what the check cannot promise', async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/products/p1': () => json({ ...product, scanState: 'CLEAN', scan: scanOf('SUCCEEDED') }),
       'GET /api/v1/products/p1/findings': () => json([]),
       'GET /api/v1/products/p1/scans': () => json([]),
@@ -296,7 +289,7 @@ describe('CUS-4, a Product (FR-7)', () => {
       maskedPreview: 'ng••••@gmail.com · 09•• ••• •12',
       matchCount: 48,
     }
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/products/p1': () => json({ ...withFindings, openFindings: 2 }),
       'GET /api/v1/products/p1/findings': () => json([finding, personal]),
     })
@@ -314,7 +307,7 @@ describe('CUS-4, a Product (FR-7)', () => {
   })
 
   it('lists every Finding with its state and the scan history with each run', async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/products/p1': () => json(withFindings),
       'GET /api/v1/products/p1/findings': () =>
         json([
@@ -345,7 +338,7 @@ describe('CUS-4, a Product (FR-7)', () => {
   it('runs both scans again on "Kiểm tra lại" and says when the day\'s limit frees up', { timeout: 15_000 }, async () => {
     const user = userEvent.setup()
     let rescans = 0
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/products/p1': () => json({ ...product, scanState: 'CLEAN', scan: scanOf('SUCCEEDED') }),
       'GET /api/v1/products/p1/findings': () => json([]),
       'GET /api/v1/products/p1/scans': () => json([]),
@@ -370,7 +363,7 @@ describe('CUS-4, a Product (FR-7)', () => {
   it('deletes the Product after the destructive dialog lists what goes, then shows CUS-2', { timeout: 15_000 }, async () => {
     const user = userEvent.setup()
     let deleted = false
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/products/p1': () => json({ ...product, scanState: 'CLEAN', scan: scanOf('SUCCEEDED') }),
       'GET /api/v1/products/p1/findings': () => json([]),
       'GET /api/v1/products/p1/scans': () => json([]),
@@ -396,7 +389,7 @@ describe('CUS-4, a Product (FR-7)', () => {
 
   it('says a Product a running Job uses cannot be deleted', { timeout: 15_000 }, async () => {
     const user = userEvent.setup()
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/products/p1': () => json({ ...product, scanState: 'CLEAN', scan: scanOf('SUCCEEDED') }),
       'GET /api/v1/products/p1/findings': () => json([]),
       'GET /api/v1/products/p1/scans': () => json([]),
@@ -416,7 +409,7 @@ describe('CUS-4, a Product (FR-7)', () => {
   })
 
   it('says a scan that did not finish will be tried again, and lists the files too large to check', async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/products/p1': () =>
         json({
           ...product,
@@ -443,7 +436,7 @@ describe('CUS-4, a Product (FR-7)', () => {
   })
 
   it('shows the not-found screen for a Product that is not the Customer\'s', async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/products/p9': () => refusal(404, { code: 'NOT_FOUND' }),
     })
     renderAt('/san-pham/p9')
@@ -453,7 +446,7 @@ describe('CUS-4, a Product (FR-7)', () => {
 
   it('keeps planted payloads as text', async () => {
     const payload = '<img src=x onerror=alert(1)>'
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/products/p1': () => json({ ...product, name: payload, description: payload }),
     })
     renderAt('/san-pham/p1')

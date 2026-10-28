@@ -5,7 +5,7 @@ import { Skeleton } from '@/components/Skeleton'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
 import { hasChat, useJobChat } from '@/features/chat/chatApi'
-import { useSession } from '@/features/identity/useSession'
+import { ByJobRole } from '@/features/job/ByJobRole'
 import { useJob, type Job } from '@/features/job/jobApi'
 import { JobHeader } from '@/features/job/JobHeader'
 import { customerMeta } from '@/features/job/jobMeta'
@@ -56,11 +56,13 @@ const ORDER_TONE: Record<string, string> = {
  */
 export function JobPaymentPage() {
   const { jobId } = useParams()
-  const account = useSession().data?.account
-  if (!jobId || (account !== undefined && account.role !== 'CUSTOMER' && account.role !== 'MENTOR')) {
-    return <NotFoundScreen />
-  }
-  return account?.role === 'MENTOR' ? <MentorPayment jobId={jobId} /> : <CustomerPayment jobId={jobId} />
+  return (
+    <ByJobRole
+      jobId={jobId}
+      customer={() => <CustomerPayment jobId={jobId ?? ''} />}
+      mentor={() => <MentorPayment jobId={jobId ?? ''} />}
+    />
+  )
 }
 
 function MentorPayment({ jobId }: { jobId: string }) {
@@ -74,7 +76,7 @@ function MentorPayment({ jobId }: { jobId: string }) {
     <div className="mx-auto flex max-w-[1120px] flex-col gap-5 px-gutter-mobile py-section-gap md:px-gutter-desktop">
       <RegionState query={job} skeleton={<Skeleton className="h-24 w-full" />}>
         {job.data && (
-          <JobHeader title={job.data.title} state={job.data.state} meta={mentorMeta(job.data)} audience="mentor">
+          <JobHeader title={job.data.title} state={job.data.state} meta={mentorMeta(job.data)}>
             <MentorJobTabs jobId={job.data.id} state={job.data.state} current="payment" payment={job.data.agreementConfirmed} />
           </JobHeader>
         )}

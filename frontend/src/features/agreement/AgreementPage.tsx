@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { hasChat } from '@/features/chat/chatApi'
 import { useCrewPanel } from '@/features/crew/crewApi'
 import { CrewHeaderLine, CrewSection } from '@/features/crew/CrewPanel'
-import { useSession } from '@/features/identity/useSession'
+import { ByJobRole } from '@/features/job/ByJobRole'
 import { JobHeader } from '@/features/job/JobHeader'
 import { mentorMeta } from '@/features/job/jobMeta'
 import { MentorJobTabs } from '@/features/matching/MentorJobTabs'
@@ -38,15 +38,17 @@ import { inOrder } from './reviewTargets'
  * JOB-6 "Thỏa thuận" (`/cong-viec/{jobId}/thoa-thuan`, FR-16, FR-17, FR-75, AD-29, UX-DR34, UX-DR60):
  * the Mentor drafts and shares the Agreement with the Customer's comments in view, picks the Crew
  * below the editor, and confirms once the Customer approved and the Crew confirmed; the Customer
- * reviews the shared versions (`CustomerAgreement`).
+ * reviews the shared versions (`CustomerAgreement`). The caller's role in the Job picks which (Story 20.6).
  */
 export function AgreementPage() {
-  const { jobId } = useParams()
-  const account = useSession().data?.account
-  if (!jobId || (account !== undefined && account.role !== 'CUSTOMER' && account.role !== 'MENTOR')) {
-    return <NotFoundScreen />
-  }
-  return account?.role === 'MENTOR' ? <MentorAgreement jobId={jobId} /> : <CustomerAgreement jobId={jobId} />
+  const { jobId = '' } = useParams()
+  return (
+    <ByJobRole
+      jobId={jobId || undefined}
+      customer={() => <CustomerAgreement jobId={jobId} />}
+      mentor={() => <MentorAgreement jobId={jobId} />}
+    />
+  )
 }
 
 function Frame({ children }: { children: ReactNode }) {
@@ -76,7 +78,6 @@ function MentorAgreement({ jobId }: { jobId: string }) {
             title={job.data.title}
             state={job.data.state}
             meta={mentorMeta(job.data)}
-            audience="mentor"
             status={crew.data && <CrewHeaderLine panel={crew.data} />}
           >
             <MentorJobTabs

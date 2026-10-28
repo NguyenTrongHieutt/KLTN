@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -74,7 +74,8 @@ const emptyCrew = {
 }
 
 const mentorBackend = (agreement: object, extra: Record<string, (request: Request) => Response | Promise<Response>> = {}) =>
-  fakeBackend(signedIn('MENTOR'), {
+  fakeBackend(signedInUser, {
+    ...inEveryJob('MENTOR'),
     'GET /api/v1/mentor/jobs/j1': () => json(mentorJob),
     'GET /api/v1/mentor/jobs/j1/agreement': () => json(agreement),
     'GET /api/v1/mentor/jobs/j1/crew': () => json(emptyCrew),
@@ -201,7 +202,8 @@ describe('JOB-6 for the Customer: read the shared draft (FR-16)', () => {
 
   it('shows the shared version with the quote, the criteria, and the versions', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
-    const seen = fakeBackend(signedIn('CUSTOMER'), {
+    const seen = fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(job),
       'GET /api/v1/jobs/j1/chat': () => json({ chatId: 'c1', unread: false }),
       'GET /api/v1/jobs/j1/agreement': (request) =>
@@ -226,7 +228,8 @@ describe('JOB-6 for the Customer: read the shared draft (FR-16)', () => {
   })
 
   it('goes back to the overview before anything is shared', { timeout: 15_000 }, async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json({ ...job, agreementShared: false }),
       'GET /api/v1/jobs/j1/chat': () => json({ chatId: 'c1', unread: false }),
       'GET /api/v1/jobs/j1/applications': () => json([]),

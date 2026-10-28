@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { components } from '@/api/schema'
+import { JOBS_QUERY_KEY } from '@/features/job/jobApi'
 import { NOTIFICATION_QUERY_KEY } from '@/features/notification/api'
 import { apiClient, unwrap } from '@/lib/apiClient'
 
@@ -71,7 +72,7 @@ export function useReconfirmCrew(jobId: string) {
   )
 }
 
-/** STU-4: the Student's Crew assignments, their own share only (AD-41). */
+/** "Việc tôi tham gia" on CUS-7: the user's Crew assignments, their own share only (AD-41). */
 export function useCrewAssignments() {
   return useQuery({ queryKey: ASSIGNMENTS_KEY, queryFn: () => unwrap(apiClient.GET('/api/v1/crew/assignments')) })
 }
@@ -84,6 +85,8 @@ function useAssignmentCommand<T>(run: (body: T) => Promise<unknown>) {
       Promise.all([
         queryClient.invalidateQueries({ queryKey: ASSIGNMENTS_KEY }),
         queryClient.invalidateQueries({ queryKey: NOTIFICATION_QUERY_KEY }),
+        // A confirmation or a decline changes the role in the Job, so "Công việc" and JOB-H read it again.
+        queryClient.invalidateQueries({ queryKey: JOBS_QUERY_KEY }),
       ]),
   })
 }

@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -81,7 +81,8 @@ describe('JOB-5 guided check (FR-33, FR-34, UX-DR33)', () => {
   it('walks the criteria one by one and asks for a revision of the one not met', { timeout: 25_000 }, async () => {
     const user = userEvent.setup()
     const sent: unknown[] = []
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(customerJob),
       'GET /api/v1/boards/j1/handovers': () => json(list),
       'GET /api/v1/handovers/h1': () => json(report()),
@@ -137,7 +138,8 @@ describe('JOB-5 guided check (FR-33, FR-34, UX-DR33)', () => {
     const user = userEvent.setup()
     const sent: unknown[] = []
     window.sessionStorage.setItem('vibefix.check.h1', JSON.stringify({ step: 1, marks: { c1: { met: true, comment: '' } } }))
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/handovers/h1': () => json(report()),
       'POST /api/v1/handovers/h1/accept': async (request) => {
         sent.push(await request.json())
@@ -165,7 +167,8 @@ describe('JOB-5 guided check (FR-33, FR-34, UX-DR33)', () => {
     window.sessionStorage.setItem('vibefix.check.h1', JSON.stringify({ step: 1, marks: { c1: { met: true, comment: '' } } }))
     const merging = report({ assessment: false, acceptance: 'MERGING', decision: null })
     let accepted = false
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/handovers/h1': () => json(accepted ? merging : report({ assessment: false })),
       'POST /api/v1/handovers/h1/accept': () => {
         accepted = true
@@ -189,7 +192,8 @@ describe('JOB-5 guided check (FR-33, FR-34, UX-DR33)', () => {
   })
 
   it('links the preview with N-11 next to each step and its check steps (UX-DR33)', { timeout: 25_000 }, async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/handovers/h1': () =>
         json(report({ preview: { preview: { url: 'https://vht-preview.vercel.app', domain: 'vht-preview.vercel.app' } } })),
     })
@@ -203,7 +207,8 @@ describe('JOB-5 guided check (FR-33, FR-34, UX-DR33)', () => {
   it('explains a Stale answer when a new change voided the handover meanwhile (UX-DR26)', { timeout: 25_000 }, async () => {
     const user = userEvent.setup()
     window.sessionStorage.setItem('vibefix.check.h1', JSON.stringify({ step: 1, marks: { c1: { met: true, comment: '' } } }))
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/handovers/h1': () => json(report()),
       'POST /api/v1/handovers/h1/accept': () => json({ code: 'STALE', reason: 'HANDOVER_VOIDED' }, 409),
     })
@@ -225,7 +230,8 @@ describe('JOB-5 guided check (FR-33, FR-34, UX-DR33)', () => {
       'vibefix.check.h1',
       JSON.stringify({ step: 2, marks: { c1: { met: true, comment: '' }, c2: { met: false, comment: '' } } }),
     )
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/handovers/h1': () => json(report({ roundsLeft: 0, decision: { releaseVnd: 1000001, revisionAllowed: false } })),
     })
     renderAt('/cong-viec/j1/ban-giao/h1/kiem-tra')

@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser } from '@/test/fakeBackend'
 import { SetupTracker } from './SetupTracker'
 
 const setup = (status: string, states: string[], extra: Record<string, unknown> = {}) => ({
@@ -30,7 +30,7 @@ afterEach(() => {
 
 describe('JOB-H step tracker while Starting (UX-DR23, AD-11)', () => {
   it('shows each step and tells everyone they need not act', async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/jobs/j1/setup': () => json(setup('RUNNING', ['DONE', 'CURRENT', 'PENDING'])),
     })
     renderTracker()
@@ -44,7 +44,7 @@ describe('JOB-H step tracker while Starting (UX-DR23, AD-11)', () => {
 
   it('tells the Customer what to fix after a block, and starts again on "Thử lại"', async () => {
     const user = userEvent.setup()
-    const seen = fakeBackend(signedIn('CUSTOMER'), {
+    const seen = fakeBackend(signedInUser, {
       'GET /api/v1/jobs/j1/setup': () =>
         json(setup('BLOCKED', ['BLOCKED', 'PENDING', 'PENDING'], { blockedReason: 'INTAKE_FINDING_OPEN', openFindings: 2, canRetry: true })),
       'POST /api/v1/jobs/j1/setup/retry': () => json(setup('RUNNING', ['CURRENT', 'PENDING', 'PENDING'])),
@@ -59,7 +59,7 @@ describe('JOB-H step tracker while Starting (UX-DR23, AD-11)', () => {
   })
 
   it("lists each invitee with their state and a GitHub link on the viewer's own row", async () => {
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/jobs/j1/setup': () =>
         json(
           setup('DONE', ['DONE', 'DONE', 'DONE', 'CURRENT', 'PENDING'], {
@@ -95,7 +95,7 @@ describe('JOB-H step tracker while Starting (UX-DR23, AD-11)', () => {
   })
 
   it('shows the Mentor that the Customer must act, without a retry', async () => {
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
       'GET /api/v1/jobs/j1/setup': () =>
         json(setup('BLOCKED', ['BLOCKED', 'PENDING', 'PENDING'], { blockedReason: 'SOURCE_NOT_PUBLIC' })),
     })

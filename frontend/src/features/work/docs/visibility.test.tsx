@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
 // Loaded up front: the route's lazy chunk with react-markdown is slow to load the first time.
 import './DocsPage'
 
@@ -76,7 +76,8 @@ describe('Page templates and visibility on JOB-3 (FR-10, FR-30, FR-31)', () => {
   it('starts a Page from a template and shows its badge', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     const created: unknown[] = []
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
       'GET /api/v1/boards/j1/pages': () => json(tree({ pages: [] })),
       'POST /api/v1/boards/j1/pages': async (request) => {
         created.push(await request.json())
@@ -100,7 +101,8 @@ describe('Page templates and visibility on JOB-3 (FR-10, FR-30, FR-31)', () => {
   it('lets the Mentor switch visibility at once and puts it back when refused', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     const sent: unknown[] = []
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/jobs/j1': () => json(mentorJob),
       'GET /api/v1/boards/j1/pages': () => json(tree({ mentor: true })),
       'GET /api/v1/pages/p1': () => json(page({ mentor: true })),
@@ -120,7 +122,8 @@ describe('Page templates and visibility on JOB-3 (FR-10, FR-30, FR-31)', () => {
   })
 
   it('shows the Mentor N-12 above the Assessment Report, whose switch stays on', { timeout: 20_000 }, async () => {
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/jobs/j1': () => json(mentorJob),
       'GET /api/v1/boards/j1/pages': () => json(tree({ mentor: true })),
       'GET /api/v1/pages/r1': () => json(report({ mentor: true })),
@@ -135,7 +138,8 @@ describe('Page templates and visibility on JOB-3 (FR-10, FR-30, FR-31)', () => {
   })
 
   it('shows a Crew member the badge without the switch', { timeout: 20_000 }, async () => {
-    fakeBackend(signedIn('STUDENT'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
       'GET /api/v1/boards/j1/pages': () => json(tree()),
       'GET /api/v1/pages/p1': () => json(page()),
     })
@@ -147,7 +151,8 @@ describe('Page templates and visibility on JOB-3 (FR-10, FR-30, FR-31)', () => {
   })
 
   it('gives the Customer a read-only Tài liệu tab with no history and no team notices', { timeout: 20_000 }, async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () =>
         json({
           id: 'j1',

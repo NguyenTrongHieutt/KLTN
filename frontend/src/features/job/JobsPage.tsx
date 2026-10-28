@@ -1,22 +1,123 @@
-import { FileText } from 'lucide-react'
-import { Link } from 'react-router'
+import { BriefcaseBusiness } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
 import { usePageTitle } from '@/app/usePageTitle'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { buttonVariants } from '@/components/ui/button-variants'
-import { useSession } from '@/features/identity/useSession'
-import { StudentJobsPage } from '@/features/crew/StudentJobsPage'
-import { MentorJobsPage } from '@/features/matching/MentorJobsPage'
-import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
+import { AssignmentPanel, JoinedCard } from '@/features/crew/CrewAssignmentCards'
+import { useCrewAssignments } from '@/features/crew/crewApi'
+import { useMyApplications, type Application, type ApplicationStatus } from '@/features/matching/applicationApi'
+import { useTodos } from '@/features/notification/hooks'
+import { TeamIssueSection } from '@/features/teamIssue/TeamIssueSection'
 import { t, type MessageKey } from '@/i18n/t'
 import { formatDayMonth } from '@/lib/dates'
+import { formatVnd } from '@/lib/money'
+import { cn } from '@/lib/utils'
 import { useJobs, type JobState, type JobSummary } from './jobApi'
+import { useMyJobs, type MyJob, type RoleInJob } from './jobRoleApi'
 import { JobStateBadge } from './JobStateBadge'
+
+/** CUS-7's segments (UX-DR86), as `?vai-tro=` keeps them: the Jobs the user posts, mentors, and joins. */
+type Segment = 'dang' | 'huong-dan' | 'tham-gia'
+
+const SEGMENTS: Segment[] = ['dang', 'huong-dan', 'tham-gia']
+
+const ROLE_OF: Record<Segment, RoleInJob> = { dang: 'CUSTOMER', 'huong-dan': 'MENTOR', 'tham-gia': 'CREW' }
+
+const SEGMENT_OF: Record<RoleInJob, Segment> = { CUSTOMER: 'dang', MENTOR: 'huong-dan', CREW: 'tham-gia' }
+
+/** A bid still in play counts in "Việc tôi hướng dẫn" (UX-DR86): sent, picked, or on hold. */
+const PENDING: ApplicationStatus[] = ['SUBMITTED', 'SELECTED', 'ON_HOLD']
+
+/**
+ * CUS-7 "Công việc" (`/cong-viec`, FR-9, UX-DR66, UX-DR86, Story 20.6), the one list of every Job the user holds a
+ * role in, which MEN-4 and STU-4 merged into: the Toggle Group "Việc tôi đăng" · "Việc tôi hướng dẫn" · "Việc tôi
+ * tham gia", each with its open to-do count. A segment with nothing is hidden, and so is the control when one is
+ * left. The URL keeps the segment (`?vai-tro=`); without one, the segment of the most urgent to-do that names a
+ * role opens. Pending bids count and show in "Việc tôi hướng dẫn"; a Job the user left shows in "Việc tôi tham
+ * gia" marked "· đã rời". With no Job at all, "Bạn chưa có công việc nào." leads to "Tìm việc".
+ */
+export function JobsPage() {
+  usePageTitle(t('screen.job.title'))
+  const mine = useMyJobs()
+  const bids = useMyApplications()
+  return (
+    <div className="mx-auto flex max-w-[920px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+      <PageHeading>{t('screen.job.heading')}</PageHeading>
+      <RegionState query={mine} skeleton={<Skeleton className="h-48 w-full" />}>
+        {mine.data && <Segments jobs={mine.data} bids={bids.data ?? []} />}
+      </RegionState>
+    </div>
+  )
+}
+
+function Segments({ jobs, bids }: { jobs: MyJob[]; bids: Application[] }) {
+  const todos = useTodos().data?.items ?? []
+  const [params, setParams] = useSearchParams()
+  const pending = bids.filter((bid) => PENDING.includes(bid.status))
+  const shown = SEGMENTS.filter(
+    (segment) =>
+      jobs.some((job) => job.role === ROLE_OF[segment]) || (segment === 'huong-dan' && pending.length > 0),
+  )
+  if (shown.length === 0) {
+    return (
+      <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card p-10 text-center">
+        <BriefcaseBusiness aria-hidden="true" className="size-8 text-muted-foreground" />
+        <p className="text-label">{t('screen.job.empty')}</p>
+        <Link to="/tim-viec" className={buttonVariants()}>
+          {t('screen.job.emptyCta')}
+        </Link>
+      </div>
+    )
+  }
+  const counts = Object.fromEntries(
+    SEGMENTS.map((segment) => [segment, todos.filter((todo) => todo.role === ROLE_OF[segment]).length]),
+  ) as Record<Segment, number>
+  const urgent = todos.find((todo) => todo.role !== undefined && shown.includes(SEGMENT_OF[todo.role]))
+  const asked = params.get('vai-tro') as Segment | null
+  const current: Segment =
+    asked !== null && shown.includes(asked) ? asked : urgent?.role ? SEGMENT_OF[urgent.role] : shown[0]
+  return (
+    <>
+      {shown.length > 1 && (
+        <div
+          role="group"
+          aria-label={t('screen.job.segments.label')}
+          className="flex flex-wrap gap-1 self-start rounded-md bg-muted p-1"
+        >
+          {shown.map((segment) => (
+            <button
+              key={segment}
+              type="button"
+              aria-pressed={segment === current}
+              onClick={() => setParams({ 'vai-tro': segment }, { replace: true })}
+              className={cn(
+                'inline-flex min-h-tap-min items-center gap-2 rounded px-3 text-label',
+                segment === current ? 'bg-card font-semibold text-foreground shadow-sm' : 'text-muted-foreground',
+              )}
+            >
+              {t(`screen.job.segments.${segment}` as MessageKey)}
+              {counts[segment] > 0 && (
+                <span className="rounded-full bg-destructive px-1.5 text-tag text-destructive-foreground">
+                  <span className="sr-only">{t('screen.job.segments.todos', { n: counts[segment] })}</span>
+                  <span aria-hidden="true">{counts[segment]}</span>
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+      {current === 'dang' && <PostedJobs />}
+      {current === 'huong-dan' && <MentoredJobs jobs={jobs.filter((job) => job.role === 'MENTOR')} bids={bids} />}
+      {current === 'tham-gia' && <JoinedJobs jobs={jobs.filter((job) => job.role === 'CREW')} />}
+    </>
+  )
+}
 
 type Group = 'Decide' | 'Active' | 'Open' | 'Draft' | 'Ended'
 
-/** CUS-7's groups (UX-DR66); deciding states come with the lifecycle of Story 3.2 on. */
+/** CUS-7's groups of the posted Jobs (UX-DR66). */
 const GROUPS: Group[] = ['Decide', 'Active', 'Open', 'Draft', 'Ended']
 
 const GROUP_OF: Record<JobState, Group> = {
@@ -32,47 +133,18 @@ const GROUP_OF: Record<JobState, Group> = {
 }
 
 /**
- * CUS-7 (`/cong-viec`, FR-9, UX-DR66): the Customer's Jobs grouped as Cần bạn quyết định · Đang thực
- * hiện · Đang tìm người hướng dẫn · Bản nháp · Đã kết thúc; with none, the way to post one from a
- * Product. A Mentor's `/cong-viec` is MEN-4, and a Student's is STU-4.
+ * "Việc tôi đăng": the Jobs the user posted, grouped as Cần bạn quyết định · Đang thực hiện · Đang tìm người
+ * hướng dẫn · Bản nháp · Đã kết thúc, a Draft linking to its form.
  */
-export function JobsPage() {
-  usePageTitle(t('screen.job.title'))
-  const account = useSession().data?.account
-  if (account?.role === 'MENTOR') {
-    return <MentorJobsPage />
-  }
-  if (account?.role === 'STUDENT') {
-    return <StudentJobsPage />
-  }
-  if (account !== undefined && account.role !== 'CUSTOMER') {
-    return <NotFoundScreen />
-  }
-  return <JobList />
-}
-
-function JobList() {
+function PostedJobs() {
   const jobs = useJobs()
   const items = jobs.data ?? []
   return (
-    <div className="mx-auto flex max-w-[880px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
-      <PageHeading>{t('screen.job.heading')}</PageHeading>
-      <RegionState query={jobs} skeleton={<Skeleton className="h-48 w-full" />}>
-        {items.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card p-10 text-center">
-            <FileText aria-hidden="true" className="size-8 text-muted-foreground" />
-            <p className="text-label">{t('screen.job.empty')}</p>
-            <Link to="/san-pham" className={buttonVariants()}>
-              {t('screen.job.emptyCta')}
-            </Link>
-          </div>
-        ) : (
-          GROUPS.map((group) => (
-            <JobGroup key={group} group={group} jobs={items.filter((job) => GROUP_OF[job.state] === group)} />
-          ))
-        )}
-      </RegionState>
-    </div>
+    <RegionState query={jobs} skeleton={<Skeleton className="h-48 w-full" />}>
+      {GROUPS.map((group) => (
+        <JobGroup key={group} group={group} jobs={items.filter((job) => GROUP_OF[job.state] === group)} />
+      ))}
+    </RegionState>
   )
 }
 
@@ -113,5 +185,143 @@ function JobGroup({ group, jobs }: { group: Group; jobs: JobSummary[] }) {
         </ul>
       )}
     </section>
+  )
+}
+
+type BidGroup = 'waiting' | 'held' | 'ended'
+
+const BID_GROUP_OF: Record<ApplicationStatus, BidGroup> = {
+  SUBMITTED: 'waiting',
+  SELECTED: 'waiting',
+  ON_HOLD: 'held',
+  CLOSED: 'ended',
+  WITHDRAWN: 'ended',
+}
+
+/**
+ * "Việc tôi hướng dẫn" (formerly MEN-4, UX-DR78): the Jobs the user mentors, in the Mentor's words, and their bids
+ * by where they stand (waiting, on hold, ended), each linking to its Job Post.
+ */
+function MentoredJobs({ jobs, bids }: { jobs: MyJob[]; bids: Application[] }) {
+  return (
+    <>
+      <section aria-labelledby="mentor-jobs" className="flex flex-col gap-2">
+        <h2 id="mentor-jobs" className="text-h2">
+          {t('screen.matching.mentor.jobs')}
+        </h2>
+        {jobs.length === 0 ? (
+          <p className="text-body-sm text-muted-foreground">{t('screen.matching.mentor.noJobs')}</p>
+        ) : (
+          <JobRows jobs={jobs} />
+        )}
+      </section>
+      {(['waiting', 'held', 'ended'] as const).map((group) => (
+        <BidGroupSection key={group} group={group} items={bids.filter((bid) => BID_GROUP_OF[bid.status] === group)} />
+      ))}
+    </>
+  )
+}
+
+function BidGroupSection({ group, items }: { group: BidGroup; items: Application[] }) {
+  if (items.length === 0) {
+    return null
+  }
+  const id = `applications-${group}`
+  return (
+    <section aria-labelledby={id} className="flex flex-col gap-2">
+      <h2 id={id} className="text-h2">
+        {t(`screen.matching.mentor.group_${group}` as MessageKey)}{' '}
+        <span className="font-normal text-muted-foreground">· {items.length}</span>
+      </h2>
+      <ul className="flex flex-col divide-y divide-border rounded-lg border border-border bg-card">
+        {items.map((application) => (
+          <li key={application.id}>
+            <Link
+              to={`/tim-viec/${application.jobId}`}
+              className="flex flex-wrap items-center gap-3 px-4 py-3 text-inherit no-underline hover:bg-muted/50"
+            >
+              <span className="flex min-w-60 grow flex-col gap-0.5">
+                <span className="text-label font-semibold break-words">{application.jobTitle}</span>
+                <span className="text-caption text-muted-foreground">
+                  {formatVnd(application.priceVnd)} {t('screen.matching.test')} ·{' '}
+                  {t('screen.matching.days', { n: application.timelineDays })} ·{' '}
+                  {t('screen.matching.list.sent', { date: formatDayMonth(application.submittedAt) })}
+                </span>
+              </span>
+              <span className="rounded-full bg-muted px-2 py-0.5 text-caption font-semibold">
+                {t(
+                  application.endReason
+                    ? (`screen.matching.mentor.end_${application.endReason}` as MessageKey)
+                    : (`screen.matching.mentor.status_${application.status}` as MessageKey),
+                )}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+/**
+ * "Việc tôi tham gia" (formerly STU-4, FR-75, AD-41, UX-DR60): a pick waiting for the user shows the Crew
+ * assignment panel, a confirmed one its card, and a Job the user left its row marked "· đã rời"; then the internal
+ * complaints (FR-79).
+ */
+function JoinedJobs({ jobs }: { jobs: MyJob[] }) {
+  const assignments = useCrewAssignments()
+  // Story 11.3: an active member asked to confirm a waiting Crew change sees its version here too.
+  const waiting = assignments.data?.filter((assignment) => assignment.status === 'ASSIGNED' || assignment.changeWaiting) ?? []
+  const joined = assignments.data?.filter((assignment) => assignment.status !== 'ASSIGNED') ?? []
+  const left = jobs.filter((job) => job.crewKind === 'FORMER')
+  return (
+    <>
+      <RegionState query={assignments} skeleton={<Skeleton className="h-48 w-full" />}>
+        {waiting.map((assignment) => (
+          <AssignmentPanel key={`${assignment.jobId}-${assignment.versionNo}`} assignment={assignment} />
+        ))}
+        {joined.length > 0 && (
+          <section className="flex flex-col gap-2.5">
+            <h2 className="text-h2">{t('screen.crew.student.activeTitle')}</h2>
+            {joined.map((assignment) => (
+              <JoinedCard key={assignment.jobId} assignment={assignment} />
+            ))}
+          </section>
+        )}
+      </RegionState>
+      {left.length > 0 && (
+        <section aria-labelledby="jobs-left" className="flex flex-col gap-2">
+          <h2 id="jobs-left" className="text-h2">
+            {t('screen.job.segments.leftTitle')}
+          </h2>
+          <JobRows jobs={left} />
+        </section>
+      )}
+      <TeamIssueSection />
+    </>
+  )
+}
+
+/** Jobs as rows to their JOB-1, in the Mentor's and the Crew's words; a former member's marked "· đã rời". */
+function JobRows({ jobs }: { jobs: MyJob[] }) {
+  return (
+    <ul className="flex flex-col divide-y divide-border rounded-lg border border-border bg-card">
+      {jobs.map((job) => (
+        <li key={job.jobId}>
+          <Link
+            to={`/cong-viec/${job.jobId}`}
+            className="flex flex-wrap items-center gap-3 px-4 py-3 text-inherit no-underline hover:bg-muted/50"
+          >
+            <span className="flex min-w-60 grow flex-col gap-0.5">
+              <span className="text-label font-semibold break-words">
+                {job.crewKind === 'FORMER' ? t('screen.job.segments.left', { job: job.title }) : job.title}
+              </span>
+              <span className="text-caption text-muted-foreground break-words">{job.productName}</span>
+            </span>
+            <JobStateBadge state={job.state} audience="mentor" />
+          </Link>
+        </li>
+      ))}
+    </ul>
   )
 }

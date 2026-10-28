@@ -8,8 +8,6 @@ import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
-import { holdsOtherRole } from '@/features/identity/api'
-import { useSession } from '@/features/identity/useSession'
 import { useProduct } from '@/features/product/productApi'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t, type MessageKey } from '@/i18n/t'
@@ -20,6 +18,7 @@ import { useJobApplications } from '@/features/matching/applicationApi'
 import { MentorJobPage } from '@/features/matching/MentorJobPage'
 import { useCancelSelection } from '@/features/matching/mentorJobApi'
 import { formatVnd } from '@/lib/money'
+import { ByJobRole, JobRoleLine } from './ByJobRole'
 import { useJob, useWithdrawJob, type Job } from './jobApi'
 import { JobTabs } from './JobTabs'
 import { JobStateBadge } from './JobStateBadge'
@@ -36,23 +35,19 @@ import { ProgressOverview } from '@/features/work/progress/ProgressOverview'
  * public, the lapse date, and "Rút tin" (J2); while Selecting, the chosen Mentor, the held
  * Applications, and "Hủy lựa chọn" once the signature period passed (J5); from Active on, the
  * progress of each Milestone (FR-28). A Draft opens CUS-6. The Job's Mentor gets their own JOB-1, and
- * an active Crew member theirs.
+ * a Crew member theirs: the caller's role in this Job picks which (AD-43, UX-DR87, Story 20.6), and a Job where
+ * the caller holds none is not found.
  */
 export function JobPage() {
   const { jobId } = useParams()
-  const account = useSession().data?.account
-  if (account?.role === 'MENTOR' && jobId) {
-    return <MentorJobPage jobId={jobId} />
-  }
-  if (account?.role === 'STUDENT' && jobId) {
-    return <CrewJobPage jobId={jobId} />
-  }
-  if (account !== undefined && holdsOtherRole(account, 'CUSTOMER')) {
-    return <NotFoundScreen />
-  }
-  // A user with no role reads the Customer's JOB-1 of the Job they posted from "Sản phẩm" (Story 20.3); the API
-  // answers nothing for any other Job.
-  return <CustomerJobPage jobId={jobId} />
+  return (
+    <ByJobRole
+      jobId={jobId}
+      customer={() => <CustomerJobPage jobId={jobId} />}
+      mentor={() => <MentorJobPage jobId={jobId ?? ''} />}
+      crew={() => <CrewJobPage jobId={jobId ?? ''} />}
+    />
+  )
 }
 
 function CustomerJobPage({ jobId }: { jobId: string | undefined }) {
@@ -96,6 +91,7 @@ function Overview({ job }: { job: Job }) {
             <p className="text-caption text-muted-foreground break-words">
               {job.productName} · {types}
             </p>
+            <JobRoleLine jobId={job.id} />
           </div>
           {job.state === 'OPEN' && <Withdraw job={job} />}
         </div>

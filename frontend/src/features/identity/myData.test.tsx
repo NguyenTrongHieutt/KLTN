@@ -15,7 +15,6 @@ const customer: Session = {
     id: '00000000-0000-7000-8000-00000000c001',
     kind: 'USER',
     capabilities: capabilities(),
-    role: 'CUSTOMER',
     theme: 'LIGHT',
   },
 }

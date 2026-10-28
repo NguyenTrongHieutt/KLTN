@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedIn } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -112,7 +112,8 @@ describe('JOB-1 cancellation by agreement (FR-40)', () => {
   it('lets the Customer propose cancelling the remaining Milestones with a reason', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     const sent: unknown[] = []
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(customerJob),
       'GET /api/v1/boards/j1/progress': () => json(progress()),
       'GET /api/v1/boards/j1/cancellation': () => json(cancellation()),
@@ -137,7 +138,8 @@ describe('JOB-1 cancellation by agreement (FR-40)', () => {
   it('lets the Mentor confirm through a dialog that explains the full refund', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     const sent: unknown[] = []
-    fakeBackend(signedIn('MENTOR'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/jobs/j1': () => json(mentorJob),
       'GET /api/v1/boards/j1/progress': () => json(progress({ audience: 'MENTOR' })),
       'GET /api/v1/boards/j1/cancellation': () =>
@@ -161,7 +163,8 @@ describe('JOB-1 cancellation by agreement (FR-40)', () => {
   })
 
   it('reads a refunded cancelled Milestone as cancelled with its money returned', { timeout: 20_000 }, async () => {
-    fakeBackend(signedIn('CUSTOMER'), {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json({ ...customerJob, state: 'CANCELLED' }),
       'GET /api/v1/boards/j1/progress': () =>
         json(progress({ state: 'CANCELLED', milestones: [milestone({ state: 'CANCELLED', refunded: true })] })),

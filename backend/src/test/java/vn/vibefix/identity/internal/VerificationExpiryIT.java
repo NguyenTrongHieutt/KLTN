@@ -113,7 +113,7 @@ class VerificationExpiryIT extends IntegrationTest {
 		this.worker.runDue(Lane.EMAIL);
 		assertThat(this.mail.sent()).singleElement().satisfies(sent -> {
 			assertThat(sent.to()).isEqualTo("minh@users.github.test");
-			assertThat(sent.subject()).isEqualTo("Xác minh sinh viên hết hạn ngày 30/09/2027");
+			assertThat(sent.subject()).isEqualTo("Huy hiệu Sinh viên đã xác minh hết hạn ngày 30/09/2027");
 		});
 		assertThat(this.studentVerification.isVerified(this.student)).isTrue();
 	}
@@ -153,7 +153,7 @@ class VerificationExpiryIT extends IntegrationTest {
 				""").query(String.class).single()).isEqualTo("SYSTEM");
 		this.worker.runDue(Lane.EMAIL);
 		assertThat(this.mail.sent()).extracting(RecordingMailSender.Sent::subject)
-			.contains("Xác minh sinh viên đã hết hạn");
+			.contains("Huy hiệu Sinh viên đã xác minh hết hạn");
 		view().andExpect(jsonPath("$.status").value("EXPIRED"))
 			.andExpect(jsonPath("$.verifiedUntil").value("2027-09-30"))
 			.andExpect(jsonPath("$.school").doesNotExist())

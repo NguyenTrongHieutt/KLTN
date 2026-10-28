@@ -3,15 +3,14 @@ import { PageHeading } from '@/app/PageHeading'
 import { usePageTitle } from '@/app/usePageTitle'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
-import { StudentVerificationBanner } from '@/features/identity/StudentVerificationBanner'
 import { t } from '@/i18n/t'
 import { useTodos } from './hooks'
 import { TodoItemRow } from './TodoItemRow'
 
 /**
- * `/viec-can-lam`: CUS-1, MEN-1 and STU-1's to-do list (FR-28, UX-DR14), where a signed-in account
- * lands. Open to-dos in the strip's order; the Empty state when none is open. An unverified Student
- * sees STU-1's verification banner above them.
+ * `/viec-can-lam`: CUS-1, the one to-do list of every role the user holds (FR-28, UX-DR14, UX-DR88), where a
+ * signed-in account lands. Open to-dos in the strip's order, each with its context line; the Empty state when none
+ * is open.
  */
 export function TodoListPage() {
   usePageTitle(t('screen.shared.todo.title'))
@@ -19,7 +18,6 @@ export function TodoListPage() {
 
   return (
     <div className="mx-auto flex max-w-content-max flex-col gap-4 px-gutter-mobile py-section-gap md:px-gutter-desktop">
-      <StudentVerificationBanner />
       <PageHeading>{t('screen.shared.todo.heading')}</PageHeading>
       <RegionState
         query={todos}

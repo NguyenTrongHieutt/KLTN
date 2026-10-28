@@ -5,7 +5,7 @@ import { usePageTitle } from '@/app/usePageTitle'
 import { RegionState } from '@/components/RegionState'
 import { SafeMarkdown } from '@/components/SafeMarkdown'
 import { Skeleton } from '@/components/Skeleton'
-import { useSession } from '@/features/identity/useSession'
+import { ByJobRole } from '@/features/job/ByJobRole'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t } from '@/i18n/t'
 import { formatDayMonthTime } from '@/lib/dates'
@@ -21,11 +21,8 @@ import { useSharedPages, type SharedJob } from './sharedPagesApi'
  */
 export function SharedDocsPage() {
   const { jobId, pageId } = useParams()
-  const role = useSession().data?.account?.role
-  if (!jobId || (role !== undefined && role !== 'MENTOR' && role !== 'STUDENT')) {
-    return <NotFoundScreen />
-  }
-  return <SharedDocs jobId={jobId} pageId={pageId} back={role === 'MENTOR' ? `/cong-viec/${jobId}` : '/cong-viec'} />
+  const shared = () => <SharedDocs jobId={jobId ?? ''} pageId={pageId} back={`/cong-viec/${jobId ?? ''}`} />
+  return <ByJobRole jobId={jobId} mentor={shared} crew={shared} />
 }
 
 function SharedDocs({ jobId, pageId, back }: { jobId: string; pageId: string | undefined; back: string }) {

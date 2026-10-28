@@ -4,7 +4,7 @@ import { PageHeading } from '@/app/PageHeading'
 import { usePageTitle } from '@/app/usePageTitle'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
-import { useSession } from '@/features/identity/useSession'
+import { ByJobRole } from '@/features/job/ByJobRole'
 import { JobHeader } from '@/features/job/JobHeader'
 import { mentorMeta } from '@/features/job/jobMeta'
 import { MentorJobTabs } from '@/features/matching/MentorJobTabs'
@@ -18,16 +18,18 @@ import { hasChat, useCrewChat, type CrewChat } from './chatApi'
 /**
  * JOB-8 "Trao đổi nhóm" (`/cong-viec/{jobId}/trao-doi-nhom`, FR-77, UX-DR17, UX-DR80): the Crew Chat
  * between the Job's Mentor and its Crew, never shown to the Customer. The Mentor reaches it from the
- * Job's tabs, a Crew member from "Công việc của tôi"; a former member, one whose lock counted as leaving
+ * Job's tabs, a Crew member from "Việc tôi tham gia"; a former member, one whose lock counted as leaving
  * included, reads only the messages of their time on the Crew. Anyone else sees the not-found screen.
  */
 export function CrewChatPage() {
   const { jobId } = useParams()
-  const account = useSession().data?.account
-  if (!jobId || (account !== undefined && account.role !== 'MENTOR' && account.role !== 'STUDENT')) {
-    return <NotFoundScreen />
-  }
-  return account?.role === 'MENTOR' ? <MentorCrewChat jobId={jobId} /> : <StudentCrewChat jobId={jobId} />
+  return (
+    <ByJobRole
+      jobId={jobId}
+      mentor={() => <MentorCrewChat jobId={jobId ?? ''} />}
+      crew={() => <StudentCrewChat jobId={jobId ?? ''} />}
+    />
+  )
 }
 
 function MentorCrewChat({ jobId }: { jobId: string }) {
@@ -44,7 +46,7 @@ function MentorCrewChat({ jobId }: { jobId: string }) {
     <Frame>
       <RegionState query={job} skeleton={<Skeleton className="h-24 w-full" />}>
         {job.data && (
-          <JobHeader title={job.data.title} state={job.data.state} meta={mentorMeta(job.data)} audience="mentor">
+          <JobHeader title={job.data.title} state={job.data.state} meta={mentorMeta(job.data)}>
             <MentorJobTabs jobId={job.data.id} state={job.data.state} current="crewChat" payment={job.data.agreementConfirmed} />
           </JobHeader>
         )}
