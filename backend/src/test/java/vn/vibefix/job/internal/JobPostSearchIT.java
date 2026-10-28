@@ -33,7 +33,10 @@ import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
 import vn.vibefix.team.internal.TeamTestSupport;
 
-/** FR-12, AD-36, AD-38, SG-39, SG-42 to SG-44: keyword search over Open Job Posts. */
+/**
+ * FR-12, AD-36, AD-38, SG-39, SG-42 to SG-44: keyword search over the Jobs "Tìm việc" lists, the recruitment note and
+ * the Skills sought included while recruitment is on (Story 21.1).
+ */
 class JobPostSearchIT extends IntegrationTest {
 
 	@Autowired
@@ -111,6 +114,32 @@ class JobPostSearchIT extends IntegrationTest {
 		assertTitles("react");
 	}
 
+	/** Story 21.1: while recruiting, the note and the Skills sought are searched too, accents ignored. */
+	@Test
+	void whileRecruitingTheNoteAndTheSkillsSoughtAreFoundToo() throws Exception {
+		UUID recruiting = recruitingJob("Hoàn thiện ứng dụng đặt bàn", "Cần người làm trang bán hàng");
+		job("OPEN", "Thêm thực đơn đồ ăn", "Quán cần thực đơn online.", "NEW_FEATURE", "");
+
+		assertTitles("ban hang", "Hoàn thiện ứng dụng đặt bàn");
+		assertTitles("supabase", "Hoàn thiện ứng dụng đặt bàn");
+
+		SkillRenamed renamed = new SkillRenamed(UUID.randomUUID(), UUID.fromString(TeamTestSupport.SUPABASE), "Kho Dữ Liệu Y");
+		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.events.publishEvent(renamed));
+		await().atMost(Duration.ofSeconds(10))
+			.until(() -> this.jdbc.sql("SELECT count(*) FROM job.job WHERE 'Kho Dữ Liệu Y' = ANY (recruit_skill_names)")
+				.query(Long.class)
+				.single() == 1);
+		assertTitles("kho du lieu y", "Hoàn thiện ứng dụng đặt bàn");
+		assertTitles("supabase");
+
+		// Recruitment off: the Job is no longer listed, and its vector no longer holds the note.
+		this.jdbc.sql("UPDATE job.job SET recruiting = false WHERE id = :id").param("id", recruiting).update();
+		assertTitles("ban hang");
+		assertThat(this.jdbc.sql("""
+				SELECT search_vector @@ websearch_to_tsquery('platform.vi_search', 'ban hang') FROM job.job WHERE id = :id
+				""").param("id", recruiting).query(Boolean.class).single()).isFalse();
+	}
+
 	@Test
 	void sixtyKeywordSearchesAMinuteAndNoMore() throws Exception {
 		job("OPEN", "Sửa trang bán hàng", "Khách không thanh toán được.", "BUG_FIX", "");
@@ -167,6 +196,33 @@ class JobPostSearchIT extends IntegrationTest {
 			.param("opened", open ? now : null)
 			.param("lapses", open ? Timestamp.from(MutableClock.DEFAULT_INSTANT.plus(Duration.ofDays(14))) : null)
 			.param("now", now)
+			.update();
+		return id;
+	}
+
+	/** A Job in Agreement whose Mentor recruits two more members, seeking Supabase, with {@code note}. */
+	private UUID recruitingJob(String title, String note) {
+		UUID id = UUID.randomUUID();
+		UUID mentor = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null);
+		Timestamp now = Timestamp.from(MutableClock.DEFAULT_INSTANT);
+		this.jdbc.sql("""
+				INSERT INTO job.job (id, product_id, customer_account_id, state, title, problem, job_types, rules,
+				    selection_days, opened_at, mentor_account_id, selected_application_id, selected_at, recruiting,
+				    recruiting_since, open_slots, recruit_skill_ids, recruit_skill_names, recruit_note, version,
+				    created_at, updated_at)
+				VALUES (:id, :product, :owner, 'AGREEMENT', :title, 'Đặt bàn bị trùng.', ARRAY['BUG_FIX'], '{}'::jsonb, 14,
+				    :now, :mentor, :application, :now, true, :now, 2, CAST(:sought AS UUID[]), ARRAY['Supabase'], :note, 1,
+				    :now, :now)
+				""")
+			.param("id", id)
+			.param("product", this.product)
+			.param("owner", this.lan)
+			.param("title", title)
+			.param("now", now)
+			.param("mentor", mentor)
+			.param("application", UUID.randomUUID())
+			.param("sought", "{" + TeamTestSupport.SUPABASE + "}")
+			.param("note", note)
 			.update();
 		return id;
 	}

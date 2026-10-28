@@ -245,6 +245,8 @@ describe('CUS-8 "Tìm người hướng dẫn" (FR-14)', () => {
 describe('MEN-3 with an invitation (FR-14)', () => {
   const post = {
     id: 'j1',
+    phase: 'FINDING_MENTOR',
+    need: 'MENTOR',
     title: 'Sửa lỗi mất đơn hàng',
     productName: 'Shop Gốm Bát Tràng',
     productDescription: 'Cửa hàng gốm.',
@@ -266,7 +268,6 @@ describe('MEN-3 with an invitation (FR-14)', () => {
 
   it('shows who invited the Mentor while the invitation is open', { timeout: 15_000 }, async () => {
     fakeBackend(signedInUser, {
-      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/job-posts/j1': () => json(post),
       'GET /api/v1/mentor/job-posts/j1/invitation': () => json(invitation('OPEN')),
       'GET /api/v1/mentor/job-posts/j1/customer-rating': () => json({ count: 0 }),
@@ -283,7 +284,6 @@ describe('MEN-3 with an invitation (FR-14)', () => {
 
   it('shows the lapsed card instead of the not-found screen', { timeout: 15_000 }, async () => {
     fakeBackend(signedInUser, {
-      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/job-posts/j1/invitation': () => json(invitation('LAPSED')),
     })
     renderAt('/tim-viec/j1')

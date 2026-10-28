@@ -233,7 +233,7 @@ describe('CUS-6, drafting a Job (FR-9)', () => {
     expect(screen.getByText('Ví dụ: "Khách đặt bánh nhưng đơn không hiện trong danh sách."')).toBeInTheDocument()
     expect(screen.getByText(/vibefix đoán từ mã nguồn và công cụ AI bạn dùng/)).toBeInTheDocument()
     expect(screen.getByText('2/10 kỹ năng. Mỗi kỹ năng có một câu giải thích ngắn.')).toBeInTheDocument()
-    expect(screen.getByText(/Mọi người hướng dẫn trên vibefix đều đọc được tin này/)).toBeInTheDocument()
+    expect(screen.getByText(/Mọi người dùng vibefix đã liên kết GitHub đều đọc được tin này/)).toBeInTheDocument()
     expect(screen.getByText('Lưu nháp để thêm ảnh chụp màn hình.')).toBeInTheDocument()
 
     await user.type(screen.getByLabelText('Tên công việc'), 'Thêm thanh toán online khi đặt bàn')
@@ -384,7 +384,9 @@ describe('Publishing a Job Post and JOB-1 (FR-9, J1, J2)', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Đăng tin' }))
     const dialog = await screen.findByRole('dialog', { name: 'Đăng tin công việc?' })
-    expect(within(dialog).getByText(/Mọi người hướng dẫn trên vibefix đều đọc được tin này/)).toBeInTheDocument()
+    expect(
+      within(dialog).getByText(/Mọi người dùng vibefix đã liên kết GitHub đều đọc được tin này, kể cả những người có thể chào giá/),
+    ).toBeInTheDocument()
     expect(seen.some((request) => request.method === 'POST')).toBe(false)
     await user.click(within(dialog).getByRole('button', { name: 'Đăng tin' }))
 

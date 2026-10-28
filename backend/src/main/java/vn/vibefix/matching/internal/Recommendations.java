@@ -5,6 +5,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -19,15 +20,16 @@ import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorSkills;
 import vn.vibefix.job.JobPosts;
 import vn.vibefix.job.JobPosts.JobPostState;
-import vn.vibefix.job.JobPosts.OpenPost;
+import vn.vibefix.job.JobPosts.ListedPost;
+import vn.vibefix.job.JobRoles;
+import vn.vibefix.job.JobRoles.History;
 import vn.vibefix.job.MentorWork;
 
 /**
  * Deterministic Recommendations (FR-14, AD-17), with no AI and no hidden weight: Mentors for a Job
- * Post and Job Posts for a Mentor, each with the signals that placed it. The inputs are batch reads
- * of {@code identity}, {@code team} (through {@code job}), and {@code job} for the page being built,
- * never a cross-schema join (SG-40). Ratings never change the order, and nothing here selects,
- * invites, or assigns anyone.
+ * Post and listed Jobs for a user, each with the signals that placed it. The inputs are batch reads
+ * of {@code identity} and {@code job} for the page being built, never a cross-schema join (SG-40).
+ * Ratings never change the order, and nothing here selects, invites, or assigns anyone.
  */
 @Component
 class Recommendations {
@@ -35,7 +37,7 @@ class Recommendations {
 	/** Mentors shown for a Job Post (CUS-8). */
 	static final int FOR_JOB_POST = 6;
 
-	/** Job Posts shown for a Mentor (MEN-2). */
+	/** Listed Jobs shown for a user (MEN-2). */
 	static final int FOR_MENTOR = 4;
 
 	/** Mentors sharing Skills read at most, before eligibility. */
@@ -62,8 +64,12 @@ class Recommendations {
 
 	}
 
-	/** One Job Post for a Mentor. */
-	record RecommendedPost(OpenPost post, List<UUID> sharedSkillIds, List<JobTypeMatch> jobTypeMatches) {
+	/**
+	 * One listed Job for a user.
+	 * @param sharedSkillIds the user's Skills among the Job Post's and, while recruiting, the Skills sought, in that
+	 * order
+	 */
+	record RecommendedPost(ListedPost post, List<UUID> sharedSkillIds, List<JobTypeMatch> jobTypeMatches) {
 
 		int history() {
 			return this.jobTypeMatches.stream().mapToInt(JobTypeMatch::count).sum();
@@ -77,19 +83,22 @@ class Recommendations {
 
 	private final JobPosts posts;
 
+	private final JobRoles roles;
+
 	private final JdbcClient jdbc;
 
-	Recommendations(MentorDirectory mentors, MentorWork work, JobPosts posts, JdbcClient jdbc) {
+	Recommendations(MentorDirectory mentors, MentorWork work, JobPosts posts, JobRoles roles, JdbcClient jdbc) {
 		this.mentors = mentors;
 		this.work = work;
 		this.posts = posts;
+		this.roles = roles;
 		this.jdbc = jdbc;
 	}
 
 	/**
-	 * Mentors for the Job Post (AD-17): available users, never the Job's Customer, who could apply under FR-13 and
-	 * share a Skill or a Job Type of their work history with it, in {@link #order}; the Skill filter then
-	 * narrows them without reordering.
+	 * Mentors for the Job Post (AD-17): available users, never the Job's Customer, under the Mentor Job limit
+	 * (FR-13), who share a Skill or a Job Type of their work history with it, in {@link #order}; the Skill filter
+	 * then narrows them without reordering. Nobody needs a free Student any more (Story 21.1).
 	 */
 	@Transactional(readOnly = true)
 	List<Candidate> forJobPost(JobPostState post, @Nullable Set<UUID> skillFilter) {
@@ -107,14 +116,13 @@ class Recommendations {
 		if (pool.isEmpty()) {
 			return List.of();
 		}
-		Set<UUID> free = this.work.withFreeStudents(pool.keySet());
 		Map<UUID, Integer> active = this.work.activeJobCounts(pool.keySet());
 		int limit = this.work.activeJobLimit();
 		Map<UUID, Map<String, Integer>> history = this.work.workHistory(pool.keySet());
 		List<Candidate> candidates = new ArrayList<>();
 		pool.forEach((mentor, skills) -> {
 			int jobs = active.getOrDefault(mentor, 0);
-			if (!free.contains(mentor) || jobs >= limit) {
+			if (jobs >= limit) {
 				return;
 			}
 			List<UUID> shared = post.skillIds().stream().filter(skills::contains).toList();
@@ -131,27 +139,29 @@ class Recommendations {
 	}
 
 	/**
-	 * Job Posts for the Mentor (AD-17): Open, non-hidden ones not yet applied to and not their own (AD-36) that
-	 * share a Skill or a Job Type of their work history, by shared Skills, then Job Type matches, then newest
-	 * first; the Skill filter narrows them without reordering.
+	 * Listed Jobs for a user (AD-17, Story 21.1): Jobs "Tìm việc" lists (AD-36) where they hold no role (AD-43) and
+	 * have no bid of any status, that share a Skill (the Job Post's, or while recruiting the Skills sought) or a Job
+	 * Type of their history in either role ({@code job.historyOf}): by shared Skills, then Job Type matches, then
+	 * newest first; the Skill filter narrows them without reordering.
 	 */
 	@Transactional(readOnly = true)
-	List<RecommendedPost> forMentor(UUID mentorId, @Nullable Set<UUID> skillFilter) {
+	List<RecommendedPost> forMentor(UUID userId, @Nullable Set<UUID> skillFilter) {
 		// The caller's own Skills, as their profile holds them, whether or not they may be invited (Story 19.7).
-		List<UUID> skills = this.mentors.profileSkillIds(mentorId);
-		Map<String, Integer> done = this.work.workHistory(List.of(mentorId)).getOrDefault(mentorId, Map.of());
-		Set<UUID> applied = new HashSet<>(this.jdbc
-			.sql("SELECT job_id FROM matching.application WHERE mentor_account_id = :mentor")
-			.param("mentor", mentorId)
+		List<UUID> skills = this.mentors.profileSkillIds(userId);
+		Map<String, Integer> done = eitherRole(this.roles.historyOf(userId));
+		Set<UUID> bid = new HashSet<>(this.jdbc
+			.sql("SELECT job_id FROM matching.application WHERE mentor_account_id = :user")
+			.param("user", userId)
 			.query(UUID.class)
 			.list());
 		List<RecommendedPost> recommended = new ArrayList<>();
-		for (OpenPost post : this.posts.openPosts()) {
-			// "Tìm việc" never shows the reader's own Jobs (AD-36).
-			if (applied.contains(post.jobId()) || post.customerId().equals(mentorId)) {
+		for (ListedPost post : this.posts.listedPosts(userId)) {
+			if (bid.contains(post.jobId())) {
 				continue;
 			}
-			List<UUID> shared = post.skillIds().stream().filter(skills::contains).toList();
+			Set<UUID> sought = new LinkedHashSet<>(post.skillIds());
+			sought.addAll(post.recruitSkillIds());
+			List<UUID> shared = sought.stream().filter(skills::contains).toList();
 			List<JobTypeMatch> matches = matches(post.jobTypes(), done);
 			if (!shared.isEmpty() || !matches.isEmpty()) {
 				recommended.add(new RecommendedPost(post, shared, matches));
@@ -161,11 +171,18 @@ class Recommendations {
 			.sorted(Comparator.comparingInt((RecommendedPost found) -> found.sharedSkillIds().size())
 				.reversed()
 				.thenComparing(Comparator.comparingInt(RecommendedPost::history).reversed())
-				.thenComparing((RecommendedPost found) -> found.post().openedAt(), Comparator.reverseOrder())
+				.thenComparing((RecommendedPost found) -> found.post().listedAt(), Comparator.reverseOrder())
 				.thenComparing(found -> found.post().jobId().toString()))
 			.filter(found -> SkillFilter.keeps(skillFilter, found.post().skillIds()))
 			.limit(FOR_MENTOR)
 			.toList();
+	}
+
+	/** The Jobs closed with Accepted work in either role, per Job Type: the Mentor's and the Crew member's summed. */
+	private static Map<String, Integer> eitherRole(History history) {
+		Map<String, Integer> done = new HashMap<>(history.mentor().jobTypes());
+		history.crew().jobTypes().forEach((type, count) -> done.merge(type, count, Integer::sum));
+		return done;
 	}
 
 	/**

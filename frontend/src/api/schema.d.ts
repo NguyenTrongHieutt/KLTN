@@ -2532,6 +2532,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/mentor/customer-ratings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["customerRatings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/mentor/job-posts": {
         parameters: {
             query?: never;
@@ -5900,14 +5916,23 @@ export interface components {
         JobPostSummaryView: {
             /** @enum {string} */
             budget?: "UNDER_2M" | "FROM_2M_TO_5M" | "FROM_5M_TO_10M" | "OVER_10M";
+            /** Format: date-time */
+            customerJoinedAt?: string;
+            customerKind?: string;
             /** Format: date */
             deadline?: string;
             /** Format: uuid */
             id: string;
             jobTypes: ("ASSESSMENT" | "BUG_FIX" | "NEW_FEATURE" | "MODIFICATION" | "IMPROVEMENT" | "SECURITY_TESTING" | "DEPLOYMENT_OPERATIONS" | "DOCUMENTATION")[];
+            mentor?: components["schemas"]["PostMentorView"];
+            /** @enum {string} */
+            need: "MENTOR" | "CREW";
             /** Format: date-time */
             openedAt: string;
+            /** @enum {string} */
+            phase?: "FINDING_MENTOR" | "FINDING_CREW" | "RECRUITING" | "AGREEING";
             productName: string;
+            recruitment?: components["schemas"]["PostRecruitmentView"];
             skills: string[];
             title: string;
         };
@@ -5923,9 +5948,14 @@ export interface components {
             id: string;
             jobTypes: ("ASSESSMENT" | "BUG_FIX" | "NEW_FEATURE" | "MODIFICATION" | "IMPROVEMENT" | "SECURITY_TESTING" | "DEPLOYMENT_OPERATIONS" | "DOCUMENTATION")[];
             /** Format: date-time */
-            lapsesAt: string;
+            lapsesAt?: string;
+            mentor?: components["schemas"]["PostMentorView"];
+            /** @enum {string} */
+            need: "MENTOR" | "CREW";
             /** Format: date-time */
             openedAt: string;
+            /** @enum {string} */
+            phase?: "FINDING_MENTOR" | "FINDING_CREW" | "RECRUITING" | "AGREEING";
             problem?: string;
             productDescription: string;
             /** Format: uuid */
@@ -5934,6 +5964,7 @@ export interface components {
             /** Format: int32 */
             productOpenFindings: number;
             productTools: string[];
+            recruitment?: components["schemas"]["PostRecruitmentView"];
             screenshots: components["schemas"]["ScreenshotView"][];
             skills: components["schemas"]["JobPostSkillView"][];
             title: string;
@@ -6674,6 +6705,23 @@ export interface components {
             summaryStatus?: string;
             summaryText?: string;
         };
+        PostCustomerRatingView: {
+            average?: number;
+            /** Format: int32 */
+            count: number;
+            /** Format: uuid */
+            postId: string;
+        };
+        PostMentorView: {
+            displayName: string;
+            githubLogin?: string;
+        };
+        PostRecruitmentView: {
+            note?: string;
+            /** Format: int32 */
+            openSlots: number;
+            skills: string[];
+        };
         PreviewCheckRequest: {
             url: string;
         };
@@ -6943,8 +6991,14 @@ export interface components {
             id: string;
             invited: boolean;
             jobTypes: string[];
+            /** @enum {string} */
+            need: "MENTOR" | "CREW";
+            /** Format: int32 */
+            openSlots: number;
             /** Format: date-time */
             openedAt: string;
+            /** @enum {string} */
+            phase?: "FINDING_MENTOR" | "FINDING_CREW" | "RECRUITING" | "AGREEING";
             productName: string;
             signals: components["schemas"]["SignalsView"];
             title: string;
@@ -12030,10 +12084,33 @@ export interface operations {
             };
         };
     };
+    customerRatings: {
+        parameters: {
+            query?: {
+                post?: string[];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PostCustomerRatingView"][];
+                };
+            };
+        };
+    };
     list: {
         parameters: {
             query?: {
                 q?: string;
+                phase?: ("FINDING_MENTOR" | "FINDING_CREW" | "RECRUITING" | "AGREEING")[];
                 type?: ("ASSESSMENT" | "BUG_FIX" | "NEW_FEATURE" | "MODIFICATION" | "IMPROVEMENT" | "SECURITY_TESTING" | "DEPLOYMENT_OPERATIONS" | "DOCUMENTATION")[];
                 skill?: string[];
                 category?: string[];

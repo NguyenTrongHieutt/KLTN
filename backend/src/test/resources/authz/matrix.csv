@@ -668,6 +668,7 @@ GET /api/v1/mentor/job-posts,ADMINISTRATOR,,,404 NOT_FOUND,requireGitHubLinked
 GET /api/v1/mentor/capacity,ANONYMOUS,,,401,requireGitHubLinked
 GET /api/v1/mentor/capacity,USER_UNVERIFIED,,,403 FORBIDDEN GITHUB_NOT_LINKED,requireGitHubLinked
 GET /api/v1/mentor/capacity,USER,,,200,requireGitHubLinked
+GET /api/v1/mentor/capacity,LOCKED,,,401,requireGitHubLinked
 GET /api/v1/mentor/capacity,CUSTOMER,,,200,requireGitHubLinked
 GET /api/v1/mentor/capacity,CROSS_ROLE,,,200,requireGitHubLinked
 GET /api/v1/mentor/capacity,ADMINISTRATOR,,,404 NOT_FOUND,requireGitHubLinked
@@ -695,6 +696,15 @@ GET /api/v1/mentor/job-posts/{postId}/customer-rating,CREW_ACTIVE,,,200,requireG
 GET /api/v1/mentor/job-posts/{postId}/customer-rating,CREW_FORMER,,,200,requireGitHubLinked
 GET /api/v1/mentor/job-posts/{postId}/customer-rating,CROSS_ROLE,,,200,requireGitHubLinked
 GET /api/v1/mentor/job-posts/{postId}/customer-rating,ADMINISTRATOR,,,404 NOT_FOUND,requireGitHubLinked
+# MEN-2's rows show their Customers' Rating summaries from one call keyed by the Jobs (Story 21.1, SG-43): the same
+# readers as "Tìm việc"; with no Job asked for it answers an empty list.
+GET /api/v1/mentor/customer-ratings,ANONYMOUS,,,401,requireGitHubLinked
+GET /api/v1/mentor/customer-ratings,USER_UNVERIFIED,,,403 FORBIDDEN GITHUB_NOT_LINKED,requireGitHubLinked
+GET /api/v1/mentor/customer-ratings,USER,,,200,requireGitHubLinked
+GET /api/v1/mentor/customer-ratings,LOCKED,,,401,requireGitHubLinked
+GET /api/v1/mentor/customer-ratings,CUSTOMER,,,200,requireGitHubLinked
+GET /api/v1/mentor/customer-ratings,CROSS_ROLE,,,200,requireGitHubLinked
+GET /api/v1/mentor/customer-ratings,ADMINISTRATOR,,,404 NOT_FOUND,requireGitHubLinked
 POST /api/v1/mentor/job-posts/{postId}/applications,ANONYMOUS,,application.json,401,requireGitHubLinked
 POST /api/v1/mentor/job-posts/{postId}/applications,USER_UNVERIFIED,,application.json,403 FORBIDDEN GITHUB_NOT_LINKED,requireGitHubLinked
 POST /api/v1/mentor/job-posts/{postId}/applications,USER,,application.json,422 GUARD_FAILED PROFILE_REQUIRED,requireGitHubLinked
@@ -900,6 +910,7 @@ GET /api/v1/jobs/{jobId}/recommendations,ADMINISTRATOR,job=crew,,404 NOT_FOUND
 GET /api/v1/mentor/recommendations,ANONYMOUS,,,401,requireGitHubLinked
 GET /api/v1/mentor/recommendations,USER_UNVERIFIED,,,403 FORBIDDEN GITHUB_NOT_LINKED,requireGitHubLinked
 GET /api/v1/mentor/recommendations,USER,,,200,requireGitHubLinked
+GET /api/v1/mentor/recommendations,LOCKED,,,401,requireGitHubLinked
 GET /api/v1/mentor/recommendations,CUSTOMER,,,200,requireGitHubLinked
 GET /api/v1/mentor/recommendations,CROSS_ROLE,,,200,requireGitHubLinked
 GET /api/v1/mentor/recommendations,ADMINISTRATOR,,,404 NOT_FOUND,requireGitHubLinked

@@ -2,13 +2,15 @@ package vn.vibefix.job;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
 
-/** Open Job Posts as other modules read them (FR-12, AD-3). */
+/** Job Posts as other modules read them (FR-12, AD-3), and the Jobs "Tìm việc" lists (AD-36). */
 public interface JobPosts {
 
 	/**
@@ -33,16 +35,35 @@ public interface JobPosts {
 
 	}
 
-	/**
-	 * An Open Job Post that is not hidden, as Recommendations rank it (AD-17).
-	 * @param budget the budget range's name, if any
-	 */
-	record OpenPost(UUID jobId, UUID customerId, UUID productId, String title, List<String> jobTypes,
-			List<UUID> skillIds, @Nullable String budget, @Nullable LocalDate deadline, Instant openedAt) {
+	/** What a listed Job needs (UX-DR97): a Mentor while it takes bids, Crew members while its Mentor recruits. */
+	enum JobNeed {
 
-		public OpenPost {
+		/** "Cần người hướng dẫn". */
+		MENTOR,
+
+		/** "Cần thêm {n} thành viên nhóm". */
+		CREW
+
+	}
+
+	/**
+	 * A Job listed on "Tìm việc" (AD-36), as Recommendations rank it (AD-17): not hidden, and Open, or in Agreement,
+	 * Starting or Active with Crew recruitment on and a free slot.
+	 * @param budget the budget range's name, if any
+	 * @param openedAt when the Job Post opened
+	 * @param phase {@link JobPhase#phaseOf}, counting only the {@code ACTIVE} members whose accounts are unlocked
+	 * @param openSlots the places still open while recruitment is on, else 0
+	 * @param recruitSkillIds the Skills sought while recruitment is on, in the Mentor's order
+	 * @param listedAt when recruitment turned on, else when the Job Post opened: "newest" orders by it
+	 */
+	record ListedPost(UUID jobId, UUID customerId, UUID productId, String title, List<String> jobTypes,
+			List<UUID> skillIds, @Nullable String budget, @Nullable LocalDate deadline, Instant openedAt,
+			@Nullable JobPhase phase, JobNeed need, int openSlots, List<UUID> recruitSkillIds, Instant listedAt) {
+
+		public ListedPost {
 			jobTypes = List.copyOf(jobTypes);
 			skillIds = List.copyOf(skillIds);
+			recruitSkillIds = List.copyOf(recruitSkillIds);
 		}
 
 	}
@@ -57,12 +78,21 @@ public interface JobPosts {
 	Optional<UUID> customerOf(UUID jobId);
 
 	/**
-	 * The Customer of an Open Job Post that is not hidden (FR-60), for the Rating summary MEN-3 shows;
-	 * empty for a Draft, a hidden Job Post, or a Job past Open.
+	 * The Customer of a listed Job (AD-36), for the Rating summary MEN-3 shows; empty for a Draft, a hidden Job, or
+	 * a Job no longer listed.
 	 */
-	Optional<UUID> openCustomer(UUID jobId);
+	Optional<UUID> listedCustomer(UUID jobId);
 
-	/** Every Open Job Post that is not hidden, newest first, in one read (AD-17, SG-40). */
-	List<OpenPost> openPosts();
+	/**
+	 * The Customers of those of {@code jobIds} that are listed, keyed by Job, in one read: a page of "Tìm việc" rows
+	 * shows each one's Rating summary without naming them (FR-12, SG-43).
+	 */
+	Map<UUID, UUID> listedCustomers(Collection<UUID> jobIds);
+
+	/**
+	 * Every listed Job where {@code reader} holds no role (AD-43): not their Customer's, not their Mentor's, and with
+	 * no counted Crew row of theirs; newest first, in one read (AD-17, SG-40).
+	 */
+	List<ListedPost> listedPosts(UUID reader);
 
 }

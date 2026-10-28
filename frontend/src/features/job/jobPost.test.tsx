@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { capabilities, fakeBackend, json, signedInUser, signedInWithGoogle } from '@/test/fakeBackend'
+import { capabilities, fakeBackend, inEveryJob, json, signedInUser, signedInWithGoogle } from '@/test/fakeBackend'
 import { PAYLOADS } from '@/test/payloads'
 
 function renderAt(path: string) {
@@ -41,6 +41,26 @@ const summary = {
   budget: 'FROM_2M_TO_5M',
   deadline: '2026-11-10',
   openedAt: '2026-10-15T03:00:00Z',
+  phase: 'FINDING_MENTOR',
+  need: 'MENTOR',
+  customerKind: 'INDIVIDUAL',
+  customerJoinedAt: '2026-07-14T03:00:00Z',
+}
+
+/** A Job in Agreement whose Mentor recruits two more members, one of them signed already (Story 21.1). */
+const recruitingSummary = {
+  id: 'j2',
+  title: 'Hoàn thiện trang bán hàng',
+  productName: 'Shop Gốm Bát Tràng',
+  jobTypes: ['NEW_FEATURE'],
+  skills: ['React'],
+  openedAt: '2026-10-10T03:00:00Z',
+  phase: 'RECRUITING',
+  need: 'CREW',
+  customerKind: 'BUSINESS',
+  customerJoinedAt: '2026-07-14T03:00:00Z',
+  mentor: { displayName: 'Phạm Thu Hà', githubLogin: 'thuha' },
+  recruitment: { openSlots: 2, skills: ['Supabase'], note: 'Cần người làm trang thanh toán.' },
 }
 
 const page = (items: unknown[], total = items.length) => json({ items, page: 0, size: 20, total })
@@ -50,6 +70,9 @@ const capacity = (reasons: string[] = [], teamSize = 2, freeStudents = 1) =>
 
 const post = {
   id: 'j1',
+  productId: 'p1',
+  phase: 'FINDING_MENTOR',
+  need: 'MENTOR',
   title: 'Sửa lỗi mất đơn hàng',
   productName: 'Shop Gốm Bát Tràng',
   productDescription: 'Cửa hàng gốm bán online.',
@@ -73,21 +96,46 @@ afterEach(() => {
 })
 
 describe('MEN-2, browsing Job Posts (FR-12)', () => {
-  it('lists the Open Job Posts and links each to MEN-3', { timeout: 15_000 }, async () => {
-    fakeBackend(signedInUser, {
-      'GET /api/v1/mentor/job-posts': () => page([summary]),
-      'GET /api/v1/mentor/capacity': () => capacity(),
+  it('lists every Job that needs people with its phase, what it needs, and the Customer (UX-DR97)', { timeout: 15_000 }, async () => {
+    const seen = fakeBackend(signedInUser, {
+      'GET /api/v1/mentor/job-posts': () => page([summary, recruitingSummary]),
+      'GET /api/v1/mentor/customer-ratings': () =>
+        json([
+          { postId: 'j1', average: 4.8, count: 5 },
+          { postId: 'j2', count: 0 },
+        ]),
       'GET /api/v1/catalog': catalog,
     })
     renderAt('/tim-viec')
 
-    const link = await screen.findByRole('link', { name: /Sửa lỗi mất đơn hàng/ })
+    const link = await screen.findByRole('link', { name: 'Sửa lỗi mất đơn hàng' })
     expect(link).toHaveAttribute('href', '/tim-viec/j1')
-    expect(within(link).getByText('Shop Gốm Bát Tràng · Sửa lỗi · 2–5 triệu ₫ · đăng 15/10')).toBeInTheDocument()
-    expect(within(link).getByText('Supabase')).toBeInTheDocument()
-    expect(within(link).getByText('Hạn 10/11')).toBeInTheDocument()
+    const row = link.closest('li') as HTMLElement
+    expect(within(row).getByText('Shop Gốm Bát Tràng · Sửa lỗi · 2–5 triệu ₫ · đăng 15/10')).toBeInTheDocument()
+    expect(within(row).getByText('Supabase')).toBeInTheDocument()
+    expect(within(row).getByText('Hạn 10/11')).toBeInTheDocument()
+    expect(within(row).getByText('Đang tìm người hướng dẫn')).toBeInTheDocument()
+    expect(within(row).getByText('Cần người hướng dẫn')).toBeInTheDocument()
+    expect(await within(row).findByText('Khách hàng: Cá nhân · từ 07/2026 · 4,8 sao (5 lượt)')).toBeInTheDocument()
+    expect(within(row).queryByRole('button')).toBeNull()
+
+    const recruiting = screen.getByRole('link', { name: 'Hoàn thiện trang bán hàng' }).closest('li') as HTMLElement
+    expect(within(recruiting).getByText('Đang tuyển thêm thành viên')).toBeInTheDocument()
+    expect(within(recruiting).getByText('Cần thêm 2 thành viên nhóm')).toBeInTheDocument()
+    expect(within(recruiting).getByRole('link', { name: 'Phạm Thu Hà' })).toHaveAttribute('href', '/mentor/thuha')
+    expect(within(recruiting).getByText('Kỹ năng cần tìm: Supabase')).toBeInTheDocument()
+    expect(within(recruiting).getByText('Cần người làm trang thanh toán.')).toBeInTheDocument()
+    expect(
+      within(recruiting).getByText('Khách hàng: Doanh nghiệp · từ 07/2026 · chưa có lượt chấm sao'),
+    ).toBeInTheDocument()
+
     expect(screen.getByRole('heading', { level: 2, name: /Tất cả tin công việc/ })).toBeInTheDocument()
     expect(screen.getAllByRole('link', { name: 'Tìm việc' }).length).toBeGreaterThan(0)
+    // One call for the page's Ratings (SG-43); the capacity banners are retired from MEN-2 (Story 21.1).
+    const ratingCalls = seen.filter((request) => request.url.includes('/api/v1/mentor/customer-ratings'))
+    expect(ratingCalls).toHaveLength(1)
+    expect(new URL(ratingCalls[0].url, 'http://localhost').searchParams.getAll('post')).toEqual(['j1', 'j2'])
+    expect(seen.some((request) => request.url.includes('/api/v1/mentor/capacity'))).toBe(false)
     expect(screen.queryByRole('status')).toBeNull()
   })
 
@@ -100,13 +148,15 @@ describe('MEN-2, browsing Job Posts (FR-12)', () => {
     })
     const router = renderAt('/tim-viec')
 
-    await user.selectOptions(await screen.findByLabelText('Loại công việc'), 'Sửa lỗi')
+    await user.selectOptions(await screen.findByLabelText('Tình trạng'), 'Đang tuyển thêm thành viên')
+    await user.selectOptions(screen.getByLabelText('Loại công việc'), 'Sửa lỗi')
     await user.selectOptions(screen.getByLabelText('Hạn'), 'Trong 2 tuần')
     await user.type(screen.getByRole('combobox', { name: 'Kỹ năng' }), 'giao')
     await user.click(within(await screen.findByRole('listbox')).getByRole('option', { name: 'Cả nhóm Giao diện web' }))
 
     await waitFor(() => {
       const query = new URLSearchParams(router.state.location.search)
+      expect(query.get('tinh-trang')).toBe('tuyen-them')
       expect(query.get('loai')).toBe('BUG_FIX')
       expect(query.get('han')).toBe('14')
       expect(query.get('nhom-ky-nang')).toBe('c1')
@@ -114,6 +164,7 @@ describe('MEN-2, browsing Job Posts (FR-12)', () => {
     await waitFor(() => {
       const last = seen.filter((request) => request.url.includes('/api/v1/mentor/job-posts')).at(-1)
       const query = new URL(last?.url ?? '', 'http://localhost').searchParams
+      expect(query.get('phase')).toBe('RECRUITING')
       expect(query.get('type')).toBe('BUG_FIX')
       expect(query.get('within')).toBe('14')
       expect(query.get('category')).toBe('c1')
@@ -132,12 +183,25 @@ describe('MEN-2, browsing Job Posts (FR-12)', () => {
     expect(await screen.findByText('Không tìm thấy công việc nào khớp với bộ lọc.')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Bỏ bộ lọc' }))
 
-    expect(await screen.findByText('Hiện chưa có công việc nào đang nhận ứng tuyển. Hãy quay lại sau.')).toBeInTheDocument()
+    expect(await screen.findByText('Hiện chưa có công việc nào cần người. Hãy quay lại sau.')).toBeInTheDocument()
     expect(router.state.location.search).toBe('')
     expect(screen.queryByRole('button', { name: 'Bỏ bộ lọc' })).toBeNull()
   })
 
-  it('states why the Mentor cannot apply now (FR-13)', { timeout: 15_000 }, async () => {
+  it('reads the phase filter from the URL and keeps it while paging', { timeout: 15_000 }, async () => {
+    const seen = fakeBackend(signedInUser, {
+      'GET /api/v1/mentor/job-posts': () => page([recruitingSummary]),
+      'GET /api/v1/catalog': catalog,
+    })
+    renderAt('/tim-viec?tinh-trang=tim-nhom')
+
+    expect(await screen.findByRole('link', { name: 'Hoàn thiện trang bán hàng' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Tình trạng')).toHaveValue('FINDING_CREW')
+    const last = seen.filter((request) => request.url.includes('/api/v1/mentor/job-posts')).at(-1)
+    expect(new URL(last?.url ?? '', 'http://localhost').searchParams.get('phase')).toBe('FINDING_CREW')
+  })
+
+  it('shows no capacity banner any more, the free-Student one included (Story 21.1)', { timeout: 15_000 }, async () => {
     fakeBackend(signedInUser, {
       'GET /api/v1/mentor/job-posts': () => page([summary]),
       'GET /api/v1/mentor/capacity': () => capacity(['NO_FREE_STUDENT', 'MENTOR_JOB_LIMIT'], 0, 0),
@@ -145,10 +209,10 @@ describe('MEN-2, browsing Job Posts (FR-12)', () => {
     })
     renderAt('/tim-viec')
 
-    expect(await screen.findByText('Nhóm của bạn chưa có thành viên rảnh, nên chưa ứng tuyển được.')).toBeInTheDocument()
-    expect(screen.getByText(/Nhóm của bạn chưa có thành viên nào/)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Mời thành viên' })).toHaveAttribute('href', '/nhom')
-    expect(screen.getByText('Bạn đang nhận đủ 3 công việc. Hãy hoàn thành bớt rồi ứng tuyển tiếp.')).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: 'Sửa lỗi mất đơn hàng' })).toBeInTheDocument()
+    expect(screen.queryByText('Nhóm của bạn chưa có thành viên rảnh, nên chưa ứng tuyển được.')).toBeNull()
+    expect(screen.queryByText(/Bạn đang nhận đủ 3 công việc/)).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Mời thành viên' })).toBeNull()
   })
 
   it('shows the Job Posts to any user with GitHub linked, with no role and no approval step (Stories 19.7, 20.6)', async () => {
@@ -233,14 +297,14 @@ describe('"Tìm việc" behind the GitHub gate (X1, FR-80, Story 20.1)', () => {
     })
     renderAt('/tim-viec')
 
-    expect(await screen.findByRole('link', { name: /Sửa lỗi mất đơn hàng/ })).toHaveAttribute('href', '/tim-viec/j1')
+    expect(await screen.findByRole('link', { name: 'Sửa lỗi mất đơn hàng' })).toHaveAttribute('href', '/tim-viec/j1')
     expect(sessionReads).toBeGreaterThanOrEqual(2)
     expect(screen.queryByRole('heading', { name: 'Liên kết GitHub để tìm việc' })).not.toBeInTheDocument()
   })
 })
 
 describe('MEN-3, one Job Post (FR-12)', () => {
-  it('shows the answers, Skills with hints, the Product, the Rating summary, and the Team', { timeout: 15_000 }, async () => {
+  it('shows the answers, Skills with hints, the Product, the Rating summary, and the bid', { timeout: 15_000 }, async () => {
     fakeBackend(signedInUser, {
       'GET /api/v1/mentor/job-posts/j1': () => json(post),
       'GET /api/v1/mentor/job-posts/j1/customer-rating': () => json({ count: 0 }),
@@ -249,7 +313,8 @@ describe('MEN-3, one Job Post (FR-12)', () => {
     renderAt('/tim-viec/j1')
 
     expect(await screen.findByRole('heading', { level: 1, name: post.title })).toBeInTheDocument()
-    expect(screen.getByText('Đang nhận ứng tuyển')).toBeInTheDocument()
+    expect(screen.getByText('Đang tìm người hướng dẫn')).toBeInTheDocument()
+    expect(screen.getByText('Cần người hướng dẫn')).toBeInTheDocument()
     expect(
       screen.getByText('Shop Gốm Bát Tràng · Sửa lỗi · 2–5 triệu ₫ · mong xong trước 10/11 · đăng 15/10'),
     ).toBeInTheDocument()
@@ -260,7 +325,59 @@ describe('MEN-3, one Job Post (FR-12)', () => {
     expect(screen.getByText('Shop Gốm Bát Tràng, làm bằng Lovable.')).toBeInTheDocument()
     expect(screen.getByText('Kiểm tra khóa bí mật: không còn vấn đề nào mở.')).toBeInTheDocument()
     expect(await screen.findByText('Chưa có lượt chấm sao')).toBeInTheDocument()
-    expect(screen.getByText('2 thành viên · 1 đang rảnh')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 2, name: 'Chào giá làm người hướng dẫn' })).toBeInTheDocument()
+    // Story 21.1 retires the Team card and the free-Student banner.
+    expect(screen.queryByText('2 thành viên · 1 đang rảnh')).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Xem nhóm' })).toBeNull()
+  })
+
+  it('shows what a recruiting Mentor seeks in "Xin vào nhóm", with no bid (UX-DR98)', { timeout: 15_000 }, async () => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/mentor/job-posts/j1': () =>
+        json({
+          ...post,
+          lapsesAt: undefined,
+          phase: 'RECRUITING',
+          need: 'CREW',
+          mentor: { displayName: 'Phạm Thu Hà', githubLogin: 'thuha' },
+          recruitment: { openSlots: 2, skills: ['Supabase'], note: 'Cần người làm trang thanh toán.' },
+        }),
+      'GET /api/v1/mentor/job-posts/j1/customer-rating': () => json({ count: 0 }),
+    })
+    renderAt('/tim-viec/j1')
+
+    expect(await screen.findByText('Đang tuyển thêm thành viên')).toBeInTheDocument()
+    expect(screen.getByText('Cần thêm 2 thành viên nhóm')).toBeInTheDocument()
+    const area = await screen.findByRole('region', { name: 'Xin vào nhóm' })
+    expect(within(area).getByRole('link', { name: 'Phạm Thu Hà' })).toHaveAttribute('href', '/mentor/thuha')
+    expect(within(area).getByText('Còn 2 chỗ')).toBeInTheDocument()
+    expect(within(area).getByText('Supabase')).toBeInTheDocument()
+    expect(within(area).getByText('Cần người làm trang thanh toán.')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Chào giá làm người hướng dẫn' })).toBeNull()
+    expect(screen.queryByLabelText('Giá đề xuất')).toBeNull()
+  })
+
+  it("shows the Job's own people their role in place of an action (AD-43, UX-DR98)", { timeout: 15_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
+      'GET /api/v1/mentor/job-posts/j1': () => json(post),
+      'GET /api/v1/mentor/job-posts/j1/customer-rating': () => json({ count: 0 }),
+      'GET /api/v1/mentor/capacity': () => capacity(),
+    })
+    renderAt('/tim-viec/j1')
+
+    expect(await screen.findByText('Bạn là Khách hàng của công việc này.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Mở công việc' })).toHaveAttribute('href', '/cong-viec/j1')
+    expect(screen.queryByRole('heading', { name: 'Chào giá làm người hướng dẫn' })).toBeNull()
+    expect(screen.queryByLabelText('Giá đề xuất')).toBeNull()
+  })
+
+  it('shows their role to the people of a Job no longer listed', { timeout: 15_000 }, async () => {
+    fakeBackend(signedInUser, { ...inEveryJob('MENTOR') })
+    renderAt('/tim-viec/j9')
+
+    expect(await screen.findByText('Bạn là Người hướng dẫn của công việc này.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Mở công việc' })).toHaveAttribute('href', '/cong-viec/j9')
   })
 
   it('shows the Customer average when there are Ratings', { timeout: 15_000 }, async () => {
@@ -278,17 +395,27 @@ describe('MEN-3, one Job Post (FR-12)', () => {
     expect(screen.getByText('Cá nhân · từ 07/2026')).toBeInTheDocument()
   })
 
-  it('shows the not-found screen for a Job Post that is not open', async () => {
+  it('shows the plain "no longer open" gate for a Job no longer listed (UX-DR95)', async () => {
     fakeBackend(signedInUser, { 'GET /api/v1/mentor/capacity': () => capacity() })
     renderAt('/tim-viec/j9')
 
-    expect(await screen.findByText('Không tìm thấy nội dung này.')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Công việc này không còn nhận người.' })).toBeInTheDocument()
+    expect(screen.getByText('Công việc đã tìm đủ người hoặc tin đã đóng.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Tìm việc khác' })).toHaveAttribute('href', '/tim-viec')
   })
 
   it('keeps planted payloads in Job Posts as text (SG-30)', { timeout: 15_000 }, async () => {
     const payload = PAYLOADS[0]
     fakeBackend(signedInUser, {
-      'GET /api/v1/mentor/job-posts': () => page([{ ...summary, title: payload, productName: payload, skills: [payload] }]),
+      'GET /api/v1/mentor/job-posts': () =>
+        page([
+          { ...summary, title: payload, productName: payload, skills: [payload] },
+          {
+            ...recruitingSummary,
+            mentor: { displayName: payload, githubLogin: 'thuha' },
+            recruitment: { openSlots: 1, skills: [payload], note: payload },
+          },
+        ]),
       'GET /api/v1/mentor/job-posts/j1': () =>
         json({
           ...post,

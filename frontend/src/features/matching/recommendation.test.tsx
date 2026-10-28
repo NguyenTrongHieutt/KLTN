@@ -123,14 +123,26 @@ describe('MEN-2 "Đề xuất cho bạn" (FR-14, AD-17)', () => {
     jobTypes: ['NEW_FEATURE'],
     budget: 'FROM_5M_TO_10M',
     openedAt: '2026-10-16T03:00:00Z',
+    phase: 'FINDING_MENTOR',
+    need: 'MENTOR',
+    openSlots: 0,
     invited: true,
     signals: { sharedSkills: ['Supabase'], jobTypeMatches: [], newcomer: false },
+  }
+  const recruiting = {
+    ...recommended,
+    id: 'j8',
+    title: 'Hoàn thiện trang thanh toán',
+    phase: 'RECRUITING',
+    need: 'CREW',
+    openSlots: 2,
+    invited: false,
   }
   const handlers = {
     'GET /api/v1/mentor/job-posts': () => json({ items: [], page: 0, size: 20, total: 0 }),
     'GET /api/v1/mentor/capacity': () => json({ teamSize: 6, freeStudents: 2, activeJobs: 0, jobLimit: 3, reasons: [] }),
     'GET /api/v1/mentor/applications': () => json([]),
-    'GET /api/v1/mentor/recommendations': () => json([recommended]),
+    'GET /api/v1/mentor/recommendations': () => json([recommended, recruiting]),
   }
 
   it('lists Recommendations above the Job Posts with "Bạn được mời" and the chips', { timeout: 15_000 }, async () => {
@@ -142,6 +154,13 @@ describe('MEN-2 "Đề xuất cho bạn" (FR-14, AD-17)', () => {
     expect(card).toHaveAttribute('href', '/tim-viec/j7')
     expect(within(card).getByText('Bạn được mời')).toBeInTheDocument()
     expect(within(card).getByText('Hợp với Supabase')).toBeInTheDocument()
+    // Story 21.1: each shows its phase and what it needs.
+    expect(within(card).getByText('Đang tìm người hướng dẫn')).toBeInTheDocument()
+    expect(within(card).getByText('Cần người hướng dẫn')).toBeInTheDocument()
+    const crew = within(section).getByRole('link', { name: /Hoàn thiện trang thanh toán/ })
+    expect(crew).toHaveAttribute('href', '/tim-viec/j8')
+    expect(within(crew).getByText('Đang tuyển thêm thành viên')).toBeInTheDocument()
+    expect(within(crew).getByText('Cần thêm 2 thành viên nhóm')).toBeInTheDocument()
   })
 
   it('hides them while a keyword is active', { timeout: 15_000 }, async () => {

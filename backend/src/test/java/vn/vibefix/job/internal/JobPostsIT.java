@@ -41,8 +41,9 @@ import vn.vibefix.support.MutableClock;
 import vn.vibefix.team.internal.TeamTestSupport;
 
 /**
- * FR-12, FR-13, AD-33, AD-36, AD-38: any user with GitHub linked browses and reads Open Job Posts that are not
- * hidden, never listing their own (Story 20.3).
+ * FR-12, FR-13, AD-33, AD-36, AD-38, AD-43: any user with GitHub linked browses and reads the Jobs that need people,
+ * Open or recruiting their Crew with a free slot, by phase (Story 21.1), never listing a Job where they hold a role
+ * (Story 20.3).
  */
 class JobPostsIT extends IntegrationTest {
 
@@ -227,6 +228,201 @@ class JobPostsIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/files/" + file).with(as(this.hung, Role.MENTOR))).andExpect(status().isNotFound());
 	}
 
+	/** Story 21.1, UX-DR97: every Job that needs people, by phase, with what it needs and the Customer's kind. */
+	@Test
+	void everyJobThatNeedsPeopleIsListedWithItsPhaseAndWhatItNeeds() throws Exception {
+		this.jdbc.sql("""
+				INSERT INTO identity.profile (account_id, kind, display_name, contact_email, updated_at)
+				VALUES (:id, 'BUSINESS', 'Nguyễn Thị Lan', 'lan@example.com', now())
+				""").param("id", this.lan).update();
+		UUID open = openJob("Tin mở", "BUG_FIX", TeamTestSupport.REACT, "React", "UNDER_2M", "2026-03-01",
+				MutableClock.DEFAULT_INSTANT.minus(Duration.ofHours(3)));
+		UUID ha = TeamTestSupport.mentor(this.jdbc, "Phạm Thu Hà", List.of(TeamTestSupport.REACT), "React");
+		UUID recruiting = crewJob("Đang tuyển thêm", "AGREEMENT", ha, true, 2, "Cần người làm trang bán hàng",
+				MutableClock.DEFAULT_INSTANT.minus(Duration.ofHours(1)));
+		UUID vy = member();
+		crewRow(recruiting, vy, "ACTIVE", true);
+		UUID longMentor = TeamTestSupport.mentor(this.jdbc, "Trần Đức Long", List.of(TeamTestSupport.REACT), "React");
+		UUID noMember = crewJob("Chưa có ai", "AGREEMENT", longMentor, true, 1, null,
+				MutableClock.DEFAULT_INSTANT.minus(Duration.ofHours(2)));
+		// A pick not signed yet is no counted member (AD-41).
+		crewRow(noMember, member(), "ASSIGNED", false);
+
+		String body = list("").andExpect(status().isOk())
+			.andExpect(jsonPath("$.total").value(3))
+			.andExpect(jsonPath("$.items[0].id").value(recruiting.toString()))
+			.andExpect(jsonPath("$.items[0].phase").value("RECRUITING"))
+			.andExpect(jsonPath("$.items[0].need").value("CREW"))
+			.andExpect(jsonPath("$.items[0].mentor.displayName").value("Phạm Thu Hà"))
+			.andExpect(jsonPath("$.items[0].mentor.githubLogin").value(TeamTestSupport.login(this.jdbc, ha)))
+			.andExpect(jsonPath("$.items[0].recruitment.openSlots").value(2))
+			.andExpect(jsonPath("$.items[0].recruitment.skills[0]").value("Supabase"))
+			.andExpect(jsonPath("$.items[0].recruitment.note").value("Cần người làm trang bán hàng"))
+			.andExpect(jsonPath("$.items[0].customerKind").value("BUSINESS"))
+			.andExpect(jsonPath("$.items[0].customerJoinedAt").isNotEmpty())
+			.andExpect(jsonPath("$.items[1].id").value(noMember.toString()))
+			.andExpect(jsonPath("$.items[1].phase").value("FINDING_CREW"))
+			.andExpect(jsonPath("$.items[1].need").value("CREW"))
+			.andExpect(jsonPath("$.items[1].recruitment.note").value(org.hamcrest.Matchers.nullValue()))
+			.andExpect(jsonPath("$.items[2].id").value(open.toString()))
+			.andExpect(jsonPath("$.items[2].phase").value("FINDING_MENTOR"))
+			.andExpect(jsonPath("$.items[2].need").value("MENTOR"))
+			.andExpect(jsonPath("$.items[2].mentor").value(org.hamcrest.Matchers.nullValue()))
+			.andExpect(jsonPath("$.items[2].recruitment").value(org.hamcrest.Matchers.nullValue()))
+			.andExpect(jsonPath("$.items[2].customerKind").value("BUSINESS"))
+			.andReturn()
+			.getResponse()
+			.getContentAsString();
+		assertThat(body).as("AD-36: never the Customer's name or contact, the Crew, or a price")
+			.doesNotContain("Nguyễn Thị Lan")
+			.doesNotContain("lan@example.com")
+			.doesNotContain(this.lan.toString())
+			.doesNotContain(vy.toString())
+			.doesNotContain(TeamTestSupport.login(this.jdbc, vy))
+			.doesNotContain("price");
+
+		assertIds("?phase=RECRUITING", recruiting);
+		assertIds("?phase=FINDING_CREW", noMember);
+		assertIds("?phase=FINDING_MENTOR", open);
+		assertIds("?phase=FINDING_MENTOR&phase=FINDING_CREW", noMember, open);
+		assertIds("?phase=RECRUITING&type=NEW_FEATURE");
+	}
+
+	/** Story 20.4, AD-41: the phase shown counts an ACTIVE row only while its account is unlocked. */
+	@Test
+	void aLockedMembersRowCountsForNothingInThePhaseShown() throws Exception {
+		UUID ha = TeamTestSupport.mentor(this.jdbc, "Phạm Thu Hà", List.of(TeamTestSupport.REACT), "React");
+		UUID job = crewJob("Thành viên bị khóa", "ACTIVE", ha, true, 1, null, MutableClock.DEFAULT_INSTANT);
+		UUID vy = member();
+		crewRow(job, vy, "ACTIVE", true);
+		list("").andExpect(jsonPath("$.items[0].phase").value("RECRUITING"));
+
+		IdentityTestSupport.lock(this.jdbc, vy, "Vi phạm");
+
+		list("").andExpect(jsonPath("$.items[0].id").value(job.toString()))
+			.andExpect(jsonPath("$.items[0].phase").value("FINDING_CREW"));
+		this.mvc.perform(get("/api/v1/mentor/job-posts/" + job).with(as(this.hung, Role.MENTOR)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.phase").value("FINDING_CREW"));
+		// The filter counts the rows in SQL until the lock's listener releases the row (Story 20.4).
+		assertIds("?phase=RECRUITING", job);
+	}
+
+	/**
+	 * AD-36, AD-43: a Job where the reader is the Customer, the Mentor, or a member (assigned, active, or left) is
+	 * neither listed nor found, and neither is one that takes nobody: recruitment off, no slot left, or hidden.
+	 */
+	@Test
+	void noJobWhereTheReaderHoldsARoleNorOneThatTakesNobodyIsListedOrFound() throws Exception {
+		UUID ha = TeamTestSupport.mentor(this.jdbc, "Phạm Thu Hà", List.of(TeamTestSupport.REACT), "React");
+		Instant since = MutableClock.DEFAULT_INSTANT.minus(Duration.ofHours(1));
+		UUID control = crewJob("Việc chung đang tuyển", "AGREEMENT", ha, true, 1, null, since);
+		UUID own = openJob(product(this.hung), this.hung, "Việc chung của Hùng", MutableClock.DEFAULT_INSTANT);
+		crewJob("Việc chung Hùng hướng dẫn", "AGREEMENT", this.hung, true, 2, null, since);
+		UUID vy = member();
+		UUID assigned = crewJob("Việc chung chờ Vy ký", "AGREEMENT", ha, true, 2, null, since);
+		crewRow(assigned, vy, "ASSIGNED", false);
+		UUID minh = member();
+		UUID active = crewJob("Việc chung Minh đang làm", "ACTIVE", ha, true, 2, null, since);
+		crewRow(active, minh, "ACTIVE", true);
+		UUID tung = member();
+		UUID left = crewJob("Việc chung Tùng đã rời", "STARTING", ha, true, 2, null, since);
+		crewRow(left, tung, "RELEASED", true);
+		crewJob("Việc chung không tuyển", "AGREEMENT", ha, false, 2, null, since);
+		crewJob("Việc chung đủ người", "AGREEMENT", ha, true, 0, null, since);
+		UUID hidden = crewJob("Việc chung bị ẩn", "AGREEMENT", ha, true, 2, null, since);
+		this.jdbc.sql("UPDATE job.job SET hidden_at = now(), hidden_reason = 'Vi phạm' WHERE id = :id")
+			.param("id", hidden)
+			.update();
+
+		assertThat(ids(this.hung, "")).containsExactlyInAnyOrder(control.toString(), assigned.toString(),
+				active.toString(), left.toString());
+		assertThat(ids(this.hung, "?q=viec chung")).containsExactlyInAnyOrder(control.toString(), assigned.toString(),
+				active.toString(), left.toString());
+		assertThat(ids(vy, "?q=viec chung")).contains(control.toString(), own.toString())
+			.doesNotContain(assigned.toString());
+		assertThat(ids(minh, "")).contains(control.toString()).doesNotContain(active.toString());
+		assertThat(ids(tung, "")).contains(control.toString()).doesNotContain(left.toString());
+		assertThat(ids(this.lan, "")).as("the Customer of every other one").containsExactly(own.toString());
+	}
+
+	/**
+	 * MEN-3 (UX-DR98): a listed Job reads with its phase, its Mentor and what the recruitment seeks, for its own
+	 * people too, who see their role; once it is no longer listed, the plain gate's NOT_FOUND.
+	 */
+	@Test
+	void aListedJobReadsWithItsRecruitmentAndOneNoLongerListedIsNotFound() throws Exception {
+		UUID ha = TeamTestSupport.mentor(this.jdbc, "Phạm Thu Hà", List.of(TeamTestSupport.REACT), "React");
+		UUID job = crewJob("Đang tuyển thêm", "STARTING", ha, true, 2, "Cần người làm trang bán hàng",
+				MutableClock.DEFAULT_INSTANT);
+		UUID vy = member();
+		crewRow(job, vy, "ACTIVE", true);
+
+		String body = this.mvc.perform(get("/api/v1/mentor/job-posts/" + job).with(as(this.hung, Role.MENTOR)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.title").value("Đang tuyển thêm"))
+			.andExpect(jsonPath("$.phase").value("RECRUITING"))
+			.andExpect(jsonPath("$.need").value("CREW"))
+			.andExpect(jsonPath("$.mentor.displayName").value("Phạm Thu Hà"))
+			.andExpect(jsonPath("$.recruitment.openSlots").value(2))
+			.andExpect(jsonPath("$.recruitment.skills[0]").value("Supabase"))
+			.andExpect(jsonPath("$.recruitment.note").value("Cần người làm trang bán hàng"))
+			.andExpect(jsonPath("$.lapsesAt").value(org.hamcrest.Matchers.nullValue()))
+			.andReturn()
+			.getResponse()
+			.getContentAsString();
+		assertThat(body).doesNotContain(vy.toString()).doesNotContain(TeamTestSupport.login(this.jdbc, vy));
+		this.mvc.perform(get("/api/v1/mentor/job-posts/" + job + "/customer-rating").with(as(this.hung, Role.MENTOR)))
+			.andExpect(status().isOk());
+		// The Job's own Customer reads it too, and MEN-3 shows their role in it in place of an action.
+		this.mvc.perform(get("/api/v1/mentor/job-posts/" + job).with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(status().isOk());
+		this.mvc.perform(get("/api/v1/jobs/" + job + "/role").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.role").value("CUSTOMER"));
+
+		this.jdbc.sql("UPDATE job.job SET recruiting = false WHERE id = :id").param("id", job).update();
+
+		this.mvc.perform(get("/api/v1/mentor/job-posts/" + job).with(as(this.hung, Role.MENTOR)))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.code").value("NOT_FOUND"));
+		this.mvc.perform(get("/api/v1/mentor/job-posts/" + job + "/customer-rating").with(as(this.hung, Role.MENTOR)))
+			.andExpect(status().isNotFound());
+		this.mvc.perform(get("/api/v1/jobs/" + job + "/role").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.role").value("CUSTOMER"));
+	}
+
+	/** SG-43: a page of rows reads its Customers' Rating summaries in one call, keyed by the Job, never the Customer. */
+	@Test
+	void aPageOfRowsReadsItsCustomersRatingsInOneCall() throws Exception {
+		UUID open = openJob("Tin mở", "BUG_FIX", TeamTestSupport.REACT, "React", "UNDER_2M", "2026-03-01",
+				MutableClock.DEFAULT_INSTANT);
+		UUID draft = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO job.job (id, product_id, customer_account_id, state, title, job_types, created_at, updated_at)
+				VALUES (:id, :product, :owner, 'DRAFT', 'Bản nháp', ARRAY['BUG_FIX'], now(), now())
+				""").param("id", draft).param("product", this.product).param("owner", this.lan).update();
+
+		String body = this.mvc
+			.perform(get("/api/v1/mentor/customer-ratings").param("post", open.toString(), draft.toString())
+				.with(as(this.hung, Role.MENTOR)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.length()").value(1))
+			.andExpect(jsonPath("$[0].postId").value(open.toString()))
+			.andExpect(jsonPath("$[0].count").value(0))
+			.andReturn()
+			.getResponse()
+			.getContentAsString();
+		assertThat(body).doesNotContain(this.lan.toString());
+		this.mvc.perform(get("/api/v1/mentor/customer-ratings").with(as(this.hung, Role.MENTOR)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.length()").value(0));
+		String[] tooMany = java.util.stream.IntStream.range(0, 21)
+			.mapToObj(i -> UUID.randomUUID().toString())
+			.toArray(String[]::new);
+		this.mvc.perform(get("/api/v1/mentor/customer-ratings").param("post", tooMany).with(as(this.hung, Role.MENTOR)))
+			.andExpect(status().isBadRequest());
+	}
+
 	@Test
 	void capacityNamesWhyAMentorCannotApply() throws Exception {
 		capacity().andExpect(status().isOk())
@@ -259,6 +455,20 @@ class JobPostsIT extends IntegrationTest {
 
 	private ResultActions capacity() throws Exception {
 		return this.mvc.perform(get("/api/v1/mentor/capacity").with(as(this.hung, Role.MENTOR)));
+	}
+
+	private void assertIds(String query, UUID... ids) throws Exception {
+		assertThat(ids(this.hung, query)).as(query)
+			.containsExactly(java.util.Arrays.stream(ids).map(UUID::toString).toArray(String[]::new));
+	}
+
+	private List<String> ids(UUID reader, String query) throws Exception {
+		String body = this.mvc.perform(get("/api/v1/mentor/job-posts" + query).with(as(reader, null)))
+			.andExpect(status().isOk())
+			.andReturn()
+			.getResponse()
+			.getContentAsString();
+		return com.jayway.jsonpath.JsonPath.read(body, "$.items[*].id");
 	}
 
 	private void assertTitles(String query, String... titles) throws Exception {
@@ -297,6 +507,89 @@ class JobPostsIT extends IntegrationTest {
 			.param("lapses", Timestamp.from(openedAt.plus(Duration.ofDays(14))))
 			.update();
 		return id;
+	}
+
+	/** An Open Job Post of {@code owner}, opened at {@code openedAt}. */
+	private UUID openJob(UUID product, UUID owner, String title, Instant openedAt) {
+		UUID id = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO job.job (id, product_id, customer_account_id, state, title, job_types, rules, selection_days,
+				    opened_at, lapses_at, version, created_at, updated_at)
+				VALUES (:id, :product, :owner, 'OPEN', :title, ARRAY['BUG_FIX'], '{}'::jsonb, 14, :opened, :lapses, 1,
+				    :opened, :opened)
+				""")
+			.param("id", id)
+			.param("product", product)
+			.param("owner", owner)
+			.param("title", title)
+			.param("opened", Timestamp.from(openedAt))
+			.param("lapses", Timestamp.from(openedAt.plus(Duration.ofDays(14))))
+			.update();
+		return id;
+	}
+
+	/**
+	 * A Job of Lan past Open, on a Product of its own, with its Mentor and the Crew recruitment setting Story 21.4's
+	 * commands will write: React on the Job Post, Supabase sought, on since {@code since} while {@code recruiting}.
+	 */
+	private UUID crewJob(String title, String state, UUID mentor, boolean recruiting, int slots, @Nullable String note,
+			Instant since) {
+		UUID id = UUID.randomUUID();
+		Instant opened = MutableClock.DEFAULT_INSTANT.minus(Duration.ofDays(10));
+		this.jdbc.sql("""
+				INSERT INTO job.job (id, product_id, customer_account_id, state, title, problem, expected, app_users,
+				    job_types, skill_ids, skill_names, budget, deadline, rules, selection_days, opened_at, lapses_at,
+				    mentor_account_id, selected_application_id, selected_at, recruiting, recruiting_since, open_slots,
+				    recruit_skill_ids, recruit_skill_names, recruit_note, version, created_at, updated_at)
+				VALUES (:id, :product, :owner, :state, :title, 'Lỗi', 'Đúng', 'Khách', ARRAY['BUG_FIX'],
+				    CAST(:skills AS UUID[]), ARRAY['React'], 'UNDER_2M', DATE '2026-03-01', '{}'::jsonb, 14, :opened,
+				    :lapses, :mentor, :application, :opened, :recruiting, :since, :slots, CAST(:sought AS UUID[]),
+				    ARRAY['Supabase'], :note, 1, :opened, :opened)
+				""")
+			.param("id", id)
+			.param("product", product(this.lan))
+			.param("owner", this.lan)
+			.param("state", state)
+			.param("title", title)
+			.param("skills", "{" + TeamTestSupport.REACT + "}")
+			.param("opened", Timestamp.from(opened))
+			.param("lapses", Timestamp.from(opened.plus(Duration.ofDays(14))))
+			.param("mentor", mentor)
+			.param("application", UUID.randomUUID())
+			.param("recruiting", recruiting)
+			.param("since", recruiting ? Timestamp.from(since) : null)
+			.param("slots", slots)
+			.param("sought", "{" + TeamTestSupport.SUPABASE + "}")
+			.param("note", note)
+			.update();
+		return id;
+	}
+
+	/** A person with GitHub linked and no role yet. */
+	private UUID member() {
+		return IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null);
+	}
+
+	/** A Crew row; a released one that was activated left the Job, one never activated declined its pick. */
+	private void crewRow(UUID job, UUID member, String status, boolean activated) {
+		Instant at = MutableClock.DEFAULT_INSTANT.minus(Duration.ofDays(5));
+		boolean released = "RELEASED".equals(status);
+		this.jdbc.sql("""
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, window_end,
+				    released_at, released_reason, created_at)
+				VALUES (:id, :job, :member, :status, :signed, :activated, :end, :released, :reason, :at)
+				""")
+			.param("id", UUID.randomUUID())
+			.param("job", job)
+			.param("member", member)
+			.param("status", status)
+			.param("signed", activated ? Timestamp.from(at) : null)
+			.param("activated", activated ? Timestamp.from(at) : null)
+			.param("end", activated && released ? Timestamp.from(at.plus(Duration.ofDays(1))) : null)
+			.param("released", released ? Timestamp.from(at.plus(Duration.ofDays(1))) : null)
+			.param("reason", released ? (activated ? "LEFT" : "DECLINED") : null)
+			.param("at", Timestamp.from(at))
+			.update();
 	}
 
 	private UUID draft() throws Exception {

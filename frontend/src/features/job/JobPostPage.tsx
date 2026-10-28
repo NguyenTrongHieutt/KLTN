@@ -1,4 +1,5 @@
 import { FileText, Info } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { Link, useParams } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
 import { usePageTitle } from '@/app/usePageTitle'
@@ -7,25 +8,31 @@ import { Skeleton } from '@/components/Skeleton'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { ReportAbuseMenu } from '@/features/abuse/ReportAbuseMenu'
 import { useSession } from '@/features/identity/useSession'
-import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
+import { rich } from '@/i18n/rich'
 import { t, type MessageKey } from '@/i18n/t'
 import { formatCalendarDayMonth, formatDayMonth, formatMonthYear } from '@/lib/dates'
 import { formatSize } from '@/lib/fileSize'
 import { isNotFound } from '@/lib/problemMessage'
+import { cn } from '@/lib/utils'
 import { ApplyPanel } from '@/features/matching/ApplyPanel'
 import { useMentorInvitation, type MentorInvitation } from '@/features/matching/invitationApi'
 import { CapacityBanners } from './CapacityBanners'
 import { FindWorkGate } from './FindWorkGate'
-import { JobStateBadge } from './JobStateBadge'
-import { useCustomerRating, useJobPost, useMentorCapacity, type JobPost, type MentorCapacity } from './jobPostApi'
+import { roleLabel, useJobRole, type RoleInJob } from './jobRoleApi'
+import { useCustomerRating, useJobPost, useMentorCapacity, type JobPost } from './jobPostApi'
+import { PhaseBadge } from './PhaseBadge'
+import { needText } from './phaseText'
 
 /**
- * MEN-3 Chi tiết tin công việc (`/tim-viec/{jobId}`, FR-12, FR-13) for Mentors, with no approval: the Job
- * Post's answers, Job Types, Skills with their plain hints, deadline, budget, and screenshots; the
- * Customer's Rating summary, never their name or contact details; the Product; the Team's free
- * Students; the FR-13 banners; and "Ứng tuyển" (Story 3.6). A Customer's invitation shows as a
- * note, and once it lapsed its card replaces the not-found screen (FR-14, UX-DR27). Without GitHub linked, the
- * GitHub gate stands in for the Job Post (X1).
+ * MEN-3 Chi tiết công việc (`/tim-viec/{jobId}`, FR-12, FR-13, UX-DR98) for every user: a listed Job's Post (the
+ * answers, Job Types, Skills with their plain hints, deadline, budget, and screenshots), its phase and what it
+ * needs, the Customer's kind, month joined and Rating summary (never their name or contact details), and the
+ * Product. One action area follows the phase and the user's relation to the Job: "Chào giá làm người hướng dẫn"
+ * with the bid form while the Job looks for a Mentor (Story 21.2 makes it FND-1), the "Xin vào nhóm" details while
+ * its Mentor recruits (Story 21.4 adds the button), and for the Job's own people "Bạn là {role} của công việc này"
+ * with the way to the Job. A Job no longer listed shows the plain "no longer open" gate, or the role notice to its
+ * own people, or a lapsed invitation's card (FR-14, UX-DR27, UX-DR95). Without GitHub linked, the GitHub gate stands
+ * in for the Job Post (X1).
  */
 export function JobPostPage() {
   const { postId } = useParams()
@@ -45,12 +52,16 @@ function GatedJobPost({ returnTo }: { returnTo: string }) {
 function JobPostDetail({ postId }: { postId: string | undefined }) {
   const post = useJobPost(postId)
   const invitation = useMentorInvitation(postId)
+  const role = useJobRole(postId)
   usePageTitle(post.data?.title ?? invitation.data?.jobTitle ?? t('screen.jobPost.title'))
   if (post.isError && isNotFound(post.error)) {
-    if (invitation.isPending) {
+    if (invitation.isPending || role.isPending) {
       return <Skeleton className="m-6 h-48" />
     }
-    return invitation.data?.status === 'LAPSED' ? <LapsedInvitation invitation={invitation.data} /> : <NotFoundScreen />
+    if (role.data && postId) {
+      return <RoleOnly jobId={postId} role={role.data.role} />
+    }
+    return invitation.data?.status === 'LAPSED' ? <LapsedInvitation invitation={invitation.data} /> : <NoLongerOpen />
   }
   return (
     <div className="mx-auto flex max-w-[1120px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
@@ -61,16 +72,30 @@ function JobPostDetail({ postId }: { postId: string | undefined }) {
   )
 }
 
-/** "Lời mời này đã hết hiệu lực…" with "Tìm việc khác" (MEN-3, FR-14). */
-function LapsedInvitation({ invitation }: { invitation: MentorInvitation }) {
+/** A page of MEN-3 with nothing but a breadcrumb back to "Tìm việc" and its content. */
+function GatePage({ title, children }: { title?: string; children: ReactNode }) {
   return (
     <div className="mx-auto flex max-w-[1120px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
       <nav aria-label={t('screen.jobPost.detail.breadcrumb')} className="text-caption text-muted-foreground">
         <Link to="/tim-viec" className="text-primary underline-offset-4 hover:underline">
           {t('screen.jobPost.detail.breadcrumb')}
-        </Link>{' '}
-        / <span className="break-words">{invitation.jobTitle}</span>
+        </Link>
+        {title && (
+          <>
+            {' '}
+            / <span className="break-words">{title}</span>
+          </>
+        )}
       </nav>
+      {children}
+    </div>
+  )
+}
+
+/** "Lời mời này đã hết hiệu lực…" with "Tìm việc khác" (MEN-3, FR-14). */
+function LapsedInvitation({ invitation }: { invitation: MentorInvitation }) {
+  return (
+    <GatePage title={invitation.jobTitle}>
       <div role="status" className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card px-6 py-14 text-center">
         <PageHeading className="text-h3">{t('screen.jobPost.invitation.lapsedTitle')}</PageHeading>
         <p className="text-body-sm text-muted-foreground">{t('screen.jobPost.invitation.lapsedBody')}</p>
@@ -78,12 +103,48 @@ function LapsedInvitation({ invitation }: { invitation: MentorInvitation }) {
           {t('screen.jobPost.invitation.findOther')}
         </Link>
       </div>
+    </GatePage>
+  )
+}
+
+/** The plain "no longer open" gate (UX-DR95): a Job "Tìm việc" no longer lists, with "Tìm việc khác". */
+function NoLongerOpen() {
+  return (
+    <GatePage>
+      <div role="status" className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card px-6 py-14 text-center">
+        <PageHeading className="text-h3">{t('screen.jobPost.detail.goneTitle')}</PageHeading>
+        <p className="text-body-sm text-muted-foreground">{t('screen.jobPost.detail.goneBody')}</p>
+        <Link to="/tim-viec" className={buttonVariants()}>
+          {t('screen.jobPost.detail.findOther')}
+        </Link>
+      </div>
+    </GatePage>
+  )
+}
+
+/** A Job no longer listed, opened by one of its own people: their role, with the way to the Job (UX-DR98). */
+function RoleOnly({ jobId, role }: { jobId: string; role: RoleInJob }) {
+  return (
+    <GatePage>
+      <PageHeading className="sr-only">{t('screen.jobPost.title')}</PageHeading>
+      <RoleNotice jobId={jobId} role={role} />
+    </GatePage>
+  )
+}
+
+/** "Bạn là {role} của công việc này" with "Mở công việc" (JOB-1), in place of an action (AD-43, UX-DR98). */
+function RoleNotice({ jobId, role }: { jobId: string; role: RoleInJob }) {
+  return (
+    <div role="status" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
+      <p className="text-label font-semibold">{t('screen.jobPost.detail.role', { role: roleLabel(role) })}</p>
+      <Link to={`/cong-viec/${jobId}`} className={cn(buttonVariants({ variant: 'secondary' }), 'w-fit')}>
+        {t('screen.jobPost.detail.openJob')}
+      </Link>
     </div>
   )
 }
 
 function Post({ post, invitation }: { post: JobPost; invitation: MentorInvitation | undefined }) {
-  const capacity = useMentorCapacity()
   const types = post.jobTypes.map((type) => t(`term.jobType${type}.label` as MessageKey)).join(', ')
   const meta = [
     t('screen.jobPost.detail.meta', { product: post.productName, types }),
@@ -108,7 +169,7 @@ function Post({ post, invitation }: { post: JobPost; invitation: MentorInvitatio
         </nav>
         <div className="flex flex-wrap items-center gap-2">
           <PageHeading>{post.title}</PageHeading>
-          <JobStateBadge state="OPEN" audience="mentor" />
+          <PhaseBadge phase={post.phase} />
           <ReportAbuseMenu
             targets={[
               { kind: 'JOB_POST', targetId: post.id, item: 'screen.report.post' },
@@ -117,6 +178,7 @@ function Post({ post, invitation }: { post: JobPost; invitation: MentorInvitatio
             label={t('screen.report.postMore')}
           />
         </div>
+        <p className="text-body-sm font-semibold">{needText(post.need, post.recruitment?.openSlots)}</p>
         <p className="text-caption text-muted-foreground break-words">{meta.join(' · ')}</p>
       </div>
       {invitation?.status === 'OPEN' && (
@@ -125,58 +187,53 @@ function Post({ post, invitation }: { post: JobPost; invitation: MentorInvitatio
           <p className="break-words">{t('screen.jobPost.invitation.note')}</p>
         </div>
       )}
-      <CapacityBanners capacity={capacity.data} />
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="flex min-w-0 flex-col gap-6">
-        <section aria-label={post.title} className="flex min-w-0 flex-col gap-4 rounded-lg border border-border bg-card p-5">
-          {answers.map(
-            ([field, answer]) =>
-              answer && (
-                <div key={field} className="flex flex-col gap-1 text-body-sm">
-                  <p className="text-label font-semibold">{t(`screen.jobPost.detail.${field}`)}</p>
-                  <p className="break-words whitespace-pre-line">{answer}</p>
-                </div>
-              ),
-          )}
-          {post.skills.length > 0 && (
-            <div className="flex flex-col gap-1.5">
-              <p className="text-label font-semibold">{t('screen.jobPost.detail.skills')}</p>
-              <ul className="flex flex-col gap-1.5">
-                {post.skills.map((skill) => (
-                  <li key={skill.id} className="flex flex-wrap items-baseline gap-2 text-body-sm">
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-caption font-semibold">{skill.name}</span>
-                    {skill.hint && <span className="text-caption text-muted-foreground">{skill.hint}</span>}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {post.screenshots.length > 0 && (
-            <div className="flex flex-col gap-1.5">
-              <p className="text-label font-semibold">{t('screen.jobPost.detail.screenshots')}</p>
-              <ul className="flex flex-col gap-2">
-                {post.screenshots.map((shot) => (
-                  <li key={shot.fileId} className="flex items-center gap-3 rounded-md border border-border px-4 py-2.5">
-                    <FileText aria-hidden="true" className="size-5 shrink-0 text-muted-foreground" />
-                    <a
-                      href={shot.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-body-sm break-all text-primary underline-offset-4 hover:underline"
-                    >
-                      {shot.fileName} · {formatSize(shot.sizeBytes)}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </section>
-        <ApplyPanel
-          postId={post.id}
-          teamSize={capacity.data?.teamSize ?? 0}
-          blocked={(capacity.data?.reasons.length ?? 0) > 0}
-        />
+          <section aria-label={post.title} className="flex min-w-0 flex-col gap-4 rounded-lg border border-border bg-card p-5">
+            {answers.map(
+              ([field, answer]) =>
+                answer && (
+                  <div key={field} className="flex flex-col gap-1 text-body-sm">
+                    <p className="text-label font-semibold">{t(`screen.jobPost.detail.${field}`)}</p>
+                    <p className="break-words whitespace-pre-line">{answer}</p>
+                  </div>
+                ),
+            )}
+            {post.skills.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                <p className="text-label font-semibold">{t('screen.jobPost.detail.skills')}</p>
+                <ul className="flex flex-col gap-1.5">
+                  {post.skills.map((skill) => (
+                    <li key={skill.id} className="flex flex-wrap items-baseline gap-2 text-body-sm">
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-caption font-semibold">{skill.name}</span>
+                      {skill.hint && <span className="text-caption text-muted-foreground">{skill.hint}</span>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {post.screenshots.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                <p className="text-label font-semibold">{t('screen.jobPost.detail.screenshots')}</p>
+                <ul className="flex flex-col gap-2">
+                  {post.screenshots.map((shot) => (
+                    <li key={shot.fileId} className="flex items-center gap-3 rounded-md border border-border px-4 py-2.5">
+                      <FileText aria-hidden="true" className="size-5 shrink-0 text-muted-foreground" />
+                      <a
+                        href={shot.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-body-sm break-all text-primary underline-offset-4 hover:underline"
+                      >
+                        {shot.fileName} · {formatSize(shot.sizeBytes)}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </section>
+          <ActionArea post={post} />
         </div>
         <aside className="flex flex-col gap-4">
           <CustomerCard postId={post.id} />
@@ -197,10 +254,99 @@ function Post({ post, invitation }: { post: JobPost; invitation: MentorInvitatio
                 : t('screen.jobPost.detail.scanClean')}
             </p>
           </section>
-          {capacity.data && <TeamCard capacity={capacity.data} />}
         </aside>
       </div>
     </>
+  )
+}
+
+/**
+ * The one action area (UX-DR98): the Job's own people see their role; otherwise the bid while the Job looks for a
+ * Mentor, or what the Mentor's recruitment seeks while it is on.
+ */
+function ActionArea({ post }: { post: JobPost }) {
+  const role = useJobRole(post.id)
+  if (role.isPending) {
+    return <Skeleton className="h-40 w-full" />
+  }
+  if (role.data) {
+    return <RoleNotice jobId={post.id} role={role.data.role} />
+  }
+  if (post.phase === 'FINDING_MENTOR') {
+    return <BidAction postId={post.id} />
+  }
+  if (post.recruitment) {
+    return <CrewAction post={post} recruitment={post.recruitment} />
+  }
+  return (
+    <p role="status" className="rounded-lg border border-border bg-card p-5 text-body-sm">
+      {t('screen.jobPost.detail.notTaking')}
+    </p>
+  )
+}
+
+/**
+ * "Chào giá làm người hướng dẫn" (FR-13): today's bid form with its gates and the user's bid; the Mentor Job limit
+ * names itself above it. The free-Student banner is retired (Story 21.1); Story 21.2 removes that refusal.
+ */
+function BidAction({ postId }: { postId: string }) {
+  const capacity = useMentorCapacity()
+  return (
+    <div className="flex flex-col gap-3">
+      <CapacityBanners capacity={capacity.data} />
+      <ApplyPanel
+        postId={postId}
+        teamSize={capacity.data?.teamSize ?? 0}
+        blocked={capacity.data?.reasons.includes('MENTOR_JOB_LIMIT') ?? false}
+      />
+    </div>
+  )
+}
+
+/**
+ * "Xin vào nhóm" while the Mentor recruits (UX-DR98): the Mentor's name linked to their public profile, "Còn {n}
+ * chỗ", the Skills sought and the Mentor's note. Story 21.4 adds the button and the Crew gates.
+ */
+function CrewAction({ post, recruitment }: { post: JobPost; recruitment: NonNullable<JobPost['recruitment']> }) {
+  const mentor = post.mentor
+  return (
+    <section aria-labelledby="crew-heading" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
+      <h2 id="crew-heading" className="text-h2">
+        {t('screen.jobPost.detail.crewHeading')}
+      </h2>
+      {mentor && (
+        <p className="text-body-sm break-words">
+          {rich('screen.jobPost.detail.crewMentor', {
+            name: mentor.githubLogin ? (
+              <Link to={`/mentor/${mentor.githubLogin}`} className="text-primary underline-offset-4 hover:underline">
+                {mentor.displayName}
+              </Link>
+            ) : (
+              mentor.displayName
+            ),
+          })}
+        </p>
+      )}
+      <p className="text-label font-semibold">{t('screen.jobPost.detail.slotsLeft', { n: recruitment.openSlots })}</p>
+      {recruitment.skills.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <p className="text-label font-semibold">{t('screen.jobPost.detail.crewSkills')}</p>
+          <ul className="flex flex-wrap gap-1.5">
+            {recruitment.skills.map((skill) => (
+              <li key={skill} className="rounded-full bg-muted px-2 py-0.5 text-caption font-semibold">
+                {skill}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {recruitment.note && (
+        <div className="flex flex-col gap-1 text-body-sm">
+          <p className="text-label font-semibold">{t('screen.jobPost.detail.crewNote')}</p>
+          <p className="break-words whitespace-pre-line">{recruitment.note}</p>
+        </div>
+      )}
+    </section>
   )
 }
 
@@ -238,24 +384,6 @@ function CustomerCard({ postId }: { postId: string }) {
         ) : (
           <p className="text-muted-foreground">{t('screen.jobPost.detail.noRating')}</p>
         ))}
-    </section>
-  )
-}
-
-function TeamCard({ capacity }: { capacity: MentorCapacity }) {
-  return (
-    <section aria-labelledby="post-team" className="flex flex-col gap-1.5 rounded-lg border border-border bg-card p-4 text-body-sm">
-      <h3 id="post-team" className="text-h3">
-        {t('screen.jobPost.detail.team')}
-      </h3>
-      <p>
-        {capacity.freeStudents > 0
-          ? t('screen.jobPost.detail.teamFree', { n: capacity.teamSize, k: capacity.freeStudents })
-          : t('screen.jobPost.detail.teamNoneFree', { n: capacity.teamSize })}
-      </p>
-      <Link to="/nhom" className="w-fit text-primary underline-offset-4 hover:underline">
-        {t('screen.jobPost.detail.viewTeam')}
-      </Link>
     </section>
   )
 }

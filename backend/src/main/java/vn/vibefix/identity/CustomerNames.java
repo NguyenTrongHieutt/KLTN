@@ -1,6 +1,8 @@
 package vn.vibefix.identity;
 
 import java.time.Instant;
+import java.util.Collection;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -25,5 +27,11 @@ public interface CustomerNames {
 
 	/** The Customer's kind and joining time; empty for an erased or unknown account. */
 	Optional<CustomerSince> since(UUID customerId);
+
+	/**
+	 * {@link #since} for a page of Customers in one read, keyed by account (FR-12, SG-43): the "Tìm việc" rows show
+	 * each one's kind and month joined. Erased and unknown accounts are left out.
+	 */
+	Map<UUID, CustomerSince> sinces(Collection<UUID> customerIds);
 
 }

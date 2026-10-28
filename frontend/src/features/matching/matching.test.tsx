@@ -20,6 +20,8 @@ function renderAt(path: string) {
 
 const post = {
   id: 'j1',
+  phase: 'FINDING_MENTOR',
+  need: 'MENTOR',
   title: 'Sửa lỗi mất đơn hàng',
   productName: 'Shop Gốm Bát Tràng',
   productDescription: 'Cửa hàng gốm.',
@@ -123,7 +125,6 @@ describe('MEN-3, applying with a quote (FR-13)', () => {
     let sent: unknown
     let applied = false
     fakeBackend(signedInUser, {
-      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/job-posts/j1': () => json(post),
       'GET /api/v1/mentor/job-posts/j1/customer-rating': () => json({ count: 0 }),
       'GET /api/v1/mentor/capacity': () => capacity(),
@@ -162,7 +163,6 @@ describe('MEN-3, applying with a quote (FR-13)', () => {
   it('says GitHub must be linked before bidding and links to ACC-2 (FR-80)', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     fakeBackend(signedInUser, {
-      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/job-posts/j1': () => json(post),
       'GET /api/v1/mentor/job-posts/j1/customer-rating': () => json({ count: 0 }),
       'GET /api/v1/mentor/capacity': () => capacity(),
@@ -185,7 +185,6 @@ describe('MEN-3, applying with a quote (FR-13)', () => {
   it('says a bid needs a display name and links to ACC-1 (Story 19.7)', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     fakeBackend(signedInUser, {
-      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/job-posts/j1': () => json(post),
       'GET /api/v1/mentor/job-posts/j1/customer-rating': () => json({ count: 0 }),
       'GET /api/v1/mentor/capacity': () => capacity(),
@@ -207,19 +206,20 @@ describe('MEN-3, applying with a quote (FR-13)', () => {
     expect(screen.getAllByRole('link', { name: 'Mở hồ sơ', hidden: true })[0]).toHaveAttribute('href', '/ho-so')
   })
 
-  it('keeps "Ứng tuyển" disabled while FR-13 refuses and says the reason from the server', { timeout: 20_000 }, async () => {
+  it('keeps "Ứng tuyển" disabled at the Mentor Job limit and says so (FR-13)', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     fakeBackend(signedInUser, {
-      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/job-posts/j1': () => json(post),
       'GET /api/v1/mentor/job-posts/j1/customer-rating': () => json({ count: 0 }),
-      'GET /api/v1/mentor/capacity': () => capacity(['NO_FREE_STUDENT']),
+      'GET /api/v1/mentor/capacity': () => capacity(['MENTOR_JOB_LIMIT']),
       'GET /api/v1/mentor/applications': () => json([]),
     })
     renderAt('/tim-viec/j1')
 
     expect(await screen.findByRole('button', { name: 'Ứng tuyển' })).toBeDisabled()
-    expect(screen.getAllByText('Nhóm của bạn chưa có thành viên rảnh, nên chưa ứng tuyển được.').length).toBeGreaterThan(0)
+    expect(screen.getByText('Bạn đang nhận đủ 3 công việc. Hãy hoàn thành bớt rồi ứng tuyển tiếp.')).toBeInTheDocument()
+    // Story 21.1 retires the free-Student banner; Story 21.2 removes that refusal from the bid.
+    expect(screen.queryByText('Nhóm của bạn chưa có thành viên rảnh, nên chưa ứng tuyển được.')).toBeNull()
     await user.type(screen.getByLabelText('Giá đề xuất'), 'abc')
     expect(screen.getByLabelText('Giá đề xuất')).toHaveValue('')
   })
@@ -228,7 +228,6 @@ describe('MEN-3, applying with a quote (FR-13)', () => {
     const user = userEvent.setup()
     let withdrawn = false
     fakeBackend(signedInUser, {
-      ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/job-posts/j1': () => json(post),
       'GET /api/v1/mentor/job-posts/j1/customer-rating': () => json({ count: 0 }),
       'GET /api/v1/mentor/capacity': () => capacity(),
