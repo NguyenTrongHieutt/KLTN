@@ -81,7 +81,10 @@ function StudentBoard({ jobId }: { jobId: string }) {
   return (
     <Frame>
       <div className="flex flex-col gap-1">
-        <Link to="/cong-viec" className="w-fit text-label text-muted-foreground underline-offset-4 hover:underline">
+        <Link
+          to="/cong-viec?vai-tro=tham-gia"
+          className="w-fit text-label text-muted-foreground underline-offset-4 hover:underline"
+        >
           {t('screen.crewChat.back')}
         </Link>
         <PageHeading>{board.data?.title ?? t('screen.board.tab')}</PageHeading>
