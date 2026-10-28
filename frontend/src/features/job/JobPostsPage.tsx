@@ -412,7 +412,6 @@ function Recommended({ posts }: { posts: RecommendedPost[] }) {
       </h2>
       <ul className="grid gap-3 md:grid-cols-2">
         {posts.map((post) => {
-          const types = post.jobTypes.map((type) => t(`term.jobType${type}.label` as MessageKey)).join(', ')
           return (
             <li key={post.id}>
               <Link
@@ -431,16 +430,7 @@ function Recommended({ posts }: { posts: RecommendedPost[] }) {
                   <PhaseBadge phase={post.phase} />
                   <span className="text-body-sm font-semibold">{needText(post.need, post.openSlots)}</span>
                 </span>
-                <span className="text-caption text-muted-foreground break-words">
-                  {post.budget
-                    ? t('screen.jobPost.meta', {
-                        product: post.productName,
-                        types,
-                        budget: t(`screen.job.form.budget${post.budget}` as MessageKey),
-                        date: formatDayMonth(post.openedAt),
-                      })
-                    : t('screen.jobPost.metaNoBudget', { product: post.productName, types, date: formatDayMonth(post.openedAt) })}
-                </span>
+                <span className="text-caption text-muted-foreground break-words">{postMeta(post)}</span>
                 <SignalChips signals={post.signals} />
               </Link>
             </li>
@@ -449,6 +439,31 @@ function Recommended({ posts }: { posts: RecommendedPost[] }) {
       </ul>
     </section>
   )
+}
+
+/**
+ * The Product, the Job Types and the budget, with "đăng {date}" only while the Job looks for a Mentor: a recruiting
+ * Job is listed by when its recruitment opened, so its posting date would read out of order.
+ */
+function postMeta(post: {
+  productName: string
+  jobTypes: string[]
+  budget?: string
+  openedAt: string
+  phase?: JobPostSummary['phase']
+}): string {
+  const product = post.productName
+  const types = post.jobTypes.map((type) => t(`term.jobType${type}.label` as MessageKey)).join(', ')
+  const budget = post.budget ? t(`screen.job.form.budget${post.budget}` as MessageKey) : undefined
+  if (post.phase !== 'FINDING_MENTOR') {
+    return budget
+      ? t('screen.jobPost.metaUndated', { product, types, budget })
+      : t('screen.jobPost.metaUndatedNoBudget', { product, types })
+  }
+  const date = formatDayMonth(post.openedAt)
+  return budget
+    ? t('screen.jobPost.meta', { product, types, budget, date })
+    : t('screen.jobPost.metaNoBudget', { product, types, date })
 }
 
 /** "Khách hàng: Doanh nghiệp · từ 07/2026 · 4,8 sao (5 lượt)", never the Customer's name (FR-12). */
@@ -491,7 +506,6 @@ function PostItem({
   applied: boolean
   rating: PostCustomerRating | undefined
 }) {
-  const types = post.jobTypes.map((type) => t(`term.jobType${type}.label` as MessageKey)).join(', ')
   const customer = customerText(post, rating)
   return (
     <li className="relative flex flex-wrap items-start gap-3 px-4 py-3 hover:bg-muted/50">
@@ -506,16 +520,7 @@ function PostItem({
           <PhaseBadge phase={post.phase} />
         </span>
         <span className="text-body-sm font-semibold">{needText(post.need, post.recruitment?.openSlots)}</span>
-        <span className="text-caption text-muted-foreground break-words">
-          {post.budget
-            ? t('screen.jobPost.meta', {
-                product: post.productName,
-                types,
-                budget: t(`screen.job.form.budget${post.budget}` as MessageKey),
-                date: formatDayMonth(post.openedAt),
-              })
-            : t('screen.jobPost.metaNoBudget', { product: post.productName, types, date: formatDayMonth(post.openedAt) })}
-        </span>
+        <span className="text-caption text-muted-foreground break-words">{postMeta(post)}</span>
         {post.skills.length > 0 && (
           <span className="flex flex-wrap gap-1.5">
             {post.skills.map((skill) => (

@@ -18,7 +18,7 @@ import { ApplyPanel } from '@/features/matching/ApplyPanel'
 import { useMentorInvitation, type MentorInvitation } from '@/features/matching/invitationApi'
 import { CapacityBanners } from './CapacityBanners'
 import { FindWorkGate } from './FindWorkGate'
-import { roleLabel, useJobRole, type RoleInJob } from './jobRoleApi'
+import { leftEarly, roleLabel, useJobRole, useMyJobs, youAreText, type JobRoleView } from './jobRoleApi'
 import { useCustomerRating, useJobPost, useMentorCapacity, type JobPost } from './jobPostApi'
 import { PhaseBadge } from './PhaseBadge'
 import { needText } from './phaseText'
@@ -59,7 +59,7 @@ function JobPostDetail({ postId }: { postId: string | undefined }) {
       return <Skeleton className="m-6 h-48" />
     }
     if (role.data && postId) {
-      return <RoleOnly jobId={postId} role={role.data.role} />
+      return <RoleOnly jobId={postId} role={role.data} />
     }
     return invitation.data?.status === 'LAPSED' ? <LapsedInvitation invitation={invitation.data} /> : <NoLongerOpen />
   }
@@ -123,7 +123,7 @@ function NoLongerOpen() {
 }
 
 /** A Job no longer listed, opened by one of its own people: their role, with the way to the Job (UX-DR98). */
-function RoleOnly({ jobId, role }: { jobId: string; role: RoleInJob }) {
+function RoleOnly({ jobId, role }: { jobId: string; role: JobRoleView }) {
   return (
     <GatePage>
       <PageHeading className="sr-only">{t('screen.jobPost.title')}</PageHeading>
@@ -132,11 +132,21 @@ function RoleOnly({ jobId, role }: { jobId: string; role: RoleInJob }) {
   )
 }
 
-/** "Bạn là {role} của công việc này" with "Mở công việc" (JOB-1), in place of an action (AD-43, UX-DR98). */
-function RoleNotice({ jobId, role }: { jobId: string; role: RoleInJob }) {
+/**
+ * "Bạn là {role} của công việc này" with "Mở công việc" (JOB-1), in place of an action (AD-43, UX-DR98); a member who
+ * left the running Job reads "Bạn là: Thành viên nhóm · đã rời" (UX-DR87, UX-DR104), the Job's state read from
+ * "Công việc" as JOB-H reads it.
+ */
+function RoleNotice({ jobId, role }: { jobId: string; role: JobRoleView }) {
+  const mine = useMyJobs(role.crewKind === 'FORMER')
+  const state = mine.data?.find((job) => job.jobId === jobId)?.state
   return (
     <div role="status" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
-      <p className="text-label font-semibold">{t('screen.jobPost.detail.role', { role: roleLabel(role) })}</p>
+      <p className="text-label font-semibold">
+        {leftEarly(role, state)
+          ? youAreText(role, state)
+          : t('screen.jobPost.detail.role', { role: roleLabel(role.role) })}
+      </p>
       <Link to={`/cong-viec/${jobId}`} className={cn(buttonVariants({ variant: 'secondary' }), 'w-fit')}>
         {t('screen.jobPost.detail.openJob')}
       </Link>
@@ -270,7 +280,7 @@ function ActionArea({ post }: { post: JobPost }) {
     return <Skeleton className="h-40 w-full" />
   }
   if (role.data) {
-    return <RoleNotice jobId={post.id} role={role.data.role} />
+    return <RoleNotice jobId={post.id} role={role.data} />
   }
   if (post.phase === 'FINDING_MENTOR') {
     return <BidAction postId={post.id} />
@@ -286,8 +296,9 @@ function ActionArea({ post }: { post: JobPost }) {
 }
 
 /**
- * "Chào giá làm người hướng dẫn" (FR-13): today's bid form with its gates and the user's bid; the Mentor Job limit
- * names itself above it. The free-Student banner is retired (Story 21.1); Story 21.2 removes that refusal.
+ * "Chào giá làm người hướng dẫn" (FR-13): today's bid form with its gates and the user's bid. Every reason the bid
+ * path refuses today blocks it and says itself in plain words above it, with no Team link (Story 21.1); Story 21.2
+ * removes the free-Student refusal.
  */
 function BidAction({ postId }: { postId: string }) {
   const capacity = useMentorCapacity()
@@ -297,7 +308,7 @@ function BidAction({ postId }: { postId: string }) {
       <ApplyPanel
         postId={postId}
         teamSize={capacity.data?.teamSize ?? 0}
-        blocked={capacity.data?.reasons.includes('MENTOR_JOB_LIMIT') ?? false}
+        blocked={(capacity.data?.reasons.length ?? 0) > 0}
       />
     </div>
   )

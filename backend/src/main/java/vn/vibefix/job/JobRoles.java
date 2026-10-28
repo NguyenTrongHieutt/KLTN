@@ -25,17 +25,19 @@ public interface JobRoles {
 	JobRole roleOf(UUID jobId, UUID accountId);
 
 	/**
-	 * What the account did in each role (AD-30): per role, the Jobs closed with Accepted work and how many of them
-	 * carry each Job Type. A Job closed with Accepted work is one J9 finished (Closed, or Cancelled after Closing)
-	 * with at least one Milestone Accepted or Settled and not removed. The Mentor role is the Job's Mentor; the
-	 * Crew role is a Crew row that was activated. It names no Job, Customer or co-member.
+	 * What the account did in each role (AD-30): per role, the Jobs closed with Accepted work and, per Job Type, the
+	 * matches AD-17 ranks by, one per pair. A Job closed with Accepted work is one J9 finished (Closed, or Cancelled
+	 * after Closing) with at least one Milestone Accepted or Settled and not removed. The Mentor role is the Job's
+	 * Mentor; the Crew role is a Crew row that was activated. It names no Job, Customer or co-member.
 	 */
 	History historyOf(UUID accountId);
 
 	/**
 	 * One role's history.
 	 * @param jobs the Jobs closed with Accepted work in the role
-	 * @param jobTypes for each Job Type, how many of those Jobs carry it
+	 * @param jobTypes for each Job Type, how many distinct Customers (as Mentor) or Mentors (as Crew member) the
+	 * account closed such a Job with: one Job Type match per pair (AD-17), so repeat Jobs for one Customer or under
+	 * one Mentor count once
 	 */
 	record RoleHistory(int jobs, Map<String, Integer> jobTypes) {
 

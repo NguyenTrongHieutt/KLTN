@@ -206,20 +206,21 @@ describe('MEN-3, applying with a quote (FR-13)', () => {
     expect(screen.getAllByRole('link', { name: 'Mở hồ sơ', hidden: true })[0]).toHaveAttribute('href', '/ho-so')
   })
 
-  it('keeps "Ứng tuyển" disabled at the Mentor Job limit and says so (FR-13)', { timeout: 20_000 }, async () => {
+  it('keeps "Ứng tuyển" disabled while FR-13 refuses and says each reason plainly', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     fakeBackend(signedInUser, {
       'GET /api/v1/mentor/job-posts/j1': () => json(post),
       'GET /api/v1/mentor/job-posts/j1/customer-rating': () => json({ count: 0 }),
-      'GET /api/v1/mentor/capacity': () => capacity(['MENTOR_JOB_LIMIT']),
+      'GET /api/v1/mentor/capacity': () => capacity(['NO_FREE_STUDENT', 'MENTOR_JOB_LIMIT']),
       'GET /api/v1/mentor/applications': () => json([]),
     })
     renderAt('/tim-viec/j1')
 
     expect(await screen.findByRole('button', { name: 'Ứng tuyển' })).toBeDisabled()
+    expect(screen.getByText('Nhóm của bạn chưa có thành viên rảnh, nên chưa ứng tuyển được.')).toBeInTheDocument()
     expect(screen.getByText('Bạn đang nhận đủ 3 công việc. Hãy hoàn thành bớt rồi ứng tuyển tiếp.')).toBeInTheDocument()
-    // Story 21.1 retires the free-Student banner; Story 21.2 removes that refusal from the bid.
-    expect(screen.queryByText('Nhóm của bạn chưa có thành viên rảnh, nên chưa ứng tuyển được.')).toBeNull()
+    // Story 21.1 retires the free-Student banner's Team link; the refusal stays until Story 21.2.
+    expect(screen.queryByRole('link', { name: 'Mời thành viên' })).toBeNull()
     await user.type(screen.getByLabelText('Giá đề xuất'), 'abc')
     expect(screen.getByLabelText('Giá đề xuất')).toHaveValue('')
   })

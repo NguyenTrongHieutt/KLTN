@@ -77,8 +77,8 @@ class JobPostQueries implements JobPosts {
 	/**
 	 * What MEN-2 narrows by; an empty set or {@code null} leaves its filter out.
 	 * @param phases the phases to match any of ("Tình trạng")
-	 * @param skillIds the Skills to match any of, or {@code null} without a Skill filter; an empty set
-	 * matches nothing
+	 * @param skillIds the Skills to match any of on the Job Post or, while recruiting, among the Skills sought; or
+	 * {@code null} without a Skill filter; an empty set matches nothing
 	 * @param dueBy the last deadline kept
 	 * @param keyword the keyword search on {@code search_vector}, or {@code null} without one
 	 */
@@ -175,7 +175,9 @@ class JobPostQueries implements JobPosts {
 			params.put("types", filter.types().stream().map(Enum::name).toArray(String[]::new));
 		}
 		if (filter.skillIds() != null) {
-			where.append(" AND j.skill_ids && CAST(:skills AS UUID[])");
+			// The Job Post's Skills, or while recruiting the Skills sought (Story 21.1), as the keyword covers them.
+			where.append(" AND (j.skill_ids && CAST(:skills AS UUID[])"
+					+ " OR (j.recruiting AND j.recruit_skill_ids && CAST(:skills AS UUID[])))");
 			params.put("skills", filter.skillIds().toArray(UUID[]::new));
 		}
 		if (!filter.budgets().isEmpty()) {

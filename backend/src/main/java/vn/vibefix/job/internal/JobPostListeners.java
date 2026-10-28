@@ -10,7 +10,10 @@ import org.springframework.stereotype.Component;
 import vn.vibefix.product.ProductHidden;
 import vn.vibefix.shared.ProcessedEvents;
 
-/** A hidden Product's Open Job Posts are hidden with it (FR-60). Replay-safe. */
+/**
+ * A hidden Product's Job Posts are hidden with it (FR-60): every one not hidden yet in a state "Tìm việc" lists it in,
+ * or lists it in once its Mentor recruits (Story 21.1). Replay-safe.
+ */
 @Component
 class JobPostListeners {
 
@@ -33,11 +36,13 @@ class JobPostListeners {
 		if (!this.processedEvents.markProcessed("job.JobPostListeners.onProductHidden", event.eventId())) {
 			return;
 		}
-		List<UUID> open = this.jdbc.sql("SELECT id FROM job.job WHERE product_id = :product AND state = 'OPEN' AND hidden_at IS NULL")
+		List<UUID> listable = this.jdbc
+			.sql("SELECT id FROM job.job WHERE product_id = :product AND hidden_at IS NULL AND "
+					+ JobPostModeration.LISTABLE)
 			.param("product", event.productId())
 			.query(UUID.class)
 			.list();
-		open.forEach(post -> this.posts.hide(post, PRODUCT_HIDDEN_REASON));
+		listable.forEach(post -> this.posts.hide(post, PRODUCT_HIDDEN_REASON));
 	}
 
 }

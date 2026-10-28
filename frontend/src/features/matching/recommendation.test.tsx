@@ -161,6 +161,8 @@ describe('MEN-2 "Đề xuất cho bạn" (FR-14, AD-17)', () => {
     expect(crew).toHaveAttribute('href', '/tim-viec/j8')
     expect(within(crew).getByText('Đang tuyển thêm thành viên')).toBeInTheDocument()
     expect(within(crew).getByText('Cần thêm 2 thành viên nhóm')).toBeInTheDocument()
+    expect(within(card).getByText(/đăng 16\/10/)).toBeInTheDocument()
+    expect(within(crew).queryByText(/đăng/)).toBeNull()
   })
 
   it('hides them while a keyword is active', { timeout: 15_000 }, async () => {

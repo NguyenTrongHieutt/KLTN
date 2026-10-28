@@ -286,6 +286,28 @@ class JobPostsIT extends IntegrationTest {
 		assertIds("?phase=FINDING_MENTOR", open);
 		assertIds("?phase=FINDING_MENTOR&phase=FINDING_CREW", noMember, open);
 		assertIds("?phase=RECRUITING&type=NEW_FEATURE");
+		// The Skill filter also matches the Skills a recruiting Job seeks, as the keyword does.
+		assertIds("?skill=" + TeamTestSupport.SUPABASE, recruiting, noMember);
+	}
+
+	/** X6: a Starting or Active Job recruiting with no counted member looks for its Crew; with one it recruits more. */
+	@Test
+	void thePhaseFilterReadsStartingAndActiveJobsToo() throws Exception {
+		UUID ha = TeamTestSupport.mentor(this.jdbc, "Phạm Thu Hà", List.of(TeamTestSupport.REACT), "React");
+		UUID started = crewJob("Đang bắt đầu, có người", "STARTING", ha, true, 1, null,
+				MutableClock.DEFAULT_INSTANT.minus(Duration.ofHours(1)));
+		crewRow(started, member(), "ACTIVE", true);
+		UUID longMentor = TeamTestSupport.mentor(this.jdbc, "Trần Đức Long", List.of(TeamTestSupport.REACT), "React");
+		UUID running = crewJob("Đang làm, chưa ai", "ACTIVE", longMentor, true, 1, null,
+				MutableClock.DEFAULT_INSTANT.minus(Duration.ofHours(2)));
+
+		list("").andExpect(jsonPath("$.items[0].id").value(started.toString()))
+			.andExpect(jsonPath("$.items[0].phase").value("RECRUITING"))
+			.andExpect(jsonPath("$.items[1].id").value(running.toString()))
+			.andExpect(jsonPath("$.items[1].phase").value("FINDING_CREW"));
+		assertIds("?phase=RECRUITING", started);
+		assertIds("?phase=FINDING_CREW", running);
+		assertIds("?phase=FINDING_MENTOR");
 	}
 
 	/** Story 20.4, AD-41: the phase shown counts an ACTIVE row only while its account is unlocked. */
@@ -330,15 +352,21 @@ class JobPostsIT extends IntegrationTest {
 		crewRow(left, tung, "RELEASED", true);
 		crewJob("Việc chung không tuyển", "AGREEMENT", ha, false, 2, null, since);
 		crewJob("Việc chung đủ người", "AGREEMENT", ha, true, 0, null, since);
+		UUID lam = member();
+		UUID declined = crewJob("Việc chung Lâm đã từ chối", "AGREEMENT", ha, true, 2, null, since);
+		crewRow(declined, lam, "RELEASED", false);
 		UUID hidden = crewJob("Việc chung bị ẩn", "AGREEMENT", ha, true, 2, null, since);
 		this.jdbc.sql("UPDATE job.job SET hidden_at = now(), hidden_reason = 'Vi phạm' WHERE id = :id")
 			.param("id", hidden)
 			.update();
 
 		assertThat(ids(this.hung, "")).containsExactlyInAnyOrder(control.toString(), assigned.toString(),
-				active.toString(), left.toString());
+				active.toString(), left.toString(), declined.toString());
 		assertThat(ids(this.hung, "?q=viec chung")).containsExactlyInAnyOrder(control.toString(), assigned.toString(),
-				active.toString(), left.toString());
+				active.toString(), left.toString(), declined.toString());
+		// A pick declined before it was signed holds no role (AD-43): its Job stays listed and found.
+		assertThat(ids(lam, "")).contains(declined.toString());
+		assertThat(ids(lam, "?q=viec chung")).contains(declined.toString());
 		assertThat(ids(vy, "?q=viec chung")).contains(control.toString(), own.toString())
 			.doesNotContain(assigned.toString());
 		assertThat(ids(minh, "")).contains(control.toString()).doesNotContain(active.toString());
@@ -391,6 +419,36 @@ class JobPostsIT extends IntegrationTest {
 			.andExpect(jsonPath("$.role").value("CUSTOMER"));
 	}
 
+	/** FR-12, AD-20: a recruiting Job's screenshot is read on MEN-3 while the Job is listed, and only then. */
+	@Test
+	void aRecruitingJobsScreenshotIsReadWhileItIsListed() throws Exception {
+		UUID job = draft();
+		String added = this.mvc.perform(multipart("/api/v1/jobs/" + job + "/screenshots")
+			.file(new MockMultipartFile("file", "trang-dat-ban.png", "image/png", png()))
+			.with(as(this.lan, Role.CUSTOMER))
+			.with(csrf())).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+		UUID file = UUID.fromString(com.jayway.jsonpath.JsonPath.read(added, "$.fileId"));
+		UUID ha = TeamTestSupport.mentor(this.jdbc, "Phạm Thu Hà", List.of(TeamTestSupport.REACT), "React");
+		Timestamp now = Timestamp.from(MutableClock.DEFAULT_INSTANT);
+		this.jdbc.sql("""
+				UPDATE job.job SET state = 'AGREEMENT', rules = '{}'::jsonb, selection_days = 14, opened_at = :now,
+				    mentor_account_id = :mentor, selected_application_id = :application, selected_at = :now,
+				    recruiting = true, recruiting_since = :now, open_slots = 1
+				WHERE id = :id
+				""")
+			.param("id", job)
+			.param("now", now)
+			.param("mentor", ha)
+			.param("application", UUID.randomUUID())
+			.update();
+		UUID minh = member();
+
+		this.mvc.perform(get("/api/v1/files/" + file).with(as(minh, null))).andExpect(status().isOk());
+
+		this.jdbc.sql("UPDATE job.job SET recruiting = false WHERE id = :id").param("id", job).update();
+		this.mvc.perform(get("/api/v1/files/" + file).with(as(minh, null))).andExpect(status().isNotFound());
+	}
+
 	/** SG-43: a page of rows reads its Customers' Rating summaries in one call, keyed by the Job, never the Customer. */
 	@Test
 	void aPageOfRowsReadsItsCustomersRatingsInOneCall() throws Exception {
@@ -402,17 +460,27 @@ class JobPostsIT extends IntegrationTest {
 				VALUES (:id, :product, :owner, 'DRAFT', 'Bản nháp', ARRAY['BUG_FIX'], now(), now())
 				""").param("id", draft).param("product", this.product).param("owner", this.lan).update();
 
+		// Lan holds two published Ratings from two Mentors; Bình, another Customer, none.
+		publishedRating(this.lan, 5);
+		publishedRating(this.lan, 4);
+		UUID binh = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		UUID binhs = openJob(product(binh), binh, "Tin của Bình", MutableClock.DEFAULT_INSTANT);
+
 		String body = this.mvc
-			.perform(get("/api/v1/mentor/customer-ratings").param("post", open.toString(), draft.toString())
+			.perform(get("/api/v1/mentor/customer-ratings").param("post", open.toString(), draft.toString(), binhs.toString())
 				.with(as(this.hung, Role.MENTOR)))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.length()").value(1))
+			.andExpect(jsonPath("$.length()").value(2))
 			.andExpect(jsonPath("$[0].postId").value(open.toString()))
-			.andExpect(jsonPath("$[0].count").value(0))
+			.andExpect(jsonPath("$[0].average").value(4.5))
+			.andExpect(jsonPath("$[0].count").value(2))
+			.andExpect(jsonPath("$[1].postId").value(binhs.toString()))
+			.andExpect(jsonPath("$[1].average").value(org.hamcrest.Matchers.nullValue()))
+			.andExpect(jsonPath("$[1].count").value(0))
 			.andReturn()
 			.getResponse()
 			.getContentAsString();
-		assertThat(body).doesNotContain(this.lan.toString());
+		assertThat(body).doesNotContain(this.lan.toString()).doesNotContain(binh.toString());
 		this.mvc.perform(get("/api/v1/mentor/customer-ratings").with(as(this.hung, Role.MENTOR)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.length()").value(0));
@@ -563,6 +631,36 @@ class JobPostsIT extends IntegrationTest {
 			.param("note", note)
 			.update();
 		return id;
+	}
+
+	/** A published Rating a Mentor gave {@code customer} for a Job of their own (FR-49). */
+	private void publishedRating(UUID customer, int stars) {
+		UUID window = UUID.randomUUID();
+		UUID mentor = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null);
+		Timestamp at = Timestamp.from(MutableClock.DEFAULT_INSTANT.minus(Duration.ofDays(20)));
+		this.jdbc.sql("""
+				INSERT INTO reputation.rating_window (job_id, product_id, customer_account_id, mentor_account_id, job_title,
+				    opened_at, ends_at, pair_published_at)
+				VALUES (:job, :product, :customer, :mentor, 'Việc đã xong', :at, :ends, :at)
+				""")
+			.param("job", window)
+			.param("product", this.product)
+			.param("customer", customer)
+			.param("mentor", mentor)
+			.param("at", at)
+			.param("ends", Timestamp.from(MutableClock.DEFAULT_INSTANT.minus(Duration.ofDays(6))))
+			.update();
+		this.jdbc.sql("""
+				INSERT INTO reputation.rating (id, job_id, kind, rater_account_id, ratee_account_id, stars, comment, created_at)
+				VALUES (:id, :job, 'MENTOR_TO_CUSTOMER', :mentor, :customer, :stars, 'Rõ ràng', :at)
+				""")
+			.param("id", UUID.randomUUID())
+			.param("job", window)
+			.param("mentor", mentor)
+			.param("customer", customer)
+			.param("stars", stars)
+			.param("at", at)
+			.update();
 	}
 
 	/** A person with GitHub linked and no role yet. */

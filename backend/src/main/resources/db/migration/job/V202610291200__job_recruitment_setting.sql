@@ -5,7 +5,8 @@
 -- are (AD-38, JobSkillNames); recruit_note is the Mentor's note. Story 21.4 adds the Mentor's commands; until then
 -- only fixtures write these columns. A listed Job's keyword search also covers the note and the Skills sought while
 -- recruitment is on, so the generated search_vector is dropped and added again over the new text.
--- Personal data: unchanged; the note is Job text, exported and deleted with the Job (JobPersonalData).
+-- Personal data: the note is the Mentor's text on the Customer's Job and is deleted with the Job (JobPersonalData);
+-- no export covers it yet: the Mentor's export of it comes with Story 21.4, which writes it.
 
 ALTER TABLE job.job
     ADD COLUMN recruiting          BOOLEAN NOT NULL DEFAULT false,

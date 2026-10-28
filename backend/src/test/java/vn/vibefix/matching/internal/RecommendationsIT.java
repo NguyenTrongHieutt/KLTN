@@ -85,10 +85,12 @@ class RecommendationsIT extends IntegrationTest {
 			.getResponse()
 			.getContentAsString();
 		List<String> ids = JsonPath.read(body, "$[*].accountId");
+		// AD-17's order: two shared Skills before one; two Mentors alike by ID as PostgreSQL orders it.
+		List<String> tied = both.toString().compareTo(noTeam.toString()) < 0
+				? List.of(both.toString(), noTeam.toString()) : List.of(noTeam.toString(), both.toString());
 		assertThat(ids).as("at the Job limit, no GitHub link, or no shared Skill: left out")
-			.containsExactlyInAnyOrder(both.toString(), noTeam.toString(), one.toString())
+			.containsExactly(tied.get(0), tied.get(1), one.toString())
 			.doesNotContain(busy.toString());
-		assertThat(ids.subList(0, 2)).containsExactlyInAnyOrder(both.toString(), noTeam.toString());
 
 		this.mvc.perform(get("/api/v1/jobs/" + job + "/recommendations?skill=" + SUPABASE).with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(jsonPath("$.length()").value(3));
@@ -263,6 +265,32 @@ class RecommendationsIT extends IntegrationTest {
 		assertThat(ids).as("a bid of any status, a role held, or no slot left: left out")
 			.containsExactly(recruiting.toString(), open.toString(), byHistory.toString())
 			.doesNotContain(withdrawnBid.toString(), asMentor.toString(), asMember.toString());
+		// The Skill filter matches the Skills a recruiting Job seeks too, as its chip does.
+		String filtered = this.mvc.perform(get("/api/v1/mentor/recommendations?skill=" + REACT).with(as(vy, Role.MENTOR)))
+			.andExpect(status().isOk())
+			.andReturn()
+			.getResponse()
+			.getContentAsString();
+		assertThat(JsonPath.<List<String>>read(filtered, "$[*].id")).containsExactly(recruiting.toString(), open.toString());
+	}
+
+	/** AD-17's "newest": a Job is as new as its recruitment, not as old as its Job Post, when the signals tie. */
+	@Test
+	void aJobIsAsNewAsItsRecruitmentWhenTheSignalsTie() throws Exception {
+		UUID vy = mentor("Lê Thảo Vy", List.of(REACT));
+		UUID ha = mentor("Phạm Thu Hà", List.of(WEB_SECURITY));
+		UUID older = job("AGREEMENT", List.of("BUG_FIX"), List.of(REACT), ha);
+		this.clock.advance(Duration.ofDays(3));
+		UUID newer = job("OPEN", List.of("BUG_FIX"), List.of(REACT), null);
+		this.clock.advance(Duration.ofHours(1));
+		recruiting(older, REACT, 1);
+
+		String body = this.mvc.perform(get("/api/v1/mentor/recommendations").with(as(vy, Role.MENTOR)))
+			.andExpect(status().isOk())
+			.andReturn()
+			.getResponse()
+			.getContentAsString();
+		assertThat(JsonPath.<List<String>>read(body, "$[*].id")).containsExactly(older.toString(), newer.toString());
 	}
 
 	/** Turns the Job's Crew recruitment on, seeking {@code skill}, with {@code slots} places open. */

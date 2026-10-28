@@ -191,8 +191,9 @@ class JobRolesIT extends IntegrationTest {
 
 		History mentorHistory = this.roles.historyOf(mentor);
 		assertThat(mentorHistory.mentor().jobs()).isEqualTo(3);
+		// AD-17: one Job Type match per Customer–Mentor pair, so two New feature Jobs for one Customer count once.
 		assertThat(mentorHistory.mentor().jobTypes())
-			.isEqualTo(Map.of("NEW_FEATURE", 2, "BUG_FIX", 1, "MODIFICATION", 1));
+			.isEqualTo(Map.of("NEW_FEATURE", 1, "BUG_FIX", 1, "MODIFICATION", 1));
 		assertThat(mentorHistory.crew()).isEqualTo(RoleHistory.EMPTY);
 		History memberHistory = this.roles.historyOf(member);
 		assertThat(memberHistory.crew()).isEqualTo(new RoleHistory(1, Map.of("NEW_FEATURE", 1)));
@@ -212,11 +213,18 @@ class JobRolesIT extends IntegrationTest {
 		UUID crewed = finished(customer, otherMentor, "CLOSED", true, "DOCUMENTATION");
 		milestone(crewed, "ACCEPTED", false);
 		crewRow(crewed, mentor, "RELEASED", true);
+		UUID secondCustomer = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		milestone(finished(secondCustomer, mentor, "CLOSED", true, "NEW_FEATURE"), "ACCEPTED", false);
+		UUID crewedAgain = finished(secondCustomer, otherMentor, "CLOSED", true, "DOCUMENTATION");
+		milestone(crewedAgain, "ACCEPTED", false);
+		crewRow(crewedAgain, mentor, "RELEASED", true);
 
 		History history = this.roles.historyOf(mentor);
 
-		assertThat(history.mentor()).isEqualTo(new RoleHistory(2, Map.of("NEW_FEATURE", 2, "BUG_FIX", 1)));
-		assertThat(history.crew().jobs()).isOne();
+		// AD-17: a Job Type counts once per pair: two New feature Jobs of one Customer once, another Customer's again;
+		// two Documentation Jobs under one Mentor once. The Job counts stay counts of Jobs.
+		assertThat(history.mentor()).isEqualTo(new RoleHistory(3, Map.of("NEW_FEATURE", 2, "BUG_FIX", 1)));
+		assertThat(history.crew()).isEqualTo(new RoleHistory(2, Map.of("DOCUMENTATION", 1)));
 	}
 
 	/** Every (Job, account) pair with more than one relation: Customer, Mentor, or a counted Crew row. */

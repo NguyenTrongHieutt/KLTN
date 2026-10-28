@@ -142,7 +142,7 @@ class Recommendations {
 	 * Listed Jobs for a user (AD-17, Story 21.1): Jobs "Tìm việc" lists (AD-36) where they hold no role (AD-43) and
 	 * have no bid of any status, that share a Skill (the Job Post's, or while recruiting the Skills sought) or a Job
 	 * Type of their history in either role ({@code job.historyOf}): by shared Skills, then Job Type matches, then
-	 * newest first; the Skill filter narrows them without reordering.
+	 * newest first; the Skill filter, on the same Skills, narrows them without reordering.
 	 */
 	@Transactional(readOnly = true)
 	List<RecommendedPost> forMentor(UUID userId, @Nullable Set<UUID> skillFilter) {
@@ -159,8 +159,7 @@ class Recommendations {
 			if (bid.contains(post.jobId())) {
 				continue;
 			}
-			Set<UUID> sought = new LinkedHashSet<>(post.skillIds());
-			sought.addAll(post.recruitSkillIds());
+			List<UUID> sought = sought(post);
 			List<UUID> shared = sought.stream().filter(skills::contains).toList();
 			List<JobTypeMatch> matches = matches(post.jobTypes(), done);
 			if (!shared.isEmpty() || !matches.isEmpty()) {
@@ -173,9 +172,16 @@ class Recommendations {
 				.thenComparing(Comparator.comparingInt(RecommendedPost::history).reversed())
 				.thenComparing((RecommendedPost found) -> found.post().listedAt(), Comparator.reverseOrder())
 				.thenComparing(found -> found.post().jobId().toString()))
-			.filter(found -> SkillFilter.keeps(skillFilter, found.post().skillIds()))
+			.filter(found -> SkillFilter.keeps(skillFilter, sought(found.post())))
 			.limit(FOR_MENTOR)
 			.toList();
+	}
+
+	/** The Job Post's Skills, then, while recruiting, the Skills sought that it does not name. */
+	private static List<UUID> sought(ListedPost post) {
+		Set<UUID> sought = new LinkedHashSet<>(post.skillIds());
+		sought.addAll(post.recruitSkillIds());
+		return List.copyOf(sought);
 	}
 
 	/** The Jobs closed with Accepted work in either role, per Job Type: the Mentor's and the Crew member's summed. */

@@ -1891,6 +1891,8 @@
       "count": "{n} tin",
       "meta": "{product} · {types} · {budget} · đăng {date}",
       "metaNoBudget": "{product} · {types} · đăng {date}",
+      "metaUndated": "{product} · {types} · {budget}",
+      "metaUndatedNoBudget": "{product} · {types}",
       "due": "Hạn {date}",
       "phase": {
         "FINDING_MENTOR": "Đang tìm người hướng dẫn",

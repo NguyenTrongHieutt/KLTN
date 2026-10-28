@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { capabilities, fakeBackend, inEveryJob, json, signedInUser, signedInWithGoogle } from '@/test/fakeBackend'
+import { capabilities, fakeBackend, heldJobs, inEveryJob, json, signedInUser, signedInWithGoogle } from '@/test/fakeBackend'
 import { PAYLOADS } from '@/test/payloads'
 
 function renderAt(path: string) {
@@ -121,6 +121,9 @@ describe('MEN-2, browsing Job Posts (FR-12)', () => {
 
     const recruiting = screen.getByRole('link', { name: 'Hoàn thiện trang bán hàng' }).closest('li') as HTMLElement
     expect(within(recruiting).getByText('Đang tuyển thêm thành viên')).toBeInTheDocument()
+    // Listed by when its recruitment opened, a recruiting Job shows no posting date.
+    expect(within(recruiting).getByText('Shop Gốm Bát Tràng · Tính năng mới')).toBeInTheDocument()
+    expect(within(recruiting).queryByText(/đăng/)).toBeNull()
     expect(within(recruiting).getByText('Cần thêm 2 thành viên nhóm')).toBeInTheDocument()
     expect(within(recruiting).getByRole('link', { name: 'Phạm Thu Hà' })).toHaveAttribute('href', '/mentor/thuha')
     expect(within(recruiting).getByText('Kỹ năng cần tìm: Supabase')).toBeInTheDocument()
@@ -378,6 +381,21 @@ describe('MEN-3, one Job Post (FR-12)', () => {
 
     expect(await screen.findByText('Bạn là Người hướng dẫn của công việc này.')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Mở công việc' })).toHaveAttribute('href', '/cong-viec/j9')
+  })
+
+  it('tells a member who left the running Job so (UX-DR104)', { timeout: 15_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW', 'FORMER'),
+      ...heldJobs({ jobId: 'j1', title: post.title, role: 'CREW', crewKind: 'FORMER', state: 'ACTIVE' }),
+      'GET /api/v1/mentor/job-posts/j1': () =>
+        json({ ...post, phase: 'RECRUITING', need: 'CREW', recruitment: { openSlots: 1, skills: [] } }),
+      'GET /api/v1/mentor/job-posts/j1/customer-rating': () => json({ count: 0 }),
+    })
+    renderAt('/tim-viec/j1')
+
+    expect(await screen.findByText('Bạn là: Thành viên nhóm · đã rời')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Mở công việc' })).toHaveAttribute('href', '/cong-viec/j1')
+    expect(screen.queryByText('Bạn là Thành viên nhóm của công việc này.')).toBeNull()
   })
 
   it('shows the Customer average when there are Ratings', { timeout: 15_000 }, async () => {

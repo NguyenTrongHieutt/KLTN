@@ -148,6 +148,37 @@ class AbuseReportIT extends IntegrationTest {
 			.andExpect(jsonPath("$.reason").value("ALREADY_DECIDED"));
 	}
 
+	/** Story 21.1: a recruiting Job is listed, so it and its Product are reportable until recruitment turns off. */
+	@Test
+	void aRecruitingJobAndItsProductAreReportableWhileListed() throws Exception {
+		UUID product = UUID.randomUUID();
+		Timestamp at = Timestamp.from(this.clock.instant().minus(Duration.ofDays(1)));
+		this.jdbc.sql("""
+				INSERT INTO product.product (id, customer_account_id, name, description, ai_tools, repository_github_id,
+				    repository_full_name, repository_owner_type, repository_default_branch, public_notice_version,
+				    copy_permission_version, detection_notice_version, acknowledged_at, created_at)
+				VALUES (:id, :owner, 'Sổ thu chi', 'Ghi thu chi.', ARRAY['LOVABLE'], :github, 'lan/so-thu-chi', 'User', 'main',
+				    '1.0', '1.0', '1.0', :at, :at)
+				""").param("id", product).param("owner", this.world.lan())
+			.param("github", java.util.concurrent.ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE)).param("at", at).update();
+		UUID job = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO job.job (id, product_id, customer_account_id, state, title, problem, expected, app_users,
+				    job_types, budget, deadline, rules, selection_days, opened_at, mentor_account_id, selected_application_id,
+				    selected_at, recruiting, recruiting_since, open_slots, version, created_at, updated_at)
+				VALUES (:id, :product, :owner, 'AGREEMENT', 'Tuyển thêm thành viên', 'Lỗi', 'Đúng', 'Khách', ARRAY['BUG_FIX'],
+				    'UNDER_2M', DATE '2026-12-01', '{}'::jsonb, 14, :at, :mentor, :application, :at, true, :at, 1, 3, :at, :at)
+				""").param("id", job).param("product", product).param("owner", this.world.lan())
+			.param("mentor", this.world.hung()).param("application", UUID.randomUUID()).param("at", at).update();
+
+		file(this.world.minh(), Role.STUDENT, "JOB_POST", job).andExpect(status().isCreated());
+		file(this.world.minh(), Role.STUDENT, "PRODUCT", product).andExpect(status().isCreated());
+
+		this.jdbc.sql("UPDATE job.job SET recruiting = false WHERE id = :id").param("id", job).update();
+		file(this.world.vy(), Role.STUDENT, "JOB_POST", job).andExpect(status().isNotFound());
+		file(this.world.vy(), Role.STUDENT, "PRODUCT", product).andExpect(status().isNotFound());
+	}
+
 	@Test
 	void aChatReportGrantsTheAssigneeThatOneMessageUntilThirtyDaysAfterTheDecision() throws Exception {
 		file(this.world.lan(), Role.CUSTOMER, "CREW_CHAT_MESSAGE", this.crewMessage).andExpect(status().isNotFound());

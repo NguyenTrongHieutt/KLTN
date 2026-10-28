@@ -703,6 +703,11 @@ GET /api/v1/mentor/customer-ratings,USER_UNVERIFIED,,,403 FORBIDDEN GITHUB_NOT_L
 GET /api/v1/mentor/customer-ratings,USER,,,200,requireGitHubLinked
 GET /api/v1/mentor/customer-ratings,LOCKED,,,401,requireGitHubLinked
 GET /api/v1/mentor/customer-ratings,CUSTOMER,,,200,requireGitHubLinked
+GET /api/v1/mentor/customer-ratings,MENTOR,,,200,requireGitHubLinked
+GET /api/v1/mentor/customer-ratings,BIDDER,,,200,requireGitHubLinked
+GET /api/v1/mentor/customer-ratings,CREW_ASSIGNED,,,200,requireGitHubLinked
+GET /api/v1/mentor/customer-ratings,CREW_ACTIVE,,,200,requireGitHubLinked
+GET /api/v1/mentor/customer-ratings,CREW_FORMER,,,200,requireGitHubLinked
 GET /api/v1/mentor/customer-ratings,CROSS_ROLE,,,200,requireGitHubLinked
 GET /api/v1/mentor/customer-ratings,ADMINISTRATOR,,,404 NOT_FOUND,requireGitHubLinked
 POST /api/v1/mentor/job-posts/{postId}/applications,ANONYMOUS,,application.json,401,requireGitHubLinked

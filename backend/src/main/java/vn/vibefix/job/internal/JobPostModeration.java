@@ -18,11 +18,19 @@ import vn.vibefix.shared.ContentModeration;
 import vn.vibefix.shared.IdGenerator;
 
 /**
- * FR-60, FR-14, AD-36: a hidden Open Job Post leaves browse and search and takes no new Application;
- * {@link JobPostHidden} lets {@code matching} lapse its invitations and tell its applicants.
+ * FR-60, FR-14, AD-36: a hidden Job Post leaves browse and search and takes no new Application;
+ * {@link JobPostHidden} lets {@code matching} lapse its invitations and tell its applicants. A Job Post can be hidden
+ * in every state "Tìm việc" lists it in or can list it in again (Story 21.1): Open, and Agreement, Starting or Active,
+ * where its Mentor's Crew recruitment lists it.
  */
 @Component
 class JobPostModeration implements ContentModeration {
+
+	/** The states of a Job that is listed on "Tìm việc", or is listed once its Mentor recruits (AD-36). */
+	static final String LISTABLE = "state IN ('OPEN', 'AGREEMENT', 'STARTING', 'ACTIVE')";
+
+	private static final String COLUMNS = "id, title, problem, customer_account_id AS author_id,"
+			+ " coalesce(opened_at, created_at) AS created_at, hidden_at, hidden_reason";
 
 	private final JdbcClient jdbc;
 
@@ -47,21 +55,17 @@ class JobPostModeration implements ContentModeration {
 	@Override
 	@Transactional(readOnly = true)
 	public List<Item> items(boolean hidden, int limit) {
-		return this.jdbc.sql("""
-				SELECT id, title, problem, customer_account_id AS author_id, opened_at AS created_at, hidden_at, hidden_reason
-				FROM job.job WHERE state = 'OPEN' AND (hidden_at IS NOT NULL) = :hidden
-				ORDER BY opened_at DESC, id DESC LIMIT :limit
-				""").param("hidden", hidden).param("limit", limit).query(JobPostModeration::item).list();
+		return this.jdbc.sql("SELECT " + COLUMNS + " FROM job.job WHERE " + LISTABLE
+				+ " AND (hidden_at IS NOT NULL) = :hidden ORDER BY coalesce(opened_at, created_at) DESC, id DESC"
+				+ " LIMIT :limit").param("hidden", hidden).param("limit", limit).query(JobPostModeration::item).list();
 	}
 
 	@Override
 	@Transactional
 	public Optional<Item> hide(UUID id, String reason) {
-		Optional<Item> hidden = this.jdbc.sql("""
-				UPDATE job.job SET hidden_at = :now, hidden_reason = :reason, version = version + 1, updated_at = :now
-				WHERE id = :id AND state = 'OPEN' AND hidden_at IS NULL
-				RETURNING id, title, problem, customer_account_id AS author_id, opened_at AS created_at, hidden_at, hidden_reason
-				""")
+		Optional<Item> hidden = this.jdbc
+			.sql("UPDATE job.job SET hidden_at = :now, hidden_reason = :reason, version = version + 1, updated_at = :now"
+					+ " WHERE id = :id AND hidden_at IS NULL AND " + LISTABLE + " RETURNING " + COLUMNS)
 			.param("id", id)
 			.param("reason", reason.strip())
 			.param("now", Timestamp.from(this.clock.instant()))
