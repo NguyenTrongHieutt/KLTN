@@ -92,16 +92,17 @@ class CallerKindIT extends IntegrationTest {
 	}
 
 	@Test
-	void theCallerCarriesTheAccountAndItsKindOnlyWhateverRoleTheRowStores() throws Exception {
+	void theCallerCarriesTheAccountAndItsKindOnly() throws Exception {
 		assertThat(Arrays.stream(Caller.class.getRecordComponents()).map(java.lang.reflect.RecordComponent::getName))
 			.containsExactly("accountId", "kind");
 		UUID hung = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null);
 		AccountAuthentication session = new AccountAuthentication(hung, Kind.USER);
 
 		assertThat(resolve(session, null)).isEqualTo(new Caller(hung, Kind.USER));
-
-		this.jdbc.sql("UPDATE identity.account SET role = 'CUSTOMER' WHERE id = :id").param("id", hung).update();
-		assertThat(resolve(session, null)).as("the stored role changes nothing").isEqualTo(new Caller(hung, Kind.USER));
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM information_schema.columns
+				WHERE table_schema = 'identity' AND table_name = 'account' AND column_name = 'role'
+				""").query(Long.class).single()).as("no account stores a role (Story 20.6)").isZero();
 	}
 
 	@Test
@@ -180,26 +181,26 @@ class CallerKindIT extends IntegrationTest {
 	}
 
 	@Test
-	void theSessionViewAnswersTheKindAndTheCapabilitiesAndTheDeprecatedRole() throws Exception {
+	void theSessionViewAnswersTheKindAndTheCapabilitiesAndNoRole() throws Exception {
 		UUID hung = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null);
 		JsonNode mentor = sessionAccount(
 				IdentityTestSupport.signedIn(this.sessions, hung, Role.MENTOR, this.clock.instant()));
 		assertThat(mentor.path("kind").asString()).isEqualTo("USER");
-		assertThat(mentor.path("role").asString()).isEqualTo("MENTOR");
+		assertThat(mentor.path("role").isMissingNode()).as("no account has a role (Story 20.6)").isTrue();
 		assertCapabilities(mentor, true, false, false, false);
 
 		UUID lan = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-lan", "3.1");
 		IdentityTestSupport.verifyStudent(this.jdbc, lan, LocalDate.of(2026, 9, 30));
 		JsonNode google = sessionAccount(IdentityTestSupport.signedIn(this.sessions, lan, null, this.clock.instant()));
 		assertThat(google.path("kind").asString()).isEqualTo("USER");
-		assertThat(google.path("role").isNull() || google.path("role").isMissingNode()).as("a Google account has none")
-			.isTrue();
+		assertThat(google.path("role").isMissingNode()).as("a Google account has none").isTrue();
 		assertCapabilities(google, false, false, true, false);
 
 		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
 		JsonNode administrator = sessionAccount(
 				IdentityTestSupport.signedIn(this.sessions, admin, Role.ADMINISTRATOR, this.clock.instant()));
 		assertThat(administrator.path("kind").asString()).isEqualTo("ADMINISTRATOR");
+		assertThat(administrator.path("role").isMissingNode()).as("an Administrator is told by kind alone").isTrue();
 		assertCapabilities(administrator, false, false, false, false);
 	}
 

@@ -73,10 +73,6 @@ class IdentityPersonalData implements PersonalDataParticipant {
 		return this.accounts.findById(accountId).map(account -> {
 			Map<String, Object> data = new LinkedHashMap<>();
 			data.put("kind", account.kind().name());
-			// The stored role of an account from before Google sign-in, kept as text until Story 20.6 drops it.
-			if (account.role() != null) {
-				data.put("role", account.role());
-			}
 			// The Google identity: the subject that keys the account, and what the last sign-in read.
 			if (account.googleSub() != null) {
 				data.put("googleSub", account.googleSub());

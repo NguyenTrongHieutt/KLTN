@@ -91,19 +91,18 @@ class Accounts {
 			.optional();
 	}
 
-	/** An Administrator's account ({@link Account#administrator}), with the role its row keeps writing. */
+	/** An Administrator's account ({@link Account#administrator}). */
 	void insert(Account account) {
 		this.jdbc.sql("""
 				INSERT INTO identity.account
-				    (id, kind, github_user_id, github_login, github_avatar_url, role, created_at, signed_in_at)
-				VALUES (:id, :kind, :githubUserId, :githubLogin, :githubAvatarUrl, :role, :createdAt, :createdAt)
+				    (id, kind, github_user_id, github_login, github_avatar_url, created_at, signed_in_at)
+				VALUES (:id, :kind, :githubUserId, :githubLogin, :githubAvatarUrl, :createdAt, :createdAt)
 				""")
 			.param("id", account.id())
 			.param("kind", account.kind().name())
 			.param("githubUserId", account.githubUserId())
 			.param("githubLogin", account.githubLogin())
 			.param("githubAvatarUrl", account.githubAvatarUrl())
-			.param("role", account.role())
 			.param("createdAt", Timestamp.from(account.createdAt()))
 			.update();
 	}
@@ -279,7 +278,7 @@ class Accounts {
 	private static Account row(ResultSet rs, int number) throws SQLException {
 		return new Account(rs.getObject("id", UUID.class), Kind.valueOf(rs.getString("kind")),
 				(Long) rs.getObject("github_user_id"), rs.getString("github_login"), rs.getString("github_avatar_url"),
-				rs.getString("role"), rs.getString("google_sub"), rs.getString("google_email"),
+				rs.getString("google_sub"), rs.getString("google_email"),
 				rs.getString("google_name"), instant(rs, "locked_at"), rs.getString("lock_reason"), instant(rs, "erased_at"),
 				instant(rs, "created_at"));
 	}

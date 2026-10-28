@@ -65,13 +65,14 @@ class IdentityPersonalDataIT extends IntegrationTest implements PersonalDataPart
 	}
 
 	@Test
-	void anExportHoldsTheRoleTheGitHubIdentityAndTheAcknowledgments() {
+	void anExportHoldsTheKindTheGitHubIdentityAndTheAcknowledgments() {
 		seedSubjectAndOther();
 
 		PersonalDataSection section = this.participant.export(SUBJECT).orElseThrow();
 
 		assertThat(section.module()).isEqualTo("identity");
-		assertThat(section.data()).containsEntry("role", "CUSTOMER")
+		assertThat(section.data()).containsEntry("kind", "USER")
+			.doesNotContainKey("role")
 			.containsEntry("githubLogin", "lan-subject")
 			.containsEntry("githubEmail", "lan-subject@example.test")
 			.containsEntry("githubLinkedAt", this.clock.instant().toString());
@@ -154,9 +155,9 @@ class IdentityPersonalDataIT extends IntegrationTest implements PersonalDataPart
 	private void seed(UUID id, long githubId, String login) {
 		Timestamp now = Timestamp.from(this.clock.instant());
 		this.jdbc.sql("""
-				INSERT INTO identity.account (id, kind, github_user_id, github_login, github_email, github_linked_at, role,
+				INSERT INTO identity.account (id, kind, github_user_id, github_login, github_email, github_linked_at,
 				    created_at)
-				VALUES (:id, 'USER', :githubId, :login, :login || '@example.test', :now, 'CUSTOMER', :now)
+				VALUES (:id, 'USER', :githubId, :login, :login || '@example.test', :now, :now)
 				""").param("id", id).param("githubId", githubId).param("login", login).param("now", now).update();
 		this.accounts.insertAcknowledgment(UUID.randomUUID(), id, "PRIVACY", "2.0", this.clock.instant());
 		this.accounts.storeCustomerToken(id, this.cipher.seal("gho_" + login, id.toString()), this.clock.instant());

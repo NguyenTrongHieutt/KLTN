@@ -2,6 +2,7 @@ package vn.vibefix.job.internal;
 
 import java.sql.Array;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -74,6 +75,33 @@ class JobRoleReader implements JobRoles {
 			return JobRole.NONE;
 		}
 		return relation(job.id(), job.customerId(), job.mentorId(), caller.requireAccountId());
+	}
+
+	/**
+	 * Every Job where the account holds a role, newest change first, for "Công việc" (CUS-7, UX-DR86, Story 20.6):
+	 * the Customer's Jobs, Drafts included, the Mentor's, and every Crew row {@link #roleOf} counts, a former
+	 * member's included. A Crew row released before it was ever active holds no role, so its Job is not listed.
+	 */
+	@Transactional(readOnly = true)
+	List<HeldJob> jobsOf(UUID accountId) {
+		List<Job> jobs = this.jdbc.sql("SELECT " + Jobs.COLUMNS + """
+				 FROM job.job j WHERE j.customer_account_id = :id OR j.mentor_account_id = :id
+				    OR EXISTS (SELECT 1 FROM job.crew_row r WHERE r.job_id = j.id AND r.member_account_id = :id
+				        AND (r.status <> 'RELEASED' OR r.activated_at IS NOT NULL))
+				 ORDER BY j.updated_at DESC, j.id
+				""").param("id", accountId).query(Jobs::job).list();
+		List<HeldJob> held = new ArrayList<>();
+		for (Job job : jobs) {
+			JobRole role = relation(job.id(), job.customerId(), job.mentorId(), accountId);
+			if (!JobRole.NONE.equals(role)) {
+				held.add(new HeldJob(job, role));
+			}
+		}
+		return held;
+	}
+
+	/** One Job of {@link #jobsOf} with the account's role in it. */
+	record HeldJob(Job job, JobRole role) {
 	}
 
 	@Override

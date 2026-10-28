@@ -212,8 +212,8 @@ class TeamIssueIT extends IntegrationTest {
 
 	private ResultActions raise(UUID account, String subject, UUID target, String reason) throws Exception {
 		String field = "SHARE".equals(subject) ? "milestoneId" : "ratingId";
-		Role role = this.jdbc.sql("SELECT role FROM identity.account WHERE id = :id").param("id", account).query(String.class)
-			.optional().map(Role::valueOf).orElse(Role.STUDENT);
+		Role role = this.jdbc.sql("SELECT kind FROM identity.account WHERE id = :id").param("id", account).query(String.class)
+			.optional().filter("ADMINISTRATOR"::equals).map(kind -> Role.ADMINISTRATOR).orElse(Role.STUDENT);
 		return this.mvc.perform(post("/api/v1/team-issues").with(as(account, role)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("{\"jobId\":\"" + this.world.job() + "\",\"subject\":\"" + subject + "\",\"" + field + "\":\"" + target

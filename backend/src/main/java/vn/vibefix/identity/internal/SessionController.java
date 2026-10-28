@@ -22,7 +22,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import io.swagger.v3.oas.annotations.media.Schema;
 import vn.vibefix.identity.Capabilities;
 import vn.vibefix.identity.internal.SignInSession.AccountAuthentication;
 import vn.vibefix.identity.internal.SignInSession.PendingWelcome;
@@ -80,14 +79,8 @@ class SessionController {
 	 * @param kind {@code USER} or {@code ADMINISTRATOR}; the SPA tells an Administrator by it
 	 * @param capabilities what the account can show for itself now, which the SPA's gates read (UX-DR95)
 	 * @param theme the account's Theme toggle choice (UX-DR5)
-	 * @param role deprecated and transitional: the stored {@code identity.account.role} as plain text, which a row
-	 * from before Google sign-in and an Administrator's carry; absent for a Google account, which holds roles in
-	 * Jobs only. Nothing on the server decides on it (Story 20.3). Story 20.6 removes it, with the column and the
-	 * shell that still branches on it; nothing new may read it.
 	 */
-	record AccountView(UUID id, Kind kind, CapabilitiesView capabilities, Profiles.Theme theme,
-			@Schema(deprecated = true, allowableValues = { "CUSTOMER", "MENTOR", "STUDENT", "ADMINISTRATOR" })
-			@Nullable String role) {
+	record AccountView(UUID id, Kind kind, CapabilitiesView capabilities, Profiles.Theme theme) {
 	}
 
 	/**
@@ -221,8 +214,7 @@ class SessionController {
 	private SessionView signedIn(Account account, HttpServletRequest request) {
 		CapabilitiesView capabilities = CapabilitiesView.of(this.capabilities.capabilities(account.id()));
 		return new SessionView(SessionStatus.SIGNED_IN,
-				new AccountView(account.id(), account.kind(), capabilities, this.profiles.theme(account.id()),
-						account.role()),
+				new AccountView(account.id(), account.kind(), capabilities, this.profiles.theme(account.id())),
 				account.githubLogin(), account.githubAvatarUrl(), account.displayName(), null, null, version(),
 				administrator(account, request));
 	}

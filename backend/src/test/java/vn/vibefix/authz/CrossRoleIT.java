@@ -75,7 +75,8 @@ import vn.vibefix.team.internal.TeamTestSupport;
  * must let some person past its policy unless {@link #NOT_SWEPT} says why not. Each role must also read its own Job
  * ({@link #READS}) and see the busy marker as that role, the Customer-only reads and commands refuse everyone else
  * with {@code NOT_FOUND}, the Mentor's reads ({@link #MENTOR_ONLY}) refuse every Job where the person is not its
- * Mentor, and the global reads answer and run the same scan. CUS-7 and the next-action strip come with Story 20.6 (readiness C-8).
+ * Mentor, and the global reads answer and run the same scan, CUS-7's list of every Job a person holds a role in
+ * ({@code /my-jobs}, Story 20.6) among them.
  */
 class CrossRoleIT extends IntegrationTest {
 
@@ -88,7 +89,7 @@ class CrossRoleIT extends IntegrationTest {
 	private static final Instant WRITTEN = MutableClock.DEFAULT_INSTANT.minus(Duration.ofDays(1));
 
 	/** The global reads where every Job of a person meets: lists, inboxes, balances. Each answers 200. */
-	private static final List<String> GLOBAL_READS = List.of("/api/v1/jobs", "/api/v1/mentor/jobs",
+	private static final List<String> GLOBAL_READS = List.of("/api/v1/jobs", "/api/v1/my-jobs", "/api/v1/mentor/jobs",
 			"/api/v1/crew/assignments", "/api/v1/team-issues", "/api/v1/notifications", "/api/v1/todos",
 			"/api/v1/balance", "/api/v1/payments/history", "/api/v1/products", "/api/v1/profile",
 			"/api/v1/mentor/applications", "/api/v1/account/data");

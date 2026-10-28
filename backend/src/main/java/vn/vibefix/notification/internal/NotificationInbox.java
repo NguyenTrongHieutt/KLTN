@@ -52,9 +52,13 @@ class NotificationInbox {
 			boolean read) {
 	}
 
-	/** One open to-do. */
+	/**
+	 * One open to-do.
+	 * @param role the recipient's role in {@code jobId} (AD-27): {@code null} for an account to-do, and for a Job's
+	 * to-do opened for its subject or before roles were stored with several audience classes
+	 */
 	record TodoItem(UUID id, String key, int tier, Map<String, String> params, String link, @Nullable Instant deadlineAt,
-			boolean deadlineNear, @Nullable UUID jobId, Instant openedAt) {
+			boolean deadlineNear, @Nullable UUID jobId, @Nullable TodoRole role, Instant openedAt) {
 	}
 
 	List<NotificationItem> notifications(UUID account, int page, int size) {
@@ -112,7 +116,7 @@ class NotificationInbox {
 	List<TodoItem> todos(UUID account, @Nullable UUID jobId) {
 		Instant now = this.clock.instant();
 		return this.jdbc.sql("""
-				SELECT id, todo_key, tier, params::text AS params, link, deadline_at, job_id, opened_at
+				SELECT id, todo_key, tier, params::text AS params, link, deadline_at, job_id, role, opened_at
 				FROM notification.todo
 				WHERE account_id = :account AND closed_at IS NULL AND (CAST(:jobId AS uuid) IS NULL OR job_id = :jobId)
 				ORDER BY tier,
@@ -150,9 +154,11 @@ class NotificationInbox {
 		Timestamp deadline = row.getTimestamp("deadline_at");
 		Instant deadlineAt = deadline == null ? null : deadline.toInstant();
 		boolean near = tier == 1 && deadlineAt != null && !deadlineAt.isAfter(now.plus(NEAR));
+		String role = row.getString("role");
 		return new TodoItem(row.getObject("id", UUID.class), row.getString("todo_key"), tier,
 				this.json.read(row.getString("params")), row.getString("link"), deadlineAt, near,
-				row.getObject("job_id", UUID.class), row.getTimestamp("opened_at").toInstant());
+				row.getObject("job_id", UUID.class), role == null ? null : TodoRole.valueOf(role),
+				row.getTimestamp("opened_at").toInstant());
 	}
 
 }

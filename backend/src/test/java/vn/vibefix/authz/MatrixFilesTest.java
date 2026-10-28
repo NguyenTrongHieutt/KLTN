@@ -215,7 +215,7 @@ class MatrixFilesTest {
 	/** The global reads that list a Job's content, run by every caller of a Job (B4). */
 	static final List<String> JOB_LISTS = List.of("GET /api/v1/crew/assignments", "GET /api/v1/notifications",
 			"GET /api/v1/todos", "GET /api/v1/balance", "GET /api/v1/payments/history", "GET /api/v1/mentor/jobs",
-			"GET /api/v1/jobs", "GET /api/v1/team-issues");
+			"GET /api/v1/jobs", "GET /api/v1/my-jobs", "GET /api/v1/team-issues");
 
 	static final Set<MatrixCaller> IN_THE_CREW_JOB = EnumSet.of(MatrixCaller.MENTOR, MatrixCaller.CREW_ASSIGNED,
 			MatrixCaller.CREW_ACTIVE, MatrixCaller.CREW_FORMER);
@@ -329,8 +329,9 @@ class MatrixFilesTest {
 			.allSatisfy(row -> assertThat(row.path()).matches("/(api/.+|webhooks(/.+)?)"))
 			.allSatisfy(row -> assertThat(row.callerState()).as("no caller takes a subject state: %s", row).isEmpty())
 			.allSatisfy(row -> assertThat(row.caller()).as("AUTHOR is the harness's own").isNotEqualTo(MatrixCaller.AUTHOR));
-		// The spec's "about 2,800": at most 2,850 since review iteration 4 made room for the file bindings.
-		assertThat(MatrixRow.loadMatrix()).as("2,850 rows or fewer").hasSizeLessThanOrEqualTo(2_850);
+		// The spec's "about 2,800": at most 2,850 since review iteration 4 made room for the file bindings, and 2,900
+		// since Story 20.6 added the one shell's role read and Job list.
+		assertThat(MatrixRow.loadMatrix()).as("2,900 rows or fewer").hasSizeLessThanOrEqualTo(2_900);
 	}
 
 	@Test

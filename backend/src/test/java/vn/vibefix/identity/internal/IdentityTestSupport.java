@@ -31,8 +31,8 @@ import vn.vibefix.support.MutableClock;
  * Accounts for tests that need a signed-in caller without the sign-in flow: a row in
  * {@code identity.account} and the authentication a session would hold for it. An account with a {@link Role}
  * (the test-only shim enum, Story 20.3) is the shim of the accounts from before Google sign-in (Story 19.1),
- * kept while tests move over to roles per Job (Epic 20): the role seeds the row and its kind, and nothing on
- * the server decides on it.
+ * kept while tests move over to roles per Job (Epic 20): the role seeds only the row's kind and, for a person, a
+ * linked GitHub account. No account stores a role (Story 20.6), and nothing on the server decides on one.
  */
 public final class IdentityTestSupport {
 
@@ -53,16 +53,15 @@ public final class IdentityTestSupport {
 		Long githubId = role == Role.ADMINISTRATOR ? null : githubIds.incrementAndGet();
 		Timestamp now = Timestamp.from(MutableClock.DEFAULT_INSTANT);
 		jdbc.sql("""
-				INSERT INTO identity.account (id, kind, github_user_id, github_login, github_linked_at, role,
+				INSERT INTO identity.account (id, kind, github_user_id, github_login, github_linked_at,
 				    locked_at, lock_reason, created_at)
-				VALUES (:id, :kind, :githubId, :login, :linkedAt, :role, :lockedAt, :lockReason, :now)
+				VALUES (:id, :kind, :githubId, :login, :linkedAt, :lockedAt, :lockReason, :now)
 				""")
 			.param("id", id)
 			.param("kind", role == Role.ADMINISTRATOR ? "ADMINISTRATOR" : "USER")
 			.param("githubId", githubId)
 			.param("login", githubId == null ? null : "user-" + githubId)
 			.param("linkedAt", githubId == null ? null : now)
-			.param("role", role.name())
 			.param("lockedAt", lockReason == null ? null : now)
 			.param("lockReason", lockReason)
 			.param("now", now)
@@ -140,7 +139,7 @@ public final class IdentityTestSupport {
 	/**
 	 * The authentication a signed-in session holds for the account: its ID and kind only (Story 20.1), the
 	 * kind an Administrator's for {@code ADMINISTRATOR} and a person's for any other role or none (a Google
-	 * account's). The caller filter reads the role from the account row.
+	 * account's). The caller filter reads the kind and the lock from the account row.
 	 */
 	public static Authentication authentication(UUID accountId, @Nullable Role role) {
 		return new SignInSession.AccountAuthentication(accountId,
