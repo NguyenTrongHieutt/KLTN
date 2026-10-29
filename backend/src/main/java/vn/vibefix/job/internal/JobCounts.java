@@ -14,6 +14,15 @@ import vn.vibefix.shared.PlatformCounts;
 @Component
 class JobCounts implements PlatformCounts {
 
+	/**
+	 * FR-62's on-time formula, defined once (Story 17.2, X12): the accepted handover of {@code job.milestone m} was
+	 * submitted before the end of its due day, Vietnam time.
+	 */
+	static final String ON_TIME = "m.submitted_at < ((m.due_on + 1)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')";
+
+	/** The Milestones {@link #ON_TIME} counts over: live, accepted, and with a due date. */
+	static final String ACCEPTED_DATED = "m.removed_at IS NULL AND m.accepted_at IS NOT NULL AND m.due_on IS NOT NULL";
+
 	private final JdbcClient jdbc;
 
 	JobCounts(JdbcClient jdbc) {
@@ -52,11 +61,8 @@ class JobCounts implements PlatformCounts {
 				           AND EXISTS (SELECT 1 FROM job.confirmed_agreement c WHERE c.job_id = j.id))) AS whole
 				FROM job.job j
 				""");
-		rate(counts, "rates", "ON_TIME", """
-				SELECT count(*) FILTER (WHERE submitted_at < ((due_on + 1)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')) AS part,
-				       count(*) AS whole
-				FROM job.milestone WHERE removed_at IS NULL AND accepted_at IS NOT NULL AND due_on IS NOT NULL
-				""");
+		rate(counts, "rates", "ON_TIME", "SELECT count(*) FILTER (WHERE " + ON_TIME + ") AS part, count(*) AS whole"
+				+ " FROM job.milestone m WHERE " + ACCEPTED_DATED);
 		rate(counts, "acceptances", "MANUAL_SHARE", """
 				SELECT count(*) FILTER (WHERE NOT auto_accepted) AS part, count(*) AS whole FROM job.milestone
 				WHERE removed_at IS NULL AND accepted_at IS NOT NULL

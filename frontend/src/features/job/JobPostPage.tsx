@@ -7,6 +7,7 @@ import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { ReportAbuseMenu } from '@/features/abuse/ReportAbuseMenu'
+import { personPath } from '@/features/identity/personText'
 import { useSession } from '@/features/identity/useSession'
 import { rich } from '@/i18n/rich'
 import { t, type MessageKey } from '@/i18n/t'
@@ -309,7 +310,7 @@ function CrewAction({ post, recruitment }: { post: JobPost; recruitment: NonNull
         <p className="text-body-sm break-words">
           {rich('screen.jobPost.detail.crewMentor', {
             name: mentor.githubLogin ? (
-              <Link to={`/mentor/${mentor.githubLogin}`} className="text-primary underline-offset-4 hover:underline">
+              <Link to={personPath(mentor.githubLogin)} className="text-primary underline-offset-4 hover:underline">
                 {mentor.displayName}
               </Link>
             ) : (

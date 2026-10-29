@@ -318,13 +318,13 @@ class ProfileIT extends IntegrationTest {
 			assertThat(card.school()).isEqualTo("Đại học Bách khoa Hà Nội");
 			assertThat(card.major()).isEqualTo("Kỹ thuật phần mềm");
 		});
-		assertThat(this.students.search("Bách khoa", List.of(), PageRequest.of(0, 10)).getContent())
+		// Story 21.3 (AD-36): the declared name is searched while shown; the school and the major are no search terms.
+		assertThat(this.students.search("Quang Minh", List.of(), PageRequest.of(0, 10)).getContent())
+			.as("the declared name is searched while shown")
 			.extracting(StudentDirectory.StudentCard::accountId)
 			.containsExactly(minh);
-		assertThat(this.students.search("phần mềm", List.of(), PageRequest.of(0, 10)).getContent())
-			.as("the declared major is searched while shown")
-			.extracting(StudentDirectory.StudentCard::accountId)
-			.containsExactly(minh);
+		assertThat(this.students.search("Bách khoa", List.of(), PageRequest.of(0, 10)).getContent()).isEmpty();
+		assertThat(this.students.search("phần mềm", List.of(), PageRequest.of(0, 10)).getContent()).isEmpty();
 		this.mvc.perform(get("/api/v1/profile").with(authentication(IdentityTestSupport.authentication(minh, Role.STUDENT))))
 			.andExpect(jsonPath("$.hideStudentDetails").value(false))
 			.andExpect(jsonPath("$.studentDetails.name").value("Trần Quang Minh"))
@@ -340,10 +340,9 @@ class ProfileIT extends IntegrationTest {
 			assertThat(card.school()).isNull();
 			assertThat(card.major()).isNull();
 		});
-		assertThat(this.students.search("Bách khoa", List.of(), PageRequest.of(0, 10)).getContent()).isEmpty();
-		assertThat(this.students.search("phần mềm", List.of(), PageRequest.of(0, 10)).getContent()).isEmpty();
+		assertThat(this.students.search("Quang Minh", List.of(), PageRequest.of(0, 10)).getContent()).isEmpty();
 		assertThat(this.jdbc.sql("""
-				SELECT search_vector @@ plainto_tsquery('platform.vi_search', 'Bách khoa') FROM identity.profile
+				SELECT search_vector @@ plainto_tsquery('platform.vi_search', 'Trần Quang Minh') FROM identity.profile
 				WHERE account_id = :id
 				""").param("id", minh).query(Boolean.class).single()).isFalse();
 		// The save keeps the details as they were declared; only the switch changed.

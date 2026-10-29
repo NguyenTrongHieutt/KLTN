@@ -75,7 +75,7 @@ class InvitationsIT extends IntegrationTest {
 		this.long_ = mentor("Trần Đức Long", List.of(TeamTestSupport.SUPABASE), "Supabase");
 		this.ha = mentor("Phạm Thu Hà", List.of(TeamTestSupport.REACT, TeamTestSupport.SUPABASE), "React Supabase");
 		this.bao = mentor("Lê Quốc Bảo", List.of(TeamTestSupport.REACT), "React");
-		// Story 19.7: a Mentor without GitHub linked is listed, but cannot be invited to bid.
+		// Story 21.3: a user without GitHub linked is never listed, and cannot be invited to bid.
 		this.unlinked = mentor("Chưa Liên Kết", List.of(TeamTestSupport.SUPABASE), "Supabase");
 		IdentityTestSupport.unlinkGitHub(this.jdbc, this.unlinked);
 		this.locked = mentor("Bị Khóa", List.of(TeamTestSupport.SUPABASE), "Supabase");
@@ -84,33 +84,34 @@ class InvitationsIT extends IntegrationTest {
 
 	@Test
 	void theSearchFindsUnlockedMentorsWithAProfileAndNoContactDetails() throws Exception {
-		// The listed Mentor's own contact details (FR-3, AD-20): never in the directory or on PUB-5.
+		// The listed Mentor's own contact details (FR-3, AD-20): never in the directory or on PUB-4.
 		this.jdbc.sql("""
 				UPDATE identity.profile SET contact_email = 'long.lienhe@example.test', phone = '+84 977 123 456'
 				WHERE account_id = :id
 				""").param("id", this.long_).update();
 		String body = search("supabase", "").andExpect(status().isOk())
-			.andExpect(jsonPath("$.total").value(3))
+			.andExpect(jsonPath("$.total").value(2))
 			.andExpect(jsonPath("$.size").value(20))
 			.andExpect(jsonPath("$.items[0].linkedinUrl").doesNotExist())
 			.andExpect(jsonPath("$.items[0].experience").doesNotExist())
+			.andExpect(jsonPath("$.items[0].teamSize").doesNotExist())
+			.andExpect(jsonPath("$.items[0].verified[0].kind").value("GITHUB"))
+			.andExpect(jsonPath("$.items[0].verified[0].verifiedAt").isNotEmpty())
+			.andExpect(jsonPath("$.items[0].verified[2].kind").value("LINKEDIN"))
 			.andReturn()
 			.getResponse()
 			.getContentAsString();
 		List<String> found = JsonPath.read(body, "$.items[*].accountId");
-		assertThat(found).as("a locked Mentor is absent (SG-44); one without GitHub linked is listed")
-			.containsExactlyInAnyOrder(this.long_.toString(), this.ha.toString(), this.unlinked.toString());
+		// Story 21.3 (FR-14, AD-36): the GitHub-verified, unlocked users only; a locked one and an unlinked one are absent.
+		assertThat(found).as("a locked Mentor is absent (SG-44), and so is one without GitHub linked")
+			.containsExactlyInAnyOrder(this.long_.toString(), this.ha.toString());
 		List<String> relations = JsonPath.read(body, "$.items[*].relation");
 		assertThat(relations).containsOnly("NONE");
-		// Story 19.7: the card says who may be invited, so CUS-8 disables "Mời ứng tuyển" for the others.
-		assertThat(JsonPath.<List<Boolean>>read(body, "$.items[?(@.accountId == '" + this.long_ + "')].available"))
-			.containsExactly(true);
-		assertThat(JsonPath.<List<Boolean>>read(body, "$.items[?(@.accountId == '" + this.unlinked + "')].available"))
-			.containsExactly(false);
+		assertThat(JsonPath.<List<Boolean>>read(body, "$.items[*].available")).containsOnly(true);
 		String login = this.jdbc.sql("SELECT github_login FROM identity.account WHERE id = :id").param("id", this.long_)
 			.query(String.class)
 			.single();
-		String publicProfile = this.mvc.perform(get("/api/v1/mentors/" + login)).andExpect(status().isOk())
+		String publicProfile = this.mvc.perform(get("/api/v1/users/" + login)).andExpect(status().isOk())
 			.andReturn()
 			.getResponse()
 			.getContentAsString();
@@ -162,6 +163,48 @@ class InvitationsIT extends IntegrationTest {
 			.query(String.class)
 			.list();
 		assertThat(found).as("equal ranks fall back to the account ID, as PostgreSQL orders it").isEqualTo(byId);
+	}
+
+	/**
+	 * Story 21.3 (FR-14, AD-36, X9): the search covers the student name declared at verification only while its owner
+	 * shows it; the school and the major are no search terms.
+	 */
+	@Test
+	void theDeclaredStudentNameIsFoundOnlyWhileShown() throws Exception {
+		UUID shown = TeamTestSupport.student(this.jdbc, "Hoàng Diệu Linh", true, List.of(TeamTestSupport.REACT), "React",
+				java.time.LocalDate.parse("2026-09-30"));
+		UUID hidden = TeamTestSupport.student(this.jdbc, "Hoàng Diệu Thư", false, List.of(TeamTestSupport.REACT), "React",
+				java.time.LocalDate.parse("2026-09-30"));
+
+		String body = search("Hoàng Diệu", "").andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+		assertThat(JsonPath.<List<String>>read(body, "$.items[*].accountId")).containsExactly(shown.toString())
+			.doesNotContain(hidden.toString());
+		assertThat(body).doesNotContain("Hoàng Diệu Thư");
+		search("Bách khoa", "").andExpect(jsonPath("$.total").value(0));
+		search(TeamTestSupport.MAJOR, "").andExpect(jsonPath("$.total").value(0));
+	}
+
+	/**
+	 * Story 21.3 (AD-34): 60 searches per account in a minute, one window shared with "Tìm việc"; the 61st is refused
+	 * with {@code Retry-After}, and a blank keyword is no search.
+	 */
+	@Test
+	void sixtySearchesAMinuteSharedWithTheJobPostSearch() throws Exception {
+		for (int i = 0; i < 30; i++) {
+			this.mvc.perform(get("/api/v1/mentor/job-posts?q=supabase").with(as(this.lan, Role.CUSTOMER)))
+				.andExpect(status().isOk());
+		}
+		for (int i = 0; i < 30; i++) {
+			search("supabase", "").andExpect(status().isOk());
+		}
+		search("", "").andExpect(status().isOk());
+		search("supabase", "").andExpect(status().isTooManyRequests())
+			.andExpect(jsonPath("$.code").value("RATE_LIMITED"))
+			.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("Retry-After", "60"));
+		this.mvc.perform(get("/api/v1/mentor/job-posts?q=supabase").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(status().isTooManyRequests());
+		this.clock.advance(java.time.Duration.ofSeconds(61));
+		search("supabase", "").andExpect(status().isOk());
 	}
 
 	@Test

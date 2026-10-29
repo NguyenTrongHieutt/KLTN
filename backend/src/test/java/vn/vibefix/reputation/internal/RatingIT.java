@@ -31,6 +31,7 @@ import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.JobTransitioned;
 import vn.vibefix.reputation.PrivateFeedback;
+import vn.vibefix.reputation.RatingRole;
 import vn.vibefix.reputation.RatingSummary;
 import vn.vibefix.reputation.Reputation;
 import vn.vibefix.support.IntegrationTest;
@@ -141,8 +142,12 @@ class RatingIT extends IntegrationTest {
 		read(lan, Role.CUSTOMER, job).andExpect(jsonPath("$.ratings.length()").value(2))
 			.andExpect(jsonPath("$.ratings[?(@.mine == false)].comment").value("Rõ ràng"))
 			.andExpect(jsonPath("$.hiddenUntil").doesNotExist());
-		assertThat(this.reputation.visibleSummary(hung)).isEqualTo(new RatingSummary(new BigDecimal("5.0"), 1));
-		assertThat(this.reputation.visibleSummary(vy)).isEqualTo(RatingSummary.NONE);
+		// Story 21.3: each role's summary counts its own kind only (AD-33).
+		assertThat(this.reputation.visibleSummary(hung, RatingRole.MENTOR)).isEqualTo(new RatingSummary(new BigDecimal("5.0"), 1));
+		assertThat(this.reputation.visibleSummary(hung, RatingRole.CUSTOMER)).isEqualTo(RatingSummary.NONE);
+		assertThat(this.reputation.visibleSummary(lan, RatingRole.CUSTOMER)).isEqualTo(new RatingSummary(new BigDecimal("5.0"), 1));
+		assertThat(this.reputation.visibleSummary(lan, RatingRole.MENTOR)).isEqualTo(RatingSummary.NONE);
+		assertThat(this.reputation.visibleSummary(vy, RatingRole.CREW)).isEqualTo(RatingSummary.NONE);
 		assertThat(openTodos()).isZero();
 		assertThat(this.jdbc.sql("SELECT count(*) FROM notification.notification WHERE type = 'reputation.ratings_published'")
 			.query(Long.class).single()).isEqualTo(2);
@@ -153,7 +158,8 @@ class RatingIT extends IntegrationTest {
 			.andExpect(jsonPath("$.ratings[0].stars").value(4))
 			.andExpect(jsonPath("$.open").value(false))
 			.andExpect(jsonPath("$.hiddenUntil").doesNotExist());
-		assertThat(this.reputation.visibleSummary(vy)).isEqualTo(new RatingSummary(new BigDecimal("4.0"), 1));
+		assertThat(this.reputation.visibleSummary(vy, RatingRole.CREW)).isEqualTo(new RatingSummary(new BigDecimal("4.0"), 1));
+		assertThat(this.reputation.visibleSummary(vy, RatingRole.MENTOR)).isEqualTo(RatingSummary.NONE);
 		rate(hung, Role.MENTOR, job, lan, 3, "Muộn").andExpect(status().isUnprocessableEntity())
 			.andExpect(jsonPath("$.reason").value("RATING_WINDOW_CLOSED"));
 		assertThat(this.jdbc.sql("""

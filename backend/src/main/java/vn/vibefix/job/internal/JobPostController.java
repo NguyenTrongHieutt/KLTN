@@ -49,6 +49,7 @@ import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
 import vn.vibefix.shared.KeywordQuery;
 import vn.vibefix.shared.PageResponse;
+import vn.vibefix.shared.SearchWindow;
 
 /**
  * MEN-2 and MEN-3, "Tìm việc" (X1; FR-12, FR-13, AD-20, AD-36): every Job that needs people (Story 21.1), for any

@@ -2,6 +2,7 @@ package vn.vibefix.job.internal;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -100,6 +101,25 @@ class MentorCapacity implements MentorWork {
 				.put(rs.getString("type"), rs.getInt("n"));
 		});
 		return history;
+	}
+
+	/** {@inheritDoc} Every Job where the person is the Mentor counts, by {@link JobCounts#ON_TIME}. */
+	@Override
+	public Map<UUID, OnTime> onTimeMilestones(Collection<UUID> mentorIds) {
+		Map<UUID, OnTime> onTime = new LinkedHashMap<>();
+		mentorIds.forEach(id -> onTime.put(id, OnTime.NONE));
+		if (mentorIds.isEmpty()) {
+			return onTime;
+		}
+		this.jdbc.sql("SELECT j.mentor_account_id, count(*) FILTER (WHERE " + JobCounts.ON_TIME + ") AS on_time,"
+				+ " count(*) AS total FROM job.milestone m JOIN job.job j ON j.id = m.job_id"
+				+ " WHERE j.mentor_account_id IN (:mentors) AND " + JobCounts.ACCEPTED_DATED
+				+ " GROUP BY j.mentor_account_id")
+			.param("mentors", List.copyOf(new LinkedHashSet<>(mentorIds)))
+			.query(rs -> {
+				onTime.put(rs.getObject("mentor_account_id", UUID.class), new OnTime(rs.getInt("on_time"), rs.getInt("total")));
+			});
+		return onTime;
 	}
 
 	@Override

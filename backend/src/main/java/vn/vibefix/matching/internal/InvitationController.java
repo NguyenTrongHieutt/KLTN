@@ -27,6 +27,9 @@ import vn.vibefix.catalog.Catalog;
 import vn.vibefix.identity.GitHubGate;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
+import vn.vibefix.identity.PublicProfiles;
+import vn.vibefix.identity.PublicProfiles.PersonFacts;
+import vn.vibefix.identity.PublicProfiles.VerifiedFact;
 import vn.vibefix.job.JobRoles;
 import vn.vibefix.matching.internal.Invitations.Invitation;
 import vn.vibefix.matching.internal.Invitations.MentorInvitation;
@@ -39,12 +42,13 @@ import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.team.Teams;
+import vn.vibefix.shared.SearchWindow;
 
 /**
- * CUS-8 "Tìm người hướng dẫn" and invitations to apply (FR-14, AD-20, AD-36): the Job's Customer
- * searches unlocked Mentors by keyword and Skills and invites them; the invited Mentor reads
- * their invitation on MEN-3. Contact details and Balances never appear (SG-42).
+ * CUS-8 "Tìm người hướng dẫn" and invitations to apply (FR-14, AD-20, AD-36, SG-41, Story 21.3): the Job's Customer
+ * searches the public fields of GitHub-verified, unlocked users by keyword and Skills, within the one search window
+ * shared with "Tìm việc" (60 a minute), and invites them to bid ("Mời chào giá"); the invited user reads their
+ * invitation on MEN-3. Contact details, Balances and Team sizes never appear (SG-42).
  */
 @RestController
 @Access(Gate.SIGNED_IN)
@@ -53,18 +57,19 @@ class InvitationController {
 	/** A result page (AD-36). */
 	static final int PAGE_SIZE = 20;
 
-	/** "Mời ứng tuyển": the Mentor's account ID from a search card. */
+	/** "Mời chào giá": the user's account ID from a search card. */
 	record InviteRequest(@NotNull UUID mentorId) {
 	}
 
 	/**
-	 * A search card: no contact details, no Balance.
-	 * @param yearsOfExperience absent while the Mentor has not declared it
-	 * @param relation whether the Customer invited this Mentor or the Mentor applied
-	 * @param available whether the Mentor may be invited: unlocked and with GitHub linked (Story 19.7)
+	 * A Profile result card (UX-DR100): no contact details, no Balance, no Team size.
+	 * @param yearsOfExperience "Tự khai"; absent while the user has not declared it
+	 * @param verified the three Verified facts, in their fixed order
+	 * @param relation whether the Customer invited this user or the user bid
+	 * @param available whether the user may be invited: unlocked and with GitHub linked, as every listed one is
 	 */
 	record MentorResultView(UUID accountId, @Nullable String githubLogin, String displayName,
-			@Nullable Integer yearsOfExperience, List<String> skills, int teamSize, Relation relation,
+			@Nullable Integer yearsOfExperience, List<String> skills, List<VerifiedFact> verified, Relation relation,
 			boolean available) {
 	}
 
@@ -104,7 +109,9 @@ class InvitationController {
 
 	private final MentorDirectory mentors;
 
-	private final Teams teams;
+	private final PublicProfiles profiles;
+
+	private final SearchWindow searches;
 
 	private final Catalog catalog;
 
@@ -114,44 +121,52 @@ class InvitationController {
 
 	private final JobRoles roles;
 
-	InvitationController(Invitations invitations, MentorDirectory mentors, Teams teams,
-			Catalog catalog, GitHubGate gate, CurrentCaller callers, JobRoles roles) {
+	InvitationController(Invitations invitations, MentorDirectory mentors, PublicProfiles profiles,
+			SearchWindow searches, Catalog catalog, GitHubGate gate, CurrentCaller callers, JobRoles roles) {
 		this.roles = roles;
 		this.invitations = invitations;
 		this.mentors = mentors;
-		this.teams = teams;
+		this.profiles = profiles;
+		this.searches = searches;
 		this.catalog = catalog;
 		this.gate = gate;
 		this.callers = callers;
 	}
 
 	/**
-	 * The Job's Customer searches Mentors (FR-14): 20 a page by relevance, then account ID, never by
-	 * Rating; the Skill filter keeps Mentors with any active chosen Skill or any active Skill of the
-	 * chosen Categories (AD-38). A blank keyword finds no one.
+	 * The Job's Customer searches GitHub-verified, unlocked users (FR-14, AD-36): 20 a page by relevance, then account
+	 * ID, never by Rating; the Skill filter keeps users with any active chosen Skill or any active Skill of the
+	 * chosen Categories (AD-38). A blank keyword finds no one and is no search; a keyword counts in the one search
+	 * window (AD-34).
+	 * @throws vn.vibefix.shared.RateLimitedException past 60 searches in a minute, "Tìm việc"'s included
 	 */
 	@GetMapping("/api/v1/jobs/{jobId}/mentors")
 	MentorSearchView search(@PathVariable UUID jobId, @RequestParam(defaultValue = "") @Size(max = 200) String q,
 			@RequestParam(name = "skill", required = false) @Nullable List<UUID> skills,
 			@RequestParam(name = "category", required = false) @Nullable List<UUID> categories,
 			@RequestParam(defaultValue = "0") int page) {
-		customerOf(jobId);
+		UUID customer = customerOf(jobId);
 		if (page < 0) {
 			throw new ApiException(ErrorCode.VALIDATION);
 		}
 		Set<UUID> skillIds = SkillFilter.resolve(this.catalog, skills, categories);
-		if (q.isBlank() || (skillIds != null && skillIds.isEmpty())) {
+		if (q.isBlank()) {
+			return new MentorSearchView(List.of(), page, PAGE_SIZE, 0);
+		}
+		this.searches.record(customer);
+		if (skillIds != null && skillIds.isEmpty()) {
 			return new MentorSearchView(List.of(), page, PAGE_SIZE, 0);
 		}
 		// The Job's Customer is never its Mentor (AD-43), so the search never lists them.
 		Page<MentorCard> found = this.mentors.search(q, skillIds == null ? Set.of() : skillIds,
 				this.callers.get().requireAccountId(), PageRequest.of(page, PAGE_SIZE));
-		Map<UUID, Relation> relations = this.invitations.relations(jobId,
-				found.getContent().stream().map(MentorCard::accountId).toList());
+		List<UUID> ids = found.getContent().stream().map(MentorCard::accountId).toList();
+		Map<UUID, Relation> relations = this.invitations.relations(jobId, ids);
+		Map<UUID, PersonFacts> facts = this.profiles.factsOf(ids);
 		List<MentorResultView> items = found.getContent()
 			.stream()
 			.map(card -> new MentorResultView(card.accountId(), card.githubLogin(), card.displayName(),
-					card.yearsOfExperience(), card.skills(), this.teams.sizeOf(card.accountId()),
+					card.yearsOfExperience(), card.skills(), verified(facts.get(card.accountId())),
 					relations.getOrDefault(card.accountId(), Relation.NONE), card.available()))
 			.toList();
 		return new MentorSearchView(items, page, PAGE_SIZE, found.getTotalElements());
@@ -173,7 +188,7 @@ class InvitationController {
 		}).toList());
 	}
 
-	/** "Mời ứng tuyển" (FR-14): no Confirmation dialog; the server's answer is the new quota. */
+	/** "Mời chào giá" (FR-14, SG-41): no Confirmation dialog; the server's answer is the new quota. */
 	@PostMapping("/api/v1/jobs/{jobId}/invitations")
 	@ResponseStatus(HttpStatus.CREATED)
 	QuotaView invite(@PathVariable UUID jobId, @Valid @RequestBody InviteRequest body) {
@@ -192,6 +207,11 @@ class InvitationController {
 		return this.invitations.forMentor(mentor, postId)
 			.map(MentorInvitationView::of)
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+	}
+
+	/** A person's Verified facts, or none for one {@code identity} no longer knows. */
+	static List<VerifiedFact> verified(@Nullable PersonFacts facts) {
+		return facts == null ? List.of() : facts.verified();
 	}
 
 	/** The Job's Customer calling, by their role in the Job (AD-43); anyone else finds nothing. */

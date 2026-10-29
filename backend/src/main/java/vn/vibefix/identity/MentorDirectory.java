@@ -37,7 +37,7 @@ public interface MentorDirectory {
 	}
 
 	/**
-	 * PUB-5's profile of a Mentor.
+	 * A Mentor's profile, found by GitHub username for an Abuse Report (FR-63).
 	 * @param memberSince when the account was created
 	 * @param skillGroups the Skills grouped by Skill Category (UX-DR65)
 	 */
@@ -50,9 +50,10 @@ public interface MentorDirectory {
 	}
 
 	/**
-	 * Unlocked Mentors whose public fields match {@code query} and who hold one of {@code skillIds}: by
-	 * relevance, then account ID, never by Rating (AD-36, FR-14); by name without a keyword. One without
-	 * GitHub linked is listed, not available.
+	 * GitHub-verified, unlocked users whose public fields match {@code query} (the display name, the experience, the
+	 * Skill names, and a declared student name only while it is shown) and who hold one of {@code skillIds}: by
+	 * relevance, then account ID, never by Rating (AD-36, FR-14); by name without a keyword. Nobody without GitHub
+	 * linked is listed (Story 21.3).
 	 * @param query the keyword; blank for the Skill filter alone
 	 * @param skillIds the Skill filter; empty for none
 	 * @param excluded an account never listed, such as the searching Customer, who cannot be their own Job's

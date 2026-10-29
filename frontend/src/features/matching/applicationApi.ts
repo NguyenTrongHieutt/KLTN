@@ -4,6 +4,8 @@ import { apiClient, formBody, unwrap } from '@/lib/apiClient'
 
 export type Application = components['schemas']['ApplicationView']
 export type JobApplication = components['schemas']['JobApplicationView']
+export type Bidder = components['schemas']['ApplicantView']
+export type FitMetrics = components['schemas']['FitMetricsView']
 export type ApplyRequest = components['schemas']['ApplyRequest']
 export type ApplicationStatus = Application['status']
 export type BidProof = components['schemas']['BidProofView']
@@ -101,7 +103,10 @@ export function useMyApplications(enabled = true) {
   })
 }
 
-/** CUS-8: the open bids on the Customer's Job, each with its proof. */
+/**
+ * CUS-8 and CUS-13: the open bids on the Customer's Job as Bid cards, oldest first and never reordered, each with the
+ * bidder's Verified facts, its proof, and the Fit metrics (UX-DR100).
+ */
 export function useJobApplications(jobId: string | undefined) {
   return useQuery({
     queryKey: [...KEY, 'job', jobId],

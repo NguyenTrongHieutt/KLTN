@@ -63,7 +63,8 @@ import vn.vibefix.team.internal.TeamTestSupport;
  * ({@code TEAM_ISSUE_ID}) are the Crew canaries, and the member who escalated the Team Issue, who hides their
  * student name ({@code STUDENT_HIDDEN_NAME}), owns a Story of their own ({@code {raiserWorkItemId}}, which
  * {@code item=raiser} binds to {@code {workItemId}}), and has a published Portfolio Entry on the Mentor's earlier
- * Job, so their public profile is {@code {studentLogin}}'s. The Job Chat holds
+ * Job, so their public profile is {@code {memberUsername}}'s, which {@code user=member} binds to {@code {username}}
+ * (Story 21.3). The Job Chat holds
  * the {@code JOB_CHAT} canary, which no Crew state reads, and the Mentor holds the contact grant on the Customer's
  * {@code CONTACT_EMAIL} (FR-3).
  * <p>
@@ -188,7 +189,7 @@ final class CrewJobWorld {
 		UUID canaryMember = JobContent.canaryMember(this.jdbc, value("CREW_NAME"), value("CREW_EMAIL"),
 				value("CREW_LINKEDIN"), null);
 		UUID canaryRow = JobContent.crewRow(this.jdbc, job, canaryMember, "ACTIVE", null);
-		// The member who hides their student name (FR-51): their public profile is {studentLogin}'s (review iteration 4).
+		// The member who hides their student name (FR-51, X9): their PUB-4 is {memberUsername}'s (review iteration 4).
 		UUID escalating = JobContent.hidingMember(this.jdbc, "Sinh viên nhờ quản trị viên", value("STUDENT_HIDDEN_NAME"));
 		UUID escalatingRow = JobContent.crewRow(this.jdbc, job, escalating, "ACTIVE", null);
 		UUID chat = JobContent.chat(this.jdbc, job, product, "CREW");
@@ -445,7 +446,7 @@ final class CrewJobWorld {
 		privateFeedback(product, owner, escalating);
 		secondJob();
 		world.put("username", TeamTestSupport.login(this.jdbc, this.mentor));
-		world.put("studentLogin", TeamTestSupport.login(this.jdbc, escalating));
+		world.put("memberUsername", TeamTestSupport.login(this.jdbc, escalating));
 		// The retired Team endpoints refuse every caller (Story 21.7 deletes them), so their IDs name nothing.
 		world.put("studentId", canaryMember);
 		world.put("teamMentorId", this.mentor);

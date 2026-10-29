@@ -7,6 +7,7 @@ import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
 import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
 import { PAYLOADS } from '@/test/payloads'
+import { emptyMetrics, personReputation, publicPerson, shortHistory, verifiedFacts } from '@/test/people'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -56,7 +57,23 @@ const hungApplication = {
   timelineDays: 7,
   approach: 'Tái hiện lỗi, sửa và thêm kiểm thử.',
   submittedAt: '2026-10-16T03:00:00Z',
-  mentor: { displayName: 'Đỗ Mạnh Hùng', githubLogin: 'hungdm', yearsOfExperience: 8 },
+  mentor: {
+    displayName: 'Đỗ Mạnh Hùng',
+    githubLogin: 'hungdm',
+    yearsOfExperience: 8,
+    memberSince: '2026-06-01T03:00:00Z',
+    verified: verifiedFacts('hungdm', { school: 'Đại học Bách khoa Hà Nội', name: 'Đỗ Mạnh Hùng', major: 'Phần mềm' }),
+  },
+  invited: false,
+  fitMetrics: emptyMetrics({
+    sharedSkills: ['React'],
+    jobTypeMatches: [{ jobType: 'BUG_FIX', asMentor: 2, asCrew: 1 }],
+    jobsAsMentor: 3,
+    jobsAsCrew: 1,
+    onTime: { onTime: 3, total: 4 },
+    activeJobsAsMentor: 1,
+    verifications: ['GITHUB', 'STUDENT'],
+  }),
   proof: [
     {
       position: 1,
@@ -78,22 +95,62 @@ const haApplication = {
   timelineDays: 10,
   approach: 'Tập trung vào lộ dữ liệu khách hàng.',
   submittedAt: '2026-10-16T04:00:00Z',
-  mentor: { displayName: 'Phạm Thu Hà', githubLogin: 'hatp', yearsOfExperience: 6 },
+  mentor: { displayName: 'Phạm Thu Hà', githubLogin: 'hatp', yearsOfExperience: 6, verified: verifiedFacts('hatp') },
+  invited: true,
+  fitMetrics: emptyMetrics(),
   proof: [],
 }
 
-const publicHung = {
-  accountId: 'm1',
-  githubLogin: 'hungdm',
-  displayName: 'Đỗ Mạnh Hùng',
-  experience: 'Kỹ sư phần mềm.',
-  yearsOfExperience: 8,
-  memberSince: '2026-06-01T03:00:00Z',
-  skillGroups: [],
-  available: true,
-  teamSize: 6,
-  sizeLimit: 10,
-  listedMembers: [],
+const minhApplication = {
+  ...haApplication,
+  id: 'a3',
+  submittedAt: '2026-10-17T04:00:00Z',
+  priceVnd: 4_000_000,
+  mentor: { displayName: 'Ngô Văn Minh', githubLogin: 'minhnv', yearsOfExperience: 2, verified: verifiedFacts('minhnv') },
+  invited: false,
+}
+
+/** The bids' histories in short: Hùng has history in both roles, Hà and Minh none. */
+const histories = () =>
+  json([
+    shortHistory('hungdm', {
+      mentor: { jobs: 3, average: 4.8, count: 6, portfolio: 2 },
+      crew: { jobs: 1, average: 4, count: 1, portfolio: 1 },
+      newcomer: false,
+    }),
+    shortHistory('hatp'),
+    shortHistory('minhnv'),
+  ])
+
+/** CUS-8's handlers: the Open Job, its bids in the server's order (oldest first), and their histories. */
+const bidHandlers = (bids: object[] = [hungApplication, haApplication, minhApplication]) => ({
+  ...inEveryJob('CUSTOMER'),
+  'GET /api/v1/jobs/j1': () => json(openJob),
+  'GET /api/v1/jobs/j1/applications': () => json(bids),
+  'GET /api/v1/reputation/histories': histories,
+})
+
+/** The Bid cards' names, top to bottom. */
+function cardNames(): string[] {
+  return screen.getAllByRole('listitem').flatMap((item) => {
+    const name = item.getAttribute('aria-labelledby')
+    return name ? [document.getElementById(name)?.textContent ?? ''] : []
+  })
+}
+
+/** CUS-13's stacked columns, one per bid, in their order. */
+function bidColumns(): HTMLElement[] {
+  return screen.getAllByRole('region').filter((region) => region.querySelector('dl') !== null)
+}
+
+/** A wide screen for CUS-13 (≥ 1024 px), and the default narrow one otherwise. */
+function wideScreen() {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query === '(min-width: 1024px)',
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }))
 }
 
 const selectingJob = {
@@ -131,51 +188,165 @@ describe('"Việc tôi hướng dẫn" on CUS-7, and CUS-8 (UX-DR78, UX-DR66, UX
     expect(screen.getByText(/Bạn chưa nhận công việc nào/)).toBeInTheDocument()
   })
 
-  it('shows each Application with its Rating summary and opens the profile in a Sheet', { timeout: 15_000 }, async () => {
-    const user = userEvent.setup()
-    fakeBackend(signedInUser, {
-      ...inEveryJob('CUSTOMER'),
-      'GET /api/v1/jobs/j1': () => json(openJob),
-      'GET /api/v1/jobs/j1/applications': () => json([hungApplication, haApplication]),
-      'GET /api/v1/mentors/hungdm/reputation': () => json({ average: 4.8, count: 6, newcomer: false, portfolio: [] }),
-      'GET /api/v1/mentors/hatp/reputation': () => json({ count: 0, newcomer: true, portfolio: [] }),
-      'GET /api/v1/mentors/hungdm': () => json(publicHung),
-    })
+  it('lists the Bid cards oldest first in the fixed order, with "Đã mời" only as a chip (UX-DR100)', { timeout: 20_000 }, async () => {
+    const seen = fakeBackend(signedInUser, bidHandlers())
     renderAt('/cong-viec/j1/ung-tuyen')
 
     expect(await screen.findByText('Đỗ Mạnh Hùng')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Đơn chào giá (2)' })).toHaveAttribute('aria-current', 'page')
-    // Story 21.2: no Team size; each bid shows its proof, a file's download and a link with its domain and N-11.
-    expect(screen.getByText(/^8 năm kinh nghiệm/)).toBeInTheDocument()
-    expect(screen.queryByText(/nhóm \d+ thành viên/)).toBeNull()
-    expect(screen.getByText('Báo cáo kiểm thử')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /bao-cao\.pdf/ })).toHaveAttribute('href', '/api/v1/files/f1')
-    expect(screen.getByRole('link', { name: /docs\.example\.vn\/danh-gia/ })).toHaveAttribute('target', '_blank')
-    expect(screen.getByText(/Trang này nằm ngoài vibefix \(docs\.example\.vn\)/)).toBeInTheDocument()
-    expect(screen.getByText('3.500.000 ₫')).toBeInTheDocument()
-    expect(await screen.findByText('4,8 sao')).toBeInTheDocument()
-    expect(await screen.findByText('Mới')).toBeInTheDocument()
-    expect(screen.getAllByText('0 mục hồ sơ năng lực').length).toBe(2)
-
-    await user.click(screen.getAllByRole('button', { name: 'Xem hồ sơ' })[0])
-    const sheet = await screen.findByRole('dialog')
-    expect(await within(sheet).findByText('Kỹ sư phần mềm.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Đơn chào giá (3)' })).toHaveAttribute('aria-current', 'page')
+    expect(cardNames()).toEqual(['Đỗ Mạnh Hùng', 'Phạm Thu Hà', 'Ngô Văn Minh'])
+    const [hung, ha, minh] = screen.getAllByRole('listitem').filter((item) => item.hasAttribute('aria-labelledby'))
+    // The fixed order: Verified facts, what was posted, the two histories, then the Fit metrics.
+    const bands = within(hung)
+      .getAllByRole('region')
+      .map((band) => band.getAttribute('aria-label'))
+    expect(bands).toEqual(['Đã xác minh', 'Đơn chào giá', 'Lịch sử', 'Mức phù hợp với công việc này'])
+    expect(within(hung).getByText('Xác minh qua GitHub · 10/2026')).toBeInTheDocument()
+    expect(within(hung).getByText('Xác minh qua email trường · 09/2026')).toBeInTheDocument()
+    expect(within(hung).getByText(/Đại học Bách khoa Hà Nội · Đỗ Mạnh Hùng · Phần mềm/)).toBeInTheDocument()
+    expect(within(ha).getAllByText('Chưa xác minh')).toHaveLength(2)
+    expect(within(hung).getByText('3.500.000 ₫')).toBeInTheDocument()
+    expect(within(hung).getByText('2 bằng chứng')).toBeInTheDocument()
+    expect(within(hung).getByText('3 công việc hoàn thành · 2 mục hồ sơ năng lực')).toBeInTheDocument()
+    expect(within(hung).getByText('1 công việc hoàn thành · 1 mục hồ sơ năng lực')).toBeInTheDocument()
+    // The Fit metrics, each with its formula as a Term hint, the on-time Milestones x/y, and no score.
+    expect(within(hung).getByText('1/2 kỹ năng cần có (React)')).toBeInTheDocument()
+    expect(within(hung).getByText('Đã làm 2 công việc Sửa lỗi khi làm người hướng dẫn · 1 khi làm thành viên nhóm')).toBeInTheDocument()
+    expect(within(hung).getByText('3/4 giai đoạn')).toBeInTheDocument()
+    expect(within(hung).getByText('2/3: GitHub, Sinh viên đã xác minh')).toBeInTheDocument()
+    expect(within(hung).getByRole('button', { name: 'Đúng hạn' })).toBeInTheDocument()
+    expect(within(hung).getByText('Chấm sao khi làm người hướng dẫn: 4,8 sao (6 lượt)')).toBeInTheDocument()
+    expect(within(hung).getByText('Tham gia vibefix từ 06/2026')).toBeInTheDocument()
+    // A new user: every history metric is "Chưa có dữ liệu", with "Mới" beside them; their histories read "Chưa có".
+    expect(within(minh).getAllByText('Chưa có dữ liệu')).toHaveLength(5)
+    expect(within(minh).getByText('Chấm sao khi làm người hướng dẫn: Mới')).toBeInTheDocument()
+    expect(within(minh).getAllByText('Chưa có')).toHaveLength(2)
+    expect(within(ha).getByText('Đã mời')).toBeInTheDocument()
+    expect(within(hung).queryByText('Đã mời')).toBeNull()
+    expect(within(minh).queryByText('Đã mời')).toBeNull()
+    expect(screen.queryByText(/điểm phù hợp|xếp hạng #|thành viên trong nhóm/i)).toBeNull()
+    // One batch of histories for the page, never one request per card (SG-43).
+    const calls = seen.filter((request) => request.url.includes('/reputation/histories'))
+    expect(calls).toHaveLength(1)
+    expect(new URL(calls[0].url).searchParams.getAll('username')).toEqual(['hungdm', 'hatp', 'minhnv'])
   })
 
-  it('pins up to three Applications in "So sánh"', { timeout: 15_000 }, async () => {
+  it('opens CUS-12 at ?ho-so= with the bid in full, PUB-4, and the Fit metrics', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     fakeBackend(signedInUser, {
-      ...inEveryJob('CUSTOMER'),
-      'GET /api/v1/jobs/j1': () => json(openJob),
-      'GET /api/v1/jobs/j1/applications': () => json([hungApplication, haApplication]),
+      ...bidHandlers(),
+      'GET /api/v1/users/hungdm': () => json(publicPerson('hungdm')),
+      'GET /api/v1/users/hungdm/reputation': () => json(personReputation({ newcomer: false })),
     })
+    const router = renderAt('/cong-viec/j1/ung-tuyen')
+
+    await screen.findByText('Đỗ Mạnh Hùng')
+    const hung = screen.getAllByRole('listitem').find((item) => item.hasAttribute('aria-labelledby')) as HTMLElement
+    await user.click(within(hung).getByRole('button', { name: 'Xem hồ sơ' }))
+
+    await waitFor(() => expect(router.state.location.search).toBe('?ho-so=a1'))
+    const sheet = await screen.findByRole('dialog', { name: 'Đỗ Mạnh Hùng' })
+    expect(within(sheet).getByText('Hồ sơ người chào giá')).toBeInTheDocument()
+    expect(within(sheet).getByText('Báo cáo kiểm thử')).toBeInTheDocument()
+    expect(within(sheet).getByRole('link', { name: /bao-cao\.pdf/ })).toHaveAttribute('href', '/api/v1/files/f1')
+    expect(within(sheet).getByRole('link', { name: /docs\.example\.vn\/danh-gia/ })).toHaveAttribute('target', '_blank')
+    expect(within(sheet).getByText(/Trang này nằm ngoài vibefix \(docs\.example\.vn\)/)).toBeInTheDocument()
+    expect(await within(sheet).findByText('Kỹ sư phần mềm.')).toBeInTheDocument()
+    expect(within(sheet).getByRole('heading', { name: 'Khi làm thành viên nhóm' })).toBeInTheDocument()
+    expect(within(sheet).getByText('3/4 giai đoạn')).toBeInTheDocument()
+    expect(within(sheet).getByRole('checkbox', { name: 'So sánh' })).toBeInTheDocument()
+    await user.click(within(sheet).getByRole('button', { name: 'Chọn' }))
+
+    expect(await screen.findByRole('dialog', { name: 'Chọn Đỗ Mạnh Hùng?' })).toBeInTheDocument()
+  })
+
+  it('ticks bids for "So sánh" in place, never moving a card, and opens CUS-13 with them', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    fakeBackend(signedInUser, bidHandlers())
     renderAt('/cong-viec/j1/ung-tuyen')
 
-    await user.click((await screen.findAllByRole('checkbox', { name: 'So sánh' }))[0])
+    const boxes = await screen.findAllByRole('checkbox', { name: 'So sánh' })
+    await user.click(boxes[2])
+    expect(screen.getByText('Chọn 2 hoặc 3 đơn để so sánh.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'So sánh (1)' })).toBeDisabled()
+    await user.click(boxes[0])
 
-    expect(await screen.findByRole('heading', { level: 2, name: 'Đang so sánh (1)' })).toBeInTheDocument()
-    expect(screen.getByText('Đang so sánh 1 đơn')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 2, name: 'Tất cả đơn chào giá (2)' })).toBeInTheDocument()
+    expect(cardNames()).toEqual(['Đỗ Mạnh Hùng', 'Phạm Thu Hà', 'Ngô Văn Minh'])
+    expect(screen.getByRole('link', { name: 'So sánh (2)' })).toHaveAttribute(
+      'href',
+      '/cong-viec/j1/ung-tuyen/so-sanh?ids=a3,a1',
+    )
+    await user.click(boxes[1])
+    expect(screen.getByText('Đã chọn đủ 3 đơn.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'So sánh (3)' })).toBeInTheDocument()
+  })
+
+  it('compares the chosen bids in fixed rows, stacked under a sticky header of names below 1024 px (UX-DR101)', { timeout: 20_000 }, async () => {
+    fakeBackend(signedInUser, bidHandlers())
+    renderAt('/cong-viec/j1/ung-tuyen/so-sanh?ids=a2,a1')
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'So sánh 2 đơn chào giá' })).toBeInTheDocument()
+    const header = screen.getByRole('list', { name: 'So sánh 2 đơn chào giá' })
+    expect(within(header).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Phạm Thu Hà', 'Đỗ Mạnh Hùng'])
+    const columns = bidColumns()
+    expect(columns.map((column) => column.getAttribute('aria-label'))).toEqual(['Phạm Thu Hà', 'Đỗ Mạnh Hùng'])
+    const rows = within(columns[1])
+      .getAllByRole('term')
+      .map((term) => term.textContent)
+    expect(rows).toEqual([
+      'Đã xác minh',
+      'Giá và thời gian',
+      'Cách làm',
+      'Bằng chứng năng lực',
+      'Khi làm người hướng dẫn',
+      'Khi làm thành viên nhóm',
+      'Kỹ năng khớp',
+      'Cùng loại công việc',
+      'Hoàn thành khi làm người hướng dẫn',
+      'Hoàn thành khi làm thành viên nhóm',
+      'Đúng hạn',
+      'Đang hướng dẫn',
+      'Xác minh đang có',
+      'Thông tin hồ sơ',
+    ])
+    expect(within(columns[0]).getByText('Đã mời')).toBeInTheDocument()
+    expect(within(columns[1]).getByText('3/4 giai đoạn')).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Chọn' })).toHaveLength(2)
+    expect(screen.queryByText(/^(tốt nhất|hạng \d+|tổng điểm.*)$/i)).toBeNull()
+  })
+
+  it('lays CUS-13 out as a table of columns on a wide screen, with "Chọn" under each', { timeout: 20_000 }, async () => {
+    wideScreen()
+    fakeBackend(signedInUser, bidHandlers())
+    renderAt('/cong-viec/j1/ung-tuyen/so-sanh?ids=a1,a2,a3')
+
+    const table = await screen.findByRole('table', { name: 'So sánh 3 đơn chào giá' })
+    expect(within(table).getAllByRole('columnheader').map((header) => header.textContent)).toEqual([
+      expect.stringContaining('Đỗ Mạnh Hùng'),
+      expect.stringContaining('Phạm Thu Hà'),
+      expect.stringContaining('Ngô Văn Minh'),
+    ])
+    expect(within(table).getAllByRole('rowheader').map((header) => header.textContent)[0]).toBe('Đã xác minh')
+    expect(within(table).getAllByRole('button', { name: 'Chọn' })).toHaveLength(3)
+  })
+
+  it('goes back to CUS-8 with fewer than two of the Job\'s bids', { timeout: 15_000 }, async () => {
+    fakeBackend(signedInUser, bidHandlers())
+    const router = renderAt('/cong-viec/j1/ung-tuyen/so-sanh?ids=a1,khong-co')
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/cong-viec/j1/ung-tuyen'))
+  })
+
+  it('removes a bid from CUS-13, and goes back below two', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    fakeBackend(signedInUser, bidHandlers())
+    const router = renderAt('/cong-viec/j1/ung-tuyen/so-sanh?ids=a1,a2,a3')
+
+    await screen.findByRole('heading', { level: 1, name: 'So sánh 3 đơn chào giá' })
+    await user.click(within(bidColumns()[1]).getByRole('button', { name: 'Bỏ khỏi so sánh' }))
+    await waitFor(() => expect(router.state.location.search).toBe('?ids=a1,a3'))
+    await user.click(within(bidColumns()[0]).getByRole('button', { name: 'Bỏ khỏi so sánh' }))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/cong-viec/j1/ung-tuyen'))
   })
 
   it('selects after the Confirmation dialog with the loaded version and lands on JOB-1', { timeout: 20_000 }, async () => {
@@ -186,6 +357,7 @@ describe('"Việc tôi hướng dẫn" on CUS-7, and CUS-8 (UX-DR78, UX-DR66, UX
       ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(selected ? selectingJob : openJob),
       'GET /api/v1/jobs/j1/applications': () => json([hungApplication, haApplication]),
+      'GET /api/v1/reputation/histories': histories,
       'POST /api/v1/jobs/j1/applications/a1/select': async (request) => {
         sent = await request.json()
         selected = true
@@ -213,6 +385,7 @@ describe('"Việc tôi hướng dẫn" on CUS-7, and CUS-8 (UX-DR78, UX-DR66, UX
       ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(openJob),
       'GET /api/v1/jobs/j1/applications': () => json([hungApplication]),
+      'GET /api/v1/reputation/histories': histories,
       'POST /api/v1/jobs/j1/applications/a1/select': () => {
         sends += 1
         return json({ status: 409, code: 'STALE', reason: 'STATE_CHANGED' }, 409)
@@ -268,7 +441,13 @@ describe('"Việc tôi hướng dẫn" on CUS-7, and CUS-8 (UX-DR78, UX-DR66, UX
             timelineDays: 1,
             approach: payload,
             submittedAt: '2026-10-16T03:00:00Z',
-            mentor: { displayName: payload, yearsOfExperience: 1 },
+            mentor: {
+              displayName: payload,
+              yearsOfExperience: 1,
+              verified: verifiedFacts('x', { school: payload, name: payload, major: payload }),
+            },
+            invited: false,
+            fitMetrics: emptyMetrics({ sharedSkills: [payload] }),
             proof: [{ position: 1, kind: 'LINK', caption: payload, url: 'https://a.vn/x', domain: 'a.vn' }],
           },
         ]),

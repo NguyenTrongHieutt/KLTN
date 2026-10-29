@@ -1,4 +1,4 @@
-package vn.vibefix.job.internal;
+package vn.vibefix.shared.internal;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -12,32 +12,25 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Component;
 
 import vn.vibefix.shared.RateLimitedException;
+import vn.vibefix.shared.SearchWindow;
 
 /**
- * At most {@value #LIMIT} keyword searches of Job Posts per account in any minute (NFR-3, AD-34): a
- * per-minute window kept in memory, as AD-34 places such limits. Browsing by filter alone is no search.
+ * {@link SearchWindow} as a per-minute window kept in memory, as AD-34 places such limits: one window per account,
+ * whichever search it runs.
  */
 @Component
-class SearchWindow {
-
-	static final int LIMIT = 60;
-
-	static final Duration WINDOW = Duration.ofMinutes(1);
+class MemorySearchWindow implements SearchWindow {
 
 	private final Map<UUID, Deque<Instant>> searches = new ConcurrentHashMap<>();
 
 	private final Clock clock;
 
-	SearchWindow(Clock clock) {
+	MemorySearchWindow(Clock clock) {
 		this.clock = clock;
 	}
 
-	/**
-	 * Counts one search by the account.
-	 * @throws RateLimitedException when it would be the 61st in a minute, retried once the oldest
-	 * counted search leaves the window
-	 */
-	void record(UUID accountId) {
+	@Override
+	public void record(UUID accountId) {
 		Instant now = this.clock.instant();
 		Deque<Instant> times = this.searches.computeIfAbsent(accountId, id -> new ArrayDeque<>());
 		synchronized (times) {

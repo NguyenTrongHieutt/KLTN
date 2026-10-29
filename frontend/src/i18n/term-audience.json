@@ -101,5 +101,12 @@
   "jobTypeIMPROVEMENT": "C M S A",
   "jobTypeSECURITY_TESTING": "C M S A",
   "jobTypeDEPLOYMENT_OPERATIONS": "C M S A",
-  "jobTypeDOCUMENTATION": "C M S A"
+  "jobTypeDOCUMENTATION": "C M S A",
+  "fitSkills": "C M A",
+  "fitJobTypes": "C M A",
+  "fitDoneMentor": "C M A",
+  "fitDoneCrew": "C M A",
+  "fitOnTime": "C M A",
+  "fitActive": "C M A",
+  "fitVerified": "C M A"
 }

@@ -182,7 +182,7 @@ describe('route guards (AD-19)', () => {
     fakeBackend(signedInUser)
     const router = renderAt('/ho-so/cong-khai')
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/sv/octo-cat'))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/nguoi-dung/octo-cat'))
   })
 
   it('shows the Empty state and the GitHub gate on "Hồ sơ công khai" without GitHub', async () => {

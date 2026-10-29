@@ -975,7 +975,6 @@ class CrossRoleIT extends IntegrationTest {
 			this.values.put("kind", "PRODUCT");
 			this.values.put("contentId", product.toString());
 			this.values.put("username", TeamTestSupport.login(jdbc, mentor));
-			this.values.put("studentLogin", TeamTestSupport.login(jdbc, coMember));
 			List<UUID> objects = new ArrayList<>(List.of(this.job, product, post, invitation, this.crewChat, jobChat,
 					message, item, note, attachment, file, page, application, order, coRow, screenshot, dispute,
 					changeRequest, teamIssue, report, access, handover, releasedHandover, milestone, released,

@@ -29,6 +29,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.JobTransitioned;
+import vn.vibefix.repo.DataDeletionConfirmed;
 import vn.vibefix.reputation.PortfolioEntry;
 import vn.vibefix.reputation.Reputation;
 import vn.vibefix.support.IntegrationTest;
@@ -187,6 +188,87 @@ class PortfolioIT extends IntegrationTest {
 				""")).isZero();
 		approve(this.lan, Role.CUSTOMER, silent, "Muộn", false).andExpect(status().isUnprocessableEntity())
 			.andExpect(jsonPath("$.reason").value("RATING_WINDOW_CLOSED"));
+	}
+
+	/**
+	 * Story 21.3 (FR-50, AD-41): a Cancelled Job with one Accepted Milestone credits the Mentor and every member whose
+	 * active window overlaps its work, a member who left after it included, never one who left before it was funded or
+	 * joined after it was accepted; each entry is published after that person's FR-66 confirmation.
+	 */
+	@Test
+	void aCancelledJobCreditsTheMentorAndTheMembersActiveDuringAcceptedWork() throws Exception {
+		people();
+		UUID job = job(true);
+		Timestamp funded = Timestamp.from(this.clock.instant().minus(Duration.ofDays(4)));
+		Timestamp accepted = Timestamp.from(this.clock.instant().minus(Duration.ofDays(2)));
+		this.jdbc.sql("UPDATE job.job SET state = 'CANCELLED', closed_at = NULL, cancelled_at = :at WHERE id = :id")
+			.param("at", Timestamp.from(this.clock.instant()))
+			.param("id", job)
+			.update();
+		this.jdbc.sql("UPDATE job.milestone SET funded_at = :funded, accepted_at = :accepted WHERE job_id = :job")
+			.param("funded", funded)
+			.param("accepted", accepted)
+			.param("job", job)
+			.update();
+		// Vy left a day after the acceptance; a leaver is credited.
+		this.jdbc.sql("""
+				UPDATE job.crew_row SET released_reason = 'LEFT', window_end = :left, released_at = :left
+				WHERE job_id = :job AND member_account_id = :vy
+				""").param("left", Timestamp.from(this.clock.instant().minus(Duration.ofDays(1))))
+			.param("job", job)
+			.param("vy", this.vy)
+			.update();
+		UUID early = TeamTestSupport.student(this.jdbc, "Rời sớm", true, List.of(TeamTestSupport.REACT), "React",
+				LocalDate.parse("2026-09-30"));
+		crewRow(job, early, Duration.ofDays(9), Duration.ofDays(5));
+		UUID late = TeamTestSupport.student(this.jdbc, "Vào muộn", true, List.of(TeamTestSupport.REACT), "React",
+				LocalDate.parse("2026-09-30"));
+		crewRow(job, late, Duration.ofDays(1), Duration.ZERO);
+
+		this.listeners.onJobTransitioned(new JobTransitioned(UUID.randomUUID(), UUID.randomUUID(), job, "J9", "SYSTEM",
+				"CLOSING", "CANCELLED", 7, 1, Map.of("ratingWindowDays", "14")));
+		await().atMost(Duration.ofSeconds(10))
+			.until(() -> count("SELECT count(*) FROM reputation.portfolio_entry WHERE job_id = '" + job + "'") == 2);
+		assertThat(this.jdbc.sql("SELECT account_id || ':' || role FROM reputation.portfolio_entry WHERE job_id = :job")
+			.param("job", job)
+			.query(String.class)
+			.list()).containsExactlyInAnyOrder(this.hung + ":MENTOR", this.vy + ":CREW");
+		assertThat(this.reputation.portfolio(this.vy)).as("published only after the FR-66 confirmation").isEmpty();
+
+		this.listeners.onDataDeletionConfirmed(new DataDeletionConfirmed(UUID.randomUUID(), job, this.vy));
+		await().atMost(Duration.ofSeconds(10)).until(() -> !this.reputation.portfolio(this.vy).isEmpty());
+		assertThat(this.reputation.portfolio(this.vy)).singleElement()
+			.satisfies(entry -> assertThat(entry.role()).isEqualTo("CREW"));
+		assertThat(this.reputation.portfolio(this.hung)).isEmpty();
+
+		// J10 ends a Job without Accepted work: no entry, and no Rating Window.
+		UUID cancelled = job(false);
+		UUID event = UUID.randomUUID();
+		this.listeners.onJobTransitioned(new JobTransitioned(event, UUID.randomUUID(), cancelled, "J10", "USER", "ACTIVE",
+				"CANCELLED", 7, 1, Map.of()));
+		await().atMost(Duration.ofSeconds(10))
+			.until(() -> count("SELECT count(*) FROM platform.processed_event WHERE event_id = '" + event + "'") == 1);
+		assertThat(count("SELECT count(*) FROM reputation.portfolio_entry WHERE job_id = '" + cancelled + "'")).isZero();
+		assertThat(count("SELECT count(*) FROM reputation.rating_window WHERE job_id = '" + cancelled + "'")).isZero();
+	}
+
+	/** A Crew row activated {@code activated} ago and left {@code left} ago (or still active for {@code ZERO}). */
+	private void crewRow(UUID job, UUID member, Duration activated, Duration left) {
+		Timestamp from = Timestamp.from(this.clock.instant().minus(activated));
+		Timestamp to = left.isZero() ? null : Timestamp.from(this.clock.instant().minus(left));
+		this.jdbc.sql("""
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, window_end, released_at,
+				    released_reason, created_at)
+				VALUES (:id, :job, :member, :status, :from, :from, :to, :to, :reason, :from)
+				""")
+			.param("id", UUID.randomUUID())
+			.param("job", job)
+			.param("member", member)
+			.param("status", to == null ? "ACTIVE" : "RELEASED")
+			.param("from", from)
+			.param("to", to)
+			.param("reason", to == null ? null : "LEFT")
+			.update();
 	}
 
 	private void people() {

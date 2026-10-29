@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
+import vn.vibefix.reputation.RatingRole;
 import vn.vibefix.reputation.RatingSummary;
 import vn.vibefix.reputation.Reputation;
 import vn.vibefix.shared.Access;
@@ -21,9 +22,9 @@ import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
 
 /**
- * A result page's Rating summaries in one call (FR-14, SG-43, UX-DR47): CUS-8's Mentor search shows
- * each card's Rating or "Mới" without asking once per card. Only approved, unlocked Mentors answer; any
- * other ID is left out, so the call tells nothing a search would not.
+ * A result page's Rating summaries as Mentor in one call (FR-14, SG-43, UX-DR47, AD-33): CUS-8's people search shows
+ * each card's Rating from Customers or "Mới" without asking once per card. Only GitHub-verified, unlocked users
+ * answer; any other ID is left out, so the call tells nothing a search would not.
  */
 @RestController
 @Access(Gate.SIGNED_IN)
@@ -60,7 +61,7 @@ class MentorSummaryController {
 			.filter(MentorCard::available)
 			.map(MentorCard::accountId)
 			.toList();
-		Map<UUID, RatingSummary> summaries = this.reputation.visibleSummaries(shown);
+		Map<UUID, RatingSummary> summaries = this.reputation.visibleSummaries(shown, RatingRole.MENTOR);
 		Set<UUID> newcomers = this.reputation.newcomers(shown);
 		return shown.stream().map(id -> {
 			RatingSummary summary = summaries.getOrDefault(id, RatingSummary.NONE);

@@ -31,4 +31,22 @@ public interface MentorWork {
 	/** Mentors who closed a Job of any of these Job Types (AD-17's pool beside shared Skills). */
 	Set<UUID> experiencedIn(Collection<String> jobTypes);
 
+	/**
+	 * The Milestones a Mentor's Jobs had accepted with a due date, and how many of them were on time by FR-62's
+	 * formula (X12): the accepted handover was submitted before the end of the due day, Vietnam time.
+	 * @param onTime the ones on time
+	 * @param total every accepted Milestone with a due date
+	 */
+	record OnTime(int onTime, int total) {
+
+		public static final OnTime NONE = new OnTime(0, 0);
+
+	}
+
+	/**
+	 * {@link OnTime} as Mentor for a page of people in one read (AD-17, X12); every person asked for is a key, with
+	 * {@link OnTime#NONE} for none.
+	 */
+	Map<UUID, OnTime> onTimeMilestones(Collection<UUID> mentorIds);
+
 }

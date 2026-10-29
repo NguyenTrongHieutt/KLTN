@@ -2987,39 +2987,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["student_2"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/mentors/{username}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["mentor"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/mentors/{username}/reputation": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["mentor_1"];
+        get: operations["student"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3412,6 +3380,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reputation/histories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["histories"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/reputation/mentor-summaries": {
         parameters: {
             query?: never;
@@ -3502,38 +3486,6 @@ export interface paths {
         get: operations["mine"];
         put?: never;
         post: operations["suggest"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/students/{studentLogin}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["student"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/students/{studentLogin}/reputation": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["student_1"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3692,6 +3644,38 @@ export interface paths {
             cookie?: never;
         };
         get: operations["todos"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{username}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["person"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{username}/reputation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["person_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4308,6 +4292,9 @@ export interface components {
         ApplicantView: {
             displayName: string;
             githubLogin?: string;
+            /** Format: date-time */
+            memberSince?: string;
+            verified: components["schemas"]["VerifiedFact"][];
             /** Format: int32 */
             yearsOfExperience?: number;
         };
@@ -5525,6 +5512,20 @@ export interface components {
             status: "OPEN" | "RESOLVED" | "FALSE_POSITIVE";
             type: string;
         };
+        FitMetricsView: {
+            /** Format: int32 */
+            activeJobsAsMentor: number;
+            jobTypeMatches: components["schemas"]["JobTypeFitView"][];
+            /** Format: int32 */
+            jobsAsCrew: number;
+            /** Format: int32 */
+            jobsAsMentor: number;
+            onTime?: components["schemas"]["OnTimeFitView"];
+            sharedSkills: string[];
+            /** Format: int32 */
+            skillsSought: number;
+            verifications: ("GITHUB" | "STUDENT" | "LINKEDIN")[];
+        };
         FollowUpRequest: {
             criteria: string[];
             /** Format: int32 */
@@ -5842,6 +5843,11 @@ export interface components {
             mine: boolean;
             quoted?: components["schemas"]["QuotedNoteView"];
         };
+        HistoryJobTypeView: {
+            /** Format: int32 */
+            count: number;
+            jobType: string;
+        };
         HistoryJobView: {
             /** Format: uuid */
             jobId: string;
@@ -5900,6 +5906,7 @@ export interface components {
         };
         JobApplicationView: {
             approach: string;
+            fitMetrics?: components["schemas"]["FitMetricsView"];
             /** Format: uuid */
             id: string;
             invited: boolean;
@@ -6071,6 +6078,13 @@ export interface components {
             jobId: string;
             mentor: boolean;
         };
+        JobTypeFitView: {
+            /** Format: int32 */
+            asCrew: number;
+            /** Format: int32 */
+            asMentor: number;
+            jobType: string;
+        };
         JobTypeMatchView: {
             /** Format: int32 */
             count: number;
@@ -6216,13 +6230,6 @@ export interface components {
             releasedAt: string;
             role: string;
         };
-        MentorReputationView: {
-            average?: number;
-            /** Format: int32 */
-            count: number;
-            newcomer: boolean;
-            portfolio: components["schemas"]["PortfolioEntry"][];
-        };
         MentorResultView: {
             /** Format: uuid */
             accountId: string;
@@ -6232,8 +6239,7 @@ export interface components {
             /** @enum {string} */
             relation: "NONE" | "INVITED" | "APPLIED";
             skills: string[];
-            /** Format: int32 */
-            teamSize: number;
+            verified: components["schemas"]["VerifiedFact"][];
             /** Format: int32 */
             yearsOfExperience?: number;
         };
@@ -6450,6 +6456,12 @@ export interface components {
             };
             read: boolean;
             type: string;
+        };
+        OnTimeFitView: {
+            /** Format: int32 */
+            onTime: number;
+            /** Format: int32 */
+            total: number;
         };
         OpenDisputeRequest: {
             reason: string;
@@ -6728,6 +6740,11 @@ export interface components {
             locked: boolean;
             name?: string;
         };
+        PersonReputationView: {
+            crew: components["schemas"]["RoleReputationView"];
+            mentor: components["schemas"]["RoleReputationView"];
+            newcomer: boolean;
+        };
         PersonView: {
             /** Format: uuid */
             accountId: string;
@@ -6879,59 +6896,20 @@ export interface components {
             /** Format: int32 */
             yearsOfExperience?: number;
         };
-        PublicMentorView: {
-            /** Format: uuid */
-            accountId: string;
-            available: boolean;
-            displayName: string;
-            experience: string;
+        PublicProfileView: {
+            displayName?: string;
+            experience?: string;
             githubLogin?: string;
-            listedMembers: components["schemas"]["PublicTeamMember"][];
+            links: string[];
+            locked: boolean;
             /** Format: date-time */
-            memberSince: string;
-            /** Format: int32 */
-            sizeLimit: number;
-            skillGroups: components["schemas"]["PublicSkillGroup"][];
-            /** Format: int32 */
-            teamSize: number;
-            viewer?: components["schemas"]["PublicMentorViewer"];
+            memberSince?: string;
+            own: boolean;
+            repositories: string[];
+            skillGroups: components["schemas"]["SkillGroup"][];
+            verified: components["schemas"]["VerifiedFact"][];
             /** Format: int32 */
             yearsOfExperience?: number;
-        };
-        PublicMentorViewer: {
-            inTeam: boolean;
-            pending?: components["schemas"]["TeamPendingRequest"];
-            /** @enum {string} */
-            relation: "NONE" | "INVITED" | "REQUESTED" | "MEMBER";
-            /** Format: int32 */
-            requestsLeft: number;
-            verified: boolean;
-        };
-        PublicSkillGroup: {
-            category?: string;
-            skills: string[];
-        };
-        PublicStudentTeam: {
-            mentorDisplayName: string;
-            mentorLogin?: string;
-            /** Format: int32 */
-            size: number;
-        };
-        PublicStudentView: {
-            githubLogin?: string;
-            major?: string;
-            /** Format: date-time */
-            memberSince: string;
-            name?: string;
-            school?: string;
-            skillGroups: components["schemas"]["PublicSkillGroup"][];
-            team?: components["schemas"]["PublicStudentTeam"];
-            verified: boolean;
-        };
-        PublicTeamMember: {
-            name: string;
-            school?: string;
-            verified: boolean;
         };
         Queue: {
             /** Format: int32 */
@@ -7040,8 +7018,7 @@ export interface components {
             relation: "NONE" | "INVITED" | "APPLIED";
             signals: components["schemas"]["SignalsView"];
             skills: string[];
-            /** Format: int32 */
-            teamSize: number;
+            verified: components["schemas"]["VerifiedFact"][];
             /** Format: int32 */
             yearsOfExperience?: number;
         };
@@ -7078,6 +7055,12 @@ export interface components {
             ownerType: string;
             /** Format: int64 */
             sizeKb: number;
+        };
+        ReputationHistoryView: {
+            crew: components["schemas"]["RoleSummaryView"];
+            mentor: components["schemas"]["RoleSummaryView"];
+            newcomer: boolean;
+            username: string;
         };
         RestoreRequest: {
             /** Format: int32 */
@@ -7128,6 +7111,24 @@ export interface components {
             outcome?: string;
             purpose: string;
             system: string;
+        };
+        RoleReputationView: {
+            average?: number;
+            /** Format: int32 */
+            count: number;
+            jobTypes: components["schemas"]["HistoryJobTypeView"][];
+            /** Format: int32 */
+            jobs: number;
+            portfolio: components["schemas"]["PortfolioEntry"][];
+        };
+        RoleSummaryView: {
+            average?: number;
+            /** Format: int32 */
+            count: number;
+            /** Format: int32 */
+            jobs: number;
+            /** Format: int32 */
+            portfolio: number;
         };
         RuleChangeView: {
             /** Format: date-time */
@@ -7300,6 +7301,10 @@ export interface components {
             newcomer: boolean;
             sharedSkills: string[];
         };
+        SkillGroup: {
+            category?: string;
+            skills: string[];
+        };
         SkillName: {
             /** Format: uuid */
             id: string;
@@ -7428,12 +7433,6 @@ export interface components {
             validUntil: string;
             /** Format: date-time */
             verifiedAt: string;
-        };
-        StudentReputationView: {
-            average?: number;
-            /** Format: int32 */
-            count: number;
-            portfolio: components["schemas"]["PortfolioEntry"][];
         };
         StudentTeamMembership: {
             /** Format: date-time */
@@ -7644,16 +7643,6 @@ export interface components {
             /** Format: int32 */
             yearsOfExperience?: number;
         };
-        TeamPendingRequest: {
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: uuid */
-            id: string;
-            /** @enum {string} */
-            kind: "INVITATION" | "JOIN_REQUEST";
-            /** Format: date-time */
-            lapsesAt: string;
-        };
         TeamRequestView: {
             /** Format: date-time */
             createdAt: string;
@@ -7823,6 +7812,16 @@ export interface components {
             verifiedAt?: string;
             /** Format: date */
             verifiedUntil?: string;
+        };
+        VerifiedFact: {
+            githubLogin?: string;
+            /** @enum {string} */
+            kind: "GITHUB" | "STUDENT" | "LINKEDIN";
+            major?: string;
+            name?: string;
+            school?: string;
+            /** Format: date-time */
+            verifiedAt?: string;
         };
         VerifiedView: {
             github?: components["schemas"]["GitHubFact"];
@@ -12887,7 +12886,7 @@ export interface operations {
             };
         };
     };
-    student_2: {
+    student: {
         parameters: {
             query?: never;
             header?: never;
@@ -12905,50 +12904,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TeamStudentProfileView"];
-                };
-            };
-        };
-    };
-    mentor: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                username: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PublicMentorView"];
-                };
-            };
-        };
-    };
-    mentor_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                username: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MentorReputationView"];
                 };
             };
         };
@@ -13605,6 +13560,28 @@ export interface operations {
             };
         };
     };
+    histories: {
+        parameters: {
+            query?: {
+                username?: string[];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReputationHistoryView"][];
+                };
+            };
+        };
+    };
     summaries: {
         parameters: {
             query?: {
@@ -13749,50 +13726,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MySkillSuggestionView"];
-                };
-            };
-        };
-    };
-    student: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                studentLogin: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PublicStudentView"];
-                };
-            };
-        };
-    };
-    student_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                studentLogin: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StudentReputationView"];
                 };
             };
         };
@@ -14038,6 +13971,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TodoList"];
+                };
+            };
+        };
+    };
+    person: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                username: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicProfileView"];
+                };
+            };
+        };
+    };
+    person_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                username: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonReputationView"];
                 };
             };
         };

@@ -6,10 +6,11 @@
 # How fixtures seed them (Story 20.5):
 # - The Crew canaries are the crew Job's: CREW_SHARE, CREW_EMAIL, CREW_NAME, CREW_LINKEDIN and
 #   TEAM_ISSUE_ID belong to an ACTIVE member who is no caller, and STUDENT_HIDDEN_NAME to another, the escalated
-#   Team Issue's raiser, who hides it and whose public profile {studentLogin} names (review iteration 4); WORK_ITEM_NOTE,
+#   Team Issue's raiser, who hides it and whose PUB-4 user=member names (review iteration 4, Story 21.3); WORK_ITEM_NOTE,
 #   ATTACHMENT, CREW_CHAT, CREW_CHAT_UNREPORTED and CREW_PAGE are the Job's content. The Customer sees none of
-#   them (UX-DR108: the Crew appears to the Customer as GitHub usernames only); PUB-4's two reputation endpoints
-#   are exempt from the Customer's Crew-name scan (review 2026-10-27 A-06).
+#   them (UX-DR108: the Crew appears to the Customer as GitHub usernames only); PUB-4's endpoints (its identity half,
+#   its two histories, and the histories in short) are exempt from the Customer's Crew-name scan (review 2026-10-27
+#   A-06).
 # - CREW_SHARE is that member's Crew Terms share. A percentage cannot be unique, so fixtures seed it as
 #   the member's part of the Milestone's release in VND, which only the Mentor's balance lists. An amount is
 #   scanned as digits and in its VND form, 7.316.429 (MatrixRowRunner.forms, review iteration 4).

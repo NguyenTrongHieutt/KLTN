@@ -479,12 +479,15 @@ class Applications {
 			.optional();
 	}
 
-	/** The Job's submitted, held, and selected Applications, newest first (CUS-8). */
+	/**
+	 * The Job's submitted, held, and selected Applications, oldest first, then by ID: the Bid cards' fixed order,
+	 * which nothing changes (CUS-8, UX-DR100).
+	 */
 	@Transactional(readOnly = true)
 	List<Application> openOfJob(UUID jobId) {
 		return this.jdbc.sql("SELECT " + COLUMNS + """
 				 FROM matching.application WHERE job_id = :job AND status IN ('SUBMITTED', 'ON_HOLD', 'SELECTED')
-				ORDER BY submitted_at DESC, id
+				ORDER BY submitted_at, id
 				""").param("job", jobId).query(Applications::application).list();
 	}
 

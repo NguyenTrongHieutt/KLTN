@@ -547,6 +547,24 @@ class CrewService implements Crews {
 			.toList();
 	}
 
+	/**
+	 * {@inheritDoc} The bounds are inclusive: a member active when a Milestone was funded or accepted shares its work;
+	 * a Settled Milestone's work ends at its acceptance or, without one, its settlement.
+	 */
+	@Override
+	@Transactional(readOnly = true)
+	public List<UUID> activeDuringAcceptedWork(UUID jobId) {
+		return this.jdbc.sql("""
+				SELECT r.member_account_id FROM job.crew_row r
+				WHERE r.job_id = :job AND r.activated_at IS NOT NULL
+				  AND EXISTS (SELECT 1 FROM job.milestone m WHERE m.job_id = r.job_id AND m.removed_at IS NULL
+				      AND m.state IN ('ACCEPTED', 'SETTLED') AND m.funded_at IS NOT NULL
+				      AND r.activated_at <= coalesce(m.accepted_at, m.settled_at)
+				      AND (r.window_end IS NULL OR r.window_end >= m.funded_at))
+				GROUP BY r.member_account_id ORDER BY min(r.created_at), r.member_account_id
+				""").param("job", jobId).query(UUID.class).list();
+	}
+
 	@Override
 	@Transactional(readOnly = true)
 	public Optional<UUID> runningCrewOf(UUID studentId) {

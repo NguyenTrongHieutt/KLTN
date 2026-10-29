@@ -1,5 +1,6 @@
 package vn.vibefix.job;
 
+import java.util.Collection;
 import java.util.Map;
 import java.util.UUID;
 
@@ -33,6 +34,12 @@ public interface JobRoles {
 	History historyOf(UUID accountId);
 
 	/**
+	 * {@link #historyOf} for a page of people in one read (AD-17, SG-40), keyed by account ID; every account asked
+	 * for is a key, with empty histories for none.
+	 */
+	Map<UUID, History> historiesOf(Collection<UUID> accountIds);
+
+	/**
 	 * One role's history.
 	 * @param jobs the Jobs closed with Accepted work in the role
 	 * @param jobTypes for each Job Type, how many distinct Customers (as Mentor) or Mentors (as Crew member) the
@@ -51,6 +58,9 @@ public interface JobRoles {
 
 	/** The account's history as a Mentor and as a Crew member, kept apart. */
 	record History(RoleHistory mentor, RoleHistory crew) {
+
+		public static final History EMPTY = new History(RoleHistory.EMPTY, RoleHistory.EMPTY);
+
 	}
 
 }

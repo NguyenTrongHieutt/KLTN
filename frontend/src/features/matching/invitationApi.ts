@@ -1,4 +1,4 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, skipToken, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { components } from '@/api/schema'
 import { ApiError, apiClient, unwrap } from '@/lib/apiClient'
 
@@ -20,15 +20,22 @@ export interface MentorFilter {
 
 const KEY = ['invitation'] as const
 
+/** The last page of results the search received, which stays on screen when searching too fast (UX-DR27). */
+function lastKey(jobId: string) {
+  return [...KEY, 'search', jobId, 'last'] as const
+}
+
 /**
- * The Job's Customer searches Mentors, 20 a page by relevance (FR-14); no keyword finds no one. The
- * previous page stays while the next loads, and a refusal is not retried.
+ * The Job's Customer searches GitHub-verified users, 20 a page by relevance (FR-14, AD-36); no keyword finds no one.
+ * The previous page stays while the next loads, and a refusal (a 4xx, such as `RATE_LIMITED` past 60 searches a
+ * minute, shared with "Tìm việc") is not retried.
  */
 export function useMentorSearch(jobId: string, filter: MentorFilter) {
+  const queryClient = useQueryClient()
   return useQuery({
     queryKey: [...KEY, 'search', jobId, filter],
-    queryFn: () =>
-      unwrap(
+    queryFn: async () => {
+      const found = await unwrap(
         apiClient.GET('/api/v1/jobs/{jobId}/mentors', {
           params: {
             path: { jobId },
@@ -40,11 +47,19 @@ export function useMentorSearch(jobId: string, filter: MentorFilter) {
             },
           },
         }),
-      ),
+      )
+      queryClient.setQueryData(lastKey(jobId), found)
+      return found
+    },
     enabled: filter.q !== undefined,
     placeholderData: keepPreviousData,
     retry: (failures, error) => !(error instanceof ApiError && error.status < 500) && failures < 3,
   })
+}
+
+/** The last results {@link useMentorSearch} received for the Job, if any. */
+export function useLastMentorSearch(jobId: string) {
+  return useQuery<MentorSearch>({ queryKey: lastKey(jobId), queryFn: skipToken })
 }
 
 /** The page's Rating summaries in one call (SG-43): never one request per card. */
@@ -66,7 +81,7 @@ export function useInvitations(jobId: string) {
 }
 
 /**
- * "Mời ứng tuyển" (FR-14): no optimistic update; the cards and the quota change once the server
+ * "Mời chào giá" (FR-14, SG-41): no optimistic update; the cards and the quota change once the server
  * confirms, and a refusal refreshes them too.
  */
 export function useInvite(jobId: string) {

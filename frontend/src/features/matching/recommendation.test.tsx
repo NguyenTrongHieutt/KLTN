@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
 import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
+import { verifiedFacts } from '@/test/people'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -40,7 +41,7 @@ const thao = {
   displayName: 'Nguyễn Phương Thảo',
   yearsOfExperience: 3,
   skills: ['React', 'Supabase'],
-  teamSize: 2,
+  verified: verifiedFacts('thaonp'),
   relation: 'NONE',
   available: true,
   signals: { sharedSkills: ['React', 'Supabase'], jobTypeMatches: [], newcomer: true },
@@ -52,7 +53,7 @@ const long = {
   displayName: 'Trần Đức Long',
   yearsOfExperience: 10,
   skills: ['Supabase'],
-  teamSize: 9,
+  verified: verifiedFacts('longtd'),
   relation: 'APPLIED',
   available: true,
   signals: { sharedSkills: ['Supabase'], jobTypeMatches: [{ jobType: 'BUG_FIX', count: 2 }], newcomer: false },
@@ -91,10 +92,13 @@ describe('CUS-8 "Đề xuất cho công việc này" (FR-14, AD-17)', () => {
     expect(within(cards[0]).getByText('Mới')).toBeInTheDocument()
     expect(within(cards[1]).getByText('Đã làm 2 công việc Sửa lỗi')).toBeInTheDocument()
     expect(await within(cards[1]).findByText('4,6 sao (14 lượt)')).toBeInTheDocument()
-    expect(within(cards[1]).getByRole('button', { name: 'Đã ứng tuyển' })).toBeDisabled()
+    expect(within(cards[1]).getByRole('button', { name: 'Đã chào giá' })).toBeDisabled()
     expect(screen.queryByText(/AI/)).toBeNull()
+    // Story 21.3: no Team size on a Recommendation.
+    expect(within(cards[0]).queryByText(/thành viên$/)).toBeNull()
+    expect(within(cards[0]).getByText('GitHub · 10/2026')).toBeInTheDocument()
 
-    await user.click(within(cards[0]).getByRole('button', { name: 'Mời ứng tuyển' }))
+    await user.click(within(cards[0]).getByRole('button', { name: 'Mời chào giá' }))
 
     await waitFor(() => expect(sent).toEqual({ mentorId: 'm1' }))
   })
@@ -109,7 +113,7 @@ describe('CUS-8 "Đề xuất cho công việc này" (FR-14, AD-17)', () => {
     })
     renderAt('/cong-viec/j1/tim-nguoi?q=react')
 
-    expect(await screen.findByText('Không tìm thấy người hướng dẫn nào cho “react”.')).toBeInTheDocument()
+    expect(await screen.findByText('Không tìm thấy người hướng dẫn nào khớp với “react”.')).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Đề xuất cho công việc này' })).toBeNull()
     expect(seen.some((request) => request.url.includes('/recommendations'))).toBe(false)
   })
