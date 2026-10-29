@@ -65,22 +65,6 @@ const mentorJob = {
   agreementConfirmed: true,
 }
 
-const assignment = (jobState: string) => ({
-  jobId: 'j1',
-  title: 'Sửa lỗi đặt bàn và thêm nhắc lịch',
-  jobState,
-  productName: 'Sổ đặt bàn Quán Mây',
-  mentorName: 'Đỗ Mạnh Hùng',
-  status: 'ACTIVE',
-  scope: 'Sửa lỗi trùng giờ',
-  versionNo: 1,
-  sharePercent: 40,
-  signed: true,
-  codeJob: true,
-  commitEmailNoticeAcknowledged: true,
-  milestones: [],
-})
-
 describe('JOB-2 "Bảng công việc" (FR-22, AD-33, UX-DR36)', () => {
   it('shows the Mentor the seeded Stories in "Cần làm" with their keys and criterion links', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
@@ -120,7 +104,6 @@ describe('JOB-2 "Bảng công việc" (FR-22, AD-33, UX-DR36)', () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('CREW'),
       ...heldJobs({ jobId: 'j1', title: 'Sửa lỗi đặt bàn và thêm nhắc lịch', role: 'CREW', crewKind: 'ACTIVE' }),
-      'GET /api/v1/crew/assignments': () => json([assignment('ACTIVE')]),
       'GET /api/v1/team': () => json({ team: null }),
       'GET /api/v1/boards/j1/work-items': () => json(board(false)),
     })
@@ -138,8 +121,13 @@ describe('JOB-2 "Bảng công việc" (FR-22, AD-33, UX-DR36)', () => {
   it('offers no Board before the Job is Active', { timeout: 20_000 }, async () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('CREW'),
-      ...heldJobs({ jobId: 'j1', title: 'Sửa lỗi đặt bàn và thêm nhắc lịch', role: 'CREW', crewKind: 'ACTIVE' }),
-      'GET /api/v1/crew/assignments': () => json([assignment('AGREEMENT')]),
+      ...heldJobs({
+        jobId: 'j1',
+        title: 'Sửa lỗi đặt bàn và thêm nhắc lịch',
+        role: 'CREW',
+        crewKind: 'ACTIVE',
+        state: 'AGREEMENT',
+      }),
       'GET /api/v1/team': () => json({ team: null }),
     })
     renderAt('/cong-viec')

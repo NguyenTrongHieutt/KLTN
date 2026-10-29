@@ -90,7 +90,7 @@ class CrossRoleIT extends IntegrationTest {
 
 	/** The global reads where every Job of a person meets: lists, inboxes, balances. Each answers 200. */
 	private static final List<String> GLOBAL_READS = List.of("/api/v1/jobs", "/api/v1/my-jobs", "/api/v1/mentor/jobs",
-			"/api/v1/crew/assignments", "/api/v1/team-issues", "/api/v1/notifications", "/api/v1/todos",
+			"/api/v1/mentor/crew-applications", "/api/v1/team-issues", "/api/v1/notifications", "/api/v1/todos",
 			"/api/v1/balance", "/api/v1/payments/history", "/api/v1/products", "/api/v1/profile",
 			"/api/v1/mentor/applications", "/api/v1/account/data");
 
@@ -412,10 +412,8 @@ class CrossRoleIT extends IntegrationTest {
 							command(person, post("/api/v1/jobs/" + job.job + "/withdraw")), 404, wrong);
 				}
 				if (held == Held.CUSTOMER || held == Held.MENTOR) {
-					status(person, job, "POST /api/v1/crew/jobs/{jobId}/decline", command(person,
-							post("/api/v1/crew/jobs/" + job.job + "/decline").contentType(MediaType.APPLICATION_JSON)
-								.content("{\"crewTermsVersionNo\":1}")),
-							404, wrong);
+					status(person, job, "POST /api/v1/crew/jobs/{jobId}/commitment/decline",
+							command(person, post("/api/v1/crew/jobs/" + job.job + "/commitment/decline")), 404, wrong);
 				}
 			}
 		}

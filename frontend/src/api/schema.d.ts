@@ -701,7 +701,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["decline_7"];
+        post: operations["decline_8"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1021,7 +1021,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["decline_6"];
+        post: operations["decline_7"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1309,7 +1309,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["decline_5"];
+        post: operations["decline_6"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1588,23 +1588,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/crew/assignments": {
+    "/api/v1/crew/jobs/{jobId}/commitment": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["crewAssignments"];
+        get: operations["commitment"];
         put?: never;
-        post?: never;
+        post: operations["sign_1"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/crew/jobs/{jobId}/confirm": {
+    "/api/v1/crew/jobs/{jobId}/commitment/decline": {
         parameters: {
             query?: never;
             header?: never;
@@ -1613,23 +1613,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["confirmCrewTerms"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/crew/jobs/{jobId}/decline": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["declineCrewTerms"];
+        post: operations["decline_5"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2827,9 +2811,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["crewPanel"];
+        get: operations["crew"];
         put?: never;
-        post: operations["addCrewMember"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2868,23 +2852,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/mentor/jobs/{jobId}/crew/change": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["changeCrew"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/mentor/jobs/{jobId}/crew/reconfirm": {
+    "/api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/pick": {
         parameters: {
             query?: never;
             header?: never;
@@ -2893,30 +2861,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["reconfirmCrew"];
+        post: operations["pick"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/mentor/jobs/{jobId}/crew/terms": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["saveCrewTerms"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/mentor/jobs/{jobId}/crew/{crewRowId}/remove": {
+    "/api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/withdraw-pick": {
         parameters: {
             query?: never;
             header?: never;
@@ -2925,7 +2877,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["removeCrewMember"];
+        post: operations["withdrawPick"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4401,7 +4353,6 @@ export interface components {
             confirmed?: components["schemas"]["ConfirmedAgreementView"];
             content: components["schemas"]["Content"];
             crew: string[];
-            crewConfirmed: boolean;
             /** Format: int32 */
             latestVersionNo: number;
             quote?: components["schemas"]["QuoteView"];
@@ -4420,7 +4371,7 @@ export interface components {
         ApplicantCardView: {
             applicant: components["schemas"]["ApplicantView"];
             /** @enum {string} */
-            endReason?: "DECLINED" | "WITHDRAWN" | "APPLICANT_UNAVAILABLE" | "EXPIRED" | "RECRUITMENT_CLOSED" | "JOB_CLOSING" | "JOB_CANCELLED" | "JOB_HIDDEN";
+            endReason?: "DECLINED" | "WITHDRAWN" | "APPLICANT_UNAVAILABLE" | "EXPIRED" | "RECRUITMENT_CLOSED" | "JOB_CLOSING" | "JOB_CANCELLED" | "JOB_HIDDEN" | "JOINED_ANOTHER_CREW" | "PICK_WITHDRAWN" | "COMMITMENT_DECLINED" | "COMMITMENT_LAPSED" | "PICK_ENDED" | "SIGNED";
             /** Format: date-time */
             endedAt?: string;
             fitMetrics?: components["schemas"]["FitMetricsView"];
@@ -4430,9 +4381,11 @@ export interface components {
             lapsesAt: string;
             note: string;
             proof: components["schemas"]["BidProofView"][];
+            /** Format: date-time */
+            signDueAt?: string;
             skills: components["schemas"]["CrewApplicationSkillView"][];
             /** @enum {string} */
-            status: "PENDING" | "DECLINED" | "WITHDRAWN" | "LAPSED";
+            status: "PENDING" | "PICKED" | "JOINED" | "DECLINED" | "WITHDRAWN" | "LAPSED";
             /** Format: date-time */
             submittedAt: string;
         };
@@ -4893,6 +4846,46 @@ export interface components {
         CodeRequest: {
             code: string;
         };
+        CommitmentMilestoneView: {
+            /** Format: date */
+            dueOn?: string;
+            /** Format: int64 */
+            priceVnd?: number;
+            title: string;
+        };
+        CommitmentPanelView: {
+            codeJob: boolean;
+            commitEmailNoticeAcknowledged: boolean;
+            commitmentVersion: string;
+            githubLogin?: string;
+            milestones: components["schemas"]["CommitmentMilestoneView"][];
+            ndaVersion: string;
+            scope?: string;
+            splitRules: components["schemas"]["SplitRulesView"];
+        };
+        CommitmentSignRequest: {
+            commitEmailNoticeAcknowledged: boolean;
+            commitmentVersion: string;
+            ndaVersion: string;
+            publicCodeAcknowledged: boolean;
+        };
+        CommitmentView: {
+            /** Format: uuid */
+            applicationId: string;
+            /** @enum {string} */
+            endReason?: "DECLINED" | "WITHDRAWN" | "APPLICANT_UNAVAILABLE" | "EXPIRED" | "RECRUITMENT_CLOSED" | "JOB_CLOSING" | "JOB_CANCELLED" | "JOB_HIDDEN" | "JOINED_ANOTHER_CREW" | "PICK_WITHDRAWN" | "COMMITMENT_DECLINED" | "COMMITMENT_LAPSED" | "PICK_ENDED" | "SIGNED";
+            /** Format: uuid */
+            jobId: string;
+            jobTitle: string;
+            mentorName: string;
+            panel?: components["schemas"]["CommitmentPanelView"];
+            /** Format: date-time */
+            pickedAt: string;
+            /** Format: date-time */
+            signDueAt: string;
+            /** @enum {string} */
+            status: "PENDING" | "PICKED" | "JOINED" | "DECLINED" | "WITHDRAWN" | "LAPSED";
+        };
         ConfirmRequest: {
             agreed: boolean;
         };
@@ -4963,12 +4956,6 @@ export interface components {
             /** Format: uuid */
             id: string;
         };
-        CrewAddRequest: {
-            /** Format: int64 */
-            crewVersion: number;
-            /** Format: uuid */
-            studentId: string;
-        };
         CrewApplicationSkillView: {
             /** Format: uuid */
             id: string;
@@ -4976,7 +4963,7 @@ export interface components {
         };
         CrewApplicationView: {
             /** @enum {string} */
-            endReason?: "DECLINED" | "WITHDRAWN" | "APPLICANT_UNAVAILABLE" | "EXPIRED" | "RECRUITMENT_CLOSED" | "JOB_CLOSING" | "JOB_CANCELLED" | "JOB_HIDDEN";
+            endReason?: "DECLINED" | "WITHDRAWN" | "APPLICANT_UNAVAILABLE" | "EXPIRED" | "RECRUITMENT_CLOSED" | "JOB_CLOSING" | "JOB_CANCELLED" | "JOB_HIDDEN" | "JOINED_ANOTHER_CREW" | "PICK_WITHDRAWN" | "COMMITMENT_DECLINED" | "COMMITMENT_LAPSED" | "PICK_ENDED" | "SIGNED";
             /** Format: date-time */
             endedAt?: string;
             /** Format: uuid */
@@ -4988,9 +4975,11 @@ export interface components {
             lapsesAt: string;
             note: string;
             proof: components["schemas"]["BidProofView"][];
+            /** Format: date-time */
+            signDueAt?: string;
             skills: components["schemas"]["CrewApplicationSkillView"][];
             /** @enum {string} */
-            status: "PENDING" | "DECLINED" | "WITHDRAWN" | "LAPSED";
+            status: "PENDING" | "PICKED" | "JOINED" | "DECLINED" | "WITHDRAWN" | "LAPSED";
             /** Format: date-time */
             submittedAt: string;
         };
@@ -5000,56 +4989,6 @@ export interface components {
             publicCodeAcknowledged: boolean;
             skillIds?: string[];
         };
-        CrewAssignmentMilestoneView: {
-            /** Format: date */
-            dueOn?: string;
-            /** Format: int64 */
-            priceVnd?: number;
-            title: string;
-            /** Format: int64 */
-            yourPartVnd?: number;
-        };
-        CrewAssignmentView: {
-            changeWaiting: boolean;
-            codeJob: boolean;
-            commitEmailNoticeAcknowledged: boolean;
-            /** Format: uuid */
-            jobId: string;
-            jobState: string;
-            mentorName: string;
-            milestones: components["schemas"]["CrewAssignmentMilestoneView"][];
-            productName: string;
-            scope: string;
-            /** Format: int32 */
-            sharePercent?: number;
-            signed: boolean;
-            status: string;
-            title: string;
-            /** Format: int32 */
-            versionNo: number;
-            /** Format: date-time */
-            versionSentAt?: string;
-        };
-        CrewCandidateView: {
-            githubLogin?: string;
-            name: string;
-            onCrewJob?: string;
-            /** @enum {string} */
-            state: "FREE" | "IN_CREW" | "ON_CREW" | "NOT_VERIFIED";
-            /** Format: uuid */
-            studentId: string;
-        };
-        CrewChangeView: {
-            /** Format: int32 */
-            confirmed: number;
-            held: boolean;
-            /** Format: int32 */
-            inForceVersionNo?: number;
-            /** Format: int32 */
-            total: number;
-            /** Format: int32 */
-            waitingVersionNo?: number;
-        };
         CrewChatView: {
             /** Format: uuid */
             chatId: string;
@@ -5058,49 +4997,13 @@ export interface components {
             title: string;
             unread: boolean;
         };
-        CrewConfirmRequest: {
-            commitEmailNoticeAcknowledged: boolean;
-            /** Format: int32 */
-            crewTermsVersionNo: number;
-            ndaVersion: string;
-            publicCodeAcknowledged: boolean;
-        };
-        CrewDeclineRequest: {
-            /** Format: int32 */
-            crewTermsVersionNo: number;
-        };
-        CrewMentorView: {
-            /** Format: uuid */
-            accountId: string;
-            displayName: string;
+        CrewMemberView: {
             githubLogin?: string;
-            /** Format: int32 */
-            percent?: number;
-        };
-        CrewMilestoneView: {
-            /** Format: int64 */
-            priceVnd?: number;
-            title: string;
-        };
-        CrewPanelView: {
-            /** Format: int32 */
-            capPercent: number;
-            change?: components["schemas"]["CrewChangeView"];
-            /** Format: int32 */
-            confirmedCount: number;
-            crewConfirmed: boolean;
-            /** Format: int64 */
-            crewVersion: number;
-            largeCrews: boolean;
-            latest?: components["schemas"]["CrewTermsView"];
-            locked: boolean;
-            mentor: components["schemas"]["CrewMentorView"];
-            milestones: components["schemas"]["CrewMilestoneView"][];
-            reconfirmOwed: boolean;
-            rows: components["schemas"]["CrewRowView"][];
-            team: components["schemas"]["CrewCandidateView"][];
-            /** Format: int32 */
-            total: number;
+            /** Format: date-time */
+            joinedAt: string;
+            name: string;
+            /** Format: uuid */
+            rowId: string;
         };
         CrewPartView: {
             /** Format: int64 */
@@ -5122,45 +5025,10 @@ export interface components {
             openItems: components["schemas"]["OpenItemView"][];
             state: string;
         };
-        CrewReconfirmRequest: {
-            /** Format: int64 */
-            crewVersion: number;
-        };
-        CrewRemoveRequest: {
-            /** Format: int64 */
-            crewVersion: number;
-        };
-        CrewRowView: {
-            confirmedLatest: boolean;
-            githubLogin?: string;
-            leaving: boolean;
-            name: string;
-            /** Format: int32 */
-            percent?: number;
-            releasedReason?: string;
-            /** Format: uuid */
-            rowId: string;
-            /** Format: date-time */
-            signedAt?: string;
-            status: string;
-            /** Format: uuid */
-            studentId: string;
-        };
-        CrewShareRequest: {
-            /** Format: uuid */
-            accountId: string;
-            /** Format: int32 */
-            percent: number;
-        };
         CrewTermsEvidenceView: {
             /** Format: uuid */
             jobId: string;
             versions: components["schemas"]["CrewTermsVersionEvidenceView"][];
-        };
-        CrewTermsRequest: {
-            /** Format: int64 */
-            crewVersion: number;
-            shares: components["schemas"]["CrewShareRequest"][];
         };
         CrewTermsShareEvidenceView: {
             /** Format: date-time */
@@ -5178,12 +5046,13 @@ export interface components {
             /** Format: int32 */
             versionNo: number;
         };
-        CrewTermsView: {
-            /** Format: date-time */
-            createdAt: string;
-            status: string;
+        CrewView: {
+            /** Format: int64 */
+            crewVersion: number;
+            members: components["schemas"]["CrewMemberView"][];
+            signedMember: boolean;
             /** Format: int32 */
-            versionNo: number;
+            waiting: number;
         };
         Criterion: {
             checkSteps: string;
@@ -6072,7 +5941,7 @@ export interface components {
             /** Format: int32 */
             left: number;
             /** @enum {string} */
-            limit?: "JOB_POST_NOT_OPEN" | "JOB_POST_HIDDEN" | "ROLE_TAKEN" | "ALREADY_APPLIED" | "MENTOR_JOB_LIMIT" | "CONFLICT_OF_INTEREST" | "APPLICANT_IS_CONTRIBUTOR" | "CONTRIBUTORS_UNKNOWN" | "PUBLIC_CODE_NOT_ACKNOWLEDGED" | "NOT_WITHDRAWABLE" | "NDA_VERSION_OUTDATED" | "COMMIT_EMAIL_NOT_ACKNOWLEDGED" | "INVITEE_NOT_AVAILABLE" | "ALREADY_INVITED" | "INVITEE_ALREADY_APPLIED" | "INVITE_LIMIT_JOB_POST" | "INVITE_LIMIT_DAILY" | "PROFILE_REQUIRED" | "PROOF_LIMIT" | "LINK_INVALID" | "PROOF_FILE_UNKNOWN" | "RECRUITMENT_CLOSED" | "CREW_FULL" | "CREW_REJOIN_REFUSED" | "ON_ANOTHER_CREW" | "NOT_DECLINABLE";
+            limit?: "JOB_POST_NOT_OPEN" | "JOB_POST_HIDDEN" | "ROLE_TAKEN" | "ALREADY_APPLIED" | "MENTOR_JOB_LIMIT" | "CONFLICT_OF_INTEREST" | "APPLICANT_IS_CONTRIBUTOR" | "CONTRIBUTORS_UNKNOWN" | "PUBLIC_CODE_NOT_ACKNOWLEDGED" | "NOT_WITHDRAWABLE" | "NDA_VERSION_OUTDATED" | "COMMIT_EMAIL_NOT_ACKNOWLEDGED" | "INVITEE_NOT_AVAILABLE" | "ALREADY_INVITED" | "INVITEE_ALREADY_APPLIED" | "INVITE_LIMIT_JOB_POST" | "INVITE_LIMIT_DAILY" | "PROFILE_REQUIRED" | "PROOF_LIMIT" | "LINK_INVALID" | "PROOF_FILE_UNKNOWN" | "RECRUITMENT_CLOSED" | "CREW_FULL" | "CREW_REJOIN_REFUSED" | "ON_ANOTHER_CREW" | "NOT_DECLINABLE" | "NOT_PICKABLE" | "COMMITMENT_VERSION_OUTDATED" | "PICK_ENDED";
         };
         InviteRequest: {
             /** Format: uuid */
@@ -7099,7 +6968,7 @@ export interface components {
             /** Format: int32 */
             left: number;
             /** @enum {string} */
-            limit?: "JOB_POST_NOT_OPEN" | "JOB_POST_HIDDEN" | "ROLE_TAKEN" | "ALREADY_APPLIED" | "MENTOR_JOB_LIMIT" | "CONFLICT_OF_INTEREST" | "APPLICANT_IS_CONTRIBUTOR" | "CONTRIBUTORS_UNKNOWN" | "PUBLIC_CODE_NOT_ACKNOWLEDGED" | "NOT_WITHDRAWABLE" | "NDA_VERSION_OUTDATED" | "COMMIT_EMAIL_NOT_ACKNOWLEDGED" | "INVITEE_NOT_AVAILABLE" | "ALREADY_INVITED" | "INVITEE_ALREADY_APPLIED" | "INVITE_LIMIT_JOB_POST" | "INVITE_LIMIT_DAILY" | "PROFILE_REQUIRED" | "PROOF_LIMIT" | "LINK_INVALID" | "PROOF_FILE_UNKNOWN" | "RECRUITMENT_CLOSED" | "CREW_FULL" | "CREW_REJOIN_REFUSED" | "ON_ANOTHER_CREW" | "NOT_DECLINABLE";
+            limit?: "JOB_POST_NOT_OPEN" | "JOB_POST_HIDDEN" | "ROLE_TAKEN" | "ALREADY_APPLIED" | "MENTOR_JOB_LIMIT" | "CONFLICT_OF_INTEREST" | "APPLICANT_IS_CONTRIBUTOR" | "CONTRIBUTORS_UNKNOWN" | "PUBLIC_CODE_NOT_ACKNOWLEDGED" | "NOT_WITHDRAWABLE" | "NDA_VERSION_OUTDATED" | "COMMIT_EMAIL_NOT_ACKNOWLEDGED" | "INVITEE_NOT_AVAILABLE" | "ALREADY_INVITED" | "INVITEE_ALREADY_APPLIED" | "INVITE_LIMIT_JOB_POST" | "INVITE_LIMIT_DAILY" | "PROFILE_REQUIRED" | "PROOF_LIMIT" | "LINK_INVALID" | "PROOF_FILE_UNKNOWN" | "RECRUITMENT_CLOSED" | "CREW_FULL" | "CREW_REJOIN_REFUSED" | "ON_ANOTHER_CREW" | "NOT_DECLINABLE" | "NOT_PICKABLE" | "COMMITMENT_VERSION_OUTDATED" | "PICK_ENDED";
         };
         QuoteView: {
             /** Format: int64 */
@@ -7362,11 +7231,11 @@ export interface components {
             /** Format: int32 */
             oldValue?: number;
             /** @enum {string} */
-            rule?: "AUTO_ACCEPTANCE_DAYS" | "AUTO_ACCEPTANCE_FIRST_REMINDER_DAY" | "AUTO_ACCEPTANCE_SECOND_REMINDER_DAY" | "RATING_WINDOW_DAYS" | "REVISION_ROUNDS" | "DISPUTE_RESPONSE_DAYS" | "TEAM_ISSUE_ANSWER_DAYS" | "TEAM_ISSUE_ESCALATION_DAYS" | "CLOSURE_CONFIRMATION_DAYS" | "CANCELLATION_CONFIRMATION_DAYS" | "AUTOMATIC_CLOSURE_DAYS" | "FINAL_MERGE_AUTHORIZATION_DAYS" | "AGREEMENT_STALL_DAYS" | "STARTING_STALL_DAYS" | "MENTOR_ACTIVE_JOB_LIMIT" | "MENTOR_SHARE_CAP_PERCENT" | "CREW_APPLICATION_LAPSE_DAYS";
+            rule?: "AUTO_ACCEPTANCE_DAYS" | "AUTO_ACCEPTANCE_FIRST_REMINDER_DAY" | "AUTO_ACCEPTANCE_SECOND_REMINDER_DAY" | "RATING_WINDOW_DAYS" | "REVISION_ROUNDS" | "DISPUTE_RESPONSE_DAYS" | "TEAM_ISSUE_ANSWER_DAYS" | "TEAM_ISSUE_ESCALATION_DAYS" | "CLOSURE_CONFIRMATION_DAYS" | "CANCELLATION_CONFIRMATION_DAYS" | "AUTOMATIC_CLOSURE_DAYS" | "FINAL_MERGE_AUTHORIZATION_DAYS" | "AGREEMENT_STALL_DAYS" | "STARTING_STALL_DAYS" | "MENTOR_ACTIVE_JOB_LIMIT" | "MENTOR_SHARE_CAP_PERCENT" | "CREW_APPLICATION_LAPSE_DAYS" | "SPLIT_DRAFT_DAYS" | "SPLIT_CONFIRMATION_DAYS" | "SPLIT_EDIT_LIMIT";
         };
         RuleView: {
             /** @enum {string} */
-            key: "AUTO_ACCEPTANCE_DAYS" | "AUTO_ACCEPTANCE_FIRST_REMINDER_DAY" | "AUTO_ACCEPTANCE_SECOND_REMINDER_DAY" | "RATING_WINDOW_DAYS" | "REVISION_ROUNDS" | "DISPUTE_RESPONSE_DAYS" | "TEAM_ISSUE_ANSWER_DAYS" | "TEAM_ISSUE_ESCALATION_DAYS" | "CLOSURE_CONFIRMATION_DAYS" | "CANCELLATION_CONFIRMATION_DAYS" | "AUTOMATIC_CLOSURE_DAYS" | "FINAL_MERGE_AUTHORIZATION_DAYS" | "AGREEMENT_STALL_DAYS" | "STARTING_STALL_DAYS" | "MENTOR_ACTIVE_JOB_LIMIT" | "MENTOR_SHARE_CAP_PERCENT" | "CREW_APPLICATION_LAPSE_DAYS";
+            key: "AUTO_ACCEPTANCE_DAYS" | "AUTO_ACCEPTANCE_FIRST_REMINDER_DAY" | "AUTO_ACCEPTANCE_SECOND_REMINDER_DAY" | "RATING_WINDOW_DAYS" | "REVISION_ROUNDS" | "DISPUTE_RESPONSE_DAYS" | "TEAM_ISSUE_ANSWER_DAYS" | "TEAM_ISSUE_ESCALATION_DAYS" | "CLOSURE_CONFIRMATION_DAYS" | "CANCELLATION_CONFIRMATION_DAYS" | "AUTOMATIC_CLOSURE_DAYS" | "FINAL_MERGE_AUTHORIZATION_DAYS" | "AGREEMENT_STALL_DAYS" | "STARTING_STALL_DAYS" | "MENTOR_ACTIVE_JOB_LIMIT" | "MENTOR_SHARE_CAP_PERCENT" | "CREW_APPLICATION_LAPSE_DAYS" | "SPLIT_DRAFT_DAYS" | "SPLIT_CONFIRMATION_DAYS" | "SPLIT_EDIT_LIMIT";
             /** Format: int32 */
             max: number;
             /** Format: int32 */
@@ -7616,6 +7485,16 @@ export interface components {
             version: number;
             /** Format: uuid */
             workItemId: string;
+        };
+        SplitRulesView: {
+            /** Format: int32 */
+            confirmationDays: number;
+            /** Format: int32 */
+            draftDays: number;
+            /** Format: int32 */
+            editLimit: number;
+            /** Format: int32 */
+            mentorShareCapPercent: number;
         };
         StalledEventView: {
             /** Format: int32 */
@@ -9269,7 +9148,7 @@ export interface operations {
             };
         };
     };
-    decline_7: {
+    decline_8: {
         parameters: {
             query?: never;
             header?: never;
@@ -9815,7 +9694,7 @@ export interface operations {
             };
         };
     };
-    decline_6: {
+    decline_7: {
         parameters: {
             query?: never;
             header?: never;
@@ -10324,7 +10203,7 @@ export interface operations {
             };
         };
     };
-    decline_5: {
+    decline_6: {
         parameters: {
             query?: never;
             header?: never;
@@ -10832,11 +10711,13 @@ export interface operations {
             };
         };
     };
-    crewAssignments: {
+    commitment: {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                jobId: string;
+            };
             cookie?: never;
         };
         requestBody?: never;
@@ -10847,12 +10728,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CrewAssignmentView"][];
+                    "application/json": components["schemas"]["CommitmentView"];
                 };
             };
         };
     };
-    confirmCrewTerms: {
+    sign_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -10863,20 +10744,22 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CrewConfirmRequest"];
+                "application/json": components["schemas"]["CommitmentSignRequest"];
             };
         };
         responses: {
-            /** @description No Content */
-            204: {
+            /** @description OK */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["CommitmentView"];
+                };
             };
         };
     };
-    declineCrewTerms: {
+    decline_5: {
         parameters: {
             query?: never;
             header?: never;
@@ -10885,18 +10768,16 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CrewDeclineRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
-            /** @description No Content */
-            204: {
+            /** @description OK */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["CommitmentView"];
+                };
             };
         };
     };
@@ -12864,7 +12745,7 @@ export interface operations {
             };
         };
     };
-    crewPanel: {
+    crew: {
         parameters: {
             query?: never;
             header?: never;
@@ -12881,33 +12762,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CrewPanelView"];
-                };
-            };
-        };
-    };
-    addCrewMember: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                jobId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CrewAddRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CrewPanelView"];
+                    "application/json": components["schemas"]["CrewView"];
                 };
             };
         };
@@ -12955,20 +12810,17 @@ export interface operations {
             };
         };
     };
-    changeCrew: {
+    pick: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 jobId: string;
+                crewApplicationId: string;
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CrewTermsRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description OK */
             200: {
@@ -12976,87 +12828,29 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CrewPanelView"];
+                    "application/json": components["schemas"]["ApplicantCardView"];
                 };
             };
         };
     };
-    reconfirmCrew: {
+    withdrawPick: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 jobId: string;
+                crewApplicationId: string;
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CrewReconfirmRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
-            /** @description OK */
-            200: {
+            /** @description No Content */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["CrewPanelView"];
-                };
-            };
-        };
-    };
-    saveCrewTerms: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                jobId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CrewTermsRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CrewPanelView"];
-                };
-            };
-        };
-    };
-    removeCrewMember: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                jobId: string;
-                crewRowId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CrewRemoveRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CrewPanelView"];
-                };
+                content?: never;
             };
         };
     };

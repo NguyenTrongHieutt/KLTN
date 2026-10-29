@@ -74,6 +74,10 @@ import vn.vibefix.timers.Deadlines;
  * Mentor is told of each application and keeps a to-do while any waits; the application lapses after the Job's copied
  * {@code CREW_APPLICATION_LAPSE_DAYS} ({@link CrewApplicationLapse}) or when recruitment closes, the applicant learning
  * why. An ended application and its proof are deleted 90 days after the decision ({@link CrewApplicationPurge}).
+ * <p>
+ * The Mentor picks a pending application, withdraws a pick, and the picked person signs or declines through
+ * {@link CrewCommitments} (Story 21.5): a picked application is {@code PICKED} until it ends, {@code JOINED} once its
+ * person signed. A pending application also lapses when its applicant signs on another Job's Crew (A-16).
  */
 @Component
 class CrewApplications {
@@ -114,7 +118,7 @@ class CrewApplications {
 	private static final String BIDDER_TRIGGER = "an open or selected bidder never applies";
 
 	enum Status {
-		PENDING, DECLINED, WITHDRAWN, LAPSED
+		PENDING, PICKED, JOINED, DECLINED, WITHDRAWN, LAPSED
 	}
 
 	enum EndReason {
@@ -141,7 +145,25 @@ class CrewApplications {
 		JOB_CANCELLED,
 
 		/** An Administrator hid the Job Post (FR-60). */
-		JOB_HIDDEN
+		JOB_HIDDEN,
+
+		/** The applicant signed on another Job's Crew (A-16). */
+		JOINED_ANOTHER_CREW,
+
+		/** The Mentor withdrew the pick before it was signed (R4). */
+		PICK_WITHDRAWN,
+
+		/** The picked person declined (R4). */
+		COMMITMENT_DECLINED,
+
+		/** The 3-day signature period passed (R4, AD-7). */
+		COMMITMENT_LAPSED,
+
+		/** J8 or J10 ended the pick before it was signed (A-04). */
+		PICK_ENDED,
+
+		/** The picked person signed and joined the Crew. */
+		SIGNED
 
 	}
 
@@ -154,9 +176,16 @@ class CrewApplications {
 
 	}
 
+	/**
+	 * One Crew Application.
+	 * @param crewRowId the Crew row the pick made, from the pick on (job's, an identifier only)
+	 * @param pickedAt when the Mentor picked it
+	 * @param signDueAt when the pick's 3-day signature period ends
+	 */
 	record CrewApplication(UUID id, UUID jobId, UUID productId, UUID customerId, UUID mentorId, UUID applicantId,
 			Status status, String note, List<UUID> skillIds, List<String> skillNames, Instant submittedAt,
-			Instant lapsesAt, @Nullable Instant endedAt, @Nullable EndReason endReason) {
+			Instant lapsesAt, @Nullable Instant endedAt, @Nullable EndReason endReason, @Nullable UUID crewRowId,
+			@Nullable Instant pickedAt, @Nullable Instant signDueAt) {
 
 		CrewApplication {
 			skillIds = List.copyOf(skillIds);
@@ -165,9 +194,9 @@ class CrewApplications {
 
 	}
 
-	private static final String COLUMNS = """
+	static final String COLUMNS = """
 			id, job_id, product_id, customer_account_id, mentor_account_id, applicant_account_id, status, note, skill_ids,
-			skill_names, submitted_at, lapses_at, ended_at, end_reason
+			skill_names, submitted_at, lapses_at, ended_at, end_reason, crew_row_id, picked_at, sign_due_at
 			""";
 
 	private final JdbcClient jdbc;
@@ -419,7 +448,7 @@ class CrewApplications {
 				ORDER BY submitted_at, id FOR UPDATE
 				""").param("job", jobId).param("closed", Timestamp.from(closedAt)).query(CrewApplications::application).list();
 		lapse(open, switch (closedBy) {
-			case MENTOR -> EndReason.RECRUITMENT_CLOSED;
+			case MENTOR, FILLED -> EndReason.RECRUITMENT_CLOSED;
 			case CLOSING -> EndReason.JOB_CLOSING;
 			case CANCELLED -> EndReason.JOB_CANCELLED;
 		});
@@ -455,6 +484,7 @@ class CrewApplications {
 	 */
 	@Transactional
 	void withdrawForAccount(UUID accountId) {
+		withdrawPicksForAccount(accountId);
 		List<CrewApplication> open = this.jdbc.sql("SELECT " + COLUMNS + """
 				 FROM matching.crew_application WHERE applicant_account_id = :id AND status = 'PENDING'
 				ORDER BY submitted_at, id FOR UPDATE
@@ -475,6 +505,37 @@ class CrewApplications {
 				refreshReviewTodo(found);
 			});
 		}
+	}
+
+	/**
+	 * The account's picks not yet signed end with it (AD-19, Story 21.5): on a lock or before an erasure each is
+	 * withdrawn with {@code APPLICANT_UNAVAILABLE} and its signature to-do closes; {@code job}'s lock listener releases
+	 * the row and tells the Mentor ({@code job.crew_pick_released}), so nothing more is sent here.
+	 */
+	private void withdrawPicksForAccount(UUID accountId) {
+		List<CrewApplication> picked = this.jdbc.sql("SELECT " + COLUMNS + """
+				 FROM matching.crew_application WHERE applicant_account_id = :id AND status = 'PICKED'
+				ORDER BY submitted_at, id FOR UPDATE
+				""").param("id", accountId).query(CrewApplications::application).list();
+		for (CrewApplication application : picked) {
+			if (endPick(application.id(), Status.WITHDRAWN, EndReason.APPLICANT_UNAVAILABLE)) {
+				this.todos.closeAll(CrewCommitments.SIGN_TODO, application.id());
+				this.recruitment.recruitment(application.jobId()).ifPresent(this::refreshReviewTodo);
+			}
+		}
+	}
+
+	/**
+	 * A-16 (Story 21.5): the applicant signed on another Job's Crew, so their pending applications to every other Job
+	 * lapse, each with the reason {@code JOINED_ANOTHER_CREW}. Lapsing them again changes nothing.
+	 */
+	@Transactional
+	void lapseElsewhere(UUID accountId, UUID joinedJobId) {
+		List<CrewApplication> open = this.jdbc.sql("SELECT " + COLUMNS + """
+				 FROM matching.crew_application WHERE applicant_account_id = :id AND status = 'PENDING' AND job_id <> :job
+				ORDER BY submitted_at, id FOR UPDATE
+				""").param("id", accountId).param("job", joinedJobId).query(CrewApplications::application).list();
+		lapse(open, EndReason.JOINED_ANOTHER_CREW);
 	}
 
 	/**
@@ -527,15 +588,35 @@ class CrewApplications {
 	}
 
 	/**
-	 * The Job's applications as JOB-9 lists them (UX-DR102): the pending ones oldest first, never reordered, then the
-	 * declined and lapsed ones ("Đơn đã đóng"); a withdrawn one is the applicant's alone.
+	 * The Job's applications as JOB-9 lists them (UX-DR102): the open ones, pending and picked, oldest first and never
+	 * reordered, then the closed ones ("Đơn đã đóng"); one the applicant withdrew, or a lock withdrew, is the
+	 * applicant's alone.
 	 */
 	@Transactional(readOnly = true)
 	List<CrewApplication> ofJob(UUID jobId) {
 		return this.jdbc.sql("SELECT " + COLUMNS + """
-				 FROM matching.crew_application WHERE job_id = :job AND status <> 'WITHDRAWN'
-				ORDER BY status <> 'PENDING', submitted_at, id
+				 FROM matching.crew_application WHERE job_id = :job
+				    AND NOT (status = 'WITHDRAWN' AND end_reason IN ('WITHDRAWN', 'APPLICANT_UNAVAILABLE'))
+				ORDER BY status NOT IN ('PENDING', 'PICKED'), submitted_at, id
 				""").param("job", jobId).query(CrewApplications::application).list();
+	}
+
+	/** The person's latest picked application to the Job, signed, ended or still waiting; empty without a pick. */
+	@Transactional(readOnly = true)
+	Optional<CrewApplication> pickOf(UUID jobId, UUID applicantId) {
+		return this.jdbc.sql("SELECT " + COLUMNS + """
+				 FROM matching.crew_application WHERE job_id = :job AND applicant_account_id = :applicant
+				    AND picked_at IS NOT NULL
+				ORDER BY picked_at DESC, id LIMIT 1
+				""").param("job", jobId).param("applicant", applicantId).query(CrewApplications::application).optional();
+	}
+
+	/** The application, locked (AD-4: after the Job row lock, which the caller took first through {@code job}). */
+	Optional<CrewApplication> lock(UUID applicationId) {
+		return this.jdbc.sql("SELECT " + COLUMNS + " FROM matching.crew_application WHERE id = :id FOR UPDATE")
+			.param("id", applicationId)
+			.query(CrewApplications::application)
+			.optional();
 	}
 
 	/** The applicant's pending application to the Job, if any. */
@@ -621,7 +702,7 @@ class CrewApplications {
 	 * "Xem {n} đơn xin vào nhóm cho {job}" while any application waits (UX-DR112): tier 2 while no member has signed,
 	 * else 3.
 	 */
-	private void refreshReviewTodo(Recruitment found) {
+	void refreshReviewTodo(Recruitment found) {
 		this.todos.closeAll(REVIEW_TODO, found.jobId());
 		if (found.mentorId() == null) {
 			return;
@@ -656,8 +737,27 @@ class CrewApplications {
 			.update() > 0;
 	}
 
+	/**
+	 * Ends a picked application if it is still {@code PICKED}: one that did not join is due for deletion
+	 * {@link BidProofs#RETENTION} later (X3), a joined one stays with the Job's data.
+	 * @return whether it ended now
+	 */
+	boolean endPick(UUID applicationId, Status status, EndReason reason) {
+		Instant now = this.clock.instant();
+		return this.jdbc.sql("""
+				UPDATE matching.crew_application SET status = :status, ended_at = :now, end_reason = :reason, purge_due_at = :due
+				WHERE id = :id AND status = 'PICKED'
+				""")
+			.param("id", applicationId)
+			.param("status", status.name())
+			.param("reason", reason.name())
+			.param("now", Timestamp.from(now))
+			.param("due", status == Status.JOINED ? null : Timestamp.from(now.plus(BidProofs.RETENTION)))
+			.update() > 0;
+	}
+
 	/** The applicant's name as the Mentor's notices show it: the one name rule (Story 19.3). */
-	private String name(UUID accountId) {
+	String name(UUID accountId) {
 		return Optional.ofNullable(this.profiles.factsOf(List.of(accountId)).get(accountId))
 			.map(PersonFacts::displayName)
 			.orElse("");
@@ -677,16 +777,19 @@ class CrewApplications {
 		return skills;
 	}
 
-	private static CrewApplication application(ResultSet rs, int n) throws SQLException {
+	static CrewApplication application(ResultSet rs, int n) throws SQLException {
 		String reason = rs.getString("end_reason");
 		Timestamp ended = rs.getTimestamp("ended_at");
+		Timestamp picked = rs.getTimestamp("picked_at");
+		Timestamp due = rs.getTimestamp("sign_due_at");
 		return new CrewApplication(rs.getObject("id", UUID.class), rs.getObject("job_id", UUID.class),
 				rs.getObject("product_id", UUID.class), rs.getObject("customer_account_id", UUID.class),
 				rs.getObject("mentor_account_id", UUID.class), rs.getObject("applicant_account_id", UUID.class),
 				Status.valueOf(rs.getString("status")), rs.getString("note"), uuids(rs.getArray("skill_ids")),
 				Arrays.asList((String[]) rs.getArray("skill_names").getArray()), rs.getTimestamp("submitted_at").toInstant(),
 				rs.getTimestamp("lapses_at").toInstant(), ended == null ? null : ended.toInstant(),
-				reason == null ? null : EndReason.valueOf(reason));
+				reason == null ? null : EndReason.valueOf(reason), rs.getObject("crew_row_id", UUID.class),
+				picked == null ? null : picked.toInstant(), due == null ? null : due.toInstant());
 	}
 
 	private static List<UUID> uuids(Array array) throws SQLException {

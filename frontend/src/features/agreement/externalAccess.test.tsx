@@ -127,24 +127,6 @@ describe('FR-66 External Access after confirmation (N-8, UX-DR83)', () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('CREW'),
       ...heldJobs({ jobId: 'j1', title: 'Sửa lỗi đặt bàn và thêm nhắc lịch', role: 'CREW', crewKind: 'ACTIVE' }),
-      'GET /api/v1/crew/assignments': () =>
-        json([
-          {
-            jobId: 'j1',
-            title: 'Sửa lỗi đặt bàn và thêm nhắc lịch',
-            productName: 'Sổ đặt bàn Quán Mây',
-            mentorName: 'Đỗ Mạnh Hùng',
-            status: 'ASSIGNED',
-            scope: 'Sửa lỗi hai khách đặt trùng bàn cùng giờ.',
-            milestones: [],
-            sharePercent: 30,
-            versionNo: 2,
-            versionSentAt: '2026-10-17T03:00:00Z',
-            signed: true,
-            codeJob: true,
-            commitEmailNoticeAcknowledged: true,
-          },
-        ]),
       'GET /api/v1/team': () =>
         json({ invitations: [], joinRequests: [], requestsLeft: 3, verified: true, team: { joinedAt: '2026-10-01T03:00:00Z' } }),
       'GET /api/v1/jobs/j1/external-access': () => json({ viewer: 'CREW', open: true, items: [item()] }),

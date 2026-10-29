@@ -16,6 +16,7 @@ import { formatSize } from '@/lib/fileSize'
 import { isNotFound } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { BidPanel } from '@/features/matching/BidPanel'
+import { CommitmentPanel } from '@/features/matching/CommitmentPanel'
 import { CrewApplicationState } from '@/features/matching/CrewApplicationState'
 import { useMyCrewApplications, type CrewApplication } from '@/features/matching/crewApplicationApi'
 import { crewApplicationStateText, runningCrewJob } from '@/features/matching/crewText'
@@ -150,12 +151,15 @@ function ApplicationOnly({ application }: { application: CrewApplication }) {
   )
 }
 
-/** A Job no longer listed, opened by one of its own people: their role, with the way to the Job (UX-DR98). */
+/**
+ * A Job no longer listed, opened by one of its own people: their role, with the way to the Job (UX-DR98); a picked
+ * person signs here in the Commitment panel, since the pick may have filled the last place (Story 21.5).
+ */
 function RoleOnly({ jobId, role }: { jobId: string; role: JobRoleView }) {
   return (
     <GatePage>
       <PageHeading className="sr-only">{t('screen.jobPost.title')}</PageHeading>
-      <RoleNotice jobId={jobId} role={role} />
+      {role.crewKind === 'ASSIGNED' ? <CommitmentPanel jobId={jobId} /> : <RoleNotice jobId={jobId} role={role} />}
     </GatePage>
   )
 }
@@ -299,13 +303,17 @@ function Post({ post, invitation }: { post: JobPost; invitation: MentorInvitatio
 }
 
 /**
- * The one action area (UX-DR98): the Job's own people see their role; otherwise the bid while the Job looks for a
- * Mentor, or what the Mentor's recruitment seeks while it is on.
+ * The one action area (UX-DR98): a picked person signs in the Commitment panel (UX-DR103, Story 21.5); the Job's own
+ * people see their role; otherwise the bid while the Job looks for a Mentor, or what the Mentor's recruitment seeks
+ * while it is on.
  */
 function ActionArea({ post }: { post: JobPost }) {
   const role = useJobRole(post.id)
   if (role.isPending) {
     return <Skeleton className="h-40 w-full" />
+  }
+  if (role.data?.crewKind === 'ASSIGNED') {
+    return <CommitmentPanel jobId={post.id} />
   }
   if (role.data?.crewKind === 'FORMER' && post.recruitment) {
     return (

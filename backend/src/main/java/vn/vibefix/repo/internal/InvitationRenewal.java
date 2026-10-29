@@ -12,9 +12,9 @@ import vn.vibefix.timers.DueDeadline;
 
 /**
  * {@value #KEY} (FR-18, FR-75, AD-7, AD-11): GitHub expires an invitation after 7 days, so a grant still
- * pending is invited again, with read permission, while the Job is Starting. A Crew change member's is
- * renewed while the Job is Active, at most {@value JobGrants#CREW_CHANGE_RENEWALS} times; then the
- * Mentor and the Administrators hear of it. Not pausable. The generation is the grant's renewal count, so
+ * pending is invited again, with read permission, while the Job is Starting. A member who joined after Setup
+ * (Story 21.5) is renewed while the Job is Starting or Active, at most {@value JobGrants#CREW_CHANGE_RENEWALS}
+ * times; then the Mentor and the Administrators hear of it. Not pausable. The generation is the grant's renewal count, so
  * an accepted or renewed grant leaves it {@code OBSOLETE}. Collaborators are looked up on use.
  */
 @Component
@@ -46,11 +46,11 @@ class InvitationRenewal implements DeadlineHandler {
 			return DeadlineOutcome.OBSOLETE;
 		}
 		String state = this.busy.getObject().job(grant.jobId()).map(JobBusy.BusyJob::state).orElse("");
-		if ("STARTING".equals(state)) {
+		if ("STARTING".equals(state) && !grant.crewChange()) {
 			grants.reinvite(grant);
 			return DeadlineOutcome.FIRED;
 		}
-		if ("ACTIVE".equals(state) && grant.crewChange()) {
+		if (("STARTING".equals(state) || "ACTIVE".equals(state)) && grant.crewChange()) {
 			if (grant.renewals() >= JobGrants.CREW_CHANGE_RENEWALS) {
 				grants.exhausted(grant);
 			}

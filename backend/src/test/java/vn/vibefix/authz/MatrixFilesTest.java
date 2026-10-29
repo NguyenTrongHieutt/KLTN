@@ -98,9 +98,6 @@ class MatrixFilesTest {
 			"POST /api/v1/boards/{boardId}/revocation-checklist/{accessId}",
 			"the Revocation Checklist opens when the Job ends, at J8 or J10 (Story 8.10): the crew Job is Active, so it"
 					+ " holds no item to confirm",
-			"PUT /api/v1/mentor/jobs/{jobId}/crew/change",
-			"a Crew change needs large Crews (AD-30), which are off in the matrix's application, so CrewChanges.propose"
-					+ " finds nothing for anyone; OneRolePerJobPropertyIT runs it with them on",
 			"GET /api/v1/jobs/{jobId}/final-merge",
 			"the Final Merge authorization opens with a closure proposal or at J8 (Story 8.7): the crew Job's held"
 					+ " Milestone refuses a proposal (MILESTONE_HELD), so it has none to read");
@@ -227,7 +224,7 @@ class MatrixFilesTest {
 			MatrixCaller.ADMIN_TEAM_ISSUE_GRANT);
 
 	/** The global reads that list a Job's content, run by every caller of a Job (B4). */
-	static final List<String> JOB_LISTS = List.of("GET /api/v1/crew/assignments", "GET /api/v1/notifications",
+	static final List<String> JOB_LISTS = List.of("GET /api/v1/notifications",
 			"GET /api/v1/todos", "GET /api/v1/balance", "GET /api/v1/payments/history", "GET /api/v1/mentor/jobs",
 			"GET /api/v1/jobs", "GET /api/v1/my-jobs", "GET /api/v1/team-issues");
 

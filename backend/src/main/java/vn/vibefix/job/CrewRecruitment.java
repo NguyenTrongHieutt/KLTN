@@ -79,7 +79,10 @@ public interface CrewRecruitment {
 		CLOSING,
 
 		/** J10: the Job was cancelled. */
-		CANCELLED
+		CANCELLED,
+
+		/** Picks and members filled the places sought, so recruitment turned off by itself (Story 21.5). */
+		FILLED
 
 	}
 

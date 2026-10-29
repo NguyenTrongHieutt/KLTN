@@ -44,7 +44,9 @@ import vn.vibefix.shared.IdGenerator;
  * sought (at most 10, an added one active in the catalog) and a note, and edits or turns it off through the same
  * command. Every write runs under the Job row lock and increments {@code crew_version}, which no Customer DTO carries;
  * turning it on publishes {@link CrewRecruitmentOpened}, and turning it off, J8 and J10 publish
- * {@link CrewRecruitmentClosed}, on which {@code matching} lapses the open Crew Applications. The setting lives on the
+ * {@link CrewRecruitmentClosed}, on which {@code matching} lapses the open Crew Applications. A pick takes a place and
+ * an unsigned pick that ends gives it back while recruitment is on; when picks and members fill the places,
+ * recruitment turns off by itself (Story 21.5). The setting lives on the
  * Job, so {@code job.phaseOf} and "Tìm việc" never read {@code matching} (AD-3).
  */
 @Component
@@ -55,6 +57,8 @@ class JobRecruitment implements CrewRecruitment {
 	static final String EDITED = "job.recruitment_edited";
 
 	static final String CLOSED = "job.recruitment_closed";
+
+	static final String FILLED = "job.recruitment_filled";
 
 	/** Skills a recruitment seeks at most (the Skill picker's limit on a recruitment). */
 	static final int MAX_SKILLS = 10;
@@ -220,6 +224,42 @@ class JobRecruitment implements CrewRecruitment {
 			this.crews.bump(jobId, false);
 		}
 		this.events.publishEvent(new CrewRecruitmentClosed(this.ids.newId(), jobId, closedBy, now));
+	}
+
+	/**
+	 * A pick took a place (FR-81, Story 21.5), under the Job row lock its caller holds: while recruitment is on, one place
+	 * fewer, never more than the free places under the cap; at none left recruitment turns off by itself and
+	 * {@link CrewRecruitmentClosed} lapses the other pending applications.
+	 */
+	void takeSlot(UUID jobId) {
+		Recruitment current = read(jobId, false).orElseThrow();
+		if (!current.on()) {
+			return;
+		}
+		int left = Math.max(0, Math.min(current.openSlots() - 1, current.cap() - current.unreleased()));
+		if (left > 0) {
+			this.jdbc.sql("UPDATE job.job SET open_slots = :slots WHERE id = :id").param("slots", left).param("id", jobId).update();
+			return;
+		}
+		Instant now = this.clock.instant();
+		this.jdbc.sql("UPDATE job.job SET recruiting = false, open_slots = 0 WHERE id = :id").param("id", jobId).update();
+		this.auditLog.record(AuditEntry.of(AuditActor.system(), FILLED, AuditObject.of("job.job", jobId)).forJob(jobId));
+		this.events.publishEvent(new CrewRecruitmentClosed(this.ids.newId(), jobId, ClosedBy.FILLED, now));
+	}
+
+	/**
+	 * A pick ended before it was signed (R4, Story 21.5), under the Job row lock its caller holds: while recruitment is
+	 * on, its place returns, never above the free places under the cap. Recruitment that turned off stays off.
+	 */
+	void returnSlot(UUID jobId) {
+		Recruitment current = read(jobId, false).orElseThrow();
+		if (!current.on()) {
+			return;
+		}
+		int slots = Math.max(0, Math.min(current.openSlots() + 1, current.cap() - current.unreleased()));
+		if (slots != current.openSlots()) {
+			this.jdbc.sql("UPDATE job.job SET open_slots = :slots WHERE id = :id").param("slots", slots).param("id", jobId).update();
+		}
 	}
 
 	/** The Skills sought, by ID, as the catalog names them now (for the Skill picker's tokens). */

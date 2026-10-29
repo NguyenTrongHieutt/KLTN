@@ -27,8 +27,8 @@ import vn.vibefix.shared.ErrorCode;
 
 /**
  * External Access after confirmation (FR-66, AD-20, UX-DR83). The Mentor's confirmation opens one
- * {@value #TODO} per item for the Customer ({@link AgreementReviews#confirm}). The Mentor and each Crew
- * member whose row is not released enter the account to invite on each item's system. The Customer
+ * {@value #TODO} per item for the Customer ({@link AgreementReviews#confirm}). The Mentor and each {@code ACTIVE}
+ * Crew member enter the account to invite on each item's system; a pick not yet signed reads none of it (AD-41). The Customer
  * reads those identifiers only next to the item, beside each person's GitHub username, and only while
  * the Job is neither Closed nor Cancelled; each person reads their own. "Đã cấp quyền" closes the to-do,
  * the only record of the tick. An identifier is no credential: one the {@code scanning} rules read as a
@@ -95,9 +95,12 @@ class ExternalAccessGrants {
 			.optional();
 	}
 
-	/** Whether the Student holds a Crew row of the Job that is not released. */
+	/**
+	 * Whether the person is an {@code ACTIVE} member of the Job's Crew (AD-41, Story 21.5): a pick not yet signed reads
+	 * nothing of the Job but its assignment projection.
+	 */
 	boolean onCrew(UUID jobId, UUID studentId) {
-		return this.crews.rows(jobId).stream().anyMatch(row -> row.studentId().equals(studentId) && !row.released());
+		return this.crews.rows(jobId).stream().anyMatch(row -> row.studentId().equals(studentId) && row.active());
 	}
 
 	/**
@@ -203,7 +206,7 @@ class ExternalAccessGrants {
 		}
 		List<UUID> crew = this.crews.rows(job.id())
 			.stream()
-			.filter(row -> !row.released())
+			.filter(CrewService.Row::active)
 			.map(CrewService.Row::studentId)
 			.toList();
 		Map<UUID, StudentCard> cards = this.crews.cards(crew);

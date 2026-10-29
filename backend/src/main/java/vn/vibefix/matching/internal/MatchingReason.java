@@ -96,6 +96,18 @@ enum MatchingReason {
 	ON_ANOTHER_CREW,
 
 	/** Only a pending Crew Application is declined (FR-81). */
-	NOT_DECLINABLE
+	NOT_DECLINABLE,
+
+	/** "Chọn" finds the Crew Application no longer pending: picked, declined, withdrawn or lapsed meanwhile (Story 21.5). */
+	NOT_PICKABLE,
+
+	/** The commitment text changed since the panel was read (FR-81, Story 21.5); its legal wording waits for OQ5. */
+	COMMITMENT_VERSION_OUTDATED,
+
+	/**
+	 * A signature or a decline finds the pick ended: the Mentor withdrew it, the 3 days passed, the person was locked,
+	 * or the Job entered Closing or was cancelled (R4, AD-41, A-04).
+	 */
+	PICK_ENDED
 
 }

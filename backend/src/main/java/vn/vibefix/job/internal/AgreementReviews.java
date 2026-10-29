@@ -27,7 +27,6 @@ import vn.vibefix.audit.AuditActor;
 import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
-import vn.vibefix.identity.StudentDirectory.StudentCard;
 import vn.vibefix.job.AgreementConfirmed;
 import vn.vibefix.job.AgreementConfirmed.ConfirmedMilestone;
 import vn.vibefix.job.internal.Agreements.Content;
@@ -51,8 +50,9 @@ import vn.vibefix.shared.IdGenerator;
  * JOB-6's review and confirmation (FR-16, FR-17, AD-29, AD-41 as revised by R-1): the Customer
  * comments on the latest shared draft, asks for changes, or approves it, each decision at the
  * {@code Job.version} the screen loaded; the Mentor then confirms, at the {@code Job.version} and the
- * {@code crewVersion} the screen loaded, once the Crew is confirmed. The confirmation writes the
- * insert-only Agreement version 1 and locks the Crew (Story 4.3's {@code CREW_LOCKED}).
+ * {@code crewVersion} the screen loaded. The confirmation waits for no Crew condition (FR-17, R7, Story 21.5): it
+ * writes the insert-only Agreement version 1 with the GitHub usernames of the members {@code ACTIVE} then, and the Crew
+ * keeps growing from Crew Applications; J6 needs one signed member.
  */
 @Component
 class AgreementReviews {
@@ -70,6 +70,9 @@ class AgreementReviews {
 	static final String AWAITING_FUNDING = "job.milestone_awaiting_funding";
 
 	static final int MAX_COMMENTS = 200;
+
+	/** The confirmation notice's Crew when no member has signed yet (R7): the Crew keeps growing after it. */
+	static final String NO_MEMBER_YET = "chưa có thành viên";
 
 	/** What a comment is about; the scope has no entity ID. */
 	enum TargetKind {
@@ -266,11 +269,11 @@ class AgreementReviews {
 
 	/**
 	 * "Xác nhận thỏa thuận" (FR-17): under the Job row lock, the approved latest version becomes the
-	 * confirmed Agreement version 1 with the Crew's usernames of this moment, and the Crew locks.
+	 * confirmed Agreement version 1 with the GitHub usernames of the members {@code ACTIVE} at this moment, none
+	 * included (R7).
 	 * @throws ApiException {@code STALE} past Agreement, for a moved {@code Job.version} or
-	 * {@code crewVersion}, or once confirmed; {@code GUARD_FAILED AGREEMENT_NOT_APPROVED},
-	 * {@code DRAFT_CHANGED} when the live draft differs from the approved version, or
-	 * {@code CREW_NOT_CONFIRMED}
+	 * {@code crewVersion}, or once confirmed; {@code GUARD_FAILED AGREEMENT_NOT_APPROVED}, or
+	 * {@code DRAFT_CHANGED} when the live draft differs from the approved version
 	 */
 	@Transactional
 	Confirmed confirm(UUID mentorId, UUID jobId, long version, long crewVersion) {
@@ -289,16 +292,8 @@ class AgreementReviews {
 		if (!draftMatchesShared(job, latest)) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, JobReason.DRAFT_CHANGED);
 		}
-		if (!this.crews.crewConfirmed(jobId)) {
-			throw new ApiException(ErrorCode.GUARD_FAILED, JobReason.CREW_NOT_CONFIRMED);
-		}
-		List<Row> running = this.crews.rows(jobId).stream().filter(row -> !row.released()).toList();
-		Map<UUID, StudentCard> cards = this.crews.cards(running.stream().map(Row::studentId).toList());
-		List<String> usernames = running.stream()
-			.map(row -> cards.get(row.studentId()))
-			.filter(card -> card != null && card.githubLogin() != null)
-			.map(StudentCard::githubLogin)
-			.toList();
+		List<Row> active = this.crews.rows(jobId).stream().filter(Row::active).toList();
+		List<String> usernames = this.crews.activeUsernames(jobId);
 		Instant now = this.clock.instant();
 		this.jdbc.sql("""
 				INSERT INTO job.confirmed_agreement (job_id, version_no, draft_version_no, content, crew_usernames, live_access_ids,
@@ -320,7 +315,7 @@ class AgreementReviews {
 			.update();
 		this.auditLog.record(AuditEntry.of(AuditActor.user(mentorId), "job.agreement_confirmed", AuditObject.of("job.job", jobId))
 			.forJob(jobId));
-		for (String key : List.of(CONFIRM_TODO, CrewService.PICK_TODO, REVISE_TODO, Agreements.REVIEW_TODO, Agreements.DRAFT_TODO)) {
+		for (String key : List.of(CONFIRM_TODO, REVISE_TODO, Agreements.REVIEW_TODO, Agreements.DRAFT_TODO)) {
 			this.todos.closeAll(key, jobId);
 		}
 		// FR-66: N-8's guidance, one to-do per External Access item, which the Customer's tick closes.
@@ -330,11 +325,10 @@ class AgreementReviews {
 		}
 		List<Recipient> everyone = new ArrayList<>(List.of(new Recipient(job.customerId(), Audience.CUSTOMER),
 				new Recipient(mentorId, Audience.MENTOR)));
-		running.stream()
-			.filter(row -> "ACTIVE".equals(row.status()))
-			.forEach(row -> everyone.add(new Recipient(row.studentId(), Audience.CREW_ACTIVE)));
+		active.forEach(row -> everyone.add(new Recipient(row.studentId(), Audience.CREW_ACTIVE)));
 		this.notifications.send(new NotificationRequest(CONFIRMED, cause(jobId, "confirmed:1"), everyone,
-				Map.of("job", job.title(), "crew", String.join(" · ", usernames)), Agreements.agreementLink(jobId), jobId, null));
+				Map.of("job", job.title(), "crew", usernames.isEmpty() ? NO_MEMBER_YET : String.join(" · ", usernames)),
+				Agreements.agreementLink(jobId), jobId, null));
 		latest.content().milestones().stream().findFirst().ifPresent(first -> this.notifications.send(new NotificationRequest(
 				AWAITING_FUNDING, cause(jobId, "funding:" + first.id()), List.of(new Recipient(job.customerId(), Audience.CUSTOMER)),
 				Map.of("job", job.title(), "n", "1", "amount", vnd(first.priceVnd() == null ? 0 : first.priceVnd())),

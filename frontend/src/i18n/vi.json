@@ -919,7 +919,7 @@
       "rules": {
         "title": "Quy tắc",
         "heading": "Quy tắc nền tảng",
-        "lead": "Các giá trị này áp dụng cho công việc đăng sau khi lưu; công việc đang chạy giữ giá trị đã sao chép khi đăng. Giới hạn số việc áp dụng từ lần ứng tuyển hoặc chọn tiếp theo, và mức chia tối đa áp dụng cho các phiên bản điều khoản nhóm lưu sau đó.",
+        "lead": "Các giá trị này áp dụng cho công việc đăng sau khi lưu; công việc đang chạy giữ giá trị đã sao chép khi đăng. Giới hạn số việc áp dụng từ lần ứng tuyển hoặc chọn tiếp theo, và các quy tắc phân chia tiền áp dụng cho các phân chia lưu sau đó.",
         "values": "Giá trị quy tắc",
         "rule": {
           "AUTO_ACCEPTANCE_DAYS": "Số ngày trước khi tự động nghiệm thu",
@@ -938,7 +938,10 @@
           "STARTING_STALL_DAYS": "Số ngày chờ bắt đầu trước khi được hủy một phía",
           "MENTOR_ACTIVE_JOB_LIMIT": "Số việc tối đa của một người hướng dẫn",
           "MENTOR_SHARE_CAP_PERCENT": "Mức chia tối đa của người hướng dẫn (%)",
-          "CREW_APPLICATION_LAPSE_DAYS": "Số ngày một đơn xin vào nhóm chờ trước khi hết hạn"
+          "CREW_APPLICATION_LAPSE_DAYS": "Số ngày một đơn xin vào nhóm chờ trước khi hết hạn",
+          "SPLIT_DRAFT_DAYS": "Số ngày người hướng dẫn soạn phân chia tiền sau khi giai đoạn được nghiệm thu",
+          "SPLIT_CONFIRMATION_DAYS": "Số ngày thành viên xác nhận mỗi bản phân chia tiền",
+          "SPLIT_EDIT_LIMIT": "Số lần người hướng dẫn được sửa phân chia tiền của một giai đoạn"
         },
         "bounds": "Từ {min} đến {max}",
         "domains": "Danh sách trường",
@@ -2174,7 +2177,7 @@
       "afterTitle": "Sau khi bạn ký",
       "afterChat": "Trò chuyện với khách hàng mở ra.",
       "afterAgreement": "Bạn soạn thỏa thuận và gửi cho khách hàng.",
-      "afterCrew": "Bạn chọn nhóm thực hiện; từng thành viên tự ký cam kết và xác nhận phần của mình.",
+      "afterCrew": "Bạn mở tuyển thành viên nhóm; người bạn chọn tự ký cam kết tham gia.",
       "customerSeesTitle": "Khách hàng thấy",
       "customerSees": "\"Chờ người hướng dẫn ký cam kết bảo mật\" cho đến khi bạn ký hoặc hết hạn.",
       "signedTitle": "Bạn đã ký cam kết bảo mật",
@@ -2408,143 +2411,24 @@
       }
     },
     "crew": {
-      "panel": {
-        "title": "Nhóm thực hiện",
-        "caption": "Điều khoản nhóm thực hiện · phiên bản {n} · phần chia tính trên số tiền mỗi giai đoạn được nghiệm thu",
-        "captionNone": "Chưa gửi phiên bản điều khoản nào · phần chia tính trên số tiền mỗi giai đoạn được nghiệm thu",
-        "add": "Thêm thành viên",
-        "addAction": "thêm thành viên",
-        "removeAction": "bỏ thành viên khỏi nhóm",
-        "saveAction": "lưu phần chia",
-        "n20": "Khách hàng chỉ thấy tên tài khoản GitHub của nhóm thực hiện, không thấy tỷ lệ chia tiền. Mỗi thành viên phải tự xác nhận phần của mình; sửa tỷ lệ sẽ xóa các xác nhận cũ.",
-        "locked": "Nhóm thực hiện đã chốt theo thỏa thuận. Không thể thay đổi cho đến khi công việc bắt đầu.",
-        "lockedRunning": "Công việc đang chạy: nhóm chỉ thay đổi qua \"Đổi nhóm thực hiện\". Mỗi người giữ nguyên các khoản đã nhận.",
-        "captionChange": "Đổi nhóm thực hiện · phiên bản {n} đang chờ áp dụng · phiên bản {current} vẫn áp dụng đến khi đổi xong",
-        "change": "Đổi nhóm thực hiện",
-        "changeEdit": "Sửa thay đổi",
-        "changeHeld": "Đang có giai đoạn giữ tiền. Bạn đổi nhóm được khi giai đoạn đó xong.",
-        "changeWaiting": "Đang chờ áp dụng: {confirmed}/{total} đã xác nhận",
-        "changeWaitingBody": "Phiên bản {n} áp dụng khi mọi người đã xác nhận và không có giai đoạn nào đang giữ tiền. Phiên bản {current} vẫn áp dụng đến khi đổi xong. Chỉ bạn thấy thay đổi đang chờ; khách hàng thanh toán bình thường.",
-        "changeTitle": "Đổi nhóm thực hiện",
-        "changeLead": "Chọn người ở lại, thêm thành viên từ nhóm của bạn và chia lại phần. Các khoản mỗi người đã nhận vẫn giữ nguyên.",
-        "changeNew": "Thành viên mới · chờ ký và xác nhận",
-        "changeStays": "Ở lại · xác nhận phần mới",
-        "changeLeaving": "Sẽ rời nhóm khi áp dụng",
-        "changeKeep": "Giữ lại",
-        "changeKeepNamed": "Giữ {name} lại trong nhóm",
-        "changeNote": "Thay đổi chỉ áp dụng khi mọi người trong nhóm mới đã xác nhận và không có giai đoạn nào đang giữ tiền. Mỗi giai đoạn đã thanh toán vẫn chia theo phiên bản lúc thanh toán.",
-        "changeApply": "Áp dụng khi mọi người đã xác nhận",
-        "changeCancel": "Hủy",
-        "changeSaved": "Đã gửi phiên bản {n} cho nhóm xác nhận.",
-        "changeAction": "đổi nhóm",
-        "member": "Thành viên",
-        "share": "Phần chia",
-        "status": "Trạng thái",
-        "actions": "Thao tác",
-        "you": "{name} (bạn)",
-        "mentorRole": "Người hướng dẫn",
-        "mentorLine": "Người hướng dẫn · {login}",
-        "shareLabel": "Phần của {name}, phần trăm",
-        "cap": "Tối đa {cap}% cho người hướng dẫn",
-        "remove": "Bỏ khỏi nhóm",
-        "removeNamed": "Bỏ {name} khỏi nhóm",
-        "empty": "Chưa có thành viên nào trong nhóm thực hiện. Chọn \"Thêm thành viên\" để chọn từ nhóm của bạn.",
-        "sum": "Tổng: {n}%",
-        "sumBad": "Tổng: {n}% · cần bằng 100%",
-        "save": "Lưu và gửi cho nhóm xác nhận",
-        "saveNote": "Lưu sẽ tạo phiên bản mới và gửi cho từng thành viên ký cam kết bảo mật và xác nhận phần của mình.",
-        "example": "Ví dụ Giai đoạn {n}",
-        "notWhole": "Hãy nhập số nguyên từ 0 đến 100.",
-        "studentZero": "Phần của mỗi thành viên phải lớn hơn 0%.",
-        "mentorOver": "Tối đa {cap}% cho người hướng dẫn.",
-        "saved": "Đã lưu phiên bản {n} và gửi cho nhóm xác nhận.",
-        "added": "Đã thêm {name} vào nhóm thực hiện.",
-        "removed": "Đã bỏ {name} khỏi nhóm thực hiện.",
-        "limit": "Hiện mỗi công việc chỉ có một thành viên trong nhóm thực hiện.",
-        "pickLabel": "Thành viên trong nhóm của bạn",
-        "pickCount": "Nhóm của bạn · {n} thành viên",
-        "pickEmpty": "Nhóm của bạn chưa có thành viên nào. Mời thành viên ở trang Nhóm.",
-        "free": "Đang rảnh",
-        "onCrew": "Đang làm {job}",
-        "onCrewOther": "Đang làm một công việc khác",
-        "notVerified": "Chưa xác minh",
-        "inCrew": "Đã trong nhóm thực hiện",
-        "addNamed": "Thêm {name}",
-        "pickAdd": "Thêm",
-        "confirmTitle": "Lưu phần chia mới?",
-        "confirmBody": "Các xác nhận cũ sẽ bị xóa. Mỗi thành viên phải ký và xác nhận lại phiên bản mới.",
-        "confirmBack": "Quay lại",
-        "confirmSave": "Lưu và gửi",
-        "state": {
-          "ASSIGNED": "Đã phân công · chưa xác nhận",
-          "ACTIVE": "Đang tham gia · đã xác nhận phiên bản {n}",
-          "ACTIVE_EARLIER": "Đang tham gia",
-          "RELEASED": "Đã rời",
-          "LEAVING": "Đang tham gia · sẽ rời khi áp dụng phiên bản {n}"
-        },
-        "released": {
-          "DECLINED": "Đã rời · đã từ chối tham gia",
-          "REMOVED": "Đã rời · đã bỏ khỏi nhóm",
-          "JOB_ENDED": "Đã rời · công việc đã kết thúc",
-          "LEFT": "Đã rời"
-        },
-        "notSigned": "Chưa ký cam kết",
-        "signed": "Đã ký cam kết {date}",
-        "headerLine": "Nhóm thực hiện: {confirmed}/{total} đã xác nhận",
-        "seesTitle": "Khách hàng thấy gì",
-        "sees": "Dưới \"Nhóm thực hiện\" trong thỏa thuận, khách hàng chỉ thấy tên tài khoản GitHub:",
-        "seesNobody": "chưa có ai",
-        "seesNote": "Không có tên, hồ sơ hay tỷ lệ chia. Cho đến khi cả nhóm xác nhận, khách hàng thấy thêm \"Chờ nhóm thực hiện xác nhận\".",
-        "rulesTitle": "Quy tắc phần chia",
-        "ruleWhole": "Số nguyên, cộng lại bằng 100%",
-        "ruleStudent": "Mỗi thành viên lớn hơn 0%",
-        "ruleCap": "Tối đa {cap}% cho người hướng dẫn",
-        "ruleRemainder": "Phần lẻ dưới 1 đồng thuộc về người hướng dẫn",
-        "reconfirmTitle": "Cần xác nhận lại nhóm thực hiện",
-        "reconfirmBody": "Một thành viên đã rời nhóm sau khi thỏa thuận được xác nhận. Hãy thêm người khác nếu cần và lưu phần chia, rồi xác nhận lại nhóm trước khi khách hàng thanh toán.",
-        "reconfirm": "Xác nhận lại nhóm thực hiện",
-        "reconfirmed": "Đã xác nhận lại nhóm thực hiện.",
-        "reconfirmAction": "xác nhận lại nhóm thực hiện",
-        "limitLarge": "Nhóm thực hiện đã đủ {n} thành viên."
-      },
       "customer": {
         "title": "Nhóm thực hiện",
-        "waiting": "Chờ nhóm thực hiện xác nhận",
-        "none": "Người hướng dẫn chưa chọn nhóm thực hiện.",
-        "note": "Tên tài khoản GitHub để bạn cấp quyền khi cần. Người hướng dẫn chọn và chịu trách nhiệm về nhóm thực hiện."
+        "none": "Chưa có thành viên nào ký · người hướng dẫn đang tìm nhóm thực hiện.",
+        "note": "Tên tài khoản GitHub của các thành viên đã ký, để bạn cấp quyền khi cần. Người hướng dẫn chọn và chịu trách nhiệm về nhóm thực hiện."
+      },
+      "mentor": {
+        "title": "Nhóm thực hiện",
+        "headerLine": "Nhóm thực hiện: {n} người đã ký",
+        "headerNone": "Nhóm thực hiện: chưa có thành viên nào ký",
+        "waiting": "{n} người được chọn đang chờ ký",
+        "recruit": "Tuyển thành viên",
+        "empty": "Chưa có thành viên nào ký cam kết. Bạn chọn người từ đơn xin vào nhóm ở mục Tuyển thành viên.",
+        "joined": "Tham gia từ {date}",
+        "note": "Khách hàng chỉ thấy tên tài khoản GitHub của các thành viên đã ký. Sau khi ký, không ai bị bỏ khỏi nhóm; chỉ họ tự rời."
       },
       "student": {
-        "kicker": "Phân công nhóm thực hiện · {product}",
-        "waitingBadge": "Chờ bạn ký và xác nhận",
-        "mentor": "Người hướng dẫn: {name}",
-        "scope": "Phạm vi",
-        "milestone": "Giai đoạn",
-        "due": "Hạn",
-        "price": "Giá",
-        "yourPart": "Phần của bạn",
-        "milestoneRow": "{n} · {title}",
-        "share": "Phần của bạn: {share}% số tiền mỗi giai đoạn được nghiệm thu",
-        "version": "Điều khoản nhóm thực hiện · phiên bản {n} · người hướng dẫn gửi {date}. Bạn được chuyển tiền khi khách hàng nghiệm thu từng giai đoạn.",
-        "noTerms": "Người hướng dẫn chưa gửi phần chia. Bạn ký và xác nhận được khi có phiên bản điều khoản đầu tiên.",
-        "n19": "Ký cam kết bảo mật và xác nhận để tham gia. Bạn chỉ làm một công việc tại một thời điểm và không rời nhóm được cho đến khi công việc kết thúc.",
-        "ndaSigned": "Bạn đã ký cam kết bảo mật cho công việc này; lần này chỉ cần xác nhận phần chia mới.",
-        "changedTitle": "Phần chia đã thay đổi",
-        "changedBody": "Người hướng dẫn đã sửa điều khoản nhóm thực hiện lên phiên bản {n}. Hãy xem lại phần của bạn rồi xác nhận lại. Xác nhận trước đó không còn hiệu lực.",
-        "decline": "Từ chối",
-        "confirm": "Ký và xác nhận",
-        "changeNote": "Bạn vẫn ở trong nhóm theo phiên bản đang áp dụng. Phần mới chỉ áp dụng khi cả nhóm đã xác nhận và không có giai đoạn nào đang giữ tiền.",
-        "declineNote": "Từ chối sẽ đưa bạn ra khỏi nhóm thực hiện của công việc này; người hướng dẫn được báo để chọn người khác. Bạn vẫn ở trong nhóm của người hướng dẫn.",
-        "why": "Đánh dấu ô xác nhận phía trên để ký.",
-        "whyNotice": "Đánh dấu ô xác nhận và \"Tôi đã hiểu\" để ký. Thông báo về email commit chỉ hỏi một lần.",
-        "confirmed": "Đã ký và xác nhận phần chia.",
-        "stale": "Phần chia đã thay đổi. Hãy xem lại phiên bản mới rồi xác nhận.",
-        "declineTitle": "Từ chối tham gia công việc này?",
-        "declineBack": "Quay lại",
-        "declined": "Đã từ chối. Người hướng dẫn được báo để chọn người khác.",
         "activeTitle": "Đang tham gia",
-        "activeMeta": "{product} · Người hướng dẫn: {mentor}",
-        "activeShare": "Phần của bạn: {share}% · điều khoản phiên bản {n}",
-        "activeBadge": "Đã xác nhận"
+        "activeBadge": "Đã ký cam kết"
       }
     },
     "teamIssue": {
@@ -2755,7 +2639,8 @@
         "releaseLine": "{name} · {amount}",
         "ordersTitle": "Lệnh thanh toán của khách hàng"
       },
-      "refundAtEnd": "Sẽ hoàn {amount} THỬ NGHIỆM khi giai đoạn kết thúc"
+      "refundAtEnd": "Sẽ hoàn {amount} THỬ NGHIỆM khi giai đoạn kết thúc",
+      "noSignedCrew": "Công việc bắt đầu khi người hướng dẫn có ít nhất một thành viên nhóm đã ký."
     },
     "crewChat": {
       "tab": "Trao đổi nhóm",
@@ -3682,7 +3567,41 @@
       "crewEmpty": "Chưa có thành viên nào.",
       "memberActive": "Đang tham gia · từ {date}",
       "memberLeft": "Đã rời {date}",
-      "memberPicked": "Đã chọn · chờ ký"
+      "memberPicked": "Đã chọn · chờ ký",
+      "pick": "Chọn",
+      "pickAction": "chọn người này",
+      "pickTitle": "Chọn {name} vào nhóm thực hiện?",
+      "pickBody": "{name} có {days} ngày để ký cam kết. Trước khi họ ký, bạn có thể rút lựa chọn.",
+      "pickDeadline": "Hạn ký: {date}",
+      "picked": "Đã chọn {name}. Hạn ký cam kết: {date}.",
+      "pickedChip": "Đã chọn · chờ ký trước {date}",
+      "withdrawPick": "Rút lựa chọn",
+      "withdrawPickTitle": "Rút lựa chọn {name}?",
+      "withdrawPickBody": "{name} được báo là bạn đã rút lựa chọn. Chỗ này mở lại nếu bạn vẫn đang nhận đơn xin vào nhóm.",
+      "pickWithdrawn": "Đã rút lựa chọn {name}.",
+      "pickRefusal": {
+        "APPLICANT_UNAVAILABLE": "{name} hiện không thể vào nhóm của công việc này. Hãy chọn người khác.",
+        "APPLICANT_IS_CONTRIBUTOR": "{name} đã từng đóng góp vào dự án gốc này nên không vào nhóm được.",
+        "CONFLICT_OF_INTEREST": "{name} không thể tham gia công việc này.",
+        "NOT_PICKABLE": "Đơn này không còn chờ chọn. Danh sách đã tải lại.",
+        "NOT_WITHDRAWABLE": "{name} đã ký cam kết nên không rút lựa chọn được nữa. Sau khi ký, chỉ họ tự rời."
+      },
+      "compareToggle": "So sánh",
+      "compareRemove": "Bỏ so sánh",
+      "compareCount": "Đã chọn {n}/{max} người để so sánh",
+      "compareOpen": "So sánh",
+      "compareMore": "Chọn thêm ít nhất một người để so sánh.",
+      "comparison": {
+        "title": "So sánh người xin vào nhóm",
+        "heading": "So sánh {n} người xin vào nhóm",
+        "back": "Quay lại Tuyển thành viên",
+        "rowPosted": "Lời nhắn và kỹ năng"
+      },
+      "closedCOMMITMENT_DECLINED": "Đã từ chối tham gia",
+      "closedCOMMITMENT_LAPSED": "Quá hạn ký cam kết",
+      "closedPICK_WITHDRAWN": "Đã rút lựa chọn",
+      "closedPICK_ENDED": "Công việc đang kết thúc",
+      "closedSIGNED": "Đã tham gia nhóm"
     },
     "crewApply": {
       "title": "Xin vào nhóm",
@@ -3722,7 +3641,14 @@
         "RECRUITMENT_CLOSED": "Đơn đã hết hạn: người hướng dẫn đã ngừng nhận đơn xin vào nhóm",
         "JOB_CLOSING": "Đơn đã hết hạn: công việc đã chuyển sang giai đoạn kết thúc",
         "JOB_CANCELLED": "Đơn đã hết hạn: công việc đã bị hủy",
-        "JOB_HIDDEN": "Đơn đã hết hạn: tin công việc đã bị ẩn"
+        "JOB_HIDDEN": "Đơn đã hết hạn: tin công việc đã bị ẩn",
+        "PICKED": "Bạn được chọn · ký cam kết trước {date}",
+        "PICK_WITHDRAWN": "Người hướng dẫn đã rút lựa chọn.",
+        "COMMITMENT_LAPSED": "Đã quá hạn ký cam kết.",
+        "COMMITMENT_DECLINED": "Bạn đã từ chối tham gia.",
+        "PICK_ENDED": "Công việc đã chuyển sang giai đoạn kết thúc nên không nhận thêm thành viên.",
+        "SIGNED": "Đã tham gia nhóm thực hiện",
+        "JOINED_ANOTHER_CREW": "Đơn đã hết hạn: bạn đã tham gia nhóm thực hiện của một công việc khác"
       },
       "refusal": {
         "ALREADY_APPLIED": "Bạn đã gửi đơn cho công việc này.",
@@ -3733,6 +3659,45 @@
         "PROOF_FILE_UNKNOWN": "Một tệp bằng chứng không còn trong đơn. Hãy tải lại trang rồi thêm lại tệp.",
         "tooMany": "Hôm nay bạn đã gửi đủ 10 đơn xin vào nhóm. Bạn có thể gửi tiếp sau {time}.",
         "busyElsewhere": "Với vai trò thành viên nhóm, mỗi lúc bạn chỉ tham gia một công việc đang chạy."
+      }
+    },
+    "commitment": {
+      "title": "Cam kết tham gia nhóm thực hiện",
+      "due": "Ký trước {date}",
+      "n19": "Người hướng dẫn {mentor} đã chọn bạn vào nhóm thực hiện {job}. Hãy ký cam kết bảo mật và cam kết tham gia trước {date}. Sau mỗi giai đoạn được nghiệm thu, người hướng dẫn đề xuất phần trăm cho từng người; bạn xác nhận, hoặc nhờ quản trị viên xem xét. Với vai trò thành viên nhóm, mỗi lúc bạn chỉ tham gia một công việc đang chạy. Bạn có thể rời công việc bất cứ lúc nào, nhưng không vào lại được. Khi bạn ký, khách hàng chỉ được biết tên GitHub của bạn (@{login}) để cấp và thu hồi quyền truy cập. Hồ sơ công khai của bạn thì ai cũng xem được, nhưng không cho biết bạn đang làm công việc nào.",
+      "scope": "Phạm vi công việc",
+      "noScope": "Người hướng dẫn chưa soạn phạm vi trong thỏa thuận.",
+      "milestones": "Các giai đoạn và giá",
+      "noMilestones": "Người hướng dẫn chưa soạn các giai đoạn.",
+      "milestone": "Giai đoạn {n} · {title}",
+      "milestoneDue": "hạn {date}",
+      "noShare": "Không có phần chia để xác nhận lúc này: sau mỗi giai đoạn được nghiệm thu, người hướng dẫn đề xuất phần trăm cho từng người.",
+      "splitRules": "Quy tắc phân chia tiền",
+      "ruleCap": "Phần của người hướng dẫn tối đa {n}% số tiền mỗi giai đoạn khi trong nhóm còn thành viên.",
+      "ruleDraft": "Người hướng dẫn soạn phân chia trong {n} ngày sau khi giai đoạn được nghiệm thu; quá hạn thì phần chia mặc định được dùng.",
+      "ruleConfirm": "Mỗi bản phân chia có {n} ngày để bạn xác nhận hoặc nhờ quản trị viên xem xét.",
+      "ruleEdits": "Người hướng dẫn sửa phân chia tối đa {n} lần cho mỗi giai đoạn.",
+      "textTitle": "Cam kết tham gia · phiên bản {version}",
+      "textLabel": "Toàn văn cam kết tham gia",
+      "text": "Khi ký, bạn tham gia nhóm thực hiện công việc này. Khách hàng chỉ được biết tên tài khoản GitHub của bạn (@{login}) để cấp và thu hồi quyền truy cập, không biết tên, hồ sơ hay cách liên hệ với bạn. Hồ sơ công khai của bạn thì ai cũng xem được, nhưng không cho biết bạn đang làm công việc nào.",
+      "sign": "Ký và tham gia",
+      "signAction": "ký cam kết",
+      "decline": "Từ chối",
+      "declineTitle": "Từ chối tham gia công việc này?",
+      "declineBody": "Người hướng dẫn được báo để chọn người khác. Bạn có thể tìm và xin vào nhóm của công việc khác.",
+      "declineBack": "Quay lại",
+      "declined": "Bạn đã từ chối tham gia. Người hướng dẫn được báo.",
+      "signed": "Bạn đã tham gia nhóm thực hiện {job}.",
+      "why": "Đánh dấu ô xác nhận phía trên để ký.",
+      "whyNotice": "Đánh dấu ô xác nhận và \"Tôi đã hiểu\" để ký. Thông báo về email commit chỉ hỏi một lần.",
+      "joined": "Bạn đã tham gia nhóm thực hiện {job}.",
+      "ended": {
+        "PICK_WITHDRAWN": "Người hướng dẫn đã rút lựa chọn.",
+        "COMMITMENT_LAPSED": "Đã quá hạn ký cam kết.",
+        "PICK_ENDED": "Công việc đã chuyển sang giai đoạn kết thúc nên không nhận thêm thành viên.",
+        "COMMITMENT_DECLINED": "Bạn đã từ chối tham gia công việc này.",
+        "APPLICANT_UNAVAILABLE": "Lựa chọn này không còn hiệu lực.",
+        "other": "Lựa chọn này không còn hiệu lực."
       }
     }
   },
@@ -4227,13 +4192,12 @@
       "sign_nda": "Ký cam kết bảo mật cho {job}",
       "answer_invitation_to_apply": "Xem lời mời ứng tuyển cho {job}",
       "open_crew_recruitment": "Mở tuyển thành viên nhóm cho {job}",
-      "review_crew_applications": "Xem {n} đơn xin vào nhóm cho {job}"
+      "review_crew_applications": "Xem {n} đơn xin vào nhóm cho {job}",
+      "sign_commitment": "Ký cam kết để tham gia {job}"
     },
     "job": {
       "draft_agreement": "Soạn thỏa thuận cho {job}",
       "review_agreement": "Xem thỏa thuận cho {job}",
-      "pick_crew": "Chọn nhóm thực hiện cho {job}",
-      "confirm_crew_terms": "Ký cam kết và xác nhận phần chia cho {job}",
       "revise_agreement": "Sửa thỏa thuận {job} theo góp ý của khách hàng",
       "confirm_agreement_mentor": "Xác nhận thỏa thuận cho {job}",
       "answer_closure": "Xác nhận kết thúc {job} · trước {date}",
@@ -4410,32 +4374,11 @@
       "agreement_draft_ready": {
         "title": "Người hướng dẫn đã gửi bản nháp thỏa thuận cho {job}"
       },
-      "crew_assigned": {
-        "title": "Bạn được phân công vào nhóm thực hiện {job}"
+      "crew_member_joined": {
+        "title": "{name} đã tham gia nhóm thực hiện {job}"
       },
-      "crew_member_confirmed": {
-        "title": "{student} đã ký cam kết và xác nhận phần chia cho {job}"
-      },
-      "crew_member_declined": {
-        "title": "{student} đã từ chối tham gia {job}"
-      },
-      "crew_member_removed": {
-        "title": "Bạn không còn trong nhóm thực hiện {job}. Các khoản đã nhận vẫn giữ nguyên."
-      },
-      "crew_change_proposed": {
-        "title": "Người hướng dẫn đề xuất đổi nhóm thực hiện {job}. Hãy xem phần của bạn và xác nhận."
-      },
-      "crew_changed": {
-        "title": "Nhóm thực hiện {job} đã thay đổi: {usernames}"
-      },
-      "crew_change_voided": {
-        "title": "Việc đổi nhóm thực hiện {job} đã hủy vì công việc đã kết thúc."
-      },
-      "crew_terms_changed": {
-        "title": "Phần chia của {job} đã thay đổi. Hãy xác nhận lại."
-      },
-      "crew_confirmed": {
-        "title": "Nhóm thực hiện {job} đã xác nhận đủ"
+      "crew_login_added": {
+        "title": "Nhóm thực hiện {job} có thêm thành viên @{login}"
       },
       "crew_member_left": {
         "title": "{name} đã rời nhóm thực hiện {job}"
@@ -4459,16 +4402,13 @@
         "title": "Khách hàng góp ý thỏa thuận {job}"
       },
       "agreement_awaiting_confirmation": {
-        "title": "Khách hàng đã duyệt thỏa thuận {job}. Hãy xác nhận khi nhóm thực hiện đã xác nhận đủ."
+        "title": "Khách hàng đã duyệt thỏa thuận {job}. Hãy xác nhận."
       },
       "agreement_confirmed": {
         "title": "Thỏa thuận {job} đã được xác nhận · nhóm thực hiện: {crew}"
       },
       "milestone_awaiting_funding": {
         "title": "Hãy thanh toán Giai đoạn {n} của {job}: {amount} (thử nghiệm)"
-      },
-      "crew_reconfirm_needed": {
-        "title": "Một thành viên nhóm {job} bị khóa. Hãy xác nhận lại nhóm thực hiện trước khi khách hàng thanh toán."
       },
       "milestone_funded": {
         "title": "Giai đoạn {n} của {job} đã được thanh toán (thử nghiệm). Bạn có thể bắt đầu."
@@ -4590,11 +4530,27 @@
           "RECRUITMENT_CLOSED": "người hướng dẫn đã ngừng nhận đơn xin vào nhóm",
           "JOB_CLOSING": "công việc đã chuyển sang giai đoạn kết thúc",
           "JOB_CANCELLED": "công việc đã bị hủy",
-          "JOB_HIDDEN": "tin công việc đã bị ẩn"
+          "JOB_HIDDEN": "tin công việc đã bị ẩn",
+          "JOINED_ANOTHER_CREW": "bạn đã tham gia nhóm thực hiện của một công việc khác"
         }
       },
       "crew_application_auto_withdrawn": {
         "title": "Đơn xin vào nhóm của {name} cho {job} đã được rút vì người này hiện không nhận việc"
+      },
+      "crew_application_picked": {
+        "title": "{mentor} đã chọn bạn vào nhóm thực hiện {job}. Hãy ký cam kết trước {date}."
+      },
+      "crew_pick_withdrawn": {
+        "title": "Người hướng dẫn đã rút lựa chọn bạn vào {job}"
+      },
+      "crew_pick_ended": {
+        "title": "{job} đã chuyển sang giai đoạn kết thúc nên lựa chọn bạn vào nhóm không còn hiệu lực"
+      },
+      "commitment_declined": {
+        "title": "{name} đã từ chối tham gia {job}"
+      },
+      "commitment_lapsed": {
+        "title": "{name} chưa ký cam kết cho {job} đúng hạn"
       }
     },
     "chat": {
@@ -4848,19 +4804,10 @@
       "MENTOR_AT_JOB_LIMIT": "người hướng dẫn này đang nhận đủ số công việc tối đa",
       "NDA_PERIOD_RUNNING": "người hướng dẫn vẫn còn thời gian ký cam kết bảo mật",
       "AGREEMENT_INCOMPLETE": "bản nháp chưa đủ để gửi",
-      "CREW_LOCKED": "nhóm thực hiện đã chốt theo thỏa thuận",
-      "CREW_CHANGE_REQUIRED": "công việc đã bắt đầu, chỉ đổi nhóm được qua yêu cầu đổi nhóm",
-      "CREW_CHANGE_WHILE_HELD": "đang có giai đoạn giữ tiền, hãy đổi nhóm khi giai đoạn đó xong",
-      "CREW_LIMIT": "nhóm thực hiện đã đủ số thành viên cho phép",
-      "STUDENT_NOT_VERIFIED": "người này chưa xác minh email trường",
-      "STUDENT_ON_CREW": "người này đang làm một công việc khác",
-      "NOT_IN_TEAM": "người này không còn trong nhóm của bạn",
-      "CONFLICT_OF_INTEREST": "không thể thêm người này vào công việc này",
+      "CONFLICT_OF_INTEREST": "người này không thể tham gia công việc này",
       "ROLE_TAKEN": "người này đã giữ một vai khác trong công việc này (mỗi người chỉ giữ một vai trong một công việc)",
       "APPLICANT_IS_CONTRIBUTOR": "người này đã từng đóng góp vào dự án gốc này",
-      "CONTRIBUTORS_UNKNOWN": "vibefix chưa kiểm tra được kho mã của khách hàng nên chưa thêm được người này; việc này không do bạn, hãy thử lại sau",
-      "SHARES_INVALID": "Tỷ lệ chia phải là số nguyên, cộng lại bằng 100, mỗi thành viên lớn hơn 0, và phần của người hướng dẫn không quá mức tối đa.",
-      "CREW_NOT_CONFIRMED": "nhóm thực hiện chưa xác nhận đủ",
+      "CONTRIBUTORS_UNKNOWN": "vibefix chưa kiểm tra được kho mã của khách hàng nên chưa nhận được người này; việc này không do bạn, hãy thử lại sau",
       "AGREEMENT_APPROVED": "bạn đã duyệt bản nháp này",
       "CHANGES_REQUESTED": "bạn đã gửi góp ý cho bản nháp này, hãy chờ bản nháp mới",
       "FREEZE_COMMITMENT_REQUIRED": "hãy đánh dấu cam kết không thay đổi dự án gốc",
@@ -4868,7 +4815,6 @@
       "AGREEMENT_CONFIRMED": "thỏa thuận đã được xác nhận, chỉ thay đổi được qua đề nghị thay đổi",
       "DRAFT_CHANGED": "bản nháp có thay đổi chưa gửi cho khách hàng",
       "AGREEMENT_NOT_CONFIRMED": "thỏa thuận chưa được xác nhận",
-      "CREW_NOT_READY": "đang chờ người hướng dẫn hoàn tất nhóm thực hiện",
       "PRODUCT_HAS_RUNNING_JOB": "sản phẩm này đang có một công việc khác chạy",
       "MILESTONE_HELD": "một giai đoạn khác đang được giữ tiền",
       "MILESTONE_NOT_FUNDABLE": "giai đoạn này chưa đến lượt thanh toán",
@@ -4900,7 +4846,11 @@
       "RECRUITMENT_UNAVAILABLE": "chỉ tuyển thành viên được khi công việc đang thống nhất, chuẩn bị bắt đầu hoặc đang thực hiện",
       "SLOTS_INVALID": "Số người cần thêm phải từ 1 đến {max}.",
       "RECRUITMENT_CLOSED": "Người hướng dẫn đang không nhận đơn xin vào nhóm.",
-      "CREW_FULL": "Nhóm thực hiện đã đủ {n} người."
+      "CREW_FULL": "Nhóm thực hiện đã đủ {n} người.",
+      "NO_SIGNED_CREW": "chưa có thành viên nhóm nào ký cam kết",
+      "APPLICANT_UNAVAILABLE": "người này hiện không thể vào nhóm của công việc này. Hãy chọn người khác",
+      "CREW_REJOIN_REFUSED": "người này đã rời công việc này nên không vào lại được",
+      "PICK_ENDED": "lựa chọn này không còn hiệu lực"
     },
     "matching": {
       "JOB_POST_NOT_OPEN": "công việc không còn nhận chào giá",
@@ -4929,7 +4879,10 @@
       "CREW_REJOIN_REFUSED": "Bạn đã rời công việc này nên không xin vào lại được.",
       "ON_ANOTHER_CREW": "Bạn đang tham gia {job}. Với vai trò thành viên nhóm, mỗi lúc bạn chỉ tham gia một công việc đang chạy.",
       "ROLE_IN_JOB_TAKEN": "Bạn là {role} của công việc này. Mỗi người chỉ giữ một vai trong một công việc.",
-      "NOT_DECLINABLE": "Đơn này không còn chờ bạn xem."
+      "NOT_DECLINABLE": "Đơn này không còn chờ bạn xem.",
+      "NOT_PICKABLE": "Đơn này không còn chờ chọn.",
+      "COMMITMENT_VERSION_OUTDATED": "Văn bản cam kết vừa thay đổi. Hãy tải lại trang và đọc lại trước khi ký.",
+      "PICK_ENDED": "Lựa chọn này không còn hiệu lực."
     },
     "chat": {
       "SENSITIVE_CONTENT": "Tin nhắn có thể chứa khóa bí mật hoặc dữ liệu khách hàng.",

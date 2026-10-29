@@ -55,7 +55,16 @@ public enum Rule {
 	MENTOR_SHARE_CAP_PERCENT(10, 100),
 
 	/** Days a Crew Application waits for the Mentor before it lapses (FR-61, FR-81, R6, Story 21.4); 14. */
-	CREW_APPLICATION_LAPSE_DAYS(1, 30);
+	CREW_APPLICATION_LAPSE_DAYS(1, 30),
+
+	/** Days after a Milestone's release by which the Mentor saves its first split version (FR-61, FR-83); 7. */
+	SPLIT_DRAFT_DAYS(1, 30),
+
+	/** Days after each saved split version by which its parties confirm (FR-61, FR-83); 3. */
+	SPLIT_CONFIRMATION_DAYS(1, 30),
+
+	/** Split versions the Mentor may save after the first, per Milestone (FR-61, FR-83); 3. */
+	SPLIT_EDIT_LIMIT(1, 10);
 
 	private final int min;
 

@@ -5,8 +5,6 @@ import { usePageTitle } from '@/app/usePageTitle'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { buttonVariants } from '@/components/ui/button-variants'
-import { AssignmentPanel, JoinedCard } from '@/features/crew/CrewAssignmentCards'
-import { useCrewAssignments } from '@/features/crew/crewApi'
 import { useMyApplications, type Application, type ApplicationStatus } from '@/features/matching/applicationApi'
 import { useMyCrewApplications, type CrewApplication } from '@/features/matching/crewApplicationApi'
 import { crewApplicationStateText } from '@/features/matching/crewText'
@@ -17,6 +15,7 @@ import { t, type MessageKey } from '@/i18n/t'
 import { formatDayMonth } from '@/lib/dates'
 import { formatVnd } from '@/lib/money'
 import { cn } from '@/lib/utils'
+import { CrewJobCard } from './CrewJobCard'
 import { useJobs, type JobState, type JobSummary } from './jobApi'
 import { leftEarly, useMyJobs, type MyJob, type RoleInJob } from './jobRoleApi'
 import { JobStateBadge } from './JobStateBadge'
@@ -293,15 +292,12 @@ function BidGroupSection({ group, items }: { group: BidGroup; items: Application
 
 /**
  * "Việc tôi tham gia" (formerly STU-4, FR-75, AD-41, UX-DR60, UX-DR86): the user's Crew Applications, each with its
- * state and a link to its Job Post (Story 21.4); a pick waiting for the user shows the Crew assignment panel and a
- * confirmed one its card; then the past Jobs, those left included, a Job left before it ended marked "· đã rời"; then
- * the internal complaints (FR-79).
+ * state and a link to its Job Post (Story 21.4), a pick reading "Bạn được chọn · ký cam kết trước {date}", which the
+ * user signs on MEN-3 (Story 21.5); then the Jobs they joined; then the past Jobs, those left included, a Job left
+ * before it ended marked "· đã rời"; then the internal complaints (FR-79).
  */
 function JoinedJobs({ jobs, crew }: { jobs: MyJob[]; crew: CrewApplication[] }) {
-  const assignments = useCrewAssignments()
-  // Story 11.3: an active member asked to confirm a waiting Crew change sees its version here too.
-  const waiting = assignments.data?.filter((assignment) => assignment.status === 'ASSIGNED' || assignment.changeWaiting) ?? []
-  const joined = assignments.data?.filter((assignment) => assignment.status !== 'ASSIGNED') ?? []
+  const active = jobs.filter((job) => job.crewKind === 'ACTIVE')
   const past = jobs.filter((job) => job.crewKind === 'FORMER')
   return (
     <>
@@ -333,19 +329,16 @@ function JoinedJobs({ jobs, crew }: { jobs: MyJob[]; crew: CrewApplication[] }) 
           </ul>
         </section>
       )}
-      <RegionState query={assignments} skeleton={<Skeleton className="h-48 w-full" />}>
-        {waiting.map((assignment) => (
-          <AssignmentPanel key={`${assignment.jobId}-${assignment.versionNo}`} assignment={assignment} />
-        ))}
-        {joined.length > 0 && (
-          <section className="flex flex-col gap-2.5">
-            <h2 className="text-h2">{t('screen.crew.student.activeTitle')}</h2>
-            {joined.map((assignment) => (
-              <JoinedCard key={assignment.jobId} assignment={assignment} />
-            ))}
-          </section>
-        )}
-      </RegionState>
+      {active.length > 0 && (
+        <section aria-labelledby="jobs-joined" className="flex flex-col gap-2.5">
+          <h2 id="jobs-joined" className="text-h2">
+            {t('screen.crew.student.activeTitle')}
+          </h2>
+          {active.map((job) => (
+            <CrewJobCard key={job.jobId} job={job} />
+          ))}
+        </section>
+      )}
       {past.length > 0 && (
         <section aria-labelledby="jobs-past" className="flex flex-col gap-2">
           <h2 id="jobs-past" className="text-h2">

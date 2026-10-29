@@ -2418,10 +2418,9 @@ GET /api/v1/jobs/{jobId}/agreement,CREW_ACTIVE,job=crew,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/agreement,CREW_FORMER,job=crew,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/agreement,CROSS_ROLE,job=crew,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/agreement,ADMINISTRATOR,job=crew,,404 NOT_FOUND
-# The Crew before J6 (FR-75, AD-41): the crew Job's Mentor reads its Crew panel (job=crew), and every Crew
-# command on that Active Job, the Mentor's and the Crew's confirm and decline, answers CREW_CHANGE_REQUIRED; the
-# Customer, a former member and everyone else find nothing. A Crew change needs large Crews, which are off, so it
-# finds nothing for anyone (MatrixFilesTest.UNREACHABLE; OneRolePerJobPropertyIT runs it with them on).
+# JOB-6's Crew list for the Mentor (FR-75, AD-41, Story 21.5): the crew Job's Mentor reads its members (job=crew);
+# the Customer, every Crew state and everyone else find nothing. There is no Crew command here, and none removes a
+# member who signed (FR-75): picks, their withdrawal and the Crew Applications live on JOB-9.
 GET /api/v1/mentor/jobs/{jobId}/crew,ANONYMOUS,,,401,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/crew,USER_UNVERIFIED,job=crew,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/crew,USER,job=crew,,404 NOT_FOUND,requireActiveAccount
@@ -2435,90 +2434,47 @@ GET /api/v1/mentor/jobs/{jobId}/crew,CREW_ACTIVE,job=crew,,404 NOT_FOUND,require
 GET /api/v1/mentor/jobs/{jobId}/crew,CREW_FORMER,job=crew,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/crew,CROSS_ROLE,job=crew,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/crew,ADMINISTRATOR,job=crew,,404 NOT_FOUND,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew,ANONYMOUS,,crew-add.json,401,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew,USER_UNVERIFIED,job=crew,crew-add.json,404 NOT_FOUND,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew,USER,job=crew,crew-add.json,404 NOT_FOUND,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew,LOCKED,job=crew,crew-add.json,401,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew,CUSTOMER,job=crew,crew-add.json,404 NOT_FOUND,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew,MENTOR,job=crew,crew-add.json,422 GUARD_FAILED CREW_CHANGE_REQUIRED,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew,BIDDER,job=crew,crew-add.json,404 NOT_FOUND,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew,CREW_ASSIGNED,job=crew,crew-add.json,404 NOT_FOUND,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew,CREW_ACTIVE,job=crew,crew-add.json,404 NOT_FOUND,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew,CREW_FORMER,job=crew,crew-add.json,404 NOT_FOUND,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew,CROSS_ROLE,job=crew,crew-add.json,404 NOT_FOUND,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew,ADMINISTRATOR,job=crew,crew-add.json,404 NOT_FOUND,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew/{crewRowId}/remove,ANONYMOUS,job=crew,crew-remove.json,401,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew/{crewRowId}/remove,USER_UNVERIFIED,job=crew,crew-remove.json,404 NOT_FOUND,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew/{crewRowId}/remove,USER,job=crew,crew-remove.json,404 NOT_FOUND,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew/{crewRowId}/remove,LOCKED,job=crew,crew-remove.json,401,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew/{crewRowId}/remove,CUSTOMER,job=crew,crew-remove.json,404 NOT_FOUND,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew/{crewRowId}/remove,MENTOR,job=crew,crew-remove.json,422 GUARD_FAILED CREW_CHANGE_REQUIRED,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew/{crewRowId}/remove,BIDDER,job=crew,crew-remove.json,404 NOT_FOUND,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew/{crewRowId}/remove,CREW_ASSIGNED,job=crew,crew-remove.json,404 NOT_FOUND,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew/{crewRowId}/remove,CREW_ACTIVE,job=crew,crew-remove.json,404 NOT_FOUND,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew/{crewRowId}/remove,CREW_FORMER,job=crew,crew-remove.json,404 NOT_FOUND,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew/{crewRowId}/remove,CROSS_ROLE,job=crew,crew-remove.json,404 NOT_FOUND,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew/{crewRowId}/remove,ADMINISTRATOR,job=crew,crew-remove.json,404 NOT_FOUND,requireActiveAccount
-PUT /api/v1/mentor/jobs/{jobId}/crew/terms,ANONYMOUS,,crew-terms.json,401,requireActiveAccount
-PUT /api/v1/mentor/jobs/{jobId}/crew/terms,USER_UNVERIFIED,job=crew,crew-terms.json,404 NOT_FOUND,requireActiveAccount
-PUT /api/v1/mentor/jobs/{jobId}/crew/terms,USER,job=crew,crew-terms.json,404 NOT_FOUND,requireActiveAccount
-PUT /api/v1/mentor/jobs/{jobId}/crew/terms,LOCKED,job=crew,crew-terms.json,401,requireActiveAccount
-PUT /api/v1/mentor/jobs/{jobId}/crew/terms,CUSTOMER,job=crew,crew-terms.json,404 NOT_FOUND,requireActiveAccount
-PUT /api/v1/mentor/jobs/{jobId}/crew/terms,MENTOR,job=crew,crew-terms.json,422 GUARD_FAILED CREW_CHANGE_REQUIRED,requireActiveAccount
-PUT /api/v1/mentor/jobs/{jobId}/crew/terms,BIDDER,job=crew,crew-terms.json,404 NOT_FOUND,requireActiveAccount
-PUT /api/v1/mentor/jobs/{jobId}/crew/terms,CREW_ASSIGNED,job=crew,crew-terms.json,404 NOT_FOUND,requireActiveAccount
-PUT /api/v1/mentor/jobs/{jobId}/crew/terms,CREW_ACTIVE,job=crew,crew-terms.json,404 NOT_FOUND,requireActiveAccount
-PUT /api/v1/mentor/jobs/{jobId}/crew/terms,CREW_FORMER,job=crew,crew-terms.json,404 NOT_FOUND,requireActiveAccount
-PUT /api/v1/mentor/jobs/{jobId}/crew/terms,CROSS_ROLE,job=crew,crew-terms.json,404 NOT_FOUND,requireActiveAccount
-PUT /api/v1/mentor/jobs/{jobId}/crew/terms,ADMINISTRATOR,job=crew,crew-terms.json,404 NOT_FOUND,requireActiveAccount
-PUT /api/v1/mentor/jobs/{jobId}/crew/change,ANONYMOUS,,crew-terms.json,401,requireActiveAccount
-PUT /api/v1/mentor/jobs/{jobId}/crew/change,USER_UNVERIFIED,job=crew,crew-terms.json,404 NOT_FOUND,requireActiveAccount
-PUT /api/v1/mentor/jobs/{jobId}/crew/change,USER,job=crew,crew-terms.json,404 NOT_FOUND,requireActiveAccount
-PUT /api/v1/mentor/jobs/{jobId}/crew/change,LOCKED,job=crew,crew-terms.json,401,requireActiveAccount
-PUT /api/v1/mentor/jobs/{jobId}/crew/change,CUSTOMER,job=crew,crew-terms.json,404 NOT_FOUND,requireActiveAccount
-PUT /api/v1/mentor/jobs/{jobId}/crew/change,MENTOR,job=crew,crew-terms.json,404 NOT_FOUND,requireActiveAccount
-PUT /api/v1/mentor/jobs/{jobId}/crew/change,BIDDER,job=crew,crew-terms.json,404 NOT_FOUND,requireActiveAccount
-PUT /api/v1/mentor/jobs/{jobId}/crew/change,CREW_ASSIGNED,job=crew,crew-terms.json,404 NOT_FOUND,requireActiveAccount
-PUT /api/v1/mentor/jobs/{jobId}/crew/change,CREW_ACTIVE,job=crew,crew-terms.json,404 NOT_FOUND,requireActiveAccount
-PUT /api/v1/mentor/jobs/{jobId}/crew/change,CREW_FORMER,job=crew,crew-terms.json,404 NOT_FOUND,requireActiveAccount
-PUT /api/v1/mentor/jobs/{jobId}/crew/change,CROSS_ROLE,job=crew,crew-terms.json,404 NOT_FOUND,requireActiveAccount
-PUT /api/v1/mentor/jobs/{jobId}/crew/change,ADMINISTRATOR,job=crew,crew-terms.json,404 NOT_FOUND,requireActiveAccount
-# STU-4's assignments and every list of Job content (B4): each caller of the crew Job, the Mentor and each Crew
-# state, reads only their own.
-GET /api/v1/crew/assignments,ANONYMOUS,,,401
-GET /api/v1/crew/assignments,USER_UNVERIFIED,,,200
-GET /api/v1/crew/assignments,USER,,,200
-GET /api/v1/crew/assignments,CUSTOMER,,,200
-GET /api/v1/crew/assignments,MENTOR,,,200
-GET /api/v1/crew/assignments,CREW_ASSIGNED,,,200
-GET /api/v1/crew/assignments,CREW_ACTIVE,,,200
-GET /api/v1/crew/assignments,CREW_FORMER,,,200
-GET /api/v1/crew/assignments,CROSS_ROLE,,,200
-GET /api/v1/crew/assignments,ADMINISTRATOR,,,404 NOT_FOUND
-POST /api/v1/crew/jobs/{jobId}/confirm,ANONYMOUS,,crew-confirm.json,401
-POST /api/v1/crew/jobs/{jobId}/confirm,USER_UNVERIFIED,job=crew,crew-confirm.json,404 NOT_FOUND
-POST /api/v1/crew/jobs/{jobId}/confirm,USER,job=crew,crew-confirm.json,404 NOT_FOUND
-POST /api/v1/crew/jobs/{jobId}/confirm,LOCKED,job=crew,crew-confirm.json,401
-POST /api/v1/crew/jobs/{jobId}/confirm,CUSTOMER,job=crew,crew-confirm.json,404 NOT_FOUND
-POST /api/v1/crew/jobs/{jobId}/confirm,MENTOR,job=crew,crew-confirm.json,404 NOT_FOUND
-POST /api/v1/crew/jobs/{jobId}/confirm,BIDDER,job=crew,crew-confirm.json,404 NOT_FOUND
-POST /api/v1/crew/jobs/{jobId}/confirm,CREW_ASSIGNED,job=crew,crew-confirm.json,422 GUARD_FAILED CREW_CHANGE_REQUIRED
-POST /api/v1/crew/jobs/{jobId}/confirm,CREW_ACTIVE,job=crew,crew-confirm.json,422 GUARD_FAILED CREW_CHANGE_REQUIRED
-POST /api/v1/crew/jobs/{jobId}/confirm,CREW_FORMER,job=crew,crew-confirm.json,404 NOT_FOUND
-POST /api/v1/crew/jobs/{jobId}/confirm,CROSS_ROLE,job=crew,crew-confirm.json,422 GUARD_FAILED CREW_CHANGE_REQUIRED
-POST /api/v1/crew/jobs/{jobId}/confirm,ADMINISTRATOR,job=crew,crew-confirm.json,404 NOT_FOUND
-POST /api/v1/crew/jobs/{jobId}/decline,ANONYMOUS,,crew-decline.json,401
-POST /api/v1/crew/jobs/{jobId}/decline,USER_UNVERIFIED,job=crew,crew-decline.json,404 NOT_FOUND
-POST /api/v1/crew/jobs/{jobId}/decline,USER,job=crew,crew-decline.json,404 NOT_FOUND
-POST /api/v1/crew/jobs/{jobId}/decline,LOCKED,job=crew,crew-decline.json,401
-POST /api/v1/crew/jobs/{jobId}/decline,CUSTOMER,job=crew,crew-decline.json,404 NOT_FOUND
-POST /api/v1/crew/jobs/{jobId}/decline,MENTOR,job=crew,crew-decline.json,404 NOT_FOUND
-POST /api/v1/crew/jobs/{jobId}/decline,BIDDER,job=crew,crew-decline.json,404 NOT_FOUND
-POST /api/v1/crew/jobs/{jobId}/decline,CREW_ASSIGNED,job=crew,crew-decline.json,422 GUARD_FAILED CREW_CHANGE_REQUIRED
-POST /api/v1/crew/jobs/{jobId}/decline,CREW_ACTIVE,job=crew,crew-decline.json,422 GUARD_FAILED CREW_CHANGE_REQUIRED
-POST /api/v1/crew/jobs/{jobId}/decline,CREW_FORMER,job=crew,crew-decline.json,404 NOT_FOUND
-POST /api/v1/crew/jobs/{jobId}/decline,CROSS_ROLE,job=crew,crew-decline.json,422 GUARD_FAILED CREW_CHANGE_REQUIRED
-POST /api/v1/crew/jobs/{jobId}/decline,ADMINISTRATOR,job=crew,crew-decline.json,404 NOT_FOUND
+# The Commitment panel on MEN-3 (FR-81, AD-41, UX-DR103, Story 21.5): CREW_ASSIGNED, picked on the crew Job by its
+# Crew Application, reads the assignment projection and the panel, signs (the contributor read fails closed in the
+# matrix, no Customer token being kept: CONTRIBUTORS_UNKNOWN) and declines; every other caller, the Customer, the
+# Mentor and the active members included, has no pick there and finds nothing.
+GET /api/v1/crew/jobs/{jobId}/commitment,ANONYMOUS,,,401
+GET /api/v1/crew/jobs/{jobId}/commitment,USER_UNVERIFIED,job=crew,,404 NOT_FOUND
+GET /api/v1/crew/jobs/{jobId}/commitment,USER,job=crew,,404 NOT_FOUND
+GET /api/v1/crew/jobs/{jobId}/commitment,LOCKED,job=crew,,401
+GET /api/v1/crew/jobs/{jobId}/commitment,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/crew/jobs/{jobId}/commitment,CUSTOMER,job=crew,,404 NOT_FOUND
+GET /api/v1/crew/jobs/{jobId}/commitment,MENTOR,job=crew,,404 NOT_FOUND
+GET /api/v1/crew/jobs/{jobId}/commitment,BIDDER,job=crew,,404 NOT_FOUND
+GET /api/v1/crew/jobs/{jobId}/commitment,CREW_ASSIGNED,job=crew,,200
+GET /api/v1/crew/jobs/{jobId}/commitment,CREW_ACTIVE,job=crew,,404 NOT_FOUND
+GET /api/v1/crew/jobs/{jobId}/commitment,CREW_FORMER,job=crew,,404 NOT_FOUND
+GET /api/v1/crew/jobs/{jobId}/commitment,CROSS_ROLE,job=crew,,404 NOT_FOUND
+GET /api/v1/crew/jobs/{jobId}/commitment,ADMINISTRATOR,job=crew,,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/commitment,ANONYMOUS,,commitment.json,401
+POST /api/v1/crew/jobs/{jobId}/commitment,USER_UNVERIFIED,job=crew,commitment.json,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/commitment,USER,job=crew,commitment.json,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/commitment,LOCKED,job=crew,commitment.json,401
+POST /api/v1/crew/jobs/{jobId}/commitment,CUSTOMER,job=crew,commitment.json,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/commitment,MENTOR,job=crew,commitment.json,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/commitment,BIDDER,job=crew,commitment.json,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/commitment,CREW_ASSIGNED,job=crew,commitment.json,422 GUARD_FAILED CONTRIBUTORS_UNKNOWN
+POST /api/v1/crew/jobs/{jobId}/commitment,CREW_ACTIVE,job=crew,commitment.json,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/commitment,CREW_FORMER,job=crew,commitment.json,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/commitment,CROSS_ROLE,job=crew,commitment.json,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/commitment,ADMINISTRATOR,job=crew,commitment.json,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/commitment/decline,ANONYMOUS,,,401
+POST /api/v1/crew/jobs/{jobId}/commitment/decline,USER_UNVERIFIED,job=crew,,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/commitment/decline,USER,job=crew,,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/commitment/decline,LOCKED,job=crew,,401
+POST /api/v1/crew/jobs/{jobId}/commitment/decline,CUSTOMER,job=crew,,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/commitment/decline,MENTOR,job=crew,,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/commitment/decline,BIDDER,job=crew,,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/commitment/decline,CREW_ASSIGNED,job=crew,,200
+POST /api/v1/crew/jobs/{jobId}/commitment/decline,CREW_ACTIVE,job=crew,,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/commitment/decline,CREW_FORMER,job=crew,,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/commitment/decline,CROSS_ROLE,job=crew,,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/commitment/decline,ADMINISTRATOR,job=crew,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/agreement/comments,ANONYMOUS,,agreement-comment.json,401
 POST /api/v1/jobs/{jobId}/agreement/comments,USER_UNVERIFIED,job=crew,agreement-comment.json,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/agreement/comments,USER,job=crew,agreement-comment.json,404 NOT_FOUND
@@ -2567,18 +2523,6 @@ POST /api/v1/mentor/jobs/{jobId}/agreement/confirm,CREW_ACTIVE,job=crew,agreemen
 POST /api/v1/mentor/jobs/{jobId}/agreement/confirm,CREW_FORMER,job=crew,agreement-confirm.json,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/agreement/confirm,CROSS_ROLE,job=crew,agreement-confirm.json,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/agreement/confirm,ADMINISTRATOR,job=crew,agreement-confirm.json,404 NOT_FOUND,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew/reconfirm,ANONYMOUS,,crew-remove.json,401,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew/reconfirm,USER_UNVERIFIED,job=crew,crew-remove.json,404 NOT_FOUND,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew/reconfirm,USER,job=crew,crew-remove.json,404 NOT_FOUND,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew/reconfirm,LOCKED,job=crew,crew-remove.json,401,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew/reconfirm,CUSTOMER,job=crew,crew-remove.json,404 NOT_FOUND,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew/reconfirm,MENTOR,job=crew,crew-remove.json,409 STALE,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew/reconfirm,BIDDER,job=crew,crew-remove.json,404 NOT_FOUND,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew/reconfirm,CREW_ASSIGNED,job=crew,crew-remove.json,404 NOT_FOUND,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew/reconfirm,CREW_ACTIVE,job=crew,crew-remove.json,404 NOT_FOUND,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew/reconfirm,CREW_FORMER,job=crew,crew-remove.json,404 NOT_FOUND,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew/reconfirm,CROSS_ROLE,job=crew,crew-remove.json,404 NOT_FOUND,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew/reconfirm,ADMINISTRATOR,job=crew,crew-remove.json,404 NOT_FOUND,requireActiveAccount
 # Funding (FR-41): only a Job's Customer reads its funding, and its Mentor theirs, once the Job records its
 # confirmed Agreement version: the crew Job (job=crew) does, the Draft does not. The crew Job's Crew and
 # everyone else find nothing. The Customer reads their paid order ({paymentOrderId}) and reaches the version
@@ -2705,9 +2649,10 @@ POST /api/v1/jobs/{jobId}/setup/retry,CROSS_ROLE,job=crew,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/setup/retry,ADMINISTRATOR,job=crew,,404 NOT_FOUND
 
 # Story 8.1 (FR-66, UX-DR83): External Access after confirmation. The Draft has no confirmed Agreement, so nobody
-# reads, enters, or ticks anything there; on the crew Job (job=crew) its Customer, Mentor and unreleased Crew
+# reads, enters, or ticks anything there; on the crew Job (job=crew) its Customer, Mentor and active Crew
 # members read it, the Mentor and those members enter their identifier for its item ({accessId}), the Customer
-# ticks it, and a former member finds nothing. The Busy marker (Story 7.2) reads the same way.
+# ticks it, and a former member and a pick not yet signed (AD-41, Story 21.5) find nothing. The Busy marker (Story
+# 7.2) reads the same way.
 GET /api/v1/jobs/{jobId}/external-access,ANONYMOUS,,,401
 GET /api/v1/jobs/{jobId}/external-access,USER_UNVERIFIED,job=crew,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/external-access,USER,job=crew,,404 NOT_FOUND
@@ -2716,7 +2661,7 @@ GET /api/v1/jobs/{jobId}/external-access,CUSTOMER,,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/external-access,CUSTOMER,job=crew,,200
 GET /api/v1/jobs/{jobId}/external-access,MENTOR,job=crew,,200
 GET /api/v1/jobs/{jobId}/external-access,BIDDER,job=crew,,404 NOT_FOUND
-GET /api/v1/jobs/{jobId}/external-access,CREW_ASSIGNED,job=crew,,200
+GET /api/v1/jobs/{jobId}/external-access,CREW_ASSIGNED,job=crew,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/external-access,CREW_ACTIVE,job=crew,,200
 GET /api/v1/jobs/{jobId}/external-access,CREW_FORMER,job=crew,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/external-access,CROSS_ROLE,job=crew,,200
@@ -2728,7 +2673,7 @@ PUT /api/v1/jobs/{jobId}/external-access/{accessId}/identifier,LOCKED,job=crew,e
 PUT /api/v1/jobs/{jobId}/external-access/{accessId}/identifier,CUSTOMER,job=crew,external-access-identifier.json,404 NOT_FOUND
 PUT /api/v1/jobs/{jobId}/external-access/{accessId}/identifier,MENTOR,job=crew,external-access-identifier.json,200
 PUT /api/v1/jobs/{jobId}/external-access/{accessId}/identifier,BIDDER,job=crew,external-access-identifier.json,404 NOT_FOUND
-PUT /api/v1/jobs/{jobId}/external-access/{accessId}/identifier,CREW_ASSIGNED,job=crew,external-access-identifier.json,200
+PUT /api/v1/jobs/{jobId}/external-access/{accessId}/identifier,CREW_ASSIGNED,job=crew,external-access-identifier.json,404 NOT_FOUND
 PUT /api/v1/jobs/{jobId}/external-access/{accessId}/identifier,CREW_ACTIVE,job=crew,external-access-identifier.json,200
 PUT /api/v1/jobs/{jobId}/external-access/{accessId}/identifier,CREW_FORMER,job=crew,external-access-identifier.json,404 NOT_FOUND
 PUT /api/v1/jobs/{jobId}/external-access/{accessId}/identifier,CROSS_ROLE,job=crew,external-access-identifier.json,200
@@ -2753,7 +2698,7 @@ GET /api/v1/jobs/{jobId}/busy,CUSTOMER,,,200
 GET /api/v1/jobs/{jobId}/busy,CUSTOMER,job=crew,,200
 GET /api/v1/jobs/{jobId}/busy,MENTOR,job=crew,,200
 GET /api/v1/jobs/{jobId}/busy,BIDDER,job=crew,,404 NOT_FOUND
-GET /api/v1/jobs/{jobId}/busy,CREW_ASSIGNED,job=crew,,200
+GET /api/v1/jobs/{jobId}/busy,CREW_ASSIGNED,job=crew,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/busy,CREW_ACTIVE,job=crew,,200
 GET /api/v1/jobs/{jobId}/busy,CREW_FORMER,job=crew,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/busy,CROSS_ROLE,job=crew,,200
@@ -3270,6 +3215,35 @@ POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/decline,C
 POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/decline,CROSS_ROLE,job=recruit,,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/decline,ADMINISTRATOR,job=recruit,,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/decline,CREW_APPLICANT,job=recruit,,404 NOT_FOUND,requireActiveAccount
+# Story 21.5: JOB-9's "Chọn" and "Rút lựa chọn" (FR-81, R4). The recruiting Job's Mentor picks CREW_APPLICANT's
+# pending application up to the contributor read, which fails closed in the matrix (CONTRIBUTORS_UNKNOWN), and finds
+# no pick to withdraw (NOT_WITHDRAWABLE); the Customer, the applicant and everyone else find nothing.
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/pick,ANONYMOUS,job=recruit,,401,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/pick,USER_UNVERIFIED,job=recruit,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/pick,USER,job=recruit,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/pick,LOCKED,job=recruit,,401,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/pick,CUSTOMER,job=recruit,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/pick,MENTOR,job=recruit,,422 GUARD_FAILED CONTRIBUTORS_UNKNOWN,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/pick,BIDDER,job=recruit,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/pick,CREW_ASSIGNED,job=recruit,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/pick,CREW_ACTIVE,job=recruit,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/pick,CREW_FORMER,job=recruit,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/pick,CROSS_ROLE,job=recruit,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/pick,ADMINISTRATOR,job=recruit,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/pick,CREW_APPLICANT,job=recruit,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/withdraw-pick,ANONYMOUS,job=recruit,,401,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/withdraw-pick,USER_UNVERIFIED,job=recruit,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/withdraw-pick,USER,job=recruit,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/withdraw-pick,LOCKED,job=recruit,,401,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/withdraw-pick,CUSTOMER,job=recruit,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/withdraw-pick,MENTOR,job=recruit,,409 CONFLICT NOT_WITHDRAWABLE,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/withdraw-pick,BIDDER,job=recruit,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/withdraw-pick,CREW_ASSIGNED,job=recruit,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/withdraw-pick,CREW_ACTIVE,job=recruit,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/withdraw-pick,CREW_FORMER,job=recruit,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/withdraw-pick,CROSS_ROLE,job=recruit,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/withdraw-pick,ADMINISTRATOR,job=recruit,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/withdraw-pick,CREW_APPLICANT,job=recruit,,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/job-posts/{postId}/crew-applications,ANONYMOUS,post=recruit,crew-application.json,401,requireGitHubLinked
 POST /api/v1/mentor/job-posts/{postId}/crew-applications,USER_UNVERIFIED,post=recruit,crew-application.json,403 FORBIDDEN GITHUB_NOT_LINKED,requireGitHubLinked
 POST /api/v1/mentor/job-posts/{postId}/crew-applications,USER,post=recruit,crew-application.json,422 GUARD_FAILED CONTRIBUTORS_UNKNOWN,requireGitHubLinked

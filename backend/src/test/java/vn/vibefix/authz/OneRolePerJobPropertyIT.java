@@ -51,14 +51,15 @@ import vn.vibefix.support.MutableClock;
 import vn.vibefix.team.internal.TeamTestSupport;
 
 /**
- * AD-43's one-role property (Story 20.5): a seeded random run of the role-giving commands (a bid, J3's selection,
- * an invitation, adding a Crew member, a Crew change), with the NDA that moves a selected Job on, by random accounts
- * on random Jobs: four Open Job Posts and two Active Jobs with a Crew, with large Crews on so that a running Job's
- * Crew may change. After every step no account holds two roles in one Job (Customer, Mentor, counted Crew row), no
- * Job's own Customer bids on it or is invited to it, and every refusal is one of its command's documented answers
- * ({@link #REFUSALS}), {@code ROLE_TAKEN} or another guard, never a server error: the commands check the role under
- * the Job lock, and the schema constraints are only the backstop. Each of the five commands succeeds at least once,
- * and every success comes from the holder the command requires ({@link #holder}).
+ * AD-43's one-role property (Story 20.5, Crew from Crew Applications since Story 21.5): a seeded random run of the
+ * role-giving commands (a bid, J3's selection, an invitation, the Mentor's pick of a Crew Application, the picked
+ * person's signature), with the NDA that moves a selected Job on, the Mentor's recruitment and the Crew Applications
+ * that feed the picks, by random accounts on random Jobs: four Open Job Posts and two recruiting Active Jobs with a
+ * Crew, with large Crews on so that a Crew holds up to five. After every step no account holds two roles in one Job
+ * (Customer, Mentor, counted Crew row), no Job's own Customer bids on it or is invited to it, and every refusal is one
+ * of its command's documented answers ({@link #REFUSALS}), {@code ROLE_TAKEN} or another guard, never a server error:
+ * the commands check the role under the Job lock, and the schema constraints are only the backstop. Each role-giving
+ * command succeeds at least once, and every success comes from the holder the command requires ({@link #holder}).
  * Each person can mentor and join a Crew; GitHub answers that nobody contributed.
  */
 class OneRolePerJobPropertyIT extends IntegrationTest {
@@ -73,15 +74,16 @@ class OneRolePerJobPropertyIT extends IntegrationTest {
 
 	private static final JsonMapper JSON = JsonMapper.builder().build();
 
-	/** The 4.3 guards a new Crew member passes, in Crew add and in a Crew change alike (FR-75). */
-	private static final Set<String> NEW_MEMBER = Set.of("GUARD_FAILED STUDENT_NOT_VERIFIED", "GUARD_FAILED STUDENT_ON_CREW",
-			"GUARD_FAILED CONFLICT_OF_INTEREST", "GUARD_FAILED APPLICANT_IS_CONTRIBUTOR",
-			"GUARD_FAILED CONTRIBUTORS_UNKNOWN", "GUARD_FAILED NOT_IN_TEAM");
+	/** The guards a new Crew member passes at the pick and again at the signature (FR-81, AD-41, A-16). */
+	private static final Set<String> NEW_MEMBER = Set.of("GUARD_FAILED ROLE_TAKEN", "GUARD_FAILED APPLICANT_UNAVAILABLE",
+			"GUARD_FAILED CREW_REJOIN_REFUSED", "GUARD_FAILED CONFLICT_OF_INTEREST", "GUARD_FAILED APPLICANT_IS_CONTRIBUTOR",
+			"GUARD_FAILED CONTRIBUTORS_UNKNOWN");
 
 	/**
 	 * Each command's documented refusals, as {@code CODE} or {@code CODE REASON}, from its controller and its
 	 * {@code @throws}: {@code Applications.submit}, {@code Invitations.invite}, {@code J3Select.check} and the
-	 * transition's {@code STALE}, {@code NdaSignatures.sign}, {@code CrewService.add}, {@code CrewChanges.propose}.
+	 * transition's {@code STALE}, {@code NdaSignatures.sign}, {@code JobRecruitment.set}, {@code CrewApplications.send},
+	 * {@code CrewCommitments.pick} with {@code job.addCrew}, and {@code CrewSignatures.sign} with {@code job.activateCrew}.
 	 */
 	static final Map<Command, Set<String>> REFUSALS = Map.of(
 			Command.BID,
@@ -100,20 +102,26 @@ class OneRolePerJobPropertyIT extends IntegrationTest {
 			Command.NDA,
 			Set.of("NOT_FOUND", "STALE", "STALE STATE_CHANGED", "FORBIDDEN GITHUB_NOT_LINKED",
 					"VALIDATION NDA_VERSION_OUTDATED", "VALIDATION COMMIT_EMAIL_NOT_ACKNOWLEDGED"),
-			Command.CREW_ADD, union(NEW_MEMBER, "NOT_FOUND", "STALE", "GUARD_FAILED ROLE_TAKEN",
-					"GUARD_FAILED CREW_CHANGE_REQUIRED", "GUARD_FAILED CREW_LOCKED", "GUARD_FAILED CREW_LIMIT"),
-			Command.CREW_CHANGE, union(NEW_MEMBER, "NOT_FOUND", "STALE", "STALE STATE_CHANGED", "GUARD_FAILED ROLE_TAKEN",
-					"GUARD_FAILED CREW_CHANGE_WHILE_HELD", "GUARD_FAILED CREW_LIMIT", "VALIDATION SHARES_INVALID"));
+			Command.RECRUIT,
+			Set.of("NOT_FOUND", "STALE", "GUARD_FAILED RECRUITMENT_UNAVAILABLE", "VALIDATION SLOTS_INVALID"),
+			Command.APPLY,
+			Set.of("NOT_FOUND", "GUARD_FAILED ROLE_TAKEN", "GUARD_FAILED RECRUITMENT_CLOSED", "GUARD_FAILED CREW_FULL",
+					"GUARD_FAILED CREW_REJOIN_REFUSED", "GUARD_FAILED ON_ANOTHER_CREW", "GUARD_FAILED CONFLICT_OF_INTEREST",
+					"GUARD_FAILED APPLICANT_IS_CONTRIBUTOR", "GUARD_FAILED CONTRIBUTORS_UNKNOWN", "CONFLICT ALREADY_APPLIED",
+					"RATE_LIMITED"),
+			Command.PICK, union(NEW_MEMBER, "NOT_FOUND", "STALE", "CONFLICT NOT_PICKABLE", "GUARD_FAILED RECRUITMENT_CLOSED",
+					"GUARD_FAILED CREW_FULL"),
+			Command.SIGN, union(NEW_MEMBER, "NOT_FOUND", "STALE", "GUARD_FAILED PICK_ENDED"));
 
 	/** The five role-giving commands, each of which the run must see succeed. */
-	static final Set<Command> ROLE_GIVING = Set.of(Command.BID, Command.SELECT, Command.INVITE, Command.CREW_ADD,
-			Command.CREW_CHANGE);
+	static final Set<Command> ROLE_GIVING = Set.of(Command.BID, Command.SELECT, Command.INVITE, Command.PICK,
+			Command.SIGN);
 
 	private static final HttpServer GITHUB = start();
 
 	enum Command {
 
-		BID, INVITE, SELECT, NDA, CREW_ADD, CREW_CHANGE
+		BID, INVITE, SELECT, NDA, RECRUIT, APPLY, PICK, SIGN
 
 	}
 
@@ -136,7 +144,7 @@ class OneRolePerJobPropertyIT extends IntegrationTest {
 	@DynamicPropertySource
 	static void stubGitHub(DynamicPropertyRegistry registry) {
 		registry.add("vibefix.github.api-url", () -> "http://127.0.0.1:" + GITHUB.getAddress().getPort());
-		// A running Job's Crew changes only with large Crews on (AD-30, Story 11.3).
+		// A Crew holds up to five rows only with large Crews on (AD-30).
 		registry.add("vibefix.features.large-crews", () -> "true");
 	}
 
@@ -175,24 +183,27 @@ class OneRolePerJobPropertyIT extends IntegrationTest {
 	}
 
 	/**
-	 * One step's request, its caller, and the Job's holders before it: the Customer, the Mentor, and the Mentor of the
-	 * selected bid.
+	 * One step's request, its caller, and the Job's holders before it: the Customer, the Mentor, the Mentor of the
+	 * selected bid, and the person of the pick a signature names.
 	 */
 	record Step(MockHttpServletRequestBuilder request, UUID caller, UUID customer, @Nullable UUID mentor,
-			@Nullable UUID selectedMentor) {
+			@Nullable UUID selectedMentor, @Nullable UUID picked) {
 	}
 
 	/**
-	 * The holder a success must come from (review iteration 4, B10): the Job's Mentor for a Crew add and a Crew change,
-	 * the Mentor of the selected bid for the NDA, its Customer for a selection and an invitation, and anyone but its
-	 * Customer for a bid. Returns what was wrong, if anything.
+	 * The holder a success must come from (review iteration 4, B10): the Job's Mentor for the recruitment and a pick,
+	 * the picked person for a signature, the Mentor of the selected bid for the NDA, its Customer for a selection and an
+	 * invitation, and anyone but its Customer for a bid, and anyone but its Customer and Mentor for a Crew Application.
+	 * Returns what was wrong, if anything.
 	 */
 	private static Optional<String> holder(Command command, Step step) {
 		boolean held = switch (command) {
 			case BID -> !step.caller().equals(step.customer());
 			case INVITE, SELECT -> step.caller().equals(step.customer());
 			case NDA -> step.caller().equals(step.selectedMentor());
-			case CREW_ADD, CREW_CHANGE -> step.caller().equals(step.mentor());
+			case RECRUIT, PICK -> step.caller().equals(step.mentor());
+			case APPLY -> !step.caller().equals(step.customer()) && !step.caller().equals(step.mentor());
+			case SIGN -> step.caller().equals(step.picked());
 		};
 		return held ? Optional.empty()
 				: Optional.of("a caller who is not its holder (" + step.caller() + "; Customer " + step.customer()
@@ -207,23 +218,21 @@ class OneRolePerJobPropertyIT extends IntegrationTest {
 			.query(UUID.class).optional().orElse(null);
 		UUID anyone = person(random);
 		UUID target = random.nextInt(4) == 0 ? (random.nextBoolean() || mentor == null ? customer : mentor) : person(random);
-		List<UUID> crew = this.jdbc.sql("""
-				SELECT member_account_id FROM job.crew_row WHERE job_id = :job AND status <> 'RELEASED'
-				""").param("job", job).query(UUID.class).list().stream().sorted(this::byPerson).toList();
-		UUID member = !crew.isEmpty() && random.nextBoolean() ? crew.get(random.nextInt(crew.size())) : target;
-		// The Mentor's own Team member, whom a Crew add can take (FR-75): the next person.
-		UUID teamMember = mentor == null ? target : this.people.get((this.people.indexOf(mentor) + 1) % PEOPLE);
-		UUID student = random.nextInt(3) == 0 ? teamMember : target;
 		UUID selectedMentor = this.jdbc.sql("""
 				SELECT a.mentor_account_id FROM job.job j JOIN matching.application a ON a.id = j.selected_application_id
 				WHERE j.id = :id
 				""").param("id", job).query(UUID.class).optional().orElse(null);
+		// The pick to make or to sign is drawn before the caller: a pending or a picked Crew Application of the Job.
+		UUID crewApplication = command == Command.PICK ? crewApplication(job, "PENDING", random) : null;
+		UUID picked = command == Command.SIGN ? pickedPerson(job, random) : null;
 		// The bid to select is drawn before the caller, as the seed's run always drew them.
 		UUID application = command == Command.SELECT ? application(job, random) : null;
 		UUID caller = switch (command) {
 			case BID -> random.nextInt(5) == 0 ? customer : anyone;
 			case INVITE, SELECT -> random.nextInt(10) < 7 ? customer : anyone;
-			case NDA, CREW_ADD, CREW_CHANGE -> random.nextInt(10) < 7 && mentor != null ? mentor : anyone;
+			case NDA, RECRUIT, PICK -> random.nextInt(10) < 7 && mentor != null ? mentor : anyone;
+			case APPLY -> anyone;
+			case SIGN -> random.nextInt(10) < 7 && picked != null ? picked : anyone;
 		};
 		MockHttpServletRequestBuilder request = switch (command) {
 			case BID -> post("/api/v1/mentor/job-posts/" + job + "/applications").content("""
@@ -233,14 +242,18 @@ class OneRolePerJobPropertyIT extends IntegrationTest {
 				.content("{\"version\":" + version(job, "version") + "}");
 			case NDA -> post("/api/v1/mentor/jobs/" + job + "/nda")
 				.content("{\"ndaVersion\":\"1.0\",\"commitEmailNoticeAcknowledged\":true}");
-			case CREW_ADD -> post("/api/v1/mentor/jobs/" + job + "/crew")
-				.content("{\"studentId\":\"" + student + "\",\"crewVersion\":" + version(job, "crew_version") + "}");
-			case CREW_CHANGE -> put("/api/v1/mentor/jobs/" + job + "/crew/change").content("""
-					{"crewVersion":%d,"shares":[{"accountId":"%s","percent":30},{"accountId":"%s","percent":70}]}"""
-				.formatted(version(job, "crew_version"), mentor == null ? anyone : mentor, member));
+			case RECRUIT -> put("/api/v1/mentor/jobs/" + job + "/recruitment").content("""
+					{"on":true,"openSlots":%d,"skillIds":[],"crewVersion":%d}"""
+				.formatted(1 + random.nextInt(2), version(job, "crew_version")));
+			case APPLY -> post("/api/v1/mentor/job-posts/" + job + "/crew-applications").content("""
+					{"note":"Mình muốn tham gia nhóm.","skillIds":[],"publicCodeAcknowledged":true}""");
+			case PICK -> post("/api/v1/mentor/jobs/" + job + "/crew-applications/" + crewApplication + "/pick");
+			case SIGN -> post("/api/v1/crew/jobs/" + job + "/commitment").content("""
+					{"ndaVersion":"1.0","commitmentVersion":"1.0","publicCodeAcknowledged":true,
+					 "commitEmailNoticeAcknowledged":true}""");
 		};
 		return new Step(request.with(as(caller)).with(csrf()).contentType(MediaType.APPLICATION_JSON), caller, customer,
-				mentor, selectedMentor);
+				mentor, selectedMentor, picked);
 	}
 
 	/**
@@ -295,27 +308,14 @@ class OneRolePerJobPropertyIT extends IntegrationTest {
 	}
 
 	/**
-	 * Eight people who can each mentor a Job and join a Crew: GitHub linked, a profile with a display name, a live
-	 * student verification, a Team of their own with the next person as its member; four of them post an Open
-	 * Job Post on a Product of their own, whose GitHub token is kept.
+	 * Eight people who can each mentor a Job and join a Crew: GitHub linked, a profile with a display name, and a live
+	 * student verification; four of them post an Open Job Post on a Product of their own, whose GitHub token is kept.
 	 */
 	private void world() {
 		for (int i = 0; i < PEOPLE; i++) {
 			UUID person = TeamTestSupport.mentor(this.jdbc, "Người " + i, List.of(TeamTestSupport.REACT), "React");
 			IdentityTestSupport.verifyStudent(this.jdbc, person, LocalDate.of(2026, 9, 30));
 			this.people.add(person);
-		}
-		for (int i = 0; i < PEOPLE; i++) {
-			UUID team = UUID.randomUUID();
-			this.jdbc.sql("INSERT INTO team.team (id, mentor_account_id, status, created_at) VALUES (:id, :mentor, 'OPEN', now())")
-				.param("id", team)
-				.param("mentor", this.people.get(i))
-				.update();
-			this.jdbc.sql("INSERT INTO team.membership (id, team_id, student_account_id, joined_at) VALUES (:id, :team, :student, now())")
-				.param("id", UUID.randomUUID())
-				.param("team", team)
-				.param("student", this.people.get((i + 1) % PEOPLE))
-				.update();
 		}
 		Timestamp now = Timestamp.from(MutableClock.DEFAULT_INSTANT);
 		for (int i = 0; i < POSTS; i++) {
@@ -357,9 +357,8 @@ class OneRolePerJobPropertyIT extends IntegrationTest {
 	}
 
 	/**
-	 * An Active Job of person {@code customer}'s own Product, mentored by person {@code mentor} with the next person,
-	 * their Team's member, as its one active Crew member under Crew Terms version 1 (Mentor 30 %): a running Job,
-	 * whose Crew a change may move.
+	 * An Active Job of person {@code customer}'s own Product, mentored by person {@code mentor} with the next person as
+	 * its one active Crew member, whose Mentor recruits two more (FR-81): a running Job whose Crew grows by picks.
 	 */
 	private void running(int customer, int mentor) {
 		UUID customerId = this.people.get(customer);
@@ -368,17 +367,10 @@ class OneRolePerJobPropertyIT extends IntegrationTest {
 		CustomerTokens.keep(this.context, customerId, "gho_property_token_" + customer);
 		UUID product = JobContent.product(this.jdbc, customerId, "Sản phẩm " + customer);
 		UUID job = JobContent.activeJob(this.jdbc, product, customerId, mentorId, "Việc đang làm " + customer);
-		UUID row = JobContent.crewRow(this.jdbc, job, memberId, "ACTIVE", null);
-		this.jdbc.sql("""
-				INSERT INTO job.crew_terms_version (job_id, version_no, status, cap_percent, author_account_id, created_at)
-				VALUES (:job, 1, 'IN_FORCE', 40, :mentor, :at)
-				""").param("job", job).param("mentor", mentorId).param("at", Timestamp.from(JobContent.SIGNED)).update();
-		for (Object[] share : new Object[][] { { mentorId, null, 30 }, { memberId, row, 70 } }) {
-			this.jdbc.sql("""
-					INSERT INTO job.crew_terms_share (job_id, version_no, party_account_id, crew_row_id, percent)
-					VALUES (:job, 1, :party, :row, :percent)
-					""").param("job", job).param("party", share[0]).param("row", share[1]).param("percent", share[2]).update();
-		}
+		JobContent.selectedBid(this.jdbc, job, product, customerId, mentorId, JobContent.SIGNED);
+		JobContent.crewRow(this.jdbc, job, memberId, "ACTIVE", null);
+		this.jdbc.sql("UPDATE job.job SET recruiting = true, recruiting_since = :at, open_slots = 2 WHERE id = :id")
+			.param("id", job).param("at", Timestamp.from(JobContent.SIGNED)).update();
 		this.jobs.add(job);
 	}
 
@@ -394,15 +386,14 @@ class OneRolePerJobPropertyIT extends IntegrationTest {
 
 	/**
 	 * The step's Job: mostly one in the state the command needs, so that the run moves Jobs on (an Open Job Post
-	 * for a bid, an invitation and J3, a selected one for the NDA, one in Agreement for a Crew add, a running one for
-	 * a Crew change), and otherwise any, whose refusal the run checks too.
+	 * for a bid, an invitation and J3, a selected one for the NDA, one from J4 until J8 for the recruitment, a Crew
+	 * Application, a pick and a signature), and otherwise any, whose refusal the run checks too.
 	 */
 	private UUID job(Command command, Random random) {
 		List<String> states = switch (command) {
 			case BID, INVITE, SELECT -> List.of("OPEN");
 			case NDA -> List.of("SELECTING");
-			case CREW_ADD -> List.of("AGREEMENT");
-			case CREW_CHANGE -> List.of("STARTING", "ACTIVE", "CLOSING");
+			case RECRUIT, APPLY, PICK, SIGN -> List.of("AGREEMENT", "STARTING", "ACTIVE");
 		};
 		List<UUID> fitting = this.jobs.stream()
 			.filter(job -> states.contains(this.jdbc.sql("SELECT state FROM job.job WHERE id = :id")
@@ -429,6 +420,27 @@ class OneRolePerJobPropertyIT extends IntegrationTest {
 			});
 		List<UUID> bids = List.copyOf(byBidder.values());
 		return bids.isEmpty() || random.nextInt(10) == 0 ? UUID.randomUUID() : bids.get(random.nextInt(bids.size()));
+	}
+
+	/** A Crew Application of the Job in {@code status}, in the order of its applicants, or an ID that names none. */
+	private UUID crewApplication(UUID job, String status, Random random) {
+		Map<UUID, UUID> byApplicant = new TreeMap<>(this::byPerson);
+		this.jdbc.sql("SELECT id, applicant_account_id FROM matching.crew_application WHERE job_id = :job AND status = :status")
+			.param("job", job)
+			.param("status", status)
+			.query(rs -> {
+				byApplicant.put(rs.getObject("applicant_account_id", UUID.class), rs.getObject("id", UUID.class));
+			});
+		List<UUID> found = List.copyOf(byApplicant.values());
+		return found.isEmpty() || random.nextInt(10) == 0 ? UUID.randomUUID() : found.get(random.nextInt(found.size()));
+	}
+
+	/** The person of a pick of the Job waiting for the signature, in the order of the people, if any. */
+	private @Nullable UUID pickedPerson(UUID job, Random random) {
+		List<UUID> picked = this.jdbc.sql("""
+				SELECT applicant_account_id FROM matching.crew_application WHERE job_id = :job AND status = 'PICKED'
+				""").param("job", job).query(UUID.class).list().stream().sorted(this::byPerson).toList();
+		return picked.isEmpty() ? null : picked.get(random.nextInt(picked.size()));
 	}
 
 	private long version(UUID job, String column) {

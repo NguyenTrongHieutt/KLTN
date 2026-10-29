@@ -323,6 +323,51 @@ class JobSetupIT extends IntegrationTest {
 		awaitListeners();
 	}
 
+	/**
+	 * Story 21.5 (FR-18, AD-11, SG-67): a member who signs while the Job is Starting, after its Setup, is invited with
+	 * read permission as a late member, and Verify never waits for them: J7 applies once the Mentor and the first
+	 * Crew accepted, and the late member is raised to write on their own acceptance, a consequence that changes no
+	 * Job state.
+	 */
+	@Test
+	void aMemberWhoJoinsAStartingJobAfterSetupIsGrantedApartAndVerifyNeverWaitsForThem() throws Exception {
+		j6();
+		run();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		this.clock.advance(Duration.ofMinutes(1));
+		UUID hai = TeamTestSupport.student(this.jdbc, "Phạm Văn Hải", true, List.of(TeamTestSupport.REACT), "React",
+				LocalDate.parse("2026-12-31"));
+		UUID row = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, created_at)
+				VALUES (:id, :job, :student, 'ACTIVE', :now, :now, :now)
+				""").param("id", row).param("job", this.job).param("student", hai)
+			.param("now", Timestamp.from(this.clock.instant())).update();
+
+		this.checks.added(new vn.vibefix.job.CrewMemberAdded(UUID.randomUUID(), this.job, row, hai, "STARTING"));
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		JobGrants.Grant late = this.grants.ofJob(this.job).stream().filter(grant -> grant.accountId().equals(hai))
+			.findFirst().orElseThrow();
+		assertThat(late.status()).isEqualTo("INVITED");
+		assertThat(late.crewChange()).as("a late member's grant").isTrue();
+
+		GITHUB.accept(TeamTestSupport.login(this.jdbc, this.mentor));
+		GITHUB.accept(TeamTestSupport.login(this.jdbc, this.crew));
+		this.checks.check(this.job);
+		assertThat(this.busy.job(this.job).orElseThrow().busy()).as("Verify does not wait for the late member")
+			.hasValueSatisfying(marker -> assertThat(marker.purpose()).isEqualTo(JobBusy.Purpose.JOB_VERIFY));
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		assertThat(this.busy.job(this.job).orElseThrow().state()).isEqualTo("ACTIVE");
+		assertThat(this.grants.find(late.id()).orElseThrow().status()).as("still waiting for its acceptance")
+			.isEqualTo("INVITED");
+
+		GITHUB.accept(TeamTestSupport.login(this.jdbc, hai));
+		this.checks.check(this.job);
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		assertThat(this.grants.find(late.id()).orElseThrow().status()).as("raised without a state change").isEqualTo("WRITE");
+		awaitListeners();
+	}
+
 	@Test
 	void aPushIsScannedAndItsCredentialGoesToTheMentorWhoConfirmsTheRotation() throws Exception {
 		j6();

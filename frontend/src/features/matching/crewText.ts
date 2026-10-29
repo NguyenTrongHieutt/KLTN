@@ -5,7 +5,7 @@ import vi from '@/i18n/vi.json'
 import { ApiError } from '@/lib/apiClient'
 import { formatDayMonth, formatDayMonthTime } from '@/lib/dates'
 import { problemMessage } from '@/lib/problemMessage'
-import type { CrewApplication } from './crewApplicationApi'
+import { SIGN_DAYS, type CrewApplication } from './crewApplicationApi'
 
 /** The refusals of a Crew Application that FND-2 words itself (FR-81, SG-58), each in its own plain sentence. */
 const OWN_WORDS = [
@@ -23,12 +23,19 @@ const MATCHING_REASONS = (vi as { reason: { matching: Record<string, string> } }
 const SHARED_VALIDATION = ['LINK_INVALID', 'PUBLIC_CODE_NOT_ACKNOWLEDGED']
 
 /**
- * An application's state as MEN-3, FND-2 and CUS-7 show it to its applicant (UX-DR103): sent with its lapse date, not
- * picked, withdrawn, or lapsed with why.
+ * An application's state as MEN-3, FND-2 and CUS-7 show it to its applicant (UX-DR103): sent with its lapse date,
+ * picked with its signing deadline (Story 21.5), not picked, withdrawn, lapsed with why, a pick that ended, or joined.
  */
-export function crewApplicationStateText(application: Pick<CrewApplication, 'status' | 'endReason' | 'lapsesAt'>): string {
+export function crewApplicationStateText(
+  application: Pick<CrewApplication, 'status' | 'endReason' | 'lapsesAt' | 'signDueAt'>,
+): string {
   if (application.status === 'PENDING') {
     return t('screen.crewApply.state.PENDING', { date: formatDayMonth(application.lapsesAt) })
+  }
+  if (application.status === 'PICKED') {
+    return t('screen.crewApply.state.PICKED', {
+      date: application.signDueAt ? formatDayMonthTime(application.signDueAt) : '',
+    })
   }
   return t(`screen.crewApply.state.${application.endReason ?? application.status}` as MessageKey)
 }
@@ -95,4 +102,29 @@ export function crewUploadRefusal(error: unknown, context: CrewRefusalContext = 
   const reason = error instanceof ApiError ? error.problem.reason : undefined
   const own = reason !== undefined && (reason in MATCHING_REASONS || OWN_WORDS.includes(reason))
   return error instanceof ApiError && error.status !== 429 && own ? crewRefusal(error, context) : uploadMessage(error)
+}
+
+/**
+ * A refused pick in plain words (FR-81, AD-23): the Mentor never learns why a person is unavailable (A-16), and the
+ * Crew cap, a contributor and a conflict of interest name the person; anything else says itself.
+ */
+export function pickRefusal(error: unknown, name: string): string {
+  if (error instanceof ApiError) {
+    const reason = error.problem.reason
+    if (reason === 'APPLICANT_UNAVAILABLE' || reason === 'APPLICANT_IS_CONTRIBUTOR' || reason === 'CONFLICT_OF_INTEREST') {
+      return t(`screen.recruitment.pickRefusal.${reason}`, { name })
+    }
+    if (reason === 'CREW_FULL') {
+      return t('reason.job.CREW_FULL', { n: (error.problem as { n?: number }).n ?? 1 })
+    }
+    if (reason === 'NOT_PICKABLE' || error.problem.code === 'STALE') {
+      return t('screen.recruitment.pickRefusal.NOT_PICKABLE')
+    }
+  }
+  return problemMessage(error, { module: 'job', action: t('screen.recruitment.pickAction') }).text
+}
+
+/** The signing deadline a pick made now has: {@link SIGN_DAYS} days on, as the server counts it. */
+export function signDeadline(now: Date = new Date()): string {
+  return new Date(now.getTime() + SIGN_DAYS * 24 * 60 * 60 * 1000).toISOString()
 }

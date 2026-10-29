@@ -1,0 +1,6 @@
+subject: Người hướng dẫn đã rút lựa chọn bạn vào {job}
+---
+Xin chào,
+
+Người hướng dẫn đã rút lựa chọn bạn vào nhóm thực hiện công việc {job} trước khi bạn ký cam kết.
+Bạn có thể tìm và xin vào nhóm của công việc khác trên vibefix.

@@ -1412,7 +1412,7 @@
     },
     "/api/v1/admin/skill-suggestions/{suggestionId}/decline" : {
       "post" : {
-        "operationId" : "decline_7",
+        "operationId" : "decline_8",
         "parameters" : [ {
           "in" : "path",
           "name" : "suggestionId",
@@ -2132,7 +2132,7 @@
     },
     "/api/v1/boards/{boardId}/closure/decline" : {
       "post" : {
-        "operationId" : "decline_6",
+        "operationId" : "decline_7",
         "parameters" : [ {
           "in" : "path",
           "name" : "boardId",
@@ -2824,7 +2824,7 @@
     },
     "/api/v1/boards/{boardId}/portfolio/summary/decline" : {
       "post" : {
-        "operationId" : "decline_5",
+        "operationId" : "decline_6",
         "parameters" : [ {
           "in" : "path",
           "name" : "boardId",
@@ -3516,30 +3516,34 @@
         "tags" : [ "crew-chat-controller" ]
       }
     },
-    "/api/v1/crew/assignments" : {
+    "/api/v1/crew/jobs/{jobId}/commitment" : {
       "get" : {
-        "operationId" : "crewAssignments",
+        "operationId" : "commitment",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
         "responses" : {
           "200" : {
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "type" : "array",
-                  "items" : {
-                    "$ref" : "#/components/schemas/CrewAssignmentView"
-                  }
+                  "$ref" : "#/components/schemas/CommitmentView"
                 }
               }
             },
             "description" : "OK"
           }
         },
-        "tags" : [ "crew-controller" ]
-      }
-    },
-    "/api/v1/crew/jobs/{jobId}/confirm" : {
+        "tags" : [ "crew-nda-controller" ]
+      },
       "post" : {
-        "operationId" : "confirmCrewTerms",
+        "operationId" : "sign_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "jobId",
@@ -3553,23 +3557,30 @@
           "content" : {
             "application/json" : {
               "schema" : {
-                "$ref" : "#/components/schemas/CrewConfirmRequest"
+                "$ref" : "#/components/schemas/CommitmentSignRequest"
               }
             }
           },
           "required" : true
         },
         "responses" : {
-          "204" : {
-            "description" : "No Content"
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CommitmentView"
+                }
+              }
+            },
+            "description" : "OK"
           }
         },
         "tags" : [ "crew-nda-controller" ]
       }
     },
-    "/api/v1/crew/jobs/{jobId}/decline" : {
+    "/api/v1/crew/jobs/{jobId}/commitment/decline" : {
       "post" : {
-        "operationId" : "declineCrewTerms",
+        "operationId" : "decline_5",
         "parameters" : [ {
           "in" : "path",
           "name" : "jobId",
@@ -3579,19 +3590,16 @@
             "format" : "uuid"
           }
         } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/CrewDeclineRequest"
-              }
-            }
-          },
-          "required" : true
-        },
         "responses" : {
-          "204" : {
-            "description" : "No Content"
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CommitmentView"
+                }
+              }
+            },
+            "description" : "OK"
           }
         },
         "tags" : [ "crew-nda-controller" ]
@@ -6281,7 +6289,7 @@
     },
     "/api/v1/mentor/jobs/{jobId}/crew" : {
       "get" : {
-        "operationId" : "crewPanel",
+        "operationId" : "crew",
         "parameters" : [ {
           "in" : "path",
           "name" : "jobId",
@@ -6296,42 +6304,7 @@
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/CrewPanelView"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "crew-controller" ]
-      },
-      "post" : {
-        "operationId" : "addCrewMember",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "jobId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/CrewAddRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/CrewPanelView"
+                  "$ref" : "#/components/schemas/CrewView"
                 }
               }
             },
@@ -6399,120 +6372,9 @@
         "tags" : [ "crew-application-controller" ]
       }
     },
-    "/api/v1/mentor/jobs/{jobId}/crew/change" : {
-      "put" : {
-        "operationId" : "changeCrew",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "jobId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/CrewTermsRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/CrewPanelView"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "crew-controller" ]
-      }
-    },
-    "/api/v1/mentor/jobs/{jobId}/crew/reconfirm" : {
+    "/api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/pick" : {
       "post" : {
-        "operationId" : "reconfirmCrew",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "jobId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/CrewReconfirmRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/CrewPanelView"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "crew-controller" ]
-      }
-    },
-    "/api/v1/mentor/jobs/{jobId}/crew/terms" : {
-      "put" : {
-        "operationId" : "saveCrewTerms",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "jobId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/CrewTermsRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/CrewPanelView"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "crew-controller" ]
-      }
-    },
-    "/api/v1/mentor/jobs/{jobId}/crew/{crewRowId}/remove" : {
-      "post" : {
-        "operationId" : "removeCrewMember",
+        "operationId" : "pick",
         "parameters" : [ {
           "in" : "path",
           "name" : "jobId",
@@ -6523,36 +6385,54 @@
           }
         }, {
           "in" : "path",
-          "name" : "crewRowId",
+          "name" : "crewApplicationId",
           "required" : true,
           "schema" : {
             "type" : "string",
             "format" : "uuid"
           }
         } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/CrewRemoveRequest"
-              }
-            }
-          },
-          "required" : true
-        },
         "responses" : {
           "200" : {
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/CrewPanelView"
+                  "$ref" : "#/components/schemas/ApplicantCardView"
                 }
               }
             },
             "description" : "OK"
           }
         },
-        "tags" : [ "crew-controller" ]
+        "tags" : [ "crew-application-controller" ]
+      }
+    },
+    "/api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/withdraw-pick" : {
+      "post" : {
+        "operationId" : "withdrawPick",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "path",
+          "name" : "crewApplicationId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "crew-application-controller" ]
       }
     },
     "/api/v1/mentor/jobs/{jobId}/decline" : {
@@ -9805,9 +9685,6 @@
               "type" : "string"
             }
           },
-          "crewConfirmed" : {
-            "type" : "boolean"
-          },
           "latestVersionNo" : {
             "type" : "integer",
             "format" : "int32"
@@ -9830,7 +9707,7 @@
             }
           }
         },
-        "required" : [ "changeRequested", "comments", "content", "crew", "crewConfirmed", "latestVersionNo", "sharedAt", "versionNo", "versions" ]
+        "required" : [ "changeRequested", "comments", "content", "crew", "latestVersionNo", "sharedAt", "versionNo", "versions" ]
       },
       "AnswerTeamIssueRequest" : {
         "type" : "object",
@@ -9856,7 +9733,7 @@
           },
           "endReason" : {
             "type" : "string",
-            "enum" : [ "DECLINED", "WITHDRAWN", "APPLICANT_UNAVAILABLE", "EXPIRED", "RECRUITMENT_CLOSED", "JOB_CLOSING", "JOB_CANCELLED", "JOB_HIDDEN" ]
+            "enum" : [ "DECLINED", "WITHDRAWN", "APPLICANT_UNAVAILABLE", "EXPIRED", "RECRUITMENT_CLOSED", "JOB_CLOSING", "JOB_CANCELLED", "JOB_HIDDEN", "JOINED_ANOTHER_CREW", "PICK_WITHDRAWN", "COMMITMENT_DECLINED", "COMMITMENT_LAPSED", "PICK_ENDED", "SIGNED" ]
           },
           "endedAt" : {
             "type" : "string",
@@ -9882,6 +9759,10 @@
               "$ref" : "#/components/schemas/BidProofView"
             }
           },
+          "signDueAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
           "skills" : {
             "type" : "array",
             "items" : {
@@ -9890,7 +9771,7 @@
           },
           "status" : {
             "type" : "string",
-            "enum" : [ "PENDING", "DECLINED", "WITHDRAWN", "LAPSED" ]
+            "enum" : [ "PENDING", "PICKED", "JOINED", "DECLINED", "WITHDRAWN", "LAPSED" ]
           },
           "submittedAt" : {
             "type" : "string",
@@ -11210,6 +11091,115 @@
         },
         "required" : [ "code" ]
       },
+      "CommitmentMilestoneView" : {
+        "type" : "object",
+        "properties" : {
+          "dueOn" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "priceVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "title" ]
+      },
+      "CommitmentPanelView" : {
+        "type" : "object",
+        "properties" : {
+          "codeJob" : {
+            "type" : "boolean"
+          },
+          "commitEmailNoticeAcknowledged" : {
+            "type" : "boolean"
+          },
+          "commitmentVersion" : {
+            "type" : "string"
+          },
+          "githubLogin" : {
+            "type" : "string"
+          },
+          "milestones" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/CommitmentMilestoneView"
+            }
+          },
+          "ndaVersion" : {
+            "type" : "string"
+          },
+          "scope" : {
+            "type" : "string"
+          },
+          "splitRules" : {
+            "$ref" : "#/components/schemas/SplitRulesView"
+          }
+        },
+        "required" : [ "codeJob", "commitEmailNoticeAcknowledged", "commitmentVersion", "milestones", "ndaVersion", "splitRules" ]
+      },
+      "CommitmentSignRequest" : {
+        "type" : "object",
+        "properties" : {
+          "commitEmailNoticeAcknowledged" : {
+            "type" : "boolean"
+          },
+          "commitmentVersion" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "ndaVersion" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "publicCodeAcknowledged" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "commitEmailNoticeAcknowledged", "commitmentVersion", "ndaVersion", "publicCodeAcknowledged" ]
+      },
+      "CommitmentView" : {
+        "type" : "object",
+        "properties" : {
+          "applicationId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "endReason" : {
+            "type" : "string",
+            "enum" : [ "DECLINED", "WITHDRAWN", "APPLICANT_UNAVAILABLE", "EXPIRED", "RECRUITMENT_CLOSED", "JOB_CLOSING", "JOB_CANCELLED", "JOB_HIDDEN", "JOINED_ANOTHER_CREW", "PICK_WITHDRAWN", "COMMITMENT_DECLINED", "COMMITMENT_LAPSED", "PICK_ENDED", "SIGNED" ]
+          },
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "jobTitle" : {
+            "type" : "string"
+          },
+          "mentorName" : {
+            "type" : "string"
+          },
+          "panel" : {
+            "$ref" : "#/components/schemas/CommitmentPanelView"
+          },
+          "pickedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "signDueAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "PENDING", "PICKED", "JOINED", "DECLINED", "WITHDRAWN", "LAPSED" ]
+          }
+        },
+        "required" : [ "applicationId", "jobId", "jobTitle", "mentorName", "pickedAt", "signDueAt", "status" ]
+      },
       "ConfirmRequest" : {
         "type" : "object",
         "properties" : {
@@ -11418,20 +11408,6 @@
         },
         "required" : [ "id" ]
       },
-      "CrewAddRequest" : {
-        "type" : "object",
-        "properties" : {
-          "crewVersion" : {
-            "type" : "integer",
-            "format" : "int64"
-          },
-          "studentId" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        },
-        "required" : [ "crewVersion", "studentId" ]
-      },
       "CrewApplicationSkillView" : {
         "type" : "object",
         "properties" : {
@@ -11450,7 +11426,7 @@
         "properties" : {
           "endReason" : {
             "type" : "string",
-            "enum" : [ "DECLINED", "WITHDRAWN", "APPLICANT_UNAVAILABLE", "EXPIRED", "RECRUITMENT_CLOSED", "JOB_CLOSING", "JOB_CANCELLED", "JOB_HIDDEN" ]
+            "enum" : [ "DECLINED", "WITHDRAWN", "APPLICANT_UNAVAILABLE", "EXPIRED", "RECRUITMENT_CLOSED", "JOB_CLOSING", "JOB_CANCELLED", "JOB_HIDDEN", "JOINED_ANOTHER_CREW", "PICK_WITHDRAWN", "COMMITMENT_DECLINED", "COMMITMENT_LAPSED", "PICK_ENDED", "SIGNED" ]
           },
           "endedAt" : {
             "type" : "string",
@@ -11480,6 +11456,10 @@
               "$ref" : "#/components/schemas/BidProofView"
             }
           },
+          "signDueAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
           "skills" : {
             "type" : "array",
             "items" : {
@@ -11488,7 +11468,7 @@
           },
           "status" : {
             "type" : "string",
-            "enum" : [ "PENDING", "DECLINED", "WITHDRAWN", "LAPSED" ]
+            "enum" : [ "PENDING", "PICKED", "JOINED", "DECLINED", "WITHDRAWN", "LAPSED" ]
           },
           "submittedAt" : {
             "type" : "string",
@@ -11526,133 +11506,6 @@
         },
         "required" : [ "note", "publicCodeAcknowledged" ]
       },
-      "CrewAssignmentMilestoneView" : {
-        "type" : "object",
-        "properties" : {
-          "dueOn" : {
-            "type" : "string",
-            "format" : "date"
-          },
-          "priceVnd" : {
-            "type" : "integer",
-            "format" : "int64"
-          },
-          "title" : {
-            "type" : "string"
-          },
-          "yourPartVnd" : {
-            "type" : "integer",
-            "format" : "int64"
-          }
-        },
-        "required" : [ "title" ]
-      },
-      "CrewAssignmentView" : {
-        "type" : "object",
-        "properties" : {
-          "changeWaiting" : {
-            "type" : "boolean"
-          },
-          "codeJob" : {
-            "type" : "boolean"
-          },
-          "commitEmailNoticeAcknowledged" : {
-            "type" : "boolean"
-          },
-          "jobId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "jobState" : {
-            "type" : "string"
-          },
-          "mentorName" : {
-            "type" : "string"
-          },
-          "milestones" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/CrewAssignmentMilestoneView"
-            }
-          },
-          "productName" : {
-            "type" : "string"
-          },
-          "scope" : {
-            "type" : "string"
-          },
-          "sharePercent" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "signed" : {
-            "type" : "boolean"
-          },
-          "status" : {
-            "type" : "string"
-          },
-          "title" : {
-            "type" : "string"
-          },
-          "versionNo" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "versionSentAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          }
-        },
-        "required" : [ "changeWaiting", "codeJob", "commitEmailNoticeAcknowledged", "jobId", "jobState", "mentorName", "milestones", "productName", "scope", "signed", "status", "title", "versionNo" ]
-      },
-      "CrewCandidateView" : {
-        "type" : "object",
-        "properties" : {
-          "githubLogin" : {
-            "type" : "string"
-          },
-          "name" : {
-            "type" : "string"
-          },
-          "onCrewJob" : {
-            "type" : "string"
-          },
-          "state" : {
-            "type" : "string",
-            "enum" : [ "FREE", "IN_CREW", "ON_CREW", "NOT_VERIFIED" ]
-          },
-          "studentId" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        },
-        "required" : [ "name", "state", "studentId" ]
-      },
-      "CrewChangeView" : {
-        "type" : "object",
-        "properties" : {
-          "confirmed" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "held" : {
-            "type" : "boolean"
-          },
-          "inForceVersionNo" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "total" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "waitingVersionNo" : {
-            "type" : "integer",
-            "format" : "int32"
-          }
-        },
-        "required" : [ "confirmed", "held", "total" ]
-      },
       "CrewChatView" : {
         "type" : "object",
         "properties" : {
@@ -11675,129 +11528,25 @@
         },
         "required" : [ "chatId", "closed", "readOnly", "title", "unread" ]
       },
-      "CrewConfirmRequest" : {
+      "CrewMemberView" : {
         "type" : "object",
         "properties" : {
-          "commitEmailNoticeAcknowledged" : {
-            "type" : "boolean"
-          },
-          "crewTermsVersionNo" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "ndaVersion" : {
-            "type" : "string",
-            "minLength" : 1
-          },
-          "publicCodeAcknowledged" : {
-            "type" : "boolean"
-          }
-        },
-        "required" : [ "commitEmailNoticeAcknowledged", "crewTermsVersionNo", "ndaVersion", "publicCodeAcknowledged" ]
-      },
-      "CrewDeclineRequest" : {
-        "type" : "object",
-        "properties" : {
-          "crewTermsVersionNo" : {
-            "type" : "integer",
-            "format" : "int32"
-          }
-        },
-        "required" : [ "crewTermsVersionNo" ]
-      },
-      "CrewMentorView" : {
-        "type" : "object",
-        "properties" : {
-          "accountId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "displayName" : {
-            "type" : "string"
-          },
           "githubLogin" : {
             "type" : "string"
           },
-          "percent" : {
-            "type" : "integer",
-            "format" : "int32"
-          }
-        },
-        "required" : [ "accountId", "displayName" ]
-      },
-      "CrewMilestoneView" : {
-        "type" : "object",
-        "properties" : {
-          "priceVnd" : {
-            "type" : "integer",
-            "format" : "int64"
+          "joinedAt" : {
+            "type" : "string",
+            "format" : "date-time"
           },
-          "title" : {
+          "name" : {
             "type" : "string"
+          },
+          "rowId" : {
+            "type" : "string",
+            "format" : "uuid"
           }
         },
-        "required" : [ "title" ]
-      },
-      "CrewPanelView" : {
-        "type" : "object",
-        "properties" : {
-          "capPercent" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "change" : {
-            "$ref" : "#/components/schemas/CrewChangeView"
-          },
-          "confirmedCount" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "crewConfirmed" : {
-            "type" : "boolean"
-          },
-          "crewVersion" : {
-            "type" : "integer",
-            "format" : "int64"
-          },
-          "largeCrews" : {
-            "type" : "boolean"
-          },
-          "latest" : {
-            "$ref" : "#/components/schemas/CrewTermsView"
-          },
-          "locked" : {
-            "type" : "boolean"
-          },
-          "mentor" : {
-            "$ref" : "#/components/schemas/CrewMentorView"
-          },
-          "milestones" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/CrewMilestoneView"
-            }
-          },
-          "reconfirmOwed" : {
-            "type" : "boolean"
-          },
-          "rows" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/CrewRowView"
-            }
-          },
-          "team" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/CrewCandidateView"
-            }
-          },
-          "total" : {
-            "type" : "integer",
-            "format" : "int32"
-          }
-        },
-        "required" : [ "capPercent", "confirmedCount", "crewConfirmed", "crewVersion", "largeCrews", "locked", "mentor", "milestones", "reconfirmOwed", "rows", "team", "total" ]
+        "required" : [ "joinedAt", "name", "rowId" ]
       },
       "CrewPartView" : {
         "type" : "object",
@@ -11854,82 +11603,6 @@
         },
         "required" : [ "accountId", "name", "openItems", "state" ]
       },
-      "CrewReconfirmRequest" : {
-        "type" : "object",
-        "properties" : {
-          "crewVersion" : {
-            "type" : "integer",
-            "format" : "int64"
-          }
-        },
-        "required" : [ "crewVersion" ]
-      },
-      "CrewRemoveRequest" : {
-        "type" : "object",
-        "properties" : {
-          "crewVersion" : {
-            "type" : "integer",
-            "format" : "int64"
-          }
-        },
-        "required" : [ "crewVersion" ]
-      },
-      "CrewRowView" : {
-        "type" : "object",
-        "properties" : {
-          "confirmedLatest" : {
-            "type" : "boolean"
-          },
-          "githubLogin" : {
-            "type" : "string"
-          },
-          "leaving" : {
-            "type" : "boolean"
-          },
-          "name" : {
-            "type" : "string"
-          },
-          "percent" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "releasedReason" : {
-            "type" : "string"
-          },
-          "rowId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "signedAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "status" : {
-            "type" : "string"
-          },
-          "studentId" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        },
-        "required" : [ "confirmedLatest", "leaving", "name", "rowId", "status", "studentId" ]
-      },
-      "CrewShareRequest" : {
-        "type" : "object",
-        "properties" : {
-          "accountId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "percent" : {
-            "type" : "integer",
-            "format" : "int32",
-            "maximum" : 100,
-            "minimum" : 0
-          }
-        },
-        "required" : [ "accountId", "percent" ]
-      },
       "CrewTermsEvidenceView" : {
         "type" : "object",
         "properties" : {
@@ -11945,24 +11618,6 @@
           }
         },
         "required" : [ "jobId", "versions" ]
-      },
-      "CrewTermsRequest" : {
-        "type" : "object",
-        "properties" : {
-          "crewVersion" : {
-            "type" : "integer",
-            "format" : "int64"
-          },
-          "shares" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/CrewShareRequest"
-            },
-            "maxItems" : 11,
-            "minItems" : 2
-          }
-        },
-        "required" : [ "crewVersion", "shares" ]
       },
       "CrewTermsShareEvidenceView" : {
         "type" : "object",
@@ -12007,22 +11662,28 @@
         },
         "required" : [ "createdAt", "shares", "status", "versionNo" ]
       },
-      "CrewTermsView" : {
+      "CrewView" : {
         "type" : "object",
         "properties" : {
-          "createdAt" : {
-            "type" : "string",
-            "format" : "date-time"
+          "crewVersion" : {
+            "type" : "integer",
+            "format" : "int64"
           },
-          "status" : {
-            "type" : "string"
+          "members" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/CrewMemberView"
+            }
           },
-          "versionNo" : {
+          "signedMember" : {
+            "type" : "boolean"
+          },
+          "waiting" : {
             "type" : "integer",
             "format" : "int32"
           }
         },
-        "required" : [ "createdAt", "status", "versionNo" ]
+        "required" : [ "crewVersion", "members", "signedMember", "waiting" ]
       },
       "Criterion" : {
         "type" : "object",
@@ -14561,7 +14222,7 @@
           },
           "limit" : {
             "type" : "string",
-            "enum" : [ "JOB_POST_NOT_OPEN", "JOB_POST_HIDDEN", "ROLE_TAKEN", "ALREADY_APPLIED", "MENTOR_JOB_LIMIT", "CONFLICT_OF_INTEREST", "APPLICANT_IS_CONTRIBUTOR", "CONTRIBUTORS_UNKNOWN", "PUBLIC_CODE_NOT_ACKNOWLEDGED", "NOT_WITHDRAWABLE", "NDA_VERSION_OUTDATED", "COMMIT_EMAIL_NOT_ACKNOWLEDGED", "INVITEE_NOT_AVAILABLE", "ALREADY_INVITED", "INVITEE_ALREADY_APPLIED", "INVITE_LIMIT_JOB_POST", "INVITE_LIMIT_DAILY", "PROFILE_REQUIRED", "PROOF_LIMIT", "LINK_INVALID", "PROOF_FILE_UNKNOWN", "RECRUITMENT_CLOSED", "CREW_FULL", "CREW_REJOIN_REFUSED", "ON_ANOTHER_CREW", "NOT_DECLINABLE" ]
+            "enum" : [ "JOB_POST_NOT_OPEN", "JOB_POST_HIDDEN", "ROLE_TAKEN", "ALREADY_APPLIED", "MENTOR_JOB_LIMIT", "CONFLICT_OF_INTEREST", "APPLICANT_IS_CONTRIBUTOR", "CONTRIBUTORS_UNKNOWN", "PUBLIC_CODE_NOT_ACKNOWLEDGED", "NOT_WITHDRAWABLE", "NDA_VERSION_OUTDATED", "COMMIT_EMAIL_NOT_ACKNOWLEDGED", "INVITEE_NOT_AVAILABLE", "ALREADY_INVITED", "INVITEE_ALREADY_APPLIED", "INVITE_LIMIT_JOB_POST", "INVITE_LIMIT_DAILY", "PROFILE_REQUIRED", "PROOF_LIMIT", "LINK_INVALID", "PROOF_FILE_UNKNOWN", "RECRUITMENT_CLOSED", "CREW_FULL", "CREW_REJOIN_REFUSED", "ON_ANOTHER_CREW", "NOT_DECLINABLE", "NOT_PICKABLE", "COMMITMENT_VERSION_OUTDATED", "PICK_ENDED" ]
           }
         },
         "required" : [ "invitations", "left" ]
@@ -17412,7 +17073,7 @@
           },
           "limit" : {
             "type" : "string",
-            "enum" : [ "JOB_POST_NOT_OPEN", "JOB_POST_HIDDEN", "ROLE_TAKEN", "ALREADY_APPLIED", "MENTOR_JOB_LIMIT", "CONFLICT_OF_INTEREST", "APPLICANT_IS_CONTRIBUTOR", "CONTRIBUTORS_UNKNOWN", "PUBLIC_CODE_NOT_ACKNOWLEDGED", "NOT_WITHDRAWABLE", "NDA_VERSION_OUTDATED", "COMMIT_EMAIL_NOT_ACKNOWLEDGED", "INVITEE_NOT_AVAILABLE", "ALREADY_INVITED", "INVITEE_ALREADY_APPLIED", "INVITE_LIMIT_JOB_POST", "INVITE_LIMIT_DAILY", "PROFILE_REQUIRED", "PROOF_LIMIT", "LINK_INVALID", "PROOF_FILE_UNKNOWN", "RECRUITMENT_CLOSED", "CREW_FULL", "CREW_REJOIN_REFUSED", "ON_ANOTHER_CREW", "NOT_DECLINABLE" ]
+            "enum" : [ "JOB_POST_NOT_OPEN", "JOB_POST_HIDDEN", "ROLE_TAKEN", "ALREADY_APPLIED", "MENTOR_JOB_LIMIT", "CONFLICT_OF_INTEREST", "APPLICANT_IS_CONTRIBUTOR", "CONTRIBUTORS_UNKNOWN", "PUBLIC_CODE_NOT_ACKNOWLEDGED", "NOT_WITHDRAWABLE", "NDA_VERSION_OUTDATED", "COMMIT_EMAIL_NOT_ACKNOWLEDGED", "INVITEE_NOT_AVAILABLE", "ALREADY_INVITED", "INVITEE_ALREADY_APPLIED", "INVITE_LIMIT_JOB_POST", "INVITE_LIMIT_DAILY", "PROFILE_REQUIRED", "PROOF_LIMIT", "LINK_INVALID", "PROOF_FILE_UNKNOWN", "RECRUITMENT_CLOSED", "CREW_FULL", "CREW_REJOIN_REFUSED", "ON_ANOTHER_CREW", "NOT_DECLINABLE", "NOT_PICKABLE", "COMMITMENT_VERSION_OUTDATED", "PICK_ENDED" ]
           }
         },
         "required" : [ "left" ]
@@ -18133,7 +17794,7 @@
           },
           "rule" : {
             "type" : "string",
-            "enum" : [ "AUTO_ACCEPTANCE_DAYS", "AUTO_ACCEPTANCE_FIRST_REMINDER_DAY", "AUTO_ACCEPTANCE_SECOND_REMINDER_DAY", "RATING_WINDOW_DAYS", "REVISION_ROUNDS", "DISPUTE_RESPONSE_DAYS", "TEAM_ISSUE_ANSWER_DAYS", "TEAM_ISSUE_ESCALATION_DAYS", "CLOSURE_CONFIRMATION_DAYS", "CANCELLATION_CONFIRMATION_DAYS", "AUTOMATIC_CLOSURE_DAYS", "FINAL_MERGE_AUTHORIZATION_DAYS", "AGREEMENT_STALL_DAYS", "STARTING_STALL_DAYS", "MENTOR_ACTIVE_JOB_LIMIT", "MENTOR_SHARE_CAP_PERCENT", "CREW_APPLICATION_LAPSE_DAYS" ]
+            "enum" : [ "AUTO_ACCEPTANCE_DAYS", "AUTO_ACCEPTANCE_FIRST_REMINDER_DAY", "AUTO_ACCEPTANCE_SECOND_REMINDER_DAY", "RATING_WINDOW_DAYS", "REVISION_ROUNDS", "DISPUTE_RESPONSE_DAYS", "TEAM_ISSUE_ANSWER_DAYS", "TEAM_ISSUE_ESCALATION_DAYS", "CLOSURE_CONFIRMATION_DAYS", "CANCELLATION_CONFIRMATION_DAYS", "AUTOMATIC_CLOSURE_DAYS", "FINAL_MERGE_AUTHORIZATION_DAYS", "AGREEMENT_STALL_DAYS", "STARTING_STALL_DAYS", "MENTOR_ACTIVE_JOB_LIMIT", "MENTOR_SHARE_CAP_PERCENT", "CREW_APPLICATION_LAPSE_DAYS", "SPLIT_DRAFT_DAYS", "SPLIT_CONFIRMATION_DAYS", "SPLIT_EDIT_LIMIT" ]
           }
         },
         "required" : [ "changedAt", "kind" ]
@@ -18143,7 +17804,7 @@
         "properties" : {
           "key" : {
             "type" : "string",
-            "enum" : [ "AUTO_ACCEPTANCE_DAYS", "AUTO_ACCEPTANCE_FIRST_REMINDER_DAY", "AUTO_ACCEPTANCE_SECOND_REMINDER_DAY", "RATING_WINDOW_DAYS", "REVISION_ROUNDS", "DISPUTE_RESPONSE_DAYS", "TEAM_ISSUE_ANSWER_DAYS", "TEAM_ISSUE_ESCALATION_DAYS", "CLOSURE_CONFIRMATION_DAYS", "CANCELLATION_CONFIRMATION_DAYS", "AUTOMATIC_CLOSURE_DAYS", "FINAL_MERGE_AUTHORIZATION_DAYS", "AGREEMENT_STALL_DAYS", "STARTING_STALL_DAYS", "MENTOR_ACTIVE_JOB_LIMIT", "MENTOR_SHARE_CAP_PERCENT", "CREW_APPLICATION_LAPSE_DAYS" ]
+            "enum" : [ "AUTO_ACCEPTANCE_DAYS", "AUTO_ACCEPTANCE_FIRST_REMINDER_DAY", "AUTO_ACCEPTANCE_SECOND_REMINDER_DAY", "RATING_WINDOW_DAYS", "REVISION_ROUNDS", "DISPUTE_RESPONSE_DAYS", "TEAM_ISSUE_ANSWER_DAYS", "TEAM_ISSUE_ESCALATION_DAYS", "CLOSURE_CONFIRMATION_DAYS", "CANCELLATION_CONFIRMATION_DAYS", "AUTOMATIC_CLOSURE_DAYS", "FINAL_MERGE_AUTHORIZATION_DAYS", "AGREEMENT_STALL_DAYS", "STARTING_STALL_DAYS", "MENTOR_ACTIVE_JOB_LIMIT", "MENTOR_SHARE_CAP_PERCENT", "CREW_APPLICATION_LAPSE_DAYS", "SPLIT_DRAFT_DAYS", "SPLIT_CONFIRMATION_DAYS", "SPLIT_EDIT_LIMIT" ]
           },
           "max" : {
             "type" : "integer",
@@ -18866,6 +18527,28 @@
           }
         },
         "required" : [ "number", "status", "version", "workItemId" ]
+      },
+      "SplitRulesView" : {
+        "type" : "object",
+        "properties" : {
+          "confirmationDays" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "draftDays" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "editLimit" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "mentorShareCapPercent" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "confirmationDays", "draftDays", "editLimit", "mentorShareCapPercent" ]
       },
       "StalledEventView" : {
         "type" : "object",

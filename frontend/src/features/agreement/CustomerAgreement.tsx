@@ -107,7 +107,7 @@ function Review({ job, agreement }: { job: Job; agreement: AgreementVersion }) {
     <>
       <Status agreement={agreement} confirmed={confirmed} latest={latest} />
       {agreement.quote && <Compare agreement={agreement} />}
-      <CrewLine crew={confirmed?.crew ?? agreement.crew} confirmed={agreement.crewConfirmed || !!confirmed} />
+      <CrewLine crew={agreement.crew} />
       <AgreementContentView
         content={agreement.content}
         quotePrice={agreement.quote?.priceVnd}
@@ -266,10 +266,11 @@ function Compare({ agreement }: { agreement: AgreementVersion }) {
 }
 
 /**
- * "Nhóm thực hiện" for the Customer (FR-75, R-1 L4): the GitHub usernames of the Crew only, never a
- * share, with "Chờ nhóm thực hiện xác nhận" until FR-17's Crew condition holds.
+ * "Nhóm thực hiện" for the Customer (FR-75, R15, A-05, Story 21.5): the GitHub usernames of the members who signed,
+ * refreshed as members join or leave, never a pick, a name, a profile or a share; none yet reads that the Mentor is
+ * still looking for the Crew.
  */
-function CrewLine({ crew, confirmed }: { crew: string[]; confirmed: boolean }) {
+function CrewLine({ crew }: { crew: string[] }) {
   return (
     <section className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 text-body-sm">
       <p className="flex flex-wrap items-center gap-2">
@@ -279,11 +280,6 @@ function CrewLine({ crew, confirmed }: { crew: string[]; confirmed: boolean }) {
           <span className="font-mono break-words">{crew.join(' · ')}</span>
         ) : (
           <span className="text-muted-foreground">{t('screen.crew.customer.none')}</span>
-        )}
-        {!confirmed && (
-          <span className="rounded-full bg-warning-soft px-2 py-0.5 text-caption font-semibold text-warning">
-            {t('screen.crew.customer.waiting')}
-          </span>
         )}
       </p>
       <p className="text-caption text-muted-foreground">{t('screen.crew.customer.note')}</p>

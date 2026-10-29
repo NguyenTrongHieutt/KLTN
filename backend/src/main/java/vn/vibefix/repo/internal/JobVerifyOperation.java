@@ -37,10 +37,13 @@ class JobVerifyOperation implements OperationHandler {
 
 	private final ObjectProvider<PlatformRepositories> repositories;
 
+	private final ObjectProvider<JobSetups> setups;
+
 	private final Clock clock;
 
 	JobVerifyOperation(ObjectProvider<JobGrants> grants, ObjectProvider<JobBusy> busy,
-			ObjectProvider<PlatformRepositories> repositories, Clock clock) {
+			ObjectProvider<PlatformRepositories> repositories, ObjectProvider<JobSetups> setups, Clock clock) {
+		this.setups = setups;
 		this.grants = grants;
 		this.busy = busy;
 		this.repositories = repositories;
@@ -69,8 +72,11 @@ class JobVerifyOperation implements OperationHandler {
 		if (job.frozen()) {
 			return new Outcome.Deferred(this.clock.instant().plus(FROZEN_WAIT));
 		}
-		List<Person> people = grants.counted(job);
 		List<Grant> all = grants.ofJob(jobId);
+		List<Person> people = this.setups.getObject()
+			.latest(jobId)
+			.map(setup -> grants.verifying(job, setup, all))
+			.orElseGet(() -> grants.counted(job));
 		PlatformRepositories repositories = this.repositories.getObject();
 		try {
 			for (Person person : people) {

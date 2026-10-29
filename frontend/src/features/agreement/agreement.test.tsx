@@ -59,19 +59,7 @@ const draft = (overrides: object = {}, content: object = {}) => ({
   ...overrides,
 })
 
-const emptyCrew = {
-  crewVersion: 0,
-  capPercent: 40,
-  largeCrews: false,
-  locked: false,
-  crewConfirmed: false,
-  confirmedCount: 0,
-  total: 0,
-  mentor: { accountId: '00000000-0000-7000-8000-000000000001', displayName: 'Đỗ Mạnh Hùng', githubLogin: 'hungdm' },
-  rows: [],
-  team: [],
-  milestones: [],
-}
+const emptyCrew = { crewVersion: 0, signedMember: false, members: [], waiting: 0 }
 
 const mentorBackend = (agreement: object, extra: Record<string, (request: Request) => Response | Promise<Response>> = {}) =>
   fakeBackend(signedInUser, {
@@ -185,7 +173,6 @@ describe('JOB-6 for the Customer: read the shared draft (FR-16)', () => {
     ],
     quote: { priceVnd: 800000, timelineDays: 7 },
     crew: ['minhtq'],
-    crewConfirmed: false,
     latestVersionNo: 2,
     comments: [],
     changeRequested: false,
@@ -220,7 +207,8 @@ describe('JOB-6 for the Customer: read the shared draft (FR-16)', () => {
     expect(screen.getByText('khớp báo giá')).toBeInTheDocument()
     expect(screen.getByText('Môi trường thử')).toBeInTheDocument()
     expect(screen.getByText('minhtq')).toBeInTheDocument()
-    expect(screen.getByText('Chờ nhóm thực hiện xác nhận')).toBeInTheDocument()
+    // Story 21.5: the Customer sees the usernames of the members who signed, with no Crew confirmation to wait for.
+    expect(screen.queryByText('Chờ nhóm thực hiện xác nhận')).toBeNull()
     expect(screen.queryByText(/%/)).toBeNull()
     expect(screen.queryByRole('button', { name: 'Gửi cho khách hàng' })).toBeNull()
 

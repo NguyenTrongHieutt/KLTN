@@ -10,8 +10,8 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * The Crew as every module reads it (AD-30, AD-41): policies decide on {@link #crewRelationship}, and
- * nobody reads the Crew rows or the Crew Terms otherwise. {@code matching} records a Crew member's NDA
- * signature and then asks {@link #confirm} or {@link #decline}.
+ * nobody reads the Crew rows or the Crew Terms otherwise. A pick, its end and a signature go through
+ * {@link CrewPicks} (Story 21.5).
  */
 public interface Crews {
 
@@ -48,14 +48,6 @@ public interface Crews {
 			@Nullable Instant activatedAt, @Nullable Instant windowEnd) {
 	}
 
-	/**
-	 * A Student's open assignment, for {@code matching} before it records the NDA.
-	 * @param signed whether the Student already signed this Job's NDA (one signature per Job and Student)
-	 * @param latestVersionNo the latest Crew Terms version, or 0 before the first save
-	 */
-	record Assignment(UUID jobId, UUID rowId, boolean signed, boolean codeJob, int latestVersionNo) {
-	}
-
 	CrewRelationship crewRelationship(UUID jobId, UUID accountId);
 
 	List<CrewMember> crewOf(UUID jobId, Selection selection);
@@ -71,23 +63,10 @@ public interface Crews {
 	/** {@code job.runningCrewOf}: the Job where the Student has a row that is not {@code RELEASED}. */
 	Optional<UUID> runningCrewOf(UUID studentId);
 
-	/** The Student's row on the Job while it awaits or holds a confirmation; empty otherwise. */
-	Optional<Assignment> assignment(UUID jobId, UUID studentId);
-
-	/**
-	 * "Ký và xác nhận": the Student confirms the named version, with the NDA signed at {@code signedAt}.
-	 * @throws vn.vibefix.shared.ApiException {@code NOT_FOUND} without an assignment; {@code STALE}
-	 * unless {@code versionNo} is the latest; {@code GUARD_FAILED CREW_NOT_CONFIRMED} unless the row is
-	 * a party of it; {@code GUARD_FAILED CREW_LOCKED} once the Crew is locked
-	 */
-	void confirm(UUID jobId, UUID studentId, int versionNo, Instant signedAt);
-
-	/** "Từ chối": the Student leaves the Crew before the Agreement is confirmed. */
-	void decline(UUID jobId, UUID studentId, int versionNo);
-
 	/**
 	 * The Crew Terms version M1 pinned on the Milestone, with every party's share: what its release
-	 * splits by (FR-42, AD-41).
+	 * splits by (FR-42, AD-41). From Story 21.5 on, J6 pins one version giving the Mentor 100% until Story 22.1's
+	 * Milestone Splits replace the pin (C-3).
 	 */
 	record ReleaseTerms(int versionNo, Map<UUID, Integer> shares) {
 	}

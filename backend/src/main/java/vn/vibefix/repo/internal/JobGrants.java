@@ -7,10 +7,12 @@ import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
@@ -201,6 +203,23 @@ class JobGrants {
 		if (inserted == 1) {
 			requestInvite(id, 0);
 		}
+	}
+
+	/**
+	 * The people Verify waits for (AD-11, Story 21.5): those {@link #counted} counts, but a member who joined after
+	 * Setup ended, or whose grant is a late member's, is granted on their own and never holds Verify back.
+	 */
+	List<Person> verifying(BusyJob job, Setup setup, List<Grant> grants) {
+		Instant finished = setup.finishedAt();
+		Set<UUID> late = new HashSet<>();
+		grants.stream().filter(Grant::crewChange).forEach(grant -> late.add(grant.accountId()));
+		if (finished != null) {
+			this.crews.crewOf(job.jobId(), Crews.Selection.ACTIVE)
+				.stream()
+				.filter(member -> member.activatedAt() != null && member.activatedAt().isAfter(finished))
+				.forEach(member -> late.add(member.studentId()));
+		}
+		return counted(job).stream().filter(person -> !late.contains(person.accountId())).toList();
 	}
 
 	/** The Mentor and the active Crew, each with an unlocked account and a linked GitHub account. */
@@ -437,7 +456,7 @@ class JobGrants {
 		if (grants.stream().anyMatch(grant -> "MEMBER_DRIFT".equals(grant.status()))) {
 			return false;
 		}
-		List<Person> people = counted(job);
+		List<Person> people = verifying(job, setup, grants);
 		boolean ready = !people.isEmpty() && people.stream()
 			.allMatch(person -> grants.stream().anyMatch(grant -> grant.accountId().equals(person.accountId()) && grant.ready()));
 		if (!ready) {

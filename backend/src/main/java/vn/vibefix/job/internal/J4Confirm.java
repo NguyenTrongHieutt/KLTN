@@ -19,7 +19,7 @@ import vn.vibefix.shared.ErrorCode;
  * never a Crew member, may read the Customer's contact details for this Job (FR-3, AD-3), the
  * Agreement deadline is set 14 days on (FR-40), and the draft starts with the Mentor's to-do (FR-16). The facts carry
  * that deadline too: {@code matching} opens the Mentor's {@code matching.open_crew_recruitment} to-do, due then, in place
- * of the retired {@code job.pick_crew} (UX-DR112, Story 21.4).
+ * of the retired Team-based picker's to-do (UX-DR112, Story 21.4).
  */
 @Component
 class J4Confirm implements JobLifecycle.Step {

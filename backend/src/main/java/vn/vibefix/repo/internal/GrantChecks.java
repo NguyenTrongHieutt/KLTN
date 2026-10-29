@@ -103,14 +103,15 @@ class GrantChecks {
 						: withoutTwoFactor.containsValue(grant.login().toLowerCase(Locale.ROOT)));
 			}
 		}
-		if ("STARTING".equals(job.state())) {
-			this.setups.latest(jobId).ifPresent(setup -> this.grants.maybeVerify(jobId, setup));
-			return;
-		}
+		// FR-18, AD-11, Story 21.5: a member who joined after Setup is raised to write once accepted, Starting or
+		// Active, by a consequence operation that changes no Job state; Verify never waits for them.
 		for (Grant grant : this.grants.ofJob(jobId)) {
 			if (grant.crewChange() && "ACCEPTED".equals(grant.status()) && !grant.twoFactorMissing()) {
 				this.grants.requestRaise(grant);
 			}
+		}
+		if ("STARTING".equals(job.state())) {
+			this.setups.latest(jobId).ifPresent(setup -> this.grants.maybeVerify(jobId, setup));
 		}
 	}
 
@@ -134,7 +135,11 @@ class GrantChecks {
 		}
 	}
 
-	/** A Crew change added a member to a Job whose Setup is done: they are granted as the first Crew was. */
+	/**
+	 * A member signed and joined a Code Job whose Setup is done (FR-18, AD-11, SG-67, Story 21.5), Starting or Active:
+	 * they are invited with read permission as a late member, read back by numeric ID, and raised to write on
+	 * acceptance; Verify never waits for them.
+	 */
 	@ApplicationModuleListener
 	void onCrewMemberAdded(CrewMemberAdded event) {
 		added(event);
@@ -151,10 +156,12 @@ class GrantChecks {
 		if (job == null || !job.code() || setup == null || !"DONE".equals(setup.status()) || setup.workingId() == null) {
 			return;
 		}
-		boolean active = "ACTIVE".equals(job.state());
+		if (!"STARTING".equals(job.state()) && !"ACTIVE".equals(job.state())) {
+			return;
+		}
 		for (Person person : this.grants.counted(job)) {
 			if (person.accountId().equals(event.studentId())) {
-				this.grants.grant(job, person, setup.working(), active);
+				this.grants.grant(job, person, setup.working(), true);
 			}
 		}
 	}

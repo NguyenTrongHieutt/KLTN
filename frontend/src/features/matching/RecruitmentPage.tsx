@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/Skeleton'
 import { SkillPicker } from '@/components/SkillPicker'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button-variants'
 import { PersonProfileContent } from '@/features/identity/PersonProfile'
 import { VerifiedFactLines } from '@/features/identity/VerifiedFacts'
 import { JobRoleLine } from '@/features/job/ByJobRole'
@@ -35,6 +36,8 @@ import {
   type Recruitment,
   type RecruitmentMember,
 } from './crewApplicationApi'
+import { compareApplicantsPath, MAX_COMPARED } from './compare'
+import { PickDialog, WithdrawPickDialog } from './PickDialogs'
 import { SkillChips } from './SkillChips'
 import { FitMetricsList } from './FitMetrics'
 import { MentorJobTabs } from './MentorJobTabs'
@@ -48,8 +51,10 @@ import { ProofList } from './ProofList'
  * it off asks first, since the open applications lapse. In Agreement with no member signed, R7's warning. Then the
  * Crew Applications as Applicant cards, oldest first and never reordered, each with the applicant's Verified facts, the
  * note, Skills and proof, the histories as Mentor and as Crew member, and the Fit metrics against the Skills sought,
- * with "Xem hồ sơ" (PUB-4 in a Sheet) and "Không chọn" (no reason asked); the closed ones under "Đơn đã đóng"; and the
- * Crew list with join and leave dates and no remove action. Picking comes with Story 21.5.
+ * with "Xem hồ sơ" (PUB-4 in a Sheet), "So sánh" (up to three, the CUS-13 component), "Chọn" (a confirmation with the
+ * signing deadline) and "Không chọn" (no reason asked); a pick shows "Đã chọn · chờ ký trước {date}" with "Rút lựa
+ * chọn" (R4, Story 21.5); the closed ones under "Đơn đã đóng"; and the Crew list with join and leave dates and no
+ * remove action: nobody who signed is removed (FR-75).
  */
 export function RecruitmentPage() {
   const { jobId } = useParams()
@@ -274,18 +279,46 @@ function Settings({ jobId, recruitment }: { jobId: string; recruitment: Recruitm
   )
 }
 
-/** JOB-9's Applicant cards (UX-DR101, UX-DR102): the pending ones oldest first, then "Đơn đã đóng". */
+/** How a closed application ended, under "Đơn đã đóng": not picked, a pick that ended or joined, or lapsed. */
+const CLOSED: Partial<Record<string, MessageKey>> = {
+  DECLINED: 'screen.recruitment.closedDECLINED',
+  COMMITMENT_DECLINED: 'screen.recruitment.closedCOMMITMENT_DECLINED',
+  COMMITMENT_LAPSED: 'screen.recruitment.closedCOMMITMENT_LAPSED',
+  PICK_WITHDRAWN: 'screen.recruitment.closedPICK_WITHDRAWN',
+  PICK_ENDED: 'screen.recruitment.closedPICK_ENDED',
+  SIGNED: 'screen.recruitment.closedSIGNED',
+}
+
+function closedLabel(application: ApplicantCard): string {
+  return t(CLOSED[application.endReason ?? ''] ?? 'screen.recruitment.closedLAPSED')
+}
+
+/** An application still open on JOB-9: pending, or picked and waiting for its signature. */
+function isOpen(item: ApplicantCard): boolean {
+  return item.status === 'PENDING' || item.status === 'PICKED'
+}
+
+/**
+ * JOB-9's Applicant cards (UX-DR101, UX-DR102): the open ones (pending and picked) oldest first, then "Đơn đã đóng";
+ * "So sánh" ticks up to three for the comparison.
+ */
 function Applicants({ jobId }: { jobId: string }) {
   const ids = useId()
   const applications = useJobCrewApplications(jobId)
   const items = applications.data ?? []
-  const open = items.filter((item) => item.status === 'PENDING')
-  const closed = items.filter((item) => item.status !== 'PENDING')
+  const open = items.filter(isOpen)
+  const closed = items.filter((item) => !isOpen(item))
   const histories = useReputationHistories(
     open.map((item) => item.applicant.githubLogin).filter((login): login is string => !!login),
   )
   const [profile, setProfile] = useState<ApplicantCard>()
   const [declining, setDeclining] = useState<ApplicantCard>()
+  const [picking, setPicking] = useState<ApplicantCard>()
+  const [withdrawing, setWithdrawing] = useState<ApplicantCard>()
+  const [compared, setCompared] = useState<string[]>([])
+  const comparing = compared.filter((id) => open.some((item) => item.id === id))
+  const toggle = (id: string) =>
+    setCompared((current) => (current.includes(id) ? current.filter((other) => other !== id) : [...current, id]))
   return (
     <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-3">
       <h2 id={`${ids}-heading`} className="text-h2">
@@ -295,17 +328,38 @@ function Applicants({ jobId }: { jobId: string }) {
         {open.length === 0 ? (
           <p className="text-body-sm text-muted-foreground">{t('screen.recruitment.applicationsEmpty')}</p>
         ) : (
-          <ul className="flex flex-col gap-4">
-            {open.map((application) => (
-              <ApplicantCardItem
-                key={application.id}
-                application={application}
-                histories={histories}
-                onProfile={() => setProfile(application)}
-                onDecline={() => setDeclining(application)}
-              />
-            ))}
-          </ul>
+          <>
+            {comparing.length > 0 && (
+              <div role="status" className="flex flex-wrap items-center gap-3 rounded-md border border-border bg-card px-4 py-2.5">
+                <span className="text-body-sm">
+                  {t('screen.recruitment.compareCount', { n: comparing.length, max: MAX_COMPARED })}
+                </span>
+                {comparing.length >= 2 ? (
+                  <Link to={compareApplicantsPath(jobId, comparing)} className={buttonVariants({ size: 'compact' })}>
+                    {t('screen.recruitment.compareOpen')}
+                  </Link>
+                ) : (
+                  <span className="text-caption text-muted-foreground">{t('screen.recruitment.compareMore')}</span>
+                )}
+              </div>
+            )}
+            <ul className="flex flex-col gap-4">
+              {open.map((application) => (
+                <ApplicantCardItem
+                  key={application.id}
+                  application={application}
+                  histories={histories}
+                  compared={comparing.includes(application.id)}
+                  compareFull={comparing.length >= MAX_COMPARED}
+                  onCompare={() => toggle(application.id)}
+                  onProfile={() => setProfile(application)}
+                  onPick={() => setPicking(application)}
+                  onWithdrawPick={() => setWithdrawing(application)}
+                  onDecline={() => setDeclining(application)}
+                />
+              ))}
+            </ul>
+          </>
         )}
         {closed.length > 0 && (
           <div className="flex flex-col gap-2">
@@ -314,9 +368,7 @@ function Applicants({ jobId }: { jobId: string }) {
               {closed.map((application) => (
                 <li key={application.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-body-sm">
                   <span className="font-semibold break-words">{application.applicant.displayName}</span>
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-caption font-semibold">
-                    {t(`screen.recruitment.closed${application.status}` as MessageKey)}
-                  </span>
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-caption font-semibold">{closedLabel(application)}</span>
                 </li>
               ))}
             </ul>
@@ -332,25 +384,41 @@ function Applicants({ jobId }: { jobId: string }) {
         {profile?.applicant.githubLogin && <PersonProfileContent username={profile.applicant.githubLogin} level={4} />}
       </Sheet>
       {declining && <DeclineDialog jobId={jobId} application={declining} onClose={() => setDeclining(undefined)} />}
+      {picking && <PickDialog jobId={jobId} application={picking} onClose={() => setPicking(undefined)} />}
+      {withdrawing && (
+        <WithdrawPickDialog jobId={jobId} application={withdrawing} onClose={() => setWithdrawing(undefined)} />
+      )}
     </section>
   )
 }
 
 /**
  * One Applicant card in the Bid card's order (UX-DR101): the Verified facts; the note, Skills and proof; the histories
- * as Mentor and as Crew member; then the Fit metrics against the Skills sought. No score, rank or highlight.
+ * as Mentor and as Crew member; then the Fit metrics against the Skills sought. No score, rank or highlight. A pending
+ * one offers "So sánh", "Chọn" and "Không chọn"; a pick waits for its signature with "Rút lựa chọn" (R4).
  */
 function ApplicantCardItem({
   application,
   histories,
+  compared,
+  compareFull,
+  onCompare,
   onProfile,
+  onPick,
+  onWithdrawPick,
   onDecline,
 }: {
   application: ApplicantCard
   histories: Histories
+  compared: boolean
+  compareFull: boolean
+  onCompare: () => void
   onProfile: () => void
+  onPick: () => void
+  onWithdrawPick: () => void
   onDecline: () => void
 }) {
+  const picked = application.status === 'PICKED'
   const ids = useId()
   const applicant = application.applicant
   const login = applicant.githubLogin
@@ -367,12 +435,18 @@ function ApplicantCardItem({
         <span id={`${ids}-name`} className="text-label font-semibold break-words">
           {applicant.displayName}
         </span>
-        <span className="text-caption text-muted-foreground">
-          {t('screen.recruitment.sentOn', {
-            date: formatDayMonth(application.submittedAt),
-            lapse: formatDayMonth(application.lapsesAt),
-          })}
-        </span>
+        {picked && application.signDueAt ? (
+          <span role="status" className="rounded-full bg-primary-soft px-2 py-0.5 text-caption font-semibold text-primary">
+            {t('screen.recruitment.pickedChip', { date: formatDayMonth(application.signDueAt) })}
+          </span>
+        ) : (
+          <span className="text-caption text-muted-foreground">
+            {t('screen.recruitment.sentOn', {
+              date: formatDayMonth(application.submittedAt),
+              lapse: formatDayMonth(application.lapsesAt),
+            })}
+          </span>
+        )}
       </div>
       <section aria-label={t('screen.matching.bid.facts')} className="flex flex-col gap-1.5">
         <p className="text-caption font-semibold text-muted-foreground">{t('screen.matching.bid.facts')}</p>
@@ -405,9 +479,29 @@ function ApplicantCardItem({
         <Button type="button" variant="secondary" onClick={onProfile} disabled={!login}>
           {t('screen.recruitment.profile')}
         </Button>
-        <Button type="button" variant="secondary" onClick={onDecline}>
-          {t('screen.recruitment.decline')}
+        <Button
+          type="button"
+          variant="secondary"
+          aria-pressed={compared}
+          onClick={onCompare}
+          disabled={!compared && compareFull}
+        >
+          {t(compared ? 'screen.recruitment.compareRemove' : 'screen.recruitment.compareToggle')}
         </Button>
+        {picked ? (
+          <Button type="button" variant="secondary" onClick={onWithdrawPick}>
+            {t('screen.recruitment.withdrawPick')}
+          </Button>
+        ) : (
+          <>
+            <Button type="button" onClick={onPick}>
+              {t('screen.recruitment.pick')}
+            </Button>
+            <Button type="button" variant="secondary" onClick={onDecline}>
+              {t('screen.recruitment.decline')}
+            </Button>
+          </>
+        )}
       </div>
     </li>
   )

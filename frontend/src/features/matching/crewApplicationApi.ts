@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { components } from '@/api/schema'
+import { JOBS_QUERY_KEY } from '@/features/job/jobApi'
 import { NOTIFICATION_QUERY_KEY } from '@/features/notification/api'
 import { ApiError, apiClient, formBody, unwrap } from '@/lib/apiClient'
 import type { BidProofUpload } from './applicationApi'
@@ -12,6 +13,15 @@ export type ApplicantCard = components['schemas']['ApplicantCardView']
 export type CrewApplyRequest = components['schemas']['CrewApplyRequest']
 export type CrewApplicationStatus = CrewApplication['status']
 export type CrewApplicationEnd = NonNullable<CrewApplication['endReason']>
+export type Commitment = components['schemas']['CommitmentView']
+export type CommitmentPanel = components['schemas']['CommitmentPanelView']
+export type CommitmentSignRequest = components['schemas']['CommitmentSignRequest']
+
+/** The days a picked person has to sign the commitment (FR-81, AD-7), as `matching` counts them. */
+export const SIGN_DAYS = 3
+
+/** The commitment text's version, which the signature records; the legal wording waits for OQ5. */
+export const COMMITMENT_VERSION = '1.0'
 
 /** Skills a recruitment seeks, or an application names, at most (the Skill picker's limit). */
 export const MAX_CREW_SKILLS = 10
@@ -25,6 +35,8 @@ export const MAX_APPLICATION_NOTE = 2000
 const KEY = ['crew-application'] as const
 
 const RECRUITMENT = ['recruitment'] as const
+
+const COMMITMENT = ['commitment'] as const
 
 /** JOB-9: the Mentor's recruitment setting, its limits, and the Crew list (UX-DR102). */
 export function useRecruitment(jobId: string | undefined) {
@@ -170,4 +182,87 @@ export function useRemoveCrewProofFile(postId: string) {
         (uploads ?? []).filter((upload) => upload.fileId !== fileId),
       ),
   })
+}
+
+/**
+ * JOB-9 "Chọn" (FR-81, Story 21.5): the pick commits only after `job` took the Job row lock and checked the Crew cap
+ * and every rule; the card answers as picked. The recruitment, the applications, and the to-dos are read again, since a
+ * pick may fill the last place and lapse the other applications.
+ */
+export function usePickCrewApplication(jobId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (crewApplicationId: string) =>
+      unwrap(
+        apiClient.POST('/api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/pick', {
+          params: { path: { jobId, crewApplicationId } },
+        }),
+      ),
+    onSettled: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: KEY }),
+        queryClient.invalidateQueries({ queryKey: [...RECRUITMENT, jobId] }),
+        queryClient.invalidateQueries({ queryKey: NOTIFICATION_QUERY_KEY }),
+      ]),
+  })
+}
+
+/** JOB-9 "Rút lựa chọn" (R4): a pick not yet signed ends, and its place returns while recruitment is on. */
+export function useWithdrawPick(jobId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (crewApplicationId: string) =>
+      unwrap(
+        apiClient.POST('/api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/withdraw-pick', {
+          params: { path: { jobId, crewApplicationId } },
+        }),
+      ),
+    onSettled: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: KEY }),
+        queryClient.invalidateQueries({ queryKey: [...RECRUITMENT, jobId] }),
+      ]),
+  })
+}
+
+/** MEN-3's Commitment panel (UX-DR103): the user's latest pick on the Job, with the panel while it waits. */
+export function useCommitment(jobId: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: [...COMMITMENT, jobId],
+    queryFn: () =>
+      unwrap(apiClient.GET('/api/v1/crew/jobs/{jobId}/commitment', { params: { path: { jobId: jobId ?? '' } } })),
+    enabled: jobId !== undefined && enabled,
+    retry: false,
+  })
+}
+
+/** A commitment command answers the pick as it now stands; a refusal reads it again, an ended pick included. */
+function useCommitmentCommand<T>(jobId: string, run: (body: T) => Promise<Commitment>) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: run,
+    onSuccess: (commitment) => queryClient.setQueryData([...COMMITMENT, jobId], commitment),
+    onSettled: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: [...COMMITMENT, jobId] }),
+        queryClient.invalidateQueries({ queryKey: KEY }),
+        queryClient.invalidateQueries({ queryKey: NOTIFICATION_QUERY_KEY }),
+        // The signature changes the role in the Job, so MEN-3, "Công việc" and JOB-H read it again.
+        queryClient.invalidateQueries({ queryKey: JOBS_QUERY_KEY }),
+      ]),
+  })
+}
+
+/** "Ký và tham gia" (FR-81): the NDA and the commitment, with N-5 and, for a Code Job, N-23. */
+export function useSignCommitment(jobId: string) {
+  return useCommitmentCommand(jobId, (body: CommitmentSignRequest) =>
+    unwrap(apiClient.POST('/api/v1/crew/jobs/{jobId}/commitment', { params: { path: { jobId } }, body })),
+  )
+}
+
+/** "Từ chối" (R4): the pick ends, and the Mentor is told. */
+export function useDeclineCommitment(jobId: string) {
+  return useCommitmentCommand(jobId, () =>
+    unwrap(apiClient.POST('/api/v1/crew/jobs/{jobId}/commitment/decline', { params: { path: { jobId } } })),
+  )
 }
