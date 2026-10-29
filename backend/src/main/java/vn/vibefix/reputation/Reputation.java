@@ -10,20 +10,21 @@ import java.util.UUID;
 public interface Reputation {
 
 	/**
-	 * {@code reputation.visibleSummary}: the account's visible Ratings only, at most one per
-	 * Customer–Mentor pair and per Mentor–Student pair; private feedback never counts.
+	 * {@code reputation.visibleSummary}: the account's visible Ratings in one role only (AD-33): as Mentor, the
+	 * Customers'; as Crew member, the Mentors'; as Customer, the Mentors'. At most one counts per rater and ratee, and
+	 * private feedback never counts.
 	 */
-	RatingSummary visibleSummary(UUID accountId);
+	RatingSummary visibleSummary(UUID accountId, RatingRole role);
 
 	/** {@link #visibleSummary} for a page of accounts in one read, keyed by account ID (FR-14, SG-43). */
-	Map<UUID, RatingSummary> visibleSummaries(Collection<UUID> accountIds);
+	Map<UUID, RatingSummary> visibleSummaries(Collection<UUID> accountIds, RatingRole role);
 
 	/** The account's Portfolio Entries, newest first (FR-50). */
 	List<PortfolioEntry> portfolio(UUID accountId);
 
 	/**
-	 * Whether the Mentor is new: no Job of theirs closed with Accepted work (FR-14, AD-17), so PUB-5
-	 * shows "Mới".
+	 * Whether the Mentor is new: no Job of theirs closed with Accepted work (FR-14, AD-17), so PUB-4 and the
+	 * Profile result card show "Mới".
 	 */
 	boolean newcomer(UUID mentorId);
 

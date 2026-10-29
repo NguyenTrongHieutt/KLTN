@@ -6644,7 +6644,7 @@
     },
     "/api/v1/mentor/team/students/{studentId}" : {
       "get" : {
-        "operationId" : "student_2",
+        "operationId" : "student",
         "parameters" : [ {
           "in" : "path",
           "name" : "studentId",
@@ -6667,58 +6667,6 @@
           }
         },
         "tags" : [ "mentor-team-controller" ]
-      }
-    },
-    "/api/v1/mentors/{username}" : {
-      "get" : {
-        "operationId" : "mentor",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "username",
-          "required" : true,
-          "schema" : {
-            "type" : "string"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/PublicMentorView"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "public-mentor-controller" ]
-      }
-    },
-    "/api/v1/mentors/{username}/reputation" : {
-      "get" : {
-        "operationId" : "mentor_1",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "username",
-          "required" : true,
-          "schema" : {
-            "type" : "string"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/MentorReputationView"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "public-reputation-controller" ]
       }
     },
     "/api/v1/my-jobs" : {
@@ -7537,6 +7485,38 @@
         "tags" : [ "profile-controller" ]
       }
     },
+    "/api/v1/reputation/histories" : {
+      "get" : {
+        "operationId" : "histories",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "username",
+          "required" : false,
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/ReputationHistoryView"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "public-reputation-controller" ]
+      }
+    },
     "/api/v1/reputation/mentor-summaries" : {
       "get" : {
         "operationId" : "summaries",
@@ -7690,58 +7670,6 @@
           }
         },
         "tags" : [ "skill-suggestion-controller" ]
-      }
-    },
-    "/api/v1/students/{studentLogin}" : {
-      "get" : {
-        "operationId" : "student",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "studentLogin",
-          "required" : true,
-          "schema" : {
-            "type" : "string"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/PublicStudentView"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "public-student-controller" ]
-      }
-    },
-    "/api/v1/students/{studentLogin}/reputation" : {
-      "get" : {
-        "operationId" : "student_1",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "studentLogin",
-          "required" : true,
-          "schema" : {
-            "type" : "string"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/StudentReputationView"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "public-reputation-controller" ]
       }
     },
     "/api/v1/team" : {
@@ -8052,6 +7980,58 @@
           }
         },
         "tags" : [ "todo-controller" ]
+      }
+    },
+    "/api/v1/users/{username}" : {
+      "get" : {
+        "operationId" : "person",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "username",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PublicProfileView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "public-profile-controller" ]
+      }
+    },
+    "/api/v1/users/{username}/reputation" : {
+      "get" : {
+        "operationId" : "person_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "username",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PersonReputationView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "public-reputation-controller" ]
       }
     },
     "/api/v1/verification" : {
@@ -9573,12 +9553,22 @@
           "githubLogin" : {
             "type" : "string"
           },
+          "memberSince" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "verified" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/VerifiedFact"
+            }
+          },
           "yearsOfExperience" : {
             "type" : "integer",
             "format" : "int32"
           }
         },
-        "required" : [ "displayName" ]
+        "required" : [ "displayName", "verified" ]
       },
       "ApplicationView" : {
         "type" : "object",
@@ -12995,6 +12985,50 @@
         },
         "required" : [ "category", "commit", "committedAt", "createdAt", "id", "maskedPreview", "path", "ruleId", "status", "type" ]
       },
+      "FitMetricsView" : {
+        "type" : "object",
+        "properties" : {
+          "activeJobsAsMentor" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "jobTypeMatches" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/JobTypeFitView"
+            }
+          },
+          "jobsAsCrew" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "jobsAsMentor" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "onTime" : {
+            "$ref" : "#/components/schemas/OnTimeFitView"
+          },
+          "sharedSkills" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "skillsSought" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "verifications" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "enum" : [ "GITHUB", "STUDENT", "LINKEDIN" ]
+            }
+          }
+        },
+        "required" : [ "activeJobsAsMentor", "jobTypeMatches", "jobsAsCrew", "jobsAsMentor", "sharedSkills", "skillsSought", "verifications" ]
+      },
       "FollowUpRequest" : {
         "type" : "object",
         "properties" : {
@@ -13935,6 +13969,19 @@
         },
         "required" : [ "action", "actor", "at", "fields", "id", "mine" ]
       },
+      "HistoryJobTypeView" : {
+        "type" : "object",
+        "properties" : {
+          "count" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "jobType" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "count", "jobType" ]
+      },
       "HistoryJobView" : {
         "type" : "object",
         "properties" : {
@@ -14097,6 +14144,9 @@
         "properties" : {
           "approach" : {
             "type" : "string"
+          },
+          "fitMetrics" : {
+            "$ref" : "#/components/schemas/FitMetricsView"
           },
           "id" : {
             "type" : "string",
@@ -14600,6 +14650,23 @@
         },
         "required" : [ "issues", "jobId", "mentor" ]
       },
+      "JobTypeFitView" : {
+        "type" : "object",
+        "properties" : {
+          "asCrew" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "asMentor" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "jobType" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "asCrew", "asMentor", "jobType" ]
+      },
       "JobTypeMatchView" : {
         "type" : "object",
         "properties" : {
@@ -14978,28 +15045,6 @@
         },
         "required" : [ "amountVnd", "name", "releasedAt", "role" ]
       },
-      "MentorReputationView" : {
-        "type" : "object",
-        "properties" : {
-          "average" : {
-            "type" : "number"
-          },
-          "count" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "newcomer" : {
-            "type" : "boolean"
-          },
-          "portfolio" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/PortfolioEntry"
-            }
-          }
-        },
-        "required" : [ "count", "newcomer", "portfolio" ]
-      },
       "MentorResultView" : {
         "type" : "object",
         "properties" : {
@@ -15026,16 +15071,18 @@
               "type" : "string"
             }
           },
-          "teamSize" : {
-            "type" : "integer",
-            "format" : "int32"
+          "verified" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/VerifiedFact"
+            }
           },
           "yearsOfExperience" : {
             "type" : "integer",
             "format" : "int32"
           }
         },
-        "required" : [ "accountId", "available", "displayName", "relation", "skills", "teamSize" ]
+        "required" : [ "accountId", "available", "displayName", "relation", "skills", "verified" ]
       },
       "MentorSearchView" : {
         "type" : "object",
@@ -15610,6 +15657,20 @@
           }
         },
         "required" : [ "createdAt", "icon", "id", "link", "params", "read", "type" ]
+      },
+      "OnTimeFitView" : {
+        "type" : "object",
+        "properties" : {
+          "onTime" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "total" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "onTime", "total" ]
       },
       "OpenDisputeRequest" : {
         "type" : "object",
@@ -16342,6 +16403,21 @@
         },
         "required" : [ "accountId", "createdAt", "erased", "kinds", "locked" ]
       },
+      "PersonReputationView" : {
+        "type" : "object",
+        "properties" : {
+          "crew" : {
+            "$ref" : "#/components/schemas/RoleReputationView"
+          },
+          "mentor" : {
+            "$ref" : "#/components/schemas/RoleReputationView"
+          },
+          "newcomer" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "crew", "mentor", "newcomer" ]
+      },
       "PersonView" : {
         "type" : "object",
         "properties" : {
@@ -16811,16 +16887,9 @@
         },
         "required" : [ "hideStudentDetails", "kind", "links", "repositories", "skills", "verified" ]
       },
-      "PublicMentorView" : {
+      "PublicProfileView" : {
         "type" : "object",
         "properties" : {
-          "accountId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "available" : {
-            "type" : "boolean"
-          },
           "displayName" : {
             "type" : "string"
           },
@@ -16830,142 +16899,46 @@
           "githubLogin" : {
             "type" : "string"
           },
-          "listedMembers" : {
+          "links" : {
             "type" : "array",
             "items" : {
-              "$ref" : "#/components/schemas/PublicTeamMember"
+              "type" : "string"
             }
+          },
+          "locked" : {
+            "type" : "boolean"
           },
           "memberSince" : {
             "type" : "string",
             "format" : "date-time"
           },
-          "sizeLimit" : {
-            "type" : "integer",
-            "format" : "int32"
+          "own" : {
+            "type" : "boolean"
+          },
+          "repositories" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
           },
           "skillGroups" : {
             "type" : "array",
             "items" : {
-              "$ref" : "#/components/schemas/PublicSkillGroup"
+              "$ref" : "#/components/schemas/SkillGroup"
             }
           },
-          "teamSize" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "viewer" : {
-            "$ref" : "#/components/schemas/PublicMentorViewer"
+          "verified" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/VerifiedFact"
+            }
           },
           "yearsOfExperience" : {
             "type" : "integer",
             "format" : "int32"
           }
         },
-        "required" : [ "accountId", "available", "displayName", "experience", "listedMembers", "memberSince", "sizeLimit", "skillGroups", "teamSize" ]
-      },
-      "PublicMentorViewer" : {
-        "type" : "object",
-        "properties" : {
-          "inTeam" : {
-            "type" : "boolean"
-          },
-          "pending" : {
-            "$ref" : "#/components/schemas/TeamPendingRequest"
-          },
-          "relation" : {
-            "type" : "string",
-            "enum" : [ "NONE", "INVITED", "REQUESTED", "MEMBER" ]
-          },
-          "requestsLeft" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "verified" : {
-            "type" : "boolean"
-          }
-        },
-        "required" : [ "inTeam", "relation", "requestsLeft", "verified" ]
-      },
-      "PublicSkillGroup" : {
-        "type" : "object",
-        "properties" : {
-          "category" : {
-            "type" : "string"
-          },
-          "skills" : {
-            "type" : "array",
-            "items" : {
-              "type" : "string"
-            }
-          }
-        },
-        "required" : [ "skills" ]
-      },
-      "PublicStudentTeam" : {
-        "type" : "object",
-        "properties" : {
-          "mentorDisplayName" : {
-            "type" : "string"
-          },
-          "mentorLogin" : {
-            "type" : "string"
-          },
-          "size" : {
-            "type" : "integer",
-            "format" : "int32"
-          }
-        },
-        "required" : [ "mentorDisplayName", "size" ]
-      },
-      "PublicStudentView" : {
-        "type" : "object",
-        "properties" : {
-          "githubLogin" : {
-            "type" : "string"
-          },
-          "major" : {
-            "type" : "string"
-          },
-          "memberSince" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "name" : {
-            "type" : "string"
-          },
-          "school" : {
-            "type" : "string"
-          },
-          "skillGroups" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/PublicSkillGroup"
-            }
-          },
-          "team" : {
-            "$ref" : "#/components/schemas/PublicStudentTeam"
-          },
-          "verified" : {
-            "type" : "boolean"
-          }
-        },
-        "required" : [ "memberSince", "skillGroups", "verified" ]
-      },
-      "PublicTeamMember" : {
-        "type" : "object",
-        "properties" : {
-          "name" : {
-            "type" : "string"
-          },
-          "school" : {
-            "type" : "string"
-          },
-          "verified" : {
-            "type" : "boolean"
-          }
-        },
-        "required" : [ "name", "verified" ]
+        "required" : [ "links", "locked", "own", "repositories", "skillGroups", "verified" ]
       },
       "Queue" : {
         "type" : "object",
@@ -17249,16 +17222,18 @@
               "type" : "string"
             }
           },
-          "teamSize" : {
-            "type" : "integer",
-            "format" : "int32"
+          "verified" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/VerifiedFact"
+            }
           },
           "yearsOfExperience" : {
             "type" : "integer",
             "format" : "int32"
           }
         },
-        "required" : [ "accountId", "available", "displayName", "relation", "signals", "skills", "teamSize" ]
+        "required" : [ "accountId", "available", "displayName", "relation", "signals", "skills", "verified" ]
       },
       "RecommendedPostView" : {
         "type" : "object",
@@ -17350,6 +17325,24 @@
           }
         },
         "required" : [ "defaultBranch", "fullName", "githubId", "htmlUrl", "ownerType", "sizeKb" ]
+      },
+      "ReputationHistoryView" : {
+        "type" : "object",
+        "properties" : {
+          "crew" : {
+            "$ref" : "#/components/schemas/RoleSummaryView"
+          },
+          "mentor" : {
+            "$ref" : "#/components/schemas/RoleSummaryView"
+          },
+          "newcomer" : {
+            "type" : "boolean"
+          },
+          "username" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "crew", "mentor", "newcomer", "username" ]
       },
       "RestoreRequest" : {
         "type" : "object",
@@ -17495,6 +17488,56 @@
           }
         },
         "required" : [ "accessId", "accessLevel", "done", "environment", "identifiers", "purpose", "system" ]
+      },
+      "RoleReputationView" : {
+        "type" : "object",
+        "properties" : {
+          "average" : {
+            "type" : "number"
+          },
+          "count" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "jobTypes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/HistoryJobTypeView"
+            }
+          },
+          "jobs" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "portfolio" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/PortfolioEntry"
+            }
+          }
+        },
+        "required" : [ "count", "jobTypes", "jobs", "portfolio" ]
+      },
+      "RoleSummaryView" : {
+        "type" : "object",
+        "properties" : {
+          "average" : {
+            "type" : "number"
+          },
+          "count" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "jobs" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "portfolio" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "count", "jobs", "portfolio" ]
       },
       "RuleChangeView" : {
         "type" : "object",
@@ -18004,6 +18047,21 @@
         },
         "required" : [ "jobTypeMatches", "newcomer", "sharedSkills" ]
       },
+      "SkillGroup" : {
+        "type" : "object",
+        "properties" : {
+          "category" : {
+            "type" : "string"
+          },
+          "skills" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "skills" ]
+      },
       "SkillName" : {
         "type" : "object",
         "properties" : {
@@ -18345,25 +18403,6 @@
           }
         },
         "required" : [ "method", "school", "validUntil", "verifiedAt" ]
-      },
-      "StudentReputationView" : {
-        "type" : "object",
-        "properties" : {
-          "average" : {
-            "type" : "number"
-          },
-          "count" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "portfolio" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/PortfolioEntry"
-            }
-          }
-        },
-        "required" : [ "count", "portfolio" ]
       },
       "StudentTeamMembership" : {
         "type" : "object",
@@ -18914,28 +18953,6 @@
         },
         "required" : [ "accountId", "available", "displayName", "skills", "teamSize" ]
       },
-      "TeamPendingRequest" : {
-        "type" : "object",
-        "properties" : {
-          "createdAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "id" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "kind" : {
-            "type" : "string",
-            "enum" : [ "INVITATION", "JOIN_REQUEST" ]
-          },
-          "lapsesAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          }
-        },
-        "required" : [ "createdAt", "id", "kind", "lapsesAt" ]
-      },
       "TeamRequestView" : {
         "type" : "object",
         "properties" : {
@@ -19374,6 +19391,32 @@
           }
         },
         "required" : [ "renewalOpen", "status" ]
+      },
+      "VerifiedFact" : {
+        "type" : "object",
+        "properties" : {
+          "githubLogin" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "GITHUB", "STUDENT", "LINKEDIN" ]
+          },
+          "major" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "school" : {
+            "type" : "string"
+          },
+          "verifiedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "kind" ]
       },
       "VerifiedView" : {
         "type" : "object",

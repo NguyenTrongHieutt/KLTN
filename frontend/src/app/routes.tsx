@@ -38,7 +38,7 @@ export const routes: RouteObject[] = [
         lazy: async () => ({ Component: (await import('@/features/identity/ProfilePage')).ProfilePage }),
       },
       {
-        // "Hồ sơ công khai" of the avatar menu (Story 20.6): the user's public profile, or the GitHub gate.
+        // "Hồ sơ công khai" of the avatar menu (Story 20.6): redirects to the user's PUB-4, or shows the GitHub gate.
         path: 'ho-so/cong-khai',
         lazy: async () => ({ Component: (await import('@/features/identity/PublicProfilePage')).PublicProfilePage }),
       },
@@ -86,6 +86,11 @@ export const routes: RouteObject[] = [
       {
         path: 'cong-viec/:jobId/ung-tuyen',
         lazy: async () => ({ Component: (await import('@/features/matching/JobApplicationsPage')).JobApplicationsPage }),
+      },
+      {
+        // CUS-13, the comparison of 2 or 3 bids (UX-DR101, Story 21.3).
+        path: 'cong-viec/:jobId/ung-tuyen/so-sanh',
+        lazy: async () => ({ Component: (await import('@/features/matching/CompareBidsPage')).CompareBidsPage }),
       },
       {
         path: 'cong-viec/:jobId/thoa-thuan',
@@ -321,14 +326,20 @@ export const routes: RouteObject[] = [
       { path: 'bat-dau', element: <StartPage /> },
       { path: 'quyen-rieng-tu', element: <PrivacyPage /> },
       {
-        // PUB-5, for anyone: a signed-in visitor keeps the public header with "Vào trang của bạn".
-        path: 'mentor/:username',
-        lazy: async () => ({ Component: (await import('@/features/team/MentorPublicPage')).MentorPublicPage }),
+        // PUB-4, one public profile for anyone (Story 21.3): a signed-in visitor keeps the public header with "Vào
+        // trang của bạn". A Crew member's username on a Customer's screen never links here (UX-DR108).
+        path: 'nguoi-dung/:username',
+        lazy: async () => ({ Component: (await import('@/features/identity/PersonPage')).PersonPage }),
       },
       {
-        // PUB-4, for anyone; linked from MEN-6 and Portfolio links, never from a Customer screen.
+        // PUB-5's old address, merged into PUB-4 (UX-DR96).
+        path: 'mentor/:username',
+        lazy: async () => ({ Component: (await import('@/features/identity/PersonPage')).RedirectToPerson }),
+      },
+      {
+        // The Student page's old address, merged into PUB-4 (UX-DR96).
         path: 'sv/:username',
-        lazy: async () => ({ Component: (await import('@/features/team/StudentPublicPage')).StudentPublicPage }),
+        lazy: async () => ({ Component: (await import('@/features/identity/PersonPage')).RedirectToPerson }),
       },
       // The AI notice was removed with the AI (2026-10-18); its address now shows the privacy notice.
       { path: 'ai', element: <Navigate to="/quyen-rieng-tu" replace /> },

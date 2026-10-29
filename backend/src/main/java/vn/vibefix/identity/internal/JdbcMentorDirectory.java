@@ -31,8 +31,8 @@ import vn.vibefix.shared.KeywordQuery;
  * Mentors' public fields from their profiles (FR-51, AD-36, Story 19.3): every person's account ({@code USER}
  * kind) that has a profile and is not erased, whatever role it holds in any Job (Story 20.3); nobody approves
  * them (Story 19.7). A Mentor is available, to be invited, recommended, or granted, while unlocked with GitHub
- * linked. Search finds the unlocked ones, an unlinked one as unavailable; PUB-5 also shows a locked one, as
- * unavailable. Epic 21 reworks who is listed.
+ * linked. Search finds the available ones only, the GitHub-verified, unlocked users (AD-36, Story 21.3); the
+ * username lookup also finds a locked one, as unavailable.
  */
 @Component
 class JdbcMentorDirectory implements MentorDirectory {
@@ -49,7 +49,7 @@ class JdbcMentorDirectory implements MentorDirectory {
 			WHERE a.kind = 'USER' AND a.erased_at IS NULL
 			""";
 
-	/** PUB-5 finds a Mentor with no profile too: their name is their GitHub username, nothing else declared. */
+	/** The username lookup finds a Mentor with no profile too: their name is their GitHub username, nothing else declared. */
 	private static final String FROM_ANY = """
 			FROM identity.account a LEFT JOIN identity.profile p ON p.account_id = a.id
 			WHERE a.kind = 'USER' AND a.erased_at IS NULL
@@ -73,7 +73,8 @@ class JdbcMentorDirectory implements MentorDirectory {
 	public Page<MentorCard> search(String query, Collection<UUID> skillIds, @Nullable UUID excluded, Pageable pageable) {
 		Optional<KeywordQuery> keyword = KeywordQuery.of(query, "p.search_vector");
 		Map<String, Object> params = new HashMap<>();
-		StringBuilder where = new StringBuilder(FROM).append(" AND a.locked_at IS NULL");
+		// FR-14, AD-36 (Story 21.3): GitHub-verified, unlocked users only; an unlinked one is not listed at all.
+		StringBuilder where = new StringBuilder(FROM).append(" AND ").append(AVAILABLE);
 		if (excluded != null) {
 			where.append(" AND a.id <> :excluded");
 			params.put("excluded", excluded);

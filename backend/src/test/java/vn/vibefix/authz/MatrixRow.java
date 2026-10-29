@@ -144,7 +144,13 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 		 * {@code item=raiser}: {@code {workItemId}} names the Work Item of the escalated Team Issue's raiser, which that
 		 * issue's grant reads (AdminReadItem.forEscalatedTeamIssue, review iteration 4).
 		 */
-		RAISER_ITEM("item", "raiser", "workItemId", "raiserWorkItemId");
+		RAISER_ITEM("item", "raiser", "workItemId", "raiserWorkItemId"),
+
+		/**
+		 * {@code user=member}: {@code {username}} names the crew Job's member who hides their student name, whose PUB-4
+		 * must never show it (X9, Story 21.3), instead of the crew Job's Mentor.
+		 */
+		MEMBER_PROFILE("user", "member", "username", "memberUsername");
 
 		private final String key;
 
@@ -284,9 +290,13 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 		return placeholders().stream().anyMatch(JOB_SCOPED::contains);
 	}
 
-	/** {@code METHOD /path}, the form the coverage check compares with the handlers. */
+	/**
+	 * {@code METHOD /path}, the form the coverage check compares with the handlers: a query the path carries, such as
+	 * {@code ?username={username}} (Story 21.3), is sent with the request but names no other endpoint.
+	 */
 	public String endpoint() {
-		return this.method.name() + " " + this.path;
+		int query = this.path.indexOf('?');
+		return this.method.name() + " " + (query < 0 ? this.path : this.path.substring(0, query));
 	}
 
 	@Override

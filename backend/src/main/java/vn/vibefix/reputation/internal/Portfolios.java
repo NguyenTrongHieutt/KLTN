@@ -9,6 +9,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -24,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import vn.vibefix.delivery.HandoverFacts;
 import vn.vibefix.job.AgreementSkills;
+import vn.vibefix.job.Crews;
 import vn.vibefix.job.JobPosts;
 import vn.vibefix.job.JobPosts.JobPostState;
 import vn.vibefix.job.MilestoneStates;
@@ -45,11 +47,14 @@ import vn.vibefix.shared.IdGenerator;
 import vn.vibefix.work.WorkFacts;
 
 /**
- * Portfolio Entries (FR-50, AD-33, AD-38): J9 creates one for the Mentor and each Crew member who was
- * ever active when the Job has Accepted work, with facts frozen from records. The Mentor drafts the
- * summary, the Customer approves (possibly edited, with or without the Product name) or declines it,
- * all before the Rating Window ends; otherwise there is none. Each entry is published once its person
- * confirmed the data deletion (FR-66).
+ * Portfolio Entries (FR-50, AD-33, AD-38, AD-41): when a Job with Accepted work reaches Closed or Cancelled, which J9
+ * does for both (J10 refuses a Job with Accepted work), one is
+ * created for the Mentor, under their history as Mentor, and one for every Crew member whose active window overlaps
+ * the work of at least one Accepted Milestone, leavers included, under their history as Crew member
+ * ({@code job.activeDuringAcceptedWork}, Story 21.3), with facts frozen from records. The Mentor drafts the summary,
+ * the Customer approves (possibly edited, with or without the Product name) or declines it, all before the Rating
+ * Window ends; otherwise there is none. Each entry is published once its person confirmed the data deletion
+ * (FR-66).
  */
 @Component
 class Portfolios {
@@ -99,6 +104,8 @@ class Portfolios {
 
 	private final Ratings ratings;
 
+	private final Crews crews;
+
 	private final Notifications notifications;
 
 	private final Todos todos;
@@ -108,8 +115,9 @@ class Portfolios {
 	private final Clock clock;
 
 	Portfolios(JdbcClient jdbc, JobPosts posts, MilestoneStates milestones, AgreementSkills agreementSkills, WorkFacts work,
-			HandoverFacts handovers, ProductDirectory products, DataDeletions deletions, Ratings ratings,
+			HandoverFacts handovers, ProductDirectory products, DataDeletions deletions, Ratings ratings, Crews crews,
 			Notifications notifications, Todos todos, IdGenerator ids, Clock clock) {
+		this.crews = crews;
 		this.jdbc = jdbc;
 		this.posts = posts;
 		this.milestones = milestones;
@@ -125,7 +133,11 @@ class Portfolios {
 		this.clock = clock;
 	}
 
-	/** J9: the entries, the summary to draft, and each entry whose person already confirmed; replay-safe. */
+	/**
+	 * J9, Closed or Cancelled (a Cancelled Job with Accepted work arrives through Closing and J9, since J10 refuses it):
+	 * the entries, the summary to draft, and each entry whose person already confirmed; replay-safe. A Job without
+	 * Accepted work has none.
+	 */
 	@Transactional
 	void create(UUID jobId) {
 		JobPostState post = this.posts.post(jobId).filter(found -> found.mentorId() != null).orElse(null);
@@ -146,7 +158,7 @@ class Portfolios {
 		insert(post, mentor, "MENTOR", product, skills, accepted, null, this.handovers.milestonesHandedOver(jobId),
 				this.work.reviewsWritten(jobId, mentor), now);
 		Map<UUID, Integer> approved = this.work.approvedItems(jobId);
-		List<UUID> crew = this.ratings.crew(jobId);
+		List<UUID> crew = this.crews.activeDuringAcceptedWork(jobId);
 		for (UUID member : crew) {
 			insert(post, member, "CREW", product, skills, accepted, approved.getOrDefault(member, 0), null, null, now);
 		}
@@ -301,6 +313,22 @@ class Portfolios {
 				SELECT * FROM reputation.portfolio_entry WHERE account_id = :account AND published_at IS NOT NULL
 				ORDER BY closed_at DESC, job_id
 				""").param("account", accountId).query(Portfolios::entry).list();
+	}
+
+	/** How many published entries each of these people holds, by role ({@code MENTOR}, {@code CREW}). */
+	Map<UUID, Map<String, Integer>> publishedCounts(Collection<UUID> accountIds) {
+		Map<UUID, Map<String, Integer>> counts = new HashMap<>();
+		if (accountIds.isEmpty()) {
+			return counts;
+		}
+		this.jdbc.sql("SELECT account_id, role, count(*) AS n FROM reputation.portfolio_entry"
+				+ " WHERE account_id IN (:ids) AND published_at IS NOT NULL GROUP BY account_id, role")
+			.param("ids", new LinkedHashSet<>(accountIds))
+			.query(rs -> {
+				counts.computeIfAbsent(rs.getObject("account_id", UUID.class), id -> new HashMap<>())
+					.put(rs.getString("role"), rs.getInt("n"));
+			});
+		return counts;
 	}
 
 	/** Which of these Mentors have an entry: a Job closed with Accepted work (FR-14). */

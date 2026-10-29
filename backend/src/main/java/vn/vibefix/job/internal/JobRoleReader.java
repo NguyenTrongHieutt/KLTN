@@ -4,8 +4,11 @@ import java.sql.Array;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -113,11 +116,32 @@ class JobRoleReader implements JobRoles {
 	@Override
 	@Transactional(readOnly = true)
 	public History historyOf(UUID accountId) {
-		List<Done> mentor = done("j.customer_account_id", "j.mentor_account_id = :id", accountId);
-		List<Done> crew = done("j.mentor_account_id", """
-				EXISTS (SELECT 1 FROM job.crew_row r WHERE r.job_id = j.id AND r.member_account_id = :id
-				    AND r.activated_at IS NOT NULL)""", accountId);
-		return new History(history(mentor), history(crew));
+		return historiesOf(List.of(accountId)).get(accountId);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public Map<UUID, History> historiesOf(Collection<UUID> accountIds) {
+		Map<UUID, History> histories = new LinkedHashMap<>();
+		accountIds.forEach(id -> histories.put(id, History.EMPTY));
+		if (accountIds.isEmpty()) {
+			return histories;
+		}
+		List<UUID> ids = List.copyOf(new LinkedHashSet<>(accountIds));
+		Map<UUID, List<Done>> mentor = done("""
+				SELECT j.mentor_account_id AS account, j.customer_account_id AS other, j.job_types FROM job.job j
+				WHERE j.mentor_account_id IN (:ids) AND """, ids);
+		// A person is activated on a Job at most once (no rejoining), so each Job counts once; it counts only when their
+		// active window overlapped Accepted work, as their Portfolio Entry does (FR-50, AD-41).
+		Map<UUID, List<Done>> crew = done("""
+				SELECT DISTINCT r.member_account_id AS account, j.id, j.mentor_account_id AS other, j.job_types
+				FROM job.job j JOIN job.crew_row r ON r.job_id = j.id
+				WHERE r.member_account_id IN (:ids)""" + " AND " + CrewService.ACTIVE_DURING_ACCEPTED_WORK + " AND ", ids);
+		for (UUID id : ids) {
+			histories.put(id,
+					new History(history(mentor.getOrDefault(id, List.of())), history(crew.getOrDefault(id, List.of()))));
+		}
+		return histories;
 	}
 
 	private JobRole relation(UUID jobId, UUID accountId) {
@@ -142,16 +166,20 @@ class JobRoleReader implements JobRoles {
 	}
 
 	/** One Job closed with Accepted work: the other side of the pair its role counts by, and its Job Types. */
-	private record Done(UUID other, String[] jobTypes) {
+	private record Done(@Nullable UUID other, String[] jobTypes) {
 	}
 
-	/** Each Job closed with Accepted work where {@code relation} holds, with the account in column {@code other}. */
-	private List<Done> done(String other, String relation, UUID accountId) {
-		return this.jdbc.sql("SELECT " + other + " AS other, j.job_types FROM job.job j WHERE " + relation + " AND "
-				+ FINISHED + " AND " + ACCEPTED_WORK)
-			.param("id", accountId)
-			.query((rs, n) -> new Done(rs.getObject("other", UUID.class), types(rs.getArray("job_types"))))
-			.list();
+	/**
+	 * Each Job closed with Accepted work that {@code select} finds, by the account in its column {@code account}, with
+	 * the other side of its pair in {@code other}.
+	 */
+	private Map<UUID, List<Done>> done(String select, List<UUID> ids) {
+		Map<UUID, List<Done>> done = new HashMap<>();
+		this.jdbc.sql(select + FINISHED + " AND " + ACCEPTED_WORK).param("ids", ids).query(rs -> {
+			done.computeIfAbsent(rs.getObject("account", UUID.class), id -> new ArrayList<>())
+				.add(new Done(rs.getObject("other", UUID.class), types(rs.getArray("job_types"))));
+		});
+		return done;
 	}
 
 	/** The Jobs' count, and per Job Type how many distinct other sides they were done with. */

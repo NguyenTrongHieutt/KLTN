@@ -10,6 +10,7 @@ import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
 import { useProduct } from '@/features/product/productApi'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
+import { personPath } from '@/features/identity/personText'
 import { t, type MessageKey } from '@/i18n/t'
 import { formatCalendarDate, formatDayMonth } from '@/lib/dates'
 import { isNotFound, problemMessage } from '@/lib/problemMessage'
@@ -115,7 +116,7 @@ function Overview({ job }: { job: Job }) {
             {t('screen.matching.selecting.body', { mentor: job.mentor.displayName, date: formatDayMonth(job.ndaDueAt) })}
           </p>
           {job.mentor.githubLogin && (
-            <Link to={`/mentor/${job.mentor.githubLogin}`} className="w-fit text-body-sm text-primary underline-offset-4 hover:underline">
+            <Link to={personPath(job.mentor.githubLogin)} className="w-fit text-body-sm text-primary underline-offset-4 hover:underline">
               {t('screen.matching.selecting.profile')}
             </Link>
           )}

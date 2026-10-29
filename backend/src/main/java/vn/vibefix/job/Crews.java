@@ -60,6 +60,14 @@ public interface Crews {
 
 	List<CrewMember> crewOf(UUID jobId, Selection selection);
 
+	/**
+	 * The Crew members a Job's Portfolio Entries credit (FR-50, AD-41, Story 21.3): each person whose active window
+	 * (from {@code activated_at} to {@code window_end}, or still open) overlaps the work of at least one Accepted
+	 * Milestone (from its funding to its acceptance or settlement), leavers included, in the order their rows were
+	 * created.
+	 */
+	List<UUID> activeDuringAcceptedWork(UUID jobId);
+
 	/** {@code job.runningCrewOf}: the Job where the Student has a row that is not {@code RELEASED}. */
 	Optional<UUID> runningCrewOf(UUID studentId);
 

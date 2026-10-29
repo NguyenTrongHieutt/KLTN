@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
 import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
+import { emptyMetrics, personReputation, publicPerson, shortHistory, verifiedFacts } from '@/test/people'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -41,7 +42,7 @@ const long = {
   displayName: 'Trần Đức Long',
   yearsOfExperience: 10,
   skills: ['Supabase', 'Đăng nhập và phân quyền'],
-  teamSize: 9,
+  verified: verifiedFacts('longtd', { school: 'Đại học Bách khoa Hà Nội' }),
   relation: 'NONE',
   available: true,
 }
@@ -52,7 +53,7 @@ const ha = {
   displayName: 'Phạm Thu Hà',
   yearsOfExperience: 6,
   skills: ['Supabase'],
-  teamSize: 1,
+  verified: verifiedFacts('hatp'),
   relation: 'INVITED',
   available: true,
 }
@@ -61,19 +62,12 @@ const page = (items: object[]) => ({ items, page: 0, size: 20, total: items.leng
 
 const quota = (left: number, limit?: string) => ({ left, limit, invitations: [] })
 
-const publicLong = {
-  accountId: 'm1',
-  githubLogin: 'longtd',
+const publicLong = publicPerson('longtd', {
   displayName: 'Trần Đức Long',
   experience: 'Từng làm kỹ sư bảo mật cho một ví điện tử.',
   yearsOfExperience: 10,
-  memberSince: '2026-06-01T03:00:00Z',
   skillGroups: [],
-  available: true,
-  teamSize: 9,
-  sizeLimit: 10,
-  listedMembers: [],
-}
+})
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -107,7 +101,12 @@ describe('CUS-8 "Tìm người hướng dẫn" (FR-14)', () => {
     expect(screen.getByRole('link', { name: 'Tìm người hướng dẫn' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByText(/Còn 9 lời mời hôm nay cho công việc này\./)).toBeInTheDocument()
     expect(screen.getByText('Xếp theo mức độ khớp với từ khóa. Điểm chấm sao không làm thay đổi thứ tự.')).toBeInTheDocument()
-    expect(screen.getByText('10 năm kinh nghiệm ·', { exact: false })).toBeInTheDocument()
+    // Story 21.3: the Verified fact chips and the years "Tự khai", and no Team size.
+    expect(screen.getByText('10 năm kinh nghiệm (Tự khai)')).toBeInTheDocument()
+    expect(screen.getAllByText('GitHub · 10/2026')).toHaveLength(2)
+    expect(screen.getAllByText('LinkedIn: Chưa xác minh')).toHaveLength(2)
+    expect(screen.getAllByText('Sinh viên đã xác minh')).toHaveLength(1)
+    expect(screen.queryByText(/thành viên$/)).toBeNull()
     expect(await screen.findByText('4,6 sao (14 lượt)')).toBeInTheDocument()
     expect(screen.getByText('Mới')).toBeInTheDocument()
     const summaryCalls = seen.filter((request) => request.url.includes('/reputation/mentor-summaries'))
@@ -115,13 +114,15 @@ describe('CUS-8 "Tìm người hướng dẫn" (FR-14)', () => {
     expect(new URL(summaryCalls[0].url).searchParams.getAll('id')).toEqual(['m1', 'm2'])
     expect(screen.getByRole('button', { name: 'Đã mời' })).toBeDisabled()
 
-    await user.click(screen.getByRole('button', { name: 'Mời ứng tuyển' }))
+    await user.click(screen.getByRole('button', { name: 'Mời chào giá' }))
 
     await waitFor(() => expect(sent).toEqual({ mentorId: 'm1' }))
-    expect(await screen.findByText('Đã gửi lời mời đến Trần Đức Long. Họ tự quyết định có ứng tuyển hay không.')).toBeInTheDocument()
+    expect(await screen.findByText('Đã gửi lời mời đến Trần Đức Long. Họ tự quyết định có chào giá hay không.')).toBeInTheDocument()
     await waitFor(() => expect(screen.getAllByRole('button', { name: 'Đã mời' })).toHaveLength(2))
     expect(await screen.findByText(/Còn 8 lời mời hôm nay/)).toBeInTheDocument()
     expect(screen.queryAllByRole('dialog').every((dialog) => dialog.dataset.type === 'success')).toBe(true)
+    // The invitation never sends the search again: each search counts in the 60-a-minute window (AD-34).
+    expect(seen.filter((request) => new URL(request.url).pathname === '/api/v1/jobs/j1/mentors')).toHaveLength(1)
   })
 
   it('reads "Chưa có đề xuất…" with no Recommendation, focuses the Search bar, and searches nothing', { timeout: 15_000 }, async () => {
@@ -155,7 +156,7 @@ describe('CUS-8 "Tìm người hướng dẫn" (FR-14)', () => {
     renderAt('/cong-viec/j1/tim-nguoi?q=supabase')
 
     expect(await screen.findByText(/Hôm nay bạn đã gửi đủ 10 lời mời cho công việc này\./)).toBeInTheDocument()
-    expect(await screen.findByRole('button', { name: 'Mời ứng tuyển' })).toBeDisabled()
+    expect(await screen.findByRole('button', { name: 'Mời chào giá' })).toBeDisabled()
   })
 
   it('disables the Invite button of a Mentor without GitHub linked, with the line that says why', { timeout: 15_000 }, async () => {
@@ -170,13 +171,13 @@ describe('CUS-8 "Tìm người hướng dẫn" (FR-14)', () => {
     })
     renderAt('/cong-viec/j1/tim-nguoi?q=supabase')
 
-    const button = await screen.findByRole('button', { name: 'Mời ứng tuyển' })
+    const button = await screen.findByRole('button', { name: 'Mời chào giá' })
     expect(button).toBeDisabled()
-    expect(button).toHaveAccessibleDescription('Người hướng dẫn chưa liên kết GitHub')
+    expect(button).toHaveAccessibleDescription('Người này chưa liên kết GitHub')
     expect(screen.getByText(/Kinh nghiệm: Chưa khai/)).toBeInTheDocument()
   })
 
-  it('opens PUB-5 in a Sheet with the Invite button and returns focus to the card', { timeout: 20_000 }, async () => {
+  it('opens PUB-4 in a Sheet with the Invite button and returns focus to the card', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     fakeBackend(signedInUser, {
       ...inEveryJob('CUSTOMER'),
@@ -185,8 +186,8 @@ describe('CUS-8 "Tìm người hướng dẫn" (FR-14)', () => {
       'GET /api/v1/jobs/j1/invitations': () => json(quota(9)),
       'GET /api/v1/jobs/j1/mentors': () => json(page([long])),
       'GET /api/v1/reputation/mentor-summaries': () => json([]),
-      'GET /api/v1/mentors/longtd': () => json(publicLong),
-      'GET /api/v1/mentors/longtd/reputation': () => json({ count: 0, newcomer: true, portfolio: [] }),
+      'GET /api/v1/users/longtd': () => json(publicLong),
+      'GET /api/v1/users/longtd/reputation': () => json(personReputation()),
     })
     renderAt('/cong-viec/j1/tim-nguoi?q=supabase')
 
@@ -194,13 +195,41 @@ describe('CUS-8 "Tìm người hướng dẫn" (FR-14)', () => {
     await user.click(open)
     const sheet = await screen.findByRole('dialog', { name: 'Trần Đức Long' })
     expect(await within(sheet).findByText('Từng làm kỹ sư bảo mật cho một ví điện tử.')).toBeInTheDocument()
+    expect(within(sheet).getByRole('heading', { name: 'Khi làm người hướng dẫn' })).toBeInTheDocument()
     expect(within(sheet).getByText(/vibefix không hiện cách liên lạc/)).toBeInTheDocument()
     expect(within(sheet).getByText('Còn 9 lời mời hôm nay cho công việc này')).toBeInTheDocument()
-    expect(within(sheet).getByRole('button', { name: 'Mời ứng tuyển' })).toBeEnabled()
+    expect(within(sheet).getByRole('button', { name: 'Mời chào giá' })).toBeEnabled()
 
     await user.keyboard('{Escape}')
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     await waitFor(() => expect(open).toHaveFocus())
+  })
+
+  it('keeps the earlier results with the wait when searching too fast (AD-34)', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
+      'GET /api/v1/jobs/j1': () => json(openJob),
+      'GET /api/v1/jobs/j1/applications': () => json([]),
+      'GET /api/v1/jobs/j1/invitations': () => json(quota(9)),
+      'GET /api/v1/jobs/j1/mentors': (request) =>
+        new URL(request.url).searchParams.get('q') === 'react'
+          ? new Response(JSON.stringify({ status: 429, code: 'RATE_LIMITED' }), {
+              status: 429,
+              headers: { 'Content-Type': 'application/problem+json', 'Retry-After': '42' },
+            })
+          : json(page([long])),
+      'GET /api/v1/reputation/mentor-summaries': () => json([]),
+    })
+    renderAt('/cong-viec/j1/tim-nguoi?q=supabase')
+
+    expect(await screen.findByText('Trần Đức Long')).toBeInTheDocument()
+    const box = screen.getByRole('searchbox', { name: 'Tìm người hướng dẫn' })
+    await user.clear(box)
+    await user.type(box, 'react{Enter}')
+
+    expect(await screen.findByText('Bạn đang tìm hơi nhanh. Hãy đợi 42 giây rồi tìm lại.')).toBeInTheDocument()
+    expect(screen.getByText('Trần Đức Long')).toBeInTheDocument()
   })
 
   it('sends a Job past Open to "Đơn ứng tuyển", which goes on to the overview', { timeout: 15_000 }, async () => {
@@ -228,12 +257,13 @@ describe('CUS-8 "Tìm người hướng dẫn" (FR-14)', () => {
             timelineDays: 6,
             approach: 'Kiểm tra quyền truy cập.',
             submittedAt: '2026-10-16T03:00:00Z',
-            mentor: { displayName: 'Trần Đức Long', githubLogin: 'longtd', yearsOfExperience: 10 },
+            mentor: { displayName: 'Trần Đức Long', githubLogin: 'longtd', yearsOfExperience: 10, verified: verifiedFacts('longtd') },
             invited: true,
             proof: [],
+            fitMetrics: emptyMetrics(),
           },
         ]),
-      'GET /api/v1/mentors/longtd/reputation': () => json({ count: 0, newcomer: true, portfolio: [] }),
+      'GET /api/v1/reputation/histories': () => json([shortHistory('longtd')]),
     })
     renderAt('/cong-viec/j1/ung-tuyen')
 

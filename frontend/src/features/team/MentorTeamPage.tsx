@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/Skeleton'
 import { SkillPicker } from '@/components/SkillPicker'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
+import { personPath } from '@/features/identity/personText'
 import { t } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
 import { formatDate, formatDayMonth } from '@/lib/dates'
@@ -615,7 +616,7 @@ function StudentSheet({ studentId, onClose }: { studentId?: string; onClose: () 
             </section>
             {student.githubLogin && (
               <Link
-                to={`/sv/${student.githubLogin}`}
+                to={personPath(student.githubLogin)}
                 className="w-fit text-body-sm text-primary underline-offset-4 hover:underline"
               >
                 {t('screen.team.mentor.publicProfile')}

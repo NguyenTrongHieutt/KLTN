@@ -5,18 +5,19 @@ import { usePageTitle } from '@/app/usePageTitle'
 import { ReadSessionAgain } from '@/features/job/FindWorkGate'
 import { t } from '@/i18n/t'
 import { GitHubGate } from './GitHubGate'
+import { personPath } from './personText'
 import { useSession } from './useSession'
 
 /**
- * "Hồ sơ công khai" (`/ho-so/cong-khai`, UX-DR85): the avatar menu's way to the user's own public profile, which
- * is addressed by their GitHub username. With GitHub linked it opens that profile; without, its Empty state says
- * why and shows the GitHub gate, the one way forward.
+ * "Hồ sơ công khai" (`/ho-so/cong-khai`, UX-DR85): the avatar menu's way to the user's own PUB-4 (Story 21.3), which
+ * is addressed by their GitHub username. With GitHub linked it redirects to `/nguoi-dung/{username}`; without, its
+ * Empty state says why and shows the GitHub gate, the one way forward.
  */
 export function PublicProfilePage() {
   usePageTitle(t('screen.profile.public.title'))
   const login = useSession().data?.githubLogin
   if (login) {
-    return <Navigate to={`/sv/${encodeURIComponent(login)}`} replace />
+    return <Navigate to={personPath(login)} replace />
   }
   return (
     <div className="mx-auto flex max-w-[760px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">

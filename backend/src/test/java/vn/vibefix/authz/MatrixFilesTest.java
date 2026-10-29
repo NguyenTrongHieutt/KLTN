@@ -331,8 +331,9 @@ class MatrixFilesTest {
 			.allSatisfy(row -> assertThat(row.callerState()).as("no caller takes a subject state: %s", row).isEmpty())
 			.allSatisfy(row -> assertThat(row.caller()).as("AUTHOR is the harness's own").isNotEqualTo(MatrixCaller.AUTHOR));
 		// The spec's "about 2,800": at most 2,850 since review iteration 4 made room for the file bindings, 2,900
-		// since Story 20.6 added the one shell's role read and Job list, and 2,950 since Story 21.2 added the bid's proof.
-		assertThat(MatrixRow.loadMatrix()).as("2,950 rows or fewer").hasSizeLessThanOrEqualTo(2_950);
+		// since Story 20.6 added the one shell's role read and Job list, 2,950 since Story 21.2 added the bid's proof,
+		// and 3,000 since Story 21.3 scanned PUB-4 for a Crew member as well as for the Mentor.
+		assertThat(MatrixRow.loadMatrix()).as("3,000 rows or fewer").hasSizeLessThanOrEqualTo(3_000);
 	}
 
 	@Test
@@ -817,17 +818,22 @@ class MatrixFilesTest {
 	void onlyTheCustomersCrewNamesOnPublicReputationAreExempt() {
 		Canaries canaries = Canaries.load();
 		MatrixRow reputation = MatrixRow
-			.parse(HEADER + "GET /api/v1/students/{studentLogin}/reputation,CUSTOMER,,,200")
+			.parse(HEADER + "GET /api/v1/users/{username}/reputation,CUSTOMER,user=member,,200")
 			.getFirst();
-		MatrixRow mentorReputation = MatrixRow.parse(HEADER + "GET /api/v1/mentors/{username}/reputation,CUSTOMER,,,200")
+		MatrixRow profile = MatrixRow.parse(HEADER + "GET /api/v1/users/{username},CUSTOMER,user=member,,200").getFirst();
+		MatrixRow histories = MatrixRow
+			.parse(HEADER + "GET /api/v1/reputation/histories?username={username},CUSTOMER,user=member,,200")
 			.getFirst();
-		MatrixRow profile = MatrixRow.parse(HEADER + "GET /api/v1/students/{studentLogin},CUSTOMER,,,200").getFirst();
-		MatrixRow user = MatrixRow.parse(HEADER + "GET /api/v1/students/{studentLogin}/reputation,USER,,,200").getFirst();
+		MatrixRow user = MatrixRow.parse(HEADER + "GET /api/v1/users/{username}/reputation,USER,,,200").getFirst();
 
+		assertThat(reputation.rebound()).containsEntry("username", "memberUsername");
+		assertThat(histories.endpoint()).as("a query names no other endpoint").isEqualTo("GET /api/v1/reputation/histories");
+		assertThat(histories.rebound()).containsEntry("username", "memberUsername");
 		assertThat(MatrixRowRunner.exempt(reputation, canaries.get("CREW_NAME"))).isTrue();
-		assertThat(MatrixRowRunner.exempt(mentorReputation, canaries.get("CROSS_CREW_NAME"))).isTrue();
+		assertThat(MatrixRowRunner.exempt(histories, canaries.get("CROSS_CREW_NAME"))).isTrue();
 		assertThat(MatrixRowRunner.exempt(reputation, canaries.get("CREW_EMAIL"))).isFalse();
-		assertThat(MatrixRowRunner.exempt(profile, canaries.get("CREW_NAME"))).isFalse();
+		assertThat(MatrixRowRunner.exempt(reputation, canaries.get("STUDENT_HIDDEN_NAME"))).isFalse();
+		assertThat(MatrixRowRunner.exempt(profile, canaries.get("CREW_NAME"))).as("PUB-4's identity half").isFalse();
 		assertThat(MatrixRowRunner.exempt(user, canaries.get("CREW_NAME"))).isFalse();
 	}
 

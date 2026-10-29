@@ -227,6 +227,33 @@ class JobRolesIT extends IntegrationTest {
 		assertThat(history.crew()).isEqualTo(new RoleHistory(2, Map.of("DOCUMENTATION", 1)));
 	}
 
+	/**
+	 * Story 21.3 (FR-50, AD-41): the history as Crew member counts a Job only when the member's active window overlapped
+	 * the work of an Accepted Milestone, as their Portfolio Entry does: a leaver who left after it counts, one who left
+	 * before it was funded or joined after it was accepted does not.
+	 */
+	@Test
+	void theCrewHistoryCountsOnlyAWindowOverTheAcceptedWork() {
+		UUID mentor = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT), "React");
+		UUID customer = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		UUID leftAfter = student("Rời sau");
+		UUID leftBefore = student("Rời trước");
+		UUID joinedAfter = student("Vào sau");
+		// The Milestone was funded 25 days ago and accepted 24 days ago.
+		UUID job = finished(customer, mentor, "CANCELLED", true, "BUG_FIX");
+		milestone(job, "ACCEPTED", false);
+		crewRow(job, leftAfter, "RELEASED", true);
+		crewRow(job, leftBefore, "RELEASED", true, MutableClock.DEFAULT_INSTANT.minus(Duration.ofDays(40)));
+		crewRow(job, joinedAfter, "RELEASED", true, MutableClock.DEFAULT_INSTANT.minus(Duration.ofDays(20)));
+
+		Map<UUID, History> histories = this.roles.historiesOf(List.of(leftAfter, leftBefore, joinedAfter));
+
+		assertThat(histories.get(leftAfter).crew()).isEqualTo(new RoleHistory(1, Map.of("BUG_FIX", 1)));
+		assertThat(histories.get(leftBefore).crew()).as("left before the work was funded").isEqualTo(RoleHistory.EMPTY);
+		assertThat(histories.get(joinedAfter).crew()).as("joined after it was accepted").isEqualTo(RoleHistory.EMPTY);
+		assertThat(this.crews.activeDuringAcceptedWork(job)).containsExactly(leftAfter);
+	}
+
 	/** Every (Job, account) pair with more than one relation: Customer, Mentor, or a counted Crew row. */
 	private List<String> overlaps() {
 		return this.jdbc.sql("""
@@ -297,8 +324,12 @@ class JobRolesIT extends IntegrationTest {
 		return id;
 	}
 
+	/** A row active from before the Milestones' work (26 days ago) for five days, over it: a released one has left. */
 	private void crewRow(UUID job, UUID member, String status, boolean activated) {
-		Instant at = MutableClock.DEFAULT_INSTANT.minus(Duration.ofDays(20));
+		crewRow(job, member, status, activated, MutableClock.DEFAULT_INSTANT.minus(Duration.ofDays(26)));
+	}
+
+	private void crewRow(UUID job, UUID member, String status, boolean activated, Instant at) {
 		boolean released = "RELEASED".equals(status);
 		this.jdbc.sql("""
 				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, window_end,

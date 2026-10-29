@@ -12,7 +12,8 @@
  * {@link vn.vibefix.identity.ActiveAccount} (the gate of every user command that creates no new work),
  * {@link vn.vibefix.identity.PersonSignals} with {@link vn.vibefix.identity.PersonSignalMatched},
  * {@link vn.vibefix.identity.AccountLocked}, the public profile searches
- * {@link vn.vibefix.identity.StudentDirectory} and {@link vn.vibefix.identity.MentorDirectory},
+ * {@link vn.vibefix.identity.StudentDirectory} and {@link vn.vibefix.identity.MentorDirectory}, PUB-4's public
+ * facts of a person {@link vn.vibefix.identity.PublicProfiles} (Story 21.3),
  * {@link vn.vibefix.identity.CustomerRepositories} (repositories read with a Customer's kept token),
  * {@link vn.vibefix.identity.Administrators}, {@link vn.vibefix.identity.Notices},
  * {@link vn.vibefix.identity.CustomerNames}, and the GitHub link (Story 19.2): the gate of the commands that

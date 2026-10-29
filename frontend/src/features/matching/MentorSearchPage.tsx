@@ -1,4 +1,4 @@
-import { Check, Clock, Search, Send, Users, X } from 'lucide-react'
+import { Check, Clock, Search, Send, X } from 'lucide-react'
 import { useEffect, useId, useRef, useState, type FormEvent, type RefObject } from 'react'
 import { Link, Navigate, useParams, useSearchParams } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
@@ -16,10 +16,10 @@ import { useJob, type Job } from '@/features/job/jobApi'
 import { JobRoleLine } from '@/features/job/ByJobRole'
 import { JobStateBadge } from '@/features/job/JobStateBadge'
 import { JobTabs } from '@/features/job/JobTabs'
+import { PersonProfileContent } from '@/features/identity/PersonProfile'
+import { experienceText, initials } from '@/features/identity/personText'
+import { VerifiedFactChips } from '@/features/identity/VerifiedFacts'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
-import { MentorProfileContent } from '@/features/team/MentorProfileContent'
-import { usePublicMentor } from '@/features/team/teamApi'
-import { experienceText, initials } from '@/features/team/teamText'
 import { t, type MessageKey } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
 import { isNotFound, problemMessage } from '@/lib/problemMessage'
@@ -28,6 +28,7 @@ import { useJobApplications } from './applicationApi'
 import {
   useInvitations,
   useInvite,
+  useLastMentorSearch,
   useMentorSearch,
   useMentorSummaries,
   type Invitations,
@@ -66,11 +67,12 @@ function writeFilter(filter: MentorFilter): URLSearchParams {
 }
 
 /**
- * CUS-8 "Tìm người hướng dẫn" (`/cong-viec/{jobId}/tim-nguoi`, FR-14, UX-DR47–49, UX-DR66): the Job's
- * Customer searches Mentors by keyword and Skills, ordered by relevance alone, sees each
- * one's Team size and Rating or "Mới", opens PUB-5 in a Sheet, and invites them within the day's
- * counters. Without a keyword, "Đề xuất cho công việc này" shows AD-17's Recommendations. The tab
- * exists only while the Job is Open; afterwards the route goes to "Đơn ứng tuyển".
+ * CUS-8 "Tìm người hướng dẫn" (`/cong-viec/{jobId}/tim-nguoi`, FR-14, AD-36, UX-DR100, Story 21.3): the Job's Customer
+ * searches the public fields of GitHub-verified, unlocked users by keyword and Skills, ordered by relevance alone; each
+ * Profile result card shows the Verified fact chips, the years "Tự khai", the Skills, and the Rating as Mentor or
+ * "Mới", which never order anything; PUB-4 opens in a Sheet; "Mời chào giá" invites within the day's counters. No
+ * Team size. Searching too fast keeps the earlier results with the wait. Without a keyword, "Đề xuất cho công việc
+ * này" shows AD-17's Recommendations. The tab exists only while the Job is Open; afterwards the route goes to "Chào giá".
  */
 export function MentorSearchPage() {
   const { jobId } = useParams()
@@ -97,6 +99,13 @@ function FindMentors({ job }: { job: Job }) {
   const applications = useJobApplications(job.id)
   const invitations = useInvitations(job.id)
   const search = useMentorSearch(job.id, filter)
+  const last = useLastMentorSearch(job.id)
+  // Searching too fast keeps the earlier results on screen (UX-DR27, AD-34).
+  const limited = search.error instanceof ApiError && search.error.status === 429 ? search.error : undefined
+  // While limited, the kept results keep the keyword and filter that found them, for the heading and the pager.
+  const kept = limited ? last.data : undefined
+  const results = kept ? kept.found : search.data
+  const shownFilter = kept ? kept.filter : filter
   const recommendations = useMentorRecommendations(
     job.id,
     { skills: filter.skills, categories: filter.categories },
@@ -106,7 +115,7 @@ function FindMentors({ job }: { job: Job }) {
   const ids = useId()
   const searchInput = useRef<HTMLInputElement>(null)
   const update = (next: Partial<MentorFilter>) => setParams(writeFilter({ ...filter, page: 0, ...next }))
-  const items = search.data?.items ?? []
+  const items = results?.items ?? []
   const recommended = recommendations.data ?? []
   const shown: MentorResult[] = filter.q === undefined ? recommended : items
   const summaries = useMentorSummaries(shown.map((item) => item.accountId))
@@ -137,7 +146,13 @@ function FindMentors({ job }: { job: Job }) {
         <JobTabs jobId={job.id} current="find" applications={applications.data?.length ?? 0} />
       </div>
       <QuotaLine quota={quota} />
-      <SearchBar key={filter.q ?? ''} keyword={filter.q} search={(q) => update({ q })} inputRef={searchInput} />
+      <SearchBar
+        key={filter.q ?? ''}
+        keyword={filter.q}
+        retryAfter={limited ? (limited.retryAfter ?? 60) : undefined}
+        search={(q) => update({ q })}
+        inputRef={searchInput}
+      />
       <div className="flex max-w-[560px] flex-col gap-1">
         <label htmlFor={`${ids}-skills`} className="text-caption">
           {t('screen.matching.find.skills')}
@@ -181,18 +196,18 @@ function FindMentors({ job }: { job: Job }) {
           )}
         </RegionState>
       ) : (
-        <RegionState query={search} skeleton={<Skeleton className="h-48 w-full" />}>
-          {search.data && (
+        <RegionState query={kept ? last : search} skeleton={<Skeleton className="h-48 w-full" />}>
+          {results && (
             <section aria-labelledby={`${ids}-results`} className="flex flex-col gap-3">
               <div className="flex flex-col gap-0.5">
                 <h2 id={`${ids}-results`} aria-live="polite" className="text-h3">
-                  {t('screen.matching.find.results', { q: filter.q, n: search.data.total })}
+                  {t('screen.matching.find.results', { q: shownFilter.q ?? '', n: results.total })}
                 </h2>
                 <p className="text-caption text-muted-foreground">{t('screen.matching.find.order')}</p>
               </div>
               {items.length === 0 ? (
                 <div className="flex flex-col gap-1 rounded-lg border border-border bg-card p-8 text-center">
-                  <p className="text-label font-semibold">{t('screen.matching.find.empty', { q: filter.q })}</p>
+                  <p className="text-label font-semibold">{t('screen.matching.find.empty', { q: shownFilter.q ?? '' })}</p>
                   <p className="text-body-sm text-muted-foreground">{t('screen.matching.find.emptyHint')}</p>
                 </div>
               ) : (
@@ -210,9 +225,9 @@ function FindMentors({ job }: { job: Job }) {
                 </ul>
               )}
               <Pager
-                page={search.data.page}
-                pages={Math.ceil(search.data.total / search.data.size)}
-                go={(page) => update({ page })}
+                page={results.page}
+                pages={Math.ceil(results.total / results.size)}
+                go={(page) => setParams(writeFilter({ ...shownFilter, page }))}
               />
             </section>
           )}
@@ -238,7 +253,7 @@ function FindMentors({ job }: { job: Job }) {
           )
         }
       >
-        {profile && <SheetProfile username={profile.githubLogin ?? undefined} />}
+        {profile?.githubLogin && <SheetProfile username={profile.githubLogin} />}
       </Sheet>
     </>
   )
@@ -260,13 +275,18 @@ function QuotaLine({ quota }: { quota: Invitations | undefined }) {
   return <p className="text-caption text-muted-foreground">{t('screen.matching.find.quota', { n: quota.left })}</p>
 }
 
-/** The Search bar (EXPERIENCE.md): Enter or "Tìm" runs it, typing alone never does (Telex, VNI). */
+/**
+ * The Search bar (EXPERIENCE.md): Enter or "Tìm" runs it, typing alone never does (Telex, VNI). Searching too fast
+ * replaces the helper with the wait from `Retry-After`.
+ */
 function SearchBar({
   keyword,
+  retryAfter,
   search,
   inputRef,
 }: {
   keyword: string | undefined
+  retryAfter: number | undefined
   search: (q: string | undefined) => void
   inputRef: RefObject<HTMLInputElement | null>
 }) {
@@ -309,14 +329,14 @@ function SearchBar({
           </Button>
         )}
       </div>
-      <p id={`${ids}-help`} className="text-caption text-muted-foreground">
-        {t('screen.matching.find.searchHelper')}
+      <p id={`${ids}-help`} className={cn('text-caption', retryAfter ? 'text-warning' : 'text-muted-foreground')}>
+        {retryAfter ? t('screen.matching.find.tooFast', { seconds: retryAfter }) : t('screen.matching.find.searchHelper')}
       </p>
     </form>
   )
 }
 
-/** The initials, the name, and "{years} năm kinh nghiệm · {n} thành viên", or "Chưa khai" (UX-DR48). */
+/** The initials, the name, the Verified fact chips, and "{years} năm kinh nghiệm" marked "Tự khai" (UX-DR100). */
 function MentorHeading({ mentor }: { mentor: MentorResult }) {
   return (
     <>
@@ -326,12 +346,11 @@ function MentorHeading({ mentor }: { mentor: MentorResult }) {
       >
         {initials(mentor.displayName)}
       </span>
-      <div className="flex min-w-0 flex-col gap-0.5">
+      <div className="flex min-w-0 flex-col gap-1">
         <p className="text-label font-semibold break-words">{mentor.displayName}</p>
-        <p className="flex flex-wrap items-center gap-1.5 text-caption text-muted-foreground">
-          {experienceText(mentor.yearsOfExperience)} ·
-          <Users aria-hidden="true" className="size-4" />
-          {t('screen.matching.find.students', { n: mentor.teamSize })}
+        <VerifiedFactChips facts={mentor.verified} />
+        <p className="text-caption text-muted-foreground">
+          {experienceText(mentor.yearsOfExperience)} ({t('screen.person.selfDeclared')})
         </p>
       </div>
     </>
@@ -429,9 +448,8 @@ function ratingText(summary: MentorSummary | undefined, withNewcomer: boolean): 
 }
 
 /**
- * "Mời ứng tuyển" (FR-14, UX-DR49): no Confirmation dialog and no optimistic update; once the server
- * confirms, the button reads "Đã mời". Every one is disabled at a used-up limit, and for a Mentor who may
- * not be invited yet, with the one line that says why (Story 19.7).
+ * "Mời chào giá" (FR-14, SG-41): no Confirmation dialog and no optimistic update; once the server confirms, the
+ * button reads "Đã mời", and a user who bid already reads "Đã chào giá". Every one is disabled at a used-up limit.
  */
 function InviteButton({ job, mentor, limited }: { job: Job; mentor: MentorResult; limited: boolean }) {
   const invite = useInvite(job.id)
@@ -479,14 +497,11 @@ function inviteError(error: unknown): string {
   return problemMessage(error, { module: 'matching', action: t('screen.matching.find.inviteAction') }).text
 }
 
-/** PUB-5's content in the Sheet, with the no-contact note (UX-DR48). */
-function SheetProfile({ username }: { username: string | undefined }) {
-  const mentor = usePublicMentor(username)
+/** PUB-4's content in the Sheet, with the no-contact note (UX-DR100). */
+function SheetProfile({ username }: { username: string }) {
   return (
     <>
-      <RegionState query={mentor} skeleton={<Skeleton className="h-64 w-full" />}>
-        {mentor.data && <MentorProfileContent mentor={mentor.data} visitor={false} />}
-      </RegionState>
+      <PersonProfileContent username={username} level={3} />
       <p className="text-caption text-muted-foreground">{t('screen.matching.find.noContact')}</p>
     </>
   )

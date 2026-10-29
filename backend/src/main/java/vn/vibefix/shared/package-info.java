@@ -4,7 +4,8 @@
  * Public API:
  * <ul>
  * <li>Errors and lists (AD-23): {@link vn.vibefix.shared.ErrorCode}, {@link vn.vibefix.shared.ApiException},
- * {@link vn.vibefix.shared.RateLimitedException} (AD-34),
+ * {@link vn.vibefix.shared.RateLimitedException} (AD-34) with the one keyword-search limit
+ * {@link vn.vibefix.shared.SearchWindow},
  * {@link vn.vibefix.shared.PageResponse}; money: {@link vn.vibefix.shared.Money}; IDs:
  * {@link vn.vibefix.shared.IdGenerator}.</li>
  * <li>Authorization (AD-20): the caller ({@link vn.vibefix.shared.Caller} of a {@link vn.vibefix.shared.Kind},
@@ -23,7 +24,7 @@
  * </ul>
  * <p>
  * Everything in {@code shared.internal} (the {@link java.time.Clock} bean, the ID generator, the
- * Problem Details advice, the environment and secret-source guards, the correlation-ID and
+ * search window, the Problem Details advice, the environment and secret-source guards, the correlation-ID and
  * security-header filters, the access gate, the personal-data fan-out, the event registry upkeep,
  * the sandbox worker and its HTTP client) is wiring that no other module references.
  */

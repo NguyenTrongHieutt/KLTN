@@ -124,7 +124,7 @@ describe('MEN-2, browsing Job Posts (FR-12)', () => {
     expect(within(recruiting).getByText('Shop Gốm Bát Tràng · Tính năng mới')).toBeInTheDocument()
     expect(within(recruiting).queryByText(/đăng/)).toBeNull()
     expect(within(recruiting).getByText('Cần thêm 2 thành viên nhóm')).toBeInTheDocument()
-    expect(within(recruiting).getByRole('link', { name: 'Phạm Thu Hà' })).toHaveAttribute('href', '/mentor/thuha')
+    expect(within(recruiting).getByRole('link', { name: 'Phạm Thu Hà' })).toHaveAttribute('href', '/nguoi-dung/thuha')
     expect(within(recruiting).getByText('Kỹ năng cần tìm: Supabase')).toBeInTheDocument()
     expect(within(recruiting).getByText('Cần người làm trang thanh toán.')).toBeInTheDocument()
     expect(
@@ -350,7 +350,7 @@ describe('MEN-3, one Job Post (FR-12)', () => {
     expect(await screen.findByText('Đang tuyển thêm thành viên')).toBeInTheDocument()
     expect(screen.getByText('Cần thêm 2 thành viên nhóm')).toBeInTheDocument()
     const area = await screen.findByRole('region', { name: 'Xin vào nhóm' })
-    expect(within(area).getByRole('link', { name: 'Phạm Thu Hà' })).toHaveAttribute('href', '/mentor/thuha')
+    expect(within(area).getByRole('link', { name: 'Phạm Thu Hà' })).toHaveAttribute('href', '/nguoi-dung/thuha')
     expect(within(area).getByText('Còn 2 chỗ')).toBeInTheDocument()
     expect(within(area).getByText('Supabase')).toBeInTheDocument()
     expect(within(area).getByText('Cần người làm trang thanh toán.')).toBeInTheDocument()

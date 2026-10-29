@@ -1,6 +1,7 @@
 package vn.vibefix.matching.internal;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -23,10 +24,14 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import vn.vibefix.catalog.Catalog;
 import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.identity.GitHubGate;
 import vn.vibefix.identity.MentorDirectory;
-import vn.vibefix.identity.MentorDirectory.MentorCard;
+import vn.vibefix.identity.PublicProfiles;
+import vn.vibefix.identity.PublicProfiles.FactKind;
+import vn.vibefix.identity.PublicProfiles.PersonFacts;
+import vn.vibefix.identity.PublicProfiles.VerifiedFact;
 import vn.vibefix.job.JobPosts;
 import vn.vibefix.job.JobPosts.JobPostState;
 import vn.vibefix.job.JobRoles;
@@ -39,6 +44,7 @@ import vn.vibefix.matching.internal.Applications.Status;
 import vn.vibefix.matching.internal.BidProofs.Item;
 import vn.vibefix.matching.internal.BidProofs.ProofKind;
 import vn.vibefix.matching.internal.BidProofs.Proof;
+import vn.vibefix.matching.internal.FitMetrics.Metrics;
 import vn.vibefix.matching.internal.SourceContributors.Contribution;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.ApiException;
@@ -90,10 +96,40 @@ class ApplicationController {
 	}
 
 	/**
-	 * Who bid, as CUS-8 shows them; never contact details.
-	 * @param yearsOfExperience absent while the Mentor has not declared it
+	 * Who bid, as the Bid card shows them (UX-DR100, AD-42, Story 21.3): never contact details, and no account ID; the
+	 * GitHub username addresses their PUB-4.
+	 * @param yearsOfExperience "Tự khai"; absent while the bidder has not declared it
+	 * @param memberSince when the bidder joined vibefix, a profile fact beside the Fit metrics; absent for an account
+	 * {@code identity} no longer knows
+	 * @param verified the three Verified facts in their fixed order, each with "Chưa xác minh" while missing
 	 */
-	record ApplicantView(String displayName, @Nullable String githubLogin, @Nullable Integer yearsOfExperience) {
+	record ApplicantView(String displayName, @Nullable String githubLogin, @Nullable Integer yearsOfExperience,
+			@Nullable Instant memberSince, List<VerifiedFact> verified) {
+	}
+
+	/** A Job Type of the Job Post found in the bidder's history, with its count as Mentor and as Crew member. */
+	record JobTypeFitView(String jobType, int asMentor, int asCrew) {
+	}
+
+	/** The Milestones accepted on time as Mentor, x/y by FR-62's formula (X12). */
+	record OnTimeFitView(int onTime, int total) {
+	}
+
+	/**
+	 * {@code matching.fitMetrics} for one bidder on this Job (AD-17): each metric stands alone, with no combined score
+	 * and no order; an empty one reads "Chưa có dữ liệu".
+	 * @param sharedSkills the Job Post's Skills the bidder holds, by their current names, in the Job Post's order
+	 * @param skillsSought how many Skills the Job Post seeks
+	 * @param jobTypeMatches the Job Post's Job Types in the bidder's history, one per counterpart; empty for none
+	 * @param jobsAsMentor the Jobs closed with Accepted work as Mentor; 0 for none
+	 * @param jobsAsCrew the Jobs closed with Accepted work as Crew member; 0 for none
+	 * @param onTime the accepted dated Milestones as Mentor; absent for none
+	 * @param activeJobsAsMentor the Jobs held as Mentor now, Selecting through Closing; 0 for none
+	 * @param verifications the Verifications held, in their fixed order
+	 */
+	record FitMetricsView(List<String> sharedSkills, int skillsSought, List<JobTypeFitView> jobTypeMatches,
+			int jobsAsMentor, int jobsAsCrew, @Nullable OnTimeFitView onTime, int activeJobsAsMentor,
+			List<FactKind> verifications) {
 	}
 
 	/** CUS-8 "Chọn": the Job version the screen loaded (AD-23). */
@@ -108,11 +144,14 @@ class ApplicationController {
 	}
 
 	/**
-	 * One bid on the Customer's Job, with its proof.
-	 * @param invited the Customer invited this Mentor: a chip that changes neither order nor choice (UX-DR50)
+	 * One Bid card on the Customer's Job (UX-DR100): the bidder's Verified facts, what they posted with its proof, and
+	 * the Fit metrics; the histories come from {@code reputation} by the GitHub username.
+	 * @param invited the Customer invited this bidder: a chip that changes neither order nor choice (UX-DR100)
+	 * @param fitMetrics absent for a bidder {@code identity} no longer knows
 	 */
 	record JobApplicationView(UUID id, Status status, long priceVnd, int timelineDays, String approach,
-			Instant submittedAt, ApplicantView mentor, boolean invited, List<BidProofView> proof) {
+			Instant submittedAt, ApplicantView mentor, boolean invited, List<BidProofView> proof,
+			@Nullable FitMetricsView fitMetrics) {
 	}
 
 	private final Applications applications;
@@ -139,9 +178,19 @@ class ApplicationController {
 
 	private final JobRoles roles;
 
+	private final PublicProfiles profiles;
+
+	private final FitMetrics fitMetrics;
+
+	private final Catalog catalog;
+
 	ApplicationController(Applications applications, BidProofs proofs, SourceContributors contributors, JobPosts posts,
 			MentorDirectory mentors, ActiveAccount gate, JobSelection selection, NdaSignatures signatures,
-			Invitations invitations, CurrentCaller callers, GitHubGate gitHub, JobRoles roles) {
+			Invitations invitations, CurrentCaller callers, GitHubGate gitHub, JobRoles roles, PublicProfiles profiles,
+			FitMetrics fitMetrics, Catalog catalog) {
+		this.profiles = profiles;
+		this.fitMetrics = fitMetrics;
+		this.catalog = catalog;
 		this.gitHub = gitHub;
 		this.roles = roles;
 		this.applications = applications;
@@ -195,24 +244,54 @@ class ApplicationController {
 		return views(List.of(this.applications.withdraw(mentor, applicationId))).getFirst();
 	}
 
-	/** CUS-8 "Chào giá": the open bids on the Customer's Job, each with its proof. */
+	/**
+	 * CUS-8 "Chào giá" and CUS-13 (FR-15, UX-DR100, UX-DR101): the open bids on the Customer's Job as Bid cards, oldest
+	 * first and never reordered, each with the bidder's Verified facts, its proof, and the Fit metrics; an invitation
+	 * changes nothing in the order.
+	 */
 	@GetMapping("/api/v1/jobs/{jobId}/applications")
 	List<JobApplicationView> ofJob(@PathVariable UUID jobId) {
 		customerOf(jobId);
 		List<Application> open = this.applications.openOfJob(jobId);
 		Set<UUID> invited = new HashSet<>(this.invitations.invitedMentors(jobId));
-		Map<UUID, MentorCard> cards = new HashMap<>();
-		this.mentors.cards(open.stream().map(Application::mentorId).toList())
-			.forEach(card -> cards.put(card.accountId(), card));
+		List<UUID> bidders = open.stream().map(Application::mentorId).toList();
+		Map<UUID, PersonFacts> facts = this.profiles.factsOf(bidders);
+		Map<UUID, Metrics> metrics = this.fitMetrics.fitMetrics(jobId, bidders, facts);
+		Map<UUID, String> skillNames = skillNames(this.catalog, metrics.values());
 		Map<UUID, List<Proof>> proof = this.proofs.of(open.stream().map(Application::id).toList());
 		return open.stream().map(application -> {
-			MentorCard card = cards.get(application.mentorId());
-			ApplicantView mentor = new ApplicantView(card == null ? "" : card.displayName(),
-					card == null ? null : card.githubLogin(), card == null ? null : card.yearsOfExperience());
+			PersonFacts person = facts.get(application.mentorId());
+			ApplicantView mentor = person == null ? new ApplicantView("", null, null, null, List.of())
+					: new ApplicantView(person.displayName(), person.githubLogin(), person.yearsOfExperience(),
+							person.memberSince(), person.verified());
+			Metrics found = metrics.get(application.mentorId());
 			return new JobApplicationView(application.id(), application.status(), application.priceVnd(),
 					application.timelineDays(), application.approach(), application.submittedAt(), mentor,
-					invited.contains(application.mentorId()), proofViews(proof.get(application.id())));
+					invited.contains(application.mentorId()), proofViews(proof.get(application.id())),
+					found == null ? null : fitView(found, skillNames));
 		}).toList();
+	}
+
+	/** The current names of the shared Skills of these metrics, by ID (AD-38). */
+	static Map<UUID, String> skillNames(Catalog catalog, Collection<Metrics> metrics) {
+		Map<UUID, String> names = new HashMap<>();
+		catalog.byIds(metrics.stream().flatMap(found -> found.sharedSkillIds().stream()).distinct().toList())
+			.forEach(skill -> names.put(skill.id(), skill.name()));
+		return names;
+	}
+
+	/** One bidder's Fit metrics as the Bid card, CUS-12 and CUS-13 show them. */
+	static FitMetricsView fitView(Metrics metrics, Map<UUID, String> skillNames) {
+		return new FitMetricsView(
+				metrics.sharedSkillIds().stream().map(skillNames::get).filter(name -> name != null).toList(),
+				metrics.skillsSought(),
+				metrics.jobTypeMatches()
+					.stream()
+					.map(match -> new JobTypeFitView(match.jobType(), match.asMentor(), match.asCrew()))
+					.toList(),
+				metrics.jobsAsMentor(), metrics.jobsAsCrew(),
+				metrics.onTime() == null ? null : new OnTimeFitView(metrics.onTime().onTime(), metrics.onTime().total()),
+				metrics.activeJobsAsMentor(), metrics.verifications());
 	}
 
 	/**

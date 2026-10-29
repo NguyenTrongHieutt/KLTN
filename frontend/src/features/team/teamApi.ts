@@ -15,11 +15,6 @@ export type TeamMentor = components['schemas']['TeamMentorView']
 export type TeamMentorRequest = components['schemas']['TeamMentorRequestRow']
 export type TeamMentorSearch = components['schemas']['TeamMentorSearchView']
 export type TeamMentorResult = components['schemas']['TeamMentorResult']
-export type PublicMentor = components['schemas']['PublicMentorView']
-export type PublicStudent = components['schemas']['PublicStudentView']
-export type MentorReputation = components['schemas']['MentorReputationView']
-export type StudentReputation = components['schemas']['StudentReputationView']
-export type PortfolioEntry = components['schemas']['PortfolioEntry']
 
 export const TEAM_QUERY_KEY = ['team'] as const
 
@@ -91,54 +86,6 @@ export function useMentorSearch(search: TeamSearch, enabled: boolean) {
       ),
     enabled,
     placeholderData: keepPreviousData,
-  })
-}
-
-/** PUB-5, for anyone; a signed-in Student also gets their place. */
-export function usePublicMentor(username: string | undefined) {
-  return useQuery({
-    queryKey: [...TEAM_QUERY_KEY, 'public-mentor', username],
-    queryFn: () =>
-      unwrap(apiClient.GET('/api/v1/mentors/{username}', { params: { path: { username: username ?? '' } } })),
-    enabled: username !== undefined,
-    retry: false,
-  })
-}
-
-/** PUB-4: a Student's public profile, for anyone (FR-51). */
-export function usePublicStudent(username: string | undefined) {
-  return useQuery({
-    queryKey: [...TEAM_QUERY_KEY, 'public-student', username],
-    queryFn: () =>
-      unwrap(apiClient.GET('/api/v1/students/{studentLogin}', { params: { path: { studentLogin: username ?? '' } } })),
-    enabled: username !== undefined,
-    retry: false,
-  })
-}
-
-/** PUB-5's visible Ratings, "Mới", and Portfolio Entries (AD-33). */
-export function useMentorReputation(username: string | undefined) {
-  return useQuery({
-    queryKey: ['reputation', 'mentor', username],
-    queryFn: () =>
-      unwrap(apiClient.GET('/api/v1/mentors/{username}/reputation', { params: { path: { username: username ?? '' } } })),
-    enabled: username !== undefined,
-    retry: false,
-  })
-}
-
-/** PUB-4's visible Ratings and Portfolio Entries (AD-33). */
-export function useStudentReputation(username: string | undefined) {
-  return useQuery({
-    queryKey: ['reputation', 'student', username],
-    queryFn: () =>
-      unwrap(
-        apiClient.GET('/api/v1/students/{studentLogin}/reputation', {
-          params: { path: { studentLogin: username ?? '' } },
-        }),
-      ),
-    enabled: username !== undefined,
-    retry: false,
   })
 }
 

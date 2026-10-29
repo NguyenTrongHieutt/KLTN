@@ -6,7 +6,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
 import type { Session } from '@/features/identity/api'
-import { anonymous, fakeBackend, json, signedInUser } from '@/test/fakeBackend'
+import { fakeBackend, json, signedInUser } from '@/test/fakeBackend'
+import { personReputation, publicPerson } from '@/test/people'
 
 /**
  * Until Story 21.7 deletes the Teams, MEN-6 and STU-6 open for a session that still names the account role the
@@ -52,21 +53,6 @@ const hung = {
   available: true,
   teamSize: 6,
 }
-
-const publicHung = (viewer?: object) => ({
-  accountId: 'm1',
-  githubLogin: 'hungdm',
-  displayName: 'Đỗ Mạnh Hùng',
-  experience: 'Kỹ sư phần mềm, từng làm trưởng nhóm.',
-  yearsOfExperience: 8,
-  memberSince: '2026-06-01T03:00:00Z',
-  skillGroups: [{ category: 'Giao diện web', skills: ['React'] }, { category: 'Dữ liệu', skills: ['Supabase'] }],
-  available: true,
-  teamSize: 6,
-  sizeLimit: 10,
-  listedMembers: [{ name: 'Lê Thảo Vy', school: 'ĐH Bách khoa Hà Nội', verified: true }],
-  viewer,
-})
 
 const noTeam = (overrides: object = {}) => ({ verified: true, invitations: [], joinRequests: [], requestsLeft: 5, ...overrides })
 
@@ -226,36 +212,26 @@ describe('STU-6, the Student\'s Team (FR-6, AD-36)', () => {
     await waitFor(() => expect(accepted).toBe(true))
   })
 
-  it('searches Mentors, opens PUB-5 in the Sheet, and asks to join', { timeout: 20_000 }, async () => {
+  it('searches Mentors and opens PUB-4 in the Sheet (Story 21.3)', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
-    let asked: unknown
     fakeBackend(teamSession('STUDENT'), {
       'GET /api/v1/team': () => json(noTeam()),
       'GET /api/v1/catalog': catalog,
       'GET /api/v1/team/mentors': () =>
         json({ items: [{ mentor: hung, relation: 'NONE', teamFull: false }], page: 0, size: 20, total: 1, requestsLeft: 5, inTeam: false }),
-      'GET /api/v1/mentors/hungdm': () =>
-        json(publicHung({ relation: 'NONE', inTeam: false, verified: true, requestsLeft: 4 })),
-      'POST /api/v1/team/join-requests': async (request) => {
-        asked = await request.json()
-        return json({ id: 'j1', kind: 'JOIN_REQUEST', createdAt: '2026-10-19T03:00:00Z', lapsesAt: '2026-11-02T03:00:00Z' }, 201)
-      },
+      'GET /api/v1/users/hungdm': () => json(publicPerson('hungdm')),
+      'GET /api/v1/users/hungdm/reputation': () => json(personReputation()),
     })
     renderAt('/nhom')
 
     await user.type(await screen.findByLabelText('Từ khóa'), 'supabase{Enter}')
     expect(await screen.findByText('Kết quả cho “supabase” (1)')).toBeInTheDocument()
-    expect(screen.getByText('8 năm kinh nghiệm · 6 sinh viên')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Xem hồ sơ của Đỗ Mạnh Hùng' }))
 
-    const sheet = await screen.findByRole('dialog', { name: 'Đỗ Mạnh Hùng' })
+    const sheet = await screen.findByRole('dialog')
     expect(await within(sheet).findByText('Giao diện web')).toBeInTheDocument()
-    expect(within(sheet).getByText('Lê Thảo Vy')).toBeInTheDocument()
-    expect(within(sheet).getByText(/Còn 4 yêu cầu hôm nay/)).toBeInTheDocument()
-    expect(within(sheet).getByRole('link', { name: 'Mở hồ sơ đầy đủ' })).toHaveAttribute('href', '/mentor/hungdm')
-    await user.click(within(sheet).getByRole('button', { name: 'Xin vào nhóm' }))
-
-    await waitFor(() => expect(asked).toEqual({ mentorId: 'm1' }))
+    expect(within(sheet).getByText('Kỹ sư phần mềm.')).toBeInTheDocument()
+    expect(within(sheet).getByRole('link', { name: 'Mở hồ sơ đầy đủ' })).toHaveAttribute('href', '/nguoi-dung/hungdm')
   })
 
   it('asks an unverified Student to verify first', async () => {
@@ -331,56 +307,9 @@ describe('STU-6, the Student\'s Team (FR-6, AD-36)', () => {
     })
     renderAt('/nhom')
 
-    expect(await screen.findByRole('link', { name: 'Đỗ Mạnh Hùng' })).toHaveAttribute('href', '/mentor/hungdm')
+    expect(await screen.findByRole('link', { name: 'Đỗ Mạnh Hùng' })).toHaveAttribute('href', '/nguoi-dung/hungdm')
     expect(screen.getByText('8 năm kinh nghiệm · bạn ở trong nhóm từ 20/06/2026')).toBeInTheDocument()
     expect(screen.getByText('6 sinh viên · 4 người chọn không hiện tên công khai')).toBeInTheDocument()
     expect(screen.getByText('Trần Quang Minh (bạn)')).toBeInTheDocument()
-  })
-})
-
-describe('PUB-5, the Mentor\'s public profile (FR-51)', () => {
-  it('tells a visitor that verified Students may ask after signing in', async () => {
-    fakeBackend(anonymous, { 'GET /api/v1/mentors/hungdm': () => json(publicHung()) })
-    renderAt('/mentor/hungdm')
-
-    expect(await screen.findByRole('heading', { level: 1, name: 'Đỗ Mạnh Hùng' })).toBeInTheDocument()
-    expect(screen.getByText('Sinh viên đã xác minh có thể xin vào nhóm sau khi đăng nhập.')).toBeInTheDocument()
-    expect(screen.getByText('8 năm kinh nghiệm · tham gia vibefix từ 06/2026 · @hungdm')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Xin vào nhóm' })).not.toBeInTheDocument()
-  })
-
-  it('shows a Student already in a Team why they cannot ask', async () => {
-    fakeBackend(teamSession('STUDENT'), {
-      'GET /api/v1/mentors/hungdm': () => json(publicHung({ relation: 'NONE', inTeam: true, verified: true, requestsLeft: 5 })),
-    })
-    renderAt('/mentor/hungdm')
-
-    expect(await screen.findByText('Bạn đang ở trong một nhóm. Hãy rời nhóm trước.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Xin vào nhóm' })).toBeDisabled()
-  })
-
-  it('shows the not-found screen for a username that is no Mentor', async () => {
-    fakeBackend(anonymous, {
-      'GET /api/v1/mentors/khong-phai': () =>
-        new Response(JSON.stringify({ status: 404, code: 'NOT_FOUND' }), {
-          status: 404,
-          headers: { 'Content-Type': 'application/problem+json' },
-        }),
-    })
-    renderAt('/mentor/khong-phai')
-
-    expect(await screen.findByText('Không tìm thấy nội dung này.')).toBeInTheDocument()
-  })
-
-  it('keeps planted payloads as text', async () => {
-    const payload = '<img src=x onerror=alert(1)>'
-    fakeBackend(anonymous, {
-      'GET /api/v1/mentors/hungdm': () =>
-        json({ ...publicHung(), displayName: payload, experience: payload, listedMembers: [{ name: payload, verified: true }] }),
-    })
-    renderAt('/mentor/hungdm')
-
-    expect(await screen.findByRole('heading', { level: 1, name: payload })).toBeInTheDocument()
-    expect(document.querySelector('img[src="x"]')).toBeNull()
   })
 })

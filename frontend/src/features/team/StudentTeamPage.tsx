@@ -8,16 +8,16 @@ import { Skeleton } from '@/components/Skeleton'
 import { SkillPicker } from '@/components/SkillPicker'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
+import { PersonProfileContent } from '@/features/identity/PersonProfile'
+import { personPath } from '@/features/identity/personText'
 import { t } from '@/i18n/t'
 import { formatDate, formatDayMonth } from '@/lib/dates'
 import { problemMessage } from '@/lib/problemMessage'
 import { ConfirmDialog } from './ConfirmDialog'
-import { MentorProfileContent } from './MentorProfileContent'
 import {
   useAnswerInvitation,
   useLeaveTeam,
   useMentorSearch,
-  usePublicMentor,
   useStudentTeam,
   type StudentTeam,
   type TeamMentorRequest,
@@ -62,7 +62,7 @@ function InTeam({ team }: { team: StudentTeam }) {
           <Avatar name={mentor.displayName} />
           <div className="flex min-w-0 flex-col gap-1">
             {mentor.githubLogin ? (
-              <Link to={`/mentor/${mentor.githubLogin}`} className="text-h3 break-words text-primary underline-offset-4 hover:underline">
+              <Link to={personPath(mentor.githubLogin)} className="text-h3 break-words text-primary underline-offset-4 hover:underline">
                 {mentor.displayName}
               </Link>
             ) : (
@@ -431,25 +431,22 @@ function InvitationCard({
   )
 }
 
-/** PUB-5 in a Sheet, with "Mở hồ sơ đầy đủ". */
+/** PUB-4 in a Sheet (Story 21.3), with "Mở hồ sơ đầy đủ". */
 function MentorSheet({ login, onClose }: { login?: string; onClose: () => void }) {
-  const mentor = usePublicMentor(login)
   return (
     <Sheet
       open={login !== undefined}
       onClose={onClose}
-      title={mentor.data?.displayName ?? t('screen.team.student.findMentor')}
+      title={t('screen.team.student.findMentor')}
       footer={
         login && (
-          <Link to={`/mentor/${login}`} className="text-body-sm text-primary underline-offset-4 hover:underline">
+          <Link to={personPath(login)} className="text-body-sm text-primary underline-offset-4 hover:underline">
             {t('screen.team.profile.openFull')}
           </Link>
         )
       }
     >
-      <RegionState query={mentor} skeleton={<Skeleton className="h-64 w-full" />}>
-        {mentor.data && <MentorProfileContent mentor={mentor.data} visitor={false} />}
-      </RegionState>
+      {login && <PersonProfileContent username={login} level={3} />}
     </Sheet>
   )
 }

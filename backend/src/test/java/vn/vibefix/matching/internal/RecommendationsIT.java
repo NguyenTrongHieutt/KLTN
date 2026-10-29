@@ -80,6 +80,11 @@ class RecommendationsIT extends IntegrationTest {
 			.andExpect(jsonPath("$[0].signals.sharedSkills[1]").value("Supabase"))
 			.andExpect(jsonPath("$[0].signals.newcomer").value(true))
 			.andExpect(jsonPath("$[0].relation").value("NONE"))
+			// Story 21.3: the Verified facts in their fixed order, and no Team size.
+			.andExpect(jsonPath("$[0].verified[0].kind").value("GITHUB"))
+			.andExpect(jsonPath("$[0].verified[0].verifiedAt").isNotEmpty())
+			.andExpect(jsonPath("$[0].verified[2].kind").value("LINKEDIN"))
+			.andExpect(jsonPath("$[0].teamSize").doesNotExist())
 			.andExpect(jsonPath("$[2].displayName").value("Một Kỹ Năng"))
 			.andReturn()
 			.getResponse()
@@ -109,8 +114,11 @@ class RecommendationsIT extends IntegrationTest {
 	void workHistoryCountsOneJobPerCustomerAndEndsBeingNew() throws Exception {
 		UUID job = job("OPEN", List.of("SECURITY_TESTING"), List.of(REACT), null);
 		UUID veteran = mentor("Từng Làm", List.of(WEB_SECURITY));
-		job("CLOSED", List.of("SECURITY_TESTING"), List.of(), veteran);
-		job("CLOSED", List.of("SECURITY_TESTING"), List.of(), veteran);
+		// Story 21.3: the history fitMetrics reads (job.historiesOf): Jobs closed with Accepted work, one per Customer.
+		milestone(job("CLOSED", List.of("SECURITY_TESTING"), List.of(), veteran));
+		milestone(job("CLOSED", List.of("SECURITY_TESTING"), List.of(), veteran));
+		// A Closed Job with nothing accepted is no history.
+		job("CLOSED", List.of("SECURITY_TESTING"), List.of(), mentor("Chưa Có Phần Được Nhận", List.of(WEB_SECURITY)));
 		UUID newcomer = mentor("Người Mới", List.of(REACT));
 
 		this.mvc.perform(get("/api/v1/jobs/" + job + "/recommendations").with(as(this.lan, Role.CUSTOMER)))

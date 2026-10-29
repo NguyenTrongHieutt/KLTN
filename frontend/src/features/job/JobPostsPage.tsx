@@ -10,6 +10,7 @@ import { Pager } from '@/components/Pager'
 import { SkillPicker } from '@/components/SkillPicker'
 import { categoryValue, splitSkillPickerValue } from '@/components/skillPickerValue'
 import { Button } from '@/components/ui/button'
+import { personPath } from '@/features/identity/personText'
 import { useSession } from '@/features/identity/useSession'
 import { rich } from '@/i18n/rich'
 import { t, type MessageKey } from '@/i18n/t'
@@ -545,7 +546,7 @@ function PostItem({
             {rich('screen.jobPost.mentor', {
               name: post.mentor.githubLogin ? (
                 <Link
-                  to={`/mentor/${post.mentor.githubLogin}`}
+                  to={personPath(post.mentor.githubLogin)}
                   className="relative z-10 text-primary underline-offset-4 hover:underline"
                 >
                   {post.mentor.displayName}

@@ -46,7 +46,10 @@ class Recommendations {
 	/** The best-placed new Mentor stands no lower than 5th (FR-14). */
 	static final int NEW_MENTOR_PLACE = 4;
 
-	/** A Job Type of the Job Post found in the work history, with how many Customers it counts. */
+	/**
+	 * A Job Type of the Job Post found in the history in either role, with how many counterparts it counts (Customers
+	 * as Mentor, Mentors as Crew member, summed).
+	 */
 	record JobTypeMatch(String jobType, int count) {
 	}
 
@@ -97,8 +100,9 @@ class Recommendations {
 
 	/**
 	 * Mentors for the Job Post (AD-17): available users, never the Job's Customer, under the Mentor Job limit
-	 * (FR-13), who share a Skill or a Job Type of their work history with it, in {@link #order}; the Skill filter
-	 * then narrows them without reordering. Nobody needs a free Student any more (Story 21.1).
+	 * (FR-13), who share a Skill or a Job Type of their history in either role ({@code job.historyOf}) with it, in
+	 * {@link #order}; the Skill filter then narrows them without reordering. Nobody needs a free Student any more
+	 * (Story 21.1). A new Mentor has no Job closed with Accepted work as Mentor.
 	 */
 	@Transactional(readOnly = true)
 	List<Candidate> forJobPost(JobPostState post, @Nullable Set<UUID> skillFilter) {
@@ -118,7 +122,9 @@ class Recommendations {
 		}
 		Map<UUID, Integer> active = this.work.activeJobCounts(pool.keySet());
 		int limit = this.work.activeJobLimit();
-		Map<UUID, Map<String, Integer>> history = this.work.workHistory(pool.keySet());
+		// The history matching.fitMetrics reads (Story 21.3): job.historiesOf in either role, one per counterpart, so a
+		// Recommendation's Job Type count is the one the same person's Bid card shows.
+		Map<UUID, History> histories = this.roles.historiesOf(pool.keySet());
 		List<Candidate> candidates = new ArrayList<>();
 		pool.forEach((mentor, skills) -> {
 			int jobs = active.getOrDefault(mentor, 0);
@@ -126,10 +132,10 @@ class Recommendations {
 				return;
 			}
 			List<UUID> shared = post.skillIds().stream().filter(skills::contains).toList();
-			Map<String, Integer> done = history.getOrDefault(mentor, Map.of());
-			List<JobTypeMatch> matches = matches(post.jobTypes(), done);
+			History history = histories.getOrDefault(mentor, History.EMPTY);
+			List<JobTypeMatch> matches = matches(post.jobTypes(), eitherRole(history));
 			if (!shared.isEmpty() || !matches.isEmpty()) {
-				candidates.add(new Candidate(mentor, skills, shared, matches, jobs, done.isEmpty()));
+				candidates.add(new Candidate(mentor, skills, shared, matches, jobs, history.mentor().jobs() == 0));
 			}
 		});
 		return order(candidates).stream()

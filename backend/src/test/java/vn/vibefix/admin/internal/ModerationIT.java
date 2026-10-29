@@ -31,6 +31,7 @@ import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.JobPosts;
 import vn.vibefix.product.ProductDirectory;
+import vn.vibefix.reputation.RatingRole;
 import vn.vibefix.reputation.Reputation;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.team.internal.TeamTestSupport;
@@ -152,9 +153,9 @@ class ModerationIT extends IntegrationTest {
 			.andExpect(jsonPath("$[?(@.id == '" + page + "')]").isEmpty());
 
 		UUID rating = rating(job);
-		assertThat(this.reputation.visibleSummary(this.hung).count()).isEqualTo(1);
+		assertThat(this.reputation.visibleSummary(this.hung, RatingRole.MENTOR).count()).isEqualTo(1);
 		hide(ha, "RATING", rating, "Lời lẽ xúc phạm").andExpect(status().isOk());
-		assertThat(this.reputation.visibleSummary(this.hung).count()).isZero();
+		assertThat(this.reputation.visibleSummary(this.hung, RatingRole.MENTOR).count()).isZero();
 		assertThat(notices("admin.content_hidden", this.lan)).isEqualTo(1);
 		assertThat(notices("admin.content_hidden", this.hung)).isEqualTo(1);
 	}

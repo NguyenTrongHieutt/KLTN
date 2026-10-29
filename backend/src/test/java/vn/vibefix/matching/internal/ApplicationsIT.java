@@ -149,14 +149,23 @@ class ApplicationsIT extends IntegrationTest {
 				SELECT count(*) FROM notification.notification WHERE type = 'matching.application_received' AND account_id = :lan
 				""").param("lan", this.lan).query(Long.class).single()).as("only the first one notifies").isOne();
 		assertThat(todoText()).isEqualTo("2");
+		// Story 21.3: oldest first, the bidder's Verified facts in their fixed order, no account ID and no Team size.
 		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/applications").with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.length()").value(2))
-			.andExpect(jsonPath("$[1].mentor.displayName").value("Đỗ Mạnh Hùng"))
-			.andExpect(jsonPath("$[1].mentor.teamSize").doesNotExist())
-			.andExpect(jsonPath("$[1].approach").value("Tái hiện lỗi rồi sửa và thêm kiểm thử."))
-			.andExpect(jsonPath("$[1].invited").value(true))
-			.andExpect(jsonPath("$[0].invited").value(false));
+			.andExpect(jsonPath("$[0].mentor.displayName").value("Đỗ Mạnh Hùng"))
+			.andExpect(jsonPath("$[0].mentor.teamSize").doesNotExist())
+			.andExpect(jsonPath("$[0].mentor.accountId").doesNotExist())
+			.andExpect(jsonPath("$[0].mentor.verified[0].kind").value("GITHUB"))
+			.andExpect(jsonPath("$[0].mentor.verified[0].verifiedAt").isNotEmpty())
+			.andExpect(jsonPath("$[0].mentor.verified[1].kind").value("STUDENT"))
+			.andExpect(jsonPath("$[0].mentor.verified[2].kind").value("LINKEDIN"))
+			.andExpect(jsonPath("$[0].mentor.memberSince").isNotEmpty())
+			.andExpect(jsonPath("$[0].fitMetrics.verifications[0]").value("GITHUB"))
+			.andExpect(jsonPath("$[0].approach").value("Tái hiện lỗi rồi sửa và thêm kiểm thử."))
+			.andExpect(jsonPath("$[0].invited").value(true))
+			.andExpect(jsonPath("$[1].mentor.displayName").value("Phạm Thu Hà"))
+			.andExpect(jsonPath("$[1].invited").value(false));
 		assertThat(this.jdbc.sql("SELECT status FROM matching.invitation WHERE job_id = :job AND mentor_account_id = :hung")
 			.param("job", this.job).param("hung", hung).query(String.class).single())
 			.as("the invited Mentor's Application answers the invitation").isEqualTo("APPLIED");

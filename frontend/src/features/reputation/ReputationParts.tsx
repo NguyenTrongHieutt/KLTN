@@ -1,10 +1,12 @@
 import { Star } from 'lucide-react'
 import { t, type MessageKey } from '@/i18n/t'
-import type { PortfolioEntry } from './teamApi'
-import { formatMonth } from './teamText'
+import { formatMonthYear } from '@/lib/dates'
+import type { HeadingLevel } from './headingLevel'
+import { LevelHeading } from './LevelHeading'
+import type { PortfolioEntry } from './historyApi'
 
 /**
- * A profile's visible Rating summary (AD-33): "{avg} sao ({n} lượt từ …)", "Mới" for a Mentor with no
+ * A profile's visible Rating summary in one role (AD-33): "{avg} sao ({n} lượt từ …)", "Mới" for a Mentor with no
  * Job closed with Accepted work, or "Chưa có lượt chấm sao".
  */
 export function RatingLine({
@@ -15,7 +17,7 @@ export function RatingLine({
 }: {
   average?: number
   count: number
-  /** Who gave the Ratings: Customers rate Mentors, Mentors rate Students. */
+  /** Who gave the Ratings: Customers rate a Mentor, Mentors rate a Crew member. */
   from: 'customers' | 'mentors'
   newcomer?: boolean
 }) {
@@ -49,13 +51,22 @@ export function RatingLine({
  * none. Each shows its facts from records, the Rating once visible, the summary the Customer approved,
  * and the Product name only if allowed.
  */
-export function PortfolioSection({ entries, headingId }: { entries: PortfolioEntry[]; headingId: string }) {
+export function PortfolioSection({
+  entries,
+  headingId,
+  level = 2,
+}: {
+  entries: PortfolioEntry[]
+  headingId: string
+  /** The heading's level: 2 on its own, one below its history's inside one. */
+  level?: HeadingLevel
+}) {
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-2">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 id={headingId} className="text-h3">
+        <LevelHeading level={level} id={headingId} className={level === 2 ? 'text-h3' : 'text-label font-semibold'}>
           {t('screen.team.reputation.portfolio')}
-        </h2>
+        </LevelHeading>
         <span className="text-caption text-muted-foreground">{t('screen.team.reputation.portfolioNote')}</span>
       </div>
       {entries.length === 0 ? (
@@ -71,7 +82,7 @@ export function PortfolioSection({ entries, headingId }: { entries: PortfolioEnt
               <p className="text-caption text-muted-foreground">
                 {[
                   entry.jobTypes.map((type) => t(`term.jobType${type}.label` as MessageKey)).join(' · '),
-                  formatMonth(entry.closedAt),
+                  formatMonthYear(entry.closedAt),
                   t('screen.team.reputation.milestones', { n: entry.milestones }),
                 ].join(' · ')}
               </p>

@@ -488,41 +488,11 @@
         "joinedToast": "Bạn đã vào nhóm của {mentor}.",
         "declinedToast": "Đã từ chối lời mời của {mentor}."
       },
-      "publicStudent": {
-        "title": "Hồ sơ của {name}",
-        "verified": "Đã xác minh sinh viên",
-        "unverified": "Chưa xác minh",
-        "github": "@{login} trên GitHub",
-        "ratings": "Chấm sao từ người hướng dẫn",
-        "team": "Nhóm",
-        "teamOf": "Nhóm của {mentor}",
-        "teamSize": "{n} sinh viên",
-        "noTeam": "Chưa ở trong nhóm nào.",
-        "privacy": "Hồ sơ công khai không hiển thị email, số điện thoại hay số dư của sinh viên."
-      },
       "profile": {
-        "meta": "{experience} · tham gia vibefix từ {month}",
-        "teamSize": "Nhóm {n} sinh viên",
-        "skills": "Kỹ năng",
-        "otherSkills": "Kỹ năng khác",
         "team": "Nhóm",
-        "teamLine": "{n} sinh viên · {listed} người chọn hiện tên công khai",
-        "visitorJoin": "Sinh viên đã xác minh có thể xin vào nhóm sau khi đăng nhập.",
-        "unavailable": "Người hướng dẫn này hiện không nhận việc",
-        "join": "Xin vào nhóm",
-        "joinHint": "Người hướng dẫn trả lời trong 14 ngày. Nếu không, yêu cầu tự hết hạn.",
         "requestSent": "Đã gửi yêu cầu",
-        "sentLine": "Gửi {date} · hết hạn {lapse} nếu chưa được trả lời.",
-        "requestToast": "Đã gửi yêu cầu. Người hướng dẫn sẽ trả lời trong 14 ngày.",
-        "inTeam": "Bạn đang ở trong một nhóm. Hãy rời nhóm trước.",
-        "yourTeam": "Bạn đang ở trong nhóm này.",
         "teamFull": "Nhóm đã đủ 10 sinh viên.",
-        "invitedYou": "Người hướng dẫn này đã mời bạn vào nhóm. Hãy trả lời ở trang Nhóm.",
-        "unverified": "Xác minh là sinh viên để xin vào nhóm.",
-        "noRequestsLeft": "Bạn đã gửi đủ 5 yêu cầu hôm nay. Hãy gửi tiếp vào ngày mai.",
-        "requestsLeft": "Còn {n} yêu cầu hôm nay",
-        "openFull": "Mở hồ sơ đầy đủ",
-        "title": "{name} · Người hướng dẫn"
+        "openFull": "Mở hồ sơ đầy đủ"
       },
       "reputation": {
         "average": "{average} sao",
@@ -2053,14 +2023,26 @@
         "end_JOB_LAPSED": "Tin đã hết hạn"
       },
       "compare": {
-        "lead": "So sánh giá, thời gian, cách làm và số thành viên trong nhóm của từng người hướng dẫn.",
-        "heading": "Đang so sánh ({n})",
-        "summary": "Đang so sánh {n} đơn",
-        "all": "Tất cả đơn chào giá ({n})",
+        "lead": "Các đơn xếp theo thứ tự gửi, đơn gửi trước đứng trước. vibefix không chấm điểm hay xếp hạng người chào giá: bạn tự so sánh.",
         "toggle": "So sánh",
+        "bar": "So sánh ({n})",
+        "barHint": "Chọn 2 hoặc 3 đơn để so sánh.",
+        "full": "Đã chọn đủ 3 đơn.",
+        "clear": "Bỏ chọn",
         "profile": "Xem hồ sơ",
-        "portfolio": "{n} mục hồ sơ năng lực",
-        "note": "Khi bạn chọn, các đơn khác chuyển sang chờ. Người hướng dẫn được chọn cần ký cam kết bảo mật trong 3 ngày; nếu không, bạn có thể chọn lại. Bạn trao đổi với người hướng dẫn; họ tự chọn thành viên nhóm thực hiện."
+        "note": "Khi bạn chọn, các đơn khác chuyển sang chờ. Người hướng dẫn được chọn cần ký cam kết bảo mật trong 3 ngày; nếu không, bạn có thể chọn lại. Bạn trao đổi với người hướng dẫn; họ tự tuyển thành viên nhóm thực hiện.",
+        "title": "So sánh đơn chào giá · {job}",
+        "heading": "So sánh {n} đơn chào giá",
+        "back": "Quay lại các đơn chào giá",
+        "order": "Các cột theo thứ tự bạn chọn. Không hàng nào đánh dấu giá trị tốt nhất, và không có tổng điểm.",
+        "remove": "Bỏ khỏi so sánh",
+        "rowFacts": "Đã xác minh",
+        "rowPosted": "Giá và thời gian",
+        "rowApproach": "Cách làm",
+        "rowProof": "Bằng chứng năng lực",
+        "rowMentor": "Khi làm người hướng dẫn",
+        "rowCrew": "Khi làm thành viên nhóm",
+        "rowProfile": "Thông tin hồ sơ"
       },
       "choose": {
         "button": "Chọn",
@@ -2095,7 +2077,7 @@
       "find": {
         "tab": "Tìm người hướng dẫn",
         "title": "Tìm người hướng dẫn · {job}",
-        "quota": "Còn {n} lời mời hôm nay cho công việc này. Lời mời không chọn ai; người hướng dẫn tự quyết định có ứng tuyển hay không.",
+        "quota": "Còn {n} lời mời hôm nay cho công việc này. Lời mời không chọn ai; người được mời tự quyết định có chào giá hay không.",
         "quotaShort": "Còn {n} lời mời hôm nay cho công việc này",
         "limitJobPost": "Hôm nay bạn đã gửi đủ 10 lời mời cho công việc này. Bạn có thể mời tiếp sau 00:00. Bạn vẫn tìm và xem hồ sơ được.",
         "limitDaily": "Hôm nay bạn đã gửi đủ 30 lời mời. Bạn có thể mời tiếp sau 00:00. Bạn vẫn tìm và xem hồ sơ được.",
@@ -2106,22 +2088,22 @@
         "skillsHint": "Bộ lọc áp dụng cho cả đề xuất và kết quả tìm.",
         "results": "Kết quả cho “{q}” ({n})",
         "order": "Xếp theo mức độ khớp với từ khóa. Điểm chấm sao không làm thay đổi thứ tự.",
-        "empty": "Không tìm thấy người hướng dẫn nào cho “{q}”.",
+        "empty": "Không tìm thấy ai khớp với “{q}”.",
         "emptyHint": "Hãy thử từ khóa khác hoặc bỏ bớt kỹ năng.",
         "noRecommendation": "Chưa có đề xuất cho công việc này. Hãy tìm theo kỹ năng, ví dụ: React hoặc Supabase.",
-        "students": "{n} thành viên",
         "rating": "{average} sao ({count} lượt)",
         "newcomer": "Mới",
         "profile": "Xem hồ sơ",
-        "invite": "Mời ứng tuyển",
+        "invite": "Mời chào giá",
         "invited": "Đã mời",
-        "applied": "Đã ứng tuyển",
-        "sent": "Đã gửi lời mời đến {name}. Họ tự quyết định có ứng tuyển hay không.",
-        "inviteAction": "mời ứng tuyển",
-        "sheetRole": "Người hướng dẫn · {experience}",
+        "applied": "Đã chào giá",
+        "sent": "Đã gửi lời mời đến {name}. Họ tự quyết định có chào giá hay không.",
+        "inviteAction": "mời chào giá",
+        "sheetRole": "{experience}",
         "noContact": "vibefix không hiện cách liên lạc. Bạn trao đổi với người hướng dẫn sau khi chọn và họ ký cam kết bảo mật.",
         "recommendations": "Đề xuất cho công việc này",
-        "notLinked": "Người hướng dẫn chưa liên kết GitHub"
+        "tooFast": "Bạn đang tìm hơi nhanh. Hãy đợi {seconds} giây rồi tìm lại.",
+        "notLinked": "Người này chưa liên kết GitHub"
       },
       "signals": {
         "skills": "Hợp với {skills}",
@@ -2132,6 +2114,37 @@
         "heading": "Bằng chứng năng lực",
         "file": "{name} · {size}",
         "none": "Không kèm bằng chứng."
+      },
+      "bid": {
+        "facts": "Đã xác minh",
+        "posted": "Đơn chào giá",
+        "history": "Lịch sử",
+        "metrics": "Mức phù hợp với công việc này",
+        "proofCount": "{n} bằng chứng",
+        "proofFirst": "{n} bằng chứng · {domain}",
+        "sheetTitle": "Hồ sơ người chào giá",
+        "sheetBid": "Đơn chào giá đầy đủ",
+        "sheetPerson": "Hồ sơ công khai",
+        "sheetMetrics": "Mức phù hợp với công việc này",
+        "approach": "Cách làm",
+        "roleLine": "{jobs} công việc hoàn thành · {portfolio}"
+      },
+      "fit": {
+        "empty": "Chưa có dữ liệu",
+        "skills": "{k}/{n} kỹ năng cần có",
+        "skillNames": "({names})",
+        "jobTypeBoth": "Đã làm {n} công việc {type} khi làm người hướng dẫn · {m} khi làm thành viên nhóm",
+        "jobTypeMentor": "Đã làm {n} công việc {type} khi làm người hướng dẫn",
+        "jobTypeCrew": "Đã làm {m} công việc {type} khi làm thành viên nhóm",
+        "jobs": "{n} công việc",
+        "onTime": "{k}/{n} giai đoạn",
+        "verifications": "{k}/3: {names}",
+        "rating": "Chấm sao khi làm người hướng dẫn: {rating}",
+        "ratingValue": "{average} sao ({count} lượt)",
+        "newcomer": "Mới",
+        "noRating": "Chưa có lượt chấm sao",
+        "joined": "Tham gia vibefix từ {month}",
+        "note": "Mỗi chỉ số đứng riêng, không cộng thành điểm và không dùng để xếp hạng."
       }
     },
     "nda": {
@@ -3578,6 +3591,48 @@
       "empty": "Chưa có tài liệu nào được chia sẻ.",
       "noPages": "Không còn trang nào để đọc.",
       "link": "Tài liệu từ công việc trước ({n})"
+    },
+    "person": {
+      "title": "{name} · Hồ sơ công khai",
+      "titleFallback": "Hồ sơ công khai",
+      "locked": "Người dùng này hiện không hoạt động trên vibefix",
+      "own": "Đây là hồ sơ người khác thấy.",
+      "edit": "Sửa hồ sơ",
+      "joined": "Tham gia vibefix từ {month}",
+      "verifiedHeading": "Đã xác minh",
+      "fact": {
+        "GITHUB": "GitHub",
+        "STUDENT": "Sinh viên đã xác minh",
+        "LINKEDIN": "LinkedIn",
+        "viaGITHUB": "Xác minh qua GitHub · {month}",
+        "viaSTUDENT": "Xác minh qua email trường · {month}",
+        "viaLINKEDIN": "Xác minh qua LinkedIn · {month}",
+        "unverified": "Chưa xác minh",
+        "declared": "Khai khi xác minh",
+        "githubLogin": "@{login}"
+      },
+      "chip": {
+        "GITHUB": "GitHub · {month}",
+        "GITHUBUnverified": "GitHub: Chưa xác minh",
+        "LINKEDIN": "LinkedIn · {month}",
+        "LINKEDINUnverified": "LinkedIn: Chưa xác minh"
+      },
+      "typedHeading": "Tự giới thiệu",
+      "selfDeclared": "Tự khai",
+      "experienceYears": "{years} năm kinh nghiệm",
+      "experienceNone": "Kinh nghiệm: Chưa khai",
+      "links": "Liên kết",
+      "repositories": "Dự án giới thiệu trên GitHub",
+      "skills": "Kỹ năng",
+      "otherSkills": "Kỹ năng khác",
+      "noSkills": "Chưa khai kỹ năng.",
+      "asMentor": "Khi làm người hướng dẫn",
+      "asCrew": "Khi làm thành viên nhóm",
+      "never": "Chưa có",
+      "jobsDone": "{n} công việc hoàn thành",
+      "jobsByType": "Theo loại công việc",
+      "portfolioCount": "{n} mục hồ sơ năng lực",
+      "privacy": "Hồ sơ công khai không hiện cách liên lạc, số dư hay email trường, và không nêu tên khách hàng hay thành viên khác của công việc nào."
     }
   },
   "notice": {
@@ -4018,6 +4073,34 @@
     "jobTypeDOCUMENTATION": {
       "label": "Tài liệu",
       "hint": "Viết hướng dẫn dùng hoặc ghi chép về ứng dụng để bạn và người khác hiểu."
+    },
+    "fitSkills": {
+      "label": "Kỹ năng khớp",
+      "hint": "Số kỹ năng công việc này cần mà người này có trên hồ sơ, trên tổng số kỹ năng công việc cần."
+    },
+    "fitJobTypes": {
+      "label": "Cùng loại công việc",
+      "hint": "Số công việc cùng loại người này đã hoàn thành có phần việc được chấp nhận: mỗi khách hàng tính một lần khi làm người hướng dẫn, mỗi người hướng dẫn tính một lần khi làm thành viên nhóm."
+    },
+    "fitDoneMentor": {
+      "label": "Hoàn thành khi làm người hướng dẫn",
+      "hint": "Số công việc đã kết thúc có ít nhất một giai đoạn được chấp nhận, khi người này là người hướng dẫn."
+    },
+    "fitDoneCrew": {
+      "label": "Hoàn thành khi làm thành viên nhóm",
+      "hint": "Số công việc đã kết thúc có ít nhất một giai đoạn được chấp nhận, khi người này là thành viên nhóm thực hiện."
+    },
+    "fitOnTime": {
+      "label": "Đúng hạn",
+      "hint": "Khi làm người hướng dẫn: số giai đoạn được chấp nhận đã bàn giao trước khi hết ngày đến hạn (giờ Việt Nam), trên tổng số giai đoạn có ngày đến hạn đã được chấp nhận."
+    },
+    "fitActive": {
+      "label": "Đang hướng dẫn",
+      "hint": "Số công việc người này đang hướng dẫn, từ lúc được chọn đến lúc công việc kết thúc."
+    },
+    "fitVerified": {
+      "label": "Xác minh đang có",
+      "hint": "Những xác minh người này đang có trong ba loại: GitHub, Sinh viên đã xác minh và LinkedIn."
     }
   },
   "nav": {

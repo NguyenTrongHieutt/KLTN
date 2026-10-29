@@ -49,12 +49,13 @@ public final class MatrixRowRunner {
 	static final String BODIES = "authz/bodies/";
 
 	/**
-	 * PUB-4's reputation endpoints, public to everyone: they stay outside the Customer's Crew-name scan rather than
-	 * refusing one viewer, which a second Google account would get around (review 2026-10-27 A-06). Their own
-	 * suite ({@code PublicReputationIT}) asserts that they name no Job, Customer, or co-member.
+	 * PUB-4's reputation endpoints, public to everyone (Story 21.3): its two histories and the Bid cards' histories in
+	 * short stay outside the Customer's Crew-name scan rather than refusing one viewer, which a second Google account
+	 * would get around (review 2026-10-27 A-06). Their own suite ({@code PublicReputationIT}) asserts that they name
+	 * no Job, Customer, or co-member. PUB-4's identity half is scanned like any other read.
 	 */
-	static final Set<String> PUBLIC_REPUTATION = Set.of("GET /api/v1/mentors/{username}/reputation",
-			"GET /api/v1/students/{studentLogin}/reputation");
+	static final Set<String> PUBLIC_REPUTATION = Set.of("GET /api/v1/users/{username}/reputation",
+			"GET /api/v1/reputation/histories");
 
 	/** The canaries a Customer's Crew-name scan looks for. */
 	static final Set<String> CREW_NAMES = Set.of("CREW_NAME", "CROSS_CREW_NAME");

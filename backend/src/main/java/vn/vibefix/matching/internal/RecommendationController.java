@@ -21,6 +21,9 @@ import vn.vibefix.catalog.Skill;
 import vn.vibefix.identity.GitHubGate;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
+import vn.vibefix.identity.PublicProfiles;
+import vn.vibefix.identity.PublicProfiles.PersonFacts;
+import vn.vibefix.identity.PublicProfiles.VerifiedFact;
 import vn.vibefix.job.JobPhase;
 import vn.vibefix.job.JobPosts;
 import vn.vibefix.job.JobPosts.JobNeed;
@@ -39,7 +42,6 @@ import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.team.Teams;
 
 /**
  * CUS-8's "Đề xuất cho công việc này" and MEN-2's "Đề xuất cho bạn" (FR-14, AD-17, UX-DR47): the
@@ -67,12 +69,13 @@ class RecommendationController {
 	}
 
 	/**
-	 * A Mentor for the Job Post: the search card's fields and the signals.
-	 * @param available always true: the pool holds only Mentors who may be invited (AD-17)
+	 * A user for the Job Post: the search card's fields, without a Team size, and the signals.
+	 * @param verified the three Verified facts, in their fixed order
+	 * @param available always true: the pool holds only users who may be invited (AD-17)
 	 */
 	record RecommendedMentorView(UUID accountId, @Nullable String githubLogin, String displayName,
-			@Nullable Integer yearsOfExperience, List<String> skills, int teamSize, Relation relation, boolean available,
-			SignalsView signals) {
+			@Nullable Integer yearsOfExperience, List<String> skills, List<VerifiedFact> verified, Relation relation,
+			boolean available, SignalsView signals) {
 	}
 
 	/**
@@ -96,7 +99,7 @@ class RecommendationController {
 
 	private final MentorDirectory mentors;
 
-	private final Teams teams;
+	private final PublicProfiles profiles;
 
 	private final ProductDirectory products;
 
@@ -109,14 +112,14 @@ class RecommendationController {
 	private final JobRoles roles;
 
 	RecommendationController(Recommendations recommendations, Invitations invitations, JobPosts posts,
-			MentorDirectory mentors, Teams teams, ProductDirectory products, Catalog catalog, GitHubGate gate,
+			MentorDirectory mentors, PublicProfiles profiles, ProductDirectory products, Catalog catalog, GitHubGate gate,
 			CurrentCaller callers, JobRoles roles) {
 		this.roles = roles;
 		this.recommendations = recommendations;
 		this.invitations = invitations;
 		this.posts = posts;
 		this.mentors = mentors;
-		this.teams = teams;
+		this.profiles = profiles;
 		this.products = products;
 		this.catalog = catalog;
 		this.gate = gate;
@@ -137,13 +140,13 @@ class RecommendationController {
 		Map<UUID, MentorCard> cards = this.mentors.cards(ids)
 			.stream()
 			.collect(Collectors.toMap(MentorCard::accountId, Function.identity()));
-		Map<UUID, List<UUID>> members = this.teams.membersOf(ids);
+		Map<UUID, PersonFacts> facts = this.profiles.factsOf(ids);
 		Map<UUID, Relation> relations = this.invitations.relations(jobId, ids);
 		Map<UUID, String> names = skillNames(found.stream().flatMap(candidate -> candidate.sharedSkillIds().stream()).toList());
 		return found.stream().filter(candidate -> cards.containsKey(candidate.mentorId())).map(candidate -> {
 			MentorCard card = cards.get(candidate.mentorId());
 			return new RecommendedMentorView(card.accountId(), card.githubLogin(), card.displayName(),
-					card.yearsOfExperience(), card.skills(), members.getOrDefault(card.accountId(), List.of()).size(),
+					card.yearsOfExperience(), card.skills(), InvitationController.verified(facts.get(card.accountId())),
 					relations.getOrDefault(card.accountId(), Relation.NONE), card.available(),
 					new SignalsView(named(candidate.sharedSkillIds(), names), JobTypeMatchView.of(candidate.jobTypeMatches()),
 							candidate.newcomer()));

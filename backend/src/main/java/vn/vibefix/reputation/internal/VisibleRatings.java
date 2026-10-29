@@ -16,26 +16,31 @@ import org.springframework.stereotype.Component;
 
 import vn.vibefix.product.ProductDirectory;
 import vn.vibefix.reputation.PortfolioEntry;
+import vn.vibefix.reputation.RatingRole;
 import vn.vibefix.reputation.RatingSummary;
 import vn.vibefix.reputation.Reputation;
 import vn.vibefix.reputation.internal.Portfolios.Entry;
 import vn.vibefix.reputation.internal.Portfolios.Status;
 import vn.vibefix.reputation.internal.Portfolios.Summary;
+import vn.vibefix.reputation.internal.Ratings.Kind;
 
 /**
- * {@link Reputation} (AD-33, FR-49, FR-51): an account's visible summary averages the published Ratings
- * it received, the latest per rater and ratee, to one decimal; a hidden Rating never counts. Its
+ * {@link Reputation} (AD-33, FR-49, FR-51): an account's visible summary in one role averages the published Ratings
+ * of that role's kind it received, the latest per rater and ratee, to one decimal; a hidden Rating never counts. Its
  * portfolio is its published Portfolio Entries (FR-50), each with the summary the Customer approved, the
  * Product name only if allowed, and its Rating once visible; a Mentor with any entry is not new (FR-14).
  */
 @Component
 class VisibleRatings implements Reputation {
 
-	/** The published Ratings, the latest per rater and ratee (an erased rater counts per Rating). */
+	/**
+	 * The published Ratings of one kind ({@code :kind}), the latest per rater and ratee (an erased rater counts per
+	 * Rating): a summary never mixes the roles (AD-33).
+	 */
 	static final String LATEST_PUBLISHED = """
 			SELECT DISTINCT ON (coalesce(r.rater_account_id, r.id), r.ratee_account_id) r.ratee_account_id, r.stars
 			FROM reputation.rating r JOIN reputation.rating_window w ON w.job_id = r.job_id
-			WHERE r.ratee_account_id IN (:ids) AND r.hidden_at IS NULL
+			WHERE r.ratee_account_id IN (:ids) AND r.kind = :kind AND r.hidden_at IS NULL
 			  AND ((r.kind <> 'MENTOR_TO_STUDENT' AND w.pair_published_at IS NOT NULL)
 			    OR (r.kind = 'MENTOR_TO_STUDENT' AND w.crew_published_at IS NOT NULL))
 			ORDER BY coalesce(r.rater_account_id, r.id), r.ratee_account_id, r.created_at DESC, r.id DESC
@@ -57,12 +62,12 @@ class VisibleRatings implements Reputation {
 	}
 
 	@Override
-	public RatingSummary visibleSummary(UUID accountId) {
-		return visibleSummaries(List.of(accountId)).get(accountId);
+	public RatingSummary visibleSummary(UUID accountId, RatingRole role) {
+		return visibleSummaries(List.of(accountId), role).get(accountId);
 	}
 
 	@Override
-	public Map<UUID, RatingSummary> visibleSummaries(Collection<UUID> accountIds) {
+	public Map<UUID, RatingSummary> visibleSummaries(Collection<UUID> accountIds, RatingRole role) {
 		Map<UUID, RatingSummary> summaries = new LinkedHashMap<>();
 		accountIds.forEach(id -> summaries.put(id, RatingSummary.NONE));
 		if (accountIds.isEmpty()) {
@@ -71,6 +76,7 @@ class VisibleRatings implements Reputation {
 		this.jdbc.sql("SELECT ratee_account_id, round(avg(stars), 1) AS average, count(*) AS n FROM (" + LATEST_PUBLISHED
 				+ ") latest GROUP BY ratee_account_id")
 			.param("ids", new LinkedHashSet<>(accountIds))
+			.param("kind", kindOf(role).name())
 			.query((rs, n) -> {
 				summaries.put(rs.getObject("ratee_account_id", UUID.class),
 						new RatingSummary(rs.getObject("average", BigDecimal.class), rs.getInt("n")));
@@ -78,6 +84,15 @@ class VisibleRatings implements Reputation {
 			})
 			.list();
 		return summaries;
+	}
+
+	/** The one kind of Rating each role's summary counts (AD-33). */
+	static Kind kindOf(RatingRole role) {
+		return switch (role) {
+			case MENTOR -> Kind.CUSTOMER_TO_MENTOR;
+			case CREW -> Kind.MENTOR_TO_STUDENT;
+			case CUSTOMER -> Kind.MENTOR_TO_CUSTOMER;
+		};
 	}
 
 	@Override
