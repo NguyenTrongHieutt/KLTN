@@ -12,10 +12,10 @@ import vn.vibefix.shared.Caller;
 
 /**
  * Who may read a Crew Application's proof file (FR-81, AD-20, AD-21, Story 21.4): the applicant who uploaded it, and
- * once an application carries it, the Job's Mentor, by their role in the Job (AD-43), until the applicant withdraws the
- * application. Nobody else, the Customer and Administrators included, reads one (no Administrator grant covers a Crew
- * Application); {@code files} serves it as an attachment with {@code nosniff} and {@code Content-Security-Policy:
- * sandbox}.
+ * while a pending application carries it, the Job's Mentor, by their role in the Job (AD-43); once the application is
+ * declined, lapses or is withdrawn, the Mentor's Applicant card drops it, and so does this policy. Nobody else, the
+ * Customer and Administrators included, reads one (no Administrator grant covers a Crew Application); {@code files}
+ * serves it as an attachment with {@code nosniff} and {@code Content-Security-Policy: sandbox}.
  */
 @Component
 class CrewApplicationProofFiles implements FileReadPolicy {
@@ -47,7 +47,7 @@ class CrewApplicationProofFiles implements FileReadPolicy {
 		if (owner.applicantId().equals(caller.accountId())) {
 			return true;
 		}
-		return owner.applicationId() != null && !owner.withdrawn()
+		return owner.applicationId() != null && owner.pending()
 				&& this.roles.getObject().roleOf(owner.jobId(), caller).isMentor();
 	}
 

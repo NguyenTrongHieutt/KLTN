@@ -447,6 +447,113 @@ describe('MEN-3 and FND-2, applying to a Crew (UX-DR98, UX-DR103, Story 21.4)', 
   })
 })
 
+describe('FND-2 proof files and the read-only application (UX-DR103, Story 21.4)', () => {
+  it('uploads a file, captions it, lists a kept upload, removes one with "Bỏ", and sends the file', { timeout: 25_000 }, async () => {
+    const user = userEvent.setup()
+    let sent: Record<string, unknown> | undefined
+    let removed = false
+    const kept = { fileId: 'f0', fileName: 'cu.pdf', sizeBytes: 1024, addedAt: '2026-10-19T03:00:00Z', fileUrl: '/api/v1/files/f0' }
+    fakeBackend(signedInUser, {
+      ...menThree({
+        'GET /api/v1/mentor/job-posts/j1/crew-application-files': () => json(removed ? [] : [kept]),
+        'POST /api/v1/mentor/job-posts/j1/crew-application-files': () =>
+          json(
+            { fileId: 'f1', fileName: 'bao-cao.pdf', sizeBytes: 2048, addedAt: '2026-10-20T03:00:00Z', fileUrl: '/api/v1/files/f1' },
+            201,
+          ),
+        'DELETE /api/v1/mentor/job-posts/j1/crew-application-files/f0': () => {
+          removed = true
+          return new Response(null, { status: 204 })
+        },
+        'POST /api/v1/mentor/job-posts/j1/crew-applications': async (request) => {
+          sent = (await request.json()) as Record<string, unknown>
+          return json(crewApplication(), 201)
+        },
+      }),
+    })
+    renderAt('/tim-viec/j1/xin-vao-nhom')
+
+    expect(await screen.findByText(/cu\.pdf/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Bỏ cu.pdf' }))
+    await waitFor(() => expect(screen.queryByText(/cu\.pdf/)).toBeNull())
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    await user.upload(input, new File(['%PDF-1.4'], 'bao-cao.pdf', { type: 'application/pdf' }))
+    await user.type(await screen.findByLabelText('Mô tả cho bao-cao.pdf'), 'Báo cáo kiểm thử')
+    await user.type(screen.getByLabelText('Lời nhắn cho người hướng dẫn'), 'Mình muốn tham gia.')
+    await user.click(screen.getByRole('checkbox', { name: /Tôi hiểu mã tôi và nhóm làm/ }))
+    await user.click(screen.getByRole('button', { name: 'Gửi đơn' }))
+
+    await waitFor(() => expect(sent).toBeDefined())
+    expect(removed).toBe(true)
+    expect(sent).toMatchObject({ proof: [{ kind: 'FILE', fileId: 'f1', caption: 'Báo cáo kiểm thử' }] })
+  })
+
+  it('words an upload refusal as the application does', { timeout: 15_000 }, async () => {
+    const user = userEvent.setup()
+    fakeBackend(signedInUser, {
+      ...menThree({
+        'POST /api/v1/mentor/job-posts/j1/crew-application-files': () =>
+          json({ status: 422, code: 'GUARD_FAILED', reason: 'CREW_FULL', n: 1 }, 422),
+      }),
+    })
+    renderAt('/tim-viec/j1/xin-vao-nhom')
+
+    await screen.findByLabelText('Lời nhắn cho người hướng dẫn')
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    await user.upload(input, new File(['%PDF-1.4'], 'bao-cao.pdf', { type: 'application/pdf' }))
+
+    expect(await screen.findByText('Nhóm thực hiện đã đủ 1 người.')).toBeInTheDocument()
+  })
+
+  it('shows a pending application read-only with its state and "Rút"', { timeout: 15_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...menThree({ 'GET /api/v1/mentor/crew-applications': () => json([crewApplication()]) }),
+    })
+    renderAt('/tim-viec/j1/xin-vao-nhom')
+
+    expect(await screen.findByRole('heading', { name: 'Đơn xin vào nhóm của bạn' })).toBeInTheDocument()
+    expect(screen.getByText('Đã gửi · chờ người hướng dẫn xem · hết hạn ngày 03/11')).toBeInTheDocument()
+    expect(screen.getByText('Mình đã làm kiểm thử phân quyền cho đồ án.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Rút' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Gửi đơn' })).toBeNull()
+  })
+
+  it('offers "Rút" on MEN-3 for a pending application whose Job left the listing', { timeout: 15_000 }, async () => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/mentor/job-posts/j1': () => json({ status: 404, code: 'NOT_FOUND' }, 404),
+      'GET /api/v1/mentor/crew-applications': () => json([crewApplication()]),
+    })
+    renderAt('/tim-viec/j1')
+
+    expect(await screen.findByText('Đã gửi · chờ người hướng dẫn xem · hết hạn ngày 03/11')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Rút' })).toBeInTheDocument()
+  })
+})
+
+describe('the Mentor tab "Tuyển thành viên" (UX-DR102, Story 21.4)', () => {
+  it('shows for an Active Job and not for one in Closing', { timeout: 20_000 }, async () => {
+    fakeBackend(signedInUser, jobNine({ 'GET /api/v1/mentor/jobs/j1': () => json(mentorJob({ state: 'ACTIVE' })) }))
+    renderAt('/cong-viec/j1/tuyen-thanh-vien')
+    expect(await screen.findByRole('link', { name: 'Tuyển thành viên' })).toHaveAttribute(
+      'href',
+      '/cong-viec/j1/tuyen-thanh-vien',
+    )
+  })
+
+  it('has no tab once the Job is Closing', { timeout: 20_000 }, async () => {
+    fakeBackend(
+      signedInUser,
+      jobNine({
+        'GET /api/v1/mentor/jobs/j1': () => json(mentorJob({ state: 'CLOSING' })),
+        'GET /api/v1/mentor/jobs/j1/recruitment': () => json(recruitment({ state: 'CLOSING', available: false })),
+      }),
+    )
+    renderAt('/cong-viec/j1/tuyen-thanh-vien')
+    expect(await screen.findByText('Công việc đã qua giai đoạn nhận thành viên nên không tuyển thêm được.')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Tuyển thành viên' })).toBeNull()
+  })
+})
+
 describe('CUS-7 "Việc tôi tham gia" counts the pending Crew Applications (UX-DR86, Story 21.4)', () => {
   it('lists the application with its state and counts it in its segment', { timeout: 15_000 }, async () => {
     fakeBackend(signedInUser, {

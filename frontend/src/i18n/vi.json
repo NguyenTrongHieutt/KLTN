@@ -3721,7 +3721,8 @@
         "EXPIRED": "Đơn đã hết hạn: người hướng dẫn chưa chọn trong thời hạn",
         "RECRUITMENT_CLOSED": "Đơn đã hết hạn: người hướng dẫn đã ngừng nhận đơn xin vào nhóm",
         "JOB_CLOSING": "Đơn đã hết hạn: công việc đã chuyển sang giai đoạn kết thúc",
-        "JOB_CANCELLED": "Đơn đã hết hạn: công việc đã bị hủy"
+        "JOB_CANCELLED": "Đơn đã hết hạn: công việc đã bị hủy",
+        "JOB_HIDDEN": "Đơn đã hết hạn: tin công việc đã bị ẩn"
       },
       "refusal": {
         "ALREADY_APPLIED": "Bạn đã gửi đơn cho công việc này.",
@@ -4588,7 +4589,8 @@
           "EXPIRED": "người hướng dẫn chưa chọn trong thời hạn",
           "RECRUITMENT_CLOSED": "người hướng dẫn đã ngừng nhận đơn xin vào nhóm",
           "JOB_CLOSING": "công việc đã chuyển sang giai đoạn kết thúc",
-          "JOB_CANCELLED": "công việc đã bị hủy"
+          "JOB_CANCELLED": "công việc đã bị hủy",
+          "JOB_HIDDEN": "tin công việc đã bị ẩn"
         }
       },
       "crew_application_auto_withdrawn": {

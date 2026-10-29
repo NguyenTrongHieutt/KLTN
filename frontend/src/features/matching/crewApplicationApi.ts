@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { components } from '@/api/schema'
-import { apiClient, formBody, unwrap } from '@/lib/apiClient'
+import { NOTIFICATION_QUERY_KEY } from '@/features/notification/api'
+import { ApiError, apiClient, formBody, unwrap } from '@/lib/apiClient'
 import type { BidProofUpload } from './applicationApi'
 
 export type Recruitment = components['schemas']['RecruitmentView']
@@ -36,7 +37,11 @@ export function useRecruitment(jobId: string | undefined) {
   })
 }
 
-/** JOB-9 "Nhận đơn xin vào nhóm": on with its slots, Skills and note, an edit, or off, at the Crew version loaded. */
+/**
+ * JOB-9 "Nhận đơn xin vào nhóm": on with its slots, Skills and note, an edit, or off, at the Crew version loaded. A save
+ * may close a to-do ("Mở tuyển thành viên nhóm", or the review of applications that lapsed), so the to-dos are read
+ * again; a `STALE` answer reads the recruitment again, so the form starts over at the new Crew version.
+ */
 export function useSetRecruitment(jobId: string) {
   const queryClient = useQueryClient()
   return useMutation({
@@ -47,7 +52,13 @@ export function useSetRecruitment(jobId: string) {
       return Promise.all([
         queryClient.invalidateQueries({ queryKey: KEY }),
         queryClient.invalidateQueries({ queryKey: ['job-post'] }),
+        queryClient.invalidateQueries({ queryKey: NOTIFICATION_QUERY_KEY }),
       ])
+    },
+    onError: (error) => {
+      if (error instanceof ApiError && error.problem.code === 'STALE') {
+        return queryClient.invalidateQueries({ queryKey: [...RECRUITMENT, jobId] })
+      }
     },
   })
 }

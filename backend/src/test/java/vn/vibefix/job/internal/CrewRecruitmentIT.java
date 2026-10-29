@@ -70,6 +70,9 @@ class CrewRecruitmentIT extends IntegrationTest {
 	@Autowired
 	private PlatformTransactionManager transactions;
 
+	@Autowired
+	private JobPersonalData jobPersonalData;
+
 	private UUID lan;
 
 	private UUID hung;
@@ -190,6 +193,7 @@ class CrewRecruitmentIT extends IntegrationTest {
 		this.jdbc.sql("UPDATE job.job SET state = 'ACTIVE' WHERE id = :id").param("id", this.job).update();
 		set(this.hung, 0, true, 1, List.of(), null).andExpect(status().isOk());
 		UUID application = pendingApplication(minh);
+		openRecruitmentTodo();
 
 		new TransactionTemplate(this.transactions)
 			.executeWithoutResult(status -> this.lifecycle.apply(Transition.J8, this.job, Actor.SYSTEM, Trigger.AUTO));
@@ -198,6 +202,86 @@ class CrewRecruitmentIT extends IntegrationTest {
 			.single()).isFalse();
 		await().atMost(Duration.ofSeconds(10)).until(() -> "LAPSED JOB_CLOSING".equals(applicationState(application)));
 		assertThat(lapseCause(minh)).isEqualTo("JOB_CLOSING");
+		await().atMost(Duration.ofSeconds(10)).until(() -> openTodos("matching.open_crew_recruitment") == 0);
+	}
+
+	@Test
+	void j10ClosesTheOpenRecruitmentToDoOfAJobThatNeverRecruited() throws Exception {
+		openRecruitmentTodo();
+
+		new TransactionTemplate(this.transactions)
+			.executeWithoutResult(status -> this.lifecycle.apply(Transition.J10, this.job, Actor.SYSTEM, Trigger.DECISION));
+
+		await().atMost(Duration.ofSeconds(10)).until(() -> openTodos("matching.open_crew_recruitment") == 0);
+	}
+
+	@Test
+	void theSkillsSoughtAndTheNoteAreChecked() throws Exception {
+		List<String> eleven = this.jdbc.sql("SELECT id::text FROM catalog.skill WHERE active ORDER BY id LIMIT 11")
+			.query(String.class)
+			.list();
+		set(this.hung, 0, true, 1, eleven, null).andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.reason").value("SKILL_LIMIT"));
+		set(this.hung, 0, true, 1, List.of(), "x".repeat(JobRecruitment.MAX_NOTE + 1)).andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("VALIDATION"));
+		set(this.hung, 0, true, 1, List.of(TeamTestSupport.REACT, TeamTestSupport.SUPABASE), null).andExpect(status().isOk());
+		this.jdbc.sql("UPDATE catalog.skill SET active = false WHERE id IN (CAST(:supabase AS UUID), CAST(:security AS UUID))")
+			.param("supabase", TeamTestSupport.SUPABASE)
+			.param("security", TeamTestSupport.WEB_SECURITY)
+			.update();
+
+		// A kept Skill the catalog retired since still saves; a newly added retired one does not.
+		set(this.hung, 1, true, 2, List.of(TeamTestSupport.REACT, TeamTestSupport.SUPABASE), null)
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.skills[1].id").value(TeamTestSupport.SUPABASE))
+			.andExpect(jsonPath("$.skills[1].active").value(false));
+		set(this.hung, 2, true, 2, List.of(TeamTestSupport.REACT, TeamTestSupport.WEB_SECURITY), null)
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.reason").value("SKILL_INACTIVE"));
+	}
+
+	@Test
+	void aSaveThatChangesNothingWritesNothing() throws Exception {
+		set(this.hung, 0, true, 2, List.of(TeamTestSupport.REACT), "Cần một bạn kiểm thử").andExpect(status().isOk())
+			.andExpect(jsonPath("$.crewVersion").value(1));
+
+		set(this.hung, 1, true, 2, List.of(TeamTestSupport.REACT), "Cần một bạn kiểm thử").andExpect(status().isOk())
+			.andExpect(jsonPath("$.crewVersion").value(1));
+
+		assertThat(crewVersion()).isOne();
+		assertThat(audits("job.recruitment_opened") + audits("job.recruitment_edited")).isOne();
+	}
+
+	@Test
+	void theCrewListShowsWhoLeftAndHidesAPickThatNeverJoined() throws Exception {
+		UUID ha = JobContent.member(this.jdbc, "Phạm Thu Hà");
+		JobContent.crewRow(this.jdbc, this.job, ha, "LEFT", JobContent.SIGNED.plus(Duration.ofDays(2)));
+		UUID tai = JobContent.member(this.jdbc, "Lê Văn Tài");
+		UUID declined = JobContent.crewRow(this.jdbc, this.job, tai, "ASSIGNED", null);
+		this.jdbc.sql("UPDATE job.crew_row SET status = 'RELEASED', released_at = now(), released_reason = 'DECLINED' WHERE id = :id")
+			.param("id", declined)
+			.update();
+
+		recruitment(this.hung).andExpect(status().isOk())
+			.andExpect(jsonPath("$.crew.length()").value(1))
+			.andExpect(jsonPath("$.crew[0].status").value("RELEASED"))
+			.andExpect(jsonPath("$.crew[0].joinedAt").value(JobContent.SIGNED.toString()))
+			.andExpect(jsonPath("$.crew[0].leftAt").value(JobContent.SIGNED.plus(Duration.ofDays(2)).toString()));
+	}
+
+	@Test
+	void anErasedMentorsNoteAndSkillsLeaveTheJobAndItsRecruitmentCloses() throws Exception {
+		UUID minh = TeamTestSupport.mentor(this.jdbc, "Trần Quang Minh", List.of(TeamTestSupport.REACT), "React");
+		set(this.hung, 0, true, 1, List.of(TeamTestSupport.REACT), "Cần một bạn kiểm thử phân quyền").andExpect(status().isOk());
+		UUID application = pendingApplication(minh);
+
+		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.jobPersonalData.eraseAccount(this.hung));
+
+		assertThat(this.jdbc.sql("""
+				SELECT recruiting || ' ' || coalesce(recruit_note, '-') || ' ' || cardinality(recruit_skill_ids)
+				FROM job.job WHERE id = :id
+				""").param("id", this.job).query(String.class).single()).isEqualTo("false - 0");
+		await().atMost(Duration.ofSeconds(10)).until(() -> "LAPSED RECRUITMENT_CLOSED".equals(applicationState(application)));
 	}
 
 	@Test
@@ -271,6 +355,13 @@ class CrewRecruitmentIT extends IntegrationTest {
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("{\"on\":%s,\"openSlots\":%s,\"skillIds\":%s,\"note\":%s,\"crewVersion\":%d}".formatted(on, slots,
 					skillIds, note == null ? "null" : "\"" + note + "\"", crewVersion)));
+	}
+
+	private void openRecruitmentTodo() {
+		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.todos.open(new TodoRequest(
+				"matching.open_crew_recruitment", this.hung, Audience.MENTOR, this.job, Map.of("job", "Sửa lỗi đặt bàn"),
+				"/cong-viec/" + this.job + "/tuyen-thanh-vien", null, this.job)));
+		assertThat(openTodos("matching.open_crew_recruitment")).isOne();
 	}
 
 	private long openTodos(String key) {

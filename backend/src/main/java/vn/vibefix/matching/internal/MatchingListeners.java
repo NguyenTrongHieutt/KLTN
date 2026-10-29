@@ -20,7 +20,8 @@ import vn.vibefix.shared.ProcessedEvents;
  * Job's open Applications and J3 puts the others on hold (§4.0), both lapse its open invitations
  * (FR-14), and a locked account's not-yet-selected Applications, those on hold included, are withdrawn (FR-13,
  * AD-19): every lock runs it, and an account with no bid changes nothing (Stories 20.3 and 20.4). For the Crew
- * (Story 21.4): J4 opens the Mentor's {@code matching.open_crew_recruitment} to-do and turning recruitment on closes it;
+ * (Story 21.4): J4 opens the Mentor's {@code matching.open_crew_recruitment} to-do, and turning recruitment on, J8 or
+ * J10 closes it;
  * {@code CrewRecruitmentClosed} lapses the Job's pending Crew Applications; a lock withdraws the account's pending ones,
  * telling each Mentor; and a hidden Job Post tells its applicants.
  */
@@ -45,7 +46,7 @@ class MatchingListeners {
 
 	@ApplicationModuleListener
 	void onJobTransitioned(JobTransitioned event) {
-		boolean handled = List.of("J2", "J3", "J4", "J5").contains(event.transition());
+		boolean handled = List.of("J2", "J3", "J4", "J5", "J8", "J10").contains(event.transition());
 		if (!handled
 				|| !this.processedEvents.markProcessed("matching.MatchingListeners.onJobTransitioned", event.eventId())) {
 			return;
@@ -66,6 +67,11 @@ class MatchingListeners {
 				this.crewApplications.openRecruitmentTodo(event.jobId(), UUID.fromString(mentor),
 						due == null ? null : Instant.parse(due));
 			}
+			return;
+		}
+		if ("J8".equals(event.transition()) || "J10".equals(event.transition())) {
+			// Closing or cancelled: no Crew is recruited any more, so J4's to-do closes (UX-DR112).
+			this.crewApplications.closeRecruitmentTodo(event.jobId());
 			return;
 		}
 		if ("J5".equals(event.transition())) {
@@ -103,7 +109,7 @@ class MatchingListeners {
 		if (!this.processedEvents.markProcessed("matching.MatchingListeners.onCrewRecruitmentClosed", event.eventId())) {
 			return;
 		}
-		this.crewApplications.lapseForJob(event.jobId(), event.closedBy());
+		this.crewApplications.lapseForJob(event.jobId(), event.closedBy(), event.closedAt());
 	}
 
 	/** UX-DR112: recruitment turned on, so J4's "Mở tuyển thành viên nhóm" to-do closes. */

@@ -15,9 +15,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
+import org.springframework.core.NestedExceptionUtils;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -102,6 +104,15 @@ class CrewApplications {
 	/** The Mentor's to-do while applications wait (UX-DR112): tier 2 while no member has signed, else 3. */
 	static final String REVIEW_TODO = "matching.review_crew_applications";
 
+	/** The states a Crew takes members in, from J4 until J8 (AD-41): any other Job is not found by a stranger (SG-31). */
+	private static final Set<String> RECRUITS = Set.of("AGREEMENT", "STARTING", "ACTIVE");
+
+	/** The one-role CHECK of {@code matching.crew_application} (AD-43). */
+	private static final String NOT_A_ROLE_CHECK = "crew_application_not_a_role_check";
+
+	/** What the open-bid trigger of {@code matching.crew_application} raises (AD-43). */
+	private static final String BIDDER_TRIGGER = "an open or selected bidder never applies";
+
 	enum Status {
 		PENDING, DECLINED, WITHDRAWN, LAPSED
 	}
@@ -127,7 +138,10 @@ class CrewApplications {
 		JOB_CLOSING,
 
 		/** J10. */
-		JOB_CANCELLED
+		JOB_CANCELLED,
+
+		/** An Administrator hid the Job Post (FR-60). */
+		JOB_HIDDEN
 
 	}
 
@@ -213,6 +227,7 @@ class CrewApplications {
 	@Transactional(readOnly = true)
 	void precheck(UUID applicantId, UUID jobId) {
 		Recruitment found = this.recruitment.recruitment(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		requireVisible(applicantId, found);
 		requireNoRole(applicantId, found);
 		if (!found.recruiting() || found.hidden()) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.RECRUITMENT_CLOSED);
@@ -224,14 +239,15 @@ class CrewApplications {
 	}
 
 	/**
-	 * Where a proof upload for the applicant's application to the Job may go: a recruiting Job where they hold no role
-	 * and have no pending application.
-	 * @throws ApiException {@code NOT_FOUND}, {@code GUARD_FAILED} with {@code ROLE_TAKEN}, {@code RECRUITMENT_CLOSED}
-	 * or {@code CREW_FULL}, or {@code CONFLICT ALREADY_APPLIED}
+	 * Where a proof upload for the applicant's application to the Job may go: a recruiting Job where they hold no role,
+	 * never left, are on no other running Crew, and have no pending application.
+	 * @throws ApiException {@code NOT_FOUND}, {@code GUARD_FAILED} with {@code ROLE_TAKEN}, {@code RECRUITMENT_CLOSED},
+	 * {@code CREW_FULL}, {@code CREW_REJOIN_REFUSED} or {@code ON_ANOTHER_CREW}, or {@code CONFLICT ALREADY_APPLIED}
 	 */
 	@Transactional(readOnly = true)
 	Recruitment requireApplicable(UUID applicantId, UUID jobId) {
 		Recruitment found = this.recruitment.recruitment(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		requireVisible(applicantId, found);
 		requireNoRole(applicantId, found);
 		if (!found.recruiting() || found.hidden()) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.RECRUITMENT_CLOSED);
@@ -239,6 +255,7 @@ class CrewApplications {
 		if (!found.freeSlot()) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.CREW_FULL, Map.of("n", found.cap()));
 		}
+		refuseMembership(applicantId, jobId);
 		if (pending(jobId, applicantId).isPresent()) {
 			throw new ApiException(ErrorCode.CONFLICT, MatchingReason.ALREADY_APPLIED);
 		}
@@ -304,8 +321,12 @@ class CrewApplications {
 			throw new ApiException(ErrorCode.CONFLICT, MatchingReason.ALREADY_APPLIED);
 		}
 		catch (DataIntegrityViolationException backstop) {
-			// The one-role CHECK or the open-bid trigger (AD-43): the rules above refuse first.
-			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.ROLE_TAKEN);
+			// The one-role CHECK or the open-bid trigger (AD-43): the rules above refuse first. Anything else is no refusal.
+			String cause = String.valueOf(NestedExceptionUtils.getMostSpecificCause(backstop).getMessage());
+			if (cause.contains(NOT_A_ROLE_CHECK) || cause.contains(BIDDER_TRIGGER)) {
+				throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.ROLE_TAKEN);
+			}
+			throw backstop;
 		}
 		this.proofs.attach(id, jobId, locked.productId(), applicantId, proof);
 		this.deadlines.schedule(new DeadlineRequest(CrewApplicationLapse.KEY, id, id.toString(), jobId, lapsesAt));
@@ -330,10 +351,9 @@ class CrewApplications {
 			.query(CrewApplications::application)
 			.optional()
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		if (application.status() != Status.PENDING) {
+		if (application.status() != Status.PENDING || !end(applicationId, Status.WITHDRAWN, EndReason.WITHDRAWN)) {
 			throw new ApiException(ErrorCode.CONFLICT, MatchingReason.NOT_WITHDRAWABLE);
 		}
-		end(applicationId, Status.WITHDRAWN, EndReason.WITHDRAWN);
 		this.auditLog.record(AuditEntry.of(AuditActor.user(applicantId), "matching.crew_application_withdrawn",
 				AuditObject.of("matching.crew_application", applicationId)).forJob(application.jobId()));
 		this.recruitment.recruitment(application.jobId()).ifPresent(this::refreshReviewTodo);
@@ -355,10 +375,9 @@ class CrewApplications {
 			.query(CrewApplications::application)
 			.optional()
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		if (application.status() != Status.PENDING) {
+		if (application.status() != Status.PENDING || !end(applicationId, Status.DECLINED, EndReason.DECLINED)) {
 			throw new ApiException(ErrorCode.CONFLICT, MatchingReason.NOT_DECLINABLE);
 		}
-		end(applicationId, Status.DECLINED, EndReason.DECLINED);
 		this.auditLog.record(AuditEntry.of(AuditActor.user(mentorId), "matching.crew_application_declined",
 				AuditObject.of("matching.crew_application", applicationId)).forJob(jobId));
 		Optional<Recruitment> found = this.recruitment.recruitment(jobId);
@@ -371,27 +390,34 @@ class CrewApplications {
 
 	/**
 	 * The lapse Deadline (R6, AD-7): a pending application lapses once its days run out, and its applicant learns why.
+	 * The row is locked first, so a decline or a withdrawal that committed meanwhile wins and nothing more is sent.
 	 * @return whether it lapsed: {@code false} for one that already ended
 	 */
 	@Transactional
 	boolean lapse(UUID applicationId) {
-		CrewApplication application = byId(applicationId).orElse(null);
+		CrewApplication application = this.jdbc.sql("SELECT " + COLUMNS
+				+ " FROM matching.crew_application WHERE id = :id FOR UPDATE")
+			.param("id", applicationId)
+			.query(CrewApplications::application)
+			.optional()
+			.orElse(null);
 		if (application == null || application.status() != Status.PENDING) {
 			return false;
 		}
-		lapse(List.of(application), EndReason.EXPIRED);
-		return true;
+		return lapse(List.of(application), EndReason.EXPIRED) > 0;
 	}
 
 	/**
-	 * {@code CrewRecruitmentClosed} (AD-7, AD-41, A-04): every pending application of the Job lapses at once, each
-	 * applicant told which closing ended it. Lapsing them again changes nothing.
+	 * {@code CrewRecruitmentClosed} (AD-7, AD-41, A-04): every application of the Job still pending that was sent by
+	 * the time recruitment closed lapses at once, each applicant told which closing ended it; one sent after a quick
+	 * reopening stays. Lapsing them again, or a replayed event, changes nothing.
 	 */
 	@Transactional
-	void lapseForJob(UUID jobId, ClosedBy closedBy) {
+	void lapseForJob(UUID jobId, ClosedBy closedBy, Instant closedAt) {
 		List<CrewApplication> open = this.jdbc.sql("SELECT " + COLUMNS + """
-				 FROM matching.crew_application WHERE job_id = :job AND status = 'PENDING' ORDER BY submitted_at, id FOR UPDATE
-				""").param("job", jobId).query(CrewApplications::application).list();
+				 FROM matching.crew_application WHERE job_id = :job AND status = 'PENDING' AND submitted_at <= :closed
+				ORDER BY submitted_at, id FOR UPDATE
+				""").param("job", jobId).param("closed", Timestamp.from(closedAt)).query(CrewApplications::application).list();
 		lapse(open, switch (closedBy) {
 			case MENTOR -> EndReason.RECRUITMENT_CLOSED;
 			case CLOSING -> EndReason.JOB_CLOSING;
@@ -399,12 +425,17 @@ class CrewApplications {
 		});
 	}
 
-	private void lapse(List<CrewApplication> applications, EndReason reason) {
+	/** Lapses each application still pending, telling its applicant why; returns how many lapsed. */
+	private int lapse(List<CrewApplication> applications, EndReason reason) {
 		if (applications.isEmpty()) {
-			return;
+			return 0;
 		}
+		int lapsed = 0;
 		for (CrewApplication application : applications) {
-			end(application.id(), Status.LAPSED, reason);
+			if (!end(application.id(), Status.LAPSED, reason)) {
+				continue;
+			}
+			lapsed++;
 			String title = this.recruitment.recruitment(application.jobId()).map(Recruitment::title).orElse("");
 			this.notifications.send(new NotificationRequest(LAPSED_NOTICE, application.id(),
 					List.of(new Recipient(application.applicantId(), Audience.SUBJECT)),
@@ -414,6 +445,7 @@ class CrewApplications {
 			.map(CrewApplication::jobId)
 			.distinct()
 			.forEach(jobId -> this.recruitment.recruitment(jobId).ifPresent(this::refreshReviewTodo));
+		return lapsed;
 	}
 
 	/**
@@ -432,7 +464,9 @@ class CrewApplications {
 		}
 		String name = name(accountId);
 		for (CrewApplication application : open) {
-			end(application.id(), Status.WITHDRAWN, EndReason.APPLICANT_UNAVAILABLE);
+			if (!end(application.id(), Status.WITHDRAWN, EndReason.APPLICANT_UNAVAILABLE)) {
+				continue;
+			}
 			this.recruitment.recruitment(application.jobId()).ifPresent(found -> {
 				this.notifications.send(new NotificationRequest(AUTO_WITHDRAWN, application.id(),
 						List.of(new Recipient(application.mentorId(), Audience.MENTOR)),
@@ -443,17 +477,16 @@ class CrewApplications {
 		}
 	}
 
-	/** FR-60: each applicant with a pending application learns the Job Post was hidden ({@code job.job_post_hidden}). */
+	/**
+	 * FR-60: an Administrator hid the Job Post, so its pending applications lapse ({@code JOB_HIDDEN}), each applicant
+	 * told through {@code matching.crew_application_lapsed}; while hidden, the Job takes none.
+	 */
 	@Transactional
 	void postHidden(UUID jobId) {
-		String title = this.recruitment.recruitment(jobId).map(Recruitment::title).orElse("");
-		this.jdbc.sql("SELECT " + COLUMNS + " FROM matching.crew_application WHERE job_id = :job AND status = 'PENDING'")
-			.param("job", jobId)
-			.query(CrewApplications::application)
-			.list()
-			.forEach(application -> this.notifications.send(new NotificationRequest(Applications.POST_HIDDEN, application.id(),
-					List.of(new Recipient(application.applicantId(), Audience.SUBJECT)), Map.of("job", title),
-					APPLICANT_LINK, null, application.id())));
+		List<CrewApplication> open = this.jdbc.sql("SELECT " + COLUMNS + """
+				 FROM matching.crew_application WHERE job_id = :job AND status = 'PENDING' ORDER BY submitted_at, id FOR UPDATE
+				""").param("job", jobId).query(CrewApplications::application).list();
+		lapse(open, EndReason.JOB_HIDDEN);
 	}
 
 	/**
@@ -462,12 +495,14 @@ class CrewApplications {
 	 */
 	@Transactional
 	void openRecruitmentTodo(UUID jobId, UUID mentorId, @Nullable Instant agreementDueAt) {
-		this.recruitment.recruitment(jobId).filter(found -> !found.on() && !found.signedMember()).ifPresent(found ->
+		this.recruitment.recruitment(jobId)
+			.filter(found -> RECRUITS.contains(found.state()) && !found.on() && !found.signedMember())
+			.ifPresent(found ->
 				this.todos.open(new TodoRequest(OPEN_TODO, mentorId, Audience.MENTOR, jobId, Map.of("job", found.title()),
 						recruitmentLink(jobId), agreementDueAt, jobId)));
 	}
 
-	/** Recruitment turned on: the J4 to-do closes. */
+	/** Recruitment turned on, or the Job entered Closing or was cancelled (J8, J10): the J4 to-do closes. */
 	@Transactional
 	void closeRecruitmentTodo(UUID jobId) {
 		this.todos.closeAll(OPEN_TODO, jobId);
@@ -533,15 +568,36 @@ class CrewApplications {
 		}
 	}
 
-	/** Every rule after the role and the recruitment, in FR-81's order. */
-	private void refuse(UUID applicantId, Recruitment found) {
-		UUID jobId = found.jobId();
+	/**
+	 * SG-31: a Job that is not in Agreement, Starting or Active takes no Crew Application, and a caller who holds no role
+	 * in it does not learn that it exists.
+	 * @throws ApiException {@code NOT_FOUND}
+	 */
+	private void requireVisible(UUID applicantId, Recruitment found) {
+		if (RECRUITS.contains(found.state())) {
+			return;
+		}
+		boolean role = applicantId.equals(found.customerId()) || applicantId.equals(found.mentorId())
+				|| this.crews.crewRelationship(found.jobId(), applicantId).kind() != Relationship.NONE;
+		if (!role) {
+			throw new ApiException(ErrorCode.NOT_FOUND);
+		}
+	}
+
+	/** A member who left the Job never rejoins it (R3), and one on another running Crew is busy (X8). */
+	private void refuseMembership(UUID applicantId, UUID jobId) {
 		if (this.crews.crewRelationship(jobId, applicantId).kind() == Relationship.FORMER) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.CREW_REJOIN_REFUSED);
 		}
 		if (this.crews.runningCrewOf(applicantId).filter(other -> !other.equals(jobId)).isPresent()) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.ON_ANOTHER_CREW);
 		}
+	}
+
+	/** Every rule after the role and the recruitment, in FR-81's order. */
+	private void refuse(UUID applicantId, Recruitment found) {
+		UUID jobId = found.jobId();
+		refuseMembership(applicantId, jobId);
 		if (pending(jobId, applicantId).isPresent()) {
 			throw new ApiException(ErrorCode.CONFLICT, MatchingReason.ALREADY_APPLIED);
 		}
@@ -581,19 +637,23 @@ class CrewApplications {
 		}
 	}
 
-	/** Ends the application: it and its proof are due for deletion {@link BidProofs#RETENTION} later (X3). */
-	private void end(UUID applicationId, Status status, EndReason reason) {
+	/**
+	 * Ends the application if it is still pending: it and its proof are due for deletion {@link BidProofs#RETENTION}
+	 * later (X3).
+	 * @return whether it ended now: {@code false} for one that had already ended
+	 */
+	private boolean end(UUID applicationId, Status status, EndReason reason) {
 		Instant now = this.clock.instant();
-		this.jdbc.sql("""
+		return this.jdbc.sql("""
 				UPDATE matching.crew_application SET status = :status, ended_at = :now, end_reason = :reason, purge_due_at = :due
-				WHERE id = :id
+				WHERE id = :id AND status = 'PENDING'
 				""")
 			.param("id", applicationId)
 			.param("status", status.name())
 			.param("reason", reason.name())
 			.param("now", Timestamp.from(now))
 			.param("due", Timestamp.from(now.plus(BidProofs.RETENTION)))
-			.update();
+			.update() > 0;
 	}
 
 	/** The applicant's name as the Mentor's notices show it: the one name rule (Story 19.3). */

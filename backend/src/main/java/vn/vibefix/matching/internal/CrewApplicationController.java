@@ -199,8 +199,10 @@ class CrewApplicationController {
 		List<CrewApplication> open = all.stream().filter(application -> application.status() == Status.PENDING).toList();
 		List<UUID> people = all.stream().map(CrewApplication::applicantId).distinct().toList();
 		Map<UUID, PersonFacts> facts = this.profiles.factsOf(people);
+		// The Skills sought, or the Job Post's while the Mentor seeks none, so a shared-Skills metric never reads "0 of 0".
 		Map<UUID, Metrics> metrics = this.fitMetrics.fitMetrics(jobId,
-				open.stream().map(CrewApplication::applicantId).toList(), facts, found.skillIds());
+				open.stream().map(CrewApplication::applicantId).toList(), facts,
+				found.skillIds().isEmpty() ? null : found.skillIds());
 		Map<UUID, String> skillNames = ApplicationController.skillNames(this.catalog, metrics.values());
 		Map<UUID, List<Proof>> proof = this.proofs.of(open.stream().map(CrewApplication::id).toList());
 		return all.stream().map(application -> {

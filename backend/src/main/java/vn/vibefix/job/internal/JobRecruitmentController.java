@@ -45,11 +45,10 @@ class JobRecruitmentController {
 	/**
 	 * "Nhận đơn xin vào nhóm": on with "Cần thêm {n} người", the Skills sought and a note, or off.
 	 * @param openSlots 1 up to {@code maxSlots}, while on
-	 * @param skillIds the Skills sought, in order; at most 10
+	 * @param skillIds the Skills sought, in order; more than 10 answer {@code VALIDATION SKILL_LIMIT} with {@code limit}
 	 * @param crewVersion the Crew version the screen loaded; an older one answers {@code STALE}
 	 */
-	record RecruitmentRequest(@NotNull Boolean on, @Nullable Integer openSlots,
-			@Nullable @Size(max = JobRecruitment.MAX_SKILLS) List<@NotNull UUID> skillIds,
+	record RecruitmentRequest(@NotNull Boolean on, @Nullable Integer openSlots, @Nullable List<@NotNull UUID> skillIds,
 			@Nullable @Size(max = JobRecruitment.MAX_NOTE) String note, @NotNull Long crewVersion) {
 	}
 
@@ -140,7 +139,7 @@ class JobRecruitmentController {
 		}).toList();
 		JobState state = JobState.valueOf(recruitment.state());
 		boolean available = state == JobState.AGREEMENT || state == JobState.STARTING || state == JobState.ACTIVE;
-		return new RecruitmentView(this.crews.crewVersion(jobId), state, available, recruitment.on(), recruitment.openSlots(),
+		return new RecruitmentView(recruitment.crewVersion(), state, available, recruitment.on(), recruitment.openSlots(),
 				Math.max(0, recruitment.cap() - recruitment.unreleased()), recruitment.cap(), recruitment.signedMember(), skills,
 				recruitment.note(), crew);
 	}

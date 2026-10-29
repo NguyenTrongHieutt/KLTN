@@ -47,9 +47,9 @@ class CrewApplicationProofs {
 
 	/**
 	 * Whose a stored proof file is: the applicant's, and once attached, that application's.
-	 * @param withdrawn the application carrying it was withdrawn: the Mentor no longer sees it
+	 * @param pending the application carrying it is pending: once it ends, the Mentor no longer sees it
 	 */
-	record Owner(UUID fileId, UUID jobId, UUID applicantId, @Nullable UUID applicationId, boolean withdrawn) {
+	record Owner(UUID fileId, UUID jobId, UUID applicantId, @Nullable UUID applicationId, boolean pending) {
 	}
 
 	private final JdbcClient jdbc;
@@ -199,12 +199,13 @@ class CrewApplicationProofs {
 	@Transactional(readOnly = true)
 	Optional<Owner> owner(UUID fileId) {
 		return this.jdbc.sql("""
-				SELECT p.file_id, p.job_id, p.applicant_account_id, p.crew_application_id, a.status = 'WITHDRAWN' AS withdrawn
+				SELECT p.file_id, p.job_id, p.applicant_account_id, p.crew_application_id,
+				    coalesce(a.status = 'PENDING', false) AS pending
 				FROM matching.crew_application_proof p LEFT JOIN matching.crew_application a ON a.id = p.crew_application_id
 				WHERE p.file_id = :file
 				""").param("file", fileId).query((rs, n) -> new Owner(rs.getObject("file_id", UUID.class),
 				rs.getObject("job_id", UUID.class), rs.getObject("applicant_account_id", UUID.class),
-				rs.getObject("crew_application_id", UUID.class), rs.getBoolean("withdrawn"))).optional();
+				rs.getObject("crew_application_id", UUID.class), rs.getBoolean("pending"))).optional();
 	}
 
 	/**

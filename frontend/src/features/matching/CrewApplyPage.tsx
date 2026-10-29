@@ -16,14 +16,13 @@ import { useProfile, type Profile } from '@/features/identity/profileApi'
 import { useSession } from '@/features/identity/useSession'
 import { ReadSessionAgain } from '@/features/job/FindWorkGate'
 import { useJobPost, type JobPost } from '@/features/job/jobPostApi'
-import { roleLabel, useJobRole, useMyJobs, type JobRoleView, type MyJob } from '@/features/job/jobRoleApi'
+import { roleLabel, useJobRole, useMyJobs, type JobRoleView } from '@/features/job/jobRoleApi'
 import { t } from '@/i18n/t'
 import { formatDayMonth } from '@/lib/dates'
 import { formatSize } from '@/lib/fileSize'
 import { isNotFound, problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { MAX_CAPTION, MAX_PROOF, isProofLink, type BidProofRequest, type BidProofUpload } from './applicationApi'
-import { proofUploadRefusal } from './bidText'
 import {
   MAX_APPLICATION_NOTE,
   MAX_CREW_SKILLS,
@@ -34,7 +33,8 @@ import {
   useRemoveCrewProofFile,
   type CrewApplication,
 } from './crewApplicationApi'
-import { crewApplicationStateText, crewRefusal, runningCrewJob } from './crewText'
+import { CrewApplicationState } from './CrewApplicationState'
+import { crewRefusal, crewUploadRefusal, runningCrewJob } from './crewText'
 import { SkillChips } from './SkillChips'
 import { ProofList } from './ProofList'
 
@@ -103,7 +103,7 @@ function CrewApplyRoute({ postId }: { postId: string }) {
   if (busy) {
     return <Gate text={t('reason.matching.ON_ANOTHER_CREW', { job: busy.title })} />
   }
-  return <CrewApplyForm post={post.data} busyJob={busy} />
+  return <CrewApplyForm post={post.data} />
 }
 
 /** A plain reason with "Tìm việc khác" (UX-DR95). */
@@ -140,7 +140,7 @@ function RoleGate({ jobId, role }: { jobId: string; role: JobRoleView }) {
   )
 }
 
-/** FND-2 with the pending application, read-only ("Xem" on MEN-3). */
+/** FND-2 with the pending application, read-only ("Xem" on MEN-3), with its state and "Rút". */
 function SentApplication({ application }: { application: CrewApplication }) {
   return (
     <section aria-label={t('screen.crewApply.readTitle')} className="flex flex-col gap-4">
@@ -148,9 +148,7 @@ function SentApplication({ application }: { application: CrewApplication }) {
         <PageHeading>{t('screen.crewApply.readTitle')}</PageHeading>
         <p className="text-body-sm break-words text-muted-foreground">{application.jobTitle}</p>
       </div>
-      <p role="status" className="text-label font-semibold">
-        {crewApplicationStateText(application)}
-      </p>
+      <CrewApplicationState application={application} view={false} />
       <p className="text-body-sm text-muted-foreground">{t('screen.crewApply.readLead')}</p>
       <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5 text-body-sm">
         <div className="flex flex-col gap-1">
@@ -175,12 +173,12 @@ function SentApplication({ application }: { application: CrewApplication }) {
   )
 }
 
-function CrewApplyForm({ post, busyJob }: { post: JobPost; busyJob: MyJob | undefined }) {
+function CrewApplyForm({ post }: { post: JobPost }) {
   const profile = useProfile()
   if (profile.isPending) {
     return <Skeleton className="h-96 w-full" />
   }
-  return <CrewApplyFields post={post} profile={profile.data} busyJob={busyJob} />
+  return <CrewApplyFields post={post} profile={profile.data} />
 }
 
 /** One link proof item the applicant added on this page; files come from the waiting uploads. */
@@ -194,19 +192,12 @@ type ProofItem =
   | { key: string; kind: 'FILE'; upload: BidProofUpload }
   | { key: string; kind: 'LINK'; url: string }
 
-function CrewApplyFields({
-  post,
-  profile,
-  busyJob,
-}: {
-  post: JobPost
-  profile: Profile | undefined
-  busyJob: MyJob | undefined
-}) {
+function CrewApplyFields({ post, profile }: { post: JobPost; profile: Profile | undefined }) {
   const ids = useId()
   const navigate = useNavigate()
   const toasts = useToasts()
   const role = useJobRole(post.id)
+  const jobs = useMyJobs()
   const apply = useApplyToCrew(post.id)
   const uploads = useCrewProofUploads(post.id)
   const add = useAddCrewProofFile(post.id)
@@ -249,7 +240,9 @@ function CrewApplyFields({
     setProofError(undefined)
     return true
   }
-  const refusalText = (error: unknown) => crewRefusal(error, { role: role.data?.role, busyJob: busyJob?.title })
+  // A refusal the server makes says the user's role, and for ON_ANOTHER_CREW the running Job, as "Công việc" knows it.
+  const context = () => ({ role: role.data?.role, busyJob: runningCrewJob(jobs.data, post.id)?.title })
+  const refusalText = (error: unknown) => crewRefusal(error, context())
 
   const addFile = (file: File) => {
     if (!roomLeft()) {
@@ -261,7 +254,7 @@ function CrewApplyFields({
     }
     add.mutate(file, {
       onSuccess: (upload) => setOrder((current) => [...current, `file:${upload.fileId}`]),
-      onError: (error) => setProofError(proofUploadRefusal(error)),
+      onError: (error) => setProofError(crewUploadRefusal(error, context())),
     })
   }
 
@@ -297,7 +290,7 @@ function CrewApplyFields({
     }
     remove.mutate(item.upload.fileId, {
       onSuccess: () => setOrder((current) => current.filter((key) => key !== item.key)),
-      onError: (error) => setProofError(proofUploadRefusal(error)),
+      onError: (error) => setProofError(crewUploadRefusal(error, context())),
     })
   }
 

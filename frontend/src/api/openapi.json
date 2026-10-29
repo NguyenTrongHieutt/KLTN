@@ -9856,7 +9856,7 @@
           },
           "endReason" : {
             "type" : "string",
-            "enum" : [ "DECLINED", "WITHDRAWN", "APPLICANT_UNAVAILABLE", "EXPIRED", "RECRUITMENT_CLOSED", "JOB_CLOSING", "JOB_CANCELLED" ]
+            "enum" : [ "DECLINED", "WITHDRAWN", "APPLICANT_UNAVAILABLE", "EXPIRED", "RECRUITMENT_CLOSED", "JOB_CLOSING", "JOB_CANCELLED", "JOB_HIDDEN" ]
           },
           "endedAt" : {
             "type" : "string",
@@ -11450,7 +11450,7 @@
         "properties" : {
           "endReason" : {
             "type" : "string",
-            "enum" : [ "DECLINED", "WITHDRAWN", "APPLICANT_UNAVAILABLE", "EXPIRED", "RECRUITMENT_CLOSED", "JOB_CLOSING", "JOB_CANCELLED" ]
+            "enum" : [ "DECLINED", "WITHDRAWN", "APPLICANT_UNAVAILABLE", "EXPIRED", "RECRUITMENT_CLOSED", "JOB_CLOSING", "JOB_CANCELLED", "JOB_HIDDEN" ]
           },
           "endedAt" : {
             "type" : "string",
@@ -17786,9 +17786,7 @@
             "items" : {
               "type" : "string",
               "format" : "uuid"
-            },
-            "maxItems" : 10,
-            "minItems" : 0
+            }
           }
         },
         "required" : [ "crewVersion", "on" ]

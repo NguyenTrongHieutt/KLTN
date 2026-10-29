@@ -1,5 +1,6 @@
 package vn.vibefix.matching.internal;
 
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -136,13 +137,18 @@ class MatchingPersonalData implements PersonalDataParticipant, GitHubLinkPartici
 			return item;
 		}).list();
 		// The applicant's Crew Applications (Story 21.4), and their proof with the uploads no application took yet.
+		Map<UUID, String> titles = new HashMap<>();
 		List<Map<String, Object>> crewApplications = this.jdbc.sql("""
-				SELECT job_id, status, note, array_to_string(skill_names, ', ') AS skills, submitted_at, lapses_at, ended_at,
-				    end_reason
+				SELECT id, job_id, status, note, array_to_string(skill_names, ', ') AS skills, submitted_at, lapses_at,
+				    ended_at, end_reason
 				FROM matching.crew_application WHERE applicant_account_id = :id ORDER BY submitted_at, id
 				""").param("id", accountId).query((rs, n) -> {
 			Map<String, Object> application = new LinkedHashMap<>();
-			application.put("jobId", rs.getObject("job_id", UUID.class).toString());
+			UUID jobId = rs.getObject("job_id", UUID.class);
+			application.put("id", rs.getObject("id", UUID.class).toString());
+			application.put("jobId", jobId.toString());
+			application.put("jobTitle", titles.computeIfAbsent(jobId,
+					job -> this.posts.getObject().post(job).map(JobPostState::title).orElse("")));
 			application.put("status", rs.getString("status"));
 			application.put("note", rs.getString("note"));
 			application.put("skills", rs.getString("skills"));
@@ -159,7 +165,9 @@ class MatchingPersonalData implements PersonalDataParticipant, GitHubLinkPartici
 				""").param("id", accountId).query((rs, n) -> {
 			Map<String, Object> item = new LinkedHashMap<>();
 			item.put("jobId", rs.getObject("job_id", UUID.class).toString());
-			item.put("attached", rs.getObject("crew_application_id") != null);
+			UUID application = rs.getObject("crew_application_id", UUID.class);
+			item.put("crewApplicationId", application == null ? null : application.toString());
+			item.put("attached", application != null);
 			item.put("position", rs.getObject("position", Integer.class));
 			item.put("kind", rs.getString("kind"));
 			item.put("caption", rs.getString("caption"));
@@ -187,10 +195,8 @@ class MatchingPersonalData implements PersonalDataParticipant, GitHubLinkPartici
 		this.crewProofs.getObject()
 			.deleteWhere("applicant_account_id = :id OR crew_application_id IN (SELECT id FROM matching.crew_application"
 					+ " WHERE customer_account_id = :id OR mentor_account_id = :id)", Map.of("id", accountId));
-		this.jdbc.sql("DELETE FROM matching.crew_application"
-				+ " WHERE applicant_account_id = :id OR customer_account_id = :id OR mentor_account_id = :id")
-			.param("id", accountId)
-			.update();
+		deleteCrewApplications("applicant_account_id = :id OR customer_account_id = :id OR mentor_account_id = :id",
+				accountId);
 		this.jdbc.sql("DELETE FROM matching.nda_signature WHERE account_id = :id").param("id", accountId).update();
 		this.jdbc.sql("DELETE FROM matching.invitation WHERE mentor_account_id = :id OR customer_account_id = :id")
 			.param("id", accountId)
@@ -214,7 +220,7 @@ class MatchingPersonalData implements PersonalDataParticipant, GitHubLinkPartici
 		this.jdbc.sql("DELETE FROM matching.application WHERE product_id = :id").param("id", productId).update();
 		this.jdbc.sql("DELETE FROM matching.invitation WHERE product_id = :id").param("id", productId).update();
 		this.crewProofs.getObject().deleteWhere("product_id = :id", Map.of("id", productId));
-		this.jdbc.sql("DELETE FROM matching.crew_application WHERE product_id = :id").param("id", productId).update();
+		deleteCrewApplications("product_id = :id", productId);
 	}
 
 	/**
@@ -225,9 +231,18 @@ class MatchingPersonalData implements PersonalDataParticipant, GitHubLinkPartici
 	public void retireJobData(UUID productId) {
 		this.proofs.getObject().deleteWhere("product_id = :id", Map.of("id", productId));
 		this.crewProofs.getObject().deleteWhere("product_id = :id", Map.of("id", productId));
-		List<Map.Entry<UUID, UUID>> gone = this.jdbc.sql("DELETE FROM matching.crew_application WHERE product_id = :id"
+		deleteCrewApplications("product_id = :id", productId);
+	}
+
+	/**
+	 * Deletes the Crew Applications {@code where} selects (their proof already gone), each deletion audited as the purge
+	 * audits it ({@value CrewApplicationPurge#PURGED}), which stands in for the erasure journal (X3, AD-24).
+	 * @param where a condition on {@code matching.crew_application}'s columns, with the one parameter {@code :id}
+	 */
+	private void deleteCrewApplications(String where, UUID id) {
+		List<Map.Entry<UUID, UUID>> gone = this.jdbc.sql("DELETE FROM matching.crew_application WHERE " + where
 				+ " RETURNING id, job_id")
-			.param("id", productId)
+			.param("id", id)
 			.query((rs, n) -> Map.entry(rs.getObject("id", UUID.class), rs.getObject("job_id", UUID.class)))
 			.list();
 		gone.forEach(application -> this.auditLog.getObject()

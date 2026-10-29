@@ -1,5 +1,7 @@
 package vn.vibefix.job.internal;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -8,13 +10,17 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
 import vn.vibefix.files.StoredFiles;
 import vn.vibefix.identity.GitHubLinkBlocker;
 import vn.vibefix.identity.GitHubLinkParticipant;
+import vn.vibefix.job.CrewRecruitment.ClosedBy;
+import vn.vibefix.job.CrewRecruitmentClosed;
 import vn.vibefix.shared.ErasureBlocker;
+import vn.vibefix.shared.IdGenerator;
 import vn.vibefix.shared.PersonalDataParticipant;
 import vn.vibefix.shared.PersonalDataSection;
 
@@ -39,9 +45,18 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 
 	private final StoredFiles files;
 
-	JobPersonalData(JdbcClient jdbc, StoredFiles files) {
+	private final ApplicationEventPublisher events;
+
+	private final IdGenerator ids;
+
+	private final Clock clock;
+
+	JobPersonalData(JdbcClient jdbc, StoredFiles files, ApplicationEventPublisher events, IdGenerator ids, Clock clock) {
 		this.jdbc = jdbc;
 		this.files = files;
+		this.events = events;
+		this.ids = ids;
+		this.clock = clock;
 	}
 
 	@Override
@@ -135,7 +150,27 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 				.param("id", accountId)
 				.update();
 		}
+		clearRecruitments(accountId);
 		deleteJobs("customer_account_id", accountId);
+	}
+
+	/**
+	 * An erased Mentor's Crew recruitment (Story 21.4): the note and the Skills sought, their words, leave the Customer's
+	 * Jobs, and a recruitment still on turns off with {@code CrewRecruitmentClosed}, so its applications lapse.
+	 */
+	private void clearRecruitments(UUID mentorId) {
+		List<UUID> recruiting = this.jdbc.sql("SELECT id FROM job.job WHERE mentor_account_id = :id AND recruiting")
+			.param("id", mentorId)
+			.query(UUID.class)
+			.list();
+		this.jdbc.sql("""
+				UPDATE job.job SET recruiting = false, recruit_note = NULL, recruit_skill_ids = '{}', recruit_skill_names = '{}',
+				    crew_version = crew_version + 1
+				WHERE mentor_account_id = :id AND (recruiting OR recruit_note IS NOT NULL OR cardinality(recruit_skill_ids) > 0)
+				""").param("id", mentorId).update();
+		Instant now = this.clock.instant();
+		recruiting.forEach(job -> this.events.publishEvent(new CrewRecruitmentClosed(this.ids.newId(), job, ClosedBy.MENTOR,
+				now)));
 	}
 
 	@Override

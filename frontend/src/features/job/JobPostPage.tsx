@@ -1,13 +1,10 @@
-import { Dialog } from '@base-ui/react/dialog'
-import { FileText, Info, X } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { FileText, Info } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { Link, useParams } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
 import { usePageTitle } from '@/app/usePageTitle'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
-import { useToasts } from '@/components/toasts'
-import { Button } from '@/components/ui/button'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { ReportAbuseMenu } from '@/features/abuse/ReportAbuseMenu'
 import { personPath } from '@/features/identity/personText'
@@ -16,14 +13,11 @@ import { rich } from '@/i18n/rich'
 import { t, type MessageKey } from '@/i18n/t'
 import { formatCalendarDayMonth, formatDayMonth, formatMonthYear } from '@/lib/dates'
 import { formatSize } from '@/lib/fileSize'
-import { isNotFound, problemMessage } from '@/lib/problemMessage'
+import { isNotFound } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { BidPanel } from '@/features/matching/BidPanel'
-import {
-  useMyCrewApplications,
-  useWithdrawCrewApplication,
-  type CrewApplication,
-} from '@/features/matching/crewApplicationApi'
+import { CrewApplicationState } from '@/features/matching/CrewApplicationState'
+import { useMyCrewApplications, type CrewApplication } from '@/features/matching/crewApplicationApi'
 import { crewApplicationStateText, runningCrewJob } from '@/features/matching/crewText'
 import { useMentorInvitation, type MentorInvitation } from '@/features/matching/invitationApi'
 import { FindWorkGate } from './FindWorkGate'
@@ -139,15 +133,15 @@ function NoLongerOpen() {
 }
 
 /**
- * A Job no longer listed whose Crew the user applied to: their application's state, lapsed or not picked, with
- * "Tìm việc khác" (UX-DR103).
+ * A Job no longer listed whose Crew the user applied to: their application's state, lapsed or not picked, or still
+ * pending with "Rút", and "Tìm việc khác" (UX-DR103).
  */
 function ApplicationOnly({ application }: { application: CrewApplication }) {
   return (
     <GatePage title={application.jobTitle}>
-      <div role="status" className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card px-6 py-14 text-center">
+      <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card px-6 py-14 text-center">
         <PageHeading className="text-h3">{t('screen.crewApply.readTitle')}</PageHeading>
-        <p className="text-body-sm text-muted-foreground">{crewApplicationStateText(application)}</p>
+        <CrewApplicationState application={application} />
         <Link to="/tim-viec" className={buttonVariants()}>
           {t('screen.jobPost.detail.findOther')}
         </Link>
@@ -431,62 +425,6 @@ function CrewApplicationArea({ jobId }: { jobId: string }) {
       <Link to={`/tim-viec/${jobId}/xin-vao-nhom`} className={cn(buttonVariants(), 'w-fit')}>
         {t(latest ? 'screen.crewApply.again' : 'screen.crewApply.action')}
       </Link>
-    </div>
-  )
-}
-
-/** The user's pending application: "Đã gửi · chờ người hướng dẫn xem · hết hạn ngày {date}" with "Xem" and "Rút". */
-function CrewApplicationState({ application }: { application: CrewApplication }) {
-  const [confirming, setConfirming] = useState(false)
-  const withdraw = useWithdrawCrewApplication()
-  const toasts = useToasts()
-  const confirm = () =>
-    withdraw.mutate(application.id, {
-      onSuccess: () => {
-        setConfirming(false)
-        toasts.success(t('screen.crewApply.withdrawn'))
-      },
-      onError: (error) => {
-        setConfirming(false)
-        toasts.error(problemMessage(error, { module: 'matching' }).text)
-      },
-    })
-  return (
-    <div className="flex flex-col gap-2">
-      <p role="status" className="text-label font-semibold">
-        {crewApplicationStateText(application)}
-      </p>
-      <div className="flex flex-wrap items-center gap-3">
-        <Link to={`/tim-viec/${application.jobId}/xin-vao-nhom`} className={buttonVariants({ variant: 'secondary' })}>
-          {t('screen.crewApply.view')}
-        </Link>
-        <Button type="button" variant="secondary" onClick={() => setConfirming(true)}>
-          {t('screen.crewApply.withdraw')}
-        </Button>
-      </div>
-      <Dialog.Root open={confirming} onOpenChange={setConfirming}>
-        <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 z-40 bg-foreground/50" />
-          <Dialog.Popup className="fixed top-24 left-1/2 z-50 flex w-[min(520px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
-            <div className="flex items-start justify-between gap-3">
-              <Dialog.Title className="text-h2">{t('screen.crewApply.withdrawTitle')}</Dialog.Title>
-              <Dialog.Close
-                aria-label={t('screen.product.finding.close')}
-                className="rounded-md p-1 text-muted-foreground hover:bg-muted"
-              >
-                <X aria-hidden="true" className="size-5" />
-              </Dialog.Close>
-            </div>
-            <Dialog.Description className="text-body-sm">{t('screen.crewApply.withdrawBody')}</Dialog.Description>
-            <div className="flex flex-wrap justify-between gap-3">
-              <Dialog.Close render={<Button variant="secondary" />}>{t('screen.crewApply.keep')}</Dialog.Close>
-              <Button type="button" onClick={confirm} disabled={withdraw.isPending}>
-                {t('screen.crewApply.withdraw')}
-              </Button>
-            </div>
-          </Dialog.Popup>
-        </Dialog.Portal>
-      </Dialog.Root>
     </div>
   )
 }

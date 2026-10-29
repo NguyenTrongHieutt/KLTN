@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -140,7 +141,7 @@ class JobRecruitment implements CrewRecruitment {
 
 	/**
 	 * JOB-9's "Nhận đơn xin vào nhóm" (AD-41, R2): on with its slots, Skills and note, an edit while on, or off. Off
-	 * while off changes nothing.
+	 * while off, or a save that changes nothing, writes nothing: no audit entry and no new Crew version.
 	 * @throws ApiException {@code NOT_FOUND} for anyone but the Job's Mentor; {@code STALE} for an older Crew version;
 	 * {@code GUARD_FAILED RECRUITMENT_UNAVAILABLE} outside Agreement, Starting and Active; {@code VALIDATION} with
 	 * {@code SLOTS_INVALID} (and {@code max}), {@code SKILL_LIMIT}, {@code SKILL_INACTIVE}, or a note too long
@@ -158,7 +159,7 @@ class JobRecruitment implements CrewRecruitment {
 				this.jdbc.sql("UPDATE job.job SET recruiting = false WHERE id = :id").param("id", jobId).update();
 				this.crews.bump(jobId, false);
 				audit(mentorId, jobId, CLOSED);
-				this.events.publishEvent(new CrewRecruitmentClosed(this.ids.newId(), jobId, ClosedBy.MENTOR));
+				this.events.publishEvent(new CrewRecruitmentClosed(this.ids.newId(), jobId, ClosedBy.MENTOR, now));
 			}
 			return read(jobId, false).orElseThrow();
 		}
@@ -181,6 +182,10 @@ class JobRecruitment implements CrewRecruitment {
 		String note = setting.note() == null || setting.note().isBlank() ? null : setting.note().strip();
 		if (note != null && note.length() > MAX_NOTE) {
 			throw new ApiException(ErrorCode.VALIDATION);
+		}
+		if (current.on() && current.openSlots() == slots && current.skillIds().equals(kept)
+				&& Objects.equals(current.note(), note)) {
+			return current;
 		}
 		this.jdbc.sql("""
 				UPDATE job.job SET recruiting = true, recruiting_since = CASE WHEN recruiting THEN recruiting_since ELSE :now END,
@@ -207,13 +212,14 @@ class JobRecruitment implements CrewRecruitment {
 	 * {@link CrewRecruitmentClosed} lapses whatever Crew Application is still open, so none outlives the Job's run.
 	 */
 	void closeForJob(UUID jobId, ClosedBy closedBy) {
+		Instant now = this.clock.instant();
 		int closed = this.jdbc.sql("UPDATE job.job SET recruiting = false WHERE id = :id AND recruiting")
 			.param("id", jobId)
 			.update();
 		if (closed > 0) {
 			this.crews.bump(jobId, false);
 		}
-		this.events.publishEvent(new CrewRecruitmentClosed(this.ids.newId(), jobId, closedBy));
+		this.events.publishEvent(new CrewRecruitmentClosed(this.ids.newId(), jobId, closedBy, now));
 	}
 
 	/** The Skills sought, by ID, as the catalog names them now (for the Skill picker's tokens). */
@@ -230,7 +236,7 @@ class JobRecruitment implements CrewRecruitment {
 	private Optional<Recruitment> read(UUID jobId, boolean lock) {
 		return this.jdbc.sql("""
 				SELECT id, product_id, customer_account_id, mentor_account_id, title, state, hidden_at IS NOT NULL AS hidden,
-				    recruiting, open_slots, recruit_skill_ids, recruit_skill_names, recruit_note,
+				    recruiting, open_slots, recruit_skill_ids, recruit_skill_names, recruit_note, crew_version,
 				    (SELECT count(*) FROM job.crew_row r WHERE r.job_id = j.id AND r.status <> 'RELEASED') AS unreleased
 				FROM job.job j WHERE id = :id
 				""" + (lock ? " FOR UPDATE" : ""))
@@ -240,12 +246,12 @@ class JobRecruitment implements CrewRecruitment {
 					rs.getString("title"), rs.getString("state"), rs.getBoolean("hidden"), rs.getBoolean("recruiting"),
 					rs.getInt("open_slots"), rs.getInt("unreleased"), cap(), uuids(rs.getArray("recruit_skill_ids")),
 					Arrays.asList((String[]) rs.getArray("recruit_skill_names").getArray()), rs.getString("recruit_note"),
-					false))
+					false, rs.getLong("crew_version")))
 			.optional()
 			.map(found -> new Recruitment(found.jobId(), found.productId(), found.customerId(), found.mentorId(),
 					found.title(), found.state(), found.hidden(), found.on(), found.openSlots(), found.unreleased(),
 					found.cap(), found.skillIds(), found.skillNames(), found.note(),
-					!this.crews.countedActive(jobId).isEmpty()));
+					!this.crews.countedActive(jobId).isEmpty(), found.crewVersion()));
 	}
 
 	private static List<UUID> uuids(Array array) throws SQLException {

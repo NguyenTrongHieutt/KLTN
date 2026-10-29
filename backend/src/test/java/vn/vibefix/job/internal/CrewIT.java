@@ -143,6 +143,10 @@ class CrewIT extends IntegrationTest {
 		// Story 21.4: J4 opens "Mở tuyển thành viên nhóm" in place of the retired "Chọn nhóm thực hiện".
 		await().atMost(Duration.ofSeconds(10)).until(() -> openTodos("matching.open_crew_recruitment", this.hung) == 1);
 		assertThat(openTodos("job.pick_crew", this.hung)).isZero();
+		assertThat(this.jdbc.sql("""
+				SELECT t.deadline_at = j.agreement_due_at FROM notification.todo t JOIN job.job j ON j.id = t.subject_id
+				WHERE t.todo_key = 'matching.open_crew_recruitment' AND t.closed_at IS NULL
+				""").query(Boolean.class).single()).as("due at the Agreement deadline").isTrue();
 		this.mvc.perform(get("/api/v1/mentor/jobs/" + this.job + "/crew").with(as(this.hung, Role.MENTOR)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.crewVersion").value(0))

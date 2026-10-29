@@ -257,7 +257,7 @@ class AgreementReviewIT extends IntegrationTest {
 	 * before J6, and no Dispute opens. "Chọn nhóm thực hiện" no longer opens (Story 21.4).
 	 */
 	@Test
-	void aLockBeforeTheConfirmationReopensThePickToDo() throws Exception {
+	void aLockBeforeTheConfirmationReleasesTheRowAndOpensNoPickToDo() throws Exception {
 		confirmedCrew(this.vy, 0);
 		assertThat(openTodos("job.pick_crew", this.hung)).as("the Crew condition holds").isZero();
 		AccountLocked locked = new AccountLocked(UUID.randomUUID(), this.vy, this.clock.instant());

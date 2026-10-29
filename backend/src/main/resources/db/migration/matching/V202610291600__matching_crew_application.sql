@@ -6,9 +6,10 @@
 -- who holds an open or selected bid on the same Job, and one PENDING application per Job and applicant is a unique key.
 -- The commands refuse first with GUARD_FAILED ROLE_TAKEN or CONFLICT ALREADY_APPLIED; these are only the backstop.
 -- An application is PENDING until the Mentor DECLINES it ("Không chọn"), the applicant or a lock WITHDRAWS it, or it
--- LAPSES: lapses_at, the Job's copied CREW_APPLICATION_LAPSE_DAYS after it was sent, or recruitment closing (the
--- Mentor turning it off, J8 or J10). end_reason says which (EXPIRED, RECRUITMENT_CLOSED, JOB_CLOSING, JOB_CANCELLED for
--- a lapse; WITHDRAWN or APPLICANT_UNAVAILABLE for a withdrawal; DECLINED). Story 21.5 adds the pick.
+-- LAPSES: lapses_at, the Job's copied CREW_APPLICATION_LAPSE_DAYS after it was sent, recruitment closing (the Mentor
+-- turning it off, J8 or J10), or an Administrator hiding the Job Post. end_reason says which (EXPIRED,
+-- RECRUITMENT_CLOSED, JOB_CLOSING, JOB_CANCELLED, JOB_HIDDEN for a lapse; WITHDRAWN or APPLICANT_UNAVAILABLE for a
+-- withdrawal; DECLINED). Story 21.5 adds the pick.
 -- Only the applicant and the Job's Mentor read an application and its proof (AD-20); the Customer never does. An ended
 -- application and its proof are deleted 90 days after the decision (purge_due_at), or with the Job's data, and a
 -- proof upload no application took within 90 days.
@@ -33,7 +34,8 @@ CREATE TABLE matching.crew_application
     lapses_at                  TIMESTAMPTZ NOT NULL,
     ended_at                   TIMESTAMPTZ,
     end_reason                 TEXT CHECK (end_reason IN ('DECLINED', 'WITHDRAWN', 'APPLICANT_UNAVAILABLE', 'EXPIRED',
-                                                          'RECRUITMENT_CLOSED', 'JOB_CLOSING', 'JOB_CANCELLED')),
+                                                          'RECRUITMENT_CLOSED', 'JOB_CLOSING', 'JOB_CANCELLED',
+                                                          'JOB_HIDDEN')),
     purge_due_at               TIMESTAMPTZ,
     CONSTRAINT crew_application_not_a_role_check
         CHECK (applicant_account_id <> customer_account_id AND applicant_account_id <> mentor_account_id),

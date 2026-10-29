@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -63,6 +64,10 @@ import vn.vibefix.identity.AccountLocked;
 import vn.vibefix.identity.internal.CustomerTokens;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
+import vn.vibefix.job.CrewRecruitment.ClosedBy;
+import vn.vibefix.job.CrewRecruitmentClosed;
+import vn.vibefix.job.JobPostHidden;
+import vn.vibefix.job.JobTransitioned;
 import vn.vibefix.shared.ErasureOutcome;
 import vn.vibefix.shared.PersonalData;
 import vn.vibefix.support.IntegrationTest;
@@ -123,6 +128,9 @@ class CrewApplicationsIT extends IntegrationTest {
 
 	@Autowired
 	private Recommendations recommendations;
+
+	@Autowired
+	private MatchingPersonalData matching;
 
 	private UUID lan;
 
@@ -228,12 +236,14 @@ class CrewApplicationsIT extends IntegrationTest {
 		JobContent.crewRow(this.jdbc, this.job, left, "LEFT", this.clock.instant().minus(Duration.ofDays(1)));
 		apply(left, this.job, true, List.of(), "[]").andExpect(status().is(422))
 			.andExpect(jsonPath("$.reason").value("CREW_REJOIN_REFUSED"));
+		uploadAs(left).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("CREW_REJOIN_REFUSED"));
 
 		UUID other = JobContent.activeJob(this.jdbc, this.product, this.lan, this.hung, "Việc khác");
 		UUID busy = applicant("Phạm Hải Tùng");
 		JobContent.crewRow(this.jdbc, other, busy, "ACTIVE", null);
 		apply(busy, this.job, true, List.of(), "[]").andExpect(status().is(422))
 			.andExpect(jsonPath("$.reason").value("ON_ANOTHER_CREW"));
+		uploadAs(busy).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("ON_ANOTHER_CREW"));
 		assertThat(CONTRIBUTOR_READS.get()).isZero();
 	}
 
@@ -470,6 +480,9 @@ class CrewApplicationsIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/files/" + file).with(as(this.hung))).andExpect(status().isOk());
 		this.mvc.perform(get("/api/v1/files/" + file).with(as(this.lan))).andExpect(status().isNotFound());
 		decline(this.hung, id).andExpect(status().isNoContent());
+		// The Mentor's card dropped it, and so does the file.
+		this.mvc.perform(get("/api/v1/files/" + file).with(as(this.hung))).andExpect(status().isNotFound());
+		this.mvc.perform(get("/api/v1/files/" + file).with(as(this.minh))).andExpect(status().isOk());
 		StoredFiles files = this.context.getBean(StoredFiles.class);
 
 		this.clock.advance(Duration.ofDays(89));
@@ -501,11 +514,16 @@ class CrewApplicationsIT extends IntegrationTest {
 
 	@Test
 	void theApplicantExportsTheirApplicationsAndAnErasureTellsTheMentorBeforeDeletingThem() throws Exception {
-		apply(this.minh, this.job, true, List.of(TeamTestSupport.REACT), "[]").andExpect(status().isCreated());
+		String file = fileId(upload(this.minh));
+		UUID id = id(apply(this.minh, this.job, true, List.of(TeamTestSupport.REACT), proof(fileItem(file, "Báo cáo")))
+			.andExpect(status().isCreated()));
 
 		String export = new TransactionTemplate(this.transactions).execute(status -> this.personalData.export(this.minh))
 			.toString();
-		assertThat(export).contains("crewApplications").contains("Mình đã làm kiểm thử phân quyền cho đồ án.");
+		assertThat(export).contains("crewApplications").contains("Mình đã làm kiểm thử phân quyền cho đồ án.")
+			.contains("id=" + id)
+			.contains("jobTitle=Sửa lỗi đặt bàn")
+			.contains("crewApplicationId=" + id);
 
 		ErasureOutcome outcome = new TransactionTemplate(this.transactions).execute(status -> this.personalData.erase(this.minh));
 		assertThat(outcome).isInstanceOf(ErasureOutcome.Erased.class);
@@ -525,6 +543,259 @@ class CrewApplicationsIT extends IntegrationTest {
 		apply(this.minh, this.job, true, List.of(), "[]").andExpect(status().isCreated());
 
 		assertThat(recommendedJobs(this.minh)).doesNotContain(this.job);
+	}
+
+	@Test
+	void aDeadlineThatFindsTheApplicationDeclinedLapsesNothingAndSendsNothing() throws Exception {
+		UUID id = id(apply(this.minh, this.job, true, List.of(), "[]").andExpect(status().isCreated()));
+		decline(this.hung, id).andExpect(status().isNoContent());
+
+		this.clock.advance(Duration.ofDays(15));
+		this.poller.runDue();
+
+		assertThat(text("SELECT status || ' ' || end_reason FROM matching.crew_application WHERE id = :id", Map.of("id", id)))
+			.isEqualTo("DECLINED DECLINED");
+		assertThat(count("SELECT count(*) FROM notification.notification WHERE type = 'matching.crew_application_lapsed'",
+				Map.of())).isZero();
+		Boolean lapsed = new TransactionTemplate(this.transactions)
+			.execute(status -> this.context.getBean(CrewApplications.class).lapse(id));
+		assertThat(lapsed).isFalse();
+	}
+
+	@Test
+	void aClosingLapsesOnlyWhatWasSentByThenAndAReplayChangesNothing() throws Exception {
+		Instant closed = this.clock.instant();
+		this.clock.advance(Duration.ofMinutes(5));
+		UUID later = id(apply(this.minh, this.job, true, List.of(), "[]").andExpect(status().isCreated()));
+		CrewRecruitmentClosed stale = new CrewRecruitmentClosed(UUID.randomUUID(), this.job, ClosedBy.MENTOR, closed);
+
+		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.events.publishEvent(stale));
+		awaitListeners();
+		assertThat(text("SELECT status FROM matching.crew_application WHERE id = :id", Map.of("id", later)))
+			.as("sent after that closing").isEqualTo("PENDING");
+
+		CrewRecruitmentClosed now = new CrewRecruitmentClosed(UUID.randomUUID(), this.job, ClosedBy.MENTOR,
+				this.clock.instant());
+		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.events.publishEvent(now));
+		await().atMost(Duration.ofSeconds(10)).until(() -> "LAPSED".equals(
+				text("SELECT status FROM matching.crew_application WHERE id = :id", Map.of("id", later))));
+		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.events.publishEvent(now));
+		awaitListeners();
+		assertThat(count("SELECT count(*) FROM notification.notification WHERE type = 'matching.crew_application_lapsed'",
+				Map.of())).as("one notice").isOne();
+	}
+
+	@Test
+	void aHiddenJobLapsesItsApplicationsWithThatCauseAndTakesNoMore() throws Exception {
+		UUID id = id(apply(this.minh, this.job, true, List.of(), "[]").andExpect(status().isCreated()));
+		this.jdbc.sql("UPDATE job.job SET hidden_at = now(), hidden_reason = 'Vi phạm quy định' WHERE id = :id")
+			.param("id", this.job)
+			.update();
+		JobPostHidden hidden = new JobPostHidden(UUID.randomUUID(), this.job);
+
+		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.events.publishEvent(hidden));
+
+		await().atMost(Duration.ofSeconds(10)).until(() -> "LAPSED JOB_HIDDEN".equals(
+				text("SELECT status || ' ' || coalesce(end_reason, '') FROM matching.crew_application WHERE id = :id",
+						Map.of("id", id))));
+		assertThat(text("""
+				SELECT params ->> 'cause' FROM notification.notification
+				WHERE type = 'matching.crew_application_lapsed' AND account_id = :minh
+				""", Map.of("minh", this.minh))).isEqualTo("JOB_HIDDEN");
+		assertThat(count("SELECT count(*) FROM notification.notification WHERE type = 'job.job_post_hidden'", Map.of()))
+			.as("no bid's notice").isZero();
+		UUID ha = applicant("Phạm Thu Hà");
+		apply(ha, this.job, true, List.of(), "[]").andExpect(status().is(422))
+			.andExpect(jsonPath("$.reason").value("RECRUITMENT_CLOSED"));
+		uploadAs(ha).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("RECRUITMENT_CLOSED"));
+		awaitListeners();
+	}
+
+	@Test
+	void uploadsStopAtFiveAndAWaitingUploadIsRemoved() throws Exception {
+		String first = fileId(upload(this.minh));
+		for (int i = 1; i < BidProofs.MAX; i++) {
+			upload(this.minh);
+		}
+		uploadAs(this.minh).andExpect(status().isBadRequest()).andExpect(jsonPath("$.reason").value("PROOF_LIMIT"));
+		StoredFiles files = this.context.getBean(StoredFiles.class);
+
+		this.mvc.perform(delete("/api/v1/mentor/job-posts/" + this.job + "/crew-application-files/" + first)
+			.with(as(this.hung)).with(csrf())).andExpect(status().isNotFound());
+		this.mvc.perform(delete("/api/v1/mentor/job-posts/" + this.job + "/crew-application-files/" + first)
+			.with(as(this.minh)).with(csrf())).andExpect(status().isNoContent());
+
+		assertThat(files.find(UUID.fromString(first))).isEmpty();
+		this.mvc.perform(get("/api/v1/mentor/job-posts/" + this.job + "/crew-application-files").with(as(this.minh)))
+			.andExpect(jsonPath("$.length()").value(BidProofs.MAX - 1));
+		upload(this.minh);
+	}
+
+	@Test
+	void anErasedCustomersOrMentorsJobsLoseTheirApplicationsWithTheirProofAudited() throws Exception {
+		for (UUID erased : List.of(this.lan, this.hung)) {
+			Applied applied = appliedWithAFile(applicant("Người xin " + erased));
+
+			new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.matching.eraseAccount(erased));
+
+			assertDeletedAndAudited(applied);
+		}
+	}
+
+	@Test
+	void deletingTheProductOrRetiringItsJobDataDeletesTheApplicationsWithTheirProofAudited() throws Exception {
+		Applied first = appliedWithAFile(this.minh);
+		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.matching.deleteProduct(this.product));
+		assertDeletedAndAudited(first);
+
+		Applied second = appliedWithAFile(applicant("Phạm Thu Hà"));
+		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.matching.retireJobData(this.product));
+		assertDeletedAndAudited(second);
+	}
+
+	@Test
+	void thePurgeDeletesAnUploadNoApplicationTookWithinNinetyDays() throws Exception {
+		String file = fileId(upload(this.minh));
+		UUID row = this.jdbc.sql("SELECT id FROM matching.crew_application_proof WHERE file_id = CAST(:file AS UUID)")
+			.param("file", file)
+			.query(UUID.class)
+			.single();
+
+		this.clock.advance(Duration.ofDays(91));
+		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.purge.purge());
+
+		assertThat(count("SELECT count(*) FROM matching.crew_application_proof", Map.of())).isZero();
+		assertThat(this.context.getBean(StoredFiles.class).find(UUID.fromString(file))).isEmpty();
+		assertThat(count("""
+				SELECT count(*) FROM audit.audit_entry e JOIN audit.audit_entry_object o ON o.entry_id = e.id
+				WHERE e.action = 'matching.crew_application_purged' AND o.object_id = :id
+				""", Map.of("id", row))).isOne();
+	}
+
+	@Test
+	void theReviewToDoClosesWhenTheOnlyApplicationEndsAndDropsToTierThreeOnceAMemberSigned() throws Exception {
+		UUID first = id(apply(this.minh, this.job, true, List.of(), "[]").andExpect(status().isCreated()));
+		assertThat(reviewTodo()).isEqualTo("1 2");
+		this.mvc.perform(post("/api/v1/mentor/crew-applications/" + first + "/withdraw").with(as(this.minh)).with(csrf()))
+			.andExpect(status().isOk());
+		assertThat(reviewTodo()).as("withdrawn").isNull();
+
+		apply(this.minh, this.job, true, List.of(), "[]").andExpect(status().isCreated());
+		assertThat(reviewTodo()).isEqualTo("1 2");
+		this.clock.advance(Duration.ofDays(15));
+		this.poller.runDue();
+		assertThat(reviewTodo()).as("lapsed").isNull();
+
+		UUID ha = applicant("Phạm Thu Hà");
+		apply(ha, this.job, true, List.of(), "[]").andExpect(status().isCreated());
+		IdentityTestSupport.lock(this.jdbc, ha, "Vi phạm");
+		AccountLocked locked = new AccountLocked(UUID.randomUUID(), ha, this.clock.instant());
+		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.events.publishEvent(locked));
+		await().atMost(Duration.ofSeconds(10)).until(() -> reviewTodo() == null);
+
+		UUID tai = applicant("Lê Văn Tài");
+		UUID tung = applicant("Phạm Hải Tùng");
+		UUID taiApplication = id(apply(tai, this.job, true, List.of(), "[]").andExpect(status().isCreated()));
+		apply(tung, this.job, true, List.of(), "[]").andExpect(status().isCreated());
+		JobContent.crewRow(this.jdbc, this.job, applicant("Đặng Thu Trang"), "ACTIVE", null);
+		this.mvc.perform(post("/api/v1/mentor/crew-applications/" + taiApplication + "/withdraw").with(as(tai)).with(csrf()))
+			.andExpect(status().isOk());
+		assertThat(reviewTodo()).as("a member has signed").isEqualTo("1 3");
+		awaitListeners();
+	}
+
+	@Test
+	void j4OpensNoRecruitmentToDoWhileRecruitmentIsAlreadyOn() throws Exception {
+		JobTransitioned j4 = new JobTransitioned(UUID.randomUUID(), UUID.randomUUID(), this.job, "J4", "USER", "SELECTING",
+				"AGREEMENT", 5, null, Map.of("mentorId", this.hung.toString(), "agreementDueAt",
+						this.clock.instant().plus(Duration.ofDays(14)).toString()));
+
+		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.events.publishEvent(j4));
+		awaitListeners();
+
+		assertThat(count("SELECT count(*) FROM notification.todo WHERE todo_key = 'matching.open_crew_recruitment'",
+				Map.of())).isZero();
+	}
+
+	@Test
+	void aStrangerFindsNoJobOutsideAgreementStartingAndActive() throws Exception {
+		UUID draft = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO job.job (id, product_id, customer_account_id, state, title, job_types, created_at, updated_at)
+				VALUES (:id, :product, :lan, 'DRAFT', 'Bản nháp', ARRAY['BUG_FIX'], now(), now())
+				""").param("id", draft).param("product", this.product).param("lan", this.lan).update();
+		UUID closed = JobContent.job(this.jdbc, this.product, this.lan, this.hung, "Việc đã xong", JobContent.SIGNED,
+				"CLOSED");
+
+		for (UUID hidden : List.of(draft, closed, UUID.randomUUID())) {
+			this.mvc.perform(post("/api/v1/mentor/job-posts/" + hidden + "/crew-applications").with(as(this.minh)).with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"note\":\"Mình muốn tham gia.\",\"publicCodeAcknowledged\":true}"))
+				.andExpect(status().isNotFound());
+			this.mvc.perform(multipart("/api/v1/mentor/job-posts/" + hidden + "/crew-application-files")
+				.file(new MockMultipartFile("file", "a.pdf", "application/pdf", TestFiles.pdf()))
+				.with(as(this.minh))
+				.with(csrf())).andExpect(status().isNotFound());
+		}
+		// The Job's own Customer knows it.
+		apply(this.lan, draft, true, List.of(), "[]").andExpect(status().is(422))
+			.andExpect(jsonPath("$.reason").value("ROLE_TAKEN"));
+		assertThat(CONTRIBUTOR_READS.get()).isZero();
+	}
+
+	@Test
+	void anApplicantCardCountsTheJobPostsSkillsWhileTheMentorSeeksNone() throws Exception {
+		this.jdbc.sql("UPDATE job.job SET skill_ids = ARRAY[CAST(:react AS UUID)], skill_names = ARRAY['React'] WHERE id = :id")
+			.param("react", TeamTestSupport.REACT)
+			.param("id", this.job)
+			.update();
+		this.mvc.perform(put("/api/v1/mentor/jobs/" + this.job + "/recruitment").with(as(this.hung)).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("{\"on\":true,\"openSlots\":1,\"skillIds\":[],\"crewVersion\":1}"))
+			.andExpect(status().isOk());
+		apply(this.minh, this.job, true, List.of(), "[]").andExpect(status().isCreated());
+
+		this.mvc.perform(get("/api/v1/mentor/jobs/" + this.job + "/crew-applications").with(as(this.hung)))
+			.andExpect(jsonPath("$[0].fitMetrics.skillsSought").value(1))
+			.andExpect(jsonPath("$[0].fitMetrics.sharedSkills[0]").value("React"));
+	}
+
+	/** An application with one file of proof, as the matrix of deletions needs it. */
+	private record Applied(UUID application, String file) {
+	}
+
+	private Applied appliedWithAFile(UUID applicant) throws Exception {
+		String file = fileId(upload(applicant));
+		UUID application = id(apply(applicant, this.job, true, List.of(), proof(fileItem(file, "Báo cáo kiểm thử")))
+			.andExpect(status().isCreated()));
+		return new Applied(application, file);
+	}
+
+	private void assertDeletedAndAudited(Applied applied) {
+		assertThat(count("SELECT count(*) FROM matching.crew_application WHERE id = :id", Map.of("id", applied.application())))
+			.isZero();
+		assertThat(count("SELECT count(*) FROM matching.crew_application_proof WHERE crew_application_id = :id",
+				Map.of("id", applied.application()))).isZero();
+		assertThat(this.context.getBean(StoredFiles.class).find(UUID.fromString(applied.file()))).isEmpty();
+		assertThat(count("""
+				SELECT count(*) FROM audit.audit_entry e JOIN audit.audit_entry_object o ON o.entry_id = e.id
+				WHERE e.action = 'matching.crew_application_purged' AND o.object_id = :id
+				""", Map.of("id", applied.application()))).isOne();
+	}
+
+	/** The open review to-do's count and tier, or {@code null} without one. */
+	private String reviewTodo() {
+		return this.jdbc.sql("""
+				SELECT (params ->> 'n') || ' ' || tier FROM notification.todo
+				WHERE todo_key = 'matching.review_crew_applications' AND subject_id = :job AND closed_at IS NULL
+				""").param("job", this.job).query(String.class).optional().orElse(null);
+	}
+
+	private ResultActions uploadAs(UUID applicant) throws Exception {
+		return this.mvc.perform(multipart("/api/v1/mentor/job-posts/" + this.job + "/crew-application-files")
+			.file(new MockMultipartFile("file", "bao-cao.pdf", "application/pdf", TestFiles.pdf()))
+			.with(as(applicant))
+			.with(csrf()));
 	}
 
 	private List<UUID> recommendedJobs(UUID user) {

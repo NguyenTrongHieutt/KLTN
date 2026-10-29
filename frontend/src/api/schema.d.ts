@@ -4420,7 +4420,7 @@ export interface components {
         ApplicantCardView: {
             applicant: components["schemas"]["ApplicantView"];
             /** @enum {string} */
-            endReason?: "DECLINED" | "WITHDRAWN" | "APPLICANT_UNAVAILABLE" | "EXPIRED" | "RECRUITMENT_CLOSED" | "JOB_CLOSING" | "JOB_CANCELLED";
+            endReason?: "DECLINED" | "WITHDRAWN" | "APPLICANT_UNAVAILABLE" | "EXPIRED" | "RECRUITMENT_CLOSED" | "JOB_CLOSING" | "JOB_CANCELLED" | "JOB_HIDDEN";
             /** Format: date-time */
             endedAt?: string;
             fitMetrics?: components["schemas"]["FitMetricsView"];
@@ -4976,7 +4976,7 @@ export interface components {
         };
         CrewApplicationView: {
             /** @enum {string} */
-            endReason?: "DECLINED" | "WITHDRAWN" | "APPLICANT_UNAVAILABLE" | "EXPIRED" | "RECRUITMENT_CLOSED" | "JOB_CLOSING" | "JOB_CANCELLED";
+            endReason?: "DECLINED" | "WITHDRAWN" | "APPLICANT_UNAVAILABLE" | "EXPIRED" | "RECRUITMENT_CLOSED" | "JOB_CLOSING" | "JOB_CANCELLED" | "JOB_HIDDEN";
             /** Format: date-time */
             endedAt?: string;
             /** Format: uuid */

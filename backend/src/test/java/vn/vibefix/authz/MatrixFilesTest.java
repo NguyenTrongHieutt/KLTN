@@ -349,9 +349,9 @@ class MatrixFilesTest {
 			.allSatisfy(row -> assertThat(row.caller()).as("AUTHOR is the harness's own").isNotEqualTo(MatrixCaller.AUTHOR));
 		// The spec's "about 2,800": at most 2,850 since review iteration 4 made room for the file bindings, 2,900
 		// since Story 20.6 added the one shell's role read and Job list, 2,950 since Story 21.2 added the bid's proof,
-		// 3,000 since Story 21.3 scanned PUB-4 for a Crew member as well as for the Mentor, and 3,100 since Story 21.4
-		// added the recruitment, the Crew Applications and their proof.
-		assertThat(MatrixRow.loadMatrix()).as("3,100 rows or fewer").hasSizeLessThanOrEqualTo(3_100);
+		// 3,000 since Story 21.3 scanned PUB-4 for a Crew member as well as for the Mentor, and 3,150 since Story 21.4
+		// added the recruitment, the Crew Applications and their proof files.
+		assertThat(MatrixRow.loadMatrix()).as("3,150 rows or fewer").hasSizeLessThanOrEqualTo(3_150);
 	}
 
 	@Test

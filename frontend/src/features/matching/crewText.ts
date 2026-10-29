@@ -1,5 +1,7 @@
+import { uploadMessage } from '@/features/files/uploadRules'
 import { roleLabel, type MyJob, type RoleInJob } from '@/features/job/jobRoleApi'
 import { t, type MessageKey } from '@/i18n/t'
+import vi from '@/i18n/vi.json'
 import { ApiError } from '@/lib/apiClient'
 import { formatDayMonth, formatDayMonthTime } from '@/lib/dates'
 import { problemMessage } from '@/lib/problemMessage'
@@ -14,6 +16,8 @@ const OWN_WORDS = [
   'PROOF_LIMIT',
   'PROOF_FILE_UNKNOWN',
 ]
+
+const MATCHING_REASONS = (vi as { reason: { matching: Record<string, string> } }).reason.matching
 
 /** The `VALIDATION` reasons that say themselves in the bid's words, which an application shares (AD-21). */
 const SHARED_VALIDATION = ['LINK_INVALID', 'PUBLIC_CODE_NOT_ACKNOWLEDGED']
@@ -80,4 +84,15 @@ export function runningCrewJob(jobs: MyJob[] | undefined, jobId: string): MyJob 
   return jobs?.find(
     (job) => job.jobId !== jobId && job.role === 'CREW' && (job.crewKind === 'ACTIVE' || job.crewKind === 'ASSIGNED'),
   )
+}
+
+/**
+ * A refused FND-2 proof upload in plain words: the application's own reasons (the role, the recruitment closed or
+ * full, left before, busy elsewhere, applied already, the proof limit) as {@link crewRefusal} says them, else the shared
+ * upload text (NFR-3), which also says the upload quota's `RATE_LIMITED`.
+ */
+export function crewUploadRefusal(error: unknown, context: CrewRefusalContext = {}): string {
+  const reason = error instanceof ApiError ? error.problem.reason : undefined
+  const own = reason !== undefined && (reason in MATCHING_REASONS || OWN_WORDS.includes(reason))
+  return error instanceof ApiError && error.status !== 429 && own ? crewRefusal(error, context) : uploadMessage(error)
 }

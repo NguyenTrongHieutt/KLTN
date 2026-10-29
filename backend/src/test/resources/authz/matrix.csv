@@ -3304,8 +3304,9 @@ POST /api/v1/mentor/crew-applications/{crewApplicationId}/withdraw,CROSS_ROLE,,,
 POST /api/v1/mentor/crew-applications/{crewApplicationId}/withdraw,ADMINISTRATOR,,,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/crew-applications/{crewApplicationId}/withdraw,CREW_APPLICANT,,,200,requireActiveAccount
 # FND-2's proof files: a user with GitHub linked uploads a PDF or an image for their application to the recruiting Job
-# (post=recruit); the Customer and the Mentor hold a role there, and the applicant already applied; each user lists
-# their own waiting uploads, and only the applicant removes theirs (file=crew-proof-upload).
+# (post=recruit); the Customer and the Mentor hold a role there, a member of another running Crew is busy
+# (ON_ANOTHER_CREW), and the applicant already applied; each user lists their own waiting uploads, and only the applicant
+# removes theirs (file=crew-proof-upload).
 POST /api/v1/mentor/job-posts/{postId}/crew-application-files,ANONYMOUS,post=recruit,proof.pdf,401,requireGitHubLinked
 POST /api/v1/mentor/job-posts/{postId}/crew-application-files,USER_UNVERIFIED,post=recruit,proof.pdf,403 FORBIDDEN GITHUB_NOT_LINKED,requireGitHubLinked
 POST /api/v1/mentor/job-posts/{postId}/crew-application-files,USER,post=recruit,proof.pdf,201,requireGitHubLinked
@@ -3313,10 +3314,10 @@ POST /api/v1/mentor/job-posts/{postId}/crew-application-files,LOCKED,post=recrui
 POST /api/v1/mentor/job-posts/{postId}/crew-application-files,CUSTOMER,post=recruit,proof.pdf,422 GUARD_FAILED ROLE_TAKEN,requireGitHubLinked
 POST /api/v1/mentor/job-posts/{postId}/crew-application-files,MENTOR,post=recruit,proof.pdf,422 GUARD_FAILED ROLE_TAKEN,requireGitHubLinked
 POST /api/v1/mentor/job-posts/{postId}/crew-application-files,BIDDER,post=recruit,proof.pdf,201,requireGitHubLinked
-POST /api/v1/mentor/job-posts/{postId}/crew-application-files,CREW_ASSIGNED,post=recruit,proof.pdf,201,requireGitHubLinked
-POST /api/v1/mentor/job-posts/{postId}/crew-application-files,CREW_ACTIVE,post=recruit,proof.pdf,201,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/crew-application-files,CREW_ASSIGNED,post=recruit,proof.pdf,422 GUARD_FAILED ON_ANOTHER_CREW,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/crew-application-files,CREW_ACTIVE,post=recruit,proof.pdf,422 GUARD_FAILED ON_ANOTHER_CREW,requireGitHubLinked
 POST /api/v1/mentor/job-posts/{postId}/crew-application-files,CREW_FORMER,post=recruit,proof.pdf,201,requireGitHubLinked
-POST /api/v1/mentor/job-posts/{postId}/crew-application-files,CROSS_ROLE,post=recruit,proof.pdf,201,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/crew-application-files,CROSS_ROLE,post=recruit,proof.pdf,422 GUARD_FAILED ON_ANOTHER_CREW,requireGitHubLinked
 POST /api/v1/mentor/job-posts/{postId}/crew-application-files,ADMINISTRATOR,post=recruit,proof.pdf,404 NOT_FOUND,requireGitHubLinked
 POST /api/v1/mentor/job-posts/{postId}/crew-application-files,CREW_APPLICANT,post=recruit,proof.pdf,409 CONFLICT ALREADY_APPLIED,requireGitHubLinked
 GET /api/v1/mentor/job-posts/{postId}/crew-application-files,ANONYMOUS,post=recruit,,401,requireGitHubLinked
@@ -3348,6 +3349,9 @@ DELETE /api/v1/mentor/job-posts/{postId}/crew-application-files/{fileId},CREW_AP
 # file=crew-proof, the recruiting Job's Crew Application proof file (CrewApplicationProofFiles, Story 21.4, AD-20): the
 # applicant and the Job's Mentor read it, nobody else, the Customer and every Administrator grant included.
 GET /api/v1/files/{fileId},ANONYMOUS,file=crew-proof,,401
+GET /api/v1/files/{fileId},USER_UNVERIFIED,file=crew-proof,,404 NOT_FOUND
+GET /api/v1/files/{fileId},LOCKED,file=crew-proof,,401
+GET /api/v1/files/{fileId},BIDDER,file=crew-proof,,404 NOT_FOUND
 GET /api/v1/files/{fileId},USER,file=crew-proof,,404 NOT_FOUND
 GET /api/v1/files/{fileId},CUSTOMER,file=crew-proof,,404 NOT_FOUND
 GET /api/v1/files/{fileId},MENTOR,file=crew-proof,,200
@@ -3360,3 +3364,20 @@ GET /api/v1/files/{fileId},ADMINISTRATOR,file=crew-proof,,404 NOT_FOUND
 GET /api/v1/files/{fileId},ADMIN_DISPUTE_GRANT,file=crew-proof,,404 NOT_FOUND
 GET /api/v1/files/{fileId},ADMIN_TEAM_ISSUE_GRANT,file=crew-proof,,404 NOT_FOUND
 GET /api/v1/files/{fileId},ADMIN_ABUSE_REPORT_GRANT,file=crew-proof,,404 NOT_FOUND
+# file=crew-proof-upload, the Crew applicant's proof upload no application took yet: the applicant's alone.
+GET /api/v1/files/{fileId},ANONYMOUS,file=crew-proof-upload,,401
+GET /api/v1/files/{fileId},USER_UNVERIFIED,file=crew-proof-upload,,404 NOT_FOUND
+GET /api/v1/files/{fileId},USER,file=crew-proof-upload,,404 NOT_FOUND
+GET /api/v1/files/{fileId},LOCKED,file=crew-proof-upload,,401
+GET /api/v1/files/{fileId},CUSTOMER,file=crew-proof-upload,,404 NOT_FOUND
+GET /api/v1/files/{fileId},MENTOR,file=crew-proof-upload,,404 NOT_FOUND
+GET /api/v1/files/{fileId},BIDDER,file=crew-proof-upload,,404 NOT_FOUND
+GET /api/v1/files/{fileId},CREW_APPLICANT,file=crew-proof-upload,,200
+GET /api/v1/files/{fileId},CREW_ASSIGNED,file=crew-proof-upload,,404 NOT_FOUND
+GET /api/v1/files/{fileId},CREW_ACTIVE,file=crew-proof-upload,,404 NOT_FOUND
+GET /api/v1/files/{fileId},CREW_FORMER,file=crew-proof-upload,,404 NOT_FOUND
+GET /api/v1/files/{fileId},CROSS_ROLE,file=crew-proof-upload,,404 NOT_FOUND
+GET /api/v1/files/{fileId},ADMINISTRATOR,file=crew-proof-upload,,404 NOT_FOUND
+GET /api/v1/files/{fileId},ADMIN_DISPUTE_GRANT,file=crew-proof-upload,,404 NOT_FOUND
+GET /api/v1/files/{fileId},ADMIN_TEAM_ISSUE_GRANT,file=crew-proof-upload,,404 NOT_FOUND
+GET /api/v1/files/{fileId},ADMIN_ABUSE_REPORT_GRANT,file=crew-proof-upload,,404 NOT_FOUND

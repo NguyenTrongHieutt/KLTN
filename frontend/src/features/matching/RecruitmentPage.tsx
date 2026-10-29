@@ -157,11 +157,12 @@ function Settings({ jobId, recruitment }: { jobId: string; recruitment: Recruitm
             setError(t('screen.recruitment.slotsInvalid', { max: (failed.problem as { max?: number }).max ?? 0 }))
             return
           }
-          setError(
-            failed instanceof ApiError && failed.problem.code === 'STALE'
-              ? t('screen.recruitment.stale')
-              : problemMessage(failed, { module: 'job' }).text,
-          )
+          if (failed instanceof ApiError && failed.problem.code === 'STALE') {
+            // The recruitment is read again and the form starts over at the new Crew version: a toast outlives it.
+            toasts.error(t('screen.recruitment.stale'))
+            return
+          }
+          setError(problemMessage(failed, { module: 'job' }).text)
         },
       },
     )
