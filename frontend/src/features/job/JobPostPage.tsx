@@ -16,6 +16,9 @@ import { formatSize } from '@/lib/fileSize'
 import { isNotFound } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { BidPanel } from '@/features/matching/BidPanel'
+import { CrewApplicationState } from '@/features/matching/CrewApplicationState'
+import { useMyCrewApplications, type CrewApplication } from '@/features/matching/crewApplicationApi'
+import { crewApplicationStateText, runningCrewJob } from '@/features/matching/crewText'
 import { useMentorInvitation, type MentorInvitation } from '@/features/matching/invitationApi'
 import { FindWorkGate } from './FindWorkGate'
 import { leftEarly, roleLabel, useJobRole, useMyJobs, youAreText, type JobRoleView } from './jobRoleApi'
@@ -28,11 +31,13 @@ import { needText } from './phaseText'
  * answers, Job Types, Skills with their plain hints, deadline, budget, and screenshots), its phase and what it
  * needs, the Customer's kind, month joined and Rating summary (never their name or contact details), and the
  * Product. One action area follows the phase and the user's relation to the Job: "Chào giá làm người hướng dẫn",
- * which opens FND-1, or the user's bid with "Xem" and "Rút", while the Job looks for a Mentor (Story 21.2); the
- * "Xin vào nhóm" details while its Mentor recruits (Story 21.4 adds the button); and for the Job's own people
- * "Bạn là {role} của công việc này" with the way to the Job. A Job no longer listed shows the plain "no longer open" gate, or the role notice to its
- * own people, or a lapsed invitation's card (FR-14, UX-DR27, UX-DR95). Without GitHub linked, the GitHub gate stands
- * in for the Job Post (X1).
+ * which opens FND-1, or the user's bid with "Xem" and "Rút", while the Job looks for a Mentor (Story 21.2); "Xin vào nhóm",
+ * which opens FND-2, with what the Mentor's recruitment seeks, or the user's Crew Application state with "Xem" and
+ * "Rút", or the gate of a member who left the Job or is on another running Crew, while its Mentor recruits (Story
+ * 21.4); and for the Job's own people "Bạn là {role} của công việc này" with the way to the Job. A Job no longer listed
+ * shows the plain "no longer open" gate, or the role notice to its own people, or the user's Crew Application state
+ * (lapsed, not picked), or a lapsed invitation's card (FR-14, UX-DR27, UX-DR95, UX-DR103). Without GitHub linked, the
+ * GitHub gate stands in for the Job Post (X1).
  */
 export function JobPostPage() {
   const { postId } = useParams()
@@ -53,13 +58,18 @@ function JobPostDetail({ postId }: { postId: string | undefined }) {
   const post = useJobPost(postId)
   const invitation = useMentorInvitation(postId)
   const role = useJobRole(postId)
-  usePageTitle(post.data?.title ?? invitation.data?.jobTitle ?? t('screen.jobPost.title'))
+  const crewApplications = useMyCrewApplications()
+  const application = crewApplications.data?.find((found) => found.jobId === postId)
+  usePageTitle(post.data?.title ?? invitation.data?.jobTitle ?? application?.jobTitle ?? t('screen.jobPost.title'))
   if (post.isError && isNotFound(post.error)) {
-    if (invitation.isPending || role.isPending) {
+    if (invitation.isPending || role.isPending || crewApplications.isPending) {
       return <Skeleton className="m-6 h-48" />
     }
     if (role.data && postId) {
       return <RoleOnly jobId={postId} role={role.data} />
+    }
+    if (application) {
+      return <ApplicationOnly application={application} />
     }
     return invitation.data?.status === 'LAPSED' ? <LapsedInvitation invitation={invitation.data} /> : <NoLongerOpen />
   }
@@ -114,6 +124,24 @@ function NoLongerOpen() {
       <div role="status" className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card px-6 py-14 text-center">
         <PageHeading className="text-h3">{t('screen.jobPost.detail.goneTitle')}</PageHeading>
         <p className="text-body-sm text-muted-foreground">{t('screen.jobPost.detail.goneBody')}</p>
+        <Link to="/tim-viec" className={buttonVariants()}>
+          {t('screen.jobPost.detail.findOther')}
+        </Link>
+      </div>
+    </GatePage>
+  )
+}
+
+/**
+ * A Job no longer listed whose Crew the user applied to: their application's state, lapsed or not picked, or still
+ * pending with "Rút", and "Tìm việc khác" (UX-DR103).
+ */
+function ApplicationOnly({ application }: { application: CrewApplication }) {
+  return (
+    <GatePage title={application.jobTitle}>
+      <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card px-6 py-14 text-center">
+        <PageHeading className="text-h3">{t('screen.crewApply.readTitle')}</PageHeading>
+        <CrewApplicationState application={application} />
         <Link to="/tim-viec" className={buttonVariants()}>
           {t('screen.jobPost.detail.findOther')}
         </Link>
@@ -279,6 +307,14 @@ function ActionArea({ post }: { post: JobPost }) {
   if (role.isPending) {
     return <Skeleton className="h-40 w-full" />
   }
+  if (role.data?.crewKind === 'FORMER' && post.recruitment) {
+    return (
+      <>
+        <RoleNotice jobId={post.id} role={role.data} />
+        <CrewAction post={post} recruitment={post.recruitment} left />
+      </>
+    )
+  }
   if (role.data) {
     return <RoleNotice jobId={post.id} role={role.data} />
   }
@@ -296,10 +332,20 @@ function ActionArea({ post }: { post: JobPost }) {
 }
 
 /**
- * "Xin vào nhóm" while the Mentor recruits (UX-DR98): the Mentor's name linked to their public profile, "Còn {n}
- * chỗ", the Skills sought and the Mentor's note. Story 21.4 adds the button and the Crew gates.
+ * "Xin vào nhóm" while the Mentor recruits (UX-DR98, UX-DR103): the Mentor's name linked to their public profile, "Còn
+ * {n} chỗ", the Skills sought and the Mentor's note; then the button to FND-2, or the user's pending application with
+ * "Xem" and "Rút", or one that ended with a new one possible, or the gate of a member who left this Job (R3) or is on
+ * another running Crew (X8).
  */
-function CrewAction({ post, recruitment }: { post: JobPost; recruitment: NonNullable<JobPost['recruitment']> }) {
+function CrewAction({
+  post,
+  recruitment,
+  left = false,
+}: {
+  post: JobPost
+  recruitment: NonNullable<JobPost['recruitment']>
+  left?: boolean
+}) {
   const mentor = post.mentor
   return (
     <section aria-labelledby="crew-heading" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
@@ -338,7 +384,48 @@ function CrewAction({ post, recruitment }: { post: JobPost; recruitment: NonNull
           <p className="break-words whitespace-pre-line">{recruitment.note}</p>
         </div>
       )}
+      {left ? (
+        <p role="status" className="text-body-sm font-semibold">
+          {t('reason.matching.CREW_REJOIN_REFUSED')}
+        </p>
+      ) : (
+        <CrewApplicationArea jobId={post.id} />
+      )}
     </section>
+  )
+}
+
+/** The user's place in the recruitment: busy elsewhere, their application, or the way to FND-2. */
+function CrewApplicationArea({ jobId }: { jobId: string }) {
+  const mine = useMyCrewApplications()
+  const jobs = useMyJobs()
+  if (mine.isPending || jobs.isPending) {
+    return <Skeleton className="h-12 w-full" />
+  }
+  const busy = runningCrewJob(jobs.data, jobId)
+  if (busy) {
+    return (
+      <p role="status" className="text-body-sm font-semibold break-words">
+        {t('reason.matching.ON_ANOTHER_CREW', { job: busy.title })}
+      </p>
+    )
+  }
+  const latest = mine.data?.find((application) => application.jobId === jobId)
+  if (latest?.status === 'PENDING') {
+    return <CrewApplicationState application={latest} />
+  }
+  return (
+    <div className="flex flex-col gap-2">
+      {latest && (
+        <p role="status" className="text-label font-semibold">
+          {crewApplicationStateText(latest)}
+        </p>
+      )}
+      <p className="text-body-sm text-muted-foreground">{t('screen.crewApply.actionLead')}</p>
+      <Link to={`/tim-viec/${jobId}/xin-vao-nhom`} className={cn(buttonVariants(), 'w-fit')}>
+        {t(latest ? 'screen.crewApply.again' : 'screen.crewApply.action')}
+      </Link>
+    </div>
   )
 }
 

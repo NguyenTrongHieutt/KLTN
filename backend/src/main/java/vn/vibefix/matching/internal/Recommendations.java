@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorSkills;
 import vn.vibefix.job.JobPosts;
+import vn.vibefix.job.JobPosts.JobNeed;
 import vn.vibefix.job.JobPosts.JobPostState;
 import vn.vibefix.job.JobPosts.ListedPost;
 import vn.vibefix.job.JobRoles;
@@ -145,10 +146,11 @@ class Recommendations {
 	}
 
 	/**
-	 * Listed Jobs for a user (AD-17, Story 21.1): Jobs "Tìm việc" lists (AD-36) where they hold no role (AD-43) and
-	 * have no bid of any status, that share a Skill (the Job Post's, or while recruiting the Skills sought) or a Job
-	 * Type of their history in either role ({@code job.historyOf}): by shared Skills, then Job Type matches, then
-	 * newest first; the Skill filter, on the same Skills, narrows them without reordering.
+	 * Listed Jobs for a user (AD-17, Story 21.1): Jobs "Tìm việc" lists (AD-36) where they hold no role (AD-43), with no
+	 * bid of any status while the Job needs a Mentor and no pending Crew Application of theirs (Story 21.4: a bidder not
+	 * selected may still apply to the Crew, R3), that share a Skill (the Job Post's, or while recruiting the Skills
+	 * sought) or a Job Type of their history in either role ({@code job.historyOf}): by shared Skills, then Job Type
+	 * matches, then newest first; the Skill filter, on the same Skills, narrows them without reordering.
 	 */
 	@Transactional(readOnly = true)
 	List<RecommendedPost> forMentor(UUID userId, @Nullable Set<UUID> skillFilter) {
@@ -160,9 +162,14 @@ class Recommendations {
 			.param("user", userId)
 			.query(UUID.class)
 			.list());
+		Set<UUID> applied = new HashSet<>(this.jdbc
+			.sql("SELECT job_id FROM matching.crew_application WHERE applicant_account_id = :user AND status = 'PENDING'")
+			.param("user", userId)
+			.query(UUID.class)
+			.list());
 		List<RecommendedPost> recommended = new ArrayList<>();
 		for (ListedPost post : this.posts.listedPosts(userId)) {
-			if (bid.contains(post.jobId())) {
+			if ((post.need() == JobNeed.MENTOR && bid.contains(post.jobId())) || applied.contains(post.jobId())) {
 				continue;
 			}
 			List<UUID> sought = sought(post);

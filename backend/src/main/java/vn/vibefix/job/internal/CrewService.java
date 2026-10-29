@@ -170,12 +170,6 @@ class CrewService implements Crews {
 		this.capabilities = capabilities;
 	}
 
-	/** J4 (FR-75): the Mentor's "Chọn nhóm thực hiện" to-do, due at the Agreement deadline. */
-	void start(Job job, Instant agreementDueAt) {
-		this.todos.open(new TodoRequest(PICK_TODO, Objects.requireNonNull(job.mentorId()), Audience.MENTOR, job.id(),
-				Map.of("job", job.title()), Agreements.agreementLink(job.id()), agreementDueAt, job.id()));
-	}
-
 	// ---- The Mentor's commands -------------------------------------------------------------
 
 	/**
@@ -288,8 +282,7 @@ class CrewService implements Crews {
 	 * A lock counts as leaving (FR-59, FR-82, AD-19, AD-41): each unreleased row of the account on the Job is
 	 * released, an {@code ACTIVE} one as {@code LEFT} and an {@code ASSIGNED} one, a pick not yet signed, as
 	 * {@code DECLINED}; a window it had ends at {@code lockedAt}, the lock's own time, never the listener's. In
-	 * Agreement before its confirmation the Mentor's "Chọn nhóm thực hiện" to-do opens again while the Crew condition
-	 * no longer holds; after the confirmation the Crew owes a re-confirmation: the Crew lock lifts until the Mentor
+	 * Agreement after the confirmation the Crew owes a re-confirmation: the Crew lock lifts until the Mentor
 	 * re-confirms, and the Mentor is told (R-1 H1). The caller holds the Job lock. Safe to replay: a released row
 	 * changes nothing.
 	 * @return the rows released, as they were before
@@ -324,8 +317,6 @@ class CrewService implements Crews {
 						UUID.nameUUIDFromBytes((rows.get(0).id() + ":locked").getBytes(StandardCharsets.UTF_8)),
 						List.of(new Recipient(job.mentorId(), Audience.MENTOR)), Map.of("job", job.title()),
 						Agreements.agreementLink(job.id()), job.id(), null));
-				this.todos.open(new TodoRequest(PICK_TODO, job.mentorId(), Audience.MENTOR, job.id(), Map.of("job", job.title()),
-						Agreements.agreementLink(job.id()), agreementDue(job.id()), job.id()));
 			}
 		}
 		return rows;
@@ -849,13 +840,12 @@ class CrewService implements Crews {
 			.update();
 	}
 
-	/** "Chọn nhóm thực hiện" stays open until FR-17's Crew condition holds (UX-DR15). */
+	/**
+	 * "Chọn nhóm thực hiện" is no longer opened (Story 21.4): J4 opens {@code matching.open_crew_recruitment} in its
+	 * place, and the key goes with the Team picker in Story 21.5. One opened before still closes here.
+	 */
 	private void refreshPickTodo(Job job) {
 		this.todos.closeAll(PICK_TODO, job.id());
-		if (!crewConfirmed(job.id()) && job.mentorId() != null) {
-			this.todos.open(new TodoRequest(PICK_TODO, job.mentorId(), Audience.MENTOR, job.id(), Map.of("job", job.title()),
-					Agreements.agreementLink(job.id()), agreementDue(job.id()), job.id()));
-		}
 	}
 
 	private @Nullable Instant agreementDue(UUID jobId) {

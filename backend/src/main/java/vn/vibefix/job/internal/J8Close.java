@@ -8,6 +8,7 @@ import java.util.Objects;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
+import vn.vibefix.job.CrewRecruitment.ClosedBy;
 import vn.vibefix.job.internal.JobLifecycle.Applying;
 import vn.vibefix.job.internal.Jobs.Job;
 import vn.vibefix.notification.Audience;
@@ -20,7 +21,8 @@ import vn.vibefix.shared.ErrorCode;
 /**
  * J8 (FR-37, FR-67): a confirmed closure moves an Active Job with no Held Milestone to Closing, with M6
  * for each Planned Milestone in the same apply. It records when, and tells the Customer, the Mentor,
- * and the active Crew ({@code job.job_closing}); it releases no Crew row (AD-41).
+ * and the active Crew ({@code job.job_closing}); it releases no Crew row (AD-41). Crew recruitment turns off, and
+ * {@code CrewRecruitmentClosed} lapses the open Crew Applications (AD-41, A-04, Story 21.4).
  */
 @Component
 class J8Close implements JobLifecycle.Step {
@@ -35,7 +37,11 @@ class J8Close implements JobLifecycle.Step {
 
 	private final CrewChanges changes;
 
-	J8Close(JdbcClient jdbc, CrewService crews, Notifications notifications, CrewChanges changes) {
+	private final JobRecruitment recruitment;
+
+	J8Close(JdbcClient jdbc, CrewService crews, Notifications notifications, CrewChanges changes,
+			JobRecruitment recruitment) {
+		this.recruitment = recruitment;
 		this.jdbc = jdbc;
 		this.changes = changes;
 		this.crews = crews;
@@ -69,6 +75,7 @@ class J8Close implements JobLifecycle.Step {
 		this.notifications.send(new NotificationRequest(CLOSING, applying.transitionId(), people(job, this.crews),
 				Map.of("job", job.title()), "/cong-viec/" + job.id(), job.id(), null));
 		this.changes.voidWaiting(job.id());
+		this.recruitment.closeForJob(job.id(), ClosedBy.CLOSING);
 	}
 
 	/** The Customer, the Mentor, and the active Crew. */

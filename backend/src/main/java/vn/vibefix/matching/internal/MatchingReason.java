@@ -10,8 +10,10 @@ enum MatchingReason {
 	JOB_POST_HIDDEN,
 
 	/**
-	 * One role per Job (AD-43): the bidder, or the invited person, is the Job's own Customer. It maps to the UX
-	 * copy {@code OWN_JOB}, under the key {@code reason.matching.ROLE_TAKEN}.
+	 * One role per Job (AD-43): the bidder, or the invited person, is the Job's own Customer; or a Crew applicant
+	 * already holds a role in the Job (its Customer, its Mentor, a bidder still in play, or a Crew member). It maps to
+	 * the UX copy {@code OWN_JOB} for the Customer, under the key {@code reason.matching.ROLE_TAKEN}, and to
+	 * {@code ROLE_IN_JOB_TAKEN} for the other roles.
 	 */
 	ROLE_TAKEN,
 
@@ -70,6 +72,30 @@ enum MatchingReason {
 	LINK_INVALID,
 
 	/** A proof file is not one of the bidder's own uploads waiting for this Job's bid, or is named twice. */
-	PROOF_FILE_UNKNOWN
+	PROOF_FILE_UNKNOWN,
+
+	/**
+	 * A Crew Application finds the Mentor's recruitment off, the Job Post hidden, or the Job past Active (FR-81,
+	 * Story 21.4); {@code job.requireRecruiting} answers the same under the Job row lock.
+	 */
+	RECRUITMENT_CLOSED,
+
+	/** A Crew Application finds no free slot (FR-81, R2); the detail member {@code n} is the Crew cap. */
+	CREW_FULL,
+
+	/**
+	 * The applicant was once an {@code ACTIVE} member of this Job and left (FR-82, R3): nobody rejoins a Job. Its copy is
+	 * the UX's {@code LEFT_THIS_JOB}.
+	 */
+	CREW_REJOIN_REFUSED,
+
+	/**
+	 * The applicant holds a Crew row that is not {@code RELEASED} on another Job (R1, X8): refused when they apply, not
+	 * only at signing. Its copy is the UX's {@code CREW_MEMBER_BUSY}, which names that Job from the applicant's own list.
+	 */
+	ON_ANOTHER_CREW,
+
+	/** Only a pending Crew Application is declined (FR-81). */
+	NOT_DECLINABLE
 
 }

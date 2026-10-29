@@ -52,7 +52,10 @@ public enum Rule {
 	MENTOR_ACTIVE_JOB_LIMIT(1, 10),
 
 	/** The largest share a Mentor may take in Crew Terms, in whole percent (FR-75, AD-41); 40. */
-	MENTOR_SHARE_CAP_PERCENT(10, 100);
+	MENTOR_SHARE_CAP_PERCENT(10, 100),
+
+	/** Days a Crew Application waits for the Mentor before it lapses (FR-61, FR-81, R6, Story 21.4); 14. */
+	CREW_APPLICATION_LAPSE_DAYS(1, 30);
 
 	private final int min;
 

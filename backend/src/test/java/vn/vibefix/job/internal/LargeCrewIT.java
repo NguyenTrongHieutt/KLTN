@@ -152,7 +152,7 @@ class LargeCrewIT extends IntegrationTest {
 		for (UUID student : crew.subList(0, 4)) {
 			confirm(student, 1, true).andExpect(status().isNoContent());
 		}
-		assertThat(openTodos("job.pick_crew", this.hung)).as("FR-17 waits for the fifth").isOne();
+		assertThat(openTodos("job.pick_crew", this.hung)).as("no longer opened (Story 21.4)").isZero();
 		this.mvc.perform(get("/api/v1/mentor/jobs/" + this.job + "/crew").with(as(this.hung, Role.MENTOR)))
 			.andExpect(jsonPath("$.largeCrews").value(true))
 			.andExpect(jsonPath("$.crewConfirmed").value(false));

@@ -234,7 +234,7 @@ class AgreementReviewIT extends IntegrationTest {
 				""").param("vy", this.vy).query(String.class).single()).isEqualTo("RELEASED LEFT");
 		assertThat(this.jdbc.sql("SELECT window_end FROM job.crew_row WHERE member_account_id = :vy").param("vy", this.vy)
 			.query(Timestamp.class).single().toInstant()).as("the lock's time, not the listener's").isEqualTo(lockedAt);
-		assertThat(openTodos("job.pick_crew", this.hung)).as("the Mentor picks again").isOne();
+		assertThat(openTodos("job.pick_crew", this.hung)).as("no longer opened (Story 21.4)").isZero();
 		assertThat(notifications("job.crew_empty", this.lan)).as("no Crew empties before J6").isZero();
 		this.mvc.perform(get("/api/v1/mentor/jobs/" + this.job + "/crew").with(as(this.hung, Role.MENTOR)))
 			.andExpect(jsonPath("$.reconfirmOwed").value(true))
@@ -253,11 +253,11 @@ class AgreementReviewIT extends IntegrationTest {
 	}
 
 	/**
-	 * Story 20.4: a lock of the only confirmed member before the Agreement is confirmed releases the row and opens the
-	 * Mentor's "Chọn nhóm thực hiện" again; nothing empties before J6, and no Dispute opens.
+	 * Story 20.4: a lock of the only confirmed member before the Agreement is confirmed releases the row; nothing empties
+	 * before J6, and no Dispute opens. "Chọn nhóm thực hiện" no longer opens (Story 21.4).
 	 */
 	@Test
-	void aLockBeforeTheConfirmationReopensThePickToDo() throws Exception {
+	void aLockBeforeTheConfirmationReleasesTheRowAndOpensNoPickToDo() throws Exception {
 		confirmedCrew(this.vy, 0);
 		assertThat(openTodos("job.pick_crew", this.hung)).as("the Crew condition holds").isZero();
 		AccountLocked locked = new AccountLocked(UUID.randomUUID(), this.vy, this.clock.instant());
@@ -270,7 +270,7 @@ class AgreementReviewIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("""
 				SELECT status || ' ' || released_reason FROM job.crew_row WHERE member_account_id = :vy
 				""").param("vy", this.vy).query(String.class).single()).isEqualTo("RELEASED LEFT");
-		assertThat(openTodos("job.pick_crew", this.hung)).isOne();
+		assertThat(openTodos("job.pick_crew", this.hung)).as("no longer opened (Story 21.4)").isZero();
 		assertThat(notifications("job.crew_reconfirm_needed", this.hung)).as("nothing was confirmed yet").isZero();
 		assertThat(notifications("job.crew_empty", this.lan)).isZero();
 		assertThat(this.jdbc.sql("SELECT count(*) FROM dispute.dispute WHERE job_id = :job").param("job", this.job)

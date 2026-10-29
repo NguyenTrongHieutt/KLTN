@@ -98,6 +98,17 @@ class NotificationTypes implements NotificationCatalog {
 	static final TodoType JOB_CONFIRM_CREW_TERMS = new TodoType("job.confirm_crew_terms", Set.of(Audience.CREW_ASSIGNED), 1,
 			Set.of("job"));
 
+	/**
+	 * J4 (UX-DR112, Story 21.4): the Mentor opens Crew recruitment on JOB-9, due at the Agreement deadline, until it is
+	 * on or a member has signed; it replaces {@code job.pick_crew}.
+	 */
+	static final TodoType MATCHING_OPEN_CREW_RECRUITMENT = new TodoType("matching.open_crew_recruitment",
+			Set.of(Audience.MENTOR), 2, Set.of("job"));
+
+	/** Crew Applications wait for the Mentor (UX-DR112, Story 21.4): tier 2 while no member has signed, else 3. */
+	static final TodoType MATCHING_REVIEW_CREW_APPLICATIONS = new TodoType("matching.review_crew_applications",
+			Set.of(Audience.MENTOR), 2, Set.of("n", "job"));
+
 	/** A Customer invited this Mentor to apply (FR-14): until they apply or the Job leaves Open. */
 	static final TodoType MATCHING_ANSWER_INVITATION_TO_APPLY = new TodoType("matching.answer_invitation_to_apply",
 			Set.of(Audience.SUBJECT), 3, Set.of("job"));
@@ -224,6 +235,28 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType MATCHING_CONFLICT_OF_INTEREST_REFUSED = new NotificationType(
 			"matching.conflict_of_interest_refused", Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL,
 			EmailClass.TRANSACTIONAL, "alert", Set.of());
+
+	/** A Crew Application arrived (FR-81, Story 21.4): the Job's Mentor. */
+	static final NotificationType MATCHING_CREW_APPLICATION_RECEIVED = new NotificationType(
+			"matching.crew_application_received", Set.of(Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL,
+			"users", Set.of("name", "job"));
+
+	/** The Mentor did not pick this applicant ("Không chọn", FR-81): no reason given. */
+	static final NotificationType MATCHING_CREW_APPLICATION_DECLINED = new NotificationType(
+			"matching.crew_application_declined", Set.of(Audience.SUBJECT), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info",
+			Set.of("job"));
+
+	/**
+	 * A Crew Application lapsed (R6, A-04): its days ran out, or recruitment closed (the Mentor, J8 or J10); the title
+	 * names which ({@code cause}, worded by the SPA).
+	 */
+	static final NotificationType MATCHING_CREW_APPLICATION_LAPSED = new NotificationType("matching.crew_application_lapsed",
+			Set.of(Audience.SUBJECT), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of("job", "cause"));
+
+	/** A locked applicant's pending Crew Application was withdrawn by the System (AD-19): the Mentor, never why. */
+	static final NotificationType MATCHING_CREW_APPLICATION_AUTO_WITHDRAWN = new NotificationType(
+			"matching.crew_application_auto_withdrawn", Set.of(Audience.MENTOR), Channel.IN_APP, EmailClass.TRANSACTIONAL,
+			"alert", Set.of("name", "job"));
 
 	/** J3 chose this Mentor (FR-15). */
 	static final NotificationType JOB_ASSIGNEE_SELECTED = new NotificationType("job.assignee_selected",
@@ -832,7 +865,8 @@ class NotificationTypes implements NotificationCatalog {
 				JOB_POST_LAPSED, MATCHING_APPLICATION_RECEIVED, MATCHING_APPLICATION_AUTO_WITHDRAWN, MATCHING_APPLICATION_WITHDRAWN,
 				MATCHING_CONFLICT_OF_INTEREST_REFUSED, JOB_ASSIGNEE_SELECTED, MATCHING_APPLICATIONS_ON_HOLD,
 				JOB_SELECTION_DECLINED, MATCHING_APPLICATIONS_CLOSED, MATCHING_APPLICATIONS_REOPENED, MATCHING_NDA_OVERDUE,
-				MATCHING_INVITED_TO_APPLY, CHAT_CHAT_OPENED, JOB_AGREEMENT_DRAFT_READY, JOB_CREW_ASSIGNED,
+				MATCHING_INVITED_TO_APPLY, MATCHING_CREW_APPLICATION_RECEIVED, MATCHING_CREW_APPLICATION_DECLINED,
+				MATCHING_CREW_APPLICATION_LAPSED, MATCHING_CREW_APPLICATION_AUTO_WITHDRAWN, CHAT_CHAT_OPENED, JOB_AGREEMENT_DRAFT_READY, JOB_CREW_ASSIGNED,
 				JOB_CREW_MEMBER_CONFIRMED, JOB_CREW_MEMBER_DECLINED, JOB_CREW_MEMBER_REMOVED, JOB_CREW_TERMS_CHANGED,
 				JOB_CREW_CONFIRMED, JOB_CREW_CHANGE_PROPOSED, JOB_CREW_CHANGED, JOB_CREW_CHANGE_VOIDED, JOB_CREW_MEMBER_LEFT,
 				JOB_CREW_LOGIN_REMOVED, JOB_CREW_PICK_RELEASED, JOB_CREW_EMPTY,
@@ -862,7 +896,8 @@ class NotificationTypes implements NotificationCatalog {
 				SCANNING_RESOLVE_INTAKE_FINDING,
 				REPO_ACCEPT_GITHUB_INVITATION, SCANNING_RESOLVE_WORK_FINDING, REPO_RECONFIRM_SOURCE, REPO_AUTHORIZE_FINAL_MERGE,
 				REPO_REVOCATION_ITEM,
-				MATCHING_CHOOSE_ASSIGNEE, MATCHING_SIGN_NDA, MATCHING_ANSWER_INVITATION_TO_APPLY, JOB_DRAFT_AGREEMENT,
+				MATCHING_CHOOSE_ASSIGNEE, MATCHING_SIGN_NDA, MATCHING_ANSWER_INVITATION_TO_APPLY,
+				MATCHING_OPEN_CREW_RECRUITMENT, MATCHING_REVIEW_CREW_APPLICATIONS, JOB_DRAFT_AGREEMENT,
 				JOB_REVIEW_AGREEMENT, JOB_PICK_CREW, JOB_CONFIRM_CREW_TERMS, JOB_REVISE_AGREEMENT, JOB_CONFIRM_AGREEMENT_MENTOR,
 				PAYMENT_FUND_MILESTONE, WORK_REVIEW_WORK_ITEM, WORK_FIX_RETURNED_ITEM, WORK_REASSIGN_WORK_ITEMS, DELIVERY_HAND_OVER,
 				DELIVERY_REVIEW_HANDOVER, JOB_ANSWER_CLOSURE, REPO_CONFIRM_DATA_DELETION, REPUTATION_RATE,

@@ -60,6 +60,18 @@ class MatrixFilesTest {
 	 */
 	static final Set<String> CREW_JOB_OBJECTS = Set.of("milestoneId", "paymentOrderId", "crewRowId", "accessId");
 
+	/**
+	 * JOB-9's endpoints on a {@code {jobId}} (Story 21.4): the Mentor, the Customer and the Crew applicant run on the
+	 * recruiting Job ({@code job=recruit}), where the recruitment and {@code {crewApplicationId}} live; the Customer also
+	 * runs on the crew Job, and every other caller there.
+	 */
+	static final Set<String> ON_THE_RECRUIT_JOB = Set.of("GET /api/v1/mentor/jobs/{jobId}/recruitment",
+			"PUT /api/v1/mentor/jobs/{jobId}/recruitment", "GET /api/v1/mentor/jobs/{jobId}/crew-applications");
+
+	/** The callers of the recruiting Job: its Mentor, its Customer, and the Crew applicant. */
+	static final Set<MatrixCaller> RECRUIT_CALLERS = EnumSet.of(MatrixCaller.MENTOR, MatrixCaller.CUSTOMER,
+			MatrixCaller.CREW_APPLICANT);
+
 	/** The post's bid and invitation endpoints, whose Customer and Bidder rows run on the post ({@code job=post}, B5). */
 	static final Set<String> ON_THE_POST = Set.of("GET /api/v1/jobs/{jobId}/applications",
 			"GET /api/v1/jobs/{jobId}/invitations", "POST /api/v1/jobs/{jobId}/invitations",
@@ -185,7 +197,7 @@ class MatrixFilesTest {
 	 */
 	static final Map<String, String> FILE_POLICIES = Map.of("JobScreenshotFiles", "", "AttachmentFiles",
 			"file=attachment", "ChatAttachmentFiles", "file=chat", "HandoverScreenshotFiles", "file=screenshot",
-			"BidProofFiles", "file=proof");
+			"BidProofFiles", "file=proof", "CrewApplicationProofFiles", "file=crew-proof");
 
 	/** The file read policies no fixture world can reach, each with why. */
 	static final Map<String, String> UNREACHABLE_FILE_POLICIES = Map.of("FinalZipFiles",
@@ -202,10 +214,11 @@ class MatrixFilesTest {
 
 	/** The unrelated callers (review iteration 4, G6): no role on the crew Job, so it is hidden from them. */
 	static final Set<MatrixCaller> UNRELATED_TO_THE_CREW_JOB = EnumSet.of(MatrixCaller.USER, MatrixCaller.USER_UNVERIFIED,
-			MatrixCaller.BIDDER);
+			MatrixCaller.BIDDER, MatrixCaller.CREW_APPLICANT);
 
 	/** The placeholders that name the Draft or the Open post, whose rows an unrelated caller may get past. */
-	static final Set<String> OFF_THE_CREW_JOB = Set.of("jobId", "postId", "applicationId", "fileId", "screenshotId");
+	static final Set<String> OFF_THE_CREW_JOB = Set.of("jobId", "postId", "applicationId", "fileId", "screenshotId",
+			"crewApplicationId");
 
 	/** The escalated Team Issues' Administrator endpoints, whose Administrators read the issue they took (B2). */
 	static final String ESCALATED_TEAM_ISSUE = "/api/v1/admin/team-issues/{teamIssueId}";
@@ -236,11 +249,15 @@ class MatrixFilesTest {
 	/** The only refusals with {@code FORBIDDEN} those callers may receive: the global gates' reasons. */
 	static final Set<String> GATE_REASONS = Set.of("GITHUB_NOT_LINKED", "ACCOUNT_LOCKED", "PRIVACY_NOTICE_REQUIRED");
 
-	/** The Crew canaries: none reaches the Customer (AD-20, UX-DR108). */
+	/** The Crew canaries: none reaches the Customer (AD-20, UX-DR108), a Crew Application's included (Story 21.4). */
 	static final Set<String> CREW_CANARIES = Set.of("CREW_SHARE", "CREW_EMAIL", "CREW_NAME", "CREW_LINKEDIN",
 			"WORK_ITEM_NOTE", "WORK_ITEM_TITLE", "ATTACHMENT", "CREW_CHAT", "CREW_CHAT_UNREPORTED", "CREW_PAGE",
 			"CREW_PAGE_TITLE", "EARLY_PAGE", "TEAM_ISSUE_ID", "STUDENT_HIDDEN_NAME", "CROSS_CREW_NAME", "CROSS_CREW_EMAIL", "CROSS_LINKEDIN", "CROSS_CREW_CHAT", "CROSS_WORK_ITEM_NOTE",
-			"CROSS_PAGE");
+			"CROSS_PAGE", "CREW_APPLICATION_NOTE", "CREW_APPLICATION_PROOF_CAPTION", "CREW_APPLICATION_PROOF_LINK");
+
+	/** A Crew Application's canaries (Story 21.4): the applicant's and the Job's Mentor's alone. */
+	static final Set<String> CREW_APPLICATION_CANARIES = Set.of("CREW_APPLICATION_NOTE", "CREW_APPLICATION_PROOF_CAPTION",
+			"CREW_APPLICATION_PROOF_LINK");
 
 	static final Set<String> CROSS_CANARIES = Set.of("CROSS_CREW_NAME", "CROSS_CREW_EMAIL", "CROSS_LINKEDIN",
 			"CROSS_CREW_CHAT", "CROSS_WORK_ITEM_NOTE", "CROSS_PAGE");
@@ -332,8 +349,9 @@ class MatrixFilesTest {
 			.allSatisfy(row -> assertThat(row.caller()).as("AUTHOR is the harness's own").isNotEqualTo(MatrixCaller.AUTHOR));
 		// The spec's "about 2,800": at most 2,850 since review iteration 4 made room for the file bindings, 2,900
 		// since Story 20.6 added the one shell's role read and Job list, 2,950 since Story 21.2 added the bid's proof,
-		// and 3,000 since Story 21.3 scanned PUB-4 for a Crew member as well as for the Mentor.
-		assertThat(MatrixRow.loadMatrix()).as("3,000 rows or fewer").hasSizeLessThanOrEqualTo(3_000);
+		// 3,000 since Story 21.3 scanned PUB-4 for a Crew member as well as for the Mentor, and 3,150 since Story 21.4
+		// added the recruitment, the Crew Applications and their proof files.
+		assertThat(MatrixRow.loadMatrix()).as("3,150 rows or fewer").hasSizeLessThanOrEqualTo(3_150);
 	}
 
 	@Test
@@ -724,14 +742,15 @@ class MatrixFilesTest {
 					"NOTIFICATION_PARAM", "TODO_PARAM", "CONTACT_EMAIL", "SCHOOL_EMAIL", "PERSON_SIGNAL", "STUDENT_HIDDEN_NAME",
 					"PRIVATE_FEEDBACK", "SKILL_SUGGESTION", "CROSS_CREW_NAME", "CROSS_CREW_EMAIL", "CROSS_LINKEDIN",
 					"CROSS_CREW_CHAT", "CROSS_WORK_ITEM_NOTE", "CROSS_PAGE", "WORK_ITEM_TITLE", "CREW_PAGE_TITLE",
-					"CUSTOMER_PAGE", "EARLY_PAGE", "BID_PROOF_CAPTION", "BID_PROOF_LINK");
+					"CUSTOMER_PAGE", "EARLY_PAGE", "BID_PROOF_CAPTION", "BID_PROOF_LINK", "CREW_APPLICATION_NOTE",
+					"CREW_APPLICATION_PROOF_CAPTION", "CREW_APPLICATION_PROOF_LINK");
 		// The canaries of Job content are written after the former members' windows ended, so a Crew state other than
 		// ACTIVE, which reads at most up to its window_end (AD-41), reads none of them; a bid grants nothing on the Job.
 		// EARLY_PAGE alone was written inside the window, so the former member reads it (review iteration 4). The bid's
 		// proof is the Bidder's own, which they and the Job's Customer read (Story 21.2).
 		Set<MatrixCaller> neverSee = EnumSet.of(MatrixCaller.ANONYMOUS, MatrixCaller.USER, MatrixCaller.USER_UNVERIFIED,
-				MatrixCaller.LOCKED, MatrixCaller.BIDDER, MatrixCaller.CREW_ASSIGNED, MatrixCaller.CREW_FORMER,
-				MatrixCaller.AUTHOR);
+				MatrixCaller.LOCKED, MatrixCaller.BIDDER, MatrixCaller.CREW_APPLICANT, MatrixCaller.CREW_ASSIGNED,
+				MatrixCaller.CREW_FORMER, MatrixCaller.AUTHOR);
 		assertThat(canaries.all()).allSatisfy(canary -> {
 			Set<MatrixCaller> hidden = EnumSet.copyOf(neverSee);
 			if (canary.name().equals("EARLY_PAGE")) {
@@ -740,6 +759,9 @@ class MatrixFilesTest {
 			if (canary.name().startsWith("BID_PROOF_")) {
 				hidden.remove(MatrixCaller.BIDDER);
 			}
+			if (CREW_APPLICATION_CANARIES.contains(canary.name())) {
+				hidden.remove(MatrixCaller.CREW_APPLICANT);
+			}
 			assertThat(canary.visibleTo()).as(canary.name()).doesNotContainAnyElementsOf(hidden);
 		});
 		assertThat(canaries.get("EARLY_PAGE").visibleTo()).contains(MatrixCaller.CREW_FORMER);
@@ -747,6 +769,11 @@ class MatrixFilesTest {
 				MatrixCaller.CUSTOMER);
 		assertThat(canaries.get("BID_PROOF_LINK").visibleTo()).containsExactlyInAnyOrder(MatrixCaller.BIDDER,
 				MatrixCaller.CUSTOMER);
+		// A Crew Application and its proof go to the applicant and the Job's Mentor only (Story 21.4, AD-20).
+		for (String name : CREW_APPLICATION_CANARIES) {
+			assertThat(canaries.get(name).visibleTo()).as(name)
+				.containsExactlyInAnyOrder(MatrixCaller.CREW_APPLICANT, MatrixCaller.MENTOR);
+		}
 	}
 
 	@Test
@@ -771,7 +798,8 @@ class MatrixFilesTest {
 				"CREW_EMAIL", "JOB_CHAT", "TEAM_ISSUE_ID", "NOTIFICATION_PARAM", "TODO_PARAM", "CONTACT_EMAIL",
 				"SCHOOL_EMAIL", "PERSON_SIGNAL", "STUDENT_HIDDEN_NAME", "PRIVATE_FEEDBACK", "SKILL_SUGGESTION",
 				"CROSS_CREW_NAME", "CROSS_CREW_EMAIL", "CROSS_LINKEDIN", "CROSS_CREW_CHAT", "CROSS_WORK_ITEM_NOTE",
-				"CROSS_PAGE", "BID_PROOF_CAPTION", "BID_PROOF_LINK");
+				"CROSS_PAGE", "BID_PROOF_CAPTION", "BID_PROOF_LINK", "CREW_APPLICATION_NOTE",
+				"CREW_APPLICATION_PROOF_CAPTION", "CREW_APPLICATION_PROOF_LINK");
 		// The Pages and the Story were written after the former member's window ended; EARLY_PAGE inside it.
 		assertThat(names(canaries.hiddenFrom(MatrixCaller.CREW_FORMER))).contains("CREW_PAGE", "CREW_PAGE_TITLE",
 				"CUSTOMER_PAGE", "WORK_ITEM_TITLE", "CREW_NAME", "CREW_LINKEDIN")
@@ -794,10 +822,12 @@ class MatrixFilesTest {
 				"WORK_ITEM_NOTE", "ATTACHMENT", "CREW_CHAT", "CREW_CHAT_UNREPORTED", "CREW_PAGE", "JOB_CHAT",
 				"TEAM_ISSUE_ID", "NOTIFICATION_PARAM", "TODO_PARAM", "SCHOOL_EMAIL", "PERSON_SIGNAL", "CROSS_CREW_CHAT",
 				"CROSS_WORK_ITEM_NOTE", "CROSS_PAGE", "WORK_ITEM_TITLE", "CREW_PAGE_TITLE", "CUSTOMER_PAGE", "EARLY_PAGE",
-				"BID_PROOF_CAPTION", "BID_PROOF_LINK");
-		// No Administrator reads a bid's proof (Story 21.2: no read grant covers it).
+				"BID_PROOF_CAPTION", "BID_PROOF_LINK", "CREW_APPLICATION_NOTE", "CREW_APPLICATION_PROOF_CAPTION",
+				"CREW_APPLICATION_PROOF_LINK");
+		// No Administrator reads a bid's proof (Story 21.2) or a Crew Application (Story 21.4): no read grant covers them.
 		for (MatrixCaller grant : GRANT_SCOPES.keySet()) {
-			assertThat(names(canaries.hiddenFrom(grant))).as(grant.name()).contains("BID_PROOF_CAPTION", "BID_PROOF_LINK");
+			assertThat(names(canaries.hiddenFrom(grant))).as(grant.name()).contains("BID_PROOF_CAPTION", "BID_PROOF_LINK")
+				.containsAll(CREW_APPLICATION_CANARIES);
 		}
 		// A Dispute grant reads no Crew Chat and no Crew Terms (AdminReadItem.forDispute).
 		assertThat(names(canaries.hiddenFrom(MatrixCaller.ADMIN_DISPUTE_GRANT)))
@@ -852,7 +882,7 @@ class MatrixFilesTest {
 	@Test
 	void theCallersAreAd20s() {
 		assertThat(Arrays.stream(MatrixCaller.values()).map(Enum::name)).containsExactly("ANONYMOUS", "USER_UNVERIFIED",
-				"USER", "LOCKED", "CUSTOMER", "MENTOR", "BIDDER", "CREW_ASSIGNED", "CREW_ACTIVE", "CREW_FORMER",
+				"USER", "LOCKED", "CUSTOMER", "MENTOR", "BIDDER", "CREW_APPLICANT", "CREW_ASSIGNED", "CREW_ACTIVE", "CREW_FORMER",
 				"CROSS_ROLE", "SUBJECT", "ADMINISTRATOR", "ADMIN_DISPUTE_GRANT", "ADMIN_TEAM_ISSUE_GRANT",
 				"ADMIN_ABUSE_REPORT_GRANT", "AUTHOR");
 	}
@@ -923,6 +953,24 @@ class MatrixFilesTest {
 				}
 				continue;
 			}
+			if (names.contains("crewApplicationId")) {
+				if (!row.binds(Binding.RECRUIT_JOB)) {
+					violations.add(row + " names the recruiting Job's Crew Application: every row is "
+							+ Binding.RECRUIT_JOB.state());
+				}
+				continue;
+			}
+			boolean onTheRecruitJob = ON_THE_RECRUIT_JOB.contains(row.endpoint());
+			if (row.binds(Binding.RECRUIT_JOB)) {
+				if (!onTheRecruitJob || !RECRUIT_CALLERS.contains(row.caller())) {
+					violations.add(row + " binds " + Binding.RECRUIT_JOB.state() + " off JOB-9, or for a caller with no"
+							+ " relation to the recruiting Job");
+				}
+				continue;
+			}
+			if (onTheRecruitJob && row.caller() != MatrixCaller.CUSTOMER && RECRUIT_CALLERS.contains(row.caller())) {
+				violations.add(row + " is JOB-9's " + row.caller() + ": it runs on " + Binding.RECRUIT_JOB.state());
+			}
 			if (names.stream().anyMatch(CREW_JOB_OBJECTS::contains)) {
 				if (!row.binds(Binding.CREW_JOB)) {
 					violations.add(row + " names an object of the crew Job: every row is " + Binding.CREW_JOB.state());
@@ -953,7 +1001,7 @@ class MatrixFilesTest {
 		}
 		byEndpoint(rows).forEach((endpoint, endpointRows) -> {
 			Set<String> names = endpointRows.getFirst().placeholders();
-			if (!names.contains("jobId") || names.contains("applicationId")) {
+			if (!names.contains("jobId") || names.contains("applicationId") || names.contains("crewApplicationId")) {
 				return;
 			}
 			List<MatrixRow> customer = endpointRows.stream().filter(row -> row.caller() == MatrixCaller.CUSTOMER).toList();
@@ -1121,7 +1169,8 @@ class MatrixFilesTest {
 	}
 
 	private static boolean onTheCrewJob(MatrixRow row) {
-		if (row.binds(Binding.POST_JOB)) {
+		if (row.binds(Binding.POST_JOB) || row.binds(Binding.RECRUIT_JOB) || row.binds(Binding.RECRUIT_POST)
+				|| row.binds(Binding.CREW_PROOF_FILE) || row.binds(Binding.CREW_PROOF_UPLOAD)) {
 			return false;
 		}
 		if (row.binds(Binding.CREW_JOB) || row.binds(Binding.WORK_ITEM_FILE) || row.binds(Binding.CHAT_FILE)

@@ -121,7 +121,7 @@ export function json(body: unknown, status = 200): Response {
 /**
  * Replaces `fetch` with a backend that answers `GET /api/v1/session` with `session` and any other
  * `METHOD /path` from `handlers`, where a `*` in a handler's path stands for one path segment; the to-dos,
- * notifications, Jobs held (`/my-jobs`) and bids are empty, GitHub is as {@link gitHubLink} says, the profile is
+ * notifications, Jobs held (`/my-jobs`), bids and Crew Applications are empty, GitHub is as {@link gitHubLink} says, the profile is
  * {@link profileView}'s, and the verification is `UNVERIFIED` unless a handler answers them, and an unknown
  * request answers 404. Returns the requests it saw.
  */
@@ -149,7 +149,11 @@ export function fakeBackend(session: Session, handlers: Record<string, Handler> 
       if (key === 'GET /api/v1/notifications/unread-count') {
         return json({ count: 0 })
       }
-      if (key === 'GET /api/v1/my-jobs' || key === 'GET /api/v1/mentor/applications') {
+      if (
+        key === 'GET /api/v1/my-jobs' ||
+        key === 'GET /api/v1/mentor/applications' ||
+        key === 'GET /api/v1/mentor/crew-applications'
+      ) {
         return json([])
       }
       if (key === 'GET /api/v1/notifications') {

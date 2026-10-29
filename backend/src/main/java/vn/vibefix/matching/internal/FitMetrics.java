@@ -23,13 +23,13 @@ import vn.vibefix.job.MentorWork;
 import vn.vibefix.job.MentorWork.OnTime;
 
 /**
- * {@code matching.fitMetrics} (AD-17, X12, Story 21.3): the only definition of the Fit metrics a Bid card, CUS-12 and
- * CUS-13 show beside the bid, computed for a page of people in one batch of reads of {@code identity} and {@code job}
+ * {@code matching.fitMetrics} (AD-17, X12, Story 21.3): the only definition of the Fit metrics a Bid card, CUS-12,
+ * CUS-13 and JOB-9's Applicant card show, computed for a page of people in one batch of reads of {@code identity} and {@code job}
  * (SG-40). Each is deterministic and stands alone: there is no combined score and nothing orders people by them.
  * The Rating as Mentor and the month joined are profile facts beside them, never metrics.
  * <ul>
  * <li>The Skills shared with the Job Post, by their current names, in the Job Post's order, of the Skills it
- * seeks.</li>
+ * seeks; for a Crew applicant, those of the recruitment (Story 21.4).</li>
  * <li>The Job Type matches in the person's history in either role ({@code job.historyOf}, one per counterpart), per
  * Job Type of the Job Post.</li>
  * <li>The Jobs closed with Accepted work as Mentor and, separately, as Crew member.</li>
@@ -95,11 +95,23 @@ class FitMetrics {
 	 */
 	@Transactional(readOnly = true)
 	Map<UUID, Metrics> fitMetrics(UUID jobId, Collection<UUID> accountIds, @Nullable Map<UUID, PersonFacts> facts) {
+		return fitMetrics(jobId, accountIds, facts, null);
+	}
+
+	/**
+	 * {@link #fitMetrics(UUID, Collection, Map)} against the Skills a Crew recruitment seeks (AD-17, Story 21.4): an
+	 * Applicant card's shared Skills are the recruitment's, not the Job Post's.
+	 * @param sought the Skills sought, in the Mentor's order, else {@code null} for the Job Post's
+	 */
+	@Transactional(readOnly = true)
+	Map<UUID, Metrics> fitMetrics(UUID jobId, Collection<UUID> accountIds, @Nullable Map<UUID, PersonFacts> facts,
+			@Nullable List<UUID> sought) {
 		Map<UUID, Metrics> metrics = new LinkedHashMap<>();
 		JobPostState post = this.posts.post(jobId).orElse(null);
 		if (post == null || accountIds.isEmpty()) {
 			return metrics;
 		}
+		List<UUID> skills = sought != null ? List.copyOf(sought) : post.skillIds();
 		List<UUID> ids = List.copyOf(new LinkedHashSet<>(accountIds));
 		Map<UUID, PersonFacts> people = facts != null ? facts : this.profiles.factsOf(ids);
 		Map<UUID, History> histories = this.roles.historiesOf(ids);
@@ -111,7 +123,7 @@ class FitMetrics {
 				continue;
 			}
 			History history = histories.getOrDefault(id, History.EMPTY);
-			List<UUID> shared = post.skillIds().stream().filter(person.skillIds()::contains).toList();
+			List<UUID> shared = skills.stream().filter(person.skillIds()::contains).toList();
 			List<JobTypeMatch> matches = new ArrayList<>();
 			for (String type : new LinkedHashSet<>(post.jobTypes())) {
 				int asMentor = history.mentor().jobTypes().getOrDefault(type, 0);
@@ -121,7 +133,7 @@ class FitMetrics {
 				}
 			}
 			OnTime dated = onTime.getOrDefault(id, OnTime.NONE);
-			metrics.put(id, new Metrics(shared, post.skillIds().size(), matches, history.mentor().jobs(),
+			metrics.put(id, new Metrics(shared, skills.size(), matches, history.mentor().jobs(),
 					history.crew().jobs(), dated.total() == 0 ? null : dated, active.getOrDefault(id, 0), person.held()));
 		}
 		return metrics;

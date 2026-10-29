@@ -62,13 +62,36 @@ class SourceContributors {
 		if (post.isEmpty() || bidderId.equals(post.get().customerId()) || post.get().hidden() || !post.get().open()) {
 			return Contribution.UNKNOWN;
 		}
-		Optional<ProductInfo> product = this.products.find(post.get().productId());
+		return contribution(post.get(), bidderId);
+	}
+
+	/**
+	 * Whether {@code applicantId} contributed to the Job's Source Repository, for a Crew Application (FR-81, A-03):
+	 * read the same way, before the application's transaction. A Job the application refuses before this rule
+	 * (missing, hidden, the applicant's own as Customer or Mentor) asks GitHub nothing; the recruitment itself is read
+	 * again under the Job row lock.
+	 * @throws IllegalStateException inside a transaction
+	 */
+	Contribution readForCrew(UUID jobId, UUID applicantId) {
+		if (TransactionSynchronizationManager.isActualTransactionActive()) {
+			throw new IllegalStateException("The contributor read runs before the application's transaction, never under a lock");
+		}
+		Optional<JobPostState> post = this.posts.post(jobId);
+		if (post.isEmpty() || applicantId.equals(post.get().customerId()) || applicantId.equals(post.get().mentorId())
+				|| post.get().hidden()) {
+			return Contribution.UNKNOWN;
+		}
+		return contribution(post.get(), applicantId);
+	}
+
+	private Contribution contribution(JobPostState post, UUID accountId) {
+		Optional<ProductInfo> product = this.products.find(post.productId());
 		if (product.isEmpty()) {
 			return Contribution.UNKNOWN;
 		}
 		String[] repository = product.get().repositoryFullName().split("/", 2);
 		try {
-			return this.repositories.hasContributor(post.get().customerId(), repository[0], repository[1], bidderId)
+			return this.repositories.hasContributor(post.customerId(), repository[0], repository[1], accountId)
 					? Contribution.CONTRIBUTOR : Contribution.NONE;
 		}
 		catch (GitHubException | ApiException unanswered) {

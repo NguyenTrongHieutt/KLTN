@@ -1,0 +1,6 @@
+subject: {name} xin vào nhóm thực hiện {job}
+---
+Xin chào,
+
+{name} đã gửi đơn xin vào nhóm thực hiện công việc {job}, kèm lời nhắn, kỹ năng và bằng chứng năng lực.
+Hãy mở vibefix để xem đơn trong mục Tuyển thành viên. Đơn hết hạn nếu bạn chưa chọn trong thời hạn của công việc.

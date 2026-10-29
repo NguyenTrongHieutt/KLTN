@@ -38,7 +38,10 @@ import org.springframework.http.HttpMethod;
  * {@code {fileId}} name one of the crew Job's stored files (the Mentor's screenshot upload waiting for the next
  * handover, a Work Item attachment, a Crew Chat attachment, a handover's screenshot) instead of the Open Job Post's
  * public screenshot; {@code file=proof} and {@code file=proof-upload} make it name the post's bid's proof file or the
- * Bidder's proof upload no bid took yet (Story 21.2); and {@code item=raiser} makes {@code {workItemId}} name the escalated Team Issue's raiser's
+ * Bidder's proof upload no bid took yet (Story 21.2); {@code job=recruit} and {@code post=recruit} make {@code {jobId}}
+ * and {@code {postId}} the recruiting Job, where {@code {crewApplicationId}} lives, and {@code file=crew-proof} and
+ * {@code file=crew-proof-upload} make {@code {fileId}} its Crew Application's proof file or the applicant's waiting
+ * upload (Story 21.4); and {@code item=raiser} makes {@code {workItemId}} name the escalated Team Issue's raiser's
  * Work Item instead of the active member's. The
  * fixture that realizes the caller must understand every other key; since Story 20.5 no caller takes one: a
  * locked account is the caller {@code LOCKED}, and the GitHub link tells {@code USER} from
@@ -82,7 +85,7 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 	public static final Set<String> JOB_SCOPED = Set.of("jobId", "boardId", "postId", "applicationId", "crewChatId",
 			"messageId", "workItemId", "workItemNoteId", "attachmentId", "handoverId", "followUpId", "changeRequestId",
 			"teamIssueId", "pageId", "crewMilestoneId", "crewCriterionId", "crewRowId", "milestoneId", "paymentOrderId",
-			"accessId", "screenshotId", "disputeId", "reportId", "fileId");
+			"accessId", "screenshotId", "disputeId", "reportId", "fileId", "crewApplicationId");
 
 	private static final Pattern PLACEHOLDER = Pattern.compile("\\{([A-Za-z][A-Za-z0-9]*)}");
 
@@ -150,7 +153,28 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 		 * {@code user=member}: {@code {username}} names the crew Job's member who hides their student name, whose PUB-4
 		 * must never show it (X9, Story 21.3), instead of the crew Job's Mentor.
 		 */
-		MEMBER_PROFILE("user", "member", "username", "memberUsername");
+		MEMBER_PROFILE("user", "member", "username", "memberUsername"),
+
+		/**
+		 * {@code job=recruit}: {@code {jobId}} names the recruiting Job (Story 21.4), an Agreement Job whose Mentor is
+		 * {@code MENTOR}, where {@code {crewApplicationId}} and its {@code CREW_APPLICANT} live.
+		 */
+		RECRUIT_JOB("job", "recruit", "jobId", "recruitJobId"),
+
+		/** {@code post=recruit}: {@code {postId}} names the recruiting Job, which FND-2 applies to (Story 21.4). */
+		RECRUIT_POST("post", "recruit", "postId", "recruitJobId"),
+
+		/**
+		 * {@code file=crew-proof}: {@code {fileId}} names the stored file of the recruiting Job's Crew Application proof,
+		 * which {@code CrewApplicationProofFiles} serves to the applicant and the Job's Mentor only (Story 21.4).
+		 */
+		CREW_PROOF_FILE("file", "crew-proof", "fileId", "crewProofFileId"),
+
+		/**
+		 * {@code file=crew-proof-upload}: {@code {fileId}} names the Crew applicant's proof upload on the recruiting Job
+		 * that no application took yet, which only the applicant reads and removes (Story 21.4).
+		 */
+		CREW_PROOF_UPLOAD("file", "crew-proof-upload", "fileId", "crewProofUploadId");
 
 		private final String key;
 

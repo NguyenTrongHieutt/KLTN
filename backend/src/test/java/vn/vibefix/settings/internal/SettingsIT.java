@@ -44,6 +44,7 @@ class SettingsIT extends IntegrationTest {
 		defaults.put(Rule.STARTING_STALL_DAYS, 7);
 		defaults.put(Rule.MENTOR_ACTIVE_JOB_LIMIT, 3);
 		defaults.put(Rule.MENTOR_SHARE_CAP_PERCENT, 40);
+		defaults.put(Rule.CREW_APPLICATION_LAPSE_DAYS, 14);
 
 		assertThat(defaults).containsOnlyKeys(Rule.values());
 		defaults.forEach((rule, value) -> assertThat(this.settings.value(rule)).as(rule.name()).isEqualTo(value));
