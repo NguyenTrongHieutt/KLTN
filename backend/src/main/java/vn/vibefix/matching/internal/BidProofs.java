@@ -79,8 +79,11 @@ class BidProofs {
 
 	}
 
-	/** Whose a stored proof file is: the bidder's, and once attached, that bid's. */
-	record Owner(UUID fileId, UUID jobId, UUID bidderId, @Nullable UUID applicationId) {
+	/**
+	 * Whose a stored proof file is: the bidder's, and once attached, that bid's.
+	 * @param withdrawn the bid carrying it was withdrawn: the Customer no longer sees it
+	 */
+	record Owner(UUID fileId, UUID jobId, UUID bidderId, @Nullable UUID applicationId, boolean withdrawn) {
 	}
 
 	private final JdbcClient jdbc;
@@ -254,10 +257,11 @@ class BidProofs {
 	@Transactional(readOnly = true)
 	Optional<Owner> owner(UUID fileId) {
 		return this.jdbc.sql("""
-				SELECT file_id, job_id, bidder_account_id, application_id FROM matching.bid_proof WHERE file_id = :file
+				SELECT p.file_id, p.job_id, p.bidder_account_id, p.application_id, a.status = 'WITHDRAWN' AS withdrawn
+				FROM matching.bid_proof p LEFT JOIN matching.application a ON a.id = p.application_id WHERE p.file_id = :file
 				""").param("file", fileId).query((rs, n) -> new Owner(rs.getObject("file_id", UUID.class),
 				rs.getObject("job_id", UUID.class), rs.getObject("bidder_account_id", UUID.class),
-				rs.getObject("application_id", UUID.class))).optional();
+				rs.getObject("application_id", UUID.class), rs.getBoolean("withdrawn"))).optional();
 	}
 
 	/**

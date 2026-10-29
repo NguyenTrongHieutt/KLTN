@@ -104,6 +104,7 @@ class NdaIT extends IntegrationTest {
 				SELECT count(*) FROM identity.acknowledgment WHERE account_id = :hung AND notice = 'COMMIT_EMAIL'
 				""").param("hung", this.hung).query(Long.class).single()).isOne();
 		await().atMost(Duration.ofSeconds(10)).until(() -> "CLOSED".equals(applicationStatus(this.haApplication)));
+		assertThat(proofDueNinetyDaysAfterTheEnd(this.haApplication)).as("X3: a NOT_SELECTED bid's proof is due").isTrue();
 		await().atMost(Duration.ofSeconds(10)).until(() -> this.jdbc.sql("""
 				SELECT count(*) FROM notification.notification WHERE type = 'matching.applications_closed' AND account_id = :ha
 				""").param("ha", this.ha).query(Long.class).single() == 1);
@@ -136,6 +137,7 @@ class NdaIT extends IntegrationTest {
 		await().atMost(Duration.ofSeconds(10)).until(() -> "SUBMITTED".equals(applicationStatus(this.haApplication)));
 		assertThat(this.jdbc.sql("SELECT status || ' ' || end_reason FROM matching.application WHERE id = :id")
 			.param("id", this.hungApplication).query(String.class).single()).isEqualTo("CLOSED DECLINED");
+		assertThat(proofDueNinetyDaysAfterTheEnd(this.hungApplication)).as("X3: a declined selection's proof is due").isTrue();
 		await().atMost(Duration.ofSeconds(10)).until(() -> this.jdbc.sql("""
 				SELECT count(*) FROM notification.notification WHERE type = 'matching.applications_reopened' AND account_id = :ha
 				""").param("ha", this.ha).query(Long.class).single() == 1);
@@ -197,6 +199,13 @@ class NdaIT extends IntegrationTest {
 		return this.jdbc.sql("""
 				SELECT count(*) FROM notification.todo WHERE todo_key = :key AND subject_id = :job AND closed_at IS NULL
 				""").param("key", key).param("job", this.job).query(Long.class).single();
+	}
+
+	/** X3 (Story 21.2): the bid's proof is due 90 days after it ended. */
+	private boolean proofDueNinetyDaysAfterTheEnd(UUID application) {
+		return this.jdbc.sql("""
+				SELECT ended_at IS NOT NULL AND proof_due_at = ended_at + INTERVAL '90 days' FROM matching.application WHERE id = :id
+				""").param("id", application).query(Boolean.class).single();
 	}
 
 	private String applicationStatus(UUID application) {

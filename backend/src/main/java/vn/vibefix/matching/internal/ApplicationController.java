@@ -170,7 +170,9 @@ class ApplicationController {
 		}
 		List<Item> proof = BidProofs.requireShape(body.proof() == null ? List.of()
 				: body.proof().stream().map(item -> new Item(item.kind(), item.fileId(), item.url(), item.caption())).toList());
-		// A-03: GitHub is read here, before the bid's transaction and its locks, and the answer is passed in.
+		// A-03: the cheap refusals first, so a bid refused anyway asks GitHub nothing; then GitHub is read here, before the
+		// bid's transaction and its locks, and the answer is passed in.
+		this.applications.precheck(mentor, postId);
 		Contribution contribution = this.contributors.read(postId, mentor);
 		Application application = this.applications.submit(mentor, postId,
 				new Quote(body.priceVnd(), body.timelineDays(), body.approach()), proof, contribution);

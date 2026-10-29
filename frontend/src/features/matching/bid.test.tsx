@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
 import { capabilities, fakeBackend, inEveryJob, json, signedInUser } from '@/test/fakeBackend'
+import { isProofLink } from './applicationApi'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -145,6 +146,49 @@ describe('MEN-3, the bid action (UX-DR98, Story 21.2)', () => {
 
     expect(await screen.findByText('Khách hàng đã chọn đơn chào giá của bạn')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Rút' })).toBeNull()
+  })
+
+  it('shows a bid on hold, which can still be withdrawn', { timeout: 15_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...menThree,
+      'GET /api/v1/mentor/applications': () => json([application({ status: 'ON_HOLD' })]),
+    })
+    renderAt('/tim-viec/j1')
+
+    expect(await screen.findByText('Đang chờ: khách hàng đã chọn người khác')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Rút' })).toBeInTheDocument()
+  })
+})
+
+describe('the proof link rule, as the server keeps it (AD-21, shared.HttpsLinks)', () => {
+  it.each([
+    'https://docs.example.vn/danh-gia',
+    'https://A.vn:8443/x?q=1#f',
+    'https://1.2.3.4/x',
+    'https://a.vn/đánh-giá',
+    'https://a.vn/50%25',
+  ])('keeps %s', (url) => {
+    expect(isProofLink(url)).toBe(true)
+  })
+
+  it.each([
+    'http://a.vn/x',
+    'https://',
+    'https://bücher.de/x',
+    'https://a_b.vn/x',
+    'https://a.vn/50%',
+    'https://a.vn/x|y',
+    'https://a.vn/x^y',
+    'https://a.vn/{x}',
+    'https://a.vn/<x>',
+    'https://a.vn/"x"',
+    'https://a.vn/a\\b',
+    'https://a.vn/a`b',
+    'https://a.vn/x y',
+    'https://u:p@a.vn/x',
+    'https://a.vn/[x]',
+  ])('refuses %s', (url) => {
+    expect(isProofLink(url)).toBe(false)
   })
 })
 
@@ -332,6 +376,74 @@ describe('FND-1, a bid with a quote and proof (UX-DR99, FR-13)', () => {
     expect(screen.getByRole('link', { name: /docs\.example\.vn\/danh-gia/ })).toHaveAttribute('rel', 'noopener noreferrer')
     expect(screen.getByText('(docs.example.vn)')).toBeInTheDocument()
     expect(screen.getByText(/Trang này nằm ngoài vibefix \(docs\.example\.vn\)/)).toBeInTheDocument()
+    expect(screen.queryByLabelText('Giá đề xuất')).toBeNull()
+  })
+
+  it('lists the uploads kept from before; "Bỏ" removes one, the other is sent', { timeout: 30_000 }, async () => {
+    const user = userEvent.setup()
+    let sent: { proof?: unknown } | undefined
+    let removed: string | undefined
+    const spare = { ...upload, fileId: 'f2', fileName: 'du-phong.pdf', fileUrl: '/api/v1/files/f2' }
+    fakeBackend(signedInUser, {
+      ...menThree,
+      'GET /api/v1/mentor/job-posts/j1/proof-files': () => json([upload, spare]),
+      'DELETE /api/v1/mentor/job-posts/j1/proof-files/f2': () => {
+        removed = 'f2'
+        return new Response(null, { status: 204 })
+      },
+      'POST /api/v1/mentor/job-posts/j1/applications': async (request) => {
+        sent = await request.json()
+        return json(application(), 201)
+      },
+    })
+    renderAt('/tim-viec/j1/chao-gia')
+
+    await user.type(await screen.findByLabelText('Mô tả cho bao-cao.pdf'), 'Báo cáo kiểm thử')
+    expect(screen.getByLabelText('Mô tả cho du-phong.pdf')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Bỏ du-phong.pdf' }))
+    await waitFor(() => expect(screen.queryByLabelText('Mô tả cho du-phong.pdf')).toBeNull())
+    expect(removed).toBe('f2')
+    expect(screen.getByText('Đã thêm 1/5 mục.')).toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('Giá đề xuất'), '800000')
+    await user.type(screen.getByLabelText('Thời gian làm (ngày)'), '5')
+    await user.type(screen.getByLabelText('Cách bạn sẽ làm'), 'Sửa lỗi.')
+    await user.click(screen.getByRole('checkbox', { name: /Tôi hiểu mã tôi và nhóm làm/ }))
+    await user.click(screen.getByRole('button', { name: 'Gửi chào giá' }))
+
+    await waitFor(() => expect(sent?.proof).toEqual([{ kind: 'FILE', fileId: 'f1', caption: 'Báo cáo kiểm thử' }]))
+  })
+
+  it('sends a file of any type to the server and says its refusal, FILE_TOO_LARGE', { timeout: 30_000 }, async () => {
+    const user = userEvent.setup({ applyAccept: false })
+    let uploads = 0
+    fakeBackend(signedInUser, {
+      ...menThree,
+      'GET /api/v1/mentor/job-posts/j1/proof-files': () => json([]),
+      'POST /api/v1/mentor/job-posts/j1/proof-files': () => {
+        uploads += 1
+        return json({ status: 400, code: 'VALIDATION', reason: 'FILE_TOO_LARGE' }, 400)
+      },
+    })
+    renderAt('/tim-viec/j1/chao-gia')
+
+    await screen.findByLabelText('Giá đề xuất')
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    await user.upload(input, new File(['x'], 'anh-chup', { type: '' }))
+
+    expect(await screen.findByText('Tệp lớn hơn 10 MB.')).toBeInTheDocument()
+    expect(uploads).toBe(1)
+  })
+
+  it('takes no bid on a listed Job whose Mentor recruits the Crew', { timeout: 15_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...menThree,
+      'GET /api/v1/mentor/job-posts/j1': () =>
+        json({ ...post, phase: 'RECRUITING', need: 'CREW', recruitment: { openSlots: 1, skills: [], note: '' } }),
+    })
+    renderAt('/tim-viec/j1/chao-gia')
+
+    expect(await screen.findByRole('heading', { name: 'Công việc không còn nhận chào giá.' })).toBeInTheDocument()
     expect(screen.queryByLabelText('Giá đề xuất')).toBeNull()
   })
 

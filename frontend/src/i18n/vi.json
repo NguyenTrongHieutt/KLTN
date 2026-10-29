@@ -1817,10 +1817,10 @@
       "detail": {
         "breadcrumb": "Công việc",
         "lapsesChip": "Tin hết hạn {date}",
-        "applicationsTitle": "Chưa có đơn ứng tuyển",
+        "applicationsTitle": "Chưa có đơn chào giá",
         "applicationsBody": "Tin của bạn đang hiện với những người đã xác minh tài khoản GitHub trên vibefix.",
         "nextTitle": "Điều gì xảy ra tiếp theo",
-        "nextApply": "Người hướng dẫn ứng tuyển",
+        "nextApply": "Người hướng dẫn chào giá",
         "nextApplyBody": "Họ đọc tin, xem mã công khai rồi gửi giá, thời gian và cách làm.",
         "nextChoose": "Bạn chọn người hướng dẫn",
         "nextChooseBody": "Bạn so sánh các đơn và chọn một người.",
@@ -1977,10 +1977,10 @@
     "matching": {
       "test": "THỬ NGHIỆM",
       "days": "{n} ngày",
-      "tab": "Đơn ứng tuyển ({n})",
+      "tab": "Đơn chào giá ({n})",
       "appliedBadge": "Đã ứng tuyển",
-      "overviewCount": "{n} đơn ứng tuyển",
-      "overviewOpen": "Xem các đơn ứng tuyển",
+      "overviewCount": "{n} đơn chào giá",
+      "overviewOpen": "Xem các đơn chào giá",
       "apply": {
         "heading": "Chào giá làm người hướng dẫn",
         "lead": "Khách hàng sẽ thấy giá, thời gian, cách làm và bằng chứng năng lực của bạn. Bạn tuyển thành viên nhóm thực hiện sau khi được chọn.",
@@ -2032,7 +2032,7 @@
         "readLead": "Chỉ bạn và khách hàng của công việc này xem được đơn chào giá này."
       },
       "list": {
-        "title": "Đơn ứng tuyển · {job}",
+        "title": "Đơn chào giá · {job}",
         "sent": "gửi {date}",
         "note": "Bạn có thể chờ thêm đơn rồi so sánh trước khi chọn. Người hướng dẫn chỉ thấy đơn của chính họ."
       },
@@ -2056,7 +2056,7 @@
         "lead": "So sánh giá, thời gian, cách làm và số thành viên trong nhóm của từng người hướng dẫn.",
         "heading": "Đang so sánh ({n})",
         "summary": "Đang so sánh {n} đơn",
-        "all": "Tất cả đơn ứng tuyển ({n})",
+        "all": "Tất cả đơn chào giá ({n})",
         "toggle": "So sánh",
         "profile": "Xem hồ sơ",
         "portfolio": "{n} mục hồ sơ năng lực",
@@ -4357,7 +4357,7 @@
         "title": "{name} không còn tham gia {job}"
       },
       "job_post_hidden": {
-        "title": "Tin tuyển {job} đã bị ẩn và không nhận ứng tuyển nữa"
+        "title": "Tin {job} đã bị ẩn và không nhận chào giá nữa"
       },
       "change_request_awaiting_top_up": {
         "title": "Hãy thanh toán thêm {amount} THỬ NGHIỆM để thay đổi ở {job} có hiệu lực"
@@ -4374,7 +4374,7 @@
         "title": "{mentor} đã rút đơn chào giá cho {job}"
       },
       "conflict_of_interest_refused": {
-        "title": "Một đơn ứng tuyển bị từ chối vì có thể là cùng một người"
+        "title": "Một đơn chào giá bị từ chối vì có thể là cùng một người"
       },
       "applications_on_hold": {
         "title": "Đơn ứng tuyển của bạn cho {job} đang chờ: khách hàng đã chọn người khác"
@@ -4708,7 +4708,7 @@
       "COMMIT_EMAIL_NOT_ACKNOWLEDGED": "Hãy đánh dấu \"Tôi đã hiểu\" trước khi ký.",
       "INVITEE_NOT_AVAILABLE": "người hướng dẫn này hiện không nhận lời mời",
       "ALREADY_INVITED": "Bạn đã mời người hướng dẫn này cho công việc này.",
-      "INVITEE_ALREADY_APPLIED": "Người hướng dẫn này đã ứng tuyển công việc này.",
+      "INVITEE_ALREADY_APPLIED": "Người hướng dẫn này đã chào giá công việc này.",
       "INVITE_LIMIT_JOB_POST": "Hôm nay bạn đã gửi đủ 10 lời mời cho công việc này. Bạn có thể mời tiếp sau 00:00.",
       "INVITE_LIMIT_DAILY": "Hôm nay bạn đã gửi đủ 30 lời mời. Bạn có thể mời tiếp sau 00:00.",
       "PROFILE_REQUIRED": "Hãy đặt tên hiển thị trong hồ sơ trước khi chào giá, để khách hàng biết ai đang chào giá.",

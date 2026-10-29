@@ -38,9 +38,6 @@ import {
 import { bidRefusal, bidRefusalLink, bidStateText, proofUploadRefusal } from './bidText'
 import { ProofList } from './ProofList'
 
-/** What a proof file may be on the client (NFR-3, AD-21): an image or a PDF of at most 10 MB; the server reads the bytes. */
-const PROOF_TYPES = /^(image\/(png|jpeg|gif|bmp)|application\/pdf)$/
-
 /**
  * FND-1 Chào giá (`/tim-viec/{jobId}/chao-gia`, FR-13, UX-DR99), a focused task route: the bid, called "Đơn chào
  * giá", with the price in whole VND (test money), the days, the approach, and "Bằng chứng năng lực" (at most five
@@ -96,6 +93,10 @@ function BidRoute({ postId }: { postId: string }) {
         {problemMessage(post.error).text}
       </p>
     )
+  }
+  // A listed Job no longer looking for a Mentor (its Mentor recruits the Crew) takes no bid.
+  if (post.data.phase !== 'FINDING_MENTOR') {
+    return <NotOpen />
   }
   return <BidForm post={post.data} />
 }
@@ -225,12 +226,10 @@ function BidForm({ post }: { post: JobPost }) {
     if (!roomLeft()) {
       return
     }
+    // Only the size is checked here (NFR-3): the server reads the bytes, so a file the browser gives no type or another
+    // image type goes to it, and its refusal says itself.
     if (file.size > MAX_UPLOAD_BYTES) {
       setProofError(t('reason.files.FILE_TOO_LARGE'))
-      return
-    }
-    if (!PROOF_TYPES.test(file.type)) {
-      setProofError(t('reason.files.FILE_TYPE_NOT_ALLOWED'))
       return
     }
     add.mutate(file, {

@@ -65,18 +65,31 @@ export function useRemoveProofFile(postId: string) {
   })
 }
 
-/** Whether a link may be proof (AD-21, the shared link rule): `https` with a host, no spaces. */
+/** A host the server's link rule keeps (`java.net.URI`): an IPv4 address, or ASCII labels ending in a letter label. */
+const PROOF_HOST = /^(\d{1,3}(\.\d{1,3}){3}|([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)*[a-z]([a-z0-9-]*[a-z0-9])?\.?)$/i
+
+/**
+ * Whether a link may be proof, by the server's rule (AD-21, `shared.HttpsLinks` on `java.net.URI`): `https`, at most
+ * 2,000 characters, with an ASCII host (no `_`, no IDN) and no user info; no space, control character, stray `%`, or
+ * any of `|^{}<>"\` and the backtick; `[` and `]` nowhere outside the host.
+ */
 export function isProofLink(url: string): boolean {
   const trimmed = url.trim()
-  if (!/^https:\/\/\S+$/i.test(trimmed) || trimmed.length > 2000) {
+  if (trimmed.length > 2000 || !/^https:\/\//i.test(trimmed)) {
     return false
   }
-  try {
-    const parsed = new URL(trimmed)
-    return parsed.protocol === 'https:' && parsed.hostname !== '' && parsed.username === '' && parsed.password === ''
-  } catch {
+  // eslint-disable-next-line no-control-regex
+  if (/[\u0000-\u0020\u007f|^{}<>"\\`]/.test(trimmed) || /%(?![0-9a-f]{2})/i.test(trimmed)) {
     return false
   }
+  const rest = trimmed.slice('https://'.length)
+  const end = rest.search(/[/?#]/)
+  const authority = end === -1 ? rest : rest.slice(0, end)
+  if (authority.includes('@') || /[[\]]/.test(end === -1 ? '' : rest.slice(end))) {
+    return false
+  }
+  const host = authority.replace(/:\d*$/, '')
+  return PROOF_HOST.test(host) || /^\[[0-9a-f:.]+\]$/i.test(host)
 }
 
 /** "Việc tôi hướng dẫn" on CUS-7, and MEN-3: the user's own bids, newest first. */

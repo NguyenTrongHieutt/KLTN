@@ -479,6 +479,8 @@ GET /api/v1/files/{fileId},ADMIN_ABUSE_REPORT_GRANT,file=chat,,404 NOT_FOUND
 GET /api/v1/files/{fileId},ADMIN_ABUSE_REPORT_GRANT,file=screenshot,,404 NOT_FOUND
 # file=proof, the Open post's bid's proof file (BidProofFiles, Story 21.2, AD-20): the Bidder and the post's Customer read it,
 # nobody else, no Administrator grant included; file=proof-upload, the Bidder's upload no bid took yet: the Bidder's alone.
+GET /api/v1/files/{fileId},ANONYMOUS,file=proof,,401
+GET /api/v1/files/{fileId},LOCKED,file=proof,,401
 GET /api/v1/files/{fileId},USER,file=proof,,404 NOT_FOUND
 GET /api/v1/files/{fileId},USER_UNVERIFIED,file=proof,,404 NOT_FOUND
 GET /api/v1/files/{fileId},CUSTOMER,file=proof,,200
@@ -492,8 +494,21 @@ GET /api/v1/files/{fileId},ADMINISTRATOR,file=proof,,404 NOT_FOUND
 GET /api/v1/files/{fileId},ADMIN_DISPUTE_GRANT,file=proof,,404 NOT_FOUND
 GET /api/v1/files/{fileId},ADMIN_TEAM_ISSUE_GRANT,file=proof,,404 NOT_FOUND
 GET /api/v1/files/{fileId},ADMIN_ABUSE_REPORT_GRANT,file=proof,,404 NOT_FOUND
+GET /api/v1/files/{fileId},ANONYMOUS,file=proof-upload,,401
+GET /api/v1/files/{fileId},USER_UNVERIFIED,file=proof-upload,,404 NOT_FOUND
+GET /api/v1/files/{fileId},USER,file=proof-upload,,404 NOT_FOUND
+GET /api/v1/files/{fileId},LOCKED,file=proof-upload,,401
 GET /api/v1/files/{fileId},CUSTOMER,file=proof-upload,,404 NOT_FOUND
+GET /api/v1/files/{fileId},MENTOR,file=proof-upload,,404 NOT_FOUND
 GET /api/v1/files/{fileId},BIDDER,file=proof-upload,,200
+GET /api/v1/files/{fileId},CREW_ASSIGNED,file=proof-upload,,404 NOT_FOUND
+GET /api/v1/files/{fileId},CREW_ACTIVE,file=proof-upload,,404 NOT_FOUND
+GET /api/v1/files/{fileId},CREW_FORMER,file=proof-upload,,404 NOT_FOUND
+GET /api/v1/files/{fileId},CROSS_ROLE,file=proof-upload,,404 NOT_FOUND
+GET /api/v1/files/{fileId},ADMINISTRATOR,file=proof-upload,,404 NOT_FOUND
+GET /api/v1/files/{fileId},ADMIN_DISPUTE_GRANT,file=proof-upload,,404 NOT_FOUND
+GET /api/v1/files/{fileId},ADMIN_TEAM_ISSUE_GRANT,file=proof-upload,,404 NOT_FOUND
+GET /api/v1/files/{fileId},ADMIN_ABUSE_REPORT_GRANT,file=proof-upload,,404 NOT_FOUND
 # A Customer's contact (FR-3, Story 19.3): {customerId} is the crew Job's Customer, whose contact email is the
 # CONTACT_EMAIL canary. The Customer and Administrators read it, and the Job's Mentor under the contact grant the
 # Job holds from Agreement on; a Crew member never reads it, and neither does anyone else.

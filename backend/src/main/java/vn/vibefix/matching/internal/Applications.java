@@ -176,37 +176,8 @@ class Applications {
 	 */
 	@Transactional
 	Application submit(UUID mentorId, UUID jobId, Quote quote, List<Item> proof, Contribution contribution) {
-		JobPostState post = this.posts.post(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		if (mentorId.equals(post.customerId())) {
-			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.ROLE_TAKEN);
-		}
-		if (post.hidden()) {
-			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.JOB_POST_HIDDEN);
-		}
-		if (!post.open()) {
-			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.JOB_POST_NOT_OPEN);
-		}
-		// FR-13's guards run under the Mentor's lock, which J3 takes too (SG-52, AD-4).
-		AdvisoryLocks.lockAccount(this.jdbc, mentorId);
-		if (find(jobId, mentorId).isPresent()) {
-			throw new ApiException(ErrorCode.CONFLICT, MatchingReason.ALREADY_APPLIED);
-		}
+		JobPostState post = refuseCheaply(mentorId, jobId, true);
 		Instant now = this.clock.instant();
-		Instant dayStart = LocalDate.ofInstant(now, VIETNAM).atStartOfDay(VIETNAM).toInstant();
-		long today = this.jdbc.sql("""
-				SELECT count(*) FROM matching.application WHERE mentor_account_id = :mentor AND submitted_at >= :since
-				""").param("mentor", mentorId).param("since", Timestamp.from(dayStart)).query(Long.class).single();
-		if (today >= DAILY_LIMIT) {
-			throw new RateLimitedException(Duration.between(now, dayStart.plus(Duration.ofDays(1))));
-		}
-		int limit = this.work.activeJobLimit();
-		if (this.work.activeJobCount(mentorId) >= limit) {
-			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.MENTOR_JOB_LIMIT, Map.of("limit", limit));
-		}
-		if (this.signals.sharesPersonSignal(mentorId, post.customerId())) {
-			this.alerts.conflictRefused();
-			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.CONFLICT_OF_INTEREST);
-		}
 		if (contribution == Contribution.CONTRIBUTOR) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.APPLICANT_IS_CONTRIBUTOR);
 		}
@@ -242,6 +213,56 @@ class Applications {
 		}
 		refreshTodo(post, open);
 		return find(jobId, mentorId).orElseThrow();
+	}
+
+	/**
+	 * The bid's cheap refusals, read before the contributor read (A-03) so that a bid refused anyway asks GitHub
+	 * nothing; {@link #submit} runs them again under the bidder's lock. A shared person-link signal alerts the
+	 * Administrators here, and {@link #submit} finds it again only if it appeared since, so one bid alerts once.
+	 * @throws ApiException as {@link #submit} does for every rule but the contributor's and the proof's
+	 * @throws RateLimitedException after {@value #DAILY_LIMIT} bids today
+	 */
+	@Transactional(readOnly = true)
+	void precheck(UUID mentorId, UUID jobId) {
+		refuseCheaply(mentorId, jobId, false);
+	}
+
+	/** Every rule of a bid but the contributor's, in FR-13's order; {@code locked} takes the bidder's lock first. */
+	private JobPostState refuseCheaply(UUID mentorId, UUID jobId, boolean locked) {
+		JobPostState post = this.posts.post(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		if (mentorId.equals(post.customerId())) {
+			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.ROLE_TAKEN);
+		}
+		if (post.hidden()) {
+			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.JOB_POST_HIDDEN);
+		}
+		if (!post.open()) {
+			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.JOB_POST_NOT_OPEN);
+		}
+		if (locked) {
+			// FR-13's guards run under the Mentor's lock, which J3 takes too (SG-52, AD-4).
+			AdvisoryLocks.lockAccount(this.jdbc, mentorId);
+		}
+		if (find(jobId, mentorId).isPresent()) {
+			throw new ApiException(ErrorCode.CONFLICT, MatchingReason.ALREADY_APPLIED);
+		}
+		Instant now = this.clock.instant();
+		Instant dayStart = LocalDate.ofInstant(now, VIETNAM).atStartOfDay(VIETNAM).toInstant();
+		long today = this.jdbc.sql("""
+				SELECT count(*) FROM matching.application WHERE mentor_account_id = :mentor AND submitted_at >= :since
+				""").param("mentor", mentorId).param("since", Timestamp.from(dayStart)).query(Long.class).single();
+		if (today >= DAILY_LIMIT) {
+			throw new RateLimitedException(Duration.between(now, dayStart.plus(Duration.ofDays(1))));
+		}
+		int limit = this.work.activeJobLimit();
+		if (this.work.activeJobCount(mentorId) >= limit) {
+			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.MENTOR_JOB_LIMIT, Map.of("limit", limit));
+		}
+		if (this.signals.sharesPersonSignal(mentorId, post.customerId())) {
+			this.alerts.conflictRefused();
+			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.CONFLICT_OF_INTEREST);
+		}
+		return post;
 	}
 
 	/**

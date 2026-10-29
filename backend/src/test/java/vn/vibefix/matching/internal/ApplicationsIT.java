@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.hamcrest.Matchers;
@@ -75,6 +76,9 @@ class ApplicationsIT extends IntegrationTest {
 
 	/** Runs on the stub's thread before it answers a contributors read, to look at the database meanwhile. */
 	private static final AtomicReference<Runnable> BEFORE_CONTRIBUTORS = new AtomicReference<>();
+
+	/** How many contributors reads the stub answered. */
+	private static final AtomicInteger CONTRIBUTOR_READS = new AtomicInteger();
 
 	@Autowired
 	private MockMvc mvc;
@@ -127,7 +131,7 @@ class ApplicationsIT extends IntegrationTest {
 	}
 
 	@Test
-	void aMentorWithAFreeStudentAppliesAndTheCustomerIsToldOnce() throws Exception {
+	void aBidIsSubmittedAndTheCustomerIsToldOfTheFirstOnly() throws Exception {
 		UUID hung = mentorWithFreeStudent("Đỗ Mạnh Hùng");
 		UUID ha = mentorWithFreeStudent("Phạm Thu Hà");
 		this.mvc.perform(post("/api/v1/jobs/" + this.job + "/invitations").with(as(this.lan, Role.CUSTOMER)).with(csrf())
@@ -216,7 +220,7 @@ class ApplicationsIT extends IntegrationTest {
 				SELECT count(*) FROM notification.notification WHERE type = 'identity.relink_github' AND account_id = :lan
 				""").param("lan", this.lan).query(Long.class).single()).isOne();
 		assertThat(this.jdbc.sql("SELECT count(*) FROM matching.application").query(Long.class).single())
-			.as("a refusal writes nothing").isEqualTo(2);
+			.as("only the two accepted bids are written; no refusal writes one").isEqualTo(2);
 	}
 
 	@Test
@@ -311,7 +315,7 @@ class ApplicationsIT extends IntegrationTest {
 		UUID hung = mentorWithFreeStudent("Đỗ Mạnh Hùng");
 		UUID ha = mentorWithFreeStudent("Phạm Thu Hà");
 		UUID mine = applicationId(apply(hung, this.job, true));
-		apply(ha, this.job, true);
+		UUID theirs = applicationId(apply(ha, this.job, true));
 
 		this.mvc.perform(post("/api/v1/mentor/applications/" + mine + "/withdraw").with(as(ha, Role.MENTOR)).with(csrf()))
 			.andExpect(status().isNotFound());
@@ -339,6 +343,7 @@ class ApplicationsIT extends IntegrationTest {
 				SELECT count(*) FROM matching.application WHERE job_id = :job AND status = 'CLOSED' AND end_reason = 'JOB_WITHDRAWN'
 				""").param("job", this.job).query(Long.class).single() == 1);
 		assertThat(todoText()).as("the to-do closes with the Job Post").isNull();
+		assertThat(proofDueNinetyDaysAfterTheEnd(theirs)).as("X3: a bid J2 closed has its proof due").isTrue();
 	}
 
 	@Test
@@ -361,6 +366,16 @@ class ApplicationsIT extends IntegrationTest {
 				SELECT params ->> 'mentor' FROM notification.notification WHERE type = 'matching.application_auto_withdrawn'
 				""").query(String.class).single()).isEqualTo("Đỗ Mạnh Hùng");
 		assertThat(todoText()).isNull();
+		UUID withdrawn = this.jdbc.sql("SELECT id FROM matching.application WHERE mentor_account_id = :hung")
+			.param("hung", hung).query(UUID.class).single();
+		assertThat(proofDueNinetyDaysAfterTheEnd(withdrawn)).as("X3: a bid the lock withdrew has its proof due").isTrue();
+	}
+
+	/** X3 (Story 21.2): the bid's proof is due 90 days after it ended. */
+	private boolean proofDueNinetyDaysAfterTheEnd(UUID application) {
+		return this.jdbc.sql("""
+				SELECT ended_at IS NOT NULL AND proof_due_at = ended_at + INTERVAL '90 days' FROM matching.application WHERE id = :id
+				""").param("id", application).query(Boolean.class).single();
 	}
 
 	/**
@@ -474,6 +489,10 @@ class ApplicationsIT extends IntegrationTest {
 			BEFORE_CONTRIBUTORS.set(null);
 		}
 		assertThat(heldDuringRead.get()).as("GitHub was asked, under no advisory lock of the bidder").isZero();
+		// A bid refused by a cheap rule (here ALREADY_APPLIED) asks GitHub nothing.
+		CONTRIBUTOR_READS.set(0);
+		apply(hung, this.job, true).andExpect(status().isConflict()).andExpect(jsonPath("$.reason").value("ALREADY_APPLIED"));
+		assertThat(CONTRIBUTOR_READS.get()).as("no contributor read for a second bid").isZero();
 
 		SourceContributors contributors = this.context.getBean(SourceContributors.class);
 		assertThatThrownBy(() -> new TransactionTemplate(this.transactions)
@@ -494,13 +513,29 @@ class ApplicationsIT extends IntegrationTest {
 		bid(ha, this.job, proof(file(liveFile, "Tệp"))).andExpect(status().isCreated());
 		this.mvc.perform(post("/api/v1/mentor/applications/" + withdrawn + "/withdraw").with(as(hung, Role.MENTOR))
 			.with(csrf())).andExpect(status().isOk());
+		// The withdrawal dialog tells the bidder the Customer no longer sees the bid: nor its proof.
+		this.mvc.perform(get("/api/v1/files/" + withdrawnFile).with(as(this.lan, Role.CUSTOMER))).andExpect(status().isNotFound());
+		this.mvc.perform(get("/api/v1/files/" + withdrawnFile).with(as(hung, Role.MENTOR))).andExpect(status().isOk());
+		this.mvc.perform(get("/api/v1/files/" + liveFile).with(as(this.lan, Role.CUSTOMER))).andExpect(status().isOk());
+		UUID minh = TeamTestSupport.mentor(this.jdbc, "Ngô Văn Minh", List.of(TeamTestSupport.REACT), "React");
+		String waitingFile = fileId(uploadProof(minh, this.job, "cho.pdf", TestFiles.pdf()));
+		UUID waiting = this.jdbc.sql("SELECT id FROM matching.bid_proof WHERE file_id = :file")
+			.param("file", UUID.fromString(waitingFile)).query(UUID.class).single();
 		BidProofPurge purge = this.context.getBean(BidProofPurge.class);
 		StoredFiles files = this.context.getBean(StoredFiles.class);
 
 		this.clock.advance(Duration.ofDays(89));
 		assertThat(purge.purge()).as("not due yet").isZero();
+		assertThat(files.find(UUID.fromString(waitingFile))).as("an upload no bid took is kept for 89 days").isPresent();
 		this.clock.advance(Duration.ofDays(1));
-		assertThat(purge.purge()).isEqualTo(2);
+		assertThat(purge.purge()).as("the withdrawn bid's file and link, and the upload no bid took").isEqualTo(3);
+		assertThat(this.jdbc.sql("SELECT count(*) FROM matching.bid_proof WHERE id = :id").param("id", waiting)
+			.query(Long.class).single()).isZero();
+		assertThat(files.find(UUID.fromString(waitingFile))).as("the upload's file goes with its row").isEmpty();
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM audit.audit_entry e JOIN audit.audit_entry_object o ON o.entry_id = e.id
+				WHERE e.action = 'matching.bid_proof_purged' AND o.object_id = :id
+				""").param("id", waiting).query(Long.class).single()).isOne();
 
 		assertThat(this.jdbc.sql("SELECT count(*) FROM matching.bid_proof WHERE application_id = :id").param("id", withdrawn)
 			.query(Long.class).single()).isZero();
@@ -549,6 +584,25 @@ class ApplicationsIT extends IntegrationTest {
 		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.matching.eraseAccount(hung));
 		assertThat(this.jdbc.sql("SELECT count(*) FROM matching.bid_proof").query(Long.class).single()).isZero();
 		assertThat(files.find(UUID.fromString(waiting))).isEmpty();
+	}
+
+	/**
+	 * AD-24: erasing the Job's Customer while a bid with a file and a link is on the Job completes, and the bid's proof
+	 * goes with it, files included.
+	 */
+	@Test
+	void erasingTheJobsCustomerDeletesTheProofOfTheBidsOnTheJob() throws Exception {
+		UUID hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT), "React");
+		String pdf = fileId(uploadProof(hung, this.job, "bao-cao.pdf", TestFiles.pdf()));
+		bid(hung, this.job, proof(file(pdf, "Báo cáo"), link("https://a.vn/x", "Liên kết"))).andExpect(status().isCreated());
+		StoredFiles files = this.context.getBean(StoredFiles.class);
+
+		ErasureOutcome outcome = new TransactionTemplate(this.transactions).execute(status -> this.personalData.erase(this.lan));
+
+		assertThat(outcome).isInstanceOf(ErasureOutcome.Erased.class);
+		assertThat(this.jdbc.sql("SELECT count(*) FROM matching.bid_proof").query(Long.class).single()).isZero();
+		assertThat(files.find(UUID.fromString(pdf))).isEmpty();
+		awaitListeners();
 	}
 
 	private ResultActions uploadProof(UUID bidder, UUID jobId, String name, byte[] content) throws Exception {
@@ -743,8 +797,11 @@ class ApplicationsIT extends IntegrationTest {
 			HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
 			server.createContext("/", exchange -> {
 				Runnable before = BEFORE_CONTRIBUTORS.get();
-				if (before != null && exchange.getRequestURI().getPath().endsWith("/contributors")) {
-					before.run();
+				if (exchange.getRequestURI().getPath().endsWith("/contributors")) {
+					CONTRIBUTOR_READS.incrementAndGet();
+					if (before != null) {
+						before.run();
+					}
 				}
 				String answer = CONTRIBUTORS.getOrDefault(exchange.getRequestURI().getPath(), "404 {}");
 				int status = Integer.parseInt(answer.substring(0, 3));

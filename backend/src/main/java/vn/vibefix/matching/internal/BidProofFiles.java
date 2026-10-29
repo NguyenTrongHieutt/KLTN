@@ -12,7 +12,8 @@ import vn.vibefix.shared.Caller;
 
 /**
  * Who may read a bid's proof file (FR-13, AD-20, AD-21): the bidder who uploaded it, and once a bid carries it, the
- * Job's Customer, by their role in the Job (AD-43). Nobody else, Administrators included, reads one; {@code files}
+ * Job's Customer, by their role in the Job (AD-43), until the bidder withdraws the bid, which the Customer then no
+ * longer sees. Nobody else, Administrators included, reads one; {@code files}
  * serves it as an attachment with {@code nosniff} and {@code Content-Security-Policy: sandbox}.
  */
 @Component
@@ -45,7 +46,8 @@ class BidProofFiles implements FileReadPolicy {
 		if (owner.bidderId().equals(caller.accountId())) {
 			return true;
 		}
-		return owner.applicationId() != null && this.roles.getObject().roleOf(owner.jobId(), caller).isCustomer();
+		return owner.applicationId() != null && !owner.withdrawn()
+				&& this.roles.getObject().roleOf(owner.jobId(), caller).isCustomer();
 	}
 
 }

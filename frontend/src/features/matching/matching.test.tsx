@@ -144,7 +144,7 @@ describe('"Việc tôi hướng dẫn" on CUS-7, and CUS-8 (UX-DR78, UX-DR66, UX
     renderAt('/cong-viec/j1/ung-tuyen')
 
     expect(await screen.findByText('Đỗ Mạnh Hùng')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Đơn ứng tuyển (2)' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: 'Đơn chào giá (2)' })).toHaveAttribute('aria-current', 'page')
     // Story 21.2: no Team size; each bid shows its proof, a file's download and a link with its domain and N-11.
     expect(screen.getByText(/^8 năm kinh nghiệm/)).toBeInTheDocument()
     expect(screen.queryByText(/nhóm \d+ thành viên/)).toBeNull()
@@ -175,7 +175,7 @@ describe('"Việc tôi hướng dẫn" on CUS-7, and CUS-8 (UX-DR78, UX-DR66, UX
 
     expect(await screen.findByRole('heading', { level: 2, name: 'Đang so sánh (1)' })).toBeInTheDocument()
     expect(screen.getByText('Đang so sánh 1 đơn')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 2, name: 'Tất cả đơn ứng tuyển (2)' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: 'Tất cả đơn chào giá (2)' })).toBeInTheDocument()
   })
 
   it('selects after the Confirmation dialog with the loaded version and lands on JOB-1', { timeout: 20_000 }, async () => {
@@ -203,7 +203,7 @@ describe('"Việc tôi hướng dẫn" on CUS-7, and CUS-8 (UX-DR78, UX-DR66, UX
     await waitFor(() => expect(sent).toEqual({ version: 1 }))
     expect(await screen.findByRole('heading', { level: 2, name: 'Đang chờ Đỗ Mạnh Hùng ký cam kết bảo mật' })).toBeInTheDocument()
     expect(screen.getByText('Chờ người hướng dẫn ký cam kết bảo mật')).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: /Đơn ứng tuyển/ })).toBeNull()
+    expect(screen.queryByRole('link', { name: /Đơn chào giá/ })).toBeNull()
   })
 
   it('shows the Stale dialog for a Job that moved on, and never re-sends', { timeout: 20_000 }, async () => {
@@ -250,8 +250,8 @@ describe('"Việc tôi hướng dẫn" on CUS-7, and CUS-8 (UX-DR78, UX-DR66, UX
     })
     renderAt('/cong-viec/j1')
 
-    expect(await screen.findByRole('heading', { level: 2, name: '1 đơn ứng tuyển' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Xem các đơn ứng tuyển' })).toHaveAttribute('href', '/cong-viec/j1/ung-tuyen')
+    expect(await screen.findByRole('heading', { level: 2, name: '1 đơn chào giá' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Xem các đơn chào giá' })).toHaveAttribute('href', '/cong-viec/j1/ung-tuyen')
   })
 
   it('keeps planted payloads in Applications as text (SG-30)', { timeout: 15_000 }, async () => {
