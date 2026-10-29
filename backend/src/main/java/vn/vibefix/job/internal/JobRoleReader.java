@@ -5,9 +5,11 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
@@ -104,11 +106,15 @@ class JobRoleReader implements JobRoles {
 	record HeldJob(Job job, JobRole role) {
 	}
 
+	/**
+	 * {@inheritDoc} A Job Type counts once per pair (AD-17): once per Customer in the Mentor role, and once per Mentor
+	 * in the Crew role, so repeat Jobs for one Customer or under one Mentor never inflate it.
+	 */
 	@Override
 	@Transactional(readOnly = true)
 	public History historyOf(UUID accountId) {
-		List<String[]> mentor = jobTypes("j.mentor_account_id = :id", accountId);
-		List<String[]> crew = jobTypes("""
+		List<Done> mentor = done("j.customer_account_id", "j.mentor_account_id = :id", accountId);
+		List<Done> crew = done("j.mentor_account_id", """
 				EXISTS (SELECT 1 FROM job.crew_row r WHERE r.job_id = j.id AND r.member_account_id = :id
 				    AND r.activated_at IS NOT NULL)""", accountId);
 		return new History(history(mentor), history(crew));
@@ -135,21 +141,29 @@ class JobRoleReader implements JobRoles {
 		return JobRole.crew(this.crews.crewRelationship(jobId, accountId));
 	}
 
-	/** The Job Types of each Job closed with Accepted work where {@code relation} holds. */
-	private List<String[]> jobTypes(String relation, UUID accountId) {
-		return this.jdbc.sql("SELECT j.job_types FROM job.job j WHERE " + relation + " AND " + FINISHED + " AND "
-				+ ACCEPTED_WORK)
+	/** One Job closed with Accepted work: the other side of the pair its role counts by, and its Job Types. */
+	private record Done(UUID other, String[] jobTypes) {
+	}
+
+	/** Each Job closed with Accepted work where {@code relation} holds, with the account in column {@code other}. */
+	private List<Done> done(String other, String relation, UUID accountId) {
+		return this.jdbc.sql("SELECT " + other + " AS other, j.job_types FROM job.job j WHERE " + relation + " AND "
+				+ FINISHED + " AND " + ACCEPTED_WORK)
 			.param("id", accountId)
-			.query((rs, n) -> types(rs.getArray("job_types")))
+			.query((rs, n) -> new Done(rs.getObject("other", UUID.class), types(rs.getArray("job_types"))))
 			.list();
 	}
 
-	private static RoleHistory history(List<String[]> jobs) {
+	/** The Jobs' count, and per Job Type how many distinct other sides they were done with. */
+	private static RoleHistory history(List<Done> jobs) {
 		if (jobs.isEmpty()) {
 			return RoleHistory.EMPTY;
 		}
+		Map<String, Set<UUID>> pairs = new HashMap<>();
+		jobs.forEach(job -> Arrays.stream(job.jobTypes())
+			.forEach(type -> pairs.computeIfAbsent(type, key -> new HashSet<>()).add(job.other())));
 		Map<String, Integer> counts = new HashMap<>();
-		jobs.forEach(types -> Arrays.stream(types).distinct().forEach(type -> counts.merge(type, 1, Integer::sum)));
+		pairs.forEach((type, others) -> counts.put(type, others.size()));
 		return new RoleHistory(jobs.size(), counts);
 	}
 

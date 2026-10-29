@@ -21,9 +21,11 @@ import vn.vibefix.catalog.Skill;
 import vn.vibefix.identity.GitHubGate;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
+import vn.vibefix.job.JobPhase;
 import vn.vibefix.job.JobPosts;
+import vn.vibefix.job.JobPosts.JobNeed;
 import vn.vibefix.job.JobPosts.JobPostState;
-import vn.vibefix.job.JobPosts.OpenPost;
+import vn.vibefix.job.JobPosts.ListedPost;
 import vn.vibefix.job.JobRoles;
 import vn.vibefix.matching.internal.Invitations.Relation;
 import vn.vibefix.matching.internal.Recommendations.Candidate;
@@ -42,7 +44,7 @@ import vn.vibefix.team.Teams;
 /**
  * CUS-8's "Đề xuất cho công việc này" and MEN-2's "Đề xuất cho bạn" (FR-14, AD-17, UX-DR47): the
  * signals are codes the SPA words ("Hợp với …", "Đã làm … công việc …", "Mới"); the Skill filter
- * narrows them like the search.
+ * narrows them like the search. A Job for a user carries its phase and what it needs (Story 21.1).
  */
 @RestController
 @Access(Gate.SIGNED_IN)
@@ -74,12 +76,16 @@ class RecommendationController {
 	}
 
 	/**
-	 * A Job Post for the Mentor.
+	 * A listed Job for the user.
+	 * @param openedAt when the Job Post opened
+	 * @param phase the phase label; never empty for a listed Job
+	 * @param need what the Job needs: a Mentor, or Crew members while its Mentor recruits
+	 * @param openSlots the places still open while recruiting, else 0
 	 * @param invited a Customer's open invitation to apply (FR-14): "Bạn được mời"
 	 */
 	record RecommendedPostView(UUID id, String title, String productName, List<String> jobTypes,
-			@Nullable String budget, @Nullable LocalDate deadline, Instant openedAt, boolean invited,
-			SignalsView signals) {
+			@Nullable String budget, @Nullable LocalDate deadline, Instant openedAt, @Nullable JobPhase phase,
+			JobNeed need, int openSlots, boolean invited, SignalsView signals) {
 	}
 
 	private final Recommendations recommendations;
@@ -146,7 +152,7 @@ class RecommendationController {
 
 	/**
 	 * A user's Recommendations on MEN-2, behind the GitHub gate of "Tìm việc" (X1, Stories 20.1 and 20.3); never
-	 * the user's own Jobs (AD-36).
+	 * a Job where the user holds a role (AD-36, AD-43) or has a bid.
 	 */
 	@GetMapping("/api/v1/mentor/recommendations")
 	List<RecommendedPostView> forMentor(@RequestParam(name = "skill", required = false) @Nullable List<UUID> skills,
@@ -163,11 +169,12 @@ class RecommendationController {
 		Map<UUID, String> names = skillNames(found.stream().flatMap(post -> post.sharedSkillIds().stream()).toList());
 		Map<UUID, String> productNames = new HashMap<>();
 		return found.stream().map(recommended -> {
-			OpenPost post = recommended.post();
+			ListedPost post = recommended.post();
 			String productName = productNames.computeIfAbsent(post.productId(),
 					id -> this.products.find(id).map(ProductInfo::name).orElse(""));
 			return new RecommendedPostView(post.jobId(), post.title(), productName, post.jobTypes(), post.budget(),
-					post.deadline(), post.openedAt(), invited.contains(post.jobId()),
+					post.deadline(), post.openedAt(), post.phase(), post.need(), post.openSlots(),
+					invited.contains(post.jobId()),
 					new SignalsView(named(recommended.sharedSkillIds(), names),
 							JobTypeMatchView.of(recommended.jobTypeMatches()), false));
 		}).toList();

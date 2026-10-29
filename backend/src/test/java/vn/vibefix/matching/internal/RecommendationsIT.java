@@ -8,7 +8,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
@@ -63,37 +62,40 @@ class RecommendationsIT extends IntegrationTest {
 	@Test
 	void mentorsWhoCouldApplyComeBySharedSkillsWithTheirSignals() throws Exception {
 		UUID job = job("OPEN", List.of("BUG_FIX"), List.of(REACT, SUPABASE), null);
-		UUID both = mentor("Hai Kỹ Năng", List.of(SUPABASE, REACT), true);
-		UUID one = mentor("Một Kỹ Năng", List.of(SUPABASE), true);
-		UUID noTeam = mentor("Không Nhóm", List.of(REACT, SUPABASE), false);
-		UUID busy = mentor("Đủ Việc", List.of(REACT, SUPABASE), true);
+		UUID both = mentor("Hai Kỹ Năng", List.of(SUPABASE, REACT));
+		UUID one = mentor("Một Kỹ Năng", List.of(SUPABASE));
+		// Story 21.1: no free Student is needed any more, so a Mentor with no Team is recommended too.
+		UUID noTeam = mentor("Không Nhóm", List.of(REACT, SUPABASE));
+		UUID busy = mentor("Đủ Việc", List.of(REACT, SUPABASE));
 		for (int i = 0; i < 3; i++) {
 			job("SELECTING", List.of("BUG_FIX"), List.of(), busy);
 		}
 		// Story 19.7: a Mentor without GitHub linked is not available, so never recommended.
-		IdentityTestSupport.unlinkGitHub(this.jdbc, mentor("Chưa Liên Kết", List.of(REACT, SUPABASE), true));
-		mentor("Không Chung", List.of(WEB_SECURITY), true);
+		IdentityTestSupport.unlinkGitHub(this.jdbc, mentor("Chưa Liên Kết", List.of(REACT, SUPABASE)));
+		mentor("Không Chung", List.of(WEB_SECURITY));
 
 		String body = this.mvc.perform(get("/api/v1/jobs/" + job + "/recommendations").with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$[0].displayName").value("Hai Kỹ Năng"))
 			.andExpect(jsonPath("$[0].signals.sharedSkills[0]").value("React"))
 			.andExpect(jsonPath("$[0].signals.sharedSkills[1]").value("Supabase"))
 			.andExpect(jsonPath("$[0].signals.newcomer").value(true))
-			.andExpect(jsonPath("$[0].teamSize").value(1))
 			.andExpect(jsonPath("$[0].relation").value("NONE"))
-			.andExpect(jsonPath("$[1].displayName").value("Một Kỹ Năng"))
+			.andExpect(jsonPath("$[2].displayName").value("Một Kỹ Năng"))
 			.andReturn()
 			.getResponse()
 			.getContentAsString();
 		List<String> ids = JsonPath.read(body, "$[*].accountId");
-		assertThat(ids).as("no free Student, at the Job limit, no GitHub link, or no shared Skill: left out")
-			.containsExactly(both.toString(), one.toString())
-			.doesNotContain(noTeam.toString(), busy.toString());
+		// AD-17's order: two shared Skills before one; two Mentors alike by ID as PostgreSQL orders it.
+		List<String> tied = both.toString().compareTo(noTeam.toString()) < 0
+				? List.of(both.toString(), noTeam.toString()) : List.of(noTeam.toString(), both.toString());
+		assertThat(ids).as("at the Job limit, no GitHub link, or no shared Skill: left out")
+			.containsExactly(tied.get(0), tied.get(1), one.toString())
+			.doesNotContain(busy.toString());
 
+		this.mvc.perform(get("/api/v1/jobs/" + job + "/recommendations?skill=" + SUPABASE).with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.length()").value(3));
 		this.mvc.perform(get("/api/v1/jobs/" + job + "/recommendations?skill=" + REACT).with(as(this.lan, Role.CUSTOMER)))
-			.andExpect(jsonPath("$.length()").value(1))
-			.andExpect(jsonPath("$[0].accountId").value(both.toString()));
+			.andExpect(jsonPath("$.length()").value(2));
 		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.mvc.perform(get("/api/v1/jobs/" + job + "/recommendations").with(as(other, Role.CUSTOMER)))
 			.andExpect(status().isNotFound());
@@ -106,10 +108,10 @@ class RecommendationsIT extends IntegrationTest {
 	@Test
 	void workHistoryCountsOneJobPerCustomerAndEndsBeingNew() throws Exception {
 		UUID job = job("OPEN", List.of("SECURITY_TESTING"), List.of(REACT), null);
-		UUID veteran = mentor("Từng Làm", List.of(WEB_SECURITY), true);
+		UUID veteran = mentor("Từng Làm", List.of(WEB_SECURITY));
 		job("CLOSED", List.of("SECURITY_TESTING"), List.of(), veteran);
 		job("CLOSED", List.of("SECURITY_TESTING"), List.of(), veteran);
-		UUID newcomer = mentor("Người Mới", List.of(REACT), true);
+		UUID newcomer = mentor("Người Mới", List.of(REACT));
 
 		this.mvc.perform(get("/api/v1/jobs/" + job + "/recommendations").with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(status().isOk())
@@ -130,13 +132,11 @@ class RecommendationsIT extends IntegrationTest {
 	@Test
 	void aUserWithNoRoleIsRecommendedAndTheJobsCustomerNever() throws Exception {
 		UUID job = job("OPEN", List.of("BUG_FIX"), List.of(REACT), null);
-		UUID minh = withFreeStudent(TeamTestSupport.googleMentor(this.jdbc, "Ngô Văn Minh", List.of(REACT), "React"),
-				"Ngô Văn Minh");
+		UUID minh = TeamTestSupport.googleMentor(this.jdbc, "Ngô Văn Minh", List.of(REACT), "React");
 		this.jdbc.sql("""
 				INSERT INTO identity.profile (account_id, display_name, skill_ids, skill_names, updated_at)
 				VALUES (:id, 'Lan Nguyễn', CAST(:skills AS UUID[]), 'React', now())
 				""").param("id", this.lan).param("skills", "{" + REACT + "}").update();
-		withFreeStudent(this.lan, "Lan Nguyễn");
 
 		String body = this.mvc.perform(get("/api/v1/jobs/" + job + "/recommendations").with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(status().isOk())
@@ -150,7 +150,7 @@ class RecommendationsIT extends IntegrationTest {
 	/** Story 20.3: "Tìm việc" never shows the reader's own Jobs (AD-36), whatever Skills they share. */
 	@Test
 	void aMentorsOwnOpenJobIsNeverRecommendedToThem() throws Exception {
-		UUID hung = mentor("Đỗ Mạnh Hùng", List.of(REACT), true);
+		UUID hung = mentor("Đỗ Mạnh Hùng", List.of(REACT));
 		UUID own = job(product(hung), hung, "OPEN", List.of("BUG_FIX"), List.of(REACT), null);
 		UUID lans = job("OPEN", List.of("BUG_FIX"), List.of(REACT), null);
 
@@ -166,7 +166,7 @@ class RecommendationsIT extends IntegrationTest {
 	/** Story 20.1: MEN-2's Recommendations are part of "Tìm việc" (X1), which needs GitHub linked. */
 	@Test
 	void aMentorWithoutGitHubLinkedIsRefusedTheRecommendations() throws Exception {
-		UUID mentor = mentor("Chưa Liên Kết", List.of(WEB_SECURITY), true);
+		UUID mentor = mentor("Chưa Liên Kết", List.of(WEB_SECURITY));
 		IdentityTestSupport.unlinkGitHub(this.jdbc, mentor);
 		job("OPEN", List.of("BUG_FIX"), List.of(WEB_SECURITY), null);
 
@@ -178,7 +178,7 @@ class RecommendationsIT extends IntegrationTest {
 
 	@Test
 	void jobPostsForAMentorBySharedSkillsThenNewestLeavingOutAppliedOnes() throws Exception {
-		UUID mentor = mentor("Đỗ Mạnh Hùng", List.of(REACT, SUPABASE), true);
+		UUID mentor = mentor("Đỗ Mạnh Hùng", List.of(REACT, SUPABASE));
 		UUID older = job("OPEN", List.of("BUG_FIX"), List.of(SUPABASE), null);
 		this.clock.advance(Duration.ofHours(1));
 		UUID newer = job("OPEN", List.of("NEW_FEATURE"), List.of(REACT), null);
@@ -209,7 +209,7 @@ class RecommendationsIT extends IntegrationTest {
 			.andExpect(jsonPath("$[0].id").value(best.toString()))
 			.andExpect(jsonPath("$[1].id").value(older.toString()));
 		// No Mentor needs an approval (Story 19.7); one locked after the session was read is refused.
-		UUID locked = mentor("Bị Khóa", List.of(REACT), true);
+		UUID locked = mentor("Bị Khóa", List.of(REACT));
 		IdentityTestSupport.lock(this.jdbc, locked, "Vi phạm");
 		this.mvc.perform(get("/api/v1/mentor/recommendations").with(request -> {
 			request.setAttribute(Caller.REQUEST_ATTRIBUTE, Caller.account(locked, Kind.USER));
@@ -217,24 +217,131 @@ class RecommendationsIT extends IntegrationTest {
 		})).andExpect(status().isForbidden()).andExpect(jsonPath("$.reason").value("ACCOUNT_LOCKED"));
 	}
 
-	private UUID mentor(String name, List<String> skills, boolean withFreeStudent) {
-		UUID mentor = TeamTestSupport.mentor(this.jdbc, name, skills, "Kỹ năng");
-		return withFreeStudent ? withFreeStudent(mentor, name) : mentor;
+	/**
+	 * Story 21.1 (AD-17): every listed Job, a recruiting one too, where the user holds no role and has no bid of any
+	 * status, with its phase and what it needs; a Job Type of the user's history as a Crew member counts as one as
+	 * Mentor does.
+	 */
+	@Test
+	void listedJobsWhereTheUserHoldsNoRoleAndHasNoBidWithTheirPhaseAndNeed() throws Exception {
+		UUID vy = mentor("Lê Thảo Vy", List.of(REACT));
+		UUID ha = mentor("Phạm Thu Hà", List.of(WEB_SECURITY));
+		// Vy's history as a Crew member: a Security testing Job closed with Accepted work.
+		UUID done = job("CLOSED", List.of("SECURITY_TESTING"), List.of(), ha);
+		this.jdbc.sql("UPDATE job.job SET closing_at = now(), closed_at = now() WHERE id = :id").param("id", done).update();
+		milestone(done);
+		crewRow(done, vy, "RELEASED", true);
+		UUID open = job("OPEN", List.of("BUG_FIX"), List.of(REACT), null);
+		this.clock.advance(Duration.ofHours(1));
+		UUID byHistory = job("OPEN", List.of("SECURITY_TESTING"), List.of(), null);
+		this.clock.advance(Duration.ofHours(1));
+		UUID recruiting = recruiting(job("AGREEMENT", List.of("NEW_FEATURE"), List.of(), ha), REACT, 2);
+		UUID withdrawnBid = job("OPEN", List.of("BUG_FIX"), List.of(REACT), null);
+		application(withdrawnBid, vy, "WITHDRAWN");
+		UUID asMentor = recruiting(job("AGREEMENT", List.of("BUG_FIX"), List.of(REACT), vy), REACT, 1);
+		UUID asMember = recruiting(job("ACTIVE", List.of("BUG_FIX"), List.of(REACT), ha), REACT, 1);
+		crewRow(asMember, vy, "ACTIVE", true);
+		recruiting(job("AGREEMENT", List.of("BUG_FIX"), List.of(REACT), ha), REACT, 0);
+
+		String body = this.mvc.perform(get("/api/v1/mentor/recommendations").with(as(vy, Role.MENTOR)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$[0].id").value(recruiting.toString()))
+			.andExpect(jsonPath("$[0].phase").value("FINDING_CREW"))
+			.andExpect(jsonPath("$[0].need").value("CREW"))
+			.andExpect(jsonPath("$[0].openSlots").value(2))
+			.andExpect(jsonPath("$[0].signals.sharedSkills[0]").value("React"))
+			.andExpect(jsonPath("$[1].id").value(open.toString()))
+			.andExpect(jsonPath("$[1].phase").value("FINDING_MENTOR"))
+			.andExpect(jsonPath("$[1].need").value("MENTOR"))
+			.andExpect(jsonPath("$[1].openSlots").value(0))
+			.andExpect(jsonPath("$[2].id").value(byHistory.toString()))
+			.andExpect(jsonPath("$[2].signals.sharedSkills.length()").value(0))
+			.andExpect(jsonPath("$[2].signals.jobTypeMatches[0].jobType").value("SECURITY_TESTING"))
+			.andExpect(jsonPath("$[2].signals.jobTypeMatches[0].count").value(1))
+			.andReturn()
+			.getResponse()
+			.getContentAsString();
+		List<String> ids = JsonPath.read(body, "$[*].id");
+		assertThat(ids).as("a bid of any status, a role held, or no slot left: left out")
+			.containsExactly(recruiting.toString(), open.toString(), byHistory.toString())
+			.doesNotContain(withdrawnBid.toString(), asMentor.toString(), asMember.toString());
+		// The Skill filter matches the Skills a recruiting Job seeks too, as its chip does.
+		String filtered = this.mvc.perform(get("/api/v1/mentor/recommendations?skill=" + REACT).with(as(vy, Role.MENTOR)))
+			.andExpect(status().isOk())
+			.andReturn()
+			.getResponse()
+			.getContentAsString();
+		assertThat(JsonPath.<List<String>>read(filtered, "$[*].id")).containsExactly(recruiting.toString(), open.toString());
 	}
 
-	/** Gives the account a Team with one free Student, as FR-13 needs to take a Job. */
-	private UUID withFreeStudent(UUID mentor, String name) {
-		UUID team = UUID.randomUUID();
-		this.jdbc.sql("INSERT INTO team.team (id, mentor_account_id, status, created_at) VALUES (:id, :mentor, 'OPEN', now())")
-			.param("id", team)
-			.param("mentor", mentor)
-			.update();
-		UUID student = TeamTestSupport.student(this.jdbc, "Sinh viên của " + name, true, List.of(REACT), "React",
-				LocalDate.parse("2026-09-30"));
+	/** AD-17's "newest": a Job is as new as its recruitment, not as old as its Job Post, when the signals tie. */
+	@Test
+	void aJobIsAsNewAsItsRecruitmentWhenTheSignalsTie() throws Exception {
+		UUID vy = mentor("Lê Thảo Vy", List.of(REACT));
+		UUID ha = mentor("Phạm Thu Hà", List.of(WEB_SECURITY));
+		UUID older = job("AGREEMENT", List.of("BUG_FIX"), List.of(REACT), ha);
+		this.clock.advance(Duration.ofDays(3));
+		UUID newer = job("OPEN", List.of("BUG_FIX"), List.of(REACT), null);
+		this.clock.advance(Duration.ofHours(1));
+		recruiting(older, REACT, 1);
+
+		String body = this.mvc.perform(get("/api/v1/mentor/recommendations").with(as(vy, Role.MENTOR)))
+			.andExpect(status().isOk())
+			.andReturn()
+			.getResponse()
+			.getContentAsString();
+		assertThat(JsonPath.<List<String>>read(body, "$[*].id")).containsExactly(older.toString(), newer.toString());
+	}
+
+	/** Turns the Job's Crew recruitment on, seeking {@code skill}, with {@code slots} places open. */
+	private UUID recruiting(UUID job, String skill, int slots) {
 		this.jdbc.sql("""
-				INSERT INTO team.membership (id, team_id, student_account_id, joined_at) VALUES (:id, :team, :student, now())
-				""").param("id", UUID.randomUUID()).param("team", team).param("student", student).update();
-		return mentor;
+				UPDATE job.job SET recruiting = true, recruiting_since = :now, open_slots = :slots,
+				    recruit_skill_ids = CAST(:skills AS UUID[]), recruit_skill_names = ARRAY['k']
+				WHERE id = :id
+				""")
+			.param("id", job)
+			.param("now", Timestamp.from(this.clock.instant()))
+			.param("slots", slots)
+			.param("skills", "{" + skill + "}")
+			.update();
+		return job;
+	}
+
+	private void crewRow(UUID job, UUID member, String status, boolean activated) {
+		Instant at = this.clock.instant().minus(Duration.ofDays(5));
+		boolean released = "RELEASED".equals(status);
+		this.jdbc.sql("""
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, window_end,
+				    released_at, released_reason, created_at)
+				VALUES (:id, :job, :member, :status, :signed, :activated, :end, :released, :reason, :at)
+				""")
+			.param("id", UUID.randomUUID())
+			.param("job", job)
+			.param("member", member)
+			.param("status", status)
+			.param("signed", activated ? Timestamp.from(at) : null)
+			.param("activated", activated ? Timestamp.from(at) : null)
+			.param("end", activated && released ? Timestamp.from(at.plus(Duration.ofDays(1))) : null)
+			.param("released", released ? Timestamp.from(at.plus(Duration.ofDays(1))) : null)
+			.param("reason", released ? "JOB_ENDED" : null)
+			.param("at", Timestamp.from(at))
+			.update();
+	}
+
+	/** An Accepted Milestone on the Job: Accepted work, which history counts (AD-30). */
+	private void milestone(UUID job) {
+		Instant at = this.clock.instant().minus(Duration.ofDays(5));
+		this.jdbc.sql("""
+				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at, state,
+				    funded_at, crew_terms_version_no, accepted_at)
+				VALUES (:id, :job, 0, 'Giai đoạn', 800000, 2, :at, 'ACCEPTED', :at, 1, :at)
+				""").param("id", UUID.randomUUID()).param("job", job).param("at", Timestamp.from(at)).update();
+	}
+
+	/** A person with GitHub linked and a profile holding {@code skills}: anyone may mentor a Job (Story 20.3). */
+	private UUID mentor(String name, List<String> skills) {
+		return TeamTestSupport.mentor(this.jdbc, name, skills, "Kỹ năng");
 	}
 
 	/** A Job of the Customer in {@code state}; past Open it has {@code mentor}, selected now. */
@@ -275,16 +382,23 @@ class RecommendationsIT extends IntegrationTest {
 	}
 
 	private void application(UUID job, UUID mentor) {
+		application(job, mentor, "SUBMITTED");
+	}
+
+	private void application(UUID job, UUID mentor, String status) {
 		this.jdbc.sql("""
 				INSERT INTO matching.application (id, job_id, product_id, customer_account_id, mentor_account_id, status,
-				    price_vnd, timeline_days, approach, public_code_notice_version, submitted_at)
-				VALUES (:id, :job, :product, :lan, :mentor, 'SUBMITTED', 800000, 7, 'Cách làm', '1.0', now())
+				    price_vnd, timeline_days, approach, public_code_notice_version, submitted_at, ended_at, end_reason)
+				VALUES (:id, :job, :product, :lan, :mentor, :status, 800000, 7, 'Cách làm', '1.0', now(), :ended, :reason)
 				""")
 			.param("id", UUID.randomUUID())
 			.param("job", job)
 			.param("product", this.product)
 			.param("lan", this.lan)
 			.param("mentor", mentor)
+			.param("status", status)
+			.param("ended", "SUBMITTED".equals(status) ? null : java.sql.Timestamp.from(this.clock.instant()))
+			.param("reason", "SUBMITTED".equals(status) ? null : status)
 			.update();
 	}
 

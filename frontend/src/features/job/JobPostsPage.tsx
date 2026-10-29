@@ -11,27 +11,32 @@ import { SkillPicker } from '@/components/SkillPicker'
 import { categoryValue, splitSkillPickerValue } from '@/components/skillPickerValue'
 import { Button } from '@/components/ui/button'
 import { useSession } from '@/features/identity/useSession'
+import { rich } from '@/i18n/rich'
 import { t, type MessageKey } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
-import { formatCalendarDayMonth, formatDayMonth } from '@/lib/dates'
+import { formatCalendarDayMonth, formatDayMonth, formatMonthYear } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 import { isLive, useMyApplications } from '@/features/matching/applicationApi'
 import { useJobPostRecommendations, type RecommendedPost } from '@/features/matching/recommendationApi'
 import { SignalChips } from '@/features/matching/SignalChips'
-import { CapacityBanners } from './CapacityBanners'
 import { FindWorkGate } from './FindWorkGate'
 import { BUDGETS, JOB_TYPES, type Budget, type JobType } from './jobApi'
 import {
+  useCustomerRatings,
   useJobPosts,
   useLastJobPosts,
-  useMentorCapacity,
   type JobPostFilter,
   type JobPostSummary,
+  type ListedPhase,
+  type PostCustomerRating,
 } from './jobPostApi'
+import { PhaseBadge } from './PhaseBadge'
+import { needText, phaseText } from './phaseText'
 
-/** MEN-2's keyword and filters in the URL (UX-DR47, UX-DR72): shareable, and kept by the back button. */
+/** MEN-2's keyword and filters in the URL (UX-DR47, UX-DR72, UX-DR97): shareable, and kept by the back button. */
 const PARAMS = {
   q: 'q',
+  phase: 'tinh-trang',
   type: 'loai',
   skills: 'ky-nang',
   categories: 'nhom-ky-nang',
@@ -40,18 +45,29 @@ const PARAMS = {
   page: 'trang',
 }
 
+/** "Tình trạng" in the URL: the three phases of a Job that needs people (UX-DR97). */
+const PHASE_SLUGS: Record<ListedPhase, string> = {
+  FINDING_MENTOR: 'tim-nguoi-huong-dan',
+  FINDING_CREW: 'tim-nhom',
+  RECRUITING: 'tuyen-them',
+}
+
+const PHASES = Object.keys(PHASE_SLUGS) as ListedPhase[]
+
 /** The Search bar's limit (EXPERIENCE.md, Search bar). */
 const MAX_KEYWORD = 100
 
 function readFilter(params: URLSearchParams): JobPostFilter {
   const list = (key: string) => (params.get(key) ?? '').split(',').filter((value) => value !== '')
   const q = (params.get(PARAMS.q) ?? '').trim().slice(0, MAX_KEYWORD)
+  const phase = PHASES.find((value) => PHASE_SLUGS[value] === params.get(PARAMS.phase))
   const type = params.get(PARAMS.type)
   const budget = params.get(PARAMS.budget)
   const within = params.get(PARAMS.within)
   const page = Number.parseInt(params.get(PARAMS.page) ?? '1', 10)
   return {
     q: q === '' ? undefined : q,
+    phase,
     type: JOB_TYPES.includes(type as JobType) ? (type as JobType) : undefined,
     skills: list(PARAMS.skills),
     categories: list(PARAMS.categories),
@@ -64,6 +80,7 @@ function readFilter(params: URLSearchParams): JobPostFilter {
 function writeFilter(filter: JobPostFilter): URLSearchParams {
   const params = new URLSearchParams()
   if (filter.q) params.set(PARAMS.q, filter.q)
+  if (filter.phase) params.set(PARAMS.phase, PHASE_SLUGS[filter.phase])
   if (filter.type) params.set(PARAMS.type, filter.type)
   if (filter.skills.length > 0) params.set(PARAMS.skills, filter.skills.join(','))
   if (filter.categories.length > 0) params.set(PARAMS.categories, filter.categories.join(','))
@@ -75,14 +92,22 @@ function writeFilter(filter: JobPostFilter): URLSearchParams {
 
 /** Whether a filter other than the keyword is set. */
 function filtered(filter: JobPostFilter): boolean {
-  return !!(filter.type || filter.skills.length > 0 || filter.categories.length > 0 || filter.budget || filter.within)
+  return !!(
+    filter.phase ||
+    filter.type ||
+    filter.skills.length > 0 ||
+    filter.categories.length > 0 ||
+    filter.budget ||
+    filter.within
+  )
 }
 
 /**
- * MEN-2 Tìm việc (`/tim-viec`, FR-12, UX-DR47, UX-DR72, UX-DR78) for Mentors, with no approval: Open Job
- * Posts, 20 a page, newest first, or by relevance to a keyword that only Enter or "Tìm" runs; Job
- * Type, Skill (Skills or whole Categories), budget, and deadline filters that apply at once; all of
- * it in the URL; and the FR-13 banners. Without GitHub linked, the GitHub gate stands in for all of it (X1).
+ * MEN-2 Tìm việc (`/tim-viec`, FR-12, UX-DR47, UX-DR72, UX-DR97) for every user: the Jobs that need people, Open or
+ * recruiting their Crew, 20 a page, newest first, or by relevance to a keyword that only Enter or "Tìm" runs; the
+ * "Tình trạng" (phase), Job Type, Skill (Skills or whole Categories), budget, and deadline filters that apply at
+ * once; all of it in the URL. Each row shows its phase, what it needs, and the Customer's kind, month joined and
+ * Rating summary, and carries no action. Without GitHub linked, the GitHub gate stands in for all of it (X1).
  */
 export function JobPostsPage() {
   usePageTitle(t('screen.jobPost.title'))
@@ -98,7 +123,6 @@ function JobPostList() {
   const filter = readFilter(params)
   const posts = useJobPosts(filter)
   const last = useLastJobPosts()
-  const capacity = useMentorCapacity()
   const recommendations = useJobPostRecommendations(
     { skills: filter.skills, categories: filter.categories },
     filter.q === undefined,
@@ -110,7 +134,9 @@ function JobPostList() {
     <Results
       data={data}
       filter={filter}
-      clearFilters={() => update({ type: undefined, skills: [], categories: [], budget: undefined, within: undefined })}
+      clearFilters={() =>
+        update({ phase: undefined, type: undefined, skills: [], categories: [], budget: undefined, within: undefined })
+      }
       clearAll={() => setParams(new URLSearchParams(), { replace: true })}
       go={(page) => setParams(writeFilter({ ...filter, page }))}
     />
@@ -121,7 +147,6 @@ function JobPostList() {
         <PageHeading>{t('screen.jobPost.heading')}</PageHeading>
         <p className="text-body-sm text-muted-foreground">{t('screen.jobPost.lead')}</p>
       </div>
-      <CapacityBanners capacity={capacity.data} />
       <SearchBar
         key={filter.q ?? ''}
         keyword={filter.q}
@@ -217,6 +242,9 @@ function Results({
 }) {
   const mine = useMyApplications()
   const applied = new Set((mine.data ?? []).filter(isLive).map((application) => application.jobId))
+  // One call for the page's Customer Rating summaries (SG-43), never one a row.
+  const ratings = useCustomerRatings(data.items.map((post) => post.id))
+  const ratingOf = new Map((ratings.data ?? []).map((rating) => [rating.postId, rating]))
   if (data.total === 0) {
     if (filter.q) {
       return (
@@ -265,7 +293,7 @@ function Results({
       )}
       <ul className="flex flex-col divide-y divide-border rounded-lg border border-border bg-card">
         {data.items.map((post) => (
-          <PostItem key={post.id} post={post} applied={applied.has(post.id)} />
+          <PostItem key={post.id} post={post} applied={applied.has(post.id)} rating={ratingOf.get(post.id)} />
         ))}
       </ul>
       <Pager page={data.page} pages={Math.ceil(data.total / data.size)} go={go} />
@@ -279,6 +307,24 @@ function Filters({ filter, update }: { filter: JobPostFilter; update: (next: Par
   return (
     <div role="group" aria-label={t('screen.jobPost.filters')} className="flex flex-col gap-3 rounded-lg border border-border bg-card px-4 py-3">
       <div className="flex flex-wrap items-end gap-3">
+        <div className="flex min-w-48 flex-[1_1_200px] flex-col gap-1">
+          <label htmlFor={`${ids}-phase`} className="text-caption">
+            {t('screen.jobPost.phaseFilter')}
+          </label>
+          <select
+            id={`${ids}-phase`}
+            value={filter.phase ?? ''}
+            onChange={(event) => update({ phase: (event.target.value || undefined) as ListedPhase | undefined })}
+            className={inputClass}
+          >
+            <option value="">{t('screen.jobPost.phaseAll')}</option>
+            {PHASES.map((phase) => (
+              <option key={phase} value={phase}>
+                {phaseText(phase)}
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="flex min-w-40 flex-[1_1_170px] flex-col gap-1">
           <label htmlFor={`${ids}-type`} className="text-caption">
             {t('screen.jobPost.type')}
@@ -354,9 +400,9 @@ function Filters({ filter, update }: { filter: JobPostFilter; update: (next: Par
 }
 
 /**
- * "Đề xuất cho bạn" (FR-14, AD-17, UX-DR47): Job Posts not yet applied to, by shared Skills, then
- * Job Types from the Mentor's work history, then newest; shown only without a keyword. A Customer's
- * invitation reads "Bạn được mời".
+ * "Đề xuất cho bạn" (FR-14, AD-17, UX-DR47): listed Jobs where the user holds no role and has no bid, by shared
+ * Skills, then Job Types from their history in either role, then newest, each with its phase and what it needs;
+ * shown only without a keyword. A Customer's invitation reads "Bạn được mời".
  */
 function Recommended({ posts }: { posts: RecommendedPost[] }) {
   return (
@@ -366,7 +412,6 @@ function Recommended({ posts }: { posts: RecommendedPost[] }) {
       </h2>
       <ul className="grid gap-3 md:grid-cols-2">
         {posts.map((post) => {
-          const types = post.jobTypes.map((type) => t(`term.jobType${type}.label` as MessageKey)).join(', ')
           return (
             <li key={post.id}>
               <Link
@@ -381,16 +426,11 @@ function Recommended({ posts }: { posts: RecommendedPost[] }) {
                     </span>
                   )}
                 </span>
-                <span className="text-caption text-muted-foreground break-words">
-                  {post.budget
-                    ? t('screen.jobPost.meta', {
-                        product: post.productName,
-                        types,
-                        budget: t(`screen.job.form.budget${post.budget}` as MessageKey),
-                        date: formatDayMonth(post.openedAt),
-                      })
-                    : t('screen.jobPost.metaNoBudget', { product: post.productName, types, date: formatDayMonth(post.openedAt) })}
+                <span className="flex flex-wrap items-center gap-2">
+                  <PhaseBadge phase={post.phase} />
+                  <span className="text-body-sm font-semibold">{needText(post.need, post.openSlots)}</span>
                 </span>
+                <span className="text-caption text-muted-foreground break-words">{postMeta(post)}</span>
                 <SignalChips signals={post.signals} />
               </Link>
             </li>
@@ -401,48 +441,134 @@ function Recommended({ posts }: { posts: RecommendedPost[] }) {
   )
 }
 
-function PostItem({ post, applied }: { post: JobPostSummary; applied: boolean }) {
+/**
+ * The Product, the Job Types and the budget, with "đăng {date}" only while the Job looks for a Mentor: a recruiting
+ * Job is listed by when its recruitment opened, so its posting date would read out of order.
+ */
+function postMeta(post: {
+  productName: string
+  jobTypes: string[]
+  budget?: string
+  openedAt: string
+  phase?: JobPostSummary['phase']
+}): string {
+  const product = post.productName
   const types = post.jobTypes.map((type) => t(`term.jobType${type}.label` as MessageKey)).join(', ')
+  const budget = post.budget ? t(`screen.job.form.budget${post.budget}` as MessageKey) : undefined
+  if (post.phase !== 'FINDING_MENTOR') {
+    return budget
+      ? t('screen.jobPost.metaUndated', { product, types, budget })
+      : t('screen.jobPost.metaUndatedNoBudget', { product, types })
+  }
+  const date = formatDayMonth(post.openedAt)
+  return budget
+    ? t('screen.jobPost.meta', { product, types, budget, date })
+    : t('screen.jobPost.metaNoBudget', { product, types, date })
+}
+
+/** "Khách hàng: Doanh nghiệp · từ 07/2026 · 4,8 sao (5 lượt)", never the Customer's name (FR-12). */
+function customerText(post: JobPostSummary, rating: PostCustomerRating | undefined): string | undefined {
+  const facts: string[] = []
+  if (post.customerJoinedAt) {
+    const month = formatMonthYear(post.customerJoinedAt)
+    facts.push(
+      post.customerKind
+        ? t('screen.jobPost.detail.customerSince', {
+            kind: t(post.customerKind === 'BUSINESS' ? 'screen.jobPost.detail.business' : 'screen.jobPost.detail.individual'),
+            month,
+          })
+        : t('screen.jobPost.detail.customerJoined', { month }),
+    )
+  }
+  if (rating) {
+    facts.push(
+      rating.count > 0 && rating.average != null
+        ? t('screen.jobPost.rating', {
+            average: rating.average.toLocaleString('vi-VN', { maximumFractionDigits: 1 }),
+            n: rating.count,
+          })
+        : t('screen.jobPost.noRating'),
+    )
+  }
+  return facts.length > 0 ? t('screen.jobPost.customer', { facts: facts.join(' · ') }) : undefined
+}
+
+/**
+ * One row (UX-DR97): the title opens MEN-3, and the whole row with it; the Mentor's name, once there is one, opens
+ * their public profile. No action is taken from the list.
+ */
+function PostItem({
+  post,
+  applied,
+  rating,
+}: {
+  post: JobPostSummary
+  applied: boolean
+  rating: PostCustomerRating | undefined
+}) {
+  const customer = customerText(post, rating)
   return (
-    <li>
-      <Link
-        to={`/tim-viec/${post.id}`}
-        className="flex flex-wrap items-center gap-3 px-4 py-3 text-inherit no-underline hover:bg-muted/50"
-      >
-        <span className="flex min-w-60 grow flex-col gap-1">
-          <span className="text-label font-semibold break-words">{post.title}</span>
-          <span className="text-caption text-muted-foreground break-words">
-            {post.budget
-              ? t('screen.jobPost.meta', {
-                  product: post.productName,
-                  types,
-                  budget: t(`screen.job.form.budget${post.budget}` as MessageKey),
-                  date: formatDayMonth(post.openedAt),
-                })
-              : t('screen.jobPost.metaNoBudget', { product: post.productName, types, date: formatDayMonth(post.openedAt) })}
-          </span>
-          {post.skills.length > 0 && (
-            <span className="flex flex-wrap gap-1.5">
-              {post.skills.map((skill) => (
-                <span key={skill} className="rounded-full bg-muted px-2 py-0.5 text-caption">
-                  {skill}
-                </span>
-              ))}
-            </span>
-          )}
+    <li className="relative flex flex-wrap items-start gap-3 px-4 py-3 hover:bg-muted/50">
+      <div className="flex min-w-60 grow basis-0 flex-col gap-1">
+        <span className="flex flex-wrap items-center gap-2">
+          <Link
+            to={`/tim-viec/${post.id}`}
+            className="text-label font-semibold break-words text-inherit no-underline after:absolute after:inset-0 hover:underline"
+          >
+            {post.title}
+          </Link>
+          <PhaseBadge phase={post.phase} />
         </span>
-        {applied ? (
-          <span className="rounded-full bg-success-soft px-2 py-0.5 text-caption font-semibold text-success">
-            {t('screen.matching.appliedBadge')}
+        <span className="text-body-sm font-semibold">{needText(post.need, post.recruitment?.openSlots)}</span>
+        <span className="text-caption text-muted-foreground break-words">{postMeta(post)}</span>
+        {post.skills.length > 0 && (
+          <span className="flex flex-wrap gap-1.5">
+            {post.skills.map((skill) => (
+              <span key={skill} className="rounded-full bg-muted px-2 py-0.5 text-caption">
+                {skill}
+              </span>
+            ))}
           </span>
-        ) : (
-          post.deadline && (
-            <span className="rounded-full bg-muted px-2 py-0.5 text-caption">
-              {t('screen.jobPost.due', { date: formatCalendarDayMonth(post.deadline) })}
-            </span>
-          )
         )}
-      </Link>
+        {post.recruitment && post.recruitment.skills.length > 0 && (
+          <span className="text-caption break-words">
+            {t('screen.jobPost.sought', { skills: post.recruitment.skills.join(', ') })}
+          </span>
+        )}
+        {post.recruitment?.note && (
+          <span className="line-clamp-2 text-caption break-words whitespace-pre-line text-muted-foreground">
+            {post.recruitment.note}
+          </span>
+        )}
+        {post.mentor && (
+          <span className="text-caption break-words">
+            {rich('screen.jobPost.mentor', {
+              name: post.mentor.githubLogin ? (
+                <Link
+                  to={`/mentor/${post.mentor.githubLogin}`}
+                  className="relative z-10 text-primary underline-offset-4 hover:underline"
+                >
+                  {post.mentor.displayName}
+                </Link>
+              ) : (
+                post.mentor.displayName
+              ),
+            })}
+          </span>
+        )}
+        {customer && <span className="text-caption text-muted-foreground break-words">{customer}</span>}
+      </div>
+      {applied ? (
+        <span className="rounded-full bg-success-soft px-2 py-0.5 text-caption font-semibold text-success">
+          {t('screen.matching.appliedBadge')}
+        </span>
+      ) : (
+        post.deadline && (
+          <span className="rounded-full bg-muted px-2 py-0.5 text-caption">
+            {t('screen.jobPost.due', { date: formatCalendarDayMonth(post.deadline) })}
+          </span>
+        )
+      )}
     </li>
   )
 }

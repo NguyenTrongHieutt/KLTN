@@ -5563,6 +5563,39 @@
         "tags" : [ "job-post-controller" ]
       }
     },
+    "/api/v1/mentor/customer-ratings" : {
+      "get" : {
+        "operationId" : "customerRatings",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "post",
+          "required" : false,
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/PostCustomerRatingView"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "customer-rating-controller" ]
+      }
+    },
     "/api/v1/mentor/job-posts" : {
       "get" : {
         "operationId" : "list",
@@ -5572,6 +5605,17 @@
           "required" : false,
           "schema" : {
             "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "phase",
+          "required" : false,
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "enum" : [ "FINDING_MENTOR", "FINDING_CREW", "RECRUITING", "AGREEING" ]
+            }
           }
         }, {
           "in" : "query",
@@ -14096,6 +14140,13 @@
             "type" : "string",
             "enum" : [ "UNDER_2M", "FROM_2M_TO_5M", "FROM_5M_TO_10M", "OVER_10M" ]
           },
+          "customerJoinedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "customerKind" : {
+            "type" : "string"
+          },
           "deadline" : {
             "type" : "string",
             "format" : "date"
@@ -14111,12 +14162,26 @@
               "enum" : [ "ASSESSMENT", "BUG_FIX", "NEW_FEATURE", "MODIFICATION", "IMPROVEMENT", "SECURITY_TESTING", "DEPLOYMENT_OPERATIONS", "DOCUMENTATION" ]
             }
           },
+          "mentor" : {
+            "$ref" : "#/components/schemas/PostMentorView"
+          },
+          "need" : {
+            "type" : "string",
+            "enum" : [ "MENTOR", "CREW" ]
+          },
           "openedAt" : {
             "type" : "string",
             "format" : "date-time"
           },
+          "phase" : {
+            "type" : "string",
+            "enum" : [ "FINDING_MENTOR", "FINDING_CREW", "RECRUITING", "AGREEING" ]
+          },
           "productName" : {
             "type" : "string"
+          },
+          "recruitment" : {
+            "$ref" : "#/components/schemas/PostRecruitmentView"
           },
           "skills" : {
             "type" : "array",
@@ -14128,7 +14193,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "id", "jobTypes", "openedAt", "productName", "skills", "title" ]
+        "required" : [ "id", "jobTypes", "need", "openedAt", "productName", "skills", "title" ]
       },
       "JobPostView" : {
         "type" : "object",
@@ -14165,9 +14230,20 @@
             "type" : "string",
             "format" : "date-time"
           },
+          "mentor" : {
+            "$ref" : "#/components/schemas/PostMentorView"
+          },
+          "need" : {
+            "type" : "string",
+            "enum" : [ "MENTOR", "CREW" ]
+          },
           "openedAt" : {
             "type" : "string",
             "format" : "date-time"
+          },
+          "phase" : {
+            "type" : "string",
+            "enum" : [ "FINDING_MENTOR", "FINDING_CREW", "RECRUITING", "AGREEING" ]
           },
           "problem" : {
             "type" : "string"
@@ -14192,6 +14268,9 @@
               "type" : "string"
             }
           },
+          "recruitment" : {
+            "$ref" : "#/components/schemas/PostRecruitmentView"
+          },
           "screenshots" : {
             "type" : "array",
             "items" : {
@@ -14208,7 +14287,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "id", "jobTypes", "lapsesAt", "openedAt", "productDescription", "productId", "productName", "productOpenFindings", "productTools", "screenshots", "skills", "title" ]
+        "required" : [ "id", "jobTypes", "need", "openedAt", "productDescription", "productId", "productName", "productOpenFindings", "productTools", "screenshots", "skills", "title" ]
       },
       "JobProgressView" : {
         "type" : "object",
@@ -16180,6 +16259,54 @@
         },
         "required" : [ "audience", "exists", "jobId", "open" ]
       },
+      "PostCustomerRatingView" : {
+        "type" : "object",
+        "properties" : {
+          "average" : {
+            "type" : "number"
+          },
+          "count" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "postId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "count", "postId" ]
+      },
+      "PostMentorView" : {
+        "type" : "object",
+        "properties" : {
+          "displayName" : {
+            "type" : "string"
+          },
+          "githubLogin" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "displayName" ]
+      },
+      "PostRecruitmentView" : {
+        "type" : "object",
+        "properties" : {
+          "note" : {
+            "type" : "string"
+          },
+          "openSlots" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "skills" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "openSlots", "skills" ]
+      },
       "PreviewCheckRequest" : {
         "type" : "object",
         "properties" : {
@@ -16968,9 +17095,21 @@
               "type" : "string"
             }
           },
+          "need" : {
+            "type" : "string",
+            "enum" : [ "MENTOR", "CREW" ]
+          },
+          "openSlots" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
           "openedAt" : {
             "type" : "string",
             "format" : "date-time"
+          },
+          "phase" : {
+            "type" : "string",
+            "enum" : [ "FINDING_MENTOR", "FINDING_CREW", "RECRUITING", "AGREEING" ]
           },
           "productName" : {
             "type" : "string"
@@ -16982,7 +17121,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "id", "invited", "jobTypes", "openedAt", "productName", "signals", "title" ]
+        "required" : [ "id", "invited", "jobTypes", "need", "openSlots", "openedAt", "productName", "signals", "title" ]
       },
       "RepositoryCheckRequest" : {
         "type" : "object",

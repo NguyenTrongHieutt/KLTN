@@ -99,16 +99,42 @@ class ModerationIT extends IntegrationTest {
 		awaitListeners();
 	}
 
+	/** Story 21.1: a Job listed while its Mentor recruits is hidden like an Open Job Post, and leaves "Tìm việc". */
+	@Test
+	void aHiddenRecruitingJobLeavesTimViec() throws Exception {
+		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		world();
+		UUID job = recruitingJob();
+		UUID vy = TeamTestSupport.mentor(this.jdbc, "Lê Thảo Vy", List.of(TeamTestSupport.REACT), "React");
+		this.mvc.perform(get("/api/v1/mentor/job-posts").with(as(vy, Role.MENTOR)))
+			.andExpect(jsonPath("$.items[0].id").value(job.toString()));
+		this.mvc.perform(get("/api/v1/admin/moderation").param("kind", "JOB_POST").with(admin(ha)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$[0].id").value(job.toString()));
+
+		hide(ha, "JOB_POST", job, "Nội dung lừa đảo").andExpect(status().isOk());
+
+		this.mvc.perform(get("/api/v1/mentor/job-posts").with(as(vy, Role.MENTOR)))
+			.andExpect(jsonPath("$.total").value(0));
+		this.mvc.perform(get("/api/v1/mentor/job-posts/" + job).with(as(vy, Role.MENTOR))).andExpect(status().isNotFound());
+		awaitListeners();
+	}
+
 	@Test
 	void aHiddenProductHidesItsOpenJobPosts() throws Exception {
 		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
 		world();
 		UUID post = openPost();
+		UUID recruiting = recruitingJob();
 		hide(ha, "PRODUCT", this.product, "Sản phẩm vi phạm bản quyền").andExpect(status().isOk());
 		assertThat(this.products.hidden(List.of(this.product))).containsExactly(this.product);
 		await().atMost(Duration.ofSeconds(10))
 			.until(() -> "Sản phẩm của tin tuyển này đã bị ẩn".equals(text("SELECT coalesce(hidden_reason, '') FROM job.job WHERE id = '"
 					+ post + "'")));
+		// Story 21.1: a recruiting Job of the Product is hidden with it.
+		await().atMost(Duration.ofSeconds(10))
+			.until(() -> "Sản phẩm của tin tuyển này đã bị ẩn".equals(text("SELECT coalesce(hidden_reason, '') FROM job.job WHERE id = '"
+					+ recruiting + "'")));
 		awaitListeners();
 	}
 
@@ -168,6 +194,28 @@ class ModerationIT extends IntegrationTest {
 			.param("lapses", Timestamp.from(this.clock.instant().plus(Duration.ofDays(14))))
 			.update();
 		return post;
+	}
+
+	/** A Job in Agreement whose Mentor, Hùng, recruits one more member (Story 21.1). */
+	private UUID recruitingJob() {
+		UUID job = UUID.randomUUID();
+		Timestamp now = Timestamp.from(this.clock.instant());
+		this.jdbc.sql("""
+				INSERT INTO job.job (id, product_id, customer_account_id, state, title, problem, expected, app_users,
+				    job_types, budget, deadline, rules, selection_days, opened_at, mentor_account_id, selected_application_id,
+				    selected_at, recruiting, recruiting_since, open_slots, version, created_at, updated_at)
+				VALUES (:id, :product, :owner, 'AGREEMENT', 'Tuyển thêm thành viên', 'Lỗi', 'Đúng', 'Khách', ARRAY['BUG_FIX'],
+				    'UNDER_2M', DATE '2026-12-01', '{}'::jsonb, 14, :now, :mentor, :application, :now, true, :now, 1, 3, :now,
+				    :now)
+				""")
+			.param("id", job)
+			.param("product", this.product)
+			.param("owner", this.lan)
+			.param("mentor", this.hung)
+			.param("application", UUID.randomUUID())
+			.param("now", now)
+			.update();
+		return job;
 	}
 
 	private UUID invite(UUID post) {
