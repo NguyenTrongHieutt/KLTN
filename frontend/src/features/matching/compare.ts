@@ -6,7 +6,11 @@ export function comparePath(jobId: string, ids: string[]): string {
   return `/cong-viec/${jobId}/ung-tuyen/so-sanh?ids=${ids.map(encodeURIComponent).join(',')}`
 }
 
-/** The bids CUS-13 compares: the IDs of `?ids=`, each once, in their order, at most {@link MAX_COMPARED}. */
-export function comparedIds(param: string | null): string[] {
-  return [...new Set((param ?? '').split(',').filter((id) => id !== ''))].slice(0, MAX_COMPARED)
+/**
+ * The bids CUS-13 compares: the IDs of `?ids=` that are the Job's open bids, each once, in their order, then at most
+ * {@link MAX_COMPARED} of them, so a stale ID never takes a valid bid's place.
+ */
+export function comparedIds(param: string | null, openIds: string[]): string[] {
+  const open = new Set(openIds)
+  return [...new Set((param ?? '').split(','))].filter((id) => open.has(id)).slice(0, MAX_COMPARED)
 }

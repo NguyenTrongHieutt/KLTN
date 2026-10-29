@@ -264,10 +264,11 @@ DELETE /api/v1/team/membership,USER,,,404 NOT_FOUND
 DELETE /api/v1/mentor/team/members/{membershipId},ANONYMOUS,,,401
 DELETE /api/v1/mentor/team/members/{membershipId},USER,,,404 NOT_FOUND
 # PUB-4 (identity and reputation, FR-50, FR-51, UX-DR96, Story 21.3): one public profile for anyone, its identity
-# half and its two histories. {username} is the crew Job's Mentor; user=member makes it the crew Job's member who
-# hides their student name (the STUDENT_HIDDEN_NAME canary, X9) and has a published Portfolio Entry, so that name
-# is scanned and never shows. Both stay outside the Customer's Crew-name scan (A-06); PublicReputationIT proves they
-# name no Job, Customer or co-member. The Bid cards' histories in short take usernames, none here, and answer [].
+# half, its two histories, and the Bid cards' histories in short, which take the username as a query. {username}
+# is the crew Job's Mentor; user=member makes it the crew Job's member who hides their student name (the
+# STUDENT_HIDDEN_NAME canary, X9) and has a published Portfolio Entry, so that name is scanned and never shows. The
+# histories stay outside the Customer's Crew-name scan (A-06); PublicReputationIT proves they name no Job, Customer
+# or co-member.
 GET /api/v1/users/{username},ANONYMOUS,,,200
 GET /api/v1/users/{username},USER_UNVERIFIED,,,200
 GET /api/v1/users/{username},USER,,,200
@@ -292,12 +293,18 @@ GET /api/v1/users/{username}/reputation,USER,user=member,,200
 GET /api/v1/users/{username}/reputation,CUSTOMER,user=member,,200
 GET /api/v1/users/{username}/reputation,CROSS_ROLE,user=member,,200
 GET /api/v1/users/{username}/reputation,ADMINISTRATOR,user=member,,200
-GET /api/v1/reputation/histories,ANONYMOUS,,,200
-GET /api/v1/reputation/histories,USER_UNVERIFIED,,,200
-GET /api/v1/reputation/histories,USER,,,200
-GET /api/v1/reputation/histories,CUSTOMER,,,200
-GET /api/v1/reputation/histories,CROSS_ROLE,,,200
-GET /api/v1/reputation/histories,ADMINISTRATOR,,,200
+GET /api/v1/reputation/histories?username={username},ANONYMOUS,,,200
+GET /api/v1/reputation/histories?username={username},USER_UNVERIFIED,,,200
+GET /api/v1/reputation/histories?username={username},USER,,,200
+GET /api/v1/reputation/histories?username={username},CUSTOMER,,,200
+GET /api/v1/reputation/histories?username={username},CROSS_ROLE,,,200
+GET /api/v1/reputation/histories?username={username},ADMINISTRATOR,,,200
+GET /api/v1/reputation/histories?username={username},ANONYMOUS,user=member,,200
+GET /api/v1/reputation/histories?username={username},USER_UNVERIFIED,user=member,,200
+GET /api/v1/reputation/histories?username={username},USER,user=member,,200
+GET /api/v1/reputation/histories?username={username},CUSTOMER,user=member,,200
+GET /api/v1/reputation/histories?username={username},CROSS_ROLE,user=member,,200
+GET /api/v1/reputation/histories?username={username},ADMINISTRATOR,user=member,,200
 # Products (product, FR-7, AD-20, Story 20.3): any unlocked user lists their own Products; checking and
 # registering a repository need GitHub linked (USER_UNVERIFIED: GITHUB_NOT_LINKED); only the owning Customer and
 # Administrators read a Product: not even the crew Job's Mentor and Crew, who work on it (B5). No matrix account has a kept GitHub token, so a linked one's repository reads

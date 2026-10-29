@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button'
 import { PersonProfileContent } from '@/features/identity/PersonProfile'
 import { experienceText } from '@/features/identity/personText'
 import { VerifiedFactLines } from '@/features/identity/VerifiedFacts'
-import type { ReputationHistory } from '@/features/reputation/historyApi'
-import { RoleSummaryLine } from '@/features/reputation/RoleHistories'
+import type { Histories } from '@/features/reputation/historyApi'
+import { HistoryRegion, RoleSummaryLine } from '@/features/reputation/RoleHistories'
 import { t } from '@/i18n/t'
 import { formatDayMonth } from '@/lib/dates'
 import { formatVnd } from '@/lib/money'
@@ -34,7 +34,7 @@ function proofSummary(application: JobApplication): string {
  */
 export function BidCard({
   application,
-  history,
+  histories,
   compared,
   compareFull,
   onCompare,
@@ -42,7 +42,7 @@ export function BidCard({
   onChoose,
 }: {
   application: JobApplication
-  history: ReputationHistory | undefined
+  histories: Histories
   compared: boolean
   compareFull: boolean
   onCompare: () => void
@@ -80,31 +80,33 @@ export function BidCard({
           {' · '}
           {t('screen.matching.days', { n: application.timelineDays })}
           {' · '}
-          <span className="text-muted-foreground">{experienceText(bidder.yearsOfExperience)}</span>
+          <span className="text-muted-foreground">
+            {experienceText(bidder.yearsOfExperience)} ({t('screen.person.selfDeclared')})
+          </span>
         </p>
         <p className="line-clamp-3 text-body-sm break-words whitespace-pre-line">{application.approach}</p>
         <p className="text-caption text-muted-foreground">{proofSummary(application)}</p>
       </section>
       <section aria-label={t('screen.matching.bid.history')} className="flex flex-col gap-2">
         <p className="text-caption font-semibold text-muted-foreground">{t('screen.matching.bid.history')}</p>
-        <div className="grid gap-2 sm:grid-cols-2">
-          <RoleSummaryLine role="mentor" summary={history?.mentor} newcomer={history?.newcomer ?? false} />
-          <RoleSummaryLine role="crew" summary={history?.crew} newcomer={false} />
-        </div>
+        <BidderHistories application={application} histories={histories} />
       </section>
       <section aria-label={t('screen.matching.bid.metrics')} className="flex flex-col gap-2">
         <p className="text-caption font-semibold text-muted-foreground">{t('screen.matching.bid.metrics')}</p>
-        <FitMetricsList metrics={application.fitMetrics} history={history} memberSince={bidder.memberSince} />
+        <FitMetricsList
+          metrics={application.fitMetrics}
+          histories={histories}
+          username={bidder.githubLogin}
+          memberSince={bidder.memberSince}
+        />
       </section>
       <div className="flex flex-wrap items-center gap-3">
         <Button type="button" onClick={onChoose}>
           {t('screen.matching.choose.button')}
         </Button>
-        {bidder.githubLogin && (
-          <Button type="button" variant="secondary" onClick={onProfile}>
-            {t('screen.matching.compare.profile')}
-          </Button>
-        )}
+        <Button type="button" variant="secondary" onClick={onProfile}>
+          {t('screen.matching.compare.profile')}
+        </Button>
         <label className={cn('flex items-center gap-2 text-body-sm', compareFull && !compared && 'opacity-60')}>
           <input type="checkbox" checked={compared} disabled={compareFull && !compared} onChange={onCompare} />
           {t('screen.matching.compare.toggle')}
@@ -115,13 +117,29 @@ export function BidCard({
 }
 
 /**
+ * A bidder's history as Mentor and as Crew member in short, once the page's histories arrive; a bidder who unlinked
+ * GitHub has none to read (UX-DR100).
+ */
+export function BidderHistories({ application, histories }: { application: JobApplication; histories: Histories }) {
+  const login = application.mentor.githubLogin
+  const history = login ? histories.byUsername.get(login) : undefined
+  const lines = (
+    <div className="grid gap-2 sm:grid-cols-2">
+      <RoleSummaryLine role="mentor" summary={history?.mentor} newcomer={history?.newcomer ?? false} />
+      <RoleSummaryLine role="crew" summary={history?.crew} newcomer={false} />
+    </div>
+  )
+  return login ? <HistoryRegion histories={histories}>{lines}</HistoryRegion> : lines
+}
+
+/**
  * CUS-12 "Hồ sơ người chào giá" (`?ho-so={bidId}`, UX-DR100): the bid in full with every proof item (a link with N-11's
  * caution line), the bidder's PUB-4 content, and the Fit metrics for this Job; "Chọn" and "So sánh" in its footer.
  * Never contact details.
  */
 export function BidderSheet({
   application,
-  history,
+  histories,
   compared,
   compareFull,
   onClose,
@@ -129,7 +147,7 @@ export function BidderSheet({
   onChoose,
 }: {
   application: JobApplication | undefined
-  history: ReputationHistory | undefined
+  histories: Histories
   compared: boolean
   compareFull: boolean
   onClose: () => void
@@ -178,7 +196,7 @@ export function BidderSheet({
               <h3 id={`${ids}-person`} className="text-h3">
                 {t('screen.matching.bid.sheetPerson')}
               </h3>
-              <PersonProfileContent username={application.mentor.githubLogin} />
+              <PersonProfileContent username={application.mentor.githubLogin} level={4} />
             </section>
           )}
           <section aria-labelledby={`${ids}-metrics`} className="flex flex-col gap-2 border-t border-border pt-4">
@@ -187,7 +205,8 @@ export function BidderSheet({
             </h3>
             <FitMetricsList
               metrics={application.fitMetrics}
-              history={history}
+              histories={histories}
+              username={application.mentor.githubLogin}
               memberSince={application.mentor.memberSince}
             />
           </section>

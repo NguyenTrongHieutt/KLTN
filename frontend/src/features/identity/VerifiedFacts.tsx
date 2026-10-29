@@ -1,8 +1,8 @@
 import { BadgeCheck, Circle } from 'lucide-react'
 import { t } from '@/i18n/t'
+import { formatMonthYear } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 import type { FactKind, VerifiedFact } from './personApi'
-import { formatMonth } from './personText'
 
 /** The fixed order of the Verified facts (UX-DR96): GitHub, then the student facts, then LinkedIn. */
 const ORDER: FactKind[] = ['GITHUB', 'STUDENT', 'LINKEDIN']
@@ -17,7 +17,7 @@ function source(fact: VerifiedFact): string {
   if (!fact.verifiedAt) {
     return t('screen.person.fact.unverified')
   }
-  return t(`screen.person.fact.via${fact.kind}`, { month: formatMonth(fact.verifiedAt) })
+  return t(`screen.person.fact.via${fact.kind}`, { month: formatMonthYear(fact.verifiedAt) })
 }
 
 /**
@@ -72,7 +72,7 @@ export function VerifiedFactChips({ facts }: { facts: VerifiedFact[] }) {
     chips.push({
       key: fact.kind,
       text: fact.verifiedAt
-        ? t(`screen.person.chip.${fact.kind}`, { month: formatMonth(fact.verifiedAt) })
+        ? t(`screen.person.chip.${fact.kind}`, { month: formatMonthYear(fact.verifiedAt) })
         : t(`screen.person.chip.${fact.kind}Unverified`),
       held: !!fact.verifiedAt,
     })

@@ -5,9 +5,10 @@
  * Portfolio Entries. J9 opens the Rating Window
  * (FR-49): the Customer and the Mentor rate each other blind, the Mentor rates each Crew member who was
  * ever active, and those Crew members may give private feedback about the Mentor, which only
- * Administrators read (FR-78). Only published Ratings count. J9 and J10 also create the Portfolio Entries of a
- * Job with Accepted work (FR-50): the Mentor's, and every Crew member's who was active during Accepted work, published
- * after each person's own data-deletion confirmation.
+ * Administrators read (FR-78). Only published Ratings count. J9 also creates the Portfolio Entries of a Job with
+ * Accepted work, Closed or Cancelled (FR-50; J10 refuses a Job with Accepted work, which reaches Cancelled through
+ * Closing and J9): the Mentor's, and every Crew member's who was active during Accepted work, published after each
+ * person's own data-deletion confirmation.
  * <p>
  * Public API: {@link vn.vibefix.reputation.Reputation}, {@link vn.vibefix.reputation.RatingSummary},
  * {@link vn.vibefix.reputation.RatingRole},

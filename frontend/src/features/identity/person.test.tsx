@@ -129,6 +129,18 @@ describe('PUB-4, one public profile (UX-DR96, Story 21.3)', () => {
 
     expect(await screen.findByText('Đây là hồ sơ người khác thấy.')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Sửa hồ sơ' })).toHaveAttribute('href', '/ho-so')
+    expect(screen.queryByRole('button', { name: /Thao tác khác với hồ sơ của/ })).toBeNull()
+  })
+
+  it("offers a signed-in visitor the report menu on someone else's profile (FR-63)", async () => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/users/hungdm': () => json(publicPerson('hungdm')),
+      'GET /api/v1/users/hungdm/reputation': () => json(personReputation()),
+    })
+    renderAt('/nguoi-dung/hungdm')
+
+    expect(await screen.findByRole('button', { name: 'Thao tác khác với hồ sơ của Đỗ Mạnh Hùng' })).toBeInTheDocument()
+    expect(screen.queryByText('Đây là hồ sơ người khác thấy.')).toBeNull()
   })
 
   it('redirects the old Mentor and Student addresses to PUB-4', async () => {

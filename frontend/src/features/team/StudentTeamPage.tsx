@@ -62,7 +62,7 @@ function InTeam({ team }: { team: StudentTeam }) {
           <Avatar name={mentor.displayName} />
           <div className="flex min-w-0 flex-col gap-1">
             {mentor.githubLogin ? (
-              <Link to={`/mentor/${mentor.githubLogin}`} className="text-h3 break-words text-primary underline-offset-4 hover:underline">
+              <Link to={personPath(mentor.githubLogin)} className="text-h3 break-words text-primary underline-offset-4 hover:underline">
                 {mentor.displayName}
               </Link>
             ) : (
@@ -446,7 +446,7 @@ function MentorSheet({ login, onClose }: { login?: string; onClose: () => void }
         )
       }
     >
-      {login && <PersonProfileContent username={login} />}
+      {login && <PersonProfileContent username={login} level={3} />}
     </Sheet>
   )
 }

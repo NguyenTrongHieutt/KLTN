@@ -820,18 +820,20 @@ class MatrixFilesTest {
 		MatrixRow reputation = MatrixRow
 			.parse(HEADER + "GET /api/v1/users/{username}/reputation,CUSTOMER,user=member,,200")
 			.getFirst();
-		MatrixRow profile = MatrixRow.parse(HEADER + "GET /api/v1/users/{username},CUSTOMER,,,200").getFirst();
-		MatrixRow histories = MatrixRow.parse(HEADER + "GET /api/v1/reputation/histories,CUSTOMER,,,200").getFirst();
+		MatrixRow profile = MatrixRow.parse(HEADER + "GET /api/v1/users/{username},CUSTOMER,user=member,,200").getFirst();
+		MatrixRow histories = MatrixRow
+			.parse(HEADER + "GET /api/v1/reputation/histories?username={username},CUSTOMER,user=member,,200")
+			.getFirst();
 		MatrixRow user = MatrixRow.parse(HEADER + "GET /api/v1/users/{username}/reputation,USER,,,200").getFirst();
-		MatrixRow other = MatrixRow.parse(HEADER + "GET /api/v1/profile,CUSTOMER,,,200").getFirst();
 
 		assertThat(reputation.rebound()).containsEntry("username", "memberUsername");
+		assertThat(histories.endpoint()).as("a query names no other endpoint").isEqualTo("GET /api/v1/reputation/histories");
+		assertThat(histories.rebound()).containsEntry("username", "memberUsername");
 		assertThat(MatrixRowRunner.exempt(reputation, canaries.get("CREW_NAME"))).isTrue();
-		assertThat(MatrixRowRunner.exempt(profile, canaries.get("CROSS_CREW_NAME"))).isTrue();
-		assertThat(MatrixRowRunner.exempt(histories, canaries.get("CREW_NAME"))).isTrue();
+		assertThat(MatrixRowRunner.exempt(histories, canaries.get("CROSS_CREW_NAME"))).isTrue();
 		assertThat(MatrixRowRunner.exempt(reputation, canaries.get("CREW_EMAIL"))).isFalse();
-		assertThat(MatrixRowRunner.exempt(profile, canaries.get("STUDENT_HIDDEN_NAME"))).isFalse();
-		assertThat(MatrixRowRunner.exempt(other, canaries.get("CREW_NAME"))).isFalse();
+		assertThat(MatrixRowRunner.exempt(reputation, canaries.get("STUDENT_HIDDEN_NAME"))).isFalse();
+		assertThat(MatrixRowRunner.exempt(profile, canaries.get("CREW_NAME"))).as("PUB-4's identity half").isFalse();
 		assertThat(MatrixRowRunner.exempt(user, canaries.get("CREW_NAME"))).isFalse();
 	}
 

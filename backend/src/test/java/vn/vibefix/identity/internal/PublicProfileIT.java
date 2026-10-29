@@ -96,6 +96,22 @@ class PublicProfileIT extends IntegrationTest {
 			.andExpect(jsonPath("$.own").value(false));
 	}
 
+	/** The GitHub fact's month is the last link, never the account's creation, which is the month joined. */
+	@Test
+	void theGitHubFactIsDatedByTheLinkAndTheMonthJoinedByTheAccount() throws Exception {
+		UUID linkedLater = TeamTestSupport.mentor(this.jdbc, "Liên Kết Sau", List.of(TeamTestSupport.REACT), "React");
+		this.jdbc.sql("UPDATE identity.account SET github_linked_at = :at WHERE id = :id")
+			.param("at", java.sql.Timestamp.from(Instant.parse("2026-03-10T05:00:00Z")))
+			.param("id", linkedLater)
+			.update();
+
+		this.mvc.perform(get("/api/v1/users/" + TeamTestSupport.login(this.jdbc, linkedLater)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.verified[0].kind").value("GITHUB"))
+			.andExpect(jsonPath("$.verified[0].verifiedAt").value("2026-03-10T05:00:00Z"))
+			.andExpect(jsonPath("$.memberSince").value("2026-01-05T03:00:00Z"));
+	}
+
 	@Test
 	void hiddenStudentFactsLeaveTheBadgeAndALapsedOneReadsUnverified() throws Exception {
 		UUID hidden = TeamTestSupport.student(this.jdbc, "Nguyễn Ẩn Danh", false, List.of(TeamTestSupport.REACT), "React",

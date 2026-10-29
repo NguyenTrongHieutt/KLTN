@@ -310,6 +310,41 @@ class InvitationsIT extends IntegrationTest {
 			.andExpect(status().isNotFound());
 	}
 
+	/**
+	 * Story 21.3 (AD-33): the search cards' Ratings are the person's as Mentor only, the Customers'; the same person's
+	 * Rating as Crew member from a Mentor never counts in it.
+	 */
+	@Test
+	void theSearchCardsRatingCountsOnlyTheRatingsAsMentor() throws Exception {
+		UUID window = UUID.randomUUID();
+		Timestamp at = Timestamp.from(MutableClock.DEFAULT_INSTANT.minus(Duration.ofDays(20)));
+		this.jdbc.sql("""
+				INSERT INTO reputation.rating_window (job_id, product_id, customer_account_id, mentor_account_id, job_title,
+				    opened_at, ends_at, pair_published_at, crew_published_at)
+				VALUES (:job, :product, :lan, :ha, 'Việc đã xong', :opened, :at, :at, :at)
+				""").param("job", window).param("product", this.product).param("lan", this.lan).param("ha", this.ha)
+			.param("opened", Timestamp.from(MutableClock.DEFAULT_INSTANT.minus(Duration.ofDays(34))))
+			.param("at", at)
+			.update();
+		rating(window, "CUSTOMER_TO_MENTOR", this.lan, this.long_, 5, at);
+		rating(window, "MENTOR_TO_STUDENT", this.ha, this.long_, 2, at);
+
+		this.mvc.perform(get("/api/v1/reputation/mentor-summaries").param("id", this.long_.toString())
+			.with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$[0].accountId").value(this.long_.toString()))
+			.andExpect(jsonPath("$[0].average").value(5.0))
+			.andExpect(jsonPath("$[0].count").value(1));
+	}
+
+	private void rating(UUID job, String kind, UUID rater, UUID ratee, int stars, Timestamp at) {
+		this.jdbc.sql("""
+				INSERT INTO reputation.rating (id, job_id, kind, rater_account_id, ratee_account_id, stars, comment, created_at)
+				VALUES (:id, :job, :kind, :rater, :ratee, :stars, 'Nhận xét', :at)
+				""").param("id", UUID.randomUUID()).param("job", job).param("kind", kind).param("rater", rater)
+			.param("ratee", ratee).param("stars", stars).param("at", at).update();
+	}
+
 	private ResultActions search(String q, String filters) throws Exception {
 		return this.mvc.perform(get("/api/v1/jobs/" + this.job + "/mentors" + (filters.isEmpty() ? "" : "?" + filters.substring(1)))
 			.param("q", q)

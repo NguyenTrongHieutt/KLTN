@@ -184,6 +184,21 @@ class PublicReputationIT extends IntegrationTest {
 		}
 	}
 
+	/** A page of Bid cards asks for at most 20 people in one call; 21 are refused. */
+	@Test
+	void theHistoriesInShortTakeAtMostTwentyUsernames() throws Exception {
+		StringBuilder twenty = new StringBuilder("/api/v1/reputation/histories?username=" + login(this.hung).toUpperCase());
+		for (int i = 1; i < 20; i++) {
+			twenty.append("&username=khong-co-").append(i);
+		}
+		JsonNode found = JSON.readTree(read(twenty.toString(), request -> request));
+		assertThat(found.size()).as("the unknown usernames are left out").isOne();
+		assertThat(found.get(0).path("mentor").path("jobs").asInt()).isEqualTo(2);
+		MockHttpServletResponse refused = this.mvc.perform(get(twenty + "&username=nguoi-thu-21")).andReturn().getResponse();
+		assertThat(refused.getStatus()).isEqualTo(400);
+		assertThat(refused.getContentAsString(StandardCharsets.UTF_8)).contains("VALIDATION");
+	}
+
 	/** No Customer, no co-member by either name, login or ID, no Job ID, no running Job, and a Product only where allowed. */
 	private void assertNamesNothingOfTheJobs(String body, Map<UUID, List<String>> coMembers) {
 		assertThat(body).as("the Customer").doesNotContain(CUSTOMER_NAME, login(this.lan), this.lan.toString(),

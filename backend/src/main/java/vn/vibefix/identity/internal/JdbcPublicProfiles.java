@@ -12,8 +12,10 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
@@ -88,17 +90,26 @@ class JdbcPublicProfiles implements PublicProfiles {
 	@Transactional(readOnly = true)
 	public Map<String, UUID> unlockedAccountsOf(Collection<String> usernames) {
 		Map<String, UUID> accounts = new LinkedHashMap<>();
-		for (String username : new LinkedHashSet<>(usernames)) {
-			record Holder(UUID id, boolean locked) {
-			}
-			// Two accounts with one username find no one, as PUB-4 does, a locked one among them included.
-			List<Holder> found = this.jdbc.sql("SELECT a.id, a.locked_at IS NOT NULL AS locked FROM identity.account a"
-					+ " WHERE a.kind = 'USER' AND a.erased_at IS NULL" + LINKED_LOGIN + " LIMIT 2")
-				.param("login", username.strip())
-				.query((rs, n) -> new Holder(rs.getObject("id", UUID.class), rs.getBoolean("locked")))
-				.list();
-			if (found.size() == 1 && !found.getFirst().locked()) {
-				accounts.put(username, found.getFirst().id());
+		Set<String> logins = new LinkedHashSet<>();
+		usernames.forEach(username -> logins.add(username.strip().toLowerCase(Locale.ROOT)));
+		if (logins.isEmpty()) {
+			return accounts;
+		}
+		// One read for the page: a login two linked accounts hold finds no one, as PUB-4 does, a locked one among them
+		// included, so only a login held once, by an unlocked account, answers.
+		Map<String, UUID> held = new HashMap<>();
+		this.jdbc.sql("""
+				SELECT lower(a.github_login) AS login, min(CAST(a.id AS TEXT)) AS id FROM identity.account a
+				WHERE a.kind = 'USER' AND a.erased_at IS NULL AND a.github_user_id IS NOT NULL
+				  AND lower(a.github_login) IN (:logins)
+				GROUP BY lower(a.github_login) HAVING count(*) = 1 AND bool_and(a.locked_at IS NULL)
+				""").param("logins", List.copyOf(logins)).query(rs -> {
+			held.put(rs.getString("login"), UUID.fromString(rs.getString("id")));
+		});
+		for (String username : usernames) {
+			UUID id = held.get(username.strip().toLowerCase(Locale.ROOT));
+			if (id != null) {
+				accounts.putIfAbsent(username, id);
 			}
 		}
 		return accounts;

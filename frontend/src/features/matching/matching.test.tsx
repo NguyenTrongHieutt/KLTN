@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryRouter, RouterProvider } from 'react-router'
@@ -217,8 +217,12 @@ describe('"Việc tôi hướng dẫn" on CUS-7, and CUS-8 (UX-DR78, UX-DR66, UX
     expect(within(hung).getByRole('button', { name: 'Đúng hạn' })).toBeInTheDocument()
     expect(within(hung).getByText('Chấm sao khi làm người hướng dẫn: 4,8 sao (6 lượt)')).toBeInTheDocument()
     expect(within(hung).getByText('Tham gia vibefix từ 06/2026')).toBeInTheDocument()
-    // A new user: every history metric is "Chưa có dữ liệu", with "Mới" beside them; their histories read "Chưa có".
-    expect(within(minh).getAllByText('Chưa có dữ liệu')).toHaveLength(5)
+    // A new user: every history metric is "Chưa có dữ liệu", with "Mới" beside them; their histories read "Chưa có";
+    // the current active Jobs are a count, 0 included.
+    expect(within(minh).getAllByText('Chưa có dữ liệu')).toHaveLength(4)
+    expect(within(minh).getByText('0 công việc')).toBeInTheDocument()
+    expect(within(minh).getByText(/2 năm kinh nghiệm \(Tự khai\)/)).toBeInTheDocument()
+    expect(within(minh).getByText('Mỗi chỉ số đứng riêng, không cộng thành điểm và không dùng để xếp hạng.')).toBeInTheDocument()
     expect(within(minh).getByText('Chấm sao khi làm người hướng dẫn: Mới')).toBeInTheDocument()
     expect(within(minh).getAllByText('Chưa có')).toHaveLength(2)
     expect(within(ha).getByText('Đã mời')).toBeInTheDocument()
@@ -328,6 +332,91 @@ describe('"Việc tôi hướng dẫn" on CUS-7, and CUS-8 (UX-DR78, UX-DR66, UX
     ])
     expect(within(table).getAllByRole('rowheader').map((header) => header.textContent)[0]).toBe('Đã xác minh')
     expect(within(table).getAllByRole('button', { name: 'Chọn' })).toHaveLength(3)
+  })
+
+  it('waits for the histories with a Skeleton and shows their error, never "Chưa có" in their place', { timeout: 20_000 }, async () => {
+    let fail = true
+    fakeBackend(signedInUser, {
+      ...bidHandlers([hungApplication]),
+      'GET /api/v1/reputation/histories': () =>
+        fail ? json({ status: 500, code: 'INTERNAL' }, 500) : histories(),
+    })
+    renderAt('/cong-viec/j1/ung-tuyen')
+
+    const hung = await screen.findByRole('region', { name: 'Lịch sử' })
+    expect(within(hung).queryByText('Chưa có')).toBeNull()
+    const error = await within(hung).findByRole('alert', {}, { timeout: 15_000 })
+    fail = false
+    await userEvent.setup().click(within(error).getByRole('button', { name: 'Thử lại' }))
+    expect(await within(screen.getByRole('region', { name: 'Lịch sử' })).findByText('3 công việc hoàn thành · 2 mục hồ sơ năng lực')).toBeInTheDocument()
+  })
+
+  it('reads the histories of 21 bids in two calls, 20 and 1 (SG-43)', { timeout: 20_000 }, async () => {
+    const bids = Array.from({ length: 21 }, (_, index) => ({
+      ...haApplication,
+      id: `b${index}`,
+      mentor: { ...haApplication.mentor, displayName: `Người ${index}`, githubLogin: `nguoi-${index}` },
+    }))
+    const seen = fakeBackend(signedInUser, { ...bidHandlers(bids), 'GET /api/v1/reputation/histories': () => json([]) })
+    renderAt('/cong-viec/j1/ung-tuyen')
+
+    expect(await screen.findByText('Người 20')).toBeInTheDocument()
+    await waitFor(() => expect(seen.filter((request) => request.url.includes('/reputation/histories'))).toHaveLength(2))
+    const calls = seen.filter((request) => request.url.includes('/reputation/histories'))
+    expect(calls.map((request) => new URL(request.url).searchParams.getAll('username').length)).toEqual([20, 1])
+  })
+
+  it('opens CUS-12 for a bidder who unlinked GitHub, with no PUB-4 to show', { timeout: 15_000 }, async () => {
+    const user = userEvent.setup()
+    const unlinked = { ...haApplication, mentor: { displayName: 'Phạm Thu Hà', verified: verifiedFacts('x').slice(1) } }
+    fakeBackend(signedInUser, bidHandlers([unlinked]))
+    const router = renderAt('/cong-viec/j1/ung-tuyen')
+
+    await user.click(await screen.findByRole('button', { name: 'Xem hồ sơ' }))
+    await waitFor(() => expect(router.state.location.search).toBe('?ho-so=a2'))
+    const sheet = await screen.findByRole('dialog', { name: 'Phạm Thu Hà' })
+    expect(within(sheet).queryByRole('heading', { name: 'Hồ sơ công khai' })).toBeNull()
+    expect(within(sheet).getByRole('button', { name: 'Chọn' })).toBeInTheDocument()
+  })
+
+  it('counts only ticked bids still in the list, so a withdrawn one blocks no third tick', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    let bids = [hungApplication, haApplication, minhApplication, { ...minhApplication, id: 'a4', mentor: { ...minhApplication.mentor, displayName: 'Lý Thứ Tư', githubLogin: 'ly4' } }]
+    fakeBackend(signedInUser, {
+      ...bidHandlers(),
+      'GET /api/v1/jobs/j1/applications': () => json(bids),
+    })
+    const client = createQueryClient()
+    render(
+      <QueryClientProvider client={client}>
+        <RouterProvider router={createMemoryRouter(routes, { initialEntries: ['/cong-viec/j1/ung-tuyen'] })} />
+      </QueryClientProvider>,
+    )
+
+    const boxes = await screen.findAllByRole('checkbox', { name: 'So sánh' })
+    await user.click(boxes[0])
+    await user.click(boxes[1])
+    await user.click(boxes[2])
+    expect(screen.getAllByRole('checkbox', { name: 'So sánh' })[3]).toBeDisabled()
+    // Hà withdraws her bid, and the list reads again.
+    bids = bids.filter((bid) => bid.id !== 'a2')
+    await act(() => client.invalidateQueries({ queryKey: ['application'] }))
+    await waitFor(() => expect(screen.queryByText('Phạm Thu Hà')).toBeNull())
+
+    expect(screen.getByRole('link', { name: 'So sánh (2)' })).toHaveAttribute('href', '/cong-viec/j1/ung-tuyen/so-sanh?ids=a1,a3')
+    const left = screen.getAllByRole('checkbox', { name: 'So sánh' })
+    expect(left[2]).toBeEnabled()
+    await user.click(left[2])
+    expect(screen.getByRole('link', { name: 'So sánh (3)' })).toHaveAttribute('href', '/cong-viec/j1/ung-tuyen/so-sanh?ids=a1,a3,a4')
+  })
+
+  it('drops IDs that are no open bid before it takes three', { timeout: 20_000 }, async () => {
+    fakeBackend(signedInUser, bidHandlers())
+    renderAt('/cong-viec/j1/ung-tuyen/so-sanh?ids=khong-co,a3,cu,a1,a2')
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'So sánh 3 đơn chào giá' })).toBeInTheDocument()
+    expect(bidColumns().map((column) => column.getAttribute('aria-label'))).toEqual(['Ngô Văn Minh', 'Đỗ Mạnh Hùng', 'Phạm Thu Hà'])
+    expect(screen.getByText('Mỗi chỉ số đứng riêng, không cộng thành điểm và không dùng để xếp hạng.')).toBeInTheDocument()
   })
 
   it('goes back to CUS-8 with fewer than two of the Job\'s bids', { timeout: 15_000 }, async () => {

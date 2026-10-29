@@ -1,5 +1,4 @@
 import { t } from '@/i18n/t'
-import { formatDate } from '@/lib/dates'
 
 /** Up to two initials for the avatar circle. */
 export function initials(name: string): string {
@@ -17,10 +16,6 @@ export function experienceText(years: number | undefined): string {
   return years === undefined ? t('screen.person.experienceNone') : t('screen.person.experienceYears', { years })
 }
 
-/** "06/2026": the month of an instant, in Vietnam. */
-export function formatMonth(instant: string): string {
-  return formatDate(instant).slice(3)
-}
 
 /** The address of a person's PUB-4 (UX-DR96): their GitHub username. */
 export function personPath(username: string): string {

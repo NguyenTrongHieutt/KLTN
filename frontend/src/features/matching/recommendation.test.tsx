@@ -113,7 +113,7 @@ describe('CUS-8 "Đề xuất cho công việc này" (FR-14, AD-17)', () => {
     })
     renderAt('/cong-viec/j1/tim-nguoi?q=react')
 
-    expect(await screen.findByText('Không tìm thấy người hướng dẫn nào khớp với “react”.')).toBeInTheDocument()
+    expect(await screen.findByText('Không tìm thấy ai khớp với “react”.')).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Đề xuất cho công việc này' })).toBeNull()
     expect(seen.some((request) => request.url.includes('/recommendations'))).toBe(false)
   })

@@ -11,8 +11,8 @@ import { Button } from '@/components/ui/button'
 import { experienceText } from '@/features/identity/personText'
 import { VerifiedFactLines } from '@/features/identity/VerifiedFacts'
 import { useJob, type Job } from '@/features/job/jobApi'
-import { useReputationHistories, type ReputationHistory } from '@/features/reputation/historyApi'
-import { RoleSummaryLine } from '@/features/reputation/RoleHistories'
+import { useReputationHistories, type Histories, type ReputationHistory } from '@/features/reputation/historyApi'
+import { HistoryRegion, RoleSummaryLine } from '@/features/reputation/RoleHistories'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t } from '@/i18n/t'
 import { useMatchMedia } from '@/lib/useMatchMedia'
@@ -27,11 +27,19 @@ import { ProofList } from './ProofList'
 /** Below this width the columns stack under a sticky header of names (UX-DR101). */
 const WIDE = '(min-width: 1024px)'
 
-/** One fixed row: its label, and its cell for one bid. */
+/** One fixed row: its label, and its cell for one bid; a cell of the histories in short waits for them. */
 interface Row {
   key: string
   label: ReactNode
   cell: (application: JobApplication, history: ReputationHistory | undefined) => ReactNode
+  history?: boolean
+}
+
+/** A row's cell, behind the histories' Skeleton or error when it shows one of them. */
+function cellOf(row: Row, application: JobApplication, histories: Histories): ReactNode {
+  const login = application.mentor.githubLogin
+  const cell = row.cell(application, login ? histories.byUsername.get(login) : undefined)
+  return row.history && login ? <HistoryRegion histories={histories}>{cell}</HistoryRegion> : cell
 }
 
 /**
@@ -55,7 +63,9 @@ function rows(): Row[] {
             <span className="font-semibold">{formatVnd(application.priceVnd)}</span> <TestTag />
           </span>
           <span>{t('screen.matching.days', { n: application.timelineDays })}</span>
-          <span className="text-muted-foreground">{experienceText(application.mentor.yearsOfExperience)}</span>
+          <span className="text-muted-foreground">
+            {experienceText(application.mentor.yearsOfExperience)} ({t('screen.person.selfDeclared')})
+          </span>
         </span>
       ),
     },
@@ -73,11 +83,13 @@ function rows(): Row[] {
       key: 'mentor',
       label: t('screen.matching.compare.rowMentor'),
       cell: (_, history) => <RoleSummaryLine role="mentor" summary={history?.mentor} newcomer={history?.newcomer ?? false} />,
+      history: true,
     },
     {
       key: 'crew',
       label: t('screen.matching.compare.rowCrew'),
       cell: (_, history) => <RoleSummaryLine role="crew" summary={history?.crew} newcomer={false} />,
+      history: true,
     },
   ]
   const metrics: Row[] = fitRows(undefined).map((row, index) => ({
@@ -95,6 +107,7 @@ function rows(): Row[] {
         ))}
       </span>
     ),
+    history: true,
   }
   return [...fixed, ...metrics, profile]
 }
@@ -127,8 +140,11 @@ function Comparison({ job }: { job: Job }) {
   const [params] = useSearchParams()
   const navigate = useNavigate()
   const applications = useJobApplications(job.id)
-  const ids = comparedIds(params.get('ids'))
   const all = applications.data ?? []
+  const ids = comparedIds(
+    params.get('ids'),
+    all.map((application) => application.id),
+  )
   const chosen = ids
     .map((id) => all.find((application) => application.id === id))
     .filter((application): application is JobApplication => application !== undefined)
@@ -142,8 +158,6 @@ function Comparison({ job }: { job: Job }) {
   if (applications.isSuccess && chosen.length < 2) {
     return <Navigate to={back} replace />
   }
-  const historyOf = (application: JobApplication) =>
-    application.mentor.githubLogin ? histories.get(application.mentor.githubLogin) : undefined
   const remove = (id: string) => {
     const left = chosen.map((application) => application.id).filter((other) => other !== id)
     void navigate(left.length < 2 ? back : comparePath(job.id, left), { replace: true })
@@ -181,7 +195,7 @@ function Comparison({ job }: { job: Job }) {
                     </th>
                     {chosen.map((application) => (
                       <td key={application.id} className="border-b border-border p-3 break-words">
-                        {row.cell(application, historyOf(application))}
+                        {cellOf(row, application, histories)}
                       </td>
                     ))}
                   </tr>
@@ -222,7 +236,7 @@ function Comparison({ job }: { job: Job }) {
                   {table.map((row) => (
                     <div key={row.key} className="flex flex-col gap-1">
                       <dt className="text-caption text-muted-foreground">{row.label}</dt>
-                      <dd className="break-words">{row.cell(application, historyOf(application))}</dd>
+                      <dd className="break-words">{cellOf(row, application, histories)}</dd>
                     </div>
                   ))}
                 </dl>
@@ -234,6 +248,7 @@ function Comparison({ job }: { job: Job }) {
           </div>
         )}
       </RegionState>
+      <p className="text-caption text-muted-foreground">{t('screen.matching.fit.note')}</p>
       {choosing && (
         <ChooseDialog
           job={job}

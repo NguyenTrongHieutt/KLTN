@@ -240,16 +240,6 @@ class PortfolioIT extends IntegrationTest {
 		assertThat(this.reputation.portfolio(this.vy)).singleElement()
 			.satisfies(entry -> assertThat(entry.role()).isEqualTo("CREW"));
 		assertThat(this.reputation.portfolio(this.hung)).isEmpty();
-
-		// J10 ends a Job without Accepted work: no entry, and no Rating Window.
-		UUID cancelled = job(false);
-		UUID event = UUID.randomUUID();
-		this.listeners.onJobTransitioned(new JobTransitioned(event, UUID.randomUUID(), cancelled, "J10", "USER", "ACTIVE",
-				"CANCELLED", 7, 1, Map.of()));
-		await().atMost(Duration.ofSeconds(10))
-			.until(() -> count("SELECT count(*) FROM platform.processed_event WHERE event_id = '" + event + "'") == 1);
-		assertThat(count("SELECT count(*) FROM reputation.portfolio_entry WHERE job_id = '" + cancelled + "'")).isZero();
-		assertThat(count("SELECT count(*) FROM reputation.rating_window WHERE job_id = '" + cancelled + "'")).isZero();
 	}
 
 	/** A Crew row activated {@code activated} ago and left {@code left} ago (or still active for {@code ZERO}). */

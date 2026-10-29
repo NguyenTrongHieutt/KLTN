@@ -47,7 +47,8 @@ import vn.vibefix.shared.IdGenerator;
 import vn.vibefix.work.WorkFacts;
 
 /**
- * Portfolio Entries (FR-50, AD-33, AD-38, AD-41): when a Job with Accepted work reaches Closed or Cancelled, one is
+ * Portfolio Entries (FR-50, AD-33, AD-38, AD-41): when a Job with Accepted work reaches Closed or Cancelled, which J9
+ * does for both (J10 refuses a Job with Accepted work), one is
  * created for the Mentor, under their history as Mentor, and one for every Crew member whose active window overlaps
  * the work of at least one Accepted Milestone, leavers included, under their history as Crew member
  * ({@code job.activeDuringAcceptedWork}, Story 21.3), with facts frozen from records. The Mentor drafts the summary,
@@ -133,8 +134,9 @@ class Portfolios {
 	}
 
 	/**
-	 * J9, Closed or Cancelled, and J10: the entries, the summary to draft, and each entry whose person already
-	 * confirmed; replay-safe. A Job without Accepted work has none.
+	 * J9, Closed or Cancelled (a Cancelled Job with Accepted work arrives through Closing and J9, since J10 refuses it):
+	 * the entries, the summary to draft, and each entry whose person already confirmed; replay-safe. A Job without
+	 * Accepted work has none.
 	 */
 	@Transactional
 	void create(UUID jobId) {

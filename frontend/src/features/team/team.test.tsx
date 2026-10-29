@@ -307,7 +307,7 @@ describe('STU-6, the Student\'s Team (FR-6, AD-36)', () => {
     })
     renderAt('/nhom')
 
-    expect(await screen.findByRole('link', { name: 'Đỗ Mạnh Hùng' })).toHaveAttribute('href', '/mentor/hungdm')
+    expect(await screen.findByRole('link', { name: 'Đỗ Mạnh Hùng' })).toHaveAttribute('href', '/nguoi-dung/hungdm')
     expect(screen.getByText('8 năm kinh nghiệm · bạn ở trong nhóm từ 20/06/2026')).toBeInTheDocument()
     expect(screen.getByText('6 sinh viên · 4 người chọn không hiện tên công khai')).toBeInTheDocument()
     expect(screen.getByText('Trần Quang Minh (bạn)')).toBeInTheDocument()

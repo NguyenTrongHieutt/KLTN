@@ -102,7 +102,10 @@ function FindMentors({ job }: { job: Job }) {
   const last = useLastMentorSearch(job.id)
   // Searching too fast keeps the earlier results on screen (UX-DR27, AD-34).
   const limited = search.error instanceof ApiError && search.error.status === 429 ? search.error : undefined
-  const results = limited ? last.data : search.data
+  // While limited, the kept results keep the keyword and filter that found them, for the heading and the pager.
+  const kept = limited ? last.data : undefined
+  const results = kept ? kept.found : search.data
+  const shownFilter = kept ? kept.filter : filter
   const recommendations = useMentorRecommendations(
     job.id,
     { skills: filter.skills, categories: filter.categories },
@@ -193,18 +196,18 @@ function FindMentors({ job }: { job: Job }) {
           )}
         </RegionState>
       ) : (
-        <RegionState query={limited && last.data ? last : search} skeleton={<Skeleton className="h-48 w-full" />}>
+        <RegionState query={kept ? last : search} skeleton={<Skeleton className="h-48 w-full" />}>
           {results && (
             <section aria-labelledby={`${ids}-results`} className="flex flex-col gap-3">
               <div className="flex flex-col gap-0.5">
                 <h2 id={`${ids}-results`} aria-live="polite" className="text-h3">
-                  {t('screen.matching.find.results', { q: filter.q, n: results.total })}
+                  {t('screen.matching.find.results', { q: shownFilter.q ?? '', n: results.total })}
                 </h2>
                 <p className="text-caption text-muted-foreground">{t('screen.matching.find.order')}</p>
               </div>
               {items.length === 0 ? (
                 <div className="flex flex-col gap-1 rounded-lg border border-border bg-card p-8 text-center">
-                  <p className="text-label font-semibold">{t('screen.matching.find.empty', { q: filter.q })}</p>
+                  <p className="text-label font-semibold">{t('screen.matching.find.empty', { q: shownFilter.q ?? '' })}</p>
                   <p className="text-body-sm text-muted-foreground">{t('screen.matching.find.emptyHint')}</p>
                 </div>
               ) : (
@@ -221,7 +224,11 @@ function FindMentors({ job }: { job: Job }) {
                   ))}
                 </ul>
               )}
-              <Pager page={results.page} pages={Math.ceil(results.total / results.size)} go={(page) => update({ page })} />
+              <Pager
+                page={results.page}
+                pages={Math.ceil(results.total / results.size)}
+                go={(page) => setParams(writeFilter({ ...shownFilter, page }))}
+              />
             </section>
           )}
         </RegionState>
@@ -494,7 +501,7 @@ function inviteError(error: unknown): string {
 function SheetProfile({ username }: { username: string }) {
   return (
     <>
-      <PersonProfileContent username={username} />
+      <PersonProfileContent username={username} level={3} />
       <p className="text-caption text-muted-foreground">{t('screen.matching.find.noContact')}</p>
     </>
   )

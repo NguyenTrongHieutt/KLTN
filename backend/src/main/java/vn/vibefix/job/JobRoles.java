@@ -29,7 +29,9 @@ public interface JobRoles {
 	 * What the account did in each role (AD-30): per role, the Jobs closed with Accepted work and, per Job Type, the
 	 * matches AD-17 ranks by, one per pair. A Job closed with Accepted work is one J9 finished (Closed, or Cancelled
 	 * after Closing) with at least one Milestone Accepted or Settled and not removed. The Mentor role is the Job's
-	 * Mentor; the Crew role is a Crew row that was activated. It names no Job, Customer or co-member.
+	 * Mentor; the Crew role is a Crew row whose active window overlapped the work of an Accepted Milestone, as its
+	 * Portfolio Entry needs ({@link Crews#activeDuringAcceptedWork}), a leaver's included. It names no Job, Customer or
+	 * co-member.
 	 */
 	History historyOf(UUID accountId);
 

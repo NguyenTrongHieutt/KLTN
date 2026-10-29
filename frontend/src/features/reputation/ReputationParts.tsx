@@ -1,6 +1,8 @@
 import { Star } from 'lucide-react'
-import { formatMonth } from '@/features/identity/personText'
 import { t, type MessageKey } from '@/i18n/t'
+import { formatMonthYear } from '@/lib/dates'
+import type { HeadingLevel } from './headingLevel'
+import { LevelHeading } from './LevelHeading'
 import type { PortfolioEntry } from './historyApi'
 
 /**
@@ -56,16 +58,15 @@ export function PortfolioSection({
 }: {
   entries: PortfolioEntry[]
   headingId: string
-  /** The heading's level: 2 on its own, 3 inside a history. */
-  level?: 2 | 3
+  /** The heading's level: 2 on its own, one below its history's inside one. */
+  level?: HeadingLevel
 }) {
-  const Heading = level === 2 ? 'h2' : 'h3'
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-2">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <Heading id={headingId} className={level === 2 ? 'text-h3' : 'text-label font-semibold'}>
+        <LevelHeading level={level} id={headingId} className={level === 2 ? 'text-h3' : 'text-label font-semibold'}>
           {t('screen.team.reputation.portfolio')}
-        </Heading>
+        </LevelHeading>
         <span className="text-caption text-muted-foreground">{t('screen.team.reputation.portfolioNote')}</span>
       </div>
       {entries.length === 0 ? (
@@ -81,7 +82,7 @@ export function PortfolioSection({
               <p className="text-caption text-muted-foreground">
                 {[
                   entry.jobTypes.map((type) => t(`term.jobType${type}.label` as MessageKey)).join(' · '),
-                  formatMonth(entry.closedAt),
+                  formatMonthYear(entry.closedAt),
                   t('screen.team.reputation.milestones', { n: entry.milestones }),
                 ].join(' · ')}
               </p>

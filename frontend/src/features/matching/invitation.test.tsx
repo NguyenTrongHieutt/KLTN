@@ -121,6 +121,8 @@ describe('CUS-8 "Tìm người hướng dẫn" (FR-14)', () => {
     await waitFor(() => expect(screen.getAllByRole('button', { name: 'Đã mời' })).toHaveLength(2))
     expect(await screen.findByText(/Còn 8 lời mời hôm nay/)).toBeInTheDocument()
     expect(screen.queryAllByRole('dialog').every((dialog) => dialog.dataset.type === 'success')).toBe(true)
+    // The invitation never sends the search again: each search counts in the 60-a-minute window (AD-34).
+    expect(seen.filter((request) => new URL(request.url).pathname === '/api/v1/jobs/j1/mentors')).toHaveLength(1)
   })
 
   it('reads "Chưa có đề xuất…" with no Recommendation, focuses the Search bar, and searches nothing', { timeout: 15_000 }, async () => {

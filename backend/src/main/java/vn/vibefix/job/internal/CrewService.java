@@ -82,6 +82,17 @@ class CrewService implements Crews {
 
 	static final String RECONFIRM_NEEDED = "job.crew_reconfirm_needed";
 
+	/**
+	 * A Crew row {@code r} whose active window (from {@code activated_at} to {@code window_end}, or still open) overlaps
+	 * the work of at least one Accepted Milestone of its Job (from its funding to its acceptance or, without one, its
+	 * settlement), bounds included: whom a Portfolio Entry and the history as Crew member credit (FR-50, AD-41).
+	 */
+	static final String ACTIVE_DURING_ACCEPTED_WORK = """
+			r.activated_at IS NOT NULL AND EXISTS (SELECT 1 FROM job.milestone m WHERE m.job_id = r.job_id
+			    AND m.removed_at IS NULL AND m.state IN ('ACCEPTED', 'SETTLED') AND m.funded_at IS NOT NULL
+			    AND r.activated_at <= coalesce(m.accepted_at, m.settled_at)
+			    AND (r.window_end IS NULL OR r.window_end >= m.funded_at))""";
+
 	/** One row as {@code job} keeps it. */
 	record Row(UUID id, UUID jobId, UUID studentId, String status, @Nullable Instant signedAt,
 			@Nullable Instant activatedAt, @Nullable Instant windowEnd, Instant createdAt) {
@@ -548,21 +559,17 @@ class CrewService implements Crews {
 	}
 
 	/**
-	 * {@inheritDoc} The bounds are inclusive: a member active when a Milestone was funded or accepted shares its work;
-	 * a Settled Milestone's work ends at its acceptance or, without one, its settlement.
+	 * {@inheritDoc} By {@link #ACTIVE_DURING_ACCEPTED_WORK}: a member active when a Milestone was funded or accepted
+	 * shares its work, the history as Crew member counts the same Jobs (AD-41).
 	 */
 	@Override
 	@Transactional(readOnly = true)
 	public List<UUID> activeDuringAcceptedWork(UUID jobId) {
-		return this.jdbc.sql("""
-				SELECT r.member_account_id FROM job.crew_row r
-				WHERE r.job_id = :job AND r.activated_at IS NOT NULL
-				  AND EXISTS (SELECT 1 FROM job.milestone m WHERE m.job_id = r.job_id AND m.removed_at IS NULL
-				      AND m.state IN ('ACCEPTED', 'SETTLED') AND m.funded_at IS NOT NULL
-				      AND r.activated_at <= coalesce(m.accepted_at, m.settled_at)
-				      AND (r.window_end IS NULL OR r.window_end >= m.funded_at))
-				GROUP BY r.member_account_id ORDER BY min(r.created_at), r.member_account_id
-				""").param("job", jobId).query(UUID.class).list();
+		return this.jdbc.sql("SELECT r.member_account_id FROM job.crew_row r WHERE r.job_id = :job AND "
+				+ ACTIVE_DURING_ACCEPTED_WORK + " GROUP BY r.member_account_id ORDER BY min(r.created_at), r.member_account_id")
+			.param("job", jobId)
+			.query(UUID.class)
+			.list();
 	}
 
 	@Override

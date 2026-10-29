@@ -26,10 +26,22 @@ export function usePersonReputation(username: string | undefined) {
 }
 
 /**
- * The Bid cards' histories in short, by GitHub username, a page of 20 per call and never one request per card
- * (SG-43); an unknown username has none. The map fills as the pages arrive.
+ * The Bid cards' histories in short, with the state of their reads for `RegionState`: pending until every page
+ * answered, in error when one failed.
  */
-export function useReputationHistories(usernames: string[]): Map<string, ReputationHistory> {
+export interface Histories {
+  byUsername: Map<string, ReputationHistory>
+  isPending: boolean
+  isError: boolean
+  error: unknown
+  refetch: () => void
+}
+
+/**
+ * The Bid cards' histories in short, by GitHub username, a page of 20 per call and never one request per card
+ * (SG-43); an unknown username has none.
+ */
+export function useReputationHistories(usernames: string[]): Histories {
   const asked = [...new Set(usernames)]
   const pages: string[][] = []
   for (let start = 0; start < asked.length; start += MAX_HISTORIES) {
@@ -43,5 +55,12 @@ export function useReputationHistories(usernames: string[]): Map<string, Reputat
   })
   const byUsername = new Map<string, ReputationHistory>()
   results.forEach((result) => (result.data ?? []).forEach((history) => byUsername.set(history.username, history)))
-  return byUsername
+  const failed = results.find((result) => result.isError)
+  return {
+    byUsername,
+    isPending: results.some((result) => result.isPending),
+    isError: failed !== undefined,
+    error: failed?.error,
+    refetch: () => results.forEach((result) => void result.refetch()),
+  }
 }

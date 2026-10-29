@@ -148,11 +148,11 @@ class BidCardsIT extends IntegrationTest {
 		milestone(mentored, 3, "2025-12-04", "2025-12-04T17:30:00Z", "ACCEPTED");
 		milestone(mentored, 4, null, "2025-12-05T10:00:00Z", "ACCEPTED");
 		milestone(mentored, 5, "2025-12-06", null, "CANCELLED");
-		// As Crew member: one Job of another Mentor closed with Accepted work.
+		// As Crew member: one Job of another Mentor closed with Accepted work done while Hùng was active on it.
 		UUID tam = TeamTestSupport.mentor(this.jdbc, "Phan Văn Tâm", List.of(TeamTestSupport.REACT), "React");
 		UUID crewed = JobContent.job(this.jdbc, otherProduct, other, tam, "Việc làm thành viên nhóm", JobContent.SIGNED,
 				"CLOSED");
-		milestone(crewed, 0, "2025-12-10", "2025-12-09T10:00:00Z", "ACCEPTED");
+		milestone(crewed, 0, "2025-12-30", "2025-12-28T10:00:00Z", "ACCEPTED");
 		JobContent.crewRow(this.jdbc, crewed, hung, "JOB_ENDED", JobContent.SIGNED.plus(Duration.ofDays(5)));
 		// Now: Mentor of one running Job.
 		JobContent.activeJob(this.jdbc, otherProduct, other, hung, "Việc đang hướng dẫn");

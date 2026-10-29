@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react'
 import type { TermKey } from '@/components/TermHint'
 import type { FactKind } from '@/features/identity/personApi'
-import { formatMonth } from '@/features/identity/personText'
 import type { ReputationHistory } from '@/features/reputation/historyApi'
 import { t, type MessageKey } from '@/i18n/t'
+import { formatMonthYear } from '@/lib/dates'
 import type { FitMetrics as Metrics } from './applicationApi'
 
 /** "Chưa có dữ liệu", never a 0 shown as data (UX-DR101). */
@@ -15,7 +15,24 @@ function factName(kind: FactKind): string {
   return t(`screen.person.fact.${kind}`)
 }
 
-/** One metric's rows in the fixed order: its label with the formula as a Term hint, then its value or "Chưa có dữ liệu". */
+/**
+ * "Đã làm {n} công việc {type} khi làm người hướng dẫn · {m} khi làm thành viên nhóm", naming only the roles that
+ * count one.
+ */
+function jobTypeText(match: { jobType: string; asMentor: number; asCrew: number }): string {
+  const type = t(`term.jobType${match.jobType}.label` as MessageKey)
+  if (match.asMentor > 0 && match.asCrew > 0) {
+    return t('screen.matching.fit.jobTypeBoth', { n: match.asMentor, m: match.asCrew, type })
+  }
+  return match.asMentor > 0
+    ? t('screen.matching.fit.jobTypeMentor', { n: match.asMentor, type })
+    : t('screen.matching.fit.jobTypeCrew', { m: match.asCrew, type })
+}
+
+/**
+ * One metric's rows in the fixed order: its label with the formula as a Term hint, then its value or, for an empty
+ * history metric, "Chưa có dữ liệu"; the current active Jobs are a count, 0 included.
+ */
 export function fitRows(metrics: Metrics | undefined): { term: TermKey; value: ReactNode }[] {
   const jobs = (n: number | undefined) => (n ? t('screen.matching.fit.jobs', { n }) : empty())
   return [
@@ -39,13 +56,7 @@ export function fitRows(metrics: Metrics | undefined): { term: TermKey; value: R
         metrics && metrics.jobTypeMatches.length > 0 ? (
           <span className="flex flex-col gap-0.5">
             {metrics.jobTypeMatches.map((match) => (
-              <span key={match.jobType}>
-                {t('screen.matching.fit.jobType', {
-                  n: match.asMentor,
-                  m: match.asCrew,
-                  type: t(`term.jobType${match.jobType}.label` as MessageKey),
-                })}
-              </span>
+              <span key={match.jobType}>{jobTypeText(match)}</span>
             ))}
           </span>
         ) : (
@@ -58,7 +69,10 @@ export function fitRows(metrics: Metrics | undefined): { term: TermKey; value: R
       term: 'fitOnTime',
       value: metrics?.onTime ? t('screen.matching.fit.onTime', { k: metrics.onTime.onTime, n: metrics.onTime.total }) : empty(),
     },
-    { term: 'fitActive', value: jobs(metrics?.activeJobsAsMentor) },
+    {
+      term: 'fitActive',
+      value: metrics ? t('screen.matching.fit.jobs', { n: metrics.activeJobsAsMentor }) : empty(),
+    },
     {
       term: 'fitVerified',
       value:
@@ -93,7 +107,7 @@ export function profileFacts(history: ReputationHistory | undefined, memberSince
     )
   }
   if (memberSince) {
-    facts.push(t('screen.matching.fit.joined', { month: formatMonth(memberSince) }))
+    facts.push(t('screen.matching.fit.joined', { month: formatMonthYear(memberSince) }))
   }
   return facts
 }

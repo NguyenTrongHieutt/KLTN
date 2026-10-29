@@ -58,14 +58,17 @@ function BidList({ job }: { job: Job }) {
     items.map((item) => item.mentor.githubLogin).filter((login): login is string => !!login),
   )
   const [params, setParams] = useSearchParams()
-  const [compared, setCompared] = useState<string[]>([])
+  const [ticked, setTicked] = useState<string[]>([])
   const [choosing, setChoosing] = useState<JobApplication>()
   const [stale, setStale] = useState(false)
   const profile = items.find((item) => item.id === params.get(PROFILE))
+  // A ticked bid that left the list (withdrawn, say) counts no more and blocks no other tick.
+  const compared = ticked.filter((id) => items.some((item) => item.id === id))
   const toggle = (id: string) =>
-    setCompared((current) =>
-      current.includes(id) ? current.filter((other) => other !== id) : current.length < MAX_COMPARED ? [...current, id] : current,
-    )
+    setTicked((current) => {
+      const live = current.filter((other) => items.some((item) => item.id === other))
+      return live.includes(id) ? live.filter((other) => other !== id) : live.length < MAX_COMPARED ? [...live, id] : live
+    })
   const openProfile = (id: string | undefined) => {
     const next = new URLSearchParams(params)
     if (id) {
@@ -76,7 +79,6 @@ function BidList({ job }: { job: Job }) {
     setParams(next, { replace: id === undefined })
   }
   const full = compared.length >= MAX_COMPARED
-  const historyOf = (item: JobApplication) => (item.mentor.githubLogin ? histories.get(item.mentor.githubLogin) : undefined)
   return (
     <>
       <div className="flex flex-col gap-3">
@@ -111,7 +113,7 @@ function BidList({ job }: { job: Job }) {
                 <BidCard
                   key={application.id}
                   application={application}
-                  history={historyOf(application)}
+                  histories={histories}
                   compared={compared.includes(application.id)}
                   compareFull={full}
                   onCompare={() => toggle(application.id)}
@@ -123,13 +125,13 @@ function BidList({ job }: { job: Job }) {
           </>
         )}
       </RegionState>
-      {compared.length > 0 && <CompareBar job={job} ids={compared} onClear={() => setCompared([])} />}
+      {compared.length > 0 && <CompareBar job={job} ids={compared} onClear={() => setTicked([])} />}
       <div role="note" className="rounded-md border-l-4 border-primary bg-primary-soft p-4 text-body-sm">
         {t('screen.matching.compare.note')}
       </div>
       <BidderSheet
         application={profile}
-        history={profile ? historyOf(profile) : undefined}
+        histories={histories}
         compared={profile ? compared.includes(profile.id) : false}
         compareFull={full}
         onClose={() => openProfile(undefined)}

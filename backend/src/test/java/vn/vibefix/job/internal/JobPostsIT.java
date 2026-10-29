@@ -206,10 +206,12 @@ class JobPostsIT extends IntegrationTest {
 				INSERT INTO identity.profile (account_id, kind, display_name, contact_email, updated_at)
 				VALUES (:id, 'INDIVIDUAL', 'Nguyễn Thị Lan', 'lan@example.com', now())
 				""").param("id", this.lan).update();
+		// Story 21.3 (AD-33): the Customer's summary as Customer, the Mentors' Ratings of them.
+		publishedRating(this.lan, 4);
 		String rating = this.mvc.perform(get("/api/v1/mentor/job-posts/" + job + "/customer-rating").with(as(this.hung, Role.MENTOR)))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.count").value(0))
-			.andExpect(jsonPath("$.average").value(org.hamcrest.Matchers.nullValue()))
+			.andExpect(jsonPath("$.count").value(1))
+			.andExpect(jsonPath("$.average").value(4.0))
 			.andExpect(jsonPath("$.customerKind").value("INDIVIDUAL"))
 			.andExpect(jsonPath("$.customerJoinedAt").isNotEmpty())
 			.andReturn()

@@ -131,11 +131,12 @@ class JobRoleReader implements JobRoles {
 		Map<UUID, List<Done>> mentor = done("""
 				SELECT j.mentor_account_id AS account, j.customer_account_id AS other, j.job_types FROM job.job j
 				WHERE j.mentor_account_id IN (:ids) AND """, ids);
-		// A person is activated on a Job at most once (no rejoining), so each Job counts once.
+		// A person is activated on a Job at most once (no rejoining), so each Job counts once; it counts only when their
+		// active window overlapped Accepted work, as their Portfolio Entry does (FR-50, AD-41).
 		Map<UUID, List<Done>> crew = done("""
 				SELECT DISTINCT r.member_account_id AS account, j.id, j.mentor_account_id AS other, j.job_types
 				FROM job.job j JOIN job.crew_row r ON r.job_id = j.id
-				WHERE r.member_account_id IN (:ids) AND r.activated_at IS NOT NULL AND """, ids);
+				WHERE r.member_account_id IN (:ids)""" + " AND " + CrewService.ACTIVE_DURING_ACCEPTED_WORK + " AND ", ids);
 		for (UUID id : ids) {
 			histories.put(id,
 					new History(history(mentor.getOrDefault(id, List.of())), history(crew.getOrDefault(id, List.of()))));

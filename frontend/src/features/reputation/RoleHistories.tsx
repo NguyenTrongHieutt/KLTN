@@ -1,6 +1,10 @@
-import { useId } from 'react'
+import { useId, type ReactNode } from 'react'
+import { RegionState } from '@/components/RegionState'
+import { Skeleton } from '@/components/Skeleton'
 import { t, type MessageKey } from '@/i18n/t'
-import type { PersonReputation, RoleReputation, RoleSummary } from './historyApi'
+import { below, type HeadingLevel } from './headingLevel'
+import type { Histories, PersonReputation, RoleReputation, RoleSummary } from './historyApi'
+import { LevelHeading } from './LevelHeading'
 import { PortfolioSection, RatingLine } from './ReputationParts'
 
 /**
@@ -8,23 +12,33 @@ import { PortfolioSection, RatingLine } from './ReputationParts'
  * done by Job Type, that role's visible Ratings, and its Portfolio Entries; a role never held reads "Chưa có". Nothing
  * here names another Job's Customer or co-members, and a Product only where its Customer allowed it.
  */
-export function RoleHistories({ reputation }: { reputation: PersonReputation }) {
+export function RoleHistories({ reputation, level = 2 }: { reputation: PersonReputation; level?: HeadingLevel }) {
   return (
     <div className="flex flex-col gap-4">
-      <RoleHistory role="mentor" history={reputation.mentor} newcomer={reputation.newcomer} />
-      <RoleHistory role="crew" history={reputation.crew} newcomer={false} />
+      <RoleHistory role="mentor" history={reputation.mentor} newcomer={reputation.newcomer} level={level} />
+      <RoleHistory role="crew" history={reputation.crew} newcomer={false} level={level} />
     </div>
   )
 }
 
-function RoleHistory({ role, history, newcomer }: { role: 'mentor' | 'crew'; history: RoleReputation; newcomer: boolean }) {
+function RoleHistory({
+  role,
+  history,
+  newcomer,
+  level,
+}: {
+  role: 'mentor' | 'crew'
+  history: RoleReputation
+  newcomer: boolean
+  level: HeadingLevel
+}) {
   const id = useId()
   const held = history.jobs > 0 || history.count > 0 || history.portfolio.length > 0
   return (
     <section aria-labelledby={id} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
-      <h2 id={id} className="text-h3">
+      <LevelHeading level={level} id={id} className="text-h3">
         {t(role === 'mentor' ? 'screen.person.asMentor' : 'screen.person.asCrew')}
-      </h2>
+      </LevelHeading>
       {held ? (
         <>
           <div className="flex flex-col gap-1">
@@ -44,12 +58,24 @@ function RoleHistory({ role, history, newcomer }: { role: 'mentor' | 'crew'; his
             from={role === 'mentor' ? 'customers' : 'mentors'}
             newcomer={role === 'mentor' && newcomer}
           />
-          <PortfolioSection entries={history.portfolio} headingId={`${id}-portfolio`} level={3} />
+          <PortfolioSection entries={history.portfolio} headingId={`${id}-portfolio`} level={below(level)} />
         </>
       ) : (
         <p className="text-body-sm text-muted-foreground">{t('screen.person.never')}</p>
       )}
     </section>
+  )
+}
+
+/**
+ * What depends on the Bid cards' histories in short: a Skeleton while they load and the region's error with Retry
+ * when they fail, never "Chưa có" or no Rating in their place (UX-DR26).
+ */
+export function HistoryRegion({ histories, children }: { histories: Histories; children: ReactNode }) {
+  return (
+    <RegionState query={histories} skeleton={<Skeleton className="h-10 w-full" />}>
+      {children}
+    </RegionState>
   )
 }
 
