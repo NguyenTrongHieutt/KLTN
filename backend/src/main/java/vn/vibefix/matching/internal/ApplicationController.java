@@ -354,7 +354,7 @@ class ApplicationController {
 		}).toList();
 	}
 
-	private static List<BidProofView> proofViews(@Nullable List<Proof> proof) {
+	static List<BidProofView> proofViews(@Nullable List<Proof> proof) {
 		if (proof == null) {
 			return List.of();
 		}

@@ -8,6 +8,9 @@
  * Mentors browse Open Job Posts that are not hidden (FR-12) and see whether they can take
  * new work (FR-13, AD-33).
  * <p>
+ * The Job's Mentor recruits its Crew from J4 until J8 (Story 21.4): the setting lives on the Job, and
+ * {@link vn.vibefix.job.CrewRecruitment} is how {@code matching} sends a Crew Application under the Job row lock.
+ * <p>
  * Public API: {@link vn.vibefix.job.JobTransitioned} and {@link vn.vibefix.job.JobPosts}. The HTTP
  * endpoints, the transition steps, the selection lapse, the recipient lookup, the Skill-name
  * listener, and the screenshot read policy are wiring in {@code job.internal}.

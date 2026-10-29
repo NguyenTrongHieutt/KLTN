@@ -6,7 +6,10 @@
  * transaction. J2 closes a Job's bids, and a locked bidder's are withdrawn. The Job's Customer compares the bids as
  * Bid cards, oldest first, by the bidders' Verified facts, what they posted, and the Fit metrics, which
  * {@code matching.fitMetrics} alone defines (AD-17, Story 21.3); searches GitHub-verified users and invites them to
- * bid within daily counters (FR-14); J2 and J3 lapse the invitations.
+ * bid within daily counters (FR-14); J2 and J3 lapse the invitations. While a Job's Mentor recruits (Story 21.4),
+ * users apply to its Crew with a note, Skills and proof (Crew Applications, AD-43), sent through
+ * {@code job.requireRecruiting} under the Job row lock; the Mentor reads them as Applicant cards and declines one, and
+ * an application lapses after the Job's copied days or when {@code CrewRecruitmentClosed} arrives.
  * <p>
  * No public API yet; the HTTP endpoints, the listeners, the proof file read policy, and the personal-data participant
  * are wiring in {@code matching.internal}.

@@ -701,7 +701,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["decline_6"];
+        post: operations["decline_7"];
         delete?: never;
         options?: never;
         head?: never;
@@ -957,7 +957,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["withdraw_3"];
+        post: operations["withdraw_4"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1021,7 +1021,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["decline_5"];
+        post: operations["decline_6"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1309,7 +1309,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["decline_4"];
+        post: operations["decline_5"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1403,7 +1403,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["ofJob_1"];
+        get: operations["ofJob_2"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1517,7 +1517,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["withdraw_2"];
+        post: operations["withdraw_3"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1931,7 +1931,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["ofJob"];
+        get: operations["ofJob_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2157,7 +2157,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["decline_3"];
+        post: operations["decline_4"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2477,7 +2477,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["withdraw_1"];
+        post: operations["withdraw_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2491,7 +2491,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["mine_2"];
+        get: operations["mine_3"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2509,7 +2509,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["withdraw"];
+        post: operations["withdraw_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2526,6 +2526,38 @@ export interface paths {
         get: operations["capacity"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mentor/crew-applications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["mine_2"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mentor/crew-applications/{crewApplicationId}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["withdraw"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2581,6 +2613,54 @@ export interface paths {
         trace?: never;
     };
     "/api/v1/mentor/job-posts/{postId}/applications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["apply_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mentor/job-posts/{postId}/crew-application-files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["pending_1"];
+        put?: never;
+        post: operations["upload_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mentor/job-posts/{postId}/crew-application-files/{fileId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["remove_2"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mentor/job-posts/{postId}/crew-applications": {
         parameters: {
             query?: never;
             header?: never;
@@ -2756,6 +2836,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/mentor/jobs/{jobId}/crew-applications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ofJob"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["decline_3"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/mentor/jobs/{jobId}/crew/change": {
         parameters: {
             query?: never;
@@ -2862,6 +2974,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["sign"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mentor/jobs/{jobId}/recruitment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["recruitment"];
+        put: operations["setRecruitment"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4289,6 +4417,25 @@ export interface components {
             /** Format: int32 */
             points?: number;
         };
+        ApplicantCardView: {
+            applicant: components["schemas"]["ApplicantView"];
+            /** @enum {string} */
+            endReason?: "DECLINED" | "WITHDRAWN" | "APPLICANT_UNAVAILABLE" | "EXPIRED" | "RECRUITMENT_CLOSED" | "JOB_CLOSING" | "JOB_CANCELLED";
+            /** Format: date-time */
+            endedAt?: string;
+            fitMetrics?: components["schemas"]["FitMetricsView"];
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            lapsesAt: string;
+            note: string;
+            proof: components["schemas"]["BidProofView"][];
+            skills: components["schemas"]["CrewApplicationSkillView"][];
+            /** @enum {string} */
+            status: "PENDING" | "DECLINED" | "WITHDRAWN" | "LAPSED";
+            /** Format: date-time */
+            submittedAt: string;
+        };
         ApplicantView: {
             displayName: string;
             githubLogin?: string;
@@ -4821,6 +4968,37 @@ export interface components {
             crewVersion: number;
             /** Format: uuid */
             studentId: string;
+        };
+        CrewApplicationSkillView: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+        };
+        CrewApplicationView: {
+            /** @enum {string} */
+            endReason?: "DECLINED" | "WITHDRAWN" | "APPLICANT_UNAVAILABLE" | "EXPIRED" | "RECRUITMENT_CLOSED" | "JOB_CLOSING" | "JOB_CANCELLED";
+            /** Format: date-time */
+            endedAt?: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            jobId: string;
+            jobTitle: string;
+            /** Format: date-time */
+            lapsesAt: string;
+            note: string;
+            proof: components["schemas"]["BidProofView"][];
+            skills: components["schemas"]["CrewApplicationSkillView"][];
+            /** @enum {string} */
+            status: "PENDING" | "DECLINED" | "WITHDRAWN" | "LAPSED";
+            /** Format: date-time */
+            submittedAt: string;
+        };
+        CrewApplyRequest: {
+            note: string;
+            proof?: components["schemas"]["BidProofRequest"][];
+            publicCodeAcknowledged: boolean;
+            skillIds?: string[];
         };
         CrewAssignmentMilestoneView: {
             /** Format: date */
@@ -5894,7 +6072,7 @@ export interface components {
             /** Format: int32 */
             left: number;
             /** @enum {string} */
-            limit?: "JOB_POST_NOT_OPEN" | "JOB_POST_HIDDEN" | "ROLE_TAKEN" | "ALREADY_APPLIED" | "MENTOR_JOB_LIMIT" | "CONFLICT_OF_INTEREST" | "APPLICANT_IS_CONTRIBUTOR" | "CONTRIBUTORS_UNKNOWN" | "PUBLIC_CODE_NOT_ACKNOWLEDGED" | "NOT_WITHDRAWABLE" | "NDA_VERSION_OUTDATED" | "COMMIT_EMAIL_NOT_ACKNOWLEDGED" | "INVITEE_NOT_AVAILABLE" | "ALREADY_INVITED" | "INVITEE_ALREADY_APPLIED" | "INVITE_LIMIT_JOB_POST" | "INVITE_LIMIT_DAILY" | "PROFILE_REQUIRED" | "PROOF_LIMIT" | "LINK_INVALID" | "PROOF_FILE_UNKNOWN";
+            limit?: "JOB_POST_NOT_OPEN" | "JOB_POST_HIDDEN" | "ROLE_TAKEN" | "ALREADY_APPLIED" | "MENTOR_JOB_LIMIT" | "CONFLICT_OF_INTEREST" | "APPLICANT_IS_CONTRIBUTOR" | "CONTRIBUTORS_UNKNOWN" | "PUBLIC_CODE_NOT_ACKNOWLEDGED" | "NOT_WITHDRAWABLE" | "NDA_VERSION_OUTDATED" | "COMMIT_EMAIL_NOT_ACKNOWLEDGED" | "INVITEE_NOT_AVAILABLE" | "ALREADY_INVITED" | "INVITEE_ALREADY_APPLIED" | "INVITE_LIMIT_JOB_POST" | "INVITE_LIMIT_DAILY" | "PROFILE_REQUIRED" | "PROOF_LIMIT" | "LINK_INVALID" | "PROOF_FILE_UNKNOWN" | "RECRUITMENT_CLOSED" | "CREW_FULL" | "CREW_REJOIN_REFUSED" | "ON_ANOTHER_CREW" | "NOT_DECLINABLE";
         };
         InviteRequest: {
             /** Format: uuid */
@@ -6921,7 +7099,7 @@ export interface components {
             /** Format: int32 */
             left: number;
             /** @enum {string} */
-            limit?: "JOB_POST_NOT_OPEN" | "JOB_POST_HIDDEN" | "ROLE_TAKEN" | "ALREADY_APPLIED" | "MENTOR_JOB_LIMIT" | "CONFLICT_OF_INTEREST" | "APPLICANT_IS_CONTRIBUTOR" | "CONTRIBUTORS_UNKNOWN" | "PUBLIC_CODE_NOT_ACKNOWLEDGED" | "NOT_WITHDRAWABLE" | "NDA_VERSION_OUTDATED" | "COMMIT_EMAIL_NOT_ACKNOWLEDGED" | "INVITEE_NOT_AVAILABLE" | "ALREADY_INVITED" | "INVITEE_ALREADY_APPLIED" | "INVITE_LIMIT_JOB_POST" | "INVITE_LIMIT_DAILY" | "PROFILE_REQUIRED" | "PROOF_LIMIT" | "LINK_INVALID" | "PROOF_FILE_UNKNOWN";
+            limit?: "JOB_POST_NOT_OPEN" | "JOB_POST_HIDDEN" | "ROLE_TAKEN" | "ALREADY_APPLIED" | "MENTOR_JOB_LIMIT" | "CONFLICT_OF_INTEREST" | "APPLICANT_IS_CONTRIBUTOR" | "CONTRIBUTORS_UNKNOWN" | "PUBLIC_CODE_NOT_ACKNOWLEDGED" | "NOT_WITHDRAWABLE" | "NDA_VERSION_OUTDATED" | "COMMIT_EMAIL_NOT_ACKNOWLEDGED" | "INVITEE_NOT_AVAILABLE" | "ALREADY_INVITED" | "INVITEE_ALREADY_APPLIED" | "INVITE_LIMIT_JOB_POST" | "INVITE_LIMIT_DAILY" | "PROFILE_REQUIRED" | "PROOF_LIMIT" | "LINK_INVALID" | "PROOF_FILE_UNKNOWN" | "RECRUITMENT_CLOSED" | "CREW_FULL" | "CREW_REJOIN_REFUSED" | "ON_ANOTHER_CREW" | "NOT_DECLINABLE";
         };
         QuoteView: {
             /** Format: int64 */
@@ -7042,6 +7220,50 @@ export interface components {
             signals: components["schemas"]["SignalsView"];
             title: string;
         };
+        RecruitmentMemberView: {
+            githubLogin?: string;
+            /** Format: date-time */
+            joinedAt?: string;
+            /** Format: date-time */
+            leftAt?: string;
+            name: string;
+            /** Format: uuid */
+            rowId: string;
+            status: string;
+        };
+        RecruitmentRequest: {
+            /** Format: int64 */
+            crewVersion: number;
+            note?: string;
+            on: boolean;
+            /** Format: int32 */
+            openSlots?: number;
+            skillIds?: string[];
+        };
+        RecruitmentSkillView: {
+            active: boolean;
+            /** Format: uuid */
+            id: string;
+            name: string;
+        };
+        RecruitmentView: {
+            available: boolean;
+            /** Format: int32 */
+            cap: number;
+            crew: components["schemas"]["RecruitmentMemberView"][];
+            /** Format: int64 */
+            crewVersion: number;
+            /** Format: int32 */
+            maxSlots: number;
+            note?: string;
+            /** Format: int32 */
+            openSlots: number;
+            recruiting: boolean;
+            signedMember: boolean;
+            skills: components["schemas"]["RecruitmentSkillView"][];
+            /** @enum {string} */
+            state: "DRAFT" | "OPEN" | "SELECTING" | "AGREEMENT" | "STARTING" | "ACTIVE" | "CLOSING" | "CLOSED" | "CANCELLED";
+        };
         RepositoryCheckRequest: {
             url: string;
         };
@@ -7140,11 +7362,11 @@ export interface components {
             /** Format: int32 */
             oldValue?: number;
             /** @enum {string} */
-            rule?: "AUTO_ACCEPTANCE_DAYS" | "AUTO_ACCEPTANCE_FIRST_REMINDER_DAY" | "AUTO_ACCEPTANCE_SECOND_REMINDER_DAY" | "RATING_WINDOW_DAYS" | "REVISION_ROUNDS" | "DISPUTE_RESPONSE_DAYS" | "TEAM_ISSUE_ANSWER_DAYS" | "TEAM_ISSUE_ESCALATION_DAYS" | "CLOSURE_CONFIRMATION_DAYS" | "CANCELLATION_CONFIRMATION_DAYS" | "AUTOMATIC_CLOSURE_DAYS" | "FINAL_MERGE_AUTHORIZATION_DAYS" | "AGREEMENT_STALL_DAYS" | "STARTING_STALL_DAYS" | "MENTOR_ACTIVE_JOB_LIMIT" | "MENTOR_SHARE_CAP_PERCENT";
+            rule?: "AUTO_ACCEPTANCE_DAYS" | "AUTO_ACCEPTANCE_FIRST_REMINDER_DAY" | "AUTO_ACCEPTANCE_SECOND_REMINDER_DAY" | "RATING_WINDOW_DAYS" | "REVISION_ROUNDS" | "DISPUTE_RESPONSE_DAYS" | "TEAM_ISSUE_ANSWER_DAYS" | "TEAM_ISSUE_ESCALATION_DAYS" | "CLOSURE_CONFIRMATION_DAYS" | "CANCELLATION_CONFIRMATION_DAYS" | "AUTOMATIC_CLOSURE_DAYS" | "FINAL_MERGE_AUTHORIZATION_DAYS" | "AGREEMENT_STALL_DAYS" | "STARTING_STALL_DAYS" | "MENTOR_ACTIVE_JOB_LIMIT" | "MENTOR_SHARE_CAP_PERCENT" | "CREW_APPLICATION_LAPSE_DAYS";
         };
         RuleView: {
             /** @enum {string} */
-            key: "AUTO_ACCEPTANCE_DAYS" | "AUTO_ACCEPTANCE_FIRST_REMINDER_DAY" | "AUTO_ACCEPTANCE_SECOND_REMINDER_DAY" | "RATING_WINDOW_DAYS" | "REVISION_ROUNDS" | "DISPUTE_RESPONSE_DAYS" | "TEAM_ISSUE_ANSWER_DAYS" | "TEAM_ISSUE_ESCALATION_DAYS" | "CLOSURE_CONFIRMATION_DAYS" | "CANCELLATION_CONFIRMATION_DAYS" | "AUTOMATIC_CLOSURE_DAYS" | "FINAL_MERGE_AUTHORIZATION_DAYS" | "AGREEMENT_STALL_DAYS" | "STARTING_STALL_DAYS" | "MENTOR_ACTIVE_JOB_LIMIT" | "MENTOR_SHARE_CAP_PERCENT";
+            key: "AUTO_ACCEPTANCE_DAYS" | "AUTO_ACCEPTANCE_FIRST_REMINDER_DAY" | "AUTO_ACCEPTANCE_SECOND_REMINDER_DAY" | "RATING_WINDOW_DAYS" | "REVISION_ROUNDS" | "DISPUTE_RESPONSE_DAYS" | "TEAM_ISSUE_ANSWER_DAYS" | "TEAM_ISSUE_ESCALATION_DAYS" | "CLOSURE_CONFIRMATION_DAYS" | "CANCELLATION_CONFIRMATION_DAYS" | "AUTOMATIC_CLOSURE_DAYS" | "FINAL_MERGE_AUTHORIZATION_DAYS" | "AGREEMENT_STALL_DAYS" | "STARTING_STALL_DAYS" | "MENTOR_ACTIVE_JOB_LIMIT" | "MENTOR_SHARE_CAP_PERCENT" | "CREW_APPLICATION_LAPSE_DAYS";
             /** Format: int32 */
             max: number;
             /** Format: int32 */
@@ -9047,7 +9269,7 @@ export interface operations {
             };
         };
     };
-    decline_6: {
+    decline_7: {
         parameters: {
             query?: never;
             header?: never;
@@ -9449,7 +9671,7 @@ export interface operations {
             };
         };
     };
-    withdraw_3: {
+    withdraw_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -9593,7 +9815,7 @@ export interface operations {
             };
         };
     };
-    decline_5: {
+    decline_6: {
         parameters: {
             query?: never;
             header?: never;
@@ -10102,7 +10324,7 @@ export interface operations {
             };
         };
     };
-    decline_4: {
+    decline_5: {
         parameters: {
             query?: never;
             header?: never;
@@ -10267,7 +10489,7 @@ export interface operations {
             };
         };
     };
-    ofJob_1: {
+    ofJob_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -10464,7 +10686,7 @@ export interface operations {
             };
         };
     };
-    withdraw_2: {
+    withdraw_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -11182,7 +11404,7 @@ export interface operations {
             };
         };
     };
-    ofJob: {
+    ofJob_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -11541,7 +11763,7 @@ export interface operations {
             };
         };
     };
-    decline_3: {
+    decline_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -12061,7 +12283,7 @@ export interface operations {
             };
         };
     };
-    withdraw_1: {
+    withdraw_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -12083,7 +12305,7 @@ export interface operations {
             };
         };
     };
-    mine_2: {
+    mine_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -12103,7 +12325,7 @@ export interface operations {
             };
         };
     };
-    withdraw: {
+    withdraw_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -12141,6 +12363,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CapacityView"];
+                };
+            };
+        };
+    };
+    mine_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrewApplicationView"][];
+                };
+            };
+        };
+    };
+    withdraw: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                crewApplicationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrewApplicationView"];
                 };
             };
         };
@@ -12218,7 +12482,7 @@ export interface operations {
             };
         };
     };
-    apply: {
+    apply_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -12240,6 +12504,104 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApplicationView"];
+                };
+            };
+        };
+    };
+    pending_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                postId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BidProofUploadView"][];
+                };
+            };
+        };
+    };
+    upload_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                postId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BidProofUploadView"];
+                };
+            };
+        };
+    };
+    remove_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                postId: string;
+                fileId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    apply: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                postId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CrewApplyRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrewApplicationView"];
                 };
             };
         };
@@ -12550,6 +12912,49 @@ export interface operations {
             };
         };
     };
+    ofJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicantCardView"][];
+                };
+            };
+        };
+    };
+    decline_3: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+                crewApplicationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     changeCrew: {
         parameters: {
             query?: never;
@@ -12722,6 +13127,54 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    recruitment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecruitmentView"];
+                };
+            };
+        };
+    };
+    setRecruitment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecruitmentRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecruitmentView"];
+                };
             };
         };
     };

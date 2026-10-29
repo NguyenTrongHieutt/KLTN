@@ -140,7 +140,9 @@ class CrewIT extends IntegrationTest {
 	@Test
 	void theMentorPicksAStudentWhoSignsAndConfirms() throws Exception {
 		UUID huy = member("Bùi Gia Huy", false);
-		assertThat(openTodos("job.pick_crew", this.hung)).isOne();
+		// Story 21.4: J4 opens "Mở tuyển thành viên nhóm" in place of the retired "Chọn nhóm thực hiện".
+		await().atMost(Duration.ofSeconds(10)).until(() -> openTodos("matching.open_crew_recruitment", this.hung) == 1);
+		assertThat(openTodos("job.pick_crew", this.hung)).isZero();
 		this.mvc.perform(get("/api/v1/mentor/jobs/" + this.job + "/crew").with(as(this.hung, Role.MENTOR)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.crewVersion").value(0))
@@ -194,7 +196,7 @@ class CrewIT extends IntegrationTest {
 
 		terms(3, 30, 70).andExpect(status().isOk()).andExpect(jsonPath("$.crewConfirmed").value(false));
 		assertThat(this.crews.crewRelationship(this.job, this.vy).kind()).as("R-1 M1").isEqualTo(Relationship.ASSIGNED);
-		assertThat(openTodos("job.pick_crew", this.hung)).isOne();
+		assertThat(openTodos("job.pick_crew", this.hung)).as("no longer opened (Story 21.4)").isZero();
 		this.clock.advance(Duration.ofHours(1));
 		confirm(this.vy, 2, true).andExpect(status().isNoContent());
 		assertThat(count("SELECT count(*) FROM matching.nda_signature WHERE account_id = '" + this.vy + "'"))

@@ -187,6 +187,30 @@ enum JobReason {
 	MILESTONE_NOT_HELD,
 
 	/** No Change Request waits for a top-up on the Job (FR-36, Story 14.2). */
-	NO_TOP_UP
+	NO_TOP_UP,
+
+	/**
+	 * The Mentor recruits only from J4 until J8, in Agreement, Starting or Active (AD-41, Story 21.4): the Job is not in
+	 * one of them.
+	 */
+	RECRUITMENT_UNAVAILABLE,
+
+	/**
+	 * The open slots are 1 up to the free places under the Crew cap, the cap minus the unreleased rows (R2, AD-41); the
+	 * detail member {@code max} says how many.
+	 */
+	SLOTS_INVALID,
+
+	/**
+	 * A Crew Application finds recruitment off, the Job Post hidden, or the Job past Active (FR-81, Story 21.4): the
+	 * applicant's copy is {@code reason.matching.RECRUITMENT_CLOSED}.
+	 */
+	RECRUITMENT_CLOSED,
+
+	/**
+	 * A Crew Application finds no free slot: the open slots taken, or the Crew at its cap (FR-81, R2); the detail
+	 * member {@code n} is the cap.
+	 */
+	CREW_FULL
 
 }

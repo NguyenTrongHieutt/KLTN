@@ -17,7 +17,9 @@ import vn.vibefix.shared.ErrorCode;
  * the Job enters Agreement. The facts carry the signature's version and time; {@code matching} closes
  * the held Applications and {@code chat} opens the Job Chat. In the same transaction the Mentor, and
  * never a Crew member, may read the Customer's contact details for this Job (FR-3, AD-3), the
- * Agreement deadline is set 14 days on (FR-40), and the draft starts with the Mentor's to-do (FR-16).
+ * Agreement deadline is set 14 days on (FR-40), and the draft starts with the Mentor's to-do (FR-16). The facts carry
+ * that deadline too: {@code matching} opens the Mentor's {@code matching.open_crew_recruitment} to-do, due then, in place
+ * of the retired {@code job.pick_crew} (UX-DR112, Story 21.4).
  */
 @Component
 class J4Confirm implements JobLifecycle.Step {
@@ -26,15 +28,12 @@ class J4Confirm implements JobLifecycle.Step {
 
 	private final Agreements agreements;
 
-	private final CrewService crews;
-
 	private final JdbcClient jdbc;
 
-	J4Confirm(ContactVisibility contacts, Agreements agreements, CrewService crews, JdbcClient jdbc) {
+	J4Confirm(ContactVisibility contacts, Agreements agreements, JdbcClient jdbc) {
 		this.jdbc = jdbc;
 		this.contacts = contacts;
 		this.agreements = agreements;
-		this.crews = crews;
 	}
 
 	@Override
@@ -55,8 +54,9 @@ class J4Confirm implements JobLifecycle.Step {
 		applying.fact("mentorId", String.valueOf(applying.job().mentorId()));
 		applying.fact("ndaVersion", (String) applying.input("ndaVersion"));
 		applying.fact("signedAt", ((Instant) applying.input("signedAt")).toString());
-		applying.set("agreement_due_at", applying.now().plus(StallDeadlines.period(this.jdbc, applying.job().id(),
-				JobState.AGREEMENT)));
+		Instant due = applying.now().plus(StallDeadlines.period(this.jdbc, applying.job().id(), JobState.AGREEMENT));
+		applying.set("agreement_due_at", due);
+		applying.fact("agreementDueAt", due.toString());
 	}
 
 	@Override
@@ -65,7 +65,6 @@ class J4Confirm implements JobLifecycle.Step {
 		this.contacts.grant(job.customerId(), Objects.requireNonNull(job.mentorId()), job.id());
 		Instant due = applying.now().plus(StallDeadlines.period(this.jdbc, job.id(), JobState.AGREEMENT));
 		this.agreements.start(job, due);
-		this.crews.start(job, due);
 	}
 
 }

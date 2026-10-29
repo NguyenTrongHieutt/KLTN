@@ -28,13 +28,23 @@ export function todoContextText(todo: Pick<TodoItem, 'jobId' | 'role' | 'params'
 
 /** A notification's title: `notification.{type}.title` (EXPERIENCE.md, Notification Inventory). */
 export function notificationTitle(item: Pick<NotificationItem, 'type' | 'params'>): string {
-  return t(`notification.${item.type}.title` as MessageKey, item.params)
+  return t(`notification.${item.type}.title` as MessageKey, worded(item))
 }
 
 /** A notification's body line, when its type has one. */
 export function notificationBody(item: Pick<NotificationItem, 'type' | 'params'>): string | undefined {
   const key = `notification.${item.type}.body`
-  return has(key) ? t(key as MessageKey, item.params) : undefined
+  return has(key) ? t(key as MessageKey, worded(item)) : undefined
+}
+
+/**
+ * The parameters with a `cause` code in the type's own words, `notification.{type}.cause.{code}`, when it has them:
+ * a lapsed Crew Application says why (R6, Story 21.4). A code without words stays as it is.
+ */
+function worded(item: Pick<NotificationItem, 'type' | 'params'>): Record<string, string> {
+  const cause = item.params.cause
+  const key = `notification.${item.type}.cause.${cause}`
+  return cause !== undefined && has(key) ? { ...item.params, cause: t(key as MessageKey) } : item.params
 }
 
 function has(key: string): boolean {

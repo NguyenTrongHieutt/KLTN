@@ -45,7 +45,8 @@ import vn.vibefix.team.internal.TeamTestSupport;
  * ({@code file=proof-upload}), theirs alone. The Customer's profile ({@code {customerId}}) holds the
  * {@code CONTACT_EMAIL} canary as its contact email. Only the Customer and Administrators read the Product; only the Customer reads the
  * Draft and the bids, and any user with GitHub linked reads the Job Post. An Active Job of the same Product carries
- * the Crew and its content ({@link CrewJobWorld}).
+ * the Crew and its content ({@link CrewJobWorld}), and an Agreement Job of the same Product recruits its Crew, with the
+ * pending Crew Application of {@link MatrixCaller#CREW_APPLICANT} ({@link RecruitingJobWorld}, Story 21.4).
  */
 public class ProductFixture implements MatrixFixture {
 
@@ -54,6 +55,8 @@ public class ProductFixture implements MatrixFixture {
 	private final SessionRepository<? extends Session> sessions;
 
 	private final CrewJobWorld crewJob;
+
+	private final RecruitingJobWorld recruitingJob;
 
 	private final StoredFiles files;
 
@@ -68,6 +71,7 @@ public class ProductFixture implements MatrixFixture {
 		this.jdbc = jdbc;
 		this.sessions = sessions;
 		this.crewJob = new CrewJobWorld(jdbc, sessions, grants, files, transactionManager, context);
+		this.recruitingJob = new RecruitingJobWorld(jdbc, sessions, files, transactionManager);
 		this.files = files;
 		this.transactionManager = transactionManager;
 	}
@@ -190,6 +194,8 @@ public class ProductFixture implements MatrixFixture {
 		// {crewRowId}, {milestoneId}, {paymentOrderId} and {accessId} name the crew Job's own objects (CrewJobWorld),
 		// whose rows bind {jobId} to it: the Draft has none of them.
 		this.crewJob.seed(world, this.owner, product);
+		// The recruiting Job (Story 21.4): the same Customer and Mentor, recruiting, with the Crew applicant's application.
+		this.recruitingJob.seed(world, this.owner, product, this.crewJob.mentor());
 	}
 
 	/** A proof file of the account, stored through {@code files} as an upload of {@code matching.bid_proof}. */
@@ -229,6 +235,7 @@ public class ProductFixture implements MatrixFixture {
 					MutableClock.DEFAULT_INSTANT));
 			case BIDDER -> Optional.of(IdentityTestSupport.signedIn(this.sessions, this.bidder, Role.MENTOR,
 					MutableClock.DEFAULT_INSTANT));
+			case CREW_APPLICANT -> this.recruitingJob.realize(caller);
 			default -> this.crewJob.realize(caller);
 		};
 	}

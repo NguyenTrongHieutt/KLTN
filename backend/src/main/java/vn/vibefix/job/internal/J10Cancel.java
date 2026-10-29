@@ -7,6 +7,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
 import vn.vibefix.identity.ContactVisibility;
+import vn.vibefix.job.CrewRecruitment.ClosedBy;
 import vn.vibefix.job.internal.JobLifecycle.Applying;
 import vn.vibefix.job.internal.Jobs.Job;
 import vn.vibefix.notification.NotificationRequest;
@@ -20,7 +21,8 @@ import vn.vibefix.shared.ErrorCode;
  * or Active, after its cascade cancelled the Milestones (M6, and M7 with the refund). It records when and
  * tells the Customer, the Mentor, and the active Crew ({@code job.job_cancelled}); then the Mentor's
  * contact visibility ends, the Product pin is released, and every Crew row is released as
- * {@code JOB_ENDED}. The chats and the data-deletion confirmations follow through their listeners.
+ * {@code JOB_ENDED}. Crew recruitment turns off, and {@code CrewRecruitmentClosed} lapses the open Crew Applications
+ * (AD-41, Story 21.4). The chats and the data-deletion confirmations follow through their listeners.
  */
 @Component
 class J10Cancel implements JobLifecycle.Step {
@@ -39,8 +41,11 @@ class J10Cancel implements JobLifecycle.Step {
 
 	private final CrewChanges changes;
 
+	private final JobRecruitment recruitment;
+
 	J10Cancel(JdbcClient jdbc, CrewService crews, ContactVisibility contacts, ProductPins pins,
-			Notifications notifications, CrewChanges changes) {
+			Notifications notifications, CrewChanges changes, JobRecruitment recruitment) {
+		this.recruitment = recruitment;
 		this.jdbc = jdbc;
 		this.changes = changes;
 		this.crews = crews;
@@ -80,6 +85,7 @@ class J10Cancel implements JobLifecycle.Step {
 		this.pins.releaseForJob(job.productId(), job.id());
 		this.changes.voidWaiting(job.id());
 		this.crews.releaseForJobEnd(job.id());
+		this.recruitment.closeForJob(job.id(), ClosedBy.CANCELLED);
 	}
 
 }

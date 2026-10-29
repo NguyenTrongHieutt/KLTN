@@ -1,10 +1,13 @@
-import { FileText, Info } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { Dialog } from '@base-ui/react/dialog'
+import { FileText, Info, X } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
 import { usePageTitle } from '@/app/usePageTitle'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
+import { useToasts } from '@/components/toasts'
+import { Button } from '@/components/ui/button'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { ReportAbuseMenu } from '@/features/abuse/ReportAbuseMenu'
 import { personPath } from '@/features/identity/personText'
@@ -13,9 +16,15 @@ import { rich } from '@/i18n/rich'
 import { t, type MessageKey } from '@/i18n/t'
 import { formatCalendarDayMonth, formatDayMonth, formatMonthYear } from '@/lib/dates'
 import { formatSize } from '@/lib/fileSize'
-import { isNotFound } from '@/lib/problemMessage'
+import { isNotFound, problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { BidPanel } from '@/features/matching/BidPanel'
+import {
+  useMyCrewApplications,
+  useWithdrawCrewApplication,
+  type CrewApplication,
+} from '@/features/matching/crewApplicationApi'
+import { crewApplicationStateText, runningCrewJob } from '@/features/matching/crewText'
 import { useMentorInvitation, type MentorInvitation } from '@/features/matching/invitationApi'
 import { FindWorkGate } from './FindWorkGate'
 import { leftEarly, roleLabel, useJobRole, useMyJobs, youAreText, type JobRoleView } from './jobRoleApi'
@@ -28,11 +37,13 @@ import { needText } from './phaseText'
  * answers, Job Types, Skills with their plain hints, deadline, budget, and screenshots), its phase and what it
  * needs, the Customer's kind, month joined and Rating summary (never their name or contact details), and the
  * Product. One action area follows the phase and the user's relation to the Job: "Chào giá làm người hướng dẫn",
- * which opens FND-1, or the user's bid with "Xem" and "Rút", while the Job looks for a Mentor (Story 21.2); the
- * "Xin vào nhóm" details while its Mentor recruits (Story 21.4 adds the button); and for the Job's own people
- * "Bạn là {role} của công việc này" with the way to the Job. A Job no longer listed shows the plain "no longer open" gate, or the role notice to its
- * own people, or a lapsed invitation's card (FR-14, UX-DR27, UX-DR95). Without GitHub linked, the GitHub gate stands
- * in for the Job Post (X1).
+ * which opens FND-1, or the user's bid with "Xem" and "Rút", while the Job looks for a Mentor (Story 21.2); "Xin vào nhóm",
+ * which opens FND-2, with what the Mentor's recruitment seeks, or the user's Crew Application state with "Xem" and
+ * "Rút", or the gate of a member who left the Job or is on another running Crew, while its Mentor recruits (Story
+ * 21.4); and for the Job's own people "Bạn là {role} của công việc này" with the way to the Job. A Job no longer listed
+ * shows the plain "no longer open" gate, or the role notice to its own people, or the user's Crew Application state
+ * (lapsed, not picked), or a lapsed invitation's card (FR-14, UX-DR27, UX-DR95, UX-DR103). Without GitHub linked, the
+ * GitHub gate stands in for the Job Post (X1).
  */
 export function JobPostPage() {
   const { postId } = useParams()
@@ -53,13 +64,18 @@ function JobPostDetail({ postId }: { postId: string | undefined }) {
   const post = useJobPost(postId)
   const invitation = useMentorInvitation(postId)
   const role = useJobRole(postId)
-  usePageTitle(post.data?.title ?? invitation.data?.jobTitle ?? t('screen.jobPost.title'))
+  const crewApplications = useMyCrewApplications()
+  const application = crewApplications.data?.find((found) => found.jobId === postId)
+  usePageTitle(post.data?.title ?? invitation.data?.jobTitle ?? application?.jobTitle ?? t('screen.jobPost.title'))
   if (post.isError && isNotFound(post.error)) {
-    if (invitation.isPending || role.isPending) {
+    if (invitation.isPending || role.isPending || crewApplications.isPending) {
       return <Skeleton className="m-6 h-48" />
     }
     if (role.data && postId) {
       return <RoleOnly jobId={postId} role={role.data} />
+    }
+    if (application) {
+      return <ApplicationOnly application={application} />
     }
     return invitation.data?.status === 'LAPSED' ? <LapsedInvitation invitation={invitation.data} /> : <NoLongerOpen />
   }
@@ -114,6 +130,24 @@ function NoLongerOpen() {
       <div role="status" className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card px-6 py-14 text-center">
         <PageHeading className="text-h3">{t('screen.jobPost.detail.goneTitle')}</PageHeading>
         <p className="text-body-sm text-muted-foreground">{t('screen.jobPost.detail.goneBody')}</p>
+        <Link to="/tim-viec" className={buttonVariants()}>
+          {t('screen.jobPost.detail.findOther')}
+        </Link>
+      </div>
+    </GatePage>
+  )
+}
+
+/**
+ * A Job no longer listed whose Crew the user applied to: their application's state, lapsed or not picked, with
+ * "Tìm việc khác" (UX-DR103).
+ */
+function ApplicationOnly({ application }: { application: CrewApplication }) {
+  return (
+    <GatePage title={application.jobTitle}>
+      <div role="status" className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card px-6 py-14 text-center">
+        <PageHeading className="text-h3">{t('screen.crewApply.readTitle')}</PageHeading>
+        <p className="text-body-sm text-muted-foreground">{crewApplicationStateText(application)}</p>
         <Link to="/tim-viec" className={buttonVariants()}>
           {t('screen.jobPost.detail.findOther')}
         </Link>
@@ -279,6 +313,14 @@ function ActionArea({ post }: { post: JobPost }) {
   if (role.isPending) {
     return <Skeleton className="h-40 w-full" />
   }
+  if (role.data?.crewKind === 'FORMER' && post.recruitment) {
+    return (
+      <>
+        <RoleNotice jobId={post.id} role={role.data} />
+        <CrewAction post={post} recruitment={post.recruitment} left />
+      </>
+    )
+  }
   if (role.data) {
     return <RoleNotice jobId={post.id} role={role.data} />
   }
@@ -296,10 +338,20 @@ function ActionArea({ post }: { post: JobPost }) {
 }
 
 /**
- * "Xin vào nhóm" while the Mentor recruits (UX-DR98): the Mentor's name linked to their public profile, "Còn {n}
- * chỗ", the Skills sought and the Mentor's note. Story 21.4 adds the button and the Crew gates.
+ * "Xin vào nhóm" while the Mentor recruits (UX-DR98, UX-DR103): the Mentor's name linked to their public profile, "Còn
+ * {n} chỗ", the Skills sought and the Mentor's note; then the button to FND-2, or the user's pending application with
+ * "Xem" and "Rút", or one that ended with a new one possible, or the gate of a member who left this Job (R3) or is on
+ * another running Crew (X8).
  */
-function CrewAction({ post, recruitment }: { post: JobPost; recruitment: NonNullable<JobPost['recruitment']> }) {
+function CrewAction({
+  post,
+  recruitment,
+  left = false,
+}: {
+  post: JobPost
+  recruitment: NonNullable<JobPost['recruitment']>
+  left?: boolean
+}) {
   const mentor = post.mentor
   return (
     <section aria-labelledby="crew-heading" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
@@ -338,7 +390,104 @@ function CrewAction({ post, recruitment }: { post: JobPost; recruitment: NonNull
           <p className="break-words whitespace-pre-line">{recruitment.note}</p>
         </div>
       )}
+      {left ? (
+        <p role="status" className="text-body-sm font-semibold">
+          {t('reason.matching.CREW_REJOIN_REFUSED')}
+        </p>
+      ) : (
+        <CrewApplicationArea jobId={post.id} />
+      )}
     </section>
+  )
+}
+
+/** The user's place in the recruitment: busy elsewhere, their application, or the way to FND-2. */
+function CrewApplicationArea({ jobId }: { jobId: string }) {
+  const mine = useMyCrewApplications()
+  const jobs = useMyJobs()
+  if (mine.isPending || jobs.isPending) {
+    return <Skeleton className="h-12 w-full" />
+  }
+  const busy = runningCrewJob(jobs.data, jobId)
+  if (busy) {
+    return (
+      <p role="status" className="text-body-sm font-semibold break-words">
+        {t('reason.matching.ON_ANOTHER_CREW', { job: busy.title })}
+      </p>
+    )
+  }
+  const latest = mine.data?.find((application) => application.jobId === jobId)
+  if (latest?.status === 'PENDING') {
+    return <CrewApplicationState application={latest} />
+  }
+  return (
+    <div className="flex flex-col gap-2">
+      {latest && (
+        <p role="status" className="text-label font-semibold">
+          {crewApplicationStateText(latest)}
+        </p>
+      )}
+      <p className="text-body-sm text-muted-foreground">{t('screen.crewApply.actionLead')}</p>
+      <Link to={`/tim-viec/${jobId}/xin-vao-nhom`} className={cn(buttonVariants(), 'w-fit')}>
+        {t(latest ? 'screen.crewApply.again' : 'screen.crewApply.action')}
+      </Link>
+    </div>
+  )
+}
+
+/** The user's pending application: "Đã gửi · chờ người hướng dẫn xem · hết hạn ngày {date}" with "Xem" and "Rút". */
+function CrewApplicationState({ application }: { application: CrewApplication }) {
+  const [confirming, setConfirming] = useState(false)
+  const withdraw = useWithdrawCrewApplication()
+  const toasts = useToasts()
+  const confirm = () =>
+    withdraw.mutate(application.id, {
+      onSuccess: () => {
+        setConfirming(false)
+        toasts.success(t('screen.crewApply.withdrawn'))
+      },
+      onError: (error) => {
+        setConfirming(false)
+        toasts.error(problemMessage(error, { module: 'matching' }).text)
+      },
+    })
+  return (
+    <div className="flex flex-col gap-2">
+      <p role="status" className="text-label font-semibold">
+        {crewApplicationStateText(application)}
+      </p>
+      <div className="flex flex-wrap items-center gap-3">
+        <Link to={`/tim-viec/${application.jobId}/xin-vao-nhom`} className={buttonVariants({ variant: 'secondary' })}>
+          {t('screen.crewApply.view')}
+        </Link>
+        <Button type="button" variant="secondary" onClick={() => setConfirming(true)}>
+          {t('screen.crewApply.withdraw')}
+        </Button>
+      </div>
+      <Dialog.Root open={confirming} onOpenChange={setConfirming}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="fixed inset-0 z-40 bg-foreground/50" />
+          <Dialog.Popup className="fixed top-24 left-1/2 z-50 flex w-[min(520px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
+            <div className="flex items-start justify-between gap-3">
+              <Dialog.Title className="text-h2">{t('screen.crewApply.withdrawTitle')}</Dialog.Title>
+              <Dialog.Close
+                aria-label={t('screen.product.finding.close')}
+                className="rounded-md p-1 text-muted-foreground hover:bg-muted"
+              >
+                <X aria-hidden="true" className="size-5" />
+              </Dialog.Close>
+            </div>
+            <Dialog.Description className="text-body-sm">{t('screen.crewApply.withdrawBody')}</Dialog.Description>
+            <div className="flex flex-wrap justify-between gap-3">
+              <Dialog.Close render={<Button variant="secondary" />}>{t('screen.crewApply.keep')}</Dialog.Close>
+              <Button type="button" onClick={confirm} disabled={withdraw.isPending}>
+                {t('screen.crewApply.withdraw')}
+              </Button>
+            </div>
+          </Dialog.Popup>
+        </Dialog.Portal>
+      </Dialog.Root>
+    </div>
   )
 }
 

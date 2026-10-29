@@ -19,8 +19,9 @@ import vn.vibefix.shared.PersonalDataParticipant;
 import vn.vibefix.shared.PersonalDataSection;
 
 /**
- * {@code job}'s part in exports, erasure, and Product deletion (AD-24): the Customer's Jobs, and the External
- * Access identifiers a Mentor or a Crew member entered (FR-66). Erasure and Product deletion delete the Jobs
+ * {@code job}'s part in exports, erasure, and Product deletion (AD-24): the Customer's Jobs, the External
+ * Access identifiers a Mentor or a Crew member entered (FR-66), and the Crew recruitments a Mentor set, with their note
+ * to applicants (Story 21.4). Erasure and Product deletion delete the Jobs
  * and their screenshot files, and erasure deletes the person's identifiers; a running Job blocks the erasure of
  * its Customer, its Mentor, and its unreleased Crew, and a Milestone a former member will be a split party of
  * blocks theirs (Story 20.4).
@@ -86,7 +87,21 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 			row.put("updatedAt", rs.getTimestamp("updated_at").toInstant().toString());
 			return row;
 		}).list();
-		if (jobs.isEmpty() && identifiers.isEmpty()) {
+		// The Mentor's Crew recruitment (Story 21.4): the note to applicants they wrote, with the Skills sought.
+		List<Map<String, Object>> recruitments = this.jdbc.sql("""
+				SELECT id, recruiting, open_slots, array_to_string(recruit_skill_names, ', ') AS skills, recruit_note
+				FROM job.job WHERE mentor_account_id = :id AND (recruit_note IS NOT NULL OR recruiting_since IS NOT NULL)
+				ORDER BY created_at, id
+				""").param("id", accountId).query((rs, n) -> {
+			Map<String, Object> recruitment = new LinkedHashMap<>();
+			recruitment.put("jobId", rs.getObject("id", UUID.class).toString());
+			recruitment.put("recruiting", rs.getBoolean("recruiting"));
+			recruitment.put("openSlots", rs.getInt("open_slots"));
+			recruitment.put("skills", rs.getString("skills"));
+			recruitment.put("note", rs.getString("recruit_note"));
+			return recruitment;
+		}).list();
+		if (jobs.isEmpty() && identifiers.isEmpty() && recruitments.isEmpty()) {
 			return Optional.empty();
 		}
 		Map<String, Object> data = new LinkedHashMap<>();
@@ -95,6 +110,9 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 		}
 		if (!identifiers.isEmpty()) {
 			data.put("externalAccessIdentifiers", identifiers);
+		}
+		if (!recruitments.isEmpty()) {
+			data.put("crewRecruitments", recruitments);
 		}
 		return Optional.of(new PersonalDataSection("job", data));
 	}

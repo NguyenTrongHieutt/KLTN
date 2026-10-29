@@ -217,7 +217,8 @@
         "registerProduct": "đăng ký sản phẩm",
         "findWork": "tìm việc",
         "publicProfile": "có hồ sơ công khai",
-        "bid": "chào giá"
+        "bid": "chào giá",
+        "join": "xin vào nhóm"
       }
     },
     "public": {
@@ -936,7 +937,8 @@
           "AGREEMENT_STALL_DAYS": "Số ngày chờ thống nhất trước khi được hủy một phía",
           "STARTING_STALL_DAYS": "Số ngày chờ bắt đầu trước khi được hủy một phía",
           "MENTOR_ACTIVE_JOB_LIMIT": "Số việc tối đa của một người hướng dẫn",
-          "MENTOR_SHARE_CAP_PERCENT": "Mức chia tối đa của người hướng dẫn (%)"
+          "MENTOR_SHARE_CAP_PERCENT": "Mức chia tối đa của người hướng dẫn (%)",
+          "CREW_APPLICATION_LAPSE_DAYS": "Số ngày một đơn xin vào nhóm chờ trước khi hết hạn"
         },
         "bounds": "Từ {min} đến {max}",
         "domains": "Danh sách trường",
@@ -1838,7 +1840,8 @@
         "tham-gia": "Việc tôi tham gia",
         "todos": "{n} việc cần làm",
         "pastTitle": "Công việc đã qua",
-        "left": "{job} · đã rời"
+        "left": "{job} · đã rời",
+        "applicationsTitle": "Đơn xin vào nhóm"
       }
     },
     "jobPost": {
@@ -3633,6 +3636,103 @@
       "jobsByType": "Theo loại công việc",
       "portfolioCount": "{n} mục hồ sơ năng lực",
       "privacy": "Hồ sơ công khai không hiện cách liên lạc, số dư hay email trường, và không nêu tên khách hàng hay thành viên khác của công việc nào."
+    },
+    "recruitment": {
+      "tab": "Tuyển thành viên",
+      "title": "Tuyển thành viên",
+      "r7": "Công việc chỉ bắt đầu khi có ít nhất một thành viên đã ký. Trước đó khách hàng chưa thanh toán được Giai đoạn 1.",
+      "settings": "Nhận đơn xin vào nhóm",
+      "n20": "Khách hàng chỉ thấy tên tài khoản GitHub của từng thành viên khi họ vào hoặc rời nhóm, để cấp và thu hồi quyền. Khách hàng không thấy đơn xin vào nhóm, hồ sơ hay phần chia tiền. Trước khi người được chọn ký, bạn có thể rút lựa chọn. Sau khi họ đã ký, bạn không bỏ họ khỏi nhóm được; chỉ họ tự rời.",
+      "switch": "Nhận đơn xin vào nhóm",
+      "summaryOn": "Đang nhận đơn · cần thêm {n} người",
+      "summaryOff": "Đang không nhận đơn xin vào nhóm.",
+      "slots": "Cần thêm (người)",
+      "slotsHint": "Từ 1 đến {max} người.",
+      "full": "Nhóm thực hiện đã đủ {n} người, nên chưa nhận thêm đơn.",
+      "skills": "Kỹ năng cần",
+      "skillsHint": "Tối đa 10 kỹ năng. Người xin vào nhóm thấy các kỹ năng này trên tin công việc.",
+      "note": "Lời nhắn cho người xin vào nhóm",
+      "noteHint": "Không bắt buộc. Tối đa 1.000 ký tự.",
+      "save": "Lưu",
+      "saving": "Đang lưu…",
+      "saved": "Đã lưu cài đặt tuyển thành viên.",
+      "offTitle": "Ngừng nhận đơn xin vào nhóm?",
+      "offBody": "Các đơn đang chờ sẽ hết hạn và người gửi được báo lý do. Công việc không còn hiện trong Tìm việc cho người muốn vào nhóm.",
+      "offConfirm": "Ngừng nhận đơn",
+      "offKeep": "Giữ lại",
+      "unavailable": "Công việc đã qua giai đoạn nhận thành viên nên không tuyển thêm được.",
+      "slotsInvalid": "Số người cần thêm phải từ 1 đến {max}.",
+      "stale": "Thông tin nhóm vừa thay đổi. Trang đã tải lại, hãy kiểm tra rồi lưu lại.",
+      "applications": "Đơn xin vào nhóm",
+      "applicationsEmpty": "Chưa có đơn xin vào nhóm nào.",
+      "closed": "Đơn đã đóng",
+      "sentOn": "Gửi ngày {date} · hết hạn ngày {lapse}",
+      "posted": "Lời nhắn, kỹ năng và bằng chứng",
+      "noSkills": "Chưa ghi kỹ năng.",
+      "profile": "Xem hồ sơ",
+      "sheetTitle": "Hồ sơ người xin vào nhóm",
+      "decline": "Không chọn",
+      "declineTitle": "Không chọn {name}?",
+      "declineBody": "{name} chỉ được báo là chưa được chọn, không kèm lý do.",
+      "declineBack": "Quay lại",
+      "declined": "Đã không chọn {name}.",
+      "closedDECLINED": "Không chọn",
+      "closedLAPSED": "Đã hết hạn",
+      "crew": "Nhóm thực hiện",
+      "crewEmpty": "Chưa có thành viên nào.",
+      "memberActive": "Đang tham gia · từ {date}",
+      "memberLeft": "Đã rời {date}",
+      "memberPicked": "Đã chọn · chờ ký"
+    },
+    "crewApply": {
+      "title": "Xin vào nhóm",
+      "heading": "Xin vào nhóm thực hiện",
+      "lead": "Gửi lời nhắn, kỹ năng và bằng chứng năng lực cho người hướng dẫn. Đơn xin vào nhóm không có giá hay phần chia.",
+      "ask": "Người hướng dẫn cần: {skills}",
+      "askAny": "Người hướng dẫn chưa ghi kỹ năng cần.",
+      "note": "Lời nhắn cho người hướng dẫn",
+      "noteHint": "Vì sao bạn muốn tham gia và bạn làm được gì cho công việc này.",
+      "noteRequired": "Hãy viết lời nhắn cho người hướng dẫn.",
+      "skills": "Kỹ năng của bạn",
+      "skillsHint": "Lấy sẵn từ hồ sơ của bạn. Tối đa 10 kỹ năng.",
+      "proofWho": "người hướng dẫn",
+      "acknowledgeRequired": "Hãy đánh dấu ô xác nhận trước khi gửi đơn.",
+      "submit": "Gửi đơn",
+      "sending": "Đang gửi…",
+      "sent": "Đã gửi. Người hướng dẫn sẽ xem đơn của bạn; đơn hết hạn ngày {date} nếu chưa được chọn.",
+      "back": "Quay lại tin công việc",
+      "readTitle": "Đơn xin vào nhóm của bạn",
+      "readLead": "Đơn đã gửi không sửa được. Bạn có thể rút đơn trên tin công việc khi đơn còn chờ.",
+      "notRecruiting": "Công việc này đang không nhận đơn xin vào nhóm",
+      "action": "Xin vào nhóm",
+      "actionLead": "Gửi đơn cho người hướng dẫn kèm lời nhắn, kỹ năng và bằng chứng năng lực.",
+      "again": "Gửi đơn mới",
+      "view": "Xem",
+      "withdraw": "Rút",
+      "withdrawTitle": "Rút đơn xin vào nhóm này?",
+      "withdrawBody": "Người hướng dẫn sẽ không còn thấy đơn của bạn. Bạn có thể gửi lại khi công việc còn nhận đơn.",
+      "keep": "Giữ đơn",
+      "withdrawn": "Bạn đã rút đơn xin vào nhóm.",
+      "state": {
+        "PENDING": "Đã gửi · chờ người hướng dẫn xem · hết hạn ngày {date}",
+        "DECLINED": "Chưa được chọn",
+        "WITHDRAWN": "Bạn đã rút đơn này",
+        "APPLICANT_UNAVAILABLE": "Đơn đã được rút",
+        "EXPIRED": "Đơn đã hết hạn: người hướng dẫn chưa chọn trong thời hạn",
+        "RECRUITMENT_CLOSED": "Đơn đã hết hạn: người hướng dẫn đã ngừng nhận đơn xin vào nhóm",
+        "JOB_CLOSING": "Đơn đã hết hạn: công việc đã chuyển sang giai đoạn kết thúc",
+        "JOB_CANCELLED": "Đơn đã hết hạn: công việc đã bị hủy"
+      },
+      "refusal": {
+        "ALREADY_APPLIED": "Bạn đã gửi đơn cho công việc này.",
+        "APPLICANT_IS_CONTRIBUTOR": "Bạn đã từng đóng góp vào dự án gốc này nên không thể chào giá hay xin vào nhóm.",
+        "CONTRIBUTORS_UNKNOWN": "vibefix chưa kiểm tra được kho mã của khách hàng nên chưa nhận đơn này. Việc này không do bạn; hãy thử lại sau.",
+        "CONFLICT_OF_INTEREST": "Bạn không thể tham gia công việc này.",
+        "PROOF_LIMIT": "Đơn có tối đa 5 bằng chứng, tính cả tệp và liên kết.",
+        "PROOF_FILE_UNKNOWN": "Một tệp bằng chứng không còn trong đơn. Hãy tải lại trang rồi thêm lại tệp.",
+        "tooMany": "Hôm nay bạn đã gửi đủ 10 đơn xin vào nhóm. Bạn có thể gửi tiếp sau {time}.",
+        "busyElsewhere": "Với vai trò thành viên nhóm, mỗi lúc bạn chỉ tham gia một công việc đang chạy."
+      }
     }
   },
   "notice": {
@@ -4124,7 +4224,9 @@
     "matching": {
       "choose_assignee": "Chọn người hướng dẫn ({n} đơn ứng tuyển)",
       "sign_nda": "Ký cam kết bảo mật cho {job}",
-      "answer_invitation_to_apply": "Xem lời mời ứng tuyển cho {job}"
+      "answer_invitation_to_apply": "Xem lời mời ứng tuyển cho {job}",
+      "open_crew_recruitment": "Mở tuyển thành viên nhóm cho {job}",
+      "review_crew_applications": "Xem {n} đơn xin vào nhóm cho {job}"
     },
     "job": {
       "draft_agreement": "Soạn thỏa thuận cho {job}",
@@ -4473,6 +4575,24 @@
       },
       "invited_to_apply": {
         "title": "Khách hàng đã mời bạn ứng tuyển {job}"
+      },
+      "crew_application_received": {
+        "title": "{name} xin vào nhóm thực hiện {job}"
+      },
+      "crew_application_declined": {
+        "title": "Đơn xin vào nhóm {job} chưa được chọn"
+      },
+      "crew_application_lapsed": {
+        "title": "Đơn xin vào nhóm {job} đã hết hạn: {cause}",
+        "cause": {
+          "EXPIRED": "người hướng dẫn chưa chọn trong thời hạn",
+          "RECRUITMENT_CLOSED": "người hướng dẫn đã ngừng nhận đơn xin vào nhóm",
+          "JOB_CLOSING": "công việc đã chuyển sang giai đoạn kết thúc",
+          "JOB_CANCELLED": "công việc đã bị hủy"
+        }
+      },
+      "crew_application_auto_withdrawn": {
+        "title": "Đơn xin vào nhóm của {name} cho {job} đã được rút vì người này hiện không nhận việc"
       }
     },
     "chat": {
@@ -4774,7 +4894,11 @@
       "EXTERNAL_ACCESS_CLOSED": "Công việc đã kết thúc, không cần gửi tài khoản nữa.",
       "MILESTONE_NOT_HELD": "Phần chia giai đoạn này không còn khiếu nại được: giai đoạn chưa được thanh toán hoặc đã chuyển tiền.",
       "DEADLINE_NOT_PASSED": "Bạn tự hủy được khi thỏa thuận chưa xác nhận sau 14 ngày hoặc công việc chưa bắt đầu sau 7 ngày.",
-      "NO_TOP_UP": "Không có yêu cầu thay đổi nào đang chờ thanh toán thêm."
+      "NO_TOP_UP": "Không có yêu cầu thay đổi nào đang chờ thanh toán thêm.",
+      "RECRUITMENT_UNAVAILABLE": "chỉ tuyển thành viên được khi công việc đang thống nhất, chuẩn bị bắt đầu hoặc đang thực hiện",
+      "SLOTS_INVALID": "Số người cần thêm phải từ 1 đến {max}.",
+      "RECRUITMENT_CLOSED": "Người hướng dẫn đang không nhận đơn xin vào nhóm.",
+      "CREW_FULL": "Nhóm thực hiện đã đủ {n} người."
     },
     "matching": {
       "JOB_POST_NOT_OPEN": "công việc không còn nhận chào giá",
@@ -4797,7 +4921,13 @@
       "PROFILE_REQUIRED": "Hãy đặt tên hiển thị trong hồ sơ trước khi chào giá, để khách hàng biết ai đang chào giá.",
       "PROOF_LIMIT": "Đơn chào giá có tối đa 5 bằng chứng, tính cả tệp và liên kết.",
       "LINK_INVALID": "Liên kết phải bắt đầu bằng https:// và có tên trang, ví dụ https://vi-du.vn/bai-viet.",
-      "PROOF_FILE_UNKNOWN": "Một tệp bằng chứng không còn trong đơn. Hãy tải lại trang rồi thêm lại tệp."
+      "PROOF_FILE_UNKNOWN": "Một tệp bằng chứng không còn trong đơn. Hãy tải lại trang rồi thêm lại tệp.",
+      "RECRUITMENT_CLOSED": "Người hướng dẫn đang không nhận đơn xin vào nhóm.",
+      "CREW_FULL": "Nhóm thực hiện đã đủ {n} người.",
+      "CREW_REJOIN_REFUSED": "Bạn đã rời công việc này nên không xin vào lại được.",
+      "ON_ANOTHER_CREW": "Bạn đang tham gia {job}. Với vai trò thành viên nhóm, mỗi lúc bạn chỉ tham gia một công việc đang chạy.",
+      "ROLE_IN_JOB_TAKEN": "Bạn là {role} của công việc này. Mỗi người chỉ giữ một vai trong một công việc.",
+      "NOT_DECLINABLE": "Đơn này không còn chờ bạn xem."
     },
     "chat": {
       "SENSITIVE_CONTENT": "Tin nhắn có thể chứa khóa bí mật hoặc dữ liệu khách hàng.",

@@ -456,6 +456,11 @@ final class CrewJobWorld {
 		world.put("membershipId", UUID.randomUUID());
 	}
 
+	/** The Mentor of this Job and of every fixture Job that has one. */
+	UUID mentor() {
+		return this.mentor;
+	}
+
 	Optional<RequestPostProcessor> realize(MatrixCaller caller) {
 		return switch (caller) {
 			case MENTOR -> signedIn(this.mentor, Role.MENTOR);

@@ -3208,3 +3208,155 @@ POST /api/v1/admin/skill-suggestions/{suggestionId}/decline,USER,,admin-skill-su
 POST /api/v1/admin/skill-suggestions/{suggestionId}/decline,CUSTOMER,,admin-skill-suggestion-decline.json,404 NOT_FOUND
 POST /api/v1/admin/skill-suggestions/{suggestionId}/decline,CROSS_ROLE,,admin-skill-suggestion-decline.json,404 NOT_FOUND
 POST /api/v1/admin/skill-suggestions/{suggestionId}/decline,ADMINISTRATOR,,admin-skill-suggestion-decline.json,200
+
+# Story 21.4: Crew recruitment and Crew Applications (FR-81, AD-20, AD-43). job=recruit and post=recruit name the recruiting
+# Job, an Agreement Job of the Customer whose Mentor is MENTOR, recruiting one place, with CREW_APPLICANT's pending
+# application {crewApplicationId} (its note and proof are the CREW_APPLICATION_* canaries). JOB-9 (the recruitment and the
+# Applicant cards) is the Mentor's alone: the Customer finds nothing on either Job, and so does every other caller. Every
+# row naming {crewApplicationId} runs on the recruiting Job. Sending refuses the Customer and the Mentor (ROLE_TAKEN), a
+# member of another running Crew (ON_ANOTHER_CREW, X8), and the applicant's second application (ALREADY_APPLIED); anyone
+# else reaches the contributor read, which fails closed in the matrix (no Customer token is kept: CONTRIBUTORS_UNKNOWN).
+GET /api/v1/mentor/jobs/{jobId}/recruitment,ANONYMOUS,,,401,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/recruitment,USER_UNVERIFIED,job=crew,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/recruitment,USER,job=crew,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/recruitment,LOCKED,job=crew,,401,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/recruitment,CUSTOMER,job=crew,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/recruitment,CUSTOMER,job=recruit,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/recruitment,MENTOR,job=recruit,,200,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/recruitment,BIDDER,job=crew,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/recruitment,CREW_ASSIGNED,job=crew,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/recruitment,CREW_ACTIVE,job=crew,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/recruitment,CREW_FORMER,job=crew,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/recruitment,CROSS_ROLE,job=crew,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/recruitment,ADMINISTRATOR,job=crew,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/recruitment,CREW_APPLICANT,job=recruit,,404 NOT_FOUND,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/recruitment,ANONYMOUS,,recruitment.json,401,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/recruitment,USER_UNVERIFIED,job=crew,recruitment.json,404 NOT_FOUND,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/recruitment,USER,job=crew,recruitment.json,404 NOT_FOUND,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/recruitment,LOCKED,job=crew,recruitment.json,401,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/recruitment,CUSTOMER,job=crew,recruitment.json,404 NOT_FOUND,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/recruitment,MENTOR,job=recruit,recruitment.json,200,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/recruitment,BIDDER,job=crew,recruitment.json,404 NOT_FOUND,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/recruitment,CREW_ASSIGNED,job=crew,recruitment.json,404 NOT_FOUND,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/recruitment,CREW_ACTIVE,job=crew,recruitment.json,404 NOT_FOUND,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/recruitment,CREW_FORMER,job=crew,recruitment.json,404 NOT_FOUND,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/recruitment,CROSS_ROLE,job=crew,recruitment.json,404 NOT_FOUND,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/recruitment,ADMINISTRATOR,job=crew,recruitment.json,404 NOT_FOUND,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/recruitment,CREW_APPLICANT,job=recruit,recruitment.json,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/crew-applications,ANONYMOUS,,,401,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/crew-applications,USER_UNVERIFIED,job=crew,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/crew-applications,USER,job=crew,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/crew-applications,LOCKED,job=crew,,401,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/crew-applications,CUSTOMER,job=crew,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/crew-applications,CUSTOMER,job=recruit,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/crew-applications,MENTOR,job=recruit,,200,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/crew-applications,BIDDER,job=crew,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/crew-applications,CREW_ASSIGNED,job=crew,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/crew-applications,CREW_ACTIVE,job=crew,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/crew-applications,CREW_FORMER,job=crew,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/crew-applications,CROSS_ROLE,job=crew,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/crew-applications,ADMINISTRATOR,job=crew,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/crew-applications,CREW_APPLICANT,job=recruit,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/decline,ANONYMOUS,job=recruit,,401,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/decline,USER_UNVERIFIED,job=recruit,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/decline,USER,job=recruit,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/decline,LOCKED,job=recruit,,401,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/decline,CUSTOMER,job=recruit,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/decline,MENTOR,job=recruit,,204,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/decline,BIDDER,job=recruit,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/decline,CREW_ASSIGNED,job=recruit,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/decline,CREW_ACTIVE,job=recruit,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/decline,CREW_FORMER,job=recruit,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/decline,CROSS_ROLE,job=recruit,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/decline,ADMINISTRATOR,job=recruit,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/decline,CREW_APPLICANT,job=recruit,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/job-posts/{postId}/crew-applications,ANONYMOUS,post=recruit,crew-application.json,401,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/crew-applications,USER_UNVERIFIED,post=recruit,crew-application.json,403 FORBIDDEN GITHUB_NOT_LINKED,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/crew-applications,USER,post=recruit,crew-application.json,422 GUARD_FAILED CONTRIBUTORS_UNKNOWN,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/crew-applications,LOCKED,post=recruit,crew-application.json,401,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/crew-applications,CUSTOMER,post=recruit,crew-application.json,422 GUARD_FAILED ROLE_TAKEN,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/crew-applications,MENTOR,post=recruit,crew-application.json,422 GUARD_FAILED ROLE_TAKEN,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/crew-applications,BIDDER,post=recruit,crew-application.json,422 GUARD_FAILED CONTRIBUTORS_UNKNOWN,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/crew-applications,CREW_ASSIGNED,post=recruit,crew-application.json,422 GUARD_FAILED ON_ANOTHER_CREW,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/crew-applications,CREW_ACTIVE,post=recruit,crew-application.json,422 GUARD_FAILED ON_ANOTHER_CREW,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/crew-applications,CREW_FORMER,post=recruit,crew-application.json,422 GUARD_FAILED CONTRIBUTORS_UNKNOWN,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/crew-applications,CROSS_ROLE,post=recruit,crew-application.json,422 GUARD_FAILED ON_ANOTHER_CREW,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/crew-applications,ADMINISTRATOR,post=recruit,crew-application.json,404 NOT_FOUND,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/crew-applications,CREW_APPLICANT,post=recruit,crew-application.json,409 CONFLICT ALREADY_APPLIED,requireGitHubLinked
+GET /api/v1/mentor/crew-applications,ANONYMOUS,,,401,requireActiveAccount
+GET /api/v1/mentor/crew-applications,USER_UNVERIFIED,,,200,requireActiveAccount
+GET /api/v1/mentor/crew-applications,USER,,,200,requireActiveAccount
+GET /api/v1/mentor/crew-applications,CUSTOMER,,,200,requireActiveAccount
+GET /api/v1/mentor/crew-applications,MENTOR,,,200,requireActiveAccount
+GET /api/v1/mentor/crew-applications,ADMINISTRATOR,,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/crew-applications,CREW_APPLICANT,,,200,requireActiveAccount
+POST /api/v1/mentor/crew-applications/{crewApplicationId}/withdraw,ANONYMOUS,,,401,requireActiveAccount
+POST /api/v1/mentor/crew-applications/{crewApplicationId}/withdraw,USER_UNVERIFIED,,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/crew-applications/{crewApplicationId}/withdraw,USER,,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/crew-applications/{crewApplicationId}/withdraw,LOCKED,,,401,requireActiveAccount
+POST /api/v1/mentor/crew-applications/{crewApplicationId}/withdraw,CUSTOMER,,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/crew-applications/{crewApplicationId}/withdraw,MENTOR,,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/crew-applications/{crewApplicationId}/withdraw,BIDDER,,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/crew-applications/{crewApplicationId}/withdraw,CREW_ASSIGNED,,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/crew-applications/{crewApplicationId}/withdraw,CREW_ACTIVE,,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/crew-applications/{crewApplicationId}/withdraw,CREW_FORMER,,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/crew-applications/{crewApplicationId}/withdraw,CROSS_ROLE,,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/crew-applications/{crewApplicationId}/withdraw,ADMINISTRATOR,,,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/crew-applications/{crewApplicationId}/withdraw,CREW_APPLICANT,,,200,requireActiveAccount
+# FND-2's proof files: a user with GitHub linked uploads a PDF or an image for their application to the recruiting Job
+# (post=recruit); the Customer and the Mentor hold a role there, and the applicant already applied; each user lists
+# their own waiting uploads, and only the applicant removes theirs (file=crew-proof-upload).
+POST /api/v1/mentor/job-posts/{postId}/crew-application-files,ANONYMOUS,post=recruit,proof.pdf,401,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/crew-application-files,USER_UNVERIFIED,post=recruit,proof.pdf,403 FORBIDDEN GITHUB_NOT_LINKED,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/crew-application-files,USER,post=recruit,proof.pdf,201,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/crew-application-files,LOCKED,post=recruit,proof.pdf,401,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/crew-application-files,CUSTOMER,post=recruit,proof.pdf,422 GUARD_FAILED ROLE_TAKEN,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/crew-application-files,MENTOR,post=recruit,proof.pdf,422 GUARD_FAILED ROLE_TAKEN,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/crew-application-files,BIDDER,post=recruit,proof.pdf,201,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/crew-application-files,CREW_ASSIGNED,post=recruit,proof.pdf,201,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/crew-application-files,CREW_ACTIVE,post=recruit,proof.pdf,201,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/crew-application-files,CREW_FORMER,post=recruit,proof.pdf,201,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/crew-application-files,CROSS_ROLE,post=recruit,proof.pdf,201,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/crew-application-files,ADMINISTRATOR,post=recruit,proof.pdf,404 NOT_FOUND,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/crew-application-files,CREW_APPLICANT,post=recruit,proof.pdf,409 CONFLICT ALREADY_APPLIED,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/crew-application-files,ANONYMOUS,post=recruit,,401,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/crew-application-files,USER_UNVERIFIED,post=recruit,,403 FORBIDDEN GITHUB_NOT_LINKED,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/crew-application-files,USER,post=recruit,,200,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/crew-application-files,LOCKED,post=recruit,,401,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/crew-application-files,CUSTOMER,post=recruit,,200,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/crew-application-files,MENTOR,post=recruit,,200,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/crew-application-files,BIDDER,post=recruit,,200,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/crew-application-files,CREW_ASSIGNED,post=recruit,,200,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/crew-application-files,CREW_ACTIVE,post=recruit,,200,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/crew-application-files,CREW_FORMER,post=recruit,,200,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/crew-application-files,CROSS_ROLE,post=recruit,,200,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/crew-application-files,ADMINISTRATOR,post=recruit,,404 NOT_FOUND,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/crew-application-files,CREW_APPLICANT,post=recruit,,200,requireGitHubLinked
+DELETE /api/v1/mentor/job-posts/{postId}/crew-application-files/{fileId},ANONYMOUS,file=crew-proof-upload;post=recruit,,401,requireActiveAccount
+DELETE /api/v1/mentor/job-posts/{postId}/crew-application-files/{fileId},USER_UNVERIFIED,file=crew-proof-upload;post=recruit,,404 NOT_FOUND,requireActiveAccount
+DELETE /api/v1/mentor/job-posts/{postId}/crew-application-files/{fileId},USER,file=crew-proof-upload;post=recruit,,404 NOT_FOUND,requireActiveAccount
+DELETE /api/v1/mentor/job-posts/{postId}/crew-application-files/{fileId},LOCKED,file=crew-proof-upload;post=recruit,,401,requireActiveAccount
+DELETE /api/v1/mentor/job-posts/{postId}/crew-application-files/{fileId},CUSTOMER,file=crew-proof-upload;post=recruit,,404 NOT_FOUND,requireActiveAccount
+DELETE /api/v1/mentor/job-posts/{postId}/crew-application-files/{fileId},MENTOR,file=crew-proof-upload;post=recruit,,404 NOT_FOUND,requireActiveAccount
+DELETE /api/v1/mentor/job-posts/{postId}/crew-application-files/{fileId},BIDDER,file=crew-proof-upload;post=recruit,,404 NOT_FOUND,requireActiveAccount
+DELETE /api/v1/mentor/job-posts/{postId}/crew-application-files/{fileId},CREW_ASSIGNED,file=crew-proof-upload;post=recruit,,404 NOT_FOUND,requireActiveAccount
+DELETE /api/v1/mentor/job-posts/{postId}/crew-application-files/{fileId},CREW_ACTIVE,file=crew-proof-upload;post=recruit,,404 NOT_FOUND,requireActiveAccount
+DELETE /api/v1/mentor/job-posts/{postId}/crew-application-files/{fileId},CREW_FORMER,file=crew-proof-upload;post=recruit,,404 NOT_FOUND,requireActiveAccount
+DELETE /api/v1/mentor/job-posts/{postId}/crew-application-files/{fileId},CROSS_ROLE,file=crew-proof-upload;post=recruit,,404 NOT_FOUND,requireActiveAccount
+DELETE /api/v1/mentor/job-posts/{postId}/crew-application-files/{fileId},ADMINISTRATOR,file=crew-proof-upload;post=recruit,,404 NOT_FOUND,requireActiveAccount
+DELETE /api/v1/mentor/job-posts/{postId}/crew-application-files/{fileId},CREW_APPLICANT,file=crew-proof-upload;post=recruit,,204,requireActiveAccount
+# file=crew-proof, the recruiting Job's Crew Application proof file (CrewApplicationProofFiles, Story 21.4, AD-20): the
+# applicant and the Job's Mentor read it, nobody else, the Customer and every Administrator grant included.
+GET /api/v1/files/{fileId},ANONYMOUS,file=crew-proof,,401
+GET /api/v1/files/{fileId},USER,file=crew-proof,,404 NOT_FOUND
+GET /api/v1/files/{fileId},CUSTOMER,file=crew-proof,,404 NOT_FOUND
+GET /api/v1/files/{fileId},MENTOR,file=crew-proof,,200
+GET /api/v1/files/{fileId},CREW_APPLICANT,file=crew-proof,,200
+GET /api/v1/files/{fileId},CREW_ASSIGNED,file=crew-proof,,404 NOT_FOUND
+GET /api/v1/files/{fileId},CREW_ACTIVE,file=crew-proof,,404 NOT_FOUND
+GET /api/v1/files/{fileId},CREW_FORMER,file=crew-proof,,404 NOT_FOUND
+GET /api/v1/files/{fileId},CROSS_ROLE,file=crew-proof,,404 NOT_FOUND
+GET /api/v1/files/{fileId},ADMINISTRATOR,file=crew-proof,,404 NOT_FOUND
+GET /api/v1/files/{fileId},ADMIN_DISPUTE_GRANT,file=crew-proof,,404 NOT_FOUND
+GET /api/v1/files/{fileId},ADMIN_TEAM_ISSUE_GRANT,file=crew-proof,,404 NOT_FOUND
+GET /api/v1/files/{fileId},ADMIN_ABUSE_REPORT_GRANT,file=crew-proof,,404 NOT_FOUND

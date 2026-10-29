@@ -8,6 +8,8 @@ import { buttonVariants } from '@/components/ui/button-variants'
 import { AssignmentPanel, JoinedCard } from '@/features/crew/CrewAssignmentCards'
 import { useCrewAssignments } from '@/features/crew/crewApi'
 import { useMyApplications, type Application, type ApplicationStatus } from '@/features/matching/applicationApi'
+import { useMyCrewApplications, type CrewApplication } from '@/features/matching/crewApplicationApi'
+import { crewApplicationStateText } from '@/features/matching/crewText'
 import type { TodoItem } from '@/features/notification/api'
 import { useTodos } from '@/features/notification/hooks'
 import { TeamIssueSection } from '@/features/teamIssue/TeamIssueSection'
@@ -35,40 +37,46 @@ const PENDING: ApplicationStatus[] = ['SUBMITTED', 'SELECTED', 'ON_HOLD']
  * CUS-7 "Công việc" (`/cong-viec`, FR-9, UX-DR66, UX-DR86, Story 20.6), the one list of every Job the user holds a
  * role in, which MEN-4 and STU-4 merged into: the Toggle Group "Việc tôi đăng" · "Việc tôi hướng dẫn" · "Việc tôi
  * tham gia". Each segment counts its open to-dos, a to-do counting for the role it carries or else for the user's
- * role in its Job, and "Việc tôi hướng dẫn" also counts the pending bids. A segment with nothing is hidden, and so is
- * the control when one is left; "Việc tôi hướng dẫn" shows while the user mentors a Job or has any bid, closed ones
- * included. The URL keeps the segment (`?vai-tro=`); without one, the segment of the most urgent to-do opens, once
- * the to-dos are read. "Việc tôi tham gia" lists the running Jobs and then the past ones, those left included. With
- * no Job and no bid, "Bạn chưa có công việc nào." leads to "Tìm việc". Nothing shows until the Jobs and the bids
- * are read, and a failed read shows its error.
+ * role in its Job, "Việc tôi hướng dẫn" also counts the pending bids, and "Việc tôi tham gia" the pending Crew
+ * Applications (Story 21.4). A segment with nothing is hidden, and so is the control when one is left; "Việc tôi hướng
+ * dẫn" shows while the user mentors a Job or has any bid, closed ones included, and "Việc tôi tham gia" while they are
+ * on a Crew or have any Crew Application. The URL keeps the segment (`?vai-tro=`); without one, the segment of the most
+ * urgent to-do opens, once the to-dos are read. "Việc tôi tham gia" lists the Crew Applications with their state, the
+ * running Jobs and then the past ones, those left included. With no Job, no bid and no Crew Application, "Bạn chưa có
+ * công việc nào." leads to "Tìm việc". Nothing shows until the Jobs, the bids and the Crew Applications are read, and
+ * a failed read shows its error.
  */
 export function JobsPage() {
   usePageTitle(t('screen.job.title'))
   const mine = useMyJobs()
   const bids = useMyApplications()
+  const crew = useMyCrewApplications()
   const both = {
-    isPending: mine.isPending || bids.isPending,
-    isError: mine.isError || bids.isError,
-    error: mine.error ?? bids.error,
-    refetch: () => Promise.all([mine.refetch(), bids.refetch()]),
+    isPending: mine.isPending || bids.isPending || crew.isPending,
+    isError: mine.isError || bids.isError || crew.isError,
+    error: mine.error ?? bids.error ?? crew.error,
+    refetch: () => Promise.all([mine.refetch(), bids.refetch(), crew.refetch()]),
   }
   return (
     <div className="mx-auto flex max-w-[920px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
       <PageHeading>{t('screen.job.heading')}</PageHeading>
       <RegionState query={both} skeleton={<Skeleton className="h-48 w-full" />}>
-        {mine.data && bids.data && <Segments jobs={mine.data} bids={bids.data} />}
+        {mine.data && bids.data && crew.data && <Segments jobs={mine.data} bids={bids.data} crew={crew.data} />}
       </RegionState>
     </div>
   )
 }
 
-function Segments({ jobs, bids }: { jobs: MyJob[]; bids: Application[] }) {
+function Segments({ jobs, bids, crew }: { jobs: MyJob[]; bids: Application[]; crew: CrewApplication[] }) {
   const todoQuery = useTodos()
   const todos = todoQuery.data?.items ?? []
   const [params, setParams] = useSearchParams()
   const pending = bids.filter((bid) => PENDING.includes(bid.status))
   const shown = SEGMENTS.filter(
-    (segment) => jobs.some((job) => job.role === ROLE_OF[segment]) || (segment === 'huong-dan' && bids.length > 0),
+    (segment) =>
+      jobs.some((job) => job.role === ROLE_OF[segment]) ||
+      (segment === 'huong-dan' && bids.length > 0) ||
+      (segment === 'tham-gia' && crew.length > 0),
   )
   if (shown.length === 0) {
     return (
@@ -90,6 +98,7 @@ function Segments({ jobs, bids }: { jobs: MyJob[]; bids: Application[] }) {
     SEGMENTS.map((segment) => [segment, todos.filter((todo) => segmentOf(todo) === segment).length]),
   ) as Record<Segment, number>
   counts['huong-dan'] += pending.length
+  counts['tham-gia'] += crew.filter((application) => application.status === 'PENDING').length
   const asked = params.get('vai-tro') as Segment | null
   const chosen = asked !== null && shown.includes(asked)
   if (!chosen && todoQuery.isPending) {
@@ -129,7 +138,7 @@ function Segments({ jobs, bids }: { jobs: MyJob[]; bids: Application[] }) {
       )}
       {current === 'dang' && <PostedJobs />}
       {current === 'huong-dan' && <MentoredJobs jobs={jobs.filter((job) => job.role === 'MENTOR')} bids={bids} />}
-      {current === 'tham-gia' && <JoinedJobs jobs={jobs.filter((job) => job.role === 'CREW')} />}
+      {current === 'tham-gia' && <JoinedJobs jobs={jobs.filter((job) => job.role === 'CREW')} crew={crew} />}
     </>
   )
 }
@@ -283,11 +292,12 @@ function BidGroupSection({ group, items }: { group: BidGroup; items: Application
 }
 
 /**
- * "Việc tôi tham gia" (formerly STU-4, FR-75, AD-41, UX-DR60): a pick waiting for the user shows the Crew
- * assignment panel and a confirmed one its card; then the past Jobs, those left included, a Job left before it
- * ended marked "· đã rời"; then the internal complaints (FR-79).
+ * "Việc tôi tham gia" (formerly STU-4, FR-75, AD-41, UX-DR60, UX-DR86): the user's Crew Applications, each with its
+ * state and a link to its Job Post (Story 21.4); a pick waiting for the user shows the Crew assignment panel and a
+ * confirmed one its card; then the past Jobs, those left included, a Job left before it ended marked "· đã rời"; then
+ * the internal complaints (FR-79).
  */
-function JoinedJobs({ jobs }: { jobs: MyJob[] }) {
+function JoinedJobs({ jobs, crew }: { jobs: MyJob[]; crew: CrewApplication[] }) {
   const assignments = useCrewAssignments()
   // Story 11.3: an active member asked to confirm a waiting Crew change sees its version here too.
   const waiting = assignments.data?.filter((assignment) => assignment.status === 'ASSIGNED' || assignment.changeWaiting) ?? []
@@ -295,6 +305,34 @@ function JoinedJobs({ jobs }: { jobs: MyJob[] }) {
   const past = jobs.filter((job) => job.crewKind === 'FORMER')
   return (
     <>
+      {crew.length > 0 && (
+        <section aria-labelledby="crew-applications" className="flex flex-col gap-2">
+          <h2 id="crew-applications" className="text-h2">
+            {t('screen.job.segments.applicationsTitle')}{' '}
+            <span className="font-normal text-muted-foreground">· {crew.length}</span>
+          </h2>
+          <ul className="flex flex-col divide-y divide-border rounded-lg border border-border bg-card">
+            {crew.map((application) => (
+              <li key={application.id}>
+                <Link
+                  to={`/tim-viec/${application.jobId}`}
+                  className="flex flex-wrap items-center gap-3 px-4 py-3 text-inherit no-underline hover:bg-muted/50"
+                >
+                  <span className="flex min-w-60 grow flex-col gap-0.5">
+                    <span className="text-label font-semibold break-words">{application.jobTitle}</span>
+                    <span className="text-caption text-muted-foreground">
+                      {t('screen.matching.list.sent', { date: formatDayMonth(application.submittedAt) })}
+                    </span>
+                  </span>
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-caption font-semibold">
+                    {crewApplicationStateText(application)}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <RegionState query={assignments} skeleton={<Skeleton className="h-48 w-full" />}>
         {waiting.map((assignment) => (
           <AssignmentPanel key={`${assignment.jobId}-${assignment.versionNo}`} assignment={assignment} />

@@ -133,6 +133,11 @@ export const routes: RouteObject[] = [
         lazy: async () => ({ Component: (await import('@/features/payment/JobPaymentPage')).JobPaymentPage }),
       },
       {
+        // JOB-9 "Tuyển thành viên" (UX-DR102, Story 21.4): the Job's Mentor only; anyone else gets the not-found screen.
+        path: 'cong-viec/:jobId/tuyen-thanh-vien',
+        lazy: async () => ({ Component: (await import('@/features/matching/RecruitmentPage')).RecruitmentPage }),
+      },
+      {
         path: 'cong-viec/:jobId/tim-nguoi',
         lazy: async () => ({ Component: (await import('@/features/matching/MentorSearchPage')).MentorSearchPage }),
       },
@@ -173,6 +178,24 @@ export const routes: RouteObject[] = [
       {
         index: true,
         lazy: async () => ({ Component: (await import('@/features/matching/BidFormPage')).BidFormPage }),
+      },
+    ],
+  },
+  {
+    // FND-2 "Xin vào nhóm", a focused task route (UX-DR103) that "Đóng" leaves for MEN-3, the Job it applies to.
+    path: 'tim-viec/:postId/xin-vao-nhom',
+    lazy: async () => {
+      const [{ FocusedLayout }, { t }] = await Promise.all([import('./FocusedLayout'), import('@/i18n/t')])
+      return {
+        element: (
+          <FocusedLayout title={t('screen.crewApply.title')} closeTo={(params) => `/tim-viec/${params.postId ?? ''}`} />
+        ),
+      }
+    },
+    children: [
+      {
+        index: true,
+        lazy: async () => ({ Component: (await import('@/features/matching/CrewApplyPage')).CrewApplyPage }),
       },
     ],
   },

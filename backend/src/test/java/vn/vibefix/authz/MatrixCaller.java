@@ -8,8 +8,8 @@ package vn.vibefix.authz;
  * account check as a real one (AD-19): an Administrator signs in through a stored session, and a person's request
  * carries its authentication itself ({@code IdentityTestSupport.signedIn}); the harness-only {@link #AUTHOR} has no
  * account row, its caller set directly. No caller is an account role: rights inside a Job come only from the role in
- * that Job (AD-43). {@code CREW_APPLICANT} and the split-party variants of {@link #CREW_ACTIVE} and
- * {@link #CREW_FORMER} arrive with Stories 21.4 and 22.1, which add their endpoints (readiness C-8).
+ * that Job (AD-43). {@link #CREW_APPLICANT} came with Story 21.4, and the split-party variants of {@link #CREW_ACTIVE}
+ * and {@link #CREW_FORMER} arrive with Story 22.1, which adds their endpoints (readiness C-8).
  */
 public enum MatrixCaller {
 
@@ -39,6 +39,12 @@ public enum MatrixCaller {
 
 	/** The applicant of {@code {applicationId}}: an open bid on the Open Job Post, a subject relation, not a role. */
 	BIDDER,
+
+	/**
+	 * The applicant of {@code {crewApplicationId}}: a pending Crew Application on the recruiting Job, a subject relation,
+	 * not a role (Story 21.4). They and the Job's Mentor alone read it and its proof (AD-20).
+	 */
+	CREW_APPLICANT,
 
 	/** A Crew member of the crew Job whose row is {@code ASSIGNED}: picked, not signed (AD-41). */
 	CREW_ASSIGNED,
