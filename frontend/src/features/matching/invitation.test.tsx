@@ -228,8 +228,9 @@ describe('CUS-8 "Tìm người hướng dẫn" (FR-14)', () => {
             timelineDays: 6,
             approach: 'Kiểm tra quyền truy cập.',
             submittedAt: '2026-10-16T03:00:00Z',
-            mentor: { displayName: 'Trần Đức Long', githubLogin: 'longtd', yearsOfExperience: 10, teamSize: 9 },
+            mentor: { displayName: 'Trần Đức Long', githubLogin: 'longtd', yearsOfExperience: 10 },
             invited: true,
+            proof: [],
           },
         ]),
       'GET /api/v1/mentors/longtd/reputation': () => json({ count: 0, newcomer: true, portfolio: [] }),
@@ -271,8 +272,7 @@ describe('MEN-3 with an invitation (FR-14)', () => {
       'GET /api/v1/mentor/job-posts/j1': () => json(post),
       'GET /api/v1/mentor/job-posts/j1/invitation': () => json(invitation('OPEN')),
       'GET /api/v1/mentor/job-posts/j1/customer-rating': () => json({ count: 0 }),
-      'GET /api/v1/mentor/capacity': () =>
-        json({ teamSize: 6, freeStudents: 2, activeJobs: 0, jobLimit: 3, reasons: [] }),
+      'GET /api/v1/mentor/capacity': () => json({ activeJobs: 0, jobLimit: 3, reasons: [] }),
       'GET /api/v1/mentor/applications': () => json([]),
     })
     renderAt('/tim-viec/j1')

@@ -4,27 +4,34 @@ import java.sql.Timestamp;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationContext;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.session.Session;
 import org.springframework.session.SessionRepository;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import vn.vibefix.authz.Canaries;
 import vn.vibefix.authz.JobContent;
 import vn.vibefix.authz.MatrixCaller;
 import vn.vibefix.authz.MatrixFixture;
 import vn.vibefix.authz.MatrixWorld;
+import vn.vibefix.files.FileKind;
+import vn.vibefix.files.FileUpload;
 import vn.vibefix.files.StoredFiles;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.shared.AdminReadGrants;
 import vn.vibefix.support.MutableClock;
+import vn.vibefix.support.TestFiles;
 import vn.vibefix.team.internal.TeamTestSupport;
 
 /**
@@ -32,7 +39,10 @@ import vn.vibefix.team.internal.TeamTestSupport;
  * {@link MatrixCaller#CUSTOMER}, the Customer of every fixture Job, with one open credential Finding of its intake
  * scan ({@code {findingId}}) that the Customer resolves, one Draft Job ({@code {jobId}}) holding a screenshot
  * ({@code {screenshotId}}), and one Open Job Post ({@code {postId}}) with the open bid ({@code {applicationId}}) of
- * {@link MatrixCaller#BIDDER}, a Mentor with a profile, whom the Customer invited before the bid. The Customer's profile ({@code {customerId}}) holds the
+ * {@link MatrixCaller#BIDDER}, a Mentor with a profile, whom the Customer invited before the bid. The bid carries proof
+ * (Story 21.2): a stored file ({@code file=proof}) captioned with the {@code BID_PROOF_CAPTION} canary and the link
+ * {@code BID_PROOF_LINK}, which only the Bidder and the Customer read; the Bidder also has a proof upload no bid took
+ * ({@code file=proof-upload}), theirs alone. The Customer's profile ({@code {customerId}}) holds the
  * {@code CONTACT_EMAIL} canary as its contact email. Only the Customer and Administrators read the Product; only the Customer reads the
  * Draft and the bids, and any user with GitHub linked reads the Job Post. An Active Job of the same Product carries
  * the Crew and its content ({@link CrewJobWorld}).
@@ -45,6 +55,10 @@ public class ProductFixture implements MatrixFixture {
 
 	private final CrewJobWorld crewJob;
 
+	private final StoredFiles files;
+
+	private final PlatformTransactionManager transactionManager;
+
 	private UUID owner;
 
 	private UUID bidder;
@@ -54,6 +68,8 @@ public class ProductFixture implements MatrixFixture {
 		this.jdbc = jdbc;
 		this.sessions = sessions;
 		this.crewJob = new CrewJobWorld(jdbc, sessions, grants, files, transactionManager, context);
+		this.files = files;
+		this.transactionManager = transactionManager;
 	}
 
 	@Override
@@ -148,6 +164,15 @@ public class ProductFixture implements MatrixFixture {
 			.param("now", now)
 			.update();
 		world.put("applicationId", application);
+		// The bid's proof (Story 21.2): a stored file and a link, each captioned; and an upload no bid took yet.
+		Canaries canaries = Canaries.load();
+		UUID proofFile = proofFile(this.bidder, "bang-chung.pdf");
+		insertProof(application, post, product, 1, "FILE", proofFile, null, canaries.get("BID_PROOF_CAPTION").value(), now);
+		insertProof(application, post, product, 2, "LINK", null, canaries.get("BID_PROOF_LINK").value(), "Liên kết", now);
+		world.put("proofFileId", proofFile);
+		UUID upload = proofFile(this.bidder, "cho-gui.pdf");
+		insertProof(null, post, product, null, "FILE", upload, null, null, now);
+		world.put("proofUploadId", upload);
 		// The Customer invited the Bidder a day before the bid, which answered it (FR-14): the invitation is theirs.
 		this.jdbc.sql("""
 				INSERT INTO matching.invitation (id, job_id, product_id, customer_account_id, mentor_account_id, status,
@@ -165,6 +190,36 @@ public class ProductFixture implements MatrixFixture {
 		// {crewRowId}, {milestoneId}, {paymentOrderId} and {accessId} name the crew Job's own objects (CrewJobWorld),
 		// whose rows bind {jobId} to it: the Draft has none of them.
 		this.crewJob.seed(world, this.owner, product);
+	}
+
+	/** A proof file of the account, stored through {@code files} as an upload of {@code matching.bid_proof}. */
+	private UUID proofFile(UUID account, String fileName) {
+		var prepared = this.files.prepare(new FileUpload("matching.bid_proof", account, fileName, TestFiles.pdf(),
+				Set.of(FileKind.PDF)));
+		return Objects.requireNonNull(new TransactionTemplate(this.transactionManager)
+			.execute(status -> this.files.store(prepared).id()));
+	}
+
+	private void insertProof(@Nullable UUID application, UUID post, UUID product, @Nullable Integer position, String kind,
+			@Nullable UUID file, @Nullable String url, @Nullable String caption, Timestamp now) {
+		this.jdbc.sql("""
+				INSERT INTO matching.bid_proof (id, application_id, job_id, product_id, bidder_account_id, position, kind,
+				    file_id, file_name, size_bytes, url, caption, added_at)
+				VALUES (:id, :application, :job, :product, :bidder, :position, :kind, :file,
+				    CASE WHEN :kind = 'FILE' THEN 'bang-chung.pdf' END, CASE WHEN :kind = 'FILE' THEN 100 END, :url, :caption, :now)
+				""")
+			.param("id", UUID.randomUUID())
+			.param("application", application)
+			.param("job", post)
+			.param("product", product)
+			.param("bidder", this.bidder)
+			.param("position", position)
+			.param("kind", kind)
+			.param("file", file)
+			.param("url", url)
+			.param("caption", caption)
+			.param("now", now)
+			.update();
 	}
 
 	@Override

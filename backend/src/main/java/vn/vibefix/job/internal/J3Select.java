@@ -8,8 +8,8 @@ import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
-import vn.vibefix.identity.MentorDirectory;
-import vn.vibefix.identity.MentorDirectory.MentorCard;
+import vn.vibefix.identity.Capabilities;
+import vn.vibefix.identity.Capabilities.Held;
 import vn.vibefix.job.JobSelection;
 import vn.vibefix.job.JobSelection.SelectedQuote;
 import vn.vibefix.job.MentorWork;
@@ -25,18 +25,19 @@ import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 
 /**
- * J3 (FR-15, AD-30): the Customer selects an Application. Under the Job row lock, one role per Job comes first
- * (AD-43): the Mentor is neither the Customer nor on the Job's Crew. FR-13's guard then runs again under the
- * Mentor's lock, after the Job row (AD-4 lock order): the Mentor is still approved and unlocked, below the
- * live Job limit, and has a free Student. The Job records the Mentor, which never changes, pins its
- * Product, and tells the Mentor; {@code matching} puts the other Applications on hold.
+ * J3 (FR-15, AD-30, SG-52): the Customer selects a bid. Under the Job row lock, one role per Job comes first
+ * (AD-43): the bidder is neither the Customer nor on the Job's Crew. FR-13's guard then runs again under the
+ * bidder's advisory lock, after the Job row (AD-4 lock order): the bidder still has GitHub linked and is not
+ * locked ({@code MENTOR_NOT_AVAILABLE}, read now through {@link Capabilities}), and is below the live Job limit. No
+ * free Student and no approval is asked for (Story 21.2). The Job records the Mentor, which never changes, pins its
+ * Product, and tells the Mentor; {@code matching} puts the other bids on hold.
  */
 @Component
 class J3Select implements JobLifecycle.Step {
 
 	static final String SELECTED = "job.assignee_selected";
 
-	private final MentorDirectory mentors;
+	private final Capabilities capabilities;
 
 	private final MentorWork work;
 
@@ -48,9 +49,9 @@ class J3Select implements JobLifecycle.Step {
 
 	private final JdbcClient jdbc;
 
-	J3Select(MentorDirectory mentors, MentorWork work, CrewService crews, ProductPins pins, Notifications notifications,
+	J3Select(Capabilities capabilities, MentorWork work, CrewService crews, ProductPins pins, Notifications notifications,
 			JdbcClient jdbc) {
-		this.mentors = mentors;
+		this.capabilities = capabilities;
 		this.work = work;
 		this.crews = crews;
 		this.pins = pins;
@@ -77,15 +78,12 @@ class J3Select implements JobLifecycle.Step {
 			throw new ApiException(ErrorCode.GUARD_FAILED, JobReason.ROLE_TAKEN);
 		}
 		AdvisoryLocks.lockAccount(this.jdbc, mentor);
-		boolean available = this.mentors.cards(List.of(mentor)).stream().findFirst().map(MentorCard::available).orElse(false);
-		if (!available) {
+		Held held = this.capabilities.capabilities(mentor);
+		if (!held.githubVerified() || held.locked()) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, JobReason.MENTOR_NOT_AVAILABLE);
 		}
 		if (this.work.activeJobCount(mentor) >= this.work.activeJobLimit()) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, JobReason.MENTOR_AT_JOB_LIMIT);
-		}
-		if (this.work.freeStudents(mentor).isEmpty()) {
-			throw new ApiException(ErrorCode.GUARD_FAILED, JobReason.MENTOR_NO_FREE_STUDENT);
 		}
 	}
 

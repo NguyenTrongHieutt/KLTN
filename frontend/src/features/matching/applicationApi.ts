@@ -1,13 +1,96 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { components } from '@/api/schema'
-import { apiClient, unwrap } from '@/lib/apiClient'
+import { apiClient, formBody, unwrap } from '@/lib/apiClient'
 
 export type Application = components['schemas']['ApplicationView']
 export type JobApplication = components['schemas']['JobApplicationView']
 export type ApplyRequest = components['schemas']['ApplyRequest']
 export type ApplicationStatus = Application['status']
+export type BidProof = components['schemas']['BidProofView']
+export type BidProofRequest = components['schemas']['BidProofRequest']
+export type BidProofUpload = components['schemas']['BidProofUploadView']
+
+/** Proof items per bid, files and links together (SG-58). */
+export const MAX_PROOF = 5
+
+/** The longest caption of a proof item. */
+export const MAX_CAPTION = 200
 
 const KEY = ['application'] as const
+
+/** FND-1: the user's proof uploads waiting for their bid on the Job, oldest first. */
+export function useProofUploads(postId: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: [...KEY, 'proof-files', postId],
+    queryFn: () =>
+      unwrap(apiClient.GET('/api/v1/mentor/job-posts/{postId}/proof-files', { params: { path: { postId: postId ?? '' } } })),
+    enabled: postId !== undefined && enabled,
+    retry: false,
+  })
+}
+
+/** FND-1 "Thêm tệp": an image or a PDF, checked and kept for the bid (AD-21); the waiting list shows it at once. */
+export function useAddProofFile(postId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (file: File) => {
+      const form = new FormData()
+      form.append('file', file)
+      return unwrap(
+        apiClient.POST('/api/v1/mentor/job-posts/{postId}/proof-files', {
+          params: { path: { postId } },
+          body: formBody(form),
+        }),
+      )
+    },
+    onSuccess: (upload) =>
+      queryClient.setQueryData<BidProofUpload[]>([...KEY, 'proof-files', postId], (uploads) => [...(uploads ?? []), upload]),
+  })
+}
+
+/** FND-1: removes an upload no bid carries yet. */
+export function useRemoveProofFile(postId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (fileId: string) =>
+      unwrap(
+        apiClient.DELETE('/api/v1/mentor/job-posts/{postId}/proof-files/{fileId}', {
+          params: { path: { postId, fileId } },
+        }),
+      ),
+    onSuccess: (_, fileId) =>
+      queryClient.setQueryData<BidProofUpload[]>([...KEY, 'proof-files', postId], (uploads) =>
+        (uploads ?? []).filter((upload) => upload.fileId !== fileId),
+      ),
+  })
+}
+
+/** A host the server's link rule keeps (`java.net.URI`): an IPv4 address, or ASCII labels ending in a letter label. */
+const PROOF_HOST = /^(\d{1,3}(\.\d{1,3}){3}|([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)*[a-z]([a-z0-9-]*[a-z0-9])?\.?)$/i
+
+/**
+ * Whether a link may be proof, by the server's rule (AD-21, `shared.HttpsLinks` on `java.net.URI`): `https`, at most
+ * 2,000 characters, with an ASCII host (no `_`, no IDN) and no user info; no space, control character, stray `%`, or
+ * any of `|^{}<>"\` and the backtick; `[` and `]` nowhere outside the host.
+ */
+export function isProofLink(url: string): boolean {
+  const trimmed = url.trim()
+  if (trimmed.length > 2000 || !/^https:\/\//i.test(trimmed)) {
+    return false
+  }
+  // eslint-disable-next-line no-control-regex
+  if (/[\u0000-\u0020\u007f|^{}<>"\\`]/.test(trimmed) || /%(?![0-9a-f]{2})/i.test(trimmed)) {
+    return false
+  }
+  const rest = trimmed.slice('https://'.length)
+  const end = rest.search(/[/?#]/)
+  const authority = end === -1 ? rest : rest.slice(0, end)
+  if (authority.includes('@') || /[[\]]/.test(end === -1 ? '' : rest.slice(end))) {
+    return false
+  }
+  const host = authority.replace(/:\d*$/, '')
+  return PROOF_HOST.test(host) || /^\[[0-9a-f:.]+\]$/i.test(host)
+}
 
 /** "Việc tôi hướng dẫn" on CUS-7, and MEN-3: the user's own bids, newest first. */
 export function useMyApplications(enabled = true) {
@@ -18,7 +101,7 @@ export function useMyApplications(enabled = true) {
   })
 }
 
-/** CUS-8: the open Applications to the Customer's Job. */
+/** CUS-8: the open bids on the Customer's Job, each with its proof. */
 export function useJobApplications(jobId: string | undefined) {
   return useQuery({
     queryKey: [...KEY, 'job', jobId],
@@ -28,7 +111,7 @@ export function useJobApplications(jobId: string | undefined) {
   })
 }
 
-/** MEN-3 "Ứng tuyển" (FR-13). */
+/** FND-1 "Gửi chào giá" (FR-13): the quote and the proof, in its order. */
 export function useApply(postId: string) {
   const queryClient = useQueryClient()
   return useMutation({
@@ -60,7 +143,7 @@ export function useSelectApplication(jobId: string) {
   })
 }
 
-/** "Rút đơn" before selection (FR-13). */
+/** MEN-3's "Rút" before selection (FR-13): the Customer is told. */
 export function useWithdrawApplication() {
   const queryClient = useQueryClient()
   return useMutation({

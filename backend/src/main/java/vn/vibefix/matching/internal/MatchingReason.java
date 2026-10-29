@@ -18,9 +18,6 @@ enum MatchingReason {
 	/** One Application per Mentor and Job (FR-13). */
 	ALREADY_APPLIED,
 
-	/** No verified, unlocked Team member is free for a new Crew (FR-13, AD-33). */
-	NO_FREE_STUDENT,
-
 	/** The Mentor holds the most Jobs the FR-61 rule allows (FR-13). */
 	MENTOR_JOB_LIMIT,
 
@@ -64,6 +61,15 @@ enum MatchingReason {
 	 * A bid from a Mentor whose profile has no display name yet (Story 19.7): the Customer could neither
 	 * tell who applied nor select them. The SPA links to ACC-1.
 	 */
-	PROFILE_REQUIRED
+	PROFILE_REQUIRED,
+
+	/** A bid carries at most five proof items, files and links together (FR-13, SG-58). */
+	PROOF_LIMIT,
+
+	/** A proof link is not {@code https} with a host (AD-21, the shared link rule). */
+	LINK_INVALID,
+
+	/** A proof file is not one of the bidder's own uploads waiting for this Job's bid, or is named twice. */
+	PROOF_FILE_UNKNOWN
 
 }

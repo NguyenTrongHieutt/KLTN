@@ -1,20 +1,16 @@
 package vn.vibefix.job;
 
 import java.util.Collection;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
 /**
- * FR-13's values, defined once (AD-33): who in a Mentor's Team is free for a new Crew, and how many
- * Jobs the Mentor holds against the FR-61 limit. {@code matching} refuses an Application with them,
- * and J3 checks them again.
+ * FR-13's values, defined once (AD-33): how many Jobs a person holds as Mentor against the FR-61 limit, and their
+ * work history. {@code matching} refuses a bid with the limit, and J3 checks it again; no free Student is asked for
+ * (Story 21.2).
  */
 public interface MentorWork {
-
-	/** {@code job.freeStudents}: the verified, unlocked members of the Mentor's Team on no running Crew. */
-	List<UUID> freeStudents(UUID mentorId);
 
 	/** {@code job.activeJobCount}: the Mentor's Jobs in Selecting, Agreement, Starting, Active, or Closing. */
 	int activeJobCount(UUID mentorId);
@@ -24,9 +20,6 @@ public interface MentorWork {
 
 	/** {@link #activeJobCount} for a page of Mentors in one read; every Mentor asked for is a key (SG-40). */
 	Map<UUID, Integer> activeJobCounts(Collection<UUID> mentorIds);
-
-	/** Which of these Mentors have a free Student, from one {@code team} read and one {@code identity} read. */
-	Set<UUID> withFreeStudents(Collection<UUID> mentorIds);
 
 	/**
 	 * Work history (AD-17): for each Mentor, per Job Type name, how many distinct Customers they

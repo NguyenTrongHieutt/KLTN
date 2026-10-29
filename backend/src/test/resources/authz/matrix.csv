@@ -477,6 +477,38 @@ GET /api/v1/files/{fileId},ADMIN_TEAM_ISSUE_GRANT,file=screenshot,,404 NOT_FOUND
 GET /api/v1/files/{fileId},ADMIN_ABUSE_REPORT_GRANT,file=attachment,,404 NOT_FOUND
 GET /api/v1/files/{fileId},ADMIN_ABUSE_REPORT_GRANT,file=chat,,404 NOT_FOUND
 GET /api/v1/files/{fileId},ADMIN_ABUSE_REPORT_GRANT,file=screenshot,,404 NOT_FOUND
+# file=proof, the Open post's bid's proof file (BidProofFiles, Story 21.2, AD-20): the Bidder and the post's Customer read it,
+# nobody else, no Administrator grant included; file=proof-upload, the Bidder's upload no bid took yet: the Bidder's alone.
+GET /api/v1/files/{fileId},ANONYMOUS,file=proof,,401
+GET /api/v1/files/{fileId},LOCKED,file=proof,,401
+GET /api/v1/files/{fileId},USER,file=proof,,404 NOT_FOUND
+GET /api/v1/files/{fileId},USER_UNVERIFIED,file=proof,,404 NOT_FOUND
+GET /api/v1/files/{fileId},CUSTOMER,file=proof,,200
+GET /api/v1/files/{fileId},MENTOR,file=proof,,404 NOT_FOUND
+GET /api/v1/files/{fileId},BIDDER,file=proof,,200
+GET /api/v1/files/{fileId},CREW_ASSIGNED,file=proof,,404 NOT_FOUND
+GET /api/v1/files/{fileId},CREW_ACTIVE,file=proof,,404 NOT_FOUND
+GET /api/v1/files/{fileId},CREW_FORMER,file=proof,,404 NOT_FOUND
+GET /api/v1/files/{fileId},CROSS_ROLE,file=proof,,404 NOT_FOUND
+GET /api/v1/files/{fileId},ADMINISTRATOR,file=proof,,404 NOT_FOUND
+GET /api/v1/files/{fileId},ADMIN_DISPUTE_GRANT,file=proof,,404 NOT_FOUND
+GET /api/v1/files/{fileId},ADMIN_TEAM_ISSUE_GRANT,file=proof,,404 NOT_FOUND
+GET /api/v1/files/{fileId},ADMIN_ABUSE_REPORT_GRANT,file=proof,,404 NOT_FOUND
+GET /api/v1/files/{fileId},ANONYMOUS,file=proof-upload,,401
+GET /api/v1/files/{fileId},USER_UNVERIFIED,file=proof-upload,,404 NOT_FOUND
+GET /api/v1/files/{fileId},USER,file=proof-upload,,404 NOT_FOUND
+GET /api/v1/files/{fileId},LOCKED,file=proof-upload,,401
+GET /api/v1/files/{fileId},CUSTOMER,file=proof-upload,,404 NOT_FOUND
+GET /api/v1/files/{fileId},MENTOR,file=proof-upload,,404 NOT_FOUND
+GET /api/v1/files/{fileId},BIDDER,file=proof-upload,,200
+GET /api/v1/files/{fileId},CREW_ASSIGNED,file=proof-upload,,404 NOT_FOUND
+GET /api/v1/files/{fileId},CREW_ACTIVE,file=proof-upload,,404 NOT_FOUND
+GET /api/v1/files/{fileId},CREW_FORMER,file=proof-upload,,404 NOT_FOUND
+GET /api/v1/files/{fileId},CROSS_ROLE,file=proof-upload,,404 NOT_FOUND
+GET /api/v1/files/{fileId},ADMINISTRATOR,file=proof-upload,,404 NOT_FOUND
+GET /api/v1/files/{fileId},ADMIN_DISPUTE_GRANT,file=proof-upload,,404 NOT_FOUND
+GET /api/v1/files/{fileId},ADMIN_TEAM_ISSUE_GRANT,file=proof-upload,,404 NOT_FOUND
+GET /api/v1/files/{fileId},ADMIN_ABUSE_REPORT_GRANT,file=proof-upload,,404 NOT_FOUND
 # A Customer's contact (FR-3, Story 19.3): {customerId} is the crew Job's Customer, whose contact email is the
 # CONTACT_EMAIL canary. The Customer and Administrators read it, and the Job's Mentor under the contact grant the
 # Job holds from Agreement on; a Crew member never reads it, and neither does anyone else.
@@ -715,17 +747,58 @@ POST /api/v1/mentor/job-posts/{postId}/applications,USER_UNVERIFIED,,application
 POST /api/v1/mentor/job-posts/{postId}/applications,USER,,application.json,422 GUARD_FAILED PROFILE_REQUIRED,requireGitHubLinked
 POST /api/v1/mentor/job-posts/{postId}/applications,LOCKED,,application.json,401,requireGitHubLinked
 POST /api/v1/mentor/job-posts/{postId}/applications,CUSTOMER,,application.json,422 GUARD_FAILED ROLE_TAKEN,requireGitHubLinked
-POST /api/v1/mentor/job-posts/{postId}/applications,MENTOR,,application.json,422 GUARD_FAILED NO_FREE_STUDENT,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/applications,MENTOR,,application.json,422 GUARD_FAILED MENTOR_JOB_LIMIT,requireGitHubLinked
 POST /api/v1/mentor/job-posts/{postId}/applications,BIDDER,,application.json,409 CONFLICT ALREADY_APPLIED,requireGitHubLinked
 POST /api/v1/mentor/job-posts/{postId}/applications,CREW_ASSIGNED,,application.json,422 GUARD_FAILED PROFILE_REQUIRED,requireGitHubLinked
 POST /api/v1/mentor/job-posts/{postId}/applications,CREW_ACTIVE,,application.json,422 GUARD_FAILED PROFILE_REQUIRED,requireGitHubLinked
 POST /api/v1/mentor/job-posts/{postId}/applications,CREW_FORMER,,application.json,422 GUARD_FAILED PROFILE_REQUIRED,requireGitHubLinked
 POST /api/v1/mentor/job-posts/{postId}/applications,CROSS_ROLE,,application.json,422 GUARD_FAILED PROFILE_REQUIRED,requireGitHubLinked
 POST /api/v1/mentor/job-posts/{postId}/applications,ADMINISTRATOR,,application.json,404 NOT_FOUND,requireGitHubLinked
+# FND-1's proof files (Story 21.2, AD-21): a user with GitHub linked uploads a PDF or an image for their bid on the Open
+# post (not their own: ROLE_TAKEN; not once they bid: ALREADY_APPLIED); they list their own waiting uploads and remove
+# their own (file=proof-upload, the Bidder's), and nobody else finds one.
+POST /api/v1/mentor/job-posts/{postId}/proof-files,ANONYMOUS,,proof.pdf,401,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/proof-files,USER_UNVERIFIED,,proof.pdf,403 FORBIDDEN GITHUB_NOT_LINKED,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/proof-files,USER,,proof.pdf,201,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/proof-files,LOCKED,,proof.pdf,401,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/proof-files,CUSTOMER,,proof.pdf,422 GUARD_FAILED ROLE_TAKEN,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/proof-files,MENTOR,,proof.pdf,201,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/proof-files,BIDDER,,proof.pdf,409 CONFLICT ALREADY_APPLIED,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/proof-files,CREW_ASSIGNED,,proof.pdf,201,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/proof-files,CREW_ACTIVE,,proof.pdf,201,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/proof-files,CREW_FORMER,,proof.pdf,201,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/proof-files,CROSS_ROLE,,proof.pdf,201,requireGitHubLinked
+POST /api/v1/mentor/job-posts/{postId}/proof-files,ADMINISTRATOR,,proof.pdf,404 NOT_FOUND,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/proof-files,ANONYMOUS,,,401,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/proof-files,USER_UNVERIFIED,,,403 FORBIDDEN GITHUB_NOT_LINKED,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/proof-files,USER,,,200,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/proof-files,LOCKED,,,401,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/proof-files,CUSTOMER,,,200,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/proof-files,MENTOR,,,200,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/proof-files,BIDDER,,,200,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/proof-files,CREW_ASSIGNED,,,200,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/proof-files,CREW_ACTIVE,,,200,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/proof-files,CREW_FORMER,,,200,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/proof-files,CROSS_ROLE,,,200,requireGitHubLinked
+GET /api/v1/mentor/job-posts/{postId}/proof-files,ADMINISTRATOR,,,404 NOT_FOUND,requireGitHubLinked
+DELETE /api/v1/mentor/job-posts/{postId}/proof-files/{fileId},ANONYMOUS,file=proof-upload,,401,requireActiveAccount
+DELETE /api/v1/mentor/job-posts/{postId}/proof-files/{fileId},USER_UNVERIFIED,file=proof-upload,,404 NOT_FOUND,requireActiveAccount
+DELETE /api/v1/mentor/job-posts/{postId}/proof-files/{fileId},USER,file=proof-upload,,404 NOT_FOUND,requireActiveAccount
+DELETE /api/v1/mentor/job-posts/{postId}/proof-files/{fileId},LOCKED,file=proof-upload,,401,requireActiveAccount
+DELETE /api/v1/mentor/job-posts/{postId}/proof-files/{fileId},CUSTOMER,file=proof-upload,,404 NOT_FOUND,requireActiveAccount
+DELETE /api/v1/mentor/job-posts/{postId}/proof-files/{fileId},MENTOR,file=proof-upload,,404 NOT_FOUND,requireActiveAccount
+DELETE /api/v1/mentor/job-posts/{postId}/proof-files/{fileId},BIDDER,file=proof-upload,,204,requireActiveAccount
+DELETE /api/v1/mentor/job-posts/{postId}/proof-files/{fileId},CREW_ASSIGNED,file=proof-upload,,404 NOT_FOUND,requireActiveAccount
+DELETE /api/v1/mentor/job-posts/{postId}/proof-files/{fileId},CREW_ACTIVE,file=proof-upload,,404 NOT_FOUND,requireActiveAccount
+DELETE /api/v1/mentor/job-posts/{postId}/proof-files/{fileId},CREW_FORMER,file=proof-upload,,404 NOT_FOUND,requireActiveAccount
+DELETE /api/v1/mentor/job-posts/{postId}/proof-files/{fileId},CROSS_ROLE,file=proof-upload,,404 NOT_FOUND,requireActiveAccount
+DELETE /api/v1/mentor/job-posts/{postId}/proof-files/{fileId},ADMINISTRATOR,file=proof-upload,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/applications,ANONYMOUS,,,401,requireActiveAccount
 GET /api/v1/mentor/applications,USER_UNVERIFIED,,,200,requireActiveAccount
 GET /api/v1/mentor/applications,USER,,,200,requireActiveAccount
 GET /api/v1/mentor/applications,CUSTOMER,,,200,requireActiveAccount
+GET /api/v1/mentor/applications,MENTOR,,,200,requireActiveAccount
+GET /api/v1/mentor/applications,BIDDER,,,200,requireActiveAccount
 GET /api/v1/mentor/applications,CROSS_ROLE,,,200,requireActiveAccount
 GET /api/v1/mentor/applications,ADMINISTRATOR,,,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/applications/{applicationId}/withdraw,ANONYMOUS,,,401,requireActiveAccount

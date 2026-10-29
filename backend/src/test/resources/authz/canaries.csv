@@ -30,6 +30,8 @@
 #   Crew Chat that no report names (review iteration 3).
 # - PRIVATE_FEEDBACK is a Crew member's private feedback about the Job's Mentor (FR-78), on an ended
 #   Job of that Mentor; only Administrator surfaces may ever show it.
+# - BID_PROOF_CAPTION and BID_PROOF_LINK are the proof of the Open post's bid (Story 21.2, AD-20): a file's caption
+#   and a link. Only the Bidder and the Job's Customer read them; no Administrator grant covers a bid's proof.
 canary,value,visible_to,seeded_as
 CREW_SHARE,7316429,MENTOR ADMIN_TEAM_ISSUE_GRANT,another Crew member's part of a release under the Crew Terms in VND
 CREW_EMAIL,canary.crew.c7e2@example.test,ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT,a Crew member's account email
@@ -60,3 +62,5 @@ CROSS_LINKEDIN,https://www.linkedin.com/in/canary-cross-8b2d4f,MENTOR ADMINISTRA
 CROSS_CREW_CHAT,canary-cross-chat-2f7b18,MENTOR,a message of the second Job's Crew Chat
 CROSS_WORK_ITEM_NOTE,canary-cross-note-7e3c05,MENTOR,a Work Item note of the second Job
 CROSS_PAGE,canary-cross-page-5d1a8e,MENTOR,the body of a team-only Page of the second Job
+BID_PROOF_CAPTION,canary-bid-proof-caption-3f8a1d,BIDDER CUSTOMER,the caption of a proof file of the Open post's bid
+BID_PROOF_LINK,https://proof.example.test/canary-bid-proof-6c2b9e,BIDDER CUSTOMER,a proof link of the Open post's bid

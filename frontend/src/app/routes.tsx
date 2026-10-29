@@ -154,6 +154,24 @@ export const routes: RouteObject[] = [
     ],
   },
   {
+    // FND-1 "Chào giá", a focused task route (UX-DR99) that "Đóng" leaves for MEN-3, the Job it bids on.
+    path: 'tim-viec/:postId/chao-gia',
+    lazy: async () => {
+      const [{ FocusedLayout }, { t }] = await Promise.all([import('./FocusedLayout'), import('@/i18n/t')])
+      return {
+        element: (
+          <FocusedLayout title={t('screen.matching.apply.title')} closeTo={(params) => `/tim-viec/${params.postId ?? ''}`} />
+        ),
+      }
+    },
+    children: [
+      {
+        index: true,
+        lazy: async () => ({ Component: (await import('@/features/matching/BidFormPage')).BidFormPage }),
+      },
+    ],
+  },
+  {
     // JOB-5 "Tạo bàn giao", a focused task route (UX-DR54) that "Đóng" leaves for the Job's handovers.
     path: 'cong-viec/:jobId/ban-giao/tao',
     lazy: async () => {

@@ -24,8 +24,8 @@ public interface JobSelection {
 	 * @param expectedVersion the Job version the Customer's screen loaded
 	 * @return the Job's version after J3
 	 * @throws vn.vibefix.shared.ApiException {@code NOT_FOUND} for another Customer's Job; {@code STALE}
-	 * for another version or a Job no longer Open; {@code GUARD_FAILED} with {@code MENTOR_NOT_AVAILABLE},
-	 * {@code MENTOR_AT_JOB_LIMIT}, or {@code MENTOR_NO_FREE_STUDENT}
+	 * for another version or a Job no longer Open; {@code GUARD_FAILED} with {@code ROLE_TAKEN},
+	 * {@code MENTOR_NOT_AVAILABLE} (no longer GitHub-linked, or locked), or {@code MENTOR_AT_JOB_LIMIT}
 	 */
 	long select(UUID jobId, UUID customerId, UUID mentorId, UUID applicationId, SelectedQuote quote,
 			long expectedVersion);

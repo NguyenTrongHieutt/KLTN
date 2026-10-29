@@ -65,8 +65,7 @@ const recruitingSummary = {
 
 const page = (items: unknown[], total = items.length) => json({ items, page: 0, size: 20, total })
 
-const capacity = (reasons: string[] = [], teamSize = 2, freeStudents = 1) =>
-  json({ teamSize, freeStudents, activeJobs: 0, jobLimit: 3, reasons })
+const capacity = (reasons: string[] = []) => json({ activeJobs: 0, jobLimit: 3, reasons })
 
 const post = {
   id: 'j1',
@@ -204,17 +203,16 @@ describe('MEN-2, browsing Job Posts (FR-12)', () => {
     expect(new URL(last?.url ?? '', 'http://localhost').searchParams.get('phase')).toBe('FINDING_CREW')
   })
 
-  it('shows no capacity banner any more, the free-Student one included (Story 21.1)', { timeout: 15_000 }, async () => {
+  it('shows no capacity banner on the list any more (Story 21.1)', { timeout: 15_000 }, async () => {
     fakeBackend(signedInUser, {
       'GET /api/v1/mentor/job-posts': () => page([summary]),
-      'GET /api/v1/mentor/capacity': () => capacity(['NO_FREE_STUDENT', 'MENTOR_JOB_LIMIT'], 0, 0),
+      'GET /api/v1/mentor/capacity': () => capacity(['MENTOR_JOB_LIMIT']),
       'GET /api/v1/catalog': catalog,
     })
     renderAt('/tim-viec')
 
     expect(await screen.findByRole('link', { name: 'Sửa lỗi mất đơn hàng' })).toBeInTheDocument()
-    expect(screen.queryByText('Nhóm của bạn chưa có thành viên rảnh, nên chưa ứng tuyển được.')).toBeNull()
-    expect(screen.queryByText(/Bạn đang nhận đủ 3 công việc/)).toBeNull()
+    expect(screen.queryByText(/Bạn đang hướng dẫn đủ 3 công việc/)).toBeNull()
     expect(screen.queryByRole('link', { name: 'Mời thành viên' })).toBeNull()
   })
 

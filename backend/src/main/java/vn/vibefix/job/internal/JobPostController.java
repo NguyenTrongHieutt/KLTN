@@ -111,8 +111,8 @@ class JobPostController {
 			@Nullable PostRecruitmentView recruitment) {
 	}
 
-	/** The Mentor's FR-13 position, and why they cannot apply now. */
-	record CapacityView(int teamSize, int freeStudents, int activeJobs, int jobLimit, List<Reason> reasons) {
+	/** The user's FR-13 position as Mentor, and why they cannot bid now: only the Mentor Job limit (Story 21.2). */
+	record CapacityView(int activeJobs, int jobLimit, List<Reason> reasons) {
 	}
 
 	private final JobPostQueries posts;
@@ -205,7 +205,7 @@ class JobPostController {
 	@GetMapping("/capacity")
 	CapacityView capacity() {
 		Capacity mine = this.capacity.of(linkedReader());
-		return new CapacityView(mine.teamSize(), mine.freeStudents(), mine.activeJobs(), mine.jobLimit(), mine.reasons());
+		return new CapacityView(mine.activeJobs(), mine.jobLimit(), mine.reasons());
 	}
 
 	/** MEN-3: one listed Job; its ID is the Job's. A Job no longer listed answers {@code NOT_FOUND}. */

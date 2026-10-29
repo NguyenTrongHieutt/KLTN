@@ -162,7 +162,9 @@ describe('JOB-1 for the Customer while Selecting (FR-15)', () => {
             timelineDays: 10,
             approach: 'x',
             submittedAt: '2026-10-16T03:00:00Z',
-            mentor: { displayName: 'Phạm Thu Hà', yearsOfExperience: 6, teamSize: 1 },
+            mentor: { displayName: 'Phạm Thu Hà', yearsOfExperience: 6 },
+            invited: false,
+            proof: [],
           },
         ]),
       'POST /api/v1/jobs/j1/selection/cancel': async (request) => {

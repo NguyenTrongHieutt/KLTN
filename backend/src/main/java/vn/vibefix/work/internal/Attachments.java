@@ -1,7 +1,5 @@
 package vn.vibefix.work.internal;
 
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -10,7 +8,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -29,6 +26,7 @@ import vn.vibefix.files.StoredFiles;
 import vn.vibefix.job.JobUploads;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
+import vn.vibefix.shared.HttpsLinks;
 import vn.vibefix.shared.IdGenerator;
 import vn.vibefix.work.internal.Boards.Item;
 import vn.vibefix.work.internal.Boards.Status;
@@ -53,7 +51,7 @@ class Attachments {
 	/** Every kind NFR-3 allows: images, PDF, plain text, and archives. */
 	static final Set<FileKind> KINDS = Set.of(FileKind.IMAGE, FileKind.PDF, FileKind.TEXT, FileKind.ARCHIVE);
 
-	static final int MAX_URL = 2000;
+	static final int MAX_URL = HttpsLinks.MAX_LENGTH;
 
 	static final int MAX_LABEL = 200;
 
@@ -265,41 +263,17 @@ class Attachments {
 	}
 
 	/**
-	 * The link as stored: {@code https}, with a host, without user info, spaces, or control characters,
-	 * and at most {@value #MAX_URL} characters.
+	 * The link as stored, by the shared rule ({@link HttpsLinks}): {@code https}, with a host, without user info, spaces,
+	 * or control characters, and at most {@value #MAX_URL} characters.
 	 * @throws ApiException {@code VALIDATION LINK_INVALID}
 	 */
 	static String validLink(String raw) {
-		String url = raw.strip();
-		boolean plain = url.chars().noneMatch(c -> c <= 0x20 || c == 0x7f);
-		URI uri = null;
-		if (plain && url.length() <= MAX_URL) {
-			try {
-				uri = new URI(url);
-			}
-			catch (URISyntaxException ex) {
-				uri = null;
-			}
-		}
-		if (uri == null || !"https".equalsIgnoreCase(uri.getScheme()) || uri.getHost() == null || uri.getHost().isBlank()
-				|| uri.getRawUserInfo() != null) {
-			throw new ApiException(ErrorCode.VALIDATION, WorkReason.LINK_INVALID);
-		}
-		return url;
+		return HttpsLinks.valid(raw).orElseThrow(() -> new ApiException(ErrorCode.VALIDATION, WorkReason.LINK_INVALID));
 	}
 
 	/** The link's host in lower case, shown as its domain; empty if it cannot be read. */
 	static String domain(@Nullable String url) {
-		if (url == null) {
-			return "";
-		}
-		try {
-			String host = new URI(url).getHost();
-			return host == null ? "" : host.toLowerCase(Locale.ROOT);
-		}
-		catch (URISyntaxException ex) {
-			return "";
-		}
+		return HttpsLinks.domain(url);
 	}
 
 	private static Attachment attachment(ResultSet rs, int n) throws SQLException {

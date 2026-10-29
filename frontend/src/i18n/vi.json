@@ -216,14 +216,15 @@
       "action": {
         "registerProduct": "đăng ký sản phẩm",
         "findWork": "tìm việc",
-        "publicProfile": "có hồ sơ công khai"
+        "publicProfile": "có hồ sơ công khai",
+        "bid": "chào giá"
       }
     },
     "public": {
       "landing": {
         "title": "Giới thiệu",
         "heading": "Hoàn thiện ứng dụng bạn đã làm bằng AI",
-        "lead": "vibefix kết nối bạn với {mentor} có kinh nghiệm, đã được vibefix duyệt. Người hướng dẫn cùng nhóm thực hiện của họ sửa lỗi, thêm tính năng và bàn giao từng phần để bạn tự kiểm tra.",
+        "lead": "vibefix kết nối bạn với {mentor} có kinh nghiệm. Họ chào giá kèm bằng chứng năng lực để bạn tự chọn. Người hướng dẫn cùng nhóm thực hiện của họ sửa lỗi, thêm tính năng và bàn giao từng phần để bạn tự kiểm tra.",
         "promisesHeading": "Bạn luôn nắm được việc gì đang diễn ra",
         "promisePay": "Bạn thanh toán trước từng {milestone}. vibefix giữ tiền cho đến khi bạn {accept}.",
         "promiseDecide": "Không thay đổi nào vào dự án của bạn khi chưa có quyết định của bạn.",
@@ -1755,7 +1756,7 @@
       "form": {
         "newTitle": "Đăng công việc",
         "editTitle": "Sửa công việc",
-        "lead": "Trả lời vài câu hỏi bằng lời của bạn. Người hướng dẫn đã được vibefix duyệt sẽ đọc tin này để ứng tuyển.",
+        "lead": "Trả lời vài câu hỏi bằng lời của bạn. Người hướng dẫn đã xác minh tài khoản GitHub sẽ đọc tin này để chào giá.",
         "breadcrumbProducts": "Sản phẩm",
         "breadcrumbJobs": "Công việc",
         "titleLabel": "Tên công việc",
@@ -1816,10 +1817,10 @@
       "detail": {
         "breadcrumb": "Công việc",
         "lapsesChip": "Tin hết hạn {date}",
-        "applicationsTitle": "Chưa có đơn ứng tuyển",
-        "applicationsBody": "Tin của bạn đang hiện với người hướng dẫn đã được vibefix duyệt.",
+        "applicationsTitle": "Chưa có đơn chào giá",
+        "applicationsBody": "Tin của bạn đang hiện với những người đã xác minh tài khoản GitHub trên vibefix.",
         "nextTitle": "Điều gì xảy ra tiếp theo",
-        "nextApply": "Người hướng dẫn ứng tuyển",
+        "nextApply": "Người hướng dẫn chào giá",
         "nextApplyBody": "Họ đọc tin, xem mã công khai rồi gửi giá, thời gian và cách làm.",
         "nextChoose": "Bạn chọn người hướng dẫn",
         "nextChooseBody": "Bạn so sánh các đơn và chọn một người.",
@@ -1915,7 +1916,7 @@
       "previous": "Trước",
       "next": "Sau",
       "page": "Trang {n}",
-      "jobLimit": "Bạn đang nhận đủ {n} công việc. Hãy hoàn thành bớt rồi ứng tuyển tiếp.",
+      "jobLimit": "Bạn đang hướng dẫn đủ {n} công việc. Hãy hoàn thành bớt rồi chào giá tiếp.",
       "jobLimitBody": "Bạn vẫn xem và tìm được tin công việc.",
       "detail": {
         "breadcrumb": "Tìm việc",
@@ -1976,13 +1977,13 @@
     "matching": {
       "test": "THỬ NGHIỆM",
       "days": "{n} ngày",
-      "tab": "Đơn ứng tuyển ({n})",
+      "tab": "Đơn chào giá ({n})",
       "appliedBadge": "Đã ứng tuyển",
-      "overviewCount": "{n} đơn ứng tuyển",
-      "overviewOpen": "Xem các đơn ứng tuyển",
+      "overviewCount": "{n} đơn chào giá",
+      "overviewOpen": "Xem các đơn chào giá",
       "apply": {
         "heading": "Chào giá làm người hướng dẫn",
-        "lead": "Khách hàng sẽ thấy giá, thời gian, cách làm, số thành viên trong nhóm của bạn ({n}) và điểm chấm sao của bạn. Bạn chọn nhóm thực hiện sau khi được chọn và ký cam kết bảo mật.",
+        "lead": "Khách hàng sẽ thấy giá, thời gian, cách làm và bằng chứng năng lực của bạn. Bạn tuyển thành viên nhóm thực hiện sau khi được chọn.",
         "price": "Giá đề xuất",
         "priceHint": "gồm phần của bạn và của nhóm thực hiện",
         "priceInvalid": "Hãy nhập giá từ 1.000 ₫ đến 1.000.000.000 ₫.",
@@ -1992,27 +1993,47 @@
         "approachHint": "Viết bằng lời cho khách hàng không rành kỹ thuật. Không dán mã.",
         "approachRequired": "Hãy viết cách bạn sẽ làm.",
         "n5": "Tôi hiểu mã tôi và nhóm làm sẽ nằm trong kho mã công khai trước khi được nghiệm thu. Mỗi giai đoạn được khách hàng thanh toán trước khi bắt đầu.",
-        "acknowledgeRequired": "Hãy đánh dấu ô xác nhận trước khi ứng tuyển.",
-        "submit": "Ứng tuyển",
+        "acknowledgeRequired": "Hãy đánh dấu ô xác nhận trước khi gửi chào giá.",
+        "submit": "Gửi chào giá",
         "sending": "Đang gửi…",
-        "sent": "Đã gửi đơn ứng tuyển.",
-        "tooMany": "Hôm nay bạn đã gửi đủ 20 đơn ứng tuyển. Bạn có thể ứng tuyển tiếp sau {time}.",
-        "profileLink": "Mở hồ sơ"
+        "sent": "Đã gửi đơn chào giá.",
+        "tooMany": "Hôm nay bạn đã gửi đủ 20 đơn chào giá. Bạn có thể chào giá tiếp sau {time}.",
+        "profileLink": "Mở hồ sơ",
+        "title": "Chào giá",
+        "back": "Về công việc",
+        "proofHeading": "Bằng chứng năng lực",
+        "proofWho": "khách hàng",
+        "proofHint": "Tối đa 5 mục, tính cả tệp và liên kết: ảnh hoặc tệp PDF đến 10 MB, hoặc liên kết bắt đầu bằng https://. Mỗi mục có một dòng mô tả.",
+        "proofCount": "Đã thêm {n}/5 mục.",
+        "addFile": "Thêm tệp",
+        "uploading": "Đang tải tệp lên…",
+        "linkUrl": "Liên kết",
+        "linkCaption": "Mô tả liên kết",
+        "addLink": "Thêm liên kết",
+        "caption": "Mô tả cho {name}",
+        "captionRequired": "Hãy viết một dòng mô tả cho mỗi mục.",
+        "removeItem": "Bỏ {name}",
+        "notOpen": "Công việc không còn nhận chào giá.",
+        "notOpenBody": "Khách hàng đã chọn người hướng dẫn hoặc tin đã đóng."
       },
       "applied": {
-        "title": "Bạn đã ứng tuyển công việc này",
-        "endedWITHDRAWN": "Đơn của bạn đã được rút",
-        "endedCLOSED": "Đơn của bạn đã đóng",
-        "withdraw": "Rút đơn",
-        "withdrawTitle": "Rút đơn ứng tuyển này?",
-        "withdrawBody": "Khách hàng sẽ không thấy đơn của bạn nữa, và bạn không ứng tuyển lại công việc này được.",
+        "sentOn": "Đã gửi chào giá ngày {date}",
+        "onHold": "Đang chờ: khách hàng đã chọn người khác",
+        "selected": "Khách hàng đã chọn đơn chào giá của bạn",
+        "endedWITHDRAWN": "Bạn đã rút đơn chào giá này",
+        "endedCLOSED": "Đã đóng",
+        "view": "Xem",
+        "withdraw": "Rút",
+        "withdrawTitle": "Rút đơn chào giá này?",
+        "withdrawBody": "Khách hàng sẽ được báo và không thấy đơn của bạn nữa. Bạn không chào giá lại công việc này được, nhưng vẫn có thể xin vào nhóm thực hiện khi người hướng dẫn tuyển.",
         "keep": "Giữ đơn",
-        "withdrawn": "Đã rút đơn ứng tuyển."
+        "withdrawn": "Đã rút đơn chào giá.",
+        "readTitle": "Đơn chào giá của bạn",
+        "readLead": "Chỉ bạn và khách hàng của công việc này xem được đơn chào giá này."
       },
       "list": {
-        "title": "Đơn ứng tuyển · {job}",
+        "title": "Đơn chào giá · {job}",
         "sent": "gửi {date}",
-        "mentor": "{experience} · nhóm {n} thành viên",
         "note": "Bạn có thể chờ thêm đơn rồi so sánh trước khi chọn. Người hướng dẫn chỉ thấy đơn của chính họ."
       },
       "mentor": {
@@ -2035,7 +2056,7 @@
         "lead": "So sánh giá, thời gian, cách làm và số thành viên trong nhóm của từng người hướng dẫn.",
         "heading": "Đang so sánh ({n})",
         "summary": "Đang so sánh {n} đơn",
-        "all": "Tất cả đơn ứng tuyển ({n})",
+        "all": "Tất cả đơn chào giá ({n})",
         "toggle": "So sánh",
         "profile": "Xem hồ sơ",
         "portfolio": "{n} mục hồ sơ năng lực",
@@ -2106,6 +2127,11 @@
         "skills": "Hợp với {skills}",
         "history": "Đã làm {n} công việc {type}",
         "newcomer": "Mới"
+      },
+      "proof": {
+        "heading": "Bằng chứng năng lực",
+        "file": "{name} · {size}",
+        "none": "Không kèm bằng chứng."
       }
     },
     "nda": {
@@ -3603,7 +3629,8 @@
       "public": "Tôi hiểu dự án gốc của tôi là công khai, và mọi kho mã vibefix tạo từ nó cũng công khai: ai cũng xem được mã.",
       "copy": "Tôi là chủ sở hữu mã nguồn này hoặc có quyền cho phép người khác dùng nó. Chỉ để thực hiện các công việc tôi đặt cho sản phẩm này, tôi cho phép vibefix: sao chép dự án gốc vào kho mã của vibefix trên GitHub, để người hướng dẫn tôi chọn và nhóm thực hiện của họ chỉnh sửa bản sao, lưu một bản nén mã cuối cùng, và đưa mã vào dự án gốc chỉ khi tôi cho phép. Quyền này không chuyển quyền sở hữu mã và kết thúc khi vibefix xóa các bản sao.",
       "detection": "Tôi hiểu việc kiểm tra khóa bí mật và dữ liệu cá nhân không thể phát hiện mọi thứ."
-    }
+    },
+    "proofConfidentiality": "Tệp và liên kết bạn đính kèm chỉ {who} của công việc này xem được, và quản trị viên khi cần phân xử. Đừng đính kèm mã, tài liệu hay dữ liệu của khách hàng khác; hãy dùng sản phẩm của chính bạn hoặc phần đã được phép công khai."
   },
   "term": {
     "customer": {
@@ -3611,7 +3638,7 @@
     },
     "mentor": {
       "label": "Người hướng dẫn",
-      "hint": "Người có kinh nghiệm được vibefix duyệt. Họ nhận công việc, trao đổi với bạn, giao việc cho nhóm thực hiện và duyệt từng phần trước khi bàn giao."
+      "hint": "Người có kinh nghiệm bạn chọn từ các đơn chào giá. Họ nhận công việc, trao đổi với bạn, giao việc cho nhóm thực hiện và duyệt từng phần trước khi bàn giao."
     },
     "student": {
       "label": "Sinh viên đã xác minh"
@@ -4330,7 +4357,7 @@
         "title": "{name} không còn tham gia {job}"
       },
       "job_post_hidden": {
-        "title": "Tin tuyển {job} đã bị ẩn và không nhận ứng tuyển nữa"
+        "title": "Tin {job} đã bị ẩn và không nhận chào giá nữa"
       },
       "change_request_awaiting_top_up": {
         "title": "Hãy thanh toán thêm {amount} THỬ NGHIỆM để thay đổi ở {job} có hiệu lực"
@@ -4338,13 +4365,16 @@
     },
     "matching": {
       "application_received": {
-        "title": "Có đơn ứng tuyển mới cho {job}"
+        "title": "Có đơn chào giá mới cho {job}"
       },
       "application_auto_withdrawn": {
-        "title": "Đơn ứng tuyển của {mentor} cho {job} đã được rút vì người hướng dẫn này hiện không nhận việc"
+        "title": "Đơn chào giá của {mentor} cho {job} đã được rút vì người này hiện không nhận việc"
+      },
+      "application_withdrawn": {
+        "title": "{mentor} đã rút đơn chào giá cho {job}"
       },
       "conflict_of_interest_refused": {
-        "title": "Một đơn ứng tuyển bị từ chối vì có thể là cùng một người"
+        "title": "Một đơn chào giá bị từ chối vì có thể là cùng một người"
       },
       "applications_on_hold": {
         "title": "Đơn ứng tuyển của bạn cho {job} đang chờ: khách hàng đã chọn người khác"
@@ -4611,7 +4641,6 @@
       "JOB_FROZEN": "công việc đang tạm dừng vì có tranh chấp",
       "MENTOR_NOT_AVAILABLE": "người hướng dẫn này hiện không nhận việc",
       "MENTOR_AT_JOB_LIMIT": "người hướng dẫn này đang nhận đủ số công việc tối đa",
-      "MENTOR_NO_FREE_STUDENT": "nhóm của người hướng dẫn này hiện không có thành viên rảnh",
       "NDA_PERIOD_RUNNING": "người hướng dẫn vẫn còn thời gian ký cam kết bảo mật",
       "AGREEMENT_INCOMPLETE": "bản nháp chưa đủ để gửi",
       "CREW_LOCKED": "nhóm thực hiện đã chốt theo thỏa thuận",
@@ -4665,25 +4694,27 @@
       "NO_TOP_UP": "Không có yêu cầu thay đổi nào đang chờ thanh toán thêm."
     },
     "matching": {
-      "JOB_POST_NOT_OPEN": "công việc không còn nhận ứng tuyển",
+      "JOB_POST_NOT_OPEN": "công việc không còn nhận chào giá",
       "JOB_POST_HIDDEN": "tin công việc đang bị ẩn",
       "ROLE_TAKEN": "Đây là công việc bạn đăng.",
-      "ALREADY_APPLIED": "Bạn đã có đơn ứng tuyển cho công việc này.",
-      "NO_FREE_STUDENT": "Nhóm của bạn chưa có thành viên rảnh, nên chưa ứng tuyển được.",
-      "MENTOR_JOB_LIMIT": "Bạn đang nhận đủ số công việc tối đa. Hãy hoàn thành bớt rồi ứng tuyển tiếp.",
-      "CONFLICT_OF_INTEREST": "Bạn không thể ứng tuyển công việc này.",
-      "APPLICANT_IS_CONTRIBUTOR": "Bạn đã từng đóng góp vào dự án gốc này nên không thể ứng tuyển.",
-      "CONTRIBUTORS_UNKNOWN": "vibefix chưa kiểm tra được kho mã của khách hàng nên chưa nhận hồ sơ này. Việc này không do bạn; hãy thử lại sau.",
+      "ALREADY_APPLIED": "Bạn đã có đơn chào giá cho công việc này.",
+      "MENTOR_JOB_LIMIT": "Bạn đang hướng dẫn đủ số công việc tối đa. Hãy hoàn thành bớt rồi chào giá tiếp.",
+      "CONFLICT_OF_INTEREST": "Bạn không thể chào giá công việc này.",
+      "APPLICANT_IS_CONTRIBUTOR": "Bạn đã từng đóng góp vào dự án gốc này nên không thể chào giá.",
+      "CONTRIBUTORS_UNKNOWN": "vibefix chưa kiểm tra được kho mã của khách hàng nên chưa nhận đơn chào giá này. Việc này không do bạn; hãy thử lại sau.",
       "PUBLIC_CODE_NOT_ACKNOWLEDGED": "Hãy đánh dấu ô xác nhận về kho mã công khai.",
       "NOT_WITHDRAWABLE": "Đơn này không rút được nữa.",
       "NDA_VERSION_OUTDATED": "Cam kết bảo mật vừa có phiên bản mới. Hãy tải lại trang rồi ký lại.",
       "COMMIT_EMAIL_NOT_ACKNOWLEDGED": "Hãy đánh dấu \"Tôi đã hiểu\" trước khi ký.",
       "INVITEE_NOT_AVAILABLE": "người hướng dẫn này hiện không nhận lời mời",
       "ALREADY_INVITED": "Bạn đã mời người hướng dẫn này cho công việc này.",
-      "INVITEE_ALREADY_APPLIED": "Người hướng dẫn này đã ứng tuyển công việc này.",
+      "INVITEE_ALREADY_APPLIED": "Người hướng dẫn này đã chào giá công việc này.",
       "INVITE_LIMIT_JOB_POST": "Hôm nay bạn đã gửi đủ 10 lời mời cho công việc này. Bạn có thể mời tiếp sau 00:00.",
       "INVITE_LIMIT_DAILY": "Hôm nay bạn đã gửi đủ 30 lời mời. Bạn có thể mời tiếp sau 00:00.",
-      "PROFILE_REQUIRED": "Hãy đặt tên hiển thị trong hồ sơ trước khi ứng tuyển, để khách hàng biết ai đang ứng tuyển."
+      "PROFILE_REQUIRED": "Hãy đặt tên hiển thị trong hồ sơ trước khi chào giá, để khách hàng biết ai đang chào giá.",
+      "PROOF_LIMIT": "Đơn chào giá có tối đa 5 bằng chứng, tính cả tệp và liên kết.",
+      "LINK_INVALID": "Liên kết phải bắt đầu bằng https:// và có tên trang, ví dụ https://vi-du.vn/bai-viet.",
+      "PROOF_FILE_UNKNOWN": "Một tệp bằng chứng không còn trong đơn. Hãy tải lại trang rồi thêm lại tệp."
     },
     "chat": {
       "SENSITIVE_CONTENT": "Tin nhắn có thể chứa khóa bí mật hoặc dữ liệu khách hàng.",

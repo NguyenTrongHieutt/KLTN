@@ -12,7 +12,6 @@ import java.io.ByteArrayOutputStream;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
@@ -492,29 +491,30 @@ class JobPostsIT extends IntegrationTest {
 	}
 
 	@Test
-	void capacityNamesWhyAMentorCannotApply() throws Exception {
+	void capacityNamesOnlyTheMentorJobLimitAndNoTeam() throws Exception {
+		// Story 21.2: no Team and no free Student is asked for; only the Mentor Job limit stops a bid.
 		capacity().andExpect(status().isOk())
-			.andExpect(jsonPath("$.teamSize").value(0))
-			.andExpect(jsonPath("$.freeStudents").value(0))
+			.andExpect(jsonPath("$.teamSize").doesNotExist())
+			.andExpect(jsonPath("$.freeStudents").doesNotExist())
 			.andExpect(jsonPath("$.activeJobs").value(0))
 			.andExpect(jsonPath("$.jobLimit").value(3))
-			.andExpect(jsonPath("$.reasons[0]").value("NO_FREE_STUDENT"));
-
-		UUID team = UUID.randomUUID();
-		this.jdbc.sql("INSERT INTO team.team (id, mentor_account_id, status, created_at) VALUES (:id, :mentor, 'OPEN', now())")
-			.param("id", team)
-			.param("mentor", this.hung)
-			.update();
-		join(team, TeamTestSupport.student(this.jdbc, "Chưa xác minh", true, List.of(TeamTestSupport.REACT), "React", null));
-		capacity().andExpect(jsonPath("$.teamSize").value(1))
-			.andExpect(jsonPath("$.freeStudents").value(0))
-			.andExpect(jsonPath("$.reasons[0]").value("NO_FREE_STUDENT"));
-
-		join(team, TeamTestSupport.student(this.jdbc, "Đã xác minh", true, List.of(TeamTestSupport.REACT), "React",
-				LocalDate.parse("2026-09-30")));
-		capacity().andExpect(jsonPath("$.teamSize").value(2))
-			.andExpect(jsonPath("$.freeStudents").value(1))
 			.andExpect(jsonPath("$.reasons.length()").value(0));
+
+		this.jdbc.sql("UPDATE settings.rule_value SET value = 1 WHERE rule_key = 'MENTOR_ACTIVE_JOB_LIMIT'").update();
+		try {
+			UUID running = openJob("Đang chọn", "BUG_FIX", TeamTestSupport.REACT, "React", "UNDER_2M", "2026-03-01",
+					MutableClock.DEFAULT_INSTANT);
+			this.jdbc.sql("""
+					UPDATE job.job SET state = 'SELECTING', mentor_account_id = :m, selected_application_id = :a,
+					    selected_at = now(), opened_at = NULL, lapses_at = NULL WHERE id = :id
+					""").param("m", this.hung).param("a", UUID.randomUUID()).param("id", running).update();
+			capacity().andExpect(jsonPath("$.activeJobs").value(1))
+				.andExpect(jsonPath("$.reasons[0]").value("MENTOR_JOB_LIMIT"))
+				.andExpect(jsonPath("$.reasons.length()").value(1));
+		}
+		finally {
+			this.jdbc.sql("UPDATE settings.rule_value SET value = 3 WHERE rule_key = 'MENTOR_ACTIVE_JOB_LIMIT'").update();
+		}
 	}
 
 	private ResultActions list(String query) throws Exception {
@@ -543,12 +543,6 @@ class JobPostsIT extends IntegrationTest {
 		String body = list(query).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
 		List<String> found = com.jayway.jsonpath.JsonPath.read(body, "$.items[*].title");
 		assertThat(found).as(query).containsExactly(titles);
-	}
-
-	private void join(UUID team, UUID student) {
-		this.jdbc.sql("""
-				INSERT INTO team.membership (id, team_id, student_account_id, joined_at) VALUES (:id, :team, :student, now())
-				""").param("id", UUID.randomUUID()).param("team", team).param("student", student).update();
 	}
 
 	private UUID openJob(String title, String type, String skillId, String skillName, String budget, String deadline,

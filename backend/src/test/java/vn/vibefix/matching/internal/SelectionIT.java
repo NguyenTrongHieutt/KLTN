@@ -105,14 +105,20 @@ class SelectionIT extends IntegrationTest {
 	}
 
 	@Test
-	void j3ChecksTheMentorAgain() throws Exception {
+	void j3ChecksTheBidderAgain() throws Exception {
+		// Story 21.2 (FR-15, SG-52): under the Job lock and the bidder's lock, a bidder who unlinked GitHub or was locked
+		// since bidding is refused, and the Job stays Open.
 		UUID unlinked = mentor("Đã bỏ liên kết", true);
 		UUID gone = application(unlinked);
 		IdentityTestSupport.unlinkGitHub(this.jdbc, unlinked);
 		select(gone, 1).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("MENTOR_NOT_AVAILABLE"));
 
-		UUID busy = application(mentor("Nhóm chưa xác minh", false));
-		select(busy, 1).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("MENTOR_NO_FREE_STUDENT"));
+		UUID locked = TeamTestSupport.mentor(this.jdbc, "Đã bị khóa", List.of(TeamTestSupport.REACT), "React");
+		UUID lockedBid = application(locked);
+		IdentityTestSupport.lock(this.jdbc, locked, "Vi phạm");
+		select(lockedBid, 1).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("MENTOR_NOT_AVAILABLE"));
+		assertThat(this.jdbc.sql("SELECT state FROM job.job WHERE id = :id").param("id", this.job)
+			.query(String.class).single()).isEqualTo("OPEN");
 
 		UUID full = mentor("Đủ việc", true);
 		UUID atLimit = application(full);
@@ -139,9 +145,10 @@ class SelectionIT extends IntegrationTest {
 
 	@Test
 	void j3RefusesAMentorWithACountedCrewRowOnTheJobBeforeAnyOtherGuard() throws Exception {
-		// AD-43: no command puts a Crew row on an Open Job, so the row is written directly. The Mentor's Team has no
-		// verified Student, so any later guard would refuse with MENTOR_NO_FREE_STUDENT instead.
+		// AD-43: no command puts a Crew row on an Open Job, so the row is written directly. The bidder is locked, so any
+		// later guard would refuse with MENTOR_NOT_AVAILABLE instead.
 		UUID crewed = mentor("Đang trong nhóm", false);
+		IdentityTestSupport.lock(this.jdbc, crewed, "Vi phạm");
 		UUID chosen = application(crewed);
 		UUID row = UUID.randomUUID();
 		this.jdbc.sql("""
@@ -161,9 +168,21 @@ class SelectionIT extends IntegrationTest {
 		this.jdbc.sql("UPDATE job.crew_row SET signed_at = NULL, activated_at = NULL, window_end = NULL, released_reason = 'DECLINED'"
 				+ " WHERE id = :id").param("id", row).update();
 		// A row released without activation holds no role, so the next guard decides.
-		select(chosen, 1).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("MENTOR_NO_FREE_STUDENT"));
+		select(chosen, 1).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("MENTOR_NOT_AVAILABLE"));
 		assertThat(this.jdbc.sql("SELECT state FROM job.job WHERE id = :id").param("id", this.job)
 			.query(String.class).single()).isEqualTo("OPEN");
+	}
+
+	@Test
+	void j3SelectsABidderWithNoTeamOrFreeStudent() throws Exception {
+		// Story 21.2: no free Student and no Team is asked for, at the bid or at J3.
+		UUID alone = TeamTestSupport.mentor(this.jdbc, "Không có nhóm", List.of(TeamTestSupport.REACT), "React");
+		UUID chosen = application(alone);
+
+		select(chosen, 1).andExpect(status().isOk()).andExpect(jsonPath("$.version").value(2));
+
+		assertThat(this.jdbc.sql("SELECT state || ' ' || mentor_account_id FROM job.job WHERE id = :id").param("id", this.job)
+			.query(String.class).single()).isEqualTo("SELECTING " + alone);
 	}
 
 	private ResultActions select(UUID application, long version) throws Exception {
