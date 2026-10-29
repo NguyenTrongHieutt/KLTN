@@ -140,7 +140,7 @@ describe('MEN-2 "Đề xuất cho bạn" (FR-14, AD-17)', () => {
   }
   const handlers = {
     'GET /api/v1/mentor/job-posts': () => json({ items: [], page: 0, size: 20, total: 0 }),
-    'GET /api/v1/mentor/capacity': () => json({ teamSize: 6, freeStudents: 2, activeJobs: 0, jobLimit: 3, reasons: [] }),
+    'GET /api/v1/mentor/capacity': () => json({ activeJobs: 0, jobLimit: 3, reasons: [] }),
     'GET /api/v1/mentor/applications': () => json([]),
     'GET /api/v1/mentor/recommendations': () => json([recommended, recruiting]),
   }

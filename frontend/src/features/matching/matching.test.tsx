@@ -18,27 +18,6 @@ function renderAt(path: string) {
   return router
 }
 
-const post = {
-  id: 'j1',
-  phase: 'FINDING_MENTOR',
-  need: 'MENTOR',
-  title: 'Sửa lỗi mất đơn hàng',
-  productName: 'Shop Gốm Bát Tràng',
-  productDescription: 'Cửa hàng gốm.',
-  productTools: ['LOVABLE'],
-  productOpenFindings: 0,
-  problem: 'Đơn không hiện.',
-  jobTypes: ['BUG_FIX'],
-  skills: [],
-  budget: 'FROM_2M_TO_5M',
-  deadline: '2026-11-10',
-  openedAt: '2026-10-15T03:00:00Z',
-  lapsesAt: '2026-10-29T03:00:00Z',
-  screenshots: [],
-}
-
-const capacity = (reasons: string[] = []) => json({ teamSize: 6, freeStudents: 2, activeJobs: 0, jobLimit: 3, reasons })
-
 const application = (overrides: object = {}) => ({
   id: 'a1',
   jobId: 'j1',
@@ -77,7 +56,19 @@ const hungApplication = {
   timelineDays: 7,
   approach: 'Tái hiện lỗi, sửa và thêm kiểm thử.',
   submittedAt: '2026-10-16T03:00:00Z',
-  mentor: { displayName: 'Đỗ Mạnh Hùng', githubLogin: 'hungdm', yearsOfExperience: 8, teamSize: 6 },
+  mentor: { displayName: 'Đỗ Mạnh Hùng', githubLogin: 'hungdm', yearsOfExperience: 8 },
+  proof: [
+    {
+      position: 1,
+      kind: 'FILE',
+      caption: 'Báo cáo kiểm thử',
+      fileId: 'f1',
+      fileName: 'bao-cao.pdf',
+      sizeBytes: 2048,
+      fileUrl: '/api/v1/files/f1',
+    },
+    { position: 2, kind: 'LINK', caption: 'Bài đánh giá', url: 'https://docs.example.vn/danh-gia', domain: 'docs.example.vn' },
+  ],
 }
 
 const haApplication = {
@@ -87,7 +78,8 @@ const haApplication = {
   timelineDays: 10,
   approach: 'Tập trung vào lộ dữ liệu khách hàng.',
   submittedAt: '2026-10-16T04:00:00Z',
-  mentor: { displayName: 'Phạm Thu Hà', githubLogin: 'hatp', yearsOfExperience: 6, teamSize: 1 },
+  mentor: { displayName: 'Phạm Thu Hà', githubLogin: 'hatp', yearsOfExperience: 6 },
+  proof: [],
 }
 
 const publicHung = {
@@ -117,137 +109,6 @@ const selectingJob = {
 
 afterEach(() => {
   vi.unstubAllGlobals()
-})
-
-describe('MEN-3, applying with a quote (FR-13)', () => {
-  it('formats the price while typing, needs N-5, and sends the Application', { timeout: 20_000 }, async () => {
-    const user = userEvent.setup()
-    let sent: unknown
-    let applied = false
-    fakeBackend(signedInUser, {
-      'GET /api/v1/mentor/job-posts/j1': () => json(post),
-      'GET /api/v1/mentor/job-posts/j1/customer-rating': () => json({ count: 0 }),
-      'GET /api/v1/mentor/capacity': () => capacity(),
-      'GET /api/v1/mentor/applications': () => json(applied ? [application({ priceVnd: 800_000 })] : []),
-      'POST /api/v1/mentor/job-posts/j1/applications': async (request) => {
-        sent = await request.json()
-        applied = true
-        return json(application({ priceVnd: 800_000 }), 201)
-      },
-    })
-    renderAt('/tim-viec/j1')
-
-    const price = await screen.findByLabelText('Giá đề xuất')
-    await user.type(price, '800000')
-    expect(price).toHaveValue('800.000')
-    await user.type(screen.getByLabelText('Thời gian làm (ngày)'), '7')
-    await user.type(screen.getByLabelText('Cách bạn sẽ làm'), 'Tái hiện lỗi, sửa và thêm kiểm thử.')
-    await user.click(screen.getByRole('button', { name: 'Ứng tuyển' }))
-    expect(await screen.findByText('Hãy đánh dấu ô xác nhận trước khi ứng tuyển.')).toBeInTheDocument()
-    await user.click(screen.getByRole('checkbox', { name: /Tôi hiểu mã tôi và nhóm làm/ }))
-    await user.click(screen.getByRole('button', { name: 'Ứng tuyển' }))
-
-    await waitFor(() =>
-      expect(sent).toEqual({
-        priceVnd: 800000,
-        timelineDays: 7,
-        approach: 'Tái hiện lỗi, sửa và thêm kiểm thử.',
-        publicCodeAcknowledged: true,
-      }),
-    )
-    expect(await screen.findByText('Bạn đã ứng tuyển công việc này')).toBeInTheDocument()
-    expect(screen.getByText(/800\.000 ₫/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Rút đơn' })).toBeInTheDocument()
-  })
-
-  it('says GitHub must be linked before bidding and links to ACC-2 (FR-80)', { timeout: 20_000 }, async () => {
-    const user = userEvent.setup()
-    fakeBackend(signedInUser, {
-      'GET /api/v1/mentor/job-posts/j1': () => json(post),
-      'GET /api/v1/mentor/job-posts/j1/customer-rating': () => json({ count: 0 }),
-      'GET /api/v1/mentor/capacity': () => capacity(),
-      'GET /api/v1/mentor/applications': () => json([]),
-      'POST /api/v1/mentor/job-posts/j1/applications': () => json({ status: 403, code: 'FORBIDDEN', reason: 'GITHUB_NOT_LINKED' }, 403),
-    })
-    renderAt('/tim-viec/j1')
-
-    await user.type(await screen.findByLabelText('Giá đề xuất'), '800000')
-    await user.type(screen.getByLabelText('Thời gian làm (ngày)'), '7')
-    await user.type(screen.getByLabelText('Cách bạn sẽ làm'), 'Tái hiện lỗi, sửa và thêm kiểm thử.')
-    await user.click(screen.getByRole('checkbox', { name: /Tôi hiểu mã tôi và nhóm làm/ }))
-    await user.click(screen.getByRole('button', { name: 'Ứng tuyển' }))
-
-    expect(await screen.findAllByText('Bạn không thể làm việc này. Hãy liên kết GitHub trước.')).not.toHaveLength(0)
-    // Base UI hides a toast from the accessibility tree until the toasts region is reached (F6).
-    expect(screen.getAllByRole('link', { name: 'Liên kết GitHub', hidden: true })[0]).toHaveAttribute('href', '/ho-so/xac-minh')
-  })
-
-  it('says a bid needs a display name and links to ACC-1 (Story 19.7)', { timeout: 20_000 }, async () => {
-    const user = userEvent.setup()
-    fakeBackend(signedInUser, {
-      'GET /api/v1/mentor/job-posts/j1': () => json(post),
-      'GET /api/v1/mentor/job-posts/j1/customer-rating': () => json({ count: 0 }),
-      'GET /api/v1/mentor/capacity': () => capacity(),
-      'GET /api/v1/mentor/applications': () => json([]),
-      'POST /api/v1/mentor/job-posts/j1/applications': () =>
-        json({ status: 422, code: 'GUARD_FAILED', reason: 'PROFILE_REQUIRED' }, 422),
-    })
-    renderAt('/tim-viec/j1')
-
-    await user.type(await screen.findByLabelText('Giá đề xuất'), '800000')
-    await user.type(screen.getByLabelText('Thời gian làm (ngày)'), '7')
-    await user.type(screen.getByLabelText('Cách bạn sẽ làm'), 'Tái hiện lỗi, sửa và thêm kiểm thử.')
-    await user.click(screen.getByRole('checkbox', { name: /Tôi hiểu mã tôi và nhóm làm/ }))
-    await user.click(screen.getByRole('button', { name: 'Ứng tuyển' }))
-
-    expect(
-      await screen.findAllByText('Hãy đặt tên hiển thị trong hồ sơ trước khi ứng tuyển, để khách hàng biết ai đang ứng tuyển.'),
-    ).not.toHaveLength(0)
-    expect(screen.getAllByRole('link', { name: 'Mở hồ sơ', hidden: true })[0]).toHaveAttribute('href', '/ho-so')
-  })
-
-  it('keeps "Ứng tuyển" disabled while FR-13 refuses and says each reason plainly', { timeout: 20_000 }, async () => {
-    const user = userEvent.setup()
-    fakeBackend(signedInUser, {
-      'GET /api/v1/mentor/job-posts/j1': () => json(post),
-      'GET /api/v1/mentor/job-posts/j1/customer-rating': () => json({ count: 0 }),
-      'GET /api/v1/mentor/capacity': () => capacity(['NO_FREE_STUDENT', 'MENTOR_JOB_LIMIT']),
-      'GET /api/v1/mentor/applications': () => json([]),
-    })
-    renderAt('/tim-viec/j1')
-
-    expect(await screen.findByRole('button', { name: 'Ứng tuyển' })).toBeDisabled()
-    expect(screen.getByText('Nhóm của bạn chưa có thành viên rảnh, nên chưa ứng tuyển được.')).toBeInTheDocument()
-    expect(screen.getByText('Bạn đang nhận đủ 3 công việc. Hãy hoàn thành bớt rồi ứng tuyển tiếp.')).toBeInTheDocument()
-    // Story 21.1 retires the free-Student banner's Team link; the refusal stays until Story 21.2.
-    expect(screen.queryByRole('link', { name: 'Mời thành viên' })).toBeNull()
-    await user.type(screen.getByLabelText('Giá đề xuất'), 'abc')
-    expect(screen.getByLabelText('Giá đề xuất')).toHaveValue('')
-  })
-
-  it('withdraws the Application after a confirmation', { timeout: 20_000 }, async () => {
-    const user = userEvent.setup()
-    let withdrawn = false
-    fakeBackend(signedInUser, {
-      'GET /api/v1/mentor/job-posts/j1': () => json(post),
-      'GET /api/v1/mentor/job-posts/j1/customer-rating': () => json({ count: 0 }),
-      'GET /api/v1/mentor/capacity': () => capacity(),
-      'GET /api/v1/mentor/applications': () =>
-        json([application(withdrawn ? { status: 'WITHDRAWN', endReason: 'WITHDRAWN', endedAt: '2026-10-17T03:00:00Z' } : {})]),
-      'POST /api/v1/mentor/applications/a1/withdraw': () => {
-        withdrawn = true
-        return json(application({ status: 'WITHDRAWN', endReason: 'WITHDRAWN' }))
-      },
-    })
-    renderAt('/tim-viec/j1')
-
-    await user.click(await screen.findByRole('button', { name: 'Rút đơn' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Rút đơn ứng tuyển này?' })
-    await user.click(within(dialog).getByRole('button', { name: 'Rút đơn' }))
-
-    expect(await screen.findByText('Đơn của bạn đã được rút')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Rút đơn' })).toBeNull()
-  })
 })
 
 describe('"Việc tôi hướng dẫn" on CUS-7, and CUS-8 (UX-DR78, UX-DR66, UX-DR86)', () => {
@@ -284,7 +145,13 @@ describe('"Việc tôi hướng dẫn" on CUS-7, and CUS-8 (UX-DR78, UX-DR66, UX
 
     expect(await screen.findByText('Đỗ Mạnh Hùng')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Đơn ứng tuyển (2)' })).toHaveAttribute('aria-current', 'page')
-    expect(screen.getByText(/8 năm kinh nghiệm · nhóm 6 thành viên/)).toBeInTheDocument()
+    // Story 21.2: no Team size; each bid shows its proof, a file's download and a link with its domain and N-11.
+    expect(screen.getByText(/^8 năm kinh nghiệm/)).toBeInTheDocument()
+    expect(screen.queryByText(/nhóm \d+ thành viên/)).toBeNull()
+    expect(screen.getByText('Báo cáo kiểm thử')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /bao-cao\.pdf/ })).toHaveAttribute('href', '/api/v1/files/f1')
+    expect(screen.getByRole('link', { name: /docs\.example\.vn\/danh-gia/ })).toHaveAttribute('target', '_blank')
+    expect(screen.getByText(/Trang này nằm ngoài vibefix \(docs\.example\.vn\)/)).toBeInTheDocument()
     expect(screen.getByText('3.500.000 ₫')).toBeInTheDocument()
     expect(await screen.findByText('4,8 sao')).toBeInTheDocument()
     expect(await screen.findByText('Mới')).toBeInTheDocument()
@@ -375,7 +242,8 @@ describe('"Việc tôi hướng dẫn" on CUS-7, and CUS-8 (UX-DR78, UX-DR66, UX
             timelineDays: 1,
             approach: 'x',
             submittedAt: '2026-10-16T03:00:00Z',
-            mentor: { displayName: 'A', yearsOfExperience: 1, teamSize: 1 },
+            mentor: { displayName: 'A', yearsOfExperience: 1 },
+            proof: [],
           },
         ]),
       'GET /api/v1/products/p1': () => json({ id: 'p1', openFindings: 0 }),
@@ -400,7 +268,8 @@ describe('"Việc tôi hướng dẫn" on CUS-7, and CUS-8 (UX-DR78, UX-DR66, UX
             timelineDays: 1,
             approach: payload,
             submittedAt: '2026-10-16T03:00:00Z',
-            mentor: { displayName: payload, yearsOfExperience: 1, teamSize: 1 },
+            mentor: { displayName: payload, yearsOfExperience: 1 },
+            proof: [{ position: 1, kind: 'LINK', caption: payload, url: 'https://a.vn/x', domain: 'a.vn' }],
           },
         ]),
     })

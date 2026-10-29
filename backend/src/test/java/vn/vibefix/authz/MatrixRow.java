@@ -37,7 +37,8 @@ import org.springframework.http.HttpMethod;
  * answer; {@code file=upload}, {@code file=attachment}, {@code file=chat} and {@code file=screenshot} make
  * {@code {fileId}} name one of the crew Job's stored files (the Mentor's screenshot upload waiting for the next
  * handover, a Work Item attachment, a Crew Chat attachment, a handover's screenshot) instead of the Open Job Post's
- * public screenshot; and {@code item=raiser} makes {@code {workItemId}} name the escalated Team Issue's raiser's
+ * public screenshot; {@code file=proof} and {@code file=proof-upload} make it name the post's bid's proof file or the
+ * Bidder's proof upload no bid took yet (Story 21.2); and {@code item=raiser} makes {@code {workItemId}} name the escalated Team Issue's raiser's
  * Work Item instead of the active member's. The
  * fixture that realizes the caller must understand every other key; since Story 20.5 no caller takes one: a
  * locked account is the caller {@code LOCKED}, and the GitHub link tells {@code USER} from
@@ -126,6 +127,18 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 		 * {@code HandoverScreenshotFiles} serves to the Delivery Report's readers.
 		 */
 		HANDOVER_FILE("file", "screenshot", "fileId", "handoverScreenshotFileId"),
+
+		/**
+		 * {@code file=proof}: {@code {fileId}} names the stored file of the Open post's bid's proof, which
+		 * {@code BidProofFiles} serves to the Bidder and the Job's Customer only (Story 21.2).
+		 */
+		BID_PROOF_FILE("file", "proof", "fileId", "proofFileId"),
+
+		/**
+		 * {@code file=proof-upload}: {@code {fileId}} names the Bidder's proof upload on the post that no bid took yet,
+		 * which only the Bidder reads and removes (Story 21.2).
+		 */
+		PROOF_UPLOAD("file", "proof-upload", "fileId", "proofUploadId"),
 
 		/**
 		 * {@code item=raiser}: {@code {workItemId}} names the Work Item of the escalated Team Issue's raiser, which that

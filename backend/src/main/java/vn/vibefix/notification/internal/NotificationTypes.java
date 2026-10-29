@@ -216,6 +216,10 @@ class NotificationTypes implements NotificationCatalog {
 			"matching.application_auto_withdrawn", Set.of(Audience.CUSTOMER), Channel.IN_APP, EmailClass.TRANSACTIONAL,
 			"alert", Set.of("mentor", "job"));
 
+	/** The bidder withdrew their bid (FR-13, Story 21.2): the Job's Customer, in-app. */
+	static final NotificationType MATCHING_APPLICATION_WITHDRAWN = new NotificationType("matching.application_withdrawn",
+			Set.of(Audience.CUSTOMER), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of("mentor", "job"));
+
 	/** An Application refused for a shared person-link signal (FR-13, AD-19): every Administrator. */
 	static final NotificationType MATCHING_CONFLICT_OF_INTEREST_REFUSED = new NotificationType(
 			"matching.conflict_of_interest_refused", Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL,
@@ -825,7 +829,7 @@ class NotificationTypes implements NotificationCatalog {
 				ADMINISTRATOR_CREATED, ADMINISTRATOR_ENROLMENT, ACCOUNT_LOCKED, TEAM_INVITATION_RECEIVED,
 				TEAM_INVITATION_ANSWERED, TEAM_JOIN_REQUEST_RECEIVED, TEAM_JOIN_REQUEST_ANSWERED, TEAM_RELEASED,
 				TEAM_MEMBER_LEFT, TEAM_MEMBER_REMOVED, SCANNING_INTAKE_SCAN_CLEAN, SCANNING_FINDING_OPENED, SCANNING_FINDING_REOPENED,
-				JOB_POST_LAPSED, MATCHING_APPLICATION_RECEIVED, MATCHING_APPLICATION_AUTO_WITHDRAWN,
+				JOB_POST_LAPSED, MATCHING_APPLICATION_RECEIVED, MATCHING_APPLICATION_AUTO_WITHDRAWN, MATCHING_APPLICATION_WITHDRAWN,
 				MATCHING_CONFLICT_OF_INTEREST_REFUSED, JOB_ASSIGNEE_SELECTED, MATCHING_APPLICATIONS_ON_HOLD,
 				JOB_SELECTION_DECLINED, MATCHING_APPLICATIONS_CLOSED, MATCHING_APPLICATIONS_REOPENED, MATCHING_NDA_OVERDUE,
 				MATCHING_INVITED_TO_APPLY, CHAT_CHAT_OPENED, JOB_AGREEMENT_DRAFT_READY, JOB_CREW_ASSIGNED,

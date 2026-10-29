@@ -184,7 +184,8 @@ class MatrixFilesTest {
 	 * rows run it ({@code ""} for the Open Job Post's public screenshot, the default {@code {fileId}}).
 	 */
 	static final Map<String, String> FILE_POLICIES = Map.of("JobScreenshotFiles", "", "AttachmentFiles",
-			"file=attachment", "ChatAttachmentFiles", "file=chat", "HandoverScreenshotFiles", "file=screenshot");
+			"file=attachment", "ChatAttachmentFiles", "file=chat", "HandoverScreenshotFiles", "file=screenshot",
+			"BidProofFiles", "file=proof");
 
 	/** The file read policies no fixture world can reach, each with why. */
 	static final Map<String, String> UNREACHABLE_FILE_POLICIES = Map.of("FinalZipFiles",
@@ -329,9 +330,9 @@ class MatrixFilesTest {
 			.allSatisfy(row -> assertThat(row.path()).matches("/(api/.+|webhooks(/.+)?)"))
 			.allSatisfy(row -> assertThat(row.callerState()).as("no caller takes a subject state: %s", row).isEmpty())
 			.allSatisfy(row -> assertThat(row.caller()).as("AUTHOR is the harness's own").isNotEqualTo(MatrixCaller.AUTHOR));
-		// The spec's "about 2,800": at most 2,850 since review iteration 4 made room for the file bindings, and 2,900
-		// since Story 20.6 added the one shell's role read and Job list.
-		assertThat(MatrixRow.loadMatrix()).as("2,900 rows or fewer").hasSizeLessThanOrEqualTo(2_900);
+		// The spec's "about 2,800": at most 2,850 since review iteration 4 made room for the file bindings, 2,900
+		// since Story 20.6 added the one shell's role read and Job list, and 2,950 since Story 21.2 added the bid's proof.
+		assertThat(MatrixRow.loadMatrix()).as("2,950 rows or fewer").hasSizeLessThanOrEqualTo(2_950);
 	}
 
 	@Test
@@ -722,10 +723,11 @@ class MatrixFilesTest {
 					"NOTIFICATION_PARAM", "TODO_PARAM", "CONTACT_EMAIL", "SCHOOL_EMAIL", "PERSON_SIGNAL", "STUDENT_HIDDEN_NAME",
 					"PRIVATE_FEEDBACK", "SKILL_SUGGESTION", "CROSS_CREW_NAME", "CROSS_CREW_EMAIL", "CROSS_LINKEDIN",
 					"CROSS_CREW_CHAT", "CROSS_WORK_ITEM_NOTE", "CROSS_PAGE", "WORK_ITEM_TITLE", "CREW_PAGE_TITLE",
-					"CUSTOMER_PAGE", "EARLY_PAGE");
+					"CUSTOMER_PAGE", "EARLY_PAGE", "BID_PROOF_CAPTION", "BID_PROOF_LINK");
 		// The canaries of Job content are written after the former members' windows ended, so a Crew state other than
 		// ACTIVE, which reads at most up to its window_end (AD-41), reads none of them; a bid grants nothing on the Job.
-		// EARLY_PAGE alone was written inside the window, so the former member reads it (review iteration 4).
+		// EARLY_PAGE alone was written inside the window, so the former member reads it (review iteration 4). The bid's
+		// proof is the Bidder's own, which they and the Job's Customer read (Story 21.2).
 		Set<MatrixCaller> neverSee = EnumSet.of(MatrixCaller.ANONYMOUS, MatrixCaller.USER, MatrixCaller.USER_UNVERIFIED,
 				MatrixCaller.LOCKED, MatrixCaller.BIDDER, MatrixCaller.CREW_ASSIGNED, MatrixCaller.CREW_FORMER,
 				MatrixCaller.AUTHOR);
@@ -734,9 +736,16 @@ class MatrixFilesTest {
 			if (canary.name().equals("EARLY_PAGE")) {
 				hidden.remove(MatrixCaller.CREW_FORMER);
 			}
+			if (canary.name().startsWith("BID_PROOF_")) {
+				hidden.remove(MatrixCaller.BIDDER);
+			}
 			assertThat(canary.visibleTo()).as(canary.name()).doesNotContainAnyElementsOf(hidden);
 		});
 		assertThat(canaries.get("EARLY_PAGE").visibleTo()).contains(MatrixCaller.CREW_FORMER);
+		assertThat(canaries.get("BID_PROOF_CAPTION").visibleTo()).containsExactlyInAnyOrder(MatrixCaller.BIDDER,
+				MatrixCaller.CUSTOMER);
+		assertThat(canaries.get("BID_PROOF_LINK").visibleTo()).containsExactlyInAnyOrder(MatrixCaller.BIDDER,
+				MatrixCaller.CUSTOMER);
 	}
 
 	@Test
@@ -745,8 +754,8 @@ class MatrixFilesTest {
 
 		assertThat(names(canaries.hiddenFrom(MatrixCaller.CUSTOMER))).containsAll(CREW_CANARIES);
 		assertThat(names(canaries.all()).stream().filter(name -> !canaries.get(name).hiddenFrom(MatrixCaller.CUSTOMER)))
-			.as("the Job Chat, their own contact and the Customer-visible Page")
-			.containsExactlyInAnyOrder("JOB_CHAT", "CONTACT_EMAIL", "CUSTOMER_PAGE");
+			.as("the Job Chat, their own contact, the Customer-visible Page, and the proof of a bid on their Job")
+			.containsExactlyInAnyOrder("JOB_CHAT", "CONTACT_EMAIL", "CUSTOMER_PAGE", "BID_PROOF_CAPTION", "BID_PROOF_LINK");
 	}
 
 	@Test
@@ -761,7 +770,7 @@ class MatrixFilesTest {
 				"CREW_EMAIL", "JOB_CHAT", "TEAM_ISSUE_ID", "NOTIFICATION_PARAM", "TODO_PARAM", "CONTACT_EMAIL",
 				"SCHOOL_EMAIL", "PERSON_SIGNAL", "STUDENT_HIDDEN_NAME", "PRIVATE_FEEDBACK", "SKILL_SUGGESTION",
 				"CROSS_CREW_NAME", "CROSS_CREW_EMAIL", "CROSS_LINKEDIN", "CROSS_CREW_CHAT", "CROSS_WORK_ITEM_NOTE",
-				"CROSS_PAGE");
+				"CROSS_PAGE", "BID_PROOF_CAPTION", "BID_PROOF_LINK");
 		// The Pages and the Story were written after the former member's window ended; EARLY_PAGE inside it.
 		assertThat(names(canaries.hiddenFrom(MatrixCaller.CREW_FORMER))).contains("CREW_PAGE", "CREW_PAGE_TITLE",
 				"CUSTOMER_PAGE", "WORK_ITEM_TITLE", "CREW_NAME", "CREW_LINKEDIN")
@@ -783,7 +792,12 @@ class MatrixFilesTest {
 		assertThat(names(canaries.hiddenFrom(MatrixCaller.ADMINISTRATOR))).containsExactlyInAnyOrder("CREW_SHARE",
 				"WORK_ITEM_NOTE", "ATTACHMENT", "CREW_CHAT", "CREW_CHAT_UNREPORTED", "CREW_PAGE", "JOB_CHAT",
 				"TEAM_ISSUE_ID", "NOTIFICATION_PARAM", "TODO_PARAM", "SCHOOL_EMAIL", "PERSON_SIGNAL", "CROSS_CREW_CHAT",
-				"CROSS_WORK_ITEM_NOTE", "CROSS_PAGE", "WORK_ITEM_TITLE", "CREW_PAGE_TITLE", "CUSTOMER_PAGE", "EARLY_PAGE");
+				"CROSS_WORK_ITEM_NOTE", "CROSS_PAGE", "WORK_ITEM_TITLE", "CREW_PAGE_TITLE", "CUSTOMER_PAGE", "EARLY_PAGE",
+				"BID_PROOF_CAPTION", "BID_PROOF_LINK");
+		// No Administrator reads a bid's proof (Story 21.2: no read grant covers it).
+		for (MatrixCaller grant : GRANT_SCOPES.keySet()) {
+			assertThat(names(canaries.hiddenFrom(grant))).as(grant.name()).contains("BID_PROOF_CAPTION", "BID_PROOF_LINK");
+		}
 		// A Dispute grant reads no Crew Chat and no Crew Terms (AdminReadItem.forDispute).
 		assertThat(names(canaries.hiddenFrom(MatrixCaller.ADMIN_DISPUTE_GRANT)))
 			.contains("CREW_CHAT", "CREW_CHAT_UNREPORTED", "CREW_SHARE")

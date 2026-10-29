@@ -5812,6 +5812,105 @@
         "tags" : [ "invitation-controller" ]
       }
     },
+    "/api/v1/mentor/job-posts/{postId}/proof-files" : {
+      "get" : {
+        "operationId" : "pending",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "postId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/BidProofUploadView"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "bid-proof-controller" ]
+      },
+      "post" : {
+        "operationId" : "upload",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "postId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "multipart/form-data" : {
+              "schema" : {
+                "type" : "object",
+                "properties" : {
+                  "file" : {
+                    "type" : "string",
+                    "format" : "binary"
+                  }
+                },
+                "required" : [ "file" ]
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BidProofUploadView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "bid-proof-controller" ]
+      }
+    },
+    "/api/v1/mentor/job-posts/{postId}/proof-files/{fileId}" : {
+      "delete" : {
+        "operationId" : "remove_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "postId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "path",
+          "name" : "fileId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "bid-proof-controller" ]
+      }
+    },
     "/api/v1/mentor/jobs" : {
       "get" : {
         "operationId" : "jobs_1",
@@ -9474,16 +9573,12 @@
           "githubLogin" : {
             "type" : "string"
           },
-          "teamSize" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
           "yearsOfExperience" : {
             "type" : "integer",
             "format" : "int32"
           }
         },
-        "required" : [ "displayName", "teamSize" ]
+        "required" : [ "displayName" ]
       },
       "ApplicationView" : {
         "type" : "object",
@@ -9514,6 +9609,12 @@
             "type" : "integer",
             "format" : "int64"
           },
+          "proof" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/BidProofView"
+            }
+          },
           "status" : {
             "type" : "string",
             "enum" : [ "SUBMITTED", "ON_HOLD", "SELECTED", "CLOSED", "WITHDRAWN" ]
@@ -9527,7 +9628,7 @@
             "format" : "int32"
           }
         },
-        "required" : [ "approach", "id", "jobId", "jobTitle", "priceVnd", "status", "submittedAt", "timelineDays" ]
+        "required" : [ "approach", "id", "jobId", "jobTitle", "priceVnd", "proof", "status", "submittedAt", "timelineDays" ]
       },
       "ApplyRequest" : {
         "type" : "object",
@@ -9542,6 +9643,12 @@
             "format" : "int64",
             "maximum" : 1000000000,
             "minimum" : 1000
+          },
+          "proof" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/BidProofRequest"
+            }
           },
           "publicCodeAcknowledged" : {
             "type" : "boolean"
@@ -9778,6 +9885,89 @@
           }
         },
         "required" : [ "balanceVnd", "heldParts", "lines", "releases" ]
+      },
+      "BidProofRequest" : {
+        "type" : "object",
+        "properties" : {
+          "caption" : {
+            "type" : "string",
+            "maxLength" : 200,
+            "minLength" : 0
+          },
+          "fileId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "FILE", "LINK" ]
+          },
+          "url" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "caption", "kind" ]
+      },
+      "BidProofUploadView" : {
+        "type" : "object",
+        "properties" : {
+          "addedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "fileId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "fileName" : {
+            "type" : "string"
+          },
+          "fileUrl" : {
+            "type" : "string"
+          },
+          "sizeBytes" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "addedAt", "fileId", "fileName", "fileUrl", "sizeBytes" ]
+      },
+      "BidProofView" : {
+        "type" : "object",
+        "properties" : {
+          "caption" : {
+            "type" : "string"
+          },
+          "domain" : {
+            "type" : "string"
+          },
+          "fileId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "fileName" : {
+            "type" : "string"
+          },
+          "fileUrl" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "FILE", "LINK" ]
+          },
+          "position" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "sizeBytes" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "url" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "caption", "kind", "position" ]
       },
       "BoardMilestoneView" : {
         "type" : "object",
@@ -10018,10 +10208,6 @@
             "type" : "integer",
             "format" : "int32"
           },
-          "freeStudents" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
           "jobLimit" : {
             "type" : "integer",
             "format" : "int32"
@@ -10030,15 +10216,11 @@
             "type" : "array",
             "items" : {
               "type" : "string",
-              "enum" : [ "NO_FREE_STUDENT", "MENTOR_JOB_LIMIT" ]
+              "enum" : [ "MENTOR_JOB_LIMIT" ]
             }
-          },
-          "teamSize" : {
-            "type" : "integer",
-            "format" : "int32"
           }
         },
-        "required" : [ "activeJobs", "freeStudents", "jobLimit", "reasons", "teamSize" ]
+        "required" : [ "activeJobs", "jobLimit", "reasons" ]
       },
       "CatalogCategory" : {
         "type" : "object",
@@ -13883,7 +14065,7 @@
           },
           "limit" : {
             "type" : "string",
-            "enum" : [ "JOB_POST_NOT_OPEN", "JOB_POST_HIDDEN", "ROLE_TAKEN", "ALREADY_APPLIED", "NO_FREE_STUDENT", "MENTOR_JOB_LIMIT", "CONFLICT_OF_INTEREST", "APPLICANT_IS_CONTRIBUTOR", "CONTRIBUTORS_UNKNOWN", "PUBLIC_CODE_NOT_ACKNOWLEDGED", "NOT_WITHDRAWABLE", "NDA_VERSION_OUTDATED", "COMMIT_EMAIL_NOT_ACKNOWLEDGED", "INVITEE_NOT_AVAILABLE", "ALREADY_INVITED", "INVITEE_ALREADY_APPLIED", "INVITE_LIMIT_JOB_POST", "INVITE_LIMIT_DAILY", "PROFILE_REQUIRED" ]
+            "enum" : [ "JOB_POST_NOT_OPEN", "JOB_POST_HIDDEN", "ROLE_TAKEN", "ALREADY_APPLIED", "MENTOR_JOB_LIMIT", "CONFLICT_OF_INTEREST", "APPLICANT_IS_CONTRIBUTOR", "CONTRIBUTORS_UNKNOWN", "PUBLIC_CODE_NOT_ACKNOWLEDGED", "NOT_WITHDRAWABLE", "NDA_VERSION_OUTDATED", "COMMIT_EMAIL_NOT_ACKNOWLEDGED", "INVITEE_NOT_AVAILABLE", "ALREADY_INVITED", "INVITEE_ALREADY_APPLIED", "INVITE_LIMIT_JOB_POST", "INVITE_LIMIT_DAILY", "PROFILE_REQUIRED", "PROOF_LIMIT", "LINK_INVALID", "PROOF_FILE_UNKNOWN" ]
           }
         },
         "required" : [ "invitations", "left" ]
@@ -13930,6 +14112,12 @@
             "type" : "integer",
             "format" : "int64"
           },
+          "proof" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/BidProofView"
+            }
+          },
           "status" : {
             "type" : "string",
             "enum" : [ "SUBMITTED", "ON_HOLD", "SELECTED", "CLOSED", "WITHDRAWN" ]
@@ -13943,7 +14131,7 @@
             "format" : "int32"
           }
         },
-        "required" : [ "approach", "id", "invited", "mentor", "priceVnd", "status", "submittedAt", "timelineDays" ]
+        "required" : [ "approach", "id", "invited", "mentor", "priceVnd", "proof", "status", "submittedAt", "timelineDays" ]
       },
       "JobCreatedView" : {
         "type" : "object",
@@ -16802,7 +16990,7 @@
           },
           "limit" : {
             "type" : "string",
-            "enum" : [ "JOB_POST_NOT_OPEN", "JOB_POST_HIDDEN", "ROLE_TAKEN", "ALREADY_APPLIED", "NO_FREE_STUDENT", "MENTOR_JOB_LIMIT", "CONFLICT_OF_INTEREST", "APPLICANT_IS_CONTRIBUTOR", "CONTRIBUTORS_UNKNOWN", "PUBLIC_CODE_NOT_ACKNOWLEDGED", "NOT_WITHDRAWABLE", "NDA_VERSION_OUTDATED", "COMMIT_EMAIL_NOT_ACKNOWLEDGED", "INVITEE_NOT_AVAILABLE", "ALREADY_INVITED", "INVITEE_ALREADY_APPLIED", "INVITE_LIMIT_JOB_POST", "INVITE_LIMIT_DAILY", "PROFILE_REQUIRED" ]
+            "enum" : [ "JOB_POST_NOT_OPEN", "JOB_POST_HIDDEN", "ROLE_TAKEN", "ALREADY_APPLIED", "MENTOR_JOB_LIMIT", "CONFLICT_OF_INTEREST", "APPLICANT_IS_CONTRIBUTOR", "CONTRIBUTORS_UNKNOWN", "PUBLIC_CODE_NOT_ACKNOWLEDGED", "NOT_WITHDRAWABLE", "NDA_VERSION_OUTDATED", "COMMIT_EMAIL_NOT_ACKNOWLEDGED", "INVITEE_NOT_AVAILABLE", "ALREADY_INVITED", "INVITEE_ALREADY_APPLIED", "INVITE_LIMIT_JOB_POST", "INVITE_LIMIT_DAILY", "PROFILE_REQUIRED", "PROOF_LIMIT", "LINK_INVALID", "PROOF_FILE_UNKNOWN" ]
           }
         },
         "required" : [ "left" ]

@@ -26,15 +26,17 @@ import { formatVnd } from '@/lib/money'
 import { isNotFound, problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { useJobApplications, useSelectApplication, type JobApplication } from './applicationApi'
+import { ProofList } from './ProofList'
 
 /** "So sánh" pins at most this many cards (UX-DR50). */
 const MAX_COMPARED = 3
 
 /**
  * CUS-8 "Đơn ứng tuyển" (`/cong-viec/{jobId}/ung-tuyen`, FR-13, FR-15, UX-DR50, UX-DR66): the open
- * Applications to the Customer's Job with each Mentor's Rating summary and Portfolio count, the profile
- * in a Sheet, "So sánh" for up to three side by side, and "Chọn", which applies J3 at the version the
- * screen loaded. No Student appears here. A Job past Open has no applications tab.
+ * bids on the Customer's Job with each Mentor's Rating summary and Portfolio count and each bid's proof items (a
+ * caption, then a file's download or a link with its domain and N-11; Story 21.2), the profile in a Sheet, "So sánh"
+ * for up to three side by side, and "Chọn", which applies J3 at the version the screen loaded. No Team size and no
+ * Student appears here; Story 21.3 builds the Bid cards. A Job past Open has no applications tab.
  */
 export function JobApplicationsPage() {
   const { jobId } = useParams()
@@ -196,7 +198,7 @@ function ApplicationCard({
         </span>
       </div>
       <p className="text-caption text-muted-foreground">
-        {t('screen.matching.list.mentor', { experience: experienceText(mentor.yearsOfExperience), n: mentor.teamSize })}
+        {experienceText(mentor.yearsOfExperience)}
         {mentor.githubLogin && (
           <>
             {' · '}
@@ -217,6 +219,12 @@ function ApplicationCard({
         {t('screen.matching.days', { n: application.timelineDays })}
       </p>
       <p className="line-clamp-3 text-body-sm break-words whitespace-pre-line">{application.approach}</p>
+      {application.proof.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <p className="text-label font-semibold">{t('screen.matching.proof.heading')}</p>
+          <ProofList proof={application.proof} />
+        </div>
+      )}
       {reputation.data && (
         <div className="flex flex-wrap items-center gap-2">
           <RatingLine

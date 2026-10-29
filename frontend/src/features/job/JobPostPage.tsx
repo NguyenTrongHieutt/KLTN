@@ -14,12 +14,11 @@ import { formatCalendarDayMonth, formatDayMonth, formatMonthYear } from '@/lib/d
 import { formatSize } from '@/lib/fileSize'
 import { isNotFound } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
-import { ApplyPanel } from '@/features/matching/ApplyPanel'
+import { BidPanel } from '@/features/matching/BidPanel'
 import { useMentorInvitation, type MentorInvitation } from '@/features/matching/invitationApi'
-import { CapacityBanners } from './CapacityBanners'
 import { FindWorkGate } from './FindWorkGate'
 import { leftEarly, roleLabel, useJobRole, useMyJobs, youAreText, type JobRoleView } from './jobRoleApi'
-import { useCustomerRating, useJobPost, useMentorCapacity, type JobPost } from './jobPostApi'
+import { useCustomerRating, useJobPost, type JobPost } from './jobPostApi'
 import { PhaseBadge } from './PhaseBadge'
 import { needText } from './phaseText'
 
@@ -27,10 +26,10 @@ import { needText } from './phaseText'
  * MEN-3 Chi tiết công việc (`/tim-viec/{jobId}`, FR-12, FR-13, UX-DR98) for every user: a listed Job's Post (the
  * answers, Job Types, Skills with their plain hints, deadline, budget, and screenshots), its phase and what it
  * needs, the Customer's kind, month joined and Rating summary (never their name or contact details), and the
- * Product. One action area follows the phase and the user's relation to the Job: "Chào giá làm người hướng dẫn"
- * with the bid form while the Job looks for a Mentor (Story 21.2 makes it FND-1), the "Xin vào nhóm" details while
- * its Mentor recruits (Story 21.4 adds the button), and for the Job's own people "Bạn là {role} của công việc này"
- * with the way to the Job. A Job no longer listed shows the plain "no longer open" gate, or the role notice to its
+ * Product. One action area follows the phase and the user's relation to the Job: "Chào giá làm người hướng dẫn",
+ * which opens FND-1, or the user's bid with "Xem" and "Rút", while the Job looks for a Mentor (Story 21.2); the
+ * "Xin vào nhóm" details while its Mentor recruits (Story 21.4 adds the button); and for the Job's own people
+ * "Bạn là {role} của công việc này" with the way to the Job. A Job no longer listed shows the plain "no longer open" gate, or the role notice to its
  * own people, or a lapsed invitation's card (FR-14, UX-DR27, UX-DR95). Without GitHub linked, the GitHub gate stands
  * in for the Job Post (X1).
  */
@@ -283,7 +282,7 @@ function ActionArea({ post }: { post: JobPost }) {
     return <RoleNotice jobId={post.id} role={role.data} />
   }
   if (post.phase === 'FINDING_MENTOR') {
-    return <BidAction postId={post.id} />
+    return <BidPanel postId={post.id} />
   }
   if (post.recruitment) {
     return <CrewAction post={post} recruitment={post.recruitment} />
@@ -292,25 +291,6 @@ function ActionArea({ post }: { post: JobPost }) {
     <p role="status" className="rounded-lg border border-border bg-card p-5 text-body-sm">
       {t('screen.jobPost.detail.notTaking')}
     </p>
-  )
-}
-
-/**
- * "Chào giá làm người hướng dẫn" (FR-13): today's bid form with its gates and the user's bid. Every reason the bid
- * path refuses today blocks it and says itself in plain words above it, with no Team link (Story 21.1); Story 21.2
- * removes the free-Student refusal.
- */
-function BidAction({ postId }: { postId: string }) {
-  const capacity = useMentorCapacity()
-  return (
-    <div className="flex flex-col gap-3">
-      <CapacityBanners capacity={capacity.data} />
-      <ApplyPanel
-        postId={postId}
-        teamSize={capacity.data?.teamSize ?? 0}
-        blocked={(capacity.data?.reasons.length ?? 0) > 0}
-      />
-    </div>
   )
 }
 

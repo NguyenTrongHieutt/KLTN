@@ -2628,6 +2628,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/mentor/job-posts/{postId}/proof-files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["pending"];
+        put?: never;
+        post: operations["upload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mentor/job-posts/{postId}/proof-files/{fileId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["remove_1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/mentor/jobs": {
         parameters: {
             query?: never;
@@ -4277,8 +4309,6 @@ export interface components {
             displayName: string;
             githubLogin?: string;
             /** Format: int32 */
-            teamSize: number;
-            /** Format: int32 */
             yearsOfExperience?: number;
         };
         ApplicationView: {
@@ -4294,6 +4324,7 @@ export interface components {
             jobTitle: string;
             /** Format: int64 */
             priceVnd: number;
+            proof: components["schemas"]["BidProofView"][];
             /** @enum {string} */
             status: "SUBMITTED" | "ON_HOLD" | "SELECTED" | "CLOSED" | "WITHDRAWN";
             /** Format: date-time */
@@ -4305,6 +4336,7 @@ export interface components {
             approach: string;
             /** Format: int64 */
             priceVnd: number;
+            proof?: components["schemas"]["BidProofRequest"][];
             publicCodeAcknowledged: boolean;
             /** Format: int32 */
             timelineDays: number;
@@ -4387,6 +4419,39 @@ export interface components {
             releases: number;
             /** Format: int64 */
             sentToCrewVnd?: number;
+        };
+        BidProofRequest: {
+            caption: string;
+            /** Format: uuid */
+            fileId?: string;
+            /** @enum {string} */
+            kind: "FILE" | "LINK";
+            url?: string;
+        };
+        BidProofUploadView: {
+            /** Format: date-time */
+            addedAt: string;
+            /** Format: uuid */
+            fileId: string;
+            fileName: string;
+            fileUrl: string;
+            /** Format: int64 */
+            sizeBytes: number;
+        };
+        BidProofView: {
+            caption: string;
+            domain?: string;
+            /** Format: uuid */
+            fileId?: string;
+            fileName?: string;
+            fileUrl?: string;
+            /** @enum {string} */
+            kind: "FILE" | "LINK";
+            /** Format: int32 */
+            position: number;
+            /** Format: int64 */
+            sizeBytes?: number;
+            url?: string;
         };
         BoardMilestoneView: {
             held: boolean;
@@ -4476,12 +4541,8 @@ export interface components {
             /** Format: int32 */
             activeJobs: number;
             /** Format: int32 */
-            freeStudents: number;
-            /** Format: int32 */
             jobLimit: number;
-            reasons: ("NO_FREE_STUDENT" | "MENTOR_JOB_LIMIT")[];
-            /** Format: int32 */
-            teamSize: number;
+            reasons: "MENTOR_JOB_LIMIT"[];
         };
         CatalogCategory: {
             /** Format: uuid */
@@ -5827,7 +5888,7 @@ export interface components {
             /** Format: int32 */
             left: number;
             /** @enum {string} */
-            limit?: "JOB_POST_NOT_OPEN" | "JOB_POST_HIDDEN" | "ROLE_TAKEN" | "ALREADY_APPLIED" | "NO_FREE_STUDENT" | "MENTOR_JOB_LIMIT" | "CONFLICT_OF_INTEREST" | "APPLICANT_IS_CONTRIBUTOR" | "CONTRIBUTORS_UNKNOWN" | "PUBLIC_CODE_NOT_ACKNOWLEDGED" | "NOT_WITHDRAWABLE" | "NDA_VERSION_OUTDATED" | "COMMIT_EMAIL_NOT_ACKNOWLEDGED" | "INVITEE_NOT_AVAILABLE" | "ALREADY_INVITED" | "INVITEE_ALREADY_APPLIED" | "INVITE_LIMIT_JOB_POST" | "INVITE_LIMIT_DAILY" | "PROFILE_REQUIRED";
+            limit?: "JOB_POST_NOT_OPEN" | "JOB_POST_HIDDEN" | "ROLE_TAKEN" | "ALREADY_APPLIED" | "MENTOR_JOB_LIMIT" | "CONFLICT_OF_INTEREST" | "APPLICANT_IS_CONTRIBUTOR" | "CONTRIBUTORS_UNKNOWN" | "PUBLIC_CODE_NOT_ACKNOWLEDGED" | "NOT_WITHDRAWABLE" | "NDA_VERSION_OUTDATED" | "COMMIT_EMAIL_NOT_ACKNOWLEDGED" | "INVITEE_NOT_AVAILABLE" | "ALREADY_INVITED" | "INVITEE_ALREADY_APPLIED" | "INVITE_LIMIT_JOB_POST" | "INVITE_LIMIT_DAILY" | "PROFILE_REQUIRED" | "PROOF_LIMIT" | "LINK_INVALID" | "PROOF_FILE_UNKNOWN";
         };
         InviteRequest: {
             /** Format: uuid */
@@ -5845,6 +5906,7 @@ export interface components {
             mentor: components["schemas"]["ApplicantView"];
             /** Format: int64 */
             priceVnd: number;
+            proof: components["schemas"]["BidProofView"][];
             /** @enum {string} */
             status: "SUBMITTED" | "ON_HOLD" | "SELECTED" | "CLOSED" | "WITHDRAWN";
             /** Format: date-time */
@@ -6881,7 +6943,7 @@ export interface components {
             /** Format: int32 */
             left: number;
             /** @enum {string} */
-            limit?: "JOB_POST_NOT_OPEN" | "JOB_POST_HIDDEN" | "ROLE_TAKEN" | "ALREADY_APPLIED" | "NO_FREE_STUDENT" | "MENTOR_JOB_LIMIT" | "CONFLICT_OF_INTEREST" | "APPLICANT_IS_CONTRIBUTOR" | "CONTRIBUTORS_UNKNOWN" | "PUBLIC_CODE_NOT_ACKNOWLEDGED" | "NOT_WITHDRAWABLE" | "NDA_VERSION_OUTDATED" | "COMMIT_EMAIL_NOT_ACKNOWLEDGED" | "INVITEE_NOT_AVAILABLE" | "ALREADY_INVITED" | "INVITEE_ALREADY_APPLIED" | "INVITE_LIMIT_JOB_POST" | "INVITE_LIMIT_DAILY" | "PROFILE_REQUIRED";
+            limit?: "JOB_POST_NOT_OPEN" | "JOB_POST_HIDDEN" | "ROLE_TAKEN" | "ALREADY_APPLIED" | "MENTOR_JOB_LIMIT" | "CONFLICT_OF_INTEREST" | "APPLICANT_IS_CONTRIBUTOR" | "CONTRIBUTORS_UNKNOWN" | "PUBLIC_CODE_NOT_ACKNOWLEDGED" | "NOT_WITHDRAWABLE" | "NDA_VERSION_OUTDATED" | "COMMIT_EMAIL_NOT_ACKNOWLEDGED" | "INVITEE_NOT_AVAILABLE" | "ALREADY_INVITED" | "INVITEE_ALREADY_APPLIED" | "INVITE_LIMIT_JOB_POST" | "INVITE_LIMIT_DAILY" | "PROFILE_REQUIRED" | "PROOF_LIMIT" | "LINK_INVALID" | "PROOF_FILE_UNKNOWN";
         };
         QuoteView: {
             /** Format: int64 */
@@ -12224,6 +12286,78 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MentorInvitationView"];
                 };
+            };
+        };
+    };
+    pending: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                postId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BidProofUploadView"][];
+                };
+            };
+        };
+    };
+    upload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                postId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BidProofUploadView"];
+                };
+            };
+        };
+    };
+    remove_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                postId: string;
+                fileId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

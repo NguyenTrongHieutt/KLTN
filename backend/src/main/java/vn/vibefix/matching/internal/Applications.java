@@ -22,21 +22,19 @@ import vn.vibefix.audit.AuditActor;
 import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
-import vn.vibefix.github.GitHubException;
-import vn.vibefix.identity.CustomerRepositories;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.PersonSignals;
 import vn.vibefix.job.JobPosts;
 import vn.vibefix.job.JobPosts.JobPostState;
 import vn.vibefix.job.MentorWork;
+import vn.vibefix.matching.internal.BidProofs.Item;
+import vn.vibefix.matching.internal.SourceContributors.Contribution;
 import vn.vibefix.notification.Audience;
 import vn.vibefix.notification.NotificationRequest;
 import vn.vibefix.notification.Notifications;
 import vn.vibefix.notification.Recipient;
 import vn.vibefix.notification.TodoRequest;
 import vn.vibefix.notification.Todos;
-import vn.vibefix.product.ProductDirectory;
-import vn.vibefix.product.ProductDirectory.ProductInfo;
 import vn.vibefix.shared.AdvisoryLocks;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
@@ -46,12 +44,13 @@ import vn.vibefix.timers.DeadlineRequest;
 import vn.vibefix.timers.Deadlines;
 
 /**
- * Mentors' Applications (FR-13): one per Mentor and Job, with a price in whole VND, a timeline in days,
- * and an approach. Refused, in this order, for a hidden or closed Job Post, a second Application, the
- * daily limit, no free Student, the Job limit, a person-link signal shared with the Customer (which
- * alerts every Administrator), or a contribution to the Source Repository. The Customer is told of the
- * first Application and keeps a to-do with the open count until J2 or J3. An invited Mentor's
- * Application answers their invitation.
+ * Bids, which the UI calls "Đơn chào giá" (FR-13, Story 21.2): one per account and Job, with a price in whole VND, a
+ * timeline in days, an approach, and at most five proof items ({@link BidProofs}). Refused, in this order, for the
+ * Job's own Customer, a hidden or closed Job Post, a second bid, the daily limit, the Job limit, a person-link signal
+ * shared with the Customer (which alerts every Administrator), or a contribution to the Source Repository, which
+ * {@link SourceContributors} reads before the transaction; no free Student and no approval is asked for. The Customer
+ * is told of the first bid and of each withdrawal, and keeps a to-do with the open count until J2 or J3. An invited
+ * Mentor's bid answers their invitation. A bid that ends unselected keeps its proof for 90 days ({@code proof_due_at}).
  */
 @Component
 class Applications {
@@ -67,6 +66,9 @@ class Applications {
 	static final String RECEIVED = "matching.application_received";
 
 	static final String AUTO_WITHDRAWN = "matching.application_auto_withdrawn";
+
+	/** The bidder withdrew: the Customer learns it (Story 21.2). */
+	static final String WITHDRAWN_NOTICE = "matching.application_withdrawn";
 
 	static final String CHOOSE_ASSIGNEE = "matching.choose_assignee";
 
@@ -110,11 +112,9 @@ class Applications {
 
 	private final PersonSignals signals;
 
-	private final CustomerRepositories repositories;
-
-	private final ProductDirectory products;
-
 	private final MentorDirectory mentors;
+
+	private final BidProofs proofs;
 
 	private final Notifications notifications;
 
@@ -132,17 +132,15 @@ class Applications {
 
 	private final Clock clock;
 
-	Applications(JdbcClient jdbc, JobPosts posts, MentorWork work, PersonSignals signals,
-			CustomerRepositories repositories, ProductDirectory products, MentorDirectory mentors,
-			Notifications notifications, Todos todos, ConflictAlerts alerts, Deadlines deadlines,
+	Applications(JdbcClient jdbc, JobPosts posts, MentorWork work, PersonSignals signals, MentorDirectory mentors,
+			BidProofs proofs, Notifications notifications, Todos todos, ConflictAlerts alerts, Deadlines deadlines,
 			Invitations invitations, AuditLog auditLog, IdGenerator ids, Clock clock) {
 		this.jdbc = jdbc;
 		this.posts = posts;
 		this.work = work;
 		this.signals = signals;
-		this.repositories = repositories;
-		this.products = products;
 		this.mentors = mentors;
+		this.proofs = proofs;
 		this.notifications = notifications;
 		this.todos = todos;
 		this.alerts = alerts;
@@ -166,16 +164,18 @@ class Applications {
 	}
 
 	/**
-	 * Submits the Mentor's Application (the caller checks the GitHub link, AD-19).
+	 * Submits the bid with its proof (the caller checks the GitHub link, AD-19, and the proof's shape).
+	 * @param proof the proof items, as {@link BidProofs#requireShape} kept them
+	 * @param contribution what {@link SourceContributors} read before this transaction (A-03), never read again here
 	 * @throws ApiException {@code NOT_FOUND} for no such Job; {@code GUARD_FAILED ROLE_TAKEN} for the Job's own
 	 * Customer, before any other rule (AD-43); {@code GUARD_FAILED} with {@code JOB_POST_HIDDEN},
-	 * {@code JOB_POST_NOT_OPEN}, {@code NO_FREE_STUDENT}, {@code MENTOR_JOB_LIMIT} (with {@code limit}),
-	 * {@code CONFLICT_OF_INTEREST}, {@code APPLICANT_IS_CONTRIBUTOR}, or {@code CONTRIBUTORS_UNKNOWN};
-	 * {@code CONFLICT ALREADY_APPLIED}
-	 * @throws RateLimitedException after {@value #DAILY_LIMIT} Applications today
+	 * {@code JOB_POST_NOT_OPEN}, {@code MENTOR_JOB_LIMIT} (with {@code limit}), {@code CONFLICT_OF_INTEREST},
+	 * {@code APPLICANT_IS_CONTRIBUTOR}, or {@code CONTRIBUTORS_UNKNOWN}; {@code CONFLICT ALREADY_APPLIED};
+	 * {@code VALIDATION PROOF_FILE_UNKNOWN} for a file that is not the bidder's upload waiting for this Job
+	 * @throws RateLimitedException after {@value #DAILY_LIMIT} bids today
 	 */
 	@Transactional
-	Application submit(UUID mentorId, UUID jobId, Quote quote) {
+	Application submit(UUID mentorId, UUID jobId, Quote quote, List<Item> proof, Contribution contribution) {
 		JobPostState post = this.posts.post(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		if (mentorId.equals(post.customerId())) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.ROLE_TAKEN);
@@ -199,9 +199,6 @@ class Applications {
 		if (today >= DAILY_LIMIT) {
 			throw new RateLimitedException(Duration.between(now, dayStart.plus(Duration.ofDays(1))));
 		}
-		if (this.work.freeStudents(mentorId).isEmpty()) {
-			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.NO_FREE_STUDENT);
-		}
 		int limit = this.work.activeJobLimit();
 		if (this.work.activeJobCount(mentorId) >= limit) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.MENTOR_JOB_LIMIT, Map.of("limit", limit));
@@ -210,8 +207,11 @@ class Applications {
 			this.alerts.conflictRefused();
 			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.CONFLICT_OF_INTEREST);
 		}
-		if (contributor(post, mentorId)) {
+		if (contribution == Contribution.CONTRIBUTOR) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.APPLICANT_IS_CONTRIBUTOR);
+		}
+		if (contribution == Contribution.UNKNOWN) {
+			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.CONTRIBUTORS_UNKNOWN);
 		}
 		UUID id = this.ids.newId();
 		this.jdbc.sql("""
@@ -230,6 +230,7 @@ class Applications {
 			.param("notice", PUBLIC_CODE_NOTICE_VERSION)
 			.param("now", Timestamp.from(now))
 			.update();
+		this.proofs.attach(id, jobId, post.productId(), mentorId, proof);
 		this.auditLog.record(AuditEntry.of(AuditActor.user(mentorId), "matching.application_submitted",
 				AuditObject.of("matching.application", id)).forJob(jobId));
 		this.invitations.markApplied(jobId, mentorId);
@@ -243,21 +244,31 @@ class Applications {
 		return find(jobId, mentorId).orElseThrow();
 	}
 
-	/** Whether the Mentor contributed to the Source Repository; GitHub not answering refuses, failing closed. */
-	private boolean contributor(JobPostState post, UUID mentorId) {
-		ProductInfo product = this.products.find(post.productId())
-			.orElseThrow(() -> new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.JOB_POST_NOT_OPEN));
-		String[] repository = product.repositoryFullName().split("/", 2);
-		try {
-			return this.repositories.hasContributor(post.customerId(), repository[0], repository[1], mentorId);
+	/**
+	 * Where a proof upload for the bidder's bid on the Job may go (FR-13): the Job's Customer never bids on it (AD-43),
+	 * and only an Open, visible Job Post the bidder has not bid on yet takes one.
+	 * @throws ApiException {@code GUARD_FAILED ROLE_TAKEN}, {@code NOT_FOUND}, {@code GUARD_FAILED JOB_POST_HIDDEN} or
+	 * {@code JOB_POST_NOT_OPEN}, or {@code CONFLICT ALREADY_APPLIED}
+	 */
+	@Transactional(readOnly = true)
+	JobPostState requireBiddable(UUID bidderId, UUID jobId) {
+		requireNotOwnJob(bidderId, jobId);
+		JobPostState post = this.posts.post(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		if (post.hidden()) {
+			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.JOB_POST_HIDDEN);
 		}
-		catch (GitHubException | ApiException unanswered) {
-			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.CONTRIBUTORS_UNKNOWN);
+		if (!post.open()) {
+			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.JOB_POST_NOT_OPEN);
 		}
+		if (find(jobId, bidderId).isPresent()) {
+			throw new ApiException(ErrorCode.CONFLICT, MatchingReason.ALREADY_APPLIED);
+		}
+		return post;
 	}
 
 	/**
-	 * Withdraws the Mentor's own submitted or held Application (FR-13).
+	 * Withdraws the bidder's own submitted or held bid (FR-13), and the Job's Customer learns it under the bidder's
+	 * name; the bid stays the one bid of this account on the Job.
 	 * @throws ApiException {@code NOT_FOUND} for another Mentor's; {@code CONFLICT NOT_WITHDRAWABLE} once
 	 * selected or ended
 	 */
@@ -276,7 +287,13 @@ class Applications {
 		end(applicationId, Status.WITHDRAWN, EndReason.WITHDRAWN);
 		this.auditLog.record(AuditEntry.of(AuditActor.user(mentorId), "matching.application_withdrawn",
 				AuditObject.of("matching.application", applicationId)).forJob(application.jobId()));
-		this.posts.post(application.jobId()).ifPresent(post -> refreshTodo(post, openCount(post.jobId())));
+		String mentor = this.mentors.cards(List.of(mentorId)).stream().findFirst().map(card -> card.displayName()).orElse("");
+		this.posts.post(application.jobId()).ifPresent(post -> {
+			this.notifications.send(new NotificationRequest(WITHDRAWN_NOTICE, applicationId,
+					List.of(new Recipient(application.customerId(), Audience.CUSTOMER)),
+					Map.of("mentor", mentor, "job", post.title()), applicationsLink(post.jobId()), post.jobId(), null));
+			refreshTodo(post, openCount(post.jobId()));
+		});
 		return find(application.jobId(), mentorId).orElseThrow();
 	}
 
@@ -298,13 +315,15 @@ class Applications {
 	/** J2: the Job's submitted and held Applications close, and so does the Customer's to-do (§4.0). */
 	@Transactional
 	void closeForJob(UUID jobId, EndReason reason) {
+		Instant now = this.clock.instant();
 		this.jdbc.sql("""
-				UPDATE matching.application SET status = 'CLOSED', ended_at = :now, end_reason = :reason
+				UPDATE matching.application SET status = 'CLOSED', ended_at = :now, end_reason = :reason, proof_due_at = :due
 				WHERE job_id = :job AND status IN ('SUBMITTED', 'ON_HOLD')
 				""")
 			.param("job", jobId)
 			.param("reason", reason.name())
-			.param("now", Timestamp.from(this.clock.instant()))
+			.param("now", Timestamp.from(now))
+			.param("due", Timestamp.from(now.plus(BidProofs.RETENTION)))
 			.update();
 		this.todos.closeAll(CHOOSE_ASSIGNEE, jobId);
 	}
@@ -472,14 +491,18 @@ class Applications {
 		}
 	}
 
+	/** Ends the bid unselected: its proof is due for deletion {@link BidProofs#RETENTION} later (X3). */
 	private void end(UUID applicationId, Status status, EndReason reason) {
+		Instant now = this.clock.instant();
 		this.jdbc.sql("""
-				UPDATE matching.application SET status = :status, ended_at = :now, end_reason = :reason WHERE id = :id
+				UPDATE matching.application SET status = :status, ended_at = :now, end_reason = :reason, proof_due_at = :due
+				WHERE id = :id
 				""")
 			.param("id", applicationId)
 			.param("status", status.name())
 			.param("reason", reason.name())
-			.param("now", Timestamp.from(this.clock.instant()))
+			.param("now", Timestamp.from(now))
+			.param("due", Timestamp.from(now.plus(BidProofs.RETENTION)))
 			.update();
 	}
 

@@ -22,13 +22,14 @@ import vn.vibefix.shared.PersonalDataParticipant;
 import vn.vibefix.shared.PersonalDataSection;
 
 /**
- * {@code matching}'s part in exports, erasure, and Product deletion (AD-24): a Mentor exports their
- * own Applications and NDA signatures, and both sides export the invitations to apply they sent or
- * received; erasing a Mentor or a Customer deletes the Applications and invitations they made or
- * received, and deleting a Product deletes those to its Jobs. Nothing here blocks an erasure (a running Job
- * blocks it through {@code job}): the erasure first withdraws the person's open bids through the lock's path, so
- * each Customer is told, and then deletes (Story 20.4). It runs before the other participants, while
- * {@code identity} still has the Mentor's name for those notices.
+ * {@code matching}'s part in exports, erasure, Product deletion, and Job data retention (AD-24): a bidder exports
+ * their own bids with their proof, their waiting proof uploads, and NDA signatures, and both sides export the
+ * invitations to apply they sent or received; erasing a bidder or a Customer deletes the bids, their proof with its
+ * files, and the invitations they made or received, and deleting a Product deletes those to its Jobs. At the end of
+ * the Job data's retention (NFR-10) the proof files of the Product's bids go, the bids stay. Nothing here blocks an
+ * erasure (a running Job blocks it through {@code job}): the erasure first withdraws the person's open bids through
+ * the lock's path, so each Customer is told, and then deletes (Story 20.4). It runs before the other participants,
+ * while {@code identity} still has the Mentor's name for those notices.
  * <p>
  * It also answers for the GitHub link (FR-80, R14): an open bid keeps it, since the Customer's contributor
  * check knows the Mentor by their GitHub ID.
@@ -43,15 +44,19 @@ class MatchingPersonalData implements PersonalDataParticipant, GitHubLinkPartici
 
 	private final ObjectProvider<Applications> applications;
 
-	MatchingPersonalData(JdbcClient jdbc, ObjectProvider<JobPosts> posts, ObjectProvider<Applications> applications) {
+	private final ObjectProvider<BidProofs> proofs;
+
+	MatchingPersonalData(JdbcClient jdbc, ObjectProvider<JobPosts> posts, ObjectProvider<Applications> applications,
+			ObjectProvider<BidProofs> proofs) {
 		this.jdbc = jdbc;
 		this.posts = posts;
 		this.applications = applications;
+		this.proofs = proofs;
 	}
 
 	@Override
 	public Set<String> tables() {
-		return Set.of("matching.application", "matching.nda_signature", "matching.invitation");
+		return Set.of("matching.application", "matching.bid_proof", "matching.nda_signature", "matching.invitation");
 	}
 
 	@Override
@@ -95,11 +100,28 @@ class MatchingPersonalData implements PersonalDataParticipant, GitHubLinkPartici
 					: rs.getTimestamp("ended_at").toInstant().toString());
 			return invitation;
 		}).list();
-		if (applications.isEmpty() && signatures.isEmpty() && invitations.isEmpty()) {
+		// The bidder's proof (Story 21.2): each item of their bids, and the uploads no bid took yet; never the bytes.
+		List<Map<String, Object>> proof = this.jdbc.sql("""
+				SELECT job_id, application_id, position, kind, caption, file_name, size_bytes, url, added_at
+				FROM matching.bid_proof WHERE bidder_account_id = :id ORDER BY added_at, id
+				""").param("id", accountId).query((rs, n) -> {
+			Map<String, Object> item = new LinkedHashMap<>();
+			item.put("jobId", rs.getObject("job_id", UUID.class).toString());
+			item.put("attached", rs.getObject("application_id") != null);
+			item.put("position", rs.getObject("position", Integer.class));
+			item.put("kind", rs.getString("kind"));
+			item.put("caption", rs.getString("caption"));
+			item.put("fileName", rs.getString("file_name"));
+			item.put("sizeBytes", rs.getObject("size_bytes", Long.class));
+			item.put("url", rs.getString("url"));
+			item.put("addedAt", rs.getTimestamp("added_at").toInstant().toString());
+			return item;
+		}).list();
+		if (applications.isEmpty() && proof.isEmpty() && signatures.isEmpty() && invitations.isEmpty()) {
 			return Optional.empty();
 		}
-		return Optional.of(new PersonalDataSection("matching",
-				Map.of("applications", applications, "ndaSignatures", signatures, "invitations", invitations)));
+		return Optional.of(new PersonalDataSection("matching", Map.of("applications", applications, "bidProof", proof,
+				"ndaSignatures", signatures, "invitations", invitations)));
 	}
 
 	@Override
@@ -109,6 +131,10 @@ class MatchingPersonalData implements PersonalDataParticipant, GitHubLinkPartici
 		this.jdbc.sql("DELETE FROM matching.invitation WHERE mentor_account_id = :id OR customer_account_id = :id")
 			.param("id", accountId)
 			.update();
+		// The proof goes with its bids, files first: the account's own, and that of the bids on an erased Customer's Jobs.
+		this.proofs.getObject()
+			.deleteWhere("bidder_account_id = :id OR application_id IN"
+					+ " (SELECT id FROM matching.application WHERE customer_account_id = :id)", Map.of("id", accountId));
 		this.jdbc.sql("DELETE FROM matching.application WHERE mentor_account_id = :id OR customer_account_id = :id")
 			.param("id", accountId)
 			.update();
@@ -120,8 +146,15 @@ class MatchingPersonalData implements PersonalDataParticipant, GitHubLinkPartici
 				DELETE FROM matching.nda_signature WHERE job_id IN
 				    (SELECT job_id FROM matching.application WHERE product_id = :id)
 				""").param("id", productId).update();
+		this.proofs.getObject().deleteWhere("product_id = :id", Map.of("id", productId));
 		this.jdbc.sql("DELETE FROM matching.application WHERE product_id = :id").param("id", productId).update();
 		this.jdbc.sql("DELETE FROM matching.invitation WHERE product_id = :id").param("id", productId).update();
+	}
+
+	/** NFR-10: the proof of the Product's bids, files included, goes with its Job data; the bids stay (X3). */
+	@Override
+	public void retireJobData(UUID productId) {
+		this.proofs.getObject().deleteWhere("product_id = :id", Map.of("id", productId));
 	}
 
 	@Override

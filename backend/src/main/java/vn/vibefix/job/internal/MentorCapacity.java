@@ -1,9 +1,7 @@
 package vn.vibefix.job.internal;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -13,72 +11,42 @@ import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
-import vn.vibefix.identity.StudentDirectory;
-import vn.vibefix.identity.StudentDirectory.StudentCard;
 import vn.vibefix.job.MentorWork;
 import vn.vibefix.settings.Rule;
 import vn.vibefix.settings.Settings;
-import vn.vibefix.team.Teams;
 
 /**
- * Whether a Mentor can take new work (FR-13), from the one definition of each value (AD-33): the free
- * Students of their Team and the Jobs they hold, against the FR-61 limit. MEN-2 and MEN-3 show the
- * reasons; the Application (Story 3.6) and J3 refuse with them.
+ * Whether a person can take new work as Mentor (FR-13), from the one definition of each value (AD-33): the Jobs they
+ * hold as Mentor, against the FR-61 limit. MEN-3 shows the reason; the bid and J3 refuse with it. A bid asks for no
+ * free Student and no Team (Story 21.2).
  */
 @Component
 class MentorCapacity implements MentorWork {
 
-	/** Why a Mentor cannot apply now (FR-13). */
+	/** Why a person cannot bid now (FR-13). */
 	enum Reason {
 
-		/** No verified, unlocked Student of the Team is free. */
-		NO_FREE_STUDENT,
-
-		/** The Mentor holds the most Jobs in Selecting through Closing the rule allows. */
+		/** The person holds the most Jobs as Mentor in Selecting through Closing the rule allows. */
 		MENTOR_JOB_LIMIT
 
 	}
 
-	record Capacity(int teamSize, int freeStudents, int activeJobs, int jobLimit, List<Reason> reasons) {
+	record Capacity(int activeJobs, int jobLimit, List<Reason> reasons) {
 	}
-
-	private final Teams teams;
-
-	private final StudentDirectory students;
 
 	private final Settings settings;
 
 	private final JdbcClient jdbc;
 
-	MentorCapacity(Teams teams, StudentDirectory students, Settings settings, JdbcClient jdbc) {
-		this.teams = teams;
-		this.students = students;
+	MentorCapacity(Settings settings, JdbcClient jdbc) {
 		this.settings = settings;
 		this.jdbc = jdbc;
 	}
 
 	Capacity of(UUID mentorId) {
-		List<UUID> members = this.teams.members(mentorId);
-		int free = freeStudents(members).size();
 		int active = activeJobCount(mentorId);
 		int limit = activeJobLimit();
-		List<Reason> reasons = new ArrayList<>();
-		if (free == 0) {
-			reasons.add(Reason.NO_FREE_STUDENT);
-		}
-		if (active >= limit) {
-			reasons.add(Reason.MENTOR_JOB_LIMIT);
-		}
-		return new Capacity(members.size(), free, active, limit, List.copyOf(reasons));
-	}
-
-	/**
-	 * {@code job.freeStudents} (AD-33): the verified, unlocked members of the Mentor's Team on no
-	 * running Crew.
-	 */
-	@Override
-	public List<UUID> freeStudents(UUID mentorId) {
-		return freeStudents(this.teams.members(mentorId));
+		return new Capacity(active, limit, active >= limit ? List.of(Reason.MENTOR_JOB_LIMIT) : List.of());
 	}
 
 	/**
@@ -115,19 +83,6 @@ class MentorCapacity implements MentorWork {
 		return counts;
 	}
 
-	@Override
-	public Set<UUID> withFreeStudents(Collection<UUID> mentorIds) {
-		Map<UUID, List<UUID>> members = this.teams.membersOf(mentorIds);
-		Set<UUID> free = new HashSet<>(freeStudents(members.values().stream().flatMap(List::stream).toList()));
-		Set<UUID> mentors = new LinkedHashSet<>();
-		members.forEach((mentor, students) -> {
-			if (students.stream().anyMatch(free::contains)) {
-				mentors.add(mentor);
-			}
-		});
-		return mentors;
-	}
-
 	/** Closed Jobs only: J9 closes a Job with Accepted work (FR-14); no Job reaches it before Epic 9. */
 	@Override
 	public Map<UUID, Map<String, Integer>> workHistory(Collection<UUID> mentorIds) {
@@ -157,23 +112,6 @@ class MentorCapacity implements MentorWork {
 				WHERE state = 'CLOSED' AND mentor_account_id IS NOT NULL AND job_types && CAST(:types AS TEXT[])
 				ORDER BY mentor_account_id
 				""").param("types", jobTypes.toArray(String[]::new)).query(UUID.class).list());
-	}
-
-	/** Verified, unlocked members on no running Crew: no row of theirs is other than {@code RELEASED} (AD-33). */
-	private List<UUID> freeStudents(List<UUID> members) {
-		if (members.isEmpty()) {
-			return List.of();
-		}
-		Set<UUID> onCrew = new HashSet<>(this.jdbc.sql(
-				"SELECT member_account_id FROM job.crew_row WHERE member_account_id IN (:ids) AND status <> 'RELEASED'")
-			.param("ids", members)
-			.query(UUID.class)
-			.list());
-		return this.students.cards(members)
-			.stream()
-			.filter(card -> card.verified() && card.available() && !onCrew.contains(card.accountId()))
-			.map(StudentCard::accountId)
-			.toList();
 	}
 
 }

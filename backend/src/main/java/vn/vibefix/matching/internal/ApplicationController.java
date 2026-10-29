@@ -36,40 +36,64 @@ import vn.vibefix.matching.internal.Applications.Application;
 import vn.vibefix.matching.internal.Applications.EndReason;
 import vn.vibefix.matching.internal.Applications.Quote;
 import vn.vibefix.matching.internal.Applications.Status;
+import vn.vibefix.matching.internal.BidProofs.Item;
+import vn.vibefix.matching.internal.BidProofs.ProofKind;
+import vn.vibefix.matching.internal.BidProofs.Proof;
+import vn.vibefix.matching.internal.SourceContributors.Contribution;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.team.Teams;
 
 /**
- * Applications (FR-13, FR-15, AD-20): any user with GitHub linked applies from MEN-3 (AD-19 new-work command),
- * except on their own Job ({@code ROLE_TAKEN}), and an unlocked user lists or withdraws their own (MEN-4); the
- * Job's Customer reads the open ones on CUS-8 and selects one (J3). Nobody else finds them.
+ * Bids (FR-13, FR-15, AD-20, Story 21.2): any user with GitHub linked bids from FND-1 (AD-19 new-work command) with a
+ * quote and at most five proof items, except on their own Job ({@code ROLE_TAKEN}), and an unlocked user lists or
+ * withdraws their own (CUS-7, MEN-3); the Job's Customer reads the open ones with their proof on CUS-8 and selects one
+ * (J3). Nobody else finds them. The Source Repository's contributors are read before the bid's transaction (A-03).
  */
 @RestController
 @Access(Gate.SIGNED_IN)
 class ApplicationController {
 
-	/** MEN-3's "Ứng tuyển": the price in whole VND, the days, the approach, and N-5. */
+	/**
+	 * FND-1's "Gửi chào giá": the price in whole VND, the days, the approach, N-5, and the proof in its order.
+	 * @param proof at most five items; more answer {@code VALIDATION PROOF_LIMIT}; absent for none
+	 */
 	record ApplyRequest(@NotNull @Min(1000) @Max(1_000_000_000) Long priceVnd,
 			@NotNull @Min(1) @Max(365) Integer timelineDays, @NotBlank @Size(max = 2000) String approach,
-			boolean publicCodeAcknowledged) {
-	}
-
-	/** One of the Mentor's own Applications. */
-	record ApplicationView(UUID id, UUID jobId, String jobTitle, Status status, long priceVnd, int timelineDays,
-			String approach, Instant submittedAt, @Nullable Instant endedAt, @Nullable EndReason endReason) {
+			boolean publicCodeAcknowledged, @Nullable List<@Valid @NotNull BidProofRequest> proof) {
 	}
 
 	/**
-	 * Who applied, as CUS-8 shows them; never contact details.
+	 * One proof item (AD-21): a file the bidder uploaded for this bid ({@code fileId}), or an {@code https} link
+	 * ({@code url}), with a caption.
+	 */
+	record BidProofRequest(@NotNull ProofKind kind, @Nullable UUID fileId, @Nullable String url,
+			@NotBlank @Size(max = BidProofs.MAX_CAPTION) String caption) {
+	}
+
+	/**
+	 * One proof item of a bid, as the bidder and the Job's Customer read it.
+	 * @param fileUrl a file's download, served as an attachment; {@code null} for a link
+	 * @param url a link, opened with its {@code domain} and N-11; {@code null} for a file
+	 */
+	record BidProofView(int position, ProofKind kind, String caption, @Nullable UUID fileId, @Nullable String fileName,
+			@Nullable Long sizeBytes, @Nullable String fileUrl, @Nullable String url, @Nullable String domain) {
+	}
+
+	/** One of the user's own bids, with its proof. */
+	record ApplicationView(UUID id, UUID jobId, String jobTitle, Status status, long priceVnd, int timelineDays,
+			String approach, Instant submittedAt, @Nullable Instant endedAt, @Nullable EndReason endReason,
+			List<BidProofView> proof) {
+	}
+
+	/**
+	 * Who bid, as CUS-8 shows them; never contact details.
 	 * @param yearsOfExperience absent while the Mentor has not declared it
 	 */
-	record ApplicantView(String displayName, @Nullable String githubLogin, @Nullable Integer yearsOfExperience,
-			int teamSize) {
+	record ApplicantView(String displayName, @Nullable String githubLogin, @Nullable Integer yearsOfExperience) {
 	}
 
 	/** CUS-8 "Chọn": the Job version the screen loaded (AD-23). */
@@ -84,20 +108,22 @@ class ApplicationController {
 	}
 
 	/**
-	 * One Application to the Customer's Job.
+	 * One bid on the Customer's Job, with its proof.
 	 * @param invited the Customer invited this Mentor: a chip that changes neither order nor choice (UX-DR50)
 	 */
 	record JobApplicationView(UUID id, Status status, long priceVnd, int timelineDays, String approach,
-			Instant submittedAt, ApplicantView mentor, boolean invited) {
+			Instant submittedAt, ApplicantView mentor, boolean invited, List<BidProofView> proof) {
 	}
 
 	private final Applications applications;
 
+	private final BidProofs proofs;
+
+	private final SourceContributors contributors;
+
 	private final JobPosts posts;
 
 	private final MentorDirectory mentors;
-
-	private final Teams teams;
 
 	private final ActiveAccount gate;
 
@@ -113,15 +139,16 @@ class ApplicationController {
 
 	private final JobRoles roles;
 
-	ApplicationController(Applications applications, JobPosts posts, MentorDirectory mentors, Teams teams,
-			ActiveAccount gate, JobSelection selection, NdaSignatures signatures, Invitations invitations,
-			CurrentCaller callers, GitHubGate gitHub, JobRoles roles) {
+	ApplicationController(Applications applications, BidProofs proofs, SourceContributors contributors, JobPosts posts,
+			MentorDirectory mentors, ActiveAccount gate, JobSelection selection, NdaSignatures signatures,
+			Invitations invitations, CurrentCaller callers, GitHubGate gitHub, JobRoles roles) {
 		this.gitHub = gitHub;
 		this.roles = roles;
 		this.applications = applications;
+		this.proofs = proofs;
+		this.contributors = contributors;
 		this.posts = posts;
 		this.mentors = mentors;
-		this.teams = teams;
 		this.gate = gate;
 		this.selection = selection;
 		this.signatures = signatures;
@@ -141,28 +168,32 @@ class ApplicationController {
 		if (!body.publicCodeAcknowledged()) {
 			throw new ApiException(ErrorCode.VALIDATION, MatchingReason.PUBLIC_CODE_NOT_ACKNOWLEDGED);
 		}
+		List<Item> proof = BidProofs.requireShape(body.proof() == null ? List.of()
+				: body.proof().stream().map(item -> new Item(item.kind(), item.fileId(), item.url(), item.caption())).toList());
+		// A-03: GitHub is read here, before the bid's transaction and its locks, and the answer is passed in.
+		Contribution contribution = this.contributors.read(postId, mentor);
 		Application application = this.applications.submit(mentor, postId,
-				new Quote(body.priceVnd(), body.timelineDays(), body.approach()));
-		return view(application, new HashMap<>());
+				new Quote(body.priceVnd(), body.timelineDays(), body.approach()), proof, contribution);
+		return views(List.of(application)).getFirst();
 	}
 
-	/** MEN-4 and MEN-3: the Mentor's own Applications, newest first. */
+	/** CUS-7 "Việc tôi hướng dẫn" and MEN-3: the user's own bids, newest first, each with its proof. */
 	@GetMapping("/api/v1/mentor/applications")
 	List<ApplicationView> mine() {
 		UUID mentor = bidder();
 		this.gate.requireActiveAccount(mentor);
-		Map<UUID, String> titles = new HashMap<>();
-		return this.applications.ofMentor(mentor).stream().map(application -> view(application, titles)).toList();
+		return views(this.applications.ofMentor(mentor));
 	}
 
+	/** MEN-3's "Rút": the bid ends, and the Job's Customer learns it. */
 	@PostMapping("/api/v1/mentor/applications/{applicationId}/withdraw")
 	ApplicationView withdraw(@PathVariable UUID applicationId) {
 		UUID mentor = bidder();
 		this.gate.requireActiveAccount(mentor);
-		return view(this.applications.withdraw(mentor, applicationId), new HashMap<>());
+		return views(List.of(this.applications.withdraw(mentor, applicationId))).getFirst();
 	}
 
-	/** CUS-8 "Đơn ứng tuyển": the open Applications to the Customer's Job. */
+	/** CUS-8 "Chào giá": the open bids on the Customer's Job, each with its proof. */
 	@GetMapping("/api/v1/jobs/{jobId}/applications")
 	List<JobApplicationView> ofJob(@PathVariable UUID jobId) {
 		customerOf(jobId);
@@ -171,14 +202,14 @@ class ApplicationController {
 		Map<UUID, MentorCard> cards = new HashMap<>();
 		this.mentors.cards(open.stream().map(Application::mentorId).toList())
 			.forEach(card -> cards.put(card.accountId(), card));
+		Map<UUID, List<Proof>> proof = this.proofs.of(open.stream().map(Application::id).toList());
 		return open.stream().map(application -> {
 			MentorCard card = cards.get(application.mentorId());
 			ApplicantView mentor = new ApplicantView(card == null ? "" : card.displayName(),
-					card == null ? null : card.githubLogin(), card == null ? null : card.yearsOfExperience(),
-					this.teams.sizeOf(application.mentorId()));
+					card == null ? null : card.githubLogin(), card == null ? null : card.yearsOfExperience());
 			return new JobApplicationView(application.id(), application.status(), application.priceVnd(),
 					application.timelineDays(), application.approach(), application.submittedAt(), mentor,
-					invited.contains(application.mentorId()));
+					invited.contains(application.mentorId()), proofViews(proof.get(application.id())));
 		}).toList();
 	}
 
@@ -230,12 +261,28 @@ class ApplicationController {
 		return caller.requireAccountId();
 	}
 
-	private ApplicationView view(Application application, Map<UUID, String> titles) {
-		String title = titles.computeIfAbsent(application.jobId(),
-				id -> this.posts.post(id).map(JobPostState::title).orElse(""));
-		return new ApplicationView(application.id(), application.jobId(), title, application.status(),
-				application.priceVnd(), application.timelineDays(), application.approach(), application.submittedAt(),
-				application.endedAt(), application.endReason());
+	private List<ApplicationView> views(List<Application> applications) {
+		Map<UUID, String> titles = new HashMap<>();
+		Map<UUID, List<Proof>> proof = this.proofs.of(applications.stream().map(Application::id).toList());
+		return applications.stream().map(application -> {
+			String title = titles.computeIfAbsent(application.jobId(),
+					id -> this.posts.post(id).map(JobPostState::title).orElse(""));
+			return new ApplicationView(application.id(), application.jobId(), title, application.status(),
+					application.priceVnd(), application.timelineDays(), application.approach(), application.submittedAt(),
+					application.endedAt(), application.endReason(), proofViews(proof.get(application.id())));
+		}).toList();
+	}
+
+	private static List<BidProofView> proofViews(@Nullable List<Proof> proof) {
+		if (proof == null) {
+			return List.of();
+		}
+		return proof.stream().map(item -> {
+			boolean file = item.kind() == ProofKind.FILE;
+			return new BidProofView(item.position(), item.kind(), item.caption(), item.fileId(), item.fileName(),
+					item.size(), file ? "/api/v1/files/" + item.fileId() : null, file ? null : item.url(),
+					file ? null : item.domain());
+		}).toList();
 	}
 
 	/**

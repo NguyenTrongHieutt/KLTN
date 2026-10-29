@@ -27,14 +27,11 @@ enum JobReason {
 	/** An open Dispute freezes the Job's Milestones (FR-52). */
 	JOB_FROZEN,
 
-	/** J3: the Mentor was revoked, locked, or erased since applying (FR-13, FR-74). */
+	/** J3: the bidder unlinked GitHub, or was locked or erased, since bidding (FR-13, FR-15, SG-52). */
 	MENTOR_NOT_AVAILABLE,
 
 	/** J3: the Mentor reached the FR-61 limit on active Jobs (FR-13). */
 	MENTOR_AT_JOB_LIMIT,
-
-	/** J3: no verified, unlocked Student of the Mentor's Team is free (FR-13). */
-	MENTOR_NO_FREE_STUDENT,
 
 	/** J5: the Customer cancels the selection before the FR-15 signature period ends. */
 	NDA_PERIOD_RUNNING,
