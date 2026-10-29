@@ -595,6 +595,9 @@ class CrossRoleIT extends IntegrationTest {
 		Map<String, String> notSwept = new LinkedHashMap<>();
 		notSwept.put("/api/v1/jobs/{jobId}/final-merge", "the Final Merge authorization opens with a closure proposal or"
 				+ " at J8 (Story 8.7), and every Job of the sweep is Active with neither");
+		notSwept.put("/api/v1/crew/jobs/{jobId}/commitment", "a picked person's own read of their Crew Application"
+				+ " (Story 21.5): the sweep's Crew rows are seeded without one, and AuthorizationMatrixIT's CREW_ASSIGNED"
+				+ " world reads it");
 		for (MatrixRow row : MatrixRow.loadMatrix()) {
 			if (row.method() == HttpMethod.GET && row.path().startsWith("/api/v1/admin/")) {
 				notSwept.putIfAbsent(row.path(), "an Administrator's read: none of the three people is an Administrator");
