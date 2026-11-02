@@ -20,7 +20,8 @@ public interface Deadlines {
 	/**
 	 * Pauses the Job's pending pausable Deadlines, each keeping {@code remaining = max(0, due − now)};
 	 * until {@link #unfreeze}, new pausable Deadlines of the Job start paused. Freezing a frozen Job
-	 * changes nothing.
+	 * changes nothing. It never waits on a Deadline row (AD-4): one the poller holds is skipped, and its
+	 * handler answers {@code REPAUSE}.
 	 */
 	void freeze(UUID jobId);
 

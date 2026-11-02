@@ -2,6 +2,7 @@ package vn.vibefix.timers.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 
 import java.sql.Timestamp;
 import java.time.Duration;
@@ -10,9 +11,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -167,6 +170,67 @@ class TimersIT extends IntegrationTest {
 		this.clock.advance(Duration.ofHours(2));
 		this.tx.executeWithoutResult(status -> this.deadlines.unfreeze(JOB));
 		assertThat(row(id)).containsEntry("due_at", Timestamp.from(this.t0.plus(Duration.ofHours(18))));
+	}
+
+	@Test
+	void aFreezeSkipsTheRowAPollerHoldsAndItsHandlerRepausesIt() throws Exception {
+		UUID held = pausable(JOB, this.t0.plus(Duration.ofHours(10)));
+		UUID later = pausable(JOB, this.t0.plus(Duration.ofHours(20)));
+		CountDownLatch release = new CountDownLatch(1);
+		this.pausableDeadlineHandler.answer(DeadlineOutcome.REPAUSE).holdingUntil(release);
+		this.clock.advance(Duration.ofHours(10));
+		ExecutorService pool = Executors.newSingleThreadExecutor();
+		try {
+			Future<Integer> run = pool.submit(this.poller::runDue);
+			await().atMost(Duration.ofSeconds(15)).until(() -> !this.pausableDeadlineHandler.handled().isEmpty());
+
+			this.clock.setInstant(this.t0.plus(Duration.ofHours(4)));
+			this.tx.executeWithoutResult(status -> this.deadlines.freeze(JOB));
+			assertThat(row(held)).as("the row the poller holds: never waited on").containsEntry("status", "PENDING");
+			assertThat(row(later)).containsEntry("status", "PAUSED")
+				.containsEntry("remaining_ms", Duration.ofHours(16).toMillis());
+
+			release.countDown();
+			assertThat(run.get(30, TimeUnit.SECONDS)).isOne();
+		}
+		finally {
+			release.countDown();
+			pool.shutdownNow();
+		}
+		assertThat(row(held)).containsEntry("status", "PAUSED").containsEntry("remaining_ms", Duration.ofHours(6).toMillis());
+	}
+
+	@Test
+	void aFailureOnAFrozenJobPausesWithTheTimeItHadAsClaimedAndNeverLoops() {
+		this.pausableDeadlineHandler.fail(new IllegalStateException("planted refusal for the freeze"));
+		UUID id = pausable(JOB, this.t0.plus(Duration.ofHours(10)));
+		this.jdbc.sql("INSERT INTO timers.frozen_job (job_id, frozen_at) VALUES (:job, :at)")
+			.param("job", JOB)
+			.param("at", Timestamp.from(this.t0.plus(Duration.ofHours(4))))
+			.update();
+
+		this.clock.advance(Duration.ofHours(10));
+		assertThat(this.poller.runDue()).isOne();
+		assertThat(row(id)).containsEntry("status", "PAUSED").containsEntry("remaining_ms", Duration.ofHours(6).toMillis());
+		this.clock.advance(Duration.ofMinutes(1));
+		assertThat(this.poller.runDue()).as("not tried again before the thaw").isZero();
+		assertThat(this.pausableDeadlineHandler.handled()).hasSize(1);
+
+		this.tx.executeWithoutResult(status -> this.deadlines.unfreeze(JOB));
+		this.clock.advance(Duration.ofHours(6));
+		assertThat(this.poller.runDue()).isOne();
+		assertThat(row(id)).containsEntry("status", "FIRED");
+	}
+
+	@Test
+	void aFailureOnAJobThatIsNotFrozenTriesAgainAtTheNextPoll() {
+		this.pausableDeadlineHandler.fail(new IllegalStateException("planted failure"));
+		UUID id = pausable(JOB, this.t0);
+
+		assertThat(this.poller.runDue()).isOne();
+
+		assertThat(row(id)).containsEntry("status", "PENDING")
+			.containsEntry("due_at", Timestamp.from(this.t0.plus(Duration.ofSeconds(30))));
 	}
 
 	@Test

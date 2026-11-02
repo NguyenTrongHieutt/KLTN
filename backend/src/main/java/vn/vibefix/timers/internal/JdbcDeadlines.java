@@ -81,11 +81,16 @@ class JdbcDeadlines implements Deadlines {
 		if (frozen == 0) {
 			return;
 		}
+		// AD-4: the caller holds the Job row, and the poller may be waiting for it with a claimed row, so this
+		// never waits on a Deadline row. A row it skips is being handled now, and its handler answers REPAUSE.
 		this.jdbc.sql("""
 				UPDATE timers.deadline
 				SET status = 'PAUSED', due_at = NULL,
 				    remaining_ms = GREATEST(0, (EXTRACT(EPOCH FROM (due_at - CAST(:now AS TIMESTAMPTZ))) * 1000)::BIGINT)
-				WHERE job_id = :job AND pausable AND status = 'PENDING'
+				WHERE id IN (
+				    SELECT id FROM timers.deadline
+				    WHERE job_id = :job AND pausable AND status = 'PENDING'
+				    FOR UPDATE SKIP LOCKED)
 				""").param("job", jobId).param("now", Timestamp.from(now)).update();
 	}
 
@@ -148,14 +153,29 @@ class JdbcDeadlines implements Deadlines {
 			.update();
 	}
 
-	/** Paused with the time it had when its Job froze, or none when no freeze is recorded. */
+	/**
+	 * Paused, if it is still pending, with the time it had when its Job froze, or none when no freeze is
+	 * recorded. The time counts from {@code due_at} as the poller claimed it, so a failure on the frozen Job
+	 * calls this instead of {@link #dueAgain}, whose push would add to it.
+	 */
 	void repause(DueDeadline deadline) {
 		long remaining = deadline.jobId() == null ? 0
 				: frozenAt(deadline.jobId()).map(frozen -> remainingMillis(deadline.dueAt(), frozen)).orElse(0L);
-		this.jdbc.sql("UPDATE timers.deadline SET status = 'PAUSED', due_at = NULL, remaining_ms = :remaining WHERE id = :id")
+		this.jdbc.sql("""
+				UPDATE timers.deadline SET status = 'PAUSED', due_at = NULL, remaining_ms = :remaining
+				WHERE id = :id AND status = 'PENDING'
+				""")
 			.param("id", deadline.id())
 			.param("remaining", remaining)
 			.update();
+	}
+
+	/** Whether the Deadline is pausable and a freeze of its Job is recorded. */
+	boolean frozen(UUID id) {
+		return this.jdbc.sql("""
+				SELECT EXISTS (SELECT 1 FROM timers.deadline d JOIN timers.frozen_job f ON f.job_id = d.job_id
+				               WHERE d.id = :id AND d.pausable)
+				""").param("id", id).query(Boolean.class).single();
 	}
 
 	/** Deletes Deadlines that finished at least {@code kept} ago; @return how many */

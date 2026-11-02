@@ -133,17 +133,18 @@ class AcceptanceMerges {
 
 	/**
 	 * Auto-acceptance of a Code Job (FR-35): the same merge, by the System. A busy Job re-arms the
-	 * Deadline and a frozen one pauses it; nothing is reserved then.
+	 * Deadline and a frozen one pauses it; nothing is reserved then. {@link AutoAcceptance}, its caller,
+	 * holds the Job row lock, so what this reads is what {@code reserve} checks and it cannot refuse.
 	 */
 	@Transactional
 	DeadlineOutcome requestAutomatically(Handover handover) {
-		CodeRecord code = this.handovers.code(handover.id()).orElse(null);
 		BusyJob job = this.busy.job(handover.jobId()).orElse(null);
+		if (job != null && job.frozen()) {
+			return DeadlineOutcome.REPAUSE;
+		}
+		CodeRecord code = this.handovers.code(handover.id()).orElse(null);
 		if (code == null || job == null || !"ACTIVE".equals(job.state())) {
 			return DeadlineOutcome.OBSOLETE;
-		}
-		if (job.frozen()) {
-			return DeadlineOutcome.REPAUSE;
 		}
 		if (job.busy().isPresent()) {
 			return DeadlineOutcome.REARM;

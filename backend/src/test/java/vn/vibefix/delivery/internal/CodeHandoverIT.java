@@ -13,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Timestamp;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -24,6 +25,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.mock.web.MockMultipartFile;
@@ -34,15 +36,20 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
+import org.springframework.transaction.support.TransactionTemplate;
 
+import vn.vibefix.dispute.internal.DisputeTestSupport;
 import vn.vibefix.github.internal.GitHubStub;
 import vn.vibefix.github.internal.TestKeys;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
+import vn.vibefix.job.JobFreezes;
 import vn.vibefix.operations.Lane;
 import vn.vibefix.operations.internal.OperationWorker;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.timers.Deadlines;
+import vn.vibefix.timers.internal.DeadlinePoller;
 
 /**
  * Story 8.2 (FR-8, FR-23, FR-32, AD-11, AD-18, AD-33, NFR-3): a Code Job's handover covers the commits on
@@ -92,6 +99,21 @@ class CodeHandoverIT extends IntegrationTest {
 
 	@Autowired
 	private HandoverVoids voids;
+
+	@Autowired
+	private DeadlinePoller poller;
+
+	@Autowired
+	private Deadlines deadlines;
+
+	@Autowired
+	private JobFreezes freezes;
+
+	@Autowired
+	private TransactionTemplate transactions;
+
+	@Autowired
+	private ApplicationContext context;
 
 	private UUID lan;
 
@@ -525,6 +547,56 @@ class CodeHandoverIT extends IntegrationTest {
 		this.worker.runDue(Lane.GITHUB_SHORT);
 		assertThat(milestoneState()).isEqualTo("ACCEPTED");
 		assertThat(releases()).isEqualTo(2);
+	}
+
+	/** A-02: no refusal from the busy marker, no rollback and no pushed due time; the merge waits for the thaw. */
+	@Test
+	void anAutoAcceptanceRacingADisputePausesWithItsTrueRemainingTimeAndMergesAfterTheThaw() throws Exception {
+		UUID handover = handedOver();
+		fundForRelease();
+		Map<String, Object> deadline = autoAcceptance(handover);
+		Instant due = ((Timestamp) deadline.get("due_at")).toInstant();
+		this.clock.setInstant(due.minus(Duration.ofHours(12)));
+		this.poller.runDue();
+
+		this.clock.setInstant(due);
+		DisputeTestSupport.openRacingThePoller(this.context, this.job, this.lan, (UUID) deadline.get("id"),
+				due.minus(Duration.ofHours(1)));
+		this.clock.setInstant(due.plus(Duration.ofMinutes(1)));
+		this.poller.runDue();
+
+		assertThat(autoAcceptance(handover)).as("no rollback loop").containsEntry("status", "PAUSED")
+			.containsEntry("remaining_ms", Duration.ofHours(1).toMillis());
+		assertThat(this.jdbc.sql("SELECT busy_operation_key IS NULL FROM job.job WHERE id = :id").param("id", this.job)
+			.query(Boolean.class).single()).as("nothing reserved").isTrue();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM delivery.handover_acceptance WHERE handover_id = :id")
+			.param("id", handover).query(Long.class).single()).isZero();
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM operations.external_operation WHERE type = 'delivery.acceptance_merge'
+				    AND payload ->> 'handoverId' = :handover
+				""").param("handover", handover.toString()).query(Long.class).single()).isZero();
+
+		this.clock.advance(Duration.ofDays(1));
+		this.transactions.executeWithoutResult(status -> {
+			this.freezes.unfreeze(this.job);
+			this.deadlines.unfreeze(this.job);
+		});
+		assertThat(autoAcceptance(handover)).containsEntry("status", "PENDING")
+			.containsEntry("due_at", Timestamp.from(this.clock.instant().plus(Duration.ofHours(1))));
+		this.clock.advance(Duration.ofHours(1));
+		this.poller.runDue();
+
+		assertThat(autoAcceptance(handover)).containsEntry("status", "FIRED");
+		assertThat(acceptance(handover)).isEqualTo("MERGING");
+		assertThat(milestoneState()).as("nothing is accepted before the merge").isEqualTo("SUBMITTED");
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		assertThat(milestoneState()).isEqualTo("ACCEPTED");
+		assertThat(releases()).isEqualTo(2);
+	}
+
+	private Map<String, Object> autoAcceptance(UUID handover) {
+		return this.jdbc.sql("SELECT * FROM timers.deadline WHERE subject_id = :id AND kind = 'delivery.auto_acceptance'")
+			.param("id", handover).query().singleRow();
 	}
 
 	/** The handover of one scanned commit. */

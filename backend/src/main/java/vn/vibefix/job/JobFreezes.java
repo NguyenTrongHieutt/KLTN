@@ -12,12 +12,15 @@ import org.jspecify.annotations.Nullable;
  */
 public interface JobFreezes {
 
-	/** The Job as a Dispute reads it, under its row lock (AD-4). */
+	/** The Job as a Dispute or a pausable Deadline's handler reads it, under its row lock (AD-4). */
 	record DisputedJob(UUID jobId, UUID productId, UUID customerId, @Nullable UUID mentorId, String title, String state,
 			boolean frozen, @Nullable UUID heldMilestoneId) {
 	}
 
-	/** Locks the Job row first; empty for an unknown Job. */
+	/**
+	 * Locks the Job row first, so {@code frozen} holds until the caller's transaction ends; empty for an
+	 * unknown Job. {@code delivery}'s and {@code repo}'s pausable Deadlines decide "frozen" here (AD-4).
+	 */
 	Optional<DisputedJob> lock(UUID jobId);
 
 	/** Freezes the Job; a frozen Job stays as it is. */

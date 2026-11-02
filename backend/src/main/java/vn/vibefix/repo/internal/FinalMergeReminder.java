@@ -7,8 +7,8 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import vn.vibefix.job.JobBusy;
-import vn.vibefix.job.JobBusy.BusyJob;
+import vn.vibefix.job.JobFreezes;
+import vn.vibefix.job.JobFreezes.DisputedJob;
 import vn.vibefix.notification.Audience;
 import vn.vibefix.notification.NotificationRequest;
 import vn.vibefix.notification.Notifications;
@@ -22,7 +22,8 @@ import vn.vibefix.timers.DueDeadline;
 /**
  * {@value #KEY} (FR-37, FR-48; author decision 2026-10-21): 2 days before the FR-37 deadline, an
  * authorization still {@code REQUESTED} reminds the Customer, saying when an install request waits for an
- * organization owner. Pausable: a frozen Job pauses it. Collaborators are looked up on use.
+ * organization owner. Pausable: it takes the Job row lock first, so a frozen Job always pauses it and no
+ * notice goes (AD-4). Collaborators are looked up on use.
  */
 @Component
 class FinalMergeReminder implements DeadlineHandler {
@@ -33,14 +34,14 @@ class FinalMergeReminder implements DeadlineHandler {
 
 	private final ObjectProvider<FinalMergeAuthorizations> authorizations;
 
-	private final ObjectProvider<JobBusy> busy;
+	private final ObjectProvider<JobFreezes> freezes;
 
 	private final ObjectProvider<Notifications> notifications;
 
-	FinalMergeReminder(ObjectProvider<FinalMergeAuthorizations> authorizations, ObjectProvider<JobBusy> busy,
+	FinalMergeReminder(ObjectProvider<FinalMergeAuthorizations> authorizations, ObjectProvider<JobFreezes> freezes,
 			ObjectProvider<Notifications> notifications) {
 		this.authorizations = authorizations;
-		this.busy = busy;
+		this.freezes = freezes;
 		this.notifications = notifications;
 	}
 
@@ -52,16 +53,16 @@ class FinalMergeReminder implements DeadlineHandler {
 	@Override
 	@Transactional
 	public DeadlineOutcome handle(DueDeadline deadline) {
-		Authorization authorization = this.authorizations.getObject().find(deadline.subjectId()).orElse(null);
-		if (authorization == null || !"REQUESTED".equals(authorization.status()) || authorization.customerId() == null) {
-			return DeadlineOutcome.OBSOLETE;
-		}
-		BusyJob job = this.busy.getObject().job(authorization.jobId()).orElse(null);
+		DisputedJob job = deadline.jobId() == null ? null : this.freezes.getObject().lock(deadline.jobId()).orElse(null);
 		if (job == null) {
 			return DeadlineOutcome.OBSOLETE;
 		}
 		if (job.frozen()) {
 			return DeadlineOutcome.REPAUSE;
+		}
+		Authorization authorization = this.authorizations.getObject().find(deadline.subjectId()).orElse(null);
+		if (authorization == null || !"REQUESTED".equals(authorization.status()) || authorization.customerId() == null) {
+			return DeadlineOutcome.OBSOLETE;
 		}
 		String waiting = authorization.requestSeenAt() == null || authorization.requestOrg() == null ? ""
 				: ". Yêu cầu cài ứng dụng hợp nhất vẫn chờ chủ tổ chức " + authorization.requestOrg() + " duyệt";
