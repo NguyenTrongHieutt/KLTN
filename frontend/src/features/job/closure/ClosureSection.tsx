@@ -192,8 +192,8 @@ function Step({ done, text }: { done: boolean; text: string }) {
 }
 
 /**
- * The data-deletion Checklist (FR-66, UX-DR51): each tick asks first and is kept with the time. A member a
- * Crew change removed may tick theirs before the Job ends (Story 11.3).
+ * The data-deletion Checklist (FR-66, UX-DR51): each tick asks first and is kept with the time. A member who left may
+ * tick theirs before the Job ends (Story 21.6).
  */
 export function DeletionChecklist({ jobId, deletion }: { jobId: string; deletion: DataDeletion }) {
   const ids = useId()
@@ -204,7 +204,7 @@ export function DeletionChecklist({ jobId, deletion }: { jobId: string; deletion
   return (
     <fieldset className="flex flex-col gap-2 rounded-md bg-muted p-3 text-body-sm">
       <legend className="text-label">{t('screen.closure.deletion.mine')}</legend>
-      <p>{deletion.ended || deletion.removed ? t('screen.closure.deletion.lead') : t('screen.closure.deletion.notYet')}</p>
+      <p>{deletion.ended || deletion.left ? t('screen.closure.deletion.lead') : t('screen.closure.deletion.notYet')}</p>
       {(deletion.mine ?? []).map((row) => {
         const item = row.item as 'NON_CODE_DATA' | 'PREVIEWS'
         return (
@@ -214,7 +214,7 @@ export function DeletionChecklist({ jobId, deletion }: { jobId: string; deletion
               type="checkbox"
               className="size-4"
               checked={row.confirmedAt != null}
-              disabled={row.confirmedAt != null || !(deletion.ended || deletion.removed) || confirm.isPending}
+              disabled={row.confirmedAt != null || !(deletion.ended || deletion.left) || confirm.isPending}
               onChange={() => setAsking(item)}
             />
             <span className="break-words">{t(`screen.closure.deletion.${item}` as MessageKey)}</span>

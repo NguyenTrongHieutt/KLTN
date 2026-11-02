@@ -331,6 +331,10 @@ function Editor({
                 {person.available ? person.name : t('screen.board.item.unavailableMember', { name: person.name })}
               </option>
             ))}
+            {/* R8: with no counted member the Mentor may take the Work Item; X7: with one back, it is refused. */}
+            {board.noCrew && item?.assignee?.accountId !== board.viewerId && (
+              <option value={board.viewerId}>{t('screen.board.item.assignMe')}</option>
+            )}
           </select>
         </FormField>
         {error && (

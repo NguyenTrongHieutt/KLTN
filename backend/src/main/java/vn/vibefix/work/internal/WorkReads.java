@@ -50,7 +50,7 @@ import vn.vibefix.work.internal.WorkAccess.Window;
 class WorkReads {
 
 	/** Review entries: "Bị trả lại" follows the latest of them (AD-39). */
-	static final Set<String> REVIEW_ACTIONS = Set.of("SUBMITTED", "APPROVED", "RETURNED");
+	static final Set<String> REVIEW_ACTIONS = Set.of("SUBMITTED", "APPROVED", "RETURNED", Reviews.UNREVIEWED);
 
 	/**
 	 * One history entry; {@code changes} maps each field to its {@code from} and {@code to}.

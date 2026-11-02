@@ -48,6 +48,10 @@ class NotificationTypes implements NotificationCatalog {
 	static final TodoType REPO_REVOCATION_ITEM = new TodoType("repo.revocation_item", Set.of(Audience.CUSTOMER), 3,
 			Set.of("system"));
 
+	/** FR-66, R15, Story 21.6: one per confirmed External Access item when a member leaves; ticked when the Customer removed it. */
+	static final TodoType REPO_REVOCATION_ITEM_MEMBER = new TodoType("repo.revocation_item_member", Set.of(Audience.CUSTOMER),
+			3, Set.of("system", "login"));
+
 	/** FR-52, Story 15.1: the other side's statement, until it is sent or its period ends. */
 	static final TodoType DISPUTE_SUBMIT_STATEMENT = new TodoType("dispute.submit_statement",
 			Set.of(Audience.CUSTOMER, Audience.MENTOR), 2, Set.of());
@@ -824,6 +828,10 @@ class NotificationTypes implements NotificationCatalog {
 	static final TodoType JOB_GRANT_EXTERNAL_ACCESS = new TodoType("job.grant_external_access", Set.of(Audience.CUSTOMER), 3,
 			Set.of("system"));
 
+	/** FR-66, R15, Story 21.6: one per confirmed item for a member who signs later, until "Đã cấp quyền" or they leave. */
+	static final TodoType JOB_GRANT_EXTERNAL_ACCESS_MEMBER = new TodoType("job.grant_external_access_member",
+			Set.of(Audience.CUSTOMER), 3, Set.of("system", "login"));
+
 	/** The Rating Window is open (FR-49): until the person rated everyone they rate, or the window ends. */
 	static final TodoType REPUTATION_RATE = new TodoType("reputation.rate", Set.of(Audience.CUSTOMER, Audience.MENTOR), 3,
 			Set.of("party"));
@@ -891,7 +899,7 @@ class NotificationTypes implements NotificationCatalog {
 		return List.of(IDENTITY_LINK_GITHUB, VERIFY_STUDENT, IDENTITY_RELINK_GITHUB_TODO,
 				SCANNING_RESOLVE_INTAKE_FINDING,
 				REPO_ACCEPT_GITHUB_INVITATION, SCANNING_RESOLVE_WORK_FINDING, REPO_RECONFIRM_SOURCE, REPO_AUTHORIZE_FINAL_MERGE,
-				REPO_REVOCATION_ITEM,
+				REPO_REVOCATION_ITEM, REPO_REVOCATION_ITEM_MEMBER,
 				MATCHING_CHOOSE_ASSIGNEE, MATCHING_SIGN_NDA, MATCHING_ANSWER_INVITATION_TO_APPLY,
 				MATCHING_OPEN_CREW_RECRUITMENT, MATCHING_REVIEW_CREW_APPLICATIONS, MATCHING_SIGN_COMMITMENT, JOB_DRAFT_AGREEMENT,
 				JOB_REVIEW_AGREEMENT, JOB_REVISE_AGREEMENT, JOB_CONFIRM_AGREEMENT_MENTOR,
@@ -899,7 +907,7 @@ class NotificationTypes implements NotificationCatalog {
 				DELIVERY_REVIEW_HANDOVER, JOB_ANSWER_CLOSURE, REPO_CONFIRM_DATA_DELETION, REPUTATION_RATE,
 				REPUTATION_GIVE_PRIVATE_FEEDBACK, REPUTATION_DRAFT_PORTFOLIO_SUMMARY, REPUTATION_APPROVE_PORTFOLIO_SUMMARY,
 				DELIVERY_DRAFT_FOLLOW_UPS, DELIVERY_APPROVE_FOLLOW_UPS, JOB_ADD_CHANGE_IMPACT, JOB_ANSWER_CHANGE_REQUEST,
-				JOB_ANSWER_CANCELLATION, JOB_GRANT_EXTERNAL_ACCESS, DISPUTE_ANSWER_TEAM_ISSUE,
+				JOB_ANSWER_CANCELLATION, JOB_GRANT_EXTERNAL_ACCESS, JOB_GRANT_EXTERNAL_ACCESS_MEMBER, DISPUTE_ANSWER_TEAM_ISSUE,
 				DISPUTE_DECIDE_TEAM_ISSUE_ANSWER, PAYMENT_FUND_TOP_UP, DISPUTE_SUBMIT_STATEMENT);
 	}
 

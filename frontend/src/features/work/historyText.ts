@@ -20,6 +20,7 @@ export function entryText(entry: HistoryEntry): string {
     case 'SUBMITTED':
     case 'APPROVED':
     case 'RETURNED':
+    case 'UNREVIEWED':
       return t(`screen.board.item.history${entry.action}` as MessageKey, { actor: entry.actor })
     case 'MOVED':
       return t('screen.board.item.historyMOVED', { actor: entry.actor })

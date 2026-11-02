@@ -5,6 +5,7 @@ import org.springframework.stereotype.Component;
 
 import vn.vibefix.identity.AccountLocked;
 import vn.vibefix.job.AgreementConfirmed;
+import vn.vibefix.job.CrewMemberRemoved;
 import vn.vibefix.job.JobTransitioned;
 import vn.vibefix.shared.ProcessedEvents;
 
@@ -13,7 +14,8 @@ import vn.vibefix.shared.ProcessedEvents;
  * confirmed Agreement version seeds the criteria the Board does not have yet (AD-29). Each is
  * replay-safe through {@link ProcessedEvents}, and the criterion's stable ID keys every seeded Story. A
  * lock counts as leaving, so a locked account's open Work Items become unassigned on every Job (Story 20.4): every
- * lock runs it, and an account with no Work Item changes nothing.
+ * lock runs it, and an account with no Work Item changes nothing. A member who leaves, or whose lock counted as leaving,
+ * loses those of that Job (Story 21.6), and whichever runs second finds nothing to do.
  */
 @Component
 class WorkListeners {
@@ -35,6 +37,14 @@ class WorkListeners {
 	void onAccountLocked(AccountLocked event) {
 		if (this.processedEvents.markProcessed("work.WorkListeners.onAccountLocked", event.eventId())) {
 			this.reassignments.unassign(event.accountId());
+		}
+	}
+
+	/** FR-82: the open Work Items of a member who left the Job become unassigned, for the Mentor to assign again. */
+	@ApplicationModuleListener
+	void onCrewMemberRemoved(CrewMemberRemoved event) {
+		if (this.processedEvents.markProcessed("work.WorkListeners.onCrewMemberRemoved", event.eventId())) {
+			this.reassignments.unassign(event.jobId(), event.studentId());
 		}
 	}
 

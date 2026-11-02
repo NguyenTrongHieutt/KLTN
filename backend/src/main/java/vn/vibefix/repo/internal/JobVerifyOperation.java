@@ -24,7 +24,8 @@ import vn.vibefix.repo.internal.JobGrants.Person;
  * under the busy marker ({@code JOB_VERIFY}). Each counted person is raised to write in place, with no
  * new invitation, and read back as write; only then does the resolving transaction apply J7. A read-back
  * that is not write is tried again, so the Job is never shown as Active before it. A frozen Job only
- * waits (AD-28). Collaborators are looked up on use.
+ * waits (AD-28). A grant that stopped counting while the people were raised is tried again too, so nobody who left is
+ * invited back. Collaborators are looked up on use.
  */
 @Component
 class JobVerifyOperation implements OperationHandler {
@@ -94,6 +95,10 @@ class JobVerifyOperation implements OperationHandler {
 				}
 				grants.renamed(grant, login);
 				if (!"WRITE".equals(grant.status())) {
+					// On a person no longer a collaborator a raise is an invitation: they left since `all` was read.
+					if (grants.find(grant.id()).filter(Grant::ready).isEmpty()) {
+						return new Outcome.Transient("GRANT_CHANGED");
+					}
 					repositories.raise(grant.repository(), login);
 				}
 				if (!"write".equals(repositories.role(grant.repository(), login))) {

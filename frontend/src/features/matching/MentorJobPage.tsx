@@ -8,7 +8,8 @@ import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
-import { JobRoleLine } from '@/features/job/ByJobRole'
+import { NoCrewBanner } from '@/features/crew/NoCrew'
+import { JobPhaseBadge, JobRoleLine } from '@/features/job/ByJobRole'
 import { JobStateBadge } from '@/features/job/JobStateBadge'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t, type MessageKey } from '@/i18n/t'
@@ -58,11 +59,13 @@ function Overview({ job }: { job: MentorJob }) {
         <div className="flex flex-wrap items-center gap-2">
           <PageHeading>{job.title}</PageHeading>
           <JobStateBadge state={job.state} audience="mentor" />
+          <JobPhaseBadge jobId={job.id} />
         </div>
         <p className="text-caption text-muted-foreground break-words">
           {t('screen.nda.meta', { product: job.productName, types, date: formatDayMonth(job.selectedAt) })}
         </p>
-        <JobRoleLine jobId={job.id} state={job.state} />
+        <JobRoleLine jobId={job.id} />
+        <NoCrewBanner jobId={job.id} />
         <MentorJobTabs jobId={job.id} state={job.state} current="overview" payment={job.agreementConfirmed} />
       </div>
       {job.state === 'SELECTING' ? (

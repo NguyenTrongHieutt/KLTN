@@ -2036,6 +2036,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/jobs/{jobId}/crew/leave": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["leave"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/jobs/{jobId}/crew/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["me"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jobs/{jobId}/drift": {
         parameters: {
             query?: never;
@@ -3694,7 +3726,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete: operations["leave"];
+        delete: operations["leave_1"];
         options?: never;
         head?: never;
         patch?: never;
@@ -4554,8 +4586,10 @@ export interface components {
             code: string;
             crew: components["schemas"]["CrewPickView"][];
             items: components["schemas"]["WorkItemCardView"][];
+            leavers: components["schemas"]["LeaverView"][];
             mentor: boolean;
             milestones: components["schemas"]["BoardMilestoneView"][];
+            noCrew: boolean;
             readOnly: boolean;
             title: string;
             /** Format: uuid */
@@ -4997,6 +5031,19 @@ export interface components {
             title: string;
             unread: boolean;
         };
+        CrewMeView: {
+            canLeave: boolean;
+            codeJob: boolean;
+            former: boolean;
+            /** Format: uuid */
+            jobId: string;
+            mentorName: string;
+            partyMilestones: number[];
+            productName: string;
+            /** @enum {string} */
+            state: "DRAFT" | "OPEN" | "SELECTING" | "AGREEMENT" | "STARTING" | "ACTIVE" | "CLOSING" | "CLOSED" | "CANCELLED";
+            title: string;
+        };
         CrewMemberView: {
             githubLogin?: string;
             /** Format: date-time */
@@ -5107,9 +5154,9 @@ export interface components {
             ended: boolean;
             /** Format: uuid */
             jobId: string;
+            left: boolean;
             mine?: components["schemas"]["DataDeletionItemView"][];
             parties: components["schemas"]["DataDeletionPartyView"][];
-            removed: boolean;
         };
         DecidedDisputeView: {
             /** Format: date-time */
@@ -6091,6 +6138,7 @@ export interface components {
             /** Format: uuid */
             boardId: string;
             crew: components["schemas"]["CrewProgressView"][];
+            leavers: components["schemas"]["LeaverView"][];
             mentorName: string;
             milestones: components["schemas"]["MilestoneProgressView"][];
             mine: components["schemas"]["OpenItemView"][];
@@ -6103,6 +6151,10 @@ export interface components {
         JobRoleView: {
             /** @enum {string} */
             crewKind?: "ASSIGNED" | "ACTIVE" | "FORMER";
+            left: boolean;
+            noCrew: boolean;
+            /** @enum {string} */
+            phase?: "FINDING_MENTOR" | "FINDING_CREW" | "RECRUITING" | "AGREEING";
             /** @enum {string} */
             role: "CUSTOMER" | "MENTOR" | "CREW";
         };
@@ -6175,6 +6227,14 @@ export interface components {
             updatedAt: string;
             /** Format: int64 */
             version: number;
+        };
+        LeaveRequest: {
+            reason?: string;
+        };
+        LeaverView: {
+            /** Format: date-time */
+            leftAt: string;
+            name: string;
         };
         LinkRequest: {
             label?: string;
@@ -6451,6 +6511,7 @@ export interface components {
             crewKind?: "ASSIGNED" | "ACTIVE" | "FORMER";
             /** Format: uuid */
             jobId: string;
+            left: boolean;
             productName: string;
             /** @enum {string} */
             role: "CUSTOMER" | "MENTOR" | "CREW";
@@ -7093,6 +7154,7 @@ export interface components {
             joinedAt?: string;
             /** Format: date-time */
             leftAt?: string;
+            leftNote?: string;
             name: string;
             /** Format: uuid */
             rowId: string;
@@ -7182,6 +7244,7 @@ export interface components {
             jobId: string;
         };
         RevocationConfirmRequest: {
+            memberLogin?: string;
             outcome: string;
         };
         RevocationIdentifierView: {
@@ -7197,6 +7260,7 @@ export interface components {
             done: boolean;
             environment: string;
             identifiers: components["schemas"]["RevocationIdentifierView"][];
+            memberLogin?: string;
             outcome?: string;
             purpose: string;
             system: string;
@@ -11500,6 +11564,52 @@ export interface operations {
             };
         };
     };
+    leave: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LeaveRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    me: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrewMeView"];
+                };
+            };
+        };
+    };
     drift: {
         parameters: {
             query?: never;
@@ -14151,7 +14261,7 @@ export interface operations {
             };
         };
     };
-    leave: {
+    leave_1: {
         parameters: {
             query?: never;
             header?: never;

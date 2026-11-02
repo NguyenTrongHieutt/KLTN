@@ -22,7 +22,7 @@ import { useMyCrewApplications, type CrewApplication } from '@/features/matching
 import { crewApplicationStateText, runningCrewJob } from '@/features/matching/crewText'
 import { useMentorInvitation, type MentorInvitation } from '@/features/matching/invitationApi'
 import { FindWorkGate } from './FindWorkGate'
-import { leftEarly, roleLabel, useJobRole, useMyJobs, youAreText, type JobRoleView } from './jobRoleApi'
+import { roleLabel, useJobRole, useMyJobs, youAreText, type JobRoleView } from './jobRoleApi'
 import { useCustomerRating, useJobPost, type JobPost } from './jobPostApi'
 import { PhaseBadge } from './PhaseBadge'
 import { needText } from './phaseText'
@@ -166,18 +166,13 @@ function RoleOnly({ jobId, role }: { jobId: string; role: JobRoleView }) {
 
 /**
  * "Bạn là {role} của công việc này" with "Mở công việc" (JOB-1), in place of an action (AD-43, UX-DR98); a member who
- * left the running Job reads "Bạn là: Thành viên nhóm · đã rời" (UX-DR87, UX-DR104), the Job's state read from
- * "Công việc" as JOB-H reads it.
+ * left reads "Bạn là: Thành viên nhóm · đã rời" (UX-DR87, UX-DR104), as JOB-H reads it.
  */
 function RoleNotice({ jobId, role }: { jobId: string; role: JobRoleView }) {
-  const mine = useMyJobs(role.crewKind === 'FORMER')
-  const state = mine.data?.find((job) => job.jobId === jobId)?.state
   return (
     <div role="status" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
       <p className="text-label font-semibold">
-        {leftEarly(role, state)
-          ? youAreText(role, state)
-          : t('screen.jobPost.detail.role', { role: roleLabel(role.role) })}
+        {role.left ? youAreText(role) : t('screen.jobPost.detail.role', { role: roleLabel(role.role) })}
       </p>
       <Link to={`/cong-viec/${jobId}`} className={cn(buttonVariants({ variant: 'secondary' }), 'w-fit')}>
         {t('screen.jobPost.detail.openJob')}

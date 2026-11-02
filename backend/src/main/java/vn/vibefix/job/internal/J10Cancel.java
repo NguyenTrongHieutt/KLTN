@@ -22,7 +22,8 @@ import vn.vibefix.shared.ErrorCode;
  * tells the Customer, the Mentor, and the active Crew ({@code job.job_cancelled}); then the Mentor's
  * contact visibility ends, the Product pin is released, and every Crew row is released as
  * {@code JOB_ENDED}. Crew recruitment turns off, and {@code CrewRecruitmentClosed} lapses the open Crew Applications
- * (AD-41, Story 21.4). The chats and the data-deletion confirmations follow through their listeners.
+ * (AD-41, Story 21.4). The Customer's grant to-dos for later members close (Story 21.6). The chats and the data-deletion
+ * confirmations follow through their listeners.
  */
 @Component
 class J10Cancel implements JobLifecycle.Step {
@@ -41,9 +42,12 @@ class J10Cancel implements JobLifecycle.Step {
 
 	private final JobRecruitment recruitment;
 
+	private final ExternalAccessGrants externalAccess;
+
 	J10Cancel(JdbcClient jdbc, CrewService crews, ContactVisibility contacts, ProductPins pins,
-			Notifications notifications, JobRecruitment recruitment) {
+			Notifications notifications, JobRecruitment recruitment, ExternalAccessGrants externalAccess) {
 		this.recruitment = recruitment;
+		this.externalAccess = externalAccess;
 		this.jdbc = jdbc;
 		this.crews = crews;
 		this.contacts = contacts;
@@ -82,6 +86,7 @@ class J10Cancel implements JobLifecycle.Step {
 		this.pins.releaseForJob(job.productId(), job.id());
 		this.crews.releaseForJobEnd(job.id());
 		this.recruitment.closeForJob(job.id(), ClosedBy.CANCELLED);
+		this.externalAccess.jobEnded(job);
 	}
 
 }

@@ -33,6 +33,10 @@ import vn.vibefix.work.internal.WorkTextCheck.Resolution;
  * Self-check answers and an optional note; only the Mentor approves it to "Xong" or returns it to
  * "Đang làm", each with a written comment. Each step is one history entry written with the status
  * change, tells the other side, and opens or closes their to-dos.
+ * <p>
+ * The Mentor's own Work Item has no one to review it (R8, X7, AD-39): their submission moves it from "Đang làm" straight
+ * to "Xong", recorded as {@value #UNREVIEWED} ("Xong · không cần duyệt") with the same answers, whether or not a member
+ * has joined since, because the Customer's acceptance is the check. Nobody hears of it.
  */
 @Component
 class Reviews {
@@ -46,6 +50,9 @@ class Reviews {
 	static final String REVIEW_TODO = "work.review_work_item";
 
 	static final String FIX_TODO = "work.fix_returned_item";
+
+	/** The history action of the Mentor's own move to "Xong", which {@code work.criteriaDone} counts like an approval. */
+	static final String UNREVIEWED = "UNREVIEWED";
 
 	enum Decision {
 		APPROVE, RETURN
@@ -94,7 +101,10 @@ class Reviews {
 		this.clock = clock;
 	}
 
-	/** "Gửi duyệt": the assignee's submission from "Đang làm" (FR-25). */
+	/**
+	 * "Gửi duyệt": the assignee's submission from "Đang làm" (FR-25); on the Mentor's own Work Item, its move to "Xong"
+	 * with no review (R8).
+	 */
 	@Transactional
 	Item submit(BoardViewer writer, UUID itemId, long version, SelfCheck selfCheck, String note, Resolution resolution) {
 		Item item = locked(writer, itemId, version);
@@ -108,6 +118,10 @@ class Reviews {
 			throw new ApiException(ErrorCode.VALIDATION, WorkReason.SELF_CHECK_INCOMPLETE);
 		}
 		String text = checked(note, resolution);
+		if (writer.mentor()) {
+			moveTo(item, Status.DONE, writer, UNREVIEWED, text, selfCheck.answers());
+			return this.boards.item(itemId).orElseThrow();
+		}
 		UUID entry = moveTo(item, Status.IN_REVIEW, writer, "SUBMITTED", text, selfCheck.answers());
 		this.todos.close(FIX_TODO, writer.accountId(), item.id());
 		this.notifications.send(new NotificationRequest(REVIEW_REQUESTED, entry,
@@ -137,7 +151,8 @@ class Reviews {
 				text, null);
 		this.todos.closeAll(REVIEW_TODO, item.id());
 		UUID assignee = item.assigneeId();
-		if (assignee != null) {
+		// A leaver's submission the Mentor took over: nobody else to tell, and CREW_ACTIVE never reaches a Mentor.
+		if (assignee != null && !assignee.equals(writer.mentorId())) {
 			Map<String, String> params = approve ? Map.of("key", item.key().toString())
 					: Map.of("key", item.key().toString(), "reason", text);
 			this.notifications.send(new NotificationRequest(approve ? APPROVED : RETURNED, entry,

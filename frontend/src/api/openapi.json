@@ -4532,6 +4532,63 @@
         "tags" : [ "crew-chat-controller" ]
       }
     },
+    "/api/v1/jobs/{jobId}/crew/leave" : {
+      "post" : {
+        "operationId" : "leave",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/LeaveRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "crew-controller" ]
+      }
+    },
+    "/api/v1/jobs/{jobId}/crew/me" : {
+      "get" : {
+        "operationId" : "me",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CrewMeView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "crew-controller" ]
+      }
+    },
     "/api/v1/jobs/{jobId}/drift" : {
       "get" : {
         "operationId" : "drift",
@@ -8059,7 +8116,7 @@
     },
     "/api/v1/team/membership" : {
       "delete" : {
-        "operationId" : "leave",
+        "operationId" : "leave_1",
         "responses" : {
           "204" : {
             "description" : "No Content"
@@ -10237,6 +10294,12 @@
               "$ref" : "#/components/schemas/WorkItemCardView"
             }
           },
+          "leavers" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/LeaverView"
+            }
+          },
           "mentor" : {
             "type" : "boolean"
           },
@@ -10245,6 +10308,9 @@
             "items" : {
               "$ref" : "#/components/schemas/BoardMilestoneView"
             }
+          },
+          "noCrew" : {
+            "type" : "boolean"
           },
           "readOnly" : {
             "type" : "boolean"
@@ -10263,7 +10329,7 @@
             }
           }
         },
-        "required" : [ "boardId", "code", "crew", "items", "mentor", "milestones", "readOnly", "title", "viewerId", "workload" ]
+        "required" : [ "boardId", "code", "crew", "items", "leavers", "mentor", "milestones", "noCrew", "readOnly", "title", "viewerId", "workload" ]
       },
       "BusyView" : {
         "type" : "object",
@@ -11528,6 +11594,45 @@
         },
         "required" : [ "chatId", "closed", "readOnly", "title", "unread" ]
       },
+      "CrewMeView" : {
+        "type" : "object",
+        "properties" : {
+          "canLeave" : {
+            "type" : "boolean"
+          },
+          "codeJob" : {
+            "type" : "boolean"
+          },
+          "former" : {
+            "type" : "boolean"
+          },
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "mentorName" : {
+            "type" : "string"
+          },
+          "partyMilestones" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "productName" : {
+            "type" : "string"
+          },
+          "state" : {
+            "type" : "string",
+            "enum" : [ "DRAFT", "OPEN", "SELECTING", "AGREEMENT", "STARTING", "ACTIVE", "CLOSING", "CLOSED", "CANCELLED" ]
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "canLeave", "codeJob", "former", "jobId", "mentorName", "partyMilestones", "productName", "state", "title" ]
+      },
       "CrewMemberView" : {
         "type" : "object",
         "properties" : {
@@ -11827,6 +11932,9 @@
             "type" : "string",
             "format" : "uuid"
           },
+          "left" : {
+            "type" : "boolean"
+          },
           "mine" : {
             "type" : "array",
             "items" : {
@@ -11838,12 +11946,9 @@
             "items" : {
               "$ref" : "#/components/schemas/DataDeletionPartyView"
             }
-          },
-          "removed" : {
-            "type" : "boolean"
           }
         },
-        "required" : [ "ended", "jobId", "parties", "removed" ]
+        "required" : [ "ended", "jobId", "left", "parties" ]
       },
       "DecidedDisputeView" : {
         "type" : "object",
@@ -14656,6 +14761,12 @@
               "$ref" : "#/components/schemas/CrewProgressView"
             }
           },
+          "leavers" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/LeaverView"
+            }
+          },
           "mentorName" : {
             "type" : "string"
           },
@@ -14690,7 +14801,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "assessment", "audience", "boardId", "crew", "mentorName", "milestones", "mine", "pages", "productName", "state", "title" ]
+        "required" : [ "assessment", "audience", "boardId", "crew", "leavers", "mentorName", "milestones", "mine", "pages", "productName", "state", "title" ]
       },
       "JobRoleView" : {
         "type" : "object",
@@ -14699,12 +14810,22 @@
             "type" : "string",
             "enum" : [ "ASSIGNED", "ACTIVE", "FORMER" ]
           },
+          "left" : {
+            "type" : "boolean"
+          },
+          "noCrew" : {
+            "type" : "boolean"
+          },
+          "phase" : {
+            "type" : "string",
+            "enum" : [ "FINDING_MENTOR", "FINDING_CREW", "RECRUITING", "AGREEING" ]
+          },
           "role" : {
             "type" : "string",
             "enum" : [ "CUSTOMER", "MENTOR", "CREW" ]
           }
         },
-        "required" : [ "role" ]
+        "required" : [ "left", "noCrew", "role" ]
       },
       "JobSummaryView" : {
         "type" : "object",
@@ -14892,6 +15013,29 @@
           }
         },
         "required" : [ "agreementConfirmed", "agreementShared", "canCancelSelection", "createdAt", "id", "jobTypes", "productId", "productName", "screenshots", "skills", "state", "title", "updatedAt", "version" ]
+      },
+      "LeaveRequest" : {
+        "type" : "object",
+        "properties" : {
+          "reason" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0
+          }
+        }
+      },
+      "LeaverView" : {
+        "type" : "object",
+        "properties" : {
+          "leftAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "leftAt", "name" ]
       },
       "LinkRequest" : {
         "type" : "object",
@@ -15625,6 +15769,9 @@
             "type" : "string",
             "format" : "uuid"
           },
+          "left" : {
+            "type" : "boolean"
+          },
           "productName" : {
             "type" : "string"
           },
@@ -15644,7 +15791,7 @@
             "format" : "date-time"
           }
         },
-        "required" : [ "jobId", "productName", "role", "state", "title", "updatedAt" ]
+        "required" : [ "jobId", "left", "productName", "role", "state", "title", "updatedAt" ]
       },
       "MySkillSuggestionView" : {
         "type" : "object",
@@ -17406,6 +17553,9 @@
             "type" : "string",
             "format" : "date-time"
           },
+          "leftNote" : {
+            "type" : "string"
+          },
           "name" : {
             "type" : "string"
           },
@@ -17660,6 +17810,9 @@
       "RevocationConfirmRequest" : {
         "type" : "object",
         "properties" : {
+          "memberLogin" : {
+            "type" : "string"
+          },
           "outcome" : {
             "type" : "string",
             "pattern" : "REMOVED|ROTATED"
@@ -17704,6 +17857,9 @@
             "items" : {
               "$ref" : "#/components/schemas/RevocationIdentifierView"
             }
+          },
+          "memberLogin" : {
+            "type" : "string"
           },
           "outcome" : {
             "type" : "string"

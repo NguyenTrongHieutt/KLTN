@@ -62,9 +62,10 @@ class JobRecruitmentController {
 	 * @param status {@code ASSIGNED}, {@code ACTIVE}, or {@code RELEASED} for one who left
 	 * @param joinedAt when they signed and joined; absent for a pick not signed yet
 	 * @param leftAt when their window ended, for one who left
+	 * @param leftNote the reason a member gave when leaving (FR-82), which the Mentor alone reads; a lock has none
 	 */
 	record RecruitmentMemberView(UUID rowId, String name, @Nullable String githubLogin, String status,
-			@Nullable Instant joinedAt, @Nullable Instant leftAt) {
+			@Nullable Instant joinedAt, @Nullable Instant leftAt, @Nullable String leftNote) {
 	}
 
 	/**
@@ -135,7 +136,7 @@ class JobRecruitmentController {
 			PersonFacts person = people.get(row.studentId());
 			return new RecruitmentMemberView(row.id(), person == null ? "" : person.displayName(),
 					person == null ? null : person.githubLogin(), row.released() ? "RELEASED" : row.status(),
-					row.activatedAt(), row.released() ? row.windowEnd() : null);
+					row.activatedAt(), row.released() ? row.windowEnd() : null, row.leftNote());
 		}).toList();
 		JobState state = JobState.valueOf(recruitment.state());
 		boolean available = state == JobState.AGREEMENT || state == JobState.STARTING || state == JobState.ACTIVE;

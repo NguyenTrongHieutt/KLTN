@@ -98,20 +98,18 @@ describe('JOB-H, the role in each Job (UX-DR87, Story 20.6)', () => {
 
   it('says "Bạn là: Thành viên nhóm · đã rời" to a member who left', { timeout: 15_000 }, async () => {
     fakeBackend(signedInUser, {
-      'GET /api/v1/jobs/c/role': () => json({ role: 'CREW', crewKind: 'FORMER' }),
-      'GET /api/v1/boards/c/progress': () =>
+      'GET /api/v1/jobs/c/role': () => json({ role: 'CREW', crewKind: 'FORMER', left: true }),
+      'GET /api/v1/jobs/c/crew/me': () =>
         json({
-          boardId: 'c',
+          jobId: 'c',
           title: 'Việc C đã rời',
           state: 'ACTIVE',
           productName: 'Sổ đặt bàn Quán Mây',
           mentorName: 'Đỗ Mạnh Hùng',
-          audience: 'FORMER',
-          milestones: [],
-          pages: [],
-          crew: [],
-          mine: [],
-          assessment: false,
+          former: true,
+          canLeave: false,
+          codeJob: true,
+          partyMilestones: [],
         }),
     })
     renderAt('/cong-viec/c')
@@ -122,20 +120,18 @@ describe('JOB-H, the role in each Job (UX-DR87, Story 20.6)', () => {
 
   it('says "Bạn là: Thành viên nhóm" to a member of a Job that ended, who did not leave', { timeout: 15_000 }, async () => {
     fakeBackend(signedInUser, {
-      'GET /api/v1/jobs/d/role': () => json({ role: 'CREW', crewKind: 'FORMER' }),
-      'GET /api/v1/boards/d/progress': () =>
+      'GET /api/v1/jobs/d/role': () => json({ role: 'CREW', crewKind: 'FORMER', left: false }),
+      'GET /api/v1/jobs/d/crew/me': () =>
         json({
-          boardId: 'd',
+          jobId: 'd',
           title: 'Việc D đã xong',
           state: 'CLOSED',
           productName: 'Sổ đặt bàn Quán Mây',
           mentorName: 'Đỗ Mạnh Hùng',
-          audience: 'FORMER',
-          milestones: [],
-          pages: [],
-          crew: [],
-          mine: [],
-          assessment: false,
+          former: true,
+          canLeave: false,
+          codeJob: true,
+          partyMilestones: [],
         }),
     })
     renderAt('/cong-viec/d')

@@ -21,7 +21,8 @@ import vn.vibefix.work.MilestoneWork;
 
 /**
  * {@link MilestoneWork} (FR-10, FR-32, AD-39): a Work Item counts as done for a handover only in "Xong"
- * with the Mentor's approval as its latest review entry, as {@code work.criteriaDone} counts it.
+ * with the Mentor's approval, or their own unreviewed move, as its latest review entry, as {@code work.criteriaDone}
+ * counts it.
  */
 @Component
 class WorkMilestones implements MilestoneWork {
@@ -104,7 +105,7 @@ class WorkMilestones implements MilestoneWork {
 		return this.jdbc.sql("""
 				SELECT w.id, b.code, w.number, w.title, w.status,
 				       (SELECT h.action FROM work.work_item_history h
-				        WHERE h.work_item_id = w.id AND h.action IN ('SUBMITTED', 'APPROVED', 'RETURNED')
+				        WHERE h.work_item_id = w.id AND h.action IN ('SUBMITTED', 'APPROVED', 'RETURNED', 'UNREVIEWED')
 				        ORDER BY h.seq DESC LIMIT 1) AS review
 				FROM work.work_item w JOIN work.board b ON b.job_id = w.job_id
 				WHERE w.job_id = :job AND w.milestone_id = :milestone ORDER BY w.number
@@ -113,7 +114,7 @@ class WorkMilestones implements MilestoneWork {
 			.param("milestone", milestoneId)
 			.query((rs, n) -> new ItemState(rs.getObject("id", UUID.class), rs.getString("code") + "-" + rs.getInt("number"),
 					rs.getString("title"), rs.getString("status"),
-					"DONE".equals(rs.getString("status")) && "APPROVED".equals(rs.getString("review"))))
+					"DONE".equals(rs.getString("status")) && List.of("APPROVED", "UNREVIEWED").contains(rs.getString("review"))))
 			.list();
 	}
 

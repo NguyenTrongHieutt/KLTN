@@ -15,6 +15,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.jupiter.api.AfterAll;
@@ -261,6 +262,88 @@ class JobSetupIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE action = 'repo.grant_raised' AND job_id = :job")
 			.param("job", this.job).query(Long.class).single()).isEqualTo(2);
 		awaitListeners();
+	}
+
+	/** Story 21.6: the member Verify waits for leaves, so the sweep starts it and J7 lands with the Mentor alone. */
+	@Test
+	void aMemberHoldingVerifyBackLeavesAndJ7LandsWithTheMentorAlone() throws Exception {
+		j6();
+		run();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		GITHUB.accept(TeamTestSupport.login(this.jdbc, this.mentor));
+		this.checks.check(this.job);
+		assertThat(this.busy.job(this.job).orElseThrow().busy()).as("Verify waits for the member").isEmpty();
+
+		leave().andExpect(status().isNoContent());
+		awaitListeners();
+		assertThat(grantStatus(this.crew)).isEqualTo("REVOKING");
+
+		this.checks.check(this.job);
+		assertThat(this.busy.job(this.job).orElseThrow().busy()).hasValueSatisfying(
+				marker -> assertThat(marker.purpose()).isEqualTo(JobBusy.Purpose.JOB_VERIFY));
+		this.worker.runDue(Lane.GITHUB_SHORT);
+
+		assertThat(this.busy.job(this.job).orElseThrow().state()).isEqualTo("ACTIVE");
+		assertThat(grantStatus(this.mentor)).isEqualTo("WRITE");
+		assertThat(grantStatus(this.crew)).isEqualTo("REVOKED");
+		assertThat(notices("job.job_started")).as("the Customer and the Mentor").isEqualTo(2);
+		awaitListeners();
+	}
+
+	/**
+	 * Story 21.6: on a person no longer a collaborator a raise is an invitation nothing removes, so Verify reads the grant
+	 * again just before raising, and tries again without them.
+	 */
+	@Test
+	void aMemberWhoLeavesWhileVerifyRaisesIsNotInvitedBack() throws Exception {
+		String mentorLogin = TeamTestSupport.login(this.jdbc, this.mentor);
+		String crewLogin = TeamTestSupport.login(this.jdbc, this.crew);
+		j6();
+		run();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		GITHUB.accept(mentorLogin);
+		GITHUB.accept(crewLogin);
+		this.checks.check(this.job);
+		assertThat(this.busy.job(this.job).orElseThrow().busy()).isPresent();
+		GITHUB.seen.clear();
+		AtomicBoolean left = new AtomicBoolean();
+		GITHUB.beforeAnswer = request -> {
+			if (request.path().endsWith("/collaborators/" + mentorLogin + "/permission") && left.compareAndSet(false, true)) {
+				try {
+					leave().andExpect(status().isNoContent());
+					awaitListeners();
+				}
+				catch (Exception failed) {
+					throw new IllegalStateException(failed);
+				}
+			}
+		};
+		try {
+			this.worker.runDue(Lane.GITHUB_SHORT);
+		}
+		finally {
+			GITHUB.beforeAnswer = request -> {
+			};
+		}
+		assertThat(left).isTrue();
+		assertThat(this.busy.job(this.job).orElseThrow().state()).as("it tries again").isEqualTo("STARTING");
+
+		this.clock.advance(Duration.ofMinutes(1));
+		this.worker.runDue(Lane.GITHUB_SHORT);
+
+		assertThat(this.busy.job(this.job).orElseThrow().state()).isEqualTo("ACTIVE");
+		assertThat(grantStatus(this.crew)).isEqualTo("REVOKED");
+		assertThat(GITHUB.seen).noneMatch(request -> "PUT".equals(request.method())
+				&& request.path().endsWith("/collaborators/" + crewLogin));
+		assertThat(GITHUB.seen).anyMatch(request -> "PUT".equals(request.method())
+				&& request.path().endsWith("/collaborators/" + mentorLogin));
+		awaitListeners();
+	}
+
+	private org.springframework.test.web.servlet.ResultActions leave() throws Exception {
+		return this.mvc.perform(post("/api/v1/jobs/" + this.job + "/crew/leave").with(as(this.crew, Role.STUDENT)).with(csrf())
+			.contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+			.content("{}"));
 	}
 
 	@Test

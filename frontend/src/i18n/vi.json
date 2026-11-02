@@ -2413,6 +2413,24 @@
       }
     },
     "crew": {
+      "leave": {
+        "action": "Rời công việc",
+        "title": "Rời công việc {job}?",
+        "repository": "Quyền ghi vào kho làm việc của bạn bị thu hồi ngay, và bạn không vào lại công việc này được.",
+        "noRepository": "Bạn không vào lại công việc này được.",
+        "split": "Bạn vẫn là một bên trong phần chia tiền của Giai đoạn {n}, và vẫn làm các việc sau công việc như mọi thành viên: xóa dữ liệu của khách hàng, chấm sao, đánh giá kín.",
+        "duties": "Bạn vẫn làm các việc sau công việc như mọi thành viên: xóa dữ liệu của khách hàng, chấm sao, đánh giá kín.",
+        "customer": "Khách hàng chỉ được báo tên tài khoản GitHub của bạn để thu hồi quyền.",
+        "reason": "Lý do (không bắt buộc)",
+        "reasonHint": "Chỉ người hướng dẫn đọc được.",
+        "back": "Quay lại",
+        "done": "Bạn đã rời công việc này."
+      },
+      "noCrew": {
+        "mentor": "Nhóm thực hiện không còn ai. Bạn có thể tiếp tục một mình: hạng mục bạn tự làm chuyển sang Xong mà không cần duyệt, vì khách hàng nghiệm thu là bước kiểm tra. Bạn cũng có thể tuyển thêm thành viên.",
+        "customer": "Nhóm thực hiện của người hướng dẫn hiện không còn thành viên. Người hướng dẫn {mentor} vẫn tiếp tục công việc. Nếu bạn lo lắng, hãy trao đổi trong Trò chuyện; bạn vẫn có thể đề nghị hủy như thường lệ."
+      },
+      "leftLine": "{name} đã rời công việc ngày {date}. Hãy giao lại các hạng mục đang mở.",
       "customer": {
         "title": "Nhóm thực hiện",
         "none": "Chưa có thành viên nào ký · người hướng dẫn đang tìm nhóm thực hiện.",
@@ -2714,6 +2732,7 @@
         "assignee": "Người làm",
         "mentorOnly": "Chỉ người hướng dẫn đặt được.",
         "unavailableMember": "{name} (đã rời nhóm)",
+        "assignMe": "Tôi (người hướng dẫn)",
         "save": "Lưu",
         "saved": "Đã lưu {key}",
         "seededNote": "Story này đến từ tiêu chí {m}.{n} của thỏa thuận: loại và giai đoạn không đổi được.",
@@ -2729,6 +2748,7 @@
         "historySUBMITTED": "{actor} gửi duyệt",
         "historyAPPROVED": "{actor} duyệt",
         "historyRETURNED": "{actor} trả lại",
+        "historyUNREVIEWED": "{actor}: Xong · không cần duyệt",
         "historyMOVED": "{actor} chuyển cột",
         "historyATTACHED": "{actor} đã thêm {name}",
         "historyDETACHED": "{actor} đã gỡ tệp {name}"
@@ -2743,6 +2763,7 @@
         "label": "Chuyển {key} sang…",
         "notHeld": "Giai đoạn này chưa được thanh toán.",
         "submit": "Gửi duyệt",
+        "done": "Chuyển sang Xong",
         "approve": "Duyệt",
         "return": "Trả lại"
       },
@@ -2750,6 +2771,10 @@
       "awaitingReview": "Chờ người hướng dẫn duyệt",
       "submit": {
         "title": "Gửi duyệt {key}",
+        "directTitle": "Chuyển {key} sang Xong",
+        "directLead": "Hạng mục bạn tự làm không cần duyệt, vì khách hàng nghiệm thu là bước kiểm tra. Hãy trả lời các câu tự kiểm tra.",
+        "directNote": "Ghi chú (không bắt buộc)",
+        "doneDirect": "Đã chuyển {key} sang Xong.",
         "selfCheck": "Tự kiểm tra",
         "meetsCriteria": "Đạt tiêu chí",
         "tested": "Đã kiểm thử",
@@ -3161,6 +3186,9 @@
       "revocation": {
         "title": "Thu hồi quyền ngoài GitHub",
         "lead": "Công việc đã kết thúc. Hãy gỡ quyền hoặc đổi khóa ở từng dịch vụ bạn đã cấp, rồi đánh dấu từng mục. Công việc không chờ danh sách này.",
+        "memberTitle": "Thu hồi quyền của người đã rời nhóm",
+        "memberLead": "Nền tảng không biết bạn đã cấp những quyền gì. Nếu bạn đã cấp cho người này, hãy gỡ quyền hoặc đổi khóa ở từng dịch vụ, rồi đánh dấu từng mục.",
+        "memberItem": "{system} của @{login}",
         "step": "Khách hàng: thu hồi quyền {system}",
         "level": {
           "READ": "Chỉ xem",
@@ -3572,6 +3600,7 @@
       "crewEmpty": "Chưa có thành viên nào.",
       "memberActive": "Đang tham gia · từ {date}",
       "memberLeft": "Đã rời {date}",
+      "memberLeftNote": "Lý do (chỉ bạn đọc được): {note}",
       "memberPicked": "Đã chọn · chờ ký",
       "pick": "Chọn",
       "pickAction": "chọn người này",
@@ -4209,7 +4238,8 @@
       "add_change_impact": "Nêu ảnh hưởng về thời gian của đề nghị đổi hạn ở {job}",
       "answer_change_request": "Trả lời đề nghị đổi hạn ở {job}",
       "answer_cancellation": "Trả lời đề nghị hủy {job} trước {date}",
-      "grant_external_access": "Cấp quyền {system} cho người thực hiện"
+      "grant_external_access": "Cấp quyền {system} cho người thực hiện",
+      "grant_external_access_member": "Cấp quyền {system} cho @{login}"
     },
     "payment": {
       "fund_milestone": "Thanh toán Giai đoạn {n}: {amount} THỬ NGHIỆM",
@@ -4236,7 +4266,8 @@
       "accept_github_invitation": "Bật xác thực hai lớp trên GitHub (nếu chưa bật), rồi chấp nhận lời mời cho {job}",
       "reconfirm_source": "Xác nhận lại dự án gốc của {job}",
       "authorize_final_merge": "Cho phép hợp nhất vào dự án của bạn",
-      "revocation_item": "Thu hồi quyền {system}"
+      "revocation_item": "Thu hồi quyền {system}",
+      "revocation_item_member": "Thu hồi quyền {system} của @{login}"
     },
     "reputation": {
       "rate": "Chấm sao cho {party}",
@@ -4855,7 +4886,8 @@
       "NO_SIGNED_CREW": "chưa có thành viên nhóm nào ký cam kết",
       "APPLICANT_UNAVAILABLE": "người này hiện không thể vào nhóm của công việc này. Hãy chọn người khác",
       "CREW_REJOIN_REFUSED": "người này đã rời công việc này nên không vào lại được",
-      "PICK_ENDED": "lựa chọn này không còn hiệu lực"
+      "PICK_ENDED": "lựa chọn này không còn hiệu lực",
+      "LEAVE_CLOSED": "công việc đang kết thúc nên quyền của bạn đã được thu hồi"
     },
     "matching": {
       "JOB_POST_NOT_OPEN": "công việc không còn nhận chào giá",
@@ -4900,7 +4932,7 @@
     },
     "work": {
       "MENTOR_ONLY": "Chỉ người hướng dẫn làm được việc này.",
-      "NOT_CREW_MEMBER": "Người này không còn làm trong nhóm thực hiện của công việc.",
+      "NOT_CREW_MEMBER": "Chỉ giao được cho thành viên nhóm đang tham gia, hoặc cho chính bạn khi nhóm không còn ai.",
       "SEEDED_FIELD_FIXED": "Loại và giai đoạn của Story từ tiêu chí nghiệm thu không đổi được.",
       "MILESTONE_UNKNOWN": "Giai đoạn này không có trong thỏa thuận.",
       "BOARD_READ_ONLY": "Công việc không còn đang làm nên bảng chỉ để xem.",

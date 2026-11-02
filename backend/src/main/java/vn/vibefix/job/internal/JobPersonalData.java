@@ -30,9 +30,10 @@ import vn.vibefix.shared.PersonalDataSection;
 
 /**
  * {@code job}'s part in exports, erasure, and Product deletion (AD-24): the Customer's Jobs, the External
- * Access identifiers a Mentor or a Crew member entered (FR-66), and the Crew recruitments a Mentor set, with their note
- * to applicants (Story 21.4). Erasure and Product deletion delete the Jobs
- * and their screenshot files, and erasure deletes the person's identifiers; a running Job blocks the erasure of
+ * Access identifiers a Mentor or a Crew member entered (FR-66), the Crew recruitments a Mentor set, with their note
+ * to applicants (Story 21.4), and the reasons a member gave when leaving (Story 21.6). Erasure and Product deletion delete
+ * the Jobs and their screenshot files, and erasure deletes the person's identifiers and clears those reasons; a running
+ * Job blocks the erasure of
  * its Customer, its Mentor, and its unreleased Crew, and a Milestone a former member will be a split party of
  * blocks theirs (Story 20.4), as an open split blocks its parties'.
  * <p>
@@ -133,8 +134,19 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 			recruitment.put("note", rs.getString("recruit_note"));
 			return recruitment;
 		}).list();
+		// The reason a member gave when leaving (Story 21.6): their own words.
+		List<Map<String, Object>> leftNotes = this.jdbc.sql("""
+				SELECT job_id, left_note, window_end FROM job.crew_row WHERE member_account_id = :id AND left_note IS NOT NULL
+				ORDER BY window_end, id
+				""").param("id", accountId).query((rs, n) -> {
+			Map<String, Object> note = new LinkedHashMap<>();
+			note.put("jobId", rs.getObject("job_id", UUID.class).toString());
+			note.put("note", rs.getString("left_note"));
+			note.put("leftAt", rs.getTimestamp("window_end").toInstant().toString());
+			return note;
+		}).list();
 		List<Map<String, Object>> parts = splitParts(accountId);
-		if (jobs.isEmpty() && identifiers.isEmpty() && recruitments.isEmpty() && parts.isEmpty()) {
+		if (jobs.isEmpty() && identifiers.isEmpty() && recruitments.isEmpty() && leftNotes.isEmpty() && parts.isEmpty()) {
 			return Optional.empty();
 		}
 		Map<String, Object> data = new LinkedHashMap<>();
@@ -146,6 +158,9 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 		}
 		if (!recruitments.isEmpty()) {
 			data.put("crewRecruitments", recruitments);
+		}
+		if (!leftNotes.isEmpty()) {
+			data.put("crewLeftNotes", leftNotes);
 		}
 		if (!parts.isEmpty()) {
 			data.put("milestoneSplitParts", parts);
@@ -184,6 +199,7 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 	public void eraseAccount(UUID accountId) {
 		this.jdbc.sql("DELETE FROM job.external_access_identifier WHERE account_id = :id").param("id", accountId).update();
 		this.jdbc.sql("DELETE FROM job.admin_read_grant WHERE admin_account_id = :id").param("id", accountId).update();
+		this.jdbc.sql("UPDATE job.crew_row SET left_note = NULL WHERE member_account_id = :id").param("id", accountId).update();
 		this.jdbc.sql("UPDATE job.closure_proposal SET proposer_account_id = NULL WHERE proposer_account_id = :id")
 			.param("id", accountId)
 			.update();
@@ -237,8 +253,8 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 	}
 
 	/**
-	 * NFR-10: the Job Post screenshots, the External Access identifiers, and the Agreement comments go; the
-	 * Job, its Milestones, its Agreement versions, the Crew Terms, and the Milestone Splits stay, as {@code payment} and
+	 * NFR-10: the Job Post screenshots, the External Access identifiers, the Agreement comments, and the reasons members
+	 * gave when leaving go; the Job, its Milestones, its Agreement versions, the Crew Terms, and the Milestone Splits stay, as {@code payment} and
 	 * {@code reputation} refer to them.
 	 */
 	@Override
@@ -251,6 +267,9 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 				.param("id", productId)
 				.update();
 		}
+		this.jdbc.sql("UPDATE job.crew_row SET left_note = NULL WHERE job_id IN (SELECT id FROM job.job WHERE product_id = :id)")
+			.param("id", productId)
+			.update();
 	}
 
 	/**

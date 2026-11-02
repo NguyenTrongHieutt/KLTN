@@ -1,7 +1,6 @@
 package vn.vibefix.job.internal;
 
 import java.nio.charset.StandardCharsets;
-import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -11,7 +10,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
-import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
@@ -21,9 +19,6 @@ import vn.vibefix.identity.Administrators;
 import vn.vibefix.identity.CustomerNames;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
-import vn.vibefix.identity.StudentDirectory;
-import vn.vibefix.identity.StudentDirectory.StudentCard;
-import vn.vibefix.job.CrewEmptied;
 import vn.vibefix.job.JobNeedsDecision;
 import vn.vibefix.job.internal.CrewService.Row;
 import vn.vibefix.job.internal.Jobs.Job;
@@ -40,13 +35,10 @@ import vn.vibefix.shared.IdGenerator;
  * mentors or is the Customer of, locked in ascending ID order (AD-4).
  * <ul>
  * <li>A lock counts as leaving (Story 20.4): an {@code ACTIVE} row is released as {@code LEFT}, its window ending
- * at the lock's own time; the Mentor and the other active members hear {@code job.crew_member_left}, the Customer
- * {@code job.crew_login_removed} with the GitHub username only, and the Administrators {@code job.party_locked}.
- * An {@code ASSIGNED} row, a pick not yet signed, is released as {@code DECLINED}, and only the Mentor hears
- * ({@code job.crew_pick_released}): the Customer never learns of picks; the place returns while recruitment is on
- * (Story 21.5). When a release leaves no counted {@code ACTIVE} row, {@link CrewEmptied} lets {@code matching} ask the
- * Mentor again to recruit before the Agreement is confirmed (R7), and after J6 the Customer hears
- * {@code job.crew_empty}; no Dispute opens for a Job with no Crew.</li>
+ * at the lock's own time, with {@link CrewDepartures}' consequences, as when a member leaves; only the Administrators'
+ * {@code job.party_locked} is the lock's own, and no reason is kept or shown. An {@code ASSIGNED} row, a pick not yet
+ * signed, is released as {@code DECLINED}, and only the Mentor hears ({@code job.crew_pick_released}): the Customer never
+ * learns of picks; the place returns while recruitment is on (Story 21.5).</li>
  * <li>A locked Mentor or Customer leaves each of their running Jobs needing a decision ({@link JobNeedsDecision});
  * {@code job.party_locked} goes to the other party, to the active Crew about the Mentor, and to the
  * Administrators.</li>
@@ -62,13 +54,7 @@ class LockConsequences {
 
 	static final String PARTY_LOCKED = "job.party_locked";
 
-	static final String MEMBER_LEFT = "job.crew_member_left";
-
-	static final String LOGIN_REMOVED = "job.crew_login_removed";
-
 	static final String PICK_RELEASED = "job.crew_pick_released";
-
-	static final String CREW_EMPTY = "job.crew_empty";
 
 	static final String MENTOR_LOCKED = "MENTOR_LOCKED";
 
@@ -76,9 +62,6 @@ class LockConsequences {
 
 	private static final Set<JobState> RUNNING = EnumSet.of(JobState.AGREEMENT, JobState.STARTING, JobState.ACTIVE,
 			JobState.CLOSING);
-
-	/** After J6, where an emptied Crew is told to the Customer (Q7). */
-	private static final Set<JobState> STARTED = EnumSet.of(JobState.STARTING, JobState.ACTIVE, JobState.CLOSING);
 
 	private final JdbcClient jdbc;
 
@@ -90,7 +73,7 @@ class LockConsequences {
 
 	private final MentorDirectory mentors;
 
-	private final StudentDirectory students;
+	private final CrewDepartures departures;
 
 	private final Notifications notifications;
 
@@ -101,7 +84,7 @@ class LockConsequences {
 	private final JobRecruitment recruitment;
 
 	LockConsequences(JdbcClient jdbc, CrewService crews, Administrators administrators, CustomerNames customers,
-			MentorDirectory mentors, StudentDirectory students, Notifications notifications, ApplicationEventPublisher events,
+			MentorDirectory mentors, CrewDepartures departures, Notifications notifications, ApplicationEventPublisher events,
 			IdGenerator ids, JobRecruitment recruitment) {
 		this.recruitment = recruitment;
 		this.jdbc = jdbc;
@@ -109,7 +92,7 @@ class LockConsequences {
 		this.administrators = administrators;
 		this.customers = customers;
 		this.mentors = mentors;
-		this.students = students;
+		this.departures = departures;
 		this.notifications = notifications;
 		this.events = events;
 		this.ids = ids;
@@ -149,10 +132,8 @@ class LockConsequences {
 		if (released.isEmpty()) {
 			return;
 		}
-		StudentCard card = this.students.cards(List.of(memberId)).stream().findFirst().orElse(null);
-		String name = card == null || card.shownName().isBlank() ? "Một thành viên nhóm" : card.shownName();
+		String name = this.departures.shownName(memberId);
 		UUID mentorId = Objects.requireNonNull(job.mentorId());
-		String link = "/cong-viec/" + job.id();
 		boolean wasActive = false;
 		for (Row row : released) {
 			if (!row.active()) {
@@ -163,55 +144,16 @@ class LockConsequences {
 				continue;
 			}
 			wasActive = true;
-			List<Recipient> crew = new ArrayList<>(List.of(new Recipient(mentorId, Audience.MENTOR)));
-			this.crews.rows(job.id())
-				.stream()
-				.filter(other -> "ACTIVE".equals(other.status()))
-				.forEach(other -> crew.add(new Recipient(other.studentId(), Audience.CREW_ACTIVE)));
-			this.notifications.send(new NotificationRequest(MEMBER_LEFT, key(row.id() + ":left"), crew,
-					Map.of("name", name, "job", job.title()), link, job.id(), null));
-			if (card != null && card.githubLogin() != null) {
-				// R15, UX-DR108: the Customer reads the GitHub username only, never a name or why.
-				this.notifications.send(new NotificationRequest(LOGIN_REMOVED, key(row.id() + ":login-removed"),
-						List.of(new Recipient(job.customerId(), Audience.CUSTOMER)),
-						Map.of("login", card.githubLogin(), "job", job.title()), link, job.id(), null));
-			}
+			this.departures.departed(job, row);
 			List<Recipient> admins = admins();
 			if (!admins.isEmpty()) {
 				this.notifications.send(new NotificationRequest(PARTY_LOCKED, key(row.id() + ":locked"), admins,
-						Map.of("name", name, "job", job.title()), link, job.id(), null));
+						Map.of("name", name, "job", job.title()), "/cong-viec/" + job.id(), job.id(), null));
 			}
 		}
-		if (wasActive && this.crews.countedActive(job.id()).isEmpty()) {
-			this.events.publishEvent(new CrewEmptied(this.ids.newId(), job.id(), mentorId, job.state().name(),
-					job.agreementVersionNo() != null, agreementDue(job.id())));
-			if (STARTED.contains(job.state())) {
-				crewEmpty(job, mentorId);
-			}
+		if (wasActive) {
+			this.departures.emptied(job);
 		}
-	}
-
-	/** The Agreement deadline, the open-recruitment to-do's (UX-DR112). */
-	private @Nullable Instant agreementDue(UUID jobId) {
-		return this.jdbc.sql("SELECT agreement_due_at FROM job.job WHERE id = :id")
-			.param("id", jobId)
-			.query(Timestamp.class)
-			.optional()
-			.map(Timestamp::toInstant)
-			.orElse(null);
-	}
-
-	/**
-	 * Q7, FR-82: the Customer hears that no Crew member is left and that the Mentor carries on. It is keyed by how
-	 * many rows the Job ever activated, so two locks that empty the Crew together tell the Customer once, and a Crew
-	 * that fills and empties again tells them again.
-	 */
-	private void crewEmpty(Job job, UUID mentorId) {
-		long everActive = this.crews.rows(job.id()).stream().filter(row -> row.activatedAt() != null).count();
-		String mentor = this.mentors.cards(List.of(mentorId)).stream().findFirst().map(MentorCard::displayName).orElse("");
-		this.notifications.send(new NotificationRequest(CREW_EMPTY, key(job.id() + ":crew-empty:" + everActive),
-				List.of(new Recipient(job.customerId(), Audience.CUSTOMER)), Map.of("job", job.title(), "mentor", mentor),
-				"/cong-viec/" + job.id(), job.id(), null));
 	}
 
 	/** The Job's Mentor ({@code mentor}) or its Customer is locked: the Job needs a decision. */

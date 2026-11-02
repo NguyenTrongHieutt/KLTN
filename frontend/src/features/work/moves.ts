@@ -21,7 +21,8 @@ export type ReviewRequest = components['schemas']['ReviewRequest']
 /**
  * The actions the caller may take on a Work Item (FR-24, FR-25, AD-39): between "Cần làm" and "Đang
  * làm" for the Mentor and the assignee (leaving "Cần làm" only while the Milestone is held), "Gửi duyệt"
- * for the assignee in "Đang làm", and "Duyệt" and "Trả lại" for the Mentor in "Chờ duyệt".
+ * for the assignee in "Đang làm", which on the Mentor's own Work Item is "Chuyển sang Xong" with no review (R8), and
+ * "Duyệt" and "Trả lại" for the Mentor in "Chờ duyệt".
  */
 export function actionsFor(board: Board, item: WorkItemCard): Action[] {
   if (board.readOnly) {

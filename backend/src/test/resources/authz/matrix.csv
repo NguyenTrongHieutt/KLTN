@@ -3355,3 +3355,33 @@ GET /api/v1/files/{fileId},ADMINISTRATOR,file=crew-proof-upload,,404 NOT_FOUND
 GET /api/v1/files/{fileId},ADMIN_DISPUTE_GRANT,file=crew-proof-upload,,404 NOT_FOUND
 GET /api/v1/files/{fileId},ADMIN_TEAM_ISSUE_GRANT,file=crew-proof-upload,,404 NOT_FOUND
 GET /api/v1/files/{fileId},ADMIN_ABUSE_REPORT_GRANT,file=crew-proof-upload,,404 NOT_FOUND
+
+# Story 21.6: leaving a Job (FR-82, AD-20, AD-41). Only an ACTIVE member leaves, and the crew Job is frozen by its open
+# Dispute, so their 204 also proves that a freeze blocks nothing; everyone else, a former member and a pick included,
+# finds nothing. JOB-1 before the Board (crew/me) answers an ACTIVE or a former member, and a pick reads only its
+# assignment projection. The reason a member gives is the CREW_LEFT_NOTE canary, which only JOB-9's Mentor reads.
+POST /api/v1/jobs/{jobId}/crew/leave,ANONYMOUS,,crew-leave.json,401
+POST /api/v1/jobs/{jobId}/crew/leave,USER_UNVERIFIED,job=crew,crew-leave.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/crew/leave,USER,job=crew,crew-leave.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/crew/leave,LOCKED,job=crew,crew-leave.json,401
+POST /api/v1/jobs/{jobId}/crew/leave,CUSTOMER,job=crew,crew-leave.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/crew/leave,MENTOR,job=crew,crew-leave.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/crew/leave,BIDDER,job=crew,crew-leave.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/crew/leave,CREW_ASSIGNED,job=crew,crew-leave.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/crew/leave,CREW_ACTIVE,job=crew,crew-leave.json,204
+POST /api/v1/jobs/{jobId}/crew/leave,CREW_FORMER,job=crew,crew-leave.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/crew/leave,CROSS_ROLE,job=crew,crew-leave.json,204
+POST /api/v1/jobs/{jobId}/crew/leave,ADMINISTRATOR,job=crew,crew-leave.json,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/crew/me,ANONYMOUS,,,401
+GET /api/v1/jobs/{jobId}/crew/me,USER_UNVERIFIED,job=crew,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/crew/me,USER,job=crew,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/crew/me,LOCKED,job=crew,,401
+GET /api/v1/jobs/{jobId}/crew/me,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/crew/me,CUSTOMER,job=crew,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/crew/me,MENTOR,job=crew,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/crew/me,BIDDER,job=crew,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/crew/me,CREW_ASSIGNED,job=crew,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/crew/me,CREW_ACTIVE,job=crew,,200
+GET /api/v1/jobs/{jobId}/crew/me,CREW_FORMER,job=crew,,200
+GET /api/v1/jobs/{jobId}/crew/me,CROSS_ROLE,job=crew,,200
+GET /api/v1/jobs/{jobId}/crew/me,ADMINISTRATOR,job=crew,,404 NOT_FOUND

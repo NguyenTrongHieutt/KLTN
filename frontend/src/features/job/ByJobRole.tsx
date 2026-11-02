@@ -2,8 +2,10 @@ import type { ReactNode } from 'react'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
+import { t } from '@/i18n/t'
 import { isNotFound } from '@/lib/problemMessage'
-import { useJobRole, useMyJobs, youAreText, type JobRoleView } from './jobRoleApi'
+import { useJobRole, youAreText, type JobRoleView } from './jobRoleApi'
+import { PhaseBadge } from './PhaseBadge'
 
 type Variant = (view: JobRoleView) => ReactNode
 
@@ -42,16 +44,27 @@ export function ByJobRole({
 
 /**
  * JOB-H's read-only line (UX-DR87): "Bạn là: Khách hàng / Người hướng dẫn / Thành viên nhóm", with "· đã rời" for
- * a member who left before the Job ended. The Job's state comes from the screen, or else from "Công việc"
- * (`/my-jobs`). Nothing while the role loads.
+ * a member who left, also after the Job ends, and on every tab of a former member the banner that they read only their
+ * own time on the Crew (AD-41). Nothing while the role loads.
  */
-export function JobRoleLine({ jobId, state }: { jobId: string | undefined; state?: string }) {
+export function JobRoleLine({ jobId }: { jobId: string | undefined }) {
   const role = useJobRole(jobId)
-  const former = role.data?.crewKind === 'FORMER'
-  const mine = useMyJobs(former && state === undefined)
   if (!role.data) {
     return null
   }
-  const known = state ?? mine.data?.find((job) => job.jobId === jobId)?.state
-  return <p className="text-caption font-semibold text-foreground">{youAreText(role.data, known)}</p>
+  return (
+    <>
+      <p className="text-caption font-semibold text-foreground">{youAreText(role.data)}</p>
+      {role.data.crewKind === 'FORMER' && (
+        <p role="status" className="rounded-md border-l-4 border-warning bg-warning-soft p-3 text-body-sm">
+          {t('screen.progress.former')}
+        </p>
+      )}
+    </>
+  )
+}
+
+/** JOB-H's phase badge beside the state's (X6), for the Mentor and the Customer: "Đang tìm nhóm thực hiện", … */
+export function JobPhaseBadge({ jobId }: { jobId: string | undefined }) {
+  return <PhaseBadge phase={useJobRole(jobId).data?.phase} />
 }

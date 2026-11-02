@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 import vn.vibefix.job.AgreementConfirmed;
 import vn.vibefix.job.AgreementConfirmed.ConfirmedMilestone;
+import vn.vibefix.job.CrewEmptied;
 import vn.vibefix.job.CrewMemberAdded;
 import vn.vibefix.job.JobTransitioned;
 import vn.vibefix.job.MilestoneFunding;
@@ -21,8 +22,10 @@ import vn.vibefix.shared.ProcessedEvents;
 /**
  * The confirmed Agreement (FR-17, FR-41): each Milestone gets its ledger account, and with at least one signed Crew
  * member (R7), at the confirmation or at the first signature after it, the Customer's "Thanh toán Giai đoạn 1: {amount}
- * THỬ NGHIỆM" opens (UX-DR15); an accepted Milestone (M5) opens the same to-do for the next Planned one. A cancelled
- * Milestone (M6, M7) closes its funding to-do, and M7 refunds its held money in full (FR-40, FR-43). Replay-safe.
+ * THỬ NGHIỆM" opens (UX-DR15); an accepted Milestone (M5) opens the same to-do for the next Planned one. A Crew that
+ * empties in Agreement closes it until the next signature (FR-41, Story 21.6), and an order already open stays open, to be
+ * refunded at its IPN with {@code CREW_CHANGED}. A cancelled Milestone (M6, M7) closes its funding to-do, and M7 refunds
+ * its held money in full (FR-40, FR-43). Replay-safe.
  */
 @Component
 class PaymentListeners {
@@ -79,6 +82,23 @@ class PaymentListeners {
 					PaymentOrders.FUND_TODO, job.customerId(), Audience.CUSTOMER, first.milestoneId(),
 					Map.of("n", String.valueOf(first.number()), "amount", PaymentOrders.vnd(first.priceVnd())),
 					"/cong-viec/" + job.jobId() + "/thanh-toan", null, job.jobId()))));
+	}
+
+	/**
+	 * FR-41, Story 21.6: the last member left a Job in Agreement, so Milestone 1 cannot be funded; a member who signed
+	 * since keeps the to-do open.
+	 */
+	@ApplicationModuleListener
+	void onCrewEmptied(CrewEmptied event) {
+		if (!"AGREEMENT".equals(event.state())
+				|| !this.processedEvents.markProcessed("payment.PaymentListeners.onCrewEmptied", event.eventId())) {
+			return;
+		}
+		this.funding.byId(event.jobId())
+			.filter(job -> "AGREEMENT".equals(job.state()))
+			.flatMap(job -> job.milestones().stream().findFirst())
+			.filter(first -> awaitsAMember(event.jobId(), first.milestoneId()))
+			.ifPresent(first -> this.todos.closeAll(PaymentOrders.FUND_TODO, first.milestoneId()));
 	}
 
 	/** J6's guard (FR-75): Milestone 1 waits for a signed member. */

@@ -174,6 +174,18 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
   it('gives an active Crew member their overview with their Work Items and N-12', { timeout: 20_000 }, async () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('CREW'),
+      'GET /api/v1/jobs/j1/crew/me': () =>
+        json({
+          jobId: 'j1',
+          title: 'Sửa lỗi đặt bàn và thêm nhắc lịch',
+          state: 'ACTIVE',
+          productName: 'Sổ đặt bàn Quán Mây',
+          mentorName: 'Đỗ Mạnh Hùng',
+          former: false,
+          canLeave: true,
+          codeJob: true,
+          partyMilestones: [1],
+        }),
       'GET /api/v1/boards/j1/progress': () =>
         json(
           progress({
@@ -185,7 +197,7 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
     renderAt('/cong-viec/j1')
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Sửa lỗi đặt bàn và thêm nhắc lịch' })).toBeInTheDocument()
-    expect(screen.getByText(/có thể chứa phần mềm độc hại/)).toBeInTheDocument()
+    expect(await screen.findByText(/có thể chứa phần mềm độc hại/)).toBeInTheDocument()
     expect(screen.getByText('Đang làm · hạn 20/11')).toBeInTheDocument()
     expect(screen.getByText('Chờ khách thanh toán')).toBeInTheDocument()
     const mine = screen.getByRole('heading', { level: 2, name: 'Việc của tôi' }).closest('section')!

@@ -139,6 +139,18 @@ describe('JOB-1 Disputes (FR-52, UX-DR22, UX-DR56)', () => {
   it('shows the Frozen banner to a Crew member, who is never offered the action', { timeout: 20_000 }, async () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('CREW'),
+      'GET /api/v1/jobs/j1/crew/me': () =>
+        json({
+          jobId: 'j1',
+          title: progress.title,
+          state: progress.state,
+          productName: progress.productName,
+          mentorName: progress.mentorName,
+          former: false,
+          canLeave: false,
+          codeJob: true,
+          partyMilestones: [],
+        }),
       'GET /api/v1/boards/j1/progress': () => json({ ...progress, audience: 'CREW' }),
       'GET /api/v1/boards/j1/dispute': () =>
         json({ jobId: 'j1', audience: 'CREW', canOpen: false, open: { ...open, mine: false } }),

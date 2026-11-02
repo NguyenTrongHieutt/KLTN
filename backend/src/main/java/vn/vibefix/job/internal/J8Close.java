@@ -24,7 +24,7 @@ import vn.vibefix.shared.ErrorCode;
  * and the active Crew ({@code job.job_closing}). Every pick not yet signed is released as {@code JOB_ENDED}, so nobody
  * signs into a Closing Job, and no {@code ACTIVE} row is released (AD-41, A-04, Story 21.5). Crew recruitment turns off,
  * and {@code CrewRecruitmentClosed} lapses the open Crew Applications and tells each released pick's person
- * ({@code matching.crew_pick_ended}, Story 21.4).
+ * ({@code matching.crew_pick_ended}, Story 21.4). The Customer's grant to-dos for later members close (Story 21.6).
  */
 @Component
 class J8Close implements JobLifecycle.Step {
@@ -39,8 +39,12 @@ class J8Close implements JobLifecycle.Step {
 
 	private final JobRecruitment recruitment;
 
-	J8Close(JdbcClient jdbc, CrewService crews, Notifications notifications, JobRecruitment recruitment) {
+	private final ExternalAccessGrants externalAccess;
+
+	J8Close(JdbcClient jdbc, CrewService crews, Notifications notifications, JobRecruitment recruitment,
+			ExternalAccessGrants externalAccess) {
 		this.recruitment = recruitment;
+		this.externalAccess = externalAccess;
 		this.jdbc = jdbc;
 		this.crews = crews;
 		this.notifications = notifications;
@@ -74,6 +78,7 @@ class J8Close implements JobLifecycle.Step {
 				Map.of("job", job.title()), "/cong-viec/" + job.id(), job.id(), null));
 		this.crews.releasePicksForJobEnd(job.id());
 		this.recruitment.closeForJob(job.id(), ClosedBy.CLOSING);
+		this.externalAccess.jobEnded(job);
 	}
 
 	/** The Customer, the Mentor, and the active Crew. */

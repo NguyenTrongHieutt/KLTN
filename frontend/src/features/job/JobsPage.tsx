@@ -17,7 +17,7 @@ import { formatVnd } from '@/lib/money'
 import { cn } from '@/lib/utils'
 import { CrewJobCard } from './CrewJobCard'
 import { useJobs, type JobState, type JobSummary } from './jobApi'
-import { leftEarly, useMyJobs, type MyJob, type RoleInJob } from './jobRoleApi'
+import { useMyJobs, type MyJob, type RoleInJob } from './jobRoleApi'
 import { JobStateBadge } from './JobStateBadge'
 
 /** CUS-7's segments (UX-DR86), as `?vai-tro=` keeps them: the Jobs the user posts, mentors, and joins. */
@@ -293,8 +293,8 @@ function BidGroupSection({ group, items }: { group: BidGroup; items: Application
 /**
  * "Việc tôi tham gia" (formerly STU-4, FR-75, AD-41, UX-DR60, UX-DR86): the user's Crew Applications, each with its
  * state and a link to its Job Post (Story 21.4), a pick reading "Bạn được chọn · ký cam kết trước {date}", which the
- * user signs on MEN-3 (Story 21.5); then the Jobs they joined; then the past Jobs, those left included, a Job left
- * before it ended marked "· đã rời"; then the internal complaints (FR-79).
+ * user signs on MEN-3 (Story 21.5); then the Jobs they joined; then the past Jobs, those left included, a Job they
+ * left marked "· đã rời"; then the internal complaints (FR-79).
  */
 function JoinedJobs({ jobs, crew }: { jobs: MyJob[]; crew: CrewApplication[] }) {
   const active = jobs.filter((job) => job.crewKind === 'ACTIVE')
@@ -364,7 +364,7 @@ function JobRows({ jobs }: { jobs: MyJob[] }) {
           >
             <span className="flex min-w-60 grow flex-col gap-0.5">
               <span className="text-label font-semibold break-words">
-                {leftEarly(job, job.state) ? t('screen.job.segments.left', { job: job.title }) : job.title}
+                {job.left ? t('screen.job.segments.left', { job: job.title }) : job.title}
               </span>
               <span className="text-caption text-muted-foreground break-words">{job.productName}</span>
             </span>

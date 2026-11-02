@@ -15,11 +15,14 @@ import { Button } from '@/components/ui/button'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { PersonProfileContent } from '@/features/identity/PersonProfile'
 import { VerifiedFactLines } from '@/features/identity/VerifiedFacts'
-import { JobRoleLine } from '@/features/job/ByJobRole'
+import { CrewLeftLines } from '@/features/crew/NoCrew'
+import { JobPhaseBadge, JobRoleLine } from '@/features/job/ByJobRole'
 import { JobStateBadge } from '@/features/job/JobStateBadge'
 import { useReputationHistories, type Histories } from '@/features/reputation/historyApi'
 import { HistoryRegion, RoleSummaryLine } from '@/features/reputation/RoleHistories'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
+import { useJobProgress } from '@/features/work/progress/progressApi'
+import { hasBoard } from '@/features/work/workApi'
 import { t, type MessageKey } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
 import { formatDayMonth } from '@/lib/dates'
@@ -53,8 +56,9 @@ import { ProofList } from './ProofList'
  * note, Skills and proof, the histories as Mentor and as Crew member, and the Fit metrics against the Skills sought,
  * with "Xem hồ sơ" (PUB-4 in a Sheet), "So sánh" (up to three, the CUS-13 component), "Chọn" (a confirmation with the
  * signing deadline) and "Không chọn" (no reason asked); a pick shows "Đã chọn · chờ ký trước {date}" with "Rút lựa
- * chọn" (R4, Story 21.5); the closed ones under "Đơn đã đóng"; and the Crew list with join and leave dates and no
- * remove action: nobody who signed is removed (FR-75).
+ * chọn" (R4, Story 21.5); the closed ones under "Đơn đã đóng"; and the Crew list with join and leave dates, the reason
+ * a member gave when leaving, which only the Mentor reads (FR-82), and no remove action: nobody who signed is removed
+ * (FR-75). While a former member's open Work Items wait, their line says so (Story 21.6).
  */
 export function RecruitmentPage() {
   const { jobId } = useParams()
@@ -80,6 +84,7 @@ export function RecruitmentPage() {
 }
 
 function Recruiting({ job, recruitment }: { job: MentorJob; recruitment: Recruitment }) {
+  const progress = useJobProgress(hasBoard(job.state) ? job.id : undefined)
   return (
     <>
       <div className="flex flex-col gap-3">
@@ -92,11 +97,13 @@ function Recruiting({ job, recruitment }: { job: MentorJob; recruitment: Recruit
         <div className="flex flex-wrap items-center gap-2">
           <PageHeading>{t('screen.recruitment.title')}</PageHeading>
           <JobStateBadge state={job.state} audience="mentor" />
+          <JobPhaseBadge jobId={job.id} />
         </div>
         <p className="text-body-sm break-words text-muted-foreground">{job.title}</p>
-        <JobRoleLine jobId={job.id} state={job.state} />
+        <JobRoleLine jobId={job.id} />
         <MentorJobTabs jobId={job.id} state={job.state} current="recruitment" payment={job.agreementConfirmed} />
       </div>
+      <CrewLeftLines leavers={progress.data?.leavers} />
       {recruitment.state === 'AGREEMENT' && !recruitment.signedMember && (
         <div role="alert" className="flex gap-3 rounded-md border-l-4 border-warning bg-warning-soft p-4 text-body-sm">
           <TriangleAlert aria-hidden="true" className="size-5 shrink-0 text-warning" />
@@ -550,9 +557,16 @@ function CrewList({ crew }: { crew: RecruitmentMember[] }) {
       ) : (
         <ul className="flex flex-col divide-y divide-border rounded-lg border border-border bg-card">
           {crew.map((member) => (
-            <li key={member.rowId} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-body-sm">
-              <span className="font-semibold break-words">{member.name}</span>
-              <span className="text-muted-foreground">{memberText(member)}</span>
+            <li key={member.rowId} className="flex flex-col gap-1 px-4 py-3 text-body-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-semibold break-words">{member.name}</span>
+                <span className="text-muted-foreground">{memberText(member)}</span>
+              </div>
+              {member.leftNote && (
+                <p className="text-caption text-muted-foreground break-words whitespace-pre-line">
+                  {t('screen.recruitment.memberLeftNote', { note: member.leftNote })}
+                </p>
+              )}
             </li>
           ))}
         </ul>

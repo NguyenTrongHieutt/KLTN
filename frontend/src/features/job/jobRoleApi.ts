@@ -47,15 +47,10 @@ export function roleLabel(role: RoleInJob): string {
 }
 
 /**
- * Whether the member left the Job before it ended (AD-41): a former member of a Job still running. When a Job ends,
- * every member is released and reads `FORMER` too, but did not leave.
+ * JOB-H's read-only line (UX-DR87): "Bạn là: Thành viên nhóm · đã rời" for a member whose row was released `LEFT`, also
+ * after the Job ends (AD-41). When a Job ends, every member is released and reads `FORMER` too, but did not leave.
  */
-export function leftEarly(view: { crewKind?: CrewKind | null }, state: string | undefined): boolean {
-  return view.crewKind === 'FORMER' && state !== undefined && state !== 'CLOSED' && state !== 'CANCELLED'
-}
-
-/** JOB-H's read-only line (UX-DR87): "Bạn là: Thành viên nhóm · đã rời" for a member who left the running Job. */
-export function youAreText(view: { role: RoleInJob; crewKind?: CrewKind | null }, state: string | undefined): string {
+export function youAreText(view: { role: RoleInJob; left?: boolean }): string {
   const role = roleLabel(view.role)
-  return leftEarly(view, state) ? t('screen.job.role.youAreFormer', { role }) : t('screen.job.role.youAre', { role })
+  return view.left ? t('screen.job.role.youAreFormer', { role }) : t('screen.job.role.youAre', { role })
 }
