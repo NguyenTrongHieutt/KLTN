@@ -87,20 +87,25 @@ class NotificationTypes implements NotificationCatalog {
 	static final TodoType JOB_CONFIRM_AGREEMENT_MENTOR = new TodoType("job.confirm_agreement_mentor", Set.of(Audience.MENTOR), 2,
 			Set.of("job"));
 
-	/** The Agreement confirmed (Milestone 1) or the previous Milestone accepted: the Customer pays (FR-41). */
+	/**
+	 * The Agreement confirmed with at least one signed Crew member (Milestone 1; R7) or the previous Milestone accepted:
+	 * the Customer pays (FR-41).
+	 */
 	static final TodoType PAYMENT_FUND_MILESTONE = new TodoType("payment.fund_milestone", Set.of(Audience.CUSTOMER), 2,
 			Set.of("n", "amount"));
 
-	/** J4 (FR-75): the Mentor picks the Crew, until FR-17's Crew condition holds. */
-	static final TodoType JOB_PICK_CREW = new TodoType("job.pick_crew", Set.of(Audience.MENTOR), 2, Set.of("job"));
-
-	/** An assigned Crew member signs the NDA and confirms the latest Crew Terms version (FR-75). */
-	static final TodoType JOB_CONFIRM_CREW_TERMS = new TodoType("job.confirm_crew_terms", Set.of(Audience.CREW_ASSIGNED), 1,
-			Set.of("job"));
+	/**
+	 * The picked person signs the NDA and the commitment on MEN-3 (FR-81, UX-DR112, Story 21.5), due at the end of the
+	 * 3-day signature period, until they sign or decline, the pick is withdrawn or ends, or the period passes; it
+	 * replaces the retired Crew Terms confirmation to-do.
+	 */
+	static final TodoType MATCHING_SIGN_COMMITMENT = new TodoType("matching.sign_commitment", Set.of(Audience.CREW_ASSIGNED),
+			1, Set.of("job"));
 
 	/**
 	 * J4 (UX-DR112, Story 21.4): the Mentor opens Crew recruitment on JOB-9, due at the Agreement deadline, until it is
-	 * on or a member has signed; it replaces {@code job.pick_crew}.
+	 * on or a member has signed; it replaces the retired Team-based picker's to-do. A lock that empties the Crew
+	 * before the Agreement is confirmed opens it again (R7, Story 21.5).
 	 */
 	static final TodoType MATCHING_OPEN_CREW_RECRUITMENT = new TodoType("matching.open_crew_recruitment",
 			Set.of(Audience.MENTOR), 2, Set.of("job"));
@@ -258,6 +263,28 @@ class NotificationTypes implements NotificationCatalog {
 			"matching.crew_application_auto_withdrawn", Set.of(Audience.MENTOR), Channel.IN_APP, EmailClass.TRANSACTIONAL,
 			"alert", Set.of("name", "job"));
 
+	/** The Mentor picked this applicant (FR-81, Story 21.5): they sign the commitment by {@code date}. */
+	static final NotificationType MATCHING_CREW_APPLICATION_PICKED = new NotificationType(
+			"matching.crew_application_picked", Set.of(Audience.CREW_ASSIGNED), Channel.IN_APP_AND_EMAIL,
+			EmailClass.TRANSACTIONAL, "users", Set.of("mentor", "job", "date"));
+
+	/** The Mentor withdrew the pick before it was signed (R4, Story 21.5): the person, who is free again. */
+	static final NotificationType MATCHING_CREW_PICK_WITHDRAWN = new NotificationType("matching.crew_pick_withdrawn",
+			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
+
+	/** J8 or J10 ended a pick not yet signed (AD-41, A-04, Story 21.5): the person. */
+	static final NotificationType MATCHING_CREW_PICK_ENDED = new NotificationType("matching.crew_pick_ended",
+			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
+
+	/** The picked person declined ("Từ chối", R4, Story 21.5): the Mentor picks someone else. */
+	static final NotificationType MATCHING_COMMITMENT_DECLINED = new NotificationType("matching.commitment_declined",
+			Set.of(Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("name", "job"));
+
+	/** The 3-day signature period passed without a signature (AD-7, R4, Story 21.5): the Mentor and the person. */
+	static final NotificationType MATCHING_COMMITMENT_LAPSED = new NotificationType("matching.commitment_lapsed",
+			Set.of(Audience.MENTOR, Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
+			Set.of("name", "job"));
+
 	/** J3 chose this Mentor (FR-15). */
 	static final NotificationType JOB_ASSIGNEE_SELECTED = new NotificationType("job.assignee_selected",
 			Set.of(Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "check", Set.of("job"));
@@ -294,7 +321,7 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType JOB_AGREEMENT_CHANGES_REQUESTED = new NotificationType("job.agreement_changes_requested",
 			Set.of(Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
 
-	/** The Customer approved; the Mentor confirms once the Crew is confirmed (FR-17). */
+	/** The Customer approved; the Mentor confirms, with no Crew to wait for (FR-17, Story 21.5). */
 	static final NotificationType JOB_AGREEMENT_AWAITING_CONFIRMATION = new NotificationType(
 			"job.agreement_awaiting_confirmation", Set.of(Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL,
 			"check", Set.of("job"));
@@ -304,13 +331,9 @@ class NotificationTypes implements NotificationCatalog {
 			Set.of(Audience.CUSTOMER, Audience.MENTOR, Audience.CREW_ACTIVE), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL,
 			"check", Set.of("job", "crew"));
 
-	/** A Milestone waits for the Customer's payment (FR-41): after the confirmation, Milestone 1. */
+	/** A Milestone waits for the Customer's payment (FR-41): with the Agreement confirmed and a member signed, Milestone 1 (R7). */
 	static final NotificationType JOB_MILESTONE_AWAITING_FUNDING = new NotificationType("job.milestone_awaiting_funding",
 			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("job", "n", "amount"));
-
-	/** A Crew member was locked between the confirmation and Starting (FR-17, R-1 H1). */
-	static final NotificationType JOB_CREW_RECONFIRM_NEEDED = new NotificationType("job.crew_reconfirm_needed",
-			Set.of(Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("job"));
 
 	/** An External Operation failed after its last attempt (AD-6): every Administrator, from ADM-7. */
 	static final NotificationType OPERATIONS_OPERATION_FAILED = new NotificationType("operations.operation_failed",
@@ -455,42 +478,14 @@ class NotificationTypes implements NotificationCatalog {
 			Set.of(Audience.CUSTOMER, Audience.MENTOR, Audience.CREW_ACTIVE), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info",
 			Set.of("job"));
 
-	/** The Mentor added this Student to the Crew (FR-75). */
-	static final NotificationType JOB_CREW_ASSIGNED = new NotificationType("job.crew_assigned", Set.of(Audience.CREW_ASSIGNED),
-			Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
+	/** A picked person signed and joined the Crew (FR-81, AD-41, Story 21.5): the Mentor and the active members. */
+	static final NotificationType JOB_CREW_MEMBER_JOINED = new NotificationType("job.crew_member_joined",
+			Set.of(Audience.MENTOR, Audience.CREW_ACTIVE), Channel.IN_APP, EmailClass.TRANSACTIONAL, "users",
+			Set.of("name", "job"));
 
-	/** A Crew member signed the NDA and confirmed their share (FR-75): the Mentor. */
-	static final NotificationType JOB_CREW_MEMBER_CONFIRMED = new NotificationType("job.crew_member_confirmed",
-			Set.of(Audience.MENTOR), Channel.IN_APP, EmailClass.TRANSACTIONAL, "check", Set.of("job", "student"));
-
-	/** A Crew member declined (FR-75): the Mentor picks someone else. */
-	static final NotificationType JOB_CREW_MEMBER_DECLINED = new NotificationType("job.crew_member_declined",
-			Set.of(Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("job", "student"));
-
-	/** The Mentor removed this Student from the Crew before the Job started (FR-75). */
-	static final NotificationType JOB_CREW_MEMBER_REMOVED = new NotificationType("job.crew_member_removed",
-			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
-
-	/** The Mentor saved new Crew Terms: every Crew member confirms again (FR-75, N-20). */
-	static final NotificationType JOB_CREW_TERMS_CHANGED = new NotificationType("job.crew_terms_changed",
-			Set.of(Audience.CREW_ASSIGNED), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
-
-	/** The Mentor proposed a Crew change on a running Job: each remaining active member confirms it (Story 11.3). */
-	static final NotificationType JOB_CREW_CHANGE_PROPOSED = new NotificationType("job.crew_change_proposed",
-			Set.of(Audience.CREW_ACTIVE), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
-
-	/** A Crew change took effect (FR-75): the new GitHub usernames, never a share (UX-DR83). */
-	static final NotificationType JOB_CREW_CHANGED = new NotificationType("job.crew_changed",
-			Set.of(Audience.CUSTOMER, Audience.MENTOR, Audience.CREW_ACTIVE), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL,
-			"info", Set.of("job", "usernames"));
-
-	/** J8, J9, or J10 cancelled a Crew change still waiting (FR-75): the Mentor and its new members. */
-	static final NotificationType JOB_CREW_CHANGE_VOIDED = new NotificationType("job.crew_change_voided",
-			Set.of(Audience.MENTOR, Audience.CREW_ASSIGNED), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
-
-	/** FR-17's Crew condition holds: the Mentor may confirm the Agreement. */
-	static final NotificationType JOB_CREW_CONFIRMED = new NotificationType("job.crew_confirmed", Set.of(Audience.MENTOR),
-			Channel.IN_APP, EmailClass.TRANSACTIONAL, "check", Set.of("job"));
+	/** The same, told to the Customer by GitHub username only (R15, Story 21.5): never a name or a profile. */
+	static final NotificationType JOB_CREW_LOGIN_ADDED = new NotificationType("job.crew_login_added",
+			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "users", Set.of("login", "job"));
 
 	/**
 	 * An active Crew member left the Crew; a lock counts as leaving and reads the same, never why (FR-82, FR-59,
@@ -866,12 +861,12 @@ class NotificationTypes implements NotificationCatalog {
 				MATCHING_CONFLICT_OF_INTEREST_REFUSED, JOB_ASSIGNEE_SELECTED, MATCHING_APPLICATIONS_ON_HOLD,
 				JOB_SELECTION_DECLINED, MATCHING_APPLICATIONS_CLOSED, MATCHING_APPLICATIONS_REOPENED, MATCHING_NDA_OVERDUE,
 				MATCHING_INVITED_TO_APPLY, MATCHING_CREW_APPLICATION_RECEIVED, MATCHING_CREW_APPLICATION_DECLINED,
-				MATCHING_CREW_APPLICATION_LAPSED, MATCHING_CREW_APPLICATION_AUTO_WITHDRAWN, CHAT_CHAT_OPENED, JOB_AGREEMENT_DRAFT_READY, JOB_CREW_ASSIGNED,
-				JOB_CREW_MEMBER_CONFIRMED, JOB_CREW_MEMBER_DECLINED, JOB_CREW_MEMBER_REMOVED, JOB_CREW_TERMS_CHANGED,
-				JOB_CREW_CONFIRMED, JOB_CREW_CHANGE_PROPOSED, JOB_CREW_CHANGED, JOB_CREW_CHANGE_VOIDED, JOB_CREW_MEMBER_LEFT,
+				MATCHING_CREW_APPLICATION_LAPSED, MATCHING_CREW_APPLICATION_AUTO_WITHDRAWN, MATCHING_CREW_APPLICATION_PICKED,
+				MATCHING_CREW_PICK_WITHDRAWN, MATCHING_CREW_PICK_ENDED, MATCHING_COMMITMENT_DECLINED, MATCHING_COMMITMENT_LAPSED,
+				CHAT_CHAT_OPENED, JOB_AGREEMENT_DRAFT_READY, JOB_CREW_MEMBER_JOINED, JOB_CREW_LOGIN_ADDED, JOB_CREW_MEMBER_LEFT,
 				JOB_CREW_LOGIN_REMOVED, JOB_CREW_PICK_RELEASED, JOB_CREW_EMPTY,
 				JOB_CONFLICT_OF_INTEREST_REFUSED, JOB_PERSON_LINK_ALERT, JOB_AGREEMENT_CHANGES_REQUESTED,
-				JOB_AGREEMENT_AWAITING_CONFIRMATION, JOB_AGREEMENT_CONFIRMED, JOB_MILESTONE_AWAITING_FUNDING, JOB_CREW_RECONFIRM_NEEDED,
+				JOB_AGREEMENT_AWAITING_CONFIRMATION, JOB_AGREEMENT_CONFIRMED, JOB_MILESTONE_AWAITING_FUNDING,
 				PAYMENT_PAYMENT_RECEIVED, PAYMENT_PAYMENT_FAILED, PAYMENT_UNKNOWN_PAYMENT, JOB_MILESTONE_FUNDED, JOB_MILESTONE_SUBMITTED,
 				JOB_MILESTONE_ACCEPTED, JOB_REVISION_REQUESTED, PAYMENT_FUNDS_RELEASED, DELIVERY_ACCEPTANCE_REMINDER,
 				JOB_CLOSURE_PROPOSED, JOB_CLOSURE_DECLINED, JOB_CLOSURE_UNANSWERED, JOB_JOB_CLOSING, JOB_JOB_CLOSED, ADMIN_CONTENT_HIDDEN, JOB_JOB_POST_HIDDEN, JOB_PARTY_LOCKED, JOB_MILESTONE_DUE_SOON, JOB_MILESTONE_OVERDUE, JOB_MILESTONE_UNFUNDED_REMINDER,
@@ -897,8 +892,8 @@ class NotificationTypes implements NotificationCatalog {
 				REPO_ACCEPT_GITHUB_INVITATION, SCANNING_RESOLVE_WORK_FINDING, REPO_RECONFIRM_SOURCE, REPO_AUTHORIZE_FINAL_MERGE,
 				REPO_REVOCATION_ITEM,
 				MATCHING_CHOOSE_ASSIGNEE, MATCHING_SIGN_NDA, MATCHING_ANSWER_INVITATION_TO_APPLY,
-				MATCHING_OPEN_CREW_RECRUITMENT, MATCHING_REVIEW_CREW_APPLICATIONS, JOB_DRAFT_AGREEMENT,
-				JOB_REVIEW_AGREEMENT, JOB_PICK_CREW, JOB_CONFIRM_CREW_TERMS, JOB_REVISE_AGREEMENT, JOB_CONFIRM_AGREEMENT_MENTOR,
+				MATCHING_OPEN_CREW_RECRUITMENT, MATCHING_REVIEW_CREW_APPLICATIONS, MATCHING_SIGN_COMMITMENT, JOB_DRAFT_AGREEMENT,
+				JOB_REVIEW_AGREEMENT, JOB_REVISE_AGREEMENT, JOB_CONFIRM_AGREEMENT_MENTOR,
 				PAYMENT_FUND_MILESTONE, WORK_REVIEW_WORK_ITEM, WORK_FIX_RETURNED_ITEM, WORK_REASSIGN_WORK_ITEMS, DELIVERY_HAND_OVER,
 				DELIVERY_REVIEW_HANDOVER, JOB_ANSWER_CLOSURE, REPO_CONFIRM_DATA_DELETION, REPUTATION_RATE,
 				REPUTATION_GIVE_PRIVATE_FEEDBACK, REPUTATION_DRAFT_PORTFOLIO_SUMMARY, REPUTATION_APPROVE_PORTFOLIO_SUMMARY,

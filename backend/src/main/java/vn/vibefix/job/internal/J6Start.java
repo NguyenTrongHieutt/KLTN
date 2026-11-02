@@ -19,10 +19,12 @@ import vn.vibefix.shared.ErrorCode;
 
 /**
  * J6 (FR-41): Milestone 1 is being funded, and the Job starts. Its guards are FR-17's confirmed
- * Agreement and FR-75's Crew, re-checked here; a Code Job also takes the Product's advisory lock and
- * needs no other Code Job of the Product in Starting, Active, or Closing (AD-4, backed by an index).
- * It brings the latest Crew Terms version into force before M1 pins it (AD-41), and for a Code Job
- * tells everyone the repositories are being prepared. It only runs in M1's cascade.
+ * Agreement and the guard tagged FR-75 (R7, Story 21.5): at least one counted {@code ACTIVE} Crew row, an unlocked
+ * member who signed, for every Job Type, read under the Job lock the cascade holds; a Code Job also takes the
+ * Product's advisory lock and needs no other Code Job of the Product in Starting, Active, or Closing (AD-4, backed by
+ * an index). Crew Terms are no longer written, so it brings into force one version that gives the Mentor 100%, which M1
+ * pins (C-3, until Story 22.1's Milestone Splits), and for a Code Job tells everyone the repositories are being
+ * prepared. It only runs in M1's cascade.
  */
 @Component
 class J6Start implements JobLifecycle.Step {
@@ -47,7 +49,7 @@ class J6Start implements JobLifecycle.Step {
 	}
 
 	/**
-	 * @throws ApiException {@code GUARD_FAILED AGREEMENT_NOT_CONFIRMED}, {@code CREW_NOT_READY}, or
+	 * @throws ApiException {@code GUARD_FAILED AGREEMENT_NOT_CONFIRMED}, {@code NO_SIGNED_CREW}, or
 	 * {@code PRODUCT_HAS_RUNNING_JOB}
 	 */
 	@Override
@@ -56,8 +58,8 @@ class J6Start implements JobLifecycle.Step {
 		if (job.agreementVersionNo() == null) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, JobReason.AGREEMENT_NOT_CONFIRMED);
 		}
-		if (!this.crews.crewReady(job.id())) {
-			throw new ApiException(ErrorCode.GUARD_FAILED, JobReason.CREW_NOT_READY);
+		if (this.crews.countedActive(job.id()).isEmpty()) {
+			throw new ApiException(ErrorCode.GUARD_FAILED, JobReason.NO_SIGNED_CREW);
 		}
 		if (job.code()) {
 			if (!applying.dryRun()) {
@@ -78,9 +80,11 @@ class J6Start implements JobLifecycle.Step {
 
 	@Override
 	public void apply(Applying applying) {
-		applying.fact("crewTermsVersionNo", String.valueOf(this.crews.bringIntoForce(applying.job().id())));
+		Job job = applying.job();
+		applying.fact("crewTermsVersionNo",
+				String.valueOf(this.crews.pinMentorOnly(job.id(), Objects.requireNonNull(job.mentorId()))));
 		// Story 7.2: repo sets up a Code Job's repositories on J6.
-		applying.fact("code", String.valueOf(applying.job().code()));
+		applying.fact("code", String.valueOf(job.code()));
 	}
 
 	@Override
@@ -93,7 +97,7 @@ class J6Start implements JobLifecycle.Step {
 				new Recipient(Objects.requireNonNull(job.mentorId()), Audience.MENTOR)));
 		this.crews.rows(job.id())
 			.stream()
-			.filter(row -> "ACTIVE".equals(row.status()))
+			.filter(CrewService.Row::active)
 			.forEach(row -> everyone.add(new Recipient(row.studentId(), Audience.CREW_ACTIVE)));
 		this.notifications.send(new NotificationRequest(STARTING, applying.transitionId(), everyone, Map.of("job", job.title()),
 				"/cong-viec/" + job.id(), job.id(), null));

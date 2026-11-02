@@ -133,13 +133,15 @@ describe('JOB-7 for the Customer: fund a Milestone (FR-41, N-13)', () => {
                 },
               ],
             },
-            { fundable: false, blockedReason: 'CREW_NOT_READY' },
+            { fundable: false, blockedReason: 'NO_SIGNED_CREW' },
           ),
         ),
     })
     renderAt('/cong-viec/j1/thanh-toan')
 
-    expect(await screen.findByText('Đang chờ người hướng dẫn hoàn tất nhóm thực hiện')).toBeInTheDocument()
+    expect(
+      await screen.findByText('Công việc bắt đầu khi người hướng dẫn có ít nhất một thành viên nhóm đã ký.'),
+    ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Thanh toán Giai đoạn 1' })).toBeDisabled()
     expect(screen.getByText('Hết hạn')).toBeInTheDocument()
     expect(screen.getByText('Chờ hoàn tiền')).toBeInTheDocument()

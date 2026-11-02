@@ -61,8 +61,9 @@ import vn.vibefix.shared.Gate;
 /**
  * Crew Applications (FR-81, AD-20, AD-43, UX-DR102, UX-DR103, Story 21.4): any user with GitHub linked applies from
  * FND-2 to a Job whose Mentor recruits (AD-19 new-work command), with a note, Skills and at most five proof items, and an
- * unlocked user lists or withdraws their own (MEN-3, CUS-7); the Job's Mentor reads them as JOB-9's Applicant cards and
- * declines one with "Không chọn". Nobody else finds them: the Customer gets {@code NOT_FOUND} for every endpoint here,
+ * unlocked user lists or withdraws their own (MEN-3, CUS-7); the Job's Mentor reads them as JOB-9's Applicant cards,
+ * declines one with "Không chọn", picks one with "Chọn" and withdraws a pick not yet signed with "Rút lựa chọn"
+ * (Story 21.5). Nobody else finds them: the Customer gets {@code NOT_FOUND} for every endpoint here,
  * and an Administrator, who holds no role in any Job, finds nothing (SG-31); no Administrator grant covers them. The
  * Source Repository's contributors are read before the application's transaction (A-03).
  */
@@ -89,22 +90,27 @@ class CrewApplicationController {
 	 * One of the user's own Crew Applications, with its proof (MEN-3, CUS-7).
 	 * @param lapsesAt when it lapses while it is pending (R6)
 	 * @param endReason why it ended: {@code DECLINED} ("not picked"), {@code WITHDRAWN}, {@code APPLICANT_UNAVAILABLE},
-	 * or a lapse ({@code EXPIRED}, {@code RECRUITMENT_CLOSED}, {@code JOB_CLOSING}, {@code JOB_CANCELLED})
+	 * a lapse ({@code EXPIRED}, {@code RECRUITMENT_CLOSED}, {@code JOB_CLOSING}, {@code JOB_CANCELLED},
+	 * {@code JOB_HIDDEN}, {@code JOINED_ANOTHER_CREW}), or how a pick ended ({@code PICK_WITHDRAWN},
+	 * {@code COMMITMENT_DECLINED}, {@code COMMITMENT_LAPSED}, {@code PICK_ENDED}, {@code SIGNED})
+	 * @param signDueAt while it is {@code PICKED}, when the signature period ends (Story 21.5)
 	 */
 	record CrewApplicationView(UUID id, UUID jobId, String jobTitle, Status status, String note,
 			List<CrewApplicationSkillView> skills, Instant submittedAt, Instant lapsesAt, @Nullable Instant endedAt,
-			@Nullable EndReason endReason, List<BidProofView> proof) {
+			@Nullable EndReason endReason, @Nullable Instant signDueAt, List<BidProofView> proof) {
 	}
 
 	/**
 	 * One Applicant card on JOB-9 (UX-DR101, UX-DR102), in the Bid card's order: the applicant's Verified facts, then the
 	 * note, Skills and proof, then (from {@code reputation} by the GitHub username) the histories, then the Fit metrics
 	 * against the Skills sought. A closed one ("Đơn đã đóng") carries neither its proof nor its metrics.
+	 * @param signDueAt a pick's signature deadline, "Chờ ký trước {date}" (Story 21.5)
 	 * @param fitMetrics absent for a closed application, or an applicant {@code identity} no longer knows
 	 */
 	record ApplicantCardView(UUID id, Status status, String note, List<CrewApplicationSkillView> skills,
 			Instant submittedAt, Instant lapsesAt, @Nullable Instant endedAt, @Nullable EndReason endReason,
-			ApplicantView applicant, List<BidProofView> proof, @Nullable FitMetricsView fitMetrics) {
+			@Nullable Instant signDueAt, ApplicantView applicant, List<BidProofView> proof,
+			@Nullable FitMetricsView fitMetrics) {
 	}
 
 	private final CrewApplications applications;
@@ -131,10 +137,13 @@ class CrewApplicationController {
 
 	private final CurrentCaller callers;
 
+	private final CrewCommitments commitments;
+
 	CrewApplicationController(CrewApplications applications, CrewApplicationProofs proofs,
 			SourceContributors contributors, CrewRecruitment recruitment, JobPosts posts, JobRoles roles,
 			PublicProfiles profiles, FitMetrics fitMetrics, Catalog catalog, GitHubGate gitHub, ActiveAccount gate,
-			CurrentCaller callers) {
+			CurrentCaller callers, CrewCommitments commitments) {
+		this.commitments = commitments;
 		this.applications = applications;
 		this.proofs = proofs;
 		this.contributors = contributors;
@@ -196,7 +205,7 @@ class CrewApplicationController {
 		mentorOf(jobId);
 		Recruitment found = this.recruitment.recruitment(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		List<CrewApplication> all = this.applications.ofJob(jobId);
-		List<CrewApplication> open = all.stream().filter(application -> application.status() == Status.PENDING).toList();
+		List<CrewApplication> open = all.stream().filter(CrewApplicationController::open).toList();
 		List<UUID> people = all.stream().map(CrewApplication::applicantId).distinct().toList();
 		Map<UUID, PersonFacts> facts = this.profiles.factsOf(people);
 		// The Skills sought, or the Job Post's while the Mentor seeks none, so a shared-Skills metric never reads "0 of 0".
@@ -210,13 +219,40 @@ class CrewApplicationController {
 			ApplicantView applicant = person == null ? new ApplicantView("", null, null, null, List.of())
 					: new ApplicantView(person.displayName(), person.githubLogin(), person.yearsOfExperience(),
 							person.memberSince(), person.verified());
-			boolean pending = application.status() == Status.PENDING;
+			boolean pending = open(application);
 			Metrics fit = pending ? metrics.get(application.applicantId()) : null;
 			return new ApplicantCardView(application.id(), application.status(), application.note(), skills(application),
 					application.submittedAt(), application.lapsesAt(), application.endedAt(), application.endReason(),
-					applicant, pending ? ApplicationController.proofViews(proof.get(application.id())) : List.of(),
+					application.status() == Status.PICKED ? application.signDueAt() : null, applicant,
+					pending ? ApplicationController.proofViews(proof.get(application.id())) : List.of(),
 					fit == null ? null : ApplicationController.fitView(fit, skillNames));
 		}).toList();
+	}
+
+	/**
+	 * JOB-9's "Chọn" (FR-81, UX-DR102, Story 21.5), after a confirmation that shows the signing deadline: the cheap
+	 * refusals first, so a pick refused anyway asks GitHub nothing; then the Source Repository's contributors are read
+	 * here, before the pick's transaction and its locks, and the answer is passed in (A-03). The card answers as picked,
+	 * "Chờ ký trước {date}".
+	 */
+	@PostMapping("/api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/pick")
+	ApplicantCardView pick(@PathVariable UUID jobId, @PathVariable UUID crewApplicationId) {
+		UUID mentor = mentorOf(jobId);
+		CrewApplication pending = this.commitments.requirePending(jobId, crewApplicationId);
+		Contribution contribution = this.contributors.readForCrew(jobId, pending.applicantId());
+		this.commitments.pick(mentor, jobId, crewApplicationId, contribution);
+		return ofJob(jobId).stream()
+			.filter(card -> card.id().equals(crewApplicationId))
+			.findFirst()
+			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+	}
+
+	/** JOB-9's "Rút lựa chọn" (R4): a pick not yet signed ends, and the person is told. */
+	@PostMapping("/api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/withdraw-pick")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	void withdrawPick(@PathVariable UUID jobId, @PathVariable UUID crewApplicationId) {
+		UUID mentor = mentorOf(jobId);
+		this.commitments.withdrawPick(mentor, jobId, crewApplicationId);
 	}
 
 	/** JOB-9's "Không chọn" (UX-DR102): no reason asked; the applicant learns only that they were not picked. */
@@ -275,8 +311,15 @@ class CrewApplicationController {
 					id -> this.posts.post(id).map(JobPostState::title).orElse(""));
 			return new CrewApplicationView(application.id(), application.jobId(), title, application.status(),
 					application.note(), skills(application), application.submittedAt(), application.lapsesAt(),
-					application.endedAt(), application.endReason(), ApplicationController.proofViews(proof.get(application.id())));
+					application.endedAt(), application.endReason(),
+					application.status() == Status.PICKED ? application.signDueAt() : null,
+					ApplicationController.proofViews(proof.get(application.id())));
 		}).toList();
+	}
+
+	/** An application still open on JOB-9: pending, or picked and waiting for its signature. */
+	private static boolean open(CrewApplication application) {
+		return application.status() == Status.PENDING || application.status() == Status.PICKED;
 	}
 
 	private static List<CrewApplicationSkillView> skills(CrewApplication application) {

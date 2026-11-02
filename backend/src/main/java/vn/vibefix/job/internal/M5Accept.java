@@ -50,8 +50,6 @@ class M5Accept implements JobLifecycle.Step {
 
 	private final ClosureProposals closures;
 
-	private final CrewChanges changes;
-
 	private final Deadlines deadlines;
 
 	/** The next Planned Milestone and its price. */
@@ -59,10 +57,9 @@ class M5Accept implements JobLifecycle.Step {
 	}
 
 	M5Accept(JdbcClient jdbc, M1Fund numbers, Notifications notifications, AuditLog auditLog, ClosureProposals closures,
-			CrewChanges changes, Deadlines deadlines) {
+			Deadlines deadlines) {
 		this.jdbc = jdbc;
 		this.deadlines = deadlines;
-		this.changes = changes;
 		this.numbers = numbers;
 		this.notifications = notifications;
 		this.auditLog = auditLog;
@@ -121,8 +118,6 @@ class M5Accept implements JobLifecycle.Step {
 				"/cong-viec/" + job.id() + "/ban-giao/" + applying.input("handoverId"), job.id(), null));
 		next(job.id()).ifPresent(next -> awaitFunding(applying, job, next));
 		this.closures.proposeAutomatically(job, applying.transitionId());
-		// Story 11.3, AD-41: the Milestone left Held, so a waiting Crew change may take effect now.
-		this.changes.evaluate(job.id(), false);
 	}
 
 	/** FR-41: the next Milestone waits for the Customer's payment, with its 14-day reminder. */

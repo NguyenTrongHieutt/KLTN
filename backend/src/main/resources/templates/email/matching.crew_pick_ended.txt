@@ -1,0 +1,6 @@
+subject: {job} đã chuyển sang giai đoạn kết thúc nên lựa chọn bạn vào nhóm không còn hiệu lực
+---
+Xin chào,
+
+Công việc {job} không còn nhận thêm thành viên nhóm, nên lựa chọn bạn vào nhóm thực hiện không còn hiệu lực.
+Bạn có thể tìm và xin vào nhóm của công việc khác trên vibefix.

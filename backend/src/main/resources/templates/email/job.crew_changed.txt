@@ -1,6 +1,0 @@
-subject: Nhóm thực hiện {job} đã thay đổi: {usernames}
----
-Xin chào,
-
-Nhóm thực hiện công việc {job} đã thay đổi. Tài khoản GitHub của nhóm bây giờ là: {usernames}.
-Hãy mở vibefix để xem thỏa thuận.

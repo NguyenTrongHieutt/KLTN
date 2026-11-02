@@ -222,6 +222,10 @@ function blockedText(funding: JobFunding, milestone: FundingMilestone): string |
   if (milestone.blockedReason === 'JOB_FROZEN') {
     return t('screen.payment.frozen')
   }
+  if (milestone.blockedReason === 'NO_SIGNED_CREW') {
+    // R7, Story 21.5: the Customer's words name no one.
+    return t('screen.payment.noSignedCrew')
+  }
   const reason = t(`reason.job.${milestone.blockedReason}` as MessageKey)
   return reason.startsWith('reason.') ? undefined : reason.charAt(0).toUpperCase() + reason.slice(1)
 }

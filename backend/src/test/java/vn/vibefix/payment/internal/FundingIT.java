@@ -132,8 +132,12 @@ class FundingIT extends IntegrationTest {
 		registry.add("vibefix.payment.vnpay.return-url", () -> "http://localhost:5173/thanh-toan");
 	}
 
+	/**
+	 * Story 21.5 (C-3): Crew Terms are no longer written, so J6 brings into force one version giving the Mentor 100%,
+	 * which M1 pins until Story 22.1's Milestone Splits replace it.
+	 */
 	@Test
-	void aPaidMilestoneOneStartsTheCodeJobWithTheCrewTermsPinned() throws Exception {
+	void aPaidMilestoneOneStartsTheCodeJobWithTheMentorOnlyPin() throws Exception {
 		confirmedAgreement("BUG_FIX");
 		UUID admin = administrator();
 		assertThat(openTodos("payment.fund_milestone", this.lan)).isOne();
@@ -176,7 +180,7 @@ class FundingIT extends IntegrationTest {
 			.query(String.class).single()).isEqualTo("IN_FORCE");
 		assertThat(this.crews.releaseTermsOf(MILESTONE)).hasValueSatisfying(terms -> {
 			assertThat(terms.versionNo()).isOne();
-			assertThat(terms.shares()).containsEntry(this.hung, 20).containsEntry(this.vy, 80);
+			assertThat(terms.shares()).as("the Mentor-only pin").containsOnly(Map.entry(this.hung, 100));
 		});
 		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'FUND' AND bucket = 'MILESTONE'"
 				+ " AND amount_vnd = 800000 AND milestone_id = '" + MILESTONE + "'")).isOne();
@@ -356,22 +360,41 @@ class FundingIT extends IntegrationTest {
 			.andExpect(status().isNotFound());
 	}
 
-	/** Story 20.4: the lock released the last member's row, so J6's Crew condition fails until the Mentor re-confirms. */
+	/**
+	 * R7, Story 21.5: the Agreement is confirmed with no member signed; J6's guard (FR-75) refuses Milestone 1's Payment
+	 * Order until one signs, and then it is fundable.
+	 */
+	@Test
+	void noPaymentOrderForMilestoneOneUntilAMemberSigns() throws Exception {
+		confirmedAgreement("BUG_FIX");
+		this.jdbc.sql("DELETE FROM job.crew_row WHERE job_id = :job").param("job", this.job).update();
+
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/funding").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.milestones[0].fundable").value(false))
+			.andExpect(jsonPath("$.milestones[0].blockedReason").value("NO_SIGNED_CREW"));
+		order(jobVersion()).andExpect(status().is(422)).andExpect(jsonPath("$.code").value("GUARD_FAILED"))
+			.andExpect(jsonPath("$.reason").value("NO_SIGNED_CREW"));
+		assertThat(count("SELECT count(*) FROM payment.payment_order WHERE job_id = '" + this.job + "'")).isZero();
+
+		signed(this.vy);
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/funding").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.milestones[0].fundable").value(true));
+	}
+
+	/** Story 20.4: the lock released the last member's row, so J6's guard fails until another member signs. */
 	@Test
 	void aLockedCrewMemberHoldsMilestoneOneBack() throws Exception {
 		confirmedAgreement("BUG_FIX");
 		UUID orderId = created();
 		AccountLocked locked = new AccountLocked(UUID.randomUUID(), this.vy, this.clock.instant());
 		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.events.publishEvent(locked));
-		await().atMost(Duration.ofSeconds(10)).until(() -> count(
-				"SELECT count(*) FROM job.job WHERE crew_reconfirm_owed_at IS NOT NULL AND id = '" + this.job + "'") == 1);
-		assertThat(count("SELECT count(*) FROM job.crew_row WHERE status = 'RELEASED' AND released_reason = 'LEFT' AND job_id = '"
-				+ this.job + "'")).isOne();
+		await().atMost(Duration.ofSeconds(10)).until(() -> count("SELECT count(*) FROM job.crew_row WHERE status = 'RELEASED'"
+				+ " AND released_reason = 'LEFT' AND job_id = '" + this.job + "'") == 1);
 
 		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/funding").with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(jsonPath("$.milestones[0].fundable").value(false))
-			.andExpect(jsonPath("$.milestones[0].blockedReason").value("CREW_NOT_READY"));
-		order(jobVersion()).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("CREW_NOT_READY"));
+			.andExpect(jsonPath("$.milestones[0].blockedReason").value("NO_SIGNED_CREW"));
+		order(jobVersion()).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("NO_SIGNED_CREW"));
 
 		ipn(paid(txnRef(orderId), "14000020", 800000), null).andExpect(jsonPath("$.RspCode").value("00"));
 		assertThat(orderStatus(orderId)).as("J6's Crew guard refused it").isEqualTo("UNAPPLIED");
@@ -393,9 +416,9 @@ class FundingIT extends IntegrationTest {
 
 		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/funding").with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(jsonPath("$.milestones[0].fundable").value(false))
-			.andExpect(jsonPath("$.milestones[0].blockedReason").value("CREW_NOT_READY"));
+			.andExpect(jsonPath("$.milestones[0].blockedReason").value("NO_SIGNED_CREW"));
 		order(jobVersion()).andExpect(status().is(422)).andExpect(jsonPath("$.code").value("GUARD_FAILED"))
-			.andExpect(jsonPath("$.reason").value("CREW_NOT_READY"));
+			.andExpect(jsonPath("$.reason").value("NO_SIGNED_CREW"));
 
 		ipn(paid(txnRef(orderId), "14000021", 800000), null).andExpect(jsonPath("$.RspCode").value("00"));
 		assertThat(orderStatus(orderId)).as("J6's Crew guard refused it").isEqualTo("UNAPPLIED");
@@ -451,18 +474,7 @@ class FundingIT extends IntegrationTest {
 					""".formatted(milestone, UUID.randomUUID()))).andExpect(status().isOk());
 		this.mvc.perform(post("/api/v1/mentor/jobs/" + this.job + "/agreement/share").with(as(this.hung, Role.MENTOR)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON).content("{\"revision\":1}")).andExpect(status().isOk());
-		this.mvc.perform(post("/api/v1/mentor/jobs/" + this.job + "/crew").with(as(this.hung, Role.MENTOR)).with(csrf())
-			.contentType(MediaType.APPLICATION_JSON).content("{\"studentId\":\"" + this.vy + "\",\"crewVersion\":0}"))
-			.andExpect(status().isOk());
-		this.mvc.perform(put("/api/v1/mentor/jobs/" + this.job + "/crew/terms").with(as(this.hung, Role.MENTOR)).with(csrf())
-			.contentType(MediaType.APPLICATION_JSON)
-			.content("""
-					{"crewVersion":1,"shares":[{"accountId":"%s","percent":20},{"accountId":"%s","percent":80}]}
-					""".formatted(this.hung, this.vy))).andExpect(status().isOk());
-		this.mvc.perform(post("/api/v1/crew/jobs/" + this.job + "/confirm").with(as(this.vy, Role.STUDENT)).with(csrf())
-			.contentType(MediaType.APPLICATION_JSON)
-			.content("{\"crewTermsVersionNo\":1,\"ndaVersion\":\"1.0\",\"publicCodeAcknowledged\":true,\"commitEmailNoticeAcknowledged\":true}"))
-			.andExpect(status().isNoContent());
+		signed(this.vy);
 		this.mvc.perform(post("/api/v1/jobs/" + this.job + "/agreement/approve").with(as(this.lan, Role.CUSTOMER)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("{\"version\":%d,\"versionNo\":1,\"freezeCommitment\":%s,\"liveAccessIds\":[]}".formatted(jobVersion(), !assessment)))
@@ -474,6 +486,16 @@ class FundingIT extends IntegrationTest {
 	}
 
 	// ---- Helpers ----------------------------------------------------------------------------
+
+	/** A member who signed (Story 21.5): an {@code ACTIVE} row, as {@code job.activateCrew} leaves it. */
+	private void signed(UUID member) {
+		Timestamp now = Timestamp.from(this.clock.instant());
+		this.jdbc.sql("""
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, created_at)
+				VALUES (:id, :job, :member, 'ACTIVE', :now, :now, :now)
+				""").param("id", UUID.randomUUID()).param("job", this.job).param("member", member).param("now", now).update();
+		this.jdbc.sql("UPDATE job.job SET crew_version = crew_version + 1 WHERE id = :id").param("id", this.job).update();
+	}
 
 	private ResultActions order(long version) throws Exception {
 		UUID milestone = this.jdbc.sql("SELECT id FROM job.milestone WHERE job_id = :job AND removed_at IS NULL ORDER BY position LIMIT 1")

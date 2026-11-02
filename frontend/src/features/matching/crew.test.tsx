@@ -275,7 +275,7 @@ describe('JOB-9, the Mentor recruits the Crew (UX-DR102, Story 21.4)', () => {
     expect(within(item).getByText('Mình đã làm kiểm thử phân quyền cho đồ án.')).toBeInTheDocument()
     expect(within(item).getByText('Dự án môn học của tôi')).toBeInTheDocument()
     expect(within(item).getByRole('button', { name: 'Xem hồ sơ' })).toBeInTheDocument()
-    expect(within(item).queryByRole('button', { name: 'Chọn' })).toBeNull()
+    expect(within(item).getByRole('button', { name: 'Chọn' })).toBeInTheDocument()
     expect(screen.getByText('Đang tham gia · từ 19/10')).toBeInTheDocument()
     expect(screen.getByText('Đã rời 15/10')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Bỏ|Xóa/ })).toBeNull()
@@ -291,6 +291,26 @@ describe('JOB-9, the Mentor recruits the Crew (UX-DR102, Story 21.4)', () => {
 })
 
 describe('MEN-3 and FND-2, applying to a Crew (UX-DR98, UX-DR103, Story 21.4)', () => {
+  it('keeps the Crew form mounted when the applicant has no Job role', { timeout: 15_000 }, async () => {
+    let roleReads = 0
+    fakeBackend(signedInUser, {
+      ...menThree({
+        'GET /api/v1/jobs/j1/role': async () => {
+          roleReads++
+          await new Promise((resolve) => setTimeout(resolve, 30))
+          return json({ status: 404, code: 'NOT_FOUND' }, 404)
+        },
+      }),
+    })
+    renderAt('/tim-viec/j1/xin-vao-nhom')
+
+    const note = await screen.findByLabelText('Lời nhắn cho người hướng dẫn')
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    expect(roleReads).toBe(1)
+    expect(note).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Gửi đơn' })).toBeInTheDocument()
+  })
+
   it('applies from FND-2 with a note, the profile Skills, a link and N-5', { timeout: 25_000 }, async () => {
     const user = userEvent.setup()
     let sent: Record<string, unknown> | undefined
@@ -558,7 +578,6 @@ describe('CUS-7 "Việc tôi tham gia" counts the pending Crew Applications (UX-
   it('lists the application with its state and counts it in its segment', { timeout: 15_000 }, async () => {
     fakeBackend(signedInUser, {
       'GET /api/v1/mentor/crew-applications': () => json([crewApplication()]),
-      'GET /api/v1/crew/assignments': () => json([]),
       'GET /api/v1/team-issues': () => json([]),
     })
     renderAt('/cong-viec')
@@ -572,13 +591,377 @@ describe('CUS-7 "Việc tôi tham gia" counts the pending Crew Applications (UX-
     fakeBackend(signedInUser, {
       ...heldJobs({ jobId: 'j5', title: 'Việc hướng dẫn', role: 'MENTOR' }),
       'GET /api/v1/mentor/crew-applications': () => json([crewApplication()]),
-      'GET /api/v1/crew/assignments': () => json([]),
       'GET /api/v1/team-issues': () => json([]),
     })
     renderAt('/cong-viec')
 
     const segment = await screen.findByRole('button', { name: /Việc tôi tham gia/ })
     expect(within(segment).getByText('1 việc cần làm')).toBeInTheDocument()
+  })
+})
+
+const SIGN_DUE = '2026-11-01T03:00:00Z'
+
+const commitment = (overrides: object = {}, panel: object = {}) => ({
+  applicationId: 'a1',
+  jobId: 'j1',
+  jobTitle: 'Sửa lỗi đặt bàn',
+  mentorName: 'Đỗ Mạnh Hùng',
+  status: 'PICKED',
+  pickedAt: '2026-10-29T03:00:00Z',
+  signDueAt: SIGN_DUE,
+  panel: {
+    scope: 'Sửa lỗi hai khách đặt trùng bàn cùng giờ.',
+    milestones: [{ title: 'Sửa lỗi trùng bàn', dueOn: '2026-11-10', priceVnd: 2_000_000 }],
+    codeJob: true,
+    commitEmailNoticeAcknowledged: false,
+    githubLogin: 'minh-dev',
+    ndaVersion: '1.0',
+    commitmentVersion: '1.0',
+    splitRules: { mentorShareCapPercent: 40, draftDays: 7, confirmationDays: 3, editLimit: 3 },
+    ...panel,
+  },
+  ...overrides,
+})
+
+describe('JOB-9 picks, withdraws a pick, and compares applicants (UX-DR101, UX-DR102, Story 21.5)', () => {
+  it('picks an applicant after the confirmation with the signing deadline, then offers "Rút lựa chọn"', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    let picked = false
+    fakeBackend(
+      signedInUser,
+      jobNine({
+        'GET /api/v1/mentor/jobs/j1/recruitment': () => json(recruitment({ recruiting: true, openSlots: 1 })),
+        'GET /api/v1/mentor/jobs/j1/crew-applications': () =>
+          json([picked ? card({ status: 'PICKED', signDueAt: SIGN_DUE }) : card()]),
+        'POST /api/v1/mentor/jobs/j1/crew-applications/a1/pick': () => {
+          picked = true
+          return json(card({ status: 'PICKED', signDueAt: SIGN_DUE }))
+        },
+      }),
+    )
+    renderAt('/cong-viec/j1/tuyen-thanh-vien')
+
+    const item = await screen.findByRole('listitem', { name: 'Trần Quang Minh' })
+    await user.click(within(item).getByRole('button', { name: 'Chọn' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Chọn Trần Quang Minh vào nhóm thực hiện?' })
+    expect(
+      within(dialog).getByText('Trần Quang Minh có 3 ngày để ký cam kết. Trước khi họ ký, bạn có thể rút lựa chọn.'),
+    ).toBeInTheDocument()
+    expect(within(dialog).getByText(/^Hạn ký: /)).toBeInTheDocument()
+    expect(picked).toBe(false)
+    await user.click(within(dialog).getByRole('button', { name: 'Chọn' }))
+
+    expect(await screen.findByText('Đã chọn Trần Quang Minh. Hạn ký cam kết: 10:00 01/11.')).toBeInTheDocument()
+    const pickedItem = await screen.findByRole('listitem', { name: 'Trần Quang Minh' })
+    expect(await within(pickedItem).findByText('Đã chọn · chờ ký trước 01/11')).toBeInTheDocument()
+    expect(within(pickedItem).getByRole('button', { name: 'Rút lựa chọn' })).toBeInTheDocument()
+    expect(within(pickedItem).queryByRole('button', { name: 'Chọn' })).toBeNull()
+    expect(within(pickedItem).queryByRole('button', { name: 'Không chọn' })).toBeNull()
+  })
+
+  it('says only that an unavailable applicant cannot join, never why', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    fakeBackend(
+      signedInUser,
+      jobNine({
+        'GET /api/v1/mentor/jobs/j1/recruitment': () => json(recruitment({ recruiting: true, openSlots: 1 })),
+        'GET /api/v1/mentor/jobs/j1/crew-applications': () => json([card()]),
+        'POST /api/v1/mentor/jobs/j1/crew-applications/a1/pick': () =>
+          json({ status: 409, code: 'GUARD_FAILED', reason: 'APPLICANT_UNAVAILABLE' }, 409),
+      }),
+    )
+    renderAt('/cong-viec/j1/tuyen-thanh-vien')
+
+    const item = await screen.findByRole('listitem', { name: 'Trần Quang Minh' })
+    await user.click(within(item).getByRole('button', { name: 'Chọn' }))
+    await user.click(
+      within(await screen.findByRole('dialog', { name: 'Chọn Trần Quang Minh vào nhóm thực hiện?' })).getByRole('button', {
+        name: 'Chọn',
+      }),
+    )
+
+    expect(
+      (await screen.findAllByText('Trần Quang Minh hiện không thể vào nhóm của công việc này. Hãy chọn người khác.')).length,
+    ).toBeGreaterThan(0)
+    expect(screen.queryByText(/nhóm thực hiện khác|đang tham gia/)).toBeNull()
+  })
+
+  it('withdraws a pick after a confirmation, and the card closes as withdrawn', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    let withdrawn = false
+    fakeBackend(
+      signedInUser,
+      jobNine({
+        'GET /api/v1/mentor/jobs/j1/recruitment': () => json(recruitment({ recruiting: true, openSlots: 0 })),
+        'GET /api/v1/mentor/jobs/j1/crew-applications': () =>
+          json([
+            withdrawn
+              ? card({ status: 'WITHDRAWN', endReason: 'PICK_WITHDRAWN', proof: [], fitMetrics: undefined })
+              : card({ status: 'PICKED', signDueAt: SIGN_DUE }),
+          ]),
+        'POST /api/v1/mentor/jobs/j1/crew-applications/a1/withdraw-pick': () => {
+          withdrawn = true
+          return new Response(null, { status: 204 })
+        },
+      }),
+    )
+    renderAt('/cong-viec/j1/tuyen-thanh-vien')
+
+    const item = await screen.findByRole('listitem', { name: 'Trần Quang Minh' })
+    await user.click(within(item).getByRole('button', { name: 'Rút lựa chọn' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Rút lựa chọn Trần Quang Minh?' })
+    expect(within(dialog).getByText(/được báo là bạn đã rút lựa chọn/)).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Rút lựa chọn' }))
+
+    expect(await screen.findByText('Đã rút lựa chọn Trần Quang Minh.')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Đơn đã đóng' })).toBeInTheDocument()
+    expect(withdrawn).toBe(true)
+  })
+
+  it('compares applicants side by side, picks from the comparison, and drops one from it', { timeout: 30_000 }, async () => {
+    const user = userEvent.setup()
+    const second = card({
+      id: 'a2',
+      note: 'Em làm được Supabase.',
+      applicant: { displayName: 'Phạm Thu Hà', githubLogin: 'ha-pham', verified, memberSince: '2026-05-01T03:00:00Z' },
+    })
+    const third = card({
+      id: 'a3',
+      status: 'PICKED',
+      signDueAt: SIGN_DUE,
+      note: 'Em đang chờ ký cam kết.',
+      applicant: { displayName: 'Lê Văn Tài', githubLogin: 'tai-le', verified, memberSince: '2026-05-01T03:00:00Z' },
+    })
+    let picks = 0
+    fakeBackend(
+      signedInUser,
+      jobNine({
+        'GET /api/v1/mentor/jobs/j1/recruitment': () => json(recruitment({ recruiting: true, openSlots: 2 })),
+        'GET /api/v1/mentor/jobs/j1/crew-applications': () =>
+          json([picks > 0 ? card({ status: 'PICKED', signDueAt: SIGN_DUE }) : card(), second, third]),
+        'POST /api/v1/mentor/jobs/j1/crew-applications/a1/pick': () => {
+          picks++
+          return json(card({ status: 'PICKED', signDueAt: SIGN_DUE }))
+        },
+      }),
+    )
+    const router = renderAt('/cong-viec/j1/tuyen-thanh-vien')
+
+    await user.click(within(await screen.findByRole('listitem', { name: 'Trần Quang Minh' })).getByRole('button', { name: 'So sánh' }))
+    expect(screen.getByText('Chọn thêm ít nhất một người để so sánh.')).toBeInTheDocument()
+    await user.click(within(screen.getByRole('listitem', { name: 'Phạm Thu Hà' })).getByRole('button', { name: 'So sánh' }))
+    expect(screen.getByText('Đã chọn 2/3 người để so sánh')).toBeInTheDocument()
+    const open = screen.getByRole('link', { name: 'So sánh' })
+    expect(open).toHaveAttribute('href', '/cong-viec/j1/tuyen-thanh-vien/so-sanh?ids=a1,a2')
+    await user.click(open)
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'So sánh 2 người xin vào nhóm' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/cong-viec/j1/tuyen-thanh-vien/so-sanh')
+    expect(screen.getByText('Em làm được Supabase.')).toBeInTheDocument()
+    expect(screen.getByText('Mình đã làm kiểm thử phân quyền cho đồ án.')).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Chọn' })).toHaveLength(2)
+
+    await user.click(screen.getAllByRole('button', { name: 'Chọn' })[0])
+    const dialog = await screen.findByRole('dialog', { name: 'Chọn Trần Quang Minh vào nhóm thực hiện?' })
+    expect(picks).toBe(0)
+    await user.click(within(dialog).getByRole('button', { name: 'Chọn' }))
+
+    await waitFor(() => expect(picks).toBe(1))
+    expect(await screen.findByText('Đã chọn · chờ ký trước 01/11')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Chọn' })).toHaveLength(1))
+
+    await user.click(screen.getAllByRole('button', { name: 'Bỏ khỏi so sánh' })[1])
+    await waitFor(() => expect(router.state.location.pathname).toBe('/cong-viec/j1/tuyen-thanh-vien'))
+    expect(await screen.findByRole('listitem', { name: 'Phạm Thu Hà' })).toBeInTheDocument()
+  })
+
+  it('shows a picked applicant in the comparison with the chip and no "Chọn"', { timeout: 20_000 }, async () => {
+    const picked = card({
+      id: 'a3',
+      status: 'PICKED',
+      signDueAt: SIGN_DUE,
+      applicant: { displayName: 'Lê Văn Tài', githubLogin: 'tai-le', verified, memberSince: '2026-05-01T03:00:00Z' },
+    })
+    fakeBackend(
+      signedInUser,
+      jobNine({
+        'GET /api/v1/mentor/jobs/j1/recruitment': () => json(recruitment({ recruiting: true, openSlots: 1 })),
+        'GET /api/v1/mentor/jobs/j1/crew-applications': () => json([card(), picked]),
+      }),
+    )
+    renderAt('/cong-viec/j1/tuyen-thanh-vien/so-sanh?ids=a1,a3')
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'So sánh 2 người xin vào nhóm' })).toBeInTheDocument()
+    expect(screen.getByText('Đã chọn · chờ ký trước 01/11')).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Chọn' })).toHaveLength(1)
+  })
+
+  it('shows the Customer the not-found screen on the comparison too', { timeout: 15_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
+      'GET /api/v1/mentor/jobs/j1': () => json({ status: 404, code: 'NOT_FOUND' }, 404),
+      'GET /api/v1/mentor/jobs/j1/recruitment': () => json({ status: 404, code: 'NOT_FOUND' }, 404),
+      'GET /api/v1/mentor/jobs/j1/crew-applications': () => json({ status: 404, code: 'NOT_FOUND' }, 404),
+    })
+    renderAt('/cong-viec/j1/tuyen-thanh-vien/so-sanh?ids=a1,a2')
+
+    expect(await screen.findByRole('heading', { name: 'Không tìm thấy nội dung này.' })).toBeInTheDocument()
+    expect(screen.queryByText('Trần Quang Minh')).toBeNull()
+  })
+})
+
+describe('MEN-3 after a pick ended, on a fresh load with no role in the Job (UX-DR103, Story 21.5)', () => {
+  const ended: [string, string, string][] = [
+    ['LAPSED', 'PICK_ENDED', 'Công việc đã chuyển sang giai đoạn kết thúc nên không nhận thêm thành viên.'],
+    ['WITHDRAWN', 'PICK_WITHDRAWN', 'Người hướng dẫn đã rút lựa chọn.'],
+    ['LAPSED', 'COMMITMENT_LAPSED', 'Đã quá hạn ký cam kết.'],
+  ]
+
+  it.each(ended)('%s %s, the Job Post gone: says why, with "Tìm việc khác"', { timeout: 15_000 }, async (status, endReason, text) => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/jobs/j1/role': () => json({ status: 404, code: 'NOT_FOUND' }, 404),
+      'GET /api/v1/mentor/job-posts/j1': () => json({ status: 404, code: 'NOT_FOUND' }, 404),
+      'GET /api/v1/mentor/crew-applications': () => json([crewApplication({ status, endReason })]),
+    })
+    renderAt('/tim-viec/j1')
+
+    expect(await screen.findByText(text)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Tìm việc khác' })).toHaveAttribute('href', '/tim-viec')
+    expect(screen.queryByRole('button', { name: 'Ký và tham gia' })).toBeNull()
+  })
+
+  it.each(ended)('%s %s, the Job Post still listed: says why, with "Gửi đơn mới"', { timeout: 15_000 }, async (status, endReason, text) => {
+    fakeBackend(signedInUser, {
+      ...menThree({
+        'GET /api/v1/jobs/j1/role': () => json({ status: 404, code: 'NOT_FOUND' }, 404),
+        'GET /api/v1/mentor/crew-applications': () => json([crewApplication({ status, endReason })]),
+      }),
+    })
+    renderAt('/tim-viec/j1')
+
+    expect(await screen.findByText(text)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Gửi đơn mới' })).toHaveAttribute('href', '/tim-viec/j1/xin-vao-nhom')
+    expect(screen.queryByRole('button', { name: 'Ký và tham gia' })).toBeNull()
+  })
+})
+
+describe('MEN-3 Commitment panel for a picked person (FR-81, UX-DR103, Story 21.5)', () => {
+  it('shows N-19, the projection and the split rules, and signs only with N-5 and N-23', { timeout: 25_000 }, async () => {
+    const user = userEvent.setup()
+    let sent: Record<string, unknown> | undefined
+    fakeBackend(signedInUser, {
+      ...menThree(),
+      ...inEveryJob('CREW', 'ASSIGNED'),
+      'GET /api/v1/crew/jobs/j1/commitment': () =>
+        json(sent ? commitment({ status: 'JOINED', endReason: 'SIGNED', panel: undefined }) : commitment()),
+      'POST /api/v1/crew/jobs/j1/commitment': async (request) => {
+        sent = (await request.json()) as Record<string, unknown>
+        return json(commitment({ status: 'JOINED', endReason: 'SIGNED', panel: undefined }))
+      },
+    })
+    renderAt('/tim-viec/j1')
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Cam kết tham gia nhóm thực hiện' })).toBeInTheDocument()
+    expect(screen.getByText('Ký trước 10:00 01/11')).toBeInTheDocument()
+    const n19 = screen.getByText(/^Người hướng dẫn Đỗ Mạnh Hùng đã chọn bạn vào nhóm thực hiện Sửa lỗi đặt bàn/)
+    expect(n19).toHaveTextContent('(@minh-dev)')
+    expect(screen.getByText('Sửa lỗi hai khách đặt trùng bàn cùng giờ.')).toBeInTheDocument()
+    expect(screen.getByText('Giai đoạn 1 · Sửa lỗi trùng bàn')).toBeInTheDocument()
+    expect(screen.getByText(/Phần của người hướng dẫn tối đa 40%/)).toBeInTheDocument()
+    expect(screen.getByText(/Mỗi bản phân chia có 3 ngày/)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 3, name: 'Cam kết tham gia · phiên bản 1.0' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 3, name: 'Cam kết bảo mật (NDA) · phiên bản 1.0' })).toBeInTheDocument()
+
+    const sign = screen.getByRole('button', { name: 'Ký và tham gia' })
+    expect(sign).toBeDisabled()
+    await user.click(screen.getByRole('checkbox', { name: /Tôi hiểu mã tôi và nhóm làm/ }))
+    expect(sign).toBeDisabled()
+    await user.click(screen.getByRole('checkbox', { name: 'Tôi đã hiểu' }))
+    expect(sign).toBeEnabled()
+    await user.click(sign)
+
+    await waitFor(() =>
+      expect(sent).toEqual({
+        ndaVersion: '1.0',
+        commitmentVersion: '1.0',
+        publicCodeAcknowledged: true,
+        commitEmailNoticeAcknowledged: true,
+      }),
+    )
+    expect(await screen.findByText('Bạn đã tham gia nhóm thực hiện Sửa lỗi đặt bàn.', { selector: 'p' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Mở công việc' })).toHaveAttribute('href', '/cong-viec/j1')
+  })
+
+  it('asks N-23 only once: a notice already acknowledged needs N-5 alone', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    fakeBackend(signedInUser, {
+      ...menThree(),
+      ...inEveryJob('CREW', 'ASSIGNED'),
+      'GET /api/v1/crew/jobs/j1/commitment': () => json(commitment({}, { commitEmailNoticeAcknowledged: true })),
+    })
+    renderAt('/tim-viec/j1')
+
+    const sign = await screen.findByRole('button', { name: 'Ký và tham gia' })
+    expect(screen.queryByRole('checkbox', { name: 'Tôi đã hiểu' })).toBeNull()
+    await user.click(screen.getByRole('checkbox', { name: /Tôi hiểu mã tôi và nhóm làm/ }))
+    expect(sign).toBeEnabled()
+  })
+
+  it('declines the pick after a confirmation, and the Mentor is told', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    let declined = false
+    const ended = () => commitment({ status: 'DECLINED', endReason: 'COMMITMENT_DECLINED', panel: undefined })
+    fakeBackend(signedInUser, {
+      ...menThree(),
+      ...inEveryJob('CREW', 'ASSIGNED'),
+      'GET /api/v1/crew/jobs/j1/commitment': () => json(declined ? ended() : commitment()),
+      'POST /api/v1/crew/jobs/j1/commitment/decline': () => {
+        declined = true
+        return json(ended())
+      },
+    })
+    renderAt('/tim-viec/j1')
+
+    await user.click(await screen.findByRole('button', { name: 'Từ chối' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Từ chối tham gia công việc này?' })
+    expect(within(dialog).getByText(/Người hướng dẫn được báo để chọn người khác/)).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Từ chối' }))
+
+    expect(await screen.findByText('Bạn đã từ chối tham gia. Người hướng dẫn được báo.')).toBeInTheDocument()
+    expect(await screen.findByText('Bạn đã từ chối tham gia công việc này.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Tìm việc khác' })).toHaveAttribute('href', '/tim-viec')
+    expect(declined).toBe(true)
+  })
+
+  it.each([
+    ['WITHDRAWN', 'PICK_WITHDRAWN', 'Người hướng dẫn đã rút lựa chọn.'],
+    ['LAPSED', 'COMMITMENT_LAPSED', 'Đã quá hạn ký cam kết.'],
+    ['WITHDRAWN', 'PICK_ENDED', 'Công việc đã chuyển sang giai đoạn kết thúc nên không nhận thêm thành viên.'],
+  ])('says why a pick ended (%s, %s) with the way to find another Job', { timeout: 15_000 }, async (status, endReason, text) => {
+    fakeBackend(signedInUser, {
+      ...menThree(),
+      ...inEveryJob('CREW', 'ASSIGNED'),
+      'GET /api/v1/crew/jobs/j1/commitment': () => json(commitment({ status, endReason, panel: undefined })),
+    })
+    renderAt('/tim-viec/j1')
+
+    expect(await screen.findByText(text)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Tìm việc khác' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Ký và tham gia' })).toBeNull()
+  })
+})
+
+describe('CUS-7 "Việc tôi tham gia" shows a pick waiting for its signature (UX-DR86, Story 21.5)', () => {
+  it('reads "Bạn được chọn · ký cam kết trước {date}" with the way to MEN-3', { timeout: 15_000 }, async () => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/mentor/crew-applications': () => json([crewApplication({ status: 'PICKED', signDueAt: SIGN_DUE })]),
+      'GET /api/v1/team-issues': () => json([]),
+    })
+    renderAt('/cong-viec')
+
+    expect(await screen.findByText('Bạn được chọn · ký cam kết trước 10:00 01/11')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Sửa lỗi đặt bàn/ })).toHaveAttribute('href', '/tim-viec/j1')
   })
 })
 

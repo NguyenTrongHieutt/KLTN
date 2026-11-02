@@ -59,19 +59,7 @@ const draft = (overrides: object = {}, content: object = {}) => ({
   ...overrides,
 })
 
-const emptyCrew = {
-  crewVersion: 0,
-  capPercent: 40,
-  largeCrews: false,
-  locked: false,
-  crewConfirmed: false,
-  confirmedCount: 0,
-  total: 0,
-  mentor: { accountId: '00000000-0000-7000-8000-000000000001', displayName: 'Đỗ Mạnh Hùng', githubLogin: 'hungdm' },
-  rows: [],
-  team: [],
-  milestones: [],
-}
+const emptyCrew = { crewVersion: 0, signedMember: false, members: [], waiting: 0 }
 
 const mentorBackend = (agreement: object, extra: Record<string, (request: Request) => Response | Promise<Response>> = {}) =>
   fakeBackend(signedInUser, {
@@ -185,7 +173,6 @@ describe('JOB-6 for the Customer: read the shared draft (FR-16)', () => {
     ],
     quote: { priceVnd: 800000, timelineDays: 7 },
     crew: ['minhtq'],
-    crewConfirmed: false,
     latestVersionNo: 2,
     comments: [],
     changeRequested: false,
@@ -198,6 +185,61 @@ describe('JOB-6 for the Customer: read the shared draft (FR-16)', () => {
       milestones: [milestone({ criteria: [{ id: 'c1', statement: 'Khách chọn giờ đã qua thì không đặt được', checkSteps: '1. Mở. 2. Chọn. 3. Thấy nút mờ.' }] })],
       externalAccess: [{ id: 'a1', system: 'Supabase', purpose: 'Đọc bảng đặt bàn', environment: 'NON_PRODUCTION', accessLevel: 'READ' }],
     },
+  })
+
+  describe('"Nhóm thực hiện" by the Job state and who signed (FR-75, R7, Story 21.5)', () => {
+    const confirmed = {
+      versionNo: 1,
+      draftVersionNo: 2,
+      crew: ['vy-le'],
+      liveAccessIds: [],
+      freezeCommitted: true,
+      approvedAt: '2026-10-20T11:00:00Z',
+      confirmedAt: '2026-10-20T12:00:00Z',
+      confirmedBy: 'Đỗ Mạnh Hùng',
+    }
+    const LOOKING = 'Chưa có thành viên nào ký · người hướng dẫn đang tìm nhóm thực hiện.'
+    const CARRIES_ON = 'Không còn thành viên nào trong nhóm · người hướng dẫn vẫn tiếp tục thực hiện.'
+    const show = async (state: string, crew: string[], confirmedVersion?: object) => {
+      fakeBackend(signedInUser, {
+        ...inEveryJob('CUSTOMER'),
+        'GET /api/v1/jobs/j1': () => json({ ...job, state }),
+        'GET /api/v1/jobs/j1/chat': () => json({ chatId: 'c1', unread: false }),
+        'GET /api/v1/jobs/j1/agreement': () => json({ ...version(2), crew, confirmed: confirmedVersion }),
+        'GET /api/v1/jobs/j1/external-access': () => json({ viewer: 'CUSTOMER', open: false, items: [] }),
+        'GET /api/v1/jobs/j1/change-requests': () => json({ canPropose: false, history: [], milestones: [] }),
+      })
+      renderAt('/cong-viec/j1/thoa-thuan')
+      await screen.findByRole('heading', { level: 3, name: /Giai đoạn 1/ })
+    }
+
+    it('says the Mentor is still looking in Agreement', { timeout: 15_000 }, async () => {
+      await show('AGREEMENT', [])
+      expect(screen.getByText('Nhóm thực hiện:')).toBeInTheDocument()
+      expect(screen.getByText(LOOKING)).toBeInTheDocument()
+      expect(screen.queryByText(CARRIES_ON)).toBeNull()
+    })
+
+    it.each(['STARTING', 'ACTIVE', 'CLOSING'])('says the Mentor carries on, on a %s Job with no member left', { timeout: 15_000 }, async (state) => {
+      await show(state, [], confirmed)
+      expect(screen.getByText(CARRIES_ON)).toBeInTheDocument()
+      expect(screen.queryByText(LOOKING)).toBeNull()
+      expect(screen.queryByText('vy-le')).toBeNull()
+    })
+
+    it.each(['CLOSED', 'CANCELLED'])('names who the confirmed version named, once the Job is %s', { timeout: 15_000 }, async (state) => {
+      await show(state, [], confirmed)
+      expect(screen.getByText('vy-le')).toBeInTheDocument()
+      expect(screen.queryByText(LOOKING)).toBeNull()
+      expect(screen.queryByText(CARRIES_ON)).toBeNull()
+    })
+
+    it.each(['CLOSED', 'CANCELLED'])('shows no line once the Job is %s and the confirmed version named nobody', { timeout: 15_000 }, async (state) => {
+      await show(state, [], { ...confirmed, crew: [] })
+      expect(screen.queryByText('Nhóm thực hiện:')).toBeNull()
+      expect(screen.queryByText(LOOKING)).toBeNull()
+      expect(screen.queryByText(CARRIES_ON)).toBeNull()
+    })
   })
 
   it('shows the shared version with the quote, the criteria, and the versions', { timeout: 20_000 }, async () => {
@@ -220,7 +262,8 @@ describe('JOB-6 for the Customer: read the shared draft (FR-16)', () => {
     expect(screen.getByText('khớp báo giá')).toBeInTheDocument()
     expect(screen.getByText('Môi trường thử')).toBeInTheDocument()
     expect(screen.getByText('minhtq')).toBeInTheDocument()
-    expect(screen.getByText('Chờ nhóm thực hiện xác nhận')).toBeInTheDocument()
+    // Story 21.5: the Customer sees the usernames of the members who signed, with no Crew confirmation to wait for.
+    expect(screen.queryByText('Chờ nhóm thực hiện xác nhận')).toBeNull()
     expect(screen.queryByText(/%/)).toBeNull()
     expect(screen.queryByRole('button', { name: 'Gửi cho khách hàng' })).toBeNull()
 

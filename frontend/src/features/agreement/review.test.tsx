@@ -18,8 +18,6 @@ function renderAt(path: string) {
   return router
 }
 
-const MENTOR = '00000000-0000-7000-8000-000000000001'
-
 const milestone = (id: string, title: string, overrides: object = {}) => ({
   id,
   title,
@@ -63,7 +61,6 @@ const shared = (overrides: object = {}) => ({
   versions: [{ versionNo: 1, sharedAt: '2026-10-20T09:20:00Z' }],
   quote: { priceVnd: 800000, timelineDays: 7 },
   crew: ['minhtq'],
-  crewConfirmed: false,
   latestVersionNo: 1,
   agreementStartedAt: '2026-10-19T03:00:00Z',
   comments: [],
@@ -116,7 +113,7 @@ describe('JOB-6 for the Customer: review and approve the draft (FR-16, FR-17)', 
     expect(rows[0]).toHaveTextContent('Khớp báo giá')
     expect(rows[1]).toHaveTextContent(/17 ngày.*Báo giá: 7 ngày.*Khác báo giá/)
     expect(screen.getAllByText(/1\. Mở trang\./)).toHaveLength(2)
-    expect(screen.getByText('Chờ nhóm thực hiện xác nhận')).toBeInTheDocument()
+    expect(screen.queryByText('Chờ nhóm thực hiện xác nhận')).toBeNull()
 
     await user.click(screen.getByRole('button', { name: 'Góp ý về Giai đoạn 2 · Nhắc lịch' }))
     await user.type(screen.getByRole('textbox', { name: 'Góp ý về Giai đoạn 2 · Nhắc lịch' }), 'Giá hơi cao')
@@ -237,20 +234,12 @@ const draft = (review: object = {}, overrides: object = {}) => ({
   ...overrides,
 })
 
+/** JOB-6's Crew list for the Mentor (Story 21.5): who signed, and the picks still waiting. */
 const panel = (overrides: object = {}) => ({
   crewVersion: 2,
-  capPercent: 40,
-  largeCrews: false,
-  locked: false,
-  crewConfirmed: false,
-  confirmedCount: 0,
-  total: 1,
-  mentor: { accountId: MENTOR, displayName: 'Đỗ Mạnh Hùng', githubLogin: 'hungdm', percent: 20 },
-  rows: [{ rowId: 'r1', studentId: 's1', name: 'Trần Quang Minh', githubLogin: 'minhtq', status: 'ASSIGNED', confirmedLatest: false, percent: 80 }],
-  latest: { versionNo: 1, status: 'PENDING', createdAt: '2026-10-20T03:00:00Z' },
-  team: [],
-  milestones: [],
-  reconfirmOwed: false,
+  signedMember: false,
+  members: [],
+  waiting: 1,
   ...overrides,
 })
 
@@ -284,9 +273,11 @@ describe('JOB-6 for the Mentor: the Customer review and the confirmation (FR-16,
     expect(screen.getByText(/Giai đoạn 2 · Nhắc lịch · Khách hàng/)).toBeInTheDocument()
     expect(screen.getByText('Làm nhắc lịch trước')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Xác nhận thỏa thuận' })).toBeDisabled()
-    expect(
-      screen.getByText('Chưa xác nhận được: khách hàng chưa duyệt bản nháp mới nhất, và nhóm thực hiện chưa xác nhận đủ.'),
-    ).toBeInTheDocument()
+    // R7, Story 21.5: the confirmation waits for no Crew condition.
+    expect(screen.getByText('Chưa xác nhận được: khách hàng chưa duyệt bản nháp mới nhất.')).toBeInTheDocument()
+    expect(screen.getByText('Nhóm thực hiện: chưa có thành viên nào ký')).toBeInTheDocument()
+    const crew = screen.getByRole('region', { name: 'Nhóm thực hiện' })
+    expect(within(crew).getByRole('link', { name: 'Tuyển thành viên' })).toHaveAttribute('href', '/cong-viec/j1/tuyen-thanh-vien')
 
     await user.click(screen.getByRole('button', { name: 'Áp dụng thứ tự' }))
     expect(screen.getAllByRole('textbox', { name: 'Tên giai đoạn' }).map((input) => (input as HTMLInputElement).value)).toEqual([
@@ -312,7 +303,14 @@ describe('JOB-6 for the Mentor: the Customer review and the confirmation (FR-16,
     const current = () => draft({ approvedAt: '2026-10-20T11:00:00Z' }, body ? { confirmed } : {})
     mentorBackend(
       () => json(current()),
-      () => json(panel({ crewConfirmed: true, confirmedCount: 1, locked: body !== undefined })),
+      () =>
+        json(
+          panel({
+            signedMember: true,
+            waiting: 0,
+            members: [{ rowId: 'r1', name: 'Trần Quang Minh', githubLogin: 'minhtq', joinedAt: '2026-10-20T08:00:00Z' }],
+          }),
+        ),
       {
         'POST /api/v1/mentor/jobs/j1/agreement/confirm': async (request) => {
           body = await request.json()
@@ -332,47 +330,62 @@ describe('JOB-6 for the Mentor: the Customer review and the confirmation (FR-16,
     expect(screen.queryByRole('button', { name: 'Lưu bản nháp' })).toBeNull()
   })
 
-  it('reopens the Crew after a lock and re-confirms it', { timeout: 20_000 }, async () => {
+  it('reads the Crew again after a stale confirmation, so the retry carries the moved Crew version', { timeout: 25_000 }, async () => {
     const user = userEvent.setup()
-    let body: unknown
+    const bodies: unknown[] = []
+    let crewVersion = 2
     mentorBackend(
       () => json(draft({ approvedAt: '2026-10-20T11:00:00Z' })),
-      () =>
-        json(
-          panel({
-            reconfirmOwed: true,
-            crewConfirmed: true,
-            // Story 20.4: the lock released the member's row as LEFT, so nobody is removed before re-confirming.
-            rows: [
-              {
-                rowId: 'r1',
-                studentId: 's1',
-                name: 'Trần Quang Minh',
-                githubLogin: 'minhtq',
-                status: 'RELEASED',
-                releasedReason: 'LEFT',
-                confirmedLatest: false,
-              },
-              { rowId: 'r2', studentId: 's2', name: 'Phạm Hải Tùng', githubLogin: 'tungph', status: 'ACTIVE', confirmedLatest: true, percent: 80 },
-            ],
-          }),
-        ),
+      () => json(panel({ crewVersion })),
       {
-        'POST /api/v1/mentor/jobs/j1/crew/reconfirm': async (request) => {
-          body = await request.json()
-          return json(panel({ crewVersion: 3, locked: true, crewConfirmed: true }))
+        'POST /api/v1/mentor/jobs/j1/agreement/confirm': async (request) => {
+          bodies.push(await request.json())
+          // A member signed after the screen loaded.
+          crewVersion = 3
+          return json({ status: 409, code: 'STALE' }, 409)
         },
       },
     )
     renderAt('/cong-viec/j1/thoa-thuan')
 
-    expect(await screen.findByText('Cần xác nhận lại nhóm thực hiện')).toBeInTheDocument()
-    expect(screen.getByText('Đã rời')).toBeInTheDocument()
-    expect(screen.getByText(/Một thành viên đã rời nhóm sau khi thỏa thuận được xác nhận/)).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Xác nhận lại nhóm thực hiện' }))
+    const send = async () => {
+      await user.click(await screen.findByRole('button', { name: 'Xác nhận thỏa thuận' }))
+      const dialog = await screen.findByRole('dialog', { name: 'Xác nhận thỏa thuận?' })
+      await user.click(within(dialog).getByRole('button', { name: 'Xác nhận thỏa thuận' }))
+    }
+    await send()
+    await waitFor(() => expect(bodies).toHaveLength(1))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Xác nhận thỏa thuận' })).toBeEnabled())
+    // The Crew read is what moved: give its refetch time to land before the retry reads the version.
+    await new Promise((resolve) => setTimeout(resolve, 100))
 
-    expect((await screen.findAllByText('Đã xác nhận lại nhóm thực hiện.')).length).toBeGreaterThan(0)
-    expect(body).toEqual({ crewVersion: 2 })
-    expect(await screen.findByText(/Nhóm thực hiện đã chốt theo thỏa thuận/)).toBeInTheDocument()
+    await send()
+
+    await waitFor(() => expect(bodies).toHaveLength(2))
+    expect(bodies[0]).toMatchObject({ crewVersion: 2 })
+    expect(bodies[1]).toMatchObject({ crewVersion: 3 })
+  })
+
+  it('lists the members who signed with their usernames and no remove action', { timeout: 20_000 }, async () => {
+    mentorBackend(
+      () => json(draft({ approvedAt: '2026-10-20T11:00:00Z' })),
+      () =>
+        json(
+          panel({
+            signedMember: true,
+            waiting: 0,
+            members: [{ rowId: 'r2', name: 'Phạm Hải Tùng', githubLogin: 'tungph', joinedAt: '2026-10-21T08:00:00Z' }],
+          }),
+        ),
+    )
+    renderAt('/cong-viec/j1/thoa-thuan')
+
+    expect(await screen.findByText('Phạm Hải Tùng')).toBeInTheDocument()
+    expect(screen.getByText('@tungph')).toBeInTheDocument()
+    expect(screen.getByText('Nhóm thực hiện: 1 người đã ký')).toBeInTheDocument()
+    // Nobody who signed is removed (Story 21.5): the Crew list has no action at all.
+    expect(within(screen.getByRole('region', { name: 'Nhóm thực hiện' })).queryAllByRole('button')).toHaveLength(0)
+    expect(screen.getByRole('button', { name: 'Xác nhận thỏa thuận' })).toBeEnabled()
   })
 })

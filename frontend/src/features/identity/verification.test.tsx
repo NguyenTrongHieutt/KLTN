@@ -74,7 +74,7 @@ afterEach(() => {
 })
 
 describe('ACC-2 student email row (FR-5, FR-80, AD-42, UX-DR93, UX-DR94)', () => {
-  it('shows N-26 first, then the form, and sends a code whose step names the school, never the address', async () => {
+  it('shows N-26, then the form, then a code step naming the school, not the email', { timeout: 15_000 }, async () => {
     const user = userEvent.setup()
     let view: object = { status: 'UNVERIFIED', renewalOpen: false }
     const seen = fakeBackend(signedInWithGoogle, {

@@ -32,8 +32,9 @@ import vn.vibefix.shared.ProcessedEvents;
  * (AD-10 "Logins by ID"), so a renamed account still counts: an invitee whose ID is among the collaborators
  * accepted; an accepted one among the outside collaborators without two-factor authentication is not ready; a drifted
  * organization member who has left the organization loses any direct grant and is invited again. Then
- * Verify may start (Starting), or an accepted Crew change member is raised (Active). It also grants a
- * member a Crew change adds once the Job's Setup is done.
+ * Verify may start (Starting), or an accepted late member is raised (Active). It also grants a counted person with no
+ * grant once the Job's Setup is done, as a late member, so a signature that committed during Setup's resolving
+ * transaction is not missed.
  */
 @Component
 class GrantChecks {
@@ -64,6 +65,13 @@ class GrantChecks {
 		BusyJob job = this.busy.job(jobId).orElse(null);
 		if (job == null || !("STARTING".equals(job.state()) || "ACTIVE".equals(job.state()))) {
 			return;
+		}
+		Setup setup = this.setups.latest(jobId).orElse(null);
+		if (job.code() && setup != null && "DONE".equals(setup.status()) && setup.working() != null) {
+			// grantAll read the Crew before such a signature, and its listener found Setup not done. An existing grant stays.
+			for (Person person : this.grants.counted(job)) {
+				this.grants.grant(job, person, setup.working(), true);
+			}
 		}
 		Map<Long, Set<Long>> collaborators = new HashMap<>();
 		for (Grant grant : this.grants.ofJob(jobId)) {
@@ -103,14 +111,18 @@ class GrantChecks {
 						: withoutTwoFactor.containsValue(grant.login().toLowerCase(Locale.ROOT)));
 			}
 		}
-		if ("STARTING".equals(job.state())) {
-			this.setups.latest(jobId).ifPresent(setup -> this.grants.maybeVerify(jobId, setup));
-			return;
-		}
-		for (Grant grant : this.grants.ofJob(jobId)) {
-			if (grant.crewChange() && "ACCEPTED".equals(grant.status()) && !grant.twoFactorMissing()) {
-				this.grants.requestRaise(grant);
+		// FR-18, AD-11, NFR-6, Story 21.5: a member who joined after Setup is raised to write once accepted on an Active
+		// Job, by a consequence operation that changes no Job state. Accepted while Starting, they wait for J7: the
+		// operation's key is fixed, and asked too early it would end obsolete and never run again.
+		if ("ACTIVE".equals(job.state())) {
+			for (Grant grant : this.grants.ofJob(jobId)) {
+				if (grant.crewChange() && "ACCEPTED".equals(grant.status()) && !grant.twoFactorMissing()) {
+					this.grants.requestRaise(grant);
+				}
 			}
+		}
+		if ("STARTING".equals(job.state()) && setup != null) {
+			this.grants.maybeVerify(jobId, setup);
 		}
 	}
 
@@ -134,7 +146,11 @@ class GrantChecks {
 		}
 	}
 
-	/** A Crew change added a member to a Job whose Setup is done: they are granted as the first Crew was. */
+	/**
+	 * A member signed and joined a Code Job whose Setup is done (FR-18, AD-11, SG-67, Story 21.5), Starting or Active:
+	 * they are invited with read permission as a late member, read back by numeric ID, and raised to write on
+	 * acceptance; Verify never waits for them.
+	 */
 	@ApplicationModuleListener
 	void onCrewMemberAdded(CrewMemberAdded event) {
 		added(event);
@@ -151,10 +167,12 @@ class GrantChecks {
 		if (job == null || !job.code() || setup == null || !"DONE".equals(setup.status()) || setup.workingId() == null) {
 			return;
 		}
-		boolean active = "ACTIVE".equals(job.state());
+		if (!"STARTING".equals(job.state()) && !"ACTIVE".equals(job.state())) {
+			return;
+		}
 		for (Person person : this.grants.counted(job)) {
 			if (person.accountId().equals(event.studentId())) {
-				this.grants.grant(job, person, setup.working(), active);
+				this.grants.grant(job, person, setup.working(), true);
 			}
 		}
 	}

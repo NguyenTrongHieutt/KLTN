@@ -137,7 +137,6 @@ describe('CUS-7, the Jobs of every role (UX-DR66, UX-DR86)', () => {
   it('opens the segment the URL keeps', async () => {
     fakeBackend(signedInUser, {
       'GET /api/v1/my-jobs': () => json([held('a', 'Việc A của tôi', 'CUSTOMER'), held('c', 'Việc C tôi tham gia', 'CREW', { crewKind: 'ACTIVE' })]),
-      'GET /api/v1/crew/assignments': () => json([]),
     })
     renderAt('/cong-viec?vai-tro=tham-gia')
 
@@ -181,7 +180,6 @@ describe('CUS-7, the Jobs of every role (UX-DR66, UX-DR86)', () => {
   it('shows only the Crew list, with no Toggle Group, and marks a Job the user left', async () => {
     fakeBackend(signedInUser, {
       'GET /api/v1/my-jobs': () => json([held('c', 'Việc C đã rời', 'CREW', { crewKind: 'FORMER', state: 'ACTIVE' })]),
-      'GET /api/v1/crew/assignments': () => json([]),
     })
     renderAt('/cong-viec')
 
@@ -194,7 +192,6 @@ describe('CUS-7, the Jobs of every role (UX-DR66, UX-DR86)', () => {
   it('lists a member of a Job that ended among the past Jobs, without "· đã rời"', async () => {
     fakeBackend(signedInUser, {
       'GET /api/v1/my-jobs': () => json([held('d', 'Việc D đã xong', 'CREW', { crewKind: 'FORMER', state: 'CLOSED' })]),
-      'GET /api/v1/crew/assignments': () => json([]),
     })
     renderAt('/cong-viec')
 

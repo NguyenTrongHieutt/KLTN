@@ -107,7 +107,7 @@ function Review({ job, agreement }: { job: Job; agreement: AgreementVersion }) {
     <>
       <Status agreement={agreement} confirmed={confirmed} latest={latest} />
       {agreement.quote && <Compare agreement={agreement} />}
-      <CrewLine crew={confirmed?.crew ?? agreement.crew} confirmed={agreement.crewConfirmed || !!confirmed} />
+      <CrewLine crew={agreement.crew} confirmedCrew={agreement.confirmed?.crew ?? []} state={job.state} />
       <AgreementContentView
         content={agreement.content}
         quotePrice={agreement.quote?.priceVnd}
@@ -266,23 +266,27 @@ function Compare({ agreement }: { agreement: AgreementVersion }) {
 }
 
 /**
- * "Nhóm thực hiện" for the Customer (FR-75, R-1 L4): the GitHub usernames of the Crew only, never a
- * share, with "Chờ nhóm thực hiện xác nhận" until FR-17's Crew condition holds.
+ * "Nhóm thực hiện" for the Customer (FR-75, R15, A-05, Story 21.5): the GitHub usernames of the members who signed,
+ * refreshed as members join or leave, never a pick, a name, a profile or a share. With none, in Agreement the Mentor is
+ * still looking for the Crew, and on a running Job the Mentor carries on (`job.crew_empty`). J9 and J10 release every
+ * row, so an ended Job shows who the confirmed version named, or no line.
  */
-function CrewLine({ crew, confirmed }: { crew: string[]; confirmed: boolean }) {
+function CrewLine({ crew, confirmedCrew, state }: { crew: string[]; confirmedCrew: string[]; state: string }) {
+  const ended = state === 'CLOSED' || state === 'CANCELLED'
+  const shown = ended && crew.length === 0 ? confirmedCrew : crew
+  if (ended && shown.length === 0) {
+    return null
+  }
   return (
     <section className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 text-body-sm">
       <p className="flex flex-wrap items-center gap-2">
         <Users aria-hidden="true" className="size-4 text-primary" />
         <span className="font-semibold">{t('screen.crew.customer.title')}:</span>
-        {crew.length > 0 ? (
-          <span className="font-mono break-words">{crew.join(' · ')}</span>
+        {shown.length > 0 ? (
+          <span className="font-mono break-words">{shown.join(' · ')}</span>
         ) : (
-          <span className="text-muted-foreground">{t('screen.crew.customer.none')}</span>
-        )}
-        {!confirmed && (
-          <span className="rounded-full bg-warning-soft px-2 py-0.5 text-caption font-semibold text-warning">
-            {t('screen.crew.customer.waiting')}
+          <span className="text-muted-foreground">
+            {t(state === 'AGREEMENT' ? 'screen.crew.customer.none' : 'screen.crew.customer.carriesOn')}
           </span>
         )}
       </p>

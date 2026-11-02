@@ -410,11 +410,24 @@ class GitHubLinkIT extends IntegrationTest {
 			.param("now", Timestamp.from(this.clock.instant())).update();
 		UUID selecting = job("SELECTING", mentor);
 		UUID crewed = job("AGREEMENT", UUID.randomUUID());
+		UUID pickedRow = UUID.randomUUID();
+		UUID pick = UUID.randomUUID();
 		this.jdbc.sql("""
-				INSERT INTO job.crew_row (id, job_id, member_account_id, status, created_at)
-				VALUES (:id, :job, :student, 'ASSIGNED', :now)
-				""").param("id", UUID.randomUUID()).param("job", crewed).param("student", student)
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, crew_application_id, created_at)
+				VALUES (:id, :job, :student, 'ASSIGNED', :pick, :now)
+				""").param("id", pickedRow).param("job", crewed).param("student", student).param("pick", pick)
 			.param("now", Timestamp.from(this.clock.instant())).update();
+		// Story 21.5: the pick came from the person's Crew Application, which waits for the signature.
+		this.jdbc.sql("""
+				INSERT INTO matching.crew_application (id, job_id, product_id, customer_account_id, mentor_account_id,
+				    applicant_account_id, status, note, public_code_notice_version, submitted_at, lapses_at, crew_row_id,
+				    picked_at, sign_due_at)
+				SELECT :pick, j.id, j.product_id, j.customer_account_id, j.mentor_account_id, :student, 'PICKED', 'Ghi chú',
+				    '1.0', :now, :later, :row, :now, :later
+				FROM job.job j WHERE j.id = :job
+				""").param("pick", pick).param("student", student).param("row", pickedRow).param("job", crewed)
+			.param("now", Timestamp.from(this.clock.instant()))
+			.param("later", Timestamp.from(this.clock.instant().plus(java.time.Duration.ofDays(3)))).update();
 		this.browser.perform(get("/api/v1/session"));
 
 		assertProblem(as(customer, Role.CUSTOMER, post("/api/v1/products/repository-check"), "product-repository-check.json"), 403,
@@ -435,7 +448,7 @@ class GitHubLinkIT extends IntegrationTest {
 				"/api/v1/mentor/recommendations", jobPost + "/customer-rating", jobPost + "/invitation")) {
 			assertProblem(as(mentor, Role.MENTOR, get(read), null), 403, "FORBIDDEN", "GITHUB_NOT_LINKED");
 		}
-		assertProblem(as(student, Role.STUDENT, post("/api/v1/crew/jobs/" + crewed + "/confirm"), "crew-confirm.json"), 403,
+		assertProblem(as(student, Role.STUDENT, post("/api/v1/crew/jobs/" + crewed + "/commitment"), "commitment.json"), 403,
 				"FORBIDDEN", "GITHUB_NOT_LINKED");
 
 		this.jdbc.sql("UPDATE identity.account SET github_user_id = 777001, github_login = 'lan-dev' WHERE id = :id")

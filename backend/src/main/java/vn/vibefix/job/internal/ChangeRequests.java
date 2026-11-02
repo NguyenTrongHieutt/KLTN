@@ -176,9 +176,12 @@ class ChangeRequests {
 
 	private final ApplicationEventPublisher events;
 
+	private final CrewService crews;
+
 	ChangeRequests(JdbcClient jdbc, Jobs jobs, AgreementReviews reviews, Notifications notifications, Todos todos,
 			AuditLog auditLog, IdGenerator ids, Clock clock, DueDates dueDates, Agreements agreements, JobLifecycle lifecycle,
-			ApplicationEventPublisher events) {
+			ApplicationEventPublisher events, CrewService crews) {
+		this.crews = crews;
 		this.agreements = agreements;
 		this.lifecycle = lifecycle;
 		this.events = events;
@@ -457,7 +460,7 @@ class ChangeRequests {
 		this.jdbc.sql("""
 				INSERT INTO job.confirmed_agreement (job_id, version_no, draft_version_no, content, crew_usernames, live_access_ids,
 				    freeze_committed, customer_account_id, approved_at, mentor_account_id, confirmed_at)
-				SELECT job_id, :next, draft_version_no, CAST(:content AS JSONB), crew_usernames, live_access_ids, freeze_committed,
+				SELECT job_id, :next, draft_version_no, CAST(:content AS JSONB), CAST(:crew AS TEXT[]), live_access_ids, freeze_committed,
 				       :customer, :approved, :mentor, :now
 				FROM job.confirmed_agreement WHERE job_id = :job AND version_no = :current
 				""")
@@ -465,6 +468,7 @@ class ChangeRequests {
 			.param("next", next)
 			.param("current", confirmed.versionNo())
 			.param("content", JSON.writeValueAsString(changed))
+			.param("crew", this.crews.activeUsernames(job.id()).toArray(String[]::new))
 			.param("customer", job.customerId())
 			.param("approved", Timestamp.from(Objects.requireNonNull(request.customerApprovedAt())))
 			.param("mentor", mentor)

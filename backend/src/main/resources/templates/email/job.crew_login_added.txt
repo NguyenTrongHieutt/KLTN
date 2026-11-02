@@ -1,0 +1,6 @@
+subject: Nhóm thực hiện {job} có thêm thành viên @{login}
+---
+Xin chào,
+
+Tài khoản GitHub @{login} đã vào nhóm thực hiện công việc {job}.
+Nếu công việc cần quyền vào một hệ thống bên ngoài vibefix, hãy mở thỏa thuận trên vibefix để xem cần cấp quyền gì cho tài khoản này.

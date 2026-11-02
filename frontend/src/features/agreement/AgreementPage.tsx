@@ -9,8 +9,8 @@ import { SkillPicker } from '@/components/SkillPicker'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
 import { hasChat } from '@/features/chat/chatApi'
-import { useCrewPanel } from '@/features/crew/crewApi'
-import { CrewHeaderLine, CrewSection } from '@/features/crew/CrewPanel'
+import { useMentorCrew } from '@/features/crew/crewApi'
+import { CrewHeaderLine, MentorCrewSection } from '@/features/crew/MentorCrew'
 import { ByJobRole } from '@/features/job/ByJobRole'
 import { JobHeader } from '@/features/job/JobHeader'
 import { mentorMeta } from '@/features/job/jobMeta'
@@ -36,9 +36,9 @@ import { inOrder } from './reviewTargets'
 
 /**
  * JOB-6 "Thỏa thuận" (`/cong-viec/{jobId}/thoa-thuan`, FR-16, FR-17, FR-75, AD-29, UX-DR34, UX-DR60):
- * the Mentor drafts and shares the Agreement with the Customer's comments in view, picks the Crew
- * below the editor, and confirms once the Customer approved and the Crew confirmed; the Customer
- * reviews the shared versions (`CustomerAgreement`). The caller's role in the Job picks which (Story 20.6).
+ * the Mentor drafts and shares the Agreement with the Customer's comments in view, sees the Crew who signed below the
+ * editor (recruited on JOB-9, Story 21.5), and confirms once the Customer approved, with no Crew condition (R7); the
+ * Customer reviews the shared versions (`CustomerAgreement`). The caller's role in the Job picks which (Story 20.6).
  */
 export function AgreementPage() {
   const { jobId = '' } = useParams()
@@ -62,7 +62,7 @@ function Frame({ children }: { children: ReactNode }) {
 function MentorAgreement({ jobId }: { jobId: string }) {
   const job = useMentorJob(jobId)
   const draft = useMentorAgreement(jobId)
-  const crew = useCrewPanel(jobId)
+  const crew = useMentorCrew(jobId)
   usePageTitle(job.data ? t('screen.agreement.title', { job: job.data.title }) : t('screen.job.title'))
   if (job.isError && isNotFound(job.error)) {
     return <NotFoundScreen />
@@ -78,7 +78,7 @@ function MentorAgreement({ jobId }: { jobId: string }) {
             title={job.data.title}
             state={job.data.state}
             meta={mentorMeta(job.data)}
-            status={crew.data && <CrewHeaderLine panel={crew.data} />}
+            status={crew.data && <CrewHeaderLine crew={crew.data} />}
           >
             <MentorJobTabs
               jobId={job.data.id}
@@ -101,10 +101,10 @@ function MentorAgreement({ jobId }: { jobId: string }) {
       {draft.data?.confirmed && <ExternalAccessSection jobId={jobId} />}
       {draft.data?.confirmed && <ChangeRequestSection jobId={jobId} />}
       <RegionState query={crew} skeleton={<Skeleton className="h-64 w-full" />}>
-        {crew.data && <CrewSection key={crew.data.crewVersion} jobId={jobId} panel={crew.data} />}
+        {crew.data && <MentorCrewSection jobId={jobId} crew={crew.data} />}
       </RegionState>
       {job.data && draft.data && crew.data && !draft.data.confirmed && (
-        <ConfirmCard job={job.data} draft={draft.data} panel={crew.data} />
+        <ConfirmCard job={job.data} draft={draft.data} crewVersion={crew.data.crewVersion} />
       )}
     </Frame>
   )

@@ -135,14 +135,14 @@ class AgreementController {
 
 	/**
 	 * A shared version as the Customer reads it.
-	 * @param crew the GitHub usernames of the Crew rows that are not released: never a share (FR-75)
-	 * @param crewConfirmed FR-17's Crew condition holds; until then the Crew line reads as waiting
+	 * @param crew the GitHub usernames of the {@code ACTIVE} members, in the order they joined: never a pick, a name,
+	 * a profile or a share (FR-75, R15, A-05)
 	 * @param agreementStartedAt J4's time, from which the timeline is compared with the quote
 	 * @param changeRequested an open change request names this version
 	 * @param approvedAt when the Customer approved this version, if they did
 	 */
 	record AgreementVersionView(int versionNo, Instant sharedAt, Content content,
-			List<VersionSummary> versions, @Nullable QuoteView quote, List<String> crew, boolean crewConfirmed,
+			List<VersionSummary> versions, @Nullable QuoteView quote, List<String> crew,
 			int latestVersionNo, @Nullable Instant agreementStartedAt, List<AgreementCommentView> comments,
 			boolean changeRequested, @Nullable Instant approvedAt, @Nullable ConfirmedAgreementView confirmed) {
 	}
@@ -206,7 +206,7 @@ class AgreementController {
 		return view(job, this.agreements.draft(job).orElseThrow());
 	}
 
-	/** "Xác nhận thỏa thuận" (FR-17): the confirmed Agreement version 1, and the Crew locks. */
+	/** "Xác nhận thỏa thuận" (FR-17): the confirmed Agreement version 1, waiting for no Crew condition (R7). */
 	@PostMapping("/api/v1/mentor/jobs/{jobId}/agreement/confirm")
 	AgreementDraftView confirmAgreement(@PathVariable UUID jobId, @Valid @RequestBody AgreementConfirmRequest body) {
 		UUID mentor = mentorOf(jobId);
@@ -245,20 +245,10 @@ class AgreementController {
 		Job job = this.jobs.find(customerOf(jobId), jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		Version shared = this.agreements.version(job.id(), version).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		int latest = this.agreements.version(job.id(), null).map(Version::versionNo).orElse(shared.versionNo());
-		// Story 11.3, AD-41: from J6 on the Customer sees the Crew in force, never a waiting change's member.
-		boolean started = this.crews.inForce(job.id()).isPresent();
-		List<UUID> running = this.crews.rows(job.id())
-			.stream()
-			.filter(row -> !row.released() && !(started && "ASSIGNED".equals(row.status())))
-			.map(CrewService.Row::studentId)
-			.toList();
-		List<String> usernames = running.stream()
-			.map(this.crews.cards(running)::get)
-			.filter(card -> card != null && card.githubLogin() != null)
-			.map(card -> card.githubLogin())
-			.toList();
+		// AD-20, A-05: the Customer sees the active members' GitHub usernames only, never a pick.
+		List<String> usernames = this.crews.activeUsernames(job.id());
 		return new AgreementVersionView(shared.versionNo(), shared.sharedAt(), shared.content(),
-				this.agreements.versions(job.id()), quote(job.id()), usernames, started || this.crews.crewConfirmed(job.id()), latest,
+				this.agreements.versions(job.id()), quote(job.id()), usernames, latest,
 				startedAt(job.id()), this.reviews.comments(job.id(), shared.versionNo()).stream().map(this::commentView).toList(),
 				this.reviews.openChangeRequest(job.id()).filter(request -> request.versionNo() == shared.versionNo()).isPresent(),
 				this.reviews.approval(job.id(), shared.versionNo()).map(Approval::approvedAt).orElse(null),

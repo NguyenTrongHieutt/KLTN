@@ -118,6 +118,24 @@ class DecisionIT extends IntegrationTest {
 			.andExpect(jsonPath("$.milestones[0].state").value("ACCEPTED"));
 	}
 
+	/**
+	 * Story 21.5 (C-3): J6 pins one in-force version giving the Mentor 100% until Story 22.1's Milestone Splits, so an
+	 * acceptance releases the whole Milestone to the Mentor, a member who signed included in the Crew.
+	 */
+	@Test
+	void underTheMentorOnlyPinAnAcceptanceReleasesTheWholeMilestoneToTheMentor() throws Exception {
+		world(2, true);
+		String handover = handOver(5);
+
+		decide(this.lan, Role.CUSTOMER, handover, "accept", 6, true, null, null).andExpect(status().isOk());
+
+		assertThat(this.jdbc.sql("""
+				SELECT party_account_id || ':' || amount_vnd || ':' || share_percent || ':' || crew_terms_version_no
+				FROM payment.ledger_entry WHERE entry_type = 'RELEASE'
+				""").query(String.class).list()).containsExactly(this.hung + ":" + PRICE + ":100:1");
+		assertThat(notifications("payment.funds_released")).isOne();
+	}
+
 	@Test
 	void theNextMilestoneWaitsForItsPaymentAndBothSidesHearIfItStillDoesFourteenDaysLater() throws Exception {
 		world(2);
@@ -223,6 +241,11 @@ class DecisionIT extends IntegrationTest {
 	 * Planned.
 	 */
 	private void world(int revisionRounds) throws Exception {
+		world(revisionRounds, false);
+	}
+
+	/** @param mentorOnly the Mentor-only pin J6 writes since Story 21.5, instead of a 70/30 Crew Terms version */
+	private void world(int revisionRounds, boolean mentorOnly) throws Exception {
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng",
 				List.of(TeamTestSupport.REACT), "React");
@@ -278,10 +301,18 @@ class DecisionIT extends IntegrationTest {
 				INSERT INTO job.crew_terms_version (job_id, version_no, status, cap_percent, author_account_id, created_at)
 				VALUES (:job, 1, 'IN_FORCE', 100, :mentor, now())
 				""").param("job", this.job).param("mentor", this.hung).update();
-		this.jdbc.sql("""
-				INSERT INTO job.crew_terms_share (job_id, version_no, party_account_id, crew_row_id, percent)
-				VALUES (:job, 1, :mentor, NULL, 70), (:job, 1, :vy, :row, 30)
-				""").param("job", this.job).param("mentor", this.hung).param("vy", this.vy).param("row", row).update();
+		if (mentorOnly) {
+			this.jdbc.sql("""
+					INSERT INTO job.crew_terms_share (job_id, version_no, party_account_id, crew_row_id, percent)
+					VALUES (:job, 1, :mentor, NULL, 100)
+					""").param("job", this.job).param("mentor", this.hung).update();
+		}
+		else {
+			this.jdbc.sql("""
+					INSERT INTO job.crew_terms_share (job_id, version_no, party_account_id, crew_row_id, percent)
+					VALUES (:job, 1, :mentor, NULL, 70), (:job, 1, :vy, :row, 30)
+					""").param("job", this.job).param("mentor", this.hung).param("vy", this.vy).param("row", row).update();
+		}
 		this.jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at, state, funded_at,
 				    crew_terms_version_no)

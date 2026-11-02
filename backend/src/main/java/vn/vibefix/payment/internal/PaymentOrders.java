@@ -488,7 +488,7 @@ class PaymentOrders {
 	/** Why {@code job} refused the payment: J6's Crew guard, or anything else (FR-41, AD-41). */
 	private Refunds.Reason notFundable(Order order) {
 		ApiException refusal = this.funding.refusal(order.jobId(), order.milestoneId());
-		return refusal != null && refusal.reason().filter("CREW_NOT_READY"::equals).isPresent() ? Refunds.Reason.CREW_CHANGED
+		return refusal != null && refusal.reason().filter("NO_SIGNED_CREW"::equals).isPresent() ? Refunds.Reason.CREW_CHANGED
 				: Refunds.Reason.NOT_FUNDABLE;
 	}
 

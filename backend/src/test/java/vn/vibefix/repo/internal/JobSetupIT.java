@@ -323,6 +323,152 @@ class JobSetupIT extends IntegrationTest {
 		awaitListeners();
 	}
 
+	/**
+	 * Story 21.5 (FR-18, AD-11, SG-67): a member who signs while the Job is Starting, after its Setup, is invited with
+	 * read permission as a late member, and Verify never waits for them: J7 applies once the Mentor and the first
+	 * Crew accepted, and the late member is raised to write on their own acceptance, a consequence that changes no
+	 * Job state.
+	 */
+	@Test
+	void aMemberWhoJoinsAStartingJobAfterSetupIsGrantedApartAndVerifyNeverWaitsForThem() throws Exception {
+		j6();
+		run();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		this.clock.advance(Duration.ofMinutes(1));
+		UUID hai = TeamTestSupport.student(this.jdbc, "Phạm Văn Hải", true, List.of(TeamTestSupport.REACT), "React",
+				LocalDate.parse("2026-12-31"));
+		UUID row = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, created_at)
+				VALUES (:id, :job, :student, 'ACTIVE', :now, :now, :now)
+				""").param("id", row).param("job", this.job).param("student", hai)
+			.param("now", Timestamp.from(this.clock.instant())).update();
+
+		this.checks.added(new vn.vibefix.job.CrewMemberAdded(UUID.randomUUID(), this.job, row, hai, "STARTING"));
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		JobGrants.Grant late = this.grants.ofJob(this.job).stream().filter(grant -> grant.accountId().equals(hai))
+			.findFirst().orElseThrow();
+		assertThat(late.status()).isEqualTo("INVITED");
+		assertThat(late.crewChange()).as("a late member's grant").isTrue();
+
+		GITHUB.accept(TeamTestSupport.login(this.jdbc, this.mentor));
+		GITHUB.accept(TeamTestSupport.login(this.jdbc, this.crew));
+		this.checks.check(this.job);
+		assertThat(this.busy.job(this.job).orElseThrow().busy()).as("Verify does not wait for the late member")
+			.hasValueSatisfying(marker -> assertThat(marker.purpose()).isEqualTo(JobBusy.Purpose.JOB_VERIFY));
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		assertThat(this.busy.job(this.job).orElseThrow().state()).isEqualTo("ACTIVE");
+		assertThat(this.grants.find(late.id()).orElseThrow().status()).as("still waiting for its acceptance")
+			.isEqualTo("INVITED");
+
+		GITHUB.accept(TeamTestSupport.login(this.jdbc, hai));
+		this.checks.check(this.job);
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		assertThat(this.grants.find(late.id()).orElseThrow().status()).as("raised without a state change").isEqualTo("WRITE");
+		awaitListeners();
+	}
+
+	/**
+	 * Story 21.5 (NFR-6): a late member who accepts while the Job is Starting holds no write yet. No raise is requested,
+	 * since its operation would end obsolete and its fixed key would never run again; J7 applies, and the next look raises
+	 * them.
+	 */
+	@Test
+	void aLateMemberWhoAcceptsWhileStartingIsRaisedAfterJ7() throws Exception {
+		j6();
+		run();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		this.clock.advance(Duration.ofMinutes(1));
+		UUID hai = activeMember();
+		this.checks.added(new vn.vibefix.job.CrewMemberAdded(UUID.randomUUID(), this.job, UUID.randomUUID(), hai, "STARTING"));
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		JobGrants.Grant late = this.grants.ofJob(this.job).stream().filter(grant -> grant.accountId().equals(hai))
+			.findFirst().orElseThrow();
+
+		GITHUB.accept(TeamTestSupport.login(this.jdbc, hai));
+		this.checks.check(this.job);
+		this.worker.runDue(Lane.GITHUB_SHORT);
+
+		assertThat(this.grants.find(late.id()).orElseThrow().status()).isEqualTo("ACCEPTED");
+		assertThat(this.jdbc.sql("SELECT count(*) FROM operations.external_operation WHERE type = :type")
+			.param("type", JobGrants.RAISE).query(Long.class).single()).as("no raise before J7").isZero();
+
+		GITHUB.accept(TeamTestSupport.login(this.jdbc, this.mentor));
+		GITHUB.accept(TeamTestSupport.login(this.jdbc, this.crew));
+		this.checks.check(this.job);
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		assertThat(this.busy.job(this.job).orElseThrow().state()).isEqualTo("ACTIVE");
+		assertThat(this.grants.find(late.id()).orElseThrow().status()).as("J7 raises those Verify waited for").isEqualTo("ACCEPTED");
+
+		this.checks.sweep();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		assertThat(this.grants.find(late.id()).orElseThrow().status()).isEqualTo("WRITE");
+		awaitListeners();
+	}
+
+	/** Story 21.5: "Verify never waits for a member added after Setup", a late grant that drifted included. */
+	@Test
+	void aLateMembersDriftDoesNotHoldVerifyBackButAFirstMembersDoes() throws Exception {
+		j6();
+		run();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		this.clock.advance(Duration.ofMinutes(1));
+		UUID hai = activeMember();
+		GITHUB.members.add(TeamTestSupport.login(this.jdbc, hai));
+		this.checks.added(new vn.vibefix.job.CrewMemberAdded(UUID.randomUUID(), this.job, UUID.randomUUID(), hai, "STARTING"));
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		assertThat(grantStatus(hai)).isEqualTo("MEMBER_DRIFT");
+
+		GITHUB.accept(TeamTestSupport.login(this.jdbc, this.mentor));
+		GITHUB.accept(TeamTestSupport.login(this.jdbc, this.crew));
+		this.checks.check(this.job);
+		assertThat(grantStatus(hai)).as("still a member of the organization").isEqualTo("MEMBER_DRIFT");
+		assertThat(this.busy.job(this.job).orElseThrow().busy()).as("Verify does not wait for the late member")
+			.hasValueSatisfying(marker -> assertThat(marker.purpose()).isEqualTo(JobBusy.Purpose.JOB_VERIFY));
+		String verify = this.busy.job(this.job).orElseThrow().busy().orElseThrow().operationKey();
+		new org.springframework.transaction.support.TransactionTemplate(this.transactions)
+			.executeWithoutResult(status -> this.busy.release(this.job, verify));
+
+		this.jdbc.sql("UPDATE repo.job_grant SET status = 'MEMBER_DRIFT' WHERE job_id = :job AND account_id = :crew")
+			.param("job", this.job).param("crew", this.crew).update();
+		JobSetups.Setup setup = this.setups.latest(this.job).orElseThrow();
+		assertThat(this.grants.maybeVerify(this.job, setup)).as("a first member's drift still holds Verify").isFalse();
+		awaitListeners();
+	}
+
+	/**
+	 * Story 21.5: a signature committed during Setup's resolving transaction: its listener found Setup not done, and
+	 * grantAll had read the Crew without them. The next look grants them as a late member, and Verify does not wait.
+	 */
+	@Test
+	void aMemberWithNoGrantGetsOneOnTheNextLookAndVerifyDoesNotWait() throws Exception {
+		j6();
+		run();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		UUID hai = activeMember();
+		assertThat(this.grants.ofJob(this.job)).noneMatch(grant -> grant.accountId().equals(hai));
+
+		this.checks.check(this.job);
+		this.worker.runDue(Lane.GITHUB_SHORT);
+
+		JobGrants.Grant late = this.grants.ofJob(this.job).stream().filter(grant -> grant.accountId().equals(hai))
+			.findFirst().orElseThrow();
+		assertThat(late.status()).isEqualTo("INVITED");
+		assertThat(late.crewChange()).as("a late member's grant").isTrue();
+
+		this.checks.check(this.job);
+		assertThat(this.grants.ofJob(this.job).stream().filter(grant -> grant.accountId().equals(hai)).count())
+			.as("an existing grant stays").isOne();
+		GITHUB.accept(TeamTestSupport.login(this.jdbc, this.mentor));
+		GITHUB.accept(TeamTestSupport.login(this.jdbc, this.crew));
+		this.checks.check(this.job);
+		assertThat(this.busy.job(this.job).orElseThrow().busy()).as("Verify does not wait for them")
+			.hasValueSatisfying(marker -> assertThat(marker.purpose()).isEqualTo(JobBusy.Purpose.JOB_VERIFY));
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		assertThat(this.busy.job(this.job).orElseThrow().state()).isEqualTo("ACTIVE");
+		awaitListeners();
+	}
+
 	@Test
 	void aPushIsScannedAndItsCredentialGoesToTheMentorWhoConfirmsTheRotation() throws Exception {
 		j6();
@@ -1043,6 +1189,18 @@ class JobSetupIT extends IntegrationTest {
 	}
 
 	/** J6's event, as {@code job} publishes it in M1's cascade. */
+	/** An {@code ACTIVE} Crew row for a new member, as a signature leaves it. */
+	private UUID activeMember() {
+		UUID member = TeamTestSupport.student(this.jdbc, "Phạm Văn Hải", true, List.of(TeamTestSupport.REACT), "React",
+				LocalDate.parse("2026-12-31"));
+		this.jdbc.sql("""
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, created_at)
+				VALUES (:id, :job, :student, 'ACTIVE', :now, :now, :now)
+				""").param("id", UUID.randomUUID()).param("job", this.job).param("student", member)
+			.param("now", Timestamp.from(this.clock.instant())).update();
+		return member;
+	}
+
 	private void j6() {
 		this.setups.started(new JobTransitioned(UUID.randomUUID(), UUID.randomUUID(), this.job, "J6", "SYSTEM",
 				"AGREEMENT", "STARTING", 3, 1, Map.of("crewTermsVersionNo", "1", "code", "true")));

@@ -97,11 +97,14 @@ class MatchingPersonalData implements PersonalDataParticipant, GitHubLinkPartici
 			return application;
 		}).list();
 		List<Map<String, Object>> signatures = this.jdbc.sql("""
-				SELECT job_id, nda_version, signed_at FROM matching.nda_signature WHERE account_id = :id ORDER BY signed_at
+				SELECT job_id, nda_version, commitment_version, signed_at FROM matching.nda_signature WHERE account_id = :id
+				ORDER BY signed_at
 				""").param("id", accountId).query((rs, n) -> {
 			Map<String, Object> signature = new LinkedHashMap<>();
 			signature.put("jobId", rs.getObject("job_id", UUID.class).toString());
 			signature.put("ndaVersion", rs.getString("nda_version"));
+			// Story 21.5: a Crew member's signature also carries the commitment text's version.
+			signature.put("commitmentVersion", rs.getString("commitment_version"));
 			signature.put("signedAt", rs.getTimestamp("signed_at").toInstant().toString());
 			return signature;
 		}).list();
@@ -140,7 +143,7 @@ class MatchingPersonalData implements PersonalDataParticipant, GitHubLinkPartici
 		Map<UUID, String> titles = new HashMap<>();
 		List<Map<String, Object>> crewApplications = this.jdbc.sql("""
 				SELECT id, job_id, status, note, array_to_string(skill_names, ', ') AS skills, submitted_at, lapses_at,
-				    ended_at, end_reason
+				    ended_at, end_reason, picked_at, sign_due_at
 				FROM matching.crew_application WHERE applicant_account_id = :id ORDER BY submitted_at, id
 				""").param("id", accountId).query((rs, n) -> {
 			Map<String, Object> application = new LinkedHashMap<>();
@@ -157,6 +160,11 @@ class MatchingPersonalData implements PersonalDataParticipant, GitHubLinkPartici
 			application.put("endedAt", rs.getTimestamp("ended_at") == null ? null
 					: rs.getTimestamp("ended_at").toInstant().toString());
 			application.put("endReason", rs.getString("end_reason"));
+			// Story 21.5: when the Mentor picked it, and when its signature period ended.
+			application.put("pickedAt", rs.getTimestamp("picked_at") == null ? null
+					: rs.getTimestamp("picked_at").toInstant().toString());
+			application.put("signDueAt", rs.getTimestamp("sign_due_at") == null ? null
+					: rs.getTimestamp("sign_due_at").toInstant().toString());
 			return application;
 		}).list();
 		List<Map<String, Object>> crewProof = this.jdbc.sql("""

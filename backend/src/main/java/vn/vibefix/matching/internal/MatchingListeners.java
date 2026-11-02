@@ -8,6 +8,9 @@ import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
 
 import vn.vibefix.identity.AccountLocked;
+import vn.vibefix.job.CrewEmptied;
+import vn.vibefix.job.CrewMemberAdded;
+import vn.vibefix.job.CrewRecruitment.ClosedBy;
 import vn.vibefix.job.CrewRecruitmentClosed;
 import vn.vibefix.job.CrewRecruitmentOpened;
 import vn.vibefix.job.JobPostHidden;
@@ -23,7 +26,11 @@ import vn.vibefix.shared.ProcessedEvents;
  * (Story 21.4): J4 opens the Mentor's {@code matching.open_crew_recruitment} to-do, and turning recruitment on, J8 or
  * J10 closes it;
  * {@code CrewRecruitmentClosed} lapses the Job's pending Crew Applications; a lock withdraws the account's pending ones,
- * telling each Mentor; and a hidden Job Post tells its applicants.
+ * telling each Mentor, and its picks; and a hidden Job Post tells its applicants. For the picks (Story 21.5): J8's and
+ * J10's {@code CrewRecruitmentClosed} end the picks {@code job} released, telling each person; a member joining a Crew
+ * ({@code CrewMemberAdded}) lapses their pending applications to other Jobs (A-16), closes the open-recruitment to-do
+ * and moves the review to-do's tier; and a lock that empties the Crew ({@code CrewEmptied}) asks the Mentor again to
+ * recruit while the Job is in Agreement, confirmed or not (R7).
  */
 @Component
 class MatchingListeners {
@@ -36,8 +43,11 @@ class MatchingListeners {
 
 	private final ProcessedEvents processedEvents;
 
+	private final CrewCommitments commitments;
+
 	MatchingListeners(Applications applications, Invitations invitations, CrewApplications crewApplications,
-			ProcessedEvents processedEvents) {
+			ProcessedEvents processedEvents, CrewCommitments commitments) {
+		this.commitments = commitments;
 		this.applications = applications;
 		this.invitations = invitations;
 		this.crewApplications = crewApplications;
@@ -110,6 +120,28 @@ class MatchingListeners {
 			return;
 		}
 		this.crewApplications.lapseForJob(event.jobId(), event.closedBy(), event.closedAt());
+		if (event.closedBy() == ClosedBy.CLOSING || event.closedBy() == ClosedBy.CANCELLED) {
+			// A-04: J8 and J10 released every pick not yet signed in the same transaction.
+			this.commitments.endPicksForJob(event.jobId());
+		}
+	}
+
+	/** A-16, UX-DR112: a person signed and joined a Crew. */
+	@ApplicationModuleListener
+	void onCrewMemberAdded(CrewMemberAdded event) {
+		if (!this.processedEvents.markProcessed("matching.MatchingListeners.onCrewMemberAdded", event.eventId())) {
+			return;
+		}
+		this.commitments.joined(event.jobId(), event.studentId());
+	}
+
+	/** R7: a lock emptied the Crew. */
+	@ApplicationModuleListener
+	void onCrewEmptied(CrewEmptied event) {
+		if (!this.processedEvents.markProcessed("matching.MatchingListeners.onCrewEmptied", event.eventId())) {
+			return;
+		}
+		this.commitments.crewEmptied(event);
 	}
 
 	/** UX-DR112: recruitment turned on, so J4's "Mở tuyển thành viên nhóm" to-do closes. */

@@ -45,13 +45,15 @@ import vn.vibefix.identity.AccountLocked;
 import vn.vibefix.identity.internal.CustomerTokens;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
+import vn.vibefix.job.CrewPicks;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
 import vn.vibefix.team.internal.TeamTestSupport;
 
 /**
- * FR-16, FR-17, AD-29, AD-41 (R-1): the Customer's review, the Mentor's confirmation, and a lock after it;
- * then FR-66's External Access guidance with each person's own account (Story 8.1).
+ * FR-16, FR-17, AD-29, AD-41: the Customer's review, the Mentor's confirmation, which waits for no Crew condition and
+ * lists only the members who signed (Story 21.5, R7), and a lock before or after it; then FR-66's External Access
+ * guidance with each active person's own account (Story 8.1), which a pick not yet signed never reads (AD-41).
  */
 class AgreementReviewIT extends IntegrationTest {
 
@@ -82,6 +84,9 @@ class AgreementReviewIT extends IntegrationTest {
 
 	@Autowired
 	private PlatformTransactionManager transactions;
+
+	@Autowired
+	private CrewPicks picks;
 
 	private UUID lan;
 
@@ -138,7 +143,7 @@ class AgreementReviewIT extends IntegrationTest {
 	}
 
 	@Test
-	void theCustomerReviewsAndTheMentorConfirmsOnceTheCrewIs() throws Exception {
+	void theCustomerReviewsAndTheMentorConfirmsWithNoCrewConditionListingOnlyTheMembersWhoSigned() throws Exception {
 		confirm(jobVersion(), 0).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("AGREEMENT_NOT_APPROVED"));
 		String customerView = this.mvc.perform(get("/api/v1/jobs/" + this.job + "/agreement").with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(status().isOk())
@@ -177,8 +182,9 @@ class AgreementReviewIT extends IntegrationTest {
 		assertThat(notifications("job.agreement_awaiting_confirmation", this.hung)).isOne();
 		assertThat(openTodos("job.confirm_agreement_mentor", this.hung)).isOne();
 
-		confirm(jobVersion(), 0).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("CREW_NOT_CONFIRMED"));
 		confirmedCrew(this.vy, 0);
+		UUID minh = member("Trần Quang Minh");
+		picked(minh);
 		long crewVersion = crewVersion();
 		save(2, "Sửa lỗi hai khách đặt trùng bàn, và nhắc lịch trước 2 giờ.").andExpect(status().isOk());
 		confirm(jobVersion(), crewVersion).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("DRAFT_CHANGED"));
@@ -189,6 +195,7 @@ class AgreementReviewIT extends IntegrationTest {
 			.andExpect(jsonPath("$.confirmed.versionNo").value(1))
 			.andExpect(jsonPath("$.confirmed.draftVersionNo").value(2))
 			.andExpect(jsonPath("$.confirmed.crew.length()").value(1))
+			.andExpect(jsonPath("$.confirmed.crew[0]").value(TeamTestSupport.login(this.jdbc, this.vy)))
 			.andExpect(jsonPath("$.confirmed.liveAccessIds[0]").value(ACCESS.toString()));
 
 		assertThat(this.jdbc.sql("SELECT agreement_version_no FROM job.job WHERE id = :id").param("id", this.job)
@@ -196,70 +203,129 @@ class AgreementReviewIT extends IntegrationTest {
 		for (UUID account : List.of(this.lan, this.hung, this.vy)) {
 			assertThat(notifications("job.agreement_confirmed", account)).isOne();
 		}
-		assertThat(notifications("job.milestone_awaiting_funding", this.lan)).isOne();
-		assertThat(openTodos("job.confirm_agreement_mentor", this.hung) + openTodos("job.pick_crew", this.hung)).isZero();
+		assertThat(notifications("job.milestone_awaiting_funding", this.lan)).as("R7: a member signed").isOne();
+		await().atMost(Duration.ofSeconds(10)).until(() -> openTodos("payment.fund_milestone", this.lan) == 1);
+		assertThat(openTodos("job.confirm_agreement_mentor", this.hung)).isZero();
 		save(3, "Thêm").andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("AGREEMENT_CONFIRMED"));
-		add(member("Trần Quang Minh"), crewVersion()).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("CREW_LOCKED"));
 		comment(2, "SCOPE", null).andExpect(status().isConflict());
-		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/agreement").with(as(this.lan, Role.CUSTOMER)))
+		String view = this.mvc.perform(get("/api/v1/jobs/" + this.job + "/agreement").with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(jsonPath("$.confirmed.versionNo").value(1))
 			.andExpect(jsonPath("$.approvedAt").exists())
-			.andExpect(jsonPath("$.crewConfirmed").value(true));
+			.andExpect(jsonPath("$.crew.length()").value(1))
+			.andExpect(jsonPath("$.crew[0]").value(TeamTestSupport.login(this.jdbc, this.vy)))
+			.andReturn().getResponse().getContentAsString();
+		assertThat(view).as("A-05: the Customer never learns of a pick").doesNotContain(TeamTestSupport.login(this.jdbc, minh))
+			.doesNotContain("crewConfirmed");
+	}
+
+	/** R7, Story 21.5: the confirmation waits for no member, and the confirmed version then lists no username. */
+	@Test
+	void theMentorConfirmsWithNoMemberSignedAndTheConfirmedVersionListsNoUsername() throws Exception {
+		approve(jobVersion(), 1, true, List.of()).andExpect(status().isNoContent());
+
+		confirm(jobVersion(), crewVersion()).andExpect(status().isOk())
+			.andExpect(jsonPath("$.confirmed.crew.length()").value(0));
+
+		assertThat(this.jdbc.sql("""
+				SELECT params ->> 'crew' FROM notification.notification WHERE type = 'job.agreement_confirmed'
+				    AND account_id = :lan
+				""").param("lan", this.lan).query(String.class).single()).isEqualTo(AgreementReviews.NO_MEMBER_YET);
+		this.mvc.perform(get("/api/v1/mentor/jobs/" + this.job + "/crew").with(as(this.hung, Role.MENTOR)))
+			.andExpect(jsonPath("$.signedMember").value(false))
+			.andExpect(jsonPath("$.members.length()").value(0));
+	}
+
+	/**
+	 * R7: Milestone 1 asks the Customer for its funding only with a signed member: not at a confirmation with none, then
+	 * at the first signature, once; a later signature adds nothing.
+	 */
+	@Test
+	void milestoneOneAsksForFundingAtTheFirstSignatureAfterAConfirmationWithNoMember() throws Exception {
+		approve(jobVersion(), 1, true, List.of()).andExpect(status().isNoContent());
+		confirm(jobVersion(), crewVersion()).andExpect(status().isOk());
+		await().atMost(Duration.ofSeconds(10)).until(() -> ledgerAccounts() == 1);
+		Thread.sleep(300);
+		assertThat(notifications("job.milestone_awaiting_funding", this.lan)).as("nobody signed yet").isZero();
+		assertThat(openTodos("payment.fund_milestone", this.lan)).as("nobody signed yet").isZero();
+
+		activate(picked(this.vy));
+
+		assertThat(notifications("job.milestone_awaiting_funding", this.lan)).isOne();
+		await().atMost(Duration.ofSeconds(10)).until(() -> openTodos("payment.fund_milestone", this.lan) == 1);
+		assertThat(this.jdbc.sql("""
+				SELECT params ->> 'n' FROM notification.todo WHERE todo_key = 'payment.fund_milestone' AND account_id = :lan
+				""").param("lan", this.lan).query(String.class).single()).isEqualTo("1");
+
+		activate(picked(member("Trần Quang Minh")));
+		Thread.sleep(300);
+
+		assertThat(notifications("job.milestone_awaiting_funding", this.lan)).as("a later signature adds nothing").isOne();
+		assertThat(openTodos("payment.fund_milestone", this.lan)).as("a later signature adds nothing").isOne();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM notification.todo WHERE todo_key = 'payment.fund_milestone'")
+			.query(Long.class).single()).isOne();
+	}
+
+	/** R7: a signature before the confirmation asks for nothing; the confirmation does, with that member. */
+	@Test
+	void milestoneOneAsksForFundingAtAConfirmationWithAMember() throws Exception {
+		activate(picked(this.vy));
+		Thread.sleep(300);
+		assertThat(notifications("job.milestone_awaiting_funding", this.lan)).isZero();
+		assertThat(openTodos("payment.fund_milestone", this.lan)).isZero();
+		approve(jobVersion(), 1, true, List.of()).andExpect(status().isNoContent());
+
+		confirm(jobVersion(), crewVersion()).andExpect(status().isOk());
+
+		assertThat(notifications("job.milestone_awaiting_funding", this.lan)).isOne();
+		await().atMost(Duration.ofSeconds(10)).until(() -> openTodos("payment.fund_milestone", this.lan) == 1);
 	}
 
 	/**
 	 * Story 20.4: a lock counts as leaving, so the member's row is released as {@code LEFT}, its window ending at the
-	 * lock's own time even though the listener runs five minutes later; the Crew owes a re-confirmation, and nobody
-	 * is left to remove before it.
+	 * lock's own time even though the listener runs five minutes later. Story 21.5: nothing is re-confirmed; the Crew
+	 * is simply empty until someone signs, the Mentor's Crew list says so, and the Mentor is asked again to recruit (R7).
 	 */
 	@Test
-	void aLockAfterTheConfirmationReleasesTheMemberAndOwesAReconfirmation() throws Exception {
+	void aLockAfterTheConfirmationReleasesTheMemberAndTheCrewIsEmptyUntilSomeoneSigns() throws Exception {
 		confirmedCrew(this.vy, 0);
 		approve(jobVersion(), 1, true, List.of()).andExpect(status().isNoContent());
 		confirm(jobVersion(), crewVersion()).andExpect(status().isOk());
+		closeRecruitmentTodo();
 		Instant lockedAt = this.clock.instant();
 		AccountLocked locked = new AccountLocked(UUID.randomUUID(), this.vy, lockedAt);
 		this.clock.advance(Duration.ofMinutes(5));
 
 		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.events.publishEvent(locked));
-		await().atMost(Duration.ofSeconds(10)).until(() -> notifications("job.crew_reconfirm_needed", this.hung) == 1);
+		await().atMost(Duration.ofSeconds(10)).until(() -> notifications("job.crew_member_left", this.hung) == 1);
 		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.events.publishEvent(locked));
 		Thread.sleep(300);
 
-		assertThat(notifications("job.crew_reconfirm_needed", this.hung)).as("a replay changes nothing").isOne();
-		assertThat(notifications("job.crew_member_left", this.hung)).isOne();
+		assertThat(notifications("job.crew_member_left", this.hung)).as("a replay changes nothing").isOne();
 		assertThat(notifications("job.crew_login_removed", this.lan)).isOne();
 		assertThat(this.jdbc.sql("""
 				SELECT status || ' ' || released_reason FROM job.crew_row WHERE member_account_id = :vy
 				""").param("vy", this.vy).query(String.class).single()).isEqualTo("RELEASED LEFT");
 		assertThat(this.jdbc.sql("SELECT window_end FROM job.crew_row WHERE member_account_id = :vy").param("vy", this.vy)
 			.query(Timestamp.class).single().toInstant()).as("the lock's time, not the listener's").isEqualTo(lockedAt);
-		assertThat(openTodos("job.pick_crew", this.hung)).as("no longer opened (Story 21.4)").isZero();
-		assertThat(notifications("job.crew_empty", this.lan)).as("no Crew empties before J6").isZero();
+		assertThat(notifications("job.crew_empty", this.lan)).as("the Customer is told only after Starting").isZero();
 		this.mvc.perform(get("/api/v1/mentor/jobs/" + this.job + "/crew").with(as(this.hung, Role.MENTOR)))
-			.andExpect(jsonPath("$.reconfirmOwed").value(true))
-			.andExpect(jsonPath("$.locked").value(false))
-			.andExpect(jsonPath("$.rows[0].status").value("RELEASED"))
-			.andExpect(jsonPath("$.rows[0].releasedReason").value("LEFT"));
-		reconfirm(crewVersion()).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("CREW_NOT_CONFIRMED"));
-
-		confirmedCrew(member("Trần Quang Minh"), crewVersion());
-		reconfirm(crewVersion() - 1).andExpect(status().isConflict());
-		reconfirm(crewVersion()).andExpect(status().isOk())
-			.andExpect(jsonPath("$.reconfirmOwed").value(false))
-			.andExpect(jsonPath("$.locked").value(true));
-		add(member("Phạm Hải Tùng"), crewVersion()).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("CREW_LOCKED"));
-		reconfirm(crewVersion()).andExpect(status().isConflict());
+			.andExpect(jsonPath("$.signedMember").value(false))
+			.andExpect(jsonPath("$.members.length()").value(0));
+		await().atMost(Duration.ofSeconds(10)).until(() -> openTodos("matching.open_crew_recruitment", this.hung) == 1);
+		assertThat(this.jdbc.sql("""
+				SELECT t.deadline_at = j.agreement_due_at FROM notification.todo t JOIN job.job j ON j.id = t.job_id
+				WHERE t.todo_key = 'matching.open_crew_recruitment' AND t.closed_at IS NULL
+				""").query(Boolean.class).single()).as("until the Agreement deadline").isTrue();
 	}
 
 	/**
-	 * Story 20.4: a lock of the only confirmed member before the Agreement is confirmed releases the row; nothing empties
-	 * before J6, and no Dispute opens. "Chọn nhóm thực hiện" no longer opens (Story 21.4).
+	 * Story 20.4: a lock of the only member before the Agreement is confirmed releases the row; the Customer hears
+	 * nothing before J6, and no Dispute opens. Story 21.5 (R7): the Mentor is asked again to open recruitment.
 	 */
 	@Test
-	void aLockBeforeTheConfirmationReleasesTheRowAndOpensNoPickToDo() throws Exception {
+	void aLockBeforeTheConfirmationReleasesTheRowAndAsksTheMentorToRecruitAgain() throws Exception {
 		confirmedCrew(this.vy, 0);
-		assertThat(openTodos("job.pick_crew", this.hung)).as("the Crew condition holds").isZero();
+		closeRecruitmentTodo();
 		AccountLocked locked = new AccountLocked(UUID.randomUUID(), this.vy, this.clock.instant());
 
 		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.events.publishEvent(locked));
@@ -270,8 +336,7 @@ class AgreementReviewIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("""
 				SELECT status || ' ' || released_reason FROM job.crew_row WHERE member_account_id = :vy
 				""").param("vy", this.vy).query(String.class).single()).isEqualTo("RELEASED LEFT");
-		assertThat(openTodos("job.pick_crew", this.hung)).as("no longer opened (Story 21.4)").isZero();
-		assertThat(notifications("job.crew_reconfirm_needed", this.hung)).as("nothing was confirmed yet").isZero();
+		assertThat(openTodos("matching.open_crew_recruitment", this.hung)).as("R7: recruit again").isOne();
 		assertThat(notifications("job.crew_empty", this.lan)).isZero();
 		assertThat(this.jdbc.sql("SELECT count(*) FROM dispute.dispute WHERE job_id = :job").param("job", this.job)
 			.query(Long.class).single()).isZero();
@@ -297,7 +362,11 @@ class AgreementReviewIT extends IntegrationTest {
 			.andExpect(jsonPath("$.reason").value("IDENTIFIER_LOOKS_LIKE_SECRET"));
 		identifier(this.vy, Role.STUDENT, "vy\\nle").andExpect(status().isBadRequest());
 		identifier(this.lan, Role.CUSTOMER, "lan@gmail.com").andExpect(status().isNotFound());
-		identifier(member("Trần Quang Minh"), Role.STUDENT, "minh@gmail.com").andExpect(status().isNotFound());
+		UUID minh = member("Trần Quang Minh");
+		picked(minh);
+		// AD-41: a pick not yet signed reads none of it.
+		identifier(minh, Role.STUDENT, "minh@gmail.com").andExpect(status().isNotFound());
+		external(minh, Role.STUDENT).andExpect(status().isNotFound());
 
 		String customerView = external(this.lan, Role.CUSTOMER).andExpect(status().isOk())
 			.andExpect(jsonPath("$.viewer").value("CUSTOMER"))
@@ -345,20 +414,45 @@ class AgreementReviewIT extends IntegrationTest {
 			.with(as(account, role)).with(csrf()));
 	}
 
-	/** Adds the Student, saves 20/80, and lets them sign and confirm. */
-	private void confirmedCrew(UUID student, long crewVersion) throws Exception {
-		add(student, crewVersion).andExpect(status().isOk());
-		this.mvc.perform(put("/api/v1/mentor/jobs/" + this.job + "/crew/terms").with(as(this.hung, Role.MENTOR)).with(csrf())
-			.contentType(MediaType.APPLICATION_JSON)
-			.content("""
-					{"crewVersion":%d,"shares":[{"accountId":"%s","percent":20},{"accountId":"%s","percent":80}]}
-					""".formatted(crewVersion + 1, this.hung, student))).andExpect(status().isOk());
-		int termsVersion = this.jdbc.sql("SELECT max(version_no) FROM job.crew_terms_version WHERE job_id = :job")
-			.param("job", this.job).query(Integer.class).single();
-		this.mvc.perform(post("/api/v1/crew/jobs/" + this.job + "/confirm").with(as(student, Role.STUDENT)).with(csrf())
-			.contentType(MediaType.APPLICATION_JSON)
-			.content("{\"crewTermsVersionNo\":%d,\"ndaVersion\":\"1.0\",\"publicCodeAcknowledged\":true,\"commitEmailNoticeAcknowledged\":true}"
-				.formatted(termsVersion))).andExpect(status().isNoContent());
+	/** A member who signed (Story 21.5): an {@code ACTIVE} row, as {@code job.activateCrew} leaves it. */
+	private void confirmedCrew(UUID member, long crewVersion) {
+		Timestamp now = Timestamp.from(this.clock.instant());
+		this.jdbc.sql("""
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, created_at)
+				VALUES (:id, :job, :member, 'ACTIVE', :now, :now, :now)
+				""").param("id", UUID.randomUUID()).param("job", this.job).param("member", member).param("now", now).update();
+		this.jdbc.sql("UPDATE job.job SET crew_version = :next WHERE id = :id").param("next", crewVersion + 1)
+			.param("id", this.job).update();
+	}
+
+	/** J4's "Mở tuyển thành viên nhóm", closed as a member's signature closes it (Story 21.5). */
+	private void closeRecruitmentTodo() {
+		this.jdbc.sql("""
+				UPDATE notification.todo SET closed_at = :now WHERE todo_key = 'matching.open_crew_recruitment' AND closed_at IS NULL
+				""").param("now", Timestamp.from(this.clock.instant())).update();
+	}
+
+	/** A pick not yet signed: an {@code ASSIGNED} row, as {@code job.addCrew} leaves it. */
+	private UUID picked(UUID member) {
+		Timestamp now = Timestamp.from(this.clock.instant());
+		UUID row = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, crew_application_id, created_at)
+				VALUES (:id, :job, :member, 'ASSIGNED', :application, :now)
+				""").param("id", row).param("job", this.job).param("member", member)
+			.param("application", UUID.randomUUID()).param("now", now).update();
+		return row;
+	}
+
+	/** {@code job.activateCrew}, as the signature calls it. */
+	private void activate(UUID row) {
+		new TransactionTemplate(this.transactions).executeWithoutResult(
+				status -> this.picks.activateCrew(this.job, row, CrewPicks.Contribution.NONE, this.clock.instant()));
+	}
+
+	private long ledgerAccounts() {
+		return this.jdbc.sql("SELECT count(*) FROM payment.ledger_account WHERE job_id = :job").param("job", this.job)
+			.query(Long.class).single();
 	}
 
 	private ResultActions save(int revision, String scope) throws Exception {
@@ -403,17 +497,6 @@ class AgreementReviewIT extends IntegrationTest {
 		return this.mvc.perform(post("/api/v1/mentor/jobs/" + this.job + "/agreement/confirm").with(as(this.hung, Role.MENTOR))
 			.with(csrf()).contentType(MediaType.APPLICATION_JSON)
 			.content("{\"version\":%d,\"crewVersion\":%d}".formatted(version, crewVersion)));
-	}
-
-	private ResultActions reconfirm(long crewVersion) throws Exception {
-		return this.mvc.perform(post("/api/v1/mentor/jobs/" + this.job + "/crew/reconfirm").with(as(this.hung, Role.MENTOR))
-			.with(csrf()).contentType(MediaType.APPLICATION_JSON).content("{\"crewVersion\":" + crewVersion + "}"));
-	}
-
-	private ResultActions add(UUID student, long crewVersion) throws Exception {
-		return this.mvc.perform(post("/api/v1/mentor/jobs/" + this.job + "/crew").with(as(this.hung, Role.MENTOR)).with(csrf())
-			.contentType(MediaType.APPLICATION_JSON)
-			.content("{\"studentId\":\"" + student + "\",\"crewVersion\":" + crewVersion + "}"));
 	}
 
 	private UUID member(String name) {

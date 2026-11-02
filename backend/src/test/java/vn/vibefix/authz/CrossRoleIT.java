@@ -90,7 +90,7 @@ class CrossRoleIT extends IntegrationTest {
 
 	/** The global reads where every Job of a person meets: lists, inboxes, balances. Each answers 200. */
 	private static final List<String> GLOBAL_READS = List.of("/api/v1/jobs", "/api/v1/my-jobs", "/api/v1/mentor/jobs",
-			"/api/v1/crew/assignments", "/api/v1/team-issues", "/api/v1/notifications", "/api/v1/todos",
+			"/api/v1/mentor/crew-applications", "/api/v1/team-issues", "/api/v1/notifications", "/api/v1/todos",
 			"/api/v1/balance", "/api/v1/payments/history", "/api/v1/products", "/api/v1/profile",
 			"/api/v1/mentor/applications", "/api/v1/account/data");
 
@@ -412,10 +412,8 @@ class CrossRoleIT extends IntegrationTest {
 							command(person, post("/api/v1/jobs/" + job.job + "/withdraw")), 404, wrong);
 				}
 				if (held == Held.CUSTOMER || held == Held.MENTOR) {
-					status(person, job, "POST /api/v1/crew/jobs/{jobId}/decline", command(person,
-							post("/api/v1/crew/jobs/" + job.job + "/decline").contentType(MediaType.APPLICATION_JSON)
-								.content("{\"crewTermsVersionNo\":1}")),
-							404, wrong);
+					status(person, job, "POST /api/v1/crew/jobs/{jobId}/commitment/decline",
+							command(person, post("/api/v1/crew/jobs/" + job.job + "/commitment/decline")), 404, wrong);
 				}
 			}
 		}
@@ -597,6 +595,9 @@ class CrossRoleIT extends IntegrationTest {
 		Map<String, String> notSwept = new LinkedHashMap<>();
 		notSwept.put("/api/v1/jobs/{jobId}/final-merge", "the Final Merge authorization opens with a closure proposal or"
 				+ " at J8 (Story 8.7), and every Job of the sweep is Active with neither");
+		notSwept.put("/api/v1/crew/jobs/{jobId}/commitment", "a picked person's own read of their Crew Application"
+				+ " (Story 21.5): the sweep's Crew rows are seeded without one, and AuthorizationMatrixIT's CREW_ASSIGNED"
+				+ " world reads it");
 		for (MatrixRow row : MatrixRow.loadMatrix()) {
 			if (row.method() == HttpMethod.GET && row.path().startsWith("/api/v1/admin/")) {
 				notSwept.putIfAbsent(row.path(), "an Administrator's read: none of the three people is an Administrator");

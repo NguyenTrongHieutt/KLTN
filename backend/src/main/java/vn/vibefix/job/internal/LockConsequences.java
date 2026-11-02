@@ -1,6 +1,7 @@
 package vn.vibefix.job.internal;
 
 import java.nio.charset.StandardCharsets;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -10,6 +11,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
@@ -21,6 +23,7 @@ import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
 import vn.vibefix.identity.StudentDirectory;
 import vn.vibefix.identity.StudentDirectory.StudentCard;
+import vn.vibefix.job.CrewEmptied;
 import vn.vibefix.job.JobNeedsDecision;
 import vn.vibefix.job.internal.CrewService.Row;
 import vn.vibefix.job.internal.Jobs.Job;
@@ -40,8 +43,10 @@ import vn.vibefix.shared.IdGenerator;
  * at the lock's own time; the Mentor and the other active members hear {@code job.crew_member_left}, the Customer
  * {@code job.crew_login_removed} with the GitHub username only, and the Administrators {@code job.party_locked}.
  * An {@code ASSIGNED} row, a pick not yet signed, is released as {@code DECLINED}, and only the Mentor hears
- * ({@code job.crew_pick_released}): the Customer never learns of picks. When a release after J6 leaves no counted
- * {@code ACTIVE} row, the Customer hears {@code job.crew_empty}; no Dispute opens for a Job with no Crew.</li>
+ * ({@code job.crew_pick_released}): the Customer never learns of picks; the place returns while recruitment is on
+ * (Story 21.5). When a release leaves no counted {@code ACTIVE} row, {@link CrewEmptied} lets {@code matching} ask the
+ * Mentor again to recruit before the Agreement is confirmed (R7), and after J6 the Customer hears
+ * {@code job.crew_empty}; no Dispute opens for a Job with no Crew.</li>
  * <li>A locked Mentor or Customer leaves each of their running Jobs needing a decision ({@link JobNeedsDecision});
  * {@code job.party_locked} goes to the other party, to the active Crew about the Mentor, and to the
  * Administrators.</li>
@@ -93,9 +98,12 @@ class LockConsequences {
 
 	private final IdGenerator ids;
 
+	private final JobRecruitment recruitment;
+
 	LockConsequences(JdbcClient jdbc, CrewService crews, Administrators administrators, CustomerNames customers,
 			MentorDirectory mentors, StudentDirectory students, Notifications notifications, ApplicationEventPublisher events,
-			IdGenerator ids) {
+			IdGenerator ids, JobRecruitment recruitment) {
+		this.recruitment = recruitment;
 		this.jdbc = jdbc;
 		this.crews = crews;
 		this.administrators = administrators;
@@ -145,13 +153,16 @@ class LockConsequences {
 		String name = card == null || card.shownName().isBlank() ? "Một thành viên nhóm" : card.shownName();
 		UUID mentorId = Objects.requireNonNull(job.mentorId());
 		String link = "/cong-viec/" + job.id();
+		boolean wasActive = false;
 		for (Row row : released) {
-			if (!"ACTIVE".equals(row.status())) {
+			if (!row.active()) {
 				this.notifications.send(new NotificationRequest(PICK_RELEASED, key(row.id() + ":pick-released"),
 						List.of(new Recipient(mentorId, Audience.MENTOR)), Map.of("name", name, "job", job.title()),
-						Agreements.agreementLink(job.id()), job.id(), null));
+						"/cong-viec/" + job.id() + "/tuyen-thanh-vien", job.id(), null));
+				this.recruitment.returnSlot(job.id());
 				continue;
 			}
+			wasActive = true;
 			List<Recipient> crew = new ArrayList<>(List.of(new Recipient(mentorId, Audience.MENTOR)));
 			this.crews.rows(job.id())
 				.stream()
@@ -171,9 +182,23 @@ class LockConsequences {
 						Map.of("name", name, "job", job.title()), link, job.id(), null));
 			}
 		}
-		if (STARTED.contains(job.state()) && this.crews.countedActive(job.id()).isEmpty()) {
-			crewEmpty(job, mentorId);
+		if (wasActive && this.crews.countedActive(job.id()).isEmpty()) {
+			this.events.publishEvent(new CrewEmptied(this.ids.newId(), job.id(), mentorId, job.state().name(),
+					job.agreementVersionNo() != null, agreementDue(job.id())));
+			if (STARTED.contains(job.state())) {
+				crewEmpty(job, mentorId);
+			}
 		}
+	}
+
+	/** The Agreement deadline, the open-recruitment to-do's (UX-DR112). */
+	private @Nullable Instant agreementDue(UUID jobId) {
+		return this.jdbc.sql("SELECT agreement_due_at FROM job.job WHERE id = :id")
+			.param("id", jobId)
+			.query(Timestamp.class)
+			.optional()
+			.map(Timestamp::toInstant)
+			.orElse(null);
 	}
 
 	/**

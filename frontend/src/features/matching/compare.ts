@@ -14,3 +14,8 @@ export function comparedIds(param: string | null, openIds: string[]): string[] {
   const open = new Set(openIds)
   return [...new Set((param ?? '').split(','))].filter((id) => open.has(id)).slice(0, MAX_COMPARED)
 }
+
+/** JOB-9's comparison of these applicants, in the order chosen (UX-DR101, Story 21.5). */
+export function compareApplicantsPath(jobId: string, ids: string[]): string {
+  return `/cong-viec/${jobId}/tuyen-thanh-vien/so-sanh?ids=${ids.map(encodeURIComponent).join(',')}`
+}

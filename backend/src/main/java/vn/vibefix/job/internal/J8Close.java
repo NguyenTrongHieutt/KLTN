@@ -21,8 +21,10 @@ import vn.vibefix.shared.ErrorCode;
 /**
  * J8 (FR-37, FR-67): a confirmed closure moves an Active Job with no Held Milestone to Closing, with M6
  * for each Planned Milestone in the same apply. It records when, and tells the Customer, the Mentor,
- * and the active Crew ({@code job.job_closing}); it releases no Crew row (AD-41). Crew recruitment turns off, and
- * {@code CrewRecruitmentClosed} lapses the open Crew Applications (AD-41, A-04, Story 21.4).
+ * and the active Crew ({@code job.job_closing}). Every pick not yet signed is released as {@code JOB_ENDED}, so nobody
+ * signs into a Closing Job, and no {@code ACTIVE} row is released (AD-41, A-04, Story 21.5). Crew recruitment turns off,
+ * and {@code CrewRecruitmentClosed} lapses the open Crew Applications and tells each released pick's person
+ * ({@code matching.crew_pick_ended}, Story 21.4).
  */
 @Component
 class J8Close implements JobLifecycle.Step {
@@ -35,15 +37,11 @@ class J8Close implements JobLifecycle.Step {
 
 	private final Notifications notifications;
 
-	private final CrewChanges changes;
-
 	private final JobRecruitment recruitment;
 
-	J8Close(JdbcClient jdbc, CrewService crews, Notifications notifications, CrewChanges changes,
-			JobRecruitment recruitment) {
+	J8Close(JdbcClient jdbc, CrewService crews, Notifications notifications, JobRecruitment recruitment) {
 		this.recruitment = recruitment;
 		this.jdbc = jdbc;
-		this.changes = changes;
 		this.crews = crews;
 		this.notifications = notifications;
 	}
@@ -74,7 +72,7 @@ class J8Close implements JobLifecycle.Step {
 		Job job = applying.job();
 		this.notifications.send(new NotificationRequest(CLOSING, applying.transitionId(), people(job, this.crews),
 				Map.of("job", job.title()), "/cong-viec/" + job.id(), job.id(), null));
-		this.changes.voidWaiting(job.id());
+		this.crews.releasePicksForJobEnd(job.id());
 		this.recruitment.closeForJob(job.id(), ClosedBy.CLOSING);
 	}
 

@@ -1,0 +1,6 @@
+subject: {name} đã từ chối tham gia {job}
+---
+Xin chào,
+
+{name} đã từ chối tham gia nhóm thực hiện công việc {job}.
+Bạn có thể chọn người khác trong mục Tuyển thành viên trên vibefix.

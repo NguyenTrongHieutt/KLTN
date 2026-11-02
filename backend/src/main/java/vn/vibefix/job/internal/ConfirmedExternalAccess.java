@@ -84,7 +84,13 @@ class ConfirmedExternalAccess implements ExternalAccessItems {
 				.filter(card -> card.githubLogin() != null)
 				.forEach(card -> people.put(card.accountId(), card.githubLogin()));
 		}
-		List<UUID> crew = this.crews.rows(job.id()).stream().map(CrewService.Row::studentId).distinct().toList();
+		// A pick never signed held no access (AD-41): only members who were ever active are named.
+		List<UUID> crew = this.crews.rows(job.id())
+			.stream()
+			.filter(row -> row.activatedAt() != null)
+			.map(CrewService.Row::studentId)
+			.distinct()
+			.toList();
 		Map<UUID, StudentCard> cards = this.crews.cards(crew);
 		for (UUID student : crew) {
 			StudentCard card = cards.get(student);

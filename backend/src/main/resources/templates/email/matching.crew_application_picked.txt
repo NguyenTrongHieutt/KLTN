@@ -1,0 +1,7 @@
+subject: {mentor} đã chọn bạn vào nhóm thực hiện {job}. Hãy ký cam kết trước {date}.
+---
+Xin chào,
+
+{mentor} đã chọn bạn vào nhóm thực hiện công việc {job}.
+Hãy mở công việc trên vibefix, đọc cam kết bảo mật và cam kết tham gia, rồi chọn "Ký và tham gia" hoặc "Từ chối" trước {date}.
+Khi bạn ký, khách hàng chỉ được biết tên tài khoản GitHub của bạn để cấp và thu hồi quyền truy cập.

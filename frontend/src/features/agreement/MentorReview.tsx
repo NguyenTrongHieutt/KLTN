@@ -2,7 +2,6 @@ import { CircleCheck, MessageSquare } from 'lucide-react'
 import { useState } from 'react'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
-import type { CrewPanel } from '@/features/crew/crewApi'
 import type { MentorJob } from '@/features/matching/mentorJobApi'
 import { ConfirmDialog } from '@/features/team/ConfirmDialog'
 import { t, type MessageKey } from '@/i18n/t'
@@ -79,11 +78,11 @@ export function CustomerFeedback({
 }
 
 /**
- * "Xác nhận thỏa thuận" (FR-17): enabled once the Customer approved the latest shared version, the
- * live draft says the same, and the Crew is confirmed; the command carries the `Job.version` and the
- * `crewVersion` the screen loaded.
+ * "Xác nhận thỏa thuận" (FR-17): enabled once the Customer approved the latest shared version and the live draft says
+ * the same, with no Crew condition (R7, Story 21.5); the command carries the `Job.version` and the `crewVersion` the
+ * screen loaded.
  */
-export function ConfirmCard({ job, draft, panel }: { job: MentorJob; draft: AgreementDraft; panel: CrewPanel }) {
+export function ConfirmCard({ job, draft, crewVersion }: { job: MentorJob; draft: AgreementDraft; crewVersion: number }) {
   const confirm = useConfirmAgreement(job.id)
   const toasts = useToasts()
   const [asking, setAsking] = useState(false)
@@ -99,12 +98,9 @@ export function ConfirmCard({ job, draft, panel }: { job: MentorJob; draft: Agre
       reasons.push('screen.agreement.review.whyDraft')
     }
   }
-  if (!panel.crewConfirmed) {
-    reasons.push('screen.agreement.review.whyCrew')
-  }
   const submit = () =>
     confirm.mutate(
-      { version: job.version, crewVersion: panel.crewVersion },
+      { version: job.version, crewVersion },
       {
         onSuccess: () => {
           setAsking(false)

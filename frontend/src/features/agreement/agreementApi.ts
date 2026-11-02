@@ -100,7 +100,7 @@ export function useConfirmAgreement(jobId: string) {
     onSettled: () =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: ['mentor-job'] }),
-        queryClient.invalidateQueries({ queryKey: ['crew', 'panel', jobId] }),
+        queryClient.invalidateQueries({ queryKey: ['crew', 'mentor', jobId] }),
         queryClient.invalidateQueries({ queryKey: [...key(jobId), 'draft'] }),
       ]),
   })

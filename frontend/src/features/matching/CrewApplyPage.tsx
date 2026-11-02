@@ -16,7 +16,7 @@ import { useProfile, type Profile } from '@/features/identity/profileApi'
 import { useSession } from '@/features/identity/useSession'
 import { ReadSessionAgain } from '@/features/job/FindWorkGate'
 import { useJobPost, type JobPost } from '@/features/job/jobPostApi'
-import { roleLabel, useJobRole, useMyJobs, type JobRoleView } from '@/features/job/jobRoleApi'
+import { roleLabel, useJobRole, useMyJobs, type JobRoleView, type MyJob } from '@/features/job/jobRoleApi'
 import { t } from '@/i18n/t'
 import { formatDayMonth } from '@/lib/dates'
 import { formatSize } from '@/lib/fileSize'
@@ -103,7 +103,7 @@ function CrewApplyRoute({ postId }: { postId: string }) {
   if (busy) {
     return <Gate text={t('reason.matching.ON_ANOTHER_CREW', { job: busy.title })} />
   }
-  return <CrewApplyForm post={post.data} />
+  return <CrewApplyForm post={post.data} jobs={jobs.data} />
 }
 
 /** A plain reason with "Tìm việc khác" (UX-DR95). */
@@ -173,12 +173,12 @@ function SentApplication({ application }: { application: CrewApplication }) {
   )
 }
 
-function CrewApplyForm({ post }: { post: JobPost }) {
+function CrewApplyForm({ post, jobs }: { post: JobPost; jobs: MyJob[] | undefined }) {
   const profile = useProfile()
   if (profile.isPending) {
     return <Skeleton className="h-96 w-full" />
   }
-  return <CrewApplyFields post={post} profile={profile.data} />
+  return <CrewApplyFields post={post} profile={profile.data} jobs={jobs} />
 }
 
 /** One link proof item the applicant added on this page; files come from the waiting uploads. */
@@ -192,12 +192,18 @@ type ProofItem =
   | { key: string; kind: 'FILE'; upload: BidProofUpload }
   | { key: string; kind: 'LINK'; url: string }
 
-function CrewApplyFields({ post, profile }: { post: JobPost; profile: Profile | undefined }) {
+function CrewApplyFields({
+  post,
+  profile,
+  jobs,
+}: {
+  post: JobPost
+  profile: Profile | undefined
+  jobs: MyJob[] | undefined
+}) {
   const ids = useId()
   const navigate = useNavigate()
   const toasts = useToasts()
-  const role = useJobRole(post.id)
-  const jobs = useMyJobs()
   const apply = useApplyToCrew(post.id)
   const uploads = useCrewProofUploads(post.id)
   const add = useAddCrewProofFile(post.id)
@@ -240,8 +246,8 @@ function CrewApplyFields({ post, profile }: { post: JobPost; profile: Profile | 
     setProofError(undefined)
     return true
   }
-  // A refusal the server makes says the user's role, and for ON_ANOTHER_CREW the running Job, as "Công việc" knows it.
-  const context = () => ({ role: role.data?.role, busyJob: runningCrewJob(jobs.data, post.id)?.title })
+  // The route has already checked this Job's role and the caller's Jobs; the form must not refetch either on mount.
+  const context = () => ({ busyJob: runningCrewJob(jobs, post.id)?.title })
   const refusalText = (error: unknown) => crewRefusal(error, context())
 
   const addFile = (file: File) => {

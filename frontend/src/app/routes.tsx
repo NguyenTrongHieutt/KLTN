@@ -138,6 +138,13 @@ export const routes: RouteObject[] = [
         lazy: async () => ({ Component: (await import('@/features/matching/RecruitmentPage')).RecruitmentPage }),
       },
       {
+        // JOB-9's comparison of 2 or 3 applicants, the CUS-13 component (UX-DR101, Story 21.5): the Mentor only.
+        path: 'cong-viec/:jobId/tuyen-thanh-vien/so-sanh',
+        lazy: async () => ({
+          Component: (await import('@/features/matching/CompareApplicantsPage')).CompareApplicantsPage,
+        }),
+      },
+      {
         path: 'cong-viec/:jobId/tim-nguoi',
         lazy: async () => ({ Component: (await import('@/features/matching/MentorSearchPage')).MentorSearchPage }),
       },

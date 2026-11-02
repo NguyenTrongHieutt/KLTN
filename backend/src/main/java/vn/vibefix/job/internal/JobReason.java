@@ -39,25 +39,7 @@ enum JobReason {
 	/** The Agreement draft is not complete enough to share; {@code problems} lists why (FR-16). */
 	AGREEMENT_INCOMPLETE,
 
-	/** The Mentor confirmed the Agreement: the Crew stays as it is until J6 or J10 (FR-17, AD-41). */
-	CREW_LOCKED,
-
-	/** After J6 a member leaves only through a Crew change, a lock, or the Job's end (AD-41). */
-	CREW_CHANGE_REQUIRED,
-
-	/** A Crew change waits until no Milestone is Held (FR-75, AD-41). */
-	CREW_CHANGE_WHILE_HELD,
-
-	/** With large Crews off, a Job has one Crew row that is not released (AD-30). */
-	CREW_LIMIT,
-
-	/** Only a verified Student joins a Crew (FR-5, FR-75). */
-	STUDENT_NOT_VERIFIED,
-
-	/** The Student is on another running Crew (FR-75, AD-33). */
-	STUDENT_ON_CREW,
-
-	/** The Student shares a person-link signal with the Mentor or the Customer; never says which (AD-19). */
+	/** The person shares a person-link signal with the Mentor or the Customer; never says which (AD-19). */
 	CONFLICT_OF_INTEREST,
 
 	/**
@@ -66,17 +48,11 @@ enum JobReason {
 	 */
 	ROLE_TAKEN,
 
-	/** The Student contributed to the Source Repository (FR-75). */
+	/** The person contributed to the Source Repository (FR-75, FR-81). */
 	APPLICANT_IS_CONTRIBUTOR,
 
-	/** GitHub could not say who contributed, so the addition waits (fails closed). */
+	/** GitHub could not say who contributed, so the pick or the signature waits (fails closed, A-03). */
 	CONTRIBUTORS_UNKNOWN,
-
-	/** Shares: whole percentages summing to 100, each Crew member above 0, the Mentor within the cap (FR-75). */
-	SHARES_INVALID,
-
-	/** The Student is not a party of the version, or the Crew is not confirmed yet (FR-17, AD-41). */
-	CREW_NOT_CONFIRMED,
 
 	/** The Customer already approved this draft version (FR-17). */
 	AGREEMENT_APPROVED,
@@ -98,9 +74,6 @@ enum JobReason {
 
 	/** J6 and M1 wait for the confirmed Agreement (FR-17). */
 	AGREEMENT_NOT_CONFIRMED,
-
-	/** J6's FR-75 guard: the Crew is not confirmed, or a lock left a re-confirmation owed (AD-41). */
-	CREW_NOT_READY,
 
 	/** Another Code Job of the Product is in Starting, Active, or Closing (AD-4). */
 	PRODUCT_HAS_RUNNING_JOB,
@@ -208,9 +181,32 @@ enum JobReason {
 	RECRUITMENT_CLOSED,
 
 	/**
-	 * A Crew Application finds no free slot: the open slots taken, or the Crew at its cap (FR-81, R2); the detail
-	 * member {@code n} is the cap.
+	 * A Crew Application finds no free slot: the open slots taken, or the Crew at its cap (FR-81, R2); a pick finds the
+	 * Crew at its cap of unreleased rows (5, or 1 with {@code features.largeCrews} off, AD-30). The detail member
+	 * {@code n} is the cap.
 	 */
-	CREW_FULL
+	CREW_FULL,
+
+	/**
+	 * The Mentor's pick, or a signature, finds the person on another running Crew or locked (AD-23, AD-41, A-16): it
+	 * never says which, so a Mentor never learns of a role in another Job. Replaces the Mentor-facing
+	 * {@code ON_ANOTHER_CREW}.
+	 */
+	APPLICANT_UNAVAILABLE,
+
+	/** The person was active on this Job's Crew before: nobody rejoins (R3, AD-41). */
+	CREW_REJOIN_REFUSED,
+
+	/**
+	 * J6's guard (FR-17, FR-75, R7, Story 21.5): the Job starts only with at least one counted {@code ACTIVE} Crew row,
+	 * an unlocked member who signed, for every Job Type; no Milestone 1 Payment Order is made while it fails.
+	 */
+	NO_SIGNED_CREW,
+
+	/**
+	 * A signature finds its pick ended: the Mentor withdrew it, the period passed, or J8 released it because the Job
+	 * entered Closing (AD-41, A-04); the row stays released.
+	 */
+	PICK_ENDED
 
 }

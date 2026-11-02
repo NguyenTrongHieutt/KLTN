@@ -92,22 +92,6 @@ describe('JOB-8 "Trao đổi nhóm" (FR-77, UX-DR80)', () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('CREW'),
       ...heldJobs({ jobId: 'j1', title: 'Sửa lỗi đặt bàn và thêm nhắc lịch', role: 'CREW', crewKind: 'ACTIVE' }),
-      'GET /api/v1/crew/assignments': () =>
-        json([
-          {
-            jobId: 'j1',
-            title: 'Sửa lỗi đặt bàn và thêm nhắc lịch',
-            productName: 'Sổ đặt bàn Quán Mây',
-            mentorName: 'Đỗ Mạnh Hùng',
-            status: 'ACTIVE',
-            scope: 'Sửa lỗi trùng giờ',
-            versionNo: 1,
-            sharePercent: 40,
-            signed: true,
-            codeJob: true,
-            milestones: [],
-          },
-        ]),
       'GET /api/v1/team': () => json({ team: null }),
       'GET /api/v1/jobs/j1/crew-chat': () => json(crewChat()),
       'GET /api/v1/crew-chats/cc1/messages': () => json({ items: [message()], hasOlder: false }),

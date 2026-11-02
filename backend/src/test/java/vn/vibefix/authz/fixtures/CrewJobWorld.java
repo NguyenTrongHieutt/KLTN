@@ -43,7 +43,8 @@ import vn.vibefix.team.internal.TeamTestSupport;
  * content. It realizes:
  * <ul>
  * <li>{@link MatrixCaller#MENTOR}, the Mentor of this Job and of the second Job below;</li>
- * <li>one member per Crew state: {@link MatrixCaller#CREW_ASSIGNED}, {@link MatrixCaller#CREW_ACTIVE}, and
+ * <li>one member per Crew state: {@link MatrixCaller#CREW_ASSIGNED}, picked from their Crew Application, which waits
+ * for the signature (Story 21.5), {@link MatrixCaller#CREW_ACTIVE}, and
  * {@link MatrixCaller#CREW_FORMER}, released {@code LEFT} by a lock and unlocked since; {@link MatrixCaller#LOCKED}
  * is a member the lock released {@code LEFT} who is still locked. Both windows ended before the Job's later
  * content was written;</li>
@@ -171,7 +172,32 @@ final class CrewJobWorld {
 				""").param("owner", owner).param("mentor", this.mentor).param("job", job)
 			.param("at", Timestamp.from(SIGNED)).update();
 		this.assigned = JobContent.member(this.jdbc, "Sinh viên được giao");
-		JobContent.crewRow(this.jdbc, job, this.assigned, "ASSIGNED", null);
+		UUID assignedRow = JobContent.crewRow(this.jdbc, job, this.assigned, "ASSIGNED", null);
+		// Story 21.5: the pick came from the member's Crew Application, which waits for the signature (FR-81).
+		UUID pick = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO matching.crew_application (id, job_id, product_id, customer_account_id, mentor_account_id,
+				    applicant_account_id, status, note, public_code_notice_version, submitted_at, lapses_at, crew_row_id,
+				    picked_at, sign_due_at)
+				VALUES (:id, :job, :product, :owner, :mentor, :member, 'PICKED', 'Mình muốn vào nhóm', '1.0', :submitted,
+				    :lapses, :row, :picked, :due)
+				""")
+			.param("id", pick)
+			.param("job", job)
+			.param("product", product)
+			.param("owner", owner)
+			.param("mentor", this.mentor)
+			.param("member", this.assigned)
+			.param("submitted", Timestamp.from(MutableClock.DEFAULT_INSTANT.minus(Duration.ofDays(2))))
+			.param("lapses", Timestamp.from(MutableClock.DEFAULT_INSTANT.plus(Duration.ofDays(12))))
+			.param("row", assignedRow)
+			.param("picked", Timestamp.from(MutableClock.DEFAULT_INSTANT.minus(Duration.ofDays(1))))
+			.param("due", Timestamp.from(MutableClock.DEFAULT_INSTANT.plus(Duration.ofDays(2))))
+			.update();
+		this.jdbc.sql("UPDATE job.crew_row SET crew_application_id = :pick WHERE id = :row")
+			.param("pick", pick)
+			.param("row", assignedRow)
+			.update();
 		this.active = JobContent.member(this.jdbc, "Sinh viên đang làm");
 		UUID activeRow = JobContent.crewRow(this.jdbc, job, this.active, "ACTIVE", null);
 		this.locked = JobContent.member(this.jdbc, "Sinh viên bị khóa");

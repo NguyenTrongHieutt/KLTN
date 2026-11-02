@@ -44,7 +44,9 @@ import vn.vibefix.shared.IdGenerator;
  * sought (at most 10, an added one active in the catalog) and a note, and edits or turns it off through the same
  * command. Every write runs under the Job row lock and increments {@code crew_version}, which no Customer DTO carries;
  * turning it on publishes {@link CrewRecruitmentOpened}, and turning it off, J8 and J10 publish
- * {@link CrewRecruitmentClosed}, on which {@code matching} lapses the open Crew Applications. The setting lives on the
+ * {@link CrewRecruitmentClosed}, on which {@code matching} lapses the open Crew Applications. A pick takes a place and
+ * an unsigned pick that ends gives it back while recruitment is on; when picks and members fill the places,
+ * recruitment turns off by itself (Story 21.5). The setting lives on the
  * Job, so {@code job.phaseOf} and "Tìm việc" never read {@code matching} (AD-3).
  */
 @Component
@@ -55,6 +57,8 @@ class JobRecruitment implements CrewRecruitment {
 	static final String EDITED = "job.recruitment_edited";
 
 	static final String CLOSED = "job.recruitment_closed";
+
+	static final String FILLED = "job.recruitment_filled";
 
 	/** Skills a recruitment seeks at most (the Skill picker's limit on a recruitment). */
 	static final int MAX_SKILLS = 10;
@@ -222,6 +226,42 @@ class JobRecruitment implements CrewRecruitment {
 		this.events.publishEvent(new CrewRecruitmentClosed(this.ids.newId(), jobId, closedBy, now));
 	}
 
+	/**
+	 * A pick took a place (FR-81, Story 21.5), under the Job row lock its caller holds: while recruitment is on, one place
+	 * fewer, never more than the free places under the cap; at none left recruitment turns off by itself and
+	 * {@link CrewRecruitmentClosed} lapses the other pending applications.
+	 */
+	void takeSlot(UUID jobId) {
+		Recruitment current = read(jobId, false).orElseThrow();
+		if (!current.on()) {
+			return;
+		}
+		int left = Math.max(0, Math.min(current.openSlots() - 1, current.cap() - current.unreleased()));
+		if (left > 0) {
+			this.jdbc.sql("UPDATE job.job SET open_slots = :slots WHERE id = :id").param("slots", left).param("id", jobId).update();
+			return;
+		}
+		Instant now = this.clock.instant();
+		this.jdbc.sql("UPDATE job.job SET recruiting = false, open_slots = 0 WHERE id = :id").param("id", jobId).update();
+		this.auditLog.record(AuditEntry.of(AuditActor.system(), FILLED, AuditObject.of("job.job", jobId)).forJob(jobId));
+		this.events.publishEvent(new CrewRecruitmentClosed(this.ids.newId(), jobId, ClosedBy.FILLED, now));
+	}
+
+	/**
+	 * A pick ended before it was signed (R4, Story 21.5), under the Job row lock its caller holds: while recruitment is
+	 * on, its place returns, never above the free places under the cap. Recruitment that turned off stays off.
+	 */
+	void returnSlot(UUID jobId) {
+		Recruitment current = read(jobId, false).orElseThrow();
+		if (!current.on()) {
+			return;
+		}
+		int slots = Math.max(0, Math.min(current.openSlots() + 1, current.cap() - current.unreleased()));
+		if (slots != current.openSlots()) {
+			this.jdbc.sql("UPDATE job.job SET open_slots = :slots WHERE id = :id").param("slots", slots).param("id", jobId).update();
+		}
+	}
+
 	/** The Skills sought, by ID, as the catalog names them now (for the Skill picker's tokens). */
 	Map<UUID, Skill> skills(Recruitment recruitment) {
 		Map<UUID, Skill> skills = new HashMap<>();
@@ -236,7 +276,7 @@ class JobRecruitment implements CrewRecruitment {
 	private Optional<Recruitment> read(UUID jobId, boolean lock) {
 		return this.jdbc.sql("""
 				SELECT id, product_id, customer_account_id, mentor_account_id, title, state, hidden_at IS NOT NULL AS hidden,
-				    recruiting, open_slots, recruit_skill_ids, recruit_skill_names, recruit_note, crew_version,
+				    recruiting, open_slots, recruit_skill_ids, recruit_skill_names, recruit_note, crew_version, agreement_due_at,
 				    (SELECT count(*) FROM job.crew_row r WHERE r.job_id = j.id AND r.status <> 'RELEASED') AS unreleased
 				FROM job.job j WHERE id = :id
 				""" + (lock ? " FOR UPDATE" : ""))
@@ -246,12 +286,13 @@ class JobRecruitment implements CrewRecruitment {
 					rs.getString("title"), rs.getString("state"), rs.getBoolean("hidden"), rs.getBoolean("recruiting"),
 					rs.getInt("open_slots"), rs.getInt("unreleased"), cap(), uuids(rs.getArray("recruit_skill_ids")),
 					Arrays.asList((String[]) rs.getArray("recruit_skill_names").getArray()), rs.getString("recruit_note"),
-					false, rs.getLong("crew_version")))
+					false, rs.getLong("crew_version"),
+					rs.getTimestamp("agreement_due_at") == null ? null : rs.getTimestamp("agreement_due_at").toInstant()))
 			.optional()
 			.map(found -> new Recruitment(found.jobId(), found.productId(), found.customerId(), found.mentorId(),
 					found.title(), found.state(), found.hidden(), found.on(), found.openSlots(), found.unreleased(),
 					found.cap(), found.skillIds(), found.skillNames(), found.note(),
-					!this.crews.countedActive(jobId).isEmpty(), found.crewVersion()));
+					!this.crews.countedActive(jobId).isEmpty(), found.crewVersion(), found.agreementDueAt()));
 	}
 
 	private static List<UUID> uuids(Array array) throws SQLException {
