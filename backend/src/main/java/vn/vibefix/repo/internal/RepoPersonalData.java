@@ -145,6 +145,7 @@ class RepoPersonalData implements PersonalDataParticipant {
 
 	@Override
 	public void deleteProduct(UUID productId) {
+		closeRevocationTodos(productId);
 		RepositoryDeletions deletions = this.deletions.getObject();
 		deletions.ofProduct(productId).forEach(pending -> deletions.request(pending, null, false));
 		deletions.archivesOfProduct(productId).forEach(this.files.getObject()::delete);
@@ -160,10 +161,28 @@ class RepoPersonalData implements PersonalDataParticipant {
 	/** NFR-10: the final ZIPs and their ZIP Fallback rows go, with the Revocation Checklist. */
 	@Override
 	public void retireJobData(UUID productId) {
+		closeRevocationTodos(productId);
 		this.deletions.getObject().archivesOfProduct(productId).forEach(this.files.getObject()::delete);
 		this.jdbc.sql("DELETE FROM repo.zip_fallback WHERE product_id = :id").param("id", productId).update();
 		this.jdbc.sql("UPDATE repo.job_setup SET archive_file_id = NULL WHERE product_id = :id").param("id", productId).update();
 		this.jdbc.sql("DELETE FROM repo.revocation_item WHERE product_id = :id").param("id", productId).update();
+	}
+
+	/** The to-dos of the Revocation Checklist rows about to go, which nobody could tick without their rows. */
+	private void closeRevocationTodos(UUID productId) {
+		this.jdbc.sql("SELECT access_id, crew_row_id FROM repo.revocation_item WHERE product_id = :id AND status = 'PENDING'")
+			.param("id", productId)
+			.query((rs, n) -> Map.entry(rs.getObject("access_id", UUID.class), rs.getObject("crew_row_id", UUID.class)))
+			.list()
+			.forEach(row -> {
+				if (RevocationChecklists.JOB_END.equals(row.getValue())) {
+					this.todos.getObject().closeAll(RevocationChecklists.TODO, row.getKey());
+				}
+				else {
+					this.todos.getObject()
+						.closeAll(RevocationChecklists.MEMBER_TODO, RevocationChecklists.memberSubject(row.getKey(), row.getValue()));
+				}
+			});
 	}
 
 	@Override

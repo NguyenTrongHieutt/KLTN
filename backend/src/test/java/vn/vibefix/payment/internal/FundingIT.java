@@ -50,6 +50,7 @@ import vn.vibefix.identity.AccountLocked;
 import vn.vibefix.identity.internal.CustomerTokens;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
+import vn.vibefix.job.CrewEmptied;
 import vn.vibefix.job.CrewMemberAdded;
 import vn.vibefix.job.Crews;
 import vn.vibefix.operations.FailedOperations;
@@ -457,6 +458,20 @@ class FundingIT extends IntegrationTest {
 		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.events
 			.publishEvent(new CrewMemberAdded(UUID.randomUUID(), this.job, row, an, "AGREEMENT")));
 		await().atMost(Duration.ofSeconds(10)).until(() -> openTodos("payment.fund_milestone", this.lan) == 1);
+	}
+
+	/** Story 21.6: the event reaches {@code payment} after a member signed again, so Milestone 1 can still be funded. */
+	@Test
+	void aCrewEmptiedEventWithASignedMemberPresentKeepsTheFundingToDoOpen() throws Exception {
+		confirmedAgreement("BUG_FIX");
+		await().atMost(Duration.ofSeconds(10)).until(() -> openTodos("payment.fund_milestone", this.lan) == 1);
+
+		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.events
+			.publishEvent(new CrewEmptied(UUID.randomUUID(), this.job, this.hung, "AGREEMENT", true, null)));
+		await().atMost(Duration.ofSeconds(15))
+			.until(() -> count("SELECT count(*) FROM platform.event_publication WHERE completion_date IS NULL") == 0);
+
+		assertThat(openTodos("payment.fund_milestone", this.lan)).isOne();
 	}
 
 	/**

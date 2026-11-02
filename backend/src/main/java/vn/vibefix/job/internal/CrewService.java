@@ -49,7 +49,7 @@ class CrewService implements Crews {
 	static final int LARGE_CREW_LIMIT = 5;
 
 	/** Where a member may leave (FR-82, AD-41): in Closing, J8 already ended their access. */
-	private static final Set<JobState> LEAVES = EnumSet.of(JobState.AGREEMENT, JobState.STARTING, JobState.ACTIVE);
+	static final Set<JobState> LEAVES = EnumSet.of(JobState.AGREEMENT, JobState.STARTING, JobState.ACTIVE);
 
 	/**
 	 * A Crew row {@code r} whose active window (from {@code activated_at} to {@code window_end}, or still open) overlaps

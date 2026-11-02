@@ -176,6 +176,9 @@ class WorkViews {
 			Instant at) {
 	}
 
+	/** A person with neither a name nor a GitHub username, such as one erased. */
+	private static final String NO_NAME = "Một thành viên nhóm";
+
 	private final AgreementCriteria criteria;
 
 	private final Crews crews;
@@ -248,7 +251,7 @@ class WorkViews {
 		List<Reassignments.Leaver> leavers = this.reassignments.leavers(viewer.board().jobId());
 		Map<UUID, String> names = leavers.isEmpty() ? Map.of() : names(viewer, leavers.stream().map(Reassignments.Leaver::accountId).toList());
 		return leavers.stream()
-			.map(leaver -> new LeaverView(names.getOrDefault(leaver.accountId(), ""), leaver.leftAt()))
+			.map(leaver -> new LeaverView(names.getOrDefault(leaver.accountId(), NO_NAME), leaver.leftAt()))
 			.toList();
 	}
 
@@ -360,7 +363,7 @@ class WorkViews {
 		List<UUID> students = people.stream().filter(id -> !id.equals(viewer.mentorId())).toList();
 		if (!students.isEmpty()) {
 			for (StudentCard card : this.students.cards(students)) {
-				names.put(card.accountId(), card.name() != null ? card.name() : "@" + card.githubLogin());
+				names.put(card.accountId(), card.shownName().isBlank() ? NO_NAME : card.shownName());
 			}
 		}
 		return names;

@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -58,6 +59,7 @@ import vn.vibefix.support.HeldCrewJob;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.PostgresTestDatabase;
 import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.timers.internal.DeadlinePoller;
 
 /**
  * Story 21.6 (FR-21, FR-59, FR-66, FR-75, FR-77, FR-82, AD-11, AD-14, AD-41, R3, R8, R9, R15), SM-8 "a member leaving
@@ -108,6 +110,9 @@ class CrewLeaveIT extends IntegrationTest {
 
 	@Autowired
 	private Releases releases;
+
+	@Autowired
+	private DeadlinePoller poller;
 
 	private HeldCrewJob world;
 
@@ -366,8 +371,9 @@ class CrewLeaveIT extends IntegrationTest {
 		role(this.lan).andExpect(jsonPath("$.noCrew").value(false));
 	}
 
+	/** J7 itself reads no Crew; {@code JobSetupIT} proves that Verify gets a Code Job there with the Mentor alone. */
 	@Test
-	void j7StillCompletesFromStartingWithNoCrewLeft() throws Exception {
+	void j7ReadsNoCrewOnAJobWithNoRepositories() throws Exception {
 		this.jdbc.sql("UPDATE job.job SET state = 'STARTING' WHERE id = :id").param("id", this.job).update();
 		leave(this.vy, null).andExpect(status().isNoContent());
 		leave(this.minh, null).andExpect(status().isNoContent());
@@ -606,6 +612,7 @@ class CrewLeaveIT extends IntegrationTest {
 	@ValueSource(strings = { "AGREEMENT", "STARTING" })
 	void aFormerMembersDutiesStayBeforeTheBoard(String state) throws Exception {
 		this.jdbc.sql("UPDATE job.job SET state = :state WHERE id = :id").param("state", state).param("id", this.job).update();
+		me(this.vy).andExpect(jsonPath("$.canLeave").value(true));
 		leave(this.vy, null).andExpect(status().isNoContent());
 		awaitListeners();
 
@@ -676,7 +683,247 @@ class CrewLeaveIT extends IntegrationTest {
 		checklist(this.lan, Role.CUSTOMER).andExpect(jsonPath("$.items.length()").value(0));
 	}
 
+	/** The retention run (NFR-10): the reason goes, and with the rows it removes, their to-dos. */
+	@Test
+	void theRetentionRunClearsTheReasonAndClosesTheToDosOfTheRowsItRemoves() throws Exception {
+		twoExternalAccessItems();
+		leave(this.vy, REASON).andExpect(status().isNoContent());
+		awaitListeners();
+		end("J8");
+		awaitListeners();
+		assertThat(openTodos("repo.revocation_item_member", this.lan)).isEqualTo(2);
+		assertThat(openTodos("repo.revocation_item", this.lan)).isEqualTo(2);
+
+		this.transactions.executeWithoutResult(status -> this.personalData.retireJobData(this.world.product()));
+
+		assertThat(count("SELECT count(*) FROM job.crew_row WHERE left_note IS NOT NULL")).isZero();
+		assertThat(count("SELECT count(*) FROM repo.revocation_item")).isZero();
+		assertThat(openTodos("repo.revocation_item_member", this.lan)).isZero();
+		assertThat(openTodos("repo.revocation_item", this.lan)).isZero();
+	}
+
+	@Test
+	void aProductDeletionClosesTheToDosOfTheRowsItRemoves() throws Exception {
+		twoExternalAccessItems();
+		leave(this.vy, null).andExpect(status().isNoContent());
+		awaitListeners();
+		end("J8");
+		awaitListeners();
+
+		this.transactions.executeWithoutResult(status -> this.personalData.deleteProduct(this.world.product()));
+
+		assertThat(count("SELECT count(*) FROM repo.revocation_item")).isZero();
+		assertThat(openTodos("repo.revocation_item_member", this.lan)).isZero();
+		assertThat(openTodos("repo.revocation_item", this.lan)).isZero();
+	}
+
+	/** The CHECK holds on a row not released, and on one released otherwise (the unreleased case is NULL, not false). */
+	@Test
+	void onlyARowReleasedAsLeftHoldsAReason() {
+		String note = "UPDATE job.crew_row SET left_note = 'Lý do' WHERE member_account_id = :id";
+		assertThatThrownBy(() -> this.jdbc.sql(note).param("id", this.vy).update())
+			.isInstanceOf(DataIntegrityViolationException.class)
+			.hasMessageContaining("crew_row_left_note_check");
+		this.jdbc.sql("""
+				UPDATE job.crew_row SET status = 'RELEASED', released_reason = 'JOB_ENDED', released_at = now(), window_end = now()
+				WHERE member_account_id = :id
+				""").param("id", this.minh).update();
+		assertThatThrownBy(() -> this.jdbc.sql(note).param("id", this.minh).update())
+			.isInstanceOf(DataIntegrityViolationException.class)
+			.hasMessageContaining("crew_row_left_note_check");
+	}
+
+	// ---- The Job's end and the Revocation Checklist ----------------------------------------------
+
+	/** R15: a member who signed later has grant to-dos, which the Job's end closes, the items ticked or not. */
+	@ParameterizedTest
+	@ValueSource(strings = { "J8", "J10" })
+	void theJobsEndClosesEveryMembersGrantToDo(String end) throws Exception {
+		twoExternalAccessItems();
+		joined(JobContent.member(this.jdbc, "Phan Văn An"));
+		assertThat(openTodos("job.grant_external_access_member", this.lan)).isEqualTo(2);
+
+		end(end);
+
+		assertThat(openTodos("job.grant_external_access_member", this.lan)).isZero();
+		awaitListeners();
+	}
+
+	/** FR-66: days 1 and 7 after each leave, beside each other and beside J8's, each counting what is pending then. */
+	@Test
+	void aLeaversRowsAreRemindedOnDaysOneAndSevenAndNoReminderSwallowsAnother() throws Exception {
+		twoExternalAccessItems();
+		leave(this.vy, null).andExpect(status().isNoContent());
+		awaitListeners();
+		assertThat(count("SELECT count(*) FROM timers.deadline WHERE kind = 'repo.revocation_checklist_reminder'")).isEqualTo(2);
+
+		nextDay();
+		assertThat(reminders()).containsExactly("2");
+
+		leave(this.minh, null).andExpect(status().isNoContent());
+		awaitListeners();
+		confirmRevocation(SUPABASE, TeamTestSupport.login(this.jdbc, this.vy)).andExpect(status().isOk());
+		nextDay();
+		assertThat(reminders()).containsExactlyInAnyOrder("2", "3");
+
+		end("J8");
+		awaitListeners();
+		nextDay();
+		assertThat(reminders()).containsExactlyInAnyOrder("2", "3", "5");
+		assertThat(count("SELECT count(*) FROM timers.deadline WHERE kind = 'repo.revocation_checklist_reminder'")).isEqualTo(6);
+
+		this.clock.advance(Duration.ofDays(4));
+		this.poller.runDue();
+		assertThat(reminders()).as("Vy's day 7").containsExactlyInAnyOrder("2", "3", "5", "5");
+	}
+
+	/** R15: two leavers and the Job's end on one item are three rows, each ticked on its own, and audited as its own. */
+	@Test
+	void eachTickConfirmsItsOwnRowBesideTheRowsOfTheJobsEnd() throws Exception {
+		twoExternalAccessItems();
+		String vyLogin = TeamTestSupport.login(this.jdbc, this.vy);
+		String minhLogin = TeamTestSupport.login(this.jdbc, this.minh);
+		leave(this.vy, null).andExpect(status().isNoContent());
+		leave(this.minh, null).andExpect(status().isNoContent());
+		awaitListeners();
+		end("J8");
+		awaitListeners();
+		assertThat(count("SELECT count(*) FROM repo.revocation_item")).isEqualTo(6);
+		assertThat(openTodos("repo.revocation_item_member", this.lan)).isEqualTo(4);
+		assertThat(openTodos("repo.revocation_item", this.lan)).isEqualTo(2);
+		UUID vyRow = this.jdbc.sql("SELECT id FROM job.crew_row WHERE member_account_id = :id").param("id", this.vy)
+			.query(UUID.class).single();
+		UUID vySubject = UUID.nameUUIDFromBytes((SUPABASE + ":revocation:" + vyRow).getBytes(StandardCharsets.UTF_8));
+		assertThat(audited("repo.revocation_item_opened", vySubject)).isOne();
+
+		confirmRevocation(SUPABASE, vyLogin).andExpect(status().isOk());
+
+		assertThat(this.jdbc.sql("""
+				SELECT coalesce(member_login, 'END') FROM repo.revocation_item WHERE access_id = :access AND status = 'CONFIRMED'
+				""").param("access", SUPABASE).query(String.class).list()).containsExactly(vyLogin);
+		assertThat(openTodos("repo.revocation_item_member", this.lan)).isEqualTo(3);
+		assertThat(openTodos("repo.revocation_item", this.lan)).isEqualTo(2);
+		assertThat(audited("repo.revocation_item_confirmed", vySubject)).isOne();
+		assertThat(audited("repo.revocation_item_confirmed", SUPABASE)).as("the row of the end is another").isZero();
+
+		confirmRevocation(SUPABASE, null).andExpect(status().isOk());
+
+		assertThat(this.jdbc.sql("""
+				SELECT coalesce(member_login, 'END') FROM repo.revocation_item WHERE access_id = :access AND status = 'CONFIRMED'
+				""").param("access", SUPABASE).query(String.class).list()).containsExactlyInAnyOrder(vyLogin, "END");
+		assertThat(openTodos("repo.revocation_item_member", this.lan)).isEqualTo(3);
+		assertThat(openTodos("repo.revocation_item", this.lan)).isOne();
+		assertThat(audited("repo.revocation_item_confirmed", SUPABASE)).isOne();
+		assertThat(count("SELECT count(*) FROM repo.revocation_item WHERE status = 'PENDING' AND member_login = '" + minhLogin + "'"))
+			.isEqualTo(2);
+
+		nextDay();
+		assertThat(reminders()).as("three reminders fall due, each counting what is pending").containsOnly("4");
+	}
+
+	/** FR-66: before the Board too, a leaver gets their rows once the Agreement is confirmed. */
+	@ParameterizedTest
+	@ValueSource(strings = { "AGREEMENT", "STARTING" })
+	void aLeaverBeforeTheBoardGetsTheirRevocationRows(String state) throws Exception {
+		this.jdbc.sql("UPDATE job.job SET state = :state WHERE id = :id").param("state", state).param("id", this.job).update();
+		twoExternalAccessItems();
+
+		leave(this.vy, null).andExpect(status().isNoContent());
+		awaitListeners();
+
+		assertThat(openTodos("repo.revocation_item_member", this.lan)).isEqualTo(2);
+		checklist(this.lan, Role.CUSTOMER).andExpect(status().isOk()).andExpect(jsonPath("$.items.length()").value(2));
+	}
+
+	/** A duty the leaver finished before the end: J10 opens nothing and tells nothing again. */
+	@Test
+	void aDutyCompleteBeforeTheEndGetsNoNewToDoAndNoSecondNotice() throws Exception {
+		leave(this.vy, null).andExpect(status().isNoContent());
+		awaitListeners();
+		for (String item : List.of("NON_CODE_DATA", "PREVIEWS")) {
+			this.mvc.perform(post("/api/v1/boards/" + this.job + "/data-deletion/" + item).with(as(this.vy, Role.STUDENT)).with(csrf()))
+				.andExpect(status().isOk());
+		}
+		assertThat(openTodos("repo.confirm_data_deletion", this.vy)).isZero();
+
+		end("J10");
+		awaitListeners();
+
+		assertThat(openTodos("repo.confirm_data_deletion", this.vy)).isZero();
+		assertThat(count("SELECT count(*) FROM notification.todo WHERE todo_key = 'repo.confirm_data_deletion' AND account_id = '"
+				+ this.vy + "'")).isOne();
+		assertThat(notices("repo.data_deletion_confirmation_pending", this.vy)).isOne();
+		assertThat(openTodos("repo.confirm_data_deletion", this.minh)).as("the end released Minh").isOne();
+	}
+
+	// ---- The Mentor's line ----------------------------------------------------------------------
+
+	/** The line names who left work behind: not what the Mentor took back, and only while it can be assigned. */
+	@Test
+	void theLineNamesOnlyWhoLeftWorkBehindAndOnlyWhileItCanBeAssigned() throws Exception {
+		JobContent.board(this.jdbc, this.job, this.world.product(), "SDB");
+		UUID takenBack = item("Việc Hùng lấy lại", this.vy);
+		assign(takenBack, null).andExpect(status().isOk());
+		leave(this.vy, null).andExpect(status().isNoContent());
+		awaitListeners();
+		leavers().andExpect(jsonPath("$.leavers.length()").value(0));
+
+		item("Việc của Minh", this.minh);
+		leave(this.minh, null).andExpect(status().isNoContent());
+		awaitListeners();
+		leavers().andExpect(jsonPath("$.leavers.length()").value(1)).andExpect(jsonPath("$.leavers[0].name").value("Nguyễn Văn Minh"));
+
+		this.jdbc.sql("UPDATE job.job SET state = 'CLOSING', closing_at = now() WHERE id = :id").param("id", this.job).update();
+		leavers().andExpect(jsonPath("$.leavers.length()").value(0));
+	}
+
+	/** A person with neither a name nor a GitHub username reads as {@code CrewDepartures.shownName} calls them. */
+	@Test
+	void aLeaverErasedSinceReadsAsAMemberWithNoName() throws Exception {
+		JobContent.board(this.jdbc, this.job, this.world.product(), "SDB");
+		item("Việc của Vy", this.vy);
+		leave(this.vy, null).andExpect(status().isNoContent());
+		awaitListeners();
+		this.jdbc.sql("UPDATE job.milestone SET state = 'CANCELLED' WHERE id = :id").param("id", this.world.milestone()).update();
+		ErasureOutcome outcome = this.transactions.execute(status -> this.personalData.erase(this.vy));
+		assertThat(outcome).isInstanceOf(ErasureOutcome.Erased.class);
+
+		leavers().andExpect(jsonPath("$.leavers[0].name").value("Một thành viên nhóm"));
+	}
+
 	// ---- Helpers --------------------------------------------------------------------------------
+
+	private ResultActions leavers() throws Exception {
+		return this.mvc.perform(get("/api/v1/boards/" + this.job + "/progress").with(as(this.hung, Role.MENTOR))).andExpect(status().isOk());
+	}
+
+	/** J8 or J10 as a cancellation's cascade applies them, whatever Milestone is still Held. */
+	private void end(String end) {
+		long version = count("SELECT version FROM job.job WHERE id = '" + this.job + "'");
+		assertThat("J8".equals(end)
+				? this.lifecycle.tryApply(Transition.J8, this.job, Actor.SYSTEM, Trigger.AUTO, version, Map.of(Cancellations.INPUT, true))
+				: this.lifecycle.tryApply(Transition.J10, this.job, Actor.user(this.lan), Trigger.USER, version))
+			.isPresent();
+	}
+
+	private void nextDay() {
+		this.clock.advance(Duration.ofDays(1).plusMinutes(1));
+		this.poller.runDue();
+	}
+
+	private List<String> reminders() {
+		return this.jdbc.sql("""
+				SELECT params ->> 'n' FROM notification.notification WHERE type = 'repo.revocation_checklist_reminder'
+				    AND account_id = :id
+				""").param("id", this.lan).query(String.class).list();
+	}
+
+	private long audited(String action, UUID object) {
+		return this.jdbc.sql("""
+				SELECT count(*) FROM audit.audit_entry e JOIN audit.audit_entry_object o ON o.entry_id = e.id
+				WHERE e.action = :action AND o.object_id = :object
+				""").param("action", action).param("object", object).query(Long.class).single();
+	}
 
 	private ResultActions leave(UUID member, @Nullable String reason) throws Exception {
 		return this.mvc.perform(post("/api/v1/jobs/" + this.job + "/crew/leave").with(as(member, Role.STUDENT)).with(csrf())
@@ -734,14 +981,14 @@ class CrewLeaveIT extends IntegrationTest {
 		return UUID.fromString(JsonPath.read(created, "$.item.id"));
 	}
 
-	private ResultActions assign(UUID item, UUID assignee) throws Exception {
+	private ResultActions assign(UUID item, @Nullable UUID assignee) throws Exception {
 		String title = text("SELECT title FROM work.work_item WHERE id = '" + item + "'");
 		long version = count("SELECT version FROM work.work_item WHERE id = '" + item + "'");
 		return this.mvc.perform(put("/api/v1/work-items/" + item)
 			.with(as(this.hung, Role.MENTOR)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
-			.content("{\"type\":\"TASK\",\"title\":\"%s\",\"milestoneId\":\"%s\",\"assigneeId\":\"%s\",\"version\":%d}"
-				.formatted(title, this.world.milestone(), assignee, version)));
+			.content("{\"type\":\"TASK\",\"title\":\"%s\",\"milestoneId\":\"%s\",\"assigneeId\":%s,\"version\":%d}"
+				.formatted(title, this.world.milestone(), assignee == null ? "null" : "\"" + assignee + "\"", version)));
 	}
 
 	private void setStatus(UUID item, String status) {

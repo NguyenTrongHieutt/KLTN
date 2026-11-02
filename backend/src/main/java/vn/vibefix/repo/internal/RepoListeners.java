@@ -68,7 +68,7 @@ class RepoListeners {
 
 	/**
 	 * A member left the Job, or a lock counted as leaving (FR-66, FR-82): their duty starts now, in every state, Agreement
-	 * included, on their JOB-1. A lock in Closing finds a duty J8 opened, and a complete one stays closed.
+	 * included, on their JOB-1. A lock in Closing finds a duty J8 opened and told of, and a complete one stays closed.
 	 */
 	@ApplicationModuleListener
 	void onCrewMemberRemoved(CrewMemberRemoved event) {
@@ -76,7 +76,8 @@ class RepoListeners {
 			return;
 		}
 		this.confirmations.job(event.jobId()).ifPresent(job -> {
-			if (this.confirmations.duty(job, event.studentId()).filter(Duty::complete).isPresent()) {
+			if (this.confirmations.duty(job, event.studentId()).filter(Duty::complete).isPresent()
+					|| this.todos.isOpen(DataDeletionConfirmations.TODO, event.studentId(), job.jobId())) {
 				return;
 			}
 			String overview = "/cong-viec/" + job.jobId();

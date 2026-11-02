@@ -2419,6 +2419,7 @@
         "repository": "Quyền ghi vào kho làm việc của bạn bị thu hồi ngay, và bạn không vào lại công việc này được.",
         "noRepository": "Bạn không vào lại công việc này được.",
         "split": "Bạn vẫn là một bên trong phần chia tiền của Giai đoạn {n}, và vẫn làm các việc sau công việc như mọi thành viên: xóa dữ liệu của khách hàng, chấm sao, đánh giá kín.",
+        "duties": "Bạn vẫn làm các việc sau công việc như mọi thành viên: xóa dữ liệu của khách hàng, chấm sao, đánh giá kín.",
         "customer": "Khách hàng chỉ được báo tên tài khoản GitHub của bạn để thu hồi quyền.",
         "reason": "Lý do (không bắt buộc)",
         "reasonHint": "Chỉ người hướng dẫn đọc được.",

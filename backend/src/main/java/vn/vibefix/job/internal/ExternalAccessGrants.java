@@ -36,7 +36,8 @@ import vn.vibefix.shared.ErrorCode;
  * the Job is neither Closed nor Cancelled; each person reads their own. "Đã cấp quyền" closes the to-do,
  * the only record of the tick. An identifier is no credential: one the {@code scanning} rules read as a
  * secret is refused. A member who signs after the confirmation opens one {@value #MEMBER_TODO} per item (R15, Story
- * 21.6): the same tick closes the item's to-do and its member to-dos, and a member who leaves closes their own.
+ * 21.6): the same tick closes the item's to-do and its member to-dos, a member who leaves closes their own, and J8 and
+ * J10 close them all.
  */
 @Component
 class ExternalAccessGrants {
@@ -192,6 +193,16 @@ class ExternalAccessGrants {
 	void granted(Job job, UUID accessId) {
 		access(job, accessId);
 		this.todos.close(TODO, job.customerId(), accessId);
+		closeMemberTodos(job, accessId);
+	}
+
+	/** J8 or J10: nobody is left to grant, whether or not the item was ticked. In the caller's transaction. */
+	void jobEnded(Job job) {
+		this.reviews.confirmed(job.id())
+			.ifPresent(confirmed -> confirmed.content().externalAccess().forEach(access -> closeMemberTodos(job, access.id())));
+	}
+
+	private void closeMemberTodos(Job job, UUID accessId) {
 		this.crews.rows(job.id())
 			.stream()
 			.filter(row -> row.activatedAt() != null)

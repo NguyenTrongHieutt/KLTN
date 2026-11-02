@@ -11,9 +11,9 @@ import { MAX_LEFT_NOTE, useLeaveJob, type CrewMe } from './crewApi'
 
 /**
  * "Rời công việc" on a member's JOB-1 (FR-82, UX-DR104): the Leave dialog with N-28, in the words of this Job: a Job
- * with no code has no repository to speak of, and the split sentence names the Milestones the member stays a party of
- * and goes when there are none (R9). The optional reason follows, marked as read by the Mentor alone. It takes effect
- * at once and cannot be undone.
+ * with no code has no repository to speak of, and the split sentence names the Milestones the member stays a party of,
+ * or with none only their post-Job duties (R9). The optional reason follows, marked as read by the Mentor alone. It
+ * takes effect at once and cannot be undone.
  */
 export function LeaveJob({ me }: { me: CrewMe }) {
   const [open, setOpen] = useState(false)
@@ -92,9 +92,11 @@ function LeaveDialog({ me, onClose }: { me: CrewMe; onClose: () => void }) {
 /** N-28 (FR-82, R3, R9, R15). */
 function notice(me: CrewMe): string {
   const sentences = [t(me.codeJob ? 'screen.crew.leave.repository' : 'screen.crew.leave.noRepository')]
-  if (me.partyMilestones.length > 0) {
-    sentences.push(t('screen.crew.leave.split', { n: me.partyMilestones.join(', ') }))
-  }
+  sentences.push(
+    me.partyMilestones.length > 0
+      ? t('screen.crew.leave.split', { n: me.partyMilestones.join(', ') })
+      : t('screen.crew.leave.duties'),
+  )
   sentences.push(t('screen.crew.leave.customer'))
   return sentences.join(' ')
 }

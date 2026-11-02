@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -52,6 +53,10 @@ public final class GitHubStub implements AutoCloseable {
 	}
 
 	public final List<Seen> seen = Collections.synchronizedList(new ArrayList<>());
+
+	/** Runs before a request is answered, for a test that changes the world in the middle of an operation. */
+	public volatile Consumer<Seen> beforeAnswer = request -> {
+	};
 
 	/** The public metadata of repositories outside the organization, as a Customer's token reads them. */
 	private final Map<Long, Published> published = Collections.synchronizedMap(new LinkedHashMap<>());
@@ -296,7 +301,9 @@ public final class GitHubStub implements AutoCloseable {
 		String query = exchange.getRequestURI().getQuery();
 		String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
 		JsonNode json = body.isBlank() ? GitHubHttp.JSON.createObjectNode() : GitHubHttp.JSON.readTree(body);
-		this.seen.add(new Seen(method, path, exchange.getRequestHeaders().getFirst("Authorization"), json));
+		Seen request = new Seen(method, path, exchange.getRequestHeaders().getFirst("Authorization"), json);
+		this.seen.add(request);
+		this.beforeAnswer.accept(request);
 		if (this.unavailable.stream().anyMatch(prefix -> (method + " " + path).startsWith(prefix))) {
 			send(exchange, 502, "{\"message\":\"Bad Gateway\"}");
 			return;

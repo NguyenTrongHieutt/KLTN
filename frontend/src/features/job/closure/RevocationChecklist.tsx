@@ -111,9 +111,13 @@ function CustomerChecklist({
           body: { outcome, memberLogin: item.memberLogin },
         }),
       ),
-    onSuccess: async (next) => {
+    // Here, first: the last open item empties a list, which unmounts this, and TanStack skips `mutate`'s callbacks.
+    onSuccess: (next) => {
+      setAsking(undefined)
+      setError(undefined)
+      toasts.success(t('screen.closure.revocation.saved'))
       client.setQueryData(checklistKey(jobId), next)
-      await client.invalidateQueries({ queryKey: NOTIFICATION_QUERY_KEY })
+      void client.invalidateQueries({ queryKey: NOTIFICATION_QUERY_KEY })
     },
   })
   return (
@@ -206,11 +210,6 @@ function CustomerChecklist({
                   confirm.mutate(
                     { item: asking.item, outcome: asking.outcome },
                     {
-                      onSuccess: () => {
-                        setAsking(undefined)
-                        setError(undefined)
-                        toasts.success(t('screen.closure.revocation.saved'))
-                      },
                       onError: (failure) => {
                         setAsking(undefined)
                         setError(problemMessage(failure, { module: 'repo' }).text)

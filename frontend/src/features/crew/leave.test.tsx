@@ -120,6 +120,7 @@ const N28 = {
   repository: 'Quyền ghi vào kho làm việc của bạn bị thu hồi ngay, và bạn không vào lại công việc này được.',
   noRepository: 'Bạn không vào lại công việc này được.',
   split: 'Bạn vẫn là một bên trong phần chia tiền của Giai đoạn 1, 2, và vẫn làm các việc sau công việc',
+  duties: 'Bạn vẫn làm các việc sau công việc như mọi thành viên: xóa dữ liệu của khách hàng, chấm sao, đánh giá kín.',
   customer: 'Khách hàng chỉ được báo tên tài khoản GitHub của bạn để thu hồi quyền.',
 }
 
@@ -167,6 +168,13 @@ describe('JOB-1 for a Crew member before the Board (FR-77, UX-DR104)', () => {
           parties: [],
           mine: [{ item: 'NON_CODE_DATA' }, { item: 'PREVIEWS' }],
         }),
+      // A read that outlasts the others: the button is gone by then, and the toast must not wait for it.
+      'GET /api/v1/notifications/unread-count': async () => {
+        if (left) {
+          await new Promise((done) => setTimeout(done, 100))
+        }
+        return json({ count: 0 })
+      },
       'POST /api/v1/jobs/j1/crew/leave': async (request) => {
         sent.push(await request.json())
         left = true
@@ -179,12 +187,14 @@ describe('JOB-1 for a Crew member before the Board (FR-77, UX-DR104)', () => {
     const dialog = await screen.findByRole('dialog', { name: `Rời công việc ${TITLE}?` })
     expect(within(dialog).getByText(new RegExp(N28.repository))).toBeInTheDocument()
     expect(within(dialog).getByText(new RegExp(N28.split))).toBeInTheDocument()
+    expect(within(dialog).queryByText(new RegExp(`^${N28.duties}`))).toBeNull()
     expect(within(dialog).getByText(new RegExp(N28.customer))).toBeInTheDocument()
     expect(within(dialog).getByText('Chỉ người hướng dẫn đọc được.')).toBeInTheDocument()
     await user.type(within(dialog).getByLabelText('Lý do (không bắt buộc)'), 'Mình đi thực tập')
     await user.click(within(dialog).getByRole('button', { name: 'Rời công việc' }))
 
     await waitFor(() => expect(sent).toEqual([{ reason: 'Mình đi thực tập' }]))
+    expect(await screen.findByText('Bạn đã rời công việc này.')).toBeInTheDocument()
     expect(await screen.findByText('Bạn là: Thành viên nhóm · đã rời')).toBeInTheDocument()
     expect(
       await screen.findByText('Bạn không còn tham gia công việc này. Bạn chỉ xem được nội dung trong thời gian đã tham gia.'),
@@ -195,7 +205,7 @@ describe('JOB-1 for a Crew member before the Board (FR-77, UX-DR104)', () => {
     expect(await screen.findByRole('checkbox', { name: /Đã xóa các bản xem thử/ })).toBeEnabled()
   })
 
-  it('drops the repository sentence on a non-Code Job and the split sentence with none to name', { timeout: 20_000 }, async () => {
+  it('a non-Code Job drops the repository; no Milestone leaves only the duties', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     fakeBackend(signedInUser, {
       ...role({ role: 'CREW', crewKind: 'ACTIVE', left: false, noCrew: false }),
@@ -205,7 +215,7 @@ describe('JOB-1 for a Crew member before the Board (FR-77, UX-DR104)', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Rời công việc' }))
     const dialog = await screen.findByRole('dialog')
-    expect(within(dialog).getByText(`${N28.noRepository} ${N28.customer}`)).toBeInTheDocument()
+    expect(within(dialog).getByText(`${N28.noRepository} ${N28.duties} ${N28.customer}`)).toBeInTheDocument()
   })
 
   it('shows the refusal of a Job already closing in the dialog', { timeout: 20_000 }, async () => {
@@ -253,6 +263,27 @@ describe('JOB-1 for a Crew member before the Board (FR-77, UX-DR104)', () => {
     await waitFor(() => expect(confirmed).toEqual(['PREVIEWS']))
     expect(screen.queryByRole('button', { name: 'Rời công việc' })).toBeNull()
     expect(screen.queryByRole('link', { name: 'Bàn giao' })).toBeNull()
+  })
+
+  it('keeps a former member\'s links to Board and Documentation on a cancelled Job', { timeout: 20_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...role({ role: 'CREW', crewKind: 'FORMER', left: false, noCrew: false }),
+      'GET /api/v1/jobs/j1/crew/me': () => json(crewMe({ state: 'CANCELLED', former: true, canLeave: false })),
+      'GET /api/v1/boards/j1/data-deletion': () =>
+        json({
+          jobId: 'j1',
+          ended: true,
+          left: false,
+          parties: [],
+          mine: [{ item: 'NON_CODE_DATA' }, { item: 'PREVIEWS' }],
+        }),
+    })
+    renderAt('/cong-viec/j1')
+
+    expect(await screen.findByRole('link', { name: 'Bảng công việc' })).toHaveAttribute('href', '/cong-viec/j1/bang')
+    expect(screen.getByRole('link', { name: 'Tài liệu' })).toHaveAttribute('href', '/cong-viec/j1/tai-lieu')
+    expect(screen.queryByRole('link', { name: 'Bàn giao' })).toBeNull()
+    expect(await screen.findByRole('checkbox', { name: /Đã xóa các bản xem thử/ })).toBeEnabled()
   })
 
   it('reads "· đã rời" after the Job ends for a row released LEFT, and not for one the end released', { timeout: 20_000 }, async () => {
@@ -378,6 +409,38 @@ describe('The Customer removes what a member who left had (FR-66, R15)', () => {
     await waitFor(() => expect(sent).toEqual([{ outcome: 'REMOVED', memberLogin: 'tung-dev' }]))
     await waitFor(() => expect(screen.queryByText(/Supabase của @tung-dev/)).toBeNull())
     expect(screen.getByText(/Vercel của @tung-dev/)).toBeInTheDocument()
+  })
+
+  it('says so when the last open item is ticked, which empties the list', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    let items = [item()]
+    let ticked = false
+    fakeBackend(signedInUser, {
+      ...role({ role: 'CUSTOMER', left: false, noCrew: false, phase: 'FINDING_CREW' }),
+      'GET /api/v1/jobs/j1': () => json({ ...customerJob, state: 'AGREEMENT' }),
+      'GET /api/v1/boards/j1/revocation-checklist': () => json({ jobId: 'j1', audience: 'CUSTOMER', items }),
+      // A read that outlasts the list it empties: the section is gone by then, and the toast must not wait for it.
+      'GET /api/v1/notifications/unread-count': async () => {
+        if (ticked) {
+          await new Promise((done) => setTimeout(done, 100))
+        }
+        return json({ count: 0 })
+      },
+      'POST /api/v1/boards/j1/revocation-checklist/a1': () => {
+        ticked = true
+        items = [item({ done: true, outcome: 'REMOVED', confirmedAt: '2026-11-02T03:00:00Z' })]
+        return json({ jobId: 'j1', audience: 'CUSTOMER', items })
+      },
+    })
+    renderAt('/cong-viec/j1')
+
+    await user.click(await screen.findByRole('button', { name: 'Đã gỡ quyền' }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: 'Xác nhận' }))
+
+    expect(await screen.findByText('Đã ghi nhận.')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Thu hồi quyền của người đã rời nhóm' })).toBeNull()
+    expect(screen.queryByRole('dialog', { name: /Xác nhận đã thu hồi quyền/ })).toBeNull()
   })
 
   it('shows nothing with no open item', { timeout: 20_000 }, async () => {

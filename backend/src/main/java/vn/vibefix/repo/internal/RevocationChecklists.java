@@ -52,8 +52,9 @@ import vn.vibefix.timers.Deadlines;
  * <p>
  * A member who leaves, or whose lock counted as leaving, gets one more row per confirmed item beside those, identifier
  * given or not, since the platform cannot know what the Customer granted (FR-66, R15, Story 21.6), each with its own to-do
- * {@value #MEMBER_TODO} naming the item and the member. An erasure anonymizes such a row and closes its to-do, and it is
- * listed no more: nobody is left to name.
+ * {@value #MEMBER_TODO} naming the item and the member, and reminders after 1 and 7 days. The audit names such a row by
+ * its to-do's subject, since it shares its access ID with the row of the Job's end and every other leaver's. An erasure
+ * anonymizes such a row and closes its to-do, and it is listed no more: nobody is left to name.
  */
 @Component
 class RevocationChecklists {
@@ -148,6 +149,7 @@ class RevocationChecklists {
 			return;
 		}
 		Timestamp now = Timestamp.from(this.clock.instant());
+		boolean opened = false;
 		for (ExternalAccessItems.Item item : items) {
 			List<Identifier> theirs = item.identifiers().stream().filter(identifier -> login.equals(identifier.githubLogin())).toList();
 			int inserted = this.jdbc.sql("""
@@ -172,10 +174,18 @@ class RevocationChecklists {
 				.param("now", now)
 				.update();
 			if (inserted == 1) {
-				this.todos.open(new TodoRequest(MEMBER_TODO, job.customerId(), Audience.CUSTOMER,
-						memberSubject(item.id(), event.crewRowId()), Map.of("system", item.system(), "login", login), link(jobId), null,
-						jobId));
-				audit("repo.revocation_item_opened", jobId, item.id(), null);
+				opened = true;
+				UUID subject = memberSubject(item.id(), event.crewRowId());
+				this.todos.open(new TodoRequest(MEMBER_TODO, job.customerId(), Audience.CUSTOMER, subject,
+						Map.of("system", item.system(), "login", login), link(jobId), null, jobId));
+				audit("repo.revocation_item_opened", jobId, subject, null);
+			}
+		}
+		if (opened) {
+			// One generation per leaver: a second leaver's reminders, and J8's or J10's, are their own.
+			for (Duration after : REMINDERS) {
+				this.deadlines.schedule(new DeadlineRequest(RevocationReminder.KEY, jobId, after.toDays() + ":" + event.crewRowId(),
+						jobId, this.clock.instant().plus(after)));
 			}
 		}
 	}
@@ -244,13 +254,9 @@ class RevocationChecklists {
 				WHERE job_id = :job AND access_id = :access AND crew_row_id = :row AND status = 'PENDING'
 				""").param("outcome", outcome).param("now", Timestamp.from(this.clock.instant())).param("job", jobId)
 			.param("access", accessId).param("row", item.crewRowId()).update();
-		if (memberLogin == null) {
-			this.todos.close(TODO, customerId, accessId);
-		}
-		else {
-			this.todos.close(MEMBER_TODO, customerId, memberSubject(accessId, item.crewRowId()));
-		}
-		audit("repo.revocation_item_confirmed", jobId, accessId, customerId);
+		UUID subject = memberLogin == null ? accessId : memberSubject(accessId, item.crewRowId());
+		this.todos.close(memberLogin == null ? TODO : MEMBER_TODO, customerId, subject);
+		audit("repo.revocation_item_confirmed", jobId, subject, customerId);
 		return find(jobId, accessId, memberLogin).orElseThrow();
 	}
 
@@ -273,15 +279,18 @@ class RevocationChecklists {
 				}).list();
 	}
 
-	/** The reminder: still unticked items tell the Customer how many. */
+	/**
+	 * The reminder: still unticked items tell the Customer how many.
+	 * @param generation which reminder this is, once per Customer
+	 */
 	@Transactional
-	boolean remind(UUID jobId, String day) {
+	boolean remind(UUID jobId, String generation) {
 		long pending = this.items(jobId).stream().filter(item -> "PENDING".equals(item.status())).count();
 		BusyJob job = this.busy.job(jobId).orElse(null);
 		if (pending == 0 || job == null) {
 			return false;
 		}
-		this.notifications.send(new NotificationRequest(REMINDER, cause(jobId, "reminder:" + day),
+		this.notifications.send(new NotificationRequest(REMINDER, cause(jobId, "reminder:" + generation),
 				List.of(new Recipient(job.customerId(), Audience.CUSTOMER)),
 				Map.of("job", job.title(), "n", String.valueOf(pending)), link(jobId), jobId, null));
 		return true;
@@ -298,9 +307,9 @@ class RevocationChecklists {
 		return UUID.nameUUIDFromBytes((accessId + ":revocation:" + crewRowId).getBytes(StandardCharsets.UTF_8));
 	}
 
-	private void audit(String action, UUID jobId, UUID accessId, @Nullable UUID customerId) {
+	private void audit(String action, UUID jobId, UUID subject, @Nullable UUID customerId) {
 		AuditActor actor = customerId == null ? AuditActor.system() : AuditActor.user(customerId);
-		this.auditLog.record(AuditEntry.of(actor, action, AuditObject.of("repo.revocation_item", accessId)).forJob(jobId));
+		this.auditLog.record(AuditEntry.of(actor, action, AuditObject.of("repo.revocation_item", subject)).forJob(jobId));
 	}
 
 	private static String link(UUID jobId) {

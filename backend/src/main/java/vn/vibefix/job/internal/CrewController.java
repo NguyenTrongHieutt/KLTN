@@ -136,12 +136,11 @@ class CrewController {
 		}
 		Job job = this.crews.current(jobId);
 		boolean active = kind == Relationship.ACTIVE;
-		boolean leaves = job.state() == JobState.AGREEMENT || job.state() == JobState.STARTING || job.state() == JobState.ACTIVE;
 		UUID mentor = job.mentorId();
 		PersonFacts facts = mentor == null ? null : this.profiles.factsOf(List.of(mentor)).get(mentor);
 		return new CrewMeView(jobId, job.title(), job.state(),
 				this.products.find(job.productId()).map(ProductDirectory.ProductInfo::name).orElse(""),
-				facts == null ? "" : facts.displayName(), !active, active && leaves, job.code(),
+				facts == null ? "" : facts.displayName(), !active, active && CrewService.LEAVES.contains(job.state()), job.code(),
 				active ? this.crews.partyMilestones(jobId, account) : List.of());
 	}
 

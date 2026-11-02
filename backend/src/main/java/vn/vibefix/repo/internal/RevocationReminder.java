@@ -9,7 +9,7 @@ import vn.vibefix.timers.DeadlineOutcome;
 import vn.vibefix.timers.DueDeadline;
 
 /**
- * {@value #KEY} (FR-66, AD-7): 1 and 7 days after the Revocation Checklist opened, a Customer with
+ * {@value #KEY} (FR-66, AD-7): 1 and 7 days after the Revocation Checklist opened, or after a member left, a Customer with
  * unticked items is reminded ({@value RevocationChecklists#REMINDER}). Not pausable: a freeze changes
  * nothing about access the Customer gave. With every item ticked it is {@code OBSOLETE}. Collaborators are
  * looked up on use.

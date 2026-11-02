@@ -20,6 +20,8 @@ import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationEventPublisher;
@@ -37,6 +39,8 @@ import vn.vibefix.identity.internal.AdministratorTestSupport;
 import vn.vibefix.identity.internal.AdministratorTestSupport.Administrator;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
+import vn.vibefix.job.CrewMemberRemoved;
+import vn.vibefix.job.JobTransitioned;
 import vn.vibefix.notification.Audience;
 import vn.vibefix.notification.TodoRequest;
 import vn.vibefix.notification.Todos;
@@ -280,6 +284,58 @@ class CrewLockIT extends IntegrationTest {
 		assertThat(notices("job.party_locked", hung)).isZero();
 		this.mvc.perform(get("/api/v1/boards/" + job + "/progress").with(as(hung, Role.MENTOR)))
 			.andExpect(jsonPath("$.leavers[0].name").value("Nguyễn Văn Minh"));
+
+		// Both of repo's listeners ran on this one grant: it was revoked once, and a replay leaves a revoked grant alone.
+		String revoking = "SELECT count(*) FROM audit.audit_entry WHERE action = 'repo.grant_revoking' AND job_id = '" + job + "'";
+		assertThat(count(revoking)).isOne();
+		this.jdbc.sql("UPDATE repo.job_grant SET status = 'REVOKED', revoked_at = now() WHERE id = :id").param("id", grant).update();
+		UUID row = this.jdbc.sql("SELECT id FROM job.crew_row WHERE member_account_id = :minh").param("minh", minh)
+			.query(UUID.class).single();
+		this.transactions.executeWithoutResult(status -> {
+			this.events.publishEvent(new CrewMemberRemoved(UUID.randomUUID(), job, row, minh));
+			this.events.publishEvent(new AccountLocked(UUID.randomUUID(), minh, this.clock.instant()));
+		});
+		awaitListeners();
+		assertThat(text("SELECT status FROM repo.job_grant WHERE id = '" + grant + "'")).isEqualTo("REVOKED");
+		assertThat(count(revoking)).isOne();
+	}
+
+	/**
+	 * Story 21.6: a lock in Closing finds the data-deletion duty J8 opened and told of, open or complete: it opens nothing
+	 * and tells nothing a second time.
+	 */
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	void aLockInClosingNeitherOpensTheDutyAgainNorTellsOfItTwice(boolean complete) throws Exception {
+		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		UUID hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT), "React");
+		UUID product = WorkTestSupport.product(this.jdbc, lan, "Sổ đặt bàn Quán Mây");
+		UUID job = WorkTestSupport.activeJob(this.jdbc, product, lan, hung, List.of(HELD), List.of(CRITERIA), this.clock.instant());
+		UUID minh = WorkTestSupport.student(this.jdbc, "Nguyễn Văn Minh");
+		WorkTestSupport.crewRow(this.jdbc, job, minh, "ACTIVE", this.clock.instant().minus(Duration.ofMinutes(5)));
+		this.jdbc.sql("UPDATE job.job SET state = 'CLOSING', closing_at = now() WHERE id = :id").param("id", job).update();
+		this.transactions.executeWithoutResult(status -> this.events.publishEvent(new JobTransitioned(UUID.randomUUID(),
+				UUID.randomUUID(), job, "J8", "USER", "ACTIVE", "CLOSING", 9, 1, Map.of())));
+		awaitListeners();
+		assertThat(notices("repo.data_deletion_confirmation_pending", minh)).isOne();
+		if (complete) {
+			for (String item : List.of("NON_CODE_DATA", "PREVIEWS")) {
+				this.mvc.perform(post("/api/v1/boards/" + job + "/data-deletion/" + item).with(as(minh, Role.STUDENT)).with(csrf()))
+					.andExpect(status().isOk());
+			}
+		}
+
+		lock(ha, minh).andExpect(status().isOk());
+		awaitListeners();
+
+		assertThat(text("SELECT status || ' ' || released_reason FROM job.crew_row WHERE member_account_id = '" + minh + "'"))
+			.isEqualTo("RELEASED LEFT");
+		assertThat(notices("repo.data_deletion_confirmation_pending", minh)).isOne();
+		String duties = "SELECT count(*) FROM notification.todo WHERE todo_key = 'repo.confirm_data_deletion' AND account_id = '"
+				+ minh + "'";
+		assertThat(count(duties)).as("no new to-do").isOne();
+		assertThat(count(duties + " AND closed_at IS NULL")).isEqualTo(complete ? 0 : 1);
 	}
 
 	/**

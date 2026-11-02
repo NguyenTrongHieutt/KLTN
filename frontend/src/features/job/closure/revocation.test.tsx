@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { Toaster } from '@/components/Toaster'
 import { fakeBackend, json, signedInUser } from '@/test/fakeBackend'
-import { RevocationChecklist } from './RevocationChecklist'
+import { LeaverRevocations, RevocationChecklist } from './RevocationChecklist'
 
 const supabase = {
   accessId: 'a1',
@@ -57,6 +57,34 @@ describe('The Revocation Checklist (FR-66, UX-DR51, UX-DR55)', () => {
 
     expect(await screen.findByText('Đã gỡ quyền 10:00 23/10')).toBeInTheDocument()
     expect(sent).toEqual([{ outcome: 'REMOVED' }])
+  })
+
+  it('keeps an open leaver row under its own heading on Closing, beside the end row', { timeout: 15_000 }, async () => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/boards/j1/revocation-checklist': () =>
+        json({
+          jobId: 'j1',
+          audience: 'CUSTOMER',
+          items: [supabase, { ...supabase, identifiers: [], memberLogin: 'tung-dev' }],
+        }),
+    })
+    render(
+      <QueryClientProvider client={createQueryClient()}>
+        <Toaster>
+          <LeaverRevocations jobId="j1" />
+          <RevocationChecklist jobId="j1" />
+        </Toaster>
+      </QueryClientProvider>,
+    )
+
+    const leaversHeading = await screen.findByRole('heading', { name: 'Thu hồi quyền của người đã rời nhóm' })
+    const leavers = leaversHeading.closest('section')!
+    expect(within(leavers).getByText(/Supabase của @tung-dev/)).toBeInTheDocument()
+    expect(within(leavers).queryByText('hung@supabase.test')).toBeNull()
+    expect(screen.getAllByText(/@tung-dev/)).toHaveLength(1)
+    const end = screen.getByText('hung@supabase.test').closest('section')!
+    expect(end).not.toBe(leavers)
+    expect(within(end).queryByText(/@tung-dev/)).toBeNull()
   })
 
   it('shows the Mentor each item done or pending, without what to remove', async () => {

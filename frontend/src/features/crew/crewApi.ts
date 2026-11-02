@@ -46,13 +46,13 @@ export function useLeaveJob(jobId: string) {
           body: { reason: reason.trim() === '' ? undefined : reason.trim() },
         }),
       ),
-    onSuccess: () =>
-      Promise.all([
-        queryClient.invalidateQueries({ queryKey: JOBS_QUERY_KEY }),
-        queryClient.invalidateQueries({ queryKey: ['progress', jobId] }),
-        queryClient.invalidateQueries({ queryKey: ['board', jobId] }),
-        queryClient.invalidateQueries({ queryKey: ['data-deletion', jobId] }),
-        queryClient.invalidateQueries({ queryKey: NOTIFICATION_QUERY_KEY }),
-      ]),
+    // Not awaited: the reads unmount the caller (`canLeave` false), and TanStack then skips `mutate`'s callbacks.
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: JOBS_QUERY_KEY })
+      void queryClient.invalidateQueries({ queryKey: ['progress', jobId] })
+      void queryClient.invalidateQueries({ queryKey: ['board', jobId] })
+      void queryClient.invalidateQueries({ queryKey: ['data-deletion', jobId] })
+      void queryClient.invalidateQueries({ queryKey: NOTIFICATION_QUERY_KEY })
+    },
   })
 }

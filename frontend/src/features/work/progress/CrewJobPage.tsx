@@ -44,6 +44,8 @@ export function CrewJobPage({ jobId }: { jobId: string }) {
 function Content({ me }: { me: CrewMe }) {
   const jobId = me.jobId
   const board = hasBoard(me.state)
+  // `job` keeps no record of J7: a Job cancelled before it has no Board, and these links then answer not-found.
+  const boardLinks = board || me.state === 'CANCELLED'
   const tab = buttonVariants({ variant: 'secondary', size: 'compact' })
   return (
     <>
@@ -56,7 +58,7 @@ function Content({ me }: { me: CrewMe }) {
         <JobRoleLine jobId={jobId} />
         <div className="flex flex-wrap items-center justify-between gap-3">
           <nav aria-label={t('screen.job.detail.tabs')} className="flex flex-wrap gap-2">
-            {board && (
+            {boardLinks && (
               <>
                 <Link to={`/cong-viec/${jobId}/bang`} className={tab}>
                   {t('screen.board.tab')}

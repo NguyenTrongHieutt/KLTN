@@ -4,3 +4,4 @@ Xin chào,
 
 Tài khoản GitHub @{login} không còn trong nhóm thực hiện công việc {job}.
 Nếu bạn đã cho tài khoản này vào một hệ thống bên ngoài vibefix, hãy gỡ quyền đó.
+Mỗi hệ thống trong thỏa thuận có một việc "Thu hồi quyền" trên trang của công việc.

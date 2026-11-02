@@ -253,8 +253,8 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 	}
 
 	/**
-	 * NFR-10: the Job Post screenshots, the External Access identifiers, and the Agreement comments go; the
-	 * Job, its Milestones, its Agreement versions, the Crew Terms, and the Milestone Splits stay, as {@code payment} and
+	 * NFR-10: the Job Post screenshots, the External Access identifiers, the Agreement comments, and the reasons members
+	 * gave when leaving go; the Job, its Milestones, its Agreement versions, the Crew Terms, and the Milestone Splits stay, as {@code payment} and
 	 * {@code reputation} refer to them.
 	 */
 	@Override
@@ -267,6 +267,9 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 				.param("id", productId)
 				.update();
 		}
+		this.jdbc.sql("UPDATE job.crew_row SET left_note = NULL WHERE job_id IN (SELECT id FROM job.job WHERE product_id = :id)")
+			.param("id", productId)
+			.update();
 	}
 
 	/**
