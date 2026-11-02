@@ -48,6 +48,9 @@ import vn.vibefix.support.TestPeople;
  * {@link MatrixCaller#CREW_FORMER}, released {@code LEFT} by a lock and unlocked since; {@link MatrixCaller#LOCKED}
  * is a member the lock released {@code LEFT} who is still locked. Both windows ended before the Job's later
  * content was written;</li>
+ * <li>{@link MatrixCaller#CREW_ACTIVE_PARTY} and {@link MatrixCaller#CREW_FORMER_PARTY}, an {@code ACTIVE} member and
+ * one released {@code LEFT} when the windows ended, the Mentor's only parties in the Job's two splits (Story 22.2);
+ * the other members are no party of either, so being on the Crew opens no split;</li>
  * <li>{@link MatrixCaller#CROSS_ROLE}, an {@code ACTIVE} member who is the Customer of a second Active Job, whose
  * Crew member (shown name, email, LinkedIn link), Crew Chat, Work Item note and Page are the {@code CROSS_*}
  * canaries;</li>
@@ -95,6 +98,11 @@ import vn.vibefix.support.TestPeople;
  * its confirmed Agreement and its Crew Terms. The public profiles' {@code {username}} is the Mentor's. A row's
  * {@code job=crew} makes {@code {jobId}} this Job ({@code {crewJobId}}), and {@code teamIssue=escalated} makes
  * {@code {teamIssueId}} the escalated issue ({@code {escalatedTeamIssueId}}).
+ * <p>
+ * Two more Milestones wait in their pools (Story 22.1): the third's split waits for the Mentor's draft ({@code SPLIT_OPEN}),
+ * and the fourth's ({@code {splitId}}, with the parties {@code {mentorPartyId}}, {@code {activePartyId}} and
+ * {@code {formerPartyId}}) is out for confirmation at version 1, the active party's line being {@code SPLIT_PART}. The Job
+ * being frozen proves the split's commands ignore a freeze.
  */
 final class CrewJobWorld {
 
@@ -112,6 +120,9 @@ final class CrewJobWorld {
 
 	/** The third Milestone's price, accepted and waiting in its pool for a split's draft (Story 22.1). */
 	private static final long POOLED_PRICE = 1_250_000;
+
+	/** The fourth Milestone's price, accepted, its split out for confirmation: {@code SPLIT_PART} is 40 % of it. */
+	private static final long PROPOSED_PRICE = 3_086_420;
 
 	/** When the first Milestone was Funded, a day after the Crew signed. */
 	private static final Instant FUNDED = SIGNED.plus(Duration.ofDays(1));
@@ -144,6 +155,10 @@ final class CrewJobWorld {
 	private UUID former;
 
 	private UUID crossRole;
+
+	private UUID activeParty;
+
+	private UUID formerParty;
 
 	private UUID disputeAdmin;
 
@@ -219,6 +234,11 @@ final class CrewJobWorld {
 			.param("note", value("CREW_LEFT_NOTE"))
 			.param("row", JobContent.crewRow(this.jdbc, job, leaver, "LEFT", WINDOW_END))
 			.update();
+		// The split's parties (Story 22.2), no canary among them: what they read of each other is theirs to read.
+		this.activeParty = JobContent.member(this.jdbc, "Thành viên trong phân chia");
+		JobContent.crewRow(this.jdbc, job, this.activeParty, "ACTIVE", null);
+		this.formerParty = JobContent.member(this.jdbc, "Thành viên đã rời trong phân chia");
+		JobContent.crewRow(this.jdbc, job, this.formerParty, "LEFT", WINDOW_END);
 		this.crossRole = JobContent.member(this.jdbc, "Sinh viên hai vai trò");
 		UUID crossRow = JobContent.crewRow(this.jdbc, job, this.crossRole, "ACTIVE", null);
 		UUID canaryMember = JobContent.canaryMember(this.jdbc, value("CREW_NAME"), value("CREW_EMAIL"),
@@ -309,7 +329,8 @@ final class CrewJobWorld {
 		JobContent.fund(this.jdbc, job, product, released, owner, RELEASED_BASE, FUNDED);
 		UUID heldOrder = JobContent.fund(this.jdbc, job, product, milestone, owner, HELD_PRICE, ACCEPTED);
 		release(job, product, released, canaryMember, escalating);
-		pooledMilestone(job, product, owner, canaryMember);
+		pooledMilestone(job, product, owner);
+		proposedMilestone(world, job, product, owner);
 		world.put("milestoneId", milestone);
 		world.put("paymentOrderId", heldOrder);
 		world.put("crewRowId", activeRow);
@@ -497,6 +518,8 @@ final class CrewJobWorld {
 			case CREW_ACTIVE -> signedIn(this.active, Role.STUDENT);
 			case CREW_FORMER -> signedIn(this.former, Role.STUDENT);
 			case LOCKED -> signedIn(this.locked, Role.STUDENT);
+			case CREW_ACTIVE_PARTY -> signedIn(this.activeParty, Role.STUDENT);
+			case CREW_FORMER_PARTY -> signedIn(this.formerParty, Role.STUDENT);
 			case CROSS_ROLE -> signedIn(this.crossRole, Role.STUDENT);
 			case ADMIN_TEAM_ISSUE_GRANT -> signedIn(this.teamIssueAdmin, Role.ADMINISTRATOR);
 			case ADMIN_DISPUTE_GRANT -> signedIn(this.disputeAdmin, Role.ADMINISTRATOR);
@@ -542,7 +565,7 @@ final class CrewJobWorld {
 	 * A third Milestone, accepted, its money in the pool and its split waiting for the Mentor's draft (Story 22.1). The
 	 * Customer's views show its released total and nothing of the rest: the {@code SPLIT_*} canaries.
 	 */
-	private void pooledMilestone(UUID job, UUID product, UUID owner, UUID canaryMember) {
+	private void pooledMilestone(UUID job, UUID product, UUID owner) {
 		UUID pooled = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, due_on, revision_rounds, created_at, state,
@@ -555,7 +578,35 @@ final class CrewJobWorld {
 			.param("accepted", Timestamp.from(ACCEPTED)).update();
 		JobContent.fund(this.jdbc, job, product, pooled, owner, POOLED_PRICE, FUNDED);
 		JobContent.pool(this.jdbc, job, product, pooled, POOLED_PRICE, ACCEPTED);
-		JobContent.openSplit(this.jdbc, job, product, pooled, 3, this.mentor, canaryMember, ACCEPTED);
+		JobContent.openSplit(this.jdbc, job, product, pooled, 3, this.mentor, this.activeParty, this.formerParty, ACCEPTED);
+	}
+
+	/**
+	 * A fourth Milestone, accepted, its split out for confirmation at 30/40/30 (Story 22.2), due after the fixed clock. It
+	 * is the {@code {splitId}} of JOB-10's commands.
+	 */
+	private void proposedMilestone(MatrixWorld world, UUID job, UUID product, UUID owner) {
+		UUID milestone = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, due_on, revision_rounds, created_at, state,
+				    funded_at, crew_terms_version_no, submitted_at, handover_id, accepted_at)
+				VALUES (:id, :job, 3, 'Giao diện đặt bàn', :price, DATE '2026-12-10', 2, :signed, 'ACCEPTED', :funded, 1,
+				    :submitted, :handover, :accepted)
+				""").param("id", milestone).param("job", job).param("price", PROPOSED_PRICE)
+			.param("signed", Timestamp.from(SIGNED)).param("funded", Timestamp.from(FUNDED))
+			.param("submitted", Timestamp.from(ACCEPTED.minus(Duration.ofDays(1)))).param("handover", UUID.randomUUID())
+			.param("accepted", Timestamp.from(ACCEPTED)).update();
+		JobContent.fund(this.jdbc, job, product, milestone, owner, PROPOSED_PRICE, FUNDED);
+		JobContent.pool(this.jdbc, job, product, milestone, PROPOSED_PRICE, ACCEPTED);
+		if (PROPOSED_PRICE * 40 / 100 != Long.parseLong(value("SPLIT_PART"))) {
+			throw new IllegalStateException("The active party's line is the SPLIT_PART canary");
+		}
+		UUID[] split = JobContent.proposedSplit(this.jdbc, job, product, milestone, 4, this.mentor, this.activeParty,
+				this.formerParty, 30, 40, 30, ACCEPTED, MutableClock.DEFAULT_INSTANT.plus(Duration.ofDays(3)));
+		world.put("splitId", split[0]);
+		world.put("mentorPartyId", split[1]);
+		world.put("activePartyId", split[2]);
+		world.put("formerPartyId", split[3]);
 	}
 
 	/**

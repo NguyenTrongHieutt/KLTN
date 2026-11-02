@@ -51,14 +51,15 @@ class MatrixFilesTest {
 	 * endpoint naming {@code {jobId}} carry {@code job=crew} (review iteration 1, B1, VO1, V1).
 	 */
 	static final Set<MatrixCaller> ON_THE_CREW_JOB = EnumSet.of(MatrixCaller.MENTOR, MatrixCaller.CREW_ASSIGNED,
-			MatrixCaller.CREW_ACTIVE, MatrixCaller.CREW_FORMER, MatrixCaller.CROSS_ROLE, MatrixCaller.LOCKED,
+			MatrixCaller.CREW_ACTIVE, MatrixCaller.CREW_FORMER, MatrixCaller.CREW_ACTIVE_PARTY, MatrixCaller.CREW_FORMER_PARTY,
+			MatrixCaller.CROSS_ROLE, MatrixCaller.LOCKED,
 			MatrixCaller.ADMIN_DISPUTE_GRANT, MatrixCaller.ADMIN_TEAM_ISSUE_GRANT, MatrixCaller.ADMIN_ABUSE_REPORT_GRANT);
 
 	/**
 	 * The crew Job's own objects (review iteration 2, B2): an endpoint naming one beside {@code {jobId}} runs every row on
 	 * the crew Job ({@code job=crew}), since the Draft holds none of them.
 	 */
-	static final Set<String> CREW_JOB_OBJECTS = Set.of("milestoneId", "paymentOrderId", "crewRowId", "accessId");
+	static final Set<String> CREW_JOB_OBJECTS = Set.of("milestoneId", "paymentOrderId", "crewRowId", "accessId", "splitId");
 
 	/**
 	 * JOB-9's endpoints on a {@code {jobId}} (Story 21.4): the Mentor, the Customer and the Crew applicant run on the
@@ -248,7 +249,10 @@ class MatrixFilesTest {
 			"WORK_ITEM_NOTE", "WORK_ITEM_TITLE", "ATTACHMENT", "CREW_CHAT", "CREW_CHAT_UNREPORTED", "CREW_PAGE",
 			"CREW_PAGE_TITLE", "EARLY_PAGE", "TEAM_ISSUE_ID", "STUDENT_HIDDEN_NAME", "CROSS_CREW_NAME", "CROSS_CREW_EMAIL", "CROSS_LINKEDIN", "CROSS_CREW_CHAT", "CROSS_WORK_ITEM_NOTE",
 			"CROSS_PAGE", "CREW_APPLICATION_NOTE", "CREW_APPLICATION_PROOF_CAPTION", "CREW_APPLICATION_PROOF_LINK",
-			"SPLIT_POOL_ENTRY", "SPLIT_POOL_REVERSAL", "SPLIT_OPEN", "CREW_LEFT_NOTE");
+			"SPLIT_POOL_ENTRY", "SPLIT_POOL_REVERSAL", "SPLIT_OPEN", "SPLIT_PART", "CREW_LEFT_NOTE");
+
+	/** A split's canaries (Story 22.2): its Mentor's and its parties' alone, whatever Crew state they are in. */
+	static final Set<String> SPLIT_CANARIES = Set.of("SPLIT_OPEN", "SPLIT_PART");
 
 	/** A Crew Application's canaries (Story 21.4): the applicant's and the Job's Mentor's alone. */
 	static final Set<String> CREW_APPLICATION_CANARIES = Set.of("CREW_APPLICATION_NOTE", "CREW_APPLICATION_PROOF_CAPTION",
@@ -340,9 +344,10 @@ class MatrixFilesTest {
 			.allSatisfy(row -> assertThat(row.caller()).as("AUTHOR is the harness's own").isNotEqualTo(MatrixCaller.AUTHOR));
 		// The spec's "about 2,800": at most 2,850 since review iteration 4 made room for the file bindings, 2,900
 		// since Story 20.6 added the one shell's role read and Job list, 2,950 since Story 21.2 added the bid's proof,
-		// 3,000 since Story 21.3 scanned PUB-4 for a Crew member as well as for the Mentor, and 3,150 since Story 21.4
-		// added the recruitment, the Crew Applications and their proof files.
-		assertThat(MatrixRow.loadMatrix()).as("3,150 rows or fewer").hasSizeLessThanOrEqualTo(3_150);
+		// 3,000 since Story 21.3 scanned PUB-4 for a Crew member as well as for the Mentor, 3,150 since Story 21.4
+		// added the recruitment, the Crew Applications and their proof files, and 3,200 since Story 22.2 added JOB-10's
+		// endpoints with the split's party callers.
+		assertThat(MatrixRow.loadMatrix()).as("3,200 rows or fewer").hasSizeLessThanOrEqualTo(3_200);
 	}
 
 	@Test
@@ -728,7 +733,7 @@ class MatrixFilesTest {
 					"CROSS_CREW_CHAT", "CROSS_WORK_ITEM_NOTE", "CROSS_PAGE", "WORK_ITEM_TITLE", "CREW_PAGE_TITLE",
 					"CUSTOMER_PAGE", "EARLY_PAGE", "BID_PROOF_CAPTION", "BID_PROOF_LINK", "CREW_APPLICATION_NOTE",
 					"CREW_APPLICATION_PROOF_CAPTION", "CREW_APPLICATION_PROOF_LINK", "SPLIT_POOL_ENTRY", "SPLIT_POOL_REVERSAL",
-					"SPLIT_OPEN", "CREW_LEFT_NOTE");
+					"SPLIT_OPEN", "SPLIT_PART", "CREW_LEFT_NOTE");
 		// The canaries of Job content are written after the former members' windows ended, so a Crew state other than
 		// ACTIVE, which reads at most up to its window_end (AD-41), reads none of them; a bid grants nothing on the Job.
 		// EARLY_PAGE alone was written inside the window, so the former member reads it (review iteration 4). The bid's
@@ -759,6 +764,13 @@ class MatrixFilesTest {
 			assertThat(canaries.get(name).visibleTo()).as(name)
 				.containsExactlyInAnyOrder(MatrixCaller.CREW_APPLICANT, MatrixCaller.MENTOR);
 		}
+		// A split's lines go to its parties only, a former member's included; the entry types go to nobody (AD-20, X11).
+		for (String name : SPLIT_CANARIES) {
+			assertThat(canaries.get(name).visibleTo()).as(name)
+				.containsExactlyInAnyOrder(MatrixCaller.MENTOR, MatrixCaller.CREW_ACTIVE_PARTY, MatrixCaller.CREW_FORMER_PARTY);
+		}
+		assertThat(canaries.get("SPLIT_POOL_ENTRY").visibleTo()).isEmpty();
+		assertThat(canaries.get("SPLIT_POOL_REVERSAL").visibleTo()).isEmpty();
 	}
 
 	@Test
@@ -785,7 +797,7 @@ class MatrixFilesTest {
 				"CROSS_CREW_NAME", "CROSS_CREW_EMAIL", "CROSS_LINKEDIN", "CROSS_CREW_CHAT", "CROSS_WORK_ITEM_NOTE",
 				"CROSS_PAGE", "BID_PROOF_CAPTION", "BID_PROOF_LINK", "CREW_APPLICATION_NOTE",
 				"CREW_APPLICATION_PROOF_CAPTION", "CREW_APPLICATION_PROOF_LINK", "SPLIT_POOL_ENTRY", "SPLIT_POOL_REVERSAL",
-				"SPLIT_OPEN", "CREW_LEFT_NOTE");
+				"SPLIT_OPEN", "SPLIT_PART", "CREW_LEFT_NOTE");
 		// The Pages and the Story were written after the former member's window ended; EARLY_PAGE inside it.
 		assertThat(names(canaries.hiddenFrom(MatrixCaller.CREW_FORMER))).contains("CREW_PAGE", "CREW_PAGE_TITLE",
 				"CUSTOMER_PAGE", "WORK_ITEM_TITLE", "CREW_NAME", "CREW_LINKEDIN")
@@ -809,7 +821,8 @@ class MatrixFilesTest {
 				"TEAM_ISSUE_ID", "NOTIFICATION_PARAM", "TODO_PARAM", "SCHOOL_EMAIL", "PERSON_SIGNAL", "CROSS_CREW_CHAT",
 				"CROSS_WORK_ITEM_NOTE", "CROSS_PAGE", "WORK_ITEM_TITLE", "CREW_PAGE_TITLE", "CUSTOMER_PAGE", "EARLY_PAGE",
 				"BID_PROOF_CAPTION", "BID_PROOF_LINK", "CREW_APPLICATION_NOTE", "CREW_APPLICATION_PROOF_CAPTION",
-				"CREW_APPLICATION_PROOF_LINK", "SPLIT_POOL_ENTRY", "SPLIT_POOL_REVERSAL", "SPLIT_OPEN", "CREW_LEFT_NOTE");
+				"CREW_APPLICATION_PROOF_LINK", "SPLIT_POOL_ENTRY", "SPLIT_POOL_REVERSAL", "SPLIT_OPEN", "SPLIT_PART",
+				"CREW_LEFT_NOTE");
 		// No Administrator reads a bid's proof (Story 21.2) or a Crew Application (Story 21.4): no read grant covers them.
 		for (MatrixCaller grant : GRANT_SCOPES.keySet()) {
 			assertThat(names(canaries.hiddenFrom(grant))).as(grant.name()).contains("BID_PROOF_CAPTION", "BID_PROOF_LINK")
@@ -869,7 +882,7 @@ class MatrixFilesTest {
 	void theCallersAreAd20s() {
 		assertThat(Arrays.stream(MatrixCaller.values()).map(Enum::name)).containsExactly("ANONYMOUS", "USER_UNVERIFIED",
 				"USER", "LOCKED", "CUSTOMER", "MENTOR", "BIDDER", "CREW_APPLICANT", "CREW_ASSIGNED", "CREW_ACTIVE", "CREW_FORMER",
-				"CROSS_ROLE", "SUBJECT", "ADMINISTRATOR", "ADMIN_DISPUTE_GRANT", "ADMIN_TEAM_ISSUE_GRANT",
+				"CREW_ACTIVE_PARTY", "CREW_FORMER_PARTY", "CROSS_ROLE", "SUBJECT", "ADMINISTRATOR", "ADMIN_DISPUTE_GRANT", "ADMIN_TEAM_ISSUE_GRANT",
 				"ADMIN_ABUSE_REPORT_GRANT", "AUTHOR");
 	}
 

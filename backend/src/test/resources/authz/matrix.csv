@@ -34,7 +34,8 @@
 # LOCKED is a locked former member (a lock counts as leaving, and a locked account's session ends), so
 # each of its rows answers like ANONYMOUS. CROSS_ROLE is an ACTIVE member of the crew Job and the
 # Customer of a second Job. Every row also runs the canary scan (authz/canaries.csv) for its caller, an amount
-# canary in its VND form too.
+# canary in its VND form too. CREW_ACTIVE_PARTY and CREW_FORMER_PARTY are members who are parties of the crew Job's
+# splits (Story 22.2): they run only the endpoints of a split, and {splitId} is the one out for confirmation.
 endpoint,caller,subject_state,body,expect,check
 
 # Which environment this is (shared): public.
@@ -3353,3 +3354,68 @@ GET /api/v1/jobs/{jobId}/crew/me,CREW_ACTIVE,job=crew,,200
 GET /api/v1/jobs/{jobId}/crew/me,CREW_FORMER,job=crew,,200
 GET /api/v1/jobs/{jobId}/crew/me,CROSS_ROLE,job=crew,,200
 GET /api/v1/jobs/{jobId}/crew/me,ADMINISTRATOR,job=crew,,404 NOT_FOUND
+
+# JOB-10's cards (Story 22.2, AD-20, X11): from the split's party rows, the Mentor and the parties alone, a former member included; the Customer always finds nothing.
+GET /api/v1/jobs/{jobId}/splits,ANONYMOUS,,,401
+GET /api/v1/jobs/{jobId}/splits,USER_UNVERIFIED,job=crew,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/splits,USER,job=crew,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/splits,LOCKED,job=crew,,401
+GET /api/v1/jobs/{jobId}/splits,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/splits,CUSTOMER,job=crew,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/splits,MENTOR,job=crew,,200
+GET /api/v1/jobs/{jobId}/splits,CREW_ACTIVE_PARTY,job=crew,,200
+GET /api/v1/jobs/{jobId}/splits,CREW_FORMER_PARTY,job=crew,,200
+GET /api/v1/jobs/{jobId}/splits,BIDDER,job=crew,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/splits,CREW_ASSIGNED,job=crew,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/splits,CREW_ACTIVE,job=crew,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/splits,CREW_FORMER,job=crew,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/splits,CROSS_ROLE,job=crew,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/splits,ADMINISTRATOR,job=crew,,404 NOT_FOUND
+
+# A split's next version (Story 22.2): its Mentor alone; another party is told so, and anyone else finds nothing. The crew Job is frozen, which changes nothing.
+POST /api/v1/splits/{splitId}/versions,ANONYMOUS,,split-version.json,401
+POST /api/v1/splits/{splitId}/versions,USER_UNVERIFIED,,split-version.json,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/versions,USER,,split-version.json,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/versions,LOCKED,,split-version.json,401
+POST /api/v1/splits/{splitId}/versions,CUSTOMER,,split-version.json,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/versions,MENTOR,,split-version.json,200
+POST /api/v1/splits/{splitId}/versions,CREW_ACTIVE_PARTY,,split-version.json,403 FORBIDDEN MENTOR_ONLY
+POST /api/v1/splits/{splitId}/versions,CREW_FORMER_PARTY,,split-version.json,403 FORBIDDEN MENTOR_ONLY
+POST /api/v1/splits/{splitId}/versions,BIDDER,,split-version.json,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/versions,CREW_ASSIGNED,,split-version.json,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/versions,CREW_ACTIVE,,split-version.json,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/versions,CREW_FORMER,,split-version.json,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/versions,CROSS_ROLE,,split-version.json,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/versions,ADMINISTRATOR,,split-version.json,404 NOT_FOUND
+
+# A party confirms the version it was shown (Story 22.2), a former member too; the Mentor never does.
+POST /api/v1/splits/{splitId}/confirmations,ANONYMOUS,,split-confirmation.json,401
+POST /api/v1/splits/{splitId}/confirmations,USER_UNVERIFIED,,split-confirmation.json,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/confirmations,USER,,split-confirmation.json,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/confirmations,LOCKED,,split-confirmation.json,401
+POST /api/v1/splits/{splitId}/confirmations,CUSTOMER,,split-confirmation.json,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/confirmations,MENTOR,,split-confirmation.json,403 FORBIDDEN PARTY_ONLY
+POST /api/v1/splits/{splitId}/confirmations,CREW_ACTIVE_PARTY,,split-confirmation.json,200
+POST /api/v1/splits/{splitId}/confirmations,CREW_FORMER_PARTY,,split-confirmation.json,200
+POST /api/v1/splits/{splitId}/confirmations,BIDDER,,split-confirmation.json,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/confirmations,CREW_ASSIGNED,,split-confirmation.json,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/confirmations,CREW_ACTIVE,,split-confirmation.json,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/confirmations,CREW_FORMER,,split-confirmation.json,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/confirmations,CROSS_ROLE,,split-confirmation.json,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/confirmations,ADMINISTRATOR,,split-confirmation.json,404 NOT_FOUND
+
+# The server's VND preview through CrewSplit (Story 22.2, AD-33): the split's Mentor alone.
+POST /api/v1/splits/{splitId}/preview,ANONYMOUS,,split-preview.json,401
+POST /api/v1/splits/{splitId}/preview,USER_UNVERIFIED,,split-preview.json,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/preview,USER,,split-preview.json,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/preview,LOCKED,,split-preview.json,401
+POST /api/v1/splits/{splitId}/preview,CUSTOMER,,split-preview.json,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/preview,MENTOR,,split-preview.json,200
+POST /api/v1/splits/{splitId}/preview,CREW_ACTIVE_PARTY,,split-preview.json,403 FORBIDDEN MENTOR_ONLY
+POST /api/v1/splits/{splitId}/preview,CREW_FORMER_PARTY,,split-preview.json,403 FORBIDDEN MENTOR_ONLY
+POST /api/v1/splits/{splitId}/preview,BIDDER,,split-preview.json,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/preview,CREW_ASSIGNED,,split-preview.json,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/preview,CREW_ACTIVE,,split-preview.json,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/preview,CREW_FORMER,,split-preview.json,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/preview,CROSS_ROLE,,split-preview.json,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/preview,ADMINISTRATOR,,split-preview.json,404 NOT_FOUND

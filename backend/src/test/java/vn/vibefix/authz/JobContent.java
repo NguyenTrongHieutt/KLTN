@@ -5,6 +5,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -496,9 +497,64 @@ public final class JobContent {
 			.update();
 	}
 
-	/** The Milestone's split with the Mentor and one member as a release fixes them, waiting for the draft (AD-29). */
-	public static void openSplit(JdbcClient jdbc, UUID job, UUID product, UUID milestone, int number, UUID mentor, UUID member,
-			Instant released) {
+	/** A party's row and whether they count as still in the Crew at the release. */
+	private static UUID party(JdbcClient jdbc, UUID split, UUID account, boolean mentor, boolean active, int position) {
+		UUID id = UUID.randomUUID();
+		jdbc.sql("""
+				INSERT INTO job.milestone_split_party (id, split_id, party_account_id, is_mentor, whole_interval, active_at_release,
+				    position)
+				VALUES (:id, :split, :account, :mentor, :active, :active, :position)
+				""")
+			.param("id", id)
+			.param("split", split)
+			.param("account", account)
+			.param("mentor", mentor)
+			.param("active", active)
+			.param("position", position)
+			.update();
+		return id;
+	}
+
+	/**
+	 * The Milestone's split with the Mentor, an active member and a former one as a release fixes them, out for
+	 * confirmation at version 1 (AD-29): the Mentor's percent and the members', with the confirmation due at {@code due}.
+	 * @return the split and its party rows: the Mentor's, the active member's, the former member's
+	 */
+	public static UUID[] proposedSplit(JdbcClient jdbc, UUID job, UUID product, UUID milestone, int number, UUID mentor,
+			UUID active, UUID former, int mentorPercent, int activePercent, int formerPercent, Instant released, Instant due) {
+		UUID split = UUID.randomUUID();
+		jdbc.sql("""
+				INSERT INTO job.milestone_split (id, job_id, product_id, milestone_id, milestone_number, mentor_account_id, status,
+				    cap_applies, released_at, draft_due_at, created_at, confirmation_round, confirmation_due_at)
+				VALUES (:id, :job, :product, :milestone, :number, :mentor, 'PROPOSED', true, :released, :draftDue, :released, 1, :due)
+				""")
+			.param("id", split)
+			.param("job", job)
+			.param("product", product)
+			.param("milestone", milestone)
+			.param("number", number)
+			.param("mentor", mentor)
+			.param("released", Timestamp.from(released))
+			.param("draftDue", Timestamp.from(released.plus(java.time.Duration.ofDays(7))))
+			.param("due", Timestamp.from(due))
+			.update();
+		UUID mentorParty = party(jdbc, split, mentor, true, true, 0);
+		UUID activeParty = party(jdbc, split, active, false, true, 1);
+		UUID formerParty = party(jdbc, split, former, false, false, 2);
+		jdbc.sql("""
+				INSERT INTO job.milestone_split_version (split_id, version_no, kind, cap_percent, author_account_id, created_at)
+				VALUES (:split, 1, 'DRAFT', 30, :mentor, :released)
+				""").param("split", split).param("mentor", mentor).param("released", Timestamp.from(released)).update();
+		Map<UUID, Integer> shares = Map.of(mentorParty, mentorPercent, activeParty, activePercent, formerParty, formerPercent);
+		shares.forEach((party, percent) -> jdbc.sql("""
+				INSERT INTO job.milestone_split_share (split_id, version_no, party_id, percent) VALUES (:split, 1, :party, :percent)
+				""").param("split", split).param("party", party).param("percent", percent).update());
+		return new UUID[] { split, mentorParty, activeParty, formerParty };
+	}
+
+	/** The Milestone's split with the Mentor and its members as a release fixes them, waiting for the draft (AD-29). */
+	public static void openSplit(JdbcClient jdbc, UUID job, UUID product, UUID milestone, int number, UUID mentor, UUID active,
+			UUID former, Instant released) {
 		UUID split = UUID.randomUUID();
 		jdbc.sql("""
 				INSERT INTO job.milestone_split (id, job_id, product_id, milestone_id, milestone_number, mentor_account_id, status,
@@ -514,17 +570,9 @@ public final class JobContent {
 			.param("released", Timestamp.from(released))
 			.param("due", Timestamp.from(released.plus(java.time.Duration.ofDays(7))))
 			.update();
-		jdbc.sql("""
-				INSERT INTO job.milestone_split_party (id, split_id, party_account_id, is_mentor, whole_interval, active_at_release,
-				    position)
-				VALUES (:mentorParty, :split, :mentor, true, true, true, 0), (:memberParty, :split, :member, false, true, true, 1)
-				""")
-			.param("mentorParty", UUID.randomUUID())
-			.param("memberParty", UUID.randomUUID())
-			.param("split", split)
-			.param("mentor", mentor)
-			.param("member", member)
-			.update();
+		party(jdbc, split, mentor, true, true, 0);
+		party(jdbc, split, active, false, true, 1);
+		party(jdbc, split, former, false, false, 2);
 	}
 
 	/**
