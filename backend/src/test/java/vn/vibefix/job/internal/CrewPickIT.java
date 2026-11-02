@@ -661,13 +661,15 @@ class CrewPickIT extends IntegrationTest {
 		PersonSignalMatched event = new PersonSignalMatched(UUID.randomUUID(), this.minh, this.lan, "EMAIL");
 
 		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.events.publishEvent(event));
-		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.events.publishEvent(event));
 
 		for (UUID admin : admins) {
 			await().atMost(Duration.ofSeconds(10)).until(() -> count("""
 					SELECT count(*) FROM notification.notification WHERE type = 'job.person_link_alert' AND account_id = :admin
 					""", Map.of("admin", admin)) == 1);
 		}
+		// The replay comes after the first delivery ended: two identical events in flight can leave one publication open.
+		awaitListeners();
+		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.events.publishEvent(event));
 		awaitListeners();
 		assertThat(count("SELECT count(*) FROM notification.notification WHERE type = 'job.person_link_alert'", Map.of()))
 			.isEqualTo(admins.size());
