@@ -15,7 +15,8 @@ public interface ReportableContent {
 
 	/**
 	 * The kinds this module answers for: {@code PRODUCT}, {@code JOB_POST}, {@code PAGE}, {@code RATING},
-	 * {@code JOB_CHAT_MESSAGE}, {@code CREW_CHAT_MESSAGE}, {@code WORK_ITEM_NOTE}, or {@code USER}.
+	 * {@code JOB_CHAT_MESSAGE}, {@code CREW_CHAT_MESSAGE}, {@code WORK_ITEM_NOTE}, {@code USER}, or
+	 * {@code RECRUITMENT_NOTE}.
 	 */
 	Set<String> kinds();
 

@@ -1158,7 +1158,8 @@
           "JOB_CHAT_MESSAGE": "Tin nhắn trò chuyện công việc",
           "CREW_CHAT_MESSAGE": "Tin nhắn trò chuyện nhóm",
           "WORK_ITEM_NOTE": "Ghi chú công việc",
-          "USER": "Người dùng"
+          "USER": "Người dùng",
+          "RECRUITMENT_NOTE": "Lời nhắn tuyển thành viên"
         },
         "status": {
           "OPEN": "Chờ xử lý",
@@ -3315,6 +3316,7 @@
       "item": "Báo cáo vi phạm",
       "post": "Báo cáo tin tuyển",
       "product": "Báo cáo sản phẩm",
+      "recruitmentNote": "Báo cáo lời nhắn của người hướng dẫn",
       "title": "Báo cáo vi phạm",
       "body": "Cho quản trị viên biết nội dung này vi phạm quy định như thế nào.",
       "reason": "Lý do",

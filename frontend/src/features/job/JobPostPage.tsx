@@ -6,7 +6,7 @@ import { usePageTitle } from '@/app/usePageTitle'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { buttonVariants } from '@/components/ui/button-variants'
-import { ReportAbuseMenu } from '@/features/abuse/ReportAbuseMenu'
+import { ReportAbuseMenu, type ReportTarget } from '@/features/abuse/ReportAbuseMenu'
 import { personPath } from '@/features/identity/personText'
 import { useSession } from '@/features/identity/useSession'
 import { rich } from '@/i18n/rich'
@@ -182,6 +182,15 @@ function RoleNotice({ jobId, role }: { jobId: string; role: JobRoleView }) {
 }
 
 function Post({ post, invitation }: { post: JobPost; invitation: MentorInvitation | undefined }) {
+  const role = useJobRole(post.id)
+  const reportTargets: ReportTarget[] = [
+    { kind: 'JOB_POST', targetId: post.id, item: 'screen.report.post' },
+    { kind: 'PRODUCT', targetId: post.productId, item: 'screen.report.product' },
+  ]
+  // The Mentor's note, while it shows; the Mentor reports nothing of their own (FR-69, Story 21.7).
+  if (post.recruitment?.note && !role.isPending && role.data?.role !== 'MENTOR') {
+    reportTargets.push({ kind: 'RECRUITMENT_NOTE', targetId: post.id, item: 'screen.report.recruitmentNote' })
+  }
   const types = post.jobTypes.map((type) => t(`term.jobType${type}.label` as MessageKey)).join(', ')
   const meta = [
     t('screen.jobPost.detail.meta', { product: post.productName, types }),
@@ -207,13 +216,7 @@ function Post({ post, invitation }: { post: JobPost; invitation: MentorInvitatio
         <div className="flex flex-wrap items-center gap-2">
           <PageHeading>{post.title}</PageHeading>
           <PhaseBadge phase={post.phase} />
-          <ReportAbuseMenu
-            targets={[
-              { kind: 'JOB_POST', targetId: post.id, item: 'screen.report.post' },
-              { kind: 'PRODUCT', targetId: post.productId, item: 'screen.report.product' },
-            ]}
-            label={t('screen.report.postMore')}
-          />
+          <ReportAbuseMenu targets={reportTargets} label={t('screen.report.postMore')} />
         </div>
         <p className="text-body-sm font-semibold">{needText(post.need, post.recruitment?.openSlots)}</p>
         <p className="text-caption text-muted-foreground break-words">{meta.join(' · ')}</p>

@@ -332,6 +332,71 @@ describe('MEN-3, one Job Post (FR-12)', () => {
     expect(screen.queryByRole('link', { name: 'Xem nhóm' })).toBeNull()
   })
 
+  describe('reporting a recruiting Mentor’s note (FR-69, Story 21.7)', () => {
+    const noteItem = 'Báo cáo lời nhắn của người hướng dẫn'
+    const recruitingPost = (note?: string) => ({
+      ...post,
+      lapsesAt: undefined,
+      phase: 'RECRUITING',
+      need: 'CREW',
+      mentor: { displayName: 'Phạm Thu Hà', githubLogin: 'thuha' },
+      recruitment: { openSlots: 2, skills: [], note },
+    })
+
+    it('files the note against the Job while it shows', { timeout: 15_000 }, async () => {
+      const user = userEvent.setup()
+      const sent: unknown[] = []
+      fakeBackend(signedInUser, {
+        'GET /api/v1/mentor/job-posts/j1': () => json(recruitingPost('Cần người làm trang thanh toán.')),
+        'GET /api/v1/mentor/job-posts/j1/customer-rating': () => json({ count: 0 }),
+        'POST /api/v1/abuse-reports': async (request) => {
+          sent.push(await request.json())
+          return json({ id: 'r1' }, 201)
+        },
+      })
+      renderAt('/tim-viec/j1')
+
+      await screen.findByRole('region', { name: 'Xin vào nhóm' })
+      await user.click(screen.getByRole('button', { name: 'Thao tác khác với tin tuyển' }))
+      await user.click(await screen.findByRole('menuitem', { name: noteItem }))
+      const dialog = await screen.findByRole('dialog', { name: 'Báo cáo vi phạm' })
+      await user.type(within(dialog).getByLabelText('Lý do'), 'Lừa đảo')
+      await user.click(within(dialog).getByRole('button', { name: 'Gửi báo cáo' }))
+
+      await within(dialog).findByText('Quản trị viên sẽ xem xét và báo kết quả cho bạn.')
+      expect(sent).toEqual([{ kind: 'RECRUITMENT_NOTE', targetId: 'j1', reason: 'Lừa đảo' }])
+    })
+
+    it('offers no such item when the recruitment has no note', { timeout: 15_000 }, async () => {
+      const user = userEvent.setup()
+      fakeBackend(signedInUser, {
+        'GET /api/v1/mentor/job-posts/j1': () => json(recruitingPost()),
+        'GET /api/v1/mentor/job-posts/j1/customer-rating': () => json({ count: 0 }),
+      })
+      renderAt('/tim-viec/j1')
+
+      await screen.findByRole('region', { name: 'Xin vào nhóm' })
+      await user.click(screen.getByRole('button', { name: 'Thao tác khác với tin tuyển' }))
+      expect(await screen.findByRole('menuitem', { name: 'Báo cáo tin tuyển' })).toBeInTheDocument()
+      expect(screen.queryByRole('menuitem', { name: noteItem })).toBeNull()
+    })
+
+    it('offers no such item to the Mentor who wrote it', { timeout: 15_000 }, async () => {
+      const user = userEvent.setup()
+      fakeBackend(signedInUser, {
+        ...inEveryJob('MENTOR'),
+        'GET /api/v1/mentor/job-posts/j1': () => json(recruitingPost('Cần người làm trang thanh toán.')),
+        'GET /api/v1/mentor/job-posts/j1/customer-rating': () => json({ count: 0 }),
+      })
+      renderAt('/tim-viec/j1')
+
+      expect(await screen.findByRole('link', { name: 'Mở công việc' })).toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: 'Thao tác khác với tin tuyển' }))
+      expect(await screen.findByRole('menuitem', { name: 'Báo cáo tin tuyển' })).toBeInTheDocument()
+      expect(screen.queryByRole('menuitem', { name: noteItem })).toBeNull()
+    })
+  })
+
   it('shows what a recruiting Mentor seeks in "Xin vào nhóm", with no bid (UX-DR98)', { timeout: 15_000 }, async () => {
     fakeBackend(signedInUser, {
       'GET /api/v1/mentor/job-posts/j1': () =>

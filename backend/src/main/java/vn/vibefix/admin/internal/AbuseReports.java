@@ -61,7 +61,7 @@ class AbuseReports {
 	static final String RESOLVED = "admin.abuse_report_resolved";
 
 	static final Set<String> KINDS = Set.of("PRODUCT", "JOB_POST", "PAGE", "RATING", "JOB_CHAT_MESSAGE", "CREW_CHAT_MESSAGE",
-			"WORK_ITEM_NOTE", "USER");
+			"WORK_ITEM_NOTE", "USER", "RECRUITMENT_NOTE");
 
 	private static final ZoneId VIETNAM = ZoneId.of("Asia/Ho_Chi_Minh");
 

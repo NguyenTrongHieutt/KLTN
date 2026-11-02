@@ -16,7 +16,9 @@ import vn.vibefix.shared.ReportableContent;
 /**
  * FR-69: a Job Post and its Product are reportable by whoever MEN-3 shows them to: an unlocked user with GitHub
  * linked ("Tìm việc", X1, Story 20.3) reading a Job listed there (AD-36, Story 21.1), but never by its own Customer,
- * as nobody reports their own content.
+ * as nobody reports their own content. So is the Mentor's recruitment note, while MEN-3 shows it (Story 21.7), but
+ * never by the Mentor: the report is against them, named by the Job, and FR-60 does not hide it, so the Administrator
+ * acts on the person.
  */
 @Component
 class JobPostReportable implements ReportableContent {
@@ -38,7 +40,7 @@ class JobPostReportable implements ReportableContent {
 
 	@Override
 	public Set<String> kinds() {
-		return Set.of("JOB_POST", "PRODUCT");
+		return Set.of("JOB_POST", "PRODUCT", "RECRUITMENT_NOTE");
 	}
 
 	/** Runs outside any transaction: a refused read must not mark the caller's transaction rollback-only. */
@@ -53,6 +55,13 @@ class JobPostReportable implements ReportableContent {
 				.map(JobPostQueries.Post::job)
 				.filter(job -> !job.customerId().equals(reader))
 				.map(job -> new Reported(job.id(), job.productId(), job.customerId(), job.title()));
+		}
+		if ("RECRUITMENT_NOTE".equals(kind)) {
+			return this.posts.find(id)
+				.filter(post -> post.recruitment().on() && post.recruitment().note() != null)
+				.map(JobPostQueries.Post::job)
+				.filter(job -> job.mentorId() != null && !job.mentorId().equals(reader))
+				.map(job -> new Reported(job.id(), job.productId(), job.mentorId(), job.title()));
 		}
 		if (!"PRODUCT".equals(kind)) {
 			return Optional.empty();

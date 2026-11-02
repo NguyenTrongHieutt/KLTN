@@ -179,6 +179,84 @@ class AbuseReportIT extends IntegrationTest {
 		file(this.world.vy(), Role.STUDENT, "PRODUCT", product).andExpect(status().isNotFound());
 	}
 
+	/**
+	 * Story 21.7 (FR-60, FR-69): a recruitment note is reported against the Mentor while it shows, by anyone but the
+	 * Mentor, and it cannot be hidden, so the Administrator acts on the person.
+	 */
+	@Test
+	void aShowingRecruitmentNoteIsReportedAgainstTheMentorAndCannotBeHidden() throws Exception {
+		UUID job = recruitingJob("Cần người kiểm thử");
+
+		file(this.world.hung(), Role.MENTOR, "RECRUITMENT_NOTE", job).andExpect(status().isNotFound());
+		file(this.ha.accountId(), Role.ADMINISTRATOR, "RECRUITMENT_NOTE", job).andExpect(status().isNotFound());
+		file(this.world.vy(), Role.STUDENT, "RECRUITMENT_NOTE", job).andExpect(status().isCreated());
+		file(this.world.vy(), Role.STUDENT, "RECRUITMENT_NOTE", job).andExpect(status().isConflict())
+			.andExpect(jsonPath("$.reason").value("ALREADY_REPORTED"));
+
+		assertThat(this.jdbc.sql("""
+				SELECT target_id || ' ' || job_id || ' ' || author_account_id || ' ' || label FROM admin.abuse_report
+				WHERE kind = 'RECRUITMENT_NOTE'
+				""").query(String.class).single())
+			.isEqualTo(job + " " + job + " " + this.world.hung() + " Tuyển thêm thành viên");
+		UUID report = reportOf("RECRUITMENT_NOTE");
+		this.mvc.perform(get("/api/v1/admin/abuse-reports/" + report).with(admin(this.ha.accountId())))
+			.andExpect(status().isOk())
+			.andExpect(content().string(not(containsString("Cần người kiểm thử"))));
+		take(this.ha.accountId(), report).andExpect(jsonPath("$.hideable").value(false))
+			.andExpect(jsonPath("$.itemReadable").value(false));
+		decide(this.ha.accountId(), report, "HIDE", "Ẩn đi").andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.reason").value("NOT_HIDEABLE"));
+		decide(this.ha.accountId(), report, "ACTION_TAKEN", null).andExpect(status().isOk())
+			.andExpect(jsonPath("$.status").value("ACTION_TAKEN"));
+	}
+
+	/** No note, a note no longer shown, or a hidden Job: nothing to report, as for any other kind. */
+	@Test
+	void aRecruitmentNoteThatDoesNotShowIsNotReportable() throws Exception {
+		UUID silent = recruitingJob(null);
+		file(this.world.vy(), Role.STUDENT, "RECRUITMENT_NOTE", silent).andExpect(status().isNotFound());
+		file(this.world.vy(), Role.STUDENT, "RECRUITMENT_NOTE", this.post).andExpect(status().isNotFound());
+
+		UUID closed = recruitingJob("Cần người kiểm thử");
+		this.jdbc.sql("UPDATE job.job SET recruiting = false WHERE id = :id").param("id", closed).update();
+		file(this.world.vy(), Role.STUDENT, "RECRUITMENT_NOTE", closed).andExpect(status().isNotFound());
+
+		UUID hidden = recruitingJob("Cần người kiểm thử");
+		this.jdbc.sql("UPDATE job.job SET hidden_at = now(), hidden_reason = 'Vi phạm' WHERE id = :id")
+			.param("id", hidden)
+			.update();
+		file(this.world.vy(), Role.STUDENT, "RECRUITMENT_NOTE", hidden).andExpect(status().isNotFound());
+
+		file(this.world.vy(), Role.STUDENT, "RECRUITMENT_NOTE", UUID.randomUUID()).andExpect(status().isNotFound());
+		assertThat(count("SELECT count(*) FROM admin.abuse_report WHERE kind = 'RECRUITMENT_NOTE'")).isZero();
+	}
+
+	/** An Agreement Job of a Product of its own, with Hùng recruiting one member. */
+	private UUID recruitingJob(String note) {
+		UUID product = UUID.randomUUID();
+		Timestamp at = Timestamp.from(this.clock.instant().minus(Duration.ofDays(1)));
+		this.jdbc.sql("""
+				INSERT INTO product.product (id, customer_account_id, name, description, ai_tools, repository_github_id,
+				    repository_full_name, repository_owner_type, repository_default_branch, public_notice_version,
+				    copy_permission_version, detection_notice_version, acknowledged_at, created_at)
+				VALUES (:id, :owner, 'Sổ thu chi', 'Ghi thu chi.', ARRAY['LOVABLE'], :github, :name, 'User', 'main',
+				    '1.0', '1.0', '1.0', :at, :at)
+				""").param("id", product).param("owner", this.world.lan())
+			.param("github", java.util.concurrent.ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE))
+			.param("name", "lan/so-" + product).param("at", at).update();
+		UUID job = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO job.job (id, product_id, customer_account_id, state, title, problem, expected, app_users,
+				    job_types, budget, deadline, rules, selection_days, opened_at, mentor_account_id, selected_application_id,
+				    selected_at, recruiting, recruiting_since, open_slots, recruit_note, version, created_at, updated_at)
+				VALUES (:id, :product, :owner, 'AGREEMENT', 'Tuyển thêm thành viên', 'Lỗi', 'Đúng', 'Khách', ARRAY['BUG_FIX'],
+				    'UNDER_2M', DATE '2026-12-01', '{}'::jsonb, 14, :at, :mentor, :application, :at, true, :at, 1, :note, 3, :at, :at)
+				""").param("id", job).param("product", product).param("owner", this.world.lan())
+			.param("mentor", this.world.hung()).param("application", UUID.randomUUID()).param("at", at).param("note", note)
+			.update();
+		return job;
+	}
+
 	@Test
 	void aChatReportGrantsTheAssigneeThatOneMessageUntilThirtyDaysAfterTheDecision() throws Exception {
 		file(this.world.lan(), Role.CUSTOMER, "CREW_CHAT_MESSAGE", this.crewMessage).andExpect(status().isNotFound());
