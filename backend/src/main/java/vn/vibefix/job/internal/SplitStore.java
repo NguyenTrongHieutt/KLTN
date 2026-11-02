@@ -193,6 +193,14 @@ class SplitStore {
 		return this.jdbc.sql("SELECT title FROM job.job WHERE id = :id").param("id", jobId).query(String.class).optional();
 	}
 
+	/** Whether the Job still has its screens: a bare row, or none at all, has none. */
+	boolean live(UUID jobId) {
+		return this.jdbc.sql("SELECT EXISTS (SELECT 1 FROM job.job WHERE id = :id AND " + Jobs.LIVE + ")")
+			.param("id", jobId)
+			.query(Boolean.class)
+			.single();
+	}
+
 	/** When the party's Crew row says they left, a lock included, while the row exists. */
 	Map<UUID, Instant> leftAt(UUID jobId, List<UUID> accounts) {
 		Map<UUID, Instant> left = new HashMap<>();

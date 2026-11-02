@@ -36,6 +36,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 import vn.vibefix.authz.JobContent;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.job.MilestoneHandovers;
+import vn.vibefix.job.MilestoneSettlements;
+import vn.vibefix.job.MilestoneSplitFinalized;
 import vn.vibefix.job.MilestoneSplits;
 import vn.vibefix.job.internal.SplitStore.Party;
 import vn.vibefix.payment.Releases;
@@ -68,6 +70,15 @@ class MilestoneSplitIT extends IntegrationTest {
 
 	@Autowired
 	private DeadlinePoller poller;
+
+	@Autowired
+	private MilestoneSettlements settlements;
+
+	@Autowired
+	private SplitFinalization finalization;
+
+	@Autowired
+	private SplitStore store;
 
 	@Autowired
 	private PersonalData personalData;
@@ -164,11 +175,21 @@ class MilestoneSplitIT extends IntegrationTest {
 						{"shownVersionNo":0,"shares":[{"partyId":"%s","percent":30},{"partyId":"%s","percent":30},
 						 {"partyId":"%s","percent":40}]}
 						""".formatted(party(this.world.hung()), party(this.world.vy()), party(this.world.vy())));
+		// 40.9 sums to 100 if it is cut to 40; -10 is refused on its own at 20, 90, -10, within the cap.
+		Map<String, String> numbers = Map.of("a fraction summing to 100 when cut", """
+				{"shownVersionNo":0,"shares":[{"partyId":"%s","percent":30},{"partyId":"%s","percent":40.9},
+				 {"partyId":"%s","percent":30}]}
+				""".formatted(party(this.world.hung()), party(this.world.vy()), party(this.world.minh())),
+				"a negative over the cap", shares(50, 60, -10), "a negative within the cap", shares(20, 90, -10));
 
-		for (Map.Entry<String, String> bad : bodies.entrySet()) {
-			send("/versions", this.world.hung(), bad.getValue()).andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.code").value("VALIDATION"))
-				.andExpect(jsonPath("$.reason").value("SPLIT_INVALID"));
+		for (Map<String, String> group : List.of(bodies, numbers)) {
+			for (Map.Entry<String, String> bad : group.entrySet()) {
+				for (String path : List.of("/versions", "/preview")) {
+					send(path, this.world.hung(), bad.getValue()).andExpect(status().isBadRequest())
+						.andExpect(jsonPath("$.code").value("VALIDATION"))
+						.andExpect(jsonPath("$.reason").value("SPLIT_INVALID"));
+				}
+			}
 		}
 
 		assertThat(number("SELECT count(*) FROM job.milestone_split_version")).isZero();
@@ -631,7 +652,7 @@ class MilestoneSplitIT extends IntegrationTest {
 		this.poller.runDue();
 
 		assertThat(text("SELECT kind FROM job.milestone_split_version")).isEqualTo("DEFAULT");
-		save(1, 30, 40, 30).andExpect(result -> assertThat(result.getResponse().getStatus()).isBetween(400, 499));
+		save(1, 30, 40, 30).andExpect(status().isUnauthorized());
 	}
 
 	@Test
@@ -648,7 +669,352 @@ class MilestoneSplitIT extends IntegrationTest {
 		assertThat(number("SELECT count(*) FROM job.milestone_split_party WHERE party_account_id IS NULL")).isOne();
 		assertThat(number("SELECT count(*) FROM job.milestone_split_confirmation")).isEqualTo(2);
 		cards(this.world.minh()).andExpect(jsonPath("$[0].latest.lines[1].percent").value(40))
-			.andExpect(jsonPath("$[0].parties[1].name").doesNotExist());
+			.andExpect(jsonPath("$[0].parties[1].name").doesNotExist())
+			.andExpect(jsonPath("$[0].parties[1].erased").value(true))
+			.andExpect(jsonPath("$[0].parties[2].erased").value(false));
+	}
+
+	// ---- What the review asked to pin ------------------------------------------------------------
+
+	@Test
+	void anEditLeavesTheOldRoundsDeadlineAndReminderObsolete() throws Exception {
+		accept();
+		save(0, 30, 40, 30).andExpect(status().isOk());
+		this.clock.advance(Duration.ofHours(36));
+		save(1, 30, 35, 35).andExpect(status().isOk());
+		Instant due = timestamp("SELECT confirmation_due_at FROM job.milestone_split");
+
+		// Past version 1's due time, before version 2's and before its reminder.
+		this.clock.advance(Duration.ofHours(36).plusMinutes(1));
+		this.poller.runDue();
+
+		assertThat(splitStatus()).isEqualTo("PROPOSED");
+		assertThat(deadlineStatuses("job.split_confirmation")).containsExactly("OBSOLETE", "PENDING");
+		assertThat(deadlineStatuses("job.split_confirmation_reminder")).containsExactly("OBSOLETE", "PENDING");
+		assertThat(notified("job.split_confirmation_reminder")).isEmpty();
+
+		this.clock.advance(Duration.between(this.clock.instant(), due).minusSeconds(1));
+		this.poller.runDue();
+		assertThat(splitStatus()).isEqualTo("PROPOSED");
+
+		this.clock.advance(Duration.ofSeconds(1));
+		this.poller.runDue();
+		assertThat(text("SELECT status || ':' || final_version_no || ':' || finality FROM job.milestone_split"))
+			.isEqualTo("FINAL:2:DEADLINE");
+	}
+
+	@Test
+	void aDeadlineFinalizationClosesTheToDoOfThePartyWhoDidNotConfirm() throws Exception {
+		accept();
+		save(0, 30, 40, 30).andExpect(status().isOk());
+		confirm(this.world.vy(), 1).andExpect(status().isOk());
+		assertThat(openTodos("job.confirm_split")).containsExactly(this.world.minh());
+
+		this.clock.advance(Duration.ofDays(3));
+		this.poller.runDue();
+
+		assertThat(splitStatus()).isEqualTo("FINAL");
+		assertThat(openTodos("job.confirm_split")).isEmpty();
+	}
+
+	@Test
+	void afterAnEditEveryOpenToDoIsDueWhenTheNewRoundIs() throws Exception {
+		accept();
+		save(0, 30, 40, 30).andExpect(status().isOk());
+		confirm(this.world.vy(), 1).andExpect(status().isOk());
+		this.clock.advance(Duration.ofHours(5));
+
+		save(1, 30, 35, 35).andExpect(status().isOk());
+
+		Instant due = timestamp("SELECT confirmation_due_at FROM job.milestone_split");
+		assertThat(due).isEqualTo(this.clock.instant().plus(Duration.ofDays(3)));
+		assertThat(openTodos("job.confirm_split")).containsExactlyInAnyOrder(this.world.vy(), this.world.minh());
+		assertThat(this.jdbc.sql("""
+				SELECT deadline_at FROM notification.todo WHERE todo_key = 'job.confirm_split' AND closed_at IS NULL
+				""").query(Timestamp.class).list()).containsOnly(Timestamp.from(due));
+	}
+
+	@Test
+	void eachEditTellsEachPartyAndEachVersionsConfirmationTellsTheMentor() throws Exception {
+		accept();
+		save(0, 30, 40, 30).andExpect(status().isOk());
+		confirm(this.world.vy(), 1).andExpect(status().isOk());
+		save(1, 30, 35, 35).andExpect(status().isOk());
+		confirm(this.world.vy(), 2).andExpect(status().isOk());
+		save(2, 30, 40, 30).andExpect(status().isOk());
+
+		assertThat(notified("job.split_edited")).containsExactlyInAnyOrder(this.world.vy(), this.world.vy(), this.world.minh(),
+				this.world.minh());
+		assertThat(notified("job.split_party_confirmed")).containsExactly(this.world.hung(), this.world.hung());
+	}
+
+	@Test
+	void theNoticesOfAReleaseAndASaveCarryTheirLinkAndDate() throws Exception {
+		accept();
+		String link = "/cong-viec/" + this.world.job() + "/phan-chia/" + this.world.milestone();
+
+		assertThat(notice("job.split_draft_due", "link")).isEqualTo(link);
+		assertThat(notice("job.split_draft_due", "params ->> 'date'")).isEqualTo("12/01");
+		assertThat(notice("job.split_pending", "link", this.world.vy())).isEqualTo(link);
+		assertThat(notice("job.split_pending", "params ->> 'date'", this.world.vy())).isEqualTo("12/01");
+		assertThat(text("SELECT link FROM notification.todo WHERE todo_key = 'job.draft_split'")).isEqualTo(link);
+
+		save(0, 30, 40, 30).andExpect(status().isOk());
+
+		assertThat(notice("job.split_proposed", "link", this.world.vy())).isEqualTo(link);
+		assertThat(notice("job.split_proposed", "params ->> 'date'", this.world.vy())).isEqualTo("08/01");
+		assertThat(text("SELECT DISTINCT link FROM notification.todo WHERE todo_key = 'job.confirm_split'")).isEqualTo(link);
+	}
+
+	@Test
+	void theFinalNoticeNamesAConfirmation() throws Exception {
+		accept();
+		save(0, 30, 40, 30).andExpect(status().isOk());
+		confirm(this.world.vy(), 1).andExpect(status().isOk());
+		confirm(this.world.minh(), 1).andExpect(status().isOk());
+
+		assertThat(notice("job.split_final", "params ->> 'how'")).isEqualTo("mọi người đã xác nhận");
+		assertThat(notice("job.split_final", "link")).endsWith("/phan-chia/" + this.world.milestone());
+	}
+
+	@Test
+	void theFinalNoticeNamesTheDeadline() throws Exception {
+		accept();
+		save(0, 30, 40, 30).andExpect(status().isOk());
+		this.clock.advance(Duration.ofDays(3));
+		this.poller.runDue();
+
+		assertThat(notice("job.split_final", "params ->> 'how'")).isEqualTo("hết hạn xác nhận");
+	}
+
+	/** Story 22.3 brings the decision itself; the words of its notice are this one method's. */
+	@Test
+	void theFinalNoticeNamesADecision() throws Exception {
+		accept();
+		save(0, 30, 40, 30).andExpect(status().isOk());
+
+		this.transactions.executeWithoutResult(status -> this.finalization
+			.makeFinal(this.store.find(split()).orElseThrow(), 1, MilestoneSplitFinalized.Finality.DECISION));
+
+		assertThat(notice("job.split_final", "params ->> 'how'")).isEqualTo("quản trị viên đã quyết định");
+	}
+
+	@Test
+	void theCardsSayWhenTheDraftDeadlineIsNearAndWhenItPassed() throws Exception {
+		accept();
+		this.clock.advance(Duration.ofDays(5).minusSeconds(1));
+		cards(this.world.hung()).andExpect(jsonPath("$[0].draftNear").value(false)).andExpect(jsonPath("$[0].draftLate").value(false));
+
+		this.clock.advance(Duration.ofSeconds(1));
+		cards(this.world.hung()).andExpect(jsonPath("$[0].draftNear").value(true)).andExpect(jsonPath("$[0].draftLate").value(false));
+
+		this.clock.advance(Duration.ofHours(48).minusSeconds(1));
+		cards(this.world.hung()).andExpect(jsonPath("$[0].draftLate").value(false));
+
+		this.clock.advance(Duration.ofSeconds(1));
+		cards(this.world.hung()).andExpect(jsonPath("$[0].draftLate").value(true));
+
+		this.clock.advance(Duration.ofHours(1));
+		cards(this.world.hung()).andExpect(jsonPath("$[0].draftLate").value(true));
+	}
+
+	@Test
+	void theCardsSayWhenTheConfirmationDeadlineIsNear() throws Exception {
+		accept();
+		save(0, 30, 40, 30).andExpect(status().isOk());
+		this.clock.advance(Duration.ofDays(1).minusSeconds(1));
+		cards(this.world.vy()).andExpect(jsonPath("$[0].confirmationNear").value(false));
+
+		this.clock.advance(Duration.ofSeconds(1));
+		cards(this.world.vy()).andExpect(jsonPath("$[0].confirmationNear").value(true));
+	}
+
+	@Test
+	void theNextRoundsDueTimeComesFromTheJobsCopyAfterALiveRuleChange() throws Exception {
+		this.jdbc.sql("""
+				UPDATE job.job SET rules = rules || '{"SPLIT_CONFIRMATION_DAYS": 5}'::jsonb WHERE id = :id
+				""").param("id", this.world.job()).update();
+		accept();
+		rule("SPLIT_CONFIRMATION_DAYS", 9);
+
+		cards(this.world.hung()).andExpect(
+				jsonPath("$[0].nextConfirmationDueAt").value(this.clock.instant().plus(Duration.ofDays(5)).toString()));
+	}
+
+	@Test
+	void theCardsNameThePartiesAndSayTheJobIsLive() throws Exception {
+		accept();
+
+		cards(this.world.hung()).andExpect(jsonPath("$[0].jobLive").value(true))
+			.andExpect(jsonPath("$[0].parties[0].name").value("Đỗ Mạnh Hùng"))
+			.andExpect(jsonPath("$[0].parties[0].erased").value(false))
+			.andExpect(jsonPath("$[0].parties[1].name").value("Trần Thảo Vy"))
+			.andExpect(jsonPath("$[0].parties[1].erased").value(false));
+	}
+
+	@Test
+	void editsUsedStaysTrueWhenTheLimitDrops() throws Exception {
+		accept();
+		save(0, 30, 40, 30).andExpect(status().isOk());
+		save(1, 30, 35, 35).andExpect(status().isOk());
+		save(2, 30, 40, 30).andExpect(status().isOk());
+		rule("SPLIT_EDIT_LIMIT", 1);
+
+		cards(this.world.vy()).andExpect(jsonPath("$[0].editsUsed").value(2))
+			.andExpect(jsonPath("$[0].editsLeft").value(0))
+			.andExpect(jsonPath("$[0].editLimit").value(1));
+	}
+
+	@Test
+	void aMentorAloneReadsTheirFinalSplit() throws Exception {
+		for (UUID member : List.of(this.world.vy(), this.world.minh())) {
+			leave(member, this.clock.instant().minus(Duration.ofDays(2)));
+		}
+		accept();
+		awaitListeners();
+
+		cards(this.world.hung()).andExpect(status().isOk())
+			.andExpect(jsonPath("$[0].status").value("FINAL"))
+			.andExpect(jsonPath("$[0].finality").value("MENTOR_ONLY"))
+			.andExpect(jsonPath("$[0].k").value(0))
+			.andExpect(jsonPath("$[0].n").value(0))
+			.andExpect(jsonPath("$[0].paid").value(true))
+			.andExpect(jsonPath("$[0].latest.kind").value("MENTOR_ONLY"));
+		assertThat(notified("job.split_final")).isEmpty();
+		assertThat(notified("job.split_draft_due")).isEmpty();
+		assertThat(audit("job.split_mentor_only", null)).isOne();
+	}
+
+	@Test
+	void theHigherMilestoneComesFirst() throws Exception {
+		// Created first, so only the number can put it first.
+		UUID older = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO job.milestone_split (id, job_id, product_id, milestone_id, milestone_number, mentor_account_id, status,
+				    cap_applies, released_at, draft_due_at, created_at)
+				VALUES (:id, :job, :product, :milestone, 2, :mentor, 'AWAITING_DRAFT', true, :at, :at, :at)
+				""")
+			.param("id", older)
+			.param("job", this.world.job())
+			.param("product", this.world.product())
+			.param("milestone", UUID.randomUUID())
+			.param("mentor", this.world.hung())
+			.param("at", Timestamp.from(this.clock.instant()))
+			.update();
+		this.jdbc.sql("""
+				INSERT INTO job.milestone_split_party (id, split_id, party_account_id, is_mentor, whole_interval, active_at_release,
+				    position)
+				VALUES (:mentorParty, :split, :mentor, true, true, true, 0), (:memberParty, :split, :member, false, true, true, 1)
+				""")
+			.param("mentorParty", UUID.randomUUID())
+			.param("memberParty", UUID.randomUUID())
+			.param("split", older)
+			.param("mentor", this.world.hung())
+			.param("member", this.world.vy())
+			.update();
+		this.clock.advance(Duration.ofHours(1));
+		accept();
+
+		cards(this.world.vy()).andExpect(jsonPath("$", hasSize(2)))
+			.andExpect(jsonPath("$[0].milestoneNumber").value(2))
+			.andExpect(jsonPath("$[1].milestoneNumber").value(1));
+	}
+
+	@Test
+	void aMemberReleasedWhenTheJobEndedDidNotLeave() throws Exception {
+		accept();
+		closeJob();
+
+		cards(this.world.vy()).andExpect(jsonPath("$[0].parties[1].name").exists())
+			.andExpect(jsonPath("$[0].parties[1].leftAt").doesNotExist());
+	}
+
+	@Test
+	void aLockedPartyCannotActWhileTheDeadlinesRunAndTheSplitStillFinalizes() throws Exception {
+		accept();
+		save(0, 30, 40, 30).andExpect(status().isOk());
+		this.jdbc.sql("UPDATE identity.account SET locked_at = :at, lock_reason = 'Vi phạm' WHERE id = :id")
+			.param("at", Timestamp.from(this.clock.instant()))
+			.param("id", this.world.vy())
+			.update();
+
+		confirm(this.world.vy(), 1).andExpect(status().isUnauthorized());
+		save(this.world.vy(), 1, 30, 35, 35).andExpect(status().isUnauthorized());
+		confirm(this.world.minh(), 1).andExpect(status().isOk());
+
+		this.clock.advance(Duration.ofDays(3));
+		this.poller.runDue();
+
+		assertThat(text("SELECT status || ':' || finality FROM job.milestone_split")).isEqualTo("FINAL:DEADLINE");
+		assertThat(number("SELECT count(*) FROM job.milestone_split_confirmation")).isOne();
+	}
+
+	@Test
+	void eachReminderIsDueExactlyOneDayBefore() throws Exception {
+		accept();
+		assertThat(dueOf("job.split_draft_reminder"))
+			.isEqualTo(timestamp("SELECT draft_due_at FROM job.milestone_split").minus(Duration.ofDays(1)));
+
+		save(0, 30, 40, 30).andExpect(status().isOk());
+
+		assertThat(dueOf("job.split_confirmation_reminder"))
+			.isEqualTo(timestamp("SELECT confirmation_due_at FROM job.milestone_split").minus(Duration.ofDays(1)));
+	}
+
+	/** A poller running late: "còn 1 ngày" would be false by then, and the command it asks for refused. */
+	@Test
+	void aReminderThatRunsPastItsDueTimeEndsObsoleteAndSaysNothing() throws Exception {
+		accept();
+		this.clock.advance(Duration.ofDays(7).plusHours(1));
+		this.poller.runDue();
+		assertThat(deadlineStatuses("job.split_draft_reminder")).containsExactly("OBSOLETE");
+		assertThat(notified("job.split_draft_reminder")).isEmpty();
+		assertThat(text("SELECT kind FROM job.milestone_split_version")).isEqualTo("DEFAULT");
+
+		this.clock.advance(Duration.ofDays(3).plusHours(1));
+		this.poller.runDue();
+		assertThat(deadlineStatuses("job.split_confirmation_reminder")).containsExactly("OBSOLETE");
+		assertThat(notified("job.split_confirmation_reminder")).isEmpty();
+		assertThat(splitStatus()).isEqualTo("FINAL");
+	}
+
+	/** M8 with an amount: the frozen Job's Dispute settles, and the split starts as after an acceptance. */
+	@Test
+	void aSettlementWithAnAmountOnACrewMilestoneStartsTheSplitOnTheFrozenJob() {
+		Timestamp frozen = Timestamp.from(this.clock.instant());
+		this.jdbc.sql("UPDATE job.job SET frozen_at = :at WHERE id = :id").param("at", frozen).param("id", this.world.job()).update();
+		this.jdbc.sql("INSERT INTO timers.frozen_job (job_id, frozen_at) VALUES (:job, :at)")
+			.param("job", this.world.job())
+			.param("at", frozen)
+			.update();
+
+		this.transactions.executeWithoutResult(status -> {
+			UUID cause = this.settlements.settle(this.world.job(), this.world.milestone(), HeldCrewJob.PRICE, 0);
+			this.releases.settle(this.world.job(), this.world.milestone(), cause, HeldCrewJob.PRICE, 0);
+		});
+
+		assertThat(splitStatus()).isEqualTo("AWAITING_DRAFT");
+		assertThat(notified("job.split_draft_due")).containsExactly(this.world.hung());
+		assertThat(notified("job.split_pending")).containsExactlyInAnyOrder(this.world.vy(), this.world.minh());
+		assertThat(openTodos("job.draft_split")).containsExactly(this.world.hung());
+		assertThat(deadlineStatuses("job.split_draft")).containsExactly("PENDING");
+		assertThat(deadlineStatuses("job.split_draft_reminder")).containsExactly("PENDING");
+	}
+
+	@Test
+	void tooManySharesAreRefusedBeforeAnyRowIsRead() throws Exception {
+		accept();
+		StringBuilder shares = new StringBuilder("{\"shownVersionNo\":0,\"shares\":[");
+		for (int i = 0; i < 101; i++) {
+			shares.append(i == 0 ? "" : ",").append("{\"partyId\":\"").append(UUID.randomUUID()).append("\",\"percent\":1}");
+		}
+		String body = shares.append("]}").toString();
+
+		for (String path : List.of("/versions", "/preview")) {
+			send(path, this.world.hung(), body).andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("VALIDATION"))
+				.andExpect(jsonPath("$.reason").doesNotExist());
+		}
 	}
 
 	// ---- A bare row (AD-24) ----------------------------------------------------------------------
@@ -662,7 +1028,9 @@ class MilestoneSplitIT extends IntegrationTest {
 		assertThat(number("SELECT count(*) FROM job.job WHERE product_deleted_at IS NOT NULL")).isOne();
 		assertThat(number("SELECT count(*) FROM chat.chat")).as("the evidence waits for the split").isOne();
 
-		cards(this.world.vy()).andExpect(status().isOk()).andExpect(jsonPath("$[0].jobTitle").value("Sửa lỗi đặt bàn"));
+		cards(this.world.vy()).andExpect(status().isOk())
+			.andExpect(jsonPath("$[0].jobTitle").value("Sửa lỗi đặt bàn"))
+			.andExpect(jsonPath("$[0].jobLive").value(false));
 		save(0, 30, 40, 30).andExpect(status().isOk());
 		confirm(this.world.vy(), 1).andExpect(status().isOk());
 		confirm(this.world.minh(), 1).andExpect(jsonPath("$.status").value("FINAL"));
@@ -673,7 +1041,8 @@ class MilestoneSplitIT extends IntegrationTest {
 		assertThat(number("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'RELEASE'")).isEqualTo(3);
 		cards(this.world.vy()).andExpect(status().isOk())
 			.andExpect(jsonPath("$[0].status").value("FINAL"))
-			.andExpect(jsonPath("$[0].jobTitle").doesNotExist());
+			.andExpect(jsonPath("$[0].jobTitle").doesNotExist())
+			.andExpect(jsonPath("$[0].jobLive").value(false));
 		confirm(this.world.vy(), 1).andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.reason").value("SPLIT_FINAL"));
 	}
 
@@ -838,6 +1207,27 @@ class MilestoneSplitIT extends IntegrationTest {
 			.param("type", type)
 			.query(UUID.class)
 			.list();
+	}
+
+	/** What the one notice of {@code type} holds in {@code column}, for its Mentor. */
+	private String notice(String type, String column) {
+		return notice(type, column, this.world.hung());
+	}
+
+	private String notice(String type, String column, UUID account) {
+		return this.jdbc.sql("SELECT " + column + " FROM notification.notification WHERE type = :type AND account_id = :account")
+			.param("type", type)
+			.param("account", account)
+			.query(String.class)
+			.single();
+	}
+
+	private Instant dueOf(String kind) {
+		return this.jdbc.sql("SELECT due_at FROM timers.deadline WHERE kind = :kind")
+			.param("kind", kind)
+			.query(Timestamp.class)
+			.single()
+			.toInstant();
 	}
 
 	private List<UUID> openTodos(String key) {

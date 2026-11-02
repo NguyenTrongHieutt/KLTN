@@ -240,22 +240,28 @@ class SplitCommands {
 		return true;
 	}
 
-	/** @return {@code false} once a draft exists, so the reminder is {@code OBSOLETE} */
+	/**
+	 * @return {@code false} once a draft exists, or at or past the due time when a late poller finally reaches it, since
+	 * "còn 1 ngày" would be false and the save refused, so the reminder is {@code OBSOLETE}
+	 */
 	@Transactional
 	boolean remindDraft(UUID splitId, UUID deadlineId) {
 		Split split = lockedSplit(splitId).orElse(null);
-		if (split == null || split.status() != Status.AWAITING_DRAFT) {
+		if (split == null || split.status() != Status.AWAITING_DRAFT || !this.clock.instant().isBefore(split.draftDueAt())) {
 			return false;
 		}
 		this.notices.draftReminder(split, deadlineId);
 		return true;
 	}
 
-	/** @return {@code false} once the round it serves moved on, so the reminder is {@code OBSOLETE} */
+	/**
+	 * @return {@code false} once the round it serves moved on, or at or past its due time when a late poller finally
+	 * reaches it, since the confirmation would be refused, so the reminder is {@code OBSOLETE}
+	 */
 	@Transactional
 	boolean remindConfirmation(UUID splitId, String generation, UUID deadlineId) {
 		Split split = lockedSplit(splitId).orElse(null);
-		if (split == null || split.status() != Status.PROPOSED) {
+		if (split == null || split.status() != Status.PROPOSED || split.pastDue(this.clock.instant())) {
 			return false;
 		}
 		int latest = this.store.latest(splitId).map(Version::number).orElse(0);

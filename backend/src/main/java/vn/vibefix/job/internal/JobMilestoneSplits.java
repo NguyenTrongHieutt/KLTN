@@ -287,12 +287,14 @@ class JobMilestoneSplits implements MilestoneSplits {
 			return List.of();
 		}
 		String title = this.store.title(jobId).orElse(null);
+		boolean live = this.store.live(jobId);
 		int limit = this.settings.value(Rule.SPLIT_EDIT_LIMIT);
 		Instant now = this.clock.instant();
-		return splits.stream().map(split -> read(split, title, viewerId, limit, now)).toList();
+		return splits.stream().map(split -> read(split, title, live, viewerId, limit, now)).toList();
 	}
 
-	private SplitRead read(SplitStore.Split split, @Nullable String title, UUID viewerId, int limit, Instant now) {
+	private SplitRead read(SplitStore.Split split, @Nullable String title, boolean live, UUID viewerId, int limit,
+			Instant now) {
 		List<SplitStore.Party> parties = this.store.parties(split.id());
 		Map<UUID, Instant> left = this.store.leftAt(split.jobId(),
 				parties.stream().map(SplitStore.Party::accountId).filter(Objects::nonNull).toList());
@@ -312,8 +314,9 @@ class JobMilestoneSplits implements MilestoneSplits {
 			.orElse(null);
 		int members = (int) parties.stream().filter(party -> !party.mentor()).count();
 		Instant due = split.confirmationDueAt();
-		return new SplitRead(split.id(), split.milestoneId(), split.number(), title, split.status(), split.finality(),
-				split.capApplies(), this.commands.capOf(split), Math.max(0, limit - this.store.editsUsed(versions)), limit,
+		int editsUsed = this.store.editsUsed(versions);
+		return new SplitRead(split.id(), split.milestoneId(), split.number(), title, live, split.status(), split.finality(),
+				split.capApplies(), this.commands.capOf(split), editsUsed, Math.max(0, limit - editsUsed), limit,
 				split.draftDueAt(), !split.draftDueAt().isAfter(now.plus(NEAR)),
 				split.status() == Status.AWAITING_DRAFT && !now.isBefore(split.draftDueAt()),
 				now.plus(Duration.ofDays(this.rules.value(split.jobId(), SplitCommands.CONFIRMATION_RULE,

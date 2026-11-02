@@ -101,8 +101,10 @@ public interface MilestoneSplits {
 	/**
 	 * A split as one of its parties reads it (AD-20, X11), newest Milestone first.
 	 * @param jobTitle the Job's title while a row of the Job exists, a bare one included
+	 * @param jobLive the Job still has its screens: its row exists and its Product was not deleted
 	 * @param cap the cap a save is held to now; empty when none applies (X5)
-	 * @param editsLeft of {@code editLimit}, both read live
+	 * @param editsUsed the Mentor's versions after the first
+	 * @param editsLeft of {@code editLimit}, read live, so never below 0 when an Administrator lowers it
 	 * @param draftNear the draft deadline is within 48 h
 	 * @param draftLate the draft deadline has passed by the Clock and no draft exists: the default is on its way
 	 * @param nextConfirmationDueAt when a round started now would be due, by the Job's copied days: N-29's date, so the
@@ -117,8 +119,9 @@ public interface MilestoneSplits {
 	 * @param latest the latest version, once one exists
 	 * @param earlier the versions before it, newest first
 	 */
-	record SplitRead(UUID splitId, UUID milestoneId, int milestoneNumber, @Nullable String jobTitle, Status status,
-			@Nullable Finality finality, boolean capApplies, @Nullable Integer cap, int editsLeft, int editLimit,
+	record SplitRead(UUID splitId, UUID milestoneId, int milestoneNumber, @Nullable String jobTitle, boolean jobLive,
+			Status status, @Nullable Finality finality, boolean capApplies, @Nullable Integer cap, int editsUsed, int editsLeft,
+			int editLimit,
 			Instant draftDueAt, boolean draftNear, boolean draftLate, Instant nextConfirmationDueAt,
 			@Nullable Instant confirmationDueAt, boolean confirmationNear, boolean pastDue, @Nullable Instant finalAt,
 			int confirmed, int confirmers, boolean viewerIsMentor, boolean viewerConfirmed, List<PartyRead> parties, @Nullable VersionRead latest,

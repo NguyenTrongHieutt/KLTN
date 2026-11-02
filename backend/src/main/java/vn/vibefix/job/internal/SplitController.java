@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.job.MilestoneSplits.PercentLine;
 import vn.vibefix.job.MilestoneSplits.Status;
@@ -43,7 +44,8 @@ class SplitController {
 	 * @param shownVersionNo the latest version the screen showed, 0 for none; an older one answers {@code STALE}
 	 * @param shares one percentage per party
 	 */
-	record SplitVersionRequest(@NotNull Integer shownVersionNo, @NotNull List<@NotNull @Valid SplitShareRequest> shares) {
+	record SplitVersionRequest(@NotNull Integer shownVersionNo,
+			@NotNull @Size(max = 100) List<@NotNull @Valid SplitShareRequest> shares) {
 	}
 
 	/** "Xác nhận": the version the screen showed; an older one answers {@code STALE}. */

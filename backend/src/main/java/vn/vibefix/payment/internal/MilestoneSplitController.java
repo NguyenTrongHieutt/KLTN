@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.job.MilestoneSplitFinalized.Finality;
 import vn.vibefix.job.MilestoneSplits;
@@ -56,7 +57,7 @@ class MilestoneSplitController {
 	}
 
 	/** The percentages to preview: one per party. */
-	record SplitPreviewRequest(@NotNull List<@NotNull @Valid SplitPreviewShareRequest> shares) {
+	record SplitPreviewRequest(@NotNull @Size(max = 100) List<@NotNull @Valid SplitPreviewShareRequest> shares) {
 	}
 
 	/** One party's VND in a preview. */
@@ -69,13 +70,14 @@ class MilestoneSplitController {
 
 	/**
 	 * A party of the split.
-	 * @param name what screens call the person; absent once an erasure anonymized them
+	 * @param name what screens call the person; absent once an erasure anonymized them, or when nothing names them
+	 * @param erased an erasure anonymized the person
 	 * @param wholeInterval active from the Milestone's funding to its release: above 0% while the cap applies
 	 * @param activeAtRelease still in the Crew at the release
 	 * @param leftAt when they left, a lock included, while their Crew row exists
 	 */
-	record SplitPartyView(UUID partyId, @Nullable String name, boolean mentor, boolean wholeInterval, boolean activeAtRelease,
-			@Nullable Instant leftAt) {
+	record SplitPartyView(UUID partyId, @Nullable String name, boolean erased, boolean mentor, boolean wholeInterval,
+			boolean activeAtRelease, @Nullable Instant leftAt) {
 	}
 
 	/**
@@ -97,9 +99,11 @@ class MilestoneSplitController {
 	/**
 	 * One accepted Milestone's card on JOB-10.
 	 * @param jobTitle the Job's title while a row of the Job exists
+	 * @param jobLive the Job still has its screens, so "Về công việc" can lead there
 	 * @param pooledVnd the whole of the Milestone's release
 	 * @param paid the final split reached the Balances
 	 * @param cap the cap a save is held to now; absent when none applies (X5)
+	 * @param editsUsed the edits the Mentor made
 	 * @param editsLeft the edits the Mentor has left, of {@code editLimit}
 	 * @param draftNear the draft deadline is within 48 h
 	 * @param draftLate the draft deadline has passed and the default is on its way
@@ -111,9 +115,9 @@ class MilestoneSplitController {
 	 * @param latest the latest version, once one exists
 	 * @param earlier the earlier versions, newest first
 	 */
-	record SplitCardView(UUID splitId, UUID milestoneId, int milestoneNumber, @Nullable String jobTitle, Status status,
-			@Nullable Finality finality, long pooledVnd, boolean paid, boolean capApplies, @Nullable Integer cap,
-			int editsLeft, int editLimit, Instant draftDueAt, boolean draftNear, boolean draftLate, Instant nextConfirmationDueAt,
+	record SplitCardView(UUID splitId, UUID milestoneId, int milestoneNumber, @Nullable String jobTitle, boolean jobLive,
+			Status status, @Nullable Finality finality, long pooledVnd, boolean paid, boolean capApplies, @Nullable Integer cap,
+			int editsUsed, int editsLeft, int editLimit, Instant draftDueAt, boolean draftNear, boolean draftLate, Instant nextConfirmationDueAt,
 			@Nullable Instant confirmationDueAt, boolean confirmationNear, boolean pastDue, @Nullable Instant finalAt, int k,
 			int n, boolean viewerIsMentor, boolean viewerConfirmed, List<SplitPartyView> parties, @Nullable SplitVersionView latest,
 			List<SplitVersionView> earlier) {
@@ -175,8 +179,8 @@ class MilestoneSplitController {
 		List<SplitVersionView> earlier = new ArrayList<>();
 		split.earlier().forEach(version -> earlier.add(version(version, pool, mentorParty)));
 		return new SplitCardView(split.splitId(), split.milestoneId(), split.milestoneNumber(), split.jobTitle(),
-				split.status(), split.finality(), pool.amountVnd(), pool.reversed(), split.capApplies(), split.cap(),
-				split.editsLeft(), split.editLimit(), split.draftDueAt(), split.draftNear(), split.draftLate(), split.nextConfirmationDueAt(),
+				split.jobLive(), split.status(), split.finality(), pool.amountVnd(), pool.reversed(), split.capApplies(),
+				split.cap(), split.editsUsed(), split.editsLeft(), split.editLimit(), split.draftDueAt(), split.draftNear(), split.draftLate(), split.nextConfirmationDueAt(),
 				split.confirmationDueAt(), split.confirmationNear(), split.pastDue(), split.finalAt(), split.confirmed(),
 				split.confirmers(), split.viewerIsMentor(), split.viewerConfirmed(), parties(split),
 				split.latest() == null ? null : version(split.latest(), pool, mentorParty), earlier);
@@ -196,7 +200,7 @@ class MilestoneSplitController {
 		return split.parties()
 			.stream()
 			.map(party -> new SplitPartyView(party.partyId(), party.accountId() == null ? null : names.get(party.accountId()),
-					party.mentor(), party.wholeInterval(), party.activeAtRelease(), party.leftAt()))
+					party.accountId() == null, party.mentor(), party.wholeInterval(), party.activeAtRelease(), party.leftAt()))
 			.toList();
 	}
 

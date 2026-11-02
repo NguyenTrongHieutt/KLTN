@@ -2,4 +2,4 @@ subject: Hệ thống đã chia đều tiền Giai đoạn {n} của {job} vì c
 ---
 Xin chào,
 
-Giai đoạn {n} của công việc {job} chưa có bản phân chia đến hạn, nên hệ thống đã chia đều. Hãy xem phần chia của mọi người trên trang "Phân chia tiền" và xác nhận trước {date}.
+Giai đoạn {n} của công việc {job} chưa có bản phân chia đến hạn, nên hệ thống đã chia. Mọi người xem phần chia trên trang "Phân chia tiền"; các thành viên xác nhận trước {date}.
