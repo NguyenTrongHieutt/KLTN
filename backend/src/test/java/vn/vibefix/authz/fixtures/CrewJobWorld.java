@@ -483,13 +483,6 @@ final class CrewJobWorld {
 		secondJob();
 		world.put("username", TestPeople.login(this.jdbc, this.mentor));
 		world.put("memberUsername", TestPeople.login(this.jdbc, escalating));
-		// The retired Team endpoints refuse every caller (Story 21.7 deletes them), so their IDs name nothing.
-		world.put("studentId", canaryMember);
-		world.put("teamMentorId", this.mentor);
-		world.put("freeStudentId", UUID.randomUUID());
-		world.put("joinRequestId", UUID.randomUUID());
-		world.put("invitationId", UUID.randomUUID());
-		world.put("membershipId", UUID.randomUUID());
 	}
 
 	/** The Mentor of this Job and of every fixture Job that has one. */

@@ -610,7 +610,7 @@ class CrossRoleIT extends IntegrationTest {
 	private static List<String> jobScopedReads() {
 		Set<String> endpoints = new LinkedHashSet<>();
 		for (MatrixRow row : MatrixRow.loadMatrix()) {
-			if (row.method() == HttpMethod.GET && !row.retiredTeam()
+			if (row.method() == HttpMethod.GET
 					&& MatrixRow.placeholders(row.path()).stream().anyMatch(MatrixRow.JOB_SCOPED::contains)) {
 				endpoints.add(row.path());
 			}

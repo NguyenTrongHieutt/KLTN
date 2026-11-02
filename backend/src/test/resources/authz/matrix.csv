@@ -30,7 +30,7 @@
 # CROSS_ROLE gets what CREW_ACTIVE gets. The escalated Team Issue's Administrator rows carry teamIssue=escalated;
 # the lists of Job content run the Mentor and each Crew state, and the Product's endpoints the crew Job's Mentor and
 # an ACTIVE member; and USER, USER_UNVERIFIED, BIDDER, LOCKED and ADMINISTRATOR are never refused with 403 except by
-# a global gate (SG-31). The retired Team endpoints keep only ANONYMOUS and USER rows until Story 21.7.
+# a global gate (SG-31).
 # LOCKED is a locked former member (a lock counts as leaving, and a locked account's session ends), so
 # each of its rows answers like ANONYMOUS. CROSS_ROLE is an ACTIVE member of the crew Job and the
 # Customer of a second Job. Every row also runs the canary scan (authz/canaries.csv) for its caller, an amount
@@ -231,38 +231,6 @@ GET /api/v1/catalog,CUSTOMER,,,200
 GET /api/v1/catalog,CROSS_ROLE,,,200
 GET /api/v1/catalog,SUBJECT,,,200
 GET /api/v1/catalog,ADMINISTRATOR,,,200
-# MEN-6 (team, FR-6, FR-14, AD-36, AD-37): no Team can be formed since Story 19.7 and no account role tells a
-# Mentor apart (Story 20.3), so every signed-in caller finds nothing until Story 21.7 deletes the class.
-GET /api/v1/mentor/team,ANONYMOUS,,,401
-GET /api/v1/mentor/team,USER,,,404 NOT_FOUND
-GET /api/v1/mentor/team/students,ANONYMOUS,,,401
-GET /api/v1/mentor/team/students,USER,,,404 NOT_FOUND
-GET /api/v1/mentor/team/students/{studentId},ANONYMOUS,,,401
-GET /api/v1/mentor/team/students/{studentId},USER,,,404 NOT_FOUND
-POST /api/v1/mentor/team/invitations,ANONYMOUS,,team-invitation.json,401
-POST /api/v1/mentor/team/invitations,USER,,team-invitation.json,404 NOT_FOUND
-POST /api/v1/mentor/team/join-requests/{joinRequestId}/accept,ANONYMOUS,,,401
-POST /api/v1/mentor/team/join-requests/{joinRequestId}/accept,USER,,,404 NOT_FOUND
-POST /api/v1/mentor/team/join-requests/{joinRequestId}/decline,ANONYMOUS,,,401
-POST /api/v1/mentor/team/join-requests/{joinRequestId}/decline,USER,,,404 NOT_FOUND
-# STU-6 (team, FR-6, AD-36): every signed-in caller finds nothing (Story 20.3) until Story 21.7 deletes the
-# class.
-GET /api/v1/team,ANONYMOUS,,,401
-GET /api/v1/team,USER,,,404 NOT_FOUND
-GET /api/v1/team/mentors,ANONYMOUS,,,401
-GET /api/v1/team/mentors,USER,,,404 NOT_FOUND
-POST /api/v1/team/join-requests,ANONYMOUS,,team-join-request.json,401
-POST /api/v1/team/join-requests,USER,,team-join-request.json,404 NOT_FOUND
-POST /api/v1/team/invitations/{invitationId}/accept,ANONYMOUS,,,401
-POST /api/v1/team/invitations/{invitationId}/accept,USER,,,404 NOT_FOUND
-POST /api/v1/team/invitations/{invitationId}/decline,ANONYMOUS,,,401
-POST /api/v1/team/invitations/{invitationId}/decline,USER,,,404 NOT_FOUND
-# Leaving and removal (team, FR-6, AD-37): every signed-in caller finds nothing (Story 20.3) until Story 21.7
-# deletes the classes.
-DELETE /api/v1/team/membership,ANONYMOUS,,,401
-DELETE /api/v1/team/membership,USER,,,404 NOT_FOUND
-DELETE /api/v1/mentor/team/members/{membershipId},ANONYMOUS,,,401
-DELETE /api/v1/mentor/team/members/{membershipId},USER,,,404 NOT_FOUND
 # PUB-4 (identity and reputation, FR-50, FR-51, UX-DR96, Story 21.3): one public profile for anyone, its identity
 # half, its two histories, and the Bid cards' histories in short, which take the username as a query. {username}
 # is the crew Job's Mentor; user=member makes it the crew Job's member who hides their student name (the

@@ -50,9 +50,9 @@ class TransitionTableTest {
 			entry("M6", Set.of(Trigger.USER, Trigger.SYSTEM, Trigger.DECISION)), entry("M7", Set.of(Trigger.USER)),
 			entry("M8", Set.of(Trigger.DECISION)));
 
-	/** The modules of ARCHITECTURE-SPINE.md, L0 to L11. */
+	/** The modules of ARCHITECTURE-SPINE.md, L0 to L11, but the shell {@code team}, which no effect names (AD-37). */
 	private static final Set<String> MODULES = Set.of("shared", "audit", "files", "settings", "catalog", "github",
-			"operations", "timers", "notification", "identity", "team", "scanning", "product", "job", "matching", "repo",
+			"operations", "timers", "notification", "identity", "scanning", "product", "job", "matching", "repo",
 			"payment", "work", "chat", "delivery", "reputation", "dispute", "admin");
 
 	@Test
