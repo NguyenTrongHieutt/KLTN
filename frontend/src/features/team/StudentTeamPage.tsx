@@ -13,7 +13,7 @@ import { personPath } from '@/features/identity/personText'
 import { t } from '@/i18n/t'
 import { formatDate, formatDayMonth } from '@/lib/dates'
 import { problemMessage } from '@/lib/problemMessage'
-import { ConfirmDialog } from './ConfirmDialog'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import {
   useAnswerInvitation,
   useLeaveTeam,

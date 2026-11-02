@@ -26,10 +26,10 @@ export function RatingLine({
       <p className="flex flex-wrap items-center gap-1.5 text-body-sm">
         <Star aria-hidden="true" className="size-4 fill-warning text-warning" />
         <span className="font-semibold">
-          {t('screen.team.reputation.average', { average: average.toLocaleString('vi-VN', { maximumFractionDigits: 1 }) })}
+          {t('screen.reputation.average', { average: average.toLocaleString('vi-VN', { maximumFractionDigits: 1 }) })}
         </span>
         <span className="text-muted-foreground">
-          {t(from === 'customers' ? 'screen.team.reputation.fromCustomers' : 'screen.team.reputation.fromMentors', {
+          {t(from === 'customers' ? 'screen.reputation.fromCustomers' : 'screen.reputation.fromMentors', {
             n: count,
           })}
         </span>
@@ -39,11 +39,11 @@ export function RatingLine({
   if (newcomer) {
     return (
       <span className="w-fit rounded-full bg-primary-soft px-2 py-0.5 text-caption font-semibold text-primary">
-        {t('screen.team.reputation.new')}
+        {t('screen.reputation.new')}
       </span>
     )
   }
-  return <p className="text-body-sm text-muted-foreground">{t('screen.team.reputation.none')}</p>
+  return <p className="text-body-sm text-muted-foreground">{t('screen.reputation.none')}</p>
 }
 
 /**
@@ -65,25 +65,25 @@ export function PortfolioSection({
     <section aria-labelledby={headingId} className="flex flex-col gap-2">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <LevelHeading level={level} id={headingId} className={level === 2 ? 'text-h3' : 'text-label font-semibold'}>
-          {t('screen.team.reputation.portfolio')}
+          {t('screen.reputation.portfolio')}
         </LevelHeading>
-        <span className="text-caption text-muted-foreground">{t('screen.team.reputation.portfolioNote')}</span>
+        <span className="text-caption text-muted-foreground">{t('screen.reputation.portfolioNote')}</span>
       </div>
       {entries.length === 0 ? (
-        <p className="text-body-sm text-muted-foreground">{t('screen.team.reputation.portfolioEmpty')}</p>
+        <p className="text-body-sm text-muted-foreground">{t('screen.reputation.portfolioEmpty')}</p>
       ) : (
         <ul className="grid gap-3 md:grid-cols-2">
           {entries.map((entry) => (
             <li key={`${entry.title}-${entry.closedAt}`} className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4">
               <p className="text-label font-semibold break-words">
-                {entry.title || t('screen.team.reputation.portfolioFacts.untitled')}
+                {entry.title || t('screen.reputation.portfolioFacts.untitled')}
               </p>
               {entry.productName && <p className="text-caption break-words">{entry.productName}</p>}
               <p className="text-caption text-muted-foreground">
                 {[
                   entry.jobTypes.map((type) => t(`term.jobType${type}.label` as MessageKey)).join(' · '),
                   formatMonthYear(entry.closedAt),
-                  t('screen.team.reputation.milestones', { n: entry.milestones }),
+                  t('screen.reputation.milestones', { n: entry.milestones }),
                 ].join(' · ')}
               </p>
               <EntryFacts entry={entry} />
@@ -103,17 +103,17 @@ function EntryFacts({ entry }: { entry: PortfolioEntry }) {
   const facts =
     entry.role === 'MENTOR'
       ? [
-          t('screen.team.reputation.portfolioFacts.milestonesHandedOver', { n: entry.milestonesHandedOver ?? 0 }),
-          t('screen.team.reputation.portfolioFacts.reviewsWritten', { n: entry.reviewsWritten ?? 0 }),
+          t('screen.reputation.portfolioFacts.milestonesHandedOver', { n: entry.milestonesHandedOver ?? 0 }),
+          t('screen.reputation.portfolioFacts.reviewsWritten', { n: entry.reviewsWritten ?? 0 }),
         ]
-      : [t('screen.team.reputation.portfolioFacts.workItemsApproved', { n: entry.workItemsApproved ?? 0 })]
+      : [t('screen.reputation.portfolioFacts.workItemsApproved', { n: entry.workItemsApproved ?? 0 })]
   return (
     <p className="flex flex-wrap items-center gap-1.5 text-caption">
       <span>{facts.join(' · ')}</span>
       {entry.rating != null && (
         <span className="flex items-center gap-1">
           <Star aria-hidden="true" className="size-3.5 fill-warning text-warning" />
-          {t('screen.team.reputation.portfolioFacts.rating', { n: entry.rating })}
+          {t('screen.reputation.portfolioFacts.rating', { n: entry.rating })}
         </span>
       )}
     </p>

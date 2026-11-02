@@ -15,7 +15,7 @@ import { ApiError } from '@/lib/apiClient'
 import { formatDate, formatDayMonth } from '@/lib/dates'
 import { problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
-import { ConfirmDialog } from './ConfirmDialog'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import {
   useAnswerJoinRequest,
   useInviteStudent,

@@ -37,7 +37,7 @@ export function Sheet({
               )}
             </div>
             <Dialog.Close
-              aria-label={t('screen.team.close')}
+              aria-label={t('screen.shared.close')}
               className={cn(buttonVariants({ variant: 'ghost', size: 'compact' }), 'px-2')}
             >
               <X aria-hidden="true" />

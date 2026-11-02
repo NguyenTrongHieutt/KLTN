@@ -305,6 +305,8 @@
       }
     },
     "shared": {
+      "close": "Đóng",
+      "back": "Quay lại",
       "notFound": {
         "title": "Không tìm thấy",
         "heading": "Không tìm thấy nội dung này.",
@@ -373,8 +375,6 @@
     },
     "team": {
       "title": "Nhóm",
-      "close": "Đóng",
-      "back": "Quay lại",
       "verified": "Đã xác minh",
       "search": "Tìm",
       "clearSearch": "Xóa từ khóa",
@@ -497,28 +497,28 @@
         "teamFull": "Nhóm đã đủ 10 sinh viên.",
         "openFull": "Mở hồ sơ đầy đủ"
       },
-      "reputation": {
-        "average": "{average} sao",
-        "fromCustomers": "({n} lượt từ khách hàng)",
-        "fromMentors": "({n} lượt từ người hướng dẫn)",
-        "new": "Mới",
-        "none": "Chưa có lượt chấm sao",
-        "portfolio": "Hồ sơ năng lực",
-        "portfolioNote": "Do hệ thống tạo từ công việc thật trên vibefix.",
-        "portfolioEmpty": "Chưa có công việc nào hoàn thành trên vibefix.",
-        "milestones": "{n} giai đoạn",
-        "portfolioFacts": {
-          "milestones": "{n} giai đoạn được chấp nhận",
-          "workItemsApproved": "{n} việc hoàn thành qua duyệt",
-          "milestonesHandedOver": "{n} giai đoạn đã bàn giao",
-          "reviewsWritten": "{n} lượt duyệt việc",
-          "rating": "{n} sao",
-          "untitled": "Công việc đã hoàn thành"
-        }
-      },
       "experience": {
         "years": "{years} năm kinh nghiệm",
         "notDeclared": "Kinh nghiệm: Chưa khai"
+      }
+    },
+    "reputation": {
+      "average": "{average} sao",
+      "fromCustomers": "({n} lượt từ khách hàng)",
+      "fromMentors": "({n} lượt từ người hướng dẫn)",
+      "new": "Mới",
+      "none": "Chưa có lượt chấm sao",
+      "portfolio": "Hồ sơ năng lực",
+      "portfolioNote": "Do hệ thống tạo từ công việc thật trên vibefix.",
+      "portfolioEmpty": "Chưa có công việc nào hoàn thành trên vibefix.",
+      "milestones": "{n} giai đoạn",
+      "portfolioFacts": {
+        "milestones": "{n} giai đoạn được chấp nhận",
+        "workItemsApproved": "{n} việc hoàn thành qua duyệt",
+        "milestonesHandedOver": "{n} giai đoạn đã bàn giao",
+        "reviewsWritten": "{n} lượt duyệt việc",
+        "rating": "{n} sao",
+        "untitled": "Công việc đã hoàn thành"
       }
     },
     "admin": {
