@@ -6,7 +6,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -200,7 +199,7 @@ class Reviews {
 		return this.people.cards(List.of(student))
 			.stream()
 			.findFirst()
-			.map(card -> Objects.requireNonNullElse(card.name(), "@" + card.githubLogin()))
+			.map(PersonDirectory.PersonCard::shownName)
 			.orElse("");
 	}
 

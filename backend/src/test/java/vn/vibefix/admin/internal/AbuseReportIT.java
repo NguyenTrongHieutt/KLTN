@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.sql.Timestamp;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -27,6 +28,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
+import vn.vibefix.authz.JobContent;
 import vn.vibefix.identity.internal.AdministratorTestSupport;
 import vn.vibefix.identity.internal.AdministratorTestSupport.Administrator;
 import vn.vibefix.identity.internal.IdentityTestSupport;
@@ -53,6 +55,9 @@ class AbuseReportIT extends IntegrationTest {
 
 	@Autowired
 	private ApplicationContext context;
+
+	@Autowired
+	private AdminPersonalData personalData;
 
 	private HeldCrewJob world;
 
@@ -180,8 +185,8 @@ class AbuseReportIT extends IntegrationTest {
 	}
 
 	/**
-	 * Story 21.7 (FR-60, FR-69): a recruitment note is reported against the Mentor while it shows, by anyone but the
-	 * Mentor, and it cannot be hidden, so the Administrator acts on the person.
+	 * Story 21.7 (FR-60, FR-69): a recruitment note is reported against the Mentor while it shows, and it cannot be
+	 * hidden, so the Administrator acts on the person, reading the note as it was filed.
 	 */
 	@Test
 	void aShowingRecruitmentNoteIsReportedAgainstTheMentorAndCannotBeHidden() throws Exception {
@@ -199,15 +204,76 @@ class AbuseReportIT extends IntegrationTest {
 				""").query(String.class).single())
 			.isEqualTo(job + " " + job + " " + this.world.hung() + " Tuyển thêm thành viên");
 		UUID report = reportOf("RECRUITMENT_NOTE");
-		this.mvc.perform(get("/api/v1/admin/abuse-reports/" + report).with(admin(this.ha.accountId())))
+		this.mvc.perform(get("/api/v1/admin/abuse-reports").with(admin(this.ha.accountId())))
 			.andExpect(status().isOk())
 			.andExpect(content().string(not(containsString("Cần người kiểm thử"))));
+		this.mvc.perform(get("/api/v1/admin/abuse-reports/" + report).with(admin(this.ha.accountId())))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.reportedText").value("Cần người kiểm thử"))
+			.andExpect(jsonPath("$.authorId").value(this.world.hung().toString()));
 		take(this.ha.accountId(), report).andExpect(jsonPath("$.hideable").value(false))
 			.andExpect(jsonPath("$.itemReadable").value(false));
 		decide(this.ha.accountId(), report, "HIDE", "Ẩn đi").andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.reason").value("NOT_HIDEABLE"));
 		decide(this.ha.accountId(), report, "ACTION_TAKEN", null).andExpect(status().isOk())
 			.andExpect(jsonPath("$.status").value("ACTION_TAKEN"));
+
+		// The report keeps the note as it read at filing, whatever the Mentor writes afterwards.
+		this.jdbc.sql("UPDATE job.job SET recruit_note = 'Đã viết lại' WHERE id = :id").param("id", job).update();
+		this.mvc.perform(get("/api/v1/admin/abuse-reports/" + report).with(admin(this.ha.accountId())))
+			.andExpect(jsonPath("$.reportedText").value("Cần người kiểm thử"));
+		this.personalData.eraseAccount(this.world.hung());
+		this.mvc.perform(get("/api/v1/admin/abuse-reports/" + report).with(admin(this.ha.accountId())))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.reportedText").doesNotExist())
+			.andExpect(jsonPath("$.authorId").doesNotExist())
+			.andExpect(jsonPath("$.label").value("Tuyển thêm thành viên"));
+	}
+
+	/** MEN-3 shows the note to a reader with no role and to a former member, never to the Customer or a running member. */
+	@Test
+	void onlyThoseShownARecruitmentNoteReportIt() throws Exception {
+		UUID job = recruitingJob("Cần người kiểm thử");
+		UUID picked = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null);
+		UUID member = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null);
+		UUID former = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null);
+		Instant signed = this.clock.instant().minus(Duration.ofDays(3));
+		JobContent.crewRow(this.jdbc, job, picked, "ASSIGNED", null, signed);
+		JobContent.crewRow(this.jdbc, job, member, "ACTIVE", null, signed);
+		JobContent.crewRow(this.jdbc, job, former, "LEFT", this.clock.instant().minus(Duration.ofDays(1)), signed);
+
+		file(this.world.lan(), Role.CUSTOMER, "RECRUITMENT_NOTE", job).andExpect(status().isNotFound());
+		file(picked, Role.STUDENT, "RECRUITMENT_NOTE", job).andExpect(status().isNotFound());
+		file(member, Role.STUDENT, "RECRUITMENT_NOTE", job).andExpect(status().isNotFound());
+		file(former, Role.STUDENT, "RECRUITMENT_NOTE", job).andExpect(status().isCreated());
+	}
+
+	/** {@code ProfileReportable}'s person branch: an account with no profile row is named by its GitHub username. */
+	@Test
+	void aPersonWithNoProfileIsReportableUntilLocked() throws Exception {
+		UUID person = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null);
+		String login = this.jdbc.sql("SELECT github_login FROM identity.account WHERE id = :id")
+			.param("id", person)
+			.query(String.class)
+			.single();
+
+		file(this.world.vy(), Role.STUDENT, "USER", person).andExpect(status().isCreated());
+		// The username lookup reads every account with or without a profile, so it finds this one too.
+		fileByLogin(this.world.hung(), Role.MENTOR, login).andExpect(status().isCreated());
+		assertThat(this.jdbc.sql("SELECT label FROM admin.abuse_report WHERE kind = 'USER' AND target_id = :id")
+			.param("id", person)
+			.query(String.class)
+			.list()).containsExactly("@" + login, "@" + login);
+
+		IdentityTestSupport.lock(this.jdbc, person, "Vi phạm");
+		file(this.world.minh(), Role.STUDENT, "USER", person).andExpect(status().isNotFound());
+		fileByLogin(this.world.lan(), Role.CUSTOMER, login).andExpect(status().isNotFound());
+	}
+
+	private ResultActions fileByLogin(UUID account, Role role, String login) throws Exception {
+		return this.mvc.perform(post("/api/v1/abuse-reports").with(as(account, role)).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("{\"kind\":\"USER\",\"targetLogin\":\"" + login + "\",\"reason\":\"Mạo danh\"}"));
 	}
 
 	/** No note, a note no longer shown, or a hidden Job: nothing to report, as for any other kind. */

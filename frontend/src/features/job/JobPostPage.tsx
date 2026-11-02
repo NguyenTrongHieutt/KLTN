@@ -187,8 +187,8 @@ function Post({ post, invitation }: { post: JobPost; invitation: MentorInvitatio
     { kind: 'JOB_POST', targetId: post.id, item: 'screen.report.post' },
     { kind: 'PRODUCT', targetId: post.productId, item: 'screen.report.product' },
   ]
-  // The Mentor's note, while it shows; the Mentor reports nothing of their own (FR-69, Story 21.7).
-  if (post.recruitment?.note && !role.isPending && role.data?.role !== 'MENTOR') {
+  // The Mentor's note, for those ActionArea shows it to: no role in the Job, or a former member (FR-69, Story 21.7).
+  if (post.recruitment?.note && !role.isPending && (!role.data || role.data.crewKind === 'FORMER')) {
     reportTargets.push({ kind: 'RECRUITMENT_NOTE', targetId: post.id, item: 'screen.report.recruitmentNote' })
   }
   const types = post.jobTypes.map((type) => t(`term.jobType${type}.label` as MessageKey)).join(', ')

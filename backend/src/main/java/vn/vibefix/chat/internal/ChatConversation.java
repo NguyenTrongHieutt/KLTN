@@ -147,7 +147,7 @@ class ChatConversation {
 			.ifPresent(name -> names.put(viewer.mentorId(), name));
 		if (!viewer.crew().isEmpty()) {
 			for (PersonCard card : this.people.cards(viewer.crew())) {
-				names.put(card.accountId(), card.name() != null ? card.name() : "@" + card.githubLogin());
+				names.put(card.accountId(), card.shownName());
 			}
 		}
 		return names;

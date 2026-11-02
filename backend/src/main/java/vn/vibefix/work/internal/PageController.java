@@ -254,7 +254,7 @@ class PageController {
 		versions.stream().map(Version::author).filter(id -> id != null && !id.equals(viewer.mentorId())).forEach(students::add);
 		if (!students.isEmpty()) {
 			for (PersonCard card : this.people.cards(List.copyOf(students))) {
-				names.put(card.accountId(), card.name() != null ? card.name() : "@" + card.githubLogin());
+				names.put(card.accountId(), card.shownName());
 			}
 		}
 		return names;

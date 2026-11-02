@@ -17,8 +17,8 @@ import vn.vibefix.shared.PersonalDataSection;
 /**
  * {@code admin}'s part in exports, erasure, and Product deletion (AD-24): a person exports the Abuse Reports
  * they filed and the Skills they suggested; erasure clears them as the reporter, the reported author, the
- * assignee, the suggester, or the decider, and a reported user's name; deleting a Product deletes the reports on
- * its content.
+ * assignee, the suggester, or the decider, a reported user's name, and the recruitment note a report on them keeps;
+ * deleting a Product deletes the reports on its content.
  */
 @Component
 class AdminPersonalData implements PersonalDataParticipant {
@@ -74,6 +74,9 @@ class AdminPersonalData implements PersonalDataParticipant {
 	@Override
 	public void eraseAccount(UUID accountId) {
 		this.jdbc.sql("UPDATE admin.abuse_report SET label = '—' WHERE kind = 'USER' AND author_account_id = :id")
+			.param("id", accountId)
+			.update();
+		this.jdbc.sql("UPDATE admin.abuse_report SET reported_text = NULL WHERE author_account_id = :id")
 			.param("id", accountId)
 			.update();
 		for (String column : List.of("reporter_account_id", "author_account_id", "assigned_admin_id", "decided_by_admin_id")) {

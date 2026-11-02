@@ -122,7 +122,6 @@ class NotificationTypes implements NotificationCatalog {
 	static final TodoType MATCHING_ANSWER_INVITATION_TO_APPLY = new TodoType("matching.answer_invitation_to_apply",
 			Set.of(Audience.SUBJECT), 3, Set.of("job"));
 
-
 	/** The school email code (FR-5): email only, to the address being verified, ahead of reminders (AD-34). */
 	static final NotificationType SCHOOL_EMAIL_CODE = new NotificationType("identity.school_email_code",
 			Set.of(Audience.SUBJECT), Channel.EMAIL_ONLY, EmailClass.ONE_TIME_CODE, "mail", Set.of("code"));

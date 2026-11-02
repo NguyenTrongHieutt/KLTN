@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { components } from '@/api/schema'
-import { NOTIFICATION_QUERY_KEY } from '@/features/notification/api'
 import vi from '@/i18n/vi.json'
 import { apiClient, unwrap } from '@/lib/apiClient'
 import { PROFILE_QUERY_KEY } from './profileApi'
@@ -56,8 +55,7 @@ export function useConfirmSchoolEmailCode() {
       unwrap(apiClient.POST('/api/v1/verification/school-email/confirm', { body: { code } })),
     onSuccess: (view) => {
       queryClient.setQueryData(VERIFICATION_QUERY_KEY, view)
-      void queryClient.invalidateQueries({ queryKey: PROFILE_QUERY_KEY })
-      return queryClient.invalidateQueries({ queryKey: NOTIFICATION_QUERY_KEY })
+      return queryClient.invalidateQueries({ queryKey: PROFILE_QUERY_KEY })
     },
     onError: () => queryClient.invalidateQueries({ queryKey: VERIFICATION_QUERY_KEY }),
   })

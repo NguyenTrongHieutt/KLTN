@@ -167,7 +167,7 @@ class RatingController {
 		List<UUID> crew = this.ratings.crew(viewer.jobId());
 		if (!crew.isEmpty()) {
 			for (PersonCard card : this.people.cards(crew)) {
-				names.put(card.accountId(), card.name() != null ? card.name() : "@" + card.githubLogin());
+				names.put(card.accountId(), card.shownName());
 			}
 		}
 		return names;

@@ -59,8 +59,8 @@ class TeamShellTest {
 	void theShellKeepsItsFlywayHistory() throws IOException {
 		assertThat(new PathMatchingResourcePatternResolver().getResources("classpath:db/migration/team/V*__team_*.sql"))
 			.extracting(resource -> resource.getFilename())
-			.contains("V202610192312__team_init.sql", "V202610192320__team_crew_reservation.sql",
-					"V202611021500__team_drop_tables.sql");
+			.containsExactlyInAnyOrder("V202610192312__team_init.sql", "V202610192320__team_crew_reservation.sql",
+					"V202611021230__team_clear_crew_reservations.sql", "V202611021500__team_drop_tables.sql");
 	}
 
 	private static ApplicationModule declarationOf(String basePackage) {

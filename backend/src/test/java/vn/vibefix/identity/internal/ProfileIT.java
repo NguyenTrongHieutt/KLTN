@@ -379,6 +379,17 @@ class ProfileIT extends IntegrationTest {
 		assertThat(cards.subList(1, 5)).extracting(PersonDirectory.PersonCard::shownName)
 			.containsExactly("", "@" + unverifiedLogin, "@" + hiddenLogin, "Trần Quang Minh");
 		assertThat(this.people.cards(List.of())).isEmpty();
+
+		// The name shows through the last instant of its last valid day in Vietnam, and lapses one second later.
+		String namedLogin = TestPeople.login(this.jdbc, named);
+		this.clock.setInstant(Instant.parse("2026-09-30T16:59:59Z"));
+		assertThat(this.people.cards(List.of(named))).singleElement()
+			.satisfies(card -> assertThat(card.name()).isEqualTo("Trần Quang Minh"));
+		this.clock.setInstant(Instant.parse("2026-09-30T17:00:00Z"));
+		assertThat(this.people.cards(List.of(named))).singleElement().satisfies(card -> {
+			assertThat(card.name()).isNull();
+			assertThat(card.shownName()).isEqualTo("@" + namedLogin);
+		});
 	}
 
 	/** Story 19.4: only the live, valid row counts; an ended one hides the name, a renewal leaves one card. */

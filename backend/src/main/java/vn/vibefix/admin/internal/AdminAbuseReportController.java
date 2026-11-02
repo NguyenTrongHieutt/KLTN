@@ -34,7 +34,8 @@ import vn.vibefix.shared.Gate;
  * message or a Work Item note opens a grant on that one item (read through {@code chat}'s and {@code work}'s
  * endpoints, audited there), and the assignee's decision: hide through FR-60, an action taken elsewhere, or
  * dismissal, each with the outcome the reporter reads. The queue shows titles and names, never a message's or
- * a note's text.
+ * a note's text. A report's detail holds a recruitment note as it read at filing, since its Mentor can rewrite it:
+ * it was public text, so it takes no grant and no audited read.
  */
 @RestController
 @RequestMapping("/api/v1/admin/abuse-reports")
@@ -47,13 +48,16 @@ class AdminAbuseReportController {
 	}
 
 	/**
+	 * @param authorId who wrote the item, or the reported user, for ADM-2; {@code null} once erased
 	 * @param hideable FR-60 hides this kind, so "Ẩn nội dung" is offered
-	 * @param itemReadable the viewer is the assignee and reads the reported message or note now
+	 * @param itemReadable the viewer is the assignee and reads the reported message or Work Item note now
+	 * @param reportedText a recruitment note as it read at filing, for any Administrator; {@code null} for every other
+	 * kind, and once its Mentor is erased
 	 */
 	record AbuseReportDetail(UUID id, String kind, UUID targetId, @Nullable UUID jobId, String label, String reason,
-			@Nullable String reporterName, @Nullable String authorName, Instant createdAt, String status, boolean assigned,
-			boolean assignedToMe, boolean hideable, boolean itemReadable, @Nullable String outcome,
-			@Nullable Instant decidedAt) {
+			@Nullable String reporterName, @Nullable UUID authorId, @Nullable String authorName, Instant createdAt,
+			String status, boolean assigned, boolean assignedToMe, boolean hideable, boolean itemReadable,
+			@Nullable String outcome, @Nullable Instant decidedAt, @Nullable String reportedText) {
 	}
 
 	/** @param hideReason what the author reads, for {@code HIDE} */
@@ -116,10 +120,10 @@ class AdminAbuseReportController {
 		}
 		Map<UUID, String> names = this.accounts.names(people);
 		return new AbuseReportDetail(report.id(), report.kind(), report.targetId(), report.jobId(), report.label(),
-				report.reason(), report.reporterId() == null ? null : names.get(report.reporterId()),
+				report.reason(), report.reporterId() == null ? null : names.get(report.reporterId()), report.authorId(),
 				report.authorId() == null ? null : names.get(report.authorId()), report.createdAt(), report.status(),
 				report.assigneeId() != null, me.equals(report.assigneeId()), ContentHiding.KINDS.contains(report.kind()),
-				this.reports.itemReadable(report, me), report.outcome(), report.decidedAt());
+				this.reports.itemReadable(report, me), report.outcome(), report.decidedAt(), report.reportedText());
 	}
 
 }

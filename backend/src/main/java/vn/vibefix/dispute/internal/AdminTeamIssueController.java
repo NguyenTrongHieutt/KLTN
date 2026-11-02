@@ -179,7 +179,7 @@ class AdminTeamIssueController {
 		String raiser = issue.raiserId() == null ? null : this.people.cards(List.of(issue.raiserId()))
 			.stream()
 			.findFirst()
-			.map(card -> card.name() != null ? card.name() : "@" + card.githubLogin())
+			.map(PersonDirectory.PersonCard::shownName)
 			.orElse(null);
 		String mentor = issue.mentorId() == null ? null : this.mentors.cards(List.of(issue.mentorId()))
 			.stream()

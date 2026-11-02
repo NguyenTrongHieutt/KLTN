@@ -327,7 +327,7 @@ class TeamIssues {
 		String name = this.people.cards(List.of(studentId))
 			.stream()
 			.findFirst()
-			.map(card -> card.name() != null ? card.name() : "@" + card.githubLogin())
+			.map(PersonDirectory.PersonCard::shownName)
 			.orElse("");
 		String link = "/cong-viec/" + jobId;
 		this.notifications.send(new NotificationRequest(RAISED, id, List.of(new Recipient(job.mentorId(), Audience.MENTOR)),

@@ -262,7 +262,7 @@ class TeamIssueController {
 	private Map<UUID, String> names(List<TeamIssue> issues) {
 		Map<UUID, String> names = new HashMap<>();
 		this.people.cards(issues.stream().map(TeamIssue::raiserId).filter(Objects::nonNull).distinct().toList())
-			.forEach(card -> names.put(card.accountId(), card.name() != null ? card.name() : "@" + card.githubLogin()));
+			.forEach(card -> names.put(card.accountId(), card.shownName()));
 		return names;
 	}
 

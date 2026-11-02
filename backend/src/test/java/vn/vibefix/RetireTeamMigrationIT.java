@@ -19,8 +19,8 @@ import vn.vibefix.support.PostgresTestDatabase;
  * Story 21.7's forward migrations on a database that still holds Teams and the rows that would otherwise break: the
  * four tables are gone and the empty schema stays (AD-37, SG-63); no {@code team.request_lapse} Deadline is left for
  * the poller to fail on forever; no {@code team.*} or {@code identity.verify_student} row reaches a screen as a raw
- * key, open or closed; and no queued email aborts with {@code TEMPLATE_MISSING}. Everything else stays, and so does the
- * audit trail (AD-8).
+ * key, open or closed; and no queued or retryable email aborts with {@code TEMPLATE_MISSING}. Everything else stays,
+ * and so does the audit trail (AD-8).
  */
 class RetireTeamMigrationIT {
 
@@ -93,7 +93,9 @@ class RetireTeamMigrationIT {
 				       (gen_random_uuid(), 'k6', 'notification.email', 'EMAIL', 0, 'SUCCEEDED',
 				        '{"template":"team.released"}', now(), now(), now(), NULL),
 				       (gen_random_uuid(), 'k7', 'notification.email', 'EMAIL', 0, 'PENDING',
-				        '{"template":"identity.account_locked"}', now(), now(), NULL, NULL)
+				        '{"template":"identity.account_locked"}', now(), now(), NULL, NULL),
+				       (gen_random_uuid(), 'k8', 'notification.email', 'EMAIL', 0, 'FAILED',
+				        '{"template":"team.member_removed"}', now(), now(), now(), NULL)
 				""", """
 				INSERT INTO audit.audit_entry (id, occurred_at, actor_type, actor_account_id, action)
 				VALUES (gen_random_uuid(), now(), 'USER', '%s', 'team.member_left')

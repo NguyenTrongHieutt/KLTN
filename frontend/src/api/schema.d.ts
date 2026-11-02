@@ -3841,6 +3841,8 @@ export interface components {
         AbuseReportDetail: {
             assigned: boolean;
             assignedToMe: boolean;
+            /** Format: uuid */
+            authorId?: string;
             authorName?: string;
             /** Format: date-time */
             createdAt: string;
@@ -3856,6 +3858,7 @@ export interface components {
             label: string;
             outcome?: string;
             reason: string;
+            reportedText?: string;
             reporterName?: string;
             status: string;
             /** Format: uuid */

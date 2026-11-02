@@ -47,14 +47,13 @@ class ProfileReportable implements ReportableContent {
 			return login != null && this.mentors.byLogin(login).isPresent()
 					? Optional.of(new Reported(null, null, id, mentor.get().displayName())) : Optional.empty();
 		}
-		Optional<PersonCard> student = this.people.cards(List.of(id)).stream().findFirst();
-		// An account without GitHub linked has no public profile to report (Story 20.3 lists every person's account), and
-		// neither has a locked or an erased one.
-		if (student.isEmpty() || student.get().githubLogin() == null || !student.get().available()) {
+		Optional<PersonCard> person = this.people.cards(List.of(id)).stream().findFirst();
+		// No profile row: an account without GitHub linked shows no public profile to report (Story 20.3), and a locked
+		// or erased account is refused.
+		if (person.isEmpty() || person.get().githubLogin() == null || !person.get().available()) {
 			return Optional.empty();
 		}
-		PersonCard card = student.get();
-		return Optional.of(new Reported(null, null, id, card.name() != null ? card.name() : "@" + card.githubLogin()));
+		return Optional.of(new Reported(null, null, id, person.get().shownName()));
 	}
 
 }

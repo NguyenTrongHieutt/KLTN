@@ -26,8 +26,17 @@ public interface ReportableContent {
 	 * @param productId the Product whose deletion deletes the report; {@code null} for a user
 	 * @param authorId who wrote the item, or the reported user
 	 * @param label what ADM-6 shows: a title or a name, never a message's or a note's text
+	 * @param text what the report keeps as it read at filing, for public text its author can rewrite: a recruitment
+	 * note; {@code null} for every other kind
 	 */
-	record Reported(@Nullable UUID jobId, @Nullable UUID productId, @Nullable UUID authorId, String label) {
+	record Reported(@Nullable UUID jobId, @Nullable UUID productId, @Nullable UUID authorId, String label,
+			@Nullable String text) {
+
+		/** What a report names when it keeps no text. */
+		public Reported(@Nullable UUID jobId, @Nullable UUID productId, @Nullable UUID authorId, String label) {
+			this(jobId, productId, authorId, label, null);
+		}
+
 	}
 
 	/** The item when {@code caller} can see it now; empty otherwise, or for a kind this module does not answer. */

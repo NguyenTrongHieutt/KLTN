@@ -381,6 +381,21 @@ describe('MEN-3, one Job Post (FR-12)', () => {
       expect(screen.queryByRole('menuitem', { name: noteItem })).toBeNull()
     })
 
+    it('offers no such item to the Customer, who is never shown it', { timeout: 15_000 }, async () => {
+      const user = userEvent.setup()
+      fakeBackend(signedInUser, {
+        ...inEveryJob('CUSTOMER'),
+        'GET /api/v1/mentor/job-posts/j1': () => json(recruitingPost('Cần người làm trang thanh toán.')),
+        'GET /api/v1/mentor/job-posts/j1/customer-rating': () => json({ count: 0 }),
+      })
+      renderAt('/tim-viec/j1')
+
+      expect(await screen.findByRole('link', { name: 'Mở công việc' })).toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: 'Thao tác khác với tin tuyển' }))
+      expect(await screen.findByRole('menuitem', { name: 'Báo cáo tin tuyển' })).toBeInTheDocument()
+      expect(screen.queryByRole('menuitem', { name: noteItem })).toBeNull()
+    })
+
     it('offers no such item to the Mentor who wrote it', { timeout: 15_000 }, async () => {
       const user = userEvent.setup()
       fakeBackend(signedInUser, {

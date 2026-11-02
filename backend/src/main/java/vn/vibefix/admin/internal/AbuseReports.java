@@ -84,10 +84,12 @@ class AbuseReports {
 	/**
 	 * One report.
 	 * @param status {@code OPEN}, {@code HIDDEN}, {@code ACTION_TAKEN}, or {@code DISMISSED}
+	 * @param reportedText a recruitment note as it read at filing; {@code null} for every other kind
 	 */
 	record Report(UUID id, @Nullable UUID reporterId, String kind, UUID targetId, @Nullable UUID jobId, @Nullable UUID productId,
 			@Nullable UUID authorId, String label, String reason, String status, Instant createdAt, @Nullable UUID assigneeId,
-			@Nullable UUID grantId, @Nullable String outcome, @Nullable Instant decidedAt) {
+			@Nullable UUID grantId, @Nullable String outcome, @Nullable Instant decidedAt,
+			@Nullable String reportedText) {
 
 		/** A report whose decision gives its assignee a grant on the one item it names. */
 		boolean granted() {
@@ -98,7 +100,7 @@ class AbuseReports {
 
 	private static final String COLUMNS = """
 			id, reporter_account_id, kind, target_id, job_id, product_id, author_account_id, label, reason, status, created_at,
-			assigned_admin_id, grant_id, outcome, decided_at
+			assigned_admin_id, grant_id, outcome, decided_at, reported_text
 			""";
 
 	private final JdbcClient jdbc;
@@ -181,8 +183,8 @@ class AbuseReports {
 			}
 			this.jdbc.sql("""
 					INSERT INTO admin.abuse_report (id, reporter_account_id, kind, target_id, job_id, product_id, author_account_id,
-					    label, reason, status, created_at)
-					VALUES (:id, :reporter, :kind, :target, :job, :product, :author, :label, :reason, 'OPEN', :now)
+					    label, reason, status, created_at, reported_text)
+					VALUES (:id, :reporter, :kind, :target, :job, :product, :author, :label, :reason, 'OPEN', :now, :text)
 					""")
 				.param("id", id)
 				.param("reporter", reporter)
@@ -194,6 +196,7 @@ class AbuseReports {
 				.param("label", label(reported.label()))
 				.param("reason", text)
 				.param("now", Timestamp.from(now))
+				.param("text", reported.text())
 				.update();
 			AuditEntry entry = AuditEntry.of(AuditActor.user(reporter), "admin.abuse_report_filed",
 					AuditObject.of("admin.abuse_report", id));
@@ -356,7 +359,8 @@ class AbuseReports {
 				rs.getObject("target_id", UUID.class), rs.getObject("job_id", UUID.class), rs.getObject("product_id", UUID.class),
 				rs.getObject("author_account_id", UUID.class), rs.getString("label"), rs.getString("reason"),
 				rs.getString("status"), rs.getTimestamp("created_at").toInstant(), rs.getObject("assigned_admin_id", UUID.class),
-				rs.getObject("grant_id", UUID.class), rs.getString("outcome"), decided == null ? null : decided.toInstant());
+				rs.getObject("grant_id", UUID.class), rs.getString("outcome"),
+				decided == null ? null : decided.toInstant(), rs.getString("reported_text"));
 	}
 
 }

@@ -8424,6 +8424,10 @@
           "assignedToMe" : {
             "type" : "boolean"
           },
+          "authorId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
           "authorName" : {
             "type" : "string"
           },
@@ -8459,6 +8463,9 @@
             "type" : "string"
           },
           "reason" : {
+            "type" : "string"
+          },
+          "reportedText" : {
             "type" : "string"
           },
           "reporterName" : {
