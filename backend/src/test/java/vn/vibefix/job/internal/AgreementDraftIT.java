@@ -12,7 +12,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
@@ -232,13 +231,6 @@ class AgreementDraftIT extends IntegrationTest {
 			.update();
 		this.hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng",
 				List.of(TestPeople.REACT), "React");
-		UUID team = UUID.randomUUID();
-		this.jdbc.sql("INSERT INTO team.team (id, mentor_account_id, status, created_at) VALUES (:id, :mentor, 'OPEN', now())")
-			.param("id", team).param("mentor", this.hung).update();
-		UUID student = TestPeople.student(this.jdbc, "Sinh viên", true, List.of(TestPeople.REACT), "React",
-				LocalDate.parse("2026-09-30"));
-		this.jdbc.sql("INSERT INTO team.membership (id, team_id, student_account_id, joined_at) VALUES (:id, :team, :student, now())")
-			.param("id", UUID.randomUUID()).param("team", team).param("student", student).update();
 		UUID application = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO matching.application (id, job_id, product_id, customer_account_id, mentor_account_id, status,

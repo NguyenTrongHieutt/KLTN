@@ -76,7 +76,7 @@ class CrewChatIT extends IntegrationTest {
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		UUID product = ChatTestSupport.product(this.jdbc, this.lan);
 		this.job = ChatTestSupport.job(this.jdbc, product, this.lan, "OPEN", null, this.clock.instant());
-		this.hung = ChatTestSupport.mentorWithFreeStudent(this.jdbc, "Đỗ Mạnh Hùng");
+		this.hung = ChatTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng");
 		UUID application = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO matching.application (id, job_id, product_id, customer_account_id, mentor_account_id, status,
@@ -145,7 +145,7 @@ class CrewChatIT extends IntegrationTest {
 			.andExpect(status().isNoContent());
 
 		UUID otherStudent = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null);
-		UUID otherMentor = ChatTestSupport.mentorWithFreeStudent(this.jdbc, "Phạm Thu Hà");
+		UUID otherMentor = ChatTestSupport.mentor(this.jdbc, "Phạm Thu Hà");
 		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
 		for (RequestPostProcessor outsider : List.of(as(this.lan, Role.CUSTOMER), as(assigned, Role.STUDENT),
 				as(otherStudent, Role.STUDENT), as(otherMentor, Role.MENTOR), as(admin, Role.ADMINISTRATOR))) {

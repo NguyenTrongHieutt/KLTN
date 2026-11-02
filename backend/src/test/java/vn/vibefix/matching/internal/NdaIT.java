@@ -11,7 +11,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
@@ -232,19 +231,7 @@ class NdaIT extends IntegrationTest {
 	}
 
 	private UUID mentor(String name) {
-		UUID mentor = TestPeople.mentor(this.jdbc, name, List.of(TestPeople.REACT),
-				"React");
-		UUID team = UUID.randomUUID();
-		this.jdbc.sql("INSERT INTO team.team (id, mentor_account_id, status, created_at) VALUES (:id, :mentor, 'OPEN', now())")
-			.param("id", team)
-			.param("mentor", mentor)
-			.update();
-		UUID student = TestPeople.student(this.jdbc, "Sinh viên của " + name, true, List.of(TestPeople.REACT),
-				"React", LocalDate.parse("2026-09-30"));
-		this.jdbc.sql("""
-				INSERT INTO team.membership (id, team_id, student_account_id, joined_at) VALUES (:id, :team, :student, now())
-				""").param("id", UUID.randomUUID()).param("team", team).param("student", student).update();
-		return mentor;
+		return TestPeople.mentor(this.jdbc, name, List.of(TestPeople.REACT), "React");
 	}
 
 	private UUID openJob() {
