@@ -52,10 +52,6 @@ export const routes: RouteObject[] = [
         lazy: async () => ({ Component: (await import('@/features/identity/MyDataPage')).MyDataPage }),
       },
       {
-        path: 'nhom',
-        lazy: async () => ({ Component: (await import('@/features/team/TeamPage')).TeamPage }),
-      },
-      {
         path: 'san-pham',
         lazy: async () => ({ Component: (await import('@/features/product/ProductsPage')).ProductsPage }),
       },

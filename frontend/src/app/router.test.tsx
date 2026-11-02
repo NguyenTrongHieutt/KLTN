@@ -110,6 +110,13 @@ describe('public routes (UX-DR65, UX-DR70, UX-DR26)', () => {
     expect(document.title).toBe('Không tìm thấy · vibefix')
   })
 
+  it('/nhom, the retired Team screen, is the not-found screen', async () => {
+    renderAt('/nhom')
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Không tìm thấy nội dung này.' })).toBeInTheDocument()
+    expect(document.title).toBe('Không tìm thấy · vibefix')
+  })
+
   it('injects no style element at run time on any route', { timeout: 15_000 }, async () => {
     for (const path of ['/', '/dang-nhap', '/quyen-rieng-tu', '/khong-co']) {
       renderAt(path)

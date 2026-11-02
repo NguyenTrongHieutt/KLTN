@@ -92,7 +92,6 @@ describe('JOB-8 "Trao đổi nhóm" (FR-77, UX-DR80)', () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('CREW'),
       ...heldJobs({ jobId: 'j1', title: 'Sửa lỗi đặt bàn và thêm nhắc lịch', role: 'CREW', crewKind: 'ACTIVE' }),
-      'GET /api/v1/team': () => json({ team: null }),
       'GET /api/v1/jobs/j1/crew-chat': () => json(crewChat()),
       'GET /api/v1/crew-chats/cc1/messages': () => json({ items: [message()], hasOlder: false }),
       'POST /api/v1/crew-chats/cc1/read': () => new Response(null, { status: 204 }),

@@ -47,7 +47,7 @@ export function useSendSchoolEmailCode() {
 
 /**
  * "Xác minh": a wrong entry still counts, so a refusal refreshes the view for the attempts left;
- * success closes the `identity.verify_student` to-do and fills ACC-1's verified zone, so both refresh too.
+ * success fills ACC-1's verified zone, so it refreshes too.
  */
 export function useConfirmSchoolEmailCode() {
   const queryClient = useQueryClient()

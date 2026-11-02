@@ -64,7 +64,7 @@ describe('route guards (AD-19)', () => {
         'Thông báo',
       ])
     }
-    // No mode switcher, and no "Nhóm": the Team endpoints answer nothing since Story 20.3.
+    // No mode switcher, and no "Nhóm": Teams are gone (Story 21.7).
     expect(screen.queryByRole('link', { name: 'Nhóm' })).not.toBeInTheDocument()
   })
 
