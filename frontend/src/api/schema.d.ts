@@ -4480,8 +4480,6 @@ export interface components {
             /** Format: int64 */
             baseAmountVnd: number;
             crew: components["schemas"]["CrewPartView"][];
-            /** Format: int32 */
-            crewTermsVersionNo?: number;
             /** Format: uuid */
             jobId: string;
             jobTitle: string;
@@ -4490,6 +4488,8 @@ export interface components {
             number: number;
             /** Format: date-time */
             releasedAt: string;
+            /** Format: int32 */
+            splitVersionNo?: number;
             /** Format: int64 */
             yourPartVnd: number;
             /** Format: int32 */
@@ -6187,8 +6187,6 @@ export interface components {
             since: string;
         };
         MentorFundingMilestoneView: {
-            /** Format: int32 */
-            crewTermsVersionNo?: number;
             /** Format: int64 */
             fundedVnd: number;
             /** Format: uuid */
@@ -6268,14 +6266,14 @@ export interface components {
         MentorReleaseView: {
             /** Format: int64 */
             amountVnd: number;
-            /** Format: int32 */
-            crewTermsVersionNo?: number;
             name: string;
             /** Format: int32 */
             percent?: number;
             /** Format: date-time */
             releasedAt: string;
             role: string;
+            /** Format: int32 */
+            splitVersionNo?: number;
         };
         MentorResultView: {
             /** Format: uuid */

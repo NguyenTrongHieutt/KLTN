@@ -254,7 +254,7 @@ class JobPostQueries implements JobPosts {
 	@Override
 	@Transactional(readOnly = true)
 	public Optional<JobPostState> post(UUID jobId) {
-		return this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id")
+		return this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id AND " + Jobs.LIVE)
 			.param("id", jobId)
 			.query(Jobs::job)
 			.optional()
@@ -264,7 +264,7 @@ class JobPostQueries implements JobPosts {
 	@Override
 	@Transactional(readOnly = true)
 	public List<JobPostState> productJobs(UUID productId) {
-		return this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE product_id = :product ORDER BY created_at DESC, id")
+		return this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE product_id = :product AND " + Jobs.LIVE + " ORDER BY created_at DESC, id")
 			.param("product", productId)
 			.query(Jobs::job)
 			.list()
@@ -302,7 +302,7 @@ class JobPostQueries implements JobPosts {
 	@Override
 	@Transactional(readOnly = true)
 	public Optional<UUID> customerOf(UUID jobId) {
-		return this.jdbc.sql("SELECT customer_account_id FROM job.job WHERE id = :id")
+		return this.jdbc.sql("SELECT customer_account_id FROM job.job WHERE id = :id AND " + Jobs.LIVE)
 			.param("id", jobId)
 			.query(UUID.class)
 			.optional();

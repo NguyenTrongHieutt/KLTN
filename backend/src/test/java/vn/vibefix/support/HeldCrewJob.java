@@ -15,9 +15,10 @@ import vn.vibefix.identity.internal.Role;
 import vn.vibefix.team.internal.TeamTestSupport;
 
 /**
- * An Active Job of Lan's Product whose Mentor Hùng runs it with Vy and Minh, both active, and whose one
- * Milestone ({@link #milestone}) is Funded with {@link #PRICE} paid in and pinned to Crew Terms version 1:
- * Hùng 20%, Vy 40%, Minh 40% (AD-41). Team Issue tests (AD-40) start here.
+ * An Active Job of Lan's Product whose Mentor Hùng runs it with Vy and Minh, both active from 3 days before
+ * {@code now}, and whose one Milestone ({@link #milestone}) was Funded the day before {@code now} with {@link #PRICE}
+ * paid in and pinned to Crew Terms version 1: Hùng 20%, Vy 40%, Minh 40% (AD-41). Team Issue tests (AD-40) and the
+ * split tests (AD-29) start here; an M5 at {@code now} makes Vy and Minh parties of the whole Milestone.
  */
 public record HeldCrewJob(UUID lan, UUID hung, UUID vy, UUID minh, UUID product, UUID job, UUID milestone) {
 
@@ -68,8 +69,10 @@ public record HeldCrewJob(UUID lan, UUID hung, UUID vy, UUID minh, UUID product,
 		jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at, state, funded_at,
 				    crew_terms_version_no)
-				VALUES (:id, :job, 0, 'Giai đoạn 1', :price, 2, now(), 'FUNDED', now(), 1)
-				""").param("id", milestone).param("job", job).param("price", PRICE).update();
+				VALUES (:id, :job, 0, 'Giai đoạn 1', :price, 2, now(), 'FUNDED', :funded, 1)
+				""").param("id", milestone).param("job", job).param("price", PRICE)
+			.param("funded", Timestamp.from(now.minus(Duration.ofDays(1))))
+			.update();
 		jdbc.sql("""
 				INSERT INTO job.crew_terms_version (job_id, version_no, status, cap_percent, author_account_id, created_at)
 				VALUES (:job, 1, 'IN_FORCE', 40, :mentor, now())
@@ -105,6 +108,37 @@ public record HeldCrewJob(UUID lan, UUID hung, UUID vy, UUID minh, UUID product,
 			.param("product", product).param("milestone", milestone).param("order", order).param("amount", PRICE)
 			.param("no", String.valueOf(ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE))).update();
 		return new HeldCrewJob(lan, hung, vy, minh, product, job, milestone);
+	}
+
+	/**
+	 * The split of {@code milestoneId} as a release fixes it, awaiting its draft: Hùng plus {@code members}, each marked
+	 * for the whole interval and still active.
+	 * @return the split's ID
+	 */
+	public UUID split(JdbcClient jdbc, Instant at, UUID milestoneId, UUID... members) {
+		UUID split = UUID.randomUUID();
+		jdbc.sql("""
+				INSERT INTO job.milestone_split (id, job_id, product_id, milestone_id, milestone_number, mentor_account_id, status,
+				    cap_applies, released_at, draft_due_at, created_at)
+				VALUES (:id, :job, :product, :milestone, 1, :mentor, 'AWAITING_DRAFT', true, :at, :due, :at)
+				""").param("id", split).param("job", this.job).param("product", this.product).param("milestone", milestoneId)
+			.param("mentor", this.hung).param("at", Timestamp.from(at)).param("due", Timestamp.from(at.plus(Duration.ofDays(7))))
+			.update();
+		party(jdbc, split, this.hung, true, 0);
+		int position = 1;
+		for (UUID member : members) {
+			party(jdbc, split, member, false, position++);
+		}
+		return split;
+	}
+
+	private static void party(JdbcClient jdbc, UUID split, UUID account, boolean mentor, int position) {
+		jdbc.sql("""
+				INSERT INTO job.milestone_split_party (id, split_id, party_account_id, is_mentor, whole_interval, active_at_release,
+				    position)
+				VALUES (:id, :split, :account, :mentor, true, true, :position)
+				""").param("id", UUID.randomUUID()).param("split", split).param("account", account).param("mentor", mentor)
+			.param("position", position).update();
 	}
 
 	/** The Job's Rating Window, its Crew's Ratings published at {@code published}; Hùng rated {@code student}. */

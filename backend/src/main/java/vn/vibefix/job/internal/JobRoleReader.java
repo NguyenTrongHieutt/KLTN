@@ -90,9 +90,9 @@ class JobRoleReader implements JobRoles {
 	@Transactional(readOnly = true)
 	List<HeldJob> jobsOf(UUID accountId) {
 		List<Job> jobs = this.jdbc.sql("SELECT " + Jobs.COLUMNS + """
-				 FROM job.job j WHERE j.customer_account_id = :id OR j.mentor_account_id = :id
+				 FROM job.job j WHERE j.product_deleted_at IS NULL AND (j.customer_account_id = :id OR j.mentor_account_id = :id
 				    OR EXISTS (SELECT 1 FROM job.crew_row r WHERE r.job_id = j.id AND r.member_account_id = :id
-				        AND (r.status <> 'RELEASED' OR r.activated_at IS NOT NULL))
+				        AND (r.status <> 'RELEASED' OR r.activated_at IS NOT NULL)))
 				 ORDER BY j.updated_at DESC, j.id
 				""").param("id", accountId).query(Jobs::job).list();
 		List<HeldJob> held = new ArrayList<>();
@@ -130,7 +130,7 @@ class JobRoleReader implements JobRoles {
 		List<UUID> ids = List.copyOf(new LinkedHashSet<>(accountIds));
 		Map<UUID, List<Done>> mentor = done("""
 				SELECT j.mentor_account_id AS account, j.customer_account_id AS other, j.job_types FROM job.job j
-				WHERE j.mentor_account_id IN (:ids) AND """, ids);
+				WHERE j.mentor_account_id IN (:ids) AND j.product_deleted_at IS NULL AND """, ids);
 		// A person is activated on a Job at most once (no rejoining), so each Job counts once; it counts only when their
 		// active window overlapped Accepted work, as their Portfolio Entry does (FR-50, AD-41).
 		Map<UUID, List<Done>> crew = done("""
@@ -146,7 +146,7 @@ class JobRoleReader implements JobRoles {
 
 	private JobRole relation(UUID jobId, UUID accountId) {
 		Optional<Parties> parties = this.jdbc
-			.sql("SELECT customer_account_id, mentor_account_id FROM job.job WHERE id = :id")
+			.sql("SELECT customer_account_id, mentor_account_id FROM job.job WHERE id = :id AND " + Jobs.LIVE)
 			.param("id", jobId)
 			.query((rs, n) -> new Parties(rs.getObject("customer_account_id", UUID.class),
 					rs.getObject("mentor_account_id", UUID.class)))

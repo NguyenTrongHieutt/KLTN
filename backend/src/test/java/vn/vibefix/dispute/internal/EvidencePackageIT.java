@@ -284,8 +284,11 @@ class EvidencePackageIT extends IntegrationTest {
 
 		this.personalData.retireJobData(this.world.product());
 		assertThat(count("SELECT count(*) FROM work.page WHERE job_id = '" + this.world.job() + "'")).isZero();
-		assertThat(count("SELECT count(*) FROM chat.message m JOIN chat.chat c ON c.id = m.chat_id WHERE c.job_id = '"
-				+ this.world.job() + "'")).isZero();
+		// AD-24: the decision's release left the Milestone's split open, so the Crew Chat waits for it as evidence.
+		assertThat(this.jdbc.sql("SELECT c.kind FROM chat.message m JOIN chat.chat c ON c.id = m.chat_id WHERE c.job_id = :job")
+			.param("job", this.world.job())
+			.query(String.class)
+			.list()).containsExactly("CREW");
 		this.disputePersonalData.eraseAccount(this.world.lan());
 		this.disputePersonalData.eraseAccount(this.world.hung());
 		this.disputePersonalData.eraseAccount(this.ha.accountId());

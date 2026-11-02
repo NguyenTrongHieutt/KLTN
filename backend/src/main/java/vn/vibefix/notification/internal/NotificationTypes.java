@@ -583,11 +583,11 @@ class NotificationTypes implements NotificationCatalog {
 			Set.of("n", "count", "rounds"));
 
 	/**
-	 * A release (FR-42): each payee learns their part, with N-13's line in the email. It keeps its classes until
-	 * Story 22.1 moves it to {@code MENTOR} and {@code SPLIT_PARTY} (review 2026-10-27 A-11).
+	 * A final split paid out (FR-42): each payee learns their part, with N-13's line in the email. The Milestone is
+	 * always named, so a member who was never a party of it cannot receive a part's amount (review 2026-10-27 A-11).
 	 */
 	static final NotificationType PAYMENT_FUNDS_RELEASED = new NotificationType("payment.funds_released",
-			Set.of(Audience.MENTOR, Audience.CREW_EVER_ACTIVE), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "check",
+			Set.of(Audience.MENTOR, Audience.SPLIT_PARTY), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "check",
 			Set.of("amount", "job", "n"));
 
 	/** FR-37, FR-67: closure is proposed, by a person to the other side or by the System to both. */
@@ -795,8 +795,9 @@ class NotificationTypes implements NotificationCatalog {
 			Set.of("job"));
 
 	/**
-	 * AD-40: a release held this party's part for an open share Team Issue. A split notice reaches the Milestone's
-	 * split parties only (AD-20, Story 20.5), never the Customer or a Crew member outside the split.
+	 * AD-40: a release held this party's part for an open share Team Issue. Nothing sends it since Story 22.1, and
+	 * Story 22.4 removes it. A split notice reaches the Milestone's split parties only (AD-20, Story 20.5), never the
+	 * Customer or a Crew member outside the split.
 	 */
 	static final NotificationType PAYMENT_SHARE_HELD = new NotificationType("payment.share_held",
 			Set.of(Audience.SPLIT_PARTY), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of("n"));

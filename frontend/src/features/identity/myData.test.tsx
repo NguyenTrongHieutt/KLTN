@@ -50,6 +50,7 @@ describe('ALL-2 my data (NFR-11)', () => {
               { module: 'job', reason: 'JOB_RUNNING', jobId: 'j1', name: 'Sửa lỗi đặt bàn' },
               { module: 'dispute', reason: 'DISPUTE_OPEN', jobId: 'j1', name: 'Sửa lỗi đặt bàn' },
               { module: 'job', reason: 'MILESTONE_PENDING', jobId: 'j2', name: 'Trang đặt món' },
+              { module: 'job', reason: 'SPLIT_PENDING', jobId: 'j3', name: 'Báo cáo đặt bàn' },
             ],
             tokenKept: true,
           },
@@ -70,6 +71,9 @@ describe('ALL-2 my data (NFR-11)', () => {
     expect(
       screen.getByRole('link', { name: 'Cột mốc bạn đã tham gia chưa thanh toán xong · Trang đặt món' }),
     ).toHaveAttribute('href', '/cong-viec/j2')
+    expect(
+      screen.getByRole('link', { name: 'Tiền của một cột mốc bạn tham gia chưa chia xong · Báo cáo đặt bàn' }),
+    ).toHaveAttribute('href', '/cong-viec/j3')
     expect(screen.getByText(/thu hồi quyền truy cập GitHub/)).toBeInTheDocument()
   })
 })

@@ -203,7 +203,7 @@ function Unlink({ blockers }: { blockers: GitHubLinkBlocker[] }) {
  * {name}", or the kind alone without a name.
  */
 function blockerText(blocker: GitHubLinkBlocker): string {
-  const reason = ['LIVE_PRODUCT', 'JOB_ROLE', 'MILESTONE_PENDING', 'OPEN_BID'].includes(blocker.reason)
+  const reason = ['LIVE_PRODUCT', 'JOB_ROLE', 'MILESTONE_PENDING', 'SPLIT_PENDING', 'OPEN_BID'].includes(blocker.reason)
     ? blocker.reason
     : 'JOB_ROLE'
   return blocker.name

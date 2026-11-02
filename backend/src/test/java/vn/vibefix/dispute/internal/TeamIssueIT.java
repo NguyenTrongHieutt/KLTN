@@ -115,29 +115,18 @@ class TeamIssueIT extends IntegrationTest {
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.issues").isEmpty());
 
-		// AD-40: the release writes RELEASE for Minh and RELEASE_HELD for Hùng and Vy; paid out is whole.
+		// Story 22.1: the release holds the whole Milestone in its pool and reads no hold; nobody is paid or told.
 		this.transactions.executeWithoutResult(
 				status -> this.releases.release(this.world.job(), this.world.milestone(), UUID.randomUUID()));
-		assertThat(entry("RELEASE", this.world.minh())).isEqualTo(400_000);
-		assertThat(entry("RELEASE_HELD", this.world.vy())).isEqualTo(400_000);
-		assertThat(entry("RELEASE_HELD", this.world.hung())).isEqualTo(200_000);
-		assertThat(text("SELECT hold_id FROM payment.ledger_entry WHERE entry_type = 'RELEASE_HELD' AND party_account_id = '"
-				+ this.world.vy() + "'")).isEqualTo(issue.toString());
+		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type IN ('RELEASE', 'RELEASE_HELD')")).isZero();
 		assertThat(this.ledger.releasedTotal(this.world.milestone())).isEqualTo(HeldCrewJob.PRICE);
 		assertThat(this.ledger.releasable(this.world.milestone())).isZero();
-		assertThat(notices("payment.share_held", this.world.vy())).isOne();
-		assertThat(notices("payment.share_held", this.world.hung())).isOne();
-		assertThat(notices("payment.funds_released", this.world.minh())).isOne();
+		assertThat(notices("payment.share_held", this.world.vy())).isZero();
 		assertThat(notices("payment.funds_released", this.world.vy())).isZero();
 
 		this.mvc.perform(get("/api/v1/balance").with(as(this.world.vy(), Role.STUDENT)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.balanceVnd").value(0))
-			.andExpect(jsonPath("$.heldParts[0].amountVnd").value(400_000))
-			.andExpect(jsonPath("$.heldParts[0].number").value(1));
-		this.mvc.perform(get("/api/v1/balance").with(as(this.world.minh(), Role.STUDENT)))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.balanceVnd").value(400_000))
 			.andExpect(jsonPath("$.heldParts").isEmpty());
 
 		// After the release, the share is no longer raisable.

@@ -7,7 +7,7 @@
  * Spike S2's {@code spike-s2} probe is wiring in {@code payment.internal}.
  * <p>
  * Public API: {@link vn.vibefix.payment.Ledger} (releasable and released money, AD-15),
- * {@link vn.vibefix.payment.Releases} (the split release of an accepted Milestone, FR-42), and
+ * {@link vn.vibefix.payment.Releases} (the pool of an accepted or settled Milestone, FR-42), and
  * {@link vn.vibefix.payment.ShareHolds} (the holds and transfers of share Team Issues, AD-40).
  */
 @ApplicationModule(allowedDependencies = { "shared", "audit", "identity", "notification", "timers", "operations", "job" })

@@ -1,8 +1,10 @@
 package vn.vibefix.job.internal;
 
+import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -12,6 +14,7 @@ import java.util.UUID;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
 
 import vn.vibefix.files.StoredFiles;
@@ -19,6 +22,7 @@ import vn.vibefix.identity.GitHubLinkBlocker;
 import vn.vibefix.identity.GitHubLinkParticipant;
 import vn.vibefix.job.CrewRecruitment.ClosedBy;
 import vn.vibefix.job.CrewRecruitmentClosed;
+import vn.vibefix.job.MilestoneSplitFinalized;
 import vn.vibefix.shared.ErasureBlocker;
 import vn.vibefix.shared.IdGenerator;
 import vn.vibefix.shared.PersonalDataParticipant;
@@ -30,7 +34,13 @@ import vn.vibefix.shared.PersonalDataSection;
  * to applicants (Story 21.4). Erasure and Product deletion delete the Jobs
  * and their screenshot files, and erasure deletes the person's identifiers; a running Job blocks the erasure of
  * its Customer, its Mentor, and its unreleased Crew, and a Milestone a former member will be a split party of
- * blocks theirs (Story 20.4).
+ * blocks theirs (Story 20.4), as an open split blocks its parties'.
+ * <p>
+ * Milestone Splits are financial records under NFR-10's legal retention (AD-24, A-01): nothing here deletes them, an
+ * erasure only anonymizes the person in them, and the person's export lists their parts. A Product deletion never waits
+ * for a split: a Job with a split not {@code FINAL} loses its other rows at once and keeps a bare row
+ * ({@code product_deleted_at}) that every read but the split ports treats as gone, removed once the Job's last split is
+ * final.
  * <p>
  * It also answers for the GitHub link (FR-80, R14): a role in a Job that is not Closed or Cancelled keeps it,
  * since the Job's repositories and grants know the person by their GitHub ID, and so does a Milestone a former
@@ -40,6 +50,11 @@ import vn.vibefix.shared.PersonalDataSection;
 class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant {
 
 	static final String MILESTONE_PENDING = "MILESTONE_PENDING";
+
+	static final String SPLIT_PENDING = "SPLIT_PENDING";
+
+	/** The Customer of a bare Job row after an erasure: the column stays required, and it names nobody (AD-24). */
+	static final UUID NOBODY = new UUID(0, 0);
 
 	private final JdbcClient jdbc;
 
@@ -65,7 +80,8 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 				"job.external_access", "job.agreement_version", "job.crew_row", "job.crew_terms_version", "job.crew_terms_share",
 				"job.crew_terms_confirmation", "job.agreement_comment", "job.agreement_change_request", "job.agreement_approval",
 				"job.confirmed_agreement", "job.closure_proposal", "job.change_request", "job.cancellation_proposal",
-				"job.external_access_identifier", "job.admin_read_grant");
+				"job.external_access_identifier", "job.admin_read_grant", "job.milestone_split", "job.milestone_split_party",
+				"job.milestone_split_version", "job.milestone_split_share");
 	}
 
 	@Override
@@ -73,7 +89,7 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 		List<Map<String, Object>> jobs = this.jdbc.sql("""
 				SELECT title, state, problem, expected, app_users, done_check, array_to_string(job_types, ',') AS types,
 				       array_to_string(skill_names, ', ') AS skills, budget, deadline, created_at, updated_at
-				FROM job.job WHERE customer_account_id = :id ORDER BY created_at, id
+				FROM job.job WHERE customer_account_id = :id AND product_deleted_at IS NULL ORDER BY created_at, id
 				""").param("id", accountId).query((rs, n) -> {
 			Map<String, Object> job = new LinkedHashMap<>();
 			job.put("title", rs.getString("title"));
@@ -105,7 +121,8 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 		// The Mentor's Crew recruitment (Story 21.4): the note to applicants they wrote, with the Skills sought.
 		List<Map<String, Object>> recruitments = this.jdbc.sql("""
 				SELECT id, recruiting, open_slots, array_to_string(recruit_skill_names, ', ') AS skills, recruit_note
-				FROM job.job WHERE mentor_account_id = :id AND (recruit_note IS NOT NULL OR recruiting_since IS NOT NULL)
+				FROM job.job WHERE mentor_account_id = :id AND product_deleted_at IS NULL
+				  AND (recruit_note IS NOT NULL OR recruiting_since IS NOT NULL)
 				ORDER BY created_at, id
 				""").param("id", accountId).query((rs, n) -> {
 			Map<String, Object> recruitment = new LinkedHashMap<>();
@@ -116,7 +133,8 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 			recruitment.put("note", rs.getString("recruit_note"));
 			return recruitment;
 		}).list();
-		if (jobs.isEmpty() && identifiers.isEmpty() && recruitments.isEmpty()) {
+		List<Map<String, Object>> parts = splitParts(accountId);
+		if (jobs.isEmpty() && identifiers.isEmpty() && recruitments.isEmpty() && parts.isEmpty()) {
 			return Optional.empty();
 		}
 		Map<String, Object> data = new LinkedHashMap<>();
@@ -129,7 +147,37 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 		if (!recruitments.isEmpty()) {
 			data.put("crewRecruitments", recruitments);
 		}
+		if (!parts.isEmpty()) {
+			data.put("milestoneSplitParts", parts);
+		}
 		return Optional.of(new PersonalDataSection("job", data));
+	}
+
+	/**
+	 * The person's own part in each version of each split they are a party of, and only theirs (AD-20); a split with no
+	 * version yet lists the membership alone.
+	 */
+	private List<Map<String, Object>> splitParts(UUID accountId) {
+		return this.jdbc.sql("""
+				SELECT s.job_id, s.milestone_number, s.status, s.final_version_no, v.version_no, v.kind, h.percent, v.created_at
+				FROM job.milestone_split_party p JOIN job.milestone_split s ON s.id = p.split_id
+				LEFT JOIN job.milestone_split_share h ON h.party_id = p.id AND h.split_id = p.split_id
+				LEFT JOIN job.milestone_split_version v ON v.split_id = h.split_id AND v.version_no = h.version_no
+				WHERE p.party_account_id = :id ORDER BY s.created_at, s.id, v.version_no
+				""").param("id", accountId).query((rs, n) -> {
+			Integer version = rs.getObject("version_no", Integer.class);
+			Timestamp created = rs.getTimestamp("created_at");
+			Map<String, Object> part = new LinkedHashMap<>();
+			part.put("jobId", rs.getObject("job_id", UUID.class).toString());
+			part.put("milestone", rs.getInt("milestone_number"));
+			part.put("status", rs.getString("status"));
+			part.put("versionNo", version);
+			part.put("kind", rs.getString("kind"));
+			part.put("percent", rs.getObject("percent", Integer.class));
+			part.put("final", version != null && version.equals(rs.getObject("final_version_no", Integer.class)));
+			part.put("createdAt", created == null ? null : created.toInstant().toString());
+			return part;
+		}).list();
 	}
 
 	@Override
@@ -150,8 +198,18 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 				.param("id", accountId)
 				.update();
 		}
+		// A split stays with its numbers, without the person (A-01).
+		for (String table : List.of("job.milestone_split SET mentor_account_id = NULL WHERE mentor_account_id",
+				"job.milestone_split_party SET party_account_id = NULL WHERE party_account_id",
+				"job.milestone_split_version SET author_account_id = NULL WHERE author_account_id")) {
+			this.jdbc.sql("UPDATE " + table + " = :id").param("id", accountId).update();
+		}
 		clearRecruitments(accountId);
 		deleteJobs("customer_account_id", accountId);
+		this.jdbc.sql("UPDATE job.job SET customer_account_id = :nobody WHERE customer_account_id = :id")
+			.param("nobody", NOBODY)
+			.param("id", accountId)
+			.update();
 	}
 
 	/**
@@ -180,7 +238,7 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 
 	/**
 	 * NFR-10: the Job Post screenshots, the External Access identifiers, and the Agreement comments go; the
-	 * Job, its Milestones, its Agreement versions, and the Crew Terms stay, as {@code payment} and
+	 * Job, its Milestones, its Agreement versions, the Crew Terms, and the Milestone Splits stay, as {@code payment} and
 	 * {@code reputation} refer to them.
 	 */
 	@Override
@@ -195,12 +253,31 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 		}
 	}
 
+	/**
+	 * Deletes the Jobs whose {@code column} names {@code id}. It locks the rows first, in ID order (AD-4), and reads the
+	 * open splits in a statement of its own, so a finalization under way is waited for and seen. A Job with an open split
+	 * keeps a bare row; its splits, like every other Job's, are never touched.
+	 */
 	private void deleteJobs(String column, UUID id) {
-		this.jdbc.sql("""
-				SELECT s.file_id FROM job.job_screenshot s JOIN job.job j ON j.id = s.job_id WHERE j.%s = :id
-				""".formatted(column)).param("id", id).query(UUID.class).list().forEach(this.files::delete);
-		for (String table : List.of("job.admin_read_grant", "job.cancellation_proposal", "job.change_request",
-				"job.closure_proposal",
+		List<UUID> jobs = this.jdbc.sql("SELECT id FROM job.job WHERE %s = :id ORDER BY id FOR UPDATE".formatted(column))
+			.param("id", id)
+			.query(UUID.class)
+			.list();
+		if (jobs.isEmpty()) {
+			return;
+		}
+		Set<UUID> open = new HashSet<>(this.jdbc
+			.sql("SELECT DISTINCT job_id FROM job.milestone_split WHERE job_id IN (:jobs) AND status <> 'FINAL'")
+			.param("jobs", jobs)
+			.query(UUID.class)
+			.list());
+		this.jdbc.sql("SELECT file_id FROM job.job_screenshot WHERE job_id IN (:jobs)")
+			.param("jobs", jobs)
+			.query(UUID.class)
+			.list()
+			.forEach(this.files::delete);
+		for (String table : List.of("job.job_screenshot", "job.admin_read_grant", "job.cancellation_proposal",
+				"job.change_request", "job.closure_proposal",
 				"job.agreement_comment",
 				"job.agreement_change_request",
 				"job.confirmed_agreement",
@@ -208,18 +285,46 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 				"job.external_access",
 				"job.agreement_version", "job.agreement_draft", "job.crew_terms_confirmation", "job.crew_terms_share",
 				"job.crew_terms_version", "job.crew_row")) {
-			this.jdbc.sql("DELETE FROM %s WHERE job_id IN (SELECT id FROM job.job WHERE %s = :id)".formatted(table, column))
-				.param("id", id)
+			this.jdbc.sql("DELETE FROM %s WHERE job_id IN (:jobs)".formatted(table)).param("jobs", jobs).update();
+		}
+		if (!open.isEmpty()) {
+			this.jdbc.sql("""
+					UPDATE job.job SET product_deleted_at = coalesce(product_deleted_at, :now), problem = NULL, expected = NULL,
+					    app_users = NULL, done_check = NULL, job_types = '{}', skill_ids = '{}', skill_names = '{}', budget = NULL,
+					    deadline = NULL, recruiting = false, recruiting_since = NULL, open_slots = 0, recruit_note = NULL,
+					    recruit_skill_ids = '{}', recruit_skill_names = '{}', hidden_at = NULL, hidden_reason = NULL
+					WHERE id IN (:open)
+					""")
+				.param("now", Timestamp.from(this.clock.instant()))
+				.param("open", List.copyOf(open))
 				.update();
 		}
-		this.jdbc.sql("DELETE FROM job.job WHERE %s = :id".formatted(column)).param("id", id).update();
+		List<UUID> gone = jobs.stream().filter(job -> !open.contains(job)).toList();
+		if (!gone.isEmpty()) {
+			this.jdbc.sql("DELETE FROM job.job WHERE id IN (:gone)").param("gone", gone).update();
+		}
+	}
+
+	/** The Job's last split is final: a bare row has done its work and goes. A replay finds nothing to remove. */
+	@ApplicationModuleListener
+	void onMilestoneSplitFinalized(MilestoneSplitFinalized event) {
+		this.jdbc.sql("SELECT id FROM job.job WHERE id = :id AND product_deleted_at IS NOT NULL FOR UPDATE")
+			.param("id", event.jobId())
+			.query(UUID.class)
+			.optional()
+			.filter(job -> !this.jdbc.sql("""
+					SELECT EXISTS (SELECT 1 FROM job.milestone_split WHERE job_id = :job AND status <> 'FINAL')
+					""").param("job", job).query(Boolean.class).single())
+			.ifPresent(job -> this.jdbc.sql("DELETE FROM job.job WHERE id = :id").param("id", job).update());
 	}
 
 	/**
 	 * What keeps the account from being erased (AD-24, NFR-11), each with its Job's title: a Job from Selecting to
-	 * Closing where it is the Customer, the Mentor, or an unreleased Crew member ({@code JOB_RUNNING}), and each Job
-	 * with a Milestone {@link #pendingMilestoneJobs pending} for a former member ({@code MILESTONE_PENDING}), once per
-	 * Job however many of its Milestones wait.
+	 * Closing where it is the Customer, the Mentor, or an unreleased Crew member ({@code JOB_RUNNING}), each Job with a
+	 * Milestone {@link #pendingMilestoneJobs pending} for a former member ({@code MILESTONE_PENDING}), and each Job with
+	 * a split not {@code FINAL} where it is a party ({@code SPLIT_PENDING}), the latter two once per Job however many of
+	 * its Milestones wait. A split's parties are reached through its own rows, so a Job whose Product was deleted counts;
+	 * it keeps its title and names no Job, since no page would open it.
 	 */
 	@Override
 	public List<ErasureBlocker> erasureBlockers(UUID accountId) {
@@ -233,13 +338,16 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 			.list());
 		pendingMilestoneJobs(accountId)
 			.forEach(job -> blockers.add(new ErasureBlocker("job", MILESTONE_PENDING, job.jobId(), job.title())));
+		splitPendingJobs(accountId)
+			.forEach(job -> blockers.add(new ErasureBlocker("job", SPLIT_PENDING, job.live() ? job.jobId() : null, job.title())));
 		return blockers;
 	}
 
 	/**
 	 * Each Job, not Closed or Cancelled, where the account is the Customer, the Mentor, or an unreleased Crew member
-	 * ({@code JOB_ROLE}), and each Job with a Milestone {@link #pendingMilestoneJobs pending} for a former member
-	 * ({@code MILESTONE_PENDING}), once per Job.
+	 * ({@code JOB_ROLE}), each Job with a Milestone {@link #pendingMilestoneJobs pending} for a former member
+	 * ({@code MILESTONE_PENDING}), and each Job with a split not {@code FINAL} where it is a party ({@code SPLIT_PENDING}),
+	 * whose Handover Commit authors a Split Resolution reads by GitHub ID, once per Job.
 	 */
 	@Override
 	public List<GitHubLinkBlocker> githubLinkBlockers(UUID accountId) {
@@ -253,7 +361,25 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 			.list());
 		pendingMilestoneJobs(accountId)
 			.forEach(job -> blockers.add(new GitHubLinkBlocker("job", MILESTONE_PENDING, job.jobId(), job.title())));
+		splitPendingJobs(accountId)
+			.forEach(job -> blockers.add(new GitHubLinkBlocker("job", SPLIT_PENDING, job.jobId(), job.title())));
 		return blockers;
+	}
+
+	/** A Job with a split not {@code FINAL} where the account is a party. */
+	private record SplitPendingJob(UUID jobId, String title, boolean live) {
+	}
+
+	/** Once per Job however many of its splits wait, a Job whose Product was deleted included. */
+	private List<SplitPendingJob> splitPendingJobs(UUID accountId) {
+		return this.jdbc.sql("""
+				SELECT DISTINCT s.job_id, j.title, j.product_deleted_at IS NULL AS live
+				FROM job.milestone_split s JOIN job.milestone_split_party p ON p.split_id = s.id JOIN job.job j ON j.id = s.job_id
+				WHERE p.party_account_id = :id AND s.status <> 'FINAL' ORDER BY s.job_id
+				""")
+			.param("id", accountId)
+			.query((rs, n) -> new SplitPendingJob(rs.getObject("job_id", UUID.class), rs.getString("title"), rs.getBoolean("live")))
+			.list();
 	}
 
 	/** A Job with a Milestone the account will be a split party of. */
@@ -261,9 +387,10 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 	}
 
 	/**
-	 * Review 2026-10-27 A-19: each Job with a Milestone funded before the window of the account's released Crew row
-	 * ended, and still Held: neither released (Accepted or Settled) nor cancelled. The former member joins its split,
-	 * so it keeps them; a Job is listed once however many of its Milestones wait.
+	 * Review 2026-10-27 A-19: each Job with a Milestone funded no later than the end of the window of the account's
+	 * released Crew row, bounds inclusive as the party rule's, and still Held: neither released (Accepted or Settled) nor
+	 * cancelled. The former member joins its split, so it keeps them; a Job is listed once however many of its Milestones
+	 * wait.
 	 */
 	private List<PendingJob> pendingMilestoneJobs(UUID accountId) {
 		return this.jdbc.sql("""
@@ -271,7 +398,7 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 				WHERE EXISTS (SELECT 1 FROM job.milestone m JOIN job.crew_row r ON r.job_id = m.job_id
 				    WHERE m.job_id = j.id AND m.removed_at IS NULL AND m.funded_at IS NOT NULL AND m.state IN (:held)
 				      AND r.member_account_id = :id AND r.status = 'RELEASED' AND r.window_end IS NOT NULL
-				      AND m.funded_at < r.window_end)
+				      AND m.funded_at <= r.window_end)
 				ORDER BY j.id
 				""")
 			.param("id", accountId)

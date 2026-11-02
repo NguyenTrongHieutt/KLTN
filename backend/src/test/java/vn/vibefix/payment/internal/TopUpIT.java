@@ -115,7 +115,7 @@ class TopUpIT extends IntegrationTest {
 		assertThat(openTodos("payment.fund_top_up")).isZero();
 
 		release();
-		assertThat(count("SELECT coalesce(sum(amount_vnd), 0) FROM payment.ledger_entry WHERE entry_type = 'RELEASE'"))
+		assertThat(count("SELECT coalesce(sum(amount_vnd), 0) FROM payment.ledger_entry WHERE entry_type = 'RELEASE_POOLED'"))
 			.isEqualTo(1_200_000);
 		assertThat(LedgerMath.balanced(this.entries.entries(this.world.milestone()))).isTrue();
 	}
@@ -131,7 +131,7 @@ class TopUpIT extends IntegrationTest {
 		assertThat(count("SELECT count(*) FROM payment.refund")).as("nothing is refunded before the end").isZero();
 
 		release();
-		assertThat(count("SELECT coalesce(sum(amount_vnd), 0) FROM payment.ledger_entry WHERE entry_type = 'RELEASE'"))
+		assertThat(count("SELECT coalesce(sum(amount_vnd), 0) FROM payment.ledger_entry WHERE entry_type = 'RELEASE_POOLED'"))
 			.isEqualTo(600_000);
 		assertThat(this.jdbc.sql("SELECT reason || ' ' || amount_vnd FROM payment.refund").query(String.class).list())
 			.containsExactly("PRICE_CUT 400000");

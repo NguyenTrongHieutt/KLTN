@@ -142,11 +142,11 @@ class CrewLockIT extends IntegrationTest {
 		reassign(hung, items.get(0), vy).andExpect(status().isOk());
 		reassign(hung, items.get(1), tung).andExpect(status().isOk());
 
-		// FR-42, AD-41: the release splits by the Milestone's pin, so the member who left is still paid.
+		// FR-42, AD-15: the release holds the Milestone in its pool, whoever left; a split pays each party later.
 		this.transactions.executeWithoutResult(status -> this.releases.release(job, HELD, UUID.randomUUID()));
 		assertThat(this.jdbc.sql("""
-				SELECT amount_vnd FROM payment.ledger_entry WHERE milestone_id = :id AND entry_type = 'RELEASE' AND party_account_id = :minh
-				""").param("id", HELD).param("minh", minh).query(Long.class).single()).isEqualTo(160000);
+				SELECT count(*) FROM payment.ledger_entry WHERE milestone_id = :id AND entry_type = 'RELEASE_POOLED'
+				""").param("id", HELD).query(Long.class).single()).isOne();
 
 		// The last members are locked: the Customer hears once that no member is left, and no Dispute opens.
 		lock(ha, vy).andExpect(status().isOk());

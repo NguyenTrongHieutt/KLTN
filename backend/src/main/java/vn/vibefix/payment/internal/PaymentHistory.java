@@ -21,13 +21,15 @@ import vn.vibefix.job.JobRoles;
 import vn.vibefix.job.MilestoneFunding;
 import vn.vibefix.job.MilestoneFunding.FundingJob;
 import vn.vibefix.job.MilestoneFunding.FundingMilestone;
+import vn.vibefix.job.MilestoneSplits;
+import vn.vibefix.job.MilestoneSplits.SplitState;
 
 /**
  * Where test money is (FR-44, AD-15, AD-20): a Milestone's figures; CUS-10, which never names a party;
- * the Balance of MEN-7 and STU-7, the sum of the account's RELEASE entries, with the account's own held
- * parts beside it ("Đang giữ", AD-40), which never count in it; and the Mentor's JOB-7, which lists each
- * release by party. Who reads a party's part is decided by the role in each Job ({@code job.roleOf}, AD-43),
- * never by an account role (Story 20.3). Reads take no lock.
+ * the Balance of MEN-7 and STU-7, the sum of the account's RELEASE entries, so pooled money never counts in it; and
+ * the Mentor's JOB-7, which lists each release by party. Who reads a party's part is decided by the role in each Job
+ * ({@code job.roleOf}, AD-43), never by an account role (Story 20.3). Reads take no lock. A Customer's views treat the
+ * Jobs of a deleted Product as gone, though their ledger stays (AD-24).
  */
 @Component
 class PaymentHistory {
@@ -38,7 +40,7 @@ class PaymentHistory {
 
 	/** One RELEASE entry. */
 	record Release(UUID milestoneId, String group, UUID partyId, long amountVnd, @Nullable Integer percent,
-			@Nullable Integer crewTermsVersionNo, @Nullable Long baseAmountVnd, Instant releasedAt) {
+			@Nullable Integer splitVersionNo, @Nullable Long baseAmountVnd, Instant releasedAt) {
 	}
 
 	/** One part of a release, as the Mentor reads it. */
@@ -47,10 +49,10 @@ class PaymentHistory {
 
 	/** One release of a Milestone, with the reader's part and, for its Mentor, the Crew's. */
 	record ReleaseLine(UUID jobId, String jobTitle, int number, String milestoneTitle, Instant releasedAt, long baseAmountVnd,
-			long yourPartVnd, @Nullable Integer yourPercent, @Nullable Integer crewTermsVersionNo, List<Part> crew) {
+			long yourPartVnd, @Nullable Integer yourPercent, @Nullable Integer splitVersionNo, List<Part> crew) {
 	}
 
-	/** One of the account's own held parts: a RELEASE_HELD not reversed yet (AD-40). */
+	/** One of the account's own held parts (AD-40): none since Story 22.1, until Story 22.5 replaces the list. */
 	record HeldPart(UUID jobId, String jobTitle, int number, String milestoneTitle, long amountVnd, Instant heldAt) {
 	}
 
@@ -69,8 +71,11 @@ class PaymentHistory {
 
 	private final JobRoles roles;
 
+	private final MilestoneSplits splits;
+
 	PaymentHistory(JdbcClient jdbc, MilestoneFunding funding, StudentDirectory students, MentorDirectory mentors,
-			JobRoles roles) {
+			JobRoles roles, MilestoneSplits splits) {
+		this.splits = splits;
 		this.jdbc = jdbc;
 		this.funding = funding;
 		this.students = students;
@@ -104,11 +109,19 @@ class PaymentHistory {
 		return jobs.stream().map(this.funding::byId).flatMap(Optional::stream).toList();
 	}
 
-	/** The confirmed refunds of the Customer's money. */
+	/** The confirmed refunds of the Customer's money, on the Jobs they still see. */
 	@Transactional(readOnly = true)
 	long refundedTo(UUID customerId) {
-		return this.jdbc.sql("SELECT coalesce(sum(amount_vnd), 0) FROM payment.refund WHERE customer_account_id = :id AND status = 'CONFIRMED'")
+		List<UUID> jobs = customerJobs(customerId).stream().map(FundingJob::jobId).toList();
+		if (jobs.isEmpty()) {
+			return 0;
+		}
+		return this.jdbc.sql("""
+				SELECT coalesce(sum(amount_vnd), 0) FROM payment.refund
+				WHERE customer_account_id = :id AND status = 'CONFIRMED' AND job_id IN (:jobs)
+				""")
 			.param("id", customerId)
+			.param("jobs", jobs)
 			.query(Long.class)
 			.single();
 	}
@@ -116,7 +129,8 @@ class PaymentHistory {
 	/**
 	 * MEN-7 or STU-7, for any user: the sum of the account's RELEASE entries, each release listed. The Crew's parts
 	 * of a release are shown only on the Jobs whose Mentor the account is ({@code job.roleOf}, AD-43); what went to
-	 * the Crew and what is held on the Jobs it mentors are given only to an account that mentors a Job.
+	 * the Crew and what is held on the Jobs it mentors are given only to an account that mentors a Job. A Job whose Product
+	 * was deleted has no title or role any more: its split still says the Milestone's number and who its Mentor was.
 	 */
 	@Transactional(readOnly = true)
 	Balance balance(UUID accountId) {
@@ -125,8 +139,10 @@ class PaymentHistory {
 		Map<UUID, Boolean> mentorOf = new HashMap<>();
 		List<UUID> mentored = own.stream().map(Release::milestoneId).distinct().filter(milestoneId -> {
 			FundingJob job = jobOf(milestoneId, jobs);
-			return job != null
-					&& mentorOf.computeIfAbsent(job.jobId(), jobId -> this.roles.roleOf(jobId, accountId).isMentor());
+			if (job == null) {
+				return this.splits.splitOf(milestoneId).filter(split -> accountId.equals(split.mentorId())).isPresent();
+			}
+			return mentorOf.computeIfAbsent(job.jobId(), jobId -> this.roles.roleOf(jobId, accountId).isMentor());
 		}).toList();
 		Map<String, List<Release>> groups = new LinkedHashMap<>();
 		if (!mentored.isEmpty()) {
@@ -148,45 +164,25 @@ class PaymentHistory {
 				.filter(part -> !part.partyId().equals(accountId))
 				.map(part -> new Part(part.partyId(), names.getOrDefault(part.partyId(), ""), part.amountVnd(), part.percent()))
 				.toList();
-			lines.add(new ReleaseLine(job == null ? new UUID(0, 0) : job.jobId(), job == null ? "" : job.title(),
-					milestone == null ? 0 : milestone.number(), milestone == null ? "" : milestone.title(), release.releasedAt(),
+			int number = milestone != null ? milestone.number()
+					: this.splits.splitOf(release.milestoneId()).map(SplitState::milestoneNumber).orElse(0);
+			lines.add(new ReleaseLine(job == null ? new UUID(0, 0) : job.jobId(), job == null ? "" : job.title(), number,
+					milestone == null ? "" : milestone.title(), release.releasedAt(),
 					release.baseAmountVnd() == null ? release.amountVnd() : release.baseAmountVnd(), release.amountVnd(),
-					release.percent(), release.crewTermsVersionNo(), crew));
+					release.percent(), release.splitVersionNo(), crew));
 		}
 		lines.sort(Comparator.comparing(ReleaseLine::releasedAt).reversed());
 		long balance = own.stream().mapToLong(Release::amountVnd).sum();
-		List<HeldPart> heldParts = heldParts(accountId, jobs);
 		List<FundingJob> mentoring = this.funding.ofMentor(accountId);
 		if (mentored.isEmpty() && mentoring.isEmpty()) {
-			return new Balance(balance, own.size(), null, null, lines, heldParts);
+			return new Balance(balance, own.size(), null, null, lines, List.of());
 		}
 		long sent = lines.stream().flatMap(line -> line.crew().stream()).mapToLong(Part::amountVnd).sum();
 		long held = mentoring.stream()
 			.flatMap(job -> job.milestones().stream())
 			.mapToLong(milestone -> figures(milestone.milestoneId()).releasableVnd())
 			.sum();
-		return new Balance(balance, own.size(), sent, held, lines, heldParts);
-	}
-
-	/** The account's RELEASE_HELD entries that no HELD_RELEASED reversed, the newest first. */
-	private List<HeldPart> heldParts(UUID accountId, Map<UUID, FundingJob> jobs) {
-		return this.jdbc.sql("""
-				SELECT e.milestone_id, e.amount_vnd, e.created_at FROM payment.ledger_entry e
-				WHERE e.entry_type = 'RELEASE_HELD' AND e.party_account_id = :id
-				  AND NOT EXISTS (SELECT 1 FROM payment.ledger_entry r WHERE r.reverses_entry_id = e.id)
-				ORDER BY e.created_at DESC, e.id
-				""").param("id", accountId).query((rs, n) -> {
-			UUID milestoneId = rs.getObject("milestone_id", UUID.class);
-			FundingJob job = jobOf(milestoneId, jobs);
-			FundingMilestone milestone = job == null ? null : job.milestones()
-				.stream()
-				.filter(found -> found.milestoneId().equals(milestoneId))
-				.findFirst()
-				.orElse(null);
-			return new HeldPart(job == null ? new UUID(0, 0) : job.jobId(), job == null ? "" : job.title(),
-					milestone == null ? 0 : milestone.number(), milestone == null ? "" : milestone.title(),
-					rs.getLong("amount_vnd"), rs.getTimestamp("created_at").toInstant());
-		}).list();
+		return new Balance(balance, own.size(), sent, held, lines, List.of());
 	}
 
 	/** The RELEASE entries of a Milestone with their version, for the Mentor's JOB-7. */
@@ -213,19 +209,19 @@ class PaymentHistory {
 
 	private List<Release> releases(String where, Map<String, Object> params) {
 		return this.jdbc.sql("""
-				SELECT milestone_id, operation_key, party_account_id, amount_vnd, share_percent, crew_terms_version_no,
+				SELECT milestone_id, operation_key, party_account_id, amount_vnd, share_percent, split_version_no,
 				       base_amount_vnd, created_at
 				FROM payment.ledger_entry WHERE entry_type = 'RELEASE' AND party_account_id IS NOT NULL AND
 				""" + where + " ORDER BY created_at, id")
 			.params(params)
 			.query((rs, n) -> new Release(rs.getObject("milestone_id", UUID.class), group(rs.getString("operation_key")),
 					rs.getObject("party_account_id", UUID.class), rs.getLong("amount_vnd"), (Integer) rs.getObject("share_percent"),
-					(Integer) rs.getObject("crew_terms_version_no"), (Long) rs.getObject("base_amount_vnd"),
+					(Integer) rs.getObject("split_version_no"), (Long) rs.getObject("base_amount_vnd"),
 					rs.getTimestamp("created_at").toInstant()))
 			.list();
 	}
 
-	/** A release is keyed {@code RELEASE:{transitionAuditId}:{partyAccountId}} (AD-15): its group is the transition. */
+	/** A release is keyed {@code RELEASE:{milestoneSplitId}:{partyAccountId}} (AD-15): its group is the split. */
 	private static String group(String operationKey) {
 		String[] parts = operationKey.split(":");
 		return parts.length >= 2 ? parts[1] : operationKey;

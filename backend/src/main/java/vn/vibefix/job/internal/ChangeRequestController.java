@@ -308,7 +308,7 @@ class ChangeRequestController {
 
 	/** The Customer, the Mentor, or (for the versions only) an active Crew member, from Agreement on. */
 	private Viewer viewer(UUID jobId, Caller caller, boolean crew) {
-		Job job = this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id")
+		Job job = this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id AND " + Jobs.LIVE)
 			.param("id", jobId)
 			.query(Jobs::job)
 			.optional()

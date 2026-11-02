@@ -111,6 +111,8 @@ describe('ACC-2, the GitHub row (FR-80, UX-DR91)', () => {
               { module: 'product', reason: 'LIVE_PRODUCT', subjectId: 'p1', name: 'Sổ đặt bàn Quán Mây' },
               { module: 'job', reason: 'JOB_ROLE', subjectId: 'j1', name: 'Sửa lỗi đặt bàn' },
               { module: 'job', reason: 'MILESTONE_PENDING', subjectId: 'j3', name: 'Trang đặt món' },
+              { module: 'job', reason: 'SPLIT_PENDING', subjectId: 'j4', name: 'Báo cáo đặt bàn' },
+              { module: 'job', reason: 'SPLIT_PENDING', subjectId: 'j5', name: '' },
               { module: 'matching', reason: 'OPEN_BID', subjectId: 'j2', name: '' },
             ],
           }),
@@ -124,6 +126,8 @@ describe('ACC-2, the GitHub row (FR-80, UX-DR91)', () => {
     expect(screen.getByText('Sản phẩm Sổ đặt bàn Quán Mây')).toBeInTheDocument()
     expect(screen.getByText('Công việc Sửa lỗi đặt bàn')).toBeInTheDocument()
     expect(screen.getByText('Cột mốc bạn đã tham gia chưa thanh toán xong · Trang đặt món')).toBeInTheDocument()
+    expect(screen.getByText('Tiền của một cột mốc bạn tham gia chưa chia xong · Báo cáo đặt bàn')).toBeInTheDocument()
+    expect(screen.getByText('Tiền của một cột mốc bạn tham gia chưa chia xong')).toBeInTheDocument()
     expect(screen.getByText('Một đơn chào giá đang mở')).toBeInTheDocument()
   })
 

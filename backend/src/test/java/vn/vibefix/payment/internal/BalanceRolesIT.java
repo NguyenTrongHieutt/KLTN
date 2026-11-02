@@ -140,7 +140,7 @@ class BalanceRolesIT extends IntegrationTest {
 	private void release(UUID milestone, UUID party, long amount, int percent, Instant at) {
 		this.jdbc.sql("""
 				INSERT INTO payment.ledger_entry (id, operation_key, entry_type, job_id, product_id, milestone_id, amount_vnd,
-				    party_account_id, crew_terms_version_no, share_percent, base_amount_vnd, created_at)
+				    party_account_id, split_version_no, share_percent, base_amount_vnd, created_at)
 				SELECT :id, :key, 'RELEASE', job_id, product_id, milestone_id, :amount, :party, 1, :percent, 5000000, :at
 				FROM payment.ledger_account WHERE milestone_id = :milestone
 				""")

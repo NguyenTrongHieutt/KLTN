@@ -191,8 +191,10 @@ class DataRequestIT extends IntegrationTest {
 			.andExpect(jsonPath("$.deletionRequest.blockers[0].reason").value("MILESTONE_PENDING"));
 
 		// A window that ended before the Milestone was funded joins nothing.
-		this.jdbc.sql("UPDATE job.crew_row SET window_end = now() - INTERVAL '1 day' WHERE member_account_id = :vy")
-			.param("vy", this.world.vy()).update();
+		this.jdbc.sql("""
+				UPDATE job.crew_row SET window_end = (SELECT min(funded_at) FROM job.milestone) - INTERVAL '1 day'
+				WHERE member_account_id = :vy
+				""").param("vy", this.world.vy()).update();
 		this.mvc.perform(get("/api/v1/account/data").with(as(this.world.vy(), Role.STUDENT)))
 			.andExpect(jsonPath("$.blockers.length()").value(0));
 		this.jdbc.sql("UPDATE job.crew_row SET window_end = now() + INTERVAL '1 hour' WHERE member_account_id = :vy")

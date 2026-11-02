@@ -13,8 +13,8 @@ import org.jspecify.annotations.Nullable;
 public interface Ledger {
 
 	/**
-	 * Milestone-bucket FUND + TOPUP_APPLIED − paid out − REFUND_REQUESTED, where paid out = RELEASE +
-	 * RELEASE_HELD − HELD_RELEASED.
+	 * Milestone-bucket FUND + TOPUP_APPLIED − paid out − REFUND_REQUESTED, where paid out = RELEASE_POOLED −
+	 * POOL_RELEASED + RELEASE, so pooled money counts as paid out from the release on.
 	 */
 	long releasable(UUID milestoneId);
 

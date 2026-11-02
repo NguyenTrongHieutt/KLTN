@@ -64,9 +64,8 @@ public interface Crews {
 	Optional<UUID> runningCrewOf(UUID studentId);
 
 	/**
-	 * The Crew Terms version M1 pinned on the Milestone, with every party's share: what its release
-	 * splits by (FR-42, AD-41). From Story 21.5 on, J6 pins one version giving the Mentor 100% until Story 22.1's
-	 * Milestone Splits replace the pin (C-3).
+	 * The Crew Terms version M1 pinned on the Milestone, with every party's share. No release reads it since Story
+	 * 22.1 (AD-15): only the share holds and the Team Issues do, until Story 22.4 retires them (C-3).
 	 */
 	record ReleaseTerms(int versionNo, Map<UUID, Integer> shares) {
 	}

@@ -110,8 +110,9 @@ class DisputeDecisionIT extends IntegrationTest {
 				+ this.held + "'")).isEqualTo("SETTLED:500000:300000");
 		assertThat(this.ledger.releasable(this.held)).isZero();
 		assertThat(this.jdbc.sql("""
-				SELECT coalesce(sum(amount_vnd), 0) FROM payment.ledger_entry WHERE milestone_id = :id AND entry_type = 'RELEASE'
+				SELECT coalesce(sum(amount_vnd), 0) FROM payment.ledger_entry WHERE milestone_id = :id AND entry_type = 'RELEASE_POOLED'
 				""").param("id", this.held).query(Long.class).single()).isEqualTo(500000);
+		assertThat(text("SELECT status FROM job.milestone_split WHERE milestone_id = '" + this.held + "'")).isEqualTo("AWAITING_DRAFT");
 		assertThat(text("SELECT reason || ':' || amount_vnd FROM payment.refund WHERE milestone_id = '" + this.held + "'"))
 			.isEqualTo("DISPUTE_DECISION:300000");
 		assertThat(text("SELECT state FROM job.milestone WHERE id = '" + this.planned + "'")).isEqualTo("CANCELLED");
@@ -271,8 +272,9 @@ class DisputeDecisionIT extends IntegrationTest {
 		this.jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at, state, funded_at,
 				    crew_terms_version_no, accepted_at)
-				VALUES (:id, :job, 0, 'Báo cáo', :price, 2, now(), :state, now(), 1, :accepted)
+				VALUES (:id, :job, 0, 'Báo cáo', :price, 2, now(), :state, :funded, 1, :accepted)
 				""").param("id", this.held).param("job", job).param("price", PRICE)
+			.param("funded", Timestamp.from(this.clock.instant().minus(Duration.ofMinutes(1))))
 			.param("state", funded ? "FUNDED" : "ACCEPTED").param("accepted", funded ? null : now).update();
 		this.jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at)

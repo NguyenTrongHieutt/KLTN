@@ -30,8 +30,8 @@ class JobRoleCounts implements PlatformCounts {
 	@Transactional(readOnly = true)
 	public List<Count> counts() {
 		return this.jdbc.sql("""
-				SELECT (SELECT count(DISTINCT customer_account_id) FROM job.job) AS customers,
-				       (SELECT count(DISTINCT mentor_account_id) FROM job.job WHERE mentor_account_id IS NOT NULL) AS mentors,
+				SELECT (SELECT count(DISTINCT customer_account_id) FROM job.job WHERE product_deleted_at IS NULL) AS customers,
+				       (SELECT count(DISTINCT mentor_account_id) FROM job.job WHERE mentor_account_id IS NOT NULL AND product_deleted_at IS NULL) AS mentors,
 				       (SELECT count(DISTINCT member_account_id) FROM job.crew_row WHERE activated_at IS NOT NULL) AS crew
 				""")
 			.query((rs, n) -> List.of(new Count(USERS_BY_JOB_ROLE, "CUSTOMER", rs.getLong("customers")),

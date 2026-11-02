@@ -305,6 +305,18 @@ class FundingIT extends IntegrationTest {
 	}
 
 	@Test
+	void theHistoryCountsAConfirmedRefundOfALiveJob() throws Exception {
+		confirmedAgreement("BUG_FIX");
+		UUID orderId = created();
+		ipn(paid(txnRef(orderId), "14000050", 700000), null).andExpect(jsonPath("$.RspCode").value("00"));
+		this.mvc.perform(get("/api/v1/payments/history").with(as(this.lan, Role.CUSTOMER))).andExpect(jsonPath("$.refundedVnd").value(0));
+
+		this.worker.runDue(Lane.VNPAY);
+
+		this.mvc.perform(get("/api/v1/payments/history").with(as(this.lan, Role.CUSTOMER))).andExpect(jsonPath("$.refundedVnd").value(700000));
+	}
+
+	@Test
 	void historiesAndBalancesShowEachSideItsOwnFiguresOnly() throws Exception {
 		confirmedAgreement("BUG_FIX");
 		UUID orderId = created();
@@ -313,7 +325,7 @@ class FundingIT extends IntegrationTest {
 		for (Object[] part : new Object[][] { { this.hung, 1000000L, 12 }, { this.vy, 7316429L, 88 } }) {
 			this.jdbc.sql("""
 					INSERT INTO payment.ledger_entry (id, operation_key, entry_type, job_id, product_id, milestone_id, amount_vnd,
-					    party_account_id, crew_terms_version_no, share_percent, base_amount_vnd, created_at)
+					    party_account_id, split_version_no, share_percent, base_amount_vnd, created_at)
 					SELECT :id, :key, 'RELEASE', job_id, product_id, milestone_id, :amount, :party, 1, :percent, 8316429, now()
 					FROM payment.ledger_account WHERE milestone_id = :milestone
 					""")
@@ -350,8 +362,9 @@ class FundingIT extends IntegrationTest {
 
 		this.mvc.perform(get("/api/v1/mentor/jobs/" + this.job + "/funding").with(as(this.hung, Role.MENTOR)))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.milestones[0].crewTermsVersionNo").value(1))
+			.andExpect(jsonPath("$.milestones[0].crewTermsVersionNo").doesNotExist())
 			.andExpect(jsonPath("$.milestones[0].releases.length()").value(2))
+			.andExpect(jsonPath("$.milestones[0].releases[0].splitVersionNo").value(1))
 			.andExpect(jsonPath("$.milestones[0].releases[0].role").value("MENTOR"))
 			.andExpect(jsonPath("$.milestones[0].releases[0].name").value("Đỗ Mạnh Hùng"))
 			.andExpect(jsonPath("$.milestones[0].releases[1].role").value("CREW"))

@@ -401,7 +401,7 @@ class JobLifecycle {
 	 */
 	@Transactional(readOnly = true)
 	@Nullable ApiException refusal(UUID jobId, Trigger trigger, List<Planned> cascade) {
-		Job job = this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id")
+		Job job = this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id AND " + Jobs.LIVE)
 			.param("id", jobId)
 			.query(Jobs::job)
 			.optional()

@@ -533,6 +533,23 @@ class GitHubLinkIT extends IntegrationTest {
 		this.jdbc.sql("UPDATE job.milestone SET state = 'ACCEPTED', accepted_at = :now WHERE id IN (:ids)")
 			.param("now", Timestamp.from(this.clock.instant())).param("ids", List.of(milestone, second)).update();
 		assertThat(blockerReasons()).as("released Milestones").isEmpty();
+
+		// Story 22.1: a party of an open split keeps the link, since a Split Resolution reads commit authors by GitHub ID.
+		UUID split = UUID.randomUUID();
+		Timestamp now = Timestamp.from(this.clock.instant());
+		this.jdbc.sql("""
+				INSERT INTO job.milestone_split (id, job_id, product_id, milestone_id, milestone_number, status, cap_applies, released_at,
+				    draft_due_at, created_at)
+				SELECT :split, id, product_id, :milestone, 1, 'AWAITING_DRAFT', true, :now, :now, :now FROM job.job WHERE id = :job
+				""").param("split", split).param("milestone", milestone).param("now", now).param("job", crewed).update();
+		this.jdbc.sql("""
+				INSERT INTO job.milestone_split_party (id, split_id, party_account_id, is_mentor, whole_interval, active_at_release, position)
+				VALUES (:id, :split, :party, false, true, false, 1)
+				""").param("id", UUID.randomUUID()).param("split", split).param("party", lan).update();
+		assertThat(blockerReasons()).as("an open split").containsExactly("SPLIT_PENDING");
+		assertProblem(this.browser.command(delete("/api/v1/identity/github")), 422, "GUARD_FAILED", "GITHUB_LINK_IN_USE");
+		this.jdbc.sql("UPDATE job.milestone_split SET status = 'FINAL', final_version_no = 1 WHERE id = :id").param("id", split).update();
+		assertThat(blockerReasons()).as("a final split").isEmpty();
 		assertThat(this.browser.command(delete("/api/v1/identity/github")).getResponse().getStatus()).isEqualTo(204);
 	}
 

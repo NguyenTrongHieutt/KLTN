@@ -9,7 +9,7 @@ import java.util.UUID;
  * (Story 20.4). Unlinking waits until no participant reports one. A re-link must return the same numeric ID in
  * every case, blocker or not.
  * @param module the module reporting it
- * @param reason the module's code: {@code LIVE_PRODUCT}, {@code JOB_ROLE}, {@code MILESTONE_PENDING}, or
+ * @param reason the module's code: {@code LIVE_PRODUCT}, {@code JOB_ROLE}, {@code MILESTONE_PENDING}, {@code SPLIT_PENDING}, or
  * {@code OPEN_BID}
  * @param subjectId the Product or the Job it concerns
  * @param name what ACC-2 calls it: the Product's name or the Job's title

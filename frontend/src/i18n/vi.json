@@ -73,12 +73,14 @@
           "LIVE_PRODUCT": "Sản phẩm {name}",
           "JOB_ROLE": "Công việc {name}",
           "MILESTONE_PENDING": "Cột mốc bạn đã tham gia chưa thanh toán xong · {name}",
+          "SPLIT_PENDING": "Tiền của một cột mốc bạn tham gia chưa chia xong · {name}",
           "OPEN_BID": "Đơn chào giá cho {name}"
         },
         "blockerUnnamed": {
           "LIVE_PRODUCT": "Một sản phẩm của bạn",
           "JOB_ROLE": "Một công việc chưa đóng hay chưa hủy",
           "MILESTONE_PENDING": "Cột mốc bạn đã tham gia chưa thanh toán xong",
+          "SPLIT_PENDING": "Tiền của một cột mốc bạn tham gia chưa chia xong",
           "OPEN_BID": "Một đơn chào giá đang mở"
         },
         "unlinkTitle": "Bỏ liên kết GitHub?",
@@ -866,6 +868,7 @@
           "blocker": {
             "JOB_RUNNING": "Công việc đang chạy",
             "MILESTONE_PENDING": "Cột mốc người này đã tham gia chưa thanh toán xong",
+            "SPLIT_PENDING": "Tiền của một cột mốc người này tham gia chưa chia xong",
             "DISPUTE_OPEN": "Tranh chấp đang mở",
             "TEAM_ISSUE_OPEN": "Khiếu nại nội bộ chưa xong"
           },
@@ -2624,6 +2627,8 @@
         "crew": "Nhóm thực hiện",
         "terms": "Điều khoản",
         "milestoneLine": "Giai đoạn {n} · {title}",
+        "milestoneNumber": "Giai đoạn {n}",
+        "deletedJob": "Công việc đã xóa",
         "version": "Phiên bản {n}",
         "percent": "{n}%",
         "customerNote": "Khách hàng chỉ thấy tổng số tiền đã chuyển của mỗi giai đoạn, không thấy phần của từng người."
@@ -2631,7 +2636,6 @@
       "mentor": {
         "releasesTitle": "Các lần chuyển tiền",
         "noReleases": "Chưa chuyển tiền",
-        "pin": "Điều khoản phiên bản {n}",
         "role": {
           "MENTOR": "Người hướng dẫn",
           "CREW": "Nhóm thực hiện"
@@ -3455,6 +3459,7 @@
       "blocker": {
         "JOB_RUNNING": "Công việc đang chạy",
         "MILESTONE_PENDING": "Cột mốc bạn đã tham gia chưa thanh toán xong",
+        "SPLIT_PENDING": "Tiền của một cột mốc bạn tham gia chưa chia xong",
         "DISPUTE_OPEN": "Tranh chấp đang mở",
         "TEAM_ISSUE_OPEN": "Khiếu nại nội bộ chưa xong"
       },

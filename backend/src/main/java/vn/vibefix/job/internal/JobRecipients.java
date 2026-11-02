@@ -14,8 +14,9 @@ import vn.vibefix.notification.RecipientLookup;
  * {@code job}'s answer to {@code notification} (AD-3 recipient lookup, AD-20): who the Customer of a
  * Job is, who its Mentor is from J3 on, the Crew classes (AD-41): {@code CREW_ASSIGNED} for a row
  * awaiting confirmation, {@code CREW_ACTIVE} for an active row, {@code CREW_EVER_ACTIVE} for any row
- * that was ever active, and {@code SPLIT_PARTY} for a party of the Crew Terms version pinned to the
- * Milestone (until Story 22.1 brings each Milestone its own split).
+ * that was ever active, and {@code SPLIT_PARTY} for a party other than the Mentor of the Milestone's split,
+ * leavers included. {@code MENTOR} named with a Milestone also holds for its split's Mentor, so a payee is reached
+ * after the Job's row has gone (A-11); otherwise a Job whose Product was deleted has nobody in it.
  */
 @Component
 class JobRecipients implements RecipientLookup {
@@ -44,12 +45,19 @@ class JobRecipients implements RecipientLookup {
 		}
 		if (audience == Audience.SPLIT_PARTY) {
 			return milestoneId != null && this.jdbc.sql("""
-					SELECT EXISTS (SELECT 1 FROM job.milestone m
-					    JOIN job.crew_terms_share s ON s.job_id = m.job_id AND s.version_no = m.crew_terms_version_no
-					    WHERE m.id = :milestone AND m.job_id = :job AND s.party_account_id = :account)
+					SELECT EXISTS (SELECT 1 FROM job.milestone_split s JOIN job.milestone_split_party p ON p.split_id = s.id
+					    WHERE s.milestone_id = :milestone AND s.job_id = :job AND p.party_account_id = :account AND NOT p.is_mentor)
 					""").param("milestone", milestoneId).param("job", jobId).param("account", accountId)
 				.query(Boolean.class)
 				.single();
+		}
+		if (audience == Audience.MENTOR && milestoneId != null && this.jdbc.sql("""
+				SELECT EXISTS (SELECT 1 FROM job.milestone_split
+				    WHERE milestone_id = :milestone AND job_id = :job AND mentor_account_id = :account)
+				""").param("milestone", milestoneId).param("job", jobId).param("account", accountId)
+			.query(Boolean.class)
+			.single()) {
+			return true;
 		}
 		String crew = switch (audience) {
 			case CREW_ASSIGNED -> "status = 'ASSIGNED'";
@@ -65,7 +73,7 @@ class JobRecipients implements RecipientLookup {
 			return false;
 		}
 		String column = audience == Audience.CUSTOMER ? "customer_account_id" : "mentor_account_id";
-		return this.jdbc.sql("SELECT EXISTS (SELECT 1 FROM job.job WHERE id = :job AND " + column + " = :account)")
+		return this.jdbc.sql("SELECT EXISTS (SELECT 1 FROM job.job WHERE id = :job AND " + column + " = :account AND " + Jobs.LIVE + ")")
 			.param("job", jobId)
 			.param("account", accountId)
 			.query(Boolean.class)

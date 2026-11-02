@@ -22,6 +22,7 @@ import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
 import vn.vibefix.identity.Administrators;
+import vn.vibefix.job.JobRoles;
 import vn.vibefix.job.MilestoneFunding;
 import vn.vibefix.job.MilestoneFunding.Funded;
 import vn.vibefix.job.MilestoneFunding.FundingJob;
@@ -66,7 +67,7 @@ class PaymentOrders {
 	static final String EXPIRY = "payment.order_expiry";
 
 	/** One order as the screens and the IPN read it. */
-	record Order(UUID id, UUID jobId, UUID productId, UUID milestoneId, UUID customerId, long amountVnd, String txnRef,
+	record Order(UUID id, UUID jobId, UUID productId, UUID milestoneId, @Nullable UUID customerId, long amountVnd, String txnRef,
 			String status, Instant createdAt, Instant expiresAt, @Nullable Instant finishedAt, String purpose,
 			@Nullable UUID changeRequestId) {
 
@@ -102,6 +103,8 @@ class PaymentOrders {
 
 	private final MilestoneFunding funding;
 
+	private final JobRoles roles;
+
 	private final VnpaySandbox sandbox;
 
 	private final Deadlines deadlines;
@@ -120,9 +123,10 @@ class PaymentOrders {
 
 	private final Refunds refunds;
 
-	PaymentOrders(JdbcClient jdbc, MilestoneFunding funding, VnpaySandbox sandbox, Deadlines deadlines,
+	PaymentOrders(JdbcClient jdbc, MilestoneFunding funding, JobRoles roles, VnpaySandbox sandbox, Deadlines deadlines,
 			Notifications notifications, Todos todos, Administrators administrators, AuditLog auditLog, IdGenerator ids,
 			Clock clock, Refunds refunds) {
+		this.roles = roles;
 		this.refunds = refunds;
 		this.jdbc = jdbc;
 		this.funding = funding;
@@ -499,7 +503,11 @@ class PaymentOrders {
 			.single();
 	}
 
+	/** The Customer hears of a failed order, unless the order outlived its Job or its Customer (AD-24). */
 	private void notifyFailed(Order order) {
+		if (order.customerId() == null || !this.roles.roleOf(order.jobId(), order.customerId()).isCustomer()) {
+			return;
+		}
 		FundingJob job = this.funding.byId(order.jobId()).orElse(null);
 		int number = job == null ? 1 : job.milestones()
 			.stream()

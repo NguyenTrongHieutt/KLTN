@@ -116,8 +116,11 @@ class AutoAcceptanceIT extends IntegrationTest {
 			.isEqualTo("ACCEPTED:true");
 		assertThat(text("SELECT status || ':' || auto || ':' || (decided_by IS NULL) FROM delivery.handover"))
 			.isEqualTo("ACCEPTED:true:true");
-		assertThat(this.jdbc.sql("SELECT amount_vnd FROM payment.ledger_entry WHERE entry_type = 'RELEASE' ORDER BY amount_vnd DESC")
-			.query(Long.class).list()).containsExactly(1_050_000L, 450_000L);
+		assertThat(this.jdbc.sql("SELECT amount_vnd FROM payment.ledger_entry WHERE entry_type = 'RELEASE_POOLED'")
+			.query(Long.class).list()).containsExactly(1_500_000L);
+		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'RELEASE'")).as("nobody is paid at the release")
+			.isZero();
+		assertThat(text("SELECT status FROM job.milestone_split")).isEqualTo("AWAITING_DRAFT");
 		assertThat(this.jdbc.sql("""
 				SELECT DISTINCT params ->> 'how' FROM notification.notification WHERE type = 'job.milestone_accepted'
 				""").query(String.class).list()).containsExactly("tự nghiệm thu");
@@ -144,7 +147,7 @@ class AutoAcceptanceIT extends IntegrationTest {
 		assertThat(reminders()).isEmpty();
 		assertThat(this.jdbc.sql("SELECT DISTINCT status FROM timers.deadline WHERE subject_id = :id")
 			.param("id", UUID.fromString(handover)).query(String.class).list()).containsExactly("OBSOLETE");
-		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'RELEASE'")).isEqualTo(2);
+		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'RELEASE_POOLED'")).isOne();
 		assertThat(text("SELECT auto::text FROM delivery.handover")).isEqualTo("false");
 
 		world();
@@ -195,7 +198,7 @@ class AutoAcceptanceIT extends IntegrationTest {
 			.containsEntry("remaining_ms", Duration.ofMinutes(5).toMillis());
 		assertThat(text("SELECT state FROM job.milestone WHERE id = '" + this.milestone + "'")).isEqualTo("SUBMITTED");
 		assertThat(text("SELECT status FROM delivery.handover")).isEqualTo("SUBMITTED");
-		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'RELEASE'")).isZero();
+		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'RELEASE_POOLED'")).isZero();
 		this.clock.setInstant(due.plus(Duration.ofMinutes(1)));
 		assertThat(this.poller.runDue()).as("it waits for the thaw").isZero();
 
@@ -210,7 +213,7 @@ class AutoAcceptanceIT extends IntegrationTest {
 		assertThat(text("SELECT state || ':' || auto_accepted FROM job.milestone WHERE id = '" + this.milestone + "'"))
 			.isEqualTo("ACCEPTED:true");
 		assertThat(text("SELECT status || ':' || auto FROM delivery.handover")).isEqualTo("ACCEPTED:true");
-		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'RELEASE'")).isEqualTo(2);
+		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'RELEASE_POOLED'")).isOne();
 	}
 
 	@Test
@@ -348,8 +351,9 @@ class AutoAcceptanceIT extends IntegrationTest {
 		this.jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at, state, funded_at,
 				    crew_terms_version_no)
-				VALUES (:id, :job, 0, 'Báo cáo', 1500000, 2, now(), 'FUNDED', now(), 1)
-				""").param("id", this.milestone).param("job", this.job).update();
+				VALUES (:id, :job, 0, 'Báo cáo', 1500000, 2, now(), 'FUNDED', :funded, 1)
+				""").param("id", this.milestone).param("job", this.job)
+			.param("funded", Timestamp.from(this.clock.instant().minus(Duration.ofMinutes(1)))).update();
 		this.jdbc.sql("""
 				INSERT INTO payment.ledger_account (milestone_id, job_id, product_id, created_at) VALUES (:id, :job, :product, now())
 				""").param("id", this.milestone).param("job", this.job).param("product", product).update();

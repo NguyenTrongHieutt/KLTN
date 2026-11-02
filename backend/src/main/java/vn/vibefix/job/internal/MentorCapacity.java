@@ -94,7 +94,7 @@ class MentorCapacity implements MentorWork {
 		this.jdbc.sql("""
 				SELECT mentor_account_id, type, count(DISTINCT customer_account_id) AS n
 				FROM job.job, unnest(job_types) AS type
-				WHERE mentor_account_id IN (:mentors) AND state = 'CLOSED'
+				WHERE mentor_account_id IN (:mentors) AND state = 'CLOSED' AND product_deleted_at IS NULL
 				GROUP BY mentor_account_id, type
 				""").param("mentors", List.copyOf(mentorIds)).query(rs -> {
 			history.computeIfAbsent(rs.getObject("mentor_account_id", UUID.class), id -> new HashMap<>())
@@ -129,7 +129,8 @@ class MentorCapacity implements MentorWork {
 		}
 		return new LinkedHashSet<>(this.jdbc.sql("""
 				SELECT DISTINCT mentor_account_id FROM job.job
-				WHERE state = 'CLOSED' AND mentor_account_id IS NOT NULL AND job_types && CAST(:types AS TEXT[])
+				WHERE state = 'CLOSED' AND mentor_account_id IS NOT NULL AND product_deleted_at IS NULL
+				  AND job_types && CAST(:types AS TEXT[])
 				ORDER BY mentor_account_id
 				""").param("types", jobTypes.toArray(String[]::new)).query(UUID.class).list());
 	}

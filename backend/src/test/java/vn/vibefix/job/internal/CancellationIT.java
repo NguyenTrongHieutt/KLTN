@@ -101,6 +101,11 @@ class CancellationIT extends IntegrationTest {
 		await().atMost(Duration.ofSeconds(10)).until(() -> this.ledger.releasable(this.first) == 0);
 		assertThat(text("SELECT reason || ':' || amount_vnd FROM payment.refund WHERE milestone_id = '" + this.first + "'"))
 			.isEqualTo("CANCELLED:" + PRICE);
+		// Story 22.1: M7 and J10 make no pool and no split, and the Milestone's sums hold.
+		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'RELEASE_POOLED'")).isZero();
+		assertThat(count("SELECT count(*) FROM job.milestone_split")).isZero();
+		assertThat(count("SELECT coalesce(sum(amount_vnd), 0) FROM payment.ledger_entry WHERE entry_type = 'REFUND_REQUESTED' AND milestone_id = '"
+				+ this.first + "'")).isEqualTo(PRICE);
 		assertThat(count("SELECT count(*) FROM notification.notification WHERE type = 'job.job_cancelled'")).isEqualTo(3);
 		assertThat(text("SELECT status || ':' || released_reason FROM job.crew_row WHERE job_id = '" + job + "'"))
 			.isEqualTo("RELEASED:JOB_ENDED");

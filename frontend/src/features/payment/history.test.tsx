@@ -29,9 +29,32 @@ const release = (overrides: object = {}) => ({
   baseAmountVnd: 1200000,
   yourPartVnd: 240000,
   yourPercent: 20,
-  crewTermsVersionNo: 1,
+  splitVersionNo: 1,
   crew: [{ name: 'Trần Quang Minh', amountVnd: 960000, percent: 80 }],
   ...overrides,
+})
+
+describe('MEN-7: a release of a deleted Product (AD-24)', () => {
+  it('names the Job as deleted and the Milestone by its number alone', { timeout: 15_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
+      'GET /api/v1/balance': () =>
+        json({
+          balanceVnd: 240000,
+          releases: 1,
+          sentToCrewVnd: 960000,
+          heldVnd: 0,
+          lines: [release({ jobId: '00000000-0000-0000-0000-000000000000', jobTitle: '', number: 2, milestoneTitle: '' })],
+          heldParts: [],
+        }),
+    })
+    renderAt('/so-du')
+
+    expect(await screen.findByText('Công việc đã xóa')).toBeInTheDocument()
+    expect(screen.getByText('Giai đoạn 2')).toBeInTheDocument()
+    expect(screen.queryByText(/Giai đoạn 2 ·/)).toBeNull()
+    expect(screen.getByText(/Trần Quang Minh/)).toBeInTheDocument()
+  })
 })
 
 describe('CUS-10: the payment history (FR-44)', () => {
@@ -136,10 +159,9 @@ describe("JOB-7 for the Mentor: each release by party (AD-20)", () => {
               topUpVnd: 0,
               refundedVnd: 0,
               releasedTotalVnd: 2000000,
-              crewTermsVersionNo: 1,
               releases: [
-                { name: 'Đỗ Mạnh Hùng', role: 'MENTOR', amountVnd: 400000, percent: 20, crewTermsVersionNo: 1, releasedAt: '2026-10-25T03:00:00Z' },
-                { name: 'Trần Quang Minh', role: 'CREW', amountVnd: 1600000, percent: 80, crewTermsVersionNo: 1, releasedAt: '2026-10-25T03:00:00Z' },
+                { name: 'Đỗ Mạnh Hùng', role: 'MENTOR', amountVnd: 400000, percent: 20, splitVersionNo: 1, releasedAt: '2026-10-25T03:00:00Z' },
+                { name: 'Trần Quang Minh', role: 'CREW', amountVnd: 1600000, percent: 80, splitVersionNo: 1, releasedAt: '2026-10-25T03:00:00Z' },
               ],
             },
           ],
@@ -150,7 +172,7 @@ describe("JOB-7 for the Mentor: each release by party (AD-20)", () => {
 
     expect(await screen.findByText('Trần Quang Minh')).toBeInTheDocument()
     expect(screen.getByText('Nhóm thực hiện')).toBeInTheDocument()
-    expect(screen.getByText('Điều khoản phiên bản 1')).toBeInTheDocument()
+    expect(screen.queryByText(/Điều khoản phiên bản/)).not.toBeInTheDocument()
     expect(screen.getByText('80%')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Thanh toán' })).toHaveAttribute('aria-current', 'page')
   })

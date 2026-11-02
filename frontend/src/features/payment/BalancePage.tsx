@@ -119,9 +119,11 @@ function Content({ balance, mentor }: { balance: Balance; mentor: boolean }) {
                 {balance.lines.map((line, index) => (
                   <tr key={`${line.jobId}-${line.number}-${index}`} className="border-b border-border align-top last:border-b-0">
                     <td className="px-4 py-2.5">
-                      <p className="font-semibold break-words">{line.jobTitle}</p>
+                      <p className="font-semibold break-words">{line.jobTitle || t('screen.payment.balance.deletedJob')}</p>
                       <p className="text-caption text-muted-foreground">
-                        {t('screen.payment.balance.milestoneLine', { n: line.number, title: line.milestoneTitle })}
+                        {line.milestoneTitle
+                          ? t('screen.payment.balance.milestoneLine', { n: line.number, title: line.milestoneTitle })
+                          : t('screen.payment.balance.milestoneNumber', { n: line.number })}
                       </p>
                     </td>
                     <td className="px-4 py-2.5">{formatDayMonth(line.releasedAt)}</td>
@@ -147,7 +149,7 @@ function Content({ balance, mentor }: { balance: Balance; mentor: boolean }) {
                       </td>
                     )}
                     <td className="px-4 py-2.5">
-                      {line.crewTermsVersionNo != null && t('screen.payment.balance.version', { n: line.crewTermsVersionNo })}
+                      {line.splitVersionNo != null && t('screen.payment.balance.version', { n: line.splitVersionNo })}
                     </td>
                   </tr>
                 ))}

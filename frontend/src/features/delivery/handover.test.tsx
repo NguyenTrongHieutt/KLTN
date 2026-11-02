@@ -141,7 +141,8 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
     })
     renderAt('/cong-viec/j1/ban-giao')
 
-    expect(await screen.findByText('Giai đoạn 1 · Báo cáo đang chờ bàn giao.')).toBeInTheDocument()
+    // The first test of this file loads the lazy route, which takes more than the default second under a full build.
+    expect(await screen.findByText('Giai đoạn 1 · Báo cáo đang chờ bàn giao.', {}, { timeout: 15_000 })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Bàn giao' })).toHaveAttribute('aria-current', 'page')
     await user.click(screen.getByRole('link', { name: 'Tạo bàn giao' }))
 

@@ -18,6 +18,7 @@ import vn.vibefix.audit.AuditActor;
 import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
+import vn.vibefix.job.JobRoles;
 import vn.vibefix.job.MilestoneFunding;
 import vn.vibefix.job.MilestoneFunding.FundingJob;
 import vn.vibefix.notification.Audience;
@@ -34,7 +35,8 @@ import vn.vibefix.shared.IdGenerator;
  * {@link LedgerRecordedRefund} with {@code vibefix.payment.refund-gateway=ledger}. The request writes
  * REFUND_REQUESTED, asks for the {@value RefundOperation#TYPE} External Operation in the VNPay lane, and
  * tells the Customer once; the confirmation writes REFUND_CONFIRMED once, however often the operation
- * runs, and tells the Customer again only when the gateway's first answer did not confirm it.
+ * runs, and tells the Customer again only when the gateway's first answer did not confirm it. The refund outlives the
+ * Job: on a deleted Product or an erased Customer it still goes back to the card, and nobody is told (AD-24).
  */
 @Component
 class Refunds {
@@ -55,7 +57,7 @@ class Refunds {
 	}
 
 	/** One refund. */
-	record Refund(UUID id, UUID fundEntryId, UUID paymentOrderId, UUID jobId, UUID milestoneId, UUID customerId, long amountVnd,
+	record Refund(UUID id, UUID fundEntryId, UUID paymentOrderId, UUID jobId, UUID milestoneId, @Nullable UUID customerId, long amountVnd,
 			Reason reason, String gateway, String vnpRequestId, String status, Instant requestedAt, @Nullable Instant confirmedAt) {
 
 		boolean simulated() {
@@ -77,6 +79,8 @@ class Refunds {
 
 	private final MilestoneFunding funding;
 
+	private final JobRoles roles;
+
 	private final AuditLog auditLog;
 
 	private final IdGenerator ids;
@@ -86,7 +90,8 @@ class Refunds {
 	private final String gateway;
 
 	Refunds(JdbcClient jdbc, ExternalOperations operations, Notifications notifications, MilestoneFunding funding,
-			AuditLog auditLog, IdGenerator ids, Clock clock, @Value("${vibefix.payment.refund-gateway:vnpay}") String gateway) {
+			JobRoles roles, AuditLog auditLog, IdGenerator ids, Clock clock,
+			@Value("${vibefix.payment.refund-gateway:vnpay}") String gateway) {
 		this.gateway = switch (gateway.toLowerCase(java.util.Locale.ROOT)) {
 			case "vnpay" -> VnpayRefund.KEY;
 			case "ledger" -> LedgerRecordedRefund.KEY;
@@ -97,6 +102,7 @@ class Refunds {
 		this.operations = operations;
 		this.notifications = notifications;
 		this.funding = funding;
+		this.roles = roles;
 		this.auditLog = auditLog;
 		this.ids = ids;
 		this.clock = clock;
@@ -155,9 +161,11 @@ class Refunds {
 		this.auditLog.record(AuditEntry.of(AuditActor.system(), "payment.refund_requested", AuditObject.of("payment.refund", id))
 			.forJob(order.jobId()));
 		String notice = LedgerRecordedRefund.KEY.equals(this.gateway) ? SIMULATED_REQUESTED : REQUESTED;
-		this.notifications.send(new NotificationRequest(notice, id, List.of(new Recipient(order.customerId(), Audience.CUSTOMER)),
-				Map.of("amount", PaymentOrders.vnd(amount), "job", title(order.jobId())), "/thanh-toan/" + order.id(), order.jobId(),
-				null));
+		if (order.customerId() != null && this.roles.roleOf(order.jobId(), order.customerId()).isCustomer()) {
+			this.notifications.send(new NotificationRequest(notice, id, List.of(new Recipient(order.customerId(), Audience.CUSTOMER)),
+					Map.of("amount", PaymentOrders.vnd(amount), "job", title(order.jobId())), "/thanh-toan/" + order.id(), order.jobId(),
+					null));
+		}
 		return byId(id);
 	}
 
@@ -212,7 +220,7 @@ class Refunds {
 			.update();
 		this.auditLog.record(AuditEntry.of(AuditActor.system(), "payment.refund_confirmed", AuditObject.of("payment.refund", refundId))
 			.forJob(refund.jobId()));
-		if (tell) {
+		if (tell && refund.customerId() != null && this.roles.roleOf(refund.jobId(), refund.customerId()).isCustomer()) {
 			this.notifications.send(new NotificationRequest(CONFIRMED, refundId,
 					List.of(new Recipient(refund.customerId(), Audience.CUSTOMER)),
 					Map.of("amount", PaymentOrders.vnd(refund.amountVnd()), "job", title(refund.jobId())),
@@ -228,15 +236,15 @@ class Refunds {
 			.optional();
 	}
 
+	private String title(UUID jobId) {
+		return this.funding.byId(jobId).map(FundingJob::title).orElse("");
+	}
+
 	Optional<Refund> ofOrder(UUID orderId) {
 		return this.jdbc.sql("SELECT " + COLUMNS + " FROM payment.refund WHERE payment_order_id = :order ORDER BY requested_at LIMIT 1")
 			.param("order", orderId)
 			.query(Refunds::refund)
 			.optional();
-	}
-
-	private String title(UUID jobId) {
-		return this.funding.byId(jobId).map(FundingJob::title).orElse("");
 	}
 
 	private static Refund refund(java.sql.ResultSet rs, int n) throws java.sql.SQLException {

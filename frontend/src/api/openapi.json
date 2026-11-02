@@ -10045,10 +10045,6 @@
               "$ref" : "#/components/schemas/CrewPartView"
             }
           },
-          "crewTermsVersionNo" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
           "jobId" : {
             "type" : "string",
             "format" : "uuid"
@@ -10066,6 +10062,10 @@
           "releasedAt" : {
             "type" : "string",
             "format" : "date-time"
+          },
+          "splitVersionNo" : {
+            "type" : "integer",
+            "format" : "int32"
           },
           "yourPartVnd" : {
             "type" : "integer",
@@ -14926,10 +14926,6 @@
       "MentorFundingMilestoneView" : {
         "type" : "object",
         "properties" : {
-          "crewTermsVersionNo" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
           "fundedVnd" : {
             "type" : "integer",
             "format" : "int64"
@@ -15134,10 +15130,6 @@
             "type" : "integer",
             "format" : "int64"
           },
-          "crewTermsVersionNo" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
           "name" : {
             "type" : "string"
           },
@@ -15151,6 +15143,10 @@
           },
           "role" : {
             "type" : "string"
+          },
+          "splitVersionNo" : {
+            "type" : "integer",
+            "format" : "int32"
           }
         },
         "required" : [ "amountVnd", "name", "releasedAt", "role" ]

@@ -110,6 +110,9 @@ final class CrewJobWorld {
 	/** The second Milestone's price, Funded and held. */
 	private static final long HELD_PRICE = 800_000;
 
+	/** The third Milestone's price, accepted and waiting in its pool for a split's draft (Story 22.1). */
+	private static final long POOLED_PRICE = 1_250_000;
+
 	/** When the first Milestone was Funded, a day after the Crew signed. */
 	private static final Instant FUNDED = SIGNED.plus(Duration.ofDays(1));
 
@@ -300,6 +303,7 @@ final class CrewJobWorld {
 		JobContent.fund(this.jdbc, job, product, released, owner, RELEASED_BASE, FUNDED);
 		UUID heldOrder = JobContent.fund(this.jdbc, job, product, milestone, owner, HELD_PRICE, ACCEPTED);
 		release(job, product, released, canaryMember, escalating);
+		pooledMilestone(job, product, owner, canaryMember);
 		world.put("milestoneId", milestone);
 		world.put("paymentOrderId", heldOrder);
 		world.put("crewRowId", activeRow);
@@ -511,12 +515,14 @@ final class CrewJobWorld {
 	}
 
 	/**
-	 * The first Milestone's release under Crew Terms version 1 (FR-42, AD-41), to every party: the canary member's
-	 * part is {@code CREW_SHARE}, which the Mentor's balance and funding list and no one else's. The Mentor takes
-	 * the remainder of the whole-VND split.
+	 * The first Milestone's final split (FR-42, AD-15), to every party: its pool, the pool's reversal, and each part. The
+	 * canary member's part is {@code CREW_SHARE}, which the Mentor's balance and funding list and no one else's. The Mentor
+	 * takes the remainder of the whole-VND split.
 	 */
 	private void release(UUID job, UUID product, UUID milestone, UUID canaryMember, UUID escalating) {
 		UUID transition = UUID.randomUUID();
+		UUID pool = JobContent.pool(this.jdbc, job, product, milestone, RELEASED_BASE, ACCEPTED);
+		JobContent.poolReleased(this.jdbc, job, product, milestone, pool, RELEASED_BASE, ACCEPTED);
 		long tenth = RELEASED_BASE * 10 / 100;
 		long canary = RELEASED_BASE * 20 / 100;
 		if (canary != Long.parseLong(value("CREW_SHARE"))) {
@@ -531,6 +537,26 @@ final class CrewJobWorld {
 			JobContent.release(this.jdbc, "RELEASE", transition, job, product, milestone, member, tenth, 10, RELEASED_BASE,
 					ACCEPTED);
 		}
+	}
+
+	/**
+	 * A third Milestone, accepted, its money in the pool and its split waiting for the Mentor's draft (Story 22.1). The
+	 * Customer's views show its released total and nothing of the rest: the {@code SPLIT_*} canaries.
+	 */
+	private void pooledMilestone(UUID job, UUID product, UUID owner, UUID canaryMember) {
+		UUID pooled = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, due_on, revision_rounds, created_at, state,
+				    funded_at, crew_terms_version_no, submitted_at, handover_id, accepted_at)
+				VALUES (:id, :job, 2, 'Báo cáo đặt bàn', :price, DATE '2026-12-01', 2, :signed, 'ACCEPTED', :funded, 1,
+				    :submitted, :handover, :accepted)
+				""").param("id", pooled).param("job", job).param("price", POOLED_PRICE)
+			.param("signed", Timestamp.from(SIGNED)).param("funded", Timestamp.from(FUNDED))
+			.param("submitted", Timestamp.from(ACCEPTED.minus(Duration.ofDays(1)))).param("handover", UUID.randomUUID())
+			.param("accepted", Timestamp.from(ACCEPTED)).update();
+		JobContent.fund(this.jdbc, job, product, pooled, owner, POOLED_PRICE, FUNDED);
+		JobContent.pool(this.jdbc, job, product, pooled, POOLED_PRICE, ACCEPTED);
+		JobContent.openSplit(this.jdbc, job, product, pooled, 3, this.mentor, canaryMember, ACCEPTED);
 	}
 
 	/**

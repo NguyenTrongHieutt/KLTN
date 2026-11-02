@@ -25,8 +25,8 @@ public enum Audience {
 	CREW_EVER_ACTIVE(true, false),
 
 	/**
-	 * A party of one Milestone's split (AD-20, UX-DR112): the Mentor or a Crew member holding a share of the Crew
-	 * Terms version pinned to that Milestone, until Story 22.1 brings the per-Milestone split. Never the Customer.
+	 * A party other than the Mentor of one Milestone's split (AD-20, UX-DR112, A-11), a member who left included. The
+	 * split's Mentor is reached as {@link #MENTOR} with the Milestone named. Never the Customer.
 	 */
 	SPLIT_PARTY(true, true),
 

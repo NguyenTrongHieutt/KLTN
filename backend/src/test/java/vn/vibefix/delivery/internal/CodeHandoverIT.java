@@ -194,8 +194,9 @@ class CodeHandoverIT extends IntegrationTest {
 		this.jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at, state, funded_at,
 				    crew_terms_version_no)
-				VALUES (:id, :job, 0, 'Chặn đặt trùng bàn', 1500000, 2, now(), 'FUNDED', now(), 1)
-				""").param("id", this.milestone).param("job", this.job).update();
+				VALUES (:id, :job, 0, 'Chặn đặt trùng bàn', 1500000, 2, now(), 'FUNDED', :funded, 1)
+				""").param("id", this.milestone).param("job", this.job)
+			.param("funded", Timestamp.from(this.clock.instant().minus(Duration.ofMinutes(1)))).update();
 		this.jdbc.sql("""
 				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, created_at)
 				VALUES (:id, :job, :student, 'ACTIVE', :signed, :signed, now())
@@ -476,7 +477,7 @@ class CodeHandoverIT extends IntegrationTest {
 		assertThat(GITHUB.mergedPulls).contains(this.intermediary + "#" + pull);
 		assertThat(GITHUB.head(GitHubStub.ORGANIZATION, this.intermediary, "main")).isEqualTo(commit);
 		assertThat(milestoneState()).isEqualTo("ACCEPTED");
-		assertThat(releases()).isEqualTo(2);
+		assertThat(releases()).isOne();
 		this.mvc.perform(get("/api/v1/handovers/" + handover).with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(jsonPath("$.status").value("ACCEPTED"))
 			.andExpect(jsonPath("$.checks[0].met").value(true))
@@ -546,7 +547,7 @@ class CodeHandoverIT extends IntegrationTest {
 		accept(handover, version).andExpect(status().isOk()).andExpect(jsonPath("$.acceptance").value("MERGING"));
 		this.worker.runDue(Lane.GITHUB_SHORT);
 		assertThat(milestoneState()).isEqualTo("ACCEPTED");
-		assertThat(releases()).isEqualTo(2);
+		assertThat(releases()).isOne();
 	}
 
 	/** A-02: no refusal from the busy marker, no rollback and no pushed due time; the merge waits for the thaw. */
@@ -591,7 +592,7 @@ class CodeHandoverIT extends IntegrationTest {
 		assertThat(milestoneState()).as("nothing is accepted before the merge").isEqualTo("SUBMITTED");
 		this.worker.runDue(Lane.GITHUB_SHORT);
 		assertThat(milestoneState()).isEqualTo("ACCEPTED");
-		assertThat(releases()).isEqualTo(2);
+		assertThat(releases()).isOne();
 	}
 
 	private Map<String, Object> autoAcceptance(UUID handover) {
@@ -652,7 +653,7 @@ class CodeHandoverIT extends IntegrationTest {
 	}
 
 	private long releases() {
-		return this.jdbc.sql("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'RELEASE' AND job_id = :job")
+		return this.jdbc.sql("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'RELEASE_POOLED' AND job_id = :job")
 			.param("job", this.job).query(Long.class).single();
 	}
 

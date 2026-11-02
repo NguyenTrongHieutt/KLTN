@@ -89,7 +89,7 @@ class ExternalAccessGrants {
 
 	/** The Job, whoever asks; the caller's checks follow. */
 	Optional<Job> job(UUID jobId) {
-		return this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id")
+		return this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id AND " + Jobs.LIVE)
 			.param("id", jobId)
 			.query(Jobs::job)
 			.optional();

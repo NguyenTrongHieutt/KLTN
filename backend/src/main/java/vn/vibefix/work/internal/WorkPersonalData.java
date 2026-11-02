@@ -1,5 +1,7 @@
 package vn.vibefix.work.internal;
 
+import java.sql.Timestamp;
+import java.time.Clock;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -8,9 +10,12 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
 
 import vn.vibefix.files.StoredFiles;
+import vn.vibefix.job.MilestoneSplitFinalized;
+import vn.vibefix.job.MilestoneSplits;
 import vn.vibefix.shared.ErasureBlocker;
 import vn.vibefix.shared.PersonalDataParticipant;
 import vn.vibefix.shared.PersonalDataSection;
@@ -22,6 +27,10 @@ import vn.vibefix.shared.PersonalDataSection;
  * and version author (the entries, Attachments, and versions stay, without a person), and deletes an
  * Administrator's read grants; deleting a Product deletes its Boards with their Work Items, history,
  * Attachments and their files, Pages, and grants. A running Job blocks erasure through {@code job}.
+ * <p>
+ * While a Milestone Split of a Job is not final, its Work Items with their history, notes, and Attachments stay as
+ * evidence a Split Resolution reads (AD-24, A-01): its Pages go, a row in {@code work.split_deferral} says what waits,
+ * and the listener on {@link MilestoneSplitFinalized} finishes it once the Job has no open split.
  */
 @Component
 class WorkPersonalData implements PersonalDataParticipant {
@@ -30,9 +39,15 @@ class WorkPersonalData implements PersonalDataParticipant {
 
 	private final StoredFiles files;
 
-	WorkPersonalData(JdbcClient jdbc, StoredFiles files) {
+	private final MilestoneSplits splits;
+
+	private final Clock clock;
+
+	WorkPersonalData(JdbcClient jdbc, StoredFiles files, MilestoneSplits splits, Clock clock) {
 		this.jdbc = jdbc;
 		this.files = files;
+		this.splits = splits;
+		this.clock = clock;
 	}
 
 	@Override
@@ -137,43 +152,82 @@ class WorkPersonalData implements PersonalDataParticipant {
 
 	@Override
 	public void deleteProduct(UUID productId) {
-		String jobs = "SELECT job_id FROM work.board WHERE product_id = :id";
-		this.jdbc.sql("SELECT file_id FROM work.attachment WHERE file_id IS NOT NULL AND job_id IN (" + jobs + ")")
-			.param("id", productId)
-			.query(UUID.class)
-			.list()
-			.forEach(this.files::delete);
-		this.jdbc.sql("DELETE FROM work.work_item_history WHERE job_id IN (" + jobs + ")").param("id", productId).update();
-		this.jdbc.sql("DELETE FROM work.attachment WHERE job_id IN (" + jobs + ")").param("id", productId).update();
-		this.jdbc.sql("DELETE FROM work.work_item_commit WHERE job_id IN (" + jobs + ")").param("id", productId).update();
-		this.jdbc.sql("DELETE FROM work.work_item WHERE job_id IN (" + jobs + ")").param("id", productId).update();
-		this.jdbc.sql("DELETE FROM work.admin_read_grant WHERE job_id IN (" + jobs + ")").param("id", productId).update();
-		this.jdbc.sql("DELETE FROM work.page_version WHERE page_id IN (SELECT id FROM work.page WHERE job_id IN (" + jobs + "))")
-			.param("id", productId)
-			.update();
-		this.jdbc.sql("UPDATE work.page SET parent_id = NULL WHERE job_id IN (" + jobs + ")").param("id", productId).update();
-		this.jdbc.sql("DELETE FROM work.page WHERE job_id IN (" + jobs + ")").param("id", productId).update();
-		this.jdbc.sql("DELETE FROM work.board WHERE product_id = :id").param("id", productId).update();
+		deleteOrDefer(productId, "DELETE");
 	}
 
 	/** NFR-10: Pages, Work Items with their history, notes, and Attachments go; each Board stays, empty. */
 	@Override
 	public void retireJobData(UUID productId) {
-		String jobs = "SELECT job_id FROM work.board WHERE product_id = :id";
-		this.jdbc.sql("SELECT file_id FROM work.attachment WHERE file_id IS NOT NULL AND job_id IN (" + jobs + ")")
+		deleteOrDefer(productId, "RETIRE");
+	}
+
+	/** Each Job's Pages go; its Work Items go too, unless an open split makes them wait. */
+	private void deleteOrDefer(UUID productId, String waiting) {
+		Set<UUID> open = this.splits.openSplitJobs(productId);
+		open.forEach(job -> defer(job, productId, waiting));
+		this.jdbc.sql("SELECT job_id FROM work.board WHERE product_id = :id")
 			.param("id", productId)
+			.query(UUID.class)
+			.list()
+			.forEach(job -> {
+				deletePages(job);
+				if (!open.contains(job)) {
+					finish(job, waiting);
+				}
+			});
+	}
+
+	/** The Job's last split is final: what waited goes. A replay finds no deferral. */
+	@ApplicationModuleListener
+	void onMilestoneSplitFinalized(MilestoneSplitFinalized event) {
+		String waiting = this.jdbc.sql("SELECT waiting FROM work.split_deferral WHERE job_id = :job FOR UPDATE")
+			.param("job", event.jobId())
+			.query(String.class)
+			.optional()
+			.orElse(null);
+		if (waiting == null || this.splits.hasOpenSplit(event.jobId())) {
+			return;
+		}
+		finish(event.jobId(), waiting);
+		this.jdbc.sql("DELETE FROM work.split_deferral WHERE job_id = :job").param("job", event.jobId()).update();
+	}
+
+	/** The Job's Work Items with their history, notes, and Attachments, and on a deletion its Board. */
+	private void finish(UUID jobId, String waiting) {
+		this.jdbc.sql("SELECT file_id FROM work.attachment WHERE file_id IS NOT NULL AND job_id = :job")
+			.param("job", jobId)
 			.query(UUID.class)
 			.list()
 			.forEach(this.files::delete);
 		for (String table : List.of("work.work_item_history", "work.attachment", "work.work_item_commit", "work.work_item",
 				"work.admin_read_grant")) {
-			this.jdbc.sql("DELETE FROM " + table + " WHERE job_id IN (" + jobs + ")").param("id", productId).update();
+			this.jdbc.sql("DELETE FROM " + table + " WHERE job_id = :job").param("job", jobId).update();
 		}
-		this.jdbc.sql("DELETE FROM work.page_version WHERE page_id IN (SELECT id FROM work.page WHERE job_id IN (" + jobs + "))")
-			.param("id", productId)
+		if ("DELETE".equals(waiting)) {
+			this.jdbc.sql("DELETE FROM work.board WHERE job_id = :job").param("job", jobId).update();
+		}
+	}
+
+	private void deletePages(UUID jobId) {
+		this.jdbc.sql("DELETE FROM work.page_version WHERE page_id IN (SELECT id FROM work.page WHERE job_id = :job)")
+			.param("job", jobId)
 			.update();
-		this.jdbc.sql("UPDATE work.page SET parent_id = NULL WHERE job_id IN (" + jobs + ")").param("id", productId).update();
-		this.jdbc.sql("DELETE FROM work.page WHERE job_id IN (" + jobs + ")").param("id", productId).update();
+		this.jdbc.sql("UPDATE work.page SET parent_id = NULL WHERE job_id = :job").param("job", jobId).update();
+		this.jdbc.sql("DELETE FROM work.page WHERE job_id = :job").param("job", jobId).update();
+	}
+
+	/** Records what waits for the Job's open split; a deletion outranks a retirement. */
+	private void defer(UUID jobId, UUID productId, String waiting) {
+		this.jdbc.sql("""
+				INSERT INTO work.split_deferral (job_id, product_id, waiting, deferred_at) VALUES (:job, :product, :waiting, :now)
+				ON CONFLICT (job_id) DO UPDATE SET waiting = CASE WHEN EXCLUDED.waiting = 'DELETE' THEN 'DELETE'
+				    ELSE work.split_deferral.waiting END
+				""")
+			.param("job", jobId)
+			.param("product", productId)
+			.param("waiting", waiting)
+			.param("now", Timestamp.from(this.clock.instant()))
+			.update();
 	}
 
 	@Override
