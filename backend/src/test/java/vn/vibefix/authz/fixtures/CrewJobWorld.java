@@ -213,6 +213,12 @@ final class CrewJobWorld {
 		// Released LEFT by a lock and unlocked since (deferred B16): an unlock brings nothing back.
 		this.former = JobContent.member(this.jdbc, "Sinh viên đã rời");
 		UUID formerRow = JobContent.crewRow(this.jdbc, job, this.former, "LEFT", WINDOW_END);
+		// A member who left with a reason (Story 21.6), no caller: only the Job's Mentor reads it (CREW_LEFT_NOTE).
+		UUID leaver = JobContent.member(this.jdbc, "Sinh viên đã rời có lý do");
+		this.jdbc.sql("UPDATE job.crew_row SET left_note = :note WHERE id = :row")
+			.param("note", value("CREW_LEFT_NOTE"))
+			.param("row", JobContent.crewRow(this.jdbc, job, leaver, "LEFT", WINDOW_END))
+			.update();
 		this.crossRole = JobContent.member(this.jdbc, "Sinh viên hai vai trò");
 		UUID crossRow = JobContent.crewRow(this.jdbc, job, this.crossRole, "ACTIVE", null);
 		UUID canaryMember = JobContent.canaryMember(this.jdbc, value("CREW_NAME"), value("CREW_EMAIL"),

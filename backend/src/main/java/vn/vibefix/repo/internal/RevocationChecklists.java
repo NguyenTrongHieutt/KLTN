@@ -7,6 +7,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
@@ -21,6 +23,9 @@ import vn.vibefix.audit.AuditActor;
 import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
+import vn.vibefix.identity.StudentDirectory;
+import vn.vibefix.identity.StudentDirectory.StudentCard;
+import vn.vibefix.job.CrewMemberRemoved;
 import vn.vibefix.job.ExternalAccessItems;
 import vn.vibefix.job.ExternalAccessItems.Identifier;
 import vn.vibefix.job.JobBusy;
@@ -44,11 +49,18 @@ import vn.vibefix.timers.Deadlines;
  * {@value #TODO} and the notice {@value #PENDING}; reminders follow after 1 and 7 days while any stays
  * unticked ({@value #REMINDER}, a non-pausable Deadline). The Customer confirms each as removed or rotated;
  * closure never waits for them.
+ * <p>
+ * A member who leaves, or whose lock counted as leaving, gets one more row per confirmed item beside those, identifier
+ * given or not, since the platform cannot know what the Customer granted (FR-66, R15, Story 21.6), each with its own to-do
+ * {@value #MEMBER_TODO} naming the item and the member. An erasure anonymizes such a row and closes its to-do, and it is
+ * listed no more: nobody is left to name.
  */
 @Component
 class RevocationChecklists {
 
 	static final String TODO = "repo.revocation_item";
+
+	static final String MEMBER_TODO = "repo.revocation_item_member";
 
 	static final String PENDING = "repo.revocation_checklist_pending";
 
@@ -56,11 +68,20 @@ class RevocationChecklists {
 
 	static final List<Duration> REMINDERS = List.of(Duration.ofDays(1), Duration.ofDays(7));
 
+	/** The {@code crew_row_id} of a row J8 or J10 opened, which names no member. */
+	static final UUID JOB_END = new UUID(0, 0);
+
 	private static final JsonMapper JSON = JsonMapper.builder().build();
 
-	/** One checklist item; {@code outcome} is {@code REMOVED} or {@code ROTATED} once confirmed. */
+	/**
+	 * One checklist item.
+	 * @param outcome {@code REMOVED} or {@code ROTATED} once confirmed
+	 * @param crewRowId the leaver's Crew row; {@link #JOB_END} on a row of the Job's end
+	 * @param memberLogin the leaver's GitHub username, on a leaver's row only
+	 */
 	record RevocationItem(UUID accessId, String system, String purpose, String environment, String accessLevel,
-			List<Identifier> identifiers, String status, @Nullable String outcome, @Nullable Instant confirmedAt) {
+			List<Identifier> identifiers, String status, @Nullable String outcome, @Nullable Instant confirmedAt,
+			UUID crewRowId, @Nullable String memberLogin) {
 	}
 
 	private final JdbcClient jdbc;
@@ -68,6 +89,8 @@ class RevocationChecklists {
 	private final ExternalAccessItems access;
 
 	private final JobBusy busy;
+
+	private final StudentDirectory students;
 
 	private final Todos todos;
 
@@ -81,11 +104,12 @@ class RevocationChecklists {
 
 	private final Clock clock;
 
-	RevocationChecklists(JdbcClient jdbc, ExternalAccessItems access, JobBusy busy, Todos todos, Notifications notifications,
-			Deadlines deadlines, AuditLog auditLog, ProcessedEvents processedEvents, Clock clock) {
+	RevocationChecklists(JdbcClient jdbc, ExternalAccessItems access, JobBusy busy, StudentDirectory students, Todos todos,
+			Notifications notifications, Deadlines deadlines, AuditLog auditLog, ProcessedEvents processedEvents, Clock clock) {
 		this.jdbc = jdbc;
 		this.access = access;
 		this.busy = busy;
+		this.students = students;
 		this.todos = todos;
 		this.notifications = notifications;
 		this.deadlines = deadlines;
@@ -99,6 +123,60 @@ class RevocationChecklists {
 		boolean ends = "J8".equals(event.transition()) || "J10".equals(event.transition());
 		if (ends && this.processedEvents.markProcessed("repo.RevocationChecklists.onJobTransitioned", event.eventId())) {
 			open(event.jobId());
+		}
+	}
+
+	@ApplicationModuleListener
+	void onCrewMemberRemoved(CrewMemberRemoved event) {
+		if (this.processedEvents.markProcessed("repo.RevocationChecklists.onCrewMemberRemoved", event.eventId())) {
+			memberLeft(event);
+		}
+	}
+
+	/**
+	 * A leaver's rows, one per confirmed item, each naming the item and the member, with the identifier they entered if
+	 * any. Nothing before the Agreement is confirmed. Replay-safe.
+	 */
+	@Transactional
+	void memberLeft(CrewMemberRemoved event) {
+		UUID jobId = event.jobId();
+		BusyJob job = this.busy.job(jobId).orElse(null);
+		List<ExternalAccessItems.Item> items = job == null ? List.of() : this.access.items(jobId);
+		String login = items.isEmpty() ? null
+				: this.students.cards(List.of(event.studentId())).stream().findFirst().map(StudentCard::githubLogin).orElse(null);
+		if (job == null || login == null) {
+			return;
+		}
+		Timestamp now = Timestamp.from(this.clock.instant());
+		for (ExternalAccessItems.Item item : items) {
+			List<Identifier> theirs = item.identifiers().stream().filter(identifier -> login.equals(identifier.githubLogin())).toList();
+			int inserted = this.jdbc.sql("""
+					INSERT INTO repo.revocation_item (job_id, access_id, crew_row_id, member_account_id, member_login, product_id,
+					    customer_account_id, system, purpose, environment, access_level, identifiers, status, created_at)
+					VALUES (:job, :access, :row, :member, :login, :product, :customer, :system, :purpose, :environment, :level,
+					    CAST(:identifiers AS JSONB), 'PENDING', :now)
+					ON CONFLICT DO NOTHING
+					""")
+				.param("job", jobId)
+				.param("access", item.id())
+				.param("row", event.crewRowId())
+				.param("member", event.studentId())
+				.param("login", login)
+				.param("product", job.productId())
+				.param("customer", job.customerId())
+				.param("system", item.system())
+				.param("purpose", item.purpose())
+				.param("environment", item.environment())
+				.param("level", item.accessLevel())
+				.param("identifiers", JSON.writeValueAsString(theirs))
+				.param("now", now)
+				.update();
+			if (inserted == 1) {
+				this.todos.open(new TodoRequest(MEMBER_TODO, job.customerId(), Audience.CUSTOMER,
+						memberSubject(item.id(), event.crewRowId()), Map.of("system", item.system(), "login", login), link(jobId), null,
+						jobId));
+				audit("repo.revocation_item_opened", jobId, item.id(), null);
+			}
 		}
 	}
 
@@ -152,38 +230,46 @@ class RevocationChecklists {
 	/**
 	 * "Đã gỡ quyền" or "Đã đổi khóa": the item is done, audited with its time, and its to-do closes.
 	 * Confirming twice changes nothing.
+	 * @param memberLogin the leaver a row names; {@code null} for the row of the Job's end
 	 * @throws ApiException {@code NOT_FOUND} for no such item
 	 */
 	@Transactional
-	RevocationItem confirm(UUID jobId, UUID accessId, UUID customerId, String outcome) {
-		RevocationItem item = find(jobId, accessId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+	RevocationItem confirm(UUID jobId, UUID accessId, @Nullable String memberLogin, UUID customerId, String outcome) {
+		RevocationItem item = find(jobId, accessId, memberLogin).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		if ("CONFIRMED".equals(item.status())) {
 			return item;
 		}
 		this.jdbc.sql("""
 				UPDATE repo.revocation_item SET status = 'CONFIRMED', outcome = :outcome, confirmed_at = :now
-				WHERE job_id = :job AND access_id = :access AND status = 'PENDING'
+				WHERE job_id = :job AND access_id = :access AND crew_row_id = :row AND status = 'PENDING'
 				""").param("outcome", outcome).param("now", Timestamp.from(this.clock.instant())).param("job", jobId)
-			.param("access", accessId).update();
-		this.todos.close(TODO, customerId, accessId);
+			.param("access", accessId).param("row", item.crewRowId()).update();
+		if (memberLogin == null) {
+			this.todos.close(TODO, customerId, accessId);
+		}
+		else {
+			this.todos.close(MEMBER_TODO, customerId, memberSubject(accessId, item.crewRowId()));
+		}
 		audit("repo.revocation_item_confirmed", jobId, accessId, customerId);
-		return find(jobId, accessId).orElseThrow();
+		return find(jobId, accessId, memberLogin).orElseThrow();
 	}
 
-	/** The Job's items, in the order they were opened. */
+	/** The Job's items, in the order they were opened; an anonymized leaver's row is no longer one. */
 	@Transactional(readOnly = true)
 	List<RevocationItem> items(UUID jobId) {
 		return this.jdbc.sql("""
 				SELECT access_id, system, purpose, environment, access_level, identifiers::text AS identifiers, status, outcome,
-				    confirmed_at
-				FROM repo.revocation_item WHERE job_id = :job ORDER BY created_at, system, access_id
-				""").param("job", jobId).query((rs, n) -> {
+				    confirmed_at, crew_row_id, member_login
+				FROM repo.revocation_item WHERE job_id = :job AND (crew_row_id = :end OR member_login IS NOT NULL)
+				ORDER BY created_at, system, access_id, crew_row_id
+				""").param("job", jobId).param("end", JOB_END).query((rs, n) -> {
 					Timestamp confirmed = rs.getTimestamp("confirmed_at");
 					return new RevocationItem(rs.getObject("access_id", UUID.class), rs.getString("system"),
 							rs.getString("purpose"), rs.getString("environment"), rs.getString("access_level"),
 							JSON.readValue(rs.getString("identifiers"), new TypeReference<List<Identifier>>() {
 							}), rs.getString("status"), rs.getString("outcome"),
-							confirmed == null ? null : confirmed.toInstant());
+							confirmed == null ? null : confirmed.toInstant(), rs.getObject("crew_row_id", UUID.class),
+							rs.getString("member_login"));
 				}).list();
 	}
 
@@ -201,8 +287,15 @@ class RevocationChecklists {
 		return true;
 	}
 
-	private java.util.Optional<RevocationItem> find(UUID jobId, UUID accessId) {
-		return items(jobId).stream().filter(item -> item.accessId().equals(accessId)).findFirst();
+	private Optional<RevocationItem> find(UUID jobId, UUID accessId, @Nullable String memberLogin) {
+		return items(jobId).stream()
+			.filter(item -> item.accessId().equals(accessId) && Objects.equals(item.memberLogin(), memberLogin))
+			.findFirst();
+	}
+
+	/** What names a leaver's to-do for one item: the Customer's to-do for the item itself has the item's ID. */
+	static UUID memberSubject(UUID accessId, UUID crewRowId) {
+		return UUID.nameUUIDFromBytes((accessId + ":revocation:" + crewRowId).getBytes(StandardCharsets.UTF_8));
 	}
 
 	private void audit(String action, UUID jobId, UUID accessId, @Nullable UUID customerId) {

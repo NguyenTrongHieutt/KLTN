@@ -167,6 +167,18 @@ describe('JOB-1 portfolio section (FR-50, UX-DR55)', () => {
   it('shows a Crew member their published entry and the approved summary', { timeout: 20_000 }, async () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('CREW'),
+      'GET /api/v1/jobs/j1/crew/me': () =>
+        json({
+          jobId: 'j1',
+          title: progress.title,
+          state: progress.state,
+          productName: progress.productName,
+          mentorName: progress.mentorName,
+          former: false,
+          canLeave: false,
+          codeJob: true,
+          partyMilestones: [],
+        }),
       'GET /api/v1/boards/j1/progress': () => json({ ...progress, audience: 'CREW' }),
       'GET /api/v1/boards/j1/portfolio': () =>
         json(

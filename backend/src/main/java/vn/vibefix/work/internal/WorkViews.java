@@ -102,6 +102,13 @@ class WorkViews {
 	}
 
 	/**
+	 * A former member whose open Work Items wait for the Mentor to assign again (Story 21.6), the same for a leave and a
+	 * lock.
+	 */
+	record LeaverView(String name, Instant leftAt) {
+	}
+
+	/**
 	 * The Board.
 	 * @param title the Job's title
 	 * @param mentor whether the viewer is the Job's Mentor
@@ -109,10 +116,13 @@ class WorkViews {
 	 * @param crew the Crew members that are not released, for the Mentor's assignee picker; empty for anyone else
 	 * @param workload with {@code features.largeCrews} on, each active member's open work, for the Mentor only
 	 * @param viewerId the viewer's account, for "Của tôi" and the moves the assignee may make
+	 * @param noCrew for the Mentor of an Active Job: no counted member is left, so they may assign Work Items to themself
+	 * (R8)
+	 * @param leavers for the Mentor, while they can still assign: who left open Work Items behind
 	 */
 	record BoardView(UUID boardId, String title, String code, UUID viewerId, boolean mentor, boolean readOnly,
 			List<BoardMilestoneView> milestones, List<CrewPickView> crew, List<WorkloadView> workload,
-			List<WorkItemCardView> items) {
+			List<WorkItemCardView> items, boolean noCrew, List<LeaverView> leavers) {
 	}
 
 	/** The earlier note a correction quotes ("Ghi chú sửa lại"). */
@@ -176,11 +186,15 @@ class WorkViews {
 
 	private final HeldMilestones held;
 
+	private final Reassignments reassignments;
+
 	private final boolean largeCrews;
 
 	WorkViews(AgreementCriteria criteria, Crews crews, MentorDirectory mentors, StudentDirectory students,
-			HeldMilestones held, @Value("${vibefix.features.large-crews:false}") boolean largeCrews) {
+			HeldMilestones held, Reassignments reassignments,
+			@Value("${vibefix.features.large-crews:false}") boolean largeCrews) {
 		this.held = held;
+		this.reassignments = reassignments;
 		this.largeCrews = largeCrews;
 		this.criteria = criteria;
 		this.crews = crews;
@@ -222,7 +236,20 @@ class WorkViews {
 		return new BoardView(viewer.board().jobId(), viewer.title(), viewer.board().code(), viewer.accountId(),
 				viewer.mentor(),
 				!viewer.writes(), milestones, crew, workload,
-				items.stream().map(item -> card(item, criteria, names, latestReviews.get(item.id()))).toList());
+				items.stream().map(item -> card(item, criteria, names, latestReviews.get(item.id()))).toList(),
+				viewer.mentor() && viewer.writes() && !this.crews.hasCountedMember(viewer.board().jobId()), leavers(viewer));
+	}
+
+	/** Who left open Work Items behind, for the Mentor of a Board that can still change; nobody else reads it (FR-82). */
+	List<LeaverView> leavers(BoardViewer viewer) {
+		if (!viewer.mentor() || !viewer.writes()) {
+			return List.of();
+		}
+		List<Reassignments.Leaver> leavers = this.reassignments.leavers(viewer.board().jobId());
+		Map<UUID, String> names = leavers.isEmpty() ? Map.of() : names(viewer, leavers.stream().map(Reassignments.Leaver::accountId).toList());
+		return leavers.stream()
+			.map(leaver -> new LeaverView(names.getOrDefault(leaver.accountId(), ""), leaver.leftAt()))
+			.toList();
 	}
 
 	private static WorkloadView workload(CrewPickView member, List<Item> items) {

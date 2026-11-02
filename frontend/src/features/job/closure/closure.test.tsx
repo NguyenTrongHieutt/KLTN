@@ -101,6 +101,18 @@ const closure = (overrides: object = {}) => ({
   ...overrides,
 })
 
+const crewMe = {
+  jobId: 'j1',
+  title: 'Sửa lỗi đặt bàn',
+  state: 'ACTIVE',
+  productName: 'Sổ đặt bàn Quán Mây',
+  mentorName: 'Đỗ Mạnh Hùng',
+  former: false,
+  canLeave: true,
+  codeJob: true,
+  partyMilestones: [],
+}
+
 describe('JOB-1 closure section (FR-37, FR-67, UX-DR55)', () => {
   it('lets the Customer confirm the System’s proposal and lists every party’s steps', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
@@ -173,6 +185,7 @@ describe('JOB-1 closure section (FR-37, FR-67, UX-DR55)', () => {
     const user = userEvent.setup()
     fakeBackend(signedInUser, {
       ...inEveryJob('CREW'),
+      'GET /api/v1/jobs/j1/crew/me': () => json(crewMe),
       'GET /api/v1/boards/j1/progress': () => json({ ...progress, audience: 'CREW' }),
       'GET /api/v1/boards/j1/closure': () =>
         json(
@@ -223,8 +236,8 @@ describe('JOB-1 closure section (FR-37, FR-67, UX-DR55)', () => {
 
   it('keeps the post-Job duties for a Crew member the closed Job released (AD-41)', { timeout: 20_000 }, async () => {
     fakeBackend(signedInUser, {
-      ...inEveryJob('CREW'),
-      'GET /api/v1/boards/j1/progress': () => json({ ...progress, state: 'CLOSED', audience: 'FORMER' }),
+      ...inEveryJob('CREW', 'FORMER'),
+      'GET /api/v1/jobs/j1/crew/me': () => json({ ...crewMe, state: 'CLOSED', former: true, canLeave: false }),
       'GET /api/v1/boards/j1/closure': () =>
         json(
           closure({

@@ -1,3 +1,4 @@
+import { CrewLeftLines } from '@/features/crew/NoCrew'
 import { DriftWarning } from '@/features/job/DriftWarning'
 import { WorkFindings } from './WorkFindings'
 import { ExternalLink, ShieldAlert } from 'lucide-react'
@@ -80,6 +81,7 @@ function Content({ jobId, audience, progress }: { jobId: string; audience: Progr
             <span className="sr-only"> ({t('screen.board.attachments.external')})</span>
           </a>
         )}
+        <CrewLeftLines leavers={progress.leavers} />
         {!progress.assessment && <DriftWarning jobId={jobId} />}
         <DisputeSection jobId={jobId} />
         {audience === 'mentor' && <JobTeamIssues jobId={jobId} />}

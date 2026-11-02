@@ -50,6 +50,7 @@ import vn.vibefix.identity.AccountLocked;
 import vn.vibefix.identity.internal.CustomerTokens;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
+import vn.vibefix.job.CrewMemberAdded;
 import vn.vibefix.job.Crews;
 import vn.vibefix.operations.FailedOperations;
 import vn.vibefix.operations.Lane;
@@ -414,6 +415,48 @@ class FundingIT extends IntegrationTest {
 		assertThat(refundReasons()).containsExactly("CREW_CHANGED 800000");
 		assertThat(this.jdbc.sql("SELECT state FROM job.job WHERE id = :id").param("id", this.job).query(String.class).single())
 			.isEqualTo("AGREEMENT");
+	}
+
+	/**
+	 * Story 21.6 (FR-17, FR-41, AD-14), as on the lock path: the last member left before J6, so the phase is back to finding
+	 * a Crew, no order can be made and the Customer's to-do closes; an order already open stays open and is refunded at its
+	 * IPN with {@code CREW_CHANGED}, never voided, since a closed order would answer {@code ORDER_CLOSED}. The next signature
+	 * opens the to-do again.
+	 */
+	@Test
+	void theLastMemberLeavingHoldsMilestoneOneBack() throws Exception {
+		confirmedAgreement("BUG_FIX");
+		await().atMost(Duration.ofSeconds(10)).until(() -> openTodos("payment.fund_milestone", this.lan) == 1);
+		UUID orderId = created();
+
+		this.mvc.perform(post("/api/v1/jobs/" + this.job + "/crew/leave").with(as(this.vy, Role.STUDENT)).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("{}"))
+			.andExpect(status().isNoContent());
+		await().atMost(Duration.ofSeconds(10)).until(() -> openTodos("payment.fund_milestone", this.lan) == 0);
+
+		assertThat(orderStatus(orderId)).as("an order already open stays open").isEqualTo("OPEN");
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/role").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.phase").value("FINDING_CREW"))
+			.andExpect(jsonPath("$.noCrew").value(false));
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/funding").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.milestones[0].fundable").value(false))
+			.andExpect(jsonPath("$.milestones[0].blockedReason").value("NO_SIGNED_CREW"));
+		order(jobVersion()).andExpect(status().is(422)).andExpect(jsonPath("$.code").value("GUARD_FAILED"))
+			.andExpect(jsonPath("$.reason").value("NO_SIGNED_CREW"));
+
+		ipn(paid(txnRef(orderId), "14000022", 800000), null).andExpect(jsonPath("$.RspCode").value("00"));
+		assertThat(orderStatus(orderId)).as("J6's Crew guard refused it").isEqualTo("UNAPPLIED");
+		assertThat(refundReasons()).containsExactly("CREW_CHANGED 800000");
+		assertThat(this.jdbc.sql("SELECT state FROM job.job WHERE id = :id").param("id", this.job).query(String.class).single())
+			.isEqualTo("AGREEMENT");
+
+		UUID an = member("Phan Văn An");
+		signed(an);
+		UUID row = this.jdbc.sql("SELECT id FROM job.crew_row WHERE member_account_id = :id").param("id", an).query(UUID.class).single();
+		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.events
+			.publishEvent(new CrewMemberAdded(UUID.randomUUID(), this.job, row, an, "AGREEMENT")));
+		await().atMost(Duration.ofSeconds(10)).until(() -> openTodos("payment.fund_milestone", this.lan) == 1);
 	}
 
 	/**

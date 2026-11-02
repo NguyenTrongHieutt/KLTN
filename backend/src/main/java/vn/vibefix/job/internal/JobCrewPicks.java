@@ -71,6 +71,8 @@ class JobCrewPicks implements CrewPicks {
 
 	private final AgreementReviews reviews;
 
+	private final ExternalAccessGrants externalAccess;
+
 	private final PersonSignals signals;
 
 	private final CrewAlerts alerts;
@@ -86,12 +88,13 @@ class JobCrewPicks implements CrewPicks {
 	private final IdGenerator ids;
 
 	JobCrewPicks(CrewService crews, JobRecruitment recruitment, Agreements agreements, AgreementReviews reviews,
-			PersonSignals signals, CrewAlerts alerts, PublicProfiles profiles, Notifications notifications, AuditLog auditLog,
-			ApplicationEventPublisher events, IdGenerator ids) {
+			ExternalAccessGrants externalAccess, PersonSignals signals, CrewAlerts alerts, PublicProfiles profiles,
+			Notifications notifications, AuditLog auditLog, ApplicationEventPublisher events, IdGenerator ids) {
 		this.crews = crews;
 		this.recruitment = recruitment;
 		this.agreements = agreements;
 		this.reviews = reviews;
+		this.externalAccess = externalAccess;
 		this.signals = signals;
 		this.alerts = alerts;
 		this.profiles = profiles;
@@ -219,6 +222,8 @@ class JobCrewPicks implements CrewPicks {
 			this.notifications.send(new NotificationRequest(LOGIN_ADDED, key(rowId + ":login-added"),
 					List.of(new Recipient(job.customerId(), Audience.CUSTOMER)),
 					Map.of("login", person.githubLogin(), "job", job.title()), link, jobId, null));
+			// R15, FR-66: the confirmation's to-dos named nobody, so the Customer grants a later member each item by name.
+			this.externalAccess.memberJoined(job, member, person.githubLogin());
 		}
 		if (job.state() == JobState.AGREEMENT && job.agreementVersionNo() != null) {
 			this.reviews.confirmed(jobId).ifPresent(confirmed -> this.reviews.askToFundMilestoneOne(job, confirmed.content()));

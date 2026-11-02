@@ -21,7 +21,7 @@ public interface MilestoneWork {
 	 * One Work Item of the Milestone.
 	 * @param key {@code {JOBCODE}-{n}}
 	 * @param status {@code TODO}, {@code IN_PROGRESS}, {@code IN_REVIEW}, or {@code DONE}
-	 * @param approved in "Xong" and its latest review is the Mentor's approval
+	 * @param approved in "Xong" and its latest review is the Mentor's approval, or their own unreviewed move (R8)
 	 */
 	record ItemState(UUID id, String key, String title, String status, boolean approved) {
 	}

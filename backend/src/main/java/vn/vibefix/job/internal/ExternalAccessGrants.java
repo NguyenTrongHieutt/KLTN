@@ -1,5 +1,6 @@
 package vn.vibefix.job.internal;
 
+import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.util.ArrayList;
@@ -20,6 +21,8 @@ import vn.vibefix.identity.StudentDirectory.StudentCard;
 import vn.vibefix.job.internal.AgreementReviews.Confirmed;
 import vn.vibefix.job.internal.Agreements.ExternalAccess;
 import vn.vibefix.job.internal.Jobs.Job;
+import vn.vibefix.notification.Audience;
+import vn.vibefix.notification.TodoRequest;
 import vn.vibefix.notification.Todos;
 import vn.vibefix.scanning.SensitiveText;
 import vn.vibefix.shared.ApiException;
@@ -32,12 +35,15 @@ import vn.vibefix.shared.ErrorCode;
  * reads those identifiers only next to the item, beside each person's GitHub username, and only while
  * the Job is neither Closed nor Cancelled; each person reads their own. "Đã cấp quyền" closes the to-do,
  * the only record of the tick. An identifier is no credential: one the {@code scanning} rules read as a
- * secret is refused.
+ * secret is refused. A member who signs after the confirmation opens one {@value #MEMBER_TODO} per item (R15, Story
+ * 21.6): the same tick closes the item's to-do and its member to-dos, and a member who leaves closes their own.
  */
 @Component
 class ExternalAccessGrants {
 
 	static final String TODO = "job.grant_external_access";
+
+	static final String MEMBER_TODO = "job.grant_external_access_member";
 
 	/** FR-66: an identifier is one line of at most this many characters. */
 	static final int MAX_IDENTIFIER = 200;
@@ -130,7 +136,7 @@ class ExternalAccessGrants {
 						identifiers.add(new Identifier(login, identifier));
 					}
 				});
-				items.add(new Item(access, live, !this.todos.isOpen(TODO, job.customerId(), access.id()), identifiers, null));
+				items.add(new Item(access, live, !ungranted(job, access.id()), identifiers, null));
 			}
 			else {
 				items.add(new Item(access, live, null, List.of(), ended ? null : byPerson.get(accountId)));
@@ -178,11 +184,43 @@ class ExternalAccessGrants {
 			.update();
 	}
 
-	/** "Đã cấp quyền": the Customer's to-do for the item closes; ticking again changes nothing. */
+	/**
+	 * "Đã cấp quyền": the Customer's to-do for the item closes with each member's to-do for it; ticking again changes
+	 * nothing.
+	 */
 	@Transactional
 	void granted(Job job, UUID accessId) {
 		access(job, accessId);
 		this.todos.close(TODO, job.customerId(), accessId);
+		this.crews.rows(job.id())
+			.stream()
+			.filter(row -> row.activatedAt() != null)
+			.forEach(row -> this.todos.close(MEMBER_TODO, job.customerId(), memberSubject(accessId, row.studentId())));
+	}
+
+	/** A member signed after the confirmation (R15): the Customer grants them each confirmed item. In the caller's transaction. */
+	void memberJoined(Job job, UUID memberId, String login) {
+		this.reviews.confirmed(job.id()).ifPresent(confirmed -> confirmed.content().externalAccess().forEach(access -> this.todos
+			.open(new TodoRequest(MEMBER_TODO, job.customerId(), Audience.CUSTOMER, memberSubject(access.id(), memberId),
+					Map.of("system", access.system(), "login", login), Agreements.agreementLink(job.id()), null, job.id()))));
+	}
+
+	/** A member left: nothing is left to grant them. In the caller's transaction. */
+	void memberLeft(Job job, UUID memberId) {
+		this.reviews.confirmed(job.id()).ifPresent(confirmed -> confirmed.content().externalAccess().forEach(access -> this.todos
+			.close(MEMBER_TODO, job.customerId(), memberSubject(access.id(), memberId))));
+	}
+
+	/** Whether the Customer still has a grant to tick on the item: its own to-do, or a member's. */
+	private boolean ungranted(Job job, UUID accessId) {
+		return this.todos.isOpen(TODO, job.customerId(), accessId) || this.crews.rows(job.id())
+			.stream()
+			.filter(CrewService.Row::active)
+			.anyMatch(row -> this.todos.isOpen(MEMBER_TODO, job.customerId(), memberSubject(accessId, row.studentId())));
+	}
+
+	private static UUID memberSubject(UUID accessId, UUID memberId) {
+		return UUID.nameUUIDFromBytes((accessId + ":grant:" + memberId).getBytes(StandardCharsets.UTF_8));
 	}
 
 	private ExternalAccess access(Job job, UUID accessId) {

@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { capabilities, fakeBackend, heldJobs, inEveryJob, json, signedInUser, signedInWithGoogle } from '@/test/fakeBackend'
+import { capabilities, fakeBackend, inEveryJob, json, signedInUser, signedInWithGoogle } from '@/test/fakeBackend'
 import { PAYLOADS } from '@/test/payloads'
 
 function renderAt(path: string) {
@@ -383,8 +383,7 @@ describe('MEN-3, one Job Post (FR-12)', () => {
 
   it('tells a member who left the running Job so (UX-DR104)', { timeout: 15_000 }, async () => {
     fakeBackend(signedInUser, {
-      ...inEveryJob('CREW', 'FORMER'),
-      ...heldJobs({ jobId: 'j1', title: post.title, role: 'CREW', crewKind: 'FORMER', state: 'ACTIVE' }),
+      'GET /api/v1/jobs/*/role': () => json({ role: 'CREW', crewKind: 'FORMER', left: true }),
       'GET /api/v1/mentor/job-posts/j1': () =>
         json({ ...post, phase: 'RECRUITING', need: 'CREW', recruitment: { openSlots: 1, skills: [] } }),
       'GET /api/v1/mentor/job-posts/j1/customer-rating': () => json({ count: 0 }),

@@ -37,9 +37,9 @@ import vn.vibefix.timers.DeadlineRequest;
 import vn.vibefix.timers.Deadlines;
 
 /**
- * Revocation (FR-21, FR-59, FR-75, AD-11, AD-19). J8 or J10 revokes every grant of the Job; a locked
- * account revokes that person's grants on every Job; a Crew change revokes the removed member's. A
- * revoked grant is {@code REVOKING} at once, which supersedes its pending invitation or raise, since those
+ * Revocation (FR-21, FR-59, FR-82, AD-11, AD-19). J8 or J10 revokes every grant of the Job; a locked
+ * account revokes that person's grants on every Job; a member who leaves, or whose lock counted as leaving, revokes their
+ * own on that Job. A revoked grant is {@code REVOKING} at once, which supersedes its pending invitation or raise, since those
  * act only on their own status; its operation removes the access and reads the removal back, and
  * Administrators hear if it is still not done 15 minutes later. Reaching Closed or Cancelled also
  * schedules the repositories' deletion 30 days later. Unlocking restores nothing.
@@ -148,7 +148,10 @@ class Revocations {
 		removed(event);
 	}
 
-	/** A Crew change took a member off the Job (FR-75): their grant ends. Replay-safe. */
+	/**
+	 * A member left the Job (FR-82), or a lock counted as leaving: their grant ends. Replay-safe, and a grant the lock's own
+	 * listener already revoked changes nothing.
+	 */
 	@Transactional
 	void removed(CrewMemberRemoved event) {
 		if (!this.processedEvents.markProcessed("repo.Revocations.onCrewMemberRemoved", event.eventId())) {

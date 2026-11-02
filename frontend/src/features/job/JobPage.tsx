@@ -19,7 +19,9 @@ import { useJobApplications } from '@/features/matching/applicationApi'
 import { MentorJobPage } from '@/features/matching/MentorJobPage'
 import { useCancelSelection } from '@/features/matching/mentorJobApi'
 import { formatVnd } from '@/lib/money'
-import { ByJobRole, JobRoleLine } from './ByJobRole'
+import { NoCrewAlert } from '@/features/crew/NoCrew'
+import { ByJobRole, JobPhaseBadge, JobRoleLine } from './ByJobRole'
+import { LeaverRevocations } from './closure/RevocationChecklist'
 import { useJob, useWithdrawJob, type Job } from './jobApi'
 import { JobTabs } from './JobTabs'
 import { JobStateBadge } from './JobStateBadge'
@@ -35,8 +37,9 @@ import { ProgressOverview } from '@/features/work/progress/ProgressOverview'
  * Job header, what happens next, the Job Post as Mentors read it, the reminder that the code is
  * public, the lapse date, and "Rút tin" (J2); while Selecting, the chosen Mentor, the held
  * Applications, and "Hủy lựa chọn" once the signature period passed (J5); from Active on, the
- * progress of each Milestone (FR-28). A Draft opens CUS-6. The Job's Mentor gets their own JOB-1, and
- * a Crew member theirs: the caller's role in this Job picks which (AD-43, UX-DR87, Story 20.6), and a Job where
+ * progress of each Milestone (FR-28); in every state, the alert that the Mentor carries on with no Crew left and the
+ * access of a member who left, still to remove (FR-66, R15). A Draft opens CUS-6. The Job's Mentor gets their own
+ * JOB-1, and a Crew member theirs: the caller's role in this Job picks which (AD-43, UX-DR87, Story 20.6), and a Job where
  * the caller holds none is not found.
  */
 export function JobPage() {
@@ -88,11 +91,12 @@ function Overview({ job }: { job: Job }) {
             <div className="flex flex-wrap items-center gap-2">
               <PageHeading>{job.title}</PageHeading>
               <JobStateBadge state={job.state} />
+              <JobPhaseBadge jobId={job.id} />
             </div>
             <p className="text-caption text-muted-foreground break-words">
               {job.productName} · {types}
             </p>
-            <JobRoleLine jobId={job.id} state={job.state} />
+            <JobRoleLine jobId={job.id} />
           </div>
           {job.state === 'OPEN' && <Withdraw job={job} />}
         </div>
@@ -107,6 +111,8 @@ function Overview({ job }: { job: Job }) {
           handover={hasBoard(job.state)}
         />
       </div>
+      {job.mentor && <NoCrewAlert jobId={job.id} mentor={job.mentor.displayName} />}
+      <LeaverRevocations jobId={job.id} />
       {job.state === 'SELECTING' && job.mentor && job.ndaDueAt ? (
         <section aria-labelledby="job-selecting" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5">
           <h2 id="job-selecting" className="text-h2">

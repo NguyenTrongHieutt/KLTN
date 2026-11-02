@@ -41,9 +41,20 @@ function Frame({ title, onClose, children }: { title: string; onClose: () => voi
 /**
  * The Submit dialog (FR-25, FR-76, AD-39, UX-DR38, UX-DR79): the four Self-check items, all required,
  * the Work Item's Attachments with "Thêm tệp hoặc liên kết", and an optional note for the Mentor; a
- * refusal shows inline.
+ * refusal shows inline. On the Mentor's own Work Item (`direct`, R8, X7, AD-39) the same answers take it straight to
+ * "Xong": nobody reviews it, and its history reads "Xong · không cần duyệt".
  */
-export function SubmitDialog({ item, jobId, onClose }: { item: WorkItemCard; jobId: string; onClose: () => void }) {
+export function SubmitDialog({
+  item,
+  jobId,
+  direct = false,
+  onClose,
+}: {
+  item: WorkItemCard
+  jobId: string
+  direct?: boolean
+  onClose: () => void
+}) {
   const ids = useId()
   const toasts = useToasts()
   const detail = useWorkItem(item.id)
@@ -60,7 +71,7 @@ export function SubmitDialog({ item, jobId, onClose }: { item: WorkItemCard; job
       { itemId: item.id, body: { version: item.version, selfCheck: answers, note, sensitive } },
       {
         onSuccess: () => {
-          toasts.success(t('screen.board.submit.sent', { key: item.key }))
+          toasts.success(t(direct ? 'screen.board.submit.doneDirect' : 'screen.board.submit.sent', { key: item.key }))
           onClose()
         },
         onError: (failure) => setError(refusal(failure)),
@@ -68,8 +79,12 @@ export function SubmitDialog({ item, jobId, onClose }: { item: WorkItemCard; job
     )
   }
   return (
-    <Frame title={t('screen.board.submit.title', { key: item.key })} onClose={onClose}>
+    <Frame
+      title={t(direct ? 'screen.board.submit.directTitle' : 'screen.board.submit.title', { key: item.key })}
+      onClose={onClose}
+    >
       <p className="text-body-sm break-words">{item.title}</p>
+      {direct && <p className="text-body-sm text-muted-foreground">{t('screen.board.submit.directLead')}</p>}
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-1 text-label">{t('screen.board.submit.selfCheck')}</legend>
         {SELF_CHECK.map((key) => (
@@ -88,7 +103,7 @@ export function SubmitDialog({ item, jobId, onClose }: { item: WorkItemCard; job
         {detail.data && <AttachmentList detail={detail.data} canAdd />}
       </RegionState>
       <label htmlFor={`${ids}-note`} className="text-label">
-        {t('screen.board.submit.note')}
+        {t(direct ? 'screen.board.submit.directNote' : 'screen.board.submit.note')}
       </label>
       <textarea
         id={`${ids}-note`}
@@ -113,7 +128,7 @@ export function SubmitDialog({ item, jobId, onClose }: { item: WorkItemCard; job
           </Button>
         ) : (
           <Button type="button" disabled={submit.isPending} onClick={() => send('CHECK')}>
-            {t('screen.board.submit.send')}
+            {t(direct ? 'screen.board.move.done' : 'screen.board.submit.send')}
           </Button>
         )}
       </div>

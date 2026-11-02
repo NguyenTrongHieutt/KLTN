@@ -36,6 +36,9 @@
 #   Job of that Mentor; only Administrator surfaces may ever show it.
 # - BID_PROOF_CAPTION and BID_PROOF_LINK are the proof of the Open post's bid (Story 21.2, AD-20): a file's caption
 #   and a link. Only the Bidder and the Job's Customer read them; no Administrator grant covers a bid's proof.
+# - CREW_LEFT_NOTE is the reason a member who is no caller gave when leaving the crew Job (Story 21.6, FR-82): only the
+#   Job's Mentor reads it, on JOB-9's Crew list. It reaches no notification, to-do, or other view, and its author's export
+#   is no caller's.
 # - CREW_APPLICATION_NOTE, CREW_APPLICATION_PROOF_CAPTION and CREW_APPLICATION_PROOF_LINK are the recruiting Job's
 #   pending Crew Application (Story 21.4, AD-20): its note, its proof file's caption, and its proof link. Only the
 #   applicant (CREW_APPLICANT) and the Job's Mentor read them; the Customer never does, and no Administrator grant
@@ -78,3 +81,4 @@ CREW_APPLICATION_PROOF_LINK,https://proof.example.test/canary-crew-application-3
 SPLIT_POOL_ENTRY,RELEASE_POOLED,,the entry type of a Milestone's pooled release
 SPLIT_POOL_REVERSAL,POOL_RELEASED,,the entry type of the reversal of a pool by its final split
 SPLIT_OPEN,AWAITING_DRAFT,,the status of a split waiting for its draft
+CREW_LEFT_NOTE,canary-crew-left-note-7b2e41,MENTOR,the reason a member gave when leaving the crew Job

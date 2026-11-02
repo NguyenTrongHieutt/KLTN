@@ -1,6 +1,6 @@
 import { Dialog } from '@base-ui/react/dialog'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useId, useState } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import type { components } from '@/api/schema'
 import { TermHint } from '@/components/TermHint'
 import { useToasts } from '@/components/toasts'
@@ -11,37 +11,70 @@ import { apiClient, unwrap } from '@/lib/apiClient'
 import { formatDayMonthTime } from '@/lib/dates'
 import { problemMessage } from '@/lib/problemMessage'
 
-type Checklist = components['schemas']['RevocationChecklistView']
 type Item = components['schemas']['RevocationItemView']
 type Outcome = 'REMOVED' | 'ROTATED'
 
 const checklistKey = (jobId: string) => ['revocation-checklist', jobId] as const
 
-/**
- * The Revocation Checklist (FR-66, UX-DR51, UX-DR55): when the Job ended, the Customer removes each access
- * they gave outside GitHub, with the identifiers the Mentor and the Crew entered and plain guidance, and
- * confirms it as "Đã gỡ quyền" or "Đã đổi khóa" after a short confirmation. Closure never waits for it.
- * The Mentor sees each item done or pending only. Nothing shows for a Job without External Access.
- */
-export function RevocationChecklist({ jobId }: { jobId: string }) {
-  const checklist = useQuery({
+function useChecklist(jobId: string) {
+  return useQuery({
     queryKey: checklistKey(jobId),
     queryFn: () =>
       unwrap(apiClient.GET('/api/v1/boards/{boardId}/revocation-checklist', { params: { path: { boardId: jobId } } })),
     retry: false,
   })
-  const view = checklist.data
-  if (!view || view.items.length === 0) {
+}
+
+/**
+ * The Revocation Checklist (FR-66, UX-DR51, UX-DR55): when the Job ended, the Customer removes each access
+ * they gave outside GitHub, with the identifiers the Mentor and the Crew entered and plain guidance, and
+ * confirms it as "Đã gỡ quyền" or "Đã đổi khóa" after a short confirmation. Closure never waits for it.
+ * The Mentor sees each item done or pending only. Nothing shows for a Job without External Access. A leaver's items are
+ * {@link LeaverRevocations}'.
+ */
+export function RevocationChecklist({ jobId }: { jobId: string }) {
+  const view = useChecklist(jobId).data
+  const items = view?.items.filter((item) => !item.memberLogin) ?? []
+  if (!view || items.length === 0) {
     return null
   }
-  return view.audience === 'CUSTOMER' ? <CustomerChecklist jobId={jobId} view={view} /> : <Steps view={view} />
+  return view.audience === 'CUSTOMER' ? (
+    <CustomerChecklist
+      jobId={jobId}
+      items={items}
+      title={<TermHint term="revocationChecklist" />}
+      lead={t('screen.closure.revocation.lead')}
+    />
+  ) : (
+    <Steps items={items} />
+  )
+}
+
+/**
+ * The Customer's JOB-1 in every state (FR-66, R15, Story 21.6): each member who left has one item per External Access
+ * item of the Agreement, identifier given or not, since the platform cannot know what the Customer granted; each is
+ * ticked on its own, and a ticked one leaves the list. Nothing shows while none is open, and only the Customer reads them.
+ */
+export function LeaverRevocations({ jobId }: { jobId: string }) {
+  const items = useChecklist(jobId).data?.items.filter((item) => item.memberLogin && !item.done) ?? []
+  if (items.length === 0) {
+    return null
+  }
+  return (
+    <CustomerChecklist
+      jobId={jobId}
+      items={items}
+      title={t('screen.closure.revocation.memberTitle')}
+      lead={t('screen.closure.revocation.memberLead')}
+    />
+  )
 }
 
 /** The Mentor's view: the Customer's step per item, done or pending. */
-function Steps({ view }: { view: Checklist }) {
+function Steps({ items }: { items: Item[] }) {
   return (
     <ul className="flex flex-col gap-1.5 text-body-sm">
-      {view.items.map((item) => (
+      {items.map((item) => (
         <li key={item.accessId} className="flex items-center gap-2">
           <span aria-hidden="true">{item.done ? '✓' : '○'}</span>
           <span className="break-words">{t('screen.closure.revocation.step', { system: item.system })}</span>
@@ -54,18 +87,28 @@ function Steps({ view }: { view: Checklist }) {
   )
 }
 
-function CustomerChecklist({ jobId, view }: { jobId: string; view: Checklist }) {
+function CustomerChecklist({
+  jobId,
+  items,
+  title,
+  lead,
+}: {
+  jobId: string
+  items: Item[]
+  title: ReactNode
+  lead: string
+}) {
   const ids = useId()
   const toasts = useToasts()
   const client = useQueryClient()
   const [asking, setAsking] = useState<{ item: Item; outcome: Outcome }>()
   const [error, setError] = useState<string>()
   const confirm = useMutation({
-    mutationFn: ({ accessId, outcome }: { accessId: string; outcome: Outcome }) =>
+    mutationFn: ({ item, outcome }: { item: Item; outcome: Outcome }) =>
       unwrap(
         apiClient.POST('/api/v1/boards/{boardId}/revocation-checklist/{accessId}', {
-          params: { path: { boardId: jobId, accessId } },
-          body: { outcome },
+          params: { path: { boardId: jobId, accessId: item.accessId } },
+          body: { outcome, memberLogin: item.memberLogin },
         }),
       ),
     onSuccess: async (next) => {
@@ -76,14 +119,19 @@ function CustomerChecklist({ jobId, view }: { jobId: string; view: Checklist }) 
   return (
     <section aria-labelledby={`${ids}-title`} className="flex flex-col gap-3 rounded-md bg-muted p-3 text-body-sm">
       <h3 id={`${ids}-title`} className="text-h3">
-        <TermHint term="revocationChecklist" />
+        {title}
       </h3>
-      <p>{t('screen.closure.revocation.lead')}</p>
+      <p>{lead}</p>
       <ul className="flex flex-col gap-3">
-        {view.items.map((item) => (
-          <li key={item.accessId} className="flex flex-col gap-1.5 rounded-md border border-border bg-card p-3">
+        {items.map((item) => (
+          <li
+            key={`${item.accessId}-${item.memberLogin ?? ''}`}
+            className="flex flex-col gap-1.5 rounded-md border border-border bg-card p-3"
+          >
             <p className="font-semibold break-words">
-              {item.system}{' '}
+              {item.memberLogin
+                ? t('screen.closure.revocation.memberItem', { system: item.system, login: item.memberLogin })
+                : item.system}{' '}
               <span className="text-caption font-normal text-muted-foreground">
                 {t(`screen.closure.revocation.environment.${item.environment}` as MessageKey)} ·{' '}
                 {t(`screen.closure.revocation.level.${item.accessLevel}` as MessageKey)}
@@ -156,7 +204,7 @@ function CustomerChecklist({ jobId, view }: { jobId: string; view: Checklist }) 
                 onClick={() =>
                   asking &&
                   confirm.mutate(
-                    { accessId: asking.item.accessId, outcome: asking.outcome },
+                    { item: asking.item, outcome: asking.outcome },
                     {
                       onSuccess: () => {
                         setAsking(undefined)

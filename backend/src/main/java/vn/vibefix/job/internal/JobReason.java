@@ -207,6 +207,9 @@ enum JobReason {
 	 * A signature finds its pick ended: the Mentor withdrew it, the period passed, or J8 released it because the Job
 	 * entered Closing (AD-41, A-04); the row stays released.
 	 */
-	PICK_ENDED
+	PICK_ENDED,
+
+	/** A member leaves a Job in Closing (FR-82, AD-41): J8 already ended their access, and nothing changes. */
+	LEAVE_CLOSED
 
 }

@@ -92,7 +92,7 @@ function BidList({ job }: { job: Job }) {
           <PageHeading>{job.title}</PageHeading>
           <JobStateBadge state={job.state} />
         </div>
-        <JobRoleLine jobId={job.id} state={job.state} />
+        <JobRoleLine jobId={job.id} />
         <JobTabs jobId={job.id} current="applications" applications={items.length} />
       </div>
       <RegionState query={applications} skeleton={<Skeleton className="h-48 w-full" />}>

@@ -13,6 +13,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
 import vn.vibefix.identity.ActiveAccount;
+import vn.vibefix.job.CrewRecruitment.Recruitment;
+import vn.vibefix.job.Crews.Relationship;
+import vn.vibefix.job.JobPhase;
 import vn.vibefix.job.JobRole;
 import vn.vibefix.product.ProductDirectory;
 import vn.vibefix.shared.Access;
@@ -50,19 +53,30 @@ class JobRoleController {
 	/**
 	 * The caller's role in the Job.
 	 * @param crewKind the Crew relationship, for {@code CREW} only
+	 * @param left a former member whose row was released {@code LEFT}, a lock's included: "· đã rời", also after the Job
+	 * ends (AD-41); a row released {@code JOB_ENDED} is not
+	 * @param noCrew for the Mentor and the Customer: the Job is in Starting or Active with no counted {@code ACTIVE} row,
+	 * so the No-Crew banner or the Customer's alert shows until a member signs (Q7, R8)
+	 * @param phase for the Mentor and the Customer: the Job's phase on JOB-H, beside its state (X6); {@code null} where the
+	 * state label stands alone
 	 */
-	record JobRoleView(RoleInJob role, @Nullable CrewKind crewKind) {
+	record JobRoleView(RoleInJob role, @Nullable CrewKind crewKind, boolean left, boolean noCrew, @Nullable JobPhase phase) {
 	}
 
 	/**
 	 * One Job of "Công việc", whatever the role.
 	 * @param crewKind the Crew relationship, for {@code CREW} only
+	 * @param left a former member whose row was released {@code LEFT}: "· đã rời"
 	 */
 	record MyJobView(UUID jobId, String title, String productName, JobState state, RoleInJob role,
-			@Nullable CrewKind crewKind, Instant updatedAt) {
+			@Nullable CrewKind crewKind, boolean left, Instant updatedAt) {
 	}
 
 	private final JobRoleReader roles;
+
+	private final CrewService crews;
+
+	private final JobRecruitment recruitment;
 
 	private final ProductDirectory products;
 
@@ -70,8 +84,11 @@ class JobRoleController {
 
 	private final ActiveAccount active;
 
-	JobRoleController(JobRoleReader roles, ProductDirectory products, CurrentCaller callers, ActiveAccount active) {
+	JobRoleController(JobRoleReader roles, CrewService crews, JobRecruitment recruitment, ProductDirectory products,
+			CurrentCaller callers, ActiveAccount active) {
 		this.roles = roles;
+		this.crews = crews;
+		this.recruitment = recruitment;
 		this.products = products;
 		this.callers = callers;
 		this.active = active;
@@ -86,7 +103,19 @@ class JobRoleController {
 		if (name == null) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
-		return new JobRoleView(name, kind(role));
+		if (!role.isCustomer() && !role.isMentor()) {
+			return new JobRoleView(name, kind(role), left(jobId, role, caller.requireAccountId()), false, null);
+		}
+		Recruitment found = this.recruitment.recruitment(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		int counted = this.crews.countedActive(jobId).size();
+		boolean started = "STARTING".equals(found.state()) || "ACTIVE".equals(found.state());
+		return new JobRoleView(name, null, false, started && counted == 0,
+				JobPhase.phaseOf(found.state(), found.on(), counted).orElse(null));
+	}
+
+	/** Whether a former member's row was released {@code LEFT}; nobody else's counts. */
+	private boolean left(UUID jobId, JobRole role, UUID accountId) {
+		return role.crewKind() == Relationship.FORMER && this.crews.left(jobId, accountId);
 	}
 
 	/** CUS-7 (UX-DR86): every Job where the caller is the Customer, the Mentor or a Crew member, newest first. */
@@ -101,7 +130,7 @@ class JobRoleController {
 			String product = kind == CrewKind.ASSIGNED ? "" : names.computeIfAbsent(job.productId(),
 					id -> this.products.find(id).map(ProductDirectory.ProductInfo::name).orElse(""));
 			return new MyJobView(job.id(), job.title(), product, job.state(), Objects.requireNonNull(name(held.role())), kind,
-					job.updatedAt());
+					left(job.id(), held.role(), account), job.updatedAt());
 		}).toList();
 	}
 

@@ -7,6 +7,7 @@ import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
+import { CrewLeftLines } from '@/features/crew/NoCrew'
 import { ByJobRole, JobRoleLine } from '@/features/job/ByJobRole'
 import { JobHeader } from '@/features/job/JobHeader'
 import { DeletionChecklist } from '@/features/job/closure/ClosureSection'
@@ -72,7 +73,7 @@ function MentorBoard({ jobId }: { jobId: string }) {
 
 function StudentBoard({ jobId }: { jobId: string }) {
   const board = useBoard(jobId)
-  // FR-66, Story 11.3: a member a Crew change removed confirms their data deletion on their read-only Board.
+  // FR-66, Story 21.6: a member who left confirms their data deletion on their read-only Board, as on their JOB-1.
   const deletion = useDataDeletion(board.data?.readOnly ? jobId : undefined).data
   usePageTitle(board.data ? t('screen.board.title', { job: board.data.title }) : t('screen.board.tab'))
   if (board.isError && isNotFound(board.error)) {
@@ -91,7 +92,7 @@ function StudentBoard({ jobId }: { jobId: string }) {
         <p className="text-body-sm text-muted-foreground">{t('screen.board.tab')}</p>
         <JobRoleLine jobId={jobId} />
       </div>
-      {deletion?.removed && deletion.mine && <DeletionChecklist jobId={jobId} deletion={deletion} />}
+      {deletion?.left && deletion.mine && <DeletionChecklist jobId={jobId} deletion={deletion} />}
       <RegionState query={board} skeleton={<Skeleton className="h-96 w-full" />}>
         {board.data && <Columns board={board.data} jobId={jobId} />}
       </RegionState>
@@ -177,6 +178,7 @@ function Columns({ board, jobId }: { board: Board; jobId: string }) {
   const shown = board.items.filter((item) => visible(item, filters, board))
   return (
     <div className="flex flex-col gap-3">
+      <CrewLeftLines leavers={board.leavers} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         {board.items.some((item) => item.seeded) ? (
           <p className="text-body-sm text-muted-foreground">{t('screen.board.seededLead')}</p>
@@ -299,7 +301,9 @@ function Columns({ board, jobId }: { board: Board; jobId: string }) {
         onClose={() => setSheet({ open: false })}
         onReview={onReview}
       />
-      {review?.action === 'submit' && <SubmitDialog item={review.item} jobId={jobId} onClose={() => setReview(undefined)} />}
+      {review?.action === 'submit' && (
+        <SubmitDialog item={review.item} jobId={jobId} direct={board.mentor} onClose={() => setReview(undefined)} />
+      )}
       {review && review.action !== 'submit' && (
         <ReviewDialog item={review.item} jobId={jobId} onClose={() => setReview(undefined)} />
       )}

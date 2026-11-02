@@ -28,8 +28,8 @@ import vn.vibefix.shared.Gate;
 
 /**
  * JOB-1's Revocation Checklist (FR-66, UX-DR51, UX-DR55): the Customer reads each item with what to remove
- * and confirms it as "Đã gỡ quyền" or "Đã đổi khóa"; the Mentor sees each item done or pending in the
- * closure section. A Board's ID is its Job's. Everyone else finds nothing.
+ * and confirms it as "Đã gỡ quyền" or "Đã đổi khóa", a leaver's in every state (R15, Story 21.6); the Mentor sees each
+ * item of the Job's end done or pending in the closure section. A Board's ID is its Job's. Everyone else finds nothing.
  */
 @RestController
 @Access(Gate.SIGNED_IN)
@@ -39,9 +39,11 @@ class RevocationChecklistController {
 	 * One item.
 	 * @param identifiers the identifiers to remove, the Customer's only
 	 * @param outcome {@code REMOVED} or {@code ROTATED} once confirmed
+	 * @param memberLogin the member who left, on a leaver's item; the Customer's only
 	 */
 	record RevocationItemView(UUID accessId, String system, String purpose, String environment, String accessLevel,
-			List<RevocationIdentifierView> identifiers, boolean done, @Nullable String outcome, @Nullable Instant confirmedAt) {
+			List<RevocationIdentifierView> identifiers, boolean done, @Nullable String outcome, @Nullable Instant confirmedAt,
+			@Nullable String memberLogin) {
 	}
 
 	/** One identifier beside its owner's GitHub username. */
@@ -52,8 +54,12 @@ class RevocationChecklistController {
 	record RevocationChecklistView(UUID jobId, String audience, List<RevocationItemView> items) {
 	}
 
-	/** "Đã gỡ quyền" ({@code REMOVED}) or "Đã đổi khóa" ({@code ROTATED}). */
-	record RevocationConfirmRequest(@NotNull @Pattern(regexp = "REMOVED|ROTATED") String outcome) {
+	/**
+	 * "Đã gỡ quyền" ({@code REMOVED}) or "Đã đổi khóa" ({@code ROTATED}).
+	 * @param memberLogin the member who left, for a leaver's item; none for the item of the Job's end
+	 */
+	record RevocationConfirmRequest(@NotNull @Pattern(regexp = "REMOVED|ROTATED") String outcome,
+			@Nullable String memberLogin) {
 	}
 
 	private final RevocationChecklists checklists;
@@ -93,20 +99,21 @@ class RevocationChecklistController {
 		if (!this.roles.roleOf(jobId, caller).isCustomer()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
-		this.checklists.confirm(jobId, accessId, caller.requireAccountId(), body.outcome());
+		this.checklists.confirm(jobId, accessId, body.memberLogin(), caller.requireAccountId(), body.outcome());
 		return view(job, true);
 	}
 
 	private RevocationChecklistView view(BusyJob job, boolean customer) {
 		List<RevocationItem> items = this.checklists.items(job.jobId());
 		return new RevocationChecklistView(job.jobId(), customer ? "CUSTOMER" : "MENTOR", items.stream()
+			.filter(item -> customer || item.memberLogin() == null)
 			.map(item -> new RevocationItemView(item.accessId(), item.system(), item.purpose(), item.environment(),
 					item.accessLevel(),
 					customer ? item.identifiers()
 						.stream()
 						.map(identifier -> new RevocationIdentifierView(identifier.githubLogin(), identifier.identifier()))
 						.toList() : List.of(),
-					"CONFIRMED".equals(item.status()), item.outcome(), item.confirmedAt()))
+					"CONFIRMED".equals(item.status()), item.outcome(), item.confirmedAt(), item.memberLogin()))
 			.toList());
 	}
 

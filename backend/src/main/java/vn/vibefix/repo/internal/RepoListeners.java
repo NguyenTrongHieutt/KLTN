@@ -19,8 +19,9 @@ import vn.vibefix.shared.ProcessedEvents;
 
 /**
  * J8 and J10 start the data-deletion duty (FR-66, UX-DR15, UX-DR16): the Mentor and every Crew member who
- * was ever active, locked and removed ones included, get {@code repo.confirm_data_deletion} (tier 3) and
- * {@code repo.data_deletion_confirmation_pending}. Replay-safe.
+ * was ever active, those who left or were locked included, get {@code repo.confirm_data_deletion} (tier 3) and
+ * {@code repo.data_deletion_confirmation_pending}. A member who leaves is asked at once, in every state (Story 21.6).
+ * Replay-safe.
  */
 @Component
 class RepoListeners {
@@ -52,7 +53,7 @@ class RepoListeners {
 		this.confirmations.job(event.jobId()).ifPresent(job -> {
 			for (Duty duty : this.confirmations.duties(job)) {
 				if (duty.complete()) {
-					// A member a Crew change removed may have confirmed already (Story 11.3).
+					// A member who left may have confirmed already (Story 21.6).
 					continue;
 				}
 				Audience audience = duty.mentor() ? Audience.MENTOR : Audience.CREW_EVER_ACTIVE;
@@ -66,24 +67,25 @@ class RepoListeners {
 	}
 
 	/**
-	 * A Crew change removed a member from a Job that has a Board (Story 11.3, FR-66): their duty starts
-	 * now, on their read-only Board. In Starting it waits for J8 or J10, which reach every former member.
+	 * A member left the Job, or a lock counted as leaving (FR-66, FR-82): their duty starts now, in every state, Agreement
+	 * included, on their JOB-1. A lock in Closing finds a duty J8 opened, and a complete one stays closed.
 	 */
 	@ApplicationModuleListener
 	void onCrewMemberRemoved(CrewMemberRemoved event) {
 		if (!this.processedEvents.markProcessed("repo.RepoListeners.onCrewMemberRemoved", event.eventId())) {
 			return;
 		}
-		this.confirmations.job(event.jobId())
-			.filter(job -> "ACTIVE".equals(job.state()) || "CLOSING".equals(job.state()))
-			.ifPresent(job -> {
-				String board = "/cong-viec/" + job.jobId() + "/bang";
-				this.todos.open(new TodoRequest(DataDeletionConfirmations.TODO, event.studentId(), Audience.CREW_EVER_ACTIVE,
-						job.jobId(), Map.of("job", job.title()), board, null, job.jobId()));
-				this.notifications.send(new NotificationRequest(PENDING, event.crewRowId(),
-						List.of(new Recipient(event.studentId(), Audience.CREW_EVER_ACTIVE)), Map.of("job", job.title()), board,
-						job.jobId(), null));
-			});
+		this.confirmations.job(event.jobId()).ifPresent(job -> {
+			if (this.confirmations.duty(job, event.studentId()).filter(Duty::complete).isPresent()) {
+				return;
+			}
+			String overview = "/cong-viec/" + job.jobId();
+			this.todos.open(new TodoRequest(DataDeletionConfirmations.TODO, event.studentId(), Audience.CREW_EVER_ACTIVE,
+					job.jobId(), Map.of("job", job.title()), overview, null, job.jobId()));
+			this.notifications.send(new NotificationRequest(PENDING, event.crewRowId(),
+					List.of(new Recipient(event.studentId(), Audience.CREW_EVER_ACTIVE)), Map.of("job", job.title()), overview,
+					job.jobId(), null));
+		});
 	}
 
 }

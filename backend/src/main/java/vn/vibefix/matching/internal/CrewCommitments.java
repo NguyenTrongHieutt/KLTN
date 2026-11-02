@@ -334,7 +334,7 @@ class CrewCommitments {
 	}
 
 	/**
-	 * A lock emptied the Crew (R7, Story 21.5): while the Job is in Agreement, confirmed or not, the Mentor is asked again
+	 * The last member left (R7, Stories 21.5 and 21.6): while the Job is in Agreement, confirmed or not, the Mentor is asked again
 	 * to open recruitment, unless it is on, and the review to-do returns to its tier for a Crew with no member.
 	 */
 	@Transactional

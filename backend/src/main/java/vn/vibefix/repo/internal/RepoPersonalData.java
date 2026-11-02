@@ -12,14 +12,16 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
 import vn.vibefix.files.StoredFiles;
+import vn.vibefix.notification.Todos;
 import vn.vibefix.shared.ErasureBlocker;
 import vn.vibefix.shared.PersonalDataParticipant;
 import vn.vibefix.shared.PersonalDataSection;
 
 /**
  * {@code repo}'s part in exports, erasure, and Product deletion (AD-24): a person exports their
- * data-deletion confirmations and their access grants; erasing them deletes those rows (the Audit Log keeps
- * when each grant was made); deleting a Product deletes its Jobs' rows and Setups, requests the deletion of
+ * data-deletion confirmations, their access grants, and the Revocation Checklist rows naming them after they left; erasing
+ * them deletes the first two (the Audit Log keeps when each grant was made) and anonymizes the rows, whose to-dos close;
+ * deleting a Product deletes its Jobs' rows and Setups, requests the deletion of
  * the platform repositories still there at once, without a ZIP, and deletes any final ZIP (FR-21, NFR-10).
  */
 @Component
@@ -32,10 +34,14 @@ class RepoPersonalData implements PersonalDataParticipant {
 
 	private final ObjectProvider<StoredFiles> files;
 
-	RepoPersonalData(JdbcClient jdbc, ObjectProvider<RepositoryDeletions> deletions, ObjectProvider<StoredFiles> files) {
+	private final ObjectProvider<Todos> todos;
+
+	RepoPersonalData(JdbcClient jdbc, ObjectProvider<RepositoryDeletions> deletions, ObjectProvider<StoredFiles> files,
+			ObjectProvider<Todos> todos) {
 		this.jdbc = jdbc;
 		this.deletions = deletions;
 		this.files = files;
+		this.todos = todos;
 	}
 
 	@Override
@@ -85,7 +91,20 @@ class RepoPersonalData implements PersonalDataParticipant {
 			});
 			return row;
 		}).list();
-		if (confirmations.isEmpty() && grants.isEmpty()) {
+		List<Map<String, Object>> revocations = this.jdbc.sql("""
+				SELECT job_id, system, member_login, status, outcome, created_at FROM repo.revocation_item
+				WHERE member_account_id = :id ORDER BY created_at, access_id
+				""").param("id", accountId).query((rs, n) -> {
+			Map<String, Object> row = new LinkedHashMap<>();
+			row.put("jobId", rs.getObject("job_id", UUID.class).toString());
+			row.put("system", rs.getString("system"));
+			row.put("githubLogin", rs.getString("member_login"));
+			row.put("status", rs.getString("status"));
+			row.put("outcome", rs.getString("outcome"));
+			row.put("at", rs.getTimestamp("created_at").toInstant().toString());
+			return row;
+		}).list();
+		if (confirmations.isEmpty() && grants.isEmpty() && revocations.isEmpty()) {
 			return Optional.empty();
 		}
 		Map<String, Object> data = new LinkedHashMap<>();
@@ -94,6 +113,9 @@ class RepoPersonalData implements PersonalDataParticipant {
 		}
 		if (!grants.isEmpty()) {
 			data.put("repositoryGrants", grants);
+		}
+		if (!revocations.isEmpty()) {
+			data.put("revocationItems", revocations);
 		}
 		return Optional.of(new PersonalDataSection("repo", data));
 	}
@@ -108,6 +130,16 @@ class RepoPersonalData implements PersonalDataParticipant {
 		FinalMerges.erase(this.jdbc, accountId);
 		this.jdbc.sql("""
 				UPDATE repo.revocation_item SET customer_account_id = NULL, identifiers = '[]' WHERE customer_account_id = :id
+				""").param("id", accountId).update();
+		// R15: a leaver's rows stay, naming nobody; with no name to read, the Customer's to-dos for them close.
+		this.jdbc.sql("""
+				SELECT access_id, crew_row_id FROM repo.revocation_item WHERE member_account_id = :id AND status = 'PENDING'
+				""").param("id", accountId).query((rs, n) -> RevocationChecklists.memberSubject(rs.getObject("access_id", UUID.class),
+						rs.getObject("crew_row_id", UUID.class))).list()
+			.forEach(subject -> this.todos.getObject().closeAll(RevocationChecklists.MEMBER_TODO, subject));
+		this.jdbc.sql("""
+				UPDATE repo.revocation_item SET member_account_id = NULL, member_login = NULL, identifiers = '[]'
+				WHERE member_account_id = :id
 				""").param("id", accountId).update();
 	}
 

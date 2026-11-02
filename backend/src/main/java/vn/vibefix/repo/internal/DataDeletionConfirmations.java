@@ -40,7 +40,7 @@ import vn.vibefix.shared.IdGenerator;
  * The post-Job data-deletion confirmations (FR-66, AD-19, AD-41): the duty falls on the Job's Mentor and
  * on every Crew member who was ever active, whatever their row's status now. Each item is confirmed
  * once, with the person and the time, and audited; both together complete it, close the to-do, and are
- * audited too. Only after J8 or J10.
+ * audited too. Only after J8 or J10, or once the person left the Job.
  */
 @Component
 class DataDeletionConfirmations implements DataDeletions {
@@ -118,11 +118,11 @@ class DataDeletionConfirmations implements DataDeletions {
 	}
 
 	/**
-	 * Whether the person is a former Crew member of a Job still running, such as one a Crew change removed
-	 * (Story 11.3): their duty starts with their removal, not the Job's end.
+	 * Whether the person is a former Crew member of a Job still running (FR-82, Story 21.6): their duty starts when they
+	 * leave, not at the Job's end.
 	 */
 	@Transactional(readOnly = true)
-	boolean removed(JobPostState job, UUID accountId) {
+	boolean left(JobPostState job, UUID accountId) {
 		return !ENDED.contains(job.state()) && this.crews.crewRelationship(job.jobId(), accountId).kind() == Relationship.FORMER;
 	}
 
@@ -133,7 +133,7 @@ class DataDeletionConfirmations implements DataDeletions {
 	@Transactional
 	Duty confirm(JobPostState job, UUID accountId, Item item) {
 		Duty duty = duty(job, accountId).orElseThrow(() -> new ApiException(ErrorCode.FORBIDDEN, RepoReason.NOT_A_DUTY));
-		if (!ENDED.contains(job.state()) && !removed(job, accountId)) {
+		if (!ENDED.contains(job.state()) && !left(job, accountId)) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, RepoReason.JOB_NOT_ENDED);
 		}
 		if (duty.confirmed().containsKey(item)) {

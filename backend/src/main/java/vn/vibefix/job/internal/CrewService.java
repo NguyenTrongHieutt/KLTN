@@ -5,6 +5,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -39,13 +40,16 @@ import vn.vibefix.shared.IdGenerator;
  * activation or the release of an active row, also increments {@code version}. Crew Terms are no longer written: J6
  * pins one in-force version giving the Mentor 100% ({@link #pinMentorOnly}), which M1 and the share holds read until
  * Story 22.4 retires it (C-3); a release splits by the Milestone's own split (Story 22.1). Nobody removes a member who
- * signed.
+ * signed: they leave ({@link #leave}, Story 21.6), or a lock counts as leaving.
  */
 @Component
 class CrewService implements Crews {
 
 	/** FR-75, AD-30: with {@code features.largeCrews} on, a Crew holds up to this many rows that are not released. */
 	static final int LARGE_CREW_LIMIT = 5;
+
+	/** Where a member may leave (FR-82, AD-41): in Closing, J8 already ended their access. */
+	private static final Set<JobState> LEAVES = EnumSet.of(JobState.AGREEMENT, JobState.STARTING, JobState.ACTIVE);
 
 	/**
 	 * A Crew row {@code r} whose active window (from {@code activated_at} to {@code window_end}, or still open) overlaps
@@ -58,10 +62,13 @@ class CrewService implements Crews {
 			    AND r.activated_at <= coalesce(m.accepted_at, m.settled_at)
 			    AND (r.window_end IS NULL OR r.window_end >= m.funded_at))""";
 
-	/** One row as {@code job} keeps it. */
+	/**
+	 * One row as {@code job} keeps it.
+	 * @param leftNote the reason the member gave when leaving, for JOB-9's Mentor alone; {@code null} on a lock
+	 */
 	record Row(UUID id, UUID jobId, UUID studentId, String status, @Nullable Instant signedAt,
 			@Nullable Instant activatedAt, @Nullable Instant windowEnd, Instant createdAt,
-			@Nullable String releasedReason, @Nullable UUID applicationId) {
+			@Nullable String releasedReason, @Nullable UUID applicationId, @Nullable String leftNote) {
 
 		boolean released() {
 			return "RELEASED".equals(this.status);
@@ -79,7 +86,7 @@ class CrewService implements Crews {
 
 	private static final String ROW_COLUMNS = """
 			id, job_id, member_account_id, status, signed_at, activated_at, window_end, created_at, released_reason,
-			crew_application_id
+			crew_application_id, left_note
 			""";
 
 	private final JdbcClient jdbc;
@@ -158,6 +165,36 @@ class CrewService implements Crews {
 		}
 		bump(job.id(), left);
 		return rows;
+	}
+
+	/**
+	 * The member leaves (FR-82, AD-41, UX-DR104): their {@code ACTIVE} row is released as {@code LEFT}, its window ending
+	 * now, with the reason they gave, and it cannot be undone. A busy marker or a freeze blocks nothing. The caller holds
+	 * the Job lock.
+	 * @param note the reason, for JOB-9's Mentor alone; {@code null} for none
+	 * @return the row as it was before
+	 * @throws ApiException {@code NOT_FOUND} for an account with no {@code ACTIVE} row; {@code GUARD_FAILED LEAVE_CLOSED}
+	 * in Closing, where J8 already ended their access
+	 */
+	Row leave(Job job, UUID accountId, @Nullable String note) {
+		Row row = rows(job.id()).stream()
+			.filter(found -> found.studentId().equals(accountId) && found.active())
+			.findFirst()
+			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		if (!LEAVES.contains(job.state())) {
+			throw new ApiException(ErrorCode.GUARD_FAILED, JobReason.LEAVE_CLOSED);
+		}
+		release(row, "LEFT");
+		if (note != null) {
+			this.jdbc.sql("UPDATE job.crew_row SET left_note = :note WHERE id = :id")
+				.param("note", note)
+				.param("id", row.id())
+				.update();
+		}
+		bump(job.id(), true);
+		this.auditLog.record(AuditEntry.of(AuditActor.user(accountId), "job.crew_member_left", AuditObject.of("job.crew_row", row.id()))
+			.forJob(job.id()));
+		return row;
 	}
 
 	/**
@@ -279,6 +316,43 @@ class CrewService implements Crews {
 		}
 		Map<UUID, Instant> locked = this.capabilities.lockedAmong(active.stream().map(Row::studentId).toList());
 		return active.stream().filter(row -> !locked.containsKey(row.studentId())).toList();
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public boolean hasCountedMember(UUID jobId) {
+		return !countedActive(jobId).isEmpty();
+	}
+
+	/**
+	 * Whether the account's row on the Job was released as {@code LEFT} after it was active, a lock's included (AD-41):
+	 * what "· đã rời" reads, also after the Job ends, and never the Job's state.
+	 */
+	boolean left(UUID jobId, UUID accountId) {
+		return this.jdbc.sql("""
+				SELECT EXISTS (SELECT 1 FROM job.crew_row WHERE job_id = :job AND member_account_id = :id
+				    AND released_reason = 'LEFT' AND activated_at IS NOT NULL)
+				""").param("job", jobId).param("id", accountId).query(Boolean.class).single();
+	}
+
+	/**
+	 * The Milestone numbers N-28 names for a member about to leave (R9): each Held Milestone, and each Milestone with a
+	 * split not {@code FINAL} where the account is a party, from 1 in the Agreement's order.
+	 */
+	List<Integer> partyMilestones(UUID jobId, UUID accountId) {
+		return this.jdbc.sql("""
+				SELECT n FROM (SELECT state, CAST(row_number() OVER (ORDER BY position, created_at, id) AS INTEGER) AS n
+				    FROM job.milestone WHERE job_id = :job AND removed_at IS NULL) numbered WHERE state IN (:held)
+				UNION
+				SELECT s.milestone_number FROM job.milestone_split s JOIN job.milestone_split_party p ON p.split_id = s.id
+				WHERE s.job_id = :job AND s.status <> 'FINAL' AND p.party_account_id = :id
+				ORDER BY 1
+				""")
+			.param("job", jobId)
+			.param("id", accountId)
+			.param("held", MilestoneState.held().stream().map(Enum::name).toList())
+			.query(Integer.class)
+			.list();
 	}
 
 	/** Whether the account is locked now (AD-19): {@code identity.lockedAmong}. */
@@ -490,7 +564,7 @@ class CrewService implements Crews {
 				rs.getObject("member_account_id", UUID.class), rs.getString("status"),
 				signed == null ? null : signed.toInstant(), activated == null ? null : activated.toInstant(),
 				window == null ? null : window.toInstant(), rs.getTimestamp("created_at").toInstant(),
-				rs.getString("released_reason"), rs.getObject("crew_application_id", UUID.class));
+				rs.getString("released_reason"), rs.getObject("crew_application_id", UUID.class), rs.getString("left_note"));
 	}
 
 }

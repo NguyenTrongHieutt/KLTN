@@ -45,8 +45,9 @@ import vn.vibefix.work.internal.WorkTextCheck.Resolution;
  * Creating and editing Work Items (FR-23, FR-47, AD-23, AD-33, AD-39): every save carries the fields
  * in full, passes the FR-47 check, and writes one history entry with each changed field. Only the
  * Mentor sets the assignee or the priority, and the assignee must be an active Crew member with an
- * unlocked account, who then gets {@code work.work_item_assigned}. A seeded Story keeps its type and
- * Milestone, and an edit carries the version it was made on.
+ * unlocked account, who then gets {@code work.work_item_assigned}, or the Mentor themself while no counted member is left
+ * (R8), with no notice; once a member is back a Work Item they already hold stays theirs, and a new one is refused (X7).
+ * A seeded Story keeps its type and Milestone, and an edit carries the version it was made on.
  */
 @Component
 class WorkItems {
@@ -111,7 +112,7 @@ class WorkItems {
 		if (!writer.mentor() && (draft.priority() != null || draft.assigneeId() != null)) {
 			throw new ApiException(ErrorCode.FORBIDDEN, WorkReason.MENTOR_ONLY);
 		}
-		requireAssignee(jobId, draft.assigneeId());
+		requireAssignee(writer, draft.assigneeId());
 		Draft checked = checked(draft, resolution);
 		UUID id = this.ids.newId();
 		int number = this.boards.nextNumber(jobId);
@@ -167,7 +168,7 @@ class WorkItems {
 			throw new ApiException(ErrorCode.FORBIDDEN, WorkReason.MENTOR_ONLY);
 		}
 		if (assigneeChanged) {
-			requireAssignee(item.jobId(), draft.assigneeId());
+			requireAssignee(writer, draft.assigneeId());
 		}
 		Draft checked = checked(draft, resolution);
 		Map<String, Object> changes = new LinkedHashMap<>();
@@ -253,8 +254,15 @@ class WorkItems {
 		}
 	}
 
-	private void requireAssignee(UUID jobId, @Nullable UUID assignee) {
+	private void requireAssignee(BoardViewer writer, @Nullable UUID assignee) {
 		if (assignee == null) {
+			return;
+		}
+		UUID jobId = writer.board().jobId();
+		if (assignee.equals(writer.mentorId())) {
+			if (this.crews.hasCountedMember(jobId)) {
+				throw new ApiException(ErrorCode.GUARD_FAILED, WorkReason.NOT_CREW_MEMBER);
+			}
 			return;
 		}
 		boolean active = this.crews.crewRelationship(jobId, assignee).kind() == Relationship.ACTIVE;
@@ -308,8 +316,14 @@ class WorkItems {
 		return id == null ? null : id.toString();
 	}
 
-	/** Tells the new assignee; the history entry that assigned them is the notification's cause. */
+	/**
+	 * Tells the new assignee; the history entry that assigned them is the notification's cause. The Mentor assigning
+	 * themself hears nothing.
+	 */
 	private void tellAssignee(BoardViewer writer, Item item, UUID entry) {
+		if (writer.mentorId().equals(item.assigneeId())) {
+			return;
+		}
 		String mentor = this.mentors.cards(List.of(writer.mentorId())).stream().findFirst().map(MentorCard::displayName)
 			.orElse("");
 		this.notifications.send(new NotificationRequest(ASSIGNED, entry,

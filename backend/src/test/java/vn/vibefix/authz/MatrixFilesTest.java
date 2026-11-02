@@ -251,7 +251,7 @@ class MatrixFilesTest {
 			"WORK_ITEM_NOTE", "WORK_ITEM_TITLE", "ATTACHMENT", "CREW_CHAT", "CREW_CHAT_UNREPORTED", "CREW_PAGE",
 			"CREW_PAGE_TITLE", "EARLY_PAGE", "TEAM_ISSUE_ID", "STUDENT_HIDDEN_NAME", "CROSS_CREW_NAME", "CROSS_CREW_EMAIL", "CROSS_LINKEDIN", "CROSS_CREW_CHAT", "CROSS_WORK_ITEM_NOTE",
 			"CROSS_PAGE", "CREW_APPLICATION_NOTE", "CREW_APPLICATION_PROOF_CAPTION", "CREW_APPLICATION_PROOF_LINK",
-			"SPLIT_POOL_ENTRY", "SPLIT_POOL_REVERSAL", "SPLIT_OPEN");
+			"SPLIT_POOL_ENTRY", "SPLIT_POOL_REVERSAL", "SPLIT_OPEN", "CREW_LEFT_NOTE");
 
 	/** A Crew Application's canaries (Story 21.4): the applicant's and the Job's Mentor's alone. */
 	static final Set<String> CREW_APPLICATION_CANARIES = Set.of("CREW_APPLICATION_NOTE", "CREW_APPLICATION_PROOF_CAPTION",
@@ -742,7 +742,7 @@ class MatrixFilesTest {
 					"CROSS_CREW_CHAT", "CROSS_WORK_ITEM_NOTE", "CROSS_PAGE", "WORK_ITEM_TITLE", "CREW_PAGE_TITLE",
 					"CUSTOMER_PAGE", "EARLY_PAGE", "BID_PROOF_CAPTION", "BID_PROOF_LINK", "CREW_APPLICATION_NOTE",
 					"CREW_APPLICATION_PROOF_CAPTION", "CREW_APPLICATION_PROOF_LINK", "SPLIT_POOL_ENTRY", "SPLIT_POOL_REVERSAL",
-					"SPLIT_OPEN");
+					"SPLIT_OPEN", "CREW_LEFT_NOTE");
 		// The canaries of Job content are written after the former members' windows ended, so a Crew state other than
 		// ACTIVE, which reads at most up to its window_end (AD-41), reads none of them; a bid grants nothing on the Job.
 		// EARLY_PAGE alone was written inside the window, so the former member reads it (review iteration 4). The bid's
@@ -799,7 +799,7 @@ class MatrixFilesTest {
 				"CROSS_CREW_NAME", "CROSS_CREW_EMAIL", "CROSS_LINKEDIN", "CROSS_CREW_CHAT", "CROSS_WORK_ITEM_NOTE",
 				"CROSS_PAGE", "BID_PROOF_CAPTION", "BID_PROOF_LINK", "CREW_APPLICATION_NOTE",
 				"CREW_APPLICATION_PROOF_CAPTION", "CREW_APPLICATION_PROOF_LINK", "SPLIT_POOL_ENTRY", "SPLIT_POOL_REVERSAL",
-				"SPLIT_OPEN");
+				"SPLIT_OPEN", "CREW_LEFT_NOTE");
 		// The Pages and the Story were written after the former member's window ended; EARLY_PAGE inside it.
 		assertThat(names(canaries.hiddenFrom(MatrixCaller.CREW_FORMER))).contains("CREW_PAGE", "CREW_PAGE_TITLE",
 				"CUSTOMER_PAGE", "WORK_ITEM_TITLE", "CREW_NAME", "CREW_LINKEDIN")
@@ -823,7 +823,7 @@ class MatrixFilesTest {
 				"TEAM_ISSUE_ID", "NOTIFICATION_PARAM", "TODO_PARAM", "SCHOOL_EMAIL", "PERSON_SIGNAL", "CROSS_CREW_CHAT",
 				"CROSS_WORK_ITEM_NOTE", "CROSS_PAGE", "WORK_ITEM_TITLE", "CREW_PAGE_TITLE", "CUSTOMER_PAGE", "EARLY_PAGE",
 				"BID_PROOF_CAPTION", "BID_PROOF_LINK", "CREW_APPLICATION_NOTE", "CREW_APPLICATION_PROOF_CAPTION",
-				"CREW_APPLICATION_PROOF_LINK", "SPLIT_POOL_ENTRY", "SPLIT_POOL_REVERSAL", "SPLIT_OPEN");
+				"CREW_APPLICATION_PROOF_LINK", "SPLIT_POOL_ENTRY", "SPLIT_POOL_REVERSAL", "SPLIT_OPEN", "CREW_LEFT_NOTE");
 		// No Administrator reads a bid's proof (Story 21.2) or a Crew Application (Story 21.4): no read grant covers them.
 		for (MatrixCaller grant : GRANT_SCOPES.keySet()) {
 			assertThat(names(canaries.hiddenFrom(grant))).as(grant.name()).contains("BID_PROOF_CAPTION", "BID_PROOF_LINK")

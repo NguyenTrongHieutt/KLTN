@@ -8,12 +8,12 @@ import type { Board, WorkItemCard } from './workApi'
 const itemClass =
   'flex min-h-tap-min cursor-pointer flex-col items-start justify-center rounded-md px-3 py-1.5 text-body-sm data-disabled:cursor-not-allowed data-disabled:opacity-60 data-highlighted:bg-muted'
 
-function label(action: Action): string {
+function label(action: Action, mentor: boolean): string {
   switch (action.kind) {
     case 'move':
       return t(`screen.board.status.${action.to}` as MessageKey)
     case 'submit':
-      return t('screen.board.move.submit')
+      return t(mentor ? 'screen.board.move.done' : 'screen.board.move.submit')
     case 'approve':
       return t('screen.board.move.approve')
     case 'return':
@@ -23,8 +23,8 @@ function label(action: Action): string {
 
 /**
  * "Chuyển sang…" on a card or in the detail (FR-24, FR-25, UX-DR36): only the caller's actions; a Board
- * move happens at once, and "Gửi duyệt", "Duyệt", and "Trả lại" open their dialogs. Nothing shows when
- * the caller has no action.
+ * move happens at once, and "Gửi duyệt" (the Mentor's own: "Chuyển sang Xong"), "Duyệt", and "Trả lại" open their
+ * dialogs. Nothing shows when the caller has no action.
  */
 export function MoveMenu({
   board,
@@ -64,7 +64,7 @@ export function MoveMenu({
                   action.kind === 'move' ? move.mutate({ item, to: action.to }) : onReview(item, action.kind)
                 }
               >
-                <span>{label(action)}</span>
+                <span>{label(action, board.mentor)}</span>
                 {action.kind === 'move' && action.reason && (
                   <span className="text-caption text-muted-foreground">{action.reason}</span>
                 )}

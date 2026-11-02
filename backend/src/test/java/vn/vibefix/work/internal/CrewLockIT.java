@@ -3,11 +3,15 @@ package vn.vibefix.work.internal;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.nio.charset.StandardCharsets;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.util.List;
@@ -38,6 +42,7 @@ import vn.vibefix.notification.TodoRequest;
 import vn.vibefix.notification.Todos;
 import vn.vibefix.payment.Releases;
 import vn.vibefix.support.IntegrationTest;
+import vn.vibefix.support.PostgresTestDatabase;
 import vn.vibefix.team.internal.TeamTestSupport;
 
 /**
@@ -204,6 +209,111 @@ class CrewLockIT extends IntegrationTest {
 			.isZero();
 		assertThat(count("SELECT count(*) FROM notification.todo WHERE todo_key = 'work.reassign_work_items' AND closed_at IS NULL"))
 			.isZero();
+	}
+
+	/**
+	 * Story 21.6: a lock has every effect of leaving (FR-59, FR-82), with no reason to show anyone: the write access ends,
+	 * the data-deletion confirmation is asked, the Customer gets one revocation to-do per External Access item, and the
+	 * returned-item to-do closes. Only {@code job.party_locked} to the Administrators is the lock's own.
+	 */
+	@Test
+	void aLockHasEveryEffectOfLeavingButTheReason() throws Exception {
+		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		UUID hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT), "React");
+		UUID product = WorkTestSupport.product(this.jdbc, lan, "Sổ đặt bàn Quán Mây");
+		UUID job = WorkTestSupport.activeJob(this.jdbc, product, lan, hung, List.of(HELD), List.of(CRITERIA), this.clock.instant());
+		UUID minh = WorkTestSupport.student(this.jdbc, "Nguyễn Văn Minh");
+		UUID tung = WorkTestSupport.student(this.jdbc, "Lê Minh Tùng");
+		for (UUID member : List.of(minh, tung)) {
+			WorkTestSupport.crewRow(this.jdbc, job, member, "ACTIVE", this.clock.instant().minus(Duration.ofMinutes(5)));
+		}
+		this.jdbc.sql("UPDATE job.job SET agreement_version_no = 1 WHERE id = :id").param("id", job).update();
+		UUID access = UUID.randomUUID();
+		// A confirmed Agreement is immutable to the application (AD-29), so the fixture writes it as the migration role would.
+		try (Connection connection = database.superuserConnection(PostgresTestDatabase.DATABASE);
+				PreparedStatement statement = connection.prepareStatement("""
+						UPDATE job.confirmed_agreement SET content = jsonb_set(content, '{externalAccess}', CAST(? AS JSONB))
+						WHERE job_id = ?
+						""")) {
+			statement.setString(1, """
+					[{"id":"%s","system":"Supabase","purpose":"Xem bảng đặt bàn","environment":"NON_PRODUCTION","accessLevel":"READ"}]
+					""".formatted(access));
+			statement.setObject(2, job);
+			statement.executeUpdate();
+		}
+		this.boards.seed(job, true);
+		UUID item = this.jdbc.sql("SELECT id FROM work.work_item WHERE job_id = :job ORDER BY number LIMIT 1").param("job", job)
+			.query(UUID.class).single();
+		this.jdbc.sql("UPDATE work.work_item SET assignee_account_id = :minh WHERE id = :id").param("minh", minh).param("id", item)
+			.update();
+		this.transactions.executeWithoutResult(status -> this.todos.open(new TodoRequest(Reviews.FIX_TODO, minh, Audience.CREW_ACTIVE,
+				item, Map.of("key", "SDB-1"), "/cong-viec/" + job + "/bang", null, job)));
+		UUID grant = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO repo.job_grant (id, job_id, product_id, account_id, role, github_login, repository_github_id,
+				    repository_name, crew_change, status, accepted_at, write_at, created_at)
+				VALUES (:id, :job, :product, :member, 'CREW', :login, 4242, 'vibefix/job-working', false, 'WRITE', now(), now(), now())
+				""").param("id", grant).param("job", job).param("product", product).param("member", minh)
+			.param("login", TeamTestSupport.login(this.jdbc, minh)).update();
+
+		lock(ha, minh).andExpect(status().isOk());
+		awaitListeners();
+
+		assertThat(text("SELECT status || ' ' || released_reason FROM job.crew_row WHERE member_account_id = '" + minh + "'"))
+			.isEqualTo("RELEASED LEFT");
+		assertThat(count("SELECT count(*) FROM job.crew_row WHERE left_note IS NOT NULL")).as("a lock has no reason").isZero();
+		assertThat(text("SELECT status FROM repo.job_grant WHERE id = '" + grant + "'")).isEqualTo("REVOKING");
+		assertThat(count("SELECT count(*) FROM notification.todo WHERE todo_key = 'repo.confirm_data_deletion' AND closed_at IS NULL"
+				+ " AND account_id = '" + minh + "'")).isOne();
+		assertThat(notices("repo.data_deletion_confirmation_pending", minh)).isOne();
+		assertThat(count("SELECT count(*) FROM notification.todo WHERE todo_key = 'repo.revocation_item_member' AND closed_at IS NULL"
+				+ " AND account_id = '" + lan + "'")).isOne();
+		assertThat(count("SELECT count(*) FROM notification.todo WHERE todo_key = 'work.fix_returned_item' AND closed_at IS NULL")).isZero();
+		assertThat(count("SELECT count(*) FROM work.work_item WHERE id = '" + item + "' AND assignee_account_id IS NOT NULL")).isZero();
+		assertThat(count("""
+				SELECT count(*) FROM work.work_item_history WHERE work_item_id = '%s' AND changes -> 'assigneeId' ->> 'from' = '%s'
+				""".formatted(item, minh))).as("the two listeners unassign once").isOne();
+		assertThat(notices("job.crew_member_left", hung)).isOne();
+		assertThat(notices("job.crew_login_removed", lan)).isOne();
+		assertThat(notices("job.party_locked", ha.accountId())).isOne();
+		assertThat(notices("job.party_locked", hung)).isZero();
+		this.mvc.perform(get("/api/v1/boards/" + job + "/progress").with(as(hung, Role.MENTOR)))
+			.andExpect(jsonPath("$.leavers[0].name").value("Nguyễn Văn Minh"));
+	}
+
+	/**
+	 * The key rule of {@code job.crew_empty} (deferred V6, Q7): two locks that empty the Crew together tell the Customer once,
+	 * and a Crew that fills and empties again tells them again.
+	 */
+	@Test
+	void aJointLockTellsTheCustomerOnceAndARefillTellsAgain() throws Exception {
+		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		UUID hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT), "React");
+		UUID product = WorkTestSupport.product(this.jdbc, lan, "Sổ đặt bàn Quán Mây");
+		UUID job = WorkTestSupport.activeJob(this.jdbc, product, lan, hung, List.of(HELD), List.of(CRITERIA), this.clock.instant());
+		UUID minh = WorkTestSupport.student(this.jdbc, "Nguyễn Văn Minh");
+		UUID tung = WorkTestSupport.student(this.jdbc, "Lê Minh Tùng");
+		for (UUID member : List.of(minh, tung)) {
+			WorkTestSupport.crewRow(this.jdbc, job, member, "ACTIVE", this.clock.instant().minus(Duration.ofMinutes(5)));
+		}
+		// Both locks committed before either listener runs: the first release already counts nobody.
+		IdentityTestSupport.lock(this.jdbc, minh, "Vi phạm quy tắc");
+		IdentityTestSupport.lock(this.jdbc, tung, "Vi phạm quy tắc");
+		this.transactions.executeWithoutResult(status -> {
+			this.events.publishEvent(new AccountLocked(UUID.randomUUID(), minh, this.clock.instant()));
+			this.events.publishEvent(new AccountLocked(UUID.randomUUID(), tung, this.clock.instant()));
+		});
+		awaitListeners();
+		assertThat(count("SELECT count(*) FROM job.crew_row WHERE status = 'RELEASED' AND job_id = '" + job + "'")).isEqualTo(2);
+		assertThat(notices("job.crew_empty", lan)).isOne();
+
+		UUID vy = WorkTestSupport.student(this.jdbc, "Trần Thảo Vy");
+		WorkTestSupport.crewRow(this.jdbc, job, vy, "ACTIVE", this.clock.instant());
+		lock(ha, vy).andExpect(status().isOk());
+		awaitListeners();
+		assertThat(notices("job.crew_empty", lan)).isEqualTo(2);
 	}
 
 	/** An event stored before Story 20.4 carries no lock time: the window ends when the listener runs. */

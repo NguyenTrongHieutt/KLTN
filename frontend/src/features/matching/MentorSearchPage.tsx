@@ -142,7 +142,7 @@ function FindMentors({ job }: { job: Job }) {
           <PageHeading>{job.title}</PageHeading>
           <JobStateBadge state={job.state} />
         </div>
-        <JobRoleLine jobId={job.id} state={job.state} />
+        <JobRoleLine jobId={job.id} />
         <JobTabs jobId={job.id} current="find" applications={applications.data?.length ?? 0} />
       </div>
       <QuotaLine quota={quota} />

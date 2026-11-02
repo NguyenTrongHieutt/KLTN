@@ -17,6 +17,7 @@ import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
 import vn.vibefix.identity.StudentDirectory;
 import vn.vibefix.identity.StudentDirectory.StudentCard;
+import vn.vibefix.job.Crews.Relationship;
 import vn.vibefix.job.JobPosts.JobPostState;
 import vn.vibefix.job.JobRole;
 import vn.vibefix.job.JobRoles;
@@ -34,8 +35,8 @@ import vn.vibefix.shared.Gate;
  * {@code /api/v1/boards/{boardId}} like the Job's other Active-phase calls. The Mentor reads every party's
  * status; the Customer reads the Mentor's and the Crew's as one {@code TEAM} party with no name, since
  * Customer screens never name a Student (UX spine, Voice and Tone); a Crew member who was ever active
- * reads their own. The Mentor and those Crew members tick their items once the Job has ended. Everyone else
- * finds nothing.
+ * reads their own. The Mentor and those Crew members tick their items once the Job has ended, and a member who left
+ * from then on, in every state (Story 21.6). Everyone else finds nothing.
  */
 @RestController
 @Access(Gate.SIGNED_IN)
@@ -55,10 +56,10 @@ class DataDeletionController {
 	/**
 	 * @param ended the Job is Closing, Closed, or Cancelled, so the items may be ticked
 	 * @param mine the viewer's own Checklist, when the duty is theirs
-	 * @param removed a Crew change removed the viewer from the running Job, so they may tick theirs now
+	 * @param left the viewer left the running Job, so they may tick theirs now
 	 */
 	record DataDeletionView(UUID jobId, boolean ended, @Nullable List<DataDeletionItemView> mine,
-			List<DataDeletionPartyView> parties, boolean removed) {
+			List<DataDeletionPartyView> parties, boolean left) {
 	}
 
 	private final DataDeletionConfirmations confirmations;
@@ -97,17 +98,21 @@ class DataDeletionController {
 	}
 
 	/**
-	 * The Customer, the Mentor, or a Crew member who was ever active, by their role in the Job (AD-43); a Job
-	 * before Active has nothing.
+	 * The Customer, the Mentor, or a Crew member who was ever active, by their role in the Job (AD-43). A Job before
+	 * Active has nothing, except for a former member, whose duty starts when they leave (FR-82).
 	 */
 	private JobPostState reader(UUID jobId, Caller caller) {
 		JobPostState job = this.confirmations.job(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		UUID account = caller.accountId();
-		boolean board = List.of("ACTIVE", "CLOSING", "CLOSED", "CANCELLED").contains(job.state());
-		if (account == null || !board) {
+		if (account == null) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		JobRole role = this.roles.roleOf(jobId, caller);
+		boolean board = List.of("ACTIVE", "CLOSING", "CLOSED", "CANCELLED").contains(job.state());
+		boolean left = role.crewKind() == Relationship.FORMER && List.of("AGREEMENT", "STARTING").contains(job.state());
+		if (!board && !left) {
+			throw new ApiException(ErrorCode.NOT_FOUND);
+		}
 		boolean customer = role.isCustomer();
 		boolean duty = (role.isMentor() || role.isCrew()) && this.confirmations.duty(job, account).isPresent();
 		if (!customer && !duty) {
@@ -147,7 +152,7 @@ class DataDeletionController {
 					duties.stream().filter(duty -> !duty.mentor()).allMatch(Duty::complete)));
 		}
 		return new DataDeletionView(job.jobId(), DataDeletionConfirmations.ENDED.contains(job.state()), mine, parties,
-				mine != null && this.confirmations.removed(job, viewer));
+				mine != null && this.confirmations.left(job, viewer));
 	}
 
 }

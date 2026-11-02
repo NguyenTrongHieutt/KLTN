@@ -166,6 +166,18 @@ describe('JOB-1 Ratings (FR-49, FR-78, UX-DR27)', () => {
     let given = false
     fakeBackend(signedInUser, {
       ...inEveryJob('CREW'),
+      'GET /api/v1/jobs/j1/crew/me': () =>
+        json({
+          jobId: 'j1',
+          title: progress.title,
+          state: progress.state,
+          productName: progress.productName,
+          mentorName: progress.mentorName,
+          former: false,
+          canLeave: false,
+          codeJob: true,
+          partyMilestones: [],
+        }),
       'GET /api/v1/boards/j1/progress': () => json({ ...progress, audience: 'CREW' }),
       'GET /api/v1/boards/j1/ratings': () =>
         json(

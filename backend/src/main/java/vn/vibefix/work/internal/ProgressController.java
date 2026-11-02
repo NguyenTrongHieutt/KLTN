@@ -87,10 +87,12 @@ class ProgressController {
 	 * @param mine the viewer's own open Work Items, for a Crew member only
 	 * @param assessment an Assessment Job (FR-10), for the Mentor and the Crew; {@code false} for the Customer
 	 * @param sourceRepositoryUrl the public Source Repository of an Assessment Job, for the Mentor and the Crew
+	 * @param leavers for the Mentor: who left open Work Items behind, to assign again (Story 21.6)
 	 */
 	record JobProgressView(UUID boardId, String title, String state, String productName, String mentorName,
 			String audience, List<MilestoneProgressView> milestones, List<PageLinkView> pages,
-			List<CrewProgressView> crew, List<OpenItemView> mine, boolean assessment, @Nullable String sourceRepositoryUrl) {
+			List<CrewProgressView> crew, List<OpenItemView> mine, boolean assessment, @Nullable String sourceRepositoryUrl,
+			List<WorkViews.LeaverView> leavers) {
 	}
 
 	private final WorkAccess access;
@@ -113,11 +115,14 @@ class ProgressController {
 
 	private final JdbcClient jdbc;
 
+	private final WorkViews views;
+
 	private final CurrentCaller callers;
 
 	ProgressController(WorkAccess access, Boards boards, AgreementCriteria criteria, MilestoneStates states,
 			CriteriaDone criteriaDone, Crews crews, ProductDirectory products, MentorDirectory mentors,
-			StudentDirectory students, JdbcClient jdbc, CurrentCaller callers) {
+			StudentDirectory students, JdbcClient jdbc, WorkViews views, CurrentCaller callers) {
+		this.views = views;
 		this.access = access;
 		this.boards = boards;
 		this.criteria = criteria;
@@ -137,7 +142,7 @@ class ProgressController {
 		if (viewer.kind() == Kind.FORMER) {
 			ProductInfo info = this.products.find(viewer.board().productId()).orElse(null);
 			return new JobProgressView(boardId, viewer.title(), viewer.jobState(), info == null ? "" : info.name(),
-					mentorName(viewer), Kind.FORMER.name(), List.of(), List.of(), List.of(), List.of(), false, null);
+					mentorName(viewer), Kind.FORMER.name(), List.of(), List.of(), List.of(), List.of(), false, null, List.of());
 		}
 		if (viewer.kind() != Kind.CUSTOMER && viewer.kind() != Kind.MENTOR && viewer.kind() != Kind.CREW) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
@@ -183,7 +188,8 @@ class ProgressController {
 		boolean assessment = viewer.kind() != Kind.CUSTOMER && viewer.assessment();
 		String repository = assessment && info != null ? "https://github.com/" + info.repositoryFullName() : null;
 		return new JobProgressView(boardId, viewer.title(), viewer.jobState(), info == null ? "" : info.name(),
-				mentorName(viewer), viewer.kind().name(), milestones, pages, crew, mine, assessment, repository);
+				mentorName(viewer), viewer.kind().name(), milestones, pages, crew, mine, assessment, repository,
+				this.views.leavers(viewer));
 	}
 
 	private String mentorName(BoardViewer viewer) {

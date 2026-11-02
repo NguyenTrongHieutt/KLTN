@@ -60,6 +60,13 @@ public interface Crews {
 	 */
 	List<UUID> activeDuringAcceptedWork(UUID jobId);
 
+	/**
+	 * Whether the Job has a counted {@code ACTIVE} row (AD-41): one whose account is unlocked, read through
+	 * {@code identity.lockedAmong}, because a lock commits before its listener releases the row. AD-39's no-Crew rule reads
+	 * it (R8, X7).
+	 */
+	boolean hasCountedMember(UUID jobId);
+
 	/** {@code job.runningCrewOf}: the Job where the Student has a row that is not {@code RELEASED}. */
 	Optional<UUID> runningCrewOf(UUID studentId);
 

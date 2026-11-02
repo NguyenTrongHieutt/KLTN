@@ -179,7 +179,7 @@ describe('CUS-7, the Jobs of every role (UX-DR66, UX-DR86)', () => {
 
   it('shows only the Crew list, with no Toggle Group, and marks a Job the user left', async () => {
     fakeBackend(signedInUser, {
-      'GET /api/v1/my-jobs': () => json([held('c', 'Việc C đã rời', 'CREW', { crewKind: 'FORMER', state: 'ACTIVE' })]),
+      'GET /api/v1/my-jobs': () => json([held('c', 'Việc C đã rời', 'CREW', { crewKind: 'FORMER', left: true, state: 'ACTIVE' })]),
     })
     renderAt('/cong-viec')
 
@@ -191,7 +191,7 @@ describe('CUS-7, the Jobs of every role (UX-DR66, UX-DR86)', () => {
 
   it('lists a member of a Job that ended among the past Jobs, without "· đã rời"', async () => {
     fakeBackend(signedInUser, {
-      'GET /api/v1/my-jobs': () => json([held('d', 'Việc D đã xong', 'CREW', { crewKind: 'FORMER', state: 'CLOSED' })]),
+      'GET /api/v1/my-jobs': () => json([held('d', 'Việc D đã xong', 'CREW', { crewKind: 'FORMER', left: false, state: 'CLOSED' })]),
     })
     renderAt('/cong-viec')
 

@@ -14,7 +14,7 @@ import vn.vibefix.work.CriteriaDone;
 
 /**
  * {@link CriteriaDone} over the seeded Stories: a criterion counts when its Story is in "Xong" and the
- * latest history entry that moved it there is an approval (AD-33, AD-39).
+ * latest history entry that moved it there is an approval, or the Mentor's own unreviewed move (AD-33, AD-39).
  */
 @Component
 class WorkCriteriaDone implements CriteriaDone {
@@ -45,7 +45,7 @@ class WorkCriteriaDone implements CriteriaDone {
 				WHERE w.job_id = :job AND w.milestone_id = :milestone AND w.criterion_id IS NOT NULL AND w.status = 'DONE'
 				  AND (SELECT h.action FROM work.work_item_history h
 				       WHERE h.work_item_id = w.id AND h.changes -> 'status' ->> 'to' = 'DONE'
-				       ORDER BY h.seq DESC LIMIT 1) = 'APPROVED'
+				       ORDER BY h.seq DESC LIMIT 1) IN ('APPROVED', 'UNREVIEWED')
 				""").param("job", jobId).param("milestone", milestoneId).query(UUID.class).list());
 		approved.retainAll(inForce);
 		return new Progress(approved.size(), inForce.size());
