@@ -85,7 +85,7 @@ class JdbcMentorDirectory implements MentorDirectory {
 		});
 		if (!skillIds.isEmpty()) {
 			where.append(" AND p.skill_ids && CAST(:skills AS UUID[])");
-			params.put("skills", JdbcStudentDirectory.uuidArray(skillIds));
+			params.put("skills", UuidArrays.uuidArray(skillIds));
 		}
 		// FR-14: a keyword orders by relevance alone, then the account ID; the Skill filter alone by name.
 		String order = keyword.map(found -> found.rank("p.search_vector") + " DESC, a.id")
@@ -151,10 +151,10 @@ class JdbcMentorDirectory implements MentorDirectory {
 				  a.id
 				LIMIT :limit
 				""")
-			.param("skills", JdbcStudentDirectory.uuidArray(skillIds))
+			.param("skills", UuidArrays.uuidArray(skillIds))
 			.param("limit", limit)
 			.query((rs, n) -> new MentorSkills(rs.getObject("id", UUID.class),
-					JdbcStudentDirectory.uuids(rs.getArray("skill_ids"))))
+					UuidArrays.uuids(rs.getArray("skill_ids"))))
 			.list();
 	}
 
@@ -168,7 +168,7 @@ class JdbcMentorDirectory implements MentorDirectory {
 		this.jdbc.sql("SELECT a.id, p.skill_ids " + FROM + " AND " + AVAILABLE + " AND a.id IN (:ids)")
 			.param("ids", List.copyOf(mentorIds))
 			.query(rs -> {
-				skills.put(rs.getObject("id", UUID.class), JdbcStudentDirectory.uuids(rs.getArray("skill_ids")));
+				skills.put(rs.getObject("id", UUID.class), UuidArrays.uuids(rs.getArray("skill_ids")));
 			});
 		return skills;
 	}
@@ -178,7 +178,7 @@ class JdbcMentorDirectory implements MentorDirectory {
 	public List<UUID> profileSkillIds(UUID mentorId) {
 		return this.jdbc.sql("SELECT p.skill_ids " + FROM + " AND a.id = :id")
 			.param("id", mentorId)
-			.query((rs, n) -> JdbcStudentDirectory.uuids(rs.getArray("skill_ids")))
+			.query((rs, n) -> UuidArrays.uuids(rs.getArray("skill_ids")))
 			.optional()
 			.orElse(List.of());
 	}
@@ -209,7 +209,7 @@ class JdbcMentorDirectory implements MentorDirectory {
 		return new Row(rs.getObject("id", UUID.class), rs.getString("github_login"), rs.getObject("github_user_id", Long.class),
 				rs.getTimestamp("created_at").toInstant(), rs.getString("display_name"), rs.getString("experience"),
 				rs.getObject("years_of_experience", Integer.class),
-				JdbcStudentDirectory.uuids(rs.getArray("skill_ids")),
+				UuidArrays.uuids(rs.getArray("skill_ids")),
 				rs.getBoolean("available"));
 	}
 

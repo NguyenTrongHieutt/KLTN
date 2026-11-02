@@ -26,7 +26,6 @@ import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
 import vn.vibefix.identity.MentorDirectory;
-import vn.vibefix.identity.StudentDirectory;
 import vn.vibefix.notification.Audience;
 import vn.vibefix.notification.NotificationRequest;
 import vn.vibefix.notification.Notifications;
@@ -122,13 +121,10 @@ class AbuseReports {
 
 	private final MentorDirectory mentors;
 
-	private final StudentDirectory students;
-
 	AbuseReports(JdbcClient jdbc, List<ReportableContent> reportables, List<AdminReadGrants> grants, ContentHiding hiding,
 			Notifications notifications, AuditLog auditLog, IdGenerator ids, Clock clock,
-			PlatformTransactionManager transactionManager, MentorDirectory mentors, StudentDirectory students) {
+			PlatformTransactionManager transactionManager, MentorDirectory mentors) {
 		this.mentors = mentors;
-		this.students = students;
 		this.jdbc = jdbc;
 		this.reportables = reportables;
 		this.grants = grants;
@@ -206,11 +202,10 @@ class AbuseReports {
 		return id;
 	}
 
-	/** The account a public profile shows under {@code login}: a Mentor's (PUB-5) or a Student's (PUB-4). */
+	/** The account a public profile (PUB-4) shows under {@code login}. */
 	private UUID accountOf(String login) {
 		return this.mentors.byLogin(login)
 			.map(profile -> profile.card().accountId())
-			.or(() -> this.students.profileByLogin(login).map(profile -> profile.card().accountId()))
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 	}
 

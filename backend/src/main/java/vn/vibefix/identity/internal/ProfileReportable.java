@@ -15,8 +15,8 @@ import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.ReportableContent;
 
 /**
- * FR-69: a user is reportable through the public profile the platform shows of them, a Mentor's (PUB-3) or a
- * Student's (PUB-4), by any other signed-in user.
+ * FR-69: a user is reportable through the public profile the platform shows of them (PUB-4), by any other signed-in
+ * user.
  */
 @Component
 class ProfileReportable implements ReportableContent {
@@ -48,9 +48,9 @@ class ProfileReportable implements ReportableContent {
 					? Optional.of(new Reported(null, null, id, mentor.get().displayName())) : Optional.empty();
 		}
 		Optional<StudentCard> student = this.students.cards(List.of(id)).stream().findFirst();
-		// An account without GitHub linked has no public profile to report (Story 20.3 lists every person's account).
-		if (student.isEmpty() || student.get().githubLogin() == null
-				|| this.students.profileByLogin(student.get().githubLogin()).isEmpty()) {
+		// An account without GitHub linked has no public profile to report (Story 20.3 lists every person's account), and
+		// neither has a locked or an erased one.
+		if (student.isEmpty() || student.get().githubLogin() == null || !student.get().available()) {
 			return Optional.empty();
 		}
 		StudentCard card = student.get();

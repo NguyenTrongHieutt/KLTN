@@ -39,6 +39,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import vn.vibefix.catalog.SkillRenamed;
 import vn.vibefix.identity.ContactVisibility;
 import vn.vibefix.identity.CustomerNames;
+import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.StudentDirectory;
 import vn.vibefix.notification.RecipientAddresses;
 import vn.vibefix.support.IntegrationTest;
@@ -73,6 +74,9 @@ class ProfileIT extends IntegrationTest {
 
 	@Autowired
 	private StudentDirectory students;
+
+	@Autowired
+	private MentorDirectory mentors;
 
 	@Autowired
 	private ApplicationEventPublisher events;
@@ -313,18 +317,15 @@ class ProfileIT extends IntegrationTest {
 				VALUES (:id, 'Minh', 'Trần Quang Minh', 'Đại học Bách khoa Hà Nội', 'Kỹ thuật phần mềm', :now)
 				""").param("id", minh).param("now", Timestamp.from(this.clock.instant())).update();
 
-		assertThat(this.students.cards(List.of(minh))).singleElement().satisfies(card -> {
-			assertThat(card.name()).isEqualTo("Trần Quang Minh");
-			assertThat(card.school()).isEqualTo("Đại học Bách khoa Hà Nội");
-			assertThat(card.major()).isEqualTo("Kỹ thuật phần mềm");
-		});
+		assertThat(this.students.cards(List.of(minh))).singleElement()
+			.satisfies(card -> assertThat(card.name()).isEqualTo("Trần Quang Minh"));
 		// Story 21.3 (AD-36): the declared name is searched while shown; the school and the major are no search terms.
-		assertThat(this.students.search("Quang Minh", List.of(), PageRequest.of(0, 10)).getContent())
+		assertThat(this.mentors.search("Quang Minh", List.of(), null, PageRequest.of(0, 10)).getContent())
 			.as("the declared name is searched while shown")
-			.extracting(StudentDirectory.StudentCard::accountId)
+			.extracting(MentorDirectory.MentorCard::accountId)
 			.containsExactly(minh);
-		assertThat(this.students.search("Bách khoa", List.of(), PageRequest.of(0, 10)).getContent()).isEmpty();
-		assertThat(this.students.search("phần mềm", List.of(), PageRequest.of(0, 10)).getContent()).isEmpty();
+		assertThat(this.mentors.search("Bách khoa", List.of(), null, PageRequest.of(0, 10)).getContent()).isEmpty();
+		assertThat(this.mentors.search("phần mềm", List.of(), null, PageRequest.of(0, 10)).getContent()).isEmpty();
 		this.mvc.perform(get("/api/v1/profile").with(authentication(IdentityTestSupport.authentication(minh, Role.STUDENT))))
 			.andExpect(jsonPath("$.hideStudentDetails").value(false))
 			.andExpect(jsonPath("$.studentDetails.name").value("Trần Quang Minh"))
@@ -335,12 +336,9 @@ class ProfileIT extends IntegrationTest {
 			.contentType(MediaType.APPLICATION_JSON)
 			.content(body("Minh", List.of(), List.of(), List.of(), true))).andExpect(status().isNoContent());
 
-		assertThat(this.students.cards(List.of(minh))).singleElement().satisfies(card -> {
-			assertThat(card.name()).isNull();
-			assertThat(card.school()).isNull();
-			assertThat(card.major()).isNull();
-		});
-		assertThat(this.students.search("Quang Minh", List.of(), PageRequest.of(0, 10)).getContent()).isEmpty();
+		assertThat(this.students.cards(List.of(minh))).singleElement()
+			.satisfies(card -> assertThat(card.name()).isNull());
+		assertThat(this.mentors.search("Quang Minh", List.of(), null, PageRequest.of(0, 10)).getContent()).isEmpty();
 		assertThat(this.jdbc.sql("""
 				SELECT search_vector @@ plainto_tsquery('platform.vi_search', 'Trần Quang Minh') FROM identity.profile
 				WHERE account_id = :id
@@ -356,9 +354,9 @@ class ProfileIT extends IntegrationTest {
 			.andExpect(jsonPath("$.studentDetails").doesNotExist());
 	}
 
-	/** Story 19.4: only the live, valid row counts; an ended one hides the Student, a renewal leaves one card. */
+	/** Story 19.4: only the live, valid row counts; an ended one hides the name, a renewal leaves one card. */
 	@Test
-	void anUnlinkedOrRevokedStudentIsNotFoundAndARenewedOneIsListedOnce() throws Exception {
+	void anUnlinkedOrRevokedStudentShowsNoNameAndARenewedOneHasOneCard() throws Exception {
 		LocalDate until = LocalDate.of(2026, 9, 30);
 		UUID unlinked = TestPeople.student(this.jdbc, "Đã bỏ xác minh", true, List.of(TestPeople.REACT), "React",
 				until);
@@ -379,15 +377,8 @@ class ProfileIT extends IntegrationTest {
 				""").param("id", UUID.randomUUID()).param("account", renewed)
 			.param("hmac", IdentityTestSupport.fakeHmac("renewed-old")).update();
 
-		assertThat(this.students.search("", List.of(), PageRequest.of(0, 10)).getContent())
-			.extracting(StudentDirectory.StudentCard::accountId)
-			.containsExactly(renewed);
-		assertThat(this.students.byLogin(TestPeople.login(this.jdbc, unlinked))).isEmpty();
-		assertThat(this.students.byLogin(TestPeople.login(this.jdbc, revoked))).isEmpty();
-		assertThat(this.students.cards(List.of(unlinked, revoked, renewed))).hasSize(3).allSatisfy(card -> {
-			assertThat(card.verified()).isEqualTo(card.accountId().equals(renewed));
-			assertThat(card.name() == null).isEqualTo(!card.accountId().equals(renewed));
-		});
+		assertThat(this.students.cards(List.of(unlinked, revoked, renewed))).hasSize(3)
+			.allSatisfy(card -> assertThat(card.name() == null).isEqualTo(!card.accountId().equals(renewed)));
 	}
 
 	@Test
