@@ -1907,7 +1907,7 @@
     },
     "/api/v1/boards/{boardId}/cancellation/confirm" : {
       "post" : {
-        "operationId" : "confirm_6",
+        "operationId" : "confirm_7",
         "parameters" : [ {
           "in" : "path",
           "name" : "boardId",
@@ -2095,7 +2095,7 @@
     },
     "/api/v1/boards/{boardId}/closure/confirm" : {
       "post" : {
-        "operationId" : "confirm_5",
+        "operationId" : "confirm_6",
         "parameters" : [ {
           "in" : "path",
           "name" : "boardId",
@@ -2231,7 +2231,7 @@
     },
     "/api/v1/boards/{boardId}/data-deletion/{item}" : {
       "post" : {
-        "operationId" : "confirm_4",
+        "operationId" : "confirm_5",
         "parameters" : [ {
           "in" : "path",
           "name" : "boardId",
@@ -2997,7 +2997,7 @@
     },
     "/api/v1/boards/{boardId}/revocation-checklist/{accessId}" : {
       "post" : {
-        "operationId" : "confirm_3",
+        "operationId" : "confirm_4",
         "parameters" : [ {
           "in" : "path",
           "name" : "boardId",
@@ -3239,7 +3239,7 @@
     },
     "/api/v1/change-requests/{changeRequestId}/confirm" : {
       "post" : {
-        "operationId" : "confirm_2",
+        "operationId" : "confirm_3",
         "parameters" : [ {
           "in" : "path",
           "name" : "changeRequestId",
@@ -4752,7 +4752,7 @@
     },
     "/api/v1/jobs/{jobId}/final-merge/confirm" : {
       "post" : {
-        "operationId" : "confirm_1",
+        "operationId" : "confirm_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "jobId",
@@ -5496,6 +5496,36 @@
           }
         },
         "tags" : [ "source-drift-controller" ]
+      }
+    },
+    "/api/v1/jobs/{jobId}/splits" : {
+      "get" : {
+        "operationId" : "splits",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/SplitCardView"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "milestone-split-controller" ]
       }
     },
     "/api/v1/jobs/{jobId}/top-up-orders" : {
@@ -7686,6 +7716,117 @@
           }
         },
         "tags" : [ "skill-suggestion-controller" ]
+      }
+    },
+    "/api/v1/splits/{splitId}/confirmations" : {
+      "post" : {
+        "operationId" : "confirm_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "splitId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SplitConfirmationRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConfirmedSplitView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "split-controller" ]
+      }
+    },
+    "/api/v1/splits/{splitId}/preview" : {
+      "post" : {
+        "operationId" : "preview",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "splitId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SplitPreviewRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SplitPreviewView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "milestone-split-controller" ]
+      }
+    },
+    "/api/v1/splits/{splitId}/versions" : {
+      "post" : {
+        "operationId" : "save_3",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "splitId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SplitVersionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SavedSplitView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "split-controller" ]
       }
     },
     "/api/v1/team-issues" : {
@@ -10915,6 +11056,20 @@
           }
         },
         "required" : [ "approvedAt", "confirmedAt", "content", "crew", "draftVersionNo", "freezeCommitted", "liveAccessIds", "versionNo" ]
+      },
+      "ConfirmedSplitView" : {
+        "type" : "object",
+        "properties" : {
+          "status" : {
+            "type" : "string",
+            "enum" : [ "AWAITING_DRAFT", "PROPOSED", "IN_RESOLUTION", "FINAL" ]
+          },
+          "versionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "status", "versionNo" ]
       },
       "ConfirmedVersionView" : {
         "type" : "object",
@@ -17506,7 +17661,7 @@
           },
           "rule" : {
             "type" : "string",
-            "enum" : [ "AUTO_ACCEPTANCE_DAYS", "AUTO_ACCEPTANCE_FIRST_REMINDER_DAY", "AUTO_ACCEPTANCE_SECOND_REMINDER_DAY", "RATING_WINDOW_DAYS", "REVISION_ROUNDS", "DISPUTE_RESPONSE_DAYS", "TEAM_ISSUE_ANSWER_DAYS", "TEAM_ISSUE_ESCALATION_DAYS", "CLOSURE_CONFIRMATION_DAYS", "CANCELLATION_CONFIRMATION_DAYS", "AUTOMATIC_CLOSURE_DAYS", "FINAL_MERGE_AUTHORIZATION_DAYS", "AGREEMENT_STALL_DAYS", "STARTING_STALL_DAYS", "MENTOR_ACTIVE_JOB_LIMIT", "MENTOR_SHARE_CAP_PERCENT", "CREW_APPLICATION_LAPSE_DAYS", "SPLIT_DRAFT_DAYS", "SPLIT_CONFIRMATION_DAYS", "SPLIT_EDIT_LIMIT" ]
+            "enum" : [ "AUTO_ACCEPTANCE_DAYS", "AUTO_ACCEPTANCE_FIRST_REMINDER_DAY", "AUTO_ACCEPTANCE_SECOND_REMINDER_DAY", "RATING_WINDOW_DAYS", "REVISION_ROUNDS", "DISPUTE_RESPONSE_DAYS", "TEAM_ISSUE_ANSWER_DAYS", "TEAM_ISSUE_ESCALATION_DAYS", "CLOSURE_CONFIRMATION_DAYS", "CANCELLATION_CONFIRMATION_DAYS", "AUTOMATIC_CLOSURE_DAYS", "FINAL_MERGE_AUTHORIZATION_DAYS", "AGREEMENT_STALL_DAYS", "STARTING_STALL_DAYS", "MENTOR_ACTIVE_JOB_LIMIT", "MENTOR_SHARE_CAP_PERCENT", "CREW_APPLICATION_LAPSE_DAYS", "SPLIT_DRAFT_DAYS", "SPLIT_CONFIRMATION_DAYS", "SPLIT_EDIT_LIMIT", "SPLIT_UNDECIDED_FLAG_DAYS" ]
           }
         },
         "required" : [ "changedAt", "kind" ]
@@ -17516,7 +17671,7 @@
         "properties" : {
           "key" : {
             "type" : "string",
-            "enum" : [ "AUTO_ACCEPTANCE_DAYS", "AUTO_ACCEPTANCE_FIRST_REMINDER_DAY", "AUTO_ACCEPTANCE_SECOND_REMINDER_DAY", "RATING_WINDOW_DAYS", "REVISION_ROUNDS", "DISPUTE_RESPONSE_DAYS", "TEAM_ISSUE_ANSWER_DAYS", "TEAM_ISSUE_ESCALATION_DAYS", "CLOSURE_CONFIRMATION_DAYS", "CANCELLATION_CONFIRMATION_DAYS", "AUTOMATIC_CLOSURE_DAYS", "FINAL_MERGE_AUTHORIZATION_DAYS", "AGREEMENT_STALL_DAYS", "STARTING_STALL_DAYS", "MENTOR_ACTIVE_JOB_LIMIT", "MENTOR_SHARE_CAP_PERCENT", "CREW_APPLICATION_LAPSE_DAYS", "SPLIT_DRAFT_DAYS", "SPLIT_CONFIRMATION_DAYS", "SPLIT_EDIT_LIMIT" ]
+            "enum" : [ "AUTO_ACCEPTANCE_DAYS", "AUTO_ACCEPTANCE_FIRST_REMINDER_DAY", "AUTO_ACCEPTANCE_SECOND_REMINDER_DAY", "RATING_WINDOW_DAYS", "REVISION_ROUNDS", "DISPUTE_RESPONSE_DAYS", "TEAM_ISSUE_ANSWER_DAYS", "TEAM_ISSUE_ESCALATION_DAYS", "CLOSURE_CONFIRMATION_DAYS", "CANCELLATION_CONFIRMATION_DAYS", "AUTOMATIC_CLOSURE_DAYS", "FINAL_MERGE_AUTHORIZATION_DAYS", "AGREEMENT_STALL_DAYS", "STARTING_STALL_DAYS", "MENTOR_ACTIVE_JOB_LIMIT", "MENTOR_SHARE_CAP_PERCENT", "CREW_APPLICATION_LAPSE_DAYS", "SPLIT_DRAFT_DAYS", "SPLIT_CONFIRMATION_DAYS", "SPLIT_EDIT_LIMIT", "SPLIT_UNDECIDED_FLAG_DAYS" ]
           },
           "max" : {
             "type" : "integer",
@@ -17628,6 +17783,24 @@
           }
         },
         "required" : [ "schoolDomains", "stepUpCode", "values" ]
+      },
+      "SavedSplitView" : {
+        "type" : "object",
+        "properties" : {
+          "confirmationDueAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "AWAITING_DRAFT", "PROPOSED", "IN_RESOLUTION", "FINAL" ]
+          },
+          "versionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "confirmationDueAt", "status", "versionNo" ]
       },
       "ScanView" : {
         "type" : "object",
@@ -18240,6 +18413,238 @@
         },
         "required" : [ "number", "status", "version", "workItemId" ]
       },
+      "SplitCardView" : {
+        "type" : "object",
+        "properties" : {
+          "cap" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "capApplies" : {
+            "type" : "boolean"
+          },
+          "confirmationDueAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "confirmationNear" : {
+            "type" : "boolean"
+          },
+          "draftDueAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "draftLate" : {
+            "type" : "boolean"
+          },
+          "draftNear" : {
+            "type" : "boolean"
+          },
+          "earlier" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SplitVersionView"
+            }
+          },
+          "editLimit" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "editsLeft" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "editsUsed" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "finalAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "finality" : {
+            "type" : "string",
+            "enum" : [ "CONFIRMED", "DEADLINE", "DECISION", "MENTOR_ONLY" ]
+          },
+          "jobLive" : {
+            "type" : "boolean"
+          },
+          "jobTitle" : {
+            "type" : "string"
+          },
+          "k" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "latest" : {
+            "$ref" : "#/components/schemas/SplitVersionView"
+          },
+          "milestoneId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "milestoneNumber" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "n" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "nextConfirmationDueAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "paid" : {
+            "type" : "boolean"
+          },
+          "parties" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SplitPartyView"
+            }
+          },
+          "pastDue" : {
+            "type" : "boolean"
+          },
+          "pooledVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "splitId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "AWAITING_DRAFT", "PROPOSED", "IN_RESOLUTION", "FINAL" ]
+          },
+          "viewerConfirmed" : {
+            "type" : "boolean"
+          },
+          "viewerIsMentor" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "capApplies", "confirmationNear", "draftDueAt", "draftLate", "draftNear", "earlier", "editLimit", "editsLeft", "editsUsed", "jobLive", "k", "milestoneId", "milestoneNumber", "n", "nextConfirmationDueAt", "paid", "parties", "pastDue", "pooledVnd", "splitId", "status", "viewerConfirmed", "viewerIsMentor" ]
+      },
+      "SplitConfirmationRequest" : {
+        "type" : "object",
+        "properties" : {
+          "splitVersionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "splitVersionNo" ]
+      },
+      "SplitLineView" : {
+        "type" : "object",
+        "properties" : {
+          "amountVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "confirmed" : {
+            "type" : "boolean"
+          },
+          "partyId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "percent" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "amountVnd", "confirmed", "partyId", "percent" ]
+      },
+      "SplitPartyView" : {
+        "type" : "object",
+        "properties" : {
+          "activeAtRelease" : {
+            "type" : "boolean"
+          },
+          "erased" : {
+            "type" : "boolean"
+          },
+          "leftAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "mentor" : {
+            "type" : "boolean"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "partyId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "wholeInterval" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "activeAtRelease", "erased", "mentor", "partyId", "wholeInterval" ]
+      },
+      "SplitPreviewLineView" : {
+        "type" : "object",
+        "properties" : {
+          "amountVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "partyId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "amountVnd", "partyId" ]
+      },
+      "SplitPreviewRequest" : {
+        "type" : "object",
+        "properties" : {
+          "shares" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SplitPreviewShareRequest"
+            },
+            "maxItems" : 100,
+            "minItems" : 0
+          }
+        },
+        "required" : [ "shares" ]
+      },
+      "SplitPreviewShareRequest" : {
+        "type" : "object",
+        "properties" : {
+          "partyId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "percent" : {
+            "type" : "number"
+          }
+        },
+        "required" : [ "partyId", "percent" ]
+      },
+      "SplitPreviewView" : {
+        "type" : "object",
+        "properties" : {
+          "lines" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SplitPreviewLineView"
+            }
+          },
+          "pooledVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "lines", "pooledVnd" ]
+      },
       "SplitRulesView" : {
         "type" : "object",
         "properties" : {
@@ -18261,6 +18666,65 @@
           }
         },
         "required" : [ "confirmationDays", "draftDays", "editLimit", "mentorShareCapPercent" ]
+      },
+      "SplitShareRequest" : {
+        "type" : "object",
+        "properties" : {
+          "partyId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "percent" : {
+            "type" : "number"
+          }
+        },
+        "required" : [ "partyId", "percent" ]
+      },
+      "SplitVersionRequest" : {
+        "type" : "object",
+        "properties" : {
+          "shares" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SplitShareRequest"
+            },
+            "maxItems" : 100,
+            "minItems" : 0
+          },
+          "shownVersionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "shares", "shownVersionNo" ]
+      },
+      "SplitVersionView" : {
+        "type" : "object",
+        "properties" : {
+          "capPercent" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "DRAFT", "DEFAULT", "DECISION", "MENTOR_ONLY" ]
+          },
+          "lines" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SplitLineView"
+            }
+          },
+          "versionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "createdAt", "kind", "lines", "versionNo" ]
       },
       "StalledEventView" : {
         "type" : "object",

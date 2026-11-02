@@ -12,7 +12,9 @@
  * {@link vn.vibefix.job.CrewRecruitment} is how {@code matching} sends a Crew Application under the Job row lock.
  * <p>
  * Each release creates its Milestone's split, with its parties fixed (Story 22.1): {@link vn.vibefix.job.MilestoneSplits}
- * reads it, even after the Job's data is gone, and {@link vn.vibefix.job.MilestoneSplitFinalized} says it is final.
+ * reads it, even after the Job's data is gone, and {@link vn.vibefix.job.MilestoneSplitFinalized} says it is final. The
+ * Mentor drafts and edits it, its parties confirm it, and four non-pausable Deadlines default and finalize it (Story 22.2);
+ * a Dispute or a freeze never pauses it, and it carries on after the Job ends.
  * <p>
  * Public API: {@link vn.vibefix.job.JobTransitioned} and {@link vn.vibefix.job.JobPosts}. The HTTP
  * endpoints, the transition steps, the selection lapse, the recipient lookup, the Skill-name

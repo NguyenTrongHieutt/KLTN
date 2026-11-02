@@ -941,7 +941,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["confirm_6"];
+        post: operations["confirm_7"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1005,7 +1005,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["confirm_5"];
+        post: operations["confirm_6"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1069,7 +1069,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["confirm_4"];
+        post: operations["confirm_5"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1389,7 +1389,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["confirm_3"];
+        post: operations["confirm_4"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1485,7 +1485,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["confirm_2"];
+        post: operations["confirm_3"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2157,7 +2157,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["confirm_1"];
+        post: operations["confirm_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2462,6 +2462,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["reconfirm"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/jobs/{jobId}/splits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["splits"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3486,6 +3502,54 @@ export interface paths {
         get: operations["mine"];
         put?: never;
         post: operations["suggest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/splits/{splitId}/confirmations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["confirm_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/splits/{splitId}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/splits/{splitId}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["save_3"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4729,6 +4793,12 @@ export interface components {
             draftVersionNo: number;
             freezeCommitted: boolean;
             liveAccessIds: string[];
+            /** Format: int32 */
+            versionNo: number;
+        };
+        ConfirmedSplitView: {
+            /** @enum {string} */
+            status: "AWAITING_DRAFT" | "PROPOSED" | "IN_RESOLUTION" | "FINAL";
             /** Format: int32 */
             versionNo: number;
         };
@@ -7075,11 +7145,11 @@ export interface components {
             /** Format: int32 */
             oldValue?: number;
             /** @enum {string} */
-            rule?: "AUTO_ACCEPTANCE_DAYS" | "AUTO_ACCEPTANCE_FIRST_REMINDER_DAY" | "AUTO_ACCEPTANCE_SECOND_REMINDER_DAY" | "RATING_WINDOW_DAYS" | "REVISION_ROUNDS" | "DISPUTE_RESPONSE_DAYS" | "TEAM_ISSUE_ANSWER_DAYS" | "TEAM_ISSUE_ESCALATION_DAYS" | "CLOSURE_CONFIRMATION_DAYS" | "CANCELLATION_CONFIRMATION_DAYS" | "AUTOMATIC_CLOSURE_DAYS" | "FINAL_MERGE_AUTHORIZATION_DAYS" | "AGREEMENT_STALL_DAYS" | "STARTING_STALL_DAYS" | "MENTOR_ACTIVE_JOB_LIMIT" | "MENTOR_SHARE_CAP_PERCENT" | "CREW_APPLICATION_LAPSE_DAYS" | "SPLIT_DRAFT_DAYS" | "SPLIT_CONFIRMATION_DAYS" | "SPLIT_EDIT_LIMIT";
+            rule?: "AUTO_ACCEPTANCE_DAYS" | "AUTO_ACCEPTANCE_FIRST_REMINDER_DAY" | "AUTO_ACCEPTANCE_SECOND_REMINDER_DAY" | "RATING_WINDOW_DAYS" | "REVISION_ROUNDS" | "DISPUTE_RESPONSE_DAYS" | "TEAM_ISSUE_ANSWER_DAYS" | "TEAM_ISSUE_ESCALATION_DAYS" | "CLOSURE_CONFIRMATION_DAYS" | "CANCELLATION_CONFIRMATION_DAYS" | "AUTOMATIC_CLOSURE_DAYS" | "FINAL_MERGE_AUTHORIZATION_DAYS" | "AGREEMENT_STALL_DAYS" | "STARTING_STALL_DAYS" | "MENTOR_ACTIVE_JOB_LIMIT" | "MENTOR_SHARE_CAP_PERCENT" | "CREW_APPLICATION_LAPSE_DAYS" | "SPLIT_DRAFT_DAYS" | "SPLIT_CONFIRMATION_DAYS" | "SPLIT_EDIT_LIMIT" | "SPLIT_UNDECIDED_FLAG_DAYS";
         };
         RuleView: {
             /** @enum {string} */
-            key: "AUTO_ACCEPTANCE_DAYS" | "AUTO_ACCEPTANCE_FIRST_REMINDER_DAY" | "AUTO_ACCEPTANCE_SECOND_REMINDER_DAY" | "RATING_WINDOW_DAYS" | "REVISION_ROUNDS" | "DISPUTE_RESPONSE_DAYS" | "TEAM_ISSUE_ANSWER_DAYS" | "TEAM_ISSUE_ESCALATION_DAYS" | "CLOSURE_CONFIRMATION_DAYS" | "CANCELLATION_CONFIRMATION_DAYS" | "AUTOMATIC_CLOSURE_DAYS" | "FINAL_MERGE_AUTHORIZATION_DAYS" | "AGREEMENT_STALL_DAYS" | "STARTING_STALL_DAYS" | "MENTOR_ACTIVE_JOB_LIMIT" | "MENTOR_SHARE_CAP_PERCENT" | "CREW_APPLICATION_LAPSE_DAYS" | "SPLIT_DRAFT_DAYS" | "SPLIT_CONFIRMATION_DAYS" | "SPLIT_EDIT_LIMIT";
+            key: "AUTO_ACCEPTANCE_DAYS" | "AUTO_ACCEPTANCE_FIRST_REMINDER_DAY" | "AUTO_ACCEPTANCE_SECOND_REMINDER_DAY" | "RATING_WINDOW_DAYS" | "REVISION_ROUNDS" | "DISPUTE_RESPONSE_DAYS" | "TEAM_ISSUE_ANSWER_DAYS" | "TEAM_ISSUE_ESCALATION_DAYS" | "CLOSURE_CONFIRMATION_DAYS" | "CANCELLATION_CONFIRMATION_DAYS" | "AUTOMATIC_CLOSURE_DAYS" | "FINAL_MERGE_AUTHORIZATION_DAYS" | "AGREEMENT_STALL_DAYS" | "STARTING_STALL_DAYS" | "MENTOR_ACTIVE_JOB_LIMIT" | "MENTOR_SHARE_CAP_PERCENT" | "CREW_APPLICATION_LAPSE_DAYS" | "SPLIT_DRAFT_DAYS" | "SPLIT_CONFIRMATION_DAYS" | "SPLIT_EDIT_LIMIT" | "SPLIT_UNDECIDED_FLAG_DAYS";
             /** Format: int32 */
             max: number;
             /** Format: int32 */
@@ -7108,6 +7178,14 @@ export interface components {
             values: {
                 [key: string]: number;
             };
+        };
+        SavedSplitView: {
+            /** Format: date-time */
+            confirmationDueAt: string;
+            /** @enum {string} */
+            status: "AWAITING_DRAFT" | "PROPOSED" | "IN_RESOLUTION" | "FINAL";
+            /** Format: int32 */
+            versionNo: number;
         };
         ScanView: {
             /** Format: date-time */
@@ -7330,6 +7408,96 @@ export interface components {
             /** Format: uuid */
             workItemId: string;
         };
+        SplitCardView: {
+            /** Format: int32 */
+            cap?: number;
+            capApplies: boolean;
+            /** Format: date-time */
+            confirmationDueAt?: string;
+            confirmationNear: boolean;
+            /** Format: date-time */
+            draftDueAt: string;
+            draftLate: boolean;
+            draftNear: boolean;
+            earlier: components["schemas"]["SplitVersionView"][];
+            /** Format: int32 */
+            editLimit: number;
+            /** Format: int32 */
+            editsLeft: number;
+            /** Format: int32 */
+            editsUsed: number;
+            /** Format: date-time */
+            finalAt?: string;
+            /** @enum {string} */
+            finality?: "CONFIRMED" | "DEADLINE" | "DECISION" | "MENTOR_ONLY";
+            jobLive: boolean;
+            jobTitle?: string;
+            /** Format: int32 */
+            k: number;
+            latest?: components["schemas"]["SplitVersionView"];
+            /** Format: uuid */
+            milestoneId: string;
+            /** Format: int32 */
+            milestoneNumber: number;
+            /** Format: int32 */
+            n: number;
+            /** Format: date-time */
+            nextConfirmationDueAt: string;
+            paid: boolean;
+            parties: components["schemas"]["SplitPartyView"][];
+            pastDue: boolean;
+            /** Format: int64 */
+            pooledVnd: number;
+            /** Format: uuid */
+            splitId: string;
+            /** @enum {string} */
+            status: "AWAITING_DRAFT" | "PROPOSED" | "IN_RESOLUTION" | "FINAL";
+            viewerConfirmed: boolean;
+            viewerIsMentor: boolean;
+        };
+        SplitConfirmationRequest: {
+            /** Format: int32 */
+            splitVersionNo: number;
+        };
+        SplitLineView: {
+            /** Format: int64 */
+            amountVnd: number;
+            confirmed: boolean;
+            /** Format: uuid */
+            partyId: string;
+            /** Format: int32 */
+            percent: number;
+        };
+        SplitPartyView: {
+            activeAtRelease: boolean;
+            erased: boolean;
+            /** Format: date-time */
+            leftAt?: string;
+            mentor: boolean;
+            name?: string;
+            /** Format: uuid */
+            partyId: string;
+            wholeInterval: boolean;
+        };
+        SplitPreviewLineView: {
+            /** Format: int64 */
+            amountVnd: number;
+            /** Format: uuid */
+            partyId: string;
+        };
+        SplitPreviewRequest: {
+            shares: components["schemas"]["SplitPreviewShareRequest"][];
+        };
+        SplitPreviewShareRequest: {
+            /** Format: uuid */
+            partyId: string;
+            percent: number;
+        };
+        SplitPreviewView: {
+            lines: components["schemas"]["SplitPreviewLineView"][];
+            /** Format: int64 */
+            pooledVnd: number;
+        };
         SplitRulesView: {
             /** Format: int32 */
             confirmationDays: number;
@@ -7339,6 +7507,27 @@ export interface components {
             editLimit: number;
             /** Format: int32 */
             mentorShareCapPercent: number;
+        };
+        SplitShareRequest: {
+            /** Format: uuid */
+            partyId: string;
+            percent: number;
+        };
+        SplitVersionRequest: {
+            shares: components["schemas"]["SplitShareRequest"][];
+            /** Format: int32 */
+            shownVersionNo: number;
+        };
+        SplitVersionView: {
+            /** Format: int32 */
+            capPercent?: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** @enum {string} */
+            kind: "DRAFT" | "DEFAULT" | "DECISION" | "MENTOR_ONLY";
+            lines: components["schemas"]["SplitLineView"][];
+            /** Format: int32 */
+            versionNo: number;
         };
         StalledEventView: {
             /** Format: int32 */
@@ -9224,7 +9413,7 @@ export interface operations {
             };
         };
     };
-    confirm_6: {
+    confirm_7: {
         parameters: {
             query?: never;
             header?: never;
@@ -9368,7 +9557,7 @@ export interface operations {
             };
         };
     };
-    confirm_5: {
+    confirm_6: {
         parameters: {
             query?: never;
             header?: never;
@@ -9466,7 +9655,7 @@ export interface operations {
             };
         };
     };
-    confirm_4: {
+    confirm_5: {
         parameters: {
             query?: never;
             header?: never;
@@ -10041,7 +10230,7 @@ export interface operations {
             };
         };
     };
-    confirm_3: {
+    confirm_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -10213,7 +10402,7 @@ export interface operations {
             };
         };
     };
-    confirm_2: {
+    confirm_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -11364,7 +11553,7 @@ export interface operations {
             };
         };
     };
-    confirm_1: {
+    confirm_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -11880,6 +12069,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DriftView"];
+                };
+            };
+        };
+    };
+    splits: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SplitCardView"][];
                 };
             };
         };
@@ -13559,6 +13770,84 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MySkillSuggestionView"];
+                };
+            };
+        };
+    };
+    confirm_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                splitId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SplitConfirmationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfirmedSplitView"];
+                };
+            };
+        };
+    };
+    preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                splitId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SplitPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SplitPreviewView"];
+                };
+            };
+        };
+    };
+    save_3: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                splitId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SplitVersionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedSplitView"];
                 };
             };
         };

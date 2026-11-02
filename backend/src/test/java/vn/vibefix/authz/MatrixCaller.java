@@ -9,7 +9,7 @@ package vn.vibefix.authz;
  * carries its authentication itself ({@code IdentityTestSupport.signedIn}); the harness-only {@link #AUTHOR} has no
  * account row, its caller set directly. No caller is an account role: rights inside a Job come only from the role in
  * that Job (AD-43). {@link #CREW_APPLICANT} came with Story 21.4, and the split-party variants of {@link #CREW_ACTIVE}
- * and {@link #CREW_FORMER} arrive with Story 22.1, which adds their endpoints (readiness C-8).
+ * and {@link #CREW_FORMER} with Story 22.2, which adds their endpoints (readiness C-8).
  */
 public enum MatrixCaller {
 
@@ -57,6 +57,18 @@ public enum MatrixCaller {
 	 * window that ended before the Job's later content was written.
 	 */
 	CREW_FORMER,
+
+	/**
+	 * An {@code ACTIVE} member of the crew Job who is a party of its splits (Story 22.2): only on the endpoints of a split,
+	 * the one place being a party opens anything.
+	 */
+	CREW_ACTIVE_PARTY,
+
+	/**
+	 * A former Crew member of the crew Job who is a party of its splits (Story 22.2): JOB-10 stays actionable for them,
+	 * though every other tab reads only up to their window's end.
+	 */
+	CREW_FORMER_PARTY,
 
 	/**
 	 * An {@code ACTIVE} member of the crew Job who is also the Customer of a second Active Job, seeded with its own

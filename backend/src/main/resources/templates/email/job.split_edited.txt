@@ -1,0 +1,5 @@
+subject: Phân chia Giai đoạn {n} của {job} đã được sửa. Hãy xác nhận lại trước {date}.
+---
+Xin chào,
+
+Người hướng dẫn đã sửa phân chia tiền Giai đoạn {n} của công việc {job}, và các xác nhận cũ đã bị xóa. Hãy xem bản mới trên trang "Phân chia tiền" và xác nhận lại trước {date}.

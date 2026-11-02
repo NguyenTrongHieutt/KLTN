@@ -17,9 +17,17 @@ import org.jspecify.annotations.Nullable;
  * @param jobId the Job it belongs to, so a Job's screens can show that Job's most urgent to-do
  * @param tier the ordering tier when the key has two by occasion (EXPERIENCE.md To-do Items), such as
  * {@code job.answer_closure}; {@code null} for the key's own
+ * @param milestoneId the Milestone whose split a {@link Audience#SPLIT_PARTY} recipient is a party of
  */
 public record TodoRequest(String key, UUID recipientAccountId, Audience audience, UUID subjectId,
-		Map<String, String> params, String link, @Nullable Instant deadlineAt, @Nullable UUID jobId, @Nullable Integer tier) {
+		Map<String, String> params, String link, @Nullable Instant deadlineAt, @Nullable UUID jobId, @Nullable Integer tier,
+		@Nullable UUID milestoneId) {
+
+	/** A to-do whose recipient needs no Milestone. */
+	public TodoRequest(String key, UUID recipientAccountId, Audience audience, UUID subjectId, Map<String, String> params,
+			String link, @Nullable Instant deadlineAt, @Nullable UUID jobId, @Nullable Integer tier) {
+		this(key, recipientAccountId, audience, subjectId, params, link, deadlineAt, jobId, tier, null);
+	}
 
 	/** A to-do at its key's own tier. */
 	public TodoRequest(String key, UUID recipientAccountId, Audience audience, UUID subjectId, Map<String, String> params,

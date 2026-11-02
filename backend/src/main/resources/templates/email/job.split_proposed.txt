@@ -1,0 +1,5 @@
+subject: Người hướng dẫn đã đề xuất phân chia Giai đoạn {n} của {job}. Hãy xác nhận trước {date}.
+---
+Xin chào,
+
+Người hướng dẫn đã đề xuất phân chia tiền Giai đoạn {n} của công việc {job}. Hãy xem phần chia của mọi người trên trang "Phân chia tiền" và xác nhận trước {date}.

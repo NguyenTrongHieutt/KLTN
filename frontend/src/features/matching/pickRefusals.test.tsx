@@ -76,7 +76,7 @@ const panel = {
   githubLogin: 'minh-dev',
   ndaVersion: '1.0',
   commitmentVersion: '1.0',
-  splitRules: { mentorShareCapPercent: 40, draftDays: 7, confirmationDays: 3, editLimit: 3 },
+  splitRules: { mentorShareCapPercent: 30, draftDays: 7, confirmationDays: 3, editLimit: 3 },
 }
 
 const commitment = (overrides: object = {}) => ({

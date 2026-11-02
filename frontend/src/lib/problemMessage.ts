@@ -94,7 +94,7 @@ function reasonFor(context: ProblemContext, reason: string): string | undefined 
 }
 
 /** A lower-case reason fragment as a sentence of its own. */
-function sentence(fragment: string): string {
+export function sentence(fragment: string): string {
   const text = fragment.charAt(0).toLocaleUpperCase('vi') + fragment.slice(1)
   return /[.!?…]$/.test(text) ? text : `${text}.`
 }

@@ -618,7 +618,7 @@ const commitment = (overrides: object = {}, panel: object = {}) => ({
     githubLogin: 'minh-dev',
     ndaVersion: '1.0',
     commitmentVersion: '1.0',
-    splitRules: { mentorShareCapPercent: 40, draftDays: 7, confirmationDays: 3, editLimit: 3 },
+    splitRules: { mentorShareCapPercent: 30, draftDays: 7, confirmationDays: 3, editLimit: 3 },
     ...panel,
   },
   ...overrides,
@@ -868,7 +868,7 @@ describe('MEN-3 Commitment panel for a picked person (FR-81, UX-DR103, Story 21.
     expect(n19).toHaveTextContent('(@minh-dev)')
     expect(screen.getByText('Sửa lỗi hai khách đặt trùng bàn cùng giờ.')).toBeInTheDocument()
     expect(screen.getByText('Giai đoạn 1 · Sửa lỗi trùng bàn')).toBeInTheDocument()
-    expect(screen.getByText(/Phần của người hướng dẫn tối đa 40%/)).toBeInTheDocument()
+    expect(screen.getByText(/Phần của người hướng dẫn tối đa 30%/)).toBeInTheDocument()
     expect(screen.getByText(/Mỗi bản phân chia có 3 ngày/)).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 3, name: 'Cam kết tham gia · phiên bản 1.0' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 3, name: 'Cam kết bảo mật (NDA) · phiên bản 1.0' })).toBeInTheDocument()

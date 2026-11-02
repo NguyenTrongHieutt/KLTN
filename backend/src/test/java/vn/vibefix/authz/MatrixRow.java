@@ -78,7 +78,7 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 	public static final Set<String> JOB_SCOPED = Set.of("jobId", "boardId", "postId", "applicationId", "crewChatId",
 			"messageId", "workItemId", "workItemNoteId", "attachmentId", "handoverId", "followUpId", "changeRequestId",
 			"teamIssueId", "pageId", "crewMilestoneId", "crewCriterionId", "crewRowId", "milestoneId", "paymentOrderId",
-			"accessId", "screenshotId", "disputeId", "reportId", "fileId", "crewApplicationId");
+			"accessId", "screenshotId", "disputeId", "reportId", "fileId", "crewApplicationId", "splitId");
 
 	private static final Pattern PLACEHOLDER = Pattern.compile("\\{([A-Za-z][A-Za-z0-9]*)}");
 

@@ -15,8 +15,11 @@
 #   scanned as digits and in its VND form, 7.316.429 (MatrixRowRunner.forms, review iteration 4).
 # - SPLIT_POOL_ENTRY, SPLIT_POOL_REVERSAL and SPLIT_OPEN are the crew Job's money between a release and its final split
 #   (Story 22.1, AD-20): the entry types of the pooled release and of its reversal, and the status of a split still
-#   open, on a Milestone accepted and waiting for its draft. No response names them, so no Customer surface can show how
-#   a released total is held or that a split is pending; Stories 22.2 and 22.5 open them to the split's parties.
+#   open, on a Milestone accepted and waiting for its draft. No response names the entry types, so no Customer surface
+#   can show how a released total is held, and JOB-10 (Story 22.2) opens the status to the split's Mentor and parties only.
+# - SPLIT_PART is one party's VND line on the crew Job's other split, out for confirmation (Story 22.2, X11): every party
+#   reads every line of a split they are a party of, a former member included, and nobody else reads any. The status
+#   PROPOSED is no canary, as other answers use that word (ClosureProposals).
 # - WORK_ITEM_NOTE, ATTACHMENT, CREW_CHAT, CREW_CHAT_UNREPORTED and CREW_PAGE are written after the windows of
 #   LOCKED and CREW_FORMER end, so only the ACTIVE Crew reads them; CROSS_ROLE is an ACTIVE member too. So are the
 #   titles WORK_ITEM_TITLE (the active member's Story, which the Customer's screens never name, AD-39, and the
@@ -80,5 +83,6 @@ CREW_APPLICATION_PROOF_CAPTION,canary-crew-application-proof-9c1d5f,CREW_APPLICA
 CREW_APPLICATION_PROOF_LINK,https://proof.example.test/canary-crew-application-3a8e6d,CREW_APPLICANT MENTOR,a proof link of that application
 SPLIT_POOL_ENTRY,RELEASE_POOLED,,the entry type of a Milestone's pooled release
 SPLIT_POOL_REVERSAL,POOL_RELEASED,,the entry type of the reversal of a pool by its final split
-SPLIT_OPEN,AWAITING_DRAFT,,the status of a split waiting for its draft
+SPLIT_OPEN,AWAITING_DRAFT,MENTOR CREW_ACTIVE_PARTY CREW_FORMER_PARTY,the status of a split waiting for its draft
+SPLIT_PART,1234568,MENTOR CREW_ACTIVE_PARTY CREW_FORMER_PARTY,a party's VND line of a split out for confirmation
 CREW_LEFT_NOTE,canary-crew-left-note-7b2e41,MENTOR,the reason a member gave when leaving the crew Job

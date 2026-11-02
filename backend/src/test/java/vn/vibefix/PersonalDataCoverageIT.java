@@ -482,11 +482,47 @@ class PersonalDataCoverageIT extends IntegrationTest {
 		assertThat(this.personalData.erasureBlockers(world.vy())).extracting(ErasureBlocker::reason).containsExactly("MILESTONE_PENDING");
 	}
 
+	/** Another member's confirmation of the version multiplies no row and lends the exporter no date (Story 22.2). */
+	@Test
+	@SuppressWarnings("unchecked")
+	void anExportHasOneRowPerVersionWithTheExportersOwnConfirmation() {
+		HeldCrewJob world = closedJob();
+		UUID split = world.split(this.jdbc, this.clock.instant(), world.milestone(), world.vy(), world.minh());
+		finish(world, split, Map.of(world.hung(), 20, world.vy(), 40, world.minh(), 40));
+		Instant vy = this.clock.instant().plus(Duration.ofHours(1));
+		Instant minh = this.clock.instant().plus(Duration.ofHours(2));
+		confirmed(split, world.vy(), vy);
+		confirmed(split, world.minh(), minh);
+
+		PersonalDataSection section = this.transactions.execute(status -> this.personalData.export(world.vy()))
+			.stream()
+			.filter(found -> "job".equals(found.module()))
+			.findFirst()
+			.orElseThrow();
+
+		List<Map<String, Object>> parts = (List<Map<String, Object>>) section.data().get("milestoneSplitParts");
+		assertThat(parts).hasSize(1);
+		assertThat(parts.getFirst()).containsEntry("versionNo", 1).containsEntry("percent", 40)
+			.containsEntry("confirmedAt", vy.toString());
+	}
+
+	private void confirmed(UUID split, UUID party, Instant at) {
+		this.jdbc.sql("""
+				INSERT INTO job.milestone_split_confirmation (split_id, version_no, party_id, confirmed_at)
+				SELECT :split, 1, id, :at FROM job.milestone_split_party WHERE split_id = :split AND party_account_id = :party
+				""").param("split", split).param("at", Timestamp.from(at)).param("party", party).update();
+	}
+
 	@Test
 	void anErasureOfAPartyOfAFinalSplitAnonymizesThePersonAndKeepsEveryRow() {
 		HeldCrewJob world = closedJob();
 		UUID split = world.split(this.jdbc, this.clock.instant(), world.milestone(), world.vy());
 		finish(world, split, Map.of(world.hung(), 20, world.vy(), 80));
+		// The member's confirmation, which names the party row and no account (Story 22.2).
+		this.jdbc.sql("""
+				INSERT INTO job.milestone_split_confirmation (split_id, version_no, party_id, confirmed_at)
+				SELECT :split, 1, id, now() FROM job.milestone_split_party WHERE split_id = :split AND party_account_id = :party
+				""").param("split", split).param("party", world.vy()).update();
 		long ledger = count("SELECT count(*) FROM payment.ledger_entry");
 
 		PersonalDataSection section = this.transactions.execute(status -> this.personalData.export(world.vy()))
@@ -495,6 +531,7 @@ class PersonalDataCoverageIT extends IntegrationTest {
 			.findFirst()
 			.orElseThrow();
 		assertThat(section.toString()).contains("milestoneSplitParts").contains("percent=80").doesNotContain("percent=20");
+		assertThat(section.toString()).contains("confirmedAt=").doesNotContain("confirmedAt=null");
 
 		assertThat(erase(world.vy())).isInstanceOf(ErasureOutcome.Erased.class);
 		assertThat(erase(world.hung())).isInstanceOf(ErasureOutcome.Erased.class);
@@ -504,6 +541,7 @@ class PersonalDataCoverageIT extends IntegrationTest {
 		assertThat(count("SELECT count(*) FROM job.milestone_split WHERE mentor_account_id IS NOT NULL")).isZero();
 		assertThat(count("SELECT count(*) FROM job.milestone_split_version WHERE author_account_id IS NOT NULL")).isZero();
 		assertThat(count("SELECT count(*) FROM job.milestone_split_share")).isEqualTo(2);
+		assertThat(count("SELECT count(*) FROM job.milestone_split_confirmation")).as("it stays, naming nobody now").isOne();
 		assertThat(count("SELECT count(*) FROM payment.ledger_entry")).as("the RELEASE entries stay").isEqualTo(ledger);
 		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'RELEASE'")).isEqualTo(2);
 	}
@@ -691,7 +729,7 @@ class PersonalDataCoverageIT extends IntegrationTest {
 				INSERT INTO job.milestone_split_share (split_id, version_no, party_id, percent)
 				SELECT :split, 1, id, :percent FROM job.milestone_split_party WHERE split_id = :split AND party_account_id = :party
 				""").param("split", split).param("percent", percent).param("party", party).update());
-		this.jdbc.sql("UPDATE job.milestone_split SET status = 'FINAL', final_version_no = 1 WHERE id = :split")
+		this.jdbc.sql("UPDATE job.milestone_split SET status = 'FINAL', final_version_no = 1, final_at = now(), finality = 'CONFIRMED' WHERE id = :split")
 			.param("split", split)
 			.update();
 	}

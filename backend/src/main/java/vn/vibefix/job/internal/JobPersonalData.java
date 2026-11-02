@@ -82,7 +82,7 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 				"job.crew_terms_confirmation", "job.agreement_comment", "job.agreement_change_request", "job.agreement_approval",
 				"job.confirmed_agreement", "job.closure_proposal", "job.change_request", "job.cancellation_proposal",
 				"job.external_access_identifier", "job.admin_read_grant", "job.milestone_split", "job.milestone_split_party",
-				"job.milestone_split_version", "job.milestone_split_share");
+				"job.milestone_split_version", "job.milestone_split_share", "job.milestone_split_confirmation");
 	}
 
 	@Override
@@ -174,14 +174,18 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 	 */
 	private List<Map<String, Object>> splitParts(UUID accountId) {
 		return this.jdbc.sql("""
-				SELECT s.job_id, s.milestone_number, s.status, s.final_version_no, v.version_no, v.kind, h.percent, v.created_at
+				SELECT s.job_id, s.milestone_number, s.status, s.final_version_no, v.version_no, v.kind, h.percent, v.created_at,
+				    c.confirmed_at
 				FROM job.milestone_split_party p JOIN job.milestone_split s ON s.id = p.split_id
 				LEFT JOIN job.milestone_split_share h ON h.party_id = p.id AND h.split_id = p.split_id
 				LEFT JOIN job.milestone_split_version v ON v.split_id = h.split_id AND v.version_no = h.version_no
+				LEFT JOIN job.milestone_split_confirmation c ON c.split_id = h.split_id AND c.version_no = h.version_no
+				    AND c.party_id = p.id
 				WHERE p.party_account_id = :id ORDER BY s.created_at, s.id, v.version_no
 				""").param("id", accountId).query((rs, n) -> {
 			Integer version = rs.getObject("version_no", Integer.class);
 			Timestamp created = rs.getTimestamp("created_at");
+			Timestamp confirmed = rs.getTimestamp("confirmed_at");
 			Map<String, Object> part = new LinkedHashMap<>();
 			part.put("jobId", rs.getObject("job_id", UUID.class).toString());
 			part.put("milestone", rs.getInt("milestone_number"));
@@ -191,6 +195,7 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 			part.put("percent", rs.getObject("percent", Integer.class));
 			part.put("final", version != null && version.equals(rs.getObject("final_version_no", Integer.class)));
 			part.put("createdAt", created == null ? null : created.toInstant().toString());
+			part.put("confirmedAt", confirmed == null ? null : confirmed.toInstant().toString());
 			return part;
 		}).list();
 	}
