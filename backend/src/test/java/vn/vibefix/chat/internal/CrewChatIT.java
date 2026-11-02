@@ -39,7 +39,7 @@ import vn.vibefix.shared.AdminReadItem;
 import vn.vibefix.shared.AdminReadScope;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.TestFiles;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /**
  * FR-77, AD-20, AD-41: the Crew Chat opens with the Job Chat at J4; the Mentor and the active Crew
@@ -278,7 +278,7 @@ class CrewChatIT extends IntegrationTest {
 	}
 
 	private UUID student(String name) {
-		return TeamTestSupport.student(this.jdbc, name, true, List.of(TeamTestSupport.REACT), "React",
+		return TestPeople.student(this.jdbc, name, true, List.of(TestPeople.REACT), "React",
 				LocalDate.parse("2026-09-30"));
 	}
 

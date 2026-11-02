@@ -34,7 +34,7 @@ import vn.vibefix.product.ProductDirectory;
 import vn.vibefix.reputation.RatingRole;
 import vn.vibefix.reputation.Reputation;
 import vn.vibefix.support.IntegrationTest;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /**
  * ADM-6 (FR-60, FR-14, FR-49, FR-63): a hidden Job Post leaves browse, lapses its invitations, and tells
@@ -106,7 +106,7 @@ class ModerationIT extends IntegrationTest {
 		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
 		world();
 		UUID job = recruitingJob();
-		UUID vy = TeamTestSupport.mentor(this.jdbc, "Lê Thảo Vy", List.of(TeamTestSupport.REACT), "React");
+		UUID vy = TestPeople.mentor(this.jdbc, "Lê Thảo Vy", List.of(TestPeople.REACT), "React");
 		this.mvc.perform(get("/api/v1/mentor/job-posts").with(as(vy, Role.MENTOR)))
 			.andExpect(jsonPath("$.items[0].id").value(job.toString()));
 		this.mvc.perform(get("/api/v1/admin/moderation").param("kind", "JOB_POST").with(admin(ha)))
@@ -166,8 +166,8 @@ class ModerationIT extends IntegrationTest {
 				INSERT INTO identity.profile (account_id, kind, display_name, contact_email, updated_at)
 				VALUES (:id, 'INDIVIDUAL', 'Nguyễn Thị Lan', 'lan@example.com', now())
 				""").param("id", this.lan).update();
-		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng",
-				List.of(TeamTestSupport.REACT), "React");
+		this.hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng",
+				List.of(TestPeople.REACT), "React");
 		this.product = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO product.product (id, customer_account_id, name, description, ai_tools, repository_github_id,

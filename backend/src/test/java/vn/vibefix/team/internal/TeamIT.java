@@ -4,9 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request;
-import static vn.vibefix.team.internal.TeamTestSupport.REACT;
-import static vn.vibefix.team.internal.TeamTestSupport.SUPABASE;
-import static vn.vibefix.team.internal.TeamTestSupport.WEB_SECURITY;
+import static vn.vibefix.support.TestPeople.REACT;
+import static vn.vibefix.support.TestPeople.SUPABASE;
+import static vn.vibefix.support.TestPeople.WEB_SECURITY;
 
 import java.time.Duration;
 import java.time.LocalDate;
@@ -32,6 +32,7 @@ import vn.vibefix.identity.AccountLocked;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.IntegrationTest;
+import vn.vibefix.support.TestPeople;
 import vn.vibefix.team.internal.TeamStore.Kind;
 import vn.vibefix.timers.internal.DeadlinePoller;
 
@@ -84,9 +85,9 @@ class TeamIT extends IntegrationTest {
 
 	@BeforeEach
 	void aMentorWithATeamAndAVerifiedStudent() {
-		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(REACT, SUPABASE), "React, Supabase");
+		this.hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(REACT, SUPABASE), "React, Supabase");
 		this.store.ensure(this.hung, this.clock.instant());
-		this.minh = TeamTestSupport.student(this.jdbc, "Trần Quang Minh", true, List.of(REACT, WEB_SECURITY),
+		this.minh = TestPeople.student(this.jdbc, "Trần Quang Minh", true, List.of(REACT, WEB_SECURITY),
 				"React, Bảo mật web (OWASP Top 10)", VERIFIED_UNTIL);
 	}
 
@@ -95,7 +96,7 @@ class TeamIT extends IntegrationTest {
 		UUID team = this.store.byMentor(this.hung).orElseThrow().id();
 		this.store.insertMembership(team, this.minh, this.clock.instant());
 		UUID membership = this.store.activeMembership(this.minh).orElseThrow().membershipId();
-		UUID vy = TeamTestSupport.student(this.jdbc, "Lê Thảo Vy", true, List.of(REACT), "React", VERIFIED_UNTIL);
+		UUID vy = TestPeople.student(this.jdbc, "Lê Thảo Vy", true, List.of(REACT), "React", VERIFIED_UNTIL);
 		UUID request = this.requests.invite(this.hung, vy).id();
 		UUID lan = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-lan", "3.1");
 		IdentityTestSupport.linkGitHub(this.jdbc, lan);
@@ -135,7 +136,7 @@ class TeamIT extends IntegrationTest {
 	void aLockChangesNoTeam() throws Exception {
 		UUID team = this.store.byMentor(this.hung).orElseThrow().id();
 		this.store.insertMembership(team, this.minh, this.clock.instant());
-		UUID vy = TeamTestSupport.student(this.jdbc, "Lê Thảo Vy", true, List.of(REACT), "React", VERIFIED_UNTIL);
+		UUID vy = TestPeople.student(this.jdbc, "Lê Thảo Vy", true, List.of(REACT), "React", VERIFIED_UNTIL);
 		UUID pending = this.requests.invite(this.hung, vy).id();
 		IdentityTestSupport.lock(this.jdbc, this.hung, "Vi phạm");
 		IdentityTestSupport.lock(this.jdbc, this.minh, "Vi phạm");
@@ -154,7 +155,7 @@ class TeamIT extends IntegrationTest {
 
 	@Test
 	void anUnansweredRequestLapsesAfter14DaysAndAnAnsweredOneIsObsolete() throws Exception {
-		UUID vy = TeamTestSupport.student(this.jdbc, "Lê Thảo Vy", true, List.of(REACT), "React", VERIFIED_UNTIL);
+		UUID vy = TestPeople.student(this.jdbc, "Lê Thảo Vy", true, List.of(REACT), "React", VERIFIED_UNTIL);
 		UUID unanswered = this.requests.invite(this.hung, this.minh).id();
 		UUID answered = this.requests.invite(this.hung, vy).id();
 		this.requests.decline(vy, answered, Kind.INVITATION);

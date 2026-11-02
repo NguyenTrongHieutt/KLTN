@@ -28,7 +28,7 @@ import com.jayway.jsonpath.JsonPath;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.IntegrationTest;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /**
  * FR-23, FR-47, AD-23, AD-33, AD-39, AD-41: the Mentor and the active Crew create and edit Work Items
@@ -63,8 +63,8 @@ class WorkItemsIT extends IntegrationTest {
 	@BeforeEach
 	void anActiveJobWithItsBacklogAndCrew() {
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng",
-				List.of(TeamTestSupport.REACT), "React");
+		this.hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng",
+				List.of(TestPeople.REACT), "React");
 		UUID product = WorkTestSupport.product(this.jdbc, this.lan, "Sổ đặt bàn Quán Mây");
 		this.job = WorkTestSupport.activeJob(this.jdbc, product, this.lan, this.hung, List.of(MILESTONE),
 				List.of(List.of(UUID.randomUUID(), UUID.randomUUID())), this.clock.instant());

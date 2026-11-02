@@ -34,7 +34,7 @@ import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.JobTransitioned;
 import vn.vibefix.support.IntegrationTest;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /**
  * FR-11, FR-9: M5 on an Assessment Job opens the Mentor's follow-up to-do; the Mentor drafts follow-up
@@ -90,7 +90,7 @@ class FollowUpIT extends IntegrationTest {
 			.andExpect(jsonPath("$.reportVersionNo").value(1))
 			.andExpect(jsonPath("$.recommendations.length()").value(3))
 			.andExpect(jsonPath("$.recommendations[1].text").value("Thêm nhắc lịch trước giờ hẹn."))
-			.andExpect(jsonPath("$.skillIds[0]").value(TeamTestSupport.REACT));
+			.andExpect(jsonPath("$.skillIds[0]").value(TestPeople.REACT));
 		read(this.vy, Role.STUDENT, job).andExpect(status().isNotFound());
 		create(this.hung, Role.MENTOR, job, 7, "Không có").andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.reason").value("RECOMMENDATION_UNKNOWN"));
@@ -176,9 +176,9 @@ class FollowUpIT extends IntegrationTest {
 
 	private void people() {
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng",
-				List.of(TeamTestSupport.REACT), "React");
-		this.vy = TeamTestSupport.student(this.jdbc, "Trần Thảo Vy", true, List.of(TeamTestSupport.REACT), "React",
+		this.hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng",
+				List.of(TestPeople.REACT), "React");
+		this.vy = TestPeople.student(this.jdbc, "Trần Thảo Vy", true, List.of(TestPeople.REACT), "React",
 				LocalDate.parse("2026-09-30"));
 	}
 
@@ -203,7 +203,7 @@ class FollowUpIT extends IntegrationTest {
 				    ARRAY[CAST(:react AS UUID)], ARRAY['React'], 'UNDER_2M', DATE '2026-12-01', '{}'::jsonb, 14, :now, :now,
 				    :mentor, :application, :now, 9, :now, :now)
 				""").param("id", job).param("product", product).param("owner", this.lan).param("mentor", this.hung)
-			.param("react", TeamTestSupport.REACT).param("application", UUID.randomUUID()).param("now", now).update();
+			.param("react", TestPeople.REACT).param("application", UUID.randomUUID()).param("now", now).update();
 		Timestamp signed = Timestamp.from(this.clock.instant().minus(Duration.ofDays(5)));
 		this.jdbc.sql("""
 				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, created_at)
@@ -262,7 +262,7 @@ class FollowUpIT extends IntegrationTest {
 		return """
 				{"recommendationNo":%d,"title":"%s","jobTypes":["%s"],"skillIds":["%s"],"scope":"Phạm vi của việc.",
 				 "criteria":["Hai khách không đặt trùng bàn","Có thông báo khi trùng"],"effortDays":5}
-				""".formatted(recommendation, title, type, TeamTestSupport.REACT);
+				""".formatted(recommendation, title, type, TestPeople.REACT);
 	}
 
 	private boolean openTodo(String key, UUID account, UUID job) {

@@ -32,7 +32,7 @@ import vn.vibefix.identity.internal.Role;
 import vn.vibefix.shared.AdminReadGrants;
 import vn.vibefix.support.MutableClock;
 import vn.vibefix.support.TestFiles;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /**
  * Products and their Jobs (FR-7, FR-8, FR-9, AD-20): a registered Product ({@code {productId}}) of
@@ -152,7 +152,7 @@ public class ProductFixture implements MatrixFixture {
 		// A row's job=post binds {jobId} to the post (MatrixRow.Binding.POST_JOB), where {applicationId} lives.
 		world.put("postJobId", post);
 		// A Mentor profile, so a bid reaches the real bid guards (FR-13).
-		this.bidder = TeamTestSupport.mentor(this.jdbc, "Người ứng tuyển ma trận", List.of(TeamTestSupport.REACT),
+		this.bidder = TestPeople.mentor(this.jdbc, "Người ứng tuyển ma trận", List.of(TestPeople.REACT),
 				"React");
 		UUID application = UUID.randomUUID();
 		this.jdbc.sql("""

@@ -33,7 +33,7 @@ import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /**
  * CUS-8's Bid cards and {@code matching.fitMetrics} (FR-15, AD-17, X12, UX-DR100, Story 21.3): bids are listed oldest
@@ -77,7 +77,7 @@ class BidCardsIT extends IntegrationTest {
 			.param("id", this.job)
 			.param("product", this.product)
 			.param("owner", this.lan)
-			.param("skills", "{" + TeamTestSupport.REACT + "," + TeamTestSupport.SUPABASE + "}")
+			.param("skills", "{" + TestPeople.REACT + "," + TestPeople.SUPABASE + "}")
 			.param("now", now)
 			.param("lapses", Timestamp.from(this.clock.instant().plus(Duration.ofDays(14))))
 			.update();
@@ -85,9 +85,9 @@ class BidCardsIT extends IntegrationTest {
 
 	@Test
 	void bidsAreListedOldestFirstAndAnInvitationChangesNothing() throws Exception {
-		UUID mon = TeamTestSupport.mentor(this.jdbc, "Bùi Thứ Hai", List.of(TeamTestSupport.REACT), "React");
-		UUID tue = TeamTestSupport.mentor(this.jdbc, "Cao Thứ Ba", List.of(TeamTestSupport.REACT), "React");
-		UUID wed = TeamTestSupport.mentor(this.jdbc, "An Thứ Tư", List.of(TeamTestSupport.REACT), "React");
+		UUID mon = TestPeople.mentor(this.jdbc, "Bùi Thứ Hai", List.of(TestPeople.REACT), "React");
+		UUID tue = TestPeople.mentor(this.jdbc, "Cao Thứ Ba", List.of(TestPeople.REACT), "React");
+		UUID wed = TestPeople.mentor(this.jdbc, "An Thứ Tư", List.of(TestPeople.REACT), "React");
 		this.mvc.perform(post("/api/v1/jobs/" + this.job + "/invitations").with(as(this.lan, Role.CUSTOMER)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON).content("{\"mentorId\":\"" + wed + "\"}")).andExpect(status().isCreated());
 		// Written out of order, and the invited bidder written first: neither changes the order.
@@ -109,7 +109,7 @@ class BidCardsIT extends IntegrationTest {
 
 	@Test
 	void aNewUserHasNoHistoryMetricAndIsNew() throws Exception {
-		UUID newbie = TeamTestSupport.mentor(this.jdbc, "Người Mới", List.of(TeamTestSupport.REACT), "React");
+		UUID newbie = TestPeople.mentor(this.jdbc, "Người Mới", List.of(TestPeople.REACT), "React");
 		bid(newbie, MONDAY, 800_000);
 
 		cards().andExpect(status().isOk())
@@ -124,7 +124,7 @@ class BidCardsIT extends IntegrationTest {
 			.andExpect(jsonPath("$[0].fitMetrics.verifications.length()").value(1))
 			.andExpect(jsonPath("$[0].fitMetrics.verifications[0]").value("GITHUB"))
 			.andExpect(jsonPath("$[0].mentor.memberSince").value("2026-01-05T03:00:00Z"));
-		this.mvc.perform(get("/api/v1/reputation/histories?username=" + TeamTestSupport.login(this.jdbc, newbie)))
+		this.mvc.perform(get("/api/v1/reputation/histories?username=" + TestPeople.login(this.jdbc, newbie)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$[0].newcomer").value(true))
 			.andExpect(jsonPath("$[0].mentor.jobs").value(0))
@@ -134,8 +134,8 @@ class BidCardsIT extends IntegrationTest {
 
 	@Test
 	void theMetricsCountTheHistoryInBothRolesAndTheOnTimeMilestonesAsMentor() throws Exception {
-		UUID hung = TeamTestSupport.student(this.jdbc, "Đỗ Mạnh Hùng", true,
-				List.of(TeamTestSupport.SUPABASE, TeamTestSupport.REACT), "Supabase, React", LocalDate.parse("2026-09-30"));
+		UUID hung = TestPeople.student(this.jdbc, "Đỗ Mạnh Hùng", true,
+				List.of(TestPeople.SUPABASE, TestPeople.REACT), "Supabase, React", LocalDate.parse("2026-09-30"));
 		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		UUID otherProduct = JobContent.product(this.jdbc, other, "Ứng dụng khác");
 		// As Mentor: one Job closed with four accepted dated Milestones, three handed over by the end of the due day in
@@ -149,7 +149,7 @@ class BidCardsIT extends IntegrationTest {
 		milestone(mentored, 4, null, "2025-12-05T10:00:00Z", "ACCEPTED");
 		milestone(mentored, 5, "2025-12-06", null, "CANCELLED");
 		// As Crew member: one Job of another Mentor closed with Accepted work done while Hùng was active on it.
-		UUID tam = TeamTestSupport.mentor(this.jdbc, "Phan Văn Tâm", List.of(TeamTestSupport.REACT), "React");
+		UUID tam = TestPeople.mentor(this.jdbc, "Phan Văn Tâm", List.of(TestPeople.REACT), "React");
 		UUID crewed = JobContent.job(this.jdbc, otherProduct, other, tam, "Việc làm thành viên nhóm", JobContent.SIGNED,
 				"CLOSED");
 		milestone(crewed, 0, "2025-12-30", "2025-12-28T10:00:00Z", "ACCEPTED");
@@ -173,7 +173,7 @@ class BidCardsIT extends IntegrationTest {
 			.andExpect(jsonPath("$[0].fitMetrics.activeJobsAsMentor").value(1))
 			.andExpect(jsonPath("$[0].fitMetrics.verifications[0]").value("GITHUB"))
 			.andExpect(jsonPath("$[0].fitMetrics.verifications[1]").value("STUDENT"))
-			.andExpect(jsonPath("$[0].mentor.verified[1].school").value(TeamTestSupport.SCHOOL))
+			.andExpect(jsonPath("$[0].mentor.verified[1].school").value(TestPeople.SCHOOL))
 			.andReturn()
 			.getResponse()
 			.getContentAsString();

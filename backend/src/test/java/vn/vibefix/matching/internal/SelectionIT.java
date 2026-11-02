@@ -31,7 +31,7 @@ import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /** FR-15, AD-4, AD-5, AD-30, SG-52: J3 selects an Application, and the others go on hold. */
 class SelectionIT extends IntegrationTest {
@@ -113,7 +113,7 @@ class SelectionIT extends IntegrationTest {
 		IdentityTestSupport.unlinkGitHub(this.jdbc, unlinked);
 		select(gone, 1).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("MENTOR_NOT_AVAILABLE"));
 
-		UUID locked = TeamTestSupport.mentor(this.jdbc, "Đã bị khóa", List.of(TeamTestSupport.REACT), "React");
+		UUID locked = TestPeople.mentor(this.jdbc, "Đã bị khóa", List.of(TestPeople.REACT), "React");
 		UUID lockedBid = application(locked);
 		IdentityTestSupport.lock(this.jdbc, locked, "Vi phạm");
 		select(lockedBid, 1).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("MENTOR_NOT_AVAILABLE"));
@@ -176,7 +176,7 @@ class SelectionIT extends IntegrationTest {
 	@Test
 	void j3SelectsABidderWithNoTeamOrFreeStudent() throws Exception {
 		// Story 21.2: no free Student and no Team is asked for, at the bid or at J3.
-		UUID alone = TeamTestSupport.mentor(this.jdbc, "Không có nhóm", List.of(TeamTestSupport.REACT), "React");
+		UUID alone = TestPeople.mentor(this.jdbc, "Không có nhóm", List.of(TestPeople.REACT), "React");
 		UUID chosen = application(alone);
 
 		select(chosen, 1).andExpect(status().isOk()).andExpect(jsonPath("$.version").value(2));
@@ -218,14 +218,14 @@ class SelectionIT extends IntegrationTest {
 
 	/** An approved Mentor with a Team of one Student, verified or not. */
 	private UUID mentor(String name, boolean verifiedStudent) {
-		UUID mentor = TeamTestSupport.mentor(this.jdbc, name, List.of(TeamTestSupport.REACT),
+		UUID mentor = TestPeople.mentor(this.jdbc, name, List.of(TestPeople.REACT),
 				"React");
 		UUID team = UUID.randomUUID();
 		this.jdbc.sql("INSERT INTO team.team (id, mentor_account_id, status, created_at) VALUES (:id, :mentor, 'OPEN', now())")
 			.param("id", team)
 			.param("mentor", mentor)
 			.update();
-		UUID student = TeamTestSupport.student(this.jdbc, "Sinh viên của " + name, true, List.of(TeamTestSupport.REACT),
+		UUID student = TestPeople.student(this.jdbc, "Sinh viên của " + name, true, List.of(TestPeople.REACT),
 				"React", verifiedStudent ? LocalDate.parse("2026-09-30") : null);
 		this.jdbc.sql("""
 				INSERT INTO team.membership (id, team_id, student_account_id, joined_at) VALUES (:id, :team, :student, now())

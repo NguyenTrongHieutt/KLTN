@@ -32,7 +32,7 @@ import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.JobTransitioned;
 import vn.vibefix.support.IntegrationTest;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /**
  * FR-36, AD-29: a due-date Change Request takes effect only when the Customer approved and the Mentor
@@ -115,7 +115,7 @@ class ChangeRequestIT extends IntegrationTest {
 				SELECT array_to_string(crew_usernames, ' ') FROM job.confirmed_agreement WHERE job_id = :job AND version_no = 2
 				""").param("job", job).query(String.class).single())
 			.as("the members active now, not version 1's list, which named a member who left and not the one who joined")
-			.isEqualTo(TeamTestSupport.login(this.jdbc, this.vy));
+			.isEqualTo(TestPeople.login(this.jdbc, this.vy));
 		assertThat(notifications("job.change_request_applied", null)).isEqualTo(2);
 		assertThat(openTodos("job.answer_change_request", this.hung)).isZero();
 		this.mvc.perform(get("/api/v1/boards/" + job + "/agreement-versions").with(as(this.vy, Role.STUDENT)))
@@ -177,9 +177,9 @@ class ChangeRequestIT extends IntegrationTest {
 	/** An Active Job with a confirmed Agreement: Milestone 1 Funded, Milestone 2 Planned. */
 	private UUID world() {
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng",
-				List.of(TeamTestSupport.REACT), "React");
-		this.vy = TeamTestSupport.student(this.jdbc, "Trần Thảo Vy", true, List.of(TeamTestSupport.REACT), "React",
+		this.hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng",
+				List.of(TestPeople.REACT), "React");
+		this.vy = TestPeople.student(this.jdbc, "Trần Thảo Vy", true, List.of(TestPeople.REACT), "React",
 				LocalDate.parse("2026-09-30"));
 		UUID product = UUID.randomUUID();
 		this.jdbc.sql("""

@@ -26,7 +26,7 @@ import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /**
  * Story 20.6, AD-43, UX-DR86, UX-DR87: JOB-H reads the caller's role in one Job, whatever its state, and "Công
@@ -49,7 +49,7 @@ class JobRoleControllerIT extends IntegrationTest {
 	@Test
 	void eachRoleHolderReadsTheirRoleInTheJobAndEveryoneElseFindsNothing() throws Exception {
 		UUID customer = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		UUID mentor = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT), "React");
+		UUID mentor = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT), "React");
 		UUID assigned = member("Thành viên được chọn");
 		UUID active = member("Thành viên đang làm");
 		UUID former = member("Thành viên đã rời");
@@ -84,7 +84,7 @@ class JobRoleControllerIT extends IntegrationTest {
 	void myJobsListsEveryJobWhereTheCallerHoldsARoleNewestFirst() throws Exception {
 		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		UUID hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT), "React");
+		UUID hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT), "React");
 		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
 		// Lan posts Job A and mentors Job B; she was on Job C's Crew and left; she declined Job D's pick.
 		UUID postedDraft = job(lan, null, "DRAFT", 1);
@@ -124,7 +124,7 @@ class JobRoleControllerIT extends IntegrationTest {
 	}
 
 	private UUID member(String name) {
-		return TeamTestSupport.student(this.jdbc, name, true, List.of(TeamTestSupport.REACT), "React", VERIFIED_UNTIL);
+		return TestPeople.student(this.jdbc, name, true, List.of(TestPeople.REACT), "React", VERIFIED_UNTIL);
 	}
 
 	/** A Job on its own Product, changed {@code daysAgo} days before now; titled "Việc số {daysAgo}". */

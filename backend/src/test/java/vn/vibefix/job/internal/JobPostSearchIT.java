@@ -32,7 +32,7 @@ import vn.vibefix.identity.internal.Role;
 import vn.vibefix.shared.SearchWindow;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /**
  * FR-12, AD-36, AD-38, SG-39, SG-42 to SG-44: keyword search over the Jobs "Tìm việc" lists, the recruitment note and
@@ -101,10 +101,10 @@ class JobPostSearchIT extends IntegrationTest {
 
 	@Test
 	void aRenamedSkillIsFoundByItsNewNameOnly() throws Exception {
-		job("OPEN", "Sửa giao diện", "Nút bị lệch.", "BUG_FIX", TeamTestSupport.REACT);
+		job("OPEN", "Sửa giao diện", "Nút bị lệch.", "BUG_FIX", TestPeople.REACT);
 		assertTitles("react", "Sửa giao diện");
 
-		SkillRenamed renamed = new SkillRenamed(UUID.randomUUID(), UUID.fromString(TeamTestSupport.REACT), "Khung Giao Diện X");
+		SkillRenamed renamed = new SkillRenamed(UUID.randomUUID(), UUID.fromString(TestPeople.REACT), "Khung Giao Diện X");
 		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.events.publishEvent(renamed));
 		await().atMost(Duration.ofSeconds(10))
 			.until(() -> this.jdbc.sql("SELECT count(*) FROM job.job WHERE 'Khung Giao Diện X' = ANY (skill_names)")
@@ -124,7 +124,7 @@ class JobPostSearchIT extends IntegrationTest {
 		assertTitles("ban hang", "Hoàn thiện ứng dụng đặt bàn");
 		assertTitles("supabase", "Hoàn thiện ứng dụng đặt bàn");
 
-		SkillRenamed renamed = new SkillRenamed(UUID.randomUUID(), UUID.fromString(TeamTestSupport.SUPABASE), "Kho Dữ Liệu Y");
+		SkillRenamed renamed = new SkillRenamed(UUID.randomUUID(), UUID.fromString(TestPeople.SUPABASE), "Kho Dữ Liệu Y");
 		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.events.publishEvent(renamed));
 		await().atMost(Duration.ofSeconds(10))
 			.until(() -> this.jdbc.sql("SELECT count(*) FROM job.job WHERE 'Kho Dữ Liệu Y' = ANY (recruit_skill_names)")
@@ -222,7 +222,7 @@ class JobPostSearchIT extends IntegrationTest {
 			.param("now", now)
 			.param("mentor", mentor)
 			.param("application", UUID.randomUUID())
-			.param("sought", "{" + TeamTestSupport.SUPABASE + "}")
+			.param("sought", "{" + TestPeople.SUPABASE + "}")
 			.param("note", note)
 			.update();
 		return id;

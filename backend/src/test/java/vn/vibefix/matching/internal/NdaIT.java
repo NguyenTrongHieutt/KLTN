@@ -31,7 +31,7 @@ import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 import vn.vibefix.timers.internal.DeadlinePoller;
 
 /** FR-15, FR-18, AD-7, SM-8 "a selection declined": J4 by signature, J5 by decline or cancel. */
@@ -232,14 +232,14 @@ class NdaIT extends IntegrationTest {
 	}
 
 	private UUID mentor(String name) {
-		UUID mentor = TeamTestSupport.mentor(this.jdbc, name, List.of(TeamTestSupport.REACT),
+		UUID mentor = TestPeople.mentor(this.jdbc, name, List.of(TestPeople.REACT),
 				"React");
 		UUID team = UUID.randomUUID();
 		this.jdbc.sql("INSERT INTO team.team (id, mentor_account_id, status, created_at) VALUES (:id, :mentor, 'OPEN', now())")
 			.param("id", team)
 			.param("mentor", mentor)
 			.update();
-		UUID student = TeamTestSupport.student(this.jdbc, "Sinh viên của " + name, true, List.of(TeamTestSupport.REACT),
+		UUID student = TestPeople.student(this.jdbc, "Sinh viên của " + name, true, List.of(TestPeople.REACT),
 				"React", LocalDate.parse("2026-09-30"));
 		this.jdbc.sql("""
 				INSERT INTO team.membership (id, team_id, student_account_id, joined_at) VALUES (:id, :team, :student, now())

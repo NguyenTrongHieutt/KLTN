@@ -25,7 +25,7 @@ import vn.vibefix.identity.internal.AdministratorTestSupport.Administrator;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.IntegrationTest;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /**
  * ADM-9 (FR-62, UX-DR110): every module's figures in their groups, in the fixed order; the private-feedback figure
@@ -53,8 +53,8 @@ class StatisticsIT extends IntegrationTest {
 		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
 		IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, "Vi phạm");
-		TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT), "React");
-		TeamTestSupport.student(this.jdbc, "Trần Thảo Vy", true, List.of(TeamTestSupport.REACT), "React",
+		TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT), "React");
+		TestPeople.student(this.jdbc, "Trần Thảo Vy", true, List.of(TestPeople.REACT), "React",
 				LocalDate.parse("2026-09-30"));
 		IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null);
 		IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-thong-ke", "3.1");
@@ -108,7 +108,7 @@ class StatisticsIT extends IntegrationTest {
 	@Test
 	void aRenewedVerificationCountsOnceAndAnUnlinkedOrRevokedOneNotAtAll() throws Exception {
 		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
-		UUID renewed = TeamTestSupport.student(this.jdbc, "Gia hạn", true, List.of(), "", LocalDate.parse("2026-09-30"));
+		UUID renewed = TestPeople.student(this.jdbc, "Gia hạn", true, List.of(), "", LocalDate.parse("2026-09-30"));
 		this.jdbc.sql("""
 				INSERT INTO identity.verification (id, account_id, kind, provider, subject_hmac, key_version, consent_version,
 				    verified_at, valid_until, ended_at, ended_reason)
@@ -117,7 +117,7 @@ class StatisticsIT extends IntegrationTest {
 				""").param("id", UUID.randomUUID()).param("account", renewed)
 			.param("hmac", IdentityTestSupport.fakeHmac("renewed-old")).update();
 		for (String reason : List.of("UNLINKED", "REVOKED")) {
-			UUID ended = TeamTestSupport.student(this.jdbc, reason, true, List.of(), "", LocalDate.parse("2026-09-30"));
+			UUID ended = TestPeople.student(this.jdbc, reason, true, List.of(), "", LocalDate.parse("2026-09-30"));
 			this.jdbc.sql("""
 					UPDATE identity.verification SET ended_at = now(), ended_reason = :reason, facts = NULL WHERE account_id = :id
 					""").param("id", ended).param("reason", reason).update();
@@ -135,7 +135,7 @@ class StatisticsIT extends IntegrationTest {
 			.andExpect(jsonPath("$.groups[?(@.group == 'ratings')].counts.length()").value(0));
 
 		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		UUID hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT),
+		UUID hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT),
 				"React");
 		UUID product = product(lan);
 		List<UUID> closed = List.of(job(product, lan, hung, "CLOSED", true), job(product, lan, hung, "CLOSED", true),

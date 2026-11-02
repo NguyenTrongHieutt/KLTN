@@ -37,7 +37,7 @@ import vn.vibefix.identity.internal.AdministratorTestSupport.Administrator;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.IntegrationTest;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /**
  * ADM-2 (FR-5, FR-59, FR-78, SM-8): the search ignores accents; a lock ends the account's sessions,
@@ -69,10 +69,10 @@ class AccountAdministrationIT extends IntegrationTest {
 	@Test
 	void theSearchIgnoresAccentsAndALockEndsTheSessionsUntilTheUnlock() throws Exception {
 		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
-		UUID vy = TeamTestSupport.student(this.jdbc, "Trần Thảo Vy", true, List.of(TeamTestSupport.REACT), "React",
+		UUID vy = TestPeople.student(this.jdbc, "Trần Thảo Vy", true, List.of(TestPeople.REACT), "React",
 				LocalDate.parse("2026-09-30"));
-		UUID hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng",
-				List.of(TeamTestSupport.REACT), "React");
+		UUID hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng",
+				List.of(TestPeople.REACT), "React");
 		this.mvc.perform(get("/api/v1/admin/users").param("q", "thao vy").with(admin(ha))).andExpect(status().isOk())
 			.andExpect(jsonPath("$.total").value(1))
 			.andExpect(jsonPath("$.items[0].id").value(vy.toString()))
@@ -155,9 +155,9 @@ class AccountAdministrationIT extends IntegrationTest {
 	@Test
 	void theRevocationsAreGoneAndTheOldOnesStayReadableInTheHistory() throws Exception {
 		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
-		UUID vy = TeamTestSupport.student(this.jdbc, "Trần Thảo Vy", true, List.of(TeamTestSupport.REACT), "React",
+		UUID vy = TestPeople.student(this.jdbc, "Trần Thảo Vy", true, List.of(TestPeople.REACT), "React",
 				LocalDate.parse("2026-09-30"));
-		UUID hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT), "React");
+		UUID hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT), "React");
 
 		command(ha, vy, "revoke-verification", "{\"reason\":\"Thẻ sinh viên giả\"}").andExpect(status().isNotFound());
 		command(ha, hung, "revoke-approval", "{\"ground\":\"OTHER\",\"reason\":\"Vi phạm\",\"stepUpCode\":\""
@@ -188,7 +188,7 @@ class AccountAdministrationIT extends IntegrationTest {
 		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
 		UUID lan = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-lan", "3.1");
 		IdentityTestSupport.verifyStudent(this.jdbc, lan, LocalDate.parse("2026-09-30"));
-		UUID unlinked = TeamTestSupport.student(this.jdbc, "Đã bỏ", true, List.of(), "", LocalDate.parse("2026-09-30"));
+		UUID unlinked = TestPeople.student(this.jdbc, "Đã bỏ", true, List.of(), "", LocalDate.parse("2026-09-30"));
 		this.jdbc.sql("""
 				UPDATE identity.verification SET ended_at = now(), ended_reason = 'UNLINKED', facts = NULL WHERE account_id = :id
 				""").param("id", unlinked).update();
@@ -209,8 +209,8 @@ class AccountAdministrationIT extends IntegrationTest {
 	@Test
 	void aMentorsPrivateFeedbackIsReadUnderAuditAndTheLowOnesAreListed() throws Exception {
 		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
-		UUID hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng",
-				List.of(TeamTestSupport.REACT), "React");
+		UUID hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng",
+				List.of(TestPeople.REACT), "React");
 		UUID vy = UUID.randomUUID();
 		UUID minh = UUID.randomUUID();
 		UUID first = window(hung);

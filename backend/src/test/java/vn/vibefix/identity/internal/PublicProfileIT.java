@@ -21,7 +21,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /**
  * PUB-4's identity half (FR-51, UX-DR96, AD-42, X9, Story 21.3), for anyone at {@code /api/v1/users/{username}}: the
@@ -45,8 +45,8 @@ class PublicProfileIT extends IntegrationTest {
 
 	@Test
 	void aPersonsProfileShowsTheVerifiedFactsInOrderTheTypedProfileAndTheSkills() throws Exception {
-		UUID minh = TeamTestSupport.student(this.jdbc, "Trần Quang Minh", true,
-				List.of(TeamTestSupport.REACT, TeamTestSupport.SUPABASE), "React, Supabase", VERIFIED_UNTIL);
+		UUID minh = TestPeople.student(this.jdbc, "Trần Quang Minh", true,
+				List.of(TestPeople.REACT, TestPeople.SUPABASE), "React, Supabase", VERIFIED_UNTIL);
 		this.jdbc.sql("""
 				UPDATE identity.profile SET display_name = 'Minh Trần', experience = 'Làm ứng dụng đặt bàn.',
 				    years_of_experience = 3, contact_email = 'minh.lienhe@example.test', phone = '+84 966 123 456'
@@ -55,7 +55,7 @@ class PublicProfileIT extends IntegrationTest {
 		this.jdbc.sql("INSERT INTO identity.profile_link (account_id, position, url) VALUES (:id, 0, 'https://minh.dev')")
 			.param("id", minh)
 			.update();
-		String login = TeamTestSupport.login(this.jdbc, minh);
+		String login = TestPeople.login(this.jdbc, minh);
 
 		String body = this.mvc.perform(get("/api/v1/users/" + login.toUpperCase()))
 			.andExpect(status().isOk())
@@ -68,9 +68,9 @@ class PublicProfileIT extends IntegrationTest {
 			.andExpect(jsonPath("$.verified[0].githubLogin").value(login))
 			.andExpect(jsonPath("$.verified[1].kind").value("STUDENT"))
 			.andExpect(jsonPath("$.verified[1].verifiedAt").isNotEmpty())
-			.andExpect(jsonPath("$.verified[1].school").value(TeamTestSupport.SCHOOL))
+			.andExpect(jsonPath("$.verified[1].school").value(TestPeople.SCHOOL))
 			.andExpect(jsonPath("$.verified[1].name").value("Trần Quang Minh"))
-			.andExpect(jsonPath("$.verified[1].major").value(TeamTestSupport.MAJOR))
+			.andExpect(jsonPath("$.verified[1].major").value(TestPeople.MAJOR))
 			.andExpect(jsonPath("$.verified[2].kind").value("LINKEDIN"))
 			.andExpect(jsonPath("$.verified[2].verifiedAt").value(Matchers.nullValue()))
 			.andExpect(jsonPath("$.experience").value("Làm ứng dụng đặt bàn."))
@@ -99,13 +99,13 @@ class PublicProfileIT extends IntegrationTest {
 	/** The GitHub fact's month is the last link, never the account's creation, which is the month joined. */
 	@Test
 	void theGitHubFactIsDatedByTheLinkAndTheMonthJoinedByTheAccount() throws Exception {
-		UUID linkedLater = TeamTestSupport.mentor(this.jdbc, "Liên Kết Sau", List.of(TeamTestSupport.REACT), "React");
+		UUID linkedLater = TestPeople.mentor(this.jdbc, "Liên Kết Sau", List.of(TestPeople.REACT), "React");
 		this.jdbc.sql("UPDATE identity.account SET github_linked_at = :at WHERE id = :id")
 			.param("at", java.sql.Timestamp.from(Instant.parse("2026-03-10T05:00:00Z")))
 			.param("id", linkedLater)
 			.update();
 
-		this.mvc.perform(get("/api/v1/users/" + TeamTestSupport.login(this.jdbc, linkedLater)))
+		this.mvc.perform(get("/api/v1/users/" + TestPeople.login(this.jdbc, linkedLater)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.verified[0].kind").value("GITHUB"))
 			.andExpect(jsonPath("$.verified[0].verifiedAt").value("2026-03-10T05:00:00Z"))
@@ -114,9 +114,9 @@ class PublicProfileIT extends IntegrationTest {
 
 	@Test
 	void hiddenStudentFactsLeaveTheBadgeAndALapsedOneReadsUnverified() throws Exception {
-		UUID hidden = TeamTestSupport.student(this.jdbc, "Nguyễn Ẩn Danh", false, List.of(TeamTestSupport.REACT), "React",
+		UUID hidden = TestPeople.student(this.jdbc, "Nguyễn Ẩn Danh", false, List.of(TestPeople.REACT), "React",
 				VERIFIED_UNTIL);
-		String login = TeamTestSupport.login(this.jdbc, hidden);
+		String login = TestPeople.login(this.jdbc, hidden);
 
 		String body = this.mvc.perform(get("/api/v1/users/" + login))
 			.andExpect(status().isOk())
@@ -129,7 +129,7 @@ class PublicProfileIT extends IntegrationTest {
 			.andReturn()
 			.getResponse()
 			.getContentAsString(StandardCharsets.UTF_8);
-		assertThat(body).doesNotContain("Nguyễn Ẩn Danh", TeamTestSupport.SCHOOL, TeamTestSupport.MAJOR);
+		assertThat(body).doesNotContain("Nguyễn Ẩn Danh", TestPeople.SCHOOL, TestPeople.MAJOR);
 
 		// After its last valid day the student fact is "Chưa xác minh", though its Deadline has yet to end it.
 		this.clock.setInstant(Instant.parse("2026-09-30T17:00:00Z"));
@@ -140,9 +140,9 @@ class PublicProfileIT extends IntegrationTest {
 
 	@Test
 	void aLockedPersonShowsOnlyThatTheyAreNotActive() throws Exception {
-		UUID locked = TeamTestSupport.mentor(this.jdbc, "Người Bị Khóa", List.of(TeamTestSupport.REACT), "React");
+		UUID locked = TestPeople.mentor(this.jdbc, "Người Bị Khóa", List.of(TestPeople.REACT), "React");
 		IdentityTestSupport.lock(this.jdbc, locked, "Vi phạm quy định");
-		String login = TeamTestSupport.login(this.jdbc, locked);
+		String login = TestPeople.login(this.jdbc, locked);
 
 		String body = this.mvc.perform(get("/api/v1/users/" + login))
 			.andExpect(status().isOk())
@@ -163,15 +163,15 @@ class PublicProfileIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/users/khong-co-ai/reputation")).andExpect(status().isNotFound());
 
 		// An unlinked account keeps no username (FR-80).
-		UUID unlinked = TeamTestSupport.mentor(this.jdbc, "Chưa Liên Kết", List.of(TeamTestSupport.REACT), "React");
-		String old = TeamTestSupport.login(this.jdbc, unlinked);
+		UUID unlinked = TestPeople.mentor(this.jdbc, "Chưa Liên Kết", List.of(TestPeople.REACT), "React");
+		String old = TestPeople.login(this.jdbc, unlinked);
 		IdentityTestSupport.unlinkGitHub(this.jdbc, unlinked);
 		this.mvc.perform(get("/api/v1/users/" + old)).andExpect(status().isNotFound());
 
 		// github_login has no unique index: an old username another account still holds finds no one.
-		UUID first = TeamTestSupport.mentor(this.jdbc, "Người Thứ Nhất", List.of(TeamTestSupport.REACT), "React");
-		UUID second = TeamTestSupport.mentor(this.jdbc, "Người Thứ Hai", List.of(TeamTestSupport.REACT), "React");
-		String shared = TeamTestSupport.login(this.jdbc, first);
+		UUID first = TestPeople.mentor(this.jdbc, "Người Thứ Nhất", List.of(TestPeople.REACT), "React");
+		UUID second = TestPeople.mentor(this.jdbc, "Người Thứ Hai", List.of(TestPeople.REACT), "React");
+		String shared = TestPeople.login(this.jdbc, first);
 		this.jdbc.sql("UPDATE identity.account SET github_login = :login WHERE id = :id")
 			.param("login", shared.toUpperCase())
 			.param("id", second)

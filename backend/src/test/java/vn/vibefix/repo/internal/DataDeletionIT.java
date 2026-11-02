@@ -30,7 +30,7 @@ import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.JobTransitioned;
 import vn.vibefix.repo.DataDeletions;
 import vn.vibefix.support.IntegrationTest;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /**
  * FR-66, AD-19, AD-41, UX-DR51: J8 asks the Mentor and every Crew member who was ever active, a released
@@ -58,8 +58,8 @@ class DataDeletionIT extends IntegrationTest {
 	@Test
 	void theMentorAndEveryEverActiveMemberConfirmAfterTheJobEnds() throws Exception {
 		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		UUID hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng",
-				List.of(TeamTestSupport.REACT), "React");
+		UUID hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng",
+				List.of(TestPeople.REACT), "React");
 		UUID vy = student("Trần Thảo Vy");
 		UUID hai = student("Lê Văn Hải");
 		UUID never = student("Ngô Chưa Ký");
@@ -128,7 +128,7 @@ class DataDeletionIT extends IntegrationTest {
 	}
 
 	private UUID student(String name) {
-		return TeamTestSupport.student(this.jdbc, name, true, List.of(TeamTestSupport.REACT), "React", LocalDate.parse("2026-09-30"));
+		return TestPeople.student(this.jdbc, name, true, List.of(TestPeople.REACT), "React", LocalDate.parse("2026-09-30"));
 	}
 
 	private UUID job(UUID owner, UUID mentor) {

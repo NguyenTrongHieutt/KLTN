@@ -30,7 +30,7 @@ import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.JobTransitioned;
 import vn.vibefix.support.IntegrationTest;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 import vn.vibefix.timers.internal.DeadlinePoller;
 
 /**
@@ -72,8 +72,8 @@ class RevocationChecklistIT extends IntegrationTest {
 	@BeforeEach
 	void aClosingJobWithTwoExternalAccessItems() {
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng",
-				java.util.List.of(TeamTestSupport.REACT), "React");
+		this.hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng",
+				java.util.List.of(TestPeople.REACT), "React");
 		this.supabase = UUID.randomUUID();
 		this.vercel = UUID.randomUUID();
 		this.job = job(true);

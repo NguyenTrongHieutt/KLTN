@@ -23,7 +23,7 @@ import vn.vibefix.notification.Notifications;
 import vn.vibefix.notification.Recipient;
 import vn.vibefix.support.HeldCrewJob;
 import vn.vibefix.support.IntegrationTest;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /**
  * AD-20, UX-DR112, A-11 (Stories 20.5 and 22.1): {@code job} confirms {@code SPLIT_PARTY} as the parties other than the
@@ -73,7 +73,7 @@ class SplitPartyRecipientsIT extends IntegrationTest {
 	@Test
 	void eachMilestonesSplitPartiesAreItsOwn() {
 		HeldCrewJob world = HeldCrewJob.create(this.jdbc, this.clock.instant());
-		UUID an = TeamTestSupport.student(this.jdbc, "Phan Văn An", true, List.of(TeamTestSupport.REACT), "React",
+		UUID an = TestPeople.student(this.jdbc, "Phan Văn An", true, List.of(TestPeople.REACT), "React",
 				LocalDate.parse("2026-09-30"));
 		UUID second = UUID.randomUUID();
 		world.split(this.jdbc, this.clock.instant(), world.milestone(), world.vy(), world.minh());

@@ -28,7 +28,7 @@ import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /**
  * PUB-4's own suite (R17, AD-20, AD-33, review 2026-10-27 A-06, Stories 20.5 and 21.3): the public profile of a
@@ -88,7 +88,7 @@ class PublicReputationIT extends IntegrationTest {
 	void twoJobsClosedWithAcceptedWork() {
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		JobContent.customerProfile(this.jdbc, this.lan, CUSTOMER_NAME, "lan.khach@example.test");
-		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT), "React");
+		this.hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT), "React");
 		this.vy = JobContent.member(this.jdbc, VY_STUDENT_NAME);
 		displayName(this.vy, VY_DISPLAY_NAME);
 		this.minh = JobContent.member(this.jdbc, MINH_STUDENT_NAME);
@@ -96,7 +96,7 @@ class PublicReputationIT extends IntegrationTest {
 		closedJob(ALLOWED_PRODUCT, true);
 		closedJob(HIDDEN_PRODUCT, false);
 		// Hùng was a Crew member too, under another Mentor on another Customer's Job, and rated 3 stars there.
-		this.tam = TeamTestSupport.mentor(this.jdbc, OTHER_MENTOR, List.of(TeamTestSupport.REACT), "React");
+		this.tam = TestPeople.mentor(this.jdbc, OTHER_MENTOR, List.of(TestPeople.REACT), "React");
 		crewJob();
 		// A Job still running, with Vy on its Crew: no history names it, or that she is on it.
 		UUID product = JobContent.product(this.jdbc, this.lan, "Ứng dụng chạy Quán Mây");
@@ -242,7 +242,7 @@ class PublicReputationIT extends IntegrationTest {
 	}
 
 	private String login(UUID account) {
-		return TeamTestSupport.login(this.jdbc, account);
+		return TestPeople.login(this.jdbc, account);
 	}
 
 	/**
@@ -308,7 +308,7 @@ class PublicReputationIT extends IntegrationTest {
 			.param("account", account)
 			.param("role", role)
 			.param("productName", productName)
-			.param("skills", "{" + TeamTestSupport.REACT + "}")
+			.param("skills", "{" + TestPeople.REACT + "}")
 			.param("approved", mentor ? null : 3)
 			.param("handedOver", mentor ? 1 : null)
 			.param("reviews", mentor ? 4 : null)

@@ -37,7 +37,7 @@ import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.Kind;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /**
  * FR-12, FR-13, AD-33, AD-36, AD-38, AD-43: any user with GitHub linked browses and reads the Jobs that need people,
@@ -73,10 +73,10 @@ class JobPostsIT extends IntegrationTest {
 	@Test
 	void aMentorBrowsesOpenVisibleJobPostsNewestFirstTwentyAPage() throws Exception {
 		for (int i = 0; i < 21; i++) {
-			openJob("Tin " + i, "BUG_FIX", TeamTestSupport.REACT, "React", "UNDER_2M", "2026-03-01",
+			openJob("Tin " + i, "BUG_FIX", TestPeople.REACT, "React", "UNDER_2M", "2026-03-01",
 					MutableClock.DEFAULT_INSTANT.minus(Duration.ofHours(21 - i)));
 		}
-		UUID hidden = openJob("Tin bị ẩn", "BUG_FIX", TeamTestSupport.REACT, "React", "UNDER_2M", "2026-03-01",
+		UUID hidden = openJob("Tin bị ẩn", "BUG_FIX", TestPeople.REACT, "React", "UNDER_2M", "2026-03-01",
 				MutableClock.DEFAULT_INSTANT);
 		this.jdbc.sql("UPDATE job.job SET hidden_at = now(), hidden_reason = 'Vi phạm' WHERE id = :id")
 			.param("id", hidden)
@@ -113,7 +113,7 @@ class JobPostsIT extends IntegrationTest {
 		UUID minh = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-minh", "3.1");
 		IdentityTestSupport.linkGitHub(this.jdbc, minh);
 		UUID own = product(minh);
-		UUID lans = openJob("Tin của Lan", "BUG_FIX", TeamTestSupport.REACT, "React", "UNDER_2M", "2026-03-01",
+		UUID lans = openJob("Tin của Lan", "BUG_FIX", TestPeople.REACT, "React", "UNDER_2M", "2026-03-01",
 				MutableClock.DEFAULT_INSTANT);
 
 		String created = this.mvc.perform(post("/api/v1/jobs").with(as(minh, null)).with(csrf())
@@ -155,17 +155,17 @@ class JobPostsIT extends IntegrationTest {
 
 	@Test
 	void theFiltersApplyTogether() throws Exception {
-		openJob("A", "BUG_FIX", TeamTestSupport.REACT, "React", "UNDER_2M", "2026-01-15", MutableClock.DEFAULT_INSTANT);
-		openJob("B", "NEW_FEATURE", TeamTestSupport.SUPABASE, "Supabase", "FROM_2M_TO_5M", "2026-03-01",
+		openJob("A", "BUG_FIX", TestPeople.REACT, "React", "UNDER_2M", "2026-01-15", MutableClock.DEFAULT_INSTANT);
+		openJob("B", "NEW_FEATURE", TestPeople.SUPABASE, "Supabase", "FROM_2M_TO_5M", "2026-03-01",
 				MutableClock.DEFAULT_INSTANT.minusSeconds(60));
-		openJob("C", "ASSESSMENT", TeamTestSupport.WEB_SECURITY, "Bảo mật web (OWASP Top 10)", "OVER_10M", "2026-01-10",
+		openJob("C", "ASSESSMENT", TestPeople.WEB_SECURITY, "Bảo mật web (OWASP Top 10)", "OVER_10M", "2026-01-10",
 				MutableClock.DEFAULT_INSTANT.minusSeconds(120));
 
 		assertTitles("?type=BUG_FIX", "A");
 		assertTitles("?type=BUG_FIX&type=ASSESSMENT", "A", "C");
-		assertTitles("?skill=" + TeamTestSupport.REACT, "A");
+		assertTitles("?skill=" + TestPeople.REACT, "A");
 		assertTitles("?category=" + DATA_CATEGORY, "B");
-		assertTitles("?skill=" + TeamTestSupport.REACT + "&category=" + DATA_CATEGORY, "A", "B");
+		assertTitles("?skill=" + TestPeople.REACT + "&category=" + DATA_CATEGORY, "A", "B");
 		assertTitles("?budget=FROM_2M_TO_5M", "B");
 		assertTitles("?within=14", "A", "C");
 		assertTitles("?within=14&type=ASSESSMENT", "C");
@@ -236,14 +236,14 @@ class JobPostsIT extends IntegrationTest {
 				INSERT INTO identity.profile (account_id, kind, display_name, contact_email, updated_at)
 				VALUES (:id, 'BUSINESS', 'Nguyễn Thị Lan', 'lan@example.com', now())
 				""").param("id", this.lan).update();
-		UUID open = openJob("Tin mở", "BUG_FIX", TeamTestSupport.REACT, "React", "UNDER_2M", "2026-03-01",
+		UUID open = openJob("Tin mở", "BUG_FIX", TestPeople.REACT, "React", "UNDER_2M", "2026-03-01",
 				MutableClock.DEFAULT_INSTANT.minus(Duration.ofHours(3)));
-		UUID ha = TeamTestSupport.mentor(this.jdbc, "Phạm Thu Hà", List.of(TeamTestSupport.REACT), "React");
+		UUID ha = TestPeople.mentor(this.jdbc, "Phạm Thu Hà", List.of(TestPeople.REACT), "React");
 		UUID recruiting = crewJob("Đang tuyển thêm", "AGREEMENT", ha, true, 2, "Cần người làm trang bán hàng",
 				MutableClock.DEFAULT_INSTANT.minus(Duration.ofHours(1)));
 		UUID vy = member();
 		crewRow(recruiting, vy, "ACTIVE", true);
-		UUID longMentor = TeamTestSupport.mentor(this.jdbc, "Trần Đức Long", List.of(TeamTestSupport.REACT), "React");
+		UUID longMentor = TestPeople.mentor(this.jdbc, "Trần Đức Long", List.of(TestPeople.REACT), "React");
 		UUID noMember = crewJob("Chưa có ai", "AGREEMENT", longMentor, true, 1, null,
 				MutableClock.DEFAULT_INSTANT.minus(Duration.ofHours(2)));
 		// A pick not signed yet is no counted member (AD-41).
@@ -255,7 +255,7 @@ class JobPostsIT extends IntegrationTest {
 			.andExpect(jsonPath("$.items[0].phase").value("RECRUITING"))
 			.andExpect(jsonPath("$.items[0].need").value("CREW"))
 			.andExpect(jsonPath("$.items[0].mentor.displayName").value("Phạm Thu Hà"))
-			.andExpect(jsonPath("$.items[0].mentor.githubLogin").value(TeamTestSupport.login(this.jdbc, ha)))
+			.andExpect(jsonPath("$.items[0].mentor.githubLogin").value(TestPeople.login(this.jdbc, ha)))
 			.andExpect(jsonPath("$.items[0].recruitment.openSlots").value(2))
 			.andExpect(jsonPath("$.items[0].recruitment.skills[0]").value("Supabase"))
 			.andExpect(jsonPath("$.items[0].recruitment.note").value("Cần người làm trang bán hàng"))
@@ -279,7 +279,7 @@ class JobPostsIT extends IntegrationTest {
 			.doesNotContain("lan@example.com")
 			.doesNotContain(this.lan.toString())
 			.doesNotContain(vy.toString())
-			.doesNotContain(TeamTestSupport.login(this.jdbc, vy))
+			.doesNotContain(TestPeople.login(this.jdbc, vy))
 			.doesNotContain("price");
 
 		assertIds("?phase=RECRUITING", recruiting);
@@ -288,17 +288,17 @@ class JobPostsIT extends IntegrationTest {
 		assertIds("?phase=FINDING_MENTOR&phase=FINDING_CREW", noMember, open);
 		assertIds("?phase=RECRUITING&type=NEW_FEATURE");
 		// The Skill filter also matches the Skills a recruiting Job seeks, as the keyword does.
-		assertIds("?skill=" + TeamTestSupport.SUPABASE, recruiting, noMember);
+		assertIds("?skill=" + TestPeople.SUPABASE, recruiting, noMember);
 	}
 
 	/** X6: a Starting or Active Job recruiting with no counted member looks for its Crew; with one it recruits more. */
 	@Test
 	void thePhaseFilterReadsStartingAndActiveJobsToo() throws Exception {
-		UUID ha = TeamTestSupport.mentor(this.jdbc, "Phạm Thu Hà", List.of(TeamTestSupport.REACT), "React");
+		UUID ha = TestPeople.mentor(this.jdbc, "Phạm Thu Hà", List.of(TestPeople.REACT), "React");
 		UUID started = crewJob("Đang bắt đầu, có người", "STARTING", ha, true, 1, null,
 				MutableClock.DEFAULT_INSTANT.minus(Duration.ofHours(1)));
 		crewRow(started, member(), "ACTIVE", true);
-		UUID longMentor = TeamTestSupport.mentor(this.jdbc, "Trần Đức Long", List.of(TeamTestSupport.REACT), "React");
+		UUID longMentor = TestPeople.mentor(this.jdbc, "Trần Đức Long", List.of(TestPeople.REACT), "React");
 		UUID running = crewJob("Đang làm, chưa ai", "ACTIVE", longMentor, true, 1, null,
 				MutableClock.DEFAULT_INSTANT.minus(Duration.ofHours(2)));
 
@@ -314,7 +314,7 @@ class JobPostsIT extends IntegrationTest {
 	/** Story 20.4, AD-41: the phase shown counts an ACTIVE row only while its account is unlocked. */
 	@Test
 	void aLockedMembersRowCountsForNothingInThePhaseShown() throws Exception {
-		UUID ha = TeamTestSupport.mentor(this.jdbc, "Phạm Thu Hà", List.of(TeamTestSupport.REACT), "React");
+		UUID ha = TestPeople.mentor(this.jdbc, "Phạm Thu Hà", List.of(TestPeople.REACT), "React");
 		UUID job = crewJob("Thành viên bị khóa", "ACTIVE", ha, true, 1, null, MutableClock.DEFAULT_INSTANT);
 		UUID vy = member();
 		crewRow(job, vy, "ACTIVE", true);
@@ -337,7 +337,7 @@ class JobPostsIT extends IntegrationTest {
 	 */
 	@Test
 	void noJobWhereTheReaderHoldsARoleNorOneThatTakesNobodyIsListedOrFound() throws Exception {
-		UUID ha = TeamTestSupport.mentor(this.jdbc, "Phạm Thu Hà", List.of(TeamTestSupport.REACT), "React");
+		UUID ha = TestPeople.mentor(this.jdbc, "Phạm Thu Hà", List.of(TestPeople.REACT), "React");
 		Instant since = MutableClock.DEFAULT_INSTANT.minus(Duration.ofHours(1));
 		UUID control = crewJob("Việc chung đang tuyển", "AGREEMENT", ha, true, 1, null, since);
 		UUID own = openJob(product(this.hung), this.hung, "Việc chung của Hùng", MutableClock.DEFAULT_INSTANT);
@@ -381,7 +381,7 @@ class JobPostsIT extends IntegrationTest {
 	 */
 	@Test
 	void aListedJobReadsWithItsRecruitmentAndOneNoLongerListedIsNotFound() throws Exception {
-		UUID ha = TeamTestSupport.mentor(this.jdbc, "Phạm Thu Hà", List.of(TeamTestSupport.REACT), "React");
+		UUID ha = TestPeople.mentor(this.jdbc, "Phạm Thu Hà", List.of(TestPeople.REACT), "React");
 		UUID job = crewJob("Đang tuyển thêm", "STARTING", ha, true, 2, "Cần người làm trang bán hàng",
 				MutableClock.DEFAULT_INSTANT);
 		UUID vy = member();
@@ -400,7 +400,7 @@ class JobPostsIT extends IntegrationTest {
 			.andReturn()
 			.getResponse()
 			.getContentAsString();
-		assertThat(body).doesNotContain(vy.toString()).doesNotContain(TeamTestSupport.login(this.jdbc, vy));
+		assertThat(body).doesNotContain(vy.toString()).doesNotContain(TestPeople.login(this.jdbc, vy));
 		this.mvc.perform(get("/api/v1/mentor/job-posts/" + job + "/customer-rating").with(as(this.hung, Role.MENTOR)))
 			.andExpect(status().isOk());
 		// The Job's own Customer reads it too, and MEN-3 shows their role in it in place of an action.
@@ -429,7 +429,7 @@ class JobPostsIT extends IntegrationTest {
 			.with(as(this.lan, Role.CUSTOMER))
 			.with(csrf())).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
 		UUID file = UUID.fromString(com.jayway.jsonpath.JsonPath.read(added, "$.fileId"));
-		UUID ha = TeamTestSupport.mentor(this.jdbc, "Phạm Thu Hà", List.of(TeamTestSupport.REACT), "React");
+		UUID ha = TestPeople.mentor(this.jdbc, "Phạm Thu Hà", List.of(TestPeople.REACT), "React");
 		Timestamp now = Timestamp.from(MutableClock.DEFAULT_INSTANT);
 		this.jdbc.sql("""
 				UPDATE job.job SET state = 'AGREEMENT', rules = '{}'::jsonb, selection_days = 14, opened_at = :now,
@@ -453,7 +453,7 @@ class JobPostsIT extends IntegrationTest {
 	/** SG-43: a page of rows reads its Customers' Rating summaries in one call, keyed by the Job, never the Customer. */
 	@Test
 	void aPageOfRowsReadsItsCustomersRatingsInOneCall() throws Exception {
-		UUID open = openJob("Tin mở", "BUG_FIX", TeamTestSupport.REACT, "React", "UNDER_2M", "2026-03-01",
+		UUID open = openJob("Tin mở", "BUG_FIX", TestPeople.REACT, "React", "UNDER_2M", "2026-03-01",
 				MutableClock.DEFAULT_INSTANT);
 		UUID draft = UUID.randomUUID();
 		this.jdbc.sql("""
@@ -504,7 +504,7 @@ class JobPostsIT extends IntegrationTest {
 
 		this.jdbc.sql("UPDATE settings.rule_value SET value = 1 WHERE rule_key = 'MENTOR_ACTIVE_JOB_LIMIT'").update();
 		try {
-			UUID running = openJob("Đang chọn", "BUG_FIX", TeamTestSupport.REACT, "React", "UNDER_2M", "2026-03-01",
+			UUID running = openJob("Đang chọn", "BUG_FIX", TestPeople.REACT, "React", "UNDER_2M", "2026-03-01",
 					MutableClock.DEFAULT_INSTANT);
 			this.jdbc.sql("""
 					UPDATE job.job SET state = 'SELECTING', mentor_account_id = :m, selected_application_id = :a,
@@ -615,7 +615,7 @@ class JobPostsIT extends IntegrationTest {
 			.param("owner", this.lan)
 			.param("state", state)
 			.param("title", title)
-			.param("skills", "{" + TeamTestSupport.REACT + "}")
+			.param("skills", "{" + TestPeople.REACT + "}")
 			.param("opened", Timestamp.from(opened))
 			.param("lapses", Timestamp.from(opened.plus(Duration.ofDays(14))))
 			.param("mentor", mentor)
@@ -623,7 +623,7 @@ class JobPostsIT extends IntegrationTest {
 			.param("recruiting", recruiting)
 			.param("since", recruiting ? Timestamp.from(since) : null)
 			.param("slots", slots)
-			.param("sought", "{" + TeamTestSupport.SUPABASE + "}")
+			.param("sought", "{" + TestPeople.SUPABASE + "}")
 			.param("note", note)
 			.update();
 		return id;
@@ -693,7 +693,7 @@ class JobPostsIT extends IntegrationTest {
 					{"productId":"%s","title":"Thêm thanh toán online","problem":"Khách chưa trả tiền trước được.",
 					 "expected":"Khách trả tiền cọc khi đặt bàn.","appUsers":"Khách đặt bàn trên điện thoại.",
 					 "jobTypes":["NEW_FEATURE"],"skillIds":["%s"],"budget":"FROM_2M_TO_5M","deadline":"2026-11-15"}
-					""".formatted(this.product, TeamTestSupport.REACT)))
+					""".formatted(this.product, TestPeople.REACT)))
 			.andExpect(status().isCreated())
 			.andReturn()
 			.getResponse()
@@ -706,7 +706,7 @@ class JobPostsIT extends IntegrationTest {
 				{"productId":"%s","title":"Thêm thanh toán online","problem":"Khách chưa trả tiền trước được.",
 				 "expected":"Khách trả tiền cọc khi đặt bàn.","appUsers":"Khách đặt bàn trên điện thoại.",
 				 "jobTypes":["NEW_FEATURE"],"skillIds":["%s"],"budget":"FROM_2M_TO_5M","deadline":"2026-11-15"}
-				""".formatted(product, TeamTestSupport.REACT);
+				""".formatted(product, TestPeople.REACT);
 	}
 
 	private UUID product(UUID owner) {

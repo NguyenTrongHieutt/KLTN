@@ -3,7 +3,7 @@ package vn.vibefix.team.internal;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
-import static vn.vibefix.team.internal.TeamTestSupport.REACT;
+import static vn.vibefix.support.TestPeople.REACT;
 
 import java.time.Duration;
 import java.time.LocalDate;
@@ -26,6 +26,7 @@ import vn.vibefix.identity.AccountLocked;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.support.IntegrationTest;
+import vn.vibefix.support.TestPeople;
 import vn.vibefix.team.Teams;
 
 /**
@@ -69,9 +70,9 @@ class TeamMembershipIT extends IntegrationTest {
 
 	@BeforeEach
 	void aMentorWithOneMember() {
-		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(REACT), "React");
+		this.hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(REACT), "React");
 		UUID team = this.store.ensure(this.hung, this.clock.instant()).id();
-		this.minh = TeamTestSupport.student(this.jdbc, "Trần Quang Minh", true, List.of(REACT), "React", VERIFIED_UNTIL);
+		this.minh = TestPeople.student(this.jdbc, "Trần Quang Minh", true, List.of(REACT), "React", VERIFIED_UNTIL);
 		this.store.insertMembership(team, this.minh, this.clock.instant());
 		this.membership = this.store.activeMembership(this.minh).orElseThrow().membershipId();
 	}
@@ -84,14 +85,14 @@ class TeamMembershipIT extends IntegrationTest {
 		assertThat(leftReason()).isEqualTo("LEFT");
 		assertThat(notificationParam(this.hung, TeamMemberships.MEMBER_LEFT, "name")).isEqualTo("Trần Quang Minh");
 		assertRefused(() -> this.memberships.leave(this.minh), "NOT_FOUND", null);
-		UUID thao = TeamTestSupport.mentor(this.jdbc, "Nguyễn Phương Thảo", List.of(REACT),
+		UUID thao = TestPeople.mentor(this.jdbc, "Nguyễn Phương Thảo", List.of(REACT),
 				"React");
 		assertThat(this.requests.requestToJoin(this.minh, thao).id()).isNotNull();
 	}
 
 	@Test
 	void theMentorRemovesOnlyTheirOwnMembers() throws Exception {
-		UUID other = TeamTestSupport.mentor(this.jdbc, "Người Khác", List.of(REACT), "React");
+		UUID other = TestPeople.mentor(this.jdbc, "Người Khác", List.of(REACT), "React");
 		this.store.ensure(other, this.clock.instant());
 		assertRefused(() -> this.memberships.remove(other, this.membership), "NOT_FOUND", null);
 
@@ -123,8 +124,8 @@ class TeamMembershipIT extends IntegrationTest {
 
 	@Test
 	void aReservationNeedsTheMentorsOwnMemberAndTheCallersTransaction() {
-		UUID other = TeamTestSupport.mentor(this.jdbc, "Người Khác", List.of(REACT), "React");
-		UUID loner = TeamTestSupport.student(this.jdbc, "Không Nhóm", true, List.of(REACT), "React", VERIFIED_UNTIL);
+		UUID other = TestPeople.mentor(this.jdbc, "Người Khác", List.of(REACT), "React");
+		UUID loner = TestPeople.student(this.jdbc, "Không Nhóm", true, List.of(REACT), "React", VERIFIED_UNTIL);
 
 		assertThatThrownBy(() -> reserve(UUID.randomUUID(), other, this.minh)).isInstanceOf(ApiException.class)
 			.satisfies(ex -> assertThat(((ApiException) ex).reason()).contains("NOT_IN_TEAM"));

@@ -33,7 +33,7 @@ import vn.vibefix.identity.internal.AdministratorTestSupport.Administrator;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.IntegrationTest;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /**
  * ADM-12 (FR-72, FR-63, AD-38): a Skill is added with a unique name ignoring accents and case, renamed so
@@ -62,9 +62,9 @@ class CatalogAdminIT extends IntegrationTest {
 	@Test
 	void skillsAreAddedRenamedAndRetiredWithTheirHistory() throws Exception {
 		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
-		UUID hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng",
-				List.of(TeamTestSupport.REACT), "React");
-		UUID vy = TeamTestSupport.student(this.jdbc, "Trần Thảo Vy", true, List.of(TeamTestSupport.REACT), "React",
+		UUID hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng",
+				List.of(TestPeople.REACT), "React");
+		UUID vy = TestPeople.student(this.jdbc, "Trần Thảo Vy", true, List.of(TestPeople.REACT), "React",
 				LocalDate.parse("2026-09-30"));
 
 		send(ha, post("/api/v1/admin/catalog/skills"), skill("Svelte", "Giao diện viết bằng Svelte")).andExpect(status().isCreated())
@@ -74,7 +74,7 @@ class CatalogAdminIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/admin/catalog/skills").param("q", "SVÉLTE").with(admin(ha)))
 			.andExpect(jsonPath("$.total").value(1));
 
-		send(ha, put("/api/v1/admin/catalog/skills/" + TeamTestSupport.REACT),
+		send(ha, put("/api/v1/admin/catalog/skills/" + TestPeople.REACT),
 				skill("React.js", "Thư viện giao diện React")).andExpect(status().isOk());
 		await().atMost(Duration.ofSeconds(10)).until(() -> text("SELECT skill_names FROM identity.profile WHERE account_id = '"
 				+ hung + "'").contains("React.js"));
@@ -84,11 +84,11 @@ class CatalogAdminIT extends IntegrationTest {
 				SELECT (old_value ->> 'name') || '>' || (new_value ->> 'name') FROM catalog.change WHERE kind = 'SKILL_UPDATED'
 				""")).isEqualTo("React>React.js");
 
-		send(ha, post("/api/v1/admin/catalog/skills/" + TeamTestSupport.REACT + "/active"), "{\"active\":false}")
+		send(ha, post("/api/v1/admin/catalog/skills/" + TestPeople.REACT + "/active"), "{\"active\":false}")
 			.andExpect(status().isOk());
 		assertThat(this.catalog.active().stream().flatMap(category -> category.skills().stream()).map(skill -> skill.id().toString())
-			.collect(Collectors.toSet())).doesNotContain(TeamTestSupport.REACT);
-		send(ha, post("/api/v1/admin/catalog/skills/" + TeamTestSupport.REACT + "/active"), "{\"active\":true}")
+			.collect(Collectors.toSet())).doesNotContain(TestPeople.REACT);
+		send(ha, post("/api/v1/admin/catalog/skills/" + TestPeople.REACT + "/active"), "{\"active\":true}")
 			.andExpect(status().isOk());
 		assertThat(count("SELECT count(*) FROM audit.audit_entry WHERE action LIKE 'admin.skill_%'")).isEqualTo(4);
 		awaitListeners();

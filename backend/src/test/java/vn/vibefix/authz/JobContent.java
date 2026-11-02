@@ -12,7 +12,7 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 import vn.vibefix.support.MutableClock;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /**
  * The rows a Job's people and content take (AD-41, AD-20), written directly, for the matrix fixtures and the
@@ -139,7 +139,7 @@ public final class JobContent {
 
 	/** A Crew member with a profile and a live student verification whose name is shown. */
 	public static UUID member(JdbcClient jdbc, String name) {
-		return TeamTestSupport.student(jdbc, name, true, List.of(TeamTestSupport.REACT), "React", VERIFIED_UNTIL);
+		return TestPeople.student(jdbc, name, true, List.of(TestPeople.REACT), "React", VERIFIED_UNTIL);
 	}
 
 	/**
@@ -147,7 +147,7 @@ public final class JobContent {
 	 * {@code displayName}, with a public profile like every verified member's.
 	 */
 	public static UUID hidingMember(JdbcClient jdbc, String displayName, String hiddenStudentName) {
-		UUID member = TeamTestSupport.student(jdbc, hiddenStudentName, false, List.of(TeamTestSupport.REACT), "React",
+		UUID member = TestPeople.student(jdbc, hiddenStudentName, false, List.of(TestPeople.REACT), "React",
 				VERIFIED_UNTIL);
 		jdbc.sql("UPDATE identity.profile SET display_name = :name WHERE account_id = :id")
 			.param("name", displayName)
@@ -163,8 +163,8 @@ public final class JobContent {
 	 */
 	public static UUID canaryMember(JdbcClient jdbc, String displayName, String email, @Nullable String linkedIn,
 			@Nullable String hiddenStudentName) {
-		UUID member = TeamTestSupport.student(jdbc, hiddenStudentName == null ? displayName : hiddenStudentName,
-				hiddenStudentName == null, List.of(TeamTestSupport.REACT), "React", VERIFIED_UNTIL);
+		UUID member = TestPeople.student(jdbc, hiddenStudentName == null ? displayName : hiddenStudentName,
+				hiddenStudentName == null, List.of(TestPeople.REACT), "React", VERIFIED_UNTIL);
 		jdbc.sql("UPDATE identity.profile SET display_name = :name WHERE account_id = :id")
 			.param("name", displayName)
 			.param("id", member)

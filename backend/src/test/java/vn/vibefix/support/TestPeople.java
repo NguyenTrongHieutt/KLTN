@@ -1,4 +1,4 @@
-package vn.vibefix.team.internal;
+package vn.vibefix.support;
 
 import java.sql.Timestamp;
 import java.time.LocalDate;
@@ -10,10 +10,9 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
-import vn.vibefix.support.MutableClock;
 
-/** Mentors and Students with a profile, for the Team tests; nobody is approved since Story 19.7. */
-public final class TeamTestSupport {
+/** Mentors and Students with a profile, for any test that needs a person; nobody is approved since Story 19.7. */
+public final class TestPeople {
 
 	public static final String REACT = "0192b000-0000-7000-8001-000000000004";
 
@@ -21,7 +20,7 @@ public final class TeamTestSupport {
 
 	public static final String WEB_SECURITY = "0192b000-0000-7000-8001-000000000043";
 
-	private TeamTestSupport() {
+	private TestPeople() {
 	}
 
 	/** A Mentor with GitHub linked and a profile; returns the account ID. */

@@ -48,7 +48,7 @@ import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.CrewPicks;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /**
  * FR-16, FR-17, AD-29, AD-41: the Customer's review, the Mentor's confirmation, which waits for no Crew condition and
@@ -118,7 +118,7 @@ class AgreementReviewIT extends IntegrationTest {
 				""")
 			.param("id", this.job).param("product", product).param("owner", this.lan)
 			.param("now", Timestamp.from(now)).param("lapses", Timestamp.from(now.plus(Duration.ofDays(14)))).update();
-		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT),
+		this.hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT),
 				"React");
 		this.team = UUID.randomUUID();
 		this.jdbc.sql("INSERT INTO team.team (id, mentor_account_id, status, created_at) VALUES (:id, :mentor, 'OPEN', now())")
@@ -195,7 +195,7 @@ class AgreementReviewIT extends IntegrationTest {
 			.andExpect(jsonPath("$.confirmed.versionNo").value(1))
 			.andExpect(jsonPath("$.confirmed.draftVersionNo").value(2))
 			.andExpect(jsonPath("$.confirmed.crew.length()").value(1))
-			.andExpect(jsonPath("$.confirmed.crew[0]").value(TeamTestSupport.login(this.jdbc, this.vy)))
+			.andExpect(jsonPath("$.confirmed.crew[0]").value(TestPeople.login(this.jdbc, this.vy)))
 			.andExpect(jsonPath("$.confirmed.liveAccessIds[0]").value(ACCESS.toString()));
 
 		assertThat(this.jdbc.sql("SELECT agreement_version_no FROM job.job WHERE id = :id").param("id", this.job)
@@ -212,9 +212,9 @@ class AgreementReviewIT extends IntegrationTest {
 			.andExpect(jsonPath("$.confirmed.versionNo").value(1))
 			.andExpect(jsonPath("$.approvedAt").exists())
 			.andExpect(jsonPath("$.crew.length()").value(1))
-			.andExpect(jsonPath("$.crew[0]").value(TeamTestSupport.login(this.jdbc, this.vy)))
+			.andExpect(jsonPath("$.crew[0]").value(TestPeople.login(this.jdbc, this.vy)))
 			.andReturn().getResponse().getContentAsString();
-		assertThat(view).as("A-05: the Customer never learns of a pick").doesNotContain(TeamTestSupport.login(this.jdbc, minh))
+		assertThat(view).as("A-05: the Customer never learns of a pick").doesNotContain(TestPeople.login(this.jdbc, minh))
 			.doesNotContain("crewConfirmed");
 	}
 
@@ -375,9 +375,9 @@ class AgreementReviewIT extends IntegrationTest {
 			.andExpect(jsonPath("$.items[0].environment").value("NON_PRODUCTION"))
 			.andExpect(jsonPath("$.items[0].live").value(false))
 			.andExpect(jsonPath("$.items[0].granted").value(false))
-			.andExpect(jsonPath("$.items[0].identifiers[0].githubLogin").value(TeamTestSupport.login(this.jdbc, this.hung)))
+			.andExpect(jsonPath("$.items[0].identifiers[0].githubLogin").value(TestPeople.login(this.jdbc, this.hung)))
 			.andExpect(jsonPath("$.items[0].identifiers[0].identifier").value("hungdm.work@gmail.com"))
-			.andExpect(jsonPath("$.items[0].identifiers[1].githubLogin").value(TeamTestSupport.login(this.jdbc, this.vy)))
+			.andExpect(jsonPath("$.items[0].identifiers[1].githubLogin").value(TestPeople.login(this.jdbc, this.vy)))
 			.andExpect(jsonPath("$.items[0].identifiers[1].identifier").value("vy.le.dev@gmail.com"))
 			.andReturn().getResponse().getContentAsString();
 		assertThat(customerView).doesNotContain("Lê Thảo Vy");
@@ -500,7 +500,7 @@ class AgreementReviewIT extends IntegrationTest {
 	}
 
 	private UUID member(String name) {
-		UUID student = TeamTestSupport.student(this.jdbc, name, true, List.of(TeamTestSupport.REACT), "React",
+		UUID student = TestPeople.student(this.jdbc, name, true, List.of(TestPeople.REACT), "React",
 				LocalDate.parse("2026-09-30"));
 		this.jdbc.sql("INSERT INTO team.membership (id, team_id, student_account_id, joined_at) VALUES (:id, :team, :student, now())")
 			.param("id", UUID.randomUUID()).param("team", this.team).param("student", student).update();

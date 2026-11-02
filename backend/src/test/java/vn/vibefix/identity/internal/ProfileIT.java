@@ -44,7 +44,7 @@ import vn.vibefix.notification.RecipientAddresses;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
 import vn.vibefix.support.PostgresTestDatabase;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /**
  * Story 19.3 (FR-3, FR-4, FR-51, FR-72, AD-36, AD-38, AD-42): one profile per account, whatever role it
@@ -208,7 +208,7 @@ class ProfileIT extends IntegrationTest {
 
 	@Test
 	void aMentorSavesTheProfileFreelySinceNoApplicationRuleIsLeft() throws Exception {
-		UUID hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(REACT.toString()), "React");
+		UUID hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(REACT.toString()), "React");
 		RequestPostProcessor mentor = authentication(IdentityTestSupport.authentication(hung, Role.MENTOR));
 
 		// Story 19.7: no experience, years, or Skills are required of a Mentor any more.
@@ -360,9 +360,9 @@ class ProfileIT extends IntegrationTest {
 	@Test
 	void anUnlinkedOrRevokedStudentIsNotFoundAndARenewedOneIsListedOnce() throws Exception {
 		LocalDate until = LocalDate.of(2026, 9, 30);
-		UUID unlinked = TeamTestSupport.student(this.jdbc, "Đã bỏ xác minh", true, List.of(TeamTestSupport.REACT), "React",
+		UUID unlinked = TestPeople.student(this.jdbc, "Đã bỏ xác minh", true, List.of(TestPeople.REACT), "React",
 				until);
-		UUID revoked = TeamTestSupport.student(this.jdbc, "Bị thu hồi", true, List.of(TeamTestSupport.REACT), "React", until);
+		UUID revoked = TestPeople.student(this.jdbc, "Bị thu hồi", true, List.of(TestPeople.REACT), "React", until);
 		for (UUID ended : List.of(unlinked, revoked)) {
 			this.jdbc.sql("""
 					UPDATE identity.verification SET ended_at = now(), facts = NULL,
@@ -370,7 +370,7 @@ class ProfileIT extends IntegrationTest {
 					WHERE account_id = :id
 					""").param("id", ended).param("unlinked", unlinked).update();
 		}
-		UUID renewed = TeamTestSupport.student(this.jdbc, "Đã gia hạn", true, List.of(TeamTestSupport.REACT), "React", until);
+		UUID renewed = TestPeople.student(this.jdbc, "Đã gia hạn", true, List.of(TestPeople.REACT), "React", until);
 		this.jdbc.sql("""
 				INSERT INTO identity.verification (id, account_id, kind, provider, subject_hmac, key_version, consent_version,
 				    verified_at, valid_until, ended_at, ended_reason)
@@ -382,8 +382,8 @@ class ProfileIT extends IntegrationTest {
 		assertThat(this.students.search("", List.of(), PageRequest.of(0, 10)).getContent())
 			.extracting(StudentDirectory.StudentCard::accountId)
 			.containsExactly(renewed);
-		assertThat(this.students.byLogin(TeamTestSupport.login(this.jdbc, unlinked))).isEmpty();
-		assertThat(this.students.byLogin(TeamTestSupport.login(this.jdbc, revoked))).isEmpty();
+		assertThat(this.students.byLogin(TestPeople.login(this.jdbc, unlinked))).isEmpty();
+		assertThat(this.students.byLogin(TestPeople.login(this.jdbc, revoked))).isEmpty();
 		assertThat(this.students.cards(List.of(unlinked, revoked, renewed))).hasSize(3).allSatisfy(card -> {
 			assertThat(card.verified()).isEqualTo(card.accountId().equals(renewed));
 			assertThat(card.name() == null).isEqualTo(!card.accountId().equals(renewed));

@@ -62,7 +62,7 @@ import vn.vibefix.shared.PersonalData;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
 import vn.vibefix.support.TestFiles;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /** FR-13, AD-19, AD-33, AD-34: Applications to Open Job Posts, their refusals, and what ends them. */
 class ApplicationsIT extends IntegrationTest {
@@ -198,8 +198,8 @@ class ApplicationsIT extends IntegrationTest {
 		apply(unnamed, this.job, true).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("PROFILE_REQUIRED"));
 
 		// Story 21.2: no Team and no free Student is asked for.
-		UUID lonely = TeamTestSupport.mentor(this.jdbc, "Chưa có nhóm",
-				List.of(TeamTestSupport.REACT), "React");
+		UUID lonely = TestPeople.mentor(this.jdbc, "Chưa có nhóm",
+				List.of(TestPeople.REACT), "React");
 		apply(lonely, this.job, true).andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("SUBMITTED"));
 
 		UUID hidden = openJob(product(this.lan), "Tin bị ẩn");
@@ -305,7 +305,7 @@ class ApplicationsIT extends IntegrationTest {
 	/** FR-13, SG-52: the Mentor Job limit, read live under the bidder's lock, refuses a bid with its number. */
 	@Test
 	void aBidderAtTheMentorJobLimitIsRefusedWithTheLimit() throws Exception {
-		UUID hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT), "React");
+		UUID hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT), "React");
 		this.jdbc.sql("UPDATE settings.rule_value SET value = 1 WHERE rule_key = 'MENTOR_ACTIVE_JOB_LIMIT'").update();
 		UUID running = openJob(product(this.lan), "Đang chọn");
 		this.jdbc.sql("""
@@ -394,7 +394,7 @@ class ApplicationsIT extends IntegrationTest {
 	 */
 	@Test
 	void aBidCarriesAFileAndALinkThatOnlyTheBidderAndTheCustomerRead() throws Exception {
-		UUID hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT), "React");
+		UUID hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT), "React");
 		String pdf = fileId(uploadProof(hung, this.job, "bao-cao.pdf", TestFiles.pdf()).andExpect(status().isCreated())
 			.andExpect(jsonPath("$.fileName").value("bao-cao.pdf")));
 		String spare = fileId(uploadProof(hung, this.job, "du-phong.pdf", TestFiles.pdf()));
@@ -429,7 +429,7 @@ class ApplicationsIT extends IntegrationTest {
 				.andExpect(header().string("Content-Security-Policy", "sandbox"))
 				.andExpect(header().string("Content-Disposition", Matchers.startsWith("attachment")));
 		}
-		UUID stranger = TeamTestSupport.mentor(this.jdbc, "Người lạ", List.of(TeamTestSupport.REACT), "React");
+		UUID stranger = TestPeople.mentor(this.jdbc, "Người lạ", List.of(TestPeople.REACT), "React");
 		UUID otherCustomer = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		for (RequestPostProcessor other : List.of(as(stranger, Role.MENTOR), as(otherCustomer, Role.CUSTOMER),
 				as(administrator(), Role.ADMINISTRATOR))) {
@@ -449,7 +449,7 @@ class ApplicationsIT extends IntegrationTest {
 	/** SG-58, AD-21: six items, a link that is not {@code https} with a host, or a file not the bidder's are refused. */
 	@Test
 	void aSixthProofItemABadLinkOrAnotherFileIsRefusedAndWritesNothing() throws Exception {
-		UUID hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT), "React");
+		UUID hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT), "React");
 		String six = proof(link("https://a.vn/1", "Một"), link("https://a.vn/2", "Hai"), link("https://a.vn/3", "Ba"),
 				link("https://a.vn/4", "Bốn"), link("https://a.vn/5", "Năm"), link("https://a.vn/6", "Sáu"));
 		bid(hung, this.job, six).andExpect(status().isBadRequest())
@@ -460,7 +460,7 @@ class ApplicationsIT extends IntegrationTest {
 			bid(hung, this.job, proof(link(bad, "Liên kết"))).andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.reason").value("LINK_INVALID"));
 		}
-		UUID other = TeamTestSupport.mentor(this.jdbc, "Người khác", List.of(TeamTestSupport.REACT), "React");
+		UUID other = TestPeople.mentor(this.jdbc, "Người khác", List.of(TestPeople.REACT), "React");
 		String theirs = fileId(uploadProof(other, this.job, "cua-ho.pdf", TestFiles.pdf()));
 		bid(hung, this.job, proof(file(theirs, "Không phải của tôi"))).andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.reason").value("PROOF_FILE_UNKNOWN"));
@@ -484,7 +484,7 @@ class ApplicationsIT extends IntegrationTest {
 	 */
 	@Test
 	void theContributorReadRunsBeforeTheBidsTransactionAndUnderNoLock() throws Exception {
-		UUID hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT), "React");
+		UUID hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT), "React");
 		long key = hung.getMostSignificantBits() ^ hung.getLeastSignificantBits();
 		AtomicReference<Long> heldDuringRead = new AtomicReference<>();
 		BEFORE_CONTRIBUTORS.set(() -> heldDuringRead.set(this.jdbc.sql("""
@@ -514,8 +514,8 @@ class ApplicationsIT extends IntegrationTest {
 	 */
 	@Test
 	void unselectedProofIsPurgedNinetyDaysAfterTheBidEnded() throws Exception {
-		UUID hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT), "React");
-		UUID ha = TeamTestSupport.mentor(this.jdbc, "Phạm Thu Hà", List.of(TeamTestSupport.REACT), "React");
+		UUID hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT), "React");
+		UUID ha = TestPeople.mentor(this.jdbc, "Phạm Thu Hà", List.of(TestPeople.REACT), "React");
 		String withdrawnFile = fileId(uploadProof(hung, this.job, "rut.pdf", TestFiles.pdf()));
 		UUID withdrawn = applicationId(bid(hung, this.job, proof(file(withdrawnFile, "Tệp"), link("https://a.vn/x", "Link"))));
 		String liveFile = fileId(uploadProof(ha, this.job, "con.pdf", TestFiles.pdf()));
@@ -526,7 +526,7 @@ class ApplicationsIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/files/" + withdrawnFile).with(as(this.lan, Role.CUSTOMER))).andExpect(status().isNotFound());
 		this.mvc.perform(get("/api/v1/files/" + withdrawnFile).with(as(hung, Role.MENTOR))).andExpect(status().isOk());
 		this.mvc.perform(get("/api/v1/files/" + liveFile).with(as(this.lan, Role.CUSTOMER))).andExpect(status().isOk());
-		UUID minh = TeamTestSupport.mentor(this.jdbc, "Ngô Văn Minh", List.of(TeamTestSupport.REACT), "React");
+		UUID minh = TestPeople.mentor(this.jdbc, "Ngô Văn Minh", List.of(TestPeople.REACT), "React");
 		String waitingFile = fileId(uploadProof(minh, this.job, "cho.pdf", TestFiles.pdf()));
 		UUID waiting = this.jdbc.sql("SELECT id FROM matching.bid_proof WHERE file_id = :file")
 			.param("file", UUID.fromString(waitingFile)).query(UUID.class).single();
@@ -563,7 +563,7 @@ class ApplicationsIT extends IntegrationTest {
 	 */
 	@Test
 	void theProofGoesWithTheJobsDataTheProductAndTheBiddersErasure() throws Exception {
-		UUID hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT), "React");
+		UUID hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT), "React");
 		String pdf = fileId(uploadProof(hung, this.job, "bao-cao.pdf", TestFiles.pdf()));
 		bid(hung, this.job, proof(file(pdf, "Báo cáo riêng 4c2e"), link("https://a.vn/x", "Liên kết")))
 			.andExpect(status().isCreated());
@@ -601,7 +601,7 @@ class ApplicationsIT extends IntegrationTest {
 	 */
 	@Test
 	void erasingTheJobsCustomerDeletesTheProofOfTheBidsOnTheJob() throws Exception {
-		UUID hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT), "React");
+		UUID hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT), "React");
 		String pdf = fileId(uploadProof(hung, this.job, "bao-cao.pdf", TestFiles.pdf()));
 		bid(hung, this.job, proof(file(pdf, "Báo cáo"), link("https://a.vn/x", "Liên kết"))).andExpect(status().isCreated());
 		StoredFiles files = this.context.getBean(StoredFiles.class);
@@ -674,7 +674,7 @@ class ApplicationsIT extends IntegrationTest {
 	}
 
 	private UUID mentorWithFreeStudent(String name) {
-		return withFreeStudent(TeamTestSupport.mentor(this.jdbc, name, List.of(TeamTestSupport.REACT), "React"), name);
+		return withFreeStudent(TestPeople.mentor(this.jdbc, name, List.of(TestPeople.REACT), "React"), name);
 	}
 
 	/** Gives the account a Team with one free Student, as FR-13 needs to take a Job. */
@@ -684,7 +684,7 @@ class ApplicationsIT extends IntegrationTest {
 			.param("id", team)
 			.param("mentor", mentor)
 			.update();
-		UUID student = TeamTestSupport.student(this.jdbc, "Sinh viên của " + name, true, List.of(TeamTestSupport.REACT),
+		UUID student = TestPeople.student(this.jdbc, "Sinh viên của " + name, true, List.of(TestPeople.REACT),
 				"React", LocalDate.parse("2026-09-30"));
 		this.jdbc.sql("""
 				INSERT INTO team.membership (id, team_id, student_account_id, joined_at) VALUES (:id, :team, :student, now())
@@ -695,7 +695,7 @@ class ApplicationsIT extends IntegrationTest {
 	/** Story 20.3: a Google account with no role bids; locking it withdraws the bid, as for any other bidder. */
 	@Test
 	void aUserWithNoRoleBidsAndALockWithdrawsTheBid() throws Exception {
-		UUID minh = withFreeStudent(TeamTestSupport.googleMentor(this.jdbc, "Ngô Văn Minh", List.of(TeamTestSupport.REACT),
+		UUID minh = withFreeStudent(TestPeople.googleMentor(this.jdbc, "Ngô Văn Minh", List.of(TestPeople.REACT),
 				"React"), "Ngô Văn Minh");
 		apply(IdentityTestSupport.signedIn(this.sessions, minh, null, this.clock.instant()), this.job, true)
 			.andExpect(status().isCreated());

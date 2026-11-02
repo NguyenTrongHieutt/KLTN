@@ -27,7 +27,7 @@ import com.jayway.jsonpath.JsonPath;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.IntegrationTest;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /**
  * FR-10, FR-30, FR-31, AD-20: Pages start from templates with a badge; the Assessment Report is offered
@@ -57,7 +57,7 @@ class PageVisibilityIT extends IntegrationTest {
 	private UUID job(String type) {
 		this.lan = this.lan != null ? this.lan : IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.hung = this.hung != null ? this.hung
-				: TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT),
+				: TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT),
 						"React");
 		UUID product = WorkTestSupport.product(this.jdbc, this.lan, "Sổ đặt bàn Quán Mây " + type);
 		UUID job = WorkTestSupport.activeJob(this.jdbc, product, this.lan, this.hung, List.of(UUID.randomUUID()),
