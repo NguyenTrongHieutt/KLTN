@@ -19,8 +19,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
-import vn.vibefix.identity.StudentDirectory;
-import vn.vibefix.identity.StudentDirectory.StudentCard;
+import vn.vibefix.identity.PersonDirectory;
+import vn.vibefix.identity.PersonDirectory.PersonCard;
 import vn.vibefix.job.CrewEmptied;
 import vn.vibefix.job.CrewMemberRemoved;
 import vn.vibefix.job.internal.CrewService.Row;
@@ -60,7 +60,7 @@ class CrewDepartures {
 
 	private final MentorDirectory mentors;
 
-	private final StudentDirectory students;
+	private final PersonDirectory people;
 
 	private final Notifications notifications;
 
@@ -69,12 +69,12 @@ class CrewDepartures {
 	private final IdGenerator ids;
 
 	CrewDepartures(JdbcClient jdbc, CrewService crews, ExternalAccessGrants externalAccess, MentorDirectory mentors,
-			StudentDirectory students, Notifications notifications, ApplicationEventPublisher events, IdGenerator ids) {
+			PersonDirectory people, Notifications notifications, ApplicationEventPublisher events, IdGenerator ids) {
 		this.jdbc = jdbc;
 		this.crews = crews;
 		this.externalAccess = externalAccess;
 		this.mentors = mentors;
-		this.students = students;
+		this.people = people;
 		this.notifications = notifications;
 		this.events = events;
 		this.ids = ids;
@@ -97,7 +97,7 @@ class CrewDepartures {
 	/** What the Job's people hear of the release of {@code row}, an {@code ACTIVE} row as it was before. */
 	void departed(Job job, Row row) {
 		UUID member = row.studentId();
-		StudentCard card = card(member);
+		PersonCard card = card(member);
 		String link = "/cong-viec/" + job.id();
 		List<Recipient> crew = new ArrayList<>(List.of(new Recipient(Objects.requireNonNull(job.mentorId()), Audience.MENTOR)));
 		this.crews.rows(job.id())
@@ -134,11 +134,11 @@ class CrewDepartures {
 		return shownName(card(memberId));
 	}
 
-	private @Nullable StudentCard card(UUID memberId) {
-		return this.students.cards(List.of(memberId)).stream().findFirst().orElse(null);
+	private @Nullable PersonCard card(UUID memberId) {
+		return this.people.cards(List.of(memberId)).stream().findFirst().orElse(null);
 	}
 
-	private static String shownName(@Nullable StudentCard card) {
+	private static String shownName(@Nullable PersonCard card) {
 		return card == null || card.shownName().isBlank() ? "Một thành viên nhóm" : card.shownName();
 	}
 

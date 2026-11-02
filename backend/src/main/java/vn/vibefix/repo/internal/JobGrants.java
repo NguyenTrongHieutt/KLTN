@@ -32,8 +32,8 @@ import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.identity.Administrators;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
-import vn.vibefix.identity.StudentDirectory;
-import vn.vibefix.identity.StudentDirectory.StudentCard;
+import vn.vibefix.identity.PersonDirectory;
+import vn.vibefix.identity.PersonDirectory.PersonCard;
 import vn.vibefix.job.Crews;
 import vn.vibefix.job.Crews.CrewMember;
 import vn.vibefix.job.JobActivation;
@@ -138,7 +138,7 @@ class JobGrants {
 
 	private final ActiveAccount gate;
 
-	private final StudentDirectory students;
+	private final PersonDirectory people;
 
 	private final ExternalOperations operations;
 
@@ -157,7 +157,7 @@ class JobGrants {
 	private final Clock clock;
 
 	JobGrants(JdbcClient jdbc, JobBusy busy, JobActivation activation, Crews crews, MentorDirectory mentors,
-			ActiveAccount gate, StudentDirectory students, ExternalOperations operations, Notifications notifications,
+			ActiveAccount gate, PersonDirectory people, ExternalOperations operations, Notifications notifications,
 			Todos todos, Deadlines deadlines, Administrators administrators, AuditLog auditLog, IdGenerator ids, Clock clock) {
 		this.jdbc = jdbc;
 		this.busy = busy;
@@ -165,7 +165,7 @@ class JobGrants {
 		this.crews = crews;
 		this.mentors = mentors;
 		this.gate = gate;
-		this.students = students;
+		this.people = people;
 		this.operations = operations;
 		this.notifications = notifications;
 		this.todos = todos;
@@ -234,7 +234,7 @@ class JobGrants {
 		}
 		List<UUID> crew = this.crews.crewOf(job.jobId(), Crews.Selection.ACTIVE).stream().map(CrewMember::studentId).toList();
 		if (!crew.isEmpty()) {
-			for (StudentCard card : this.students.cards(crew)) {
+			for (PersonCard card : this.people.cards(crew)) {
 				if (card.available() && card.githubUserId() != null && card.githubLogin() != null) {
 					people.add(new Person(card.accountId(), "CREW", card.githubUserId(), card.githubLogin()));
 				}
@@ -263,7 +263,7 @@ class JobGrants {
 			}
 		}
 		else {
-			StudentCard card = this.students.cards(List.of(grant.accountId())).stream().findFirst().orElse(null);
+			PersonCard card = this.people.cards(List.of(grant.accountId())).stream().findFirst().orElse(null);
 			if (card != null) {
 				id = card.githubUserId();
 				login = card.githubLogin();

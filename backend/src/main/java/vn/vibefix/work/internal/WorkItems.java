@@ -17,8 +17,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
-import vn.vibefix.identity.StudentDirectory;
-import vn.vibefix.identity.StudentDirectory.StudentCard;
+import vn.vibefix.identity.PersonDirectory;
+import vn.vibefix.identity.PersonDirectory.PersonCard;
 import vn.vibefix.job.AgreementCriteria;
 import vn.vibefix.job.AgreementCriteria.MilestoneInForce;
 import vn.vibefix.job.Crews;
@@ -72,7 +72,7 @@ class WorkItems {
 
 	private final Crews crews;
 
-	private final StudentDirectory students;
+	private final PersonDirectory people;
 
 	private final MentorDirectory mentors;
 
@@ -88,7 +88,7 @@ class WorkItems {
 
 	private final Reassignments reassignments;
 
-	WorkItems(Boards boards, JdbcClient jdbc, AgreementCriteria criteria, Crews crews, StudentDirectory students,
+	WorkItems(Boards boards, JdbcClient jdbc, AgreementCriteria criteria, Crews crews, PersonDirectory people,
 			MentorDirectory mentors, WorkTextCheck check, Notifications notifications, HeldMilestones held, IdGenerator ids,
 			Clock clock, Reassignments reassignments) {
 		this.boards = boards;
@@ -96,7 +96,7 @@ class WorkItems {
 		this.jdbc = jdbc;
 		this.criteria = criteria;
 		this.crews = crews;
-		this.students = students;
+		this.people = people;
 		this.mentors = mentors;
 		this.check = check;
 		this.notifications = notifications;
@@ -266,7 +266,7 @@ class WorkItems {
 			return;
 		}
 		boolean active = this.crews.crewRelationship(jobId, assignee).kind() == Relationship.ACTIVE;
-		boolean unlocked = this.students.cards(List.of(assignee)).stream().anyMatch(StudentCard::available);
+		boolean unlocked = this.people.cards(List.of(assignee)).stream().anyMatch(PersonCard::available);
 		if (!active || !unlocked) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, WorkReason.NOT_CREW_MEMBER);
 		}

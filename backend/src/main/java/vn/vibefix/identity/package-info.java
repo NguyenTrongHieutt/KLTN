@@ -11,7 +11,7 @@
  * {@link vn.vibefix.identity.Capabilities} (what an account can show for itself, read on every call),
  * {@link vn.vibefix.identity.ActiveAccount} (the gate of every user command that creates no new work),
  * {@link vn.vibefix.identity.PersonSignals} with {@link vn.vibefix.identity.PersonSignalMatched},
- * {@link vn.vibefix.identity.AccountLocked}, any person's card {@link vn.vibefix.identity.StudentDirectory}, the
+ * {@link vn.vibefix.identity.AccountLocked}, any person's card {@link vn.vibefix.identity.PersonDirectory}, the
  * people search {@link vn.vibefix.identity.MentorDirectory}, PUB-4's public facts of a person
  * {@link vn.vibefix.identity.PublicProfiles} (Story 21.3),
  * {@link vn.vibefix.identity.CustomerRepositories} (repositories read with a Customer's kept token),

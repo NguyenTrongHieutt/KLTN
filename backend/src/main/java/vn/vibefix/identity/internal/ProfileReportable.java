@@ -9,8 +9,8 @@ import org.springframework.stereotype.Component;
 
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
-import vn.vibefix.identity.StudentDirectory;
-import vn.vibefix.identity.StudentDirectory.StudentCard;
+import vn.vibefix.identity.PersonDirectory;
+import vn.vibefix.identity.PersonDirectory.PersonCard;
 import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.ReportableContent;
 
@@ -23,11 +23,11 @@ class ProfileReportable implements ReportableContent {
 
 	private final MentorDirectory mentors;
 
-	private final StudentDirectory students;
+	private final PersonDirectory people;
 
-	ProfileReportable(MentorDirectory mentors, StudentDirectory students) {
+	ProfileReportable(MentorDirectory mentors, PersonDirectory people) {
 		this.mentors = mentors;
-		this.students = students;
+		this.people = people;
 	}
 
 	@Override
@@ -47,13 +47,13 @@ class ProfileReportable implements ReportableContent {
 			return login != null && this.mentors.byLogin(login).isPresent()
 					? Optional.of(new Reported(null, null, id, mentor.get().displayName())) : Optional.empty();
 		}
-		Optional<StudentCard> student = this.students.cards(List.of(id)).stream().findFirst();
+		Optional<PersonCard> student = this.people.cards(List.of(id)).stream().findFirst();
 		// An account without GitHub linked has no public profile to report (Story 20.3 lists every person's account), and
 		// neither has a locked or an erased one.
 		if (student.isEmpty() || student.get().githubLogin() == null || !student.get().available()) {
 			return Optional.empty();
 		}
-		StudentCard card = student.get();
+		PersonCard card = student.get();
 		return Optional.of(new Reported(null, null, id, card.name() != null ? card.name() : "@" + card.githubLogin()));
 	}
 

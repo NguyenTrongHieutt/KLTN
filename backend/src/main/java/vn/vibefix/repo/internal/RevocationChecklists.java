@@ -23,8 +23,8 @@ import vn.vibefix.audit.AuditActor;
 import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
-import vn.vibefix.identity.StudentDirectory;
-import vn.vibefix.identity.StudentDirectory.StudentCard;
+import vn.vibefix.identity.PersonDirectory;
+import vn.vibefix.identity.PersonDirectory.PersonCard;
 import vn.vibefix.job.CrewMemberRemoved;
 import vn.vibefix.job.ExternalAccessItems;
 import vn.vibefix.job.ExternalAccessItems.Identifier;
@@ -91,7 +91,7 @@ class RevocationChecklists {
 
 	private final JobBusy busy;
 
-	private final StudentDirectory students;
+	private final PersonDirectory people;
 
 	private final Todos todos;
 
@@ -105,12 +105,12 @@ class RevocationChecklists {
 
 	private final Clock clock;
 
-	RevocationChecklists(JdbcClient jdbc, ExternalAccessItems access, JobBusy busy, StudentDirectory students, Todos todos,
+	RevocationChecklists(JdbcClient jdbc, ExternalAccessItems access, JobBusy busy, PersonDirectory people, Todos todos,
 			Notifications notifications, Deadlines deadlines, AuditLog auditLog, ProcessedEvents processedEvents, Clock clock) {
 		this.jdbc = jdbc;
 		this.access = access;
 		this.busy = busy;
-		this.students = students;
+		this.people = people;
 		this.todos = todos;
 		this.notifications = notifications;
 		this.deadlines = deadlines;
@@ -144,7 +144,7 @@ class RevocationChecklists {
 		BusyJob job = this.busy.job(jobId).orElse(null);
 		List<ExternalAccessItems.Item> items = job == null ? List.of() : this.access.items(jobId);
 		String login = items.isEmpty() ? null
-				: this.students.cards(List.of(event.studentId())).stream().findFirst().map(StudentCard::githubLogin).orElse(null);
+				: this.people.cards(List.of(event.studentId())).stream().findFirst().map(PersonCard::githubLogin).orElse(null);
 		if (job == null || login == null) {
 			return;
 		}

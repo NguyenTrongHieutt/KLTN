@@ -30,7 +30,7 @@ import vn.vibefix.dispute.internal.TeamIssues.Phase;
 import vn.vibefix.dispute.internal.TeamIssues.Subject;
 import vn.vibefix.dispute.internal.TeamIssues.TeamIssue;
 import vn.vibefix.identity.MentorDirectory;
-import vn.vibefix.identity.StudentDirectory;
+import vn.vibefix.identity.PersonDirectory;
 import vn.vibefix.job.JobPosts;
 import vn.vibefix.reputation.CrewRatings;
 import vn.vibefix.shared.Access;
@@ -87,7 +87,7 @@ class AdminTeamIssueController {
 
 	private final JobPosts posts;
 
-	private final StudentDirectory students;
+	private final PersonDirectory people;
 
 	private final MentorDirectory mentors;
 
@@ -96,13 +96,13 @@ class AdminTeamIssueController {
 	private final CurrentCaller callers;
 
 	AdminTeamIssueController(TeamIssues issues, TeamIssueDecisions decisions, TeamIssueAnswers answers, CrewRatings ratings,
-			JobPosts posts, StudentDirectory students, MentorDirectory mentors, JdbcClient jdbc, CurrentCaller callers) {
+			JobPosts posts, PersonDirectory people, MentorDirectory mentors, JdbcClient jdbc, CurrentCaller callers) {
 		this.issues = issues;
 		this.decisions = decisions;
 		this.answers = answers;
 		this.ratings = ratings;
 		this.posts = posts;
-		this.students = students;
+		this.people = people;
 		this.mentors = mentors;
 		this.jdbc = jdbc;
 		this.callers = callers;
@@ -176,7 +176,7 @@ class AdminTeamIssueController {
 					.orElse(null)
 				: null;
 		Recorded decided = this.decisions.decision(issueId).orElse(null);
-		String raiser = issue.raiserId() == null ? null : this.students.cards(List.of(issue.raiserId()))
+		String raiser = issue.raiserId() == null ? null : this.people.cards(List.of(issue.raiserId()))
 			.stream()
 			.findFirst()
 			.map(card -> card.name() != null ? card.name() : "@" + card.githubLogin())

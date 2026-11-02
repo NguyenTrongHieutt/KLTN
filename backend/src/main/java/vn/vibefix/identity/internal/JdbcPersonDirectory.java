@@ -17,7 +17,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import vn.vibefix.identity.StudentDirectory;
+import vn.vibefix.identity.PersonDirectory;
 
 /**
  * Any person's card from their account and profile (AD-36, Stories 19.3, 19.4 and 20.3). The name is the projection of
@@ -25,7 +25,7 @@ import vn.vibefix.identity.StudentDirectory;
  * the details are not hidden (X9).
  */
 @Component
-class JdbcStudentDirectory implements StudentDirectory {
+class JdbcPersonDirectory implements PersonDirectory {
 
 	private static final String COLUMNS = """
 			a.id, a.github_login, a.github_user_id, a.locked_at IS NULL AND a.erased_at IS NULL AS available,
@@ -47,28 +47,28 @@ class JdbcStudentDirectory implements StudentDirectory {
 
 	private final Clock clock;
 
-	JdbcStudentDirectory(JdbcClient jdbc, Clock clock) {
+	JdbcPersonDirectory(JdbcClient jdbc, Clock clock) {
 		this.jdbc = jdbc;
 		this.clock = clock;
 	}
 
 	@Override
 	@Transactional(readOnly = true)
-	public List<StudentCard> cards(Collection<UUID> ids) {
+	public List<PersonCard> cards(Collection<UUID> ids) {
 		if (ids.isEmpty()) {
 			return List.of();
 		}
 		LocalDate today = LocalDate.ofInstant(this.clock.instant(), StudentVerifications.VIETNAM);
-		Map<UUID, StudentCard> byId = this.jdbc.sql("SELECT " + COLUMNS + FROM + "WHERE a.kind = 'USER' AND a.id IN (:ids)")
+		Map<UUID, PersonCard> byId = this.jdbc.sql("SELECT " + COLUMNS + FROM + "WHERE a.kind = 'USER' AND a.id IN (:ids)")
 			.param("ids", List.copyOf(ids))
-			.query(JdbcStudentDirectory::row)
+			.query(JdbcPersonDirectory::row)
 			.list()
 			.stream()
 			.map(row -> card(row, today))
-			.collect(Collectors.toMap(StudentCard::accountId, Function.identity()));
-		List<StudentCard> ordered = new ArrayList<>();
+			.collect(Collectors.toMap(PersonCard::accountId, Function.identity()));
+		List<PersonCard> ordered = new ArrayList<>();
 		for (UUID id : ids) {
-			StudentCard card = byId.get(id);
+			PersonCard card = byId.get(id);
 			if (card != null) {
 				ordered.add(card);
 			}
@@ -76,10 +76,10 @@ class JdbcStudentDirectory implements StudentDirectory {
 		return ordered;
 	}
 
-	private static StudentCard card(Row row, LocalDate today) {
+	private static PersonCard card(Row row, LocalDate today) {
 		// A lapsed verification's name is not shown, though its expiry Deadline has yet to clear it.
 		boolean current = row.verifiedUntil() != null && !today.isAfter(row.verifiedUntil());
-		return new StudentCard(row.id(), row.login(), row.githubUserId(), row.shown() && current ? row.name() : null,
+		return new PersonCard(row.id(), row.login(), row.githubUserId(), row.shown() && current ? row.name() : null,
 				row.available());
 	}
 

@@ -29,7 +29,7 @@ import vn.vibefix.dispute.internal.TeamIssues.Phase;
 import vn.vibefix.dispute.internal.TeamIssues.Subject;
 import vn.vibefix.dispute.internal.TeamIssues.TeamIssue;
 import vn.vibefix.identity.ActiveAccount;
-import vn.vibefix.identity.StudentDirectory;
+import vn.vibefix.identity.PersonDirectory;
 import vn.vibefix.job.JobRole;
 import vn.vibefix.job.JobRoles;
 import vn.vibefix.job.TeamIssueLocks;
@@ -123,19 +123,19 @@ class TeamIssueController {
 
 	private final JobRoles roles;
 
-	private final StudentDirectory students;
+	private final PersonDirectory people;
 
 	private final ActiveAccount gate;
 
 	private final CurrentCaller callers;
 
 	TeamIssueController(TeamIssues issues, TeamIssueAnswers answers, TeamIssueLocks locks, JobRoles roles,
-			StudentDirectory students, ActiveAccount gate, CurrentCaller callers) {
+			PersonDirectory people, ActiveAccount gate, CurrentCaller callers) {
 		this.issues = issues;
 		this.answers = answers;
 		this.locks = locks;
 		this.roles = roles;
-		this.students = students;
+		this.people = people;
 		this.gate = gate;
 		this.callers = callers;
 	}
@@ -261,7 +261,7 @@ class TeamIssueController {
 
 	private Map<UUID, String> names(List<TeamIssue> issues) {
 		Map<UUID, String> names = new HashMap<>();
-		this.students.cards(issues.stream().map(TeamIssue::raiserId).filter(Objects::nonNull).distinct().toList())
+		this.people.cards(issues.stream().map(TeamIssue::raiserId).filter(Objects::nonNull).distinct().toList())
 			.forEach(card -> names.put(card.accountId(), card.name() != null ? card.name() : "@" + card.githubLogin()));
 		return names;
 	}

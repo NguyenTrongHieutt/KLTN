@@ -25,8 +25,8 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import vn.vibefix.identity.CustomerNames;
 import vn.vibefix.identity.MentorDirectory;
-import vn.vibefix.identity.StudentDirectory;
-import vn.vibefix.identity.StudentDirectory.StudentCard;
+import vn.vibefix.identity.PersonDirectory;
+import vn.vibefix.identity.PersonDirectory.PersonCard;
 import vn.vibefix.reputation.internal.Ratings.Kind;
 import vn.vibefix.reputation.internal.Ratings.Rating;
 import vn.vibefix.reputation.internal.Ratings.Viewer;
@@ -83,19 +83,19 @@ class RatingController {
 
 	private final MentorDirectory mentors;
 
-	private final StudentDirectory students;
+	private final PersonDirectory people;
 
 	private final CurrentCaller callers;
 
 	private final Clock clock;
 
 	RatingController(Ratings ratings, JobViewers viewers, CustomerNames customers, MentorDirectory mentors,
-			StudentDirectory students, CurrentCaller callers, Clock clock) {
+			PersonDirectory people, CurrentCaller callers, Clock clock) {
 		this.ratings = ratings;
 		this.viewers = viewers;
 		this.customers = customers;
 		this.mentors = mentors;
-		this.students = students;
+		this.people = people;
 		this.callers = callers;
 		this.clock = clock;
 	}
@@ -166,7 +166,7 @@ class RatingController {
 		}
 		List<UUID> crew = this.ratings.crew(viewer.jobId());
 		if (!crew.isEmpty()) {
-			for (StudentCard card : this.students.cards(crew)) {
+			for (PersonCard card : this.people.cards(crew)) {
 				names.put(card.accountId(), card.name() != null ? card.name() : "@" + card.githubLogin());
 			}
 		}

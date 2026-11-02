@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import vn.vibefix.identity.MentorDirectory;
-import vn.vibefix.identity.StudentDirectory;
+import vn.vibefix.identity.PersonDirectory;
 import vn.vibefix.job.JobRoles;
 import vn.vibefix.job.MilestoneFunding;
 import vn.vibefix.job.MilestoneFunding.FundingJob;
@@ -65,7 +65,7 @@ class PaymentHistory {
 
 	private final MilestoneFunding funding;
 
-	private final StudentDirectory students;
+	private final PersonDirectory people;
 
 	private final MentorDirectory mentors;
 
@@ -73,12 +73,12 @@ class PaymentHistory {
 
 	private final MilestoneSplits splits;
 
-	PaymentHistory(JdbcClient jdbc, MilestoneFunding funding, StudentDirectory students, MentorDirectory mentors,
+	PaymentHistory(JdbcClient jdbc, MilestoneFunding funding, PersonDirectory people, MentorDirectory mentors,
 			JobRoles roles, MilestoneSplits splits) {
 		this.splits = splits;
 		this.jdbc = jdbc;
 		this.funding = funding;
-		this.students = students;
+		this.people = people;
 		this.mentors = mentors;
 		this.roles = roles;
 	}
@@ -199,7 +199,7 @@ class PaymentHistory {
 		Map<UUID, String> names = new HashMap<>();
 		List<UUID> crew = accounts.stream().filter(account -> !account.equals(mentorId)).toList();
 		if (!crew.isEmpty()) {
-			this.students.cards(crew).forEach(card -> names.put(card.accountId(), card.shownName()));
+			this.people.cards(crew).forEach(card -> names.put(card.accountId(), card.shownName()));
 		}
 		if (accounts.contains(mentorId)) {
 			this.mentors.cards(List.of(mentorId)).forEach(card -> names.put(card.accountId(), card.displayName()));

@@ -25,8 +25,8 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
-import vn.vibefix.identity.StudentDirectory;
-import vn.vibefix.identity.StudentDirectory.StudentCard;
+import vn.vibefix.identity.PersonDirectory;
+import vn.vibefix.identity.PersonDirectory.PersonCard;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.CurrentCaller;
@@ -118,17 +118,17 @@ class PageController {
 
 	private final MentorDirectory mentors;
 
-	private final StudentDirectory students;
+	private final PersonDirectory people;
 
 	private final CurrentCaller callers;
 
 	PageController(Pages pages, PageTemplates templates, WorkAccess access, MentorDirectory mentors,
-			StudentDirectory students, CurrentCaller callers) {
+			PersonDirectory people, CurrentCaller callers) {
 		this.pages = pages;
 		this.templates = templates;
 		this.access = access;
 		this.mentors = mentors;
-		this.students = students;
+		this.people = people;
 		this.callers = callers;
 	}
 
@@ -253,7 +253,7 @@ class PageController {
 		Set<UUID> students = new HashSet<>();
 		versions.stream().map(Version::author).filter(id -> id != null && !id.equals(viewer.mentorId())).forEach(students::add);
 		if (!students.isEmpty()) {
-			for (StudentCard card : this.students.cards(List.copyOf(students))) {
+			for (PersonCard card : this.people.cards(List.copyOf(students))) {
 				names.put(card.accountId(), card.name() != null ? card.name() : "@" + card.githubLogin());
 			}
 		}

@@ -11,7 +11,7 @@ import org.jspecify.annotations.Nullable;
  * needs to name them. It is not {@link MentorDirectory}, which leaves out people with no profile and shows a different
  * name. Nobody is searched here: a Mentor sees only the people who apply to their Crew.
  */
-public interface StudentDirectory {
+public interface PersonDirectory {
 
 	/**
 	 * A person's card.
@@ -20,7 +20,7 @@ public interface StudentDirectory {
 	 * @param name the full name declared at student verification, only while it is current and they show it
 	 * @param available an unlocked, unerased account
 	 */
-	record StudentCard(UUID accountId, @Nullable String githubLogin, @Nullable Long githubUserId, @Nullable String name,
+	record PersonCard(UUID accountId, @Nullable String githubLogin, @Nullable Long githubUserId, @Nullable String name,
 			boolean available) {
 
 		/**
@@ -37,6 +37,6 @@ public interface StudentDirectory {
 	}
 
 	/** The cards of these people, verified or not, in the order of {@code ids}; unknown IDs are left out. */
-	List<StudentCard> cards(Collection<UUID> ids);
+	List<PersonCard> cards(Collection<UUID> ids);
 
 }

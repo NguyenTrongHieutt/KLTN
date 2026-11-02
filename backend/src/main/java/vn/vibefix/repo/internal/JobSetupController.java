@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import vn.vibefix.identity.MentorDirectory;
-import vn.vibefix.identity.StudentDirectory;
+import vn.vibefix.identity.PersonDirectory;
 import vn.vibefix.job.Crews.Relationship;
 import vn.vibefix.job.JobBusy;
 import vn.vibefix.job.JobBusy.BusyJob;
@@ -76,20 +76,20 @@ class JobSetupController {
 
 	private final MentorDirectory mentors;
 
-	private final StudentDirectory students;
+	private final PersonDirectory people;
 
 	private final GitHubLinks links;
 
 	private final CurrentCaller callers;
 
 	JobSetupController(JobSetups setups, JobGrants grants, JobBusy busy, JobRoles roles, MentorDirectory mentors,
-			StudentDirectory students, GitHubLinks links, CurrentCaller callers) {
+			PersonDirectory people, GitHubLinks links, CurrentCaller callers) {
 		this.setups = setups;
 		this.grants = grants;
 		this.busy = busy;
 		this.roles = roles;
 		this.mentors = mentors;
-		this.students = students;
+		this.people = people;
 		this.links = links;
 		this.callers = callers;
 	}
@@ -179,7 +179,7 @@ class JobSetupController {
 		this.mentors.cards(mentorIds).forEach(card -> names.put(card.accountId(), card.displayName()));
 		List<UUID> crewIds = grants.stream().filter(grant -> "CREW".equals(grant.role())).map(Grant::accountId).toList();
 		if (!customer && !crewIds.isEmpty()) {
-			this.students.cards(crewIds).stream()
+			this.people.cards(crewIds).stream()
 				.filter(card -> card.name() != null)
 				.forEach(card -> names.put(card.accountId(), card.name()));
 		}

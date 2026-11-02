@@ -40,7 +40,7 @@ import vn.vibefix.catalog.SkillRenamed;
 import vn.vibefix.identity.ContactVisibility;
 import vn.vibefix.identity.CustomerNames;
 import vn.vibefix.identity.MentorDirectory;
-import vn.vibefix.identity.StudentDirectory;
+import vn.vibefix.identity.PersonDirectory;
 import vn.vibefix.notification.RecipientAddresses;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
@@ -73,7 +73,7 @@ class ProfileIT extends IntegrationTest {
 	private RecipientAddresses addresses;
 
 	@Autowired
-	private StudentDirectory students;
+	private PersonDirectory people;
 
 	@Autowired
 	private MentorDirectory mentors;
@@ -317,7 +317,7 @@ class ProfileIT extends IntegrationTest {
 				VALUES (:id, 'Minh', 'Trần Quang Minh', 'Đại học Bách khoa Hà Nội', 'Kỹ thuật phần mềm', :now)
 				""").param("id", minh).param("now", Timestamp.from(this.clock.instant())).update();
 
-		assertThat(this.students.cards(List.of(minh))).singleElement()
+		assertThat(this.people.cards(List.of(minh))).singleElement()
 			.satisfies(card -> assertThat(card.name()).isEqualTo("Trần Quang Minh"));
 		// Story 21.3 (AD-36): the declared name is searched while shown; the school and the major are no search terms.
 		assertThat(this.mentors.search("Quang Minh", List.of(), null, PageRequest.of(0, 10)).getContent())
@@ -336,7 +336,7 @@ class ProfileIT extends IntegrationTest {
 			.contentType(MediaType.APPLICATION_JSON)
 			.content(body("Minh", List.of(), List.of(), List.of(), true))).andExpect(status().isNoContent());
 
-		assertThat(this.students.cards(List.of(minh))).singleElement()
+		assertThat(this.people.cards(List.of(minh))).singleElement()
 			.satisfies(card -> assertThat(card.name()).isNull());
 		assertThat(this.mentors.search("Quang Minh", List.of(), null, PageRequest.of(0, 10)).getContent()).isEmpty();
 		assertThat(this.jdbc.sql("""
@@ -377,7 +377,7 @@ class ProfileIT extends IntegrationTest {
 				""").param("id", UUID.randomUUID()).param("account", renewed)
 			.param("hmac", IdentityTestSupport.fakeHmac("renewed-old")).update();
 
-		assertThat(this.students.cards(List.of(unlinked, revoked, renewed))).hasSize(3)
+		assertThat(this.people.cards(List.of(unlinked, revoked, renewed))).hasSize(3)
 			.allSatisfy(card -> assertThat(card.name() == null).isEqualTo(!card.accountId().equals(renewed)));
 	}
 
