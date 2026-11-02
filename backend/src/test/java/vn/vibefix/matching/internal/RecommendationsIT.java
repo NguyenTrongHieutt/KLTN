@@ -29,16 +29,16 @@ import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.Kind;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /** FR-14, AD-17, SG-40: deterministic Recommendations for a Job Post and for a Mentor. */
 class RecommendationsIT extends IntegrationTest {
 
-	private static final String REACT = TeamTestSupport.REACT;
+	private static final String REACT = TestPeople.REACT;
 
-	private static final String SUPABASE = TeamTestSupport.SUPABASE;
+	private static final String SUPABASE = TestPeople.SUPABASE;
 
-	private static final String WEB_SECURITY = TeamTestSupport.WEB_SECURITY;
+	private static final String WEB_SECURITY = TestPeople.WEB_SECURITY;
 
 	@Autowired
 	private MockMvc mvc;
@@ -140,7 +140,7 @@ class RecommendationsIT extends IntegrationTest {
 	@Test
 	void aUserWithNoRoleIsRecommendedAndTheJobsCustomerNever() throws Exception {
 		UUID job = job("OPEN", List.of("BUG_FIX"), List.of(REACT), null);
-		UUID minh = TeamTestSupport.googleMentor(this.jdbc, "Ngô Văn Minh", List.of(REACT), "React");
+		UUID minh = TestPeople.googleMentor(this.jdbc, "Ngô Văn Minh", List.of(REACT), "React");
 		this.jdbc.sql("""
 				INSERT INTO identity.profile (account_id, display_name, skill_ids, skill_names, updated_at)
 				VALUES (:id, 'Lan Nguyễn', CAST(:skills AS UUID[]), 'React', now())
@@ -349,7 +349,7 @@ class RecommendationsIT extends IntegrationTest {
 
 	/** A person with GitHub linked and a profile holding {@code skills}: anyone may mentor a Job (Story 20.3). */
 	private UUID mentor(String name, List<String> skills) {
-		return TeamTestSupport.mentor(this.jdbc, name, skills, "Kỹ năng");
+		return TestPeople.mentor(this.jdbc, name, skills, "Kỹ năng");
 	}
 
 	/** A Job of the Customer in {@code state}; past Open it has {@code mentor}, selected now. */

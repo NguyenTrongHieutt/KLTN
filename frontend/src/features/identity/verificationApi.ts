@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { components } from '@/api/schema'
-import { NOTIFICATION_QUERY_KEY } from '@/features/notification/api'
 import vi from '@/i18n/vi.json'
 import { apiClient, unwrap } from '@/lib/apiClient'
 import { PROFILE_QUERY_KEY } from './profileApi'
@@ -47,7 +46,7 @@ export function useSendSchoolEmailCode() {
 
 /**
  * "Xác minh": a wrong entry still counts, so a refusal refreshes the view for the attempts left;
- * success closes the `identity.verify_student` to-do and fills ACC-1's verified zone, so both refresh too.
+ * success fills ACC-1's verified zone, so it refreshes too.
  */
 export function useConfirmSchoolEmailCode() {
   const queryClient = useQueryClient()
@@ -56,8 +55,7 @@ export function useConfirmSchoolEmailCode() {
       unwrap(apiClient.POST('/api/v1/verification/school-email/confirm', { body: { code } })),
     onSuccess: (view) => {
       queryClient.setQueryData(VERIFICATION_QUERY_KEY, view)
-      void queryClient.invalidateQueries({ queryKey: PROFILE_QUERY_KEY })
-      return queryClient.invalidateQueries({ queryKey: NOTIFICATION_QUERY_KEY })
+      return queryClient.invalidateQueries({ queryKey: PROFILE_QUERY_KEY })
     },
     onError: () => queryClient.invalidateQueries({ queryKey: VERIFICATION_QUERY_KEY }),
   })

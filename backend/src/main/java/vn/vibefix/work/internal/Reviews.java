@@ -6,14 +6,13 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import vn.vibefix.identity.StudentDirectory;
+import vn.vibefix.identity.PersonDirectory;
 import vn.vibefix.notification.Audience;
 import vn.vibefix.notification.NotificationRequest;
 import vn.vibefix.notification.Notifications;
@@ -82,7 +81,7 @@ class Reviews {
 
 	private final WorkTextCheck check;
 
-	private final StudentDirectory students;
+	private final PersonDirectory people;
 
 	private final Notifications notifications;
 
@@ -90,12 +89,12 @@ class Reviews {
 
 	private final Clock clock;
 
-	Reviews(Boards boards, JdbcClient jdbc, WorkTextCheck check, StudentDirectory students, Notifications notifications,
+	Reviews(Boards boards, JdbcClient jdbc, WorkTextCheck check, PersonDirectory people, Notifications notifications,
 			Todos todos, Clock clock) {
 		this.boards = boards;
 		this.jdbc = jdbc;
 		this.check = check;
-		this.students = students;
+		this.people = people;
 		this.notifications = notifications;
 		this.todos = todos;
 		this.clock = clock;
@@ -197,10 +196,10 @@ class Reviews {
 	}
 
 	private String name(UUID student) {
-		return this.students.cards(List.of(student))
+		return this.people.cards(List.of(student))
 			.stream()
 			.findFirst()
-			.map(card -> Objects.requireNonNullElse(card.name(), "@" + card.githubLogin()))
+			.map(PersonDirectory.PersonCard::shownName)
 			.orElse("");
 	}
 

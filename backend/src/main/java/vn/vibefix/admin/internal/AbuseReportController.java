@@ -28,10 +28,10 @@ class AbuseReportController {
 
 	/**
 	 * @param kind {@code PRODUCT}, {@code JOB_POST}, {@code PAGE}, {@code RATING}, {@code JOB_CHAT_MESSAGE},
-	 * {@code CREW_CHAT_MESSAGE}, {@code WORK_ITEM_NOTE}, or {@code USER}
+	 * {@code CREW_CHAT_MESSAGE}, {@code WORK_ITEM_NOTE}, {@code USER}, or {@code RECRUITMENT_NOTE}
 	 * @param targetId the item; for a user, their account
 	 * @param targetLogin for a user only, in place of {@code targetId}: the GitHub username their public profile
-	 * shows, since a Student's profile never shows the account (PUB-4)
+	 * shows, since a public profile never shows the account (PUB-4)
 	 */
 	record AbuseReportRequest(@NotBlank String kind, @Nullable UUID targetId, @Nullable @Size(max = 39) String targetLogin,
 			@NotBlank @Size(max = 500) String reason) {

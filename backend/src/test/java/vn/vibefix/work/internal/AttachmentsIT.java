@@ -33,7 +33,7 @@ import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.JobUploads;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.TestFiles;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /**
  * FR-47, FR-76, NFR-3, AD-21, AD-34, AD-39, AD-41: an active member attaches files and {@code https}
@@ -73,8 +73,8 @@ class AttachmentsIT extends IntegrationTest {
 	@BeforeEach
 	void aSeededStoryOnAnActiveJobWithVyOnTheCrew() {
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng",
-				List.of(TeamTestSupport.REACT), "React");
+		this.hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng",
+				List.of(TestPeople.REACT), "React");
 		UUID product = WorkTestSupport.product(this.jdbc, this.lan, "Sổ đặt bàn Quán Mây");
 		this.job = WorkTestSupport.activeJob(this.jdbc, product, this.lan, this.hung, List.of(MILESTONE),
 				List.of(List.of(CRITERION)), this.clock.instant());

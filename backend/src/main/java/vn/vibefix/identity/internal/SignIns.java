@@ -38,8 +38,6 @@ class SignIns {
 	/** Where every account lands after signing in: the to-do list; no Mentor waits for an approval (Story 19.7). */
 	static final String LANDING_PATH = "/viec-can-lam";
 
-	static final String VERIFY_STUDENT = "identity.verify_student";
-
 	/** Opened by the welcome and open until GitHub is linked (UX-DR89, UX-DR112); it leads to ACC-2. */
 	static final String LINK_GITHUB = "identity.link_github";
 

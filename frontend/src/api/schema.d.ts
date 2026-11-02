@@ -701,7 +701,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["decline_8"];
+        post: operations["decline_6"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1021,7 +1021,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["decline_7"];
+        post: operations["decline_5"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1309,7 +1309,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["decline_6"];
+        post: operations["decline_4"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1613,7 +1613,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["decline_5"];
+        post: operations["decline_3"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1757,7 +1757,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["accept_3"];
+        post: operations["accept_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2173,7 +2173,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["decline_4"];
+        post: operations["decline_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2253,7 +2253,7 @@ export interface paths {
         };
         get: operations["invitations"];
         put?: never;
-        post: operations["invite_1"];
+        post: operations["invite"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2670,7 +2670,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete: operations["remove_2"];
+        delete: operations["remove_1"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2750,7 +2750,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete: operations["remove_1"];
+        delete: operations["remove"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2877,7 +2877,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["decline_3"];
+        post: operations["decline_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2925,7 +2925,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["decline_2"];
+        post: operations["decline"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2988,118 +2988,6 @@ export interface paths {
             cookie?: never;
         };
         get: operations["forMentor"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/mentor/team": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["team_1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/mentor/team/invitations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["invite"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/mentor/team/join-requests/{joinRequestId}/accept": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["accept_2"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/mentor/team/join-requests/{joinRequestId}/decline": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["decline_1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/mentor/team/members/{membershipId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete: operations["remove"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/mentor/team/students": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["students"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/mentor/team/students/{studentId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["student"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3604,22 +3492,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/team": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["team"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/team-issues": {
         parameters: {
             query?: never;
@@ -3645,7 +3517,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["accept_1"];
+        post: operations["accept"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3662,86 +3534,6 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["escalate"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/team/invitations/{invitationId}/accept": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["accept"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/team/invitations/{invitationId}/decline": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["decline"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/team/join-requests": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["requestToJoin"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/team/membership": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete: operations["leave_1"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/team/mentors": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["mentors"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4049,6 +3841,8 @@ export interface components {
         AbuseReportDetail: {
             assigned: boolean;
             assignedToMe: boolean;
+            /** Format: uuid */
+            authorId?: string;
             authorName?: string;
             /** Format: date-time */
             createdAt: string;
@@ -4064,6 +3858,7 @@ export interface components {
             label: string;
             outcome?: string;
             reason: string;
+            reportedText?: string;
             reporterName?: string;
             status: string;
             /** Format: uuid */
@@ -6365,19 +6160,6 @@ export interface components {
             count: number;
             newcomer: boolean;
         };
-        MentorTeamView: {
-            invitations: components["schemas"]["TeamStudentRequestRow"][];
-            /** Format: int32 */
-            invitesLeft: number;
-            joinRequests: components["schemas"]["TeamStudentRequestRow"][];
-            members: components["schemas"]["TeamMemberRow"][];
-            /** Format: int32 */
-            size: number;
-            /** Format: int32 */
-            sizeLimit: number;
-            /** @enum {string} */
-            status: "OPEN" | "CLOSED";
-        };
         MergeSensitiveChangeView: {
             /** @enum {string} */
             kind: "CI_CONFIG" | "DEPENDENCIES" | "BUILD_SCRIPT" | "BINARY";
@@ -7597,35 +7379,6 @@ export interface components {
             /** Format: date-time */
             verifiedAt: string;
         };
-        StudentTeamMembership: {
-            /** Format: date-time */
-            joinedAt: string;
-            listed: components["schemas"]["TeamListedMember"][];
-            mentor: components["schemas"]["TeamMentorView"];
-            onCrew: boolean;
-            /** Format: int32 */
-            size: number;
-            /** @enum {string} */
-            status: "OPEN" | "CLOSED";
-        };
-        StudentTeamRequestView: {
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: uuid */
-            id: string;
-            /** @enum {string} */
-            kind: "INVITATION" | "JOIN_REQUEST";
-            /** Format: date-time */
-            lapsesAt: string;
-        };
-        StudentTeamView: {
-            invitations: components["schemas"]["TeamMentorRequestRow"][];
-            joinRequests: components["schemas"]["TeamMentorRequestRow"][];
-            /** Format: int32 */
-            requestsLeft: number;
-            team?: components["schemas"]["StudentTeamMembership"];
-            verified: boolean;
-        };
         SubmitRequest: {
             note?: string;
             selfCheck: components["schemas"]["SelfCheckRequest"];
@@ -7647,10 +7400,6 @@ export interface components {
         };
         SummaryRequest: {
             text: string;
-        };
-        TeamInvitationRequest: {
-            /** Format: uuid */
-            studentId: string;
         };
         TeamIssueDecisionRequest: {
             /** Format: int32 */
@@ -7749,117 +7498,6 @@ export interface components {
             reason: string;
             split?: components["schemas"]["TeamIssueSplitView"];
             subject: string;
-        };
-        TeamJoinRequest: {
-            /** Format: uuid */
-            mentorId: string;
-        };
-        TeamListedMember: {
-            name: string;
-            school?: string;
-            you: boolean;
-        };
-        TeamMemberRow: {
-            /** Format: date-time */
-            joinedAt: string;
-            /** Format: uuid */
-            membershipId: string;
-            onCrew: boolean;
-            student: components["schemas"]["TeamStudentView"];
-        };
-        TeamMentorRequestRow: {
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: uuid */
-            id: string;
-            /** Format: date-time */
-            lapsesAt: string;
-            mentor: components["schemas"]["TeamMentorView"];
-        };
-        TeamMentorResult: {
-            mentor: components["schemas"]["TeamMentorView"];
-            /** @enum {string} */
-            relation: "NONE" | "INVITED" | "REQUESTED" | "MEMBER";
-            teamFull: boolean;
-        };
-        TeamMentorSearchView: {
-            inTeam: boolean;
-            items: components["schemas"]["TeamMentorResult"][];
-            /** Format: int32 */
-            page: number;
-            /** Format: int32 */
-            requestsLeft: number;
-            /** Format: int32 */
-            size: number;
-            /** Format: int64 */
-            total: number;
-        };
-        TeamMentorView: {
-            /** Format: uuid */
-            accountId: string;
-            available: boolean;
-            displayName: string;
-            githubLogin?: string;
-            skills: string[];
-            /** Format: int32 */
-            teamSize: number;
-            /** Format: int32 */
-            yearsOfExperience?: number;
-        };
-        TeamRequestView: {
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: uuid */
-            id: string;
-            /** @enum {string} */
-            kind: "INVITATION" | "JOIN_REQUEST";
-            /** Format: date-time */
-            lapsesAt: string;
-        };
-        TeamStudentProfileView: {
-            /** @enum {string} */
-            relation: "NONE" | "INVITED" | "REQUESTED" | "MEMBER" | "OTHER_TEAM";
-            student: components["schemas"]["TeamStudentView"];
-            teamMentor?: components["schemas"]["TeamMentorView"];
-        };
-        TeamStudentRequestRow: {
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: uuid */
-            id: string;
-            /** Format: date-time */
-            lapsesAt: string;
-            student: components["schemas"]["TeamStudentView"];
-        };
-        TeamStudentResult: {
-            /** @enum {string} */
-            relation: "NONE" | "INVITED" | "REQUESTED" | "MEMBER" | "OTHER_TEAM";
-            student: components["schemas"]["TeamStudentView"];
-        };
-        TeamStudentSearchView: {
-            /** Format: int32 */
-            invitesLeft: number;
-            items: components["schemas"]["TeamStudentResult"][];
-            /** Format: int32 */
-            page: number;
-            /** Format: int32 */
-            size: number;
-            /** Format: int32 */
-            teamSize: number;
-            /** Format: int64 */
-            total: number;
-        };
-        TeamStudentView: {
-            /** Format: uuid */
-            accountId: string;
-            githubLogin?: string;
-            major?: string;
-            name?: string;
-            school?: string;
-            skills: string[];
-            verified: boolean;
-            /** Format: date */
-            verifiedUntil?: string;
         };
         TestCardView: {
             bank?: string;
@@ -9210,7 +8848,7 @@ export interface operations {
             };
         };
     };
-    decline_8: {
+    decline_6: {
         parameters: {
             query?: never;
             header?: never;
@@ -9756,7 +9394,7 @@ export interface operations {
             };
         };
     };
-    decline_7: {
+    decline_5: {
         parameters: {
             query?: never;
             header?: never;
@@ -10265,7 +9903,7 @@ export interface operations {
             };
         };
     };
-    decline_6: {
+    decline_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -10821,7 +10459,7 @@ export interface operations {
             };
         };
     };
-    decline_5: {
+    decline_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -11043,7 +10681,7 @@ export interface operations {
             };
         };
     };
-    accept_3: {
+    accept_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -11752,7 +11390,7 @@ export interface operations {
             };
         };
     };
-    decline_4: {
+    decline_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -11885,7 +11523,7 @@ export interface operations {
             };
         };
     };
-    invite_1: {
+    invite: {
         parameters: {
             query?: never;
             header?: never;
@@ -12548,7 +12186,7 @@ export interface operations {
             };
         };
     };
-    remove_2: {
+    remove_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -12690,7 +12328,7 @@ export interface operations {
             };
         };
     };
-    remove_1: {
+    remove: {
         parameters: {
             query?: never;
             header?: never;
@@ -12897,7 +12535,7 @@ export interface operations {
             };
         };
     };
-    decline_3: {
+    decline_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -12962,7 +12600,7 @@ export interface operations {
             };
         };
     };
-    decline_2: {
+    decline: {
         parameters: {
             query?: never;
             header?: never;
@@ -13099,166 +12737,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RecommendedPostView"][];
-                };
-            };
-        };
-    };
-    team_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MentorTeamView"];
-                };
-            };
-        };
-    };
-    invite: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TeamInvitationRequest"];
-            };
-        };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TeamRequestView"];
-                };
-            };
-        };
-    };
-    accept_2: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                joinRequestId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TeamRequestView"];
-                };
-            };
-        };
-    };
-    decline_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                joinRequestId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TeamRequestView"];
-                };
-            };
-        };
-    };
-    remove: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                membershipId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No Content */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    students: {
-        parameters: {
-            query?: {
-                q?: string;
-                skills?: string[];
-                login?: string;
-                /** @description Zero-based page index (0..N) */
-                page?: number;
-                /** @description The size of the page to be returned */
-                size?: number;
-                /** @description Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported. */
-                sort?: string[];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TeamStudentSearchView"];
-                };
-            };
-        };
-    };
-    student: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                studentId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TeamStudentProfileView"];
                 };
             };
         };
@@ -14085,26 +13563,6 @@ export interface operations {
             };
         };
     };
-    team: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StudentTeamView"];
-                };
-            };
-        };
-    };
     panel: {
         parameters: {
             query?: never;
@@ -14149,7 +13607,7 @@ export interface operations {
             };
         };
     };
-    accept_1: {
+    accept: {
         parameters: {
             query?: never;
             header?: never;
@@ -14189,121 +13647,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TeamIssueView"];
-                };
-            };
-        };
-    };
-    accept: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                invitationId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StudentTeamRequestView"];
-                };
-            };
-        };
-    };
-    decline: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                invitationId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StudentTeamRequestView"];
-                };
-            };
-        };
-    };
-    requestToJoin: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TeamJoinRequest"];
-            };
-        };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StudentTeamRequestView"];
-                };
-            };
-        };
-    };
-    leave_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No Content */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    mentors: {
-        parameters: {
-            query?: {
-                q?: string;
-                skills?: string[];
-                /** @description Zero-based page index (0..N) */
-                page?: number;
-                /** @description The size of the page to be returned */
-                size?: number;
-                /** @description Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported. */
-                sort?: string[];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TeamMentorSearchView"];
                 };
             };
         };

@@ -27,7 +27,7 @@ import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.MutableClock;
 import vn.vibefix.support.TestFiles;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /**
  * The recruiting Job (FR-81, AD-20, AD-43, Story 21.4): an Agreement Job of the Customer's Product whose Mentor is
@@ -73,9 +73,9 @@ final class RecruitingJobWorld {
 				    recruit_skill_ids = ARRAY[CAST(:react AS UUID)], recruit_skill_names = ARRAY['React'],
 				    recruit_note = 'Cần một bạn kiểm thử phân quyền'
 				WHERE id = :id
-				""").param("id", job).param("now", now).param("react", TeamTestSupport.REACT).update();
+				""").param("id", job).param("now", now).param("react", TestPeople.REACT).update();
 		world.put("recruitJobId", job);
-		this.applicant = TeamTestSupport.mentor(this.jdbc, "Người xin vào nhóm ma trận", List.of(TeamTestSupport.REACT),
+		this.applicant = TestPeople.mentor(this.jdbc, "Người xin vào nhóm ma trận", List.of(TestPeople.REACT),
 				"React");
 		UUID application = UUID.randomUUID();
 		this.jdbc.sql("""
@@ -92,7 +92,7 @@ final class RecruitingJobWorld {
 			.param("mentor", mentor)
 			.param("applicant", this.applicant)
 			.param("note", value("CREW_APPLICATION_NOTE"))
-			.param("react", TeamTestSupport.REACT)
+			.param("react", TestPeople.REACT)
 			.param("now", now)
 			.param("lapses", Timestamp.from(MutableClock.DEFAULT_INSTANT.plus(Duration.ofDays(14))))
 			.update();

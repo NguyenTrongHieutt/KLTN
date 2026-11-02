@@ -25,7 +25,7 @@ import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
 import vn.vibefix.identity.MentorDirectory;
-import vn.vibefix.identity.StudentDirectory;
+import vn.vibefix.identity.PersonDirectory;
 import vn.vibefix.job.Crews;
 import vn.vibefix.job.JobRules;
 import vn.vibefix.job.MilestoneFunding;
@@ -145,7 +145,7 @@ class TeamIssues {
 
 	private final MentorDirectory mentors;
 
-	private final StudentDirectory students;
+	private final PersonDirectory people;
 
 	private final Deadlines deadlines;
 
@@ -160,7 +160,7 @@ class TeamIssues {
 	private final Clock clock;
 
 	TeamIssues(JdbcClient jdbc, TeamIssueLocks locks, Crews crews, MilestoneFunding funding, JobRules rules, Ledger ledger,
-			ShareHolds holds, CrewRatings ratings, MentorDirectory mentors, StudentDirectory students, Deadlines deadlines,
+			ShareHolds holds, CrewRatings ratings, MentorDirectory mentors, PersonDirectory people, Deadlines deadlines,
 			Notifications notifications, Todos todos, AuditLog auditLog, IdGenerator ids, Clock clock) {
 		this.jdbc = jdbc;
 		this.locks = locks;
@@ -171,7 +171,7 @@ class TeamIssues {
 		this.holds = holds;
 		this.ratings = ratings;
 		this.mentors = mentors;
-		this.students = students;
+		this.people = people;
 		this.deadlines = deadlines;
 		this.notifications = notifications;
 		this.todos = todos;
@@ -324,10 +324,10 @@ class TeamIssues {
 		}
 		this.deadlines.schedule(new DeadlineRequest(TeamIssueAnswerDeadline.KEY, id, generation(id, Phase.ANSWER), jobId,
 				answerDue));
-		String name = this.students.cards(List.of(studentId))
+		String name = this.people.cards(List.of(studentId))
 			.stream()
 			.findFirst()
-			.map(card -> card.name() != null ? card.name() : "@" + card.githubLogin())
+			.map(PersonDirectory.PersonCard::shownName)
 			.orElse("");
 		String link = "/cong-viec/" + jobId;
 		this.notifications.send(new NotificationRequest(RAISED, id, List.of(new Recipient(job.mentorId(), Audience.MENTOR)),

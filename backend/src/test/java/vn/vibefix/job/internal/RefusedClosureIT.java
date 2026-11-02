@@ -26,7 +26,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.IntegrationTest;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 import vn.vibefix.timers.internal.DeadlinePoller;
 
 /**
@@ -94,8 +94,8 @@ class RefusedClosureIT extends IntegrationTest {
 	/** An Active Job with no Milestone left to fund or hand over. */
 	private UUID world() {
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng",
-				List.of(TeamTestSupport.REACT), "React");
+		this.hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng",
+				List.of(TestPeople.REACT), "React");
 		UUID product = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO product.product (id, customer_account_id, name, description, ai_tools, repository_github_id,

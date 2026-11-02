@@ -35,7 +35,7 @@ import vn.vibefix.reputation.RatingRole;
 import vn.vibefix.reputation.RatingSummary;
 import vn.vibefix.reputation.Reputation;
 import vn.vibefix.support.IntegrationTest;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 import vn.vibefix.timers.internal.DeadlinePoller;
 
 /**
@@ -75,8 +75,8 @@ class RatingIT extends IntegrationTest {
 	@Test
 	void theWindowKeepsRatingsBlindAndPrivateFeedbackPrivate() throws Exception {
 		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		UUID hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng",
-				List.of(TeamTestSupport.REACT), "React");
+		UUID hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng",
+				List.of(TestPeople.REACT), "React");
 		UUID vy = student("Trần Thảo Vy");
 		UUID never = student("Ngô Chưa Ký");
 		UUID job = job(lan, hung);
@@ -198,7 +198,7 @@ class RatingIT extends IntegrationTest {
 	}
 
 	private UUID student(String name) {
-		return TeamTestSupport.student(this.jdbc, name, true, List.of(TeamTestSupport.REACT), "React", LocalDate.parse("2026-09-30"));
+		return TestPeople.student(this.jdbc, name, true, List.of(TestPeople.REACT), "React", LocalDate.parse("2026-09-30"));
 	}
 
 	private UUID job(UUID owner, UUID mentor) {

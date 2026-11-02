@@ -59,7 +59,7 @@ import vn.vibefix.operations.internal.OperationWorker;
 import vn.vibefix.payment.Ledger;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /**
  * FR-41, FR-43, AD-4, AD-14, AD-15, AD-41, SM-6: funding a Milestone through the VNPay sandbox's IPN, and
@@ -119,8 +119,6 @@ class FundingIT extends IntegrationTest {
 	private UUID lan;
 
 	private UUID hung;
-
-	private UUID team;
 
 	private UUID vy;
 
@@ -512,11 +510,8 @@ class FundingIT extends IntegrationTest {
 				""")
 			.param("id", this.job).param("product", product).param("owner", this.lan).param("type", jobType)
 			.param("now", Timestamp.from(now)).param("lapses", Timestamp.from(now.plus(Duration.ofDays(14)))).update();
-		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT),
+		this.hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT),
 				"React");
-		this.team = UUID.randomUUID();
-		this.jdbc.sql("INSERT INTO team.team (id, mentor_account_id, status, created_at) VALUES (:id, :mentor, 'OPEN', now())")
-			.param("id", this.team).param("mentor", this.hung).update();
 		this.vy = member("Lê Thảo Vy");
 		UUID application = UUID.randomUUID();
 		this.jdbc.sql("""
@@ -617,11 +612,8 @@ class FundingIT extends IntegrationTest {
 	}
 
 	private UUID member(String name) {
-		UUID student = TeamTestSupport.student(this.jdbc, name, true, List.of(TeamTestSupport.REACT), "React",
+		return TestPeople.student(this.jdbc, name, true, List.of(TestPeople.REACT), "React",
 				LocalDate.parse("2026-09-30"));
-		this.jdbc.sql("INSERT INTO team.membership (id, team_id, student_account_id, joined_at) VALUES (:id, :team, :student, now())")
-			.param("id", UUID.randomUUID()).param("team", this.team).param("student", student).update();
-		return student;
 	}
 
 	/** An Administrator with credentials, as {@code Administrators.activeIds} counts them. */

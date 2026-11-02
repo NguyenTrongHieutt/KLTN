@@ -12,7 +12,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
@@ -33,7 +32,7 @@ import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /** FR-16, FR-10, FR-40, AD-29: the Agreement draft from J4 to the first shared version. */
 class AgreementDraftIT extends IntegrationTest {
@@ -149,8 +148,8 @@ class AgreementDraftIT extends IntegrationTest {
 				""").param("id", foreign).param("job", otherJob).update();
 
 		save(job, 0, foreign, 800000, List.of(), UUID.randomUUID()).andExpect(status().isBadRequest());
-		UUID other = TeamTestSupport.mentor(this.jdbc, "Phạm Thu Hà",
-				List.of(TeamTestSupport.REACT), "React");
+		UUID other = TestPeople.mentor(this.jdbc, "Phạm Thu Hà",
+				List.of(TestPeople.REACT), "React");
 		this.mvc.perform(get("/api/v1/mentor/jobs/" + job + "/agreement").with(as(other, Role.MENTOR)))
 			.andExpect(status().isNotFound());
 		UUID student = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null);
@@ -190,7 +189,7 @@ class AgreementDraftIT extends IntegrationTest {
 				   "criteria":[%s]}],
 				 "externalAccess":[{"id":"%s","system":"Supabase","purpose":"Đọc bảng đặt bàn","environment":"NON_PRODUCTION",
 				   "accessLevel":"READ"}]}
-				""".formatted(revision, TeamTestSupport.REACT, milestone, price, String.join(",", criteria), access);
+				""".formatted(revision, TestPeople.REACT, milestone, price, String.join(",", criteria), access);
 		return this.mvc.perform(put("/api/v1/mentor/jobs/" + job + "/agreement").with(as(this.hung, Role.MENTOR)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON).content(content));
 	}
@@ -226,19 +225,12 @@ class AgreementDraftIT extends IntegrationTest {
 			.param("product", product)
 			.param("owner", this.lan)
 			.param("types", "{" + type + "}")
-			.param("skills", "{" + TeamTestSupport.REACT + "}")
+			.param("skills", "{" + TestPeople.REACT + "}")
 			.param("now", Timestamp.from(now))
 			.param("lapses", Timestamp.from(now.plus(Duration.ofDays(14))))
 			.update();
-		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng",
-				List.of(TeamTestSupport.REACT), "React");
-		UUID team = UUID.randomUUID();
-		this.jdbc.sql("INSERT INTO team.team (id, mentor_account_id, status, created_at) VALUES (:id, :mentor, 'OPEN', now())")
-			.param("id", team).param("mentor", this.hung).update();
-		UUID student = TeamTestSupport.student(this.jdbc, "Sinh viên", true, List.of(TeamTestSupport.REACT), "React",
-				LocalDate.parse("2026-09-30"));
-		this.jdbc.sql("INSERT INTO team.membership (id, team_id, student_account_id, joined_at) VALUES (:id, :team, :student, now())")
-			.param("id", UUID.randomUUID()).param("team", team).param("student", student).update();
+		this.hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng",
+				List.of(TestPeople.REACT), "React");
 		UUID application = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO matching.application (id, job_id, product_id, customer_account_id, mentor_account_id, status,

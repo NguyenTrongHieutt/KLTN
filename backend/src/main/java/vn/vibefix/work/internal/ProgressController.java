@@ -17,8 +17,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
-import vn.vibefix.identity.StudentDirectory;
-import vn.vibefix.identity.StudentDirectory.StudentCard;
+import vn.vibefix.identity.PersonDirectory;
+import vn.vibefix.identity.PersonDirectory.PersonCard;
 import vn.vibefix.job.AgreementCriteria;
 import vn.vibefix.job.AgreementCriteria.MilestoneInForce;
 import vn.vibefix.job.Crews;
@@ -111,7 +111,7 @@ class ProgressController {
 
 	private final MentorDirectory mentors;
 
-	private final StudentDirectory students;
+	private final PersonDirectory people;
 
 	private final JdbcClient jdbc;
 
@@ -121,7 +121,7 @@ class ProgressController {
 
 	ProgressController(WorkAccess access, Boards boards, AgreementCriteria criteria, MilestoneStates states,
 			CriteriaDone criteriaDone, Crews crews, ProductDirectory products, MentorDirectory mentors,
-			StudentDirectory students, JdbcClient jdbc, WorkViews views, CurrentCaller callers) {
+			PersonDirectory people, JdbcClient jdbc, WorkViews views, CurrentCaller callers) {
 		this.views = views;
 		this.access = access;
 		this.boards = boards;
@@ -131,7 +131,7 @@ class ProgressController {
 		this.crews = crews;
 		this.products = products;
 		this.mentors = mentors;
-		this.students = students;
+		this.people = people;
 		this.jdbc = jdbc;
 		this.callers = callers;
 	}
@@ -174,10 +174,10 @@ class ProgressController {
 			this.crews.crewOf(jobId, Selection.EVER_ACTIVE)
 				.forEach(member -> states.putIfAbsent(member.studentId(), member.status()));
 			if (!states.isEmpty()) {
-				Map<UUID, StudentCard> cards = new HashMap<>();
-				this.students.cards(List.copyOf(states.keySet())).forEach(card -> cards.put(card.accountId(), card));
+				Map<UUID, PersonCard> cards = new HashMap<>();
+				this.people.cards(List.copyOf(states.keySet())).forEach(card -> cards.put(card.accountId(), card));
 				states.forEach((studentId, state) -> {
-					StudentCard card = cards.get(studentId);
+					PersonCard card = cards.get(studentId);
 					String name = card == null ? "" : card.shownName();
 					crew.add(new CrewProgressView(studentId, name, state, openItems(viewer, studentId)));
 				});

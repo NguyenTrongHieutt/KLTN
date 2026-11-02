@@ -84,7 +84,7 @@ enum Transition {
 			"Final Merge succeeded or ZIP Fallback offered (FR-38); Assessment Job: immediately; Cancelled if entered by cancellation",
 			List.of(), List.of(new Effect("reputation", "The Rating Window opens (FR-49)"),
 					new Effect("reputation", "Portfolio Entries are created (FR-50)"),
-					new Effect("team", "The Crew is released (FR-75)")),
+					new Effect("job", "The Crew is released (FR-75)")),
 			false, true),
 
 	J10(Machine.JOB, job(JobState.AGREEMENT, JobState.STARTING, JobState.ACTIVE), job(JobState.CANCELLED),
@@ -94,7 +94,7 @@ enum Transition {
 			List.of(new Effect("payment", "Held funds are refunded (FR-43)"),
 					new Effect("repo", "Access is revoked (FR-21)"),
 					new Effect("repo", "The Revocation Checklist is presented (FR-66)"),
-					new Effect("team", "The Crew is released (FR-75)")),
+					new Effect("job", "The Crew is released (FR-75)")),
 			false, true),
 
 	M1(Machine.MILESTONE, milestone(MilestoneState.PLANNED), milestone(MilestoneState.FUNDED), Set.of(SYSTEM),

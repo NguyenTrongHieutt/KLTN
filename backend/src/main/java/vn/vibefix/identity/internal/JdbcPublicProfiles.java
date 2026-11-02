@@ -159,7 +159,7 @@ class JdbcPublicProfiles implements PublicProfiles {
 		verified.add(new VerifiedFact(FactKind.LINKEDIN, null, null, null, null, null));
 		return new PersonFacts(rs.getObject("id", UUID.class), rs.getString("display_name"), linked ? login : null,
 				rs.getObject("years_of_experience", Integer.class), rs.getTimestamp("created_at").toInstant(), verified,
-				JdbcStudentDirectory.uuids(rs.getArray("skill_ids")), rs.getBoolean("locked"));
+				UuidArrays.uuids(rs.getArray("skill_ids")), rs.getBoolean("locked"));
 	}
 
 	private static @Nullable Instant instant(ResultSet rs, String column) throws SQLException {

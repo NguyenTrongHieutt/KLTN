@@ -15,8 +15,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
-import vn.vibefix.identity.StudentDirectory;
-import vn.vibefix.identity.StudentDirectory.StudentCard;
+import vn.vibefix.identity.PersonDirectory;
+import vn.vibefix.identity.PersonDirectory.PersonCard;
 import vn.vibefix.job.Crews.Relationship;
 import vn.vibefix.job.JobPosts.JobPostState;
 import vn.vibefix.job.JobRole;
@@ -66,18 +66,18 @@ class DataDeletionController {
 
 	private final MentorDirectory mentors;
 
-	private final StudentDirectory students;
+	private final PersonDirectory people;
 
 	private final CurrentCaller callers;
 
 	private final JobRoles roles;
 
-	DataDeletionController(DataDeletionConfirmations confirmations, MentorDirectory mentors, StudentDirectory students,
+	DataDeletionController(DataDeletionConfirmations confirmations, MentorDirectory mentors, PersonDirectory people,
 			CurrentCaller callers, JobRoles roles) {
 		this.roles = roles;
 		this.confirmations = confirmations;
 		this.mentors = mentors;
-		this.students = students;
+		this.people = people;
 		this.callers = callers;
 	}
 
@@ -127,10 +127,10 @@ class DataDeletionController {
 		boolean everyone = viewer.equals(job.mentorId());
 		List<UUID> crew = duties.stream().filter(duty -> !duty.mentor()).map(Duty::accountId).toList();
 		Map<UUID, String> names = crew.isEmpty() || customer ? Map.of()
-				: this.students.cards(crew)
+				: this.people.cards(crew)
 					.stream()
-					.collect(Collectors.toMap(StudentCard::accountId,
-							StudentCard::shownName, (a, b) -> a));
+					.collect(Collectors.toMap(PersonCard::accountId,
+							PersonCard::shownName, (a, b) -> a));
 		String mentorName = job.mentorId() == null ? ""
 				: this.mentors.cards(List.of(job.mentorId())).stream().findFirst().map(MentorCard::displayName).orElse("");
 		List<DataDeletionPartyView> parties = new ArrayList<>();

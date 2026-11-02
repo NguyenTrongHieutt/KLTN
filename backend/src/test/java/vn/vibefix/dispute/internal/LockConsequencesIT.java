@@ -38,7 +38,7 @@ import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.payment.Releases;
 import vn.vibefix.support.IntegrationTest;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /**
  * FR-59, FR-82, AD-19, AD-41, SM-8 "account lock mid-Milestone" (Stories 10.2 and 20.4): a lock counts as leaving.
@@ -113,7 +113,7 @@ class LockConsequencesIT extends IntegrationTest {
 		assertThat(notices("job.crew_member_left", this.hung)).isOne();
 		assertThat(param("job.crew_member_left", this.hung, "name")).isEqualTo("Trần Thảo Vy");
 		assertThat(notices("job.crew_login_removed", this.lan)).isOne();
-		assertThat(param("job.crew_login_removed", this.lan, "login")).isEqualTo(TeamTestSupport.login(this.jdbc, this.vy));
+		assertThat(param("job.crew_login_removed", this.lan, "login")).isEqualTo(TestPeople.login(this.jdbc, this.vy));
 		assertThat(notices("job.crew_empty", this.lan)).isOne();
 		assertThat(param("job.crew_empty", this.lan, "mentor")).isEqualTo("Đỗ Mạnh Hùng");
 		assertThat(notices("job.party_locked", ha.accountId())).isOne();
@@ -170,7 +170,7 @@ class LockConsequencesIT extends IntegrationTest {
 	void aPickNotYetSignedIsReleasedAsDeclinedAndOnlyTheMentorHears() throws Exception {
 		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
 		UUID job = world();
-		UUID ngan = TeamTestSupport.student(this.jdbc, "Hoàng Kim Ngân", true, List.of(TeamTestSupport.REACT), "React",
+		UUID ngan = TestPeople.student(this.jdbc, "Hoàng Kim Ngân", true, List.of(TestPeople.REACT), "React",
 				LocalDate.parse("2026-09-30"));
 		this.jdbc.sql("""
 				INSERT INTO job.crew_row (id, job_id, member_account_id, status, created_at)
@@ -264,7 +264,7 @@ class LockConsequencesIT extends IntegrationTest {
 		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
 		UUID mentored = world();
 		UUID ordered = world();
-		UUID thao = TeamTestSupport.mentor(this.jdbc, "Nguyễn Phương Thảo", List.of(TeamTestSupport.REACT), "React");
+		UUID thao = TestPeople.mentor(this.jdbc, "Nguyễn Phương Thảo", List.of(TestPeople.REACT), "React");
 		// Hung, the Mentor of the first Job, is the Customer of the second, which Thảo mentors.
 		this.jdbc.sql("UPDATE job.job SET customer_account_id = :hung, mentor_account_id = :thao WHERE id = :id")
 			.param("hung", this.hung).param("thao", thao).param("id", ordered).update();
@@ -331,12 +331,12 @@ class LockConsequencesIT extends IntegrationTest {
 					INSERT INTO identity.profile (account_id, kind, display_name, contact_email, updated_at)
 					VALUES (:id, 'INDIVIDUAL', 'Nguyễn Thị Lan', 'lan@example.com', now())
 					""").param("id", this.lan).update();
-			this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng",
-					List.of(TeamTestSupport.REACT), "React");
+			this.hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng",
+					List.of(TestPeople.REACT), "React");
 		}
 		// A Student is on one running Crew at a time, so each Job gets its own.
-		this.vy = TeamTestSupport.student(this.jdbc, this.crew.isEmpty() ? "Trần Thảo Vy" : "Lê Văn Minh", true,
-				List.of(TeamTestSupport.REACT), "React", LocalDate.parse("2026-09-30"));
+		this.vy = TestPeople.student(this.jdbc, this.crew.isEmpty() ? "Trần Thảo Vy" : "Lê Văn Minh", true,
+				List.of(TestPeople.REACT), "React", LocalDate.parse("2026-09-30"));
 		this.crew.add(this.vy);
 		UUID product = UUID.randomUUID();
 		this.jdbc.sql("""

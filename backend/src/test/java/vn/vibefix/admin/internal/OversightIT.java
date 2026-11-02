@@ -29,7 +29,7 @@ import vn.vibefix.identity.internal.AdministratorTestSupport.Administrator;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.IntegrationTest;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /**
  * ADM-5 and ADM-8 (FR-63, FR-68, SG-28): Jobs filter by state, overdue, and frozen with their Milestones
@@ -110,14 +110,39 @@ class OversightIT extends IntegrationTest {
 			.andExpect(jsonPath("$.items[?(@.action == 'job.milestone_submitted')]").isNotEmpty());
 	}
 
+	/**
+	 * Story 21.7 (AD-8): the entries of the retired Teams stay in {@code audit}, and ADM-8 shows them as raw codes, as
+	 * it shows any action. None ever named a Job: a member's own entry is found by their account too, and a system
+	 * release, which names only the Team, on the unfiltered list.
+	 */
+	@Test
+	void anOldTeamEntryStaysListedAsItsRawCode() throws Exception {
+		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		world();
+		this.transactions.executeWithoutResult(status -> {
+			this.auditLog.record(AuditEntry.of(AuditActor.user(this.hung), "team.member_left",
+					AuditObject.of("team.team", UUID.randomUUID())));
+			this.auditLog.record(AuditEntry.of(AuditActor.system(), "team.member_released",
+					AuditObject.of("team.team", UUID.randomUUID())));
+		});
+
+		this.mvc.perform(get("/api/v1/admin/audit").param("accountId", this.hung.toString()).with(admin(ha)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.items[?(@.action == 'team.member_left')].actorName").value("Đỗ Mạnh Hùng"));
+		this.mvc.perform(get("/api/v1/admin/audit").with(admin(ha)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.items[?(@.action == 'team.member_left')]").isNotEmpty())
+			.andExpect(jsonPath("$.items[?(@.action == 'team.member_released')].system").value(true));
+	}
+
 	private void world() {
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.jdbc.sql("""
 				INSERT INTO identity.profile (account_id, kind, display_name, contact_email, updated_at)
 				VALUES (:id, 'INDIVIDUAL', 'Nguyễn Thị Lan', 'lan@example.com', now())
 				""").param("id", this.lan).update();
-		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng",
-				List.of(TeamTestSupport.REACT), "React");
+		this.hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng",
+				List.of(TestPeople.REACT), "React");
 		this.product = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO product.product (id, customer_account_id, name, description, ai_tools, repository_github_id,

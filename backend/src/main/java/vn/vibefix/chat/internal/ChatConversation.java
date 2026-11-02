@@ -28,8 +28,8 @@ import vn.vibefix.files.StoredFiles;
 import vn.vibefix.identity.CustomerNames;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
-import vn.vibefix.identity.StudentDirectory;
-import vn.vibefix.identity.StudentDirectory.StudentCard;
+import vn.vibefix.identity.PersonDirectory;
+import vn.vibefix.identity.PersonDirectory.PersonCard;
 import vn.vibefix.scanning.SensitiveText;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
@@ -85,16 +85,16 @@ class ChatConversation {
 
 	private final MentorDirectory mentors;
 
-	private final StudentDirectory students;
+	private final PersonDirectory people;
 
 	ChatConversation(Chats chats, SensitiveContent sensitive, StoredFiles files, CustomerNames customers,
-			MentorDirectory mentors, StudentDirectory students) {
+			MentorDirectory mentors, PersonDirectory people) {
 		this.chats = chats;
 		this.sensitive = sensitive;
 		this.files = files;
 		this.customers = customers;
 		this.mentors = mentors;
-		this.students = students;
+		this.people = people;
 	}
 
 	/** The newest 50 messages the viewer sees, or the 50 before {@code before} (UX-DR25). */
@@ -146,8 +146,8 @@ class ChatConversation {
 		this.mentors.cards(List.of(viewer.mentorId())).stream().findFirst().map(MentorCard::displayName)
 			.ifPresent(name -> names.put(viewer.mentorId(), name));
 		if (!viewer.crew().isEmpty()) {
-			for (StudentCard card : this.students.cards(viewer.crew())) {
-				names.put(card.accountId(), card.name() != null ? card.name() : "@" + card.githubLogin());
+			for (PersonCard card : this.people.cards(viewer.crew())) {
+				names.put(card.accountId(), card.shownName());
 			}
 		}
 		return names;

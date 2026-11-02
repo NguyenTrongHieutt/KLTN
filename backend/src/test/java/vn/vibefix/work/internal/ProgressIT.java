@@ -22,7 +22,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.IntegrationTest;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /**
  * FR-28, AD-33, AD-39: JOB-1's progress per Milestone counts criteria only through approvals; the
@@ -59,8 +59,8 @@ class ProgressIT extends IntegrationTest {
 	@BeforeEach
 	void milestoneOneFundedWithOneCriterionApproved() {
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng",
-				List.of(TeamTestSupport.REACT), "React");
+		this.hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng",
+				List.of(TestPeople.REACT), "React");
 		UUID product = WorkTestSupport.product(this.jdbc, this.lan, "Sổ đặt bàn Quán Mây");
 		this.job = WorkTestSupport.activeJob(this.jdbc, product, this.lan, this.hung, MILESTONES, CRITERIA,
 				this.clock.instant(), "BUG_FIX");

@@ -27,7 +27,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.IntegrationTest;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /**
  * Story 11.2 (FR-23, FR-26, AD-41, UX-DR37, UX-DR68), with {@code features.largeCrews} on: the Mentor's
@@ -69,8 +69,8 @@ class CrewWorkloadIT extends IntegrationTest {
 	@BeforeEach
 	void aCrewOfSeveralMembersInEveryState() {
 		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng",
-				List.of(TeamTestSupport.REACT), "React");
+		this.hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng",
+				List.of(TestPeople.REACT), "React");
 		UUID product = WorkTestSupport.product(this.jdbc, lan, "Sổ đặt bàn Quán Mây");
 		this.job = WorkTestSupport.activeJob(this.jdbc, product, lan, this.hung, List.of(MILESTONE),
 				List.of(List.of(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID())), this.clock.instant());

@@ -21,7 +21,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -42,15 +41,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.RequestBuilder;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.support.TransactionTemplate;
 
 import vn.vibefix.identity.Notices;
 import vn.vibefix.identity.StudentVerification;
 import vn.vibefix.identity.internal.StudentVerifications.Confirmation;
-import vn.vibefix.notification.Audience;
-import vn.vibefix.notification.TodoRequest;
-import vn.vibefix.notification.Todos;
 import vn.vibefix.notification.internal.RecordingMailSender;
 import vn.vibefix.operations.Lane;
 import vn.vibefix.operations.internal.OperationWorker;
@@ -84,16 +78,10 @@ class SchoolEmailVerificationIT extends IntegrationTest {
 	private OperationWorker worker;
 
 	@Autowired
-	private Todos todos;
-
-	@Autowired
 	private StudentVerification studentVerification;
 
 	@Autowired
 	private StudentVerifications verifications;
-
-	@Autowired
-	private PlatformTransactionManager transactionManager;
 
 	@Autowired
 	private VerificationCodePurge purge;
@@ -416,11 +404,8 @@ class SchoolEmailVerificationIT extends IntegrationTest {
 	}
 
 	@Test
-	void theRightCodeWritesTheVerificationProjectsItsFactsRecordsTheSignalAuditsAndClosesTheToDo() throws Exception {
+	void theRightCodeWritesTheVerificationProjectsItsFactsRecordsTheSignalAndAudits() throws Exception {
 		this.clock.setInstant(Instant.parse("2026-10-19T03:00:00Z"));
-		new TransactionTemplate(this.transactionManager).executeWithoutResult(status -> this.todos
-			.open(new TodoRequest(SignIns.VERIFY_STUDENT, this.minh, Audience.SUBJECT, this.minh, Map.of(),
-					SignIns.VERIFICATION_PATH, null, null)));
 		send(this.minh, MINH);
 
 		confirm(this.minh, deliveredCode(MINH)).andExpect(status().isOk())
@@ -456,9 +441,6 @@ class SchoolEmailVerificationIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("""
 				SELECT count(*) FROM audit.audit_entry WHERE action = 'identity.student_verified' AND actor_account_id = :id
 				""").param("id", this.minh).query(Long.class).single()).isOne();
-		assertThat(this.jdbc.sql("""
-				SELECT closed_at FROM notification.todo WHERE todo_key = 'identity.verify_student' AND account_id = :id
-				""").param("id", this.minh).query(Timestamp.class).single()).isNotNull();
 		// ACC-1 reads the declared name and major from its verified zone.
 		this.mvc.perform(get("/api/v1/profile").with(as(this.minh)))
 			.andExpect(jsonPath("$.verified.student.school").value("hust.edu.vn"))

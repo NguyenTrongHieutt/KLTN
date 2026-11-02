@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
 import vn.vibefix.identity.MentorDirectory;
-import vn.vibefix.identity.StudentDirectory;
+import vn.vibefix.identity.PersonDirectory;
 import vn.vibefix.job.internal.CrewTermsGrants.Share;
 import vn.vibefix.job.internal.CrewTermsGrants.Version;
 import vn.vibefix.shared.Access;
@@ -41,7 +41,7 @@ class AdminCrewTermsController {
 
 	private final CrewTermsGrants grants;
 
-	private final StudentDirectory students;
+	private final PersonDirectory people;
 
 	private final MentorDirectory mentors;
 
@@ -49,11 +49,11 @@ class AdminCrewTermsController {
 
 	private final JobRoleReader roles;
 
-	AdminCrewTermsController(CrewTermsGrants grants, StudentDirectory students, MentorDirectory mentors, CurrentCaller callers,
+	AdminCrewTermsController(CrewTermsGrants grants, PersonDirectory people, MentorDirectory mentors, CurrentCaller callers,
 			JobRoleReader roles) {
 		this.roles = roles;
 		this.grants = grants;
-		this.students = students;
+		this.people = people;
 		this.mentors = mentors;
 		this.callers = callers;
 	}
@@ -67,7 +67,7 @@ class AdminCrewTermsController {
 		List<UUID> jobMentors = parties.stream().filter(party -> this.roles.roleOf(jobId, party).isMentor()).toList();
 		List<UUID> crew = parties.stream().filter(party -> !jobMentors.contains(party)).toList();
 		if (!crew.isEmpty()) {
-			this.students.cards(crew).forEach(card -> {
+			this.people.cards(crew).forEach(card -> {
 				names.put(card.accountId(), card.shownName());
 				partyRoles.put(card.accountId(), "STUDENT");
 			});

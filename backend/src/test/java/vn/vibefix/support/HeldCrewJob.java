@@ -12,7 +12,6 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
-import vn.vibefix.team.internal.TeamTestSupport;
 
 /**
  * An Active Job of Lan's Product whose Mentor Hùng runs it with Vy and Minh, both active from 3 days before
@@ -26,7 +25,7 @@ public record HeldCrewJob(UUID lan, UUID hung, UUID vy, UUID minh, UUID product,
 
 	public static HeldCrewJob create(JdbcClient jdbc, Instant now) {
 		UUID lan = IdentityTestSupport.insertAccount(jdbc, Role.CUSTOMER, null);
-		UUID hung = TeamTestSupport.mentor(jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT),
+		UUID hung = TestPeople.mentor(jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT),
 				"React");
 		UUID vy = student(jdbc, "Trần Thảo Vy");
 		UUID minh = student(jdbc, "Nguyễn Văn Minh");
@@ -163,7 +162,7 @@ public record HeldCrewJob(UUID lan, UUID hung, UUID vy, UUID minh, UUID product,
 	}
 
 	private static UUID student(JdbcClient jdbc, String name) {
-		return TeamTestSupport.student(jdbc, name, true, List.of(TeamTestSupport.REACT), "React", LocalDate.parse("2026-09-30"));
+		return TestPeople.student(jdbc, name, true, List.of(TestPeople.REACT), "React", LocalDate.parse("2026-09-30"));
 	}
 
 	private static void share(JdbcClient jdbc, UUID job, UUID party, UUID row, int percent) {

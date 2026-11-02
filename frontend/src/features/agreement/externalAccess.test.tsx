@@ -127,8 +127,6 @@ describe('FR-66 External Access after confirmation (N-8, UX-DR83)', () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('CREW'),
       ...heldJobs({ jobId: 'j1', title: 'Sửa lỗi đặt bàn và thêm nhắc lịch', role: 'CREW', crewKind: 'ACTIVE' }),
-      'GET /api/v1/team': () =>
-        json({ invitations: [], joinRequests: [], requestsLeft: 3, verified: true, team: { joinedAt: '2026-10-01T03:00:00Z' } }),
       'GET /api/v1/jobs/j1/external-access': () => json({ viewer: 'CREW', open: true, items: [item()] }),
       'PUT /api/v1/jobs/j1/external-access/a1/identifier': async (request) => {
         const body = (await request.json()) as { identifier: string }

@@ -26,7 +26,6 @@ import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
 import vn.vibefix.identity.MentorDirectory;
-import vn.vibefix.identity.StudentDirectory;
 import vn.vibefix.notification.Audience;
 import vn.vibefix.notification.NotificationRequest;
 import vn.vibefix.notification.Notifications;
@@ -62,7 +61,7 @@ class AbuseReports {
 	static final String RESOLVED = "admin.abuse_report_resolved";
 
 	static final Set<String> KINDS = Set.of("PRODUCT", "JOB_POST", "PAGE", "RATING", "JOB_CHAT_MESSAGE", "CREW_CHAT_MESSAGE",
-			"WORK_ITEM_NOTE", "USER");
+			"WORK_ITEM_NOTE", "USER", "RECRUITMENT_NOTE");
 
 	private static final ZoneId VIETNAM = ZoneId.of("Asia/Ho_Chi_Minh");
 
@@ -85,10 +84,12 @@ class AbuseReports {
 	/**
 	 * One report.
 	 * @param status {@code OPEN}, {@code HIDDEN}, {@code ACTION_TAKEN}, or {@code DISMISSED}
+	 * @param reportedText a recruitment note as it read at filing; {@code null} for every other kind
 	 */
 	record Report(UUID id, @Nullable UUID reporterId, String kind, UUID targetId, @Nullable UUID jobId, @Nullable UUID productId,
 			@Nullable UUID authorId, String label, String reason, String status, Instant createdAt, @Nullable UUID assigneeId,
-			@Nullable UUID grantId, @Nullable String outcome, @Nullable Instant decidedAt) {
+			@Nullable UUID grantId, @Nullable String outcome, @Nullable Instant decidedAt,
+			@Nullable String reportedText) {
 
 		/** A report whose decision gives its assignee a grant on the one item it names. */
 		boolean granted() {
@@ -99,7 +100,7 @@ class AbuseReports {
 
 	private static final String COLUMNS = """
 			id, reporter_account_id, kind, target_id, job_id, product_id, author_account_id, label, reason, status, created_at,
-			assigned_admin_id, grant_id, outcome, decided_at
+			assigned_admin_id, grant_id, outcome, decided_at, reported_text
 			""";
 
 	private final JdbcClient jdbc;
@@ -122,13 +123,10 @@ class AbuseReports {
 
 	private final MentorDirectory mentors;
 
-	private final StudentDirectory students;
-
 	AbuseReports(JdbcClient jdbc, List<ReportableContent> reportables, List<AdminReadGrants> grants, ContentHiding hiding,
 			Notifications notifications, AuditLog auditLog, IdGenerator ids, Clock clock,
-			PlatformTransactionManager transactionManager, MentorDirectory mentors, StudentDirectory students) {
+			PlatformTransactionManager transactionManager, MentorDirectory mentors) {
 		this.mentors = mentors;
-		this.students = students;
 		this.jdbc = jdbc;
 		this.reportables = reportables;
 		this.grants = grants;
@@ -185,8 +183,8 @@ class AbuseReports {
 			}
 			this.jdbc.sql("""
 					INSERT INTO admin.abuse_report (id, reporter_account_id, kind, target_id, job_id, product_id, author_account_id,
-					    label, reason, status, created_at)
-					VALUES (:id, :reporter, :kind, :target, :job, :product, :author, :label, :reason, 'OPEN', :now)
+					    label, reason, status, created_at, reported_text)
+					VALUES (:id, :reporter, :kind, :target, :job, :product, :author, :label, :reason, 'OPEN', :now, :text)
 					""")
 				.param("id", id)
 				.param("reporter", reporter)
@@ -198,6 +196,7 @@ class AbuseReports {
 				.param("label", label(reported.label()))
 				.param("reason", text)
 				.param("now", Timestamp.from(now))
+				.param("text", reported.text())
 				.update();
 			AuditEntry entry = AuditEntry.of(AuditActor.user(reporter), "admin.abuse_report_filed",
 					AuditObject.of("admin.abuse_report", id));
@@ -206,11 +205,10 @@ class AbuseReports {
 		return id;
 	}
 
-	/** The account a public profile shows under {@code login}: a Mentor's (PUB-5) or a Student's (PUB-4). */
+	/** The account a public profile (PUB-4) shows under {@code login}. */
 	private UUID accountOf(String login) {
 		return this.mentors.byLogin(login)
 			.map(profile -> profile.card().accountId())
-			.or(() -> this.students.profileByLogin(login).map(profile -> profile.card().accountId()))
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 	}
 
@@ -361,7 +359,8 @@ class AbuseReports {
 				rs.getObject("target_id", UUID.class), rs.getObject("job_id", UUID.class), rs.getObject("product_id", UUID.class),
 				rs.getObject("author_account_id", UUID.class), rs.getString("label"), rs.getString("reason"),
 				rs.getString("status"), rs.getTimestamp("created_at").toInstant(), rs.getObject("assigned_admin_id", UUID.class),
-				rs.getObject("grant_id", UUID.class), rs.getString("outcome"), decided == null ? null : decided.toInstant());
+				rs.getObject("grant_id", UUID.class), rs.getString("outcome"),
+				decided == null ? null : decided.toInstant(), rs.getString("reported_text"));
 	}
 
 }

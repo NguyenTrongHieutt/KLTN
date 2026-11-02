@@ -37,7 +37,7 @@ class MatrixFilesTest {
 
 	private static final String HEADER = "endpoint,caller,subject_state,body,expect,check\n";
 
-	/** Every endpoint's callers, the retired Team endpoints' excepted. */
+	/** Every endpoint's callers. */
 	static final Set<MatrixCaller> GLOBAL = EnumSet.of(MatrixCaller.ANONYMOUS, MatrixCaller.USER_UNVERIFIED,
 			MatrixCaller.USER, MatrixCaller.ADMINISTRATOR, MatrixCaller.CUSTOMER);
 
@@ -92,7 +92,7 @@ class MatrixFilesTest {
 	/**
 	 * The Job-scoped endpoints no reachable fixture world lets any caller past, each with why (review iterations 2-4,
 	 * liveness): every other one has a row {@link #pastThePolicy past its policy}, answering {@code 2xx}, {@code 409} or
-	 * {@code 422}, never a {@code 403} and never {@code 409 NOT_ASSIGNED}. The retired Team endpoints wait for Story 21.7.
+	 * {@code 422}, never a {@code 403} and never {@code 409 NOT_ASSIGNED}.
 	 */
 	static final Map<String, String> UNREACHABLE = Map.of(
 			"POST /api/v1/boards/{boardId}/revocation-checklist/{accessId}",
@@ -236,9 +236,6 @@ class MatrixFilesTest {
 
 	static final Set<MatrixCaller> ON_THE_PRODUCT = EnumSet.of(MatrixCaller.MENTOR, MatrixCaller.CREW_ACTIVE);
 
-	/** The retired Team endpoints keep only these until Story 21.7 deletes them. */
-	static final Set<MatrixCaller> RETIRED_TEAM = EnumSet.of(MatrixCaller.ANONYMOUS, MatrixCaller.USER);
-
 	/** The callers that hold no relation to any fixture object (SG-31). */
 	static final Set<MatrixCaller> UNRELATED = EnumSet.of(MatrixCaller.USER, MatrixCaller.USER_UNVERIFIED,
 			MatrixCaller.BIDDER, MatrixCaller.LOCKED, MatrixCaller.ADMINISTRATOR);
@@ -326,15 +323,11 @@ class MatrixFilesTest {
 			.getFirst()
 			.check()).isEqualTo("requireActiveAccount");
 		assertThat(MatrixRow.parse(HEADER + "GET /api/v1/profile,MENTOR,,,200").getFirst().check()).isNull();
-		// The retired Team endpoints refuse every caller before any gate (Story 20.3).
-		assertThat(MatrixRow.parse(HEADER + "GET /api/v1/mentor/team/students,USER,,,404 NOT_FOUND").getFirst().check())
-			.isNull();
 		for (String line : new String[] { "GET /api/v1/mentor/job-posts,MENTOR,,,200",
 				"GET /api/v1/mentor/job-posts,MENTOR,,,200,",
 				"GET /api/v1/mentor/job-posts,MENTOR,,,200,requireNothing",
 				"GET /api/v1/profile,MENTOR,,,200,requireGitHubLinked",
-				"GET /api/v1/mentor/job-posts,MENTOR,,,200,requireApprovedMentor",
-				"GET /api/v1/mentor/team,USER,,,404 NOT_FOUND,requireActiveAccount" }) {
+				"GET /api/v1/mentor/job-posts,MENTOR,,,200,requireApprovedMentor" }) {
 			assertThatThrownBy(() -> MatrixRow.parse(HEADER + line)).as(line).isInstanceOf(IllegalArgumentException.class);
 		}
 	}
@@ -358,7 +351,7 @@ class MatrixFilesTest {
 	}
 
 	@Test
-	void theCoverageRuleFindsAMissingCallerAndATeamRowTooMany() {
+	void theCoverageRuleFindsAMissingCaller() {
 		String global = "GET /api/v1/x,ANONYMOUS,,,401\nGET /api/v1/x,USER_UNVERIFIED,,,200\nGET /api/v1/x,USER,,,200\n"
 				+ "GET /api/v1/x,ADMINISTRATOR,,,404 NOT_FOUND\nGET /api/v1/x,CUSTOMER,,,200\n";
 		assertThat(coverageViolations(MatrixRow.parse(HEADER + global))).isEmpty();
@@ -373,12 +366,6 @@ class MatrixFilesTest {
 			.singleElement()
 			.asString()
 			.startsWith("POST /api/v1/team-issues has no row for [LOCKED, MENTOR");
-		assertThat(coverageViolations(MatrixRow.parse(HEADER + "GET /api/v1/team,ANONYMOUS,,,401\nGET /api/v1/team,USER,,,404 NOT_FOUND\n")))
-			.isEmpty();
-		assertThat(coverageViolations(MatrixRow.parse(HEADER + "GET /api/v1/team,ANONYMOUS,,,401\nGET /api/v1/team,USER,,,404 NOT_FOUND\n"
-				+ "GET /api/v1/team,ADMINISTRATOR,,,404 NOT_FOUND\n")))
-			.containsExactly("GET /api/v1/team is a retired Team endpoint, whose callers are [ANONYMOUS, USER] until Story 21.7,"
-					+ " not [ANONYMOUS, USER, ADMINISTRATOR]");
 		assertThat(coverageViolations(MatrixRow.parse(HEADER + global + "GET /api/v1/x,USER,,,200\n")))
 			.containsExactly("GET /api/v1/x has two rows for USER");
 		assertThat(coverageViolations(MatrixRow.parse(HEADER + global + "GET /api/v1/x,CUSTOMER,job=crew,,200\n")))
@@ -501,7 +488,6 @@ class MatrixFilesTest {
 				POST /api/v1/admin/disputes/{disputeId}/taken,ADMIN_DISPUTE_GRANT,,,404 NOT_FOUND
 				POST /api/v1/admin/disputes/{disputeId}/stale,ADMINISTRATOR,,,409 STALE
 				GET /api/v1/x,USER,,,404 NOT_FOUND
-				GET /api/v1/team/x,USER,,,404 NOT_FOUND
 				""");
 		assertThat(livenessViolations(rows, Map.of("GET /api/v1/boards/{boardId}/z", "no world holds one",
 				"GET /api/v1/boards/{boardId}/y", "no world holds one")))
@@ -889,8 +875,7 @@ class MatrixFilesTest {
 
 	/**
 	 * The coverage rule: every endpoint has the {@link #GLOBAL} callers' rows, every Job-scoped one also the
-	 * {@link #PER_JOB} callers', a retired Team endpoint exactly {@link #RETIRED_TEAM}, and no caller twice on one
-	 * Job (a row's world-binding keys name its Job).
+	 * {@link #PER_JOB} callers', and no caller twice on one Job (a row's world-binding keys name its Job).
 	 */
 	static List<String> coverageViolations(List<MatrixRow> rows) {
 		Map<String, List<MatrixRow>> byEndpoint = byEndpoint(rows);
@@ -904,14 +889,6 @@ class MatrixFilesTest {
 				if (!seen.add(Map.entry(row.caller(), row.state()))) {
 					violations.add(endpoint + " has two rows for " + row.caller());
 				}
-			}
-			MatrixRow first = endpointRows.getFirst();
-			if (first.retiredTeam()) {
-				if (!callers.equals(RETIRED_TEAM)) {
-					violations.add(endpoint + " is a retired Team endpoint, whose callers are " + RETIRED_TEAM
-							+ " until Story 21.7, not " + callers);
-				}
-				return;
 			}
 			Set<MatrixCaller> wanted = EnumSet.copyOf(GLOBAL);
 			if (endpointRows.stream().anyMatch(MatrixRow::jobScoped)) {
@@ -1024,13 +1001,12 @@ class MatrixFilesTest {
 	/**
 	 * Liveness (review iterations 2 and 3): every Job-scoped endpoint has a row {@link #pastThePolicy past its policy},
 	 * so some caller in the world holds the role or grant it asks for, but the {@code unreachable} ones
-	 * ({@link #UNREACHABLE}) and the retired Team endpoints; and an endpoint listed unreachable has no such row, so the
-	 * list stays true.
+	 * ({@link #UNREACHABLE}); and an endpoint listed unreachable has no such row, so the list stays true.
 	 */
 	static List<String> livenessViolations(List<MatrixRow> rows, Map<String, String> unreachable) {
 		List<String> violations = new ArrayList<>();
 		byEndpoint(rows).forEach((endpoint, endpointRows) -> {
-			if (endpointRows.getFirst().retiredTeam() || endpointRows.stream().noneMatch(MatrixRow::jobScoped)) {
+			if (endpointRows.stream().noneMatch(MatrixRow::jobScoped)) {
 				return;
 			}
 			boolean live = endpointRows.stream().anyMatch(row -> pastThePolicy(row.expect()));
@@ -1155,7 +1131,7 @@ class MatrixFilesTest {
 	static List<String> unrelatedViolations(List<MatrixRow> rows) {
 		List<String> violations = new ArrayList<>();
 		for (MatrixRow row : rows) {
-			if (!UNRELATED_TO_THE_CREW_JOB.contains(row.caller()) || row.retiredTeam() || !onTheCrewJob(row)) {
+			if (!UNRELATED_TO_THE_CREW_JOB.contains(row.caller()) || !onTheCrewJob(row)) {
 				continue;
 			}
 			Expectation expect = row.expect();

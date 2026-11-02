@@ -47,7 +47,7 @@ import vn.vibefix.notification.Todos;
 import vn.vibefix.payment.Releases;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.PostgresTestDatabase;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /**
  * Stories 11.4 and 20.4 (FR-59, FR-82, FR-23, FR-42, AD-19, AD-41), SM-8 "a locked member on a Crew of three": a lock
@@ -96,7 +96,7 @@ class CrewLockIT extends IntegrationTest {
 	void aLockedMemberOfACrewOfThreeLeavesTheJobRunningAndIsStillPaidByThePin() throws Exception {
 		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
 		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		UUID hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT),
+		UUID hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT),
 				"React");
 		UUID product = WorkTestSupport.product(this.jdbc, lan, "Sổ đặt bàn Quán Mây");
 		UUID job = WorkTestSupport.activeJob(this.jdbc, product, lan, hung, List.of(HELD), List.of(CRITERIA), this.clock.instant());
@@ -177,7 +177,7 @@ class CrewLockIT extends IntegrationTest {
 	void aLockedMembersWorkItemsAreUnassignedAndAnOlderReassignmentToDoCloses() throws Exception {
 		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
 		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		UUID hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT), "React");
+		UUID hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT), "React");
 		UUID product = WorkTestSupport.product(this.jdbc, lan, "Sổ đặt bàn Quán Mây");
 		UUID job = WorkTestSupport.activeJob(this.jdbc, product, lan, hung, List.of(HELD), List.of(CRITERIA), this.clock.instant());
 		UUID minh = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-minh", "3.1");
@@ -224,7 +224,7 @@ class CrewLockIT extends IntegrationTest {
 	void aLockHasEveryEffectOfLeavingButTheReason() throws Exception {
 		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
 		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		UUID hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT), "React");
+		UUID hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT), "React");
 		UUID product = WorkTestSupport.product(this.jdbc, lan, "Sổ đặt bàn Quán Mây");
 		UUID job = WorkTestSupport.activeJob(this.jdbc, product, lan, hung, List.of(HELD), List.of(CRITERIA), this.clock.instant());
 		UUID minh = WorkTestSupport.student(this.jdbc, "Nguyễn Văn Minh");
@@ -259,7 +259,7 @@ class CrewLockIT extends IntegrationTest {
 				    repository_name, crew_change, status, accepted_at, write_at, created_at)
 				VALUES (:id, :job, :product, :member, 'CREW', :login, 4242, 'vibefix/job-working', false, 'WRITE', now(), now(), now())
 				""").param("id", grant).param("job", job).param("product", product).param("member", minh)
-			.param("login", TeamTestSupport.login(this.jdbc, minh)).update();
+			.param("login", TestPeople.login(this.jdbc, minh)).update();
 
 		lock(ha, minh).andExpect(status().isOk());
 		awaitListeners();
@@ -309,7 +309,7 @@ class CrewLockIT extends IntegrationTest {
 	void aLockInClosingNeitherOpensTheDutyAgainNorTellsOfItTwice(boolean complete) throws Exception {
 		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
 		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		UUID hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT), "React");
+		UUID hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT), "React");
 		UUID product = WorkTestSupport.product(this.jdbc, lan, "Sổ đặt bàn Quán Mây");
 		UUID job = WorkTestSupport.activeJob(this.jdbc, product, lan, hung, List.of(HELD), List.of(CRITERIA), this.clock.instant());
 		UUID minh = WorkTestSupport.student(this.jdbc, "Nguyễn Văn Minh");
@@ -346,7 +346,7 @@ class CrewLockIT extends IntegrationTest {
 	void aJointLockTellsTheCustomerOnceAndARefillTellsAgain() throws Exception {
 		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
 		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		UUID hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT), "React");
+		UUID hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT), "React");
 		UUID product = WorkTestSupport.product(this.jdbc, lan, "Sổ đặt bàn Quán Mây");
 		UUID job = WorkTestSupport.activeJob(this.jdbc, product, lan, hung, List.of(HELD), List.of(CRITERIA), this.clock.instant());
 		UUID minh = WorkTestSupport.student(this.jdbc, "Nguyễn Văn Minh");
@@ -376,7 +376,7 @@ class CrewLockIT extends IntegrationTest {
 	@Test
 	void aLockEventWithoutItsTimeEndsTheWindowAtTheListenersClock() throws Exception {
 		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		UUID hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT), "React");
+		UUID hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT), "React");
 		UUID product = WorkTestSupport.product(this.jdbc, lan, "Sổ đặt bàn Quán Mây");
 		UUID job = WorkTestSupport.activeJob(this.jdbc, product, lan, hung, List.of(HELD), List.of(CRITERIA), this.clock.instant());
 		UUID minh = WorkTestSupport.student(this.jdbc, "Nguyễn Văn Minh");

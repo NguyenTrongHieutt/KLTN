@@ -122,8 +122,6 @@ class NotificationTypes implements NotificationCatalog {
 	static final TodoType MATCHING_ANSWER_INVITATION_TO_APPLY = new TodoType("matching.answer_invitation_to_apply",
 			Set.of(Audience.SUBJECT), 3, Set.of("job"));
 
-	static final TodoType VERIFY_STUDENT = new TodoType("identity.verify_student", Set.of(Audience.SUBJECT), 3, Set.of());
-
 	/** The school email code (FR-5): email only, to the address being verified, ahead of reminders (AD-34). */
 	static final NotificationType SCHOOL_EMAIL_CODE = new NotificationType("identity.school_email_code",
 			Set.of(Audience.SUBJECT), Channel.EMAIL_ONLY, EmailClass.ONE_TIME_CODE, "mail", Set.of("code"));
@@ -159,35 +157,6 @@ class NotificationTypes implements NotificationCatalog {
 	/** An Administrator locked the account with a reason (FR-59): email only, since its sessions are gone. */
 	static final NotificationType ACCOUNT_LOCKED = new NotificationType("identity.account_locked",
 			Set.of(Audience.SUBJECT), Channel.EMAIL_ONLY, EmailClass.TRANSACTIONAL, "alert", Set.of("reason"));
-
-	/** A Mentor invited a Student into their Team (FR-6): the Student, by email too. */
-	static final NotificationType TEAM_INVITATION_RECEIVED = new NotificationType("team.invitation_received",
-			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "users", Set.of("mentor"));
-
-	/** The invited Student accepted, declined, or let the invitation lapse: the Mentor, in-app. */
-	static final NotificationType TEAM_INVITATION_ANSWERED = new NotificationType("team.invitation_answered",
-			Set.of(Audience.SUBJECT), Channel.IN_APP, EmailClass.TRANSACTIONAL, "users", Set.of("name", "answer"));
-
-	/** A Student asked to join the Mentor's Team (FR-6): the Mentor, by email too. */
-	static final NotificationType TEAM_JOIN_REQUEST_RECEIVED = new NotificationType("team.join_request_received",
-			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "users", Set.of("name"));
-
-	/** The Mentor accepted, declined, or let the join request lapse: the Student, by email too. */
-	static final NotificationType TEAM_JOIN_REQUEST_ANSWERED = new NotificationType("team.join_request_answered",
-			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "users",
-			Set.of("mentor", "answer"));
-
-	/** The Mentor is gone, so the Team released the Student (FR-6, AD-37). */
-	static final NotificationType TEAM_RELEASED = new NotificationType("team.released", Set.of(Audience.SUBJECT),
-			Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("mentor"));
-
-	/** A Student left the Team (FR-6): the Mentor, in-app. */
-	static final NotificationType TEAM_MEMBER_LEFT = new NotificationType("team.member_left", Set.of(Audience.SUBJECT),
-			Channel.IN_APP, EmailClass.TRANSACTIONAL, "users", Set.of("name"));
-
-	/** The Mentor removed a Student (FR-6): the Student, by email too. */
-	static final NotificationType TEAM_MEMBER_REMOVED = new NotificationType("team.member_removed",
-			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("mentor"));
 
 	/** An intake scan found no credential (FR-8): the Customer, in-app. */
 	static final NotificationType SCANNING_INTAKE_SCAN_CLEAN = new NotificationType("scanning.intake_scan_clean",
@@ -863,9 +832,8 @@ class NotificationTypes implements NotificationCatalog {
 				REPO_MERGE_APP_SELECTION_WIDENED, REPO_FINAL_MERGE_COMPLETED, REPO_ZIP_FALLBACK_READY,
 				REPO_REVOCATION_CHECKLIST_PENDING, REPO_REVOCATION_CHECKLIST_REMINDER, GITHUB_UNEXPECTED_ACTOR, GITHUB_OPERATOR_ACCOUNT_USED, GITHUB_PLATFORM_DRIFT,
 				REPO_ACCESS_REVOKED, OPERATIONS_REVOCATION_DELAYED, JOB_HANDOVER_VOIDED,
-				ADMINISTRATOR_CREATED, ADMINISTRATOR_ENROLMENT, ACCOUNT_LOCKED, TEAM_INVITATION_RECEIVED,
-				TEAM_INVITATION_ANSWERED, TEAM_JOIN_REQUEST_RECEIVED, TEAM_JOIN_REQUEST_ANSWERED, TEAM_RELEASED,
-				TEAM_MEMBER_LEFT, TEAM_MEMBER_REMOVED, SCANNING_INTAKE_SCAN_CLEAN, SCANNING_FINDING_OPENED, SCANNING_FINDING_REOPENED,
+				ADMINISTRATOR_CREATED, ADMINISTRATOR_ENROLMENT, ACCOUNT_LOCKED,
+				SCANNING_INTAKE_SCAN_CLEAN, SCANNING_FINDING_OPENED, SCANNING_FINDING_REOPENED,
 				JOB_POST_LAPSED, MATCHING_APPLICATION_RECEIVED, MATCHING_APPLICATION_AUTO_WITHDRAWN, MATCHING_APPLICATION_WITHDRAWN,
 				MATCHING_CONFLICT_OF_INTEREST_REFUSED, JOB_ASSIGNEE_SELECTED, MATCHING_APPLICATIONS_ON_HOLD,
 				JOB_SELECTION_DECLINED, MATCHING_APPLICATIONS_CLOSED, MATCHING_APPLICATIONS_REOPENED, MATCHING_NDA_OVERDUE,
@@ -896,7 +864,7 @@ class NotificationTypes implements NotificationCatalog {
 
 	@Override
 	public List<TodoType> todoTypes() {
-		return List.of(IDENTITY_LINK_GITHUB, VERIFY_STUDENT, IDENTITY_RELINK_GITHUB_TODO,
+		return List.of(IDENTITY_LINK_GITHUB, IDENTITY_RELINK_GITHUB_TODO,
 				SCANNING_RESOLVE_INTAKE_FINDING,
 				REPO_ACCEPT_GITHUB_INVITATION, SCANNING_RESOLVE_WORK_FINDING, REPO_RECONFIRM_SOURCE, REPO_AUTHORIZE_FINAL_MERGE,
 				REPO_REVOCATION_ITEM, REPO_REVOCATION_ITEM_MEMBER,

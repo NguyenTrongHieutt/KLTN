@@ -305,6 +305,8 @@
       }
     },
     "shared": {
+      "close": "Đóng",
+      "back": "Quay lại",
       "notFound": {
         "title": "Không tìm thấy",
         "heading": "Không tìm thấy nội dung này.",
@@ -371,154 +373,23 @@
         "pick": "Chọn kỹ năng này"
       }
     },
-    "team": {
-      "title": "Nhóm",
-      "close": "Đóng",
-      "back": "Quay lại",
-      "verified": "Đã xác minh",
-      "search": "Tìm",
-      "clearSearch": "Xóa từ khóa",
-      "results": "Kết quả cho “{q}” ({n})",
-      "resultsFiltered": "Kết quả ({n})",
-      "ranking": "Xếp theo mức độ khớp với từ khóa. Điểm chấm sao không làm thay đổi thứ tự.",
-      "skillFilter": "Lọc theo kỹ năng",
-      "viewProfile": "Xem hồ sơ",
-      "viewProfileOf": "Xem hồ sơ của {name}",
-      "mentor": {
-        "heading": "Nhóm",
-        "lead": "Sinh viên đã xác minh trong nhóm của bạn. Bạn chọn nhóm thực hiện cho từng công việc từ danh sách này.",
-        "size": "{n}/10 sinh viên",
-        "invite": "Mời sinh viên",
-        "noFreeStudent": "Bạn cần ít nhất một sinh viên rảnh trong nhóm để ứng tuyển.",
-        "emptyHint": "Mời sinh viên theo kỹ năng hoặc tên người dùng GitHub. Sinh viên cũng có thể xin vào nhóm từ hồ sơ công khai của bạn.",
-        "empty": "Nhóm của bạn chưa có sinh viên nào.",
-        "closed": "Nhóm tạm ngừng nhận thành viên",
-        "closedBody": "Bạn tạm thời không mời được sinh viên mới và không nhận yêu cầu vào nhóm.",
-        "joinRequests": "Yêu cầu vào nhóm · {n}",
-        "joinRequestsEmpty": "Chưa có yêu cầu nào.",
-        "requestMeta": "gửi {date} · hết hạn {lapse}",
-        "decline": "Từ chối",
-        "accept": "Nhận vào nhóm",
-        "members": "Thành viên",
-        "membersLabel": "Thành viên trong nhóm",
-        "colStudent": "Sinh viên",
-        "colGithub": "Tài khoản GitHub",
-        "colStatus": "Trạng thái",
-        "free": "Đang rảnh",
-        "verificationExpired": "Xác minh hết hạn {date}",
-        "invitations": "Lời mời đang chờ",
-        "invitationMeta": "Mời {date} · hết hạn {lapse} nếu chưa trả lời",
-        "waiting": "Đang chờ trả lời",
-        "colActions": "Thao tác",
-        "remove": "Xóa khỏi nhóm",
-        "removeOf": "Xóa {name} khỏi nhóm",
-        "removeTitle": "Xóa {name} khỏi nhóm?",
-        "removeBody": "{name} nhận thông báo và có thể vào nhóm của người hướng dẫn khác.",
-        "removedToast": "Đã xóa {name} khỏi nhóm.",
-        "onCrew": "{names} đang làm một công việc; chưa thể rời nhóm cho đến khi công việc kết thúc.",
-        "acceptTitle": "Nhận {name} vào nhóm?",
-        "acceptBody": "{name} sẽ ở trong nhóm của bạn, và bạn có thể chọn họ vào nhóm thực hiện của từng công việc. Nhóm sẽ có {n}/10 sinh viên.",
-        "declineTitle": "Từ chối yêu cầu của {name}?",
-        "declineBody": "{name} nhận thông báo và có thể xin vào nhóm của người hướng dẫn khác.",
-        "acceptedToast": "Đã nhận {name} vào nhóm.",
-        "declinedToast": "Đã từ chối yêu cầu của {name}.",
-        "inviteTitle": "Mời sinh viên vào nhóm",
-        "inviteMeta": "Còn {n} lời mời hôm nay · nhóm {size}/10",
-        "searchLabel": "Tìm sinh viên",
-        "searchHelper": "Tìm sinh viên theo kỹ năng hoặc tên công khai.",
-        "noStudents": "Không tìm thấy sinh viên nào khớp với “{q}”. Tên chỉ tìm được khi sinh viên chọn hiện tên công khai.",
-        "noStudentsFiltered": "Không tìm thấy sinh viên nào có kỹ năng này.",
-        "inviteButton": "Mời vào nhóm",
-        "inviteButtonOf": "Mời {name} vào nhóm",
-        "invited": "Đã mời",
-        "inTeam": "Đã trong nhóm",
-        "requested": "Đã xin vào nhóm",
-        "otherTeam": "Đang ở nhóm khác",
-        "otherTeamNote": "{name} đang ở trong một nhóm khác.",
-        "byLogin": "Mời theo tên người dùng GitHub",
-        "loginLabel": "Tên người dùng GitHub",
-        "loginNotFound": "Không tìm thấy sinh viên nào với tên người dùng này.",
-        "invitedToast": "Đã gửi lời mời đến {name}.",
-        "limitReached": "Bạn đã gửi đủ 20 lời mời hôm nay. Hãy mời tiếp vào ngày mai.",
-        "teamFull": "Nhóm đã đủ 10 sinh viên.",
-        "studentTitle": "Hồ sơ sinh viên",
-        "studentGithub": "@{login} trên GitHub",
-        "studentSchool": "{school} · {major}",
-        "studentTeam": "Nhóm của {mentor} · {n} sinh viên",
-        "studentNoTeam": "Chưa ở nhóm nào.",
-        "studentSkills": "Kỹ năng",
-        "studentTeamHeading": "Nhóm",
-        "publicNote": "Hồ sơ công khai không hiển thị email, số điện thoại hay số dư của sinh viên.",
-        "publicProfile": "Xem hồ sơ công khai"
-      },
-      "student": {
-        "heading": "Nhóm của tôi",
-        "noTeamLead": "Bạn chưa ở nhóm nào. Hãy trả lời lời mời, hoặc tìm một người hướng dẫn và xin vào nhóm. Bạn chỉ ở một nhóm tại một thời điểm.",
-        "unverified": "Xác minh là sinh viên để vào nhóm của một người hướng dẫn.",
-        "verifyLink": "Xác minh ở Hồ sơ và xác minh",
-        "invitations": "Lời mời vào nhóm · {n}",
-        "invitationTitle": "{mentor} mời bạn vào nhóm",
-        "invitationMeta": "Người hướng dẫn · {experience} · mời {date} · hết hạn {lapse}",
-        "agree": "Đồng ý",
-        "decline": "Từ chối",
-        "findMentor": "Tìm người hướng dẫn",
-        "keyword": "Từ khóa",
-        "searchHelper": "Tìm người hướng dẫn theo kỹ năng hoặc tên. Gõ có dấu hoặc không dấu đều được.",
-        "mentorMeta": "{experience} · {n} sinh viên",
-        "noMentors": "Không tìm thấy người hướng dẫn nào khớp với “{q}”. Hãy thử một kỹ năng khác.",
-        "noMentorsFiltered": "Không tìm thấy người hướng dẫn nào có kỹ năng này.",
-        "sentRequests": "Yêu cầu đã gửi",
-        "sentMeta": "Gửi {date} · hết hạn {lapse} nếu chưa được trả lời",
-        "yourMentor": "Người hướng dẫn của bạn",
-        "mentorSince": "{experience} · bạn ở trong nhóm từ {date}",
-        "members": "Thành viên",
-        "membersLine": "{n} sinh viên · {hidden} người chọn không hiện tên công khai",
-        "you": "{name} (bạn)",
-        "showNameHint": "Bạn chọn hiện hay ẩn tên mình trong",
-        "profileLink": "Hồ sơ và xác minh",
-        "leaveHeading": "Rời nhóm",
-        "leaveHint": "Sau khi rời, bạn có thể xin vào nhóm của người hướng dẫn khác.",
-        "leave": "Rời nhóm",
-        "leaveTitle": "Rời nhóm của {mentor}?",
-        "leaveBody": "{mentor} nhận thông báo. Sau khi rời, bạn có thể xin vào nhóm của người hướng dẫn khác.",
-        "leftToast": "Bạn đã rời nhóm của {mentor}.",
-        "onCrew": "Bạn đang làm một công việc; chưa thể rời nhóm cho đến khi công việc kết thúc.",
-        "closedTeam": "Nhóm của {mentor} tạm ngừng nhận thành viên.",
-        "acceptTitle": "Vào nhóm của {mentor}?",
-        "acceptBody": "Bạn chỉ ở một nhóm tại một thời điểm. Các lời mời và yêu cầu khác của bạn sẽ được hủy.",
-        "declineTitle": "Từ chối lời mời của {mentor}?",
-        "declineBody": "{mentor} nhận thông báo. Bạn vẫn có thể xin vào nhóm của người hướng dẫn khác.",
-        "joinedToast": "Bạn đã vào nhóm của {mentor}.",
-        "declinedToast": "Đã từ chối lời mời của {mentor}."
-      },
-      "profile": {
-        "team": "Nhóm",
-        "requestSent": "Đã gửi yêu cầu",
-        "teamFull": "Nhóm đã đủ 10 sinh viên.",
-        "openFull": "Mở hồ sơ đầy đủ"
-      },
-      "reputation": {
-        "average": "{average} sao",
-        "fromCustomers": "({n} lượt từ khách hàng)",
-        "fromMentors": "({n} lượt từ người hướng dẫn)",
-        "new": "Mới",
-        "none": "Chưa có lượt chấm sao",
-        "portfolio": "Hồ sơ năng lực",
-        "portfolioNote": "Do hệ thống tạo từ công việc thật trên vibefix.",
-        "portfolioEmpty": "Chưa có công việc nào hoàn thành trên vibefix.",
-        "milestones": "{n} giai đoạn",
-        "portfolioFacts": {
-          "milestones": "{n} giai đoạn được chấp nhận",
-          "workItemsApproved": "{n} việc hoàn thành qua duyệt",
-          "milestonesHandedOver": "{n} giai đoạn đã bàn giao",
-          "reviewsWritten": "{n} lượt duyệt việc",
-          "rating": "{n} sao",
-          "untitled": "Công việc đã hoàn thành"
-        }
-      },
-      "experience": {
-        "years": "{years} năm kinh nghiệm",
-        "notDeclared": "Kinh nghiệm: Chưa khai"
+    "reputation": {
+      "average": "{average} sao",
+      "fromCustomers": "({n} lượt từ khách hàng)",
+      "fromMentors": "({n} lượt từ người hướng dẫn)",
+      "new": "Mới",
+      "none": "Chưa có lượt chấm sao",
+      "portfolio": "Hồ sơ năng lực",
+      "portfolioNote": "Do hệ thống tạo từ công việc thật trên vibefix.",
+      "portfolioEmpty": "Chưa có công việc nào hoàn thành trên vibefix.",
+      "milestones": "{n} giai đoạn",
+      "portfolioFacts": {
+        "milestones": "{n} giai đoạn được chấp nhận",
+        "workItemsApproved": "{n} việc hoàn thành qua duyệt",
+        "milestonesHandedOver": "{n} giai đoạn đã bàn giao",
+        "reviewsWritten": "{n} lượt duyệt việc",
+        "rating": "{n} sao",
+        "untitled": "Công việc đã hoàn thành"
       }
     },
     "admin": {
@@ -1053,7 +924,6 @@
           "usersByVerification": "Người dùng theo xác minh",
           "usersByJobRole": "Người dùng theo vai trò trong công việc",
           "lockedAccounts": "Tài khoản bị khóa",
-          "teamsBySize": "Nhóm theo số thành viên",
           "crewsBySize": "Nhóm thực hiện theo số người",
           "jobsByState": "Công việc theo trạng thái",
           "jobsByType": "Công việc theo loại",
@@ -1079,13 +949,6 @@
           },
           "lockedAccounts": {
             "LOCKED": "Đang khóa"
-          },
-          "teamsBySize": {
-            "0": "Chưa có ai",
-            "1": "1 người",
-            "2": "2 người",
-            "3": "3 người",
-            "4+": "Từ 4 người"
           },
           "crewsBySize": {
             "0": "Chưa có ai",
@@ -1295,7 +1158,8 @@
           "JOB_CHAT_MESSAGE": "Tin nhắn trò chuyện công việc",
           "CREW_CHAT_MESSAGE": "Tin nhắn trò chuyện nhóm",
           "WORK_ITEM_NOTE": "Ghi chú công việc",
-          "USER": "Người dùng"
+          "USER": "Người dùng",
+          "RECRUITMENT_NOTE": "Lời nhắn tuyển thành viên"
         },
         "status": {
           "OPEN": "Chờ xử lý",
@@ -3452,6 +3316,7 @@
       "item": "Báo cáo vi phạm",
       "post": "Báo cáo tin tuyển",
       "product": "Báo cáo sản phẩm",
+      "recruitmentNote": "Báo cáo lời nhắn của người hướng dẫn",
       "title": "Báo cáo vi phạm",
       "body": "Cho quản trị viên biết nội dung này vi phạm quy định như thế nào.",
       "reason": "Lý do",
@@ -3797,9 +3662,6 @@
     },
     "student": {
       "label": "Sinh viên đã xác minh"
-    },
-    "team": {
-      "label": "Nhóm"
     },
     "crew": {
       "label": "Nhóm thực hiện",
@@ -4208,13 +4070,11 @@
     "products": "Sản phẩm",
     "jobs": "Công việc",
     "notifications": "Thông báo",
-    "findWork": "Tìm việc",
-    "team": "Nhóm"
+    "findWork": "Tìm việc"
   },
   "todo": {
     "identity": {
       "link_github": "Liên kết tài khoản GitHub",
-      "verify_student": "Xác minh email trường để có huy hiệu Sinh viên đã xác minh",
       "relink_github": "Liên kết lại GitHub để vibefix kiểm tra được kho mã của bạn"
     },
     "scanning": {
@@ -4355,29 +4215,6 @@
       },
       "deletion_requested": {
         "title": "{name} yêu cầu xóa tài khoản"
-      }
-    },
-    "team": {
-      "invitation_received": {
-        "title": "{mentor} mời bạn vào nhóm"
-      },
-      "invitation_answered": {
-        "title": "{name} đã {answer} lời mời vào nhóm"
-      },
-      "join_request_received": {
-        "title": "{name} xin vào nhóm của bạn"
-      },
-      "join_request_answered": {
-        "title": "{mentor} đã {answer}"
-      },
-      "released": {
-        "title": "Nhóm của {mentor} đã ngừng hoạt động. Bạn có thể tìm người hướng dẫn khác."
-      },
-      "member_left": {
-        "title": "{name} đã rời nhóm"
-      },
-      "member_removed": {
-        "title": "Bạn không còn ở trong nhóm của {mentor}"
       }
     },
     "scanning": {
@@ -4785,18 +4622,6 @@
       "FILE_TYPE_NOT_ALLOWED": "Chỉ nhận ảnh, PDF, tệp văn bản và tệp nén. Không nhận SVG hoặc HTML.",
       "UPLOAD_QUOTA": "Bạn đã tải lên quá nhiều tệp trong một giờ. Hãy thử lại sau.",
       "IMAGE_TOO_LARGE": "Ảnh quá lớn: hơn 40 triệu điểm ảnh (40 megapixel). Hãy chụp hoặc lưu ảnh nhỏ hơn."
-    },
-    "team": {
-      "STUDENT_IN_TEAM": "Sinh viên này đang ở trong một nhóm.",
-      "TEAM_FULL": "Nhóm đã đủ 10 sinh viên.",
-      "MEMBER_NOT_VERIFIED": "Sinh viên cần xác minh trước khi vào nhóm.",
-      "TEAM_CLOSED": "Nhóm tạm ngừng nhận thành viên.",
-      "REQUEST_PENDING": "Đang có một lời mời hoặc yêu cầu vào nhóm chờ trả lời.",
-      "TEAM_INVITE_LIMIT": "Bạn đã gửi đủ 20 lời mời hôm nay. Hãy mời tiếp vào ngày mai.",
-      "JOIN_REQUEST_LIMIT": "Bạn đã gửi đủ 5 yêu cầu hôm nay. Hãy gửi tiếp vào ngày mai.",
-      "REQUEST_CLOSED": "Lời mời hoặc yêu cầu này đã được trả lời hoặc đã hết hạn.",
-      "STUDENT_ON_CREW": "Sinh viên đang làm một công việc; chưa thể rời nhóm cho đến khi công việc kết thúc.",
-      "NOT_IN_TEAM": "Sinh viên không ở trong nhóm của bạn."
     },
     "catalog": {
       "SKILL_INACTIVE": "Kỹ năng này đã ngừng dùng nên không thêm mới được.",

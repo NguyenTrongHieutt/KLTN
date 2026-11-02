@@ -46,7 +46,7 @@ class ChatGrantsIT extends IntegrationTest implements AdminReadGrantsContract {
 	@Override
 	public Seeded seed() {
 		UUID customer = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		UUID mentor = ChatTestSupport.mentorWithFreeStudent(this.jdbc, "Đỗ Mạnh Hùng");
+		UUID mentor = ChatTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng");
 		UUID product = ChatTestSupport.product(this.jdbc, customer);
 		UUID job = ChatTestSupport.job(this.jdbc, product, customer, "AGREEMENT", mentor, this.clock.instant());
 		Chat chat = this.chats.open(job, product, Kind.JOB).orElseThrow();

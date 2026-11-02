@@ -23,6 +23,7 @@ export type ReportKind =
   | 'CREW_CHAT_MESSAGE'
   | 'WORK_ITEM_NOTE'
   | 'USER'
+  | 'RECRUITMENT_NOTE'
 
 /**
  * What one "Báo cáo vi phạm" item reports; `item` names it when the menu offers more than one. A user is
@@ -39,8 +40,8 @@ const itemClass =
   'flex min-h-tap-min cursor-pointer items-center rounded-md px-3 py-1.5 text-body-sm data-highlighted:bg-muted'
 
 /**
- * Report abuse (FR-69, AD-34, UX-DR64): the "…" menu of a Product, Job Post, Page, Rating, chat message,
- * Work Item note, or public profile. The dialog requires a reason, and once sent reads "Quản trị viên sẽ
+ * Report abuse (FR-69, AD-34, UX-DR64): the "…" menu of a Product, Job Post, recruitment note, Page, Rating, chat
+ * message, Work Item note, or public profile. The dialog requires a reason, and once sent reads "Quản trị viên sẽ
  * xem xét và báo kết quả cho bạn." A refusal (not visible any more, reported already, 10 reports today)
  * shows its sentence.
  */

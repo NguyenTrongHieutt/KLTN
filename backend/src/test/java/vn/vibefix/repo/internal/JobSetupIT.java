@@ -38,7 +38,7 @@ import vn.vibefix.identity.internal.CustomerTokens;
 import vn.vibefix.identity.internal.AdministratorTestSupport;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 import vn.vibefix.timers.internal.DeadlinePoller;
 import vn.vibefix.job.CrewMemberRemoved;
 import vn.vibefix.job.JobBusy;
@@ -167,9 +167,9 @@ class JobSetupIT extends IntegrationTest {
 		this.customer = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		// A fake token, built at run time; the stub accepts any.
 		CustomerTokens.keep(this.context, this.customer, String.join("", "gh", "o_", "x".repeat(36)));
-		this.mentor = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT),
+		this.mentor = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT),
 				"React");
-		this.crew = TeamTestSupport.student(this.jdbc, "Lê Thảo Vy", true, List.of(TeamTestSupport.REACT), "React",
+		this.crew = TestPeople.student(this.jdbc, "Lê Thảo Vy", true, List.of(TestPeople.REACT), "React",
 				LocalDate.parse("2026-12-31"));
 		long repository = REPOSITORY_IDS.incrementAndGet();
 		String name = "so-dat-ban-" + repository;
@@ -214,8 +214,8 @@ class JobSetupIT extends IntegrationTest {
 
 	@Test
 	void everyoneAcceptsWithTwoFactorOnThenWriteIsReadBackAndOnlyThenJ7Applies() throws Exception {
-		String mentorLogin = TeamTestSupport.login(this.jdbc, this.mentor);
-		String crewLogin = TeamTestSupport.login(this.jdbc, this.crew);
+		String mentorLogin = TestPeople.login(this.jdbc, this.mentor);
+		String crewLogin = TestPeople.login(this.jdbc, this.crew);
 		j6();
 		run();
 		this.worker.runDue(Lane.GITHUB_SHORT);
@@ -270,7 +270,7 @@ class JobSetupIT extends IntegrationTest {
 		j6();
 		run();
 		this.worker.runDue(Lane.GITHUB_SHORT);
-		GITHUB.accept(TeamTestSupport.login(this.jdbc, this.mentor));
+		GITHUB.accept(TestPeople.login(this.jdbc, this.mentor));
 		this.checks.check(this.job);
 		assertThat(this.busy.job(this.job).orElseThrow().busy()).as("Verify waits for the member").isEmpty();
 
@@ -296,8 +296,8 @@ class JobSetupIT extends IntegrationTest {
 	 */
 	@Test
 	void aMemberWhoLeavesWhileVerifyRaisesIsNotInvitedBack() throws Exception {
-		String mentorLogin = TeamTestSupport.login(this.jdbc, this.mentor);
-		String crewLogin = TeamTestSupport.login(this.jdbc, this.crew);
+		String mentorLogin = TestPeople.login(this.jdbc, this.mentor);
+		String crewLogin = TestPeople.login(this.jdbc, this.crew);
 		j6();
 		run();
 		this.worker.runDue(Lane.GITHUB_SHORT);
@@ -352,12 +352,12 @@ class JobSetupIT extends IntegrationTest {
 		j6();
 		run();
 		this.worker.runDue(Lane.GITHUB_SHORT);
-		GITHUB.accept(TeamTestSupport.login(this.jdbc, this.mentor));
-		GITHUB.accept(TeamTestSupport.login(this.jdbc, this.crew));
+		GITHUB.accept(TestPeople.login(this.jdbc, this.mentor));
+		GITHUB.accept(TestPeople.login(this.jdbc, this.crew));
 		this.checks.check(this.job);
 		this.worker.runDue(Lane.GITHUB_SHORT);
 		assertThat(this.busy.job(this.job).orElseThrow().state()).isEqualTo("ACTIVE");
-		UUID hai = TeamTestSupport.student(this.jdbc, "Phạm Văn Hải", true, List.of(TeamTestSupport.REACT), "React",
+		UUID hai = TestPeople.student(this.jdbc, "Phạm Văn Hải", true, List.of(TestPeople.REACT), "React",
 				LocalDate.parse("2026-12-31"));
 		UUID row = UUID.randomUUID();
 		this.jdbc.sql("""
@@ -373,7 +373,7 @@ class JobSetupIT extends IntegrationTest {
 		assertThat(added.status()).isEqualTo("INVITED");
 		assertThat(added.crewChange()).isTrue();
 
-		GITHUB.accept(TeamTestSupport.login(this.jdbc, hai));
+		GITHUB.accept(TestPeople.login(this.jdbc, hai));
 		long repository = added.repositoryId();
 		this.checks.hinted(new vn.vibefix.github.GitHubWebhookReceived(UUID.randomUUID(), UUID.randomUUID().toString(),
 				vn.vibefix.github.GitHubApps.App.PLATFORM, "member", "added", 7L, List.of(repository), 1L, null));
@@ -382,7 +382,7 @@ class JobSetupIT extends IntegrationTest {
 		assertThat(this.grants.find(added.id()).orElseThrow().status()).as("raised without a state change").isEqualTo("WRITE");
 		assertThat(this.busy.job(this.job).orElseThrow().state()).isEqualTo("ACTIVE");
 
-		UUID late = TeamTestSupport.student(this.jdbc, "Ngô Minh", true, List.of(TeamTestSupport.REACT), "React",
+		UUID late = TestPeople.student(this.jdbc, "Ngô Minh", true, List.of(TestPeople.REACT), "React",
 				LocalDate.parse("2026-12-31"));
 		UUID lateRow = UUID.randomUUID();
 		this.jdbc.sql("""
@@ -418,7 +418,7 @@ class JobSetupIT extends IntegrationTest {
 		run();
 		this.worker.runDue(Lane.GITHUB_SHORT);
 		this.clock.advance(Duration.ofMinutes(1));
-		UUID hai = TeamTestSupport.student(this.jdbc, "Phạm Văn Hải", true, List.of(TeamTestSupport.REACT), "React",
+		UUID hai = TestPeople.student(this.jdbc, "Phạm Văn Hải", true, List.of(TestPeople.REACT), "React",
 				LocalDate.parse("2026-12-31"));
 		UUID row = UUID.randomUUID();
 		this.jdbc.sql("""
@@ -434,8 +434,8 @@ class JobSetupIT extends IntegrationTest {
 		assertThat(late.status()).isEqualTo("INVITED");
 		assertThat(late.crewChange()).as("a late member's grant").isTrue();
 
-		GITHUB.accept(TeamTestSupport.login(this.jdbc, this.mentor));
-		GITHUB.accept(TeamTestSupport.login(this.jdbc, this.crew));
+		GITHUB.accept(TestPeople.login(this.jdbc, this.mentor));
+		GITHUB.accept(TestPeople.login(this.jdbc, this.crew));
 		this.checks.check(this.job);
 		assertThat(this.busy.job(this.job).orElseThrow().busy()).as("Verify does not wait for the late member")
 			.hasValueSatisfying(marker -> assertThat(marker.purpose()).isEqualTo(JobBusy.Purpose.JOB_VERIFY));
@@ -444,7 +444,7 @@ class JobSetupIT extends IntegrationTest {
 		assertThat(this.grants.find(late.id()).orElseThrow().status()).as("still waiting for its acceptance")
 			.isEqualTo("INVITED");
 
-		GITHUB.accept(TeamTestSupport.login(this.jdbc, hai));
+		GITHUB.accept(TestPeople.login(this.jdbc, hai));
 		this.checks.check(this.job);
 		this.worker.runDue(Lane.GITHUB_SHORT);
 		assertThat(this.grants.find(late.id()).orElseThrow().status()).as("raised without a state change").isEqualTo("WRITE");
@@ -468,7 +468,7 @@ class JobSetupIT extends IntegrationTest {
 		JobGrants.Grant late = this.grants.ofJob(this.job).stream().filter(grant -> grant.accountId().equals(hai))
 			.findFirst().orElseThrow();
 
-		GITHUB.accept(TeamTestSupport.login(this.jdbc, hai));
+		GITHUB.accept(TestPeople.login(this.jdbc, hai));
 		this.checks.check(this.job);
 		this.worker.runDue(Lane.GITHUB_SHORT);
 
@@ -476,8 +476,8 @@ class JobSetupIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("SELECT count(*) FROM operations.external_operation WHERE type = :type")
 			.param("type", JobGrants.RAISE).query(Long.class).single()).as("no raise before J7").isZero();
 
-		GITHUB.accept(TeamTestSupport.login(this.jdbc, this.mentor));
-		GITHUB.accept(TeamTestSupport.login(this.jdbc, this.crew));
+		GITHUB.accept(TestPeople.login(this.jdbc, this.mentor));
+		GITHUB.accept(TestPeople.login(this.jdbc, this.crew));
 		this.checks.check(this.job);
 		this.worker.runDue(Lane.GITHUB_SHORT);
 		assertThat(this.busy.job(this.job).orElseThrow().state()).isEqualTo("ACTIVE");
@@ -497,13 +497,13 @@ class JobSetupIT extends IntegrationTest {
 		this.worker.runDue(Lane.GITHUB_SHORT);
 		this.clock.advance(Duration.ofMinutes(1));
 		UUID hai = activeMember();
-		GITHUB.members.add(TeamTestSupport.login(this.jdbc, hai));
+		GITHUB.members.add(TestPeople.login(this.jdbc, hai));
 		this.checks.added(new vn.vibefix.job.CrewMemberAdded(UUID.randomUUID(), this.job, UUID.randomUUID(), hai, "STARTING"));
 		this.worker.runDue(Lane.GITHUB_SHORT);
 		assertThat(grantStatus(hai)).isEqualTo("MEMBER_DRIFT");
 
-		GITHUB.accept(TeamTestSupport.login(this.jdbc, this.mentor));
-		GITHUB.accept(TeamTestSupport.login(this.jdbc, this.crew));
+		GITHUB.accept(TestPeople.login(this.jdbc, this.mentor));
+		GITHUB.accept(TestPeople.login(this.jdbc, this.crew));
 		this.checks.check(this.job);
 		assertThat(grantStatus(hai)).as("still a member of the organization").isEqualTo("MEMBER_DRIFT");
 		assertThat(this.busy.job(this.job).orElseThrow().busy()).as("Verify does not wait for the late member")
@@ -542,8 +542,8 @@ class JobSetupIT extends IntegrationTest {
 		this.checks.check(this.job);
 		assertThat(this.grants.ofJob(this.job).stream().filter(grant -> grant.accountId().equals(hai)).count())
 			.as("an existing grant stays").isOne();
-		GITHUB.accept(TeamTestSupport.login(this.jdbc, this.mentor));
-		GITHUB.accept(TeamTestSupport.login(this.jdbc, this.crew));
+		GITHUB.accept(TestPeople.login(this.jdbc, this.mentor));
+		GITHUB.accept(TestPeople.login(this.jdbc, this.crew));
 		this.checks.check(this.job);
 		assertThat(this.busy.job(this.job).orElseThrow().busy()).as("Verify does not wait for them")
 			.hasValueSatisfying(marker -> assertThat(marker.purpose()).isEqualTo(JobBusy.Purpose.JOB_VERIFY));
@@ -631,7 +631,7 @@ class JobSetupIT extends IntegrationTest {
 		assertThat(GITHUB.closedPulls).containsExactlyInAnyOrder(intermediary + "#1", working + "#3");
 		assertThat(notices("github.unexpected_actor")).as("an outsider's pull request on the Working Repository is not alerted")
 			.isOne();
-		this.guard.hinted(webhook("push", workingId, TeamTestSupport.login(this.jdbc, this.crew),
+		this.guard.hinted(webhook("push", workingId, TestPeople.login(this.jdbc, this.crew),
 				CustomerTokens.githubUserId(this.jdbc, this.crew)));
 		assertThat(notices("github.unexpected_actor")).as("a grantee pushes freely").isOne();
 		this.guard.hinted(webhook("push", workingId, "mallory"));
@@ -685,7 +685,7 @@ class JobSetupIT extends IntegrationTest {
 	@Test
 	void j8RevokesEveryGrantAndReadsItBackWhileTheAdministratorsHearOfOneGitHubKeepsRefusing() throws Exception {
 		AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
-		String crewLogin = TeamTestSupport.login(this.jdbc, this.crew);
+		String crewLogin = TestPeople.login(this.jdbc, this.crew);
 		active();
 		GITHUB.unavailable.add("DELETE /repos/" + GitHubStub.ORGANIZATION + "/" + JobSetups.workingName(this.job)
 				+ "/collaborators/" + crewLogin);
@@ -720,7 +720,7 @@ class JobSetupIT extends IntegrationTest {
 	@Test
 	void aLockedMemberAndAMemberACrewChangeRemovesLoseTheirAccessAndAPendingInvitationGoes() throws Exception {
 		active();
-		UUID hai = TeamTestSupport.student(this.jdbc, "Phạm Văn Hải", true, List.of(TeamTestSupport.REACT), "React",
+		UUID hai = TestPeople.student(this.jdbc, "Phạm Văn Hải", true, List.of(TestPeople.REACT), "React",
 				LocalDate.parse("2026-12-31"));
 		UUID row = UUID.randomUUID();
 		this.jdbc.sql("""
@@ -823,8 +823,8 @@ class JobSetupIT extends IntegrationTest {
 		j6();
 		run();
 		this.worker.runDue(Lane.GITHUB_SHORT);
-		GITHUB.accept(TeamTestSupport.login(this.jdbc, this.mentor));
-		GITHUB.accept(TeamTestSupport.login(this.jdbc, this.crew));
+		GITHUB.accept(TestPeople.login(this.jdbc, this.mentor));
+		GITHUB.accept(TestPeople.login(this.jdbc, this.crew));
 		this.checks.check(this.job);
 		this.worker.runDue(Lane.GITHUB_SHORT);
 		assertThat(this.busy.job(this.job).orElseThrow().state()).isEqualTo("ACTIVE");
@@ -859,7 +859,7 @@ class JobSetupIT extends IntegrationTest {
 	void aGranteeWhoRenamedTheirGitHubAccountIsInvitedRecognizedAndRaisedByTheirId() throws Exception {
 		AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
 		long crewId = CustomerTokens.githubUserId(this.jdbc, this.crew);
-		String oldLogin = TeamTestSupport.login(this.jdbc, this.crew);
+		String oldLogin = TestPeople.login(this.jdbc, this.crew);
 		GITHUB.logins.put(crewId, "thao-vy-moi");
 		try {
 			j6();
@@ -876,7 +876,7 @@ class JobSetupIT extends IntegrationTest {
 			assertThat(this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE action = 'repo.grant_login_renamed'")
 				.query(Long.class).single()).isOne();
 
-			GITHUB.accept(TeamTestSupport.login(this.jdbc, this.mentor));
+			GITHUB.accept(TestPeople.login(this.jdbc, this.mentor));
 			GITHUB.accept("thao-vy-moi");
 			this.checks.check(this.job);
 			this.worker.runDue(Lane.GITHUB_SHORT);
@@ -907,7 +907,7 @@ class JobSetupIT extends IntegrationTest {
 		this.jdbc.sql("UPDATE repo.job_grant SET github_login = 'someone-else' WHERE account_id = :mentor")
 			.param("mentor", this.mentor).update();
 
-		GITHUB.accept(TeamTestSupport.login(this.jdbc, this.crew));
+		GITHUB.accept(TestPeople.login(this.jdbc, this.crew));
 		this.checks.check(this.job);
 
 		assertThat(crewGrant().githubUserId()).isEqualTo(CustomerTokens.githubUserId(this.jdbc, this.crew));
@@ -928,7 +928,7 @@ class JobSetupIT extends IntegrationTest {
 			assertThat(crewGrant().status()).isEqualTo("INVITED");
 
 			GITHUB.renameUser(crewId, "thao-vy-sau");
-			GITHUB.accept(TeamTestSupport.login(this.jdbc, this.mentor));
+			GITHUB.accept(TestPeople.login(this.jdbc, this.mentor));
 			GITHUB.accept("thao-vy-sau");
 			GITHUB.withoutTwoFactor.add("thao-vy-sau");
 			this.checks.check(this.job);
@@ -986,7 +986,7 @@ class JobSetupIT extends IntegrationTest {
 	@Test
 	void aCrewChangeMemberWhoRenamesBeforeTheRaiseIsRaisedUnderTheNewLogin() throws Exception {
 		active();
-		UUID hai = TeamTestSupport.student(this.jdbc, "Phạm Văn Hải", true, List.of(TeamTestSupport.REACT), "React",
+		UUID hai = TestPeople.student(this.jdbc, "Phạm Văn Hải", true, List.of(TestPeople.REACT), "React",
 				LocalDate.parse("2026-12-31"));
 		long haiId = CustomerTokens.githubUserId(this.jdbc, hai);
 		UUID row = UUID.randomUUID();
@@ -1023,7 +1023,7 @@ class JobSetupIT extends IntegrationTest {
 	@Test
 	void aGitHubAccountThatIsGoneIsNotInvitedAndItsRevocationUsesTheStoredLogin() throws Exception {
 		long crewId = CustomerTokens.githubUserId(this.jdbc, this.crew);
-		String stored = TeamTestSupport.login(this.jdbc, this.crew);
+		String stored = TestPeople.login(this.jdbc, this.crew);
 		GITHUB.goneUsers.add(crewId);
 		try {
 			j6();
@@ -1139,8 +1139,8 @@ class JobSetupIT extends IntegrationTest {
 	@Test
 	void anOrganizationMemberDriftsAndHoldsVerifyUntilTheyLeaveTheOrganization() throws Exception {
 		AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
-		String mentorLogin = TeamTestSupport.login(this.jdbc, this.mentor);
-		String crewLogin = TeamTestSupport.login(this.jdbc, this.crew);
+		String mentorLogin = TestPeople.login(this.jdbc, this.mentor);
+		String crewLogin = TestPeople.login(this.jdbc, this.crew);
 		GITHUB.members.add(crewLogin);
 		j6();
 		run();
@@ -1274,7 +1274,7 @@ class JobSetupIT extends IntegrationTest {
 	/** J6's event, as {@code job} publishes it in M1's cascade. */
 	/** An {@code ACTIVE} Crew row for a new member, as a signature leaves it. */
 	private UUID activeMember() {
-		UUID member = TeamTestSupport.student(this.jdbc, "Phạm Văn Hải", true, List.of(TeamTestSupport.REACT), "React",
+		UUID member = TestPeople.student(this.jdbc, "Phạm Văn Hải", true, List.of(TestPeople.REACT), "React",
 				LocalDate.parse("2026-12-31"));
 		this.jdbc.sql("""
 				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, created_at)

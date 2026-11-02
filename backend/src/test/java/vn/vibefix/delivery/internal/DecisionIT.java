@@ -30,9 +30,9 @@ import org.springframework.transaction.support.TransactionTemplate;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.MilestoneFunding;
+import vn.vibefix.support.TestPeople;
 import vn.vibefix.timers.internal.DeadlinePoller;
 import vn.vibefix.support.IntegrationTest;
-import vn.vibefix.team.internal.TeamTestSupport;
 
 /**
  * FR-33, FR-34, FR-42, AD-5, AD-15, AD-41: only the Customer decides a handover, on the loaded version;
@@ -261,9 +261,9 @@ class DecisionIT extends IntegrationTest {
 	 */
 	private void world(int revisionRounds, boolean mentorOnly) throws Exception {
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng",
-				List.of(TeamTestSupport.REACT), "React");
-		this.vy = TeamTestSupport.student(this.jdbc, "Trần Thảo Vy", true, List.of(TeamTestSupport.REACT), "React",
+		this.hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng",
+				List.of(TestPeople.REACT), "React");
+		this.vy = TestPeople.student(this.jdbc, "Trần Thảo Vy", true, List.of(TestPeople.REACT), "React",
 				LocalDate.parse("2026-09-30"));
 		UUID product = UUID.randomUUID();
 		this.jdbc.sql("""

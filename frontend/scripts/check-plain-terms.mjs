@@ -34,9 +34,6 @@ export const TECHNICAL = [
 /** The one place the word "Sinh viên" may appear (R16): the badge of a verified student email. */
 export const STUDENT_BADGE = 'Sinh viên đã xác minh'
 
-/** The key families of the retired Teams, which Story 21.7 deletes with their screens. */
-export const RETIRED_FAMILIES = ['screen.team', 'reason.team']
-
 /** The label fields of a term entry that may appear on Customer screens. */
 const LABEL_FIELDS = ['label', 'labelShort', 'labelAlt', 'labelCustomer', 'labelSteps', 'labelLedgerOnly']
 
@@ -83,8 +80,7 @@ export function check(vi, audience) {
 
 /**
  * R16 (UX-DR109): the role words are Khách hàng, Người hướng dẫn, Thành viên nhóm and Nhóm thực hiện; "sinh viên"
- * is left in no text of vi.json, terms included, but the badge "Sinh viên đã xác minh" and the retired Team
- * families.
+ * is left in no text of vi.json, terms included, but the badge "Sinh viên đã xác minh".
  */
 export function checkRoleWords(vi) {
   const violations = []
@@ -92,9 +88,6 @@ export function checkRoleWords(vi) {
   collectAll(vi, '', strings)
   const badge = new RegExp(escape(STUDENT_BADGE), 'giu')
   for (const [key, text] of strings) {
-    if (RETIRED_FAMILIES.some((family) => key === family || key.startsWith(`${family}.`))) {
-      continue
-    }
     if (/sinh viên/iu.test(text.replace(badge, ' '))) {
       violations.push(`${key}: "sinh viên" names only the badge "${STUDENT_BADGE}" (R16); say "thành viên nhóm" or "người hướng dẫn"`)
     }
@@ -165,7 +158,6 @@ function selfTest() {
     ['a student term', { term: { student: { label: 'Sinh viên' } } }, 1],
     ['the badge', { screen: { profile: { badge: 'Sinh viên đã xác minh · HUST' } } }, 0],
     ['the badge in a sentence', { notification: { x: { title: 'Huy hiệu Sinh viên đã xác minh hết hạn' } } }, 0],
-    ['a retired Team text', { screen: { team: { invite: 'Mời sinh viên' } } }, 0],
     ['the role words', { screen: { crew: { add: 'Thêm thành viên nhóm' } } }, 0],
   ]
   for (const [name, vi, expected] of words) {

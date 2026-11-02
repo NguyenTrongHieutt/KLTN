@@ -11,7 +11,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
@@ -31,7 +30,7 @@ import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /** FR-15, AD-4, AD-5, AD-30, SG-52: J3 selects an Application, and the others go on hold. */
 class SelectionIT extends IntegrationTest {
@@ -60,8 +59,8 @@ class SelectionIT extends IntegrationTest {
 
 	@Test
 	void selectingRecordsTheMentorPinsTheProductAndPutsTheOthersOnHold() throws Exception {
-		UUID hung = mentor("Đỗ Mạnh Hùng", true);
-		UUID ha = mentor("Phạm Thu Hà", true);
+		UUID hung = mentor("Đỗ Mạnh Hùng");
+		UUID ha = mentor("Phạm Thu Hà");
 		UUID chosen = application(hung);
 		UUID other = application(ha);
 		Instant ndaDue = this.clock.instant().plus(Duration.ofDays(3));
@@ -95,7 +94,7 @@ class SelectionIT extends IntegrationTest {
 
 	@Test
 	void aDecisionOnAnOlderVersionIsStaleAndChangesNothing() throws Exception {
-		UUID chosen = application(mentor("Đỗ Mạnh Hùng", true));
+		UUID chosen = application(mentor("Đỗ Mạnh Hùng"));
 
 		select(chosen, 0).andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("STALE"));
 
@@ -108,19 +107,19 @@ class SelectionIT extends IntegrationTest {
 	void j3ChecksTheBidderAgain() throws Exception {
 		// Story 21.2 (FR-15, SG-52): under the Job lock and the bidder's lock, a bidder who unlinked GitHub or was locked
 		// since bidding is refused, and the Job stays Open.
-		UUID unlinked = mentor("Đã bỏ liên kết", true);
+		UUID unlinked = mentor("Đã bỏ liên kết");
 		UUID gone = application(unlinked);
 		IdentityTestSupport.unlinkGitHub(this.jdbc, unlinked);
 		select(gone, 1).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("MENTOR_NOT_AVAILABLE"));
 
-		UUID locked = TeamTestSupport.mentor(this.jdbc, "Đã bị khóa", List.of(TeamTestSupport.REACT), "React");
+		UUID locked = TestPeople.mentor(this.jdbc, "Đã bị khóa", List.of(TestPeople.REACT), "React");
 		UUID lockedBid = application(locked);
 		IdentityTestSupport.lock(this.jdbc, locked, "Vi phạm");
 		select(lockedBid, 1).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("MENTOR_NOT_AVAILABLE"));
 		assertThat(this.jdbc.sql("SELECT state FROM job.job WHERE id = :id").param("id", this.job)
 			.query(String.class).single()).isEqualTo("OPEN");
 
-		UUID full = mentor("Đủ việc", true);
+		UUID full = mentor("Đủ việc");
 		UUID atLimit = application(full);
 		this.jdbc.sql("UPDATE settings.rule_value SET value = 1 WHERE rule_key = 'MENTOR_ACTIVE_JOB_LIMIT'").update();
 		try {
@@ -147,7 +146,7 @@ class SelectionIT extends IntegrationTest {
 	void j3RefusesAMentorWithACountedCrewRowOnTheJobBeforeAnyOtherGuard() throws Exception {
 		// AD-43: no command puts a Crew row on an Open Job, so the row is written directly. The bidder is locked, so any
 		// later guard would refuse with MENTOR_NOT_AVAILABLE instead.
-		UUID crewed = mentor("Đang trong nhóm", false);
+		UUID crewed = mentor("Đang trong nhóm");
 		IdentityTestSupport.lock(this.jdbc, crewed, "Vi phạm");
 		UUID chosen = application(crewed);
 		UUID row = UUID.randomUUID();
@@ -176,7 +175,7 @@ class SelectionIT extends IntegrationTest {
 	@Test
 	void j3SelectsABidderWithNoTeamOrFreeStudent() throws Exception {
 		// Story 21.2: no free Student and no Team is asked for, at the bid or at J3.
-		UUID alone = TeamTestSupport.mentor(this.jdbc, "Không có nhóm", List.of(TeamTestSupport.REACT), "React");
+		UUID alone = TestPeople.mentor(this.jdbc, "Không có nhóm", List.of(TestPeople.REACT), "React");
 		UUID chosen = application(alone);
 
 		select(chosen, 1).andExpect(status().isOk()).andExpect(jsonPath("$.version").value(2));
@@ -216,21 +215,8 @@ class SelectionIT extends IntegrationTest {
 		return id;
 	}
 
-	/** An approved Mentor with a Team of one Student, verified or not. */
-	private UUID mentor(String name, boolean verifiedStudent) {
-		UUID mentor = TeamTestSupport.mentor(this.jdbc, name, List.of(TeamTestSupport.REACT),
-				"React");
-		UUID team = UUID.randomUUID();
-		this.jdbc.sql("INSERT INTO team.team (id, mentor_account_id, status, created_at) VALUES (:id, :mentor, 'OPEN', now())")
-			.param("id", team)
-			.param("mentor", mentor)
-			.update();
-		UUID student = TeamTestSupport.student(this.jdbc, "Sinh viên của " + name, true, List.of(TeamTestSupport.REACT),
-				"React", verifiedStudent ? LocalDate.parse("2026-09-30") : null);
-		this.jdbc.sql("""
-				INSERT INTO team.membership (id, team_id, student_account_id, joined_at) VALUES (:id, :team, :student, now())
-				""").param("id", UUID.randomUUID()).param("team", team).param("student", student).update();
-		return mentor;
+	private UUID mentor(String name) {
+		return TestPeople.mentor(this.jdbc, name, List.of(TestPeople.REACT), "React");
 	}
 
 	private UUID openJob(String title) {

@@ -78,7 +78,7 @@ import vn.vibefix.notification.TodoRequest;
 import vn.vibefix.notification.Todos;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.support.IntegrationTest;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 import vn.vibefix.timers.internal.DeadlinePoller;
 
 /**
@@ -156,7 +156,7 @@ class CrewPickIT extends IntegrationTest {
 		BEFORE_CONTRIBUTORS.set(null);
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		CustomerTokens.keep(this.context, this.lan, TOKEN);
-		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT), "React");
+		this.hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT), "React");
 		this.product = product(this.lan, "lan/so-dat-ban");
 		this.job = JobContent.job(this.jdbc, this.product, this.lan, this.hung, "Sửa lỗi đặt bàn", JobContent.SIGNED,
 				"AGREEMENT");
@@ -309,7 +309,7 @@ class CrewPickIT extends IntegrationTest {
 			.andExpect(jsonPath("$.panel.milestones[0].title").value("Sửa lỗi trùng giờ"))
 			.andExpect(jsonPath("$.panel.milestones[0].priceVnd").value(800000))
 			.andExpect(jsonPath("$.panel.codeJob").value(true))
-			.andExpect(jsonPath("$.panel.githubLogin").value(TeamTestSupport.login(this.jdbc, this.minh)))
+			.andExpect(jsonPath("$.panel.githubLogin").value(TestPeople.login(this.jdbc, this.minh)))
 			.andExpect(jsonPath("$.panel.ndaVersion").value("1.0"))
 			.andExpect(jsonPath("$.panel.commitmentVersion").value("1.0"))
 			.andExpect(jsonPath("$.panel.splitRules.mentorShareCapPercent").value(30))
@@ -369,7 +369,7 @@ class CrewPickIT extends IntegrationTest {
 				+ " AND account_id = :minh", Map.of("minh", this.minh))).as("the signer does not").isZero();
 		String customer = text("SELECT params::text FROM notification.notification WHERE type = 'job.crew_login_added'"
 				+ " AND account_id = :lan", Map.of("lan", this.lan));
-		assertThat(customer).contains(TeamTestSupport.login(this.jdbc, this.minh)).doesNotContain("Trần Quang Minh");
+		assertThat(customer).contains(TestPeople.login(this.jdbc, this.minh)).doesNotContain("Trần Quang Minh");
 		assertThat(count("""
 				SELECT count(*) FROM notification.todo WHERE todo_key = 'matching.sign_commitment' AND closed_at IS NULL
 				""", Map.of())).isZero();
@@ -381,7 +381,7 @@ class CrewPickIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/role").with(as(this.minh)))
 			.andExpect(jsonPath("$.crewKind").value("ACTIVE"));
 		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/agreement").with(as(this.lan)))
-			.andExpect(jsonPath("$.crew", hasItem(TeamTestSupport.login(this.jdbc, this.minh))));
+			.andExpect(jsonPath("$.crew", hasItem(TestPeople.login(this.jdbc, this.minh))));
 
 		// FR-75: nobody who signed is removed; "Rút lựa chọn" finds no pick to withdraw.
 		withdrawPick(this.hung, this.job, application).andExpect(status().isConflict())
@@ -1151,7 +1151,7 @@ class CrewPickIT extends IntegrationTest {
 	}
 
 	private UUID person(String name) {
-		return TeamTestSupport.mentor(this.jdbc, name, List.of(TeamTestSupport.REACT), "React");
+		return TestPeople.mentor(this.jdbc, name, List.of(TestPeople.REACT), "React");
 	}
 
 	private long githubId(UUID account) {
@@ -1166,7 +1166,7 @@ class CrewPickIT extends IntegrationTest {
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("""
 					{"on":true,"openSlots":%d,"skillIds":["%s"],"note":"Cần một bạn kiểm thử phân quyền","crewVersion":%d}
-					""".formatted(slots, TeamTestSupport.REACT, crewVersion)));
+					""".formatted(slots, TestPeople.REACT, crewVersion)));
 	}
 
 	private UUID apply(UUID applicant, UUID jobId) throws Exception {
@@ -1175,7 +1175,7 @@ class CrewPickIT extends IntegrationTest {
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("""
 					{"note":"Mình đã làm kiểm thử phân quyền cho đồ án.","skillIds":["%s"],"publicCodeAcknowledged":true}
-					""".formatted(TeamTestSupport.REACT)))
+					""".formatted(TestPeople.REACT)))
 			.andExpect(status().isCreated())
 			.andReturn().getResponse().getContentAsString();
 		return UUID.fromString(JsonPath.read(created, "$.id"));

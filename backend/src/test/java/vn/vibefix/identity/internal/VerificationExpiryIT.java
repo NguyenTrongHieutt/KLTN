@@ -139,14 +139,11 @@ class VerificationExpiryIT extends IntegrationTest {
 				""").param("id", this.student).query(String.class).list())
 			.contains("identity.verification_expired", "identity.verification_expiring");
 		// No account role marks a Student to ask again (Story 20.3): the student verification is optional.
-		assertThat(this.jdbc.sql("""
-				SELECT count(*) FROM notification.todo
-				WHERE account_id = :id AND todo_key = 'identity.verify_student' AND closed_at IS NULL
-				""").param("id", this.student).query(Long.class).single()).isZero();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM notification.todo WHERE account_id = :id AND closed_at IS NULL")
+			.param("id", this.student).query(Long.class).single()).isZero();
 		// The reminder and the expiry lead to ACC-2, where the verification lives (Story 19.3).
 		assertThat(this.jdbc.sql("""
 				SELECT link FROM notification.notification WHERE account_id = :id
-				UNION ALL SELECT link FROM notification.todo WHERE account_id = :id AND todo_key = 'identity.verify_student'
 				""").param("id", this.student).query(String.class).list()).hasSize(2).containsOnly("/ho-so/xac-minh");
 		assertThat(this.jdbc.sql("""
 				SELECT actor_type FROM audit.audit_entry WHERE action = 'identity.verification_expired'
@@ -216,10 +213,8 @@ class VerificationExpiryIT extends IntegrationTest {
 				"identity.verification_expiry OBSOLETE");
 		assertThat(this.jdbc.sql("SELECT count(*) FROM notification.notification WHERE account_id = :id")
 			.param("id", this.student).query(Long.class).single()).isZero();
-		assertThat(this.jdbc.sql("""
-				SELECT count(*) FROM notification.todo
-				WHERE account_id = :id AND todo_key = 'identity.verify_student' AND closed_at IS NULL
-				""").param("id", this.student).query(Long.class).single()).as("nobody is asked to verify again (Story 20.3)").isZero();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM notification.todo WHERE account_id = :id AND closed_at IS NULL")
+			.param("id", this.student).query(Long.class).single()).as("nobody is asked to verify again (Story 20.3)").isZero();
 	}
 
 	@Test

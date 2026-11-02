@@ -11,7 +11,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /** Products, Active Jobs with a confirmed Agreement, and Crew rows, for the work tests. */
 final class WorkTestSupport {
@@ -91,7 +91,7 @@ final class WorkTestSupport {
 	}
 
 	static UUID student(JdbcClient jdbc, String name) {
-		return TeamTestSupport.student(jdbc, name, true, List.of(TeamTestSupport.REACT), "React", LocalDate.parse("2026-09-30"));
+		return TestPeople.student(jdbc, name, true, List.of(TestPeople.REACT), "React", LocalDate.parse("2026-09-30"));
 	}
 
 	/** A Crew row in {@code status}; every row but ASSIGNED signed and became ACTIVE at {@code signed}. */

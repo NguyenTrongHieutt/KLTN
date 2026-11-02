@@ -31,7 +31,7 @@ import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.Kind;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /**
  * AD-43, Story 20.2: {@code job.roleOf} gives each account at most one role per Job and agrees with the Job, Crew
@@ -54,14 +54,14 @@ class JobRolesIT extends IntegrationTest {
 	@Test
 	void roleOfGivesEachAccountAtMostOneRolePerJobAndAgreesWithTheTables() {
 		UUID customer = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		UUID mentor = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT), "React");
+		UUID mentor = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT), "React");
 		UUID assigned = student("Sinh viên được giao");
 		UUID active = student("Sinh viên đang làm");
 		// Story 20.4: a lock counts as leaving, so a locked member is a former one.
 		UUID locked = student("Sinh viên bị khóa");
 		UUID former = student("Sinh viên đã rời");
 		UUID declined = student("Sinh viên đã từ chối");
-		UUID bidder = TeamTestSupport.mentor(this.jdbc, "Người ứng tuyển", List.of(TeamTestSupport.REACT), "React");
+		UUID bidder = TestPeople.mentor(this.jdbc, "Người ứng tuyển", List.of(TestPeople.REACT), "React");
 		// The cross-role account: the shim gives it the Customer role, and it is the Mentor of another Job.
 		UUID crossRole = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		UUID unrelated = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
@@ -122,7 +122,7 @@ class JobRolesIT extends IntegrationTest {
 	@Test
 	void eachSchemaBackstopRefusesASecondRoleInAJob() {
 		UUID customer = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		UUID mentor = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT), "React");
+		UUID mentor = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT), "React");
 		UUID member = student("Lê Thảo Vy");
 		UUID declined = student("Bùi Gia Huy");
 		UUID job = job(customer, mentor, "ACTIVE", "BUG_FIX");
@@ -146,7 +146,7 @@ class JobRolesIT extends IntegrationTest {
 			.param("member", member)
 			.param("id", job)
 			.update());
-		UUID bidder = TeamTestSupport.mentor(this.jdbc, "Người ứng tuyển", List.of(TeamTestSupport.REACT), "React");
+		UUID bidder = TestPeople.mentor(this.jdbc, "Người ứng tuyển", List.of(TestPeople.REACT), "React");
 		UUID open = job(customer, null, "OPEN", "BUG_FIX");
 		assertRefused("a bid by the Job's Customer", () -> bid(open, customer));
 		assertRefused("an invitation of the Job's Customer", () -> invite(open, customer));
@@ -166,7 +166,7 @@ class JobRolesIT extends IntegrationTest {
 
 	@Test
 	void historyOfCountsTheJobsClosedWithAcceptedWorkPerRole() {
-		UUID mentor = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT), "React");
+		UUID mentor = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT), "React");
 		UUID member = student("Lê Thảo Vy");
 		UUID customer = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 
@@ -204,9 +204,9 @@ class JobRolesIT extends IntegrationTest {
 
 	@Test
 	void theIoMatrixHistoryRow() {
-		UUID mentor = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT), "React");
+		UUID mentor = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT), "React");
 		UUID customer = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		UUID otherMentor = TeamTestSupport.mentor(this.jdbc, "Phạm Thu Hà", List.of(TeamTestSupport.REACT), "React");
+		UUID otherMentor = TestPeople.mentor(this.jdbc, "Phạm Thu Hà", List.of(TestPeople.REACT), "React");
 		milestone(finished(customer, mentor, "CLOSED", true, "NEW_FEATURE"), "ACCEPTED", false);
 		milestone(finished(customer, mentor, "CLOSED", true, "NEW_FEATURE", "BUG_FIX"), "ACCEPTED", false);
 		milestone(finished(customer, mentor, "CLOSED", true, "NEW_FEATURE"), "CANCELLED", false);
@@ -234,7 +234,7 @@ class JobRolesIT extends IntegrationTest {
 	 */
 	@Test
 	void theCrewHistoryCountsOnlyAWindowOverTheAcceptedWork() {
-		UUID mentor = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT), "React");
+		UUID mentor = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT), "React");
 		UUID customer = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		UUID leftAfter = student("Rời sau");
 		UUID leftBefore = student("Rời trước");
@@ -283,7 +283,7 @@ class JobRolesIT extends IntegrationTest {
 	}
 
 	private UUID student(String name) {
-		return TeamTestSupport.student(this.jdbc, name, true, List.of(TeamTestSupport.REACT), "React", VERIFIED_UNTIL);
+		return TestPeople.student(this.jdbc, name, true, List.of(TestPeople.REACT), "React", VERIFIED_UNTIL);
 	}
 
 	/** A Job on its own Product (one running Code Job per Product), its Mentor set from Selecting on. */

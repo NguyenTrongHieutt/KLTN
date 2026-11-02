@@ -29,7 +29,7 @@ import com.jayway.jsonpath.JsonPath;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.IntegrationTest;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /**
  * Story 17.1 (FR-70, AD-41, UX-DR59): the Customer shares earlier Jobs of the same Product with a new Job, an
@@ -74,9 +74,9 @@ class PageSharesIT extends IntegrationTest {
 	@BeforeEach
 	void aProductWithEarlierJobsAndANewOne() throws Exception {
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT),
+		this.hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT),
 				"React");
-		this.mai = TeamTestSupport.mentor(this.jdbc, "Phạm Thu Mai", List.of(TeamTestSupport.REACT),
+		this.mai = TestPeople.mentor(this.jdbc, "Phạm Thu Mai", List.of(TestPeople.REACT),
 				"React");
 		UUID product = WorkTestSupport.product(this.jdbc, this.lan, "Sổ đặt bàn Quán Mây");
 		Instant now = this.clock.instant();

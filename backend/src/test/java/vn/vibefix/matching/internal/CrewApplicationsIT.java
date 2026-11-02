@@ -72,7 +72,7 @@ import vn.vibefix.shared.ErasureOutcome;
 import vn.vibefix.shared.PersonalData;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.TestFiles;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 import vn.vibefix.timers.internal.DeadlinePoller;
 
 /**
@@ -155,7 +155,7 @@ class CrewApplicationsIT extends IntegrationTest {
 		CONTRIBUTOR_READS.set(0);
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		CustomerTokens.keep(this.context, this.lan, TOKEN);
-		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT), "React");
+		this.hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT), "React");
 		this.product = product(this.lan);
 		this.job = JobContent.job(this.jdbc, this.product, this.lan, this.hung, "Sửa lỗi đặt bàn", JobContent.SIGNED,
 				"AGREEMENT");
@@ -173,7 +173,7 @@ class CrewApplicationsIT extends IntegrationTest {
 	@Test
 	void aLinkedUserAppliesWithANoteTwoSkillsAndALinkAndTheMentorReadsTheApplicantCard() throws Exception {
 		Instant now = this.clock.instant();
-		UUID id = id(apply(this.minh, this.job, true, List.of(TeamTestSupport.REACT, TeamTestSupport.SUPABASE),
+		UUID id = id(apply(this.minh, this.job, true, List.of(TestPeople.REACT, TestPeople.SUPABASE),
 				proof(link("https://docs.example.vn/du-an-lop", "Dự án môn học của tôi")))
 			.andExpect(status().isCreated())
 			.andExpect(jsonPath("$.status").value("PENDING"))
@@ -535,7 +535,7 @@ class CrewApplicationsIT extends IntegrationTest {
 	@Test
 	void theApplicantExportsTheirApplicationsAndAnErasureTellsTheMentorBeforeDeletingThem() throws Exception {
 		String file = fileId(upload(this.minh));
-		UUID id = id(apply(this.minh, this.job, true, List.of(TeamTestSupport.REACT), proof(fileItem(file, "Báo cáo")))
+		UUID id = id(apply(this.minh, this.job, true, List.of(TestPeople.REACT), proof(fileItem(file, "Báo cáo")))
 			.andExpect(status().isCreated()));
 
 		String export = new TransactionTemplate(this.transactions).execute(status -> this.personalData.export(this.minh))
@@ -766,7 +766,7 @@ class CrewApplicationsIT extends IntegrationTest {
 	@Test
 	void anApplicantCardCountsTheJobPostsSkillsWhileTheMentorSeeksNone() throws Exception {
 		this.jdbc.sql("UPDATE job.job SET skill_ids = ARRAY[CAST(:react AS UUID)], skill_names = ARRAY['React'] WHERE id = :id")
-			.param("react", TeamTestSupport.REACT)
+			.param("react", TestPeople.REACT)
 			.param("id", this.job)
 			.update();
 		this.mvc.perform(put("/api/v1/mentor/jobs/" + this.job + "/recruitment").with(as(this.hung)).with(csrf())
@@ -857,7 +857,7 @@ class CrewApplicationsIT extends IntegrationTest {
 	}
 
 	private UUID applicant(String name) {
-		return TeamTestSupport.mentor(this.jdbc, name, List.of(TeamTestSupport.REACT), "React");
+		return TestPeople.mentor(this.jdbc, name, List.of(TestPeople.REACT), "React");
 	}
 
 	private ResultActions recruit(UUID jobId, UUID mentor, long crewVersion, boolean on) throws Exception {
@@ -866,7 +866,7 @@ class CrewApplicationsIT extends IntegrationTest {
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("""
 					{"on":%s,"openSlots":1,"skillIds":["%s","%s"],"note":"Cần một bạn kiểm thử phân quyền","crewVersion":%d}
-					""".formatted(on, TeamTestSupport.REACT, TeamTestSupport.SUPABASE, crewVersion)));
+					""".formatted(on, TestPeople.REACT, TestPeople.SUPABASE, crewVersion)));
 	}
 
 	private long crewVersion(UUID jobId) {

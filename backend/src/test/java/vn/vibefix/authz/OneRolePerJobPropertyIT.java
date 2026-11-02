@@ -48,7 +48,7 @@ import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /**
  * AD-43's one-role property (Story 20.5, Crew from Crew Applications since Story 21.5): a seeded random run of the
@@ -313,7 +313,7 @@ class OneRolePerJobPropertyIT extends IntegrationTest {
 	 */
 	private void world() {
 		for (int i = 0; i < PEOPLE; i++) {
-			UUID person = TeamTestSupport.mentor(this.jdbc, "Người " + i, List.of(TeamTestSupport.REACT), "React");
+			UUID person = TestPeople.mentor(this.jdbc, "Người " + i, List.of(TestPeople.REACT), "React");
 			IdentityTestSupport.verifyStudent(this.jdbc, person, LocalDate.of(2026, 9, 30));
 			this.people.add(person);
 		}

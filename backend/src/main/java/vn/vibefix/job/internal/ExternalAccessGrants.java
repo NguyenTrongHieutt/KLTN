@@ -17,7 +17,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import vn.vibefix.identity.MentorDirectory;
-import vn.vibefix.identity.StudentDirectory.StudentCard;
+import vn.vibefix.identity.PersonDirectory.PersonCard;
 import vn.vibefix.job.internal.AgreementReviews.Confirmed;
 import vn.vibefix.job.internal.Agreements.ExternalAccess;
 import vn.vibefix.job.internal.Jobs.Job;
@@ -258,9 +258,9 @@ class ExternalAccessGrants {
 			.filter(CrewService.Row::active)
 			.map(CrewService.Row::studentId)
 			.toList();
-		Map<UUID, StudentCard> cards = this.crews.cards(crew);
+		Map<UUID, PersonCard> cards = this.crews.cards(crew);
 		for (UUID student : crew) {
-			StudentCard card = cards.get(student);
+			PersonCard card = cards.get(student);
 			if (card != null && card.githubLogin() != null) {
 				people.put(student, card.githubLogin());
 			}

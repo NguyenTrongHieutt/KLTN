@@ -33,7 +33,7 @@ export function ConfirmDialog({
           <Dialog.Title className="text-h2 break-words">{title}</Dialog.Title>
           <Dialog.Description className="text-body-sm break-words">{body}</Dialog.Description>
           <div className="flex flex-wrap justify-between gap-3">
-            <Dialog.Close render={<Button type="button" variant="secondary" />}>{t('screen.team.back')}</Dialog.Close>
+            <Dialog.Close render={<Button type="button" variant="secondary" />}>{t('screen.shared.back')}</Dialog.Close>
             <Button type="button" variant={destructive ? 'destructive' : 'primary'} disabled={pending} onClick={onConfirm}>
               {confirmLabel}
             </Button>

@@ -99,6 +99,7 @@ describe('ADM-6 moderation (FR-60)', () => {
       label: 'Sửa lỗi đặt bàn',
       reason: 'Lời lẽ xúc phạm',
       reporterName: 'Trần Thảo Vy',
+      authorId: 'u2',
       authorName: 'Đỗ Mạnh Hùng',
       createdAt: '2026-10-20T03:00:00Z',
       status: 'OPEN',
@@ -142,5 +143,56 @@ describe('ADM-6 moderation (FR-60)', () => {
     await user.click(screen.getByRole('button', { name: 'Ghi quyết định' }))
     await waitFor(() => expect(sent).toEqual([{ action: 'ACTION_TAKEN', outcome: 'Đã khóa tài khoản' }]))
     expect(await screen.findByText('Đã khóa tài khoản')).toBeInTheDocument()
+  })
+
+  it('shows a recruitment note as filed, and leads to the Mentor with no way to hide it', { timeout: 30_000 }, async () => {
+    const user = userEvent.setup()
+    const report = {
+      id: 'r1',
+      kind: 'RECRUITMENT_NOTE',
+      targetId: 'j1',
+      jobId: 'j1',
+      label: 'Sửa lỗi đặt bàn',
+      reason: 'Lừa đảo',
+      reporterName: 'Trần Thảo Vy',
+      authorId: 'u2',
+      authorName: 'Đỗ Mạnh Hùng',
+      createdAt: '2026-10-20T03:00:00Z',
+      status: 'OPEN',
+      assigned: true,
+      assignedToMe: true,
+      hideable: false,
+      itemReadable: false,
+      reportedText: 'Chuyển tiền trước để được chọn',
+    }
+    fakeBackend(administrator, {
+      'GET /api/v1/admin/overview': () => json(overview),
+      'GET /api/v1/admin/moderation': () => json([]),
+      'GET /api/v1/admin/abuse-reports': () =>
+        json([
+          {
+            id: 'r1',
+            kind: 'RECRUITMENT_NOTE',
+            label: 'Sửa lỗi đặt bàn',
+            reason: 'Lừa đảo',
+            reporterName: 'Trần Thảo Vy',
+            createdAt: '2026-10-20T03:00:00Z',
+            status: 'OPEN',
+            assigned: true,
+            assignedToMe: true,
+          },
+        ]),
+      'GET /api/v1/admin/abuse-reports/r1': () => json(report),
+    })
+    renderAt('/quan-tri/kiem-duyet')
+
+    await user.click(await screen.findByRole('tab', { name: 'Báo cáo vi phạm' }))
+    await user.click(await screen.findByRole('button', { name: /Lừa đảo/ }))
+    expect(await screen.findByText('Chuyển tiền trước để được chọn')).toBeInTheDocument()
+    expect(screen.getByText('Lời nhắn tuyển thành viên')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Đỗ Mạnh Hùng' })).toHaveAttribute('href', '/quan-tri/nguoi-dung/u2')
+    expect(screen.queryByText('Mỗi lần xem nội dung này được ghi vào nhật ký kiểm toán.')).toBeNull()
+    expect(screen.queryByRole('radio', { name: 'Ẩn nội dung' })).toBeNull()
+    expect(screen.getByRole('radio', { name: /Đã xử lý/ })).toBeInTheDocument()
   })
 })

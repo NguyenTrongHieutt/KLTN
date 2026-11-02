@@ -1,9 +1,11 @@
 import { useId, useState, type FormEvent } from 'react'
+import { Link } from 'react-router'
 import { inputClass } from '@/components/formField-props'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
+import { rich } from '@/i18n/rich'
 import { t, type MessageKey } from '@/i18n/t'
 import { formatDayMonthTime } from '@/lib/dates'
 import { problemMessage } from '@/lib/problemMessage'
@@ -22,7 +24,8 @@ import {
  * ADM-6's "Báo cáo vi phạm" tab (FR-69, FR-60, AD-20, UX-DR16): the queue, oldest open first, with titles and
  * names, never a message's or a note's text; "Nhận xử lý", after which the assignee reads the one reported
  * message or note (each read audited); and the decision: hide through FR-60, record the action taken, or
- * dismiss, with the outcome the reporter reads.
+ * dismiss, with the outcome the reporter reads. A recruitment note shows in the detail as it read at filing: it was
+ * public text, so it takes no grant and no audited read. The author's name leads to ADM-2, where they are acted on.
  */
 export function AbuseReportsPanel() {
   const reports = useAbuseReports()
@@ -105,13 +108,33 @@ function Detail({ data }: { data: AbuseReport }) {
             name: data.reporterName ?? t('screen.admin.reports.erased'),
             time: formatDayMonthTime(data.createdAt),
           })}
-          {data.authorName ? ` · ${t('screen.admin.reports.author', { name: data.authorName })}` : ''}
+          {data.authorId && data.authorName && (
+            <>
+              {' · '}
+              {rich('screen.admin.reports.author', {
+                name: (
+                  <Link
+                    to={`/quan-tri/nguoi-dung/${data.authorId}`}
+                    className="text-primary underline-offset-4 hover:underline"
+                  >
+                    {data.authorName}
+                  </Link>
+                ),
+              })}
+            </>
+          )}
         </p>
       </div>
       <div className="flex flex-col gap-1">
         <span className="text-label">{t('screen.admin.reports.reason')}</span>
         <p className="break-words whitespace-pre-line">{data.reason}</p>
       </div>
+      {data.reportedText && (
+        <div className="flex flex-col gap-1 rounded-md border border-border p-3">
+          <span className="text-label">{t('screen.admin.reports.item')}</span>
+          <p className="break-words whitespace-pre-line">{data.reportedText}</p>
+        </div>
+      )}
       {data.itemReadable && <ReportedItem data={data} />}
       {error && (
         <p role="alert" className="text-destructive">

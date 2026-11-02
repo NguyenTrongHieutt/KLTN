@@ -35,7 +35,7 @@ import vn.vibefix.shared.AdminReadItem;
 import vn.vibefix.shared.AdminReadScope;
 import vn.vibefix.support.MutableClock;
 import vn.vibefix.support.TestFiles;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /**
  * The crew Job (AD-41, AD-20, Story 20.5): an Active Job of the Customer's Product, built by
@@ -163,7 +163,7 @@ final class CrewJobWorld {
 
 	void seed(MatrixWorld world, UUID owner, UUID product) {
 		Timestamp now = Timestamp.from(MutableClock.DEFAULT_INSTANT);
-		this.mentor = TeamTestSupport.mentor(this.jdbc, "Người hướng dẫn nhóm ma trận", List.of(TeamTestSupport.REACT),
+		this.mentor = TestPeople.mentor(this.jdbc, "Người hướng dẫn nhóm ma trận", List.of(TestPeople.REACT),
 				"React");
 		UUID job = JobContent.activeJob(this.jdbc, product, owner, this.mentor, "Việc nhóm ma trận");
 		// J3 selected the Mentor's bid (FR-15): a running Job's selected bid is a real one.
@@ -481,15 +481,8 @@ final class CrewJobWorld {
 		world.put("versionNo", 1);
 		privateFeedback(product, owner, escalating);
 		secondJob();
-		world.put("username", TeamTestSupport.login(this.jdbc, this.mentor));
-		world.put("memberUsername", TeamTestSupport.login(this.jdbc, escalating));
-		// The retired Team endpoints refuse every caller (Story 21.7 deletes them), so their IDs name nothing.
-		world.put("studentId", canaryMember);
-		world.put("teamMentorId", this.mentor);
-		world.put("freeStudentId", UUID.randomUUID());
-		world.put("joinRequestId", UUID.randomUUID());
-		world.put("invitationId", UUID.randomUUID());
-		world.put("membershipId", UUID.randomUUID());
+		world.put("username", TestPeople.login(this.jdbc, this.mentor));
+		world.put("memberUsername", TestPeople.login(this.jdbc, escalating));
 	}
 
 	/** The Mentor of this Job and of every fixture Job that has one. */
@@ -712,7 +705,7 @@ final class CrewJobWorld {
 				VALUES (:id, :job, :product, :account, 'CREW', 'Việc trước của người hướng dẫn', 'Sản phẩm ma trận',
 				    ARRAY['BUG_FIX'], CAST(:skills AS UUID[]), 1, 2, :ended, :ended, :ended)
 				""").param("id", UUID.randomUUID()).param("job", earlier).param("product", product).param("account", hiding)
-			.param("skills", "{" + TeamTestSupport.REACT + "}")
+			.param("skills", "{" + TestPeople.REACT + "}")
 			.param("ended", Timestamp.from(ended))
 			.update();
 	}

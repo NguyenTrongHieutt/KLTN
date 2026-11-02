@@ -43,7 +43,6 @@ import vn.vibefix.identity.internal.VerificationRows.Row;
 import vn.vibefix.notification.EmailClass;
 import vn.vibefix.notification.EmailRequest;
 import vn.vibefix.notification.Emails;
-import vn.vibefix.notification.Todos;
 import vn.vibefix.settings.Settings;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
@@ -60,7 +59,7 @@ import vn.vibefix.shared.RateLimitedException;
  * writes an {@code identity.verification} row with the school matched from the allowlist and the
  * declared name and major, locked while it is live, valid until the next 30 September. It projects
  * the facts into the profile, records the {@code SCHOOL_EMAIL} signal, schedules the reminder and the
- * expiry ({@link VerificationDeadlines}), audits, and closes the {@code identity.verify_student} to-do.
+ * expiry ({@link VerificationDeadlines}), and audits.
  * From 14 days before the expiry the account may renew, which asks for the address only.
  * <p>
  * Every command locks the account row first, so one account's sends and attempts run one at a time;
@@ -141,8 +140,6 @@ class StudentVerifications implements StudentVerification {
 
 	private final Emails emails;
 
-	private final Todos todos;
-
 	private final AuditLog auditLog;
 
 	private final IdGenerator ids;
@@ -161,13 +158,12 @@ class StudentVerifications implements StudentVerification {
 
 	private final SecureRandom random = new SecureRandom();
 
-	StudentVerifications(JdbcClient jdbc, Settings settings, Emails emails, Todos todos, AuditLog auditLog,
+	StudentVerifications(JdbcClient jdbc, Settings settings, Emails emails, AuditLog auditLog,
 			IdGenerator ids, Clock clock, VerificationDeadlines deadlines, JdbcPersonSignals signals, PersonSignalKeys keys,
 			VerificationRows rows, Accounts accounts) {
 		this.jdbc = jdbc;
 		this.settings = settings;
 		this.emails = emails;
-		this.todos = todos;
 		this.auditLog = auditLog;
 		this.ids = ids;
 		this.clock = clock;
@@ -332,7 +328,6 @@ class StudentVerifications implements StudentVerification {
 		this.deadlines.schedule(accountId, verification, validUntil, now);
 		this.auditLog.record(AuditEntry.of(AuditActor.user(accountId), "identity.student_verified",
 				AuditObject.of("identity.account", accountId), AuditObject.of("identity.verification", verification)));
-		this.todos.close(SignIns.VERIFY_STUDENT, accountId, accountId);
 		// The same keyed HMACs as the subject's, under every key the send knew: the address is gone by now (AD-19).
 		this.signals.recordHmacs(accountId, JdbcPersonSignals.Source.SCHOOL_EMAIL, row.hmacs());
 		return new Confirmation.Verified(view(accountId));
@@ -343,7 +338,7 @@ class StudentVerifications implements StudentVerification {
 	 * the profile's projection of them in the same transaction. The subject HMAC stays on the ended row,
 	 * as N-26 states (AD-24); its reminder and expiry find it ended and are obsolete, and every pending code
 	 * goes. No to-do opens: the student verification is optional and gates nothing, and no account role marks a
-	 * Student who would be asked again (Story 20.3; EXPERIENCE.md removed {@code identity.verify_student}).
+	 * Student who would be asked again (Story 20.3).
 	 * @throws ApiException {@code NOT_FOUND} without a current verification
 	 */
 	@Transactional

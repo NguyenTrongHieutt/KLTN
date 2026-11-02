@@ -18,8 +18,8 @@ import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
-import vn.vibefix.identity.StudentDirectory;
-import vn.vibefix.identity.StudentDirectory.StudentCard;
+import vn.vibefix.identity.PersonDirectory;
+import vn.vibefix.identity.PersonDirectory.PersonCard;
 import vn.vibefix.job.AgreementCriteria;
 import vn.vibefix.job.AgreementCriteria.CriteriaInForce;
 import vn.vibefix.job.AgreementCriteria.CriterionInForce;
@@ -185,7 +185,7 @@ class WorkViews {
 
 	private final MentorDirectory mentors;
 
-	private final StudentDirectory students;
+	private final PersonDirectory people;
 
 	private final HeldMilestones held;
 
@@ -193,7 +193,7 @@ class WorkViews {
 
 	private final boolean largeCrews;
 
-	WorkViews(AgreementCriteria criteria, Crews crews, MentorDirectory mentors, StudentDirectory students,
+	WorkViews(AgreementCriteria criteria, Crews crews, MentorDirectory mentors, PersonDirectory people,
 			HeldMilestones held, Reassignments reassignments,
 			@Value("${vibefix.features.large-crews:false}") boolean largeCrews) {
 		this.held = held;
@@ -202,7 +202,7 @@ class WorkViews {
 		this.criteria = criteria;
 		this.crews = crews;
 		this.mentors = mentors;
-		this.students = students;
+		this.people = people;
 	}
 
 	BoardView board(BoardViewer viewer, List<Item> items, Map<UUID, Entry> latestReviews) {
@@ -223,9 +223,9 @@ class WorkViews {
 		Map<UUID, String> names = names(viewer, people);
 		Set<UUID> unlocked = new HashSet<>();
 		if (!members.isEmpty()) {
-			this.students.cards(members.stream().map(CrewMember::studentId).toList())
+			this.people.cards(members.stream().map(CrewMember::studentId).toList())
 				.stream()
-				.filter(StudentCard::available)
+				.filter(PersonCard::available)
 				.forEach(card -> unlocked.add(card.accountId()));
 		}
 		List<CrewPickView> crew = members.stream()
@@ -362,7 +362,7 @@ class WorkViews {
 			.ifPresent(name -> names.put(viewer.mentorId(), name));
 		List<UUID> students = people.stream().filter(id -> !id.equals(viewer.mentorId())).toList();
 		if (!students.isEmpty()) {
-			for (StudentCard card : this.students.cards(students)) {
+			for (PersonCard card : this.people.cards(students)) {
 				names.put(card.accountId(), card.shownName().isBlank() ? NO_NAME : card.shownName());
 			}
 		}

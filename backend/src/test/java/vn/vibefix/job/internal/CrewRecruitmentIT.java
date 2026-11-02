@@ -37,7 +37,7 @@ import vn.vibefix.notification.TodoRequest;
 import vn.vibefix.notification.Todos;
 import vn.vibefix.shared.PersonalData;
 import vn.vibefix.support.IntegrationTest;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /**
  * Story 21.4 (FR-81, AD-3, AD-41, R2, R7, UX-DR102), with {@code features.largeCrews} on: the Mentor of an Agreement
@@ -84,7 +84,7 @@ class CrewRecruitmentIT extends IntegrationTest {
 	@BeforeEach
 	void anAgreementJobWithItsMentor() {
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TeamTestSupport.REACT), "React");
+		this.hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT), "React");
 		this.product = JobContent.product(this.jdbc, this.lan, "Sổ đặt bàn Quán Mây");
 		this.job = JobContent.job(this.jdbc, this.product, this.lan, this.hung, "Sửa lỗi đặt bàn", JobContent.SIGNED,
 				"AGREEMENT");
@@ -93,7 +93,7 @@ class CrewRecruitmentIT extends IntegrationTest {
 
 	@Test
 	void theMentorOpensRecruitmentWithTwoSlotsAndTheJobIsListedLookingForItsCrew() throws Exception {
-		UUID minh = TeamTestSupport.mentor(this.jdbc, "Trần Quang Minh", List.of(TeamTestSupport.REACT), "React");
+		UUID minh = TestPeople.mentor(this.jdbc, "Trần Quang Minh", List.of(TestPeople.REACT), "React");
 		long version = jobVersion();
 		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.todos.open(new TodoRequest(
 				"matching.open_crew_recruitment", this.hung, Audience.MENTOR, this.job, Map.of("job", "Sửa lỗi đặt bàn"),
@@ -106,12 +106,12 @@ class CrewRecruitmentIT extends IntegrationTest {
 			.andExpect(jsonPath("$.signedMember").value(false))
 			.andExpect(jsonPath("$.crewVersion").value(0));
 
-		set(this.hung, 0, true, 2, List.of(TeamTestSupport.REACT, TeamTestSupport.SUPABASE), "Cần một bạn kiểm thử phân quyền")
+		set(this.hung, 0, true, 2, List.of(TestPeople.REACT, TestPeople.SUPABASE), "Cần một bạn kiểm thử phân quyền")
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.recruiting").value(true))
 			.andExpect(jsonPath("$.openSlots").value(2))
 			.andExpect(jsonPath("$.skills.length()").value(2))
-			.andExpect(jsonPath("$.skills[0].id").value(TeamTestSupport.REACT))
+			.andExpect(jsonPath("$.skills[0].id").value(TestPeople.REACT))
 			.andExpect(jsonPath("$.note").value("Cần một bạn kiểm thử phân quyền"))
 			.andExpect(jsonPath("$.signedMember").value(false))
 			.andExpect(jsonPath("$.crewVersion").value(1));
@@ -123,7 +123,7 @@ class CrewRecruitmentIT extends IntegrationTest {
 		await().atMost(Duration.ofSeconds(10)).until(() -> openTodos("matching.open_crew_recruitment") == 0);
 		assertThat(audits("job.recruitment_opened")).isOne();
 
-		set(this.hung, 1, true, 3, List.of(TeamTestSupport.REACT), null).andExpect(status().isOk())
+		set(this.hung, 1, true, 3, List.of(TestPeople.REACT), null).andExpect(status().isOk())
 			.andExpect(jsonPath("$.openSlots").value(3))
 			.andExpect(jsonPath("$.note").doesNotExist())
 			.andExpect(jsonPath("$.crewVersion").value(2));
@@ -151,7 +151,7 @@ class CrewRecruitmentIT extends IntegrationTest {
 
 	@Test
 	void theCustomerAndEveryoneButTheMentorFindNothing() throws Exception {
-		UUID minh = TeamTestSupport.mentor(this.jdbc, "Trần Quang Minh", List.of(TeamTestSupport.REACT), "React");
+		UUID minh = TestPeople.mentor(this.jdbc, "Trần Quang Minh", List.of(TestPeople.REACT), "React");
 		for (UUID other : List.of(this.lan, minh)) {
 			recruitment(other).andExpect(status().isNotFound());
 			set(other, 0, true, 1, List.of(), null).andExpect(status().isNotFound());
@@ -171,7 +171,7 @@ class CrewRecruitmentIT extends IntegrationTest {
 
 	@Test
 	void turningRecruitmentOffLapsesTheOpenApplicationsAndDelistsTheJob() throws Exception {
-		UUID minh = TeamTestSupport.mentor(this.jdbc, "Trần Quang Minh", List.of(TeamTestSupport.REACT), "React");
+		UUID minh = TestPeople.mentor(this.jdbc, "Trần Quang Minh", List.of(TestPeople.REACT), "React");
 		set(this.hung, 0, true, 2, List.of(), null).andExpect(status().isOk());
 		UUID application = pendingApplication(minh);
 
@@ -189,7 +189,7 @@ class CrewRecruitmentIT extends IntegrationTest {
 
 	@Test
 	void j8TurnsRecruitmentOffAndLapsesTheOpenApplications() throws Exception {
-		UUID minh = TeamTestSupport.mentor(this.jdbc, "Trần Quang Minh", List.of(TeamTestSupport.REACT), "React");
+		UUID minh = TestPeople.mentor(this.jdbc, "Trần Quang Minh", List.of(TestPeople.REACT), "React");
 		this.jdbc.sql("UPDATE job.job SET state = 'ACTIVE' WHERE id = :id").param("id", this.job).update();
 		set(this.hung, 0, true, 1, List.of(), null).andExpect(status().isOk());
 		UUID application = pendingApplication(minh);
@@ -224,28 +224,28 @@ class CrewRecruitmentIT extends IntegrationTest {
 			.andExpect(jsonPath("$.reason").value("SKILL_LIMIT"));
 		set(this.hung, 0, true, 1, List.of(), "x".repeat(JobRecruitment.MAX_NOTE + 1)).andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.code").value("VALIDATION"));
-		set(this.hung, 0, true, 1, List.of(TeamTestSupport.REACT, TeamTestSupport.SUPABASE), null).andExpect(status().isOk());
+		set(this.hung, 0, true, 1, List.of(TestPeople.REACT, TestPeople.SUPABASE), null).andExpect(status().isOk());
 		this.jdbc.sql("UPDATE catalog.skill SET active = false WHERE id IN (CAST(:supabase AS UUID), CAST(:security AS UUID))")
-			.param("supabase", TeamTestSupport.SUPABASE)
-			.param("security", TeamTestSupport.WEB_SECURITY)
+			.param("supabase", TestPeople.SUPABASE)
+			.param("security", TestPeople.WEB_SECURITY)
 			.update();
 
 		// A kept Skill the catalog retired since still saves; a newly added retired one does not.
-		set(this.hung, 1, true, 2, List.of(TeamTestSupport.REACT, TeamTestSupport.SUPABASE), null)
+		set(this.hung, 1, true, 2, List.of(TestPeople.REACT, TestPeople.SUPABASE), null)
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.skills[1].id").value(TeamTestSupport.SUPABASE))
+			.andExpect(jsonPath("$.skills[1].id").value(TestPeople.SUPABASE))
 			.andExpect(jsonPath("$.skills[1].active").value(false));
-		set(this.hung, 2, true, 2, List.of(TeamTestSupport.REACT, TeamTestSupport.WEB_SECURITY), null)
+		set(this.hung, 2, true, 2, List.of(TestPeople.REACT, TestPeople.WEB_SECURITY), null)
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.reason").value("SKILL_INACTIVE"));
 	}
 
 	@Test
 	void aSaveThatChangesNothingWritesNothing() throws Exception {
-		set(this.hung, 0, true, 2, List.of(TeamTestSupport.REACT), "Cần một bạn kiểm thử").andExpect(status().isOk())
+		set(this.hung, 0, true, 2, List.of(TestPeople.REACT), "Cần một bạn kiểm thử").andExpect(status().isOk())
 			.andExpect(jsonPath("$.crewVersion").value(1));
 
-		set(this.hung, 1, true, 2, List.of(TeamTestSupport.REACT), "Cần một bạn kiểm thử").andExpect(status().isOk())
+		set(this.hung, 1, true, 2, List.of(TestPeople.REACT), "Cần một bạn kiểm thử").andExpect(status().isOk())
 			.andExpect(jsonPath("$.crewVersion").value(1));
 
 		assertThat(crewVersion()).isOne();
@@ -271,8 +271,8 @@ class CrewRecruitmentIT extends IntegrationTest {
 
 	@Test
 	void anErasedMentorsNoteAndSkillsLeaveTheJobAndItsRecruitmentCloses() throws Exception {
-		UUID minh = TeamTestSupport.mentor(this.jdbc, "Trần Quang Minh", List.of(TeamTestSupport.REACT), "React");
-		set(this.hung, 0, true, 1, List.of(TeamTestSupport.REACT), "Cần một bạn kiểm thử phân quyền").andExpect(status().isOk());
+		UUID minh = TestPeople.mentor(this.jdbc, "Trần Quang Minh", List.of(TestPeople.REACT), "React");
+		set(this.hung, 0, true, 1, List.of(TestPeople.REACT), "Cần một bạn kiểm thử phân quyền").andExpect(status().isOk());
 		UUID application = pendingApplication(minh);
 
 		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.jobPersonalData.eraseAccount(this.hung));
@@ -286,7 +286,7 @@ class CrewRecruitmentIT extends IntegrationTest {
 
 	@Test
 	void j10TurnsRecruitmentOffAndLapsesTheOpenApplications() throws Exception {
-		UUID minh = TeamTestSupport.mentor(this.jdbc, "Trần Quang Minh", List.of(TeamTestSupport.REACT), "React");
+		UUID minh = TestPeople.mentor(this.jdbc, "Trần Quang Minh", List.of(TestPeople.REACT), "React");
 		set(this.hung, 0, true, 1, List.of(), null).andExpect(status().isOk());
 		UUID application = pendingApplication(minh);
 
@@ -299,7 +299,7 @@ class CrewRecruitmentIT extends IntegrationTest {
 
 	@Test
 	void theMentorsExportCarriesTheNoteToApplicants() throws Exception {
-		set(this.hung, 0, true, 1, List.of(TeamTestSupport.REACT), "Cần một bạn kiểm thử phân quyền").andExpect(status().isOk());
+		set(this.hung, 0, true, 1, List.of(TestPeople.REACT), "Cần một bạn kiểm thử phân quyền").andExpect(status().isOk());
 
 		String export = new TransactionTemplate(this.transactions).execute(status -> this.personalData.export(this.hung))
 			.toString();

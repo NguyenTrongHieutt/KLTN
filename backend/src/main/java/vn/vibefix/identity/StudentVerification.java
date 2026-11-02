@@ -3,8 +3,7 @@ package vn.vibefix.identity;
 import java.util.UUID;
 
 /**
- * Whether an account's student verification is current (FR-5). Until Epics 20 and 21, joining a Team, a join
- * request, and a new Crew assignment are refused while it is false; running Jobs and Team membership continue.
+ * Whether an account's student verification is current (FR-5). It is a fact the person can show, and gates nothing.
  */
 public interface StudentVerification {
 

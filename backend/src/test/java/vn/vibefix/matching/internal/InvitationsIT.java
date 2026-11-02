@@ -33,7 +33,7 @@ import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /** FR-14, SG-41, SG-44: the Customer's Mentor search and invitations to apply. */
 class InvitationsIT extends IntegrationTest {
@@ -72,13 +72,13 @@ class InvitationsIT extends IntegrationTest {
 				""").param("id", this.lan).update();
 		this.product = product(this.lan);
 		this.job = openJob();
-		this.long_ = mentor("Trần Đức Long", List.of(TeamTestSupport.SUPABASE), "Supabase");
-		this.ha = mentor("Phạm Thu Hà", List.of(TeamTestSupport.REACT, TeamTestSupport.SUPABASE), "React Supabase");
-		this.bao = mentor("Lê Quốc Bảo", List.of(TeamTestSupport.REACT), "React");
+		this.long_ = mentor("Trần Đức Long", List.of(TestPeople.SUPABASE), "Supabase");
+		this.ha = mentor("Phạm Thu Hà", List.of(TestPeople.REACT, TestPeople.SUPABASE), "React Supabase");
+		this.bao = mentor("Lê Quốc Bảo", List.of(TestPeople.REACT), "React");
 		// Story 21.3: a user without GitHub linked is never listed, and cannot be invited to bid.
-		this.unlinked = mentor("Chưa Liên Kết", List.of(TeamTestSupport.SUPABASE), "Supabase");
+		this.unlinked = mentor("Chưa Liên Kết", List.of(TestPeople.SUPABASE), "Supabase");
 		IdentityTestSupport.unlinkGitHub(this.jdbc, this.unlinked);
-		this.locked = mentor("Bị Khóa", List.of(TeamTestSupport.SUPABASE), "Supabase");
+		this.locked = mentor("Bị Khóa", List.of(TestPeople.SUPABASE), "Supabase");
 		IdentityTestSupport.lock(this.jdbc, this.locked, "Vi phạm");
 	}
 
@@ -119,7 +119,7 @@ class InvitationsIT extends IntegrationTest {
 			assertThat(response).doesNotContain("long.lienhe@example.test").doesNotContain("977 123 456");
 		}
 
-		search("supabase", "&skill=" + TeamTestSupport.REACT).andExpect(jsonPath("$.total").value(1))
+		search("supabase", "&skill=" + TestPeople.REACT).andExpect(jsonPath("$.total").value(1))
 			.andExpect(jsonPath("$.items[0].displayName").value("Phạm Thu Hà"))
 			.andExpect(jsonPath("$.items[0].skills[0]").value("React"));
 		search("", "").andExpect(jsonPath("$.total").value(0)).andExpect(jsonPath("$.items.length()").value(0));
@@ -138,8 +138,8 @@ class InvitationsIT extends IntegrationTest {
 	void theSearchListsAUserWithNoRoleAndNeverTheJobsCustomer() throws Exception {
 		this.jdbc.sql("""
 				UPDATE identity.profile SET skill_ids = CAST(:skills AS UUID[]), skill_names = 'Supabase' WHERE account_id = :id
-				""").param("skills", "{" + TeamTestSupport.SUPABASE + "}").param("id", this.lan).update();
-		UUID minh = TeamTestSupport.googleMentor(this.jdbc, "Ngô Văn Minh", List.of(TeamTestSupport.SUPABASE), "Supabase");
+				""").param("skills", "{" + TestPeople.SUPABASE + "}").param("id", this.lan).update();
+		UUID minh = TestPeople.googleMentor(this.jdbc, "Ngô Văn Minh", List.of(TestPeople.SUPABASE), "Supabase");
 
 		String body = search("supabase", "").andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
 		List<String> found = JsonPath.read(body, "$.items[*].accountId");
@@ -151,8 +151,8 @@ class InvitationsIT extends IntegrationTest {
 
 	@Test
 	void theSearchOrdersByRelevanceThenAccountIdNeverByName() throws Exception {
-		UUID first = mentor("Zô Bảo Mật", List.of(TeamTestSupport.SUPABASE), "Bảo mật");
-		UUID second = mentor("An Bảo Mật", List.of(TeamTestSupport.SUPABASE), "Bảo mật");
+		UUID first = mentor("Zô Bảo Mật", List.of(TestPeople.SUPABASE), "Bảo mật");
+		UUID second = mentor("An Bảo Mật", List.of(TestPeople.SUPABASE), "Bảo mật");
 
 		String body = search("bảo mật", "").andExpect(jsonPath("$.total").value(2)).andReturn().getResponse()
 			.getContentAsString();
@@ -171,9 +171,9 @@ class InvitationsIT extends IntegrationTest {
 	 */
 	@Test
 	void theDeclaredStudentNameIsFoundOnlyWhileShown() throws Exception {
-		UUID shown = TeamTestSupport.student(this.jdbc, "Hoàng Diệu Linh", true, List.of(TeamTestSupport.REACT), "React",
+		UUID shown = TestPeople.student(this.jdbc, "Hoàng Diệu Linh", true, List.of(TestPeople.REACT), "React",
 				java.time.LocalDate.parse("2026-09-30"));
-		UUID hidden = TeamTestSupport.student(this.jdbc, "Hoàng Diệu Thư", false, List.of(TeamTestSupport.REACT), "React",
+		UUID hidden = TestPeople.student(this.jdbc, "Hoàng Diệu Thư", false, List.of(TestPeople.REACT), "React",
 				java.time.LocalDate.parse("2026-09-30"));
 
 		String body = search("Hoàng Diệu", "").andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
@@ -181,7 +181,7 @@ class InvitationsIT extends IntegrationTest {
 			.doesNotContain(hidden.toString());
 		assertThat(body).doesNotContain("Hoàng Diệu Thư");
 		search("Bách khoa", "").andExpect(jsonPath("$.total").value(0));
-		search(TeamTestSupport.MAJOR, "").andExpect(jsonPath("$.total").value(0));
+		search(TestPeople.MAJOR, "").andExpect(jsonPath("$.total").value(0));
 	}
 
 	/**
@@ -392,7 +392,7 @@ class InvitationsIT extends IntegrationTest {
 	}
 
 	private UUID mentor(String name, List<String> skills, String skillNames) {
-		return TeamTestSupport.mentor(this.jdbc, name, skills, skillNames);
+		return TestPeople.mentor(this.jdbc, name, skills, skillNames);
 	}
 
 	private UUID openJob() {

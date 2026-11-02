@@ -33,7 +33,7 @@ import vn.vibefix.repo.DataDeletionConfirmed;
 import vn.vibefix.reputation.PortfolioEntry;
 import vn.vibefix.reputation.Reputation;
 import vn.vibefix.support.IntegrationTest;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 import vn.vibefix.timers.internal.DeadlinePoller;
 
 /**
@@ -218,10 +218,10 @@ class PortfolioIT extends IntegrationTest {
 			.param("job", job)
 			.param("vy", this.vy)
 			.update();
-		UUID early = TeamTestSupport.student(this.jdbc, "Rời sớm", true, List.of(TeamTestSupport.REACT), "React",
+		UUID early = TestPeople.student(this.jdbc, "Rời sớm", true, List.of(TestPeople.REACT), "React",
 				LocalDate.parse("2026-09-30"));
 		crewRow(job, early, Duration.ofDays(9), Duration.ofDays(5));
-		UUID late = TeamTestSupport.student(this.jdbc, "Vào muộn", true, List.of(TeamTestSupport.REACT), "React",
+		UUID late = TestPeople.student(this.jdbc, "Vào muộn", true, List.of(TestPeople.REACT), "React",
 				LocalDate.parse("2026-09-30"));
 		crewRow(job, late, Duration.ofDays(1), Duration.ZERO);
 
@@ -263,9 +263,9 @@ class PortfolioIT extends IntegrationTest {
 
 	private void people() {
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng",
-				List.of(TeamTestSupport.REACT), "React");
-		this.vy = TeamTestSupport.student(this.jdbc, "Trần Thảo Vy", true, List.of(TeamTestSupport.REACT), "React",
+		this.hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng",
+				List.of(TestPeople.REACT), "React");
+		this.vy = TestPeople.student(this.jdbc, "Trần Thảo Vy", true, List.of(TestPeople.REACT), "React",
 				LocalDate.parse("2026-09-30"));
 	}
 
@@ -297,7 +297,7 @@ class PortfolioIT extends IntegrationTest {
 			.param("application", UUID.randomUUID()).param("now", now).update();
 		this.jdbc.sql("UPDATE job.job SET state = 'CLOSED', closing_at = :now, closed_at = :now WHERE id = :id")
 			.param("id", job).param("now", now).update();
-		String content = "{\"scope\":\"Đánh giá\",\"skills\":[{\"id\":\"" + TeamTestSupport.REACT
+		String content = "{\"scope\":\"Đánh giá\",\"skills\":[{\"id\":\"" + TestPeople.REACT
 				+ "\",\"name\":\"React\"}],\"milestones\":[]}";
 		this.jdbc.sql("""
 				INSERT INTO job.agreement_version (job_id, version_no, status, content, author_account_id, created_at)

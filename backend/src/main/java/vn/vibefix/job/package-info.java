@@ -19,7 +19,7 @@
  * listener, and the screenshot read policy are wiring in {@code job.internal}.
  */
 @ApplicationModule(allowedDependencies = { "shared", "audit", "catalog", "files", "identity", "notification",
-		"operations", "settings", "timers", "team", "scanning", "product" })
+		"operations", "settings", "timers", "scanning", "product" })
 package vn.vibefix.job;
 
 import org.springframework.modulith.ApplicationModule;

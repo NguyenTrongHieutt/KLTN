@@ -30,7 +30,7 @@ import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.JobTransitioned;
 import vn.vibefix.payment.Ledger;
 import vn.vibefix.support.IntegrationTest;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 import vn.vibefix.timers.internal.DeadlinePoller;
 
 /**
@@ -158,8 +158,8 @@ class StallIT extends IntegrationTest {
 	/** A Job in {@code state} with one Milestone, Funded with its FUND or Planned. */
 	private UUID world(String state, boolean funded) {
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng",
-				List.of(TeamTestSupport.REACT), "React");
+		this.hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng",
+				List.of(TestPeople.REACT), "React");
 		UUID product = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO product.product (id, customer_account_id, name, description, ai_tools, repository_github_id,

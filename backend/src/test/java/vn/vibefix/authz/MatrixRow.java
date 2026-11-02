@@ -53,8 +53,7 @@ import org.springframework.http.HttpMethod;
  * <li>{@code check} (optional): the global gate the Mentor endpoint applies (AD-19), {@value #GITHUB_LINKED}
  * for new-work commands (bidding, the Mentor's NDA) and for reading "Tìm việc" (X1), or {@value #ACTIVE_ACCOUNT}
  * for everything else. Every row of an endpoint under {@value #MENTOR_PATH} names one, and no other row does,
- * so a Mentor endpoint cannot be added without deciding which. The retired Team endpoints under
- * {@value #REFUSING_PATH} refuse every caller before any gate (Story 20.3), so their rows name none.</li>
+ * so a Mentor endpoint cannot be added without deciding which.</li>
  * </ul>
  */
 public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map<String, String> state,
@@ -70,12 +69,6 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 
 	/** Where the Mentor's own endpoints live, each behind one of the two global gates. */
 	static final String MENTOR_PATH = "/api/v1/mentor/";
-
-	/** The retired Team endpoints, which answer nothing to every caller until Story 21.7 deletes them. */
-	static final String REFUSING_PATH = "/api/v1/mentor/team";
-
-	/** The Student side of the retired Team endpoints, refusing every caller too. */
-	static final String REFUSING_STUDENT_PATH = "/api/v1/team";
 
 	/**
 	 * The placeholders that name a Job or an object of one (Story 20.5): a Job, a Board, a Job Post, or an object
@@ -239,8 +232,7 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 		if (check != null && !check.equals(GITHUB_LINKED) && !check.equals(ACTIVE_ACCOUNT)) {
 			throw new IllegalArgumentException("check is " + GITHUB_LINKED + " or " + ACTIVE_ACCOUNT + ", not " + check);
 		}
-		boolean gated = path.startsWith(MENTOR_PATH) && !path.equals(REFUSING_PATH)
-				&& !path.startsWith(REFUSING_PATH + "/");
+		boolean gated = path.startsWith(MENTOR_PATH);
 		if (gated && check == null) {
 			throw new IllegalArgumentException("a Mentor endpoint names its check, " + GITHUB_LINKED + " or "
 					+ ACTIVE_ACCOUNT + " (AD-19): " + path);
@@ -279,15 +271,6 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 		Map<String, String> callerState = new LinkedHashMap<>(this.state);
 		bindings().forEach(binding -> callerState.remove(binding.key()));
 		return callerState;
-	}
-
-	/** Whether this is one of the retired Team endpoints, which refuse every caller until Story 21.7. */
-	public boolean retiredTeam() {
-		return within(this.path, REFUSING_PATH) || within(this.path, REFUSING_STUDENT_PATH);
-	}
-
-	private static boolean within(String path, String prefix) {
-		return path.equals(prefix) || path.startsWith(prefix + "/");
 	}
 
 	/** The placeholders of the path and, when it has one, of the JSON body. */

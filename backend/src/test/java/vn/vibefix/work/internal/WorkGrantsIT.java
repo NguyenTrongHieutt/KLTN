@@ -18,7 +18,7 @@ import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Kind;
 import vn.vibefix.support.AdminReadGrantsContract;
 import vn.vibefix.support.IntegrationTest;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /** AD-20, AD-8: {@code work}'s Administrator read grants for Work Items meet the Story 1.3 contract. */
 class WorkGrantsIT extends IntegrationTest implements AdminReadGrantsContract {
@@ -51,8 +51,8 @@ class WorkGrantsIT extends IntegrationTest implements AdminReadGrantsContract {
 	@Override
 	public Seeded seed() {
 		UUID owner = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		UUID mentor = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng",
-				List.of(TeamTestSupport.REACT), "React");
+		UUID mentor = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng",
+				List.of(TestPeople.REACT), "React");
 		UUID product = WorkTestSupport.product(this.jdbc, owner, "Sổ đặt bàn Quán Mây");
 		UUID job = WorkTestSupport.activeJob(this.jdbc, product, owner, mentor, List.of(UUID.randomUUID()),
 				List.of(List.of(UUID.randomUUID())), this.clock.instant());

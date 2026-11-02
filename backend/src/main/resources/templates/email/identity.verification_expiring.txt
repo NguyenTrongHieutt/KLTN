@@ -4,5 +4,5 @@ link: /ho-so
 Xin chào,
 
 Huy hiệu Sinh viên đã xác minh của bạn trên vibefix hết hạn ngày {date}.
-Hãy gia hạn ở trang Hồ sơ và xác minh bằng email trường của năm học mới, để tiếp tục được chọn vào nhóm thực hiện.
-Công việc đang làm và nhóm của bạn không bị ảnh hưởng.
+Hãy gia hạn ở trang Hồ sơ và xác minh bằng email trường của năm học mới, để hồ sơ tiếp tục hiện huy hiệu.
+Bạn vẫn dùng vibefix như bình thường, công việc đang làm không bị ảnh hưởng.

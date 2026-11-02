@@ -104,7 +104,6 @@ describe('JOB-2 "Bảng công việc" (FR-22, AD-33, UX-DR36)', () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('CREW'),
       ...heldJobs({ jobId: 'j1', title: 'Sửa lỗi đặt bàn và thêm nhắc lịch', role: 'CREW', crewKind: 'ACTIVE' }),
-      'GET /api/v1/team': () => json({ team: null }),
       'GET /api/v1/boards/j1/work-items': () => json(board(false)),
     })
     renderAt('/cong-viec')
@@ -128,7 +127,6 @@ describe('JOB-2 "Bảng công việc" (FR-22, AD-33, UX-DR36)', () => {
         crewKind: 'ACTIVE',
         state: 'AGREEMENT',
       }),
-      'GET /api/v1/team': () => json({ team: null }),
     })
     renderAt('/cong-viec')
 

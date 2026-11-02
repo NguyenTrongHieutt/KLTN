@@ -58,7 +58,7 @@ import vn.vibefix.shared.PersonalDataSection;
 import vn.vibefix.support.HeldCrewJob;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.PostgresTestDatabase;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 import vn.vibefix.timers.internal.DeadlinePoller;
 
 /**
@@ -177,7 +177,7 @@ class CrewLeaveIT extends IntegrationTest {
 		assertThat(notices("job.crew_member_left", this.vy)).isZero();
 		assertThat(notices("job.crew_login_removed", this.lan)).isOne();
 		assertThat(text("SELECT params::text FROM notification.notification WHERE type = 'job.crew_login_removed'"))
-			.contains(TeamTestSupport.login(this.jdbc, this.vy))
+			.contains(TestPeople.login(this.jdbc, this.vy))
 			.doesNotContain("Trần Thảo Vy");
 		assertThat(notices("job.crew_empty", this.lan)).as("a member is left").isZero();
 		assertThat(count("SELECT count(*) FROM notification.notification WHERE type = 'job.party_locked'")).isZero();
@@ -329,7 +329,7 @@ class CrewLeaveIT extends IntegrationTest {
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("""
 					{"note":"Mình muốn quay lại.","skillIds":["%s"],"publicCodeAcknowledged":true}
-					""".formatted(TeamTestSupport.REACT)))
+					""".formatted(TestPeople.REACT)))
 			.andExpect(status().is(422))
 			.andExpect(jsonPath("$.reason").value("CREW_REJOIN_REFUSED"));
 		assertThatThrownBy(() -> this.transactions.executeWithoutResult(tx -> this.picks.addCrew(this.hung, this.job,
@@ -503,7 +503,7 @@ class CrewLeaveIT extends IntegrationTest {
 	@Test
 	void aLeaverGetsOneRevocationToDoPerItemTickedOneByOne() throws Exception {
 		twoExternalAccessItems();
-		String login = TeamTestSupport.login(this.jdbc, this.vy);
+		String login = TestPeople.login(this.jdbc, this.vy);
 		identifier(SUPABASE, this.vy, "vy@quanmay.vn");
 
 		leave(this.vy, null).andExpect(status().isNoContent());
@@ -546,7 +546,7 @@ class CrewLeaveIT extends IntegrationTest {
 		grantTick(VERCEL).andExpect(status().isOk());
 		access(this.lan, Role.CUSTOMER).andExpect(jsonPath("$.items[0].granted").value(true));
 		UUID an = JobContent.member(this.jdbc, "Phan Văn An");
-		String login = TeamTestSupport.login(this.jdbc, an);
+		String login = TestPeople.login(this.jdbc, an);
 
 		joined(an);
 
@@ -762,7 +762,7 @@ class CrewLeaveIT extends IntegrationTest {
 
 		leave(this.minh, null).andExpect(status().isNoContent());
 		awaitListeners();
-		confirmRevocation(SUPABASE, TeamTestSupport.login(this.jdbc, this.vy)).andExpect(status().isOk());
+		confirmRevocation(SUPABASE, TestPeople.login(this.jdbc, this.vy)).andExpect(status().isOk());
 		nextDay();
 		assertThat(reminders()).containsExactlyInAnyOrder("2", "3");
 
@@ -781,8 +781,8 @@ class CrewLeaveIT extends IntegrationTest {
 	@Test
 	void eachTickConfirmsItsOwnRowBesideTheRowsOfTheJobsEnd() throws Exception {
 		twoExternalAccessItems();
-		String vyLogin = TeamTestSupport.login(this.jdbc, this.vy);
-		String minhLogin = TeamTestSupport.login(this.jdbc, this.minh);
+		String vyLogin = TestPeople.login(this.jdbc, this.vy);
+		String minhLogin = TestPeople.login(this.jdbc, this.minh);
 		leave(this.vy, null).andExpect(status().isNoContent());
 		leave(this.minh, null).andExpect(status().isNoContent());
 		awaitListeners();
@@ -1018,7 +1018,7 @@ class CrewLeaveIT extends IntegrationTest {
 				    repository_name, crew_change, status, accepted_at, write_at, created_at)
 				VALUES (:id, :job, :product, :member, 'CREW', :login, 4242, 'vibefix/job-working', false, 'WRITE', now(), now(), now())
 				""").param("id", id).param("job", this.job).param("product", this.world.product()).param("member", member)
-			.param("login", TeamTestSupport.login(this.jdbc, member)).update();
+			.param("login", TestPeople.login(this.jdbc, member)).update();
 		return id;
 	}
 

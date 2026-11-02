@@ -55,7 +55,7 @@ import vn.vibefix.job.JobRoles;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
 import vn.vibefix.support.TestFiles;
-import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.support.TestPeople;
 
 /**
  * AD-20, SG-64, review 2026-10-27 A-20 (Story 20.5): one person's roles never leak into each other. Three people
@@ -188,7 +188,7 @@ class CrossRoleIT extends IntegrationTest {
 	@BeforeEach
 	void threePeopleWithTwoRolesEach() {
 		UUID xAccount = JobContent.member(this.jdbc, "Phạm Hải X");
-		UUID yAccount = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Y", List.of(TeamTestSupport.REACT), "React");
+		UUID yAccount = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Y", List.of(TestPeople.REACT), "React");
 		IdentityTestSupport.verifyStudent(this.jdbc, yAccount, LocalDate.of(2026, 9, 30));
 		UUID zAccount = JobContent.member(this.jdbc, "Lê Thảo Z");
 		JobWorld a = new JobWorld(this.jdbc, this::upload, "A", xAccount, true, mentor("A"), null, null);
@@ -610,7 +610,7 @@ class CrossRoleIT extends IntegrationTest {
 	private static List<String> jobScopedReads() {
 		Set<String> endpoints = new LinkedHashSet<>();
 		for (MatrixRow row : MatrixRow.loadMatrix()) {
-			if (row.method() == HttpMethod.GET && !row.retiredTeam()
+			if (row.method() == HttpMethod.GET
 					&& MatrixRow.placeholders(row.path()).stream().anyMatch(MatrixRow.JOB_SCOPED::contains)) {
 				endpoints.add(row.path());
 			}
@@ -667,7 +667,7 @@ class CrossRoleIT extends IntegrationTest {
 	}
 
 	private UUID mentor(String tag) {
-		return TeamTestSupport.mentor(this.jdbc, "Người hướng dẫn " + tag, List.of(TeamTestSupport.REACT), "React");
+		return TestPeople.mentor(this.jdbc, "Người hướng dẫn " + tag, List.of(TestPeople.REACT), "React");
 	}
 
 	private static Map<JobWorld, Held> ordered(JobWorld first, Held firstRole, JobWorld second, Held secondRole) {
@@ -975,7 +975,7 @@ class CrossRoleIT extends IntegrationTest {
 			this.values.put("item", "NON_CODE_DATA");
 			this.values.put("kind", "PRODUCT");
 			this.values.put("contentId", product.toString());
-			this.values.put("username", TeamTestSupport.login(jdbc, mentor));
+			this.values.put("username", TestPeople.login(jdbc, mentor));
 			List<UUID> objects = new ArrayList<>(List.of(this.job, product, post, invitation, this.crewChat, jobChat,
 					message, item, note, attachment, file, page, application, order, coRow, screenshot, dispute,
 					changeRequest, teamIssue, report, access, handover, releasedHandover, milestone, released,

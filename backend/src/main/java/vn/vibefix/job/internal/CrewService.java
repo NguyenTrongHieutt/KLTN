@@ -24,8 +24,8 @@ import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
 import vn.vibefix.identity.Capabilities;
-import vn.vibefix.identity.StudentDirectory;
-import vn.vibefix.identity.StudentDirectory.StudentCard;
+import vn.vibefix.identity.PersonDirectory;
+import vn.vibefix.identity.PersonDirectory.PersonCard;
 import vn.vibefix.job.Crews;
 import vn.vibefix.job.internal.Jobs.Job;
 import vn.vibefix.shared.ApiException;
@@ -91,7 +91,7 @@ class CrewService implements Crews {
 
 	private final JdbcClient jdbc;
 
-	private final StudentDirectory students;
+	private final PersonDirectory people;
 
 	private final Capabilities capabilities;
 
@@ -101,11 +101,11 @@ class CrewService implements Crews {
 
 	private final Clock clock;
 
-	CrewService(JdbcClient jdbc, StudentDirectory students, Capabilities capabilities, AuditLog auditLog, IdGenerator ids,
+	CrewService(JdbcClient jdbc, PersonDirectory people, Capabilities capabilities, AuditLog auditLog, IdGenerator ids,
 			Clock clock) {
 		this.auditLog = auditLog;
 		this.jdbc = jdbc;
-		this.students = students;
+		this.people = people;
 		this.capabilities = capabilities;
 		this.ids = ids;
 		this.clock = clock;
@@ -531,23 +531,23 @@ class CrewService implements Crews {
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 	}
 
-	Map<UUID, StudentCard> cards(List<UUID> studentIds) {
-		Map<UUID, StudentCard> cards = new HashMap<>();
+	Map<UUID, PersonCard> cards(List<UUID> studentIds) {
+		Map<UUID, PersonCard> cards = new HashMap<>();
 		if (studentIds.isEmpty()) {
 			return cards;
 		}
-		this.students.cards(studentIds).forEach(card -> cards.put(card.accountId(), card));
+		this.people.cards(studentIds).forEach(card -> cards.put(card.accountId(), card));
 		return cards;
 	}
 
 	/** The GitHub usernames of the Job's {@code ACTIVE} members, in the order they joined: what the Customer sees. */
 	List<String> activeUsernames(UUID jobId) {
 		List<UUID> active = rows(jobId).stream().filter(Row::active).map(Row::studentId).toList();
-		Map<UUID, StudentCard> cards = cards(active);
+		Map<UUID, PersonCard> cards = cards(active);
 		return active.stream()
 			.map(cards::get)
 			.filter(card -> card != null && card.githubLogin() != null)
-			.map(StudentCard::githubLogin)
+			.map(PersonCard::githubLogin)
 			.toList();
 	}
 
