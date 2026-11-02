@@ -78,6 +78,22 @@ export function AdminOverviewPage() {
               </p>
             </Link>
           )}
+          {overview.data?.splitResolutions && (
+            <Link
+              to="/quan-tri/tranh-chap/phan-chia"
+              className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 hover:border-primary"
+            >
+              <p className="text-caption text-muted-foreground">{t('screen.admin.overview.splitResolutions')}</p>
+              <p className={cn('text-h1', overview.data.splitResolutions.count > 0 && 'text-warning')}>
+                {overview.data.splitResolutions.count}
+              </p>
+              <p className="text-caption text-muted-foreground">
+                {overview.data.splitResolutions.oldestAt
+                  ? t('screen.admin.overview.oldest', { date: formatDayMonth(overview.data.splitResolutions.oldestAt) })
+                  : t('screen.admin.overview.empty')}
+              </p>
+            </Link>
+          )}
           {overview.data?.skillSuggestions && (
             <Link
               to="/quan-tri/ky-nang?tab=de-xuat"

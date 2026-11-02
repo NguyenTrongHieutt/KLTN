@@ -438,7 +438,14 @@ describe('JOB-10, for everyone in the split', () => {
         ),
       ).toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Xác nhận' })).toBeNull()
-      expect(screen.queryByRole('button', { name: 'Sửa phân chia' })).toBeNull()
+      expect(screen.getByText('Tạm dừng')).toBeInTheDocument()
+      const edit = screen.queryByRole('button', { name: 'Sửa phân chia' })
+      if (proposed(viewer).viewerIsMentor) {
+        expect(edit).toBeDisabled()
+        expect(screen.getByText('Phân chia đang chờ quản trị viên xem xét.')).toBeInTheDocument()
+      } else {
+        expect(edit).toBeNull()
+      }
     })
 
     it(`shows ${role} a final split, how it became final, and what was paid`, { timeout: 20_000 }, async () => {
@@ -1010,5 +1017,289 @@ describe('The ways to JOB-10', () => {
 
     expect(await screen.findByRole('link', { name: 'Trao đổi nhóm' })).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Phân chia tiền' })).toBeNull()
+  })
+})
+
+describe('JOB-10, a Split Resolution (FR-84, UX-DR106)', () => {
+  const none = () => json({ viewerMayRaise: false, resolutions: [] })
+  const open = (overrides: object = {}) => ({
+    id: 'r1',
+    splitVersionNo: 1,
+    status: 'OPEN',
+    raiserPartyId: 'p1',
+    raiserName: 'Trần Thảo Vy',
+    reason: 'Phần của tôi quá ít',
+    raisedAt: '2026-11-04T03:00:00Z',
+    viewerIsRaiser: false,
+    viewerMayState: false,
+    statements: [],
+    ...overrides,
+  })
+  const n31 =
+    'Quản trị viên sẽ xem các bản phân chia và các lần sửa, hạng mục và commit của từng người, Trao đổi nhóm của giai đoạn này, và dấu hiệu cho thấy hai tài khoản có thể của cùng một người, rồi quyết định, trong mức tối đa 30% cho người hướng dẫn nếu giai đoạn còn thành viên trong nhóm khi được nghiệm thu. Trong lúc chờ, người hướng dẫn không sửa được phần chia và tiền của cả giai đoạn được giữ. Bạn có thể rút yêu cầu; khi đó hạn xác nhận bắt đầu lại.'
+
+  it(
+    'asks with N-31 verbatim and a required reason, naming the version it was shown',
+    { timeout: 20_000 },
+    async () => {
+      const raised: unknown[] = []
+      backend([proposed(member)], {
+        'GET /api/v1/splits/s1/resolutions': () => json({ viewerMayRaise: true, resolutions: [] }),
+        'POST /api/v1/splits/s1/resolutions': async (request) => {
+          raised.push(await request.json())
+          return json({ viewerMayRaise: false, resolutions: [open({ viewerIsRaiser: true })] }, 201)
+        },
+      })
+      renderAt('/cong-viec/j1/phan-chia')
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Nhờ quản trị viên xem xét' }))
+      const dialog = await screen.findByRole('dialog')
+      expect(within(dialog).getByText(n31)).toBeInTheDocument()
+      const send = within(dialog).getByRole('button', { name: 'Gửi yêu cầu' })
+      expect(within(dialog).getByRole('button', { name: 'Quay lại' })).toBeInTheDocument()
+      expect(send).toBeDisabled()
+
+      fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: '  Phần của tôi quá ít ' } })
+      expect(send).toBeEnabled()
+      fireEvent.click(send)
+
+      await waitFor(() => expect(raised).toEqual([{ splitVersionNo: 1, reason: 'Phần của tôi quá ít' }]))
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    },
+  )
+
+  it('leaves the cap clause out of N-31 under X5', { timeout: 20_000 }, async () => {
+    backend([proposed({ ...member, capApplies: false, latest: version({ capPercent: undefined }) })], {
+      'GET /api/v1/splits/s1/resolutions': () => json({ viewerMayRaise: true, resolutions: [] }),
+    })
+    renderAt('/cong-viec/j1/phan-chia')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Nhờ quản trị viên xem xét' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).queryByText(/tối đa/)).toBeNull()
+    expect(within(dialog).getByText(/rồi quyết định\. Trong lúc chờ/)).toBeInTheDocument()
+  })
+
+  it(
+    'offers the raise to a party who confirmed, and to nobody the server does not name',
+    { timeout: 20_000 },
+    async () => {
+      backend([proposed({ ...member, viewerConfirmed: true })], {
+        'GET /api/v1/splits/s1/resolutions': () => json({ viewerMayRaise: true, resolutions: [] }),
+      })
+      renderAt('/cong-viec/j1/phan-chia')
+      expect(await screen.findByRole('button', { name: 'Nhờ quản trị viên xem xét' })).toBeInTheDocument()
+    },
+  )
+
+  it('offers the Mentor no raise', { timeout: 20_000 }, async () => {
+    const seen = backend([proposed()], { 'GET /api/v1/splits/s1/resolutions': none })
+    renderAt('/cong-viec/j1/phan-chia')
+
+    await screen.findByRole('button', { name: 'Sửa phân chia' })
+    await waitFor(() => expect(seen.some((request) => request.url.endsWith('/s1/resolutions'))).toBe(true))
+    expect(screen.queryByRole('button', { name: 'Nhờ quản trị viên xem xét' })).toBeNull()
+  })
+
+  it('says why a raise was refused, in the words of each reason', { timeout: 20_000 }, async () => {
+    for (const [problem, text] of [
+      [
+        { code: 'GUARD_FAILED', reason: 'SPLIT_RESOLUTION_USED' },
+        'Bạn đã nhờ xem xét phân chia của giai đoạn này một lần rồi.',
+      ],
+      [
+        { code: 'GUARD_FAILED', reason: 'SPLIT_FINAL', pastDue: true },
+        'Đã hết hạn xác nhận nên không nhờ xem xét được nữa. Phân chia đang được chốt theo bản hiện tại.',
+      ],
+      [{ code: 'GUARD_FAILED', reason: 'SPLIT_FINAL' }, 'Phân chia đã chốt nên không nhờ xem xét được nữa.'],
+    ] as const) {
+      backend([proposed(member)], {
+        'GET /api/v1/splits/s1/resolutions': () => json({ viewerMayRaise: true, resolutions: [] }),
+        'POST /api/v1/splits/s1/resolutions': () => json(problem, 422),
+      })
+      const view = createMemoryRouter(routes, { initialEntries: ['/cong-viec/j1/phan-chia'] })
+      const { unmount } = render(
+        <QueryClientProvider client={createQueryClient()}>
+          <RouterProvider router={view} />
+        </QueryClientProvider>,
+      )
+      fireEvent.click(await screen.findByRole('button', { name: 'Nhờ quản trị viên xem xét' }))
+      const dialog = await screen.findByRole('dialog')
+      fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'Lý do' } })
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Gửi yêu cầu' }))
+      expect(await within(dialog).findByRole('alert')).toHaveTextContent(text)
+      unmount()
+    }
+  })
+
+  it('closes on an old version and offers the newer one', { timeout: 20_000 }, async () => {
+    backend([proposed(member)], {
+      'GET /api/v1/splits/s1/resolutions': () => json({ viewerMayRaise: true, resolutions: [] }),
+      'POST /api/v1/splits/s1/resolutions': () => json({ code: 'STALE' }, 409),
+    })
+    renderAt('/cong-viec/j1/phan-chia')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Nhờ quản trị viên xem xét' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'Lý do' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Gửi yêu cầu' }))
+
+    expect(
+      await screen.findByText(
+        'Phân chia vừa thay đổi nên thao tác của bạn chưa được gửi. Hãy xem lại bản mới rồi thử lại.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it(
+    'shows another party the open case in place of the button, with one statement form',
+    { timeout: 20_000 },
+    async () => {
+      const stated: unknown[] = []
+      backend([proposed({ ...member, status: 'IN_RESOLUTION' })], {
+        'GET /api/v1/splits/s1/resolutions': () =>
+          json({
+            viewerMayRaise: false,
+            resolutions: [
+              open({
+                viewerMayState: true,
+                statements: [
+                  {
+                    partyId: 'p0',
+                    name: 'Đỗ Mạnh Hùng',
+                    mentor: true,
+                    text: 'Tôi làm phần lớn việc',
+                    submittedAt: '2026-11-04T04:00:00Z',
+                  },
+                ],
+              }),
+            ],
+          }),
+        'POST /api/v1/split-resolutions/r1/statements': async (request) => {
+          stated.push(await request.json())
+          return json({ viewerMayRaise: false, resolutions: [open()] }, 201)
+        },
+      })
+      renderAt('/cong-viec/j1/phan-chia')
+
+      expect(await screen.findByText('Phần của tôi quá ít')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Yêu cầu xem xét của Trần Thảo Vy' })).toBeInTheDocument()
+      expect(screen.getByText('Tôi làm phần lớn việc')).toBeInTheDocument()
+      expect(screen.getByText(/Đỗ Mạnh Hùng · người hướng dẫn/)).toBeInTheDocument()
+      expect(screen.getByText('Đã nhờ xem xét')).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Nhờ quản trị viên xem xét' })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Rút yêu cầu' })).toBeNull()
+
+      fireEvent.change(screen.getByRole('textbox', { name: 'Ý kiến của bạn' }), {
+        target: { value: 'Tôi cũng thấy ít' },
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Gửi ý kiến' }))
+      const dialog = await screen.findByRole('dialog')
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Gửi ý kiến' }))
+
+      await waitFor(() => expect(stated).toEqual([{ text: 'Tôi cũng thấy ít' }]))
+    },
+  )
+
+  it('shows the Mentor the reason to answer, with their edits locked', { timeout: 20_000 }, async () => {
+    backend([proposed({ status: 'IN_RESOLUTION' })], {
+      'GET /api/v1/splits/s1/resolutions': () =>
+        json({ viewerMayRaise: false, resolutions: [open({ viewerMayState: true })] }),
+    })
+    renderAt('/cong-viec/j1/phan-chia')
+
+    expect(await screen.findByText('Phần của tôi quá ít')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Sửa phân chia' })).toBeDisabled()
+    expect(screen.getByRole('textbox', { name: 'Ý kiến của bạn' })).toBeInTheDocument()
+  })
+
+  it('lets the raiser withdraw after a warning, and offers no statement', { timeout: 20_000 }, async () => {
+    const withdrawn: Request[] = []
+    backend([proposed({ ...member, status: 'IN_RESOLUTION' })], {
+      'GET /api/v1/splits/s1/resolutions': () =>
+        json({ viewerMayRaise: false, resolutions: [open({ viewerIsRaiser: true })] }),
+      'POST /api/v1/split-resolutions/r1/withdraw': (request) => {
+        withdrawn.push(request)
+        return json({ splitStatus: 'PROPOSED', confirmationDueAt: '2026-11-09T03:00:00Z' })
+      },
+    })
+    renderAt('/cong-viec/j1/phan-chia')
+
+    expect(await screen.findByRole('heading', { name: 'Yêu cầu xem xét của bạn' })).toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: 'Ý kiến của bạn' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Rút yêu cầu' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText(/Bạn sẽ không nhờ xem xét được giai đoạn này lần nữa/)).toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Rút yêu cầu' }))
+
+    await waitFor(() => expect(withdrawn).toHaveLength(1))
+  })
+
+  it('says a withdrawal restarted the deadline', { timeout: 20_000 }, async () => {
+    backend([proposed({ ...member, confirmationDueAt: '2026-11-09T03:00:00Z' })], {
+      'GET /api/v1/splits/s1/resolutions': () =>
+        json({
+          viewerMayRaise: false,
+          resolutions: [open({ status: 'WITHDRAWN', endedAt: '2026-11-06T03:00:00Z' })],
+        }),
+    })
+    renderAt('/cong-viec/j1/phan-chia')
+
+    expect(await screen.findByText('Yêu cầu đã được rút. Hạn xác nhận mới: 09/11.')).toBeInTheDocument()
+    expect(screen.queryByText('Tạm dừng')).toBeNull()
+  })
+
+  it('says a withdrawal found everyone confirmed', { timeout: 20_000 }, async () => {
+    backend(
+      [proposed({ ...member, status: 'FINAL', finality: 'CONFIRMED', finalAt: '2026-11-06T03:00:00Z', paid: true })],
+      {
+        'GET /api/v1/splits/s1/resolutions': () =>
+          json({
+            viewerMayRaise: false,
+            resolutions: [open({ status: 'WITHDRAWN', endedAt: '2026-11-06T03:00:00Z' })],
+          }),
+      },
+    )
+    renderAt('/cong-viec/j1/phan-chia')
+
+    expect(await screen.findByText('Yêu cầu đã được rút. Đã chốt · mọi người đã xác nhận.')).toBeInTheDocument()
+  })
+
+  it('reads the reasoning once decided, and "Đã chốt" names the decision', { timeout: 20_000 }, async () => {
+    backend(
+      [
+        proposed({
+          ...member,
+          status: 'FINAL',
+          finality: 'DECISION',
+          finalAt: '2026-11-06T03:00:00Z',
+          paid: true,
+          latest: version({ versionNo: 2, kind: 'DECISION' }),
+        }),
+      ],
+      {
+        'GET /api/v1/splits/s1/resolutions': () =>
+          json({
+            viewerMayRaise: false,
+            resolutions: [
+              open({ status: 'DECIDED', endedAt: '2026-11-06T03:00:00Z', reasoning: 'Vy làm phần lớn việc' }),
+            ],
+          }),
+      },
+    )
+    renderAt('/cong-viec/j1/phan-chia')
+
+    expect(await screen.findByText('Vy làm phần lớn việc')).toBeInTheDocument()
+    expect(screen.getByText(/Đã chốt ngày .* · quản trị viên đã quyết định/)).toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: 'Ý kiến của bạn' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Rút yêu cầu' })).toBeNull()
+  })
+
+  it('reads nothing for a Mentor alone or before any draft', { timeout: 20_000 }, async () => {
+    const seen = backend([card({ ...member })], { 'GET /api/v1/splits/s1/resolutions': none })
+    renderAt('/cong-viec/j1/phan-chia')
+
+    await screen.findByRole('heading', { name: 'Giai đoạn 2' })
+    expect(seen.some((request) => request.url.endsWith('/s1/resolutions'))).toBe(false)
   })
 })

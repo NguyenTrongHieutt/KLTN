@@ -2,10 +2,11 @@ import { Link } from 'react-router'
 import { t } from '@/i18n/t'
 import { cn } from '@/lib/utils'
 
-/** ADM-4's two kinds of case (UX-DR84): Disputes and, in Tier 3, the escalated Team Issues. */
-export function CaseTabs({ current }: { current: 'disputes' | 'teamIssues' }) {
+/** ADM-4's kinds of case (UX-DR84, UX-DR107): Disputes, Split Resolutions and, in Tier 3, the escalated Team Issues. */
+export function CaseTabs({ current }: { current: 'disputes' | 'splits' | 'teamIssues' }) {
   const tabs = [
     { key: 'disputes', to: '/quan-tri/tranh-chap', label: t('screen.admin.teamIssues.tabDisputes') },
+    { key: 'splits', to: '/quan-tri/tranh-chap/phan-chia', label: t('screen.admin.teamIssues.tabSplits') },
     { key: 'teamIssues', to: '/quan-tri/khieu-nai-noi-bo', label: t('screen.admin.teamIssues.tabTeamIssues') },
   ] as const
   return (

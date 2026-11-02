@@ -20,11 +20,14 @@ import { formatDate, formatDayMonth } from '@/lib/dates'
 import { formatVnd } from '@/lib/money'
 import { isNotFound, problemMessage, sentence } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
+import { ResolutionPanel } from './ResolutionPanel'
 import {
+  openCase,
   useConfirmSplit,
   useJobSplits,
   useSaveSplit,
   useSplitPreview,
+  useSplitResolutions,
   type SplitCard,
   type SplitParty,
   type SplitShare,
@@ -42,10 +45,11 @@ const TONE = {
 type SplitProblem = ApiError['problem'] & { cap?: number; n?: number; pastDue?: boolean }
 
 /**
- * JOB-10 "Phân chia tiền" (FR-83, UX-DR105, UX-DR106): one card per accepted Milestone, newest first, for the Mentor
- * and the split's parties, leavers included. It stands on the split's own rows, not on the role in the Job, since it
- * stays open for a former member and after the Job is gone. Every amount comes from the server. It reads every 30 s
- * while a split is open. Never reachable by the Customer, whose answer is the not-found screen.
+ * JOB-10 "Phân chia tiền" (FR-83, FR-84, UX-DR105, UX-DR106): one card per accepted Milestone, newest first, for the
+ * Mentor and the split's parties, leavers included, with the Split Resolutions of its Milestone. It stands on the
+ * split's own rows, not on the role in the Job, since it stays open for a former member and after the Job is gone.
+ * Every amount comes from the server. It reads every 30 s while a split is open. Never reachable by the Customer, whose
+ * answer is the not-found screen.
  */
 export function SplitPage() {
   const { jobId, milestoneId } = useParams()
@@ -134,8 +138,18 @@ function Card({ jobId, card, focused }: { jobId: string; card: SplitCard; focuse
   )
 }
 
-/** The chip of the deadline that decides next; a Dispute never pauses either, so neither ever reads "Tạm dừng". */
+/**
+ * The chip of the deadline that decides next. A Dispute pauses neither; only a Split Resolution stops the confirmation
+ * deadline, and it shows no time left, because a withdrawal gives a full period.
+ */
 function Chip({ card }: { card: SplitCard }) {
+  if (card.status === 'IN_RESOLUTION') {
+    return (
+      <span className="inline-flex w-fit shrink-0 items-center rounded-full bg-muted px-2.5 py-0.5 text-caption text-muted-foreground">
+        {t('screen.split.paused')}
+      </span>
+    )
+  }
   if (card.status === 'AWAITING_DRAFT' && !card.draftLate) {
     return <DeadlineChip deadlineAt={card.draftDueAt} near={card.draftNear} />
   }
@@ -179,6 +193,15 @@ function Body({ jobId, card }: { jobId: string; card: SplitCard }) {
           {!card.viewerIsMentor && !card.viewerConfirmed && <PartyActions jobId={jobId} card={card} />}
         </>
       )}
+      {card.status === 'IN_RESOLUTION' && card.viewerIsMentor && card.latest?.kind === 'DRAFT' && (
+        <div className="flex flex-col gap-1">
+          <Button type="button" variant="secondary" size="compact" className="w-fit" disabled>
+            {t('screen.split.edit')}
+          </Button>
+          <p className="text-caption text-muted-foreground">{sentence(t('reason.job.SPLIT_IN_RESOLUTION'))}</p>
+        </div>
+      )}
+      <ResolutionPanel jobId={jobId} card={card} />
     </>
   )
 }
@@ -318,10 +341,13 @@ function Parties({ card }: { card: SplitCard }) {
 
 /** Every line of a version (X11), each with its VND from the server, read-only. */
 function Lines({ card, version }: { card: SplitCard; version: SplitVersion | undefined }) {
+  // Read beside the panel below it, which polls: one query, whose open case says who asked for the review.
+  const resolutions = useSplitResolutions(card.splitId, card.status === 'IN_RESOLUTION', false)
   if (!version) {
     return null
   }
   const current = version.versionNo === card.latest?.versionNo
+  const raiser = openCase(resolutions.data)?.raiserPartyId
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-body-sm">
@@ -357,7 +383,7 @@ function Lines({ card, version }: { card: SplitCard; version: SplitVersion | und
                   {formatVnd(line.amountVnd)} <TestTag />
                 </td>
                 {current && (
-                  <td className="border-b border-border py-2 text-caption">{lineStatus(card, party, line)}</td>
+                  <td className="border-b border-border py-2 text-caption">{lineStatus(card, party, line, raiser)}</td>
                 )}
               </tr>
             )
@@ -372,12 +398,16 @@ function lineStatus(
   card: SplitCard,
   party: SplitParty | undefined,
   line: SplitVersion['lines'][number],
+  raiser: string | undefined,
 ): string | null {
   if (card.status === 'FINAL') {
     return card.paid && line.amountVnd > 0 ? t('screen.split.paid') : null
   }
   if (party?.mentor) {
     return null
+  }
+  if (line.partyId === raiser) {
+    return t('screen.split.resolution.asked')
   }
   return line.confirmed ? t('screen.split.confirmed') : t('screen.split.waiting')
 }
@@ -450,7 +480,7 @@ function MentorActions({ jobId, card }: { jobId: string; card: SplitCard }) {
   )
 }
 
-/** A party's confirmation: N-30 above "Xác nhận"; "Nhờ quản trị viên xem xét" arrives with Story 22.3. */
+/** A party's confirmation: N-30 above "Xác nhận"; the panel below the lines offers "Nhờ quản trị viên xem xét". */
 function PartyActions({ jobId, card }: { jobId: string; card: SplitCard }) {
   const confirm = useConfirmSplit(jobId, card.splitId)
   const version = card.latest
