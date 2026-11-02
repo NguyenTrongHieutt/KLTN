@@ -1,6 +1,7 @@
 package vn.vibefix;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -37,10 +38,12 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import vn.vibefix.authz.JobContent;
+import vn.vibefix.identity.internal.AdministratorTestSupport;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.JobRole;
 import vn.vibefix.job.JobRoles;
+import vn.vibefix.job.MentorWork;
 import vn.vibefix.job.MilestoneSplitFinalized;
 import vn.vibefix.job.MilestoneSplitFinalized.Finality;
 import vn.vibefix.job.MilestoneSplits;
@@ -60,9 +63,10 @@ import vn.vibefix.support.PostgresTestDatabase;
  * side stores whose payloads name accounts: the event publication registry, the session tables, and
  * every table of {@code operations}. {@code audit} is exempt, because it holds internal IDs only.
  * <p>
- * It also proves what is kept (AD-24, A-01, Story 22.1): the split tables and the ledger are only ever anonymized, and a
- * Product deletion, an erasure or the retention run with an open split leaves its evidence in {@code chat}, {@code work}
- * and {@code delivery}, each with its deferral, and a bare Job row nobody sees, until the Job's last split is final.
+ * It also proves what is kept (AD-24, A-01, Story 22.1): the ledger is kept, only the split tables, the Payment Orders
+ * and the refunds are anonymized, and a Product deletion, an erasure or the retention run with an open split leaves its
+ * evidence in {@code chat}, {@code work} and {@code delivery}, each with its deferral, and a bare Job row nobody sees,
+ * until the Job's last split is final.
  */
 class PersonalDataCoverageIT extends IntegrationTest {
 
@@ -98,6 +102,9 @@ class PersonalDataCoverageIT extends IntegrationTest {
 
 	@Autowired
 	private JobRoles roles;
+
+	@Autowired
+	private MentorWork mentorWork;
 
 	@Autowired
 	private MockMvc mvc;
@@ -151,12 +158,25 @@ class PersonalDataCoverageIT extends IntegrationTest {
 	}
 
 	@Test
+	void theRuntimeRoleCannotDeleteTheRecordsUnderLegalRetention() throws Exception {
+		for (String table : List.of("payment.ledger_entry", "payment.ledger_account", "payment.payment_order", "payment.refund")) {
+			assertThat(query("SELECT has_table_privilege('%s', '%s', 'DELETE')".formatted(PostgresTestDatabase.APP, table)))
+				.as("%s is never deleted", table)
+				.containsExactly("f");
+		}
+	}
+
+	@Test
 	void aProductDeletionWithAnOpenSplitKeepsItsEvidenceAndItsMoneyAndFinishesWhenTheSplitIsFinal() throws Exception {
 		HeldCrewJob world = closedJob();
 		UUID split = world.split(this.jdbc, this.clock.instant(), world.milestone(), world.vy());
 		Evidence evidence = evidence(world);
+		wordsOnTheJob();
+		confirmedRefund(world, 250_000);
 		long ledger = count("SELECT count(*) FROM payment.ledger_entry");
 		String order = text("SELECT id::text FROM payment.payment_order");
+		this.mvc.perform(get("/api/v1/payments/history").with(as(world.lan(), Role.CUSTOMER)))
+			.andExpect(jsonPath("$.refundedVnd").value(250_000));
 
 		this.transactions.executeWithoutResult(status -> this.personalData.deleteProduct(world.product()));
 
@@ -170,12 +190,19 @@ class PersonalDataCoverageIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/payments/history").with(as(world.lan(), Role.CUSTOMER)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.jobs").isEmpty())
-			.andExpect(jsonPath("$.releasedVnd").value(0));
+			.andExpect(jsonPath("$.releasedVnd").value(0))
+			.andExpect(jsonPath("$.refundedVnd").value(0));
 		assertThat(count("SELECT count(*) FROM notification.notification WHERE account_id = '" + world.lan() + "'")).isZero();
 
 		// A bare row, the split, and the money stay.
-		assertThat(text("SELECT title || ':' || (product_deleted_at IS NOT NULL) || ':' || (problem IS NULL) || ':' || (expected IS NULL)"
-				+ " FROM job.job")).isEqualTo("Sửa lỗi đặt bàn:true:true:true");
+		assertThat(text("SELECT title || ':' || (product_deleted_at IS NOT NULL)"
+				+ " || ':' || (problem IS NULL AND expected IS NULL AND app_users IS NULL AND done_check IS NULL)"
+				+ " || ':' || (budget IS NULL AND deadline IS NULL)"
+				+ " || ':' || (cardinality(job_types) = 0 AND cardinality(skill_ids) = 0 AND cardinality(skill_names) = 0)"
+				+ " || ':' || (NOT recruiting AND recruiting_since IS NULL AND open_slots = 0 AND recruit_note IS NULL)"
+				+ " || ':' || (cardinality(recruit_skill_ids) = 0 AND cardinality(recruit_skill_names) = 0)"
+				+ " || ':' || (hidden_at IS NULL AND hidden_reason IS NULL) FROM job.job"))
+			.isEqualTo("Sửa lỗi đặt bàn:true:true:true:true:true:true:true");
 		assertThat(count("SELECT count(*) FROM job.milestone")).isZero();
 		assertThat(count("SELECT count(*) FROM job.crew_row")).isZero();
 		assertThat(count("SELECT count(*) FROM job.milestone_split_party WHERE split_id = '" + split + "'")).isEqualTo(2);
@@ -189,11 +216,12 @@ class PersonalDataCoverageIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("SELECT kind FROM chat.chat").query(String.class).list()).containsExactly("CREW");
 		assertThat(count("SELECT count(*) FROM chat.message")).isOne();
 		assertThat(count("SELECT count(*) FROM work.work_item WHERE id = '" + evidence.item() + "'")).isOne();
-		assertThat(count("SELECT count(*) FROM work.work_item_history")).isOne();
+		assertThat(count("SELECT count(*) FROM work.work_item_history")).isEqualTo(2);
 		assertThat(count("SELECT count(*) FROM work.page")).isZero();
 		assertThat(count("SELECT count(*) FROM delivery.handover")).isOne();
 		assertThat(count("SELECT author_github_id FROM delivery.handover_commit")).isEqualTo(4242);
 		assertThat(count("SELECT count(*) FROM delivery.handover_criterion")).isZero();
+		assertFilesWhileDeferred(evidence);
 
 		// The split becomes final: the pool is paid out, and what waited goes, the bare row last.
 		finish(world, split, Map.of(world.hung(), 20, world.vy(), 80));
@@ -210,9 +238,78 @@ class PersonalDataCoverageIT extends IntegrationTest {
 		assertThat(count("SELECT count(*) FROM job.milestone_split_version")).isOne();
 		assertThat(this.jdbc.sql("SELECT amount_vnd FROM payment.ledger_entry WHERE entry_type = 'RELEASE' ORDER BY amount_vnd")
 			.query(Long.class).list()).containsExactly(HeldCrewJob.PRICE * 20 / 100, HeldCrewJob.PRICE * 80 / 100);
+		assertFilesFinished(evidence);
 		this.mvc.perform(get("/api/v1/balance").with(as(world.vy(), Role.STUDENT)))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.balanceVnd").value(HeldCrewJob.PRICE * 80 / 100));
+			.andExpect(jsonPath("$.balanceVnd").value(HeldCrewJob.PRICE * 80 / 100))
+			.andExpect(jsonPath("$.lines[0].number").value(1));
+		// The Job's title is gone for good; its split still says the Milestone's number and who its Mentor was.
+		this.mvc.perform(get("/api/v1/balance").with(as(world.hung(), Role.MENTOR)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.lines[0].jobTitle").value(""))
+			.andExpect(jsonPath("$.lines[0].milestoneTitle").value(""))
+			.andExpect(jsonPath("$.lines[0].number").value(1))
+			.andExpect(jsonPath("$.lines[0].crew[0].amountVnd").value(HeldCrewJob.PRICE * 80 / 100))
+			.andExpect(jsonPath("$.sentToCrewVnd").value(HeldCrewJob.PRICE * 80 / 100));
+	}
+
+	/** A bare row is in no list and no count, whoever asks, and it is not the Mentor's history (AD-20, AD-24). */
+	@Test
+	void aBareRowIsInNoListAndNoCount() throws Exception {
+		HeldCrewJob world = closedJob();
+		world.split(this.jdbc, this.clock.instant(), world.milestone(), world.vy());
+		UUID administrator = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương").accountId();
+		RequestPostProcessor admin = as(administrator, Role.ADMINISTRATOR);
+		String closed = "$.groups[?(@.group == 'jobsByState')].counts[?(@.key == 'CLOSED')].value";
+		assertThat(jobLists(world, admin)).allSatisfy(body -> assertThat(body).contains(world.job().toString()));
+		this.mvc.perform(get("/api/v1/admin/jobs/" + world.job()).with(admin)).andExpect(status().isOk());
+		this.mvc.perform(get("/api/v1/admin/statistics").with(admin)).andExpect(jsonPath(closed).value(1));
+		assertThat(this.mentorWork.workHistory(List.of(world.hung())).get(world.hung())).containsEntry("ASSESSMENT", 1);
+		assertThat(this.mentorWork.experiencedIn(List.of("ASSESSMENT"))).contains(world.hung());
+
+		this.transactions.executeWithoutResult(status -> this.personalData.deleteProduct(world.product()));
+		// With its types back, only the bare row's own filter keeps it out of the history.
+		this.jdbc.sql("UPDATE job.job SET job_types = ARRAY['ASSESSMENT']").update();
+
+		assertThat(jobLists(world, admin)).allSatisfy(body -> assertThat(body).doesNotContain(world.job().toString()));
+		this.mvc.perform(get("/api/v1/admin/jobs/" + world.job()).with(admin)).andExpect(status().isNotFound());
+		this.mvc.perform(get("/api/v1/admin/statistics").with(admin)).andExpect(jsonPath(closed).isEmpty());
+		assertThat(this.mentorWork.workHistory(List.of(world.hung())).getOrDefault(world.hung(), Map.of())).isEmpty();
+		assertThat(this.mentorWork.experiencedIn(List.of("ASSESSMENT"))).doesNotContain(world.hung());
+	}
+
+	private List<String> jobLists(HeldCrewJob world, RequestPostProcessor admin) throws Exception {
+		List<String> bodies = new ArrayList<>();
+		for (var list : Map.of("/api/v1/jobs", as(world.lan(), Role.CUSTOMER), "/api/v1/my-jobs", as(world.hung(), Role.MENTOR),
+				"/api/v1/mentor/jobs", as(world.hung(), Role.MENTOR), "/api/v1/admin/jobs", admin).entrySet()) {
+			bodies.add(this.mvc.perform(get(list.getKey()).with(list.getValue()))
+				.andExpect(status().isOk())
+				.andReturn()
+				.getResponse()
+				.getContentAsString());
+		}
+		bodies.add(this.mvc.perform(get("/api/v1/my-jobs").with(as(world.lan(), Role.CUSTOMER)))
+			.andExpect(status().isOk())
+			.andReturn()
+			.getResponse()
+			.getContentAsString());
+		return bodies;
+	}
+
+	/** The words on a bare row go, and the Mentor's export stops naming its Crew recruitment (AD-24). */
+	@Test
+	void aBareRowLeavesTheMentorsExport() {
+		HeldCrewJob world = closedJob();
+		world.split(this.jdbc, this.clock.instant(), world.milestone(), world.vy());
+		wordsOnTheJob();
+		assertThat(jobExport(world.hung())).contains("crewRecruitments");
+
+		this.transactions.executeWithoutResult(status -> this.personalData.deleteProduct(world.product()));
+		assertThat(jobExport(world.hung())).doesNotContain("crewRecruitments");
+
+		// However a note came to be on the bare row, the filter keeps it out.
+		this.jdbc.sql("UPDATE job.job SET recruit_note = 'Còn sót'").update();
+		assertThat(jobExport(world.hung())).doesNotContain("crewRecruitments").doesNotContain("Còn sót");
 	}
 
 	@Test
@@ -235,10 +332,28 @@ class PersonalDataCoverageIT extends IntegrationTest {
 	}
 
 	@Test
+	void theRetentionRunWithNoOpenSplitRetiresAtOnceAndKeepsTheBoardAndTheHandovers() {
+		HeldCrewJob world = closedJob();
+		UUID split = world.split(this.jdbc, this.clock.instant(), world.milestone(), world.vy());
+		Evidence evidence = evidence(world);
+		finalizeRows(split, Map.of(world.hung(), 20, world.vy(), 80));
+
+		this.transactions.executeWithoutResult(status -> this.personalData.retireJobData(world.product()));
+
+		assertNoDeferrals();
+		assertThat(count("SELECT count(*) FROM chat.chat")).isZero();
+		assertThat(count("SELECT count(*) FROM work.work_item")).isZero();
+		assertThat(count("SELECT count(*) FROM delivery.handover_commit")).isZero();
+		assertThat(count("SELECT count(*) FROM work.board")).isOne();
+		assertThat(count("SELECT count(*) FROM delivery.handover")).isOne();
+		assertFilesFinished(evidence);
+	}
+
+	@Test
 	void theRetentionRunWithAnOpenSplitKeepsItsEvidenceAndFinishesWhenTheSplitIsFinal() {
 		HeldCrewJob world = closedJob();
 		UUID split = world.split(this.jdbc, this.clock.instant(), world.milestone(), world.vy());
-		evidence(world);
+		Evidence evidence = evidence(world);
 
 		this.transactions.executeWithoutResult(status -> this.personalData.retireJobData(world.product()));
 
@@ -249,9 +364,11 @@ class PersonalDataCoverageIT extends IntegrationTest {
 		assertThat(count("SELECT count(*) FROM work.page")).isZero();
 		assertThat(count("SELECT count(*) FROM delivery.handover_commit")).isOne();
 		assertThat(count("SELECT count(*) FROM delivery.handover_criterion")).isZero();
+		assertFilesWhileDeferred(evidence);
 
 		finish(world, split, Map.of(world.hung(), 20, world.vy(), 80));
 
+		assertFilesFinished(evidence);
 		assertNoDeferrals();
 		assertThat(count("SELECT count(*) FROM chat.chat")).isZero();
 		assertThat(count("SELECT count(*) FROM work.work_item")).isZero();
@@ -317,6 +434,20 @@ class PersonalDataCoverageIT extends IntegrationTest {
 		assertThat(read.get().get(15, TimeUnit.SECONDS)).isEmpty();
 	}
 
+	/** The guarantee's second half: while a deferral is uncommitted, a finalization cannot take the Job row. */
+	@Test
+	void whileAReadOfOpenSplitsIsUncommittedAFinalizationCannotLockTheJobRow() {
+		HeldCrewJob world = closedJob();
+		world.split(this.jdbc, this.clock.instant(), world.milestone(), world.vy());
+
+		this.transactions.executeWithoutResult(status -> {
+			assertThat(this.splits.openSplitJobs(world.product())).containsExactly(world.job());
+			CompletableFuture<UUID> finalization = CompletableFuture
+				.supplyAsync(() -> this.jdbc.sql("SELECT id FROM job.job WHERE id = :id FOR UPDATE NOWAIT").param("id", world.job()).query(UUID.class).single());
+			assertThatThrownBy(() -> finalization.get(15, TimeUnit.SECONDS)).hasStackTraceContaining("could not obtain lock");
+		});
+	}
+
 	@Test
 	void anAccountWaitsOnAnOpenSplitItIsAPartyOfAndOnceAJob() {
 		HeldCrewJob world = closedJob();
@@ -327,6 +458,16 @@ class PersonalDataCoverageIT extends IntegrationTest {
 			.containsExactly(org.assertj.core.groups.Tuple.tuple("SPLIT_PENDING", world.job()));
 		assertThat(this.personalData.erasureBlockers(world.hung())).extracting(ErasureBlocker::reason).containsExactly("SPLIT_PENDING");
 		assertThat(this.personalData.erasureBlockers(world.lan())).as("the Customer is no party").isEmpty();
+		assertThat(erase(world.vy())).isInstanceOf(ErasureOutcome.Blocked.class);
+		assertThat(jobExport(world.vy())).as("the membership the blocker cites, with no version yet")
+			.contains("milestoneSplitParts")
+			.contains("status=AWAITING_DRAFT")
+			.contains("versionNo=null")
+			.contains("percent=null");
+
+		// After the Product goes, the split still waits: the blocker keeps the title and links to no page.
+		this.transactions.executeWithoutResult(status -> this.personalData.deleteProduct(world.product()));
+		assertThat(this.personalData.erasureBlockers(world.vy())).containsExactly(new ErasureBlocker("job", "SPLIT_PENDING", null, "Sửa lỗi đặt bàn"));
 		assertThat(erase(world.vy())).isInstanceOf(ErasureOutcome.Blocked.class);
 	}
 
@@ -368,18 +509,28 @@ class PersonalDataCoverageIT extends IntegrationTest {
 	}
 
 	@Test
-	void anErasureOfACustomerKeepsTheMoneyWithoutThemAndAnOpenSplitsJobWithNobody() {
+	void anErasureOfACustomerKeepsTheMoneyWithoutThemAndAnOpenSplitsJobWithNobody() throws Exception {
 		HeldCrewJob world = closedJob();
 		UUID split = world.split(this.jdbc, this.clock.instant(), world.milestone(), world.vy());
 		evidence(world);
+		confirmedRefund(world, 250_000);
+		this.jdbc.sql("""
+				INSERT INTO payment.share_hold (team_issue_id, milestone_id, job_id, product_id, raiser_account_id, held_at)
+				VALUES (:issue, :milestone, :job, :product, :raiser, now())
+				""").param("issue", UUID.randomUUID()).param("milestone", world.milestone()).param("job", world.job())
+			.param("product", world.product()).param("raiser", world.vy()).update();
 		long ledger = count("SELECT count(*) FROM payment.ledger_entry");
+		String order = text("SELECT id::text FROM payment.payment_order");
 
 		assertThat(erase(world.lan())).isInstanceOf(ErasureOutcome.Erased.class);
 
 		assertThat(text("SELECT customer_account_id::text || ':' || (product_deleted_at IS NOT NULL) FROM job.job"))
 			.isEqualTo(new UUID(0, 0) + ":true");
 		assertThat(count("SELECT count(*) FROM payment.payment_order WHERE customer_account_id IS NULL")).isOne();
+		assertThat(count("SELECT count(*) FROM payment.refund WHERE customer_account_id IS NULL")).isOne();
+		assertThat(count("SELECT count(*) FROM payment.share_hold")).isZero();
 		assertThat(count("SELECT count(*) FROM payment.ledger_entry")).isEqualTo(ledger);
+		this.mvc.perform(get("/api/v1/payment-orders/" + order).with(as(world.hung(), Role.MENTOR))).andExpect(status().isNotFound());
 		assertDeferred(world, "DELETE");
 
 		finish(world, split, Map.of(world.hung(), 20, world.vy(), 80));
@@ -388,8 +539,66 @@ class PersonalDataCoverageIT extends IntegrationTest {
 		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'RELEASE'")).isEqualTo(2);
 	}
 
-	/** What a split's evidence hangs from. */
-	private record Evidence(UUID item, UUID handover) {
+	/** What a split's evidence hangs from, and the stored files of what waits and of what does not. */
+	private record Evidence(UUID item, UUID handover, UUID crewChatFile, UUID attachmentFile, UUID jobChatFile, UUID screenshotFile) {
+	}
+
+	/** What the Customer and the Mentor wrote on the Job, for its bare row to lose. */
+	private void wordsOnTheJob() {
+		this.jdbc.sql("""
+				UPDATE job.job SET done_check = 'Đặt thử một bàn', skill_ids = ARRAY[gen_random_uuid()], skill_names = ARRAY['React'],
+				    recruiting = true, recruiting_since = now(), open_slots = 1, recruit_note = 'Cần thêm người',
+				    recruit_skill_ids = ARRAY[gen_random_uuid()], recruit_skill_names = ARRAY['React'], hidden_at = now(),
+				    hidden_reason = 'Vi phạm quy tắc'
+				""").update();
+	}
+
+	/** A refund of the world's FUND, confirmed; no ledger entry, so the sums this class reads stay as they were. */
+	private void confirmedRefund(HeldCrewJob world, long amount) {
+		this.jdbc.sql("""
+				INSERT INTO payment.refund (id, fund_entry_id, payment_order_id, job_id, product_id, milestone_id, customer_account_id,
+				    amount_vnd, reason, gateway, vnp_request_id, status, requested_at, confirmed_at)
+				SELECT :id, e.id, e.payment_order_id, e.job_id, e.product_id, e.milestone_id, :customer, :amount, 'PRICE_CUT', 'LEDGER',
+				    :request, 'CONFIRMED', now(), now()
+				FROM payment.ledger_entry e WHERE e.entry_type = 'FUND'
+				""").param("id", UUID.randomUUID()).param("customer", world.lan()).param("amount", amount)
+			.param("request", UUID.randomUUID().toString().replace("-", "")).update();
+	}
+
+	private UUID storedFile(UUID account, String name) {
+		UUID id = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO files.stored_file (id, purpose, account_id, file_name, media_type, kind, size_bytes, sha256, stored_at)
+				VALUES (:id, 'test.evidence', :account, :name, 'application/pdf', 'PDF', 2048, :sha, :at)
+				""").param("id", id).param("account", account).param("name", name).param("sha", "a".repeat(64))
+			.param("at", Timestamp.from(this.clock.instant())).update();
+		return id;
+	}
+
+	private void assertFilesWhileDeferred(Evidence evidence) {
+		assertThat(fileDeleted(evidence.crewChatFile())).as("the Crew Chat's file waits").isFalse();
+		assertThat(fileDeleted(evidence.attachmentFile())).as("the Attachment's file waits").isFalse();
+		assertThat(fileDeleted(evidence.jobChatFile())).as("the Job Chat's file goes at once").isTrue();
+		assertThat(fileDeleted(evidence.screenshotFile())).as("the screenshot goes at once").isTrue();
+	}
+
+	private void assertFilesFinished(Evidence evidence) {
+		for (UUID file : List.of(evidence.crewChatFile(), evidence.attachmentFile(), evidence.jobChatFile(), evidence.screenshotFile())) {
+			assertThat(fileDeleted(file)).isTrue();
+		}
+	}
+
+	private boolean fileDeleted(UUID file) {
+		return this.jdbc.sql("SELECT deleted_at IS NOT NULL FROM files.stored_file WHERE id = :id").param("id", file).query(Boolean.class).single();
+	}
+
+	private String jobExport(UUID account) {
+		return this.transactions.execute(status -> this.personalData.export(account))
+			.stream()
+			.filter(found -> "job".equals(found.module()))
+			.findFirst()
+			.map(PersonalDataSection::toString)
+			.orElse("");
 	}
 
 	/** The world's Job closed with its Milestone accepted and its Crew released, its pool holding the whole price. */
@@ -409,12 +618,16 @@ class PersonalDataCoverageIT extends IntegrationTest {
 	private Evidence evidence(HeldCrewJob world) {
 		Instant at = this.clock.instant();
 		UUID jobChat = JobContent.chat(this.jdbc, world.job(), world.product(), "JOB");
-		JobContent.message(this.jdbc, jobChat, world.lan(), "Chào", at);
+		UUID jobChatFile = storedFile(world.lan(), "yeu-cau.pdf");
+		JobContent.attachmentMessage(this.jdbc, jobChat, world.lan(), jobChatFile, "yeu-cau.pdf", at);
 		UUID crewChat = JobContent.chat(this.jdbc, world.job(), world.product(), "CREW");
-		JobContent.message(this.jdbc, crewChat, world.vy(), "Phần việc của mình", at);
+		UUID crewChatFile = storedFile(world.vy(), "phan-viec.pdf");
+		JobContent.attachmentMessage(this.jdbc, crewChat, world.vy(), crewChatFile, "phan-viec.pdf", at);
 		JobContent.board(this.jdbc, world.job(), world.product(), "SDB");
 		UUID item = JobContent.workItem(this.jdbc, world.job(), null, null, at);
 		JobContent.note(this.jdbc, item, world.job(), world.vy(), "Đã xong", at);
+		UUID attachmentFile = storedFile(world.vy(), "bao-cao.pdf");
+		JobContent.attachment(this.jdbc, item, world.job(), world.vy(), "bao-cao.pdf", attachmentFile, at);
 		JobContent.page(this.jdbc, world.job(), world.vy(), "Trang", at);
 		UUID handover = UUID.randomUUID();
 		this.jdbc.sql("""
@@ -438,7 +651,14 @@ class PersonalDataCoverageIT extends IntegrationTest {
 				INSERT INTO delivery.handover_criterion (handover_id, criterion_id, number, statement, check_steps, met, note)
 				VALUES (:id, :criterion, 1, 'Tiêu chí 1', 'Cách kiểm tra 1', true, 'Đã kiểm tra')
 				""").param("id", handover).param("criterion", UUID.randomUUID()).update();
-		return new Evidence(item, handover);
+		UUID screenshotFile = storedFile(world.hung(), "man-hinh.png");
+		this.jdbc.sql("""
+				INSERT INTO delivery.handover_screenshot (file_id, job_id, product_id, account_id, file_name, size_bytes, handover_id,
+				    position, uploaded_at)
+				VALUES (:file, :job, :product, :account, 'man-hinh.png', 2048, :handover, 0, :at)
+				""").param("file", screenshotFile).param("job", world.job()).param("product", world.product())
+			.param("account", world.hung()).param("handover", handover).param("at", Timestamp.from(at)).update();
+		return new Evidence(item, handover, crewChatFile, attachmentFile, jobChatFile, screenshotFile);
 	}
 
 	private void assertDeferred(HeldCrewJob world, String waiting) {

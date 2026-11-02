@@ -5,6 +5,7 @@ import java.time.Clock;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Component;
 
 import vn.vibefix.job.MilestoneSplitFinalized;
 import vn.vibefix.job.MilestoneSplits;
+import vn.vibefix.job.MilestoneSplits.SplitParty;
 import vn.vibefix.notification.Audience;
 import vn.vibefix.notification.NotificationRequest;
 import vn.vibefix.notification.Notifications;
@@ -31,7 +33,9 @@ import vn.vibefix.shared.ProcessedEvents;
  * POOL_RELEASED of the whole pool, so paid out does not change. Each payee gets {@value #RELEASED}, reached by the split
  * however long the Job's row has been gone. A final split with no unreversed pool, with parties other than
  * {@code job.splitPartiesOf} names, or whose parts do not sum to the pool writes nothing: it goes to FR-64's list and
- * alerts Administrators as a {@value SplitPoolRefusedOperation#TYPE} operation. A replay writes nothing.
+ * alerts Administrators as a {@value SplitPoolRefusedOperation#TYPE} operation. A replay writes nothing. A party erased
+ * after the split became final is still paid by the event's percentages, and is told nothing: the split no longer names
+ * them (AD-24).
  */
 @Component
 class SplitPoolExecution {
@@ -78,7 +82,9 @@ class SplitPoolExecution {
 			refuse(event, "NO_POOL");
 			return;
 		}
-		if (!partiesOf(event.milestoneId()).equals(event.percentages().keySet())) {
+		List<SplitParty> parties = this.splits.splitPartiesOf(event.milestoneId());
+		Set<UUID> named = named(parties);
+		if (parties.size() != event.percentages().size() || !event.percentages().keySet().containsAll(named)) {
 			refuse(event, "PARTIES_DIFFER");
 			return;
 		}
@@ -89,7 +95,11 @@ class SplitPoolExecution {
 		}
 		parts.forEach((party, amount) -> release(event, productId, pool, party, amount));
 		reverse(event, productId, pool);
-		parts.forEach((party, amount) -> tell(event, party, amount));
+		parts.forEach((party, amount) -> {
+			if (named.contains(party)) {
+				tell(event, party, amount);
+			}
+		});
 	}
 
 	private Optional<UUID> lockAccount(UUID milestoneId) {
@@ -110,11 +120,11 @@ class SplitPoolExecution {
 			.optional();
 	}
 
-	/** The parties the release fixed, never the RELEASE rows (AD-15). */
-	private Set<UUID> partiesOf(UUID milestoneId) {
-		Set<UUID> parties = new HashSet<>();
-		this.splits.splitPartiesOf(milestoneId).forEach(party -> parties.add(party.accountId()));
-		return parties;
+	/** The accounts among the parties the release fixed, never the RELEASE rows (AD-15): an erasure leaves a party unnamed. */
+	private static Set<UUID> named(List<SplitParty> parties) {
+		Set<UUID> named = new HashSet<>();
+		parties.stream().map(SplitParty::accountId).filter(Objects::nonNull).forEach(named::add);
+		return named;
 	}
 
 	/** The parts by {@link CrewSplit}, or {@code null} when the percentages cannot split the pool exactly. */

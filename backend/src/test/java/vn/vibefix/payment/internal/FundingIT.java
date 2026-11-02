@@ -305,6 +305,18 @@ class FundingIT extends IntegrationTest {
 	}
 
 	@Test
+	void theHistoryCountsAConfirmedRefundOfALiveJob() throws Exception {
+		confirmedAgreement("BUG_FIX");
+		UUID orderId = created();
+		ipn(paid(txnRef(orderId), "14000050", 700000), null).andExpect(jsonPath("$.RspCode").value("00"));
+		this.mvc.perform(get("/api/v1/payments/history").with(as(this.lan, Role.CUSTOMER))).andExpect(jsonPath("$.refundedVnd").value(0));
+
+		this.worker.runDue(Lane.VNPAY);
+
+		this.mvc.perform(get("/api/v1/payments/history").with(as(this.lan, Role.CUSTOMER))).andExpect(jsonPath("$.refundedVnd").value(700000));
+	}
+
+	@Test
 	void historiesAndBalancesShowEachSideItsOwnFiguresOnly() throws Exception {
 		confirmedAgreement("BUG_FIX");
 		UUID orderId = created();

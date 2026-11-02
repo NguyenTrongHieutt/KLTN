@@ -50,7 +50,9 @@ class JobMilestoneSplits implements MilestoneSplits {
 	static final int DEFAULT_DRAFT_DAYS = 7;
 
 	private static final String STATE = """
-			SELECT s.id, s.milestone_id, s.status, s.draft_due_at, v.created_at AS final_since FROM job.milestone_split s
+			SELECT s.id, s.milestone_id, s.milestone_number, s.mentor_account_id, s.status, s.draft_due_at,
+			       v.created_at AS final_since
+			FROM job.milestone_split s
 			LEFT JOIN job.milestone_split_version v ON v.split_id = s.id AND v.version_no = s.final_version_no
 			""";
 
@@ -250,6 +252,7 @@ class JobMilestoneSplits implements MilestoneSplits {
 	private static SplitState state(ResultSet rs, int n) throws SQLException {
 		Timestamp finalSince = rs.getTimestamp("final_since");
 		return new SplitState(rs.getObject("id", UUID.class), rs.getObject("milestone_id", UUID.class),
+				rs.getInt("milestone_number"), rs.getObject("mentor_account_id", UUID.class),
 				Status.valueOf(rs.getString("status")), rs.getTimestamp("draft_due_at").toInstant(),
 				finalSince == null ? null : finalSince.toInstant());
 	}

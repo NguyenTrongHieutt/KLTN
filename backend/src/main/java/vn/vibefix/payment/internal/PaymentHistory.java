@@ -21,6 +21,8 @@ import vn.vibefix.job.JobRoles;
 import vn.vibefix.job.MilestoneFunding;
 import vn.vibefix.job.MilestoneFunding.FundingJob;
 import vn.vibefix.job.MilestoneFunding.FundingMilestone;
+import vn.vibefix.job.MilestoneSplits;
+import vn.vibefix.job.MilestoneSplits.SplitState;
 
 /**
  * Where test money is (FR-44, AD-15, AD-20): a Milestone's figures; CUS-10, which never names a party;
@@ -69,8 +71,11 @@ class PaymentHistory {
 
 	private final JobRoles roles;
 
+	private final MilestoneSplits splits;
+
 	PaymentHistory(JdbcClient jdbc, MilestoneFunding funding, StudentDirectory students, MentorDirectory mentors,
-			JobRoles roles) {
+			JobRoles roles, MilestoneSplits splits) {
+		this.splits = splits;
 		this.jdbc = jdbc;
 		this.funding = funding;
 		this.students = students;
@@ -124,7 +129,8 @@ class PaymentHistory {
 	/**
 	 * MEN-7 or STU-7, for any user: the sum of the account's RELEASE entries, each release listed. The Crew's parts
 	 * of a release are shown only on the Jobs whose Mentor the account is ({@code job.roleOf}, AD-43); what went to
-	 * the Crew and what is held on the Jobs it mentors are given only to an account that mentors a Job.
+	 * the Crew and what is held on the Jobs it mentors are given only to an account that mentors a Job. A Job whose Product
+	 * was deleted has no title or role any more: its split still says the Milestone's number and who its Mentor was.
 	 */
 	@Transactional(readOnly = true)
 	Balance balance(UUID accountId) {
@@ -133,8 +139,10 @@ class PaymentHistory {
 		Map<UUID, Boolean> mentorOf = new HashMap<>();
 		List<UUID> mentored = own.stream().map(Release::milestoneId).distinct().filter(milestoneId -> {
 			FundingJob job = jobOf(milestoneId, jobs);
-			return job != null
-					&& mentorOf.computeIfAbsent(job.jobId(), jobId -> this.roles.roleOf(jobId, accountId).isMentor());
+			if (job == null) {
+				return this.splits.splitOf(milestoneId).filter(split -> accountId.equals(split.mentorId())).isPresent();
+			}
+			return mentorOf.computeIfAbsent(job.jobId(), jobId -> this.roles.roleOf(jobId, accountId).isMentor());
 		}).toList();
 		Map<String, List<Release>> groups = new LinkedHashMap<>();
 		if (!mentored.isEmpty()) {
@@ -156,8 +164,10 @@ class PaymentHistory {
 				.filter(part -> !part.partyId().equals(accountId))
 				.map(part -> new Part(part.partyId(), names.getOrDefault(part.partyId(), ""), part.amountVnd(), part.percent()))
 				.toList();
-			lines.add(new ReleaseLine(job == null ? new UUID(0, 0) : job.jobId(), job == null ? "" : job.title(),
-					milestone == null ? 0 : milestone.number(), milestone == null ? "" : milestone.title(), release.releasedAt(),
+			int number = milestone != null ? milestone.number()
+					: this.splits.splitOf(release.milestoneId()).map(SplitState::milestoneNumber).orElse(0);
+			lines.add(new ReleaseLine(job == null ? new UUID(0, 0) : job.jobId(), job == null ? "" : job.title(), number,
+					milestone == null ? "" : milestone.title(), release.releasedAt(),
 					release.baseAmountVnd() == null ? release.amountVnd() : release.baseAmountVnd(), release.amountVnd(),
 					release.percent(), release.splitVersionNo(), crew));
 		}

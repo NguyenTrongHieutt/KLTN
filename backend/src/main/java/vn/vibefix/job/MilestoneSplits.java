@@ -30,11 +30,14 @@ public interface MilestoneSplits {
 	}
 
 	/**
-	 * What SG-23's daily check reads of a split.
+	 * What SG-23's daily check and a gone Job's Balance lines read of a split.
+	 * @param milestoneNumber the Milestone's number when the split was created
+	 * @param mentorId the split's Mentor, empty once an erasure anonymized them
 	 * @param latestDueAt its latest due time: the draft deadline until Story 22.2 adds the confirmation rounds
 	 * @param finalSince when its final version was saved, once it is {@code FINAL}
 	 */
-	record SplitState(UUID splitId, UUID milestoneId, Status status, Instant latestDueAt, @Nullable Instant finalSince) {
+	record SplitState(UUID splitId, UUID milestoneId, int milestoneNumber, @Nullable UUID mentorId, Status status,
+			Instant latestDueAt, @Nullable Instant finalSince) {
 	}
 
 	/** Whether a split of the Job is not {@code FINAL}. */

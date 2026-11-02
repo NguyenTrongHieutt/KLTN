@@ -7,6 +7,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
@@ -24,10 +28,13 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.session.Session;
 import org.springframework.session.SessionRepository;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import vn.vibefix.authz.JobContent;
 import vn.vibefix.identity.internal.AdministratorTestSupport;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
@@ -42,6 +49,7 @@ import vn.vibefix.operations.Lane;
 import vn.vibefix.operations.internal.OperationWorker;
 import vn.vibefix.payment.Ledger;
 import vn.vibefix.payment.Releases;
+import vn.vibefix.shared.ErasureOutcome;
 import vn.vibefix.shared.PersonalData;
 import vn.vibefix.support.HeldCrewJob;
 import vn.vibefix.support.IntegrationTest;
@@ -53,6 +61,19 @@ import vn.vibefix.support.IntegrationTest;
  * brings the path that does.
  */
 class SplitPoolLedgerIT extends IntegrationTest {
+
+	private static final String TMN = "TESTTMN1";
+
+	private static final String SECRET = "split-pool-it-" + UUID.randomUUID();
+
+	private static final Path SECRET_FILE = secretFile();
+
+	@DynamicPropertySource
+	static void merchant(DynamicPropertyRegistry registry) {
+		registry.add("vibefix.payment.vnpay.tmn-code", () -> TMN);
+		registry.add("vibefix.payment.vnpay.hash-secret-file", SECRET_FILE::toString);
+		registry.add("vibefix.payment.vnpay.return-url", () -> "http://localhost:5173/thanh-toan");
+	}
 
 	@Autowired
 	private JdbcClient jdbc;
@@ -214,7 +235,35 @@ class SplitPoolLedgerIT extends IntegrationTest {
 			.update()).isInstanceOf(DuplicateKeyException.class).hasMessageContaining("ledger_entry_pool_idx");
 	}
 
+	@Test
+	void aSettlementWithTheMentorAloneHoldsThePartAndPaysTheMentorAtOnce() {
+		release(this.world.vy(), this.clock.instant().minus(Duration.ofDays(2)));
+		release(this.world.minh(), this.clock.instant().minus(Duration.ofDays(2)));
+		settle(600_000, 400_000);
+
+		await().atMost(Duration.ofSeconds(15)).until(() -> count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'POOL_RELEASED'") == 1);
+		assertThat(text("SELECT status || ':' || final_version_no || ':' || cap_applies FROM job.milestone_split")).isEqualTo("FINAL:1:false");
+		assertThat(text("SELECT kind FROM job.milestone_split_version")).isEqualTo("MENTOR_ONLY");
+		assertThat(ledgerRows()).containsExactly("FUND:" + HeldCrewJob.PRICE, "POOL_RELEASED:600000", "REFUND_REQUESTED:400000", "RELEASE:600000",
+				"RELEASE_POOLED:600000");
+		assertThat(partOf(this.world.hung())).isEqualTo(600_000);
+		assertThat(notices(this.world.hung())).isOne();
+		assertThat(this.ledger.releasedTotal(this.milestone)).isEqualTo(600_000);
+		assertThat(this.ledger.releasable(this.milestone)).isZero();
+		assertThat(LedgerMath.balanced(this.entries.entries(this.milestone))).isTrue();
+	}
+
 	// ---- The parties ----------------------------------------------------------------------------
+
+	@Test
+	void aMemberPickedButNotSignedIsNoParty() throws Exception {
+		UUID picked = JobContent.member(this.jdbc, "Phan Văn An");
+		JobContent.crewRow(this.jdbc, this.world.job(), picked, "ASSIGNED", null);
+		accept();
+
+		assertThat(accounts()).containsExactly(this.world.hung(), this.world.vy(), this.world.minh());
+		assertThat(ledgerRows()).containsExactly("FUND:" + HeldCrewJob.PRICE, "RELEASE_POOLED:" + HeldCrewJob.PRICE);
+	}
 
 	@Test
 	void aMemberWhoLeftDuringTheMilestoneIsAPartyNoLongerActive() throws Exception {
@@ -337,6 +386,38 @@ class SplitPoolLedgerIT extends IntegrationTest {
 		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'RELEASE'")).isEqualTo(3);
 	}
 
+	/** AD-24: an erasure between {@code FINAL} and the listener takes nobody's money, the erased person's included. */
+	@Test
+	void aPartyErasedAfterTheSplitIsFinalIsPaidUntoldAndNobodyIsRefused() throws Exception {
+		accept();
+		UUID split = splitId();
+		Map<UUID, Integer> percentages = percentages(20, 40, 40);
+		finalizeBySql(split, percentages);
+		Timestamp now = Timestamp.from(this.clock.instant());
+		this.jdbc.sql("UPDATE job.job SET state = 'CLOSED', closed_at = :now WHERE id = :id").param("now", now).param("id", this.world.job()).update();
+		this.jdbc.sql("""
+				UPDATE job.crew_row SET status = 'RELEASED', released_reason = 'JOB_ENDED', released_at = :now, window_end = :now WHERE job_id = :id
+				""").param("now", now).param("id", this.world.job()).update();
+		for (UUID erased : List.of(this.world.minh(), this.world.hung())) {
+			ErasureOutcome outcome = this.transactions.execute(status -> this.personalData.erase(erased));
+			assertThat(outcome).isInstanceOf(ErasureOutcome.Erased.class);
+		}
+		assertThat(accounts()).containsExactly(null, this.world.vy(), null);
+
+		publish(event(split, percentages));
+		await().atMost(Duration.ofSeconds(15)).until(() -> count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'POOL_RELEASED'") == 1);
+
+		assertThat(partOf(this.world.hung())).isEqualTo(200_000);
+		assertThat(partOf(this.world.vy())).isEqualTo(400_000);
+		assertThat(partOf(this.world.minh())).isEqualTo(400_000);
+		assertThat(notices(this.world.vy())).isOne();
+		assertThat(notices(this.world.hung())).isZero();
+		assertThat(notices(this.world.minh())).isZero();
+		assertThat(count("SELECT count(*) FROM operations.external_operation WHERE type = 'payment.split_pool_refused'")).isZero();
+		awaitListeners();
+		assertThat(count("SELECT count(*) FROM platform.event_publication WHERE completion_date IS NULL")).as("nothing threw").isZero();
+	}
+
 	@Test
 	void aZeroPartWritesNoEntry() throws Exception {
 		accept();
@@ -418,6 +499,18 @@ class SplitPoolLedgerIT extends IntegrationTest {
 	}
 
 	@Test
+	void aPaidSplitIsNeverListed() {
+		accept();
+		finalize(percentages(20, 40, 40));
+		await().atMost(Duration.ofSeconds(15)).until(() -> count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'POOL_RELEASED'") == 1);
+
+		this.clock.advance(Duration.ofMinutes(61));
+		assertThat(this.check.check()).isEmpty();
+		this.clock.advance(Duration.ofDays(15));
+		assertThat(this.check.check()).isEmpty();
+	}
+
+	@Test
 	void aPoolWithNoSplitIsListed() {
 		this.transactions.executeWithoutResult(status -> this.releases.release(this.world.job(), this.milestone, UUID.randomUUID()));
 
@@ -434,6 +527,19 @@ class SplitPoolLedgerIT extends IntegrationTest {
 		assertThat(this.check.check()).isEmpty();
 		this.clock.advance(Duration.ofMinutes(2));
 		assertThat(this.check.check()).containsExactly(split);
+		this.clock.advance(Duration.ofDays(15));
+		assertThat(this.check.check()).as("past its due time too, it is listed once, by the split").containsExactly(split);
+	}
+
+	/** AD-24: the ledger of a gone Job stays, so the check still reads it. */
+	@Test
+	void aGoneJobsLedgerOutOfBalanceIsStillListed() {
+		this.transactions.executeWithoutResult(status -> this.personalData.deleteProduct(this.world.product()));
+
+		assertThat(this.check.check()).containsExactly(this.milestone);
+
+		this.transactions.executeWithoutResult(status -> this.releases.release(this.world.job(), this.milestone, UUID.randomUUID()));
+		assertThat(this.check.check()).as("it balances now").doesNotContain(this.milestone);
 	}
 
 	@Test
@@ -501,6 +607,63 @@ class SplitPoolLedgerIT extends IntegrationTest {
 		assertThat(count("SELECT count(*) FROM notification.notification")).isEqualTo(told);
 	}
 
+	@Test
+	void aPaymentAfterTheProductWasDeletedIsRefundedAndAnExpiringOrderTellsNobody() {
+		UUID order = UUID.fromString(text("SELECT id::text FROM payment.payment_order"));
+		this.jdbc.sql("UPDATE payment.payment_order SET status = 'OPEN', finished_at = NULL WHERE id = :id").param("id", order).update();
+		String reference = text("SELECT txn_ref FROM payment.payment_order");
+		this.transactions.executeWithoutResult(status -> this.personalData.deleteProduct(this.world.product()));
+		long told = count("SELECT count(*) FROM notification.notification");
+
+		assertThat(this.orders.ipn(paid(reference, "14000077", HeldCrewJob.PRICE))).isEqualTo(PaymentOrders.IpnAnswer.CONFIRMED);
+		this.worker.runDue(Lane.VNPAY);
+
+		assertThat(text("SELECT bucket FROM payment.ledger_entry WHERE vnp_transaction_no = '14000077'")).isEqualTo("UNAPPLIED");
+		assertThat(text("SELECT status || ':' || reason || ':' || (customer_account_id IS NOT NULL) FROM payment.refund"))
+			.isEqualTo("CONFIRMED:NOT_FUNDABLE:true");
+
+		UUID open = UUID.randomUUID();
+		Timestamp now = Timestamp.from(this.clock.instant());
+		this.jdbc.sql("""
+				INSERT INTO payment.payment_order (id, job_id, product_id, milestone_id, customer_account_id, purpose, amount_vnd,
+				    agreement_version_no, txn_ref, status, created_at, expires_at)
+				VALUES (:id, :job, :product, :milestone, :customer, 'FUNDING', 1000, 1, 'SPLITOPENORDER', 'OPEN', :now, :now)
+				""").param("id", open).param("job", this.world.job()).param("product", this.world.product()).param("milestone", this.milestone)
+			.param("customer", this.world.lan()).param("now", now).update();
+		assertThat(this.transactions.<Boolean>execute(status -> this.orders.expire(open))).isEqualTo(Boolean.TRUE);
+
+		assertThat(text("SELECT status FROM payment.payment_order WHERE id = '" + open + "'")).isEqualTo("EXPIRED");
+		assertThat(count("SELECT count(*) FROM notification.notification")).as("no notice goes").isEqualTo(told);
+	}
+
+	private static Map<String, String> paid(String txnRef, String transactionNo, long amountVnd) {
+		Map<String, String> fields = new LinkedHashMap<>();
+		fields.put("vnp_Amount", Long.toString(amountVnd * 100));
+		fields.put("vnp_BankCode", "NCB");
+		fields.put("vnp_OrderInfo", "Thanh toan Giai doan 1");
+		fields.put("vnp_PayDate", "20261020100500");
+		fields.put("vnp_ResponseCode", "00");
+		fields.put("vnp_TmnCode", TMN);
+		fields.put("vnp_TransactionNo", transactionNo);
+		fields.put("vnp_TransactionStatus", "00");
+		fields.put("vnp_TxnRef", txnRef);
+		String hash = VnpaySigner.hmacSha512(SECRET, VnpaySigner.queryHashData(fields));
+		fields.put("vnp_SecureHash", hash);
+		return fields;
+	}
+
+	private static Path secretFile() {
+		try {
+			Path file = Files.createTempFile("vnpay-hash-secret-", ".txt");
+			Files.writeString(file, SECRET);
+			file.toFile().deleteOnExit();
+			return file;
+		}
+		catch (IOException ex) {
+			throw new UncheckedIOException(ex);
+		}
+	}
+
 	// ---- Helpers --------------------------------------------------------------------------------
 
 	/** M5 as {@code delivery} applies it on an Assessment Job, then the pool, in one transaction. */
@@ -526,14 +689,9 @@ class SplitPoolLedgerIT extends IntegrationTest {
 		});
 	}
 
-	/** The Milestone's price and its one FUND, at {@code amount}. */
+	/** The Milestone's price, with a second FUND that brings what was paid in to {@code amount}: the ledger is append-only. */
 	private void price(long amount) {
 		this.jdbc.sql("UPDATE job.milestone SET price_vnd = :amount WHERE id = :id").param("amount", amount).param("id", this.milestone).update();
-		this.jdbc.sql("UPDATE payment.payment_order SET amount_vnd = :amount WHERE milestone_id = :id")
-			.param("amount", amount)
-			.param("id", this.milestone)
-			.update();
-		this.jdbc.sql("DELETE FROM payment.ledger_entry WHERE entry_type = 'FUND' AND milestone_id = :id").param("id", this.milestone).update();
 		this.jdbc.sql("""
 				INSERT INTO payment.ledger_entry (id, operation_key, entry_type, bucket, job_id, product_id, milestone_id,
 				    payment_order_id, amount_vnd, vnp_transaction_no, created_at)
@@ -542,7 +700,7 @@ class SplitPoolLedgerIT extends IntegrationTest {
 				""")
 			.param("entry", UUID.randomUUID())
 			.param("key", "FUND:" + UUID.randomUUID())
-			.param("amount", amount)
+			.param("amount", amount - HeldCrewJob.PRICE)
 			.param("no", UUID.randomUUID().toString())
 			.param("id", this.milestone)
 			.update();

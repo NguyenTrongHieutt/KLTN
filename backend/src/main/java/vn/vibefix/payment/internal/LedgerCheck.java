@@ -28,8 +28,8 @@ import vn.vibefix.operations.OperationRequest;
 
 /**
  * SG-23's daily ledger check (AD-15): a final Milestone whose paid out plus requested refunds differ
- * from what was funded, and an unapplied FUND that no refund reverses, each go to the failed-operations
- * queue as a {@value LedgerMismatchOperation#TYPE} operation, once a day. So do three of AD-40's old hold
+ * from what was funded, a Milestone of a gone Job included, and an unapplied FUND that no refund reverses, each go
+ * to the failed-operations queue as a {@value LedgerMismatchOperation#TYPE} operation, once a day. So do three of AD-40's old hold
  * cases, until Story 22.4 retires them: a raiser's RELEASE_HELD still unreversed after their hold ended, a Mentor's
  * RELEASE_HELD still unreversed on a Milestone with no open hold, and an open hold on a Milestone that became final
  * without a release. The fourth, a Team Issue open too long, is {@code dispute}'s.
@@ -88,6 +88,7 @@ class LedgerCheck {
 		for (UUID jobId : jobs) {
 			FundingJob job = this.funding.byId(jobId).orElse(null);
 			if (job == null) {
+				mismatches.addAll(unbalancedOfGoneJob(jobId));
 				continue;
 			}
 			for (FundingMilestone milestone : job.milestones()) {
@@ -133,6 +134,20 @@ class LedgerCheck {
 		return found;
 	}
 
+	/**
+	 * The ledger of a Job whose Product was deleted stays (AD-24). Its Milestones are all final, since a Product cannot be
+	 * deleted while a Job pins it, so each must balance.
+	 */
+	private List<UUID> unbalancedOfGoneJob(UUID jobId) {
+		return this.jdbc.sql("SELECT milestone_id FROM payment.ledger_account WHERE job_id = :job")
+			.param("job", jobId)
+			.query(UUID.class)
+			.list()
+			.stream()
+			.filter(milestone -> !LedgerMath.balanced(this.ledger.entries(milestone)))
+			.toList();
+	}
+
 	/** The pools past their deadlines, by entry, and the final splits still holding theirs, by split. */
 	private List<UUID> overduePools() {
 		Instant now = this.clock.instant();
@@ -145,7 +160,7 @@ class LedgerCheck {
 				""").query((rs, n) -> Map.entry(rs.getObject("id", UUID.class), rs.getObject("milestone_id", UUID.class))).list()
 			.forEach(pool -> {
 				SplitState split = this.splits.splitOf(pool.getValue()).orElse(null);
-				if (split == null || (split.status() != Status.IN_RESOLUTION
+				if (split == null || (split.status() != Status.IN_RESOLUTION && split.status() != Status.FINAL
 						&& split.latestDueAt().plus(Duration.ofDays(POOL_SLACK_DAYS)).isBefore(now))) {
 					overdue.add(pool.getKey());
 				}

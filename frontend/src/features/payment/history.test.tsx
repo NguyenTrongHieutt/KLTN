@@ -34,6 +34,29 @@ const release = (overrides: object = {}) => ({
   ...overrides,
 })
 
+describe('MEN-7: a release of a deleted Product (AD-24)', () => {
+  it('names the Job as deleted and the Milestone by its number alone', { timeout: 15_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
+      'GET /api/v1/balance': () =>
+        json({
+          balanceVnd: 240000,
+          releases: 1,
+          sentToCrewVnd: 960000,
+          heldVnd: 0,
+          lines: [release({ jobId: '00000000-0000-0000-0000-000000000000', jobTitle: '', number: 2, milestoneTitle: '' })],
+          heldParts: [],
+        }),
+    })
+    renderAt('/so-du')
+
+    expect(await screen.findByText('Công việc đã xóa')).toBeInTheDocument()
+    expect(screen.getByText('Giai đoạn 2')).toBeInTheDocument()
+    expect(screen.queryByText(/Giai đoạn 2 ·/)).toBeNull()
+    expect(screen.getByText(/Trần Quang Minh/)).toBeInTheDocument()
+  })
+})
+
 describe('CUS-10: the payment history (FR-44)', () => {
   it('lists fundings and refunds per Job with one released total per Milestone', { timeout: 15_000 }, async () => {
     fakeBackend(signedInUser, {

@@ -3,7 +3,7 @@
 -- entries it pays. A RELEASE records the split version it follows, so its column stops naming Crew Terms.
 -- Personal data: the ledger, the Payment Orders and the refunds are financial records under NFR-10's legal retention.
 -- A Product deletion and an erasure keep them, and an erasure sets the Customer's account on orders and refunds to NULL
--- (PaymentPersonalData).
+-- (PaymentPersonalData). The runtime role can no longer delete them.
 
 ALTER TABLE payment.ledger_entry
     DROP CONSTRAINT ledger_entry_entry_type_check;
@@ -38,3 +38,5 @@ ALTER TABLE payment.refund
     ALTER COLUMN customer_account_id DROP NOT NULL;
 
 GRANT UPDATE (customer_account_id) ON payment.refund TO ${runtime_role};
+
+REVOKE DELETE ON payment.ledger_entry, payment.ledger_account, payment.payment_order, payment.refund FROM ${runtime_role};

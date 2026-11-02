@@ -120,6 +120,20 @@ class ShareHoldIT extends IntegrationTest {
 		assertThat(this.check.check()).as("a hold left on a final Milestone without a release").contains(moot);
 	}
 
+	@Test
+	void aHoldLeftOpenOnAMilestoneWithAPoolIsNotListed() {
+		UUID issue = UUID.randomUUID();
+		hold(this.world.milestone(), issue, this.world.vy());
+		release();
+
+		this.jdbc.sql("UPDATE job.milestone SET state = 'ACCEPTED', accepted_at = now() WHERE id = :id").param("id", this.world.milestone()).update();
+		assertThat(this.check.check()).as("ACCEPTED").doesNotContain(issue);
+		this.jdbc.sql("UPDATE job.milestone SET state = 'SETTLED', accepted_at = NULL, settled_at = now() WHERE id = :id")
+			.param("id", this.world.milestone())
+			.update();
+		assertThat(this.check.check()).as("SETTLED").doesNotContain(issue);
+	}
+
 	/** An old RELEASE_HELD of the Milestone, from before Story 22.1. */
 	private UUID heldEntry(UUID issue) {
 		UUID id = UUID.randomUUID();
