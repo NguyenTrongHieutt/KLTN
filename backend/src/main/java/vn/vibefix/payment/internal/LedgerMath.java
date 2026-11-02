@@ -6,10 +6,11 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * AD-15's arithmetic over one Milestone's entries, kept apart so it can be proved without a database:
- * paid out = RELEASE + RELEASE_HELD − HELD_RELEASED; releasable = Milestone-bucket FUND + TOPUP_APPLIED
+ * paid out = RELEASE_POOLED − POOL_RELEASED + RELEASE; releasable = Milestone-bucket FUND + TOPUP_APPLIED
  * − paid out − REFUND_REQUESTED on the Milestone, an applied top-up's own refunds included (its FUND sits in
- * the Change Request bucket, FR-36); the released total is paid out. Paying a hold out
- * (a HELD_RELEASED with the RELEASE that pays it) leaves paid out unchanged.
+ * the Change Request bucket, FR-36); the released total is paid out. A final split (its POOL_RELEASED with the RELEASE
+ * entries that pay it) leaves paid out unchanged. The old RELEASE_HELD − HELD_RELEASED terms stay beside them until
+ * Story 22.4 narrows the check; nothing writes those entries any more.
  */
 final class LedgerMath {
 
@@ -25,7 +26,8 @@ final class LedgerMath {
 	}
 
 	static long paidOut(Collection<Entry> entries) {
-		return sum(entries, "RELEASE", null) + sum(entries, "RELEASE_HELD", null) - sum(entries, "HELD_RELEASED", null);
+		return sum(entries, "RELEASE_POOLED", null) - sum(entries, "POOL_RELEASED", null) + sum(entries, "RELEASE", null)
+				+ sum(entries, "RELEASE_HELD", null) - sum(entries, "HELD_RELEASED", null);
 	}
 
 	static long refundsRequested(Collection<Entry> entries) {

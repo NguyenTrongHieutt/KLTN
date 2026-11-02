@@ -136,10 +136,8 @@ class TeamIssueDecisionIT extends IntegrationTest {
 			.andExpect(jsonPath("$.ending").value("DECIDED"))
 			.andExpect(jsonPath("$.decision.points").value(10))
 			.andExpect(jsonPath("$.decision.reasoning").value("Vy làm phần lớn việc"));
-		assertThat(this.jdbc.sql("SELECT amount_vnd FROM payment.ledger_entry WHERE operation_key = :key")
-			.param("key", "RELEASE:" + issue + ":" + this.world.vy()).query(Long.class).single()).isEqualTo(500_000);
-		assertThat(this.jdbc.sql("SELECT amount_vnd FROM payment.ledger_entry WHERE operation_key = :key")
-			.param("key", "RELEASE:" + issue + ":" + this.world.hung()).query(Long.class).single()).isEqualTo(100_000);
+		assertThat(this.jdbc.sql("SELECT count(*) FROM payment.ledger_entry WHERE entry_type NOT IN ('FUND', 'RELEASE_POOLED')")
+			.query(Long.class).single()).as("Story 22.1: an ending writes nothing to the ledger").isZero();
 		assertThat(this.ledger.releasedTotal(this.world.milestone())).isEqualTo(HeldCrewJob.PRICE);
 		assertThat(notices("dispute.team_issue_decided", this.world.vy())).isOne();
 		assertThat(notices("dispute.team_issue_decided", this.world.hung())).isOne();

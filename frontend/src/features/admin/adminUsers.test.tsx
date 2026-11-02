@@ -206,6 +206,7 @@ describe('ADM-2 users (FR-59, FR-78, AD-19)', () => {
       { module: 'job', reason: 'JOB_RUNNING', jobId: 'j1', name: 'Sửa lỗi đặt bàn' },
       { module: 'dispute', reason: 'DISPUTE_OPEN', jobId: 'j1', name: 'Sửa lỗi đặt bàn' },
       { module: 'job', reason: 'MILESTONE_PENDING', jobId: 'j2', name: 'Trang đặt món' },
+      { module: 'job', reason: 'SPLIT_PENDING', jobId: 'j3', name: 'Báo cáo đặt bàn' },
     ]
     fakeBackend(administrator, {
       'GET /api/v1/admin/overview': () => json(overview),
@@ -232,6 +233,9 @@ describe('ADM-2 users (FR-59, FR-78, AD-19)', () => {
     expect(
       screen.getByRole('link', { name: 'Cột mốc người này đã tham gia chưa thanh toán xong · Trang đặt món' }),
     ).toHaveAttribute('href', '/quan-tri/cong-viec/j2')
+    expect(
+      screen.getByRole('link', { name: 'Tiền của một cột mốc người này tham gia chưa chia xong · Báo cáo đặt bàn' }),
+    ).toHaveAttribute('href', '/quan-tri/cong-viec/j3')
     expect(screen.queryByText(/bạn đã tham gia/)).toBeNull()
     expect(screen.getByRole('button', { name: 'Xác nhận xóa tài khoản' })).toBeDisabled()
     blockers = []

@@ -33,9 +33,9 @@ class JobCounts implements PlatformCounts {
 	@Transactional(readOnly = true)
 	public List<Count> counts() {
 		List<Count> counts = new ArrayList<>();
-		grouped(counts, "jobsByState", "SELECT state AS key, count(*) AS value FROM job.job GROUP BY state");
+		grouped(counts, "jobsByState", "SELECT state AS key, count(*) AS value FROM job.job WHERE product_deleted_at IS NULL GROUP BY state");
 		grouped(counts, "jobsByType", """
-				SELECT type AS key, count(*) AS value FROM job.job, unnest(job_types) AS type GROUP BY type
+				SELECT type AS key, count(*) AS value FROM job.job, unnest(job_types) AS type WHERE product_deleted_at IS NULL GROUP BY type
 				""");
 		grouped(counts, "crewsBySize", """
 				SELECT CASE WHEN members >= 4 THEN '4+' ELSE members::text END AS key, count(*) AS value FROM (
@@ -59,7 +59,7 @@ class JobCounts implements PlatformCounts {
 				SELECT count(*) FILTER (WHERE j.state = 'CLOSED') AS part,
 				       count(*) FILTER (WHERE j.state = 'CLOSED' OR (j.state = 'CANCELLED'
 				           AND EXISTS (SELECT 1 FROM job.confirmed_agreement c WHERE c.job_id = j.id))) AS whole
-				FROM job.job j
+				FROM job.job j WHERE j.product_deleted_at IS NULL
 				""");
 		rate(counts, "rates", "ON_TIME", "SELECT count(*) FILTER (WHERE " + ON_TIME + ") AS part, count(*) AS whole"
 				+ " FROM job.milestone m WHERE " + ACCEPTED_DATED);

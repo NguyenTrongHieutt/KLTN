@@ -131,7 +131,7 @@ class CancellationController {
 
 	/** The Customer, the Mentor, or an active Crew member (party empty), by role in the Job, from Agreement on. */
 	private Viewer viewer(UUID jobId, Caller caller) {
-		Job job = this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id")
+		Job job = this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id AND " + Jobs.LIVE)
 			.param("id", jobId)
 			.query(Jobs::job)
 			.optional()

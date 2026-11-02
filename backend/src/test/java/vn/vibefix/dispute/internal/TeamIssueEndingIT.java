@@ -89,7 +89,7 @@ class TeamIssueEndingIT extends IntegrationTest {
 	}
 
 	@Test
-	void aTransferAcceptedBeforeTheReleaseIsAppliedByTheRelease() throws Exception {
+	void aTransferAcceptedBeforeTheReleaseIsRecordedAndTheReleaseIgnoresIt() throws Exception {
 		UUID issue = raise(this.world.vy(), "SHARE", this.world.milestone());
 		this.mvc.perform(get("/api/v1/boards/" + this.world.job() + "/team-issues").with(as(this.world.hung(), Role.MENTOR)))
 			.andExpect(status().isOk())
@@ -125,66 +125,43 @@ class TeamIssueEndingIT extends IntegrationTest {
 		assertThat(openTodos("dispute.decide_team_issue_answer", this.world.vy())).isZero();
 
 		release();
-		assertThat(entry("RELEASE", this.world.hung())).isEqualTo(100_000);
-		assertThat(entry("RELEASE", this.world.vy())).isEqualTo(500_000);
-		assertThat(entry("RELEASE", this.world.minh())).isEqualTo(400_000);
-		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'RELEASE_HELD'")).isZero();
+		assertThat(count("SELECT amount_vnd FROM payment.ledger_entry WHERE entry_type = 'RELEASE_POOLED'")).isEqualTo(HeldCrewJob.PRICE);
+		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type IN ('RELEASE', 'RELEASE_HELD')")).isZero();
 	}
 
 	@Test
-	void anAcceptanceAfterTheReleaseReversesTheHeldPartsAndPaysTheNewOnes() throws Exception {
+	void anAcceptanceAfterTheReleaseWritesNothingToTheLedger() throws Exception {
 		UUID issue = raise(this.world.vy(), "SHARE", this.world.milestone());
 		release();
 		answer(issue, "TRANSFER", 10).andExpect(status().isOk());
 		choose(this.world.vy(), issue, "accept").andExpect(status().isOk());
 
-		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'HELD_RELEASED'")).isEqualTo(2);
-		assertThat(this.jdbc.sql("SELECT amount_vnd FROM payment.ledger_entry WHERE operation_key = :key")
-			.param("key", "RELEASE:" + issue + ":" + this.world.vy()).query(Long.class).single()).isEqualTo(500_000);
-		assertThat(this.jdbc.sql("SELECT amount_vnd FROM payment.ledger_entry WHERE operation_key = :key")
-			.param("key", "RELEASE:" + issue + ":" + this.world.hung()).query(Long.class).single()).isEqualTo(100_000);
+		assertThat(count("SELECT transfer_points FROM payment.share_hold WHERE team_issue_id = '" + issue + "'")).isEqualTo(10);
+		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type NOT IN ('FUND', 'RELEASE_POOLED')")).isZero();
 		assertThat(this.ledger.releasedTotal(this.world.milestone())).as("paid out does not change").isEqualTo(HeldCrewJob.PRICE);
 		assertThat(this.ledger.releasable(this.world.milestone())).isZero();
-		this.mvc.perform(get("/api/v1/balance").with(as(this.world.vy(), Role.STUDENT)))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.balanceVnd").value(500_000))
-			.andExpect(jsonPath("$.heldParts").isEmpty());
-		assertThat(notices("payment.funds_released", this.world.vy())).isOne();
-		assertThat(notices("payment.funds_released", this.world.hung())).isOne();
+		assertThat(notices("payment.funds_released", this.world.vy())).isZero();
 	}
 
 	@Test
-	void twoShareIssuesShareTheCapAndTheMentorStaysHeldUntilTheLastEnds() throws Exception {
+	void twoShareIssuesShareTheCap() throws Exception {
 		UUID vyIssue = raise(this.world.vy(), "SHARE", this.world.milestone());
 		UUID minhIssue = raise(this.world.minh(), "SHARE", this.world.milestone());
 		release();
-		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'RELEASE_HELD'")).isEqualTo(3);
 
 		answer(vyIssue, "TRANSFER", 15).andExpect(status().isOk());
 		answer(minhIssue, "TRANSFER", 6).andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.cap").value(5));
 		answer(minhIssue, "TRANSFER", 5).andExpect(status().isOk());
 
 		choose(this.world.vy(), vyIssue, "accept").andExpect(status().isOk());
-		assertThat(this.jdbc.sql("SELECT amount_vnd FROM payment.ledger_entry WHERE operation_key = :key")
-			.param("key", "RELEASE_HELD:" + vyIssue + ":" + this.world.hung()).query(Long.class).single())
-			.as("the Mentor is still held for Minh's issue").isEqualTo(50_000);
-		assertThat(this.jdbc.sql("SELECT amount_vnd FROM payment.ledger_entry WHERE operation_key = :key")
-			.param("key", "RELEASE:" + vyIssue + ":" + this.world.vy()).query(Long.class).single()).isEqualTo(550_000);
-
 		choose(this.world.minh(), minhIssue, "accept").andExpect(status().isOk());
-		assertThat(this.jdbc.sql("SELECT amount_vnd FROM payment.ledger_entry WHERE operation_key = :key")
-			.param("key", "RELEASE:" + minhIssue + ":" + this.world.minh()).query(Long.class).single()).isEqualTo(450_000);
-		assertThat(count("""
-				SELECT count(*) FROM payment.ledger_entry e WHERE e.entry_type = 'RELEASE_HELD'
-				  AND NOT EXISTS (SELECT 1 FROM payment.ledger_entry r WHERE r.reverses_entry_id = e.id)
-				""")).as("nothing is held any more").isZero();
-		assertThat(count("SELECT coalesce(sum(amount_vnd), 0) FROM payment.ledger_entry WHERE entry_type = 'RELEASE'"))
-			.isEqualTo(HeldCrewJob.PRICE);
+		assertThat(count("SELECT coalesce(sum(transfer_points), 0) FROM payment.share_hold")).isEqualTo(20);
+		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type NOT IN ('FUND', 'RELEASE_POOLED')")).isZero();
 		assertThat(this.ledger.releasedTotal(this.world.milestone())).isEqualTo(HeldCrewJob.PRICE);
 	}
 
 	@Test
-	void aSilentMentorLetsTheIssueLapseAndTheHeldPartsArePaidByThePin() throws Exception {
+	void aSilentMentorLetsTheIssueLapse() throws Exception {
 		UUID issue = raise(this.world.vy(), "SHARE", this.world.milestone());
 		release();
 		this.clock.advance(Duration.ofDays(5).plusMinutes(1));
@@ -199,10 +176,7 @@ class TeamIssueEndingIT extends IntegrationTest {
 		this.clock.advance(Duration.ofDays(5).plusMinutes(1));
 		this.poller.runDue();
 		assertThat(text("SELECT ending FROM dispute.team_issue WHERE id = '" + issue + "'")).isEqualTo("LAPSED");
-		assertThat(this.jdbc.sql("SELECT amount_vnd FROM payment.ledger_entry WHERE operation_key = :key")
-			.param("key", "RELEASE:" + issue + ":" + this.world.vy()).query(Long.class).single()).isEqualTo(400_000);
-		assertThat(this.jdbc.sql("SELECT amount_vnd FROM payment.ledger_entry WHERE operation_key = :key")
-			.param("key", "RELEASE:" + issue + ":" + this.world.hung()).query(Long.class).single()).isEqualTo(200_000);
+		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type NOT IN ('FUND', 'RELEASE_POOLED')")).isZero();
 		assertThat(openTodos("dispute.decide_team_issue_answer", this.world.vy())).isZero();
 	}
 

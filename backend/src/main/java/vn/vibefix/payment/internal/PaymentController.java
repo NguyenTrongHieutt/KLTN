@@ -186,7 +186,7 @@ class PaymentController {
 	PaymentOrderDetailView paymentOrder(@PathVariable UUID paymentOrderId) {
 		Caller caller = this.callers.get();
 		Order order = this.orders.byId(paymentOrderId)
-			.filter(found -> found.customerId().equals(caller.accountId()))
+			.filter(found -> found.customerId() != null && found.customerId().equals(caller.accountId()))
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		customerOf(order.jobId());
 		FundingJob job = this.funding.byId(order.jobId()).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));

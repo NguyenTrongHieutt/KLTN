@@ -83,6 +83,12 @@ class Jobs {
 
 	}
 
+	/**
+	 * A Job whose Product was not deleted: a Product deleted while a Milestone Split of the Job is open leaves a bare row
+	 * (AD-24), which every read treats as gone for everyone and only the split ports read.
+	 */
+	static final String LIVE = "product_deleted_at IS NULL";
+
 	static final String COLUMNS = """
 			id, product_id, customer_account_id, state, title, problem, expected, app_users, done_check, job_types,
 			skill_ids, skill_names, budget, deadline, created_at, updated_at, version, opened_at, lapses_at, frozen_at,
@@ -212,14 +218,14 @@ class Jobs {
 	@Transactional(readOnly = true)
 	List<Job> list(UUID customerId) {
 		return this.jdbc.sql("SELECT " + COLUMNS + """
-				 FROM job.job WHERE customer_account_id = :customer ORDER BY updated_at DESC, id
+				 FROM job.job WHERE customer_account_id = :customer AND product_deleted_at IS NULL ORDER BY updated_at DESC, id
 				""").param("customer", customerId).query(Jobs::job).list();
 	}
 
 	/** The Customer's Job. */
 	@Transactional(readOnly = true)
 	Optional<Job> find(UUID customerId, UUID jobId) {
-		return this.jdbc.sql("SELECT " + COLUMNS + " FROM job.job WHERE id = :id AND customer_account_id = :customer")
+		return this.jdbc.sql("SELECT " + COLUMNS + " FROM job.job WHERE id = :id AND customer_account_id = :customer AND " + LIVE)
 			.param("id", jobId)
 			.param("customer", customerId)
 			.query(Jobs::job)
@@ -314,14 +320,14 @@ class Jobs {
 
 	/** Locks the Job row for a transition (AD-4: the Job row comes first in the lock order). */
 	Optional<Job> lock(UUID jobId) {
-		return this.jdbc.sql("SELECT " + COLUMNS + " FROM job.job WHERE id = :id FOR UPDATE")
+		return this.jdbc.sql("SELECT " + COLUMNS + " FROM job.job WHERE id = :id AND " + LIVE + " FOR UPDATE")
 			.param("id", jobId)
 			.query(Jobs::job)
 			.optional();
 	}
 
 	private Job lockDraft(UUID customerId, UUID jobId) {
-		Job job = this.jdbc.sql("SELECT " + COLUMNS + " FROM job.job WHERE id = :id AND customer_account_id = :customer"
+		Job job = this.jdbc.sql("SELECT " + COLUMNS + " FROM job.job WHERE id = :id AND customer_account_id = :customer AND " + LIVE
 				+ " FOR UPDATE")
 			.param("id", jobId)
 			.param("customer", customerId)

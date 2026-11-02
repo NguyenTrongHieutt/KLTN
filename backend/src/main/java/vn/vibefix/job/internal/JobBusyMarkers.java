@@ -53,7 +53,7 @@ class JobBusyMarkers implements JobBusy {
 	@Override
 	@Transactional(readOnly = true)
 	public Optional<BusyJob> job(UUID jobId) {
-		return this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id")
+		return this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id AND " + Jobs.LIVE)
 			.param("id", jobId)
 			.query(Jobs::job)
 			.optional()

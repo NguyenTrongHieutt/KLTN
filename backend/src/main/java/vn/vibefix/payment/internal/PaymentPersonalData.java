@@ -16,9 +16,10 @@ import vn.vibefix.shared.PersonalDataSection;
 
 /**
  * {@code payment}'s part in exports, erasure, and Product deletion (AD-24): a Customer exports their
- * Payment Orders. The money is test-mode only, so the orders and the ledger of a Customer's Jobs go
- * with those Jobs, and with the Product; a running Job already keeps its Customer from being erased
- * ({@code job}'s blocker).
+ * Payment Orders. The ledger, its accounts, the Payment Orders, and the refunds are financial records under NFR-10's
+ * legal retention, and other people's Balances stand on them (A-01): a Product deletion and an erasure keep them, and an
+ * erasure anonymizes the Customer on the orders and refunds. A running Job already keeps its Customer from being erased
+ * ({@code job}'s blocker). Only the share holds of those Jobs go, until Story 22.4 retires the rest of them.
  */
 @Component
 class PaymentPersonalData implements PersonalDataParticipant {
@@ -54,30 +55,24 @@ class PaymentPersonalData implements PersonalDataParticipant {
 
 	@Override
 	public void eraseAccount(UUID accountId) {
-		List<UUID> jobs = this.jdbc.sql("SELECT DISTINCT job_id FROM payment.payment_order WHERE customer_account_id = :id")
-			.param("id", accountId)
-			.query(UUID.class)
-			.list();
-		if (!jobs.isEmpty()) {
-			delete("job_id IN (:ids)", Map.of("ids", jobs));
+		this.jdbc.sql("""
+				DELETE FROM payment.share_hold WHERE job_id IN (SELECT job_id FROM payment.payment_order WHERE customer_account_id = :id)
+				""").param("id", accountId).update();
+		for (String table : List.of("payment.payment_order", "payment.refund")) {
+			this.jdbc.sql("UPDATE " + table + " SET customer_account_id = NULL WHERE customer_account_id = :id")
+				.param("id", accountId)
+				.update();
 		}
 	}
 
 	@Override
 	public void deleteProduct(UUID productId) {
-		delete("product_id = :id", Map.of("id", productId));
+		this.jdbc.sql("DELETE FROM payment.share_hold WHERE product_id = :id").param("id", productId).update();
 	}
 
 	@Override
 	public List<ErasureBlocker> erasureBlockers(UUID accountId) {
 		return List.of();
-	}
-
-	private void delete(String where, Map<String, Object> params) {
-		for (String table : List.of("payment.refund", "payment.share_hold", "payment.ledger_entry", "payment.ledger_account",
-				"payment.payment_order")) {
-			this.jdbc.sql("DELETE FROM " + table + " WHERE " + where).params(params).update();
-		}
 	}
 
 }

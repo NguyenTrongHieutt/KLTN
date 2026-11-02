@@ -50,11 +50,11 @@ class JobOversightQueries implements JobOversight {
 			catch (IllegalArgumentException unknown) {
 				throw new ApiException(ErrorCode.VALIDATION);
 			}
-			where.append(" WHERE j.state = :state");
+			where.append(" WHERE j.product_deleted_at IS NULL AND j.state = :state");
 			params.put("state", state);
 		}
 		else {
-			where.append(" WHERE j.state <> 'DRAFT'");
+			where.append(" WHERE j.product_deleted_at IS NULL AND j.state <> 'DRAFT'");
 		}
 		if (flag == Flag.OVERDUE) {
 			where.append(" AND ").append(OVERDUE);
@@ -77,7 +77,7 @@ class JobOversightQueries implements JobOversight {
 	@Override
 	@Transactional(readOnly = true)
 	public Optional<JobLine> job(UUID jobId) {
-		return this.jdbc.sql("SELECT " + COLUMNS + " FROM job.job j WHERE j.id = :id")
+		return this.jdbc.sql("SELECT " + COLUMNS + " FROM job.job j WHERE j.id = :id AND j.product_deleted_at IS NULL")
 			.param("id", jobId)
 			.query(JobOversightQueries::line)
 			.optional()

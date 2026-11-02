@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
 import vn.vibefix.identity.ActiveAccount;
-import vn.vibefix.job.Crews;
 import vn.vibefix.job.JobRoles;
 import vn.vibefix.job.MilestoneFunding;
 import vn.vibefix.job.MilestoneFunding.FundingJob;
@@ -61,30 +60,29 @@ class PaymentHistoryController {
 	}
 
 	record BalanceReleaseView(UUID jobId, String jobTitle, int number, String milestoneTitle, Instant releasedAt,
-			long baseAmountVnd, long yourPartVnd, @Nullable Integer yourPercent, @Nullable Integer crewTermsVersionNo,
+			long baseAmountVnd, long yourPartVnd, @Nullable Integer yourPercent, @Nullable Integer splitVersionNo,
 			List<CrewPartView> crew) {
 	}
 
-	/** One of the reader's own parts held for an open share Team Issue: "Đang giữ" (AD-40). */
+	/** One of the reader's own held parts (AD-40): none since Story 22.1, until Story 22.5 replaces the list. */
 	record HeldPartView(UUID jobId, String jobTitle, int number, String milestoneTitle, long amountVnd, Instant heldAt) {
 	}
 
 	/**
 	 * MEN-7 or STU-7.
 	 * @param sentToCrewVnd and {@code heldVnd}: the Mentor's only
-	 * @param heldParts the reader's own held parts, which the Balance never counts
+	 * @param heldParts the reader's own held parts, which the Balance never counts: empty since Story 22.1
 	 */
 	record BalanceView(long balanceVnd, int releases, @Nullable Long sentToCrewVnd, @Nullable Long heldVnd,
 			List<BalanceReleaseView> lines, List<HeldPartView> heldParts) {
 	}
 
 	record MentorReleaseView(String name, String role, long amountVnd, @Nullable Integer percent,
-			@Nullable Integer crewTermsVersionNo, Instant releasedAt) {
+			@Nullable Integer splitVersionNo, Instant releasedAt) {
 	}
 
 	record MentorFundingMilestoneView(UUID milestoneId, int number, String title, long priceVnd, String state, long fundedVnd,
-			long topUpVnd, long refundedVnd, long releasedTotalVnd, @Nullable Integer crewTermsVersionNo,
-			List<MentorReleaseView> releases) {
+			long topUpVnd, long refundedVnd, long releasedTotalVnd, List<MentorReleaseView> releases) {
 	}
 
 	record MentorOrderView(int number, long amountVnd, String status, Instant createdAt) {
@@ -103,8 +101,6 @@ class PaymentHistoryController {
 
 	private final MilestoneFunding funding;
 
-	private final Crews crews;
-
 	private final ActiveAccount gate;
 
 	private final CurrentCaller callers;
@@ -112,13 +108,12 @@ class PaymentHistoryController {
 	private final JobRoles roles;
 
 	PaymentHistoryController(PaymentHistory history, PaymentOrders orders, Refunds refunds, MilestoneFunding funding,
-			Crews crews, ActiveAccount gate, CurrentCaller callers, JobRoles roles) {
+			ActiveAccount gate, CurrentCaller callers, JobRoles roles) {
 		this.roles = roles;
 		this.history = history;
 		this.orders = orders;
 		this.refunds = refunds;
 		this.funding = funding;
-		this.crews = crews;
 		this.gate = gate;
 		this.callers = callers;
 	}
@@ -162,7 +157,7 @@ class PaymentHistoryController {
 				balance.lines()
 					.stream()
 					.map(line -> new BalanceReleaseView(line.jobId(), line.jobTitle(), line.number(), line.milestoneTitle(),
-							line.releasedAt(), line.baseAmountVnd(), line.yourPartVnd(), line.yourPercent(), line.crewTermsVersionNo(),
+							line.releasedAt(), line.baseAmountVnd(), line.yourPartVnd(), line.yourPercent(), line.splitVersionNo(),
 							line.crew().stream().map(part -> new CrewPartView(part.name(), part.amountVnd(), part.percent())).toList()))
 					.toList(),
 				balance.heldParts()
@@ -194,11 +189,10 @@ class PaymentHistoryController {
 			milestones.add(new MentorFundingMilestoneView(milestone.milestoneId(), milestone.number(), milestone.title(),
 					milestone.priceVnd(), milestone.state(), figures.fundedVnd(), figures.topUpVnd(), figures.refundedVnd(),
 					figures.releasedTotalVnd(),
-					this.crews.releaseTermsOf(milestone.milestoneId()).map(Crews.ReleaseTerms::versionNo).orElse(null),
 					releases.stream()
 						.map(release -> new MentorReleaseView(names.getOrDefault(release.partyId(), ""),
 								release.partyId().equals(mentor) ? "MENTOR" : "CREW", release.amountVnd(), release.percent(),
-								release.crewTermsVersionNo(), release.releasedAt()))
+								release.splitVersionNo(), release.releasedAt()))
 						.toList()));
 		}
 		List<MentorOrderView> orders = this.orders.ofJob(jobId)

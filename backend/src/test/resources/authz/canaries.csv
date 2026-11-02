@@ -13,6 +13,10 @@
 # - CREW_SHARE is that member's Crew Terms share. A percentage cannot be unique, so fixtures seed it as
 #   the member's part of the Milestone's release in VND, which only the Mentor's balance lists. An amount is
 #   scanned as digits and in its VND form, 7.316.429 (MatrixRowRunner.forms, review iteration 4).
+# - SPLIT_POOL_ENTRY, SPLIT_POOL_REVERSAL and SPLIT_OPEN are the crew Job's money between a release and its final split
+#   (Story 22.1, AD-20): the entry types of the pooled release and of its reversal, and the status of a split still
+#   open, on a Milestone accepted and waiting for its draft. No response names them, so no Customer surface can show how
+#   a released total is held or that a split is pending; Stories 22.2 and 22.5 open them to the split's parties.
 # - WORK_ITEM_NOTE, ATTACHMENT, CREW_CHAT, CREW_CHAT_UNREPORTED and CREW_PAGE are written after the windows of
 #   LOCKED and CREW_FORMER end, so only the ACTIVE Crew reads them; CROSS_ROLE is an ACTIVE member too. So are the
 #   titles WORK_ITEM_TITLE (the active member's Story, which the Customer's screens never name, AD-39, and the
@@ -71,3 +75,6 @@ BID_PROOF_LINK,https://proof.example.test/canary-bid-proof-6c2b9e,BIDDER CUSTOME
 CREW_APPLICATION_NOTE,canary-crew-application-note-4e7b2a,CREW_APPLICANT MENTOR,the note of the recruiting Job's pending Crew Application
 CREW_APPLICATION_PROOF_CAPTION,canary-crew-application-proof-9c1d5f,CREW_APPLICANT MENTOR,the caption of that application's proof file
 CREW_APPLICATION_PROOF_LINK,https://proof.example.test/canary-crew-application-3a8e6d,CREW_APPLICANT MENTOR,a proof link of that application
+SPLIT_POOL_ENTRY,RELEASE_POOLED,,the entry type of a Milestone's pooled release
+SPLIT_POOL_REVERSAL,POOL_RELEASED,,the entry type of the reversal of a pool by its final split
+SPLIT_OPEN,AWAITING_DRAFT,,the status of a split waiting for its draft

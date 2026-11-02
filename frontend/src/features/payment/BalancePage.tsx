@@ -147,7 +147,7 @@ function Content({ balance, mentor }: { balance: Balance; mentor: boolean }) {
                       </td>
                     )}
                     <td className="px-4 py-2.5">
-                      {line.crewTermsVersionNo != null && t('screen.payment.balance.version', { n: line.crewTermsVersionNo })}
+                      {line.splitVersionNo != null && t('screen.payment.balance.version', { n: line.splitVersionNo })}
                     </td>
                   </tr>
                 ))}

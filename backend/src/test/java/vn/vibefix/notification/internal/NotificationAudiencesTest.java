@@ -82,9 +82,8 @@ class NotificationAudiencesTest {
 	@Test
 	void splitNoticesReachTheSplitPartiesOnly() {
 		assertThat(type("payment.share_held").audiences()).containsExactly(Audience.SPLIT_PARTY);
-		// payment.funds_released keeps its built classes until Story 22.1 moves it to MENTOR and SPLIT_PARTY (A-11).
-		assertThat(type("payment.funds_released").audiences())
-			.containsExactlyInAnyOrder(Audience.MENTOR, Audience.CREW_EVER_ACTIVE);
+		// A-11: a member who was never a party of that Milestone cannot receive a part's amount.
+		assertThat(type("payment.funds_released").audiences()).containsExactlyInAnyOrder(Audience.MENTOR, Audience.SPLIT_PARTY);
 		for (NotificationType type : this.catalog.notificationTypes()) {
 			if (type.audiences().contains(Audience.SPLIT_PARTY)) {
 				assertThat(type.audiences()).as("%s reaches the split's parties and, at most, the Mentor", type.key())

@@ -313,7 +313,7 @@ class AgreementController {
 	}
 
 	private Job mentorJob(UUID mentor, UUID jobId) {
-		return this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id AND mentor_account_id = :mentor")
+		return this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id AND mentor_account_id = :mentor AND " + Jobs.LIVE)
 			.param("id", jobId)
 			.param("mentor", mentor)
 			.query(Jobs::job)

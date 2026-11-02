@@ -92,7 +92,7 @@ class MentorJobController {
 		UUID mentor = mentor();
 		Map<UUID, String> names = new HashMap<>();
 		return this.jdbc.sql("SELECT " + Jobs.COLUMNS
-				+ " FROM job.job WHERE mentor_account_id = :mentor ORDER BY selected_at DESC, id")
+				+ " FROM job.job WHERE mentor_account_id = :mentor AND " + Jobs.LIVE + " ORDER BY selected_at DESC, id")
 			.param("mentor", mentor)
 			.query(Jobs::job)
 			.list()
@@ -127,7 +127,7 @@ class MentorJobController {
 	}
 
 	private Job mine(UUID mentor, UUID jobId) {
-		return this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id AND mentor_account_id = :mentor")
+		return this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id AND mentor_account_id = :mentor AND " + Jobs.LIVE)
 			.param("id", jobId)
 			.param("mentor", mentor)
 			.query(Jobs::job)

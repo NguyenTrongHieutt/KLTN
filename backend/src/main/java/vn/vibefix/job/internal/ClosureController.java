@@ -149,7 +149,7 @@ class ClosureController {
 
 	/** The Customer, the Mentor, or a Crew member who was ever active (party empty) of a Job with a Board. */
 	private Viewer viewer(UUID jobId, Caller caller) {
-		Job job = this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id")
+		Job job = this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id AND " + Jobs.LIVE)
 			.param("id", jobId)
 			.query(Jobs::job)
 			.optional()

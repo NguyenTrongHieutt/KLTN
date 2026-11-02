@@ -39,6 +39,32 @@ class LedgerMathTest {
 	}
 
 	@Test
+	void aPoolCountsAsPaidOutAndAFinalSplitChangesNeitherReleasableNorTheReleasedTotal() {
+		List<Entry> entries = new ArrayList<>(List.of(new Entry("FUND", "MILESTONE", 10_000_001),
+				new Entry("RELEASE_POOLED", null, 10_000_001)));
+		assertThat(LedgerMath.paidOut(entries)).isEqualTo(10_000_001);
+		assertThat(LedgerMath.releasedTotal(entries)).isEqualTo(10_000_001);
+		assertThat(LedgerMath.releasable(entries)).isZero();
+		assertThat(LedgerMath.balanced(entries)).isTrue();
+
+		entries.add(new Entry("POOL_RELEASED", null, 10_000_001));
+		entries.add(new Entry("RELEASE", null, 3_000_001));
+		entries.add(new Entry("RELEASE", null, 5_000_000));
+		entries.add(new Entry("RELEASE", null, 2_000_000));
+
+		assertThat(LedgerMath.paidOut(entries)).isEqualTo(10_000_001);
+		assertThat(LedgerMath.releasedTotal(entries)).isEqualTo(10_000_001);
+		assertThat(LedgerMath.releasable(entries)).isZero();
+		assertThat(LedgerMath.balanced(entries)).isTrue();
+	}
+
+	@Test
+	void aSettlementsPoolAndRefundMakeUpTheFund() {
+		assertThat(LedgerMath.balanced(List.of(new Entry("FUND", "MILESTONE", 10_000_001), new Entry("RELEASE_POOLED", null, 6_000_000),
+				new Entry("REFUND_REQUESTED", "MILESTONE", 4_000_001)))).isTrue();
+	}
+
+	@Test
 	void anAppliedTopUpCountsOnceAndItsRefundCountsAgainstTheMilestone() {
 		// Story 14.2: the top-up's FUND sits in the Change Request bucket; its TOPUP_APPLIED is what counts.
 		List<Entry> entries = List.of(new Entry("FUND", "MILESTONE", 1_000_000), new Entry("FUND", "CHANGE_REQUEST", 200_000),

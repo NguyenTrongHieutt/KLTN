@@ -83,7 +83,7 @@ class JobRetention implements DeadlineHandler {
 	/** The retention of the Job's Product, counted from now. */
 	@Transactional
 	void schedule(UUID jobId) {
-		UUID product = this.jdbc.sql("SELECT product_id FROM job.job WHERE id = :id")
+		UUID product = this.jdbc.sql("SELECT product_id FROM job.job WHERE id = :id AND product_deleted_at IS NULL")
 			.param("id", jobId)
 			.query(UUID.class)
 			.optional()
@@ -104,7 +104,7 @@ class JobRetention implements DeadlineHandler {
 				SELECT EXISTS (SELECT 1 FROM job.job WHERE product_id = :product AND state NOT IN ('DRAFT', 'CLOSED', 'CANCELLED'))
 				""").param("product", product).query(Boolean.class).single();
 		UUID last = this.jdbc.sql("""
-				SELECT id FROM job.job WHERE product_id = :product AND state IN ('CLOSED', 'CANCELLED')
+				SELECT id FROM job.job WHERE product_id = :product AND state IN ('CLOSED', 'CANCELLED') AND product_deleted_at IS NULL
 				ORDER BY coalesce(closed_at, cancelled_at) DESC NULLS LAST, id DESC LIMIT 1
 				""").param("product", product).query(UUID.class).optional().orElse(null);
 		if (running || last == null || !last.equals(ending)) {

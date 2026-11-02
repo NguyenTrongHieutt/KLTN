@@ -78,7 +78,7 @@ class DecisionIT extends IntegrationTest {
 	private UUID criterion;
 
 	@Test
-	void acceptanceReleasesTheMilestoneByThePinnedCrewTermsInOneGo() throws Exception {
+	void acceptanceHoldsTheMilestoneInAPoolWhileItsSplitAwaitsTheDraft() throws Exception {
 		world(2);
 		String handover = handOver(5);
 		decide(this.hung, Role.MENTOR, handover, "accept", 6, true, null, null).andExpect(status().isForbidden())
@@ -98,14 +98,16 @@ class DecisionIT extends IntegrationTest {
 			.andExpect(jsonPath("$.checks[0].met").value(true))
 			.andExpect(jsonPath("$.decidedAt").exists());
 		assertThat(this.jdbc.sql("""
-				SELECT party_account_id || ':' || amount_vnd || ':' || share_percent || ':' || crew_terms_version_no || ':'
-				    || base_amount_vnd FROM payment.ledger_entry WHERE entry_type = 'RELEASE' ORDER BY amount_vnd DESC
+				SELECT entry_type || ':' || amount_vnd || ':' || (party_account_id IS NULL) FROM payment.ledger_entry
+				WHERE entry_type IN ('RELEASE_POOLED', 'POOL_RELEASED', 'RELEASE')
 				""").query(String.class).list())
-			.containsExactly(this.hung + ":700001:70:1:" + PRICE, this.vy + ":300000:30:1:" + PRICE);
+			.containsExactly("RELEASE_POOLED:" + PRICE + ":true");
+		assertThat(text("SELECT status || ':' || cap_applies FROM job.milestone_split WHERE milestone_id = '" + this.milestone + "'"))
+			.isEqualTo("AWAITING_DRAFT:true");
 		assertThat(text("SELECT state FROM job.milestone WHERE id = '" + this.milestone + "'")).isEqualTo("ACCEPTED");
 		assertThat(count("SELECT version FROM job.job WHERE id = '" + this.job + "'")).isEqualTo(7);
 		assertThat(notifications("job.milestone_accepted")).isEqualTo(2);
-		assertThat(notifications("payment.funds_released")).isEqualTo(2);
+		assertThat(notifications("payment.funds_released")).isZero();
 		assertThat(openTodos("delivery.review_handover", this.lan)).isZero();
 		await().atMost(Duration.ofSeconds(10)).until(() -> this.jdbc.sql("""
 				SELECT count(*) FROM notification.todo WHERE todo_key = 'payment.fund_milestone' AND subject_id = :next
@@ -119,21 +121,28 @@ class DecisionIT extends IntegrationTest {
 	}
 
 	/**
-	 * Story 21.5 (C-3): J6 pins one in-force version giving the Mentor 100% until Story 22.1's Milestone Splits, so an
-	 * acceptance releases the whole Milestone to the Mentor, a member who signed included in the Crew.
+	 * R9, A-10: with no Crew row active during the Milestone the split is final when created, and the Mentor is paid at
+	 * once, once the apply commits, whatever the Mentor-only pin says.
 	 */
 	@Test
-	void underTheMentorOnlyPinAnAcceptanceReleasesTheWholeMilestoneToTheMentor() throws Exception {
+	void withNoCrewActiveDuringTheMilestoneAnAcceptancePaysTheMentorAtOnce() throws Exception {
 		world(2, true);
 		String handover = handOver(5);
+		this.jdbc.sql("""
+				UPDATE job.crew_row SET status = 'RELEASED', released_reason = 'LEFT', released_at = :end, window_end = :end
+				WHERE job_id = :job
+				""").param("end", Timestamp.from(this.clock.instant().minus(Duration.ofMinutes(2)))).param("job", this.job).update();
 
 		decide(this.lan, Role.CUSTOMER, handover, "accept", 6, true, null, null).andExpect(status().isOk());
 
+		await().atMost(Duration.ofSeconds(10)).until(() -> notifications("payment.funds_released") == 1);
 		assertThat(this.jdbc.sql("""
-				SELECT party_account_id || ':' || amount_vnd || ':' || share_percent || ':' || crew_terms_version_no
+				SELECT party_account_id || ':' || amount_vnd || ':' || share_percent || ':' || split_version_no
 				FROM payment.ledger_entry WHERE entry_type = 'RELEASE'
 				""").query(String.class).list()).containsExactly(this.hung + ":" + PRICE + ":100:1");
-		assertThat(notifications("payment.funds_released")).isOne();
+		assertThat(text("SELECT status || ':' || final_version_no || ':' || cap_applies FROM job.milestone_split"))
+			.isEqualTo("FINAL:1:false");
+		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'POOL_RELEASED'")).isOne();
 	}
 
 	@Test
@@ -246,7 +255,10 @@ class DecisionIT extends IntegrationTest {
 		world(revisionRounds, false);
 	}
 
-	/** @param mentorOnly the Mentor-only pin J6 writes since Story 21.5, instead of a 70/30 Crew Terms version */
+	/**
+	 * The Milestone was funded a minute before the clock, after Vy signed.
+	 * @param mentorOnly the Mentor-only pin J6 writes since Story 21.5, instead of a 70/30 Crew Terms version
+	 */
 	private void world(int revisionRounds, boolean mentorOnly) throws Exception {
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.hung = TeamTestSupport.mentor(this.jdbc, "Đỗ Mạnh Hùng",
@@ -318,8 +330,9 @@ class DecisionIT extends IntegrationTest {
 		this.jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at, state, funded_at,
 				    crew_terms_version_no)
-				VALUES (:id, :job, 0, 'Báo cáo', :price, :rounds, now(), 'FUNDED', now(), 1)
+				VALUES (:id, :job, 0, 'Báo cáo', :price, :rounds, now(), 'FUNDED', :funded, 1)
 				""").param("id", this.milestone).param("job", this.job).param("price", PRICE).param("rounds", revisionRounds)
+			.param("funded", Timestamp.from(this.clock.instant().minus(Duration.ofMinutes(1))))
 			.update();
 		this.jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at)

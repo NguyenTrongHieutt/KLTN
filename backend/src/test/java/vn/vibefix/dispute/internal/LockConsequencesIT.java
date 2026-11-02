@@ -131,11 +131,11 @@ class LockConsequencesIT extends IntegrationTest {
 		assertThat(lockNotices()).as("a replay changes nothing").isEqualTo(told);
 		assertThat(count("SELECT count(*) FROM dispute.dispute WHERE job_id = '" + job + "'")).isZero();
 
-		// FR-42, AD-41: the release splits by the Milestone's pin, so the member who left is still paid.
+		// FR-42, AD-15: the release holds the Milestone in its pool, whoever left; a split pays each party later.
 		this.transactions.executeWithoutResult(status -> this.releases.release(job, this.held, UUID.randomUUID()));
 		assertThat(this.jdbc.sql("""
-				SELECT amount_vnd FROM payment.ledger_entry WHERE milestone_id = :id AND entry_type = 'RELEASE' AND party_account_id = :vy
-				""").param("id", this.held).param("vy", this.vy).query(Long.class).single()).isEqualTo(240000);
+				SELECT count(*) FROM payment.ledger_entry WHERE milestone_id = :id AND entry_type = 'RELEASE_POOLED'
+				""").param("id", this.held).query(Long.class).single()).isOne();
 
 		this.clock.advance(Duration.ofMinutes(5));
 		this.mvc.perform(post("/api/v1/admin/users/" + this.vy + "/unlock").with(admin(ha)).with(csrf())

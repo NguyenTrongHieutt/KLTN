@@ -29,7 +29,7 @@ const release = (overrides: object = {}) => ({
   baseAmountVnd: 1200000,
   yourPartVnd: 240000,
   yourPercent: 20,
-  crewTermsVersionNo: 1,
+  splitVersionNo: 1,
   crew: [{ name: 'Trần Quang Minh', amountVnd: 960000, percent: 80 }],
   ...overrides,
 })
@@ -136,10 +136,9 @@ describe("JOB-7 for the Mentor: each release by party (AD-20)", () => {
               topUpVnd: 0,
               refundedVnd: 0,
               releasedTotalVnd: 2000000,
-              crewTermsVersionNo: 1,
               releases: [
-                { name: 'Đỗ Mạnh Hùng', role: 'MENTOR', amountVnd: 400000, percent: 20, crewTermsVersionNo: 1, releasedAt: '2026-10-25T03:00:00Z' },
-                { name: 'Trần Quang Minh', role: 'CREW', amountVnd: 1600000, percent: 80, crewTermsVersionNo: 1, releasedAt: '2026-10-25T03:00:00Z' },
+                { name: 'Đỗ Mạnh Hùng', role: 'MENTOR', amountVnd: 400000, percent: 20, splitVersionNo: 1, releasedAt: '2026-10-25T03:00:00Z' },
+                { name: 'Trần Quang Minh', role: 'CREW', amountVnd: 1600000, percent: 80, splitVersionNo: 1, releasedAt: '2026-10-25T03:00:00Z' },
               ],
             },
           ],
@@ -150,7 +149,7 @@ describe("JOB-7 for the Mentor: each release by party (AD-20)", () => {
 
     expect(await screen.findByText('Trần Quang Minh')).toBeInTheDocument()
     expect(screen.getByText('Nhóm thực hiện')).toBeInTheDocument()
-    expect(screen.getByText('Điều khoản phiên bản 1')).toBeInTheDocument()
+    expect(screen.queryByText(/Điều khoản phiên bản/)).not.toBeInTheDocument()
     expect(screen.getByText('80%')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Thanh toán' })).toHaveAttribute('aria-current', 'page')
   })

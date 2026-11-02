@@ -38,7 +38,7 @@ class JobHandovers implements MilestoneHandovers {
 	@Override
 	@Transactional(readOnly = true)
 	public Optional<HandoverJob> job(UUID jobId) {
-		return this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id")
+		return this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id AND " + Jobs.LIVE)
 			.param("id", jobId)
 			.query(Jobs::job)
 			.optional()

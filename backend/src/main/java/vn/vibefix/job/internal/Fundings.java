@@ -98,7 +98,7 @@ class Fundings implements MilestoneFunding {
 	@Transactional(readOnly = true)
 	public List<FundingJob> ofMentor(UUID mentorId) {
 		return this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE mentor_account_id = :mentor"
-				+ " AND agreement_version_no IS NOT NULL ORDER BY updated_at DESC, id")
+				+ " AND agreement_version_no IS NOT NULL AND " + Jobs.LIVE + " ORDER BY updated_at DESC, id")
 			.param("mentor", mentorId)
 			.query(Jobs::job)
 			.list()
@@ -161,7 +161,7 @@ class Fundings implements MilestoneFunding {
 	}
 
 	private Optional<Job> job(UUID jobId) {
-		return this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id")
+		return this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id AND " + Jobs.LIVE)
 			.param("id", jobId)
 			.query(Jobs::job)
 			.optional();

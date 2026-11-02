@@ -866,6 +866,7 @@
           "blocker": {
             "JOB_RUNNING": "Công việc đang chạy",
             "MILESTONE_PENDING": "Cột mốc người này đã tham gia chưa thanh toán xong",
+            "SPLIT_PENDING": "Tiền của một cột mốc người này tham gia chưa chia xong",
             "DISPUTE_OPEN": "Tranh chấp đang mở",
             "TEAM_ISSUE_OPEN": "Khiếu nại nội bộ chưa xong"
           },
@@ -2631,7 +2632,6 @@
       "mentor": {
         "releasesTitle": "Các lần chuyển tiền",
         "noReleases": "Chưa chuyển tiền",
-        "pin": "Điều khoản phiên bản {n}",
         "role": {
           "MENTOR": "Người hướng dẫn",
           "CREW": "Nhóm thực hiện"
@@ -3455,6 +3455,7 @@
       "blocker": {
         "JOB_RUNNING": "Công việc đang chạy",
         "MILESTONE_PENDING": "Cột mốc bạn đã tham gia chưa thanh toán xong",
+        "SPLIT_PENDING": "Tiền của một cột mốc bạn tham gia chưa chia xong",
         "DISPUTE_OPEN": "Tranh chấp đang mở",
         "TEAM_ISSUE_OPEN": "Khiếu nại nội bộ chưa xong"
       },

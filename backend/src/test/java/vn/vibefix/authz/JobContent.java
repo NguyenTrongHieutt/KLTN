@@ -460,16 +460,82 @@ public final class JobContent {
 		return order;
 	}
 
+	/** The Milestone's pool, as a release writes it (AD-15): the whole amount with no party. */
+	public static UUID pool(JdbcClient jdbc, UUID job, UUID product, UUID milestone, long amountVnd, Instant at) {
+		UUID id = UUID.randomUUID();
+		jdbc.sql("""
+				INSERT INTO payment.ledger_entry (id, operation_key, entry_type, job_id, product_id, milestone_id, amount_vnd, created_at)
+				VALUES (:id, :key, 'RELEASE_POOLED', :job, :product, :milestone, :amount, :at)
+				""")
+			.param("id", id)
+			.param("key", "RELEASE_POOLED:" + UUID.randomUUID())
+			.param("job", job)
+			.param("product", product)
+			.param("milestone", milestone)
+			.param("amount", amountVnd)
+			.param("at", Timestamp.from(at))
+			.update();
+		return id;
+	}
+
+	/** The whole pool reversed by its final split (AD-15). */
+	public static void poolReleased(JdbcClient jdbc, UUID job, UUID product, UUID milestone, UUID pool, long amountVnd, Instant at) {
+		jdbc.sql("""
+				INSERT INTO payment.ledger_entry (id, operation_key, entry_type, job_id, product_id, milestone_id, amount_vnd,
+				    reverses_entry_id, created_at)
+				VALUES (:id, :key, 'POOL_RELEASED', :job, :product, :milestone, :amount, :pool, :at)
+				""")
+			.param("id", UUID.randomUUID())
+			.param("key", "POOL_RELEASED:" + pool)
+			.param("job", job)
+			.param("product", product)
+			.param("milestone", milestone)
+			.param("amount", amountVnd)
+			.param("pool", pool)
+			.param("at", Timestamp.from(at))
+			.update();
+	}
+
+	/** The Milestone's split with the Mentor and one member as a release fixes them, waiting for the draft (AD-29). */
+	public static void openSplit(JdbcClient jdbc, UUID job, UUID product, UUID milestone, int number, UUID mentor, UUID member,
+			Instant released) {
+		UUID split = UUID.randomUUID();
+		jdbc.sql("""
+				INSERT INTO job.milestone_split (id, job_id, product_id, milestone_id, milestone_number, mentor_account_id, status,
+				    cap_applies, released_at, draft_due_at, created_at)
+				VALUES (:id, :job, :product, :milestone, :number, :mentor, 'AWAITING_DRAFT', true, :released, :due, :released)
+				""")
+			.param("id", split)
+			.param("job", job)
+			.param("product", product)
+			.param("milestone", milestone)
+			.param("number", number)
+			.param("mentor", mentor)
+			.param("released", Timestamp.from(released))
+			.param("due", Timestamp.from(released.plus(java.time.Duration.ofDays(7))))
+			.update();
+		jdbc.sql("""
+				INSERT INTO job.milestone_split_party (id, split_id, party_account_id, is_mentor, whole_interval, active_at_release,
+				    position)
+				VALUES (:mentorParty, :split, :mentor, true, true, true, 0), (:memberParty, :split, :member, false, true, true, 1)
+				""")
+			.param("mentorParty", UUID.randomUUID())
+			.param("memberParty", UUID.randomUUID())
+			.param("split", split)
+			.param("mentor", mentor)
+			.param("member", member)
+			.update();
+	}
+
 	/**
-	 * One party's part of a Milestone's release under Crew Terms version 1 (FR-42, AD-15), keyed by the release's
-	 * transition as {@code MilestoneReleases} keys it: {@code RELEASE}, or {@code RELEASE_HELD} for a party a share
-	 * Team Issue holds.
+	 * One party's part of a Milestone's final split at version 1 (FR-42, AD-15), keyed by the split as
+	 * {@code SplitPoolExecution} keys it.
 	 */
 	public static void release(JdbcClient jdbc, String type, UUID transition, UUID job, UUID product, UUID milestone,
 			UUID party, long amountVnd, int percent, long baseVnd, Instant at) {
 		jdbc.sql("""
 				INSERT INTO payment.ledger_entry (id, operation_key, entry_type, job_id, product_id, milestone_id, amount_vnd,
-				    party_account_id, crew_terms_version_no, share_percent, base_amount_vnd, created_at)
+				    party_account_id, split_version_no, share_percent, base_amount_vnd, created_at)
 				VALUES (:id, :key, :type, :job, :product, :milestone, :amount, :party, 1, :percent, :base, :at)
 				""")
 			.param("id", UUID.randomUUID())

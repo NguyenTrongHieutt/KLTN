@@ -115,9 +115,6 @@ function MentorFunding({ funding }: { funding: MentorJobFunding }) {
                 {t('screen.payment.released')}: {formatVnd(milestone.releasedTotalVnd)} <TestTag />
               </span>
             </p>
-            {milestone.crewTermsVersionNo != null && (
-              <p className="text-caption text-muted-foreground">{t('screen.payment.mentor.pin', { n: milestone.crewTermsVersionNo })}</p>
-            )}
             <p className="text-label font-semibold">{t('screen.payment.mentor.releasesTitle')}</p>
             {milestone.releases.length === 0 ? (
               <p className="text-muted-foreground">{t('screen.payment.mentor.noReleases')}</p>
@@ -131,9 +128,9 @@ function MentorFunding({ funding }: { funding: MentorJobFunding }) {
                       {formatVnd(release.amountVnd)} <TestTag />
                     </span>
                     {release.percent != null && <span>{t('screen.payment.balance.percent', { n: release.percent })}</span>}
-                    {release.crewTermsVersionNo != null && (
+                    {release.splitVersionNo != null && (
                       <span className="text-caption text-muted-foreground">
-                        {t('screen.payment.balance.version', { n: release.crewTermsVersionNo })}
+                        {t('screen.payment.balance.version', { n: release.splitVersionNo })}
                       </span>
                     )}
                   </li>

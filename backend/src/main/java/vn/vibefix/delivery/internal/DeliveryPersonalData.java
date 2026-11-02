@@ -1,5 +1,7 @@
 package vn.vibefix.delivery.internal;
 
+import java.sql.Timestamp;
+import java.time.Clock;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -8,9 +10,12 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
 
 import vn.vibefix.files.StoredFiles;
+import vn.vibefix.job.MilestoneSplitFinalized;
+import vn.vibefix.job.MilestoneSplits;
 
 import vn.vibefix.shared.ErasureBlocker;
 import vn.vibefix.shared.PersonalDataParticipant;
@@ -23,6 +28,10 @@ import vn.vibefix.shared.PersonalDataSection;
  * deleting a Product deletes its handovers. A Mentor's screenshot uploads are theirs (Story 8.3): erasure
  * deletes those no handover carries and clears them as uploader of the others; deleting a Product deletes
  * them all, files included. A running Job blocks erasure through {@code job}.
+ * <p>
+ * While a Milestone Split of a Job is not final, its Handover Commit authors stay as evidence a Split Resolution reads,
+ * with the handover rows they hang from (AD-24, A-01): the rest goes, a row in {@code delivery.split_deferral} says what
+ * waits, and the listener on {@link MilestoneSplitFinalized} finishes it once the Job has no open split.
  */
 @Component
 class DeliveryPersonalData implements PersonalDataParticipant {
@@ -31,9 +40,15 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 
 	private final StoredFiles files;
 
-	DeliveryPersonalData(JdbcClient jdbc, StoredFiles files) {
+	private final MilestoneSplits splits;
+
+	private final Clock clock;
+
+	DeliveryPersonalData(JdbcClient jdbc, StoredFiles files, MilestoneSplits splits, Clock clock) {
 		this.jdbc = jdbc;
 		this.files = files;
+		this.splits = splits;
+		this.clock = clock;
 	}
 
 	@Override
@@ -124,28 +139,7 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 
 	@Override
 	public void deleteProduct(UUID productId) {
-		this.jdbc.sql("DELETE FROM delivery.follow_up WHERE product_id = :id").param("id", productId).update();
-		this.jdbc.sql("SELECT file_id FROM delivery.handover_screenshot WHERE product_id = :id")
-			.param("id", productId)
-			.query(UUID.class)
-			.list()
-			.forEach(this.files::delete);
-		this.jdbc.sql("DELETE FROM delivery.handover_screenshot WHERE product_id = :id").param("id", productId).update();
-		String handovers = "SELECT id FROM delivery.handover WHERE product_id = :id";
-		this.jdbc.sql("DELETE FROM delivery.handover_criterion WHERE handover_id IN (" + handovers + ")")
-			.param("id", productId)
-			.update();
-		this.jdbc.sql("DELETE FROM delivery.handover_item_note WHERE handover_id IN (" + handovers + ")")
-			.param("id", productId)
-			.update();
-		this.jdbc.sql("DELETE FROM delivery.handover_check WHERE handover_id IN (" + handovers + ")")
-			.param("id", productId)
-			.update();
-		for (String table : List.of("delivery.handover_commit", "delivery.handover_sensitive_change", "delivery.handover_page",
-				"delivery.handover_acceptance")) {
-			this.jdbc.sql("DELETE FROM " + table + " WHERE handover_id IN (" + handovers + ")").param("id", productId).update();
-		}
-		this.jdbc.sql("DELETE FROM delivery.handover WHERE product_id = :id").param("id", productId).update();
+		deleteOrDefer(productId, "DELETE");
 	}
 
 	/**
@@ -155,6 +149,16 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 	 */
 	@Override
 	public void retireJobData(UUID productId) {
+		deleteOrDefer(productId, "RETIRE");
+	}
+
+	/**
+	 * What each handover said goes for every Job of the Product. The recorded commits, and on a deletion the handover rows,
+	 * go too, unless an open split makes them wait.
+	 */
+	private void deleteOrDefer(UUID productId, String waiting) {
+		Set<UUID> open = this.splits.openSplitJobs(productId);
+		open.forEach(job -> defer(job, productId, waiting));
 		this.jdbc.sql("DELETE FROM delivery.follow_up WHERE product_id = :id").param("id", productId).update();
 		this.jdbc.sql("SELECT file_id FROM delivery.handover_screenshot WHERE product_id = :id")
 			.param("id", productId)
@@ -164,10 +168,55 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 		this.jdbc.sql("DELETE FROM delivery.handover_screenshot WHERE product_id = :id").param("id", productId).update();
 		String handovers = "SELECT id FROM delivery.handover WHERE product_id = :id";
 		for (String table : List.of("delivery.handover_criterion", "delivery.handover_item_note", "delivery.handover_check",
-				"delivery.handover_commit", "delivery.handover_sensitive_change", "delivery.handover_page",
-				"delivery.handover_acceptance")) {
+				"delivery.handover_sensitive_change", "delivery.handover_page", "delivery.handover_acceptance")) {
 			this.jdbc.sql("DELETE FROM " + table + " WHERE handover_id IN (" + handovers + ")").param("id", productId).update();
 		}
+		this.jdbc.sql("SELECT DISTINCT job_id FROM delivery.handover WHERE product_id = :id")
+			.param("id", productId)
+			.query(UUID.class)
+			.list()
+			.stream()
+			.filter(job -> !open.contains(job))
+			.forEach(job -> finish(job, waiting));
+	}
+
+	/** The Job's last split is final: what waited goes. A replay finds no deferral. */
+	@ApplicationModuleListener
+	void onMilestoneSplitFinalized(MilestoneSplitFinalized event) {
+		String waiting = this.jdbc.sql("SELECT waiting FROM delivery.split_deferral WHERE job_id = :job FOR UPDATE")
+			.param("job", event.jobId())
+			.query(String.class)
+			.optional()
+			.orElse(null);
+		if (waiting == null || this.splits.hasOpenSplit(event.jobId())) {
+			return;
+		}
+		finish(event.jobId(), waiting);
+		this.jdbc.sql("DELETE FROM delivery.split_deferral WHERE job_id = :job").param("job", event.jobId()).update();
+	}
+
+	/** The Job's recorded commits and, on a deletion, its handover rows. */
+	private void finish(UUID jobId, String waiting) {
+		this.jdbc.sql("DELETE FROM delivery.handover_commit WHERE handover_id IN (SELECT id FROM delivery.handover WHERE job_id = :job)")
+			.param("job", jobId)
+			.update();
+		if ("DELETE".equals(waiting)) {
+			this.jdbc.sql("DELETE FROM delivery.handover WHERE job_id = :job").param("job", jobId).update();
+		}
+	}
+
+	/** Records what waits for the Job's open split; a deletion outranks a retirement. */
+	private void defer(UUID jobId, UUID productId, String waiting) {
+		this.jdbc.sql("""
+				INSERT INTO delivery.split_deferral (job_id, product_id, waiting, deferred_at) VALUES (:job, :product, :waiting, :now)
+				ON CONFLICT (job_id) DO UPDATE SET waiting = CASE WHEN EXCLUDED.waiting = 'DELETE' THEN 'DELETE'
+				    ELSE delivery.split_deferral.waiting END
+				""")
+			.param("job", jobId)
+			.param("product", productId)
+			.param("waiting", waiting)
+			.param("now", Timestamp.from(this.clock.instant()))
+			.update();
 	}
 
 	@Override

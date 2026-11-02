@@ -11,6 +11,9 @@
  * The Job's Mentor recruits its Crew from J4 until J8 (Story 21.4): the setting lives on the Job, and
  * {@link vn.vibefix.job.CrewRecruitment} is how {@code matching} sends a Crew Application under the Job row lock.
  * <p>
+ * Each release creates its Milestone's split, with its parties fixed (Story 22.1): {@link vn.vibefix.job.MilestoneSplits}
+ * reads it, even after the Job's data is gone, and {@link vn.vibefix.job.MilestoneSplitFinalized} says it is final.
+ * <p>
  * Public API: {@link vn.vibefix.job.JobTransitioned} and {@link vn.vibefix.job.JobPosts}. The HTTP
  * endpoints, the transition steps, the selection lapse, the recipient lookup, the Skill-name
  * listener, and the screenshot read policy are wiring in {@code job.internal}.

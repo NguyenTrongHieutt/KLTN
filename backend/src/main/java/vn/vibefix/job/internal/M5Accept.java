@@ -27,11 +27,11 @@ import vn.vibefix.timers.Deadlines;
 
 /**
  * M5 (FR-33, FR-35, AD-5): the Customer accepts the current handover, or Auto-acceptance does (Story
- * 6.4). The Milestone records when and whether automatically, and carries the Crew Terms version its
- * release uses; the Customer and the Mentor get {@code job.milestone_accepted}. {@code delivery} has
- * {@code payment} write the RELEASE entries in the same transaction. With a Planned Milestone after it,
- * the Customer hears that it waits for payment, and {@link MilestoneUnfunded} reminds both sides if it
- * still does 14 days later (FR-41).
+ * 6.4). The Milestone records when and whether automatically, and its one split is created with its
+ * parties fixed (AD-29, AD-41); the Customer and the Mentor get {@code job.milestone_accepted}.
+ * {@code delivery} then has {@code payment} write the RELEASE_POOLED in the same transaction, so nobody is
+ * paid at the release. With a Planned Milestone after it, the Customer hears that it waits for payment, and
+ * {@link MilestoneUnfunded} reminds both sides if it still does 14 days later (FR-41).
  */
 @Component
 class M5Accept implements JobLifecycle.Step {
@@ -52,12 +52,15 @@ class M5Accept implements JobLifecycle.Step {
 
 	private final Deadlines deadlines;
 
+	private final JobMilestoneSplits splits;
+
 	/** The next Planned Milestone and its price. */
 	private record Next(UUID id, long priceVnd) {
 	}
 
 	M5Accept(JdbcClient jdbc, M1Fund numbers, Notifications notifications, AuditLog auditLog, ClosureProposals closures,
-			Deadlines deadlines) {
+			Deadlines deadlines, JobMilestoneSplits splits) {
+		this.splits = splits;
 		this.jdbc = jdbc;
 		this.deadlines = deadlines;
 		this.numbers = numbers;
@@ -92,20 +95,14 @@ class M5Accept implements JobLifecycle.Step {
 		applying.fact("handoverId", applying.input("handoverId").toString());
 		applying.fact("number", String.valueOf(this.numbers.number(applying.job().id(), applying.milestoneId())));
 		applying.fact("auto", String.valueOf(auto));
-		Integer pin = this.jdbc.sql("SELECT crew_terms_version_no FROM job.milestone WHERE id = :id")
-			.param("id", applying.milestoneId())
-			.query(Integer.class)
-			.optional()
-			.orElse(null);
-		if (pin != null) {
-			applying.fact("crewTermsVersionNo", String.valueOf(pin));
-		}
 	}
 
 	@Override
 	public void afterWrite(Applying applying) {
 		Job job = applying.job();
 		boolean auto = applying.trigger() == Trigger.AUTO;
+		this.splits.createAtRelease(job, applying.milestoneId(), this.numbers.number(job.id(), applying.milestoneId()),
+				applying.now());
 		if (auto) {
 			this.auditLog.record(AuditEntry.of(AuditActor.system(), AUTO_ACCEPTED,
 					AuditObject.of("job.milestone", applying.milestoneId())).forJob(job.id()));

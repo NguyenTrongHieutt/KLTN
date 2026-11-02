@@ -37,8 +37,9 @@ import vn.vibefix.shared.IdGenerator;
  * {@code DECLINED}, {@code WITHDRAWN}, {@code LEFT} or {@code JOB_ENDED}. Every write runs under the Job row lock its
  * caller holds and increments {@code crew_version}; a write that changes the usernames the Customer sees, an
  * activation or the release of an active row, also increments {@code version}. Crew Terms are no longer written: J6
- * pins one in-force version giving the Mentor 100% ({@link #pinMentorOnly}), which M1, the releases and the share holds
- * read until Story 22.1's Milestone Splits replace it (C-3). Nobody removes a member who signed.
+ * pins one in-force version giving the Mentor 100% ({@link #pinMentorOnly}), which M1 and the share holds read until
+ * Story 22.4 retires it (C-3); a release splits by the Milestone's own split (Story 22.1). Nobody removes a member who
+ * signed.
  */
 @Component
 class CrewService implements Crews {
@@ -230,9 +231,9 @@ class CrewService implements Crews {
 
 	/**
 	 * J6 (C-3, Story 21.5): Crew Terms are no longer written, so J6 brings one version into force that gives the Mentor
-	 * 100%: M1 pins it, each release pays the Mentor, and the share holds and {@code SPLIT_PARTY} keep working until
-	 * Story 22.1's Milestone Splits replace the pin. A version still pending from before is voided; a version already in
-	 * force (a Job that started before) is kept. Runs in J6's apply.
+	 * 100%: M1 pins it, and the share holds keep working until Story 22.4 retires them; a release no longer reads it
+	 * (Story 22.1). A version still pending from before is voided; a version already in force (a Job that started before)
+	 * is kept. Runs in J6's apply.
 	 * @return the version in force
 	 */
 	int pinMentorOnly(UUID jobId, UUID mentorId) {
@@ -438,7 +439,7 @@ class CrewService implements Crews {
 
 	/** The Job as it stands, read under the lock its caller already holds. */
 	Job current(UUID jobId) {
-		return this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id")
+		return this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id AND " + Jobs.LIVE)
 			.param("id", jobId)
 			.query(Jobs::job)
 			.single();
@@ -449,7 +450,7 @@ class CrewService implements Crews {
 	 * @throws ApiException {@code NOT_FOUND} for no such Job
 	 */
 	Job lockJob(UUID jobId) {
-		return this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id FOR UPDATE")
+		return this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id AND " + Jobs.LIVE + " FOR UPDATE")
 			.param("id", jobId)
 			.query(Jobs::job)
 			.optional()

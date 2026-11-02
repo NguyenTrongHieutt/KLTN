@@ -478,7 +478,7 @@ class AgreementReviews {
 	}
 
 	private Job lockJob(UUID jobId) {
-		return this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id FOR UPDATE")
+		return this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id AND " + Jobs.LIVE + " FOR UPDATE")
 			.param("id", jobId)
 			.query(Jobs::job)
 			.optional()
