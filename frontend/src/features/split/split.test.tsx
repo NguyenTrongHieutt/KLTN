@@ -23,11 +23,12 @@ afterEach(() => {
 })
 
 const parties = [
-  { partyId: 'p0', name: 'Đỗ Mạnh Hùng', mentor: true, wholeInterval: true, activeAtRelease: true },
-  { partyId: 'p1', name: 'Trần Thảo Vy', mentor: false, wholeInterval: true, activeAtRelease: true },
+  { partyId: 'p0', name: 'Đỗ Mạnh Hùng', erased: false, mentor: true, wholeInterval: true, activeAtRelease: true },
+  { partyId: 'p1', name: 'Trần Thảo Vy', erased: false, mentor: false, wholeInterval: true, activeAtRelease: true },
   {
     partyId: 'p2',
     name: 'Nguyễn Văn Minh',
+    erased: false,
     mentor: false,
     wholeInterval: false,
     activeAtRelease: false,
@@ -56,11 +57,13 @@ function card(overrides: Partial<SplitCard> = {}): SplitCard {
     milestoneId: 'm1',
     milestoneNumber: 2,
     jobTitle: 'Sửa sổ đặt bàn',
+    jobLive: true,
     status: 'AWAITING_DRAFT',
     pooledVnd: 2_000_000,
     paid: false,
     capApplies: true,
     cap: 30,
+    editsUsed: 0,
     editsLeft: 3,
     editLimit: 3,
     draftDueAt: '2026-11-10T03:00:00Z',
@@ -95,6 +98,21 @@ function backend(cards: SplitCard[], handlers: Parameters<typeof fakeBackend>[1]
 function typePercent(name: RegExp, value: string) {
   fireEvent.change(screen.getByRole('textbox', { name }), { target: { value } })
 }
+
+/** The Confirmation dialog of "Gửi để xác nhận" or "Xác nhận": the form's button opens it, and its own button sends. */
+async function sendThroughTheDialog(name: string) {
+  fireEvent.click(screen.getByRole('button', { name }))
+  const dialog = await screen.findByRole('dialog')
+  fireEvent.click(within(dialog).getByRole('button', { name }))
+}
+
+function typeDraft(mentor: string, vy: string, minh: string) {
+  typePercent(/Đỗ Mạnh Hùng/, mentor)
+  typePercent(/Trần Thảo Vy/, vy)
+  typePercent(/Nguyễn Văn Minh/, minh)
+}
+
+const reads = (seen: Request[]) => seen.filter((request) => request.url.endsWith('/api/v1/jobs/j1/splits')).length
 
 describe('JOB-10, the Mentor', () => {
   it('drafts with whole percentages, the sum, the server preview, the chip and N-29', { timeout: 20_000 }, async () => {
@@ -137,7 +155,7 @@ describe('JOB-10, the Mentor', () => {
     typePercent(/Nguyễn Văn Minh/, '30')
     expect(await screen.findByText(/800\.000 ₫/)).toBeInTheDocument()
     expect(send).toBeEnabled()
-    fireEvent.click(send)
+    await sendThroughTheDialog('Gửi để xác nhận')
 
     await waitFor(() => expect(seen.some((request) => request.url.endsWith('/versions'))).toBe(true))
     const save = seen.find((request) => request.url.endsWith('/versions'))
@@ -225,7 +243,7 @@ describe('JOB-10, the Mentor', () => {
     expect(screen.getByRole('textbox', { name: /Trần Thảo Vy/ })).toHaveValue('40')
     typePercent(/Trần Thảo Vy/, '35')
     typePercent(/Nguyễn Văn Minh/, '35')
-    fireEvent.click(screen.getByRole('button', { name: 'Gửi để xác nhận' }))
+    await sendThroughTheDialog('Gửi để xác nhận')
 
     await waitFor(() => expect(seen.some((request) => request.url.endsWith('/versions'))).toBe(true))
     const save = seen.find((request) => request.url.endsWith('/versions'))
@@ -331,7 +349,7 @@ describe('JOB-10, a party', () => {
     // The request for a resolution lands with Story 22.3.
     expect(screen.queryByRole('button', { name: 'Nhờ quản trị viên xem xét' })).toBeNull()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }))
+    await sendThroughTheDialog('Xác nhận')
 
     await waitFor(() => expect(seen.some((request) => request.url.endsWith('/confirmations'))).toBe(true))
     const confirm = seen.find((request) => request.url.endsWith('/confirmations'))
@@ -347,7 +365,7 @@ describe('JOB-10, a party', () => {
   })
 
   it('is told the Mentor edited and to confirm again', { timeout: 20_000 }, async () => {
-    backend([proposed({ ...member, editsLeft: 2, latest: version({ versionNo: 2 }) })])
+    backend([proposed({ ...member, editsUsed: 1, editsLeft: 2, latest: version({ versionNo: 2 }) })])
     renderAt('/cong-viec/j1/phan-chia')
 
     expect(
@@ -371,11 +389,13 @@ describe('JOB-10, a party', () => {
     })
     renderAt('/cong-viec/j1/phan-chia')
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Xác nhận' }))
+    await screen.findByRole('button', { name: 'Xác nhận' })
+    await sendThroughTheDialog('Xác nhận')
 
     expect(await screen.findByText(/Phân chia vừa thay đổi/)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Xem bản mới' }))
     await waitFor(() => expect(screen.queryByText(/Phân chia vừa thay đổi/)).toBeNull())
+    expect(screen.queryByRole('alert')).toBeNull()
   })
 
   it('says why a command past the due time was refused (A-09)', { timeout: 20_000 }, async () => {
@@ -385,10 +405,11 @@ describe('JOB-10, a party', () => {
     })
     renderAt('/cong-viec/j1/phan-chia')
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Xác nhận' }))
+    await screen.findByRole('button', { name: 'Xác nhận' })
+    await sendThroughTheDialog('Xác nhận')
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'đã hết hạn xác nhận; phân chia đang được chốt theo bản hiện tại',
+      'Đã hết hạn xác nhận; phân chia đang được chốt theo bản hiện tại.',
     )
   })
 })
@@ -509,11 +530,406 @@ describe('JOB-10, for everyone in the split', () => {
   })
 
   it('stands after the Job is gone, on the split’s own rows', { timeout: 20_000 }, async () => {
-    backend([proposed({ ...member, jobTitle: undefined })])
+    backend([proposed({ ...member, jobTitle: undefined, jobLive: false })])
     renderAt('/cong-viec/j1/phan-chia/m1')
 
     expect(await screen.findByText('Chờ bạn xác nhận trước 06/11')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Về công việc' })).toHaveAttribute('href', '/cong-viec')
+  })
+
+  it('links a bare row, which keeps its title, away from the Job’s not-found', { timeout: 20_000 }, async () => {
+    backend([proposed({ ...member, jobLive: false })])
+    renderAt('/cong-viec/j1/phan-chia')
+
+    expect(await screen.findByText('Sửa sổ đặt bàn')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Về công việc' })).toHaveAttribute('href', '/cong-viec')
+  })
+
+  it('links a live Job to its screen', { timeout: 20_000 }, async () => {
+    backend([proposed({ ...member })])
+    renderAt('/cong-viec/j1/phan-chia')
+
+    expect(await screen.findByRole('link', { name: 'Về công việc' })).toHaveAttribute('href', '/cong-viec/j1')
+  })
+
+  it('says the money waits until the split is final, in EXPERIENCE.md’s words', { timeout: 20_000 }, async () => {
+    backend([card({ ...member })])
+    renderAt('/cong-viec/j1/phan-chia')
+
+    expect(await screen.findByText(/của Giai đoạn 2 đang chờ phân chia/)).toBeInTheDocument()
+  })
+
+  it('no longer says so once it is final', { timeout: 20_000 }, async () => {
+    backend([
+      proposed({ ...member, status: 'FINAL', finality: 'CONFIRMED', finalAt: '2026-11-06T03:00:00Z', paid: true }),
+    ])
+    renderAt('/cong-viec/j1/phan-chia')
+
+    expect(await screen.findByText(/của Giai đoạn 2/)).toBeInTheDocument()
+    expect(screen.queryByText(/đang chờ phân chia/)).toBeNull()
+  })
+
+  it('tells someone erased from someone with no name', { timeout: 20_000 }, async () => {
+    backend([
+      card({
+        ...member,
+        parties: [
+          parties[0],
+          { ...parties[1], name: undefined, erased: true },
+          { ...parties[2], name: undefined, erased: false },
+        ],
+      }),
+    ])
+    renderAt('/cong-viec/j1/phan-chia')
+
+    expect(await screen.findByText('Người đã xóa tài khoản')).toBeInTheDocument()
+    expect(screen.getByText('Một thành viên')).toBeInTheDocument()
+  })
+
+  it('counts the edits from what the server says, whatever the limit is now', { timeout: 20_000 }, async () => {
+    backend([proposed({ ...member, editsUsed: 3, editsLeft: 0, editLimit: 1, latest: version({ versionNo: 4 }) })])
+    renderAt('/cong-viec/j1/phan-chia')
+
+    expect(await screen.findByText(/Người hướng dẫn đã sửa phân chia \(lần 3\/1\)/)).toBeInTheDocument()
+  })
+})
+
+describe('JOB-10, the deadline chip', () => {
+  const chip = (text: string) => screen.queryByText(text)?.closest('span')
+
+  it('reads the draft deadline while a draft is awaited', { timeout: 20_000 }, async () => {
+    backend([card({ ...member })])
+    renderAt('/cong-viec/j1/phan-chia')
+
+    expect(await screen.findByText('Hạn 10/11')).toBeInTheDocument()
+    expect(chip('Hạn 10/11')).toHaveClass('bg-muted')
+  })
+
+  it('warns when the draft deadline is near', { timeout: 20_000 }, async () => {
+    backend([card({ ...member, draftNear: true })])
+    renderAt('/cong-viec/j1/phan-chia')
+
+    await screen.findByText('Hạn 10/11')
+    expect(chip('Hạn 10/11')).toHaveClass('bg-warning-soft')
+  })
+
+  it('reads the confirmation deadline while one is awaited, and warns when near', { timeout: 20_000 }, async () => {
+    backend([proposed({ ...member, confirmationNear: true })])
+    renderAt('/cong-viec/j1/phan-chia')
+
+    await screen.findByText('Hạn 06/11')
+    expect(chip('Hạn 06/11')).toHaveClass('bg-warning-soft')
+    expect(screen.queryByText('Hạn 10/11')).toBeNull()
+  })
+
+  for (const [state, built] of [
+    ['the draft is late', () => card({ ...member, draftLate: true })],
+    ['past the due time', () => proposed({ ...member, pastDue: true })],
+    ['under a resolution', () => proposed({ ...member, status: 'IN_RESOLUTION' })],
+    ['final', () => proposed({ ...member, status: 'FINAL', finality: 'DEADLINE', finalAt: '2026-11-06T03:00:00Z' })],
+  ] as const) {
+    it(`is gone when ${state}`, { timeout: 20_000 }, async () => {
+      backend([built()])
+      renderAt('/cong-viec/j1/phan-chia')
+
+      await screen.findByRole('heading', { name: 'Giai đoạn 2' })
+      expect(screen.queryByText(/^Hạn /)).toBeNull()
+    })
+  }
+})
+
+describe('JOB-10, the Confirmation dialogs', () => {
+  it('asks a party first, and waits for the server', { timeout: 20_000 }, async () => {
+    let answer: (response: Response) => void = () => undefined
+    const seen = backend([proposed({ ...member })], {
+      'POST /api/v1/splits/s1/confirmations': () =>
+        new Promise<Response>((resolve) => {
+          answer = resolve
+        }),
+    })
+    renderAt('/cong-viec/j1/phan-chia')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Xác nhận' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('Xác nhận phân chia Giai đoạn 2?')).toBeInTheDocument()
+    expect(
+      within(dialog).getByText(
+        'Bạn đồng ý với các phần chia ở trên. Khi mọi thành viên đã xác nhận, phân chia sẽ chốt và tiền chuyển vào số dư, không sửa lại được.',
+      ),
+    ).toBeInTheDocument()
+    expect(seen.some((request) => request.url.endsWith('/confirmations'))).toBe(false)
+
+    const send = within(dialog).getByRole('button', { name: 'Xác nhận' })
+    fireEvent.click(send)
+    await waitFor(() => expect(send).toBeDisabled())
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+
+    answer(json({ versionNo: 1, status: 'PROPOSED' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+
+  it('sends nothing when the party goes back', { timeout: 20_000 }, async () => {
+    const seen = backend([proposed({ ...member })])
+    renderAt('/cong-viec/j1/phan-chia')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Xác nhận' }))
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Quay lại' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(seen.some((request) => request.url.endsWith('/confirmations'))).toBe(false)
+  })
+
+  it('asks the Mentor before a first send, with the date from the server', { timeout: 20_000 }, async () => {
+    const seen = backend([card()], {
+      'POST /api/v1/splits/s1/preview': () => json({ pooledVnd: 2_000_000, lines: [] }),
+    })
+    renderAt('/cong-viec/j1/phan-chia')
+    await screen.findByText('Soạn phân chia trước 10/11')
+    typeDraft('30', '40', '30')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi để xác nhận' }))
+
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('Gửi phân chia để xác nhận?')).toBeInTheDocument()
+    expect(
+      within(dialog).getByText(
+        'Các thành viên có đến 06/11 để xác nhận. Hết hạn mà chưa đủ xác nhận, phân chia vẫn chốt theo bản này.',
+      ),
+    ).toBeInTheDocument()
+    expect(seen.some((request) => request.url.endsWith('/versions'))).toBe(false)
+  })
+
+  it('warns the Mentor that an edit voids the confirmations', { timeout: 20_000 }, async () => {
+    backend([proposed()], {
+      'POST /api/v1/splits/s1/preview': () => json({ pooledVnd: 2_000_000, lines: [] }),
+    })
+    renderAt('/cong-viec/j1/phan-chia')
+    fireEvent.click(await screen.findByRole('button', { name: 'Sửa phân chia' }))
+    typePercent(/Trần Thảo Vy/, '35')
+    typePercent(/Nguyễn Văn Minh/, '35')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi để xác nhận' }))
+
+    expect(
+      within(await screen.findByRole('dialog')).getByText(
+        'Đây là một lần sửa: mọi xác nhận trước đó bị xóa và thời hạn bắt đầu lại. Các thành viên có đến 06/11 để xác nhận. Hết hạn mà chưa đủ xác nhận, phân chia vẫn chốt theo bản này.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('keeps an unchanged edit from being sent', { timeout: 20_000 }, async () => {
+    backend([proposed()], {
+      'POST /api/v1/splits/s1/preview': () => json({ pooledVnd: 2_000_000, lines: [] }),
+    })
+    renderAt('/cong-viec/j1/phan-chia')
+    fireEvent.click(await screen.findByRole('button', { name: 'Sửa phân chia' }))
+
+    expect(screen.getByRole('button', { name: 'Gửi để xác nhận' })).toBeDisabled()
+    typePercent(/Trần Thảo Vy/, '35')
+    typePercent(/Nguyễn Văn Minh/, '35')
+    expect(screen.getByRole('button', { name: 'Gửi để xác nhận' })).toBeEnabled()
+    typePercent(/Trần Thảo Vy/, '40')
+    typePercent(/Nguyễn Văn Minh/, '30')
+    expect(screen.getByRole('button', { name: 'Gửi để xác nhận' })).toBeDisabled()
+  })
+})
+
+describe('JOB-10, the refusals of a draft', () => {
+  const refused = (body: Record<string, unknown>, status: number) => ({
+    'POST /api/v1/splits/s1/preview': () => json({ pooledVnd: 2_000_000, lines: [] }),
+    'POST /api/v1/splits/s1/versions': () => json({ status, ...body }, status),
+  })
+
+  for (const [what, body, status, text] of [
+    [
+      'SPLIT_INVALID with the cap',
+      { code: 'VALIDATION', reason: 'SPLIT_INVALID', cap: 25 },
+      400,
+      'Phần trăm phải là số nguyên; người hướng dẫn tối đa 25%; thành viên làm cả giai đoạn phải lớn hơn 0%.',
+    ],
+    [
+      'SPLIT_INVALID without one',
+      { code: 'VALIDATION', reason: 'SPLIT_INVALID' },
+      400,
+      'Phần trăm phải là số nguyên; thành viên làm cả giai đoạn phải lớn hơn 0%.',
+    ],
+    [
+      'SPLIT_EDIT_LIMIT',
+      { code: 'GUARD_FAILED', reason: 'SPLIT_EDIT_LIMIT', n: 3 },
+      422,
+      'Đã dùng hết 3 lần sửa phân chia cho giai đoạn này.',
+    ],
+    [
+      'SPLIT_DRAFT_LATE',
+      { code: 'GUARD_FAILED', reason: 'SPLIT_DRAFT_LATE' },
+      422,
+      'Đã quá hạn soạn phân chia; phân chia mặc định không sửa được.',
+    ],
+  ] as const) {
+    it(`says why on ${what}`, { timeout: 20_000 }, async () => {
+      backend([card()], refused(body, status))
+      renderAt('/cong-viec/j1/phan-chia')
+      await screen.findByText('Soạn phân chia trước 10/11')
+      typeDraft('30', '40', '30')
+
+      await sendThroughTheDialog('Gửi để xác nhận')
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(text)
+    })
+  }
+
+  it('says why a preview was refused', { timeout: 20_000 }, async () => {
+    backend([card()], {
+      'POST /api/v1/splits/s1/preview': () =>
+        json({ status: 400, code: 'VALIDATION', reason: 'SPLIT_INVALID', cap: 25 }, 400),
+    })
+    renderAt('/cong-viec/j1/phan-chia')
+    await screen.findByText('Soạn phân chia trước 10/11')
+    typeDraft('30', '40', '30')
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('người hướng dẫn tối đa 25%')
+  })
+
+  it('opens the Stale dialog on STALE, with no alert after it closes', { timeout: 20_000 }, async () => {
+    backend([proposed()], refused({ code: 'STALE' }, 409))
+    renderAt('/cong-viec/j1/phan-chia')
+    fireEvent.click(await screen.findByRole('button', { name: 'Sửa phân chia' }))
+    typePercent(/Trần Thảo Vy/, '35')
+    typePercent(/Nguyễn Văn Minh/, '35')
+
+    await sendThroughTheDialog('Gửi để xác nhận')
+
+    expect(await screen.findByText(/Phân chia vừa thay đổi/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Xem bản mới' }))
+    await waitFor(() => expect(screen.queryByText(/Phân chia vừa thay đổi/)).toBeNull())
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('freezes the version the form opened on, and starts again from the newer one', { timeout: 20_000 }, async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    let cards = [proposed()]
+    const seen = fakeBackend(signedInUser, {
+      'GET /api/v1/jobs/j1/splits': () => json(cards),
+      'POST /api/v1/splits/s1/preview': () => json({ pooledVnd: 2_000_000, lines: [] }),
+      'POST /api/v1/splits/s1/versions': () => json({ status: 409, code: 'STALE' }, 409),
+    })
+    renderAt('/cong-viec/j1/phan-chia')
+    fireEvent.click(await screen.findByRole('button', { name: 'Sửa phân chia' }))
+    typePercent(/Trần Thảo Vy/, '35')
+    typePercent(/Nguyễn Văn Minh/, '35')
+
+    // Another tab saved version 2: the next poll brings it under the open form.
+    cards = [
+      proposed({
+        editsUsed: 1,
+        editsLeft: 2,
+        latest: version({
+          versionNo: 2,
+          lines: [
+            { partyId: 'p0', percent: 20, amountVnd: 400_000, confirmed: false },
+            { partyId: 'p1', percent: 50, amountVnd: 1_000_000, confirmed: false },
+            { partyId: 'p2', percent: 30, amountVnd: 600_000, confirmed: false },
+          ],
+        }),
+      }),
+    ]
+    await vi.advanceTimersByTimeAsync(30_000)
+    await waitFor(() => expect(screen.getByText('Còn 2/3 lần sửa')).toBeInTheDocument())
+    expect(screen.getByRole('textbox', { name: /Trần Thảo Vy/ })).toHaveValue('35')
+
+    await sendThroughTheDialog('Gửi để xác nhận')
+
+    await waitFor(() => expect(seen.some((request) => request.url.endsWith('/versions'))).toBe(true))
+    const save = seen.find((request) => request.url.endsWith('/versions'))
+    expect(await save?.clone().json()).toMatchObject({ shownVersionNo: 1 })
+    fireEvent.click(await screen.findByRole('button', { name: 'Xem bản mới' }))
+
+    await waitFor(() => expect(screen.getByRole('textbox', { name: /Trần Thảo Vy/ })).toHaveValue('50'))
+    expect(screen.getByRole('textbox', { name: /Đỗ Mạnh Hùng/ })).toHaveValue('20')
+  })
+})
+
+describe('JOB-10, reading the splits again', () => {
+  it('reads them after a save', { timeout: 20_000 }, async () => {
+    const seen = backend([card()], {
+      'POST /api/v1/splits/s1/preview': () => json({ pooledVnd: 2_000_000, lines: [] }),
+      'POST /api/v1/splits/s1/versions': () =>
+        json({ versionNo: 1, status: 'PROPOSED', confirmationDueAt: '2026-11-06T03:00:00Z' }),
+    })
+    renderAt('/cong-viec/j1/phan-chia')
+    await screen.findByText('Soạn phân chia trước 10/11')
+    const before = reads(seen)
+    typeDraft('30', '40', '30')
+
+    await sendThroughTheDialog('Gửi để xác nhận')
+
+    await waitFor(() => expect(reads(seen)).toBeGreaterThan(before))
+  })
+
+  it('reads them after a confirmation', { timeout: 20_000 }, async () => {
+    const seen = backend([proposed({ ...member })], {
+      'POST /api/v1/splits/s1/confirmations': () => json({ versionNo: 1, status: 'PROPOSED' }),
+    })
+    renderAt('/cong-viec/j1/phan-chia')
+    await screen.findByRole('button', { name: 'Xác nhận' })
+    const before = reads(seen)
+
+    await sendThroughTheDialog('Xác nhận')
+
+    await waitFor(() => expect(reads(seen)).toBeGreaterThan(before))
+  })
+
+  const finalCard = (paid: boolean) =>
+    proposed({ ...member, status: 'FINAL', finality: 'CONFIRMED', finalAt: '2026-11-06T03:00:00Z', paid })
+
+  it('stops polling once every card is final and paid', { timeout: 20_000 }, async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const seen = backend([finalCard(true)])
+    renderAt('/cong-viec/j1/phan-chia')
+    await screen.findAllByText('Đã về số dư')
+    const before = reads(seen)
+
+    await vi.advanceTimersByTimeAsync(61_000)
+
+    expect(reads(seen)).toBe(before)
+  })
+
+  it('goes on while a final card is unpaid, so "Đã về số dư" shows', { timeout: 20_000 }, async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    let cards = [finalCard(false)]
+    fakeBackend(signedInUser, { 'GET /api/v1/jobs/j1/splits': () => json(cards) })
+    renderAt('/cong-viec/j1/phan-chia')
+    await screen.findByText(/hết hạn xác nhận|mọi người đã xác nhận/)
+    expect(screen.queryByText('Đã về số dư')).toBeNull()
+
+    cards = [finalCard(true)]
+    await vi.advanceTimersByTimeAsync(30_000)
+
+    expect(await screen.findAllByText('Đã về số dư')).toHaveLength(3)
+  })
+
+  it('keeps the typed percentages through a failed poll', { timeout: 20_000 }, async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    let down = false
+    fakeBackend(signedInUser, {
+      'GET /api/v1/jobs/j1/splits': () => (down ? json({ status: 500 }, 500) : json([card()])),
+    })
+    renderAt('/cong-viec/j1/phan-chia')
+    await screen.findByText('Soạn phân chia trước 10/11')
+    typePercent(/Trần Thảo Vy/, '40')
+
+    down = true
+    await vi.advanceTimersByTimeAsync(30_000)
+    await vi.advanceTimersByTimeAsync(10)
+
+    expect(screen.getByRole('textbox', { name: /Trần Thảo Vy/ })).toHaveValue('40')
+  })
+
+  it('shows its error when the first load fails', { timeout: 20_000 }, async () => {
+    fakeBackend(signedInUser, { 'GET /api/v1/jobs/j1/splits': () => json({ status: 500 }, 500) })
+    renderAt('/cong-viec/j1/phan-chia')
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
   })
 })
 

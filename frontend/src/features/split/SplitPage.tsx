@@ -3,6 +3,7 @@ import { Dialog } from '@base-ui/react/dialog'
 import { Link, useParams } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
 import { usePageTitle } from '@/app/usePageTitle'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { inputClass } from '@/components/formField-props'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
@@ -17,7 +18,7 @@ import { t } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
 import { formatDate, formatDayMonth } from '@/lib/dates'
 import { formatVnd } from '@/lib/money'
-import { isNotFound, problemMessage } from '@/lib/problemMessage'
+import { isNotFound, problemMessage, sentence } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import {
   useConfirmSplit,
@@ -59,7 +60,7 @@ export function SplitPage() {
     <div className="mx-auto flex max-w-[1120px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
       <div className="flex flex-col gap-3">
         <Link
-          to={cards[0]?.jobTitle === undefined && cards.length > 0 ? '/cong-viec' : `/cong-viec/${jobId ?? ''}`}
+          to={cards.length > 0 && !cards[0].jobLive ? '/cong-viec' : `/cong-viec/${jobId ?? ''}`}
           className="w-fit text-label text-muted-foreground underline-offset-4 hover:underline"
         >
           {t('screen.split.back')}
@@ -69,7 +70,11 @@ export function SplitPage() {
         {mentor && jobId && <MentorTabs jobId={jobId} />}
       </div>
       <TestModeBanner />
-      <RegionState query={splits} skeleton={<Skeleton className="h-48 w-full" />}>
+      {/* A failed poll keeps the cards and the Mentor's typed percentages; only a failed first load shows. */}
+      <RegionState
+        query={{ ...splits, isError: splits.isLoadingError }}
+        skeleton={<Skeleton className="h-48 w-full" />}
+      >
         {cards.length === 0 ? (
           <p className="text-body-sm text-muted-foreground">{t('screen.split.empty')}</p>
         ) : (
@@ -117,7 +122,10 @@ function Card({ jobId, card, focused }: { jobId: string; card: SplitCard; focuse
         <span className={cn('rounded-full px-2.5 py-0.5 text-caption', state.tone)}>{state.text}</span>
       </header>
       <p className="text-body-sm">
-        {formatVnd(card.pooledVnd)} <TestTag /> {t('screen.split.ofMilestone', { n: card.milestoneNumber })}
+        {formatVnd(card.pooledVnd)} <TestTag />{' '}
+        {t(card.status === 'FINAL' ? 'screen.split.ofMilestone' : 'screen.split.ofMilestonePending', {
+          n: card.milestoneNumber,
+        })}
       </p>
       <Chip card={card} />
       <Body jobId={jobId} card={card} />
@@ -211,7 +219,7 @@ function VersionNotices({ card }: { card: SplitCard }) {
         version.versionNo > 1 && (
           <p className="text-body-sm">
             {t('screen.split.edited', {
-              k: card.editLimit - card.editsLeft,
+              k: card.editsUsed,
               n: card.editLimit,
               date: formatDayMonth(card.confirmationDueAt ?? ''),
             })}
@@ -282,7 +290,9 @@ function partyOf(card: SplitCard, partyId: string): SplitParty | undefined {
 function PartyName({ party }: { party: SplitParty | undefined }) {
   return (
     <>
-      <span className="break-words">{party?.name || t('screen.split.erased')}</span>
+      <span className="break-words">
+        {party?.name || (party?.erased ? t('screen.split.erased') : t('screen.split.noName'))}
+      </span>
       {party?.mentor && <span className="text-caption text-muted-foreground"> · {t('screen.split.mentorMark')}</span>}
       {party?.leftAt && (
         <span className="block text-caption text-muted-foreground">
@@ -399,19 +409,22 @@ function EarlierVersions({ card }: { card: SplitCard }) {
 
 /** The Mentor's view of a sent split: "Sửa phân chia" while edits remain, never for the default (X4). */
 function MentorActions({ jobId, card }: { jobId: string; card: SplitCard }) {
-  const [editing, setEditing] = useState(false)
+  // The version the form opened on: a poll may bring a newer one, and the save must then answer STALE.
+  const [from, setFrom] = useState<SplitVersion | null>(null)
   const version = card.latest
   if (!version || version.kind !== 'DRAFT') {
     return null
   }
-  if (editing) {
+  if (from) {
     return (
       <Draft
+        key={from.versionNo}
         jobId={jobId}
         card={card}
-        shownVersionNo={version.versionNo}
-        initial={version}
-        onDone={() => setEditing(false)}
+        shownVersionNo={from.versionNo}
+        initial={from}
+        onDone={() => setFrom(null)}
+        onReloaded={() => setFrom(version)}
       />
     )
   }
@@ -424,7 +437,7 @@ function MentorActions({ jobId, card }: { jobId: string; card: SplitCard }) {
         size="compact"
         className="w-fit"
         disabled={spent}
-        onClick={() => setEditing(true)}
+        onClick={() => setFrom(version)}
       >
         {t('screen.split.edit')}
       </Button>
@@ -442,6 +455,7 @@ function PartyActions({ jobId, card }: { jobId: string; card: SplitCard }) {
   const confirm = useConfirmSplit(jobId, card.splitId)
   const version = card.latest
   const [stale, setStale] = useState(false)
+  const [asking, setAsking] = useState(false)
   if (!version) {
     return null
   }
@@ -449,16 +463,7 @@ function PartyActions({ jobId, card }: { jobId: string; card: SplitCard }) {
   return (
     <div className="flex flex-col gap-2">
       <p className="text-body-sm">{t('screen.split.n30', { date })}</p>
-      <Button
-        type="button"
-        className="w-fit"
-        disabled={confirm.isPending}
-        onClick={() =>
-          confirm.mutate(version.versionNo, {
-            onError: (error) => setStale(isStale(error)),
-          })
-        }
-      >
+      <Button type="button" className="w-fit" disabled={confirm.isPending} onClick={() => setAsking(true)}>
         {t('screen.split.confirm')}
       </Button>
       {confirm.isError && !stale && (
@@ -466,7 +471,27 @@ function PartyActions({ jobId, card }: { jobId: string; card: SplitCard }) {
           {refusal(confirm.error, card)}
         </p>
       )}
-      <StaleDialog open={stale} onClose={() => setStale(false)} />
+      <ConfirmDialog
+        open={asking}
+        title={t('screen.split.confirmDialog.title', { n: card.milestoneNumber })}
+        body={t('screen.split.confirmDialog.body')}
+        confirmLabel={t('screen.split.confirm')}
+        pending={confirm.isPending}
+        onConfirm={() =>
+          confirm.mutate(version.versionNo, {
+            onError: (error) => setStale(isStale(error)),
+            onSettled: () => setAsking(false),
+          })
+        }
+        onClose={() => setAsking(false)}
+      />
+      <StaleDialog
+        open={stale}
+        onClose={() => {
+          setStale(false)
+          confirm.reset()
+        }}
+      />
     </div>
   )
 }
@@ -478,16 +503,20 @@ function Draft({
   shownVersionNo,
   initial,
   onDone,
+  onReloaded,
 }: {
   jobId: string
   card: SplitCard
   shownVersionNo: number
   initial?: SplitVersion
   onDone?: () => void
+  /** The Stale dialog closed: start the form again from the newer version. */
+  onReloaded?: () => void
 }) {
   const ids = useId()
   const save = useSaveSplit(jobId, card.splitId)
   const [stale, setStale] = useState(false)
+  const [asking, setAsking] = useState(false)
   const [typed, setTyped] = useState<Record<string, string>>(() =>
     Object.fromEntries(
       card.parties.map((party) => [
@@ -506,22 +535,18 @@ function Draft({
   const shares: SplitShare[] | undefined = valid
     ? card.parties.map((party) => ({ partyId: party.partyId, percent: Number(typed[party.partyId]) }))
     : undefined
+  // An unchanged edit would use an edit, void every confirmation and restart the clock for nothing.
+  const unchanged = initial?.lines.every((line) => Number(typed[line.partyId]) === line.percent) ?? false
   const preview = useSplitPreview(card.splitId, shares)
+  const dialogBody = t('screen.split.sendDialog.body', { date: formatDayMonth(card.nextConfirmationDueAt) })
   return (
     <form
       className="flex flex-col gap-3"
       onSubmit={(event) => {
         event.preventDefault()
-        if (!shares) {
-          return
+        if (shares && !unchanged) {
+          setAsking(true)
         }
-        save.mutate(
-          { shownVersionNo, shares },
-          {
-            onSuccess: () => onDone?.(),
-            onError: (error) => setStale(isStale(error)),
-          },
-        )
       }}
     >
       <div className="flex flex-col gap-2">
@@ -587,7 +612,7 @@ function Draft({
         </p>
       )}
       <div className="flex flex-wrap gap-2">
-        <Button type="submit" disabled={!valid || save.isPending}>
+        <Button type="submit" disabled={!valid || unchanged || save.isPending}>
           {t('screen.split.send')}
         </Button>
         {onDone && (
@@ -596,7 +621,34 @@ function Draft({
           </Button>
         )}
       </div>
-      <StaleDialog open={stale} onClose={() => setStale(false)} />
+      <ConfirmDialog
+        open={asking}
+        title={t('screen.split.sendDialog.title')}
+        body={initial ? `${t('screen.split.sendDialog.edit')} ${dialogBody}` : dialogBody}
+        confirmLabel={t('screen.split.send')}
+        pending={save.isPending}
+        onConfirm={() => {
+          if (shares) {
+            save.mutate(
+              { shownVersionNo, shares },
+              {
+                onSuccess: () => onDone?.(),
+                onError: (error) => setStale(isStale(error)),
+                onSettled: () => setAsking(false),
+              },
+            )
+          }
+        }}
+        onClose={() => setAsking(false)}
+      />
+      <StaleDialog
+        open={stale}
+        onClose={() => {
+          setStale(false)
+          save.reset()
+          onReloaded?.()
+        }}
+      />
     </form>
   )
 }
@@ -640,13 +692,15 @@ function refusal(error: unknown, card: SplitCard): string {
     const problem: SplitProblem = error.problem
     switch (problem.reason) {
       case 'SPLIT_INVALID':
-        return problem.cap === undefined
-          ? t('reason.job.SPLIT_INVALID_NO_CAP')
-          : t('reason.job.SPLIT_INVALID', { cap: problem.cap })
+        return sentence(
+          problem.cap === undefined
+            ? t('reason.job.SPLIT_INVALID_NO_CAP')
+            : t('reason.job.SPLIT_INVALID', { cap: problem.cap }),
+        )
       case 'SPLIT_EDIT_LIMIT':
-        return t('reason.job.SPLIT_EDIT_LIMIT', { n: problem.n ?? card.editLimit })
+        return sentence(t('reason.job.SPLIT_EDIT_LIMIT', { n: problem.n ?? card.editLimit }))
       case 'SPLIT_FINAL':
-        return problem.pastDue ? t('reason.job.SPLIT_FINAL_PAST_DUE') : t('reason.job.SPLIT_FINAL')
+        return sentence(problem.pastDue ? t('reason.job.SPLIT_FINAL_PAST_DUE') : t('reason.job.SPLIT_FINAL'))
       default:
         break
     }

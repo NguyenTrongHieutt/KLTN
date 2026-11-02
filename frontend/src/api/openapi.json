@@ -18454,6 +18454,10 @@
             "type" : "integer",
             "format" : "int32"
           },
+          "editsUsed" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
           "finalAt" : {
             "type" : "string",
             "format" : "date-time"
@@ -18461,6 +18465,9 @@
           "finality" : {
             "type" : "string",
             "enum" : [ "CONFIRMED", "DEADLINE", "DECISION", "MENTOR_ONLY" ]
+          },
+          "jobLive" : {
+            "type" : "boolean"
           },
           "jobTitle" : {
             "type" : "string"
@@ -18519,7 +18526,7 @@
             "type" : "boolean"
           }
         },
-        "required" : [ "capApplies", "confirmationNear", "draftDueAt", "draftLate", "draftNear", "earlier", "editLimit", "editsLeft", "k", "milestoneId", "milestoneNumber", "n", "nextConfirmationDueAt", "paid", "parties", "pastDue", "pooledVnd", "splitId", "status", "viewerConfirmed", "viewerIsMentor" ]
+        "required" : [ "capApplies", "confirmationNear", "draftDueAt", "draftLate", "draftNear", "earlier", "editLimit", "editsLeft", "editsUsed", "jobLive", "k", "milestoneId", "milestoneNumber", "n", "nextConfirmationDueAt", "paid", "parties", "pastDue", "pooledVnd", "splitId", "status", "viewerConfirmed", "viewerIsMentor" ]
       },
       "SplitConfirmationRequest" : {
         "type" : "object",
@@ -18558,6 +18565,9 @@
           "activeAtRelease" : {
             "type" : "boolean"
           },
+          "erased" : {
+            "type" : "boolean"
+          },
           "leftAt" : {
             "type" : "string",
             "format" : "date-time"
@@ -18576,7 +18586,7 @@
             "type" : "boolean"
           }
         },
-        "required" : [ "activeAtRelease", "mentor", "partyId", "wholeInterval" ]
+        "required" : [ "activeAtRelease", "erased", "mentor", "partyId", "wholeInterval" ]
       },
       "SplitPreviewLineView" : {
         "type" : "object",
@@ -18599,7 +18609,9 @@
             "type" : "array",
             "items" : {
               "$ref" : "#/components/schemas/SplitPreviewShareRequest"
-            }
+            },
+            "maxItems" : 100,
+            "minItems" : 0
           }
         },
         "required" : [ "shares" ]
@@ -18675,7 +18687,9 @@
             "type" : "array",
             "items" : {
               "$ref" : "#/components/schemas/SplitShareRequest"
-            }
+            },
+            "maxItems" : 100,
+            "minItems" : 0
           },
           "shownVersionNo" : {
             "type" : "integer",

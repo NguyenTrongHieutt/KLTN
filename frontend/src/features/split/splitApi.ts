@@ -20,7 +20,8 @@ const splitsKey = (jobId: string) => ['split', 'cards', jobId] as const
 
 /**
  * JOB-10's cards, newest first: the Job's Mentor with no split yet reads none, and everyone but the Mentor and the
- * parties gets `NOT_FOUND`. The Job's tabs read it too, to know whether to show "Phân chia tiền"; only the page polls.
+ * parties gets `NOT_FOUND`. The Job's tabs read it too, to know whether to show "Phân chia tiền"; only the page polls,
+ * until each split is final and paid: `paid` follows `FINAL` from an asynchronous listener.
  */
 export function useJobSplits(jobId: string | undefined, poll = false) {
   return useQuery({
@@ -29,7 +30,7 @@ export function useJobSplits(jobId: string | undefined, poll = false) {
     enabled: jobId !== undefined,
     retry: false,
     refetchInterval: (query) =>
-      poll && query.state.data?.some((card) => card.status !== 'FINAL') ? SPLIT_POLL_MS : false,
+      poll && query.state.data?.some((card) => card.status !== 'FINAL' || !card.paid) ? SPLIT_POLL_MS : false,
   })
 }
 

@@ -793,7 +793,7 @@
       "rules": {
         "title": "Quy tắc",
         "heading": "Quy tắc nền tảng",
-        "lead": "Các giá trị này áp dụng cho công việc đăng sau khi lưu; công việc đang chạy giữ giá trị đã sao chép khi đăng. Giới hạn số việc áp dụng từ lần ứng tuyển hoặc chọn tiếp theo, và các quy tắc phân chia tiền áp dụng cho các phân chia lưu sau đó.",
+        "lead": "Các giá trị này áp dụng cho công việc đăng sau khi lưu; công việc đang chạy giữ giá trị đã sao chép khi đăng. Giới hạn số việc áp dụng từ lần ứng tuyển hoặc chọn tiếp theo; mức tối đa của người hướng dẫn và số lần sửa phân chia áp dụng từ lần lưu phân chia tiếp theo.",
         "values": "Giá trị quy tắc",
         "rule": {
           "AUTO_ACCEPTANCE_DAYS": "Số ngày trước khi tự động nghiệm thu",
@@ -3428,9 +3428,11 @@
       "empty": "Chưa có giai đoạn nào được nghiệm thu, nên chưa có gì để phân chia.",
       "milestone": "Giai đoạn {n}",
       "ofMilestone": "của Giai đoạn {n}",
+      "ofMilestonePending": "của Giai đoạn {n} đang chờ phân chia",
       "mentorMark": "người hướng dẫn",
       "left": "Đã rời {date}",
       "erased": "Người đã xóa tài khoản",
+      "noName": "Một thành viên",
       "linesCaption": "Các phần chia của bản {n}",
       "column": {
         "party": "Người nhận",
@@ -3486,6 +3488,15 @@
       "earlier": "Các bản trước",
       "earlierVersion": "Bản {n} · {date}",
       "earlierDefault": "Bản {n} · chia mặc định · {date}",
+      "confirmDialog": {
+        "title": "Xác nhận phân chia Giai đoạn {n}?",
+        "body": "Bạn đồng ý với các phần chia ở trên. Khi mọi thành viên đã xác nhận, phân chia sẽ chốt và tiền chuyển vào số dư, không sửa lại được."
+      },
+      "sendDialog": {
+        "title": "Gửi phân chia để xác nhận?",
+        "body": "Các thành viên có đến {date} để xác nhận. Hết hạn mà chưa đủ xác nhận, phân chia vẫn chốt theo bản này.",
+        "edit": "Đây là một lần sửa: mọi xác nhận trước đó bị xóa và thời hạn bắt đầu lại."
+      },
       "staleBody": "Phân chia vừa thay đổi nên thao tác của bạn chưa được gửi. Hãy xem lại bản mới rồi thử lại.",
       "staleReload": "Xem bản mới"
     },

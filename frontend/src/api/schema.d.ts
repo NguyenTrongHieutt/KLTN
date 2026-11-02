@@ -7424,10 +7424,13 @@ export interface components {
             editLimit: number;
             /** Format: int32 */
             editsLeft: number;
+            /** Format: int32 */
+            editsUsed: number;
             /** Format: date-time */
             finalAt?: string;
             /** @enum {string} */
             finality?: "CONFIRMED" | "DEADLINE" | "DECISION" | "MENTOR_ONLY";
+            jobLive: boolean;
             jobTitle?: string;
             /** Format: int32 */
             k: number;
@@ -7467,6 +7470,7 @@ export interface components {
         };
         SplitPartyView: {
             activeAtRelease: boolean;
+            erased: boolean;
             /** Format: date-time */
             leftAt?: string;
             mentor: boolean;
