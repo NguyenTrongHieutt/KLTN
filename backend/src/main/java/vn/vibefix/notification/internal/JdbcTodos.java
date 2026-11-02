@@ -43,7 +43,7 @@ class JdbcTodos implements Todos {
 		NotificationRegistry.checkParams(type.key(), type.params(), request.params());
 		NotificationRegistry.checkLink(type.key(), request.link());
 		this.registry.checkRecipient(type.key(), type.audiences(), request.recipientAccountId(), request.audience(),
-				request.jobId(), request.subjectId(), null);
+				request.jobId(), request.subjectId(), request.milestoneId());
 		// The recipient's role in the Job, from the audience class just confirmed (AD-27, Story 20.6).
 		TodoRole role = TodoRole.of(request.audience());
 		this.jdbc.sql("""

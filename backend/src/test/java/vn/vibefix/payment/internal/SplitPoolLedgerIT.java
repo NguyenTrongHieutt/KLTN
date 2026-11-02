@@ -57,8 +57,8 @@ import vn.vibefix.support.IntegrationTest;
 /**
  * Story 22.1 (FR-42, NFR-4, AD-15, AD-20, AD-29, AD-41, SM-6): the review's §4 ledger fixtures, each keeping the sums;
  * who a release fixes as a party and with which flags; the one executor of a final split with its refusals; the daily
- * check; and what a Customer never sees. A test finalizes a Crew split by SQL and publishes the event until Story 22.2
- * brings the path that does.
+ * check; and what a Customer never sees. A test finalizes a Crew split by SQL and publishes the event, which keeps the
+ * one executor apart from the path Story 22.2 brings ({@code MilestoneSplitIT}).
  */
 class SplitPoolLedgerIT extends IntegrationTest {
 
@@ -498,6 +498,25 @@ class SplitPoolLedgerIT extends IntegrationTest {
 		assertThat(this.check.check()).as("the undecided flag covers it").isEmpty();
 	}
 
+	/** A round's due time moves the pool's deadline (Story 22.2): the check reads the later of the two. */
+	@Test
+	void aPoolPastItsConfirmationRoundIsListedAfterThatRoundsDueTime() throws Exception {
+		accept();
+		UUID pool = UUID.fromString(text("SELECT id FROM payment.ledger_entry WHERE entry_type = 'RELEASE_POOLED'"));
+		this.clock.advance(Duration.ofDays(6));
+		Instant due = this.clock.instant().plus(Duration.ofDays(3));
+		this.jdbc.sql("""
+				UPDATE job.milestone_split SET status = 'PROPOSED', confirmation_round = 1, confirmation_due_at = :due
+				""").param("due", Timestamp.from(due)).update();
+		assertThat(this.splits.splitOf(this.milestone).orElseThrow().latestDueAt()).isEqualTo(due);
+
+		this.clock.advance(Duration.between(this.clock.instant(), due.plus(Duration.ofDays(7))).minusMinutes(1));
+		assertThat(this.check.check()).as("the draft deadline alone would have listed it by now").isEmpty();
+
+		this.clock.advance(Duration.ofMinutes(2));
+		assertThat(this.check.check()).containsExactly(pool);
+	}
+
 	@Test
 	void aPaidSplitIsNeverListed() {
 		accept();
@@ -751,7 +770,10 @@ class SplitPoolLedgerIT extends IntegrationTest {
 				INSERT INTO job.milestone_split_share (split_id, version_no, party_id, percent)
 				SELECT :split, 1, id, :percent FROM job.milestone_split_party WHERE split_id = :split AND party_account_id = :party
 				""").param("split", split).param("percent", percent).param("party", party).update());
-		this.jdbc.sql("UPDATE job.milestone_split SET status = 'FINAL', final_version_no = 1 WHERE id = :split").param("split", split).update();
+		this.jdbc.sql("UPDATE job.milestone_split SET status = 'FINAL', final_version_no = 1, final_at = :now, finality = 'CONFIRMED' WHERE id = :split")
+			.param("now", Timestamp.from(this.clock.instant()))
+			.param("split", split)
+			.update();
 	}
 
 	private MilestoneSplitFinalized event(UUID split, Map<UUID, Integer> percentages) {

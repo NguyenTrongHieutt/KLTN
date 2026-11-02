@@ -8,7 +8,8 @@
  * <p>
  * Public API: {@link vn.vibefix.payment.Ledger} (releasable and released money, AD-15),
  * {@link vn.vibefix.payment.Releases} (the pool of an accepted or settled Milestone, FR-42), and
- * {@link vn.vibefix.payment.ShareHolds} (the holds and transfers of share Team Issues, AD-40).
+ * {@link vn.vibefix.payment.ShareHolds} (the holds and transfers of share Team Issues, AD-40). JOB-10's reads and its
+ * preview are wiring in {@code payment.internal}, since only this module knows a split's pool (Story 22.2).
  */
 @ApplicationModule(allowedDependencies = { "shared", "audit", "identity", "notification", "timers", "operations", "job" })
 package vn.vibefix.payment;

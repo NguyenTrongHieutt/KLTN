@@ -548,7 +548,7 @@ class GitHubLinkIT extends IntegrationTest {
 				""").param("id", UUID.randomUUID()).param("split", split).param("party", lan).update();
 		assertThat(blockerReasons()).as("an open split").containsExactly("SPLIT_PENDING");
 		assertProblem(this.browser.command(delete("/api/v1/identity/github")), 422, "GUARD_FAILED", "GITHUB_LINK_IN_USE");
-		this.jdbc.sql("UPDATE job.milestone_split SET status = 'FINAL', final_version_no = 1 WHERE id = :id").param("id", split).update();
+		this.jdbc.sql("UPDATE job.milestone_split SET status = 'FINAL', final_version_no = 1, final_at = now(), finality = 'CONFIRMED' WHERE id = :id").param("id", split).update();
 		assertThat(blockerReasons()).as("a final split").isEmpty();
 		assertThat(this.browser.command(delete("/api/v1/identity/github")).getResponse().getStatus()).isEqualTo(204);
 	}

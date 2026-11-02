@@ -51,7 +51,7 @@ public enum Rule {
 	/** Jobs a Mentor may hold from Selecting through Closing (FR-13); 3. */
 	MENTOR_ACTIVE_JOB_LIMIT(1, 10),
 
-	/** The largest share a Mentor may take in Crew Terms, in whole percent (FR-75, AD-41); 40. */
+	/** The largest share a Mentor may take of a Milestone Split, in whole percent, read at each save (FR-61, FR-83); 30. */
 	MENTOR_SHARE_CAP_PERCENT(10, 100),
 
 	/** Days a Crew Application waits for the Mentor before it lapses (FR-61, FR-81, R6, Story 21.4); 14. */
@@ -63,8 +63,11 @@ public enum Rule {
 	/** Days after each saved split version by which its parties confirm (FR-61, FR-83); 3. */
 	SPLIT_CONFIRMATION_DAYS(1, 30),
 
-	/** Split versions the Mentor may save after the first, per Milestone (FR-61, FR-83); 3. */
-	SPLIT_EDIT_LIMIT(1, 10);
+	/** Split versions the Mentor may save after the first, per Milestone, read at each save (FR-61, FR-83); 3. */
+	SPLIT_EDIT_LIMIT(1, 10),
+
+	/** Days a Split Resolution stays undecided before it is flagged (FR-61, FR-84, Story 22.3); 7. */
+	SPLIT_UNDECIDED_FLAG_DAYS(1, 30);
 
 	private final int min;
 

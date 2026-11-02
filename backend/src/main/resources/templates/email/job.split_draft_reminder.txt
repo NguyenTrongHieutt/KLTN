@@ -1,0 +1,5 @@
+subject: Còn 1 ngày để soạn phân chia Giai đoạn {n}. Sau {date}, hệ thống sẽ chia đều.
+---
+Xin chào,
+
+Bạn còn 1 ngày để soạn phân chia tiền Giai đoạn {n} trên trang "Phân chia tiền". Sau {date}, hệ thống sẽ chia đều và bạn không sửa được bản chia đó.

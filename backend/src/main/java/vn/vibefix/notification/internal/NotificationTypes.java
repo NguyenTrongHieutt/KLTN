@@ -56,6 +56,13 @@ class NotificationTypes implements NotificationCatalog {
 	static final TodoType DISPUTE_SUBMIT_STATEMENT = new TodoType("dispute.submit_statement",
 			Set.of(Audience.CUSTOMER, Audience.MENTOR), 2, Set.of());
 
+	/** FR-83: the Mentor drafts the split of a release with Crew parties, until it is sent or the default applies. */
+	static final TodoType JOB_DRAFT_SPLIT = new TodoType("job.draft_split", Set.of(Audience.MENTOR), 1, Set.of("n", "job"));
+
+	/** FR-83: each party who has not confirmed, leavers included, until the split is final. */
+	static final TodoType JOB_CONFIRM_SPLIT = new TodoType("job.confirm_split", Set.of(Audience.SPLIT_PARTY), 1,
+			Set.of("n", "job"));
+
 	/** FR-36, Story 14.2: a raised Held price waits for the Customer's top-up. */
 	static final TodoType PAYMENT_FUND_TOP_UP = new TodoType("payment.fund_top_up", Set.of(Audience.CUSTOMER), 2,
 			Set.of("amount"));
@@ -593,6 +600,43 @@ class NotificationTypes implements NotificationCatalog {
 			Set.of(Audience.CUSTOMER, Audience.MENTOR, Audience.CREW_ACTIVE), Channel.IN_APP_AND_EMAIL,
 			EmailClass.TRANSACTIONAL, "alert", Set.of("job", "n", "date"));
 
+	/** FR-83: a release with Crew parties asks the Mentor for the split's draft. */
+	static final NotificationType JOB_SPLIT_DRAFT_DUE = new NotificationType("job.split_draft_due", Set.of(Audience.MENTOR),
+			Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("n", "job", "date"));
+
+	/** FR-83: the parties of that release hear the money waits for the Mentor's split. */
+	static final NotificationType JOB_SPLIT_PENDING = new NotificationType("job.split_pending", Set.of(Audience.SPLIT_PARTY),
+			Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of("n", "job", "date"));
+
+	/** FR-83, SG-26: a day before the draft deadline. */
+	static final NotificationType JOB_SPLIT_DRAFT_REMINDER = new NotificationType("job.split_draft_reminder",
+			Set.of(Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.REMINDER, "info", Set.of("n", "date"));
+
+	/** FR-83: the first draft reached the parties. */
+	static final NotificationType JOB_SPLIT_PROPOSED = new NotificationType("job.split_proposed", Set.of(Audience.SPLIT_PARTY),
+			Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("n", "job", "date"));
+
+	/** R11, X4: no draft by the deadline, so the default split went out for confirmation. */
+	static final NotificationType JOB_SPLIT_DEFAULTED = new NotificationType("job.split_defaulted",
+			Set.of(Audience.MENTOR, Audience.SPLIT_PARTY), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
+			Set.of("n", "job", "date"));
+
+	/** FR-83: the Mentor edited a sent draft, and the confirmations start over. */
+	static final NotificationType JOB_SPLIT_EDITED = new NotificationType("job.split_edited", Set.of(Audience.SPLIT_PARTY),
+			Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("n", "job", "date"));
+
+	/** FR-83, SG-26: a day before the confirmation deadline, to each party who has not confirmed. */
+	static final NotificationType JOB_SPLIT_CONFIRMATION_REMINDER = new NotificationType("job.split_confirmation_reminder",
+			Set.of(Audience.SPLIT_PARTY), Channel.IN_APP_AND_EMAIL, EmailClass.REMINDER, "info", Set.of("n"));
+
+	/** FR-83: a party confirmed the latest version. */
+	static final NotificationType JOB_SPLIT_PARTY_CONFIRMED = new NotificationType("job.split_party_confirmed",
+			Set.of(Audience.MENTOR), Channel.IN_APP, EmailClass.TRANSACTIONAL, "check", Set.of("name", "n"));
+
+	/** FR-83: the split is final, and the text names how. */
+	static final NotificationType JOB_SPLIT_FINAL = new NotificationType("job.split_final",
+			Set.of(Audience.MENTOR, Audience.SPLIT_PARTY), Channel.IN_APP, EmailClass.TRANSACTIONAL, "check", Set.of("n", "job", "how"));
+
 	/** FR-59, UX-DR83: a party to a running Job was locked; each audience hears only what UX-DR83 allows. */
 	static final NotificationType JOB_PARTY_LOCKED = new NotificationType("job.party_locked",
 			Set.of(Audience.CUSTOMER, Audience.MENTOR, Audience.CREW_ACTIVE, Audience.ADMIN), Channel.IN_APP_AND_EMAIL,
@@ -857,7 +901,9 @@ class NotificationTypes implements NotificationCatalog {
 				DISPUTE_TEAM_ISSUE_ANSWERED, DISPUTE_TEAM_ISSUE_ESCALATED, DISPUTE_TEAM_ISSUE_DECIDED,
 				JOB_CHANGE_REQUEST_AWAITING_TOP_UP, DISPUTE_STATEMENT_SUBMITTED, ADMIN_ABUSE_REPORT_RESOLVED, IDENTITY_DELETION_REQUESTED,
 				ADMIN_SKILL_SUGGESTION_APPROVED, ADMIN_SKILL_SUGGESTION_DECLINED,
-				PAYMENT_SHARE_HELD, JOB_JOB_STARTING,
+				PAYMENT_SHARE_HELD, JOB_JOB_STARTING, JOB_SPLIT_DRAFT_DUE, JOB_SPLIT_PENDING, JOB_SPLIT_DRAFT_REMINDER,
+				JOB_SPLIT_PROPOSED, JOB_SPLIT_DEFAULTED, JOB_SPLIT_EDITED, JOB_SPLIT_CONFIRMATION_REMINDER,
+				JOB_SPLIT_PARTY_CONFIRMED, JOB_SPLIT_FINAL,
 				PAYMENT_REFUND_REQUESTED, PAYMENT_SIMULATED_REFUND_REQUESTED, PAYMENT_REFUND_CONFIRMED, WORK_WORK_ITEM_ASSIGNED,
 				WORK_REVIEW_REQUESTED, WORK_WORK_ITEM_APPROVED, WORK_WORK_ITEM_RETURNED, WORK_PAGES_SHARED);
 	}
@@ -869,7 +915,8 @@ class NotificationTypes implements NotificationCatalog {
 				REPO_ACCEPT_GITHUB_INVITATION, SCANNING_RESOLVE_WORK_FINDING, REPO_RECONFIRM_SOURCE, REPO_AUTHORIZE_FINAL_MERGE,
 				REPO_REVOCATION_ITEM, REPO_REVOCATION_ITEM_MEMBER,
 				MATCHING_CHOOSE_ASSIGNEE, MATCHING_SIGN_NDA, MATCHING_ANSWER_INVITATION_TO_APPLY,
-				MATCHING_OPEN_CREW_RECRUITMENT, MATCHING_REVIEW_CREW_APPLICATIONS, MATCHING_SIGN_COMMITMENT, JOB_DRAFT_AGREEMENT,
+				MATCHING_OPEN_CREW_RECRUITMENT, MATCHING_REVIEW_CREW_APPLICATIONS, MATCHING_SIGN_COMMITMENT, JOB_DRAFT_SPLIT,
+				JOB_CONFIRM_SPLIT, JOB_DRAFT_AGREEMENT,
 				JOB_REVIEW_AGREEMENT, JOB_REVISE_AGREEMENT, JOB_CONFIRM_AGREEMENT_MENTOR,
 				PAYMENT_FUND_MILESTONE, WORK_REVIEW_WORK_ITEM, WORK_FIX_RETURNED_ITEM, WORK_REASSIGN_WORK_ITEMS, DELIVERY_HAND_OVER,
 				DELIVERY_REVIEW_HANDOVER, JOB_ANSWER_CLOSURE, REPO_CONFIRM_DATA_DELETION, REPUTATION_RATE,

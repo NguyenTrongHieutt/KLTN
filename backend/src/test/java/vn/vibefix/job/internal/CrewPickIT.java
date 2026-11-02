@@ -293,7 +293,7 @@ class CrewPickIT extends IntegrationTest {
 	@Test
 	void thePickedPersonReadsTheProjectionAndTheCommitmentPanelAndNothingElseOfTheJob() throws Exception {
 		this.jdbc.sql("""
-				UPDATE job.job SET rules = '{"MENTOR_SHARE_CAP_PERCENT":30,"SPLIT_DRAFT_DAYS":10,"SPLIT_CONFIRMATION_DAYS":5,
+				UPDATE job.job SET rules = '{"MENTOR_SHARE_CAP_PERCENT":40,"SPLIT_DRAFT_DAYS":10,"SPLIT_CONFIRMATION_DAYS":5,
 				    "SPLIT_EDIT_LIMIT":2}'::jsonb WHERE id = :id
 				""").param("id", this.job).update();
 		recruit(this.job, this.hung, 1).andExpect(status().isOk());
@@ -312,10 +312,11 @@ class CrewPickIT extends IntegrationTest {
 			.andExpect(jsonPath("$.panel.githubLogin").value(TestPeople.login(this.jdbc, this.minh)))
 			.andExpect(jsonPath("$.panel.ndaVersion").value("1.0"))
 			.andExpect(jsonPath("$.panel.commitmentVersion").value("1.0"))
+			// The cap and the edit limit are read live, whatever the Job copied; the days are the Job's own (FR-61, AD-7).
 			.andExpect(jsonPath("$.panel.splitRules.mentorShareCapPercent").value(30))
 			.andExpect(jsonPath("$.panel.splitRules.draftDays").value(10))
 			.andExpect(jsonPath("$.panel.splitRules.confirmationDays").value(5))
-			.andExpect(jsonPath("$.panel.splitRules.editLimit").value(2));
+			.andExpect(jsonPath("$.panel.splitRules.editLimit").value(3));
 		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/role").with(as(this.minh)))
 			.andExpect(jsonPath("$.crewKind").value("ASSIGNED"));
 		for (String read : List.of("/api/v1/jobs/" + this.job + "/external-access", "/api/v1/jobs/" + this.job + "/busy",

@@ -23,7 +23,7 @@ class TodoRoleTest {
 			.containsEntry(Audience.CREW_ASSIGNED, TodoRole.CREW)
 			.containsEntry(Audience.CREW_ACTIVE, TodoRole.CREW)
 			.containsEntry(Audience.CREW_EVER_ACTIVE, TodoRole.CREW)
-			.containsEntry(Audience.SPLIT_PARTY, null)
+			.containsEntry(Audience.SPLIT_PARTY, TodoRole.CREW)
 			.containsEntry(Audience.SUBJECT, null)
 			.containsEntry(Audience.ADMIN, null)
 			.hasSize(Audience.values().length);

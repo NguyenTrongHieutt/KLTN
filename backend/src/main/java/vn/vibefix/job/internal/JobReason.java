@@ -210,6 +210,31 @@ enum JobReason {
 	PICK_ENDED,
 
 	/** A member leaves a Job in Closing (FR-82, AD-41): J8 already ended their access, and nothing changes. */
-	LEAVE_CLOSED
+	LEAVE_CLOSED,
+
+	/**
+	 * A split version breaks AD-29's rules (FR-83, X5): the parties are not exactly the split's, the percentages are not
+	 * whole or do not sum to 100, the Mentor's is above the cap, or a member of the whole Milestone has 0. The detail
+	 * member {@code cap} is the cap, absent when none applies.
+	 */
+	SPLIT_INVALID,
+
+	/** The Mentor used every edit the rule allows after the first draft (FR-83); the detail member {@code n} is the limit. */
+	SPLIT_EDIT_LIMIT,
+
+	/** The draft deadline passed, or the default split was saved, which the Mentor cannot edit (R11, X4). */
+	SPLIT_DRAFT_LATE,
+
+	/** A Split Resolution is open: nobody edits or confirms until it ends (AD-40). */
+	SPLIT_IN_RESOLUTION,
+
+	/**
+	 * The split is final, or past its confirmation due time, where the Deadline finalizes the version it has (A-09): the
+	 * detail member {@code pastDue} tells them apart.
+	 */
+	SPLIT_FINAL,
+
+	/** Only a party other than the Mentor confirms a split (FR-83). */
+	PARTY_ONLY
 
 }

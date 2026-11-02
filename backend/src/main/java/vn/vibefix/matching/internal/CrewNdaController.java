@@ -20,7 +20,7 @@ import vn.vibefix.identity.PublicProfiles.PersonFacts;
 import vn.vibefix.job.CrewPicks.Assignment;
 import vn.vibefix.job.CrewRecruitment;
 import vn.vibefix.job.CrewRecruitment.Recruitment;
-import vn.vibefix.job.JobRules;
+import vn.vibefix.job.MilestoneSplits;
 import vn.vibefix.matching.internal.CrewApplications.CrewApplication;
 import vn.vibefix.matching.internal.CrewApplications.EndReason;
 import vn.vibefix.matching.internal.CrewApplications.Status;
@@ -45,15 +45,6 @@ import vn.vibefix.shared.Gate;
 @Access(Gate.SIGNED_IN)
 class CrewNdaController {
 
-	/** The rule names of the split rules, as the Job copied them when it was published (FR-61, FR-83). */
-	static final String CAP_RULE = "MENTOR_SHARE_CAP_PERCENT";
-
-	static final String DRAFT_RULE = "SPLIT_DRAFT_DAYS";
-
-	static final String CONFIRMATION_RULE = "SPLIT_CONFIRMATION_DAYS";
-
-	static final String EDIT_RULE = "SPLIT_EDIT_LIMIT";
-
 	/** "Ký và tham gia": the NDA and commitment texts the panel showed, N-5 and, for a Code Job, N-23. */
 	record CommitmentSignRequest(@NotBlank String ndaVersion, @NotBlank String commitmentVersion,
 			boolean publicCodeAcknowledged, boolean commitEmailNoticeAcknowledged) {
@@ -64,7 +55,8 @@ class CrewNdaController {
 	}
 
 	/**
-	 * The split rules the person accepts by signing (FR-81, FR-83), as the Job copied them when it was published.
+	 * The split rules the person accepts by signing (FR-81, FR-83), from {@code job}, whose saves are held to the same
+	 * figures: the cap and the edit limit live, the days as the Job copied them when it was published.
 	 * @param mentorShareCapPercent the Mentor's largest share of a Milestone while a member is on the Crew
 	 * @param draftDays the days after a Milestone's release by which the Mentor drafts its split
 	 * @param confirmationDays the days each party has to confirm a split version
@@ -106,7 +98,7 @@ class CrewNdaController {
 
 	private final CrewApplications applications;
 
-	private final JobRules rules;
+	private final MilestoneSplits splits;
 
 	private final GitHubGate gitHub;
 
@@ -115,14 +107,14 @@ class CrewNdaController {
 	private final CurrentCaller callers;
 
 	CrewNdaController(CrewCommitments commitments, CrewSignatures signatures, SourceContributors contributors,
-			CrewRecruitment recruitment, CrewApplications applications, JobRules rules, GitHubGate gitHub,
+			CrewRecruitment recruitment, CrewApplications applications, MilestoneSplits splits, GitHubGate gitHub,
 			ActiveAccount gate, CurrentCaller callers) {
 		this.commitments = commitments;
 		this.signatures = signatures;
 		this.contributors = contributors;
 		this.recruitment = recruitment;
 		this.applications = applications;
-		this.rules = rules;
+		this.splits = splits;
 		this.gitHub = gitHub;
 		this.gate = gate;
 		this.callers = callers;
@@ -185,10 +177,10 @@ class CrewNdaController {
 				pick.signDueAt() == null ? pick.lapsesAt() : pick.signDueAt(), panel);
 	}
 
-	/** The split rules as the Job copied them when it was published, else FR-61's defaults (PRD FR-83). */
+	/** The split rules {@code job} holds a save to (FR-61, FR-83). */
 	private SplitRulesView splitRules(UUID jobId) {
-		return new SplitRulesView(this.rules.value(jobId, CAP_RULE, 40), this.rules.value(jobId, DRAFT_RULE, 7),
-				this.rules.value(jobId, CONFIRMATION_RULE, 3), this.rules.value(jobId, EDIT_RULE, 3));
+		MilestoneSplits.SplitRules rules = this.splits.rulesOf(jobId);
+		return new SplitRulesView(rules.mentorShareCapPercent(), rules.draftDays(), rules.confirmationDays(), rules.editLimit());
 	}
 
 	/** A person's unlocked account (AD-19): an Administrator holds no role in any Job, so it finds nothing (SG-31). */

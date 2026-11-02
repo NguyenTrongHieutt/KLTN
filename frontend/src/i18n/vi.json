@@ -815,7 +815,8 @@
           "CREW_APPLICATION_LAPSE_DAYS": "Số ngày một đơn xin vào nhóm chờ trước khi hết hạn",
           "SPLIT_DRAFT_DAYS": "Số ngày người hướng dẫn soạn phân chia tiền sau khi giai đoạn được nghiệm thu",
           "SPLIT_CONFIRMATION_DAYS": "Số ngày thành viên xác nhận mỗi bản phân chia tiền",
-          "SPLIT_EDIT_LIMIT": "Số lần người hướng dẫn được sửa phân chia tiền của một giai đoạn"
+          "SPLIT_EDIT_LIMIT": "Số lần người hướng dẫn được sửa phân chia tiền của một giai đoạn",
+          "SPLIT_UNDECIDED_FLAG_DAYS": "Số ngày chờ trước khi đánh dấu yêu cầu xem xét phân chia chưa được quyết định"
         },
         "bounds": "Từ {min} đến {max}",
         "domains": "Danh sách trường",
@@ -3420,6 +3421,74 @@
       "portfolioCount": "{n} mục hồ sơ năng lực",
       "privacy": "Hồ sơ công khai không hiện cách liên lạc, số dư hay email trường, và không nêu tên khách hàng hay thành viên khác của công việc nào."
     },
+    "split": {
+      "tab": "Phân chia tiền",
+      "title": "Phân chia tiền",
+      "back": "Về công việc",
+      "empty": "Chưa có giai đoạn nào được nghiệm thu, nên chưa có gì để phân chia.",
+      "milestone": "Giai đoạn {n}",
+      "ofMilestone": "của Giai đoạn {n}",
+      "mentorMark": "người hướng dẫn",
+      "left": "Đã rời {date}",
+      "erased": "Người đã xóa tài khoản",
+      "linesCaption": "Các phần chia của bản {n}",
+      "column": {
+        "party": "Người nhận",
+        "percent": "Phần trăm",
+        "amount": "Số tiền",
+        "status": "Trạng thái"
+      },
+      "state": {
+        "draftMentor": "Soạn phân chia trước {date}",
+        "draftParty": "Chờ người hướng dẫn soạn phân chia (hạn {date})",
+        "draftLate": "Đã quá hạn soạn phân chia · hệ thống đang chia mặc định",
+        "sentMentor": "Đã gửi · {k}/{n} đã xác nhận · hạn {date}",
+        "waitingParty": "Chờ bạn xác nhận trước {date}",
+        "confirmed": "Đã xác nhận",
+        "defaultMentor": "Chia mặc định · không sửa được · {k}/{n} đã xác nhận · hạn {date}",
+        "defaultParty": "Hệ thống đã chia đều · chờ bạn xác nhận trước {date}",
+        "inResolution": "Đang chờ quản trị viên xem xét",
+        "pastDue": "Đã hết hạn xác nhận · đang chốt theo bản hiện tại",
+        "final": "Đã chốt ngày {date}",
+        "mentorOnly": "Không cần phân chia · bạn nhận 100%"
+      },
+      "how": {
+        "confirmed": "mọi người đã xác nhận",
+        "deadline": "hết hạn xác nhận",
+        "decision": "quản trị viên đã quyết định",
+        "default": "chia mặc định"
+      },
+      "mentorOnly": "Không có thành viên nào tham gia giai đoạn này: bạn nhận 100%, không cần phân chia.",
+      "noMember": "Không còn thành viên nào trong nhóm khi giai đoạn được nghiệm thu: phần của người hướng dẫn không bị giới hạn, và người đã rời có thể nhận 0%.",
+      "draftLate": "Đã quá hạn soạn phân chia nên hệ thống đang chia mặc định. Bản chia sẽ hiện ở đây trong ít phút.",
+      "default": "Người hướng dẫn chưa soạn phân chia trước {date}, nên hệ thống đã chia: người hướng dẫn {pct}% (tối đa {cap}%), phần còn lại chia đều cho các thành viên.",
+      "defaultNoCap": "Người hướng dẫn chưa soạn phân chia trước {date}, nên hệ thống đã chia: người hướng dẫn {pct}%, phần còn lại chia đều cho các thành viên.",
+      "edited": "Người hướng dẫn đã sửa phân chia (lần {k}/{n}). Các xác nhận cũ đã bị xóa; hãy xác nhận lại trước {date}.",
+      "inResolution": "Đang chờ quản trị viên xem xét. Tiền của cả giai đoạn được giữ; thời hạn xác nhận tạm dừng.",
+      "final": "Đã chốt ngày {date} · {how}",
+      "paid": "Đã về số dư",
+      "confirmed": "Đã xác nhận",
+      "waiting": "Chờ xác nhận",
+      "edit": "Sửa phân chia",
+      "cancelEdit": "Thôi sửa",
+      "editsLeft": "Còn {k}/{n} lần sửa",
+      "editsSpent": "Đã dùng hết {n} lần sửa cho giai đoạn này.",
+      "capHint": "Tối đa {cap}%",
+      "lineOverCap": "Phần của bạn tối đa {cap}%",
+      "lineTooMuch": "Phần trăm không quá 100",
+      "lineZero": "Thành viên làm cả giai đoạn phải lớn hơn 0%",
+      "sum": "Tổng {sum}%, cần đúng 100%",
+      "send": "Gửi để xác nhận",
+      "confirm": "Xác nhận",
+      "n29": "Mỗi thành viên xác nhận trước {date}, hoặc nhờ quản trị viên xem xét. Mỗi lần bạn sửa, các xác nhận cũ bị xóa và thời hạn bắt đầu lại; bạn còn {k}/{n} lần sửa. Phần của bạn tối đa {cap}%. Khách hàng không thấy phần chia.",
+      "n29NoCap": "Mỗi thành viên xác nhận trước {date}, hoặc nhờ quản trị viên xem xét. Mỗi lần bạn sửa, các xác nhận cũ bị xóa và thời hạn bắt đầu lại; bạn còn {k}/{n} lần sửa. Giai đoạn này không còn thành viên nào trong nhóm khi được nghiệm thu, nên phần của bạn không bị giới hạn; người đã rời có thể nhận 0%. Khách hàng không thấy phần chia.",
+      "n30": "Khi mọi người xác nhận, hoặc đến {date} mà không ai nhờ xem xét, tiền được chuyển theo phần chia này. Nếu bạn thấy chưa đúng, hãy nhờ quản trị viên xem xét trước {date}; khi đó tiền của cả giai đoạn được giữ lại cho đến khi có quyết định.",
+      "earlier": "Các bản trước",
+      "earlierVersion": "Bản {n} · {date}",
+      "earlierDefault": "Bản {n} · chia mặc định · {date}",
+      "staleBody": "Phân chia vừa thay đổi nên thao tác của bạn chưa được gửi. Hãy xem lại bản mới rồi thử lại.",
+      "staleReload": "Xem bản mới"
+    },
     "recruitment": {
       "tab": "Tuyển thành viên",
       "title": "Tuyển thành viên",
@@ -4090,6 +4159,8 @@
       "sign_commitment": "Ký cam kết để tham gia {job}"
     },
     "job": {
+      "draft_split": "Soạn phân chia tiền Giai đoạn {n} của {job}",
+      "confirm_split": "Xác nhận phân chia tiền Giai đoạn {n} của {job}",
       "draft_agreement": "Soạn thỏa thuận cho {job}",
       "review_agreement": "Xem thỏa thuận cho {job}",
       "revise_agreement": "Sửa thỏa thuận {job} theo góp ý của khách hàng",
@@ -4342,6 +4413,33 @@
       },
       "closure_unanswered": {
         "title": "Đề nghị kết thúc {job} chưa được trả lời. Bạn có thể mở tranh chấp."
+      },
+      "split_draft_due": {
+        "title": "Giai đoạn {n} của {job} đã được nghiệm thu. Hãy soạn phân chia tiền trước {date}."
+      },
+      "split_pending": {
+        "title": "Tiền Giai đoạn {n} của {job} đang chờ người hướng dẫn phân chia (hạn {date})"
+      },
+      "split_draft_reminder": {
+        "title": "Còn 1 ngày để soạn phân chia Giai đoạn {n}. Sau {date}, hệ thống sẽ chia đều."
+      },
+      "split_proposed": {
+        "title": "Người hướng dẫn đã đề xuất phân chia Giai đoạn {n} của {job}. Hãy xác nhận trước {date}."
+      },
+      "split_defaulted": {
+        "title": "Hệ thống đã chia đều tiền Giai đoạn {n} của {job} vì chưa có bản phân chia. Hãy xác nhận trước {date}."
+      },
+      "split_edited": {
+        "title": "Phân chia Giai đoạn {n} của {job} đã được sửa. Hãy xác nhận lại trước {date}."
+      },
+      "split_confirmation_reminder": {
+        "title": "Còn 1 ngày để xác nhận phân chia Giai đoạn {n}, hoặc nhờ quản trị viên xem xét."
+      },
+      "split_party_confirmed": {
+        "title": "{name} đã xác nhận phân chia Giai đoạn {n}"
+      },
+      "split_final": {
+        "title": "Phân chia Giai đoạn {n} của {job} đã chốt · {how}"
       },
       "milestone_due_soon": {
         "title": "Giai đoạn {n} của {job} đến hạn ngày {date}"
@@ -4712,7 +4810,15 @@
       "APPLICANT_UNAVAILABLE": "người này hiện không thể vào nhóm của công việc này. Hãy chọn người khác",
       "CREW_REJOIN_REFUSED": "người này đã rời công việc này nên không vào lại được",
       "PICK_ENDED": "lựa chọn này không còn hiệu lực",
-      "LEAVE_CLOSED": "công việc đang kết thúc nên quyền của bạn đã được thu hồi"
+      "LEAVE_CLOSED": "công việc đang kết thúc nên quyền của bạn đã được thu hồi",
+      "SPLIT_INVALID": "phần trăm phải là số nguyên; người hướng dẫn tối đa {cap}%; thành viên làm cả giai đoạn phải lớn hơn 0%",
+      "SPLIT_INVALID_NO_CAP": "phần trăm phải là số nguyên; thành viên làm cả giai đoạn phải lớn hơn 0%",
+      "SPLIT_EDIT_LIMIT": "đã dùng hết {n} lần sửa phân chia cho giai đoạn này",
+      "SPLIT_DRAFT_LATE": "đã quá hạn soạn phân chia; phân chia mặc định không sửa được",
+      "SPLIT_IN_RESOLUTION": "phân chia đang chờ quản trị viên xem xét",
+      "SPLIT_FINAL": "phân chia đã chốt",
+      "SPLIT_FINAL_PAST_DUE": "đã hết hạn xác nhận; phân chia đang được chốt theo bản hiện tại",
+      "PARTY_ONLY": "Chỉ thành viên trong phân chia mới xác nhận được."
     },
     "matching": {
       "JOB_POST_NOT_OPEN": "công việc không còn nhận chào giá",

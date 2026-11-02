@@ -1,0 +1,5 @@
+subject: Hệ thống đã chia đều tiền Giai đoạn {n} của {job} vì chưa có bản phân chia. Hãy xác nhận trước {date}.
+---
+Xin chào,
+
+Giai đoạn {n} của công việc {job} chưa có bản phân chia đến hạn, nên hệ thống đã chia đều. Hãy xem phần chia của mọi người trên trang "Phân chia tiền" và xác nhận trước {date}.

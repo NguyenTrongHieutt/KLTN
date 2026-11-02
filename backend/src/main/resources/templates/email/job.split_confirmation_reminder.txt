@@ -1,0 +1,5 @@
+subject: Còn 1 ngày để xác nhận phân chia Giai đoạn {n}, hoặc nhờ quản trị viên xem xét.
+---
+Xin chào,
+
+Bạn còn 1 ngày để xác nhận phân chia tiền Giai đoạn {n} trên trang "Phân chia tiền", hoặc nhờ quản trị viên xem xét. Hết hạn mà không ai nhờ xem xét, tiền được chuyển theo bản hiện tại.

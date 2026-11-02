@@ -1,0 +1,5 @@
+subject: Giai đoạn {n} của {job} đã được nghiệm thu. Hãy soạn phân chia tiền trước {date}.
+---
+Xin chào,
+
+Giai đoạn {n} của công việc {job} đã được nghiệm thu, và tiền của giai đoạn đang chờ phân chia. Hãy soạn phân chia tiền trên trang "Phân chia tiền" trước {date}. Sau ngày đó, hệ thống sẽ chia đều.
