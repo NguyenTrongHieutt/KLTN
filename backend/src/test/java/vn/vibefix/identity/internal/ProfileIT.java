@@ -354,6 +354,33 @@ class ProfileIT extends IntegrationTest {
 			.andExpect(jsonPath("$.studentDetails").doesNotExist());
 	}
 
+	/** Story 21.7 (AD-36): the narrowed card still names anyone by ID, in the order asked, whatever they hold. */
+	@Test
+	void aCardNamesAnyPersonInTheOrderAskedAndLeavesOutAnUnknownId() {
+		LocalDate until = LocalDate.of(2026, 9, 30);
+		UUID named = TestPeople.student(this.jdbc, "Trần Quang Minh", true, List.of(TestPeople.REACT), "React", until);
+		UUID hidden = TestPeople.student(this.jdbc, "Không hiện tên", false, List.of(TestPeople.REACT), "React", until);
+		UUID unverified = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT), "React");
+		UUID unlinked = google("chua-lien-ket");
+		UUID locked = TestPeople.mentor(this.jdbc, "Đã khóa", List.of(TestPeople.REACT), "React");
+		IdentityTestSupport.lock(this.jdbc, locked, "Vi phạm");
+		String hiddenLogin = TestPeople.login(this.jdbc, hidden);
+		String unverifiedLogin = TestPeople.login(this.jdbc, unverified);
+
+		List<PersonDirectory.PersonCard> cards = this.people
+			.cards(List.of(locked, UUID.randomUUID(), unlinked, unverified, hidden, named));
+
+		assertThat(cards).extracting(PersonDirectory.PersonCard::accountId)
+			.containsExactly(locked, unlinked, unverified, hidden, named);
+		assertThat(cards).extracting(PersonDirectory.PersonCard::available).containsExactly(false, true, true, true, true);
+		assertThat(cards.get(1).githubLogin()).isNull();
+		assertThat(cards.get(1).githubUserId()).isNull();
+		assertThat(cards.get(4).githubUserId()).isNotNull();
+		assertThat(cards.subList(1, 5)).extracting(PersonDirectory.PersonCard::shownName)
+			.containsExactly("", "@" + unverifiedLogin, "@" + hiddenLogin, "Trần Quang Minh");
+		assertThat(this.people.cards(List.of())).isEmpty();
+	}
+
 	/** Story 19.4: only the live, valid row counts; an ended one hides the name, a renewal leaves one card. */
 	@Test
 	void anUnlinkedOrRevokedStudentShowsNoNameAndARenewedOneHasOneCard() throws Exception {

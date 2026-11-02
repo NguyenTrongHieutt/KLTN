@@ -73,6 +73,9 @@ class StatisticsIT extends IntegrationTest {
 			// Story 19.7: nobody is approved, so no Mentor or application count by decision exists.
 			.andExpect(jsonPath("$.groups[?(@.group == 'mentorsByApproval')]").isEmpty())
 			.andExpect(jsonPath("$.groups[?(@.group == 'mentorApplicationsByDecision')]").isEmpty())
+			// Story 21.7: Teams are gone, so no empty group is left of them, and the Crews stay.
+			.andExpect(jsonPath("$.groups[?(@.group == 'teamsBySize')]").isEmpty())
+			.andExpect(jsonPath("$.groups[?(@.group == 'crewsBySize')]").isNotEmpty())
 			.andExpect(jsonPath("$.groups[?(@.group == 'lockedAccounts')].counts[?(@.key == 'LOCKED')].value").value(1))
 			.andExpect(jsonPath("$.groups[?(@.group == 'privateFeedback')].counts.length()").value(0))
 			.andExpect(jsonPath("$.groups.length()").value(AdminStatisticsController.ORDER.size()));

@@ -110,6 +110,32 @@ class OversightIT extends IntegrationTest {
 			.andExpect(jsonPath("$.items[?(@.action == 'job.milestone_submitted')]").isNotEmpty());
 	}
 
+	/**
+	 * Story 21.7 (AD-8): the entries of the retired Teams stay in {@code audit}, and ADM-8 shows them as raw codes, as
+	 * it shows any action. None ever named a Job, so an account and the unfiltered list are what find them.
+	 */
+	@Test
+	void anOldTeamEntryStaysListedAsItsRawCode() throws Exception {
+		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		world();
+		this.transactions.executeWithoutResult(status -> {
+			this.auditLog.record(AuditEntry.of(AuditActor.user(this.hung), "team.member_left",
+					AuditObject.of("team.team", UUID.randomUUID())));
+			this.auditLog.record(AuditEntry.of(AuditActor.system(), "team.released",
+					AuditObject.of("identity.account", this.lan)));
+		});
+
+		this.mvc.perform(get("/api/v1/admin/audit").param("accountId", this.hung.toString()).with(admin(ha)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.items[?(@.action == 'team.member_left')].actorName").value("Đỗ Mạnh Hùng"));
+		this.mvc.perform(get("/api/v1/admin/audit").param("accountId", this.lan.toString()).with(admin(ha)))
+			.andExpect(jsonPath("$.items[?(@.action == 'team.released')].system").value(true));
+		this.mvc.perform(get("/api/v1/admin/audit").with(admin(ha)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.items[?(@.action == 'team.member_left')]").isNotEmpty())
+			.andExpect(jsonPath("$.items[?(@.action == 'team.released')]").isNotEmpty());
+	}
+
 	private void world() {
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.jdbc.sql("""

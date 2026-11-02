@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
@@ -40,6 +41,21 @@ class NotificationCatalogTest {
 	private final NotificationTypes catalog = new NotificationTypes();
 
 	private final JsonNode vi = read();
+
+	/** Story 21.7 (UX-DR112): Teams and the student verification's to-do left the registry, its texts and templates. */
+	@Test
+	void noRetiredTeamEntryIsLeft() throws IOException {
+		assertThat(this.catalog.notificationTypes()).extracting(NotificationType::key)
+			.noneMatch(key -> key.startsWith("team."));
+		assertThat(this.catalog.todoTypes()).extracting(TodoType::key)
+			.noneMatch(key -> key.startsWith("team."))
+			.doesNotContain("identity.verify_student");
+		assertThat(node("notification.team")).isNull();
+		assertThat(node("todo.identity.verify_student")).isNull();
+		try (Stream<Path> templates = Files.list(TEMPLATES)) {
+			assertThat(templates.map(file -> file.getFileName().toString())).noneMatch(name -> name.startsWith("team."));
+		}
+	}
 
 	@Test
 	void everyToDoKeyHasItsStripTextWithExactlyItsParameters() {
