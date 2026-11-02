@@ -41,7 +41,8 @@ import org.springframework.http.HttpMethod;
  * Bidder's proof upload no bid took yet (Story 21.2); {@code job=recruit} and {@code post=recruit} make {@code {jobId}}
  * and {@code {postId}} the recruiting Job, where {@code {crewApplicationId}} lives, and {@code file=crew-proof} and
  * {@code file=crew-proof-upload} make {@code {fileId}} its Crew Application's proof file or the applicant's waiting
- * upload (Story 21.4); and {@code item=raiser} makes {@code {workItemId}} name the escalated Team Issue's raiser's
+ * upload (Story 21.4); {@code split=resolution} and {@code split=decided} make {@code {splitId}} the crew Job's split under an
+ * open Split Resolution or the one an Administrator decided (Story 22.3); and {@code item=raiser} makes {@code {workItemId}} name the escalated Team Issue's raiser's
  * Work Item instead of the active member's. The
  * fixture that realizes the caller must understand every other key; since Story 20.5 no caller takes one: a
  * locked account is the caller {@code LOCKED}, and the GitHub link tells {@code USER} from
@@ -78,7 +79,7 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 	public static final Set<String> JOB_SCOPED = Set.of("jobId", "boardId", "postId", "applicationId", "crewChatId",
 			"messageId", "workItemId", "workItemNoteId", "attachmentId", "handoverId", "followUpId", "changeRequestId",
 			"teamIssueId", "pageId", "crewMilestoneId", "crewCriterionId", "crewRowId", "milestoneId", "paymentOrderId",
-			"accessId", "screenshotId", "disputeId", "reportId", "fileId", "crewApplicationId", "splitId");
+			"accessId", "screenshotId", "disputeId", "reportId", "fileId", "crewApplicationId", "splitId", "resolutionId");
 
 	private static final Pattern PLACEHOLDER = Pattern.compile("\\{([A-Za-z][A-Za-z0-9]*)}");
 
@@ -156,6 +157,15 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 
 		/** {@code post=recruit}: {@code {postId}} names the recruiting Job, which FND-2 applies to (Story 21.4). */
 		RECRUIT_POST("post", "recruit", "postId", "recruitJobId"),
+
+		/**
+		 * {@code split=resolution}: {@code {splitId}} names the crew Job's split under an open Split Resolution (Story 22.3),
+		 * instead of the one out for confirmation.
+		 */
+		SPLIT_IN_RESOLUTION("split", "resolution", "splitId", "resolutionSplitId"),
+
+		/** {@code split=decided}: {@code {splitId}} names the crew Job's split an Administrator decided (Story 22.3). */
+		SPLIT_DECIDED("split", "decided", "splitId", "decidedSplitId"),
 
 		/**
 		 * {@code file=crew-proof}: {@code {fileId}} names the stored file of the recruiting Job's Crew Application proof,

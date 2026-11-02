@@ -522,11 +522,20 @@ public final class JobContent {
 	 */
 	public static UUID[] proposedSplit(JdbcClient jdbc, UUID job, UUID product, UUID milestone, int number, UUID mentor,
 			UUID active, UUID former, int mentorPercent, int activePercent, int formerPercent, Instant released, Instant due) {
+		return proposedSplit(jdbc, job, product, milestone, number, mentor, active, former, mentorPercent, activePercent,
+				formerPercent, released.minus(java.time.Duration.ofDays(2)), released, due);
+	}
+
+	/** {@link #proposedSplit}, naming when the release says the Milestone was funded (Story 22.3). */
+	public static UUID[] proposedSplit(JdbcClient jdbc, UUID job, UUID product, UUID milestone, int number, UUID mentor,
+			UUID active, UUID former, int mentorPercent, int activePercent, int formerPercent, Instant funded, Instant released,
+			Instant due) {
 		UUID split = UUID.randomUUID();
 		jdbc.sql("""
 				INSERT INTO job.milestone_split (id, job_id, product_id, milestone_id, milestone_number, mentor_account_id, status,
-				    cap_applies, released_at, draft_due_at, created_at, confirmation_round, confirmation_due_at)
-				VALUES (:id, :job, :product, :milestone, :number, :mentor, 'PROPOSED', true, :released, :draftDue, :released, 1, :due)
+				    cap_applies, funded_at, released_at, draft_due_at, created_at, confirmation_round, confirmation_due_at)
+				VALUES (:id, :job, :product, :milestone, :number, :mentor, 'PROPOSED', true, :funded, :released, :draftDue, :released,
+				    1, :due)
 				""")
 			.param("id", split)
 			.param("job", job)
@@ -534,6 +543,7 @@ public final class JobContent {
 			.param("milestone", milestone)
 			.param("number", number)
 			.param("mentor", mentor)
+			.param("funded", Timestamp.from(funded))
 			.param("released", Timestamp.from(released))
 			.param("draftDue", Timestamp.from(released.plus(java.time.Duration.ofDays(7))))
 			.param("due", Timestamp.from(due))
