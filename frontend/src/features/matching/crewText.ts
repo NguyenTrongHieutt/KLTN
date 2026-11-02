@@ -124,6 +124,35 @@ export function pickRefusal(error: unknown, name: string): string {
   return problemMessage(error, { module: 'job', action: t('screen.recruitment.pickAction') }).text
 }
 
+/** The `VALIDATION` reasons of a signature: each says itself, since the panel marks no field for "kiểm tra lại". */
+const SIGN_VALIDATION = [
+  'COMMITMENT_VERSION_OUTDATED',
+  'NDA_VERSION_OUTDATED',
+  'COMMIT_EMAIL_NOT_ACKNOWLEDGED',
+  'PUBLIC_CODE_NOT_ACKNOWLEDGED',
+]
+
+/**
+ * A refused signature in the words of the person signing (FR-81, AD-23), never those written for the Mentor: an ended
+ * pick, a version that changed under the open panel, then the applicant's own refusals. `APPLICANT_UNAVAILABLE` stays
+ * neutral here too (A-16), not saying whether another Crew or a lock is why.
+ */
+export function signRefusal(error: unknown): string {
+  if (error instanceof ApiError) {
+    const reason = error.problem.reason
+    if (reason === 'PICK_ENDED') {
+      return t('screen.commitment.ended.PICK_ENDED')
+    }
+    if (reason && SIGN_VALIDATION.includes(reason)) {
+      return t(`reason.matching.${reason}` as MessageKey)
+    }
+    if (reason === 'APPLICANT_UNAVAILABLE') {
+      return t('screen.crewApply.refusal.CONFLICT_OF_INTEREST')
+    }
+  }
+  return crewRefusal(error)
+}
+
 /** The signing deadline a pick made now has: {@link SIGN_DAYS} days on, as the server counts it. */
 export function signDeadline(now: Date = new Date()): string {
   return new Date(now.getTime() + SIGN_DAYS * 24 * 60 * 60 * 1000).toISOString()

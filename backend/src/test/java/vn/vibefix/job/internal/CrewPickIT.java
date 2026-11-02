@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -17,6 +18,7 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Duration;
@@ -25,6 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -531,7 +534,90 @@ class CrewPickIT extends IntegrationTest {
 				""", Map.of())).isZero();
 	}
 
+	/**
+	 * AD-4: every command on a pick queues for the Job row before it locks the application, so nothing holds a
+	 * {@code matching} row while it waits for the Job.
+	 */
+	@Test
+	void everyCommandOnAPickTakesTheJobRowBeforeTheApplication() throws Exception {
+		recruit(this.job, this.hung, 3).andExpect(status().isOk());
+		UUID signed = apply(this.minh, this.job);
+		takesTheJobRowFirst(signed, () -> pick(this.hung, this.job, signed), 200);
+		takesTheJobRowFirst(signed, () -> sign(this.minh, this.job, "1.0", true), 200);
+
+		UUID withdrawn = apply(person("Lê Thảo Vy"), this.job);
+		pick(this.hung, this.job, withdrawn).andExpect(status().isOk());
+		takesTheJobRowFirst(withdrawn, () -> withdrawPick(this.hung, this.job, withdrawn), 204);
+
+		UUID tung = person("Phạm Hải Tùng");
+		UUID declined = apply(tung, this.job);
+		pick(this.hung, this.job, declined).andExpect(status().isOk());
+		takesTheJobRowFirst(declined, () -> this.mvc
+			.perform(post("/api/v1/crew/jobs/" + this.job + "/commitment/decline").with(as(tung)).with(csrf())), 200);
+		awaitListeners();
+	}
+
+	/** FR-75: no route removes a member who signed, for anyone, and withdrawing their pick afterwards changes nothing. */
+	@Test
+	void nobodyRemovesAMemberWhoSigned() throws Exception {
+		recruit(this.job, this.hung, 1).andExpect(status().isOk());
+		UUID application = apply(this.minh, this.job);
+		pick(this.hung, this.job, application).andExpect(status().isOk());
+		sign(this.minh, this.job, "1.0", true).andExpect(status().isOk());
+		String row = text("SELECT id FROM job.crew_row WHERE job_id = :job AND member_account_id = :minh",
+				Map.of("job", this.job, "minh", this.minh));
+
+		for (UUID caller : List.of(this.hung, this.lan, this.minh)) {
+			this.mvc.perform(post("/api/v1/mentor/jobs/" + this.job + "/crew/" + row + "/remove").with(as(caller)).with(csrf()))
+				.andExpect(status().isNotFound());
+			this.mvc.perform(delete("/api/v1/mentor/jobs/" + this.job + "/crew/" + row).with(as(caller)).with(csrf()))
+				.andExpect(status().isNotFound());
+		}
+		withdrawPick(this.hung, this.job, application).andExpect(status().isConflict())
+			.andExpect(jsonPath("$.reason").value("NOT_WITHDRAWABLE"));
+
+		assertThat(text("SELECT status FROM job.crew_row WHERE job_id = :job AND member_account_id = :minh",
+				Map.of("job", this.job, "minh", this.minh))).isEqualTo("ACTIVE");
+		awaitListeners();
+	}
+
 	// ---- Helpers ------------------------------------------------------------------------------
+
+	/** Holds the Job row while {@code command} runs: it must come to wait for that row with the application still free. */
+	private void takesTheJobRowFirst(UUID application, Callable<ResultActions> command, int expected) throws Exception {
+		ExecutorService pool = Executors.newSingleThreadExecutor();
+		try (Connection holder = this.context.getBean(javax.sql.DataSource.class).getConnection()) {
+			holder.setAutoCommit(false);
+			int holderPid = holdJobRow(holder);
+			Future<Integer> running = pool.submit(() -> command.call().andReturn().getResponse().getStatus());
+			try {
+				await().atMost(Duration.ofSeconds(15))
+					.until(() -> this.jdbc.sql("SELECT count(*) FROM pg_stat_activity WHERE :holder = ANY(pg_blocking_pids(pid))")
+						.param("holder", holderPid).query(Long.class).single() > 0);
+				assertThat(tryLock("matching.crew_application", application))
+					.as("the application stayed free while the command waited for the Job row").isEqualTo("locked");
+			}
+			finally {
+				holder.rollback();
+			}
+			assertThat(running.get(20, TimeUnit.SECONDS)).isEqualTo(expected);
+		}
+		finally {
+			pool.shutdownNow();
+		}
+	}
+
+	/** Locks the Job row on {@code holder}, whose transaction stays open; answers its backend's process ID. */
+	private int holdJobRow(Connection holder) throws SQLException {
+		try (PreparedStatement lock = holder.prepareStatement("SELECT id FROM job.job WHERE id = ? FOR UPDATE")) {
+			lock.setObject(1, this.job);
+			lock.executeQuery();
+		}
+		try (PreparedStatement pid = holder.prepareStatement("SELECT pg_backend_pid()"); ResultSet answer = pid.executeQuery()) {
+			answer.next();
+			return answer.getInt(1);
+		}
+	}
 
 	/** Another Agreement Job, of another Customer, whose own Mentor recruits one member. */
 	private UUID recruitingJob() throws Exception {
@@ -551,11 +637,15 @@ class CrewPickIT extends IntegrationTest {
 	}
 
 	private String tryLockJob() {
+		return tryLock("job.job", this.job);
+	}
+
+	private String tryLock(String table, UUID id) {
 		try (Connection connection = this.context.getBean(javax.sql.DataSource.class).getConnection()) {
 			connection.setAutoCommit(false);
 			try (PreparedStatement statement = connection.prepareStatement(
-					"SELECT id FROM job.job WHERE id = ? FOR UPDATE NOWAIT")) {
-				statement.setObject(1, this.job);
+					"SELECT id FROM " + table + " WHERE id = ? FOR UPDATE NOWAIT")) {
+				statement.setObject(1, id);
 				statement.executeQuery();
 				return "locked";
 			}

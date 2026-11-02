@@ -3681,7 +3681,6 @@
       "textLabel": "Toàn văn cam kết tham gia",
       "text": "Khi ký, bạn tham gia nhóm thực hiện công việc này. Khách hàng chỉ được biết tên tài khoản GitHub của bạn (@{login}) để cấp và thu hồi quyền truy cập, không biết tên, hồ sơ hay cách liên hệ với bạn. Hồ sơ công khai của bạn thì ai cũng xem được, nhưng không cho biết bạn đang làm công việc nào.",
       "sign": "Ký và tham gia",
-      "signAction": "ký cam kết",
       "decline": "Từ chối",
       "declineTitle": "Từ chối tham gia công việc này?",
       "declineBody": "Người hướng dẫn được báo để chọn người khác. Bạn có thể tìm và xin vào nhóm của công việc khác.",

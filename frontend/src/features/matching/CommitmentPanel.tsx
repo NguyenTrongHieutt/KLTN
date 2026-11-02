@@ -9,7 +9,6 @@ import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { t, type MessageKey } from '@/i18n/t'
-import { ApiError } from '@/lib/apiClient'
 import { formatCalendarDayMonth, formatDayMonthTime } from '@/lib/dates'
 import { formatVnd } from '@/lib/money'
 import { problemMessage } from '@/lib/problemMessage'
@@ -22,6 +21,7 @@ import {
   type Commitment,
   type CommitmentPanel as Panel,
 } from './crewApplicationApi'
+import { signRefusal } from './crewText'
 import { NDA_VERSION } from './nda'
 import { CommitEmailNotice, NdaText } from './NdaText'
 
@@ -79,12 +79,7 @@ function Signing({ commitment, panel }: { commitment: Commitment; panel: Panel }
       },
       {
         onSuccess: () => toasts.success(t('screen.commitment.signed', { job: commitment.jobTitle })),
-        onError: (failed) =>
-          setError(
-            failed instanceof ApiError && failed.problem.reason === 'PICK_ENDED'
-              ? t('screen.commitment.ended.PICK_ENDED')
-              : problemMessage(failed, { module: 'job', action: t('screen.commitment.signAction') }).text,
-          ),
+        onError: (failed) => setError(signRefusal(failed)),
       },
     )
   }
