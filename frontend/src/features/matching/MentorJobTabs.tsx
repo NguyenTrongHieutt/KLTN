@@ -1,5 +1,6 @@
 import { hasChat, useCrewChat, useJobChat } from '@/features/chat/chatApi'
 import { JobTabRow } from '@/features/job/JobTabs'
+import { useJobSplits } from '@/features/split/splitApi'
 import { hasBoard } from '@/features/work/workApi'
 import { t } from '@/i18n/t'
 
@@ -11,7 +12,7 @@ const RECRUITS = ['AGREEMENT', 'STARTING', 'ACTIVE']
  * (JOB-3), and "Bàn giao" (JOB-5); from
  * Agreement on, "Trò chuyện" and "Trao đổi nhóm" (JOB-8), each with its unread dot, and "Thỏa thuận";
  * "Tuyển thành viên" (JOB-9) from Agreement until Closing (Story 21.4); "Thanh toán" once the Agreement is confirmed
- * (JOB-7).
+ * (JOB-7); "Phân chia tiền" (JOB-10) from the first split on, by asking for the splits itself (Story 22.2).
  */
 export function MentorJobTabs({
   jobId,
@@ -21,12 +22,23 @@ export function MentorJobTabs({
 }: {
   jobId: string
   state: string
-  current: 'overview' | 'board' | 'docs' | 'handover' | 'chat' | 'crewChat' | 'agreement' | 'recruitment' | 'payment'
+  current:
+    | 'overview'
+    | 'board'
+    | 'docs'
+    | 'handover'
+    | 'chat'
+    | 'crewChat'
+    | 'agreement'
+    | 'recruitment'
+    | 'payment'
+    | 'split'
   /** Whether the Agreement is confirmed (FR-17). */
   payment?: boolean
 }) {
   const chat = useJobChat(hasChat(state) ? jobId : undefined)
   const crewChat = useCrewChat(hasChat(state) ? jobId : undefined)
+  const splits = useJobSplits(jobId)
   return (
     <JobTabRow
       current={current}
@@ -55,6 +67,9 @@ export function MentorJobTabs({
           ? [{ key: 'recruitment', to: `/cong-viec/${jobId}/tuyen-thanh-vien`, label: t('screen.recruitment.tab') }]
           : []),
         ...(payment ? [{ key: 'payment', to: `/cong-viec/${jobId}/thanh-toan`, label: t('screen.payment.tab') }] : []),
+        ...(splits.data?.length
+          ? [{ key: 'split', to: `/cong-viec/${jobId}/phan-chia`, label: t('screen.split.tab') }]
+          : []),
       ]}
     />
   )

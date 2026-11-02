@@ -141,6 +141,11 @@ export const routes: RouteObject[] = [
         }),
       },
       {
+        // JOB-10 "Phân chia tiền" (UX-DR105, UX-DR106, Story 22.2): the split's Mentor and parties, by the split's own rows.
+        path: 'cong-viec/:jobId/phan-chia/:milestoneId?',
+        lazy: async () => ({ Component: (await import('@/features/split/SplitPage')).SplitPage }),
+      },
+      {
         path: 'cong-viec/:jobId/tim-nguoi',
         lazy: async () => ({ Component: (await import('@/features/matching/MentorSearchPage')).MentorSearchPage }),
       },
