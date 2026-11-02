@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -422,6 +423,28 @@ class AbuseReportIT extends IntegrationTest {
 		return this.mvc.perform(post("/api/v1/abuse-reports").with(as(account, role)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("{\"kind\":\"" + kind + "\",\"targetId\":\"" + target + "\",\"reason\":\"Vi phạm quy định\"}"));
+	}
+
+	/** Story 22.3 (AD-19, A-17): an Administrator linked to the reporter or the reported account does not take the report. */
+	@Test
+	void anAdministratorLinkedToTheReporterOrTheAuthorCannotTakeTheReportAndAnotherCan() throws Exception {
+		file(this.world.hung(), Role.MENTOR, "JOB_POST", this.post).andExpect(status().isCreated());
+		UUID report = reportOf("JOB_POST");
+		for (UUID holder : List.of(this.ha.accountId(), this.world.hung())) {
+			this.jdbc.sql("""
+					INSERT INTO identity.person_signal (id, account_id, kind, source, hmac, key_version, recorded_at)
+					VALUES (:id, :account, 'EMAIL', 'GOOGLE_EMAIL', :hmac, 1, now())
+					""").param("id", UUID.randomUUID()).param("account", holder).param("hmac", "ab".repeat(32)).update();
+		}
+
+		this.mvc.perform(post("/api/v1/admin/abuse-reports/" + report + "/take").with(admin(this.ha.accountId())).with(csrf()))
+			.andExpect(status().isUnprocessableEntity())
+			.andExpect(jsonPath("$.code").value("GUARD_FAILED"))
+			.andExpect(jsonPath("$.reason").value("CONFLICT_OF_INTEREST"));
+
+		assertThat(count("SELECT count(*) FROM audit.audit_entry WHERE action = 'admin.take_conflict_refused'")).isOne();
+		assertThat(count("SELECT count(*) FROM admin.abuse_report WHERE assigned_admin_id IS NOT NULL")).isZero();
+		take(this.quan, report);
 	}
 
 	private ResultActions take(UUID admin, UUID report) throws Exception {

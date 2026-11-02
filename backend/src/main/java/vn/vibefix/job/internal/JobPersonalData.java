@@ -40,8 +40,8 @@ import vn.vibefix.shared.PersonalDataSection;
  * Milestone Splits are financial records under NFR-10's legal retention (AD-24, A-01): nothing here deletes them, an
  * erasure only anonymizes the person in them, and the person's export lists their parts. A Product deletion never waits
  * for a split: a Job with a split not {@code FINAL} loses its other rows at once and keeps a bare row
- * ({@code product_deleted_at}) that every read but the split ports treats as gone, removed once the Job's last split is
- * final.
+ * ({@code product_deleted_at}) that every read but the split ports and a granted Administrator's treats as gone, removed
+ * with its read grants once the Job's last split is final: the grants of a Split Resolution still read it until then.
  * <p>
  * It also answers for the GitHub link (FR-80, R14): a role in a Job that is not Closed or Cancelled keeps it,
  * since the Job's repositories and grants know the person by their GitHub ID, and so does a Milestone a former
@@ -300,7 +300,7 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 			.query(UUID.class)
 			.list()
 			.forEach(this.files::delete);
-		for (String table : List.of("job.job_screenshot", "job.admin_read_grant", "job.cancellation_proposal",
+		for (String table : List.of("job.job_screenshot", "job.cancellation_proposal",
 				"job.change_request", "job.closure_proposal",
 				"job.agreement_comment",
 				"job.agreement_change_request",
@@ -325,6 +325,7 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 		}
 		List<UUID> gone = jobs.stream().filter(job -> !open.contains(job)).toList();
 		if (!gone.isEmpty()) {
+			this.jdbc.sql("DELETE FROM job.admin_read_grant WHERE job_id IN (:gone)").param("gone", gone).update();
 			this.jdbc.sql("DELETE FROM job.job WHERE id IN (:gone)").param("gone", gone).update();
 		}
 	}
@@ -339,7 +340,10 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 			.filter(job -> !this.jdbc.sql("""
 					SELECT EXISTS (SELECT 1 FROM job.milestone_split WHERE job_id = :job AND status <> 'FINAL')
 					""").param("job", job).query(Boolean.class).single())
-			.ifPresent(job -> this.jdbc.sql("DELETE FROM job.job WHERE id = :id").param("id", job).update());
+			.ifPresent(job -> {
+				this.jdbc.sql("DELETE FROM job.admin_read_grant WHERE job_id = :id").param("id", job).update();
+				this.jdbc.sql("DELETE FROM job.job WHERE id = :id").param("id", job).update();
+			});
 	}
 
 	/**

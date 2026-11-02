@@ -1,0 +1,5 @@
+subject: {name} đã nhờ quản trị viên xem xét phân chia Giai đoạn {n} của {job}
+---
+Xin chào,
+
+{name} đã nhờ quản trị viên xem xét phân chia Giai đoạn {n} của công việc {job}. Trong lúc chờ, tiền của cả giai đoạn được giữ và phân chia không sửa, không xác nhận được. Mở trang "Phân chia tiền" để xem lý do và gửi ý kiến của bạn. Khách hàng không thấy yêu cầu này.

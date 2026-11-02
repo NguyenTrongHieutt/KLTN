@@ -31,6 +31,9 @@ enum AdminReason {
 	SKILL_ALREADY_EXISTS,
 
 	/** FR-73, AD-34: the account sent 5 suggestions today. */
-	SKILL_SUGGESTION_LIMIT
+	SKILL_SUGGESTION_LIMIT,
+
+	/** The Administrator shares a person-link signal with the reporter or the reported account; never says which (A-17). */
+	CONFLICT_OF_INTEREST
 
 }

@@ -89,6 +89,20 @@ class SplitNotices {
 		}
 	}
 
+	/** A Split Resolution holds the split: nobody confirms now, so nobody is asked to (AD-40). */
+	void held(Split split) {
+		this.todos.closeAll(CONFIRM_TODO, split.id());
+	}
+
+	/** A withdrawal started a new round: only those who have not confirmed the version are asked again (AD-40). */
+	void askAgain(Split split, String title, List<Party> waiting, Instant due) {
+		for (Recipient member : members(waiting)) {
+			this.todos.open(new TodoRequest(CONFIRM_TODO, member.accountId(), member.audience(), split.id(),
+					Map.of("n", String.valueOf(split.number()), "job", title), link(split), due, split.jobId(), null,
+					split.milestoneId()));
+		}
+	}
+
 	/** The Mentor's first draft or an edit reached each party. */
 	void sent(String type, Split split, int versionNo, String title, List<Party> parties, Instant due) {
 		send(type, split, cause(split, type + ":" + versionNo), members(parties),

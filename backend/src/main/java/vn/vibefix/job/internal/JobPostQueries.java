@@ -263,6 +263,16 @@ class JobPostQueries implements JobPosts {
 
 	@Override
 	@Transactional(readOnly = true)
+	public Optional<JobPostState> postUnderGrant(UUID jobId) {
+		return this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id")
+			.param("id", jobId)
+			.query(Jobs::job)
+			.optional()
+			.map(JobPostQueries::state);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
 	public List<JobPostState> productJobs(UUID productId) {
 		return this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE product_id = :product AND " + Jobs.LIVE + " ORDER BY created_at DESC, id")
 			.param("product", productId)

@@ -9,6 +9,7 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
@@ -50,6 +51,12 @@ class PersonSignalsIT extends IntegrationTest {
 
 	@Autowired
 	private ApplicationEvents events;
+
+	@Autowired
+	private ApplicationContext context;
+
+	@Autowired
+	private AdminEmailSignals adminEmails;
 
 	@Test
 	void aSchoolEmailMatchesAnotherAccountsGitHubEmailWithoutKeepingTheAddress() {
@@ -154,6 +161,62 @@ class PersonSignalsIT extends IntegrationTest {
 			.param("id", account)
 			.query(Long.class)
 			.single();
+	}
+
+	/** Story 22.3 (A-17): an Administrator's email is a signal of the kind EMAIL, from the bootstrap on. */
+	@Test
+	void anAdministratorsEmailMatchesAnAccountOfTheSameEmailFromTheBootstrapOn() {
+		UUID person = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null);
+		record(person, Source.GOOGLE_EMAIL, "Ha.Phuong@vibefix.test");
+
+		UUID administrator = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương").accountId();
+
+		assertThat(this.publicSignals.sharesPersonSignal(administrator, person)).isTrue();
+		assertThat(this.jdbc.sql("SELECT kind || ':' || source FROM identity.person_signal WHERE account_id = :id")
+			.param("id", administrator)
+			.query(String.class)
+			.list()).containsExactly("EMAIL:ADMIN_EMAIL");
+	}
+
+	/** The startup step: an Administrator from before Story 22.3 gets the signal, and running it again adds nothing. */
+	@Test
+	void theStartupStepRecordsAnEarlierAdministratorsEmailOnceAndIgnoresAnErasedOne() {
+		UUID earlier = AdministratorTestSupport.enrol(this.context, IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null),
+				"cu.quan.tri@vibefix.test", "Quản trị cũ", java.time.Instant.parse("2026-10-20T00:00:00Z")).accountId();
+		UUID erased = AdministratorTestSupport.enrol(this.context, IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null),
+				"da.xoa@vibefix.test", "Đã xóa", java.time.Instant.parse("2026-10-20T00:00:00Z")).accountId();
+		this.jdbc.sql("UPDATE identity.account SET erased_at = now() WHERE id = :id").param("id", erased).update();
+		assertThat(count(earlier)).isZero();
+
+		this.adminEmails.backfill();
+		long once = count(earlier);
+		this.adminEmails.backfill();
+
+		assertThat(once).isOne();
+		assertThat(count(earlier)).as("idempotent").isEqualTo(once);
+		assertThat(count(erased)).isZero();
+		assertThat(this.jdbc.sql("SELECT source FROM identity.person_signal WHERE account_id = :id")
+			.param("id", earlier)
+			.query(String.class)
+			.single()).isEqualTo("ADMIN_EMAIL");
+	}
+
+	/** The Split Evidence Package's pairs (AD-19, AD-40): by kind, each once, among the accounts asked about. */
+	@Test
+	void matchesAmongNameEachPairOnceByKindAndLeaveOthersOut() {
+		UUID first = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null);
+		UUID second = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null);
+		UUID outside = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null);
+		record(first, Source.GOOGLE_EMAIL, "cung.mot@example.test");
+		record(second, Source.SCHOOL_EMAIL, "cung.mot@example.test");
+		record(outside, Source.GITHUB_EMAIL, "cung.mot@example.test");
+
+		assertThat(this.publicSignals.matchesAmong(java.util.List.of(first, second))).singleElement().satisfies(match -> {
+			assertThat(java.util.Set.of(match.accountId(), match.otherAccountId())).containsExactlyInAnyOrder(first, second);
+			assertThat(match.kind()).isEqualTo("EMAIL");
+		});
+		assertThat(this.publicSignals.matchesAmong(java.util.List.of(first))).isEmpty();
+		assertThat(this.publicSignals.matchesAmong(java.util.List.of())).isEmpty();
 	}
 
 	private void record(UUID account, Source source, String value) {

@@ -449,6 +449,7 @@
         "falsePositivesNote": "Vấn đề bảo mật bị đánh dấu là cảnh báo nhầm",
         "failedExecutions": "{n} lần thực hiện phân xử bị lỗi",
         "teamIssues": "Khiếu nại nội bộ chờ quản trị viên",
+        "splitResolutions": "Yêu cầu xem xét phân chia đang mở",
         "skillSuggestions": "Đề xuất kỹ năng chờ duyệt"
       },
       "idle": {
@@ -1088,6 +1089,7 @@
         "title": "Khiếu nại nội bộ",
         "tabDisputes": "Tranh chấp",
         "tabTeamIssues": "Khiếu nại nội bộ",
+        "tabSplits": "Phân chia tiền",
         "empty": "Chưa có khiếu nại nội bộ nào được chuyển cho quản trị viên.",
         "pick": "Chọn một khiếu nại để xem.",
         "subject": {
@@ -1145,6 +1147,112 @@
           "outcomeRemoved": "Gỡ điểm",
           "outcomeKept": "Giữ điểm",
           "at": "Quyết định lúc {time}"
+        }
+      },
+      "splitResolutions": {
+        "title": "Phân chia tiền",
+        "empty": "Chưa có yêu cầu xem xét phân chia nào.",
+        "emptyFiltered": "Không có yêu cầu nào chưa được quyết định quá hạn.",
+        "pick": "Chọn một yêu cầu để xem.",
+        "filterAll": "Tất cả",
+        "filterLong": "Chưa quyết định từ 7 ngày",
+        "milestone": "Giai đoạn {n}",
+        "noTitle": "Công việc đã xóa",
+        "status": {
+          "OPEN": "Chờ quyết định",
+          "WITHDRAWN": "Đã rút",
+          "DECIDED": "Đã quyết định"
+        },
+        "assigned": "Đã có người nhận",
+        "assignedToMe": "Bạn đang xử lý",
+        "undecidedLong": "Chưa quyết định quá hạn",
+        "raisedAt": "gửi lúc {time}",
+        "days": "{n} ngày chưa quyết định",
+        "pooled": "{amount} của cả giai đoạn",
+        "raiser": "Người nhờ xem xét",
+        "unnamed": "Một thành viên",
+        "reason": "Lý do",
+        "statements": "Ý kiến của các bên",
+        "noStatements": "Chưa có ý kiến nào.",
+        "take": "Nhận xử lý",
+        "takeNote": "Khi nhận xử lý, bạn được xem các bản phân chia, hạng mục của từng người trong phân chia và trao đổi nhóm, đến 30 ngày sau quyết định. Mỗi lần xem đều được ghi lại.",
+        "alreadyDecided": "Yêu cầu này đã có quyết định.",
+        "takenByOther": "Một quản trị viên khác đang xử lý. Bạn có thể nhận lại nếu cần.",
+        "evidence": {
+          "title": "Hồ sơ phân chia",
+          "versions": "Các bản phân chia",
+          "workItems": "Hạng mục",
+          "commits": "Commit",
+          "crewChat": "Trao đổi nhóm",
+          "personLinks": "Tài khoản có thể cùng một người",
+          "active": "Tham gia từ {from} đến {to}",
+          "activeUnknown": "Không còn thông tin về thời gian tham gia",
+          "whole": "cả giai đoạn",
+          "atRelease": "còn trong nhóm khi nghiệm thu",
+          "version": "Bản {n} · {kind} · {date}",
+          "kind": {
+            "DRAFT": "người hướng dẫn soạn",
+            "DEFAULT": "chia mặc định",
+            "DECISION": "quyết định của quản trị viên",
+            "MENTOR_ONLY": "chỉ có người hướng dẫn"
+          },
+          "cap": "Tối đa {cap}% cho người hướng dẫn",
+          "noCap": "Không giới hạn phần của người hướng dẫn",
+          "author": "Người lưu: {name}",
+          "system": "Hệ thống lưu",
+          "line": "{name} · {pct}%",
+          "confirmed": "xác nhận {time}",
+          "noVersions": "Chưa có bản phân chia nào.",
+          "noItems": "Không có hạng mục nào của các bên trong giai đoạn này.",
+          "assignee": "Người làm: {name}",
+          "history": "{action} · {time}",
+          "action": {
+            "SEEDED": "Tạo từ tiêu chí",
+            "CREATED": "Tạo",
+            "UPDATED": "Sửa",
+            "MOVED": "Chuyển trạng thái",
+            "SUBMITTED": "Gửi duyệt",
+            "APPROVED": "Duyệt",
+            "RETURNED": "Trả lại",
+            "UNREVIEWED": "Xong không cần duyệt",
+            "NOTE": "Ghi chú",
+            "ATTACHED": "Thêm tệp",
+            "DETACHED": "Gỡ tệp",
+            "OTHER": "Thay đổi"
+          },
+          "noCommits": "Giai đoạn này chưa ghi nhận commit nào.",
+          "commitAuthor": "{name} · GitHub {id}",
+          "commitOutside": "Không thuộc ai trong phân chia · GitHub {id}",
+          "commitUnknown": "GitHub không nhận ra tác giả",
+          "round": "Bàn giao lần {n}",
+          "chatInterval": "Từ {from} đến {to}",
+          "chatToOnly": "Đến {to}",
+          "noMessages": "Không có tin nhắn nào trong thời gian này.",
+          "noPairs": "Không có dấu hiệu nào giữa các bên và khách hàng.",
+          "pair": "{first} và {second}",
+          "customer": "khách hàng",
+          "signal": {
+            "EMAIL": "cùng một địa chỉ email đã xác minh",
+            "LINKEDIN": "cùng một hồ sơ LinkedIn"
+          }
+        },
+        "decision": {
+          "title": "Quyết định",
+          "capHint": "Tối đa {cap}%",
+          "lineOverCap": "Người hướng dẫn tối đa {cap}%",
+          "lineTooMuch": "Phần trăm không quá 100",
+          "lineZero": "Thành viên làm cả giai đoạn phải lớn hơn 0%",
+          "sum": "Tổng {sum}%, cần đúng 100%",
+          "preview": "Sau quyết định: {lines}. Tổng vẫn {pooled}",
+          "previewLine": "{name} {pct}% · {vnd}",
+          "reasoning": "Lý do quyết định",
+          "reasoningHint": "Mọi bên trong phân chia đều đọc được lý do này.",
+          "final": "Quyết định là cuối cùng: phân chia chốt ngay, tiền chuyển vào số dư, và các bên được báo. Khách hàng không thấy gì.",
+          "confirm": "Ghi quyết định",
+          "decided": "Đã ghi quyết định.",
+          "at": "Quyết định lúc {time}",
+          "invalid": "Phần trăm phải là số nguyên, tổng đúng 100%; người hướng dẫn tối đa {cap}%; thành viên làm cả giai đoạn phải lớn hơn 0%.",
+          "invalidNoCap": "Phần trăm phải là số nguyên, tổng đúng 100%; thành viên làm cả giai đoạn phải lớn hơn 0%."
         }
       },
       "reports": {
@@ -3498,7 +3606,41 @@
         "edit": "Đây là một lần sửa: mọi xác nhận trước đó bị xóa và thời hạn bắt đầu lại."
       },
       "staleBody": "Phân chia vừa thay đổi nên thao tác của bạn chưa được gửi. Hãy xem lại bản mới rồi thử lại.",
-      "staleReload": "Xem bản mới"
+      "staleReload": "Xem bản mới",
+      "paused": "Tạm dừng",
+      "resolution": {
+        "asked": "Đã nhờ xem xét",
+        "ask": "Nhờ quản trị viên xem xét",
+        "dialogTitle": "Nhờ quản trị viên xem xét phân chia Giai đoạn {n}?",
+        "n31": "Quản trị viên sẽ xem các bản phân chia và các lần sửa, hạng mục và commit của từng người, Trao đổi nhóm của giai đoạn này, và dấu hiệu cho thấy hai tài khoản có thể của cùng một người, rồi quyết định, trong mức tối đa {cap}% cho người hướng dẫn nếu giai đoạn còn thành viên trong nhóm khi được nghiệm thu. Trong lúc chờ, người hướng dẫn không sửa được phần chia và tiền của cả giai đoạn được giữ. Bạn có thể rút yêu cầu; khi đó hạn xác nhận bắt đầu lại.",
+        "n31NoCap": "Quản trị viên sẽ xem các bản phân chia và các lần sửa, hạng mục và commit của từng người, Trao đổi nhóm của giai đoạn này, và dấu hiệu cho thấy hai tài khoản có thể của cùng một người, rồi quyết định. Trong lúc chờ, người hướng dẫn không sửa được phần chia và tiền của cả giai đoạn được giữ. Bạn có thể rút yêu cầu; khi đó hạn xác nhận bắt đầu lại.",
+        "reason": "Lý do bạn thấy phân chia chưa đúng",
+        "reasonHint": "Mọi bên trong phân chia và quản trị viên nhận xử lý đều đọc được. Khách hàng không thấy.",
+        "send": "Gửi yêu cầu",
+        "back": "Quay lại",
+        "case": "Yêu cầu xem xét của {name}",
+        "unnamed": "Một thành viên",
+        "mine": "Yêu cầu xem xét của bạn",
+        "raisedAt": "gửi lúc {time}",
+        "reasonLabel": "Lý do",
+        "statements": "Ý kiến của các bên",
+        "mentorMark": "người hướng dẫn",
+        "status": {
+          "WITHDRAWN": "Đã rút lúc {time}",
+          "DECIDED": "Quản trị viên đã quyết định lúc {time}"
+        },
+        "reasoning": "Lý do quyết định của quản trị viên",
+        "statementLabel": "Ý kiến của bạn",
+        "statementHint": "Mỗi người gửi được một ý kiến, và không sửa lại được.",
+        "statementSend": "Gửi ý kiến",
+        "statementDialogTitle": "Gửi ý kiến của bạn?",
+        "statementDialogBody": "Mỗi người chỉ gửi được một ý kiến cho yêu cầu này, và không sửa lại được. Mọi bên trong phân chia và quản trị viên nhận xử lý đều đọc được.",
+        "withdraw": "Rút yêu cầu",
+        "withdrawDialogTitle": "Rút yêu cầu xem xét?",
+        "withdrawDialogBody": "Hạn xác nhận bắt đầu lại từ đầu, và các xác nhận đã có vẫn giữ. Nếu mọi người đã xác nhận, phân chia chốt ngay. Bạn sẽ không nhờ xem xét được giai đoạn này lần nữa.",
+        "withdrawn": "Yêu cầu đã được rút. Hạn xác nhận mới: {date}.",
+        "withdrawnFinal": "Yêu cầu đã được rút. Đã chốt · mọi người đã xác nhận."
+      }
     },
     "recruitment": {
       "tab": "Tuyển thành viên",
@@ -4671,6 +4813,18 @@
       "dispute_decided": {
         "title": "Tranh chấp ở {job} đã được phân xử"
       },
+      "split_resolution_requested": {
+        "title": "{name} đã nhờ quản trị viên xem xét phân chia Giai đoạn {n} của {job}"
+      },
+      "split_resolution_withdrawn": {
+        "title": "Yêu cầu xem xét phân chia Giai đoạn {n} đã được rút. {next}"
+      },
+      "split_resolution_decided": {
+        "title": "Quản trị viên đã quyết định phân chia Giai đoạn {n} của {job}"
+      },
+      "split_resolution_undecided": {
+        "title": "Yêu cầu xem xét phân chia Giai đoạn {n} của {job} chưa có quyết định sau {days} ngày"
+      },
       "team_issue_raised": {
         "title": "{name} gửi khiếu nại nội bộ cho {job}. Hãy trả lời trước {date}."
       },
@@ -4976,7 +5130,15 @@
       "ENDING_REFUSED": "Chưa thực hiện được kết quả này. Quản trị viên đã được báo để xử lý.",
       "NOT_THE_OTHER_SIDE": "Chỉ bên không mở tranh chấp mới gửi trình bày.",
       "STATEMENT_ALREADY_SENT": "Bạn đã gửi trình bày cho tranh chấp này.",
-      "STATEMENT_PERIOD_OPEN": "Bên kia vẫn đang trong thời hạn trình bày."
+      "STATEMENT_PERIOD_OPEN": "Bên kia vẫn đang trong thời hạn trình bày.",
+      "PARTY_ONLY": "Chỉ thành viên trong phân chia mới nhờ xem xét được.",
+      "SPLIT_RESOLUTION_USED": "Bạn đã nhờ xem xét phân chia của giai đoạn này một lần rồi.",
+      "SPLIT_IN_RESOLUTION": "Phân chia của giai đoạn này đang chờ quản trị viên xem xét.",
+      "SPLIT_FINAL": "Phân chia đã chốt nên không nhờ xem xét được nữa.",
+      "SPLIT_FINAL_PAST_DUE": "Đã hết hạn xác nhận nên không nhờ xem xét được nữa. Phân chia đang được chốt theo bản hiện tại.",
+      "SPLIT_STATEMENT_USED": "Bạn đã gửi ý kiến cho yêu cầu này.",
+      "SPLIT_RESOLUTION_ENDED": "Yêu cầu xem xét này đã kết thúc.",
+      "CONFLICT_OF_INTEREST": "Bạn không thể nhận vụ này vì bạn có liên quan đến một tài khoản trong vụ. Hãy để quản trị viên khác nhận."
     },
     "admin": {
       "ALREADY_HIDDEN": "Nội dung này đã bị ẩn.",
@@ -4987,7 +5149,8 @@
       "NOT_ASSIGNED": "Chỉ quản trị viên nhận xử lý báo cáo mới ghi được quyết định.",
       "NOT_HIDEABLE": "Loại nội dung này không ẩn được. Hãy ghi lại cách đã xử lý.",
       "SKILL_ALREADY_EXISTS": "Kỹ năng này đã có trong danh sách.",
-      "SKILL_SUGGESTION_LIMIT": "Bạn đã gửi đủ 5 đề xuất hôm nay. Hãy thử lại vào ngày mai."
+      "SKILL_SUGGESTION_LIMIT": "Bạn đã gửi đủ 5 đề xuất hôm nay. Hãy thử lại vào ngày mai.",
+      "CONFLICT_OF_INTEREST": "Bạn không thể nhận vụ này vì bạn có liên quan đến một tài khoản trong vụ. Hãy để quản trị viên khác nhận."
     },
     "settings": {
       "RULE_OUT_OF_BOUNDS": "Giá trị nằm ngoài giới hạn cho phép.",

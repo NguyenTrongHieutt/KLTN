@@ -144,6 +144,30 @@ class DisputeDecisionIT extends IntegrationTest {
 		assertThat(text("SELECT state FROM job.milestone WHERE id = '" + this.planned + "'")).isEqualTo("PLANNED");
 	}
 
+	/** Story 22.3 (AD-19, A-17): an Administrator linked to the Job's people does not take its Dispute, and another does. */
+	@Test
+	void anAdministratorLinkedToAnAccountOfTheJobCannotTakeTheDisputeAndAnotherCan() throws Exception {
+		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		UUID job = world(true, true);
+		String dispute = open(job);
+		for (UUID holder : List.of(ha.accountId(), this.vy)) {
+			this.jdbc.sql("""
+					INSERT INTO identity.person_signal (id, account_id, kind, source, hmac, key_version, recorded_at)
+					VALUES (:id, :account, 'EMAIL', 'GOOGLE_EMAIL', :hmac, 1, now())
+					""").param("id", UUID.randomUUID()).param("account", holder).param("hmac", "ab".repeat(32)).update();
+		}
+
+		this.mvc.perform(post("/api/v1/admin/disputes/" + dispute + "/take").with(admin(ha)).with(csrf()))
+			.andExpect(status().isUnprocessableEntity())
+			.andExpect(jsonPath("$.code").value("GUARD_FAILED"))
+			.andExpect(jsonPath("$.reason").value("CONFLICT_OF_INTEREST"));
+
+		assertThat(this.jdbc.sql("SELECT count(*) FROM dispute.dispute WHERE assigned_admin_id IS NOT NULL").query(Long.class).single()).isZero();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE action = 'dispute.take_conflict_refused'")
+			.query(Long.class)
+			.single()).isOne();
+	}
+
 	@Test
 	void aFailingStepKeepsTheJobFrozenAndTellsTheAdministrators() throws Exception {
 		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");

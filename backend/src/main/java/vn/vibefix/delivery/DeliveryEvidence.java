@@ -39,4 +39,15 @@ public interface DeliveryEvidence {
 	/** Every handover of the Job, oldest first. */
 	List<Report> reports(UUID jobId);
 
+	/**
+	 * One commit of a Milestone's Handover Commits (FR-84, AD-33).
+	 * @param message the first line of its message
+	 * @param authorGithubId its author's GitHub numeric ID; empty when GitHub resolved no account
+	 */
+	record CommitLine(UUID handoverId, int round, String sha, String message, @Nullable Long authorGithubId) {
+	}
+
+	/** The commits every handover of the Milestone recorded, oldest first: a Split Evidence Package's (AD-40). */
+	List<CommitLine> commitsOf(UUID milestoneId);
+
 }

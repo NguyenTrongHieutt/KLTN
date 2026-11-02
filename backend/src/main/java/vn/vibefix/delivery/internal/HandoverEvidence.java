@@ -41,6 +41,20 @@ class HandoverEvidence implements DeliveryEvidence {
 		}).list();
 	}
 
+	@Override
+	@Transactional(readOnly = true)
+	public List<CommitLine> commitsOf(UUID milestoneId) {
+		return this.jdbc.sql("""
+				SELECT c.handover_id, h.round, c.sha, c.message, c.author_github_id
+				FROM delivery.handover_commit c JOIN delivery.handover h ON h.id = c.handover_id
+				WHERE h.milestone_id = :milestone ORDER BY h.created_at, h.seq, c.position
+				""")
+			.param("milestone", milestoneId)
+			.query((rs, n) -> new CommitLine(rs.getObject("handover_id", UUID.class), rs.getInt("round"), rs.getString("sha"),
+					rs.getString("message"), rs.getObject("author_github_id", Long.class)))
+			.list();
+	}
+
 	private List<CriterionStatus> criteria(UUID handoverId) {
 		return this.jdbc.sql("""
 				SELECT c.criterion_id, c.number, c.statement, c.met, c.note, k.met AS customer_met, k.comment

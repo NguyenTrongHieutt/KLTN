@@ -19,7 +19,7 @@ public interface AdminReadGrants {
 
 	/**
 	 * Opens a grant. Granting an existing {@code grantId} again changes nothing.
-	 * @param reasonId the Dispute, escalated Team Issue, or Abuse Report the grant serves
+	 * @param reasonId the Dispute, Split Resolution, escalated Team Issue, or Abuse Report the grant serves
 	 */
 	void grantAdminRead(UUID grantId, UUID adminId, UUID jobId, Set<AdminReadItem> items, UUID reasonId);
 

@@ -138,7 +138,9 @@ class WorkAccess {
 		}
 		UUID account = caller.requireAccountId();
 		Board board = this.boards.board(boardId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		JobPostState post = this.posts.post(board.jobId()).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		// A granted Administrator also reads the bare row a Product's deletion leaves while a split is open (AD-24, AD-40).
+		JobPostState post = (admin ? this.posts.postUnderGrant(board.jobId()) : this.posts.post(board.jobId()))
+			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		if (post.mentorId() == null) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}

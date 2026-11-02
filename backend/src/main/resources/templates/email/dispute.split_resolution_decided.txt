@@ -1,0 +1,5 @@
+subject: Quản trị viên đã quyết định phân chia Giai đoạn {n} của {job}
+---
+Xin chào,
+
+Quản trị viên đã quyết định phân chia Giai đoạn {n} của công việc {job}. Quyết định là cuối cùng, và tiền được chuyển vào số dư của từng người theo phân chia này. Mở trang "Phân chia tiền" để đọc lý do.

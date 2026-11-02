@@ -76,6 +76,25 @@ class AdminReadGrantTest {
 		assertThat(teamIssue.permits(ADMIN, JOB, AdminReadScope.JOB_CHAT, ITEM, Set.of(RAISER), NOW)).isFalse();
 	}
 
+	/** Story 22.3 (AD-20, A-20): one split's versions, the Crew Chat, and each party's Work Items, never the Job Chat. */
+	@Test
+	void aSplitResolutionGrantReadsItsSplitTheCrewChatAndThePartiesWorkItemsOnly() {
+		AdminReadGrant resolution = AdminReadGrant.open(GRANT, ADMIN, JOB, AdminReadItem.forSplitResolution(ITEM, Set.of(RAISER)),
+				DISPUTE);
+
+		assertThat(resolution.permits(ADMIN, JOB, AdminReadScope.SPLIT_VERSIONS, ITEM, Set.of(), NOW)).isTrue();
+		assertThat(resolution.permits(ADMIN, JOB, AdminReadScope.SPLIT_VERSIONS, RAISER, Set.of(), NOW)).as("another split").isFalse();
+		assertThat(resolution.permits(ADMIN, JOB, AdminReadScope.CREW_CHAT, DISPUTE, Set.of(), NOW)).isTrue();
+		assertThat(resolution.permits(ADMIN, JOB, AdminReadScope.WORK_ITEMS, DISPUTE, Set.of(RAISER), NOW)).isTrue();
+		assertThat(resolution.permits(ADMIN, JOB, AdminReadScope.WORK_ITEMS, DISPUTE, Set.of(OTHER_ADMIN), NOW)).isFalse();
+		for (AdminReadScope scope : List.of(AdminReadScope.JOB_CHAT, AdminReadScope.CREW_TERMS, AdminReadScope.PAGES,
+				AdminReadScope.WORK_ITEM_NOTES, AdminReadScope.ATTACHMENTS)) {
+			assertThat(resolution.permits(ADMIN, JOB, scope, ITEM, Set.of(RAISER), NOW)).as(scope.name()).isFalse();
+		}
+		assertThat(this.dispute.permits(ADMIN, JOB, AdminReadScope.SPLIT_VERSIONS, ITEM, Set.of(), NOW))
+			.as("a Dispute's grant covers no split version").isFalse();
+	}
+
 	@Test
 	void anAbuseReportGrantReadsTheOneItemItNames() {
 		AdminReadGrant report = AdminReadGrant.open(GRANT, ADMIN, JOB,

@@ -42,7 +42,8 @@ import vn.vibefix.timers.Deadlines;
  * locked account ends at its lock time, read under that lock (A-07). The flags and the cap flag are stored and nothing
  * recomputes them. With the Mentor alone it is final at once; with Crew parties it waits for the Mentor's draft, with
  * the draft Deadline and its reminder, the Mentor's to-do, and the parties told. Writing a split changes neither
- * {@code Job.version} nor {@code crewVersion}.
+ * {@code Job.version} nor {@code crewVersion}. The release stores the Milestone's funding time and each party's active
+ * interval too, as a Split Resolution reads them after the Crew rows went (AD-24, AD-40).
  */
 @Component
 class JobMilestoneSplits implements MilestoneSplits {
@@ -64,7 +65,8 @@ class JobMilestoneSplits implements MilestoneSplits {
 			""";
 
 	/** One party as the release fixes it. */
-	private record Party(UUID id, UUID accountId, boolean mentor, boolean wholeInterval, boolean activeAtRelease, int position) {
+	private record Party(UUID id, UUID accountId, boolean mentor, boolean wholeInterval, boolean activeAtRelease, int position,
+			Instant activeFrom, Instant activeTo) {
 	}
 
 	private final JdbcClient jdbc;
@@ -91,9 +93,12 @@ class JobMilestoneSplits implements MilestoneSplits {
 
 	private final Clock clock;
 
+	private final SplitVersionGrants grants;
+
 	JobMilestoneSplits(JdbcClient jdbc, CrewService crews, Capabilities capabilities, JobRules rules, Settings settings,
 			SplitStore store, SplitFinalization finalization, SplitCommands commands, SplitNotices notices, Deadlines deadlines,
-			IdGenerator ids, Clock clock) {
+			IdGenerator ids, Clock clock, SplitVersionGrants grants) {
+		this.grants = grants;
 		this.jdbc = jdbc;
 		this.crews = crews;
 		this.capabilities = capabilities;
@@ -114,15 +119,20 @@ class JobMilestoneSplits implements MilestoneSplits {
 	 * {@link MilestoneSplitFinalized} is published in the same apply; otherwise it waits in {@code AWAITING_DRAFT}.
 	 */
 	void createAtRelease(Job job, UUID milestoneId, int number, Instant release) {
-		List<Party> parties = partiesOf(job, milestoneId, release);
+		Instant funded = this.jdbc.sql("SELECT funded_at FROM job.milestone WHERE id = :id")
+			.param("id", milestoneId)
+			.query(Timestamp.class)
+			.single()
+			.toInstant();
+		List<Party> parties = partiesOf(job, funded, release);
 		boolean capApplies = parties.stream().anyMatch(party -> !party.mentor() && party.activeAtRelease());
 		UUID splitId = this.ids.newId();
 		int days = this.rules.value(job.id(), DRAFT_RULE, DEFAULT_DRAFT_DAYS);
 		Instant draftDue = release.plus(Duration.ofDays(days));
 		this.jdbc.sql("""
 				INSERT INTO job.milestone_split (id, job_id, product_id, milestone_id, milestone_number, mentor_account_id, status,
-				    cap_applies, released_at, draft_due_at, created_at)
-				VALUES (:id, :job, :product, :milestone, :number, :mentor, 'AWAITING_DRAFT', :cap, :release, :due, :now)
+				    cap_applies, funded_at, released_at, draft_due_at, created_at)
+				VALUES (:id, :job, :product, :milestone, :number, :mentor, 'AWAITING_DRAFT', :cap, :funded, :release, :due, :now)
 				""")
 			.param("id", splitId)
 			.param("job", job.id())
@@ -131,6 +141,7 @@ class JobMilestoneSplits implements MilestoneSplits {
 			.param("number", number)
 			.param("mentor", job.mentorId())
 			.param("cap", capApplies)
+			.param("funded", Timestamp.from(funded))
 			.param("release", Timestamp.from(release))
 			.param("due", Timestamp.from(draftDue))
 			.param("now", Timestamp.from(this.clock.instant()))
@@ -138,8 +149,8 @@ class JobMilestoneSplits implements MilestoneSplits {
 		for (Party party : parties) {
 			this.jdbc.sql("""
 					INSERT INTO job.milestone_split_party (id, split_id, party_account_id, is_mentor, whole_interval, active_at_release,
-					    position)
-					VALUES (:id, :split, :account, :mentor, :whole, :active, :position)
+					    position, active_from, active_to)
+					VALUES (:id, :split, :account, :mentor, :whole, :active, :position, :from, :to)
 					""")
 				.param("id", party.id())
 				.param("split", splitId)
@@ -148,6 +159,8 @@ class JobMilestoneSplits implements MilestoneSplits {
 				.param("whole", party.wholeInterval())
 				.param("active", party.activeAtRelease())
 				.param("position", party.position())
+				.param("from", Timestamp.from(party.activeFrom()))
+				.param("to", Timestamp.from(party.activeTo()))
 				.update();
 		}
 		SplitStore.Split split = this.store.find(splitId).orElseThrow();
@@ -170,19 +183,14 @@ class JobMilestoneSplits implements MilestoneSplits {
 	}
 
 	/** The Mentor, position 0, then each overlapping Crew row in creation order. */
-	private List<Party> partiesOf(Job job, UUID milestoneId, Instant release) {
+	private List<Party> partiesOf(Job job, Instant funded, Instant release) {
 		UUID mentor = Objects.requireNonNull(job.mentorId(), "the Job's Mentor");
-		Instant funded = this.jdbc.sql("SELECT funded_at FROM job.milestone WHERE id = :id")
-			.param("id", milestoneId)
-			.query(Timestamp.class)
-			.single()
-			.toInstant();
 		List<CrewService.Row> rows = this.crews.rows(job.id()).stream().filter(row -> row.activatedAt() != null).toList();
 		List<UUID> accounts = new ArrayList<>(rows.stream().map(CrewService.Row::studentId).toList());
 		accounts.add(mentor);
 		Map<UUID, Instant> locked = this.capabilities.lockedAmong(accounts);
 		List<Party> parties = new ArrayList<>();
-		parties.add(new Party(this.ids.newId(), mentor, true, true, !locked.containsKey(mentor), 0));
+		parties.add(new Party(this.ids.newId(), mentor, true, true, !locked.containsKey(mentor), 0, funded, release));
 		for (CrewService.Row row : rows) {
 			Instant activated = Objects.requireNonNull(row.activatedAt());
 			Instant lockedAt = locked.get(row.studentId());
@@ -191,7 +199,8 @@ class JobMilestoneSplits implements MilestoneSplits {
 				continue;
 			}
 			boolean whole = !activated.isAfter(funded) && !end.isBefore(release);
-			parties.add(new Party(this.ids.newId(), row.studentId(), false, whole, row.active() && lockedAt == null, parties.size()));
+			parties.add(new Party(this.ids.newId(), row.studentId(), false, whole, row.active() && lockedAt == null, parties.size(),
+					activated, end.isAfter(release) ? release : end));
 		}
 		return parties;
 	}
@@ -350,6 +359,88 @@ class JobMilestoneSplits implements MilestoneSplits {
 		Map<UUID, Integer> percents = this.commands.validated(split, parties, lines, this.commands.capOf(split));
 		UUID mentorParty = parties.stream().filter(SplitStore.Party::mentor).map(SplitStore.Party::id).findFirst().orElseThrow();
 		return new PreviewBasis(split.milestoneId(), mentorParty, percents);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public Optional<SplitCase> caseOf(UUID splitId) {
+		return this.store.find(splitId).map(this::splitCase);
+	}
+
+	@Override
+	@Transactional
+	public Optional<SplitCase> lockForSplit(UUID jobId, UUID milestoneId) {
+		this.store.lockJobRow(jobId);
+		return this.store.ofMilestone(milestoneId).filter(split -> split.jobId().equals(jobId)).map(this::splitCase);
+	}
+
+	private SplitCase splitCase(SplitStore.Split split) {
+		SplitStore.Version latest = this.store.latest(split.id()).orElse(null);
+		SplitStore.Interval interval = this.store.interval(split.id());
+		return new SplitCase(split.id(), split.jobId(), split.productId(), split.milestoneId(), split.number(),
+				this.store.title(split.jobId()).orElse(null), this.store.customerOf(split.jobId()).orElse(null), split.mentorId(),
+				split.status(), split.capApplies(), latest == null ? 0 : latest.number(), latest == null ? null : latest.capPercent(),
+				split.confirmationDueAt(), split.pastDue(this.clock.instant()), interval.fundedAt(), interval.releasedAt(),
+				this.store.caseParties(split.id()));
+	}
+
+	@Override
+	@Transactional
+	public void holdSplit(UUID milestoneId, UUID resolutionId) {
+		this.commands.hold(milestoneId, resolutionId);
+	}
+
+	@Override
+	@Transactional
+	public Resumed resumeSplit(UUID milestoneId) {
+		return this.commands.resume(milestoneId);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public PreviewBasis decisionBasis(UUID splitId, List<PercentLine> lines) {
+		SplitStore.Split split = this.store.find(splitId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		List<SplitStore.Party> parties = this.store.parties(splitId);
+		Integer cap = this.store.latest(splitId).map(SplitStore.Version::capPercent).orElse(null);
+		Map<UUID, Integer> percents = this.commands.validated(split, parties, lines, cap);
+		UUID mentorParty = parties.stream().filter(SplitStore.Party::mentor).map(SplitStore.Party::id).findFirst().orElseThrow();
+		return new PreviewBasis(split.milestoneId(), mentorParty, percents);
+	}
+
+	@Override
+	@Transactional
+	public int decideSplit(UUID milestoneId, UUID resolutionId, UUID adminId, List<PercentLine> lines) {
+		return this.commands.decide(milestoneId, resolutionId, adminId, lines);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<EvidenceVersion> versionsOf(UUID splitId) {
+		return this.store.evidence(splitId);
+	}
+
+	@Override
+	@Transactional
+	public List<EvidenceVersion> evidenceUnderGrant(UUID adminId, UUID splitId) {
+		SplitStore.Split split = this.store.find(splitId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		return this.grants.versions(adminId, split.jobId(), splitId);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public Optional<MilestoneSplitFinalized> finalSplitOf(UUID milestoneId) {
+		return this.store.ofMilestone(milestoneId)
+			.filter(split -> split.status() == Status.FINAL && split.mentorId() != null)
+			.map(split -> {
+				int versionNo = this.jdbc.sql("SELECT final_version_no FROM job.milestone_split WHERE id = :id")
+					.param("id", split.id())
+					.query(Integer.class)
+					.single();
+				return new MilestoneSplitFinalized(this.ids.newId(), split.id(), split.jobId(), split.productId(),
+						split.milestoneId(), split.number(), this.store.title(split.jobId()).orElse(""),
+						Objects.requireNonNull(split.mentorId()), versionNo, this.finalization.percentages(split, versionNo),
+						Objects.requireNonNull(split.finality()));
+			});
 	}
 
 	private static SplitState state(ResultSet rs, int n) throws SQLException {

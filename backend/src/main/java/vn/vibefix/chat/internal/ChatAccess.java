@@ -39,7 +39,8 @@ import vn.vibefix.shared.ErrorCode;
  * <li>the Crew Chat: its Mentor and every {@code ACTIVE} Crew member; a {@code FORMER} member, a locked one
  * included, only reads, and only the messages inside their windows;</li>
  * <li>an Administrator only under a grant naming the Chat, or for one message the grant of an Abuse Report
- * naming it (FR-69), only reading, each read audited (AD-8).</li>
+ * naming it (FR-69), only reading, each read audited (AD-8); the bare row of a Job whose Product was deleted with a split
+ * open still answers, as a Split Resolution reads what waits for it (AD-24, AD-40).</li>
  * </ul>
  * Everyone else, an {@code ASSIGNED} Student and the Customer of the Crew Chat included, finds nothing
  * (SG-31). A closed Chat (J9, J10) is read, never written.
@@ -207,7 +208,7 @@ class ChatAccess {
 
 	/** The read-only viewer an Administrator reads through, before any grant is checked. */
 	private Viewer granted(UUID jobId, Kind kind, UUID admin) {
-		JobPostState post = this.posts.post(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		JobPostState post = this.posts.postUnderGrant(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		Chat chat = this.chats.find(jobId, kind).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		if (post.mentorId() == null) {
 			throw new ApiException(ErrorCode.NOT_FOUND);

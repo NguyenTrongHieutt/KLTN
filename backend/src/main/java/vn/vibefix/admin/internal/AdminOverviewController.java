@@ -46,9 +46,11 @@ class AdminOverviewController {
 	 * @param failedExecutions Dispute executions that failed (FR-54, FR-64, ADM-7)
 	 * @param falsePositives Findings marked as false positives (FR-64, ADM-7)
 	 * @param skillSuggestions Skill suggestions waiting for a decision (FR-73, ADM-12)
+	 * @param splitResolutions the Split Resolutions still open (FR-84, UX-DR110)
 	 */
 	record OverviewView(Queue failedOperations, Queue stalledEvents, long activeAdministrators, Queue disputes,
-			Queue lowFeedback, Queue failedExecutions, Queue falsePositives, Queue teamIssues, Queue skillSuggestions) {
+			Queue lowFeedback, Queue failedExecutions, Queue falsePositives, Queue teamIssues, Queue skillSuggestions,
+			Queue splitResolutions) {
 	}
 
 	private final FailedOperations failedOperations;
@@ -87,7 +89,8 @@ class AdminOverviewController {
 				Queue.of(this.disputes.executionsFailed(), DisputeQueue.FailedExecution::failedAt),
 				Queue.of(this.scans.falsePositives(AdminFailuresController.FALSE_POSITIVES), FalsePositive::markedAt),
 				Queue.of(this.disputes.teamIssuesEscalated(), DisputeQueue.Waiting::openedAt),
-				Queue.of(this.skillSuggestions.open(), SuggestedSkills.Suggestion::createdAt));
+				Queue.of(this.skillSuggestions.open(), SuggestedSkills.Suggestion::createdAt),
+				Queue.of(this.disputes.splitResolutionsOpen(), DisputeQueue.Waiting::openedAt));
 	}
 
 }

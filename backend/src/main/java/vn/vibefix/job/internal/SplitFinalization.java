@@ -74,20 +74,25 @@ class SplitFinalization {
 			.param("id", split.id())
 			.update();
 		List<Party> parties = this.store.parties(split.id());
-		Map<UUID, Integer> percents = this.store.percents(split.id(), versionNo);
-		Map<UUID, Integer> percentages = new LinkedHashMap<>();
-		for (Party party : parties) {
-			percentages.put(party.accountId(), percents.getOrDefault(party.id(), 0));
-		}
 		String title = this.store.title(split.jobId()).orElse("");
 		this.auditLog.record(AuditEntry.of(AuditActor.system(), action(finality), AuditObject.of("job.milestone_split", split.id()))
 			.forJob(split.jobId()));
 		this.events.publishEvent(new MilestoneSplitFinalized(this.ids.newId(), split.id(), split.jobId(), split.productId(),
 				split.milestoneId(), split.number(), title, Objects.requireNonNull(split.mentorId(), "the split's Mentor"), versionNo,
-				percentages, finality));
+				percentages(split, versionNo), finality));
 		if (finality != Finality.MENTOR_ONLY) {
 			this.notices.finalized(split, title, parties, finality);
 		}
+	}
+
+	/** Each party's whole percentage in the version, by account, in the fixed order, a party at 0 included. */
+	Map<UUID, Integer> percentages(Split split, int versionNo) {
+		Map<UUID, Integer> percents = this.store.percents(split.id(), versionNo);
+		Map<UUID, Integer> percentages = new LinkedHashMap<>();
+		for (Party party : this.store.parties(split.id())) {
+			percentages.put(party.accountId(), percents.getOrDefault(party.id(), 0));
+		}
+		return percentages;
 	}
 
 	private static String action(Finality finality) {

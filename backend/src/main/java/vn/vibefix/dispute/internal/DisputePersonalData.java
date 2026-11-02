@@ -24,6 +24,11 @@ import vn.vibefix.shared.PersonalDataSection;
  * Mentor; an open Dispute on a Job whose Customer or Mentor the person is blocks it, since its decision needs
  * both parties (Story 20.4), and so does a Team Issue not ended, since its hold would never end; deleting a
  * Product deletes its Disputes and Team Issues. The Job's parties and title come from {@code job}.
+ * <p>
+ * Split Resolutions are financial records under NFR-10's legal retention (AD-24, A-01): a Product deletion and the retention
+ * run never delete them or their statements, an erasure only clears the people, and a person exports their own reasons and
+ * statements. {@code job}'s {@code SPLIT_PENDING} blocks a party's erasure while the split is open, so nothing here adds a
+ * second blocker.
  */
 @Component
 class DisputePersonalData implements PersonalDataParticipant {
@@ -43,7 +48,8 @@ class DisputePersonalData implements PersonalDataParticipant {
 
 	@Override
 	public Set<String> tables() {
-		return Set.of("dispute.dispute", "dispute.decision", "dispute.execution", "dispute.team_issue", "dispute.statement");
+		return Set.of("dispute.dispute", "dispute.decision", "dispute.execution", "dispute.team_issue", "dispute.statement",
+				"dispute.split_resolution", "dispute.split_resolution_statement");
 	}
 
 	@Override
@@ -70,7 +76,31 @@ class DisputePersonalData implements PersonalDataParticipant {
 			row.put("raisedAt", rs.getTimestamp("raised_at").toInstant().toString());
 			return row;
 		}).list();
-		if (disputes.isEmpty() && issues.isEmpty()) {
+		List<Map<String, Object>> raised = this.jdbc.sql("""
+				SELECT job_id, milestone_number, reason, status, raised_at FROM dispute.split_resolution
+				WHERE raiser_account_id = :id ORDER BY raised_at, id
+				""").param("id", accountId).query((rs, n) -> {
+			Map<String, Object> row = new LinkedHashMap<>();
+			row.put("jobId", rs.getObject("job_id", UUID.class).toString());
+			row.put("milestone", rs.getInt("milestone_number"));
+			row.put("reason", rs.getString("reason"));
+			row.put("status", rs.getString("status"));
+			row.put("raisedAt", rs.getTimestamp("raised_at").toInstant().toString());
+			return row;
+		}).list();
+		List<Map<String, Object>> statements = this.jdbc.sql("""
+				SELECT r.job_id, r.milestone_number, s.text, s.submitted_at FROM dispute.split_resolution_statement s
+				JOIN dispute.split_resolution r ON r.id = s.resolution_id
+				WHERE s.account_id = :id ORDER BY s.submitted_at, s.resolution_id
+				""").param("id", accountId).query((rs, n) -> {
+			Map<String, Object> row = new LinkedHashMap<>();
+			row.put("jobId", rs.getObject("job_id", UUID.class).toString());
+			row.put("milestone", rs.getInt("milestone_number"));
+			row.put("text", rs.getString("text"));
+			row.put("submittedAt", rs.getTimestamp("submitted_at").toInstant().toString());
+			return row;
+		}).list();
+		if (disputes.isEmpty() && issues.isEmpty() && raised.isEmpty() && statements.isEmpty()) {
 			return Optional.empty();
 		}
 		Map<String, Object> data = new LinkedHashMap<>();
@@ -79,6 +109,12 @@ class DisputePersonalData implements PersonalDataParticipant {
 		}
 		if (!issues.isEmpty()) {
 			data.put("teamIssuesRaised", issues);
+		}
+		if (!raised.isEmpty()) {
+			data.put("splitResolutionsRaised", raised);
+		}
+		if (!statements.isEmpty()) {
+			data.put("splitResolutionStatements", statements);
 		}
 		return Optional.of(new PersonalDataSection("dispute", data));
 	}
@@ -100,6 +136,15 @@ class DisputePersonalData implements PersonalDataParticipant {
 				.param("id", accountId)
 				.update();
 		}
+		// A Split Resolution stays with its text and its decision record, without the person (A-01).
+		for (String column : List.of("raiser_account_id", "assigned_admin_id", "decided_by_admin_id")) {
+			this.jdbc.sql("UPDATE dispute.split_resolution SET %s = NULL WHERE %s = :id".formatted(column, column))
+				.param("id", accountId)
+				.update();
+		}
+		this.jdbc.sql("UPDATE dispute.split_resolution_statement SET account_id = NULL WHERE account_id = :id")
+			.param("id", accountId)
+			.update();
 	}
 
 	@Override
