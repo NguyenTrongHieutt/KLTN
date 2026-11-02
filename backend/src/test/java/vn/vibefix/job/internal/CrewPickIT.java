@@ -3,6 +3,7 @@ package vn.vibefix.job.internal;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
+import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -36,12 +37,14 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.session.Session;
@@ -60,11 +63,15 @@ import com.sun.net.httpserver.HttpServer;
 
 import vn.vibefix.authz.JobContent;
 import vn.vibefix.identity.AccountLocked;
+import vn.vibefix.identity.Notices;
+import vn.vibefix.identity.PersonSignalMatched;
 import vn.vibefix.identity.internal.CustomerTokens;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.CrewPicks;
 import vn.vibefix.job.CrewPicks.Contribution;
+import vn.vibefix.job.CrewRecruitment.ClosedBy;
+import vn.vibefix.job.CrewRecruitmentClosed;
 import vn.vibefix.job.internal.JobLifecycle.Actor;
 import vn.vibefix.notification.Audience;
 import vn.vibefix.notification.TodoRequest;
@@ -190,8 +197,9 @@ class CrewPickIT extends IntegrationTest {
 				""", Map.of("id", application))).isEqualTo("PICKED true");
 		assertThat(crewVersion()).isGreaterThan(crewVersion);
 		assertThat(jobVersion()).as("the Customer never learns of a pick (A-05)").isEqualTo(version);
-		assertThat(count("SELECT count(*) FROM timers.deadline WHERE kind = 'matching.commitment_due' AND subject_id = :id",
-				Map.of("id", application))).isOne();
+		assertThat(count("""
+				SELECT count(*) FROM timers.deadline WHERE kind = 'matching.commitment_due' AND subject_id = :id AND NOT pausable
+				""", Map.of("id", application))).isOne();
 		assertThat(text("""
 				SELECT params ->> 'mentor' FROM notification.notification
 				WHERE type = 'matching.crew_application_picked' AND account_id = :minh
@@ -284,6 +292,10 @@ class CrewPickIT extends IntegrationTest {
 
 	@Test
 	void thePickedPersonReadsTheProjectionAndTheCommitmentPanelAndNothingElseOfTheJob() throws Exception {
+		this.jdbc.sql("""
+				UPDATE job.job SET rules = '{"MENTOR_SHARE_CAP_PERCENT":30,"SPLIT_DRAFT_DAYS":10,"SPLIT_CONFIRMATION_DAYS":5,
+				    "SPLIT_EDIT_LIMIT":2}'::jsonb WHERE id = :id
+				""").param("id", this.job).update();
 		recruit(this.job, this.hung, 1).andExpect(status().isOk());
 		UUID application = apply(this.minh, this.job);
 		pick(this.hung, this.job, application).andExpect(status().isOk());
@@ -300,10 +312,10 @@ class CrewPickIT extends IntegrationTest {
 			.andExpect(jsonPath("$.panel.githubLogin").value(TeamTestSupport.login(this.jdbc, this.minh)))
 			.andExpect(jsonPath("$.panel.ndaVersion").value("1.0"))
 			.andExpect(jsonPath("$.panel.commitmentVersion").value("1.0"))
-			.andExpect(jsonPath("$.panel.splitRules.mentorShareCapPercent").value(40))
-			.andExpect(jsonPath("$.panel.splitRules.draftDays").value(7))
-			.andExpect(jsonPath("$.panel.splitRules.confirmationDays").value(3))
-			.andExpect(jsonPath("$.panel.splitRules.editLimit").value(3));
+			.andExpect(jsonPath("$.panel.splitRules.mentorShareCapPercent").value(30))
+			.andExpect(jsonPath("$.panel.splitRules.draftDays").value(10))
+			.andExpect(jsonPath("$.panel.splitRules.confirmationDays").value(5))
+			.andExpect(jsonPath("$.panel.splitRules.editLimit").value(2));
 		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/role").with(as(this.minh)))
 			.andExpect(jsonPath("$.crewKind").value("ASSIGNED"));
 		for (String read : List.of("/api/v1/jobs/" + this.job + "/external-access", "/api/v1/jobs/" + this.job + "/busy",
@@ -321,6 +333,8 @@ class CrewPickIT extends IntegrationTest {
 
 	@Test
 	void signingMakesTheMemberActiveAndTellsTheCustomerTheUsernameOnly() throws Exception {
+		UUID vy = person("Lê Thảo Vy");
+		JobContent.crewRow(this.jdbc, this.job, vy, "ACTIVE", null);
 		recruit(this.job, this.hung, 1).andExpect(status().isOk());
 		UUID application = apply(this.minh, this.job);
 		UUID otherJob = recruitingJob();
@@ -349,6 +363,10 @@ class CrewPickIT extends IntegrationTest {
 				""", Map.of("job", this.job, "minh", this.minh))).isEqualTo("1.0 1.0");
 		assertThat(text("SELECT params ->> 'name' FROM notification.notification WHERE type = 'job.crew_member_joined'"
 				+ " AND account_id = :hung", Map.of("hung", this.hung))).isEqualTo("Trần Quang Minh");
+		assertThat(count("SELECT count(*) FROM notification.notification WHERE type = 'job.crew_member_joined'"
+				+ " AND account_id = :vy", Map.of("vy", vy))).as("the other active member hears").isOne();
+		assertThat(count("SELECT count(*) FROM notification.notification WHERE type = 'job.crew_member_joined'"
+				+ " AND account_id = :minh", Map.of("minh", this.minh))).as("the signer does not").isZero();
 		String customer = text("SELECT params::text FROM notification.notification WHERE type = 'job.crew_login_added'"
 				+ " AND account_id = :lan", Map.of("lan", this.lan));
 		assertThat(customer).contains(TeamTestSupport.login(this.jdbc, this.minh)).doesNotContain("Trần Quang Minh");
@@ -363,7 +381,7 @@ class CrewPickIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/role").with(as(this.minh)))
 			.andExpect(jsonPath("$.crewKind").value("ACTIVE"));
 		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/agreement").with(as(this.lan)))
-			.andExpect(jsonPath("$.crew[0]").value(TeamTestSupport.login(this.jdbc, this.minh)));
+			.andExpect(jsonPath("$.crew", hasItem(TeamTestSupport.login(this.jdbc, this.minh))));
 
 		// FR-75: nobody who signed is removed; "Rút lựa chọn" finds no pick to withdraw.
 		withdrawPick(this.hung, this.job, application).andExpect(status().isConflict())
@@ -394,6 +412,7 @@ class CrewPickIT extends IntegrationTest {
 				+ " AND account_id = :hung", Map.of("hung", this.hung))).isOne();
 		assertThat(count("SELECT count(*) FROM notification.notification WHERE account_id = :lan AND type LIKE '%crew%'",
 				Map.of("lan", this.lan))).as("the Customer never learns of picks").isZero();
+		assertThat(recruitmentTodoDeadline()).as("recruitment is still on, so nothing is asked").isNull();
 		sign(this.minh, this.job, "1.0", true).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("PICK_ENDED"));
 		awaitListeners();
 	}
@@ -414,6 +433,8 @@ class CrewPickIT extends IntegrationTest {
 			assertThat(count("SELECT count(*) FROM notification.notification WHERE type = 'matching.commitment_lapsed'"
 					+ " AND account_id = :account", Map.of("account", told))).isOne();
 		}
+		assertThat(lapsedLink(this.hung)).as("JOB-9 is the Mentor's").isEqualTo("/cong-viec/" + this.job + "/tuyen-thanh-vien");
+		assertThat(lapsedLink(this.minh)).as("the person reads why on MEN-3").isEqualTo("/tim-viec/" + this.job);
 		this.mvc.perform(get("/api/v1/crew/jobs/" + this.job + "/commitment").with(as(this.minh)))
 			.andExpect(jsonPath("$.status").value("LAPSED"))
 			.andExpect(jsonPath("$.endReason").value("COMMITMENT_LAPSED"))
@@ -430,6 +451,10 @@ class CrewPickIT extends IntegrationTest {
 		withdrawPick(this.hung, this.job, application).andExpect(status().isNoContent());
 
 		assertThat(applicationState(application)).isEqualTo("WITHDRAWN PICK_WITHDRAWN");
+		this.mvc.perform(get("/api/v1/mentor/jobs/" + this.job + "/crew-applications").with(as(this.hung)))
+			.andExpect(jsonPath("$.length()").value(1))
+			.andExpect(jsonPath("$[0].id").value(application.toString()))
+			.andExpect(jsonPath("$[0].endReason").value("PICK_WITHDRAWN"));
 		assertThat(text("SELECT status || ' ' || released_reason FROM job.crew_row WHERE member_account_id = :minh",
 				Map.of("minh", this.minh))).isEqualTo("RELEASED WITHDRAWN");
 		assertThat(text("SELECT open_slots FROM job.job WHERE id = :id", Map.of("id", this.job))).isEqualTo("2");
@@ -464,6 +489,8 @@ class CrewPickIT extends IntegrationTest {
 		await().atMost(Duration.ofSeconds(10)).until(() -> "LAPSED PICK_ENDED".equals(applicationState(application)));
 		assertThat(count("SELECT count(*) FROM notification.notification WHERE type = 'matching.crew_pick_ended'"
 				+ " AND account_id = :minh", Map.of("minh", this.minh))).isOne();
+		assertThat(systemAudits("job.crew_pick_released")).isOne();
+		assertThat(systemAudits("matching.crew_pick_ended")).isOne();
 		assertThatThrownBy(() -> new TransactionTemplate(this.transactions).executeWithoutResult(
 				status -> this.picks.activateCrew(this.job, row, Contribution.NONE, this.clock.instant())))
 			.isInstanceOfSatisfying(ApiException.class,
@@ -513,7 +540,14 @@ class CrewPickIT extends IntegrationTest {
 	void aLockOfAPickedPersonTellsOnlyTheMentorAndGivesThePlaceBack() throws Exception {
 		recruit(this.job, this.hung, 2).andExpect(status().isOk());
 		UUID application = apply(this.minh, this.job);
+		UUID tuan = person("Phạm Anh Tuấn");
+		UUID withdrawn = apply(tuan, this.job);
+		this.mvc.perform(post("/api/v1/mentor/crew-applications/" + withdrawn + "/withdraw").with(as(tuan)).with(csrf()))
+			.andExpect(status().isOk());
 		pick(this.hung, this.job, application).andExpect(status().isOk());
+		this.mvc.perform(get("/api/v1/mentor/jobs/" + this.job + "/crew-applications").with(as(this.hung)))
+			.andExpect(jsonPath("$.length()").value(1))
+			.andExpect(jsonPath("$[0].id").value(application.toString()));
 		AccountLocked locked = new AccountLocked(UUID.randomUUID(), this.minh, this.clock.instant());
 		IdentityTestSupport.lock(this.jdbc, this.minh, "Vi phạm quy tắc");
 
@@ -532,6 +566,9 @@ class CrewPickIT extends IntegrationTest {
 		assertThat(count("""
 				SELECT count(*) FROM notification.todo WHERE todo_key = 'matching.sign_commitment' AND closed_at IS NULL
 				""", Map.of())).isZero();
+		assertThat(systemAudits("matching.crew_pick_withdrawn")).isOne();
+		this.mvc.perform(get("/api/v1/mentor/jobs/" + this.job + "/crew-applications").with(as(this.hung)))
+			.andExpect(jsonPath("$.length()").value(0));
 	}
 
 	/**
@@ -581,7 +618,457 @@ class CrewPickIT extends IntegrationTest {
 		awaitListeners();
 	}
 
+	/** AD-19: a person-link signal shared with the Customer refuses the pick and the signature, and the alert survives. */
+	@Test
+	void aPersonLinkedToTheCustomerIsRefusedAtThePickAndTheSignature() throws Exception {
+		UUID admin = administrator();
+		recruit(this.job, this.hung, 2).andExpect(status().isOk());
+		UUID picking = apply(this.minh, this.job);
+		UUID tuan = person("Phạm Anh Tuấn");
+		UUID signing = apply(tuan, this.job);
+		pick(this.hung, this.job, signing).andExpect(status().isOk());
+		for (UUID linked : List.of(this.lan, this.minh, tuan)) {
+			signal(linked, "a".repeat(64));
+		}
+		long crewVersion = crewVersion();
+
+		pick(this.hung, this.job, picking).andExpect(status().is(422))
+			.andExpect(jsonPath("$.reason").value("CONFLICT_OF_INTEREST"));
+
+		assertThat(count("SELECT count(*) FROM job.crew_row WHERE member_account_id = :minh", Map.of("minh", this.minh)))
+			.as("nothing was written").isZero();
+		assertThat(applicationState(picking)).isEqualTo("PENDING null");
+		assertThat(crewVersion()).isEqualTo(crewVersion);
+		assertThat(conflictAlerts(admin)).as("the alert survives the refusal's rollback").isOne();
+
+		sign(tuan, this.job, "1.0", true).andExpect(status().is(422))
+			.andExpect(jsonPath("$.reason").value("CONFLICT_OF_INTEREST"));
+
+		assertThat(text("SELECT status FROM job.crew_row WHERE member_account_id = :tuan", Map.of("tuan", tuan)))
+			.as("nothing was written").isEqualTo("ASSIGNED");
+		assertThat(applicationState(signing)).isEqualTo("PICKED null");
+		assertThat(count("SELECT count(*) FROM matching.nda_signature WHERE account_id = :tuan", Map.of("tuan", tuan))).isZero();
+		assertThat(conflictAlerts(admin)).as("the alert survives the refusal's rollback").isEqualTo(2);
+		awaitListeners();
+	}
+
+	/** AD-19: a pick is a role in the Job, so a person link found later alerts each Administrator once, replays included. */
+	@Test
+	void aPersonLinkBetweenAPickAndTheCustomerAlertsEveryAdministratorOnce() throws Exception {
+		List<UUID> admins = List.of(administrator(), administrator());
+		recruit(this.job, this.hung, 1).andExpect(status().isOk());
+		pick(this.hung, this.job, apply(this.minh, this.job)).andExpect(status().isOk());
+		PersonSignalMatched event = new PersonSignalMatched(UUID.randomUUID(), this.minh, this.lan, "EMAIL");
+
+		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.events.publishEvent(event));
+		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.events.publishEvent(event));
+
+		for (UUID admin : admins) {
+			await().atMost(Duration.ofSeconds(10)).until(() -> count("""
+					SELECT count(*) FROM notification.notification WHERE type = 'job.person_link_alert' AND account_id = :admin
+					""", Map.of("admin", admin)) == 1);
+		}
+		awaitListeners();
+		assertThat(count("SELECT count(*) FROM notification.notification WHERE type = 'job.person_link_alert'", Map.of()))
+			.isEqualTo(admins.size());
+	}
+
+	/** A-04: J10 ends an unsigned pick as J8 does. */
+	@Test
+	void j10EndsAnUnsignedPick() throws Exception {
+		recruit(this.job, this.hung, 1).andExpect(status().isOk());
+		UUID application = apply(this.minh, this.job);
+		pick(this.hung, this.job, application).andExpect(status().isOk());
+
+		new TransactionTemplate(this.transactions)
+			.executeWithoutResult(status -> this.lifecycle.apply(Transition.J10, this.job, Actor.SYSTEM, Trigger.DECISION));
+
+		assertThat(text("SELECT status || ' ' || released_reason FROM job.crew_row WHERE member_account_id = :minh",
+				Map.of("minh", this.minh))).isEqualTo("RELEASED JOB_ENDED");
+		await().atMost(Duration.ofSeconds(10)).until(() -> "LAPSED PICK_ENDED".equals(applicationState(application)));
+		assertThat(count("SELECT count(*) FROM notification.notification WHERE type = 'matching.crew_pick_ended'"
+				+ " AND account_id = :minh", Map.of("minh", this.minh))).isOne();
+		assertThat(count("""
+				SELECT count(*) FROM notification.todo WHERE todo_key = 'matching.sign_commitment' AND closed_at IS NULL
+				""", Map.of())).isZero();
+		assertThat(systemAudits("job.crew_pick_released")).isOne();
+		assertThat(systemAudits("matching.crew_pick_ended")).isOne();
+		awaitListeners();
+	}
+
+	@Test
+	void aSignatureNeedsN5() throws Exception {
+		recruit(this.job, this.hung, 1).andExpect(status().isOk());
+		UUID application = apply(this.minh, this.job);
+		pick(this.hung, this.job, application).andExpect(status().isOk());
+
+		this.mvc.perform(post("/api/v1/crew/jobs/" + this.job + "/commitment").with(as(this.minh)).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("""
+					{"ndaVersion":"1.0","commitmentVersion":"1.0","publicCodeAcknowledged":false,
+					 "commitEmailNoticeAcknowledged":true}
+					"""))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.reason").value("PUBLIC_CODE_NOT_ACKNOWLEDGED"));
+
+		assertThat(applicationState(application)).isEqualTo("PICKED null");
+		awaitListeners();
+	}
+
+	/** FR-18: N-23 is asked once per account and notice version, so a second Job's panel needs it no more. */
+	@Test
+	void n23IsAskedOnceAcrossJobs() throws Exception {
+		recruit(this.job, this.hung, 1).andExpect(status().isOk());
+		pick(this.hung, this.job, apply(this.minh, this.job)).andExpect(status().isOk());
+		this.mvc.perform(get("/api/v1/crew/jobs/" + this.job + "/commitment").with(as(this.minh)))
+			.andExpect(jsonPath("$.panel.commitEmailNoticeAcknowledged").value(false));
+		sign(this.minh, this.job, "1.0", true).andExpect(status().isOk());
+		assertThat(count("SELECT count(*) FROM identity.acknowledgment WHERE account_id = :minh AND notice = :notice",
+				Map.of("minh", this.minh, "notice", Notices.COMMIT_EMAIL))).isOne();
+		Timestamp now = Timestamp.from(this.clock.instant());
+		this.jdbc.sql("""
+				UPDATE job.crew_row SET status = 'RELEASED', released_at = :now, released_reason = 'LEFT', window_end = :now
+				WHERE member_account_id = :minh
+				""").param("now", now).param("minh", this.minh).update();
+		UUID second = recruitingJob();
+		UUID secondMentor = this.jdbc.sql("SELECT mentor_account_id FROM job.job WHERE id = :id").param("id", second)
+			.query(UUID.class).single();
+		pick(secondMentor, second, apply(this.minh, second)).andExpect(status().isOk());
+
+		this.mvc.perform(get("/api/v1/crew/jobs/" + second + "/commitment").with(as(this.minh)))
+			.andExpect(jsonPath("$.panel.codeJob").value(true))
+			.andExpect(jsonPath("$.panel.commitEmailNoticeAcknowledged").value(true));
+		sign(this.minh, second, "1.0", false).andExpect(status().isOk());
+		awaitListeners();
+	}
+
+	/** FR-18: an Assessment Job has no code, so its signature asks no N-23 and records no acknowledgment. */
+	@Test
+	void anAssessmentJobSignsWithoutN23() throws Exception {
+		this.jdbc.sql("UPDATE job.job SET job_types = ARRAY['ASSESSMENT']::TEXT[] WHERE id = :id").param("id", this.job).update();
+		recruit(this.job, this.hung, 1).andExpect(status().isOk());
+		pick(this.hung, this.job, apply(this.minh, this.job)).andExpect(status().isOk());
+
+		this.mvc.perform(get("/api/v1/crew/jobs/" + this.job + "/commitment").with(as(this.minh)))
+			.andExpect(jsonPath("$.panel.codeJob").value(false));
+		sign(this.minh, this.job, "1.0", false).andExpect(status().isOk());
+
+		assertThat(count("SELECT count(*) FROM identity.acknowledgment WHERE account_id = :minh AND notice = :notice",
+				Map.of("minh", this.minh, "notice", Notices.COMMIT_EMAIL))).isZero();
+		awaitListeners();
+	}
+
+	/**
+	 * UX-DR112: the review to-do counts the pending applications at every step. A pick takes one out of the count and an
+	 * unsigned pick that ends stays out, its application having ended (R4), so each ending shows as the to-do refreshed;
+	 * the tier follows whether a member signed.
+	 */
+	@Test
+	void theReviewToDoFollowsPicksAndSignatures() throws Exception {
+		recruit(this.job, this.hung, 5).andExpect(status().isOk());
+		UUID withdrawn = apply(this.minh, this.job);
+		UUID tuan = person("Phạm Anh Tuấn");
+		UUID declined = apply(tuan, this.job);
+		UUID lapsed = apply(person("Lê Thảo Vy"), this.job);
+		UUID ha = person("Nguyễn Thu Hà");
+		UUID signing = apply(ha, this.job);
+		apply(person("Bùi Văn Sơn"), this.job);
+		assertThat(reviewTodo()).isEqualTo("5 2");
+
+		pick(this.hung, this.job, withdrawn).andExpect(status().isOk());
+		assertThat(reviewTodo()).as("a pick is no longer pending").isEqualTo("4 2");
+		String before = reviewTodoId();
+		withdrawPick(this.hung, this.job, withdrawn).andExpect(status().isNoContent());
+		assertThat(reviewTodo()).isEqualTo("4 2");
+		assertThat(reviewTodoId()).as("refreshed by the withdrawal").isNotEqualTo(before);
+
+		pick(this.hung, this.job, declined).andExpect(status().isOk());
+		assertThat(reviewTodo()).isEqualTo("3 2");
+		before = reviewTodoId();
+		this.mvc.perform(post("/api/v1/crew/jobs/" + this.job + "/commitment/decline").with(as(tuan)).with(csrf()))
+			.andExpect(status().isOk());
+		assertThat(reviewTodo()).isEqualTo("3 2");
+		assertThat(reviewTodoId()).as("refreshed by the decline").isNotEqualTo(before);
+
+		pick(this.hung, this.job, lapsed).andExpect(status().isOk());
+		assertThat(reviewTodo()).isEqualTo("2 2");
+		before = reviewTodoId();
+		this.clock.advance(Duration.ofDays(3).plusMinutes(1));
+		this.poller.runDue();
+		assertThat(applicationState(lapsed)).isEqualTo("LAPSED COMMITMENT_LAPSED");
+		assertThat(reviewTodo()).isEqualTo("2 2");
+		assertThat(reviewTodoId()).as("refreshed by the lapse").isNotEqualTo(before);
+
+		pick(this.hung, this.job, signing).andExpect(status().isOk());
+		assertThat(reviewTodo()).isEqualTo("1 2");
+		sign(ha, this.job, "1.0", true).andExpect(status().isOk());
+		assertThat(reviewTodo()).as("a member signed").isEqualTo("1 3");
+
+		AccountLocked locked = new AccountLocked(UUID.randomUUID(), ha, this.clock.instant());
+		IdentityTestSupport.lock(this.jdbc, ha, "Vi phạm quy tắc");
+		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.events.publishEvent(locked));
+		await().atMost(Duration.ofSeconds(10)).until(() -> "1 2".equals(reviewTodo()));
+		awaitListeners();
+	}
+
+	/** R7: the only pick is withdrawn after it filled the places, so the Mentor is asked again until the Agreement deadline. */
+	@Test
+	void aWithdrawnPickAfterRecruitmentFilledAsksTheMentorToRecruitAgain() throws Exception {
+		Instant due = agreementDue();
+		UUID application = pickFillingTheOnePlace();
+
+		withdrawPick(this.hung, this.job, application).andExpect(status().isNoContent());
+
+		assertThat(recruitmentTodoDeadline()).isEqualTo(due);
+		awaitListeners();
+	}
+
+	@Test
+	void aDeclinedPickAfterRecruitmentFilledAsksTheMentorToRecruitAgain() throws Exception {
+		Instant due = agreementDue();
+		pickFillingTheOnePlace();
+
+		this.mvc.perform(post("/api/v1/crew/jobs/" + this.job + "/commitment/decline").with(as(this.minh)).with(csrf()))
+			.andExpect(status().isOk());
+
+		assertThat(recruitmentTodoDeadline()).isEqualTo(due);
+		awaitListeners();
+	}
+
+	@Test
+	void aLapsedPickAfterRecruitmentFilledAsksTheMentorToRecruitAgain() throws Exception {
+		Instant due = agreementDue();
+		pickFillingTheOnePlace();
+
+		this.clock.advance(Duration.ofDays(3).plusMinutes(1));
+		this.poller.runDue();
+
+		assertThat(recruitmentTodoDeadline()).isEqualTo(due);
+		awaitListeners();
+	}
+
+	/** R7: while another pick waits for its signature, the Mentor still has someone coming, so nothing is asked yet. */
+	@Test
+	void anotherRowLeftAsksTheMentorNothingUntilItEndsToo() throws Exception {
+		Instant due = agreementDue();
+		recruit(this.job, this.hung, 2).andExpect(status().isOk());
+		UUID first = apply(this.minh, this.job);
+		UUID second = apply(person("Phạm Anh Tuấn"), this.job);
+		pick(this.hung, this.job, first).andExpect(status().isOk());
+		pick(this.hung, this.job, second).andExpect(status().isOk());
+		assertThat(text("SELECT recruiting::text FROM job.job WHERE id = :id", Map.of("id", this.job))).isEqualTo("false");
+
+		withdrawPick(this.hung, this.job, first).andExpect(status().isNoContent());
+		assertThat(recruitmentTodoDeadline()).isNull();
+
+		withdrawPick(this.hung, this.job, second).andExpect(status().isNoContent());
+		assertThat(recruitmentTodoDeadline()).isEqualTo(due);
+		awaitListeners();
+	}
+
+	/** R7: the Crew emptied after the confirmation but before J6, so nothing else asks the Mentor for a member. */
+	@Test
+	void aCrewEmptiedAfterTheConfirmationAsksTheMentorToRecruitAgain() throws Exception {
+		Instant due = agreementDue();
+		UUID vy = person("Lê Thảo Vy");
+		JobContent.crewRow(this.jdbc, this.job, vy, "ACTIVE", null);
+		AccountLocked locked = new AccountLocked(UUID.randomUUID(), vy, this.clock.instant());
+		IdentityTestSupport.lock(this.jdbc, vy, "Vi phạm quy tắc");
+
+		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.events.publishEvent(locked));
+
+		await().atMost(Duration.ofSeconds(10)).until(() -> recruitmentTodoDeadline() != null);
+		assertThat(recruitmentTodoDeadline()).isEqualTo(due);
+		awaitListeners();
+	}
+
+	/** "Ký trước {date}": the deadline holds at the signature, even with the Deadline worker late. */
+	@Test
+	void aSignatureAtTheDeadlineIsRefusedEvenWithTheWorkerLate() throws Exception {
+		recruit(this.job, this.hung, 2).andExpect(status().isOk());
+		UUID intime = apply(this.minh, this.job);
+		UUID tuan = person("Phạm Anh Tuấn");
+		UUID late = apply(tuan, this.job);
+		pick(this.hung, this.job, intime).andExpect(status().isOk());
+		pick(this.hung, this.job, late).andExpect(status().isOk());
+
+		this.clock.advance(Duration.ofDays(3).minusMinutes(1));
+		sign(this.minh, this.job, "1.0", true).andExpect(status().isOk());
+
+		this.clock.advance(Duration.ofMinutes(1));
+		sign(tuan, this.job, "1.0", true).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("PICK_ENDED"));
+
+		assertThat(text("SELECT status FROM job.crew_row WHERE member_account_id = :tuan", Map.of("tuan", tuan)))
+			.isEqualTo("ASSIGNED");
+		assertThat(applicationState(late)).isEqualTo("PICKED null");
+		assertThat(count("SELECT count(*) FROM matching.nda_signature WHERE account_id = :tuan", Map.of("tuan", tuan))).isZero();
+		awaitListeners();
+	}
+
+	/** FR-60: hiding a Job Post lapses pending applications only, so a pick stands and can still be signed. */
+	@Test
+	void aPickedPersonSignsOnAHiddenJobPost() throws Exception {
+		recruit(this.job, this.hung, 1).andExpect(status().isOk());
+		pick(this.hung, this.job, apply(this.minh, this.job)).andExpect(status().isOk());
+		this.jdbc.sql("UPDATE job.job SET hidden_at = now(), hidden_reason = 'Vi phạm' WHERE id = :id").param("id", this.job).update();
+
+		sign(this.minh, this.job, "1.0", true).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("JOINED"));
+		awaitListeners();
+	}
+
+	/**
+	 * Between J8's or a lock's commit and its listener the row is released and the application still picked: every command
+	 * refuses and leaves it to the listener, which sends the right notice.
+	 */
+	@Test
+	void aPickAlreadyReleasedIsLeftForItsListenerToEnd() throws Exception {
+		recruit(this.job, this.hung, 1).andExpect(status().isOk());
+		UUID application = apply(this.minh, this.job);
+		pick(this.hung, this.job, application).andExpect(status().isOk());
+		this.jdbc.sql("""
+				UPDATE job.crew_row SET status = 'RELEASED', released_at = :now, released_reason = 'JOB_ENDED'
+				WHERE crew_application_id = :application
+				""").param("now", Timestamp.from(this.clock.instant())).param("application", application).update();
+
+		withdrawPick(this.hung, this.job, application).andExpect(status().isConflict())
+			.andExpect(jsonPath("$.reason").value("NOT_WITHDRAWABLE"));
+		this.mvc.perform(post("/api/v1/crew/jobs/" + this.job + "/commitment/decline").with(as(this.minh)).with(csrf()))
+			.andExpect(status().is(422))
+			.andExpect(jsonPath("$.reason").value("PICK_ENDED"));
+		this.clock.advance(Duration.ofDays(3).plusMinutes(1));
+		this.poller.runDue();
+
+		assertThat(applicationState(application)).isEqualTo("PICKED null");
+		assertThat(count("""
+				SELECT count(*) FROM notification.notification
+				WHERE type IN ('matching.crew_pick_withdrawn', 'matching.commitment_declined', 'matching.commitment_lapsed')
+				""", Map.of())).isZero();
+
+		CrewRecruitmentClosed closed = new CrewRecruitmentClosed(UUID.randomUUID(), this.job, ClosedBy.CLOSING, this.clock.instant());
+		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.events.publishEvent(closed));
+		await().atMost(Duration.ofSeconds(10)).until(() -> "LAPSED PICK_ENDED".equals(applicationState(application)));
+		assertThat(count("SELECT count(*) FROM notification.notification WHERE type = 'matching.crew_pick_ended'"
+				+ " AND account_id = :minh", Map.of("minh", this.minh))).isOne();
+		awaitListeners();
+	}
+
+	/** AD-41: "Công việc" gives a pick not yet signed nothing outside the projection, and the Product once they signed. */
+	@Test
+	void myJobsGivesAPickNoProductName() throws Exception {
+		recruit(this.job, this.hung, 1).andExpect(status().isOk());
+		pick(this.hung, this.job, apply(this.minh, this.job)).andExpect(status().isOk());
+
+		this.mvc.perform(get("/api/v1/my-jobs").with(as(this.minh)))
+			.andExpect(jsonPath("$[0].crewKind").value("ASSIGNED"))
+			.andExpect(jsonPath("$[0].productName").value(""));
+
+		sign(this.minh, this.job, "1.0", true).andExpect(status().isOk());
+		this.mvc.perform(get("/api/v1/my-jobs").with(as(this.minh)))
+			.andExpect(jsonPath("$[0].crewKind").value("ACTIVE"))
+			.andExpect(jsonPath("$[0].productName").value("Sổ đặt bàn Quán Mây"));
+		awaitListeners();
+	}
+
+	/**
+	 * A former selected Mentor who later joins the Crew already holds a signature, which keeps its NDA version and gains
+	 * the commitment's; the evidence is otherwise closed to the application's role.
+	 */
+	@Test
+	void aSignatureOverAnEarlierOneChangesOnlyItsCommitmentVersion() throws Exception {
+		Timestamp earlier = Timestamp.from(JobContent.SIGNED);
+		this.jdbc.sql("""
+				INSERT INTO matching.nda_signature (job_id, account_id, nda_version, signed_at)
+				VALUES (:job, :minh, '0.9', :earlier)
+				""").param("job", this.job).param("minh", this.minh).param("earlier", earlier).update();
+		recruit(this.job, this.hung, 1).andExpect(status().isOk());
+		pick(this.hung, this.job, apply(this.minh, this.job)).andExpect(status().isOk());
+
+		sign(this.minh, this.job, "1.0", true).andExpect(status().isOk());
+
+		assertThat(text("""
+				SELECT nda_version || ' ' || commitment_version || ' ' || (signed_at = :earlier) FROM matching.nda_signature
+				WHERE job_id = :job AND account_id = :minh
+				""", Map.of("job", this.job, "minh", this.minh, "earlier", earlier))).isEqualTo("0.9 1.0 true");
+		assertThatThrownBy(() -> this.jdbc.sql("UPDATE matching.nda_signature SET nda_version = '9.9' WHERE account_id = :minh")
+			.param("minh", this.minh).update()).as("only the commitment's version may change")
+			.isInstanceOf(DataAccessException.class);
+		awaitListeners();
+	}
+
 	// ---- Helpers ------------------------------------------------------------------------------
+
+	/** A pick of the only place sought, so recruitment turned off by itself. */
+	private UUID pickFillingTheOnePlace() throws Exception {
+		recruit(this.job, this.hung, 1).andExpect(status().isOk());
+		UUID application = apply(this.minh, this.job);
+		pick(this.hung, this.job, application).andExpect(status().isOk());
+		assertThat(text("SELECT recruiting::text FROM job.job WHERE id = :id", Map.of("id", this.job))).isEqualTo("false");
+		return application;
+	}
+
+	/** The Job's Agreement deadline, ten days on. */
+	private Instant agreementDue() {
+		Instant due = this.clock.instant().plus(Duration.ofDays(10));
+		this.jdbc.sql("UPDATE job.job SET agreement_due_at = :due WHERE id = :id").param("due", Timestamp.from(due))
+			.param("id", this.job).update();
+		return due;
+	}
+
+	/** The deadline of the Mentor's open "Mở tuyển thành viên nhóm", or {@code null} without one. */
+	private @Nullable Instant recruitmentTodoDeadline() {
+		return this.jdbc.sql("""
+				SELECT deadline_at FROM notification.todo WHERE todo_key = 'matching.open_crew_recruitment' AND closed_at IS NULL
+				    AND account_id = :hung
+				""").param("hung", this.hung).query(Timestamp.class).optional().map(Timestamp::toInstant).orElse(null);
+	}
+
+	/** The open review to-do's count and tier. */
+	private String reviewTodo() {
+		return text("""
+				SELECT (params ->> 'n') || ' ' || tier FROM notification.todo
+				WHERE todo_key = 'matching.review_crew_applications' AND closed_at IS NULL
+				""", Map.of());
+	}
+
+	private String reviewTodoId() {
+		return text("""
+				SELECT id FROM notification.todo WHERE todo_key = 'matching.review_crew_applications' AND closed_at IS NULL
+				""", Map.of());
+	}
+
+	private String lapsedLink(UUID account) {
+		return text("SELECT link FROM notification.notification WHERE type = 'matching.commitment_lapsed' AND account_id = :account",
+				Map.of("account", account));
+	}
+
+	private long systemAudits(String action) {
+		return count("SELECT count(*) FROM audit.audit_entry WHERE action = :action AND actor_type = 'SYSTEM' AND job_id = :job",
+				Map.of("action", action, "job", this.job));
+	}
+
+	private long conflictAlerts(UUID admin) {
+		return count("""
+				SELECT count(*) FROM notification.notification WHERE type = 'job.conflict_of_interest_refused' AND account_id = :admin
+				""", Map.of("admin", admin));
+	}
+
+	/** An Administrator with credentials, as {@code Administrators.activeIds} counts them. */
+	private UUID administrator() {
+		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
+		this.jdbc.sql("""
+				INSERT INTO identity.administrator_credential (account_id, email, display_name, password_hash,
+				    totp_key_version, totp_nonce, totp_ciphertext, created_at)
+				VALUES (:id, :email, 'Quản trị', '$argon2id$x', 1, '\\x00'::bytea, '\\x00'::bytea, now())
+				""").param("id", admin).param("email", "qt-" + admin.toString().substring(0, 8) + "@vibefix.vn").update();
+		return admin;
+	}
+
+	private void signal(UUID account, String hmac) {
+		this.jdbc.sql("""
+				INSERT INTO identity.person_signal (id, account_id, kind, source, hmac, key_version, recorded_at)
+				VALUES (:id, :account, 'EMAIL', 'GITHUB_EMAIL', :hmac, 1, now())
+				""").param("id", UUID.randomUUID()).param("account", account).param("hmac", hmac).update();
+	}
 
 	/** Holds the Job row while {@code command} runs: it must come to wait for that row with the application still free. */
 	private void takesTheJobRowFirst(UUID application, Callable<ResultActions> command, int expected) throws Exception {

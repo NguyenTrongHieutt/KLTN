@@ -96,10 +96,12 @@ class JobRoleController {
 		Map<UUID, String> names = new HashMap<>();
 		return this.roles.jobsOf(account).stream().map(held -> {
 			Jobs.Job job = held.job();
-			String product = names.computeIfAbsent(job.productId(),
+			CrewKind kind = kind(held.role());
+			// AD-41: a pick not yet signed reads the assignment projection only, which names no Product.
+			String product = kind == CrewKind.ASSIGNED ? "" : names.computeIfAbsent(job.productId(),
 					id -> this.products.find(id).map(ProductDirectory.ProductInfo::name).orElse(""));
-			return new MyJobView(job.id(), job.title(), product, job.state(), Objects.requireNonNull(name(held.role())),
-					kind(held.role()), job.updatedAt());
+			return new MyJobView(job.id(), job.title(), product, job.state(), Objects.requireNonNull(name(held.role())), kind,
+					job.updatedAt());
 		}).toList();
 	}
 

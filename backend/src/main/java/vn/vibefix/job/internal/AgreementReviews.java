@@ -329,10 +329,9 @@ class AgreementReviews {
 		this.notifications.send(new NotificationRequest(CONFIRMED, cause(jobId, "confirmed:1"), everyone,
 				Map.of("job", job.title(), "crew", usernames.isEmpty() ? NO_MEMBER_YET : String.join(" · ", usernames)),
 				Agreements.agreementLink(jobId), jobId, null));
-		latest.content().milestones().stream().findFirst().ifPresent(first -> this.notifications.send(new NotificationRequest(
-				AWAITING_FUNDING, cause(jobId, "funding:" + first.id()), List.of(new Recipient(job.customerId(), Audience.CUSTOMER)),
-				Map.of("job", job.title(), "n", "1", "amount", vnd(first.priceVnd() == null ? 0 : first.priceVnd())),
-				"/cong-viec/" + jobId, jobId, null)));
+		if (!this.crews.countedActive(jobId).isEmpty()) {
+			askToFundMilestoneOne(job, latest.content());
+		}
 		List<ConfirmedMilestone> milestones = new ArrayList<>();
 		for (int m = 0; m < latest.content().milestones().size(); m++) {
 			Milestone milestone = latest.content().milestones().get(m);
@@ -342,6 +341,18 @@ class AgreementReviews {
 		this.events.publishEvent(new AgreementConfirmed(this.ids.newId(), jobId, job.productId(), job.customerId(), job.title(), 1, milestones));
 		return new Confirmed(1, latest.versionNo(), usernames, approval.liveAccessIds(), approval.freezeCommitted(),
 				approval.approvedAt(), now, latest.content());
+	}
+
+	/**
+	 * R7: the Customer is asked to pay Milestone 1 once the Agreement is confirmed with at least one signed member, at the
+	 * confirmation or at the first signature after it. One cause, so a later signature or a replay adds nothing.
+	 */
+	void askToFundMilestoneOne(Job job, Content content) {
+		content.milestones().stream().findFirst().ifPresent(first -> this.notifications.send(new NotificationRequest(
+				AWAITING_FUNDING, cause(job.id(), "funding:" + first.id()),
+				List.of(new Recipient(job.customerId(), Audience.CUSTOMER)),
+				Map.of("job", job.title(), "n", "1", "amount", vnd(first.priceVnd() == null ? 0 : first.priceVnd())),
+				"/cong-viec/" + job.id(), job.id(), null)));
 	}
 
 	/**

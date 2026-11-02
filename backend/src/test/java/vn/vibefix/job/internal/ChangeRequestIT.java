@@ -111,6 +111,11 @@ class ChangeRequestIT extends IntegrationTest {
 				WHERE a.job_id = :job AND a.version_no = 2 AND m ->> 'id' = :milestone
 				""").param("job", job).param("milestone", this.second.toString()).query(String.class).single())
 			.isEqualTo(NEW_DUE.toString());
+		assertThat(this.jdbc.sql("""
+				SELECT array_to_string(crew_usernames, ' ') FROM job.confirmed_agreement WHERE job_id = :job AND version_no = 2
+				""").param("job", job).query(String.class).single())
+			.as("the members active now, not version 1's list, which named a member who left and not the one who joined")
+			.isEqualTo(TeamTestSupport.login(this.jdbc, this.vy));
 		assertThat(notifications("job.change_request_applied", null)).isEqualTo(2);
 		assertThat(openTodos("job.answer_change_request", this.hung)).isZero();
 		this.mvc.perform(get("/api/v1/boards/" + job + "/agreement-versions").with(as(this.vy, Role.STUDENT)))
@@ -210,7 +215,7 @@ class ChangeRequestIT extends IntegrationTest {
 		this.jdbc.sql("""
 				INSERT INTO job.confirmed_agreement (job_id, version_no, draft_version_no, content, crew_usernames,
 				    freeze_committed, customer_account_id, approved_at, mentor_account_id, confirmed_at)
-				VALUES (:job, 1, 1, CAST(:content AS JSONB), '{}', true, :owner, :now, :mentor, :now)
+				VALUES (:job, 1, 1, CAST(:content AS JSONB), '{da-roi-di}', true, :owner, :now, :mentor, :now)
 				""").param("job", job).param("content", content).param("owner", this.lan).param("mentor", this.hung)
 			.param("now", now).update();
 		this.jdbc.sql("UPDATE job.job SET agreement_version_no = 1 WHERE id = :id").param("id", job).update();

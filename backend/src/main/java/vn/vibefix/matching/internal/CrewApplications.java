@@ -520,6 +520,8 @@ class CrewApplications {
 		for (CrewApplication application : picked) {
 			if (endPick(application.id(), Status.WITHDRAWN, EndReason.APPLICANT_UNAVAILABLE)) {
 				this.todos.closeAll(CrewCommitments.SIGN_TODO, application.id());
+				this.auditLog.record(AuditEntry.of(AuditActor.system(), CrewCommitments.PICK_WITHDRAWN,
+						AuditObject.of("matching.crew_application", application.id())).forJob(application.jobId()));
 				this.recruitment.recruitment(application.jobId()).ifPresent(this::refreshReviewTodo);
 			}
 		}

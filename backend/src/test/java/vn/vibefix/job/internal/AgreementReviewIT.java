@@ -45,6 +45,7 @@ import vn.vibefix.identity.AccountLocked;
 import vn.vibefix.identity.internal.CustomerTokens;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
+import vn.vibefix.job.CrewPicks;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
 import vn.vibefix.team.internal.TeamTestSupport;
@@ -83,6 +84,9 @@ class AgreementReviewIT extends IntegrationTest {
 
 	@Autowired
 	private PlatformTransactionManager transactions;
+
+	@Autowired
+	private CrewPicks picks;
 
 	private UUID lan;
 
@@ -199,7 +203,8 @@ class AgreementReviewIT extends IntegrationTest {
 		for (UUID account : List.of(this.lan, this.hung, this.vy)) {
 			assertThat(notifications("job.agreement_confirmed", account)).isOne();
 		}
-		assertThat(notifications("job.milestone_awaiting_funding", this.lan)).isOne();
+		assertThat(notifications("job.milestone_awaiting_funding", this.lan)).as("R7: a member signed").isOne();
+		await().atMost(Duration.ofSeconds(10)).until(() -> openTodos("payment.fund_milestone", this.lan) == 1);
 		assertThat(openTodos("job.confirm_agreement_mentor", this.hung)).isZero();
 		save(3, "Thêm").andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("AGREEMENT_CONFIRMED"));
 		comment(2, "SCOPE", null).andExpect(status().isConflict());
@@ -231,9 +236,54 @@ class AgreementReviewIT extends IntegrationTest {
 	}
 
 	/**
+	 * R7: Milestone 1 asks the Customer for its funding only with a signed member: not at a confirmation with none, then
+	 * at the first signature, once; a later signature adds nothing.
+	 */
+	@Test
+	void milestoneOneAsksForFundingAtTheFirstSignatureAfterAConfirmationWithNoMember() throws Exception {
+		approve(jobVersion(), 1, true, List.of()).andExpect(status().isNoContent());
+		confirm(jobVersion(), crewVersion()).andExpect(status().isOk());
+		await().atMost(Duration.ofSeconds(10)).until(() -> ledgerAccounts() == 1);
+		Thread.sleep(300);
+		assertThat(notifications("job.milestone_awaiting_funding", this.lan)).as("nobody signed yet").isZero();
+		assertThat(openTodos("payment.fund_milestone", this.lan)).as("nobody signed yet").isZero();
+
+		activate(picked(this.vy));
+
+		assertThat(notifications("job.milestone_awaiting_funding", this.lan)).isOne();
+		await().atMost(Duration.ofSeconds(10)).until(() -> openTodos("payment.fund_milestone", this.lan) == 1);
+		assertThat(this.jdbc.sql("""
+				SELECT params ->> 'n' FROM notification.todo WHERE todo_key = 'payment.fund_milestone' AND account_id = :lan
+				""").param("lan", this.lan).query(String.class).single()).isEqualTo("1");
+
+		activate(picked(member("Trần Quang Minh")));
+		Thread.sleep(300);
+
+		assertThat(notifications("job.milestone_awaiting_funding", this.lan)).as("a later signature adds nothing").isOne();
+		assertThat(openTodos("payment.fund_milestone", this.lan)).as("a later signature adds nothing").isOne();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM notification.todo WHERE todo_key = 'payment.fund_milestone'")
+			.query(Long.class).single()).isOne();
+	}
+
+	/** R7: a signature before the confirmation asks for nothing; the confirmation does, with that member. */
+	@Test
+	void milestoneOneAsksForFundingAtAConfirmationWithAMember() throws Exception {
+		activate(picked(this.vy));
+		Thread.sleep(300);
+		assertThat(notifications("job.milestone_awaiting_funding", this.lan)).isZero();
+		assertThat(openTodos("payment.fund_milestone", this.lan)).isZero();
+		approve(jobVersion(), 1, true, List.of()).andExpect(status().isNoContent());
+
+		confirm(jobVersion(), crewVersion()).andExpect(status().isOk());
+
+		assertThat(notifications("job.milestone_awaiting_funding", this.lan)).isOne();
+		await().atMost(Duration.ofSeconds(10)).until(() -> openTodos("payment.fund_milestone", this.lan) == 1);
+	}
+
+	/**
 	 * Story 20.4: a lock counts as leaving, so the member's row is released as {@code LEFT}, its window ending at the
 	 * lock's own time even though the listener runs five minutes later. Story 21.5: nothing is re-confirmed; the Crew
-	 * is simply empty until someone signs, and the Mentor's Crew list says so.
+	 * is simply empty until someone signs, the Mentor's Crew list says so, and the Mentor is asked again to recruit (R7).
 	 */
 	@Test
 	void aLockAfterTheConfirmationReleasesTheMemberAndTheCrewIsEmptyUntilSomeoneSigns() throws Exception {
@@ -261,8 +311,11 @@ class AgreementReviewIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/mentor/jobs/" + this.job + "/crew").with(as(this.hung, Role.MENTOR)))
 			.andExpect(jsonPath("$.signedMember").value(false))
 			.andExpect(jsonPath("$.members.length()").value(0));
-		assertThat(openTodos("matching.open_crew_recruitment", this.hung))
-			.as("R7 re-prompts only before the confirmation").isZero();
+		await().atMost(Duration.ofSeconds(10)).until(() -> openTodos("matching.open_crew_recruitment", this.hung) == 1);
+		assertThat(this.jdbc.sql("""
+				SELECT t.deadline_at = j.agreement_due_at FROM notification.todo t JOIN job.job j ON j.id = t.job_id
+				WHERE t.todo_key = 'matching.open_crew_recruitment' AND t.closed_at IS NULL
+				""").query(Boolean.class).single()).as("until the Agreement deadline").isTrue();
 	}
 
 	/**
@@ -380,13 +433,26 @@ class AgreementReviewIT extends IntegrationTest {
 	}
 
 	/** A pick not yet signed: an {@code ASSIGNED} row, as {@code job.addCrew} leaves it. */
-	private void picked(UUID member) {
+	private UUID picked(UUID member) {
 		Timestamp now = Timestamp.from(this.clock.instant());
+		UUID row = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO job.crew_row (id, job_id, member_account_id, status, crew_application_id, created_at)
 				VALUES (:id, :job, :member, 'ASSIGNED', :application, :now)
-				""").param("id", UUID.randomUUID()).param("job", this.job).param("member", member)
+				""").param("id", row).param("job", this.job).param("member", member)
 			.param("application", UUID.randomUUID()).param("now", now).update();
+		return row;
+	}
+
+	/** {@code job.activateCrew}, as the signature calls it. */
+	private void activate(UUID row) {
+		new TransactionTemplate(this.transactions).executeWithoutResult(
+				status -> this.picks.activateCrew(this.job, row, CrewPicks.Contribution.NONE, this.clock.instant()));
+	}
+
+	private long ledgerAccounts() {
+		return this.jdbc.sql("SELECT count(*) FROM payment.ledger_account WHERE job_id = :job").param("job", this.job)
+			.query(Long.class).single();
 	}
 
 	private ResultActions save(int revision, String scope) throws Exception {

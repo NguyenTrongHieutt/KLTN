@@ -442,7 +442,8 @@ class JobGrants {
 
 	/**
 	 * Verify starts once every counted grant is ready and none drifted, on a Starting Job whose Setup is done
-	 * (AD-11): {@code JOB_VERIFY} is reserved and the operation requested. A busy Job waits for the next look.
+	 * (AD-11): {@code JOB_VERIFY} is reserved and the operation requested. A busy Job waits for the next look, and a late
+	 * member's grant, drifted or not, never holds Verify back (Story 21.5).
 	 * @return whether Verify was requested now
 	 */
 	@Transactional
@@ -453,7 +454,7 @@ class JobGrants {
 			return false;
 		}
 		List<Grant> grants = ofJob(jobId);
-		if (grants.stream().anyMatch(grant -> "MEMBER_DRIFT".equals(grant.status()))) {
+		if (grants.stream().anyMatch(grant -> "MEMBER_DRIFT".equals(grant.status()) && !grant.crewChange())) {
 			return false;
 		}
 		List<Person> people = verifying(job, setup, grants);

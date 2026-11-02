@@ -2364,14 +2364,14 @@
         "approveTitle": "Duyệt bản nháp {n}?",
         "approveWhat": "Khi bạn duyệt:",
         "approveWhatMentor": "Người hướng dẫn được báo để xác nhận thỏa thuận.",
-        "approveWhatEffect": "Thỏa thuận có hiệu lực khi người hướng dẫn xác nhận và nhóm thực hiện đã xác nhận đủ.",
+        "approveWhatEffect": "Thỏa thuận có hiệu lực khi người hướng dẫn xác nhận. Công việc bắt đầu khi có ít nhất một thành viên nhóm đã ký.",
         "approveWhatPay": "Sau đó bạn thanh toán Giai đoạn 1 để nhóm bắt đầu làm.",
         "approveWhatFreeze": "Bạn giữ nguyên dự án gốc từ lúc công việc bắt đầu đến khi hợp nhất xong.",
         "approveWhatLive": "Người thực hiện được vào {n} hệ thống thật bạn đã chọn.",
         "approveConfirm": "Duyệt",
         "back": "Quay lại",
         "approved": "Đã duyệt bản nháp. Người hướng dẫn được báo để xác nhận.",
-        "statusApproved": "Bạn đã duyệt bản nháp {n} lúc {time}. Người hướng dẫn xác nhận khi nhóm thực hiện đã xác nhận đủ.",
+        "statusApproved": "Bạn đã duyệt bản nháp {n} lúc {time}. Thỏa thuận có hiệu lực khi người hướng dẫn xác nhận.",
         "statusChanges": "Bạn đã gửi yêu cầu sửa bản nháp {n}. Người hướng dẫn sẽ gửi bản nháp mới.",
         "statusOld": "Đây là bản nháp cũ. Bản nháp {n} là bản mới nhất.",
         "confirmedLine": "Khách hàng đã duyệt · Người hướng dẫn đã xác nhận",
@@ -2397,7 +2397,6 @@
         "whyNotShared": "bạn chưa gửi bản nháp cho khách hàng",
         "whyNotApproved": "khách hàng chưa duyệt bản nháp mới nhất",
         "whyDraft": "bản nháp có thay đổi chưa gửi cho khách hàng",
-        "whyCrew": "nhóm thực hiện chưa xác nhận đủ",
         "whyJoin": ", và ",
         "customerApproved": "Khách hàng đã duyệt bản nháp {n} lúc {time}.",
         "customerWaiting": "Khách hàng chưa duyệt bản nháp {n}.",
@@ -2414,6 +2413,7 @@
       "customer": {
         "title": "Nhóm thực hiện",
         "none": "Chưa có thành viên nào ký · người hướng dẫn đang tìm nhóm thực hiện.",
+        "carriesOn": "Không còn thành viên nào trong nhóm · người hướng dẫn vẫn tiếp tục thực hiện.",
         "note": "Tên tài khoản GitHub của các thành viên đã ký, để bạn cấp quyền khi cần. Người hướng dẫn chọn và chịu trách nhiệm về nhóm thực hiện."
       },
       "mentor": {
@@ -3584,7 +3584,8 @@
         "APPLICANT_IS_CONTRIBUTOR": "{name} đã từng đóng góp vào dự án gốc này nên không vào nhóm được.",
         "CONFLICT_OF_INTEREST": "{name} không thể tham gia công việc này.",
         "NOT_PICKABLE": "Đơn này không còn chờ chọn. Danh sách đã tải lại.",
-        "NOT_WITHDRAWABLE": "{name} đã ký cam kết nên không rút lựa chọn được nữa. Sau khi ký, chỉ họ tự rời."
+        "NOT_WITHDRAWABLE": "{name} đã ký cam kết nên không rút lựa chọn được nữa. Sau khi ký, chỉ họ tự rời.",
+        "RECRUITMENT_CLOSED": "Công việc không còn nhận thêm thành viên."
       },
       "compareToggle": "So sánh",
       "compareRemove": "Bỏ so sánh",

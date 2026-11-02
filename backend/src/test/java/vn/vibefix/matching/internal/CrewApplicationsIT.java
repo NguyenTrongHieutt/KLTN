@@ -500,6 +500,26 @@ class CrewApplicationsIT extends IntegrationTest {
 				""", Map.of("id", id))).isOne();
 	}
 
+	/** Story 21.5: JOB-9 still lists a picked card, so its Mentor still reads its file, until the pick ends. */
+	@Test
+	void theMentorReadsAPickedCardsProofFileAndNotAnEndedOnes() throws Exception {
+		String file = fileId(upload(this.minh));
+		UUID id = id(apply(this.minh, this.job, true, List.of(), proof(fileItem(file, "Báo cáo kiểm thử")))
+			.andExpect(status().isCreated()));
+		this.mvc.perform(post("/api/v1/mentor/jobs/" + this.job + "/crew-applications/" + id + "/pick").with(as(this.hung))
+			.with(csrf())).andExpect(status().isOk());
+
+		this.mvc.perform(get("/api/v1/files/" + file).with(as(this.hung))).andExpect(status().isOk());
+		this.mvc.perform(get("/api/v1/files/" + file).with(as(this.lan))).andExpect(status().isNotFound());
+
+		this.mvc.perform(post("/api/v1/mentor/jobs/" + this.job + "/crew-applications/" + id + "/withdraw-pick")
+			.with(as(this.hung)).with(csrf())).andExpect(status().isNoContent());
+
+		this.mvc.perform(get("/api/v1/files/" + file).with(as(this.hung))).andExpect(status().isNotFound());
+		this.mvc.perform(get("/api/v1/files/" + file).with(as(this.minh))).andExpect(status().isOk());
+		awaitListeners();
+	}
+
 	@Test
 	void aWithdrawnApplicationsProofIsTheApplicantsAlone() throws Exception {
 		String file = fileId(upload(this.minh));

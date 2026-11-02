@@ -18,6 +18,10 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import vn.vibefix.audit.AuditActor;
+import vn.vibefix.audit.AuditEntry;
+import vn.vibefix.audit.AuditLog;
+import vn.vibefix.audit.AuditObject;
 import vn.vibefix.identity.Capabilities;
 import vn.vibefix.identity.StudentDirectory;
 import vn.vibefix.identity.StudentDirectory.StudentCard;
@@ -83,11 +87,15 @@ class CrewService implements Crews {
 
 	private final Capabilities capabilities;
 
+	private final AuditLog auditLog;
+
 	private final IdGenerator ids;
 
 	private final Clock clock;
 
-	CrewService(JdbcClient jdbc, StudentDirectory students, Capabilities capabilities, IdGenerator ids, Clock clock) {
+	CrewService(JdbcClient jdbc, StudentDirectory students, Capabilities capabilities, AuditLog auditLog, IdGenerator ids,
+			Clock clock) {
+		this.auditLog = auditLog;
 		this.jdbc = jdbc;
 		this.students = students;
 		this.capabilities = capabilities;
@@ -156,7 +164,12 @@ class CrewService implements Crews {
 	 * closed.
 	 */
 	void releaseForJobEnd(UUID jobId) {
-		unreleased(jobId).forEach(row -> release(row, "JOB_ENDED"));
+		unreleased(jobId).forEach(row -> {
+			release(row, "JOB_ENDED");
+			if (row.assigned()) {
+				auditPickReleased(row);
+			}
+		});
 	}
 
 	/**
@@ -166,11 +179,19 @@ class CrewService implements Crews {
 	 */
 	List<Row> releasePicksForJobEnd(UUID jobId) {
 		List<Row> picks = unreleased(jobId).stream().filter(Row::assigned).toList();
-		picks.forEach(row -> release(row, "JOB_ENDED"));
+		picks.forEach(row -> {
+			release(row, "JOB_ENDED");
+			auditPickReleased(row);
+		});
 		if (!picks.isEmpty()) {
 			bump(jobId, false);
 		}
 		return picks;
+	}
+
+	private void auditPickReleased(Row row) {
+		this.auditLog.record(AuditEntry.of(AuditActor.system(), "job.crew_pick_released", AuditObject.of("job.crew_row", row.id()))
+			.forJob(row.jobId()));
 	}
 
 	/** Releases the row now; a window it had ends now. */

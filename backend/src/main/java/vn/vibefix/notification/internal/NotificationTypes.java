@@ -87,7 +87,10 @@ class NotificationTypes implements NotificationCatalog {
 	static final TodoType JOB_CONFIRM_AGREEMENT_MENTOR = new TodoType("job.confirm_agreement_mentor", Set.of(Audience.MENTOR), 2,
 			Set.of("job"));
 
-	/** The Agreement confirmed (Milestone 1) or the previous Milestone accepted: the Customer pays (FR-41). */
+	/**
+	 * The Agreement confirmed with at least one signed Crew member (Milestone 1; R7) or the previous Milestone accepted:
+	 * the Customer pays (FR-41).
+	 */
 	static final TodoType PAYMENT_FUND_MILESTONE = new TodoType("payment.fund_milestone", Set.of(Audience.CUSTOMER), 2,
 			Set.of("n", "amount"));
 
@@ -328,7 +331,7 @@ class NotificationTypes implements NotificationCatalog {
 			Set.of(Audience.CUSTOMER, Audience.MENTOR, Audience.CREW_ACTIVE), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL,
 			"check", Set.of("job", "crew"));
 
-	/** A Milestone waits for the Customer's payment (FR-41): after the confirmation, Milestone 1. */
+	/** A Milestone waits for the Customer's payment (FR-41): with the Agreement confirmed and a member signed, Milestone 1 (R7). */
 	static final NotificationType JOB_MILESTONE_AWAITING_FUNDING = new NotificationType("job.milestone_awaiting_funding",
 			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("job", "n", "amount"));
 

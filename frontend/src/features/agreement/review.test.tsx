@@ -330,6 +330,43 @@ describe('JOB-6 for the Mentor: the Customer review and the confirmation (FR-16,
     expect(screen.queryByRole('button', { name: 'Lưu bản nháp' })).toBeNull()
   })
 
+  it('reads the Crew again after a stale confirmation, so the retry carries the moved Crew version', { timeout: 25_000 }, async () => {
+    const user = userEvent.setup()
+    const bodies: unknown[] = []
+    let crewVersion = 2
+    mentorBackend(
+      () => json(draft({ approvedAt: '2026-10-20T11:00:00Z' })),
+      () => json(panel({ crewVersion })),
+      {
+        'POST /api/v1/mentor/jobs/j1/agreement/confirm': async (request) => {
+          bodies.push(await request.json())
+          // A member signed after the screen loaded.
+          crewVersion = 3
+          return json({ status: 409, code: 'STALE' }, 409)
+        },
+      },
+    )
+    renderAt('/cong-viec/j1/thoa-thuan')
+
+    const send = async () => {
+      await user.click(await screen.findByRole('button', { name: 'Xác nhận thỏa thuận' }))
+      const dialog = await screen.findByRole('dialog', { name: 'Xác nhận thỏa thuận?' })
+      await user.click(within(dialog).getByRole('button', { name: 'Xác nhận thỏa thuận' }))
+    }
+    await send()
+    await waitFor(() => expect(bodies).toHaveLength(1))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Xác nhận thỏa thuận' })).toBeEnabled())
+    // The Crew read is what moved: give its refetch time to land before the retry reads the version.
+    await new Promise((resolve) => setTimeout(resolve, 100))
+
+    await send()
+
+    await waitFor(() => expect(bodies).toHaveLength(2))
+    expect(bodies[0]).toMatchObject({ crewVersion: 2 })
+    expect(bodies[1]).toMatchObject({ crewVersion: 3 })
+  })
+
   it('lists the members who signed with their usernames and no remove action', { timeout: 20_000 }, async () => {
     mentorBackend(
       () => json(draft({ approvedAt: '2026-10-20T11:00:00Z' })),

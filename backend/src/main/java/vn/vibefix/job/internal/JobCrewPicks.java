@@ -220,6 +220,9 @@ class JobCrewPicks implements CrewPicks {
 					List.of(new Recipient(job.customerId(), Audience.CUSTOMER)),
 					Map.of("login", person.githubLogin(), "job", job.title()), link, jobId, null));
 		}
+		if (job.state() == JobState.AGREEMENT && job.agreementVersionNo() != null) {
+			this.reviews.confirmed(jobId).ifPresent(confirmed -> this.reviews.askToFundMilestoneOne(job, confirmed.content()));
+		}
 	}
 
 	@Override

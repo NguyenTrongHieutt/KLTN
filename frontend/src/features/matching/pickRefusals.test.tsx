@@ -119,6 +119,8 @@ describe('JOB-9 says why a pick was refused, and writes nothing (FR-81, AD-23, S
     ['CONTRIBUTORS_UNKNOWN', {}, /^Chưa thể chọn người này: vibefix chưa kiểm tra được kho mã của khách hàng/],
     ['APPLICANT_IS_CONTRIBUTOR', {}, /^Trần Quang Minh đã từng đóng góp vào dự án gốc này nên không vào nhóm được\.$/],
     ['CONFLICT_OF_INTEREST', {}, /^Trần Quang Minh không thể tham gia công việc này\.$/],
+    // In the Mentor's words, not "Người hướng dẫn đang không nhận đơn" about themselves.
+    ['RECRUITMENT_CLOSED', {}, /^Công việc không còn nhận thêm thành viên\.$/],
   ])('%s', { timeout: 20_000 }, async (reason, extra, text) => {
     const user = userEvent.setup()
     fakeBackend(
@@ -213,6 +215,8 @@ describe('MEN-3 says why a signature was refused, in the words of the person sig
     [422, 'GUARD_FAILED', 'CONFLICT_OF_INTEREST', 'Bạn không thể tham gia công việc này.'],
     // A-16: never saying whether another Crew or a lock is why, and never the words written for the Mentor.
     [422, 'GUARD_FAILED', 'APPLICANT_UNAVAILABLE', 'Bạn không thể tham gia công việc này.'],
+    // Not the Job-ending sentence: this pick may have been withdrawn or have lapsed, as the re-read below shows.
+    [422, 'GUARD_FAILED', 'PICK_ENDED', 'Lựa chọn này không còn hiệu lực.'],
   ])('%s %s %s', { timeout: 20_000 }, async (status, code, reason, text) => {
     const user = userEvent.setup()
     await signOnMenThree(user, {
@@ -224,21 +228,22 @@ describe('MEN-3 says why a signature was refused, in the words of the person sig
     expect(screen.getByRole('button', { name: 'Ký và tham gia' })).toBeInTheDocument()
   })
 
-  it('shows the ended state when a signature comes after J8 ended the pick', { timeout: 20_000 }, async () => {
+  it.each([
+    ['LAPSED', 'PICK_ENDED', 'Công việc đã chuyển sang giai đoạn kết thúc nên không nhận thêm thành viên.'],
+    ['WITHDRAWN', 'PICK_WITHDRAWN', 'Người hướng dẫn đã rút lựa chọn.'],
+    ['LAPSED', 'COMMITMENT_LAPSED', 'Đã quá hạn ký cam kết.'],
+  ])('reads the pick again after a refused signature and shows how it ended: %s %s', { timeout: 20_000 }, async (status, endReason, text) => {
     const user = userEvent.setup()
     let ended = false
     await signOnMenThree(user, {
-      'GET /api/v1/crew/jobs/j1/commitment': () =>
-        json(ended ? commitment({ status: 'WITHDRAWN', endReason: 'PICK_ENDED', panel: undefined }) : commitment()),
+      'GET /api/v1/crew/jobs/j1/commitment': () => json(ended ? commitment({ status, endReason, panel: undefined }) : commitment()),
       'POST /api/v1/crew/jobs/j1/commitment': () => {
         ended = true
         return json({ status: 422, code: 'GUARD_FAILED', reason: 'PICK_ENDED' }, 422)
       },
     })
 
-    expect(
-      await screen.findByText('Công việc đã chuyển sang giai đoạn kết thúc nên không nhận thêm thành viên.'),
-    ).toBeInTheDocument()
+    expect(await screen.findByText(text)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Tìm việc khác' })).toHaveAttribute('href', '/tim-viec')
     expect(screen.queryByRole('button', { name: 'Ký và tham gia' })).toBeNull()
   })

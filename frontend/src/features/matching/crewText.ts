@@ -120,16 +120,23 @@ export function pickRefusal(error: unknown, name: string): string {
     if (reason === 'NOT_PICKABLE' || error.problem.code === 'STALE') {
       return t('screen.recruitment.pickRefusal.NOT_PICKABLE')
     }
+    if (reason === 'RECRUITMENT_CLOSED') {
+      return t('screen.recruitment.pickRefusal.RECRUITMENT_CLOSED')
+    }
   }
   return problemMessage(error, { module: 'job', action: t('screen.recruitment.pickAction') }).text
 }
 
-/** The `VALIDATION` reasons of a signature: each says itself, since the panel marks no field for "kiểm tra lại". */
-const SIGN_VALIDATION = [
+/**
+ * A signature's reasons that say themselves: the `VALIDATION` ones, since the panel marks no field for "kiểm tra lại", and
+ * an ended pick, whichever way it ended, since the panel's re-read then shows precisely how.
+ */
+const SIGN_REASONS = [
   'COMMITMENT_VERSION_OUTDATED',
   'NDA_VERSION_OUTDATED',
   'COMMIT_EMAIL_NOT_ACKNOWLEDGED',
   'PUBLIC_CODE_NOT_ACKNOWLEDGED',
+  'PICK_ENDED',
 ]
 
 /**
@@ -140,10 +147,7 @@ const SIGN_VALIDATION = [
 export function signRefusal(error: unknown): string {
   if (error instanceof ApiError) {
     const reason = error.problem.reason
-    if (reason === 'PICK_ENDED') {
-      return t('screen.commitment.ended.PICK_ENDED')
-    }
-    if (reason && SIGN_VALIDATION.includes(reason)) {
+    if (reason && SIGN_REASONS.includes(reason)) {
       return t(`reason.matching.${reason}` as MessageKey)
     }
     if (reason === 'APPLICANT_UNAVAILABLE') {

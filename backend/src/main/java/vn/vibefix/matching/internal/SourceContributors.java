@@ -84,6 +84,23 @@ class SourceContributors {
 		return contribution(post.get(), applicantId);
 	}
 
+	/**
+	 * Whether a picked person contributed to the Job's Source Repository, for their signature (FR-81, A-03): as
+	 * {@link #readForCrew}, but a hidden Job Post asks them nothing different, since its hiding lapses pending applications
+	 * only and a pick stands until it is signed or ends.
+	 * @throws IllegalStateException inside a transaction
+	 */
+	Contribution readForSignature(UUID jobId, UUID accountId) {
+		if (TransactionSynchronizationManager.isActualTransactionActive()) {
+			throw new IllegalStateException("The contributor read runs before the signature's transaction, never under a lock");
+		}
+		Optional<JobPostState> post = this.posts.post(jobId);
+		if (post.isEmpty() || accountId.equals(post.get().customerId()) || accountId.equals(post.get().mentorId())) {
+			return Contribution.UNKNOWN;
+		}
+		return contribution(post.get(), accountId);
+	}
+
 	private Contribution contribution(JobPostState post, UUID accountId) {
 		Optional<ProductInfo> product = this.products.find(post.productId());
 		if (product.isEmpty()) {

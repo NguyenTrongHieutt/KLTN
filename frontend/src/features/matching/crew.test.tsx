@@ -719,18 +719,31 @@ describe('JOB-9 picks, withdraws a pick, and compares applicants (UX-DR101, UX-D
     expect(withdrawn).toBe(true)
   })
 
-  it('compares two applicants side by side and picks from the comparison', { timeout: 25_000 }, async () => {
+  it('compares applicants side by side, picks from the comparison, and drops one from it', { timeout: 30_000 }, async () => {
     const user = userEvent.setup()
     const second = card({
       id: 'a2',
       note: 'Em làm được Supabase.',
       applicant: { displayName: 'Phạm Thu Hà', githubLogin: 'ha-pham', verified, memberSince: '2026-05-01T03:00:00Z' },
     })
+    const third = card({
+      id: 'a3',
+      status: 'PICKED',
+      signDueAt: SIGN_DUE,
+      note: 'Em đang chờ ký cam kết.',
+      applicant: { displayName: 'Lê Văn Tài', githubLogin: 'tai-le', verified, memberSince: '2026-05-01T03:00:00Z' },
+    })
+    let picks = 0
     fakeBackend(
       signedInUser,
       jobNine({
-        'GET /api/v1/mentor/jobs/j1/recruitment': () => json(recruitment({ recruiting: true, openSlots: 1 })),
-        'GET /api/v1/mentor/jobs/j1/crew-applications': () => json([card(), second]),
+        'GET /api/v1/mentor/jobs/j1/recruitment': () => json(recruitment({ recruiting: true, openSlots: 2 })),
+        'GET /api/v1/mentor/jobs/j1/crew-applications': () =>
+          json([picks > 0 ? card({ status: 'PICKED', signDueAt: SIGN_DUE }) : card(), second, third]),
+        'POST /api/v1/mentor/jobs/j1/crew-applications/a1/pick': () => {
+          picks++
+          return json(card({ status: 'PICKED', signDueAt: SIGN_DUE }))
+        },
       }),
     )
     const router = renderAt('/cong-viec/j1/tuyen-thanh-vien')
@@ -747,7 +760,41 @@ describe('JOB-9 picks, withdraws a pick, and compares applicants (UX-DR101, UX-D
     expect(router.state.location.pathname).toBe('/cong-viec/j1/tuyen-thanh-vien/so-sanh')
     expect(screen.getByText('Em làm được Supabase.')).toBeInTheDocument()
     expect(screen.getByText('Mình đã làm kiểm thử phân quyền cho đồ án.')).toBeInTheDocument()
-    expect(screen.getAllByRole('button', { name: /Chọn/ }).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('button', { name: 'Chọn' })).toHaveLength(2)
+
+    await user.click(screen.getAllByRole('button', { name: 'Chọn' })[0])
+    const dialog = await screen.findByRole('dialog', { name: 'Chọn Trần Quang Minh vào nhóm thực hiện?' })
+    expect(picks).toBe(0)
+    await user.click(within(dialog).getByRole('button', { name: 'Chọn' }))
+
+    await waitFor(() => expect(picks).toBe(1))
+    expect(await screen.findByText('Đã chọn · chờ ký trước 01/11')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Chọn' })).toHaveLength(1))
+
+    await user.click(screen.getAllByRole('button', { name: 'Bỏ khỏi so sánh' })[1])
+    await waitFor(() => expect(router.state.location.pathname).toBe('/cong-viec/j1/tuyen-thanh-vien'))
+    expect(await screen.findByRole('listitem', { name: 'Phạm Thu Hà' })).toBeInTheDocument()
+  })
+
+  it('shows a picked applicant in the comparison with the chip and no "Chọn"', { timeout: 20_000 }, async () => {
+    const picked = card({
+      id: 'a3',
+      status: 'PICKED',
+      signDueAt: SIGN_DUE,
+      applicant: { displayName: 'Lê Văn Tài', githubLogin: 'tai-le', verified, memberSince: '2026-05-01T03:00:00Z' },
+    })
+    fakeBackend(
+      signedInUser,
+      jobNine({
+        'GET /api/v1/mentor/jobs/j1/recruitment': () => json(recruitment({ recruiting: true, openSlots: 1 })),
+        'GET /api/v1/mentor/jobs/j1/crew-applications': () => json([card(), picked]),
+      }),
+    )
+    renderAt('/cong-viec/j1/tuyen-thanh-vien/so-sanh?ids=a1,a3')
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'So sánh 2 người xin vào nhóm' })).toBeInTheDocument()
+    expect(screen.getByText('Đã chọn · chờ ký trước 01/11')).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Chọn' })).toHaveLength(1)
   })
 
   it('shows the Customer the not-found screen on the comparison too', { timeout: 15_000 }, async () => {
@@ -761,6 +808,41 @@ describe('JOB-9 picks, withdraws a pick, and compares applicants (UX-DR101, UX-D
 
     expect(await screen.findByRole('heading', { name: 'Không tìm thấy nội dung này.' })).toBeInTheDocument()
     expect(screen.queryByText('Trần Quang Minh')).toBeNull()
+  })
+})
+
+describe('MEN-3 after a pick ended, on a fresh load with no role in the Job (UX-DR103, Story 21.5)', () => {
+  const ended: [string, string, string][] = [
+    ['LAPSED', 'PICK_ENDED', 'Công việc đã chuyển sang giai đoạn kết thúc nên không nhận thêm thành viên.'],
+    ['WITHDRAWN', 'PICK_WITHDRAWN', 'Người hướng dẫn đã rút lựa chọn.'],
+    ['LAPSED', 'COMMITMENT_LAPSED', 'Đã quá hạn ký cam kết.'],
+  ]
+
+  it.each(ended)('%s %s, the Job Post gone: says why, with "Tìm việc khác"', { timeout: 15_000 }, async (status, endReason, text) => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/jobs/j1/role': () => json({ status: 404, code: 'NOT_FOUND' }, 404),
+      'GET /api/v1/mentor/job-posts/j1': () => json({ status: 404, code: 'NOT_FOUND' }, 404),
+      'GET /api/v1/mentor/crew-applications': () => json([crewApplication({ status, endReason })]),
+    })
+    renderAt('/tim-viec/j1')
+
+    expect(await screen.findByText(text)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Tìm việc khác' })).toHaveAttribute('href', '/tim-viec')
+    expect(screen.queryByRole('button', { name: 'Ký và tham gia' })).toBeNull()
+  })
+
+  it.each(ended)('%s %s, the Job Post still listed: says why, with "Gửi đơn mới"', { timeout: 15_000 }, async (status, endReason, text) => {
+    fakeBackend(signedInUser, {
+      ...menThree({
+        'GET /api/v1/jobs/j1/role': () => json({ status: 404, code: 'NOT_FOUND' }, 404),
+        'GET /api/v1/mentor/crew-applications': () => json([crewApplication({ status, endReason })]),
+      }),
+    })
+    renderAt('/tim-viec/j1')
+
+    expect(await screen.findByText(text)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Gửi đơn mới' })).toHaveAttribute('href', '/tim-viec/j1/xin-vao-nhom')
+    expect(screen.queryByRole('button', { name: 'Ký và tham gia' })).toBeNull()
   })
 })
 

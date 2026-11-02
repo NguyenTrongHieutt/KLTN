@@ -148,7 +148,7 @@ class CrewNdaController {
 		if (!body.publicCodeAcknowledged()) {
 			throw new ApiException(ErrorCode.VALIDATION, MatchingReason.PUBLIC_CODE_NOT_ACKNOWLEDGED);
 		}
-		Contribution contribution = this.contributors.readForCrew(jobId, person);
+		Contribution contribution = this.contributors.readForSignature(jobId, person);
 		this.signatures.sign(person, jobId, body.ndaVersion(), body.commitmentVersion(), body.publicCodeAcknowledged(),
 				body.commitEmailNoticeAcknowledged(), contribution);
 		return view(person, jobId);

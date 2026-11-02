@@ -30,7 +30,7 @@ import vn.vibefix.shared.ProcessedEvents;
  * J10's {@code CrewRecruitmentClosed} end the picks {@code job} released, telling each person; a member joining a Crew
  * ({@code CrewMemberAdded}) lapses their pending applications to other Jobs (A-16), closes the open-recruitment to-do
  * and moves the review to-do's tier; and a lock that empties the Crew ({@code CrewEmptied}) asks the Mentor again to
- * recruit before the Agreement is confirmed (R7).
+ * recruit while the Job is in Agreement, confirmed or not (R7).
  */
 @Component
 class MatchingListeners {

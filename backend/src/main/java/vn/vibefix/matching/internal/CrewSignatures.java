@@ -79,6 +79,11 @@ class CrewSignatures {
 		if (pick.status() != Status.PICKED || pick.crewRowId() == null) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.PICK_ENDED);
 		}
+		Instant now = this.clock.instant();
+		// "Ký trước {date}" holds even if the Deadline worker runs late.
+		if (pick.signDueAt() != null && !now.isBefore(pick.signDueAt())) {
+			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.PICK_ENDED);
+		}
 		if (!publicCodeAcknowledged) {
 			throw new ApiException(ErrorCode.VALIDATION, MatchingReason.PUBLIC_CODE_NOT_ACKNOWLEDGED);
 		}
@@ -96,7 +101,6 @@ class CrewSignatures {
 				throw new ApiException(ErrorCode.VALIDATION, MatchingReason.COMMIT_EMAIL_NOT_ACKNOWLEDGED);
 			}
 		}
-		Instant now = this.clock.instant();
 		this.picks.activateCrew(jobId, pick.crewRowId(), CrewCommitments.job(contribution), now);
 		CrewApplication application = this.applications.lock(pick.id()).orElseThrow();
 		if (application.status() != Status.PICKED
@@ -106,7 +110,8 @@ class CrewSignatures {
 		if (assignment.codeJob()) {
 			this.notices.acknowledge(accountId, Notices.COMMIT_EMAIL, Notices.COMMIT_EMAIL_VERSION);
 		}
-		// One NDA signature per Job and person; nobody activates on a Job twice (no rejoining), so it is their first.
+		// One NDA signature per Job and person: a former selected Mentor who later joins the Crew already holds a row, which
+		// keeps its NDA version and time and gains the commitment's version.
 		this.jdbc.sql("""
 				INSERT INTO matching.nda_signature (job_id, account_id, nda_version, commitment_version, signed_at)
 				VALUES (:job, :account, :nda, :commitment, :now)

@@ -1,5 +1,6 @@
 package vn.vibefix.job;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -28,10 +29,11 @@ public interface CrewRecruitment {
 	 * @param skillNames their current names, in the same order
 	 * @param signedMember at least one counted {@code ACTIVE} row: an unlocked member has signed (R7)
 	 * @param crewVersion the Crew version every Crew command carries (AD-23), read with the rest; no Customer DTO holds it
+	 * @param agreementDueAt the Agreement deadline; absent before J4
 	 */
 	record Recruitment(UUID jobId, UUID productId, UUID customerId, @Nullable UUID mentorId, String title, String state,
 			boolean hidden, boolean on, int openSlots, int unreleased, int cap, List<UUID> skillIds, List<String> skillNames,
-			@Nullable String note, boolean signedMember, long crewVersion) {
+			@Nullable String note, boolean signedMember, long crewVersion, @Nullable Instant agreementDueAt) {
 
 		public Recruitment {
 			skillIds = List.copyOf(skillIds);

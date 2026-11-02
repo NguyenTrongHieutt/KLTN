@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -190,7 +191,10 @@ class CrewCommitments {
 		if (before.status() != Status.PICKED || before.crewRowId() == null) {
 			throw new ApiException(ErrorCode.CONFLICT, MatchingReason.NOT_WITHDRAWABLE);
 		}
-		this.picks.releasePick(jobId, before.crewRowId(), PickEnd.WITHDRAWN);
+		if (!this.picks.releasePick(jobId, before.crewRowId(), PickEnd.WITHDRAWN)) {
+			// Signed, or released by J8 or a lock whose listener has not run yet, which ends the application itself.
+			throw new ApiException(ErrorCode.CONFLICT, MatchingReason.NOT_WITHDRAWABLE);
+		}
 		CrewApplication application = this.applications.lock(applicationId).orElseThrow();
 		if (application.status() != Status.PICKED
 				|| !this.applications.endPick(applicationId, Status.WITHDRAWN, EndReason.PICK_WITHDRAWN)) {
@@ -204,6 +208,7 @@ class CrewCommitments {
 				List.of(new Recipient(application.applicantId(), Audience.SUBJECT)), Map.of("job", title(jobId)),
 				commitmentLink(jobId), null, applicationId));
 		refreshReview(jobId);
+		reopenRecruitmentTodo(jobId);
 	}
 
 	// ---- The picked person --------------------------------------------------------------------
@@ -230,7 +235,10 @@ class CrewCommitments {
 	@Transactional
 	void decline(UUID accountId, UUID jobId) {
 		CrewApplication pick = requirePicked(accountId, jobId);
-		this.picks.releasePick(jobId, pick.crewRowId(), PickEnd.DECLINED);
+		if (!this.picks.releasePick(jobId, pick.crewRowId(), PickEnd.DECLINED)) {
+			// Signed, or released by J8 or a lock whose listener has not run yet, which ends the application itself.
+			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.PICK_ENDED);
+		}
 		CrewApplication application = this.applications.lock(pick.id()).orElseThrow();
 		if (application.status() != Status.PICKED
 				|| !this.applications.endPick(pick.id(), Status.DECLINED, EndReason.COMMITMENT_DECLINED)) {
@@ -244,6 +252,7 @@ class CrewCommitments {
 				Map.of("name", this.applications.name(accountId), "job", title(jobId)),
 				CrewApplications.recruitmentLink(jobId), jobId, null));
 		refreshReview(jobId);
+		reopenRecruitmentTodo(jobId);
 	}
 
 	/**
@@ -258,7 +267,10 @@ class CrewCommitments {
 		if (pick == null || pick.status() != Status.PICKED || pick.crewRowId() == null) {
 			return false;
 		}
-		this.picks.releasePick(pick.jobId(), pick.crewRowId(), PickEnd.DECLINED);
+		if (!this.picks.releasePick(pick.jobId(), pick.crewRowId(), PickEnd.DECLINED)) {
+			// Signed, or released by J8 or a lock whose listener has not run yet, which ends the application itself.
+			return false;
+		}
 		CrewApplication application = this.applications.lock(applicationId).orElseThrow();
 		if (application.status() != Status.PICKED
 				|| !this.applications.endPick(applicationId, Status.LAPSED, EndReason.COMMITMENT_LAPSED)) {
@@ -267,12 +279,16 @@ class CrewCommitments {
 		this.todos.closeAll(SIGN_TODO, applicationId);
 		this.auditLog.record(AuditEntry.of(AuditActor.system(), "matching.commitment_lapsed",
 				AuditObject.of("matching.crew_application", applicationId)).forJob(pick.jobId()));
+		Map<String, String> params = Map.of("name", this.applications.name(application.applicantId()), "job", title(pick.jobId()));
+		// One request per reader: JOB-9 is the Mentor's, and the person reads why on MEN-3.
 		this.notifications.send(new NotificationRequest(LAPSED, applicationId,
-				List.of(new Recipient(application.mentorId(), Audience.MENTOR),
-						new Recipient(application.applicantId(), Audience.SUBJECT)),
-				Map.of("name", this.applications.name(application.applicantId()), "job", title(pick.jobId())),
-				CrewApplications.recruitmentLink(pick.jobId()), pick.jobId(), applicationId));
+				List.of(new Recipient(application.mentorId(), Audience.MENTOR)), params,
+				CrewApplications.recruitmentLink(pick.jobId()), pick.jobId(), null));
+		this.notifications.send(new NotificationRequest(LAPSED, applicationId,
+				List.of(new Recipient(application.applicantId(), Audience.SUBJECT)), params, commitmentLink(pick.jobId()), null,
+				applicationId));
 		refreshReview(pick.jobId());
+		reopenRecruitmentTodo(pick.jobId());
 		return true;
 	}
 
@@ -296,6 +312,8 @@ class CrewCommitments {
 				continue;
 			}
 			this.todos.closeAll(SIGN_TODO, application.id());
+			this.auditLog.record(AuditEntry.of(AuditActor.system(), PICK_ENDED,
+					AuditObject.of("matching.crew_application", application.id())).forJob(jobId));
 			this.notifications.send(new NotificationRequest(PICK_ENDED, application.id(),
 					List.of(new Recipient(application.applicantId(), Audience.SUBJECT)), Map.of("job", title),
 					commitmentLink(jobId), null, application.id()));
@@ -316,12 +334,12 @@ class CrewCommitments {
 	}
 
 	/**
-	 * A lock emptied the Crew (R7, Story 21.5): before the Agreement is confirmed the Mentor is asked again to open
-	 * recruitment, unless it is on, and the review to-do returns to its tier for a Crew with no member.
+	 * A lock emptied the Crew (R7, Story 21.5): while the Job is in Agreement, confirmed or not, the Mentor is asked again
+	 * to open recruitment, unless it is on, and the review to-do returns to its tier for a Crew with no member.
 	 */
 	@Transactional
 	void crewEmptied(CrewEmptied event) {
-		if ("AGREEMENT".equals(event.state()) && !event.agreementConfirmed()) {
+		if ("AGREEMENT".equals(event.state())) {
 			this.applications.openRecruitmentTodo(event.jobId(), event.mentorId(), event.agreementDueAt());
 		}
 		refreshReview(event.jobId());
@@ -359,6 +377,17 @@ class CrewCommitments {
 	/** The Mentor's review to-do, its count and tier as the Job now stands (UX-DR112). */
 	void refreshReview(UUID jobId) {
 		this.recruitment.recruitment(jobId).ifPresent(this.applications::refreshReviewTodo);
+	}
+
+	/**
+	 * R7: an unsigned pick ended on a Job in Agreement with recruitment off (picks filled the places), nobody signed and
+	 * no row left: nothing else asks the Mentor for a Crew while the Agreement deadline runs.
+	 */
+	private void reopenRecruitmentTodo(UUID jobId) {
+		this.recruitment.recruitment(jobId)
+			.filter(found -> "AGREEMENT".equals(found.state()) && found.unreleased() == 0)
+			.ifPresent(found -> this.applications.openRecruitmentTodo(jobId, Objects.requireNonNull(found.mentorId()),
+					found.agreementDueAt()));
 	}
 
 	private String title(UUID jobId) {

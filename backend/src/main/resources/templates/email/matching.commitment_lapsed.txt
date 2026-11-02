@@ -3,4 +3,4 @@ subject: {name} chưa ký cam kết cho {job} đúng hạn
 Xin chào,
 
 Đã quá hạn ký cam kết tham gia nhóm thực hiện công việc {job}, nên lựa chọn {name} không còn hiệu lực.
-Người hướng dẫn có thể chọn người khác trong mục Tuyển thành viên trên vibefix.
+Bạn xem chi tiết và việc có thể làm tiếp theo trên vibefix.

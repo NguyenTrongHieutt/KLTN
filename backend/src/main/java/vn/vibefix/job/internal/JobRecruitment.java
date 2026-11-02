@@ -276,7 +276,7 @@ class JobRecruitment implements CrewRecruitment {
 	private Optional<Recruitment> read(UUID jobId, boolean lock) {
 		return this.jdbc.sql("""
 				SELECT id, product_id, customer_account_id, mentor_account_id, title, state, hidden_at IS NOT NULL AS hidden,
-				    recruiting, open_slots, recruit_skill_ids, recruit_skill_names, recruit_note, crew_version,
+				    recruiting, open_slots, recruit_skill_ids, recruit_skill_names, recruit_note, crew_version, agreement_due_at,
 				    (SELECT count(*) FROM job.crew_row r WHERE r.job_id = j.id AND r.status <> 'RELEASED') AS unreleased
 				FROM job.job j WHERE id = :id
 				""" + (lock ? " FOR UPDATE" : ""))
@@ -286,12 +286,13 @@ class JobRecruitment implements CrewRecruitment {
 					rs.getString("title"), rs.getString("state"), rs.getBoolean("hidden"), rs.getBoolean("recruiting"),
 					rs.getInt("open_slots"), rs.getInt("unreleased"), cap(), uuids(rs.getArray("recruit_skill_ids")),
 					Arrays.asList((String[]) rs.getArray("recruit_skill_names").getArray()), rs.getString("recruit_note"),
-					false, rs.getLong("crew_version")))
+					false, rs.getLong("crew_version"),
+					rs.getTimestamp("agreement_due_at") == null ? null : rs.getTimestamp("agreement_due_at").toInstant()))
 			.optional()
 			.map(found -> new Recruitment(found.jobId(), found.productId(), found.customerId(), found.mentorId(),
 					found.title(), found.state(), found.hidden(), found.on(), found.openSlots(), found.unreleased(),
 					found.cap(), found.skillIds(), found.skillNames(), found.note(),
-					!this.crews.countedActive(jobId).isEmpty(), found.crewVersion()));
+					!this.crews.countedActive(jobId).isEmpty(), found.crewVersion(), found.agreementDueAt()));
 	}
 
 	private static List<UUID> uuids(Array array) throws SQLException {
