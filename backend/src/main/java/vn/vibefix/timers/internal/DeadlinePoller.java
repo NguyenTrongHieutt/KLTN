@@ -70,7 +70,8 @@ public class DeadlinePoller {
 					throw ex;
 				}
 				log.error("Deadline {} of kind {} failed; it will run again", failed.id(), failed.kind(), ex);
-				this.transactions.executeWithoutResult(status -> afterFailure(failed, now));
+				this.transactions.executeWithoutResult(
+						status -> this.store.afterFailure(failed, now.plus(this.properties.pollInterval())));
 				claimed++;
 				continue;
 			}
@@ -119,20 +120,7 @@ public class DeadlinePoller {
 		switch (outcome) {
 			case FIRED, OBSOLETE -> this.store.finish(deadline.id(), outcome.name(), now);
 			case REARM -> this.store.dueAgain(deadline.id(), now.plus(this.properties.pollInterval()));
-			case REPAUSE -> this.store.repause(deadline);
-		}
-	}
-
-	/**
-	 * A pausable Deadline whose Job is frozen by now pauses with the time it had as claimed, since a push
-	 * would add to its remaining time. Any other is due again at the next poll.
-	 */
-	private void afterFailure(DueDeadline failed, Instant now) {
-		if (this.store.frozen(failed.id())) {
-			this.store.repause(failed);
-		}
-		else {
-			this.store.dueAgain(failed.id(), now.plus(this.properties.pollInterval()));
+			case REPAUSE -> this.store.repause(deadline, now.plus(this.properties.pollInterval()));
 		}
 	}
 

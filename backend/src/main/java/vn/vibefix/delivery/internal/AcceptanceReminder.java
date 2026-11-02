@@ -5,6 +5,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
@@ -64,7 +65,7 @@ class AcceptanceReminder implements DeadlineHandler {
 
 	@Override
 	public DeadlineOutcome handle(DueDeadline deadline) {
-		DisputedJob job = deadline.jobId() == null ? null : this.freezes.getObject().lock(deadline.jobId()).orElse(null);
+		DisputedJob job = this.freezes.getObject().lock(Objects.requireNonNull(deadline.jobId())).orElse(null);
 		if (job == null) {
 			return DeadlineOutcome.OBSOLETE;
 		}

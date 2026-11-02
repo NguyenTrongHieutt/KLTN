@@ -16,6 +16,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import tools.jackson.core.type.TypeReference;
@@ -133,16 +134,13 @@ class AcceptanceMerges {
 
 	/**
 	 * Auto-acceptance of a Code Job (FR-35): the same merge, by the System. A busy Job re-arms the
-	 * Deadline and a frozen one pauses it; nothing is reserved then. {@link AutoAcceptance}, its caller,
-	 * holds the Job row lock, so what this reads is what {@code reserve} checks and it cannot refuse.
+	 * Deadline, and nothing is reserved then. Only {@link AutoAcceptance} calls it, in the Deadline's
+	 * transaction, with the Job row locked and not frozen, so {@code reserve} checks what this read.
 	 */
-	@Transactional
+	@Transactional(propagation = Propagation.MANDATORY)
 	DeadlineOutcome requestAutomatically(Handover handover) {
-		BusyJob job = this.busy.job(handover.jobId()).orElse(null);
-		if (job != null && job.frozen()) {
-			return DeadlineOutcome.REPAUSE;
-		}
 		CodeRecord code = this.handovers.code(handover.id()).orElse(null);
+		BusyJob job = this.busy.job(handover.jobId()).orElse(null);
 		if (code == null || job == null || !"ACTIVE".equals(job.state())) {
 			return DeadlineOutcome.OBSOLETE;
 		}

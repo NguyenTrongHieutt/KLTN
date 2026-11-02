@@ -183,6 +183,8 @@ class DecisionIT extends IntegrationTest {
 		decide(this.lan, Role.CUSTOMER, handOver(5), "accept", 6, true, null, null).andExpect(status().isOk());
 		this.jdbc.sql("UPDATE job.job SET frozen_at = :now WHERE id = :id")
 			.param("now", Timestamp.from(this.clock.instant())).param("id", this.job).update();
+		this.jdbc.sql("INSERT INTO timers.frozen_job (job_id, frozen_at) VALUES (:job, :now)")
+			.param("job", this.job).param("now", Timestamp.from(this.clock.instant())).update();
 		this.clock.advance(Duration.ofDays(15));
 		this.poller.runDue();
 		assertThat(notifications("job.milestone_unfunded_reminder")).isZero();

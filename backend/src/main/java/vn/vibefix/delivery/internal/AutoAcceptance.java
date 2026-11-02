@@ -1,5 +1,7 @@
 package vn.vibefix.delivery.internal;
 
+import java.util.Objects;
+
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
@@ -56,7 +58,7 @@ class AutoAcceptance implements DeadlineHandler {
 
 	@Override
 	public DeadlineOutcome handle(DueDeadline deadline) {
-		DisputedJob locked = deadline.jobId() == null ? null : this.freezes.getObject().lock(deadline.jobId()).orElse(null);
+		DisputedJob locked = this.freezes.getObject().lock(Objects.requireNonNull(deadline.jobId())).orElse(null);
 		if (locked == null) {
 			return DeadlineOutcome.OBSOLETE;
 		}

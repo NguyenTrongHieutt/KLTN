@@ -16,11 +16,10 @@ public interface MilestoneHandovers {
 	 * A Job with a Board.
 	 * @param state the Job's state name
 	 * @param assessment an Assessment Job, whose handover is its Assessment Report (FR-10)
-	 * @param frozen an open Dispute freezes it (FR-52): Auto-acceptance waits
 	 * @param previewRequired a Job Type changes the running Product, so the handover needs a preview (FR-32)
 	 */
 	record HandoverJob(UUID jobId, UUID productId, UUID customerId, @Nullable UUID mentorId, String title, String state,
-			long version, boolean assessment, boolean frozen, boolean previewRequired) {
+			long version, boolean assessment, boolean previewRequired) {
 	}
 
 	/**

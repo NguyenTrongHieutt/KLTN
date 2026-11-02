@@ -150,6 +150,8 @@ class AutoAcceptanceIT extends IntegrationTest {
 		world();
 		String frozen = handOver();
 		this.jdbc.sql("UPDATE job.job SET frozen_at = now() WHERE id = :id").param("id", this.job).update();
+		this.jdbc.sql("INSERT INTO timers.frozen_job (job_id, frozen_at) VALUES (:job, :now)")
+			.param("job", this.job).param("now", Timestamp.from(this.clock.instant())).update();
 		this.clock.advance(Duration.ofDays(3));
 		this.poller.runDue();
 		assertThat(this.jdbc.sql("""
@@ -209,6 +211,27 @@ class AutoAcceptanceIT extends IntegrationTest {
 			.isEqualTo("ACCEPTED:true");
 		assertThat(text("SELECT status || ':' || auto FROM delivery.handover")).isEqualTo("ACCEPTED:true");
 		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'RELEASE'")).isEqualTo(2);
+	}
+
+	@Test
+	void aDisputeOpenedAfterTheDueTimeBeforeTheClaimLeavesNoTimeAndFiresAtTheFirstPollAfterTheThaw() throws Exception {
+		world();
+		UUID handover = UUID.fromString(handOver());
+		Instant due = ((Timestamp) autoAcceptance(handover).get("due_at")).toInstant();
+		this.clock.advance(Duration.ofDays(6));
+		this.poller.runDue();
+
+		this.clock.setInstant(due.plus(Duration.ofMinutes(1)));
+		DisputeTestSupport.open(this.context, this.job, this.lan);
+		assertThat(autoAcceptance(handover)).containsEntry("status", "PAUSED").containsEntry("remaining_ms", 0L);
+
+		this.clock.advance(Duration.ofDays(1));
+		thaw();
+		assertThat(this.poller.runDue()).isOne();
+
+		assertThat(autoAcceptance(handover)).containsEntry("status", "FIRED");
+		assertThat(text("SELECT state || ':' || auto_accepted FROM job.milestone WHERE id = '" + this.milestone + "'"))
+			.isEqualTo("ACCEPTED:true");
 	}
 
 	@Test

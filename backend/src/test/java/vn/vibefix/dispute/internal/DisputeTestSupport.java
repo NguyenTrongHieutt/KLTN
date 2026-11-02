@@ -40,7 +40,8 @@ public final class DisputeTestSupport {
 	 * A-02, AD-4: the Customer's Dispute racing the poller over the one Deadline due now. The Dispute holds the
 	 * Job row, which {@code Disputes.open} takes first, while the poller claims the Deadline and waits for that
 	 * row. So the freeze must skip the claimed row: waiting on it would deadlock, and Postgres would abort one
-	 * of the two. The handler goes on once the Dispute commits.
+	 * of the two. The handler goes on once the Dispute commits. The shared {@link MutableClock} moves to
+	 * {@code openedAt}, back from the due time, and stays there: set it again before the next poll or thaw.
 	 * @param openedAt what the Clock reads when the Dispute opens, as it may have read just before the poller's
 	 * @return the Dispute's ID, once the poller finished
 	 */

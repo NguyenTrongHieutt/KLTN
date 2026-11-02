@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.sql.Timestamp;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -24,6 +25,7 @@ import org.springframework.session.SessionRepository;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import vn.vibefix.identity.internal.AdministratorTestSupport;
 import vn.vibefix.identity.internal.AdministratorTestSupport.Administrator;
@@ -32,6 +34,8 @@ import vn.vibefix.identity.internal.Role;
 import vn.vibefix.payment.Ledger;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.team.internal.TeamTestSupport;
+import vn.vibefix.timers.DeadlineRequest;
+import vn.vibefix.timers.Deadlines;
 
 /**
  * FR-54, AD-31, SM-8 "Dispute settled with a split": the assignee decides after the step-up, and the
@@ -56,6 +60,12 @@ class DisputeDecisionIT extends IntegrationTest {
 
 	@Autowired
 	private Ledger ledger;
+
+	@Autowired
+	private Deadlines deadlines;
+
+	@Autowired
+	private TransactionTemplate transactions;
 
 	private UUID lan;
 
@@ -151,6 +161,33 @@ class DisputeDecisionIT extends IntegrationTest {
 		this.mvc.perform(post("/api/v1/admin/disputes/" + dispute + "/retry").with(admin(ha)).with(csrf()))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.execution.status").value("EXECUTION_FAILED"));
+	}
+
+	/** A-02: step 4 of the real execution resumes a row its handler paused after the freeze skipped it. */
+	@Test
+	void aDeadlineRepausedByARacingDisputeIsPendingAtItsRemainingTimeOnceDecided() throws Exception {
+		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		UUID job = world(false, false);
+		Instant t0 = this.clock.instant();
+		Instant due = t0.plus(Duration.ofHours(10));
+		UUID deadline = this.transactions.execute(status -> this.deadlines
+			.schedule(new DeadlineRequest("job.cancellation_answer", UUID.randomUUID(), "g", job, due)));
+
+		this.clock.setInstant(due);
+		String dispute = DisputeTestSupport.openRacingThePoller(this.context, job, this.lan, deadline, t0.plus(Duration.ofHours(4)))
+			.toString();
+		assertThat(text("SELECT status || ':' || remaining_ms FROM timers.deadline WHERE id = '" + deadline + "'"))
+			.isEqualTo("PAUSED:" + Duration.ofHours(6).toMillis());
+
+		this.clock.setInstant(due.plus(Duration.ofDays(1)));
+		this.mvc.perform(post("/api/v1/admin/disputes/" + dispute + "/take").with(admin(ha)).with(csrf())).andExpect(status().isOk());
+		decide(ha, dispute, null, null, "CONTINUE").andExpect(status().isOk())
+			.andExpect(jsonPath("$.execution.status").value("DONE"));
+
+		assertThat(this.jdbc.sql("SELECT status, due_at, remaining_ms FROM timers.deadline WHERE id = :id").param("id", deadline)
+			.query().singleRow()).containsEntry("status", "PENDING")
+			.containsEntry("due_at", Timestamp.from(this.clock.instant().plus(Duration.ofHours(6))))
+			.containsEntry("remaining_ms", null);
 	}
 
 	private String open(UUID job) throws Exception {

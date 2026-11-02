@@ -1,5 +1,7 @@
 package vn.vibefix.repo.internal;
 
+import java.util.Objects;
+
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,7 +49,7 @@ class FinalMergeDeadline implements DeadlineHandler {
 	@Override
 	@Transactional
 	public DeadlineOutcome handle(DueDeadline deadline) {
-		DisputedJob job = deadline.jobId() == null ? null : this.freezes.getObject().lock(deadline.jobId()).orElse(null);
+		DisputedJob job = this.freezes.getObject().lock(Objects.requireNonNull(deadline.jobId())).orElse(null);
 		if (job != null && job.frozen()) {
 			return DeadlineOutcome.REPAUSE;
 		}

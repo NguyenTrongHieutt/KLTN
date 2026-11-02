@@ -333,11 +333,33 @@ class FinalMergeAuthorizationIT extends IntegrationTest {
 			.containsEntry("remaining_ms", Duration.ofDays(2).toMillis());
 		assertThat(notifications("repo.final_merge_authorization_reminder")).isZero();
 
+		// Two days frozen: the deadline moves from day 5 to day 7, while deadline_at stays.
+		this.clock.setInstant(closing.plus(Duration.ofDays(3)));
 		thaw();
 		this.clock.advance(Duration.ofDays(2));
 		assertThat(this.poller.runDue()).isOne();
 		assertThat(deadlineRow("repo.final_merge_reminder")).containsEntry("status", "FIRED");
 		assertThat(notifications("repo.final_merge_authorization_reminder")).isOne();
+		assertThat(this.jdbc.sql("""
+				SELECT params ->> 'date' FROM notification.notification
+				WHERE type = 'repo.final_merge_authorization_reminder' AND account_id = :id
+				""").param("id", this.lan).query(String.class).single())
+			.isEqualTo(FinalMergeAuthorizations.dayMonth(closing.plus(Duration.ofDays(7))));
+	}
+
+	@Test
+	void theReminderWithNoPendingDeadlineIsObsoleteAndSendsNothing() {
+		closingWithItsDeadlines();
+		this.jdbc.sql("""
+				UPDATE timers.deadline SET status = 'OBSOLETE', due_at = NULL, finished_at = :now
+				WHERE job_id = :job AND kind = 'repo.final_merge_deadline'
+				""").param("now", Timestamp.from(this.clock.instant())).param("job", this.job).update();
+
+		this.clock.advance(Duration.ofDays(3));
+		assertThat(this.poller.runDue()).isOne();
+
+		assertThat(deadlineRow("repo.final_merge_reminder")).containsEntry("status", "OBSOLETE");
+		assertThat(notifications("repo.final_merge_authorization_reminder")).isZero();
 	}
 
 	/** A-02: {@code end} takes no Job row lock, so the deadline itself must decide under it before ending anything. */
