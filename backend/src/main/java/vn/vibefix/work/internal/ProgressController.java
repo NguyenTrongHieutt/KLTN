@@ -178,7 +178,7 @@ class ProgressController {
 				this.students.cards(List.copyOf(states.keySet())).forEach(card -> cards.put(card.accountId(), card));
 				states.forEach((studentId, state) -> {
 					StudentCard card = cards.get(studentId);
-					String name = card == null ? "" : card.name() != null ? card.name() : "@" + card.githubLogin();
+					String name = card == null ? "" : card.shownName();
 					crew.add(new CrewProgressView(studentId, name, state, openItems(viewer, studentId)));
 				});
 			}
