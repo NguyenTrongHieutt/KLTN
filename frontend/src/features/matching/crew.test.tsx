@@ -291,6 +291,26 @@ describe('JOB-9, the Mentor recruits the Crew (UX-DR102, Story 21.4)', () => {
 })
 
 describe('MEN-3 and FND-2, applying to a Crew (UX-DR98, UX-DR103, Story 21.4)', () => {
+  it('keeps the Crew form mounted when the applicant has no Job role', { timeout: 15_000 }, async () => {
+    let roleReads = 0
+    fakeBackend(signedInUser, {
+      ...menThree({
+        'GET /api/v1/jobs/j1/role': async () => {
+          roleReads++
+          await new Promise((resolve) => setTimeout(resolve, 30))
+          return json({ status: 404, code: 'NOT_FOUND' }, 404)
+        },
+      }),
+    })
+    renderAt('/tim-viec/j1/xin-vao-nhom')
+
+    const note = await screen.findByLabelText('Lời nhắn cho người hướng dẫn')
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    expect(roleReads).toBe(1)
+    expect(note).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Gửi đơn' })).toBeInTheDocument()
+  })
+
   it('applies from FND-2 with a note, the profile Skills, a link and N-5', { timeout: 25_000 }, async () => {
     const user = userEvent.setup()
     let sent: Record<string, unknown> | undefined
