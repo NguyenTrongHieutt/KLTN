@@ -5,13 +5,14 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 import vn.vibefix.delivery.internal.Handovers.Handover;
-import vn.vibefix.job.MilestoneHandovers;
-import vn.vibefix.job.MilestoneHandovers.HandoverJob;
+import vn.vibefix.job.JobFreezes;
+import vn.vibefix.job.JobFreezes.DisputedJob;
 import vn.vibefix.notification.Audience;
 import vn.vibefix.notification.NotificationRequest;
 import vn.vibefix.notification.Notifications;
@@ -25,9 +26,9 @@ import vn.vibefix.timers.DueDeadline;
 /**
  * {@value #KEY} (FR-35, SG-26): the Customer is reminded twice, generations {@code 1} and {@code 2}, that
  * the System accepts the Milestone on its Auto-acceptance date. The date and the days left come from the
- * Auto-acceptance Deadline's due time now, so a reminder after a pause restates the new date. Pausable;
- * a decided handover leaves it {@code OBSOLETE}. Its collaborators are looked up on use, as for
- * {@link AutoAcceptance}.
+ * Auto-acceptance Deadline's due time now, so a reminder after a pause restates the new date. Pausable:
+ * it takes the Job row lock first, so a frozen Job always pauses it and no notice goes (AD-4); a decided
+ * handover leaves it {@code OBSOLETE}. Its collaborators are looked up on use, as for {@link AutoAcceptance}.
  */
 @Component
 class AcceptanceReminder implements DeadlineHandler {
@@ -40,7 +41,7 @@ class AcceptanceReminder implements DeadlineHandler {
 
 	private final ObjectProvider<Handovers> handovers;
 
-	private final ObjectProvider<MilestoneHandovers> jobs;
+	private final ObjectProvider<JobFreezes> freezes;
 
 	private final ObjectProvider<Deadlines> deadlines;
 
@@ -48,10 +49,10 @@ class AcceptanceReminder implements DeadlineHandler {
 
 	private final Clock clock;
 
-	AcceptanceReminder(ObjectProvider<Handovers> handovers, ObjectProvider<MilestoneHandovers> jobs,
+	AcceptanceReminder(ObjectProvider<Handovers> handovers, ObjectProvider<JobFreezes> freezes,
 			ObjectProvider<Deadlines> deadlines, Notifications notifications, Clock clock) {
 		this.handovers = handovers;
-		this.jobs = jobs;
+		this.freezes = freezes;
 		this.deadlines = deadlines;
 		this.notifications = notifications;
 		this.clock = clock;
@@ -64,16 +65,16 @@ class AcceptanceReminder implements DeadlineHandler {
 
 	@Override
 	public DeadlineOutcome handle(DueDeadline deadline) {
-		Handover handover = this.handovers.getObject().find(deadline.subjectId()).orElse(null);
-		if (handover == null || !"SUBMITTED".equals(handover.status())) {
-			return DeadlineOutcome.OBSOLETE;
-		}
-		HandoverJob job = this.jobs.getObject().job(handover.jobId()).orElse(null);
+		DisputedJob job = this.freezes.getObject().lock(Objects.requireNonNull(deadline.jobId())).orElse(null);
 		if (job == null) {
 			return DeadlineOutcome.OBSOLETE;
 		}
 		if (job.frozen()) {
 			return DeadlineOutcome.REPAUSE;
+		}
+		Handover handover = this.handovers.getObject().find(deadline.subjectId()).orElse(null);
+		if (handover == null || !"SUBMITTED".equals(handover.status())) {
+			return DeadlineOutcome.OBSOLETE;
 		}
 		Instant due = this.deadlines.getObject().dueAt(AutoAcceptance.KEY, handover.id()).orElse(null);
 		if (due == null) {

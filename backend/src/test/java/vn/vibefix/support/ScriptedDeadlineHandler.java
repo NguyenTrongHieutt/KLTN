@@ -4,6 +4,10 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+
+import org.jspecify.annotations.Nullable;
 
 import vn.vibefix.timers.DeadlineHandler;
 import vn.vibefix.timers.DeadlineKind;
@@ -30,6 +34,8 @@ public class ScriptedDeadlineHandler implements DeadlineHandler {
 
 	private long pauseMillis;
 
+	private @Nullable CountDownLatch gate;
+
 	public ScriptedDeadlineHandler(DeadlineKind kind) {
 		this.kind = kind;
 	}
@@ -43,18 +49,23 @@ public class ScriptedDeadlineHandler implements DeadlineHandler {
 	public DeadlineOutcome handle(DueDeadline deadline) {
 		long pause;
 		Object next;
+		CountDownLatch until;
 		synchronized (this) {
 			this.handled.add(deadline);
 			next = this.answers.poll();
 			pause = this.pauseMillis;
+			until = this.gate;
 		}
-		if (pause > 0) {
-			try {
+		try {
+			if (pause > 0) {
 				Thread.sleep(pause);
 			}
-			catch (InterruptedException ex) {
-				Thread.currentThread().interrupt();
+			if (until != null) {
+				until.await(30, TimeUnit.SECONDS);
 			}
+		}
+		catch (InterruptedException ex) {
+			Thread.currentThread().interrupt();
 		}
 		if (next instanceof RuntimeException failure) {
 			throw failure;
@@ -78,6 +89,12 @@ public class ScriptedDeadlineHandler implements DeadlineHandler {
 		return this;
 	}
 
+	/** Makes each handling hold its claimed row until the gate opens, at most 30 s. */
+	public synchronized ScriptedDeadlineHandler holdingUntil(CountDownLatch gate) {
+		this.gate = gate;
+		return this;
+	}
+
 	public synchronized List<DueDeadline> handled() {
 		return List.copyOf(this.handled);
 	}
@@ -86,6 +103,7 @@ public class ScriptedDeadlineHandler implements DeadlineHandler {
 		this.answers.clear();
 		this.handled.clear();
 		this.pauseMillis = 0;
+		this.gate = null;
 	}
 
 }

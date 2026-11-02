@@ -20,8 +20,8 @@ import vn.vibefix.timers.DueDeadline;
 /**
  * Runs due Deadlines (AD-7): each in its own transaction, claimed with {@code FOR UPDATE SKIP LOCKED}
  * so two pollers never run one twice, with its handler's effects and its outcome committed together.
- * A handler that throws rolls both back; once the rollback has released the row, the Deadline is
- * pushed one poll interval later, and the failure is logged.
+ * A handler that throws rolls both back, and the failure is logged; once the rollback has released the
+ * row, the Deadline is pushed one poll interval later or, when its Job is frozen by then, paused.
  */
 @Component
 @EnableConfigurationProperties(TimersProperties.class)
@@ -69,10 +69,9 @@ public class DeadlinePoller {
 				if (failed == null) {
 					throw ex;
 				}
-				log.error("Deadline {} of kind {} failed; it is due again in {}", failed.id(), failed.kind(),
-						this.properties.pollInterval(), ex);
+				log.error("Deadline {} of kind {} failed; it will run again", failed.id(), failed.kind(), ex);
 				this.transactions.executeWithoutResult(
-						status -> this.store.dueAgain(failed.id(), now.plus(this.properties.pollInterval())));
+						status -> this.store.afterFailure(failed, now.plus(this.properties.pollInterval())));
 				claimed++;
 				continue;
 			}
@@ -90,6 +89,12 @@ public class DeadlinePoller {
 		return purged == null ? 0 : purged;
 	}
 
+	/**
+	 * AD-4's one lock-order exception: the claimed Deadline row stays locked while the handler takes the Job
+	 * row and whatever follows it in the order. So no transaction that holds a Job row may wait on an existing
+	 * Deadline row: {@code freeze} skips what it cannot lock, and a claimed pausable handler decides "frozen"
+	 * under the Job row lock.
+	 */
 	private Optional<DueDeadline> runOne(Instant now, AtomicReference<DueDeadline> current) {
 		Optional<DueDeadline> due = this.store.claimDue(now);
 		due.ifPresent(deadline -> {
@@ -115,7 +120,7 @@ public class DeadlinePoller {
 		switch (outcome) {
 			case FIRED, OBSOLETE -> this.store.finish(deadline.id(), outcome.name(), now);
 			case REARM -> this.store.dueAgain(deadline.id(), now.plus(this.properties.pollInterval()));
-			case REPAUSE -> this.store.repause(deadline);
+			case REPAUSE -> this.store.repause(deadline, now.plus(this.properties.pollInterval()));
 		}
 	}
 

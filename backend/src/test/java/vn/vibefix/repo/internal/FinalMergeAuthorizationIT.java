@@ -13,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Timestamp;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -23,6 +24,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.session.Session;
@@ -33,6 +35,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import vn.vibefix.dispute.internal.DisputeTestSupport;
 import vn.vibefix.github.GitHubApps.App;
 import vn.vibefix.github.GitHubApps.InstallationToken;
 import vn.vibefix.github.GitHubWebhookReceived;
@@ -42,8 +45,10 @@ import vn.vibefix.github.internal.TestKeys;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.ClosureProposalChanged;
+import vn.vibefix.job.JobFreezes;
 import vn.vibefix.job.JobTransitioned;
 import vn.vibefix.support.IntegrationTest;
+import vn.vibefix.timers.Deadlines;
 import vn.vibefix.timers.internal.DeadlinePoller;
 
 /**
@@ -100,6 +105,15 @@ class FinalMergeAuthorizationIT extends IntegrationTest {
 
 	@Autowired
 	private DeadlinePoller poller;
+
+	@Autowired
+	private Deadlines deadlines;
+
+	@Autowired
+	private JobFreezes freezes;
+
+	@Autowired
+	private ApplicationContext context;
 
 	private UUID lan;
 
@@ -306,6 +320,73 @@ class FinalMergeAuthorizationIT extends IntegrationTest {
 			.query(String.class).single()).isEqualTo("NOT_AUTHORIZED");
 	}
 
+	/** A-02: the reminder decides under the Job row lock, so a Dispute that wins the race silences it. */
+	@Test
+	void theReminderRacingADisputePausesWithItsTimeSendsNothingAndRemindsAfterTheThaw() throws Exception {
+		Instant closing = closingWithItsDeadlines();
+
+		this.clock.setInstant(closing.plus(Duration.ofDays(3)));
+		DisputeTestSupport.openRacingThePoller(this.context, this.job, this.lan, deadlineId("repo.final_merge_reminder"),
+				closing.plus(Duration.ofDays(1)));
+
+		assertThat(deadlineRow("repo.final_merge_reminder")).containsEntry("status", "PAUSED")
+			.containsEntry("remaining_ms", Duration.ofDays(2).toMillis());
+		assertThat(notifications("repo.final_merge_authorization_reminder")).isZero();
+
+		// Two days frozen: the deadline moves from day 5 to day 7, while deadline_at stays.
+		this.clock.setInstant(closing.plus(Duration.ofDays(3)));
+		thaw();
+		this.clock.advance(Duration.ofDays(2));
+		assertThat(this.poller.runDue()).isOne();
+		assertThat(deadlineRow("repo.final_merge_reminder")).containsEntry("status", "FIRED");
+		assertThat(notifications("repo.final_merge_authorization_reminder")).isOne();
+		assertThat(this.jdbc.sql("""
+				SELECT params ->> 'date' FROM notification.notification
+				WHERE type = 'repo.final_merge_authorization_reminder' AND account_id = :id
+				""").param("id", this.lan).query(String.class).single())
+			.isEqualTo(FinalMergeAuthorizations.dayMonth(closing.plus(Duration.ofDays(7))));
+	}
+
+	@Test
+	void theReminderWithNoPendingDeadlineIsObsoleteAndSendsNothing() {
+		closingWithItsDeadlines();
+		this.jdbc.sql("""
+				UPDATE timers.deadline SET status = 'OBSOLETE', due_at = NULL, finished_at = :now
+				WHERE job_id = :job AND kind = 'repo.final_merge_deadline'
+				""").param("now", Timestamp.from(this.clock.instant())).param("job", this.job).update();
+
+		this.clock.advance(Duration.ofDays(3));
+		assertThat(this.poller.runDue()).isOne();
+
+		assertThat(deadlineRow("repo.final_merge_reminder")).containsEntry("status", "OBSOLETE");
+		assertThat(notifications("repo.final_merge_authorization_reminder")).isZero();
+	}
+
+	/** A-02: {@code end} takes no Job row lock, so the deadline itself must decide under it before ending anything. */
+	@Test
+	void theDeadlineRacingADisputePausesWithItsTimeEndsNothingAndEndsItAfterTheThaw() throws Exception {
+		Instant closing = closingWithItsDeadlines();
+		this.clock.setInstant(closing.plus(Duration.ofDays(3)));
+		assertThat(this.poller.runDue()).as("the reminder").isOne();
+
+		this.clock.setInstant(closing.plus(Duration.ofDays(5)));
+		DisputeTestSupport.openRacingThePoller(this.context, this.job, this.lan, deadlineId("repo.final_merge_deadline"),
+				closing.plus(Duration.ofDays(4)));
+
+		assertThat(deadlineRow("repo.final_merge_deadline")).containsEntry("status", "PAUSED")
+			.containsEntry("remaining_ms", Duration.ofDays(1).toMillis());
+		assertThat(authorizationStatus()).isEqualTo("REQUESTED");
+
+		thaw();
+		this.clock.advance(Duration.ofDays(1));
+		assertThat(this.poller.runDue()).isOne();
+		assertThat(deadlineRow("repo.final_merge_deadline")).containsEntry("status", "FIRED");
+		assertThat(authorizationStatus()).isEqualTo("ENDED");
+		await().atMost(Duration.ofSeconds(15)).until(() -> this.jdbc
+			.sql("SELECT count(*) FROM repo.zip_fallback WHERE job_id = :job").param("job", this.job).query(Long.class)
+			.single() == 1);
+	}
+
 	@Test
 	void everyTokenIsNarrowedToTheSourceRepositoryAndAWiderSelectionGetsNone() throws Exception {
 		this.authorizations.open(this.job);
@@ -365,6 +446,30 @@ class FinalMergeAuthorizationIT extends IntegrationTest {
 
 	private void publish(Object event) {
 		this.transactions.executeWithoutResult(status -> this.events.publishEvent(event));
+	}
+
+	/** J8 has set the deadline, 5 days from now, and the reminder, 3 days from now; @return now */
+	private Instant closingWithItsDeadlines() {
+		this.authorizations.open(this.job);
+		this.jdbc.sql("UPDATE job.job SET state = 'CLOSING' WHERE id = :id").param("id", this.job).update();
+		this.authorizations.closing(this.job);
+		return this.clock.instant();
+	}
+
+	private void thaw() {
+		this.transactions.executeWithoutResult(status -> {
+			this.freezes.unfreeze(this.job);
+			this.deadlines.unfreeze(this.job);
+		});
+	}
+
+	private UUID deadlineId(String kind) {
+		return (UUID) deadlineRow(kind).get("id");
+	}
+
+	private Map<String, Object> deadlineRow(String kind) {
+		return this.jdbc.sql("SELECT * FROM timers.deadline WHERE job_id = :job AND kind = :kind")
+			.param("job", this.job).param("kind", kind).query().singleRow();
 	}
 
 	private String authorizationStatus() {

@@ -1,11 +1,13 @@
 package vn.vibefix.repo.internal;
 
+import java.util.Objects;
+
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import vn.vibefix.job.JobBusy;
-import vn.vibefix.job.JobBusy.BusyJob;
+import vn.vibefix.job.JobFreezes;
+import vn.vibefix.job.JobFreezes.DisputedJob;
 import vn.vibefix.repo.internal.FinalMergeAuthorizations.Authorization;
 import vn.vibefix.timers.DeadlineHandler;
 import vn.vibefix.timers.DeadlineKind;
@@ -15,8 +17,9 @@ import vn.vibefix.timers.DueDeadline;
 /**
  * {@value #KEY} (FR-37, AD-10): the FR-37 deadline, set at J8. An authorization still {@code REQUESTED},
  * or bound but whose Final Merge the Customer has not confirmed, ends {@code DEADLINE}, and the ZIP
- * Fallback follows (Story 8.9). A confirmed merge finishes on its own. Pausable: a frozen Job pauses it.
- * Collaborators are looked up on use.
+ * Fallback follows (Story 8.9). A confirmed merge finishes on its own. Pausable: it takes the Job row lock
+ * first, which {@code end} does not, so a frozen Job always pauses it and nothing ends (AD-4). Collaborators
+ * are looked up on use.
  */
 @Component
 class FinalMergeDeadline implements DeadlineHandler {
@@ -27,14 +30,14 @@ class FinalMergeDeadline implements DeadlineHandler {
 
 	private final ObjectProvider<FinalMergeAuthorizations> authorizations;
 
-	private final ObjectProvider<JobBusy> busy;
+	private final ObjectProvider<JobFreezes> freezes;
 
 	private final ObjectProvider<FinalMerges> merges;
 
-	FinalMergeDeadline(ObjectProvider<FinalMergeAuthorizations> authorizations, ObjectProvider<JobBusy> busy,
+	FinalMergeDeadline(ObjectProvider<FinalMergeAuthorizations> authorizations, ObjectProvider<JobFreezes> freezes,
 			ObjectProvider<FinalMerges> merges) {
 		this.authorizations = authorizations;
-		this.busy = busy;
+		this.freezes = freezes;
 		this.merges = merges;
 	}
 
@@ -46,6 +49,10 @@ class FinalMergeDeadline implements DeadlineHandler {
 	@Override
 	@Transactional
 	public DeadlineOutcome handle(DueDeadline deadline) {
+		DisputedJob job = this.freezes.getObject().lock(Objects.requireNonNull(deadline.jobId())).orElse(null);
+		if (job != null && job.frozen()) {
+			return DeadlineOutcome.REPAUSE;
+		}
 		Authorization authorization = this.authorizations.getObject().find(deadline.subjectId()).orElse(null);
 		if (authorization == null || !authorization.open()) {
 			return DeadlineOutcome.OBSOLETE;
@@ -56,10 +63,6 @@ class FinalMergeDeadline implements DeadlineHandler {
 			.isPresent();
 		if (confirmed) {
 			return DeadlineOutcome.OBSOLETE;
-		}
-		BusyJob job = this.busy.getObject().job(authorization.jobId()).orElse(null);
-		if (job != null && job.frozen()) {
-			return DeadlineOutcome.REPAUSE;
 		}
 		this.authorizations.getObject().end(authorization.id(), "DEADLINE");
 		return DeadlineOutcome.FIRED;

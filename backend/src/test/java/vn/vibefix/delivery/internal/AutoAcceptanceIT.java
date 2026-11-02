@@ -14,12 +14,14 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.session.Session;
@@ -28,8 +30,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import vn.vibefix.dispute.internal.DisputeTestSupport;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
+import vn.vibefix.job.JobFreezes;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.team.internal.TeamTestSupport;
 import vn.vibefix.timers.Deadlines;
@@ -39,7 +43,8 @@ import vn.vibefix.timers.internal.DeadlinePoller;
  * FR-35, AD-5, AD-7, SG-26: M2 schedules the pausable Auto-acceptance Deadline and two reminders from
  * the Job's copied days; each reminder restates the date from the Deadline's due time, also after a
  * pause; when it is due, M5 applies as AUTO with the split release, labeled as automatic; a decision or a
- * freeze stops it.
+ * freeze stops it. A-02: a Dispute never deadlocks with the poller, and a due Deadline of a frozen Job
+ * pauses with its remaining time and runs after the thaw.
  */
 class AutoAcceptanceIT extends IntegrationTest {
 
@@ -64,6 +69,12 @@ class AutoAcceptanceIT extends IntegrationTest {
 
 	@Autowired
 	private TransactionTemplate transactions;
+
+	@Autowired
+	private JobFreezes freezes;
+
+	@Autowired
+	private ApplicationContext context;
 
 	private UUID lan;
 
@@ -139,6 +150,8 @@ class AutoAcceptanceIT extends IntegrationTest {
 		world();
 		String frozen = handOver();
 		this.jdbc.sql("UPDATE job.job SET frozen_at = now() WHERE id = :id").param("id", this.job).update();
+		this.jdbc.sql("INSERT INTO timers.frozen_job (job_id, frozen_at) VALUES (:job, :now)")
+			.param("job", this.job).param("now", Timestamp.from(this.clock.instant())).update();
 		this.clock.advance(Duration.ofDays(3));
 		this.poller.runDue();
 		assertThat(this.jdbc.sql("""
@@ -160,6 +173,105 @@ class AutoAcceptanceIT extends IntegrationTest {
 		this.poller.runDue();
 		String later = DAY_MONTH.format(handedOver.plus(Duration.ofDays(9)).atZone(VIETNAM));
 		assertThat(reminders()).containsExactly("4:1:" + later);
+	}
+
+	@Test
+	void aDisputeRacingADueAutoAcceptanceCommitsTheDeadlineKeepsItsRemainingTimeAndAcceptsAfterTheThaw() throws Exception {
+		world();
+		UUID handover = UUID.fromString(handOver());
+		Map<String, Object> deadline = autoAcceptance(handover);
+		Instant due = ((Timestamp) deadline.get("due_at")).toInstant();
+		this.clock.advance(Duration.ofDays(6));
+		this.poller.runDue();
+		assertThat(reminders()).hasSize(2);
+
+		this.clock.setInstant(due);
+		UUID dispute = DisputeTestSupport.openRacingThePoller(this.context, this.job, this.lan, (UUID) deadline.get("id"),
+				due.minus(Duration.ofMinutes(5)));
+
+		assertThat(text("SELECT status FROM dispute.dispute WHERE id = '" + dispute + "'")).isEqualTo("OPEN");
+		assertThat(count("SELECT count(*) FROM job.job WHERE id = '" + this.job + "' AND frozen_at IS NOT NULL")).isOne();
+		assertThat(autoAcceptance(handover)).containsEntry("status", "PAUSED")
+			.containsEntry("remaining_ms", Duration.ofMinutes(5).toMillis());
+		assertThat(text("SELECT state FROM job.milestone WHERE id = '" + this.milestone + "'")).isEqualTo("SUBMITTED");
+		assertThat(text("SELECT status FROM delivery.handover")).isEqualTo("SUBMITTED");
+		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'RELEASE'")).isZero();
+		this.clock.setInstant(due.plus(Duration.ofMinutes(1)));
+		assertThat(this.poller.runDue()).as("it waits for the thaw").isZero();
+
+		this.clock.advance(Duration.ofDays(1));
+		thaw();
+		assertThat(autoAcceptance(handover)).containsEntry("status", "PENDING")
+			.containsEntry("due_at", Timestamp.from(this.clock.instant().plus(Duration.ofMinutes(5))));
+		this.clock.advance(Duration.ofMinutes(5));
+		assertThat(this.poller.runDue()).isOne();
+
+		assertThat(autoAcceptance(handover)).containsEntry("status", "FIRED");
+		assertThat(text("SELECT state || ':' || auto_accepted FROM job.milestone WHERE id = '" + this.milestone + "'"))
+			.isEqualTo("ACCEPTED:true");
+		assertThat(text("SELECT status || ':' || auto FROM delivery.handover")).isEqualTo("ACCEPTED:true");
+		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'RELEASE'")).isEqualTo(2);
+	}
+
+	@Test
+	void aDisputeOpenedAfterTheDueTimeBeforeTheClaimLeavesNoTimeAndFiresAtTheFirstPollAfterTheThaw() throws Exception {
+		world();
+		UUID handover = UUID.fromString(handOver());
+		Instant due = ((Timestamp) autoAcceptance(handover).get("due_at")).toInstant();
+		this.clock.advance(Duration.ofDays(6));
+		this.poller.runDue();
+
+		this.clock.setInstant(due.plus(Duration.ofMinutes(1)));
+		DisputeTestSupport.open(this.context, this.job, this.lan);
+		assertThat(autoAcceptance(handover)).containsEntry("status", "PAUSED").containsEntry("remaining_ms", 0L);
+
+		this.clock.advance(Duration.ofDays(1));
+		thaw();
+		assertThat(this.poller.runDue()).isOne();
+
+		assertThat(autoAcceptance(handover)).containsEntry("status", "FIRED");
+		assertThat(text("SELECT state || ':' || auto_accepted FROM job.milestone WHERE id = '" + this.milestone + "'"))
+			.isEqualTo("ACCEPTED:true");
+	}
+
+	@Test
+	void aReminderRacingADisputePausesSendsNothingAndRemindsAfterTheThaw() throws Exception {
+		world();
+		UUID handover = UUID.fromString(handOver());
+		Instant first = this.clock.instant().plus(Duration.ofDays(3));
+
+		this.clock.setInstant(first);
+		DisputeTestSupport.openRacingThePoller(this.context, this.job, this.lan, (UUID) firstReminder(handover).get("id"),
+				first.minus(Duration.ofHours(1)));
+
+		assertThat(firstReminder(handover)).containsEntry("status", "PAUSED")
+			.containsEntry("remaining_ms", Duration.ofHours(1).toMillis());
+		assertThat(reminders()).isEmpty();
+
+		thaw();
+		this.clock.advance(Duration.ofHours(1));
+		assertThat(this.poller.runDue()).isOne();
+
+		assertThat(firstReminder(handover)).containsEntry("status", "FIRED");
+		assertThat(reminders()).hasSize(1);
+	}
+
+	private void thaw() {
+		this.transactions.executeWithoutResult(status -> {
+			this.freezes.unfreeze(this.job);
+			this.deadlines.unfreeze(this.job);
+		});
+	}
+
+	private Map<String, Object> autoAcceptance(UUID handover) {
+		return this.jdbc.sql("SELECT * FROM timers.deadline WHERE subject_id = :id AND kind = 'delivery.auto_acceptance'")
+			.param("id", handover).query().singleRow();
+	}
+
+	private Map<String, Object> firstReminder(UUID handover) {
+		return this.jdbc.sql("""
+				SELECT * FROM timers.deadline WHERE subject_id = :id AND kind = 'delivery.acceptance_reminder' AND generation = '1'
+				""").param("id", handover).query().singleRow();
 	}
 
 	private List<String> reminders() {
