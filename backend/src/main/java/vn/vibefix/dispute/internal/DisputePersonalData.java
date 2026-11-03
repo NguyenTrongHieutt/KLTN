@@ -22,7 +22,7 @@ import vn.vibefix.shared.PersonalDataSection;
  * {@code dispute}'s part in exports, erasure, and Product deletion (AD-24): a person exports the Disputes
  * they opened and the Team Issues they raised; erasure clears them as the opener, the raiser, or the
  * Mentor; an open Dispute on a Job whose Customer or Mentor the person is blocks it, since its decision needs
- * both parties (Story 20.4), and so does a Team Issue not ended, since its hold would never end; deleting a
+ * both parties (Story 20.4), and so does a Team Issue not ended, since its ending names both parties; deleting a
  * Product deletes its Disputes and Team Issues. The Job's parties and title come from {@code job}.
  * <p>
  * Split Resolutions are financial records under NFR-10's legal retention (AD-24, A-01): a Product deletion and the retention
@@ -65,12 +65,11 @@ class DisputePersonalData implements PersonalDataParticipant {
 			return row;
 		}).list();
 		List<Map<String, Object>> issues = this.jdbc.sql("""
-				SELECT job_id, subject, reason, phase, raised_at FROM dispute.team_issue WHERE raiser_account_id = :id
+				SELECT job_id, reason, phase, raised_at FROM dispute.team_issue WHERE raiser_account_id = :id
 				ORDER BY raised_at, id
 				""").param("id", accountId).query((rs, n) -> {
 			Map<String, Object> row = new LinkedHashMap<>();
 			row.put("jobId", rs.getObject("job_id", UUID.class).toString());
-			row.put("subject", rs.getString("subject"));
 			row.put("reason", rs.getString("reason"));
 			row.put("phase", rs.getString("phase"));
 			row.put("raisedAt", rs.getTimestamp("raised_at").toInstant().toString());

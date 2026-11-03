@@ -38,7 +38,7 @@ import vn.vibefix.shared.Gate;
  * ADM-4's Evidence Package (FR-53, FR-63, AD-8, AD-20, AD-31, UX-DR58): the tabs {@code dispute} assembles on
  * demand from the owning modules' queries, each view audited, for the Dispute's assignee only. The Job Chat,
  * Work Items, and Pages tabs are {@code chat}'s and {@code work}'s endpoints under the assignee's grant. Never
- * the Crew Chat, the Crew Terms, private feedback, or per-party release entries.
+ * the Crew Chat, the split versions, private feedback, or per-party release entries.
  */
 @RestController
 @RequestMapping("/api/v1/admin/disputes/{disputeId}/evidence")

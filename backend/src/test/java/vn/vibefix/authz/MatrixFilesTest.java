@@ -865,8 +865,8 @@ class MatrixFilesTest {
 		// An escalated Team Issue's grant reads the Crew Chat, the Crew Terms and its raiser's Stories only, never the
 		// Job Chat or another member's Story (WORK_ITEM_TITLE).
 		assertThat(names(canaries.hiddenFrom(MatrixCaller.ADMIN_TEAM_ISSUE_GRANT))).contains("JOB_CHAT", "WORK_ITEM_NOTE",
-				"WORK_ITEM_TITLE", "CREW_PAGE")
-			.doesNotContain("CREW_CHAT", "CREW_CHAT_UNREPORTED", "CREW_SHARE");
+				"WORK_ITEM_TITLE", "CREW_PAGE", "CREW_SHARE")
+			.doesNotContain("CREW_CHAT", "CREW_CHAT_UNREPORTED");
 		// A Split Resolution's grant reads the Crew Chat and the Work Items of its parties, never the Job Chat, the Pages, or
 		// what a Team Issue's grant reads of the Crew Terms (A-20).
 		assertThat(names(canaries.hiddenFrom(MatrixCaller.ADMIN_SPLIT_RESOLUTION_GRANT))).contains("JOB_CHAT", "CREW_SHARE",

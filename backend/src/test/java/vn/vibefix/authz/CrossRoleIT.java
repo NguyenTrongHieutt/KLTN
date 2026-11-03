@@ -878,22 +878,15 @@ class CrossRoleIT extends IntegrationTest {
 				.param("job", this.job)
 				.param("at", opened)
 				.update();
-			// The other member's share Team Issue on the held Milestone: a running Job has no Rating yet (G9).
+			// The other member's Team Issue about a Rating of theirs, waiting for the Mentor's answer (FR-79).
 			UUID teamIssue = UUID.randomUUID();
 			jdbc.sql("""
-					INSERT INTO dispute.team_issue (id, job_id, product_id, subject, milestone_id, milestone_number,
-					    raiser_account_id, mentor_account_id, reason, phase, answer_days, escalation_days, raised_at,
-					    answer_due_at)
-					VALUES (:id, :job, :product, 'SHARE', :milestone, 2, :raiser, :mentor, 'Phần chia chưa đúng', 'ANSWER', 5, 5,
-					    :at, :due)
+					INSERT INTO dispute.team_issue (id, job_id, product_id, rating_id, raiser_account_id, mentor_account_id,
+					    reason, phase, answer_days, escalation_days, raised_at, answer_due_at)
+					VALUES (:id, :job, :product, :rating, :raiser, :mentor, 'Điểm chưa đúng', 'ANSWER', 5, 5, :at, :due)
 					""").param("id", teamIssue).param("job", this.job).param("product", product)
-				.param("milestone", milestone).param("raiser", coMember).param("mentor", mentor).param("at", written)
+				.param("rating", UUID.randomUUID()).param("raiser", coMember).param("mentor", mentor).param("at", written)
 				.param("due", Timestamp.from(WRITTEN.plus(Duration.ofDays(5)))).update();
-			jdbc.sql("""
-					INSERT INTO payment.share_hold (team_issue_id, milestone_id, job_id, product_id, raiser_account_id, held_at)
-					VALUES (:issue, :milestone, :job, :product, :raiser, :at)
-					""").param("issue", teamIssue).param("milestone", milestone).param("job", this.job)
-				.param("product", product).param("raiser", coMember).param("at", written).update();
 			UUID report = UUID.randomUUID();
 			jdbc.sql("""
 					INSERT INTO admin.abuse_report (id, reporter_account_id, kind, target_id, job_id, product_id,

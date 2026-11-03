@@ -25,7 +25,8 @@ import vn.vibefix.timers.DueDeadline;
 
 /**
  * {@value #KEY} (FR-79, AD-7, AD-40): the Team Issue's answer period, non-pausable, its generation the
- * issue and phase {@code ANSWER}. Once the issue left that phase it is {@code OBSOLETE}; otherwise, under
+ * issue and phase {@code ANSWER}. Once the issue left that phase it is {@code OBSOLETE}, and so is an issue that no
+ * longer exists, whose to-dos it closes; otherwise, under
  * the Job row lock and then the issue's, the escalation period starts by the copied days: the Mentor's
  * to-do closes, and the raiser's opens with "Nhờ quản trị viên xem xét" only, with the escalation
  * Deadline. Collaborators are looked up on use.
@@ -73,11 +74,15 @@ class TeamIssueAnswerDeadline implements DeadlineHandler {
 	public DeadlineOutcome handle(DueDeadline deadline) {
 		TeamIssues issues = this.issues.getObject();
 		TeamIssue found = issues.find(deadline.subjectId()).orElse(null);
-		if (found == null || !deadline.generation().equals(TeamIssues.generation(found.id(), Phase.ANSWER))) {
+		if (found == null) {
+			issues.closeTodosOfGone(deadline.subjectId());
 			return DeadlineOutcome.OBSOLETE;
 		}
-		this.locks.getObject().lockForTeamIssue(found.jobId(), found.milestoneId(), false);
-		TeamIssue issue = issues.lockRows(found).orElse(null);
+		if (!deadline.generation().equals(TeamIssues.generation(found.id(), Phase.ANSWER))) {
+			return DeadlineOutcome.OBSOLETE;
+		}
+		this.locks.getObject().lockForTeamIssue(found.jobId());
+		TeamIssue issue = issues.lock(found.id()).orElse(null);
 		if (issue == null || issue.phase() != Phase.ANSWER) {
 			return DeadlineOutcome.OBSOLETE;
 		}

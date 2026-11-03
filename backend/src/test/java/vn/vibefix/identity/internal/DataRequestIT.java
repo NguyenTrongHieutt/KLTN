@@ -215,12 +215,12 @@ class DataRequestIT extends IntegrationTest {
 		this.jdbc.sql("UPDATE job.job SET state = 'CLOSED', closed_at = now() WHERE id = :id").param("id", this.world.job()).update();
 		UUID issue = UUID.randomUUID();
 		this.jdbc.sql("""
-				INSERT INTO dispute.team_issue (id, job_id, product_id, subject, milestone_id, milestone_number,
-				    raiser_account_id, mentor_account_id, reason, phase, answer_days, escalation_days, raised_at, answer_due_at)
-				VALUES (:id, :job, :product, 'SHARE', :milestone, 1, :vy, :hung, 'Phần chia chưa đúng', 'ANSWER', 5, 5, now(),
+				INSERT INTO dispute.team_issue (id, job_id, product_id, rating_id, raiser_account_id, mentor_account_id, reason,
+				    phase, answer_days, escalation_days, raised_at, answer_due_at)
+				VALUES (:id, :job, :product, :rating, :vy, :hung, 'Điểm chưa đúng', 'ANSWER', 5, 5, now(),
 				    now() + INTERVAL '5 days')
 				""").param("id", issue).param("job", this.world.job()).param("product", this.world.product())
-			.param("milestone", this.world.milestone()).param("vy", this.world.vy()).param("hung", this.world.hung()).update();
+			.param("rating", UUID.randomUUID()).param("vy", this.world.vy()).param("hung", this.world.hung()).update();
 
 		this.mvc.perform(post("/api/v1/account/deletion-request").with(as(this.world.vy(), Role.STUDENT)).with(csrf()))
 			.andExpect(status().isCreated())

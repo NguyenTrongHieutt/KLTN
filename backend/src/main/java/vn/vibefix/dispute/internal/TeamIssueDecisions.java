@@ -22,10 +22,8 @@ import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
 import vn.vibefix.dispute.internal.TeamIssueEndings.Outcome;
-import vn.vibefix.dispute.internal.TeamIssueEndings.Result;
 import vn.vibefix.dispute.internal.TeamIssues.Ending;
 import vn.vibefix.dispute.internal.TeamIssues.Phase;
-import vn.vibefix.dispute.internal.TeamIssues.Subject;
 import vn.vibefix.dispute.internal.TeamIssues.TeamIssue;
 import vn.vibefix.identity.AdministratorStepUp;
 import vn.vibefix.job.TeamIssueLocks;
@@ -38,11 +36,11 @@ import vn.vibefix.shared.IdGenerator;
 
 /**
  * An Administrator decides an escalated Team Issue (FR-63, FR-79, AD-20, AD-40). "Nhận xử lý" records the
- * assigned Administrator and pushes their read grant (the Crew Chat, the raiser's Work Item histories, and
- * the Crew Terms versions) to every module holding that content; taking it over ends the previous grant at
- * once. The assignee's decision, with written reasoning and after the step-up, is recorded and final, and
- * ends the issue (ending 3) through {@link TeamIssueEndings}, which executes it exactly and ends the grant
- * 30 days after the decision. A share decision moves at most what an answer could.
+ * assigned Administrator and pushes their read grant (the Crew Chat and the raiser's Work Item histories; the Rating
+ * itself is read through {@code reputation}) to every module holding that content; taking it over ends the previous
+ * grant at once. The assignee's decision, keeping or removing the Rating with written reasoning and after the step-up,
+ * is recorded and final, and ends the issue (ending 3) through {@link TeamIssueEndings}, which executes it exactly and
+ * ends the grant 30 days after the decision.
  */
 @Component
 class TeamIssueDecisions {
@@ -59,8 +57,7 @@ class TeamIssueDecisions {
 	}
 
 	/** The record of a decision, kept with the issue (NFR-10, SG-27). */
-	record Recorded(@Nullable UUID adminId, @Nullable Integer points, @Nullable Boolean ratingRemoved, String reasoning,
-			Instant decidedAt) {
+	record Recorded(@Nullable UUID adminId, @Nullable Boolean ratingRemoved, String reasoning, Instant decidedAt) {
 	}
 
 	private final JdbcClient jdbc;
@@ -68,8 +65,6 @@ class TeamIssueDecisions {
 	private final TeamIssues issues;
 
 	private final TeamIssueEndings endings;
-
-	private final TeamIssueAnswers answers;
 
 	private final TeamIssueLocks locks;
 
@@ -87,15 +82,14 @@ class TeamIssueDecisions {
 
 	private final TakeConflicts conflicts;
 
-	TeamIssueDecisions(JdbcClient jdbc, TeamIssues issues, TeamIssueEndings endings, TeamIssueAnswers answers,
-			TeamIssueLocks locks, List<AdminReadGrants> grants, AdministratorStepUp stepUp, AuditLog auditLog, IdGenerator ids,
-			Clock clock, PlatformTransactionManager transactionManager, TakeConflicts conflicts) {
+	TeamIssueDecisions(JdbcClient jdbc, TeamIssues issues, TeamIssueEndings endings, TeamIssueLocks locks,
+			List<AdminReadGrants> grants, AdministratorStepUp stepUp, AuditLog auditLog, IdGenerator ids, Clock clock,
+			PlatformTransactionManager transactionManager, TakeConflicts conflicts) {
 		this.conflicts = conflicts;
 		this.transactions = new TransactionTemplate(transactionManager);
 		this.jdbc = jdbc;
 		this.issues = issues;
 		this.endings = endings;
-		this.answers = answers;
 		this.locks = locks;
 		this.grants = grants;
 		this.stepUp = stepUp;
@@ -112,8 +106,8 @@ class TeamIssueDecisions {
 	@Transactional
 	void take(UUID issueId, UUID adminId) {
 		TeamIssue found = escalated(issueId);
-		this.locks.lockForTeamIssue(found.jobId(), found.milestoneId(), false);
-		TeamIssue issue = this.issues.lockRows(found).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		this.locks.lockForTeamIssue(found.jobId());
+		TeamIssue issue = this.issues.lock(found.id()).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		if (issue.phase() != Phase.ESCALATED || decision(issueId).isPresent()) {
 			throw new ApiException(ErrorCode.CONFLICT, DisputeReason.ALREADY_DECIDED);
 		}
@@ -153,28 +147,23 @@ class TeamIssueDecisions {
 	}
 
 	/**
-	 * The assignee's decision: {@code points} for a share issue, {@code removeRating} for a Rating issue.
+	 * The assignee's decision: whether the Rating is removed.
 	 * @throws ApiException {@code NOT_FOUND}; {@code CONFLICT NOT_ASSIGNED} (SG-31); {@code CONFLICT ALREADY_DECIDED};
-	 * {@code VALIDATION}; {@code GUARD_FAILED SHARE_TRANSFER_TOO_LARGE} with the {@code cap}; {@code GUARD_FAILED
-	 * ENDING_REFUSED} when the decision is recorded but its execution waits for a retry
+	 * {@code VALIDATION}
 	 */
-	Decision decide(UUID issueId, UUID adminId, @Nullable Integer points, @Nullable Boolean removeRating, String reasoning,
-			String stepUpCode) {
+	Decision decide(UUID issueId, UUID adminId, @Nullable Boolean removeRating, String reasoning, String stepUpCode) {
 		Decision.Refused refused = this.transactions
-			.execute(status -> record(issueId, adminId, points, removeRating, reasoning, stepUpCode));
+			.execute(status -> record(issueId, adminId, removeRating, reasoning, stepUpCode));
 		if (refused != null) {
 			return refused;
 		}
-		Result result = this.endings.end(issueId, adminId, Ending.DECIDED, issue -> {
+		this.endings.end(issueId, adminId, Ending.DECIDED, issue -> {
 			if (issue.phase() != Phase.ESCALATED) {
 				return null;
 			}
 			Recorded decided = decision(issueId).orElseThrow();
-			return new Outcome(decided.points() == null ? 0 : decided.points(), Boolean.TRUE.equals(decided.ratingRemoved()));
+			return new Outcome(Boolean.TRUE.equals(decided.ratingRemoved()));
 		});
-		if (result == Result.QUEUED) {
-			throw new ApiException(ErrorCode.GUARD_FAILED, DisputeReason.ENDING_REFUSED);
-		}
 		return new Decision.Decided(this.issues.find(issueId).orElseThrow());
 	}
 
@@ -182,11 +171,11 @@ class TeamIssueDecisions {
 	 * In the caller's transaction: checks the decision under the locks, passes the step-up, and records it.
 	 * @return the step-up's refusal, or {@code null} once recorded
 	 */
-	private Decision.@Nullable Refused record(UUID issueId, UUID adminId, @Nullable Integer points, @Nullable Boolean removeRating,
-			String reasoning, String stepUpCode) {
+	private Decision.@Nullable Refused record(UUID issueId, UUID adminId, @Nullable Boolean removeRating, String reasoning,
+			String stepUpCode) {
 		TeamIssue found = escalated(issueId);
-		this.locks.lockForTeamIssue(found.jobId(), found.milestoneId(), false);
-		TeamIssue issue = this.issues.lockRows(found).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		this.locks.lockForTeamIssue(found.jobId());
+		TeamIssue issue = this.issues.lock(found.id()).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		if (!adminId.equals(assignee(issueId))) {
 			throw new ApiException(ErrorCode.CONFLICT, DisputeReason.NOT_ASSIGNED);
 		}
@@ -194,28 +183,20 @@ class TeamIssueDecisions {
 			throw new ApiException(ErrorCode.CONFLICT, DisputeReason.ALREADY_DECIDED);
 		}
 		String text = reasoning.strip();
-		boolean share = issue.subject() == Subject.SHARE;
-		if (text.isEmpty() || text.length() > 4000 || (share ? points == null || points < 0 || points > 100 : removeRating == null)) {
+		if (text.isEmpty() || text.length() > 4000 || removeRating == null) {
 			throw new ApiException(ErrorCode.VALIDATION);
-		}
-		if (share && points > 0) {
-			int cap = this.answers.cap(issue);
-			if (points > cap) {
-				throw new ApiException(ErrorCode.GUARD_FAILED, DisputeReason.SHARE_TRANSFER_TOO_LARGE, Map.of("cap", cap));
-			}
 		}
 		AdministratorStepUp.Result check = this.stepUp.check(adminId, stepUpCode);
 		if (!check.passed()) {
 			return new Decision.Refused(check.refusal(), check.endSession());
 		}
 		this.jdbc.sql("""
-				UPDATE dispute.team_issue SET decided_by_admin_id = :admin, decision_points = :points,
-				    decision_rating_removed = :removed, decision_reasoning = :reasoning, decided_at = :now
+				UPDATE dispute.team_issue SET decided_by_admin_id = :admin, decision_rating_removed = :removed,
+				    decision_reasoning = :reasoning, decided_at = :now
 				WHERE id = :id
 				""")
 			.param("admin", adminId)
-			.param("points", share ? points : null)
-			.param("removed", share ? null : removeRating)
+			.param("removed", removeRating)
 			.param("reasoning", text)
 			.param("now", Timestamp.from(this.clock.instant()))
 			.param("id", issueId)
@@ -242,11 +223,11 @@ class TeamIssueDecisions {
 
 	Optional<Recorded> decision(UUID issueId) {
 		return this.jdbc.sql("""
-				SELECT decided_by_admin_id, decision_points, decision_rating_removed, decision_reasoning, decided_at
+				SELECT decided_by_admin_id, decision_rating_removed, decision_reasoning, decided_at
 				FROM dispute.team_issue WHERE id = :id AND decided_at IS NOT NULL
 				""").param("id", issueId).query((rs, n) -> new Recorded(rs.getObject("decided_by_admin_id", UUID.class),
-				rs.getObject("decision_points", Integer.class), rs.getObject("decision_rating_removed", Boolean.class),
-				rs.getString("decision_reasoning"), rs.getTimestamp("decided_at").toInstant())).optional();
+				rs.getObject("decision_rating_removed", Boolean.class), rs.getString("decision_reasoning"),
+				rs.getTimestamp("decided_at").toInstant())).optional();
 	}
 
 }

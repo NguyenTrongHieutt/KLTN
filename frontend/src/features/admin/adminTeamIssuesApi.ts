@@ -5,7 +5,6 @@ import { OVERVIEW_QUERY_KEY } from './adminApi'
 
 export type AdminTeamIssueRow = components['schemas']['AdminTeamIssueRow']
 export type AdminTeamIssue = components['schemas']['AdminTeamIssueDetail']
-export type CrewTermsEvidence = components['schemas']['CrewTermsEvidenceView']
 
 const TEAM_ISSUES_QUERY_KEY = ['admin', 'team-issues'] as const
 
@@ -18,7 +17,7 @@ export function useAdminTeamIssues() {
   })
 }
 
-/** One escalated Team Issue with its split, its Rating for the assignee, and its decision. */
+/** One escalated Team Issue with its Rating for the assignee, and its decision. */
 export function useAdminTeamIssue(teamIssueId: string | undefined) {
   return useQuery({
     queryKey: [...TEAM_ISSUES_QUERY_KEY, teamIssueId ?? ''],
@@ -31,9 +30,7 @@ export function useAdminTeamIssue(teamIssueId: string | undefined) {
   })
 }
 
-type Command =
-  | { action: 'take' }
-  | { action: 'decide'; body: { points?: number; removeRating?: boolean; reasoning: string; stepUpCode: string } }
+type Command = { action: 'take' } | { action: 'decide'; body: { removeRating: boolean; reasoning: string; stepUpCode: string } }
 
 /** "Nhận xử lý" or the decision after the step-up; the list, the detail, the evidence, and ADM-1 refresh. */
 export function useTeamIssueCommand(teamIssueId: string) {
@@ -55,17 +52,7 @@ export function useTeamIssueCommand(teamIssueId: string) {
   })
 }
 
-/** The Team Evidence Package's Crew Terms versions, read under the assignee's grant (AD-20). */
-export function useCrewTermsEvidence(jobId: string, enabled: boolean) {
-  return useQuery({
-    queryKey: ['admin', 'evidence', 'crew-terms', jobId],
-    queryFn: () => unwrap(apiClient.GET('/api/v1/admin/jobs/{jobId}/crew-terms', { params: { path: { jobId } } })),
-    enabled,
-    retry: false,
-  })
-}
-
-/** The Crew Chat, read under the same grant. */
+/** The Team Evidence Package's Crew Chat, read under the assignee's grant (AD-20). */
 export function useCrewChatEvidence(jobId: string, enabled: boolean) {
   return useQuery({
     queryKey: ['admin', 'evidence', 'crew-chat', jobId],

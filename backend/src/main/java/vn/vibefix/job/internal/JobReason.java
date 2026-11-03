@@ -156,9 +156,6 @@ enum JobReason {
 	/** A Closed or Cancelled Job takes no more External Access identifiers (FR-66). */
 	EXTERNAL_ACCESS_CLOSED,
 
-	/** A share Team Issue is raised only on a Held Milestone (FR-79, AD-40). */
-	MILESTONE_NOT_HELD,
-
 	/** No Change Request waits for a top-up on the Job (FR-36, Story 14.2). */
 	NO_TOP_UP,
 
