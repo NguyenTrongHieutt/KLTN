@@ -57,6 +57,14 @@ class NotificationCatalogTest {
 		}
 	}
 
+	/** Story 22.4 (UX-DR112, AD-40): no release holds a share, so payment.share_held left the registry and its text. */
+	@Test
+	void theShareHeldNoticeIsGone() {
+		assertThat(this.catalog.notificationTypes()).extracting(NotificationType::key).doesNotContain("payment.share_held");
+		assertThat(node("notification.payment.share_held")).isNull();
+		assertThat(TEMPLATES.resolve("payment.share_held.txt")).doesNotExist();
+	}
+
 	@Test
 	void everyToDoKeyHasItsStripTextWithExactlyItsParameters() {
 		assertThat(this.catalog.todoTypes()).isNotEmpty();
