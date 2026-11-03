@@ -142,7 +142,14 @@ describe('CUS-10 "Lịch sử thanh toán": two sections (FR-44, UX-DR85)', () =
       ...inEveryJob('CUSTOMER'),
       'GET /api/v1/payments/history': () => json(customerHistory([customerJob])),
       'GET /api/v1/balance': () =>
-        json(balance([release({ role: 'CREW', crew: [], jobId: 'j3', jobTitle: 'Báo cáo bảo mật' }), pending()])),
+        json(
+          balance([
+            release({ role: 'CREW', crew: [], jobId: 'j3', jobTitle: 'Báo cáo bảo mật' }),
+            pending(),
+            // A Mentor's line with a Crew part: the history lists the user's own parts, never the Crew's.
+            release(),
+          ]),
+        ),
     })
     renderAt('/lich-su-thanh-toan')
 
@@ -153,8 +160,10 @@ describe('CUS-10 "Lịch sử thanh toán": two sections (FR-44, UX-DR85)', () =
     expect(within(parts).getByText('Báo cáo bảo mật')).toBeInTheDocument()
     expect(within(parts).getByText('Sửa lỗi đặt bàn')).toBeInTheDocument()
     expect(within(parts).getAllByText('Bạn là: Thành viên nhóm')).toHaveLength(2)
+    expect(within(parts).getByText('Bạn là: Người hướng dẫn')).toBeInTheDocument()
     expect(within(parts).getByText('Chờ phân chia')).toBeInTheDocument()
     expect(within(parts).queryByRole('columnheader', { name: 'Nhóm thực hiện' })).toBeNull()
+    expect(within(parts).queryByText(/Trần Quang Minh/)).toBeNull()
   })
 
   it('hides the Customer section for a user who funded nothing', { timeout: 15_000 }, async () => {
@@ -201,6 +210,20 @@ describe('MEN-7: the test Balance (FR-44, AD-15, AD-20, UX-DR106)', () => {
     expect(screen.getByText(/^Đã chốt ngày .* · mọi người đã xác nhận$/)).toBeInTheDocument()
     expect(screen.getByText('Bạn là: Người hướng dẫn')).toBeInTheDocument()
     expect(screen.getByText(/không thấy phần của từng người/)).toBeInTheDocument()
+  })
+
+  it("gives a Mentor with no line yet the Mentor's lead and note", { timeout: 15_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
+      'GET /api/v1/balance': () => json(balance([], { sentToCrewVnd: 0, heldVnd: 3000000 })),
+    })
+    renderAt('/so-du')
+
+    expect((await screen.findByText('Đang giữ chờ nghiệm thu')).parentElement).toHaveTextContent('3.000.000 ₫')
+    expect(screen.getByText(/chuyển theo phân chia đã chốt của giai đoạn đó/)).toBeInTheDocument()
+    expect(screen.queryByText(/phần của bạn về số dư khi phân chia đã chốt/)).toBeNull()
+    expect(screen.getByText(/không thấy phần của từng người/)).toBeInTheDocument()
+    expect(screen.getByText(/Tiền được chuyển khi phân chia của giai đoạn đã chốt/)).toBeInTheDocument()
   })
 
   it('shows a Crew member only their own parts', { timeout: 15_000 }, async () => {
@@ -315,6 +338,28 @@ describe('MEN-7: the test Balance (FR-44, AD-15, AD-20, UX-DR106)', () => {
     expect(await screen.findByText('0%')).toBeInTheDocument()
     expect(screen.getByText(/^Đã chốt ngày .* · quản trị viên đã quyết định$/)).toBeInTheDocument()
     expect(screen.queryByText('Chờ phân chia')).toBeNull()
+  })
+
+  it('says a split made final at its deadline was', { timeout: 15_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
+      'GET /api/v1/balance': () => json(balance([release({ role: 'CREW', finality: 'DEADLINE', crew: [] })])),
+    })
+    renderAt('/so-du')
+
+    expect(await screen.findByText(/^Đã chốt ngày .* · hết hạn xác nhận$/)).toBeInTheDocument()
+  })
+
+  it('says the Mentor alone needed no split', { timeout: 15_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
+      'GET /api/v1/balance': () =>
+        json(balance([release({ finality: 'MENTOR_ONLY', yourPartVnd: 1200000, yourPercent: 100, crew: [] })])),
+    })
+    renderAt('/so-du')
+
+    expect(await screen.findByText('Không cần phân chia · bạn nhận 100%')).toBeInTheDocument()
+    expect(screen.queryByText(/^Đã chốt ngày/)).toBeNull()
   })
 
   it('names an erased party as JOB-10 does, and keeps their amount', { timeout: 15_000 }, async () => {
@@ -505,6 +550,22 @@ describe("JOB-7 for a Crew member: their own lines of the Job (D1, UX-DR106)", (
     expect(screen.queryByText('Việc khác')).toBeNull()
     expect(screen.getByText('Giao dịch thử nghiệm — không dùng tiền thật')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Về công việc' })).toHaveAttribute('href', '/cong-viec/j2')
+    expect(screen.getAllByText('Bạn là: Thành viên nhóm')).toHaveLength(3)
+  })
+
+  it('reads each line of a member who left as JOB-H does', { timeout: 15_000 }, async () => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/jobs/*/role': () => json({ role: 'CREW', crewKind: 'FORMER', left: true, noCrew: false }),
+      'GET /api/v1/jobs/j2/crew/me': () => json({ ...crewMe, former: true, canLeave: false }),
+      'GET /api/v1/balance': () =>
+        json(balance([pending(), release({ jobId: 'j2', milestoneId: 'm6', role: 'CREW', yourPartVnd: 700000 })])),
+    })
+    renderAt('/cong-viec/j2/thanh-toan')
+
+    expect(await screen.findByText('Chờ phân chia')).toBeInTheDocument()
+    // JOB-H's line under the heading, and each of the two lines.
+    expect(screen.getAllByText('Bạn là: Thành viên nhóm · đã rời')).toHaveLength(3)
+    expect(screen.queryByText('Bạn là: Thành viên nhóm')).toBeNull()
   })
 
   it('shows a member of no split an empty state', { timeout: 15_000 }, async () => {

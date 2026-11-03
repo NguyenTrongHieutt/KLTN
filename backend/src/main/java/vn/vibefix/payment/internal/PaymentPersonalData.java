@@ -16,10 +16,10 @@ import vn.vibefix.shared.PersonalDataSection;
 
 /**
  * {@code payment}'s part in exports, erasure, and Product deletion (AD-24): a person exports their Payment Orders and
- * their own ledger lines, the parts paid to them and the entries of their own orders. The ledger, its accounts, the Payment Orders, and the refunds are financial records under NFR-10's
- * legal retention, and other people's Balances stand on them (A-01): a Product deletion and an erasure keep them, and an
- * erasure anonymizes the Customer on the orders and refunds. A running Job already keeps its Customer from being erased
- * ({@code job}'s blocker).
+ * their own ledger lines, the parts paid to them and the entries of their own orders. The ledger, its accounts, the
+ * Payment Orders, and the refunds are financial records under NFR-10's legal retention, and other people's Balances
+ * stand on them (A-01): a Product deletion and an erasure keep them, and an erasure anonymizes the Customer on the
+ * orders and refunds. A running Job already keeps its Customer from being erased ({@code job}'s blocker).
  */
 @Component
 class PaymentPersonalData implements PersonalDataParticipant {
@@ -65,13 +65,13 @@ class PaymentPersonalData implements PersonalDataParticipant {
 
 	/**
 	 * The person's own ledger lines (AD-20, AD-24, NFR-11): each RELEASE paid to them, and the FUND, TOPUP_APPLIED and
-	 * refund entries of their own Payment Orders. A pool and its reversal name no party and are never theirs, and nothing of
-	 * another person's is listed.
+	 * refund entries of their own Payment Orders, each with its bucket, so an applied top-up reads as one payment. A pool
+	 * and its reversal name no party and are never theirs, and nothing of another person's is listed.
 	 */
 	private List<Map<String, Object>> ledgerLines(UUID accountId) {
 		return this.jdbc.sql("""
-				SELECT e.entry_type, e.job_id, e.milestone_id, e.amount_vnd, e.split_version_no, e.share_percent, e.base_amount_vnd,
-				    o.txn_ref, e.created_at
+				SELECT e.entry_type, e.bucket, e.job_id, e.milestone_id, e.amount_vnd, e.split_version_no, e.share_percent,
+				    e.base_amount_vnd, o.txn_ref, e.created_at
 				FROM payment.ledger_entry e LEFT JOIN payment.payment_order o ON o.id = e.payment_order_id
 				WHERE (e.entry_type = 'RELEASE' AND e.party_account_id = :id)
 				   OR (e.entry_type IN ('FUND', 'TOPUP_APPLIED', 'REFUND_REQUESTED', 'REFUND_CONFIRMED')
@@ -81,6 +81,7 @@ class PaymentPersonalData implements PersonalDataParticipant {
 			UUID milestone = rs.getObject("milestone_id", UUID.class);
 			Map<String, Object> line = new LinkedHashMap<>();
 			line.put("type", rs.getString("entry_type"));
+			line.put("bucket", rs.getString("bucket"));
 			line.put("jobId", rs.getObject("job_id", UUID.class).toString());
 			line.put("milestoneId", milestone == null ? null : milestone.toString());
 			line.put("amountVnd", rs.getLong("amount_vnd"));

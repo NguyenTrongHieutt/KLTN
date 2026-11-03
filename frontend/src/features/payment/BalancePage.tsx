@@ -32,7 +32,8 @@ export function BalancePage() {
 }
 
 function Content({ balance }: { balance: Balance }) {
-  const mentor = hasMentorLine(balance.lines)
+  // The lead and the note follow the Mentor's figures too, for a Mentor with no line yet; each line decides its parts.
+  const mentor = hasMentorLine(balance.lines) || balance.sentToCrewVnd != null
   return (
     <>
       <div className="grid gap-3 md:grid-cols-3">

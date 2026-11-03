@@ -17,6 +17,7 @@ import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import vn.vibefix.identity.MentorDirectory;
@@ -169,9 +170,10 @@ class PaymentHistory {
 	 * never vanishes from the screen between a final split and its payout; once reversed, it is a zero part. The other
 	 * parties' parts are shown only where the reader's party row is the Mentor's, or, with no split row, where the reader
 	 * is the Job's Mentor. A Job whose Product was deleted has no title any more: its split still says the Milestone's
-	 * number, and a pending line its Job, whose JOB-10 stays readable.
+	 * number, and a pending line its Job, whose JOB-10 stays readable. Its reads share one snapshot, so a payout
+	 * committing between them never shows a paid party a zero part.
 	 */
-	@Transactional(readOnly = true)
+	@Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
 	Balance balance(UUID accountId) {
 		List<Release> own = releases("party_account_id = :id", Map.of("id", accountId));
 		Map<UUID, PartySplit> splitOf = new LinkedHashMap<>();
@@ -253,8 +255,8 @@ class PaymentHistory {
 			return pools;
 		}
 		this.jdbc.sql("""
-				SELECT e.milestone_id, e.amount_vnd, EXISTS (SELECT 1 FROM payment.ledger_entry r
-				    WHERE r.entry_type = 'POOL_RELEASED' AND r.reverses_entry_id = e.id) AS reversed
+				SELECT e.milestone_id, e.amount_vnd,
+				    EXISTS (SELECT 1 FROM payment.ledger_entry r WHERE r.reverses_entry_id = e.id) AS reversed
 				FROM payment.ledger_entry e WHERE e.entry_type = 'RELEASE_POOLED' AND e.milestone_id IN (:ids)
 				""")
 			.param("ids", List.copyOf(milestoneIds))

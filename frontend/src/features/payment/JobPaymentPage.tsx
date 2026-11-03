@@ -69,7 +69,7 @@ export function JobPaymentPage() {
       jobId={jobId}
       customer={() => <CustomerPayment jobId={jobId ?? ''} />}
       mentor={() => <MentorPayment jobId={jobId ?? ''} />}
-      crew={() => <CrewPayment jobId={jobId ?? ''} />}
+      crew={(view) => <CrewPayment jobId={jobId ?? ''} left={view.left} />}
     />
   )
 }
@@ -77,9 +77,9 @@ export function JobPaymentPage() {
 /**
  * A Crew member's JOB-7: their own parts of this Job and the status of the splits they are a party of, read from
  * MEN-7's lines, so one access rule covers both and nobody else's line can show. A member before their signature finds
- * nothing, as on JOB-1.
+ * nothing, as on JOB-1. A member who left reads each line's role as JOB-H's "· đã rời" does (`left`).
  */
-function CrewPayment({ jobId }: { jobId: string }) {
+function CrewPayment({ jobId, left }: { jobId: string; left: boolean }) {
   const me = useCrewMe(jobId)
   const balance = useBalance()
   usePageTitle(me.data ? t('screen.payment.title', { job: me.data.title }) : t('screen.job.title'))
@@ -114,7 +114,7 @@ function CrewPayment({ jobId }: { jobId: string }) {
                 {t('screen.payment.crew.empty')}
               </p>
             ) : (
-              <PartLines lines={lines} crew={false} job={false} />
+              <PartLines lines={lines} crew={false} job={false} left={left} />
             ))}
         </RegionState>
       </section>

@@ -335,20 +335,33 @@ class SplitHistoryIT extends IntegrationTest {
 		accept();
 		finalize(percentages(20, 40, 40));
 		UUID order = this.jdbc.sql("SELECT id FROM payment.payment_order").query(UUID.class).single();
-		this.jdbc.sql("""
-				INSERT INTO payment.ledger_entry (id, operation_key, entry_type, bucket, job_id, product_id, milestone_id,
-				    payment_order_id, amount_vnd, created_at)
-				SELECT :id, :key, 'REFUND_REQUESTED', bucket, job_id, product_id, milestone_id, payment_order_id, 1, now()
-				FROM payment.ledger_entry WHERE entry_type = 'FUND' AND payment_order_id = :order
-				""").param("id", UUID.randomUUID()).param("key", "REFUND_REQUESTED:" + UUID.randomUUID()).param("order", order).update();
+		// Each other kind of entry on her order, after its FUND: an applied top-up has no bucket, a refund the FUND's.
+		String[][] entries = { { "TOPUP_APPLIED", "NULL", "3" }, { "REFUND_REQUESTED", "bucket", "1" },
+				{ "REFUND_CONFIRMED", "bucket", "1" } };
+		for (int i = 0; i < entries.length; i++) {
+			this.jdbc.sql("""
+					INSERT INTO payment.ledger_entry (id, operation_key, entry_type, bucket, job_id, product_id, milestone_id,
+					    payment_order_id, amount_vnd, created_at)
+					SELECT :id, :key, :type, %s, job_id, product_id, milestone_id, payment_order_id, %s,
+					    created_at + make_interval(mins => :minutes)
+					FROM payment.ledger_entry WHERE entry_type = 'FUND' AND payment_order_id = :order
+					""".formatted(entries[i][1], entries[i][2]))
+				.param("id", UUID.randomUUID())
+				.param("key", entries[i][0] + ":" + UUID.randomUUID())
+				.param("type", entries[i][0])
+				.param("minutes", i + 1)
+				.param("order", order)
+				.update();
+		}
 
 		List<Map<String, Object>> vy = (List<Map<String, Object>>) payment(this.world.vy()).data().get("ledgerLines");
 		assertThat(vy).extracting(line -> line.get("type") + ":" + line.get("amountVnd") + ":" + line.get("percent"))
 			.containsExactly("RELEASE:400000:40");
 		assertThat(payment(this.world.vy()).data()).doesNotContainKey("paymentOrders");
 		List<Map<String, Object>> lan = (List<Map<String, Object>>) payment(this.world.lan()).data().get("ledgerLines");
-		assertThat(lan).extracting(line -> line.get("type") + ":" + line.get("amountVnd"))
-			.containsExactly("FUND:" + HeldCrewJob.PRICE, "REFUND_REQUESTED:1");
+		assertThat(lan).extracting(line -> line.get("type") + ":" + line.get("amountVnd") + ":" + line.get("bucket"))
+			.containsExactly("FUND:" + HeldCrewJob.PRICE + ":MILESTONE", "TOPUP_APPLIED:3:null", "REFUND_REQUESTED:1:MILESTONE",
+					"REFUND_CONFIRMED:1:MILESTONE");
 		assertThat(lan).allSatisfy(line -> assertThat(line.get("paymentOrderReference")).isNotNull());
 		for (UUID person : List.of(this.world.vy(), this.world.lan(), this.world.hung())) {
 			assertThat(payment(person).toString()).as("no pool is anybody's").doesNotContain("RELEASE_POOLED")

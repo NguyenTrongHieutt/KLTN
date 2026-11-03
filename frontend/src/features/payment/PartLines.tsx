@@ -13,9 +13,20 @@ import { finalText, hasMentorLine, partyName, pendingText, pendingTone } from '.
  * Crew member's JOB-7. Each line is a Job and Milestone with the role held there: the reader's part with its
  * percentage, a zero part at 0 ₫, or a split still pending, whose pooled amount shows as "Chờ phân chia" and counts in
  * no Balance, with the way to JOB-10. The Crew's parts show only on a line whose split names the reader its Mentor,
- * and only with `crew`. The page computes no money: every figure is the server's.
+ * and only with `crew`. With `left`, for one Job's lines, each role reads as JOB-H's for a member who left ("· đã
+ * rời"). The page computes no money: every figure is the server's.
  */
-export function PartLines({ lines, crew, job = true }: { lines: BalanceLine[]; crew: boolean; job?: boolean }) {
+export function PartLines({
+  lines,
+  crew,
+  job = true,
+  left,
+}: {
+  lines: BalanceLine[]
+  crew: boolean
+  job?: boolean
+  left?: boolean
+}) {
   const crewColumn = crew && hasMentorLine(lines)
   return (
     <div className="overflow-x-auto rounded-lg border border-border bg-card">
@@ -56,7 +67,9 @@ export function PartLines({ lines, crew, job = true }: { lines: BalanceLine[]; c
                     ? t('screen.payment.balance.milestoneLine', { n: line.number, title: line.milestoneTitle })
                     : t('screen.payment.balance.milestoneNumber', { n: line.number })}
                 </p>
-                {line.role && <p className="text-caption text-muted-foreground">{youAreText({ role: line.role })}</p>}
+                {line.role && (
+                  <p className="text-caption text-muted-foreground">{youAreText({ role: line.role, left })}</p>
+                )}
               </td>
               <td className="px-4 py-2.5">{formatDayMonth(line.releasedAt)}</td>
               <td className="px-4 py-2.5 tabular-nums">
