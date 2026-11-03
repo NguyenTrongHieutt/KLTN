@@ -286,17 +286,9 @@ class DisputeDecisionIT extends IntegrationTest {
 				""").param("id", row).param("job", job).param("student", this.vy)
 			.param("signed", Timestamp.from(this.clock.instant().minus(Duration.ofMinutes(5)))).update();
 		this.jdbc.sql("""
-				INSERT INTO job.crew_terms_version (job_id, version_no, status, cap_percent, author_account_id, created_at)
-				VALUES (:job, 1, 'IN_FORCE', 100, :mentor, now())
-				""").param("job", job).param("mentor", this.hung).update();
-		this.jdbc.sql("""
-				INSERT INTO job.crew_terms_share (job_id, version_no, party_account_id, crew_row_id, percent)
-				VALUES (:job, 1, :mentor, NULL, 70), (:job, 1, :vy, :row, 30)
-				""").param("job", job).param("mentor", this.hung).param("vy", this.vy).param("row", row).update();
-		this.jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at, state, funded_at,
-				    crew_terms_version_no, accepted_at)
-				VALUES (:id, :job, 0, 'Báo cáo', :price, 2, now(), :state, :funded, 1, :accepted)
+				    accepted_at)
+				VALUES (:id, :job, 0, 'Báo cáo', :price, 2, now(), :state, :funded, :accepted)
 				""").param("id", this.held).param("job", job).param("price", PRICE)
 			.param("funded", Timestamp.from(this.clock.instant().minus(Duration.ofMinutes(1))))
 			.param("state", funded ? "FUNDED" : "ACCEPTED").param("accepted", funded ? null : now).update();

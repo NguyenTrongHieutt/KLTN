@@ -35,9 +35,9 @@ const ENDED: Partial<Record<string, MessageKey>> = {
 }
 
 /**
- * MEN-3's Commitment panel for a picked person (FR-81, AD-41, UX-DR103, Story 21.5), in place of the Crew Terms
- * assignment panel: N-19 with the GitHub username the Customer will learn, the assignment projection (the scope and the
- * Milestones with their prices), the split rules, N-14 with the NDA text, the commitment text with its version, N-5,
+ * MEN-3's Commitment panel for a picked person (FR-81, AD-41, UX-DR103, Story 21.5), with no share in it: N-19 with
+ * the GitHub username the Customer will learn, the assignment projection (the scope and the Milestones with their
+ * prices), the split rules, N-14 with the NDA text, the commitment text with its version, N-5,
  * N-23 for a Code Job (asked once per notice version), and the chip "Ký trước {date}", with "Ký và tham gia" or "Từ
  * chối". Once the pick ended, it gives way to why, with "Tìm việc khác"; once signed, to the way into the Job. Nothing
  * else of the Job is read here.

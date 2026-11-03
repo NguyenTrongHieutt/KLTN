@@ -32,7 +32,7 @@
 #   its contact grant (FR-3), and Administrators read.
 # - The CROSS_* canaries are the second Job's Crew data: CROSS_ROLE is its Customer and reads none.
 # - Administrators read Job content only under the grant whose scope covers it (AD-20): a Dispute
-#   grant reads no Crew Chat and no Crew Terms (AdminReadItem.forDispute), and an Abuse Report grant
+#   grant reads no Crew Chat (AdminReadItem.forDispute), and an Abuse Report grant
 #   reads only the reported message, CREW_CHAT, never CREW_CHAT_UNREPORTED, another message of the same
 #   Crew Chat that no report names (review iteration 3).
 # - PRIVATE_FEEDBACK is a Crew member's private feedback about the Job's Mentor (FR-78), on an ended

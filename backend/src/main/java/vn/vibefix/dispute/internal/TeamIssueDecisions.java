@@ -133,7 +133,7 @@ class TeamIssueDecisions {
 		}
 		UUID grant = this.ids.newId();
 		Set<AdminReadItem> items = issue.raiserId() == null
-				? Set.of(AdminReadItem.all(AdminReadScope.CREW_CHAT), AdminReadItem.all(AdminReadScope.CREW_TERMS))
+				? Set.of(AdminReadItem.all(AdminReadScope.CREW_CHAT))
 				: AdminReadItem.forEscalatedTeamIssue(issue.raiserId());
 		this.grants.forEach(module -> module.grantAdminRead(grant, adminId, issue.jobId(), items, issueId));
 		this.jdbc.sql("UPDATE dispute.team_issue SET assigned_admin_id = :admin, assigned_at = :now, grant_id = :grant WHERE id = :id")

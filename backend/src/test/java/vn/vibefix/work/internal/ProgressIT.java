@@ -65,9 +65,8 @@ class ProgressIT extends IntegrationTest {
 		this.job = WorkTestSupport.activeJob(this.jdbc, product, this.lan, this.hung, MILESTONES, CRITERIA,
 				this.clock.instant(), "BUG_FIX");
 		this.jdbc.sql("""
-				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at, state, funded_at,
-				    crew_terms_version_no)
-				VALUES (:id, :job, 0, 'Giai đoạn 1', 1500000, 2, now(), 'FUNDED', now(), 1)
+				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at, state, funded_at)
+				VALUES (:id, :job, 0, 'Giai đoạn 1', 1500000, 2, now(), 'FUNDED', now())
 				""").param("id", MILESTONES.get(0)).param("job", this.job).update();
 		this.jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at)

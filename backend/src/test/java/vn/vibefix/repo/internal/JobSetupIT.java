@@ -1286,7 +1286,7 @@ class JobSetupIT extends IntegrationTest {
 
 	private void j6() {
 		this.setups.started(new JobTransitioned(UUID.randomUUID(), UUID.randomUUID(), this.job, "J6", "SYSTEM",
-				"AGREEMENT", "STARTING", 3, 1, Map.of("crewTermsVersionNo", "1", "code", "true")));
+				"AGREEMENT", "STARTING", 3, 1, Map.of("code", "true")));
 	}
 
 	/** Setup asks for the J7 scan and waits; the scan runs; Setup goes on. */

@@ -170,9 +170,8 @@ class DataRequestIT extends IntegrationTest {
 		// A second Held Milestone of the same Job: the Job is listed once.
 		UUID second = UUID.randomUUID();
 		this.jdbc.sql("""
-				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at, state, funded_at,
-				    crew_terms_version_no)
-				VALUES (:id, :job, 1, 'Giai đoạn 2', 500000, 2, now(), 'FUNDED', now(), 1)
+				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at, state, funded_at)
+				VALUES (:id, :job, 1, 'Giai đoạn 2', 500000, 2, now(), 'FUNDED', now())
 				""").param("id", second).param("job", this.world.job()).update();
 
 		this.mvc.perform(post("/api/v1/account/deletion-request").with(as(this.world.vy(), Role.STUDENT)).with(csrf()))

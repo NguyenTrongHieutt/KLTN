@@ -1157,33 +1157,6 @@
         "tags" : [ "admin-oversight-controller" ]
       }
     },
-    "/api/v1/admin/jobs/{jobId}/crew-terms" : {
-      "get" : {
-        "operationId" : "crewTerms",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "jobId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/CrewTermsEvidenceView"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "admin-crew-terms-controller" ]
-      }
-    },
     "/api/v1/admin/moderation" : {
       "get" : {
         "operationId" : "items",
@@ -12162,65 +12135,6 @@
           }
         },
         "required" : [ "accountId", "name", "openItems", "state" ]
-      },
-      "CrewTermsEvidenceView" : {
-        "type" : "object",
-        "properties" : {
-          "jobId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "versions" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/CrewTermsVersionEvidenceView"
-            }
-          }
-        },
-        "required" : [ "jobId", "versions" ]
-      },
-      "CrewTermsShareEvidenceView" : {
-        "type" : "object",
-        "properties" : {
-          "confirmedAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "name" : {
-            "type" : "string"
-          },
-          "percent" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "role" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "name", "percent", "role" ]
-      },
-      "CrewTermsVersionEvidenceView" : {
-        "type" : "object",
-        "properties" : {
-          "createdAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "shares" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/CrewTermsShareEvidenceView"
-            }
-          },
-          "status" : {
-            "type" : "string"
-          },
-          "versionNo" : {
-            "type" : "integer",
-            "format" : "int32"
-          }
-        },
-        "required" : [ "createdAt", "shares", "status", "versionNo" ]
       },
       "CrewView" : {
         "type" : "object",

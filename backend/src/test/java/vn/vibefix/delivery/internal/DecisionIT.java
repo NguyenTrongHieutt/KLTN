@@ -36,10 +36,9 @@ import vn.vibefix.support.IntegrationTest;
 
 /**
  * FR-33, FR-34, FR-42, AD-5, AD-15, AD-41: only the Customer decides a handover, on the loaded version;
- * acceptance applies M5 and writes one RELEASE per party of the pinned Crew Terms, the remainder to the
- * Mentor, in one transaction, tells everyone, and opens the next Milestone's funding; a revision names
- * the criteria "Chưa đạt", uses one Revision Round, and reopens the handover to-do; a decided handover
- * stays decided; with no round left the server refuses a revision.
+ * acceptance applies M5 and holds the release in the Milestone's split pool, in one transaction, tells everyone, and
+ * opens the next Milestone's funding; a revision names the criteria "Chưa đạt", uses one Revision Round, and reopens
+ * the handover to-do; a decided handover stays decided; with no round left the server refuses a revision.
  */
 class DecisionIT extends IntegrationTest {
 
@@ -122,11 +121,11 @@ class DecisionIT extends IntegrationTest {
 
 	/**
 	 * R9, A-10: with no Crew row active during the Milestone the split is final when created, and the Mentor is paid at
-	 * once, once the apply commits, whatever the Mentor-only pin says.
+	 * once, once the apply commits.
 	 */
 	@Test
 	void withNoCrewActiveDuringTheMilestoneAnAcceptancePaysTheMentorAtOnce() throws Exception {
-		world(2, true);
+		world(2);
 		String handover = handOver(5);
 		this.jdbc.sql("""
 				UPDATE job.crew_row SET status = 'RELEASED', released_reason = 'LEFT', released_at = :end, window_end = :end
@@ -247,19 +246,11 @@ class DecisionIT extends IntegrationTest {
 	}
 
 	/**
-	 * An Active Assessment Job with Milestone 1 Funded at {@code PRICE} under Crew Terms version 1 (the
-	 * Mentor 70, Vy 30), its seeded Story approved and the Assessment Report written, and Milestone 2
-	 * Planned.
+	 * An Active Assessment Job with Milestone 1 Funded at {@code PRICE} after Vy signed, its seeded Story approved and
+	 * the Assessment Report written, and Milestone 2 Planned.
 	 */
+	/** The Milestone was funded a minute before the clock, after Vy signed. */
 	private void world(int revisionRounds) throws Exception {
-		world(revisionRounds, false);
-	}
-
-	/**
-	 * The Milestone was funded a minute before the clock, after Vy signed.
-	 * @param mentorOnly the Mentor-only pin J6 writes since Story 21.5, instead of a 70/30 Crew Terms version
-	 */
-	private void world(int revisionRounds, boolean mentorOnly) throws Exception {
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng",
 				List.of(TestPeople.REACT), "React");
@@ -312,25 +303,8 @@ class DecisionIT extends IntegrationTest {
 				""").param("id", row).param("job", this.job).param("student", this.vy)
 			.param("signed", Timestamp.from(this.clock.instant().minus(Duration.ofMinutes(5)))).update();
 		this.jdbc.sql("""
-				INSERT INTO job.crew_terms_version (job_id, version_no, status, cap_percent, author_account_id, created_at)
-				VALUES (:job, 1, 'IN_FORCE', 100, :mentor, now())
-				""").param("job", this.job).param("mentor", this.hung).update();
-		if (mentorOnly) {
-			this.jdbc.sql("""
-					INSERT INTO job.crew_terms_share (job_id, version_no, party_account_id, crew_row_id, percent)
-					VALUES (:job, 1, :mentor, NULL, 100)
-					""").param("job", this.job).param("mentor", this.hung).update();
-		}
-		else {
-			this.jdbc.sql("""
-					INSERT INTO job.crew_terms_share (job_id, version_no, party_account_id, crew_row_id, percent)
-					VALUES (:job, 1, :mentor, NULL, 70), (:job, 1, :vy, :row, 30)
-					""").param("job", this.job).param("mentor", this.hung).param("vy", this.vy).param("row", row).update();
-		}
-		this.jdbc.sql("""
-				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at, state, funded_at,
-				    crew_terms_version_no)
-				VALUES (:id, :job, 0, 'Báo cáo', :price, :rounds, now(), 'FUNDED', :funded, 1)
+				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at, state, funded_at)
+				VALUES (:id, :job, 0, 'Báo cáo', :price, :rounds, now(), 'FUNDED', :funded)
 				""").param("id", this.milestone).param("job", this.job).param("price", PRICE).param("rounds", revisionRounds)
 			.param("funded", Timestamp.from(this.clock.instant().minus(Duration.ofMinutes(1))))
 			.update();

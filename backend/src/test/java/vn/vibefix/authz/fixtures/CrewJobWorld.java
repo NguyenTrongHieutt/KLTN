@@ -72,8 +72,8 @@ import vn.vibefix.support.TestPeople;
  * the {@code JOB_CHAT} canary, which no Crew state reads, and the Mentor holds the contact grant on the Customer's
  * {@code CONTACT_EMAIL} (FR-3).
  * <p>
- * It also seeds the Job's confirmed Agreement, which the Job records as its version, with two Milestones pinned to
- * Crew Terms version 1: the first accepted and released to every party (the ledger's FUND, then its RELEASE
+ * It also seeds the Job's confirmed Agreement, which the Job records as its version, with two Milestones: the first
+ * accepted and released to every party (the ledger's FUND, then its pool, the pool's reversal and its RELEASE
  * entries), the second ({@code {milestoneId}}, {@code {crewMilestoneId}}) Funded by the Customer's paid order
  * ({@code {paymentOrderId}}) and handed over. The Customer's open Dispute about it froze the Job as
  * {@code Disputes.open} does ({@code job.job.frozen_at} and {@code timers.frozen_job}). {@code {crewRowId}} is the
@@ -96,8 +96,8 @@ import vn.vibefix.support.TestPeople;
  * Mentor's impact. The Mentor's
  * earlier Job of the Product, Closed with its Milestone released to the former member and the hiding member, holds
  * the former member's {@code PRIVATE_FEEDBACK} about the Mentor; the Customer's Assessment Job, whose Report was
- * accepted, holds the Mentor's drafted follow-up ({@code {followUpId}}). Every running Job has its selected bid,
- * its confirmed Agreement and its Crew Terms. The public profiles' {@code {username}} is the Mentor's. A row's
+ * accepted, holds the Mentor's drafted follow-up ({@code {followUpId}}). Every running Job has its selected bid
+ * and its confirmed Agreement. The public profiles' {@code {username}} is the Mentor's. A row's
  * {@code job=crew} makes {@code {jobId}} this Job ({@code {crewJobId}}), and {@code teamIssue=escalated} makes
  * {@code {teamIssueId}} the escalated issue ({@code {escalatedTeamIssueId}}).
  * <p>
@@ -235,7 +235,7 @@ final class CrewJobWorld {
 		this.active = JobContent.member(this.jdbc, "Sinh viên đang làm");
 		UUID activeRow = JobContent.crewRow(this.jdbc, job, this.active, "ACTIVE", null);
 		this.locked = JobContent.member(this.jdbc, "Sinh viên bị khóa");
-		UUID lockedRow = JobContent.crewRow(this.jdbc, job, this.locked, "LEFT", WINDOW_END);
+		JobContent.crewRow(this.jdbc, job, this.locked, "LEFT", WINDOW_END);
 		// A lock counts as leaving (Story 20.4): the account is locked when its window ended.
 		this.jdbc.sql("UPDATE identity.account SET locked_at = :at, lock_reason = 'Vi phạm quy tắc' WHERE id = :id")
 			.param("at", Timestamp.from(WINDOW_END))
@@ -243,7 +243,7 @@ final class CrewJobWorld {
 			.update();
 		// Released LEFT by a lock and unlocked since (deferred B16): an unlock brings nothing back.
 		this.former = JobContent.member(this.jdbc, "Sinh viên đã rời");
-		UUID formerRow = JobContent.crewRow(this.jdbc, job, this.former, "LEFT", WINDOW_END);
+		JobContent.crewRow(this.jdbc, job, this.former, "LEFT", WINDOW_END);
 		// A member who left with a reason (Story 21.6), no caller: only the Job's Mentor reads it (CREW_LEFT_NOTE).
 		UUID leaver = JobContent.member(this.jdbc, "Sinh viên đã rời có lý do");
 		this.jdbc.sql("UPDATE job.crew_row SET left_note = :note WHERE id = :row")
@@ -256,13 +256,13 @@ final class CrewJobWorld {
 		this.formerParty = JobContent.member(this.jdbc, "Thành viên đã rời trong phân chia");
 		JobContent.crewRow(this.jdbc, job, this.formerParty, "LEFT", WINDOW_END);
 		this.crossRole = JobContent.member(this.jdbc, "Sinh viên hai vai trò");
-		UUID crossRow = JobContent.crewRow(this.jdbc, job, this.crossRole, "ACTIVE", null);
+		JobContent.crewRow(this.jdbc, job, this.crossRole, "ACTIVE", null);
 		UUID canaryMember = JobContent.canaryMember(this.jdbc, value("CREW_NAME"), value("CREW_EMAIL"),
 				value("CREW_LINKEDIN"), null);
-		UUID canaryRow = JobContent.crewRow(this.jdbc, job, canaryMember, "ACTIVE", null);
+		JobContent.crewRow(this.jdbc, job, canaryMember, "ACTIVE", null);
 		// The member who hides their student name (FR-51, X9): their PUB-4 is {memberUsername}'s (review iteration 4).
 		UUID escalating = JobContent.hidingMember(this.jdbc, "Sinh viên nhờ quản trị viên", value("STUDENT_HIDDEN_NAME"));
-		UUID escalatingRow = JobContent.crewRow(this.jdbc, job, escalating, "ACTIVE", null);
+		JobContent.crewRow(this.jdbc, job, escalating, "ACTIVE", null);
 		UUID chat = JobContent.chat(this.jdbc, job, product, "CREW");
 		JobContent.message(this.jdbc, chat, this.mentor, "Chào cả nhóm, mình bắt đầu nhé", SIGNED.plus(Duration.ofHours(1)));
 		UUID canaryMessage = JobContent.message(this.jdbc, chat, this.mentor, value("CREW_CHAT"), WRITTEN);
@@ -277,8 +277,8 @@ final class CrewJobWorld {
 		world.put("crewChatId", chat);
 		UUID jobChat = JobContent.chat(this.jdbc, job, product, "JOB");
 		JobContent.message(this.jdbc, jobChat, owner, value("JOB_CHAT"), WRITTEN);
-		// Two Milestones (FR-30, AD-41), both pinned to Crew Terms version 1: the first accepted and released, the
-		// second Funded and handed over, which the escalated share Team Issue holds and the open Dispute concerns.
+		// Two Milestones (FR-30, AD-41): the first accepted and released, the second Funded and handed over, which the
+		// open Dispute concerns.
 		UUID released = UUID.randomUUID();
 		UUID milestone = UUID.randomUUID();
 		UUID criterion = UUID.randomUUID();
@@ -314,20 +314,12 @@ final class CrewJobWorld {
 		// The Job records its confirmed version, as J5 does: its funding, and the Mentor's balance with the Crew's
 		// parts of the release (CREW_SHARE), read through it (review iteration 1: no canary no response can hold).
 		this.jdbc.sql("UPDATE job.job SET agreement_version_no = 1 WHERE id = :job").param("job", job).update();
-		JobContent.crewTerms(this.jdbc, job, this.mentor, SIGNED);
-		JobContent.share(this.jdbc, job, this.mentor, null, 30);
-		JobContent.share(this.jdbc, job, this.active, activeRow, 10);
-		JobContent.share(this.jdbc, job, this.crossRole, crossRow, 10);
-		JobContent.share(this.jdbc, job, canaryMember, canaryRow, 20);
-		JobContent.share(this.jdbc, job, escalating, escalatingRow, 10);
-		JobContent.share(this.jdbc, job, this.former, formerRow, 10);
-		JobContent.share(this.jdbc, job, this.locked, lockedRow, 10);
 		UUID handover = UUID.randomUUID();
 		UUID releasedHandover = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, due_on, revision_rounds, created_at, state,
-				    funded_at, crew_terms_version_no, submitted_at, handover_id, accepted_at)
-				VALUES (:id, :job, 0, 'Thiết lập đặt bàn', :price, DATE '2026-11-01', 2, :signed, 'ACCEPTED', :funded, 1,
+				    funded_at, submitted_at, handover_id, accepted_at)
+				VALUES (:id, :job, 0, 'Thiết lập đặt bàn', :price, DATE '2026-11-01', 2, :signed, 'ACCEPTED', :funded,
 				    :submitted, :handover, :accepted)
 				""").param("id", released).param("job", job).param("price", RELEASED_BASE)
 			.param("signed", Timestamp.from(SIGNED)).param("funded", Timestamp.from(FUNDED))
@@ -335,8 +327,8 @@ final class CrewJobWorld {
 			.param("accepted", Timestamp.from(ACCEPTED)).update();
 		this.jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, due_on, revision_rounds, created_at, state,
-				    funded_at, crew_terms_version_no, submitted_at, handover_id)
-				VALUES (:id, :job, 1, 'Sửa lỗi trùng giờ', :price, DATE '2026-11-20', 2, :signed, 'SUBMITTED', :funded, 1,
+				    funded_at, submitted_at, handover_id)
+				VALUES (:id, :job, 1, 'Sửa lỗi trùng giờ', :price, DATE '2026-11-20', 2, :signed, 'SUBMITTED', :funded,
 				    :submitted, :handover)
 				""").param("id", milestone).param("job", job).param("price", HELD_PRICE)
 			.param("signed", Timestamp.from(SIGNED)).param("funded", Timestamp.from(ACCEPTED))
@@ -589,8 +581,8 @@ final class CrewJobWorld {
 		UUID pooled = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, due_on, revision_rounds, created_at, state,
-				    funded_at, crew_terms_version_no, submitted_at, handover_id, accepted_at)
-				VALUES (:id, :job, 2, 'Báo cáo đặt bàn', :price, DATE '2026-12-01', 2, :signed, 'ACCEPTED', :funded, 1,
+				    funded_at, submitted_at, handover_id, accepted_at)
+				VALUES (:id, :job, 2, 'Báo cáo đặt bàn', :price, DATE '2026-12-01', 2, :signed, 'ACCEPTED', :funded,
 				    :submitted, :handover, :accepted)
 				""").param("id", pooled).param("job", job).param("price", POOLED_PRICE)
 			.param("signed", Timestamp.from(SIGNED)).param("funded", Timestamp.from(FUNDED))
@@ -609,8 +601,8 @@ final class CrewJobWorld {
 		UUID milestone = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, due_on, revision_rounds, created_at, state,
-				    funded_at, crew_terms_version_no, submitted_at, handover_id, accepted_at)
-				VALUES (:id, :job, 3, 'Giao diện đặt bàn', :price, DATE '2026-12-10', 2, :signed, 'ACCEPTED', :funded, 1,
+				    funded_at, submitted_at, handover_id, accepted_at)
+				VALUES (:id, :job, 3, 'Giao diện đặt bàn', :price, DATE '2026-12-10', 2, :signed, 'ACCEPTED', :funded,
 				    :submitted, :handover, :accepted)
 				""").param("id", milestone).param("job", job).param("price", PROPOSED_PRICE)
 			.param("signed", Timestamp.from(SIGNED)).param("funded", Timestamp.from(FUNDED))
@@ -634,8 +626,8 @@ final class CrewJobWorld {
 		UUID milestone = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, due_on, revision_rounds, created_at, state,
-				    funded_at, crew_terms_version_no, submitted_at, handover_id, accepted_at)
-				VALUES (:id, :job, :position, :title, :price, DATE '2026-12-15', 2, :signed, 'ACCEPTED', :funded, 1,
+				    funded_at, submitted_at, handover_id, accepted_at)
+				VALUES (:id, :job, :position, :title, :price, DATE '2026-12-15', 2, :signed, 'ACCEPTED', :funded,
 				    :submitted, :handover, :accepted)
 				""").param("id", milestone).param("job", job).param("position", position).param("title", "Giai đoạn " + (position + 1))
 			.param("price", price).param("signed", Timestamp.from(SIGNED)).param("funded", Timestamp.from(FUNDED))
@@ -949,9 +941,8 @@ final class CrewJobWorld {
 
 	/**
 	 * The Mentor's earlier Job of the Customer's Product (review iteration 4, G9), Closed {@code ended}: J3 selected the
-	 * Mentor's bid, its Agreement's one Milestone was Funded, accepted and released under Crew Terms version 1 to the
-	 * Mentor and its two members, the former member and the member who hides their student name, and J9 ended their
-	 * rows. Returns its ID.
+	 * Mentor's bid, its Agreement's one Milestone was Funded, accepted and released to the Mentor and its two members,
+	 * the former member and the member who hides their student name, and J9 ended their rows. Returns its ID.
 	 */
 	private UUID endedJob(UUID product, UUID owner, UUID hiding, Instant ended) {
 		Instant signed = ended.minus(Duration.ofDays(20));
@@ -964,12 +955,8 @@ final class CrewJobWorld {
 		UUID milestone = UUID.randomUUID();
 		long price = 1_000_000;
 		JobContent.confirmedAgreement(this.jdbc, job, owner, this.mentor, false, milestone, "Sửa lỗi cũ", price, signed);
-		JobContent.crewTerms(this.jdbc, job, this.mentor, signed);
-		UUID formerRow = JobContent.crewRow(this.jdbc, job, this.former, "JOB_ENDED", ended, signed);
-		UUID hidingRow = JobContent.crewRow(this.jdbc, job, hiding, "JOB_ENDED", ended, signed);
-		JobContent.share(this.jdbc, job, this.mentor, null, 60);
-		JobContent.share(this.jdbc, job, this.former, formerRow, 20);
-		JobContent.share(this.jdbc, job, hiding, hidingRow, 20);
+		JobContent.crewRow(this.jdbc, job, this.former, "JOB_ENDED", ended, signed);
+		JobContent.crewRow(this.jdbc, job, hiding, "JOB_ENDED", ended, signed);
 		Instant funded = signed.plus(Duration.ofDays(1));
 		Instant accepted = ended.minus(Duration.ofDays(2));
 		UUID handover = UUID.randomUUID();
@@ -1016,8 +1003,6 @@ final class CrewJobWorld {
 		long price = 600_000;
 		JobContent.confirmedAgreement(this.jdbc, job, owner, this.mentor, true, milestone, "Báo cáo đánh giá", price,
 				SIGNED);
-		JobContent.crewTerms(this.jdbc, job, this.mentor, SIGNED);
-		JobContent.share(this.jdbc, job, this.mentor, null, 100);
 		JobContent.board(this.jdbc, job, product, "DGA");
 		UUID report = JobContent.page(this.jdbc, job, this.mentor, "Báo cáo đánh giá",
 				"## Đánh giá\nỨng dụng chạy ổn.\n\n## Đề xuất\n1. Sửa lỗi hai khách đặt trùng bàn.\n",
@@ -1062,8 +1047,8 @@ final class CrewJobWorld {
 	/**
 	 * The second Active Job: the cross-role member's own Product, mentored by the Mentor, whose one Crew member,
 	 * Crew Chat message, and Work Item note are the {@code CROSS_*} canaries its Customer never reads. Like every
-	 * running Job, it has its selected bid, its confirmed Agreement, whose Milestone waits for funding, and Crew Terms
-	 * version 1 (review iteration 4, G9).
+	 * running Job, it has its selected bid and its confirmed Agreement, whose Milestone waits for funding (review
+	 * iteration 4, G9).
 	 */
 	private void secondJob() {
 		UUID product = JobContent.product(this.jdbc, this.crossRole, "Sản phẩm thứ hai");
@@ -1075,10 +1060,7 @@ final class CrewJobWorld {
 		JobContent.milestone(this.jdbc, job, milestone, 0, "Sửa lỗi thứ hai", 500_000, "PLANNED", null, null, null, SIGNED);
 		UUID member = JobContent.canaryMember(this.jdbc, value("CROSS_CREW_NAME"), value("CROSS_CREW_EMAIL"),
 				value("CROSS_LINKEDIN"), null);
-		UUID memberRow = JobContent.crewRow(this.jdbc, job, member, "ACTIVE", null);
-		JobContent.crewTerms(this.jdbc, job, this.mentor, SIGNED);
-		JobContent.share(this.jdbc, job, this.mentor, null, 60);
-		JobContent.share(this.jdbc, job, member, memberRow, 40);
+		JobContent.crewRow(this.jdbc, job, member, "ACTIVE", null);
 		UUID chat = JobContent.chat(this.jdbc, job, product, "CREW");
 		JobContent.message(this.jdbc, chat, this.mentor, value("CROSS_CREW_CHAT"), WRITTEN);
 		JobContent.chat(this.jdbc, job, product, "JOB");

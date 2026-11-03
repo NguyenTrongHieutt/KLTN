@@ -31,9 +31,8 @@ import vn.vibefix.shared.ErrorCode;
 /**
  * {@code job}'s side of the Administrator read-grant contract for Milestone Splits (AD-20, AD-40): a Split Resolution pushes
  * its grant down here, and one split's versions, with their edits and confirmations, are read by an Administrator only while
- * a grant names that split; each such read is audited {@code job.admin_read} (AD-8). The rows stay on a Job's bare row until
- * its last split is final ({@link JobPersonalData}). Beside {@link CrewTermsGrants}, which Story 22.4 retires: the two
- * store one row per grant, the second write finding it there.
+ * a grant names that split; each such read is audited {@code job.admin_read} (AD-8). It stores every grant pushed to
+ * {@code job}, one row per grant. The rows stay on a Job's bare row until its last split is final ({@link JobPersonalData}).
  */
 @Component
 class SplitVersionGrants implements AdminReadGrants {

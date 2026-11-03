@@ -683,9 +683,9 @@ class CrossRoleIT extends IntegrationTest {
 	 * Attachment, and a Page, all written by the Mentor after the former member's window ended; the Job Chat; and
 	 * the Customer's contact email, unless the Customer is one of the three people (their own data). A former
 	 * member's Crew Chat also holds a message from before their window's end. Its first Milestone was accepted and
-	 * released under Crew Terms version 1, and the Crew's parts of it are canary amounts. It also holds one object of
+	 * released, and the Crew's parts of it are canary amounts. It also holds one object of
 	 * its own for every placeholder the sweep fills: the second Milestone and its criterion, Funded and paid, a
-	 * handover, a Change Request, an open Dispute that froze the Job, a share Team Issue and an Abuse Report of the
+	 * handover, a Change Request, an open Dispute that froze the Job, a Team Issue and an Abuse Report of the
 	 * other Crew member, the selected bid, an External Access item, a screenshot, the Attachment's stored file, and the
 	 * Customer's next Job on the Product, an Open Job Post to which they invited the Job's Mentor.
 	 */
@@ -741,7 +741,7 @@ class CrossRoleIT extends IntegrationTest {
 			UUID message = JobContent.message(jdbc, this.crewChat, mentor, canary("crew-chat"), WRITTEN);
 			UUID jobChat = JobContent.chat(jdbc, this.job, product, "JOB");
 			JobContent.message(jdbc, jobChat, mentor, canary("job-chat"), WRITTEN);
-			// Two Milestones pinned to Crew Terms version 1: the first accepted and released before the former member's
+			// Two Milestones: the first accepted and released before the former member's
 			// window ended, the second Funded and handed over.
 			UUID released = UUID.randomUUID();
 			UUID milestone = UUID.randomUUID();
@@ -774,30 +774,23 @@ class CrossRoleIT extends IntegrationTest {
 					INSERT INTO job.agreement_draft (job_id, scope, price_vnd, revision, saved_at)
 					VALUES (:job, 'Sửa lỗi', :price, 1, :signed)
 					""").param("job", this.job).param("price", base + 800_000).param("signed", signed).update();
-			// The person's own row, active or former, holds 35 %, the other member 40 % (70 % alone), the Mentor the rest.
+			// The person, active or former, gets 35 % of the release, the other member 40 % (70 % alone), the Mentor the rest.
 			UUID ownMember = activeMember != null ? activeMember : formerMember;
-			UUID ownRow = activeMember != null ? activeRow : formerRow;
 			int coPercent = ownMember == null ? 70 : 40;
-			JobContent.crewTerms(jdbc, this.job, mentor, JobContent.SIGNED);
-			JobContent.share(jdbc, this.job, mentor, null, 100 - coPercent - (ownMember == null ? 0 : 35));
-			JobContent.share(jdbc, this.job, coMember, coRow, coPercent);
-			if (ownMember != null) {
-				JobContent.share(jdbc, this.job, ownMember, ownRow, 35);
-			}
 			Instant funded = JobContent.SIGNED.plus(Duration.ofDays(1));
 			Instant accepted = JobContent.SIGNED.plus(Duration.ofDays(3));
 			jdbc.sql("""
 					INSERT INTO job.milestone (id, job_id, position, title, price_vnd, due_on, revision_rounds, created_at, state,
-					    funded_at, crew_terms_version_no, submitted_at, handover_id, accepted_at)
-					VALUES (:id, :job, 0, 'Thiết lập', :price, DATE '2026-11-01', 2, :signed, 'ACCEPTED', :funded, 1, :submitted,
+					    funded_at, submitted_at, handover_id, accepted_at)
+					VALUES (:id, :job, 0, 'Thiết lập', :price, DATE '2026-11-01', 2, :signed, 'ACCEPTED', :funded, :submitted,
 					    :handover, :accepted)
 					""").param("id", released).param("job", this.job).param("price", base).param("signed", signed)
 				.param("funded", Timestamp.from(funded)).param("submitted", Timestamp.from(accepted.minus(Duration.ofDays(1))))
 				.param("handover", releasedHandover).param("accepted", Timestamp.from(accepted)).update();
 			jdbc.sql("""
 					INSERT INTO job.milestone (id, job_id, position, title, price_vnd, due_on, revision_rounds, created_at, state,
-					    funded_at, crew_terms_version_no, submitted_at, handover_id)
-					VALUES (:id, :job, 1, 'Sửa lỗi trùng giờ', 800000, DATE '2026-11-20', 2, :signed, 'SUBMITTED', :funded, 1,
+					    funded_at, submitted_at, handover_id)
+					VALUES (:id, :job, 1, 'Sửa lỗi trùng giờ', 800000, DATE '2026-11-20', 2, :signed, 'SUBMITTED', :funded,
 					    :submitted, :handover)
 					""").param("id", milestone).param("job", this.job).param("signed", signed)
 				.param("funded", Timestamp.from(accepted)).param("submitted", written).param("handover", handover).update();

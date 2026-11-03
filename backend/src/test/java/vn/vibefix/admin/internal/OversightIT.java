@@ -183,8 +183,8 @@ class OversightIT extends IntegrationTest {
 		Timestamp now = Timestamp.from(this.clock.instant());
 		this.jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, due_on, revision_rounds, created_at, state,
-				    funded_at, crew_terms_version_no, overdue_since)
-				VALUES (:id, :job, 0, 'Sửa lỗi', 800000, DATE '2026-01-20', 2, :now, :state, :now, 1, :overdue)
+				    funded_at, overdue_since)
+				VALUES (:id, :job, 0, 'Sửa lỗi', 800000, DATE '2026-01-20', 2, :now, :state, :now, :overdue)
 				""")
 			.param("id", UUID.randomUUID())
 			.param("job", job)

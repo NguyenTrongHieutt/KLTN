@@ -204,8 +204,8 @@ class BidCardsIT extends IntegrationTest {
 		Instant handedOver = submitted == null ? null : Instant.parse(submitted);
 		this.jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, due_on, revision_rounds, created_at, state,
-				    funded_at, crew_terms_version_no, submitted_at, handover_id, accepted_at)
-				VALUES (:id, :job, :position, 'Giai đoạn', 500000, CAST(:due AS DATE), 2, :created, :state, :funded, 1,
+				    funded_at, submitted_at, handover_id, accepted_at)
+				VALUES (:id, :job, :position, 'Giai đoạn', 500000, CAST(:due AS DATE), 2, :created, :state, :funded,
 				    :submitted, :handover, :accepted)
 				""")
 			.param("id", UUID.randomUUID())

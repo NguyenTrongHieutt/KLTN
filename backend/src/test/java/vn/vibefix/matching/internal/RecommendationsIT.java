@@ -342,8 +342,8 @@ class RecommendationsIT extends IntegrationTest {
 		Instant at = this.clock.instant().minus(Duration.ofDays(5));
 		this.jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at, state,
-				    funded_at, crew_terms_version_no, accepted_at)
-				VALUES (:id, :job, 0, 'Giai đoạn', 800000, 2, :at, 'ACCEPTED', :at, 1, :at)
+				    funded_at, accepted_at)
+				VALUES (:id, :job, 0, 'Giai đoạn', 800000, 2, :at, 'ACCEPTED', :at, :at)
 				""").param("id", UUID.randomUUID()).param("job", job).param("at", Timestamp.from(at)).update();
 	}
 

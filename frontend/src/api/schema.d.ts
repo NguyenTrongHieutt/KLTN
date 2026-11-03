@@ -564,22 +564,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/jobs/{jobId}/crew-terms": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["crewTerms"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/admin/moderation": {
         parameters: {
             query?: never;
@@ -5244,27 +5228,6 @@ export interface components {
             openItems: components["schemas"]["OpenItemView"][];
             state: string;
         };
-        CrewTermsEvidenceView: {
-            /** Format: uuid */
-            jobId: string;
-            versions: components["schemas"]["CrewTermsVersionEvidenceView"][];
-        };
-        CrewTermsShareEvidenceView: {
-            /** Format: date-time */
-            confirmedAt?: string;
-            name: string;
-            /** Format: int32 */
-            percent: number;
-            role: string;
-        };
-        CrewTermsVersionEvidenceView: {
-            /** Format: date-time */
-            createdAt: string;
-            shares: components["schemas"]["CrewTermsShareEvidenceView"][];
-            status: string;
-            /** Format: int32 */
-            versionNo: number;
-        };
         CrewView: {
             /** Format: int64 */
             crewVersion: number;
@@ -9254,28 +9217,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OversightJobView"];
-                };
-            };
-        };
-    };
-    crewTerms: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                jobId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CrewTermsEvidenceView"];
                 };
             };
         };

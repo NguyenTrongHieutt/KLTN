@@ -182,8 +182,8 @@ class StallIT extends IntegrationTest {
 		this.milestone = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, due_on, revision_rounds, created_at, state,
-				    funded_at, crew_terms_version_no)
-				VALUES (:id, :job, 0, 'Sửa lỗi trùng giờ', :price, DATE '2026-11-20', 2, :now, :state, :funded, :terms)
+				    funded_at)
+				VALUES (:id, :job, 0, 'Sửa lỗi trùng giờ', :price, DATE '2026-11-20', 2, :now, :state, :funded)
 				""")
 			.param("id", this.milestone)
 			.param("job", job)
@@ -191,7 +191,6 @@ class StallIT extends IntegrationTest {
 			.param("now", now)
 			.param("state", funded ? "FUNDED" : "PLANNED")
 			.param("funded", funded ? now : null)
-			.param("terms", funded ? 1 : null)
 			.update();
 		if (funded) {
 			UUID order = UUID.randomUUID();

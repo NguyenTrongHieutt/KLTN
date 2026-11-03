@@ -232,8 +232,8 @@ class ChangeRequestIT extends IntegrationTest {
 	private void milestone(UUID job, UUID id, int position, String title, String due, boolean funded, Timestamp now) {
 		this.jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, due_on, revision_rounds, created_at, state,
-				    funded_at, crew_terms_version_no)
-				VALUES (:id, :job, :position, :title, 800000, CAST(:due AS DATE), 2, :now, :state, :funded, :terms)
+				    funded_at)
+				VALUES (:id, :job, :position, :title, 800000, CAST(:due AS DATE), 2, :now, :state, :funded)
 				""")
 			.param("id", id)
 			.param("job", job)
@@ -243,7 +243,6 @@ class ChangeRequestIT extends IntegrationTest {
 			.param("now", now)
 			.param("state", funded ? "FUNDED" : "PLANNED")
 			.param("funded", funded ? now : null)
-			.param("terms", funded ? 1 : null)
 			.update();
 	}
 

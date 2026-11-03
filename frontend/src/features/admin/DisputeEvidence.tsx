@@ -33,7 +33,7 @@ type Tab = (typeof TABS)[number]
  * it opens. The Agreement versions, the criteria in each Delivery Report, the approvals and revision
  * requests, the payments, the Drift Warnings, and the Audit Log come from `dispute`; the Job Chat, the Work
  * Items, and the Pages from `chat` and `work` under the assignee's grant. Every view is audited, and the
- * note says so. Never the Crew Chat, the Crew Terms, or private feedback. A decided Dispute also shows
+ * note says so. Never the Crew Chat, the split versions, or private feedback. A decided Dispute also shows
  * `DecisionEvidence`, its evidence snapshot.
  */
 export function DisputeEvidence({ data }: { data: AdminDispute }) {

@@ -87,8 +87,8 @@ public enum MatrixCaller {
 	ADMIN_DISPUTE_GRANT,
 
 	/**
-	 * The Administrator who took an escalated Team Issue on the crew Job, holding its read grant: the Crew Chat, the
-	 * Crew Terms, and the raiser's Work Items ({@code forEscalatedTeamIssue}).
+	 * The Administrator who took an escalated Team Issue on the crew Job, holding its read grant: the Crew Chat and the
+	 * raiser's Work Items ({@code forEscalatedTeamIssue}).
 	 */
 	ADMIN_TEAM_ISSUE_GRANT,
 

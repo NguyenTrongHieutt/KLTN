@@ -98,6 +98,10 @@ class TeamIssueDecisionIT extends IntegrationTest {
 		for (String table : new String[] { "chat.admin_read_grant", "work.admin_read_grant", "job.admin_read_grant" }) {
 			assertThat(count("SELECT count(*) FROM " + table + " WHERE reason_id = '" + issue + "' AND ends_at IS NULL"))
 				.as(table).isOne();
+			assertThat(text("SELECT items::text FROM " + table + " WHERE reason_id = '" + issue + "'"))
+				.as("Story 22.4: the grant names no Crew Terms in %s", table)
+				.contains("CREW_CHAT", "WORK_ITEMS")
+				.doesNotContain("CREW_TERMS");
 		}
 		this.mvc.perform(get("/api/v1/crew-chats/" + chat + "/messages").with(admin(this.minh))).andExpect(status().isOk());
 

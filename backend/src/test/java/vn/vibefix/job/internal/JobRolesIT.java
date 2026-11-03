@@ -360,16 +360,15 @@ class JobRolesIT extends IntegrationTest {
 		boolean funded = !"PLANNED".equals(state) && !"CANCELLED".equals(state);
 		this.jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at, state, funded_at,
-				    crew_terms_version_no, accepted_at, settled_at, cancelled_at, removed_at)
+				    accepted_at, settled_at, cancelled_at, removed_at)
 				VALUES (:id, :job, (SELECT count(*) FROM job.milestone WHERE job_id = :job), 'Giai đoạn', 800000, 2, :at,
-				    :state, :funded, :pin, :accepted, :settled, :cancelled, :removed)
+				    :state, :funded, :accepted, :settled, :cancelled, :removed)
 				""")
 			.param("id", UUID.randomUUID())
 			.param("job", job)
 			.param("at", Timestamp.from(at))
 			.param("state", state)
 			.param("funded", funded ? Timestamp.from(at) : null)
-			.param("pin", funded ? 1 : null)
 			.param("accepted", "ACCEPTED".equals(state) ? Timestamp.from(at.plus(Duration.ofDays(1))) : null)
 			.param("settled", "SETTLED".equals(state) ? Timestamp.from(at.plus(Duration.ofDays(1))) : null)
 			.param("cancelled", "CANCELLED".equals(state) ? Timestamp.from(at.plus(Duration.ofDays(1))) : null)

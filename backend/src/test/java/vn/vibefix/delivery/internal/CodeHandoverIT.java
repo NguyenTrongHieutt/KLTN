@@ -192,9 +192,8 @@ class CodeHandoverIT extends IntegrationTest {
 			.param("now", now).update();
 		this.jdbc.sql("UPDATE job.job SET agreement_version_no = 1 WHERE id = :id").param("id", this.job).update();
 		this.jdbc.sql("""
-				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at, state, funded_at,
-				    crew_terms_version_no)
-				VALUES (:id, :job, 0, 'Chặn đặt trùng bàn', 1500000, 2, now(), 'FUNDED', :funded, 1)
+				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at, state, funded_at)
+				VALUES (:id, :job, 0, 'Chặn đặt trùng bàn', 1500000, 2, now(), 'FUNDED', :funded)
 				""").param("id", this.milestone).param("job", this.job)
 			.param("funded", Timestamp.from(this.clock.instant().minus(Duration.ofMinutes(1)))).update();
 		this.jdbc.sql("""
@@ -610,21 +609,10 @@ class CodeHandoverIT extends IntegrationTest {
 		return UUID.fromString(com.jayway.jsonpath.JsonPath.read(report, "$.id"));
 	}
 
-	/** Crew Terms version 1 (the Mentor 70, Vy 30) and the Milestone's funding in the ledger. */
+	/** The Milestone's funding in the ledger. */
 	private void fundForRelease() {
 		UUID product = this.jdbc.sql("SELECT product_id FROM job.job WHERE id = :id").param("id", this.job).query(UUID.class)
 			.single();
-		Map<String, Object> row = this.jdbc.sql("SELECT id, member_account_id FROM job.crew_row WHERE job_id = :id")
-			.param("id", this.job).query().singleRow();
-		this.jdbc.sql("""
-				INSERT INTO job.crew_terms_version (job_id, version_no, status, cap_percent, author_account_id, created_at)
-				VALUES (:job, 1, 'IN_FORCE', 100, :mentor, now())
-				""").param("job", this.job).param("mentor", this.hung).update();
-		this.jdbc.sql("""
-				INSERT INTO job.crew_terms_share (job_id, version_no, party_account_id, crew_row_id, percent)
-				VALUES (:job, 1, :mentor, NULL, 70), (:job, 1, :vy, :row, 30)
-				""").param("job", this.job).param("mentor", this.hung).param("vy", row.get("member_account_id"))
-			.param("row", row.get("id")).update();
 		this.jdbc.sql("""
 				INSERT INTO payment.ledger_account (milestone_id, job_id, product_id, created_at) VALUES (:id, :job, :product, now())
 				""").param("id", this.milestone).param("job", this.job).param("product", product).update();

@@ -6,9 +6,9 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * The one split of an amount by Crew Terms shares (AD-33, FR-42): each party gets ⌊amount × pct / 100⌋,
- * the remainder below one dong goes to the Mentor, and a zero part is left out. The Crew panel's
- * example amounts and every release use it, so they always agree.
+ * The one split of an amount by a Milestone Split's shares (AD-33, FR-42): each party gets ⌊amount × pct / 100⌋,
+ * the remainder below one dong goes to the Mentor, and a zero part is left out. The split previews and every
+ * release use it, so they always agree.
  */
 public final class CrewSplit {
 
@@ -27,7 +27,7 @@ public final class CrewSplit {
 			throw new IllegalArgumentException("A negative amount does not split: " + amountVnd);
 		}
 		if (!shares.containsKey(mentorId)) {
-			throw new IllegalArgumentException("The Mentor is a party of every Crew Terms version");
+			throw new IllegalArgumentException("The Mentor is a party of every split");
 		}
 		if (shares.values().stream().mapToInt(Integer::intValue).sum() != 100
 				|| shares.values().stream().anyMatch(percent -> percent < 0)) {

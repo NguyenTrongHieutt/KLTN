@@ -63,7 +63,7 @@ enum Transition {
 			"Milestone 1 becomes Funded (FR-41)",
 			List.of(new Guard("FR-17", "The Agreement is confirmed"),
 					new Guard("FR-75", "The Crew is confirmed, re-checked here")),
-			List.of(new Effect("job", "The Crew Terms version the Crew confirmed comes into force before M1 records it")),
+			List.of(),
 			false, true),
 
 	J7(Machine.JOB, job(JobState.STARTING), job(JobState.ACTIVE), Set.of(SYSTEM),
@@ -101,7 +101,7 @@ enum Transition {
 			"Verified payment of its Payment Order (FR-41)",
 			List.of(new Guard("FR-41", "No other Held Milestone on the Job"),
 					new Guard("FR-17", "The Job is in Agreement (Milestone 1, after FR-17) or Active")),
-			List.of(new Effect("job", "The Milestone records the Crew Terms version in force, which its release uses (FR-42)")),
+			List.of(new Effect("job", "The Milestone records when it was funded, which bounds its split's parties (FR-42)")),
 			true, true),
 
 	M2(Machine.MILESTONE, milestone(MilestoneState.FUNDED, MilestoneState.REVISION_REQUESTED),

@@ -212,7 +212,7 @@ class FullChangeRequestIT extends IntegrationTest {
 		await().atMost(Duration.ofSeconds(15)).until(() -> count(
 				"SELECT count(*) FROM payment.refund WHERE milestone_id = '" + this.first + "'") == 1);
 
-		this.jdbc.sql("UPDATE job.milestone SET state = 'ACCEPTED', accepted_at = now(), funded_at = now(), crew_terms_version_no = 1 WHERE id = :id")
+		this.jdbc.sql("UPDATE job.milestone SET state = 'ACCEPTED', accepted_at = now(), funded_at = now() WHERE id = :id")
 			.param("id", this.second).update();
 		propose(this.lan, Role.CUSTOMER, "\"milestones\":[{\"milestoneId\":\"" + this.second + "\",\"title\":\"Đổi tên\",\"remove\":false}]")
 			.andExpect(status().isBadRequest())
@@ -235,8 +235,8 @@ class FullChangeRequestIT extends IntegrationTest {
 	private void milestone(UUID id, int position, String title, String due, boolean funded, Timestamp now) {
 		this.jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, due_on, revision_rounds, created_at, state,
-				    funded_at, crew_terms_version_no)
-				VALUES (:id, :job, :position, :title, 800000, CAST(:due AS DATE), 2, :now, :state, :funded, :terms)
+				    funded_at)
+				VALUES (:id, :job, :position, :title, 800000, CAST(:due AS DATE), 2, :now, :state, :funded)
 				""")
 			.param("id", id)
 			.param("job", this.job)
@@ -246,7 +246,6 @@ class FullChangeRequestIT extends IntegrationTest {
 			.param("now", now)
 			.param("state", funded ? "FUNDED" : "PLANNED")
 			.param("funded", funded ? now : null)
-			.param("terms", funded ? 1 : null)
 			.update();
 	}
 

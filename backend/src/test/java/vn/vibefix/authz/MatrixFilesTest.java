@@ -142,7 +142,7 @@ class MatrixFilesTest {
 
 	/**
 	 * Every read of Job content of every grant scope (review iteration 4, G8): the Job Chat's messages, the four Crew
-	 * Chat reads and a Crew Chat file, the Crew Terms, the Work Items (the active member's and the raiser's) with their
+	 * Chat reads and a Crew Chat file, the Work Items (the active member's and the raiser's) with their
 	 * notes and an attachment's file, and the Pages. Each grant caller runs each, so a read outside its scope is
 	 * scanned for the canaries hidden from it.
 	 */
@@ -152,7 +152,6 @@ class MatrixFilesTest {
 			ContentRead.of("GET /api/v1/boards/{boardId}/crew-chat/messages"),
 			ContentRead.of("GET /api/v1/chat-messages/{messageId}"),
 			new ContentRead("GET /api/v1/files/{fileId}", "file=chat"),
-			new ContentRead("GET /api/v1/admin/jobs/{jobId}/crew-terms", "job=crew"),
 			ContentRead.of("GET /api/v1/boards/{boardId}/work-items"), ContentRead.of("GET /api/v1/work-items/{workItemId}"),
 			new ContentRead("GET /api/v1/work-items/{workItemId}", "item=raiser"),
 			ContentRead.of("GET /api/v1/work-item-notes/{workItemNoteId}"),
@@ -165,9 +164,9 @@ class MatrixFilesTest {
 	 * Each grant caller's scope, the reads that serve its content: the Dispute grant ({@code AdminReadItem.forDispute})
 	 * reads the Job Chat's messages (not the Customer and Mentor's {@code /chat} summary), every Work Item with its notes
 	 * and attachments, and the Pages; the escalated Team Issue's reads the Crew Chat by its ID and by the Board, with
-	 * its files, the Crew Terms and the raiser's Work Items; the Abuse Report's reads the reported message only; and the Split
+	 * its files, and the raiser's Work Items; the Abuse Report's reads the reported message only; and the Split
 	 * Resolution's reads the Crew Chat by its ID and by the Board, with its files, and the Work Items that involve a party of
-	 * the split with their attachments, never the Job Chat, the Crew Terms or a Work Item nothing of theirs touches (Story 22.3).
+	 * the split with their attachments, never the Job Chat or a Work Item nothing of theirs touches (Story 22.3).
 	 */
 	static final Map<MatrixCaller, GrantScope> GRANT_SCOPES = Map.of(MatrixCaller.ADMIN_DISPUTE_GRANT,
 			new GrantScope("/api/v1/admin/disputes/{disputeId}",
@@ -186,7 +185,6 @@ class MatrixFilesTest {
 							ContentRead.of("GET /api/v1/boards/{boardId}/crew-chat/messages"),
 							ContentRead.of("GET /api/v1/chat-messages/{messageId}"),
 							new ContentRead("GET /api/v1/files/{fileId}", "file=chat"),
-							new ContentRead("GET /api/v1/admin/jobs/{jobId}/crew-terms", "job=crew"),
 							ContentRead.of("GET /api/v1/boards/{boardId}/work-items"),
 							new ContentRead("GET /api/v1/work-items/{workItemId}", "item=raiser"))),
 			MatrixCaller.ADMIN_ABUSE_REPORT_GRANT, new GrantScope("/api/v1/admin/abuse-reports/{reportId}",
@@ -858,17 +856,17 @@ class MatrixFilesTest {
 			assertThat(names(canaries.hiddenFrom(grant))).as(grant.name()).contains("BID_PROOF_CAPTION", "BID_PROOF_LINK")
 				.containsAll(CREW_APPLICATION_CANARIES);
 		}
-		// A Dispute grant reads no Crew Chat and no Crew Terms (AdminReadItem.forDispute).
+		// A Dispute grant reads no Crew Chat (AdminReadItem.forDispute).
 		assertThat(names(canaries.hiddenFrom(MatrixCaller.ADMIN_DISPUTE_GRANT)))
 			.contains("CREW_CHAT", "CREW_CHAT_UNREPORTED", "CREW_SHARE")
 			.doesNotContain("JOB_CHAT", "WORK_ITEM_NOTE", "WORK_ITEM_TITLE", "ATTACHMENT", "CREW_PAGE", "CREW_PAGE_TITLE");
-		// An escalated Team Issue's grant reads the Crew Chat, the Crew Terms and its raiser's Stories only, never the
+		// An escalated Team Issue's grant reads the Crew Chat and its raiser's Stories only, never the
 		// Job Chat or another member's Story (WORK_ITEM_TITLE).
 		assertThat(names(canaries.hiddenFrom(MatrixCaller.ADMIN_TEAM_ISSUE_GRANT))).contains("JOB_CHAT", "WORK_ITEM_NOTE",
 				"WORK_ITEM_TITLE", "CREW_PAGE", "CREW_SHARE")
 			.doesNotContain("CREW_CHAT", "CREW_CHAT_UNREPORTED");
 		// A Split Resolution's grant reads the Crew Chat and the Work Items of its parties, never the Job Chat, the Pages, or
-		// what a Team Issue's grant reads of the Crew Terms (A-20).
+		// another member's part of a release (A-20).
 		assertThat(names(canaries.hiddenFrom(MatrixCaller.ADMIN_SPLIT_RESOLUTION_GRANT))).contains("JOB_CHAT", "CREW_SHARE",
 				"CREW_PAGE", "CUSTOMER_PAGE", "EARLY_PAGE")
 			.doesNotContain("CREW_CHAT", "CREW_CHAT_UNREPORTED", "SPLIT_RESOLUTION_REASON", "SPLIT_STATEMENT");

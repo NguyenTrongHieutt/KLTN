@@ -43,7 +43,7 @@ public record AdminReadItem(AdminReadScope scope, @Nullable UUID objectId, @Null
 
 	/**
 	 * A Dispute's grant: the Job Chat, Work Items with history, notes, the Attachment list, and
-	 * Pages; never the Crew Chat, Crew Terms, or split versions.
+	 * Pages; never the Crew Chat or split versions.
 	 */
 	public static Set<AdminReadItem> forDispute() {
 		return Set.of(all(AdminReadScope.JOB_CHAT), all(AdminReadScope.WORK_ITEMS),
@@ -51,12 +51,11 @@ public record AdminReadItem(AdminReadScope scope, @Nullable UUID objectId, @Null
 	}
 
 	/**
-	 * An escalated Team Issue's grant: the Crew Chat, the raiser's Work Item histories, and Crew
-	 * Terms versions.
+	 * An escalated Team Issue's grant: the Crew Chat and the raiser's Work Item histories; the Rating itself is read
+	 * through {@code reputation}.
 	 */
 	public static Set<AdminReadItem> forEscalatedTeamIssue(UUID raiserAccountId) {
-		return Set.of(all(AdminReadScope.CREW_CHAT), involving(AdminReadScope.WORK_ITEMS, raiserAccountId),
-				all(AdminReadScope.CREW_TERMS));
+		return Set.of(all(AdminReadScope.CREW_CHAT), involving(AdminReadScope.WORK_ITEMS, raiserAccountId));
 	}
 
 	/**

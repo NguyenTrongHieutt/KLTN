@@ -27,8 +27,8 @@ public interface MilestoneFunding {
 			long version, boolean frozen, int agreementVersionNo, List<FundingMilestone> milestones) {
 	}
 
-	/** What M1 recorded: the Milestone's number and the Crew Terms version it pinned (AD-41). */
-	record Funded(UUID transitionId, int number, int crewTermsVersionNo) {
+	/** What M1 recorded: the transition and the Milestone's number. */
+	record Funded(UUID transitionId, int number) {
 	}
 
 	/** The Customer's Job once its Agreement is confirmed; anyone else's, or before, is empty. */

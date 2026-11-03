@@ -226,7 +226,7 @@ class WorkItemsIT extends IntegrationTest {
 
 		move(this.vy, Role.STUDENT, id, "IN_PROGRESS", 1).andExpect(status().isUnprocessableContent())
 			.andExpect(jsonPath("$.reason").value("MILESTONE_NOT_HELD"));
-		this.jdbc.sql("UPDATE job.milestone SET state = 'FUNDED', funded_at = now(), crew_terms_version_no = 1 WHERE id = :id")
+		this.jdbc.sql("UPDATE job.milestone SET state = 'FUNDED', funded_at = now() WHERE id = :id")
 			.param("id", MILESTONE).update();
 		this.mvc.perform(get("/api/v1/boards/" + this.job + "/work-items").with(as(this.vy, Role.STUDENT)))
 			.andExpect(jsonPath("$.milestones[0].held").value(true))

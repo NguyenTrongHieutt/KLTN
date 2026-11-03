@@ -385,16 +385,15 @@ public final class JobContent {
 	}
 
 	/**
-	 * A Milestone of the confirmed Agreement at {@code position} in {@code state}: {@code PLANNED} not Funded yet, so
-	 * pinned to no Crew Terms version, which funding pins; or {@code ACCEPTED}, Funded at {@code funded} under Crew
-	 * Terms version 1 and accepted at {@code accepted}.
+	 * A Milestone of the confirmed Agreement at {@code position} in {@code state}: {@code PLANNED} not Funded yet; or
+	 * {@code ACCEPTED}, Funded at {@code funded} and accepted at {@code accepted}.
 	 */
 	public static void milestone(JdbcClient jdbc, UUID job, UUID milestone, int position, String title, long priceVnd,
 			String state, @Nullable Instant funded, @Nullable Instant accepted, @Nullable UUID handover, Instant created) {
 		jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, due_on, revision_rounds, created_at, state,
-				    funded_at, crew_terms_version_no, submitted_at, handover_id, accepted_at)
-				VALUES (:id, :job, :position, :title, :price, DATE '2026-11-20', 2, :created, :state, :funded, :version,
+				    funded_at, submitted_at, handover_id, accepted_at)
+				VALUES (:id, :job, :position, :title, :price, DATE '2026-11-20', 2, :created, :state, :funded,
 				    :submitted, :handover, :accepted)
 				""")
 			.param("id", milestone)
@@ -405,27 +404,10 @@ public final class JobContent {
 			.param("created", Timestamp.from(created))
 			.param("state", state)
 			.param("funded", funded == null ? null : Timestamp.from(funded))
-			.param("version", funded == null ? null : 1)
 			.param("submitted", accepted == null ? null : Timestamp.from(accepted.minus(Duration.ofDays(1))))
 			.param("handover", handover)
 			.param("accepted", accepted == null ? null : Timestamp.from(accepted))
 			.update();
-	}
-
-	/** Crew Terms version 1, in force since {@code at}, of the Job's Mentor. */
-	public static void crewTerms(JdbcClient jdbc, UUID job, UUID mentor, Instant at) {
-		jdbc.sql("""
-				INSERT INTO job.crew_terms_version (job_id, version_no, status, cap_percent, author_account_id, created_at)
-				VALUES (:job, 1, 'IN_FORCE', 40, :mentor, :at)
-				""").param("job", job).param("mentor", mentor).param("at", Timestamp.from(at)).update();
-	}
-
-	/** One party's share of Crew Terms version 1: the Mentor's has no Crew row. */
-	public static void share(JdbcClient jdbc, UUID job, UUID party, @Nullable UUID row, int percent) {
-		jdbc.sql("""
-				INSERT INTO job.crew_terms_share (job_id, version_no, party_account_id, crew_row_id, percent)
-				VALUES (:job, 1, :party, :row, :percent)
-				""").param("job", job).param("party", party).param("row", row).param("percent", percent).update();
 	}
 
 	/**

@@ -106,7 +106,7 @@ class DisputeIT extends IntegrationTest {
 		open(this.lan, Role.CUSTOMER, closed).andExpect(status().isUnprocessableEntity())
 			.andExpect(jsonPath("$.reason").value("JOB_NOT_DISPUTABLE"));
 		UUID agreement = world("AGREEMENT");
-		this.jdbc.sql("UPDATE job.milestone SET state = 'PLANNED', funded_at = NULL, crew_terms_version_no = NULL WHERE job_id = :job")
+		this.jdbc.sql("UPDATE job.milestone SET state = 'PLANNED', funded_at = NULL WHERE job_id = :job")
 			.param("job", agreement).update();
 		open(this.hung, Role.MENTOR, agreement).andExpect(status().isCreated())
 			.andExpect(jsonPath("$.open.concern").value("NEXT_STATE"));
@@ -140,8 +140,8 @@ class DisputeIT extends IntegrationTest {
 		this.held = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, due_on, revision_rounds, created_at, state,
-				    funded_at, crew_terms_version_no)
-				VALUES (:id, :job, 0, 'Sửa lỗi trùng giờ', 800000, DATE '2026-11-20', 2, :now, 'FUNDED', :now, 1)
+				    funded_at)
+				VALUES (:id, :job, 0, 'Sửa lỗi trùng giờ', 800000, DATE '2026-11-20', 2, :now, 'FUNDED', :now)
 				""").param("id", this.held).param("job", job).param("now", now).update();
 		Timestamp signed = Timestamp.from(this.clock.instant().minus(Duration.ofDays(5)));
 		this.jdbc.sql("""
