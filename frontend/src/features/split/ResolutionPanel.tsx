@@ -2,6 +2,8 @@ import { useId, useState } from 'react'
 import { Dialog } from '@base-ui/react/dialog'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { inputClass } from '@/components/formField-props'
+import { RegionState } from '@/components/RegionState'
+import { Skeleton } from '@/components/Skeleton'
 import { Button } from '@/components/ui/button'
 import { t } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
@@ -38,30 +40,63 @@ function isStale(error: unknown): boolean {
  * The Split Resolutions on a card (FR-84, UX-DR106, A-18): every case of the Milestone with its reason and statements
  * for every party, the Mentor included; "Nhờ quản trị viên xem xét" where the server says the reader may raise one;
  * another party sees the open case in place of the button, with one statement form; the raiser's "Rút yêu cầu"; the
- * reasoning once decided.
+ * reasoning once decided. A failed read says so with Retry, since the deadline runs on. A command reads the cases again
+ * before it answers, which may flip what the reader may do: the command and its dialog stand above that gate, so a
+ * refusal keeps its wording and the words typed.
  */
 export function ResolutionPanel({ jobId, card }: { jobId: string; card: SplitCard }) {
   const relevant = card.finality !== 'MENTOR_ONLY' && card.status !== 'AWAITING_DRAFT'
   const resolutions = useSplitResolutions(card.splitId, relevant, relevant && card.status !== 'FINAL')
+  const raise = useRaiseResolution(jobId, card.splitId)
+  const [raising, setRaising] = useState(false)
   const data = resolutions.data
-  if (!relevant || !data) {
+  if (!relevant) {
     return null
   }
+  const stale = raise.isError && isStale(raise.error)
   return (
-    <div className="flex flex-col gap-3">
-      {data.viewerMayRaise && <RaiseResolution jobId={jobId} card={card} />}
-      {data.resolutions.map((resolution, index) => (
-        <ResolutionCase key={resolution.id} jobId={jobId} card={card} resolution={resolution} latest={index === 0} />
-      ))}
-    </div>
+    <RegionState
+      query={{ ...resolutions, isError: resolutions.isLoadingError }}
+      skeleton={<Skeleton className="h-16 w-full" />}
+    >
+      {data && (
+        <div className="flex flex-col gap-3">
+          {(data.viewerMayRaise || raising || stale) && (
+            <RaiseResolution card={card} raise={raise} open={raising} onOpenChange={setRaising} />
+          )}
+          {raise.isError && !stale && !raising && (
+            <p role="alert" className="text-body-sm text-destructive">
+              {refusal(raise.error)}
+            </p>
+          )}
+          {data.resolutions.map((resolution, index) => (
+            <ResolutionCase
+              key={resolution.id}
+              jobId={jobId}
+              card={card}
+              resolution={resolution}
+              latest={index === 0}
+            />
+          ))}
+        </div>
+      )}
+    </RegionState>
   )
 }
 
 /** "Nhờ quản trị viên xem xét" with the Resolution request dialog: N-31 and a required reason. */
-function RaiseResolution({ jobId, card }: { jobId: string; card: SplitCard }) {
+function RaiseResolution({
+  card,
+  raise,
+  open,
+  onOpenChange,
+}: {
+  card: SplitCard
+  raise: ReturnType<typeof useRaiseResolution>
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
   const ids = useId()
-  const raise = useRaiseResolution(jobId, card.splitId)
-  const [open, setOpen] = useState(false)
   const [reason, setReason] = useState('')
   const [stale, setStale] = useState(false)
   const version = card.latest
@@ -75,14 +110,14 @@ function RaiseResolution({ jobId, card }: { jobId: string; card: SplitCard }) {
       : t('screen.split.resolution.n31', { cap: version.capPercent })
   return (
     <div className="flex flex-col gap-2">
-      <Button type="button" variant="secondary" className="w-fit" onClick={() => setOpen(true)}>
+      <Button type="button" variant="secondary" className="w-fit" onClick={() => onOpenChange(true)}>
         {t('screen.split.resolution.ask')}
       </Button>
       <Dialog.Root
         open={open}
         onOpenChange={(next) => {
           if (!next) {
-            setOpen(false)
+            onOpenChange(false)
           }
         }}
       >
@@ -125,10 +160,10 @@ function RaiseResolution({ jobId, card }: { jobId: string; card: SplitCard }) {
                   raise.mutate(
                     { splitVersionNo: version.versionNo, reason: reason.trim() },
                     {
-                      onSuccess: () => setOpen(false),
+                      onSuccess: () => onOpenChange(false),
                       onError: (error) => {
                         if (isStale(error)) {
-                          setOpen(false)
+                          onOpenChange(false)
                           setStale(true)
                         }
                       },
@@ -173,6 +208,7 @@ function ResolutionCase({
   resolution: SplitResolution
   latest: boolean
 }) {
+  const send = useResolutionStatement(jobId, card.splitId, resolution.id)
   const heading = resolution.viewerIsRaiser
     ? t('screen.split.resolution.mine')
     : t('screen.split.resolution.case', { name: resolution.raiserName ?? t('screen.split.resolution.unnamed') })
@@ -205,7 +241,9 @@ function ResolutionCase({
         </div>
       )}
       <Ending card={card} resolution={resolution} latest={latest} />
-      {resolution.viewerMayState && <StatementForm jobId={jobId} card={card} resolution={resolution} />}
+      {(resolution.viewerMayState || send.isError) && (
+        <StatementForm send={send} mayState={resolution.viewerMayState} />
+      )}
       {resolution.viewerIsRaiser && resolution.status === 'OPEN' && (
         <WithdrawButton jobId={jobId} card={card} resolution={resolution} />
       )}
@@ -246,10 +284,12 @@ function Ending({ card, resolution, latest }: { card: SplitCard; resolution: Spl
   )
 }
 
-/** One statement of a party other than the raiser, which cannot be changed, so it asks first. */
-function StatementForm({ jobId, card, resolution }: { jobId: string; card: SplitCard; resolution: SplitResolution }) {
+/**
+ * One statement of a party other than the raiser, which cannot be changed, so it asks first. A refusal may leave the
+ * reader unable to send one: the form stays with its message and the words typed, and sends nothing more.
+ */
+function StatementForm({ send, mayState }: { send: ReturnType<typeof useResolutionStatement>; mayState: boolean }) {
   const ids = useId()
-  const send = useResolutionStatement(jobId, card.splitId, resolution.id)
   const [text, setText] = useState('')
   const [asking, setAsking] = useState(false)
   return (
@@ -257,7 +297,7 @@ function StatementForm({ jobId, card, resolution }: { jobId: string; card: Split
       className="flex flex-col gap-1"
       onSubmit={(event) => {
         event.preventDefault()
-        if (text.trim() !== '') {
+        if (text.trim() !== '' && mayState) {
           setAsking(true)
         }
       }}
@@ -281,7 +321,12 @@ function StatementForm({ jobId, card, resolution }: { jobId: string; card: Split
           {refusal(send.error)}
         </p>
       )}
-      <Button type="submit" size="compact" className="w-fit" disabled={text.trim() === '' || send.isPending}>
+      <Button
+        type="submit"
+        size="compact"
+        className="w-fit"
+        disabled={text.trim() === '' || send.isPending || !mayState}
+      >
         {t('screen.split.resolution.statementSend')}
       </Button>
       <ConfirmDialog

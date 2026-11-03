@@ -9,6 +9,9 @@ export type AdminSplitParty = components['schemas']['AdminSplitPartyView']
 
 const QUERY_KEY = ['admin', 'split-resolutions'] as const
 
+/** How often an open case reads again: no notice reports a statement, so the assignee learns of one here. */
+const CASE_POLL_MS = 30_000
+
 /** One party's whole percentage, as the Administrator typed it. */
 export interface AdminSplitShare {
   partyId: string
@@ -24,13 +27,14 @@ export function useAdminSplitResolutions(undecided: boolean) {
   })
 }
 
-/** One case: its words and its decision form are for its assignee only (A-18). */
+/** One case: its words and its decision form are for its assignee only (A-18). It reads again while it is open. */
 export function useAdminSplitResolution(resolutionId: string) {
   return useQuery({
     queryKey: [...QUERY_KEY, resolutionId],
     queryFn: () =>
       unwrap(apiClient.GET('/api/v1/admin/split-resolutions/{resolutionId}', { params: { path: { resolutionId } } })),
     retry: false,
+    refetchInterval: (query) => (query.state.data?.status === 'OPEN' ? CASE_POLL_MS : false),
   })
 }
 

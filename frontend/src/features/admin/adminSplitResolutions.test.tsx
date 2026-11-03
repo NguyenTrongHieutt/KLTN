@@ -33,6 +33,7 @@ const administrator: Session = {
 }
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.unstubAllGlobals()
 })
 
@@ -121,6 +122,42 @@ const emptyEvidence = {
     }),
 }
 
+const record = {
+  reasoning: 'Vy làm phần lớn việc',
+  decidedAt: '2026-10-25T03:00:00Z',
+  versionNo: 2,
+  pooledVnd: 2_000_000,
+  lines: [{ partyId: 'p1', name: 'Trần Thảo Vy', percent: 50, amountVnd: 1_000_000 }],
+  evidenceSnapshot: {
+    takenAt: '2026-10-25T03:00:00Z',
+    versions: [],
+    workItems: [],
+    commits: [],
+    crewChat: { messageCount: 0 },
+    personLinks: 0,
+  },
+}
+
+const previewOf = () =>
+  json({
+    pooledVnd: 2_000_000,
+    lines: [
+      { partyId: 'p0', amountVnd: 500_000 },
+      { partyId: 'p1', amountVnd: 1_000_000 },
+      { partyId: 'p2', amountVnd: 500_000 },
+    ],
+  })
+
+/** Whole percentages summing to 100, and the reasoning. */
+function typeDecision() {
+  fireEvent.change(screen.getByRole('textbox', { name: /Đỗ Mạnh Hùng/ }), { target: { value: '25' } })
+  fireEvent.change(screen.getByRole('textbox', { name: /Trần Thảo Vy/ }), { target: { value: '50' } })
+  fireEvent.change(screen.getByRole('textbox', { name: /Nguyễn Văn Minh/ }), { target: { value: '25' } })
+  fireEvent.change(screen.getByRole('textbox', { name: 'Lý do quyết định' }), {
+    target: { value: 'Vy làm phần lớn việc' },
+  })
+}
+
 describe('ADM-4 "Phân chia tiền" (FR-84, AD-40, UX-DR107)', () => {
   it(
     'shows an Administrator that a case exists and none of its words until they take it',
@@ -179,11 +216,11 @@ describe('ADM-4 "Phân chia tiền" (FR-84, AD-40, UX-DR107)', () => {
     renderAt('/quan-tri/tranh-chap/phan-chia')
 
     expect(await screen.findByText(/Đã rút/)).toBeInTheDocument()
-    expect(screen.queryByText('Chưa quyết định quá hạn')).not.toBeInTheDocument()
+    expect(screen.queryByText('Chưa quyết định quá hạn', { selector: 'span' })).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Chưa quyết định từ 7 ngày' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Chưa quyết định quá hạn' }))
 
-    expect(await screen.findByText('Chưa quyết định quá hạn')).toBeInTheDocument()
+    expect(await screen.findByText('Chưa quyết định quá hạn', { selector: 'span' })).toBeInTheDocument()
     expect(screen.queryByText(/Đã rút/)).not.toBeInTheDocument()
     expect(seen.some((request) => request.url.includes('undecided=true'))).toBe(true)
   })
@@ -240,6 +277,7 @@ describe('ADM-4 "Phân chia tiền" (FR-84, AD-40, UX-DR107)', () => {
         json({
           from: '2026-10-01T03:00:00Z',
           to: '2026-10-20T03:00:00Z',
+          total: 1,
           messages: [
             { messageId: 'm1', author: 'Trần Thảo Vy', body: 'Tin trong giai đoạn', sentAt: '2026-10-10T03:00:00Z' },
           ],
@@ -276,6 +314,7 @@ describe('ADM-4 "Phân chia tiền" (FR-84, AD-40, UX-DR107)', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: 'Trao đổi nhóm' }))
     expect(await screen.findByText('Tin trong giai đoạn')).toBeInTheDocument()
+    expect(screen.queryByText(/tin mới nhất/)).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('tab', { name: 'Tài khoản có thể cùng một người' }))
     expect(await screen.findByText('Trần Thảo Vy và Nguyễn Lan (khách hàng)')).toBeInTheDocument()
@@ -404,6 +443,289 @@ describe('ADM-4 "Phân chia tiền" (FR-84, AD-40, UX-DR107)', () => {
     expect(screen.queryByRole('button', { name: 'Nhận xử lý' })).not.toBeInTheDocument()
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
   })
+
+  it('says how many of the interval the Crew Chat shows', { timeout: 20_000 }, async () => {
+    fakeBackend(administrator, {
+      'GET /api/v1/admin/split-resolutions': () => json([row({ assigned: true, assignedToMe: true })]),
+      'GET /api/v1/admin/split-resolutions/r1': () => json(mine()),
+      ...emptyEvidence,
+      'GET /api/v1/admin/split-resolutions/r1/evidence/crew-chat': () =>
+        json({
+          from: '2026-10-01T03:00:00Z',
+          to: '2026-10-20T03:00:00Z',
+          total: 1204,
+          messages: [{ messageId: 'm1', author: 'Trần Thảo Vy', body: 'Tin mới', sentAt: '2026-10-10T03:00:00Z' }],
+        }),
+    })
+    renderAt('/quan-tri/tranh-chap/phan-chia/r1')
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Trao đổi nhóm' }))
+
+    expect(await screen.findByText('Hiện 1 tin mới nhất trong 1204 tin của giai đoạn.')).toBeInTheDocument()
+  })
+
+  it(
+    'reads an open case again every 30 s, keeping what is typed through it and through a failed read',
+    { timeout: 20_000 },
+    async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      let answer = () => json(mine())
+      fakeBackend(administrator, {
+        'GET /api/v1/admin/split-resolutions': () => json([row({ assigned: true, assignedToMe: true })]),
+        'GET /api/v1/admin/split-resolutions/r1': () => answer(),
+        ...emptyEvidence,
+        'POST /api/v1/admin/split-resolutions/r1/preview': previewOf,
+      })
+      renderAt('/quan-tri/tranh-chap/phan-chia/r1')
+      await screen.findByRole('button', { name: 'Ghi quyết định' })
+      typeDecision()
+      const typed = () => {
+        expect(screen.getByRole('textbox', { name: /Trần Thảo Vy/ })).toHaveValue('50')
+        expect(screen.getByRole('textbox', { name: 'Lý do quyết định' })).toHaveValue('Vy làm phần lớn việc')
+      }
+
+      answer = () =>
+        json(
+          mine({
+            statements: [
+              {
+                partyId: 'p2',
+                name: 'Nguyễn Văn Minh',
+                text: 'Tôi cũng có ý kiến',
+                submittedAt: '2026-10-24T04:00:00Z',
+              },
+            ],
+          }),
+        )
+      await vi.advanceTimersByTimeAsync(30_000)
+
+      expect(await screen.findByText('Tôi cũng có ý kiến')).toBeInTheDocument()
+      typed()
+
+      answer = () => json({ status: 500 }, 500)
+      await vi.advanceTimersByTimeAsync(30_000)
+      await vi.advanceTimersByTimeAsync(10)
+
+      typed()
+      expect(screen.getByText('Tôi cũng có ý kiến')).toBeInTheDocument()
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    },
+  )
+
+  it('stops reading a case again once it has ended', { timeout: 20_000 }, async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const seen = fakeBackend(administrator, {
+      'GET /api/v1/admin/split-resolutions': () => json([row({ status: 'WITHDRAWN' })]),
+      'GET /api/v1/admin/split-resolutions/r1': () =>
+        json(mine({ status: 'WITHDRAWN', endedAt: '2026-10-24T03:00:00Z', evidenceReadable: false })),
+    })
+    const reads = () => seen.filter((request) => request.url.endsWith('/api/v1/admin/split-resolutions/r1')).length
+    renderAt('/quan-tri/tranh-chap/phan-chia/r1')
+    await screen.findByText(/Đã rút/, { selector: 'p' })
+    const before = reads()
+
+    await vi.advanceTimersByTimeAsync(30_000)
+    await vi.advanceTimersByTimeAsync(10)
+
+    expect(reads()).toBe(before)
+  })
+
+  it('keeps "Ghi quyết định" disabled while the preview loads', { timeout: 20_000 }, async () => {
+    const seen = fakeBackend(administrator, {
+      'GET /api/v1/admin/split-resolutions': () => json([row({ assigned: true, assignedToMe: true })]),
+      'GET /api/v1/admin/split-resolutions/r1': () => json(mine()),
+      ...emptyEvidence,
+      'POST /api/v1/admin/split-resolutions/r1/preview': () => new Promise<Response>(() => {}),
+    })
+    renderAt('/quan-tri/tranh-chap/phan-chia/r1')
+    const send = await screen.findByRole('button', { name: 'Ghi quyết định' })
+
+    typeDecision()
+
+    await waitFor(() => expect(seen.some((request) => request.url.endsWith('/preview'))).toBe(true))
+    expect(send).toBeDisabled()
+  })
+
+  it('keeps "Ghi quyết định" disabled when the preview failed, and says why', { timeout: 20_000 }, async () => {
+    fakeBackend(administrator, {
+      'GET /api/v1/admin/split-resolutions': () => json([row({ assigned: true, assignedToMe: true })]),
+      'GET /api/v1/admin/split-resolutions/r1': () => json(mine()),
+      ...emptyEvidence,
+      'POST /api/v1/admin/split-resolutions/r1/preview': () => json({ code: 'CONFLICT', reason: 'NOT_ASSIGNED' }, 409),
+    })
+    renderAt('/quan-tri/tranh-chap/phan-chia/r1')
+    const send = await screen.findByRole('button', { name: 'Ghi quyết định' })
+
+    typeDecision()
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Chỉ quản trị viên đã nhận xử lý mới ghi quyết định.')
+    expect(send).toBeDisabled()
+  })
+
+  it('shows each party, their percent and their VND in the step-up', { timeout: 20_000 }, async () => {
+    fakeBackend(administrator, {
+      'GET /api/v1/admin/split-resolutions': () => json([row({ assigned: true, assignedToMe: true })]),
+      'GET /api/v1/admin/split-resolutions/r1': () => json(mine()),
+      ...emptyEvidence,
+      'POST /api/v1/admin/split-resolutions/r1/preview': previewOf,
+    })
+    renderAt('/quan-tri/tranh-chap/phan-chia/r1')
+    const send = await screen.findByRole('button', { name: 'Ghi quyết định' })
+    typeDecision()
+    await waitFor(() => expect(send).toBeEnabled())
+
+    fireEvent.click(send)
+    const dialog = await screen.findByRole('dialog')
+
+    for (const line of [
+      /Đỗ Mạnh Hùng 25% · 500\.000 ₫/,
+      /Trần Thảo Vy 50% · 1\.000\.000 ₫/,
+      /Nguyễn Văn Minh 25% · 500\.000 ₫/,
+    ]) {
+      expect(within(dialog).getByText(line).closest('li')).toHaveTextContent('THỬ NGHIỆM')
+    }
+  })
+
+  it('keeps a wrong code in the step-up, with the attempts left', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    fakeBackend(administrator, {
+      'GET /api/v1/admin/split-resolutions': () => json([row({ assigned: true, assignedToMe: true })]),
+      'GET /api/v1/admin/split-resolutions/r1': () => json(mine()),
+      ...emptyEvidence,
+      'POST /api/v1/admin/split-resolutions/r1/preview': previewOf,
+      'POST /api/v1/admin/split-resolutions/r1/decision': () =>
+        json({ code: 'GUARD_FAILED', reason: 'STEP_UP_FAILED', attemptsLeft: 4 }, 422),
+    })
+    renderAt('/quan-tri/tranh-chap/phan-chia/r1')
+    const send = await screen.findByRole('button', { name: 'Ghi quyết định' })
+    typeDecision()
+    await waitFor(() => expect(send).toBeEnabled())
+    await user.click(send)
+    const dialog = await screen.findByRole('dialog')
+    await user.type(within(dialog).getByRole('textbox'), '123456')
+    await user.click(within(dialog).getByRole('button', { name: 'Ghi quyết định' }))
+
+    expect(await within(dialog).findByText('Mã chưa đúng. Bạn còn 4 lần thử.')).toBeInTheDocument()
+    expect(screen.getByRole('dialog')).toBe(dialog)
+  })
+
+  for (const [reason, status, code, wording, after] of [
+    [
+      'SPLIT_RESOLUTION_ENDED',
+      422,
+      'GUARD_FAILED',
+      'Yêu cầu xem xét này đã kết thúc.',
+      () => mine({ status: 'WITHDRAWN', endedAt: '2026-10-24T03:00:00Z', evidenceReadable: false }),
+    ],
+    [
+      'NOT_ASSIGNED',
+      409,
+      'CONFLICT',
+      'Chỉ quản trị viên đã nhận xử lý mới ghi quyết định.',
+      () => unassigned({ assigned: true }),
+    ],
+    [
+      'ALREADY_DECIDED',
+      409,
+      'CONFLICT',
+      'Yêu cầu này đã có quyết định.',
+      () => mine({ status: 'DECIDED', endedAt: '2026-10-25T03:00:00Z', decision: record }),
+    ],
+    [
+      'SPLIT_INVALID',
+      400,
+      'VALIDATION',
+      'Phần trăm phải là số nguyên, tổng đúng 100%; người hướng dẫn tối đa 30%; thành viên làm cả giai đoạn phải lớn hơn 0%.',
+      () => mine(),
+    ],
+    [
+      'CONFLICT_OF_INTEREST',
+      422,
+      'GUARD_FAILED',
+      'Bạn không thể nhận vụ này vì bạn có liên quan đến một tài khoản trong vụ.',
+      () => mine(),
+    ],
+  ] as const) {
+    it(`keeps ${reason}'s wording above the form, whatever the read after it did`, { timeout: 20_000 }, async () => {
+      const user = userEvent.setup()
+      let refused = false
+      fakeBackend(administrator, {
+        'GET /api/v1/admin/split-resolutions': () => json([row({ assigned: true, assignedToMe: true })]),
+        'GET /api/v1/admin/split-resolutions/r1': () => json(refused ? after() : mine()),
+        ...emptyEvidence,
+        'POST /api/v1/admin/split-resolutions/r1/preview': previewOf,
+        'POST /api/v1/admin/split-resolutions/r1/decision': () => {
+          refused = true
+          return json({ code, reason }, status)
+        },
+      })
+      renderAt('/quan-tri/tranh-chap/phan-chia/r1')
+      const send = await screen.findByRole('button', { name: 'Ghi quyết định' })
+      typeDecision()
+      await waitFor(() => expect(send).toBeEnabled())
+      await user.click(send)
+      const dialog = await screen.findByRole('dialog')
+      await user.type(within(dialog).getByRole('textbox'), '123456')
+      await user.click(within(dialog).getByRole('button', { name: 'Ghi quyết định' }))
+
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+      expect(await screen.findByRole('alert')).toHaveTextContent(wording)
+      if (reason === 'SPLIT_INVALID') {
+        expect(screen.getByRole('textbox', { name: 'Lý do quyết định' })).toHaveValue('Vy làm phần lớn việc')
+        expect(screen.getByRole('textbox', { name: /Trần Thảo Vy/ })).toHaveValue('50')
+      }
+    })
+  }
+
+  it(
+    'shows any Administrator a decided case’s record with its version, and none of its words',
+    { timeout: 20_000 },
+    async () => {
+      fakeBackend(administrator, {
+        'GET /api/v1/admin/split-resolutions': () => json([row({ status: 'DECIDED', assigned: true })]),
+        'GET /api/v1/admin/split-resolutions/r1': () =>
+          json(unassigned({ status: 'DECIDED', endedAt: '2026-10-25T03:00:00Z', assigned: true, decision: record })),
+      })
+      renderAt('/quan-tri/tranh-chap/phan-chia/r1')
+
+      expect(await screen.findByText('Vy làm phần lớn việc')).toBeInTheDocument()
+      expect(screen.getByText(/Bản 2 · quyết định lúc/)).toBeInTheDocument()
+      expect(screen.getByText(/Trần Thảo Vy 50% · 1\.000\.000 ₫/)).toBeInTheDocument()
+      expect(screen.queryByText('Lý do')).not.toBeInTheDocument()
+      expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Nhận xử lý' })).not.toBeInTheDocument()
+      expect(screen.queryByText(/theo thời hạn lưu/)).not.toBeInTheDocument()
+    },
+  )
+
+  it(
+    'hides the evidence once the Job’s content has gone, and says so beside the record',
+    { timeout: 20_000 },
+    async () => {
+      const seen = fakeBackend(administrator, {
+        'GET /api/v1/admin/split-resolutions': () =>
+          json([row({ status: 'DECIDED', assigned: true, assignedToMe: true })]),
+        'GET /api/v1/admin/split-resolutions/r1': () =>
+          json(
+            mine({
+              status: 'DECIDED',
+              endedAt: '2026-10-25T03:00:00Z',
+              decision: record,
+              evidenceReadable: false,
+              jobContentGone: true,
+            }),
+          ),
+      })
+      renderAt('/quan-tri/tranh-chap/phan-chia/r1')
+
+      expect(
+        await screen.findByText('Nội dung của công việc đã xóa theo thời hạn lưu; bản ghi quyết định vẫn còn.'),
+      ).toBeInTheDocument()
+      expect(screen.getByText('Vy làm phần lớn việc')).toBeInTheDocument()
+      expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
+      expect(seen.some((request) => request.url.includes('/evidence/'))).toBe(false)
+    },
+  )
 
   it('counts the open cases on ADM-1 and leads to the tab', { timeout: 20_000 }, async () => {
     fakeBackend(administrator, {

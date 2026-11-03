@@ -1155,7 +1155,7 @@
         "emptyFiltered": "Không có yêu cầu nào chưa được quyết định quá hạn.",
         "pick": "Chọn một yêu cầu để xem.",
         "filterAll": "Tất cả",
-        "filterLong": "Chưa quyết định từ 7 ngày",
+        "filterLong": "Chưa quyết định quá hạn",
         "milestone": "Giai đoạn {n}",
         "noTitle": "Công việc đã xóa",
         "status": {
@@ -1178,6 +1178,7 @@
         "takeNote": "Khi nhận xử lý, bạn được xem các bản phân chia, hạng mục của từng người trong phân chia và trao đổi nhóm, đến 30 ngày sau quyết định. Mỗi lần xem đều được ghi lại.",
         "alreadyDecided": "Yêu cầu này đã có quyết định.",
         "takenByOther": "Một quản trị viên khác đang xử lý. Bạn có thể nhận lại nếu cần.",
+        "contentGone": "Nội dung của công việc đã xóa theo thời hạn lưu; bản ghi quyết định vẫn còn.",
         "evidence": {
           "title": "Hồ sơ phân chia",
           "versions": "Các bản phân chia",
@@ -1228,6 +1229,7 @@
           "chatInterval": "Từ {from} đến {to}",
           "chatToOnly": "Đến {to}",
           "noMessages": "Không có tin nhắn nào trong thời gian này.",
+          "chatShown": "Hiện {shown} tin mới nhất trong {total} tin của giai đoạn.",
           "noPairs": "Không có dấu hiệu nào giữa các bên và khách hàng.",
           "pair": "{first} và {second}",
           "customer": "khách hàng",
@@ -1250,7 +1252,7 @@
           "final": "Quyết định là cuối cùng: phân chia chốt ngay, tiền chuyển vào số dư, và các bên được báo. Khách hàng không thấy gì.",
           "confirm": "Ghi quyết định",
           "decided": "Đã ghi quyết định.",
-          "at": "Quyết định lúc {time}",
+          "at": "Bản {n} · quyết định lúc {time}",
           "invalid": "Phần trăm phải là số nguyên, tổng đúng 100%; người hướng dẫn tối đa {cap}%; thành viên làm cả giai đoạn phải lớn hơn 0%.",
           "invalidNoCap": "Phần trăm phải là số nguyên, tổng đúng 100%; thành viên làm cả giai đoạn phải lớn hơn 0%."
         }

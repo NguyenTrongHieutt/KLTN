@@ -91,6 +91,7 @@ const member = { viewerIsMentor: false }
 function backend(cards: SplitCard[], handlers: Parameters<typeof fakeBackend>[1] = {}) {
   return fakeBackend(signedInUser, {
     'GET /api/v1/jobs/j1/splits': () => json(cards),
+    'GET /api/v1/splits/s1/resolutions': () => json({ viewerMayRaise: false, resolutions: [] }),
     ...handlers,
   })
 }
@@ -1131,6 +1132,122 @@ describe('JOB-10, a Split Resolution (FR-84, UX-DR106)', () => {
       unmount()
     }
   })
+
+  it('says so with Retry when the read fails, and shows the button after it', { timeout: 20_000 }, async () => {
+    let down = true
+    backend([proposed(member)], {
+      'GET /api/v1/splits/s1/resolutions': () =>
+        down ? json({ status: 500 }, 500) : json({ viewerMayRaise: true, resolutions: [] }),
+    })
+    renderAt('/cong-viec/j1/phan-chia')
+
+    const alert = await screen.findByRole('alert')
+    expect(screen.queryByRole('button', { name: 'Nhờ quản trị viên xem xét' })).toBeNull()
+
+    down = false
+    fireEvent.click(within(alert).getByRole('button', { name: 'Thử lại' }))
+
+    expect(await screen.findByRole('button', { name: 'Nhờ quản trị viên xem xét' })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('shows a skeleton while the first read loads', { timeout: 20_000 }, async () => {
+    backend([proposed(member)], { 'GET /api/v1/splits/s1/resolutions': () => new Promise<Response>(() => {}) })
+    renderAt('/cong-viec/j1/phan-chia')
+
+    expect(await screen.findByText('Chờ bạn xác nhận trước 06/11')).toBeInTheDocument()
+    expect(document.querySelector('[aria-busy="true"]')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('keeps showing the cases through a failed poll', { timeout: 20_000 }, async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    let down = false
+    backend([proposed({ ...member, status: 'IN_RESOLUTION' })], {
+      'GET /api/v1/splits/s1/resolutions': () =>
+        down
+          ? json({ status: 500 }, 500)
+          : json({ viewerMayRaise: false, resolutions: [open({ viewerMayState: true })] }),
+    })
+    renderAt('/cong-viec/j1/phan-chia')
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Ý kiến của bạn' }), {
+      target: { value: 'Tôi cũng thấy ít' },
+    })
+
+    down = true
+    await vi.advanceTimersByTimeAsync(30_000)
+    await vi.advanceTimersByTimeAsync(10)
+
+    expect(screen.getByRole('textbox', { name: 'Ý kiến của bạn' })).toHaveValue('Tôi cũng thấy ít')
+  })
+
+  it(
+    'keeps the refusal and the reason typed when the read after it takes the button away',
+    { timeout: 20_000 },
+    async () => {
+      let refused = false
+      const text = 'Phân chia của giai đoạn này đang chờ quản trị viên xem xét.'
+      backend([proposed(member)], {
+        'GET /api/v1/splits/s1/resolutions': () =>
+          json(refused ? { viewerMayRaise: false, resolutions: [open()] } : { viewerMayRaise: true, resolutions: [] }),
+        'POST /api/v1/splits/s1/resolutions': () => {
+          refused = true
+          return json({ code: 'GUARD_FAILED', reason: 'SPLIT_IN_RESOLUTION' }, 422)
+        },
+      })
+      renderAt('/cong-viec/j1/phan-chia')
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Nhờ quản trị viên xem xét' }))
+      const dialog = await screen.findByRole('dialog')
+      fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'Lý do của tôi' } })
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Gửi yêu cầu' }))
+
+      expect(await within(dialog).findByRole('alert')).toHaveTextContent(text)
+      expect(await screen.findByText('Phần của tôi quá ít')).toBeInTheDocument()
+      expect(screen.getByRole('dialog')).toBe(dialog)
+      expect(within(dialog).getByRole('textbox')).toHaveValue('Lý do của tôi')
+      expect(within(dialog).getByRole('alert')).toHaveTextContent(text)
+
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Quay lại' }))
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(text)
+      expect(screen.queryByRole('button', { name: 'Nhờ quản trị viên xem xét' })).toBeNull()
+    },
+  )
+
+  it(
+    'keeps the refusal and the words typed when the read after it ends the statement form',
+    { timeout: 20_000 },
+    async () => {
+      let refused = false
+      backend([proposed({ ...member, status: 'IN_RESOLUTION' })], {
+        'GET /api/v1/splits/s1/resolutions': () =>
+          json({
+            viewerMayRaise: false,
+            resolutions: [
+              refused ? open({ status: 'WITHDRAWN', endedAt: '2026-11-05T03:00:00Z' }) : open({ viewerMayState: true }),
+            ],
+          }),
+        'POST /api/v1/split-resolutions/r1/statements': () => {
+          refused = true
+          return json({ code: 'GUARD_FAILED', reason: 'SPLIT_RESOLUTION_ENDED' }, 422)
+        },
+      })
+      renderAt('/cong-viec/j1/phan-chia')
+
+      fireEvent.change(await screen.findByRole('textbox', { name: 'Ý kiến của bạn' }), {
+        target: { value: 'Tôi cũng thấy ít' },
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Gửi ý kiến' }))
+      const dialog = await screen.findByRole('dialog')
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Gửi ý kiến' }))
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('Yêu cầu xem xét này đã kết thúc.')
+      expect(screen.getByRole('textbox', { name: 'Ý kiến của bạn' })).toHaveValue('Tôi cũng thấy ít')
+      expect(screen.getByRole('button', { name: 'Gửi ý kiến' })).toBeDisabled()
+    },
+  )
 
   it('closes on an old version and offers the newer one', { timeout: 20_000 }, async () => {
     backend([proposed(member)], {

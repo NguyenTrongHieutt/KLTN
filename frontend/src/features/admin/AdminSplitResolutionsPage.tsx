@@ -32,11 +32,11 @@ import { CaseTabs } from './CaseTabs'
 import { StepUpDialog } from './StepUpDialog'
 
 /**
- * ADM-4's "Phân chia tiền" (FR-84, AD-20, AD-40, UX-DR107): the Split Resolutions with the "undecided 7+ days" filter;
- * one with "Nhận xử lý", refused with `CONFLICT_OF_INTEREST` when the Administrator is linked to an account in the
- * case; the Split Evidence Package, each view audited by the server; and the decision: whole percentages with a live
- * sum, the server's VND preview, written reasoning, and the step-up. A decision is final and the Customer never takes
- * part in it.
+ * ADM-4's "Phân chia tiền" (FR-84, AD-20, AD-40, UX-DR107): the Split Resolutions with the "undecided past its due
+ * time" filter; one with "Nhận xử lý", refused with `CONFLICT_OF_INTEREST` when the Administrator is linked to an
+ * account in the case; the Split Evidence Package, each view audited by the server; and the decision: whole percentages
+ * with a live sum, the server's VND preview, written reasoning, and the step-up. A decision is final and the Customer
+ * never takes part in it. Once decided, every Administrator reads the record.
  */
 export function AdminSplitResolutionsPage() {
   const { resolutionId } = useParams()
@@ -133,7 +133,10 @@ function ResolutionList({ current }: { current?: string }) {
 function ResolutionDetail({ resolutionId }: { resolutionId: string }) {
   const resolution = useAdminSplitResolution(resolutionId)
   return (
-    <RegionState query={resolution} skeleton={<Skeleton className="h-96 w-full" />}>
+    <RegionState
+      query={{ ...resolution, isError: resolution.isLoadingError }}
+      skeleton={<Skeleton className="h-96 w-full" />}
+    >
       {resolution.data && <Detail data={resolution.data} />}
     </RegionState>
   )
@@ -144,6 +147,19 @@ function refusal(error: unknown): string {
     return t('screen.admin.splitResolutions.alreadyDecided')
   }
   return problemMessage(error, { module: 'dispute' }).text
+}
+
+/** A decision refused for the case itself, not the code: the case's words say why, and may end the form with them. */
+const CASE_REFUSALS = [
+  'SPLIT_RESOLUTION_ENDED',
+  'NOT_ASSIGNED',
+  'ALREADY_DECIDED',
+  'SPLIT_INVALID',
+  'CONFLICT_OF_INTEREST',
+]
+
+function isCaseRefusal(error: unknown): boolean {
+  return error instanceof ApiError && CASE_REFUSALS.includes(error.problem.reason ?? '')
 }
 
 function Detail({ data }: { data: AdminSplitResolution }) {
@@ -231,15 +247,22 @@ function Detail({ data }: { data: AdminSplitResolution }) {
         <DecisionForm
           data={data}
           pending={command.isPending}
-          onDecide={(body, refused) =>
+          onDecide={(body, refused) => {
+            setError(undefined)
             command.mutate(
               { action: 'decide', body },
               {
                 onSuccess: () => toasts.success(t('screen.admin.splitResolutions.decision.decided')),
-                onError: refused,
+                onError: (failure) => {
+                  // The case read again before this runs, and may have ended the form: its wording stays up here.
+                  if (isCaseRefusal(failure)) {
+                    setError(decisionRefusal(failure, data))
+                  }
+                  refused(failure)
+                },
               },
             )
-          }
+          }}
         />
       )}
       {data.evidenceReadable && <Evidence resolutionId={data.id} />}
@@ -268,8 +291,14 @@ function Outcome({ data }: { data: AdminSplitResolution }) {
       </ul>
       <p className="break-words whitespace-pre-line">{decision.reasoning}</p>
       <p className="text-caption text-muted-foreground">
-        {t('screen.admin.splitResolutions.decision.at', { time: formatDayMonthTime(decision.decidedAt) })}
+        {t('screen.admin.splitResolutions.decision.at', {
+          n: decision.versionNo,
+          time: formatDayMonthTime(decision.decidedAt),
+        })}
       </p>
+      {data.jobContentGone && (
+        <p className="text-caption text-muted-foreground">{t('screen.admin.splitResolutions.contentGone')}</p>
+      )}
     </div>
   )
 }
@@ -318,21 +347,18 @@ function DecisionForm({
     ? parties.map((party) => ({ partyId: party.partyId, percent: Number(typed[party.partyId]) }))
     : undefined
   const preview = useAdminSplitPreview(data.id, shares)
-  const previewText =
-    valid && preview.data
-      ? t('screen.admin.splitResolutions.decision.preview', {
-          lines: parties
-            .map((party) =>
-              t('screen.admin.splitResolutions.decision.previewLine', {
-                name: party.name ?? t('screen.admin.splitResolutions.unnamed'),
-                pct: Number(typed[party.partyId]),
-                vnd: formatVnd(preview.data.lines.find((line) => line.partyId === party.partyId)?.amountVnd ?? 0),
-              }),
-            )
-            .join(', '),
-          pooled: formatVnd(preview.data.pooledVnd),
-        })
-      : undefined
+  // The server's figures for these very percentages: nothing is decided without them.
+  const previewed = valid ? preview.data : undefined
+  const lines = previewed
+    ? parties.map((party) => ({
+        partyId: party.partyId,
+        text: t('screen.admin.splitResolutions.decision.previewLine', {
+          name: party.name ?? t('screen.admin.splitResolutions.unnamed'),
+          pct: Number(typed[party.partyId]),
+          vnd: formatVnd(previewed.lines.find((line) => line.partyId === party.partyId)?.amountVnd ?? 0),
+        }),
+      }))
+    : undefined
   return (
     <fieldset className="flex flex-col gap-3 rounded-md border border-border bg-background p-3">
       <legend className="px-1 text-label">{t('screen.admin.splitResolutions.decision.title')}</legend>
@@ -378,9 +404,13 @@ function DecisionForm({
       >
         {t('screen.admin.splitResolutions.decision.sum', { sum })}
       </p>
-      {previewText && (
+      {previewed && lines && (
         <p className="text-caption">
-          {previewText} <TestTag />
+          {t('screen.admin.splitResolutions.decision.preview', {
+            lines: lines.map((line) => line.text).join(', '),
+            pooled: formatVnd(previewed.pooledVnd),
+          })}{' '}
+          <TestTag />
         </p>
       )}
       {preview.isError && (
@@ -407,23 +437,42 @@ function DecisionForm({
         <Button
           type="button"
           variant="destructive"
-          disabled={!valid || reasoning.trim() === '' || pending}
+          disabled={!lines || reasoning.trim() === '' || pending}
           onClick={() => setStepUp(true)}
         >
           {t('screen.admin.splitResolutions.decision.confirm')}
         </Button>
       </div>
-      <StepUpDialog
-        open={stepUp}
-        onOpenChange={setStepUp}
-        confirmLabel={t('screen.admin.splitResolutions.decision.confirm')}
-        pending={pending}
-        onConfirm={(code, refused) => {
-          if (shares) {
-            onDecide({ shares, reasoning: reasoning.trim(), stepUpCode: code }, refused)
+      {stepUp && (
+        <StepUpDialog
+          open
+          onOpenChange={setStepUp}
+          confirmLabel={t('screen.admin.splitResolutions.decision.confirm')}
+          pending={pending}
+          summary={
+            lines && (
+              <ul className="flex flex-col gap-0.5 text-body-sm">
+                {lines.map((line) => (
+                  <li key={line.partyId} className="font-semibold break-words">
+                    {line.text} <TestTag />
+                  </li>
+                ))}
+              </ul>
+            )
           }
-        }}
-      />
+          onConfirm={(code, refused) => {
+            if (shares) {
+              onDecide({ shares, reasoning: reasoning.trim(), stepUpCode: code }, (failure) => {
+                if (isCaseRefusal(failure)) {
+                  setStepUp(false)
+                } else {
+                  refused(failure)
+                }
+              })
+            }
+          }}
+        />
+      )}
     </fieldset>
   )
 }
@@ -661,6 +710,14 @@ function CrewChatTab({ resolutionId }: { resolutionId: string }) {
                 })
               : t('screen.admin.splitResolutions.evidence.chatToOnly', { to: formatDayMonth(chat.data.to) })}
           </p>
+          {chat.data.total > chat.data.messages.length && (
+            <p className="text-caption text-muted-foreground">
+              {t('screen.admin.splitResolutions.evidence.chatShown', {
+                shown: chat.data.messages.length,
+                total: chat.data.total,
+              })}
+            </p>
+          )}
           {chat.data.messages.length === 0 ? (
             <p className="text-muted-foreground">{t('screen.admin.splitResolutions.evidence.noMessages')}</p>
           ) : (
