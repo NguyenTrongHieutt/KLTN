@@ -4,16 +4,18 @@ import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { TestTag } from '@/components/TestTag'
 import { t } from '@/i18n/t'
-import { formatDayMonth } from '@/lib/dates'
 import { formatVnd } from '@/lib/money'
 import { useBalance, type Balance } from './paymentApi'
+import { PartLines } from './PartLines'
+import { hasMentorLine } from './partText'
 import { TestModeBanner } from './TestModeBanner'
 
 /**
- * MEN-7, which STU-7 merged into (`/so-du`, FR-44, FR-45, Story 20.6): the Balance, the sum of the account's
- * releases, and each release per Job. A Mentor also sees each Crew member's part, which the Balance tells by its
- * Mentor figures, never by the account; a Crew member sees only their own, even after leaving the Crew (AD-20). The
- * Balance cannot be withdrawn.
+ * MEN-7, which STU-7 merged into (`/so-du`, FR-44, FR-45, AD-15, Story 22.5): N-13's banner, the Balance, the sum of
+ * the account's own RELEASE entries, and one line per Job and Milestone with the role held there. A split the user is
+ * a party of and not yet paid out shows "Chờ phân chia" with its pooled amount, which counts in no Balance; a former
+ * member reads theirs too. Each line decides on its own whether it lists the Crew's parts: only where its split names
+ * the user its Mentor (AD-20). The Balance cannot be withdrawn.
  */
 export function BalancePage() {
   usePageTitle(t('screen.payment.balance.title'))
@@ -23,13 +25,14 @@ export function BalancePage() {
       <PageHeading>{t('screen.payment.balance.title')}</PageHeading>
       <TestModeBanner balance />
       <RegionState query={balance} skeleton={<Skeleton className="h-64 w-full" />}>
-        {balance.data && <Content balance={balance.data} mentor={balance.data.sentToCrewVnd != null} />}
+        {balance.data && <Content balance={balance.data} />}
       </RegionState>
     </div>
   )
 }
 
-function Content({ balance, mentor }: { balance: Balance; mentor: boolean }) {
+function Content({ balance }: { balance: Balance }) {
+  const mentor = hasMentorLine(balance.lines)
   return (
     <>
       <div className="grid gap-3 md:grid-cols-3">
@@ -40,7 +43,7 @@ function Content({ balance, mentor }: { balance: Balance; mentor: boolean }) {
           </p>
           <span className="text-caption text-muted-foreground">{t('screen.payment.balance.count', { n: balance.releases })}</span>
         </div>
-        {mentor && balance.sentToCrewVnd != null && (
+        {balance.sentToCrewVnd != null && (
           <div className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4">
             <span className="text-caption text-muted-foreground">{t('screen.payment.balance.sentToCrew')}</span>
             <p className="text-h3 tabular-nums">
@@ -48,7 +51,7 @@ function Content({ balance, mentor }: { balance: Balance; mentor: boolean }) {
             </p>
           </div>
         )}
-        {mentor && balance.heldVnd != null && (
+        {balance.heldVnd != null && (
           <div className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4">
             <span className="text-caption text-muted-foreground">{t('screen.payment.balance.held')}</span>
             <p className="text-h3 tabular-nums">
@@ -69,73 +72,7 @@ function Content({ balance, mentor }: { balance: Balance; mentor: boolean }) {
             {t('screen.payment.balance.empty')}
           </p>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-border bg-card">
-            <table className="w-full min-w-[640px] text-left text-body-sm">
-              <thead className="text-caption text-muted-foreground">
-                <tr className="border-b border-border">
-                  <th scope="col" className="px-4 py-2 font-semibold">
-                    {t('screen.payment.balance.job')}
-                  </th>
-                  <th scope="col" className="px-4 py-2 font-semibold">
-                    {t('screen.payment.balance.date')}
-                  </th>
-                  <th scope="col" className="px-4 py-2 font-semibold">
-                    {t('screen.payment.balance.milestone')}
-                  </th>
-                  <th scope="col" className="px-4 py-2 font-semibold">
-                    {t('screen.payment.balance.yourPart')}
-                  </th>
-                  {mentor && (
-                    <th scope="col" className="px-4 py-2 font-semibold">
-                      {t('screen.payment.balance.crew')}
-                    </th>
-                  )}
-                  <th scope="col" className="px-4 py-2 font-semibold">
-                    {t('screen.payment.balance.terms')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {balance.lines.map((line, index) => (
-                  <tr key={`${line.jobId}-${line.number}-${index}`} className="border-b border-border align-top last:border-b-0">
-                    <td className="px-4 py-2.5">
-                      <p className="font-semibold break-words">{line.jobTitle || t('screen.payment.balance.deletedJob')}</p>
-                      <p className="text-caption text-muted-foreground">
-                        {line.milestoneTitle
-                          ? t('screen.payment.balance.milestoneLine', { n: line.number, title: line.milestoneTitle })
-                          : t('screen.payment.balance.milestoneNumber', { n: line.number })}
-                      </p>
-                    </td>
-                    <td className="px-4 py-2.5">{formatDayMonth(line.releasedAt)}</td>
-                    <td className="px-4 py-2.5 tabular-nums">
-                      {formatVnd(line.baseAmountVnd)} <TestTag />
-                    </td>
-                    <td className="px-4 py-2.5 tabular-nums">
-                      {formatVnd(line.yourPartVnd)} <TestTag />
-                      {line.yourPercent != null && (
-                        <p className="text-caption text-muted-foreground">{t('screen.payment.balance.percent', { n: line.yourPercent })}</p>
-                      )}
-                    </td>
-                    {mentor && (
-                      <td className="px-4 py-2.5">
-                        {line.crew.map((part) => (
-                          <p key={`${part.name}-${part.amountVnd}`} className="tabular-nums">
-                            {part.name} {formatVnd(part.amountVnd)} <TestTag />
-                            {part.percent != null && (
-                              <span className="text-caption text-muted-foreground"> · {t('screen.payment.balance.percent', { n: part.percent })}</span>
-                            )}
-                          </p>
-                        ))}
-                      </td>
-                    )}
-                    <td className="px-4 py-2.5">
-                      {line.splitVersionNo != null && t('screen.payment.balance.version', { n: line.splitVersionNo })}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <PartLines lines={balance.lines} crew />
         )}
         {mentor && <p className="text-caption text-muted-foreground">{t('screen.payment.balance.customerNote')}</p>}
       </section>

@@ -2549,9 +2549,12 @@
       "released": "Đã chuyển",
       "history": {
         "title": "Lịch sử thanh toán",
-        "lead": "Mọi khoản thanh toán và hoàn tiền, theo từng công việc.",
+        "lead": "Mọi khoản bạn thanh toán và được hoàn với vai trò khách hàng, và mọi phần bạn nhận với vai trò người hướng dẫn hoặc thành viên nhóm, theo từng công việc.",
+        "customerTitle": "Bạn thanh toán với vai trò khách hàng",
+        "partsTitle": "Phần của bạn",
+        "partsLead": "Phần bạn nhận ở mỗi giai đoạn, với vai trò bạn giữ trong công việc đó.",
         "held": "vibefix đang giữ",
-        "released": "Đã chuyển cho người hướng dẫn và nhóm",
+        "released": "Đã chuyển cho người hướng dẫn và nhóm thực hiện",
         "refunded": "Đã hoàn lại",
         "empty": "Bạn chưa có khoản thanh toán nào.",
         "time": "Thời gian",
@@ -2576,13 +2579,15 @@
         "releasesTitle": "Các lần chuyển tiền",
         "mentorLead": "Mỗi lần khách hàng nghiệm thu một giai đoạn, số tiền được giữ chờ phân chia và chuyển theo phân chia đã chốt của giai đoạn đó. Phần lẻ dưới 1 đồng thuộc về người hướng dẫn.",
         "studentLead": "Mỗi lần khách hàng nghiệm thu một giai đoạn, số tiền được giữ chờ phân chia; phần của bạn về số dư khi phân chia đã chốt.",
-        "empty": "Chưa có lần chuyển tiền nào. Tiền được chuyển khi khách hàng nghiệm thu một giai đoạn.",
+        "empty": "Chưa có lần chuyển tiền nào. Tiền được chuyển khi phân chia của giai đoạn đã chốt.",
         "job": "Công việc · giai đoạn",
         "date": "Ngày",
         "milestone": "Giai đoạn",
         "yourPart": "Phần của bạn",
         "crew": "Nhóm thực hiện",
-        "terms": "Điều khoản",
+        "terms": "Phiên bản phân chia",
+        "pending": "Chờ phân chia",
+        "openSplit": "Xem phân chia",
         "milestoneLine": "Giai đoạn {n} · {title}",
         "milestoneNumber": "Giai đoạn {n}",
         "deletedJob": "Công việc đã xóa",
@@ -2599,6 +2604,10 @@
         },
         "releaseLine": "{name} · {amount}",
         "ordersTitle": "Lệnh thanh toán của khách hàng"
+      },
+      "crew": {
+        "lead": "Phần của bạn ở mỗi giai đoạn bạn tham gia trong công việc này. Khách hàng không thấy phần của từng người.",
+        "empty": "Bạn chưa có phần nào trong công việc này. Phần của bạn hiện ở đây khi một giai đoạn bạn tham gia được nghiệm thu."
       },
       "refundAtEnd": "Sẽ hoàn {amount} THỬ NGHIỆM khi giai đoạn kết thúc",
       "noSignedCrew": "Công việc bắt đầu khi người hướng dẫn có ít nhất một thành viên nhóm đã ký."

@@ -1,11 +1,13 @@
 import { Link, Navigate, useParams } from 'react-router'
+import { PageHeading } from '@/app/PageHeading'
 import { usePageTitle } from '@/app/usePageTitle'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
 import { hasChat, useJobChat } from '@/features/chat/chatApi'
-import { ByJobRole } from '@/features/job/ByJobRole'
+import { useCrewMe } from '@/features/crew/crewApi'
+import { ByJobRole, JobRoleLine } from '@/features/job/ByJobRole'
 import { useJob, type Job } from '@/features/job/jobApi'
 import { JobHeader } from '@/features/job/JobHeader'
 import { customerMeta } from '@/features/job/jobMeta'
@@ -22,13 +24,17 @@ import { isNotFound, problemMessage } from '@/lib/problemMessage'
 import { redirectTo } from '@/lib/redirect'
 import { cn } from '@/lib/utils'
 import {
+  useBalance,
   useCreatePaymentOrder,
   useJobFunding,
   useMentorJobFunding,
   type FundingMilestone,
   type JobFunding,
+  type MentorFundingMilestone,
   type MentorJobFunding,
 } from './paymentApi'
+import { PartLines } from './PartLines'
+import { finalText, partyName, pendingText, pendingTone } from './partText'
 import { RefundLine } from './RefundLine'
 import { TestTag } from '@/components/TestTag'
 import { TestModeBanner } from './TestModeBanner'
@@ -49,10 +55,12 @@ const ORDER_TONE: Record<string, string> = {
 }
 
 /**
- * JOB-7 for the Customer (`/cong-viec/{jobId}/thanh-toan`, FR-41, FR-45, AD-14): N-13, each Milestone
- * with its state and "Thanh toán" for the next one (or why it waits), and the Payment Orders.
- * "Thanh toán" creates the order and goes to VNPay's sandbox page in the same tab; CUS-9 shows the
- * result. The Job's Mentor reads JOB-7 from its own Assignee DTO, with each release by party (AD-20).
+ * JOB-7 (`/cong-viec/{jobId}/thanh-toan`, FR-41, FR-44, FR-45, AD-14, AD-20), one variant per role in the Job. The
+ * Customer's: N-13, each Milestone with its state and "Thanh toán" for the next one (or why it waits), and the
+ * Payment Orders; "Thanh toán" creates the order and goes to VNPay's sandbox page in the same tab, and CUS-9 shows the
+ * result. It never shows a part, a party, a pool, or a split. The Mentor's reads its own Assignee DTO: each
+ * Milestone's split pending as "Chờ phân chia" with its pool, then each party's part. A Crew member's shows their own
+ * lines of this Job from MEN-7 (Story 22.5, UX-DR106), and nothing for a member of no split yet.
  */
 export function JobPaymentPage() {
   const { jobId } = useParams()
@@ -61,7 +69,56 @@ export function JobPaymentPage() {
       jobId={jobId}
       customer={() => <CustomerPayment jobId={jobId ?? ''} />}
       mentor={() => <MentorPayment jobId={jobId ?? ''} />}
+      crew={() => <CrewPayment jobId={jobId ?? ''} />}
     />
+  )
+}
+
+/**
+ * A Crew member's JOB-7: their own parts of this Job and the status of the splits they are a party of, read from
+ * MEN-7's lines, so one access rule covers both and nobody else's line can show. A member before their signature finds
+ * nothing, as on JOB-1.
+ */
+function CrewPayment({ jobId }: { jobId: string }) {
+  const me = useCrewMe(jobId)
+  const balance = useBalance()
+  usePageTitle(me.data ? t('screen.payment.title', { job: me.data.title }) : t('screen.job.title'))
+  if (me.isError && isNotFound(me.error)) {
+    return <NotFoundScreen />
+  }
+  const lines = balance.data?.lines.filter((line) => line.jobId === jobId) ?? []
+  return (
+    <div className="mx-auto flex max-w-[1120px] flex-col gap-5 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+      <div className="flex flex-col gap-3">
+        <Link
+          to={`/cong-viec/${jobId}`}
+          className="w-fit text-label text-muted-foreground underline-offset-4 hover:underline"
+        >
+          {t('screen.split.back')}
+        </Link>
+        <RegionState query={me} skeleton={<Skeleton className="h-10 w-full" />}>
+          {me.data && <PageHeading>{t('screen.payment.title', { job: me.data.title })}</PageHeading>}
+        </RegionState>
+        <JobRoleLine jobId={jobId} />
+      </div>
+      <TestModeBanner />
+      <section aria-labelledby="crew-parts-heading" className="flex flex-col gap-2.5">
+        <h2 id="crew-parts-heading" className="text-h2">
+          {t('screen.payment.history.partsTitle')}
+        </h2>
+        <p className="text-body-sm text-muted-foreground">{t('screen.payment.crew.lead')}</p>
+        <RegionState query={balance} skeleton={<Skeleton className="h-32 w-full" />}>
+          {balance.data &&
+            (lines.length === 0 ? (
+              <p className="rounded-lg border border-border bg-card p-5 text-body-sm text-muted-foreground">
+                {t('screen.payment.crew.empty')}
+              </p>
+            ) : (
+              <PartLines lines={lines} crew={false} job={false} />
+            ))}
+        </RegionState>
+      </section>
+    </div>
   )
 }
 
@@ -97,47 +154,7 @@ function MentorFunding({ funding }: { funding: MentorJobFunding }) {
           {t('screen.payment.milestonesTitle')}
         </h2>
         {funding.milestones.map((milestone) => (
-          <article key={milestone.milestoneId} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5 text-body-sm">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-h3 break-words">{t('screen.payment.row', { n: milestone.number, title: milestone.title })}</h3>
-              <span className={cn('rounded-full px-2 py-0.5 text-caption font-semibold', STATE_TONE[milestone.state] ?? 'bg-muted')}>
-                {t(`screen.payment.milestoneState.${milestone.state}` as MessageKey)}
-              </span>
-            </div>
-            <p className="flex flex-wrap gap-x-5 gap-y-1 tabular-nums">
-              <span>
-                {t('screen.payment.amount')}: {formatVnd(milestone.priceVnd)} <TestTag />
-              </span>
-              <span>
-                {t('screen.payment.funded')}: {formatVnd(milestone.fundedVnd + milestone.topUpVnd)} <TestTag />
-              </span>
-              <span>
-                {t('screen.payment.released')}: {formatVnd(milestone.releasedTotalVnd)} <TestTag />
-              </span>
-            </p>
-            <p className="text-label font-semibold">{t('screen.payment.mentor.releasesTitle')}</p>
-            {milestone.releases.length === 0 ? (
-              <p className="text-muted-foreground">{t('screen.payment.mentor.noReleases')}</p>
-            ) : (
-              <ul className="flex flex-col gap-1">
-                {milestone.releases.map((release, index) => (
-                  <li key={`${release.name}-${index}`} className="flex flex-wrap items-center gap-2 tabular-nums">
-                    <span className="font-semibold">{release.name}</span>
-                    <span className="text-caption text-muted-foreground">{t(`screen.payment.mentor.role.${release.role}` as MessageKey)}</span>
-                    <span>
-                      {formatVnd(release.amountVnd)} <TestTag />
-                    </span>
-                    {release.percent != null && <span>{t('screen.payment.balance.percent', { n: release.percent })}</span>}
-                    {release.splitVersionNo != null && (
-                      <span className="text-caption text-muted-foreground">
-                        {t('screen.payment.balance.version', { n: release.splitVersionNo })}
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </article>
+          <MentorMilestone key={milestone.milestoneId} jobId={funding.jobId} milestone={milestone} />
         ))}
       </section>
       <section aria-labelledby="mentor-orders-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5">
@@ -162,6 +179,81 @@ function MentorFunding({ funding }: { funding: MentorJobFunding }) {
         )}
       </section>
     </>
+  )
+}
+
+/**
+ * One Milestone of the Mentor's JOB-7. While its split has not paid out, "Đã chuyển" hides, since it counts the pool,
+ * and the pooled amount shows as "Chờ phân chia" with the way to JOB-10 (UX-DR106); then each party's final part, an
+ * erased person's as JOB-10 names them.
+ */
+function MentorMilestone({ jobId, milestone }: { jobId: string; milestone: MentorFundingMilestone }) {
+  const pending = milestone.pooledVnd != null && !milestone.paid
+  const final =
+    milestone.splitStatus === 'FINAL' && !pending ? finalText(milestone.finality, milestone.finalAt) : undefined
+  return (
+    <article className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5 text-body-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-h3 break-words">{t('screen.payment.row', { n: milestone.number, title: milestone.title })}</h3>
+        <span className={cn('rounded-full px-2 py-0.5 text-caption font-semibold', STATE_TONE[milestone.state] ?? 'bg-muted')}>
+          {t(`screen.payment.milestoneState.${milestone.state}` as MessageKey)}
+        </span>
+      </div>
+      <p className="flex flex-wrap gap-x-5 gap-y-1 tabular-nums">
+        <span>
+          {t('screen.payment.amount')}: {formatVnd(milestone.priceVnd)} <TestTag />
+        </span>
+        <span>
+          {t('screen.payment.funded')}: {formatVnd(milestone.fundedVnd + milestone.topUpVnd)} <TestTag />
+        </span>
+        {!pending && (
+          <span>
+            {t('screen.payment.released')}: {formatVnd(milestone.releasedTotalVnd)} <TestTag />
+          </span>
+        )}
+      </p>
+      <p className="text-label font-semibold">{t('screen.payment.mentor.releasesTitle')}</p>
+      {pending ? (
+        <div className="flex flex-col items-start gap-1">
+          <span
+            className={cn('rounded-full px-2 py-0.5 text-caption font-semibold', pendingTone(milestone.splitStatus))}
+          >
+            {pendingText(milestone.splitStatus)}
+          </span>
+          <p className="tabular-nums">
+            {formatVnd(milestone.pooledVnd ?? 0)} <TestTag />{' '}
+            {t('screen.split.ofMilestonePending', { n: milestone.number })}
+          </p>
+          <Link
+            to={`/cong-viec/${jobId}/phan-chia/${milestone.milestoneId}`}
+            className="text-primary underline-offset-4 hover:underline"
+          >
+            {t('screen.payment.balance.openSplit')}
+          </Link>
+        </div>
+      ) : milestone.releases.length === 0 ? (
+        <p className="text-muted-foreground">{t('screen.payment.mentor.noReleases')}</p>
+      ) : (
+        <ul className="flex flex-col gap-1">
+          {milestone.releases.map((release, index) => (
+            <li key={`${release.name}-${index}`} className="flex flex-wrap items-center gap-2 tabular-nums">
+              <span className="font-semibold break-words">{partyName(release)}</span>
+              <span className="text-caption text-muted-foreground">{t(`screen.payment.mentor.role.${release.role}` as MessageKey)}</span>
+              <span>
+                {formatVnd(release.amountVnd)} <TestTag />
+              </span>
+              {release.percent != null && <span>{t('screen.payment.balance.percent', { n: release.percent })}</span>}
+              {release.splitVersionNo != null && (
+                <span className="text-caption text-muted-foreground">
+                  {t('screen.payment.balance.version', { n: release.splitVersionNo })}
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {final && <p className="text-caption text-muted-foreground">{final}</p>}
+    </article>
   )
 }
 
